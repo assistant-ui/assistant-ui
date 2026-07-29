@@ -19,10 +19,7 @@ import {
 } from "./useAISDKRuntime";
 import type { ChatInit, ChatTransport } from "ai";
 import { AssistantChatTransport } from "./AssistantChatTransport";
-import type {
-  AssistantChatResumableOptions,
-  ResumableClientStorage,
-} from "../resumable";
+import type { AssistantChatResumableOptions } from "../resumable";
 import {
   useCallback,
   useEffect,
@@ -86,6 +83,10 @@ const getResumableAdapter = <UI_MESSAGE extends UIMessage>(
 };
 
 const getNoPendingStreamId = () => null;
+
+const createResumedStreamIds = (
+  _storage: AssistantChatResumableOptions["storage"] | undefined,
+) => new Set<string>();
 
 const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   options?: UseChatRuntimeOptions<UI_MESSAGE>,
@@ -175,35 +176,24 @@ const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   const isChatRunning =
     chat.status === "submitted" || chat.status === "streaming";
 
-  const resumedStreamIdsByStorageRef = useRef(
-    new WeakMap<ResumableClientStorage, Set<string>>(),
+  const resumedStreamIds = useMemo(
+    () => createResumedStreamIds(resumableStorage),
+    [resumableStorage],
   );
-  let resumedStreamIds: Set<string> | undefined;
-  if (resumableStorage) {
-    resumedStreamIds =
-      resumedStreamIdsByStorageRef.current.get(resumableStorage);
-    if (!resumedStreamIds) {
-      resumedStreamIds = new Set();
-      resumedStreamIdsByStorageRef.current.set(
-        resumableStorage,
-        resumedStreamIds,
-      );
-    }
-  }
   const onResumeErrorRef = useRef(onResumeError);
   useEffect(() => {
     onResumeErrorRef.current = onResumeError;
   });
   useEffect(() => {
-    if (!pendingStreamId || resumedStreamIds?.has(pendingStreamId)) {
+    if (!pendingStreamId || resumedStreamIds.has(pendingStreamId)) {
       return;
     }
     if (isChatRunning) {
-      resumedStreamIds?.add(pendingStreamId);
+      resumedStreamIds.add(pendingStreamId);
       return;
     }
     if (isLoadingHistory) return;
-    resumedStreamIds?.add(pendingStreamId);
+    resumedStreamIds.add(pendingStreamId);
     chat.resumeStream().catch((err: unknown) => {
       console.warn("[assistant-ui] resumable: resume failed", err);
       try {
