@@ -36,6 +36,7 @@ export type McpServerResourceProps = {
   autoConnect: boolean;
   connectionTimeout?: number | undefined;
   cache?: { readonly defaultTtlMs?: number } | undefined;
+  readonly elicitation?: boolean;
   onRemove: () => Promise<void>;
 };
 
@@ -247,9 +248,9 @@ const useMcpServerResource = (
       generation: number,
     ): Promise<boolean> => {
       const clientOptions: ClientOptions = {
-        capabilities: {
-          elicitation: {},
-        },
+        ...(props.elicitation === false
+          ? {}
+          : { capabilities: { elicitation: {} } }),
         listChanged: {
           tools: {
             autoRefresh: true,
@@ -277,52 +278,54 @@ const useMcpServerResource = (
         },
         clientOptions,
       );
-      client.setRequestHandler(
-        "elicitation/create",
-        (request: ElicitRequest, context): Promise<ElicitResult> => {
-          if (!isCurrentConnection(generation)) {
-            return Promise.resolve({ action: "cancel" });
-          }
-          if (!("requestedSchema" in request.params)) {
-            return Promise.resolve({ action: "cancel" });
-          }
-          const { message, requestedSchema } = request.params;
-
-          const id =
-            typeof crypto !== "undefined" && "randomUUID" in crypto
-              ? crypto.randomUUID()
-              : `mcp-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-          const promise = new Promise<ElicitResult>((resolve) => {
-            const onAbort = () => {
-              resolvePendingElicitation(id, { action: "cancel" });
-            };
-            elicitationResolversRef.current.set(id, {
-              resolve,
-              signal: context.signal,
-              onAbort,
-            });
-          });
-          setPendingElicitations((current) => [
-            ...current,
-            {
-              id,
-              message,
-              requestedSchema,
-            },
-          ]);
-          const entry = elicitationResolversRef.current.get(id);
-          if (entry) {
-            if (context.signal.aborted) {
-              entry.onAbort();
-            } else {
-              context.signal.addEventListener("abort", entry.onAbort, {
-                once: true,
-              });
+      if (props.elicitation !== false) {
+        client.setRequestHandler(
+          "elicitation/create",
+          (request: ElicitRequest, context): Promise<ElicitResult> => {
+            if (!isCurrentConnection(generation)) {
+              return Promise.resolve({ action: "cancel" });
             }
-          }
-          return promise;
-        },
-      );
+            if (!("requestedSchema" in request.params)) {
+              return Promise.resolve({ action: "cancel" });
+            }
+            const { message, requestedSchema } = request.params;
+
+            const id =
+              typeof crypto !== "undefined" && "randomUUID" in crypto
+                ? crypto.randomUUID()
+                : `mcp-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+            const promise = new Promise<ElicitResult>((resolve) => {
+              const onAbort = () => {
+                resolvePendingElicitation(id, { action: "cancel" });
+              };
+              elicitationResolversRef.current.set(id, {
+                resolve,
+                signal: context.signal,
+                onAbort,
+              });
+            });
+            setPendingElicitations((current) => [
+              ...current,
+              {
+                id,
+                message,
+                requestedSchema,
+              },
+            ]);
+            const entry = elicitationResolversRef.current.get(id);
+            if (entry) {
+              if (context.signal.aborted) {
+                entry.onAbort();
+              } else {
+                context.signal.addEventListener("abort", entry.onAbort, {
+                  once: true,
+                });
+              }
+            }
+            return promise;
+          },
+        );
+      }
       const startedAt = Date.now();
       await withConnectionTimeout(
         client.connect(transport),

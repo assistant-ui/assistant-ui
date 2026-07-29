@@ -81,6 +81,7 @@ type MCPConnector = {
   auth: MCPAuthConfig;
   connectionTimeout?: number | undefined;
   readonly cache?: MCPResponseCacheConfig | undefined;
+  readonly elicitation?: boolean;
 };
 
 type MCPCustomServerRecord = {
@@ -90,6 +91,7 @@ type MCPCustomServerRecord = {
   auth: MCPAuthConfig;
   connectionTimeout?: number | undefined;
   readonly cache?: MCPResponseCacheConfig | undefined;
+  readonly elicitation?: boolean;
   createdAt: number;
 };
 
@@ -123,6 +125,7 @@ type MCPManagerMethods = {
     auth: MCPAuthConfig;
     connectionTimeout?: number | undefined;
     readonly cache?: MCPResponseCacheConfig | undefined;
+    readonly elicitation?: boolean;
   }) => Promise<string>;
   removeServer: (id: string) => Promise<void>;
 };
@@ -544,6 +547,7 @@ type McpServerResourceProps = {
   cache?: {
     readonly defaultTtlMs?: number;
   } | undefined;
+  readonly elicitation?: boolean;
   onRemove: () => Promise<void>;
 };
 

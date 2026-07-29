@@ -89,6 +89,7 @@ type MCPConnector = {
   auth: MCPAuthConfig;
   connectionTimeout?: number;
   cache?: { defaultTtlMs?: number };
+  elicitation?: boolean;
 };
 defineConnector(c: MCPConnector): MCPConnector;
 ```
@@ -103,6 +104,7 @@ type MCPCustomServerRecord = {
   auth: MCPAuthConfig;
   connectionTimeout?: number;
   cache?: { defaultTtlMs?: number };
+  elicitation?: boolean;
   createdAt: number;
 };
 ```
@@ -162,7 +164,7 @@ declare module "@assistant-ui/store" {
 type MCPManagerMethods = {
   getState: () => MCPManagerState;
   server: (lookup: { id: string }) => MCPServerMethods;
-  addCustomServer: (input: { name: string; url: string; auth: MCPAuthConfig; connectionTimeout?: number }) => Promise<string>;
+  addCustomServer: (input: { name: string; url: string; auth: MCPAuthConfig; connectionTimeout?: number; elicitation?: boolean }) => Promise<string>;
   removeServer: (id: string) => Promise<void>;
 };
 
@@ -337,7 +339,7 @@ Render form-mode elicitation inside a server-scoped subtree. Each item owns an i
 
 `useMcpElicitation()` reads the current request inside `Items`. `useMcpElicitationField()` reads the current field inside the element returned from the `Fields` render function.
 
-`Accept` does not submit while a required field is absent or empty, and exposes `data-missing-required` in that state. It converts parseable string values from flat `number` and `integer` properties to numbers before submitting the response content.
+`Accept` sets `data-missing-required` when required fields are absent or empty and `data-invalid` to comma-joined invalid property names when validation fails. It is disabled until both conditions are empty. Absent required boolean properties are submitted with the schema's boolean `default` when one is present, otherwise `false`; optional booleans remain omitted. It converts parseable string values from flat `number` and `integer` properties to numbers before submitting the response content.
 
 ## 6. Lifecycle
 

@@ -25,6 +25,7 @@ export type MCPConnector = {
   auth: MCPAuthConfig;
   connectionTimeout?: number | undefined;
   readonly cache?: MCPResponseCacheConfig | undefined;
+  readonly elicitation?: boolean;
 };
 
 export type MCPCustomServerRecord = {
@@ -34,6 +35,7 @@ export type MCPCustomServerRecord = {
   auth: MCPAuthConfig;
   connectionTimeout?: number | undefined;
   readonly cache?: MCPResponseCacheConfig | undefined;
+  readonly elicitation?: boolean;
   createdAt: number;
 };
 
@@ -118,6 +120,7 @@ export type MCPManagerMethods = {
     auth: MCPAuthConfig;
     connectionTimeout?: number | undefined;
     readonly cache?: MCPResponseCacheConfig | undefined;
+    readonly elicitation?: boolean;
   }) => Promise<string>;
   removeServer: (id: string) => Promise<void>;
 };

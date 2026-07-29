@@ -79,21 +79,56 @@ describe("prepareElicitationContent", () => {
     });
   });
 
-  it("accepts missing required booleans as false", () => {
+  it("seeds required booleans with a true schema default", () => {
     expect(
       prepareElicitationContent(
         {
           type: "object",
-          required: ["enabled", "name"],
+          required: ["enabled"],
           properties: {
-            enabled: { type: "boolean" },
-            name: { type: "string" },
+            enabled: { type: "boolean", default: true },
           },
         },
-        { name: "Ada" },
+        {},
       ),
     ).toEqual({
-      content: { name: "Ada", enabled: false },
+      content: { enabled: true },
+      missingRequired: [],
+      invalid: [],
+    });
+  });
+
+  it("seeds required booleans with a false schema default", () => {
+    expect(
+      prepareElicitationContent(
+        {
+          type: "object",
+          required: ["enabled"],
+          properties: {
+            enabled: { type: "boolean", default: false },
+          },
+        },
+        {},
+      ),
+    ).toEqual({
+      content: { enabled: false },
+      missingRequired: [],
+      invalid: [],
+    });
+  });
+
+  it("seeds required booleans without a schema default as false", () => {
+    expect(
+      prepareElicitationContent(
+        {
+          type: "object",
+          required: ["enabled"],
+          properties: { enabled: { type: "boolean" } },
+        },
+        {},
+      ),
+    ).toEqual({
+      content: { enabled: false },
       missingRequired: [],
       invalid: [],
     });
@@ -129,6 +164,33 @@ describe("prepareElicitationContent", () => {
       missingRequired: [],
       invalid: [],
     });
+  });
+
+  it("treats undefined and empty optional boolean drafts as absent", () => {
+    expect(
+      prepareElicitationContent(
+        {
+          type: "object",
+          properties: {
+            enabled: { type: "boolean" },
+            sendEmail: { type: "boolean" },
+          },
+        },
+        { enabled: undefined, sendEmail: "" },
+      ),
+    ).toEqual({ content: {}, missingRequired: [], invalid: [] });
+  });
+
+  it("flags and excludes mistyped boolean draft values", () => {
+    expect(
+      prepareElicitationContent(
+        {
+          type: "object",
+          properties: { enabled: { type: "boolean" } },
+        },
+        { enabled: "true" },
+      ),
+    ).toEqual({ content: {}, missingRequired: [], invalid: ["enabled"] });
   });
 
   it("reports required draft values that are absent or empty", () => {

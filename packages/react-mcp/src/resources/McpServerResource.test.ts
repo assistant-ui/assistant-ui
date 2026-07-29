@@ -149,6 +149,7 @@ const mount = (
     auth?: MCPAuthConfig | undefined;
     connectionTimeout?: number | undefined;
     cache?: { readonly defaultTtlMs?: number } | undefined;
+    elicitation?: boolean | undefined;
   },
   onMount?: (server: ClientOutput<"mcpServer">) => void,
 ) => {
@@ -168,6 +169,9 @@ const mount = (
         autoConnect: false,
         connectionTimeout,
         cache: props?.cache,
+        ...(props?.elicitation !== undefined
+          ? { elicitation: props.elicitation }
+          : {}),
         onRemove: vi.fn(async () => {}),
       }),
     );
@@ -773,7 +777,7 @@ describe("McpServerResource elicitation", () => {
     }
   });
 
-  it("advertises form elicitation capability", async () => {
+  it("advertises form elicitation capability and registers its handler by default", async () => {
     const root = mount();
 
     try {
@@ -796,6 +800,27 @@ describe("McpServerResource elicitation", () => {
             },
           },
         },
+      );
+      expect(mocks.clients[0].setRequestHandler).toHaveBeenCalledWith(
+        "elicitation/create",
+        expect.any(Function),
+      );
+    } finally {
+      root.unmount();
+    }
+  });
+
+  it("does not advertise or handle elicitation when opted out", async () => {
+    const root = mount({ elicitation: false });
+
+    try {
+      await root.getValue().connect();
+
+      const clientOptions = mocks.Client.mock.calls[0]?.[1];
+      expect(clientOptions).not.toHaveProperty("capabilities.elicitation");
+      expect(mocks.clients[0].setRequestHandler).not.toHaveBeenCalledWith(
+        "elicitation/create",
+        expect.any(Function),
       );
     } finally {
       root.unmount();
