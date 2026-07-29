@@ -23,11 +23,11 @@ const MAX_TASK_RUNS_PER_FLUSH = 50;
 const MAX_TASKS_PER_FLUSH = 1000;
 // Last-resort termination, documented as the real bound: nothing can
 // distinguish a huge finite cascade from an infinite one, so a burst that
-// runs more than this many tasks in total (~33x the repro, ~= 6600
+// runs more than this many tasks in total (~80x the repro, ~= 16000
 // messages in one update) is declared a loop and reported. The queue is
 // never dropped; a stalled remainder continues on the next triggered
 // flush.
-const MAX_BURST_TASKS = 20000;
+const MAX_BURST_TASKS = 50000;
 let flushState: GlobalFlushState = newFlushState();
 
 export class UpdateScheduler {
@@ -93,13 +93,25 @@ export const throwCollectedErrors = (
 
 // Drains flushState.schedulers (Set iteration also visits schedulers
 // re-added mid-pass, so bulk updates of any size land in a single batch)
-// and appends failures to `errors` instead of throwing. Termination is
-// guaranteed by the two guards: every scheduler runs at most
-// MAX_TASK_RUNS_PER_FLUSH times, and the pass aborts at MAX_TASKS_PER_FLUSH
-// tasks, keeping the remainder queued for the next triggered flush.
-const flushScheduled = (errors: CollectedErrors, defer = true): number => {
-  const runCounts = new Map<UpdateScheduler, number>();
-  const errorContributors = new Map<UpdateScheduler, Set<string>>();
+// and appends failures to `errors` instead of throwing.
+//
+// The re-run guard has two modes by necessity: on the macrotask path the
+// offender is SKIPPED and retried next pass (a deep-but-finite cascade
+// still finishes; a true loop burns MAX_TASK_RUNS_PER_FLUSH runs and
+// reports once per pass); inside flushTapSync there is no next pass, so
+// the caller shares one runCounts map across passes and the offender is
+// DROPPED at the limit, terminating the drain at ~50 runs like main.
+const flushScheduled = (
+  errors: CollectedErrors,
+  defer = true,
+  shared?: {
+    runCounts: Map<UpdateScheduler, number>;
+    errorContributors: Map<UpdateScheduler, Set<string>>;
+  },
+): number => {
+  const runCounts = shared?.runCounts ?? new Map<UpdateScheduler, number>();
+  const errorContributors =
+    shared?.errorContributors ?? new Map<UpdateScheduler, Set<string>>();
   let taskCount = 0;
 
   let hitCeiling = false;
@@ -112,11 +124,10 @@ const flushScheduled = (errors: CollectedErrors, defer = true): number => {
       }
       const runs = (runCounts.get(scheduler) ?? 0) + 1;
       if (runs > MAX_TASK_RUNS_PER_FLUSH) {
-        // Skipped, not dropped: the offender stays queued and is retried
-        // next pass, so a deep-but-finite cascade still finishes while a
-        // true loop just burns MAX_TASK_RUNS_PER_FLUSH runs per pass and
-        // reports each time.
         reportDepthError(errors);
+        if (shared) {
+          flushState.schedulers.delete(scheduler);
+        }
         continue;
       }
       flushState.schedulers.delete(scheduler);
@@ -209,14 +220,24 @@ export const flushTapSync = <T>(callback: () => T): T => {
     // the burst bound only fires for a runaway, whose remainder is handed
     // back to the outer state (see finally) rather than orphaned.
     const errors: CollectedErrors = [];
+    // One run budget for the whole sync drain: a looping scheduler is
+    // dropped at ~MAX_TASK_RUNS_PER_FLUSH total runs (like main), and the
+    // burst bound only fires for a runaway, whose remainder is handed
+    // back to the outer state (see finally) rather than orphaned.
+    const shared = {
+      runCounts: new Map<UpdateScheduler, number>(),
+      errorContributors: new Map<UpdateScheduler, Set<string>>(),
+    };
     let total = 0;
     while (flushState.schedulers.size > 0) {
       if (total > MAX_BURST_TASKS) {
         reportDepthError(errors);
-        leftover.push(...flushState.schedulers);
+        for (const scheduler of flushState.schedulers) {
+          leftover.push(scheduler);
+        }
         break;
       }
-      total += flushScheduled(errors, false);
+      total += flushScheduled(errors, false, shared);
     }
     throwCollectedErrors(errors);
 
