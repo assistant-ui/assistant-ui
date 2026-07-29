@@ -2,6 +2,7 @@ import { SSEEventDecoder, type SSEEvent } from "assistant-stream/utils";
 import { isRecord } from "@assistant-ui/core/internal";
 import type {
   A2AAgentCard,
+  A2AArtifact,
   A2AErrorInfo,
   A2AListTaskPushNotificationConfigsResponse,
   A2AListTasksRequest,
@@ -11,8 +12,11 @@ import type {
   A2ASendMessageConfiguration,
   A2AStreamEvent,
   A2ATask,
+  A2ATaskArtifactUpdateEvent,
   A2ATaskPushNotificationConfig,
   A2ATaskState,
+  A2ATaskStatus,
+  A2ATaskStatusUpdateEvent,
 } from "./types";
 import { A2A_PROTOCOL_VERSION } from "./types";
 
@@ -120,40 +124,6 @@ function toWireMessage(msg: A2AMessage): unknown {
   return { ...msg, role: toWireRole(msg.role) };
 }
 
-function discriminateStreamResponse(
-  data: Record<string, unknown>,
-): A2AStreamEvent | null {
-  if ("task" in data && data.task) {
-    return { type: "task", task: data.task as A2ATask };
-  }
-  if ("message" in data && data.message) {
-    return { type: "message", message: data.message as A2AMessage };
-  }
-  if ("statusUpdate" in data && data.statusUpdate) {
-    return {
-      type: "statusUpdate",
-      event: data.statusUpdate as A2AStreamEvent extends {
-        type: "statusUpdate";
-        event: infer E;
-      }
-        ? E
-        : never,
-    };
-  }
-  if ("artifactUpdate" in data && data.artifactUpdate) {
-    return {
-      type: "artifactUpdate",
-      event: data.artifactUpdate as A2AStreamEvent extends {
-        type: "artifactUpdate";
-        event: infer E;
-      }
-        ? E
-        : never,
-    };
-  }
-  return null;
-}
-
 const TASK_STATES: ReadonlySet<string> = new Set(
   Object.keys({
     unspecified: true,
@@ -186,6 +156,82 @@ const isMessage = (value: unknown): value is A2AMessage =>
   value.role.length > 0 &&
   Array.isArray(value.parts) &&
   value.parts.every(isRecord);
+
+const isTaskStatus = (value: unknown): value is A2ATaskStatus =>
+  isRecord(value) &&
+  isTaskState(value.state) &&
+  (value.message == null || isMessage(value.message));
+
+const isArtifact = (value: unknown): value is A2AArtifact =>
+  isRecord(value) &&
+  typeof value.artifactId === "string" &&
+  value.artifactId.length > 0 &&
+  Array.isArray(value.parts) &&
+  value.parts.every(isRecord);
+
+const isTaskStatusUpdateEvent = (
+  value: unknown,
+): value is A2ATaskStatusUpdateEvent =>
+  isRecord(value) &&
+  typeof value.taskId === "string" &&
+  value.taskId.length > 0 &&
+  typeof value.contextId === "string" &&
+  value.contextId.length > 0 &&
+  isTaskStatus(value.status);
+
+const isTaskArtifactUpdateEvent = (
+  value: unknown,
+): value is A2ATaskArtifactUpdateEvent =>
+  isRecord(value) &&
+  typeof value.taskId === "string" &&
+  value.taskId.length > 0 &&
+  typeof value.contextId === "string" &&
+  value.contextId.length > 0 &&
+  isArtifact(value.artifact) &&
+  (value.append == null || typeof value.append === "boolean") &&
+  (value.lastChunk == null || typeof value.lastChunk === "boolean");
+
+const invalidStreamEvent = (): never => {
+  throw new Error(
+    "Invalid A2A stream event: expected exactly one valid task, message, statusUpdate, or artifactUpdate payload.",
+  );
+};
+
+const STREAM_PAYLOAD_KEYS = [
+  "task",
+  "message",
+  "statusUpdate",
+  "artifactUpdate",
+] as const;
+
+function discriminateStreamResponse(data: unknown): A2AStreamEvent {
+  if (!isRecord(data)) return invalidStreamEvent();
+
+  const payloadKeys = STREAM_PAYLOAD_KEYS.filter((key) => key in data);
+  if (payloadKeys.length !== 1) return invalidStreamEvent();
+
+  const payloadKey = payloadKeys[0]!;
+  const payload = data[payloadKey];
+
+  switch (payloadKey) {
+    case "task":
+      return isTask(payload)
+        ? { type: "task", task: payload }
+        : invalidStreamEvent();
+    case "message":
+      return isMessage(payload)
+        ? { type: "message", message: payload }
+        : invalidStreamEvent();
+    case "statusUpdate":
+      return isTaskStatusUpdateEvent(payload)
+        ? { type: "statusUpdate", event: payload }
+        : invalidStreamEvent();
+    case "artifactUpdate":
+      return isTaskArtifactUpdateEvent(payload)
+        ? { type: "artifactUpdate", event: payload }
+        : invalidStreamEvent();
+  }
+}
 
 const isStringArray = (value: unknown): value is string[] =>
   Array.isArray(value) && value.every((item) => typeof item === "string");
@@ -617,24 +663,19 @@ export class A2AClient {
     const decoder = new TextDecoder();
     const sseDecoder = new SSEEventDecoder();
 
-    const readEvent = (event: SSEEvent): A2AStreamEvent | null => {
+    const readEvent = (event: SSEEvent): A2AStreamEvent => {
+      let parsed: unknown;
       try {
-        let parsed = JSON.parse(event.data);
-
-        if (
-          parsed &&
-          typeof parsed === "object" &&
-          "jsonrpc" in parsed &&
-          "result" in parsed
-        ) {
-          parsed = parsed.result;
-        }
-
-        const normalized = normalizeKeys(parsed) as Record<string, unknown>;
-        return discriminateStreamResponse(normalized);
+        parsed = JSON.parse(event.data);
       } catch {
-        return null;
+        throw new Error("Invalid A2A stream event: expected valid JSON.");
       }
+
+      if (isRecord(parsed) && "jsonrpc" in parsed && "result" in parsed) {
+        parsed = parsed.result;
+      }
+
+      return discriminateStreamResponse(normalizeKeys(parsed));
     };
 
     let shouldCancel = true;
@@ -652,8 +693,7 @@ export class A2AClient {
         if (done) {
           shouldCancel = false;
           for (const event of sseDecoder.push(decoder.decode())) {
-            const parsed = readEvent(event);
-            if (parsed) yield parsed;
+            yield readEvent(event);
           }
           break;
         }
@@ -661,8 +701,7 @@ export class A2AClient {
         for (const event of sseDecoder.push(
           decoder.decode(value, { stream: true }),
         )) {
-          const parsed = readEvent(event);
-          if (parsed) yield parsed;
+          yield readEvent(event);
         }
       }
     } finally {
