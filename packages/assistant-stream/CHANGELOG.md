@@ -1,5 +1,11 @@
 # assistant-stream
 
+## 0.3.30
+
+### Patch Changes
+
+- [#5284](https://github.com/assistant-ui/assistant-ui/pull/5284) [`a8cd1c9`](https://github.com/assistant-ui/assistant-ui/commit/a8cd1c9ff95bae0921cbd7f7930c05be6d6192a0) - fix: addToolCallPart({response}) settles the tool-call part so the stream closes ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
 ## 0.3.29
 
 ### Patch Changes

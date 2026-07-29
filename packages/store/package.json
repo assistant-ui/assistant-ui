@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/store",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Tap-based state management for @assistant-ui",
   "keywords": [
     "state-management",

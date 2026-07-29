@@ -3508,7 +3508,7 @@ importers:
   packages/core:
     dependencies:
       assistant-stream:
-        specifier: ^0.3.29
+        specifier: ^0.3.30
         version: link:../assistant-stream
       nanoid:
         specifier: ^6.0.0
@@ -3701,10 +3701,10 @@ importers:
   packages/react:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.0
+        specifier: ^0.3.1
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.3.0
+        specifier: ^0.3.1
         version: link:../store
       '@assistant-ui/tap':
         specifier: ^0.9.7
@@ -3737,7 +3737,7 @@ importers:
         specifier: ^0.1.37
         version: link:../cloud
       assistant-stream:
-        specifier: ^0.3.29
+        specifier: ^0.3.30
         version: link:../assistant-stream
       nanoid:
         specifier: ^6.0.0
@@ -3989,7 +3989,7 @@ importers:
   packages/react-generative-ui:
     dependencies:
       assistant-stream:
-        specifier: ^0.3.29
+        specifier: ^0.3.30
         version: link:../assistant-stream
     devDependencies:
       '@assistant-ui/react':
@@ -4146,10 +4146,10 @@ importers:
   packages/react-ink-markdown:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.0
+        specifier: ^0.3.1
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.3.0
+        specifier: ^0.3.1
         version: link:../store
       markdansi:
         specifier: ^0.3.2
@@ -4226,16 +4226,16 @@ importers:
   packages/react-langgraph:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.0
+        specifier: ^0.3.1
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.3.0
+        specifier: ^0.3.1
         version: link:../store
       assistant-cloud:
         specifier: '*'
         version: link:../cloud
       assistant-stream:
-        specifier: ^0.3.29
+        specifier: ^0.3.30
         version: link:../assistant-stream
       uuid:
         specifier: ^14.0.1
@@ -4463,10 +4463,10 @@ importers:
   packages/react-opencode:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.0
+        specifier: ^0.3.1
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.3.0
+        specifier: ^0.3.1
         version: link:../store
       '@opencode-ai/sdk':
         specifier: ^1.18.5
@@ -4506,10 +4506,10 @@ importers:
   packages/react-pi:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.0
+        specifier: ^0.3.1
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.3.0
+        specifier: ^0.3.1
         version: link:../store
       use-effect-event:
         specifier: ^2.0.3

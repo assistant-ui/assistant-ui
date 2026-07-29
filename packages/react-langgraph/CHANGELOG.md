@@ -1,5 +1,34 @@
 # @assistant-ui/react-langgraph
 
+## 0.14.16
+
+### Patch Changes
+
+- [#5293](https://github.com/assistant-ui/assistant-ui/pull/5293) [`371ce37`](https://github.com/assistant-ui/assistant-ui/commit/371ce3724abf284779bdca8c048315869a05cbfa) - fix: honor LangChain RemoveMessage (type: "remove") in `updates` events instead of crashing ([@rupic-app](https://github.com/apps/rupic-app))
+
+  A LangGraph `updates` stream event carrying a `RemoveMessage` (history pruning,
+  `SummarizationMiddleware`, etc.) crashed the thread view with
+  `TypeError: Cannot read properties of undefined (reading 'role')`.
+  `extractMessagesFromUpdates` fed the remove message to the accumulator,
+  `convertLangChainMessages` returned `undefined` for the unknown `type`, and
+  `chunkExternalMessages` then read `.role` on that `undefined`.
+
+  `LangGraphMessageAccumulator.addMessages`/`addMessageWithMetadata` now delete
+  the message with the matching `id` (mirroring server-side `messagesStateReducer`
+  and the existing `remove-ui` handling in `applyUIUpdate`), and
+  `convertLangChainMessages` gains a `default` branch that returns `[]` for
+  unknown message types so the converter never returns `undefined` into a
+  `.role` read.
+
+  The `REMOVE_ALL_MESSAGES` sentinel (`id: "__remove_all__"`, emitted by e.g.
+  LangChain's `SummarizationMiddleware`) clears every accumulated message
+  immediately, matching the server-side reducer's clear-all semantics.
+
+- Updated dependencies [[`1bbaa46`](https://github.com/assistant-ui/assistant-ui/commit/1bbaa467b209986be5dff004be7bc83b27424e2c), [`3a762ed`](https://github.com/assistant-ui/assistant-ui/commit/3a762edd7e4645ea4aa50691bab680af73e5cff6), [`9aac054`](https://github.com/assistant-ui/assistant-ui/commit/9aac05421576813847c4bb0a9d9e864727725800), [`a8cd1c9`](https://github.com/assistant-ui/assistant-ui/commit/a8cd1c9ff95bae0921cbd7f7930c05be6d6192a0)]:
+  - @assistant-ui/core@0.3.1
+  - @assistant-ui/store@0.3.1
+  - assistant-stream@0.3.30
+
 ## 0.14.15
 
 ### Patch Changes

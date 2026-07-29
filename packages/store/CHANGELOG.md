@@ -1,5 +1,11 @@
 # @assistant-ui/store
 
+## 0.3.1
+
+### Patch Changes
+
+- [#5297](https://github.com/assistant-ui/assistant-ui/pull/5297) [`3a762ed`](https://github.com/assistant-ui/assistant-ui/commit/3a762edd7e4645ea4aa50691bab680af73e5cff6) - feat: optional state view — `s.optional.<scope>` resolves to `undefined` when the scope is unavailable instead of throwing, so `useAuiState((s) => s.optional.threadListItem?.remoteId)` works outside a thread list item. The base state stays non-optional and keeps throwing on unavailable scopes. ([@Yonom](https://github.com/Yonom))
+
 ## 0.3.0
 
 ### Minor Changes

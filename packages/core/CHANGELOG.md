@@ -1,5 +1,16 @@
 # @assistant-ui/core
 
+## 0.3.1
+
+### Patch Changes
+
+- [#5304](https://github.com/assistant-ui/assistant-ui/pull/5304) [`1bbaa46`](https://github.com/assistant-ui/assistant-ui/commit/1bbaa467b209986be5dff004be7bc83b27424e2c) - refactor: internal selectors read optional scopes via `s.optional.part` instead of guarding on `aui.part.source` ([@Yonom](https://github.com/Yonom))
+
+- [#5295](https://github.com/assistant-ui/assistant-ui/pull/5295) [`9aac054`](https://github.com/assistant-ui/assistant-ui/commit/9aac05421576813847c4bb0a9d9e864727725800) - fix: keep replacement runs cancellable after superseded runs settle ([@Kinfe123](https://github.com/Kinfe123))
+
+- Updated dependencies [[`a8cd1c9`](https://github.com/assistant-ui/assistant-ui/commit/a8cd1c9ff95bae0921cbd7f7930c05be6d6192a0)]:
+  - assistant-stream@0.3.30
+
 ## 0.3.0
 
 ### Minor Changes
