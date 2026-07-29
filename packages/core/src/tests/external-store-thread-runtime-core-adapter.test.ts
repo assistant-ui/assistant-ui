@@ -264,6 +264,54 @@ describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
       const lastCall = setMessages.mock.lastCall?.[0] as ThreadMessage[];
       expect(lastCall.map((m) => m.id)).not.toContain("server-msg");
     });
+
+    it("does not overwrite messages appended after cancel", async () => {
+      const initialMessages = [
+        createUserMessage("u1"),
+        createAssistantMessage("a1"),
+      ];
+      const appendedMessage = createUserMessage("u2", "Follow up");
+      const setMessages = vi.fn();
+      const onCancel = vi.fn();
+      let core!: ExternalStoreThreadRuntimeCore;
+      const onNew = vi.fn(async () => {
+        core.__internal_setAdapter(
+          createBaseAdapter({
+            messages: [...initialMessages, appendedMessage],
+            isRunning: true,
+            onCancel,
+            onNew,
+            setMessages,
+          }),
+        );
+      });
+      core = new ExternalStoreThreadRuntimeCore(
+        contextProvider,
+        createBaseAdapter({
+          messages: initialMessages,
+          isRunning: true,
+          onCancel,
+          onNew,
+          setMessages,
+        }),
+      );
+
+      core.cancelRun();
+      await core.append({
+        role: "user",
+        content: appendedMessage.content,
+        attachments: [],
+        createdAt: appendedMessage.createdAt,
+        parentId: "a1",
+        sourceId: null,
+        runConfig: undefined,
+        metadata: appendedMessage.metadata,
+      } as AppendMessage);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(setMessages).not.toHaveBeenCalled();
+      expect(core.messages.map((message) => message.id)).toContain("u2");
+    });
   });
 
   describe("optimistic assistant message", () => {
