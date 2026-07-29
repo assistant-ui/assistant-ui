@@ -14,15 +14,24 @@ export const createTapRoot = <R>(
 ): useTapRoot.Root<R> & { unmount: () => void } => {
   // One scheduler per root, mirroring useTapRoot: a per-scheduler re-run
   // guard then covers this root type too. Dispatches queue up and drain in
-  // order within a single flush task.
+  // order within a single flush task; a failing update must not discard
+  // the updates queued behind it, so entries are consumed one at a time
+  // and the first error is rethrown only after the rest were processed.
   const dispatchQueue: { evaluate: () => boolean; apply: () => boolean }[] = [];
   const scheduler = new UpdateScheduler(() => {
-    for (const { evaluate, apply } of dispatchQueue.splice(0)) {
-      if (evaluate()) {
-        apply();
-        throw new Error("Unexpected rerender of createTapRoot outer fiber");
+    let firstError: unknown = null;
+    while (dispatchQueue.length > 0) {
+      const { evaluate, apply } = dispatchQueue.shift()!;
+      try {
+        if (evaluate()) {
+          apply();
+          throw new Error("Unexpected rerender of createTapRoot outer fiber");
+        }
+      } catch (error) {
+        firstError ??= error;
       }
     }
+    if (firstError !== null) throw firstError;
     return false;
   });
 
