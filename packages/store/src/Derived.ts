@@ -1,23 +1,21 @@
 import { resource, type ResourceElement } from "@assistant-ui/tap";
-import { useSyncExternalStore } from "react";
 import type {
   AssistantClient,
   ClientNames,
   AssistantClientAccessor,
   ClientMeta,
 } from "./types/client";
-import { useBuildingClient } from "./utils/tap-assistant-context";
 
 type DerivedInstance<K extends ClientNames> = ReturnType<
   AssistantClientAccessor<K>
 >;
 
-export const useDerived = <K extends ClientNames>({
-  get,
-}: Derived.Props<K>): DerivedInstance<K> => {
-  const client = useBuildingClient();
-  const select = () => get(client) as DerivedInstance<K>;
-  return useSyncExternalStore(client.subscribe, select, select);
+// Never mounted: useAui resolves Derived scopes under React's dispatcher.
+// The hook only exists as the element identity that marks a scope as derived.
+export const useDerived = <K extends ClientNames>(
+  _props: Derived.Props<K>,
+): DerivedInstance<K> => {
+  throw new Error("Derived can only be used as a scope of useAui");
 };
 
 /**
