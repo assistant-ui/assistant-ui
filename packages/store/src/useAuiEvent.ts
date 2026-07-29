@@ -1,5 +1,4 @@
-import { useEffect } from "react";
-import { useEffectEvent } from "use-effect-event";
+import { useEffect, useEffectEvent } from "react";
 import { useAui } from "./useAui";
 import type {
   AssistantEventName,

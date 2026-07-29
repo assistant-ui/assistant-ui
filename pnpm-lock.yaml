@@ -4501,9 +4501,6 @@ importers:
       '@opencode-ai/sdk':
         specifier: ^1.18.5
         version: 1.18.5
-      use-effect-event:
-        specifier: ^2.0.3
-        version: 2.0.3(react@19.2.8)
     devDependencies:
       '@assistant-ui/react':
         specifier: workspace:*
@@ -4541,9 +4538,6 @@ importers:
       '@assistant-ui/store':
         specifier: ^0.3.1
         version: link:../store
-      use-effect-event:
-        specifier: ^2.0.3
-        version: 2.0.3(react@19.2.8)
     devDependencies:
       '@assistant-ui/react':
         specifier: workspace:*
@@ -4665,10 +4659,6 @@ importers:
         version: 4.1.10(@opentelemetry/api@1.9.1)(@types/node@26.1.1)(@vitest/coverage-v8@4.1.10)(@vitest/ui@4.1.10)(jsdom@29.1.1)(vite@8.1.5(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.1)(yaml@2.9.0))
 
   packages/store:
-    dependencies:
-      use-effect-event:
-        specifier: ^2.0.3
-        version: 2.0.3(react@19.2.8)
     devDependencies:
       '@assistant-ui/tap':
         specifier: workspace:*
@@ -17560,11 +17550,6 @@ packages:
     peerDependenciesMeta:
       '@types/react':
         optional: true
-
-  use-effect-event@2.0.3:
-    resolution: {integrity: sha512-fz1en+z3fYXCXx3nMB8hXDMuygBltifNKZq29zDx+xNJ+1vEs6oJlYd9sK31vxJ0YI534VUsHEBY0k2BATsmBQ==}
-    peerDependencies:
-      react: ^18.3 || ^19.0.0-0
 
   use-isomorphic-layout-effect@1.2.1:
     resolution: {integrity: sha512-tpZZ+EX0gaghDAiFR37hj5MgY6ZN55kLiPkJsKxBMZ6GZdOSPJXiOzPM984oPYZ5AnehYx5WQp1+ME8I/P/pRA==}
@@ -32333,10 +32318,6 @@ snapshots:
       react: 19.2.8
     optionalDependencies:
       '@types/react': 19.2.17
-
-  use-effect-event@2.0.3(react@19.2.8):
-    dependencies:
-      react: 19.2.8
 
   use-isomorphic-layout-effect@1.2.1(@types/react@19.2.17)(react@19.2.8):
     dependencies:
