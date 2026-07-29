@@ -6,43 +6,22 @@ import {
 } from "./ResourceFiber";
 import { useTapRoot } from "../hooks/useTapRoot";
 import { isDevelopment } from "./helpers/env";
-import {
-  flushTapSync,
-  throwCollectedErrors,
-  UpdateScheduler,
-} from "./scheduler";
+import { flushTapSync, UpdateScheduler } from "./scheduler";
 import { createResourceFiberRoot } from "./helpers/root";
 
 export const createTapRoot = <R>(
   render: () => R,
 ): useTapRoot.Root<R> & { unmount: () => void } => {
-  // One scheduler per root (mirroring useTapRoot) so the per-scheduler
-  // re-run guard covers this root type too.
-  const dispatchQueue: { evaluate: () => boolean; apply: () => boolean }[] = [];
-  const scheduler = new UpdateScheduler(() => {
-    const errors: unknown[] = [];
-    const batch = dispatchQueue.splice(0, dispatchQueue.length);
-    for (const { evaluate, apply } of batch) {
-      try {
+  const fiber = createResourceFiber(
+    useTapRoot,
+    createResourceFiberRoot((evaluate, apply) => {
+      new UpdateScheduler(() => {
         if (evaluate()) {
           apply();
           throw new Error("Unexpected rerender of createTapRoot outer fiber");
         }
-      } catch (error) {
-        errors.push(error);
-      }
-    }
-    throwCollectedErrors(
-      errors,
-      "Errors occurred during createTapRoot dispatch",
-    );
-  });
-
-  const fiber = createResourceFiber(
-    useTapRoot,
-    createResourceFiberRoot((evaluate, apply) => {
-      dispatchQueue.push({ evaluate, apply });
-      scheduler.markDirty();
+        return false;
+      }).markDirty();
     }),
     undefined,
     isDevelopment ? "root" : null,
