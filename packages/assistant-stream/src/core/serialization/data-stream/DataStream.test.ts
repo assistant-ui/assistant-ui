@@ -48,6 +48,9 @@ describe("DataStreamDecoder interleaved tool-call args", () => {
         true,
       );
       expect(
+        chunks.some((c) => c.type === "text-delta" && c.textDelta === "{}"),
+      ).toBe(true);
+      expect(
         chunks.some(
           (c) => c.type === "text-delta" && c.textDelta === '{"q":1}',
         ),
