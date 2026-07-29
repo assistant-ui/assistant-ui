@@ -33,6 +33,25 @@ describe("validateElicitationContent", () => {
     ).toEqual([{ property: "count", message: "Expected an integer." }]);
   });
 
+  it.each([
+    ["number", NaN, "Expected a number."],
+    ["number", Infinity, "Expected a number."],
+    ["number", -Infinity, "Expected a number."],
+    ["integer", NaN, "Expected an integer."],
+    ["integer", Infinity, "Expected an integer."],
+    ["integer", -Infinity, "Expected an integer."],
+  ])("rejects a non-finite %s", (type, value, message) => {
+    expect(
+      validateElicitationContent(
+        {
+          type: "object",
+          properties: { value: { type } },
+        },
+        { value },
+      ),
+    ).toEqual([{ property: "value", message }]);
+  });
+
   it("rejects a value outside an enum", () => {
     expect(
       validateElicitationContent(

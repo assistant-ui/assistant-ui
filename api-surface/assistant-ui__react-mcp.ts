@@ -325,13 +325,13 @@ declare const McpElicitationPrimitiveDecline: import("react").ForwardRefExoticCo
 }, "ref"> & import("react").RefAttributes<HTMLButtonElement>>;
 
 declare namespace McpElicitationPrimitiveError {
-  type Element = ComponentRef<typeof Primitive.span>;
-  type Props = ComponentPropsWithoutRef<typeof Primitive.span>;
+  type Element = ComponentRef<typeof Primitive.div>;
+  type Props = ComponentPropsWithoutRef<typeof Primitive.div>;
 }
 
-declare const McpElicitationPrimitiveError: import("react").ForwardRefExoticComponent<Omit<import("react").ClassAttributes<HTMLSpanElement> & import("react").HTMLAttributes<HTMLSpanElement> & {
+declare const McpElicitationPrimitiveError: import("react").ForwardRefExoticComponent<Omit<import("react").ClassAttributes<HTMLDivElement> & import("react").HTMLAttributes<HTMLDivElement> & {
   asChild?: boolean;
-}, "ref"> & import("react").RefAttributes<HTMLSpanElement>>;
+}, "ref"> & import("react").RefAttributes<HTMLDivElement>>;
 
 declare namespace McpElicitationPrimitiveFields {
   type Props = {

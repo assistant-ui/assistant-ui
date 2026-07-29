@@ -178,6 +178,47 @@ describe("prepareElicitationContent", () => {
     });
   });
 
+  it("submits an empty optional string draft", () => {
+    expect(
+      prepareElicitationContent(
+        {
+          type: "object",
+          properties: { query: { type: "string" } },
+        },
+        { query: "" },
+      ),
+    ).toEqual({ content: { query: "" }, missingRequired: [], invalid: [] });
+  });
+
+  it("keeps an empty required string draft in content while reporting it missing", () => {
+    expect(
+      prepareElicitationContent(
+        {
+          type: "object",
+          required: ["query"],
+          properties: { query: { type: "string" } },
+        },
+        { query: "" },
+      ),
+    ).toEqual({
+      content: { query: "" },
+      missingRequired: ["query"],
+      invalid: [],
+    });
+  });
+
+  it("treats an empty optional boolean draft as absent", () => {
+    expect(
+      prepareElicitationContent(
+        {
+          type: "object",
+          properties: { enabled: { type: "boolean" } },
+        },
+        { enabled: "" },
+      ),
+    ).toEqual({ content: {}, missingRequired: [], invalid: [] });
+  });
+
   it("treats undefined and empty optional boolean drafts as absent", () => {
     expect(
       prepareElicitationContent(

@@ -7,8 +7,8 @@ import { Primitive } from "@radix-ui/react-primitive";
 import { useMcpElicitation } from "./context";
 
 export namespace McpElicitationPrimitiveError {
-  export type Element = ComponentRef<typeof Primitive.span>;
-  export type Props = ComponentPropsWithoutRef<typeof Primitive.span>;
+  export type Element = ComponentRef<typeof Primitive.div>;
+  export type Props = ComponentPropsWithoutRef<typeof Primitive.div>;
 }
 
 export const McpElicitationPrimitiveError = forwardRef<
@@ -18,13 +18,13 @@ export const McpElicitationPrimitiveError = forwardRef<
   const error = useMcpElicitation().error;
   if (!error) return null;
   return (
-    <Primitive.span
+    <Primitive.div
       {...props}
       ref={ref}
       data-properties={error.properties?.join(",")}
     >
       {props.children ?? error.message}
-    </Primitive.span>
+    </Primitive.div>
   );
 });
 

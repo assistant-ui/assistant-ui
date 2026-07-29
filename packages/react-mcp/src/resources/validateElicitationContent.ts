@@ -14,9 +14,13 @@ const matchesType = (type: unknown, value: unknown): boolean => {
     case "string":
       return typeof value === "string";
     case "number":
-      return typeof value === "number";
+      return typeof value === "number" && Number.isFinite(value);
     case "integer":
-      return typeof value === "number" && Number.isInteger(value);
+      return (
+        typeof value === "number" &&
+        Number.isFinite(value) &&
+        Number.isInteger(value)
+      );
     case "boolean":
       return typeof value === "boolean";
     default:

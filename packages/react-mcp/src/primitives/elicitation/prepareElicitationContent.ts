@@ -23,8 +23,13 @@ const coerceValue = (schema: unknown, value: unknown): unknown => {
 const isBooleanSchema = (schema: unknown): schema is Record<string, unknown> =>
   isRecord(schema) && schema.type === "boolean";
 
-const isAbsentDraftValue = (value: unknown) =>
-  value === undefined || value === null || value === "";
+const getDraftValue = (draft: Record<string, unknown>, name: string) =>
+  Object.hasOwn(draft, name) ? draft[name] : undefined;
+
+const isAbsentDraftValue = (schema: unknown, value: unknown) =>
+  value === undefined ||
+  value === null ||
+  (value === "" && isBooleanSchema(schema));
 
 export const prepareElicitationContent = (
   requestedSchema: unknown,
@@ -38,10 +43,17 @@ export const prepareElicitationContent = (
     isRecord(requestedSchema) && isRecord(requestedSchema.properties)
       ? requestedSchema.properties
       : {};
+  const required =
+    isRecord(requestedSchema) && Array.isArray(requestedSchema.required)
+      ? requestedSchema.required.filter(
+          (property): property is string => typeof property === "string",
+        )
+      : [];
   const candidateContent = Object.fromEntries(
     Object.entries(draft).flatMap(([name, value]) => {
-      if (isAbsentDraftValue(value)) return [];
-      return [[name, coerceValue(properties[name], value)]];
+      const schema = properties[name];
+      if (isAbsentDraftValue(schema, value)) return [];
+      return [[name, coerceValue(schema, value)]];
     }),
   );
   const missingRequiredBooleans = validateElicitationContent(
@@ -72,6 +84,7 @@ export const prepareElicitationContent = (
       ({ property }) => !Object.hasOwn(contentWithBooleanDefaults, property),
     )
     .map(({ property }) => property);
+  const missingRequiredProperties = new Set(missingRequired);
   const invalid = [
     ...new Set(
       validationErrors
@@ -88,7 +101,12 @@ export const prepareElicitationContent = (
         ([property]) => !invalid.includes(property),
       ),
     ),
-    missingRequired,
+    missingRequired: required.filter(
+      (property) =>
+        missingRequiredProperties.has(property) ||
+        (!isBooleanSchema(properties[property]) &&
+          getDraftValue(draft, property) === ""),
+    ),
     invalid,
   };
 };
