@@ -4,10 +4,15 @@ on:
   pull_request:
     branches: [main]
     types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - "packages/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "turbo.json"
+      - ".github/workflows/pkg-pr-new.yaml"
 
 permissions:
   contents: read
-  pull-requests: write
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
@@ -16,7 +21,8 @@ concurrency:
 jobs:
   publish-preview:
     name: Publish Package Previews
-    runs-on: ubuntu-24.04
+    if: ${{ !github.event.pull_request.draft }}
+    runs-on: blacksmith-8vcpu-ubuntu-2404
     timeout-minutes: 20
     steps:
       - name: Checkout code repository
@@ -32,6 +38,16 @@ jobs:
         with:
           node-version: 24
           cache: "pnpm"
+
+      - name: Cache turbo build setup
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # ratchet:actions/cache@v5
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-build-${{ github.ref }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-build-${{ github.ref }}-
+            ${{ runner.os }}-turbo-build-
+            ${{ runner.os }}-turbo-
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
