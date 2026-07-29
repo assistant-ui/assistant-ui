@@ -205,8 +205,9 @@ describe("LocalThreadRuntimeCore optimistic attachment sends", () => {
     expect(thread.messages).toHaveLength(1);
     expect(thread.messages[0]?.role).toBe("user");
     expect(thread.messages[0]?.attachments?.[0]?.status).toEqual({
-      type: "requires-action",
-      reason: "composer-send",
+      type: "running",
+      reason: "uploading",
+      progress: 0,
     });
     expect(runs).toHaveLength(0);
 
@@ -603,8 +604,9 @@ describe("LocalThreadRuntimeCore optimistic attachment sends", () => {
 
     expect(thread.messages).toHaveLength(1);
     expect(thread.messages[0]?.attachments?.[0]?.status).toEqual({
-      type: "requires-action",
-      reason: "composer-send",
+      type: "running",
+      reason: "uploading",
+      progress: 0,
     });
 
     resolveSend();
@@ -612,8 +614,9 @@ describe("LocalThreadRuntimeCore optimistic attachment sends", () => {
     await flush();
 
     expect(thread.messages[0]?.attachments?.[0]?.status).toEqual({
-      type: "requires-action",
-      reason: "composer-send",
+      type: "running",
+      reason: "uploading",
+      progress: 0,
     });
 
     resolveInit();
@@ -622,6 +625,103 @@ describe("LocalThreadRuntimeCore optimistic attachment sends", () => {
     expect(thread.messages[0]?.attachments?.[0]?.status).toEqual({
       type: "complete",
     });
+  });
+
+  it("starts the run even when persisting the uploaded message fails", async () => {
+    let resolveSend!: () => void;
+    let appendCalls = 0;
+    const runs: ChatModelRunOptions[] = [];
+    const thread = createThread(
+      {
+        async run(options) {
+          runs.push(options);
+          return { content: [{ type: "text", text: "ok" }] };
+        },
+      },
+      {
+        attachments: createAttachmentAdapter(
+          (attachment) =>
+            new Promise<CompleteAttachment>((resolve) => {
+              resolveSend = () =>
+                resolve({
+                  ...attachment,
+                  status: { type: "complete" },
+                  content: [],
+                });
+            }),
+        ),
+        history: {
+          async load() {
+            return { messages: [] };
+          },
+          async append() {
+            if (++appendCalls === 1) throw new Error("persistence failed");
+          },
+        },
+      },
+    );
+
+    thread.composer.setText("with attachment");
+    await thread.composer.addAttachment(textFile());
+    const sendPromise = thread.composer.send();
+
+    resolveSend();
+    await sendPromise;
+    await flush();
+
+    expect(appendCalls).toBeGreaterThanOrEqual(1);
+    expect(runs).toHaveLength(1);
+    expect(thread.messages.map((m) => m.role)).toEqual(["user", "assistant"]);
+  });
+
+  it("skips the run without failing when the optimistic message is removed mid-upload", async () => {
+    let resolveSend!: () => void;
+    const appended: ExportedMessageRepositoryItem[] = [];
+    const runs: ChatModelRunOptions[] = [];
+    const thread = createThread(
+      {
+        async run(options) {
+          runs.push(options);
+          return { content: [{ type: "text", text: "ok" }] };
+        },
+      },
+      {
+        attachments: createAttachmentAdapter(
+          (attachment) =>
+            new Promise<CompleteAttachment>((resolve) => {
+              resolveSend = () =>
+                resolve({
+                  ...attachment,
+                  status: { type: "complete" },
+                  content: [],
+                });
+            }),
+        ),
+        history: {
+          async load() {
+            return { messages: [] };
+          },
+          async append(item: ExportedMessageRepositoryItem) {
+            appended.push(item);
+          },
+          async delete() {},
+        },
+      },
+    );
+
+    thread.composer.setText("with attachment");
+    await thread.composer.addAttachment(textFile());
+    const sendPromise = thread.composer.send();
+
+    await thread.deleteMessage(thread.messages[0]!.id);
+
+    resolveSend();
+    await expect(sendPromise).resolves.toBeUndefined();
+    await flush();
+
+    expect(runs).toHaveLength(0);
+    expect(thread.messages).toHaveLength(0);
+    expect(appended).toHaveLength(0);
   });
 });
 

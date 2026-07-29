@@ -153,8 +153,7 @@ const AttachmentUI: FC = () => {
   });
 
   const uploadState = useAuiState((s) =>
-    s.attachment.status.type === "running" ||
-    (!isComposer && s.attachment.status.type === "requires-action")
+    s.attachment.status.type === "running"
       ? "uploading"
       : s.attachment.status.type === "incomplete" &&
           s.attachment.status.reason === "error"

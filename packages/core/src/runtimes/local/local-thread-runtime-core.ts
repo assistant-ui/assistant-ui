@@ -22,7 +22,7 @@ import type {
   ThreadAssistantMessage,
   ThreadMessage,
 } from "../../types/message";
-import type { CompleteAttachment } from "../../types/attachment";
+import type { Attachment, CompleteAttachment } from "../../types/attachment";
 import type { RunConfig } from "../../types/message";
 import { toAssistantError } from "../../types/error";
 import type { ModelContextProvider } from "../../model-context/types";
@@ -372,10 +372,27 @@ export class LocalThreadRuntimeCore
     this.ensureInitialized();
     const initPromise = this._getInitializePromise?.();
 
-    const optimisticMessage = fromThreadMessageLike(message, generateId(), {
+    const appendedMessage = fromThreadMessageLike(message, generateId(), {
       type: "complete",
       reason: "unknown",
     });
+    const optimisticMessage = {
+      ...appendedMessage,
+      attachments: (
+        (appendedMessage.attachments ?? []) as readonly Attachment[]
+      ).map((attachment) =>
+        attachment.status.type === "complete"
+          ? attachment
+          : {
+              ...attachment,
+              status: {
+                type: "running" as const,
+                reason: "uploading" as const,
+                progress: 0,
+              },
+            },
+      ),
+    } as ThreadMessage;
     this.repository.addOrUpdateMessage(message.parentId, optimisticMessage);
     this._notifySubscribers();
 
@@ -390,22 +407,31 @@ export class LocalThreadRuntimeCore
         throw e;
       }
 
+      // A message removed mid-upload ends this send's deferred work; the
+      // chain must still resolve so a queued send behind it proceeds.
+      let parentId: string | null;
+      try {
+        parentId = this.repository.getMessage(optimisticMessage.id).parentId;
+      } catch {
+        return;
+      }
       const completedMessage = {
         ...optimisticMessage,
         attachments,
       } as ThreadMessage;
-      const parentId = this.repository.getMessage(
-        optimisticMessage.id,
-      ).parentId;
       this.repository.addOrUpdateMessage(parentId, completedMessage);
       this._notifySubscribers();
-      await this._options.adapters.history?.append({
-        parentId,
-        message: completedMessage,
-        ...(message.runConfig !== undefined && {
-          runConfig: message.runConfig,
-        }),
-      });
+      // The append stays awaited so a send queued behind this one persists
+      // after it, but its failure must not abort the run decision below.
+      try {
+        await this._options.adapters.history?.append({
+          parentId,
+          message: completedMessage,
+          ...(message.runConfig !== undefined && {
+            runConfig: message.runConfig,
+          }),
+        });
+      } catch {}
     });
 
     await this._waitForAttachmentSendChain();
