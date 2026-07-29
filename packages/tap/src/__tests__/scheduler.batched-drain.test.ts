@@ -172,4 +172,22 @@ describe("scheduler batched draining", () => {
       }),
     ).toThrow(/Maximum update depth exceeded/);
   });
+
+  it("throws on an unbounded cascade of fresh schedulers (burst-wide backstop)", async () => {
+    vi.resetModules();
+    vi.stubGlobal("MessageChannel", ControlledMessageChannel);
+    const { UpdateScheduler } = await import("../core/scheduler");
+
+    // Each task queues a brand-new scheduler, so the per-scheduler guard
+    // never trips (every instance runs once) — only the burst-wide task cap
+    // prevents the macrotask from being monopolized forever.
+    const makeCascadeScheduler = (): InstanceType<typeof UpdateScheduler> =>
+      new UpdateScheduler(() => {
+        makeCascadeScheduler().markDirty();
+      });
+    makeCascadeScheduler().markDirty();
+
+    const [channel] = ControlledMessageChannel.instances;
+    expect(() => pump(channel!)).toThrow(/Maximum update depth exceeded/);
+  });
 });
