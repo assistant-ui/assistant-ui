@@ -6,6 +6,7 @@ import type {
 } from "../types";
 import { cloneCurrentTapContext } from "../context";
 import { CommitPriority } from "./commit";
+import { isDevelopment } from "./env";
 
 export const createResourceFiberRoot = (
   dispatchUpdate: (evaluate: () => boolean, apply: () => boolean) => void,
@@ -37,11 +38,20 @@ export const setRootVersion = (root: TapRoot, version: number): void => {
 
     if (version === root.committedVersion) {
       root.changelog.length = 0;
+    } else if (root.committedVersion > version) {
+      // React concurrent rendering can replay a reducer from a base older than
+      // the last commit; clamp to the committed state instead of throwing so
+      // the next committed render restores consistency.
+      if (isDevelopment) {
+        console.error(
+          `tap: setRootVersion received version ${version} below committed ` +
+            `${root.committedVersion}; clamping to the committed state.`,
+        );
+      }
+      root.version = root.committedVersion;
+      root.changelog.length = 0;
     } else {
       // commit happened without a useEffect update (offscreen API)
-
-      if (root.committedVersion > version)
-        throw new Error("Version is less than committed version");
 
       while (root.committedVersion + root.changelog.length > version) {
         root.changelog.pop();
