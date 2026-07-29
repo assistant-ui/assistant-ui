@@ -1,4 +1,5 @@
 // The public docs endpoint keeps accepting pre-SDK lenient clients that omit the SSE half of Accept or the Content-Type header.
+// The substring checks deliberately mirror the SDK gate's own matching; do not tighten them independently of the gate.
 export async function normalizeMcpRequestHeaders(
   request: Request,
 ): Promise<Request> {
