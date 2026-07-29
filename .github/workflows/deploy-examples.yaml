@@ -33,12 +33,10 @@ jobs:
       matrix:
         include:
           - example: with-expo
-            vercel-project-id: VERCEL_EXPO_PROJECT_ID
             chat-endpoint-url: https://www.assistant-ui.com/api/chat
           - example: with-react-ink-web
-            vercel-project-id: VERCEL_INK_PROJECT_ID
     env:
-      VERCEL_PROJECT_ID: ${{ secrets[matrix.vercel-project-id] }}
+      VERCEL_PROJECT_ID: ${{ matrix.example == 'with-expo' && secrets.VERCEL_EXPO_PROJECT_ID || secrets.VERCEL_INK_PROJECT_ID }}
       EXPO_PUBLIC_CHAT_ENDPOINT_URL: ${{ matrix.chat-endpoint-url }}
     steps:
       - name: Checkout code repository
