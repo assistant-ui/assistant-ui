@@ -123,21 +123,47 @@ const getPartToolCallId = (part: Part) => {
   return typeof part.callID === "string" ? part.callID : undefined;
 };
 
+type PermissionState = OpenCodeThreadState["interactions"]["permissions"];
+type PendingPermission = PermissionState["pending"][string];
+type ResolvedPermission = PermissionState["resolved"][string];
+
+type PermissionIndex = {
+  pendingByCallId: ReadonlyMap<string, PendingPermission>;
+  resolvedByCallId: ReadonlyMap<string, ResolvedPermission>;
+};
+
+const permissionIndexCache = new WeakMap<PermissionState, PermissionIndex>();
+
+const getPermissionIndex = (state: OpenCodeThreadState): PermissionIndex => {
+  const permissions = state.interactions.permissions;
+  const cached = permissionIndexCache.get(permissions);
+  if (cached) return cached;
+
+  const pendingByCallId = new Map<string, PendingPermission>();
+  for (const request of Object.values(permissions.pending)) {
+    if (request.tool?.callID) pendingByCallId.set(request.tool.callID, request);
+  }
+
+  const resolvedByCallId = new Map<string, ResolvedPermission>();
+  for (const entry of Object.values(permissions.resolved)) {
+    const callId = entry.request.tool?.callID;
+    if (callId) resolvedByCallId.set(callId, entry);
+  }
+
+  const index: PermissionIndex = { pendingByCallId, resolvedByCallId };
+  permissionIndexCache.set(permissions, index);
+  return index;
+};
+
 const getPendingPermissionForToolCall = (
   state: OpenCodeThreadState,
   toolCallId: string,
-) =>
-  Object.values(state.interactions.permissions.pending).find(
-    (request) => request.tool?.callID === toolCallId,
-  );
+) => getPermissionIndex(state).pendingByCallId.get(toolCallId);
 
 const getResolvedPermissionForToolCall = (
   state: OpenCodeThreadState,
   toolCallId: string,
-) =>
-  Object.values(state.interactions.permissions.resolved).find(
-    (entry) => entry.request.tool?.callID === toolCallId,
-  );
+) => getPermissionIndex(state).resolvedByCallId.get(toolCallId);
 
 const hasPendingInteractionForToolCall = (
   state: OpenCodeThreadState,
@@ -145,10 +171,8 @@ const hasPendingInteractionForToolCall = (
 ) => {
   if (!toolCallId) return false;
 
-  for (const request of Object.values(state.interactions.permissions.pending)) {
-    if (request.tool?.callID === toolCallId) {
-      return true;
-    }
+  if (getPermissionIndex(state).pendingByCallId.has(toolCallId)) {
+    return true;
   }
 
   for (const request of Object.values(state.interactions.questions.pending)) {
