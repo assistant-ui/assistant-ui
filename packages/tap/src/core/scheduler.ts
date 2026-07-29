@@ -7,7 +7,7 @@ type GlobalFlushState = {
   isScheduled: boolean;
 };
 
-const MAX_FLUSH_LIMIT = 50;
+const MAX_UPDATE_DEPTH = 50;
 let flushState: GlobalFlushState = {
   schedulers: new Set([]),
   isScheduled: false,
@@ -49,6 +49,7 @@ const flushScheduled = () => {
   try {
     const errors = [];
     const runs = new Map<UpdateScheduler, number>();
+    let depthExceeded = false;
 
     for (const scheduler of flushState.schedulers) {
       flushState.schedulers.delete(scheduler);
@@ -57,8 +58,9 @@ const flushScheduled = () => {
       const count = (runs.get(scheduler) ?? 0) + 1;
       runs.set(scheduler, count);
 
-      if (count > MAX_FLUSH_LIMIT) {
-        if (count === MAX_FLUSH_LIMIT + 1) {
+      if (count > MAX_UPDATE_DEPTH) {
+        if (!depthExceeded) {
+          depthExceeded = true;
           errors.push(
             new Error(
               `Maximum update depth exceeded. This can happen when a resource ` +
