@@ -184,7 +184,13 @@ const withTemplateUri = (tool: Tool, name: string): Tool => {
     ...tool,
     execute: async (args, options) => {
       const result = (await exec(args, options)) as { _meta?: Record<string, unknown> };
-      return { ...result, _meta: { ...result._meta, ui: { resourceUri: uri } } };
+      return {
+        ...result,
+        _meta: {
+          ...result._meta,
+          ui: { ...(result._meta?.["ui"] as Record<string, unknown>), resourceUri: uri },
+        },
+      };
     },
   } satisfies Tool;
 };
