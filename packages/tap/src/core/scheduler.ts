@@ -126,7 +126,10 @@ const flushScheduled = (errors: CollectedErrors, defer = true): number => {
         // it so its task drains the stranded queue consistently.
         reportDepthError(errors);
         flushState.schedulers.delete(scheduler);
-        runCounts.delete(scheduler);
+        // The count is kept (not deleted): re-queueing the offender later
+        // in the same burst must not hand it a fresh budget - it is
+        // dropped again immediately, without burning another 50 runs.
+        // Counts reset only when a pass drains the queue.
         continue;
       }
       flushState.schedulers.delete(scheduler);
