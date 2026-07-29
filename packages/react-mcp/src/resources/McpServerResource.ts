@@ -261,6 +261,7 @@ const useMcpServerResource = (
                 return;
               }
               if (items === null) return;
+              setLastError(null);
               applyToolsList({ tools: items });
             },
           },

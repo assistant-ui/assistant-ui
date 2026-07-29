@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { prepareElicitationContent } from "./prepareElicitationContent";
 
 describe("prepareElicitationContent", () => {
-  it("coerces parseable number and integer draft values", () => {
+  it("accepts parseable number and integer draft values", () => {
     expect(
       prepareElicitationContent(
         {
@@ -20,7 +20,7 @@ describe("prepareElicitationContent", () => {
     ).toEqual({ count: 42, ratio: 1.5, enabled: false });
   });
 
-  it("leaves an unparseable number value as a string", () => {
+  it("flags and excludes an unparseable number value", () => {
     expect(
       prepareElicitationContent(
         {
@@ -29,10 +29,19 @@ describe("prepareElicitationContent", () => {
         },
         { count: "not a number" },
       ).content,
-    ).toEqual({ count: "not a number" });
+    ).toEqual({});
+    expect(
+      prepareElicitationContent(
+        {
+          type: "object",
+          properties: { count: { type: "number" } },
+        },
+        { count: "not a number" },
+      ).invalid,
+    ).toEqual(["count"]);
   });
 
-  it("leaves a fractional integer value as a string", () => {
+  it("flags and excludes a fractional integer value", () => {
     expect(
       prepareElicitationContent(
         {
@@ -41,7 +50,16 @@ describe("prepareElicitationContent", () => {
         },
         { count: "1.5" },
       ).content,
-    ).toEqual({ count: "1.5" });
+    ).toEqual({});
+    expect(
+      prepareElicitationContent(
+        {
+          type: "object",
+          properties: { count: { type: "integer" } },
+        },
+        { count: "1.5" },
+      ).invalid,
+    ).toEqual(["count"]);
   });
 
   it("does not read inherited draft values", () => {
@@ -54,7 +72,11 @@ describe("prepareElicitationContent", () => {
         },
         {},
       ),
-    ).toEqual({ content: {}, missingRequired: ["toString"] });
+    ).toEqual({
+      content: {},
+      missingRequired: ["toString"],
+      invalid: [],
+    });
   });
 
   it("accepts missing required booleans as false", () => {
@@ -73,6 +95,39 @@ describe("prepareElicitationContent", () => {
     ).toEqual({
       content: { name: "Ada", enabled: false },
       missingRequired: [],
+      invalid: [],
+    });
+  });
+
+  it("omits absent optional booleans, including schema defaults", () => {
+    expect(
+      prepareElicitationContent(
+        {
+          type: "object",
+          properties: {
+            enabled: { type: "boolean" },
+            sendEmail: { type: "boolean", default: true },
+          },
+        },
+        {},
+      ),
+    ).toEqual({ content: {}, missingRequired: [], invalid: [] });
+  });
+
+  it("seeds required booleans with an empty draft value as false", () => {
+    expect(
+      prepareElicitationContent(
+        {
+          type: "object",
+          required: ["enabled"],
+          properties: { enabled: { type: "boolean" } },
+        },
+        { enabled: "" },
+      ),
+    ).toEqual({
+      content: { enabled: false },
+      missingRequired: [],
+      invalid: [],
     });
   });
 

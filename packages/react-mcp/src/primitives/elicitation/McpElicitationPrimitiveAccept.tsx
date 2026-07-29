@@ -19,21 +19,23 @@ export const McpElicitationPrimitiveAccept = forwardRef<
 >((props, ref) => {
   const { elicitation, draft } = useElicitationContext();
   const aui = useAui();
-  const { content, missingRequired } = prepareElicitationContent(
+  const { content, missingRequired, invalid } = prepareElicitationContent(
     elicitation.requestedSchema,
     draft,
   );
   const hasMissingRequired = missingRequired.length > 0;
+  const hasInvalid = invalid.length > 0;
   return (
     <Primitive.button
       {...props}
       type="button"
       ref={ref}
-      disabled={props.disabled || hasMissingRequired}
+      disabled={props.disabled || hasMissingRequired || hasInvalid}
       data-missing-required={hasMissingRequired ? "" : undefined}
+      data-invalid={hasInvalid ? invalid.join(",") : undefined}
       onClick={(event) => {
         props.onClick?.(event);
-        if (event.defaultPrevented || hasMissingRequired) return;
+        if (event.defaultPrevented || hasMissingRequired || hasInvalid) return;
         aui.mcpServer.answerElicitation(elicitation.id, {
           action: "accept",
           content,

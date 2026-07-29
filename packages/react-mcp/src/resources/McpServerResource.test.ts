@@ -935,6 +935,23 @@ describe("McpServerResource tools listChanged", () => {
           },
         ],
       });
+
+      onChanged(null, [
+        {
+          name: "summarize",
+          inputSchema: { type: "object", properties: {} },
+        },
+      ]);
+      await waitForResourceUpdate(
+        () => root.getValue().getState().lastError === null,
+      );
+
+      expect(root.getValue().getState().tools).toEqual([
+        {
+          name: "summarize",
+          inputSchema: { type: "object", properties: {} },
+        },
+      ]);
     } finally {
       root.unmount();
     }
