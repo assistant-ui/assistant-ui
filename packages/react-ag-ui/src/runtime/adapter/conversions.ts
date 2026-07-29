@@ -15,8 +15,14 @@ import { type Tool, toToolsJSONSchema } from "assistant-stream";
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
 import {
   AG_UI_METADATA_NAMESPACE,
+  A2UI_SURFACE_ACTIVITY_TYPE,
   type AgUiCustomMetadata,
 } from "./run-aggregator";
+import {
+  applyA2uiOperations,
+  convertSurfaceToUISpec,
+  type A2uiState,
+} from "@assistant-ui/react-generative-ui/a2ui";
 import type { AgUiInterrupt } from "../types";
 import {
   parseMcpToolCallResult,
@@ -532,6 +538,42 @@ function toUserOrSystemSnapshotMessage(
   };
 }
 
+// Rebuilds the a2ui:<surfaceId> "present" tool-call parts for one owning
+// assistant message from a bucket of rebuilt surface state, mirroring the
+// live RunAggregator.synthesizeA2uiToolCalls shape. Non-a2ui parts (text,
+// other tool calls) are preserved; existing a2ui parts are replaced wholesale
+// so create/update/delete within the bucket all converge on the rebuilt set.
+function attachA2uiSurfaces(
+  message: CoreThreadMessageLike,
+  state: A2uiState,
+): CoreThreadMessageLike {
+  const a2uiParts: ToolCallPart[] = [];
+  for (const [surfaceId, surface] of state) {
+    const { spec } = convertSurfaceToUISpec(surface);
+    if (!spec) continue;
+    a2uiParts.push({
+      type: "tool-call",
+      toolCallId: `a2ui:${surfaceId}`,
+      toolName: "present",
+      args: spec as unknown as ReadonlyJSONObject,
+      argsText: JSON.stringify(spec),
+      result: {},
+    });
+  }
+
+  const content = Array.isArray(message.content) ? message.content : [];
+  const preserved = content.filter(
+    (part) =>
+      !(
+        isObject(part) &&
+        part.type === "tool-call" &&
+        typeof part.toolCallId === "string" &&
+        part.toolCallId.startsWith("a2ui:")
+      ),
+  );
+  return { ...message, content: [...preserved, ...a2uiParts] };
+}
+
 export type FromAgUiMessagesOptions = {
   /**
    * Whether to convert `reasoning` messages into visible reasoning parts.
@@ -546,6 +588,9 @@ export function fromAgUiMessages(
 ): CoreThreadMessageLike[] {
   const showThinking = options?.showThinking ?? true;
   const converted: CoreThreadMessageLike[] = [];
+  // Per-messageId rebuilt surface state, mirroring RunAggregator.a2uiBuckets
+  // so the replace logic converges with the live run on restore.
+  const a2uiBuckets = new Map<string, A2uiState>();
 
   for (const rawMessage of messages) {
     if (!isObject(rawMessage)) continue;
@@ -650,6 +695,63 @@ export function fromAgUiMessages(
           },
         ],
       });
+      continue;
+    }
+
+    if (role === "activity") {
+      // Only a2ui-surface activity messages have an assistant-part equivalent
+      // to rehydrate; other activity types still have no surface to repaint.
+      const activityType = getString(rawMessage, "activityType");
+      if (activityType !== A2UI_SURFACE_ACTIVITY_TYPE) continue;
+      const activityContent = isObject(rawMessage.content)
+        ? (rawMessage.content as Record<string, unknown>)
+        : null;
+      const operations = activityContent?.["a2ui_operations"];
+      if (!Array.isArray(operations)) continue;
+      const messageId =
+        (activityContent
+          ? getString(activityContent, "messageId")
+          : undefined) ?? getString(rawMessage, "messageId");
+      let replace: boolean | undefined =
+        typeof rawMessage.replace === "boolean"
+          ? rawMessage.replace
+          : undefined;
+      if (replace === undefined && activityContent) {
+        const contentReplace = activityContent["replace"];
+        if (typeof contentReplace === "boolean") replace = contentReplace;
+      }
+
+      let ownerIndex = -1;
+      if (messageId !== undefined) {
+        for (let i = converted.length - 1; i >= 0; i--) {
+          const candidate = converted[i];
+          if (
+            candidate &&
+            candidate.role === "assistant" &&
+            candidate.id === messageId
+          ) {
+            ownerIndex = i;
+            break;
+          }
+        }
+      }
+      if (ownerIndex === -1) {
+        for (let i = converted.length - 1; i >= 0; i--) {
+          const candidate = converted[i];
+          if (candidate && candidate.role === "assistant") {
+            ownerIndex = i;
+            break;
+          }
+        }
+      }
+      if (ownerIndex === -1) continue;
+
+      const owner = converted[ownerIndex]!;
+      const bucketKey = messageId ?? owner.id ?? "a2ui:anonymous";
+      if (replace === false && a2uiBuckets.has(bucketKey)) continue;
+      const { state } = applyA2uiOperations(new Map(), operations);
+      a2uiBuckets.set(bucketKey, state);
+      converted[ownerIndex] = attachA2uiSurfaces(owner, state);
       continue;
     }
 

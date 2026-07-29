@@ -1713,6 +1713,283 @@ describe("mcp app rehydration from restored tool messages", () => {
   });
 });
 
+describe("a2ui surface rehydration from restored activity messages", () => {
+  const a2uiSurfaceOperations = (surfaceId: string, title: string) => [
+    { version: "v0.9", createSurface: { surfaceId } },
+    {
+      version: "v0.9",
+      updateComponents: {
+        surfaceId,
+        components: [
+          { id: "root", component: "Column", children: ["heading", "body"] },
+          {
+            id: "heading",
+            component: "Text",
+            variant: "h1",
+            text: { path: "/title" },
+          },
+          { id: "body", component: "Text", text: { path: "/body" } },
+        ],
+      },
+    },
+    {
+      version: "v0.9",
+      updateDataModel: { surfaceId, data: { title, body: `${title} body` } },
+    },
+  ];
+
+  const findA2uiPart = (message: any) =>
+    message.content.find(
+      (p: { type: string; toolCallId?: string }) =>
+        p.type === "tool-call" && p.toolCallId?.startsWith("a2ui:"),
+    );
+
+  const expectSurfacePart = (part: any, surfaceId: string, title: string) => {
+    expect(part).toMatchObject({
+      type: "tool-call",
+      toolCallId: `a2ui:${surfaceId}`,
+      toolName: "present",
+      args: {
+        $type: "Col",
+        children: [
+          { $type: "Header", text: title },
+          { $type: "Markdown", value: `${title} body` },
+        ],
+      },
+    });
+    expect(part.result).toEqual({});
+    expect(part.argsText).toBe(JSON.stringify(part.args));
+  };
+
+  it("rehydrates an a2ui surface onto the preceding assistant message", () => {
+    const result = fromAgUiMessages([
+      { id: "u-1", role: "user", content: "show me a dashboard" },
+      { id: "a-1", role: "assistant", content: "Here is the dashboard" },
+      {
+        id: "act-1",
+        role: "activity",
+        activityType: "a2ui-surface",
+        content: {
+          a2ui_operations: a2uiSurfaceOperations("surface-1", "Welcome"),
+        },
+      },
+    ] as any);
+
+    expect(result.map((m) => m.role)).toEqual(["user", "assistant"]);
+    const assistant = result[1] as any;
+    expectSurfacePart(findA2uiPart(assistant), "surface-1", "Welcome");
+    expect(
+      assistant.content.find((p: { type: string }) => p.type === "text").text,
+    ).toBe("Here is the dashboard");
+  });
+
+  it("targets the assistant referenced by the activity messageId over a more recent one", () => {
+    const result = fromAgUiMessages([
+      { id: "a-1", role: "assistant", content: "first" },
+      { id: "a-2", role: "assistant", content: "second" },
+      {
+        id: "act-1",
+        role: "activity",
+        activityType: "a2ui-surface",
+        content: {
+          a2ui_operations: a2uiSurfaceOperations("surface-1", "Welcome"),
+          messageId: "a-1",
+        },
+      },
+    ] as any);
+
+    const first = result.find((m: any) => m.id === "a-1") as any;
+    const second = result.find((m: any) => m.id === "a-2") as any;
+    expectSurfacePart(findA2uiPart(first), "surface-1", "Welcome");
+    expect(findA2uiPart(second)).toBeUndefined();
+  });
+
+  it("preserves existing tool calls and text alongside the rehydrated a2ui part", () => {
+    const result = fromAgUiMessages([
+      {
+        id: "a-1",
+        role: "assistant",
+        content: "",
+        tool_calls: [
+          {
+            id: "call-1",
+            type: "function",
+            function: { name: "search", arguments: "{}" },
+          },
+        ],
+      },
+      {
+        id: "act-1",
+        role: "activity",
+        activityType: "a2ui-surface",
+        content: {
+          a2ui_operations: a2uiSurfaceOperations("surface-1", "Welcome"),
+        },
+      },
+    ] as any);
+
+    const assistant = result[0] as any;
+    const toolCallIds = assistant.content
+      .filter((p: { type: string }) => p.type === "tool-call")
+      .map((p: { toolCallId: string }) => p.toolCallId);
+    expect(toolCallIds).toEqual(["call-1", "a2ui:surface-1"]);
+  });
+
+  it("rehydrates multiple surfaces from one snapshot", () => {
+    const result = fromAgUiMessages([
+      { id: "a-1", role: "assistant", content: "ok" },
+      {
+        id: "act-1",
+        role: "activity",
+        activityType: "a2ui-surface",
+        content: {
+          a2ui_operations: [
+            ...a2uiSurfaceOperations("s-1", "First"),
+            ...a2uiSurfaceOperations("s-2", "Second"),
+          ],
+        },
+      },
+    ] as any);
+
+    const assistant = result[0] as any;
+    const a2uiIds = assistant.content
+      .filter((p: { type: string; toolCallId?: string }) =>
+        p.toolCallId?.startsWith("a2ui:"),
+      )
+      .map((p: { toolCallId: string }) => p.toolCallId);
+    expect(a2uiIds).toEqual(["a2ui:s-1", "a2ui:s-2"]);
+  });
+
+  it("replaces the rehydrated surface when a later snapshot targets the same owner", () => {
+    const result = fromAgUiMessages([
+      { id: "a-1", role: "assistant", content: "ok" },
+      {
+        id: "act-1",
+        role: "activity",
+        activityType: "a2ui-surface",
+        content: {
+          a2ui_operations: a2uiSurfaceOperations("surface-1", "Original"),
+        },
+      },
+      {
+        id: "act-2",
+        role: "activity",
+        activityType: "a2ui-surface",
+        content: {
+          replace: true,
+          a2ui_operations: [
+            { version: "v0.9", createSurface: { surfaceId: "surface-1" } },
+            {
+              version: "v0.9",
+              updateComponents: {
+                surfaceId: "surface-1",
+                components: [
+                  { id: "root", component: "Text", text: "Replacement" },
+                ],
+              },
+            },
+          ],
+        },
+      },
+    ] as any);
+
+    const assistant = result[0] as any;
+    const a2uiParts = assistant.content.filter((p: any) =>
+      p.toolCallId?.startsWith("a2ui:"),
+    );
+    expect(a2uiParts).toHaveLength(1);
+    expect(a2uiParts[0].args).toEqual({
+      $type: "Markdown",
+      value: "Replacement",
+    });
+  });
+
+  it("keeps the first snapshot when a later replace-false activity targets the same owner", () => {
+    const result = fromAgUiMessages([
+      { id: "a-1", role: "assistant", content: "ok" },
+      {
+        id: "act-1",
+        role: "activity",
+        activityType: "a2ui-surface",
+        content: {
+          a2ui_operations: a2uiSurfaceOperations("surface-1", "Original"),
+        },
+      },
+      {
+        id: "act-2",
+        role: "activity",
+        activityType: "a2ui-surface",
+        content: {
+          replace: false,
+          a2ui_operations: [
+            {
+              version: "v0.9",
+              updateDataModel: {
+                surfaceId: "surface-1",
+                data: { title: "Incremental" },
+              },
+            },
+          ],
+        },
+      },
+    ] as any);
+
+    const assistant = result[0] as any;
+    expect(findA2uiPart(assistant).args).toMatchObject({
+      $type: "Col",
+      children: [
+        { $type: "Header", text: "Original" },
+        { $type: "Markdown", value: "Original body" },
+      ],
+    });
+  });
+
+  it("drops an a2ui activity with no owning assistant message", () => {
+    const result = fromAgUiMessages([
+      { id: "u-1", role: "user", content: "hi" },
+      {
+        id: "act-1",
+        role: "activity",
+        activityType: "a2ui-surface",
+        content: {
+          a2ui_operations: a2uiSurfaceOperations("surface-1", "Welcome"),
+        },
+      },
+    ] as any);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({ role: "user" });
+  });
+
+  it("drops a non-a2ui activity type", () => {
+    const result = fromAgUiMessages([
+      { id: "a-1", role: "assistant", content: "ok" },
+      {
+        id: "act-1",
+        role: "activity",
+        activityType: "search",
+        content: { query: "weather" },
+      },
+    ] as any);
+
+    expect((result[0] as any).content).toEqual([{ type: "text", text: "ok" }]);
+  });
+
+  it("ignores an a2ui activity whose content has no a2ui_operations", () => {
+    const result = fromAgUiMessages([
+      { id: "a-1", role: "assistant", content: "ok" },
+      {
+        id: "act-1",
+        role: "activity",
+        activityType: "a2ui-surface",
+        content: { status: "building" },
+      },
+    ] as any);
+
+    expect((result[0] as any).content).toEqual([{ type: "text", text: "ok" }]);
+  });
+});
+
 describe("package exports", () => {
   it("exposes fromAgUiMessages from the package root", () => {
     expect(publicFromAgUiMessages).toBe(fromAgUiMessages);

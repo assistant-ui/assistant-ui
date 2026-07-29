@@ -15,6 +15,7 @@ import type {
   ExportedMessageRepository,
   MessageStatus,
   ThreadAssistantMessage,
+  ThreadAssistantMessagePart,
   ThreadHistoryAdapter,
   ThreadMessage,
   ToolCallMessagePart,
@@ -25,9 +26,17 @@ import jsonpatch, { type Operation } from "fast-json-patch";
 import type { Logger } from "./logger";
 import { readMcpAppResourceUri } from "./mcp-tool-result";
 import type { AgUiEvent, AgUiInterrupt, AgUiResumeEntry } from "./types";
-import type { ReadonlyJSONValue } from "assistant-stream/utils";
+import type {
+  ReadonlyJSONValue,
+  ReadonlyJSONObject,
+} from "assistant-stream/utils";
+import {
+  applyA2uiOperations,
+  convertSurfaceToUISpec,
+} from "@assistant-ui/react-generative-ui/a2ui";
 import {
   AG_UI_METADATA_NAMESPACE,
+  A2UI_SURFACE_ACTIVITY_TYPE,
   type AgUiCustomMetadata,
   isPlainObject,
   MCP_APPS_ACTIVITY_TYPE,
@@ -49,6 +58,35 @@ const isResolvedToolCall = (
   part: ThreadAssistantMessage["content"][number],
 ): boolean =>
   part.type === "tool-call" && "result" in part && part.result !== undefined;
+
+const A2UI_OPERATION_KEYS = [
+  "createSurface",
+  "updateComponents",
+  "updateDataModel",
+  "deleteSurface",
+] as const;
+
+// Reads the surfaceIds an a2ui snapshot touches without applying it, so a
+// cross-run snapshot can be matched to a restored a2ui:<surfaceId> tool call
+// even when the snapshot only deletes or incrementally updates a surface.
+const extractA2uiSurfaceIds = (operations: unknown): string[] => {
+  if (!Array.isArray(operations)) return [];
+  const ids: string[] = [];
+  for (const op of operations) {
+    if (!isPlainObject(op)) continue;
+    for (const key of A2UI_OPERATION_KEYS) {
+      const payload = op[key];
+      if (
+        isPlainObject(payload) &&
+        typeof payload.surfaceId === "string" &&
+        payload.surfaceId.length > 0
+      ) {
+        ids.push(payload.surfaceId);
+      }
+    }
+  }
+  return ids;
+};
 
 const symbolResumeShim = Symbol("agui-resume-shim");
 
@@ -1374,6 +1412,36 @@ export class AgUiThreadRuntimeCore {
         return;
       }
       case "ACTIVITY_SNAPSHOT": {
+        if (event.activityType === A2UI_SURFACE_ACTIVITY_TYPE) {
+          const operations = event.content["a2ui_operations"];
+          if (Array.isArray(operations)) {
+            // RunAggregator buckets a whole snapshot under one messageId, so
+            // every surface it touches shares one owner. If none of those
+            // a2ui:<surfaceId> calls are in the live aggregator but one resolves
+            // to a restored message, the snapshot belongs to that restored run;
+            // otherwise it is a brand-new live surface and falls through.
+            const surfaceIds = extractA2uiSurfaceIds(operations);
+            const allAbsentFromAggregator =
+              surfaceIds.length > 0 &&
+              surfaceIds.every(
+                (surfaceId) => !aggregator.hasToolCall(`a2ui:${surfaceId}`),
+              );
+            if (allAbsentFromAggregator) {
+              for (const surfaceId of surfaceIds) {
+                const messageId = this.findMessageIdForToolCall(
+                  `a2ui:${surfaceId}`,
+                );
+                if (messageId !== undefined) {
+                  this.applyCrossRunA2uiActivitySnapshot(messageId, event);
+                  return;
+                }
+              }
+            }
+          }
+          aggregator.handle(event);
+          return;
+        }
+
         const toolCallId = event.content["toolCallId"];
         if (
           event.activityType === MCP_APPS_ACTIVITY_TYPE &&
@@ -1524,6 +1592,75 @@ export class AgUiThreadRuntimeCore {
       });
       if (!matchedToolCall) return message;
       return { ...assistant, content };
+    });
+
+    if (!updated) return;
+    this.notifyUpdate();
+    this.maybeCompleteAfterToolResults(messageId);
+  }
+
+  private applyCrossRunA2uiActivitySnapshot(
+    messageId: string,
+    event: Extract<AgUiEvent, { type: "ACTIVITY_SNAPSHOT" }>,
+  ): void {
+    const operations = event.content["a2ui_operations"];
+    if (!Array.isArray(operations)) return;
+    const { state, warnings } = applyA2uiOperations(new Map(), operations);
+    for (const warning of warnings) {
+      this.logger.debug?.("[agui] a2ui cross-run operation warning", warning);
+    }
+    const touchedIds = new Set(extractA2uiSurfaceIds(operations));
+
+    const updated = this.updateMessage(messageId, (message) => {
+      if (message.role !== "assistant") return message;
+      const assistant = message as ThreadAssistantMessage;
+      const nextSpecs = new Map<string, ToolCallMessagePart>();
+      for (const [surfaceId, surface] of state) {
+        if (!touchedIds.has(surfaceId)) continue;
+        const { spec, warnings: convertWarnings } =
+          convertSurfaceToUISpec(surface);
+        for (const warning of convertWarnings) {
+          this.logger.debug?.(
+            "[agui] a2ui surface conversion warning",
+            warning,
+          );
+        }
+        if (!spec) continue;
+        nextSpecs.set(surfaceId, {
+          type: "tool-call",
+          toolCallId: `a2ui:${surfaceId}`,
+          toolName: "present",
+          args: spec as unknown as ReadonlyJSONObject,
+          argsText: JSON.stringify(spec),
+          result: {},
+        });
+      }
+
+      let changed = false;
+      const rebuilt = assistant.content.flatMap(
+        (part): ThreadAssistantMessagePart[] => {
+          if (
+            part.type === "tool-call" &&
+            part.toolCallId.startsWith("a2ui:")
+          ) {
+            const surfaceId = part.toolCallId.slice("a2ui:".length);
+            if (!touchedIds.has(surfaceId)) return [part];
+            changed = true;
+            const nextSpec = nextSpecs.get(surfaceId);
+            if (nextSpec) {
+              nextSpecs.delete(surfaceId);
+              return [nextSpec];
+            }
+            return [];
+          }
+          return [part];
+        },
+      );
+      const appended = [...nextSpecs.values()];
+      if (appended.length === 0 && !changed) return message;
+      const nextContent =
+        appended.length > 0 ? [...rebuilt, ...appended] : rebuilt;
+      return { ...assistant, content: nextContent };
     });
 
     if (!updated) return;

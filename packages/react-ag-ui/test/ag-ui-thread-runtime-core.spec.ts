@@ -3450,6 +3450,249 @@ describe("AGUIThreadRuntimeCore", () => {
     );
   });
 
+  const a2uiSurfaceOperations = (surfaceId: string, title: string) => [
+    { version: "v0.9", createSurface: { surfaceId } },
+    {
+      version: "v0.9",
+      updateComponents: {
+        surfaceId,
+        components: [
+          { id: "root", component: "Column", children: ["heading", "body"] },
+          {
+            id: "heading",
+            component: "Text",
+            variant: "h1",
+            text: { path: "/title" },
+          },
+          { id: "body", component: "Text", text: { path: "/body" } },
+        ],
+      },
+    },
+    {
+      version: "v0.9",
+      updateDataModel: { surfaceId, data: { title, body: `${title} body` } },
+    },
+  ];
+
+  it("updates a restored a2ui surface via a cross-run ACTIVITY_SNAPSHOT", async () => {
+    const runAgent = vi.fn(async (_input: any, subscriber: any) => {
+      subscriber.onMessagesSnapshotEvent?.({
+        event: {
+          type: "MESSAGES_SNAPSHOT",
+          messages: [
+            { id: "msg-1", role: "user", content: "show me a dashboard" },
+            {
+              id: "msg-2",
+              role: "assistant",
+              content: "Here is the dashboard",
+            },
+            {
+              id: "act-1",
+              role: "activity",
+              activityType: "a2ui-surface",
+              content: {
+                a2ui_operations: a2uiSurfaceOperations("surface-1", "Welcome"),
+              },
+            },
+          ],
+        },
+      });
+      subscriber.onActivitySnapshotEvent?.({
+        event: {
+          type: "ACTIVITY_SNAPSHOT",
+          activityType: "a2ui-surface",
+          content: {
+            a2ui_operations: [
+              { version: "v0.9", createSurface: { surfaceId: "surface-1" } },
+              {
+                version: "v0.9",
+                updateComponents: {
+                  surfaceId: "surface-1",
+                  components: [
+                    { id: "root", component: "Text", text: "Updated" },
+                  ],
+                },
+              },
+            ],
+          },
+        },
+      });
+      subscriber.onRunFinalized?.();
+    });
+    const agent = { runAgent } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    await core.append(createAppendMessage());
+
+    const assistant = core
+      .getMessages()
+      .find((m) => m.role === "assistant") as ThreadAssistantMessage;
+    const a2uiPart = assistant.content.find(
+      (p) => p.type === "tool-call" && p.toolCallId === "a2ui:surface-1",
+    ) as any;
+    expect(a2uiPart).toBeDefined();
+    expect(a2uiPart.args).toEqual({ $type: "Markdown", value: "Updated" });
+    expect(a2uiPart.result).toEqual({});
+  });
+
+  it("removes a restored a2ui surface when a cross-run ACTIVITY_SNAPSHOT deletes it", async () => {
+    const runAgent = vi.fn(async (_input: any, subscriber: any) => {
+      subscriber.onMessagesSnapshotEvent?.({
+        event: {
+          type: "MESSAGES_SNAPSHOT",
+          messages: [
+            { id: "msg-1", role: "user", content: "show me a dashboard" },
+            {
+              id: "msg-2",
+              role: "assistant",
+              content: "Here is the dashboard",
+            },
+            {
+              id: "act-1",
+              role: "activity",
+              activityType: "a2ui-surface",
+              content: {
+                a2ui_operations: a2uiSurfaceOperations("surface-1", "Welcome"),
+              },
+            },
+          ],
+        },
+      });
+      subscriber.onActivitySnapshotEvent?.({
+        event: {
+          type: "ACTIVITY_SNAPSHOT",
+          activityType: "a2ui-surface",
+          content: {
+            a2ui_operations: [
+              { version: "v0.9", deleteSurface: { surfaceId: "surface-1" } },
+            ],
+          },
+        },
+      });
+      subscriber.onRunFinalized?.();
+    });
+    const agent = { runAgent } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    await core.append(createAppendMessage());
+
+    const assistant = core
+      .getMessages()
+      .find((m) => m.role === "assistant") as ThreadAssistantMessage;
+    expect(
+      assistant.content.some(
+        (p) => p.type === "tool-call" && p.toolCallId === "a2ui:surface-1",
+      ),
+    ).toBe(false);
+  });
+
+  it("routes an a2ui-surface ACTIVITY_SNAPSHOT to the live aggregator when no restored message owns the surface", async () => {
+    const runAgent = vi.fn(async (_input: any, subscriber: any) => {
+      subscriber.onActivitySnapshotEvent?.({
+        event: {
+          type: "ACTIVITY_SNAPSHOT",
+          activityType: "a2ui-surface",
+          messageId: "live-msg",
+          content: {
+            a2ui_operations: a2uiSurfaceOperations("surface-1", "Welcome"),
+          },
+        },
+      });
+      subscriber.onRunFinalized?.();
+    });
+    const agent = { runAgent } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    await core.append(createAppendMessage());
+
+    const assistant = core
+      .getMessages()
+      .find((m) => m.role === "assistant") as ThreadAssistantMessage;
+    const a2uiPart = assistant.content.find(
+      (p) => p.type === "tool-call" && p.toolCallId === "a2ui:surface-1",
+    ) as any;
+    expect(a2uiPart).toBeDefined();
+    expect(a2uiPart.toolName).toBe("present");
+    expect(a2uiPart.args).toMatchObject({
+      $type: "Col",
+      children: [
+        { $type: "Header", text: "Welcome" },
+        { $type: "Markdown", value: "Welcome body" },
+      ],
+    });
+  });
+
+  it("appends a new surface to the restored owner when a cross-run snapshot adds one", async () => {
+    const runAgent = vi.fn(async (_input: any, subscriber: any) => {
+      subscriber.onMessagesSnapshotEvent?.({
+        event: {
+          type: "MESSAGES_SNAPSHOT",
+          messages: [
+            { id: "msg-1", role: "user", content: "show me a dashboard" },
+            {
+              id: "msg-2",
+              role: "assistant",
+              content: "Here is the dashboard",
+            },
+            {
+              id: "act-1",
+              role: "activity",
+              activityType: "a2ui-surface",
+              content: {
+                a2ui_operations: a2uiSurfaceOperations("surface-1", "Welcome"),
+              },
+            },
+          ],
+        },
+      });
+      subscriber.onActivitySnapshotEvent?.({
+        event: {
+          type: "ACTIVITY_SNAPSHOT",
+          activityType: "a2ui-surface",
+          content: {
+            a2ui_operations: [
+              ...a2uiSurfaceOperations("surface-1", "Updated"),
+              ...a2uiSurfaceOperations("surface-2", "NewSurface"),
+            ],
+          },
+        },
+      });
+      subscriber.onRunFinalized?.();
+    });
+    const agent = { runAgent } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    await core.append(createAppendMessage());
+
+    const assistant = core
+      .getMessages()
+      .find((m) => m.role === "assistant") as ThreadAssistantMessage;
+    const a2uiIds = assistant.content
+      .filter((p) => p.type === "tool-call" && p.toolCallId.startsWith("a2ui:"))
+      .map((p) => (p as any).toolCallId);
+    expect(a2uiIds).toEqual(["a2ui:surface-1", "a2ui:surface-2"]);
+    const surface1 = assistant.content.find(
+      (p) => p.type === "tool-call" && p.toolCallId === "a2ui:surface-1",
+    ) as any;
+    expect(surface1.args).toMatchObject({
+      $type: "Col",
+      children: [
+        { $type: "Header", text: "Updated" },
+        { $type: "Markdown", value: "Updated body" },
+      ],
+    });
+    const surface2 = assistant.content.find(
+      (p) => p.type === "tool-call" && p.toolCallId === "a2ui:surface-2",
+    ) as any;
+    expect(surface2.args).toMatchObject({
+      $type: "Col",
+      children: [
+        { $type: "Header", text: "NewSurface" },
+        { $type: "Markdown", value: "NewSurface body" },
+      ],
+    });
+  });
+
   it("rejects interrupt resume that does not cover every open interrupt", async () => {
     const runAgent = vi.fn(async (input: any, subscriber: any) => {
       subscriber.onRunFinishedEvent?.({
