@@ -2,13 +2,7 @@ import { useMemo, useState } from "react";
 import { withKey, type Resource } from "@assistant-ui/tap";
 
 import { useClientLookup } from "./useClientLookup";
-import type { ClientMethods } from "./types/client";
-
-type InferClientState<TMethods> = TMethods extends {
-  getState: () => infer S;
-}
-  ? S
-  : unknown;
+import type { ClientMethods, InferClientState } from "./types/client";
 
 type DataHandle<TData> = { data: TData | undefined; hasData: boolean };
 

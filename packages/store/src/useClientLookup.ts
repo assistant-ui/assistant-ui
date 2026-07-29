@@ -1,13 +1,7 @@
 import { useMemo } from "react";
 import { useResources, withKey, type ResourceElement } from "@assistant-ui/tap";
-import type { ClientMethods } from "./types/client";
+import type { ClientMethods, InferClientState } from "./types/client";
 import { ClientResource } from "./useClientResource";
-
-type InferClientState<TMethods> = TMethods extends {
-  getState: () => infer S;
-}
-  ? S
-  : unknown;
 
 const getElementKey = (el: ResourceElement<unknown>) => {
   if (el.key === undefined) {

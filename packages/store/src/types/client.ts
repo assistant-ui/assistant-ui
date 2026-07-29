@@ -154,6 +154,12 @@ export type ClientElement<K extends ClientNames> = ResourceElement<
  */
 export type Unsubscribe = () => void;
 
+export type InferClientState<TMethods> = TMethods extends {
+  getState: () => infer S;
+}
+  ? S
+  : undefined;
+
 type ScopeStates = {
   [K in ClientNames]: ClientSchemas[K]["methods"] extends {
     getState: () => infer S;
