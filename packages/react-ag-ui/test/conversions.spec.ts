@@ -1205,7 +1205,7 @@ describe("adapter conversions", () => {
     ]);
   });
 
-  it("strips a data URL envelope from audio data, preferring the embedded mime type", () => {
+  it("strips a data URL envelope from audio data and keeps the format-derived mime type", () => {
     const result = toAgUiMessages([
       {
         id: "u-1",
@@ -1213,7 +1213,7 @@ describe("adapter conversions", () => {
         content: [
           {
             type: "audio",
-            audio: { data: "data:audio/ogg;base64,QUJD", format: "mp3" },
+            audio: { data: "data:audio/mpeg;base64,QUJD", format: "mp3" },
           },
         ],
       },
@@ -1222,7 +1222,7 @@ describe("adapter conversions", () => {
     expect(result[0]!.content).toMatchObject([
       {
         type: "audio",
-        source: { type: "data", value: "QUJD", mimeType: "audio/ogg" },
+        source: { type: "data", value: "QUJD", mimeType: "audio/mp3" },
       },
     ]);
   });

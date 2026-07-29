@@ -217,7 +217,13 @@ function toInputContent(
     const data = getString(audio, "data");
     const format = getString(audio, "format");
     if (data === undefined || format === undefined) return null;
-    return { type: "audio", source: buildInputSource(data, `audio/${format}`) };
+    return {
+      type: "audio",
+      source: buildInputSource(
+        parseDataUrl(data)?.data ?? data,
+        `audio/${format}`,
+      ),
+    };
   }
 
   return null;
