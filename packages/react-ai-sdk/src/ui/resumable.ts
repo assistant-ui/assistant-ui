@@ -77,11 +77,13 @@ export function createResumableSessionStorage(options?: {
         return;
       }
       cachedStreamId = id;
-      ownerThreadId =
-        threadId ??
-        Array.from(listeners).find(
+      if (threadId) {
+        ownerThreadId = threadId;
+      } else if (!ownerThreadId) {
+        ownerThreadId = Array.from(listeners).find(
           (subscription) => subscription.threadId !== undefined,
         )?.threadId;
+      }
       notify(ownerThreadId);
     },
     clear(threadId) {

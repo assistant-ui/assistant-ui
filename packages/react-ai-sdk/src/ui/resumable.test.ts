@@ -89,6 +89,20 @@ describe("createResumableSessionStorage", () => {
     );
   });
 
+  it("preserves the current owner for unscoped storage updates", () => {
+    const storage = createResumableSessionStorage({ key: "test-stream-id" });
+    storage.setStreamId("stream-a", "thread-a");
+    storage.subscribe?.(vi.fn(), "thread-b");
+
+    storage.setStreamId("stream-b");
+
+    expect(storage.getStreamId("thread-a")).toBe("stream-b");
+    expect(storage.getStreamId("thread-b")).toBeNull();
+
+    storage.clear("thread-a");
+    expect(storage.getStreamId("thread-a")).toBeNull();
+  });
+
   it("caches the last known value between writes", () => {
     const storageMethods = {
       getItem: vi.fn(() => null),

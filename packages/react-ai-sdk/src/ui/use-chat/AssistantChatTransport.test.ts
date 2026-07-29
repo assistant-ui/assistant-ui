@@ -161,5 +161,9 @@ describe("AssistantChatTransport.prepareSendMessagesRequest", () => {
 
     expect(getStreamId).toHaveBeenCalledWith("local-chat-id");
     expect(fetchMock.mock.calls[0]?.[0]).toBe("/api/chat/resume/stream-1");
+    const requestHeaders = new Headers(fetchMock.mock.calls[0]?.[1]?.headers);
+    expect(requestHeaders.has("x-assistant-ui-resumable-thread-id")).toBe(
+      false,
+    );
   });
 });
