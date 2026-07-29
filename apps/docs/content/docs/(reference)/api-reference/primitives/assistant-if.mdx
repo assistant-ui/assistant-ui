@@ -202,24 +202,7 @@ const isThreadEmpty: AuiIf.Condition = (s) => s.thread.isEmpty;
 
 ### AuiIf
 
-Conditionally renders children based on a slice of assistant state.
-
-A thin wrapper around [useAuiState](/docs/api-reference/hooks/state#useauistate) that renders its children
-when `condition` returns `true` and unmounts them when it returns
-`false`. Keeps render logic declarative without mounting unused
-subtrees.
-
-```tsx
-<AuiIf condition={(s) => s.thread.isRunning}>
-  <CancelButton />
-</AuiIf>
-```
-
-```tsx
-<AuiIf condition={(s) => s.thread.messages.length === 0}>
-  <EmptyState />
-</AuiIf>
-```
+Renders `children` while `condition` selects `true` from the assistant state.
 
 <ParametersTable {...AuiIf} />
 {/* api-reference:end */}
