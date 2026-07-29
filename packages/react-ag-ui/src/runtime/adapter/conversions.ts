@@ -717,7 +717,12 @@ function convertAssistantMessage(
   const contentArray = Array.isArray(message.content) ? message.content : [];
 
   const toolCallParts = contentArray.filter(
-    (part): part is ToolCallPart => part?.type === "tool-call",
+    (part): part is ToolCallPart =>
+      part?.type === "tool-call" &&
+      !(
+        typeof part.toolCallId === "string" &&
+        part.toolCallId.startsWith("a2ui:")
+      ),
   );
 
   const toolCalls = toolCallParts.map((part) => ({

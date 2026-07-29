@@ -40,7 +40,7 @@ A backend paints or updates a surface by emitting an activity snapshot on the AG
 }
 ```
 
-- A snapshot with `replace: true` (the schema default) rebuilds that `messageId`'s surface state from the operations it carries; `replace: false` applies the operations incrementally on top of the previous snapshot with the same `messageId`.
+- A snapshot with `replace: true` (the schema default) rebuilds that `messageId`'s surface state from the operations it carries. `replace: false` means the snapshot is ignored when that `messageId` has already been seen, matching the AG-UI event spec. The middleware always emits `replace: true`.
 - Surfaces are keyed by the `surfaceId` inside the operations, not by `messageId`. Multiple snapshots that share a `messageId` update their surfaces in place, and the synthesized part keeps its `toolCallId`, so the rendered surface updates without duplicating parts.
 - Component trees use the A2UI adjacency-list model: nodes reference children by id, the root node has id `root`, and props of shape `{ "path": "/x/y" }` are JSON Pointer bindings resolved against the surface data model. Both v0.9 and v1.0 operation payloads are accepted, including the v1.0 inline `components` and `dataModel` on `createSurface`.
 - Lifecycle snapshots that carry a `status` (such as `"building"`) but no `a2ui_operations` are tolerated and produce no part until operations arrive. A `deleteSurface` operation removes the surface's part.

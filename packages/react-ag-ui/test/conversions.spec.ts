@@ -106,6 +106,90 @@ describe("adapter conversions", () => {
     });
   });
 
+  it("excludes synthesized a2ui tool calls and results from outbound messages", () => {
+    const result = toAgUiMessages([
+      {
+        id: "assistant-1",
+        role: "assistant",
+        content: [
+          {
+            type: "tool-call",
+            toolCallId: "call-42",
+            toolName: "search",
+            argsText: '{"query":"x"}',
+            result: { ok: true },
+          },
+          {
+            type: "tool-call",
+            toolCallId: "a2ui:surface-1",
+            toolName: "present",
+            argsText: '{"$type":"Markdown","value":"Welcome"}',
+            result: {},
+          },
+        ],
+      },
+    ] as any);
+
+    expect(result).toHaveLength(2);
+    const assistantMessage = result[0] as any;
+    expect(assistantMessage.role).toBe("assistant");
+    expect(assistantMessage.toolCalls).toHaveLength(1);
+    expect(assistantMessage.toolCalls[0]).toMatchObject({
+      id: "call-42",
+      function: { name: "search", arguments: '{"query":"x"}' },
+    });
+    const toolMessages = result.filter((message) => message.role === "tool");
+    expect(toolMessages).toHaveLength(1);
+    expect(toolMessages[0]).toMatchObject({
+      role: "tool",
+      toolCallId: "call-42",
+      content: '{"ok":true}',
+    });
+  });
+
+  it("drops an assistant message with only a synthesized a2ui tool call", () => {
+    const withoutText = toAgUiMessages([
+      {
+        id: "assistant-1",
+        role: "assistant",
+        content: [
+          {
+            type: "tool-call",
+            toolCallId: "a2ui:surface-1",
+            toolName: "present",
+            argsText: "{}",
+            result: {},
+          },
+        ],
+      },
+    ] as any);
+    const withText = toAgUiMessages([
+      {
+        id: "assistant-2",
+        role: "assistant",
+        content: [
+          { type: "text", text: "Here is the surface" },
+          {
+            type: "tool-call",
+            toolCallId: "a2ui:surface-1",
+            toolName: "present",
+            argsText: "{}",
+            result: {},
+          },
+        ],
+      },
+    ] as any);
+
+    expect(withoutText).toEqual([]);
+    expect(withText).toEqual([
+      {
+        id: "assistant-2",
+        role: "assistant",
+        content: "Here is the surface",
+      },
+    ]);
+  });
+
   it("does not serialize Host-only data when modelContent is empty", () => {
     const result = toAgUiMessages([
       {

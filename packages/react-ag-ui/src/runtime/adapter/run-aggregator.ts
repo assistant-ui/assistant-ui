@@ -328,11 +328,9 @@ export class RunAggregator {
     if (!Array.isArray(operations)) return;
 
     const messageId = event.messageId ?? "a2ui:anonymous";
-    const previousState =
-      event.replace === false
-        ? (this.a2uiBuckets.get(messageId) ?? new Map())
-        : new Map();
-    const { state, warnings } = applyA2uiOperations(previousState, operations);
+    if (event.replace === false && this.a2uiBuckets.has(messageId)) return;
+
+    const { state, warnings } = applyA2uiOperations(new Map(), operations);
     for (const warning of warnings) {
       this.logger.debug("[agui] a2ui operation warning", warning);
     }
@@ -354,12 +352,13 @@ export class RunAggregator {
     const activeToolCallIds = new Set<string>();
     for (const [surfaceId, surface] of surfaces) {
       const toolCallId = `a2ui:${surfaceId}`;
-      activeToolCallIds.add(toolCallId);
       const { spec, warnings } = convertSurfaceToUISpec(surface);
       for (const warning of warnings) {
         this.logger.debug("[agui] a2ui surface conversion warning", warning);
       }
       if (!spec) continue;
+
+      activeToolCallIds.add(toolCallId);
 
       const entry: ToolCallState = {
         toolCallId,

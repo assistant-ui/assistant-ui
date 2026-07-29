@@ -1765,7 +1765,7 @@ describe("RunAggregator", () => {
     expect(toolParts[0].args.children).toBeUndefined();
   });
 
-  it("applies incremental a2ui snapshots to the same message bucket", () => {
+  it("ignores replace-false a2ui snapshots for an existing message bucket", () => {
     const aggregator = createAggregator(false);
 
     aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
@@ -1774,25 +1774,7 @@ describe("RunAggregator", () => {
       activityType: "a2ui-surface",
       messageId: "message-1",
       content: {
-        a2ui_operations: [
-          {
-            version: "v0.9",
-            createSurface: { surfaceId: "surface-1" },
-          },
-          {
-            version: "v0.9",
-            updateComponents: {
-              surfaceId: "surface-1",
-              components: [
-                {
-                  id: "root",
-                  component: "Text",
-                  text: { path: "/title" },
-                },
-              ],
-            },
-          },
-        ],
+        a2ui_operations: a2uiSurfaceOperations("surface-1", "Original"),
       },
     } as AgUiEvent);
     aggregator.handle({
@@ -1816,7 +1798,81 @@ describe("RunAggregator", () => {
     const toolPart = results
       .at(-1)
       ?.content?.find((part) => part.type === "tool-call") as any;
-    expect(toolPart.args).toEqual({ $type: "Markdown", value: "Incremental" });
+    expect(toolPart.args).toMatchObject({
+      $type: "Col",
+      children: [
+        { $type: "Header", text: "Original" },
+        { $type: "Markdown", value: "Original body" },
+      ],
+    });
+  });
+
+  it("applies a replace-false a2ui snapshot for an unseen message bucket", () => {
+    const aggregator = createAggregator(false);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "ACTIVITY_SNAPSHOT",
+      activityType: "a2ui-surface",
+      messageId: "message-1",
+      replace: false,
+      content: {
+        a2ui_operations: a2uiSurfaceOperations("surface-1", "Welcome"),
+      },
+    } as AgUiEvent);
+
+    const toolPart = results
+      .at(-1)
+      ?.content?.find((part) => part.type === "tool-call") as any;
+    expect(toolPart.args).toMatchObject({
+      $type: "Col",
+      children: [
+        { $type: "Header", text: "Welcome" },
+        { $type: "Markdown", value: "Welcome body" },
+      ],
+    });
+  });
+
+  it("removes an a2ui tool call when a replacement surface has no root component", () => {
+    const aggregator = createAggregator(false);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "ACTIVITY_SNAPSHOT",
+      activityType: "a2ui-surface",
+      messageId: "message-1",
+      content: {
+        a2ui_operations: a2uiSurfaceOperations("surface-1", "Welcome"),
+      },
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "ACTIVITY_SNAPSHOT",
+      activityType: "a2ui-surface",
+      messageId: "message-1",
+      replace: true,
+      content: {
+        a2ui_operations: [
+          {
+            version: "v0.9",
+            createSurface: { surfaceId: "surface-1" },
+          },
+          {
+            version: "v0.9",
+            updateComponents: {
+              surfaceId: "surface-1",
+              components: [{ id: "child", component: "Text", text: "No root" }],
+            },
+          },
+        ],
+      },
+    } as AgUiEvent);
+
+    expect(
+      (results.at(-1)?.content ?? []).some(
+        (part) =>
+          part.type === "tool-call" && part.toolCallId === "a2ui:surface-1",
+      ),
+    ).toBe(false);
   });
 
   it("ignores status-only a2ui snapshots", () => {
@@ -1851,7 +1907,7 @@ describe("RunAggregator", () => {
       type: "ACTIVITY_SNAPSHOT",
       activityType: "a2ui-surface",
       messageId: "message-1",
-      replace: false,
+      replace: true,
       content: {
         a2ui_operations: [
           {
