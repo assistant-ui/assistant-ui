@@ -1,11 +1,10 @@
 import { useMemo } from "react";
 
 const shallowEqual = (a: object, b: object): boolean => {
-  if (Array.isArray(a)) {
+  if (Array.isArray(a) !== Array.isArray(b)) return false;
+  if (Array.isArray(a) && Array.isArray(b)) {
     return (
-      Array.isArray(b) &&
-      a.length === b.length &&
-      a.every((value, i) => Object.is(value, b[i]))
+      a.length === b.length && a.every((value, i) => Object.is(value, b[i]))
     );
   }
   const aKeys = Object.keys(a);
