@@ -9,10 +9,14 @@ const mocks = vi.hoisted(() => {
   const runtime = {
     thread: {
       getState: () => ({ isLoading: state.isLoadingHistory }),
+      getModelContext: () => ({}),
       subscribe: (callback: () => void) => {
         subscribers.add(callback);
         return () => subscribers.delete(callback);
       },
+    },
+    threads: {
+      mainItem: undefined,
     },
   };
   return {
@@ -52,13 +56,27 @@ vi.mock("./useAISDKRuntime", () => ({
   useAISDKRuntime: mocks.useAISDKRuntime,
 }));
 
+import { AssistantChatTransport } from "./AssistantChatTransport";
+import {
+  createResumableSessionStorage,
+  RESUMABLE_STREAM_ID_HEADER,
+} from "../resumable";
 import { useChatRuntime } from "./useChatRuntime";
+
+const sendMessagesOptions = {
+  trigger: "submit-message" as const,
+  chatId: "thread-id",
+  messageId: undefined,
+  messages: [{ id: "m1", role: "user", parts: [{ type: "text", text: "hi" }] }],
+  abortSignal: undefined,
+};
 
 describe("useChatRuntime", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.state.isLoadingHistory = false;
     mocks.subscribers.clear();
+    window.sessionStorage.clear();
   });
 
   it("waits for external history to load before resuming a stream", async () => {
@@ -134,6 +152,111 @@ describe("useChatRuntime", () => {
     await waitFor(() => expect(resumeStream).toHaveBeenCalledTimes(2));
   });
 
+  it("does not resume a stream id written by an active send", async () => {
+    const storage = createResumableSessionStorage({
+      key: "active-send-stream-id",
+    });
+    const fetchMock = vi.fn(async () => {
+      return new Response(
+        new ReadableStream({ start: (controller) => controller.close() }),
+        {
+          status: 200,
+          headers: {
+            "content-type": "text/event-stream",
+            [RESUMABLE_STREAM_ID_HEADER]: "stream-1",
+          },
+        },
+      );
+    });
+    const transport = new AssistantChatTransport({
+      fetch: fetchMock as never,
+      resumable: {
+        storage,
+        resumeApi: "/api/chat/resume",
+      },
+    });
+    const resumeStream = vi.fn(async () => {
+      await transport.reconnectToStream({ chatId: "thread-id" });
+    });
+    mocks.useChat.mockReturnValue({
+      resumeStream,
+      status: "streaming",
+    });
+
+    renderHook(() => useChatRuntime({ transport }));
+
+    await act(async () => {
+      await transport.sendMessages(sendMessagesOptions as never);
+    });
+
+    await waitFor(() => expect(storage.getStreamId()).toBe("stream-1"));
+    expect(resumeStream).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not clear a newer stream id when an older resume fails", async () => {
+    let streamId: string | null = "stream-1";
+    const storageSubscribers = new Set<() => void>();
+    const clear = vi.fn(() => {
+      streamId = null;
+      storageSubscribers.forEach((callback) => callback());
+    });
+    const storage = {
+      getStreamId: () => streamId,
+      setStreamId: (id: string) => {
+        streamId = id;
+        storageSubscribers.forEach((callback) => callback());
+      },
+      clear,
+      subscribe: (callback: () => void) => {
+        storageSubscribers.add(callback);
+        return () => storageSubscribers.delete(callback);
+      },
+    };
+    const error = new Error("resume failed");
+    let rejectFirstResume: ((error: Error) => void) | undefined;
+    const resumeStream = vi
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise<void>((_resolve, reject) => {
+            rejectFirstResume = reject;
+          }),
+      )
+      .mockResolvedValueOnce(undefined);
+    const onResumeError = vi.fn();
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    mocks.useChat.mockReturnValue({
+      resumeStream,
+      status: "ready",
+    });
+
+    renderHook(() =>
+      useChatRuntime({
+        transport: {
+          getResumableAdapter: () => ({
+            storage,
+            resumeApi: "/api/chat/resume",
+          }),
+        } as never,
+        onResumeError,
+      }),
+    );
+
+    await waitFor(() => expect(resumeStream).toHaveBeenCalledTimes(1));
+
+    act(() => storage.setStreamId("stream-2"));
+
+    await waitFor(() => expect(resumeStream).toHaveBeenCalledTimes(2));
+
+    act(() => rejectFirstResume?.(error));
+
+    await waitFor(() => expect(onResumeError).toHaveBeenCalledWith(error));
+    expect(storage.getStreamId()).toBe("stream-2");
+    expect(clear).not.toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
   it("calls onResumeError when automatic resumable stream resume fails", async () => {
     const error = new Error("resume failed");
     const resumeStream = vi.fn().mockRejectedValue(error);
@@ -171,7 +294,7 @@ describe("useChatRuntime", () => {
       clear.mock.invocationCallOrder[0]!,
     );
     expect(warn).toHaveBeenCalledWith(
-      "[assistant-ui] resumable: resume failed; clearing stored stream id",
+      "[assistant-ui] resumable: resume failed",
       error,
     );
     warn.mockRestore();

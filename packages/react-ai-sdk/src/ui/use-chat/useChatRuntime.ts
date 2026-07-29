@@ -163,6 +163,8 @@ const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     getPendingStreamId,
     getNoPendingStreamId,
   );
+  const isChatRunning =
+    chat.status === "submitted" || chat.status === "streaming";
 
   const resumedStreamIdRef = useRef<string | null>(null);
   const onResumeErrorRef = useRef(onResumeError);
@@ -174,15 +176,16 @@ const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       resumedStreamIdRef.current = null;
       return;
     }
-    if (isLoadingHistory || resumedStreamIdRef.current === pendingStreamId) {
+    if (
+      isLoadingHistory ||
+      isChatRunning ||
+      resumedStreamIdRef.current === pendingStreamId
+    ) {
       return;
     }
     resumedStreamIdRef.current = pendingStreamId;
     chat.resumeStream().catch((err: unknown) => {
-      console.warn(
-        "[assistant-ui] resumable: resume failed; clearing stored stream id",
-        err,
-      );
+      console.warn("[assistant-ui] resumable: resume failed", err);
       try {
         onResumeErrorRef.current?.(err);
       } catch (callbackError) {
@@ -191,10 +194,18 @@ const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
           callbackError,
         );
       } finally {
-        resumableStorage?.clear();
+        if (resumableStorage?.getStreamId() === pendingStreamId) {
+          resumableStorage.clear();
+        }
       }
     });
-  }, [chat, isLoadingHistory, pendingStreamId, resumableStorage]);
+  }, [
+    chat,
+    isChatRunning,
+    isLoadingHistory,
+    pendingStreamId,
+    resumableStorage,
+  ]);
 
   return runtime;
 };
