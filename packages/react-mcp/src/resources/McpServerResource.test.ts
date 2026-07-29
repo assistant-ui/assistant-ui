@@ -30,6 +30,14 @@ const mocks = vi.hoisted(() => {
     this.callTool = vi.fn();
     this.listResources = vi.fn(() => Promise.resolve({ resources: [] }));
     this.readResource = vi.fn();
+    this.requestHandlers = new Map();
+    this.notificationHandlers = new Map();
+    this.setRequestHandler = vi.fn((method, handler) => {
+      this.requestHandlers.set(method, handler);
+    });
+    this.setNotificationHandler = vi.fn((method, handler) => {
+      this.notificationHandlers.set(method, handler);
+    });
     clients.push(this);
   });
 
@@ -90,6 +98,27 @@ const waitFor = async (predicate: () => boolean) => {
   expect(predicate()).toBe(true);
 };
 
+const waitForResourceUpdate = async (predicate: () => boolean) => {
+  for (let i = 0; i < 20; i++) {
+    if (predicate()) return;
+    await flushMacrotask();
+  }
+  expect(predicate()).toBe(true);
+};
+
+const requestElicitation = (
+  client: any,
+  message: string,
+  requestedSchema: unknown,
+) => {
+  const handler = client.requestHandlers.get("elicitation/create");
+  if (!handler) throw new Error("elicitation/create handler not registered");
+  return handler({
+    method: "elicitation/create",
+    params: { message, requestedSchema },
+  });
+};
+
 const createStorage = (): MCPStorage => ({
   loadCustomServers: vi.fn(async () => []),
   saveCustomServers: vi.fn(async () => {}),
@@ -113,6 +142,7 @@ const mount = (
   props?: {
     auth?: MCPAuthConfig | undefined;
     connectionTimeout?: number | undefined;
+    cache?: { readonly defaultTtlMs?: number } | undefined;
   },
   onMount?: (server: ClientOutput<"mcpServer">) => void,
 ) => {
@@ -131,6 +161,7 @@ const mount = (
         redirectUri: "https://example.com/callback",
         autoConnect: false,
         connectionTimeout,
+        cache: props?.cache,
         onRemove: vi.fn(async () => {}),
       }),
     );
@@ -463,6 +494,476 @@ describe("McpServerResource completeAuth", () => {
       });
     } finally {
       if (!didUnmount) root.unmount();
+    }
+  });
+});
+
+describe("McpServerResource elicitation", () => {
+  beforeEach(resetMocks);
+
+  it("surfaces pending elicitation requests in server state", async () => {
+    const root = mount();
+    const requestedSchema = {
+      type: "object",
+      properties: {
+        answer: { type: "string" },
+      },
+    };
+
+    try {
+      await root.getValue().connect();
+      const response = requestElicitation(
+        mocks.clients[0],
+        "Provide an answer",
+        requestedSchema,
+      );
+      await waitForResourceUpdate(
+        () => root.getValue().getState().pendingElicitations.length === 1,
+      );
+
+      const [elicitation] = root.getValue().getState().pendingElicitations;
+      expect(elicitation).toEqual({
+        id: expect.any(String),
+        message: "Provide an answer",
+        requestedSchema,
+      });
+
+      root.getValue().answerElicitation(elicitation!.id, {
+        action: "cancel",
+      });
+      await expect(response).resolves.toEqual({ action: "cancel" });
+    } finally {
+      root.unmount();
+    }
+  });
+
+  it("answers pending elicitations with accepted content", async () => {
+    const root = mount();
+
+    try {
+      await root.getValue().connect();
+      const response = requestElicitation(mocks.clients[0], "Choose a color", {
+        type: "object",
+        properties: {
+          color: { type: "string" },
+        },
+      });
+      await waitForResourceUpdate(
+        () => root.getValue().getState().pendingElicitations.length === 1,
+      );
+      const [elicitation] = root.getValue().getState().pendingElicitations;
+      const content = { color: "blue" };
+
+      root
+        .getValue()
+        .answerElicitation(elicitation!.id, { action: "accept", content });
+
+      await expect(response).resolves.toEqual({
+        action: "accept",
+        content,
+      });
+      await waitForResourceUpdate(
+        () => root.getValue().getState().pendingElicitations.length === 0,
+      );
+    } finally {
+      root.unmount();
+    }
+  });
+
+  it("declines pending elicitations", async () => {
+    const root = mount();
+
+    try {
+      await root.getValue().connect();
+      const response = requestElicitation(mocks.clients[0], "Confirm access", {
+        type: "object",
+        properties: {},
+      });
+      await waitForResourceUpdate(
+        () => root.getValue().getState().pendingElicitations.length === 1,
+      );
+      const [elicitation] = root.getValue().getState().pendingElicitations;
+
+      root.getValue().answerElicitation(elicitation!.id, {
+        action: "decline",
+      });
+
+      await expect(response).resolves.toEqual({ action: "decline" });
+      await waitForResourceUpdate(
+        () => root.getValue().getState().pendingElicitations.length === 0,
+      );
+    } finally {
+      root.unmount();
+    }
+  });
+
+  it("cancels pending elicitations", async () => {
+    const root = mount();
+
+    try {
+      await root.getValue().connect();
+      const response = requestElicitation(mocks.clients[0], "Confirm access", {
+        type: "object",
+        properties: {},
+      });
+      await waitForResourceUpdate(
+        () => root.getValue().getState().pendingElicitations.length === 1,
+      );
+      const [elicitation] = root.getValue().getState().pendingElicitations;
+
+      root.getValue().answerElicitation(elicitation!.id, {
+        action: "cancel",
+      });
+
+      await expect(response).resolves.toEqual({ action: "cancel" });
+      await waitForResourceUpdate(
+        () => root.getValue().getState().pendingElicitations.length === 0,
+      );
+    } finally {
+      root.unmount();
+    }
+  });
+
+  it("throws when answering an unknown elicitation", () => {
+    const root = mount();
+
+    try {
+      expect(() =>
+        root
+          .getValue()
+          .answerElicitation("missing-elicitation", { action: "cancel" }),
+      ).toThrow('Unknown MCP elicitation "missing-elicitation"');
+    } finally {
+      root.unmount();
+    }
+  });
+
+  it("rejects accepted elicitation content that is not an object", async () => {
+    const root = mount();
+
+    try {
+      await root.getValue().connect();
+      const response = requestElicitation(mocks.clients[0], "Confirm access", {
+        type: "object",
+        properties: {},
+      });
+      await waitForResourceUpdate(
+        () => root.getValue().getState().pendingElicitations.length === 1,
+      );
+      const [elicitation] = root.getValue().getState().pendingElicitations;
+
+      expect(() =>
+        root.getValue().answerElicitation(elicitation!.id, {
+          action: "accept",
+          content: null as never,
+        }),
+      ).toThrow(
+        `MCP elicitation "${elicitation!.id}" response content must be an object`,
+      );
+      expect(root.getValue().getState().pendingElicitations).toHaveLength(1);
+
+      await root.getValue().disconnect();
+      await expect(response).resolves.toEqual({ action: "cancel" });
+    } finally {
+      root.unmount();
+    }
+  });
+
+  it("cancels pending elicitations on disconnect", async () => {
+    const root = mount();
+
+    try {
+      await root.getValue().connect();
+      const response = requestElicitation(mocks.clients[0], "Confirm access", {
+        type: "object",
+        properties: {},
+      });
+      await waitForResourceUpdate(
+        () => root.getValue().getState().pendingElicitations.length === 1,
+      );
+
+      await root.getValue().disconnect();
+
+      await expect(response).resolves.toEqual({ action: "cancel" });
+      await waitForResourceUpdate(
+        () => root.getValue().getState().pendingElicitations.length === 0,
+      );
+    } finally {
+      root.unmount();
+    }
+  });
+
+  it("cancels pending elicitations on unmount", async () => {
+    const root = mount();
+    let didUnmount = false;
+
+    try {
+      await root.getValue().connect();
+      const response = requestElicitation(mocks.clients[0], "Confirm access", {
+        type: "object",
+        properties: {},
+      });
+      await waitForResourceUpdate(
+        () => root.getValue().getState().pendingElicitations.length === 1,
+      );
+
+      root.unmount();
+      didUnmount = true;
+      await flushMacrotask();
+
+      await expect(response).resolves.toEqual({ action: "cancel" });
+    } finally {
+      if (!didUnmount) root.unmount();
+    }
+  });
+
+  it("cancels requests from stale connections without surfacing them", async () => {
+    const root = mount();
+
+    try {
+      await root.getValue().connect();
+      await root.getValue().connect();
+
+      await expect(
+        requestElicitation(mocks.clients[0], "Confirm access", {
+          type: "object",
+          properties: {},
+        }),
+      ).resolves.toEqual({ action: "cancel" });
+      expect(root.getValue().getState().pendingElicitations).toEqual([]);
+    } finally {
+      root.unmount();
+    }
+  });
+
+  it("advertises form elicitation capability", async () => {
+    const root = mount();
+
+    try {
+      await root.getValue().connect();
+
+      expect(mocks.Client).toHaveBeenCalledWith(
+        {
+          name: "assistant-ui-mcp",
+          version: "0.0.0",
+        },
+        {
+          capabilities: {
+            elicitation: {},
+          },
+          listChanged: {
+            tools: {
+              autoRefresh: false,
+              onChanged: expect.any(Function),
+            },
+          },
+        },
+      );
+    } finally {
+      root.unmount();
+    }
+  });
+});
+
+describe("McpServerResource tools listChanged", () => {
+  beforeEach(resetMocks);
+
+  it("registers the list_changed notification handler and opts into listChanged tools", async () => {
+    const root = mount();
+
+    try {
+      await root.getValue().connect();
+
+      expect(mocks.Client).toHaveBeenCalledWith(
+        {
+          name: "assistant-ui-mcp",
+          version: "0.0.0",
+        },
+        {
+          capabilities: {
+            elicitation: {},
+          },
+          listChanged: {
+            tools: {
+              autoRefresh: false,
+              onChanged: expect.any(Function),
+            },
+          },
+        },
+      );
+      expect(mocks.clients[0].setNotificationHandler).toHaveBeenCalledWith(
+        "notifications/tools/list_changed",
+        expect.any(Function),
+      );
+    } finally {
+      root.unmount();
+    }
+  });
+
+  it("re-syncs tools when notifications/tools/list_changed fires after connect", async () => {
+    mocks.listToolsResults.push(async () => ({
+      tools: [
+        {
+          name: "search",
+          description: "Search docs",
+          inputSchema: { type: "object" },
+        },
+      ],
+    }));
+    const root = mount();
+
+    try {
+      await root.getValue().connect();
+      await waitForResourceUpdate(
+        () => root.getValue().getState().tools.length === 1,
+      );
+      expect(root.getValue().getState().tools).toEqual([
+        {
+          name: "search",
+          description: "Search docs",
+          inputSchema: { type: "object" },
+        },
+      ]);
+
+      mocks.clients[0].listTools.mockResolvedValueOnce({
+        tools: [
+          {
+            name: "search",
+            description: "Search docs",
+            inputSchema: { type: "object" },
+          },
+          {
+            name: "summarize",
+            inputSchema: { type: "object", properties: {} },
+          },
+        ],
+      });
+
+      const handler = mocks.clients[0].notificationHandlers.get(
+        "notifications/tools/list_changed",
+      );
+      expect(handler).toEqual(expect.any(Function));
+      await handler();
+      await waitForResourceUpdate(
+        () => root.getValue().getState().tools.length === 2,
+      );
+
+      expect(mocks.clients[0].listTools).toHaveBeenCalledTimes(2);
+      expect(root.getValue().getState().tools).toEqual([
+        {
+          name: "search",
+          description: "Search docs",
+          inputSchema: { type: "object" },
+        },
+        {
+          name: "summarize",
+          inputSchema: { type: "object", properties: {} },
+        },
+      ]);
+    } finally {
+      root.unmount();
+    }
+  });
+
+  it("ignores list_changed notifications from a stale connection generation", async () => {
+    mocks.listToolsResults.push(async () => ({
+      tools: [
+        {
+          name: "first",
+          inputSchema: { type: "object" },
+        },
+      ],
+    }));
+    mocks.listToolsResults.push(async () => ({
+      tools: [
+        {
+          name: "second",
+          inputSchema: { type: "object" },
+        },
+      ],
+    }));
+    const root = mount();
+
+    try {
+      await root.getValue().connect();
+      const staleHandler = mocks.clients[0].notificationHandlers.get(
+        "notifications/tools/list_changed",
+      );
+      await root.getValue().connect();
+      await waitForResourceUpdate(
+        () => root.getValue().getState().tools[0]?.name === "second",
+      );
+
+      expect(root.getValue().getState().tools).toEqual([
+        {
+          name: "second",
+          inputSchema: { type: "object" },
+        },
+      ]);
+
+      mocks.clients[0].listTools.mockResolvedValueOnce({
+        tools: [
+          {
+            name: "stale-tool",
+            inputSchema: { type: "object" },
+          },
+        ],
+      });
+      await staleHandler();
+      await flushMacrotask();
+
+      expect(root.getValue().getState().tools).toEqual([
+        {
+          name: "second",
+          inputSchema: { type: "object" },
+        },
+      ]);
+      // Stale generation returns before listTools is invoked.
+      expect(mocks.clients[0].listTools).toHaveBeenCalledTimes(1);
+    } finally {
+      root.unmount();
+    }
+  });
+
+  it("passes defaultCacheTtlMs when cache.defaultTtlMs is configured", async () => {
+    const root = mount({ cache: { defaultTtlMs: 5_000 } });
+
+    try {
+      await root.getValue().connect();
+
+      expect(mocks.Client).toHaveBeenCalledWith(
+        {
+          name: "assistant-ui-mcp",
+          version: "0.0.0",
+        },
+        {
+          capabilities: {
+            elicitation: {},
+          },
+          listChanged: {
+            tools: {
+              autoRefresh: false,
+              onChanged: expect.any(Function),
+            },
+          },
+          defaultCacheTtlMs: 5_000,
+        },
+      );
+    } finally {
+      root.unmount();
+    }
+  });
+
+  it("omits defaultCacheTtlMs when cache is not configured", async () => {
+    const root = mount();
+
+    try {
+      await root.getValue().connect();
+
+      const options = mocks.Client.mock.calls[0]?.[1];
+      expect(options).not.toHaveProperty("defaultCacheTtlMs");
+    } finally {
+      root.unmount();
     }
   });
 });

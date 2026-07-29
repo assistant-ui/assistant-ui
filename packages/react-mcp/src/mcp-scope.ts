@@ -13,6 +13,10 @@ export type MCPAuthConfig =
       clientSecret?: string | undefined;
     };
 
+export type MCPResponseCacheConfig = {
+  readonly defaultTtlMs?: number;
+};
+
 export type MCPConnector = {
   id: string;
   name: string;
@@ -20,6 +24,7 @@ export type MCPConnector = {
   icon?: string | undefined;
   auth: MCPAuthConfig;
   connectionTimeout?: number | undefined;
+  readonly cache?: MCPResponseCacheConfig | undefined;
 };
 
 export type MCPCustomServerRecord = {
@@ -28,6 +33,7 @@ export type MCPCustomServerRecord = {
   url: string;
   auth: MCPAuthConfig;
   connectionTimeout?: number | undefined;
+  readonly cache?: MCPResponseCacheConfig | undefined;
   createdAt: number;
 };
 
@@ -47,6 +53,17 @@ export type MCPToolInfo = {
   inputSchema: unknown;
 };
 
+export type MCPElicitation = {
+  readonly id: string;
+  readonly message: string;
+  readonly requestedSchema: unknown;
+};
+
+export type MCPElicitationResponse =
+  | { action: "accept"; content: Record<string, unknown> }
+  | { action: "decline" }
+  | { action: "cancel" };
+
 export type MCPServerState = {
   id: string;
   kind: MCPServerKind;
@@ -57,6 +74,7 @@ export type MCPServerState = {
   lastError: { message: string } | null;
   tools: MCPToolInfo[];
   authorizationUrl: string | null;
+  readonly pendingElicitations: readonly MCPElicitation[];
 };
 
 export type MCPManagerState = {
@@ -78,6 +96,7 @@ export type MCPServerMethods = {
   readResource: (uri: string) => Promise<unknown>;
   /** OAuth only: pass full callback URL (e.g. window.location.href) */
   completeAuth: (callbackUrl: string) => Promise<void>;
+  answerElicitation(id: string, response: MCPElicitationResponse): void;
 };
 
 export type MCPServerQuery =
