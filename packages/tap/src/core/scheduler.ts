@@ -2,11 +2,14 @@ type Task = () => void;
 
 type GlobalFlushState = {
   schedulers: Set<UpdateScheduler>;
+  // Tasks run since the queue last drained, across chunked passes.
+  burstTaskTotal: number;
   isScheduled: boolean;
 };
 
 const newFlushState = (): GlobalFlushState => ({
   schedulers: new Set([]),
+  burstTaskTotal: 0,
   isScheduled: false,
 });
 
@@ -14,17 +17,15 @@ const newFlushState = (): GlobalFlushState => ({
 // that keeps re-dirtying itself (or a cycle of resources re-dirtying each
 // other); the offender is dropped so the rest of the queue keeps flushing.
 const MAX_TASK_RUNS_PER_FLUSH = 50;
-// Last-resort termination: a task that synchronously mints NEW schedulers
-// (e.g. mounts another root mid-flush) never trips the per-scheduler
-// guard, so an unbounded cascade of fresh instances would otherwise lock
-// the thread in one macrotask. On hitting it the pass aborts with the
-// depth error; the remainder stays queued (never dropped) and the next
-// triggered flush continues it.
+// A pass yields at this many tasks and continues on the next flush, so
+// oversized batches chunk across macrotasks instead of blocking.
 const MAX_TASKS_PER_FLUSH = 50000;
-// "The queue did not shrink between sync passes" is what runaway means for
-// a flushTapSync drain; this many in a row throws (finite batches always
-// shrink, so they never hit it).
-const MAX_CAP_STREAK = 3;
+// Last-resort termination, documented as the real bound: nothing can
+// distinguish a huge finite cascade from an infinite one, so a burst that
+// runs more than this many tasks in total (~100x any realistic bulk
+// update) is declared a loop and reported. The queue is never dropped; a
+// stalled remainder continues on the next triggered flush.
+const MAX_BURST_TASKS = 500000;
 let flushState: GlobalFlushState = newFlushState();
 
 export class UpdateScheduler {
@@ -101,14 +102,12 @@ const flushScheduled = (errors: CollectedErrors, defer = true): number => {
   const errorContributors = new Set<UpdateScheduler>();
   let taskCount = 0;
 
+  let hitCeiling = false;
+
   try {
     for (const scheduler of flushState.schedulers) {
       if (taskCount >= MAX_TASKS_PER_FLUSH) {
-        // The per-pass ceiling only reports on the macrotask path; a sync
-        // caller chunks silently and applies its own total ceiling.
-        if (defer) {
-          reportDepthError(errors);
-        }
+        hitCeiling = true;
         break;
       }
       flushState.schedulers.delete(scheduler);
@@ -140,6 +139,19 @@ const flushScheduled = (errors: CollectedErrors, defer = true): number => {
   } finally {
     if (defer) {
       flushState.isScheduled = false;
+      if (!hitCeiling) {
+        flushState.burstTaskTotal = 0;
+      } else {
+        flushState.burstTaskTotal += taskCount;
+        if (flushState.burstTaskTotal > MAX_BURST_TASKS) {
+          // Runaway: report and stop auto-continuing. The queue is kept.
+          flushState.burstTaskTotal = 0;
+          reportDepthError(errors);
+        } else {
+          // Oversized but under the bound: chunk on, silently.
+          scheduleFlush();
+        }
+      }
     }
   }
 
@@ -193,21 +205,13 @@ export const flushTapSync = <T>(callback: () => T): T => {
     // a runaway is bounded by the same task ceiling (checked before each
     // pass, so finite batches always finish first).
     const errors: CollectedErrors = [];
-    // A finite batch's queue always shrinks between passes; only a runaway
-    // (fresh schedulers minted mid-drain) fails to. The sync ceiling
-    // therefore counts non-shrinking passes, and finite batches of any
-    // size always finish first.
-    let lastQueueSize = Number.POSITIVE_INFINITY;
-    let streak = 0;
+    let total = 0;
     while (flushState.schedulers.size > 0) {
-      if (streak > MAX_CAP_STREAK) {
+      if (total > MAX_BURST_TASKS) {
         reportDepthError(errors);
         break;
       }
-      flushScheduled(errors, false);
-      const size = flushState.schedulers.size;
-      streak = size >= lastQueueSize ? streak + 1 : 0;
-      lastQueueSize = size;
+      total += flushScheduled(errors, false);
     }
     throwCollectedErrors(errors);
 

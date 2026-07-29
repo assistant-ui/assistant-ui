@@ -119,6 +119,30 @@ describe("scheduler batched draining", () => {
     expect(ran).toBe(true);
   });
 
+  it("drains a 60000-scheduler batch silently across chunked passes", async () => {
+    vi.resetModules();
+    vi.stubGlobal("MessageChannel", ControlledMessageChannel);
+    const { UpdateScheduler } = await import("../core/scheduler");
+
+    // Bigger than one pass (50000) but under the burst bound: chunks
+    // continue silently on follow-up macrotasks, no depth error.
+    const ran: number[] = [];
+    const schedulers = Array.from(
+      { length: 60000 },
+      (_, i) =>
+        new UpdateScheduler(() => {
+          ran.push(i);
+        }),
+    );
+    for (const scheduler of schedulers) {
+      scheduler.markDirty();
+    }
+
+    const [channel] = ControlledMessageChannel.instances;
+    expect(() => pump(channel!)).not.toThrow();
+    expect(ran).toHaveLength(60000);
+  });
+
   it("drains a 10001-scheduler batch in one flush", async () => {
     vi.resetModules();
     vi.stubGlobal("MessageChannel", ControlledMessageChannel);
