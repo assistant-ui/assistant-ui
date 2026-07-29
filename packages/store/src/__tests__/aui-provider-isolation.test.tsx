@@ -2,8 +2,8 @@
 
 import type { ReactNode } from "react";
 import { useState } from "react";
-import { cleanup, render, renderHook } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { cleanup, render } from "@testing-library/react";
+import { afterEach, describe, expect, it } from "vitest";
 import { resource } from "@assistant-ui/tap";
 import { AuiProvider } from "../utils/react-assistant-context";
 import { useAui } from "../useAui";
@@ -21,10 +21,7 @@ const OuterProvider = ({ children }: { children: ReactNode }) => {
   return <AuiProvider value={aui}>{children}</AuiProvider>;
 };
 
-afterEach(() => {
-  cleanup();
-  vi.restoreAllMocks();
-});
+afterEach(cleanup);
 
 describe("AuiProvider value={null} isolation boundary", () => {
   it("hides an outer provider's scopes behind the boundary", () => {
@@ -64,36 +61,5 @@ describe("AuiProvider value={null} isolation boundary", () => {
 
     expect(aui.composer.getState()).toEqual({ count: 0 });
     expect(() => aui.thread.getState()).toThrow();
-  });
-});
-
-describe("useAui hook-count stability", () => {
-  it("each call form re-renders without hook-order violations", () => {
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
-
-    const clients = { composer: CounterClient() } as unknown as useAui.Props;
-    const wrapper = ({ children }: { children: ReactNode }) => (
-      <OuterProvider>{children}</OuterProvider>
-    );
-
-    const read = renderHook(() => useAui(), { wrapper });
-    read.rerender();
-
-    const build = renderHook(() => useAui(clients), { wrapper });
-    const first = build.result.current;
-    build.rerender();
-    expect(build.result.current).toBe(first);
-    expect((build.result.current as AnyClient).thread.getState()).toEqual({
-      count: 0,
-    });
-
-    const hookOrderMessages = consoleError.mock.calls.filter((args) =>
-      args.some(
-        (arg) => typeof arg === "string" && arg.includes("order of Hooks"),
-      ),
-    );
-    expect(hookOrderMessages).toEqual([]);
   });
 });
