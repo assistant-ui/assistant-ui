@@ -212,12 +212,9 @@ You have tools to explore assistant-ui documentation, inspect the monorepo sourc
 `;
 
 const LEARN_FILE_REFERENCE_INSTRUCTIONS = `<course_file_references>
-When you mention a file from the selected lesson application, place its complete /course-relative path in a standalone fenced code block tagged \`xulux-file\`.
+When you mention a file from the selected lesson application, format its complete /course-relative path as an inline code span using \`xulux-file:course:<path>\`.
 
-Example:
-\`\`\`xulux-file
-xulux-file:course:app/page.tsx
-\`\`\`
+Example: The key file is \`xulux-file:course:app/page.tsx\`.
 
 - Use only exact paths from the selected course stage.
 - Do not include source contents, patches, statistics, stage IDs, or URLs in the token.

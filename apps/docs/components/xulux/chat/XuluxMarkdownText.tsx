@@ -39,10 +39,6 @@ const XuluxMarkdownTextImpl = () => {
           SyntaxHighlighter: XuluxAskQuestion,
           CodeHeader: () => null,
         },
-        "xulux-file": {
-          SyntaxHighlighter: XuluxFileReferenceHighlighter,
-          CodeHeader: () => null,
-        },
         text: {
           SyntaxHighlighter: PlainTextSyntaxHighlighter,
         },
@@ -112,29 +108,35 @@ const PlainTextSyntaxHighlighter: FC<SyntaxHighlighterProps> = ({ code }) => {
   );
 };
 
-const XuluxFileReferenceHighlighter: FC<SyntaxHighlighterProps> = ({
-  code,
-}) => {
-  const token = code.trim();
-  const reference = parseXuluxFileReference(token);
-
-  if (!reference) {
-    return (
-      <pre className="border-border/50 bg-muted/30 my-2 max-w-full overflow-x-auto rounded-lg border px-3 py-2 text-xs">
-        <code>{token}</code>
-      </pre>
-    );
-  }
-
-  return (
-    <div className="my-2 flex max-w-full">
-      <LearnInlineFileReference reference={reference} />
-    </div>
-  );
-};
-
 const markdownComponents = {
   SyntaxHighlighter: SyntaxHighlighter,
+  inlineCode: function InlineCode({
+    className,
+    children,
+    node: _node,
+    ...props
+  }: ComponentPropsWithoutRef<"code"> & { node?: unknown }) {
+    const reference =
+      typeof children === "string" ? parseXuluxFileReference(children) : null;
+
+    if (reference) {
+      return (
+        <LearnInlineFileReference reference={reference} className={className} />
+      );
+    }
+
+    return (
+      <code
+        className={cn(
+          "border-border/50 bg-muted/50 rounded-md border px-1.5 py-0.5 font-mono text-[0.85em]",
+          className,
+        )}
+        {...props}
+      >
+        {children}
+      </code>
+    );
+  },
   h1: ({ className, ...props }: ComponentPropsWithoutRef<"h1">) => (
     <h1
       className={cn(
