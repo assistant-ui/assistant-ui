@@ -57,11 +57,13 @@ describe("parseAgUiEvent", () => {
     });
     expect(event).toEqual({
       type: "ACTIVITY_SNAPSHOT",
+      messageId: "m1",
       activityType: "mcp-apps",
       content: {
         resourceUri: "ui://srv/mcp-app.html",
         toolInput: { city: "sf" },
       },
+      replace: true,
     });
   });
 
@@ -72,6 +74,47 @@ describe("parseAgUiEvent", () => {
     expect(
       parseAgUiEvent({ type: "ACTIVITY_SNAPSHOT", activityType: "mcp-apps" }),
     ).toBeNull();
+  });
+
+  it("omits non-string messageId from ACTIVITY_SNAPSHOT", () => {
+    const event = parseAgUiEvent({
+      type: "ACTIVITY_SNAPSHOT",
+      messageId: 42,
+      activityType: "mcp-apps",
+      content: { resourceUri: "ui://srv/mcp-app.html" },
+    });
+    expect(event).toEqual({
+      type: "ACTIVITY_SNAPSHOT",
+      activityType: "mcp-apps",
+      content: { resourceUri: "ui://srv/mcp-app.html" },
+    });
+  });
+
+  it("omits non-boolean replace from ACTIVITY_SNAPSHOT", () => {
+    const event = parseAgUiEvent({
+      type: "ACTIVITY_SNAPSHOT",
+      activityType: "mcp-apps",
+      content: { resourceUri: "ui://srv/mcp-app.html" },
+      replace: "yes",
+    });
+    expect(event).toEqual({
+      type: "ACTIVITY_SNAPSHOT",
+      activityType: "mcp-apps",
+      content: { resourceUri: "ui://srv/mcp-app.html" },
+    });
+  });
+
+  it("parses ACTIVITY_SNAPSHOT without messageId or replace", () => {
+    const event = parseAgUiEvent({
+      type: "ACTIVITY_SNAPSHOT",
+      activityType: "mcp-apps",
+      content: { resourceUri: "ui://srv/mcp-app.html" },
+    });
+    expect(event).toEqual({
+      type: "ACTIVITY_SNAPSHOT",
+      activityType: "mcp-apps",
+      content: { resourceUri: "ui://srv/mcp-app.html" },
+    });
   });
 
   it("passes RUN_FINISHED through with no outcome (legacy)", () => {

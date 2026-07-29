@@ -169,6 +169,8 @@ export type AgUiEvent =
       type: "ACTIVITY_SNAPSHOT";
       activityType: string;
       content: Record<string, unknown>;
+      messageId?: string;
+      replace?: boolean;
     }
   | { type: "RAW"; event: any; source?: string }
   | { type: "CUSTOM"; name: string; value: any }
