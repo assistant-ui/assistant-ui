@@ -211,6 +211,15 @@ function toInputContent(
     }
   }
 
+  if (type === "audio") {
+    const audio = part.audio;
+    if (!isObject(audio)) return null;
+    const data = getString(audio, "data");
+    const format = getString(audio, "format");
+    if (data === undefined || format === undefined) return null;
+    return { type: "audio", source: buildInputSource(data, `audio/${format}`) };
+  }
+
   return null;
 }
 

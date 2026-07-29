@@ -1163,6 +1163,125 @@ describe("adapter conversions", () => {
     expect(() => UserMessageSchema.parse(roundTripped[0])).not.toThrow();
   });
 
+  it("converts a native audio content part to an AG-UI audio source", () => {
+    const result = toAgUiMessages([
+      {
+        id: "u-1",
+        role: "user",
+        content: [
+          { type: "text", text: "listen to this" },
+          { type: "audio", audio: { data: "QUJD", format: "mp3" } },
+        ],
+      },
+    ] as any);
+
+    expect(result[0]).toMatchObject({
+      role: "user",
+      content: [
+        { type: "text", text: "listen to this" },
+        {
+          type: "audio",
+          source: { type: "data", value: "QUJD", mimeType: "audio/mp3" },
+        },
+      ],
+    });
+    expect(() => UserMessageSchema.parse(result[0])).not.toThrow();
+  });
+
+  it("derives the audio mime type from the wav format", () => {
+    const result = toAgUiMessages([
+      {
+        id: "u-1",
+        role: "user",
+        content: [{ type: "audio", audio: { data: "QUJD", format: "wav" } }],
+      },
+    ] as any);
+
+    expect(result[0]!.content).toMatchObject([
+      {
+        type: "audio",
+        source: { type: "data", value: "QUJD", mimeType: "audio/wav" },
+      },
+    ]);
+  });
+
+  it("strips a data URL envelope from audio data, preferring the embedded mime type", () => {
+    const result = toAgUiMessages([
+      {
+        id: "u-1",
+        role: "user",
+        content: [
+          {
+            type: "audio",
+            audio: { data: "data:audio/ogg;base64,QUJD", format: "mp3" },
+          },
+        ],
+      },
+    ] as any);
+
+    expect(result[0]!.content).toMatchObject([
+      {
+        type: "audio",
+        source: { type: "data", value: "QUJD", mimeType: "audio/ogg" },
+      },
+    ]);
+  });
+
+  it("drops an audio part with a malformed payload without failing the send", () => {
+    const result = toAgUiMessages([
+      {
+        id: "u-1",
+        role: "user",
+        content: [
+          { type: "text", text: "hi" },
+          { type: "audio", audio: { format: "mp3" } },
+        ],
+      },
+    ] as any);
+
+    expect(result[0]).toMatchObject({ role: "user", content: "hi" });
+    expect(() => UserMessageSchema.parse(result[0])).not.toThrow();
+  });
+
+  it("drops data parts while keeping surrounding text", () => {
+    const result = toAgUiMessages([
+      {
+        id: "u-1",
+        role: "user",
+        content: [
+          { type: "text", text: "hi" },
+          { type: "data", name: "chart", data: { x: 1 } },
+        ],
+      },
+    ] as any);
+
+    expect(result[0]).toMatchObject({ role: "user", content: "hi" });
+    expect(() => UserMessageSchema.parse(result[0])).not.toThrow();
+  });
+
+  it("round-trips a native audio part through the attachment channel back to a wire audio block", () => {
+    const sent = toAgUiMessages([
+      {
+        id: "u-1",
+        role: "user",
+        content: [{ type: "audio", audio: { data: "QUJD", format: "mp3" } }],
+      },
+    ] as any);
+
+    const restored = fromAgUiMessages(sent);
+    const resent = toAgUiMessages(
+      restored as Parameters<typeof toAgUiMessages>[0],
+    );
+
+    expect(resent[0]!.content).toMatchObject([
+      {
+        type: "audio",
+        source: { type: "data", value: "QUJD", mimeType: "audio/mp3" },
+      },
+    ]);
+    expect(() => UserMessageSchema.parse(resent[0])).not.toThrow();
+  });
+
   it("restores a legacy binary input part and re-sends it as a modern part", () => {
     const restored = fromAgUiMessages([
       {
