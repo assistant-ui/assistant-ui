@@ -588,9 +588,13 @@ declare namespace AuiIf {
 declare const AuiIf: FC<AuiIf.Props>;
 
 declare const AuiProvider: (_param8: {
-  value: AssistantClient;
+  value: AssistantClient | AuiProvider.IsolationBoundary;
   children: React.ReactNode;
 }) => React.ReactElement;
+
+declare namespace AuiProvider {
+  type IsolationBoundary = null;
+}
 
 type AuiToolOverride<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = Partial<Tool<TArgs, TResult>>;
 

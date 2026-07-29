@@ -24,7 +24,9 @@ import { useDerived, type DerivedElement } from "./Derived";
 import {
   useAssistantContextValue,
   DefaultAssistantClient,
+  IsolatedAssistantClient,
   createRootAssistantClient,
+  createIsolatedRootAssistantClient,
   AUI_USE_EFFECTS_SYMBOL,
 } from "./utils/react-assistant-context";
 import { getTransformScopes, type ScopesConfig } from "./attachTransformScopes";
@@ -114,9 +116,13 @@ const createClientObject = (
   parent: AssistantClient,
   fields: ClientFields,
 ): AssistantClient => {
-  // Swap DefaultAssistantClient -> createRootAssistantClient at root to change error message
+  // Swap the sentinel parents for root prototypes to change the error message
   const proto =
-    parent === DefaultAssistantClient ? createRootAssistantClient() : parent;
+    parent === DefaultAssistantClient
+      ? createRootAssistantClient()
+      : parent === IsolatedAssistantClient
+        ? createIsolatedRootAssistantClient()
+        : parent;
 
   const client = Object.create(proto) as AssistantClient;
   Object.assign(client, fields);
@@ -453,25 +459,27 @@ export function useAui(): AssistantClient;
 export function useAui(clients: useAui.Props): AssistantClient;
 /**
  * Extends an explicit parent `AssistantClient` with additional scopes.
+ *
+ * @deprecated Compose via context instead: provide the parent with
+ * {@link AuiProvider} (`<AuiProvider value={parent}>`, or
+ * `<AuiProvider value={null}>` for an isolated root) and call
+ * `useAui(clients)` beneath it.
  */
 export function useAui(
   clients: useAui.Props,
   config: { parent: null | AssistantClient },
 ): AssistantClient;
-/** @deprecated This API is highly experimental and may be changed in a minor release */
 export function useAui(
   clients?: useAui.Props,
-  { parent }: { parent: null | AssistantClient } = {
-    parent: useAssistantContextValue(),
-  },
+  config?: { parent: null | AssistantClient },
 ): AssistantClient {
+  const contextParent = useAssistantContextValue();
   if (clients) {
     return useHostedAssistantClient({
-      parent: parent ?? DefaultAssistantClient,
+      parent:
+        (config ? config.parent : contextParent) ?? DefaultAssistantClient,
       clients,
     });
   }
-  if (parent === null)
-    throw new Error("received null parent, this usage is not allowed");
-  return parent;
+  return contextParent;
 }

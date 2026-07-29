@@ -10,19 +10,29 @@ const NO_OP_SUBSCRIBE = () => () => {};
 const MISSING_PROVIDER_MESSAGE =
   "You are using a component or hook that requires an AuiProvider. Wrap your component in an <AuiProvider> component.";
 
-class DefaultAssistantClientProxyHandler
+const isolationBoundaryMessage = (prop: string) =>
+  `Scope "${prop}" is not available inside this isolation boundary (<AuiProvider value={null}>).`;
+
+class EmptyAssistantClientProxyHandler
   extends BaseProxyHandler
   implements ProxyHandler<AssistantClient>
 {
+  constructor(
+    private readonly displayName: string,
+    private readonly messageOf: (prop: string) => string,
+  ) {
+    super();
+  }
+
   get(_: unknown, prop: string | symbol) {
     if (prop === "subscribe") return NO_OP_SUBSCRIBE;
     if (prop === "on") return NO_OP_SUBSCRIBE;
-    const introspection = handleIntrospectionProp(
-      prop,
-      "DefaultAssistantClient",
-    );
+    const introspection = handleIntrospectionProp(prop, this.displayName);
     if (introspection !== false) return introspection;
-    return createErrorClientAccessor(MISSING_PROVIDER_MESSAGE, String(prop));
+    return createErrorClientAccessor(
+      this.messageOf(String(prop)),
+      String(prop),
+    );
   }
 
   ownKeys(): ArrayLike<string | symbol> {
@@ -33,26 +43,51 @@ class DefaultAssistantClientProxyHandler
     return prop === "subscribe" || prop === "on";
   }
 }
-/** Default context value - throws "wrap in AuiProvider" error */
-export const DefaultAssistantClient: AssistantClient =
+
+const createEmptyAssistantClient = (
+  displayName: string,
+  messageOf: (prop: string) => string,
+): AssistantClient =>
   new Proxy<AssistantClient>(
     {} as AssistantClient,
-    new DefaultAssistantClientProxyHandler(),
+    new EmptyAssistantClientProxyHandler(displayName, messageOf),
   );
 
-/** Root prototype for created clients - throws "scope not defined" error */
-export const createRootAssistantClient = (): AssistantClient =>
+/** Default context value - throws "wrap in AuiProvider" error */
+export const DefaultAssistantClient: AssistantClient =
+  createEmptyAssistantClient(
+    "DefaultAssistantClient",
+    () => MISSING_PROVIDER_MESSAGE,
+  );
+
+/** Isolated empty root provided by `<AuiProvider value={null}>` */
+export const IsolatedAssistantClient: AssistantClient =
+  createEmptyAssistantClient(
+    "IsolatedAssistantClient",
+    isolationBoundaryMessage,
+  );
+
+const createErrorRootClient = (
+  messageOf: (prop: string) => string,
+): AssistantClient =>
   new Proxy<AssistantClient>({} as AssistantClient, {
     get(_: AssistantClient, prop: string | symbol) {
       const introspection = handleIntrospectionProp(prop, "AssistantClient");
       if (introspection !== false) return introspection;
 
-      return createErrorClientAccessor(
-        `The current scope does not have a "${String(prop)}" property.`,
-        String(prop),
-      );
+      return createErrorClientAccessor(messageOf(String(prop)), String(prop));
     },
   });
+
+/** Root prototype for created clients - throws "scope not defined" error */
+export const createRootAssistantClient = (): AssistantClient =>
+  createErrorRootClient(
+    (prop) => `The current scope does not have a "${prop}" property.`,
+  );
+
+/** Root prototype for clients built under an isolation boundary */
+export const createIsolatedRootAssistantClient = (): AssistantClient =>
+  createErrorRootClient(isolationBoundaryMessage);
 
 /**
  * React Context for the AssistantClient
@@ -118,17 +153,30 @@ export const AuiProvider = ({
   value,
   children,
 }: {
-  /** Assistant client to expose to descendants. */
-  value: AssistantClient;
+  /**
+   * Assistant client to expose to descendants, or
+   * {@link AuiProvider.IsolationBoundary | `null`} for an isolated empty root.
+   */
+  value: AssistantClient | AuiProvider.IsolationBoundary;
   /** Subtree that may read from the client. */
   children: React.ReactNode;
 }): React.ReactElement => {
   // The <UseTapEffects /> element must be created fresh each render
   "use no memo";
   return (
-    <AssistantContext.Provider value={value}>
+    <AssistantContext.Provider value={value ?? IsolatedAssistantClient}>
       <UseTapEffects />
       {children}
     </AssistantContext.Provider>
   );
 };
+
+export namespace AuiProvider {
+  /**
+   * Isolated empty root: scopes from surrounding providers do not leak past
+   * the boundary.
+   *
+   * @deprecated This API is still under active development and might change without notice.
+   */
+  export type IsolationBoundary = null;
+}

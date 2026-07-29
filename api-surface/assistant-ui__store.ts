@@ -52,9 +52,13 @@ declare namespace AuiIf {
 declare const AuiIf: FC<AuiIf.Props>;
 
 declare const AuiProvider: (_param0: {
-  value: AssistantClient;
+  value: AssistantClient | AuiProvider.IsolationBoundary;
   children: React.ReactNode;
 }) => React.ReactElement;
+
+declare namespace AuiProvider {
+  type IsolationBoundary = null;
+}
 
 type ClientElement<K extends ClientNames> = ResourceElement<ClientOutput<K>>;
 
