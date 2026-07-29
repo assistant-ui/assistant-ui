@@ -2,15 +2,11 @@ type Task = () => void;
 
 type GlobalFlushState = {
   schedulers: Set<UpdateScheduler>;
-  runCounts: Map<UpdateScheduler, number>;
-  taskCount: number;
   isScheduled: boolean;
 };
 
 const newFlushState = (): GlobalFlushState => ({
   schedulers: new Set([]),
-  runCounts: new Map(),
-  taskCount: 0,
   isScheduled: false,
 });
 
@@ -54,14 +50,19 @@ const scheduleFlush = () => {
   scheduleMacrotask();
 };
 
-// Guards throw loudly but never drop queued work: the remainder stays
-// queued and continues on the next flush.
+// Guards throw loudly but never stall the queue: the burst-wide cap
+// reschedules so the remainder continues next flush; a looping scheduler
+// is dropped so the rest of the app keeps flushing.
 const flushScheduled = () => {
   const errors: unknown[] = [];
+  const runCounts = new Map<UpdateScheduler, number>();
+  let taskCount = 0;
+  let continueLater = false;
 
   try {
     for (const scheduler of flushState.schedulers) {
-      if (flushState.taskCount >= MAX_TOTAL_TASKS_PER_BURST) {
+      if (taskCount >= MAX_TOTAL_TASKS_PER_BURST) {
+        continueLater = true;
         throw new Error(
           `Maximum update depth exceeded. This can happen when a resource ` +
             `repeatedly calls setState inside useEffect.`,
@@ -70,16 +71,16 @@ const flushScheduled = () => {
       flushState.schedulers.delete(scheduler);
       if (!scheduler.isDirty) continue;
 
-      const runs = (flushState.runCounts.get(scheduler) ?? 0) + 1;
+      const runs = (runCounts.get(scheduler) ?? 0) + 1;
       if (runs > MAX_TASK_RUNS_PER_BURST) {
-        flushState.schedulers.add(scheduler);
+        continueLater = true;
         throw new Error(
           `Maximum update depth exceeded. This can happen when a resource ` +
             `repeatedly calls setState inside useEffect.`,
         );
       }
-      flushState.runCounts.set(scheduler, runs);
-      flushState.taskCount += 1;
+      runCounts.set(scheduler, runs);
+      taskCount += 1;
 
       try {
         scheduler.runTask();
@@ -87,14 +88,11 @@ const flushScheduled = () => {
         errors.push(error);
       }
     }
-
-    flushState.runCounts.clear();
-    if (errors.length > 0) {
-      flushState.schedulers.clear();
-    }
   } finally {
-    flushState.taskCount = 0;
     flushState.isScheduled = false;
+    if (continueLater) {
+      scheduleFlush();
+    }
   }
 
   if (errors.length > 0) {

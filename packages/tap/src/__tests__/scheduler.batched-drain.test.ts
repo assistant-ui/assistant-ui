@@ -63,7 +63,7 @@ describe("scheduler batched draining", () => {
     expect(ran).toHaveLength(120);
   });
 
-  it("still throws when a resource re-dirties itself on every run", async () => {
+  it("still throws when a resource re-dirties itself on every run, then recovers", async () => {
     vi.resetModules();
     vi.stubGlobal("MessageChannel", ControlledMessageChannel);
     const { UpdateScheduler } = await import("../core/scheduler");
@@ -77,6 +77,43 @@ describe("scheduler batched draining", () => {
 
     const [channel] = ControlledMessageChannel.instances;
     expect(() => pump(channel!)).toThrow(/Maximum update depth exceeded/);
+
+    // The looping scheduler is dropped instead of permanently poisoning the
+    // queue: later, unrelated work must flush normally.
+    let ran = false;
+    const other = new UpdateScheduler(() => {
+      ran = true;
+    });
+    other.markDirty();
+    expect(() => pump(channel!)).not.toThrow();
+    expect(ran).toBe(true);
+  });
+
+  it("drains the queue behind a looping scheduler instead of stalling", async () => {
+    vi.resetModules();
+    vi.stubGlobal("MessageChannel", ControlledMessageChannel);
+    const { UpdateScheduler } = await import("../core/scheduler");
+
+    const looper: InstanceType<typeof UpdateScheduler> = new UpdateScheduler(
+      () => {
+        looper.markDirty();
+      },
+    );
+    looper.markDirty();
+    const ran: number[] = [];
+    for (let i = 0; i < 10; i += 1) {
+      const index = i;
+      new UpdateScheduler(() => {
+        ran.push(index);
+      }).markDirty();
+    }
+
+    const [channel] = ControlledMessageChannel.instances;
+    expect(() => pump(channel!)).toThrow(/Maximum update depth exceeded/);
+    // The guard reschedules after dropping the offender, so the queued
+    // remainder drains on the next pass without any external nudge.
+    expect(() => pump(channel!)).not.toThrow();
+    expect(ran).toHaveLength(10);
   });
 
   it("resets per-burst run counts once a flush fully drains", async () => {
@@ -151,9 +188,8 @@ describe("scheduler batched draining", () => {
     const ranBeforeAbort = ran.length;
     expect(ranBeforeAbort).toBeLessThan(10001);
 
-    // The remainder stays queued; the next flush (triggered by any later
-    // markDirty, as in production) continues it instead of dropping it.
-    schedulers[10000]!.markDirty();
+    // The cap reschedules automatically, so the remainder drains on the next
+    // pass with no external nudge (production has no manual markDirty).
     expect(() => pump(channel!)).not.toThrow();
     expect(ran).toHaveLength(10001);
   });
