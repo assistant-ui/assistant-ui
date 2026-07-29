@@ -1070,6 +1070,37 @@ describe("contentToParts audio blocks", () => {
 
     expect(result).toMatchObject({ role: "user", content: [] });
   });
+
+  it("drops an audio block on an assistant message", () => {
+    const result = convertLangChainMessagesImpl(
+      {
+        type: "ai",
+        id: "ai-1",
+        content: [
+          {
+            type: "audio",
+            data: "c291bmQ=",
+            mime_type: "audio/mp3",
+            source_type: "base64",
+          },
+          { type: "text", text: "done" },
+        ],
+      } as never,
+      {},
+    );
+
+    expect(result).toMatchObject({ role: "assistant" });
+    expect(
+      (result as { content: { type: string }[] }).content.some(
+        (part) => part.type === "audio",
+      ),
+    ).toBe(false);
+    expect(
+      (result as { content: { type: string }[] }).content.some(
+        (part) => part.type === "text",
+      ),
+    ).toBe(true);
+  });
 });
 
 describe("convertLangChainMessages unknown message types", () => {

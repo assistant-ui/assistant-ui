@@ -33,7 +33,7 @@ export const getMessageType = (message: LangChainBaseMessage): string => {
   throw new Error("Cannot determine message type");
 };
 
-const contentToParts = (content: unknown) => {
+const contentToParts = (content: unknown, role: "user" | "assistant") => {
   if (typeof content === "string")
     return [{ type: "text" as const, text: content }];
 
@@ -66,6 +66,7 @@ const contentToParts = (content: unknown) => {
             mimeType: part.mime_type ?? "application/octet-stream",
           };
         case "audio": {
+          if (role !== "user") return null;
           const format =
             part.mime_type === "audio/wav"
               ? ("wav" as const)
@@ -133,7 +134,7 @@ export const convertLangChainBaseMessage = (
       return {
         role: "user",
         id: message.id,
-        content: contentToParts(message.content),
+        content: contentToParts(message.content, "user"),
         metadata: {
           custom: getCustomMetadata(message.additional_kwargs),
         },
@@ -165,7 +166,7 @@ export const convertLangChainBaseMessage = (
         role: "assistant",
         id: message.id,
         content: [
-          ...contentToParts(message.content),
+          ...contentToParts(message.content, "assistant"),
           ...toolCallParts,
           ...uiDataParts,
         ],
