@@ -3,9 +3,10 @@ type Task = () => void;
 type GlobalFlushState = {
   schedulers: Set<UpdateScheduler>;
   // How often each scheduler has run since the queue last drained. A
-  // scheduler re-run MAX_TASK_RUNS_PER_BURST times within one burst is an
-  // infinite update loop; finite batches (even huge ones) never re-run a
-  // scheduler, so they are never subject to a total-size ceiling.
+  // scheduler re-run more than MAX_TASK_RUNS_PER_BURST times within one
+  // burst is an infinite update loop; finite batches (even huge ones)
+  // never re-run a scheduler, so they are never subject to a total-size
+  // ceiling.
   runCounts: Map<UpdateScheduler, number>;
   isScheduled: boolean;
 };
@@ -22,7 +23,7 @@ const newFlushState = (): GlobalFlushState => ({
 const MAX_FLUSH_LIMIT = 50;
 // Guard against true infinite update loops: a resource that keeps
 // re-dirtying itself (or a cycle of resources re-dirtying each other)
-// re-runs the same scheduler over and over within one burst.
+// re-runs the same scheduler more than this many times within one burst.
 const MAX_TASK_RUNS_PER_BURST = 50;
 let flushState: GlobalFlushState = newFlushState();
 
@@ -61,7 +62,7 @@ const scheduleFlush = () => {
 // Runs at most MAX_FLUSH_LIMIT tasks from flushState.schedulers. Throws on
 // task errors (discarding the rest of the batch) and on infinite loops.
 const runFlushPass = () => {
-  const errors = [];
+  const errors: unknown[] = [];
   let flushDepth = 0;
 
   for (const scheduler of flushState.schedulers) {

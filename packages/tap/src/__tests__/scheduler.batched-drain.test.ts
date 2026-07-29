@@ -79,14 +79,14 @@ describe("scheduler batched draining", () => {
     expect(() => pump(channel!)).toThrow(/Maximum update depth exceeded/);
   });
 
-  it("resets the saturated-pass counter after a fully drained pass", async () => {
+  it("resets per-burst run counts after a fully drained pass", async () => {
     vi.resetModules();
     vi.stubGlobal("MessageChannel", ControlledMessageChannel);
     const { UpdateScheduler } = await import("../core/scheduler");
 
-    // A burst slightly above one pass budget, issued twice back-to-back:
-    // 75 dirty schedulers drain in two passes (50 + 25), so the counter must
-    // reset rather than accumulate across separate bursts.
+    // A burst slightly above one pass budget, issued back-to-back: 75 dirty
+    // schedulers drain in two passes (50 + 25), after which runCounts is
+    // cleared, so separate bursts must not accumulate re-run counts.
     const ran: number[] = [];
     const make = (i: number) =>
       new UpdateScheduler(() => {
