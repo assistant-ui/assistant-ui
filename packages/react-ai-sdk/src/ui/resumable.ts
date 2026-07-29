@@ -24,15 +24,31 @@ const getSessionStorage = (): Storage | null => {
 
 /** `sessionStorage`-backed storage for the pending resumable stream id. See the [Resumable Streams](/docs/guides/resumable-streams) guide for end-to-end wiring. */
 export function createResumableSessionStorage(options?: {
-  key?: string;
+  /**
+   * Storage key for the pending stream id. A static string namespaces per route
+   * or chat surface. A getter is read lazily on every access, so the key can be
+   * derived from the active thread's id, which a brand-new thread does not know
+   * until it mounts; a getter returning `undefined` falls back to the default key.
+   *
+   * Under a remote thread list with more than one thread, scope the key per
+   * thread and create one storage instance per thread runtime rather than a
+   * single shared one. A shared key is written and cleared by whichever thread
+   * acts last, so one conversation's stream can resume inside another.
+   */
+  key?: string | (() => string | undefined);
 }): ResumableClientStorage {
-  const key = options?.key ?? DEFAULT_STORAGE_KEY;
+  const keyOption = options?.key;
+  const resolveKey = (): string => {
+    if (typeof keyOption === "function")
+      return keyOption() ?? DEFAULT_STORAGE_KEY;
+    return keyOption ?? DEFAULT_STORAGE_KEY;
+  };
   return {
     getStreamId() {
       const storage = getSessionStorage();
       if (!storage) return null;
       try {
-        return storage.getItem(key);
+        return storage.getItem(resolveKey());
       } catch {
         return null;
       }
@@ -41,7 +57,7 @@ export function createResumableSessionStorage(options?: {
       const storage = getSessionStorage();
       if (!storage) return;
       try {
-        storage.setItem(key, id);
+        storage.setItem(resolveKey(), id);
       } catch {
         // Ignore blocked or unavailable sessionStorage.
       }
@@ -50,7 +66,7 @@ export function createResumableSessionStorage(options?: {
       const storage = getSessionStorage();
       if (!storage) return;
       try {
-        storage.removeItem(key);
+        storage.removeItem(resolveKey());
       } catch {
         // Ignore blocked or unavailable sessionStorage.
       }

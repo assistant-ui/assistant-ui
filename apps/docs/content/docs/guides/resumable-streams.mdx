@@ -129,9 +129,70 @@ export default function Page() {
 
 `onResumeError` runs when the client finds a stored stream id but the reconnect attempt fails. Use it to show a toast, report telemetry, or mark the thread as needing retry; assistant-ui still clears the stale stream id after the callback runs.
 
-`createResumableSessionStorage` returns a `ResumableClientStorage` backed by `window.sessionStorage`. Pass `{ key }` to namespace per route or per chat surface, or supply your own implementation of the three methods (`getStreamId`, `setStreamId`, `clear`). If you are running on a transport that already wraps `fetch` or `prepareReconnectToStreamRequest`, the `resumable` option composes with your existing handlers.
+`createResumableSessionStorage` returns a `ResumableClientStorage` backed by `window.sessionStorage`. Pass `{ key }` to namespace per route or per chat surface; `key` also accepts a getter that is read lazily on every access, so you can derive it from the active thread's id (see [Multiple threads](#multiple-threads)). Or supply your own implementation of the three methods (`getStreamId`, `setStreamId`, `clear`). If you are running on a transport that already wraps `fetch` or `prepareReconnectToStreamRequest`, the `resumable` option composes with your existing handlers.
 
 The default finish detector scans the SSE body for the AI SDK `"type":"finish"` marker. Override `isFinishEvent` on the `resumable` option when you ship a custom encoder.
+
+### Multiple threads
+
+The snippet above stores the pending stream id under one `sessionStorage` key, which is correct for a single chat surface. Under a thread list runtime (`useRemoteThreadListRuntime`, which `useChatRuntime` wraps) with more than one alive thread, a single shared key is written and cleared by whichever thread acts last: switch threads while a response is in flight and the response header writes its stream id to the shared key, which the thread you switched to reads on mount and resumes — replaying the other conversation's stream into this one. An unscoped clear when a stream finishes can also drop another thread's pending id.
+
+Scope the key to the thread, and construct the transport and storage per thread inside the per-thread runtime hook rather than once at module level. Derive the key from the thread list item's id with a getter so it is read lazily on every access:
+
+```tsx title="/app/page.tsx"
+"use client";
+
+import {
+  AssistantRuntimeProvider,
+  useAuiState,
+  useRemoteThreadListRuntime,
+  type RemoteThreadListAdapter,
+} from "@assistant-ui/react";
+import {
+  AssistantChatTransport,
+  createResumableSessionStorage,
+  useChatRuntime,
+} from "@assistant-ui/react-ai-sdk";
+import { useMemo } from "react";
+import { Thread } from "@/components/assistant-ui/thread";
+import { ThreadList } from "@/components/assistant-ui/thread-list";
+
+const threadListAdapter: RemoteThreadListAdapter = {
+  /* list, initialize, rename, archive, delete, fetch, … */
+};
+
+function ResumableThreadRuntime() {
+  const threadId = useAuiState((s) => s.threadListItem.id);
+  const transport = useMemo(
+    () =>
+      new AssistantChatTransport({
+        api: "/api/chat",
+        resumable: {
+          storage: createResumableSessionStorage({ key: () => threadId }),
+          resumeApi: (streamId) => `/api/chat/resume/${streamId}`,
+        },
+      }),
+    [threadId],
+  );
+  return useChatRuntime({ transport });
+}
+
+export default function Page() {
+  const runtime = useRemoteThreadListRuntime({
+    adapter: threadListAdapter,
+    runtimeHook: ResumableThreadRuntime,
+  });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <ThreadList />
+      <Thread />
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+Each thread's runtime hook constructs its own transport and storage, keyed by that thread's id, so one conversation's stream id can never be read or cleared by another. `useChatRuntime` is a no-op thread list when nested as a `runtimeHook`, so it only runs the per-thread chat runtime against the per-thread transport; the real thread list is the outer `useRemoteThreadListRuntime`. The key is read lazily on every access via a getter, so it can track a value not known at construction — a brand-new thread has no `remoteId` until its first send initializes it. The local `id` used here is stable from mount, so a static `key` works too.
 
 ## Storage choices
 

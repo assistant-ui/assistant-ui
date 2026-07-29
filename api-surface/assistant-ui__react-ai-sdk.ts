@@ -2054,7 +2054,7 @@ type WithRender<T, TArgs extends Record<string, unknown>, TResult> = T extends {
 };
 
 declare function createResumableSessionStorage(options?: {
-  key?: string;
+  key?: string | (() => string | undefined);
 }): ResumableClientStorage;
 
 declare const frontendTools: (tools: FrontendTools) => ToolSet;

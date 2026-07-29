@@ -75,4 +75,51 @@ describe("createResumableSessionStorage", () => {
     expect(throwingStorage.setItem).toHaveBeenCalledTimes(1);
     expect(throwingStorage.removeItem).toHaveBeenCalledTimes(1);
   });
+
+  it("scopes the stored id by a getter key, isolating instances", () => {
+    const storageA = createResumableSessionStorage({ key: () => "thread-a" });
+    const storageB = createResumableSessionStorage({ key: () => "thread-b" });
+
+    storageA.setStreamId("stream-a");
+    expect(storageA.getStreamId()).toBe("stream-a");
+    expect(storageB.getStreamId()).toBeNull();
+
+    storageB.setStreamId("stream-b");
+    expect(storageA.getStreamId()).toBe("stream-a");
+    expect(storageB.getStreamId()).toBe("stream-b");
+
+    storageA.clear();
+    expect(storageA.getStreamId()).toBeNull();
+    expect(storageB.getStreamId()).toBe("stream-b");
+  });
+
+  it("reads a getter key lazily on every access", () => {
+    let current = "first";
+    const storage = createResumableSessionStorage({ key: () => current });
+
+    storage.setStreamId("stream-1");
+    expect(storage.getStreamId()).toBe("stream-1");
+
+    current = "second";
+    expect(storage.getStreamId()).toBeNull();
+
+    storage.setStreamId("stream-2");
+    expect(storage.getStreamId()).toBe("stream-2");
+    expect(window.sessionStorage.getItem("first")).toBe("stream-1");
+    expect(window.sessionStorage.getItem("second")).toBe("stream-2");
+
+    storage.clear();
+    expect(window.sessionStorage.getItem("second")).toBeNull();
+    expect(window.sessionStorage.getItem("first")).toBe("stream-1");
+  });
+
+  it("falls back to the default key when the getter returns undefined", () => {
+    const storage = createResumableSessionStorage({ key: () => undefined });
+
+    storage.setStreamId("stream-1");
+    expect(storage.getStreamId()).toBe("stream-1");
+    expect(window.sessionStorage.getItem("aui-resumable-stream-id")).toBe(
+      "stream-1",
+    );
+  });
 });
