@@ -37,7 +37,10 @@ export const setRootVersion = (root: TapRoot, version: number): void => {
 
     if (version <= root.committedVersion) {
       // A version below the last commit is a React concurrent reducer replay
-      // from an older base; the replayed chain re-supplies its updates.
+      // from an older base; the replayed chain re-supplies its updates. The
+      // committed version re-bases to keep the changelog's base derivation in
+      // the branch below correct; the next commit overwrites it.
+      root.committedVersion = version;
       root.changelog.length = 0;
     } else {
       // commit happened without a useEffect update (offscreen API)
