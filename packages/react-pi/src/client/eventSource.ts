@@ -221,7 +221,12 @@ export const openPiEventStream = (
       if (closed) break;
       // Snapshot-first: the next connect replaces local state, so we lose
       // nothing by not replaying. Back off, then retry.
-      await reconnectDelay();
+      try {
+        await reconnectDelay();
+      } catch (error) {
+        if (closed) break;
+        reportError(error);
+      }
     }
   };
 

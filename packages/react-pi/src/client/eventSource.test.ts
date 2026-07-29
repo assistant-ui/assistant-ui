@@ -368,6 +368,37 @@ describe("openPiEventStream", () => {
     },
   );
 
+  it("reconnects when the reconnect delay rejects", async () => {
+    let calls = 0;
+    const networkError = new Error("network drop");
+    const delayError = new Error("delay failed");
+    const fetchImpl = (async () => {
+      calls += 1;
+      if (calls === 1) throw networkError;
+      return sseResponse([
+        sseFrame({ type: "agent_start", threadId: "t1", seq: 1 }),
+      ]);
+    }) as unknown as typeof fetch;
+    const onError = vi.fn();
+
+    await new Promise<void>((resolve) => {
+      const close = openPiEventStream({
+        url: "/events",
+        fetchImpl,
+        reconnectDelay: () => Promise.reject(delayError),
+        onError,
+        onEvent: () => {
+          close();
+          resolve();
+        },
+      });
+    });
+
+    expect(calls).toBe(2);
+    expect(onError).toHaveBeenNthCalledWith(1, networkError);
+    expect(onError).toHaveBeenNthCalledWith(2, delayError);
+  });
+
   it("reports a bad-JSON frame via onError without crashing the stream", async () => {
     const events: PiAnyClientEvent[] = [];
     const errors: unknown[] = [];
