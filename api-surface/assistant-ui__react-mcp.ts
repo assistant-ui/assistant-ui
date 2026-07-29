@@ -1,4 +1,4 @@
-import { OAuthClientInformationFull, OAuthTokens } from "@modelcontextprotocol/sdk/shared/auth.js";
+import { OAuthClientInformationFull, OAuthTokens } from "@modelcontextprotocol/client";
 
 import { Primitive } from "@radix-ui/react-primitive";
 
