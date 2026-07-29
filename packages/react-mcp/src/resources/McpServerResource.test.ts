@@ -580,6 +580,104 @@ describe("McpServerResource elicitation", () => {
     }
   });
 
+  it("keeps invalid accepted content pending until a valid response arrives", async () => {
+    const root = mount();
+
+    try {
+      await root.getValue().connect();
+      const response = requestElicitation(mocks.clients[0], "Choose a color", {
+        type: "object",
+        required: ["color"],
+        properties: {
+          color: { type: "string" },
+        },
+      });
+      let resolved = false;
+      void response.then(() => {
+        resolved = true;
+      });
+      await waitForResourceUpdate(
+        () => root.getValue().getState().pendingElicitations.length === 1,
+      );
+      const [elicitation] = root.getValue().getState().pendingElicitations;
+
+      root.getValue().answerElicitation(elicitation!.id, {
+        action: "accept",
+        content: { color: 1 },
+      });
+
+      await waitForResourceUpdate(
+        () =>
+          root.getValue().getState().pendingElicitations[0]?.error?.message ===
+          "Invalid elicitation content: color.",
+      );
+      expect(root.getValue().getState().pendingElicitations).toEqual([
+        expect.objectContaining({
+          id: elicitation!.id,
+          error: {
+            message: "Invalid elicitation content: color.",
+            properties: ["color"],
+          },
+        }),
+      ]);
+      await tick();
+      expect(resolved).toBe(false);
+
+      root.getValue().answerElicitation(elicitation!.id, {
+        action: "accept",
+        content: { color: "blue" },
+      });
+
+      await expect(response).resolves.toEqual({
+        action: "accept",
+        content: { color: "blue" },
+      });
+      await waitForResourceUpdate(
+        () => root.getValue().getState().pendingElicitations.length === 0,
+      );
+    } finally {
+      root.unmount();
+    }
+  });
+
+  it("declines an elicitation that carries a validation error", async () => {
+    const root = mount();
+
+    try {
+      await root.getValue().connect();
+      const response = requestElicitation(mocks.clients[0], "Choose a color", {
+        type: "object",
+        required: ["color"],
+        properties: {
+          color: { type: "string" },
+        },
+      });
+      await waitForResourceUpdate(
+        () => root.getValue().getState().pendingElicitations.length === 1,
+      );
+      const [elicitation] = root.getValue().getState().pendingElicitations;
+
+      root.getValue().answerElicitation(elicitation!.id, {
+        action: "accept",
+        content: {},
+      });
+      await waitForResourceUpdate(
+        () =>
+          root.getValue().getState().pendingElicitations[0]?.error !==
+          undefined,
+      );
+
+      root.getValue().answerElicitation(elicitation!.id, { action: "decline" });
+
+      await expect(response).resolves.toEqual({ action: "decline" });
+      await waitForResourceUpdate(
+        () => root.getValue().getState().pendingElicitations.length === 0,
+      );
+    } finally {
+      root.unmount();
+    }
+  });
+
   it("declines pending elicitations", async () => {
     const root = mount();
 

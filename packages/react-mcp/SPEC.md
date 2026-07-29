@@ -35,6 +35,7 @@ packages/react-mcp/
 │   ├── resources/
 │   │   ├── McpManagerResource.ts               root; auto-mounts modelContext
 │   │   ├── McpServerResource.ts                per-server
+│   │   ├── validateElicitationContent.ts       flat client-side validation
 │   │   └── storage/
 │   │       ├── McpLocalStorage.ts
 │   │       ├── McpMemoryStorage.ts
@@ -53,7 +54,7 @@ packages/react-mcp/
 │   │   ├── addForm.ts                          barrel (McpAddFormPrimitive.*)
 │   │   ├── addForm/{Root,NameField,UrlField,AuthSelect,AuthFields,Submit,Cancel,Error}.tsx
 │   │   ├── elicitation.ts                       barrel (McpElicitationPrimitive.*)
-│   │   └── elicitation/{Items,Root,Message,Fields,Accept,Decline,Cancel}.tsx
+│   │   └── elicitation/{Items,Root,Message,Error,Fields,Accept,Decline,Cancel,initialElicitationDraft}.tsx
 │   ├── hooks/
 │   │   └── useMcpOAuthCallback.tsx
 │   └── index.ts
@@ -124,6 +125,10 @@ type MCPElicitation = {
   readonly id: string;
   readonly message: string;
   readonly requestedSchema: unknown;
+  readonly error?: {
+    readonly message: string;
+    readonly properties?: readonly string[];
+  } | undefined;
 };
 
 type MCPElicitationResponse =
@@ -320,6 +325,7 @@ Render form-mode elicitation inside a server-scoped subtree. Each item owns an i
   {() => (
     <McpElicitationPrimitive.Root>
       <McpElicitationPrimitive.Message />
+      <McpElicitationPrimitive.Error />
       <McpElicitationPrimitive.Fields>
         {({ name, value, setValue }) => (
           <input
@@ -339,7 +345,9 @@ Render form-mode elicitation inside a server-scoped subtree. Each item owns an i
 
 `useMcpElicitation()` reads the current request inside `Items`. `useMcpElicitationField()` reads the current field inside the element returned from the `Fields` render function.
 
-`Accept` sets `data-missing-required` when required fields are absent or empty and `data-invalid` to comma-joined invalid property names when validation fails. It is disabled until both conditions are empty. Absent required boolean properties are submitted with the schema's boolean `default` when one is present, otherwise `false`; optional booleans remain omitted. It converts parseable string values from flat `number` and `integer` properties to numbers before submitting the response content. Boolean drafts must be real booleans (compose a checkbox); string drafts are coerced only for `number` and `integer` properties and are flagged invalid for booleans. The `elicitation` flag defaults to advertising the capability; `false` skips both the capability declaration and the handler registration, and, like the rest of the capability set, a changed flag applies from the next connect rather than mid-connection.
+`Accept` sets `data-missing-required` when required fields are absent or empty and `data-invalid` to comma-joined invalid property names when validation fails. It is disabled until both conditions are empty. Each item seeds its draft from flat schema defaults when the default matches a declared `string`, `number`, `integer`, or `boolean` type. Absent required boolean properties are submitted with the schema's boolean `default` when one is present, otherwise `false`; optional booleans remain omitted. It converts parseable string values from flat `number` and `integer` properties to numbers before submitting the response content. Boolean drafts must be real booleans (compose a checkbox); string drafts are coerced only for `number` and `integer` properties and are flagged invalid for booleans. The `elicitation` flag defaults to advertising the capability; `false` skips both the capability declaration and the handler registration, and, like the rest of the capability set, a changed flag applies from the next connect rather than mid-connection.
+
+An accepted response is client-side validated for required-property presence, `string`, `number`, `integer`, and `boolean` types, and declared enum membership. Constraints outside that flat subset, such as `minLength` and `format`, pass through for the server to judge. A failed validation keeps the elicitation pending, sets its `error`, and leaves the server request unresolved so the user can correct the draft. `McpElicitationPrimitive.Error` renders the error message and exposes its property names as comma-joined `data-properties` when available.
 
 ## 6. Lifecycle
 

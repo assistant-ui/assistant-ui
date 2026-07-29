@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useMemo, useEffectEvent } from "react";
 import { resource } from "@assistant-ui/tap";
 import type { ClientOutput } from "@assistant-ui/store";
+import { ElicitResultSchema } from "@modelcontextprotocol/core";
 import {
   Client,
   StreamableHTTPClientTransport,
@@ -13,6 +14,7 @@ import {
 import { createOAuthProvider } from "../auth/createOAuthProvider";
 import { buildHeaders } from "../auth/buildHeaders";
 import { assertValidServerId } from "../utils/serverId";
+import { validateElicitationContent } from "./validateElicitationContent";
 import type { MCPStorage } from "./storage/types";
 import type {
   MCPAuthConfig,
@@ -67,6 +69,7 @@ const useMcpServerResource = (
         resolve: (result: ElicitResult) => void;
         signal: AbortSignal;
         onAbort: () => void;
+        requestedSchema: unknown;
       }
     >(),
   );
@@ -109,6 +112,31 @@ const useMcpServerResource = (
     );
     entry.resolve(result);
     return true;
+  };
+
+  const setPendingElicitationError = (
+    id: string,
+    error: NonNullable<MCPElicitation["error"]>,
+  ) => {
+    if (!elicitationResolversRef.current.has(id)) return false;
+    setPendingElicitations((current) =>
+      current.map((elicitation) =>
+        elicitation.id === id ? { ...elicitation, error } : elicitation,
+      ),
+    );
+    return true;
+  };
+
+  const clearPendingElicitationError = (id: string) => {
+    setPendingElicitations((current) =>
+      current.map((elicitation) => {
+        if (elicitation.id !== id || elicitation.error === undefined) {
+          return elicitation;
+        }
+        const { error: _, ...next } = elicitation;
+        return next;
+      }),
+    );
   };
 
   const cancelPendingElicitations = () => {
@@ -302,6 +330,7 @@ const useMcpServerResource = (
                 resolve,
                 signal: context.signal,
                 onAbort,
+                requestedSchema,
               });
             });
             setPendingElicitations((current) => [
@@ -563,14 +592,42 @@ const useMcpServerResource = (
         );
       }
 
-      const result: ElicitResult =
-        response.action === "accept"
-          ? {
-              action: "accept",
-              content: response.content as ElicitResult["content"],
-            }
-          : { action: response.action };
-      resolvePendingElicitation(id, result);
+      if (response.action === "accept") {
+        const entry = elicitationResolversRef.current.get(id);
+        if (!entry) return;
+
+        const errors = validateElicitationContent(
+          entry.requestedSchema,
+          response.content,
+        );
+        if (errors.length > 0) {
+          const properties = [
+            ...new Set(errors.map((error) => error.property)),
+          ];
+          setPendingElicitationError(id, {
+            message: `Invalid elicitation content: ${properties.join(", ")}.`,
+            properties,
+          });
+          return;
+        }
+
+        const result: ElicitResult = {
+          action: "accept",
+          content: response.content as ElicitResult["content"],
+        };
+        if (!ElicitResultSchema.safeParse(result).success) {
+          setPendingElicitationError(id, {
+            message: "Invalid elicitation response.",
+          });
+          return;
+        }
+
+        clearPendingElicitationError(id);
+        resolvePendingElicitation(id, result);
+        return;
+      }
+
+      resolvePendingElicitation(id, { action: response.action });
     },
   };
 };

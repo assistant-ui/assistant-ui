@@ -2,6 +2,7 @@ import { type FC, type ReactNode, useCallback, useMemo, useState } from "react";
 import { useAuiState } from "@assistant-ui/store";
 import type { MCPElicitation } from "../../mcp-scope";
 import { ElicitationContext } from "./context";
+import { initialElicitationDraft } from "./initialElicitationDraft";
 
 export { useMcpElicitation } from "./context";
 
@@ -15,7 +16,9 @@ const McpElicitationPrimitiveItem: FC<{
   elicitation: MCPElicitation;
   children: McpElicitationPrimitiveItems.Props["children"];
 }> = ({ elicitation, children }) => {
-  const [draft, setDraft] = useState<Record<string, unknown>>({});
+  const [draft, setDraft] = useState<Record<string, unknown>>(() =>
+    initialElicitationDraft(elicitation.requestedSchema),
+  );
   const setField = useCallback((name: string, value: unknown) => {
     setDraft((current) => ({ ...current, [name]: value }));
   }, []);

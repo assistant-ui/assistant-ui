@@ -255,6 +255,7 @@ import { McpElicitationPrimitive } from "@assistant-ui/react-mcp";
   {() => (
     <McpElicitationPrimitive.Root>
       <McpElicitationPrimitive.Message />
+      <McpElicitationPrimitive.Error />
       <McpElicitationPrimitive.Fields>
         {({ name, schema, value, setValue }) =>
           (schema as { type?: string } | undefined)?.type === "boolean" ? (
@@ -282,6 +283,8 @@ import { McpElicitationPrimitive } from "@assistant-ui/react-mcp";
   )}
 </McpElicitationPrimitive.Items>
 ```
+
+Client-side validation errors keep the elicitation pending so the user can correct the form, and `McpElicitationPrimitive.Error` renders the resulting message.
 
 ## Storage
 

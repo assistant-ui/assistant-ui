@@ -4,6 +4,7 @@ export {
 } from "./elicitation/McpElicitationPrimitiveItems";
 export { McpElicitationPrimitiveRoot as Root } from "./elicitation/McpElicitationPrimitiveRoot";
 export { McpElicitationPrimitiveMessage as Message } from "./elicitation/McpElicitationPrimitiveMessage";
+export { McpElicitationPrimitiveError as Error } from "./elicitation/McpElicitationPrimitiveError";
 export {
   McpElicitationPrimitiveFields as Fields,
   useMcpElicitationField,
