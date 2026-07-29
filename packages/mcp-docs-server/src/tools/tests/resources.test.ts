@@ -35,7 +35,7 @@ describe("MCP resources", () => {
   });
 
   afterEach(async () => {
-    await client.close();
+    await client?.close();
   });
 
   it("lists docs and example resources", async () => {

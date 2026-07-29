@@ -18,7 +18,8 @@ type Tool = {
   };
   inputSchema: {
     type?: string;
-    properties?: unknown;
+    properties?: Record<string, { description?: string }>;
+    required?: string[];
   };
 };
 
@@ -73,7 +74,7 @@ describe("MCP Protocol Integration", () => {
   });
 
   afterEach(async () => {
-    await client.close();
+    await client?.close();
   });
 
   it("handles Initialize requests", async () => {
@@ -146,6 +147,10 @@ describe("MCP Protocol Integration", () => {
       expect(tool.inputSchema.type).toBe("object");
       expect(tool.inputSchema.properties).toBeDefined();
     }
+
+    const search = requireTool(result.tools, "assistantUISearch");
+    expect(search.inputSchema.required ?? []).not.toContain("limit");
+    expect(search.inputSchema.properties?.["query"]?.description).toBeDefined();
   });
 
   it("calls assistantUIDocs", async () => {

@@ -17,7 +17,7 @@ describe("resource argument completions", () => {
   });
 
   afterEach(async () => {
-    await client.close();
+    await client?.close();
   });
 
   async function complete(uri: string, name: string, value: string) {
