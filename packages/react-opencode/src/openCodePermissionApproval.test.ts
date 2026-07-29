@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   projectOpenCodePermissionApproval,
+  projectResolvedOpenCodePermissionApproval,
   toOpenCodePermissionResponse,
 } from "./openCodePermissionApproval";
 import type { OpenCodePermissionRequest } from "./types";
@@ -28,12 +29,10 @@ describe("OpenCode permission approvals", () => {
         {
           id: "once",
           kind: "allow-once",
-          label: "Allow once",
         },
         {
           id: "always",
           kind: "allow-always",
-          label: "Always allow",
           description: "Allow these patterns until OpenCode is restarted.",
           grants: ["git *"],
           confirm: true,
@@ -41,10 +40,27 @@ describe("OpenCode permission approvals", () => {
         {
           id: "reject",
           kind: "reject-once",
-          label: "Reject",
         },
       ],
     });
+  });
+
+  it("omits the always option when the request grants nothing", () => {
+    expect(
+      projectOpenCodePermissionApproval({ ...request, always: [] }).options,
+    ).toEqual([
+      { id: "once", kind: "allow-once" },
+      { id: "reject", kind: "reject-once" },
+    ]);
+  });
+
+  it("projects resolved replies with the recorded decision", () => {
+    expect(
+      projectResolvedOpenCodePermissionApproval({ request, reply: "always" }),
+    ).toEqual({ id: "permission-1", approved: true, optionId: "always" });
+    expect(
+      projectResolvedOpenCodePermissionApproval({ request, reply: "reject" }),
+    ).toEqual({ id: "permission-1", approved: false, optionId: "reject" });
   });
 
   it.each([

@@ -234,6 +234,34 @@ describe("OpenCodeThreadController", () => {
     });
   });
 
+  it("normalizes permission requests missing the always list", () => {
+    const eventSource = createEventSource();
+    const controller = new OpenCodeThreadController(
+      {} as never,
+      () => eventSource,
+      "ses_1",
+    );
+    controller.subscribe(vi.fn());
+
+    eventSource.emit({
+      type: "permission.asked",
+      sessionId: "ses_1",
+      properties: {
+        id: "permission_1",
+        sessionID: "ses_1",
+        permission: "bash",
+        patterns: [],
+        metadata: {},
+        tool: { messageID: "assistant-1", callID: "call-1" },
+      },
+      raw: {},
+    });
+
+    expect(
+      controller.getState().interactions.permissions.pending["permission_1"],
+    ).toMatchObject({ id: "permission_1", always: [] });
+  });
+
   it("detaches from OpenCode events when the last state listener unsubscribes", () => {
     const eventSource = createEventSource();
     const controller = new OpenCodeThreadController(

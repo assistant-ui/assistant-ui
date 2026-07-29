@@ -11,7 +11,10 @@ import {
   ExportedMessageRepository,
   type MessageTiming,
 } from "@assistant-ui/react";
-import { projectOpenCodePermissionApproval } from "./openCodePermissionApproval";
+import {
+  projectOpenCodePermissionApproval,
+  projectResolvedOpenCodePermissionApproval,
+} from "./openCodePermissionApproval";
 
 type ProjectedContentPart = Exclude<
   OpenCodeProjectedThreadMessage["content"],
@@ -126,6 +129,14 @@ const getPendingPermissionForToolCall = (
 ) =>
   Object.values(state.interactions.permissions.pending).find(
     (request) => request.tool?.callID === toolCallId,
+  );
+
+const getResolvedPermissionForToolCall = (
+  state: OpenCodeThreadState,
+  toolCallId: string,
+) =>
+  Object.values(state.interactions.permissions.resolved).find(
+    (entry) => entry.request.tool?.callID === toolCallId,
   );
 
 const hasPendingInteractionForToolCall = (
@@ -247,6 +258,9 @@ const projectAssistantContent = (
         const toolState = mapToolState(part.state);
         const toolCallId = part.callID ?? part.id ?? `tool-${index}`;
         const permission = getPendingPermissionForToolCall(state, toolCallId);
+        const resolvedPermission = permission
+          ? undefined
+          : getResolvedPermissionForToolCall(state, toolCallId);
         content.push({
           type: "tool-call",
           toolCallId,
@@ -259,7 +273,14 @@ const projectAssistantContent = (
           ...(toolState.isError ? { isError: true } : {}),
           ...(permission
             ? { approval: projectOpenCodePermissionApproval(permission) }
-            : {}),
+            : resolvedPermission
+              ? {
+                  approval:
+                    projectResolvedOpenCodePermissionApproval(
+                      resolvedPermission,
+                    ),
+                }
+              : {}),
           ...(currentStepId() ? { parentId: currentStepId() } : {}),
         });
         break;

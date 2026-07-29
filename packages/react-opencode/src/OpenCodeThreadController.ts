@@ -115,7 +115,7 @@ const toPermissionRequest = (
     permission: request.permission,
     patterns: request.patterns,
     metadata,
-    always: request.always,
+    always: Array.isArray(request.always) ? request.always : [],
     tool: request.tool,
     toolName:
       typeof toolNameValue === "string" ? toolNameValue : request.permission,

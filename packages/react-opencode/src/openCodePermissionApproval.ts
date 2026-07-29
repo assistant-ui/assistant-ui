@@ -7,30 +7,42 @@ import type {
   OpenCodePermissionResponse,
 } from "./types";
 
+type ToolCallApproval = NonNullable<ToolCallMessagePart["approval"]>;
+
 export const projectOpenCodePermissionApproval = (
   request: OpenCodePermissionRequest,
-): NonNullable<ToolCallMessagePart["approval"]> => ({
+): ToolCallApproval => ({
   id: request.id,
   options: [
     {
       id: "once",
       kind: "allow-once",
-      label: "Allow once",
     },
-    {
-      id: "always",
-      kind: "allow-always",
-      label: "Always allow",
-      description: "Allow these patterns until OpenCode is restarted.",
-      ...(request.always.length > 0 ? { grants: request.always } : {}),
-      confirm: true,
-    },
+    ...(request.always.length > 0
+      ? [
+          {
+            id: "always",
+            kind: "allow-always",
+            description: "Allow these patterns until OpenCode is restarted.",
+            grants: request.always,
+            confirm: true,
+          },
+        ]
+      : []),
     {
       id: "reject",
       kind: "reject-once",
-      label: "Reject",
     },
   ],
+});
+
+export const projectResolvedOpenCodePermissionApproval = (entry: {
+  request: OpenCodePermissionRequest;
+  reply: OpenCodePermissionResponse;
+}): ToolCallApproval => ({
+  id: entry.request.id,
+  approved: entry.reply !== "reject",
+  optionId: entry.reply,
 });
 
 export const toOpenCodePermissionResponse = ({
