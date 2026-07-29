@@ -321,6 +321,53 @@ describe("openPiEventStream", () => {
     expect(errors).toHaveLength(1);
   });
 
+  it.each(["throws", "rejects"] as const)(
+    "reconnects when the error callback %s",
+    async (failureMode) => {
+      let calls = 0;
+      const networkError = new Error("network drop");
+      const callbackError = new Error("telemetry failed");
+      const fetchImpl = (async () => {
+        calls += 1;
+        if (calls === 1) throw networkError;
+        return sseResponse([
+          sseFrame({ type: "agent_start", threadId: "t1", seq: 1 }),
+        ]);
+      }) as unknown as typeof fetch;
+      const onError = vi.fn(() => {
+        if (failureMode === "throws") throw callbackError;
+        return Promise.reject(callbackError);
+      });
+      const consoleError = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => undefined);
+
+      try {
+        await new Promise<void>((resolve) => {
+          const close = openPiEventStream({
+            url: "/events",
+            fetchImpl,
+            reconnectDelay: () => Promise.resolve(),
+            onError,
+            onEvent: () => {
+              close();
+              resolve();
+            },
+          });
+        });
+
+        expect(calls).toBe(2);
+        expect(onError).toHaveBeenCalledWith(networkError);
+        expect(consoleError).toHaveBeenCalledWith(
+          "[react-pi] onError callback threw an error",
+          callbackError,
+        );
+      } finally {
+        consoleError.mockRestore();
+      }
+    },
+  );
+
   it("reports a bad-JSON frame via onError without crashing the stream", async () => {
     const events: PiAnyClientEvent[] = [];
     const errors: unknown[] = [];

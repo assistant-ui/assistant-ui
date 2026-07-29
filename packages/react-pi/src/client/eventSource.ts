@@ -169,6 +169,17 @@ export const openPiEventStream = (
 
   let closed = false;
   const abort = new AbortController();
+  const reportCallbackError = (callbackError: unknown) => {
+    console.error("[react-pi] onError callback threw an error", callbackError);
+  };
+  const reportError = (error: unknown) => {
+    if (!onError) return;
+    try {
+      void Promise.resolve(onError(error)).catch(reportCallbackError);
+    } catch (callbackError) {
+      reportCallbackError(callbackError);
+    }
+  };
 
   const run = async () => {
     while (!closed) {
@@ -197,7 +208,7 @@ export const openPiEventStream = (
             try {
               parsed = JSON.parse(frame.data) as PiAnyClientEvent;
             } catch (error) {
-              onError?.(error);
+              reportError(error);
               continue;
             }
             if (!closed) onEvent(parsed);
@@ -205,7 +216,7 @@ export const openPiEventStream = (
         }
       } catch (error) {
         if (closed || abort.signal.aborted) break;
-        onError?.(error);
+        reportError(error);
       }
       if (closed) break;
       // Snapshot-first: the next connect replaces local state, so we lose
