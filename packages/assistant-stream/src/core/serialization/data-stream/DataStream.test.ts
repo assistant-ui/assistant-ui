@@ -59,4 +59,48 @@ describe("DataStreamDecoder interleaved tool-call args", () => {
       warn.mockRestore();
     }
   });
+
+  it("drops args deltas arriving after the tool call's result", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const chunks = await decodeLines([
+        'b:{"toolCallId":"t1","toolName":"search"}',
+        'a:{"toolCallId":"t1","result":"ok"}',
+        'c:{"toolCallId":"t1","argsTextDelta":"late"}',
+      ]);
+
+      expect(chunks.some((c) => c.type === "result" && c.result === "ok")).toBe(
+        true,
+      );
+      expect(
+        chunks.some((c) => c.type === "text-delta" && c.textDelta === "late"),
+      ).toBe(false);
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it("drops args deltas arriving after a complete tool call frame", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const chunks = await decodeLines([
+        '9:{"toolCallId":"t1","toolName":"search","args":{"q":1}}',
+        'c:{"toolCallId":"t1","argsTextDelta":"late"}',
+      ]);
+
+      expect(
+        chunks.some(
+          (c) =>
+            c.type === "part-start" &&
+            c.part.type === "tool-call" &&
+            c.part.toolCallId === "t1",
+        ),
+      ).toBe(true);
+      expect(
+        chunks.some((c) => c.type === "text-delta" && c.textDelta === "late"),
+      ).toBe(false);
+    } finally {
+      warn.mockRestore();
+    }
+  });
 });

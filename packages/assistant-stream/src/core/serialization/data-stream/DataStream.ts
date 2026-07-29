@@ -238,7 +238,7 @@ export class DataStreamDecoder extends PipeableTransformStream<
           const { type, value } = chunk;
 
           if (TOOL_CALL_ARGS_CLOSING_CHUNKS.includes(type)) {
-            if (activeToolCallArgsText && activeToolCallArgsId) {
+            if (activeToolCallArgsText && activeToolCallArgsId !== undefined) {
               activeToolCallArgsText.close();
               closedToolCallArgs.add(activeToolCallArgsId);
             }
@@ -321,6 +321,11 @@ export class DataStreamDecoder extends PipeableTransformStream<
                 result,
                 isError,
               });
+              closedToolCallArgs.add(toolCallId);
+              if (activeToolCallArgsId === toolCallId) {
+                activeToolCallArgsText = undefined;
+                activeToolCallArgsId = undefined;
+              }
               break;
             }
 
@@ -337,6 +342,11 @@ export class DataStreamDecoder extends PipeableTransformStream<
                   args,
                 });
                 toolCallControllers.set(toolCallId, toolCallController);
+              }
+              closedToolCallArgs.add(toolCallId);
+              if (activeToolCallArgsId === toolCallId) {
+                activeToolCallArgsText = undefined;
+                activeToolCallArgsId = undefined;
               }
               break;
             }
