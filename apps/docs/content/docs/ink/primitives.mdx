@@ -396,7 +396,7 @@ Renders the quoted text from `s.composer.quote?.text`. Pass `children` to overri
 
 ### QuoteDismiss
 
-Pressable that clears the active quote by calling `aui.composer().setQuote(undefined)`.
+Pressable that clears the active quote by calling `aui.composer.setQuote(undefined)`.
 
 ```tsx
 <ComposerPrimitive.QuoteDismiss>
@@ -683,7 +683,7 @@ Container `Box` for an attachment. Forwards all `Box` props.
 
 ### Remove
 
-`Pressable` that calls `aui.attachment().remove()` when activated (Enter while focused). Disabled when not focused or when the `disabled` prop is set.
+`Pressable` that calls `aui.attachment.remove()` when activated (Enter while focused). Disabled when not focused or when the `disabled` prop is set.
 
 | Prop | Type | Description |
 |------|------|-------------|
@@ -725,7 +725,7 @@ Renders the queue item's prompt with Ink `<Text>`. Pass `children` to override t
 
 ### Remove
 
-Pressable that removes the queue item by calling `aui.queueItem().remove()`.
+Pressable that removes the queue item by calling `aui.queueItem.remove()`.
 
 ```tsx
 <QueueItemPrimitive.Remove>
@@ -742,7 +742,7 @@ Remaining props are forwarded to the underlying `Pressable` (Ink `Box` props).
 
 ### Steer
 
-Pressable that promotes the queue item to run next by calling `aui.queueItem().steer()`.
+Pressable that promotes the queue item to run next by calling `aui.queueItem.steer()`.
 
 ```tsx
 <QueueItemPrimitive.Steer>

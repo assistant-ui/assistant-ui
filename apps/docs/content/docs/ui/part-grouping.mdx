@@ -248,10 +248,6 @@ The synthetic `"standalone-tool-call"` key on `groupPartByType` matches all of t
 </MessagePrimitive.GroupedParts>;
 ```
 
-<Callout type="info">
-  The `"mcp-app"` key is deprecated in favor of `"standalone-tool-call"`, which is a superset (it also matches MCP-app tool calls). Existing `"mcp-app"` usage keeps working.
-</Callout>
-
 ### Render Tool Calls as Flat Rows
 
 The previous section keeps `"tool-call"` folded into the chain-of-thought and only lifts standalone tool UIs out. To keep reasoning collapsed in a group while every tool call renders as its own row in the message flow, map both tool keys to `[]`:

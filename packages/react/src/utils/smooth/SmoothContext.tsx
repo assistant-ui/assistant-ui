@@ -38,7 +38,7 @@ export const SmoothContextProvider: FC<PropsWithChildren> = ({ children }) => {
   const aui = useAui();
 
   const [context] = useState(() =>
-    makeSmoothContext(aui.part().getState().status),
+    makeSmoothContext(aui.part.getState().status),
   );
 
   // do not wrap if there is an outer SmoothContextProvider

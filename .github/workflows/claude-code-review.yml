@@ -83,7 +83,7 @@ jobs:
     concurrency:
       group: claude-code-review-${{ github.event.pull_request.number }}
       cancel-in-progress: true
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: blacksmith-2vcpu-ubuntu-2404
     timeout-minutes: 15
     permissions:
       contents: read
@@ -175,7 +175,7 @@ jobs:
     concurrency:
       group: claude-code-review-${{ github.event.pull_request.number }}
       cancel-in-progress: true
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: blacksmith-2vcpu-ubuntu-2404
     timeout-minutes: 15
     permissions:
       contents: read

@@ -90,14 +90,10 @@ const useInteractable = <TSchema extends Unstable_InteractableStateSchema>(
 
   const autoId = useId().replace(/[^a-zA-Z0-9]/g, "");
 
-  // Whether this component renders inside a message part is fixed for its
-  // lifetime, so conditioning the selectors on it is safe.
-  const inPart = aui.part.source != null;
   const updateToolName = interactableToolName(name);
   const part = useAuiState((s) => {
-    if (!inPart) return undefined;
-    const p = s.part;
-    return p.type === "tool-call" ? p : undefined;
+    const p = s.optional.part;
+    return p?.type === "tool-call" ? p : undefined;
   });
 
   // Inside an update_{name} part, the instance id comes from the call itself:
@@ -123,7 +119,7 @@ const useInteractable = <TSchema extends Unstable_InteractableStateSchema>(
   const initialStateRef = useRef(config.initialState);
   initialStateRef.current = config.initialState;
 
-  const interactables = useAuiState(() => aui.unstable_interactables());
+  const interactables = useAuiState(() => aui.unstable_interactables);
 
   useEffect(() => {
     return interactables.register({

@@ -28,7 +28,7 @@ export function ThreadListDrawer({ navigation }: DrawerContentComponentProps) {
         <Pressable
           onPressIn={haptics.selection}
           onPress={() => {
-            aui.threads().switchToNewThread();
+            aui.threads.switchToNewThread();
             navigation.closeDrawer();
           }}
           style={({ pressed }) => [

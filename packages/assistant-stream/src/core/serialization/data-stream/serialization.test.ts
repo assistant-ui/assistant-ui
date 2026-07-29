@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { LineDecoderStream } from "../../utils/stream/LineDecoderStream";
 import {
   DataStreamChunkDecoder,
@@ -31,6 +31,10 @@ function createLineStream(lines: string[]): ReadableStream<string> {
 }
 
 describe("DataStreamChunkDecoder", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it("decodes text-delta chunks", async () => {
     const chunks = await collectChunks(
       createLineStream(['0:"hello"', '0:" world"']).pipeThrough(
@@ -76,7 +80,6 @@ describe("DataStreamChunkDecoder", () => {
     expect(chunks).toEqual([
       { type: DataStreamStreamChunkType.TextDelta, value: "ok" },
     ]);
-    warn.mockRestore();
   });
 
   it("drops chunks that are not valid JSON", async () => {
@@ -93,14 +96,38 @@ describe("DataStreamChunkDecoder", () => {
     expect(chunks).toEqual([
       { type: DataStreamStreamChunkType.TextDelta, value: "ok" },
     ]);
-    warn.mockRestore();
   });
 
-  it("throws on a chunk without a colon separator", async () => {
-    await expect(
-      collectChunks(
-        createLineStream(["garbage"]).pipeThrough(new DataStreamChunkDecoder()),
+  it("skips blank and whitespace-only lines silently", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const chunks = await collectChunks(
+      createLineStream([
+        "",
+        '0:"hello"',
+        "   ",
+        "\t",
+        '0:" world"',
+      ]).pipeThrough(new DataStreamChunkDecoder()),
+    );
+    expect(warn).not.toHaveBeenCalled();
+    expect(chunks).toEqual([
+      { type: DataStreamStreamChunkType.TextDelta, value: "hello" },
+      { type: DataStreamStreamChunkType.TextDelta, value: " world" },
+    ]);
+  });
+
+  it("drops a chunk without a colon separator with a warning", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const chunks = await collectChunks(
+      createLineStream(["garbage", '0:"ok"']).pipeThrough(
+        new DataStreamChunkDecoder(),
       ),
-    ).rejects.toThrow("Invalid stream part");
+    );
+    expect(warn).toHaveBeenCalledWith(
+      "Dropped invalid data-stream chunk: garbage",
+    );
+    expect(chunks).toEqual([
+      { type: DataStreamStreamChunkType.TextDelta, value: "ok" },
+    ]);
   });
 });

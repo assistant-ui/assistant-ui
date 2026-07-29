@@ -503,14 +503,14 @@ Add attachments from external sources (URLs, API data, CMS references) without n
 const aui = useAui();
 
 // Add an attachment from an external source
-await aui.composer().addAttachment({
+await aui.composer.addAttachment({
   name: "report.pdf",
   contentType: "application/pdf",
   content: [{ type: "text", text: "Extracted document content..." }],
 });
 
 // Optionally provide id and type
-await aui.composer().addAttachment({
+await aui.composer.addAttachment({
   id: "cms-doc-123",
   type: "document",
   name: "Product Spec",
@@ -532,7 +532,7 @@ const handleMultipleFiles = async (files: FileList) => {
   const filesToAdd = Array.from(files).slice(0, maxFiles);
 
   for (const file of filesToAdd) {
-    await aui.composer().addAttachment(file);
+    await aui.composer.addAttachment(file);
   }
 };
 ```

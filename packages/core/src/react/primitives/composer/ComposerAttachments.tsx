@@ -99,7 +99,7 @@ const ComposerPrimitiveAttachmentsInner: FC<{
         <ComposerAttachmentByIndexProvider key={index} index={index}>
           <RenderChildrenWithAccessor
             getItemState={(aui) =>
-              aui.composer().attachment({ index }).getState()
+              aui.composer.attachment({ index }).getState()
             }
           >
             {(getItem) =>

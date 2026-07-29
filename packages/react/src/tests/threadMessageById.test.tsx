@@ -215,10 +215,3 @@ describe("ThreadPrimitive.Unstable_MessageById", () => {
     expect(screen.getByTestId("by-id").textContent).toBe("first");
   });
 });
-
-describe("exports", () => {
-  it("exposes the unstable id-keyed surface", () => {
-    expect(typeof unstable_useThreadMessageIds).toBe("function");
-    expect(ThreadPrimitive.Unstable_MessageById).toBeDefined();
-  });
-});

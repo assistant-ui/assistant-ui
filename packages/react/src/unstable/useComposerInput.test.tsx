@@ -18,11 +18,11 @@ const flushTapSync = vi.fn((fn: () => void) => fn());
 
 vi.mock("@assistant-ui/store", () => ({
   useAui: () => ({
-    composer: () => ({
+    composer: {
       getState: () => ({ isEditing: fixture.composer.isEditing }),
       setText: composerSetText,
       send: composerSend,
-    }),
+    },
   }),
   useAuiState: (selector: (s: unknown) => unknown) =>
     selector({

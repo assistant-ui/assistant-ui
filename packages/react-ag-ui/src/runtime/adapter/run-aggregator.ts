@@ -8,6 +8,7 @@ import {
   type ToolCallMessagePart,
   type ToolModelContentPart,
 } from "@assistant-ui/core";
+import { readMcpAppResourceUri } from "../mcp-tool-result";
 import type { AgUiEvent, AgUiInterrupt } from "../types";
 import type { Logger } from "../logger";
 
@@ -477,6 +478,10 @@ export class RunAggregator {
       entry.modelContent = [{ type: "text", text: content }];
       entry.snapshotResultApplied = true;
       entry.isError = isError;
+      if (entry.mcpAppResourceUri === undefined) {
+        const uri = readMcpAppResourceUri(mcpResult._meta);
+        if (uri !== undefined) entry.mcpAppResourceUri = uri;
+      }
     } else if (entry.snapshotResultApplied) {
       if (entry.modelContent === undefined) {
         entry.modelContent = [{ type: "text", text: content }];

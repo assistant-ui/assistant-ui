@@ -162,7 +162,7 @@ function InlineRenderer({
       sendMessage: (params) => {
         const text = extractSendMessageText(params);
         if (!text) return { ok: false, reason: "unrecognised params shape" };
-        aui.thread().append({ content: [{ type: "text", text }] });
+        aui.thread.append({ content: [{ type: "text", text }] });
         return { ok: true };
       },
       callTool: (params) =>

@@ -106,7 +106,7 @@ export const useAdkMessages = ({
           ...config,
           abortSignal: abortController.signal,
           initialize: async () => {
-            return await aui.threadListItem().initialize();
+            return await aui.threadListItem.initialize();
           },
         });
 

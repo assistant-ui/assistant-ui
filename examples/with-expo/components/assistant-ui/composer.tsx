@@ -97,7 +97,7 @@ function AttachButton() {
     for (const asset of result.assets) {
       // iOS may report HEIC, which OpenAI rejects; normalize to JPEG.
       const dataUrl = `data:image/jpeg;base64,${asset.base64}`;
-      await aui.composer().addAttachment({
+      await aui.composer.addAttachment({
         name: asset.fileName ?? "image.jpg",
         contentType: "image/jpeg",
         type: "image",

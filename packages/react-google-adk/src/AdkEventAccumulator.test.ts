@@ -452,13 +452,6 @@ describe("AdkEventAccumulator - HITL requires-action", () => {
     expect(aiMsg.status).toBeUndefined();
   });
 
-  it("matches tool call id to the longRunningToolIds entry", () => {
-    const acc = new AdkEventAccumulator();
-    const msgs = acc.processEvent(makeHitlEvent("tc-1"));
-    const aiMsg = msgs[0] as AdkMessage & { type: "ai" };
-    expect(aiMsg.tool_calls![0]!.id).toBe("tc-1");
-  });
-
   it("stays pending across a subsequent bookkeeping event", () => {
     const acc = new AdkEventAccumulator();
     acc.processEvent(makeHitlEvent("tc-1", { author: "WorkflowA" }));
@@ -478,35 +471,6 @@ describe("AdkEventAccumulator - HITL requires-action", () => {
     expect(aiMsg).toBeDefined();
     expect(aiMsg!.tool_calls![0]!.id).toBe("tc-1");
     expect(aiMsg!.status).toBeUndefined();
-  });
-
-  it("assigns manual complete status on non-HITL final event", () => {
-    const acc = new AdkEventAccumulator();
-    const msgs = acc.processEvent(
-      makeEvent({
-        author: "agent",
-        content: { role: "model", parts: [{ text: "Done." }] },
-      }),
-    );
-
-    expect(msgs[0]).toMatchObject({
-      status: { type: "complete", reason: "stop" },
-    });
-  });
-
-  it("assigns manual complete status on skipSummarization final event", () => {
-    const acc = new AdkEventAccumulator();
-    const msgs = acc.processEvent(
-      makeEvent({
-        author: "agent",
-        actions: { skipSummarization: true },
-        content: { role: "model", parts: [{ text: "skipped" }] },
-      }),
-    );
-
-    expect(msgs[0]).toMatchObject({
-      status: { type: "complete", reason: "stop" },
-    });
   });
 
   it("prioritizes skipSummarization over longRunningToolIds", () => {

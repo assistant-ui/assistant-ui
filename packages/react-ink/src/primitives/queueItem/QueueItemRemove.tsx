@@ -13,7 +13,7 @@ export const QueueItemRemove = ({
   const aui = useAui();
 
   return (
-    <Pressable onPress={() => aui.queueItem().remove()} {...pressableProps}>
+    <Pressable onPress={() => aui.queueItem.remove()} {...pressableProps}>
       {children}
     </Pressable>
   );

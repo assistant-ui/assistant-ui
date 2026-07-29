@@ -147,15 +147,15 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
       return runtime.threads.main.unstable_on("initialize", () => {
         if (hasInitializedRef.current) return;
 
-        const state = aui.threadListItem().getState();
+        const state = aui.threadListItem.getState();
         if (state.status !== "new") return;
         hasInitializedRef.current = true;
 
-        initPromiseRef.current = aui.threadListItem().initialize();
+        initPromiseRef.current = aui.threadListItem.initialize();
 
         const dispose = runtime.thread.unstable_on("runEnd", () => {
           dispose();
-          aui.threadListItem().generateTitle();
+          aui.threadListItem.generateTitle();
         });
       });
     }, [runtime, aui]);

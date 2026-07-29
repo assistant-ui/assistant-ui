@@ -374,10 +374,10 @@ const ThreadSuggestions: FC = () => {
   );
 
   const sendPrompt = (prompt: string) => {
-    if (aui.thread().getState().isRunning) return;
-    aui.thread().append({
+    if (aui.thread.getState().isRunning) return;
+    aui.thread.append({
       content: [{ type: "text", text: prompt }],
-      runConfig: aui.composer().getState().runConfig,
+      runConfig: aui.composer.getState().runConfig,
     });
   };
 

@@ -595,7 +595,7 @@ async function* createCustomStream(): AsyncGenerator<ChatModelRunResult> {
   };
 }
 
-aui.thread().resumeRun({
+aui.thread.resumeRun({
   parentId: "message-id",
   stream: createCustomStream,
 });
@@ -617,8 +617,8 @@ function useStreamReconnect(threadId: string) {
         r.json(),
       );
       if (status.isRunning) {
-        const parentId = aui.thread().getState().messages.at(-1)?.id ?? null;
-        aui.thread().resumeRun({ parentId });
+        const parentId = aui.thread.getState().messages.at(-1)?.id ?? null;
+        aui.thread.resumeRun({ parentId });
       }
     })();
   }, [aui, threadId]);

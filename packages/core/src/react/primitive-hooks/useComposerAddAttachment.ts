@@ -8,7 +8,7 @@ export const useComposerAddAttachment = () => {
 
   const addAttachment = useCallback(
     (file: File | CreateAttachment) => {
-      return aui.composer().addAttachment(file);
+      return aui.composer.addAttachment(file);
     },
     [aui],
   );

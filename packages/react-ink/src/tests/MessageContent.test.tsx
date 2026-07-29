@@ -50,7 +50,7 @@ afterEach(() => {
 describe("MessageContent", () => {
   it("renders incomplete tool calls as errors instead of running forever", async () => {
     mockMessageState(mockUseAuiState, {
-      tools: { tools: {} },
+      tools: { toolUIs: {} },
       message: {
         parts: [
           {
@@ -69,12 +69,12 @@ describe("MessageContent", () => {
       },
     });
     mockUseAui.mockReturnValue({
-      message: () => ({
+      message: {
         part: () => ({
           addToolResult: vi.fn(),
           resumeToolCall: vi.fn(),
         }),
-      }),
+      },
     });
 
     const frame = await renderFrame(<MessageContent />);
@@ -87,7 +87,7 @@ describe("MessageContent", () => {
 
   it("renders terminal-safe default fallbacks for non-tool parts", async () => {
     mockMessageState(mockUseAuiState, {
-      tools: { tools: {} },
+      tools: { toolUIs: {} },
       dataRenderers: { renderers: {}, fallbacks: [] },
       message: {
         parts: [
@@ -140,7 +140,7 @@ describe("MessageContent", () => {
 
   it("lets renderReasoning suppress the intentional reasoning default", async () => {
     mockMessageState(mockUseAuiState, {
-      tools: { tools: {} },
+      tools: { toolUIs: {} },
       dataRenderers: { renderers: {}, fallbacks: [] },
       message: {
         parts: [
@@ -162,7 +162,7 @@ describe("MessageContent", () => {
 
   it("uses custom render props instead of default fallbacks", async () => {
     mockMessageState(mockUseAuiState, {
-      tools: { tools: {} },
+      tools: { toolUIs: {} },
       dataRenderers: { renderers: {}, fallbacks: [] },
       message: {
         parts: [
@@ -224,7 +224,7 @@ describe("MessageContent", () => {
   it("uses registered tool UI before renderToolCall", async () => {
     const ToolUI = () => <Text>registered tool</Text>;
     mockMessageState(mockUseAuiState, {
-      tools: { tools: { search: ToolUI } },
+      tools: { toolUIs: { search: [{ render: ToolUI }] } },
       dataRenderers: { renderers: {}, fallbacks: [] },
       message: {
         parts: [
@@ -240,12 +240,12 @@ describe("MessageContent", () => {
       },
     });
     mockUseAui.mockReturnValue({
-      message: () => ({
+      message: {
         part: () => ({
           addToolResult: vi.fn(),
           resumeToolCall: vi.fn(),
         }),
-      }),
+      },
     });
 
     const frame = await renderFrame(
@@ -258,7 +258,7 @@ describe("MessageContent", () => {
   it("uses registered named data renderer before renderData", async () => {
     const DataUI = () => <Text>registered data</Text>;
     mockMessageState(mockUseAuiState, {
-      tools: { tools: {} },
+      tools: { toolUIs: {} },
       dataRenderers: { renderers: { weather: [DataUI] }, fallbacks: [] },
       message: {
         parts: [
@@ -282,7 +282,7 @@ describe("MessageContent", () => {
   it("uses dataRenderers.fallbacks[0] before renderData when no named renderer matches", async () => {
     const DataFallback = () => <Text>fallback data</Text>;
     mockMessageState(mockUseAuiState, {
-      tools: { tools: {} },
+      tools: { toolUIs: {} },
       dataRenderers: { renderers: {}, fallbacks: [DataFallback] },
       message: {
         parts: [

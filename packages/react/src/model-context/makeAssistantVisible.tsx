@@ -104,7 +104,7 @@ export const makeAssistantVisible = <T extends ComponentType<any>>(
 
       const { clickable, editable } = config ?? {};
       useEffect(() => {
-        return aui.modelContext().register({
+        return aui.modelContext.register({
           getModelContext: () => {
             return {
               tools: {

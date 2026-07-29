@@ -11,8 +11,6 @@ type ResourceElement<V> = {
   readonly deps?: readonly unknown[];
 };
 
-declare const configurableResource: <V, A extends readonly unknown[], O>(hook: (options: O, ...args: A) => V) => (options: O) => Resource<V, A>;
-
 declare const createTapRoot: <R>(render: () => R) => useTapRoot.Root<R> & {
   unmount: () => void;
 };
@@ -20,12 +18,14 @@ declare const createTapRoot: <R>(render: () => R) => useTapRoot.Root<R> & {
 declare const flushTapSync: <T>(callback: () => T) => T;
 
 declare namespace entry_root_exports {
-  export { Resource, ResourceElement, configurableResource, createTapRoot, flushTapSync, resource, useContextProvider, useResource, useResources, useTapHost, useTapRoot, withKey };
+  export { Resource, ResourceElement, createTapRoot, flushTapSync, resource, useContextProvider, useMemoCache, useResource, useResources, useTapHost, useTapRoot, withKey };
 }
 
 declare function resource<R, A extends readonly unknown[]>(hook: (...args: A) => R): Resource<R, A>;
 
 declare const useContextProvider: <T, TResult>(context: Context<T>, value: T, fn: () => TResult) => TResult;
+
+declare const useMemoCache: (size: number) => unknown[];
 
 declare function useResource<E extends ResourceElement<any>>(element: E): ExtractResourceReturnType<E>;
 

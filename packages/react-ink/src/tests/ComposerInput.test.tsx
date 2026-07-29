@@ -92,10 +92,10 @@ describe("ComposerInput", () => {
     );
     mockUseTextBuffer.mockReturnValue(buffer);
     mockUseAui.mockReturnValue({
-      composer: () => ({
+      composer: {
         send: vi.fn(),
         setText,
-      }),
+      },
     });
     mockUseFocus.mockReturnValue({ isFocused: true });
 
@@ -135,13 +135,13 @@ describe("ComposerInput", () => {
     );
     mockUseTextBuffer.mockReturnValue(buffer);
     mockUseAui.mockReturnValue({
-      composer: () => ({
+      composer: {
         send,
         setText: vi.fn(),
-      }),
-      thread: () => ({
+      },
+      thread: {
         getState: () => ({ isRunning: false, capabilities: { queue: false } }),
-      }),
+      },
     });
     mockUseFocus.mockReturnValue({ isFocused: true });
 
@@ -162,13 +162,13 @@ describe("ComposerInput", () => {
     );
     mockUseTextBuffer.mockReturnValue(buffer);
     mockUseAui.mockReturnValue({
-      composer: () => ({
+      composer: {
         send,
         setText: vi.fn(),
-      }),
-      thread: () => ({
+      },
+      thread: {
         getState: () => ({ isRunning: true, capabilities: { queue: false } }),
-      }),
+      },
     });
     mockUseFocus.mockReturnValue({ isFocused: true });
 
@@ -189,13 +189,13 @@ describe("ComposerInput", () => {
     );
     mockUseTextBuffer.mockReturnValue(buffer);
     mockUseAui.mockReturnValue({
-      composer: () => ({
+      composer: {
         send,
         setText: vi.fn(),
-      }),
-      thread: () => ({
+      },
+      thread: {
         getState: () => ({ isRunning: true, capabilities: { queue: true } }),
-      }),
+      },
     });
     mockUseFocus.mockReturnValue({ isFocused: true });
 
@@ -217,10 +217,10 @@ describe("ComposerInput", () => {
     );
     mockUseTextBuffer.mockReturnValue(buffer);
     mockUseAui.mockReturnValue({
-      composer: () => ({
+      composer: {
         send,
         setText: vi.fn(),
-      }),
+      },
     });
     mockUseFocus.mockReturnValue({ isFocused: true });
 
@@ -242,10 +242,10 @@ describe("ComposerInput", () => {
     );
     mockUseTextBuffer.mockReturnValue(buffer);
     mockUseAui.mockReturnValue({
-      composer: () => ({
+      composer: {
         send: vi.fn(),
         setText: vi.fn(),
-      }),
+      },
     });
     mockUseFocus.mockReturnValue({ isFocused: true });
 
@@ -268,10 +268,10 @@ describe("ComposerInput", () => {
     );
     mockUseTextBuffer.mockReturnValue(buffer);
     mockUseAui.mockReturnValue({
-      composer: () => ({
+      composer: {
         send: vi.fn(),
         setText,
-      }),
+      },
     });
     mockUseFocus.mockReturnValue({ isFocused: true });
 
@@ -298,10 +298,10 @@ describe("ComposerInput", () => {
     );
     mockUseTextBuffer.mockReturnValue(buffer);
     mockUseAui.mockReturnValue({
-      composer: () => ({
+      composer: {
         send: vi.fn(),
         setText,
-      }),
+      },
     });
     mockUseFocus.mockReturnValue({ isFocused: true });
 
@@ -329,10 +329,10 @@ describe("ComposerInput", () => {
     );
     mockUseTextBuffer.mockReturnValue(buffer);
     mockUseAui.mockReturnValue({
-      composer: () => ({
+      composer: {
         send,
         setText,
-      }),
+      },
     });
     mockUseFocus.mockReturnValue({ isFocused: true });
 
@@ -359,10 +359,10 @@ describe("ComposerInput", () => {
     );
     mockUseTextBuffer.mockReturnValue(buffer);
     mockUseAui.mockReturnValue({
-      composer: () => ({
+      composer: {
         send: vi.fn(),
         setText: vi.fn(),
-      }),
+      },
     });
     mockUseFocus.mockReturnValue({ isFocused: true });
 
@@ -385,10 +385,10 @@ describe("ComposerInput", () => {
     );
     mockUseTextBuffer.mockReturnValue(buffer);
     mockUseAui.mockReturnValue({
-      composer: () => ({
+      composer: {
         send,
         setText: vi.fn(),
-      }),
+      },
     });
     mockUseFocus.mockReturnValue({ isFocused: true });
 
@@ -411,10 +411,10 @@ describe("ComposerInput", () => {
     );
     mockUseTextBuffer.mockReturnValue(buffer);
     mockUseAui.mockReturnValue({
-      composer: () => ({
+      composer: {
         send: vi.fn(),
         setText,
-      }),
+      },
     });
     mockUseFocus.mockReturnValue({ isFocused: true });
 
@@ -438,10 +438,10 @@ describe("ComposerInput", () => {
     );
     mockUseTextBuffer.mockReturnValue(buffer);
     mockUseAui.mockReturnValue({
-      composer: () => ({
+      composer: {
         send: vi.fn(),
         setText: vi.fn(),
-      }),
+      },
     });
     mockUseFocus.mockReturnValue({ isFocused: true });
 
@@ -488,10 +488,10 @@ describe("ComposerInput", () => {
     );
     mockUseTextBuffer.mockReturnValue(buffer);
     mockUseAui.mockReturnValue({
-      composer: () => ({
+      composer: {
         send: vi.fn(),
         setText: vi.fn(),
-      }),
+      },
     });
     mockUseFocus.mockReturnValue({ isFocused: true });
 
@@ -518,10 +518,10 @@ describe("ComposerInput", () => {
     );
     mockUseTextBuffer.mockReturnValue(buffer);
     mockUseAui.mockReturnValue({
-      composer: () => ({
+      composer: {
         send: vi.fn(),
         setText: vi.fn(),
-      }),
+      },
     });
     mockUseFocus.mockReturnValue({ isFocused: true });
 
@@ -562,10 +562,10 @@ describe("ComposerInput", () => {
     );
     mockUseTextBuffer.mockReturnValue(buffer);
     mockUseAui.mockReturnValue({
-      composer: () => ({
+      composer: {
         send: vi.fn(),
         setText: setStoreText,
-      }),
+      },
     });
     mockUseFocus.mockReturnValue({ isFocused: true });
 

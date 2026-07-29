@@ -563,66 +563,30 @@ describe("toGenericMessages", () => {
       expect(content[0]!.mediaType).toBe(expectedType);
     };
 
-    it("handles jpg extension", () => {
+    it("maps known extensions to their media types", () => {
       testMediaType("https://example.com/photo.jpg", "image/jpeg");
-    });
-
-    it("handles jpeg extension", () => {
       testMediaType("https://example.com/photo.jpeg", "image/jpeg");
-    });
-
-    it("handles png extension", () => {
       testMediaType("https://example.com/photo.png", "image/png");
-    });
-
-    it("handles gif extension", () => {
       testMediaType("https://example.com/photo.gif", "image/gif");
-    });
-
-    it("handles webp extension", () => {
       testMediaType("https://example.com/photo.webp", "image/webp");
-    });
-
-    it("handles svg extension", () => {
       testMediaType("https://example.com/icon.svg", "image/svg+xml");
-    });
-
-    it("handles avif extension", () => {
       testMediaType("https://example.com/photo.avif", "image/avif");
-    });
-
-    it("handles bmp extension", () => {
       testMediaType("https://example.com/photo.bmp", "image/bmp");
-    });
-
-    it("handles ico extension", () => {
       testMediaType("https://example.com/favicon.ico", "image/x-icon");
-    });
-
-    it("handles tiff extension", () => {
       testMediaType("https://example.com/photo.tiff", "image/tiff");
-    });
-
-    it("handles tif extension", () => {
       testMediaType("https://example.com/photo.tif", "image/tiff");
     });
 
-    it("defaults to image/png for unknown extension", () => {
+    it("defaults to image/png for unknown or missing extensions", () => {
       testMediaType("https://example.com/photo.unknown", "image/png");
-    });
-
-    it("defaults to image/png for no extension", () => {
       testMediaType("https://example.com/photo", "image/png");
     });
 
-    it("handles query params in URL", () => {
+    it("ignores query params and casing in the extension", () => {
       testMediaType(
         "https://example.com/photo.jpg?size=large&quality=high",
         "image/jpeg",
       );
-    });
-
-    it("handles uppercase extensions", () => {
       testMediaType("https://example.com/photo.JPG", "image/jpeg");
     });
   });

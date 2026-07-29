@@ -1,5 +1,11 @@
 # @assistant-ui/x-generative-compiler
 
+## 0.0.11
+
+### Patch Changes
+
+- [#5210](https://github.com/assistant-ui/assistant-ui/pull/5210) [`45fe20d`](https://github.com/assistant-ui/assistant-ui/commit/45fe20d5cabec0ce934963cdafc1dec8efca4527) - feat: name the winning and overridden sources in the duplicate-tool-name composition warning ([@rupic-app](https://github.com/apps/rupic-app))
+
 ## 0.0.10
 
 ### Patch Changes

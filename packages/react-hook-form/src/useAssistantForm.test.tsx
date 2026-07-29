@@ -11,8 +11,8 @@ const mocks = vi.hoisted(() => {
     register,
     setToolUI,
     aui: {
-      modelContext: () => ({ register }),
-      tools: () => ({ setToolUI }),
+      modelContext: { register },
+      tools: { setToolUI },
     },
   };
 });

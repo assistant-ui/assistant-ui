@@ -83,7 +83,7 @@ describe("AttachmentPrimitive.Remove", () => {
   it("calls aui.attachment().remove() on Enter when focused", () => {
     mockUseFocus.mockReturnValue({ isFocused: true });
     const remove = vi.fn();
-    mockUseAui.mockReturnValue({ attachment: () => ({ remove }) });
+    mockUseAui.mockReturnValue({ attachment: { remove } });
     setAttachmentState({
       id: "a1",
       type: "file",

@@ -122,7 +122,7 @@ const content = useAuiState((s) => s.message.content);
 
 ### useAui
 
-Access the API instance for imperative operations and actions. Unlike `useAuiState`, this hook returns a stable object that never changes, making it perfect for event handlers and imperative operations.
+Access the API instance for imperative operations and actions. Unlike `useAuiState`, this hook does not subscribe to state updates: the client's identity only changes on structural changes (a scope resolving to a different instance), making it well suited for event handlers and imperative operations.
 
 ```tsx
 import { useAui } from "@assistant-ui/react";
@@ -132,20 +132,20 @@ function CustomMessageActions() {
 
   // Perform actions in event handlers
   const handleSend = () => {
-    aui.composer().send();
+    aui.composer.send();
   };
 
   const handleReload = () => {
-    aui.message().reload();
+    aui.message.reload();
   };
 
   // Read state imperatively when needed
   const handleConditionalAction = () => {
-    const { isRunning } = aui.thread().getState();
-    const { text } = aui.composer().getState();
+    const { isRunning } = aui.thread.getState();
+    const { text } = aui.composer.getState();
 
     if (!isRunning && text.length > 0) {
-      aui.composer().send();
+      aui.composer.send();
     }
   };
 
@@ -159,7 +159,7 @@ function CustomMessageActions() {
 }
 ```
 
-The API object is stable and doesn't cause re-renders. Use it for:
+The API object doesn't cause re-renders on state updates. Use it for:
 
 - **Triggering actions** in event handlers and callbacks
 - **Reading current state** imperatively when you don't need subscriptions
@@ -170,80 +170,80 @@ The API object is stable and doesn't cause re-renders. Use it for:
 
 ```tsx
 // Thread actions
-aui.thread().append(message);
-aui.thread().startRun(config);
-aui.thread().resumeRun(config);
-aui.thread().cancelRun();
-aui.thread().getState();
-aui.thread().message({ index: idx });
-aui.thread().message({ id: messageId });
-aui.thread().composer();
+aui.thread.append(message);
+aui.thread.startRun(config);
+aui.thread.resumeRun(config);
+aui.thread.cancelRun();
+aui.thread.getState();
+aui.thread.message({ index: idx });
+aui.thread.message({ id: messageId });
+aui.thread.composer();
 
 // Message actions
-aui.message().reload();
-aui.message().speak();
-aui.message().stopSpeaking();
-aui.message().submitFeedback({ type: "positive" | "negative" });
-aui.message().switchToBranch({ position, branchId });
-aui.message().getState();
-aui.message().part({ index: idx });
-aui.message().part({ toolCallId });
-aui.message().composer();
+aui.message.reload();
+aui.message.speak();
+aui.message.stopSpeaking();
+aui.message.submitFeedback({ type: "positive" | "negative" });
+aui.message.switchToBranch({ position, branchId });
+aui.message.getState();
+aui.message.part({ index: idx });
+aui.message.part({ toolCallId });
+aui.message.composer();
 
 // Part actions
-aui.part().addToolResult(result);
-aui.part().resumeToolCall(result);
-aui.part().getState();
+aui.part.addToolResult(result);
+aui.part.resumeToolCall(result);
+aui.part.getState();
 
 // Composer actions
-aui.composer().send();
-aui.composer().setText(text);
-aui.composer().setRole(role);
-aui.composer().addAttachment(file); // File object
-aui.composer().addAttachment({ name, content }); // external source
-await aui.composer().clearAttachments();
-await aui.composer().reset();
-aui.composer().getState();
+aui.composer.send();
+aui.composer.setText(text);
+aui.composer.setRole(role);
+aui.composer.addAttachment(file); // File object
+aui.composer.addAttachment({ name, content }); // external source
+await aui.composer.clearAttachments();
+await aui.composer.reset();
+aui.composer.getState();
 
 // Attachment actions
-aui.attachment().remove();
-aui.attachment().getState();
+aui.attachment.remove();
+aui.attachment.getState();
 
 // ThreadList actions
-aui.threads().switchToNewThread();
-aui.threads().switchToThread(threadId);
-aui.threads().reload();
-await aui.threads().getLoadThreadsPromise();
-aui.threads().getState();
+aui.threads.switchToNewThread();
+aui.threads.switchToThread(threadId);
+aui.threads.reload();
+await aui.threads.getLoadThreadsPromise();
+aui.threads.getState();
 
 // ThreadListItem actions
-aui.threadListItem().switchTo();
-aui.threadListItem().rename(title);
-aui.threadListItem().updateCustom(custom);
-aui.threadListItem().archive();
-aui.threadListItem().unarchive();
-aui.threadListItem().delete();
-aui.threadListItem().getState();
+aui.threadListItem.switchTo();
+aui.threadListItem.rename(title);
+aui.threadListItem.updateCustom(custom);
+aui.threadListItem.archive();
+aui.threadListItem.unarchive();
+aui.threadListItem.delete();
+aui.threadListItem.getState();
 
 // Suggestions actions
-aui.suggestions().getState();
-aui.suggestions().suggestion({ index: 0 });
+aui.suggestions.getState();
+aui.suggestions.suggestion({ index: 0 });
 
 // Suggestion actions
-aui.suggestion().getState();
+aui.suggestion.getState();
 
 // ChainOfThought actions
-aui.chainOfThought().getState();
-aui.chainOfThought().setCollapsed(collapsed);
-aui.chainOfThought().part({ index: 0 });
+aui.chainOfThought.getState();
+aui.chainOfThought.setCollapsed(collapsed);
+aui.chainOfThought.part({ index: 0 });
 
 // ModelContext actions — see /docs/copilots/model-context for full usage
-aui.modelContext().register(provider);
-aui.modelContext().getState();
+aui.modelContext.register(provider);
+aui.modelContext.getState();
 
 // Tools actions
-aui.tools().setToolUI(toolName, render);
-aui.tools().getState();
+aui.tools.setToolUI(toolName, render);
+aui.tools.getState();
 ```
 
 ### useAuiEvent
@@ -320,7 +320,7 @@ function MessageButton() {
 
   // Automatically uses the current message scope
   const handleReload = () => {
-    aui.message().reload();
+    aui.message.reload();
   };
 
   return <button onClick={handleReload}>Reload</button>;
@@ -329,16 +329,10 @@ function MessageButton() {
 
 ### Checking Scope Availability
 
-Before accessing a scope, check if it's available:
+Read scopes that may be unavailable through the optional view — they resolve to `undefined` instead of throwing:
 
 ```tsx
-const aui = useAui();
-
-// Check if message scope exists
-if (aui.message.source) {
-  // Safe to use message scope
-  const { role } = aui.message().getState();
-}
+const role = useAuiState((s) => s.optional.message?.role);
 ```
 
 ### Accessing Nested Scopes
@@ -349,24 +343,24 @@ Navigate through the scope hierarchy programmatically:
 const aui = useAui();
 
 // Access specific message by ID or index
-const messageById = aui.thread().message({ id: "msg_123" });
-const messageByIndex = aui.thread().message({ index: 0 });
+const messageById = aui.thread.message({ id: "msg_123" });
+const messageByIndex = aui.thread.message({ index: 0 });
 
 // Access part by index or tool call ID
-const partByIndex = aui.message().part({ index: 0 });
-const partByToolCall = aui.message().part({ toolCallId: "call_123" });
+const partByIndex = aui.message.part({ index: 0 });
+const partByToolCall = aui.message.part({ toolCallId: "call_123" });
 
 // Access attachment by index
-const attachment = aui.composer().attachment({ index: 0 }).getState();
+const attachment = aui.composer.attachment({ index: 0 }).getState();
 
 // Access thread list item by ID, index, or the "main" selector
-const threadItem = aui.threads().item({ id: "thread_123" });
-const threadByIndex = aui.threads().item({ index: 0 });
-const archivedThread = aui.threads().item({ index: 0, archived: true });
+const threadItem = aui.threads.item({ id: "thread_123" });
+const threadByIndex = aui.threads.item({ index: 0 });
+const archivedThread = aui.threads.item({ index: 0, archived: true });
 
 // Traverse to the main thread directly
-const mainThread = aui.threads().thread("main");
-const message = aui.threads().thread("main").message({ id: "msg_123" });
+const mainThread = aui.threads.thread("main");
+const message = aui.threads.thread("main").message({ id: "msg_123" });
 ```
 
 ## Common Patterns
@@ -389,7 +383,7 @@ function CopyButton() {
   const aui = useAui();
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(aui.message().getCopyText());
+    navigator.clipboard.writeText(aui.message.getCopyText());
   };
 
   return <button onClick={handleCopy}>Copy</button>;
@@ -410,10 +404,10 @@ function SmartComposer() {
     <div>
       <textarea
         value={text}
-        onChange={(e) => aui.composer().setText(e.target.value)}
+        onChange={(e) => aui.composer.setText(e.target.value)}
         disabled={isRunning}
       />
-      <button onClick={() => aui.composer().send()} disabled={!canSend}>
+      <button onClick={() => aui.composer.send()} disabled={!canSend}>
         Send
       </button>
     </div>
@@ -439,23 +433,17 @@ function MessageCounter() {
 
 ### Resolution Dynamics
 
-When you call `aui.scope()`, the API resolves the current scope at that moment. This resolution happens each time you call the function, which matters when dealing with changing contexts:
+Scopes are resolved during render and bound into the client. State updates never change the client's identity; a structural change (for example, switching threads) produces a new client and re-renders consumers through React:
 
 ```tsx
 const aui = useAui();
 
-// Get current thread
-const thread1 = aui.thread();
-thread1.append({ role: "user", content: "Hello" });
+// Bound to the thread current at this render
+aui.thread.append({ role: "user", content: "Hello" });
 
-// User might switch threads here
-
-// This could be a different thread
-const thread2 = aui.thread();
-thread2.cancelRun(); // Cancels the current thread's run, not necessarily thread1's
+// After a thread switch, the component re-renders with a new client.
+// Accessors read from a previous render keep pointing at the old thread.
 ```
-
-For most use cases, this behavior is intuitive. In advanced scenarios where you need to track specific instances, store the resolved reference.
 
 ### Performance Optimization
 
@@ -570,16 +558,8 @@ These events fire at the same transition you can observe via state. They are kep
 // ❌ This will throw if not inside a message component
 const role = useAuiState((s) => s.message.role);
 
-// ✅ Check scope availability first
-function SafeMessageButton() {
-  const aui = useAui();
-
-  const role = useAuiState((s) =>
-    aui.message.source !== undefined ? s.message.role : "none",
-  );
-
-  return <div>Role: {role}</div>;
-}
+// ✅ Read through the optional view — unavailable scopes resolve to undefined
+const role = useAuiState((s) => s.optional.message?.role ?? "none");
 ```
 
 **"Maximum update depth exceeded" / Infinite re-renders**
@@ -601,7 +581,7 @@ const content = useAuiState((s) => s.message.content);
 ```tsx
 // ❌ Storing scope references can lead to stale data
 const aui = useAui();
-const thread = aui.thread(); // This reference might become stale
+const thread = aui.thread; // This reference might become stale
 
 useEffect(() => {
   // This might reference the wrong thread if user switched
@@ -613,7 +593,7 @@ const aui = useAui();
 
 useEffect(() => {
   // Always gets the current thread
-  aui.thread().cancelRun();
+  aui.thread.cancelRun();
 }, [aui]);
 ```
 
@@ -625,19 +605,17 @@ const value = useAuiState((s) => s.scope.property);
 
 // Perform action
 const aui = useAui();
-aui.scope().action();
+aui.scope.action();
 
 // Listen to events
 useAuiEvent("source.event", (e) => {});
 
-// Check scope availability
-if (aui.scope.source) {
-  /* scope exists */
-}
+// Read a scope that may be unavailable
+const maybe = useAuiState((s) => s.optional.scope?.property);
 
 // Get state imperatively
-const state = aui.scope().getState();
+const state = aui.scope.getState();
 
 // Navigate scopes
-aui.thread().message({ id: "..." }).getState();
+aui.thread.message({ id: "..." }).getState();
 ```

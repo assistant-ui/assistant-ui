@@ -356,7 +356,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
             setMessages(nextMessages);
             return;
           }
-          const externalId = aui.threadListItem().getState().externalId;
+          const externalId = aui.threadListItem.getState().externalId;
           const checkpointId = externalId
             ? await getCheckpointId(externalId, truncated)
             : null;
@@ -397,7 +397,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
               parentId,
             );
             replaceMessages(truncated);
-            const externalId = aui.threadListItem().getState().externalId;
+            const externalId = aui.threadListItem.getState().externalId;
             const checkpointId = externalId
               ? await getCheckpointId(externalId, truncated)
               : null;
@@ -447,7 +447,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
       const loadFn = loadRef.current;
       if (!loadFn) return;
 
-      const externalId = aui.threadListItem().getState().externalId;
+      const externalId = aui.threadListItem.getState().externalId;
       if (externalId == null) return;
 
       loadFn(externalId).then(
@@ -477,7 +477,7 @@ export const useAdkRuntime = ({
     cloud,
     create: async () => {
       if (create) return create();
-      if (aui.threadListItem.source) return aui.threadListItem().initialize();
+      if (aui.threadListItem.source) return aui.threadListItem.initialize();
       return { externalId: undefined };
     },
     delete: deleteFn,

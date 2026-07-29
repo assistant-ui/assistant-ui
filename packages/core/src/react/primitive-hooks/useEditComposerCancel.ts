@@ -5,7 +5,7 @@ export const useEditComposerCancel = () => {
   const aui = useAui();
 
   const cancel = useCallback(() => {
-    aui.composer().cancel();
+    aui.composer.cancel();
   }, [aui]);
 
   return { cancel };

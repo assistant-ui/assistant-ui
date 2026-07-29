@@ -41,7 +41,7 @@ const aiChunk = (
   tool_call_chunks: toolCallChunks,
 });
 
-describe("appendLangChainChunk tool_call id merging (regression #3526)", () => {
+describe("appendLangChainChunk tool_call id merging", () => {
   it("merges chunk arriving with real id into entry that started with empty id", () => {
     let acc: AiMessage | undefined;
     acc = append(
@@ -136,7 +136,7 @@ describe("appendLangChainChunk tool_call id merging (regression #3526)", () => {
   });
 });
 
-describe("appendLangChainChunk updates-event partial_json (regression #5098)", () => {
+describe("appendLangChainChunk updates-event partial_json", () => {
   // Anthropic streams input_json_delta with its own whitespace; the `messages`
   // stream-mode chunks accumulate that text as partial_json. When the node
   // completes, the `updates` event delivers the full AIMessage with parsed

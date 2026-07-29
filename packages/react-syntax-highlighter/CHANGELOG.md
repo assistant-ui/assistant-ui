@@ -1,5 +1,13 @@
 # @assistant-ui/react-syntax-highlighter
 
+## 0.14.4
+
+### Patch Changes
+
+- Updated dependencies [[`9a7e776`](https://github.com/assistant-ui/assistant-ui/commit/9a7e77603d59b5e091ee922e2e087f0101679321), [`2f5d0d4`](https://github.com/assistant-ui/assistant-ui/commit/2f5d0d441caf6a152bf4eef13566a2f9a161541c)]:
+  - @assistant-ui/react@0.15.0
+  - @assistant@assistant-ui/react-markdown@0.14.8
+
 ## 0.14.3
 
 ### Patch Changes

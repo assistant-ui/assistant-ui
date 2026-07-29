@@ -8,7 +8,7 @@ export const McpCustomServerByIndexProvider: FC<
     mcpServer: Derived({
       source: "mcp",
       query: { kind: "custom", index },
-      get: (parent) => parent.mcp().customServer({ index }),
+      get: (parent) => parent.mcp.customServer({ index }),
     }),
   });
 

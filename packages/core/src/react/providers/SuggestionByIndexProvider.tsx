@@ -13,7 +13,7 @@ export const SuggestionByIndexProvider: FC<SuggestionByIndexProviderProps> = ({
     suggestion: Derived({
       source: "suggestions",
       query: { index },
-      get: (aui) => aui.suggestions().suggestion({ index }),
+      get: (aui) => aui.suggestions.suggestion({ index }),
     }),
   });
 

@@ -20,12 +20,6 @@ export type ToolsState = {
   /** Registered tool UIs (renderer + presentation options) keyed by tool name. */
   toolUIs: Record<string, readonly ToolRegistration[]>;
   mcpApp?: McpAppResourceOutput | undefined;
-  /**
-   * @deprecated Use {@link toolUIs} instead, whose entries carry the renderer
-   * alongside its presentation options. This component-only map is kept for
-   * back-compat and will be removed in v0.15.
-   */
-  tools: Record<string, ToolCallMessagePartComponent[]>;
 };
 
 export type ToolsMethods = {

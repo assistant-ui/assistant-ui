@@ -676,6 +676,47 @@ describe("UIMessageStreamDecoder", () => {
     expect(chunks.some((c) => c.type === "result")).toBe(true);
   });
 
+  it("settles the tool part at result time instead of decoder flush", async () => {
+    const events = [
+      JSON.stringify({ type: "start", messageId: "msg_123" }),
+      JSON.stringify({
+        type: "tool-call-start",
+        toolCallId: "call_abc",
+        toolName: "weather",
+      }),
+      JSON.stringify({ type: "tool-call-delta", argsText: '{"city":"NYC"}' }),
+      JSON.stringify({ type: "tool-call-end" }),
+      JSON.stringify({
+        type: "tool-result",
+        toolCallId: "call_abc",
+        result: { temp: 72 },
+      }),
+      JSON.stringify({ type: "text-start", id: "text_1" }),
+      JSON.stringify({ type: "text-delta", id: "text_1", delta: "Hello" }),
+      JSON.stringify({ type: "text-end" }),
+      JSON.stringify({
+        type: "finish",
+        finishReason: "stop",
+        usage: { inputTokens: 10, outputTokens: 5 },
+      }),
+      "[DONE]",
+    ];
+
+    const chunks = await collectChunks(
+      createUIMessageStream(events).pipeThrough(new UIMessageStreamDecoder()),
+    );
+
+    const toolPartFinish = chunks.findIndex(
+      (c) => c.type === "part-finish" && c.path[0] === 0,
+    );
+    const result = chunks.findIndex((c) => c.type === "result");
+    const messageFinish = chunks.findIndex((c) => c.type === "message-finish");
+    expect(result).toBeGreaterThan(-1);
+    expect(messageFinish).toBeGreaterThan(-1);
+    expect(toolPartFinish).toBeGreaterThan(result);
+    expect(toolPartFinish).toBeLessThan(messageFinish);
+  });
+
   it("keeps the active tool call writable when another call receives its result", async () => {
     const events = [
       JSON.stringify({

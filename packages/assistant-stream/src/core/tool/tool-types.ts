@@ -226,6 +226,13 @@ type ToolBase<
   unstable_backendDefault?: {
     parameters?: boolean;
   };
+
+  /**
+   * Replaces an already-registered same-priority tool with the same name
+   * instead of throwing. Discouraged escape hatch — overwriting a same-priority
+   * tool is usually a design smell; prefer distinct names or priorities.
+   */
+  overwrite?: boolean;
 };
 
 type BackendTool<

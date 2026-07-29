@@ -104,7 +104,7 @@ Accessing `s.counter` in a selector throws if the `counter` scope hasn't been pr
 ```tsx
 const aui = useAui();
 const count = useAuiState(
-  () => aui.counter.source !== null && aui.counter().getState().count,
+  () => aui.counter.source !== null && aui.counter.getState().count,
 );
 ```
 
@@ -127,7 +127,7 @@ It uses `useAuiState` internally, so it re-evaluates only when the selected valu
 Both `useAuiState` and `AuiIf` are built on two primitives available on the store:
 
 - `aui.subscribe(callback)`: calls `callback` whenever any scope's state changes
-- `aui.counter().getState()`: returns the current state snapshot
+- `aui.counter.getState()`: returns the current state snapshot
 
 Together, they form the standard `useSyncExternalStore` pattern. You can use them directly for non-React integrations or when you need imperative access:
 
@@ -135,10 +135,10 @@ Together, they form the standard `useSyncExternalStore` pattern. You can use the
 const aui = useAui();
 
 // imperative read
-const count = aui.counter().getState().count;
+const count = aui.counter.getState().count;
 
 // manual subscription
 const unsub = aui.subscribe(() => {
-  console.log("new count:", aui.counter().getState().count);
+  console.log("new count:", aui.counter.getState().count);
 });
 ```

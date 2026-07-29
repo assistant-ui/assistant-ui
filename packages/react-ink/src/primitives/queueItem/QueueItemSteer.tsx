@@ -13,7 +13,7 @@ export const QueueItemSteer = ({
   const aui = useAui();
 
   return (
-    <Pressable onPress={() => aui.queueItem().steer()} {...pressableProps}>
+    <Pressable onPress={() => aui.queueItem.steer()} {...pressableProps}>
       {children}
     </Pressable>
   );

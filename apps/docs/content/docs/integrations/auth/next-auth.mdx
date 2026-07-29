@@ -18,7 +18,7 @@ Three places auth touches the integration:
 
 1. **API routes** (`/api/chat`, `/api/threads/*`) call `auth()` server-side, return 401 if no session, then scope DB queries by `session.user.id`.
 2. **`RemoteThreadListAdapter`** does nothing auth-specific; the cookie travels with the `fetch` calls automatically (same origin).
-3. **Reload-on-auth**: if the session resolves after the initial render, call `aui.threads().reload()` so the list re-fetches with the new identity.
+3. **Reload-on-auth**: if the session resolves after the initial render, call `aui.threads.reload()` so the list re-fetches with the new identity.
 
 ## Setup
 
@@ -113,7 +113,7 @@ Apply the same pattern to `POST`, `PATCH`, and `DELETE` handlers. Always verify 
 
 ### Reload threads after async auth
 
-The first render of `<MyProvider>` may run before `auth()` resolves on the client. The thread list will be empty until the user refreshes. Drop a small effect into the layout to call `aui.threads().reload()` once the session resolves.
+The first render of `<MyProvider>` may run before `auth()` resolves on the client. The thread list will be empty until the user refreshes. Drop a small effect into the layout to call `aui.threads.reload()` once the session resolves.
 
 `useSession` requires `<SessionProvider>` higher in the tree. Wrap your root layout's client subtree once:
 
@@ -140,7 +140,7 @@ export function ReloadOnAuth() {
   const aui = useAui();
   const { status, data } = useSession();
   useEffect(() => {
-    if (status === "authenticated") aui.threads().reload();
+    if (status === "authenticated") aui.threads.reload();
   }, [status, data?.user?.id]);
   return null;
 }

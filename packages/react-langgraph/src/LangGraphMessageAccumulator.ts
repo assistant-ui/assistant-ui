@@ -11,6 +11,13 @@ export type LangGraphStateAccumulatorConfig<TMessage> = {
   appendMessage?: (prev: TMessage | undefined, curr: TMessage) => TMessage;
 };
 
+// LangChain RemoveMessage (type: "remove") deletes the message with the
+// matching id; the REMOVE_ALL_MESSAGES sentinel id clears every message,
+// mirroring server-side messagesStateReducer.
+const REMOVE_ALL_MESSAGES = "__remove_all__";
+const isRemoveMessage = (message: { id?: string }): boolean =>
+  (message as Record<string, unknown>).type === "remove";
+
 export class LangGraphMessageAccumulator<TMessage extends { id?: string }> {
   private messagesMap = new Map<string, TMessage>();
   private metadataMap = new Map<string, LangGraphTupleMetadata>();
@@ -37,11 +44,25 @@ export class LangGraphMessageAccumulator<TMessage extends { id?: string }> {
     return message.id ? message : { ...message, id: uuidv4() };
   }
 
+  private applyRemove(messageId: string) {
+    if (messageId === REMOVE_ALL_MESSAGES) {
+      this.messagesMap.clear();
+      this.metadataMap.clear();
+      return;
+    }
+    this.messagesMap.delete(messageId);
+    this.metadataMap.delete(messageId);
+  }
+
   public addMessages(newMessages: TMessage[]) {
     if (newMessages.length === 0) return this.getMessages();
 
     for (const message of newMessages.map(this.ensureMessageId)) {
       const messageId = message.id!; // ensureMessageId guarantees id exists
+      if (isRemoveMessage(message)) {
+        this.applyRemove(messageId);
+        continue;
+      }
       const previous = this.messagesMap.get(messageId);
       this.messagesMap.set(messageId, this.appendMessage(previous, message));
     }
@@ -54,6 +75,11 @@ export class LangGraphMessageAccumulator<TMessage extends { id?: string }> {
   ) {
     const messageWithId = this.ensureMessageId(message);
     const messageId = messageWithId.id!;
+
+    if (isRemoveMessage(messageWithId)) {
+      this.applyRemove(messageId);
+      return this.getMessages();
+    }
 
     const previous = this.messagesMap.get(messageId);
     this.messagesMap.set(

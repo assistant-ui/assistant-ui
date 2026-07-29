@@ -16,6 +16,9 @@ import { getProxiedAssistantState } from "./utils/proxied-assistant-state";
  * re-render on every store update; either select primitives or return a
  * memoized reference.
  *
+ * Scopes that may be unavailable can be read via `s.optional.<scope>`,
+ * which resolves to `undefined` instead of throwing.
+ *
  * @param selector - Pure function that derives a value from the current
  *   assistant state. Should be cheap and referentially stable for equal
  *   inputs (plain field reads, primitives, or memoized values).
@@ -45,7 +48,12 @@ export const useAuiState = <T>(selector: (state: AssistantState) => T): T => {
     () => selector(proxiedState),
   );
 
-  if (slice === proxiedState) {
+  if (
+    typeof slice === "object" &&
+    slice !== null &&
+    ((slice as unknown) === proxiedState ||
+      (slice as unknown) === proxiedState?.optional)
+  ) {
     throw new Error(
       "You tried to return the entire AssistantState. This is not supported due to technical limitations.",
     );

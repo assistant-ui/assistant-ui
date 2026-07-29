@@ -27,7 +27,7 @@ const TodoList = ({
       Array.from({ length }, (_, index) => (
         <TodoProvider key={index} index={index}>
           <RenderChildrenWithAccessor
-            getItemState={(aui) => aui.todoList().todo({ index }).getState()}
+            getItemState={(aui) => aui.todoList.todo({ index }).getState()}
           >
             {(getItem) =>
               children({

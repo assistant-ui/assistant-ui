@@ -107,7 +107,7 @@ export function unstable_useMentionAdapter(
   const adapter = useMemo<Unstable_TriggerAdapter>(() => {
     const getModelContextTools = (): Unstable_TriggerItem[] => {
       if (!wantsTools) return [];
-      const ctx = aui.thread().getModelContext();
+      const ctx = aui.thread.getModelContext();
       const tools = ctx.tools;
       if (!tools) return [];
       const formatLabel = toolsConfig?.formatLabel;

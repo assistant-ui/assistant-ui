@@ -3,6 +3,7 @@
 import type { InputContent } from "@ag-ui/client";
 import type {
   ThreadMessageLike as CoreThreadMessageLike,
+  ToolCallMessagePartMcpMetadata,
   ToolModelContentPart,
 } from "@assistant-ui/core";
 import {
@@ -17,7 +18,10 @@ import {
   type AgUiCustomMetadata,
 } from "./run-aggregator";
 import type { AgUiInterrupt } from "../types";
-import { parseMcpToolCallResult } from "../mcp-tool-result";
+import {
+  parseMcpToolCallResult,
+  readMcpAppResourceUri,
+} from "../mcp-tool-result";
 
 export type { InputContent };
 
@@ -69,6 +73,7 @@ type ToolCallPart = {
   isError?: boolean;
   modelContent?: readonly ToolModelContentPart[];
   unstable_toolMessageId?: string;
+  mcp?: ToolCallMessagePartMcpMetadata;
 };
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
@@ -555,6 +560,9 @@ export function fromAgUiMessages(
           : rawMessage.isError === false
             ? false
             : undefined;
+      const mcpAppUri = readMcpAppResourceUri(mcpResult?._meta);
+      const mcpApp =
+        mcpAppUri !== undefined ? { resourceUri: mcpAppUri } : undefined;
 
       let updated = false;
       for (
@@ -587,6 +595,7 @@ export function fromAgUiMessages(
             ...(toolMessageId !== undefined
               ? { unstable_toolMessageId: toolMessageId }
               : {}),
+            ...(mcpApp ? { mcp: { app: mcpApp } } : {}),
           };
           const updatedContent = message.content.map((contentPart, index) =>
             index === partIndex ? updatedPart : contentPart,
@@ -622,6 +631,7 @@ export function fromAgUiMessages(
             ...(toolMessageId !== undefined
               ? { unstable_toolMessageId: toolMessageId }
               : {}),
+            ...(mcpApp ? { mcp: { app: mcpApp } } : {}),
           },
         ],
       });

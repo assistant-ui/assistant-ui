@@ -10,12 +10,12 @@ export const MessageByIndexProvider: FC<
     message: Derived({
       source: "thread",
       query: { type: "index", index },
-      get: (aui) => aui.thread().message({ index }),
+      get: (aui) => aui.thread.message({ index }),
     }),
     composer: Derived({
       source: "message",
       query: {},
-      get: (aui) => aui.thread().message({ index }).composer(),
+      get: (aui) => aui.thread.message({ index }).composer(),
     }),
   });
 

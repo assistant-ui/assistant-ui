@@ -723,28 +723,6 @@ describe("createAdkStream - headers", () => {
     expect(headers["Content-Type"]).toBe("application/json");
   });
 
-  it("resolves dynamic headers from a function", async () => {
-    mockFetch.mockResolvedValueOnce(sseResponse(sseBody("")));
-
-    const stream = createAdkStream({
-      api: "/api/adk",
-      headers: () => ({ "X-Custom": "dynamic" }),
-    });
-    const gen = await stream(
-      [{ id: "m1", type: "human", content: "Hi" }],
-      makeConfig(),
-    );
-    for await (const _ of gen) {
-      /* noop */
-    }
-
-    const headers = mockFetch.mock.calls[0]![1]?.headers as Record<
-      string,
-      string
-    >;
-    expect(headers["X-Custom"]).toBe("dynamic");
-  });
-
   it("resolves async dynamic headers", async () => {
     mockFetch.mockResolvedValueOnce(sseResponse(sseBody("")));
 

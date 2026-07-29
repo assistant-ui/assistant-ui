@@ -14,7 +14,7 @@ const useComposerStopDictation = () => {
   const isDictating = useAuiState((s) => s.composer.dictation != null);
 
   const callback = useCallback(() => {
-    aui.composer().stopDictation();
+    aui.composer.stopDictation();
   }, [aui]);
 
   if (!isDictating) return null;

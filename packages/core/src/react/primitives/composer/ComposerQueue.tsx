@@ -20,9 +20,7 @@ const ComposerPrimitiveQueueInner: FC<{
       Array.from({ length: queue }, (_, index) => (
         <QueueItemByIndexProvider key={index} index={index}>
           <RenderChildrenWithAccessor
-            getItemState={(aui) =>
-              aui.composer().queueItem({ index }).getState()
-            }
+            getItemState={(aui) => aui.composer.queueItem({ index }).getState()}
           >
             {(getItem) =>
               children({

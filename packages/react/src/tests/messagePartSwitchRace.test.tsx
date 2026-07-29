@@ -2,8 +2,8 @@
 
 import { act, cleanup, render, waitFor } from "@testing-library/react";
 import { flushSync } from "react-dom";
-import { useEffect, useState, type FC } from "react";
-import { afterEach, describe, expect, it } from "vitest";
+import { Component, useEffect, useState, type FC, type ReactNode } from "react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { useAui, useAuiState } from "@assistant-ui/store";
 import { AssistantRuntimeProvider, PartByIndexProvider } from "../context";
 import { useLocalRuntime } from "../legacy-runtime/runtime-cores/local/useLocalRuntime";
@@ -83,14 +83,35 @@ const ChildrenMessage: FC = () => (
 );
 
 const InvalidPartReader: FC = () => {
-  useAuiState((s) => s.part.type);
-  return null;
+  const part = useAuiState((s) => s.part);
+  return (
+    <p data-testid="invalid-part">
+      {part.type === "text" ? part.text : part.type}
+    </p>
+  );
 };
 
+class PartErrorBoundary extends Component<
+  { children: ReactNode },
+  { error: Error | null }
+> {
+  override state: { error: Error | null } = { error: null };
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+  override render() {
+    if (this.state.error)
+      return <p data-testid="part-error">{this.state.error.message}</p>;
+    return this.props.children;
+  }
+}
+
 const InvalidPartMessage: FC = () => (
-  <PartByIndexProvider index={2}>
-    <InvalidPartReader />
-  </PartByIndexProvider>
+  <PartErrorBoundary>
+    <PartByIndexProvider index={2}>
+      <InvalidPartReader />
+    </PartByIndexProvider>
+  </PartErrorBoundary>
 );
 
 const App: FC<{ MessageComponent?: FC }> = ({ MessageComponent = Message }) => {
@@ -111,8 +132,8 @@ afterEach(() => {
   harness.runtime = null;
 });
 
-describe("part hooks under a thread-switch race (#5118)", () => {
-  it("an out-of-band flushSync re-render during the swap window does not crash", async () => {
+describe("part hooks under a thread-switch race", () => {
+  it("swaps every part when the incoming message has different part types", async () => {
     let view!: ReturnType<typeof render>;
     await act(async () => {
       view = render(<App />);
@@ -148,11 +169,21 @@ describe("part hooks under a thread-switch race (#5118)", () => {
     },
   );
 
-  it("still rejects an index that was never valid", async () => {
-    await expect(
-      act(async () => {
-        render(<App MessageComponent={InvalidPartMessage} />);
-      }),
-    ).rejects.toThrow("useClientLookup: Index 2 out of bounds (length: 2)");
+  it("throws to the error boundary for an index that was never valid", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    try {
+      let view!: ReturnType<typeof render>;
+      await act(async () => {
+        view = render(<App MessageComponent={InvalidPartMessage} />);
+      });
+      expect(view.queryByTestId("invalid-part")).toBeNull();
+      expect(view.getByTestId("part-error").textContent).toContain(
+        "useClientLookup: index 2 out of bounds (length: 2)",
+      );
+    } finally {
+      consoleError.mockRestore();
+    }
   });
 });

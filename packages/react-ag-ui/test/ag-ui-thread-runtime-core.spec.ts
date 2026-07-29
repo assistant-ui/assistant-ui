@@ -3094,6 +3094,59 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(toolPart.result).toEqual({ temperature: "22C" });
   });
 
+  it("attaches mcp app metadata from a cross-run TOOL_CALL_RESULT's _meta ui/resourceUri carrier", async () => {
+    const runAgent = vi.fn(async (_input: any, subscriber: any) => {
+      subscriber.onMessagesSnapshotEvent?.({
+        event: {
+          type: "MESSAGES_SNAPSHOT",
+          messages: [
+            { id: "msg-1", role: "user", content: "What's the weather?" },
+            {
+              id: "msg-2",
+              role: "assistant",
+              content: "",
+              toolCalls: [
+                {
+                  id: "call-1",
+                  type: "function",
+                  function: {
+                    name: "get_weather",
+                    arguments: '{"city":"Paris"}',
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      });
+      subscriber.onToolCallResultEvent?.({
+        event: {
+          type: "TOOL_CALL_RESULT",
+          toolCallId: "call-1",
+          messageId: "tool-msg-1",
+          role: "tool",
+          content: '{"temperature":"22C"}',
+          _meta: { "ui/resourceUri": "ui://example/widget" },
+        },
+      });
+      subscriber.onRunFinalized?.();
+    });
+    const agent = { runAgent } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    await core.append(createAppendMessage());
+
+    const assistant = core
+      .getMessages()
+      .find((m) => m.role === "assistant") as ThreadAssistantMessage;
+    const toolPart = assistant.content.find(
+      (p) => p.type === "tool-call",
+    ) as any;
+    expect(toolPart.mcp).toEqual({
+      app: { resourceUri: "ui://example/widget" },
+    });
+  });
+
   it("preserves the snapshot result when a later cross-run TOOL_CALL_RESULT arrives", async () => {
     const callToolResult = {
       content: [{ type: "text", text: "22C" }],

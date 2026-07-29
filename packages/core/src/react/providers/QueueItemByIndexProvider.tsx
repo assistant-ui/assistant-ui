@@ -13,7 +13,7 @@ export const QueueItemByIndexProvider: FC<QueueItemByIndexProviderProps> = ({
     queueItem: Derived({
       source: "composer",
       query: { index },
-      get: (aui) => aui.composer().queueItem({ index }),
+      get: (aui) => aui.composer.queueItem({ index }),
     }),
   });
 

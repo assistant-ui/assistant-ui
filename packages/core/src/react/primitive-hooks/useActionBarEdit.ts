@@ -6,7 +6,7 @@ export const useActionBarEdit = () => {
   const disabled = useAuiState((s) => s.composer.isEditing);
 
   const edit = useCallback(() => {
-    aui.composer().beginEdit();
+    aui.composer.beginEdit();
   }, [aui]);
 
   return { edit, disabled };

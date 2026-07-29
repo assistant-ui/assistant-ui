@@ -676,7 +676,7 @@ function ModelSelectorModelContext() {
         ...(effort !== undefined ? { reasoningEffort: effort } : undefined),
       },
     };
-    return api.modelContext().register({
+    return api.modelContext.register({
       getModelContext: () => config,
     });
   }, [api, value, effort]);

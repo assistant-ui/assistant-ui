@@ -27,7 +27,7 @@ describe("ExternalStoreThreadListRuntimeCore - construction", () => {
     expect(core.getItemById(core.mainThreadId)).toBeDefined();
   });
 
-  it("picks up mainThreadId from adapter.threadId on construction (regression: #2577)", () => {
+  it("picks up mainThreadId from adapter.threadId on construction", () => {
     const core = new ExternalStoreThreadListRuntimeCore(
       makeAdapter({ threadId: "thread-alpha" }),
       makeFactory(),
@@ -147,7 +147,7 @@ describe("ExternalStoreThreadListRuntimeCore - __internal_setAdapter", () => {
     expect(callback).toHaveBeenCalled();
   });
 
-  it("synthesizes mainThreadId entry after a switch to a threadId not in the threads list (regression: #3971)", () => {
+  it("synthesizes mainThreadId entry after a switch to a threadId not in the threads list", () => {
     const core = new ExternalStoreThreadListRuntimeCore(
       makeAdapter({ threadId: "thread-alpha" }),
       makeFactory(),
@@ -158,7 +158,7 @@ describe("ExternalStoreThreadListRuntimeCore - __internal_setAdapter", () => {
     expect(item?.id).toBe("thread-beta");
   });
 
-  it("does not retain stale synthesized entries across mainThreadId switches (regression: #3971)", () => {
+  it("does not retain stale synthesized entries across mainThreadId switches", () => {
     const core = new ExternalStoreThreadListRuntimeCore(
       makeAdapter({ threadId: "thread-alpha" }),
       makeFactory(),
@@ -190,7 +190,7 @@ describe("ExternalStoreThreadListRuntimeCore - isMain via ThreadListRuntimeImpl"
     );
   };
 
-  it("reports isMain=true for adapter.threadId on construction (user-visible regression: #2577)", () => {
+  it("reports isMain=true for adapter.threadId on construction", () => {
     const impl = buildImpl({
       threadId: "thread-alpha",
       threads: [
@@ -215,7 +215,7 @@ describe("ExternalStoreThreadListRuntimeCore - isMain via ThreadListRuntimeImpl"
     expect(state.threadIds).toEqual(["thread-alpha", "thread-beta"]);
   });
 
-  it("does not throw when adapter.threadId has no matching threads entry (regression: #3971)", () => {
+  it("does not throw when adapter.threadId has no matching threads entry", () => {
     const impl = buildImpl({ threadId: "thread-alpha" });
     expect(impl.mainItem.getState().id).toBe("thread-alpha");
     expect(impl.mainItem.getState().isMain).toBe(true);
@@ -234,7 +234,7 @@ describe("ExternalStoreThreadListRuntimeCore - switchToThread", () => {
     expect(onSwitchToThread).toHaveBeenCalledWith("thread-beta");
   });
 
-  it("early-returns without calling onSwitchToThread when target equals initial threadId (regression: #2577)", async () => {
+  it("early-returns without calling onSwitchToThread when target equals initial threadId", async () => {
     const onSwitchToThread = vi.fn(async () => {});
     const core = new ExternalStoreThreadListRuntimeCore(
       makeAdapter({ threadId: "thread-alpha", onSwitchToThread }),

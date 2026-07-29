@@ -149,4 +149,29 @@ describe("useSyncExternalStore", () => {
     cleanupAllResources();
     expect(storeB.unsubscribeCalls).toBe(1);
   });
+
+  it("keeps the committed value when getSnapshot throws on a notification and resumes once the store is consistent again", async () => {
+    const store = createStore(["a", "b"]);
+    const testFiber = createTestResource(() =>
+      useSyncExternalStore(
+        useCallback((cb) => store.subscribe(cb), []),
+        useCallback(() => {
+          const items = store.getState();
+          if (items.length < 2) throw new Error("index out of bounds");
+          return items[1];
+        }, []),
+      ),
+    );
+
+    expect(renderTest(testFiber)).toBe("b");
+
+    // the notification makes the snapshot throw; nothing escapes the store's notify loop
+    expect(() => store.setState(["a"])).not.toThrow();
+    await waitForNextTick();
+    expect(getCommittedValue(testFiber)).toBe("b");
+
+    store.setState(["a", "c"]);
+    await waitForNextTick();
+    expect(getCommittedValue(testFiber)).toBe("c");
+  });
 });

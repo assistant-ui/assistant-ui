@@ -230,11 +230,9 @@ const ToolUIDisplay = ({
 }: {
   Fallback: ToolCallMessagePartComponent | undefined;
 } & ToolCallMessagePartProps) => {
-  const Render = useAuiState((s) => {
-    const Render = s.tools.tools[props.toolName] ?? Fallback;
-    if (Array.isArray(Render)) return Render[0] ?? Fallback;
-    return Render;
-  });
+  const Render = useAuiState(
+    (s) => s.tools.toolUIs[props.toolName]?.[0]?.render ?? Fallback,
+  );
   if (!Render) return null;
   return <Render {...props} />;
 };
@@ -292,9 +290,9 @@ const MessagePartComponent: FC<MessagePartComponentProps> = ({
 
   const type = part.type;
   if (type === "tool-call") {
-    const addResult = aui.part().addToolResult;
-    const resume = aui.part().resumeToolCall;
-    const respondToApproval = aui.part().respondToToolApproval;
+    const addResult = aui.part.addToolResult;
+    const resume = aui.part.resumeToolCall;
+    const respondToApproval = aui.part.respondToToolApproval;
     if ("Override" in tools)
       return (
         <tools.Override

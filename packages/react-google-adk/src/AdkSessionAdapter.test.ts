@@ -224,20 +224,10 @@ describe("createAdkSessionAdapter - delete", () => {
 // ── adapter.rename / archive / unarchive ──
 
 describe("createAdkSessionAdapter - no-op methods", () => {
-  it("rename resolves without error", async () => {
+  it("rename/archive/unarchive resolve without hitting the network", async () => {
     const { adapter } = createAdkSessionAdapter(baseOptions);
     await expect(adapter.rename("s1", "New Title")).resolves.toBeUndefined();
-    expect(mockFetch).not.toHaveBeenCalled();
-  });
-
-  it("archive resolves without error", async () => {
-    const { adapter } = createAdkSessionAdapter(baseOptions);
     await expect(adapter.archive("s1")).resolves.toBeUndefined();
-    expect(mockFetch).not.toHaveBeenCalled();
-  });
-
-  it("unarchive resolves without error", async () => {
-    const { adapter } = createAdkSessionAdapter(baseOptions);
     await expect(adapter.unarchive("s1")).resolves.toBeUndefined();
     expect(mockFetch).not.toHaveBeenCalled();
   });

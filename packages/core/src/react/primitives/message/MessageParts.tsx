@@ -415,9 +415,9 @@ export const MessagePartComponent: FC<MessagePartComponentProps> = ({
 
   const type = part.type;
   if (type === "tool-call") {
-    const addResult = aui.part().addToolResult;
-    const resume = aui.part().resumeToolCall;
-    const respondToApproval = aui.part().respondToToolApproval;
+    const addResult = aui.part.addToolResult;
+    const resume = aui.part.resumeToolCall;
+    const respondToApproval = aui.part.respondToToolApproval;
     if ("Override" in tools)
       return (
         <tools.Override
@@ -636,9 +636,9 @@ const RegisteredToolUI: FC = () => {
   return (
     <Render
       {...part}
-      addResult={aui.part().addToolResult}
-      resume={aui.part().resumeToolCall}
-      respondToApproval={aui.part().respondToToolApproval}
+      addResult={aui.part.addToolResult}
+      resume={aui.part.resumeToolCall}
+      respondToApproval={aui.part.respondToToolApproval}
     />
   );
 };
@@ -743,16 +743,16 @@ const MessagePartChildrenInner: FC<
 
   return (
     <RenderChildrenWithAccessor
-      getItemState={(client) => client.part().getState()}
+      getItemState={(client) => client.part.getState()}
     >
       {(getItem) =>
         children({
           get part() {
             const state = getItem();
             if (state.type === "tool-call") {
-              const toolsState = aui.tools().getState();
+              const toolsState = aui.tools.getState();
               const hasUI = resolveToolRender(toolsState, state) !== null;
-              const partMethods = aui.part();
+              const partMethods = aui.part;
               return {
                 ...state,
                 toolUI: hasUI ? <RegisteredToolUI /> : null,

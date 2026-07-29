@@ -1007,6 +1007,7 @@ declare class LangGraphMessageAccumulator<TMessage extends {
   private appendMessage;
   constructor(_param0?: LangGraphStateAccumulatorConfig<TMessage>);
   private ensureMessageId;
+  private applyRemove;
   addMessages(newMessages: TMessage[]): TMessage[];
   addMessageWithMetadata(message: TMessage, metadata: LangGraphTupleMetadata): TMessage[];
   getMessages(): TMessage[];
@@ -1963,6 +1964,7 @@ type ToolApprovalResponse = {
 type ToolBase<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = {
   streamCall?: ToolStreamCallFunction<TArgs, TResult>;
   display?: ToolDisplay;
+  overwrite?: boolean;
 };
 
 interface ToolCallArgsReader<TArgs extends Record<string, unknown>> {

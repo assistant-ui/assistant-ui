@@ -1,5 +1,4 @@
 export { resource } from "./core/resource";
-export { configurableResource } from "./core/configurableResource";
 export { withKey } from "./core/withKey";
 
 // imperative
@@ -10,6 +9,7 @@ export { flushTapSync } from "./core/scheduler";
 export { useContextProvider } from "./core/context";
 
 // hooks
+export { useMemoCache } from "./react-hooks/useMemoCache";
 export { useResource } from "./hooks/useResource";
 export { useResources } from "./hooks/useResources";
 export { useTapRoot } from "./hooks/useTapRoot";

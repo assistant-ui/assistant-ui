@@ -66,18 +66,18 @@ const adapterFor = (
 describe("ExternalThread branches", () => {
   it("defaults to single-branch state without an adapter", () => {
     const { aui } = renderThread(baseProps());
-    const state = aui().thread().getState();
+    const state = aui().thread.getState();
     expect(state.messages[1]!.branchNumber).toBe(1);
     expect(state.messages[1]!.branchCount).toBe(1);
     expect(state.capabilities.switchToBranch).toBe(false);
     expect(() =>
-      aui().thread().message({ index: 1 }).switchToBranch({ position: "next" }),
+      aui().thread.message({ index: 1 }).switchToBranch({ position: "next" }),
     ).not.toThrow();
   });
 
   it("derives branchNumber and branchCount from the adapter", () => {
     const { aui } = renderThread(baseProps(adapterFor(["a1", "a2", "a3"])));
-    const state = aui().thread().getState();
+    const state = aui().thread.getState();
     expect(state.messages[1]!.branchNumber).toBe(2);
     expect(state.messages[1]!.branchCount).toBe(3);
     expect(state.capabilities.switchToBranch).toBe(true);
@@ -88,7 +88,7 @@ describe("ExternalThread branches", () => {
     const { aui } = renderThread(
       baseProps(adapterFor(["a1", "a2", "a3"], switchToBranch)),
     );
-    const msg = () => aui().thread().message({ index: 1 });
+    const msg = () => aui().thread.message({ index: 1 });
 
     msg().switchToBranch({ position: "previous" });
     expect(switchToBranch).toHaveBeenLastCalledWith("a1");
@@ -101,7 +101,7 @@ describe("ExternalThread branches", () => {
       isRunning: false,
       branches: adapterFor(["a1", "a2"], switchToBranch),
     });
-    edge.aui().thread().message({ index: 1 }).switchToBranch({
+    edge.aui().thread.message({ index: 1 }).switchToBranch({
       position: "previous",
     });
     expect(switchToBranch).not.toHaveBeenCalled();
@@ -112,7 +112,7 @@ describe("ExternalThread branches", () => {
     const { aui } = renderThread(
       baseProps(adapterFor(["a1", "a2"], switchToBranch)),
     );
-    const msg = () => aui().thread().message({ index: 1 });
+    const msg = () => aui().thread.message({ index: 1 });
 
     msg().switchToBranch({ branchId: "not-in-the-list" });
     expect(switchToBranch).toHaveBeenLastCalledWith("not-in-the-list");
@@ -130,11 +130,11 @@ describe("ExternalThread branches", () => {
         switchToBranch,
       }),
     );
-    const state = aui().thread().getState();
+    const state = aui().thread.getState();
     expect(state.messages[1]!.branchNumber).toBe(1);
     expect(state.messages[1]!.branchCount).toBe(1);
 
-    aui().thread().message({ index: 1 }).switchToBranch({ position: "next" });
+    aui().thread.message({ index: 1 }).switchToBranch({ position: "next" });
     expect(switchToBranch).not.toHaveBeenCalled();
   });
 
@@ -145,14 +145,14 @@ describe("ExternalThread branches", () => {
       isRunning: false,
       branches: adapterFor(["a1", "a2", "a3"]),
     });
-    const before = aui().thread().getState().messages[1];
+    const before = aui().thread.getState().messages[1];
 
     rerender({
       messages,
       isRunning: false,
       branches: adapterFor(["a1", "a2", "a3"]),
     });
-    const after = aui().thread().getState().messages[1];
+    const after = aui().thread.getState().messages[1];
 
     expect(after!.branchNumber).toBe(2);
     expect(before!.parts[0]).toBe(after!.parts[0]);

@@ -45,7 +45,7 @@ const createTestAuiClient = () => {
 };
 
 describe("RenderChildrenWithAccessor", () => {
-  it("re-renders when accessed state updates (regression: issue #3838)", () => {
+  it("re-renders when accessed state updates", () => {
     const testClient = createTestAuiClient();
     const wrapper = ({ children }: { children: ReactNode }) => (
       <AuiProvider value={testClient.client as never}>{children}</AuiProvider>

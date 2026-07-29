@@ -1,0 +1,135 @@
+---
+title: Migration to v0.15
+description: Drops the v0.12-era legacy runtime hooks, the deprecated tools map, and the "mcp-app" group key. Scope accessors become properties.
+---
+
+Version 0.15 finishes the deprecation cycle started in v0.12: the legacy context hooks are removed in favor of `useAui` / `useAuiState`, and `aui` scope accessors become properties.
+
+## Migrate with an AI Agent
+
+Paste this into an AI coding agent to run the migration for you:
+
+```text
+Migrate this codebase from assistant-ui v0.14 to v0.15.
+
+1. Read the migration guide: https://assistant-ui.com/docs/migrations/v0-15
+2. Run `npx assistant-ui@latest upgrade` to apply the codemods.
+3. Apply the remaining changes from the guide by hand:
+   - Replace removed legacy hooks with the useAui / useAuiState
+     equivalents from the guide's mapping table.
+   - Replace availability checks with `aui.<scope>.source != null`.
+   - Replace `s.tools.tools` reads with `s.tools.toolUIs`.
+   - Replace the "mcp-app" groupPartByType key with "standalone-tool-call".
+4. Typecheck, build, and run tests; fix any remaining fallout.
+```
+
+## Automatic Migration
+
+```bash
+npx assistant-ui@latest upgrade
+```
+
+This runs the `v0-15/aui-accessor-calls-to-properties` codemod, which rewrites nullary accessor calls (`aui.thread()`) to property access (`aui.thread`).
+
+## Scope Accessors Are Properties
+
+Nullary scope accessors are now properties. Calling them still works but is deprecated:
+
+```ts
+// Before
+aui.thread().getState();
+aui.threads().switchToNewThread();
+
+// After
+aui.thread.getState();
+aui.threads.switchToNewThread();
+```
+
+Selecting an unavailable scope no longer throws: `aui.thread` always succeeds and is always truthy. Its `source` is `null` when the scope is unavailable, and any other property read (or a call) throws. Check availability via:
+
+```ts
+if (aui.thread.source != null) {
+  // scope is available
+}
+```
+
+Accessors expose `source`, `query`, and `name` selection metadata as properties — previously found on the accessor function, now on the same names on the proxy. These three names are reserved and never resolve to scope methods.
+
+## Legacy Context Hooks Removed
+
+The v0.12-era runtime hooks are removed. Replace state reads with `useAuiState` and actions with `useAui`:
+
+| Removed                                                       | Replacement                                     |
+| ------------------------------------------------------------- | ----------------------------------------------- |
+| `useAssistantRuntime()`                                        | `useAui()`                                      |
+| `useThreadList(selector)`                                      | `useAuiState((s) => s.threads)`                 |
+| `useThreadRuntime()`                                           | `useAui().thread`                               |
+| `useThread(selector)`                                          | `useAuiState((s) => s.thread)`                  |
+| `useThreadComposer(selector)`                                  | `useAuiState((s) => s.thread.composer)`         |
+| `useThreadModelContext(selector)`                              | `useAuiState((s) => s.thread.modelContext)`     |
+| `useMessageRuntime()`                                          | `useAui().message`                              |
+| `useMessage(selector)`                                         | `useAuiState((s) => s.message)`                 |
+| `useEditComposer(selector)`                                    | `useAuiState((s) => s.message.composer)`        |
+| `useComposerRuntime()`                                         | `useAui().composer`                             |
+| `useComposer(selector)`                                        | `useAuiState((s) => s.composer)`                |
+| `useMessagePartRuntime()`                                      | `useAui().part`                                 |
+| `useMessagePart(selector)`                                     | `useAuiState((s) => s.part)`                    |
+| `useAttachmentRuntime()`                                       | `useAui().attachment`                           |
+| `useAttachment(selector)`                                      | `useAuiState((s) => s.attachment)`              |
+| `useThreadListItemRuntime()`                                   | `useAui().threadListItem`                       |
+| `useThreadListItem(selector)`                                  | `useAuiState((s) => s.threadListItem)`          |
+
+The attachment variants (`useThreadComposerAttachment(Runtime)`, `useEditComposerAttachment(Runtime)`, `useMessageAttachment(Runtime)`) are removed with them; use `useAui().attachment` / `useAuiState((s) => s.attachment)`.
+
+```tsx
+// Before
+const runtime = useAssistantRuntime();
+const isRunning = useThread((s) => s.isRunning);
+runtime.threads.switchToNewThread();
+
+// After
+const aui = useAui();
+const isRunning = useAuiState((s) => s.thread.isRunning);
+aui.threads.switchToNewThread();
+```
+
+## `ToolsState.tools` Removed
+
+The component-only tool-UI map is replaced by `toolUIs`, whose entries carry the renderer alongside its presentation options:
+
+```tsx
+// Before
+const Render = useAuiState((s) => s.tools.tools[toolName]?.[0]);
+
+// After
+const Render = useAuiState((s) => s.tools.toolUIs[toolName]?.[0]?.render);
+```
+
+## `"mcp-app"` Group Key Removed
+
+`groupPartByType` no longer accepts the `"mcp-app"` key. Use `"standalone-tool-call"`, a superset that matches MCP-app tool calls plus any tool call whose registered UI opts into standalone display:
+
+```tsx
+// Before
+groupPartByType({
+  "tool-call": ["group-tool"],
+  "mcp-app": [],
+});
+
+// After
+groupPartByType({
+  "tool-call": ["group-tool"],
+  "standalone-tool-call": [],
+});
+```
+
+## Still Deprecated (not removed)
+
+- Primitive `If` components (`ThreadPrimitive.If`, `MessagePrimitive.If`, `ThreadPrimitive.Empty`) — replaced by `AuiIf`. The codemod migrates these.
+- `useMessagePartText` / `useMessagePartReasoning` / `useMessagePartSource` / `useMessagePartImage` / `useMessagePartFile` / `useMessagePartData` — use `useAuiState` to select and narrow `s.part`.
+- The `components` prop on primitives — replaced by the children render function pattern (see the [v0.14 guide](/docs/migrations/v0-14)).
+
+## Getting Help
+
+- File issues at https://github.com/assistant-ui/assistant-ui/issues
+- See the [deprecation policy](/docs/migrations/deprecation-policy) for the support window

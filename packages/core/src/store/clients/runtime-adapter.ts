@@ -13,17 +13,17 @@ export const baseRuntimeAdapterTransformScopes = (
   scopes.thread ??= Derived({
     source: "threads",
     query: { type: "main" },
-    get: (aui) => aui.threads().thread("main"),
+    get: (aui) => aui.threads.thread("main"),
   });
   scopes.threadListItem ??= Derived({
     source: "threads",
     query: { type: "main" },
-    get: (aui) => aui.threads().item("main"),
+    get: (aui) => aui.threads.item("main"),
   });
   scopes.composer ??= Derived({
     source: "thread",
     query: {},
-    get: (aui) => aui.threads().thread("main").composer(),
+    get: (aui) => aui.threads.thread("main").composer(),
   });
 
   if (!scopes.modelContext && parent.modelContext.source === null) {

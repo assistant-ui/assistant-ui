@@ -459,7 +459,8 @@ export class LocalThreadRuntimeCore
 
     // abort existing run
     this.abortController?.abort();
-    this.abortController = new AbortController();
+    const abortController = new AbortController();
+    this.abortController = abortController;
 
     const initialContent = message.content;
     const initialAnnotations = message.metadata?.unstable_annotations;
@@ -550,7 +551,7 @@ export class LocalThreadRuntimeCore
         runCallback ??
         this.adapters.chatModel.run.bind(this.adapters.chatModel);
 
-      const abortSignal = this.abortController.signal;
+      const abortSignal = abortController.signal;
       const threadId = this._getThreadId?.();
       const promiseOrGenerator = runCallback({
         messages,
@@ -609,7 +610,9 @@ export class LocalThreadRuntimeCore
         throw e;
       }
     } finally {
-      this.abortController = null;
+      if (this.abortController === abortController) {
+        this.abortController = null;
+      }
 
       const history = this._options.adapters.history;
       const item = {

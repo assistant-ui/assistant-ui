@@ -55,6 +55,12 @@ export type AssistantContextConfig = {
   disabled?: boolean | undefined;
 };
 
+const stripOverwrite = (tool: Tool<any, any>): Tool<any, any> => {
+  if (!tool.overwrite) return tool;
+  const { overwrite: _, ...rest } = tool;
+  return rest as Tool<any, any>;
+};
+
 export const mergeModelContexts = (
   configSet: Set<ModelContextProvider>,
 ): ModelContext => {
@@ -79,25 +85,29 @@ export const mergeModelContexts = (
         if (existing && existing !== tool) {
           const existingPriority = toolPriorities[name]!;
           if (existingPriority === priority) {
-            throw new Error(
-              `You tried to define a tool with the name ${name}, but it already exists.`,
-            );
+            if (!tool.overwrite) {
+              throw new Error(
+                `You tried to define a tool with the name ${name}, but it already exists.`,
+              );
+            }
+            acc.tools![name] = stripOverwrite(tool);
+            continue;
           }
 
           const higherPriorityTool =
             existingPriority > priority ? existing : tool;
           const lowerPriorityTool =
             existingPriority > priority ? tool : existing;
-          acc.tools![name] = {
+          acc.tools![name] = stripOverwrite({
             ...lowerPriorityTool,
             ...higherPriorityTool,
-          } as Tool<any, any>;
+          } as Tool<any, any>);
           toolPriorities[name] = Math.max(existingPriority, priority);
           continue;
         }
 
         if (!acc.tools) acc.tools = {};
-        acc.tools[name] = tool;
+        acc.tools[name] = stripOverwrite(tool);
         toolPriorities[name] ??= priority;
       }
     }

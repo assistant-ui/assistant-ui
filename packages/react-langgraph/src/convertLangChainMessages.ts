@@ -109,6 +109,18 @@ const warnForUnknownMessagePartType = (type: string) => {
   console.warn(`Unknown message part type: ${type}`);
 };
 
+const warnedMessageTypes = new Set<string>();
+const warnForUnknownMessageType = (type: string) => {
+  if (
+    typeof process === "undefined" ||
+    process?.env?.NODE_ENV !== "development"
+  )
+    return;
+  if (warnedMessageTypes.has(type)) return;
+  warnedMessageTypes.add(type);
+  console.warn(`Unknown message type: ${type}`);
+};
+
 const contentToParts = (
   content: LangChainMessage["content"],
   metadata: LangGraphMessageConverterMetadata,
@@ -199,7 +211,8 @@ const contentToParts = (
 export const convertLangChainMessages: useExternalMessageConverter.Callback<
   LangChainMessage
 > = (message, metadata: LangGraphMessageConverterMetadata = {}) => {
-  switch (message.type) {
+  const type = message.type;
+  switch (type) {
     case "system":
       return {
         role: "system",
@@ -292,6 +305,11 @@ export const convertLangChainMessages: useExternalMessageConverter.Callback<
         artifact: message.artifact,
         isError: message.status === "error",
       };
+    default: {
+      const _exhaustiveCheck: never = type;
+      warnForUnknownMessageType(_exhaustiveCheck);
+      return [];
+    }
   }
 };
 
