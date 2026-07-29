@@ -12,6 +12,84 @@ import { ZodType } from "zod";
 
 import "zustand";
 
+type A2uiCreateSurfaceOperation = {
+  readonly version: "v0.9";
+  readonly createSurface: A2uiCreateSurfaceV09Payload;
+} | {
+  readonly version: "v1.0";
+  readonly createSurface: A2uiCreateSurfaceV10Payload;
+};
+
+interface A2uiCreateSurfaceV09Payload {
+  readonly surfaceId: string;
+  readonly catalogId?: string;
+  readonly theme?: unknown;
+  readonly attachDataModel?: unknown;
+}
+
+interface A2uiCreateSurfaceV10Payload {
+  readonly surfaceId: string;
+  readonly surfaceProperties?: unknown;
+  readonly sendDataModel?: unknown;
+  readonly components?: readonly ComponentNode[];
+  readonly dataModel?: unknown;
+}
+
+interface A2uiDeleteSurfaceOperation {
+  readonly version: A2uiVersion;
+  readonly deleteSurface: A2uiDeleteSurfacePayload;
+}
+
+interface A2uiDeleteSurfacePayload {
+  readonly surfaceId: string;
+}
+
+type A2uiOperation = A2uiCreateSurfaceOperation | A2uiUpdateComponentsOperation | A2uiUpdateDataModelOperation | A2uiDeleteSurfaceOperation;
+
+interface A2uiOperationResult {
+  readonly state: A2uiState;
+  readonly warnings: string[];
+}
+
+type A2uiState = ReadonlyMap<string, A2uiSurfaceState>;
+
+type A2uiSurfaceState = {
+  components: Map<string, Record<string, unknown>>;
+  dataModel: unknown;
+};
+
+interface A2uiTemplateChildren {
+  readonly template: {
+    readonly componentId: string;
+    readonly path: string;
+  };
+}
+
+interface A2uiUpdateComponentsOperation {
+  readonly version: A2uiVersion;
+  readonly updateComponents: A2uiUpdateComponentsPayload;
+}
+
+interface A2uiUpdateComponentsPayload {
+  readonly surfaceId: string;
+  readonly components: readonly ComponentNode[];
+}
+
+interface A2uiUpdateDataModelOperation {
+  readonly version: A2uiVersion;
+  readonly updateDataModel: A2uiUpdateDataModelPayload;
+}
+
+interface A2uiUpdateDataModelPayload {
+  readonly surfaceId: string;
+  readonly path?: string;
+  readonly contents?: unknown;
+  readonly value?: unknown;
+  readonly data?: unknown;
+}
+
+type A2uiVersion = "v0.9" | "v1.0";
+
 declare const ALERT_TONES: readonly [
   "info",
   "success",
@@ -198,6 +276,12 @@ type CompleteAttachment = BaseAttachment & {
 type CompleteAttachmentStatus = {
   type: "complete";
 };
+
+interface ComponentNode extends Record<string, unknown> {
+  readonly id: string;
+  readonly component: string;
+  readonly children?: readonly string[] | A2uiTemplateChildren;
+}
 
 type DataMessagePart<T = any> = {
   readonly type: "data";
@@ -1446,7 +1530,18 @@ type WithRender<T, TArgs extends Record<string, unknown>, TResult> = T extends {
   renderText?: ToolCallText<TArgs, TResult> | undefined;
 };
 
+declare namespace entry_a2ui_exports {
+  export { A2uiCreateSurfaceOperation, A2uiCreateSurfaceV09Payload, A2uiCreateSurfaceV10Payload, A2uiDeleteSurfaceOperation, A2uiDeleteSurfacePayload, A2uiOperation, A2uiOperationResult, A2uiState, A2uiSurfaceState, A2uiTemplateChildren, A2uiUpdateComponentsOperation, A2uiUpdateComponentsPayload, A2uiUpdateDataModelOperation, A2uiUpdateDataModelPayload, A2uiVersion, ComponentNode, applyA2uiOperations, convertSurfaceToUISpec };
+}
+
+declare function applyA2uiOperations(state: A2uiState, operations: unknown): A2uiOperationResult;
+
 declare function buildPresentParameters(library: GenerativeUILibrary): JSONSchema7$1;
+
+declare function convertSurfaceToUISpec(surface: A2uiSurfaceState): {
+  spec: UISpec | null;
+  warnings: string[];
+};
 
 declare function createActionRegistry(handlers: Readonly<Record<string, ActionHandler>>): ActionRegistry;
 
@@ -1511,4 +1606,4 @@ declare function toSlackBlocks(node: unknown, options?: ToSlackBlocksOptions): S
 
 declare function toTeamsAttachments(node: unknown, _options?: ToAdaptiveCardOptions): TeamsAttachmentsResult;
 
-export { entry_ir_exports as entry_ir, entry_root_default_exports as entry_root_default, entry_root_react_server_exports as entry_root_react_server, entry_slack_exports as entry_slack, entry_teams_exports as entry_teams };
+export { entry_a2ui_exports as entry_a2ui, entry_ir_exports as entry_ir, entry_root_default_exports as entry_root_default, entry_root_react_server_exports as entry_root_react_server, entry_slack_exports as entry_slack, entry_teams_exports as entry_teams };
