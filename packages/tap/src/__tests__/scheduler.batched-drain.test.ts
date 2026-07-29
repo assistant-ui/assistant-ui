@@ -41,7 +41,7 @@ describe("scheduler batched draining", () => {
     ControlledMessageChannel.instances = [];
   });
 
-  it("drains more than MAX_FLUSH_LIMIT dirty schedulers across passes instead of throwing", async () => {
+  it("drains more than 50 dirty schedulers in a single flush instead of throwing", async () => {
     vi.resetModules();
     vi.stubGlobal("MessageChannel", ControlledMessageChannel);
     const { UpdateScheduler } = await import("../core/scheduler");
@@ -79,41 +79,35 @@ describe("scheduler batched draining", () => {
     expect(() => pump(channel!)).toThrow(/Maximum update depth exceeded/);
   });
 
-  it("resets per-burst run counts after a fully drained pass", async () => {
+  it("resets per-burst run counts once a flush fully drains", async () => {
     vi.resetModules();
     vi.stubGlobal("MessageChannel", ControlledMessageChannel);
     const { UpdateScheduler } = await import("../core/scheduler");
 
-    // A burst slightly above one pass budget, issued back-to-back: 75 dirty
-    // schedulers drain in two passes (50 + 25), after which runCounts is
-    // cleared, so separate bursts must not accumulate re-run counts.
-    const ran: number[] = [];
-    const make = (i: number) =>
-      new UpdateScheduler(() => {
-        ran.push(i);
-      });
+    // The SAME scheduler driven through many separate, fully-drained bursts:
+    // each burst must start its run count fresh, so no number of sequential
+    // bursts may trip the loop guard. (Pins runCounts.clear() on drain —
+    // with fresh schedulers per burst the clear would be untestable.)
+    let runs = 0;
+    const scheduler = new UpdateScheduler(() => {
+      runs += 1;
+    });
 
-    for (let burst = 0; burst < 40; burst++) {
-      const schedulers = Array.from({ length: 75 }, (_, i) =>
-        make(burst * 75 + i),
-      );
-      for (const scheduler of schedulers) {
-        scheduler.markDirty();
-      }
+    for (let burst = 0; burst < 60; burst++) {
+      scheduler.markDirty();
       const [channel] = ControlledMessageChannel.instances;
-      pump(channel!);
+      expect(() => pump(channel!)).not.toThrow();
     }
-
-    expect(ran).toHaveLength(40 * 75);
+    expect(runs).toBe(60);
   });
 
-  it("drains batches far larger than one pass budget with no total-size ceiling", async () => {
+  it("drains batches far larger than the old flush budget with no total-size ceiling", async () => {
     vi.resetModules();
     vi.stubGlobal("MessageChannel", ControlledMessageChannel);
     const { UpdateScheduler } = await import("../core/scheduler");
 
-    // Finite batches never re-run a scheduler, so they must drain no matter
-    // how many passes they need (6000 tasks = 120 passes at 50/pass).
+    // Finite batches never hit the per-scheduler guard no matter how large
+    // they are, because each scheduler runs exactly once.
     const ran: number[] = [];
     const schedulers = Array.from(
       { length: 6000 },
@@ -131,7 +125,7 @@ describe("scheduler batched draining", () => {
     expect(ran).toHaveLength(6000);
   });
 
-  it("drains synchronously across passes inside flushTapSync", async () => {
+  it("drains synchronously inside flushTapSync", async () => {
     vi.resetModules();
     vi.stubGlobal("MessageChannel", ControlledMessageChannel);
     const { UpdateScheduler, flushTapSync } = await import("../core/scheduler");

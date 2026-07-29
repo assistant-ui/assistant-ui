@@ -2,11 +2,8 @@ type Task = () => void;
 
 type GlobalFlushState = {
   schedulers: Set<UpdateScheduler>;
-  // How often each scheduler has run since the queue last drained. A
-  // scheduler re-run more than MAX_TASK_RUNS_PER_BURST times within one
-  // burst is an infinite update loop; finite batches (even huge ones)
-  // never re-run a scheduler, so they are never subject to a total-size
-  // ceiling.
+  // How often each scheduler has run since the queue last drained.
+  // Reset whenever a flush fully drains.
   runCounts: Map<UpdateScheduler, number>;
   isScheduled: boolean;
 };
@@ -17,13 +14,14 @@ const newFlushState = (): GlobalFlushState => ({
   isScheduled: false,
 });
 
-// Maximum number of tasks a single flush pass may run. Bounds the work done
-// in one macrotask and, because Set iteration also visits schedulers
-// re-added mid-pass, prevents an infinite loop from hanging a single pass.
-const MAX_FLUSH_LIMIT = 50;
-// Guard against true infinite update loops: a resource that keeps
-// re-dirtying itself (or a cycle of resources re-dirtying each other)
-// re-runs the same scheduler more than this many times within one burst.
+// Infinite-loop guard: a scheduler re-run more than this many times within
+// a single burst (before the queue ever drains) is a resource that keeps
+// re-dirtying itself, or a cycle of resources re-dirtying each other.
+// Finite batches never hit this regardless of size, because every scheduler
+// in them runs a bounded number of times. The bound is real, though: a
+// genuinely self-dependent cascade deeper than this many re-runs in one
+// burst (each run queueing the same scheduler again) is indistinguishable
+// from a loop and will also throw.
 const MAX_TASK_RUNS_PER_BURST = 50;
 let flushState: GlobalFlushState = newFlushState();
 
@@ -59,38 +57,42 @@ const scheduleFlush = () => {
   scheduleMacrotask();
 };
 
-// Runs at most MAX_FLUSH_LIMIT tasks from flushState.schedulers. Throws on
-// task errors (discarding the rest of the batch) and on infinite loops.
-const runFlushPass = () => {
+// Drains flushState.schedulers completely. Set iteration also visits
+// schedulers re-added mid-pass, so bulk updates of any size land in a
+// single batch (one React commit, no intermediate paints). Termination is
+// guaranteed by the per-scheduler run guard: every scheduler runs at most
+// MAX_TASK_RUNS_PER_BURST times, so a pass executes at most
+// (distinct schedulers) x MAX_TASK_RUNS_PER_BURST tasks.
+const flushScheduled = () => {
   const errors: unknown[] = [];
-  let flushDepth = 0;
 
-  for (const scheduler of flushState.schedulers) {
-    if (flushDepth >= MAX_FLUSH_LIMIT) break;
-    flushState.schedulers.delete(scheduler);
-    if (!scheduler.isDirty) continue;
+  try {
+    for (const scheduler of flushState.schedulers) {
+      flushState.schedulers.delete(scheduler);
+      if (!scheduler.isDirty) continue;
 
-    flushDepth++;
+      const runs = (flushState.runCounts.get(scheduler) ?? 0) + 1;
+      flushState.runCounts.set(scheduler, runs);
+      if (runs > MAX_TASK_RUNS_PER_BURST) {
+        throw new Error(
+          `Maximum update depth exceeded. This can happen when a resource ` +
+            `repeatedly calls setState inside useEffect.`,
+        );
+      }
 
-    const runs = (flushState.runCounts.get(scheduler) ?? 0) + 1;
-    flushState.runCounts.set(scheduler, runs);
-    if (runs > MAX_TASK_RUNS_PER_BURST) {
-      flushState.schedulers.clear();
-      throw new Error(
-        `Maximum update depth exceeded. This can happen when a resource ` +
-          `repeatedly calls setState inside useEffect.`,
-      );
+      try {
+        scheduler.runTask();
+      } catch (error) {
+        errors.push(error);
+      }
     }
-
-    try {
-      scheduler.runTask();
-    } catch (error) {
-      errors.push(error);
-    }
+  } finally {
+    flushState.schedulers.clear();
+    flushState.runCounts.clear();
+    flushState.isScheduled = false;
   }
 
   if (errors.length > 0) {
-    flushState.schedulers.clear();
     if (errors.length === 1) {
       throw errors[0];
     } else {
@@ -99,28 +101,6 @@ const runFlushPass = () => {
       }
       throw new AggregateError(errors, "Errors occurred during flushSync");
     }
-  }
-};
-
-const flushScheduled = () => {
-  try {
-    runFlushPass();
-
-    if (flushState.schedulers.size > 0) {
-      // Large batches (e.g. hundreds of resources mounting in one update)
-      // overflow a single pass; defer the rest to a follow-up pass instead
-      // of dropping them.
-      flushState.isScheduled = false;
-      scheduleFlush();
-      return;
-    }
-
-    flushState.runCounts.clear();
-    flushState.isScheduled = false;
-  } catch (error) {
-    flushState.runCounts.clear();
-    flushState.isScheduled = false;
-    throw error;
   }
 };
 
@@ -160,12 +140,7 @@ export const flushTapSync = <T>(callback: () => T): T => {
 
   try {
     const value = callback();
-    // Synchronous callers rely on every notification having landed by the
-    // time this returns, so drain across passes until the queue is empty
-    // (or the loop guard fires) instead of deferring to a macrotask.
-    while (flushState.schedulers.size > 0) {
-      runFlushPass();
-    }
+    flushScheduled();
 
     return value;
   } finally {
