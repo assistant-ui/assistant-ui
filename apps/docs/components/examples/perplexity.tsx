@@ -2,6 +2,7 @@
 
 import { cn } from "@/lib/utils";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
+import { CloneThreadShell } from "./clone-thread-shell";
 import {
   ActionBarPrimitive,
   AuiIf,
@@ -13,24 +14,22 @@ import {
   useAuiState,
 } from "@assistant-ui/react";
 import {
+  ArrowRight,
+  AudioLines,
   CheckIcon,
   ChevronDownIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   CopyIcon,
-  Cross2Icon,
-  Pencil1Icon,
-  ReloadIcon,
-} from "@radix-ui/react-icons";
-import {
-  ArrowRight,
-  AudioLines,
   FileIcon,
+  PencilIcon,
   Plus,
+  RefreshCwIcon,
   Search,
   Sparkles,
   Square,
   Telescope,
+  XIcon,
 } from "lucide-react";
 import { type FC, useEffect, useState } from "react";
 import { useShallow } from "zustand/shallow";
@@ -39,7 +38,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/shared/dropdown-menu";
+} from "@/components/ui/dropdown-menu";
 
 const composerPrimaryActionClassName =
   "absolute inset-0 flex items-center justify-center rounded-full transition-all duration-200 ease-out";
@@ -52,28 +51,30 @@ const messageActionClassName =
 
 export const Perplexity: FC = () => {
   return (
-    <ThreadPrimitive.Root
-      className="flex h-full flex-col bg-[#f6f2ec] text-[#1f1b17] dark:bg-[#171615] dark:text-[#f5f2ed]"
-      style={{
-        ["--thread-max-width" as string]: "40rem",
-      }}
-    >
-      <AuiIf condition={(s) => s.thread.isEmpty}>
-        <EmptyState />
-      </AuiIf>
+    <CloneThreadShell railClassName="border-[#E0D9CC] bg-[#EFEAE1] dark:border-[#332F2A] dark:bg-[#1D1B19]">
+      <ThreadPrimitive.Root
+        className="flex h-full flex-col bg-[#f6f2ec] text-[#1f1b17] dark:bg-[#171615] dark:text-[#f5f2ed]"
+        style={{
+          ["--thread-max-width" as string]: "40rem",
+        }}
+      >
+        <AuiIf condition={(s) => s.thread.isEmpty}>
+          <EmptyState />
+        </AuiIf>
 
-      <AuiIf condition={(s) => !s.thread.isEmpty}>
-        <ThreadPrimitive.Viewport className="flex grow flex-col overflow-y-auto px-4 pt-12">
-          <ThreadPrimitive.Messages>
-            {() => <ChatMessage />}
-          </ThreadPrimitive.Messages>
+        <AuiIf condition={(s) => !s.thread.isEmpty}>
+          <ThreadPrimitive.Viewport className="flex grow flex-col overflow-y-auto px-4 pt-12">
+            <ThreadPrimitive.Messages>
+              {() => <ChatMessage />}
+            </ThreadPrimitive.Messages>
 
-          <ThreadPrimitive.ViewportFooter className="sticky bottom-0 mx-auto mt-auto w-full max-w-(--thread-max-width) bg-linear-to-b from-transparent via-[#f6f2ec]/85 to-[#f6f2ec] pt-6 pb-4 dark:via-[#171615]/85 dark:to-[#171615]">
-            <Composer placeholder="Ask a follow-up..." />
-          </ThreadPrimitive.ViewportFooter>
-        </ThreadPrimitive.Viewport>
-      </AuiIf>
-    </ThreadPrimitive.Root>
+            <ThreadPrimitive.ViewportFooter className="sticky bottom-0 mx-auto mt-auto w-full max-w-(--thread-max-width) bg-linear-to-b from-transparent via-[#f6f2ec]/85 to-[#f6f2ec] pt-6 pb-4 dark:via-[#171615]/85 dark:to-[#171615]">
+              <Composer placeholder="Ask a follow-up..." />
+            </ThreadPrimitive.ViewportFooter>
+          </ThreadPrimitive.Viewport>
+        </AuiIf>
+      </ThreadPrimitive.Root>
+    </CloneThreadShell>
   );
 };
 
@@ -231,7 +232,7 @@ const SearchModePicker: FC = () => {
         {SEARCH_MODES.map(({ id, name, description, Icon }) => (
           <DropdownMenuItem
             key={id}
-            onSelect={() => setMode(id)}
+            onClick={() => setMode(id)}
             className="flex items-start gap-3"
           >
             <span className="mt-0.5 flex size-4 items-center justify-center text-[#1f1b17] dark:text-[#f5f2ed]">
@@ -273,7 +274,7 @@ const ModelPicker: FC = () => {
         {PERPLEXITY_MODELS.map((m) => (
           <DropdownMenuItem
             key={m.id}
-            onSelect={() => setModel(m.id)}
+            onClick={() => setModel(m.id)}
             className="flex items-start gap-3"
           >
             <span className="mt-0.5 flex size-4 items-center justify-center text-[#1f1b17] dark:text-[#f5f2ed]">
@@ -309,7 +310,7 @@ const ChatMessage: FC = () => {
                 <CopyIcon className="size-4" />
               </ActionBarPrimitive.Copy>
               <ActionBarPrimitive.Edit className={messageActionClassName}>
-                <Pencil1Icon className="size-4" />
+                <PencilIcon className="size-4" />
               </ActionBarPrimitive.Edit>
             </ActionBarPrimitive.Root>
 
@@ -339,7 +340,7 @@ const ChatMessage: FC = () => {
               <BranchPicker />
               <ActionBarPrimitive.Root className="flex items-center gap-0.5 opacity-0 transition-opacity group-focus-within/message:opacity-100 group-hover/message:opacity-100">
                 <ActionBarPrimitive.Reload className={messageActionClassName}>
-                  <ReloadIcon className="size-4" />
+                  <RefreshCwIcon className="size-4" />
                 </ActionBarPrimitive.Reload>
                 <ActionBarPrimitive.Copy className={messageActionClassName}>
                   <AuiIf condition={(s) => s.message.isCopied}>
@@ -465,7 +466,7 @@ const AttachmentPreview: FC<{ removable: boolean }> = ({ removable }) => {
 
       {removable ? (
         <AttachmentPrimitive.Remove className="absolute -top-1 -right-1 flex size-5 items-center justify-center rounded-full bg-[#ede6dd] text-[#5f574d] opacity-0 transition-all group-hover/attachment:opacity-100 hover:bg-[#dfd5c8] dark:bg-[#3a342f] dark:text-[#d4ccc2] dark:hover:bg-[#4a433b]">
-          <Cross2Icon className="size-3.5" />
+          <XIcon className="size-3.5" />
         </AttachmentPrimitive.Remove>
       ) : null}
     </AttachmentPrimitive.Root>

@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/cloud-ai-sdk",
-  "version": "0.1.24",
+  "version": "0.1.27",
   "description": "Standalone Vercel AI SDK hooks backed by Assistant Cloud persistence",
   "keywords": [
     "assistant",
@@ -29,16 +29,19 @@
   "sideEffects": false,
   "scripts": {
     "build": "aui-build",
-    "test": "vitest run",
+    "test": "pnpm run test:v7 && pnpm run test:peer-v6 && pnpm run test:types:peer-v6",
+    "test:v7": "vitest run",
+    "test:peer-v6": "vitest run --config vitest.peer-v6.config.ts",
+    "test:types:peer-v6": "tsc --noEmit --project tsconfig.peer-v6.json",
     "test:watch": "vitest"
   },
   "dependencies": {
     "assistant-cloud": "workspace:*"
   },
   "peerDependencies": {
-    "@ai-sdk/react": "^3.0.0",
+    "@ai-sdk/react": "^3.0.0 || ^4.0.0",
     "@types/react": "*",
-    "ai": "^6.0.0",
+    "ai": "^6.0.0 || ^7.0.0",
     "react": "^18 || ^19"
   },
   "peerDependenciesMeta": {
@@ -47,17 +50,20 @@
     }
   },
   "devDependencies": {
-    "@ai-sdk/react": "^3.0.211",
+    "@ai-sdk/react": "^4.0.40",
+    "@ai-sdk/react-v3": "npm:@ai-sdk/react@^3.0.211",
+    "@assistant-ui/react-ai-sdk": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/react": "^16.3.2",
-    "@types/node": "^26.1.0",
+    "@types/node": "^26.1.1",
     "@types/react": "^19.2.17",
-    "ai": "^6.0.209",
-    "assistant-stream": "^0.3.25",
+    "ai": "^7.0.37",
+    "ai-v6": "npm:ai@^6.0.209",
+    "assistant-stream": "^0.3.29",
     "jsdom": "^29.1.1",
-    "react": "^19.2.7",
-    "vitest": "^4.1.9"
+    "react": "^19.2.8",
+    "vitest": "^4.1.10"
   },
   "publishConfig": {
     "access": "public",

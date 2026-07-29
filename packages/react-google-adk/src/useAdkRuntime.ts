@@ -13,6 +13,7 @@ import {
   type ToolExecutionStatus,
   generateId,
 } from "@assistant-ui/core";
+import { parseDataUrl } from "@assistant-ui/core/internal";
 import {
   useCloudThreadListAdapter,
   useRemoteThreadListRuntime,
@@ -41,7 +42,7 @@ export const getMessageContent = (msg: AppendMessage) => {
     ...msg.content,
     ...(msg.attachments?.flatMap((a) => a.content) ?? []),
   ];
-  const content = allContent.map((part) => {
+  const content = allContent.flatMap((part) => {
     const type = part.type;
     switch (type) {
       case "text":
@@ -55,17 +56,22 @@ export const getMessageContent = (msg: AppendMessage) => {
           data: part.data,
           ...(part.filename != null && { filename: part.filename }),
         };
+      case "audio": {
+        const parsed = parseDataUrl(part.audio.data);
+        return {
+          type: "file" as const,
+          mimeType: `audio/${part.audio.format}`,
+          data: parsed?.data ?? part.audio.data,
+        };
+      }
+      case "data":
+        return [];
 
       case "tool-call":
         throw new Error("Tool call appends are not supported.");
 
       default: {
-        const _exhaustiveCheck:
-          | "reasoning"
-          | "source"
-          | "audio"
-          | "data"
-          | "generative-ui" = type;
+        const _exhaustiveCheck: "reasoning" | "source" | "generative-ui" = type;
         throw new Error(
           `Unsupported append message part type: ${_exhaustiveCheck}`,
         );
@@ -356,7 +362,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
             setMessages(nextMessages);
             return;
           }
-          const externalId = aui.threadListItem().getState().externalId;
+          const externalId = aui.threadListItem.getState().externalId;
           const checkpointId = externalId
             ? await getCheckpointId(externalId, truncated)
             : null;
@@ -397,7 +403,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
               parentId,
             );
             replaceMessages(truncated);
-            const externalId = aui.threadListItem().getState().externalId;
+            const externalId = aui.threadListItem.getState().externalId;
             const checkpointId = externalId
               ? await getCheckpointId(externalId, truncated)
               : null;
@@ -447,7 +453,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
       const loadFn = loadRef.current;
       if (!loadFn) return;
 
-      const externalId = aui.threadListItem().getState().externalId;
+      const externalId = aui.threadListItem.getState().externalId;
       if (externalId == null) return;
 
       loadFn(externalId).then(
@@ -477,7 +483,7 @@ export const useAdkRuntime = ({
     cloud,
     create: async () => {
       if (create) return create();
-      if (aui.threadListItem.source) return aui.threadListItem().initialize();
+      if (aui.threadListItem.source) return aui.threadListItem.initialize();
       return { externalId: undefined };
     },
     delete: deleteFn,

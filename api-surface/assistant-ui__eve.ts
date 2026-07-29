@@ -587,6 +587,7 @@ type McpAppMetadata = {
   readonly resourceUri: string;
   readonly mimeType?: string;
   readonly visibility?: readonly ("app" | "model")[];
+  readonly serverId?: string;
 };
 
 type McpServerConfig = {
@@ -745,6 +746,10 @@ type ObjectKey<T> = keyof T & (string | number);
 
 type OnSchemaValidationErrorFunction<TResult> = ToolExecuteFunction<unknown, TResult>;
 
+type PartProviderMetadata = {
+  readonly [providerName: string]: ReadonlyJSONObject;
+};
+
 type PendingAttachment = BaseAttachment & {
   status: PendingAttachmentStatus;
   file: File;
@@ -760,6 +765,7 @@ type PendingAttachmentStatus = {
 } | {
   type: "incomplete";
   reason: "error" | "upload-paused";
+  message?: string;
 };
 
 type ProviderOptions = Record<string, Record<string, unknown>>;
@@ -832,6 +838,7 @@ type RealtimeVoiceAdapter = {
 type ReasoningMessagePart = {
   readonly type: "reasoning";
   readonly text: string;
+  readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };
 
@@ -895,9 +902,7 @@ type SourceMessagePart = {
   readonly parentId?: string;
 };
 
-type SourceProviderMetadata = {
-  readonly [providerName: string]: ReadonlyJSONObject;
-};
+type SourceProviderMetadata = PartProviderMetadata;
 
 interface SpeechRecognitionConstructor {
   new (): SpeechRecognitionInstance;
@@ -947,6 +952,7 @@ declare const TOOL_RESPONSE_SYMBOL: unique symbol;
 type TextMessagePart = {
   readonly type: "text";
   readonly text: string;
+  readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };
 
@@ -1098,6 +1104,7 @@ type ThreadMessageLike = {
       payload: unknown;
     };
     readonly timing?: ToolCallTiming;
+    readonly providerMetadata?: PartProviderMetadata;
     readonly approval?: {
       readonly id: string;
       readonly approved?: boolean;
@@ -1231,6 +1238,7 @@ type ThreadUserMessage = MessageCommonProps & {
     readonly steps?: undefined;
     readonly submittedFeedback?: undefined;
     readonly timing?: undefined;
+    readonly isOptimistic?: boolean;
     readonly custom: Record<string, unknown>;
   };
 };
@@ -1268,6 +1276,7 @@ type ToolApprovalResponse = {
 type ToolBase<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = {
   streamCall?: ToolStreamCallFunction<TArgs, TResult>;
   display?: ToolDisplay;
+  overwrite?: boolean;
 };
 
 interface ToolCallArgsReader<TArgs extends Record<string, unknown>> {
@@ -1288,6 +1297,7 @@ type ToolCallMessagePart<TArgs = ReadonlyJSONObject, TResult = unknown> = {
   readonly artifact?: unknown;
   readonly timing?: ToolCallTiming;
   readonly mcp?: ToolCallMessagePartMcpMetadata;
+  readonly providerMetadata?: PartProviderMetadata;
   readonly modelContent?: readonly ToolModelContentPart[] | undefined;
   readonly interrupt?: {
     type: "human";

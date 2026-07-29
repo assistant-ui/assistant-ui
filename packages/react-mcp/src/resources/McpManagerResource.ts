@@ -202,7 +202,7 @@ const useMcpManagerResource = (
   useEffect(() => {
     const client = clientRef.current;
     if (!client) return;
-    return client.modelContext().register({
+    return client.modelContext.register({
       getModelContext: () => ({ tools: toolkit }),
     });
   }, [toolkit, clientRef]);

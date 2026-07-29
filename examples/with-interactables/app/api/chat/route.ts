@@ -3,12 +3,11 @@ import { streamText, convertToModelMessages, stepCountIs } from "ai";
 import type { UIMessage } from "ai";
 import {
   frontendTools,
+  type FrontendTools,
   unstable_injectInteractableContext,
 } from "@assistant-ui/react-ai-sdk";
 
 export const maxDuration = 30;
-
-type FrontendTools = Parameters<typeof frontendTools>[0];
 
 export async function POST(req: Request) {
   const {

@@ -13,61 +13,62 @@ import {
   useAui,
   useAuiState,
 } from "@assistant-ui/react";
+import { useEffect, useState, type FC } from "react";
+import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
+import { useShallow } from "zustand/shallow";
 import {
   ArrowUpIcon,
+  AudioLines,
   CheckIcon,
   ChevronDownIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   CopyIcon,
-  Cross2Icon,
-  Pencil1Icon,
-  ReloadIcon,
-} from "@radix-ui/react-icons";
-import { useEffect, useState, type FC } from "react";
-import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
-import { useShallow } from "zustand/shallow";
-import {
-  AudioLines,
   Download,
   Mic,
   MoreHorizontal,
+  PencilIcon,
   PlusIcon,
+  RefreshCwIcon,
   Share,
   ThumbsDown,
   ThumbsUp,
   Volume2,
+  XIcon,
 } from "lucide-react";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
+import { CloneThreadShell } from "./clone-thread-shell";
 
 export const ChatGPT: FC = () => {
   return (
-    <ThreadPrimitive.Root className="flex h-full flex-col items-stretch bg-white px-4 text-[#0d0d0d] dark:bg-black dark:text-[#ececec]">
-      <AuiIf condition={(s) => s.thread.isEmpty}>
-        <EmptyState />
-      </AuiIf>
+    <CloneThreadShell>
+      <ThreadPrimitive.Root className="flex h-full flex-col items-stretch bg-white px-4 text-[#0d0d0d] dark:bg-black dark:text-[#ececec]">
+        <AuiIf condition={(s) => s.thread.isEmpty}>
+          <EmptyState />
+        </AuiIf>
 
-      <AuiIf condition={(s) => !s.thread.isEmpty}>
-        <ThreadPrimitive.Viewport className="flex grow flex-col gap-8 overflow-y-scroll pt-16">
-          <ThreadPrimitive.Messages>
-            {({ message }) => {
-              if (message.composer.isEditing) return <EditComposer />;
-              if (message.role === "user") return <UserMessage />;
-              return <AssistantMessage />;
-            }}
-          </ThreadPrimitive.Messages>
+        <AuiIf condition={(s) => !s.thread.isEmpty}>
+          <ThreadPrimitive.Viewport className="flex grow flex-col gap-8 overflow-y-scroll pt-16">
+            <ThreadPrimitive.Messages>
+              {({ message }) => {
+                if (message.composer.isEditing) return <EditComposer />;
+                if (message.role === "user") return <UserMessage />;
+                return <AssistantMessage />;
+              }}
+            </ThreadPrimitive.Messages>
 
-          <ThreadPrimitive.ViewportFooter className="sticky bottom-0 mx-auto mt-auto flex w-full max-w-3xl flex-col gap-2 overflow-visible rounded-t-3xl bg-white pb-2 dark:bg-black">
-            <ThreadScrollToBottom />
-            <Composer placeholder="Ask anything" />
-            <p className="text-center text-xs text-[#5d5d5d] dark:text-[#afafaf]">
-              ChatGPT can make mistakes. Check important info.
-            </p>
-          </ThreadPrimitive.ViewportFooter>
-        </ThreadPrimitive.Viewport>
-      </AuiIf>
-    </ThreadPrimitive.Root>
+            <ThreadPrimitive.ViewportFooter className="sticky bottom-0 mx-auto mt-auto flex w-full max-w-3xl flex-col gap-2 overflow-visible rounded-t-3xl bg-white pb-2 dark:bg-black">
+              <ThreadScrollToBottom />
+              <Composer placeholder="Ask anything" />
+              <p className="text-center text-xs text-[#5d5d5d] dark:text-[#afafaf]">
+                ChatGPT can make mistakes. Check important info.
+              </p>
+            </ThreadPrimitive.ViewportFooter>
+          </ThreadPrimitive.Viewport>
+        </AuiIf>
+      </ThreadPrimitive.Root>
+    </CloneThreadShell>
   );
 };
 
@@ -241,7 +242,7 @@ const UserMessage: FC = () => {
               side="top"
               className={assistantActionClassName}
             >
-              <Pencil1Icon className="size-5" />
+              <PencilIcon className="size-5" />
             </TooltipIconButton>
           </ActionBarPrimitive.Edit>
         </ActionBarPrimitive.Root>
@@ -342,7 +343,7 @@ const AssistantMessage: FC = () => {
               side="top"
               className={assistantActionClassName}
             >
-              <ReloadIcon className="size-5" />
+              <RefreshCwIcon className="size-5" />
             </TooltipIconButton>
           </ActionBarPrimitive.Reload>
           <ActionBarMorePrimitive.Root>
@@ -467,7 +468,7 @@ const ChatGPTAttachmentUI: FC = () => {
       </div>
       {isComposer && (
         <AttachmentPrimitive.Remove className="absolute -top-1.5 -right-1.5 flex size-7 items-center justify-center rounded-full border border-[#e5e5e5] bg-white text-[#6b6b6b] transition-all hover:bg-[#f5f5f5] hover:text-[#0d0d0d] dark:border-[#3a3a3a] dark:bg-[#1a1a1a] dark:text-[#9a9a9a] dark:hover:bg-[#252525] dark:hover:text-white">
-          <Cross2Icon className="size-5" />
+          <XIcon className="size-5" />
         </AttachmentPrimitive.Remove>
       )}
     </AttachmentPrimitive.Root>

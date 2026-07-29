@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactElement, isValidElement } from "react";
 import { CheckIcon, CopyIcon } from "lucide-react";
-import { Dialog as DialogPrimitive } from "radix-ui";
+import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 import { XIcon } from "lucide-react";
 
 import type { BuilderConfig } from "./types";
@@ -41,10 +41,14 @@ export function CreateDialog({
 
   return (
     <DialogPrimitive.Root open={open} onOpenChange={handleOpenChange}>
-      <DialogPrimitive.Trigger asChild>{children}</DialogPrimitive.Trigger>
+      {isValidElement(children) ? (
+        <DialogPrimitive.Trigger render={children as ReactElement} />
+      ) : (
+        <DialogPrimitive.Trigger>{children}</DialogPrimitive.Trigger>
+      )}
       <DialogPrimitive.Portal container={container?.current}>
-        <DialogPrimitive.Overlay className="data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:animate-out data-[state=open]:animate-in absolute inset-0 z-50 bg-black/50" />
-        <DialogPrimitive.Content className="data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 bg-background data-[state=closed]:animate-out data-[state=open]:animate-in absolute top-1/2 left-1/2 z-50 grid max-h-[85vh] w-full max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 overflow-hidden rounded-lg border p-6 shadow-lg duration-200">
+        <DialogPrimitive.Backdrop className="data-closed:fade-out-0 data-open:fade-in-0 data-closed:animate-out data-open:animate-in absolute inset-0 z-50 bg-black/50" />
+        <DialogPrimitive.Popup className="data-closed:fade-out-0 data-open:fade-in-0 data-closed:zoom-out-95 data-open:zoom-in-95 bg-background data-closed:animate-out data-open:animate-in absolute top-1/2 left-1/2 z-50 grid max-h-[85vh] w-full max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 overflow-hidden rounded-lg border p-6 shadow-lg duration-200">
           <DialogPrimitive.Title className="text-lg leading-none font-semibold">
             Create your assistant
           </DialogPrimitive.Title>
@@ -112,7 +116,7 @@ export function CreateDialog({
             <XIcon className="size-4" />
             <span className="sr-only">Close</span>
           </DialogPrimitive.Close>
-        </DialogPrimitive.Content>
+        </DialogPrimitive.Popup>
       </DialogPrimitive.Portal>
     </DialogPrimitive.Root>
   );

@@ -54,6 +54,21 @@ index 1234567..abcdefg 100644
  line 3
 `;
 
+const MULTI_HUNK_PATCH = `diff --git a/f.txt b/f.txt
+--- a/f.txt
++++ b/f.txt
+@@ -1,3 +1,3 @@
+ a
+-b
++B
+ c
+@@ -10,3 +10,3 @@
+ x
+-y
++Y
+ z
+`;
+
 describe("buildLinePairMap", () => {
   it("pairs a single adjacent replacement", () => {
     const del = makeDelLine("old value", 1);
@@ -209,16 +224,19 @@ describe("parsePatch", () => {
             content: "a",
             oldLineNumber: 1,
             newLineNumber: 1,
+            hunkIndex: 0,
           },
           {
             type: "del",
             content: "b",
             oldLineNumber: 2,
+            hunkIndex: 0,
           },
           {
             type: "add",
             content: "c",
             newLineNumber: 2,
+            hunkIndex: 0,
           },
         ],
       },
@@ -247,14 +265,23 @@ describe("parsePatch", () => {
             type: "del",
             content: "old",
             oldLineNumber: 1,
+            hunkIndex: 0,
           },
           {
             type: "add",
             content: "new",
             newLineNumber: 1,
+            hunkIndex: 0,
           },
         ],
       },
+    ]);
+  });
+
+  it("assigns a per-file hunkIndex that increments across chunks", () => {
+    const file = parsePatch(MULTI_HUNK_PATCH)[0]!;
+    expect(file.lines.map((l) => l.hunkIndex)).toEqual([
+      0, 0, 0, 0, 1, 1, 1, 1,
     ]);
   });
 });
@@ -285,6 +312,7 @@ describe("computeDiff", () => {
           type: "add",
           content: "",
           newLineNumber: 2,
+          hunkIndex: 0,
         },
       ],
     });
@@ -303,6 +331,7 @@ describe("computeDiff", () => {
           type: "del",
           content: "",
           oldLineNumber: 2,
+          hunkIndex: 0,
         },
       ],
     });
@@ -323,14 +352,38 @@ describe("computeDiff", () => {
           type: "del",
           content: "b",
           oldLineNumber: 2,
+          hunkIndex: 0,
         },
         {
           type: "add",
           content: "c",
           newLineNumber: 2,
+          hunkIndex: 0,
         },
       ],
     });
+  });
+
+  it("groups change regions separated by context into distinct hunks", () => {
+    const { lines } = computeDiff("a\nb\nc\nd\ne\n", "A\nb\nc\nd\nE\n");
+    const changeHunks = lines
+      .filter((l) => l.type !== "normal")
+      .map((l) => l.hunkIndex);
+    expect(changeHunks).toEqual([0, 0, 1, 1]);
+
+    const hunkCount = Math.max(-1, ...lines.map((l) => l.hunkIndex ?? -1)) + 1;
+    expect(hunkCount).toBe(2);
+  });
+
+  it("leaves context before the first change unindexed", () => {
+    const { lines } = computeDiff("a\nb\n", "a\nB\n");
+    expect(lines[0]).toMatchObject({ type: "normal", content: "a" });
+    expect(lines[0]!.hunkIndex).toBeUndefined();
+  });
+
+  it("assigns no hunkIndex when there are no changes", () => {
+    const { lines } = computeDiff("a\nb\n", "a\nb\n");
+    expect(lines.every((l) => l.hunkIndex === undefined)).toBe(true);
   });
 });
 

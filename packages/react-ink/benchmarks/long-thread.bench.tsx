@@ -84,7 +84,7 @@ const BenchProvider: React.FC<{
     composer: Derived({
       source: "thread",
       query: {},
-      get: (a) => a.thread().composer(),
+      get: (a) => a.thread.composer(),
     }),
   });
 
@@ -117,7 +117,7 @@ const LegacyThreadMessages: React.FC = () => {
       {Array.from({ length: messagesLength }, (_, index) => (
         <MessageByIndexProvider key={index} index={index}>
           <RenderChildrenWithAccessor
-            getItemState={(aui) => aui.thread().message({ index }).getState()}
+            getItemState={(aui) => aui.thread.message({ index }).getState()}
           >
             {() => <Message />}
           </RenderChildrenWithAccessor>

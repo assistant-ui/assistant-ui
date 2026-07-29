@@ -3,7 +3,9 @@ import type { AssistantMessage } from "../utils/types";
 import { AssistantMessageAccumulator } from "./assistant-message-accumulator";
 
 export class AssistantMessageStream {
-  constructor(public readonly readable: ReadableStream<AssistantMessage>) {
+  public readonly readable: ReadableStream<AssistantMessage>;
+
+  constructor(readable: ReadableStream<AssistantMessage>) {
     this.readable = readable;
   }
 

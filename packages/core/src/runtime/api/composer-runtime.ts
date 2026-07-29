@@ -251,7 +251,11 @@ export abstract class ComposerRuntimeImpl implements ComposerRuntime {
 
   public abstract get type(): "edit" | "thread";
 
-  constructor(protected _core: ComposerRuntimeCoreBinding) {}
+  protected _core: ComposerRuntimeCoreBinding;
+
+  constructor(_core: ComposerRuntimeCoreBinding) {
+    this._core = _core;
+  }
 
   protected __internal_bindMethods() {
     this.setText = this.setText.bind(this);
@@ -483,10 +487,9 @@ export class EditComposerRuntimeImpl
   }
 
   private _getState;
-  constructor(
-    core: EditComposerRuntimeCoreBinding,
-    private _beginEdit: () => void,
-  ) {
+  private _beginEdit: () => void;
+
+  constructor(core: EditComposerRuntimeCoreBinding, _beginEdit: () => void) {
     const stateBinding = new LazyMemoizeSubject({
       path: core.path,
       getState: () => getEditComposerState(core.getState()),
@@ -498,6 +501,7 @@ export class EditComposerRuntimeImpl
       getState: () => core.getState(),
       subscribe: (callback) => stateBinding.subscribe(callback),
     });
+    this._beginEdit = _beginEdit;
 
     this._getState = stateBinding.getState.bind(stateBinding);
 

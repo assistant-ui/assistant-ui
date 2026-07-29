@@ -107,7 +107,7 @@ function AssistantAnalyticsTracker() {
     queueMicrotaskSafe(() => {
       const messages = (() => {
         try {
-          return aui.thread().getState().messages;
+          return aui.thread.getState().messages;
         } catch {
           return [];
         }
@@ -121,7 +121,7 @@ function AssistantAnalyticsTracker() {
 
       let modelName: string | undefined;
       try {
-        modelName = aui.thread().getModelContext()?.config?.modelName;
+        modelName = aui.thread.getModelContext()?.config?.modelName;
       } catch {
         // ignore
       }

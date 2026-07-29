@@ -9,9 +9,13 @@ type ContentPart =
   | { type: "reasoning"; text: string }
   | { type: "image"; image: string }
   | { type: "file"; data: string; mimeType: string; filename?: string }
+  | { type: "audio"; audio: { data: string; format: "mp3" | "wav" } }
   | { type: "data"; name: string; data: unknown };
 
-const contentToParts = (content: AdkMessage["content"]): ContentPart[] => {
+const contentToParts = (
+  content: AdkMessage["content"],
+  role: "user" | "assistant",
+): ContentPart[] => {
   if (typeof content === "string")
     return [{ type: "text" as const, text: content }];
 
@@ -29,13 +33,25 @@ const contentToParts = (content: AdkMessage["content"]): ContentPart[] => {
           };
         case "image_url":
           return { type: "image", image: part.url };
-        case "file":
+        case "file": {
+          const format =
+            role === "user" && part.filename == null
+              ? part.mimeType === "audio/wav"
+                ? ("wav" as const)
+                : part.mimeType === "audio/mp3"
+                  ? ("mp3" as const)
+                  : null
+              : null;
+          if (format) {
+            return { type: "audio", audio: { data: part.data, format } };
+          }
           return {
             type: "file",
             data: part.data,
             mimeType: part.mimeType,
             ...(part.filename != null && { filename: part.filename }),
           };
+        }
         case "file_url":
           return {
             type: "data",
@@ -72,7 +88,7 @@ export const convertAdkMessage: useExternalMessageConverter.Callback<
       return {
         role: "user",
         id: message.id,
-        content: contentToParts(message.content),
+        content: contentToParts(message.content, "user"),
       };
 
     case "ai": {
@@ -88,7 +104,10 @@ export const convertAdkMessage: useExternalMessageConverter.Callback<
       return {
         role: "assistant",
         id: message.id,
-        content: [...contentToParts(message.content), ...toolCallParts],
+        content: [
+          ...contentToParts(message.content, "assistant"),
+          ...toolCallParts,
+        ],
         ...(message.status && { status: message.status }),
         ...(message.author && {
           metadata: {

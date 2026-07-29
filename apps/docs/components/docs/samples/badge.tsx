@@ -62,25 +62,31 @@ export function BadgeWithIconSample() {
 export function BadgeAsLinkSample() {
   return (
     <SampleFrame className="flex h-auto items-center justify-center gap-3 p-6">
-      <Badge asChild variant="muted">
-        <a
-          href="https://github.com/assistant-ui/assistant-ui"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          GitHub
-          <ArrowUpRight />
-        </a>
+      <Badge
+        variant="muted"
+        render={
+          <a
+            href="https://github.com/assistant-ui/assistant-ui"
+            target="_blank"
+            rel="noopener noreferrer"
+          />
+        }
+      >
+        GitHub
+        <ArrowUpRight />
       </Badge>
-      <Badge asChild variant="outline">
-        <a
-          href="https://www.npmjs.com/package/@assistant-ui/react"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          npm
-          <ArrowUpRight />
-        </a>
+      <Badge
+        variant="outline"
+        render={
+          <a
+            href="https://www.npmjs.com/package/@assistant-ui/react"
+            target="_blank"
+            rel="noopener noreferrer"
+          />
+        }
+      >
+        npm
+        <ArrowUpRight />
       </Badge>
     </SampleFrame>
   );

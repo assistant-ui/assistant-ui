@@ -1,34 +1,33 @@
 "use client";
 
 import {
+  flushTapSync,
+  useMemoCache,
   useResource,
   useResources,
   useTapHost,
   useTapRoot,
   resource,
   withKey,
+  type ResourceElement,
 } from "@assistant-ui/tap";
-import { useMemo, useEffect, useRef } from "react";
+import { useMemo, useEffect, useRef, useSyncExternalStore } from "react";
 
 import type {
   AssistantClient,
   AssistantClientAccessor,
   ClientNames,
   ClientElement,
-  ClientMeta,
+  ClientMethods,
 } from "./types/client";
-import type { DerivedElement } from "./Derived";
+import { useDerived, type DerivedElement } from "./Derived";
 import {
   useAssistantContextValue,
   DefaultAssistantClient,
   createRootAssistantClient,
   AUI_USE_EFFECTS_SYMBOL,
 } from "./utils/react-assistant-context";
-import {
-  type DerivedClients,
-  type RootClients,
-  useSplitClients,
-} from "./utils/splitClients";
+import { getTransformScopes, type ScopesConfig } from "./attachTransformScopes";
 import {
   normalizeEventSelector,
   type AssistantEventName,
@@ -36,140 +35,110 @@ import {
   type AssistantEventSelector,
 } from "./types/events";
 import { NotificationManager } from "./utils/NotificationManager";
-import { useAssistantTapContextProvider } from "./utils/tap-assistant-context";
-import { useClientResource } from "./useClientResource";
+import {
+  useAssistantTapContextProvider,
+  useBuildingClientProvider,
+  useBuildingClient,
+} from "./utils/tap-assistant-context";
+import { ClientResource } from "./useClientResource";
+import { createClientAccessor, getClientId } from "./utils/client-accessor";
 import { getClientIndex } from "./utils/tap-client-stack-context";
 import {
   PROXIED_ASSISTANT_STATE_SYMBOL,
   createProxiedAssistantState,
 } from "./utils/proxied-assistant-state";
 
-const useShallowMemoArray = <T>(array: readonly T[]) => {
-  // oxlint-disable-next-line react/exhaustive-deps -- shallow memo over the array itself
-  return useMemo(() => array, array);
+type ClientRef = { parent: AssistantClient; current: AssistantClient | null };
+
+type ScopeElement = ResourceElement<ClientMethods>;
+type ScopeEntry = { name: ClientNames; element: ScopeElement };
+type ScopeMeta = {
+  source: ClientNames | "root";
+  query: Record<string, unknown>;
+};
+type ScopeResult = {
+  name: ClientNames;
+  accessor: AssistantClientAccessor<ClientNames>;
+  state: unknown;
 };
 
-const useRootClientResource = <K extends ClientNames>({
-  element,
-  emit,
-  clientRef,
-}: {
-  element: ClientElement<K>;
-  emit: NotificationManager["emit"];
-  clientRef: { parent: AssistantClient; current: AssistantClient | null };
-}) => {
-  const { methods, state } = useAssistantTapContextProvider(
-    { clientRef, emit },
-    function WithTapContext() {
-      return useClientResource(element);
-    },
+const applyTransformScopes = (
+  clients: useAui.Props,
+  parent: AssistantClient,
+): Record<string, ScopeElement> => {
+  const scopes = { ...clients } as Record<string, ScopeElement>;
+  const visited = new Set<ScopeElement["hook"]>();
+
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const element of Object.values(scopes)) {
+      if (visited.has(element.hook)) continue;
+      visited.add(element.hook);
+
+      const transform = getTransformScopes(element.hook);
+      if (transform) {
+        transform(scopes as ScopesConfig, parent);
+        changed = true;
+        break;
+      }
+    }
+  }
+
+  return scopes;
+};
+
+const isDerivedElement = (element: ScopeElement) =>
+  element.hook === (useDerived as unknown);
+
+const metaOf = (element: ScopeElement): ScopeMeta => {
+  if (!isDerivedElement(element)) return { source: "root", query: {} };
+  const props = element.args[0] as ScopeMeta;
+  return { source: props.source, query: props.query ?? {} };
+};
+
+const toScopeEntries = (scopes: Record<string, ScopeElement>): ScopeEntry[] =>
+  (Object.entries(scopes) as [ClientNames, ScopeElement][]).map(
+    ([name, element]) => ({ name, element }),
   );
-  return useMemo(() => ({ state, methods }), [methods, state]);
+
+const createAccessor = <K extends ClientNames>(
+  name: K,
+  meta: ScopeMeta,
+  read: () => ClientMethods,
+): AssistantClientAccessor<K> =>
+  createClientAccessor<K>({ name, ...meta }, read);
+
+type ClientFields = {
+  subscribe: AssistantClient["subscribe"];
+  on: AssistantClient["on"];
 };
 
-const useRootClientAccessorResource = <K extends ClientNames>({
-  element,
+const createClientObject = (
+  parent: AssistantClient,
+  fields: ClientFields,
+): AssistantClient => {
+  // Swap DefaultAssistantClient -> createRootAssistantClient at root to change error message
+  const proto =
+    parent === DefaultAssistantClient ? createRootAssistantClient() : parent;
+
+  const client = Object.create(proto) as AssistantClient;
+  Object.assign(client, {
+    ...fields,
+    [PROXIED_ASSISTANT_STATE_SYMBOL]: createProxiedAssistantState(client),
+  });
+  return client;
+};
+
+const useClientFields = ({
   notifications,
   clientRef,
-  name,
 }: {
-  element: ClientElement<K>;
   notifications: NotificationManager;
-  clientRef: { parent: AssistantClient; current: AssistantClient | null };
-  name: K;
-}): AssistantClientAccessor<K> => {
-  const store = useTapRoot(function RootClient() {
-    return useRootClientResource({
-      element,
-      emit: notifications.emit,
-      clientRef,
-    });
-  });
-
-  useEffect(() => {
-    return store.subscribe(notifications.notifySubscribers);
-  }, [store, notifications]);
-
-  return useMemo(() => {
-    const clientFunction = () => store.getValue().methods;
-    Object.defineProperties(clientFunction, {
-      source: {
-        value: "root" as const,
-        writable: false,
-      },
-      query: {
-        value: {} as Record<string, never>,
-        writable: false,
-      },
-      name: {
-        value: name,
-        configurable: true,
-      },
-    });
-    return clientFunction as AssistantClientAccessor<K>;
-  }, [store, name]);
-};
-
-const RootClientAccessorResource = resource(useRootClientAccessorResource);
-
-const useNoOpRootClientsAccessorsResource = () => {
+  clientRef: ClientRef;
+}): ClientFields => {
   return useMemo(
     () => ({
-      clients: [] as AssistantClientAccessor<ClientNames>[],
-      subscribe: undefined,
-      on: undefined,
-    }),
-    [],
-  );
-};
-
-const NoOpRootClientsAccessorsResource = resource(
-  useNoOpRootClientsAccessorsResource,
-);
-
-const useRootClientsAccessors = ({
-  clients: inputClients,
-  clientRef,
-}: {
-  clients: RootClients;
-  clientRef: { parent: AssistantClient; current: AssistantClient | null };
-}) => {
-  const notifications = useResource(NotificationManager());
-
-  useEffect(
-    () => clientRef.parent.subscribe(notifications.notifySubscribers),
-    [clientRef, notifications],
-  );
-
-  const results = useShallowMemoArray(
-    useResources(
-      Object.keys(inputClients).map((key) =>
-        withKey(
-          key,
-          RootClientAccessorResource({
-            element: inputClients[key as keyof typeof inputClients]!,
-            notifications,
-            clientRef,
-            name: key as keyof typeof inputClients,
-          }),
-        ),
-      ),
-    ),
-  );
-
-  return { notifications, results };
-};
-
-const useRootClientsAccessorsResource = (props: {
-  clients: RootClients;
-  clientRef: { parent: AssistantClient; current: AssistantClient | null };
-}) => {
-  const { clientRef } = props;
-  const { notifications, results } = useRootClientsAccessors(props);
-
-  return useMemo(() => {
-    return {
-      clients: results,
       subscribe: notifications.subscribe,
       on: function <TEvent extends AssistantEventName>(
         this: AssistantClient,
@@ -199,7 +168,9 @@ const useRootClientsAccessorsResource = (props: {
             return;
           }
 
-          const scopeClient = this[scope as ClientNames]();
+          const scopeClient = getClientId(
+            this[scope as ClientNames],
+          ) as unknown as ClientMethods;
           const index = getClientIndex(scopeClient);
           if (scopeClient === clientStack[index]) {
             callback(payload);
@@ -218,113 +189,130 @@ const useRootClientsAccessorsResource = (props: {
           parentUnsub();
         };
       },
-    };
-  }, [results, notifications, clientRef]);
+    }),
+    [notifications, clientRef],
+  );
 };
 
-const RootClientsAccessorsResource = resource(useRootClientsAccessorsResource);
-
-const useDerivedClientAccessorResource = <K extends ClientNames>({
-  element,
-  clientRef,
-  name,
-}: {
-  element: DerivedElement<K>;
-  clientRef: { parent: AssistantClient; current: AssistantClient | null };
-  name: K;
-}) => {
-  // Track the latest props on a ref updated in render. The fiber is
-  // keyed on the scope's meta by DerivedClientsAccessorsResource, so
-  // source/query are stable for this fiber's lifetime and the only
-  // value that can change between renders for the same fiber is the
-  // identity of the `get` closure. Routing reads through the ref so
-  // they take effect without a one-commit lag.
-  const propsRef = useRef(element.args[0]);
-  propsRef.current = element.args[0];
-
-  return useMemo(() => {
-    const clientFunction = () => propsRef.current.get(clientRef.current!);
-    Object.defineProperties(clientFunction, {
-      source: {
-        value: propsRef.current.source,
-      },
-      query: {
-        value: propsRef.current.query,
-      },
-      name: {
-        value: name,
-        configurable: true,
-      },
-    });
-    return clientFunction as AssistantClientAccessor<K>;
-  }, [clientRef, name]);
+const useScopeMeta = (element: ScopeElement): ScopeMeta => {
+  const { source, query } = metaOf(element);
+  // oxlint-disable-next-line react-hooks/exhaustive-deps -- shallow memo over the query's entries
+  return useMemo(
+    () => ({ source, query }),
+    [source, ...Object.entries(query).flat()],
+  );
 };
 
-const DerivedClientAccessorResource = resource(
-  useDerivedClientAccessorResource,
-);
+const useScopeValue = (element: ScopeElement, derived: boolean) =>
+  useResource(derived ? element : ClientResource(element));
 
-const serializeMeta = <K extends ClientNames>(
-  name: K,
-  meta: ClientMeta<K>,
-): string => {
-  // Sort top-level keys so {a, b} and {b, a} hash to the same fiber
-  // identity, and guard JSON.stringify against unusual values (BigInt,
-  // circular refs) so render never throws here.
-  let queryKey: string;
-  try {
-    const sorted: Record<string, unknown> = {};
-    for (const k of Object.keys(meta.query as object).sort()) {
-      sorted[k] = (meta.query as Record<string, unknown>)[k];
-    }
-    queryKey = JSON.stringify(sorted);
-  } catch {
-    queryKey = String(meta.query);
+const useScopeMount = ({ name, element }: ScopeEntry): ScopeResult => {
+  const client = useBuildingClient();
+
+  // A derived element resolves to an existing client; mount it directly
+  const derived = isDerivedElement(element);
+  const value = useScopeValue(element, derived);
+
+  const methods = derived
+    ? (value as ClientMethods)
+    : (value as { methods: ClientMethods }).methods;
+  const state = derived
+    ? (value as { getState?: () => unknown }).getState?.()
+    : (value as { state: unknown }).state;
+
+  const meta = useScopeMeta(element);
+  const accessor = useMemo(
+    () => createAccessor(name, meta, () => methods),
+    [name, meta, methods],
+  );
+
+  // Only fill vacant slots so a re-render never mutates an already-built client
+  if (!Object.hasOwn(client, name)) {
+    (client as Record<ClientNames, unknown>)[name] = accessor;
   }
-  return `${name}::${meta.source}::${queryKey}`;
+
+  return useMemo(() => ({ name, accessor, state }), [name, accessor, state]);
 };
 
-const useDerivedClientsAccessorsResource = ({
+const ScopeMount = resource(useScopeMount);
+
+const useScopeMounts = (entries: ScopeEntry[]): ScopeResult[] =>
+  useResources(entries.map((entry) => withKey(entry.name, ScopeMount(entry))));
+
+const MEMO_CACHE_UNFILLED = Symbol.for("react.memo_cache_sentinel");
+
+const useStableArray = <T>(values: readonly T[]): readonly T[] => {
+  const cache = useMemoCache(1) as [readonly T[] | typeof MEMO_CACHE_UNFILLED];
+  const prev = cache[0];
+  if (
+    prev !== MEMO_CACHE_UNFILLED &&
+    prev.length === values.length &&
+    values.every((value, i) => Object.is(value, prev[i]))
+  ) {
+    return prev;
+  }
+  cache[0] = values;
+  return values;
+};
+
+const useCommittedClient = ({
+  building,
+  parent,
+  fields,
+  accessors,
+}: {
+  building: AssistantClient;
+  parent: AssistantClient;
+  fields: ClientFields;
+  accessors: readonly AssistantClientAccessor<ClientNames>[];
+}): AssistantClient => {
+  const deps = useStableArray([parent, fields, accessors]);
+  const cache = useMemoCache(2) as [
+    readonly unknown[] | typeof MEMO_CACHE_UNFILLED,
+    AssistantClient,
+  ];
+  if (cache[0] !== deps) {
+    cache[0] = deps;
+    cache[1] = building;
+  }
+  return cache[1];
+};
+
+const useAuiRoot = ({
+  parent,
   clients,
   clientRef,
+  notifications,
 }: {
-  clients: DerivedClients;
-  clientRef: { parent: AssistantClient; current: AssistantClient | null };
-}) => {
-  return useShallowMemoArray(
-    useResources(
-      Object.keys(clients).map((key) => {
-        const name = key as keyof typeof clients;
-        const element = clients[name]!;
-        return withKey(
-          serializeMeta(name, element.args[0]),
-          DerivedClientAccessorResource({
-            element,
-            clientRef,
-            name,
-          }),
-        );
-      }),
-    ),
+  parent: AssistantClient;
+  clients: useAui.Props;
+  clientRef: ClientRef;
+  notifications: NotificationManager;
+}): { client: AssistantClient } => {
+  const entries = toScopeEntries(applyTransformScopes(clients, parent));
+
+  const fields = useClientFields({ notifications, clientRef });
+  const building = createClientObject(parent, fields);
+
+  const results = useAssistantTapContextProvider(
+    { clientRef, emit: notifications.emit },
+    function WithTapContext() {
+      return useBuildingClientProvider(building, function WithBuildingClient() {
+        return useScopeMounts(entries);
+      });
+    },
   );
+
+  const accessors = useStableArray(results.map((r) => r.accessor));
+
+  // Fresh envelope per commit so value-only updates reach the store's
+  // subscribers; the client inside keeps its identity
+  return {
+    client: useCommittedClient({ building, parent, fields, accessors }),
+  };
 };
 
-/**
- * Resource that creates an extended AssistantClient.
- */
-const useRootFields = ({
-  rootClients,
-  clientRef,
-}: {
-  rootClients: RootClients;
-  clientRef: { parent: AssistantClient; current: AssistantClient | null };
-}) => {
-  return useResource(
-    Object.keys(rootClients).length > 0
-      ? RootClientsAccessorsResource({ clients: rootClients, clientRef })
-      : NoOpRootClientsAccessorsResource(),
-  );
-};
+const useNotifications = () => useResource(NotificationManager());
 
 const useAssistantClient = ({
   parent,
@@ -333,45 +321,34 @@ const useAssistantClient = ({
   parent: AssistantClient;
   clients: useAui.Props;
 }): AssistantClient => {
-  const { rootClients, derivedClients } = useSplitClients(clients, parent);
+  const clientRef = useRef<ClientRef>({ parent, current: null }).current;
+  const notifications = useNotifications();
 
-  const clientRef = useRef({
-    parent: parent,
-    current: null as AssistantClient | null,
-  }).current;
+  const store = useTapRoot(function AuiRoot() {
+    return useAuiRoot({ parent, clients, clientRef, notifications });
+  });
+
+  const client = useSyncExternalStore(
+    store.subscribe,
+    () => store.getValue().client,
+    () => store.getValue().client,
+  );
+
+  // flushTapSync makes structural rebinds triggered by a notification land
+  // before the notification returns
+  useEffect(
+    () => store.subscribe(() => flushTapSync(notifications.notifySubscribers)),
+    [store, notifications],
+  );
+  useEffect(
+    () => parent.subscribe(() => flushTapSync(notifications.notifySubscribers)),
+    [parent, notifications],
+  );
 
   useEffect(() => {
+    clientRef.parent = parent;
     clientRef.current = client;
   });
-
-  const rootFields = useRootFields({ rootClients, clientRef });
-
-  const derivedFields = useDerivedClientsAccessorsResource({
-    clients: derivedClients,
-    clientRef,
-  });
-
-  const client = useMemo(() => {
-    // Swap DefaultAssistantClient -> createRootAssistantClient at root to change error message
-    const proto =
-      parent === DefaultAssistantClient ? createRootAssistantClient() : parent;
-
-    const client = Object.create(proto) as AssistantClient;
-    Object.assign(client, {
-      subscribe: rootFields.subscribe ?? parent.subscribe,
-      on: rootFields.on ?? parent.on,
-      [PROXIED_ASSISTANT_STATE_SYMBOL]: createProxiedAssistantState(client),
-    });
-
-    for (const field of rootFields.clients) {
-      (client as any)[field.name] = field;
-    }
-    for (const field of derivedFields) {
-      (client as any)[field.name] = field;
-    }
-
-    return client;
-  }, [parent, rootFields, derivedFields]);
 
   if (clientRef.current === null) {
     clientRef.current = client;
@@ -404,7 +381,7 @@ export namespace useAui {
  *
  * Read the client supplied by the nearest {@link AuiProvider} or
  * {@link AssistantRuntimeProvider}, then access a scope on it —
- * `aui.thread()`, `aui.composer()`, `aui.message()`, and so on. Pair
+ * `aui.thread`, `aui.composer`, `aui.message`, and so on. Pair
  * with {@link useAuiState} to read reactive state and {@link useAuiEvent}
  * to subscribe to events. The returned client also exposes lower-level
  * methods such as `aui.on(...)` and `aui.subscribe(...)`; prefer
@@ -417,8 +394,8 @@ export namespace useAui {
  * ```tsx
  * const aui = useAui();
  *
- * const onSend = () => aui.composer().send();
- * const onCancel = () => aui.thread().cancelRun();
+ * const onSend = () => aui.composer.send();
+ * const onCancel = () => aui.thread.cancelRun();
  * ```
  *
  * @example
@@ -428,7 +405,7 @@ export namespace useAui {
  * const isRunning = useAuiState((s) => s.thread.isRunning);
  *
  * return (
- *   <button disabled={isRunning} onClick={() => aui.composer().send()}>
+ *   <button disabled={isRunning} onClick={() => aui.composer.send()}>
  *     Send
  *   </button>
  * );
@@ -443,13 +420,19 @@ export function useAui(): AssistantClient;
  * onto the client visible to its descendants. Application code rarely reaches
  * for this; use {@link useAui} with no arguments to read the existing client.
  *
+ * Derived scopes are resolved during render and bound into the returned
+ * client. The client is immutable: state updates inside a bound instance
+ * never change its identity, while a structural change (the scope resolving
+ * to a different instance) produces a new client and re-renders consumers
+ * through React.
+ *
  * @example
  * ```tsx
  * const aui = useAui({
  *   message: Derived({
  *     source: "thread",
  *     query: { index: 0 },
- *     get: (aui) => aui.thread().message({ index: 0 }),
+ *     get: (aui) => aui.thread.message({ index: 0 }),
  *   }),
  * });
  *

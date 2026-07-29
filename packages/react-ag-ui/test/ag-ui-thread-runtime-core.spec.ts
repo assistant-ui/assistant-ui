@@ -1,6 +1,7 @@
 "use client";
 
 import { describe, expect, it, vi } from "vitest";
+import { ExportedMessageRepository } from "@assistant-ui/core";
 import type {
   AppendMessage,
   ChatModelRunResult,
@@ -35,12 +36,14 @@ const createCore = (
     onCancel?: () => void;
     history?: ThreadHistoryAdapter;
     logger?: Logger;
+    autoCancelPendingToolCalls?: boolean;
   } = {},
 ) =>
   new AgUiThreadRuntimeCore({
     agent,
     logger: hooks.logger ?? noopLogger,
     showThinking: true,
+    autoCancelPendingToolCalls: hooks.autoCancelPendingToolCalls,
     ...(hooks.onError ? { onError: hooks.onError } : {}),
     ...(hooks.onCancel ? { onCancel: hooks.onCancel } : {}),
     ...(hooks.history ? { history: hooks.history } : {}),
@@ -48,6 +51,14 @@ const createCore = (
   });
 
 type TestRunConfig = { custom?: Record<string, unknown> };
+
+const assistantText = (message: ThreadMessage | undefined): string => {
+  if (!message) return "";
+  for (const part of message.content) {
+    if (part.type === "text" && typeof part.text === "string") return part.text;
+  }
+  return "";
+};
 
 describe("AGUIThreadRuntimeCore", () => {
   it("streams assistant output into thread messages", async () => {
@@ -73,6 +84,128 @@ describe("AGUIThreadRuntimeCore", () => {
       reason: "unknown",
     });
     expect(core.isRunning()).toBe(false);
+  });
+
+  it("keeps streaming after a messages snapshot replaces run history", async () => {
+    const streamedText: Array<string | undefined> = [];
+    let core: AgUiThreadRuntimeCore;
+    const readAssistantText = () => {
+      const assistant = core
+        .getMessages()
+        .find((message) => message.id === "assistant-2") as
+        | ThreadAssistantMessage
+        | undefined;
+      const text = assistant?.content.find((part) => part.type === "text");
+      return text?.type === "text" ? text.text : undefined;
+    };
+    const agent = {
+      runAgent: vi.fn(async (_input, subscriber) => {
+        subscriber.onMessagesSnapshotEvent?.({
+          event: {
+            type: "MESSAGES_SNAPSHOT",
+            messages: [{ id: "user-1", role: "user", content: "hi" }],
+          },
+        });
+        subscriber.onTextMessageStartEvent?.({
+          event: {
+            type: "TEXT_MESSAGE_START",
+            messageId: "assistant-2",
+          },
+        });
+        subscriber.onTextMessageContentEvent?.({
+          event: {
+            type: "TEXT_MESSAGE_CONTENT",
+            messageId: "assistant-2",
+            delta: "Hello",
+          },
+        });
+        streamedText.push(readAssistantText());
+        subscriber.onMessagesSnapshotEvent?.({
+          event: {
+            type: "MESSAGES_SNAPSHOT",
+            messages: [
+              { id: "user-1", role: "user", content: "hi" },
+              {
+                id: "assistant-1",
+                role: "assistant",
+                content: "",
+                toolCalls: [
+                  {
+                    id: "call-1",
+                    type: "function",
+                    function: { name: "lookup", arguments: "{}" },
+                  },
+                ],
+              },
+              {
+                id: "tool-1",
+                role: "tool",
+                toolCallId: "call-1",
+                content: "42",
+              },
+            ],
+          },
+        });
+        subscriber.onTextMessageContentEvent?.({
+          event: {
+            type: "TEXT_MESSAGE_CONTENT",
+            messageId: "assistant-2",
+            delta: " world",
+          },
+        });
+        streamedText.push(readAssistantText());
+        subscriber.onTextMessageEndEvent?.({
+          event: {
+            type: "TEXT_MESSAGE_END",
+            messageId: "assistant-2",
+          },
+        });
+        subscriber.onMessagesSnapshotEvent?.({
+          event: {
+            type: "MESSAGES_SNAPSHOT",
+            messages: [
+              { id: "user-1", role: "user", content: "hi" },
+              {
+                id: "assistant-1",
+                role: "assistant",
+                content: "",
+                toolCalls: [
+                  {
+                    id: "call-1",
+                    type: "function",
+                    function: { name: "lookup", arguments: "{}" },
+                  },
+                ],
+              },
+              {
+                id: "tool-1",
+                role: "tool",
+                toolCallId: "call-1",
+                content: "42",
+              },
+              {
+                id: "assistant-2",
+                role: "assistant",
+                content: "Hello world",
+              },
+            ],
+          },
+        });
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+
+    core = createCore(agent);
+    await core.append(createAppendMessage());
+
+    expect(streamedText).toEqual(["Hello", "Hello world"]);
+    expect(core.getMessages()).toHaveLength(3);
+    expect(core.getMessages().at(-1)).toMatchObject({
+      id: "assistant-2",
+      role: "assistant",
+      content: [{ type: "text", text: "Hello world" }],
+      status: { type: "complete" },
+    });
   });
 
   it("imports tool role messages from snapshots as assistant tool-call results", async () => {
@@ -135,6 +268,87 @@ describe("AGUIThreadRuntimeCore", () => {
       toolName: "get_weather",
       result: { temperature: "22C" },
     });
+  });
+
+  it("preserves mcp app snapshot results and model content for subsequent runs", async () => {
+    const runInputs: any[] = [];
+    const callToolResult = {
+      content: [
+        { type: "text", text: "ok" },
+        { type: "image", data: "aGk=", mimeType: "image/png" },
+      ],
+      structuredContent: { ok: true },
+      isError: false,
+    };
+    const runAgent = vi.fn(async (input, subscriber) => {
+      runInputs.push(JSON.parse(JSON.stringify(input)));
+      if (runInputs.length === 1) {
+        subscriber.onToolCallStartEvent?.({
+          event: {
+            type: "TOOL_CALL_START",
+            toolCallId: "call-1",
+            toolCallName: "show_map",
+          },
+        });
+        subscriber.onToolCallArgsEvent?.({
+          event: {
+            type: "TOOL_CALL_ARGS",
+            toolCallId: "call-1",
+            delta: '{"city":"sf"}',
+          },
+        });
+        subscriber.onToolCallResultEvent?.({
+          event: {
+            type: "TOOL_CALL_RESULT",
+            toolCallId: "call-1",
+            content: "ok",
+            role: "tool",
+          },
+        });
+        subscriber.onActivitySnapshotEvent?.({
+          event: {
+            type: "ACTIVITY_SNAPSHOT",
+            activityType: "mcp-apps",
+            content: {
+              result: callToolResult,
+              resourceUri: "ui://srv/mcp-app.html",
+              serverHash: "h",
+              serverId: "s",
+              toolInput: { city: "sf" },
+            },
+          },
+        });
+      }
+      subscriber.onRunFinalized?.();
+    });
+    const agent = { runAgent } as unknown as HttpAgent;
+    const core = createCore(agent);
+
+    await core.append(createAppendMessage());
+
+    const assistant = core
+      .getMessages()
+      .find(
+        (message) => message.role === "assistant",
+      ) as ThreadAssistantMessage;
+    const toolPart = assistant.content.find(
+      (part) => part.type === "tool-call",
+    ) as any;
+    expect(toolPart.result).toEqual(callToolResult);
+    expect(toolPart.modelContent).toEqual([{ type: "text", text: "ok" }]);
+    expect(toolPart.mcp.app.serverId).toBe("s");
+
+    await core.resume({
+      parentId: assistant.id,
+      sourceId: null,
+      runConfig: {} as TestRunConfig,
+    });
+
+    const toolMessage = runInputs[1]?.messages.find(
+      (message: { role: string }) => message.role === "tool",
+    );
+    expect(toolMessage?.content).toBe("ok");
+    expect(toolMessage?.content).not.toBe(JSON.stringify(callToolResult));
   });
 
   it("preserves tool message IDs when rerunning imported snapshots", async () => {
@@ -223,6 +437,36 @@ describe("AGUIThreadRuntimeCore", () => {
     await core.append(createAppendMessage());
 
     expect(core.getState()).toEqual({ count: 1, label: "initial" });
+  });
+
+  it("resetState clears the snapshot so the next run sends null state", async () => {
+    const runAgent = vi.fn(async (_input, subscriber) => {
+      if (runAgent.mock.calls.length === 1) {
+        subscriber.onStateSnapshotEvent?.({
+          event: {
+            type: "STATE_SNAPSHOT",
+            snapshot: { count: 1 },
+          },
+        });
+      }
+      subscriber.onRunFinalized?.();
+    });
+    const agent = { runAgent } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    await core.append(createAppendMessage());
+    expect(core.getState()).toEqual({ count: 1 });
+
+    core.resetState();
+    expect(core.getState()).toBeUndefined();
+
+    await core.resume({
+      parentId: null,
+      sourceId: null,
+      runConfig: {} as TestRunConfig,
+    });
+
+    expect(runAgent.mock.calls[1]?.[0].state).toBeNull();
   });
 
   it("applies deltas before a snapshot from an empty state object", async () => {
@@ -1264,6 +1508,387 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(core.getMessages()[1]?.id).toBe("msg-2");
   });
 
+  it("preserves branchable history on __internal_load", async () => {
+    const agent = { runAgent: vi.fn() } as unknown as HttpAgent;
+    const repository = ExportedMessageRepository.fromBranchableArray(
+      [
+        {
+          message: {
+            id: "msg-1",
+            role: "user",
+            content: [{ type: "text", text: "Hello" }],
+          },
+          parentId: null,
+        },
+        {
+          message: {
+            id: "msg-2a",
+            role: "assistant",
+            content: [{ type: "text", text: "Option A" }],
+          },
+          parentId: "msg-1",
+        },
+        {
+          message: {
+            id: "msg-2b",
+            role: "assistant",
+            content: [{ type: "text", text: "Option B" }],
+          },
+          parentId: "msg-1",
+        },
+      ],
+      { headId: "msg-2b" },
+    );
+
+    const historyAdapter: ThreadHistoryAdapter = {
+      load: vi.fn().mockResolvedValue(repository),
+      append: vi.fn().mockResolvedValue(undefined),
+    };
+
+    const core = createCore(agent, { history: historyAdapter });
+
+    await core.__internal_load();
+
+    expect(core.getMessages().map((message) => message.id)).toEqual([
+      "msg-1",
+      "msg-2b",
+    ]);
+    expect(
+      core.getMessageRepository()?.messages.map(({ message, parentId }) => ({
+        id: message.id,
+        parentId,
+      })),
+    ).toEqual([
+      { id: "msg-1", parentId: null },
+      { id: "msg-2a", parentId: "msg-1" },
+      { id: "msg-2b", parentId: "msg-1" },
+    ]);
+
+    core.applyExternalMessages([
+      repository.messages[0]!.message,
+      repository.messages[1]!.message,
+    ]);
+
+    expect(core.getMessages().map((message) => message.id)).toEqual([
+      "msg-1",
+      "msg-2a",
+    ]);
+    expect(core.getMessageRepository()?.headId).toBe("msg-2a");
+    expect(core.getMessageRepository()?.messages).toHaveLength(3);
+
+    core.applyExternalMessages([]);
+
+    expect(core.getMessageRepository()).toMatchObject({
+      headId: null,
+      messages: [],
+    });
+  });
+
+  it("preserves branchable history while resuming loaded history", async () => {
+    const runAgent = vi.fn(async (_input, subscriber) => {
+      subscriber.onRunFinalized?.();
+    });
+    const agent = { runAgent } as unknown as HttpAgent;
+    const repository = ExportedMessageRepository.fromBranchableArray(
+      [
+        {
+          message: {
+            id: "msg-1",
+            role: "user",
+            content: [{ type: "text", text: "Hello" }],
+          },
+          parentId: null,
+        },
+        {
+          message: {
+            id: "msg-2a",
+            role: "assistant",
+            content: [{ type: "text", text: "Option A" }],
+          },
+          parentId: "msg-1",
+        },
+        {
+          message: {
+            id: "msg-2b",
+            role: "assistant",
+            content: [{ type: "text", text: "Option B" }],
+          },
+          parentId: "msg-1",
+        },
+      ],
+      { headId: "msg-2b" },
+    );
+
+    const resume = vi.fn(async function* (): AsyncGenerator<
+      ChatModelRunResult,
+      void,
+      unknown
+    > {
+      yield {
+        content: [{ type: "text", text: "recovered" }],
+        status: { type: "complete", reason: "unknown" },
+      };
+    });
+    const historyAdapter: ThreadHistoryAdapter = {
+      load: vi.fn().mockResolvedValue({
+        ...repository,
+        unstable_resume: true,
+      }),
+      resume,
+      append: vi.fn().mockResolvedValue(undefined),
+    };
+
+    const core = createCore(agent, { history: historyAdapter });
+
+    await core.__internal_load();
+
+    expect(resume).toHaveBeenCalledTimes(1);
+    expect(runAgent).not.toHaveBeenCalled();
+
+    const messages = core.getMessages();
+    const assistant = messages.at(-1) as ThreadAssistantMessage;
+    expect(messages.map((message) => message.id)).toEqual([
+      "msg-1",
+      "msg-2b",
+      assistant.id,
+    ]);
+    expect(assistant.content.at(-1)).toMatchObject({
+      type: "text",
+      text: "recovered",
+    });
+    expect(assistant.metadata.isOptimistic).toBeUndefined();
+
+    const loadedRepository = core.getMessageRepository();
+    expect(loadedRepository?.headId).toBe(assistant.id);
+    expect(
+      loadedRepository?.messages.map(({ message, parentId }) => ({
+        id: message.id,
+        parentId,
+      })),
+    ).toEqual([
+      { id: "msg-1", parentId: null },
+      { id: "msg-2a", parentId: "msg-1" },
+      { id: "msg-2b", parentId: "msg-1" },
+      { id: assistant.id, parentId: "msg-2b" },
+    ]);
+  });
+
+  it("does not rewrite a hidden branch when a resumed server id collides", async () => {
+    const runAgent = vi.fn(async (_input, subscriber) => {
+      subscriber.onTextMessageStartEvent?.({
+        event: {
+          type: "TEXT_MESSAGE_START",
+          messageId: "msg-2a",
+          role: "assistant",
+        },
+      });
+      subscriber.onTextMessageContentEvent?.({
+        event: {
+          type: "TEXT_MESSAGE_CONTENT",
+          messageId: "msg-2a",
+          delta: "server reused sibling id",
+        },
+      });
+      subscriber.onRunFinalized?.();
+    });
+    const agent = { runAgent } as unknown as HttpAgent;
+    const repository = ExportedMessageRepository.fromBranchableArray(
+      [
+        {
+          message: {
+            id: "msg-1",
+            role: "user",
+            content: [{ type: "text", text: "Hello" }],
+          },
+          parentId: null,
+        },
+        {
+          message: {
+            id: "msg-2a",
+            role: "assistant",
+            content: [{ type: "text", text: "Option A" }],
+          },
+          parentId: "msg-1",
+        },
+        {
+          message: {
+            id: "msg-2b",
+            role: "assistant",
+            content: [{ type: "text", text: "Option B" }],
+          },
+          parentId: "msg-1",
+        },
+      ],
+      { headId: "msg-2b" },
+    );
+    const append = vi.fn().mockResolvedValue(undefined);
+    const historyAdapter: ThreadHistoryAdapter = {
+      load: vi.fn().mockResolvedValue(repository),
+      append,
+    };
+
+    const core = createCore(agent, { history: historyAdapter });
+    await core.__internal_load();
+    await core.resume({
+      parentId: "msg-2b",
+      sourceId: null,
+      runConfig: {} as TestRunConfig,
+    });
+
+    expect(core.getMessages().map((message) => message.id)).toEqual([
+      "msg-1",
+      "msg-2b",
+    ]);
+    const loadedRepository = core.getMessageRepository();
+    expect(loadedRepository?.headId).toBe("msg-2b");
+    expect(
+      loadedRepository?.messages.map(({ message, parentId }) => ({
+        id: message.id,
+        parentId,
+        text:
+          message.content[0]?.type === "text" ? message.content[0].text : "",
+      })),
+    ).toEqual([
+      { id: "msg-1", parentId: null, text: "Hello" },
+      { id: "msg-2a", parentId: "msg-1", text: "Option A" },
+      { id: "msg-2b", parentId: "msg-1", text: "Option B" },
+    ]);
+    expect(
+      loadedRepository?.messages.filter(
+        ({ message }) => message.id === "msg-2a",
+      ),
+    ).toHaveLength(1);
+    expect(
+      loadedRepository?.messages.some(({ message }) =>
+        message.id.startsWith("__optimistic__"),
+      ),
+    ).toBe(false);
+    expect(append).not.toHaveBeenCalled();
+  });
+
+  it("collapses duplicate ids while falling back to linear loaded history", async () => {
+    const agent = { runAgent: vi.fn() } as unknown as HttpAgent;
+    const userMessage: ThreadMessage = {
+      id: "msg-1",
+      role: "user",
+      createdAt: new Date(),
+      content: [{ type: "text", text: "Hello" }],
+      metadata: { custom: {} },
+    };
+    const firstAssistant: ThreadAssistantMessage = {
+      id: "msg-2",
+      role: "assistant",
+      createdAt: new Date(),
+      status: { type: "complete", reason: "unknown" },
+      content: [{ type: "text", text: "Option A" }],
+      metadata: {
+        unstable_state: null,
+        unstable_annotations: [],
+        unstable_data: [],
+        steps: [],
+        custom: {},
+      },
+    };
+    const secondAssistant: ThreadAssistantMessage = {
+      ...firstAssistant,
+      content: [{ type: "text", text: "Option B" }],
+    };
+
+    const historyAdapter: ThreadHistoryAdapter = {
+      load: vi.fn().mockResolvedValue({
+        headId: "msg-2",
+        messages: [
+          { message: userMessage, parentId: null },
+          { message: firstAssistant, parentId: "msg-1" },
+          { message: secondAssistant, parentId: "msg-1" },
+        ],
+      }),
+      append: vi.fn().mockResolvedValue(undefined),
+    };
+
+    const core = createCore(agent, { history: historyAdapter });
+
+    await core.__internal_load();
+
+    expect(core.getMessages().map((message) => message.id)).toEqual([
+      "msg-1",
+      "msg-2",
+    ]);
+    expect(core.getMessages()[1]?.content[0]).toMatchObject({
+      type: "text",
+      text: "Option B",
+    });
+    expect(core.getMessageRepository()).toMatchObject({
+      headId: "msg-2",
+      messages: [
+        { message: { id: "msg-1" }, parentId: null },
+        { message: { id: "msg-2" }, parentId: "msg-1" },
+      ],
+    });
+  });
+
+  it("retains branchable history when a new turn is appended after load", async () => {
+    const runAgent = vi.fn(async (_input, subscriber) => {
+      subscriber.onRunFinalized?.();
+    });
+    const agent = { runAgent } as unknown as HttpAgent;
+    const repository = ExportedMessageRepository.fromBranchableArray(
+      [
+        {
+          message: {
+            id: "msg-1",
+            role: "user",
+            content: [{ type: "text", text: "Hello" }],
+          },
+          parentId: null,
+        },
+        {
+          message: {
+            id: "msg-2a",
+            role: "assistant",
+            content: [{ type: "text", text: "Option A" }],
+          },
+          parentId: "msg-1",
+        },
+        {
+          message: {
+            id: "msg-2b",
+            role: "assistant",
+            content: [{ type: "text", text: "Option B" }],
+          },
+          parentId: "msg-1",
+        },
+      ],
+      { headId: "msg-2b" },
+    );
+    const historyAdapter: ThreadHistoryAdapter = {
+      load: vi.fn().mockResolvedValue(repository),
+      append: vi.fn().mockResolvedValue(undefined),
+    };
+
+    const core = createCore(agent, { history: historyAdapter });
+
+    await core.__internal_load();
+    expect(core.getMessageRepository()).toBeDefined();
+
+    await core.append(createAppendMessage({ parentId: "msg-2b" }));
+
+    const messages = core.getMessages();
+    const newUser = messages[2]!;
+    const newAssistant = messages[3]!;
+    expect(messages.map((message) => message.id)).toEqual([
+      "msg-1",
+      "msg-2b",
+      newUser.id,
+      newAssistant.id,
+    ]);
+    const updatedRepository = core.getMessageRepository();
+    expect(updatedRepository).toBeDefined();
+    expect(
+      updatedRepository.messages.find(({ message }) => message.id === "msg-2a"),
+    ).toMatchObject({ parentId: "msg-1", message: { id: "msg-2a" } });
+  });
+
   it("returns existing promise if __internal_load called multiple times", async () => {
     const agent = { runAgent: vi.fn() } as unknown as HttpAgent;
 
@@ -1729,6 +2354,35 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(runCount).toBe(1);
   });
 
+  it("steerAway rejects entries without an interruptId or with an invalid status", async () => {
+    let runCount = 0;
+    const runAgent = vi.fn(async (input: any, subscriber: any) => {
+      runCount++;
+      subscriber.onRunFinishedEvent?.({
+        event: {
+          type: "RUN_FINISHED",
+          runId: input.runId,
+          outcome: {
+            type: "interrupt",
+            interrupts: [{ id: "int-1", reason: "tool_call" }],
+          },
+        },
+      });
+      subscriber.onRunFinalized?.();
+    });
+
+    const core = createCore({ runAgent } as unknown as HttpAgent);
+    await core.append(createAppendMessage());
+
+    await expect(
+      core.steerAway("x", [{ status: "cancelled" } as any]),
+    ).rejects.toThrow("every entry must have an interruptId");
+    await expect(
+      core.steerAway("x", [{ interruptId: "int-1", status: "nope" } as any]),
+    ).rejects.toThrow(/invalid status "nope" for interrupt int-1/);
+    expect(runCount).toBe(1);
+  });
+
   it("steerAway cancels a pending client-side tool call and starts one fresh run", async () => {
     const runInputs: any[] = [];
     let runCount = 0;
@@ -1976,6 +2630,237 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(runCount).toBe(1);
   });
 
+  const createPendingToolCallAgent = () => {
+    const runInputs: any[] = [];
+    let runCount = 0;
+    const runAgent = vi.fn(async (input: any, subscriber: any) => {
+      runInputs.push(JSON.parse(JSON.stringify(input)));
+      runCount++;
+      if (runCount === 1) {
+        subscriber.onToolCallStartEvent?.({
+          event: {
+            type: "TOOL_CALL_START",
+            toolCallId: "call-1",
+            toolCallName: "tool_a",
+          },
+        });
+        subscriber.onToolCallEndEvent?.({
+          event: { type: "TOOL_CALL_END", toolCallId: "call-1" },
+        });
+        subscriber.onRunFinalized?.();
+        return;
+      }
+      subscriber.onTextMessageContentEvent?.({
+        event: { type: "TEXT_MESSAGE_CONTENT", delta: "Done." },
+      });
+      subscriber.onRunFinishedEvent?.({
+        event: {
+          type: "RUN_FINISHED",
+          runId: input.runId,
+          outcome: { type: "success" },
+        },
+      });
+      subscriber.onRunFinalized?.();
+    });
+    return {
+      runAgent,
+      runInputs,
+      getRunCount: () => runCount,
+    };
+  };
+
+  it("append auto-cancels pending client-side tool calls by default", async () => {
+    const { runAgent, runInputs, getRunCount } = createPendingToolCallAgent();
+    const core = createCore({ runAgent } as unknown as HttpAgent);
+    await core.append(createAppendMessage());
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(core.getPendingToolCalls()?.toolCallIds).toEqual(["call-1"]);
+
+    const headId = core.getMessages().at(-1)!.id;
+    await core.append(createAppendMessage({ parentId: headId }));
+
+    expect(getRunCount()).toBe(2);
+
+    const assistant = core
+      .getMessages()
+      .find((m) => m.role === "assistant") as ThreadAssistantMessage;
+    expect(assistant.status).toMatchObject({ type: "complete" });
+    const call1 = assistant.content.find(
+      (p) => p.type === "tool-call" && p.toolCallId === "call-1",
+    ) as any;
+    expect(call1.result).toEqual({ error: "Tool call cancelled by user" });
+    expect(call1.isError).toBe(true);
+
+    const run2Messages = runInputs[1]?.messages ?? [];
+    const toolMsg = run2Messages.find(
+      (m: any) => m.role === "tool" && m.toolCallId === "call-1",
+    );
+    expect(toolMsg?.content).toContain("Tool call cancelled by user");
+  });
+
+  it("append leaves pending tool calls untouched when autoCancelPendingToolCalls is false", async () => {
+    const { runAgent, runInputs, getRunCount } = createPendingToolCallAgent();
+    const core = createCore({ runAgent } as unknown as HttpAgent, {
+      autoCancelPendingToolCalls: false,
+    });
+    await core.append(createAppendMessage());
+    await new Promise((r) => setTimeout(r, 0));
+
+    const headId = core.getMessages().at(-1)!.id;
+    await core.append(createAppendMessage({ parentId: headId }));
+
+    expect(getRunCount()).toBe(2);
+
+    const assistant = core
+      .getMessages()
+      .find((m) => m.role === "assistant") as ThreadAssistantMessage;
+    expect(assistant.status).toMatchObject({
+      type: "requires-action",
+      reason: "tool-calls",
+    });
+    const call1 = assistant.content.find(
+      (p) => p.type === "tool-call" && p.toolCallId === "call-1",
+    ) as any;
+    expect(call1.result).toBeUndefined();
+
+    const run2Messages = runInputs[1]?.messages ?? [];
+    expect(run2Messages.some((m: any) => m.role === "tool")).toBe(false);
+  });
+
+  it("edit auto-cancels pending tool calls before truncating the branch", async () => {
+    const { runAgent, runInputs, getRunCount } = createPendingToolCallAgent();
+    const historyAdapter: ThreadHistoryAdapter = {
+      load: vi.fn().mockResolvedValue({ headId: null, messages: [] }),
+      append: vi.fn().mockResolvedValue(undefined),
+    };
+    const core = createCore({ runAgent } as unknown as HttpAgent, {
+      history: historyAdapter,
+    });
+    await core.append(createAppendMessage());
+    await new Promise((r) => setTimeout(r, 0));
+
+    const userId = core.getMessages()[0]!.id;
+    await core.edit(createAppendMessage({ parentId: null, sourceId: userId }));
+
+    expect(getRunCount()).toBe(2);
+
+    const persisted = (historyAdapter.append as any).mock.calls.map(
+      (call: any[]) => call[0].message,
+    );
+    const cancelledAssistant = persisted.find(
+      (m: ThreadMessage) =>
+        m.role === "assistant" &&
+        m.content.some(
+          (p: any) =>
+            p.type === "tool-call" &&
+            p.toolCallId === "call-1" &&
+            p.isError === true,
+        ),
+    ) as ThreadAssistantMessage | undefined;
+    expect(cancelledAssistant).toBeDefined();
+    expect(cancelledAssistant!.status).toMatchObject({ type: "complete" });
+
+    const run2Messages = runInputs[1]?.messages ?? [];
+    expect(run2Messages.some((m: any) => m.role === "tool")).toBe(false);
+  });
+
+  it("reload auto-cancels pending tool calls before truncating", async () => {
+    const { runAgent, runInputs, getRunCount } = createPendingToolCallAgent();
+    const historyAdapter: ThreadHistoryAdapter = {
+      load: vi.fn().mockResolvedValue({ headId: null, messages: [] }),
+      append: vi.fn().mockResolvedValue(undefined),
+    };
+    const core = createCore({ runAgent } as unknown as HttpAgent, {
+      history: historyAdapter,
+    });
+    await core.append(createAppendMessage());
+    await new Promise((r) => setTimeout(r, 0));
+
+    const userId = core.getMessages()[0]!.id;
+    await core.reload(userId);
+
+    expect(getRunCount()).toBe(2);
+
+    const persisted = (historyAdapter.append as any).mock.calls.map(
+      (call: any[]) => call[0].message,
+    );
+    expect(
+      persisted.some(
+        (m: ThreadMessage) =>
+          m.role === "assistant" &&
+          m.content.some(
+            (p: any) => p.type === "tool-call" && p.isError === true,
+          ),
+      ),
+    ).toBe(true);
+
+    const run2Messages = runInputs[1]?.messages ?? [];
+    expect(run2Messages.some((m: any) => m.role === "tool")).toBe(false);
+  });
+
+  it("reload leaves pending tool calls untouched when autoCancelPendingToolCalls is false", async () => {
+    const { runAgent, getRunCount } = createPendingToolCallAgent();
+    const historyAdapter: ThreadHistoryAdapter = {
+      load: vi.fn().mockResolvedValue({ headId: null, messages: [] }),
+      append: vi.fn().mockResolvedValue(undefined),
+    };
+    const core = createCore({ runAgent } as unknown as HttpAgent, {
+      history: historyAdapter,
+      autoCancelPendingToolCalls: false,
+    });
+    await core.append(createAppendMessage());
+    await new Promise((r) => setTimeout(r, 0));
+
+    const userId = core.getMessages()[0]!.id;
+    await core.reload(userId);
+
+    expect(getRunCount()).toBe(2);
+
+    const persisted = (historyAdapter.append as any).mock.calls.map(
+      (call: any[]) => call[0].message,
+    );
+    expect(
+      persisted.some(
+        (m: ThreadMessage) =>
+          m.role === "assistant" &&
+          m.content.some(
+            (p: any) => p.type === "tool-call" && p.isError === true,
+          ),
+      ),
+    ).toBe(false);
+  });
+
+  it("updateOptions can disable auto-cancel live", async () => {
+    const { runAgent, runInputs, getRunCount } = createPendingToolCallAgent();
+    const agent = { runAgent } as unknown as HttpAgent;
+    const core = createCore(agent);
+    await core.append(createAppendMessage());
+    await new Promise((r) => setTimeout(r, 0));
+
+    core.updateOptions({
+      agent,
+      logger: noopLogger,
+      showThinking: true,
+      autoCancelPendingToolCalls: false,
+    });
+
+    const headId = core.getMessages().at(-1)!.id;
+    await core.append(createAppendMessage({ parentId: headId }));
+
+    expect(getRunCount()).toBe(2);
+    const assistant = core
+      .getMessages()
+      .find((m) => m.role === "assistant") as ThreadAssistantMessage;
+    expect(assistant.status).toMatchObject({
+      type: "requires-action",
+      reason: "tool-calls",
+    });
+    expect(
+      (runInputs[1]?.messages ?? []).some((m: any) => m.role === "tool"),
+    ).toBe(false);
+  });
+
   it("attaches a TOOL_CALL_RESULT for a prior run's tool call to its owning message", async () => {
     let runCount = 0;
     const runAgent = vi.fn(async (input: any, subscriber: any) => {
@@ -2018,8 +2903,11 @@ describe("AGUIThreadRuntimeCore", () => {
           type: "TOOL_CALL_RESULT",
           messageId: "tool-msg-1",
           toolCallId: "call-1",
-          content: '{"answer":"yes"}',
+          content: "yes",
           role: "tool",
+          structuredContent: { answer: "yes" },
+          _meta: { auditId: "audit-1" },
+          isError: true,
         },
       });
       subscriber.onTextMessageContentEvent?.({
@@ -2053,7 +2941,14 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(toolPart).toMatchObject({
       toolCallId: "call-1",
       toolName: "ask_question",
-      result: { answer: "yes" },
+      result: {
+        content: [{ type: "text", text: "yes" }],
+        structuredContent: { answer: "yes" },
+        _meta: { auditId: "audit-1" },
+        isError: true,
+      },
+      modelContent: [{ type: "text", text: "yes" }],
+      isError: true,
       unstable_toolMessageId: "tool-msg-1",
     });
     expect(second!.content.filter((p) => p.type === "tool-call")).toHaveLength(
@@ -2188,6 +3083,373 @@ describe("AGUIThreadRuntimeCore", () => {
     );
   });
 
+  it("attaches an mcp-apps ACTIVITY_SNAPSHOT for a restored tool call to its owning message", async () => {
+    const callToolResult = {
+      content: [{ type: "text", text: "22C" }],
+      structuredContent: { temperature: "22C" },
+      isError: false,
+    };
+    const runAgent = vi.fn(async (_input: any, subscriber: any) => {
+      subscriber.onMessagesSnapshotEvent?.({
+        event: {
+          type: "MESSAGES_SNAPSHOT",
+          messages: [
+            {
+              id: "msg-1",
+              role: "user",
+              content: "What's the weather?",
+            },
+            {
+              id: "msg-2",
+              role: "assistant",
+              content: "",
+              toolCalls: [
+                {
+                  id: "call-1",
+                  type: "function",
+                  function: {
+                    name: "get_weather",
+                    arguments: '{"city":"Paris"}',
+                  },
+                },
+              ],
+            },
+            {
+              id: "msg-3",
+              role: "tool",
+              toolCallId: "call-1",
+              content: '{"temperature":"22C"}',
+            },
+          ],
+        },
+      });
+      subscriber.onActivitySnapshotEvent?.({
+        event: {
+          type: "ACTIVITY_SNAPSHOT",
+          activityType: "mcp-apps",
+          content: {
+            toolCallId: "call-1",
+            result: callToolResult,
+            resourceUri: "ui://srv/mcp-app.html",
+            serverId: "srv",
+          },
+        },
+      });
+      subscriber.onRunFinalized?.();
+    });
+    const agent = { runAgent } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    await core.append(createAppendMessage());
+
+    const assistant = core
+      .getMessages()
+      .find((m) => m.role === "assistant") as ThreadAssistantMessage;
+    const toolPart = assistant.content.find(
+      (p) => p.type === "tool-call",
+    ) as any;
+    expect(toolPart.mcp.app).toEqual({
+      resourceUri: "ui://srv/mcp-app.html",
+      serverId: "srv",
+    });
+    expect(toolPart.result).toEqual(callToolResult);
+    expect(toolPart.isError).toBe(false);
+    expect(toolPart.modelContent).toEqual([
+      { type: "text", text: '{"temperature":"22C"}' },
+    ]);
+  });
+
+  it("applies a later cross-run result when the snapshot only attached the app", async () => {
+    const runAgent = vi.fn(async (_input: any, subscriber: any) => {
+      subscriber.onMessagesSnapshotEvent?.({
+        event: {
+          type: "MESSAGES_SNAPSHOT",
+          messages: [
+            { id: "msg-1", role: "user", content: "What's the weather?" },
+            {
+              id: "msg-2",
+              role: "assistant",
+              content: "",
+              toolCalls: [
+                {
+                  id: "call-1",
+                  type: "function",
+                  function: {
+                    name: "get_weather",
+                    arguments: '{"city":"Paris"}',
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      });
+      subscriber.onActivitySnapshotEvent?.({
+        event: {
+          type: "ACTIVITY_SNAPSHOT",
+          activityType: "mcp-apps",
+          content: {
+            toolCallId: "call-1",
+            resourceUri: "ui://srv/mcp-app.html",
+            serverId: "srv",
+          },
+        },
+      });
+      subscriber.onToolCallResultEvent?.({
+        event: {
+          type: "TOOL_CALL_RESULT",
+          toolCallId: "call-1",
+          messageId: "tool-msg-1",
+          role: "tool",
+          content: '{"temperature":"22C"}',
+        },
+      });
+      subscriber.onRunFinalized?.();
+    });
+    const agent = { runAgent } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    await core.append(createAppendMessage());
+
+    const assistant = core
+      .getMessages()
+      .find((m) => m.role === "assistant") as ThreadAssistantMessage;
+    const toolPart = assistant.content.find(
+      (p) => p.type === "tool-call",
+    ) as any;
+    expect(toolPart.mcp.app).toEqual({
+      resourceUri: "ui://srv/mcp-app.html",
+      serverId: "srv",
+    });
+    expect(toolPart.result).toEqual({ temperature: "22C" });
+  });
+
+  it("attaches mcp app metadata from a cross-run TOOL_CALL_RESULT's _meta ui/resourceUri carrier", async () => {
+    const runAgent = vi.fn(async (_input: any, subscriber: any) => {
+      subscriber.onMessagesSnapshotEvent?.({
+        event: {
+          type: "MESSAGES_SNAPSHOT",
+          messages: [
+            { id: "msg-1", role: "user", content: "What's the weather?" },
+            {
+              id: "msg-2",
+              role: "assistant",
+              content: "",
+              toolCalls: [
+                {
+                  id: "call-1",
+                  type: "function",
+                  function: {
+                    name: "get_weather",
+                    arguments: '{"city":"Paris"}',
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      });
+      subscriber.onToolCallResultEvent?.({
+        event: {
+          type: "TOOL_CALL_RESULT",
+          toolCallId: "call-1",
+          messageId: "tool-msg-1",
+          role: "tool",
+          content: '{"temperature":"22C"}',
+          _meta: { "ui/resourceUri": "ui://example/widget" },
+        },
+      });
+      subscriber.onRunFinalized?.();
+    });
+    const agent = { runAgent } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    await core.append(createAppendMessage());
+
+    const assistant = core
+      .getMessages()
+      .find((m) => m.role === "assistant") as ThreadAssistantMessage;
+    const toolPart = assistant.content.find(
+      (p) => p.type === "tool-call",
+    ) as any;
+    expect(toolPart.mcp).toEqual({
+      app: { resourceUri: "ui://example/widget" },
+    });
+  });
+
+  it("preserves the snapshot result when a later cross-run TOOL_CALL_RESULT arrives", async () => {
+    const callToolResult = {
+      content: [{ type: "text", text: "22C" }],
+      structuredContent: { temperature: "22C" },
+      isError: false,
+    };
+    const runAgent = vi.fn(async (_input: any, subscriber: any) => {
+      subscriber.onMessagesSnapshotEvent?.({
+        event: {
+          type: "MESSAGES_SNAPSHOT",
+          messages: [
+            { id: "msg-1", role: "user", content: "What's the weather?" },
+            {
+              id: "msg-2",
+              role: "assistant",
+              content: "",
+              toolCalls: [
+                {
+                  id: "call-1",
+                  type: "function",
+                  function: {
+                    name: "get_weather",
+                    arguments: '{"city":"Paris"}',
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      });
+      subscriber.onActivitySnapshotEvent?.({
+        event: {
+          type: "ACTIVITY_SNAPSHOT",
+          activityType: "mcp-apps",
+          content: {
+            toolCallId: "call-1",
+            result: callToolResult,
+            resourceUri: "ui://srv/mcp-app.html",
+            serverId: "srv",
+          },
+        },
+      });
+      subscriber.onToolCallResultEvent?.({
+        event: {
+          type: "TOOL_CALL_RESULT",
+          toolCallId: "call-1",
+          messageId: "tool-msg-1",
+          role: "tool",
+          content: '{"temperature":"22C"}',
+        },
+      });
+      subscriber.onRunFinalized?.();
+    });
+    const agent = { runAgent } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    await core.append(createAppendMessage());
+
+    const assistant = core
+      .getMessages()
+      .find((m) => m.role === "assistant") as ThreadAssistantMessage;
+    const toolPart = assistant.content.find(
+      (p) => p.type === "tool-call",
+    ) as any;
+    expect(toolPart.result).toEqual(callToolResult);
+    expect(toolPart.modelContent).toEqual([
+      { type: "text", text: '{"temperature":"22C"}' },
+    ]);
+  });
+
+  it("clears a stale cross-run error when the snapshot result succeeds", async () => {
+    const runAgent = vi.fn(async (_input: any, subscriber: any) => {
+      subscriber.onMessagesSnapshotEvent?.({
+        event: {
+          type: "MESSAGES_SNAPSHOT",
+          messages: [
+            { id: "msg-1", role: "user", content: "What's the weather?" },
+            {
+              id: "msg-2",
+              role: "assistant",
+              content: "",
+              toolCalls: [
+                {
+                  id: "call-1",
+                  type: "function",
+                  function: {
+                    name: "get_weather",
+                    arguments: '{"city":"Paris"}',
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      });
+      subscriber.onToolCallResultEvent?.({
+        event: {
+          type: "TOOL_CALL_RESULT",
+          toolCallId: "call-1",
+          messageId: "tool-msg-1",
+          role: "tool",
+          content: "boom",
+          mcpResult: {
+            content: [{ type: "text", text: "boom" }],
+            isError: true,
+          },
+        },
+      });
+      subscriber.onActivitySnapshotEvent?.({
+        event: {
+          type: "ACTIVITY_SNAPSHOT",
+          activityType: "mcp-apps",
+          content: {
+            toolCallId: "call-1",
+            result: { content: [{ type: "text", text: "22C" }] },
+            resourceUri: "ui://srv/mcp-app.html",
+            serverId: "srv",
+          },
+        },
+      });
+      subscriber.onRunFinalized?.();
+    });
+    const agent = { runAgent } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    await core.append(createAppendMessage());
+
+    const assistant = core
+      .getMessages()
+      .find((m) => m.role === "assistant") as ThreadAssistantMessage;
+    const toolPart = assistant.content.find(
+      (p) => p.type === "tool-call",
+    ) as any;
+    expect(toolPart.isError).toBe(false);
+    expect(toolPart.result).toEqual({
+      content: [{ type: "text", text: "22C" }],
+    });
+  });
+
+  it("falls back to the aggregator when an mcp-apps ACTIVITY_SNAPSHOT has no owning message", async () => {
+    const runAgent = vi.fn(async (_input: any, subscriber: any) => {
+      subscriber.onActivitySnapshotEvent?.({
+        event: {
+          type: "ACTIVITY_SNAPSHOT",
+          activityType: "mcp-apps",
+          content: {
+            toolCallId: "orphan-1",
+            result: { content: [], isError: false },
+            resourceUri: "ui://srv/mcp-app.html",
+          },
+        },
+      });
+      subscriber.onTextMessageContentEvent?.({
+        event: { type: "TEXT_MESSAGE_CONTENT", delta: "Hello" },
+      });
+      subscriber.onRunFinalized?.();
+    });
+    const agent = { runAgent } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    await core.append(createAppendMessage());
+
+    const assistant = core
+      .getMessages()
+      .find((m) => m.role === "assistant") as ThreadAssistantMessage;
+    expect(
+      assistant.content.filter((p) => p.type === "tool-call"),
+    ).toHaveLength(0);
+    expect(assistant.content).toContainEqual(
+      expect.objectContaining({ type: "text", text: "Hello" }),
+    );
+  });
+
   it("rejects interrupt resume that does not cover every open interrupt", async () => {
     const runAgent = vi.fn(async (input: any, subscriber: any) => {
       subscriber.onRunFinishedEvent?.({
@@ -2275,7 +3537,62 @@ describe("AGUIThreadRuntimeCore", () => {
         { interruptId: "int-1", status: "resolved" },
         { interruptId: "int-unknown", status: "resolved" },
       ]),
-    ).rejects.toThrow(/unknown interrupt ids: int-unknown/);
+    ).rejects.toThrow(/unknown interrupt id int-unknown/);
+    expect(runAgent).toHaveBeenCalledTimes(1);
+  });
+
+  it("reports an unknown interrupt id even when open interrupts are unanswered", async () => {
+    const runAgent = vi.fn(async (input: any, subscriber: any) => {
+      subscriber.onRunFinishedEvent?.({
+        event: {
+          type: "RUN_FINISHED",
+          runId: input.runId,
+          outcome: {
+            type: "interrupt",
+            interrupts: [{ id: "int-1", reason: "tool_call" }],
+          },
+        },
+      });
+      subscriber.onRunFinalized?.();
+    });
+    const agent = { runAgent } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    await core.append(createAppendMessage());
+
+    await expect(
+      core.submitInterruptResponses([
+        { interruptId: "int-unknown", status: "resolved" },
+      ]),
+    ).rejects.toThrow(/unknown interrupt id int-unknown/);
+    expect(runAgent).toHaveBeenCalledTimes(1);
+  });
+
+  it("reports an unknown interrupt id when the same unknown id is submitted twice", async () => {
+    const runAgent = vi.fn(async (input: any, subscriber: any) => {
+      subscriber.onRunFinishedEvent?.({
+        event: {
+          type: "RUN_FINISHED",
+          runId: input.runId,
+          outcome: {
+            type: "interrupt",
+            interrupts: [{ id: "int-1", reason: "tool_call" }],
+          },
+        },
+      });
+      subscriber.onRunFinalized?.();
+    });
+    const agent = { runAgent } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    await core.append(createAppendMessage());
+
+    await expect(
+      core.submitInterruptResponses([
+        { interruptId: "int-unknown", status: "resolved" },
+        { interruptId: "int-unknown", status: "cancelled" },
+      ]),
+    ).rejects.toThrow(/unknown interrupt id int-unknown/);
     expect(runAgent).toHaveBeenCalledTimes(1);
   });
 
@@ -2332,6 +3649,36 @@ describe("AGUIThreadRuntimeCore", () => {
         { interruptId: "int-1", status: "cancelled" },
       ]),
     ).rejects.toThrow(/duplicate response/);
+    expect(runAgent).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects resume entries without an interruptId or with an invalid status", async () => {
+    const runAgent = vi.fn(async (input: any, subscriber: any) => {
+      subscriber.onRunFinishedEvent?.({
+        event: {
+          type: "RUN_FINISHED",
+          runId: input.runId,
+          outcome: {
+            type: "interrupt",
+            interrupts: [{ id: "int-1", reason: "tool_call" }],
+          },
+        },
+      });
+      subscriber.onRunFinalized?.();
+    });
+    const agent = { runAgent } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    await core.append(createAppendMessage());
+
+    await expect(
+      core.submitInterruptResponses([{ status: "resolved" } as any]),
+    ).rejects.toThrow("every entry must have an interruptId");
+    await expect(
+      core.submitInterruptResponses([
+        { interruptId: "int-1", status: "nope" } as any,
+      ]),
+    ).rejects.toThrow(/invalid status "nope" for interrupt int-1/);
     expect(runAgent).toHaveBeenCalledTimes(1);
   });
 
@@ -2466,6 +3813,77 @@ describe("AGUIThreadRuntimeCore", () => {
     await core.append(createAppendMessage());
 
     expect(stateAtRun).toEqual({ initial: false, snapshot: 42 });
+  });
+
+  it("setState updates getState immediately", () => {
+    const agent = {
+      runAgent: vi.fn(async (_input, subscriber) => {
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    core.setState({ count: 7 });
+    expect(core.getState()).toEqual({ count: 7 });
+  });
+
+  it("setState rides the next run as input.state", async () => {
+    const runInputs: any[] = [];
+    const agent = {
+      runAgent: vi.fn(async (input, subscriber) => {
+        runInputs.push(JSON.parse(JSON.stringify(input)));
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    core.setState({ count: 3, label: "optimistic" });
+    await core.append(createAppendMessage());
+
+    expect(runInputs[0].state).toEqual({ count: 3, label: "optimistic" });
+  });
+
+  it("composes chained functional setState updaters in the same tick", async () => {
+    const runInputs: any[] = [];
+    const agent = {
+      runAgent: vi.fn(async (input, subscriber) => {
+        runInputs.push(JSON.parse(JSON.stringify(input)));
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    core.setState({ count: 0 });
+    core.setState((prev) => ({
+      count: ((prev as { count?: number } | undefined)?.count ?? 0) + 1,
+    }));
+    core.setState((prev) => ({
+      count: ((prev as { count?: number } | undefined)?.count ?? 0) + 1,
+    }));
+    expect(core.getState()).toEqual({ count: 2 });
+
+    await core.append(createAppendMessage());
+    expect(runInputs[0].state).toEqual({ count: 2 });
+  });
+
+  it("applies STATE_DELTA on top of a setState snapshot", async () => {
+    const agent = {
+      runAgent: vi.fn(async (_input, subscriber) => {
+        subscriber.onStateDeltaEvent?.({
+          event: {
+            type: "STATE_DELTA",
+            delta: [{ op: "replace", path: "/count", value: 2 }],
+          },
+        });
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    core.setState({ count: 1, label: "base" });
+    await core.append(createAppendMessage());
+
+    expect(core.getState()).toEqual({ count: 2, label: "base" });
   });
 
   it("adopts TEXT_MESSAGE_START.messageId as the ThreadAssistantMessage.id", async () => {
@@ -2722,14 +4140,24 @@ describe("AGUIThreadRuntimeCore", () => {
     core.applyExternalMessages([existingMessage as ThreadMessage]);
     await core.append(createAppendMessage());
 
-    const collidedMessages = core
-      .getMessages()
-      .filter((m) => m.id === serverId);
-    expect(collidedMessages).toHaveLength(1);
+    expect(core.getMessages()).toMatchObject([
+      {
+        role: "user",
+        content: [{ type: "text", text: "hi" }],
+      },
+    ]);
+    expect(core.getMessages().some((message) => message.id === serverId)).toBe(
+      false,
+    );
     const optimisticLingerers = core
       .getMessages()
       .filter((m) => m.id.startsWith("__optimistic__"));
     expect(optimisticLingerers).toHaveLength(0);
+    expect(
+      core
+        .getMessageRepository()
+        .messages.filter((item) => item.message.id === serverId),
+    ).toHaveLength(1);
   });
 
   it("marks the placeholder as optimistic and clears the flag once the server id arrives", async () => {
@@ -2777,5 +4205,285 @@ describe("AGUIThreadRuntimeCore", () => {
     const assistant = core.getMessages().at(-1) as ThreadAssistantMessage;
     expect(assistant.id.startsWith("__optimistic__")).toBe(false);
     expect(assistant.metadata.isOptimistic).toBeUndefined();
+  });
+
+  it("keeps the active turn visible when a server id collides on a disjoint branch", async () => {
+    const serverId = "srv-1";
+    const historyMessage: ThreadAssistantMessage = {
+      id: serverId,
+      role: "assistant",
+      createdAt: new Date(),
+      status: { type: "complete", reason: "unknown" },
+      content: [{ type: "text", text: "from history" }],
+      metadata: {
+        unstable_state: null,
+        unstable_annotations: [],
+        unstable_data: [],
+        steps: [],
+        custom: {},
+      },
+    };
+    const agent = {
+      runAgent: vi.fn(async (_input, subscriber) => {
+        subscriber.onTextMessageStartEvent?.({
+          event: {
+            type: "TEXT_MESSAGE_START",
+            messageId: serverId,
+            role: "assistant",
+          },
+        });
+        subscriber.onTextMessageContentEvent?.({
+          event: {
+            type: "TEXT_MESSAGE_CONTENT",
+            messageId: serverId,
+            delta: "streaming",
+          },
+        });
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+    const history: ThreadHistoryAdapter = {
+      load: vi
+        .fn()
+        .mockResolvedValue(
+          ExportedMessageRepository.fromBranchableArray(
+            [{ parentId: null, message: historyMessage }],
+            { headId: serverId },
+          ),
+        ),
+      append: vi.fn().mockResolvedValue(undefined),
+    };
+    const core = createCore(agent, { history });
+    await core.__internal_load();
+
+    await core.append(createAppendMessage({ parentId: null }));
+
+    const messages = core.getMessages();
+    expect(messages).toHaveLength(1);
+    expect(messages[0]).toMatchObject({
+      role: "user",
+      content: [{ type: "text", text: "hi" }],
+    });
+    expect(
+      messages.some((message) => message.id.startsWith("__optimistic__")),
+    ).toBe(false);
+    expect(core.getMessageRepository().messages).toContainEqual({
+      parentId: null,
+      message: historyMessage,
+    });
+  });
+
+  it("skips duplicate ids in flat snapshots", () => {
+    const core = createCore({ runAgent: vi.fn() } as unknown as HttpAgent);
+    const firstMessage: ThreadMessage = {
+      id: "dup-1",
+      role: "user",
+      createdAt: new Date(),
+      content: [{ type: "text", text: "first" }],
+      metadata: { custom: {} },
+    };
+    const secondMessage: ThreadAssistantMessage = {
+      id: "msg-2",
+      role: "assistant",
+      createdAt: new Date(),
+      status: { type: "complete", reason: "unknown" },
+      content: [{ type: "text", text: "second" }],
+      metadata: {
+        unstable_state: null,
+        unstable_annotations: [],
+        unstable_data: [],
+        steps: [],
+        custom: {},
+      },
+    };
+    const duplicateMessage: ThreadMessage = {
+      id: "dup-1",
+      role: "user",
+      createdAt: new Date(),
+      content: [{ type: "text", text: "duplicate" }],
+      metadata: { custom: {} },
+    };
+
+    expect(() => {
+      core.applyExternalMessages([
+        firstMessage,
+        secondMessage,
+        duplicateMessage,
+      ]);
+    }).not.toThrow();
+    expect(core.getMessages().map((message) => message.id)).toEqual([
+      "dup-1",
+      "msg-2",
+    ]);
+    expect(core.getMessageRepository().headId).toBe("msg-2");
+  });
+
+  it("streams text incrementally when a MESSAGES_SNAPSHOT is emitted during a run (#5307)", async () => {
+    const mid = "11111111-2222-3333-4444-555555555555";
+    const words =
+      "This is just a test to reproduce the streaming bug that has been identified in ag-ui runtime.".split(
+        " ",
+      );
+    const observed: { full: string; text: string }[] = [];
+    const agent = {
+      runAgent: vi.fn(async (_input, subscriber) => {
+        subscriber.onMessagesSnapshotEvent?.({
+          event: {
+            type: "MESSAGES_SNAPSHOT",
+            messages: [{ id: "u-snap", role: "user", content: "hi" }],
+          },
+        });
+        subscriber.onTextMessageStartEvent?.({
+          event: { type: "TEXT_MESSAGE_START", messageId: mid },
+        });
+        let full = "";
+        for (let i = 0; i < words.length; i++) {
+          const delta = (i ? " " : "") + words[i];
+          full += delta;
+          subscriber.onTextMessageContentEvent?.({
+            event: { type: "TEXT_MESSAGE_CONTENT", messageId: mid, delta },
+          });
+          observed.push({
+            full,
+            text: assistantText(
+              core.getMessages().find((m) => m.role === "assistant"),
+            ),
+          });
+        }
+        subscriber.onTextMessageEndEvent?.({
+          event: { type: "TEXT_MESSAGE_END", messageId: mid },
+        });
+        subscriber.onMessagesSnapshotEvent?.({
+          event: {
+            type: "MESSAGES_SNAPSHOT",
+            messages: [
+              { id: "u-snap", role: "user", content: "hi" },
+              { id: mid, role: "assistant", content: full },
+            ],
+          },
+        });
+        subscriber.onStateSnapshotEvent?.({
+          event: { type: "STATE_SNAPSHOT", snapshot: {} },
+        });
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    await core.append(createAppendMessage());
+
+    expect(observed).toHaveLength(words.length);
+    for (const { full, text } of observed) expect(text).toBe(full);
+    expect(
+      assistantText(core.getMessages().find((m) => m.role === "assistant")),
+    ).toBe(words.join(" "));
+  });
+
+  it("streams text incrementally when no snapshot is emitted during a run", async () => {
+    const mid = "22222222-3333-4444-5555-666666666666";
+    const words = "A simple incremental streaming baseline.".split(" ");
+    const observed: { full: string; text: string }[] = [];
+    const agent = {
+      runAgent: vi.fn(async (_input, subscriber) => {
+        subscriber.onTextMessageStartEvent?.({
+          event: { type: "TEXT_MESSAGE_START", messageId: mid },
+        });
+        let full = "";
+        for (let i = 0; i < words.length; i++) {
+          const delta = (i ? " " : "") + words[i];
+          full += delta;
+          subscriber.onTextMessageContentEvent?.({
+            event: { type: "TEXT_MESSAGE_CONTENT", messageId: mid, delta },
+          });
+          observed.push({
+            full,
+            text: assistantText(
+              core.getMessages().find((m) => m.role === "assistant"),
+            ),
+          });
+        }
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    await core.append(createAppendMessage());
+
+    expect(observed).toHaveLength(words.length);
+    for (const { full, text } of observed) expect(text).toBe(full);
+  });
+
+  it("renders an assistant delivered via MESSAGES_SNAPSHOT without text deltas", async () => {
+    const mid = "33333333-4444-5555-6666-777777777777";
+    const agent = {
+      runAgent: vi.fn(async (_input, subscriber) => {
+        subscriber.onMessagesSnapshotEvent?.({
+          event: {
+            type: "MESSAGES_SNAPSHOT",
+            messages: [
+              { id: "u-snap", role: "user", content: "hi" },
+              { id: mid, role: "assistant", content: "Hello from snapshot" },
+            ],
+          },
+        });
+        subscriber.onStateSnapshotEvent?.({
+          event: { type: "STATE_SNAPSHOT", snapshot: {} },
+        });
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    await core.append(createAppendMessage());
+
+    expect(
+      assistantText(core.getMessages().find((m) => m.role === "assistant")),
+    ).toBe("Hello from snapshot");
+  });
+
+  it("keeps streaming when a pre-start snapshot ends with a prior-turn assistant", async () => {
+    const mid = "99999999-8888-7777-6666-555555555555";
+    const observed: string[] = [];
+    let core: AgUiThreadRuntimeCore;
+    const readText = () => {
+      const byId = core.getMessages().find((x) => x.id === mid);
+      const m =
+        byId ??
+        core
+          .getMessages()
+          .filter((x) => x.role === "assistant")
+          .at(-1);
+      const t = m?.content.find((p) => p.type === "text");
+      return t && t.type === "text" && t.text.length > 0 ? t.text : "<none>";
+    };
+    const agent = {
+      runAgent: vi.fn(async (_input, subscriber) => {
+        subscriber.onMessagesSnapshotEvent?.({
+          event: {
+            type: "MESSAGES_SNAPSHOT",
+            messages: [
+              { id: "u1", role: "user", content: "earlier question" },
+              { id: "a1", role: "assistant", content: "earlier answer" },
+            ],
+          },
+        });
+        subscriber.onTextMessageStartEvent?.({
+          event: { type: "TEXT_MESSAGE_START", messageId: mid },
+        });
+        for (const delta of ["Hel", "lo"]) {
+          subscriber.onTextMessageContentEvent?.({
+            event: { type: "TEXT_MESSAGE_CONTENT", messageId: mid, delta },
+          });
+          observed.push(readText());
+        }
+        subscriber.onTextMessageEndEvent?.({
+          event: { type: "TEXT_MESSAGE_END", messageId: mid },
+        });
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+    core = createCore(agent);
+    await core.append(createAppendMessage());
+    expect(observed).toEqual(["Hel", "Hello"]);
   });
 });

@@ -52,5 +52,7 @@ export async function POST(req: Request) {
 
   return result.toUIMessageStreamResponse({
     sendReasoning: true,
+    onError: (error) =>
+      error instanceof Error ? error.message : String(error),
   });
 }

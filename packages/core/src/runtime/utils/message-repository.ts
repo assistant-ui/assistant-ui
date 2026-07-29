@@ -89,7 +89,11 @@ const findHead = (
 class CachedValue<T> {
   private _value: T | null = null;
 
-  constructor(private func: () => T) {}
+  private func: () => T;
+
+  constructor(func: () => T) {
+    this.func = func;
+  }
 
   get value() {
     if (this._value === null) {
@@ -131,6 +135,20 @@ export class MessageRepository {
 
     if (operation === "relink" && parentOrRoot === newParentOrRoot) return;
 
+    if (operation !== "cut") {
+      for (
+        let current: RepositoryMessage | null = newParent;
+        current;
+        current = current.prev
+      ) {
+        if (current.current.id === child.current.id) {
+          throw new Error(
+            "MessageRepository(performOp/link): A message with the same id already exists in the parent tree. This error occurs if the same message id is found multiple times. This is likely an internal bug in assistant-ui.",
+          );
+        }
+      }
+    }
+
     if (operation !== "link") {
       parentOrRoot.children = parentOrRoot.children.filter(
         (m) => m !== child.current.id,
@@ -149,18 +167,6 @@ export class MessageRepository {
     }
 
     if (operation !== "cut") {
-      for (
-        let current: RepositoryMessage | null = newParent;
-        current;
-        current = current.prev
-      ) {
-        if (current.current.id === child.current.id) {
-          throw new Error(
-            "MessageRepository(performOp/link): A message with the same id already exists in the parent tree. This error occurs if the same message id is found multiple times. This is likely an internal bug in assistant-ui.",
-          );
-        }
-      }
-
       newParentOrRoot.children = [
         ...newParentOrRoot.children,
         child.current.id,
@@ -436,13 +442,18 @@ export class MessageRepository {
   export(): ExportedMessageRepository {
     const exportItems: ExportedMessageRepository["messages"] = [];
 
-    // Optimistic messages are ephemeral and never persisted. They're always
-    // leaf nodes, so skipping them can't orphan a persisted child.
+    // Optimistic messages are ephemeral and never persisted. A persisted child
+    // of an optimistic node is re-parented onto its nearest persisted ancestor
+    // so the exported tree never references a skipped id.
     for (const [, message] of this.messages) {
       if (message.current.metadata?.isOptimistic) continue;
+      let prev = message.prev;
+      while (prev && prev.current.metadata?.isOptimistic) {
+        prev = prev.prev;
+      }
       exportItems.push({
         message: message.current,
-        parentId: message.prev?.current.id ?? null,
+        parentId: prev?.current.id ?? null,
       });
     }
 

@@ -20,6 +20,7 @@ import type {
 import type { CompleteAttachment } from "../../types/attachment";
 import type {
   MessageTiming,
+  PartProviderMetadata,
   TextMessagePart,
   ToolApprovalOption,
   ToolCallTiming,
@@ -61,6 +62,7 @@ export type ThreadMessageLike = {
             readonly messages?: readonly ThreadMessage[] | undefined;
             readonly interrupt?: { type: "human"; payload: unknown };
             readonly timing?: ToolCallTiming;
+            readonly providerMetadata?: PartProviderMetadata;
             readonly approval?: {
               readonly id: string;
               readonly approved?: boolean;
@@ -264,6 +266,7 @@ export const fromThreadMessageLike = (
         })),
         metadata: {
           custom: metadata?.custom ?? {},
+          ...(metadata?.isOptimistic && { isOptimistic: true }),
         },
       } satisfies ThreadUserMessage;
 

@@ -1,8 +1,16 @@
 "use client";
 
 import type { InputContent } from "@ag-ui/client";
-import type { ThreadMessageLike as CoreThreadMessageLike } from "@assistant-ui/core";
-import { getAutoStatus } from "@assistant-ui/core/internal";
+import type {
+  ThreadMessageLike as CoreThreadMessageLike,
+  ToolCallMessagePartMcpMetadata,
+  ToolModelContentPart,
+} from "@assistant-ui/core";
+import {
+  getAutoStatus,
+  httpUrlPattern,
+  parseDataUrl,
+} from "@assistant-ui/core/internal";
 import { type Tool, toToolsJSONSchema } from "assistant-stream";
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
 import {
@@ -10,6 +18,10 @@ import {
   type AgUiCustomMetadata,
 } from "./run-aggregator";
 import type { AgUiInterrupt } from "../types";
+import {
+  parseMcpToolCallResult,
+  readMcpAppResourceUri,
+} from "../mcp-tool-result";
 
 export type { InputContent };
 
@@ -59,7 +71,9 @@ type ToolCallPart = {
   args?: ReadonlyJSONObject;
   result?: unknown;
   isError?: boolean;
+  modelContent?: readonly ToolModelContentPart[];
   unstable_toolMessageId?: string;
+  mcp?: ToolCallMessagePartMcpMetadata;
 };
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
@@ -124,16 +138,6 @@ function extractText(content: unknown): string {
     .map((part) => part.text)
     .join("\n");
 }
-
-function parseDataUrl(
-  value: string,
-): { mimeType: string; data: string } | null {
-  const match = value.match(/^data:([^;,]+)(?:;[^;,]+)*;base64,(.+)$/);
-  if (!match) return null;
-  return { mimeType: match[1]!, data: match[2]! };
-}
-
-const httpUrlPattern = /^https?:\/\//i;
 
 type InputContentSource =
   | { type: "data"; value: string; mimeType: string }
@@ -205,6 +209,21 @@ function toInputContent(
       default:
         return { type: "document", source, ...(metadata && { metadata }) };
     }
+  }
+
+  if (type === "audio") {
+    const audio = part.audio;
+    if (!isObject(audio)) return null;
+    const data = getString(audio, "data");
+    const format = getString(audio, "format");
+    if (data === undefined || format === undefined) return null;
+    return {
+      type: "audio",
+      source: buildInputSource(
+        parseDataUrl(data)?.data ?? data,
+        `audio/${format}`,
+      ),
+    };
   }
 
   return null;
@@ -536,12 +555,18 @@ export function fromAgUiMessages(
     if (role === "tool") {
       const toolCallId = getToolCallId(rawMessage) ?? `tool-${generateId()}`;
       const toolMessageId = getString(rawMessage, "id");
+      const modelContent = extractText(rawMessage.content);
+      const mcpResult = parseMcpToolCallResult(rawMessage, modelContent);
+      const mcpModelContent = mcpResult
+        ? [{ type: "text" as const, text: modelContent }]
+        : undefined;
       const result =
-        rawMessage.result !== undefined
+        mcpResult ??
+        (rawMessage.result !== undefined
           ? rawMessage.result
           : typeof rawMessage.content === "string"
             ? parseJSONText(rawMessage.content)
-            : rawMessage.content;
+            : rawMessage.content);
       const isError =
         typeof rawMessage.error === "string" ||
         rawMessage.isError === true ||
@@ -550,6 +575,9 @@ export function fromAgUiMessages(
           : rawMessage.isError === false
             ? false
             : undefined;
+      const mcpAppUri = readMcpAppResourceUri(mcpResult?._meta);
+      const mcpApp =
+        mcpAppUri !== undefined ? { resourceUri: mcpAppUri } : undefined;
 
       let updated = false;
       for (
@@ -577,10 +605,12 @@ export function fromAgUiMessages(
           const updatedPart: ToolCallPart = {
             ...(part as ToolCallPart),
             result,
+            ...(mcpModelContent ? { modelContent: mcpModelContent } : {}),
             ...(isError !== undefined ? { isError } : {}),
             ...(toolMessageId !== undefined
               ? { unstable_toolMessageId: toolMessageId }
               : {}),
+            ...(mcpApp ? { mcp: { app: mcpApp } } : {}),
           };
           const updatedContent = message.content.map((contentPart, index) =>
             index === partIndex ? updatedPart : contentPart,
@@ -611,10 +641,12 @@ export function fromAgUiMessages(
             args: {},
             argsText: "{}",
             result,
+            ...(mcpModelContent ? { modelContent: mcpModelContent } : {}),
             ...(isError !== undefined ? { isError } : {}),
             ...(toolMessageId !== undefined
               ? { unstable_toolMessageId: toolMessageId }
               : {}),
+            ...(mcpApp ? { mcp: { app: mcpApp } } : {}),
           },
         ],
       });
@@ -716,9 +748,11 @@ function convertAssistantMessage(
     if (part.result === undefined) continue;
 
     const resultContent =
-      typeof part.result === "string"
-        ? part.result
-        : JSON.stringify(part.result);
+      part.modelContent !== undefined
+        ? extractText(part.modelContent)
+        : typeof part.result === "string"
+          ? part.result
+          : JSON.stringify(part.result);
 
     const toolMessage: AgUiMessage = {
       id: part.unstable_toolMessageId ?? `${toolCallId}:tool`,

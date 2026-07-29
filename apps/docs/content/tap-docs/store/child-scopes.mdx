@@ -150,7 +150,7 @@ const TodoItem = ({ index }: { index: number }) => {
     todo: Derived({
       source: "todoList",
       query: { index },
-      get: (aui) => aui.todoList().todo({ index }),
+      get: (aui) => aui.todoList.todo({ index }),
     }),
   });
 
@@ -181,7 +181,7 @@ const TodoDisplay = () => {
       <input
         type="checkbox"
         checked={done}
-        onChange={() => aui.todo().toggle()}
+        onChange={() => aui.todo.toggle()}
       />
       {text}
     </label>

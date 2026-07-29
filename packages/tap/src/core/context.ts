@@ -204,7 +204,7 @@ export const bubbleContextDeps = (
 
 export const hasChangedContexts = () => changedContexts.size > 0;
 
-export const hasContextDepsChanged = (fiber: ResourceFiber<any, any[]>) => {
+export const hasContextDepsChanged = (fiber: ResourceFiber<any>) => {
   if (!fiber.contextDeps || !hasChangedContexts()) return false;
 
   for (const context of changedContexts.keys()) {

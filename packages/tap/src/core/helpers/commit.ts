@@ -1,11 +1,13 @@
 import type { CommitCallbacks, ResourceFiber } from "../types";
 
-export enum CommitPriority {
-  HookState = 0,
-  EffectEvent = 1,
-  PassiveEffectCleanup = 2,
-  PassiveEffectSetup = 3,
-}
+export const CommitPriority = {
+  HookState: 0,
+  EffectEvent: 1,
+  PassiveEffectCleanup: 2,
+  PassiveEffectSetup: 3,
+} as const;
+export type CommitPriority =
+  (typeof CommitPriority)[keyof typeof CommitPriority];
 
 const COMMIT_PRIORITIES = [
   CommitPriority.HookState,
@@ -44,9 +46,7 @@ export function commitAllCallbacks(callbacks: CommitCallbacks): void {
   }
 }
 
-export function cleanupAllEffects<R, A extends readonly unknown[]>(
-  executionContext: ResourceFiber<R, A>,
-) {
+export function cleanupAllEffects<R>(executionContext: ResourceFiber<R>) {
   const errors: unknown[] = [];
   for (const cell of executionContext.cells) {
     if (cell?.type === "effect") {

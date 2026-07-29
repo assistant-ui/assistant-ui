@@ -27,7 +27,7 @@ npx assistant-ui@latest create my-app
 npx assistant-ui@latest create my-app --template minimal
 
 # scaffold from a feature example
-npx assistant-ui@latest create my-app --example with-ai-sdk-v6
+npx assistant-ui@latest create my-app --example with-ai-sdk-v7
 
 # scaffold an Expo / React Native project
 npx assistant-ui@latest create my-app --native
@@ -58,7 +58,7 @@ npx assistant-ui info
 
 ## Templates
 
-`create` scaffolds from named templates: `default` (AI SDK), `minimal`, `cloud`, `cloud-clerk`, `langchain`, `mcp`, `eve`. Pass `-t <name>`, pass `--example <name>` for examples such as `with-ai-sdk-v6`, use `--native` for Expo / React Native, use `--ink` for React Ink, or pass `--preset <url>` to scaffold from an `assistant-ui.com` playground link.
+`create` scaffolds from named templates: `default` (AI SDK), `minimal`, `cloud`, `cloud-clerk`, `langchain`, `mcp`, `eve`. Pass `-t <name>`, pass `--example <name>` for examples such as `with-ai-sdk-v7`, use `--native` for Expo / React Native, use `--ink` for React Ink, or pass `--preset <url>` to scaffold from an `assistant-ui.com` playground link.
 
 ## Documentation
 

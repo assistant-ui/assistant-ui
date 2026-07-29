@@ -50,7 +50,7 @@ export function unstable_injectInteractableContext(
     const text = `${items.map(format).join("\n")}\n\n`;
 
     const alreadyInjected =
-      msg.parts[0]?.type === "text" && msg.parts[0].text === text;
+      msg.parts?.[0]?.type === "text" && msg.parts[0].text === text;
     if (alreadyInjected) return msg;
 
     return {

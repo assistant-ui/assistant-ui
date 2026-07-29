@@ -37,7 +37,7 @@ const McpManagerPrimitiveConnectorsInner: FC<{
     return ids.map((id, index) => (
       <McpConnectorByIndexProvider key={id} index={index}>
         <RenderChildrenWithAccessor
-          getItemState={(aui) => aui.mcp().connector({ index }).getState()}
+          getItemState={(aui) => aui.mcp.connector({ index }).getState()}
         >
           {(getItem) =>
             children({

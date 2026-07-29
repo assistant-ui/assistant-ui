@@ -1,6 +1,14 @@
 import { AssistantMessage, Event, FilePart, GlobalSession, Message as Message$1, Message as Message$2, Model, OpencodeClient, OpencodeClient as OpencodeClient$1, OpencodeClientConfig, Part, Part as Part$1, PermissionRequest, PermissionRequest as PermissionRequest$1, Provider, QuestionAnswer, QuestionAnswer as QuestionAnswer$1, QuestionRequest, QuestionRequest as QuestionRequest$1, ReasoningPart, Session, Session as Session$1, SessionStatus, SessionStatus as SessionStatus$1, SnapshotPart, StepFinishPart, StepStartPart, TextPart, ToolPart, ToolState, UserMessage, createOpencodeClient as createOpencodeClient$1 } from "@opencode-ai/sdk/v2/client";
 
+import "@radix-ui/react-primitive";
+
 import { StandardSchemaV1 } from "@standard-schema/spec";
+
+import "radix-ui";
+
+import "react-textarea-autosize";
+
+import "zustand";
 
 type AddToolResultOptions = {
   messageId: string;
@@ -31,7 +39,9 @@ type AssistantClient = {
   on<TEvent extends AssistantEventName>(selector: AssistantEventSelector<TEvent>, callback: AssistantEventCallback<TEvent>): Unsubscribe$1;
 };
 
-type AssistantClientAccessor<K extends ClientNames> = (() => ClientSchemas[K]["methods"]) & (ClientMeta<K> | {
+type AssistantClientAccessor<K extends ClientNames> = ClientSchemas[K]["methods"] & {
+  (): ClientSchemas[K]["methods"];
+} & (ClientMeta<K> | {
   source: "root";
   query: Record<string, never>;
 } | {
@@ -206,9 +216,9 @@ type ClientEventMap = UnionToIntersection<{
   [K in ClientNames]: ClientEvents<K>;
 }[ClientNames]>;
 
-type ClientEvents<K extends ClientNames> = "events" extends keyof ClientSchemas[K] ? ClientSchemas[K]["events"] extends ClientEventsType<K> ? ClientSchemas[K]["events"] : never : never;
+type ClientEvents<K extends ClientNames> = "events" extends keyof ClientSchemas[K] ? ClientSchemas[K]["events"] extends ClientEventsType<K & string> ? ClientSchemas[K]["events"] : never : never;
 
-type ClientEventsType<K extends ClientNames> = Record<`${K}.${string}`, unknown>;
+type ClientEventsType<K extends string> = Record<`${K}.${string}`, unknown>;
 
 type ClientMeta<K extends ClientNames> = "meta" extends keyof ClientSchemas[K] ? Pick<ClientSchemas[K]["meta"] extends ClientMetaType ? ClientSchemas[K]["meta"] : never, "query" | "source"> : never;
 
@@ -221,12 +231,12 @@ interface ClientMethods {
   [key: string | symbol]: (...args: any[]) => any;
 }
 
-type ClientNames = keyof ClientSchemas extends infer U ? U : never;
+type ClientNames = keyof ClientSchemas extends (infer U) ? U : never;
 
 type ClientSchemas = keyof ScopeRegistry extends never ? {
   "ERROR: No clients were defined": ClientError<"ERROR: No clients were defined">;
 } : {
-  [K in keyof ScopeRegistry]: ValidateClient<K>;
+  [K in keyof ScopeRegistry]: ValidateClient<K & string, ScopeRegistry[K]>;
 };
 
 type CompleteAttachment = BaseAttachment & {
@@ -671,6 +681,7 @@ type McpAppMetadata = {
   readonly resourceUri: string;
   readonly mimeType?: string;
   readonly visibility?: readonly ("app" | "model")[];
+  readonly serverId?: string;
 };
 
 type McpServerConfig = {
@@ -835,7 +846,6 @@ type ObjectKey<T> = keyof T & (string | number);
 type OnSchemaValidationErrorFunction<TResult> = ToolExecuteFunction<unknown, TResult>;
 
 declare class OpenCodeEventSource {
-  private readonly client;
   private readonly listeners;
   private readonly reconnectDelayMs;
   private readonly maxReconnectDelayMs;
@@ -844,6 +854,7 @@ declare class OpenCodeEventSource {
   private stopped;
   private nextReconnectDelayMs;
   private hadConnection;
+  private readonly client;
   constructor(client: OpencodeClient);
   subscribe(listener: Listener): () => void;
   dispose(): void;
@@ -1042,8 +1053,6 @@ type OpenCodeStateEvent = {
 };
 
 declare class OpenCodeThreadController implements OpenCodeThreadControllerLike {
-  private readonly client;
-  private readonly sessionId;
   private state;
   private readonly listeners;
   private readonly getEventSource;
@@ -1051,6 +1060,8 @@ declare class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   private loadPromise;
   private reconnectSyncToken;
   private readonly stagedMessages;
+  private readonly client;
+  private readonly sessionId;
   constructor(client: OpencodeClient, getEventSource: OpenCodeEventSourceProvider, sessionId: string);
   private ensureEventSubscription;
   private handleStreamReconnect;
@@ -1152,9 +1163,13 @@ type OpenCodeUserMessageOptions = {
   noReply?: boolean | undefined;
 };
 
-type ParentOf<K extends ClientNames> = AssistantClientAccessor<K> extends {
+type ParentOf<K extends ClientNames> = ClientMeta<K> extends {
   source: infer S;
 } ? S extends ClientNames ? S : never : never;
+
+type PartProviderMetadata = {
+  readonly [providerName: string]: ReadonlyJSONObject;
+};
 
 type PendingAttachment = BaseAttachment & {
   status: PendingAttachmentStatus;
@@ -1171,6 +1186,7 @@ type PendingAttachmentStatus = {
 } | {
   type: "incomplete";
   reason: "error" | "upload-paused";
+  message?: string;
 };
 
 type PendingUserMessage = {
@@ -1256,12 +1272,17 @@ type RealtimeVoiceAdapter = {
 type ReasoningMessagePart = {
   readonly type: "reasoning";
   readonly text: string;
+  readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };
 
 type ReloadConfig = {
   runConfig?: RunConfig;
 };
+
+type ReservedAccessorProps = "name" | "query" | "source";
+
+type ReservedScopeNames = "on" | "optional" | "subscribe";
 
 type RespondToToolApprovalOptions = {
   approvalId: string;
@@ -1325,9 +1346,7 @@ type SourceMessagePart = {
   readonly parentId?: string;
 };
 
-type SourceProviderMetadata = {
-  readonly [providerName: string]: ReadonlyJSONObject;
-};
+type SourceProviderMetadata = PartProviderMetadata;
 
 interface SpeechRecognitionConstructor {
   new (): SpeechRecognitionInstance;
@@ -1377,6 +1396,7 @@ declare const TOOL_RESPONSE_SYMBOL: unique symbol;
 type TextMessagePart = {
   readonly type: "text";
   readonly text: string;
+  readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };
 
@@ -1528,6 +1548,7 @@ type ThreadMessageLike = {
       payload: unknown;
     };
     readonly timing?: ToolCallTiming;
+    readonly providerMetadata?: PartProviderMetadata;
     readonly approval?: {
       readonly id: string;
       readonly approved?: boolean;
@@ -1661,6 +1682,7 @@ type ThreadUserMessage = MessageCommonProps & {
     readonly steps?: undefined;
     readonly submittedFeedback?: undefined;
     readonly timing?: undefined;
+    readonly isOptimistic?: boolean;
     readonly custom: Record<string, unknown>;
   };
 };
@@ -1698,6 +1720,7 @@ type ToolApprovalResponse = {
 type ToolBase<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = {
   streamCall?: ToolStreamCallFunction<TArgs, TResult>;
   display?: ToolDisplay;
+  overwrite?: boolean;
 };
 
 interface ToolCallArgsReader<TArgs extends Record<string, unknown>> {
@@ -1718,6 +1741,7 @@ type ToolCallMessagePart<TArgs = ReadonlyJSONObject, TResult = unknown> = {
   readonly artifact?: unknown;
   readonly timing?: ToolCallTiming;
   readonly mcp?: ToolCallMessagePartMcpMetadata;
+  readonly providerMetadata?: PartProviderMetadata;
   readonly modelContent?: readonly ToolModelContentPart[] | undefined;
   readonly interrupt?: {
     type: "human";
@@ -1862,9 +1886,9 @@ type Unsubscribe = () => void;
 
 type Unsubscribe$1 = () => void;
 
-type ValidateClient<K extends keyof ScopeRegistry> = ScopeRegistry[K] extends {
+type ValidateClient<K extends string, TClient> = K extends ReservedScopeNames ? ClientError<`ERROR: ${K} is a reserved scope name`> : TClient extends {
   methods: ClientMethods;
-} ? "meta" extends keyof ScopeRegistry[K] ? ScopeRegistry[K]["meta"] extends ClientMetaType ? "events" extends keyof ScopeRegistry[K] ? ScopeRegistry[K]["events"] extends ClientEventsType<K> ? ScopeRegistry[K] : ClientError<`ERROR: ${K & string} has invalid events type`> : ScopeRegistry[K] : ClientError<`ERROR: ${K & string} has invalid meta type`> : "events" extends keyof ScopeRegistry[K] ? ScopeRegistry[K]["events"] extends ClientEventsType<K> ? ScopeRegistry[K] : ClientError<`ERROR: ${K & string} has invalid events type`> : ScopeRegistry[K] : ClientError<`ERROR: ${K & string} has invalid methods type`>;
+} ? keyof TClient["methods"] & ReservedAccessorProps extends never ? "meta" extends keyof TClient ? TClient["meta"] extends ClientMetaType ? "events" extends keyof TClient ? TClient["events"] extends ClientEventsType<K> ? TClient : ClientError<`ERROR: ${K} has invalid events type`> : TClient : ClientError<`ERROR: ${K} has invalid meta type`> : "events" extends keyof TClient ? TClient["events"] extends ClientEventsType<K> ? TClient : ClientError<`ERROR: ${K} has invalid events type`> : TClient : ClientError<`ERROR: ${K} methods declare a reserved accessor property (source/query/name)`> : ClientError<`ERROR: ${K} has invalid methods type`>;
 
 type VoiceSessionState = {
   readonly status: RealtimeVoiceAdapter.Status;

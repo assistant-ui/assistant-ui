@@ -1,5 +1,71 @@
 # assistant-ui
 
+## 0.0.108
+
+### Patch Changes
+
+- [#5272](https://github.com/assistant-ui/assistant-ui/pull/5272) [`edcd1b6`](https://github.com/assistant-ui/assistant-ui/commit/edcd1b6052d565d64cb10b37080df44c715b30bf) - fix: await asynchronous CLI command handlers ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5275](https://github.com/assistant-ui/assistant-ui/pull/5275) [`9a7e776`](https://github.com/assistant-ui/assistant-ui/commit/9a7e77603d59b5e091ee922e2e087f0101679321) - feat: `v0-15/aui-accessor-calls-to-properties` codemod — rewrites nullary `aui.x()` accessor calls to `aui.x` property access as part of `npx assistant-ui upgrade`. ([@Yonom](https://github.com/Yonom))
+
+## 0.0.107
+
+### Patch Changes
+
+- [#4993](https://github.com/assistant-ui/assistant-ui/pull/4993) [`6710b1b`](https://github.com/assistant-ui/assistant-ui/commit/6710b1b6227bd5e0dd0925845fe642ce811c8001) - fix: include the running CLI version in info output ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#4990](https://github.com/assistant-ui/assistant-ui/pull/4990) [`5b0b47e`](https://github.com/assistant-ui/assistant-ui/commit/5b0b47e3581a4565214c5aa36c5ced8abf024ebe) - fix: align undefined-style registry defaults with the base default and correct the shipped skill's registry commands ([@ephraimduncan](https://github.com/ephraimduncan))
+
+- [#5021](https://github.com/assistant-ui/assistant-ui/pull/5021) [`00fea57`](https://github.com/assistant-ui/assistant-ui/commit/00fea578f66da78348bb5d0d4e0dd3853b226ec3) - fix: install registry components when scaffolding the voice and interactables examples ([@okisdev](https://github.com/okisdev))
+
+- [#5013](https://github.com/assistant-ui/assistant-ui/pull/5013) [`fec32b1`](https://github.com/assistant-ui/assistant-ui/commit/fec32b116cf7ef3a162a3a62b5c6100a10c37642) - fix: sanitize tsconfig for every create scaffold and surface registry install failures ([@ephraimduncan](https://github.com/ephraimduncan))
+
+- [#5042](https://github.com/assistant-ui/assistant-ui/pull/5042) [`7b13f03`](https://github.com/assistant-ui/assistant-ui/commit/7b13f0316fb2b36cd68580dd6431a96bfb9f6f04) - fix(cli): discover workspace packages from symlinked working directories ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5041](https://github.com/assistant-ui/assistant-ui/pull/5041) [`925fd7e`](https://github.com/assistant-ui/assistant-ui/commit/925fd7e0cbe18d45ad4f85b28cd972640b187e11) - fix(cli): discover assistant-ui packages hoisted above the doctor working directory ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5079](https://github.com/assistant-ui/assistant-ui/pull/5079) [`390e417`](https://github.com/assistant-ui/assistant-ui/commit/390e4177ca47f7ece839613ad0f076add9313328) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- Updated dependencies []:
+  - @assistant-ui/agent-launcher@0.1.9
+
+## 0.0.106
+
+### Patch Changes
+
+- [#4868](https://github.com/assistant-ui/assistant-ui/pull/4868) [`40b585a`](https://github.com/assistant-ui/assistant-ui/commit/40b585abd50fca94f2d5199d782dbd6c28228318) - fix: install the base ui quick start from init when the initialized project uses a base style ([@okisdev](https://github.com/okisdev))
+
+- [#4865](https://github.com/assistant-ui/assistant-ui/pull/4865) [`c732b48`](https://github.com/assistant-ui/assistant-ui/commit/c732b48f18e60df53bc80e278d3a418c08154d18) - fix: resolve base ui flavored registry urls in add when the project style starts with base- ([@okisdev](https://github.com/okisdev))
+
+- [#4891](https://github.com/assistant-ui/assistant-ui/pull/4891) [`732ef49`](https://github.com/assistant-ui/assistant-ui/commit/732ef4905bb454371b9ddb21d3dc75d900976373) - fix: include declared assistant-ui packages in info output ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#4891](https://github.com/assistant-ui/assistant-ui/pull/4891) [`732ef49`](https://github.com/assistant-ui/assistant-ui/commit/732ef4905bb454371b9ddb21d3dc75d900976373) - fix: validate peer dependency ranges using semver ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#4733](https://github.com/assistant-ui/assistant-ui/pull/4733) [`f1f18be`](https://github.com/assistant-ui/assistant-ui/commit/f1f18be476202178c5e6a62f041b588ee6a14887) - fix: clarify MCP install config parse errors ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#4720](https://github.com/assistant-ui/assistant-ui/pull/4720) [`d4a0b5a`](https://github.com/assistant-ui/assistant-ui/commit/d4a0b5ac56274cf0f927f62a7d788b2e0a12361c) - cli: register the `with-resumable-stream` example so `npx assistant-ui create -e with-resumable-stream` resolves instead of failing with "Unknown example". ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#4844](https://github.com/assistant-ui/assistant-ui/pull/4844) [`4a55ff9`](https://github.com/assistant-ui/assistant-ui/commit/4a55ff95d1df5bbe03fa50bfebbfae0c72412698) - fix: strip every workspace path alias when materializing a template ([@okisdev](https://github.com/okisdev))
+
+  the create flow removed monorepo tsconfig aliases by a fixed key list, so newer keys such as @/components/ui/base/* survived into scaffolded projects as dangling entries; any entry whose target points into packages/ui/ is now stripped as well.
+
+- [#4979](https://github.com/assistant-ui/assistant-ui/pull/4979) [`4c6fc26`](https://github.com/assistant-ui/assistant-ui/commit/4c6fc26e1b90e13692f9587dc530a77e1da6eef3) - fix: accept JSONC syntax when transforming scaffold tsconfig files ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#4772](https://github.com/assistant-ui/assistant-ui/pull/4772) [`372c624`](https://github.com/assistant-ui/assistant-ui/commit/372c62489c261b7ec4dce7eadfaf0b14865289d8) - fix: clarify assistant-ui update package.json parse errors ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#4727](https://github.com/assistant-ui/assistant-ui/pull/4727) [`3e5895c`](https://github.com/assistant-ui/assistant-ui/commit/3e5895c9529411906b2c99a2db210d51417c0737) - fix(cli): doctor now detects duplicate assistant-ui packages in pnpm node_modules layouts ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#4978](https://github.com/assistant-ui/assistant-ui/pull/4978) [`cfd4478`](https://github.com/assistant-ui/assistant-ui/commit/cfd44780068e783962fd160f28530b0166030508) - fix: compare prerelease versions using SemVer rules in assistant-ui doctor ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#4746](https://github.com/assistant-ui/assistant-ui/pull/4746) [`0686f4e`](https://github.com/assistant-ui/assistant-ui/commit/0686f4e6b8ee5f6e17c968997ef11622ef8f9c98) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#4960](https://github.com/assistant-ui/assistant-ui/pull/4960) [`1a5b1ec`](https://github.com/assistant-ui/assistant-ui/commit/1a5b1ec6a87316f968a14f9f7b9566b324c077ae) - fix(cli): detect monorepos from the workspace root ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#4815](https://github.com/assistant-ui/assistant-ui/pull/4815) [`5325f09`](https://github.com/assistant-ui/assistant-ui/commit/5325f0985768b750b050cf07f592fdfed34eccac) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+- Updated dependencies [[`0686f4e`](https://github.com/assistant-ui/assistant-ui/commit/0686f4e6b8ee5f6e17c968997ef11622ef8f9c98), [`5325f09`](https://github.com/assistant-ui/assistant-ui/commit/5325f0985768b750b050cf07f592fdfed34eccac)]:
+  - @assistant-ui/agent-launcher@0.1.9
+
 ## 0.0.105
 
 ### Patch Changes

@@ -9,10 +9,7 @@ import {
   throwRenderedMoreHooks,
 } from "./utils/hookErrors";
 
-const addMemoCommit = <T>(
-  fiber: ResourceFiber<any, any>,
-  cell: MemoCell<T>,
-) => {
+const addMemoCommit = <T>(fiber: ResourceFiber<any>, cell: MemoCell<T>) => {
   addCommit(fiber, CommitPriority.HookState, () => {
     cell.current = cell.wip;
     cell.currentDeps = cell.wipDeps;

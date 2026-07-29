@@ -1,16 +1,14 @@
 "use client";
 
-import {
-  type ComponentPropsWithoutRef,
-  type ComponentRef,
-  forwardRef,
-} from "react";
-import { Popover as PopoverPrimitive } from "radix-ui";
+import { type ComponentRef, forwardRef } from "react";
+import type { Popover as PopoverPrimitive } from "radix-ui";
+import type { WithRenderPropProps } from "../../utils/Primitive";
+import { PopoverRenderAnchor } from "./popoverRenderPrimitives";
 import { type ScopedProps, usePopoverScope } from "./scope";
 
 export namespace AssistantModalPrimitiveAnchor {
   export type Element = ComponentRef<typeof PopoverPrimitive.Anchor>;
-  export type Props = ComponentPropsWithoutRef<typeof PopoverPrimitive.Anchor>;
+  export type Props = WithRenderPropProps<typeof PopoverPrimitive.Anchor>;
 }
 
 export const AssistantModalPrimitiveAnchor = forwardRef<
@@ -26,7 +24,7 @@ export const AssistantModalPrimitiveAnchor = forwardRef<
   ) => {
     const scope = usePopoverScope(__scopeAssistantModal);
 
-    return <PopoverPrimitive.Anchor {...scope} {...rest} ref={ref} />;
+    return <PopoverRenderAnchor {...scope} {...rest} ref={ref} />;
   },
 );
 AssistantModalPrimitiveAnchor.displayName = "AssistantModalPrimitive.Anchor";

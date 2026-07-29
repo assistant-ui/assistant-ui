@@ -366,7 +366,7 @@ describe("useLangGraphRuntime", () => {
         .addAttachment(
           new File(["fake-pdf"], "document.pdf", { type: "application/pdf" }),
         );
-      await auiResult.current.composer().send();
+      await auiResult.current.composer.send();
     });
 
     await waitFor(() => {
@@ -390,6 +390,39 @@ describe("useLangGraphRuntime", () => {
       },
     ]);
     expect(sentMessages?.[0]?.content?.[1]).not.toHaveProperty("file");
+
+    // The wire human message must not carry the structured attachments field;
+    // only flattened content reaches the stream.
+    expect(sentMessages?.[0]).not.toHaveProperty("attachments");
+
+    // The local user message state, however, must expose the CompleteAttachment[]
+    // returned by the adapter so MessagePrimitive.Attachments can render them.
+    await waitFor(() => {
+      const userMessage = auiResult.current
+        .thread()
+        .getState()
+        .messages.find((m) => m.role === "user");
+      expect(userMessage?.attachments).toHaveLength(1);
+    });
+
+    const userMessage = auiResult.current
+      .thread()
+      .getState()
+      .messages.find((m) => m.role === "user");
+    expect(userMessage?.attachments?.[0]).toMatchObject({
+      id: "pending-file-1",
+      type: "document",
+      name: "document.pdf",
+      status: { type: "complete" },
+    });
+    expect(userMessage?.attachments?.[0]?.content).toEqual([
+      {
+        type: "file",
+        filename: "document.pdf",
+        data: "ZmFrZS1wZGY=",
+        mimeType: "application/pdf",
+      },
+    ]);
   });
 
   it("should use unstable_threadListAdapter in place of the cloud adapter", async () => {
@@ -614,6 +647,34 @@ describe("useLangGraphRuntime", () => {
     );
   });
 
+  it("forwards threadId so the runtime switches to the specified thread", async () => {
+    const fetch = vi.fn(async (threadId: string) => ({
+      status: "regular" as const,
+      remoteId: threadId,
+      externalId: threadId,
+    }));
+    // Empty list so switching has to fetch the routed thread instead of finding
+    // it already loaded.
+    const adapter: RemoteThreadListAdapter = {
+      ...makeThreadListAdapter(),
+      list: vi.fn(async () => ({ threads: [] })),
+      fetch,
+    };
+    const streamMock = vi
+      .fn()
+      .mockImplementation(() => mockStreamCallbackFactory([])());
+
+    renderHook(() =>
+      useLangGraphRuntime({
+        stream: streamMock,
+        unstable_threadListAdapter: adapter,
+        threadId: "lg-thread-1",
+      }),
+    );
+
+    await waitFor(() => expect(fetch).toHaveBeenCalledWith("lg-thread-1"));
+  });
+
   it("invokes user-provided create when stream calls initialize without cloud", async () => {
     const userCreate = vi.fn(async () => ({ externalId: "lg-thread-xyz" }));
 
@@ -685,15 +746,15 @@ describe("useLangGraphRuntime", () => {
 
       const send = async (text: string) => {
         await act(async () => {
-          auiResult.current.composer().setText(text);
-          auiResult.current.composer().send();
+          auiResult.current.composer.setText(text);
+          auiResult.current.composer.send();
         });
       };
 
       await send("first");
       await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(1));
       await waitFor(() =>
-        expect(auiResult.current.thread().getState().isRunning).toBe(true),
+        expect(auiResult.current.thread.getState().isRunning).toBe(true),
       );
 
       // sending while running queues instead of starting a second run
@@ -706,18 +767,14 @@ describe("useLangGraphRuntime", () => {
           .getState()
           .queue.map((q) => q.prompt),
       ).toEqual(["second"]);
-      expect(auiResult.current.thread().getState().capabilities.queue).toBe(
-        true,
-      );
+      expect(auiResult.current.thread.getState().capabilities.queue).toBe(true);
 
       // settling the first run drains the queued message
       await act(async () => {
         gate.resolve();
       });
       await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(2));
-      expect(auiResult.current.thread().composer().getState().queue).toEqual(
-        [],
-      );
+      expect(auiResult.current.thread.composer().getState().queue).toEqual([]);
 
       const secondRun = streamMock.mock.calls[1]?.[0];
       expect(secondRun).toMatchObject([{ type: "human", content: "second" }]);
@@ -744,8 +801,8 @@ describe("useLangGraphRuntime", () => {
 
       const send = async (text: string) => {
         await act(async () => {
-          auiResult.current.composer().setText(text);
-          auiResult.current.composer().send();
+          auiResult.current.composer.setText(text);
+          auiResult.current.composer.send();
           await new Promise((r) => setTimeout(r, 0));
         });
       };
@@ -786,9 +843,54 @@ describe("useLangGraphRuntime", () => {
         await new Promise((r) => setTimeout(r, 0));
       });
       expect(streamMock).toHaveBeenCalledTimes(3);
-      expect(auiResult.current.thread().composer().getState().queue).toEqual(
-        [],
-      );
+      expect(auiResult.current.thread.composer().getState().queue).toEqual([]);
+    });
+
+    it("handles a queued run rejection", async () => {
+      const gate = deferred<void>();
+      const streamMock = vi.fn(async function* (_messages: LangChainMessage[]) {
+        if (streamMock.mock.calls.length === 1) {
+          await gate.promise;
+          return;
+        }
+        throw new Error("queued run failed");
+      });
+      const onUnhandledRejection = vi.fn();
+      process.on("unhandledRejection", onUnhandledRejection);
+
+      try {
+        const { result: runtimeResult } = renderHook(
+          () =>
+            useLangGraphRuntime({
+              stream: streamMock,
+              unstable_enableMessageQueue: true,
+            }),
+          {},
+        );
+        const wrapper = wrapperFactory(runtimeResult.current);
+        const { result: auiResult } = renderHook(() => useAui(), { wrapper });
+
+        const send = async (text: string) => {
+          await act(async () => {
+            auiResult.current.composer.setText(text);
+            auiResult.current.composer.send();
+          });
+        };
+
+        await send("first");
+        await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(1));
+        await send("second");
+
+        await act(async () => {
+          gate.resolve();
+        });
+        await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(2));
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        expect(onUnhandledRejection).not.toHaveBeenCalled();
+      } finally {
+        process.off("unhandledRejection", onUnhandledRejection);
+      }
     });
 
     it("does not expose the queue capability when the flag is off", async () => {
@@ -800,7 +902,7 @@ describe("useLangGraphRuntime", () => {
       const wrapper = wrapperFactory(runtimeResult.current);
       const { result: auiResult } = renderHook(() => useAui(), { wrapper });
 
-      expect(auiResult.current.thread().getState().capabilities.queue).toBe(
+      expect(auiResult.current.thread.getState().capabilities.queue).toBe(
         false,
       );
     });
@@ -823,8 +925,7 @@ describe("useLangGraphRuntime", () => {
 
     const waitForToolCallPart = async (aui: ReturnType<typeof useAui>) => {
       await waitFor(() => {
-        const parts = aui
-          .thread()
+        const parts = aui.thread
           .getState()
           .messages.flatMap((m): readonly unknown[] => m.content);
         expect(parts).toContainEqual(
@@ -865,8 +966,8 @@ describe("useLangGraphRuntime", () => {
       );
 
       await act(async () => {
-        auiResult.current.composer().setText("what's the weather?");
-        auiResult.current.composer().send();
+        auiResult.current.composer.setText("what's the weather?");
+        auiResult.current.composer.send();
       });
       await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(1));
       await waitForToolCallPart(auiResult.current);
@@ -878,7 +979,7 @@ describe("useLangGraphRuntime", () => {
         await new Promise((r) => setTimeout(r, 0));
       });
       expect(streamMock).toHaveBeenCalledTimes(1);
-      expect(auiResult.current.thread().getState().isRunning).toBe(true);
+      expect(auiResult.current.thread.getState().isRunning).toBe(true);
 
       await act(async () => {
         gate.resolve();
@@ -895,7 +996,7 @@ describe("useLangGraphRuntime", () => {
       ]);
 
       await waitFor(() =>
-        expect(auiResult.current.thread().getState().isRunning).toBe(false),
+        expect(auiResult.current.thread.getState().isRunning).toBe(false),
       );
       const transitions = observedIsRunning.filter(
         (value, i) => i === 0 || observedIsRunning[i - 1] !== value,
@@ -917,13 +1018,13 @@ describe("useLangGraphRuntime", () => {
       const { result: auiResult } = renderHook(() => useAui(), { wrapper });
 
       await act(async () => {
-        auiResult.current.composer().setText("what's the weather?");
-        auiResult.current.composer().send();
+        auiResult.current.composer.setText("what's the weather?");
+        auiResult.current.composer.send();
       });
       await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(1));
       await waitForToolCallPart(auiResult.current);
       await waitFor(() =>
-        expect(auiResult.current.thread().getState().isRunning).toBe(false),
+        expect(auiResult.current.thread.getState().isRunning).toBe(false),
       );
 
       addToolResult(runtimeResult.current, { temperature: 72 });
@@ -960,8 +1061,8 @@ describe("useLangGraphRuntime", () => {
       const { result: auiResult } = renderHook(() => useAui(), { wrapper });
 
       await act(async () => {
-        auiResult.current.composer().setText("what's the weather?");
-        auiResult.current.composer().send();
+        auiResult.current.composer.setText("what's the weather?");
+        auiResult.current.composer.send();
       });
       await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(1));
       await waitForToolCallPart(auiResult.current);
@@ -973,7 +1074,7 @@ describe("useLangGraphRuntime", () => {
       });
 
       await waitFor(() =>
-        expect(auiResult.current.thread().getState().isRunning).toBe(false),
+        expect(auiResult.current.thread.getState().isRunning).toBe(false),
       );
       await act(async () => {
         await new Promise((r) => setTimeout(r, 10));
@@ -1020,7 +1121,7 @@ describe("useLangGraphRuntime", () => {
 
       await waitFor(() => expect(runError).toBeInstanceOf(Error));
       await waitFor(() =>
-        expect(auiResult.current.thread().getState().isRunning).toBe(false),
+        expect(auiResult.current.thread.getState().isRunning).toBe(false),
       );
       await act(async () => {
         await new Promise((r) => setTimeout(r, 10));
@@ -1044,8 +1145,8 @@ describe("useLangGraphRuntime", () => {
       const { result: auiResult } = renderHook(() => useAui(), { wrapper });
 
       await act(async () => {
-        auiResult.current.composer().setText("what's the weather?");
-        auiResult.current.composer().send();
+        auiResult.current.composer.setText("what's the weather?");
+        auiResult.current.composer.send();
       });
       await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(1));
       await waitForToolCallPart(auiResult.current);
@@ -1084,8 +1185,8 @@ describe("useLangGraphRuntime", () => {
       const { result: auiResult } = renderHook(() => useAui(), { wrapper });
 
       await act(async () => {
-        auiResult.current.composer().setText("what's the weather?");
-        auiResult.current.composer().send();
+        auiResult.current.composer.setText("what's the weather?");
+        auiResult.current.composer.send();
       });
       await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(1));
       await waitForToolCallPart(auiResult.current);
@@ -1097,7 +1198,7 @@ describe("useLangGraphRuntime", () => {
       });
 
       await waitFor(() =>
-        expect(auiResult.current.thread().getState().isRunning).toBe(false),
+        expect(auiResult.current.thread.getState().isRunning).toBe(false),
       );
       await act(async () => {
         await new Promise((r) => setTimeout(r, 10));
@@ -1122,8 +1223,8 @@ describe("useLangGraphRuntime", () => {
       const { result: auiResult } = renderHook(() => useAui(), { wrapper });
 
       await act(async () => {
-        auiResult.current.composer().setText("what's the weather?");
-        auiResult.current.composer().send();
+        auiResult.current.composer.setText("what's the weather?");
+        auiResult.current.composer.send();
       });
       await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(1));
       await waitForToolCallPart(auiResult.current);
@@ -1139,7 +1240,7 @@ describe("useLangGraphRuntime", () => {
         { type: "tool", tool_call_id: "tc-1", status: "success" },
       ]);
       await waitFor(() =>
-        expect(auiResult.current.thread().getState().isRunning).toBe(false),
+        expect(auiResult.current.thread.getState().isRunning).toBe(false),
       );
     });
 
@@ -1159,8 +1260,8 @@ describe("useLangGraphRuntime", () => {
       const { result: auiResult } = renderHook(() => useAui(), { wrapper });
 
       await act(async () => {
-        auiResult.current.composer().setText("what's the weather?");
-        auiResult.current.composer().send();
+        auiResult.current.composer.setText("what's the weather?");
+        auiResult.current.composer.send();
       });
       await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(1));
       await waitForToolCallPart(auiResult.current);
@@ -1168,8 +1269,8 @@ describe("useLangGraphRuntime", () => {
       addToolResult(runtimeResult.current, { temperature: 72 });
 
       await act(async () => {
-        auiResult.current.composer().setText("never mind");
-        auiResult.current.composer().send();
+        auiResult.current.composer.setText("never mind");
+        auiResult.current.composer.send();
       });
 
       await act(async () => {
@@ -1189,7 +1290,7 @@ describe("useLangGraphRuntime", () => {
       ]);
 
       await waitFor(() =>
-        expect(auiResult.current.thread().getState().isRunning).toBe(false),
+        expect(auiResult.current.thread.getState().isRunning).toBe(false),
       );
       await act(async () => {
         await new Promise((r) => setTimeout(r, 10));
@@ -1282,8 +1383,8 @@ describe("useLangGraphRuntime", () => {
         await new Promise((r) => setTimeout(r, 0));
 
         await act(async () => {
-          auiResult.current.composer().setText("hi");
-          auiResult.current.composer().send();
+          auiResult.current.composer.setText("hi");
+          auiResult.current.composer.send();
         });
 
         await waitFor(() => expect(execute).toHaveBeenCalledTimes(1));
@@ -1306,7 +1407,7 @@ describe("useLangGraphRuntime", () => {
           { type: "tool", tool_call_id: "tc-2", status: "success" },
         ]);
         await waitFor(() =>
-          expect(auiResult.current.thread().getState().isRunning).toBe(false),
+          expect(auiResult.current.thread.getState().isRunning).toBe(false),
         );
       });
     });
@@ -1325,19 +1426,19 @@ describe("useLangGraphRuntime", () => {
       const { result: auiResult } = renderHook(() => useAui(), { wrapper });
 
       await act(async () => {
-        auiResult.current.composer().setText("what's the weather?");
-        auiResult.current.composer().send();
+        auiResult.current.composer.setText("what's the weather?");
+        auiResult.current.composer.send();
       });
       await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(1));
       await waitForToolCallPart(auiResult.current);
       await waitFor(() =>
-        expect(auiResult.current.thread().getState().isRunning).toBe(false),
+        expect(auiResult.current.thread.getState().isRunning).toBe(false),
       );
 
       // a new turn auto-cancels the dangling tool call with a tool message
       await act(async () => {
-        auiResult.current.composer().setText("never mind");
-        auiResult.current.composer().send();
+        auiResult.current.composer.setText("never mind");
+        auiResult.current.composer.send();
       });
       await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(2));
       expect(streamMock.mock.calls[1]?.[0]).toMatchObject([

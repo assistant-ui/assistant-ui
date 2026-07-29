@@ -12,12 +12,11 @@ const h = vi.hoisted(() => ({
 }));
 
 vi.mock("@assistant-ui/store", () => {
-  const aui = {
-    composer: () => ({
-      setText: h.setText,
-      send: h.sendSpy,
-    }),
-  };
+  const composer = Object.assign(() => composer, {
+    setText: h.setText,
+    send: h.sendSpy,
+  });
+  const aui = { composer };
   return {
     useAui: () => aui,
     useAuiState: <T,>(
@@ -277,7 +276,7 @@ describe("ComposerInput", () => {
         .spyOn(globalThis, "getComputedStyle")
         .mockImplementation((() => ({
           maxHeight: "64px",
-        })) as typeof getComputedStyle);
+        })) as unknown as typeof getComputedStyle);
 
       try {
         const input = await mount({

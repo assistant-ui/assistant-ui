@@ -8,7 +8,7 @@ export const useThreadListLoadMore = () => {
   );
 
   const loadMore = useCallback(() => {
-    aui.threads().loadMore();
+    aui.threads.loadMore();
   }, [aui]);
 
   return { loadMore, disabled };

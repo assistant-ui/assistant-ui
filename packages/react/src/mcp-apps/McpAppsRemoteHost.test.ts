@@ -40,6 +40,51 @@ describe("McpAppsRemoteHost", () => {
     }
   });
 
+  it("posts serverId params verbatim for tool calls and resource loads", async () => {
+    const fetch = vi.fn(async () =>
+      Response.json({ content: [{ type: "text", text: "ok" }] }),
+    ) as unknown as typeof globalThis.fetch;
+    const root = mount(fetch);
+
+    try {
+      await root.getValue().callTool({
+        name: "search",
+        arguments: { query: "docs" },
+        serverId: "search-server",
+      });
+      await root.getValue().loadResource({
+        uri: "ui://example/search",
+        serverId: "search-server",
+      });
+
+      expect(fetch).toHaveBeenNthCalledWith(1, "/api/mcp-apps", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          method: "tools/call",
+          params: {
+            name: "search",
+            arguments: { query: "docs" },
+            serverId: "search-server",
+          },
+        }),
+      });
+      expect(fetch).toHaveBeenNthCalledWith(2, "/api/mcp-apps", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          method: "mcp-apps/read-resource",
+          params: {
+            uri: "ui://example/search",
+            serverId: "search-server",
+          },
+        }),
+      });
+    } finally {
+      root.unmount();
+    }
+  });
+
   it("includes method, url, status, and text body in host request errors", async () => {
     const fetch = vi.fn(
       async () =>

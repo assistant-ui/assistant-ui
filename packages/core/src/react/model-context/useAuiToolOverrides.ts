@@ -28,7 +28,7 @@ export function useAuiToolOverrides(overrides: AuiToolOverrides): void {
   overridesRef.current = overrides;
 
   useEffect(() => {
-    return aui.modelContext().register({
+    return aui.modelContext.register({
       getModelContext: () => ({
         priority: 1000,
         tools: overridesRef.current as Record<string, Tool<any, any>>,

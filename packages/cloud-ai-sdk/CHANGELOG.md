@@ -1,5 +1,58 @@
 # @assistant-ui/cloud-ai-sdk
 
+## 0.1.27
+
+### Patch Changes
+
+- [#5208](https://github.com/assistant-ui/assistant-ui/pull/5208) [`a0ddc86`](https://github.com/assistant-ui/assistant-ui/commit/a0ddc862b0c506bd791238ebf800868e4836820a) - Adopt `erasableSyntaxOnly`; public enums are now `as const` objects. ([@Yonom](https://github.com/Yonom))
+
+- Updated dependencies [[`a0ddc86`](https://github.com/assistant-ui/assistant-ui/commit/a0ddc862b0c506bd791238ebf800868e4836820a)]:
+  - assistant-cloud@0.1.37
+
+## 0.1.26
+
+### Patch Changes
+
+- [#5140](https://github.com/assistant-ui/assistant-ui/pull/5140) [`a3bb2e3`](https://github.com/assistant-ui/assistant-ui/commit/a3bb2e316e037a8ef829a8bcb5b8b4b2034bcc97) - fix: preserve async tool call callbacks ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5109](https://github.com/assistant-ui/assistant-ui/pull/5109) [`8f2b8af`](https://github.com/assistant-ui/assistant-ui/commit/8f2b8af356f101e74ec92219677e357e2dc1e5ce) - fix: keep disabled thread fetching out of the loading state ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5134](https://github.com/assistant-ui/assistant-ui/pull/5134) [`69864c6`](https://github.com/assistant-ui/assistant-ui/commit/69864c6a86ae0a676424b8d75b4facc211557a8e) - fix: reset selected threads and cached chats when the Cloud client changes ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#4872](https://github.com/assistant-ui/assistant-ui/pull/4872) [`de10b40`](https://github.com/assistant-ui/assistant-ui/commit/de10b401c53763e2b866d5c9ba207d85118f5b52) - fix: retry interrupted thread history loads ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5076](https://github.com/assistant-ui/assistant-ui/pull/5076) [`aec9c3a`](https://github.com/assistant-ui/assistant-ui/commit/aec9c3a056c98e5d2ff7b6f574d6b22cc62b92b5) - test: exercise the ai v6 leg of the peer union in CI ([@okisdev](https://github.com/okisdev))
+
+- [#4953](https://github.com/assistant-ui/assistant-ui/pull/4953) [`12e1be4`](https://github.com/assistant-ui/assistant-ui/commit/12e1be43d1ea1bb8f4d542e857699c39c7b6fd3b) - fix: README quickstart renders UIMessage parts and drops nonexistent threadId destructure ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#4874](https://github.com/assistant-ui/assistant-ui/pull/4874) [`71d2753`](https://github.com/assistant-ui/assistant-ui/commit/71d2753e32712b42a5ed0f7cf54634e0f2f77eb3) - fix: retry automatic title generation after failed attempts ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5187](https://github.com/assistant-ui/assistant-ui/pull/5187) [`5b1c4f0`](https://github.com/assistant-ui/assistant-ui/commit/5b1c4f0a12e923fef960d353cd319b29b82dde50) - refactor: share the mounted-and-current-cloud guard across thread actions ([@okisdev](https://github.com/okisdev))
+
+- [#5079](https://github.com/assistant-ui/assistant-ui/pull/5079) [`390e417`](https://github.com/assistant-ui/assistant-ui/commit/390e4177ca47f7ece839613ad0f076add9313328) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- Updated dependencies [[`0d0834d`](https://github.com/assistant-ui/assistant-ui/commit/0d0834d77967eb3f68198c48597a3bb9c6f474cb), [`3f90440`](https://github.com/assistant-ui/assistant-ui/commit/3f90440a45d8b7bc11745a1d3cf242d4f40934ed), [`ccebbf9`](https://github.com/assistant-ui/assistant-ui/commit/ccebbf9317c04e1f93dd6141544e8811b42a0154), [`85d7c25`](https://github.com/assistant-ui/assistant-ui/commit/85d7c251a9846422f693dcd9ac7c727ed22e6d09), [`23a9925`](https://github.com/assistant-ui/assistant-ui/commit/23a9925415b92e9138e6f5e07755b89a0f17468f), [`7fde141`](https://github.com/assistant-ui/assistant-ui/commit/7fde141c094d122034804f9b9e19b4f17fb516ba)]:
+  - assistant-cloud@0.1.36
+
+## 0.1.25
+
+### Patch Changes
+
+- [#4654](https://github.com/assistant-ui/assistant-ui/pull/4654) [`c980086`](https://github.com/assistant-ui/assistant-ui/commit/c98008682d993d03cfb20d5daef6fbaa0f3b4e10) - feat: widen AI SDK peer range to allow v7 alongside v6 (ai@^6 || ^7, @ai-sdk/react@^3 || ^4) ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#4746](https://github.com/assistant-ui/assistant-ui/pull/4746) [`0686f4e`](https://github.com/assistant-ui/assistant-ui/commit/0686f4e6b8ee5f6e17c968997ef11622ef8f9c98) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#4921](https://github.com/assistant-ui/assistant-ui/pull/4921) [`5d888e7`](https://github.com/assistant-ui/assistant-ui/commit/5d888e7971c902dc39ff43a8b0badd14d0008241) - fix: preserve mounted state and ignore superseded thread refreshes when Strict Mode replays effects ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#4887](https://github.com/assistant-ui/assistant-ui/pull/4887) [`d03e5cf`](https://github.com/assistant-ui/assistant-ui/commit/d03e5cf0e6efada832503fedc565a1fb8f14676a) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#4887](https://github.com/assistant-ui/assistant-ui/pull/4887) [`d03e5cf`](https://github.com/assistant-ui/assistant-ui/commit/d03e5cf0e6efada832503fedc565a1fb8f14676a) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#4815](https://github.com/assistant-ui/assistant-ui/pull/4815) [`5325f09`](https://github.com/assistant-ui/assistant-ui/commit/5325f0985768b750b050cf07f592fdfed34eccac) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+- Updated dependencies [[`0ea628f`](https://github.com/assistant-ui/assistant-ui/commit/0ea628fedba37d2e95195e250c60129d43af213c), [`7cf5acc`](https://github.com/assistant-ui/assistant-ui/commit/7cf5acc8ae31bc01102d170b854aaaf7c260eff9), [`7a85307`](https://github.com/assistant-ui/assistant-ui/commit/7a85307390287a341618ac58b8967395df38a56b), [`e4da8c5`](https://github.com/assistant-ui/assistant-ui/commit/e4da8c57e259e7276570ff05ea605e59321b1a3f), [`0686f4e`](https://github.com/assistant-ui/assistant-ui/commit/0686f4e6b8ee5f6e17c968997ef11622ef8f9c98), [`5325f09`](https://github.com/assistant-ui/assistant-ui/commit/5325f0985768b750b050cf07f592fdfed34eccac)]:
+  - assistant-cloud@0.1.35
+
 ## 0.1.24
 
 ### Patch Changes

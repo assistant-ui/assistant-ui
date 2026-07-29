@@ -77,7 +77,7 @@ const ThreadPrimitiveSuggestionsInner: FC<{
       <SuggestionByIndexProvider key={index} index={index}>
         <RenderChildrenWithAccessor
           getItemState={(aui) =>
-            aui.suggestions().suggestion({ index }).getState()
+            aui.suggestions.suggestion({ index }).getState()
           }
         >
           {(getItem) =>

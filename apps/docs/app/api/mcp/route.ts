@@ -1,86 +1,41 @@
 import type * as PageTree from "fumadocs-core/page-tree";
 import { NextResponse, type NextRequest } from "next/server";
+import {
+  McpServer,
+  ResourceTemplate,
+  WebStandardStreamableHTTPServerTransport,
+} from "@modelcontextprotocol/server";
+import { z } from "zod";
 import { getLLMText } from "@/lib/get-llm-text";
 import { examples, getTapDocsPage, source, tapDocs } from "@/lib/source";
+import { normalizeMcpRequestHeaders } from "./normalize-mcp-headers";
 
 export const revalidate = false;
-
-type JsonRpcRequest = {
-  jsonrpc?: string;
-  id?: string | number | null;
-  method?: string;
-  params?: unknown;
-};
-
-const PROTOCOL_VERSION = "2025-06-18";
 
 const toolDefinitions = [
   {
     name: "list_pages",
     description:
       "List assistant-ui documentation pages. Optionally filter by a URL path prefix such as /docs/tools, /examples, or /tap/docs.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        path: {
-          type: "string",
-          description: "Optional docs path or prefix to filter by.",
-        },
-      },
-      additionalProperties: false,
-    },
   },
   {
     name: "get_navigation",
     description: "Return the assistant-ui docs navigation tree.",
-    inputSchema: {
-      type: "object",
-      properties: {},
-      additionalProperties: false,
-    },
   },
   {
     name: "search_docs",
     description:
       "Search assistant-ui docs, examples, and Tap docs by title, description, or URL.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        query: {
-          type: "string",
-          description: "Search query.",
-        },
-      },
-      required: ["query"],
-      additionalProperties: false,
-    },
   },
   {
     name: "read_page",
     description:
       "Read one assistant-ui docs, examples, or Tap docs page as markdown. Accepts a slug, path, .md URL, or same-origin URL.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        path: {
-          type: "string",
-          description:
-            "Page path such as /docs/installation, /docs/installation.md, examples/ai-sdk, tap/docs/store/state, or a same-origin URL.",
-        },
-      },
-      required: ["path"],
-      additionalProperties: false,
-    },
   },
-];
+] as const;
 
-function getStringParam(params: unknown, key: string) {
-  if (params && typeof params === "object" && key in params) {
-    const value = (params as Record<string, unknown>)[key];
-    if (typeof value === "string") return value;
-  }
-  return undefined;
-}
+const [listPagesTool, getNavigationTool, searchDocsTool, readPageTool] =
+  toolDefinitions;
 
 function pageSummary(page: {
   url: string;
@@ -275,146 +230,150 @@ async function readPage(path: string | undefined, requestUrl: string) {
   };
 }
 
-async function callTool(
-  name: string | undefined,
-  params: unknown,
-  requestUrl: string,
-) {
-  const args =
-    params && typeof params === "object" && "arguments" in params
-      ? (params as { arguments?: unknown }).arguments
-      : undefined;
-
-  switch (name) {
-    case "list_pages":
-      return listPages(getStringParam(args, "path"));
-    case "get_navigation":
-      return getNavigation();
-    case "search_docs":
-      return searchDocs(getStringParam(args, "query") ?? "");
-    case "read_page":
-      return readPage(getStringParam(args, "path"), requestUrl);
-    default:
-      throw new Error(`Unknown tool: ${name ?? "missing"}`);
-  }
+function toolTextResult(text: string) {
+  return { content: [{ type: "text" as const, text }] };
 }
 
-function jsonRpcResult(id: JsonRpcRequest["id"], result: unknown) {
-  return { jsonrpc: "2.0", id, result };
+function stringifyToolResult(result: unknown) {
+  return typeof result === "string" ? result : JSON.stringify(result, null, 2);
 }
 
-function jsonRpcError(id: JsonRpcRequest["id"], code: number, message: string) {
-  return { jsonrpc: "2.0", id: id ?? null, error: { code, message } };
-}
-
-async function handleJsonRpcMessage(
-  message: JsonRpcRequest,
-  requestUrl: string,
-) {
-  if (message.id === undefined) return null;
-
+async function toolResult(fn: () => unknown | Promise<unknown>) {
   try {
-    switch (message.method) {
-      case "initialize": {
-        return jsonRpcResult(message.id, {
-          protocolVersion: PROTOCOL_VERSION,
-          capabilities: {
-            tools: { listChanged: false },
-            resources: { subscribe: false, listChanged: false },
-          },
-          serverInfo: {
-            name: "assistant-ui-docs",
-            version: "1.0.0",
-          },
-        });
-      }
-      case "tools/list":
-        return jsonRpcResult(message.id, { tools: toolDefinitions });
-      case "tools/call": {
-        const name = getStringParam(message.params, "name");
-        let result: unknown;
-        try {
-          result = await callTool(name, message.params, requestUrl);
-        } catch (error) {
-          return jsonRpcResult(message.id, {
-            content: [
-              {
-                type: "text",
-                text: error instanceof Error ? error.message : String(error),
-              },
-            ],
-            isError: true,
-          });
-        }
-        return jsonRpcResult(message.id, {
-          content: [
-            {
-              type: "text",
-              text:
-                typeof result === "string"
-                  ? result
-                  : JSON.stringify(result, null, 2),
-            },
-          ],
-        });
-      }
-      case "resources/list":
-        return jsonRpcResult(message.id, {
-          resources: [
-            {
-              uri: "assistant-ui://navigation",
-              name: "assistant-ui docs navigation",
-              mimeType: "application/json",
-            },
-            ...allPages().map(({ page }) => ({
-              uri: `assistant-ui://${stripLeadingSlashes(page.url)}`,
-              name: page.data.title,
-              mimeType: "text/markdown",
-            })),
-          ],
-        });
-      case "resources/read": {
-        const uri = getStringParam(message.params, "uri");
-        if (uri === "assistant-ui://navigation") {
-          return jsonRpcResult(message.id, {
-            contents: [
-              {
-                uri,
-                mimeType: "application/json",
-                text: JSON.stringify(getNavigation(), null, 2),
-              },
-            ],
-          });
-        }
-        if (!uri?.startsWith("assistant-ui://")) {
-          return jsonRpcError(message.id, -32602, "Unsupported resource URI");
-        }
-        const path = uri.slice("assistant-ui://".length);
-        const page = await readPage(path, requestUrl);
-        return jsonRpcResult(message.id, {
-          contents: [
-            {
-              uri,
-              mimeType: "text/markdown",
-              text: page.content,
-            },
-          ],
-        });
-      }
-      default:
-        return jsonRpcError(
-          message.id,
-          -32601,
-          `Method not found: ${message.method ?? "missing"}`,
-        );
-    }
+    return toolTextResult(stringifyToolResult(await fn()));
   } catch (error) {
-    return jsonRpcError(
-      message.id,
-      -32000,
-      error instanceof Error ? error.message : String(error),
-    );
+    return {
+      content: [
+        {
+          type: "text" as const,
+          text: error instanceof Error ? error.message : String(error),
+        },
+      ],
+      isError: true as const,
+    };
   }
+}
+
+const listPagesInputSchema = z
+  .object({
+    path: z
+      .string()
+      .describe("Optional docs path or prefix to filter by.")
+      .optional(),
+  })
+  .strict();
+
+const getNavigationInputSchema = z.object({}).strict();
+
+const searchDocsInputSchema = z
+  .object({
+    query: z.string().describe("Search query."),
+  })
+  .strict();
+
+const readPageInputSchema = z
+  .object({
+    path: z
+      .string()
+      .describe(
+        "Page path such as /docs/installation, /docs/installation.md, examples/ai-sdk, tap/docs/store/state, or a same-origin URL.",
+      ),
+  })
+  .strict();
+
+function templateVarToPath(value: string | string[] | undefined): string {
+  return Array.isArray(value) ? value.join("/") : (value ?? "");
+}
+
+function registerResources(server: McpServer, requestUrl: string) {
+  server.registerResource(
+    "assistant-ui docs navigation",
+    "assistant-ui://navigation",
+    { mimeType: "application/json" },
+    async (uri) => ({
+      contents: [
+        {
+          uri: uri.href,
+          mimeType: "application/json",
+          text: JSON.stringify(getNavigation(), null, 2),
+        },
+      ],
+    }),
+  );
+
+  server.registerResource(
+    "assistant-ui docs pages",
+    new ResourceTemplate("assistant-ui://{+path}", {
+      list: async () => ({
+        resources: allPages().map(({ page }) => ({
+          uri: `assistant-ui://${stripLeadingSlashes(page.url)}`,
+          name: page.data.title,
+          mimeType: "text/markdown",
+        })),
+      }),
+    }),
+    { mimeType: "text/markdown" },
+    async (uri, variables) => {
+      const path = templateVarToPath(variables["path"]);
+      const page = await readPage(path, requestUrl);
+      return {
+        contents: [
+          {
+            uri: uri.href,
+            mimeType: "text/markdown",
+            text: page.content,
+          },
+        ],
+      };
+    },
+  );
+}
+
+function buildMcpServer(requestUrl: string) {
+  const server = new McpServer({
+    name: "assistant-ui-docs",
+    version: "1.0.0",
+  });
+
+  server.registerTool(
+    listPagesTool.name,
+    {
+      description: listPagesTool.description,
+      inputSchema: listPagesInputSchema,
+    },
+    ({ path }) => toolResult(() => listPages(path)),
+  );
+
+  server.registerTool(
+    getNavigationTool.name,
+    {
+      description: getNavigationTool.description,
+      inputSchema: getNavigationInputSchema,
+    },
+    () => toolResult(() => getNavigation()),
+  );
+
+  server.registerTool(
+    searchDocsTool.name,
+    {
+      description: searchDocsTool.description,
+      inputSchema: searchDocsInputSchema,
+    },
+    ({ query }) => toolResult(() => searchDocs(query)),
+  );
+
+  server.registerTool(
+    readPageTool.name,
+    {
+      description: readPageTool.description,
+      inputSchema: readPageInputSchema,
+    },
+    ({ path }) => toolResult(() => readPage(path, requestUrl)),
+  );
+
+  registerResources(server, requestUrl);
+
+  return server;
 }
 
 function jsonResponse(body: unknown, init?: ResponseInit) {
@@ -440,43 +399,19 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  let payload: unknown;
+  const server = buildMcpServer(request.url);
+  const transport = new WebStandardStreamableHTTPServerTransport({
+    sessionIdGenerator: undefined,
+    enableJsonResponse: true,
+  });
+  await server.connect(transport);
   try {
-    payload = await request.json();
-  } catch {
-    return jsonResponse(jsonRpcError(null, -32700, "Parse error"), {
-      status: 400,
-    });
+    const normalizedRequest = await normalizeMcpRequestHeaders(request);
+    return await transport.handleRequest(normalizedRequest);
+  } finally {
+    await transport.close().catch(() => {});
+    await server.close().catch(() => {});
   }
-
-  if (Array.isArray(payload)) {
-    if (payload.length === 0) {
-      return jsonResponse(jsonRpcError(null, -32600, "Invalid Request"), {
-        status: 400,
-      });
-    }
-
-    const results = (
-      await Promise.all(
-        payload.map((message) =>
-          handleJsonRpcMessage(message as JsonRpcRequest, request.url),
-        ),
-      )
-    ).filter((result) => result !== null);
-
-    return results.length > 0
-      ? jsonResponse(results)
-      : new NextResponse(null, { status: 202 });
-  }
-
-  const result = await handleJsonRpcMessage(
-    payload as JsonRpcRequest,
-    request.url,
-  );
-
-  return result
-    ? jsonResponse(result)
-    : new NextResponse(null, { status: 202 });
 }
 
 export function OPTIONS() {

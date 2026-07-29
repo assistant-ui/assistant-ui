@@ -1,4 +1,4 @@
-import { CreateUIMessage, UIMessage as UIMessage$1, useChat } from "@ai-sdk/react";
+import { CreateUIMessage, UIMessage as UIMessage$1, UseChatHelpers, useChat } from "@ai-sdk/react";
 
 import { StandardSchemaV1 } from "@standard-schema/spec";
 
@@ -9,10 +9,12 @@ import { ComponentType, ReactNode } from "react";
 type AISDKRuntimeAdapter = ExternalStoreSharedOptions & {
   adapters?: (NonNullable<ExternalStoreAdapter["adapters"]> & {
     history?: ThreadHistoryAdapter | undefined;
+    suggestion?: SuggestionAdapter | undefined;
   }) | undefined;
   toCreateMessage?: CustomToCreateMessageFunction;
   cancelPendingToolCallsOnSend?: boolean | undefined;
   onResume?: ExternalStoreAdapter["onResume"];
+  onResumeToolCall?: ExternalStoreAdapter["onResumeToolCall"];
   joinStrategy?: JoinStrategy | undefined;
 };
 
@@ -28,7 +30,7 @@ type AISDKToolkitOptions = {
 };
 
 type AISDKToolkitToolsOptions = {
-  frontend?: Record<string, ToolJSONSchema>;
+  frontend?: FrontendTools;
 };
 
 type AddToolResultOptions = {
@@ -73,6 +75,7 @@ type AssistantChatTransportInitOptions<UI_MESSAGE extends UIMessage> = HttpChatT
 
 declare class AssistantCloud {
   readonly threads: AssistantCloudThreads;
+  readonly projects: AssistantCloudProjects;
   readonly auth: {
     tokens: AssistantCloudAuthTokens;
   };
@@ -132,6 +135,44 @@ declare class AssistantCloudFiles {
 type AssistantCloudMessageCreateResponse = {
   message_id: string;
 };
+
+type AssistantCloudProjectThreadMessageListQuery = {
+  format?: string;
+  limit?: number;
+  after?: string;
+};
+
+type AssistantCloudProjectThreadMessageListResponse = {
+  messages: CloudMessage[];
+};
+
+declare class AssistantCloudProjectThreadMessages {
+  private cloud;
+  constructor(cloud: AssistantCloudAPI);
+  list(threadId: string, query?: AssistantCloudProjectThreadMessageListQuery): Promise<AssistantCloudProjectThreadMessageListResponse>;
+}
+
+declare class AssistantCloudProjectThreads {
+  readonly messages: AssistantCloudProjectThreadMessages;
+  private cloud;
+  constructor(cloud: AssistantCloudAPI);
+  list(query?: AssistantCloudProjectThreadsListQuery): Promise<AssistantCloudProjectThreadsListResponse>;
+}
+
+type AssistantCloudProjectThreadsListQuery = {
+  is_archived?: boolean;
+  limit?: number;
+  after?: string;
+};
+
+type AssistantCloudProjectThreadsListResponse = {
+  threads: CloudThread[];
+};
+
+declare class AssistantCloudProjects {
+  readonly threads: AssistantCloudProjectThreads;
+  constructor(cloud: AssistantCloudAPI);
+}
 
 type AssistantCloudRunReport = {
   thread_id: string;
@@ -216,8 +257,8 @@ declare class AssistantCloudThreadMessages {
 }
 
 declare class AssistantCloudThreads {
-  private cloud;
   readonly messages: AssistantCloudThreadMessages;
+  private cloud;
   constructor(cloud: AssistantCloudAPI);
   list(query?: AssistantCloudThreadsListQuery): Promise<AssistantCloudThreadsListResponse>;
   get(threadId: string): Promise<CloudThread>;
@@ -315,13 +356,25 @@ type AssistantStreamChunk = {
 } | {
   readonly type: "error";
   readonly error: string;
+  readonly code?: string;
+  readonly severity?: "critical" | "info" | "warning";
 } | {
   readonly type: "update-state";
-  readonly operations: ObjectStreamOperation[];
+  readonly operations: AssistantTransportStateOperation[];
 });
 
 type AssistantStreamEncoder = ReadableWritablePair<Uint8Array<ArrayBuffer>, AssistantStreamChunk> & {
   headers?: Headers;
+};
+
+type AssistantTransportStateOperation = {
+  readonly type: "set";
+  readonly path: readonly string[];
+  readonly value: ReadonlyJSONValue;
+} | {
+  readonly type: "append-text";
+  readonly path: readonly string[];
+  readonly value: string;
 };
 
 type AsyncIterableStream<T> = AsyncIterable<T> & ReadableStream<T>;
@@ -775,6 +828,8 @@ type FrontendTool<TArgs extends Record<string, unknown> = Record<string, unknown
   providerOptions?: ProviderOptions;
 };
 
+type FrontendTools = Record<string, ToolJSONSchema>;
+
 type GeneratePresignedUploadUrlRequestBody = {
   filename: string;
 };
@@ -788,7 +843,7 @@ type GeneratePresignedUploadUrlResponse = {
 
 interface GenerativeToolsOptions {
   toolkit: Toolkit;
-  frontendTools?: Record<string, ToolJSONSchema>;
+  frontendTools?: FrontendTools;
 }
 
 type GenerativeUIMessagePart = {
@@ -948,6 +1003,7 @@ type McpAppMetadata = {
   readonly resourceUri: string;
   readonly mimeType?: string;
   readonly visibility?: readonly ("app" | "model")[];
+  readonly serverId?: string;
 };
 
 type McpServerConfig = {
@@ -1128,16 +1184,6 @@ type ModelContextProvider = {
 
 type ObjectKey<T> = keyof T & (string | number);
 
-type ObjectStreamOperation = {
-  readonly type: "set";
-  readonly path: readonly string[];
-  readonly value: ReadonlyJSONValue;
-} | {
-  readonly type: "append-text";
-  readonly path: readonly string[];
-  readonly value: string;
-};
-
 type OnSchemaValidationErrorFunction<TResult> = ToolExecuteFunction<unknown, TResult>;
 
 type PartInit = {
@@ -1167,6 +1213,10 @@ type PartInit = {
   readonly parentId?: string;
 };
 
+type PartProviderMetadata = {
+  readonly [providerName: string]: ReadonlyJSONObject;
+};
+
 type PdfToImagesRequestBody = {
   file_blob?: string | undefined;
   file_url?: string | undefined;
@@ -1193,6 +1243,7 @@ type PendingAttachmentStatus = {
 } | {
   type: "incomplete";
   reason: "error" | "upload-paused";
+  message?: string;
 };
 
 type ProviderOptions = Record<string, Record<string, unknown>>;
@@ -1267,6 +1318,7 @@ type RealtimeVoiceAdapter = {
 type ReasoningMessagePart = {
   readonly type: "reasoning";
   readonly text: string;
+  readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };
 
@@ -1356,9 +1408,7 @@ type SourceMessagePart = {
   readonly parentId?: string;
 };
 
-type SourceProviderMetadata = {
-  readonly [providerName: string]: ReadonlyJSONObject;
-};
+type SourceProviderMetadata = PartProviderMetadata;
 
 interface SpeechRecognitionConstructor {
   new (): SpeechRecognitionInstance;
@@ -1403,11 +1453,21 @@ type StartRunConfig = {
   runConfig: RunConfig;
 };
 
+type SuggestionAdapter = {
+  generate: (options: SuggestionAdapterGenerateOptions) => Promise<readonly ThreadSuggestion[]> | AsyncGenerator<readonly ThreadSuggestion[], void>;
+};
+
+type SuggestionAdapterGenerateOptions = {
+  messages: readonly ThreadMessage[];
+  signal?: AbortSignal;
+};
+
 declare const TOOL_RESPONSE_SYMBOL: unique symbol;
 
 type TextMessagePart = {
   readonly type: "text";
   readonly text: string;
+  readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };
 
@@ -1457,6 +1517,7 @@ type ThreadHistoryAdapter = {
   }>;
   resume?(options: ChatModelRunOptions): AsyncGenerator<ChatModelRunResult, void, unknown>;
   append(item: ExportedMessageRepositoryItem): Promise<void>;
+  update?(item: ExportedMessageRepositoryItem): Promise<void>;
   delete?(items: ExportedMessageRepositoryItem[]): Promise<void>;
   withFormat?<TMessage, TStorageFormat extends Record<string, unknown>>(formatAdapter: MessageFormatAdapter<TMessage, TStorageFormat>): GenericThreadHistoryAdapter<TMessage>;
 };
@@ -1570,6 +1631,7 @@ type ThreadMessageLike = {
       payload: unknown;
     };
     readonly timing?: ToolCallTiming;
+    readonly providerMetadata?: PartProviderMetadata;
     readonly approval?: {
       readonly id: string;
       readonly approved?: boolean;
@@ -1711,6 +1773,7 @@ type ThreadUserMessage = MessageCommonProps & {
     readonly steps?: undefined;
     readonly submittedFeedback?: undefined;
     readonly timing?: undefined;
+    readonly isOptimistic?: boolean;
     readonly custom: Record<string, unknown>;
   };
 };
@@ -1753,6 +1816,7 @@ type ToolApprovalResponse = {
 type ToolBase<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = {
   streamCall?: ToolStreamCallFunction<TArgs, TResult>;
   display?: ToolDisplay;
+  overwrite?: boolean;
 };
 
 interface ToolCallArgsReader<TArgs extends Record<string, unknown>> {
@@ -1778,6 +1842,7 @@ type ToolCallMessagePart<TArgs = ReadonlyJSONObject, TResult = unknown> = {
   readonly artifact?: unknown;
   readonly timing?: ToolCallTiming;
   readonly mcp?: ToolCallMessagePartMcpMetadata;
+  readonly providerMetadata?: PartProviderMetadata;
   readonly modelContent?: readonly ToolModelContentPart[] | undefined;
   readonly interrupt?: {
     type: "human";
@@ -1960,6 +2025,7 @@ type UseChatRuntimeOptions<UI_MESSAGE extends UIMessage$1 = UIMessage$1> = ChatI
   adapters?: AISDKRuntimeAdapter["adapters"] | undefined;
   toCreateMessage?: CustomToCreateMessageFunction;
   onResume?: AISDKRuntimeAdapter["onResume"];
+  onResumeToolCall?: AISDKRuntimeAdapter["onResumeToolCall"];
   onResumeError?: ((error: unknown) => void) | undefined;
   joinStrategy?: AISDKRuntimeAdapter["joinStrategy"];
   onThreadIdChange?: ((threadId: string | undefined) => void) | undefined;
@@ -1991,7 +2057,7 @@ declare function createResumableSessionStorage(options?: {
   key?: string;
 }): ResumableClientStorage;
 
-declare const frontendTools: (tools: Record<string, ToolJSONSchema>) => ToolSet;
+declare const frontendTools: (tools: FrontendTools) => ToolSet;
 
 declare const generativeTools: (options: GenerativeToolsOptions) => ToolSet;
 
@@ -2005,12 +2071,16 @@ declare global {
 }
 
 declare namespace entry_root_exports {
-  export { AISDKToolkit, AISDKToolkitOptions, AISDKToolkitToolsOptions, AssistantChatResumableOptions, AssistantChatTransport, GenerativeToolsOptions, RESUMABLE_STREAM_ID_HEADER, ResumableClientStorage, ThreadTokenUsage, TokenUsageExtractableMessage, UseChatRuntimeOptions, createResumableSessionStorage, frontendTools, generativeTools, getThreadMessageTokenUsage, injectQuoteContext, unstable_injectInteractableContext, useAISDKRuntime, useChatRuntime, useThreadTokenUsage };
+  export { AISDKToolkit, AISDKToolkitOptions, AISDKToolkitToolsOptions, AssistantChatResumableOptions, AssistantChatTransport, FrontendTools, GenerativeToolsOptions, RESUMABLE_STREAM_ID_HEADER, ResumableClientStorage, ThreadTokenUsage, TokenUsageExtractableMessage, UseChatRuntimeOptions, createResumableSessionStorage, frontendTools, generativeTools, getThreadMessageTokenUsage, injectQuoteContext, unstable_injectInteractableContext, useAISDKChat, useAISDKError, useAISDKRuntime, useChatRuntime, useThreadTokenUsage };
 }
 
 declare function injectQuoteContext(messages: UIMessage[]): UIMessage[];
 
 declare function unstable_injectInteractableContext(messages: UIMessage[], format?: (item: Unstable_InteractableSnapshotEntry) => string): UIMessage[];
+
+declare const useAISDKChat: <UI_MESSAGE extends UIMessage = UIMessage>() => UseChatHelpers<UI_MESSAGE> | undefined;
+
+declare const useAISDKError: () => Error | undefined;
 
 declare const useAISDKRuntime: <UI_MESSAGE extends UIMessage$1 = UIMessage$1>(chatHelpers: ReturnType<typeof useChat<UI_MESSAGE>>, adapter?: AISDKRuntimeAdapter) => AssistantRuntime;
 

@@ -13,70 +13,71 @@ import {
   ArrowUpIcon,
   CheckIcon,
   ChevronDownIcon,
-  Cross2Icon,
-  Pencil1Icon,
-  PlusIcon,
-  ReloadIcon,
-} from "@radix-ui/react-icons";
-import {
   CopyIcon,
   EllipsisVertical,
   ImageIcon,
   Lightbulb,
   Mic,
   Paperclip,
+  PencilIcon,
   PencilRuler,
+  PlusIcon,
+  RefreshCwIcon,
   Telescope,
   ThumbsDown,
   ThumbsUp,
+  XIcon,
 } from "lucide-react";
 import { type FC, useEffect, useState } from "react";
 import { useShallow } from "zustand/shallow";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
+import { CloneThreadShell } from "./clone-thread-shell";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/shared/dropdown-menu";
+} from "@/components/ui/dropdown-menu";
 
 export const Gemini: FC = () => {
   return (
-    <ThreadPrimitive.Root className="flex h-full flex-col overflow-hidden bg-[#fdfcfc] text-[#1f1f1f] dark:bg-[#0c0c0c] dark:text-[#e3e3e3]">
-      <AuiIf condition={(s) => s.thread.messages.length === 0}>
-        <div className="relative flex grow flex-col">
-          <div className="flex grow flex-col items-center justify-center px-4">
-            <div className="flex w-full max-w-3xl flex-col">
-              <h1 className="fade-in slide-in-from-bottom-3 motion-safe:animate-in fill-mode-both relative z-10 mb-6 text-center text-4xl font-normal text-[#1f1f1f] delay-500 duration-400 ease-[cubic-bezier(0.22,1,0.36,1)] dark:text-white">
-                How can I help you today?
-              </h1>
-              <div className="relative">
-                <div
-                  aria-hidden="true"
-                  className="fade-in zoom-in-40 blur-in-[90px] motion-safe:animate-in fill-mode-both pointer-events-none absolute top-1/2 left-1/2 h-[260px] w-[680px] max-w-[92%] -translate-x-1/2 -translate-y-1/2 rounded-[140px] bg-[#a9d1fb]/60 blur-[90px] duration-1000 ease-[cubic-bezier(0.22,1,0.36,1)] dark:bg-[#1b2f9c]/50"
-                />
-                <div className="relative z-10">
-                  <Composer />
+    <CloneThreadShell>
+      <ThreadPrimitive.Root className="flex h-full flex-col overflow-hidden bg-[#fdfcfc] text-[#1f1f1f] dark:bg-[#0c0c0c] dark:text-[#e3e3e3]">
+        <AuiIf condition={(s) => s.thread.messages.length === 0}>
+          <div className="relative flex grow flex-col">
+            <div className="flex grow flex-col items-center justify-center px-4">
+              <div className="flex w-full max-w-3xl flex-col">
+                <h1 className="fade-in slide-in-from-bottom-3 motion-safe:animate-in fill-mode-both relative z-10 mb-6 text-center text-4xl font-normal text-[#1f1f1f] delay-500 duration-400 ease-[cubic-bezier(0.22,1,0.36,1)] dark:text-white">
+                  How can I help you today?
+                </h1>
+                <div className="relative">
+                  <div
+                    aria-hidden="true"
+                    className="fade-in zoom-in-40 blur-in-[90px] motion-safe:animate-in fill-mode-both pointer-events-none absolute top-1/2 left-1/2 h-[260px] w-[680px] max-w-[92%] -translate-x-1/2 -translate-y-1/2 rounded-[140px] bg-[#a9d1fb]/60 blur-[90px] duration-1000 ease-[cubic-bezier(0.22,1,0.36,1)] dark:bg-[#1b2f9c]/50"
+                  />
+                  <div className="relative z-10">
+                    <Composer />
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
-      </AuiIf>
+        </AuiIf>
 
-      <AuiIf condition={(s) => s.thread.messages.length > 0}>
-        <ThreadPrimitive.Viewport className="flex grow flex-col overflow-y-scroll pt-12">
-          <ThreadPrimitive.Messages components={{ Message: ChatMessage }} />
-          <ThreadPrimitive.ViewportFooter className="sticky bottom-0 mt-auto flex w-full flex-col items-center gap-1.5 bg-[#fdfcfc] px-4 pb-3 dark:bg-[#0c0c0c]">
-            <Composer />
-            <p className="text-center text-xs text-[#5e6063] dark:text-[#9aa0a6]">
-              Gemini can make mistakes, so double-check it.
-            </p>
-          </ThreadPrimitive.ViewportFooter>
-        </ThreadPrimitive.Viewport>
-      </AuiIf>
-    </ThreadPrimitive.Root>
+        <AuiIf condition={(s) => s.thread.messages.length > 0}>
+          <ThreadPrimitive.Viewport className="flex grow flex-col overflow-y-scroll pt-12">
+            <ThreadPrimitive.Messages components={{ Message: ChatMessage }} />
+            <ThreadPrimitive.ViewportFooter className="sticky bottom-0 mt-auto flex w-full flex-col items-center gap-1.5 bg-[#fdfcfc] px-4 pb-3 dark:bg-[#0c0c0c]">
+              <Composer />
+              <p className="text-center text-xs text-[#5e6063] dark:text-[#9aa0a6]">
+                Gemini can make mistakes, so double-check it.
+              </p>
+            </ThreadPrimitive.ViewportFooter>
+          </ThreadPrimitive.Viewport>
+        </AuiIf>
+      </ThreadPrimitive.Root>
+    </CloneThreadShell>
   );
 };
 
@@ -132,17 +133,16 @@ const GeminiPlusMenu: FC = () => {
         <PlusIcon width={20} height={20} />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" side="bottom" className="min-w-56">
-        <DropdownMenuItem asChild>
-          <ComposerPrimitive.AddAttachment>
-            <span className="flex size-4 items-center justify-center">
-              <Paperclip className="size-4" />
-            </span>
-            Add photos &amp; files
-          </ComposerPrimitive.AddAttachment>
+        <DropdownMenuItem render={<ComposerPrimitive.AddAttachment />}>
+          <span className="flex size-4 items-center justify-center">
+            <Paperclip className="size-4" />
+          </span>
+          Add photos &amp; files
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         {GEMINI_TOOLS.map(({ id, label, Icon }) => (
-          <DropdownMenuItem key={id} icon={<Icon className="size-4" />}>
+          <DropdownMenuItem key={id}>
+            <Icon className="size-4" />
             {label}
           </DropdownMenuItem>
         ))}
@@ -174,7 +174,7 @@ const GeminiModelPicker: FC = () => {
         {GEMINI_MODELS.map((m) => (
           <DropdownMenuItem
             key={m.id}
-            onSelect={() => setModel(m.id)}
+            onClick={() => setModel(m.id)}
             className="items-start gap-3"
           >
             <span className="mt-0.5 flex size-4 items-center justify-center text-[#0b57d0] dark:text-[#a8c7fa]">
@@ -232,7 +232,7 @@ const ChatMessage: FC = () => {
               <CopyIcon width={16} height={16} />
             </ActionBarPrimitive.Copy>
             <ActionBarPrimitive.Edit className={actionBtnClass}>
-              <Pencil1Icon width={16} height={16} />
+              <PencilIcon width={16} height={16} />
             </ActionBarPrimitive.Edit>
           </ActionBarPrimitive.Root>
           <div className="max-w-[75%] rounded-3xl bg-[#f2f0f0] px-5 py-3 wrap-break-word text-[#1f1f1f] dark:bg-[#333537] dark:text-[#e3e3e3]">
@@ -262,7 +262,7 @@ const ChatMessage: FC = () => {
               </AuiIf>
             </ActionBarPrimitive.Copy>
             <ActionBarPrimitive.Reload className={actionBtnClass}>
-              <ReloadIcon width={16} height={16} />
+              <RefreshCwIcon width={16} height={16} />
             </ActionBarPrimitive.Reload>
             <button type="button" aria-label="More" className={actionBtnClass}>
               <EllipsisVertical width={16} height={16} />
@@ -328,7 +328,7 @@ const GeminiAttachment: FC = () => {
         className="absolute -top-1.5 -right-1.5 flex size-6 items-center justify-center rounded-full border border-[#dadce0] bg-white text-[#5e6063] opacity-0 transition-all group-focus-within/thumbnail:opacity-100 group-hover/thumbnail:opacity-100 hover:bg-[#f1f3f4] hover:text-[#1f1f1f] dark:border-[#3c4043] dark:bg-[#1e1f20] dark:text-[#9aa0a6] dark:hover:bg-[#2b2c2f] dark:hover:text-[#e3e3e3]"
         aria-label="Remove attachment"
       >
-        <Cross2Icon width={14} height={14} />
+        <XIcon width={14} height={14} />
       </AttachmentPrimitive.Remove>
     </AttachmentPrimitive.Root>
   );

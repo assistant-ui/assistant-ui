@@ -8,9 +8,8 @@ const h = vi.hoisted(() => ({
 }));
 
 vi.mock("@assistant-ui/store", () => {
-  const aui = {
-    attachment: () => ({ remove: h.remove }),
-  };
+  const attachment = Object.assign(() => attachment, { remove: h.remove });
+  const aui = { attachment };
   return {
     useAui: () => aui,
   };

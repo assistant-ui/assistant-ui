@@ -741,7 +741,7 @@ useExternalStoreRuntime({
       name: "isSendDisabled",
       type: "boolean",
       description:
-        "Blocks new-message sending while leaving the input usable. When true, the thread composer's canSend becomes false, the Send button is disabled, Enter and the steer hotkey are no-ops, and aui.composer().send() short-circuits. Edit composers (saving message edits) ignore this flag. Use this to gate sending on external React state (e.g. while tools or auth are still loading).",
+        "Blocks new-message sending while leaving the input usable. When true, the thread composer's canSend becomes false, the Send button is disabled, Enter and the steer hotkey are no-ops, and aui.composer.send() short-circuits. Edit composers (saving message edits) ignore this flag. Use this to gate sending on external React state (e.g. while tools or auth are still loading).",
       default: "false",
     },
     {
@@ -796,7 +796,7 @@ useExternalStoreRuntime({
       name: "onResume",
       type: "(config: ResumeRunConfig) => Promise<void>",
       description:
-        "Handler for resuming an interrupted run (e.g. after a page reload mid-generation).",
+        "Handler for resuming an interrupted run (e.g. after a page reload mid-generation). For AI SDK reload-safe streaming, see the [Resumable Streams](/docs/guides/resumable-streams) guide.",
     },
     {
       name: "onResumeToolCall",

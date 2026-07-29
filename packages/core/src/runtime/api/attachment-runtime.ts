@@ -49,7 +49,10 @@ export abstract class AttachmentRuntimeImpl<
 
   public abstract get source(): Source;
 
-  constructor(private _core: AttachmentSnapshotBinding<Source>) {
+  private _core: AttachmentSnapshotBinding<Source>;
+
+  constructor(_core: AttachmentSnapshotBinding<Source>) {
+    this._core = _core;
     this.__internal_bindMethods();
   }
 
@@ -73,11 +76,14 @@ export abstract class AttachmentRuntimeImpl<
 abstract class ComposerAttachmentRuntime<
   Source extends "thread-composer" | "edit-composer",
 > extends AttachmentRuntimeImpl<Source> {
+  private _composerApi: ComposerRuntimeCoreBinding;
+
   constructor(
     core: AttachmentSnapshotBinding<Source>,
-    private _composerApi: ComposerRuntimeCoreBinding,
+    _composerApi: ComposerRuntimeCoreBinding,
   ) {
     super(core);
+    this._composerApi = _composerApi;
   }
 
   public remove() {

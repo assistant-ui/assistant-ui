@@ -10,7 +10,7 @@ import {
   type McpAppJsonRpcRequest,
   type McpAppJsonRpcResponse,
 } from "./types";
-import { isRecord } from "../utils/json/is-json";
+import { isRecord } from "@assistant-ui/core/internal";
 
 const VALID_DISPLAY_MODES = [
   "inline",

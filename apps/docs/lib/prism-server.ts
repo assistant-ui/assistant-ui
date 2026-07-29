@@ -1,4 +1,4 @@
-import { AuixPrism } from "@aui-x/prism";
+import { AuixPrism, prismAISDK as prismAISDKBase } from "@aui-x/prism";
 import type { TraceEvent } from "@aui-x/prism";
 
 const apiKey = process.env.AUIX_PRISM_API_KEY;
@@ -63,4 +63,19 @@ export function createPrismTracer(
         }
       : {}),
   });
+}
+
+// @aui-x/prism types prismAISDK against @ai-sdk/provider v3 (LanguageModelV3),
+// while AI SDK v7 models are LanguageModelV4; the wrapper is transparent at
+// runtime, so the provider-version gap is bridged here, preserving the caller's
+// model type through the returned `model`.
+export function prismAISDK<TModel>(
+  tracer: Parameters<typeof prismAISDKBase>[0],
+  model: TModel,
+  opts?: Parameters<typeof prismAISDKBase>[2],
+): Omit<ReturnType<typeof prismAISDKBase>, "model"> & { model: TModel } {
+  return prismAISDKBase(tracer, model as never, opts) as Omit<
+    ReturnType<typeof prismAISDKBase>,
+    "model"
+  > & { model: TModel };
 }

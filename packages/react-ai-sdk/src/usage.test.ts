@@ -31,6 +31,27 @@ describe("getThreadMessageTokenUsage", () => {
     });
   });
 
+  it("reads v7 token detail objects for reasoning and cached tokens", () => {
+    const usage = getThreadMessageTokenUsage(
+      msg({
+        usage: {
+          inputTokens: 4,
+          outputTokens: 6,
+          inputTokenDetails: { cacheReadTokens: 3, cacheWriteTokens: 1 },
+          outputTokenDetails: { textTokens: 5, reasoningTokens: 9 },
+        },
+      }),
+    );
+
+    expect(usage).toEqual({
+      totalTokens: 10,
+      inputTokens: 4,
+      outputTokens: 6,
+      reasoningTokens: 9,
+      cachedInputTokens: 3,
+    });
+  });
+
   it("does not fabricate zero splits when only totalTokens is present", () => {
     const usage = getThreadMessageTokenUsage(
       msg({ usage: { totalTokens: 12 } }),

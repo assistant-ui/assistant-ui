@@ -1,5 +1,30 @@
 # @assistant-ui/react-devtools
 
+## 1.2.11
+
+### Patch Changes
+
+- [#5285](https://github.com/assistant-ui/assistant-ui/pull/5285) [`d72c2b6`](https://github.com/assistant-ui/assistant-ui/commit/d72c2b6b5fd0e0158b07ecf00bfe4c8ac5b3e861) - refactor: migrate to aui property accessors ([@Yonom](https://github.com/Yonom))
+
+- Updated dependencies [[`9a7e776`](https://github.com/assistant-ui/assistant-ui/commit/9a7e77603d59b5e091ee922e2e087f0101679321), [`2f5d0d4`](https://github.com/assistant-ui/assistant-ui/commit/2f5d0d441caf6a152bf4eef13566a2f9a161541c)]:
+  - @assistant-ui/react@0.15.0
+
+## 1.2.10
+
+### Patch Changes
+
+- [#5079](https://github.com/assistant-ui/assistant-ui/pull/5079) [`390e417`](https://github.com/assistant-ui/assistant-ui/commit/390e4177ca47f7ece839613ad0f076add9313328) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+## 1.2.9
+
+### Patch Changes
+
+- [#4825](https://github.com/assistant-ui/assistant-ui/pull/4825) [`c13f709`](https://github.com/assistant-ui/assistant-ui/commit/c13f7096cab94d363c6f407ce5481a62f9298efb) - fix: resolve the tailwind cli entry explicitly so pnpm install completes on windows ([@okisdev](https://github.com/okisdev))
+
+- [#4746](https://github.com/assistant-ui/assistant-ui/pull/4746) [`0686f4e`](https://github.com/assistant-ui/assistant-ui/commit/0686f4e6b8ee5f6e17c968997ef11622ef8f9c98) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#4815](https://github.com/assistant-ui/assistant-ui/pull/4815) [`5325f09`](https://github.com/assistant-ui/assistant-ui/commit/5325f0985768b750b050cf07f592fdfed34eccac) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
 ## 1.2.8
 
 ### Patch Changes

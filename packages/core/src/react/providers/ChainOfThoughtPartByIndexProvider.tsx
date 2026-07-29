@@ -10,7 +10,7 @@ export const ChainOfThoughtPartByIndexProvider: FC<
     part: Derived({
       source: "chainOfThought",
       query: { type: "index", index },
-      get: (aui) => aui.chainOfThought().part({ index }),
+      get: (aui) => aui.chainOfThought.part({ index }),
     }),
   });
 

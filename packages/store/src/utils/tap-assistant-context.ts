@@ -22,6 +22,22 @@ const AssistantTapContext = createContext<AssistantTapContextValue | null>(
   null,
 );
 
+const BuildingClientContext = createContext<AssistantClient | null>(null);
+
+export const useBuildingClientProvider = <TResult>(
+  value: AssistantClient,
+  fn: () => TResult,
+) => {
+  return useContextProvider(BuildingClientContext, value, fn);
+};
+
+export const useBuildingClient = (): AssistantClient => {
+  const client = use(BuildingClientContext);
+  if (!client) throw new Error("Derived can only be used as a scope of useAui");
+
+  return client;
+};
+
 export const useAssistantTapContextProvider = <TResult>(
   value: AssistantTapContextValue,
   fn: () => TResult,

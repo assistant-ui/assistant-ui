@@ -29,7 +29,7 @@ export const SpanPrimitiveCollapseToggle = forwardRef<
       data-collapsed={isCollapsed}
       onClick={(e) => {
         e.stopPropagation();
-        aui.span().toggleCollapse();
+        aui.span.toggleCollapse();
         props.onClick?.(e);
       }}
     />

@@ -67,17 +67,7 @@ const wrapInRuntimeAdapterProvider = (
   };
 
 describe("RemoteThreadListAdapter.unstable_Provider", () => {
-  it("makes RuntimeAdapterProvider context visible to the runtime hook", async () => {
-    const capture: { adapters: CapturedAdapters } = { adapters: null };
-    const adapter = makeAdapter({
-      unstable_Provider: wrapInRuntimeAdapterProvider(dummyHistory),
-    });
-    await renderAndWaitForBinder(adapter, capture);
-
-    expect(capture.adapters?.history).toBe(dummyHistory);
-  });
-
-  it("preserves modelContext from the outer runtime-core RuntimeAdapterProvider", async () => {
+  it("makes Provider context visible to the runtime hook while preserving outer modelContext", async () => {
     const capture: { adapters: CapturedAdapters } = { adapters: null };
     const adapter = makeAdapter({
       unstable_Provider: wrapInRuntimeAdapterProvider(dummyHistory),

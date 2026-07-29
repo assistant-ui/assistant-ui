@@ -18,6 +18,19 @@ export const contextProvider: ModelContextProvider = {
   subscribe: () => () => {},
 };
 
+export function setStartThreadRuntime(
+  core: RemoteThreadListThreadListRuntimeCore,
+  startThreadRuntime: (id: string) => Promise<unknown>,
+) {
+  (
+    core as unknown as {
+      _hookManager: {
+        startThreadRuntime: (id: string) => Promise<unknown>;
+      };
+    }
+  )._hookManager.startThreadRuntime = startThreadRuntime;
+}
+
 export function makeAdapter(
   overrides: Partial<RemoteThreadListAdapter> = {},
 ): RemoteThreadListAdapter {
@@ -60,12 +73,6 @@ export function createCore(
   );
   // `startThreadRuntime` blocks until a React component attaches a runtime;
   // stub it so non-React unit tests don't hang.
-  (
-    core as unknown as {
-      _hookManager: {
-        startThreadRuntime: (id: string) => Promise<unknown>;
-      };
-    }
-  )._hookManager.startThreadRuntime = async () => ({});
+  setStartThreadRuntime(core, async () => ({}));
   return core;
 }

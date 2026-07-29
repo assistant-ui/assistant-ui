@@ -1,5 +1,8 @@
+import "@standard-schema/spec";
+
 declare class AssistantCloud {
   readonly threads: AssistantCloudThreads;
+  readonly projects: AssistantCloudProjects;
   readonly auth: {
     tokens: AssistantCloudAuthTokens;
   };
@@ -59,6 +62,44 @@ declare class AssistantCloudFiles {
 type AssistantCloudMessageCreateResponse = {
   message_id: string;
 };
+
+type AssistantCloudProjectThreadMessageListQuery = {
+  format?: string;
+  limit?: number;
+  after?: string;
+};
+
+type AssistantCloudProjectThreadMessageListResponse = {
+  messages: CloudMessage[];
+};
+
+declare class AssistantCloudProjectThreadMessages {
+  private cloud;
+  constructor(cloud: AssistantCloudAPI);
+  list(threadId: string, query?: AssistantCloudProjectThreadMessageListQuery): Promise<AssistantCloudProjectThreadMessageListResponse>;
+}
+
+declare class AssistantCloudProjectThreads {
+  readonly messages: AssistantCloudProjectThreadMessages;
+  private cloud;
+  constructor(cloud: AssistantCloudAPI);
+  list(query?: AssistantCloudProjectThreadsListQuery): Promise<AssistantCloudProjectThreadsListResponse>;
+}
+
+type AssistantCloudProjectThreadsListQuery = {
+  is_archived?: boolean;
+  limit?: number;
+  after?: string;
+};
+
+type AssistantCloudProjectThreadsListResponse = {
+  threads: CloudThread[];
+};
+
+declare class AssistantCloudProjects {
+  readonly threads: AssistantCloudProjectThreads;
+  constructor(cloud: AssistantCloudAPI);
+}
 
 type AssistantCloudRunReport = {
   thread_id: string;
@@ -143,8 +184,8 @@ declare class AssistantCloudThreadMessages {
 }
 
 declare class AssistantCloudThreads {
-  private cloud;
   readonly messages: AssistantCloudThreadMessages;
+  private cloud;
   constructor(cloud: AssistantCloudAPI);
   list(query?: AssistantCloudThreadsListQuery): Promise<AssistantCloudThreadsListResponse>;
   get(threadId: string): Promise<CloudThread>;
@@ -236,14 +277,31 @@ type AssistantStreamChunk = {
 } | {
   readonly type: "error";
   readonly error: string;
+  readonly code?: string;
+  readonly severity?: "critical" | "info" | "warning";
 } | {
   readonly type: "update-state";
-  readonly operations: ObjectStreamOperation[];
+  readonly operations: AssistantTransportStateOperation[];
 });
 
 type AssistantStreamEncoder = ReadableWritablePair<Uint8Array<ArrayBuffer>, AssistantStreamChunk> & {
   headers?: Headers;
 };
+
+type AssistantTransportStateOperation = {
+  readonly type: "set";
+  readonly path: readonly string[];
+  readonly value: ReadonlyJSONValue;
+} | {
+  readonly type: "append-text";
+  readonly path: readonly string[];
+  readonly value: string;
+};
+
+declare class CloudAPIError extends Error {
+  readonly status: number;
+  constructor(message: string, status: number);
+}
 
 type CloudMessage = {
   id: string;
@@ -256,15 +314,20 @@ type CloudMessage = {
 };
 
 declare class CloudMessagePersistence {
-  private cloud;
   private idMapping;
+  private getCloud;
   constructor(cloud: AssistantCloud);
+  constructor(getCloud: () => AssistantCloud);
   append(threadId: string, messageId: string, parentId: string | null, format: string, content: ReadonlyJSONObject): Promise<void>;
   update(threadId: string, messageId: string, _format: string, content: ReadonlyJSONObject): Promise<void>;
   isPersisted(messageId: string): boolean;
   getRemoteId(messageId: string): Promise<string | undefined>;
   load(threadId: string, format?: string): Promise<CloudMessage[]>;
   reset(): void;
+}
+
+declare class CloudResponseError extends Error {
+  constructor(message: string);
 }
 
 type CloudThread = {
@@ -344,16 +407,6 @@ type MessageFormatAdapter<TMessage, TStorageFormat> = {
     message: TMessage;
   };
   getId(message: TMessage): string;
-};
-
-type ObjectStreamOperation = {
-  readonly type: "set";
-  readonly path: readonly string[];
-  readonly value: ReadonlyJSONValue;
-} | {
-  readonly type: "append-text";
-  readonly path: readonly string[];
-  readonly value: string;
 };
 
 type PartInit = {
@@ -462,7 +515,7 @@ declare function createSamplingCollector(): {
 };
 
 declare namespace entry_root_exports {
-  export { AssistantCloud, AssistantCloudRunReport, AssistantCloudTelemetryConfig, CloudMessage, CloudMessagePersistence, McpSamplingHandler, MessageFormatAdapter, SamplingCallData, createFormattedPersistence, createSamplingCollector, wrapSamplingHandler };
+  export { AssistantCloud, AssistantCloudRunReport, AssistantCloudTelemetryConfig, CloudAPIError, CloudMessage, CloudMessagePersistence, CloudResponseError, McpSamplingHandler, MessageFormatAdapter, SamplingCallData, createFormattedPersistence, createSamplingCollector, wrapSamplingHandler };
 }
 
 declare function wrapSamplingHandler(handler: McpSamplingHandler, onSamplingCall: (data: SamplingCallData) => void): McpSamplingHandler;

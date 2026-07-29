@@ -441,7 +441,11 @@ export class ToolCallArgsReaderImpl<
 export class ToolCallResponseReaderImpl<
   TResult extends ReadonlyJSONValue,
 > implements ToolCallResponseReader<TResult> {
-  constructor(private readonly promise: Promise<ToolResponse<TResult>>) {}
+  private readonly promise: Promise<ToolResponse<TResult>>;
+
+  constructor(promise: Promise<ToolResponse<TResult>>) {
+    this.promise = promise;
+  }
 
   public get() {
     return this.promise;

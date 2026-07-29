@@ -208,4 +208,65 @@ describe("getMessageContent", () => {
       { type: "file", mimeType: "application/pdf", data: "AAAA" },
     ]);
   });
+
+  it("forwards an audio part as a file block with the format-derived mime type", () => {
+    const result = getMessageContent(
+      makeAppendMessage([
+        { type: "audio", audio: { data: "QUJD", format: "mp3" } },
+      ]),
+    );
+    expect(result).toEqual([
+      { type: "file", mimeType: "audio/mp3", data: "QUJD" },
+    ]);
+  });
+
+  it("forwards a wav audio part with the audio/wav mime type", () => {
+    const result = getMessageContent(
+      makeAppendMessage([
+        { type: "audio", audio: { data: "QUJD", format: "wav" } },
+      ]),
+    );
+    expect(result).toEqual([
+      { type: "file", mimeType: "audio/wav", data: "QUJD" },
+    ]);
+  });
+
+  it("strips a data URL envelope from audio data", () => {
+    const result = getMessageContent(
+      makeAppendMessage([
+        {
+          type: "audio",
+          audio: { data: "data:audio/mp3;base64,QUJD", format: "mp3" },
+        },
+      ]),
+    );
+    expect(result).toEqual([
+      { type: "file", mimeType: "audio/mp3", data: "QUJD" },
+    ]);
+  });
+
+  it("skips data parts while keeping surrounding text", () => {
+    const result = getMessageContent(
+      makeAppendMessage([
+        { type: "text", text: "hi" },
+        { type: "data", name: "chart", data: { x: 1 } },
+      ]),
+    );
+    expect(result).toBe("hi");
+  });
+
+  it("returns empty content for a data-only message", () => {
+    const result = getMessageContent(
+      makeAppendMessage([{ type: "data", name: "chart", data: { x: 1 } }]),
+    );
+    expect(result).toEqual([]);
+  });
+
+  it("still throws on assistant-only part types", () => {
+    expect(() =>
+      getMessageContent(
+        makeAppendMessage([{ type: "reasoning", text: "thinking" }]),
+      ),
+    ).toThrow("Unsupported append message part type: reasoning");
+  });
 });

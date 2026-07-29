@@ -187,7 +187,7 @@ export function SyncPlugin({
             }
           }
 
-          const composer = aui.composer();
+          const composer = aui.composer;
 
           if (fullText !== lastSyncedTextRef.current) {
             lastSyncedTextRef.current = fullText;
@@ -201,7 +201,7 @@ export function SyncPlugin({
   }, [editor, aui]);
 
   useEffect(() => {
-    const composerRuntime = aui.composer().__internal_getRuntime?.();
+    const composerRuntime = aui.composer.__internal_getRuntime?.();
     if (!composerRuntime) return;
 
     const initialText = composerRuntime.getState().text;

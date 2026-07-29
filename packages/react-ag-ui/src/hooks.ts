@@ -2,6 +2,7 @@
 
 import { useAui } from "@assistant-ui/store";
 import type { CreateAppendMessage } from "@assistant-ui/core";
+import type { ReadonlyJSONValue } from "assistant-stream/utils";
 import { agUiExtras } from "./agUiExtras";
 import type { AgUiInterrupt, AgUiResumeEntry } from "./runtime/types";
 
@@ -25,13 +26,17 @@ export const useAgUiSubmitInterruptResponses = () => {
 };
 
 /**
- * Returns a function that discards the pending AG-UI interrupts and appends the
- * given user message, starting a fresh run. Use this when the user sends a new
- * message instead of resolving the interrupt(s): every open interrupt is
- * reported to the agent as cancelled. The message accepts a plain string or a
- * partial `AppendMessage` (the parent defaults to the current head). Pass
- * `responses` to override the status of specific interrupts; the rest still
- * default to cancelled.
+ * Returns a function that discards the pending AG-UI interrupts or pending
+ * client-side tool calls and appends the given user message, starting a fresh
+ * run. Use this when the user sends a new message instead of resolving them:
+ * every open interrupt is reported to the agent as cancelled, and every
+ * unresolved client-side tool call receives an error result. The message
+ * accepts a plain string or a partial `AppendMessage` (the parent defaults to
+ * the current head). Pass `responses` to override the status of specific
+ * interrupts; the rest still default to cancelled. `responses` throws when
+ * tool calls rather than interrupts are pending. Unlike the
+ * `autoCancelPendingToolCalls` runtime option, this hook cancels regardless
+ * of that option's value.
  */
 export const useAgUiSteerAway = () => {
   const aui = useAui();
@@ -39,4 +44,21 @@ export const useAgUiSteerAway = () => {
     message: CreateAppendMessage,
     responses?: readonly AgUiResumeEntry[],
   ): Promise<void> => agUiExtras.get(aui).steerAway(message, responses);
+};
+
+export const useAgUiState = <TState = ReadonlyJSONValue>():
+  | TState
+  | undefined =>
+  agUiExtras.use((e) => e.state as TState | undefined, undefined);
+
+export const useAgUiSetState = <TState = ReadonlyJSONValue>() => {
+  const aui = useAui();
+  return (next: TState | ((prev: TState | undefined) => TState)): void =>
+    agUiExtras
+      .get(aui)
+      .setState(
+        next as
+          | ReadonlyJSONValue
+          | ((prev: ReadonlyJSONValue | undefined) => ReadonlyJSONValue),
+      );
 };

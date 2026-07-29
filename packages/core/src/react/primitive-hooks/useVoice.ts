@@ -10,7 +10,7 @@ const getServerVolume = () => 0;
 
 export const useVoiceVolume = (): number => {
   const aui = useAui();
-  const thread = aui.thread();
+  const thread = aui.thread;
   return useSyncExternalStore(
     thread.subscribeVoiceVolume,
     thread.getVoiceVolume,
@@ -22,19 +22,19 @@ export const useVoiceControls = () => {
   const aui = useAui();
 
   const connect = useCallback(() => {
-    aui.thread().connectVoice();
+    aui.thread.connectVoice();
   }, [aui]);
 
   const disconnect = useCallback(() => {
-    aui.thread().disconnectVoice();
+    aui.thread.disconnectVoice();
   }, [aui]);
 
   const mute = useCallback(() => {
-    aui.thread().muteVoice();
+    aui.thread.muteVoice();
   }, [aui]);
 
   const unmute = useCallback(() => {
-    aui.thread().unmuteVoice();
+    aui.thread.unmuteVoice();
   }, [aui]);
 
   return { connect, disconnect, mute, unmute };

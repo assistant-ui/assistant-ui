@@ -1,14 +1,12 @@
 import { Context } from "react";
 
-type ContravariantResource<R, A extends readonly unknown[] = any[]> = (...args: A) => ResourceElement<R>;
+type ExtractResourceReturnType<T> = T extends ResourceElement<infer V> ? V : T extends Resource<infer V, any> ? V : never;
 
-type ExtractResourceReturnType<T> = T extends ResourceElement<infer R, any> ? R : T extends Resource<infer R, any> ? R : never;
+type Resource<V, A extends readonly unknown[] = any[]> = (...args: A) => ResourceElement<V>;
 
-type Resource<R, A extends readonly unknown[] = any[]> = (...args: A) => ResourceElement<R, A>;
-
-type ResourceElement<R, A extends readonly unknown[] = any[]> = {
-  readonly hook: (...args: A) => R;
-  readonly args: Readonly<A>;
+type ResourceElement<V> = {
+  readonly hook: (...args: any[]) => V;
+  readonly args: readonly unknown[];
   readonly key?: string | number;
   readonly deps?: readonly unknown[];
 };
@@ -20,16 +18,18 @@ declare const createTapRoot: <R>(render: () => R) => useTapRoot.Root<R> & {
 declare const flushTapSync: <T>(callback: () => T) => T;
 
 declare namespace entry_root_exports {
-  export { ContravariantResource, Resource, ResourceElement, createTapRoot, flushTapSync, resource, useContextProvider, useResource, useResources, useTapHost, useTapRoot, withKey };
+  export { Resource, ResourceElement, createTapRoot, flushTapSync, resource, useContextProvider, useMemoCache, useResource, useResources, useTapHost, useTapRoot, withKey };
 }
 
 declare function resource<R, A extends readonly unknown[]>(hook: (...args: A) => R): Resource<R, A>;
 
 declare const useContextProvider: <T, TResult>(context: Context<T>, value: T, fn: () => TResult) => TResult;
 
-declare function useResource<E extends ResourceElement<any, any[]>>(element: E): ExtractResourceReturnType<E>;
+declare const useMemoCache: (size: number) => unknown[];
 
-declare function useResources<E extends ResourceElement<any, any[]>>(elements: readonly E[]): ExtractResourceReturnType<E>[];
+declare function useResource<E extends ResourceElement<any>>(element: E): ExtractResourceReturnType<E>;
+
+declare function useResources<E extends ResourceElement<any>>(elements: readonly E[]): ExtractResourceReturnType<E>[];
 
 declare namespace useTapHost {
   interface Result<R> {
@@ -50,6 +50,8 @@ declare namespace useTapRoot {
 
 declare const useTapRoot: <R>(render: () => R) => useTapRoot.Root<R>;
 
-declare function withKey<E extends ResourceElement<any, any>>(key: string | number, element: E, deps?: readonly unknown[]): E;
+declare function withKey<E extends ResourceElement<any>>(key: string | number, element: E, deps?: readonly unknown[]): E;
+
+declare function withKey<F extends Resource<any, any[]>>(key: string | number, resource: F): F;
 
 export { entry_root_exports as entry_root };

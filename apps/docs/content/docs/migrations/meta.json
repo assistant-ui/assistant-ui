@@ -3,11 +3,13 @@
   "icon": "ArrowLeftRight",
   "root": true,
   "pages": [
+    "index",
     "deprecation-policy",
     "toolkit-tools",
     "v0-11",
     "v0-12",
     "v0-14",
+    "v0-15",
     "react-langgraph-v0-7",
     "react-compatibility"
   ]

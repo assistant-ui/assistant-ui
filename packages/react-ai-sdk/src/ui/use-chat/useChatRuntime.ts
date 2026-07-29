@@ -20,7 +20,13 @@ import {
 import type { ChatInit, ChatTransport } from "ai";
 import { AssistantChatTransport } from "./AssistantChatTransport";
 import type { AssistantChatResumableOptions } from "../resumable";
-import { useEffect, useMemo, useRef } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useSyncExternalStore,
+} from "react";
 
 export type UseChatRuntimeOptions<UI_MESSAGE extends UIMessage = UIMessage> =
   ChatInit<UI_MESSAGE> &
@@ -29,6 +35,7 @@ export type UseChatRuntimeOptions<UI_MESSAGE extends UIMessage = UIMessage> =
       adapters?: AISDKRuntimeAdapter["adapters"] | undefined;
       toCreateMessage?: CustomToCreateMessageFunction;
       onResume?: AISDKRuntimeAdapter["onResume"];
+      onResumeToolCall?: AISDKRuntimeAdapter["onResumeToolCall"];
       /**
        * Called when `useChatRuntime` automatically attempts to resume a pending
        * resumable stream on mount and that reconnect fails. Use this to surface
@@ -87,6 +94,7 @@ const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     unstable_capabilities: _unstable_capabilities,
     suggestions: _suggestions,
     onResume,
+    onResumeToolCall,
     onResumeError,
     joinStrategy,
     ...chatOptions
@@ -114,15 +122,30 @@ const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     ...pickExternalStoreSharedOptions(options ?? {}),
     ...(toCreateMessage && { toCreateMessage }),
     ...(onResume && { onResume }),
+    ...(onResumeToolCall && { onResumeToolCall }),
     ...(joinStrategy && { joinStrategy }),
   });
 
   if (transport instanceof AssistantChatTransport) {
     transport.setRuntime(runtime);
     transport.__internal_setGetThreadListItem(() =>
-      aui.threadListItem.source ? aui.threadListItem() : undefined,
+      aui.threadListItem.source ? aui.threadListItem : undefined,
     );
   }
+
+  const subscribeToRuntime = useCallback(
+    (callback: () => void) => runtime.thread.subscribe(callback),
+    [runtime],
+  );
+  const getHistoryLoadingSnapshot = useCallback(
+    () => runtime.thread.getState().isLoading,
+    [runtime],
+  );
+  const isLoadingHistory = useSyncExternalStore(
+    subscribeToRuntime,
+    getHistoryLoadingSnapshot,
+    getHistoryLoadingSnapshot,
+  );
 
   const resumeFiredRef = useRef(false);
   const onResumeErrorRef = useRef(onResumeError);
@@ -130,7 +153,7 @@ const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     onResumeErrorRef.current = onResumeError;
   });
   useEffect(() => {
-    if (resumeFiredRef.current) return;
+    if (resumeFiredRef.current || isLoadingHistory) return;
     const adapter = getResumableAdapter(transport);
     if (!adapter) return;
     const pending = adapter.storage.getStreamId();
@@ -152,7 +175,7 @@ const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
         adapter.storage.clear();
       }
     });
-  }, [transport, chat]);
+  }, [transport, chat, isLoadingHistory]);
 
   return runtime;
 };

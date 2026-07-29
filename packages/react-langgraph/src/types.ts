@@ -72,35 +72,64 @@ type MessageContentComputerCall = {
   index: number;
 };
 
-export enum LangGraphKnownEventTypes {
-  Messages = "messages",
-  MessagesPartial = "messages/partial",
-  MessagesComplete = "messages/complete",
-  Metadata = "metadata",
-  Updates = "updates",
-  Values = "values",
-  Info = "info",
-  Error = "error",
-}
+export const LangGraphKnownEventTypes = {
+  Messages: "messages",
+  MessagesPartial: "messages/partial",
+  MessagesComplete: "messages/complete",
+  Metadata: "metadata",
+  Updates: "updates",
+  Values: "values",
+  Info: "info",
+  Error: "error",
+} as const;
+export type LangGraphKnownEventTypes =
+  (typeof LangGraphKnownEventTypes)[keyof typeof LangGraphKnownEventTypes];
 
 type CustomEventType = string;
 
 export type EventType = LangGraphKnownEventTypes | CustomEventType;
 
-export type MessageContentFile = {
-  type: "file";
+export type MessageContentFile =
+  | {
+      type: "file";
+      data: string;
+      mime_type: string;
+      source_type?: "base64";
+      metadata?: {
+        filename?: string;
+      };
+    }
+  | {
+      type: "file";
+      url: string;
+      mime_type?: string;
+      source_type: "url";
+      metadata?: {
+        filename?: string;
+      };
+    }
+  | {
+      type: "file";
+      id: string;
+      mime_type?: string;
+      source_type: "id";
+      metadata?: {
+        filename?: string;
+      };
+    };
+
+export type MessageContentAudio = {
+  type: "audio";
   data: string;
   mime_type: string;
-  source_type?: "base64";
-  metadata?: {
-    filename?: string;
-  };
+  source_type: "base64";
 };
 
 type UserMessageContentComplex =
   | MessageContentText
   | MessageContentImageUrl
-  | MessageContentFile;
+  | MessageContentFile
+  | MessageContentAudio;
 type AssistantMessageContentComplex =
   | MessageContentText
   | MessageContentImageUrl
@@ -158,15 +187,15 @@ export type LangChainMessageChunk = {
 
 export type LangChainEvent = {
   event:
-    | LangGraphKnownEventTypes.MessagesPartial
-    | LangGraphKnownEventTypes.MessagesComplete;
+    | typeof LangGraphKnownEventTypes.MessagesPartial
+    | typeof LangGraphKnownEventTypes.MessagesComplete;
   data: LangChainMessage[];
 };
 
 export type LangGraphTupleMetadata = Record<string, unknown>;
 
 export type LangChainMessageTupleEvent = {
-  event: LangGraphKnownEventTypes.Messages;
+  event: typeof LangGraphKnownEventTypes.Messages;
   data: [LangChainMessage | LangChainMessageChunk, LangGraphTupleMetadata];
 };
 
@@ -243,11 +272,32 @@ export type LangGraphRuntimeExtras = {
     config: LangGraphSendMessageConfig,
   ) => Promise<void>;
   interrupt: LangGraphInterruptState | undefined;
+  state: Record<string, unknown> | undefined;
+  setState: (
+    next:
+      | Record<string, unknown>
+      | ((
+          prev: Record<string, unknown> | undefined,
+        ) => Record<string, unknown>),
+  ) => void;
   messageMetadata: Map<string, LangGraphTupleMetadata>;
   uiMessages: readonly UIMessage[];
 };
 
 export type UseLangGraphRuntimeOptions = ExternalStoreSharedOptions & {
+  /**
+   * When provided, the runtime starts on this thread instead of creating a new
+   * empty thread. Useful for URL-based routing (e.g. `/chat/[threadId]`).
+   *
+   * @deprecated Use `threadId` instead, which also reacts to subsequent changes.
+   */
+  initialThreadId?: string | undefined;
+  /**
+   * The current thread ID to display. When this value changes, the runtime
+   * automatically switches to the specified thread. Set to `undefined` to
+   * switch to a new thread.
+   */
+  threadId?: string | undefined;
   /**
    * Called whenever the active thread's canonical (remote) ID changes, so the
    * value can be treated as a managed/controlled variable (e.g. synced to a URL

@@ -11,7 +11,7 @@ export const ThreadListItemByIndexProvider: FC<
     threadListItem: Derived({
       source: "threads",
       query: { type: "index", index, archived },
-      get: (aui) => aui.threads().item({ index, archived }),
+      get: (aui) => aui.threads.item({ index, archived }),
     }),
   });
 

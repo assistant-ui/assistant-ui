@@ -23,7 +23,11 @@ type GeneratePresignedUploadUrlResponse = {
 };
 
 export class AssistantCloudFiles {
-  constructor(private cloud: AssistantCloudAPI) {}
+  private cloud: AssistantCloudAPI;
+
+  constructor(cloud: AssistantCloudAPI) {
+    this.cloud = cloud;
+  }
 
   public async pdfToImages(
     body: PdfToImagesRequestBody,

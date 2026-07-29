@@ -11,61 +11,62 @@ import {
 } from "@assistant-ui/react";
 import {
   ArrowUpIcon,
+  AudioLines,
+  Calendar as CalendarIcon,
   CheckIcon,
   ChevronDownIcon,
   ClipboardIcon,
-  Cross2Icon,
-  Pencil1Icon,
-  PlusIcon,
-  ReloadIcon,
-} from "@radix-ui/react-icons";
-import {
-  AudioLines,
-  Calendar as CalendarIcon,
   Code as CodeIcon,
   FolderOpen,
   GraduationCap,
+  PencilIcon,
   PenLine,
+  PlusIcon,
+  RefreshCwIcon,
   Sparkle,
   ThumbsDown,
   ThumbsUp,
+  XIcon,
 } from "lucide-react";
 import { useEffect, useState, type FC } from "react";
 import { useShallow } from "zustand/shallow";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
+import { CloneThreadShell } from "./clone-thread-shell";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/shared/dropdown-menu";
+} from "@/components/ui/dropdown-menu";
 
 const messageActionButtonClassName =
   "flex size-8 items-center justify-center rounded-md text-[#5b5950] transition-colors hover:bg-[#1a1a18]/5 hover:text-[#1a1a18] dark:text-[#a3a098] dark:hover:bg-white/5 dark:hover:text-[#eee]";
 
 export const Claude: FC = () => {
   return (
-    <ThreadPrimitive.Root className="flex h-full flex-col items-stretch bg-[#F0ECE0] font-serif text-[#1a1a18] dark:bg-[#2b2a27] dark:text-[#eee]">
-      <AuiIf condition={(s) => s.thread.isEmpty}>
-        <EmptyState />
-      </AuiIf>
+    <CloneThreadShell railClassName="border-[#DCD4C2] bg-[#EAE4D3] dark:border-[#3B3934] dark:bg-[#252420]">
+      <ThreadPrimitive.Root className="flex h-full flex-col items-stretch bg-[#F0ECE0] font-serif text-[#1a1a18] dark:bg-[#2b2a27] dark:text-[#eee]">
+        <AuiIf condition={(s) => s.thread.isEmpty}>
+          <EmptyState />
+        </AuiIf>
 
-      <AuiIf condition={(s) => !s.thread.isEmpty}>
-        <ThreadPrimitive.Viewport className="flex grow flex-col overflow-y-auto px-4 pt-12">
-          <ThreadPrimitive.Messages>
-            {() => <ChatMessage />}
-          </ThreadPrimitive.Messages>
+        <AuiIf condition={(s) => !s.thread.isEmpty}>
+          <ThreadPrimitive.Viewport className="flex grow flex-col overflow-y-auto px-4 pt-12">
+            <ThreadPrimitive.Messages>
+              {() => <ChatMessage />}
+            </ThreadPrimitive.Messages>
 
-          <ThreadPrimitive.ViewportFooter className="sticky bottom-0 mx-auto mt-auto w-full max-w-3xl bg-linear-to-b from-transparent via-[#F0ECE0]/85 to-[#F0ECE0] pt-4 pb-2 dark:via-[#2b2a27]/85 dark:to-[#2b2a27]">
-            <Composer />
-            <p className="pt-2 text-center text-xs text-[#8a8780] dark:text-[#a3a098]">
-              Claude can make mistakes. Please double-check responses.
-            </p>
-          </ThreadPrimitive.ViewportFooter>
-        </ThreadPrimitive.Viewport>
-      </AuiIf>
-    </ThreadPrimitive.Root>
+            <ThreadPrimitive.ViewportFooter className="sticky bottom-0 mx-auto mt-auto w-full max-w-3xl bg-linear-to-b from-transparent via-[#F0ECE0]/85 to-[#F0ECE0] pt-4 pb-2 dark:via-[#2b2a27]/85 dark:to-[#2b2a27]">
+              <Composer />
+              <p className="pt-2 text-center text-xs text-[#8a8780] dark:text-[#a3a098]">
+                Claude can make mistakes. Please double-check responses.
+              </p>
+            </ThreadPrimitive.ViewportFooter>
+          </ThreadPrimitive.Viewport>
+        </AuiIf>
+      </ThreadPrimitive.Root>
+    </CloneThreadShell>
   );
 };
 
@@ -201,7 +202,7 @@ const ClaudeModelPicker: FC = () => {
         {CLAUDE_MODELS.map((m) => (
           <DropdownMenuItem
             key={m.id}
-            onSelect={() => setModel(m.id)}
+            onClick={() => setModel(m.id)}
             className="flex items-start gap-3"
           >
             <span className="mt-0.5 flex size-4 items-center justify-center text-[#c96442]">
@@ -268,7 +269,7 @@ const ChatMessage: FC = () => {
           </div>
           <ActionBarPrimitive.Root className="-mt-px flex items-center gap-0.5 opacity-0 transition-opacity group-focus-within/message:opacity-100 group-hover/message:opacity-100">
             <ActionBarPrimitive.Edit className={messageActionButtonClassName}>
-              <Pencil1Icon width={16} height={16} />
+              <PencilIcon width={16} height={16} />
             </ActionBarPrimitive.Edit>
             <ActionBarPrimitive.Copy className={messageActionButtonClassName}>
               <AuiIf condition={(s) => s.message.isCopied}>
@@ -312,7 +313,7 @@ const ChatMessage: FC = () => {
               <ThumbsDown className="size-4" />
             </ActionBarPrimitive.FeedbackNegative>
             <ActionBarPrimitive.Reload className={messageActionButtonClassName}>
-              <ReloadIcon width={16} height={16} />
+              <RefreshCwIcon width={16} height={16} />
             </ActionBarPrimitive.Reload>
           </ActionBarPrimitive.Root>
         </div>
@@ -382,7 +383,7 @@ const ClaudeAttachment: FC = () => {
         className="absolute -top-1.5 -right-1.5 flex size-5 items-center justify-center rounded-full bg-[#1a1a18] text-white opacity-0 transition-opacity group-focus-within/thumbnail:opacity-100 group-hover/thumbnail:opacity-100 hover:bg-[#3d3a35] dark:bg-white dark:text-[#1a1a18] dark:hover:bg-[#cdc9be]"
         aria-label="Remove attachment"
       >
-        <Cross2Icon width={12} height={12} />
+        <XIcon width={12} height={12} />
       </AttachmentPrimitive.Remove>
     </AttachmentPrimitive.Root>
   );

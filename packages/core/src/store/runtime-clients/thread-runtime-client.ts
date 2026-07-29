@@ -1,7 +1,7 @@
 import type { Unsubscribe } from "../../types/unsubscribe";
 import type { ThreadRuntimeEventType } from "../../runtime/interfaces/thread-runtime-core";
 import type { ThreadRuntime } from "../../runtime/api/thread-runtime";
-import { useMemo, useEffect, RefObject } from "react";
+import { useMemo, useEffect, type RefObject } from "react";
 import { useResource, resource, withKey } from "@assistant-ui/tap";
 import { liveRef } from "./liveRef";
 import {
@@ -113,6 +113,7 @@ const useThreadClient = ({
     deleteMessage: runtime.deleteMessage,
     startRun: runtime.startRun,
     resumeRun: runtime.resumeRun,
+    importExternalState: runtime.importExternalState,
     cancelRun: runtime.cancelRun,
     getModelContext: runtime.getModelContext,
     export: runtime.export,

@@ -9,14 +9,14 @@ import { VercelIcon } from "@/components/icons/vercel";
 [Cloudflare Agents](https://developers.cloudflare.com/agents/) is Cloudflare's framework for stateful AI agents that run on Durable Objects at the edge. Each agent owns its own SQLite-backed message history, exposes a WebSocket channel for low-latency streaming, and can call tools (server-side or client-side).
 
 <Callout type="info">
-This is an integration guide, not a runtime adapter. assistant-ui does not ship a `@assistant-ui/react-cloudflare-agents` package. `@cloudflare/ai-chat`'s `useAgentChat` returns a structural extension of the AI SDK's `useChat`, so the existing [AI SDK runtime](/docs/runtimes/ai-sdk/v6) consumes it directly.
+This is an integration guide, not a runtime adapter. assistant-ui does not ship a `@assistant-ui/react-cloudflare-agents` package. `@cloudflare/ai-chat`'s `useAgentChat` returns a structural extension of the AI SDK's `useChat`, so the existing [AI SDK runtime](/docs/runtimes/ai-sdk/v7) consumes it directly.
 </Callout>
 
 ## Architecture
 
 Cloudflare Agents handles the server half: a Durable Object subclasses `AIChatAgent` from `@cloudflare/ai-chat`, owns the message history, and streams responses back over a WebSocket. `@cloudflare/ai-chat/react`'s `useAgentChat` hook wraps that WebSocket and exposes the same `messages`, `sendMessage`, `regenerate`, `status`, `stop`, `setMessages`, `addToolOutput` surface that the AI SDK's `useChat` does, plus a few Cloudflare-specific extras (`clearHistory`, `isServerStreaming`, `isToolContinuation`).
 
-assistant-ui handles the client half. `useAISDKRuntime` from [`@assistant-ui/react-ai-sdk`](/docs/runtimes/ai-sdk/v6) reads exactly those AI SDK methods off whatever you pass in, so feeding it `useAgentChat`'s return value yields a fully-featured runtime: streaming, tool calling, edit, reload, history import and export, attachments, suggestions.
+assistant-ui handles the client half. `useAISDKRuntime` from [`@assistant-ui/react-ai-sdk`](/docs/runtimes/ai-sdk/v7) reads exactly those AI SDK methods off whatever you pass in, so feeding it `useAgentChat`'s return value yields a fully-featured runtime: streaming, tool calling, edit, reload, history import and export, attachments, suggestions.
 
 Shared adapters (attachments, speech, feedback, history) work the same way as described in [adapters](/docs/runtimes/concepts/adapters). Multi-thread support needs a [custom thread list](/docs/runtimes/concepts/threads) wired around `useAISDKRuntime`; [AssistantCloud](/docs/cloud) integrates via `useChatRuntime` (which constructs its own `useChat` internally) and is not compatible with the `useAgentChat` wiring shown here.
 
@@ -277,6 +277,6 @@ Destructure these alongside `chat` and pass them into your UI directly; they don
     icon={<VercelIcon width={20} height={20} />}
     title="AI SDK runtime"
     description="The runtime that handles the client side of this integration."
-    href="/docs/runtimes/ai-sdk/v6"
+    href="/docs/runtimes/ai-sdk/v7"
   />
 </Cards>

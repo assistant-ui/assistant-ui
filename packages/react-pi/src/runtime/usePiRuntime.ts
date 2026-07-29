@@ -385,7 +385,7 @@ const useNewPiThreadStore = (
         pendingInitialMessageRef.current = initialMessage;
         setOptimisticMessages((messages) => [...messages, optimistic]);
         try {
-          await aui.threadListItem().initialize();
+          await aui.threadListItem.initialize();
           setOptimisticMessages([]);
         } catch (error) {
           if (pendingInitialMessageRef.current === initialMessage) {

@@ -1,4 +1,4 @@
-import { type RefObject, useState } from "react";
+import { type RefObject, useEffect, useRef, useState } from "react";
 import type {
   GenericThreadHistoryAdapter,
   ThreadHistoryAdapter,
@@ -13,26 +13,35 @@ import {
   createFormattedPersistence,
 } from "assistant-cloud";
 import { auiV0Decode, auiV0Encode } from "./auiV0";
-import { type AssistantClient, useAui } from "@assistant-ui/store";
-import type { ThreadListItemMethods } from "../../../store/scopes/thread-list-item";
+import { type AssistantClient, getClientId, useAui } from "@assistant-ui/store";
 
 const globalPersistence = new WeakMap<
-  ThreadListItemMethods,
+  getClientId.ClientId,
   CloudMessagePersistence
 >();
 
 class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
+  private cloudRef: RefObject<AssistantCloud>;
+  private auiRef: RefObject<AssistantClient>;
+
   constructor(
-    private cloudRef: RefObject<AssistantCloud>,
-    private aui: AssistantClient,
-  ) {}
+    cloudRef: RefObject<AssistantCloud>,
+    auiRef: RefObject<AssistantClient>,
+  ) {
+    this.cloudRef = cloudRef;
+    this.auiRef = auiRef;
+  }
+
+  private get aui(): AssistantClient {
+    return this.auiRef.current;
+  }
 
   private get _persistence(): CloudMessagePersistence {
-    const key = this.aui.threadListItem();
+    const key = getClientId(this.aui.threadListItem);
     if (!globalPersistence.has(key)) {
       globalPersistence.set(
         key,
-        new CloudMessagePersistence(this.cloudRef.current),
+        new CloudMessagePersistence(() => this.cloudRef.current),
       );
     }
     return globalPersistence.get(key)!;
@@ -49,11 +58,11 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     return {
       // Note: callers must also call reportTelemetry() for run tracking
       async append(item: MessageFormatItem<TMessage>) {
-        const { remoteId } = await adapter.aui.threadListItem().initialize();
+        const { remoteId } = await adapter.aui.threadListItem.initialize();
         await formatted.append(remoteId, item);
       },
       async update(item: MessageFormatItem<TMessage>, localMessageId: string) {
-        const remoteId = adapter.aui.threadListItem().getState().remoteId;
+        const remoteId = adapter.aui.threadListItem.getState().remoteId;
         if (!remoteId) return;
         await formatted.update?.(remoteId, item, localMessageId);
       },
@@ -79,7 +88,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
         );
       },
       async load(): Promise<MessageFormatRepository<TMessage>> {
-        const remoteId = adapter.aui.threadListItem().getState().remoteId;
+        const remoteId = adapter.aui.threadListItem.getState().remoteId;
         if (!remoteId) return { messages: [] };
         return formatted.load(remoteId);
       },
@@ -87,7 +96,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
   }
 
   async append({ parentId, message }: ExportedMessageRepositoryItem) {
-    const { remoteId } = await this.aui.threadListItem().initialize();
+    const { remoteId } = await this.aui.threadListItem.initialize();
     const encoded = auiV0Encode(message);
     await this._persistence.append(
       remoteId,
@@ -102,6 +111,21 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     }
   }
 
+  async update(item: ExportedMessageRepositoryItem) {
+    if (!this._persistence.isPersisted(item.message.id)) {
+      return this.append(item);
+    }
+    const { message } = item;
+    const remoteId = this.aui.threadListItem.getState().remoteId;
+    if (!remoteId) return;
+    const encoded = auiV0Encode(message);
+    await this._persistence.update(remoteId, message.id, "aui/v0", encoded);
+
+    if (this.cloudRef.current.telemetry.enabled) {
+      this._maybeReportRun(remoteId, "aui/v0", encoded);
+    }
+  }
+
   async delete() {
     throw new Error(
       "Assistant Cloud does not support deleting thread messages yet.",
@@ -109,7 +133,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
   }
 
   async load() {
-    const remoteId = this.aui.threadListItem().getState().remoteId;
+    const remoteId = this.aui.threadListItem.getState().remoteId;
     if (!remoteId) return { messages: [] };
     const messages = await this._persistence.load(remoteId, "aui/v0");
     return {
@@ -132,7 +156,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
   ) {
     if (!this.cloudRef.current.telemetry.enabled) return;
 
-    const remoteId = this.aui.threadListItem().getState().remoteId;
+    const remoteId = this.aui.threadListItem.getState().remoteId;
     if (!remoteId) return;
 
     const extracted = extractRunTelemetry(format, runMessages);
@@ -341,7 +365,7 @@ const AUI_STATUS_MAP: Record<string, TelemetryData["status"]> = {
   incomplete: "incomplete",
 };
 
-function extractAuiV0<T>(content: T): TelemetryData | null {
+export function extractAuiV0<T>(content: T): TelemetryData | null {
   const msg = content as {
     role?: string;
     status?: { type: string };
@@ -369,6 +393,9 @@ function extractAuiV0<T>(content: T): TelemetryData | null {
   };
 
   if (msg.role !== "assistant") return null;
+  // A paused (requires-action) write is not a finished run; reporting it would
+  // mislabel it "completed" and double-count steps once the terminal write reports.
+  if (msg.status?.type === "requires-action") return null;
 
   const toolCalls = msg.content
     ?.filter((p) => p.type === "tool-call" && p.toolName && p.toolCallId)
@@ -789,8 +816,12 @@ export function useAssistantCloudThreadHistoryAdapter(
   cloudRef: RefObject<AssistantCloud>,
 ): ThreadHistoryAdapter {
   const aui = useAui();
+  const auiRef = useRef(aui);
+  useEffect(() => {
+    auiRef.current = aui;
+  });
   const [adapter] = useState(
-    () => new AssistantCloudThreadHistoryAdapter(cloudRef, aui),
+    () => new AssistantCloudThreadHistoryAdapter(cloudRef, auiRef),
   );
   return adapter;
 }

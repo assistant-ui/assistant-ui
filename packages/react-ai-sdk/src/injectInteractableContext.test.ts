@@ -106,6 +106,25 @@ describe("unstable_injectInteractableContext", () => {
     expect(unstable_injectInteractableContext(input)[0]).toBe(input[0]);
   });
 
+  it("does not throw when a user message has no parts", () => {
+    const input = [
+      {
+        id: "m1",
+        role: "user",
+        metadata: {
+          custom: {
+            interactables: [{ name: "note", id: "n1", state: { v: 1 } }],
+          },
+        },
+      } as unknown as UIMessage,
+    ];
+    const run = () => unstable_injectInteractableContext(input);
+    expect(run).not.toThrow();
+    expect(textOf(run()[0]!.parts[0])).toBe(
+      '[Current state of "note" (id: "n1"): {"v":1}]\n\n',
+    );
+  });
+
   it("is idempotent on its own (does not double-inject)", () => {
     const once = unstable_injectInteractableContext([
       userMsg([{ name: "note", id: "n1", state: { v: 1 } }]),

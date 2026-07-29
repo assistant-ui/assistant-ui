@@ -339,6 +339,7 @@ export type {
   AppendMessage,
   TextMessagePart,
   ReasoningMessagePart,
+  PartProviderMetadata,
   SourceProviderMetadata,
   SourceMessagePart,
   ImageMessagePart,

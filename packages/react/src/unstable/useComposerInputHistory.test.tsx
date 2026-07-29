@@ -12,11 +12,11 @@ const setText = vi.fn();
 
 vi.mock("@assistant-ui/store", () => ({
   useAui: () => ({
-    composer: () => ({
+    composer: {
       getState: () => ({ type: fixture.composerType }),
       setText,
-    }),
-    thread: () => ({ getState: () => ({ messages: fixture.messages }) }),
+    },
+    thread: { getState: () => ({ messages: fixture.messages }) },
     on: (_event: string, cb: () => void) => {
       fixture.switchedToHandlers.push(cb);
       return () => {};

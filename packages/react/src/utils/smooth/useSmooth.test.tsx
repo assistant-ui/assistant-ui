@@ -9,7 +9,7 @@ import type {
 
 const part = {};
 vi.mock("@assistant-ui/store", () => ({
-  useAui: () => ({ part: () => part }),
+  useAui: () => ({ part }),
   useAuiState: (selector: () => unknown) => selector(),
 }));
 vi.mock("./SmoothContext", () => ({

@@ -6,8 +6,8 @@ import {
   BranchPickerPrimitive,
   MessagePrimitive,
   ThreadPrimitive,
+  useAui,
   useLocalRuntime,
-  useMessageRuntime,
   type ChatModelAdapter,
   type ThreadMessageLike,
 } from "@assistant-ui/react";
@@ -78,16 +78,15 @@ function AssistantMessage() {
 }
 
 function BranchSeeder() {
-  const messageRuntime = useMessageRuntime();
+  const aui = useAui();
   const seeded = useRef(false);
 
   useEffect(() => {
     if (seeded.current) return;
-    const state = messageRuntime.getState();
-    if (state.branchCount > 1) return;
+    if (aui.message.getState().branchCount > 1) return;
     seeded.current = true;
-    messageRuntime.reload();
-  }, [messageRuntime]);
+    aui.message.reload();
+  }, [aui]);
 
   return null;
 }

@@ -9,7 +9,9 @@ OpenCode-specific React hooks for interacting with the running session. All hook
 
 ## Permissions
 
-OpenCode pauses tool execution to ask the user for permission (e.g. running shell commands, writing files). `useOpenCodePermissions` returns the pending permission requests and a reply function:
+OpenCode pauses tool execution to ask the user for permission (e.g. running shell commands, writing files). Permissions linked to a tool call are projected into assistant-ui's standard tool approval contract, so the default `ToolFallback` renders working **Allow**, **Always allow**, and **Deny** actions without a custom permission component. The always option only appears when OpenCode offers patterns to persist.
+
+`useOpenCodePermissions` remains available for custom tool renderers and permission requests that are not linked to a tool call. It returns the pending permission requests and a reply function:
 
 ```tsx
 import { useOpenCodePermissions } from "@assistant-ui/react-opencode";

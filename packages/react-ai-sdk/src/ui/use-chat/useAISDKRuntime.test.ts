@@ -17,6 +17,7 @@ vi.mock("./useExternalHistory", () => ({
 
 import { useExternalHistory } from "./useExternalHistory";
 import { useAISDKRuntime } from "./useAISDKRuntime";
+import { aiSDKExtras } from "../../aiSDKExtras";
 
 const createChatHelpers = (messages: any[] = []) => {
   let currentMessages = [...messages];
@@ -155,7 +156,7 @@ describe("useAISDKRuntime", () => {
     expect(chat.messages[0].parts[1].state).toBe("output-available");
   });
 
-  it("strips stale approval when cancelling a tool pending approval so history stays valid (#4195)", async () => {
+  it("strips stale approval when cancelling a tool pending approval so history stays valid", async () => {
     const chat = createChatHelpers([
       {
         id: "a1",
@@ -464,6 +465,79 @@ describe("useAISDKRuntime", () => {
     ).rejects.toThrow("Runtime does not support resuming runs.");
   });
 
+  it("forwards onResumeToolCall so runtime.thread.resumeToolCall is delivered to the adapter", async () => {
+    const chat = createChatHelpers([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          {
+            type: "tool-weather",
+            toolCallId: "tc-42",
+            state: "input-available",
+            input: { city: "NYC" },
+          },
+        ],
+      },
+    ]);
+    const onResumeToolCall = vi.fn();
+
+    const { result } = renderHook(() =>
+      useAISDKRuntime(chat, { onResumeToolCall }),
+    );
+
+    await waitFor(() => {
+      expect(result.current.thread.getState().messages.length).toBeGreaterThan(
+        0,
+      );
+    });
+
+    act(() => {
+      result.current.thread
+        .getMessageById("a1")
+        .getMessagePartByToolCallId("tc-42")
+        .resumeToolCall({ answer: "yes" });
+    });
+
+    expect(onResumeToolCall).toHaveBeenCalledTimes(1);
+    expect(onResumeToolCall).toHaveBeenCalledWith({
+      toolCallId: "tc-42",
+      payload: { answer: "yes" },
+    });
+  });
+
+  it("throws when resumeToolCall is called without an onResumeToolCall adapter", async () => {
+    const chat = createChatHelpers([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          {
+            type: "tool-weather",
+            toolCallId: "tc-missing",
+            state: "input-available",
+            input: { city: "NYC" },
+          },
+        ],
+      },
+    ]);
+
+    const { result } = renderHook(() => useAISDKRuntime(chat));
+
+    await waitFor(() => {
+      expect(result.current.thread.getState().messages.length).toBeGreaterThan(
+        0,
+      );
+    });
+
+    expect(() =>
+      result.current.thread
+        .getMessageById("a1")
+        .getMessagePartByToolCallId("tc-missing")
+        .resumeToolCall({ answer: "yes" }),
+    ).toThrow("Tool call tc-missing is not waiting for resume.");
+  });
+
   it("reload slices history and regenerates with metadata", async () => {
     const chat = createChatHelpers([
       { id: "u1", role: "user", parts: [{ type: "text", text: "first" }] },
@@ -539,6 +613,271 @@ describe("useAISDKRuntime", () => {
     expect(result.current.thread.getState().suggestions).toEqual(suggestions);
   });
 
+  it("calls adapters.suggestion after settle with messages and signal", async () => {
+    const generate = vi.fn().mockResolvedValue([{ prompt: "next" }]);
+    const chat = createChatHelpers([
+      { id: "u1", role: "user", parts: [{ type: "text", text: "hi" }] },
+    ]);
+
+    const { result, rerender } = renderHook(
+      ({ status }) => {
+        chat.status = status;
+        return useAISDKRuntime(chat, {
+          adapters: { suggestion: { generate } },
+        });
+      },
+      { initialProps: { status: "submitted" as string } },
+    );
+
+    expect(generate).not.toHaveBeenCalled();
+    expect(result.current.thread.getState().suggestions).toEqual([]);
+
+    chat.messages = [
+      { id: "u1", role: "user", parts: [{ type: "text", text: "hi" }] },
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [{ type: "text", text: "hello" }],
+      },
+    ];
+    rerender({ status: "ready" });
+
+    await waitFor(() => {
+      expect(generate).toHaveBeenCalledTimes(1);
+    });
+
+    expect(generate).toHaveBeenCalledWith({
+      messages: expect.any(Array),
+      signal: expect.any(AbortSignal),
+    });
+    const call = generate.mock.calls[0]![0];
+    expect(call.messages.some((m: any) => m.role === "user")).toBe(true);
+    expect(call.messages.some((m: any) => m.role === "assistant")).toBe(true);
+
+    await waitFor(() => {
+      expect(result.current.thread.getState().suggestions).toEqual([
+        { prompt: "next" },
+      ]);
+    });
+  });
+
+  it("aborts and clears suggestions when a new run starts", async () => {
+    let resolveGenerate!: (value: readonly { prompt: string }[]) => void;
+    const generate = vi.fn().mockImplementation(
+      () =>
+        new Promise<readonly { prompt: string }[]>((resolve) => {
+          resolveGenerate = resolve;
+        }),
+    );
+    const chat = createChatHelpers([
+      { id: "u1", role: "user", parts: [{ type: "text", text: "hi" }] },
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [{ type: "text", text: "hello" }],
+      },
+    ]);
+
+    const { result, rerender } = renderHook(
+      ({ status }) => {
+        chat.status = status;
+        return useAISDKRuntime(chat, {
+          adapters: { suggestion: { generate } },
+        });
+      },
+      { initialProps: { status: "submitted" as string } },
+    );
+
+    rerender({ status: "ready" });
+
+    await waitFor(() => {
+      expect(generate).toHaveBeenCalledTimes(1);
+    });
+    const firstSignal = generate.mock.calls[0]![0].signal as AbortSignal;
+
+    resolveGenerate([{ prompt: "stale" }]);
+    await waitFor(() => {
+      expect(result.current.thread.getState().suggestions).toEqual([
+        { prompt: "stale" },
+      ]);
+    });
+
+    chat.messages = [
+      ...chat.messages,
+      { id: "u2", role: "user", parts: [{ type: "text", text: "again" }] },
+    ];
+    rerender({ status: "submitted" });
+
+    expect(firstSignal.aborted).toBe(true);
+    await waitFor(() => {
+      expect(result.current.thread.getState().suggestions).toEqual([]);
+    });
+  });
+
+  it("applies async generator yields progressively", async () => {
+    const generate = vi.fn().mockImplementation(async function* () {
+      yield [{ prompt: "a" }];
+      yield [{ prompt: "a" }, { prompt: "b" }];
+    });
+    const chat = createChatHelpers([
+      { id: "u1", role: "user", parts: [{ type: "text", text: "hi" }] },
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [{ type: "text", text: "hello" }],
+      },
+    ]);
+
+    const { result, rerender } = renderHook(
+      ({ status }) => {
+        chat.status = status;
+        return useAISDKRuntime(chat, {
+          adapters: { suggestion: { generate } },
+        });
+      },
+      { initialProps: { status: "submitted" as string } },
+    );
+
+    rerender({ status: "ready" });
+
+    await waitFor(() => {
+      expect(result.current.thread.getState().suggestions).toEqual([
+        { prompt: "a" },
+        { prompt: "b" },
+      ]);
+    });
+  });
+
+  it("ignores static suggestions when adapters.suggestion is set", async () => {
+    const generate = vi.fn().mockResolvedValue([{ prompt: "dynamic" }]);
+    const chat = createChatHelpers([
+      { id: "u1", role: "user", parts: [{ type: "text", text: "hi" }] },
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [{ type: "text", text: "hello" }],
+      },
+    ]);
+
+    const { result, rerender } = renderHook(
+      ({ status }) => {
+        chat.status = status;
+        return useAISDKRuntime(chat, {
+          suggestions: [{ prompt: "static" }],
+          adapters: { suggestion: { generate } },
+        });
+      },
+      { initialProps: { status: "submitted" as string } },
+    );
+
+    expect(result.current.thread.getState().suggestions).toEqual([]);
+
+    rerender({ status: "ready" });
+
+    await waitFor(() => {
+      expect(result.current.thread.getState().suggestions).toEqual([
+        { prompt: "dynamic" },
+      ]);
+    });
+    expect(result.current.thread.getState().suggestions).not.toEqual([
+      { prompt: "static" },
+    ]);
+  });
+
+  it("skips suggestion generation when the final assistant message requires action", async () => {
+    const generate = vi.fn().mockResolvedValue([{ prompt: "next" }]);
+    const chat = createChatHelpers([
+      { id: "u1", role: "user", parts: [{ type: "text", text: "hi" }] },
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          {
+            type: "tool-weather",
+            toolCallId: "tc-1",
+            state: "input-available",
+            input: { city: "NYC" },
+          },
+        ],
+      },
+    ]);
+
+    const { result, rerender } = renderHook(
+      ({ status }) => {
+        chat.status = status;
+        return useAISDKRuntime(chat, {
+          adapters: { suggestion: { generate } },
+        });
+      },
+      { initialProps: { status: "submitted" as string } },
+    );
+
+    rerender({ status: "ready" });
+
+    await waitFor(() => {
+      const last = result.current.thread.getState().messages.at(-1);
+      expect(last?.role).toBe("assistant");
+      expect(last?.status?.type).toBe("requires-action");
+    });
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    });
+    expect(generate).not.toHaveBeenCalled();
+    expect(result.current.thread.getState().suggestions).toEqual([]);
+  });
+
+  it("aborts in-flight generation and drops the stale result when the adapter is removed", async () => {
+    let resolveGenerate!: (value: readonly { prompt: string }[]) => void;
+    const generate = vi.fn().mockImplementation(
+      () =>
+        new Promise<readonly { prompt: string }[]>((resolve) => {
+          resolveGenerate = resolve;
+        }),
+    );
+    const chat = createChatHelpers([
+      { id: "u1", role: "user", parts: [{ type: "text", text: "hi" }] },
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [{ type: "text", text: "hello" }],
+      },
+    ]);
+
+    const { result, rerender } = renderHook(
+      ({ status, withAdapter }) => {
+        chat.status = status;
+        return useAISDKRuntime(
+          chat,
+          withAdapter ? { adapters: { suggestion: { generate } } } : {},
+        );
+      },
+      {
+        initialProps: {
+          status: "submitted" as string,
+          withAdapter: true,
+        },
+      },
+    );
+
+    rerender({ status: "ready", withAdapter: true });
+
+    await waitFor(() => {
+      expect(generate).toHaveBeenCalledTimes(1);
+    });
+    const firstSignal = generate.mock.calls[0]![0].signal as AbortSignal;
+
+    rerender({ status: "ready", withAdapter: false });
+
+    expect(firstSignal.aborted).toBe(true);
+
+    resolveGenerate([{ prompt: "stale" }]);
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    });
+    expect(result.current.thread.getState().suggestions).toEqual([]);
+  });
+
   it("merges consecutive assistant messages into one turn by default", async () => {
     const chat = createChatHelpers([
       { id: "u1", role: "user", parts: [{ type: "text", text: "hi" }] },
@@ -587,5 +926,19 @@ describe("useAISDKRuntime", () => {
       "assistant",
     ]);
     expect(messages.slice(1).map(textOf)).toEqual(["first", "second"]);
+  });
+
+  it("exposes branded extras carrying the chat helpers and error", () => {
+    const chat = createChatHelpers();
+    chat.error = new Error("boom");
+
+    const { result } = renderHook(() => useAISDKRuntime(chat));
+
+    const extras = result.current.thread.getState().extras;
+    expect(aiSDKExtras.is(extras)).toBe(true);
+    expect(aiSDKExtras.tryGet(extras)).toMatchObject({
+      chat,
+      error: chat.error,
+    });
   });
 });

@@ -20,7 +20,7 @@ export function ThreadListItem({ onSelect }: { onSelect: () => void }) {
       <Pressable
         onPressIn={haptics.selection}
         onPress={() => {
-          aui.threadListItem().switchTo();
+          aui.threadListItem.switchTo();
           onSelect();
         }}
         style={({ pressed }) => [

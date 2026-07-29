@@ -1,4 +1,10 @@
-import { isToolUIPart, getToolName, type UIMessage } from "ai";
+import {
+  isToolUIPart,
+  isReasoningFileUIPart,
+  isCustomContentUIPart,
+  getToolName,
+  type UIMessage,
+} from "ai";
 import {
   createMessageConverter as unstable_createMessageConverter,
   type useExternalMessageConverter,
@@ -9,12 +15,14 @@ import {
   type ToolCallMessagePart,
   type TextMessagePart,
   type DataMessagePart,
+  type PartProviderMetadata,
   type SourceMessagePart,
   type SourceProviderMetadata,
   type FileMessagePart,
   type ThreadMessageLike,
   type McpAppMetadata,
 } from "@assistant-ui/core";
+import { stableStringifyToolArgs } from "@assistant-ui/core/internal";
 import {
   parsePartialJsonObject,
   type ReadonlyJSONObject,
@@ -54,26 +62,48 @@ function extractMcpAppMetadata(
   if (app && typeof app === "object") {
     a = app as Record<string, unknown>;
   } else {
-    // MCP-UI tools (e.g. xmcp) surface the UI pointer as
-    // result._meta["ui/resourceUri"] rather than in callProviderMetadata.
+    // MCP-UI tools surface the pointer on result._meta: canonical nested
+    // `ui.resourceUri`, or the deprecated flat `"ui/resourceUri"` key.
     const output = (part as { output?: unknown }).output;
     const outMeta =
       output && typeof output === "object"
         ? (output as { _meta?: unknown })._meta
         : undefined;
-    const uiResourceUri =
+    const ui =
       outMeta && typeof outMeta === "object"
-        ? (outMeta as Record<string, unknown>)["ui/resourceUri"]
+        ? (outMeta as Record<string, unknown>)["ui"]
         : undefined;
-    if (typeof uiResourceUri !== "string") return undefined;
-    a = { resourceUri: uiResourceUri };
+    if (
+      ui &&
+      typeof ui === "object" &&
+      typeof (ui as Record<string, unknown>)["resourceUri"] === "string" &&
+      isMcpAppUri((ui as Record<string, unknown>)["resourceUri"] as string)
+    ) {
+      // Only the spec'd ui fields cross from the result body; serverId is a
+      // routing key and stays transport-derived via callProviderMetadata.
+      const uiMeta = ui as Record<string, unknown>;
+      a = {
+        resourceUri: uiMeta["resourceUri"],
+        ...(Array.isArray(uiMeta["visibility"])
+          ? { visibility: uiMeta["visibility"] }
+          : {}),
+      };
+    } else {
+      const flat =
+        outMeta && typeof outMeta === "object"
+          ? (outMeta as Record<string, unknown>)["ui/resourceUri"]
+          : undefined;
+      if (typeof flat !== "string" || !isMcpAppUri(flat)) return undefined;
+      a = { resourceUri: flat };
+    }
   }
   if (typeof a["resourceUri"] !== "string") return undefined;
   if (!isMcpAppUri(a["resourceUri"])) return undefined;
-  const cached = cache?.get(a["resourceUri"]);
+  const cacheKey = `${typeof a["serverId"] === "string" ? a["serverId"] : ""} ${a["resourceUri"]}`;
+  const cached = cache?.get(cacheKey);
   if (cached) {
-    cache!.delete(a["resourceUri"]);
-    cache!.set(a["resourceUri"], cached);
+    cache!.delete(cacheKey);
+    cache!.set(cacheKey, cached);
     return cached;
   }
   const out: { -readonly [K in keyof McpAppMetadata]: McpAppMetadata[K] } = {
@@ -85,65 +115,16 @@ function extractMcpAppMetadata(
       (v): v is "model" | "app" => v === "model" || v === "app",
     );
   }
+  if (typeof a["serverId"] === "string" && a["serverId"].length > 0)
+    out.serverId = a["serverId"];
   if (cache) {
     if (cache.size >= MCP_APP_METADATA_CACHE_MAX) {
       const oldest = cache.keys().next().value;
       if (oldest !== undefined) cache.delete(oldest);
     }
-    cache.set(a["resourceUri"], out);
+    cache.set(cacheKey, out);
   }
   return out;
-}
-
-const hasOwn = (value: object, key: string) => Object.hasOwn(value, key);
-
-const stabilizeToolArgsValue = (
-  value: unknown,
-  path: string,
-  keyOrderByPath: Map<string, string[]>,
-): unknown => {
-  if (Array.isArray(value)) {
-    return value.map((item, idx) =>
-      stabilizeToolArgsValue(item, `${path}[${idx}]`, keyOrderByPath),
-    );
-  }
-
-  if (value && typeof value === "object") {
-    const record = value as Record<string, unknown>;
-    const currentKeys = Object.keys(record);
-    const previousOrder = keyOrderByPath.get(path) ?? [];
-    const previousOrderSet = new Set(previousOrder);
-    const nextOrder = [
-      ...previousOrder.filter((key) => hasOwn(record, key)),
-      ...currentKeys.filter((key) => !previousOrderSet.has(key)),
-    ];
-    keyOrderByPath.set(path, nextOrder);
-
-    return Object.fromEntries(
-      nextOrder.map((key) => [
-        key,
-        stabilizeToolArgsValue(record[key], `${path}.${key}`, keyOrderByPath),
-      ]),
-    );
-  }
-
-  return value;
-};
-
-function stableStringifyToolArgs(
-  keyOrderCache: Map<string, Map<string, string[]>> | undefined,
-  cacheKey: string,
-  args: ReadonlyJSONObject,
-): string {
-  const keyOrderByPath = keyOrderCache?.get(cacheKey) ?? new Map();
-  keyOrderCache?.set(cacheKey, keyOrderByPath);
-
-  const stableArgs = stabilizeToolArgsValue(
-    args,
-    "$",
-    keyOrderByPath,
-  ) as ReadonlyJSONObject;
-  return JSON.stringify(stableArgs);
 }
 
 function getToolApprovalAndInterrupt(
@@ -206,6 +187,11 @@ function convertParts(
         return {
           type: "text",
           text: part.text,
+          ...(part.providerMetadata != null
+            ? {
+                providerMetadata: part.providerMetadata as PartProviderMetadata,
+              }
+            : undefined),
         } satisfies TextMessagePart;
       }
 
@@ -213,6 +199,11 @@ function convertParts(
         return {
           type: "reasoning",
           text: part.text,
+          ...(part.providerMetadata != null
+            ? {
+                providerMetadata: part.providerMetadata as PartProviderMetadata,
+              }
+            : undefined),
         } satisfies ReasoningMessagePart;
       }
 
@@ -293,6 +284,12 @@ function convertParts(
           isError,
           ...(modelContent !== undefined && { modelContent }),
           ...(mcpApp && { mcp: { app: mcpApp } }),
+          ...(part.callProviderMetadata != null
+            ? {
+                providerMetadata:
+                  part.callProviderMetadata as PartProviderMetadata,
+              }
+            : undefined),
           ...getToolApprovalAndInterrupt(part, toolStatus),
         } satisfies ToolCallMessagePart;
       }
@@ -347,6 +344,22 @@ function convertParts(
         } satisfies DataMessagePart;
       }
 
+      if (isReasoningFileUIPart(part)) {
+        return {
+          type: "file",
+          data: part.url,
+          mimeType: part.mediaType,
+        } satisfies FileMessagePart;
+      }
+
+      if (isCustomContentUIPart(part)) {
+        return {
+          type: "data",
+          name: part.kind,
+          data: part.providerMetadata ?? null,
+        } satisfies DataMessagePart;
+      }
+
       console.warn(`Unsupported message part type: ${part.type}`);
       return null;
     })
@@ -376,27 +389,31 @@ export const AISDKMessageConverter = unstable_createMessageConverter(
           content,
           attachments: message.parts
             ?.filter((p) => p.type === "file")
-            .map((part, idx) => ({
-              id: idx.toString(),
-              type: part.mediaType.startsWith("image/") ? "image" : "file",
-              name: part.filename ?? "file",
-              content: [
-                part.mediaType.startsWith("image/")
-                  ? {
-                      type: "image",
-                      image: part.url,
-                      filename: part.filename!,
-                    }
-                  : {
-                      type: "file",
-                      filename: part.filename!,
-                      data: part.url,
-                      mimeType: part.mediaType,
-                    },
-              ],
-              contentType: part.mediaType ?? "unknown/unknown",
-              status: { type: "complete" as const },
-            })),
+            .map((part, idx) => {
+              const mediaType = part.mediaType ?? "unknown/unknown";
+              const isImage = mediaType.startsWith("image/");
+              return {
+                id: idx.toString(),
+                type: isImage ? "image" : "file",
+                name: part.filename ?? "file",
+                content: [
+                  isImage
+                    ? {
+                        type: "image",
+                        image: part.url,
+                        filename: part.filename!,
+                      }
+                    : {
+                        type: "file",
+                        filename: part.filename!,
+                        data: part.url,
+                        mimeType: mediaType,
+                      },
+                ],
+                contentType: mediaType,
+                status: { type: "complete" as const },
+              };
+            }),
           metadata: message.metadata as MessageMetadata,
         };
 

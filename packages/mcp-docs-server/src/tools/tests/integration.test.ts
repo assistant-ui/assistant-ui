@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { server } from "../../index.js";
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { McpServer } from "@modelcontextprotocol/server";
 import { docsTools } from "../docs.js";
 import { examplesTools } from "../examples.js";
 
@@ -24,12 +24,11 @@ describe("MCP Server Integration", () => {
   });
 
   it("should have valid input schemas", () => {
-    // docsTools.parameters is the Zod schema shape
     expect(docsTools.parameters).toBeDefined();
-    expect(Object.keys(docsTools.parameters)).toContain("paths");
+    expect(docsTools.parameters.shape.paths).toBeDefined();
 
     expect(examplesTools.parameters).toBeDefined();
-    expect(Object.keys(examplesTools.parameters)).toContain("example");
+    expect(examplesTools.parameters.shape.example).toBeDefined();
   });
 
   it("should execute tools successfully", async () => {

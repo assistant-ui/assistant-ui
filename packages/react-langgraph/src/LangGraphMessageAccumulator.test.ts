@@ -181,6 +181,84 @@ describe("LangGraphMessageAccumulator UI reducer", () => {
   });
 });
 
+describe("LangGraphMessageAccumulator remove messages", () => {
+  it("deletes the message with the matching id on type:remove", () => {
+    const acc = new LangGraphMessageAccumulator<LangChainMessage>();
+    acc.addMessages([
+      { id: "user-1", type: "human", content: "hi" },
+      { id: "ai-1", type: "ai", content: "to be pruned" },
+      { id: "ai-2", type: "ai", content: "kept" },
+    ]);
+
+    acc.addMessages([
+      { id: "ai-1", type: "remove" } as unknown as LangChainMessage,
+    ]);
+
+    expect(acc.getMessages().map((m) => m.id)).toEqual(["user-1", "ai-2"]);
+  });
+
+  it("is a no-op when the remove id is not present", () => {
+    const acc = new LangGraphMessageAccumulator<LangChainMessage>();
+    acc.addMessages([{ id: "ai-1", type: "ai", content: "kept" }]);
+
+    acc.addMessages([
+      { id: "missing", type: "remove" } as unknown as LangChainMessage,
+    ]);
+
+    expect(acc.getMessages().map((m) => m.id)).toEqual(["ai-1"]);
+  });
+
+  it("clears the metadata for the removed id", () => {
+    const acc = new LangGraphMessageAccumulator<LangChainMessage>();
+    acc.addMessageWithMetadata(
+      { id: "ai-1", type: "ai", content: "to be pruned" },
+      { langgraph_node: "agent" },
+    );
+
+    acc.addMessages([
+      { id: "ai-1", type: "remove" } as unknown as LangChainMessage,
+    ]);
+
+    expect(acc.getMessages().map((m) => m.id)).toEqual([]);
+    expect(acc.getMetadataMap().get("ai-1")).toBeUndefined();
+  });
+
+  it("honors type:remove via addMessageWithMetadata", () => {
+    const acc = new LangGraphMessageAccumulator<LangChainMessage>();
+    acc.addMessages([
+      { id: "ai-1", type: "ai", content: "pruned" },
+      { id: "ai-2", type: "ai", content: "kept" },
+    ]);
+
+    acc.addMessageWithMetadata(
+      { id: "ai-1", type: "remove" } as unknown as LangChainMessage,
+      { langgraph_node: "agent" },
+    );
+
+    expect(acc.getMessages().map((m) => m.id)).toEqual(["ai-2"]);
+    expect(acc.getMetadataMap().get("ai-1")).toBeUndefined();
+  });
+
+  it("clears all messages and metadata on the REMOVE_ALL_MESSAGES sentinel", () => {
+    const acc = new LangGraphMessageAccumulator<LangChainMessage>();
+    acc.addMessageWithMetadata(
+      { id: "ai-1", type: "ai", content: "old" },
+      { langgraph_node: "agent" },
+    );
+    acc.addMessages([{ id: "ai-2", type: "ai", content: "old too" }]);
+
+    acc.addMessages([
+      { id: "__remove_all__", type: "remove" } as unknown as LangChainMessage,
+    ]);
+
+    expect(acc.getMessages()).toEqual([]);
+    expect(acc.getMetadataMap().size).toBe(0);
+
+    acc.addMessages([{ id: "sum-1", type: "ai", content: "summary" }]);
+    expect(acc.getMessages().map((m) => m.id)).toEqual(["sum-1"]);
+  });
+});
+
 describe("LangGraphMessageAccumulator reconcileMessages", () => {
   it("updates message content from server snapshot", () => {
     const acc = new LangGraphMessageAccumulator<LangChainMessage>();

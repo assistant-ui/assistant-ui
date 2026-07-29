@@ -1,5 +1,31 @@
 # @assistant-ui/x-generative-compiler
 
+## 0.0.11
+
+### Patch Changes
+
+- [#5210](https://github.com/assistant-ui/assistant-ui/pull/5210) [`45fe20d`](https://github.com/assistant-ui/assistant-ui/commit/45fe20d5cabec0ce934963cdafc1dec8efca4527) - feat: name the winning and overridden sources in the duplicate-tool-name composition warning ([@rupic-app](https://github.com/apps/rupic-app))
+
+## 0.0.10
+
+### Patch Changes
+
+- [#5188](https://github.com/assistant-ui/assistant-ui/pull/5188) [`32f4ba0`](https://github.com/assistant-ui/assistant-ui/commit/32f4ba09b218177f6c93d0ee0fcfb1e5f0475ef3) - fix: give namespace-import toolkit spreads a specific compile error pointing at the default-import form ([@rupic-app](https://github.com/apps/rupic-app))
+
+  A `defineToolkit({ ... })` spread through a namespace import (`import * as kit from "..."; ...kit.default` or `...kit`) of a generative module used to fall through to the generic unsafe-spread message. It now gets a dedicated callout naming the import style and pointing at the supported default-import form (`import kit from "..."` then `...kit`), since only the default export crosses the build-split boundary.
+
+## 0.0.9
+
+### Patch Changes
+
+- [#4583](https://github.com/assistant-ui/assistant-ui/pull/4583) [`a196108`](https://github.com/assistant-ui/assistant-ui/commit/a196108ee7771ce25eba3095f21f4868f5d4caab) - fix: recognize exported same-file toolkit fragments in toolkit spreads ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#4746](https://github.com/assistant-ui/assistant-ui/pull/4746) [`0686f4e`](https://github.com/assistant-ui/assistant-ui/commit/0686f4e6b8ee5f6e17c968997ef11622ef8f9c98) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#4887](https://github.com/assistant-ui/assistant-ui/pull/4887) [`d03e5cf`](https://github.com/assistant-ui/assistant-ui/commit/d03e5cf0e6efada832503fedc565a1fb8f14676a) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#4815](https://github.com/assistant-ui/assistant-ui/pull/4815) [`5325f09`](https://github.com/assistant-ui/assistant-ui/commit/5325f0985768b750b050cf07f592fdfed34eccac) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
 ## 0.0.8
 
 ### Patch Changes

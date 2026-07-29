@@ -50,10 +50,8 @@ export default function Home() {
           </p>
 
           <div className="mt-2">
-            <Button asChild>
-              <Link href="/chat" aria-label="Go to chat">
-                Go to Chat
-              </Link>
+            <Button render={<Link href="/chat" aria-label="Go to chat" />}>
+              Go to Chat
             </Button>
           </div>
         </div>

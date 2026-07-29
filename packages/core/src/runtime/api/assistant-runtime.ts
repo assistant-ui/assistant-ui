@@ -31,7 +31,10 @@ export class AssistantRuntimeImpl implements AssistantRuntime {
 
   public readonly _thread: ThreadRuntime;
 
-  public constructor(private readonly _core: AssistantRuntimeCore) {
+  private readonly _core: AssistantRuntimeCore;
+
+  constructor(_core: AssistantRuntimeCore) {
+    this._core = _core;
     this.threads = new ThreadListRuntimeImpl(_core.threads);
     this._thread = this.threads.main;
 

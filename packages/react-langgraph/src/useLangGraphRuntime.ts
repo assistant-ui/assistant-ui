@@ -15,6 +15,7 @@ import {
   createMessageQueue,
   type MessageQueueController,
   type AppendMessage,
+  type CompleteAttachment,
   generateId,
 } from "@assistant-ui/core";
 import type { ToolExecutionStatus } from "@assistant-ui/core";
@@ -73,6 +74,30 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
     uiComponents,
   } = options;
   const aui = useAui();
+  const pendingStateRef = useRef<Record<string, unknown> | undefined>(
+    undefined,
+  );
+  const effectiveStateRef = useRef<Record<string, unknown> | undefined>(
+    undefined,
+  );
+  const [optimisticState, setOptimisticState] = useState<
+    Record<string, unknown> | undefined
+  >();
+
+  // Attachments the composer handed to onNew/onEdit, keyed by the staged human
+  // message id. The wire message only carries flattened `content` (so the model
+  // input is unchanged), while the converter reattaches them here so
+  // MessagePrimitive.Attachments can render them as standalone cards.
+  const attachmentsByMessageIdRef = useRef(
+    new Map<string, readonly CompleteAttachment[]>(),
+  );
+  const stageAttachments = (
+    id: string,
+    attachments: readonly CompleteAttachment[] | undefined,
+  ) => {
+    if (attachments?.length)
+      attachmentsByMessageIdRef.current.set(id, attachments);
+  };
 
   // Ref-based reconcile so inline `uiComponents` objects don't re-register
   // every render via `useEffect` dependency identity.
@@ -99,7 +124,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
     if (uiRenderers) {
       for (const [name, component] of Object.entries(uiRenderers)) {
         if (component && registered.get(name) !== component) {
-          cleanups.set(name, aui.dataRenderers().setDataUI(name, component));
+          cleanups.set(name, aui.dataRenderers.setDataUI(name, component));
           registered.set(name, component);
         }
       }
@@ -108,7 +133,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
     if (uiFallback !== fallbackRef.current) {
       fallbackCleanupRef.current?.();
       fallbackCleanupRef.current = uiFallback
-        ? aui.dataRenderers().setFallbackDataUI(uiFallback)
+        ? aui.dataRenderers.setFallbackDataUI(uiFallback)
         : undefined;
       fallbackRef.current = uiFallback;
     }
@@ -143,12 +168,17 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
           runErrorBalanceRef.current--;
           return eventHandlers?.onSubgraphError?.(namespace, error);
         },
+        onValues: (values: unknown) => {
+          setOptimisticState(undefined);
+          return eventHandlers?.onValues?.(values);
+        },
       }) satisfies UseLangGraphRuntimeOptions["eventHandlers"],
     [eventHandlers],
   );
 
   const {
     interrupt,
+    values,
     setInterrupt,
     messages,
     messageMetadata,
@@ -156,6 +186,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
     sendMessage,
     cancel,
     setMessages,
+    setValues,
     setUIMessages,
   } = useLangGraphMessages({
     appendMessage: appendLangChainChunk,
@@ -215,6 +246,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
         toolArgsKeyOrderCache: toolArgsKeyOrderCacheRef.current,
         uiMessagesByParent,
         messageTiming,
+        attachmentsByMessageId: attachmentsByMessageIdRef.current,
       }) as unknown as useExternalMessageConverter.Metadata,
     [uiMessagesByParent, messageTiming],
   );
@@ -250,7 +282,35 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
   const handleSendMessage = (
     messages: LangChainMessage[],
     config: LangGraphSendMessageConfig,
-  ) => runQueue.enqueue({ messages, config });
+  ) => {
+    const state = pendingStateRef.current;
+    pendingStateRef.current = undefined;
+    return runQueue.enqueue({
+      messages,
+      config: state ? { ...config, state } : config,
+    });
+  };
+
+  const state = useMemo(
+    () =>
+      optimisticState ? { ...(values ?? {}), ...optimisticState } : values,
+    [optimisticState, values],
+  );
+  effectiveStateRef.current = state;
+
+  const setState = (
+    next:
+      | Record<string, unknown>
+      | ((
+          prev: Record<string, unknown> | undefined,
+        ) => Record<string, unknown>),
+  ) => {
+    const resolved =
+      typeof next === "function" ? next(effectiveStateRef.current) : next;
+    effectiveStateRef.current = resolved;
+    pendingStateRef.current = resolved;
+    setOptimisticState(resolved);
+  };
 
   const runUserMessage = async (msg: AppendMessage) => {
     // A new turn abandons any half-collected parallel tool batch and any
@@ -272,10 +332,11 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
           )
         : [];
 
-    return handleSendMessage(
-      [...cancellations, { type: "human", content: getMessageContent(msg) }],
-      { runConfig: msg.runConfig },
-    );
+    const humanMessage = toLangGraphUserMessage(msg);
+    stageAttachments(humanMessage.id, msg.attachments);
+    return handleSendMessage([...cancellations, humanMessage], {
+      runConfig: msg.runConfig,
+    });
   };
 
   const langGraphMessagesRef = useRef(messages);
@@ -312,6 +373,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
 
   const stageUserMessage = (msg: AppendMessage) => {
     const stagedMessage = toLangGraphUserMessage(msg);
+    stageAttachments(stagedMessage.id, msg.attachments);
     stagedMessagesRef.current.set(stagedMessage.id, {
       message: stagedMessage,
       runConfig: msg.runConfig,
@@ -331,7 +393,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
   if (unstable_enableMessageQueue && !queueRef.current) {
     queueRef.current = createMessageQueue({
       run: (message) => {
-        void runUserMessageRef.current(message);
+        void runUserMessageRef.current(message).catch(() => {});
       },
     });
   } else if (!unstable_enableMessageQueue && queueRef.current) {
@@ -390,6 +452,8 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
     },
     extras: langGraphExtras.provide({
       interrupt,
+      state,
+      setState,
       messageMetadata,
       uiMessages,
       send: handleSendMessage,
@@ -469,6 +533,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
           setInterrupt(undefined);
           if (!(msg.startRun ?? msg.role === "user")) {
             const stagedMessage = toLangGraphUserMessage(msg);
+            stageAttachments(stagedMessage.id, msg.attachments);
             stagedMessagesRef.current.set(stagedMessage.id, {
               message: stagedMessage,
               runConfig: msg.runConfig,
@@ -479,17 +544,16 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
             setMessages(nextMessages);
             return;
           }
-          const externalId = aui.threadListItem().getState().externalId;
+          const externalId = aui.threadListItem.getState().externalId;
           const checkpointId = externalId
             ? await getCheckpointId(externalId, truncated)
             : null;
-          return handleSendMessage(
-            [{ type: "human", content: getMessageContent(msg) }],
-            {
-              runConfig: msg.runConfig,
-              ...(checkpointId && { checkpointId }),
-            },
-          );
+          const editMessage = toLangGraphUserMessage(msg);
+          stageAttachments(editMessage.id, msg.attachments);
+          return handleSendMessage([editMessage], {
+            runConfig: msg.runConfig,
+            ...(checkpointId && { checkpointId }),
+          });
         }
       : undefined,
     ...(getCheckpointId || hasStagedMessages
@@ -521,7 +585,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
               filterUIMessagesBySurvivingIds(uiMessagesRef.current, truncated),
             );
             setInterrupt(undefined);
-            const externalId = aui.threadListItem().getState().externalId;
+            const externalId = aui.threadListItem.getState().externalId;
             const checkpointId = externalId
               ? await getCheckpointId(externalId, truncated)
               : null;
@@ -547,16 +611,22 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
       loadRef.current = load;
     });
 
+    const threadListItem =
+      aui.threadListItem.source !== null ? aui.threadListItem : undefined;
     useEffect(() => {
       const load = loadRef.current;
-      if (!load) return;
+      if (!load || !threadListItem) return;
 
-      const externalId = aui.threadListItem().getState().externalId;
+      const externalId = threadListItem.getState().externalId;
       if (externalId == null) return;
 
       // drop stale callbacks and abort the pending load on thread switch/unmount
       const controller = new AbortController();
       toolResultBufferRef.current.clear();
+      pendingStateRef.current = undefined;
+      effectiveStateRef.current = undefined;
+      setOptimisticState(undefined);
+      setValues(undefined);
       setIsLoadingThread(true);
       load(externalId, { signal: controller.signal })
         .then(({ messages, interrupts, uiMessages }) => {
@@ -578,7 +648,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
         controller.abort();
         setIsLoadingThread(false);
       };
-    }, [aui, setMessages, setUIMessages, setInterrupt]);
+    }, [threadListItem, setMessages, setUIMessages, setInterrupt, setValues]);
   }
 
   return runtime;
@@ -590,6 +660,8 @@ export const useLangGraphRuntime = ({
   create,
   delete: deleteFn,
   onThreadIdChange,
+  threadId,
+  initialThreadId,
   ...options
 }: UseLangGraphRuntimeOptions) => {
   const aui = useAui();
@@ -601,7 +673,7 @@ export const useLangGraphRuntime = ({
       }
 
       if (aui.threadListItem.source) {
-        return aui.threadListItem().initialize();
+        return aui.threadListItem.initialize();
       }
 
       return { externalId: undefined };
@@ -618,5 +690,7 @@ export const useLangGraphRuntime = ({
     adapter,
     allowNesting: true,
     onThreadIdChange,
+    threadId,
+    initialThreadId,
   });
 };

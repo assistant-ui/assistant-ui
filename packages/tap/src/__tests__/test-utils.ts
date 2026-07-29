@@ -8,6 +8,10 @@ import {
 import type { ResourceFiber } from "../core/types";
 import { useState } from "../react-hooks/useState";
 
+export type TestFiber<R, A extends readonly unknown[]> = ResourceFiber<R> & {
+  readonly __args?: (args: A) => void;
+};
+
 /**
  * Creates a test resource fiber for unit testing.
  * This is a low-level utility that creates a ResourceFiber directly.
@@ -15,7 +19,7 @@ import { useState } from "../react-hooks/useState";
  */
 export function createTestResource<R, A extends readonly unknown[]>(
   fn: (...args: A) => R,
-) {
+): TestFiber<R, A> {
   const rerenderCallback = (evaluate: () => boolean, apply: () => boolean) => {
     if (!evaluate()) return;
     apply();
@@ -39,9 +43,9 @@ export function createTestResource<R, A extends readonly unknown[]>(
 }
 
 // Track resources for cleanup
-const activeResources = new Set<ResourceFiber<any, any>>();
-const propsMap = new WeakMap<ResourceFiber<any, any>, any>();
-const lastRenderValueMap = new WeakMap<ResourceFiber<any, any>, any>();
+const activeResources = new Set<ResourceFiber<any>>();
+const propsMap = new WeakMap<ResourceFiber<any>, any>();
+const lastRenderValueMap = new WeakMap<ResourceFiber<any>, any>();
 
 /**
  * Renders a test resource fiber with the given props and manages its lifecycle.
@@ -49,7 +53,7 @@ const lastRenderValueMap = new WeakMap<ResourceFiber<any, any>, any>();
  * - Returns the current state after render
  */
 export function renderTest<R, A extends readonly unknown[]>(
-  fiber: ResourceFiber<R, A>,
+  fiber: TestFiber<R, A>,
   ...args: A
 ): R {
   propsMap.set(fiber, args);
@@ -72,9 +76,7 @@ export function renderTest<R, A extends readonly unknown[]>(
 /**
  * Unmounts a specific resource fiber and removes it from tracking.
  */
-export function unmountResource<R, A extends readonly unknown[]>(
-  fiber: ResourceFiber<R, A>,
-) {
+export function unmountResource<R>(fiber: ResourceFiber<R>) {
   if (activeResources.has(fiber)) {
     unmountResourceFiber(fiber);
     activeResources.delete(fiber);
@@ -93,9 +95,7 @@ export function cleanupAllResources() {
  * Gets the current committed state of a resource fiber.
  * Returns the state from the last render/commit cycle.
  */
-export function getCommittedValue<R, A extends readonly unknown[]>(
-  fiber: ResourceFiber<R, A>,
-): R {
+export function getCommittedValue<R>(fiber: ResourceFiber<R>): R {
   if (!lastRenderValueMap.has(fiber)) {
     throw new Error(
       "No render result found for fiber. Make sure to call renderResource first.",
@@ -111,9 +111,9 @@ export function getCommittedValue<R, A extends readonly unknown[]>(
 export class TestSubscriber<T> {
   public callCount = 0;
   public lastState: T;
-  private fiber: ResourceFiber<any, any>;
+  private fiber: ResourceFiber<any>;
 
-  constructor(fiber: ResourceFiber<any, any>) {
+  constructor(fiber: ResourceFiber<any>) {
     this.fiber = fiber;
     // Need to render once to get initial state
     const lastArgs = propsMap.get(fiber) ?? [];
@@ -139,7 +139,11 @@ export class TestSubscriber<T> {
 export class TestResourceManager<R, A extends readonly unknown[]> {
   private isActive = false;
 
-  constructor(public fiber: ResourceFiber<R, A>) {}
+  public fiber: TestFiber<R, A>;
+
+  constructor(fiber: TestFiber<R, A>) {
+    this.fiber = fiber;
+  }
 
   renderAndMount(...args: A): R {
     if (this.isActive) {

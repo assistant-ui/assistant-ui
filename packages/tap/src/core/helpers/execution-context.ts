@@ -1,9 +1,9 @@
 import type { ResourceFiber } from "../types";
 
-let currentResourceFiber: ResourceFiber<any, any> | null = null;
+let currentResourceFiber: ResourceFiber<any> | null = null;
 
-export function withResourceFiber<R, A extends readonly unknown[]>(
-  fiber: ResourceFiber<R, A>,
+export function withResourceFiber<R>(
+  fiber: ResourceFiber<R>,
   fn: () => void,
 ): void {
   fiber.currentIndex = 0;

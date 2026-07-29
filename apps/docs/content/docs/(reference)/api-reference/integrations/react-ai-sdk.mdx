@@ -24,14 +24,14 @@ import { reactAiSdk_AISDKToolkit, reactAiSdk_AssistantChatTransport, reactAiSdk_
 
 ### createResumableSessionStorage
 
-`sessionStorage`-backed storage for the pending resumable stream id.
+`sessionStorage`-backed storage for the pending resumable stream id. See the [Resumable Streams](/docs/guides/resumable-streams) guide for end-to-end wiring.
 
 <ParametersTable {...reactAiSdk_createResumableSessionStorage} />
 
 ### frontendTools
 
 ```ts
-const frontendTools: (tools: Record<string, ToolJSONSchema>) => ToolSet;
+const frontendTools: (tools: FrontendTools) => ToolSet;
 ```
 
 ### getThreadMessageTokenUsage
@@ -62,6 +62,8 @@ export async function POST(req: Request) {
 <ParametersTable {...reactAiSdk_injectQuoteContext} />
 
 ### RESUMABLE_STREAM_ID_HEADER
+
+Response header used by the [Resumable Streams](/docs/guides/resumable-streams) server and client wiring.
 
 ```ts
 const RESUMABLE_STREAM_ID_HEADER: "x-resumable-stream-id";
@@ -98,6 +100,27 @@ export async function POST(req: Request) {
 ```
 
 <ParametersTable {...reactAiSdk_unstable_injectInteractableContext} />
+
+### useAISDKChat
+
+The underlying `useChat` helpers object, for advanced views — reach
+`resumeStream`, `clearError`, or the raw `sendMessage` without forking the
+runtime hook. `undefined` when the current thread is not backed by the AI
+SDK runtime.
+
+```ts
+const useAISDKChat: <UI_MESSAGE extends UIMessage = UIMessage<unknown, UIDataTypes, UITools>>() => UseChatHelpers<UI_MESSAGE>;
+```
+
+### useAISDKError
+
+Read the last AI SDK chat error object from the runtime extras.
+`undefined` when there is no error or the current thread is not backed by
+the AI SDK runtime.
+
+```ts
+const useAISDKError: () => Error;
+```
 
 ### useAISDKRuntime
 

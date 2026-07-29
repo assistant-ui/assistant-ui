@@ -4,12 +4,15 @@ import { useState } from "react";
 import { CheckIcon, CopyIcon } from "lucide-react";
 import ShikiHighlighter from "react-shiki";
 import { cn } from "@/lib/utils";
+import { useFlavor } from "@/components/docs/contexts/flavor";
 
 type Tab = "preview" | "code";
 
 type PreviewCodeClientProps = {
   code: string;
+  baseCode?: string;
   children: React.ReactNode;
+  base?: React.ReactNode;
   className?: string;
 };
 
@@ -40,14 +43,20 @@ function TabButton({ label, value, currentTab, onSelect }: TabButtonProps) {
 
 export function PreviewCodeClient({
   code,
+  baseCode,
   children,
+  base,
   className,
 }: PreviewCodeClientProps) {
   const [tab, setTab] = useState<Tab>("preview");
   const [copied, setCopied] = useState(false);
+  const flavor = useFlavor();
+
+  const activeCode =
+    flavor === "base" && baseCode !== undefined ? baseCode : code;
 
   const handleCopy = async () => {
-    await navigator.clipboard.writeText(code);
+    await navigator.clipboard.writeText(activeCode);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -76,7 +85,9 @@ export function PreviewCodeClient({
             className,
           )}
         >
-          <div className="w-full">{children}</div>
+          <div className="w-full">
+            {flavor === "base" && base !== undefined ? base : children}
+          </div>
         </div>
       ) : (
         <div className="preview-code-block relative overflow-hidden rounded-xl">
@@ -99,7 +110,7 @@ export function PreviewCodeClient({
               addDefaultStyles={false}
               showLanguage={false}
             >
-              {code.trim()}
+              {activeCode.trim()}
             </ShikiHighlighter>
           </div>
         </div>

@@ -26,6 +26,8 @@ export function Composer() {
 
 For custom chip rendering, pass a `directiveChip` render prop. Directives (e.g. `@user`, `/command`) survive cursor navigation, selection, and copy/paste as a single unit.
 
+Pass custom Lexical plugin components as `children` to hook into the editor via `useLexicalComposerContext`, for concerns like paste normalization or length limits.
+
 ## See also
 
 - `@assistant-ui/react-hook-form` for binding the composer to a form whose fields the assistant can read and fill.

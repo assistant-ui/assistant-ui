@@ -1,5 +1,52 @@
 # @assistant-ui/react-o11y
 
+## 0.0.30
+
+### Patch Changes
+
+- Updated dependencies [[`3a762ed`](https://github.com/assistant-ui/assistant-ui/commit/3a762edd7e4645ea4aa50691bab680af73e5cff6)]:
+  - @assistant-ui/store@0.3.1
+
+## 0.0.29
+
+### Patch Changes
+
+- [#5285](https://github.com/assistant-ui/assistant-ui/pull/5285) [`d72c2b6`](https://github.com/assistant-ui/assistant-ui/commit/d72c2b6b5fd0e0158b07ecf00bfe4c8ac5b3e861) - refactor: migrate to aui property accessors ([@Yonom](https://github.com/Yonom))
+
+- Updated dependencies [[`9a7e776`](https://github.com/assistant-ui/assistant-ui/commit/9a7e77603d59b5e091ee922e2e087f0101679321), [`ae5f831`](https://github.com/assistant-ui/assistant-ui/commit/ae5f83129b20edb38b7f9e7f92b6c60f3c8fe8d9), [`dcc41bb`](https://github.com/assistant-ui/assistant-ui/commit/dcc41bb50948f64744a052b22720f0f8dffa510e), [`d72c2b6`](https://github.com/assistant-ui/assistant-ui/commit/d72c2b6b5fd0e0158b07ecf00bfe4c8ac5b3e861)]:
+  - @assistant-ui/store@0.3.0
+  - @assistant-ui/tap@0.9.7
+
+## 0.0.28
+
+### Patch Changes
+
+- Updated dependencies [[`d4bdf2c`](https://github.com/assistant-ui/assistant-ui/commit/d4bdf2c50f741912c1c165bd65441ff91bc632dc), [`a0ddc86`](https://github.com/assistant-ui/assistant-ui/commit/a0ddc862b0c506bd791238ebf800868e4836820a), [`8c97501`](https://github.com/assistant-ui/assistant-ui/commit/8c97501892c5e76a0b10232835818c4be5da37eb), [`7e871ef`](https://github.com/assistant-ui/assistant-ui/commit/7e871efe16f1ab0dc3b0e6b21e04728835dbb6da)]:
+  - @assistant-ui/store@0.2.22
+  - @assistant-ui/tap@0.9.6
+
+## 0.0.27
+
+### Patch Changes
+
+- [#5079](https://github.com/assistant-ui/assistant-ui/pull/5079) [`390e417`](https://github.com/assistant-ui/assistant-ui/commit/390e4177ca47f7ece839613ad0f076add9313328) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- Updated dependencies [[`ecd2280`](https://github.com/assistant-ui/assistant-ui/commit/ecd22809f0c1001c1718b53b65e44630cb21414b), [`83d7b42`](https://github.com/assistant-ui/assistant-ui/commit/83d7b4273596c6950f3e9548ce3c537b534d804a), [`5c54141`](https://github.com/assistant-ui/assistant-ui/commit/5c54141d4569796a7de9922285e3447ea4604374), [`5412099`](https://github.com/assistant-ui/assistant-ui/commit/541209975bdc380edf7b34ecc270c201abd14788), [`99da4af`](https://github.com/assistant-ui/assistant-ui/commit/99da4afc5d96a6b3ca6e91fe756f0c7b0c2123a0), [`390e417`](https://github.com/assistant-ui/assistant-ui/commit/390e4177ca47f7ece839613ad0f076add9313328)]:
+  - @assistant-ui/tap@0.9.5
+  - @assistant-ui/store@0.2.21
+
+## 0.0.26
+
+### Patch Changes
+
+- [#4746](https://github.com/assistant-ui/assistant-ui/pull/4746) [`0686f4e`](https://github.com/assistant-ui/assistant-ui/commit/0686f4e6b8ee5f6e17c968997ef11622ef8f9c98) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#4815](https://github.com/assistant-ui/assistant-ui/pull/4815) [`5325f09`](https://github.com/assistant-ui/assistant-ui/commit/5325f0985768b750b050cf07f592fdfed34eccac) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+- Updated dependencies [[`0686f4e`](https://github.com/assistant-ui/assistant-ui/commit/0686f4e6b8ee5f6e17c968997ef11622ef8f9c98), [`e02b21b`](https://github.com/assistant-ui/assistant-ui/commit/e02b21b23cc94f6eba692fbb285b5b27faea9ad0), [`7e28a72`](https://github.com/assistant-ui/assistant-ui/commit/7e28a726e67296b813c43859e45bfd9d1572794a), [`5325f09`](https://github.com/assistant-ui/assistant-ui/commit/5325f0985768b750b050cf07f592fdfed34eccac)]:
+  - @assistant-ui/tap@0.9.4
+  - @assistant-ui/store@0.2.20
+
 ## 0.0.25
 
 ### Patch Changes

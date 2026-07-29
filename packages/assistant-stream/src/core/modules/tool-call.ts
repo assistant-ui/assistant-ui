@@ -8,6 +8,10 @@ import { createTextStream, type TextStreamController } from "./text";
 export type ToolCallStreamController = {
   argsText: TextStreamController;
 
+  /**
+   * Sets the tool response and settles the part. The part closes automatically
+   * and subsequent calls are ignored.
+   */
   setResponse(response: ToolResponseLike<ReadonlyJSONValue>): void;
   close(): void;
 };
@@ -16,9 +20,12 @@ class ToolCallStreamControllerImpl implements ToolCallStreamController {
   private _isClosed = false;
 
   private _mergeTask: Promise<void>;
+  private _controller: ReadableStreamDefaultController<AssistantStreamChunk>;
+
   constructor(
-    private _controller: ReadableStreamDefaultController<AssistantStreamChunk>,
+    _controller: ReadableStreamDefaultController<AssistantStreamChunk>,
   ) {
+    this._controller = _controller;
     const stream = createTextStream({
       start: (c) => {
         this._argsTextController = c;
@@ -65,9 +72,8 @@ class ToolCallStreamControllerImpl implements ToolCallStreamController {
   private _argsTextController!: TextStreamController;
 
   async setResponse(response: ToolResponseLike<ReadonlyJSONValue>) {
-    this._argsTextController.close();
-    await Promise.resolve(); // flush microtask queue
-    // TODO switch argsTextController to be something that doesn'#t require this
+    if (this._isClosed) return;
+
     this._controller.enqueue({
       type: "result",
       path: [],
@@ -83,6 +89,7 @@ class ToolCallStreamControllerImpl implements ToolCallStreamController {
         ? { messages: response.messages }
         : {}),
     });
+    await this.close();
   }
 
   async close() {

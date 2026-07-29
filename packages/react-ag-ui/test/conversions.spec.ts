@@ -106,6 +106,38 @@ describe("adapter conversions", () => {
     });
   });
 
+  it("does not serialize Host-only data when modelContent is empty", () => {
+    const result = toAgUiMessages([
+      {
+        id: "assistant-1",
+        role: "assistant",
+        content: [
+          {
+            type: "tool-call",
+            toolCallId: "call-42",
+            toolName: "show_map",
+            argsText: '{"city":"sf"}',
+            result: {
+              content: [
+                { type: "text", text: "joined text" },
+                { type: "image", data: "aGk=", mimeType: "image/png" },
+              ],
+              structuredContent: { ok: true },
+              isError: false,
+            },
+            modelContent: [],
+          },
+        ],
+      },
+    ] as any);
+
+    expect(result[1]).toMatchObject({
+      role: "tool",
+      toolCallId: "call-42",
+      content: "",
+    });
+  });
+
   it("merges tool role snapshot messages back into assistant tool-call parts", () => {
     const result = fromAgUiMessages([
       {
@@ -132,7 +164,10 @@ describe("adapter conversions", () => {
         id: "msg-3",
         role: "tool",
         tool_call_id: "call-1",
-        content: '{"temperature":"22C"}',
+        content: [{ type: "text", text: "Map ready" }],
+        structuredContent: { temperature: "22C" },
+        _meta: { audience: "widget" },
+        isError: true,
       },
     ] as any);
 
@@ -146,7 +181,14 @@ describe("adapter conversions", () => {
       toolCallId: "call-1",
       toolName: "get_weather",
       argsText: '{"city":"Paris"}',
-      result: { temperature: "22C" },
+      result: {
+        content: [{ type: "text", text: "Map ready" }],
+        structuredContent: { temperature: "22C" },
+        _meta: { audience: "widget" },
+        isError: true,
+      },
+      modelContent: [{ type: "text", text: "Map ready" }],
+      isError: true,
     });
   });
 
@@ -1121,6 +1163,125 @@ describe("adapter conversions", () => {
     expect(() => UserMessageSchema.parse(roundTripped[0])).not.toThrow();
   });
 
+  it("converts a native audio content part to an AG-UI audio source", () => {
+    const result = toAgUiMessages([
+      {
+        id: "u-1",
+        role: "user",
+        content: [
+          { type: "text", text: "listen to this" },
+          { type: "audio", audio: { data: "QUJD", format: "mp3" } },
+        ],
+      },
+    ] as any);
+
+    expect(result[0]).toMatchObject({
+      role: "user",
+      content: [
+        { type: "text", text: "listen to this" },
+        {
+          type: "audio",
+          source: { type: "data", value: "QUJD", mimeType: "audio/mp3" },
+        },
+      ],
+    });
+    expect(() => UserMessageSchema.parse(result[0])).not.toThrow();
+  });
+
+  it("derives the audio mime type from the wav format", () => {
+    const result = toAgUiMessages([
+      {
+        id: "u-1",
+        role: "user",
+        content: [{ type: "audio", audio: { data: "QUJD", format: "wav" } }],
+      },
+    ] as any);
+
+    expect(result[0]!.content).toMatchObject([
+      {
+        type: "audio",
+        source: { type: "data", value: "QUJD", mimeType: "audio/wav" },
+      },
+    ]);
+  });
+
+  it("strips a data URL envelope from audio data and keeps the format-derived mime type", () => {
+    const result = toAgUiMessages([
+      {
+        id: "u-1",
+        role: "user",
+        content: [
+          {
+            type: "audio",
+            audio: { data: "data:audio/mpeg;base64,QUJD", format: "mp3" },
+          },
+        ],
+      },
+    ] as any);
+
+    expect(result[0]!.content).toMatchObject([
+      {
+        type: "audio",
+        source: { type: "data", value: "QUJD", mimeType: "audio/mp3" },
+      },
+    ]);
+  });
+
+  it("drops an audio part with a malformed payload without failing the send", () => {
+    const result = toAgUiMessages([
+      {
+        id: "u-1",
+        role: "user",
+        content: [
+          { type: "text", text: "hi" },
+          { type: "audio", audio: { format: "mp3" } },
+        ],
+      },
+    ] as any);
+
+    expect(result[0]).toMatchObject({ role: "user", content: "hi" });
+    expect(() => UserMessageSchema.parse(result[0])).not.toThrow();
+  });
+
+  it("drops data parts while keeping surrounding text", () => {
+    const result = toAgUiMessages([
+      {
+        id: "u-1",
+        role: "user",
+        content: [
+          { type: "text", text: "hi" },
+          { type: "data", name: "chart", data: { x: 1 } },
+        ],
+      },
+    ] as any);
+
+    expect(result[0]).toMatchObject({ role: "user", content: "hi" });
+    expect(() => UserMessageSchema.parse(result[0])).not.toThrow();
+  });
+
+  it("round-trips a native audio part through the attachment channel back to a wire audio block", () => {
+    const sent = toAgUiMessages([
+      {
+        id: "u-1",
+        role: "user",
+        content: [{ type: "audio", audio: { data: "QUJD", format: "mp3" } }],
+      },
+    ] as any);
+
+    const restored = fromAgUiMessages(sent);
+    const resent = toAgUiMessages(
+      restored as Parameters<typeof toAgUiMessages>[0],
+    );
+
+    expect(resent[0]!.content).toMatchObject([
+      {
+        type: "audio",
+        source: { type: "data", value: "QUJD", mimeType: "audio/mp3" },
+      },
+    ]);
+    expect(() => UserMessageSchema.parse(resent[0])).not.toThrow();
+  });
+
   it("restores a legacy binary input part and re-sends it as a modern part", () => {
     const restored = fromAgUiMessages([
       {
@@ -1272,6 +1433,199 @@ describe("adapter conversions", () => {
 
     expect(result[0]).toMatchObject({ role: "user", content: "see file" });
     expect(result[0]).not.toHaveProperty("attachments");
+  });
+});
+
+describe("mcp app rehydration from restored tool messages", () => {
+  it("rehydrates mcp.app from the _meta ui/resourceUri carrier", () => {
+    const result = fromAgUiMessages([
+      {
+        id: "a-1",
+        role: "assistant",
+        content: "",
+        tool_calls: [
+          {
+            id: "call-1",
+            type: "function",
+            function: { name: "search", arguments: "{}" },
+          },
+        ],
+      },
+      {
+        id: "t-1",
+        role: "tool",
+        tool_call_id: "call-1",
+        content: "ok",
+        _meta: { "ui/resourceUri": "ui://example/search" },
+      },
+    ] as any);
+
+    const part = (result[0] as any).content.find(
+      (p: { type: string }) => p.type === "tool-call",
+    );
+    expect(part.mcp).toEqual({ app: { resourceUri: "ui://example/search" } });
+  });
+
+  it("rehydrates mcp.app from the nested _meta ui.resourceUri carrier", () => {
+    const result = fromAgUiMessages([
+      {
+        id: "a-1",
+        role: "assistant",
+        content: "",
+        tool_calls: [
+          {
+            id: "call-1",
+            type: "function",
+            function: { name: "search", arguments: "{}" },
+          },
+        ],
+      },
+      {
+        id: "t-1",
+        role: "tool",
+        tool_call_id: "call-1",
+        content: "ok",
+        _meta: { ui: { resourceUri: "ui://example/search" } },
+      },
+    ] as any);
+
+    const part = (result[0] as any).content.find(
+      (p: { type: string }) => p.type === "tool-call",
+    );
+    expect(part.mcp).toEqual({ app: { resourceUri: "ui://example/search" } });
+  });
+
+  it("prefers the nested _meta ui.resourceUri carrier over the flat carrier", () => {
+    const result = fromAgUiMessages([
+      {
+        id: "a-1",
+        role: "assistant",
+        content: "",
+        tool_calls: [
+          {
+            id: "call-1",
+            type: "function",
+            function: { name: "search", arguments: "{}" },
+          },
+        ],
+      },
+      {
+        id: "t-1",
+        role: "tool",
+        tool_call_id: "call-1",
+        content: "ok",
+        _meta: {
+          ui: { resourceUri: "ui://example/nested" },
+          "ui/resourceUri": "ui://example/flat",
+        },
+      },
+    ] as any);
+
+    const part = (result[0] as any).content.find(
+      (p: { type: string }) => p.type === "tool-call",
+    );
+    expect(part.mcp).toEqual({ app: { resourceUri: "ui://example/nested" } });
+  });
+
+  it("falls back to the flat carrier when the nested resourceUri is not a ui:// app uri", () => {
+    const result = fromAgUiMessages([
+      {
+        id: "a-1",
+        role: "assistant",
+        content: "",
+        tool_calls: [
+          {
+            id: "call-1",
+            type: "function",
+            function: { name: "search", arguments: "{}" },
+          },
+        ],
+      },
+      {
+        id: "t-1",
+        role: "tool",
+        tool_call_id: "call-1",
+        content: "ok",
+        _meta: {
+          ui: { resourceUri: "https://example.com/not-an-app" },
+          "ui/resourceUri": "ui://example/flat",
+        },
+      },
+    ] as any);
+
+    const part = (result[0] as any).content.find(
+      (p: { type: string }) => p.type === "tool-call",
+    );
+    expect(part.mcp).toEqual({ app: { resourceUri: "ui://example/flat" } });
+  });
+
+  it("rehydrates mcp.app on a synthetic assistant tool-call for an orphan tool message", () => {
+    const result = fromAgUiMessages([
+      {
+        id: "t-1",
+        role: "tool",
+        tool_call_id: "call-9",
+        name: "lookup",
+        content: '{"ok":true}',
+        _meta: { "ui/resourceUri": "ui://example/lookup" },
+      },
+    ] as any);
+
+    expect((result[0] as any).content[0].mcp).toEqual({
+      app: { resourceUri: "ui://example/lookup" },
+    });
+  });
+
+  it("does not set mcp.app when the carrier resourceUri is not a ui:// app uri", () => {
+    const result = fromAgUiMessages([
+      {
+        id: "a-1",
+        role: "assistant",
+        content: "",
+        tool_calls: [
+          {
+            id: "call-1",
+            type: "function",
+            function: { name: "search", arguments: "{}" },
+          },
+        ],
+      },
+      {
+        id: "t-1",
+        role: "tool",
+        tool_call_id: "call-1",
+        content: "ok",
+        _meta: { "ui/resourceUri": "https://example.com/not-an-app" },
+      },
+    ] as any);
+
+    const part = (result[0] as any).content.find(
+      (p: { type: string }) => p.type === "tool-call",
+    );
+    expect(part.mcp).toBeUndefined();
+  });
+
+  it("leaves mcp unset on a restored part without a carrier", () => {
+    const result = fromAgUiMessages([
+      {
+        id: "a-2",
+        role: "assistant",
+        content: "",
+        tool_calls: [
+          {
+            id: "call-2",
+            type: "function",
+            function: { name: "search", arguments: "{}" },
+          },
+        ],
+      },
+      { id: "t-2", role: "tool", tool_call_id: "call-2", content: "ok" },
+    ] as any);
+
+    const part = (result[0] as any).content.find(
+      (p: { type: string }) => p.type === "tool-call",
+    );
+    expect(part.mcp).toBeUndefined();
   });
 });
 

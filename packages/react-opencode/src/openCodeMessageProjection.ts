@@ -11,6 +11,10 @@ import {
   ExportedMessageRepository,
   type MessageTiming,
 } from "@assistant-ui/react";
+import {
+  projectOpenCodePermissionApproval,
+  projectResolvedOpenCodePermissionApproval,
+} from "./openCodePermissionApproval";
 
 type ProjectedContentPart = Exclude<
   OpenCodeProjectedThreadMessage["content"],
@@ -119,16 +123,56 @@ const getPartToolCallId = (part: Part) => {
   return typeof part.callID === "string" ? part.callID : undefined;
 };
 
+type PermissionState = OpenCodeThreadState["interactions"]["permissions"];
+type PendingPermission = PermissionState["pending"][string];
+type ResolvedPermission = PermissionState["resolved"][string];
+
+type PermissionIndex = {
+  pendingByCallId: ReadonlyMap<string, PendingPermission>;
+  resolvedByCallId: ReadonlyMap<string, ResolvedPermission>;
+};
+
+const permissionIndexCache = new WeakMap<PermissionState, PermissionIndex>();
+
+const getPermissionIndex = (state: OpenCodeThreadState): PermissionIndex => {
+  const permissions = state.interactions.permissions;
+  const cached = permissionIndexCache.get(permissions);
+  if (cached) return cached;
+
+  const pendingByCallId = new Map<string, PendingPermission>();
+  for (const request of Object.values(permissions.pending)) {
+    if (request.tool?.callID) pendingByCallId.set(request.tool.callID, request);
+  }
+
+  const resolvedByCallId = new Map<string, ResolvedPermission>();
+  for (const entry of Object.values(permissions.resolved)) {
+    const callId = entry.request.tool?.callID;
+    if (callId) resolvedByCallId.set(callId, entry);
+  }
+
+  const index: PermissionIndex = { pendingByCallId, resolvedByCallId };
+  permissionIndexCache.set(permissions, index);
+  return index;
+};
+
+const getPendingPermissionForToolCall = (
+  state: OpenCodeThreadState,
+  toolCallId: string,
+) => getPermissionIndex(state).pendingByCallId.get(toolCallId);
+
+const getResolvedPermissionForToolCall = (
+  state: OpenCodeThreadState,
+  toolCallId: string,
+) => getPermissionIndex(state).resolvedByCallId.get(toolCallId);
+
 const hasPendingInteractionForToolCall = (
   state: OpenCodeThreadState,
   toolCallId: string | undefined,
 ) => {
   if (!toolCallId) return false;
 
-  for (const request of Object.values(state.interactions.permissions.pending)) {
-    if (request.tool?.callID === toolCallId) {
-      return true;
-    }
+  if (getPermissionIndex(state).pendingByCallId.has(toolCallId)) {
+    return true;
   }
 
   for (const request of Object.values(state.interactions.questions.pending)) {
@@ -201,6 +245,7 @@ const convertFilePart = (part: Extract<Part, { type: "file" }>) => {
 };
 
 const projectAssistantContent = (
+  state: OpenCodeThreadState,
   message: OpenCodeServerMessage,
 ): ProjectedContentPart[] => {
   const content: ProjectedContentPart[] = [];
@@ -235,9 +280,14 @@ const projectAssistantContent = (
 
       case "tool": {
         const toolState = mapToolState(part.state);
+        const toolCallId = part.callID ?? part.id ?? `tool-${index}`;
+        const permission = getPendingPermissionForToolCall(state, toolCallId);
+        const resolvedPermission = permission
+          ? undefined
+          : getResolvedPermissionForToolCall(state, toolCallId);
         content.push({
           type: "tool-call",
-          toolCallId: part.callID ?? part.id ?? `tool-${index}`,
+          toolCallId,
           toolName: part.tool ?? "tool",
           args: toolState.args as never,
           argsText: toolState.argsText,
@@ -245,6 +295,16 @@ const projectAssistantContent = (
             ? { result: toolState.result }
             : {}),
           ...(toolState.isError ? { isError: true } : {}),
+          ...(permission
+            ? { approval: projectOpenCodePermissionApproval(permission) }
+            : resolvedPermission
+              ? {
+                  approval:
+                    projectResolvedOpenCodePermissionApproval(
+                      resolvedPermission,
+                    ),
+                }
+              : {}),
           ...(currentStepId() ? { parentId: currentStepId() } : {}),
         });
         break;
@@ -480,7 +540,7 @@ const projectServerMessage = (
       id: message.info.id,
       role: "assistant",
       createdAt: new Date(message.info.time?.created ?? Date.now()),
-      content: projectAssistantContent(message),
+      content: projectAssistantContent(state, message),
       status: getMessageStatus(state, message),
       metadata: {
         custom: {

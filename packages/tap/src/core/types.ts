@@ -1,26 +1,22 @@
-export type ResourceElement<R, A extends readonly unknown[] = any[]> = {
-  readonly hook: (...args: A) => R;
-  readonly args: Readonly<A>;
+export type ResourceElement<V> = {
+  readonly hook: (...args: any[]) => V;
+  readonly args: readonly unknown[];
   readonly key?: string | number;
   readonly deps?: readonly unknown[];
 };
 
-export type Resource<R, A extends readonly unknown[] = any[]> = (
+export type Resource<V, A extends readonly unknown[] = any[]> = (
   ...args: A
-) => ResourceElement<R, A>;
-export type ContravariantResource<R, A extends readonly unknown[] = any[]> = (
-  ...args: A
-) => ResourceElement<R>;
-
+) => ResourceElement<V>;
 export type ExtractResourceReturnType<T> =
-  T extends ResourceElement<infer R, any>
-    ? R
-    : T extends Resource<infer R, any>
-      ? R
+  T extends ResourceElement<infer V>
+    ? V
+    : T extends Resource<infer V, any>
+      ? V
       : never;
 
 export interface ChangelogRecord {
-  readonly fiber: ResourceFiber<any, any>;
+  readonly fiber: ResourceFiber<any>;
   readonly cell: ReducerCell;
   readonly action: any;
 
@@ -83,9 +79,9 @@ export interface TapRoot {
   readonly rollbackCallbacks: (() => void)[];
 }
 
-export interface ResourceFiber<R, A extends readonly unknown[] = any[]> {
+export interface ResourceFiber<R> {
   readonly root: TapRoot;
-  readonly hook: (...args: A) => R;
+  readonly hook: (...args: any[]) => R;
   readonly markDirty: (() => void) | undefined;
   readonly devStrictMode: "root" | "child" | null;
 

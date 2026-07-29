@@ -83,7 +83,7 @@ describe("AttachmentPrimitive.Remove", () => {
   it("calls aui.attachment().remove() on Enter when focused", () => {
     mockUseFocus.mockReturnValue({ isFocused: true });
     const remove = vi.fn();
-    mockUseAui.mockReturnValue({ attachment: () => ({ remove }) });
+    mockUseAui.mockReturnValue({ attachment: { remove } });
     setAttachmentState({
       id: "a1",
       type: "file",
@@ -188,6 +188,22 @@ describe("AttachmentPrimitive.Status", () => {
     const frame = lastFrame() ?? "";
     expect(frame).toContain("x");
     expect(frame).toContain("error");
+  });
+
+  it("renders the failure message when the error status carries one", () => {
+    setAttachmentState({
+      id: "a1",
+      type: "file",
+      name: "broken.bin",
+      status: {
+        type: "incomplete",
+        reason: "error",
+        message: "Failed to upload file: 403 Forbidden",
+      },
+    });
+    const { lastFrame } = render(<AttachmentStatus />);
+    const frame = lastFrame() ?? "";
+    expect(frame).toContain("x error: Failed to upload file: 403 Forbidden");
   });
 
   it("renders a paused marker for incomplete/upload-paused", () => {

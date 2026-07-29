@@ -1,5 +1,49 @@
 # @assistant-ui/tap
 
+## 0.9.7
+
+### Patch Changes
+
+- [#5285](https://github.com/assistant-ui/assistant-ui/pull/5285) [`d72c2b6`](https://github.com/assistant-ui/assistant-ui/commit/d72c2b6b5fd0e0158b07ecf00bfe4c8ac5b3e861) - fix: useSyncExternalStore retains the last committed value when the snapshot getter throws; export `useMemoCache` from the package root ([@Yonom](https://github.com/Yonom))
+
+## 0.9.6
+
+### Patch Changes
+
+- [#5208](https://github.com/assistant-ui/assistant-ui/pull/5208) [`a0ddc86`](https://github.com/assistant-ui/assistant-ui/commit/a0ddc862b0c506bd791238ebf800868e4836820a) - Adopt `erasableSyntaxOnly`; public enums are now `as const` objects. ([@Yonom](https://github.com/Yonom))
+
+- [#5235](https://github.com/assistant-ui/assistant-ui/pull/5235) [`8c97501`](https://github.com/assistant-ui/assistant-ui/commit/8c97501892c5e76a0b10232835818c4be5da37eb) - feat: drop `configurableResource()` — use `resource()` with an options argument instead ([@Yonom](https://github.com/Yonom))
+
+- [#5207](https://github.com/assistant-ui/assistant-ui/pull/5207) [`7e871ef`](https://github.com/assistant-ui/assistant-ui/commit/7e871efe16f1ab0dc3b0e6b21e04728835dbb6da) - Stop shipping react-shim declaration files the exports map disclaims — the shim subpaths are now genuinely untyped in every resolution mode instead of accidentally typed via TypeScript's fallback resolution. ([@Yonom](https://github.com/Yonom))
+
+## 0.9.5
+
+### Patch Changes
+
+- [#5194](https://github.com/assistant-ui/assistant-ui/pull/5194) [`ecd2280`](https://github.com/assistant-ui/assistant-ui/commit/ecd22809f0c1001c1718b53b65e44630cb21414b) - feat: `configurableResource()` — curries an options-first hook into `(options) => Resource<V, A>`, replacing `.bind(null, options)` boilerplate ([@Yonom](https://github.com/Yonom))
+
+- [#5182](https://github.com/assistant-ui/assistant-ui/pull/5182) [`83d7b42`](https://github.com/assistant-ui/assistant-ui/commit/83d7b4273596c6950f3e9548ce3c537b534d804a) - fix: implement useMemoCache on tap's dispatcher so compiled components work under duplicated tap copies ([@Yonom](https://github.com/Yonom))
+
+- [#5181](https://github.com/assistant-ui/assistant-ui/pull/5181) [`5c54141`](https://github.com/assistant-ui/assistant-ui/commit/5c54141d4569796a7de9922285e3447ea4604374) - fix: create the scheduler MessageChannel lazily so importing tap does not hold the Node event loop open ([@Yonom](https://github.com/Yonom))
+
+- [#5190](https://github.com/assistant-ui/assistant-ui/pull/5190) [`5412099`](https://github.com/assistant-ui/assistant-ui/commit/541209975bdc380edf7b34ecc270c201abd14788) - refactor: `ResourceElement<Result>` drops its args type parameter — elements are opaque descriptors; `Resource<Result, Args>` keeps the callable typing and `ContravariantResource` is removed ([@Yonom](https://github.com/Yonom))
+
+- [#5186](https://github.com/assistant-ui/assistant-ui/pull/5186) [`99da4af`](https://github.com/assistant-ui/assistant-ui/commit/99da4afc5d96a6b3ca6e91fe756f0c7b0c2123a0) - feat: `withKey` accepts a Resource — `withKey(key, resourceFn)` returns a resource whose produced elements carry the key ([@Yonom](https://github.com/Yonom))
+
+- [#5079](https://github.com/assistant-ui/assistant-ui/pull/5079) [`390e417`](https://github.com/assistant-ui/assistant-ui/commit/390e4177ca47f7ece839613ad0f076add9313328) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+## 0.9.4
+
+### Patch Changes
+
+- [#4746](https://github.com/assistant-ui/assistant-ui/pull/4746) [`0686f4e`](https://github.com/assistant-ui/assistant-ui/commit/0686f4e6b8ee5f6e17c968997ef11622ef8f9c98) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#4920](https://github.com/assistant-ui/assistant-ui/pull/4920) [`e02b21b`](https://github.com/assistant-ui/assistant-ui/commit/e02b21b23cc94f6eba692fbb285b5b27faea9ad0) - fix: preserve React-hosted tap resource roots and keyed fiber registries for the component lifetime ([@samdickson22](https://github.com/samdickson22))
+
+- [#4919](https://github.com/assistant-ui/assistant-ui/pull/4919) [`7e28a72`](https://github.com/assistant-ui/assistant-ui/commit/7e28a726e67296b813c43859e45bfd9d1572794a) - fix: keep tap root scheduler, fiber, queue, and subscribers in React state for the full component lifetime ([@samdickson22](https://github.com/samdickson22))
+
+- [#4815](https://github.com/assistant-ui/assistant-ui/pull/4815) [`5325f09`](https://github.com/assistant-ui/assistant-ui/commit/5325f0985768b750b050cf07f592fdfed34eccac) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
 ## 0.9.3
 
 ### Patch Changes

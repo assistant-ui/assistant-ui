@@ -396,7 +396,7 @@ Renders the quoted text from `s.composer.quote?.text`. Pass `children` to overri
 
 ### QuoteDismiss
 
-Pressable that clears the active quote by calling `aui.composer().setQuote(undefined)`.
+Pressable that clears the active quote by calling `aui.composer.setQuote(undefined)`.
 
 ```tsx
 <ComposerPrimitive.QuoteDismiss>
@@ -683,7 +683,7 @@ Container `Box` for an attachment. Forwards all `Box` props.
 
 ### Remove
 
-`Pressable` that calls `aui.attachment().remove()` when activated (Enter while focused). Disabled when not focused or when the `disabled` prop is set.
+`Pressable` that calls `aui.attachment.remove()` when activated (Enter while focused). Disabled when not focused or when the `disabled` prop is set.
 
 | Prop | Type | Description |
 |------|------|-------------|
@@ -725,7 +725,7 @@ Renders the queue item's prompt with Ink `<Text>`. Pass `children` to override t
 
 ### Remove
 
-Pressable that removes the queue item by calling `aui.queueItem().remove()`.
+Pressable that removes the queue item by calling `aui.queueItem.remove()`.
 
 ```tsx
 <QueueItemPrimitive.Remove>
@@ -742,7 +742,7 @@ Remaining props are forwarded to the underlying `Pressable` (Ink `Box` props).
 
 ### Steer
 
-Pressable that promotes the queue item to run next by calling `aui.queueItem().steer()`.
+Pressable that promotes the queue item to run next by calling `aui.queueItem.steer()`.
 
 ```tsx
 <QueueItemPrimitive.Steer>
@@ -765,10 +765,17 @@ import { ActionBarPrimitive } from "@assistant-ui/react-ink";
 
 ### Copy
 
-Pressable that copies the message content. Supports function-as-children for copy state feedback.
+Pressable that copies the message content. Pass a platform clipboard writer through `copyToClipboard`. Supports function-as-children for copy state feedback.
+
+<InstallCommand npm={["clipboardy"]} />
 
 ```tsx
-<ActionBarPrimitive.Copy copiedDuration={3000}>
+import clipboard from "clipboardy";
+
+<ActionBarPrimitive.Copy
+  copiedDuration={3000}
+  copyToClipboard={clipboard.write}
+>
   {({ isCopied }) => <Text>{isCopied ? "[Copied!]" : "[Copy]"}</Text>}
 </ActionBarPrimitive.Copy>
 ```
@@ -776,7 +783,7 @@ Pressable that copies the message content. Supports function-as-children for cop
 | Prop | Type | Description |
 |------|------|-------------|
 | `copiedDuration` | `number` | Duration in ms to show "copied" state (default: 3000) |
-| `copyToClipboard` | `(text: string) => void` | Custom clipboard function |
+| `copyToClipboard` | `(text: string) => void \| Promise<void>` | Platform clipboard writer |
 
 ### Edit
 
@@ -1224,7 +1231,7 @@ import { TextInput } from "@assistant-ui/react-ink";
 
 Store-free, controlled single/multi-line text field. Ink ships no native text input, so this is the terminal equivalent of the DOM `<textarea>` or React Native's `<TextInput>` — the editing engine (buffer, grapheme-aware cursor, and the full emacs/arrow keymap) without any runtime or composer coupling. `ComposerPrimitive.Input` is a thin adapter that wraps `TextInput` and binds it to the composer store; reach for `TextInput` directly when you need an editable field outside the thread composer (for example, editing a value before confirming an action).
 
-It is controlled on `value`/`onChange`, so an external owner can override the text at any time (the buffer absorbs the echo without thrashing the cursor):
+It is controlled on `value`/`onChange`, so an external owner can override the text at any time (the buffer absorbs the echo without thrashing the cursor). An owner may also transform the emitted text in `onChange` (uppercase, mask, reject); the buffer applies the corrected value while keeping the cursor at the edit position, snapped to a grapheme boundary. A replacement that does not respond to an edit (a programmatic set while idle) still places the cursor at the end:
 
 ```tsx
 const [command, setCommand] = useState(approval.action.command);
@@ -1241,7 +1248,7 @@ const [command, setCommand] = useState(approval.action.command);
 |------|------|-------------|
 | `value` | `string` | Current text (controlled) |
 | `onChange` | `(text: string) => void` | Called with the next text whenever the buffer changes |
-| `onSubmit` | `(text: string) => void` | Called with the current text on Enter when `submitOnEnter` is set |
+| `onSubmit` | `(text: string) => void` | Called on Enter when `submitOnEnter` is set, with the text as displayed; owners that validate in `onChange` should validate again in `onSubmit` |
 | `submitOnEnter` | `boolean` | Whether Enter calls `onSubmit` (default: `false`) |
 | `placeholder` | `string` | Placeholder text when empty (default: `""`) |
 | `autoFocus` | `boolean` | Auto-focus on mount (default: `true`) |

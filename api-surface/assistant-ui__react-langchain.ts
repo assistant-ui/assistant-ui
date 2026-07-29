@@ -26,6 +26,7 @@ type AsNumber<K> = K extends `${infer N extends number}` ? N | K : never;
 
 declare class AssistantCloud {
   readonly threads: AssistantCloudThreads;
+  readonly projects: AssistantCloudProjects;
   readonly auth: {
     tokens: AssistantCloudAuthTokens;
   };
@@ -85,6 +86,44 @@ declare class AssistantCloudFiles {
 type AssistantCloudMessageCreateResponse = {
   message_id: string;
 };
+
+type AssistantCloudProjectThreadMessageListQuery = {
+  format?: string;
+  limit?: number;
+  after?: string;
+};
+
+type AssistantCloudProjectThreadMessageListResponse = {
+  messages: CloudMessage[];
+};
+
+declare class AssistantCloudProjectThreadMessages {
+  private cloud;
+  constructor(cloud: AssistantCloudAPI);
+  list(threadId: string, query?: AssistantCloudProjectThreadMessageListQuery): Promise<AssistantCloudProjectThreadMessageListResponse>;
+}
+
+declare class AssistantCloudProjectThreads {
+  readonly messages: AssistantCloudProjectThreadMessages;
+  private cloud;
+  constructor(cloud: AssistantCloudAPI);
+  list(query?: AssistantCloudProjectThreadsListQuery): Promise<AssistantCloudProjectThreadsListResponse>;
+}
+
+type AssistantCloudProjectThreadsListQuery = {
+  is_archived?: boolean;
+  limit?: number;
+  after?: string;
+};
+
+type AssistantCloudProjectThreadsListResponse = {
+  threads: CloudThread[];
+};
+
+declare class AssistantCloudProjects {
+  readonly threads: AssistantCloudProjectThreads;
+  constructor(cloud: AssistantCloudAPI);
+}
 
 type AssistantCloudRunReport = {
   thread_id: string;
@@ -169,8 +208,8 @@ declare class AssistantCloudThreadMessages {
 }
 
 declare class AssistantCloudThreads {
-  private cloud;
   readonly messages: AssistantCloudThreadMessages;
+  private cloud;
   constructor(cloud: AssistantCloudAPI);
   list(query?: AssistantCloudThreadsListQuery): Promise<AssistantCloudThreadsListResponse>;
   get(threadId: string): Promise<CloudThread>;
@@ -268,13 +307,25 @@ type AssistantStreamChunk = {
 } | {
   readonly type: "error";
   readonly error: string;
+  readonly code?: string;
+  readonly severity?: "critical" | "info" | "warning";
 } | {
   readonly type: "update-state";
-  readonly operations: ObjectStreamOperation[];
+  readonly operations: AssistantTransportStateOperation[];
 });
 
 type AssistantStreamEncoder = ReadableWritablePair<Uint8Array<ArrayBuffer>, AssistantStreamChunk> & {
   headers?: Headers;
+};
+
+type AssistantTransportStateOperation = {
+  readonly type: "set";
+  readonly path: readonly string[];
+  readonly value: ReadonlyJSONValue;
+} | {
+  readonly type: "append-text";
+  readonly path: readonly string[];
+  readonly value: string;
 };
 
 type AsyncIterableStream<T> = AsyncIterable<T> & ReadableStream<T>;
@@ -886,6 +937,27 @@ type LangChainContentBlock = {
     filename?: string;
   };
 } | {
+  type: "file";
+  url: string;
+  mime_type?: string;
+  source_type: "url";
+  metadata?: {
+    filename?: string;
+  };
+} | {
+  type: "file";
+  id: string;
+  mime_type?: string;
+  source_type: "id";
+  metadata?: {
+    filename?: string;
+  };
+} | {
+  type: "audio";
+  data: string;
+  mime_type: string;
+  source_type: "base64";
+} | {
   type: "input_json_delta" | "tool_use";
 };
 
@@ -948,6 +1020,7 @@ type McpAppMetadata = {
   readonly resourceUri: string;
   readonly mimeType?: string;
   readonly visibility?: readonly ("app" | "model")[];
+  readonly serverId?: string;
 };
 
 type McpServerConfig = {
@@ -1104,16 +1177,6 @@ type ModelContextProvider = {
 
 type ObjectKey<T> = keyof T & (string | number);
 
-type ObjectStreamOperation = {
-  readonly type: "set";
-  readonly path: readonly string[];
-  readonly value: ReadonlyJSONValue;
-} | {
-  readonly type: "append-text";
-  readonly path: readonly string[];
-  readonly value: string;
-};
-
 type OnSchemaValidationErrorFunction<TResult> = ToolExecuteFunction<unknown, TResult>;
 
 type PartInit = {
@@ -1143,6 +1206,10 @@ type PartInit = {
   readonly parentId?: string;
 };
 
+type PartProviderMetadata = {
+  readonly [providerName: string]: ReadonlyJSONObject;
+};
+
 type PdfToImagesRequestBody = {
   file_blob?: string | undefined;
   file_url?: string | undefined;
@@ -1169,6 +1236,7 @@ type PendingAttachmentStatus = {
 } | {
   type: "incomplete";
   reason: "error" | "upload-paused";
+  message?: string;
 };
 
 type ProviderOptions = Record<string, Record<string, unknown>>;
@@ -1241,6 +1309,7 @@ type RealtimeVoiceAdapter = {
 type ReasoningMessagePart = {
   readonly type: "reasoning";
   readonly text: string;
+  readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };
 
@@ -1250,7 +1319,7 @@ type ReloadConfig = {
 
 type RemoteThreadInitializeResponse = {
   remoteId: string;
-  externalId: string | undefined;
+  externalId?: string | undefined;
 };
 
 type RemoteThreadListAdapter = {
@@ -1365,9 +1434,7 @@ type SourceMessagePart = {
   readonly parentId?: string;
 };
 
-type SourceProviderMetadata = {
-  readonly [providerName: string]: ReadonlyJSONObject;
-};
+type SourceProviderMetadata = PartProviderMetadata;
 
 interface SpeechRecognitionConstructor {
   new (): SpeechRecognitionInstance;
@@ -1417,6 +1484,7 @@ declare const TOOL_RESPONSE_SYMBOL: unique symbol;
 type TextMessagePart = {
   readonly type: "text";
   readonly text: string;
+  readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };
 
@@ -1568,6 +1636,7 @@ type ThreadMessageLike = {
       payload: unknown;
     };
     readonly timing?: ToolCallTiming;
+    readonly providerMetadata?: PartProviderMetadata;
     readonly approval?: {
       readonly id: string;
       readonly approved?: boolean;
@@ -1701,6 +1770,7 @@ type ThreadUserMessage = MessageCommonProps & {
     readonly steps?: undefined;
     readonly submittedFeedback?: undefined;
     readonly timing?: undefined;
+    readonly isOptimistic?: boolean;
     readonly custom: Record<string, unknown>;
   };
 };
@@ -1738,6 +1808,7 @@ type ToolApprovalResponse = {
 type ToolBase<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = {
   streamCall?: ToolStreamCallFunction<TArgs, TResult>;
   display?: ToolDisplay;
+  overwrite?: boolean;
 };
 
 interface ToolCallArgsReader<TArgs extends Record<string, unknown>> {
@@ -1758,6 +1829,7 @@ type ToolCallMessagePart<TArgs = ReadonlyJSONObject, TResult = unknown> = {
   readonly artifact?: unknown;
   readonly timing?: ToolCallTiming;
   readonly mcp?: ToolCallMessagePartMcpMetadata;
+  readonly providerMetadata?: PartProviderMetadata;
   readonly modelContent?: readonly ToolModelContentPart[] | undefined;
   readonly interrupt?: {
     type: "human";
@@ -1914,7 +1986,7 @@ type Unstable_AudioMessagePart = {
 
 type Unsubscribe = () => void;
 
-type UseStreamRuntimeOptions = UseStreamOptions extends infer O ? O extends UseStreamOptions ? O & LangChainRuntimeExtraOptions : never : never;
+type UseStreamRuntimeOptions = UseStreamOptions extends (infer O) ? O extends UseStreamOptions ? O & LangChainRuntimeExtraOptions : never : never;
 
 type VoiceSessionState = {
   readonly status: RealtimeVoiceAdapter.Status;

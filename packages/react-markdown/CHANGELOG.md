@@ -1,5 +1,30 @@
 # @assistant-ui/react-markdown
 
+## 0.14.8
+
+### Patch Changes
+
+- Updated dependencies [[`9a7e776`](https://github.com/assistant-ui/assistant-ui/commit/9a7e77603d59b5e091ee922e2e087f0101679321), [`2f5d0d4`](https://github.com/assistant-ui/assistant-ui/commit/2f5d0d441caf6a152bf4eef13566a2f9a161541c)]:
+  - @assistant-ui/react@0.15.0
+
+## 0.14.7
+
+### Patch Changes
+
+- [#5160](https://github.com/assistant-ui/assistant-ui/pull/5160) [`1999b21`](https://github.com/assistant-ui/assistant-ui/commit/1999b218dfcab245f14549ca7d39f6756f51ee6b) - fix: keep inline math that opens with a digit out of currency escaping ([@SiKreuz](https://github.com/SiKreuz))
+
+- [#5079](https://github.com/assistant-ui/assistant-ui/pull/5079) [`390e417`](https://github.com/assistant-ui/assistant-ui/commit/390e4177ca47f7ece839613ad0f076add9313328) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+## 0.14.6
+
+### Patch Changes
+
+- [#4746](https://github.com/assistant-ui/assistant-ui/pull/4746) [`0686f4e`](https://github.com/assistant-ui/assistant-ui/commit/0686f4e6b8ee5f6e17c968997ef11622ef8f9c98) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#4887](https://github.com/assistant-ui/assistant-ui/pull/4887) [`d03e5cf`](https://github.com/assistant-ui/assistant-ui/commit/d03e5cf0e6efada832503fedc565a1fb8f14676a) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#4815](https://github.com/assistant-ui/assistant-ui/pull/4815) [`5325f09`](https://github.com/assistant-ui/assistant-ui/commit/5325f0985768b750b050cf07f592fdfed34eccac) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
 ## 0.14.5
 
 ### Patch Changes

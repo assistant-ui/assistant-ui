@@ -155,7 +155,7 @@ describe("projectOpenCodeThreadMessages", () => {
               permission: "bash",
               patterns: [],
               metadata: {},
-              always: [],
+              always: ["git *"],
               askedAt: 1000,
               raw: {} as never,
               tool: {
@@ -220,6 +220,112 @@ describe("projectOpenCodeThreadMessages", () => {
       type: "requires-action",
       reason: "tool-calls",
     });
+    expect(messages[0]?.content).toMatchObject([
+      {
+        type: "tool-call",
+        toolCallId: "call-1",
+        approval: {
+          id: "permission_1",
+          options: [
+            { id: "once", kind: "allow-once" },
+            {
+              id: "always",
+              kind: "allow-always",
+              grants: ["git *"],
+              confirm: true,
+            },
+            { id: "reject", kind: "reject-once" },
+          ],
+        },
+      },
+    ]);
+  });
+
+  it("projects resolved permissions as recorded approval decisions", () => {
+    const base = createOpenCodeThreadState("ses_1");
+    const state: OpenCodeThreadState = {
+      ...base,
+      interactions: {
+        ...base.interactions,
+        permissions: {
+          pending: {},
+          resolved: {
+            permission_1: {
+              request: {
+                id: "permission_1",
+                sessionId: "ses_1",
+                permission: "bash",
+                patterns: [],
+                metadata: {},
+                always: ["git *"],
+                askedAt: 1000,
+                raw: {} as never,
+                tool: {
+                  messageID: "assistant-1",
+                  callID: "call-1",
+                },
+              },
+              reply: "once",
+              respondedAt: 2000,
+            },
+          },
+        },
+      },
+      messageOrder: ["assistant-1"],
+      messagesById: {
+        "assistant-1": {
+          id: "assistant-1",
+          info: {
+            id: "assistant-1",
+            role: "assistant",
+            sessionID: "ses_1",
+            parentID: "user-1",
+            modelID: "model",
+            providerID: "provider",
+            mode: "primary",
+            path: { cwd: "/", root: "/" },
+            cost: 0,
+            tokens: {
+              input: 0,
+              output: 0,
+              reasoning: 0,
+              cache: { read: 0, write: 0 },
+            },
+            time: { created: 1 },
+            finish: "stop",
+          } as never,
+          parts: [
+            {
+              id: "tool-1",
+              callID: "call-1",
+              sessionID: "ses_1",
+              messageID: "assistant-1",
+              type: "tool",
+              tool: "bash",
+              state: {
+                status: "pending",
+                input: { command: "ls" },
+                raw: "ls",
+              },
+            } as never,
+          ],
+          shadowParts: undefined,
+        },
+      },
+    };
+
+    const messages = projectOpenCodeThreadMessages(state);
+    expect(messages[0]?.content).toMatchObject([
+      {
+        type: "tool-call",
+        toolCallId: "call-1",
+        approval: {
+          id: "permission_1",
+          approved: true,
+          optionId: "once",
+        },
+      },
+    ]);
   });
 
   it("marks assistant messages with pending question requests as requires-action", () => {

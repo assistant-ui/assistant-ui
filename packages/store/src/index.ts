@@ -9,7 +9,7 @@ export { AuiIf } from "./AuiIf";
 export { AuiProvider } from "./utils/react-assistant-context";
 
 // resources
-export { Derived } from "./Derived";
+export { Derived, type DerivedElement } from "./Derived";
 export {
   attachTransformScopes,
   forwardTransformScopes,
@@ -21,6 +21,7 @@ export {
   useAssistantClientRef,
   useAssistantEmit,
 } from "./utils/tap-assistant-context";
+export { getClientId } from "./utils/client-accessor";
 export { useClientResource } from "./useClientResource";
 export { useClientLookup } from "./useClientLookup";
 export { useClientList } from "./useClientList";

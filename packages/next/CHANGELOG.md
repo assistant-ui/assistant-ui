@@ -1,5 +1,30 @@
 # @assistant-ui/next
 
+## 0.0.13
+
+### Patch Changes
+
+- Updated dependencies [[`45fe20d`](https://github.com/assistant-ui/assistant-ui/commit/45fe20d5cabec0ce934963cdafc1dec8efca4527)]:
+  - @assistant-ui/x-generative-compiler@0.0.11
+
+## 0.0.12
+
+### Patch Changes
+
+- Updated dependencies [[`32f4ba0`](https://github.com/assistant-ui/assistant-ui/commit/32f4ba09b218177f6c93d0ee0fcfb1e5f0475ef3)]:
+  - @assistant-ui/x-generative-compiler@0.0.10
+
+## 0.0.11
+
+### Patch Changes
+
+- [#4746](https://github.com/assistant-ui/assistant-ui/pull/4746) [`0686f4e`](https://github.com/assistant-ui/assistant-ui/commit/0686f4e6b8ee5f6e17c968997ef11622ef8f9c98) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#4815](https://github.com/assistant-ui/assistant-ui/pull/4815) [`5325f09`](https://github.com/assistant-ui/assistant-ui/commit/5325f0985768b750b050cf07f592fdfed34eccac) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+- Updated dependencies [[`a196108`](https://github.com/assistant-ui/assistant-ui/commit/a196108ee7771ce25eba3095f21f4868f5d4caab), [`0686f4e`](https://github.com/assistant-ui/assistant-ui/commit/0686f4e6b8ee5f6e17c968997ef11622ef8f9c98), [`d03e5cf`](https://github.com/assistant-ui/assistant-ui/commit/d03e5cf0e6efada832503fedc565a1fb8f14676a), [`5325f09`](https://github.com/assistant-ui/assistant-ui/commit/5325f0985768b750b050cf07f592fdfed34eccac)]:
+  - @assistant-ui/x-generative-compiler@0.0.9
+
 ## 0.0.10
 
 ### Patch Changes

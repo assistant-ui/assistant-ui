@@ -15,7 +15,7 @@ export class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
   }
 
   public get canSend() {
-    return !this.isEmpty;
+    return !this.isEmpty && !this._isSending;
   }
 
   protected getAttachmentAdapter() {
@@ -31,8 +31,18 @@ export class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
   private _nonTextPassthrough: readonly ThreadMessage["content"][number][];
   private _parentId: string | null;
   private _sourceId: string | null;
+  private runtime: ThreadRuntimeCore & {
+    adapters?:
+      | {
+          attachments?: AttachmentAdapter | undefined;
+          dictation?: DictationAdapter | undefined;
+        }
+      | undefined;
+  };
+  private endEditCallback: () => void;
+
   constructor(
-    private runtime: ThreadRuntimeCore & {
+    runtime: ThreadRuntimeCore & {
       adapters?:
         | {
             attachments?: AttachmentAdapter | undefined;
@@ -40,10 +50,12 @@ export class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
           }
         | undefined;
     },
-    private endEditCallback: () => void,
+    endEditCallback: () => void,
     { parentId, message }: { parentId: string | null; message: ThreadMessage },
   ) {
     super();
+    this.runtime = runtime;
+    this.endEditCallback = endEditCallback;
     this._parentId = parentId;
     this._sourceId = message.id;
     this._previousText = getThreadMessageText(message);
@@ -80,6 +92,7 @@ export class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
     message: Omit<AppendMessage, "parentId" | "sourceId">,
     options?: SendOptions,
   ) {
+    let appendTask: void | Promise<void> = undefined;
     const text = getThreadMessageText(message as AppendMessage);
     const attachmentsChanged = !attachmentsEqual(
       message.attachments ?? [],
@@ -114,7 +127,7 @@ export class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
         message,
         composerMetadata,
       );
-      this.runtime.append({
+      appendTask = this.runtime.append({
         ...enriched,
         content,
         parentId: this._parentId,
@@ -124,6 +137,7 @@ export class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
     }
 
     this.handleCancel();
+    return appendTask;
   }
 
   public handleCancel() {

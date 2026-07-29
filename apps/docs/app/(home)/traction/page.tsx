@@ -12,7 +12,7 @@ import {
   Users,
   Sparkles,
 } from "lucide-react";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/radix/button";
 import { GitHubIcon } from "@/components/icons/github";
 import { createOgMetadata } from "@/lib/og";
 import {

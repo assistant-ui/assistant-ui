@@ -6,6 +6,7 @@ import type {
   DataMessagePart,
   MessageTiming,
 } from "@assistant-ui/core";
+import { httpUrlPattern, parseDataUrl } from "@assistant-ui/core/internal";
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
 import type {
   LangChainBaseMessage,
@@ -32,7 +33,7 @@ export const getMessageType = (message: LangChainBaseMessage): string => {
   throw new Error("Cannot determine message type");
 };
 
-const contentToParts = (content: unknown) => {
+const contentToParts = (content: unknown, role: "user" | "assistant") => {
   if (typeof content === "string")
     return [{ type: "text" as const, text: content }];
 
@@ -56,9 +57,28 @@ const contentToParts = (content: unknown) => {
           return {
             type: "file" as const,
             filename: part.metadata?.filename ?? "file",
-            data: part.data,
-            mimeType: part.mime_type,
+            data:
+              part.source_type === "url"
+                ? part.url
+                : part.source_type === "id"
+                  ? part.id
+                  : part.data,
+            mimeType: part.mime_type ?? "application/octet-stream",
           };
+        case "audio": {
+          if (role !== "user") return null;
+          const format =
+            part.mime_type === "audio/wav"
+              ? ("wav" as const)
+              : part.mime_type === "audio/mp3"
+                ? ("mp3" as const)
+                : null;
+          if (!format) return null;
+          return {
+            type: "audio" as const,
+            audio: { data: part.data, format },
+          };
+        }
         case "thinking":
           return { type: "reasoning" as const, text: part.thinking };
         case "reasoning":
@@ -114,7 +134,7 @@ export const convertLangChainBaseMessage = (
       return {
         role: "user",
         id: message.id,
-        content: contentToParts(message.content),
+        content: contentToParts(message.content, "user"),
         metadata: {
           custom: getCustomMetadata(message.additional_kwargs),
         },
@@ -146,7 +166,7 @@ export const convertLangChainBaseMessage = (
         role: "assistant",
         id: message.id,
         content: [
-          ...contentToParts(message.content),
+          ...contentToParts(message.content, "assistant"),
           ...toolCallParts,
           ...uiDataParts,
         ],
@@ -192,37 +212,56 @@ export const getMessageContent = (msg: AppendMessage) => {
   ];
 
   const hasNonText = allContent.some(
-    (part) => part.type === "file" || part.type === "image",
+    (part) =>
+      part.type === "file" || part.type === "image" || part.type === "audio",
   );
   const hasText = allContent.some((part) => part.type === "text");
   if (hasNonText && !hasText) {
     allContent.unshift({ type: "text", text: " " });
   }
 
-  const content = allContent.map((part) => {
+  const content = allContent.flatMap((part) => {
     const type = part.type;
     switch (type) {
       case "text":
         return { type: "text" as const, text: part.text };
       case "image":
         return { type: "image_url" as const, image_url: { url: part.image } };
-      case "file":
+      case "file": {
+        const metadata = { filename: part.filename ?? "file" };
+        if (httpUrlPattern.test(part.data)) {
+          return {
+            type: "file" as const,
+            url: part.data,
+            mime_type: part.mimeType,
+            metadata,
+            source_type: "url" as const,
+          };
+        }
+        const parsed = parseDataUrl(part.data);
         return {
           type: "file" as const,
-          data: part.data,
-          mime_type: part.mimeType,
-          metadata: { filename: part.filename ?? "file" },
+          data: parsed?.data ?? part.data,
+          mime_type: parsed?.mimeType ?? part.mimeType,
+          metadata,
           source_type: "base64" as const,
         };
+      }
+      case "audio": {
+        const parsed = parseDataUrl(part.audio.data);
+        return {
+          type: "audio" as const,
+          data: parsed?.data ?? part.audio.data,
+          mime_type: `audio/${part.audio.format}`,
+          source_type: "base64" as const,
+        };
+      }
+      case "data":
+        return [];
       case "tool-call":
         throw new Error("Tool call appends are not supported.");
       default: {
-        const _exhaustiveCheck:
-          | "reasoning"
-          | "source"
-          | "audio"
-          | "data"
-          | "generative-ui" = type;
+        const _exhaustiveCheck: "reasoning" | "source" | "generative-ui" = type;
         throw new Error(
           `Unsupported append message part type: ${_exhaustiveCheck}`,
         );

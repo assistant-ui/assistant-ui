@@ -96,7 +96,7 @@ export const useAssistantTransportSendCommand = () => {
   const aui = useAui();
 
   return (command: AssistantTransportCommand) => {
-    const extras = aui.thread().getState().extras;
+    const extras = aui.thread.getState().extras;
     const transportExtras = asAssistantTransportExtras(extras);
     transportExtras.sendCommand(command);
   };
@@ -135,8 +135,13 @@ const useAssistantTransportThreadRuntime = <T>(
       resumeFlagRef.current = false;
       setIsReplaying(false);
       const commands: QueuedCommand[] = isResume ? [] : commandQueue.flush();
-      if (commands.length === 0 && !isResume)
-        throw new Error("No commands to send");
+      if (commands.length === 0 && !isResume) return;
+
+      // The flushed batch consumes the parentId; read it alongside the flush
+      // (before any awaits) so a mid-run append keeps its own value. Resume
+      // runs send no commands, so they neither send nor consume it.
+      const parentId = isResume ? undefined : parentIdRef.current;
+      if (!isResume) parentIdRef.current = undefined;
 
       const headers = await createRequestHeaders(options.headers);
       const bodyValue =
@@ -151,8 +156,8 @@ const useAssistantTransportThreadRuntime = <T>(
         system: context.system,
         tools: context.tools ? toToolsJSONSchema(context.tools) : undefined,
         threadId,
-        ...(parentIdRef.current !== undefined && {
-          parentId: parentIdRef.current,
+        ...(parentId !== undefined && {
+          parentId,
         }),
         // nested (new format, aligned with AssistantChatTransport)
         callSettings: context.callSettings,
@@ -231,6 +236,17 @@ const useAssistantTransportThreadRuntime = <T>(
 
       if (err) {
         throw new Error(err);
+      }
+
+      // A successful run confirms delivery even when no state-changing
+      // chunk was observed.
+      if (!markedDelivered) {
+        commandQueue.markDelivered();
+      }
+
+      // commands that coalesced into this resume run must not starve
+      if (isResume && commandQueue.state.queued.length > 0) {
+        runManager.schedule();
       }
     },
     onFinish: options.onFinish,

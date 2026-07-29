@@ -20,6 +20,6 @@ export const useAssistantDataUI = (dataUI: AssistantDataUIProps | null) => {
   const aui = useAui();
   useEffect(() => {
     if (!dataUI?.name || !dataUI?.render) return undefined;
-    return aui.dataRenderers().setDataUI(dataUI.name, dataUI.render);
+    return aui.dataRenderers.setDataUI(dataUI.name, dataUI.render);
   }, [aui, dataUI?.name, dataUI?.render]);
 };

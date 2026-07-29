@@ -1,9 +1,12 @@
 import { UIMessage, UseChatHelpers } from "@ai-sdk/react";
 
+import "@standard-schema/spec";
+
 import { ChatInit } from "ai";
 
 declare class AssistantCloud {
   readonly threads: AssistantCloudThreads;
+  readonly projects: AssistantCloudProjects;
   readonly auth: {
     tokens: AssistantCloudAuthTokens;
   };
@@ -63,6 +66,44 @@ declare class AssistantCloudFiles {
 type AssistantCloudMessageCreateResponse = {
   message_id: string;
 };
+
+type AssistantCloudProjectThreadMessageListQuery = {
+  format?: string;
+  limit?: number;
+  after?: string;
+};
+
+type AssistantCloudProjectThreadMessageListResponse = {
+  messages: CloudMessage[];
+};
+
+declare class AssistantCloudProjectThreadMessages {
+  private cloud;
+  constructor(cloud: AssistantCloudAPI);
+  list(threadId: string, query?: AssistantCloudProjectThreadMessageListQuery): Promise<AssistantCloudProjectThreadMessageListResponse>;
+}
+
+declare class AssistantCloudProjectThreads {
+  readonly messages: AssistantCloudProjectThreadMessages;
+  private cloud;
+  constructor(cloud: AssistantCloudAPI);
+  list(query?: AssistantCloudProjectThreadsListQuery): Promise<AssistantCloudProjectThreadsListResponse>;
+}
+
+type AssistantCloudProjectThreadsListQuery = {
+  is_archived?: boolean;
+  limit?: number;
+  after?: string;
+};
+
+type AssistantCloudProjectThreadsListResponse = {
+  threads: CloudThread$1[];
+};
+
+declare class AssistantCloudProjects {
+  readonly threads: AssistantCloudProjectThreads;
+  constructor(cloud: AssistantCloudAPI);
+}
 
 type AssistantCloudRunReport = {
   thread_id: string;
@@ -147,8 +188,8 @@ declare class AssistantCloudThreadMessages {
 }
 
 declare class AssistantCloudThreads {
-  private cloud;
   readonly messages: AssistantCloudThreadMessages;
+  private cloud;
   constructor(cloud: AssistantCloudAPI);
   list(query?: AssistantCloudThreadsListQuery): Promise<AssistantCloudThreadsListResponse>;
   get(threadId: string): Promise<CloudThread$1>;
@@ -240,13 +281,25 @@ type AssistantStreamChunk = {
 } | {
   readonly type: "error";
   readonly error: string;
+  readonly code?: string;
+  readonly severity?: "critical" | "info" | "warning";
 } | {
   readonly type: "update-state";
-  readonly operations: ObjectStreamOperation[];
+  readonly operations: AssistantTransportStateOperation[];
 });
 
 type AssistantStreamEncoder = ReadableWritablePair<Uint8Array<ArrayBuffer>, AssistantStreamChunk> & {
   headers?: Headers;
+};
+
+type AssistantTransportStateOperation = {
+  readonly type: "set";
+  readonly path: readonly string[];
+  readonly value: ReadonlyJSONValue;
+} | {
+  readonly type: "append-text";
+  readonly path: readonly string[];
+  readonly value: string;
 };
 
 type CloudMessage = {
@@ -298,16 +351,6 @@ type MakeRequestOptions = {
   headers?: Record<string, string> | undefined;
   query?: Record<string, string | number | boolean> | undefined;
   body?: object | undefined;
-};
-
-type ObjectStreamOperation = {
-  readonly type: "set";
-  readonly path: readonly string[];
-  readonly value: ReadonlyJSONValue;
-} | {
-  readonly type: "append-text";
-  readonly path: readonly string[];
-  readonly value: string;
 };
 
 type PartInit = {

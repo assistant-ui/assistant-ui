@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { convertLangChainBaseMessage } from "./convertMessages";
+import type { AppendMessage } from "@assistant-ui/core";
+import {
+  convertLangChainBaseMessage,
+  getMessageContent,
+} from "./convertMessages";
 import type { LangChainBaseMessage, UIMessage } from "./types";
 
 const humanMessage = (content: unknown): LangChainBaseMessage => ({
@@ -61,6 +65,315 @@ describe("convertLangChainBaseMessage file content parts", () => {
         mimeType: "application/pdf",
       },
     ]);
+  });
+
+  it("converts a url source file block", () => {
+    const result = convertLangChainBaseMessage(
+      humanMessage([
+        {
+          type: "file",
+          url: "https://r2.example/u/abc/file.pdf",
+          mime_type: "application/pdf",
+          source_type: "url",
+          metadata: { filename: "file.pdf" },
+        },
+      ]),
+      {},
+    );
+
+    expect(contentOf(result)).toEqual([
+      {
+        type: "file",
+        filename: "file.pdf",
+        data: "https://r2.example/u/abc/file.pdf",
+        mimeType: "application/pdf",
+      },
+    ]);
+  });
+
+  it("converts an id source file block", () => {
+    const result = convertLangChainBaseMessage(
+      humanMessage([{ type: "file", id: "file-abc123", source_type: "id" }]),
+      {},
+    );
+
+    expect(contentOf(result)).toEqual([
+      {
+        type: "file",
+        filename: "file",
+        data: "file-abc123",
+        mimeType: "application/octet-stream",
+      },
+    ]);
+  });
+});
+
+describe("getMessageContent file blocks", () => {
+  const appendMessage = (part: Record<string, unknown>) =>
+    ({ content: [part] }) as unknown as AppendMessage;
+
+  it("emits a base64 source block for raw base64 data", () => {
+    const content = getMessageContent(
+      appendMessage({
+        type: "file",
+        data: "ZmFrZQ==",
+        mimeType: "application/pdf",
+        filename: "a.pdf",
+      }),
+    );
+
+    expect(content).toEqual([
+      { type: "text", text: " " },
+      {
+        type: "file",
+        data: "ZmFrZQ==",
+        mime_type: "application/pdf",
+        metadata: { filename: "a.pdf" },
+        source_type: "base64",
+      },
+    ]);
+  });
+
+  it("emits a url source block with the value in the url key for http(s) data", () => {
+    const content = getMessageContent(
+      appendMessage({
+        type: "file",
+        data: "https://r2.example/u/abc/file.pdf",
+        mimeType: "application/pdf",
+        filename: "file.pdf",
+      }),
+    );
+
+    expect(content).toEqual([
+      { type: "text", text: " " },
+      {
+        type: "file",
+        url: "https://r2.example/u/abc/file.pdf",
+        mime_type: "application/pdf",
+        metadata: { filename: "file.pdf" },
+        source_type: "url",
+      },
+    ]);
+    expect(content[1]).not.toHaveProperty("data");
+  });
+
+  it("normalizes a base64 data URL to a raw base64 block", () => {
+    const content = getMessageContent(
+      appendMessage({
+        type: "file",
+        data: "data:application/pdf;base64,ZmFrZQ==",
+        mimeType: "application/octet-stream",
+        filename: "a.pdf",
+      }),
+    );
+
+    expect(content).toEqual([
+      { type: "text", text: " " },
+      {
+        type: "file",
+        data: "ZmFrZQ==",
+        mime_type: "application/pdf",
+        metadata: { filename: "a.pdf" },
+        source_type: "base64",
+      },
+    ]);
+  });
+
+  it("keeps non-http schemes on the base64 path", () => {
+    const content = getMessageContent(
+      appendMessage({
+        type: "file",
+        data: "blob:https://app.example/123",
+        mimeType: "application/pdf",
+        filename: "a.pdf",
+      }),
+    );
+
+    expect(content).toEqual([
+      { type: "text", text: " " },
+      {
+        type: "file",
+        data: "blob:https://app.example/123",
+        mime_type: "application/pdf",
+        metadata: { filename: "a.pdf" },
+        source_type: "base64",
+      },
+    ]);
+  });
+});
+
+describe("getMessageContent audio and data parts", () => {
+  const appendMessage = (...parts: Record<string, unknown>[]) =>
+    ({ content: parts }) as unknown as AppendMessage;
+
+  it("emits a base64 audio block with the format MIME type for audio parts", () => {
+    const content = getMessageContent(
+      appendMessage({
+        type: "audio",
+        audio: { data: "c291bmQ=", format: "mp3" },
+      }),
+    );
+
+    expect(content).toEqual([
+      { type: "text", text: " " },
+      {
+        type: "audio",
+        data: "c291bmQ=",
+        mime_type: "audio/mp3",
+        source_type: "base64",
+      },
+    ]);
+  });
+
+  it("strips a data URL envelope from audio data", () => {
+    const content = getMessageContent(
+      appendMessage({
+        type: "audio",
+        audio: { data: "data:audio/wav;base64,d2F2", format: "wav" },
+      }),
+    );
+
+    expect(content).toEqual([
+      { type: "text", text: " " },
+      {
+        type: "audio",
+        data: "d2F2",
+        mime_type: "audio/wav",
+        source_type: "base64",
+      },
+    ]);
+  });
+
+  it("keeps the format-derived MIME when a data URL carries a divergent one", () => {
+    const content = getMessageContent(
+      appendMessage({
+        type: "audio",
+        audio: { data: "data:audio/mpeg;base64,c291bmQ=", format: "mp3" },
+      }),
+    );
+
+    expect(content).toEqual([
+      { type: "text", text: " " },
+      {
+        type: "audio",
+        data: "c291bmQ=",
+        mime_type: "audio/mp3",
+        source_type: "base64",
+      },
+    ]);
+  });
+
+  it("does not prepend a second placeholder when text accompanies audio", () => {
+    const content = getMessageContent(
+      appendMessage(
+        { type: "text", text: "listen" },
+        { type: "audio", audio: { data: "d2F2", format: "wav" } },
+      ),
+    );
+
+    expect(content).toEqual([
+      { type: "text", text: "listen" },
+      {
+        type: "audio",
+        data: "d2F2",
+        mime_type: "audio/wav",
+        source_type: "base64",
+      },
+    ]);
+  });
+
+  it("drops data parts while keeping the rest of the message", () => {
+    const content = getMessageContent(
+      appendMessage(
+        { type: "text", text: "hi" },
+        { type: "data", name: "chart", data: { values: [1, 2] } },
+      ),
+    );
+
+    expect(content).toBe("hi");
+  });
+
+  it("returns empty content for a data-only message", () => {
+    const content = getMessageContent(
+      appendMessage({ type: "data", name: "chart", data: { values: [1, 2] } }),
+    );
+
+    expect(content).toEqual([]);
+  });
+
+  it("still throws on assistant-only part types", () => {
+    expect(() =>
+      getMessageContent(appendMessage({ type: "reasoning", text: "hmm" })),
+    ).toThrow("Unsupported append message part type: reasoning");
+  });
+});
+
+describe("contentToParts audio blocks", () => {
+  it("converts an inbound base64 audio block back to an audio part", () => {
+    const result = convertLangChainBaseMessage(
+      {
+        _getType: () => "human",
+        id: "h1",
+        content: [
+          {
+            type: "audio",
+            data: "c291bmQ=",
+            mime_type: "audio/mp3",
+            source_type: "base64",
+          },
+        ],
+      },
+      {},
+    );
+
+    expect(result).toMatchObject({
+      role: "user",
+      content: [{ type: "audio", audio: { data: "c291bmQ=", format: "mp3" } }],
+    });
+  });
+
+  it("drops an inbound audio block with an unrepresentable mime type", () => {
+    const result = convertLangChainBaseMessage(
+      {
+        _getType: () => "human",
+        id: "h1",
+        content: [
+          {
+            type: "audio",
+            data: "b2dn",
+            mime_type: "audio/ogg",
+            source_type: "base64",
+          },
+        ],
+      },
+      {},
+    );
+
+    expect(result).toMatchObject({ role: "user", content: [] });
+  });
+
+  it("drops an audio block on an assistant message", () => {
+    const result = convertLangChainBaseMessage(
+      {
+        _getType: () => "ai",
+        id: "ai-1",
+        content: [
+          {
+            type: "audio",
+            data: "c291bmQ=",
+            mime_type: "audio/mp3",
+            source_type: "base64",
+          },
+          { type: "text", text: "done" },
+        ],
+      },
+      {},
+    );
+
+    expect(result).toMatchObject({
+      role: "assistant",
+      content: [{ type: "text", text: "done" }],
+    });
   });
 });
 

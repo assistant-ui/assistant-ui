@@ -40,6 +40,23 @@ const click = tool({
   },
 });
 
+const setNativeValue = (
+  element: HTMLInputElement | HTMLTextAreaElement,
+  value: string,
+) => {
+  const prototype =
+    element instanceof HTMLInputElement
+      ? HTMLInputElement.prototype
+      : HTMLTextAreaElement.prototype;
+  const setter = Object.getOwnPropertyDescriptor(prototype, "value")?.set;
+
+  if (setter) {
+    setter.call(element, value);
+  } else {
+    element.value = value;
+  }
+};
+
 const edit = tool({
   parameters: {
     type: "object",
@@ -57,7 +74,7 @@ const edit = tool({
     const escapedEditId = CSS.escape(editId);
     const el = document.querySelector(`[data-edit-id='${escapedEditId}']`);
     if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) {
-      el.value = value;
+      setNativeValue(el, value);
       el.dispatchEvent(new Event("input", { bubbles: true }));
       el.dispatchEvent(new Event("change", { bubbles: true }));
 
@@ -87,7 +104,7 @@ export const makeAssistantVisible = <T extends ComponentType<any>>(
 
       const { clickable, editable } = config ?? {};
       useEffect(() => {
-        return aui.modelContext().register({
+        return aui.modelContext.register({
           getModelContext: () => {
             return {
               tools: {

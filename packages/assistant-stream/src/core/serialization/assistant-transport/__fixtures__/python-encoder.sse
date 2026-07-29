@@ -1,0 +1,52 @@
+data: {"type": "step-start", "messageId": "msg_1"}
+
+data: {"type": "part-start", "part": {"type": "reasoning"}, "path": []}
+
+data: {"type": "text-delta", "textDelta": "Let me check the weather.", "path": [0]}
+
+data: {"type": "part-finish", "path": [0]}
+
+data: {"type": "part-start", "part": {"type": "text"}, "path": []}
+
+data: {"type": "text-delta", "textDelta": "Checking", "path": [1]}
+
+data: {"type": "text-delta", "textDelta": " now.", "path": [1]}
+
+data: {"type": "part-finish", "path": [1]}
+
+data: {"type": "part-start", "part": {"type": "tool-call", "toolCallId": "call_1", "toolName": "get_weather"}, "path": []}
+
+data: {"type": "text-delta", "textDelta": "{\"city\": ", "path": [2]}
+
+data: {"type": "text-delta", "textDelta": "\"NYC\"}", "path": [2]}
+
+data: {"type": "update-state", "operations": [{"type": "set", "path": ["status"], "value": "running"}]}
+
+data: {"type": "result", "result": {"temp": 70}, "isError": false, "path": [2]}
+
+data: {"type": "tool-call-args-text-finish", "path": [2]}
+
+data: {"type": "part-finish", "path": [2]}
+
+data: {"type": "data", "data": [{"progress": 1}]}
+
+data: {"type": "annotations", "annotations": [{"type": "citation", "id": "a1"}]}
+
+data: {"type": "part-start", "part": {"type": "source", "sourceType": "url", "id": "s1", "url": "https://example.com", "title": "Example"}, "path": []}
+
+data: {"type": "part-finish", "path": [3]}
+
+data: {"type": "part-start", "part": {"type": "text"}, "path": []}
+
+data: {"type": "text-delta", "textDelta": "It is sunny.", "path": [4]}
+
+data: {"type": "part-finish", "path": [4]}
+
+data: {"type": "part-start", "part": {"type": "file", "data": "aGVsbG8=", "mimeType": "image/png"}, "path": []}
+
+data: {"type": "part-finish", "path": [5]}
+
+data: {"type": "step-finish", "finishReason": "stop", "usage": {"inputTokens": 12, "outputTokens": 34}, "isContinued": false}
+
+data: [DONE]
+

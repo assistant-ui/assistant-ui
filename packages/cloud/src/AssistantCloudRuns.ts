@@ -48,7 +48,11 @@ export type AssistantCloudRunReport = {
 };
 
 export class AssistantCloudRuns {
-  constructor(private cloud: AssistantCloudAPI) {}
+  private cloud: AssistantCloudAPI;
+
+  constructor(cloud: AssistantCloudAPI) {
+    this.cloud = cloud;
+  }
 
   public __internal_getAssistantOptions(assistantId: string) {
     return {

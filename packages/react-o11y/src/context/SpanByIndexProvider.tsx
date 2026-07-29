@@ -11,7 +11,7 @@ export const SpanByIndexProvider: FC<PropsWithChildren<{ index: number }>> = ({
     span: Derived({
       source: "span",
       query: { index },
-      get: () => parentAui.span().child({ index }),
+      get: () => parentAui.span.child({ index }),
     }),
   });
 

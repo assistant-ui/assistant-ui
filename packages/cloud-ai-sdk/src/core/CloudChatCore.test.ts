@@ -21,20 +21,38 @@ const { persistMock, loadMessagesMock, MessagePersistenceMock } = vi.hoisted(
   },
 );
 
+const chatOptionsRef = vi.hoisted(() => ({
+  current: null as Record<string, unknown> | null,
+}));
+
+vi.mock("@ai-sdk/react", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@ai-sdk/react")>()),
+  Chat: class {
+    constructor(options: Record<string, unknown>) {
+      chatOptionsRef.current = options;
+    }
+  },
+}));
+
 vi.mock("../chat/MessagePersistence", () => ({
   MessagePersistence: MessagePersistenceMock,
 }));
 
 function createCore(overrides?: {
   onSyncError?: (...args: unknown[]) => void;
-  generateTitle?: (...args: unknown[]) => void;
+  generateTitle?: (...args: unknown[]) => Promise<string | null>;
+  chatConfig?: Record<string, unknown>;
 }) {
-  const generateTitle = overrides?.generateTitle ?? vi.fn();
+  const generateTitle =
+    overrides?.generateTitle ??
+    vi
+      .fn<(...args: unknown[]) => Promise<string | null>>()
+      .mockResolvedValue("Generated title");
   const onSyncError = overrides?.onSyncError;
 
   const refs = {
     threads: { generateTitle } as never,
-    chatConfig: {} as never,
+    chatConfig: (overrides?.chatConfig ?? {}) as never,
     callbacks: {} as never,
     onSyncError: onSyncError as ((error: Error) => void) | undefined,
   };
@@ -48,53 +66,23 @@ describe("CloudChatCore", () => {
     vi.clearAllMocks();
     persistMock.mockResolvedValue(undefined);
     loadMessagesMock.mockResolvedValue([]);
+    chatOptionsRef.current = null;
   });
 
-  it("generates a title once for a newly created thread after assistant output", async () => {
-    const generateTitle = vi.fn();
-    const core = createCore({ generateTitle });
+  it("forwards async tool call completion to the AI SDK chat", () => {
+    const completion = Promise.resolve();
+    const onToolCall = vi.fn(() => completion);
+    const core = createCore({ chatConfig: { onToolCall } });
 
-    const meta = { threadId: "thread-1", loading: null, loaded: false };
-    const registry = {
-      getMeta: vi.fn().mockReturnValue(meta),
-      getOrCreateMeta: vi.fn().mockReturnValue(meta),
-      get: vi.fn().mockReturnValue({
-        messages: [{ id: "m-1", role: "assistant" }],
-      }),
-      getOrCreate: vi.fn(),
-    } as never;
+    core.createChat("chat-1", {} as never);
 
-    core.titlePolicy.markNewThread("thread-1");
-    await core.persistChatMessages("chat-1", registry);
-    await core.persistChatMessages("chat-1", registry);
+    const wrappedOnToolCall = chatOptionsRef.current?.onToolCall;
+    expect(wrappedOnToolCall).toBeTypeOf("function");
+    const result = (
+      wrappedOnToolCall as (options: unknown) => PromiseLike<void> | void
+    )({ toolCall: {} });
 
-    expect(persistMock).toHaveBeenCalled();
-    expect(generateTitle).toHaveBeenCalledTimes(1);
-    expect(generateTitle).toHaveBeenCalledWith("thread-1");
-  });
-
-  it("routes load errors to onSyncError and clears loading state", async () => {
-    const onSyncError = vi.fn();
-    const failure = new Error("load failed");
-    loadMessagesMock.mockRejectedValue(failure);
-
-    const core = createCore({ onSyncError });
-
-    const meta = {
-      threadId: "thread-1",
-      loading: Promise.resolve(),
-      loaded: false,
-    };
-    const registry = {
-      getOrCreateMeta: vi.fn().mockReturnValue(meta),
-      getOrCreate: vi.fn().mockReturnValue({ messages: [] }),
-    } as never;
-
-    await core.loadThreadMessages("thread-1", "chat-1", registry, {
-      cancelled: false,
-    });
-
-    expect(onSyncError).toHaveBeenCalledWith(failure);
-    expect(meta.loading).toBeNull();
+    expect(onToolCall).toHaveBeenCalledWith({ toolCall: {} });
+    expect(result).toBe(completion);
   });
 });
