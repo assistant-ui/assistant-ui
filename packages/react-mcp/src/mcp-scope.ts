@@ -104,7 +104,10 @@ export type MCPServerMethods = {
   readResource: (uri: string) => Promise<unknown>;
   /** OAuth only: pass full callback URL (e.g. window.location.href) */
   completeAuth: (callbackUrl: string) => Promise<void>;
-  answerElicitation(id: string, response: MCPElicitationResponse): void;
+  answerElicitation(
+    id: string,
+    response: MCPElicitationResponse,
+  ): readonly { property: string; message: string }[] | undefined;
 };
 
 export type MCPServerQuery =

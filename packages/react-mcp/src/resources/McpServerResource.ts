@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect, useMemo, useEffectEvent } from "react";
 import { resource } from "@assistant-ui/tap";
 import type { ClientOutput } from "@assistant-ui/store";
-import { ElicitResultSchema } from "@modelcontextprotocol/core";
 import {
   Client,
   StreamableHTTPClientTransport,
@@ -125,18 +124,6 @@ const useMcpServerResource = (
       ),
     );
     return true;
-  };
-
-  const clearPendingElicitationError = (id: string) => {
-    setPendingElicitations((current) =>
-      current.map((elicitation) => {
-        if (elicitation.id !== id || elicitation.error === undefined) {
-          return elicitation;
-        }
-        const { error: _, ...next } = elicitation;
-        return next;
-      }),
-    );
   };
 
   const cancelPendingElicitations = () => {
@@ -580,21 +567,31 @@ const useMcpServerResource = (
       return await client.readResource({ uri });
     },
     completeAuth: doCompleteAuth,
-    answerElicitation: (id: string, response: MCPElicitationResponse): void => {
-      if (
-        response.action === "accept" &&
-        (typeof response.content !== "object" ||
-          response.content === null ||
-          Array.isArray(response.content))
-      ) {
-        throw new Error(
-          `MCP elicitation "${id}" response content must be an object`,
-        );
-      }
-
+    answerElicitation: (
+      id: string,
+      response: MCPElicitationResponse,
+    ): readonly { property: string; message: string }[] | undefined => {
       if (response.action === "accept") {
         const entry = elicitationResolversRef.current.get(id);
         if (!entry) return;
+
+        if (
+          typeof response.content !== "object" ||
+          response.content === null ||
+          Array.isArray(response.content)
+        ) {
+          const errors = [
+            {
+              property: "content",
+              message: "Response content must be an object.",
+            },
+          ];
+          setPendingElicitationError(id, {
+            message: "Invalid elicitation content: content.",
+            properties: ["content"],
+          });
+          return errors;
+        }
 
         const errors = validateElicitationContent(
           entry.requestedSchema,
@@ -608,21 +605,13 @@ const useMcpServerResource = (
             message: `Invalid elicitation content: ${properties.join(", ")}.`,
             properties,
           });
-          return;
+          return errors;
         }
 
         const result: ElicitResult = {
           action: "accept",
           content: response.content as ElicitResult["content"],
         };
-        if (!ElicitResultSchema.safeParse(result).success) {
-          setPendingElicitationError(id, {
-            message: "Invalid elicitation response.",
-          });
-          return;
-        }
-
-        clearPendingElicitationError(id);
         resolvePendingElicitation(id, result);
         return;
       }

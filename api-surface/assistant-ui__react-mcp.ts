@@ -165,7 +165,10 @@ type MCPServerMethods = {
   }) => Promise<unknown>;
   readResource: (uri: string) => Promise<unknown>;
   completeAuth: (callbackUrl: string) => Promise<void>;
-  answerElicitation(id: string, response: MCPElicitationResponse): void;
+  answerElicitation(id: string, response: MCPElicitationResponse): readonly {
+    property: string;
+    message: string;
+  }[] | undefined;
 };
 
 type MCPServerQuery = {

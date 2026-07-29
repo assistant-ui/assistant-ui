@@ -181,7 +181,7 @@ type MCPServerMethods = {
   callTool: (name: string, args: unknown) => Promise<unknown>;
   readResource: (uri: string) => Promise<unknown>;
   completeAuth: (callbackUrl: string) => Promise<void>;
-  answerElicitation: (id: string, response: MCPElicitationResponse) => void;
+  answerElicitation: (id: string, response: MCPElicitationResponse) => readonly { property: string; message: string }[] | undefined;
 };
 ```
 
@@ -347,7 +347,7 @@ Render form-mode elicitation inside a server-scoped subtree. Each item owns an i
 
 `Accept` sets `data-missing-required` when required fields are absent or empty and `data-invalid` to comma-joined invalid property names when validation fails. It is disabled until both conditions are empty. Each item seeds its draft from flat schema defaults when the default matches a declared `string`, `number`, `integer`, or `boolean` type. Absent required boolean properties are submitted with the schema's boolean `default` when one is present, otherwise `false`; optional booleans remain omitted. It converts parseable string values from flat `number` and `integer` properties to numbers before submitting the response content. Boolean drafts must be real booleans (compose a checkbox); string drafts are coerced only for `number` and `integer` properties and are flagged invalid for booleans. The `elicitation` flag defaults to advertising the capability; `false` skips both the capability declaration and the handler registration, and, like the rest of the capability set, a changed flag applies from the next connect rather than mid-connection.
 
-An accepted response is client-side validated for required-property presence, `string`, `number`, `integer`, and `boolean` types, and declared enum membership. Constraints outside that flat subset, such as `minLength` and `format`, pass through for the server to judge. A failed validation keeps the elicitation pending, sets its `error`, and leaves the server request unresolved so the user can correct the draft. `McpElicitationPrimitive.Error` renders the error message and exposes its property names as comma-joined `data-properties` when available.
+An accepted response is client-side validated for required-property presence, `string`, `number`, `integer`, and `boolean` types, and declared enum membership. Constraints outside that flat subset, such as `minLength` and `format`, pass through for the server to judge. `answerElicitation` returns `undefined` when it applies an answer or the id is unknown. On validation failure, it keeps the elicitation pending, sets its `error`, leaves the server request unresolved, and returns the validation errors so the caller can correct the draft. `McpElicitationPrimitive.Error` renders the error message and exposes its property names as comma-joined `data-properties` when available.
 
 ## 6. Lifecycle
 

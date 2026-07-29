@@ -62,6 +62,18 @@ describe("prepareElicitationContent", () => {
     ).toEqual(["count"]);
   });
 
+  it("flags enum values outside the allowed values for the Accept gate", () => {
+    expect(
+      prepareElicitationContent(
+        {
+          type: "object",
+          properties: { color: { enum: ["red", "blue"] } },
+        },
+        { color: "green" },
+      ),
+    ).toEqual({ content: {}, missingRequired: [], invalid: ["color"] });
+  });
+
   it("does not read inherited draft values", () => {
     expect(
       prepareElicitationContent(
