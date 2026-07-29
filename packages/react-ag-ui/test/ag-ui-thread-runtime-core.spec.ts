@@ -84,7 +84,7 @@ describe("AGUIThreadRuntimeCore", () => {
     const readAssistantText = () => {
       const assistant = core
         .getMessages()
-        .find((message) => message.role === "assistant") as
+        .find((message) => message.id === "assistant-2") as
         | ThreadAssistantMessage
         | undefined;
       const text = assistant?.content.find((part) => part.type === "text");
@@ -101,13 +101,13 @@ describe("AGUIThreadRuntimeCore", () => {
         subscriber.onTextMessageStartEvent?.({
           event: {
             type: "TEXT_MESSAGE_START",
-            messageId: "assistant-1",
+            messageId: "assistant-2",
           },
         });
         subscriber.onTextMessageContentEvent?.({
           event: {
             type: "TEXT_MESSAGE_CONTENT",
-            messageId: "assistant-1",
+            messageId: "assistant-2",
             delta: "Hello",
           },
         });
@@ -115,13 +115,33 @@ describe("AGUIThreadRuntimeCore", () => {
         subscriber.onMessagesSnapshotEvent?.({
           event: {
             type: "MESSAGES_SNAPSHOT",
-            messages: [{ id: "user-1", role: "user", content: "hi" }],
+            messages: [
+              { id: "user-1", role: "user", content: "hi" },
+              {
+                id: "assistant-1",
+                role: "assistant",
+                content: "",
+                toolCalls: [
+                  {
+                    id: "call-1",
+                    type: "function",
+                    function: { name: "lookup", arguments: "{}" },
+                  },
+                ],
+              },
+              {
+                id: "tool-1",
+                role: "tool",
+                toolCallId: "call-1",
+                content: "42",
+              },
+            ],
           },
         });
         subscriber.onTextMessageContentEvent?.({
           event: {
             type: "TEXT_MESSAGE_CONTENT",
-            messageId: "assistant-1",
+            messageId: "assistant-2",
             delta: " world",
           },
         });
@@ -129,7 +149,7 @@ describe("AGUIThreadRuntimeCore", () => {
         subscriber.onTextMessageEndEvent?.({
           event: {
             type: "TEXT_MESSAGE_END",
-            messageId: "assistant-1",
+            messageId: "assistant-2",
           },
         });
         subscriber.onMessagesSnapshotEvent?.({
@@ -139,6 +159,24 @@ describe("AGUIThreadRuntimeCore", () => {
               { id: "user-1", role: "user", content: "hi" },
               {
                 id: "assistant-1",
+                role: "assistant",
+                content: "",
+                toolCalls: [
+                  {
+                    id: "call-1",
+                    type: "function",
+                    function: { name: "lookup", arguments: "{}" },
+                  },
+                ],
+              },
+              {
+                id: "tool-1",
+                role: "tool",
+                toolCallId: "call-1",
+                content: "42",
+              },
+              {
+                id: "assistant-2",
                 role: "assistant",
                 content: "Hello world",
               },
@@ -153,9 +191,9 @@ describe("AGUIThreadRuntimeCore", () => {
     await core.append(createAppendMessage());
 
     expect(streamedText).toEqual(["Hello", "Hello world"]);
-    expect(core.getMessages()).toHaveLength(2);
+    expect(core.getMessages()).toHaveLength(3);
     expect(core.getMessages().at(-1)).toMatchObject({
-      id: "assistant-1",
+      id: "assistant-2",
       role: "assistant",
       content: [{ type: "text", text: "Hello world" }],
       status: { type: "complete" },

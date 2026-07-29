@@ -1311,7 +1311,7 @@ export class AgUiThreadRuntimeCore {
   private handleEvent(
     aggregator: RunAggregator,
     event: AgUiEvent,
-    activeAssistantId?: string,
+    activeAssistantId: string | undefined,
   ) {
     switch (event.type) {
       case "STATE_SNAPSHOT": {
@@ -1511,7 +1511,7 @@ export class AgUiThreadRuntimeCore {
 
   private importMessagesSnapshot(
     rawMessages: readonly unknown[],
-    activeAssistantId?: string,
+    activeAssistantId: string | undefined,
   ) {
     try {
       const activeMessage = activeAssistantId
@@ -1536,8 +1536,14 @@ export class AgUiThreadRuntimeCore {
         }
       }
       const snapshotHeadId = converted.at(-1)?.id ?? null;
+      const snapshotContainsActiveAssistant = converted.some(
+        (message) => message.id === activeAssistant?.id,
+      );
       const preservesActiveAssistant =
-        activeAssistant !== undefined && converted.at(-1)?.role !== "assistant";
+        activeAssistant !== undefined &&
+        !snapshotContainsActiveAssistant &&
+        (activeAssistant.metadata.isOptimistic !== true ||
+          converted.at(-1)?.role !== "assistant");
       if (preservesActiveAssistant) {
         converted.push(activeAssistant);
       }
