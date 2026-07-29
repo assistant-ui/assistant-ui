@@ -927,19 +927,32 @@ describe("A2AThreadRuntimeCore", () => {
       });
     });
 
-    it("marks complete when stream ends without terminal status", async () => {
-      const core = createCore({
-        streamMessage: vi.fn().mockImplementation(async function* () {
-          // Stream ends without any events
+    it("rejects a stream that ends without any events", async () => {
+      const onError = vi.fn();
+      const core = createCore(
+        {
+          streamMessage: vi.fn().mockImplementation(async function* () {
+            return;
+          }),
+        },
+        {
+          onError,
+        },
+      );
+
+      await expect(core.append(createUserAppendMessage("Go"))).rejects.toThrow(
+        "A2A message stream ended without any events.",
+      );
+
+      expect(onError).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: "A2A message stream ended without any events.",
         }),
-      });
-
-      await core.append(createUserAppendMessage("Go"));
-
+      );
       const assistant = core.getMessages()[1]!;
       expect(assistant.status).toEqual({
-        type: "complete",
-        reason: "stop",
+        type: "incomplete",
+        reason: "error",
       });
     });
   });
@@ -1015,7 +1028,9 @@ describe("A2AThreadRuntimeCore", () => {
 
 describe("outbound message conversion", () => {
   function createCoreWithStream() {
-    const streamMessage = vi.fn().mockImplementation(async function* () {});
+    const streamMessage = vi.fn().mockImplementation(async function* () {
+      yield statusUpdateEvent("completed", "Done");
+    });
     const core = new A2AThreadRuntimeCore({
       client: createMockClient({ streamMessage }),
       notifyUpdate: vi.fn() as unknown as () => void,

@@ -42,7 +42,6 @@ function mockSSETextResponse(
           }
           return Promise.resolve({ done: true, value: undefined });
         }),
-        cancel: vi.fn().mockResolvedValue(undefined),
         releaseLock: vi.fn(),
       }),
     },
@@ -1313,62 +1312,46 @@ describe("A2AClient", () => {
       expect((evt.event.status.message as any)?.content).toBeUndefined();
     });
 
-    it("rejects malformed SSE JSON", async () => {
-      fetchMock.mockResolvedValue(
-        mockSSEResponse(["data: {invalid json}", "", ""]),
-      );
-
-      const consumeStream = async () => {
-        for await (const event of client.streamMessage(userMessage)) {
-          void event;
-        }
-      };
-
-      await expect(consumeStream()).rejects.toThrow(
-        "Invalid A2A stream event: expected valid JSON.",
-      );
-    });
-
-    it.each([
-      ["an empty payload", {}],
-      ["a malformed task", { task: {} }],
-      ["a malformed message", { message: {} }],
-      ["a malformed status update", { status_update: {} }],
-      [
-        "a malformed artifact update",
-        {
-          artifact_update: {
-            task_id: "t1",
-            context_id: "ctx-1",
-            artifact: {},
-          },
+    it("skips malformed and unrecognized SSE events", async () => {
+      const first = JSON.stringify({
+        status_update: {
+          task_id: "t1",
+          context_id: "ctx-1",
+          status: { state: "TASK_STATE_WORKING" },
         },
-      ],
-      [
-        "multiple payloads",
-        {
-          task: { id: "t1", status: { state: "TASK_STATE_WORKING" } },
-          message: {
-            message_id: "m1",
-            role: "ROLE_AGENT",
-            parts: [{ text: "Hello" }],
-          },
+      });
+      const second = JSON.stringify({
+        status_update: {
+          task_id: "t1",
+          context_id: "ctx-1",
+          status: { state: "TASK_STATE_COMPLETED" },
         },
-      ],
-    ])("rejects %s", async (_name, payload) => {
+      });
+
       fetchMock.mockResolvedValue(
-        mockSSEResponse([`data: ${JSON.stringify(payload)}`, "", ""]),
+        mockSSEResponse([
+          `data: ${first}`,
+          "",
+          "data: {invalid json}",
+          "",
+          "data: {}",
+          "",
+          `data: ${second}`,
+          "",
+          "",
+        ]),
       );
 
-      const consumeStream = async () => {
-        for await (const event of client.streamMessage(userMessage)) {
-          void event;
-        }
-      };
+      const events: A2AStreamEvent[] = [];
+      for await (const event of client.streamMessage(userMessage)) {
+        events.push(event);
+      }
 
-      await expect(consumeStream()).rejects.toThrow(
-        "Invalid A2A stream event: expected exactly one valid task, message, statusUpdate, or artifactUpdate payload.",
-      );
+      expect(events).toHaveLength(2);
+      expect(events.map((event) => event.type)).toEqual([
+        "statusUpdate",
+        "statusUpdate",
+      ]);
     });
   });
 

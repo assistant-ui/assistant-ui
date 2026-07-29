@@ -2,4 +2,4 @@
 "@assistant-ui/react-a2a": patch
 ---
 
-fix: reject malformed A2A stream event payloads
+fix: report A2A message streams that end without events
