@@ -194,29 +194,26 @@ describe("scheduler batched draining", () => {
     expect(ran).toHaveLength(120);
   });
 
-  it("drains synchronously inside flushTapSync even past the burst cap", async () => {
+  it("throws past the burst cap inside flushTapSync instead of hanging", async () => {
     vi.resetModules();
     vi.stubGlobal("MessageChannel", ControlledMessageChannel);
     const { UpdateScheduler, flushTapSync } = await import("../core/scheduler");
 
-    const ran: number[] = [];
+    // There is no next macrotask to yield to inside flushTapSync, so an
+    // oversized batch hits a hard ceiling and reports instead of blocking
+    // the thread indefinitely.
     const schedulers = Array.from(
       { length: 10001 },
-      (_, i) =>
-        new UpdateScheduler(() => {
-          ran.push(i);
-        }),
+      (_, i) => new UpdateScheduler(() => {}),
     );
 
-    // Everything must land before flushTapSync returns — the burst cap must
-    // not defer part of the queue to a macrotask that would outlive the
-    // temporary flushState (and silently lose it).
-    flushTapSync(() => {
-      for (const scheduler of schedulers) {
-        scheduler.markDirty();
-      }
-    });
-    expect(ran).toHaveLength(10001);
+    expect(() =>
+      flushTapSync(() => {
+        for (const scheduler of schedulers) {
+          scheduler.markDirty();
+        }
+      }),
+    ).toThrow(/Maximum update depth exceeded/);
   });
 
   it("throws inside flushTapSync when a resource re-dirties itself", async () => {
