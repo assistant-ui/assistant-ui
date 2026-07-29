@@ -37,22 +37,23 @@ const fileVariants = cva(
 );
 
 function getMimeTypeIcon(mimeType: string): FC<{ className?: string }> {
-  if (mimeType.startsWith("image/")) {
+  const type = mimeType.toLowerCase();
+  if (type.startsWith("image/")) {
     return ImageIcon;
   }
-  if (mimeType === "application/pdf") {
+  if (type === "application/pdf") {
     return FileTextIcon;
   }
-  if (mimeType === "application/json") {
+  if (type === "application/json") {
     return BracesIcon;
   }
-  if (mimeType.startsWith("text/")) {
+  if (type.startsWith("text/")) {
     return FileTextIcon;
   }
-  if (mimeType.startsWith("audio/")) {
+  if (type.startsWith("audio/")) {
     return MusicIcon;
   }
-  if (mimeType.startsWith("video/")) {
+  if (type.startsWith("video/")) {
     return VideoIcon;
   }
   return FileIcon;
@@ -167,9 +168,7 @@ function FileDownload({
   children,
   ...props
 }: FileDownloadProps) {
-  const href = data.startsWith("data:")
-    ? data
-    : `data:${mimeType};base64,${data}`;
+  const href = /^data:/i.test(data) ? data : `data:${mimeType};base64,${data}`;
 
   return (
     <a

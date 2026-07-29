@@ -10,6 +10,4 @@ export const estimateBase64Bytes = (data: string): number =>
   Math.max(0, Math.floor((data.length * 3) / 4));
 
 export const isSafeImagePreviewUrl = (url: string): boolean =>
-  url.startsWith("data:image/") ||
-  url.startsWith("https://") ||
-  url.startsWith("http://");
+  /^data:image\//i.test(url) || /^https?:\/\//i.test(url);
