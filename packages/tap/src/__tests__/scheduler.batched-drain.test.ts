@@ -101,13 +101,14 @@ describe("scheduler batched draining", () => {
     expect(runs).toBe(60);
   });
 
-  it("drains batches far larger than the old flush budget with no total-size ceiling", async () => {
+  it("drains a 6000-scheduler batch in one flush", async () => {
     vi.resetModules();
     vi.stubGlobal("MessageChannel", ControlledMessageChannel);
     const { UpdateScheduler } = await import("../core/scheduler");
 
-    // Finite batches never hit the per-scheduler guard no matter how large
-    // they are, because each scheduler runs exactly once.
+    // Finite batches never hit the per-scheduler guard because each
+    // scheduler runs exactly once. (6000 < MAX_TOTAL_TASKS_PER_BURST; the
+    // burst-wide cap is pinned separately below.)
     const ran: number[] = [];
     const schedulers = Array.from(
       { length: 6000 },
@@ -123,6 +124,38 @@ describe("scheduler batched draining", () => {
     const [channel] = ControlledMessageChannel.instances;
     expect(() => pump(channel!)).not.toThrow();
     expect(ran).toHaveLength(6000);
+  });
+
+  it("throws past MAX_TOTAL_TASKS_PER_BURST but keeps the remainder queued", async () => {
+    vi.resetModules();
+    vi.stubGlobal("MessageChannel", ControlledMessageChannel);
+    const { UpdateScheduler } = await import("../core/scheduler");
+
+    // Contract of the burst-wide backstop: it fires loudly, but unlike the
+    // pre-fix behavior it does not drop the pending queue — the remainder
+    // drains on the next flush.
+    const ran: number[] = [];
+    const schedulers = Array.from(
+      { length: 10001 },
+      (_, i) =>
+        new UpdateScheduler(() => {
+          ran.push(i);
+        }),
+    );
+    for (const scheduler of schedulers) {
+      scheduler.markDirty();
+    }
+
+    const [channel] = ControlledMessageChannel.instances;
+    expect(() => pump(channel!)).toThrow(/Maximum update depth exceeded/);
+    const ranBeforeAbort = ran.length;
+    expect(ranBeforeAbort).toBeLessThan(10001);
+
+    // The remainder stays queued; the next flush (triggered by any later
+    // markDirty, as in production) continues it instead of dropping it.
+    schedulers[10000]!.markDirty();
+    expect(() => pump(channel!)).not.toThrow();
+    expect(ran).toHaveLength(10001);
   });
 
   it("drains synchronously inside flushTapSync", async () => {

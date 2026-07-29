@@ -2,9 +2,6 @@ type Task = () => void;
 
 type GlobalFlushState = {
   schedulers: Set<UpdateScheduler>;
-  // How often each scheduler has run, and how many tasks have run in total,
-  // since the queue last drained. Cleared whenever a flush finishes, whether
-  // it drained or aborted on a guard.
   runCounts: Map<UpdateScheduler, number>;
   taskCount: number;
   isScheduled: boolean;
@@ -17,19 +14,11 @@ const newFlushState = (): GlobalFlushState => ({
   isScheduled: false,
 });
 
-// Per-scheduler loop guard: a scheduler re-run more than this many times
-// within a single burst (before the queue ever drains) is a resource that
-// keeps re-dirtying itself, or a cycle of resources re-dirtying each other.
-// Finite batches never hit this regardless of size, because every scheduler
-// in them runs a bounded number of times. The bound is real, though: a
-// genuinely self-dependent cascade deeper than this many re-runs in one
-// burst (each run queueing the same scheduler again) is indistinguishable
-// from a loop and will also throw.
+// Per-scheduler re-runs catch resources that re-dirty themselves or each
+// other in a loop; a finite batch never re-runs one scheduler this often.
 const MAX_TASK_RUNS_PER_BURST = 50;
-// Burst-wide backstop: a cascade that keeps queueing NEW schedulers never
-// trips the per-scheduler guard (each instance runs once), so without a
-// total cap it would monopolize the macrotask forever. Sized far above any
-// realistic bulk update; only a genuinely unbounded cascade reaches it.
+// Backstop for cascades of FRESH schedulers (each runs once, so the
+// per-scheduler guard never trips); sized far above realistic bulk updates.
 const MAX_TOTAL_TASKS_PER_BURST = 10000;
 let flushState: GlobalFlushState = newFlushState();
 
@@ -65,36 +54,32 @@ const scheduleFlush = () => {
   scheduleMacrotask();
 };
 
-// Drains flushState.schedulers completely. Set iteration also visits
-// schedulers re-added mid-pass, so bulk updates of any size land in a
-// single batch (one React commit, no intermediate paints). A pass always
-// terminates: the per-scheduler guard bounds re-runs of one scheduler, and
-// the burst-wide task cap bounds cascades of fresh ones, so a pass executes
-// at most MAX_TOTAL_TASKS_PER_BURST tasks.
+// Guards throw loudly but never drop queued work: the remainder stays
+// queued and continues on the next flush.
 const flushScheduled = () => {
   const errors: unknown[] = [];
 
   try {
     for (const scheduler of flushState.schedulers) {
+      if (flushState.taskCount >= MAX_TOTAL_TASKS_PER_BURST) {
+        throw new Error(
+          `Maximum update depth exceeded. This can happen when a resource ` +
+            `repeatedly calls setState inside useEffect.`,
+        );
+      }
       flushState.schedulers.delete(scheduler);
       if (!scheduler.isDirty) continue;
 
-      flushState.taskCount += 1;
-      if (flushState.taskCount > MAX_TOTAL_TASKS_PER_BURST) {
-        throw new Error(
-          `Maximum update depth exceeded. This can happen when a resource ` +
-            `repeatedly calls setState inside useEffect.`,
-        );
-      }
-
       const runs = (flushState.runCounts.get(scheduler) ?? 0) + 1;
-      flushState.runCounts.set(scheduler, runs);
       if (runs > MAX_TASK_RUNS_PER_BURST) {
+        flushState.schedulers.add(scheduler);
         throw new Error(
           `Maximum update depth exceeded. This can happen when a resource ` +
             `repeatedly calls setState inside useEffect.`,
         );
       }
+      flushState.runCounts.set(scheduler, runs);
+      flushState.taskCount += 1;
 
       try {
         scheduler.runTask();
@@ -102,9 +87,12 @@ const flushScheduled = () => {
         errors.push(error);
       }
     }
-  } finally {
-    flushState.schedulers.clear();
+
     flushState.runCounts.clear();
+    if (errors.length > 0) {
+      flushState.schedulers.clear();
+    }
+  } finally {
     flushState.taskCount = 0;
     flushState.isScheduled = false;
   }
