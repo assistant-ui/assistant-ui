@@ -194,13 +194,31 @@ const useClientFields = ({
   );
 };
 
+const shallowEqualRecord = (
+  a: Record<string, unknown>,
+  b: Record<string, unknown>,
+) => {
+  const aKeys = Object.keys(a);
+  return (
+    aKeys.length === Object.keys(b).length &&
+    aKeys.every((key) => Object.hasOwn(b, key) && Object.is(a[key], b[key]))
+  );
+};
+
 const useScopeMeta = (element: ScopeElement): ScopeMeta => {
   const { source, query } = metaOf(element);
-  // oxlint-disable-next-line react-hooks/exhaustive-deps -- shallow memo over the query's entries
-  return useMemo(
-    () => ({ source, query }),
-    [source, ...Object.entries(query).flat()],
-  );
+  const cache = useMemoCache(1) as [ScopeMeta | typeof MEMO_CACHE_UNFILLED];
+  const prev = cache[0];
+  if (
+    prev !== MEMO_CACHE_UNFILLED &&
+    prev.source === source &&
+    shallowEqualRecord(prev.query, query)
+  ) {
+    return prev;
+  }
+  const meta = { source, query };
+  cache[0] = meta;
+  return meta;
 };
 
 const useScopeValue = (element: ScopeElement, derived: boolean) =>
