@@ -5,7 +5,6 @@ import "react-shiki/css";
 
 import {
   StreamdownTextPrimitive,
-  useIsStreamdownCodeBlock,
   type StreamdownTextComponents,
   type SyntaxHighlighterProps,
 } from "@assistant-ui/react-streamdown";
@@ -38,6 +37,10 @@ const XuluxMarkdownTextImpl = () => {
         },
         "ask-question": {
           SyntaxHighlighter: XuluxAskQuestion,
+          CodeHeader: () => null,
+        },
+        "xulux-file": {
+          SyntaxHighlighter: XuluxFileReferenceHighlighter,
           CodeHeader: () => null,
         },
         text: {
@@ -106,6 +109,27 @@ const PlainTextSyntaxHighlighter: FC<SyntaxHighlighterProps> = ({ code }) => {
     <pre className="border-border/50 bg-muted/30 !mt-0 max-w-full overflow-x-hidden rounded-t-none rounded-b-lg border border-t-0 px-3 py-2 text-xs leading-normal whitespace-pre-wrap">
       <code className="break-words whitespace-pre-wrap">{code.trim()}</code>
     </pre>
+  );
+};
+
+const XuluxFileReferenceHighlighter: FC<SyntaxHighlighterProps> = ({
+  code,
+}) => {
+  const token = code.trim();
+  const reference = parseXuluxFileReference(token);
+
+  if (!reference) {
+    return (
+      <pre className="border-border/50 bg-muted/30 my-2 max-w-full overflow-x-auto rounded-lg border px-3 py-2 text-xs">
+        <code>{token}</code>
+      </pre>
+    );
+  }
+
+  return (
+    <div className="my-2 flex max-w-full">
+      <LearnInlineFileReference reference={reference} />
+    </div>
   );
 };
 
@@ -278,30 +302,5 @@ const markdownComponents = {
       {...props}
     />
   ),
-  code: function Code({
-    className,
-    ...props
-  }: ComponentPropsWithoutRef<"code">) {
-    const isCodeBlock = useIsStreamdownCodeBlock();
-    const reference =
-      !isCodeBlock && typeof props.children === "string"
-        ? parseXuluxFileReference(props.children)
-        : null;
-    if (reference) {
-      return (
-        <LearnInlineFileReference reference={reference} className={className} />
-      );
-    }
-    return (
-      <code
-        className={cn(
-          !isCodeBlock &&
-            "border-border/50 bg-muted/50 rounded-md border px-1.5 py-0.5 font-mono text-[0.85em]",
-          className,
-        )}
-        {...props}
-      />
-    );
-  },
   CodeHeader,
 };

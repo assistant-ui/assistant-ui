@@ -17,7 +17,9 @@ describe("Xulux agent prompts", () => {
     expect(LEARN_SYSTEM_PROMPT).toContain("scope=course");
     expect(LEARN_SYSTEM_PROMPT).toContain("/course");
     expect(LEARN_SYSTEM_PROMPT).toContain("scope=repo");
-    expect(LEARN_SYSTEM_PROMPT).toContain("xulux-file:course:app/page.tsx");
+    expect(LEARN_SYSTEM_PROMPT).toContain(
+      "```xulux-file\nxulux-file:course:app/page.tsx\n```",
+    );
     expect(LEARN_SYSTEM_PROMPT).toContain(
       "Do not use this token for /repo files",
     );
