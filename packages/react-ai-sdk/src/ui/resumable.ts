@@ -28,17 +28,27 @@ const getSessionStorage = (): Storage | null => {
 export function createResumableSessionStorage(options?: {
   key?: string;
 }): ResumableClientStorage {
-  const baseKey = options?.key ?? DEFAULT_STORAGE_KEY;
-  const cache = new Map<string, string | null>();
+  const key = options?.key ?? DEFAULT_STORAGE_KEY;
+  let cachedStreamId: string | null | undefined;
+  let ownerThreadId: string | undefined;
   const listeners = new Set<{
     listener: () => void;
     threadId: string | undefined;
   }>();
-  const resolveKey = (threadId?: string) =>
-    threadId ? `${baseKey}:${encodeURIComponent(threadId)}` : baseKey;
+  const readStoredStreamId = () => {
+    if (cachedStreamId !== undefined) return cachedStreamId;
+    const storage = getSessionStorage();
+    if (!storage) return null;
+    try {
+      cachedStreamId = storage.getItem(key);
+    } catch {
+      cachedStreamId = null;
+    }
+    return cachedStreamId;
+  };
   const notify = (threadId?: string) => {
     for (const subscription of listeners) {
-      if (subscription.threadId !== threadId) continue;
+      if (threadId && subscription.threadId !== threadId) continue;
       try {
         subscription.listener();
       } catch (error) {
@@ -52,21 +62,12 @@ export function createResumableSessionStorage(options?: {
 
   return {
     getStreamId(threadId) {
-      const key = resolveKey(threadId);
-      if (cache.has(key)) return cache.get(key) ?? null;
-      const storage = getSessionStorage();
-      if (!storage) return null;
-      try {
-        const streamId = storage.getItem(key);
-        cache.set(key, streamId);
-        return streamId;
-      } catch {
-        cache.set(key, null);
-        return null;
-      }
+      const streamId = readStoredStreamId();
+      if (streamId === null) return null;
+      if (ownerThreadId && threadId && ownerThreadId !== threadId) return null;
+      return streamId;
     },
     setStreamId(id, threadId) {
-      const key = resolveKey(threadId);
       const storage = getSessionStorage();
       if (!storage) return;
       try {
@@ -75,11 +76,16 @@ export function createResumableSessionStorage(options?: {
         // Ignore blocked or unavailable sessionStorage.
         return;
       }
-      cache.set(key, id);
-      notify(threadId);
+      cachedStreamId = id;
+      ownerThreadId =
+        threadId ??
+        Array.from(listeners).find(
+          (subscription) => subscription.threadId !== undefined,
+        )?.threadId;
+      notify(ownerThreadId);
     },
     clear(threadId) {
-      const key = resolveKey(threadId);
+      if (ownerThreadId && threadId && ownerThreadId !== threadId) return;
       const storage = getSessionStorage();
       if (!storage) return;
       try {
@@ -88,10 +94,14 @@ export function createResumableSessionStorage(options?: {
         // Ignore blocked or unavailable sessionStorage.
         return;
       }
-      cache.set(key, null);
+      cachedStreamId = null;
+      ownerThreadId = undefined;
       notify(threadId);
     },
     subscribe(listener, threadId) {
+      if (threadId && readStoredStreamId() !== null) {
+        ownerThreadId ??= threadId;
+      }
       const subscription = { listener, threadId };
       listeners.add(subscription);
       return () => listeners.delete(subscription);

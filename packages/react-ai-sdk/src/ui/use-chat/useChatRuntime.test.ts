@@ -4,7 +4,11 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => {
-  const state = { isLoadingHistory: false, threadId: "thread-id" };
+  const state = {
+    isLoadingHistory: false,
+    threadId: "thread-id",
+    mainThreadId: "thread-id",
+  };
   const subscribers = new Set<() => void>();
   const runtime = {
     thread: {
@@ -32,7 +36,18 @@ const mocks = vi.hoisted(() => {
     useAui: vi.fn(() => ({
       threadListItem: Object.assign(() => ({}), { source: undefined }),
     })),
-    useAuiState: vi.fn(() => state.threadId),
+    useAuiState: vi.fn(
+      (
+        selector: (state: {
+          threadListItem: { id: string };
+          threads: { mainThreadId: string };
+        }) => unknown,
+      ) =>
+        selector({
+          threadListItem: { id: state.threadId },
+          threads: { mainThreadId: state.mainThreadId },
+        }),
+    ),
   };
 });
 
@@ -76,6 +91,7 @@ describe("useChatRuntime", () => {
     vi.clearAllMocks();
     mocks.state.isLoadingHistory = false;
     mocks.state.threadId = "thread-id";
+    mocks.state.mainThreadId = "thread-id";
     mocks.subscribers.clear();
     window.sessionStorage.clear();
   });
@@ -229,9 +245,11 @@ describe("useChatRuntime", () => {
     );
 
     mocks.state.threadId = "thread-a";
+    mocks.state.mainThreadId = "thread-a";
     renderHook(() => useChatRuntime({ transport: transport as never }));
 
     mocks.state.threadId = "thread-b";
+    mocks.state.mainThreadId = "thread-b";
     const threadBHook = renderHook(() =>
       useChatRuntime({ transport: transport as never }),
     );
@@ -243,6 +261,42 @@ describe("useChatRuntime", () => {
 
     expect(threadA.resumeStream).not.toHaveBeenCalled();
     expect(threadB.resumeStream).not.toHaveBeenCalled();
+  });
+
+  it("resumes a persisted stream after reload changes the local thread id", async () => {
+    const storageKey = "reload-stream-id";
+    createResumableSessionStorage({ key: storageKey }).setStreamId(
+      "stream-a",
+      "__LOCALID_before_reload",
+    );
+    const reloadedStorage = createResumableSessionStorage({ key: storageKey });
+    const backgroundThread = {
+      resumeStream: vi.fn().mockResolvedValue(undefined),
+      status: "ready",
+    };
+    const mainThread = {
+      resumeStream: vi.fn().mockResolvedValue(undefined),
+      status: "ready",
+    };
+    mocks.useChat.mockImplementation(({ id }: { id: string }) =>
+      id === "__LOCALID_background" ? backgroundThread : mainThread,
+    );
+    const transport = {
+      getResumableAdapter: () => ({
+        storage: reloadedStorage,
+        resumeApi: "/api/chat/resume",
+      }),
+    };
+
+    mocks.state.threadId = "__LOCALID_background";
+    mocks.state.mainThreadId = "__LOCALID_after_reload";
+    renderHook(() => useChatRuntime({ transport: transport as never }));
+
+    mocks.state.threadId = "__LOCALID_after_reload";
+    renderHook(() => useChatRuntime({ transport: transport as never }));
+
+    expect(backgroundThread.resumeStream).not.toHaveBeenCalled();
+    await waitFor(() => expect(mainThread.resumeStream).toHaveBeenCalledOnce());
   });
 
   it("observes resumable storage from a replacement transport", async () => {

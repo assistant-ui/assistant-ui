@@ -54,7 +54,9 @@ const useDynamicChatTransport = <UI_MESSAGE extends UIMessage = UIMessage>(
   transport: ChatTransport<UI_MESSAGE>,
 ): ChatTransport<UI_MESSAGE> => {
   const transportRef = useRef<ChatTransport<UI_MESSAGE>>(transport);
-  transportRef.current = transport;
+  useEffect(() => {
+    transportRef.current = transport;
+  });
   const dynamicTransport = useMemo(
     () =>
       new Proxy(transportRef.current, {
@@ -113,6 +115,9 @@ const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   const transport = useDynamicChatTransport(sourceTransport);
 
   const id = useAuiState((s) => s.threadListItem.id);
+  const isMainThread = useAuiState(
+    (s) => s.threads.mainThreadId === s.threadListItem.id,
+  );
   const aui = useAui();
   const chat = useChat({
     ...chatOptions,
@@ -153,12 +158,14 @@ const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   const resumableStorage = getResumableAdapter(sourceTransport)?.storage;
   const subscribeToResumableStorage = useCallback(
     (callback: () => void) =>
-      resumableStorage?.subscribe?.(callback, id) ?? (() => {}),
-    [id, resumableStorage],
+      isMainThread
+        ? (resumableStorage?.subscribe?.(callback, id) ?? (() => {}))
+        : () => {},
+    [id, isMainThread, resumableStorage],
   );
   const getPendingStreamId = useCallback(
-    () => resumableStorage?.getStreamId(id) ?? null,
-    [id, resumableStorage],
+    () => (isMainThread ? (resumableStorage?.getStreamId(id) ?? null) : null),
+    [id, isMainThread, resumableStorage],
   );
   const pendingStreamId = useSyncExternalStore(
     subscribeToResumableStorage,

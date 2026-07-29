@@ -68,14 +68,14 @@ export class AssistantChatTransport<
         };
         const preparedRequest =
           await rest.prepareSendMessagesRequest?.(optionsEx);
-        const headers = new Headers(
-          preparedRequest?.headers ?? options.headers,
-        );
-        headers.set(RESUMABLE_THREAD_ID_HEADER, threadId);
+        const headers = resumable
+          ? new Headers(preparedRequest?.headers ?? options.headers)
+          : undefined;
+        headers?.set(RESUMABLE_THREAD_ID_HEADER, threadId);
 
         return {
           ...preparedRequest,
-          headers,
+          ...(headers && { headers }),
           body: preparedRequest?.body ?? {
             ...optionsEx.body,
             id,

@@ -128,6 +128,20 @@ describe("AssistantChatTransport.prepareSendMessagesRequest", () => {
     );
   });
 
+  it("does not add the resumable thread header without resumable storage", async () => {
+    const fetchMock = vi.fn(async () => emptyStreamResponse());
+    const transport = new AssistantChatTransport({
+      fetch: fetchMock as never,
+    });
+
+    await transport.sendMessages(sendMessagesOptions as never);
+
+    const requestHeaders = new Headers(fetchMock.mock.calls[0]?.[1]?.headers);
+    expect(requestHeaders.has("x-assistant-ui-resumable-thread-id")).toBe(
+      false,
+    );
+  });
+
   it("reads reconnect stream ids under the local thread id", async () => {
     const getStreamId = vi.fn(() => "stream-1");
     const fetchMock = vi.fn(async () => emptyStreamResponse());

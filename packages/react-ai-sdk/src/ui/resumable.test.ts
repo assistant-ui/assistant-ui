@@ -49,7 +49,7 @@ describe("createResumableSessionStorage", () => {
     expect(listener).toHaveBeenCalledTimes(2);
   });
 
-  it("isolates stored ids and subscribers by thread", () => {
+  it("isolates the current stream owner and subscribers by thread", () => {
     const storage = createResumableSessionStorage({ key: "test-stream-id" });
     const listenerA = vi.fn();
     const listenerB = vi.fn();
@@ -57,19 +57,36 @@ describe("createResumableSessionStorage", () => {
     storage.subscribe?.(listenerB, "thread-b");
 
     storage.setStreamId("stream-a", "thread-a");
-    storage.setStreamId("stream-b", "thread-b");
 
     expect(storage.getStreamId("thread-a")).toBe("stream-a");
-    expect(storage.getStreamId("thread-b")).toBe("stream-b");
+    expect(storage.getStreamId("thread-b")).toBeNull();
     expect(listenerA).toHaveBeenCalledTimes(1);
-    expect(listenerB).toHaveBeenCalledTimes(1);
+    expect(listenerB).not.toHaveBeenCalled();
+
+    storage.clear("thread-b");
+
+    expect(storage.getStreamId("thread-a")).toBe("stream-a");
+    expect(listenerA).toHaveBeenCalledTimes(1);
+    expect(listenerB).not.toHaveBeenCalled();
 
     storage.clear("thread-a");
 
     expect(storage.getStreamId("thread-a")).toBeNull();
-    expect(storage.getStreamId("thread-b")).toBe("stream-b");
     expect(listenerA).toHaveBeenCalledTimes(2);
-    expect(listenerB).toHaveBeenCalledTimes(1);
+    expect(listenerB).not.toHaveBeenCalled();
+  });
+
+  it("keeps the persisted key readable after the storage is recreated", () => {
+    const storage = createResumableSessionStorage({ key: "test-stream-id" });
+    storage.setStreamId("stream-a", "__LOCALID_before_reload");
+
+    const reloadedStorage = createResumableSessionStorage({
+      key: "test-stream-id",
+    });
+
+    expect(reloadedStorage.getStreamId("__LOCALID_after_reload")).toBe(
+      "stream-a",
+    );
   });
 
   it("caches the last known value between writes", () => {
