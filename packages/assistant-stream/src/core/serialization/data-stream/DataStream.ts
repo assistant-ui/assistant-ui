@@ -230,6 +230,7 @@ export class DataStreamDecoder extends PipeableTransformStream<
     super((readable) => {
       const toolCallControllers = new Map<string, ToolCallStreamController>();
       const closedToolCallArgs = new Set<string>();
+      const warnedDroppedArgs = new Set<string>();
       let activeToolCallArgsText: TextStreamController | undefined;
       let activeToolCallArgsId: string | undefined;
       const transform = new AssistantTransformStream<DataStreamChunk>({
@@ -290,11 +291,15 @@ export class DataStreamDecoder extends PipeableTransformStream<
 
             case DataStreamStreamChunkType.ToolCallArgsTextDelta: {
               const { toolCallId, argsTextDelta } = value;
-              // A text/reasoning delta may have closed this tool call's args
-              // stream already (interleaved parallel-tool wires). Drop the
-              // delta gracefully instead of enqueueing on a closed controller
-              // (#5290).
-              if (closedToolCallArgs.has(toolCallId)) break;
+              if (closedToolCallArgs.has(toolCallId)) {
+                if (!warnedDroppedArgs.has(toolCallId)) {
+                  warnedDroppedArgs.add(toolCallId);
+                  console.warn(
+                    `Dropped tool-call args delta for closed args stream: ${toolCallId}`,
+                  );
+                }
+                break;
+              }
               const toolCallController = toolCallControllers.get(toolCallId);
               if (!toolCallController)
                 throw new Error(
@@ -429,10 +434,7 @@ export class DataStreamDecoder extends PipeableTransformStream<
           }
         },
         flush() {
-          if (activeToolCallArgsText && activeToolCallArgsId) {
-            activeToolCallArgsText.close();
-            closedToolCallArgs.add(activeToolCallArgsId);
-          }
+          activeToolCallArgsText?.close();
           activeToolCallArgsText = undefined;
           activeToolCallArgsId = undefined;
           toolCallControllers.forEach((controller) => controller.close());
