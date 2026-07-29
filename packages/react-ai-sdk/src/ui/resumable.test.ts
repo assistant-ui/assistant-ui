@@ -33,6 +33,22 @@ describe("createResumableSessionStorage", () => {
     expect(storage.getStreamId()).toBeNull();
   });
 
+  it("notifies subscribers when the stored stream id changes", () => {
+    const storage = createResumableSessionStorage({ key: "test-stream-id" });
+    const listener = vi.fn();
+    const unsubscribe = storage.subscribe?.(listener);
+
+    storage.setStreamId("stream-1");
+    storage.clear();
+
+    expect(listener).toHaveBeenCalledTimes(2);
+
+    unsubscribe?.();
+    storage.setStreamId("stream-2");
+
+    expect(listener).toHaveBeenCalledTimes(2);
+  });
+
   it("degrades to null and no-op when sessionStorage access is blocked", () => {
     Object.defineProperty(window, "sessionStorage", {
       configurable: true,

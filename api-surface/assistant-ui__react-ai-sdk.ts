@@ -1348,6 +1348,7 @@ type ResumableClientStorage = {
   getStreamId(): string | null;
   setStreamId(id: string): void;
   clear(): void;
+  subscribe?(listener: () => void): () => void;
 };
 
 type ResumeRunConfig = StartRunConfig & {

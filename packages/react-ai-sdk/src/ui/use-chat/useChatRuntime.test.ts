@@ -89,6 +89,51 @@ describe("useChatRuntime", () => {
     await waitFor(() => expect(resumeStream).toHaveBeenCalledTimes(1));
   });
 
+  it("resumes a stream id discovered after mount", async () => {
+    let streamId: string | null = null;
+    const storageSubscribers = new Set<() => void>();
+    const resumeStream = vi.fn().mockResolvedValue(undefined);
+    mocks.useChat.mockReturnValue({ resumeStream });
+
+    const storage = {
+      getStreamId: () => streamId,
+      setStreamId: (id: string) => {
+        streamId = id;
+        storageSubscribers.forEach((callback) => callback());
+      },
+      clear: () => {
+        streamId = null;
+        storageSubscribers.forEach((callback) => callback());
+      },
+      subscribe: (callback: () => void) => {
+        storageSubscribers.add(callback);
+        return () => storageSubscribers.delete(callback);
+      },
+    };
+    const transport = {
+      getResumableAdapter: () => ({
+        storage,
+        resumeApi: "/api/chat/resume",
+      }),
+    };
+
+    renderHook(() => useChatRuntime({ transport: transport as never }));
+
+    expect(resumeStream).not.toHaveBeenCalled();
+
+    act(() => storage.setStreamId("stream-1"));
+
+    await waitFor(() => expect(resumeStream).toHaveBeenCalledTimes(1));
+
+    act(() => storage.setStreamId("stream-1"));
+
+    expect(resumeStream).toHaveBeenCalledTimes(1);
+
+    act(() => storage.setStreamId("stream-2"));
+
+    await waitFor(() => expect(resumeStream).toHaveBeenCalledTimes(2));
+  });
+
   it("calls onResumeError when automatic resumable stream resume fails", async () => {
     const error = new Error("resume failed");
     const resumeStream = vi.fn().mockRejectedValue(error);

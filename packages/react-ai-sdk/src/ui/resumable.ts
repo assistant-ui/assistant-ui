@@ -11,6 +11,8 @@ export type ResumableClientStorage = {
   getStreamId(): string | null;
   setStreamId(id: string): void;
   clear(): void;
+  /** Subscribes to stream id changes so automatic resume can react after mount. */
+  subscribe?(listener: () => void): () => void;
 };
 
 const getSessionStorage = (): Storage | null => {
@@ -27,6 +29,11 @@ export function createResumableSessionStorage(options?: {
   key?: string;
 }): ResumableClientStorage {
   const key = options?.key ?? DEFAULT_STORAGE_KEY;
+  const listeners = new Set<() => void>();
+  const notify = () => {
+    for (const listener of listeners) listener();
+  };
+
   return {
     getStreamId() {
       const storage = getSessionStorage();
@@ -42,6 +49,7 @@ export function createResumableSessionStorage(options?: {
       if (!storage) return;
       try {
         storage.setItem(key, id);
+        notify();
       } catch {
         // Ignore blocked or unavailable sessionStorage.
       }
@@ -51,9 +59,14 @@ export function createResumableSessionStorage(options?: {
       if (!storage) return;
       try {
         storage.removeItem(key);
+        notify();
       } catch {
         // Ignore blocked or unavailable sessionStorage.
       }
+    },
+    subscribe(listener) {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
     },
   };
 }
