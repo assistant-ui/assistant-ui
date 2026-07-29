@@ -18,14 +18,14 @@ export const createTapRoot = <R>(
 ): useTapRoot.Root<R> & { unmount: () => void } => {
   // One scheduler per root, mirroring useTapRoot: a per-scheduler re-run
   // guard then covers this root type too. Dispatches queue up and drain in
-  // order within a single flush task; a failing update must not discard
-  // the updates queued behind it, so entries are consumed one at a time
-  // and every failure is rethrown only after the rest were processed.
+  // order within a single flush task. Each task processes a snapshot of
+  // the queue; a dispatch raised DURING the drain falls to a follow-up
+  // task, so a re-entrant loop stays visible to the re-run guard.
   const dispatchQueue: { evaluate: () => boolean; apply: () => boolean }[] = [];
   const scheduler = new UpdateScheduler(() => {
     const errors: unknown[] = [];
-    while (dispatchQueue.length > 0) {
-      const { evaluate, apply } = dispatchQueue.shift()!;
+    const batch = dispatchQueue.splice(0, dispatchQueue.length);
+    for (const { evaluate, apply } of batch) {
       try {
         if (evaluate()) {
           apply();
@@ -34,6 +34,9 @@ export const createTapRoot = <R>(
       } catch (error) {
         errors.push(error);
       }
+    }
+    if (dispatchQueue.length > 0) {
+      scheduler.markDirty();
     }
     throwCollectedErrors(errors);
   });

@@ -21,6 +21,10 @@ const MAX_TASK_RUNS_PER_FLUSH = 50;
 // depth error; the remainder stays queued (never dropped) and the next
 // triggered flush continues it.
 const MAX_TASKS_PER_FLUSH = 50000;
+// "The queue did not shrink between sync passes" is what runaway means for
+// a flushTapSync drain; this many in a row throws (finite batches always
+// shrink, so they never hit it).
+const MAX_CAP_STREAK = 3;
 let flushState: GlobalFlushState = newFlushState();
 
 export class UpdateScheduler {
@@ -41,6 +45,11 @@ export class UpdateScheduler {
 
     flushState.schedulers.add(this);
     scheduleFlush();
+  }
+
+  /** @internal Called when the run guard drops a scheduler, so the root is not left permanently dirty (which would stall its own publishing). */
+  clearDirty() {
+    this._isDirty = false;
   }
 
   runTask() {
@@ -89,6 +98,7 @@ export const throwCollectedErrors = (errors: unknown[]): void => {
 // tasks, keeping the remainder queued for the next triggered flush.
 const flushScheduled = (errors: CollectedErrors, defer = true): number => {
   const runCounts = new Map<UpdateScheduler, number>();
+  const errorContributors = new Set<UpdateScheduler>();
   let taskCount = 0;
 
   try {
@@ -107,6 +117,10 @@ const flushScheduled = (errors: CollectedErrors, defer = true): number => {
       const runs = (runCounts.get(scheduler) ?? 0) + 1;
       if (runs > MAX_TASK_RUNS_PER_FLUSH) {
         reportDepthError(errors);
+        // Dropped, but not left dirty: a stale isDirty would stall the
+        // root's own publishing and re-burn 50 runs on every later
+        // markDirty.
+        scheduler.clearDirty();
         continue;
       }
       runCounts.set(scheduler, runs);
@@ -115,13 +129,10 @@ const flushScheduled = (errors: CollectedErrors, defer = true): number => {
       try {
         scheduler.runTask();
       } catch (error) {
-        // A task that throws deterministically on every re-run would
-        // otherwise flood the batch with identical entries.
-        const message = error instanceof Error ? error.message : String(error);
-        const duplicate = errors.some(
-          (e) => (e instanceof Error ? e.message : String(e)) === message,
-        );
-        if (!duplicate) {
+        // A task that throws deterministically on every re-run contributes
+        // one entry, without hiding a different scheduler's failure.
+        if (!errorContributors.has(scheduler)) {
+          errorContributors.add(scheduler);
           errors.push(error);
         }
       }
@@ -182,13 +193,21 @@ export const flushTapSync = <T>(callback: () => T): T => {
     // a runaway is bounded by the same task ceiling (checked before each
     // pass, so finite batches always finish first).
     const errors: CollectedErrors = [];
-    let total = 0;
+    // A finite batch's queue always shrinks between passes; only a runaway
+    // (fresh schedulers minted mid-drain) fails to. The sync ceiling
+    // therefore counts non-shrinking passes, and finite batches of any
+    // size always finish first.
+    let lastQueueSize = Number.POSITIVE_INFINITY;
+    let streak = 0;
     while (flushState.schedulers.size > 0) {
-      if (total > MAX_TASKS_PER_FLUSH) {
+      if (streak > MAX_CAP_STREAK) {
         reportDepthError(errors);
         break;
       }
-      total += flushScheduled(errors, false);
+      flushScheduled(errors, false);
+      const size = flushState.schedulers.size;
+      streak = size >= lastQueueSize ? streak + 1 : 0;
+      lastQueueSize = size;
     }
     throwCollectedErrors(errors);
 

@@ -78,6 +78,10 @@ describe("scheduler batched draining", () => {
     const [channel] = ControlledMessageChannel.instances;
     expect(() => pump(channel!)).toThrow(/Maximum update depth exceeded/);
 
+    // The dropped offender is not left dirty: a stale isDirty would stall
+    // its root's publishing and re-burn 50 runs on every later markDirty.
+    expect(scheduler.isDirty).toBe(false);
+
     // The looping scheduler is dropped instead of permanently poisoning the
     // queue: later, unrelated work must flush normally.
     let ran = false;
@@ -193,21 +197,22 @@ describe("scheduler batched draining", () => {
     expect(ran).toHaveLength(10001);
   });
 
-  it("throws inside flushTapSync when the batch exceeds the task ceiling", async () => {
+  it("throws inside flushTapSync when the queue never shrinks (runaway)", async () => {
     vi.resetModules();
     vi.stubGlobal("MessageChannel", ControlledMessageChannel);
     const { UpdateScheduler, flushTapSync } = await import("../core/scheduler");
 
-    const schedulers = Array.from(
-      { length: 100001 },
-      (_, _i) => new UpdateScheduler(() => {}),
-    );
+    // Finite sync batches of any size finish first (their queue always
+    // shrinks); only a runaway — fresh schedulers minted mid-drain — hits
+    // the sync ceiling.
+    const makeCascadeScheduler = (): InstanceType<typeof UpdateScheduler> =>
+      new UpdateScheduler(() => {
+        makeCascadeScheduler().markDirty();
+      });
 
     expect(() =>
       flushTapSync(() => {
-        for (const scheduler of schedulers) {
-          scheduler.markDirty();
-        }
+        makeCascadeScheduler().markDirty();
       }),
     ).toThrow(/Maximum update depth exceeded/);
   });
