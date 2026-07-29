@@ -904,7 +904,9 @@ export class AgUiThreadRuntimeCore {
         return cached;
       }
       const parentId =
-        assistantParentId && this.hasMessage(assistantParentId)
+        cached === undefined &&
+        assistantParentId &&
+        this.hasMessage(assistantParentId)
           ? assistantParentId
           : this.repository.headId;
       const created = this.insertAssistantPlaceholder(parentId, cached);
