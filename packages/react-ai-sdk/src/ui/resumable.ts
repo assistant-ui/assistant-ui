@@ -31,7 +31,16 @@ export function createResumableSessionStorage(options?: {
   const key = options?.key ?? DEFAULT_STORAGE_KEY;
   const listeners = new Set<() => void>();
   const notify = () => {
-    for (const listener of listeners) listener();
+    for (const listener of listeners) {
+      try {
+        listener();
+      } catch (error) {
+        console.error(
+          "[assistant-ui] resumable storage listener failed",
+          error,
+        );
+      }
+    }
   };
 
   return {
@@ -49,20 +58,22 @@ export function createResumableSessionStorage(options?: {
       if (!storage) return;
       try {
         storage.setItem(key, id);
-        notify();
       } catch {
         // Ignore blocked or unavailable sessionStorage.
+        return;
       }
+      notify();
     },
     clear() {
       const storage = getSessionStorage();
       if (!storage) return;
       try {
         storage.removeItem(key);
-        notify();
       } catch {
         // Ignore blocked or unavailable sessionStorage.
+        return;
       }
+      notify();
     },
     subscribe(listener) {
       listeners.add(listener);

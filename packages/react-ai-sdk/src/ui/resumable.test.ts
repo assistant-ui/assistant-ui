@@ -49,6 +49,27 @@ describe("createResumableSessionStorage", () => {
     expect(listener).toHaveBeenCalledTimes(2);
   });
 
+  it("isolates subscriber errors", () => {
+    const storage = createResumableSessionStorage({ key: "test-stream-id" });
+    const error = new Error("listener failed");
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const laterListener = vi.fn();
+
+    storage.subscribe?.(() => {
+      throw error;
+    });
+    storage.subscribe?.(laterListener);
+
+    expect(() => storage.setStreamId("stream-1")).not.toThrow();
+    expect(laterListener).toHaveBeenCalledOnce();
+    expect(consoleError).toHaveBeenCalledWith(
+      "[assistant-ui] resumable storage listener failed",
+      error,
+    );
+  });
+
   it("degrades to null and no-op when sessionStorage access is blocked", () => {
     Object.defineProperty(window, "sessionStorage", {
       configurable: true,
