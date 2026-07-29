@@ -110,13 +110,19 @@ const requestElicitation = (
   client: any,
   message: string,
   requestedSchema: unknown,
+  context: { signal: AbortSignal } = {
+    signal: new AbortController().signal,
+  },
 ) => {
   const handler = client.requestHandlers.get("elicitation/create");
   if (!handler) throw new Error("elicitation/create handler not registered");
-  return handler({
-    method: "elicitation/create",
-    params: { message, requestedSchema },
-  });
+  return handler(
+    {
+      method: "elicitation/create",
+      params: { message, requestedSchema },
+    },
+    context,
+  );
 };
 
 const createStorage = (): MCPStorage => ({
@@ -624,7 +630,7 @@ describe("McpServerResource elicitation", () => {
     }
   });
 
-  it("throws when answering an unknown elicitation", () => {
+  it("ignores answers for unknown elicitations", () => {
     const root = mount();
 
     try {
@@ -632,7 +638,8 @@ describe("McpServerResource elicitation", () => {
         root
           .getValue()
           .answerElicitation("missing-elicitation", { action: "cancel" }),
-      ).toThrow('Unknown MCP elicitation "missing-elicitation"');
+      ).not.toThrow();
+      expect(root.getValue().getState().pendingElicitations).toEqual([]);
     } finally {
       root.unmount();
     }
@@ -683,6 +690,36 @@ describe("McpServerResource elicitation", () => {
       );
 
       await root.getValue().disconnect();
+
+      await expect(response).resolves.toEqual({ action: "cancel" });
+      await waitForResourceUpdate(
+        () => root.getValue().getState().pendingElicitations.length === 0,
+      );
+    } finally {
+      root.unmount();
+    }
+  });
+
+  it("cancels pending elicitations when the server aborts the request", async () => {
+    const root = mount();
+    const controller = new AbortController();
+
+    try {
+      await root.getValue().connect();
+      const response = requestElicitation(
+        mocks.clients[0],
+        "Confirm access",
+        {
+          type: "object",
+          properties: {},
+        },
+        { signal: controller.signal },
+      );
+      await waitForResourceUpdate(
+        () => root.getValue().getState().pendingElicitations.length === 1,
+      );
+
+      controller.abort();
 
       await expect(response).resolves.toEqual({ action: "cancel" });
       await waitForResourceUpdate(
@@ -753,7 +790,8 @@ describe("McpServerResource elicitation", () => {
           },
           listChanged: {
             tools: {
-              autoRefresh: false,
+              autoRefresh: true,
+              debounceMs: 300,
               onChanged: expect.any(Function),
             },
           },
@@ -768,7 +806,7 @@ describe("McpServerResource elicitation", () => {
 describe("McpServerResource tools listChanged", () => {
   beforeEach(resetMocks);
 
-  it("registers the list_changed notification handler and opts into listChanged tools", async () => {
+  it("opts into automatic listChanged tool refreshes", async () => {
     const root = mount();
 
     try {
@@ -785,22 +823,20 @@ describe("McpServerResource tools listChanged", () => {
           },
           listChanged: {
             tools: {
-              autoRefresh: false,
+              autoRefresh: true,
+              debounceMs: 300,
               onChanged: expect.any(Function),
             },
           },
         },
       );
-      expect(mocks.clients[0].setNotificationHandler).toHaveBeenCalledWith(
-        "notifications/tools/list_changed",
-        expect.any(Function),
-      );
+      expect(mocks.clients[0].setNotificationHandler).not.toHaveBeenCalled();
     } finally {
       root.unmount();
     }
   });
 
-  it("re-syncs tools when notifications/tools/list_changed fires after connect", async () => {
+  it("applies refreshed tools from the listChanged callback", async () => {
     mocks.listToolsResults.push(async () => ({
       tools: [
         {
@@ -825,30 +861,25 @@ describe("McpServerResource tools listChanged", () => {
         },
       ]);
 
-      mocks.clients[0].listTools.mockResolvedValueOnce({
-        tools: [
-          {
-            name: "search",
-            description: "Search docs",
-            inputSchema: { type: "object" },
-          },
-          {
-            name: "summarize",
-            inputSchema: { type: "object", properties: {} },
-          },
-        ],
-      });
-
-      const handler = mocks.clients[0].notificationHandlers.get(
-        "notifications/tools/list_changed",
-      );
-      expect(handler).toEqual(expect.any(Function));
-      await handler();
+      const onChanged =
+        mocks.Client.mock.calls[0]?.[1]?.listChanged?.tools?.onChanged;
+      if (!onChanged) throw new Error("Expected tools listChanged callback");
+      onChanged(null, [
+        {
+          name: "search",
+          description: "Search docs",
+          inputSchema: { type: "object" },
+        },
+        {
+          name: "summarize",
+          inputSchema: { type: "object", properties: {} },
+        },
+      ]);
       await waitForResourceUpdate(
         () => root.getValue().getState().tools.length === 2,
       );
 
-      expect(mocks.clients[0].listTools).toHaveBeenCalledTimes(2);
+      expect(mocks.clients[0].listTools).toHaveBeenCalledTimes(1);
       expect(root.getValue().getState().tools).toEqual([
         {
           name: "search",
@@ -865,7 +896,7 @@ describe("McpServerResource tools listChanged", () => {
     }
   });
 
-  it("ignores list_changed notifications from a stale connection generation", async () => {
+  it("ignores listChanged callbacks from a stale connection generation", async () => {
     mocks.listToolsResults.push(async () => ({
       tools: [
         {
@@ -886,9 +917,10 @@ describe("McpServerResource tools listChanged", () => {
 
     try {
       await root.getValue().connect();
-      const staleHandler = mocks.clients[0].notificationHandlers.get(
-        "notifications/tools/list_changed",
-      );
+      const staleOnChanged =
+        mocks.Client.mock.calls[0]?.[1]?.listChanged?.tools?.onChanged;
+      if (!staleOnChanged)
+        throw new Error("Expected tools listChanged callback");
       await root.getValue().connect();
       await waitForResourceUpdate(
         () => root.getValue().getState().tools[0]?.name === "second",
@@ -901,15 +933,12 @@ describe("McpServerResource tools listChanged", () => {
         },
       ]);
 
-      mocks.clients[0].listTools.mockResolvedValueOnce({
-        tools: [
-          {
-            name: "stale-tool",
-            inputSchema: { type: "object" },
-          },
-        ],
-      });
-      await staleHandler();
+      staleOnChanged(null, [
+        {
+          name: "stale-tool",
+          inputSchema: { type: "object" },
+        },
+      ]);
       await flushMacrotask();
 
       expect(root.getValue().getState().tools).toEqual([
@@ -918,7 +947,6 @@ describe("McpServerResource tools listChanged", () => {
           inputSchema: { type: "object" },
         },
       ]);
-      // Stale generation returns before listTools is invoked.
       expect(mocks.clients[0].listTools).toHaveBeenCalledTimes(1);
     } finally {
       root.unmount();
@@ -942,7 +970,8 @@ describe("McpServerResource tools listChanged", () => {
           },
           listChanged: {
             tools: {
-              autoRefresh: false,
+              autoRefresh: true,
+              debounceMs: 300,
               onChanged: expect.any(Function),
             },
           },

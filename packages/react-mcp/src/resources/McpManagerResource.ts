@@ -124,6 +124,7 @@ const useMcpManagerResource = (
           redirectUri,
           autoConnect,
           connectionTimeout: c.connectionTimeout ?? connectionTimeout,
+          ...(c.cache !== undefined ? { cache: c.cache } : {}),
           onRemove: async () => {
             // connectors cannot be removed
           },
@@ -143,6 +144,7 @@ const useMcpManagerResource = (
           redirectUri,
           autoConnect,
           connectionTimeout: s.connectionTimeout ?? connectionTimeout,
+          ...(s.cache !== undefined ? { cache: s.cache } : {}),
           onRemove: async () => {
             setCustomServers((prev) => prev.filter((x) => x.id !== s.id));
           },

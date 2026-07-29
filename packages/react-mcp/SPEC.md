@@ -11,7 +11,7 @@ External API spec for the MCP integration package. Mirrors `@assistant-ui/react-
 
 Both share one connection lifecycle, one persisted state surface, and one tool registration path.
 
-**Tools and form elicitation.** v1 lists and invokes tools, registering them as **frontend tools** with `modelContext` so a connected chat runtime sees them automatically. Servers can also request structured user input through pending elicitations. Resources, prompts, sampling, server-pushed list updates, and resumable sessions are deferred.
+**Tools and form elicitation.** v1 lists and invokes tools, registering them as **frontend tools** with `modelContext` so a connected chat runtime sees them automatically. Servers can also request structured user input through pending elicitations. Server-pushed tool list updates refresh the registered tools automatically. Resources, prompts, sampling, and resumable sessions are deferred.
 
 **Three auth modes only:** OAuth (PKCE + RFC 7591 DCR), Bearer, None.
 
@@ -88,6 +88,7 @@ type MCPConnector = {
   icon?: string;
   auth: MCPAuthConfig;
   connectionTimeout?: number;
+  cache?: { defaultTtlMs?: number };
 };
 defineConnector(c: MCPConnector): MCPConnector;
 ```
@@ -101,6 +102,7 @@ type MCPCustomServerRecord = {
   url: string;
   auth: MCPAuthConfig;
   connectionTimeout?: number;
+  cache?: { defaultTtlMs?: number };
   createdAt: number;
 };
 ```
@@ -334,6 +336,8 @@ Render form-mode elicitation inside a server-scoped subtree. Each item owns an i
 ```
 
 `useMcpElicitation()` reads the current request inside `Items`. `useMcpElicitationField()` reads the current field inside the element returned from the `Fields` render function.
+
+`Accept` does not submit while a required field is absent or empty, and exposes `data-missing-required` in that state. It converts parseable string values from flat `number` and `integer` properties to numbers before submitting the response content.
 
 ## 6. Lifecycle
 

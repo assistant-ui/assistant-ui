@@ -5,6 +5,7 @@ import {
   Client,
   StreamableHTTPClientTransport,
   UnauthorizedError,
+  type ClientOptions,
   type ElicitRequest,
   type ElicitResult,
   type StreamableHTTPClientTransportOptions,
@@ -59,7 +60,14 @@ const useMcpServerResource = (
   const transportCloseQueueRef = useRef(Promise.resolve());
   const connectionGenerationRef = useRef(0);
   const elicitationResolversRef = useRef(
-    new Map<string, { resolve: (result: ElicitResult) => void }>(),
+    new Map<
+      string,
+      {
+        resolve: (result: ElicitResult) => void;
+        signal: AbortSignal;
+        onAbort: () => void;
+      }
+    >(),
   );
   const pendingDisposalRef = useRef<{ cancelled: boolean } | null>(null);
   const mountedRef = useRef(true);
@@ -90,12 +98,22 @@ const useMcpServerResource = (
     await closeQueuedTransports(transport ? [transport] : []);
   };
 
+  const resolvePendingElicitation = (id: string, result: ElicitResult) => {
+    const entry = elicitationResolversRef.current.get(id);
+    if (!entry) return false;
+    elicitationResolversRef.current.delete(id);
+    entry.signal.removeEventListener("abort", entry.onAbort);
+    setPendingElicitations((current) =>
+      current.filter((elicitation) => elicitation.id !== id),
+    );
+    entry.resolve(result);
+    return true;
+  };
+
   const cancelPendingElicitations = () => {
-    for (const { resolve } of elicitationResolversRef.current.values()) {
-      resolve({ action: "cancel" });
+    for (const [id] of elicitationResolversRef.current) {
+      resolvePendingElicitation(id, { action: "cancel" });
     }
-    elicitationResolversRef.current.clear();
-    setPendingElicitations([]);
   };
 
   const closeTransports = async () => {
@@ -228,32 +246,17 @@ const useMcpServerResource = (
       transport: StreamableHTTPClientTransport,
       generation: number,
     ): Promise<boolean> => {
-      const clientOptions: {
-        capabilities: { elicitation: Record<string, never> };
-        listChanged: {
-          tools: {
-            // false: the SDK invalidates its cached tool list on a
-            // listChanged notification instead of refetching it, so the
-            // notification handler below performs the single listTools()
-            // call.
-            autoRefresh?: boolean;
-            onChanged: () => void;
-          };
-        };
-        defaultCacheTtlMs?: number;
-      } = {
+      const clientOptions: ClientOptions = {
         capabilities: {
           elicitation: {},
         },
-        // Opt into tools listChanged so the client auto-opens modern-era
-        // subscriptions; react-mcp state is refreshed via the notification
-        // handler below (generation-guarded).
         listChanged: {
           tools: {
-            autoRefresh: false,
-            onChanged: () => {
-              // State updates are driven by setNotificationHandler so the
-              // connectionGenerationRef staleness guard stays in one place.
+            autoRefresh: true,
+            debounceMs: 300,
+            onChanged: (_error, items) => {
+              if (!isCurrentConnection(generation) || items === null) return;
+              applyToolsList({ tools: items });
             },
           },
         },
@@ -270,7 +273,7 @@ const useMcpServerResource = (
       );
       client.setRequestHandler(
         "elicitation/create",
-        (request: ElicitRequest): Promise<ElicitResult> => {
+        (request: ElicitRequest, context): Promise<ElicitResult> => {
           if (!isCurrentConnection(generation)) {
             return Promise.resolve({ action: "cancel" });
           }
@@ -284,7 +287,14 @@ const useMcpServerResource = (
               ? crypto.randomUUID()
               : `mcp-${Date.now()}-${Math.random().toString(36).slice(2)}`;
           const promise = new Promise<ElicitResult>((resolve) => {
-            elicitationResolversRef.current.set(id, { resolve });
+            const onAbort = () => {
+              resolvePendingElicitation(id, { action: "cancel" });
+            };
+            elicitationResolversRef.current.set(id, {
+              resolve,
+              signal: context.signal,
+              onAbort,
+            });
           });
           setPendingElicitations((current) => [
             ...current,
@@ -294,15 +304,19 @@ const useMcpServerResource = (
               requestedSchema,
             },
           ]);
+          const entry = elicitationResolversRef.current.get(id);
+          if (entry) {
+            if (context.signal.aborted) {
+              entry.onAbort();
+            } else {
+              context.signal.addEventListener("abort", entry.onAbort, {
+                once: true,
+              });
+            }
+          }
           return promise;
         },
       );
-      client.setNotificationHandler("notifications/tools/list_changed", () => {
-        if (!isCurrentConnection(generation)) return;
-        void syncTools(client, generation).catch(() => {
-          // Ignore refresh failures from stale or closed connections.
-        });
-      });
       const startedAt = Date.now();
       await withConnectionTimeout(
         client.connect(transport),
@@ -529,10 +543,6 @@ const useMcpServerResource = (
     },
     completeAuth: doCompleteAuth,
     answerElicitation: (id: string, response: MCPElicitationResponse): void => {
-      const entry = elicitationResolversRef.current.get(id);
-      if (!entry) {
-        throw new Error(`Unknown MCP elicitation "${id}"`);
-      }
       if (
         response.action === "accept" &&
         (typeof response.content !== "object" ||
@@ -551,11 +561,7 @@ const useMcpServerResource = (
               content: response.content as ElicitResult["content"],
             }
           : { action: response.action };
-      elicitationResolversRef.current.delete(id);
-      setPendingElicitations((current) =>
-        current.filter((elicitation) => elicitation.id !== id),
-      );
-      entry.resolve(result);
+      resolvePendingElicitation(id, result);
     },
   };
 };
