@@ -28,6 +28,7 @@ export function createLearnSourceMapTools({
         destination: "/repo",
         maxFiles: 5000,
         maxOutputLength: 15000,
+        promptOptions: { toolPrompt: "" },
       });
       return repoToolkitPromise;
     }
@@ -42,6 +43,7 @@ export function createLearnSourceMapTools({
           destination: "/course",
           maxFiles: 500,
           maxOutputLength: 15000,
+          promptOptions: { toolPrompt: "" },
         }),
       );
       courseToolkitPromises.set(stageId, toolkitPromise);

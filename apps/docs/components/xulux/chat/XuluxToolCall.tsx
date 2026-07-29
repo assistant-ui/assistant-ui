@@ -268,8 +268,8 @@ function LearnCourseToolCall({
 }
 
 export function LearnCourseResultFooter() {
-  const isRunning = useAuiState(
-    (state) => state.message.status?.type === "running",
+  const isComplete = useAuiState(
+    (state) => state.message.status?.type === "complete",
   );
   const result = useAuiState((state) => {
     const content = state.message.content ?? [];
@@ -282,7 +282,7 @@ export function LearnCourseResultFooter() {
     return undefined;
   });
   const parsed = parseLearnCourseStepResult(result);
-  if (isRunning || !parsed) return null;
+  if (!isComplete || !parsed) return null;
 
   return "finalStage" in parsed ? (
     <LearnCompletionCard result={parsed} />

@@ -51,6 +51,7 @@ export function createSourceMapTools() {
         destination: "/repo",
         maxFiles: 5000,
         maxOutputLength: 15000,
+        promptOptions: { toolPrompt: "" },
       });
     }
     return bashToolkitPromise;
