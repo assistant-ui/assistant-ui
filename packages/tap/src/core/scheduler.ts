@@ -19,8 +19,8 @@ const MAX_TASK_RUNS_PER_BURST = 50;
 // per-scheduler guard never trips); sized far above realistic bulk updates.
 const MAX_TOTAL_TASKS_PER_BURST = 10000;
 // Cap-aborts reschedule so oversized batches keep draining; after this many
-// consecutive saturated flushes the queue is dropped so a runaway cascade
-// terminates instead of chunking an infinite loop into macrotasks forever.
+// consecutive saturated flushes, auto-continuing stops so a runaway cascade
+// terminates (the queue is kept, never dropped).
 const MAX_CAP_STREAK = 10;
 let flushState: GlobalFlushState = newFlushState();
 
@@ -94,12 +94,12 @@ const flushScheduled = () => {
     flushState.isScheduled = false;
     if (abort === "cap") {
       flushState.capStreak += 1;
-      if (flushState.capStreak > MAX_CAP_STREAK) {
-        flushState.schedulers.clear();
-        flushState.capStreak = 0;
-      } else {
+      if (flushState.capStreak <= MAX_CAP_STREAK) {
         scheduleFlush();
       }
+      // Past the streak: stop auto-continuing so a runaway cascade
+      // terminates — but keep the queue; the remainder drains on the next
+      // externally triggered flush instead of being dropped.
     } else {
       flushState.capStreak = 0;
       if (abort === "loop") {

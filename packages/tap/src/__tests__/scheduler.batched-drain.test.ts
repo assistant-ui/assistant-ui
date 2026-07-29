@@ -209,9 +209,17 @@ describe("scheduler batched draining", () => {
     makeCascadeScheduler().markDirty();
 
     const [channel] = ControlledMessageChannel.instances;
+    // MAX_CAP_STREAK (10) consecutive saturated flushes throw and
+    // auto-continue; the 11th stops rescheduling. Keep in sync with
+    // MAX_CAP_STREAK when changing it.
     for (let i = 0; i < 11; i += 1) {
       expect(() => pump(channel!)).toThrow(/Maximum update depth exceeded/);
     }
     expect(() => pump(channel!)).not.toThrow();
+
+    // The remainder is not dropped: any later markDirty triggers a flush
+    // that runs it (and throws again, since the cascade is unbounded).
+    new UpdateScheduler(() => {}).markDirty();
+    expect(() => pump(channel!)).toThrow(/Maximum update depth exceeded/);
   });
 });
