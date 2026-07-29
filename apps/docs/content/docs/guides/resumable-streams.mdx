@@ -192,7 +192,7 @@ export default function Page() {
 }
 ```
 
-Each thread's runtime hook constructs its own transport and storage, keyed by that thread's id, so one conversation's stream id can never be read or cleared by another. `useChatRuntime` is a no-op thread list when nested as a `runtimeHook`, so it only runs the per-thread chat runtime against the per-thread transport; the real thread list is the outer `useRemoteThreadListRuntime`. The key is read lazily on every access via a getter, so it can track a value not known at construction — a brand-new thread has no `remoteId` until its first send initializes it. The local `id` used here is stable from mount, so a static `key` works too.
+Each thread's runtime hook constructs its own transport and storage, keyed by that thread's id, so one conversation's stream id can never be read or cleared by another. `useChatRuntime` is a no-op thread list when nested as a `runtimeHook`, so it only runs the per-thread chat runtime against the per-thread transport; the real thread list is the outer `useRemoteThreadListRuntime`. Key by the local `id` (`s.threadListItem.id`), which is stable from mount (so a static `key` works too) — avoid `remoteId`, which is `undefined` until the thread's first send initializes it and would fall back to the shared default key, reintroducing the cross-wire for new threads. The getter reads the id lazily on every access.
 
 ## Storage choices
 
