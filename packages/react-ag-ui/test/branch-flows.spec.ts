@@ -392,6 +392,102 @@ describe("AgUiThreadRuntimeCore branch flows", () => {
     ).toBe(false);
   });
 
+  it("does not rewrite a previous assistant when regeneration reuses its id", async () => {
+    let runCount = 0;
+    let userId = "";
+    let previousAssistantId = "";
+    const update = vi.fn().mockResolvedValue(undefined);
+    const append = vi.fn().mockResolvedValue(undefined);
+    const agent = {
+      runAgent: vi.fn(async (_input, subscriber) => {
+        runCount++;
+        if (runCount === 1) {
+          subscriber.onTextMessageContentEvent?.({
+            event: { type: "TEXT_MESSAGE_CONTENT", delta: "first" },
+          });
+          subscriber.onRunFinalized?.();
+          return;
+        }
+
+        subscriber.onMessagesSnapshotEvent?.({
+          event: {
+            type: "MESSAGES_SNAPSHOT",
+            messages: [
+              { id: userId, role: "user", content: "hi" },
+              {
+                id: previousAssistantId,
+                role: "assistant",
+                content: "first",
+              },
+            ],
+          },
+        });
+        emitAssistantText(subscriber, previousAssistantId, "replacement");
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+    const historyAdapter: ThreadHistoryAdapter = {
+      load: vi.fn().mockResolvedValue({ messages: [] }),
+      append,
+      update,
+    };
+    const core = createCore(agent, { history: historyAdapter });
+
+    await core.append(createAppendMessage());
+    const initialMessages = core.getMessages();
+    userId = initialMessages[0]!.id;
+    previousAssistantId = initialMessages[1]!.id;
+    append.mockClear();
+
+    await core.reload(userId);
+
+    const messages = core.getMessages();
+    expect(messages.map(({ id }) => id)).toEqual([userId, previousAssistantId]);
+    expect((messages[1] as ThreadAssistantMessage).content).toEqual([
+      { type: "text", text: "first" },
+    ]);
+    expect(update).not.toHaveBeenCalled();
+    expect(append).not.toHaveBeenCalled();
+  });
+
+  it("does not duplicate snapshot assistants with append-only history", async () => {
+    const serverAssistantId = "assistant-server";
+    const append = vi.fn().mockResolvedValue(undefined);
+    const agent = {
+      runAgent: vi.fn(async (input: any, subscriber: any) => {
+        const userId = input.messages.find(
+          ({ role }: { role: string }) => role === "user",
+        ).id;
+        subscriber.onMessagesSnapshotEvent?.({
+          event: {
+            type: "MESSAGES_SNAPSHOT",
+            messages: [
+              { id: userId, role: "user", content: "hi" },
+              {
+                id: serverAssistantId,
+                role: "assistant",
+                content: "snapshot",
+              },
+            ],
+          },
+        });
+        emitAssistantText(subscriber, serverAssistantId, " after");
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+    const historyAdapter: ThreadHistoryAdapter = {
+      load: vi.fn().mockResolvedValue({ messages: [] }),
+      append,
+    };
+    const core = createCore(agent, { history: historyAdapter });
+
+    await core.append(createAppendMessage());
+
+    expect(
+      append.mock.calls.some(([item]) => item.message.id === serverAssistantId),
+    ).toBe(false);
+  });
+
   it("keeps a recreated stable assistant after switching branches", async () => {
     const serverAssistantId = "server-assistant";
     let core: AgUiThreadRuntimeCore;

@@ -949,9 +949,13 @@ export class AgUiThreadRuntimeCore {
         if (placeholder === serverId) return;
         const reassigned = this.reassignAssistantId(placeholder, serverId);
         // A collision drops the placeholder before revealing the existing
-        // server message as the current head.
+        // server message as the current head. Only messages introduced during
+        // this run can replace the placeholder; regeneration must not rewrite
+        // a previous branch when the server incorrectly reuses its id.
         const adoptsVisibleCollision =
-          !reassigned && this.repository.headId === serverId;
+          !reassigned &&
+          !runStartMessageIds.has(serverId) &&
+          this.repository.headId === serverId;
         if (reassigned || adoptsVisibleCollision) {
           assistantMessageId = serverId;
           if (adoptsVisibleCollision) {
@@ -1644,6 +1648,8 @@ export class AgUiThreadRuntimeCore {
     if (!this.isPersistableStatus(message.status)) return;
     this.assistantHistoryParents.delete(messageId);
     if (this.recordedHistoryIds.has(messageId)) {
+      // Snapshot ids are already recorded. update is an upsert by contract;
+      // append-only adapters must not create a duplicate history entry.
       if (!this.history.update) return;
       void this.history.update({ parentId, message }).catch((error) => {
         const detail = error instanceof Error ? error.message : String(error);
