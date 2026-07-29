@@ -2,6 +2,11 @@ type Task = () => void;
 
 type GlobalFlushState = {
   schedulers: Set<UpdateScheduler>;
+  // Per-scheduler run counts and reported errors for the CURRENT burst
+  // (between two drained passes), so the re-run budget and error dedupe
+  // are per logical flush on every path - not per pass.
+  runCounts: Map<UpdateScheduler, number>;
+  seenErrors: Map<UpdateScheduler, Set<string>>;
   // Consecutive saturated (ceiling-hitting) passes; reset when a pass
   // drains the queue.
   saturatedStreak: number;
@@ -10,6 +15,8 @@ type GlobalFlushState = {
 
 const newFlushState = (): GlobalFlushState => ({
   schedulers: new Set([]),
+  runCounts: new Map(),
+  seenErrors: new Map(),
   saturatedStreak: 0,
   isScheduled: false,
 });
@@ -17,22 +24,22 @@ const newFlushState = (): GlobalFlushState => ({
 // A scheduler re-run more than this many times in one flush is a resource
 // that keeps re-dirtying itself (or a cycle of resources re-dirtying each
 // other); the offender is dropped so the rest of the queue keeps flushing.
-const MAX_TASK_RUNS_PER_FLUSH = 50;
+export const MAX_TASK_RUNS_PER_FLUSH = 50;
 // A pass yields at this many tasks and continues on the next flush, so
 // oversized batches chunk across macrotasks instead of blocking. ~1.5x
 // the motivating repro (one 200-message history page ~= 600 resources).
-const MAX_TASKS_PER_FLUSH = 1000;
+export const MAX_TASKS_PER_FLUSH = 1000;
 // flushTapSync-only hard bound: a synchronous drain cannot defer, so an
 // unbounded batch (e.g. fresh schedulers minted mid-drain, which the
 // re-run guard cannot see) must be cut somewhere. ~8x the repro; the
 // remainder is handed to the outer state and continues there.
-const MAX_SYNC_TASKS = 5000;
+export const MAX_SYNC_TASKS = 5000;
 // A runaway minting fresh schedulers saturates EVERY pass, while a finite
 // batch's last pass is always partial. After this many saturated passes
 // in a row (x MAX_TASKS_PER_FLUSH tasks) the burst is reported once as a
 // likely loop - and keeps chunking anyway, so even oversized finite
 // batches complete. The queue is never dropped or stalled.
-const MAX_SATURATED_STREAK = 20;
+export const MAX_SATURATED_STREAK = 20;
 let flushState: GlobalFlushState = newFlushState();
 
 export class UpdateScheduler {
@@ -99,17 +106,9 @@ export const throwCollectedErrors = (
 // One flush pass over flushState.schedulers. Set iteration also visits
 // schedulers re-added mid-pass, so a batch of any size drains across
 // passes; failures are appended to `errors` for the caller to aggregate.
-const flushScheduled = (
-  errors: CollectedErrors,
-  defer = true,
-  shared?: {
-    runCounts: Map<UpdateScheduler, number>;
-    seenErrors: Map<UpdateScheduler, Set<string>>;
-  },
-): number => {
-  const runCounts = shared?.runCounts ?? new Map<UpdateScheduler, number>();
-  const seenErrors =
-    shared?.seenErrors ?? new Map<UpdateScheduler, Set<string>>();
+const flushScheduled = (errors: CollectedErrors, defer = true): number => {
+  const runCounts = flushState.runCounts;
+  const seenErrors = flushState.seenErrors;
   let taskCount = 0;
 
   let hitCeiling = false;
@@ -127,6 +126,7 @@ const flushScheduled = (
         // it so its task drains the stranded queue consistently.
         reportDepthError(errors);
         flushState.schedulers.delete(scheduler);
+        runCounts.delete(scheduler);
         continue;
       }
       flushState.schedulers.delete(scheduler);
@@ -164,6 +164,8 @@ const flushScheduled = (
         }
         scheduleFlush();
       } else {
+        flushState.runCounts.clear();
+        flushState.seenErrors.clear();
         flushState.saturatedStreak = 0;
       }
     }
@@ -217,14 +219,9 @@ export const flushTapSync = <T>(callback: () => T): T => {
     const value = callback();
     // Synchronous callers rely on every notification having landed by the
     // time this returns, so drain across passes until the queue is empty.
-    // shared runCounts/seenErrors make the re-run budget and error dedupe
-    // per logical flush, not per pass (a looping scheduler is dropped at
-    // ~MAX_TASK_RUNS_PER_FLUSH total runs, like main).
+    // The temporary flushState carries fresh run counts, so the re-run
+    // budget is per logical flush, like main.
     const errors: CollectedErrors = [];
-    const shared = {
-      runCounts: new Map<UpdateScheduler, number>(),
-      seenErrors: new Map<UpdateScheduler, Set<string>>(),
-    };
     let total = 0;
     while (flushState.schedulers.size > 0) {
       if (total > MAX_SYNC_TASKS) {
@@ -236,7 +233,7 @@ export const flushTapSync = <T>(callback: () => T): T => {
         }
         break;
       }
-      total += flushScheduled(errors, false, shared);
+      total += flushScheduled(errors, false);
     }
     throwCollectedErrors(errors);
 

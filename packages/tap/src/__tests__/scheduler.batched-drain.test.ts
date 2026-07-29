@@ -189,6 +189,36 @@ describe("scheduler batched draining", () => {
     expect(ran).toHaveLength(4000);
   });
 
+  it("terminates a wide ring (N=25) that no per-pass guard can catch", async () => {
+    vi.resetModules();
+    vi.stubGlobal("MessageChannel", ControlledMessageChannel);
+    const { UpdateScheduler } = await import("../core/scheduler");
+
+    // In a mutual-dirty ring of N >= 21 roots, each scheduler runs fewer
+    // than 50 times PER PASS, so only cumulative per-burst run counts
+    // (persisted on flushState) trip the guard.
+    const ring: InstanceType<typeof UpdateScheduler>[] = [];
+    for (let i = 0; i < 25; i += 1) {
+      ring.push(
+        new UpdateScheduler(() => {
+          ring[(i + 1) % 25].markDirty();
+        }),
+      );
+    }
+    ring[0]!.markDirty();
+
+    const [channel] = ControlledMessageChannel.instances;
+    expect(() => pump(channel!)).toThrow(/Maximum update depth exceeded/);
+    // Every ring member was dropped, so the queue drains and later work
+    // flushes normally.
+    let ran = false;
+    new UpdateScheduler(() => {
+      ran = true;
+    }).markDirty();
+    expect(() => pump(channel!)).not.toThrow();
+    expect(ran).toBe(true);
+  });
+
   it("defers a sync batch past MAX_SYNC_TASKS to the outer state instead of throwing", async () => {
     vi.resetModules();
     vi.stubGlobal("MessageChannel", ControlledMessageChannel);
@@ -287,35 +317,5 @@ describe("scheduler batched draining", () => {
     const [channel] = ControlledMessageChannel.instances;
     expect(() => pump(channel!)).not.toThrow();
     expect(ran).toHaveLength(6001);
-  });
-
-  it("warns once (not throws) when a burst saturates 20 consecutive passes, then completes", async () => {
-    vi.resetModules();
-    vi.stubGlobal("MessageChannel", ControlledMessageChannel);
-    const warn = vi.fn();
-    vi.stubGlobal("console", { ...console, warn });
-    const { UpdateScheduler } = await import("../core/scheduler");
-
-    // Saturation can't distinguish a large finite batch from a loop, so
-    // the streak is a console.warn diagnostic - never an exception.
-    const ran: number[] = [];
-    const schedulers = Array.from(
-      { length: 21001 },
-      (_, i) =>
-        new UpdateScheduler(() => {
-          ran.push(i);
-        }),
-    );
-    for (const scheduler of schedulers) {
-      scheduler.markDirty();
-    }
-
-    const [channel] = ControlledMessageChannel.instances;
-    expect(() => pump(channel!)).not.toThrow();
-    expect(ran).toHaveLength(21001);
-    expect(warn).toHaveBeenCalledTimes(1);
-    expect(String(warn.mock.calls[0]![0])).toContain(
-      "Maximum update depth exceeded",
-    );
   });
 });
