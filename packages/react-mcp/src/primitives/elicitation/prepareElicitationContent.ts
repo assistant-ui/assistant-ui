@@ -26,10 +26,16 @@ const isBooleanSchema = (schema: unknown): schema is Record<string, unknown> =>
 const getDraftValue = (draft: Record<string, unknown>, name: string) =>
   Object.hasOwn(draft, name) ? draft[name] : undefined;
 
+const isNonStringTypedSchema = (schema: unknown): boolean =>
+  isRecord(schema) &&
+  (schema.type === "boolean" ||
+    schema.type === "number" ||
+    schema.type === "integer");
+
 const isAbsentDraftValue = (schema: unknown, value: unknown) =>
   value === undefined ||
   value === null ||
-  (value === "" && isBooleanSchema(schema));
+  (value === "" && isNonStringTypedSchema(schema));
 
 export const prepareElicitationContent = (
   requestedSchema: unknown,

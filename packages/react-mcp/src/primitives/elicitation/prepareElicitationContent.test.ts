@@ -279,6 +279,26 @@ describe("prepareElicitationContent", () => {
     });
   });
 
+  it("treats a cleared numeric draft as absent instead of invalid", () => {
+    expect(
+      prepareElicitationContent(
+        {
+          type: "object",
+          properties: {
+            limit: { type: "number" },
+            count: { type: "integer" },
+          },
+          required: ["limit"],
+        },
+        { limit: "", count: "" },
+      ),
+    ).toEqual({
+      content: {},
+      missingRequired: ["limit"],
+      invalid: [],
+    });
+  });
+
   it("reports required draft values that are absent or empty", () => {
     expect(
       prepareElicitationContent(
