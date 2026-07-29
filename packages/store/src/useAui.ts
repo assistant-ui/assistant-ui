@@ -20,7 +20,7 @@ import type {
   ClientElement,
   ClientMethods,
 } from "./types/client";
-import { useDerived, type DerivedElement } from "./Derived";
+import type { DerivedElement } from "./Derived";
 import {
   useAssistantContextValue,
   DefaultAssistantClient,
@@ -88,15 +88,6 @@ const applyTransformScopes = (
   return scopes;
 };
 
-const isDerivedElement = (element: ScopeElement) =>
-  element.hook === (useDerived as unknown);
-
-const metaOf = (element: ScopeElement): ScopeMeta => {
-  if (!isDerivedElement(element)) return { source: "root", query: {} };
-  const props = element.args[0] as ScopeMeta;
-  return { source: props.source, query: props.query ?? {} };
-};
-
 const toScopeEntries = (scopes: Record<string, ScopeElement>): ScopeEntry[] =>
   (Object.entries(scopes) as [ClientNames, ScopeElement][]).map(
     ([name, element]) => ({ name, element }),
@@ -107,7 +98,10 @@ const createAccessor = <K extends ClientNames>(
   meta: ScopeMeta,
   read: () => ClientMethods,
 ): AssistantClientAccessor<K> =>
-  createClientAccessor<K>({ name, ...meta }, read);
+  createClientAccessor<K>(
+    { name, source: meta.source, query: meta.query },
+    read,
+  );
 
 type ClientFields = {
   subscribe: AssistantClient["subscribe"];
@@ -194,51 +188,11 @@ const useClientFields = ({
   );
 };
 
-const shallowEqualRecord = (
-  a: Record<string, unknown>,
-  b: Record<string, unknown>,
-) => {
-  const aKeys = Object.keys(a);
-  return (
-    aKeys.length === Object.keys(b).length &&
-    aKeys.every((key) => Object.hasOwn(b, key) && Object.is(a[key], b[key]))
-  );
-};
-
-const useScopeMeta = (element: ScopeElement): ScopeMeta => {
-  const { source, query } = metaOf(element);
-  const cache = useMemoCache(1) as [ScopeMeta | typeof MEMO_CACHE_UNFILLED];
-  const prev = cache[0];
-  if (
-    prev !== MEMO_CACHE_UNFILLED &&
-    prev.source === source &&
-    shallowEqualRecord(prev.query, query)
-  ) {
-    return prev;
-  }
-  const meta = { source, query };
-  cache[0] = meta;
-  return meta;
-};
-
-const useScopeValue = (element: ScopeElement, derived: boolean) =>
-  useResource(derived ? element : ClientResource(element));
-
 const useScopeMount = ({ name, element }: ScopeEntry): ScopeResult => {
   const client = useBuildingClient();
 
-  // A derived element resolves to an existing client; mount it directly
-  const derived = isDerivedElement(element);
-  const value = useScopeValue(element, derived);
+  const { methods, state, meta } = useResource(ClientResource(element));
 
-  const methods = derived
-    ? (value as ClientMethods)
-    : (value as { methods: ClientMethods }).methods;
-  const state = derived
-    ? (value as { getState?: () => unknown }).getState?.()
-    : (value as { state: unknown }).state;
-
-  const meta = useScopeMeta(element);
   const accessor = useMemo(
     () => createAccessor(name, meta, () => methods),
     [name, meta, methods],

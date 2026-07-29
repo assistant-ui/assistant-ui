@@ -1,4 +1,8 @@
-import { resource, type ResourceElement } from "@assistant-ui/tap";
+import {
+  resource,
+  useMemoCache,
+  type ResourceElement,
+} from "@assistant-ui/tap";
 import { useSyncExternalStore } from "react";
 import type {
   AssistantClient,
@@ -12,12 +16,46 @@ type DerivedInstance<K extends ClientNames> = ReturnType<
   AssistantClientAccessor<K>
 >;
 
-export const useDerived = <K extends ClientNames>({
-  get,
-}: Derived.Props<K>): DerivedInstance<K> => {
-  const client = useBuildingClient();
-  const select = () => get(client) as DerivedInstance<K>;
-  return useSyncExternalStore(client.subscribe, select, select);
+const MEMO_CACHE_UNFILLED = Symbol.for("react.memo_cache_sentinel");
+
+const shallowEqualRecord = (
+  a: Record<string, unknown>,
+  b: Record<string, unknown>,
+) => {
+  const aKeys = Object.keys(a);
+  return (
+    aKeys.length === Object.keys(b).length &&
+    aKeys.every((key) => Object.hasOwn(b, key) && Object.is(a[key], b[key]))
+  );
+};
+
+export const useDerived = <K extends ClientNames>(
+  props: Derived.Props<K>,
+): Derived.Output<K> => {
+  const buildingClient = useBuildingClient();
+  const select = () => props.get(buildingClient) as DerivedInstance<K>;
+  const client = useSyncExternalStore(buildingClient.subscribe, select, select);
+
+  const { source, query = {} } = props as unknown as {
+    source: ClientNames;
+    query?: Record<string, unknown>;
+  };
+
+  const cache = useMemoCache(1) as [
+    Derived.Output<K> | typeof MEMO_CACHE_UNFILLED,
+  ];
+  const prev = cache[0];
+  if (
+    prev !== MEMO_CACHE_UNFILLED &&
+    prev.client === client &&
+    prev.source === source &&
+    shallowEqualRecord(prev.query, query)
+  ) {
+    return prev;
+  }
+  const output = { client, source, query };
+  cache[0] = output;
+  return output;
 };
 
 /**
@@ -42,7 +80,7 @@ export const Derived = resource(useDerived) as <K extends ClientNames>(
 ) => DerivedElement<K>;
 
 export type DerivedElement<K extends ClientNames> = ResourceElement<
-  DerivedInstance<K>
+  Derived.Output<K>
 >;
 
 export namespace Derived {
@@ -52,4 +90,13 @@ export namespace Derived {
   export type Props<K extends ClientNames> = {
     get: (client: AssistantClient) => ReturnType<AssistantClientAccessor<K>>;
   } & ClientMeta<K>;
+
+  /**
+   * The resolved bound instance plus its selection metadata.
+   */
+  export type Output<K extends ClientNames> = {
+    client: DerivedInstance<K>;
+    source: ClientNames;
+    query: Record<string, unknown>;
+  };
 }

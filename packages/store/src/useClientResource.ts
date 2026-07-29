@@ -1,6 +1,11 @@
 import { useEffect, useMemo, useRef } from "react";
 import { resource, useResource, type ResourceElement } from "@assistant-ui/tap";
-import type { ClientMethods, InferClientState } from "./types/client";
+import type {
+  ClientMethods,
+  ClientNames,
+  InferClientState,
+} from "./types/client";
+import type { Derived } from "./Derived";
 import {
   useClientStack,
   useClientStackProvider,
@@ -126,12 +131,29 @@ class ClientProxyHandler
   }
 }
 
+type ScopeMeta = {
+  source: ClientNames | "root";
+  query: Record<string, unknown>;
+};
+
+const ROOT_META: ScopeMeta = { source: "root", query: {} };
+
+// Unambiguous: ValidateClient bans source/query/name in client methods
+const isDerivedOutput = (
+  value: unknown,
+): value is Derived.Output<ClientNames> =>
+  typeof value === "object" &&
+  value !== null &&
+  "client" in value &&
+  "source" in value;
+
 export const useClientResource = <TMethods extends ClientMethods>(
   element: ResourceElement<TMethods>,
 ): {
   state: InferClientState<TMethods>;
   methods: TMethods;
   key: string | number | undefined;
+  meta: ScopeMeta;
 } => {
   const valueRef = useRef(null as unknown as TMethods);
 
@@ -157,8 +179,18 @@ export const useClientResource = <TMethods extends ClientMethods>(
     valueRef.current = value;
   });
 
+  if (isDerivedOutput(value)) {
+    const bound = value.client as unknown as TMethods;
+    return {
+      methods: bound,
+      state: (bound as any).getState?.(),
+      key: element.key,
+      meta: value,
+    };
+  }
+
   const state = (value as any).getState?.();
-  return { methods, state, key: element.key };
+  return { methods, state, key: element.key, meta: ROOT_META };
 };
 
 export const ClientResource = resource(useClientResource);
