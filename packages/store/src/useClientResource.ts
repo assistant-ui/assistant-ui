@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef } from "react";
 import { resource, useResource, type ResourceElement } from "@assistant-ui/tap";
-import type { ClientMethods } from "./types/client";
+import type { ClientMethods, InferClientState } from "./types/client";
 import {
   useClientStack,
   useClientStackProvider,
@@ -125,12 +125,6 @@ class ClientProxyHandler
     return prop in this.outputRef.current;
   }
 }
-
-type InferClientState<TMethods> = TMethods extends {
-  getState: () => infer S;
-}
-  ? S
-  : undefined;
 
 export const useClientResource = <TMethods extends ClientMethods>(
   element: ResourceElement<TMethods>,

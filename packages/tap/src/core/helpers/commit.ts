@@ -1,4 +1,5 @@
 import type { CommitCallbacks, ResourceFiber } from "../types";
+import { throwAggregated } from "./throwAggregated";
 
 export const CommitPriority = {
   HookState: 0,
@@ -34,16 +35,7 @@ export function commitAllCallbacks(callbacks: CommitCallbacks): void {
     }
   }
 
-  if (errors.length > 0) {
-    if (errors.length === 1) {
-      throw errors[0];
-    } else {
-      for (const error of errors) {
-        console.error(error);
-      }
-      throw new AggregateError(errors, "Errors during commit");
-    }
-  }
+  throwAggregated(errors, "Errors during commit");
 }
 
 export function cleanupAllEffects<R>(executionContext: ResourceFiber<R>) {
@@ -63,14 +55,5 @@ export function cleanupAllEffects<R>(executionContext: ResourceFiber<R>) {
       }
     }
   }
-  if (errors.length > 0) {
-    if (errors.length === 1) {
-      throw errors[0];
-    } else {
-      for (const error of errors) {
-        console.error(error);
-      }
-      throw new AggregateError(errors, "Errors during cleanup");
-    }
-  }
+  throwAggregated(errors, "Errors during cleanup");
 }

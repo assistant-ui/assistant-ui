@@ -1,42 +1,58 @@
 // @vitest-environment jsdom
 
-import { StrictMode, Suspense, useState } from "react";
-import { act, cleanup, render } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
-import { resource } from "@assistant-ui/tap";
+import type { ReactNode } from "react";
+import { useState } from "react";
+import { act, cleanup, renderHook } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { flushTapSync, resource } from "@assistant-ui/tap";
+import { AuiProvider } from "../utils/react-assistant-context";
+import { useAui } from "../useAui";
+import { useAuiState } from "../useAuiState";
 import { useClientList } from "../useClientList";
+
+type AnyClient = Record<string, any>;
 
 type ItemData = { id: string; label: string };
 
-const ItemResource = resource(
-  ({ key, getInitialData, remove }: useClientList.ResourceProps<ItemData>) => {
-    const [data, setData] = useState(getInitialData);
-    return {
-      getState: () => ({ key, label: data.label }),
-      setLabel: (label: string) => setData((d) => ({ ...d, label })),
-      remove,
-    };
-  },
-);
-
-type ListApi = ReturnType<typeof useClientList<ItemData, any>>;
-
-const setup = (initialValues: ItemData[]) => {
-  let api!: ListApi;
-  const List = () => {
-    api = useClientList<ItemData, any>({
-      initialValues,
-      getKey: (data) => data.id,
-      resource: ItemResource,
-    });
-    return null;
+const useItemClient = ({
+  getInitialData,
+  remove,
+}: useClientList.ResourceProps<ItemData>) => {
+  const [data] = useState(getInitialData);
+  return {
+    getState: () => data,
+    remove,
   };
-  const view = render(
-    <StrictMode>
-      <List />
-    </StrictMode>,
-  );
-  return { getApi: () => api, view };
+};
+const ItemClient = resource(useItemClient);
+
+const useThreadClient = () => {
+  const list = useClientList({
+    initialValues: [
+      { id: "a", label: "A" },
+      { id: "b", label: "B" },
+    ],
+    getKey: (data: ItemData) => data.id,
+    resource: ItemClient,
+  });
+  return {
+    getState: () => ({ items: list.state }),
+    item: (lookup: { index: number } | { key: string }) => list.get(lookup),
+    add: list.add,
+  };
+};
+const ThreadClient = resource(useThreadClient);
+
+const setup = () => {
+  let aui!: AnyClient;
+  const Harness = ({ children }: { children: ReactNode }) => {
+    aui = useAui({ thread: ThreadClient() } as unknown as useAui.Props);
+    return <AuiProvider value={aui as never}>{children}</AuiProvider>;
+  };
+  const hook = renderHook(() => useAuiState((s: AnyClient) => s.thread.items), {
+    wrapper: Harness,
+  });
+  return { getAui: () => aui, hook };
 };
 
 afterEach(() => {
@@ -44,92 +60,62 @@ afterEach(() => {
 });
 
 describe("useClientList", () => {
-  it("mounts initial items under StrictMode double-rendering", () => {
-    const { getApi } = setup([
-      { id: "a", label: "first" },
-      { id: "b", label: "second" },
-    ]);
-
-    expect(getApi().state).toEqual([
-      { key: "a", label: "first" },
-      { key: "b", label: "second" },
-    ]);
-    expect(getApi().get({ key: "b" }).getState()).toEqual({
-      key: "b",
-      label: "second",
-    });
-  });
-
-  it("adds items whose initial data survives replayed renders", () => {
-    const { getApi } = setup([{ id: "a", label: "first" }]);
-
-    act(() => {
-      getApi().add({ id: "b", label: "added" });
-    });
-
-    expect(getApi().state).toEqual([
-      { key: "a", label: "first" },
-      { key: "b", label: "added" },
+  it("exposes initial values as client states, in order", () => {
+    const { hook } = setup();
+    expect(hook.result.current).toEqual([
+      { id: "a", label: "A" },
+      { id: "b", label: "B" },
     ]);
   });
 
-  it("removes items via the resource's remove prop", () => {
-    const { getApi } = setup([
-      { id: "a", label: "first" },
-      { id: "b", label: "second" },
+  it("add mounts a new client and notifies subscribers", () => {
+    const { getAui, hook } = setup();
+    const subscriber = vi.fn();
+    getAui().subscribe(subscriber);
+
+    act(() => flushTapSync(() => getAui().thread.add({ id: "c", label: "C" })));
+
+    expect(subscriber).toHaveBeenCalled();
+    expect(hook.result.current).toEqual([
+      { id: "a", label: "A" },
+      { id: "b", label: "B" },
+      { id: "c", label: "C" },
     ]);
-
-    act(() => {
-      getApi().get({ key: "a" }).remove();
+    expect(getAui().thread.item({ key: "c" }).getState()).toEqual({
+      id: "c",
+      label: "C",
     });
-
-    expect(getApi().state).toEqual([{ key: "b", label: "second" }]);
-    expect(() => getApi().get({ key: "a" })).toThrow(/not found/);
   });
 
-  it("replays getInitialData after a discarded render (suspended sibling)", async () => {
-    let resolve!: () => void;
-    let done = false;
-    const promise = new Promise<void>((r) => (resolve = r)).then(() => {
-      done = true;
-    });
-    const Suspender = () => {
-      if (!done) throw promise;
-      return null;
-    };
+  it("remove unmounts the client and notifies subscribers", () => {
+    const { getAui, hook } = setup();
+    const subscriber = vi.fn();
+    getAui().subscribe(subscriber);
 
-    let api!: ListApi;
-    const List = () => {
-      api = useClientList<ItemData, any>({
-        initialValues: [{ id: "a", label: "first" }],
-        getKey: (data) => data.id,
-        resource: ItemResource,
-      });
-      return null;
-    };
+    act(() => flushTapSync(() => getAui().thread.item({ key: "a" }).remove()));
 
-    render(
-      <Suspense fallback={null}>
-        <List />
-        <Suspender />
-      </Suspense>,
+    expect(subscriber).toHaveBeenCalled();
+    expect(hook.result.current).toEqual([{ id: "b", label: "B" }]);
+    expect(() => getAui().thread.item({ key: "a" })).toThrow(
+      'key "a" not found',
     );
-
-    await act(async () => {
-      resolve();
-      await promise;
-    });
-
-    expect(api.state).toEqual([{ key: "a", label: "first" }]);
   });
 
-  it("rejects adding a duplicate key", () => {
-    const { getApi } = setup([{ id: "a", label: "first" }]);
+  it("lookup works by index and by key", () => {
+    const { getAui } = setup();
+    expect(getAui().thread.item({ index: 1 }).getState()).toEqual({
+      id: "b",
+      label: "B",
+    });
+    expect(() => getAui().thread.item({ index: 2 })).toThrow("out of bounds");
+  });
 
+  it("adding a duplicate key throws", () => {
+    const { getAui } = setup();
     expect(() =>
-      act(() => {
-        getApi().add({ id: "a", label: "dupe" });
-      }),
-    ).toThrow(/already exists/);
+      act(() =>
+        flushTapSync(() => getAui().thread.add({ id: "a", label: "A2" })),
+      ),
+    ).toThrow("key a that already exists");
   });
 });
