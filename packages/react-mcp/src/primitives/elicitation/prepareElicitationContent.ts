@@ -7,8 +7,15 @@ const coerceValue = (schema: unknown, value: unknown): unknown => {
 
   const number = Number(value);
   if (value.trim() === "" || !Number.isFinite(number)) return value;
+  if (schema.type === "integer" && !Number.isInteger(number)) return value;
   return number;
 };
+
+const isBooleanSchema = (schema: unknown) =>
+  isRecord(schema) && schema.type === "boolean";
+
+const getDraftValue = (draft: Record<string, unknown>, name: string) =>
+  Object.hasOwn(draft, name) ? draft[name] : undefined;
 
 export const prepareElicitationContent = (
   requestedSchema: unknown,
@@ -29,14 +36,22 @@ export const prepareElicitationContent = (
       : [];
 
   return {
-    content: Object.fromEntries(
-      Object.entries(draft).map(([name, value]) => [
+    content: Object.fromEntries([
+      ...Object.entries(draft).map(([name, value]) => [
         name,
         coerceValue(properties[name], value),
       ]),
-    ),
+      ...Object.entries(properties).flatMap(([name, schema]) =>
+        isBooleanSchema(schema) && !Object.hasOwn(draft, name)
+          ? [[name, false]]
+          : [],
+      ),
+    ]),
     missingRequired: required.filter(
-      (name) => draft[name] === undefined || draft[name] === "",
+      (name) =>
+        !isBooleanSchema(properties[name]) &&
+        (getDraftValue(draft, name) === undefined ||
+          getDraftValue(draft, name) === ""),
     ),
   };
 };

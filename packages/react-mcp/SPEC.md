@@ -11,7 +11,7 @@ External API spec for the MCP integration package. Mirrors `@assistant-ui/react-
 
 Both share one connection lifecycle, one persisted state surface, and one tool registration path.
 
-**Tools and form elicitation.** v1 lists and invokes tools, registering them as **frontend tools** with `modelContext` so a connected chat runtime sees them automatically. Servers can also request structured user input through pending elicitations. Server-pushed tool list updates refresh the registered tools automatically. Resources, prompts, sampling, and resumable sessions are deferred.
+**Tools and form elicitation.** v1 lists and invokes tools, registering them as **frontend tools** with `modelContext` so a connected chat runtime sees them automatically. Servers can also request structured user input through pending elicitations. Server-pushed tool list updates refresh the registered tools automatically; update failures preserve the existing tool list and appear in the server error state. Resources, prompts, sampling, and resumable sessions are deferred.
 
 **Three auth modes only:** OAuth (PKCE + RFC 7591 DCR), Bearer, None.
 

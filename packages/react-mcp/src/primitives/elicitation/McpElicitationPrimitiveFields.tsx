@@ -40,7 +40,7 @@ export const McpElicitationPrimitiveFields: FC<
         const field = {
           name,
           schema,
-          value: draft[name],
+          value: Object.hasOwn(draft, name) ? draft[name] : undefined,
           setValue: (value: unknown) => setField(name, value),
         };
         return (

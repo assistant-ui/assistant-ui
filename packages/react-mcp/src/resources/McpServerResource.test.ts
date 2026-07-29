@@ -896,6 +896,50 @@ describe("McpServerResource tools listChanged", () => {
     }
   });
 
+  it("stores listChanged errors without replacing the current tools", async () => {
+    mocks.listToolsResults.push(async () => ({
+      tools: [
+        {
+          name: "search",
+          description: "Search docs",
+          inputSchema: { type: "object" },
+        },
+      ],
+    }));
+    const root = mount();
+
+    try {
+      await root.getValue().connect();
+      await waitForResourceUpdate(
+        () => root.getValue().getState().tools.length === 1,
+      );
+      const onChanged =
+        mocks.Client.mock.calls[0]?.[1]?.listChanged?.tools?.onChanged;
+      if (!onChanged) throw new Error("Expected tools listChanged callback");
+
+      onChanged(new Error("tool update failed"), null);
+      await waitForResourceUpdate(
+        () =>
+          root.getValue().getState().lastError?.message ===
+          "tool update failed",
+      );
+
+      expect(root.getValue().getState()).toMatchObject({
+        connectionState: "connected",
+        lastError: { message: "tool update failed" },
+        tools: [
+          {
+            name: "search",
+            description: "Search docs",
+            inputSchema: { type: "object" },
+          },
+        ],
+      });
+    } finally {
+      root.unmount();
+    }
+  });
+
   it("ignores listChanged callbacks from a stale connection generation", async () => {
     mocks.listToolsResults.push(async () => ({
       tools: [

@@ -122,6 +122,7 @@ type MCPManagerMethods = {
     url: string;
     auth: MCPAuthConfig;
     connectionTimeout?: number | undefined;
+    readonly cache?: MCPResponseCacheConfig | undefined;
   }) => Promise<string>;
   removeServer: (id: string) => Promise<void>;
 };
@@ -590,7 +591,7 @@ declare namespace elicitation_d_exports {
 }
 
 declare namespace entry_root_exports {
-  export { MCPAuthConfig, MCPConnectionState, MCPConnector, MCPCustomServerRecord, MCPElicitation, MCPElicitationResponse, MCPManagerMethods, MCPManagerState, MCPPersistedAuthState, MCPServerKind, MCPServerMethods, MCPServerQuery, MCPServerState, MCPStorage, MCPStorageElement, MCPToolInfo, addForm_d_exports as McpAddFormPrimitive, McpConnectorByIndexProvider, McpCustomServerByIndexProvider, McpCustomStorage, elicitation_d_exports as McpElicitationPrimitive, McpLocalStorage, McpLocalStorageOptions, manager_d_exports as McpManagerPrimitive, McpManagerResource, McpManagerResourceProps, McpMemoryStorage, McpOAuthCallback, McpServerByIdProvider, server_d_exports as McpServerPrimitive, McpServerResource, McpServerResourceProps, UseMcpOAuthCallbackOptions, UseMcpOAuthCallbackResult, defineConnector, useMcpOAuthCallback };
+  export { MCPAuthConfig, MCPConnectionState, MCPConnector, MCPCustomServerRecord, MCPElicitation, MCPElicitationResponse, MCPManagerMethods, MCPManagerState, MCPPersistedAuthState, MCPResponseCacheConfig, MCPServerKind, MCPServerMethods, MCPServerQuery, MCPServerState, MCPStorage, MCPStorageElement, MCPToolInfo, addForm_d_exports as McpAddFormPrimitive, McpConnectorByIndexProvider, McpCustomServerByIndexProvider, McpCustomStorage, elicitation_d_exports as McpElicitationPrimitive, McpLocalStorage, McpLocalStorageOptions, manager_d_exports as McpManagerPrimitive, McpManagerResource, McpManagerResourceProps, McpMemoryStorage, McpOAuthCallback, McpServerByIdProvider, server_d_exports as McpServerPrimitive, McpServerResource, McpServerResourceProps, UseMcpOAuthCallbackOptions, UseMcpOAuthCallbackResult, defineConnector, useMcpOAuthCallback };
 }
 
 declare namespace manager_d_exports {

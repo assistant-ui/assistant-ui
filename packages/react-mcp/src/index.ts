@@ -53,6 +53,7 @@ export type { MCPPersistedAuthState } from "./auth/types";
 // Public types
 export type {
   MCPAuthConfig,
+  MCPResponseCacheConfig,
   MCPConnector,
   MCPCustomServerRecord,
   MCPServerKind,

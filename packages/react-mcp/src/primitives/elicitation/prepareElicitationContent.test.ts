@@ -32,6 +32,50 @@ describe("prepareElicitationContent", () => {
     ).toEqual({ count: "not a number" });
   });
 
+  it("leaves a fractional integer value as a string", () => {
+    expect(
+      prepareElicitationContent(
+        {
+          type: "object",
+          properties: { count: { type: "integer" } },
+        },
+        { count: "1.5" },
+      ).content,
+    ).toEqual({ count: "1.5" });
+  });
+
+  it("does not read inherited draft values", () => {
+    expect(
+      prepareElicitationContent(
+        {
+          type: "object",
+          required: ["toString"],
+          properties: { toString: { type: "string" } },
+        },
+        {},
+      ),
+    ).toEqual({ content: {}, missingRequired: ["toString"] });
+  });
+
+  it("accepts missing required booleans as false", () => {
+    expect(
+      prepareElicitationContent(
+        {
+          type: "object",
+          required: ["enabled", "name"],
+          properties: {
+            enabled: { type: "boolean" },
+            name: { type: "string" },
+          },
+        },
+        { name: "Ada" },
+      ),
+    ).toEqual({
+      content: { name: "Ada", enabled: false },
+      missingRequired: [],
+    });
+  });
+
   it("reports required draft values that are absent or empty", () => {
     expect(
       prepareElicitationContent(

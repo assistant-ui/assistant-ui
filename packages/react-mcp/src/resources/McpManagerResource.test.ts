@@ -91,4 +91,33 @@ describe("McpManagerResource server ids", () => {
       root.unmount();
     }
   });
+
+  it("passes custom server cache configuration to its client", async () => {
+    mocks.Client.mockClear();
+    const root = mount([]);
+
+    try {
+      const id = await root.getValue().addCustomServer({
+        name: "Docs",
+        url: "https://example.com/docs/mcp",
+        auth: { type: "none" },
+        cache: { defaultTtlMs: 5_000 },
+      });
+
+      await vi.waitFor(() =>
+        expect(root.getValue().getState().customServers).toHaveLength(1),
+      );
+      await root.getValue().server({ id }).connect();
+
+      expect(mocks.Client).toHaveBeenCalledWith(
+        {
+          name: "assistant-ui-mcp",
+          version: "0.0.0",
+        },
+        expect.objectContaining({ defaultCacheTtlMs: 5_000 }),
+      );
+    } finally {
+      root.unmount();
+    }
+  });
 });

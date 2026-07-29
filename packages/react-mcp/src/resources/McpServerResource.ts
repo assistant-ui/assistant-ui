@@ -254,8 +254,13 @@ const useMcpServerResource = (
           tools: {
             autoRefresh: true,
             debounceMs: 300,
-            onChanged: (_error, items) => {
-              if (!isCurrentConnection(generation) || items === null) return;
+            onChanged: (error, items) => {
+              if (!isCurrentConnection(generation)) return;
+              if (error !== null) {
+                setLastError({ message: error.message });
+                return;
+              }
+              if (items === null) return;
               applyToolsList({ tools: items });
             },
           },

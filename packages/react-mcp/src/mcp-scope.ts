@@ -117,6 +117,7 @@ export type MCPManagerMethods = {
     url: string;
     auth: MCPAuthConfig;
     connectionTimeout?: number | undefined;
+    readonly cache?: MCPResponseCacheConfig | undefined;
   }) => Promise<string>;
   removeServer: (id: string) => Promise<void>;
 };

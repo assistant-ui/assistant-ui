@@ -228,7 +228,7 @@ const useMcpManagerResource = (
     },
     connector: ({ index }) => serverByKind("connector", index),
     customServer: ({ index }) => serverByKind("custom", index),
-    addCustomServer: async ({ name, url, auth, connectionTimeout }) => {
+    addCustomServer: async ({ name, url, auth, connectionTimeout, cache }) => {
       const record: MCPCustomServerRecord = {
         id:
           typeof crypto !== "undefined" && "randomUUID" in crypto
@@ -238,6 +238,7 @@ const useMcpManagerResource = (
         url,
         auth: auth as MCPAuthConfig,
         connectionTimeout,
+        ...(cache !== undefined ? { cache } : {}),
         createdAt: Date.now(),
       };
       setCustomServers((prev) => [...prev, record]);
