@@ -30,6 +30,7 @@ export type { MCPStorage, MCPStorageElement } from "./resources/storage/types";
 export * as McpManagerPrimitive from "./primitives/manager";
 export * as McpServerPrimitive from "./primitives/server";
 export * as McpAddFormPrimitive from "./primitives/addForm";
+export * as McpElicitationPrimitive from "./primitives/elicitation";
 
 // Per-server scope providers. The iteration primitives wrap each item in
 // the appropriate ByIndex provider. The ById provider is useful for
@@ -57,6 +58,8 @@ export type {
   MCPServerKind,
   MCPConnectionState,
   MCPToolInfo,
+  MCPElicitation,
+  MCPElicitationResponse,
   MCPServerState,
   MCPManagerState,
   MCPServerMethods,
