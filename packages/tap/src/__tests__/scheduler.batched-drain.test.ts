@@ -94,9 +94,9 @@ describe("scheduler batched draining", () => {
     vi.stubGlobal("MessageChannel", ControlledMessageChannel);
     const { UpdateScheduler } = await import("../core/scheduler");
 
-    // A dirties B and B dirties A. Dropping only the current scheduler
-    // rebuilds the identical cycle next flush, so the loop abort must clear
-    // the queue — afterwards the app must keep flushing normally.
+    // A dirties B and B dirties A: both cross the per-scheduler run limit
+    // in turn and are dropped individually, so the ring terminates while
+    // unrelated work keeps flushing afterwards.
     let a: InstanceType<typeof UpdateScheduler>;
     let b: InstanceType<typeof UpdateScheduler>;
     a = new UpdateScheduler(() => b.markDirty());
@@ -113,31 +113,6 @@ describe("scheduler batched draining", () => {
     }).markDirty();
     expect(() => pump(channel!)).not.toThrow();
     expect(ran).toBe(true);
-  });
-
-  it("drains a 6000-scheduler batch in one flush", async () => {
-    vi.resetModules();
-    vi.stubGlobal("MessageChannel", ControlledMessageChannel);
-    const { UpdateScheduler } = await import("../core/scheduler");
-
-    // Finite batches never hit the per-scheduler guard because each
-    // scheduler runs exactly once. (6000 < MAX_TOTAL_TASKS_PER_BURST; the
-    // burst-wide cap is pinned separately below.)
-    const ran: number[] = [];
-    const schedulers = Array.from(
-      { length: 6000 },
-      (_, i) =>
-        new UpdateScheduler(() => {
-          ran.push(i);
-        }),
-    );
-    for (const scheduler of schedulers) {
-      scheduler.markDirty();
-    }
-
-    const [channel] = ControlledMessageChannel.instances;
-    expect(() => pump(channel!)).not.toThrow();
-    expect(ran).toHaveLength(6000);
   });
 
   it("drains a 10001-scheduler batch in one flush", async () => {
@@ -234,5 +209,28 @@ describe("scheduler batched draining", () => {
         scheduler.markDirty();
       }),
     ).toThrow(/Maximum update depth exceeded/);
+  });
+
+  it("terminates an unbounded fresh-scheduler cascade at the absolute task ceiling", async () => {
+    vi.resetModules();
+    vi.stubGlobal("MessageChannel", ControlledMessageChannel);
+    const { UpdateScheduler } = await import("../core/scheduler");
+
+    // Each task queues a brand-new scheduler, so the per-scheduler guard
+    // never trips (every instance runs once). Only the absolute per-flush
+    // task ceiling stops the pass; the remainder stays queued and the next
+    // triggered flush continues (and reports again).
+    const makeCascadeScheduler = (): InstanceType<typeof UpdateScheduler> =>
+      new UpdateScheduler(() => {
+        makeCascadeScheduler().markDirty();
+      });
+    makeCascadeScheduler().markDirty();
+
+    const [channel] = ControlledMessageChannel.instances;
+    expect(() => pump(channel!)).toThrow(/Maximum update depth exceeded/);
+    // No automatic continuation after the ceiling abort.
+    expect(() => pump(channel!)).not.toThrow();
+    new UpdateScheduler(() => {}).markDirty();
+    expect(() => pump(channel!)).toThrow(/Maximum update depth exceeded/);
   });
 });

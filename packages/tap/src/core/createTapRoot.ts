@@ -16,10 +16,11 @@ export const createTapRoot = <R>(
   // guard then covers this root type too. Dispatches queue up and drain in
   // order within a single flush task; a failing update must not discard
   // the updates queued behind it, so entries are consumed one at a time
-  // and the first error is rethrown only after the rest were processed.
+  // and every failure is rethrown (single, or AggregateError) only after
+  // the rest were processed.
   const dispatchQueue: { evaluate: () => boolean; apply: () => boolean }[] = [];
   const scheduler = new UpdateScheduler(() => {
-    let firstError: unknown = null;
+    const errors: unknown[] = [];
     while (dispatchQueue.length > 0) {
       const { evaluate, apply } = dispatchQueue.shift()!;
       try {
@@ -28,10 +29,14 @@ export const createTapRoot = <R>(
           throw new Error("Unexpected rerender of createTapRoot outer fiber");
         }
       } catch (error) {
-        firstError ??= error;
+        errors.push(error);
       }
     }
-    if (firstError !== null) throw firstError;
+    if (errors.length === 1) throw errors[0];
+    if (errors.length > 1) {
+      for (const error of errors) console.error(error);
+      throw new AggregateError(errors, "Errors occurred during flushSync");
+    }
     return false;
   });
 

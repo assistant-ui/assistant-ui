@@ -14,6 +14,13 @@ const newFlushState = (): GlobalFlushState => ({
 // that keeps re-dirtying itself (or a cycle of resources re-dirtying each
 // other); the offender is dropped so the rest of the queue keeps flushing.
 const MAX_TASK_RUNS_PER_FLUSH = 50;
+// Last-resort termination: a task that synchronously mints NEW schedulers
+// (e.g. mounts another root mid-flush) never trips the per-scheduler
+// guard, so an unbounded cascade of fresh instances would otherwise lock
+// the thread in one macrotask. Set far above any real workload; on hitting
+// it the pass aborts with the depth error, the remainder stays queued, and
+// the next triggered flush continues - nothing is ever dropped.
+const MAX_TASKS_PER_FLUSH = 50000;
 let flushState: GlobalFlushState = newFlushState();
 
 export class UpdateScheduler {
@@ -55,27 +62,35 @@ const scheduleFlush = () => {
 const flushScheduled = () => {
   const errors: unknown[] = [];
   const runCounts = new Map<UpdateScheduler, number>();
-  let loopErrorReported = false;
+  let taskCount = 0;
+  let depthErrorReported = false;
+  const reportDepthError = () => {
+    if (depthErrorReported) return;
+    depthErrorReported = true;
+    errors.push(
+      new Error(
+        `Maximum update depth exceeded. This can happen when a resource ` +
+          `repeatedly calls setState inside useEffect.`,
+      ),
+    );
+  };
 
   try {
     for (const scheduler of flushState.schedulers) {
+      if (taskCount >= MAX_TASKS_PER_FLUSH) {
+        reportDepthError();
+        break;
+      }
       flushState.schedulers.delete(scheduler);
       if (!scheduler.isDirty) continue;
 
       const runs = (runCounts.get(scheduler) ?? 0) + 1;
       if (runs > MAX_TASK_RUNS_PER_FLUSH) {
-        if (!loopErrorReported) {
-          loopErrorReported = true;
-          errors.push(
-            new Error(
-              `Maximum update depth exceeded. This can happen when a resource ` +
-                `repeatedly calls setState inside useEffect.`,
-            ),
-          );
-        }
+        reportDepthError();
         continue;
       }
       runCounts.set(scheduler, runs);
+      taskCount += 1;
 
       try {
         scheduler.runTask();
