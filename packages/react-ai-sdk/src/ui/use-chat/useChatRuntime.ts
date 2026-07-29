@@ -19,7 +19,10 @@ import {
 } from "./useAISDKRuntime";
 import type { ChatInit, ChatTransport } from "ai";
 import { AssistantChatTransport } from "./AssistantChatTransport";
-import type { AssistantChatResumableOptions } from "../resumable";
+import type {
+  AssistantChatResumableOptions,
+  ResumableClientStorage,
+} from "../resumable";
 import {
   useCallback,
   useEffect,
@@ -39,7 +42,8 @@ export type UseChatRuntimeOptions<UI_MESSAGE extends UIMessage = UIMessage> =
       /**
        * Called when an automatic resumable stream reconnect fails. Use this to
        * surface a toast, report telemetry, or mark the thread as needing a
-       * retry. The stored stream id is still cleared after the callback runs.
+       * retry. The failed stream id is cleared after the callback unless a
+       * newer id has replaced it.
        */
       onResumeError?: ((error: unknown) => void) | undefined;
       joinStrategy?: AISDKRuntimeAdapter["joinStrategy"];
@@ -50,9 +54,7 @@ const useDynamicChatTransport = <UI_MESSAGE extends UIMessage = UIMessage>(
   transport: ChatTransport<UI_MESSAGE>,
 ): ChatTransport<UI_MESSAGE> => {
   const transportRef = useRef<ChatTransport<UI_MESSAGE>>(transport);
-  useEffect(() => {
-    transportRef.current = transport;
-  });
+  transportRef.current = transport;
   const dynamicTransport = useMemo(
     () =>
       new Proxy(transportRef.current, {
@@ -106,9 +108,9 @@ const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     ? true
     : never;
 
-  const transport = useDynamicChatTransport(
-    transportOptions ?? new AssistantChatTransport(),
-  );
+  const defaultTransport = useMemo(() => new AssistantChatTransport(), []);
+  const sourceTransport = transportOptions ?? defaultTransport;
+  const transport = useDynamicChatTransport(sourceTransport);
 
   const id = useAuiState((s) => s.threadListItem.id);
   const aui = useAui();
@@ -127,9 +129,9 @@ const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     ...(joinStrategy && { joinStrategy }),
   });
 
-  if (transport instanceof AssistantChatTransport) {
-    transport.setRuntime(runtime);
-    transport.__internal_setGetThreadListItem(() =>
+  if (sourceTransport instanceof AssistantChatTransport) {
+    sourceTransport.setRuntime(runtime);
+    sourceTransport.__internal_setGetThreadListItem(() =>
       aui.threadListItem.source ? aui.threadListItem : undefined,
     );
   }
@@ -148,15 +150,15 @@ const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     getHistoryLoadingSnapshot,
   );
 
-  const resumableStorage = getResumableAdapter(transport)?.storage;
+  const resumableStorage = getResumableAdapter(sourceTransport)?.storage;
   const subscribeToResumableStorage = useCallback(
     (callback: () => void) =>
-      resumableStorage?.subscribe?.(callback) ?? (() => {}),
-    [resumableStorage],
+      resumableStorage?.subscribe?.(callback, id) ?? (() => {}),
+    [id, resumableStorage],
   );
   const getPendingStreamId = useCallback(
-    () => resumableStorage?.getStreamId() ?? null,
-    [resumableStorage],
+    () => resumableStorage?.getStreamId(id) ?? null,
+    [id, resumableStorage],
   );
   const pendingStreamId = useSyncExternalStore(
     subscribeToResumableStorage,
@@ -166,24 +168,35 @@ const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   const isChatRunning =
     chat.status === "submitted" || chat.status === "streaming";
 
-  const resumedStreamIdRef = useRef<string | null>(null);
+  const resumedStreamIdsByStorageRef = useRef(
+    new WeakMap<ResumableClientStorage, Set<string>>(),
+  );
+  let resumedStreamIds: Set<string> | undefined;
+  if (resumableStorage) {
+    resumedStreamIds =
+      resumedStreamIdsByStorageRef.current.get(resumableStorage);
+    if (!resumedStreamIds) {
+      resumedStreamIds = new Set();
+      resumedStreamIdsByStorageRef.current.set(
+        resumableStorage,
+        resumedStreamIds,
+      );
+    }
+  }
   const onResumeErrorRef = useRef(onResumeError);
   useEffect(() => {
     onResumeErrorRef.current = onResumeError;
   });
   useEffect(() => {
-    if (!pendingStreamId) {
-      resumedStreamIdRef.current = null;
+    if (!pendingStreamId || resumedStreamIds?.has(pendingStreamId)) {
       return;
     }
-    if (
-      isLoadingHistory ||
-      isChatRunning ||
-      resumedStreamIdRef.current === pendingStreamId
-    ) {
+    if (isChatRunning) {
+      resumedStreamIds?.add(pendingStreamId);
       return;
     }
-    resumedStreamIdRef.current = pendingStreamId;
+    if (isLoadingHistory) return;
+    resumedStreamIds?.add(pendingStreamId);
     chat.resumeStream().catch((err: unknown) => {
       console.warn("[assistant-ui] resumable: resume failed", err);
       try {
@@ -194,17 +207,19 @@ const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
           callbackError,
         );
       } finally {
-        if (resumableStorage?.getStreamId() === pendingStreamId) {
-          resumableStorage.clear();
+        if (resumableStorage?.getStreamId(id) === pendingStreamId) {
+          resumableStorage.clear(id);
         }
       }
     });
   }, [
     chat,
+    id,
     isChatRunning,
     isLoadingHistory,
     pendingStreamId,
     resumableStorage,
+    resumedStreamIds,
   ]);
 
   return runtime;

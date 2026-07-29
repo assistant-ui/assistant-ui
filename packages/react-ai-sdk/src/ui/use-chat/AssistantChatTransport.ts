@@ -18,6 +18,7 @@ type InitializableThreadListItem = Pick<ThreadListItemRuntime, "initialize">;
 const FINISH_MARKER = '"type":"finish"';
 const FINISH_BUFFER_LIMIT = 4096;
 const FINISH_BUFFER_TAIL = 1024;
+const RESUMABLE_THREAD_ID_HEADER = "x-assistant-ui-resumable-thread-id";
 
 export type AssistantChatTransportInitOptions<UI_MESSAGE extends UIMessage> =
   HttpChatTransportInitOptions<UI_MESSAGE> & {
@@ -48,6 +49,7 @@ export class AssistantChatTransport<
         ),
       }),
       prepareSendMessagesRequest: async (options) => {
+        const threadId = options.id;
         const context = this.runtime?.thread.getModelContext();
         const threadListItem =
           this.getThreadListItem?.() ?? this.runtime?.threads.mainItem;
@@ -66,9 +68,14 @@ export class AssistantChatTransport<
         };
         const preparedRequest =
           await rest.prepareSendMessagesRequest?.(optionsEx);
+        const headers = new Headers(
+          preparedRequest?.headers ?? options.headers,
+        );
+        headers.set(RESUMABLE_THREAD_ID_HEADER, threadId);
 
         return {
           ...preparedRequest,
+          headers,
           body: preparedRequest?.body ?? {
             ...optionsEx.body,
             id,
@@ -108,9 +115,12 @@ function wrapFetchWithResumable(
     : globalThis.fetch.bind(globalThis);
 
   return async (input, init) => {
-    const res = await baseFetch(input, init);
+    const headers = new Headers(init?.headers);
+    const threadId = headers.get(RESUMABLE_THREAD_ID_HEADER) ?? undefined;
+    headers.delete(RESUMABLE_THREAD_ID_HEADER);
+    const res = await baseFetch(input, { ...init, headers });
     const id = res.headers.get(RESUMABLE_STREAM_ID_HEADER);
-    if (id) resumable.storage.setStreamId(id);
+    if (id) resumable.storage.setStreamId(id, threadId);
     if (!res.body) return res;
 
     const detectFinish = resumable.isFinishEvent ?? defaultIsFinishEvent;
@@ -123,7 +133,9 @@ function wrapFetchWithResumable(
         controller.enqueue(chunk);
         accumulator += decoder.decode(chunk, { stream: true });
         if (detectFinish(chunk, accumulator)) {
-          resumable.storage.clear();
+          if (!id || resumable.storage.getStreamId(threadId) === id) {
+            resumable.storage.clear(threadId);
+          }
           accumulator = "";
         } else if (accumulator.length > FINISH_BUFFER_LIMIT) {
           accumulator = accumulator.slice(-FINISH_BUFFER_TAIL);
@@ -150,7 +162,7 @@ function wrapPrepareReconnect(
   HttpChatTransportInitOptions<UIMessage>["prepareReconnectToStreamRequest"]
 > {
   return async (options) => {
-    const streamId = resumable.storage.getStreamId();
+    const streamId = resumable.storage.getStreamId(options.id);
     if (!streamId) {
       throw new Error(
         "AssistantChatTransport: no resumable stream id available; nothing to resume",
@@ -161,8 +173,11 @@ function wrapPrepareReconnect(
         ? resumable.resumeApi(streamId)
         : resumable.resumeApi;
     const userPrepared = await userPrepareReconnect?.({ ...options, api });
+    const headers = new Headers(userPrepared?.headers ?? options.headers);
+    headers.set(RESUMABLE_THREAD_ID_HEADER, options.id);
     return {
       ...userPrepared,
+      headers,
       api: userPrepared?.api ?? api,
     };
   };

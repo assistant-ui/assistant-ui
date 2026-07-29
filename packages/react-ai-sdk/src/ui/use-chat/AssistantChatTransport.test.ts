@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { RESUMABLE_STREAM_ID_HEADER } from "../resumable";
 import { AssistantChatTransport } from "./AssistantChatTransport";
 
 const emptyStreamResponse = () =>
@@ -90,5 +91,61 @@ describe("AssistantChatTransport.prepareSendMessagesRequest", () => {
     await transport.sendMessages(sendMessagesOptions as never);
 
     expect(captured.id).toBe("local-chat-id");
+  });
+
+  it("stores response stream ids under the local thread id", async () => {
+    const setStreamId = vi.fn();
+    const fetchMock = vi.fn(async () => {
+      return new Response(
+        new ReadableStream({ start: (controller) => controller.close() }),
+        {
+          status: 200,
+          headers: {
+            "content-type": "text/event-stream",
+            [RESUMABLE_STREAM_ID_HEADER]: "stream-1",
+          },
+        },
+      );
+    });
+    const transport = new AssistantChatTransport({
+      fetch: fetchMock as never,
+      resumable: {
+        storage: {
+          getStreamId: vi.fn(),
+          setStreamId,
+          clear: vi.fn(),
+        },
+        resumeApi: "/api/chat/resume",
+      },
+    });
+
+    await transport.sendMessages(sendMessagesOptions as never);
+
+    expect(setStreamId).toHaveBeenCalledWith("stream-1", "local-chat-id");
+    const requestHeaders = new Headers(fetchMock.mock.calls[0]?.[1]?.headers);
+    expect(requestHeaders.has("x-assistant-ui-resumable-thread-id")).toBe(
+      false,
+    );
+  });
+
+  it("reads reconnect stream ids under the local thread id", async () => {
+    const getStreamId = vi.fn(() => "stream-1");
+    const fetchMock = vi.fn(async () => emptyStreamResponse());
+    const transport = new AssistantChatTransport({
+      fetch: fetchMock as never,
+      resumable: {
+        storage: {
+          getStreamId,
+          setStreamId: vi.fn(),
+          clear: vi.fn(),
+        },
+        resumeApi: (streamId) => `/api/chat/resume/${streamId}`,
+      },
+    });
+
+    await transport.reconnectToStream({ chatId: "local-chat-id" });
+
+    expect(getStreamId).toHaveBeenCalledWith("local-chat-id");
+    expect(fetchMock.mock.calls[0]?.[0]).toBe("/api/chat/resume/stream-1");
   });
 });

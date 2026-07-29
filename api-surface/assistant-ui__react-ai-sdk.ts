@@ -1345,10 +1345,10 @@ type RespondToToolApprovalOptions = {
 };
 
 type ResumableClientStorage = {
-  getStreamId(): string | null;
-  setStreamId(id: string): void;
-  clear(): void;
-  subscribe?(listener: () => void): () => void;
+  getStreamId(threadId?: string): string | null;
+  setStreamId(id: string, threadId?: string): void;
+  clear(threadId?: string): void;
+  subscribe?(listener: () => void, threadId?: string): () => void;
 };
 
 type ResumeRunConfig = StartRunConfig & {

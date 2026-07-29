@@ -49,6 +49,52 @@ describe("createResumableSessionStorage", () => {
     expect(listener).toHaveBeenCalledTimes(2);
   });
 
+  it("isolates stored ids and subscribers by thread", () => {
+    const storage = createResumableSessionStorage({ key: "test-stream-id" });
+    const listenerA = vi.fn();
+    const listenerB = vi.fn();
+    storage.subscribe?.(listenerA, "thread-a");
+    storage.subscribe?.(listenerB, "thread-b");
+
+    storage.setStreamId("stream-a", "thread-a");
+    storage.setStreamId("stream-b", "thread-b");
+
+    expect(storage.getStreamId("thread-a")).toBe("stream-a");
+    expect(storage.getStreamId("thread-b")).toBe("stream-b");
+    expect(listenerA).toHaveBeenCalledTimes(1);
+    expect(listenerB).toHaveBeenCalledTimes(1);
+
+    storage.clear("thread-a");
+
+    expect(storage.getStreamId("thread-a")).toBeNull();
+    expect(storage.getStreamId("thread-b")).toBe("stream-b");
+    expect(listenerA).toHaveBeenCalledTimes(2);
+    expect(listenerB).toHaveBeenCalledTimes(1);
+  });
+
+  it("caches the last known value between writes", () => {
+    const storageMethods = {
+      getItem: vi.fn(() => null),
+      setItem: vi.fn(),
+      removeItem: vi.fn(),
+    } as unknown as Storage;
+    Object.defineProperty(window, "sessionStorage", {
+      configurable: true,
+      value: storageMethods,
+    });
+    const storage = createResumableSessionStorage({ key: "test-stream-id" });
+
+    expect(storage.getStreamId("thread-a")).toBeNull();
+    expect(storage.getStreamId("thread-a")).toBeNull();
+
+    expect(storageMethods.getItem).toHaveBeenCalledTimes(1);
+
+    storage.setStreamId("stream-a", "thread-a");
+
+    expect(storage.getStreamId("thread-a")).toBe("stream-a");
+    expect(storageMethods.getItem).toHaveBeenCalledTimes(1);
+  });
+
   it("isolates subscriber errors", () => {
     const storage = createResumableSessionStorage({ key: "test-stream-id" });
     const error = new Error("listener failed");

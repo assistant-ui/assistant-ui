@@ -8,11 +8,11 @@ export const RESUMABLE_STREAM_ID_HEADER = RESUMABLE_STREAM_ID_HEADER_VALUE;
 const DEFAULT_STORAGE_KEY = "aui-resumable-stream-id";
 
 export type ResumableClientStorage = {
-  getStreamId(): string | null;
-  setStreamId(id: string): void;
-  clear(): void;
+  getStreamId(threadId?: string): string | null;
+  setStreamId(id: string, threadId?: string): void;
+  clear(threadId?: string): void;
   /** Subscribes to stream id changes so automatic resume can react after mount. */
-  subscribe?(listener: () => void): () => void;
+  subscribe?(listener: () => void, threadId?: string): () => void;
 };
 
 const getSessionStorage = (): Storage | null => {
@@ -28,12 +28,19 @@ const getSessionStorage = (): Storage | null => {
 export function createResumableSessionStorage(options?: {
   key?: string;
 }): ResumableClientStorage {
-  const key = options?.key ?? DEFAULT_STORAGE_KEY;
-  const listeners = new Set<() => void>();
-  const notify = () => {
-    for (const listener of listeners) {
+  const baseKey = options?.key ?? DEFAULT_STORAGE_KEY;
+  const cache = new Map<string, string | null>();
+  const listeners = new Set<{
+    listener: () => void;
+    threadId: string | undefined;
+  }>();
+  const resolveKey = (threadId?: string) =>
+    threadId ? `${baseKey}:${encodeURIComponent(threadId)}` : baseKey;
+  const notify = (threadId?: string) => {
+    for (const subscription of listeners) {
+      if (subscription.threadId !== threadId) continue;
       try {
-        listener();
+        subscription.listener();
       } catch (error) {
         console.error(
           "[assistant-ui] resumable storage listener failed",
@@ -44,16 +51,22 @@ export function createResumableSessionStorage(options?: {
   };
 
   return {
-    getStreamId() {
+    getStreamId(threadId) {
+      const key = resolveKey(threadId);
+      if (cache.has(key)) return cache.get(key) ?? null;
       const storage = getSessionStorage();
       if (!storage) return null;
       try {
-        return storage.getItem(key);
+        const streamId = storage.getItem(key);
+        cache.set(key, streamId);
+        return streamId;
       } catch {
+        cache.set(key, null);
         return null;
       }
     },
-    setStreamId(id) {
+    setStreamId(id, threadId) {
+      const key = resolveKey(threadId);
       const storage = getSessionStorage();
       if (!storage) return;
       try {
@@ -62,9 +75,11 @@ export function createResumableSessionStorage(options?: {
         // Ignore blocked or unavailable sessionStorage.
         return;
       }
-      notify();
+      cache.set(key, id);
+      notify(threadId);
     },
-    clear() {
+    clear(threadId) {
+      const key = resolveKey(threadId);
       const storage = getSessionStorage();
       if (!storage) return;
       try {
@@ -73,11 +88,13 @@ export function createResumableSessionStorage(options?: {
         // Ignore blocked or unavailable sessionStorage.
         return;
       }
-      notify();
+      cache.set(key, null);
+      notify(threadId);
     },
-    subscribe(listener) {
-      listeners.add(listener);
-      return () => listeners.delete(listener);
+    subscribe(listener, threadId) {
+      const subscription = { listener, threadId };
+      listeners.add(subscription);
+      return () => listeners.delete(subscription);
     },
   };
 }

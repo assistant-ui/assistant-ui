@@ -4,7 +4,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => {
-  const state = { isLoadingHistory: false };
+  const state = { isLoadingHistory: false, threadId: "thread-id" };
   const subscribers = new Set<() => void>();
   const runtime = {
     thread: {
@@ -32,7 +32,7 @@ const mocks = vi.hoisted(() => {
     useAui: vi.fn(() => ({
       threadListItem: Object.assign(() => ({}), { source: undefined }),
     })),
-    useAuiState: vi.fn(() => "thread-id"),
+    useAuiState: vi.fn(() => state.threadId),
   };
 });
 
@@ -75,6 +75,7 @@ describe("useChatRuntime", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.state.isLoadingHistory = false;
+    mocks.state.threadId = "thread-id";
     mocks.subscribers.clear();
     window.sessionStorage.clear();
   });
@@ -150,6 +151,10 @@ describe("useChatRuntime", () => {
     act(() => storage.setStreamId("stream-2"));
 
     await waitFor(() => expect(resumeStream).toHaveBeenCalledTimes(2));
+
+    act(() => storage.setStreamId("stream-1"));
+
+    expect(resumeStream).toHaveBeenCalledTimes(2);
   });
 
   it("does not resume a stream id written by an active send", async () => {
@@ -178,20 +183,107 @@ describe("useChatRuntime", () => {
     const resumeStream = vi.fn(async () => {
       await transport.reconnectToStream({ chatId: "thread-id" });
     });
-    mocks.useChat.mockReturnValue({
+    const chatState = {
       resumeStream,
       status: "streaming",
-    });
+    };
+    mocks.useChat.mockImplementation(() => chatState);
 
-    renderHook(() => useChatRuntime({ transport }));
+    const { rerender } = renderHook(() => useChatRuntime({ transport }));
 
     await act(async () => {
       await transport.sendMessages(sendMessagesOptions as never);
     });
 
-    await waitFor(() => expect(storage.getStreamId()).toBe("stream-1"));
+    await waitFor(() =>
+      expect(storage.getStreamId("thread-id")).toBe("stream-1"),
+    );
+
+    chatState.status = "ready";
+    rerender();
+
     expect(resumeStream).not.toHaveBeenCalled();
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not broadcast a stream id to another mounted thread", async () => {
+    const storage = createResumableSessionStorage({
+      key: "multi-thread-stream-id",
+    });
+    const transport = {
+      getResumableAdapter: () => ({
+        storage,
+        resumeApi: "/api/chat/resume",
+      }),
+    };
+    const threadA = {
+      resumeStream: vi.fn().mockResolvedValue(undefined),
+      status: "ready",
+    };
+    const threadB = {
+      resumeStream: vi.fn().mockResolvedValue(undefined),
+      status: "streaming",
+    };
+    mocks.useChat.mockImplementation(({ id }: { id: string }) =>
+      id === "thread-a" ? threadA : threadB,
+    );
+
+    mocks.state.threadId = "thread-a";
+    renderHook(() => useChatRuntime({ transport: transport as never }));
+
+    mocks.state.threadId = "thread-b";
+    const threadBHook = renderHook(() =>
+      useChatRuntime({ transport: transport as never }),
+    );
+
+    act(() => storage.setStreamId("stream-b", "thread-b"));
+
+    threadB.status = "ready";
+    threadBHook.rerender();
+
+    expect(threadA.resumeStream).not.toHaveBeenCalled();
+    expect(threadB.resumeStream).not.toHaveBeenCalled();
+  });
+
+  it("observes resumable storage from a replacement transport", async () => {
+    const resumeStream = vi.fn().mockResolvedValue(undefined);
+    mocks.useChat.mockReturnValue({
+      resumeStream,
+      status: "ready",
+    });
+    const storageA = {
+      getStreamId: () => null,
+      setStreamId: vi.fn(),
+      clear: vi.fn(),
+    };
+    const storageB = {
+      getStreamId: () => "stream-b",
+      setStreamId: vi.fn(),
+      clear: vi.fn(),
+    };
+    const transportA = {
+      getResumableAdapter: () => ({
+        storage: storageA,
+        resumeApi: "/api/chat/resume",
+      }),
+    };
+    const transportB = {
+      getResumableAdapter: () => ({
+        storage: storageB,
+        resumeApi: "/api/chat/resume",
+      }),
+    };
+
+    const { rerender } = renderHook(
+      ({ transport }) => useChatRuntime({ transport: transport as never }),
+      { initialProps: { transport: transportA } },
+    );
+
+    expect(resumeStream).not.toHaveBeenCalled();
+
+    rerender({ transport: transportB });
+
+    await waitFor(() => expect(resumeStream).toHaveBeenCalledTimes(1));
   });
 
   it("does not clear a newer stream id when an older resume fails", async () => {
