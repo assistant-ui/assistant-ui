@@ -97,9 +97,9 @@ const IMAGE_MEDIA_TYPES: Record<string, string> = {
 
 function inferImageMediaType(url: string): string {
   // Handle data URLs: data:[<mediatype>][;base64],<data>
-  if (url.startsWith("data:")) {
-    const match = url.match(/^data:([^;,]+)/);
-    if (match?.[1]) return match[1];
+  if (/^data:/i.test(url)) {
+    const match = url.match(/^data:([^;,]+)/i);
+    if (match?.[1]) return match[1].toLowerCase();
   }
 
   // Extract extension from URL path, ignoring query string and hash

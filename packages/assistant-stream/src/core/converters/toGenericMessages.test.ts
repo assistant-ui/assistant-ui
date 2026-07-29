@@ -189,6 +189,23 @@ describe("toGenericMessages", () => {
       expect((content[0] as { data: unknown }).data).toBeInstanceOf(URL);
     });
 
+    it("infers a lowercase media type from an uppercase-scheme data URL", () => {
+      const dataUrl =
+        "DATA:IMAGE/PNG;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+      const result = toGenericMessages([
+        {
+          role: "user",
+          content: [{ type: "image", image: dataUrl }],
+        },
+      ]);
+
+      const content = (result[0] as { content: unknown[] }).content;
+      expect(content[0]).toMatchObject({
+        type: "file",
+        mediaType: "image/png",
+      });
+    });
+
     it("handles relative/invalid URL as string", () => {
       const result = toGenericMessages([
         {

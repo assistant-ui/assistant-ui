@@ -258,6 +258,22 @@ describe("PiThreadController", () => {
     ]);
   });
 
+  it("maps uppercase-scheme data URLs to Pi image content with a lowercase mime", async () => {
+    const client = createFakeClient();
+    const controller = new PiThreadController(client, THREAD);
+    await controller.sendMessage(
+      userMessage("look", {
+        content: [
+          { type: "text", text: "look" },
+          { type: "image", image: "DATA:IMAGE/PNG;base64,AAAA" },
+        ],
+      } as Partial<AppendMessage>),
+    );
+    expect(client.sent[0]!.input.attachments).toEqual([
+      { type: "image", mimeType: "image/png", data: "AAAA" },
+    ]);
+  });
+
   it("cancels the run via the client", async () => {
     const client = createFakeClient();
     const controller = new PiThreadController(client, THREAD);

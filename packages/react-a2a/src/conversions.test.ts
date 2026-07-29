@@ -382,6 +382,15 @@ describe("contentPartsToA2AParts", () => {
     ]);
   });
 
+  it("passes uppercase-scheme non-base64 data URLs through as URLs for file parts", () => {
+    const result = contentPartsToA2AParts([
+      { type: "file", data: "DATA:text/plain,hello", mimeType: "text/plain" },
+    ]);
+    expect(result).toEqual([
+      { url: "DATA:text/plain,hello", mediaType: "text/plain" },
+    ]);
+  });
+
   it("converts zero-byte data URLs in file parts to empty raw bytes", () => {
     const result = contentPartsToA2AParts([
       { type: "file", data: "data:application/pdf;base64,", mimeType: "" },

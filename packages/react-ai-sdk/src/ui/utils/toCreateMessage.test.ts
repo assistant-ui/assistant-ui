@@ -93,6 +93,30 @@ describe("toCreateMessage", () => {
     ]);
   });
 
+  it("infers a lowercase media type from uppercase-scheme image data URLs", () => {
+    const message = {
+      ...baseMessage,
+      content: [
+        {
+          type: "image",
+          image: "DATA:IMAGE/JPEG;base64,/9j/4AAQSkZJRg==",
+          filename: "photo.jpg",
+        },
+      ],
+    } as unknown as AppendMessage;
+
+    const result = toCreateMessage(message);
+
+    expect(result.parts).toEqual([
+      {
+        type: "file",
+        url: "DATA:IMAGE/JPEG;base64,/9j/4AAQSkZJRg==",
+        filename: "photo.jpg",
+        mediaType: "image/jpeg",
+      },
+    ]);
+  });
+
   it("uses attachment contentType for image attachments", () => {
     const message = {
       ...baseMessage,

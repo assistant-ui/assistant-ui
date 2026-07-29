@@ -159,6 +159,21 @@ describe("fromThreadMessageLike", () => {
 
       expect(result.content).toEqual([]);
     });
+
+    it("keeps an image part with an uppercase-scheme data URL", () => {
+      const result = fromThreadMessageLike(
+        {
+          role: "assistant",
+          content: [{ type: "image", image: "DATA:IMAGE/PNG;base64,AAAA" }],
+        },
+        fallbackId,
+        fallbackStatus,
+      );
+
+      expect(result.content).toEqual([
+        { type: "image", image: "DATA:IMAGE/PNG;base64,AAAA" },
+      ]);
+    });
   });
 
   describe("providerMetadata passthrough", () => {

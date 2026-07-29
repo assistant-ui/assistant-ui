@@ -138,7 +138,7 @@ export function contentPartsToA2AParts(
               ...(part.filename && { filename: part.filename }),
             };
           }
-          if (part.data.startsWith("data:")) {
+          if (/^data:/i.test(part.data)) {
             return {
               url: part.data,
               ...(declaredMimeType && { mediaType: declaredMimeType }),

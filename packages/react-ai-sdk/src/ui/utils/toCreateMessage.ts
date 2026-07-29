@@ -13,8 +13,8 @@ type InputPart = AppendMessage["content"][number] & {
 };
 
 const getDataUrlMediaType = (url: string) => {
-  const match = /^data:([^;,]+)(?:[;,])/.exec(url);
-  return match?.[1];
+  const match = /^data:([^;,]+)(?:[;,])/i.exec(url);
+  return match?.[1]?.toLowerCase();
 };
 
 const getImageMediaType = (part: {

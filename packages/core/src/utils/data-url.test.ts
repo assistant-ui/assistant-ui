@@ -27,6 +27,27 @@ describe("parseDataUrl", () => {
     });
   });
 
+  it("parses an uppercase scheme", () => {
+    expect(parseDataUrl("DATA:image/png;base64,aGVsbG8=")).toEqual({
+      mimeType: "image/png",
+      data: "aGVsbG8=",
+    });
+  });
+
+  it("parses a mixed-case scheme and base64 token", () => {
+    expect(parseDataUrl("Data:image/png;Base64,aGVsbG8=")).toEqual({
+      mimeType: "image/png",
+      data: "aGVsbG8=",
+    });
+  });
+
+  it("lowercases the captured mime type", () => {
+    expect(parseDataUrl("data:IMAGE/PNG;base64,aGVsbG8=")).toEqual({
+      mimeType: "image/png",
+      data: "aGVsbG8=",
+    });
+  });
+
   it("returns null for plain strings", () => {
     expect(parseDataUrl("aGVsbG8=")).toBeNull();
   });
