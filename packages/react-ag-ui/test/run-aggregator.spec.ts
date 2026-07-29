@@ -1961,4 +1961,73 @@ describe("RunAggregator", () => {
       (results.at(-1)?.content ?? []).some((part) => part.type === "tool-call"),
     ).toBe(false);
   });
+
+  it("maps multiple a2ui surfaces in one snapshot to present tool calls", () => {
+    const aggregator = createAggregator(false);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "ACTIVITY_SNAPSHOT",
+      activityType: "a2ui-surface",
+      messageId: "message-1",
+      replace: true,
+      content: {
+        a2ui_operations: [
+          {
+            version: "v0.9",
+            createSurface: { surfaceId: "s1" },
+          },
+          {
+            version: "v0.9",
+            updateComponents: {
+              surfaceId: "s1",
+              components: [
+                { id: "root", component: "Text", text: "First surface" },
+              ],
+            },
+          },
+          {
+            version: "v0.9",
+            createSurface: { surfaceId: "s2" },
+          },
+          {
+            version: "v0.9",
+            updateComponents: {
+              surfaceId: "s2",
+              components: [
+                { id: "root", component: "Text", text: "Second surface" },
+              ],
+            },
+          },
+        ],
+      },
+    } as AgUiEvent);
+
+    const toolParts = (results.at(-1)?.content ?? []).filter(
+      (part) => part.type === "tool-call",
+    ) as any[];
+    expect(toolParts).toHaveLength(2);
+    expect(toolParts.map((part) => part.toolCallId).sort()).toEqual([
+      "a2ui:s1",
+      "a2ui:s2",
+    ]);
+
+    const firstSurface = toolParts.find(
+      (part) => part.toolCallId === "a2ui:s1",
+    );
+    expect(firstSurface).toMatchObject({
+      toolName: "present",
+      args: { $type: "Markdown", value: "First surface" },
+    });
+    expect(firstSurface.result).toBeDefined();
+
+    const secondSurface = toolParts.find(
+      (part) => part.toolCallId === "a2ui:s2",
+    );
+    expect(secondSurface).toMatchObject({
+      toolName: "present",
+      args: { $type: "Markdown", value: "Second surface" },
+    });
+    expect(secondSurface.result).toBeDefined();
+  });
 });
