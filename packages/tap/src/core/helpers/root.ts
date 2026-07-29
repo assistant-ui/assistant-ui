@@ -44,7 +44,7 @@ export const setRootVersion = (root: TapRoot, version: number): void => {
       // the next committed render restores consistency.
       if (isDevelopment) {
         console.error(
-          `tap: setRootVersion received version ${version} below committed ` +
+          `setRootVersion received version ${version} below committed ` +
             `${root.committedVersion}; clamping to the committed state.`,
         );
       }

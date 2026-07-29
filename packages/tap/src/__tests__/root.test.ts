@@ -15,12 +15,15 @@ describe("setRootVersion", () => {
 
   it("rolls back to the committed version and clears the changelog", () => {
     const root = makeRoot();
-    setRootVersion(root, 3);
-    commitRoot(root);
-    expect(root.committedVersion).toBe(3);
+    // Advance past the committed version without committing (pending work).
+    setRootVersion(root, 5);
+    expect(root.version).toBe(5);
+    expect(root.committedVersion).toBe(0);
 
-    setRootVersion(root, 3);
-    expect(root.version).toBe(3);
+    // Rolling back to the committed version takes the committed-version branch
+    // and clears the changelog.
+    setRootVersion(root, 0);
+    expect(root.version).toBe(0);
     expect(root.changelog.length).toBe(0);
   });
 
