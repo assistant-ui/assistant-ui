@@ -3,11 +3,26 @@ import { StrictMode, startTransition } from "react";
 import { flushSync } from "react-dom";
 import { createRoot, type Root } from "react-dom/client";
 import { act } from "@testing-library/react";
+import type { TapRoot } from "../../core/types";
 import { resource } from "../../core/resource";
 import { useResource } from "../../index";
 import { useReducer as useResourceReducer } from "../../react-hooks/useReducer";
 import { useMemo as useResourceMemo } from "../../react-hooks/useMemo";
 import { cleanupAllResources } from "../test-utils";
+
+const probes = vi.hoisted(() => ({ belowCommitted: 0 }));
+
+vi.mock("../../core/helpers/root", async (importOriginal) => {
+  const original =
+    await importOriginal<typeof import("../../core/helpers/root")>();
+  return {
+    ...original,
+    setRootVersion: (root: TapRoot, version: number) => {
+      if (version < root.committedVersion) probes.belowCommitted++;
+      return original.setRootVersion(root, version);
+    },
+  };
+});
 
 let reactRoot: Root | undefined;
 let container: HTMLElement | undefined;
@@ -77,5 +92,6 @@ describe("React-hosted reducer replay below the committed version", () => {
 
     expect(container.textContent).toContain("after");
     expect(recoverable).not.toHaveBeenCalled();
+    expect(probes.belowCommitted).toBeGreaterThan(0);
   });
 });
