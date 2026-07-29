@@ -339,7 +339,7 @@ Render form-mode elicitation inside a server-scoped subtree. Each item owns an i
 
 `useMcpElicitation()` reads the current request inside `Items`. `useMcpElicitationField()` reads the current field inside the element returned from the `Fields` render function.
 
-`Accept` sets `data-missing-required` when required fields are absent or empty and `data-invalid` to comma-joined invalid property names when validation fails. It is disabled until both conditions are empty. Absent required boolean properties are submitted with the schema's boolean `default` when one is present, otherwise `false`; optional booleans remain omitted. It converts parseable string values from flat `number` and `integer` properties to numbers before submitting the response content.
+`Accept` sets `data-missing-required` when required fields are absent or empty and `data-invalid` to comma-joined invalid property names when validation fails. It is disabled until both conditions are empty. Absent required boolean properties are submitted with the schema's boolean `default` when one is present, otherwise `false`; optional booleans remain omitted. It converts parseable string values from flat `number` and `integer` properties to numbers before submitting the response content. Boolean drafts must be real booleans (compose a checkbox); string drafts are coerced only for `number` and `integer` properties and are flagged invalid for booleans. The `elicitation` flag defaults to advertising the capability; `false` skips both the capability declaration and the handler registration, and, like the rest of the capability set, a changed flag applies from the next connect rather than mid-connection.
 
 ## 6. Lifecycle
 
