@@ -402,7 +402,9 @@ async function normalizeMcpRequestHeaders(
   request: NextRequest,
 ): Promise<Request> {
   const accept = request.headers.get("accept");
-  const needsAcceptFix = !accept?.includes("text/event-stream");
+  const needsAcceptFix =
+    !accept?.includes("application/json") ||
+    !accept.includes("text/event-stream");
   const needsContentTypeFix = request.headers.get("content-type") === null;
   if (!needsAcceptFix && !needsContentTypeFix) return request;
 
