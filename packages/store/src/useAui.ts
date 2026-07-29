@@ -43,10 +43,6 @@ import {
 import { ClientResource } from "./useClientResource";
 import { createClientAccessor, getClientId } from "./utils/client-accessor";
 import { getClientIndex } from "./utils/tap-client-stack-context";
-import {
-  PROXIED_ASSISTANT_STATE_SYMBOL,
-  createProxiedAssistantState,
-} from "./utils/proxied-assistant-state";
 
 type ClientRef = { parent: AssistantClient; current: AssistantClient | null };
 
@@ -123,10 +119,7 @@ const createClientObject = (
     parent === DefaultAssistantClient ? createRootAssistantClient() : parent;
 
   const client = Object.create(proto) as AssistantClient;
-  Object.assign(client, {
-    ...fields,
-    [PROXIED_ASSISTANT_STATE_SYMBOL]: createProxiedAssistantState(client),
-  });
+  Object.assign(client, fields);
   return client;
 };
 

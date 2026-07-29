@@ -2,10 +2,6 @@ import type React from "react";
 import { createContext, useContext, useEffect } from "react";
 import { useContextProvider } from "@assistant-ui/tap";
 import type { AssistantClient } from "../types/client";
-import {
-  createProxiedAssistantState,
-  PROXIED_ASSISTANT_STATE_SYMBOL,
-} from "./proxied-assistant-state";
 import { BaseProxyHandler, handleIntrospectionProp } from "./BaseProxyHandler";
 import { createErrorClientAccessor } from "./client-accessor";
 
@@ -21,8 +17,6 @@ class DefaultAssistantClientProxyHandler
   get(_: unknown, prop: string | symbol) {
     if (prop === "subscribe") return NO_OP_SUBSCRIBE;
     if (prop === "on") return NO_OP_SUBSCRIBE;
-    if (prop === PROXIED_ASSISTANT_STATE_SYMBOL)
-      return DefaultAssistantClientProxiedAssistantState;
     const introspection = handleIntrospectionProp(
       prop,
       "DefaultAssistantClient",
@@ -32,15 +26,11 @@ class DefaultAssistantClientProxyHandler
   }
 
   ownKeys(): ArrayLike<string | symbol> {
-    return ["subscribe", "on", PROXIED_ASSISTANT_STATE_SYMBOL];
+    return ["subscribe", "on"];
   }
 
   has(_: unknown, prop: string | symbol): boolean {
-    return (
-      prop === "subscribe" ||
-      prop === "on" ||
-      prop === PROXIED_ASSISTANT_STATE_SYMBOL
-    );
+    return prop === "subscribe" || prop === "on";
   }
 }
 /** Default context value - throws "wrap in AuiProvider" error */
@@ -49,10 +39,6 @@ export const DefaultAssistantClient: AssistantClient =
     {} as AssistantClient,
     new DefaultAssistantClientProxyHandler(),
   );
-
-const DefaultAssistantClientProxiedAssistantState = createProxiedAssistantState(
-  DefaultAssistantClient,
-);
 
 /** Root prototype for created clients - throws "scope not defined" error */
 export const createRootAssistantClient = (): AssistantClient =>
