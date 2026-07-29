@@ -8,6 +8,7 @@ import { Grok } from "@/components/examples/grok";
 import { ModalChat } from "@/components/examples/modal";
 import { Perplexity } from "@/components/examples/perplexity";
 import { Base } from "@/components/examples/base";
+import { ArtifactsRuntimeProvider } from "@/contexts/ArtifactsRuntimeProvider";
 import { DocsRuntimeProvider } from "@/contexts/DocsRuntimeProvider";
 
 type PreviewData = {
@@ -35,7 +36,11 @@ function renderPreview(preview: PreviewData) {
         </DocsRuntimeProvider>
       );
     case "artifacts":
-      return <Artifacts />;
+      return (
+        <ArtifactsRuntimeProvider>
+          <Artifacts />
+        </ArtifactsRuntimeProvider>
+      );
     case "chatgpt":
       return (
         <DocsRuntimeProvider>

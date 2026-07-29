@@ -3,12 +3,13 @@ title: Claude Artifacts Example
 description: Open-source Claude Artifacts implementation in React — generate websites and components in a side panel from chat messages, built on assistant-ui.
 ---
 
+import { Artifacts } from "@/components/examples/artifacts";
+import { ArtifactsRuntimeProvider } from "@/contexts/ArtifactsRuntimeProvider";
+
 <div className="not-prose h-[600px]">
-  <DemoIframe
-    title="Claude Artifacts demo"
-    className="h-full w-full border-none"
-    src="https://assistant-ui-artifacts.vercel.app/"
-  />
+  <ArtifactsRuntimeProvider>
+    <Artifacts />
+  </ArtifactsRuntimeProvider>
 </div>
 
 ## Overview
@@ -22,7 +23,7 @@ An open-source implementation of Claude Artifacts that allows users to generate 
 - **Interactive Elements**: Artifacts can include buttons, forms, and animations
 - **Iteration Support**: Ask the AI to modify and improve generated artifacts
 - **Safe Execution**: Code runs in a sandboxed iframe with scripts enabled but no access to the parent documentation page
-- **Version History**: Switch between artifact revisions and restore earlier versions, including your own edits
+- **Export Options**: Download generated artifacts as standalone files
 
 ## How It Works
 
@@ -41,6 +42,6 @@ An open-source implementation of Claude Artifacts that allows users to generate 
 
 ## Source
 
-The demo above is a deployment of the standalone example in the repository:
+The implementation for this example is available in the docs:
 
 <SourceLink href="https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-artifacts" />
