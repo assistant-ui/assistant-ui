@@ -16,66 +16,25 @@ const toolDefinitions = [
     name: "list_pages",
     description:
       "List assistant-ui documentation pages. Optionally filter by a URL path prefix such as /docs/tools, /examples, or /tap/docs.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        path: {
-          type: "string",
-          description: "Optional docs path or prefix to filter by.",
-        },
-      },
-      additionalProperties: false,
-    },
   },
   {
     name: "get_navigation",
     description: "Return the assistant-ui docs navigation tree.",
-    inputSchema: {
-      type: "object",
-      properties: {},
-      additionalProperties: false,
-    },
   },
   {
     name: "search_docs",
     description:
       "Search assistant-ui docs, examples, and Tap docs by title, description, or URL.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        query: {
-          type: "string",
-          description: "Search query.",
-        },
-      },
-      required: ["query"],
-      additionalProperties: false,
-    },
   },
   {
     name: "read_page",
     description:
       "Read one assistant-ui docs, examples, or Tap docs page as markdown. Accepts a slug, path, .md URL, or same-origin URL.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        path: {
-          type: "string",
-          description:
-            "Page path such as /docs/installation, /docs/installation.md, examples/ai-sdk, tap/docs/store/state, or a same-origin URL.",
-        },
-      },
-      required: ["path"],
-      additionalProperties: false,
-    },
   },
-];
+] as const;
 
-function toolDescription(name: string): string {
-  const tool = toolDefinitions.find((definition) => definition.name === name);
-  if (!tool) throw new Error(`Unknown tool: ${name}`);
-  return tool.description;
-}
+const [listPagesTool, getNavigationTool, searchDocsTool, readPageTool] =
+  toolDefinitions;
 
 function pageSummary(page: {
   url: string;
@@ -376,36 +335,36 @@ function buildMcpServer(requestUrl: string) {
   });
 
   server.registerTool(
-    "list_pages",
+    listPagesTool.name,
     {
-      description: toolDescription("list_pages"),
+      description: listPagesTool.description,
       inputSchema: listPagesInputSchema,
     },
     ({ path }) => toolResult(() => listPages(path)),
   );
 
   server.registerTool(
-    "get_navigation",
+    getNavigationTool.name,
     {
-      description: toolDescription("get_navigation"),
+      description: getNavigationTool.description,
       inputSchema: getNavigationInputSchema,
     },
     () => toolResult(() => getNavigation()),
   );
 
   server.registerTool(
-    "search_docs",
+    searchDocsTool.name,
     {
-      description: toolDescription("search_docs"),
+      description: searchDocsTool.description,
       inputSchema: searchDocsInputSchema,
     },
     ({ query }) => toolResult(() => searchDocs(query)),
   );
 
   server.registerTool(
-    "read_page",
+    readPageTool.name,
     {
-      description: toolDescription("read_page"),
+      description: readPageTool.description,
       inputSchema: readPageInputSchema,
     },
     ({ path }) => toolResult(() => readPage(path, requestUrl)),
@@ -438,6 +397,29 @@ export async function GET() {
   });
 }
 
+// The public docs endpoint keeps accepting pre-SDK lenient clients that omit the SSE half of Accept or the Content-Type header.
+async function normalizeMcpRequestHeaders(
+  request: NextRequest,
+): Promise<Request> {
+  const accept = request.headers.get("accept");
+  const needsAcceptFix = !accept?.includes("text/event-stream");
+  const needsContentTypeFix = request.headers.get("content-type") === null;
+  if (!needsAcceptFix && !needsContentTypeFix) return request;
+
+  const headers = new Headers(request.headers);
+  if (needsAcceptFix) {
+    headers.set("Accept", "application/json, text/event-stream");
+  }
+  if (needsContentTypeFix) {
+    headers.set("Content-Type", "application/json");
+  }
+  return new Request(request.url, {
+    method: request.method,
+    headers,
+    body: await request.text(),
+  });
+}
+
 export async function POST(request: NextRequest) {
   const server = buildMcpServer(request.url);
   const transport = new WebStandardStreamableHTTPServerTransport({
@@ -445,7 +427,13 @@ export async function POST(request: NextRequest) {
     enableJsonResponse: true,
   });
   await server.connect(transport);
-  return transport.handleRequest(request);
+  try {
+    const normalizedRequest = await normalizeMcpRequestHeaders(request);
+    return await transport.handleRequest(normalizedRequest);
+  } finally {
+    await transport.close().catch(() => {});
+    await server.close().catch(() => {});
+  }
 }
 
 export function OPTIONS() {
