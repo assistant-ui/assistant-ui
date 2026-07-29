@@ -12,16 +12,20 @@ import { createResourceFiberRoot } from "./helpers/root";
 export const createTapRoot = <R>(
   render: () => R,
 ): useTapRoot.Root<R> & { unmount: () => void } => {
+  const pendingEvaluates: (() => boolean)[] = [];
+  const scheduler = new UpdateScheduler(() => {
+    for (const evaluate of pendingEvaluates.splice(0)) {
+      if (evaluate()) {
+        throw new Error("Unexpected rerender of createTapRoot outer fiber");
+      }
+    }
+  });
+
   const fiber = createResourceFiber(
     useTapRoot,
-    createResourceFiberRoot((evaluate, apply) => {
-      new UpdateScheduler(() => {
-        if (evaluate()) {
-          apply();
-          throw new Error("Unexpected rerender of createTapRoot outer fiber");
-        }
-        return false;
-      }).markDirty();
+    createResourceFiberRoot((evaluate) => {
+      pendingEvaluates.push(evaluate);
+      scheduler.markDirty();
     }),
     undefined,
     isDevelopment ? "root" : null,
