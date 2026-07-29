@@ -119,16 +119,15 @@ export interface PiEventStreamOptions {
   url: string;
   /** Called with each decoded `PiClientEvent`. */
   onEvent: (event: PiAnyClientEvent) => void;
-  /** Non-fatal stream errors (network drop, bad JSON). The loop reconnects after
-   * each; surface these for logging, not control flow. */
+  /** Non-fatal stream errors (network drop, bad JSON, reconnect-delay failures).
+   * The loop reconnects after each; surface these for logging, not control flow. */
   onError?: (error: unknown) => void;
   /** Injected `fetch` (defaults to the global). */
   fetchImpl?: typeof fetch;
   /** Extra request headers (e.g. auth). */
   headers?: Record<string, string>;
-  /** Reconnect backoff between a dropped stream and the next attempt. Returns a
-   * promise that resolves when it's time to retry. Defaults to a ~1s timer;
-   * injectable for tests. */
+  /** Reconnect backoff between a dropped stream and the next attempt. Rejections
+   * are reported via `onError`, then followed by the default ~1s backoff. */
   reconnectDelay?: () => Promise<void>;
 }
 
