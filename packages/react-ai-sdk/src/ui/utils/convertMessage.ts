@@ -79,7 +79,15 @@ function extractMcpAppMetadata(
       typeof (ui as Record<string, unknown>)["resourceUri"] === "string" &&
       isMcpAppUri((ui as Record<string, unknown>)["resourceUri"] as string)
     ) {
-      a = ui as Record<string, unknown>;
+      // Only the spec'd ui fields cross from the result body; serverId is a
+      // routing key and stays transport-derived via callProviderMetadata.
+      const uiMeta = ui as Record<string, unknown>;
+      a = {
+        resourceUri: uiMeta["resourceUri"],
+        ...(Array.isArray(uiMeta["visibility"])
+          ? { visibility: uiMeta["visibility"] }
+          : {}),
+      };
     } else {
       const flat =
         outMeta && typeof outMeta === "object"

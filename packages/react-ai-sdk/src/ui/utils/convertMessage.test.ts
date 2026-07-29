@@ -875,7 +875,7 @@ describe("AISDKMessageConverter", () => {
     });
   });
 
-  it("extracts MCP app metadata from output._meta.ui.resourceUri", () => {
+  it("adopts only spec'd ui fields from output._meta.ui", () => {
     const converted = AISDKMessageConverter.toThreadMessages([
       {
         id: "a1",
@@ -891,6 +891,7 @@ describe("AISDKMessageConverter", () => {
                 ui: {
                   resourceUri: "ui://app/hello_ui.html",
                   serverId: "srv",
+                  visibility: ["model"],
                 },
               },
               content: [{ type: "text", text: "" }],
@@ -905,7 +906,7 @@ describe("AISDKMessageConverter", () => {
     );
     expect(call?.mcp?.app).toEqual({
       resourceUri: "ui://app/hello_ui.html",
-      serverId: "srv",
+      visibility: ["model"],
     });
   });
 
