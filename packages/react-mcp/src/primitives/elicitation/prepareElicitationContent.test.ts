@@ -193,6 +193,39 @@ describe("prepareElicitationContent", () => {
     ).toEqual({ content: {}, missingRequired: [], invalid: ["enabled"] });
   });
 
+  it("flags a mistyped required boolean instead of seeding false", () => {
+    expect(
+      prepareElicitationContent(
+        {
+          type: "object",
+          properties: { enabled: { type: "boolean" } },
+          required: ["enabled"],
+        },
+        { enabled: "true" },
+      ),
+    ).toEqual({ content: {}, missingRequired: [], invalid: ["enabled"] });
+  });
+
+  it("treats null drafts as absent for booleans and required fields", () => {
+    expect(
+      prepareElicitationContent(
+        {
+          type: "object",
+          properties: {
+            enabled: { type: "boolean" },
+            query: { type: "string" },
+          },
+          required: ["enabled", "query"],
+        },
+        { enabled: null, query: null },
+      ),
+    ).toEqual({
+      content: { enabled: false },
+      missingRequired: ["query"],
+      invalid: [],
+    });
+  });
+
   it("reports required draft values that are absent or empty", () => {
     expect(
       prepareElicitationContent(
