@@ -151,16 +151,25 @@ export const useAssistantContextProvider = <T,>(
  * }
  * ```
  */
-export const AuiProvider = ({
+export const AuiProvider: {
+  (props: {
+    /** Assistant client to expose to descendants. */
+    value: AssistantClient;
+    /** Subtree that may read from the client. */
+    children: React.ReactNode;
+  }): React.ReactElement;
+  /**
+   * Provides an isolated empty root: scopes from surrounding providers do not
+   * leak past the boundary.
+   *
+   * @deprecated This API is still under active development and might change without notice.
+   */
+  (props: { value: null; children: React.ReactNode }): React.ReactElement;
+} = ({
   value,
   children,
 }: {
-  /**
-   * Assistant client to expose to descendants, or
-   * {@link AuiProvider.IsolationBoundary | `null`} for an isolated empty root.
-   */
-  value: AssistantClient | AuiProvider.IsolationBoundary;
-  /** Subtree that may read from the client. */
+  value: AssistantClient | null;
   children: React.ReactNode;
 }): React.ReactElement => {
   // The <UseTapEffects /> element must be created fresh each render
@@ -172,13 +181,3 @@ export const AuiProvider = ({
     </AssistantContext.Provider>
   );
 };
-
-export namespace AuiProvider {
-  /**
-   * Isolated empty root: scopes from surrounding providers do not leak past
-   * the boundary.
-   *
-   * @deprecated This API is still under active development and might change without notice.
-   */
-  export type IsolationBoundary = null;
-}

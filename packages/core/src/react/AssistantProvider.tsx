@@ -40,11 +40,16 @@ const AssistantProviderInner: FC<
 };
 
 export const AssistantProviderBase: FC<AssistantProviderBaseProps> = memo(
-  ({ runtime, aui = null, children }) => (
-    <AuiProvider value={aui}>
+  ({ runtime, aui = null, children }) => {
+    const inner = (
       <AssistantProviderInner runtime={runtime}>
         {children}
       </AssistantProviderInner>
-    </AuiProvider>
-  ),
+    );
+    return aui ? (
+      <AuiProvider value={aui}>{inner}</AuiProvider>
+    ) : (
+      <AuiProvider value={null}>{inner}</AuiProvider>
+    );
+  },
 );

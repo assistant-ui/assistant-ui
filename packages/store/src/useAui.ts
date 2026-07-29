@@ -457,29 +457,10 @@ export function useAui(): AssistantClient;
  * ```
  */
 export function useAui(clients: useAui.Props): AssistantClient;
-/**
- * Extends an explicit parent `AssistantClient` with additional scopes.
- *
- * @deprecated Compose via context instead: provide the parent with
- * {@link AuiProvider} (`<AuiProvider value={parent}>`, or
- * `<AuiProvider value={null}>` for an isolated root) and call
- * `useAui(clients)` beneath it.
- */
-export function useAui(
-  clients: useAui.Props,
-  config: { parent: null | AssistantClient },
-): AssistantClient;
-export function useAui(
-  clients?: useAui.Props,
-  config?: { parent: null | AssistantClient },
-): AssistantClient {
-  const contextParent = useAssistantContextValue();
+export function useAui(clients?: useAui.Props): AssistantClient {
+  const parent = useAssistantContextValue();
   if (clients) {
-    return useHostedAssistantClient({
-      parent:
-        (config ? config.parent : contextParent) ?? DefaultAssistantClient,
-      clients,
-    });
+    return useHostedAssistantClient({ parent, clients });
   }
-  return contextParent;
+  return parent;
 }
