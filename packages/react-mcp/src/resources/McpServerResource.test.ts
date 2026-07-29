@@ -56,11 +56,9 @@ const mocks = vi.hoisted(() => {
   };
 });
 
-vi.mock("@modelcontextprotocol/sdk/client/index.js", () => ({
+vi.mock("@modelcontextprotocol/client", async (importOriginal) => ({
+  ...(await importOriginal()),
   Client: mocks.Client,
-}));
-
-vi.mock("@modelcontextprotocol/sdk/client/streamableHttp.js", () => ({
   StreamableHTTPClientTransport: mocks.StreamableHTTPClientTransport,
 }));
 

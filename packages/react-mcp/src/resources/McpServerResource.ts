@@ -1,13 +1,12 @@
 import { useState, useRef, useEffect, useMemo, useEffectEvent } from "react";
 import { resource } from "@assistant-ui/tap";
 import type { ClientOutput } from "@assistant-ui/store";
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import {
+  Client,
   StreamableHTTPClientTransport,
+  UnauthorizedError,
   type StreamableHTTPClientTransportOptions,
-} from "@modelcontextprotocol/sdk/client/streamableHttp.js";
-import { UnauthorizedError } from "@modelcontextprotocol/sdk/client/auth.js";
-import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
+} from "@modelcontextprotocol/client";
 import { createOAuthProvider } from "../auth/createOAuthProvider";
 import { buildHeaders } from "../auth/buildHeaders";
 import { assertValidServerId } from "../utils/serverId";
@@ -172,12 +171,8 @@ const useMcpServerResource = (
         version: "0.0.0",
       });
       const startedAt = Date.now();
-      // SDK's StreamableHTTPClientTransport.sessionId is `string | undefined`
-      // but Transport.sessionId is declared `string?` — under
-      // exactOptionalPropertyTypes the SDK's own classes don't satisfy its
-      // Transport interface. Cast to bridge the gap.
       await withConnectionTimeout(
-        client.connect(transport as unknown as Transport),
+        client.connect(transport),
         "connecting",
         startedAt,
       );
