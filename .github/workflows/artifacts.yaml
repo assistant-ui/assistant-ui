@@ -59,6 +59,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Build workspace dependencies
+        run: pnpm turbo build --filter="with-artifacts^..."
+
       - name: Pull Vercel Environment Information
         working-directory: examples/with-artifacts
         run: vercel pull --yes --prod --token=${{ secrets.VERCEL_TOKEN }}
