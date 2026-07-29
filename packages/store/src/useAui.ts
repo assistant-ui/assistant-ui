@@ -2,7 +2,6 @@
 
 import {
   flushTapSync,
-  useMemoCache,
   useResource,
   useResources,
   useTapHost,
@@ -41,6 +40,7 @@ import {
   useBuildingClient,
 } from "./utils/tap-assistant-context";
 import { ClientResource } from "./useClientResource";
+import { useShallowStable } from "./utils/useShallowStable";
 import { createClientAccessor, getClientId } from "./utils/client-accessor";
 import { getClientIndex } from "./utils/tap-client-stack-context";
 
@@ -187,31 +187,9 @@ const useClientFields = ({
   );
 };
 
-const shallowEqualRecord = (
-  a: Record<string, unknown>,
-  b: Record<string, unknown>,
-) => {
-  const aKeys = Object.keys(a);
-  return (
-    aKeys.length === Object.keys(b).length &&
-    aKeys.every((key) => Object.hasOwn(b, key) && Object.is(a[key], b[key]))
-  );
-};
-
 const useScopeMeta = (element: ScopeElement): ScopeMeta => {
   const { source, query } = metaOf(element);
-  const cache = useMemoCache(1) as [ScopeMeta | typeof MEMO_CACHE_UNFILLED];
-  const prev = cache[0];
-  if (
-    prev !== MEMO_CACHE_UNFILLED &&
-    prev.source === source &&
-    shallowEqualRecord(prev.query, query)
-  ) {
-    return prev;
-  }
-  const meta = { source, query };
-  cache[0] = meta;
-  return meta;
+  return useShallowStable({ source, query: useShallowStable(query) });
 };
 
 const useScopeValue = (element: ScopeElement, derived: boolean) =>
@@ -250,22 +228,6 @@ const ScopeMount = resource(useScopeMount);
 const useScopeMounts = (entries: ScopeEntry[]): ScopeResult[] =>
   useResources(entries.map((entry) => withKey(entry.name, ScopeMount(entry))));
 
-const MEMO_CACHE_UNFILLED = Symbol.for("react.memo_cache_sentinel");
-
-const useStableArray = <T>(values: readonly T[]): readonly T[] => {
-  const cache = useMemoCache(1) as [readonly T[] | typeof MEMO_CACHE_UNFILLED];
-  const prev = cache[0];
-  if (
-    prev !== MEMO_CACHE_UNFILLED &&
-    prev.length === values.length &&
-    values.every((value, i) => Object.is(value, prev[i]))
-  ) {
-    return prev;
-  }
-  cache[0] = values;
-  return values;
-};
-
 const useCommittedClient = ({
   building,
   parent,
@@ -277,16 +239,16 @@ const useCommittedClient = ({
   fields: ClientFields;
   accessors: readonly AssistantClientAccessor<ClientNames>[];
 }): AssistantClient => {
-  const deps = useStableArray([parent, fields, accessors]);
-  const cache = useMemoCache(2) as [
-    readonly unknown[] | typeof MEMO_CACHE_UNFILLED,
-    AssistantClient,
-  ];
-  if (cache[0] !== deps) {
-    cache[0] = deps;
-    cache[1] = building;
+  const deps = useShallowStable([parent, fields, accessors]);
+  const cell = useMemo(
+    () => ({}) as { deps?: unknown; client?: AssistantClient },
+    [],
+  );
+  if (cell.deps !== deps) {
+    cell.deps = deps;
+    cell.client = building;
   }
-  return cache[1];
+  return cell.client!;
 };
 
 const useAuiRoot = ({
@@ -314,7 +276,7 @@ const useAuiRoot = ({
     },
   );
 
-  const accessors = useStableArray(results.map((r) => r.accessor));
+  const accessors = useShallowStable(results.map((r) => r.accessor));
 
   // Fresh envelope per commit so value-only updates reach the store's
   // subscribers; the client inside keeps its identity
