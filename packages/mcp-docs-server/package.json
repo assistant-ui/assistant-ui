@@ -40,12 +40,13 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@modelcontextprotocol/server": "^2.0.0",
     "gray-matter": "^4.0.3",
     "zod": "^4.4.3"
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
+    "@modelcontextprotocol/core": "^2.0.0",
     "@types/node": "^26.1.1",
     "tsx": "^4.23.1",
     "vitest": "^4.1.10"
