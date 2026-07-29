@@ -1,4 +1,4 @@
-import { z } from "zod/v3";
+import { z } from "zod";
 import { logger } from "../utils/logger.js";
 import { formatMCPResponse } from "../utils/mcp-format.js";
 import { getXuluxCatalog } from "../xulux/catalog-client.js";
@@ -56,7 +56,7 @@ export const xuluxTemplatesListTool = {
     "Call this first for any assistant-ui app-building request. Use the features and customizable fields to decide which template fits. " +
     "If customizable is empty, the entry is a fixed demo that should be used as-is rather than configured. " +
     "Call assistantUITemplateDetails on the chosen template before requesting a preview.",
-  parameters: emptyInputSchema.shape,
+  parameters: emptyInputSchema,
   execute: async (_args: z.infer<typeof emptyInputSchema>) => {
     logger.info("Listing assistant-ui templates");
     try {
@@ -82,7 +82,7 @@ export const xuluxTemplateDetailsTool = {
     "Fixed demos return no configRoots; use those as-is without config. " +
     "Use this before calling assistantUITemplatePreview to understand exactly what config to write. " +
     "If assistantUITemplatePreview returns validationWarnings, call this again and cross-reference configRoots to correct the config.",
-  parameters: detailsInputSchema.shape,
+  parameters: detailsInputSchema,
   execute: async (args: z.infer<typeof detailsInputSchema>) => {
     logger.info(
       `Getting assistant-ui template details for: ${args.templateId}`,
@@ -115,7 +115,7 @@ export const xuluxTemplatePreviewTool = {
     "If you pass config, a preview session is created on the hosted template sandbox and the returned URLs reflect that configuration. " +
     "Do not pass config for fixed demos that have no configRoots in assistantUITemplateDetails. " +
     "This tool only returns URLs.",
-  parameters: previewInputSchema.shape,
+  parameters: previewInputSchema,
   execute: async (args: z.infer<typeof previewInputSchema>) => {
     logger.info(
       `Creating assistant-ui template preview for: ${args.templateId}`,

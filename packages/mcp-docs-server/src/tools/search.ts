@@ -1,4 +1,4 @@
-import { z } from "zod/v3";
+import { z } from "zod";
 import { logger } from "../utils/logger.js";
 import { formatMCPResponse } from "../utils/mcp-format.js";
 import { searchDocs } from "../utils/search.js";
@@ -21,7 +21,7 @@ export const searchTools = {
   name: "assistantUISearch",
   description:
     "Search assistant-ui documentation by keyword. Returns ranked matches with their doc path, title, and a snippet. Fetch full content with assistantUIDocs using a returned path.",
-  parameters: searchInputSchema.shape,
+  parameters: searchInputSchema,
   execute: async ({ query, limit }: z.infer<typeof searchInputSchema>) => {
     logger.info(`Searching documentation for: ${query}`);
     try {
