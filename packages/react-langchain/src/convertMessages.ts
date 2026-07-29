@@ -238,7 +238,7 @@ export const getMessageContent = (msg: AppendMessage) => {
         return {
           type: "audio" as const,
           data: parsed?.data ?? part.audio.data,
-          mime_type: parsed?.mimeType ?? `audio/${part.audio.format}`,
+          mime_type: `audio/${part.audio.format}`,
           source_type: "base64" as const,
         };
       }

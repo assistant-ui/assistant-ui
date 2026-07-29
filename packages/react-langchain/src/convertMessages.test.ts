@@ -244,6 +244,25 @@ describe("getMessageContent audio and data parts", () => {
     ]);
   });
 
+  it("keeps the format-derived MIME when a data URL carries a divergent one", () => {
+    const content = getMessageContent(
+      appendMessage({
+        type: "audio",
+        audio: { data: "data:audio/mpeg;base64,c291bmQ=", format: "mp3" },
+      }),
+    );
+
+    expect(content).toEqual([
+      { type: "text", text: " " },
+      {
+        type: "audio",
+        data: "c291bmQ=",
+        mime_type: "audio/mp3",
+        source_type: "base64",
+      },
+    ]);
+  });
+
   it("does not prepend a second placeholder when text accompanies audio", () => {
     const content = getMessageContent(
       appendMessage(
