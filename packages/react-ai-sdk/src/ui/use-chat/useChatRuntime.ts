@@ -19,7 +19,10 @@ import {
 } from "./useAISDKRuntime";
 import type { ChatInit, ChatTransport } from "ai";
 import { AssistantChatTransport } from "./AssistantChatTransport";
-import type { AssistantChatResumableOptions } from "../resumable";
+import type {
+  AssistantChatResumableOptions,
+  ResumableClientStorage,
+} from "../resumable";
 import {
   useCallback,
   useEffect,
@@ -84,9 +87,20 @@ const getResumableAdapter = <UI_MESSAGE extends UIMessage>(
 
 const getNoPendingStreamId = () => null;
 
-const createResumedStreamIds = (
-  _storage: AssistantChatResumableOptions["storage"] | undefined,
-) => new Set<string>();
+const resumedStreamIdsByStorage = new WeakMap<
+  ResumableClientStorage,
+  Set<string>
+>();
+
+const getResumedStreamIds = (storage: ResumableClientStorage | undefined) => {
+  if (!storage) return new Set<string>();
+  let resumedStreamIds = resumedStreamIdsByStorage.get(storage);
+  if (!resumedStreamIds) {
+    resumedStreamIds = new Set();
+    resumedStreamIdsByStorage.set(storage, resumedStreamIds);
+  }
+  return resumedStreamIds;
+};
 
 const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   options?: UseChatRuntimeOptions<UI_MESSAGE>,
@@ -156,7 +170,10 @@ const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     getHistoryLoadingSnapshot,
   );
 
-  const resumableStorage = getResumableAdapter(sourceTransport)?.storage;
+  const resumableStorage = useMemo(
+    () => getResumableAdapter(sourceTransport)?.storage,
+    [sourceTransport],
+  );
   const subscribeToResumableStorage = useCallback(
     (callback: () => void) =>
       isMainThread
@@ -177,7 +194,7 @@ const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     chat.status === "submitted" || chat.status === "streaming";
 
   const resumedStreamIds = useMemo(
-    () => createResumedStreamIds(resumableStorage),
+    () => getResumedStreamIds(resumableStorage),
     [resumableStorage],
   );
   const onResumeErrorRef = useRef(onResumeError);

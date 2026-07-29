@@ -173,6 +173,34 @@ describe("useChatRuntime", () => {
     expect(resumeStream).toHaveBeenCalledTimes(2);
   });
 
+  it("does not resume the same stored id again after a remount", async () => {
+    const storage = createResumableSessionStorage({
+      key: "remount-stream-id",
+    });
+    storage.setStreamId("stream-1", "thread-id");
+    const resumeStream = vi.fn().mockResolvedValue(undefined);
+    mocks.useChat.mockReturnValue({
+      resumeStream,
+      status: "ready",
+    });
+    const transport = {
+      getResumableAdapter: () => ({
+        storage,
+        resumeApi: "/api/chat/resume",
+      }),
+    };
+
+    const firstRuntime = renderHook(() =>
+      useChatRuntime({ transport: transport as never }),
+    );
+    await waitFor(() => expect(resumeStream).toHaveBeenCalledOnce());
+
+    firstRuntime.unmount();
+    renderHook(() => useChatRuntime({ transport: transport as never }));
+
+    expect(resumeStream).toHaveBeenCalledOnce();
+  });
+
   it("does not resume a stream id written by an active send", async () => {
     const storage = createResumableSessionStorage({
       key: "active-send-stream-id",
