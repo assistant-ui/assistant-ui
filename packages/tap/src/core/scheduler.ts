@@ -1,3 +1,5 @@
+import { throwAggregated } from "./helpers/throwAggregated";
+
 type Task = () => void;
 
 type GlobalFlushState = {
@@ -68,16 +70,7 @@ const flushScheduled = () => {
       }
     }
 
-    if (errors.length > 0) {
-      if (errors.length === 1) {
-        throw errors[0];
-      } else {
-        for (const error of errors) {
-          console.error(error);
-        }
-        throw new AggregateError(errors, "Errors occurred during flushSync");
-      }
-    }
+    throwAggregated(errors, "Errors occurred during flushSync");
   } finally {
     flushState.schedulers.clear();
     flushState.isScheduled = false;
