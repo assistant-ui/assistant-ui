@@ -895,7 +895,7 @@ export class AgUiThreadRuntimeCore {
     // A snapshot the preserve gate declines still evicts the in-flight
     // assistant; recreating under the cached id on the next content-bearing
     // emit keeps both the stream and the message identity. Status-only emits
-    // and server-id collisions must not recreate.
+    // and off-branch server-id collisions must not recreate.
     let assistantCollided = false;
     const ensureAssistant = (allowRecreate = false): string => {
       const cached = assistantMessageId;
@@ -903,8 +903,10 @@ export class AgUiThreadRuntimeCore {
       if (cached !== undefined && (assistantCollided || !allowRecreate)) {
         return cached;
       }
+      // Branch runs keep their selected parent; ordinary continuations follow
+      // the authoritative tail imported by the latest snapshot.
       const parentId =
-        cached === undefined &&
+        (cached === undefined || shouldEagerlyInsertAssistant) &&
         assistantParentId &&
         this.hasMessage(assistantParentId)
           ? assistantParentId
@@ -936,7 +938,10 @@ export class AgUiThreadRuntimeCore {
       onServerMessageId: (serverId) => {
         const placeholder = ensureAssistant(true);
         if (placeholder === serverId) return;
-        if (this.reassignAssistantId(placeholder, serverId)) {
+        if (
+          this.reassignAssistantId(placeholder, serverId) ||
+          this.repository.headId === serverId
+        ) {
           assistantMessageId = serverId;
         } else {
           assistantCollided = true;
