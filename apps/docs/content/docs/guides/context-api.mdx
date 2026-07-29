@@ -329,16 +329,10 @@ function MessageButton() {
 
 ### Checking Scope Availability
 
-Before accessing a scope, check if it's available:
+Read scopes that may be unavailable through the optional view — they resolve to `undefined` instead of throwing:
 
 ```tsx
-const aui = useAui();
-
-// Check if message scope exists
-if (aui.message.source) {
-  // Safe to use message scope
-  const { role } = aui.message.getState();
-}
+const role = useAuiState((s) => s.optional.message?.role);
 ```
 
 ### Accessing Nested Scopes
@@ -568,8 +562,6 @@ const role = useAuiState((s) => s.message.role);
 const role = useAuiState((s) => s.optional.message?.role ?? "none");
 ```
 
-To check whether a scope is available outside of a selector (for example before calling its methods or reading its `query`), test `aui.message.source != null`.
-
 **"Maximum update depth exceeded" / Infinite re-renders**
 
 ```tsx
@@ -618,10 +610,8 @@ aui.scope.action();
 // Listen to events
 useAuiEvent("source.event", (e) => {});
 
-// Check scope availability
-if (aui.scope.source) {
-  /* scope exists */
-}
+// Read a scope that may be unavailable
+const maybe = useAuiState((s) => s.optional.scope?.property);
 
 // Get state imperatively
 const state = aui.scope.getState();
