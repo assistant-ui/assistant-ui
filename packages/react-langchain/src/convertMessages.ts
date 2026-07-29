@@ -65,6 +65,19 @@ const contentToParts = (content: unknown) => {
                   : part.data,
             mimeType: part.mime_type ?? "application/octet-stream",
           };
+        case "audio": {
+          const format =
+            part.mime_type === "audio/wav"
+              ? ("wav" as const)
+              : part.mime_type === "audio/mp3"
+                ? ("mp3" as const)
+                : null;
+          if (!format) return null;
+          return {
+            type: "audio" as const,
+            audio: { data: part.data, format },
+          };
+        }
         case "thinking":
           return { type: "reasoning" as const, text: part.thinking };
         case "reasoning":

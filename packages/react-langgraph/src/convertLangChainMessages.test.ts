@@ -1027,6 +1027,51 @@ describe("getMessageContent audio and data parts", () => {
   });
 });
 
+describe("contentToParts audio blocks", () => {
+  it("converts an inbound base64 audio block back to an audio part", () => {
+    const result = convertLangChainMessagesImpl(
+      {
+        type: "human",
+        id: "h1",
+        content: [
+          {
+            type: "audio",
+            data: "c291bmQ=",
+            mime_type: "audio/mp3",
+            source_type: "base64",
+          },
+        ],
+      } as never,
+      {},
+    );
+
+    expect(result).toMatchObject({
+      role: "user",
+      content: [{ type: "audio", audio: { data: "c291bmQ=", format: "mp3" } }],
+    });
+  });
+
+  it("drops an inbound audio block with an unrepresentable mime type", () => {
+    const result = convertLangChainMessagesImpl(
+      {
+        type: "human",
+        id: "h1",
+        content: [
+          {
+            type: "audio",
+            data: "b2dn",
+            mime_type: "audio/ogg",
+            source_type: "base64",
+          },
+        ],
+      } as never,
+      {},
+    );
+
+    expect(result).toMatchObject({ role: "user", content: [] });
+  });
+});
+
 describe("convertLangChainMessages unknown message types", () => {
   const call = (message: unknown) =>
     (
