@@ -19,7 +19,7 @@ import type {
   ClientElement,
   ClientMethods,
 } from "./types/client";
-import { useDerived, type DerivedElement } from "./Derived";
+import { useDerived, type Derived, type DerivedElement } from "./Derived";
 import {
   useAssistantContextValue,
   DefaultAssistantClient,
@@ -54,11 +54,6 @@ type ScopeMeta = {
   source: ClientNames | "root";
   query: Record<string, unknown>;
 };
-type ScopeResult = {
-  name: ClientNames;
-  accessor: AssistantClientAccessor<ClientNames>;
-  state: unknown;
-};
 
 const applyTransformScopes = (
   clients: useAui.Props,
@@ -89,11 +84,12 @@ const applyTransformScopes = (
 const isDerivedElement = (element: ScopeElement) =>
   element.hook === (useDerived as unknown);
 
-const metaOf = (element: ScopeElement): ScopeMeta => {
-  if (!isDerivedElement(element)) return { source: "root", query: {} };
-  const props = element.args[0] as ScopeMeta;
-  return { source: props.source, query: props.query ?? {} };
-};
+const derivedPropsOf = (element: ScopeElement) =>
+  element.args[0] as Derived.Props<ClientNames> & {
+    query?: Record<string, unknown>;
+  };
+
+const ROOT_META: ScopeMeta = { source: "root", query: {} };
 
 const toScopeEntries = (scopes: Record<string, ScopeElement>): ScopeEntry[] =>
   (Object.entries(scopes) as [ClientNames, ScopeElement][]).map(
@@ -193,32 +189,19 @@ const useClientFields = ({
   );
 };
 
-const useScopeMeta = (element: ScopeElement): ScopeMeta => {
-  const { source, query } = metaOf(element);
-  return useShallowStable({ source, query: useShallowStable(query) });
-};
+const useScopeValue = (element: ScopeElement) =>
+  useResource(ClientResource(element));
 
-const useScopeValue = (element: ScopeElement, derived: boolean) =>
-  useResource(derived ? element : ClientResource(element));
-
-const useScopeMount = ({ name, element }: ScopeEntry): ScopeResult => {
+const useScopeMount = ({
+  name,
+  element,
+}: ScopeEntry): AssistantClientAccessor<ClientNames> => {
   const client = useBuildingClient();
+  const { methods } = useScopeValue(element);
 
-  // A derived element resolves to an existing client; mount it directly
-  const derived = isDerivedElement(element);
-  const value = useScopeValue(element, derived);
-
-  const methods = derived
-    ? (value as ClientMethods)
-    : (value as { methods: ClientMethods }).methods;
-  const state = derived
-    ? (value as { getState?: () => unknown }).getState?.()
-    : (value as { state: unknown }).state;
-
-  const meta = useScopeMeta(element);
   const accessor = useMemo(
-    () => createAccessor(name, meta, () => methods),
-    [name, meta, methods],
+    () => createAccessor(name, ROOT_META, () => methods),
+    [name, methods],
   );
 
   // Only fill vacant slots so a re-render never mutates an already-built client
@@ -226,12 +209,14 @@ const useScopeMount = ({ name, element }: ScopeEntry): ScopeResult => {
     (client as Record<ClientNames, unknown>)[name] = accessor;
   }
 
-  return useMemo(() => ({ name, accessor, state }), [name, accessor, state]);
+  return accessor;
 };
 
 const ScopeMount = resource(useScopeMount);
 
-const useScopeMounts = (entries: ScopeEntry[]): ScopeResult[] =>
+const useScopeMounts = (
+  entries: ScopeEntry[],
+): AssistantClientAccessor<ClientNames>[] =>
   useResources(entries.map((entry) => withKey(entry.name, ScopeMount(entry))));
 
 const useCommittedClient = ({
@@ -257,38 +242,26 @@ const useCommittedClient = ({
   return cell.client!;
 };
 
-const useAuiRoot = ({
-  parent,
-  clients,
-  clientRef,
-  notifications,
-}: {
-  parent: AssistantClient;
-  clients: useAui.Props;
-  clientRef: ClientRef;
-  notifications: NotificationManager;
-}): { client: AssistantClient } => {
-  const entries = toScopeEntries(applyTransformScopes(clients, parent));
+const useDerivedMount = ({
+  name,
+  element,
+}: ScopeEntry): AssistantClientAccessor<ClientNames> => {
+  const client = useBuildingClient();
+  const { source, query = {} } = derivedPropsOf(element);
+  const instance = useDerived(derivedPropsOf(element)) as ClientMethods;
 
-  const fields = useClientFields({ notifications, clientRef });
-  const building = createClientObject(parent, fields);
-
-  const results = useAssistantTapContextProvider(
-    { clientRef, emit: notifications.emit },
-    function WithTapContext() {
-      return useBuildingClientProvider(building, function WithBuildingClient() {
-        return useScopeMounts(entries);
-      });
-    },
+  const meta = useShallowStable({ source, query: useShallowStable(query) });
+  const accessor = useMemo(
+    () => createAccessor(name, meta, () => instance),
+    [name, meta, instance],
   );
 
-  const accessors = useShallowStable(results.map((r) => r.accessor));
+  // Only fill vacant slots so a re-render never mutates an already-built client
+  if (!Object.hasOwn(client, name)) {
+    (client as Record<ClientNames, unknown>)[name] = accessor;
+  }
 
-  // Fresh envelope per commit so value-only updates reach the store's
-  // subscribers; the client inside keeps its identity
-  return {
-    client: useCommittedClient({ building, parent, fields, accessors }),
-  };
+  return accessor;
 };
 
 const useNotifications = () => useResource(NotificationManager());
@@ -303,15 +276,56 @@ const useAssistantClient = ({
   const clientRef = useRef<ClientRef>({ parent, current: null }).current;
   const notifications = useNotifications();
 
+  const entries = toScopeEntries(applyTransformScopes(clients, parent));
+  const buildEntries = entries.filter((e) => !isDerivedElement(e.element));
+  const derivedEntries = entries.filter((e) => isDerivedElement(e.element));
+
+  const fields = useClientFields({ notifications, clientRef });
+  const building = createClientObject(parent, fields);
+
   const store = useTapRoot(function AuiRoot() {
-    return useAuiRoot({ parent, clients, clientRef, notifications });
+    const results = useAssistantTapContextProvider(
+      { clientRef, emit: notifications.emit },
+      function WithTapContext() {
+        return useBuildingClientProvider(
+          building,
+          function WithBuildingClient() {
+            return useScopeMounts(buildEntries);
+          },
+        );
+      },
+    );
+    // Fresh envelope per render so value-only updates reach the store's
+    // subscribers; the accessors inside keep their identity
+    return { accessors: useShallowStable(results) };
   });
 
-  const client = useSyncExternalStore(
+  const readBuildAccessors = () => store.getValue().accessors;
+  const buildAccessors = useSyncExternalStore(
     store.subscribe,
-    () => store.getValue().client,
-    () => store.getValue().client,
+    readBuildAccessors,
+    readBuildAccessors,
   );
+
+  const derivedAccessors = useBuildingClientProvider(
+    building,
+    function WithBuildingClient() {
+      // oxlint-disable-next-line react-hooks/rules-of-hooks -- scope maps are static per call site
+      return derivedEntries.map((entry) => useDerivedMount(entry));
+    },
+  );
+
+  let buildIndex = 0;
+  let derivedIndex = 0;
+  const accessors = useShallowStable(
+    entries.map(({ element }) =>
+      isDerivedElement(element)
+        ? derivedAccessors[derivedIndex++]!
+        : buildAccessors[buildIndex++]!,
+    ),
+  );
+
+  const client = useCommittedClient({ building, parent, fields, accessors });
 
   // flushTapSync makes structural rebinds triggered by a notification land
   // before the notification returns
