@@ -35,6 +35,7 @@
     "@blaxel/core": "^0.3.8",
     "@hookform/resolvers": "^5.4.2",
     "@langchain/langgraph-sdk": "^1.9.28",
+    "@modelcontextprotocol/server": "^2.0.0",
     "@posthog/ai": "^8.4.0",
     "@shikijs/transformers": "^4.3.1",
     "@upstash/ratelimit": "^2.0.8",
