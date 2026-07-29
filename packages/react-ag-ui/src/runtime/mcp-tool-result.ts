@@ -26,12 +26,14 @@ export const parseMcpToolCallResult = (
   };
 };
 
-// _meta["ui/resourceUri"] is the MCP-UI pointer react-ai-sdk reads off
-// CallToolResult._meta; only ui:// URIs identify an MCP Apps widget. A
-// structured carrier is deliberately not read until upstream AG-UI settles
-// one (agno-agi/agno#9087).
+// The MCP Apps pointer on CallToolResult._meta: canonical nested `ui.resourceUri`
+// per the Apps spec (2026-01-26), with the deprecated flat `"ui/resourceUri"` kept
+// for legacy producers. Only ui:// URIs identify a widget.
 export const readMcpAppResourceUri = (meta: unknown): string | undefined => {
   if (!isRecord(meta)) return undefined;
-  const uri = meta["ui/resourceUri"];
-  return typeof uri === "string" && isMcpAppUri(uri) ? uri : undefined;
+  const ui = meta["ui"];
+  const nested = isRecord(ui) ? ui["resourceUri"] : undefined;
+  if (typeof nested === "string" && isMcpAppUri(nested)) return nested;
+  const flat = meta["ui/resourceUri"];
+  return typeof flat === "string" && isMcpAppUri(flat) ? flat : undefined;
 };

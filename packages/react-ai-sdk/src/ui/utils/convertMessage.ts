@@ -62,19 +62,32 @@ function extractMcpAppMetadata(
   if (app && typeof app === "object") {
     a = app as Record<string, unknown>;
   } else {
-    // MCP-UI tools (e.g. xmcp) surface the UI pointer as
-    // result._meta["ui/resourceUri"] rather than in callProviderMetadata.
+    // MCP-UI tools surface the pointer on result._meta: canonical nested
+    // `ui.resourceUri`, or the deprecated flat `"ui/resourceUri"` key.
     const output = (part as { output?: unknown }).output;
     const outMeta =
       output && typeof output === "object"
         ? (output as { _meta?: unknown })._meta
         : undefined;
-    const uiResourceUri =
+    const ui =
       outMeta && typeof outMeta === "object"
-        ? (outMeta as Record<string, unknown>)["ui/resourceUri"]
+        ? (outMeta as Record<string, unknown>)["ui"]
         : undefined;
-    if (typeof uiResourceUri !== "string") return undefined;
-    a = { resourceUri: uiResourceUri };
+    if (
+      ui &&
+      typeof ui === "object" &&
+      typeof (ui as Record<string, unknown>)["resourceUri"] === "string" &&
+      isMcpAppUri((ui as Record<string, unknown>)["resourceUri"] as string)
+    ) {
+      a = ui as Record<string, unknown>;
+    } else {
+      const flat =
+        outMeta && typeof outMeta === "object"
+          ? (outMeta as Record<string, unknown>)["ui/resourceUri"]
+          : undefined;
+      if (typeof flat !== "string" || !isMcpAppUri(flat)) return undefined;
+      a = { resourceUri: flat };
+    }
   }
   if (typeof a["resourceUri"] !== "string") return undefined;
   if (!isMcpAppUri(a["resourceUri"])) return undefined;
