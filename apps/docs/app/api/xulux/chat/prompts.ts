@@ -211,10 +211,24 @@ You have tools to explore assistant-ui documentation, inspect the monorepo sourc
 
 `;
 
+const LEARN_FILE_REFERENCE_INSTRUCTIONS = `<course_file_references>
+When you mention a file from the selected lesson application, format its complete /course-relative path as an inline code token using \`xulux-file:course:<path>\`.
+
+Example: \`xulux-file:course:app/page.tsx\`
+
+- Use only exact paths from the selected course stage.
+- Do not include source contents, patches, statistics, stage IDs, or URLs in the token.
+- Do not use this token for /repo files, documentation, partial filenames, or files you are unsure exist.
+- Continue using ordinary inline code for components, hooks, packages, /repo paths, and documentation references.
+</course_file_references>
+
+`;
+
 export const LEARN_SYSTEM_PROMPT = [
   LEARN_IDENTITY,
   SHARED_ASSISTANT_UI_CONTEXT,
   LEARN_WORKFLOW,
   LEARN_TOOL_INSTRUCTIONS,
+  LEARN_FILE_REFERENCE_INSTRUCTIONS,
   SHARED_FORMATTING_RULES,
 ].join("");

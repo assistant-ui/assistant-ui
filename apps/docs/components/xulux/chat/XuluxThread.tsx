@@ -32,6 +32,10 @@ import { XuluxPoweredBy } from "../XuluxPoweredBy";
 import { useXuluxTemplateContext } from "./XuluxTemplateContext";
 import { LearnCourseResultFooter, XuluxToolCall } from "./XuluxToolCall";
 import { XuluxUsageLimitBanner } from "./XuluxUsageLimitBanner";
+import {
+  LearnMessageFilePanel,
+  LearnMessageFileProvider,
+} from "../learn/LearnFileReference";
 
 const XULUX_CONTEXT_WINDOW = 400_000;
 const XULUX_DEFAULT_MODEL_ID = "gpt-5.4-mini";
@@ -246,54 +250,57 @@ function XuluxModelSelector(): ReactNode {
 
 function XuluxAssistantMessage(): ReactNode {
   return (
-    <MessagePrimitive.Root className="py-2" data-role="assistant">
-      <div className="text-sm [&_[data-part-type=tool-call]+[data-part-type=text]]:mt-2.5">
-        <MessagePrimitive.Parts>
-          {({ part }) => {
-            if (part.type === "text") {
-              return (
-                <div data-part-type="text">
-                  <XuluxMarkdownText />
-                </div>
-              );
-            }
-            if (part.type === "reasoning") {
-              return (
-                <div data-part-type="reasoning">
-                  <Reasoning {...part} />
-                </div>
-              );
-            }
-            if (part.type === "tool-call") {
-              return (
-                <div data-part-type="tool-call">
-                  {part.toolUI ?? <XuluxToolCall {...part} />}
-                </div>
-              );
-            }
-            return null;
-          }}
-        </MessagePrimitive.Parts>
-        <LearnCourseResultFooter />
+    <LearnMessageFileProvider>
+      <MessagePrimitive.Root className="py-2" data-role="assistant">
+        <div className="text-sm [&_[data-part-type=tool-call]+[data-part-type=text]]:mt-2.5">
+          <MessagePrimitive.Parts>
+            {({ part }) => {
+              if (part.type === "text") {
+                return (
+                  <div data-part-type="text">
+                    <XuluxMarkdownText />
+                  </div>
+                );
+              }
+              if (part.type === "reasoning") {
+                return (
+                  <div data-part-type="reasoning">
+                    <Reasoning {...part} />
+                  </div>
+                );
+              }
+              if (part.type === "tool-call") {
+                return (
+                  <div data-part-type="tool-call">
+                    {part.toolUI ?? <XuluxToolCall {...part} />}
+                  </div>
+                );
+              }
+              return null;
+            }}
+          </MessagePrimitive.Parts>
+          <LearnMessageFilePanel />
+          <LearnCourseResultFooter />
 
-        <AuiIf
-          condition={(s) =>
-            s.thread.isRunning && s.message.content.length === 0
-          }
-        >
-          <div className="text-muted-foreground flex items-center gap-2 py-1">
-            <DotMatrix state="connecting" aria-hidden />
-            <span className="text-sm">Connecting</span>
-          </div>
-        </AuiIf>
-        <MessagePrimitive.Error>
-          <ErrorPrimitive.Root className="border-destructive bg-destructive/10 text-destructive dark:bg-destructive/5 mt-2 rounded-md border p-2 text-xs dark:text-red-200">
-            <ErrorPrimitive.Message className="line-clamp-2" />
-          </ErrorPrimitive.Root>
-        </MessagePrimitive.Error>
-      </div>
-      <AssistantActionBar />
-    </MessagePrimitive.Root>
+          <AuiIf
+            condition={(s) =>
+              s.thread.isRunning && s.message.content.length === 0
+            }
+          >
+            <div className="text-muted-foreground flex items-center gap-2 py-1">
+              <DotMatrix state="connecting" aria-hidden />
+              <span className="text-sm">Connecting</span>
+            </div>
+          </AuiIf>
+          <MessagePrimitive.Error>
+            <ErrorPrimitive.Root className="border-destructive bg-destructive/10 text-destructive dark:bg-destructive/5 mt-2 rounded-md border p-2 text-xs dark:text-red-200">
+              <ErrorPrimitive.Message className="line-clamp-2" />
+            </ErrorPrimitive.Root>
+          </MessagePrimitive.Error>
+        </div>
+        <AssistantActionBar />
+      </MessagePrimitive.Root>
+    </LearnMessageFileProvider>
   );
 }
 

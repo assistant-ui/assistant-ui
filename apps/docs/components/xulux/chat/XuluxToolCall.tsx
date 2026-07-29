@@ -300,7 +300,7 @@ function LearnStepCard({
   >;
 }) {
   const aui = useAui();
-  const { openTab } = useLearnMode();
+  const { openFile, openTab } = useLearnMode();
   const [changesOpen, setChangesOpen] = useState(false);
 
   return (
@@ -334,7 +334,7 @@ function LearnStepCard({
                 <button
                   type="button"
                   className="hover:text-foreground text-muted-foreground flex w-full items-center justify-between gap-2 py-1 text-left font-mono text-xs"
-                  onClick={() => openTab("diff", file.path)}
+                  onClick={() => openFile(file.path, "diff")}
                 >
                   <span className="truncate">{file.path}</span>
                   <span className="uppercase">{file.status[0]}</span>

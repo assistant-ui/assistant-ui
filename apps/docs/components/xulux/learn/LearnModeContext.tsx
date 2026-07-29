@@ -3,6 +3,7 @@
 import {
   createContext,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -12,7 +13,8 @@ import type {
   LearnProgress,
 } from "@/lib/xulux/learn/types";
 
-type LearnCanvasTab = "curriculum" | "preview" | "files" | "diff";
+type LearnCanvasTab = "curriculum" | "preview" | "files";
+export type LearnFileDisplayMode = "source" | "diff";
 
 type LearnModeContextValue = {
   course: LearnCourseDefinition;
@@ -20,8 +22,10 @@ type LearnModeContextValue = {
   updateProgress: (progress: LearnProgress) => void;
   activeTab: LearnCanvasTab;
   selectedFile: string | null;
+  selectedFileMode: LearnFileDisplayMode;
   selectStep: (stepId: string) => void;
-  openTab: (tab: LearnCanvasTab, file?: string) => void;
+  openTab: (tab: LearnCanvasTab) => void;
+  openFile: (path: string, mode: LearnFileDisplayMode) => void;
 };
 
 const LearnModeContext = createContext<LearnModeContextValue | null>(null);
@@ -39,6 +43,16 @@ export function LearnModeProvider({
 }) {
   const [activeTab, setActiveTab] = useState<LearnCanvasTab>("curriculum");
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
+  const [selectedFileMode, setSelectedFileMode] =
+    useState<LearnFileDisplayMode>("source");
+
+  useEffect(() => {
+    const selectedStep = course.steps.find(
+      ({ id }) => id === progress.selectedStepId,
+    );
+    setSelectedFile(selectedStep?.focusFiles[0] ?? null);
+    setSelectedFileMode("diff");
+  }, [course.steps, progress.selectedStepId]);
 
   const value = useMemo<LearnModeContextValue>(
     () => ({
@@ -47,6 +61,7 @@ export function LearnModeProvider({
       updateProgress,
       activeTab,
       selectedFile,
+      selectedFileMode,
       selectStep: (stepId) => {
         updateProgress({
           ...progress,
@@ -55,12 +70,23 @@ export function LearnModeProvider({
         });
         setActiveTab("preview");
       },
-      openTab: (tab, file) => {
+      openTab: (tab) => {
         setActiveTab(tab);
-        if (file) setSelectedFile(file);
+      },
+      openFile: (path, mode) => {
+        setActiveTab("files");
+        setSelectedFile(path);
+        setSelectedFileMode(mode);
       },
     }),
-    [activeTab, course, progress, selectedFile, updateProgress],
+    [
+      activeTab,
+      course,
+      progress,
+      selectedFile,
+      selectedFileMode,
+      updateProgress,
+    ],
   );
 
   return (
@@ -74,4 +100,8 @@ export function useLearnMode() {
   const value = useContext(LearnModeContext);
   if (!value) throw new Error("useLearnMode requires LearnModeProvider");
   return value;
+}
+
+export function useOptionalLearnMode() {
+  return useContext(LearnModeContext);
 }

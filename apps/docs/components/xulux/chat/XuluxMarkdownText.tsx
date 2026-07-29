@@ -23,6 +23,8 @@ import { cn } from "@/lib/utils";
 import ShikiHighlighter from "react-shiki";
 import Link from "next/link";
 import { useCopyToClipboard } from "@assistant-ui/ui/hooks/use-copy-to-clipboard";
+import { parseXuluxFileReference } from "@/lib/xulux/learn/file-reference";
+import { LearnInlineFileReference } from "../learn/LearnFileReference";
 
 const XuluxMarkdownTextImpl = () => {
   return (
@@ -281,6 +283,15 @@ const markdownComponents = {
     ...props
   }: ComponentPropsWithoutRef<"code">) {
     const isCodeBlock = useIsStreamdownCodeBlock();
+    const reference =
+      !isCodeBlock && typeof props.children === "string"
+        ? parseXuluxFileReference(props.children)
+        : null;
+    if (reference) {
+      return (
+        <LearnInlineFileReference reference={reference} className={className} />
+      );
+    }
     return (
       <code
         className={cn(

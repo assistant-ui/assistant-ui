@@ -58,6 +58,7 @@ import type {
 import { LearnCanvas } from "../learn/LearnCanvas";
 import { LearnCourseObserver } from "../learn/LearnCourseObserver";
 import { LearnModeProvider } from "../learn/LearnModeContext";
+import { LearnStageSourceProvider } from "../learn/LearnStageSourceContext";
 import {
   LEARN_START_MESSAGE,
   shouldAutoStartLearnCourse,
@@ -465,23 +466,25 @@ export function XuluxShell({
           progress={learnProgress}
           updateProgress={onUpdateLearnProgress}
         >
-          <LearnCourseObserver />
-          <div className="bg-background text-foreground grid h-full min-h-0 grid-rows-[minmax(0,55%)_minmax(0,45%)] overflow-hidden md:grid-cols-[minmax(320px,0.8fr)_minmax(0,1.2fr)] md:grid-rows-1">
-            <section
-              className="flex min-h-0 min-w-0 flex-col overflow-hidden border-b md:border-r md:border-b-0"
-              aria-label="Learn chat"
-            >
-              <XuluxThread
-                learn={{
-                  started,
-                  onStartCourse: () => handleStartCourse("chat"),
-                }}
+          <LearnStageSourceProvider>
+            <LearnCourseObserver />
+            <div className="bg-background text-foreground grid h-full min-h-0 grid-rows-[minmax(0,55%)_minmax(0,45%)] overflow-hidden md:grid-cols-[minmax(320px,0.8fr)_minmax(0,1.2fr)] md:grid-rows-1">
+              <section
+                className="flex min-h-0 min-w-0 flex-col overflow-hidden border-b md:border-r md:border-b-0"
+                aria-label="Learn chat"
+              >
+                <XuluxThread
+                  learn={{
+                    started,
+                    onStartCourse: () => handleStartCourse("chat"),
+                  }}
+                />
+              </section>
+              <LearnCanvas
+                onStartCourse={() => handleStartCourse("curriculum")}
               />
-            </section>
-            <LearnCanvas
-              onStartCourse={() => handleStartCourse("curriculum")}
-            />
-          </div>
+            </div>
+          </LearnStageSourceProvider>
         </LearnModeProvider>
       </XuluxTemplateProvider>
     );

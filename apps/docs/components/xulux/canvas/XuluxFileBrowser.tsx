@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useState, type ReactNode } from "react";
 import {
   ChevronDown,
   ChevronRight,
@@ -42,12 +42,19 @@ type Props = {
   archive: VirtualArchive;
   selectedPath?: string | null;
   onSelectedPathChange?: (path: string) => void;
+  fileStatuses?: ReadonlyMap<
+    string,
+    "added" | "modified" | "deleted" | "unchanged"
+  >;
+  renderSelectedFile?: (path: string) => ReactNode;
 };
 
 export function XuluxFileBrowser({
   archive,
   selectedPath: controlledSelectedPath,
   onSelectedPathChange,
+  fileStatuses,
+  renderSelectedFile,
 }: Props) {
   const [expanded, setExpanded] = useState<Set<string>>(() => {
     const dirs = archive.tree
@@ -87,6 +94,7 @@ export function XuluxFileBrowser({
     const isDir = node.type === "directory";
     const isOpen = expanded.has(node.path);
     const isSelected = selectedPath === node.path;
+    const fileStatus = isDir ? undefined : fileStatuses?.get(node.path);
 
     return (
       <div key={node.path}>
@@ -118,6 +126,17 @@ export function XuluxFileBrowser({
             <FileIcon className="text-muted-foreground size-3.5 shrink-0" />
           )}
           <span className="truncate">{node.name}</span>
+          {fileStatus && fileStatus !== "unchanged" ? (
+            <span
+              className={cn(
+                "ml-auto size-2 shrink-0 rounded-full",
+                fileStatus === "added" && "bg-green-500",
+                fileStatus === "modified" && "bg-amber-500",
+                fileStatus === "deleted" && "bg-red-500",
+              )}
+              aria-label={fileStatus}
+            />
+          ) : null}
         </button>
         {isDir && isOpen && node.children?.map((c) => renderNode(c, depth + 1))}
       </div>
@@ -141,41 +160,26 @@ export function XuluxFileBrowser({
       {/* Content pane */}
       <div className="flex min-w-0 flex-1 flex-col">
         {selectedPath ? (
-          <>
-            <div className="flex shrink-0 items-center gap-2 border-b px-3 py-1.5">
-              <span className="text-muted-foreground truncate font-mono text-xs">
-                {selectedPath}
-              </span>
-            </div>
-            <div className="min-h-0 flex-1 overflow-auto">
-              {archive.isText(selectedPath) && fileContent !== null ? (
-                langFromPath(selectedPath) ? (
-                  <div className="[&_code]:!text-xs [&_pre]:!bg-transparent [&_pre]:!p-4 [&_pre]:!text-xs [&_pre]:!leading-relaxed">
-                    <ShikiHighlighter
-                      language={langFromPath(selectedPath)!}
-                      theme={{
-                        dark: "github-dark-default",
-                        light: "github-light-default",
-                      }}
-                      addDefaultStyles={false}
-                      showLanguage={false}
-                      defaultColor={false}
-                    >
-                      {fileContent}
-                    </ShikiHighlighter>
-                  </div>
+          renderSelectedFile ? (
+            renderSelectedFile(selectedPath)
+          ) : (
+            <>
+              <div className="flex shrink-0 items-center gap-2 border-b px-3 py-1.5">
+                <span className="text-muted-foreground truncate font-mono text-xs">
+                  {selectedPath}
+                </span>
+              </div>
+              <div className="min-h-0 flex-1 overflow-auto">
+                {archive.isText(selectedPath) && fileContent !== null ? (
+                  <XuluxSourceCode path={selectedPath} content={fileContent} />
                 ) : (
-                  <pre className="p-4 font-mono text-xs leading-relaxed break-words whitespace-pre-wrap">
-                    {fileContent}
-                  </pre>
-                )
-              ) : (
-                <div className="text-muted-foreground flex h-full items-center justify-center p-6 text-sm">
-                  Binary file — cannot display preview.
-                </div>
-              )}
-            </div>
-          </>
+                  <div className="text-muted-foreground flex h-full items-center justify-center p-6 text-sm">
+                    Binary file — cannot display preview.
+                  </div>
+                )}
+              </div>
+            </>
+          )
         ) : (
           <div className="text-muted-foreground flex h-full items-center justify-center p-6 text-center text-sm">
             Select a file to view its contents.
@@ -183,5 +187,35 @@ export function XuluxFileBrowser({
         )}
       </div>
     </div>
+  );
+}
+
+export function XuluxSourceCode({
+  path,
+  content,
+}: {
+  path: string;
+  content: string;
+}) {
+  const language = langFromPath(path);
+  return language ? (
+    <div className="[&_code]:!text-xs [&_pre]:!bg-transparent [&_pre]:!p-4 [&_pre]:!text-xs [&_pre]:!leading-relaxed">
+      <ShikiHighlighter
+        language={language}
+        theme={{
+          dark: "github-dark-default",
+          light: "github-light-default",
+        }}
+        addDefaultStyles={false}
+        showLanguage={false}
+        defaultColor={false}
+      >
+        {content}
+      </ShikiHighlighter>
+    </div>
+  ) : (
+    <pre className="p-4 font-mono text-xs leading-relaxed break-words whitespace-pre-wrap">
+      {content}
+    </pre>
   );
 }

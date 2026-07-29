@@ -1,105 +1,69 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { BookOpen, Code2, Eye, GitCompare, Loader2 } from "lucide-react";
-import { DiffViewer } from "@/components/assistant-ui/diff-viewer";
+import { useMemo, useState } from "react";
+import { BookOpen, Code2, Eye, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { compareStageFiles } from "@/lib/xulux/learn/stage-diff";
-import type { LearnStageFiles } from "@/lib/xulux/learn/stage-source";
 import { createVirtualArchiveFromTextFiles } from "@/lib/xulux/virtual-archive";
 import { XuluxFileBrowser } from "../canvas/XuluxFileBrowser";
 import { LearnCurriculumOverview } from "./LearnCurriculumOverview";
 import { useLearnMode } from "./LearnModeContext";
-
-type SourceState =
-  | { status: "idle" | "loading" }
-  | {
-      status: "ready";
-      files: LearnStageFiles;
-      previousFiles: LearnStageFiles;
-    }
-  | { status: "error"; error: string };
+import { useLearnStageSource } from "./LearnStageSourceContext";
+import { LearnFileView, type LearnDiffViewMode } from "./LearnFileView";
 
 const tabs = [
   { id: "curriculum" as const, label: "Curriculum", icon: BookOpen },
   { id: "preview" as const, label: "Preview", icon: Eye },
   { id: "files" as const, label: "Files", icon: Code2 },
-  { id: "diff" as const, label: "Diff", icon: GitCompare },
 ];
 
 export function LearnCanvas({ onStartCourse }: { onStartCourse: () => void }) {
-  const { course, progress, activeTab, selectedFile, selectStep, openTab } =
-    useLearnMode();
+  const {
+    course,
+    progress,
+    activeTab,
+    selectedFile,
+    selectedFileMode,
+    selectStep,
+    openTab,
+    openFile,
+  } = useLearnMode();
+  const source = useLearnStageSource();
   const selectedStep =
     course.steps.find(({ id }) => id === progress.selectedStepId) ?? null;
-  const selectedIndex = selectedStep
-    ? course.steps.findIndex(({ id }) => id === selectedStep.id)
-    : -1;
-  const [source, setSource] = useState<SourceState>({ status: "idle" });
-  const [sourceVersion, setSourceVersion] = useState(0);
-  const [diffViewMode, setDiffViewMode] = useState<"unified" | "split">(
-    "unified",
-  );
-
-  useEffect(() => {
-    if (!selectedStep) {
-      setSource({ status: "idle" });
-      return;
-    }
-    const controller = new AbortController();
-    setSource({ status: "loading" });
-    const previous = course.steps[selectedIndex - 1];
-    const load = async (stageId: string) => {
-      const params = new URLSearchParams({ courseId: course.id, stageId });
-      const response = await fetch(`/api/xulux/learn/source?${params}`, {
-        signal: controller.signal,
-      });
-      if (!response.ok)
-        throw new Error(`Source request failed (${response.status})`);
-      const payload = (await response.json()) as { files?: unknown };
-      if (!payload.files || typeof payload.files !== "object") {
-        throw new Error("Source response was invalid.");
-      }
-      return payload.files as LearnStageFiles;
-    };
-    void Promise.all([
-      load(selectedStep.stageId),
-      previous ? load(previous.stageId) : Promise.resolve({}),
-    ])
-      .then(([files, previousFiles]) =>
-        setSource({ status: "ready", files, previousFiles }),
-      )
-      .catch((error) => {
-        if (!controller.signal.aborted) {
-          setSource({
-            status: "error",
-            error: error instanceof Error ? error.message : String(error),
-          });
-        }
-      });
-    return () => controller.abort();
-  }, [course.id, course.steps, selectedIndex, selectedStep, sourceVersion]);
+  const [diffViewMode, setDiffViewMode] =
+    useState<LearnDiffViewMode>("unified");
 
   const archive = useMemo(
     () =>
       source.status === "ready"
-        ? createVirtualArchiveFromTextFiles(source.files)
+        ? createVirtualArchiveFromTextFiles({
+            ...source.previousFiles,
+            ...source.currentFiles,
+          })
         : null,
     [source],
   );
-  const patch = useMemo(() => {
-    if (source.status !== "ready" || !selectedFile) return null;
-    return createFilePatch(
-      selectedFile,
-      source.previousFiles[selectedFile],
-      source.files[selectedFile],
-    );
-  }, [selectedFile, source]);
-  const changes =
-    source.status === "ready"
-      ? compareStageFiles(source.previousFiles, source.files)
-      : null;
+  const fileStatuses = useMemo(
+    () =>
+      new Map(
+        [...source.records].map(([path, record]) => [path, record.status]),
+      ),
+    [source.records],
+  );
+  const selectedRecord = selectedFile
+    ? source.records.get(selectedFile)
+    : undefined;
+
+  const openDefaultFile = () => {
+    const path = selectedFile ?? selectedStep?.focusFiles[0];
+    if (!path) {
+      openTab("files");
+      return;
+    }
+    const record = source.records.get(path);
+    openFile(path, record?.status === "unchanged" ? "source" : "diff");
+  };
 
   return (
     <section
@@ -115,14 +79,7 @@ export function LearnCanvas({ onStartCourse }: { onStartCourse: () => void }) {
             variant={activeTab === id ? "secondary" : "ghost"}
             className="h-8 gap-1.5"
             disabled={id !== "curriculum" && !selectedStep}
-            onClick={() =>
-              openTab(
-                id,
-                id === "files" || id === "diff"
-                  ? (selectedFile ?? selectedStep?.focusFiles[0])
-                  : undefined,
-              )
-            }
+            onClick={() => (id === "files" ? openDefaultFile() : openTab(id))}
           >
             <Icon className="size-3.5" />
             {label}
@@ -155,83 +112,53 @@ export function LearnCanvas({ onStartCourse }: { onStartCourse: () => void }) {
             />
           </div>
         )}
-        {(activeTab === "files" || activeTab === "diff") &&
-          source.status === "loading" && <LoadingSource />}
-        {(activeTab === "files" || activeTab === "diff") &&
-          source.status === "error" && (
-            <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-sm">
-              <p className="text-destructive">{source.error}</p>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setSourceVersion((version) => version + 1)}
-              >
-                Retry source
-              </Button>
-            </div>
-          )}
+        {activeTab === "files" && source.status === "loading" && (
+          <LoadingSource />
+        )}
+        {activeTab === "files" && source.status === "error" && (
+          <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-sm">
+            <p className="text-destructive">{source.error}</p>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={source.retry}
+            >
+              Retry source
+            </Button>
+          </div>
+        )}
         {activeTab === "files" && archive && (
           <XuluxFileBrowser
             archive={archive}
             selectedPath={selectedFile}
-            onSelectedPathChange={(path) => openTab("files", path)}
+            fileStatuses={fileStatuses}
+            onSelectedPathChange={(path) => {
+              const record = source.records.get(path);
+              openFile(
+                path,
+                record?.status === "unchanged" ? "source" : "diff",
+              );
+            }}
+            renderSelectedFile={() =>
+              selectedRecord ? (
+                <LearnFileView
+                  record={selectedRecord}
+                  displayMode={selectedFileMode}
+                  diffViewMode={diffViewMode}
+                  variant="full"
+                  onDisplayModeChange={(mode) =>
+                    openFile(selectedRecord.path, mode)
+                  }
+                  onDiffViewModeChange={setDiffViewMode}
+                />
+              ) : (
+                <div className="text-muted-foreground flex h-full items-center justify-center p-6 text-sm">
+                  This file is unavailable in the selected stage.
+                </div>
+              )
+            }
           />
-        )}
-        {activeTab === "diff" && source.status === "ready" && (
-          <div className="flex h-full min-h-0">
-            <div className="w-52 shrink-0 overflow-y-auto border-r p-2">
-              <p className="text-muted-foreground px-2 py-1 text-xs">
-                {changes?.files.length ?? 0} changed files
-              </p>
-              {changes?.files.map((file) => (
-                <button
-                  key={file.path}
-                  type="button"
-                  onClick={() => openTab("diff", file.path)}
-                  className={cn(
-                    "hover:bg-muted mt-0.5 flex w-full items-center gap-2 rounded px-2 py-1.5 text-left font-mono text-xs",
-                    selectedFile === file.path && "bg-muted",
-                  )}
-                >
-                  <span
-                    className={cn(
-                      "size-2 rounded-full",
-                      file.status === "added" && "bg-green-500",
-                      file.status === "modified" && "bg-amber-500",
-                      file.status === "deleted" && "bg-red-500",
-                    )}
-                  />
-                  <span className="truncate">{file.path}</span>
-                </button>
-              ))}
-            </div>
-            <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-              <div className="flex shrink-0 justify-end gap-1 border-b p-2">
-                {(["unified", "split"] as const).map((mode) => (
-                  <Button
-                    key={mode}
-                    type="button"
-                    size="sm"
-                    variant={diffViewMode === mode ? "secondary" : "ghost"}
-                    className="h-7 capitalize"
-                    onClick={() => setDiffViewMode(mode)}
-                  >
-                    {mode}
-                  </Button>
-                ))}
-              </div>
-              <div className="min-h-0 flex-1 overflow-auto p-3">
-                {patch ? (
-                  <DiffViewer patch={patch} viewMode={diffViewMode} />
-                ) : (
-                  <div className="text-muted-foreground flex h-full items-center justify-center text-sm">
-                    Select a changed file to compare it.
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
         )}
       </div>
     </section>
@@ -245,20 +172,4 @@ function LoadingSource() {
       Loading source…
     </div>
   );
-}
-
-function createFilePatch(
-  path: string,
-  oldFile: string | undefined,
-  newFile: string | undefined,
-) {
-  const oldLines = oldFile ? oldFile.replace(/\n$/, "").split("\n") : [];
-  const newLines = newFile ? newFile.replace(/\n$/, "").split("\n") : [];
-  return [
-    `--- ${oldFile === undefined ? "/dev/null" : `a/${path}`}`,
-    `+++ ${newFile === undefined ? "/dev/null" : `b/${path}`}`,
-    `@@ -${oldLines.length ? 1 : 0},${oldLines.length} +${newLines.length ? 1 : 0},${newLines.length} @@`,
-    ...oldLines.map((line) => `-${line}`),
-    ...newLines.map((line) => `+${line}`),
-  ].join("\n");
 }
