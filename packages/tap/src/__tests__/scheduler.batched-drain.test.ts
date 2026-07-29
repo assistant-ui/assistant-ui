@@ -114,14 +114,13 @@ describe("scheduler batched draining", () => {
     expect(ran).toHaveLength(6000);
   });
 
-  it("throws past MAX_TOTAL_TASKS_PER_BURST but keeps the remainder queued", async () => {
+  it("yields silently past MAX_TOTAL_TASKS_PER_BURST and keeps draining", async () => {
     vi.resetModules();
     vi.stubGlobal("MessageChannel", ControlledMessageChannel);
     const { UpdateScheduler } = await import("../core/scheduler");
 
-    // Contract of the burst-wide backstop: it fires loudly, but unlike the
-    // pre-fix behavior it does not drop the pending queue — the remainder
-    // drains on the next flush.
+    // The burst-wide cap is a yield boundary, not an error: oversized but
+    // finite batches drain across flushes without any throw.
     const ran: number[] = [];
     const schedulers = Array.from(
       { length: 10001 },
@@ -135,12 +134,6 @@ describe("scheduler batched draining", () => {
     }
 
     const [channel] = ControlledMessageChannel.instances;
-    expect(() => pump(channel!)).toThrow(/Maximum update depth exceeded/);
-    const ranBeforeAbort = ran.length;
-    expect(ranBeforeAbort).toBeLessThan(10001);
-
-    // The cap reschedules automatically, so the remainder drains on the next
-    // pass with no external nudge (production has no manual markDirty).
     expect(() => pump(channel!)).not.toThrow();
     expect(ran).toHaveLength(10001);
   });
@@ -209,12 +202,12 @@ describe("scheduler batched draining", () => {
     makeCascadeScheduler().markDirty();
 
     const [channel] = ControlledMessageChannel.instances;
-    // MAX_CAP_STREAK (10) consecutive saturated flushes throw and
-    // auto-continue; the 11th stops rescheduling. Keep in sync with
-    // MAX_CAP_STREAK when changing it.
-    for (let i = 0; i < 11; i += 1) {
-      expect(() => pump(channel!)).toThrow(/Maximum update depth exceeded/);
-    }
+    // Saturated flushes yield silently and auto-continue; after
+    // MAX_CAP_STREAK (10) in a row the cascade is treated as a runaway: it
+    // throws and stops rescheduling. pump() drives every chained flush, so
+    // this first pump runs all 10 silent yields before the give-up throw.
+    expect(() => pump(channel!)).toThrow(/Maximum update depth exceeded/);
+    // Nothing is rescheduled after the give-up.
     expect(() => pump(channel!)).not.toThrow();
 
     // The remainder is not dropped: any later markDirty triggers a flush
