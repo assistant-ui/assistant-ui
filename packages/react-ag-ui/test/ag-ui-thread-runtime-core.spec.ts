@@ -78,6 +78,90 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(core.isRunning()).toBe(false);
   });
 
+  it("keeps streaming after a messages snapshot replaces run history", async () => {
+    const streamedText: Array<string | undefined> = [];
+    let core: AgUiThreadRuntimeCore;
+    const readAssistantText = () => {
+      const assistant = core
+        .getMessages()
+        .find((message) => message.role === "assistant") as
+        | ThreadAssistantMessage
+        | undefined;
+      const text = assistant?.content.find((part) => part.type === "text");
+      return text?.type === "text" ? text.text : undefined;
+    };
+    const agent = {
+      runAgent: vi.fn(async (_input, subscriber) => {
+        subscriber.onMessagesSnapshotEvent?.({
+          event: {
+            type: "MESSAGES_SNAPSHOT",
+            messages: [{ id: "user-1", role: "user", content: "hi" }],
+          },
+        });
+        subscriber.onTextMessageStartEvent?.({
+          event: {
+            type: "TEXT_MESSAGE_START",
+            messageId: "assistant-1",
+          },
+        });
+        subscriber.onTextMessageContentEvent?.({
+          event: {
+            type: "TEXT_MESSAGE_CONTENT",
+            messageId: "assistant-1",
+            delta: "Hello",
+          },
+        });
+        streamedText.push(readAssistantText());
+        subscriber.onMessagesSnapshotEvent?.({
+          event: {
+            type: "MESSAGES_SNAPSHOT",
+            messages: [{ id: "user-1", role: "user", content: "hi" }],
+          },
+        });
+        subscriber.onTextMessageContentEvent?.({
+          event: {
+            type: "TEXT_MESSAGE_CONTENT",
+            messageId: "assistant-1",
+            delta: " world",
+          },
+        });
+        streamedText.push(readAssistantText());
+        subscriber.onTextMessageEndEvent?.({
+          event: {
+            type: "TEXT_MESSAGE_END",
+            messageId: "assistant-1",
+          },
+        });
+        subscriber.onMessagesSnapshotEvent?.({
+          event: {
+            type: "MESSAGES_SNAPSHOT",
+            messages: [
+              { id: "user-1", role: "user", content: "hi" },
+              {
+                id: "assistant-1",
+                role: "assistant",
+                content: "Hello world",
+              },
+            ],
+          },
+        });
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+
+    core = createCore(agent);
+    await core.append(createAppendMessage());
+
+    expect(streamedText).toEqual(["Hello", "Hello world"]);
+    expect(core.getMessages()).toHaveLength(2);
+    expect(core.getMessages().at(-1)).toMatchObject({
+      id: "assistant-1",
+      role: "assistant",
+      content: [{ type: "text", text: "Hello world" }],
+      status: { type: "complete" },
+    });
+  });
+
   it("imports tool role messages from snapshots as assistant tool-call results", async () => {
     const agent = {
       runAgent: vi.fn(async (_input, subscriber) => {

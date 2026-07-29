@@ -923,7 +923,8 @@ export class AgUiThreadRuntimeCore {
         }
       },
     });
-    const dispatch = (event: AgUiEvent) => this.handleEvent(aggregator, event);
+    const dispatch = (event: AgUiEvent) =>
+      this.handleEvent(aggregator, event, assistantMessageId);
 
     const abortController = new AbortController();
     const abortSignal = abortController.signal;
@@ -1307,7 +1308,11 @@ export class AgUiThreadRuntimeCore {
     };
   }
 
-  private handleEvent(aggregator: RunAggregator, event: AgUiEvent) {
+  private handleEvent(
+    aggregator: RunAggregator,
+    event: AgUiEvent,
+    activeAssistantId?: string,
+  ) {
     switch (event.type) {
       case "STATE_SNAPSHOT": {
         this.stateSnapshot = event.snapshot as ReadonlyJSONValue;
@@ -1332,7 +1337,7 @@ export class AgUiThreadRuntimeCore {
         return;
       }
       case "MESSAGES_SNAPSHOT": {
-        this.importMessagesSnapshot(event.messages);
+        this.importMessagesSnapshot(event.messages, activeAssistantId);
         return;
       }
       case "TOOL_CALL_RESULT": {
@@ -1504,8 +1509,16 @@ export class AgUiThreadRuntimeCore {
     this.maybeCompleteAfterToolResults(messageId);
   }
 
-  private importMessagesSnapshot(rawMessages: readonly unknown[]) {
+  private importMessagesSnapshot(
+    rawMessages: readonly unknown[],
+    activeAssistantId?: string,
+  ) {
     try {
+      const activeMessage = activeAssistantId
+        ? this.tryGetMessage(activeAssistantId)?.message
+        : undefined;
+      const activeAssistant =
+        activeMessage?.role === "assistant" ? activeMessage : undefined;
       const normalized = fromAgUiMessages(rawMessages, {
         showThinking: this.showThinking,
       });
@@ -1522,7 +1535,17 @@ export class AgUiThreadRuntimeCore {
           );
         }
       }
+      const snapshotHeadId = converted.at(-1)?.id ?? null;
+      const preservesActiveAssistant =
+        activeAssistant !== undefined && converted.at(-1)?.role !== "assistant";
+      if (preservesActiveAssistant) {
+        converted.push(activeAssistant);
+      }
       this.applyExternalMessages(converted);
+      if (preservesActiveAssistant) {
+        this.recordedHistoryIds.delete(activeAssistant.id);
+        this.markPendingAssistantHistory(activeAssistant.id, snapshotHeadId);
+      }
     } catch (error) {
       this.logger.error?.("[agui] failed to import messages snapshot", error);
     }
