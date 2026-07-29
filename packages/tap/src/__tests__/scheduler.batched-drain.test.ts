@@ -89,6 +89,32 @@ describe("scheduler batched draining", () => {
     expect(ran).toBe(true);
   });
 
+  it("terminates a ring of mutually re-dirtying schedulers", async () => {
+    vi.resetModules();
+    vi.stubGlobal("MessageChannel", ControlledMessageChannel);
+    const { UpdateScheduler } = await import("../core/scheduler");
+
+    // A dirties B and B dirties A. Dropping only the current scheduler
+    // rebuilds the identical cycle next flush, so the loop abort must clear
+    // the queue — afterwards the app must keep flushing normally.
+    let a: InstanceType<typeof UpdateScheduler>;
+    let b: InstanceType<typeof UpdateScheduler>;
+    a = new UpdateScheduler(() => b.markDirty());
+    b = new UpdateScheduler(() => a.markDirty());
+    a.markDirty();
+
+    const [channel] = ControlledMessageChannel.instances;
+    expect(() => pump(channel!)).toThrow(/Maximum update depth exceeded/);
+    expect(() => pump(channel!)).not.toThrow();
+
+    let ran = false;
+    new UpdateScheduler(() => {
+      ran = true;
+    }).markDirty();
+    expect(() => pump(channel!)).not.toThrow();
+    expect(ran).toBe(true);
+  });
+
   it("drains a 6000-scheduler batch in one flush", async () => {
     vi.resetModules();
     vi.stubGlobal("MessageChannel", ControlledMessageChannel);
@@ -166,6 +192,31 @@ describe("scheduler batched draining", () => {
       pump(channel);
     }
     expect(ran).toHaveLength(120);
+  });
+
+  it("drains synchronously inside flushTapSync even past the burst cap", async () => {
+    vi.resetModules();
+    vi.stubGlobal("MessageChannel", ControlledMessageChannel);
+    const { UpdateScheduler, flushTapSync } = await import("../core/scheduler");
+
+    const ran: number[] = [];
+    const schedulers = Array.from(
+      { length: 10001 },
+      (_, i) =>
+        new UpdateScheduler(() => {
+          ran.push(i);
+        }),
+    );
+
+    // Everything must land before flushTapSync returns — the burst cap must
+    // not defer part of the queue to a macrotask that would outlive the
+    // temporary flushState (and silently lose it).
+    flushTapSync(() => {
+      for (const scheduler of schedulers) {
+        scheduler.markDirty();
+      }
+    });
+    expect(ran).toHaveLength(10001);
   });
 
   it("throws inside flushTapSync when a resource re-dirties itself", async () => {

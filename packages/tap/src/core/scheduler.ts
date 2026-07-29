@@ -2,12 +2,15 @@ type Task = () => void;
 
 type GlobalFlushState = {
   schedulers: Set<UpdateScheduler>;
+  // Queue size at the previous cap abort (Infinity before the first one).
+  lastCapQueueSize: number;
   capStreak: number;
   isScheduled: boolean;
 };
 
 const newFlushState = (): GlobalFlushState => ({
   schedulers: new Set([]),
+  lastCapQueueSize: Number.POSITIVE_INFINITY,
   capStreak: 0,
   isScheduled: false,
 });
@@ -15,15 +18,14 @@ const newFlushState = (): GlobalFlushState => ({
 // Per-scheduler re-runs catch resources that re-dirty themselves or each
 // other in a loop; a finite batch never re-runs one scheduler this often.
 const MAX_TASK_RUNS_PER_BURST = 50;
-// Backstop for cascades of FRESH schedulers (each runs once, so the
-// per-scheduler guard never trips). A flush yields silently at this many
-// tasks and continues on the next macrotask, so oversized batches drain
-// without errors; only MAX_CAP_STREAK consecutive saturated flushes are
-// treated as a runaway.
+// A flush yields silently at this many tasks and continues on the next
+// macrotask, so oversized batches drain across flushes with no error.
 const MAX_TOTAL_TASKS_PER_BURST = 10000;
-// "Saturated this many flushes in a row" is what loop means for the burst
-// cap: stop auto-continuing and throw. The queue is kept — never dropped.
-const MAX_CAP_STREAK = 10;
+// "The queue did not shrink between cap aborts" is what cascade means for
+// the burst cap (a finite batch's queue always shrinks; a runaway's never
+// does). This many non-shrinking aborts in a row throws and stops
+// auto-continuing. Legitimate batches of any size never hit it.
+const MAX_CAP_STREAK = 3;
 let flushState: GlobalFlushState = newFlushState();
 
 export class UpdateScheduler {
@@ -58,11 +60,11 @@ const scheduleFlush = () => {
   scheduleMacrotask();
 };
 
-// Guards never drop queued work. The burst-wide cap yields silently and
+// Guards never lose queued work silently: the burst cap yields and
 // reschedules, so oversized batches drain across macrotasks with no error;
-// only MAX_CAP_STREAK saturated flushes in a row (a runaway) throws and
-// stops auto-continuing. A looping scheduler is dropped so the rest of the
-// app keeps flushing.
+// a cascade (queue not shrinking between cap aborts) throws after
+// MAX_CAP_STREAK and stops auto-continuing; a loop abort clears the queue,
+// which is the only way a mutually re-dirtying ring terminates.
 const flushScheduled = () => {
   const errors: unknown[] = [];
   const runCounts = new Map<UpdateScheduler, number>();
@@ -97,19 +99,26 @@ const flushScheduled = () => {
   }
 
   if (abort === "cap") {
-    flushState.capStreak += 1;
-    if (flushState.capStreak <= MAX_CAP_STREAK) {
-      scheduleFlush();
-    } else {
+    const remaining = flushState.schedulers.size;
+    flushState.capStreak =
+      remaining >= flushState.lastCapQueueSize ? flushState.capStreak + 1 : 0;
+    flushState.lastCapQueueSize = remaining;
+    if (flushState.capStreak > MAX_CAP_STREAK) {
+      // Runaway cascade: report once and stop auto-continuing, but keep the
+      // queue and judge the next burst fresh (no latched streak).
+      flushState.capStreak = 0;
+      flushState.lastCapQueueSize = Number.POSITIVE_INFINITY;
       throw new Error(
         `Maximum update depth exceeded. This can happen when a resource ` +
           `repeatedly calls setState inside useEffect.`,
       );
     }
+    scheduleFlush();
   } else {
     flushState.capStreak = 0;
+    flushState.lastCapQueueSize = Number.POSITIVE_INFINITY;
     if (abort === "loop") {
-      scheduleFlush();
+      flushState.schedulers.clear();
       throw new Error(
         `Maximum update depth exceeded. This can happen when a resource ` +
           `repeatedly calls setState inside useEffect.`,
@@ -165,7 +174,13 @@ export const flushTapSync = <T>(callback: () => T): T => {
 
   try {
     const value = callback();
-    flushScheduled();
+    // Synchronous callers rely on every notification having landed by the
+    // time this returns, so drain across passes until the queue is empty.
+    // A cascade still throws via the guards above rather than deferring to
+    // a macrotask that would outlive this temporary flushState.
+    while (flushState.schedulers.size > 0) {
+      flushScheduled();
+    }
 
     return value;
   } finally {
