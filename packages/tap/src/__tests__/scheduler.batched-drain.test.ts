@@ -106,4 +106,76 @@ describe("scheduler batched draining", () => {
 
     expect(ran).toHaveLength(40 * 75);
   });
+
+  it("drains batches far larger than one pass budget with no total-size ceiling", async () => {
+    vi.resetModules();
+    vi.stubGlobal("MessageChannel", ControlledMessageChannel);
+    const { UpdateScheduler } = await import("../core/scheduler");
+
+    // Finite batches never re-run a scheduler, so they must drain no matter
+    // how many passes they need (6000 tasks = 120 passes at 50/pass).
+    const ran: number[] = [];
+    const schedulers = Array.from(
+      { length: 6000 },
+      (_, i) =>
+        new UpdateScheduler(() => {
+          ran.push(i);
+        }),
+    );
+    for (const scheduler of schedulers) {
+      scheduler.markDirty();
+    }
+
+    const [channel] = ControlledMessageChannel.instances;
+    expect(() => pump(channel!)).not.toThrow();
+    expect(ran).toHaveLength(6000);
+  });
+
+  it("drains synchronously across passes inside flushTapSync", async () => {
+    vi.resetModules();
+    vi.stubGlobal("MessageChannel", ControlledMessageChannel);
+    const { UpdateScheduler, flushTapSync } = await import("../core/scheduler");
+
+    const ran: number[] = [];
+    const schedulers = Array.from(
+      { length: 120 },
+      (_, i) =>
+        new UpdateScheduler(() => {
+          ran.push(i);
+        }),
+    );
+
+    flushTapSync(() => {
+      for (const scheduler of schedulers) {
+        scheduler.markDirty();
+      }
+    });
+
+    // Everything must have landed before flushTapSync returned — no deferred
+    // macrotask remainder (not even a channel gets created for leftovers).
+    expect(ran).toHaveLength(120);
+    const [channel] = ControlledMessageChannel.instances;
+    if (channel) {
+      pump(channel);
+    }
+    expect(ran).toHaveLength(120);
+  });
+
+  it("throws inside flushTapSync when a resource re-dirties itself", async () => {
+    vi.resetModules();
+    vi.stubGlobal("MessageChannel", ControlledMessageChannel);
+    const { UpdateScheduler, flushTapSync } = await import("../core/scheduler");
+
+    const scheduler: InstanceType<typeof UpdateScheduler> = new UpdateScheduler(
+      () => {
+        scheduler.markDirty();
+      },
+    );
+
+    expect(() =>
+      flushTapSync(() => {
+        scheduler.markDirty();
+      }),
+    ).toThrow(/Maximum update depth exceeded/);
+  });
 });

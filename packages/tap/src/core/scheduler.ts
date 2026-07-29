@@ -2,23 +2,29 @@ type Task = () => void;
 
 type GlobalFlushState = {
   schedulers: Set<UpdateScheduler>;
+  // How often each scheduler has run since the queue last drained. A
+  // scheduler re-run MAX_TASK_RUNS_PER_BURST times within one burst is an
+  // infinite update loop; finite batches (even huge ones) never re-run a
+  // scheduler, so they are never subject to a total-size ceiling.
+  runCounts: Map<UpdateScheduler, number>;
   isScheduled: boolean;
 };
 
-// Maximum number of tasks a single flush pass may run. Large legitimate
-// batches (e.g. hundreds of resources mounting in one update) exceed this
-// easily, so overflowing work is deferred to follow-up passes instead of
-// being dropped.
-const MAX_FLUSH_LIMIT = 50;
-// Guard against true infinite update loops (a resource that re-dirties
-// itself on every run): if this many consecutive passes stay saturated
-// without the queue ever draining, give up and throw.
-const MAX_SATURATED_FLUSH_PASSES = 100;
-let flushState: GlobalFlushState = {
+const newFlushState = (): GlobalFlushState => ({
   schedulers: new Set([]),
+  runCounts: new Map(),
   isScheduled: false,
-};
-let saturatedFlushPasses = 0;
+});
+
+// Maximum number of tasks a single flush pass may run. Bounds the work done
+// in one macrotask and, because Set iteration also visits schedulers
+// re-added mid-pass, prevents an infinite loop from hanging a single pass.
+const MAX_FLUSH_LIMIT = 50;
+// Guard against true infinite update loops: a resource that keeps
+// re-dirtying itself (or a cycle of resources re-dirtying each other)
+// re-runs the same scheduler over and over within one burst.
+const MAX_TASK_RUNS_PER_BURST = 50;
+let flushState: GlobalFlushState = newFlushState();
 
 export class UpdateScheduler {
   private _isDirty = false;
@@ -52,7 +58,9 @@ const scheduleFlush = () => {
   scheduleMacrotask();
 };
 
-const flushScheduled = () => {
+// Runs at most MAX_FLUSH_LIMIT tasks from flushState.schedulers. Throws on
+// task errors (discarding the rest of the batch) and on infinite loops.
+const runFlushPass = () => {
   const errors = [];
   let flushDepth = 0;
 
@@ -63,6 +71,16 @@ const flushScheduled = () => {
 
     flushDepth++;
 
+    const runs = (flushState.runCounts.get(scheduler) ?? 0) + 1;
+    flushState.runCounts.set(scheduler, runs);
+    if (runs > MAX_TASK_RUNS_PER_BURST) {
+      flushState.schedulers.clear();
+      throw new Error(
+        `Maximum update depth exceeded. This can happen when a resource ` +
+          `repeatedly calls setState inside useEffect.`,
+      );
+    }
+
     try {
       scheduler.runTask();
     } catch (error) {
@@ -72,8 +90,6 @@ const flushScheduled = () => {
 
   if (errors.length > 0) {
     flushState.schedulers.clear();
-    flushState.isScheduled = false;
-    saturatedFlushPasses = 0;
     if (errors.length === 1) {
       throw errors[0];
     } else {
@@ -83,27 +99,28 @@ const flushScheduled = () => {
       throw new AggregateError(errors, "Errors occurred during flushSync");
     }
   }
+};
 
-  if (flushState.schedulers.size > 0) {
-    saturatedFlushPasses += 1;
-    if (saturatedFlushPasses >= MAX_SATURATED_FLUSH_PASSES) {
-      flushState.schedulers.clear();
+const flushScheduled = () => {
+  try {
+    runFlushPass();
+
+    if (flushState.schedulers.size > 0) {
+      // Large batches (e.g. hundreds of resources mounting in one update)
+      // overflow a single pass; defer the rest to a follow-up pass instead
+      // of dropping them.
       flushState.isScheduled = false;
-      saturatedFlushPasses = 0;
-      throw new Error(
-        `Maximum update depth exceeded. This can happen when a resource ` +
-          `repeatedly calls setState inside useEffect.`,
-      );
+      scheduleFlush();
+      return;
     }
-    // More work remains: continue draining in the next pass instead of
-    // dropping the pending updates.
-    flushState.isScheduled = false;
-    scheduleFlush();
-    return;
-  }
 
-  saturatedFlushPasses = 0;
-  flushState.isScheduled = false;
+    flushState.runCounts.clear();
+    flushState.isScheduled = false;
+  } catch (error) {
+    flushState.runCounts.clear();
+    flushState.isScheduled = false;
+    throw error;
+  }
 };
 
 // Use MessageChannel to schedule flushes as macrotasks (like React's scheduler).
@@ -137,14 +154,17 @@ const scheduleMacrotask = (() => {
 
 export const flushTapSync = <T>(callback: () => T): T => {
   const prev = flushState;
-  flushState = {
-    schedulers: new Set([]),
-    isScheduled: true,
-  };
+  flushState = newFlushState();
+  flushState.isScheduled = true;
 
   try {
     const value = callback();
-    flushScheduled();
+    // Synchronous callers rely on every notification having landed by the
+    // time this returns, so drain across passes until the queue is empty
+    // (or the loop guard fires) instead of deferring to a macrotask.
+    while (flushState.schedulers.size > 0) {
+      runFlushPass();
+    }
 
     return value;
   } finally {
