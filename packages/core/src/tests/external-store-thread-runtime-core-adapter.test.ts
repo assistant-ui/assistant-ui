@@ -309,7 +309,12 @@ describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
       } as AppendMessage);
       await new Promise((resolve) => setTimeout(resolve, 0));
 
-      expect(setMessages).not.toHaveBeenCalled();
+      expect(setMessages).toHaveBeenCalledOnce();
+      expect(
+        (setMessages.mock.lastCall?.[0] as ThreadMessage[] | undefined)?.map(
+          (message) => message.id,
+        ),
+      ).toEqual(["u1", "a1", "u2"]);
       expect(core.messages.map((message) => message.id)).toContain("u2");
     });
 
@@ -377,6 +382,129 @@ describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
 
       expect(setMessages).toHaveBeenCalledOnce();
       expect(setMessages).toHaveBeenCalledWith([]);
+    });
+
+    it("preserves adapter-owned optimistic messages appended after cancel", async () => {
+      const initialMessages = [
+        createUserMessage("u1"),
+        createAssistantMessage("a1"),
+      ];
+      const optimisticMessage = {
+        ...createUserMessage("u2", "Follow up"),
+        metadata: { custom: {}, isOptimistic: true },
+      } as ThreadMessage;
+      const setMessages = vi.fn();
+      const onCancel = vi.fn();
+      const core = new ExternalStoreThreadRuntimeCore(
+        contextProvider,
+        createBaseAdapter({
+          messages: initialMessages,
+          isRunning: true,
+          onCancel,
+          setMessages,
+        }),
+      );
+
+      core.cancelRun();
+      core.__internal_setAdapter(
+        createBaseAdapter({
+          messages: [...initialMessages, optimisticMessage],
+          isRunning: true,
+          onCancel,
+          setMessages,
+        }),
+      );
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(setMessages).toHaveBeenCalledOnce();
+      expect(
+        (setMessages.mock.lastCall?.[0] as ThreadMessage[] | undefined)?.map(
+          (message) => message.id,
+        ),
+      ).toEqual(["u1", "a1", "u2"]);
+    });
+
+    it("resyncs when a pre-existing optimistic user message settles", async () => {
+      const initialMessages = [
+        createUserMessage("u1"),
+        createAssistantMessage("a1"),
+      ];
+      const optimisticMessage = {
+        ...createUserMessage("u2", "Pending"),
+        metadata: { custom: {}, isOptimistic: true },
+      } as ThreadMessage;
+      const settledMessage = {
+        ...optimisticMessage,
+        metadata: { custom: {}, isOptimistic: false },
+      } as ThreadMessage;
+      const setMessages = vi.fn();
+      const onCancel = vi.fn();
+      const core = new ExternalStoreThreadRuntimeCore(
+        contextProvider,
+        createBaseAdapter({
+          messages: [...initialMessages, optimisticMessage],
+          isRunning: true,
+          onCancel,
+          setMessages,
+        }),
+      );
+
+      core.cancelRun();
+      core.__internal_setAdapter(
+        createBaseAdapter({
+          messages: [...initialMessages, settledMessage],
+          isRunning: false,
+          onCancel,
+          setMessages,
+        }),
+      );
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(setMessages).toHaveBeenCalledOnce();
+      expect(
+        (setMessages.mock.lastCall?.[0] as ThreadMessage[] | undefined)?.map(
+          (message) => message.id,
+        ),
+      ).toEqual(["u1", "a1"]);
+    });
+
+    it("preserves new messages while removing the cancelled user message", async () => {
+      const initialMessages = [
+        createUserMessage("u1"),
+        createAssistantMessage("a1"),
+      ];
+      const cancelledMessage = createUserMessage("u2", "Cancelled");
+      const appendedMessage = createUserMessage("u3", "Replacement");
+      const setMessages = vi.fn();
+      const onCancel = vi.fn();
+      const core = new ExternalStoreThreadRuntimeCore(
+        contextProvider,
+        createBaseAdapter({
+          messages: [...initialMessages, cancelledMessage],
+          isRunning: true,
+          onCancel,
+          setMessages,
+        }),
+      );
+
+      core.cancelRun();
+      core.__internal_setAdapter(
+        createBaseAdapter({
+          messages: [...initialMessages, cancelledMessage, appendedMessage],
+          isRunning: true,
+          onCancel,
+          setMessages,
+        }),
+      );
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(setMessages).toHaveBeenCalledOnce();
+      expect(
+        (setMessages.mock.lastCall?.[0] as ThreadMessage[] | undefined)?.map(
+          (message) => message.id,
+        ),
+      ).toEqual(["u1", "a1", "u3"]);
+      expect(core.composer.text).toBe("Cancelled");
     });
 
     it("resyncs messages when an append fails", async () => {
