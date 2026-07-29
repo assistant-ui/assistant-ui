@@ -2,11 +2,15 @@ type Task = () => void;
 
 type GlobalFlushState = {
   schedulers: Set<UpdateScheduler>;
+  // Consecutive saturated (ceiling-hitting) passes; reset when a pass
+  // drains the queue.
+  saturatedStreak: number;
   isScheduled: boolean;
 };
 
 const newFlushState = (): GlobalFlushState => ({
   schedulers: new Set([]),
+  saturatedStreak: 0,
   isScheduled: false,
 });
 
@@ -23,6 +27,11 @@ const MAX_TASKS_PER_FLUSH = 1000;
 // re-run guard cannot see) must be cut somewhere. ~8x the repro; the
 // remainder is handed to the outer state and continues there.
 const MAX_SYNC_TASKS = 5000;
+// A runaway minting fresh schedulers saturates EVERY pass, while a finite
+// batch's last pass is always partial. This many saturated passes in a
+// row (x MAX_TASKS_PER_FLUSH tasks) declares a loop: report and stop
+// auto-continuing. The queue is kept, never dropped.
+const MAX_SATURATED_STREAK = 20;
 let flushState: GlobalFlushState = newFlushState();
 
 export class UpdateScheduler {
@@ -104,7 +113,7 @@ const flushScheduled = (
 ): number => {
   const runCounts = shared?.runCounts ?? new Map<UpdateScheduler, number>();
   const errorContributors =
-    shared?.errorContributors ?? new Map<UpdateScheduler, number>();
+    shared?.errorContributors ?? new Map<UpdateScheduler, Set<string>>();
   let taskCount = 0;
 
   let hitCeiling = false;
@@ -132,11 +141,13 @@ const flushScheduled = (
       try {
         scheduler.runTask();
       } catch (error) {
-        // A deterministically re-throwing task can't flood the batch; a
-        // different failure from the same scheduler still surfaces.
-        const contributed = errorContributors.get(scheduler) ?? 0;
-        if (contributed < 3) {
-          errorContributors.set(scheduler, contributed + 1);
+        // A deterministically re-throwing task can't flood the batch with
+        // copies; a different failure (different message) still surfaces.
+        const message = error instanceof Error ? error.message : String(error);
+        const seen = errorContributors.get(scheduler) ?? new Set<string>();
+        if (!seen.has(message)) {
+          seen.add(message);
+          errorContributors.set(scheduler, seen);
           errors.push(error);
         }
       }
@@ -145,7 +156,15 @@ const flushScheduled = (
     if (defer) {
       flushState.isScheduled = false;
       if (hitCeiling) {
-        scheduleFlush();
+        flushState.saturatedStreak += 1;
+        if (flushState.saturatedStreak > MAX_SATURATED_STREAK) {
+          flushState.saturatedStreak = 0;
+          reportDepthError(errors);
+        } else {
+          scheduleFlush();
+        }
+      } else {
+        flushState.saturatedStreak = 0;
       }
     }
   }

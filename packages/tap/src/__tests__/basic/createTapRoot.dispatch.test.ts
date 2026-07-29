@@ -1,10 +1,23 @@
-import { describe, it, expect } from "vitest";
-import { createTapRoot } from "../../core/createTapRoot";
-import { useState } from "../../react-hooks/useState";
-import { useEffect } from "../../react-hooks/useEffect";
+import { describe, it, expect, vi, afterEach } from "vitest";
+import {
+  ControlledMessageChannel,
+  lastChannel,
+  pump,
+} from "../controlled-channel";
 
 describe("createTapRoot dispatch batching", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.resetModules();
+    ControlledMessageChannel.instances = [];
+  });
+
   it("applies more than 50 dispatches into one root in a single macrotask", async () => {
+    vi.resetModules();
+    vi.stubGlobal("MessageChannel", ControlledMessageChannel);
+    const { createTapRoot } = await import("../../core/createTapRoot");
+    const { useState } = await import("../../react-hooks/useState");
+
     let setCount!: (updater: (count: number) => number) => void;
     const root = createTapRoot(() => {
       const [count, set] = useState(0);
@@ -15,8 +28,7 @@ describe("createTapRoot dispatch batching", () => {
     for (let i = 0; i < 60; i += 1) {
       setCount((count) => count + 1);
     }
-
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    pump(lastChannel());
     expect(root.getValue()).toBe(60);
     root.unmount();
   });
@@ -25,43 +37,34 @@ describe("createTapRoot dispatch batching", () => {
     // A setState-in-effect loop trips the guard (~50 re-runs). The root is
     // dropped but left dirty, so the NEXT external dispatch re-queues it
     // and its task drains the stranded queue - no silent update loss.
+    vi.resetModules();
+    vi.stubGlobal("MessageChannel", ControlledMessageChannel);
+    const { createTapRoot } = await import("../../core/createTapRoot");
+    const { useState } = await import("../../react-hooks/useState");
+    const { useEffect } = await import("../../react-hooks/useEffect");
+
     let setCount!: (updater: (count: number) => number) => void;
     let setGo!: (updater: (go: boolean) => boolean) => void;
-    const uncaught: unknown[] = [];
-    const onError = (error: unknown) => {
-      uncaught.push(error);
-    };
-    process.on("uncaughtException", onError);
-    try {
-      const root = createTapRoot(() => {
-        const [count, setC] = useState(0);
-        const [go, setG] = useState(false);
-        setCount = setC;
-        setGo = setG;
-        useEffect(() => {
-          if (go) setC((c) => c + 1);
-        });
-        return count;
+    const root = createTapRoot(() => {
+      const [count, setC] = useState(0);
+      const [go, setG] = useState(false);
+      setCount = setC;
+      setGo = setG;
+      useEffect(() => {
+        if (go) setC((c) => c + 1);
       });
+      return count;
+    });
 
-      // Start the loop after mount, so it trips the guard in a macrotask
-      // flush rather than the synchronous mount commit.
-      setGo(() => true);
-      await new Promise((resolve) => setTimeout(resolve, 50));
-      expect(
-        uncaught.some((error) =>
-          String(error).includes("Maximum update depth exceeded"),
-        ),
-      ).toBe(true);
+    // Start the loop after mount: it trips the guard in the next flush.
+    setGo(() => true);
+    expect(() => pump(lastChannel())).toThrow(/Maximum update depth exceeded/);
 
-      setGo(() => false);
-      await new Promise((resolve) => setTimeout(resolve, 50));
-      setCount(() => 42);
-      await new Promise((resolve) => setTimeout(resolve, 50));
-      expect(root.getValue()).toBe(42);
-      root.unmount();
-    } finally {
-      process.removeListener("uncaughtException", onError);
-    }
+    setGo(() => false);
+    expect(() => pump(lastChannel())).not.toThrow();
+    setCount(() => 42);
+    expect(() => pump(lastChannel())).not.toThrow();
+    expect(root.getValue()).toBe(42);
+    root.unmount();
   });
 });
