@@ -62,6 +62,16 @@ describe("proxy invariants", () => {
     ).toBe(true);
   });
 
+  it("keeps method identity and a callable descriptor value across descriptor reads", () => {
+    render(<App />);
+    const client = probe.aui.thread().item({ index: 0 });
+
+    const echo = client.echo;
+    const descriptor = Object.getOwnPropertyDescriptor(client, "echo");
+    expect(descriptor!.value("hi")).toBe("hi");
+    expect(client.echo).toBe(echo);
+  });
+
   it("supports Object.keys and spread on the proxied state", () => {
     render(<App />);
 
