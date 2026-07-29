@@ -28,6 +28,10 @@
       "types": "./dist/ir.d.ts",
       "default": "./dist/ir.js"
     },
+    "./a2ui": {
+      "types": "./dist/a2ui.d.ts",
+      "default": "./dist/a2ui.js"
+    },
     "./slack": {
       "types": "./dist/slack.d.ts",
       "default": "./dist/slack.js"
