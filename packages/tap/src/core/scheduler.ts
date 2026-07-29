@@ -17,9 +17,9 @@ const MAX_TASK_RUNS_PER_FLUSH = 50;
 // Last-resort termination: a task that synchronously mints NEW schedulers
 // (e.g. mounts another root mid-flush) never trips the per-scheduler
 // guard, so an unbounded cascade of fresh instances would otherwise lock
-// the thread in one macrotask. Set far above any real workload; on hitting
-// it the pass aborts with the depth error, the remainder stays queued, and
-// the next triggered flush continues - nothing is ever dropped.
+// the thread in one macrotask. On hitting it the pass aborts with the
+// depth error; the remainder stays queued (never dropped) and the next
+// triggered flush continues it.
 const MAX_TASKS_PER_FLUSH = 50000;
 let flushState: GlobalFlushState = newFlushState();
 
@@ -55,30 +55,46 @@ const scheduleFlush = () => {
   scheduleMacrotask();
 };
 
-// Drains flushState.schedulers completely. Set iteration also visits
-// schedulers re-added mid-pass, so bulk updates of any size land in a
-// single batch. Termination is guaranteed by the per-scheduler run guard:
-// every scheduler runs at most MAX_TASK_RUNS_PER_FLUSH times per flush.
-const flushScheduled = () => {
-  const errors: unknown[] = [];
+const newDepthError = () =>
+  new Error(
+    `Maximum update depth exceeded. This can happen when a resource ` +
+      `repeatedly calls setState inside useEffect.`,
+  );
+
+type CollectedErrors = unknown[] & { depthErrorReported?: boolean };
+
+const reportDepthError = (errors: CollectedErrors) => {
+  if (errors.depthErrorReported) return;
+  errors.depthErrorReported = true;
+  errors.push(newDepthError());
+};
+
+export const throwCollectedErrors = (errors: unknown[]): void => {
+  if (errors.length === 1) {
+    throw errors[0];
+  }
+  if (errors.length > 1) {
+    for (const error of errors) {
+      console.error(error);
+    }
+    throw new AggregateError(errors, "Errors occurred during flushSync");
+  }
+};
+
+// Drains flushState.schedulers (Set iteration also visits schedulers
+// re-added mid-pass, so bulk updates of any size land in a single batch)
+// and appends failures to `errors` instead of throwing. Termination is
+// guaranteed by the two guards: every scheduler runs at most
+// MAX_TASK_RUNS_PER_FLUSH times, and the pass aborts at MAX_TASKS_PER_FLUSH
+// tasks, keeping the remainder queued for the next triggered flush.
+const flushScheduled = (errors: CollectedErrors, defer = true): number => {
   const runCounts = new Map<UpdateScheduler, number>();
   let taskCount = 0;
-  let depthErrorReported = false;
-  const reportDepthError = () => {
-    if (depthErrorReported) return;
-    depthErrorReported = true;
-    errors.push(
-      new Error(
-        `Maximum update depth exceeded. This can happen when a resource ` +
-          `repeatedly calls setState inside useEffect.`,
-      ),
-    );
-  };
 
   try {
     for (const scheduler of flushState.schedulers) {
       if (taskCount >= MAX_TASKS_PER_FLUSH) {
-        reportDepthError();
+        reportDepthError(errors);
         break;
       }
       flushState.schedulers.delete(scheduler);
@@ -86,7 +102,7 @@ const flushScheduled = () => {
 
       const runs = (runCounts.get(scheduler) ?? 0) + 1;
       if (runs > MAX_TASK_RUNS_PER_FLUSH) {
-        reportDepthError();
+        reportDepthError(errors);
         continue;
       }
       runCounts.set(scheduler, runs);
@@ -99,19 +115,18 @@ const flushScheduled = () => {
       }
     }
   } finally {
-    flushState.isScheduled = false;
-  }
-
-  if (errors.length > 0) {
-    if (errors.length === 1) {
-      throw errors[0];
-    } else {
-      for (const error of errors) {
-        console.error(error);
-      }
-      throw new AggregateError(errors, "Errors occurred during flushSync");
+    if (defer) {
+      flushState.isScheduled = false;
     }
   }
+
+  return taskCount;
+};
+
+const flushAndThrow = () => {
+  const errors: CollectedErrors = [];
+  flushScheduled(errors);
+  throwCollectedErrors(errors);
 };
 
 // Use MessageChannel to schedule flushes as macrotasks (like React's scheduler).
@@ -130,7 +145,7 @@ const scheduleMacrotask = (() => {
         const channel = new MessageChannel();
         channel.port1.onmessage = () => {
           port1?.unref?.();
-          flushScheduled();
+          flushAndThrow();
         };
         port1 = channel.port1;
         port2 = channel.port2;
@@ -140,7 +155,7 @@ const scheduleMacrotask = (() => {
     };
   }
   // Fallback for environments without MessageChannel
-  return () => setTimeout(flushScheduled, 0);
+  return () => setTimeout(flushAndThrow, 0);
 })();
 
 export const flushTapSync = <T>(callback: () => T): T => {
@@ -150,7 +165,20 @@ export const flushTapSync = <T>(callback: () => T): T => {
 
   try {
     const value = callback();
-    flushScheduled();
+    // Synchronous callers rely on every notification having landed by the
+    // time this returns, so drain across passes until the queue is empty;
+    // a runaway is bounded by the same task ceiling (checked before each
+    // pass, so finite batches always finish first).
+    const errors: CollectedErrors = [];
+    let total = 0;
+    while (flushState.schedulers.size > 0) {
+      if (total > MAX_TASKS_PER_FLUSH) {
+        reportDepthError(errors);
+        break;
+      }
+      total += flushScheduled(errors, false);
+    }
+    throwCollectedErrors(errors);
 
     return value;
   } finally {

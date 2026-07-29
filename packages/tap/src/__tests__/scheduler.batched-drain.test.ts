@@ -193,6 +193,25 @@ describe("scheduler batched draining", () => {
     expect(ran).toHaveLength(10001);
   });
 
+  it("throws inside flushTapSync when the batch exceeds the task ceiling", async () => {
+    vi.resetModules();
+    vi.stubGlobal("MessageChannel", ControlledMessageChannel);
+    const { UpdateScheduler, flushTapSync } = await import("../core/scheduler");
+
+    const schedulers = Array.from(
+      { length: 100001 },
+      (_, i) => new UpdateScheduler(() => {}),
+    );
+
+    expect(() =>
+      flushTapSync(() => {
+        for (const scheduler of schedulers) {
+          scheduler.markDirty();
+        }
+      }),
+    ).toThrow(/Maximum update depth exceeded/);
+  });
+
   it("throws inside flushTapSync when a resource re-dirties itself", async () => {
     vi.resetModules();
     vi.stubGlobal("MessageChannel", ControlledMessageChannel);

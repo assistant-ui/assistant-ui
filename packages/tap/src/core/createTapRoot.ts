@@ -6,7 +6,11 @@ import {
 } from "./ResourceFiber";
 import { useTapRoot } from "../hooks/useTapRoot";
 import { isDevelopment } from "./helpers/env";
-import { flushTapSync, UpdateScheduler } from "./scheduler";
+import {
+  flushTapSync,
+  throwCollectedErrors,
+  UpdateScheduler,
+} from "./scheduler";
 import { createResourceFiberRoot } from "./helpers/root";
 
 export const createTapRoot = <R>(
@@ -16,8 +20,7 @@ export const createTapRoot = <R>(
   // guard then covers this root type too. Dispatches queue up and drain in
   // order within a single flush task; a failing update must not discard
   // the updates queued behind it, so entries are consumed one at a time
-  // and every failure is rethrown (single, or AggregateError) only after
-  // the rest were processed.
+  // and every failure is rethrown only after the rest were processed.
   const dispatchQueue: { evaluate: () => boolean; apply: () => boolean }[] = [];
   const scheduler = new UpdateScheduler(() => {
     const errors: unknown[] = [];
@@ -32,12 +35,7 @@ export const createTapRoot = <R>(
         errors.push(error);
       }
     }
-    if (errors.length === 1) throw errors[0];
-    if (errors.length > 1) {
-      for (const error of errors) console.error(error);
-      throw new AggregateError(errors, "Errors occurred during flushSync");
-    }
-    return false;
+    throwCollectedErrors(errors);
   });
 
   const fiber = createResourceFiber(
