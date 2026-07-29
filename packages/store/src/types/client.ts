@@ -105,7 +105,8 @@ export type ValidateClient<
     ? TClient
     : ValidateMethods<K, TClient> &
         ValidateMeta<K, TClient> &
-        ValidateEvents<K, TClient>;
+        ValidateEvents<K, TClient> &
+        ClientError<never>;
 
 type ClientSchemas = keyof ScopeRegistry extends never
   ? {
