@@ -58,12 +58,5 @@ export { isJSONValue, isRecord } from "./utils/json/is-json";
 // outbound part conversion lives in one place.
 export { httpUrlPattern, parseDataUrl } from "./utils/data-url";
 
-// Runtime extras helper for external-store adapters. Internal because the
-// tap-native runtime path replaces the `thread.extras` side-channel it wraps.
-export {
-  createRuntimeExtras,
-  type RuntimeExtras,
-} from "./react/runtimes/createRuntimeExtras";
-
 export * from "./runtime/internal";
 export * from "./runtimes/internal";
