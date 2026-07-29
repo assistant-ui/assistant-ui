@@ -102,9 +102,14 @@ export const throwCollectedErrors = (
 const flushScheduled = (
   errors: CollectedErrors,
   defer = true,
-  sharedRunCounts?: Map<UpdateScheduler, number>,
+  shared?: {
+    runCounts: Map<UpdateScheduler, number>;
+    seenErrors: Map<UpdateScheduler, Set<string>>;
+  },
 ): number => {
-  const runCounts = sharedRunCounts ?? new Map<UpdateScheduler, number>();
+  const runCounts = shared?.runCounts ?? new Map<UpdateScheduler, number>();
+  const seenErrors =
+    shared?.seenErrors ?? new Map<UpdateScheduler, Set<string>>();
   let taskCount = 0;
 
   let hitCeiling = false;
@@ -132,7 +137,15 @@ const flushScheduled = (
       try {
         scheduler.runTask();
       } catch (error) {
-        errors.push(error);
+        // A deterministically re-throwing task can't flood the batch with
+        // copies of the same failure.
+        const message = error instanceof Error ? error.message : String(error);
+        const seen = seenErrors.get(scheduler) ?? new Set<string>();
+        if (!seen.has(message)) {
+          seen.add(message);
+          seenErrors.set(scheduler, seen);
+          errors.push(error);
+        }
       }
     }
   } finally {
@@ -141,10 +154,13 @@ const flushScheduled = (
       if (hitCeiling) {
         flushState.saturatedStreak += 1;
         if (flushState.saturatedStreak === MAX_SATURATED_STREAK + 1) {
-          // Likely a loop: report ONCE, then keep chunking anyway - a
-          // finite batch this large still completes, an infinite one
-          // degrades to background work with the error in the console.
-          reportDepthError(errors);
+          // Likely a loop - but saturation can't prove it, so this is a
+          // diagnostic, not an exception: a finite batch this large must
+          // still complete with zero thrown errors.
+          console.warn(
+            "Maximum update depth exceeded. This can happen when a resource " +
+              "repeatedly calls setState inside useEffect.",
+          );
         }
         scheduleFlush();
       } else {
@@ -201,21 +217,26 @@ export const flushTapSync = <T>(callback: () => T): T => {
     const value = callback();
     // Synchronous callers rely on every notification having landed by the
     // time this returns, so drain across passes until the queue is empty.
-    // sharedRunCounts makes the re-run budget per logical flush, not per
-    // pass (a looping scheduler is dropped at ~MAX_TASK_RUNS_PER_FLUSH
-    // total runs, like main).
+    // shared runCounts/seenErrors make the re-run budget and error dedupe
+    // per logical flush, not per pass (a looping scheduler is dropped at
+    // ~MAX_TASK_RUNS_PER_FLUSH total runs, like main).
     const errors: CollectedErrors = [];
-    const sharedRunCounts = new Map<UpdateScheduler, number>();
+    const shared = {
+      runCounts: new Map<UpdateScheduler, number>(),
+      seenErrors: new Map<UpdateScheduler, Set<string>>(),
+    };
     let total = 0;
     while (flushState.schedulers.size > 0) {
       if (total > MAX_SYNC_TASKS) {
-        reportDepthError(errors);
+        // A sync batch this large defers the remainder to the outer state
+        // instead of blocking (or erroring - the work is fine, it just
+        // can't all land synchronously).
         for (const scheduler of flushState.schedulers) {
           leftover.push(scheduler);
         }
         break;
       }
-      total += flushScheduled(errors, false, sharedRunCounts);
+      total += flushScheduled(errors, false, shared);
     }
     throwCollectedErrors(errors);
 

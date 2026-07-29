@@ -189,24 +189,62 @@ describe("scheduler batched draining", () => {
     expect(ran).toHaveLength(4000);
   });
 
-  it("throws inside flushTapSync when the queue never shrinks (runaway)", async () => {
+  it("defers a sync batch past MAX_SYNC_TASKS to the outer state instead of throwing", async () => {
     vi.resetModules();
     vi.stubGlobal("MessageChannel", ControlledMessageChannel);
     const { UpdateScheduler, flushTapSync } = await import("../core/scheduler");
 
-    // Finite sync batches of any size finish first (their queue always
-    // shrinks); only a runaway — fresh schedulers minted mid-drain — hits
-    // the sync ceiling.
-    const makeCascadeScheduler = (): InstanceType<typeof UpdateScheduler> =>
-      new UpdateScheduler(() => {
-        makeCascadeScheduler().markDirty();
-      });
-
+    // The work is fine; it just can't all land synchronously. No depth
+    // error is thrown - the remainder continues on the outer flush.
+    const ran: number[] = [];
+    const schedulers = Array.from(
+      { length: 6001 },
+      (_, i) =>
+        new UpdateScheduler(() => {
+          ran.push(i);
+        }),
+    );
     expect(() =>
       flushTapSync(() => {
-        makeCascadeScheduler().markDirty();
+        for (const scheduler of schedulers) {
+          scheduler.markDirty();
+        }
       }),
-    ).toThrow(/Maximum update depth exceeded/);
+    ).not.toThrow();
+
+    const [channel] = ControlledMessageChannel.instances;
+    expect(() => pump(channel!)).not.toThrow();
+    expect(ran).toHaveLength(6001);
+  });
+
+  it("warns once (not throws) when a burst saturates 20 consecutive passes, then completes", async () => {
+    vi.resetModules();
+    vi.stubGlobal("MessageChannel", ControlledMessageChannel);
+    const warn = vi.fn();
+    vi.stubGlobal("console", { ...console, warn });
+    const { UpdateScheduler } = await import("../core/scheduler");
+
+    // Saturation can't distinguish a large finite batch from a loop, so
+    // the streak is a console.warn diagnostic - never an exception.
+    const ran: number[] = [];
+    const schedulers = Array.from(
+      { length: 21001 },
+      (_, i) =>
+        new UpdateScheduler(() => {
+          ran.push(i);
+        }),
+    );
+    for (const scheduler of schedulers) {
+      scheduler.markDirty();
+    }
+
+    const [channel] = ControlledMessageChannel.instances;
+    expect(() => pump(channel!)).not.toThrow();
+    expect(ran).toHaveLength(21001);
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(String(warn.mock.calls[0]![0])).toContain(
+      "Maximum update depth exceeded",
+    );
   });
 
   it("throws inside flushTapSync when a resource re-dirties itself", async () => {
@@ -249,5 +287,35 @@ describe("scheduler batched draining", () => {
     const [channel] = ControlledMessageChannel.instances;
     expect(() => pump(channel!)).not.toThrow();
     expect(ran).toHaveLength(6001);
+  });
+
+  it("warns once (not throws) when a burst saturates 20 consecutive passes, then completes", async () => {
+    vi.resetModules();
+    vi.stubGlobal("MessageChannel", ControlledMessageChannel);
+    const warn = vi.fn();
+    vi.stubGlobal("console", { ...console, warn });
+    const { UpdateScheduler } = await import("../core/scheduler");
+
+    // Saturation can't distinguish a large finite batch from a loop, so
+    // the streak is a console.warn diagnostic - never an exception.
+    const ran: number[] = [];
+    const schedulers = Array.from(
+      { length: 21001 },
+      (_, i) =>
+        new UpdateScheduler(() => {
+          ran.push(i);
+        }),
+    );
+    for (const scheduler of schedulers) {
+      scheduler.markDirty();
+    }
+
+    const [channel] = ControlledMessageChannel.instances;
+    expect(() => pump(channel!)).not.toThrow();
+    expect(ran).toHaveLength(21001);
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(String(warn.mock.calls[0]![0])).toContain(
+      "Maximum update depth exceeded",
+    );
   });
 });
