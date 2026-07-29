@@ -194,11 +194,15 @@ export class CloudChatCore {
       ...chatInit,
       id: chatKey,
       transport: this.createTransport(chatKey, registry),
-      onFinish: async (event) => {
+      onFinish: (event) => {
         try {
           this.options.chatConfig.onFinish?.(event);
         } finally {
-          await this.persistChatMessages(chatKey, registry, event);
+          void this.persistChatMessages(chatKey, registry, event).catch(
+            (error) => {
+              this.handleSyncError(error);
+            },
+          );
         }
       },
       onError: (error) => {

@@ -85,4 +85,45 @@ describe("CloudChatCore", () => {
     expect(onToolCall).toHaveBeenCalledWith({ toolCall: {} });
     expect(result).toBe(completion);
   });
+
+  it("preserves synchronous finish callback failures", () => {
+    const error = new Error("finish failed");
+    const onFinish = vi.fn(() => {
+      throw error;
+    });
+    const core = createCore({ chatConfig: { onFinish } });
+    const persistChatMessages = vi
+      .spyOn(core, "persistChatMessages")
+      .mockResolvedValue(undefined);
+
+    core.createChat("chat-1", {} as never);
+
+    const wrappedOnFinish = chatOptionsRef.current?.onFinish;
+    expect(wrappedOnFinish).toBeTypeOf("function");
+
+    expect(() => (wrappedOnFinish as (event: unknown) => unknown)({})).toThrow(
+      error,
+    );
+    expect(persistChatMessages).toHaveBeenCalledWith(
+      "chat-1",
+      expect.anything(),
+      {},
+    );
+  });
+
+  it("reports finish persistence failures", async () => {
+    const error = new Error("persistence failed");
+    const onSyncError = vi.fn();
+    const core = createCore({ onSyncError });
+    vi.spyOn(core, "persistChatMessages").mockRejectedValue(error);
+
+    core.createChat("chat-1", {} as never);
+
+    const wrappedOnFinish = chatOptionsRef.current?.onFinish;
+    expect(wrappedOnFinish).toBeTypeOf("function");
+    const result = (wrappedOnFinish as (event: unknown) => unknown)({});
+
+    expect(result).toBeUndefined();
+    await vi.waitFor(() => expect(onSyncError).toHaveBeenCalledWith(error));
+  });
 });
