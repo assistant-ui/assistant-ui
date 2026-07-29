@@ -2,16 +2,11 @@ type Task = () => void;
 
 type GlobalFlushState = {
   schedulers: Set<UpdateScheduler>;
-  // Tasks run since the queue last drained, across chunked passes.
-  burstTaskTotal: number;
-  burstDepthReported: boolean;
   isScheduled: boolean;
 };
 
 const newFlushState = (): GlobalFlushState => ({
   schedulers: new Set([]),
-  burstTaskTotal: 0,
-  burstDepthReported: false,
   isScheduled: false,
 });
 
@@ -23,14 +18,11 @@ const MAX_TASK_RUNS_PER_FLUSH = 50;
 // oversized batches chunk across macrotasks instead of blocking. ~1.5x
 // the motivating repro (one 200-message history page ~= 600 resources).
 const MAX_TASKS_PER_FLUSH = 1000;
-// Last-resort bound, documented as the real line: nothing can distinguish
-// a huge finite cascade from an infinite one, so a burst running more
-// than this many tasks total (~8x the 600-resource repro, ~= 1600
-// messages in one update) is REPORTED once as a likely loop - and then
-// keeps chunking anyway: a finite batch that large still completes, an
-// infinite one degrades to background work with a loud error in the
-// console. The queue is never dropped and never stalled.
-const MAX_BURST_TASKS = 5000;
+// flushTapSync-only hard bound: a synchronous drain cannot defer, so an
+// unbounded batch (e.g. fresh schedulers minted mid-drain, which the
+// re-run guard cannot see) must be cut somewhere. ~8x the repro; the
+// remainder is handed to the outer state and continues there.
+const MAX_SYNC_TASKS = 5000;
 let flushState: GlobalFlushState = newFlushState();
 
 export class UpdateScheduler {
@@ -51,11 +43,6 @@ export class UpdateScheduler {
 
     flushState.schedulers.add(this);
     scheduleFlush();
-  }
-
-  /** @internal Called when the run guard drops a scheduler, so the root is not left permanently dirty (which would suppress its own publishing). */
-  clearDirty() {
-    this._isDirty = false;
   }
 
   runTask() {
@@ -117,7 +104,7 @@ const flushScheduled = (
 ): number => {
   const runCounts = shared?.runCounts ?? new Map<UpdateScheduler, number>();
   const errorContributors =
-    shared?.errorContributors ?? new Map<UpdateScheduler, Set<string>>();
+    shared?.errorContributors ?? new Map<UpdateScheduler, number>();
   let taskCount = 0;
 
   let hitCeiling = false;
@@ -130,12 +117,11 @@ const flushScheduled = (
       }
       const runs = (runCounts.get(scheduler) ?? 0) + 1;
       if (runs > MAX_TASK_RUNS_PER_FLUSH) {
-        // Dropped on every path (and left clean, not dirty): a resource
-        // re-dirtying itself this often in one burst is a genuine loop,
-        // and keeping it queued taxes every future flush.
+        // Dropped, but left dirty: the flag gates publish() so the root
+        // never emits un-applied state, and the next markDirty re-queues
+        // it so its task drains the stranded queue consistently.
         reportDepthError(errors);
         flushState.schedulers.delete(scheduler);
-        scheduler.clearDirty();
         continue;
       }
       flushState.schedulers.delete(scheduler);
@@ -146,14 +132,11 @@ const flushScheduled = (
       try {
         scheduler.runTask();
       } catch (error) {
-        // One entry per (scheduler, message): a deterministically
-        // re-throwing task can't flood the batch, and two different
-        // failures - even with the same message - both surface.
-        const message = error instanceof Error ? error.message : String(error);
-        const seen = errorContributors.get(scheduler) ?? new Set<string>();
-        if (!seen.has(message)) {
-          seen.add(message);
-          errorContributors.set(scheduler, seen);
+        // A deterministically re-throwing task can't flood the batch; a
+        // different failure from the same scheduler still surfaces.
+        const contributed = errorContributors.get(scheduler) ?? 0;
+        if (contributed < 3) {
+          errorContributors.set(scheduler, contributed + 1);
           errors.push(error);
         }
       }
@@ -161,18 +144,7 @@ const flushScheduled = (
   } finally {
     if (defer) {
       flushState.isScheduled = false;
-      if (!hitCeiling) {
-        flushState.burstTaskTotal = 0;
-        flushState.burstDepthReported = false;
-      } else {
-        flushState.burstTaskTotal += taskCount;
-        if (
-          flushState.burstTaskTotal > MAX_BURST_TASKS &&
-          !flushState.burstDepthReported
-        ) {
-          flushState.burstDepthReported = true;
-          reportDepthError(errors);
-        }
+      if (hitCeiling) {
         scheduleFlush();
       }
     }
@@ -239,7 +211,7 @@ export const flushTapSync = <T>(callback: () => T): T => {
     };
     let total = 0;
     while (flushState.schedulers.size > 0) {
-      if (total > MAX_BURST_TASKS) {
+      if (total > MAX_SYNC_TASKS) {
         reportDepthError(errors);
         for (const scheduler of flushState.schedulers) {
           leftover.push(scheduler);

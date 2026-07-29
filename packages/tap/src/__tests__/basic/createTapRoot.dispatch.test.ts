@@ -21,22 +21,47 @@ describe("createTapRoot dispatch batching", () => {
     root.unmount();
   });
 
-  it("drains a re-entrant dispatch (raised during the flush) in a follow-up task", async () => {
-    // A setState fired from an effect mid-flush must not loop the drain
-    // task forever: it is re-queued and lands in a follow-up run.
+  it("a root dropped by the run guard recovers on the next dispatch instead of losing updates", async () => {
+    // A setState-in-effect loop trips the guard (~50 re-runs). The root is
+    // dropped but left dirty, so the NEXT external dispatch re-queues it
+    // and its task drains the stranded queue - no silent update loss.
     let setCount!: (updater: (count: number) => number) => void;
-    const root = createTapRoot(() => {
-      const [count, set] = useState(0);
-      setCount = set;
-      useEffect(() => {
-        set(1);
-      }, []);
-      return count;
-    });
+    let setGo!: (updater: (go: boolean) => boolean) => void;
+    const uncaught: unknown[] = [];
+    const onError = (error: unknown) => {
+      uncaught.push(error);
+    };
+    process.on("uncaughtException", onError);
+    try {
+      const root = createTapRoot(() => {
+        const [count, setC] = useState(0);
+        const [go, setG] = useState(false);
+        setCount = setC;
+        setGo = setG;
+        useEffect(() => {
+          if (go) setC((c) => c + 1);
+        });
+        return count;
+      });
 
-    await new Promise((resolve) => setTimeout(resolve, 10));
-    expect(root.getValue()).toBe(1);
-    expect(setCount).toBeTypeOf("function");
-    root.unmount();
+      // Start the loop after mount, so it trips the guard in a macrotask
+      // flush rather than the synchronous mount commit.
+      setGo(() => true);
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      expect(
+        uncaught.some((error) =>
+          String(error).includes("Maximum update depth exceeded"),
+        ),
+      ).toBe(true);
+
+      setGo(() => false);
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      setCount(() => 42);
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      expect(root.getValue()).toBe(42);
+      root.unmount();
+    } finally {
+      process.removeListener("uncaughtException", onError);
+    }
   });
 });

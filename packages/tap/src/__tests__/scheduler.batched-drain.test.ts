@@ -78,9 +78,10 @@ describe("scheduler batched draining", () => {
     const [channel] = ControlledMessageChannel.instances;
     expect(() => pump(channel!)).toThrow(/Maximum update depth exceeded/);
 
-    // The offender is dropped and left clean: it does not tax later
-    // flushes, and its dirty flag is cleared so its root keeps publishing.
-    expect(scheduler.isDirty).toBe(false);
+    // The offender is dropped but left dirty on purpose: the flag gates
+    // publishing so the root never emits un-applied state, and the next
+    // markDirty re-queues it to drain consistently.
+    expect(scheduler.isDirty).toBe(true);
     let ran = false;
     const other = new UpdateScheduler(() => {
       ran = true;
@@ -258,15 +259,13 @@ describe("scheduler batched draining", () => {
     ).toThrow(/Maximum update depth exceeded/);
   });
 
-  it("reports a huge burst once but lets it finish instead of stalling", async () => {
+  it("drains a 6001-scheduler batch silently across chunked passes", async () => {
     vi.resetModules();
     vi.stubGlobal("MessageChannel", ControlledMessageChannel);
     const { UpdateScheduler } = await import("../core/scheduler");
 
-    // Past the documented burst bound (5000 tasks), the batch is REPORTED
-    // as a likely loop once - and still drains completely. A genuine
-    // runaway gets the loud error in the console and degrades to
-    // background chunking instead of wedging the tab.
+    // Finite batches of any size drain silently: chunking across
+    // macrotask passes has no total bound on this path.
     const ran: number[] = [];
     const schedulers = Array.from(
       { length: 6001 },
@@ -280,7 +279,6 @@ describe("scheduler batched draining", () => {
     }
 
     const [channel] = ControlledMessageChannel.instances;
-    expect(() => pump(channel!)).toThrow(/Maximum update depth exceeded/);
     expect(() => pump(channel!)).not.toThrow();
     expect(ran).toHaveLength(6001);
   });
