@@ -226,6 +226,8 @@ export const openPiEventStream = (
       } catch (error) {
         if (closed) break;
         reportError(error);
+        await defaultReconnectDelay();
+        if (closed) break;
       }
     }
   };

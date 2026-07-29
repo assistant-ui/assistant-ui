@@ -369,6 +369,7 @@ describe("openPiEventStream", () => {
   );
 
   it("reconnects when the reconnect delay rejects", async () => {
+    vi.useFakeTimers();
     let calls = 0;
     const networkError = new Error("network drop");
     const delayError = new Error("delay failed");
@@ -381,18 +382,28 @@ describe("openPiEventStream", () => {
     }) as unknown as typeof fetch;
     const onError = vi.fn();
 
-    await new Promise<void>((resolve) => {
-      const close = openPiEventStream({
-        url: "/events",
-        fetchImpl,
-        reconnectDelay: () => Promise.reject(delayError),
-        onError,
-        onEvent: () => {
-          close();
-          resolve();
-        },
+    try {
+      const event = new Promise<void>((resolve) => {
+        const close = openPiEventStream({
+          url: "/events",
+          fetchImpl,
+          reconnectDelay: () => Promise.reject(delayError),
+          onError,
+          onEvent: () => {
+            close();
+            resolve();
+          },
+        });
       });
-    });
+
+      await Promise.resolve();
+      await Promise.resolve();
+      expect(calls).toBe(1);
+      await vi.advanceTimersByTimeAsync(1000);
+      await event;
+    } finally {
+      vi.useRealTimers();
+    }
 
     expect(calls).toBe(2);
     expect(onError).toHaveBeenNthCalledWith(1, networkError);
