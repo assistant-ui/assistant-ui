@@ -20,6 +20,27 @@ describe("ValidateClient", () => {
     >().toEqualTypeOf<"ERROR: on is a reserved scope name">();
   });
 
+  it("rejects invalid methods type", () => {
+    expectTypeOf<
+      keyof ValidateClient<"thread", { methods: number }>["methods"]
+    >().toEqualTypeOf<"ERROR: thread has invalid methods type">();
+  });
+
+  it("rejects invalid meta type", () => {
+    expectTypeOf<
+      keyof ValidateClient<
+        "thread",
+        Schema & { meta: { source: "nope"; query: {} } }
+      >["methods"]
+    >().toEqualTypeOf<"ERROR: thread has invalid meta type">();
+  });
+
+  it("rejects invalid events type", () => {
+    expectTypeOf<
+      keyof ValidateClient<"thread", Schema & { events: number }>["methods"]
+    >().toEqualTypeOf<"ERROR: thread has invalid events type">();
+  });
+
   it("rejects reserved accessor properties in methods", () => {
     expectTypeOf<
       keyof ValidateClient<
