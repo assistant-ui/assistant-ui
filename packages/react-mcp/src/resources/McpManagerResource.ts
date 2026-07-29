@@ -39,6 +39,16 @@ function defaultRedirectUri(): string {
 // array each render (which would invalidate the serverElements memo below).
 const NO_CONNECTORS: MCPConnector[] = [];
 
+const reportCustomStorageFailure = (
+  operation: "load" | "save",
+  error: unknown,
+) => {
+  console.error(
+    `[assistant-ui/react-mcp] failed to ${operation} custom servers:`,
+    error,
+  );
+};
+
 const useMcpManagerResource = (
   props: McpManagerResourceProps,
 ): ClientOutput<"mcp"> => {
@@ -69,8 +79,11 @@ const useMcpManagerResource = (
     try {
       records = await storage.loadCustomServers();
     } catch (error) {
+      if (!signal.cancelled) {
+        reportCustomStorageFailure("load", error);
+      }
       markHydrated();
-      throw error;
+      return;
     }
 
     if (signal.cancelled) return;
@@ -96,7 +109,11 @@ const useMcpManagerResource = (
   const persistCustomServers = useEffectEvent(
     async (records: MCPCustomServerRecord[]) => {
       if (!hydratedRef.current) return;
-      await storage.saveCustomServers(records);
+      try {
+        await storage.saveCustomServers(records);
+      } catch (error) {
+        reportCustomStorageFailure("save", error);
+      }
     },
   );
 

@@ -4,7 +4,9 @@ import { defineConnector } from "../connector";
 import type { MCPConnector } from "../mcp-scope";
 import { assertUniqueServerIds } from "../utils/serverId";
 import { McpManagerResource } from "./McpManagerResource";
+import { McpCustomStorage } from "./storage/McpCustomStorage";
 import { McpMemoryStorage } from "./storage/McpMemoryStorage";
+import type { MCPStorageElement } from "./storage/types";
 
 const mocks = vi.hoisted(() => {
   const Client = vi.fn().mockImplementation(function Client(this: any) {
@@ -41,12 +43,15 @@ const connector = (id: string, name = id): MCPConnector =>
     auth: { type: "none" },
   });
 
-const mount = (connectors: MCPConnector[]) =>
+const mount = (
+  connectors: MCPConnector[],
+  storage: MCPStorageElement = McpMemoryStorage(),
+) =>
   createTapRoot(function Root() {
     return useResource(
       McpManagerResource({
         connectors,
-        storage: McpMemoryStorage(),
+        storage,
         autoConnect: false,
       }),
     );
@@ -118,6 +123,88 @@ describe("McpManagerResource server ids", () => {
       );
     } finally {
       root.unmount();
+    }
+  });
+});
+
+describe("McpManagerResource storage failures", () => {
+  it("handles custom server load failures", async () => {
+    const error = new Error("load failed");
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const root = mount(
+      [],
+      McpCustomStorage({
+        loadCustomServers: vi.fn(async () => {
+          throw error;
+        }),
+        saveCustomServers: vi.fn(async () => {}),
+        loadAuthState: vi.fn(async () => null),
+        saveAuthState: vi.fn(async () => {}),
+        clearAuthState: vi.fn(async () => {}),
+      }),
+    );
+
+    try {
+      await vi.waitFor(() =>
+        expect(root.getValue().getState().isHydrated).toBe(true),
+      );
+      expect(root.getValue().getState().customServers).toHaveLength(0);
+      expect(consoleError).toHaveBeenCalledWith(
+        "[assistant-ui/react-mcp] failed to load custom servers:",
+        error,
+      );
+    } finally {
+      root.unmount();
+      consoleError.mockRestore();
+    }
+  });
+
+  it("handles custom server save failures", async () => {
+    const error = new Error("save failed");
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const saveCustomServers = vi.fn(async () => {});
+    const root = mount(
+      [],
+      McpCustomStorage({
+        loadCustomServers: vi.fn(async () => []),
+        saveCustomServers,
+        loadAuthState: vi.fn(async () => null),
+        saveAuthState: vi.fn(async () => {}),
+        clearAuthState: vi.fn(async () => {}),
+      }),
+    );
+
+    try {
+      await vi.waitFor(() =>
+        expect(root.getValue().getState().isHydrated).toBe(true),
+      );
+      await vi.waitFor(() => expect(saveCustomServers).toHaveBeenCalled());
+      saveCustomServers.mockClear();
+      saveCustomServers.mockRejectedValue(error);
+
+      await root.getValue().addCustomServer({
+        name: "Docs",
+        url: "https://example.com/docs/mcp",
+        auth: { type: "none" },
+      });
+
+      await vi.waitFor(() => {
+        expect(saveCustomServers).toHaveBeenCalledWith([
+          expect.objectContaining({ name: "Docs" }),
+        ]);
+        expect(root.getValue().getState().customServers).toHaveLength(1);
+      });
+      expect(consoleError).toHaveBeenCalledWith(
+        "[assistant-ui/react-mcp] failed to save custom servers:",
+        error,
+      );
+    } finally {
+      root.unmount();
+      consoleError.mockRestore();
     }
   });
 });
