@@ -312,6 +312,76 @@ describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
       expect(setMessages).not.toHaveBeenCalled();
       expect(core.messages.map((message) => message.id)).toContain("u2");
     });
+
+    it("resyncs messages when an append is only queued", async () => {
+      const setMessages = vi.fn();
+      const queue = {
+        items: [],
+        enqueue: vi.fn(),
+        steer: vi.fn(),
+        remove: vi.fn(),
+        clear: vi.fn(),
+      };
+      const core = new ExternalStoreThreadRuntimeCore(
+        contextProvider,
+        createBaseAdapter({
+          messages: [createUserMessage("u1"), createAssistantMessage("a1")],
+          isRunning: true,
+          onCancel: vi.fn(),
+          setMessages,
+          queue,
+        }),
+      );
+
+      core.cancelRun();
+      await core.append({
+        role: "user",
+        content: [{ type: "text", text: "Follow up" }],
+        attachments: [],
+        createdAt: new Date(),
+        parentId: "a1",
+        sourceId: null,
+        runConfig: undefined,
+        metadata: { custom: {} },
+      } as AppendMessage);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(queue.enqueue).toHaveBeenCalledOnce();
+      expect(setMessages).toHaveBeenCalledOnce();
+    });
+
+    it("resyncs messages when an append fails", async () => {
+      const setMessages = vi.fn();
+      const core = new ExternalStoreThreadRuntimeCore(
+        contextProvider,
+        createBaseAdapter({
+          messages: [createUserMessage("u1"), createAssistantMessage("a1")],
+          isRunning: true,
+          onCancel: vi.fn(),
+          onNew: vi.fn(async () => {
+            throw new Error("send failed");
+          }),
+          setMessages,
+        }),
+      );
+
+      core.cancelRun();
+      await expect(
+        core.append({
+          role: "user",
+          content: [{ type: "text", text: "Follow up" }],
+          attachments: [],
+          createdAt: new Date(),
+          parentId: "a1",
+          sourceId: null,
+          runConfig: undefined,
+          metadata: { custom: {} },
+        } as AppendMessage),
+      ).rejects.toThrow("send failed");
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(setMessages).toHaveBeenCalledOnce();
+    });
   });
 
   describe("optimistic assistant message", () => {

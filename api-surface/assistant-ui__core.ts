@@ -1777,7 +1777,6 @@ declare class ExternalStoreThreadRuntimeCore extends BaseThreadRuntimeCore imple
   extras: unknown;
   private _converter;
   private _store;
-  private _cancelResyncRevision;
   private _toolInvocations;
   beginEdit(messageId: string): void;
   constructor(contextProvider: ModelContextProvider, store: ExternalStoreAdapter<any>);

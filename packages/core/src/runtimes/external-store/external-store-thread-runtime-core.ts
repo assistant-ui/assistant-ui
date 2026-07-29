@@ -108,7 +108,6 @@ export class ExternalStoreThreadRuntimeCore
   private _converter = new ThreadMessageConverter();
 
   private _store!: ExternalStoreAdapter<any>;
-  private _cancelResyncRevision = 0;
 
   /**
    * Client-side tool-invocations pipeline. Constructed lazily on first
@@ -458,8 +457,6 @@ export class ExternalStoreThreadRuntimeCore
   }
 
   public async append(message: AppendMessage): Promise<void> {
-    this._cancelResyncRevision++;
-
     const isEdit = message.parentId !== (this.messages.at(-1)?.id ?? null);
 
     // Buffering does not start a run, so the tool-abort below must wait until
@@ -574,7 +571,10 @@ export class ExternalStoreThreadRuntimeCore
     if (!this._store.onCancel)
       throw new Error("Runtime does not support cancelling runs.");
 
-    const resyncRevision = ++this._cancelResyncRevision;
+    const messageIdsBeforeCancel = new Set([
+      ...this.repository.export().messages.map(({ message }) => message.id),
+      ...this.repository.getMessages().map((message) => message.id),
+    ]);
 
     this._store.queue?.clear("cancel-run");
 
@@ -610,7 +610,12 @@ export class ExternalStoreThreadRuntimeCore
 
     // resync messages (for reloading, to restore the previous branch)
     setTimeout(() => {
-      if (this._cancelResyncRevision !== resyncRevision) return;
+      if (
+        this.repository
+          .getMessages()
+          .some((message) => !messageIdsBeforeCancel.has(message.id))
+      )
+        return;
       this.updateMessages(messages);
     }, 0);
   }
