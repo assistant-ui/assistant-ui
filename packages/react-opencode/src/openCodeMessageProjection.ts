@@ -11,6 +11,7 @@ import {
   ExportedMessageRepository,
   type MessageTiming,
 } from "@assistant-ui/react";
+import { projectOpenCodePermissionApproval } from "./openCodePermissionApproval";
 
 type ProjectedContentPart = Exclude<
   OpenCodeProjectedThreadMessage["content"],
@@ -119,6 +120,14 @@ const getPartToolCallId = (part: Part) => {
   return typeof part.callID === "string" ? part.callID : undefined;
 };
 
+const getPendingPermissionForToolCall = (
+  state: OpenCodeThreadState,
+  toolCallId: string,
+) =>
+  Object.values(state.interactions.permissions.pending).find(
+    (request) => request.tool?.callID === toolCallId,
+  );
+
 const hasPendingInteractionForToolCall = (
   state: OpenCodeThreadState,
   toolCallId: string | undefined,
@@ -201,6 +210,7 @@ const convertFilePart = (part: Extract<Part, { type: "file" }>) => {
 };
 
 const projectAssistantContent = (
+  state: OpenCodeThreadState,
   message: OpenCodeServerMessage,
 ): ProjectedContentPart[] => {
   const content: ProjectedContentPart[] = [];
@@ -235,9 +245,11 @@ const projectAssistantContent = (
 
       case "tool": {
         const toolState = mapToolState(part.state);
+        const toolCallId = part.callID ?? part.id ?? `tool-${index}`;
+        const permission = getPendingPermissionForToolCall(state, toolCallId);
         content.push({
           type: "tool-call",
-          toolCallId: part.callID ?? part.id ?? `tool-${index}`,
+          toolCallId,
           toolName: part.tool ?? "tool",
           args: toolState.args as never,
           argsText: toolState.argsText,
@@ -245,6 +257,9 @@ const projectAssistantContent = (
             ? { result: toolState.result }
             : {}),
           ...(toolState.isError ? { isError: true } : {}),
+          ...(permission
+            ? { approval: projectOpenCodePermissionApproval(permission) }
+            : {}),
           ...(currentStepId() ? { parentId: currentStepId() } : {}),
         });
         break;
@@ -480,7 +495,7 @@ const projectServerMessage = (
       id: message.info.id,
       role: "assistant",
       createdAt: new Date(message.info.time?.created ?? Date.now()),
-      content: projectAssistantContent(message),
+      content: projectAssistantContent(state, message),
       status: getMessageStatus(state, message),
       metadata: {
         custom: {

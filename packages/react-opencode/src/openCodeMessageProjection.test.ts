@@ -155,7 +155,7 @@ describe("projectOpenCodeThreadMessages", () => {
               permission: "bash",
               patterns: [],
               metadata: {},
-              always: [],
+              always: ["git *"],
               askedAt: 1000,
               raw: {} as never,
               tool: {
@@ -220,6 +220,25 @@ describe("projectOpenCodeThreadMessages", () => {
       type: "requires-action",
       reason: "tool-calls",
     });
+    expect(messages[0]?.content).toMatchObject([
+      {
+        type: "tool-call",
+        toolCallId: "call-1",
+        approval: {
+          id: "permission_1",
+          options: [
+            { id: "once", kind: "allow-once" },
+            {
+              id: "always",
+              kind: "allow-always",
+              grants: ["git *"],
+              confirm: true,
+            },
+            { id: "reject", kind: "reject-once" },
+          ],
+        },
+      },
+    ]);
   });
 
   it("marks assistant messages with pending question requests as requires-action", () => {

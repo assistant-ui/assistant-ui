@@ -23,6 +23,7 @@ import type {
   OpenCodeThreadState,
 } from "./types";
 import { OpenCodeEventSource } from "./OpenCodeEventSource";
+import { toOpenCodePermissionResponse } from "./openCodePermissionApproval";
 import { OpenCodeThreadController } from "./OpenCodeThreadController";
 import { projectOpenCodeThreadRepository } from "./openCodeMessageProjection";
 import { EMPTY_OPENCODE_THREAD_STATE } from "./openCodeThreadState";
@@ -182,6 +183,17 @@ const useOpenCodeThreadRuntime = (
     onCancel: async () => {
       try {
         await controller.cancel();
+      } catch (error) {
+        options.onError?.(error);
+        throw error;
+      }
+    },
+    onRespondToToolApproval: async (response) => {
+      try {
+        await controller.replyToPermission(
+          response.approvalId,
+          toOpenCodePermissionResponse(response),
+        );
       } catch (error) {
         options.onError?.(error);
         throw error;
