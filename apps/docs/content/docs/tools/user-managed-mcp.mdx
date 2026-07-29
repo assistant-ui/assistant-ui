@@ -114,7 +114,7 @@ Pass children to override the trigger:
 </McpConfigDialog>
 ```
 
-**Compose your own from primitives** — three namespaces, all unstyled and `data-*`-driven. The iteration primitives take a **render function** so the body re-runs per server with the right scope:
+**Compose your own from primitives.** Four namespaces are available, all unstyled and `data-*`-driven. The iteration primitives take a **render function** so the body re-runs per server with the right scope:
 
 ```tsx title="app/mcp/page.tsx"
 "use client";
@@ -242,6 +242,34 @@ const out = await aui.mcp.server({ id: "linear" }).callTool("search", { q });
 </Step>
 </Steps>
 
+## Form elicitation
+
+Connected servers can request structured user input through form-mode elicitation. Render `McpElicitationPrimitive.Items` inside a server-scoped subtree, then compose fields and response actions from the unstyled primitives:
+
+```tsx
+import { McpElicitationPrimitive } from "@assistant-ui/react-mcp";
+
+<McpElicitationPrimitive.Items>
+  {() => (
+    <McpElicitationPrimitive.Root>
+      <McpElicitationPrimitive.Message />
+      <McpElicitationPrimitive.Fields>
+        {({ name, value, setValue }) => (
+          <input
+            name={name}
+            value={typeof value === "string" ? value : ""}
+            onChange={(event) => setValue(event.target.value)}
+          />
+        )}
+      </McpElicitationPrimitive.Fields>
+      <McpElicitationPrimitive.Accept>Submit</McpElicitationPrimitive.Accept>
+      <McpElicitationPrimitive.Decline>Decline</McpElicitationPrimitive.Decline>
+      <McpElicitationPrimitive.Cancel>Cancel</McpElicitationPrimitive.Cancel>
+    </McpElicitationPrimitive.Root>
+  )}
+</McpElicitationPrimitive.Items>
+```
+
 ## Storage
 
 All persisted state — custom server records, OAuth tokens, PKCE verifiers, DCR client info — goes through a single `MCPStorage` resource. Three built-ins:
@@ -346,6 +374,7 @@ What ships:
 
 - Tool listing and invocation, auto-registered as frontend tools
 - Resource listing and reads for app-built browsers or preview panes
+- Form-mode elicitation with app-composed fields and response actions
 - OAuth (PKCE + DCR), bearer, none
 - StreamableHTTP transport
 - Manual connect/disconnect

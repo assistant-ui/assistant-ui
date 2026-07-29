@@ -11,7 +11,7 @@ External API spec for the MCP integration package. Mirrors `@assistant-ui/react-
 
 Both share one connection lifecycle, one persisted state surface, and one tool registration path.
 
-**Tools only.** v1 lists and invokes tools, registering them as **frontend tools** with `modelContext` so a connected chat runtime sees them automatically. Resources, prompts, sampling, server-pushed list updates, and resumable sessions are deferred.
+**Tools and form elicitation.** v1 lists and invokes tools, registering them as **frontend tools** with `modelContext` so a connected chat runtime sees them automatically. Servers can also request structured user input through pending elicitations. Resources, prompts, sampling, server-pushed list updates, and resumable sessions are deferred.
 
 **Three auth modes only:** OAuth (PKCE + RFC 7591 DCR), Bearer, None.
 
@@ -51,7 +51,9 @@ packages/react-mcp/
 │   │   ├── server.ts                           barrel (McpServerPrimitive.*)
 │   │   ├── server/{Root,Icon,Name,Status,Error,ConnectButton,DisconnectButton,RemoveButton,OAuthLink,Tools,ToolName}.tsx
 │   │   ├── addForm.ts                          barrel (McpAddFormPrimitive.*)
-│   │   └── addForm/{Root,NameField,UrlField,AuthSelect,AuthFields,Submit,Cancel,Error}.tsx
+│   │   ├── addForm/{Root,NameField,UrlField,AuthSelect,AuthFields,Submit,Cancel,Error}.tsx
+│   │   ├── elicitation.ts                       barrel (McpElicitationPrimitive.*)
+│   │   └── elicitation/{Items,Root,Message,Fields,Accept,Decline,Cancel}.tsx
 │   ├── hooks/
 │   │   └── useMcpOAuthCallback.tsx
 │   └── index.ts
@@ -68,7 +70,7 @@ After the v0.1 simplification, the package's runtime surface is:
 | `McpServerResource` | Per-server resource (advanced — used internally by `McpManagerResource`) |
 | `McpLocalStorage`, `McpMemoryStorage`, `McpCustomStorage` | Storage resource factories |
 | `defineConnector` | Identity-typed helper for `MCPConnector` objects |
-| `McpManagerPrimitive.*`, `McpServerPrimitive.*`, `McpAddFormPrimitive.*` | Unstyled UI primitives |
+| `McpManagerPrimitive.*`, `McpServerPrimitive.*`, `McpAddFormPrimitive.*`, `McpElicitationPrimitive.*` | Unstyled UI primitives |
 | `McpServerByIdProvider` | Scope a subtree to one server (used by iteration primitives; useful standalone) |
 | `useMcpOAuthCallback`, `McpOAuthCallback` | OAuth callback page handlers |
 
@@ -114,12 +116,24 @@ type MCPConnectionState =
 
 type MCPToolInfo = { name: string; description?: string; inputSchema: unknown };
 
+type MCPElicitation = {
+  readonly id: string;
+  readonly message: string;
+  readonly requestedSchema: unknown;
+};
+
+type MCPElicitationResponse =
+  | { action: "accept"; content: Record<string, unknown> }
+  | { action: "decline" }
+  | { action: "cancel" };
+
 type MCPServerState = {
   id: string; kind: MCPServerKind; name: string; url: string;
   icon?: string; connectionState: MCPConnectionState;
   lastError: { message: string } | null;
   tools: MCPToolInfo[];
   authorizationUrl: string | null;
+  readonly pendingElicitations: readonly MCPElicitation[];
 };
 
 type MCPManagerState = {
@@ -158,6 +172,7 @@ type MCPServerMethods = {
   callTool: (name: string, args: unknown) => Promise<unknown>;
   readResource: (uri: string) => Promise<unknown>;
   completeAuth: (callbackUrl: string) => Promise<void>;
+  answerElicitation: (id: string, response: MCPElicitationResponse) => void;
 };
 ```
 
@@ -257,7 +272,7 @@ Flow:
 Same conventions as `SpanPrimitive`: `forwardRef`, Radix `Primitive.<tag>`, namespaced `Element`/`Props`, `data-*` rendering.
 
 ```tsx
-import { McpManagerPrimitive, McpServerPrimitive, McpAddFormPrimitive } from "@assistant-ui/react-mcp";
+import { McpManagerPrimitive, McpServerPrimitive, McpAddFormPrimitive, McpElicitationPrimitive } from "@assistant-ui/react-mcp";
 
 <McpManagerPrimitive.Root>
   <McpManagerPrimitive.Connectors>
@@ -293,6 +308,32 @@ The add form owns its own draft state and submits via `aui.mcp().addCustomServer
   <McpAddFormPrimitive.Cancel />
 </McpAddFormPrimitive.Root>
 ```
+
+Render form-mode elicitation inside a server-scoped subtree. Each item owns an isolated draft, and `Fields` renders nothing when the requested schema has no usable `properties` object:
+
+```tsx
+<McpElicitationPrimitive.Items>
+  {() => (
+    <McpElicitationPrimitive.Root>
+      <McpElicitationPrimitive.Message />
+      <McpElicitationPrimitive.Fields>
+        {({ name, value, setValue }) => (
+          <input
+            name={name}
+            value={typeof value === "string" ? value : ""}
+            onChange={(event) => setValue(event.target.value)}
+          />
+        )}
+      </McpElicitationPrimitive.Fields>
+      <McpElicitationPrimitive.Accept>Submit</McpElicitationPrimitive.Accept>
+      <McpElicitationPrimitive.Decline>Decline</McpElicitationPrimitive.Decline>
+      <McpElicitationPrimitive.Cancel>Cancel</McpElicitationPrimitive.Cancel>
+    </McpElicitationPrimitive.Root>
+  )}
+</McpElicitationPrimitive.Items>
+```
+
+`useMcpElicitation()` reads the current request inside `Items`. `useMcpElicitationField()` reads the current field inside the element returned from the `Fields` render function.
 
 ## 6. Lifecycle
 
