@@ -101,7 +101,7 @@ class ClientProxyHandler
     if (introspection !== false) return introspection;
     const value = this.outputRef.current[prop];
     if (typeof value === "function") {
-      if (this.cachedReceiver !== receiver) {
+      if (!this.boundFns || this.cachedReceiver !== receiver) {
         this.boundFns = new Map();
         this.cachedReceiver = receiver;
       }

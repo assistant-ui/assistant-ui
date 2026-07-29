@@ -28,7 +28,8 @@ export abstract class BaseProxyHandler implements ProxyHandler<object> {
       value,
       writable: false,
       enumerable: true,
-      configurable: false,
+      // must be configurable: the invariant forbids non-configurable props absent from the empty target
+      configurable: true,
     };
   }
 
