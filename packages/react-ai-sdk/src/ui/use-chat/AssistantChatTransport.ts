@@ -19,6 +19,10 @@ const FINISH_MARKER = '"type":"finish"';
 const FINISH_BUFFER_LIMIT = 4096;
 const FINISH_BUFFER_TAIL = 1024;
 
+// 101/204/205/304 are null-body statuses per the fetch spec: `new Response(body, { status })`
+// throws for them, and WebKit returns a non-null empty body, so the body check alone does not guard it.
+const NULL_BODY_STATUSES = new Set([101, 204, 205, 304]);
+
 export type AssistantChatTransportInitOptions<UI_MESSAGE extends UIMessage> =
   HttpChatTransportInitOptions<UI_MESSAGE> & {
     resumable?: AssistantChatResumableOptions;
@@ -111,7 +115,7 @@ function wrapFetchWithResumable(
     const res = await baseFetch(input, init);
     const id = res.headers.get(RESUMABLE_STREAM_ID_HEADER);
     if (id) resumable.storage.setStreamId(id);
-    if (!res.body) return res;
+    if (!res.body || NULL_BODY_STATUSES.has(res.status)) return res;
 
     const detectFinish = resumable.isFinishEvent ?? defaultIsFinishEvent;
     // a single decoder is required so multi-byte sequences split across
