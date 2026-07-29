@@ -51,9 +51,28 @@ describe("optional state view", () => {
 
     expect(s.optional.threadListItem).toBeUndefined();
     expect(s.optional.threadListItem?.remoteId).toBeUndefined();
+    expect(s.optional.notARegisteredScope).toBeUndefined();
     expect(() => s.threadListItem.remoteId).toThrow(
       'The current scope does not have a "threadListItem" property.',
     );
+  });
+
+  it("resolves scopes to undefined outside an AuiProvider", () => {
+    const { result } = renderHook(() =>
+      useAuiState((s: AnyState) => s.optional.thread?.title),
+    );
+
+    expect(result.current).toBeUndefined();
+  });
+
+  it("reflects the optional key in the has and ownKeys traps", () => {
+    const aui = setup();
+    const s = getProxiedAssistantState(aui) as AnyState;
+
+    expect("optional" in s).toBe(true);
+    expect(Reflect.ownKeys(s)).toContain("optional");
+    expect(Reflect.ownKeys(s)).toContain("thread");
+    expect("optional" in s.optional).toBe(false);
   });
 
   it("useAuiState selects optional fields of unavailable scopes as undefined", () => {

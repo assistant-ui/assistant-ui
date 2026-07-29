@@ -564,17 +564,11 @@ These events fire at the same transition you can observe via state. They are kep
 // ❌ This will throw if not inside a message component
 const role = useAuiState((s) => s.message.role);
 
-// ✅ Check scope availability first
-function SafeMessageButton() {
-  const aui = useAui();
-
-  const role = useAuiState((s) =>
-    aui.message.source != null ? s.message.role : "none",
-  );
-
-  return <div>Role: {role}</div>;
-}
+// ✅ Read through the optional view — unavailable scopes resolve to undefined
+const role = useAuiState((s) => s.optional.message?.role ?? "none");
 ```
+
+To check whether a scope is available outside of a selector (for example before calling its methods or reading its `query`), test `aui.message.source != null`.
 
 **"Maximum update depth exceeded" / Infinite re-renders**
 

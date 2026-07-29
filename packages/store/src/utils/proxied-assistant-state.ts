@@ -63,11 +63,14 @@ export const createProxiedAssistantState = (
     }
 
     ownKeys(): ArrayLike<string | symbol> {
-      return Object.keys(client).filter((key) => !isIgnoredKey(key));
+      return [
+        ...Object.keys(client).filter((key) => !isIgnoredKey(key)),
+        "optional",
+      ];
     }
 
     has(_: unknown, prop: string | symbol): boolean {
-      return !isIgnoredKey(prop) && prop in client;
+      return prop === "optional" || (!isIgnoredKey(prop) && prop in client);
     }
   }
 
