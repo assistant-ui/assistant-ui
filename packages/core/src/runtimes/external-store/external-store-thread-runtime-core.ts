@@ -571,10 +571,9 @@ export class ExternalStoreThreadRuntimeCore
     if (!this._store.onCancel)
       throw new Error("Runtime does not support cancelling runs.");
 
-    const messageIdsBeforeCancel = new Set([
-      ...this.repository.export().messages.map(({ message }) => message.id),
-      ...this.repository.getMessages().map((message) => message.id),
-    ]);
+    const messageIdsBeforeCancel = new Set(
+      this.repository.export().messages.map(({ message }) => message.id),
+    );
 
     this._store.queue?.clear("cancel-run");
 
@@ -613,7 +612,11 @@ export class ExternalStoreThreadRuntimeCore
       if (
         this.repository
           .getMessages()
-          .some((message) => !messageIdsBeforeCancel.has(message.id))
+          .some(
+            (message) =>
+              !message.metadata.isOptimistic &&
+              !messageIdsBeforeCancel.has(message.id),
+          )
       )
         return;
       this.updateMessages(messages);

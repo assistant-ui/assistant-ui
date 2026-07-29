@@ -350,6 +350,35 @@ describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
       expect(setMessages).toHaveBeenCalledOnce();
     });
 
+    it("does not treat a regenerated optimistic message as a new append", async () => {
+      const initialMessages = [createUserMessage("u1")];
+      const setMessages = vi.fn();
+      const onCancel = vi.fn();
+      const core = new ExternalStoreThreadRuntimeCore(
+        contextProvider,
+        createBaseAdapter({
+          messages: initialMessages,
+          isRunning: true,
+          onCancel,
+          setMessages,
+        }),
+      );
+
+      core.cancelRun();
+      core.__internal_setAdapter(
+        createBaseAdapter({
+          messages: [...initialMessages],
+          isRunning: true,
+          onCancel,
+          setMessages,
+        }),
+      );
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(setMessages).toHaveBeenCalledOnce();
+      expect(setMessages).toHaveBeenCalledWith([]);
+    });
+
     it("resyncs messages when an append fails", async () => {
       const setMessages = vi.fn();
       const core = new ExternalStoreThreadRuntimeCore(
