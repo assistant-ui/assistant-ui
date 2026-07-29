@@ -1467,7 +1467,20 @@ declare class DefaultThreadComposerRuntimeCore extends BaseComposerRuntimeCore i
   handleCancel(): Promise<void>;
 }
 
-type DerivedElement<K extends ClientNames> = ResourceElement<DerivedInstance<K>>;
+declare const Derived: <K extends ClientNames>(config: Derived.Props<K>) => DerivedElement<K>;
+
+declare namespace Derived {
+  type Props<K extends ClientNames> = {
+    get: (client: AssistantClient) => ReturnType<AssistantClientAccessor<K>>;
+  } & ClientMeta<K>;
+  type Output<K extends ClientNames> = {
+    client: DerivedInstance<K>;
+    source: ClientNames;
+    query: Record<string, unknown>;
+  };
+}
+
+type DerivedElement<K extends ClientNames> = ResourceElement<Derived.Output<K>>;
 
 type DerivedInstance<K extends ClientNames> = ReturnType<AssistantClientAccessor<K>>;
 
