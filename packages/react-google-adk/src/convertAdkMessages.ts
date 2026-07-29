@@ -35,11 +35,13 @@ const contentToParts = (
           return { type: "image", image: part.url };
         case "file": {
           const format =
-            role === "user" && part.mimeType === "audio/wav"
-              ? ("wav" as const)
-              : role === "user" && part.mimeType === "audio/mp3"
-                ? ("mp3" as const)
-                : null;
+            role === "user" && part.filename == null
+              ? part.mimeType === "audio/wav"
+                ? ("wav" as const)
+                : part.mimeType === "audio/mp3"
+                  ? ("mp3" as const)
+                  : null
+              : null;
           if (format) {
             return { type: "audio", audio: { data: part.data, format } };
           }

@@ -52,6 +52,33 @@ describe("convertAdkMessage - human messages", () => {
     });
   });
 
+  it("keeps attachment-derived audio file parts (with filename) as file parts", () => {
+    const msg: AdkMessage = {
+      id: "m1",
+      type: "human",
+      content: [
+        {
+          type: "file",
+          mimeType: "audio/wav",
+          data: "QUJD",
+          filename: "memo.wav",
+        },
+      ],
+    };
+    const result = convertAdkMessage(msg, {});
+    expect(result).toMatchObject({
+      role: "user",
+      content: [
+        {
+          type: "file",
+          mimeType: "audio/wav",
+          data: "QUJD",
+          filename: "memo.wav",
+        },
+      ],
+    });
+  });
+
   it("keeps file parts with other audio mime types as file parts", () => {
     const msg: AdkMessage = {
       id: "m1",
