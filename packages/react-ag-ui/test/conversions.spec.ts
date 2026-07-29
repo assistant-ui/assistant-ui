@@ -1347,6 +1347,99 @@ describe("mcp app rehydration from restored tool messages", () => {
     expect(part.mcp).toEqual({ app: { resourceUri: "ui://example/search" } });
   });
 
+  it("rehydrates mcp.app from the nested _meta ui.resourceUri carrier", () => {
+    const result = fromAgUiMessages([
+      {
+        id: "a-1",
+        role: "assistant",
+        content: "",
+        tool_calls: [
+          {
+            id: "call-1",
+            type: "function",
+            function: { name: "search", arguments: "{}" },
+          },
+        ],
+      },
+      {
+        id: "t-1",
+        role: "tool",
+        tool_call_id: "call-1",
+        content: "ok",
+        _meta: { ui: { resourceUri: "ui://example/search" } },
+      },
+    ] as any);
+
+    const part = (result[0] as any).content.find(
+      (p: { type: string }) => p.type === "tool-call",
+    );
+    expect(part.mcp).toEqual({ app: { resourceUri: "ui://example/search" } });
+  });
+
+  it("prefers the nested _meta ui.resourceUri carrier over the flat carrier", () => {
+    const result = fromAgUiMessages([
+      {
+        id: "a-1",
+        role: "assistant",
+        content: "",
+        tool_calls: [
+          {
+            id: "call-1",
+            type: "function",
+            function: { name: "search", arguments: "{}" },
+          },
+        ],
+      },
+      {
+        id: "t-1",
+        role: "tool",
+        tool_call_id: "call-1",
+        content: "ok",
+        _meta: {
+          ui: { resourceUri: "ui://example/nested" },
+          "ui/resourceUri": "ui://example/flat",
+        },
+      },
+    ] as any);
+
+    const part = (result[0] as any).content.find(
+      (p: { type: string }) => p.type === "tool-call",
+    );
+    expect(part.mcp).toEqual({ app: { resourceUri: "ui://example/nested" } });
+  });
+
+  it("falls back to the flat carrier when the nested resourceUri is not a ui:// app uri", () => {
+    const result = fromAgUiMessages([
+      {
+        id: "a-1",
+        role: "assistant",
+        content: "",
+        tool_calls: [
+          {
+            id: "call-1",
+            type: "function",
+            function: { name: "search", arguments: "{}" },
+          },
+        ],
+      },
+      {
+        id: "t-1",
+        role: "tool",
+        tool_call_id: "call-1",
+        content: "ok",
+        _meta: {
+          ui: { resourceUri: "https://example.com/not-an-app" },
+          "ui/resourceUri": "ui://example/flat",
+        },
+      },
+    ] as any);
+
+    const part = (result[0] as any).content.find(
+      (p: { type: string }) => p.type === "tool-call",
+    );
+    expect(part.mcp).toEqual({ app: { resourceUri: "ui://example/flat" } });
+  });
+
   it("rehydrates mcp.app on a synthetic assistant tool-call for an orphan tool message", () => {
     const result = fromAgUiMessages([
       {

@@ -875,6 +875,102 @@ describe("AISDKMessageConverter", () => {
     });
   });
 
+  it("extracts MCP app metadata from output._meta.ui.resourceUri", () => {
+    const converted = AISDKMessageConverter.toThreadMessages([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          {
+            type: "tool-hello_ui",
+            toolCallId: "tc-1",
+            state: "output-available",
+            input: {},
+            output: {
+              _meta: {
+                ui: {
+                  resourceUri: "ui://app/hello_ui.html",
+                  serverId: "srv",
+                },
+              },
+              content: [{ type: "text", text: "" }],
+            },
+          },
+        ],
+      } as any,
+    ]);
+
+    const call = converted[0]?.content.find(
+      (part): part is any => part.type === "tool-call",
+    );
+    expect(call?.mcp?.app).toEqual({
+      resourceUri: "ui://app/hello_ui.html",
+      serverId: "srv",
+    });
+  });
+
+  it("prefers output._meta.ui.resourceUri over output._meta['ui/resourceUri']", () => {
+    const converted = AISDKMessageConverter.toThreadMessages([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          {
+            type: "tool-hello_ui",
+            toolCallId: "tc-1",
+            state: "output-available",
+            input: {},
+            output: {
+              _meta: {
+                ui: { resourceUri: "ui://app/nested.html" },
+                "ui/resourceUri": "ui://app/flat.html",
+              },
+              content: [{ type: "text", text: "" }],
+            },
+          },
+        ],
+      } as any,
+    ]);
+
+    const call = converted[0]?.content.find(
+      (part): part is any => part.type === "tool-call",
+    );
+    expect(call?.mcp?.app).toEqual({
+      resourceUri: "ui://app/nested.html",
+    });
+  });
+
+  it("falls back to output._meta['ui/resourceUri'] when the nested resourceUri is not a ui:// app uri", () => {
+    const converted = AISDKMessageConverter.toThreadMessages([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          {
+            type: "tool-hello_ui",
+            toolCallId: "tc-1",
+            state: "output-available",
+            input: {},
+            output: {
+              _meta: {
+                ui: { resourceUri: "https://example.com/not-an-app" },
+                "ui/resourceUri": "ui://app/flat.html",
+              },
+              content: [{ type: "text", text: "" }],
+            },
+          },
+        ],
+      } as any,
+    ]);
+
+    const call = converted[0]?.content.find(
+      (part): part is any => part.type === "tool-call",
+    );
+    expect(call?.mcp?.app).toEqual({
+      resourceUri: "ui://app/flat.html",
+    });
+  });
+
   it("memoizes MCP app metadata across conversions by serverId and resourceUri", () => {
     const metadata: AISDKMessageConverterMetadata = {
       mcpAppMetadataCache: new Map(),
