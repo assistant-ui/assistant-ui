@@ -4,12 +4,14 @@ type GlobalFlushState = {
   schedulers: Set<UpdateScheduler>;
   // Tasks run since the queue last drained, across chunked passes.
   burstTaskTotal: number;
+  burstDepthReported: boolean;
   isScheduled: boolean;
 };
 
 const newFlushState = (): GlobalFlushState => ({
   schedulers: new Set([]),
   burstTaskTotal: 0,
+  burstDepthReported: false,
   isScheduled: false,
 });
 
@@ -21,13 +23,14 @@ const MAX_TASK_RUNS_PER_FLUSH = 50;
 // oversized batches chunk across macrotasks instead of blocking. ~1.5x
 // the motivating repro (one 200-message history page ~= 600 resources).
 const MAX_TASKS_PER_FLUSH = 1000;
-// Last-resort termination, documented as the real bound: nothing can
-// distinguish a huge finite cascade from an infinite one, so a burst that
-// runs more than this many tasks in total (~80x the repro, ~= 16000
-// messages in one update) is declared a loop and reported. The queue is
-// never dropped; a stalled remainder continues on the next triggered
-// flush.
-const MAX_BURST_TASKS = 50000;
+// Last-resort bound, documented as the real line: nothing can distinguish
+// a huge finite cascade from an infinite one, so a burst running more
+// than this many tasks total (~8x the 600-resource repro, ~= 1600
+// messages in one update) is REPORTED once as a likely loop - and then
+// keeps chunking anyway: a finite batch that large still completes, an
+// infinite one degrades to background work with a loud error in the
+// console. The queue is never dropped and never stalled.
+const MAX_BURST_TASKS = 5000;
 let flushState: GlobalFlushState = newFlushState();
 
 export class UpdateScheduler {
@@ -48,6 +51,11 @@ export class UpdateScheduler {
 
     flushState.schedulers.add(this);
     scheduleFlush();
+  }
+
+  /** @internal Called when the run guard drops a scheduler, so the root is not left permanently dirty (which would suppress its own publishing). */
+  clearDirty() {
+    this._isDirty = false;
   }
 
   runTask() {
@@ -95,12 +103,10 @@ export const throwCollectedErrors = (
 // re-added mid-pass, so bulk updates of any size land in a single batch)
 // and appends failures to `errors` instead of throwing.
 //
-// The re-run guard has two modes by necessity: on the macrotask path the
-// offender is SKIPPED and retried next pass (a deep-but-finite cascade
-// still finishes; a true loop burns MAX_TASK_RUNS_PER_FLUSH runs and
-// reports once per pass); inside flushTapSync there is no next pass, so
-// the caller shares one runCounts map across passes and the offender is
-// DROPPED at the limit, terminating the drain at ~50 runs like main.
+// The re-run guard DROPS a scheduler that exceeds MAX_TASK_RUNS_PER_FLUSH
+// runs in one burst (a genuine update loop), on every path; inside
+// flushTapSync the caller shares one runCounts map across passes so the
+// budget is per logical flush, not per call.
 const flushScheduled = (
   errors: CollectedErrors,
   defer = true,
@@ -124,10 +130,12 @@ const flushScheduled = (
       }
       const runs = (runCounts.get(scheduler) ?? 0) + 1;
       if (runs > MAX_TASK_RUNS_PER_FLUSH) {
+        // Dropped on every path (and left clean, not dirty): a resource
+        // re-dirtying itself this often in one burst is a genuine loop,
+        // and keeping it queued taxes every future flush.
         reportDepthError(errors);
-        if (shared) {
-          flushState.schedulers.delete(scheduler);
-        }
+        flushState.schedulers.delete(scheduler);
+        scheduler.clearDirty();
         continue;
       }
       flushState.schedulers.delete(scheduler);
@@ -155,16 +163,17 @@ const flushScheduled = (
       flushState.isScheduled = false;
       if (!hitCeiling) {
         flushState.burstTaskTotal = 0;
+        flushState.burstDepthReported = false;
       } else {
         flushState.burstTaskTotal += taskCount;
-        if (flushState.burstTaskTotal > MAX_BURST_TASKS) {
-          // Runaway: report and stop auto-continuing. The queue is kept.
-          flushState.burstTaskTotal = 0;
+        if (
+          flushState.burstTaskTotal > MAX_BURST_TASKS &&
+          !flushState.burstDepthReported
+        ) {
+          flushState.burstDepthReported = true;
           reportDepthError(errors);
-        } else {
-          // Oversized but under the bound: chunk on, silently.
-          scheduleFlush();
         }
+        scheduleFlush();
       }
     }
   }
