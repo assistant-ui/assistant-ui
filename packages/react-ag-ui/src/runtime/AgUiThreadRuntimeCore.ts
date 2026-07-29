@@ -1171,7 +1171,7 @@ export class AgUiThreadRuntimeCore {
         unstable_annotations: [],
         unstable_data: [],
         steps: [],
-        isOptimistic: true,
+        isOptimistic: isOptimisticId(id),
         custom: {},
       },
     };
