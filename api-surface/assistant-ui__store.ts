@@ -120,14 +120,6 @@ type Hook = (...args: any[]) => any;
 
 type InferClientState<TMethods> = TMethods extends {
   getState: () => infer S;
-} ? S : unknown;
-
-type InferClientState$1<TMethods> = TMethods extends {
-  getState: () => infer S;
-} ? S : unknown;
-
-type InferClientState$2<TMethods> = TMethods extends {
-  getState: () => infer S;
 } ? S : undefined;
 
 type ParentOf<K extends ClientNames> = ClientMeta<K> extends {
@@ -257,7 +249,7 @@ declare namespace useClientList {
 }
 
 declare function useClientLookup<TMethods extends ClientMethods>(elements: readonly ResourceElement<TMethods>[]): {
-  state: InferClientState$1<TMethods>[];
+  state: InferClientState<TMethods>[];
   get: (lookup: {
     index: number;
   } | {
@@ -266,7 +258,7 @@ declare function useClientLookup<TMethods extends ClientMethods>(elements: reado
 };
 
 declare const useClientResource: <TMethods extends ClientMethods>(element: ResourceElement<TMethods>) => {
-  state: InferClientState$2<TMethods>;
+  state: InferClientState<TMethods>;
   methods: TMethods;
   key: string | number | undefined;
 };
