@@ -140,13 +140,13 @@ describe("scheduler batched draining", () => {
     expect(ran).toHaveLength(6000);
   });
 
-  it("yields silently past MAX_TOTAL_TASKS_PER_BURST and keeps draining", async () => {
+  it("drains a 10001-scheduler batch in one flush", async () => {
     vi.resetModules();
     vi.stubGlobal("MessageChannel", ControlledMessageChannel);
     const { UpdateScheduler } = await import("../core/scheduler");
 
-    // The burst-wide cap is a yield boundary, not an error: oversized but
-    // finite batches drain across flushes without any throw.
+    // Finite batches never hit the per-scheduler guard because each
+    // scheduler runs exactly once, so batches of any size drain in one pass.
     const ran: number[] = [];
     const schedulers = Array.from(
       { length: 10001 },
@@ -194,26 +194,28 @@ describe("scheduler batched draining", () => {
     expect(ran).toHaveLength(120);
   });
 
-  it("throws past the burst cap inside flushTapSync instead of hanging", async () => {
+  it("drains synchronously inside flushTapSync even for huge batches", async () => {
     vi.resetModules();
     vi.stubGlobal("MessageChannel", ControlledMessageChannel);
     const { UpdateScheduler, flushTapSync } = await import("../core/scheduler");
 
-    // There is no next macrotask to yield to inside flushTapSync, so an
-    // oversized batch hits a hard ceiling and reports instead of blocking
-    // the thread indefinitely.
+    const ran: number[] = [];
     const schedulers = Array.from(
       { length: 10001 },
-      (_, i) => new UpdateScheduler(() => {}),
+      (_, i) =>
+        new UpdateScheduler(() => {
+          ran.push(i);
+        }),
     );
 
-    expect(() =>
-      flushTapSync(() => {
-        for (const scheduler of schedulers) {
-          scheduler.markDirty();
-        }
-      }),
-    ).toThrow(/Maximum update depth exceeded/);
+    // Everything must land before flushTapSync returns — no deferral and no
+    // ceiling, since the per-scheduler guard bounds any single scheduler.
+    flushTapSync(() => {
+      for (const scheduler of schedulers) {
+        scheduler.markDirty();
+      }
+    });
+    expect(ran).toHaveLength(10001);
   });
 
   it("throws inside flushTapSync when a resource re-dirties itself", async () => {
@@ -232,35 +234,5 @@ describe("scheduler batched draining", () => {
         scheduler.markDirty();
       }),
     ).toThrow(/Maximum update depth exceeded/);
-  });
-
-  it("terminates an unbounded fresh-scheduler cascade after MAX_CAP_STREAK aborts", async () => {
-    vi.resetModules();
-    vi.stubGlobal("MessageChannel", ControlledMessageChannel);
-    const { UpdateScheduler } = await import("../core/scheduler");
-
-    // Each task queues a brand-new scheduler, so every flush saturates the
-    // burst-wide cap and reschedules. After MAX_CAP_STREAK consecutive
-    // saturated flushes the queue must be dropped — the cascade gets a
-    // terminal state instead of wedging the tab with endless throws.
-    const makeCascadeScheduler = (): InstanceType<typeof UpdateScheduler> =>
-      new UpdateScheduler(() => {
-        makeCascadeScheduler().markDirty();
-      });
-    makeCascadeScheduler().markDirty();
-
-    const [channel] = ControlledMessageChannel.instances;
-    // Saturated flushes yield silently and auto-continue; after
-    // MAX_CAP_STREAK (10) in a row the cascade is treated as a runaway: it
-    // throws and stops rescheduling. pump() drives every chained flush, so
-    // this first pump runs all 10 silent yields before the give-up throw.
-    expect(() => pump(channel!)).toThrow(/Maximum update depth exceeded/);
-    // Nothing is rescheduled after the give-up.
-    expect(() => pump(channel!)).not.toThrow();
-
-    // The remainder is not dropped: any later markDirty triggers a flush
-    // that runs it (and throws again, since the cascade is unbounded).
-    new UpdateScheduler(() => {}).markDirty();
-    expect(() => pump(channel!)).toThrow(/Maximum update depth exceeded/);
   });
 });

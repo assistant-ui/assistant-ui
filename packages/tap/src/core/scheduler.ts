@@ -2,34 +2,18 @@ type Task = () => void;
 
 type GlobalFlushState = {
   schedulers: Set<UpdateScheduler>;
-  // Queue size at the previous cap abort (Infinity before the first one).
-  lastCapQueueSize: number;
-  capStreak: number;
   isScheduled: boolean;
 };
 
 const newFlushState = (): GlobalFlushState => ({
   schedulers: new Set([]),
-  lastCapQueueSize: Number.POSITIVE_INFINITY,
-  capStreak: 0,
   isScheduled: false,
 });
 
-// Per-scheduler re-runs catch resources that re-dirty themselves or each
-// other in a loop; a finite batch never re-runs one scheduler this often.
-// (createTapRoot allocates a fresh UpdateScheduler per dispatch, so this
-// never fires for that root type - the burst cap is the guard there.)
-const MAX_TASK_RUNS_PER_BURST = 50;
-// A flush yields silently at this many tasks and continues on the next
-// macrotask, so oversized batches drain across flushes with no error. It is
-// also the hard ceiling for a single flushTapSync call, where there is no
-// next macrotask to yield to.
-const MAX_TOTAL_TASKS_PER_BURST = 10000;
-// "The queue did not shrink between cap aborts" is what cascade means for
-// the burst cap (a finite batch's queue always shrinks; a runaway's never
-// does). This many non-shrinking aborts in a row throws and stops
-// auto-continuing. Legitimate batches of any size never hit it.
-const MAX_CAP_STREAK = 3;
+// A scheduler re-run more than this many times in one flush is a resource
+// that keeps re-dirtying itself (or a cycle of resources re-dirtying each
+// other); the offender is dropped so the rest of the queue keeps flushing.
+const MAX_TASK_RUNS_PER_FLUSH = 50;
 let flushState: GlobalFlushState = newFlushState();
 
 export class UpdateScheduler {
@@ -64,33 +48,34 @@ const scheduleFlush = () => {
   scheduleMacrotask();
 };
 
-// Guards never lose queued work silently: the burst cap yields and
-// reschedules, so oversized batches drain across macrotasks with no error;
-// a cascade (queue not shrinking between cap aborts) throws after
-// MAX_CAP_STREAK and stops auto-continuing; a loop abort clears the queue,
-// which is the only way a mutually re-dirtying ring terminates.
-const flushScheduled = (defer = true): number => {
+// Drains flushState.schedulers completely. Set iteration also visits
+// schedulers re-added mid-pass, so bulk updates of any size land in a
+// single batch. Termination is guaranteed by the per-scheduler run guard:
+// every scheduler runs at most MAX_TASK_RUNS_PER_FLUSH times per flush.
+const flushScheduled = () => {
   const errors: unknown[] = [];
   const runCounts = new Map<UpdateScheduler, number>();
-  let taskCount = 0;
-  let abort: "cap" | "loop" | null = null;
+  let loopErrorReported = false;
 
   try {
     for (const scheduler of flushState.schedulers) {
-      if (taskCount >= MAX_TOTAL_TASKS_PER_BURST) {
-        abort = "cap";
-        break;
-      }
       flushState.schedulers.delete(scheduler);
       if (!scheduler.isDirty) continue;
 
       const runs = (runCounts.get(scheduler) ?? 0) + 1;
-      if (runs > MAX_TASK_RUNS_PER_BURST) {
-        abort = "loop";
-        break;
+      if (runs > MAX_TASK_RUNS_PER_FLUSH) {
+        if (!loopErrorReported) {
+          loopErrorReported = true;
+          errors.push(
+            new Error(
+              `Maximum update depth exceeded. This can happen when a resource ` +
+                `repeatedly calls setState inside useEffect.`,
+            ),
+          );
+        }
+        continue;
       }
       runCounts.set(scheduler, runs);
-      taskCount += 1;
 
       try {
         scheduler.runTask();
@@ -100,36 +85,6 @@ const flushScheduled = (defer = true): number => {
     }
   } finally {
     flushState.isScheduled = false;
-  }
-
-  if (abort === "cap") {
-    const remaining = flushState.schedulers.size;
-    flushState.capStreak =
-      remaining >= flushState.lastCapQueueSize ? flushState.capStreak + 1 : 0;
-    flushState.lastCapQueueSize = remaining;
-    if (flushState.capStreak > MAX_CAP_STREAK) {
-      // Runaway cascade: report once and stop auto-continuing, but keep the
-      // queue and judge the next burst fresh (no latched streak).
-      flushState.capStreak = 0;
-      flushState.lastCapQueueSize = Number.POSITIVE_INFINITY;
-      throw new Error(
-        `Maximum update depth exceeded. This can happen when a resource ` +
-          `repeatedly calls setState inside useEffect.`,
-      );
-    }
-    if (defer) {
-      scheduleFlush();
-    }
-  } else {
-    flushState.capStreak = 0;
-    flushState.lastCapQueueSize = Number.POSITIVE_INFINITY;
-    if (abort === "loop") {
-      flushState.schedulers.clear();
-      throw new Error(
-        `Maximum update depth exceeded. This can happen when a resource ` +
-          `repeatedly calls setState inside useEffect.`,
-      );
-    }
   }
 
   if (errors.length > 0) {
@@ -142,8 +97,6 @@ const flushScheduled = (defer = true): number => {
       throw new AggregateError(errors, "Errors occurred during flushSync");
     }
   }
-
-  return taskCount;
 };
 
 // Use MessageChannel to schedule flushes as macrotasks (like React's scheduler).
@@ -182,20 +135,7 @@ export const flushTapSync = <T>(callback: () => T): T => {
 
   try {
     const value = callback();
-    // Synchronous callers rely on every notification having landed by the
-    // time this returns, so drain across passes until the queue is empty.
-    // There is no next macrotask to yield to here, so the burst cap is a
-    // hard ceiling instead of a yield boundary.
-    let total = 0;
-    while (flushState.schedulers.size > 0) {
-      total += flushScheduled(false);
-      if (total > MAX_TOTAL_TASKS_PER_BURST) {
-        throw new Error(
-          `Maximum update depth exceeded. This can happen when a resource ` +
-            `repeatedly calls setState inside useEffect.`,
-        );
-      }
-    }
+    flushScheduled();
 
     return value;
   } finally {

@@ -12,16 +12,25 @@ import { createResourceFiberRoot } from "./helpers/root";
 export const createTapRoot = <R>(
   render: () => R,
 ): useTapRoot.Root<R> & { unmount: () => void } => {
+  // One scheduler per root, mirroring useTapRoot: a per-scheduler re-run
+  // guard then covers this root type too. Dispatches queue up and drain in
+  // order within a single flush task.
+  const dispatchQueue: { evaluate: () => boolean; apply: () => boolean }[] = [];
+  const scheduler = new UpdateScheduler(() => {
+    for (const { evaluate, apply } of dispatchQueue.splice(0)) {
+      if (evaluate()) {
+        apply();
+        throw new Error("Unexpected rerender of createTapRoot outer fiber");
+      }
+    }
+    return false;
+  });
+
   const fiber = createResourceFiber(
     useTapRoot,
     createResourceFiberRoot((evaluate, apply) => {
-      new UpdateScheduler(() => {
-        if (evaluate()) {
-          apply();
-          throw new Error("Unexpected rerender of createTapRoot outer fiber");
-        }
-        return false;
-      }).markDirty();
+      dispatchQueue.push({ evaluate, apply });
+      scheduler.markDirty();
     }),
     undefined,
     isDevelopment ? "root" : null,
