@@ -541,7 +541,7 @@ Container `View` for an attachment.
 
 ### AttachmentPrimitive.Thumb
 
-`Text` component displaying the file extension (e.g. `.pdf`), or the attachment type (e.g. `image`) when the filename has no extension.
+`Text` component displaying the file extension (e.g. `.pdf`), or the attachment type (e.g. `image`) when the filename has no extension (including leading-dot names like `.env`).
 
 ```tsx
 <AttachmentPrimitive.Thumb style={styles.extension} />
