@@ -638,6 +638,9 @@ type AssistantStreamChunk = {
   readonly type: "text-delta";
   readonly textDelta: string;
 } | {
+  readonly type: "text-replace";
+  readonly text: string;
+} | {
   readonly type: "annotations";
   readonly annotations: ReadonlyJSONValue[];
 } | {

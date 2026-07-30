@@ -117,7 +117,7 @@ type AssistantMessageTiming = {
 };
 
 type AssistantMetaStreamChunk = (AssistantStreamChunk & {
-  type: "part-finish" | "text-delta";
+  type: "part-finish" | "text-delta" | "text-replace";
   meta: PartInit;
 }) | (AssistantStreamChunk & {
   type: "result" | "tool-call-args-text-finish";
@@ -125,7 +125,7 @@ type AssistantMetaStreamChunk = (AssistantStreamChunk & {
     type: "tool-call";
   };
 }) | (AssistantStreamChunk & {
-  type: Exclude<AssistantStreamChunk["type"], "part-finish" | "result" | "text-delta" | "tool-call-args-text-finish">;
+  type: Exclude<AssistantStreamChunk["type"], "part-finish" | "result" | "text-delta" | "text-replace" | "tool-call-args-text-finish">;
 });
 
 declare class AssistantMetaTransformStream extends TransformStream<AssistantStreamChunk, AssistantMetaStreamChunk> {
@@ -153,6 +153,9 @@ type AssistantStreamChunk = {
 } | {
   readonly type: "text-delta";
   readonly textDelta: string;
+} | {
+  readonly type: "text-replace";
+  readonly text: string;
 } | {
   readonly type: "annotations";
   readonly annotations: ReadonlyJSONValue[];
@@ -11594,6 +11597,7 @@ type TextStatus = {
 
 type TextStreamController = {
   append(textDelta: string): void;
+  replace(text: string): void;
   close(): void;
 };
 
