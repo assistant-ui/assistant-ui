@@ -37,6 +37,19 @@ const notifySpeechSynthesisListeners = (
   }
 };
 
+const notifyDictationListeners = <T>(
+  listeners: Iterable<(value: T) => void>,
+  value: T,
+): void => {
+  for (const listener of listeners) {
+    try {
+      listener(value);
+    } catch (error) {
+      console.error("[assistant-ui] Dictation listener threw an error", error);
+    }
+  }
+};
+
 export namespace DictationAdapter {
   export type Status =
     | {
@@ -270,7 +283,7 @@ export class WebSpeechDictationAdapter implements DictationAdapter {
     };
 
     recognition.addEventListener("speechstart", () => {
-      for (const cb of speechStartCallbacks) cb();
+      notifyDictationListeners(speechStartCallbacks, undefined);
     });
 
     recognition.addEventListener("start", () => {
@@ -292,9 +305,15 @@ export class WebSpeechDictationAdapter implements DictationAdapter {
 
         if (result.isFinal) {
           finalTranscript += transcript;
-          for (const cb of speechCallbacks) cb({ transcript, isFinal: true });
+          notifyDictationListeners(speechCallbacks, {
+            transcript,
+            isFinal: true,
+          });
         } else {
-          for (const cb of speechCallbacks) cb({ transcript, isFinal: false });
+          notifyDictationListeners(speechCallbacks, {
+            transcript,
+            isFinal: false,
+          });
         }
       }
     });
@@ -309,8 +328,9 @@ export class WebSpeechDictationAdapter implements DictationAdapter {
         updateStatus({ type: "ended", reason: "stopped" });
       }
       if (finalTranscript) {
-        for (const cb of speechEndCallbacks)
-          cb({ transcript: finalTranscript });
+        notifyDictationListeners(speechEndCallbacks, {
+          transcript: finalTranscript,
+        });
         finalTranscript = "";
       }
     });
