@@ -386,7 +386,7 @@ Base constraint for a scope's methods.
 ```ts
 type ClientSchema<
   TMethods extends ClientMethods = ClientMethods,
-  TMeta extends ClientMetaType = never,
+  TMeta extends { source: ClientNames; query: Record<string, unknown> } = never,
   TEvents extends Record<string, unknown> = never,
 > = {
   methods: TMethods;
