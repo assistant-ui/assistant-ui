@@ -124,7 +124,7 @@ function CounterList({ ids }) {
     filename: "counter-root.js",
     language: "js",
     cut: true,
-    code: `import { createTapRoot } from "@assistant-ui/tap";
+    code: `import { createTapRoot, flushTapSync } from "@assistant-ui/tap";
 import { useCounter } from "./counter";
 
 const root = createTapRoot(function CounterRoot() {
@@ -132,10 +132,10 @@ const root = createTapRoot(function CounterRoot() {
 });
 
 const unsubscribe = root.subscribe(() => {
-  console.log(root.getValue().count);
+  console.log(root.getValue().count); // 1
 });
 
-root.getValue().increment();
+flushTapSync(() => root.getValue().increment());
 
 unsubscribe();
 root.unmount();`,

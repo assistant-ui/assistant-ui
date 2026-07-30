@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import {
   InnerLine,
   Pre,
@@ -40,17 +40,25 @@ const mark: AnnotationHandler = {
 
 const tooltip: AnnotationHandler = {
   name: "tooltip",
-  Inline: ({ annotation, children }) => (
-    <span
-      tabIndex={0}
-      className="group/tooltip ch-tooltip border-fd-muted-foreground/60 relative cursor-help border-b border-dashed"
-    >
-      {children}
-      <span className="border-fd-border bg-fd-popover text-fd-popover-foreground absolute bottom-full left-0 z-10 mb-1.5 hidden rounded-md border px-2.5 py-1.5 font-mono text-xs whitespace-nowrap shadow-md group-hover/tooltip:block group-focus-visible/tooltip:block">
-        {annotation.query}
+  Inline: ({ annotation, children }) => {
+    const id = useId();
+    return (
+      <span
+        tabIndex={0}
+        aria-describedby={id}
+        className="group/tooltip ch-tooltip border-fd-muted-foreground/60 relative cursor-help border-b border-dashed"
+      >
+        {children}
+        <span
+          id={id}
+          role="tooltip"
+          className="border-fd-border bg-fd-popover text-fd-popover-foreground absolute bottom-full left-0 z-10 mb-1.5 hidden rounded-md border px-2.5 py-1.5 font-mono text-xs whitespace-nowrap shadow-md group-hover/tooltip:block group-focus-visible/tooltip:block"
+        >
+          {annotation.query}
+        </span>
       </span>
-    </span>
-  ),
+    );
+  },
 };
 
 const TouchTarget = () => (
@@ -189,6 +197,9 @@ export const CodeSlideshowClient = ({
           </div>
           <div
             ref={scrollRef}
+            tabIndex={0}
+            role="region"
+            aria-label={step.filename}
             data-dimmed={dimmed ? "" : undefined}
             className="not-fumadocs-codeblock h-96 overflow-auto text-[0.8125rem]"
           >
