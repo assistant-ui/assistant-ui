@@ -4,10 +4,13 @@ import { useAuiState } from "@assistant-ui/store";
 
 export type AttachmentThumbProps = TextProps;
 
-export const AttachmentThumb: FC<AttachmentThumbProps> = (props) => {
+export const AttachmentThumb: FC<AttachmentThumbProps> = ({
+  children,
+  ...textProps
+}) => {
   const ext = useAuiState((s) => {
     const parts = s.attachment.name.split(".");
     return parts.length > 1 ? parts.pop()! : "";
   });
-  return <Text {...props}>.{ext}</Text>;
+  return <Text {...textProps}>{children ?? `.${ext}`}</Text>;
 };
