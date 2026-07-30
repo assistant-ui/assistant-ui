@@ -28,6 +28,7 @@ import type {
 import { useDerived, type DerivedElement } from "./Derived";
 import {
   useAssistantContextValue,
+  useAssistantContextProvider,
   DefaultAssistantClient,
   IsolatedAssistantClient,
   createRootAssistantClient,
@@ -42,11 +43,7 @@ import {
   type AssistantEventSelector,
 } from "./types/events";
 import { NotificationManager } from "./utils/NotificationManager";
-import {
-  useAssistantTapContextProvider,
-  useBuildingClientProvider,
-  useBuildingClient,
-} from "./utils/tap-assistant-context";
+import { useAssistantTapContextProvider } from "./utils/tap-assistant-context";
 import { ClientResource } from "./useClientResource";
 import { useShallowStable } from "./utils/useShallowStable";
 import { createClientAccessor, getClientId } from "./utils/client-accessor";
@@ -212,7 +209,7 @@ const useScopeValue = (element: ScopeElement, derived: boolean) =>
   useResource(derived ? element : ClientResource(element));
 
 const useScopeMount = ({ name, element }: ScopeEntry): ScopeResult => {
-  const client = useBuildingClient();
+  const client = useAssistantContextValue();
 
   // A derived element resolves to an existing client; mount it directly
   const derived = isDerivedElement(element);
@@ -284,9 +281,12 @@ const useAuiRoot = ({
   const results = useAssistantTapContextProvider(
     { clientRef, emit: notifications.emit },
     function WithTapContext() {
-      return useBuildingClientProvider(building, function WithBuildingClient() {
-        return useScopeMounts(entries);
-      });
+      return useAssistantContextProvider(
+        building,
+        function WithBuildingClient() {
+          return useScopeMounts(entries);
+        },
+      );
     },
   );
 
@@ -366,7 +366,7 @@ const useDerivedOnlyScopeMount = ({
   building: AssistantClient;
   entry: ScopeEntry;
 }): ScopeResult =>
-  useBuildingClientProvider(building, function WithBuildingClient() {
+  useAssistantContextProvider(building, function WithBuildingClient() {
     return useScopeMount(entry);
   });
 
