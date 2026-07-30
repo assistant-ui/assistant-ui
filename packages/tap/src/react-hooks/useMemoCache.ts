@@ -36,8 +36,5 @@ const nextFiberMemoCache = (
   return cache;
 };
 
-/**
- * @deprecated Internal API kept for older @assistant-ui/store versions; do not use.
- */
 export const useMemoCache = (size: number): unknown[] =>
   nextFiberMemoCache(getCurrentResourceFiber(), size);
