@@ -31,6 +31,18 @@ describe("AttachmentPrimitiveThumb", () => {
     expect(html).toBe("<div>.pdf</div>");
   });
 
+  it("renders only the last segment for multi-dot names", () => {
+    const html = renderThumb("archive.tar.gz");
+
+    expect(html).toBe("<div>.gz</div>");
+  });
+
+  it("renders an empty extension for names without a dot", () => {
+    const html = renderThumb("README");
+
+    expect(html).toBe("<div>.</div>");
+  });
+
   it("renders custom children instead of the extension", () => {
     const html = renderThumb("report.pdf", { children: <em>PDF</em> });
 
