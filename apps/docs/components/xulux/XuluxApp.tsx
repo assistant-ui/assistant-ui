@@ -38,6 +38,7 @@ import {
 import { DEFAULT_LEARN_COURSE_ID } from "@/lib/xulux/learn/registry";
 import type { LearnProgress } from "@/lib/xulux/learn/types";
 import { toLearnContext } from "@/lib/xulux/learn/context";
+import type { LearnAutoStartSource } from "@/lib/xulux/learn/entry";
 
 export type XuluxMode = "playground" | "learn";
 
@@ -60,10 +61,12 @@ export function XuluxApp({
   mode = "playground",
   courseId = DEFAULT_LEARN_COURSE_ID,
   autoStart = false,
+  autoStartSource = "suggestion",
 }: {
   mode?: XuluxMode;
   courseId?: string;
   autoStart?: boolean;
+  autoStartSource?: LearnAutoStartSource;
 }) {
   const [sessionId, setSessionId] = useState(() => crypto.randomUUID());
   const [learnProgress, setLearnProgress] = useState<LearnProgress>(() =>
@@ -106,6 +109,7 @@ export function XuluxApp({
           mode={mode}
           courseId={courseId}
           autoStart={autoStart}
+          autoStartSource={autoStartSource}
           learnProgress={learnProgress}
           learnReady={learnReady}
           onUpdateLearnProgress={updateLearnProgress}

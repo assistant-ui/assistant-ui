@@ -5,6 +5,7 @@ import { XuluxApp } from "@/components/xulux/XuluxApp";
 import { isAiPlaygroundEnabled } from "@/lib/feature-flags";
 import { DEFAULT_LEARN_COURSE_ID } from "@/lib/xulux/learn/registry";
 import { createOgMetadata } from "@/lib/og";
+import { parseLearnAutoStartSource } from "@/lib/xulux/learn/entry";
 
 const title = "Learn assistant-ui";
 const description =
@@ -19,10 +20,10 @@ export const metadata: Metadata = {
 export default async function LearnPage({
   searchParams,
 }: {
-  searchParams: Promise<{ start?: string }>;
+  searchParams: Promise<{ start?: string; source?: string }>;
 }) {
   if (!isAiPlaygroundEnabled) notFound();
-  const { start } = await searchParams;
+  const { start, source } = await searchParams;
 
   return (
     <SubProjectLayout
@@ -35,6 +36,7 @@ export default async function LearnPage({
         mode="learn"
         courseId={DEFAULT_LEARN_COURSE_ID}
         autoStart={start === "1"}
+        autoStartSource={parseLearnAutoStartSource(source)}
       />
     </SubProjectLayout>
   );

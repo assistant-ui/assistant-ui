@@ -5,6 +5,7 @@ import type { XuluxTemplate } from "../templates/types";
 import { XuluxPoweredBy } from "../XuluxPoweredBy";
 import { CategoryGrid } from "./CategoryGrid";
 import { LandingSuggestions } from "./LandingSuggestions";
+import { LearnCourseSpotlight } from "./LearnCourseSpotlight";
 import { PromptInput } from "./PromptInput";
 import { TemplatesModal } from "./TemplatesModal";
 
@@ -60,6 +61,7 @@ export function XuluxLandingPage({
             });
           }}
         />
+        <LearnCourseSpotlight />
       </div>
 
       <div className="mt-16 flex w-full max-w-5xl flex-col gap-12">

@@ -66,6 +66,10 @@ import {
 } from "@/lib/xulux/learn/session";
 import { getLearnCourse } from "@/lib/xulux/learn/registry";
 import type { LearnProgress } from "@/lib/xulux/learn/types";
+import type {
+  LearnAutoStartSource,
+  LearnCourseStartSource,
+} from "@/lib/xulux/learn/entry";
 
 const ASSISTANT_UI_REPO_URL = "https://github.com/assistant-ui/assistant-ui";
 
@@ -92,6 +96,7 @@ export function XuluxShell({
   mode,
   courseId,
   autoStart,
+  autoStartSource,
   learnProgress,
   learnReady,
   onUpdateLearnProgress,
@@ -104,6 +109,7 @@ export function XuluxShell({
   mode: XuluxMode;
   courseId: string;
   autoStart: boolean;
+  autoStartSource: LearnAutoStartSource;
   learnProgress: LearnProgress;
   learnReady: boolean;
   onUpdateLearnProgress: (progress: LearnProgress) => void;
@@ -210,7 +216,7 @@ export function XuluxShell({
   );
 
   const handleStartCourse = useCallback(
-    (source: "chat" | "curriculum" | "suggestion") => {
+    (source: LearnCourseStartSource) => {
       if (!learnReady) return;
       if (startInFlightRef.current) return;
       const transition = startLearnCourse(learnProgress, sessionId);
@@ -250,8 +256,15 @@ export function XuluxShell({
       return;
     }
     autoStartRef.current = true;
-    handleStartCourse("suggestion");
-  }, [autoStart, handleStartCourse, learnProgress, learnReady, mode]);
+    handleStartCourse(autoStartSource);
+  }, [
+    autoStart,
+    autoStartSource,
+    handleStartCourse,
+    learnProgress,
+    learnReady,
+    mode,
+  ]);
 
   useEffect(() => {
     if (

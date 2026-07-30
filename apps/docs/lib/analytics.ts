@@ -1,3 +1,5 @@
+import type { LearnCourseStartSource } from "@/lib/xulux/learn/entry";
+
 declare global {
   interface Window {
     posthog?: {
@@ -294,7 +296,7 @@ export const analytics = {
       thread_id?: string;
       pathname?: string;
       course_id: string;
-      source: "chat" | "curriculum" | "suggestion";
+      source: LearnCourseStartSource;
     }) => trackEvent("learn_course_started", props),
 
     learnStepAdvanced: (props: {

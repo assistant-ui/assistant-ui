@@ -16,7 +16,6 @@ export type XuluxSuggestion = {
   id: string;
   label: string;
   prompt: string;
-  href?: string;
   replay: {
     text: string;
     preview?: XuluxSuggestionReplayPreview;
@@ -196,15 +195,6 @@ export const XULUX_SUGGESTION_GROUPS = [
   {
     label: "Learn",
     options: [
-      {
-        id: "learn-guided-course",
-        label: "Guided course",
-        prompt: "Start the course.",
-        href: "/learn?start=1",
-        replay: {
-          text: "Opening the guided Learn course.",
-        },
-      },
       {
         id: "learn-thread-component",
         label: "Thread component",
