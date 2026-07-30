@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { appendLangChainChunk } from "./appendLangChainChunk";
 import { LangGraphMessageAccumulator } from "./LangGraphMessageAccumulator";
@@ -400,38 +400,56 @@ describe("LangGraphMessageAccumulator values-path appendMessage", () => {
       appendMessage: appendLangChainChunk,
     });
 
-  it("carries streamed partial_json through replaceMessages", () => {
-    const acc = createAccumulator();
-    acc.addMessages([streamedChunk() as unknown as LangChainMessage]);
-
-    const result = acc.replaceMessages([fullAiMessage()]);
-
-    expect(result[0]).toMatchObject({
+  it("routes replaceMessages through appendMessage with the pre-replacement entry", () => {
+    const seeded: LangChainMessage = {
+      id: "ai-1",
       type: "ai",
-      tool_calls: [
-        {
-          args: { city: "Tokyo" },
-          partial_json: partialJson,
-        },
-      ],
+      content: "seeded",
+    };
+    const incoming: LangChainMessage = {
+      id: "ai-1",
+      type: "ai",
+      content: "incoming",
+    };
+    const appendMessage = vi.fn(
+      (prev: LangChainMessage | undefined, curr: LangChainMessage) => curr,
+    );
+    const acc = new LangGraphMessageAccumulator<LangChainMessage>({
+      appendMessage,
     });
+    acc.addMessages([seeded]);
+    appendMessage.mockClear();
+
+    acc.replaceMessages([incoming]);
+
+    expect(appendMessage).toHaveBeenCalledTimes(1);
+    expect(appendMessage).toHaveBeenCalledWith(seeded, incoming);
   });
 
-  it("carries streamed partial_json through reconcileMessages", () => {
-    const acc = createAccumulator();
-    acc.addMessages([streamedChunk() as unknown as LangChainMessage]);
-
-    const result = acc.reconcileMessages([fullAiMessage()]);
-
-    expect(result[0]).toMatchObject({
+  it("routes reconcileMessages through appendMessage with the existing entry", () => {
+    const seeded: LangChainMessage = {
+      id: "ai-1",
       type: "ai",
-      tool_calls: [
-        {
-          args: { city: "Tokyo" },
-          partial_json: partialJson,
-        },
-      ],
+      content: "seeded",
+    };
+    const incoming: LangChainMessage = {
+      id: "ai-1",
+      type: "ai",
+      content: "incoming",
+    };
+    const appendMessage = vi.fn(
+      (prev: LangChainMessage | undefined, curr: LangChainMessage) => curr,
+    );
+    const acc = new LangGraphMessageAccumulator<LangChainMessage>({
+      appendMessage,
     });
+    acc.addMessages([seeded]);
+    appendMessage.mockClear();
+
+    acc.reconcileMessages([incoming]);
+
+    expect(appendMessage).toHaveBeenCalledTimes(1);
+    expect(appendMessage).toHaveBeenCalledWith(seeded, incoming);
   });
 
   it("drops ids absent from a replaceMessages snapshot", () => {
