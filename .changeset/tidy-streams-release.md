@@ -2,4 +2,4 @@
 "assistant-stream": patch
 ---
 
-fix: release assistant message stream readers after iteration
+fix: cancel and release assistant message stream readers when iteration ends
