@@ -97,13 +97,18 @@ const useMcpAppsRemoteHost = (
     value: Record<string, string> | undefined;
   }>({
     identity: headersIdentity,
-    value: typeof options.headers === "function" ? undefined : options.headers,
+    value:
+      typeof options.headers === "function" || options.headers === undefined
+        ? undefined
+        : { ...options.headers },
   });
   if (!Object.is(headersRef.current.identity, headersIdentity)) {
     headersRef.current = {
       identity: headersIdentity,
       value:
-        typeof options.headers === "function" ? undefined : options.headers,
+        typeof options.headers === "function" || options.headers === undefined
+          ? undefined
+          : { ...options.headers },
     };
   }
   const staticHeaders = headersRef.current.value;

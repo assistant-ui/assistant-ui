@@ -252,6 +252,38 @@ describe("McpAppRenderer", () => {
     expect(fetch).toHaveBeenCalledTimes(3);
   });
 
+  it("reloads remote resources when a static headers object is mutated", async () => {
+    const fetch = vi.fn(
+      async (url: string | URL | Request, init?: RequestInit) =>
+        Response.json({
+          uri: "ui://example/search",
+          mimeType: "text/html;profile=mcp-app",
+          html: `${String(url)}:${new Headers(init?.headers).get("authorization")}`,
+        }),
+    ) as unknown as typeof globalThis.fetch;
+    const headers = { authorization: "Bearer a" };
+
+    const view = render(
+      <RemoteHarness url="/host" headers={headers} fetch={fetch} />,
+    );
+    await waitFor(() =>
+      expect(framePropsMock.mock.lastCall?.[0].resource.html).toBe(
+        "/host:Bearer a",
+      ),
+    );
+
+    headers.authorization = "Bearer b";
+    view.rerender(
+      <RemoteHarness url="/host" headers={headers} fetch={fetch} />,
+    );
+    await waitFor(() =>
+      expect(framePropsMock.mock.lastCall?.[0].resource.html).toBe(
+        "/host:Bearer b",
+      ),
+    );
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
   it("uses hostKey to reload resources without callback identity churn", async () => {
     const fetch = vi.fn(
       async (url: string | URL | Request, init?: RequestInit) =>
