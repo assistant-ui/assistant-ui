@@ -623,7 +623,12 @@ export function expandBundledRegistryDependencies(
       }
 
       bundled.push(dependencyItem);
-      walk(dependencyItem.registryDependencies ?? []);
+      walk([
+        ...(dependencyItem.registryDependencies ?? []),
+        ...(flavor === "base"
+          ? (dependencyItem.baseRegistryDependencies ?? [])
+          : []),
+      ]);
     }
   };
 
@@ -986,6 +991,12 @@ export function validateUniversalItems(
           `${item.name}: ${file.path} needs an explicit target and a universal file type`,
         );
       }
+    }
+
+    for (const dependency of item.registryDependencies ?? []) {
+      findings.add(
+        `${item.name}: registry dependency "${dependency}" resolves to an item that cannot be installed without a full project config; bundle it instead`,
+      );
     }
   }
 

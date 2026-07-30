@@ -679,6 +679,7 @@ test("universal item validation rejects a bundled item a partial config cannot i
           path: "components/assistant-ui/thread.tsx",
         },
       ],
+      registryDependencies: ["button"],
     },
     {
       name: "thread",
@@ -701,6 +702,7 @@ test("universal item validation rejects a bundled item a partial config cannot i
       error.message.includes(
         "eve-chat: components/assistant-ui/thread.tsx needs an explicit target and a universal file type",
       ) &&
+      error.message.includes('eve-chat: registry dependency "button"') &&
       !error.message.includes("thread:"),
   );
   assert.doesNotThrow(() => validateUniversalItems(items, new Set()));
