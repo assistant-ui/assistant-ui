@@ -2630,13 +2630,16 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(runCount).toBe(1);
   });
 
-  const createPendingToolCallAgent = () => {
+  const createPendingToolCallAgent = (
+    beforeFirstRunFinalized?: () => Promise<void>,
+  ) => {
     const runInputs: any[] = [];
     let runCount = 0;
     const runAgent = vi.fn(async (input: any, subscriber: any) => {
       runInputs.push(JSON.parse(JSON.stringify(input)));
       runCount++;
       if (runCount === 1) {
+        await beforeFirstRunFinalized?.();
         subscriber.onToolCallStartEvent?.({
           event: {
             type: "TOOL_CALL_START",
@@ -4991,6 +4994,86 @@ describe("AGUIThreadRuntimeCore", () => {
     const run2Messages = runInputs[1]?.messages ?? [];
     const toolMsg = run2Messages.find(
       (m: any) => m.role === "tool" && m.toolCallId === "call-1",
+    );
+    expect(toolMsg?.content).toContain("Tool call cancelled by user");
+    expect(runInputs[1].forwardedProps.a2uiAction.userAction.name).toBe(
+      "submit",
+    );
+  });
+
+  it("drops deferred A2UI actions when the active run finishes with interrupts", async () => {
+    const runInputs: any[] = [];
+    let runCount = 0;
+    let releaseRun!: () => void;
+    const activeRun = new Promise<void>((resolve) => {
+      releaseRun = resolve;
+    });
+    const agent = {
+      runAgent: vi.fn(async (input: any, subscriber: any) => {
+        runInputs.push(JSON.parse(JSON.stringify(input)));
+        runCount++;
+        if (runCount === 1) {
+          await activeRun;
+          subscriber.onRunFinishedEvent?.({
+            event: {
+              type: "RUN_FINISHED",
+              runId: input.runId,
+              outcome: {
+                type: "interrupt",
+                interrupts: [{ id: "int-1", reason: "tool_call" }],
+              },
+            },
+          });
+        } else {
+          subscriber.onRunFinishedEvent?.({
+            event: {
+              type: "RUN_FINISHED",
+              runId: input.runId,
+              outcome: { type: "success" },
+            },
+          });
+        }
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+    const core = createCore(agent);
+
+    const initialRun = core.append(createAppendMessage());
+    core.sendA2uiAction({ type: "a2ui:action", name: "continue" });
+    releaseRun();
+    await initialRun;
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(runCount).toBe(1);
+
+    await core.submitInterruptResponses([
+      { interruptId: "int-1", status: "resolved", payload: { ok: true } },
+    ]);
+
+    expect(runCount).toBe(2);
+    expect(runInputs[1].forwardedProps.a2uiAction).toBeUndefined();
+  });
+
+  it("resumes deferred A2UI actions once after cancelling tool calls from the active run", async () => {
+    let releaseRun!: () => void;
+    const activeRun = new Promise<void>((resolve) => {
+      releaseRun = resolve;
+    });
+    const { runAgent, runInputs, getRunCount } = createPendingToolCallAgent(
+      () => activeRun,
+    );
+    const core = createCore({ runAgent } as unknown as HttpAgent);
+
+    const initialRun = core.append(createAppendMessage());
+    core.sendA2uiAction({ type: "a2ui:action", name: "submit" });
+    releaseRun();
+    await initialRun;
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(getRunCount()).toBe(2);
+    const toolMsg = runInputs[1]?.messages.find(
+      (message: any) =>
+        message.role === "tool" && message.toolCallId === "call-1",
     );
     expect(toolMsg?.content).toContain("Tool call cancelled by user");
     expect(runInputs[1].forwardedProps.a2uiAction.userAction.name).toBe(

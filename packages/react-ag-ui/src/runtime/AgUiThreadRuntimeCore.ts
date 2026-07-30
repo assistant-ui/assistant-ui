@@ -1071,6 +1071,14 @@ export class AgUiThreadRuntimeCore {
     if (this.pendingA2uiResume) {
       this.pendingA2uiResume = false;
       if (!abortSignal.aborted && this.pendingA2uiAction !== undefined) {
+        if (this.getPendingInterrupts()) {
+          this.pendingA2uiAction = undefined;
+          this.logger.debug(
+            "[agui] sendA2uiAction: pending interrupts, dropping action",
+          );
+          return;
+        }
+        this.maybeAutoCancelPendingToolCalls();
         const parentId = this.repository.headId;
         if (parentId !== null) {
           this.startResumeRun(parentId);
