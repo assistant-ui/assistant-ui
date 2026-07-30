@@ -56,7 +56,7 @@ const isDevelopment =
 type ClientRef = { parent: AssistantClient; current: AssistantClient | null };
 
 type ScopeElement = ResourceElement<ClientMethods>;
-type ScopeEntry = { name: ClientNames; element: ScopeElement };
+type ScopeEntry = [name: ClientNames, element: ScopeElement];
 type ScopeMeta = {
   source: ClientNames | "root";
   query: Record<string, unknown>;
@@ -101,11 +101,6 @@ const metaOf = (element: ScopeElement): ScopeMeta => {
   const props = element.args[0] as ScopeMeta;
   return { source: props.source, query: props.query ?? {} };
 };
-
-const toScopeEntries = (scopes: Record<string, ScopeElement>): ScopeEntry[] =>
-  (Object.entries(scopes) as [ClientNames, ScopeElement][]).map(
-    ([name, element]) => ({ name, element }),
-  );
 
 const createAccessor = <K extends ClientNames>(
   name: K,
@@ -208,7 +203,10 @@ const useScopeMeta = (element: ScopeElement): ScopeMeta => {
 const useScopeValue = (element: ScopeElement, derived: boolean) =>
   useResource(derived ? element : ClientResource(element));
 
-const useScopeMount = ({ name, element }: ScopeEntry): ScopeResult => {
+const useScopeMount = (
+  name: ClientNames,
+  element: ScopeElement,
+): ScopeResult => {
   const client = useAssistantContextValue();
 
   // A derived element resolves to an existing client; mount it directly
@@ -239,7 +237,9 @@ const useScopeMount = ({ name, element }: ScopeEntry): ScopeResult => {
 const ScopeMount = resource(useScopeMount);
 
 const useScopeMounts = (entries: ScopeEntry[]): ScopeResult[] =>
-  useResources(entries.map((entry) => withKey(entry.name, ScopeMount(entry))));
+  useResources(
+    entries.map(([name, element]) => withKey(name, ScopeMount(name, element))),
+  );
 
 const useCommittedClient = ({
   building,
@@ -359,15 +359,13 @@ const useHostedAssistantClient = (props: {
 
 // The building-client context can only be provided inside a fiber, so each
 // scope mount carries its own provider
-const useDerivedOnlyScopeMount = ({
-  building,
-  entry,
-}: {
-  building: AssistantClient;
-  entry: ScopeEntry;
-}): ScopeResult =>
+const useDerivedOnlyScopeMount = (
+  building: AssistantClient,
+  name: ClientNames,
+  element: ScopeElement,
+): ScopeResult =>
   useAssistantContextProvider(building, function WithBuildingClient() {
-    return useScopeMount(entry);
+    return useScopeMount(name, element);
   });
 
 const DerivedOnlyScopeMount = resource(useDerivedOnlyScopeMount);
@@ -381,10 +379,10 @@ const useDerivedOnlyClient = (
   entries: ScopeEntry[],
 ): AssistantClient => {
   if (isDevelopment) {
-    const root = entries.find((entry) => !isDerivedElement(entry.element));
+    const root = entries.find(([, element]) => !isDerivedElement(element));
     if (root) {
       throw new Error(
-        `Scope "${root.name}" is a root scope but this useAui mounted derived-only; ` +
+        `Scope "${root[0]}" is a root scope but this useAui mounted derived-only; ` +
           "remount with a new key to change scope kinds.",
       );
     }
@@ -397,8 +395,8 @@ const useDerivedOnlyClient = (
   const building = createClientObject(parent, fields);
 
   const results = useResources(
-    entries.map((entry) =>
-      withKey(entry.name, DerivedOnlyScopeMount({ building, entry })),
+    entries.map(([name, element]) =>
+      withKey(name, DerivedOnlyScopeMount(building, name, element)),
     ),
   );
 
@@ -410,12 +408,14 @@ const useScopedClient = (
   parent: AssistantClient,
   clients: useAui.Props,
 ): AssistantClient => {
-  const entries = toScopeEntries(applyTransformScopes(clients, parent));
+  const entries = Object.entries(
+    applyTransformScopes(clients, parent),
+  ) as ScopeEntry[];
 
   // The mode is frozen at mount; both branches handle dynamic scope sets of
   // their own kind, only a scope-kind change requires a remount
   const [rooted] = useState(() =>
-    entries.some((entry) => !isDerivedElement(entry.element)),
+    entries.some(([, element]) => !isDerivedElement(element)),
   );
 
   if (rooted) {
