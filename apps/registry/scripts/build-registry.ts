@@ -29,6 +29,11 @@ const BASE_VARIANT_FORBIDDEN_PATTERNS = [
 const MARKED_UI_SPECIFIERS = ["radix", "base"].map(
   (flavor) => `@/components/ui/${flavor}/`,
 );
+const UI_PRIMITIVE_SOURCE_ROOT = "../../packages/ui/src/components/ui";
+const UI_PRIMITIVE_PACKAGE = {
+  radix: "radix-ui",
+  base: "@base-ui/react",
+} as const;
 const PROJECT_PACKAGE_IMPORTS = new Set([
   "next",
   "next-themes",
@@ -39,8 +44,12 @@ const PROJECT_PACKAGE_IMPORTS = new Set([
 type RegistryFile = NonNullable<RegistryItem["files"]>[number];
 type RegistryBuildItem = Omit<
   RegistryItem,
-  "baseRegistryDependencies" | "radixDependencies" | "baseDependencies"
+  | "bundledRegistryDependencies"
+  | "baseRegistryDependencies"
+  | "radixDependencies"
+  | "baseDependencies"
 >;
+type UiFlavor = "radix" | "base";
 type RegistryOutputFile = Omit<RegistryFile, "sourcePath"> & {
   content: string;
 };
@@ -572,6 +581,128 @@ function getAssistantRegistryDependencyName(dependency: string) {
   return ASSISTANT_REGISTRY_DEPENDENCY_RE.exec(dependency)?.[1] ?? null;
 }
 
+/**
+ * Inlines the files and dependencies of `bundledRegistryDependencies` into the item.
+ *
+ * A consumer that resolves items without a full shadcn project config, as the
+ * Eve CLI does when it passes only `package.json#registries`, rejects every
+ * item in the resolved tree that is not `registry:item` or `registry:file` with
+ * a target on each file. Referencing the shared component items is therefore
+ * unavailable to such an item, and bundling keeps one declaration in the
+ * manifest as the source of truth for both shapes.
+ */
+export function expandBundledRegistryDependencies(
+  item: RegistryItem,
+  itemsByName: Map<string, RegistryItem>,
+  flavor: UiFlavor,
+): RegistryItem {
+  const { bundledRegistryDependencies, ...rest } = item;
+  if (!bundledRegistryDependencies) return rest;
+
+  const bundled: RegistryItem[] = [];
+  const uiPrimitives = new Set<string>();
+  const seen = new Set<string>();
+
+  const walk = (dependencies: string[]) => {
+    for (const dependency of dependencies) {
+      const name = getAssistantRegistryDependencyName(dependency);
+
+      if (!name) {
+        if (dependency.startsWith("http")) {
+          throw new Error(
+            `${item.name}: bundled closure depends on foreign registry item "${dependency}", which cannot be inlined`,
+          );
+        }
+        uiPrimitives.add(dependency);
+        continue;
+      }
+
+      if (seen.has(name)) continue;
+      seen.add(name);
+
+      const dependencyItem = itemsByName.get(name);
+      if (!dependencyItem) {
+        throw new Error(
+          `${item.name}: bundled registry dependency "${dependency}" does not match a local registry item`,
+        );
+      }
+
+      bundled.push(dependencyItem);
+      walk([
+        ...(dependencyItem.registryDependencies ?? []),
+        ...(flavor === "base"
+          ? (dependencyItem.baseRegistryDependencies ?? [])
+          : []),
+      ]);
+    }
+  };
+
+  walk(bundledRegistryDependencies);
+
+  const files: RegistryFile[] = [
+    ...(rest.files ?? []),
+    ...bundled.flatMap((dependencyItem) =>
+      (dependencyItem.files ?? []).map((file) => ({
+        ...file,
+        type: "registry:file" as const,
+        target: file.target ?? file.path,
+      })),
+    ),
+    ...[...uiPrimitives].sort().map((name) => ({
+      type: "registry:file" as const,
+      path: `components/ui/${name}.tsx`,
+      sourcePath: `${UI_PRIMITIVE_SOURCE_ROOT}/${flavor}/${name}.tsx`,
+      target: `components/ui/${name}.tsx`,
+    })),
+  ];
+
+  const collectPackages = (
+    key: "dependencies" | "radixDependencies" | "baseDependencies",
+  ) => [
+    ...new Set([
+      ...(rest[key] ?? []),
+      ...bundled.flatMap((dependencyItem) => dependencyItem[key] ?? []),
+    ]),
+  ];
+
+  const dependencies = collectPackages("dependencies");
+  const radixDependencies = collectPackages("radixDependencies");
+  const baseDependencies = collectPackages("baseDependencies");
+
+  if (uiPrimitives.size > 0) {
+    const flavorDependencies =
+      flavor === "radix" ? radixDependencies : baseDependencies;
+    const flavorPackage = UI_PRIMITIVE_PACKAGE[flavor];
+    if (!flavorDependencies.includes(flavorPackage)) {
+      flavorDependencies.push(flavorPackage);
+    }
+  }
+
+  const css: Record<string, unknown> = {};
+  for (const dependencyItem of bundled) Object.assign(css, dependencyItem.css);
+  Object.assign(css, rest.css);
+
+  const cssVars: NonNullable<RegistryItem["cssVars"]> = {};
+  for (const scope of ["light", "dark", "theme"] as const) {
+    const scopeVars: Record<string, string> = {};
+    for (const dependencyItem of bundled) {
+      Object.assign(scopeVars, dependencyItem.cssVars?.[scope]);
+    }
+    Object.assign(scopeVars, rest.cssVars?.[scope]);
+    if (Object.keys(scopeVars).length > 0) cssVars[scope] = scopeVars;
+  }
+
+  return {
+    ...rest,
+    files,
+    ...(dependencies.length > 0 ? { dependencies } : {}),
+    ...(radixDependencies.length > 0 ? { radixDependencies } : {}),
+    ...(baseDependencies.length > 0 ? { baseDependencies } : {}),
+    ...(Object.keys(css).length > 0 ? { css } : {}),
+    ...(Object.keys(cssVars).length > 0 ? { cssVars } : {}),
+  };
+}
+
 export function createRadixRegistryItem(item: RegistryItem): RegistryBuildItem {
   const {
     baseRegistryDependencies: _,
@@ -835,13 +966,74 @@ function validateRegistryInstallMetadata(payloads: RegistryOutputItem[]) {
   throwIfFindings("Invalid registry install metadata:", findings);
 }
 
+const UNIVERSAL_TYPES = new Set(["registry:item", "registry:file"]);
+
+/**
+ * Holds bundled items to the shape a consumer without a full project config accepts.
+ *
+ * Bundling only exists to serve that consumer, so an item that bundles and then
+ * declares a type or an untargeted file it cannot install is inert. The failure
+ * surfaces at install time in the consumer, not here, unless the build rejects it.
+ */
+export function validateUniversalItems(
+  items: RegistryBuildItem[],
+  universalNames: Set<string>,
+) {
+  const findings = new Set<string>();
+
+  for (const item of items) {
+    if (!universalNames.has(item.name)) continue;
+
+    if (!UNIVERSAL_TYPES.has(item.type)) {
+      findings.add(
+        `${item.name}: type "${item.type}" is not installable without a full project config`,
+      );
+    }
+
+    for (const file of item.files ?? []) {
+      if (!file.target || !UNIVERSAL_TYPES.has(file.type)) {
+        findings.add(
+          `${item.name}: ${file.path} needs an explicit target and a universal file type`,
+        );
+      }
+    }
+
+    for (const dependency of item.registryDependencies ?? []) {
+      findings.add(
+        `${item.name}: registry dependency "${dependency}" resolves to an item that cannot be installed without a full project config; bundle it instead`,
+      );
+    }
+  }
+
+  throwIfFindings("Invalid universal registry items:", findings);
+}
+
 async function buildRegistry(registry: RegistryItem[]) {
   validateRegistrySchema(registry);
 
-  const radixRegistry = registry.map(createRadixRegistryItem);
-  const baseRegistry = registry.map(createBaseRegistryItem);
+  const universalNames = new Set(
+    registry
+      .filter(
+        (item) =>
+          item.bundledRegistryDependencies || UNIVERSAL_TYPES.has(item.type),
+      )
+      .map((item) => item.name),
+  );
+  const itemsByName = new Map(registry.map((item) => [item.name, item]));
+  const radixRegistry = registry.map((item) =>
+    createRadixRegistryItem(
+      expandBundledRegistryDependencies(item, itemsByName, "radix"),
+    ),
+  );
+  const baseRegistry = registry.map((item) =>
+    createBaseRegistryItem(
+      expandBundledRegistryDependencies(item, itemsByName, "base"),
+    ),
+  );
   validateRegistrySchema(radixRegistry);
   validateRegistrySchema(baseRegistry);
+  validateUniversalItems(radixRegistry, universalNames);
+  validateUniversalItems(baseRegistry, universalNames);
 
   const radixBuilt = radixRegistry.map((item) =>
     createRegistryPayload(item, true),

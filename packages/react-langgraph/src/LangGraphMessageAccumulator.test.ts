@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 
+import { appendLangChainChunk } from "./appendLangChainChunk";
 import { LangGraphMessageAccumulator } from "./LangGraphMessageAccumulator";
-import type { LangChainMessage, UIMessage } from "./types";
+import type {
+  LangChainMessage,
+  LangChainMessageChunk,
+  UIMessage,
+} from "./types";
 
 const makeUIMessage = (
   id: string,
@@ -356,5 +361,132 @@ describe("LangGraphMessageAccumulator reconcileMessages", () => {
     const result = acc.reconcileMessages([]);
     expect(result).toHaveLength(1);
     expect(result[0]!.id).toBe("ai-1");
+  });
+});
+
+describe("LangGraphMessageAccumulator values-path appendMessage", () => {
+  const partialJson = '{"city":';
+
+  const streamedChunk = (): LangChainMessageChunk => ({
+    id: "ai-1",
+    type: "AIMessageChunk",
+    content: "",
+    tool_call_chunks: [
+      {
+        id: "call-1",
+        index: 0,
+        name: "weather",
+        args_json: partialJson,
+      },
+    ],
+  });
+
+  const fullAiMessage = (): Extract<LangChainMessage, { type: "ai" }> => ({
+    id: "ai-1",
+    type: "ai",
+    content: "",
+    tool_calls: [
+      {
+        id: "call-1",
+        index: 0,
+        name: "weather",
+        args: { city: "Tokyo" },
+      },
+    ],
+  });
+
+  const createAccumulator = () =>
+    new LangGraphMessageAccumulator<LangChainMessage>({
+      appendMessage: appendLangChainChunk,
+    });
+
+  it("carries streamed partial_json through replaceMessages", () => {
+    const acc = createAccumulator();
+    acc.addMessages([streamedChunk() as unknown as LangChainMessage]);
+
+    const result = acc.replaceMessages([fullAiMessage()]);
+
+    expect(result[0]).toMatchObject({
+      type: "ai",
+      tool_calls: [
+        {
+          args: { city: "Tokyo" },
+          partial_json: partialJson,
+        },
+      ],
+    });
+  });
+
+  it("carries streamed partial_json through reconcileMessages", () => {
+    const acc = createAccumulator();
+    acc.addMessages([streamedChunk() as unknown as LangChainMessage]);
+
+    const result = acc.reconcileMessages([fullAiMessage()]);
+
+    expect(result[0]).toMatchObject({
+      type: "ai",
+      tool_calls: [
+        {
+          args: { city: "Tokyo" },
+          partial_json: partialJson,
+        },
+      ],
+    });
+  });
+
+  it("drops ids absent from a replaceMessages snapshot", () => {
+    const acc = createAccumulator();
+    acc.addMessages([
+      { id: "ai-1", type: "ai", content: "first" },
+      { id: "ai-2", type: "ai", content: "second" },
+    ]);
+
+    const result = acc.replaceMessages([
+      { id: "ai-1", type: "ai", content: "replacement" },
+    ]);
+
+    expect(result).toEqual([
+      { id: "ai-1", type: "ai", content: "replacement" },
+    ]);
+  });
+
+  it("preserves accumulator-only messages through reconcileMessages", () => {
+    const acc = createAccumulator();
+    acc.addMessages([
+      { id: "ai-1", type: "ai", content: "first" },
+      { id: "ai-2", type: "ai", content: "accumulator only" },
+    ]);
+
+    const result = acc.reconcileMessages([
+      { id: "ai-1", type: "ai", content: "server" },
+    ]);
+
+    expect(result).toEqual([
+      { id: "ai-1", type: "ai", content: "server" },
+      { id: "ai-2", type: "ai", content: "accumulator only" },
+    ]);
+  });
+
+  it("passes new and non-ai messages through unchanged on both values paths", () => {
+    const aiMessage: LangChainMessage = {
+      id: "ai-1",
+      type: "ai",
+      content: "new",
+    };
+    const humanMessage: LangChainMessage = {
+      id: "human-1",
+      type: "human",
+      content: "hello",
+    };
+
+    const replaceAccumulator = createAccumulator();
+    expect(
+      replaceAccumulator.replaceMessages([aiMessage, humanMessage]),
+    ).toEqual([aiMessage, humanMessage]);
+
+    const reconcileAccumulator = createAccumulator();
+    expect(
+      reconcileAccumulator.reconcileMessages([aiMessage, humanMessage]),
+    ).toEqual([aiMessage, humanMessage]);
   });
 });

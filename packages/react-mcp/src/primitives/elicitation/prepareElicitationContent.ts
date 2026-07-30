@@ -23,19 +23,24 @@ const coerceValue = (schema: unknown, value: unknown): unknown => {
 const isBooleanSchema = (schema: unknown): schema is Record<string, unknown> =>
   isRecord(schema) && schema.type === "boolean";
 
-const getDraftValue = (draft: Record<string, unknown>, name: string) =>
-  Object.hasOwn(draft, name) ? draft[name] : undefined;
+const isNonStringTypedSchema = (schema: Record<string, unknown>): boolean =>
+  schema.type === "boolean" ||
+  schema.type === "number" ||
+  schema.type === "integer";
 
-const isNonStringTypedSchema = (schema: unknown): boolean =>
-  isRecord(schema) &&
-  (schema.type === "boolean" ||
-    schema.type === "number" ||
-    schema.type === "integer");
+const schemaAdmitsEmptyString = (schema: unknown): boolean => {
+  if (!isRecord(schema) || isNonStringTypedSchema(schema)) return false;
+
+  const values = Object.hasOwn(schema, "enum") ? schema.enum : undefined;
+  if (Array.isArray(values)) return values.includes("");
+
+  return Object.hasOwn(schema, "default") && schema.default === "";
+};
 
 const isAbsentDraftValue = (schema: unknown, value: unknown) =>
   value === undefined ||
   value === null ||
-  (value === "" && isNonStringTypedSchema(schema));
+  (value === "" && !schemaAdmitsEmptyString(schema));
 
 export const prepareElicitationContent = (
   requestedSchema: unknown,
@@ -49,12 +54,6 @@ export const prepareElicitationContent = (
     isRecord(requestedSchema) && isRecord(requestedSchema.properties)
       ? requestedSchema.properties
       : {};
-  const required =
-    isRecord(requestedSchema) && Array.isArray(requestedSchema.required)
-      ? requestedSchema.required.filter(
-          (property): property is string => typeof property === "string",
-        )
-      : [];
   const candidateContent = Object.fromEntries(
     Object.entries(draft).flatMap(([name, value]) => {
       const schema = properties[name];
@@ -85,12 +84,16 @@ export const prepareElicitationContent = (
     requestedSchema,
     contentWithBooleanDefaults,
   );
-  const missingRequired = validationErrors
-    .filter(
-      ({ property }) => !Object.hasOwn(contentWithBooleanDefaults, property),
-    )
-    .map(({ property }) => property);
-  const missingRequiredProperties = new Set(missingRequired);
+  const missingRequired = [
+    ...new Set(
+      validationErrors
+        .filter(
+          ({ property }) =>
+            !Object.hasOwn(contentWithBooleanDefaults, property),
+        )
+        .map(({ property }) => property),
+    ),
+  ];
   const invalid = [
     ...new Set(
       validationErrors
@@ -107,12 +110,7 @@ export const prepareElicitationContent = (
         ([property]) => !invalid.includes(property),
       ),
     ),
-    missingRequired: required.filter(
-      (property) =>
-        missingRequiredProperties.has(property) ||
-        (!isBooleanSchema(properties[property]) &&
-          getDraftValue(draft, property) === ""),
-    ),
+    missingRequired,
     invalid,
   };
 };

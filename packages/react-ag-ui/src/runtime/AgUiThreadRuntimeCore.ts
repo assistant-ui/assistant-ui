@@ -99,6 +99,8 @@ export class AgUiThreadRuntimeCore {
   private _isLoading = false;
   private _loadPromise: Promise<void> | undefined;
   private pendingResumeMessageId: string | null = null;
+  private pendingA2uiResume = false;
+  private pendingA2uiAction: Record<string, unknown> | undefined;
 
   constructor(options: CoreOptions) {
     this.agent = options.agent;
@@ -688,6 +690,31 @@ export class AgUiThreadRuntimeCore {
     this.maybeResumeAfterToolResults(options.messageId);
   }
 
+  sendA2uiAction(action: Record<string, unknown>): void {
+    this.assertNoPendingInterrupts();
+    this.maybeAutoCancelPendingToolCalls();
+    const parentId = this.repository.headId;
+    if (parentId === null) {
+      this.logger.debug(
+        "[agui] sendA2uiAction: no messages to resume, dropping action",
+      );
+      return;
+    }
+
+    const userAction = { ...action };
+    delete userAction.type;
+    if (!("timestamp" in userAction)) {
+      userAction.timestamp = new Date().toISOString();
+    }
+    this.pendingA2uiAction = userAction;
+
+    if (this.isRunningFlag) {
+      this.pendingA2uiResume = true;
+      return;
+    }
+    this.startResumeRun(parentId);
+  }
+
   // The continuation fires whether the frontend result lands before
   // RUN_FINISHED (the status flips to requires-action only later, while the
   // run is still draining) or after it.
@@ -739,6 +766,8 @@ export class AgUiThreadRuntimeCore {
   }
 
   applyExternalMessages(messages: readonly ThreadMessage[]): void {
+    this.pendingA2uiResume = false;
+    this.pendingA2uiAction = undefined;
     this.assistantHistoryParents.clear();
 
     if (messages.length === 0) {
@@ -1022,6 +1051,8 @@ export class AgUiThreadRuntimeCore {
       const err = this.pendingError;
       this.pendingError = null;
       this.pendingResumeMessageId = null;
+      this.pendingA2uiResume = false;
+      this.pendingA2uiAction = undefined;
       throw err;
     }
 
@@ -1032,6 +1063,33 @@ export class AgUiThreadRuntimeCore {
       this.pendingResumeMessageId = null;
       if (!abortSignal.aborted) {
         this.startResumeRun(resumeMessageId);
+      } else {
+        this.pendingA2uiAction = undefined;
+      }
+    }
+
+    if (this.pendingA2uiResume) {
+      this.pendingA2uiResume = false;
+      if (!abortSignal.aborted && this.pendingA2uiAction !== undefined) {
+        if (this.getPendingInterrupts()) {
+          this.pendingA2uiAction = undefined;
+          this.logger.debug(
+            "[agui] sendA2uiAction: pending interrupts, dropping action",
+          );
+          return;
+        }
+        this.maybeAutoCancelPendingToolCalls();
+        const parentId = this.repository.headId;
+        if (parentId !== null) {
+          this.startResumeRun(parentId);
+        } else {
+          this.pendingA2uiAction = undefined;
+          this.logger.debug(
+            "[agui] sendA2uiAction: no messages to resume, dropping action",
+          );
+        }
+      } else {
+        this.pendingA2uiAction = undefined;
       }
     }
   }
@@ -1050,6 +1108,8 @@ export class AgUiThreadRuntimeCore {
       getAssistantMessageId: () => string | undefined;
     },
   ): Promise<void> {
+    this.pendingA2uiAction = undefined;
+    this.pendingA2uiResume = false;
     const assistantId = ctx.ensureAssistant();
     const currentId = () => ctx.getAssistantMessageId() ?? assistantId;
     const options: ChatModelRunOptions = {
@@ -1105,7 +1165,7 @@ export class AgUiThreadRuntimeCore {
       historyMessages ?? this.repository.getMessages(),
     );
     const context = this.runtime?.thread.getModelContext();
-    return {
+    const input = {
       threadId,
       runId,
       state: this.stateSnapshot ?? null,
@@ -1118,9 +1178,14 @@ export class AgUiThreadRuntimeCore {
         ...(context?.callSettings ?? {}),
         ...(context?.config ?? {}),
         ...(runConfig?.custom ? { runConfig: runConfig.custom } : {}),
+        ...(this.pendingA2uiAction
+          ? { a2uiAction: { userAction: this.pendingA2uiAction } }
+          : {}),
       },
       ...(resume !== undefined ? { resume } : {}),
     };
+    this.pendingA2uiAction = undefined;
+    return input;
   }
 
   private installResumeShim(): void {

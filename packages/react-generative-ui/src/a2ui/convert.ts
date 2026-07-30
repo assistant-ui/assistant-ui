@@ -1,4 +1,4 @@
-import type { UIElement, UISpec } from "../ir";
+import type { UIElement } from "../ir";
 import {
   A2UI_SURFACE_ID,
   type A2uiSurfaceState,
@@ -434,7 +434,7 @@ function convertComponent(
 }
 
 export function convertSurfaceToUISpec(surface: A2uiSurfaceState): {
-  spec: UISpec | null;
+  spec: UIElement | null;
   warnings: string[];
 } {
   const warnings: string[] = [];

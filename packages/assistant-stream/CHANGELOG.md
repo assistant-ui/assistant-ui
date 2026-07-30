@@ -1,5 +1,13 @@
 # assistant-stream
 
+## 0.3.31
+
+### Patch Changes
+
+- [#5296](https://github.com/assistant-ui/assistant-ui/pull/5296) [`936c52c`](https://github.com/assistant-ui/assistant-ui/commit/936c52c4301b89242572d9890c870050f63cbe93) - fix: DataStreamDecoder drops tool-call args deltas for an already-closed args stream instead of crashing mid-decode when a text delta interleaves between a tool call's begin and its args ([@Solaris-star](https://github.com/Solaris-star))
+
+- [#5318](https://github.com/assistant-ui/assistant-ui/pull/5318) [`ee87dd9`](https://github.com/assistant-ui/assistant-ui/commit/ee87dd9fef1389165bbfe0019be2a6995b2cfb24) - fix: accept case-insensitive `data:` URL schemes and normalize parsed mime types to lowercase ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
 ## 0.3.30
 
 ### Patch Changes

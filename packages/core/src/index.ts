@@ -34,6 +34,7 @@ export type {
   ThreadAssistantMessagePart,
   // Message status
   MessagePartStatus,
+  MessagePartStreamStatus,
   ToolCallMessagePartStatus,
   MessageStatus,
   // Thread messages

@@ -36,7 +36,7 @@ const useToolsResource = (): ClientOutput<"tools"> => {
 
   useEffect(() => {
     // access a sibling scope
-    const unsub = clientRef.current!.modelContext().register({
+    const unsub = clientRef.current!.modelContext.register({
       getModelContext: () => ({ tools: myTools }),
     });
     return () => unsub();
@@ -58,10 +58,12 @@ Use `useAssistantClientRef` in effects, not during the resource body. The ref is
 
 `attachTransformScopes` solves this by letting a resource declare: "when I'm mounted, make sure these sibling scopes also exist."
 
+Attach the transform to the hook function you passed to `resource()` — transforms are keyed by the hook, not the resource wrapper:
+
 ```ts
 import { attachTransformScopes } from "@assistant-ui/store";
 
-attachTransformScopes(ToolsResource, (scopes, parent) => {
+attachTransformScopes(useToolsResource, (scopes, parent) => {
   // ensure modelContext exists as a sibling
   if (!scopes.modelContext && parent.modelContext.source === null) {
     scopes.modelContext = ModelContextResource();
@@ -82,7 +84,7 @@ Before adding a scope, check `parent.scopeName.source`:
 - `"root"` or a scope name — an ancestor already provides this scope. Don't duplicate it.
 
 ```ts
-attachTransformScopes(MyResource, (scopes, parent) => {
+attachTransformScopes(useMyResource, (scopes, parent) => {
   // only add if not already in scopes AND not provided by a parent
   if (!scopes.tools && parent.tools.source === null) {
     scopes.tools = ToolsResource();
@@ -95,7 +97,7 @@ attachTransformScopes(MyResource, (scopes, parent) => {
 Transforms can also add `Derived` scopes:
 
 ```ts
-attachTransformScopes(ThreadResource, (scopes) => {
+attachTransformScopes(useThreadResource, (scopes) => {
   scopes.composer ??= Derived({
     source: "thread",
     query: {},
@@ -117,7 +119,7 @@ For example:
 4. No more new scopes → done
 
 <Callout type="warn">
-Each resource can only have one transform attached. Calling `attachTransformScopes` twice on the same resource throws an error.
+Each hook can only have one transform attached. Calling `attachTransformScopes` twice on the same hook throws an error. To carry a wrapped hook's transform over to a wrapper, use `forwardTransformScopes(target, source)` — it composes with any transform the target already has.
 </Callout>
 
 ## When to use which

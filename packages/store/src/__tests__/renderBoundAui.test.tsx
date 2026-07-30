@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import type { FC, ReactNode } from "react";
-import { Component, useEffect, useState } from "react";
+import { Component, useState } from "react";
 import { act, cleanup, render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { flushTapSync, resource, withKey } from "@assistant-ui/tap";
@@ -55,8 +55,7 @@ const probe: {
   aui: any;
   instance: any;
   text: string;
-  bump: (() => void) | null;
-} = { aui: null, instance: null, text: "", bump: null };
+} = { aui: null, instance: null, text: "" };
 
 const Leaf: FC = () => {
   const aui = useAui() as any;
@@ -104,7 +103,6 @@ beforeEach(() => {
   probe.aui = null;
   probe.instance = null;
   probe.text = "";
-  probe.bump = null;
   harness.setIds = null;
 });
 
@@ -147,53 +145,6 @@ describe("render-bound aui", () => {
     // Object.is: vitest's failure formatter cannot inspect the client proxies
     expect(Object.is(probe.instance, prevInstance)).toBe(false);
     expect(probe.instance.getState().id).toBe("b");
-  });
-
-  it("keeps the bound instance on a stale leaf after a shrink, including sync re-renders", () => {
-    const BumpingLeaf: FC = () => {
-      const [, setTick] = useState(0);
-      probe.bump = () => setTick((t) => t + 1);
-      const aui = useAui() as any;
-      probe.aui = aui;
-      probe.instance = aui.message();
-      probe.text = useAuiState((s: any) => s.message.text);
-      useEffect(() => aui.subscribe(() => probe.bump?.()), [aui]);
-      return <p data-testid="leaf">{probe.text}</p>;
-    };
-
-    const StaleApp: FC = () => {
-      const [ids, setIds] = useState(["a", "b"]);
-      harness.setIds = setIds;
-      return (
-        <ThreadProvider ids={ids}>
-          <LeafErrorBoundary>
-            <MessageProvider index={1}>
-              <BumpingLeaf />
-            </MessageProvider>
-          </LeafErrorBoundary>
-        </ThreadProvider>
-      );
-    };
-
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
-    try {
-      const view = render(<StaleApp />);
-      expect(probe.text).toBe("text-b");
-      const prevInstance = probe.instance;
-
-      // The leaf stays mounted while its index no longer exists; the store
-      // subscriber re-renders it inside the shrink window, and again after.
-      act(() => harness.setIds!(["a"]));
-      act(() => probe.bump!());
-
-      expect(view.queryByTestId("leaf-error")).toBeNull();
-      expect(probe.instance).toBe(prevInstance);
-      expect(probe.text).toBe("text-b");
-    } finally {
-      consoleError.mockRestore();
-    }
   });
 
   it("recomposes the aui when a trailing scope is added or removed", () => {
