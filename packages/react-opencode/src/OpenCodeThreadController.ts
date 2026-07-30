@@ -198,6 +198,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     ChildControllerEntry
   >();
   private ancestorSessionIds: ReadonlySet<string>;
+  private isChildSession = false;
   private readonly stagedMessages = new Map<
     string,
     {
@@ -314,6 +315,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
         ...this.ancestorSessionIds,
         sessionId,
       ]);
+      controller.isChildSession = true;
       const entry: ChildControllerEntry = {
         controller,
         unsubscribe: null,
@@ -330,10 +332,9 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
       this.state = { ...this.state, childSessionsById };
     }
 
-    if (this.listeners.size > 0) {
-      for (const [sessionId, entry] of added) {
-        this.attachChildController(sessionId, entry);
-      }
+    for (const [sessionId, entry] of added) {
+      if (this.listeners.size === 0) break;
+      this.attachChildController(sessionId, entry);
     }
   }
 
@@ -353,6 +354,8 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   private handleStreamReconnect() {
     this.refreshInBackground();
     const token = ++this.reconnectSyncToken;
+
+    if (this.isChildSession) return;
 
     void this.client.session
       .status(undefined, OPEN_CODE_REQUEST_OPTIONS)

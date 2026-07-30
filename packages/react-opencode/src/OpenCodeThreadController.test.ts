@@ -417,6 +417,64 @@ describe("OpenCodeThreadController", () => {
     expect(eventSource.unsubscribe).toHaveBeenCalledTimes(2);
   });
 
+  it("keeps the global reconnect probes on the root session", async () => {
+    const eventSource = createEventSource();
+    const status = vi.fn().mockResolvedValue({ data: {} });
+    const permissions = vi.fn().mockResolvedValue({ data: [] });
+    const questions = vi.fn().mockResolvedValue({ data: [] });
+    const sessionMessages = vi.fn(({ sessionID }: { sessionID: string }) =>
+      Promise.resolve({
+        data:
+          sessionID === "ses_parent"
+            ? [
+                createTaskMessage("ses_parent", "parent-assistant", [
+                  "ses_child",
+                ]),
+              ]
+            : [],
+      }),
+    );
+    const client = {
+      session: {
+        get: vi.fn(({ sessionID }: { sessionID: string }) =>
+          Promise.resolve({
+            data: { id: sessionID, title: sessionID, time: {} },
+          }),
+        ),
+        messages: sessionMessages,
+        status,
+      },
+      permission: { list: permissions },
+      question: { list: questions },
+    };
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => eventSource,
+      "ses_parent",
+    );
+    controller.subscribe(vi.fn());
+
+    await controller.load();
+    await vi.waitFor(() => {
+      expect(
+        controller.getState().childSessionsById.ses_child?.loadState.type,
+      ).toBe("ready");
+    });
+    const callsBeforeReconnect = sessionMessages.mock.calls.length;
+
+    eventSource.emit(streamReconnected);
+
+    await vi.waitFor(() => {
+      expect(sessionMessages.mock.calls.length).toBeGreaterThan(
+        callsBeforeReconnect + 1,
+      );
+    });
+
+    expect(status).toHaveBeenCalledTimes(1);
+    expect(permissions).toHaveBeenCalledTimes(1);
+    expect(questions).toHaveBeenCalledTimes(1);
+  });
+
   it("does not refetch a loaded child when the parent re-attaches", async () => {
     const eventSource = createEventSource();
     const messages = vi.fn(({ sessionID }: { sessionID: string }) =>
