@@ -3,16 +3,13 @@ import { AuiConfig, AuiProvider, Derived } from "@assistant-ui/store";
 
 export const McpConnectorByIndexProvider: FC<
   PropsWithChildren<{ index: number }>
-> = ({ index, children }) => (
-  <AuiProvider
-    config={AuiConfig({
-      mcpServer: Derived({
-        source: "mcp",
-        query: { kind: "connector", index },
-        get: (parent) => parent.mcp.connector({ index }),
-      }),
-    })}
-  >
-    {children}
-  </AuiProvider>
-);
+> = ({ index, children }) => {
+  const config = AuiConfig({
+    mcpServer: Derived({
+      source: "mcp",
+      query: { kind: "connector", index },
+      get: (parent) => parent.mcp.connector({ index }),
+    }),
+  });
+  return <AuiProvider config={config}>{children}</AuiProvider>;
+};

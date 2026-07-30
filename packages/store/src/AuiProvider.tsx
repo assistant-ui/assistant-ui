@@ -57,19 +57,14 @@ const ConfiguredAui = forwardRef<
  * @example
  * ```tsx
  * function MessageScope({ index, children }) {
- *   return (
- *     <AuiProvider
- *       config={AuiConfig({
- *         message: Derived({
- *           source: "thread",
- *           query: { index },
- *           get: (aui) => aui.thread.message({ index }),
- *         }),
- *       })}
- *     >
- *       {children}
- *     </AuiProvider>
- *   );
+ *   const config = AuiConfig({
+ *     message: Derived({
+ *       source: "thread",
+ *       query: { index },
+ *       get: (aui) => aui.thread.message({ index }),
+ *     }),
+ *   });
+ *   return <AuiProvider config={config}>{children}</AuiProvider>;
  * }
  * ```
  */

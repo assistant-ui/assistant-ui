@@ -5,16 +5,13 @@ export const PartByIndexProvider: FC<
   PropsWithChildren<{
     index: number;
   }>
-> = ({ index, children }) => (
-  <AuiProvider
-    config={AuiConfig({
-      part: Derived({
-        source: "message",
-        query: { type: "index", index },
-        get: (aui) => aui.message.part({ index }),
-      }),
-    })}
-  >
-    {children}
-  </AuiProvider>
-);
+> = ({ index, children }) => {
+  const config = AuiConfig({
+    part: Derived({
+      source: "message",
+      query: { type: "index", index },
+      get: (aui) => aui.message.part({ index }),
+    }),
+  });
+  return <AuiProvider config={config}>{children}</AuiProvider>;
+};

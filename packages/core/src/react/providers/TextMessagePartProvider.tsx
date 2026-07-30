@@ -41,10 +41,9 @@ export const TextMessagePartProvider: FC<
     text: string;
     isRunning?: boolean;
   }>
-> = ({ text, isRunning = false, children }) => (
-  <AuiProvider
-    config={AuiConfig({ part: TextMessagePartClient({ text, isRunning }) })}
-  >
-    {children}
-  </AuiProvider>
-);
+> = ({ text, isRunning = false, children }) => {
+  const config = AuiConfig({
+    part: TextMessagePartClient({ text, isRunning }),
+  });
+  return <AuiProvider config={config}>{children}</AuiProvider>;
+};

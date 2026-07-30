@@ -71,18 +71,13 @@ export const ReadonlyThreadProvider: FC<ReadonlyThreadProvider.Props> = ({
     );
   }, [core]);
 
-  return (
-    <AuiProvider
-      config={AuiConfig({
-        thread: ThreadClient({ runtime: threadRuntime }),
-        composer: Derived({
-          source: "thread",
-          query: {},
-          get: (aui) => aui.thread.composer(),
-        }),
-      })}
-    >
-      {children}
-    </AuiProvider>
-  );
+  const config = AuiConfig({
+    thread: ThreadClient({ runtime: threadRuntime }),
+    composer: Derived({
+      source: "thread",
+      query: {},
+      get: (aui) => aui.thread.composer(),
+    }),
+  });
+  return <AuiProvider config={config}>{children}</AuiProvider>;
 };

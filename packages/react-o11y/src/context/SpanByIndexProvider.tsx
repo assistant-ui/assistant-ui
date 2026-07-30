@@ -7,17 +7,12 @@ export const SpanByIndexProvider: FC<PropsWithChildren<{ index: number }>> = ({
 }) => {
   const parentAui = useAui();
 
-  return (
-    <AuiProvider
-      config={AuiConfig({
-        span: Derived({
-          source: "span",
-          query: { index },
-          get: () => parentAui.span.child({ index }),
-        }),
-      })}
-    >
-      {children}
-    </AuiProvider>
-  );
+  const config = AuiConfig({
+    span: Derived({
+      source: "span",
+      query: { index },
+      get: () => parentAui.span.child({ index }),
+    }),
+  });
+  return <AuiProvider config={config}>{children}</AuiProvider>;
 };

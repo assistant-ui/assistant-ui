@@ -9,8 +9,7 @@ import {
 
 export const MessageProvider: FC<
   PropsWithChildren<ThreadMessageClientProps>
-> = ({ children, ...props }) => (
-  <AuiProvider config={AuiConfig({ message: ThreadMessageClient(props) })}>
-    {children}
-  </AuiProvider>
-);
+> = ({ children, ...props }) => {
+  const config = AuiConfig({ message: ThreadMessageClient(props) });
+  return <AuiProvider config={config}>{children}</AuiProvider>;
+};

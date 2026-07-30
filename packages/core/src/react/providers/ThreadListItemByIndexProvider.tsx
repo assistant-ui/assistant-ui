@@ -6,16 +6,13 @@ export const ThreadListItemByIndexProvider: FC<
     index: number;
     archived: boolean;
   }>
-> = ({ index, archived, children }) => (
-  <AuiProvider
-    config={AuiConfig({
-      threadListItem: Derived({
-        source: "threads",
-        query: { type: "index", index, archived },
-        get: (aui) => aui.threads.item({ index, archived }),
-      }),
-    })}
-  >
-    {children}
-  </AuiProvider>
-);
+> = ({ index, archived, children }) => {
+  const config = AuiConfig({
+    threadListItem: Derived({
+      source: "threads",
+      query: { type: "index", index, archived },
+      get: (aui) => aui.threads.item({ index, archived }),
+    }),
+  });
+  return <AuiProvider config={config}>{children}</AuiProvider>;
+};

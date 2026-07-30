@@ -8,16 +8,13 @@ export type SuggestionByIndexProviderProps = PropsWithChildren<{
 export const SuggestionByIndexProvider: FC<SuggestionByIndexProviderProps> = ({
   index,
   children,
-}) => (
-  <AuiProvider
-    config={AuiConfig({
-      suggestion: Derived({
-        source: "suggestions",
-        query: { index },
-        get: (aui) => aui.suggestions.suggestion({ index }),
-      }),
-    })}
-  >
-    {children}
-  </AuiProvider>
-);
+}) => {
+  const config = AuiConfig({
+    suggestion: Derived({
+      source: "suggestions",
+      query: { index },
+      get: (aui) => aui.suggestions.suggestion({ index }),
+    }),
+  });
+  return <AuiProvider config={config}>{children}</AuiProvider>;
+};

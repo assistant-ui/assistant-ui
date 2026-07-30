@@ -34,8 +34,9 @@ const AssistantProviderInner: FC<
   // changes (e.g. unstable_enableMessageQueue) from reaching the runtime.
   "use no memo";
   const RenderComponent = getRenderComponent(runtime);
+  const config = AuiConfig({ threads: RuntimeAdapter(runtime) });
   return (
-    <AuiProvider config={AuiConfig({ threads: RuntimeAdapter(runtime) })}>
+    <AuiProvider config={config}>
       {RenderComponent && <RenderComponent />}
       {children}
     </AuiProvider>

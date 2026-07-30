@@ -7,10 +7,9 @@ export const ThreadListItemRuntimeProvider: FC<
   PropsWithChildren<{
     runtime: ThreadListItemRuntime;
   }>
-> = ({ runtime, children }) => (
-  <AuiProvider
-    config={AuiConfig({ threadListItem: ThreadListItemClient({ runtime }) })}
-  >
-    {children}
-  </AuiProvider>
-);
+> = ({ runtime, children }) => {
+  const config = AuiConfig({
+    threadListItem: ThreadListItemClient({ runtime }),
+  });
+  return <AuiProvider config={config}>{children}</AuiProvider>;
+};

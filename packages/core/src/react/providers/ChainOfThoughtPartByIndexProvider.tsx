@@ -5,16 +5,13 @@ export const ChainOfThoughtPartByIndexProvider: FC<
   PropsWithChildren<{
     index: number;
   }>
-> = ({ index, children }) => (
-  <AuiProvider
-    config={AuiConfig({
-      part: Derived({
-        source: "chainOfThought",
-        query: { type: "index", index },
-        get: (aui) => aui.chainOfThought.part({ index }),
-      }),
-    })}
-  >
-    {children}
-  </AuiProvider>
-);
+> = ({ index, children }) => {
+  const config = AuiConfig({
+    part: Derived({
+      source: "chainOfThought",
+      query: { type: "index", index },
+      get: (aui) => aui.chainOfThought.part({ index }),
+    }),
+  });
+  return <AuiProvider config={config}>{children}</AuiProvider>;
+};
