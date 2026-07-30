@@ -8,6 +8,7 @@ import type { SendOptions } from "../runtime/interfaces/composer-runtime-core";
 
 class TestComposerCore extends BaseComposerRuntimeCore {
   private _attachmentAdapter: AttachmentAdapter | undefined;
+  private _dictationAdapter: DictationAdapter | undefined;
   public sentMessages: Array<Omit<AppendMessage, "parentId" | "sourceId">> = [];
   public sentOptions: Array<SendOptions | undefined> = [];
 
@@ -15,11 +16,15 @@ class TestComposerCore extends BaseComposerRuntimeCore {
     return this._attachmentAdapter;
   }
   protected getDictationAdapter(): DictationAdapter | undefined {
-    return undefined;
+    return this._dictationAdapter;
   }
 
   setAttachmentAdapter(adapter: AttachmentAdapter | undefined) {
     this._attachmentAdapter = adapter;
+  }
+
+  setDictationAdapter(adapter: DictationAdapter | undefined) {
+    this._dictationAdapter = adapter;
   }
 
   get canCancel() {
@@ -178,6 +183,34 @@ describe("BaseComposerRuntimeCore", () => {
     };
     composer.setAttachmentAdapter(adapter);
     expect(composer.attachmentAccept).toBe("image/*");
+  });
+
+  it("handles rejected dictation shutdowns", async () => {
+    const session: DictationAdapter.Session = {
+      status: { type: "running" },
+      stop: vi.fn().mockRejectedValue(new Error("shutdown failed")),
+      cancel: vi.fn(),
+      onSpeechStart: vi.fn(() => () => {}),
+      onSpeechEnd: vi.fn(() => () => {}),
+      onSpeech: vi.fn(() => () => {}),
+    };
+    const unhandledRejection = vi.fn();
+    composer.setDictationAdapter({ listen: () => session });
+    process.on("unhandledRejection", unhandledRejection);
+
+    try {
+      composer.startDictation();
+      expect(composer.dictation).toBeDefined();
+
+      composer.stopDictation();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(session.stop).toHaveBeenCalledOnce();
+      expect(composer.dictation).toBeUndefined();
+      expect(unhandledRejection).not.toHaveBeenCalled();
+    } finally {
+      process.off("unhandledRejection", unhandledRejection);
+    }
   });
 
   describe("CreateAttachment (external source)", () => {
