@@ -199,6 +199,9 @@ export const ComposerPrimitiveInput = forwardRef<
       // Only handle ESC if it originated from within this input
       if (!textareaRef.current?.contains(e.target as Node)) return;
 
+      // ignore IME composition events
+      if (e.isComposing) return;
+
       // Let registered plugins (mention, slash command, etc.) handle Escape first
       if (pluginRegistry) {
         for (const plugin of pluginRegistry.getPlugins()) {
