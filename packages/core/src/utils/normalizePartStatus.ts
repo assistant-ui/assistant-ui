@@ -8,7 +8,7 @@ import type {
 export const COMPLETE_STATUS: MessagePartStatus = Object.freeze({
   type: "complete",
 });
-const RUNNING_STATUS: MessagePartStatus = Object.freeze({
+export const RUNNING_STATUS: MessagePartStatus = Object.freeze({
   type: "running",
 });
 type IncompleteMessagePartStatus = Extract<

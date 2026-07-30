@@ -27,10 +27,9 @@ const useThreadMessagePartClient = ({
   const state = useMemo<PartState>(() => {
     return {
       ...part,
-      status:
-        isMessageRunning && "status" in part
-          ? (normalizePartStatus(part) ?? COMPLETE_STATUS)
-          : COMPLETE_STATUS,
+      status: isMessageRunning
+        ? (normalizePartStatus(part) ?? COMPLETE_STATUS)
+        : COMPLETE_STATUS,
     };
   }, [part, isMessageRunning]);
 

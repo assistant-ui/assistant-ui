@@ -2,17 +2,11 @@ import type {
   MessagePartStatus,
   ToolCallMessagePartStatus,
 } from "../types/message";
+import { COMPLETE_STATUS, RUNNING_STATUS } from "./normalizePartStatus";
 
 type PartWithStatus = {
   readonly status: MessagePartStatus | ToolCallMessagePartStatus;
 };
-
-const COMPLETE_STATUS: MessagePartStatus = Object.freeze({
-  type: "complete",
-});
-const RUNNING_STATUS: MessagePartStatus = Object.freeze({
-  type: "running",
-});
 
 export const getGroupStatus = (
   parts: readonly (PartWithStatus | undefined)[],
