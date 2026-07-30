@@ -1,48 +1,15 @@
 ---
 title: Motivation
-description: Why tap exists and when to reach for it.
+description: Composable configuration and state built on React's lifecycle.
 ---
 
-## React hooks are great, until your data doesn't match your UI
-
-React hooks let you colocate state and effects with the component that uses them.
-This works beautifully when the shape of your data matches the shape of your UI. A
-`<Counter>` component owns a `count` state. A `<Form>` component owns its input
-states. Simple.
-
-But over the lifetime of any non-trivial app, data needs to be accessed from
-multiple places in the UI. So you hoist state up. Then up again. Eventually, most
-of your state lives in a store at the root of your app: **global state**.
-
-## You can't use hooks for global state
-
-Once state is global, hooks can't manage it. You can't call `useState` in a loop
-for each message in a thread, that would break the rules of hooks. The very
-paradigm that made React so pleasant doesn't apply to your most important state.
-
-This is why state management libraries are so popular. Zustand, Jotai, Redux, and
-MobX all facilitate this migration into global stores and let you efficiently
-access that state from anywhere in your app.
-
-## Hooks, without the UI
-
-tap brings `useState`, `useEffect`, `useMemo`, and the rest outside of React
-components and into standalone **resources**. Same rules of hooks, same mental
-model, just not tied to the UI tree. A resource owns state the way a component
-does, but returns a plain value instead of JSX, so you can use it for the global
-state hooks normally can't reach.
-
-## Lifecycle
-
-Unlike Zustand, Jotai, and RxJS, tap has a concept of **lifecycle**: render and
-commit phases, mount and unmount, and `useEffect`. That lets resources handle
-server-side rendering, Suspense, hydration, mounting, and cleanup the same way a
-React component does.
+tap exists to bring two strengths of React to application state: composable
+configuration and a native lifecycle.
 
 ## Composable configuration
 
-tap shapes assistant-ui's API so that every piece of configuration is a
-composable resource:
+A resource element carries an implementation together with its configuration.
+Because it is a value, it can be passed, swapped, and nested before it runs.
 
 ```ts
 const aui = useAui({
@@ -53,13 +20,21 @@ const aui = useAui({
 });
 ```
 
-Each of these — `AssistantCloud(...)`, `CloudThreadList(...)`, `AISDKThread(...)` — returns a [`ResourceElement`](/tap/docs/tap/resources#resourceelements): a simple `{ hook, args }` object that carries both the implementation and its configuration. Users can swap, compose, and nest them freely.
+Each call returns a
+[`ResourceElement`](/tap/docs/tap/api-reference#resourceelement). Together, those
+elements form a typed, declarative configuration tree. Applications can replace
+one part without changing how the rest is assembled.
 
-## Architecture
+## State management with React's lifecycle
 
-tap ships as two packages:
+Resources manage state with React Hooks and the same two-stage lifecycle as React
+components:
 
-- **`@assistant-ui/tap`**: the hooks engine, general-purpose and not tied to
-  assistant-ui.
-- **`@assistant-ui/store`**: the glue between tap and React, connecting resources
-  to components via `useSyncExternalStore` and React context.
+- During **render**, Hooks derive the resource's current state and compose child
+  resources.
+- On **mount**, effects connect that state to the outside world. They rerun when
+  dependencies change and clean up when the resource unmounts.
+
+This makes lifecycle part of the state model itself. State and effects stay
+together, while resources remain independent of the component tree that presents
+them.

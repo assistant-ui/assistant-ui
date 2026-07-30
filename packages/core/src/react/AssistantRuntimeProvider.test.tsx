@@ -62,7 +62,7 @@ describe("AssistantRuntimeProvider aui composition", () => {
 
     expect(aui.threads).toBeDefined();
     expect(() => aui.parentScope.getState()).toThrow(
-      /Scope "parentScope" is not available inside this isolation boundary/,
+      /The current scope does not have a "parentScope" property/,
     );
   });
 

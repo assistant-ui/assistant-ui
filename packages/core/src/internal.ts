@@ -32,6 +32,7 @@ export {
 
 // Message utilities
 export { getThreadMessageText } from "./utils/text";
+export { toMessagePartStatus } from "./runtime/api/message-runtime";
 export { resolveToolApprovalResponse } from "./runtime/utils/resolveToolApprovalResponse";
 export { consumeSuggestionResult } from "./adapters/suggestion";
 

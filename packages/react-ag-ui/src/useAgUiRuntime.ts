@@ -147,6 +147,7 @@ export function useAgUiRuntime(
         extras: agUiExtras.provide({
           interrupts:
             core.getPendingInterrupts()?.interrupts ?? EMPTY_INTERRUPTS,
+          sendA2uiAction: (action) => core.sendA2uiAction(action),
           submitInterruptResponses: (responses) =>
             core.submitInterruptResponses(responses),
           steerAway: (message, responses) => core.steerAway(message, responses),

@@ -99,16 +99,13 @@ This is also more precise: the component only re-renders when the specific value
 
 ## Checking if a scope exists
 
-Accessing `s.counter` in a selector throws if the `counter` scope hasn't been provided. To conditionally read state from a scope that may not exist, use `useAui()` to check `source` first:
+Accessing `s.counter` in a selector throws if the `counter` scope hasn't been provided. To read state from a scope that may not exist, use `s.optional` — an unavailable scope resolves to `undefined` instead of throwing:
 
 ```tsx
-const aui = useAui();
-const count = useAuiState(
-  () => aui.counter.source !== null && aui.counter.getState().count,
-);
+const count = useAuiState((s) => s.optional.counter?.count);
 ```
 
-When `source` is `null`, the selector short-circuits and returns `false` instead of accessing the missing scope. When the scope is available, it resolves and reads the state normally.
+To branch on availability outside a selector, check the accessor's `source` via `useAui()` — it's `null` when the scope isn't available.
 
 ## AuiIf
 

@@ -358,6 +358,7 @@ export type {
   ToolModelContentPart,
   MessageStatus,
   MessagePartStatus,
+  MessagePartStreamStatus,
   ToolCallMessagePartStatus,
   MessageTiming,
   ThreadUserMessagePart,

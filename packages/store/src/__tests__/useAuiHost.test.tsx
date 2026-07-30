@@ -83,6 +83,21 @@ describe("useAui tap host", () => {
     expect(log).toEqual(["tap effect"]);
   });
 
+  it("keeps tap effect metadata outside the client object", () => {
+    const TestClient = makeTestClient([]);
+    let aui!: ReturnType<typeof useAui>;
+
+    function Host() {
+      aui = useAui({
+        thread: TestClient(),
+      } as unknown as useAui.Props);
+      return null;
+    }
+
+    render(<Host />);
+    expect(Object.getOwnPropertySymbols(aui)).toEqual([]);
+  });
+
   it("updates flow through to useAuiState consumers", () => {
     const log: string[] = [];
     const TestClient = makeTestClient(log);

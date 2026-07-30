@@ -813,6 +813,58 @@ describe("AISDKMessageConverter", () => {
     expect(converted[0]?.content[2]).not.toHaveProperty("providerMetadata");
   });
 
+  it("maps TextUIPart.state onto the per-part status", () => {
+    const converted = AISDKMessageConverter.toThreadMessages([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          { type: "text", text: "streaming", state: "streaming" },
+          { type: "text", text: "done", state: "done" },
+          { type: "text", text: "unset" },
+        ],
+      } as any,
+    ]);
+
+    expect(converted[0]?.content[0]).toMatchObject({
+      type: "text",
+      text: "streaming",
+      status: { type: "running" },
+    });
+    expect(converted[0]?.content[1]).toMatchObject({
+      type: "text",
+      text: "done",
+      status: { type: "complete" },
+    });
+    expect(converted[0]?.content[2]).not.toHaveProperty("status");
+  });
+
+  it("maps ReasoningUIPart.state onto the per-part status", () => {
+    const converted = AISDKMessageConverter.toThreadMessages([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          { type: "reasoning", text: "thinking", state: "streaming" },
+          { type: "reasoning", text: "settled", state: "done" },
+          { type: "reasoning", text: "unset" },
+        ],
+      } as any,
+    ]);
+
+    expect(converted[0]?.content[0]).toMatchObject({
+      type: "reasoning",
+      text: "thinking",
+      status: { type: "running" },
+    });
+    expect(converted[0]?.content[1]).toMatchObject({
+      type: "reasoning",
+      text: "settled",
+      status: { type: "complete" },
+    });
+    expect(converted[0]?.content[2]).not.toHaveProperty("status");
+  });
+
   it("forwards callProviderMetadata onto ToolCallMessagePart.providerMetadata", () => {
     const converted = AISDKMessageConverter.toThreadMessages([
       {
