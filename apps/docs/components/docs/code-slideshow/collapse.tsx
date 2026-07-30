@@ -30,10 +30,10 @@ const CollapseRoot = ({
   const [open, setOpen] = useState(!(collapsed && settled));
 
   useEffect(() => {
-    if (!collapsed) return;
+    if (!collapsed || settled) return;
     const timer = setTimeout(() => setOpen(false), AUTO_COLLAPSE_DELAY);
     return () => clearTimeout(timer);
-  }, [collapsed]);
+  }, [collapsed, settled]);
 
   return (
     <Collapsible.Root open={open} onOpenChange={setOpen}>

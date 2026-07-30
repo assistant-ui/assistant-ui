@@ -41,9 +41,12 @@ const mark: AnnotationHandler = {
 const tooltip: AnnotationHandler = {
   name: "tooltip",
   Inline: ({ annotation, children }) => (
-    <span className="group/tooltip ch-tooltip border-fd-muted-foreground/60 relative cursor-help border-b border-dashed">
+    <span
+      tabIndex={0}
+      className="group/tooltip ch-tooltip border-fd-muted-foreground/60 relative cursor-help border-b border-dashed"
+    >
       {children}
-      <span className="border-fd-border bg-fd-popover text-fd-popover-foreground absolute bottom-full left-0 z-10 mb-1.5 hidden rounded-md border px-2.5 py-1.5 font-mono text-xs whitespace-nowrap shadow-md group-hover/tooltip:block">
+      <span className="border-fd-border bg-fd-popover text-fd-popover-foreground absolute bottom-full left-0 z-10 mb-1.5 hidden rounded-md border px-2.5 py-1.5 font-mono text-xs whitespace-nowrap shadow-md group-hover/tooltip:block group-focus-visible/tooltip:block">
         {annotation.query}
       </span>
     </span>

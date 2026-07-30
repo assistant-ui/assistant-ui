@@ -127,7 +127,9 @@ function CounterList({ ids }) {
     code: `import { createTapRoot } from "@assistant-ui/tap";
 import { useCounter } from "./counter";
 
-const root = createTapRoot(() => useCounter());
+const root = createTapRoot(function CounterRoot() {
+  return useCounter();
+});
 
 const unsubscribe = root.subscribe(() => {
   console.log(root.getValue().count);
