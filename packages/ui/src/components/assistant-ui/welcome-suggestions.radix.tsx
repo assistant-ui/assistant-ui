@@ -6,6 +6,7 @@ import {
   useAui,
   useAuiState,
 } from "@assistant-ui/react";
+import { cva, type VariantProps } from "class-variance-authority";
 import { ChevronRightIcon, XIcon } from "lucide-react";
 import {
   createContext,
@@ -87,8 +88,25 @@ const [StackCollection, useStackCollection] =
 const pillClass =
   "text-foreground hover:bg-muted border-border/60 inline-flex h-auto items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm font-normal whitespace-nowrap transition-colors [&_svg]:size-4";
 
-const pickerItemClass =
-  "text-foreground/80 hover:text-foreground data-[highlighted]:bg-muted/70 data-[highlighted]:text-foreground after:border-border/50 relative flex w-full items-center gap-2.5 rounded-lg px-3 py-3 text-left text-sm after:pointer-events-none after:absolute after:inset-x-[1.5%] after:bottom-0 after:border-b last:after:hidden data-[highlighted]:after:hidden [&:has(+[data-highlighted])]:after:hidden [&_svg]:size-4";
+const welcomeSuggestionRowVariants = cva(
+  "text-foreground/80 hover:text-foreground data-[highlighted]:bg-muted/70 data-[highlighted]:text-foreground relative flex w-full items-center gap-2.5 rounded-lg px-3 text-left text-sm [&_svg]:size-4",
+  {
+    variants: {
+      density: {
+        comfortable: "py-3",
+        compact: "py-2",
+      },
+      separators: {
+        true: "after:border-border/50 after:pointer-events-none after:absolute after:inset-x-[1.5%] after:bottom-0 after:border-b last:after:hidden data-[highlighted]:after:hidden [&:has(+[data-highlighted])]:after:hidden",
+        false: "",
+      },
+    },
+    defaultVariants: {
+      density: "comfortable",
+      separators: true,
+    },
+  },
+);
 
 type WelcomeSuggestionsContextValue = {
   entries: readonly SuggestionEntry[];
@@ -376,7 +394,7 @@ export const WelcomeSuggestionsList: FC = () => {
               prompt={promptOf(item)}
               send={send}
               data-slot="aui_thread-welcome-list-item"
-              className={cn(pickerItemClass)}
+              className={welcomeSuggestionRowVariants()}
               onKeyDown={onItemKeyDown}
             >
               {item.label}
@@ -391,14 +409,15 @@ export const WelcomeSuggestionsList: FC = () => {
 export type WelcomeSuggestionsPickerItemProps = Omit<
   ComponentPropsWithoutRef<"button">,
   "onClick"
-> & {
-  prompt: string;
-  label?: ReactNode;
-};
+> &
+  VariantProps<typeof welcomeSuggestionRowVariants> & {
+    prompt: string;
+    label?: ReactNode;
+  };
 
 export const WelcomeSuggestionsPickerItem: FC<
   WelcomeSuggestionsPickerItemProps
-> = ({ prompt, label, children, className, ...props }) => {
+> = ({ prompt, label, children, density, separators, className, ...props }) => {
   const id = useId();
   const { currentId, setCurrentId, close, send } = useWelcomeSuggestions();
   const highlighted = currentId === id;
@@ -414,7 +433,10 @@ export const WelcomeSuggestionsPickerItem: FC<
         data-highlighted={highlighted || undefined}
         onClick={() => close()}
         onMouseMove={() => setCurrentId(id)}
-        className={cn(pickerItemClass, className)}
+        className={cn(
+          welcomeSuggestionRowVariants({ density, separators }),
+          className,
+        )}
         {...props}
       >
         {children ?? label}
@@ -487,7 +509,15 @@ const useComposerCoupling = (onEscape?: () => void) => {
   }, [registry, group, popoverId, currentId]);
 };
 
-export const WelcomeSuggestionsPicker: FC<{ children?: ReactNode }> = ({
+export type WelcomeSuggestionsPickerProps = VariantProps<
+  typeof welcomeSuggestionRowVariants
+> & {
+  children?: ReactNode;
+};
+
+export const WelcomeSuggestionsPicker: FC<WelcomeSuggestionsPickerProps> = ({
+  density,
+  separators,
   children,
 }) => {
   const {
@@ -531,8 +561,15 @@ export const WelcomeSuggestionsPicker: FC<{ children?: ReactNode }> = ({
       onEscapeKeyDown={() => close({ restoreDraft: true })}
       onFocusOutside={(e) => e.preventDefault()}
       onPointerDownOutside={(e) => {
-        const target = e.detail.originalEvent.target as Element | null;
-        if (target?.closest('[data-slot*="composer"]')) e.preventDefault();
+        // A defaultPrevented pointerdown is an opt-out, so outside controls
+        // can act on the open panel without dismissing it.
+        const original = e.detail.originalEvent;
+        const target = original.target as Element | null;
+        if (
+          original.defaultPrevented ||
+          target?.closest('[data-slot*="composer"]')
+        )
+          e.preventDefault();
       }}
       onDismiss={() => close()}
     >
@@ -574,6 +611,8 @@ export const WelcomeSuggestionsPicker: FC<{ children?: ReactNode }> = ({
                   key={idx}
                   prompt={promptOf(item)}
                   label={item.label}
+                  density={density}
+                  separators={separators}
                 />
               ))}
           </div>
@@ -593,7 +632,19 @@ export const WelcomeSuggestionsPicker: FC<{ children?: ReactNode }> = ({
 // rows, and Escape can hand focus back for arrow nav to continue. The
 // DismissableLayer wraps only the sub-level's children, not the container:
 // remounting the container on close would drop the restored focus.
-export const WelcomeSuggestionsStack: FC = () => {
+export type WelcomeSuggestionsStackProps = VariantProps<
+  typeof welcomeSuggestionRowVariants
+> & {
+  indicator?: "none" | "chevron";
+  className?: string;
+};
+
+export const WelcomeSuggestionsStack: FC<WelcomeSuggestionsStackProps> = ({
+  indicator = "none",
+  density,
+  separators,
+  className,
+}) => {
   const {
     entries,
     group,
@@ -721,7 +772,10 @@ export const WelcomeSuggestionsStack: FC = () => {
           setTopIdx(null);
       }}
       data-slot="aui_thread-welcome-stack"
-      className="flex w-full flex-col outline-none"
+      data-indicator={indicator}
+      data-density={density}
+      data-separators={separators}
+      className={cn("-mt-1 flex w-full flex-col outline-none", className)}
     >
       {group ? (
         <DismissableLayerPrimitive.Root
@@ -729,8 +783,15 @@ export const WelcomeSuggestionsStack: FC = () => {
           onEscapeKeyDown={() => cancelClose()}
           onFocusOutside={(e) => e.preventDefault()}
           onPointerDownOutside={(e) => {
-            const target = e.detail.originalEvent.target as Element | null;
-            if (target?.closest('[data-slot*="composer"]')) e.preventDefault();
+            // A defaultPrevented pointerdown is an opt-out, so outside
+            // controls can act on the open sub-level without dismissing it.
+            const original = e.detail.originalEvent;
+            const target = original.target as Element | null;
+            if (
+              original.defaultPrevented ||
+              target?.closest('[data-slot*="composer"]')
+            )
+              e.preventDefault();
           }}
           onDismiss={() => close()}
         >
@@ -745,6 +806,8 @@ export const WelcomeSuggestionsStack: FC = () => {
                   key={idx}
                   prompt={promptOf(item)}
                   label={item.label}
+                  density={density}
+                  separators={separators}
                 />
               ))}
             </div>
@@ -762,19 +825,27 @@ export const WelcomeSuggestionsStack: FC = () => {
                   <button
                     type="button"
                     {...rowProps(idx)}
-                    className={cn(pickerItemClass, "group")}
+                    className={welcomeSuggestionRowVariants({
+                      density,
+                      separators,
+                    })}
                     onClick={() => openGroup(entry)}
                   >
                     {entry.icon}
                     {entry.label}
-                    <ChevronRightIcon className="text-muted-foreground/30 group-data-[highlighted]:text-muted-foreground/70 ml-auto size-4 transition-colors" />
+                    {indicator === "chevron" && (
+                      <ChevronRightIcon className="text-muted-foreground ml-auto size-4 opacity-50 rtl:rotate-180" />
+                    )}
                   </button>
                 ) : (
                   <ThreadPrimitive.Suggestion
                     prompt={promptOf(entry)}
                     send={send}
                     {...rowProps(idx)}
-                    className={cn(pickerItemClass)}
+                    className={welcomeSuggestionRowVariants({
+                      density,
+                      separators,
+                    })}
                   >
                     {entry.label}
                   </ThreadPrimitive.Suggestion>

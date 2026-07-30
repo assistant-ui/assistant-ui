@@ -8,7 +8,7 @@ import { WelcomeSuggestionsSample } from "@/components/docs/samples/welcome-sugg
 
 <WelcomeSuggestionsSample />
 
-`ThreadWelcomeSuggestions` renders starter prompts for an empty thread. Grouped entries render as a pill row that opens a composer-coupled picker panel; flat entries render as an always-open vertical list. A second layout, the [stacked variant](#stacked-layout), keeps every group visible as a vertical list. Place either next to any composer — no wrapper elements or thread layout changes are required.
+`ThreadWelcomeSuggestions` renders starter prompts for an empty thread. Grouped entries render as a pill row that opens a composer-coupled picker panel; flat entries render as an always-open vertical list. A second layout, the [stacked variant](#stacked-layout), keeps every group visible as a vertical list. Place either next to any composer; no wrapper elements or thread layout changes are required.
 
 <Callout type="info">
   For runtime-generated prompts that appear after an assistant response, use
@@ -91,14 +91,12 @@ In the pill row, pills are tab stops: <kbd>←</kbd>/<kbd>→</kbd> move focus a
 
 ## Props
 
-- `suggestions` — the entries to render; falls back to the static `Suggestions(...)` scope. Pass the prop for grouped entries.
-- `send` — default `true`. Whether selecting an item sends the prompt immediately or places it in the composer.
+- `suggestions`: the entries to render; falls back to the static `Suggestions(...)` scope. Pass the prop for grouped entries.
+- `send`: default `true`. Whether selecting an item sends the prompt immediately or places it in the composer.
 
 ## Stacked layout
 
 `WelcomeSuggestionsStack` renders everything as one vertical list, ChatGPT-style. Top-level rows are always visible and never intercept typing; clicking a group swaps its items in place (no header). The sub-level behaves exactly like the picker: arrows preview into the composer, and <kbd>Esc</kbd>, editing the text, or clicking outside return to the top level.
-
-The top level is a single tab stop with one highlight shared by hover and the arrow keys: <kbd>↓</kbd>/<kbd>↑</kbd> move it, and <kbd>→</kbd> or <kbd>Enter</kbd> opens the highlighted group (<kbd>Enter</kbd> on a flat row sends it). <kbd>Esc</kbd> inside a group returns focus to the list with that group's row highlighted, so arrow navigation continues where you left off.
 
 ```tsx
 <WelcomeSuggestionsRoot suggestions={WELCOME_SUGGESTIONS}>
@@ -106,9 +104,32 @@ The top level is a single tab stop with one highlight shared by hover and the ar
 </WelcomeSuggestionsRoot>
 ```
 
+The top level is a single tab stop with one highlight shared by hover and the arrow keys:
+
+| Key                             | Action                                                                          |
+| ------------------------------- | ------------------------------------------------------------------------------- |
+| <kbd>↓</kbd> / <kbd>↑</kbd>     | Move the highlight                                                               |
+| <kbd>→</kbd> / <kbd>Enter</kbd> | Open the highlighted group (<kbd>Enter</kbd> on a flat row sends it)             |
+| <kbd>Esc</kbd> (inside a group) | Return to the list with that group's row highlighted; arrow navigation continues |
+
+### Styling
+
+Stacked rows share the picker's defaults: comfortable density, separators, and no group indicator (try the toggles in the demo above):
+
+- `density`: `"comfortable"` (default) or `"compact"` for tighter rows.
+- `separators`: default `true`; hairline dividers between rows, hidden around the highlighted row.
+- `indicator`: default `"none"`; `"chevron"` adds a trailing chevron to group rows (flips in RTL).
+- `className`: merged onto the listbox container.
+
+```tsx
+<WelcomeSuggestionsStack density="compact" separators={false} />
+```
+
+The sub-level rows inherit `density` and `separators` from the stack. The stack mirrors `indicator`, and any explicitly set `density` or `separators`, as `data-*` attributes on `[data-slot="aui_thread-welcome-stack"]` for CSS overrides. `WelcomeSuggestionsPicker` accepts `density` and `separators` too, so the pills layout's panel can share the same look.
+
 ## Custom composition
 
-The default export composes exported subcomponents you can arrange yourself: `WelcomeSuggestionsRoot`, `WelcomeSuggestionsPills`, `WelcomeSuggestionsPicker`, `WelcomeSuggestionsPickerItem`, `WelcomeSuggestionsList`, and the `useWelcomeSuggestions` context hook.
+The default export composes exported subcomponents you can arrange yourself: `WelcomeSuggestionsRoot`, `WelcomeSuggestionsPills`, `WelcomeSuggestionsPicker`, `WelcomeSuggestionsPickerItem`, `WelcomeSuggestionsList`, `WelcomeSuggestionsStack`, and the `useWelcomeSuggestions` context hook.
 
 ```tsx
 <WelcomeSuggestionsRoot suggestions={WELCOME_SUGGESTIONS}>
@@ -116,6 +137,8 @@ The default export composes exported subcomponents you can arrange yourself: `We
   <WelcomeSuggestionsPicker />
 </WelcomeSuggestionsRoot>
 ```
+
+When composing your own picker rows, `WelcomeSuggestionsPickerItem` accepts the same `density` and `separators` options as the stack. `WelcomeSuggestionsList` renders flat entries only; use `WelcomeSuggestionsStack` when groups are present.
 
 ## Related Components
 

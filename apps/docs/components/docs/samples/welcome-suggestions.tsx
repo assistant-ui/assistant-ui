@@ -8,7 +8,7 @@ import {
   CodeIcon,
   PencilLineIcon,
 } from "lucide-react";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import {
   WelcomeSuggestionsPicker,
   WelcomeSuggestionsPills,
@@ -97,7 +97,7 @@ const Hint = ({
   className,
 }: {
   children: ReactNode;
-  className?: string;
+  className?: string | undefined;
 }) => (
   <div
     data-hint
@@ -143,6 +143,31 @@ const SampleComposer = () => (
   </ComposerPrimitive.Root>
 );
 
+const ToggleChip = ({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: ReactNode;
+}) => (
+  <button
+    type="button"
+    aria-pressed={active}
+    onClick={onClick}
+    onPointerDown={(e) => e.preventDefault()}
+    className={cn(
+      "rounded-full border px-2 py-px font-mono text-[10px] transition-colors",
+      active
+        ? "border-border bg-muted text-foreground"
+        : "border-border/50 text-muted-foreground/60 hover:text-muted-foreground",
+    )}
+  >
+    {children}
+  </button>
+);
+
 const VariantColumn = ({
   label,
   hint,
@@ -171,27 +196,55 @@ const VariantColumn = ({
 );
 
 export const WelcomeSuggestionsSample = () => {
+  const [compact, setCompact] = useState(false);
+  const [separators, setSeparators] = useState(true);
+  const [chevron, setChevron] = useState(false);
+  const density = compact ? "compact" : "comfortable";
+
   return (
     <SampleFrame className="bg-muted/40 h-auto p-6">
-      <div className="mx-auto grid w-full max-w-4xl gap-8 md:grid-cols-2">
-        <VariantColumn
-          label="Pills + picker"
-          hint={<>click a pill, or Tab to one; ← → move, ↓ opens</>}
-          hintClassName="translate-x-5"
-        >
-          <WelcomeSuggestionsRoot suggestions={SUGGESTIONS}>
-            <WelcomeSuggestionsPills />
-            <WelcomeSuggestionsPicker />
-          </WelcomeSuggestionsRoot>
-        </VariantColumn>
-        <VariantColumn
-          label="Stacked"
-          hint={<>Tab to the list, ↑ ↓ move, → opens</>}
-        >
-          <WelcomeSuggestionsRoot suggestions={SUGGESTIONS}>
-            <WelcomeSuggestionsStack />
-          </WelcomeSuggestionsRoot>
-        </VariantColumn>
+      <div className="mx-auto flex w-full max-w-4xl flex-col gap-3">
+        <div className="flex justify-end gap-1">
+          <ToggleChip active={compact} onClick={() => setCompact((v) => !v)}>
+            compact
+          </ToggleChip>
+          <ToggleChip
+            active={separators}
+            onClick={() => setSeparators((v) => !v)}
+          >
+            separators
+          </ToggleChip>
+          <ToggleChip active={chevron} onClick={() => setChevron((v) => !v)}>
+            chevron
+          </ToggleChip>
+        </div>
+        <div className="grid gap-8 md:grid-cols-2">
+          <VariantColumn
+            label="Pills + picker"
+            hint={<>click a pill, or Tab to one; ← → move, ↓ opens</>}
+            hintClassName="translate-x-5"
+          >
+            <WelcomeSuggestionsRoot suggestions={SUGGESTIONS}>
+              <WelcomeSuggestionsPills />
+              <WelcomeSuggestionsPicker
+                density={density}
+                separators={separators}
+              />
+            </WelcomeSuggestionsRoot>
+          </VariantColumn>
+          <VariantColumn
+            label="Stacked"
+            hint={<>Tab to the list, ↑ ↓ move, → opens</>}
+          >
+            <WelcomeSuggestionsRoot suggestions={SUGGESTIONS}>
+              <WelcomeSuggestionsStack
+                density={density}
+                separators={separators}
+                indicator={chevron ? "chevron" : "none"}
+              />
+            </WelcomeSuggestionsRoot>
+          </VariantColumn>
+        </div>
       </div>
     </SampleFrame>
   );

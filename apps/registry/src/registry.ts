@@ -1223,7 +1223,11 @@ export const registry: RegistryItem[] = [
       },
     ],
     registryDependencies: [],
-    dependencies: ["@assistant-ui/react", "lucide-react"],
+    dependencies: [
+      "@assistant-ui/react",
+      "lucide-react",
+      "class-variance-authority",
+    ],
     radixDependencies: ["radix-ui"],
     baseDependencies: ["@base-ui/react"],
   },
