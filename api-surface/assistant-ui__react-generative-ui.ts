@@ -1545,7 +1545,7 @@ declare function applyA2uiOperations(state: A2uiState, operations: unknown): A2u
 declare function buildPresentParameters(library: GenerativeUILibrary): JSONSchema7$1;
 
 declare function convertSurfaceToUISpec(surface: A2uiSurfaceState): {
-  spec: UISpec | null;
+  spec: UIElement | null;
   warnings: string[];
 };
 
