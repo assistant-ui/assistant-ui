@@ -81,7 +81,8 @@ rendering again. State updates and context changes still render it.
 Inside a resource body you use React's own hooks, imported from `"react"`:
 `useState`, `useReducer`, `useEffect`, `useMemo`, `useCallback`, `useRef`,
 `useLayoutEffect`, `useEffectEvent`, `useSyncExternalStore`, `useDebugValue`,
-`useContext`, and `use`. They follow React's rules of Hooks, with a few
+`useContext`, and `use` (tap contexts only — promises are not supported). They
+follow React's rules of Hooks, with a few
 [differences](/tap/docs/tap/differences-from-react).
 
 The Hooks below are exported by tap.

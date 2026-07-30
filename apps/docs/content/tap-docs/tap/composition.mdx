@@ -12,11 +12,9 @@ The result is a tree of focused Resources rather than one monolithic store.
 
 ## useResource
 
-A Resource can receive another Resource as configuration, then render whichever
-implementation was provided:
-
 A Hook call fixes its implementation at the call site. A `ResourceElement`
-makes that implementation an input.
+makes that implementation an input, so a Resource can receive another Resource
+as configuration and render whichever implementation was provided:
 
 ```ts
 import {
