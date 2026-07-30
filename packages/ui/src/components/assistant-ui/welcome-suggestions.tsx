@@ -366,46 +366,6 @@ export const WelcomeSuggestionsPills: FC = () => {
   );
 };
 
-export const WelcomeSuggestionsList: FC = () => {
-  const { entries, send } = useWelcomeSuggestions();
-  const listRef = useRef<HTMLDivElement>(null);
-  const items = entries.filter((e): e is SuggestionItem => !isGroup(e));
-
-  const onItemKeyDown = (e: ReactKeyboardEvent<HTMLButtonElement>) => {
-    if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
-    const nodes = Array.from(
-      listRef.current?.querySelectorAll<HTMLButtonElement>("button") ?? [],
-    );
-    const next =
-      nodes[nodes.indexOf(e.currentTarget) + (e.key === "ArrowDown" ? 1 : -1)];
-    if (next) {
-      next.focus();
-      e.preventDefault();
-    }
-  };
-
-  return (
-    <div
-      ref={listRef}
-      data-slot="aui_thread-welcome-suggestions-list"
-      className="flex w-full flex-col"
-    >
-      {items.map((item, idx) => (
-        <ThreadPrimitive.Suggestion
-          key={idx}
-          prompt={promptOf(item)}
-          send={send}
-          data-slot="aui_thread-welcome-list-item"
-          className={welcomeSuggestionRowVariants()}
-          onKeyDown={onItemKeyDown}
-        >
-          {item.label}
-        </ThreadPrimitive.Suggestion>
-      ))}
-    </div>
-  );
-};
-
 export type WelcomeSuggestionsPickerItemProps = Omit<
   ComponentPropsWithoutRef<"button">,
   "onClick"
@@ -874,24 +834,11 @@ export const WelcomeSuggestionsStack: FC<WelcomeSuggestionsStackProps> = ({
   );
 };
 
-const WelcomeSuggestionsContent: FC = () => {
-  const { entries } = useWelcomeSuggestions();
-  if (entries.some(isGroup)) {
-    return (
-      <>
-        <WelcomeSuggestionsPills />
-        <WelcomeSuggestionsPicker />
-      </>
-    );
-  }
-  return <WelcomeSuggestionsList />;
-};
-
 export const ThreadWelcomeSuggestions: FC<{
   suggestions?: readonly SuggestionEntry[] | undefined;
   send?: boolean | undefined;
 }> = ({ suggestions, send }) => (
   <WelcomeSuggestionsRoot suggestions={suggestions} send={send}>
-    <WelcomeSuggestionsContent />
+    <WelcomeSuggestionsStack />
   </WelcomeSuggestionsRoot>
 );

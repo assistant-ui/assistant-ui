@@ -1,6 +1,6 @@
 ---
 title: Welcome Suggestions
-description: Starter prompt pills with a composer-coupled picker panel for the new-thread welcome screen.
+description: Starter prompts for the new-thread welcome screen, rendered as a stacked list with composer-coupled group navigation.
 platforms: ["react"]
 ---
 
@@ -8,7 +8,7 @@ import { WelcomeSuggestionsSample } from "@/components/docs/samples/welcome-sugg
 
 <WelcomeSuggestionsSample />
 
-`ThreadWelcomeSuggestions` renders starter prompts for an empty thread. Grouped entries render as a pill row that opens a composer-coupled picker panel; flat entries render as an always-open vertical list. A second layout, the [stacked variant](#stacked-layout), keeps every group visible as a vertical list. Place either next to any composer; no wrapper elements or thread layout changes are required.
+`ThreadWelcomeSuggestions` renders starter prompts for an empty thread as a stacked vertical list, ChatGPT-style. Flat entries send on click; clicking a group swaps its items in place and hands navigation to the composer. A second layout, [pills + picker](#pills--picker-layout), renders groups as a horizontal pill row instead. Place either next to any composer; no wrapper elements or thread layout changes are required.
 
 <Callout type="info">
   For runtime-generated prompts that appear after an assistant response, use
@@ -75,46 +75,33 @@ const WELCOME_SUGGESTIONS: SuggestionEntry[] = [
 
 Selecting a suggestion goes through `ThreadPrimitive.Suggestion`: by default (`send`) it sends the prompt immediately; with `send={false}` it places the prompt in the composer for editing. Clicking an item and pressing <kbd>Enter</kbd> on the highlighted item are the same action.
 
-While a group panel is open, the composer keeps focus and drives the panel:
+The list is a single tab stop with one highlight shared by hover and the arrow keys. Top-level rows stay passive and never intercept typing:
+
+| Key                             | Action                                                                          |
+| ------------------------------- | -------------------------------------------------------------------------------- |
+| <kbd>↓</kbd> / <kbd>↑</kbd>     | Move the highlight                                                                |
+| <kbd>→</kbd> / <kbd>Enter</kbd> | Open the highlighted group (<kbd>Enter</kbd> on a flat row sends it)              |
+
+While a group is open, the composer keeps focus and drives the panel:
 
 | Key                          | Action                                                                   |
 | ---------------------------- | ------------------------------------------------------------------------ |
 | <kbd>↑</kbd> / <kbd>↓</kbd>  | Move the highlight and live-preview the prompt in the composer            |
 | <kbd>Enter</kbd>             | Select the highlighted item (plain composer submit when nothing is highlighted) |
-| <kbd>Esc</kbd>               | Close the panel and restore the composer text from before it opened       |
-| <kbd>Tab</kbd>               | Close the panel and move focus on; the previewed prompt stays in the composer |
-| Characters                   | Type into the composer; the panel dismisses                               |
+| <kbd>Esc</kbd>               | Return to the top level with that group's row highlighted; arrow navigation continues |
+| <kbd>Tab</kbd>               | Close the group and move focus on; the previewed prompt stays in the composer |
+| Characters                   | Type into the composer; the group closes                                  |
 
-Previewing writes over the composer, but a draft is never silently lost: <kbd>Esc</kbd> (or the close button) is cancel and puts the pre-open draft back, while <kbd>Tab</kbd> and selection accept what the picker wrote.
-
-In the pill row, pills are tab stops: <kbd>←</kbd>/<kbd>→</kbd> move focus and <kbd>↓</kbd> or <kbd>Enter</kbd> opens a group. In the flat list, items are tab stops navigated with <kbd>↑</kbd>/<kbd>↓</kbd>.
+Previewing writes over the composer, but a draft is never silently lost: <kbd>Esc</kbd> is cancel and puts the pre-open draft back, while <kbd>Tab</kbd> and selection accept what the picker wrote.
 
 ## Props
 
 - `suggestions`: the entries to render; falls back to the static `Suggestions(...)` scope. Pass the prop for grouped entries.
 - `send`: default `true`. Whether selecting an item sends the prompt immediately or places it in the composer.
 
-## Stacked layout
+## Styling
 
-`WelcomeSuggestionsStack` renders everything as one vertical list, ChatGPT-style. Top-level rows are always visible and never intercept typing; clicking a group swaps its items in place (no header). The sub-level behaves exactly like the picker: arrows preview into the composer, and <kbd>Esc</kbd>, editing the text, or clicking outside return to the top level.
-
-```tsx
-<WelcomeSuggestionsRoot suggestions={WELCOME_SUGGESTIONS}>
-  <WelcomeSuggestionsStack />
-</WelcomeSuggestionsRoot>
-```
-
-The top level is a single tab stop with one highlight shared by hover and the arrow keys:
-
-| Key                             | Action                                                                          |
-| ------------------------------- | ------------------------------------------------------------------------------- |
-| <kbd>↓</kbd> / <kbd>↑</kbd>     | Move the highlight                                                               |
-| <kbd>→</kbd> / <kbd>Enter</kbd> | Open the highlighted group (<kbd>Enter</kbd> on a flat row sends it)             |
-| <kbd>Esc</kbd> (inside a group) | Return to the list with that group's row highlighted; arrow navigation continues |
-
-### Styling
-
-Stacked rows share the picker's defaults: comfortable density, separators, and no group indicator (try the toggles in the demo above):
+Rows default to comfortable density with separators and no group indicator (try the toggles in the demo above). Set the variants on `WelcomeSuggestionsStack` when composing:
 
 - `density`: `"comfortable"` (default) or `"compact"` for tighter rows.
 - `separators`: default `true`; hairline dividers between rows, hidden around the highlighted row.
@@ -122,14 +109,16 @@ Stacked rows share the picker's defaults: comfortable density, separators, and n
 - `className`: merged onto the listbox container.
 
 ```tsx
-<WelcomeSuggestionsStack density="compact" separators={false} />
+<WelcomeSuggestionsRoot suggestions={WELCOME_SUGGESTIONS}>
+  <WelcomeSuggestionsStack density="compact" separators={false} />
+</WelcomeSuggestionsRoot>
 ```
 
-The sub-level rows inherit `density` and `separators` from the stack. The stack mirrors `indicator`, and any explicitly set `density` or `separators`, as `data-*` attributes on `[data-slot="aui_thread-welcome-stack"]` for CSS overrides. `WelcomeSuggestionsPicker` accepts `density` and `separators` too, so the pills layout's panel can share the same look.
+The sub-level rows inherit `density` and `separators` from the stack. The stack mirrors `indicator`, and any explicitly set `density` or `separators`, as `data-*` attributes on `[data-slot="aui_thread-welcome-stack"]` for CSS overrides.
 
-## Custom composition
+## Pills + picker layout
 
-The default export composes exported subcomponents you can arrange yourself: `WelcomeSuggestionsRoot`, `WelcomeSuggestionsPills`, `WelcomeSuggestionsPicker`, `WelcomeSuggestionsPickerItem`, `WelcomeSuggestionsList`, `WelcomeSuggestionsStack`, and the `useWelcomeSuggestions` context hook.
+The alternative layout renders groups as a horizontal pill row; opening a group replaces the row with a picker panel. Compose it from the same root:
 
 ```tsx
 <WelcomeSuggestionsRoot suggestions={WELCOME_SUGGESTIONS}>
@@ -138,7 +127,13 @@ The default export composes exported subcomponents you can arrange yourself: `We
 </WelcomeSuggestionsRoot>
 ```
 
-When composing your own picker rows, `WelcomeSuggestionsPickerItem` accepts the same `density` and `separators` options as the stack. `WelcomeSuggestionsList` renders flat entries only; use `WelcomeSuggestionsStack` when groups are present.
+Pills are tab stops: <kbd>←</kbd>/<kbd>→</kbd> move focus and <kbd>↓</kbd> or <kbd>Enter</kbd> opens a group; flat entries render as pills that send directly. The open panel behaves exactly like the stack's sub-level, driven by the composer with the same keys. `WelcomeSuggestionsPicker` accepts `density` and `separators`, so the panel can share the stack's look.
+
+## Custom composition
+
+The default export composes exported subcomponents you can arrange yourself: `WelcomeSuggestionsRoot`, `WelcomeSuggestionsStack`, `WelcomeSuggestionsPills`, `WelcomeSuggestionsPicker`, `WelcomeSuggestionsPickerItem`, and the `useWelcomeSuggestions` context hook.
+
+When composing your own picker rows, `WelcomeSuggestionsPickerItem` accepts the same `density` and `separators` options as the stack.
 
 ## Related Components
 

@@ -79,9 +79,6 @@ const [PickerCollection, usePickerCollection] =
 const [PillCollection, usePillCollection] =
   CollectionPrimitive.createCollection<HTMLButtonElement>("ThreadWelcomePills");
 
-const [ListCollection, useListCollection] =
-  CollectionPrimitive.createCollection<HTMLButtonElement>("ThreadWelcomeList");
-
 const [StackCollection, useStackCollection] =
   CollectionPrimitive.createCollection<HTMLButtonElement>("ThreadWelcomeStack");
 
@@ -283,13 +280,11 @@ export const WelcomeSuggestionsRoot: FC<{
 }> = ({ suggestions, send = true, children }) => (
   <PickerCollection.Provider scope={undefined}>
     <PillCollection.Provider scope={undefined}>
-      <ListCollection.Provider scope={undefined}>
-        <StackCollection.Provider scope={undefined}>
-          <WelcomeSuggestionsState suggestions={suggestions} send={send}>
-            {children}
-          </WelcomeSuggestionsState>
-        </StackCollection.Provider>
-      </ListCollection.Provider>
+      <StackCollection.Provider scope={undefined}>
+        <WelcomeSuggestionsState suggestions={suggestions} send={send}>
+          {children}
+        </WelcomeSuggestionsState>
+      </StackCollection.Provider>
     </PillCollection.Provider>
   </PickerCollection.Provider>
 );
@@ -361,48 +356,6 @@ export const WelcomeSuggestionsPills: FC = () => {
         </div>
       </PillCollection.Slot>
     </div>
-  );
-};
-
-export const WelcomeSuggestionsList: FC = () => {
-  const { entries, send } = useWelcomeSuggestions();
-  const getListItems = useListCollection(undefined);
-  const items = entries.filter((e): e is SuggestionItem => !isGroup(e));
-
-  const onItemKeyDown = (e: ReactKeyboardEvent<HTMLButtonElement>) => {
-    if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
-    const nodes = getListItems()
-      .map((item) => item.ref.current)
-      .filter((node): node is HTMLButtonElement => node !== null);
-    const next =
-      nodes[nodes.indexOf(e.currentTarget) + (e.key === "ArrowDown" ? 1 : -1)];
-    if (next) {
-      next.focus();
-      e.preventDefault();
-    }
-  };
-
-  return (
-    <ListCollection.Slot scope={undefined}>
-      <div
-        data-slot="aui_thread-welcome-suggestions-list"
-        className="flex w-full flex-col"
-      >
-        {items.map((item, idx) => (
-          <ListCollection.ItemSlot key={idx} scope={undefined}>
-            <ThreadPrimitive.Suggestion
-              prompt={promptOf(item)}
-              send={send}
-              data-slot="aui_thread-welcome-list-item"
-              className={welcomeSuggestionRowVariants()}
-              onKeyDown={onItemKeyDown}
-            >
-              {item.label}
-            </ThreadPrimitive.Suggestion>
-          </ListCollection.ItemSlot>
-        ))}
-      </div>
-    </ListCollection.Slot>
   );
 };
 
@@ -859,24 +812,11 @@ export const WelcomeSuggestionsStack: FC<WelcomeSuggestionsStackProps> = ({
   );
 };
 
-const WelcomeSuggestionsContent: FC = () => {
-  const { entries } = useWelcomeSuggestions();
-  if (entries.some(isGroup)) {
-    return (
-      <>
-        <WelcomeSuggestionsPills />
-        <WelcomeSuggestionsPicker />
-      </>
-    );
-  }
-  return <WelcomeSuggestionsList />;
-};
-
 export const ThreadWelcomeSuggestions: FC<{
   suggestions?: readonly SuggestionEntry[] | undefined;
   send?: boolean | undefined;
 }> = ({ suggestions, send }) => (
   <WelcomeSuggestionsRoot suggestions={suggestions} send={send}>
-    <WelcomeSuggestionsContent />
+    <WelcomeSuggestionsStack />
   </WelcomeSuggestionsRoot>
 );

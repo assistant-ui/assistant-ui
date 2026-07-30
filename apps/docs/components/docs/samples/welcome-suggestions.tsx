@@ -220,6 +220,18 @@ export const WelcomeSuggestionsSample = () => {
         </div>
         <div className="grid gap-8 md:grid-cols-2">
           <VariantColumn
+            label="Stacked (default)"
+            hint={<>Tab to the list, ↑ ↓ move, → opens</>}
+          >
+            <WelcomeSuggestionsRoot suggestions={SUGGESTIONS}>
+              <WelcomeSuggestionsStack
+                density={density}
+                separators={separators}
+                indicator={chevron ? "chevron" : "none"}
+              />
+            </WelcomeSuggestionsRoot>
+          </VariantColumn>
+          <VariantColumn
             label="Pills + picker"
             hint={<>click a pill, or Tab to one; ← → move, ↓ opens</>}
             hintClassName="translate-x-5"
@@ -229,18 +241,6 @@ export const WelcomeSuggestionsSample = () => {
               <WelcomeSuggestionsPicker
                 density={density}
                 separators={separators}
-              />
-            </WelcomeSuggestionsRoot>
-          </VariantColumn>
-          <VariantColumn
-            label="Stacked"
-            hint={<>Tab to the list, ↑ ↓ move, → opens</>}
-          >
-            <WelcomeSuggestionsRoot suggestions={SUGGESTIONS}>
-              <WelcomeSuggestionsStack
-                density={density}
-                separators={separators}
-                indicator={chevron ? "chevron" : "none"}
               />
             </WelcomeSuggestionsRoot>
           </VariantColumn>
