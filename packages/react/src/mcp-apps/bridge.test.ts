@@ -124,6 +124,44 @@ describe("createMcpAppBridge", () => {
     bridge.dispose();
   });
 
+  it("returns an error response when onError throws", async () => {
+    const { frame, captured } = makeFrame();
+    const callTool = vi.fn().mockRejectedValue(new Error("tool failed"));
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const onError = vi.fn(() => {
+      throw new Error("error callback failed");
+    });
+    const bridge = createMcpAppBridge({
+      frame,
+      handlers: { callTool, onError },
+    });
+
+    deliver(bridge, {
+      jsonrpc: "2.0",
+      id: 8,
+      method: "tools/call",
+      params: { name: "search" },
+    });
+    await flush();
+
+    expect(onError).toHaveBeenCalledWith(new Error("tool failed"));
+    expect(captured).toEqual([
+      {
+        jsonrpc: "2.0",
+        id: 8,
+        error: { code: -32603, message: "tool failed" },
+      },
+    ]);
+    expect(consoleError).toHaveBeenCalledWith(
+      "[assistant-ui] MCP App onError callback threw an error",
+      new Error("error callback failed"),
+    );
+    consoleError.mockRestore();
+    bridge.dispose();
+  });
+
   it("rejects tools/call for disallowed tool with -32602", async () => {
     const { frame, captured } = makeFrame();
     const callTool = vi.fn();
@@ -400,7 +438,12 @@ describe("createMcpAppBridge", () => {
   it("invokes onLog / onError / onRequestTeardown for notifications", () => {
     const { frame } = makeFrame();
     const onLog = vi.fn();
-    const onError = vi.fn();
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const onError = vi.fn(() => {
+      throw new Error("error callback failed");
+    });
     const onRequestTeardown = vi.fn();
     const bridge = createMcpAppBridge({
       frame,
@@ -426,6 +469,11 @@ describe("createMcpAppBridge", () => {
     expect(onLog).toHaveBeenCalledWith({ level: "info", message: "hello" });
     expect(onError).toHaveBeenCalled();
     expect(onRequestTeardown).toHaveBeenCalledWith({ reason: "done" });
+    expect(consoleError).toHaveBeenCalledWith(
+      "[assistant-ui] MCP App onError callback threw an error",
+      new Error("error callback failed"),
+    );
+    consoleError.mockRestore();
     bridge.dispose();
   });
 });

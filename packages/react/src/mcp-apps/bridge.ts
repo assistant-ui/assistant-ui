@@ -123,6 +123,17 @@ export function createMcpAppBridge(
     });
   };
 
+  const reportError = (error: Error) => {
+    try {
+      handlers.onError?.(error);
+    } catch (callbackError) {
+      console.error(
+        "[assistant-ui] MCP App onError callback threw an error",
+        callbackError,
+      );
+    }
+  };
+
   const handleRequest = async (req: McpAppJsonRpcRequest) => {
     try {
       const params = req.params;
@@ -376,7 +387,7 @@ export function createMcpAppBridge(
       }
     } catch (err) {
       const error = err instanceof Error ? err : new Error(String(err));
-      handlers.onError?.(error);
+      reportError(error);
       errorResponse(req.id, JSONRPC_ERROR.internalError, error.message);
     }
   };
@@ -405,7 +416,7 @@ export function createMcpAppBridge(
       }
       case "notifications/error": {
         const p = (note.params ?? {}) as { message?: string };
-        handlers.onError?.(
+        reportError(
           new Error(typeof p.message === "string" ? p.message : "Widget error"),
         );
         return;
