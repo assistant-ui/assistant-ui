@@ -36,6 +36,37 @@ const COMPLETE_STATUS: MessagePartStatus = Object.freeze({
   type: "complete",
 });
 
+const normalizePartStatus = (
+  part: ThreadUserMessagePart | ThreadAssistantMessagePart,
+): MessagePartStatus | undefined => {
+  const status = (part as { readonly status?: unknown }).status;
+  if (!status || typeof status !== "object") return undefined;
+
+  const { type } = status as { readonly type?: unknown };
+  if (type === "running") return { type: "running" };
+  if (type === "complete") return COMPLETE_STATUS;
+  if (type !== "incomplete") return undefined;
+
+  const { reason, error } = status as {
+    readonly reason?: unknown;
+    readonly error?: unknown;
+  };
+  const normalizedReason =
+    reason === "cancelled" ||
+    reason === "length" ||
+    reason === "content-filter" ||
+    reason === "other" ||
+    reason === "error"
+      ? reason
+      : "other";
+
+  return {
+    type: "incomplete",
+    reason: normalizedReason,
+    ...("error" in status ? { error } : undefined),
+  };
+};
+
 export const toMessagePartStatus = (
   message: ThreadMessage,
   partIndex: number,
@@ -49,6 +80,11 @@ export const toMessagePartStatus = (
     } else {
       return COMPLETE_STATUS;
     }
+  }
+
+  if (message.status.type === "running") {
+    const status = normalizePartStatus(part);
+    if (status) return status;
   }
 
   const isLastPart = partIndex === Math.max(0, message.content.length - 1);
@@ -67,10 +103,18 @@ const getMessagePartState = (
 
   // if the message part is the same, don't update
   const status = toMessagePartStatus(message, partIndex, part);
+  if (part.type === "tool-call") {
+    return Object.freeze({
+      ...part,
+      ...{ [symbolInnerMessage]: (part as any)[symbolInnerMessage] },
+      status,
+    });
+  }
+
   return Object.freeze({
     ...part,
     ...{ [symbolInnerMessage]: (part as any)[symbolInnerMessage] },
-    status,
+    status: status as MessagePartStatus,
   });
 };
 

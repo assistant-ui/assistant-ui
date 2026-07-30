@@ -14,6 +14,7 @@ export type PartProviderMetadata = {
 export type TextMessagePart = {
   readonly type: "text";
   readonly text: string;
+  readonly status?: MessagePartStatus;
   readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };
@@ -21,6 +22,7 @@ export type TextMessagePart = {
 export type ReasoningMessagePart = {
   readonly type: "reasoning";
   readonly text: string;
+  readonly status?: MessagePartStatus;
   readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };
