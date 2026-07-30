@@ -123,14 +123,20 @@ export function createMcpAppBridge(
     });
   };
 
+  const reportErrorCallbackFailure = (error: unknown) => {
+    console.error(
+      "[assistant-ui] MCP App onError callback threw an error",
+      error,
+    );
+  };
+
   const reportError = (error: Error) => {
     try {
-      handlers.onError?.(error);
-    } catch (callbackError) {
-      console.error(
-        "[assistant-ui] MCP App onError callback threw an error",
-        callbackError,
+      void Promise.resolve(handlers.onError?.(error)).catch(
+        reportErrorCallbackFailure,
       );
+    } catch (callbackError) {
+      reportErrorCallbackFailure(callbackError);
     }
   };
 
@@ -416,7 +422,7 @@ export function createMcpAppBridge(
       }
       case "notifications/error": {
         const p = (note.params ?? {}) as { message?: string };
-        reportError(
+        handlers.onError?.(
           new Error(typeof p.message === "string" ? p.message : "Widget error"),
         );
         return;
