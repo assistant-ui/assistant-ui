@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { render, waitFor } from "@testing-library/react";
-import { resource, useResource } from "@assistant-ui/tap";
+import { resource, useResource, withKey } from "@assistant-ui/tap";
 import { memo } from "react";
 import type {
   ToolCallMessagePartComponent,
@@ -92,21 +92,17 @@ function RemoteHarness({
   url,
   headers,
   fetch,
-  hostKey,
+  resourceKey,
 }: {
   url: string;
   headers: NonNullable<McpAppsRemoteHostOptions["headers"]>;
   fetch: typeof globalThis.fetch;
-  hostKey?: string | number;
+  resourceKey?: string | number;
 }) {
+  const host = McpAppsRemoteHost({ url, headers, fetch });
   const renderer = useResource(
     McpAppRenderer({
-      host: McpAppsRemoteHost({
-        url,
-        headers,
-        fetch,
-        ...(hostKey !== undefined ? { hostKey } : {}),
-      }),
+      host: resourceKey === undefined ? host : withKey(resourceKey, host),
     }),
   );
   return <MemoizedPart Renderer={renderer.render} />;
@@ -284,7 +280,7 @@ describe("McpAppRenderer", () => {
     expect(fetch).toHaveBeenCalledTimes(2);
   });
 
-  it("uses hostKey to reload resources without callback identity churn", async () => {
+  it("uses resource keys to reload dynamic headers without callback identity churn", async () => {
     const fetch = vi.fn(
       async (url: string | URL | Request, init?: RequestInit) =>
         Response.json({
@@ -298,7 +294,7 @@ describe("McpAppRenderer", () => {
       <RemoteHarness
         url="/host"
         headers={() => ({ authorization: "Bearer a" })}
-        hostKey="workspace-a"
+        resourceKey="workspace-a"
         fetch={fetch}
       />,
     );
@@ -312,7 +308,7 @@ describe("McpAppRenderer", () => {
       <RemoteHarness
         url="/host"
         headers={() => ({ authorization: "Bearer a" })}
-        hostKey="workspace-a"
+        resourceKey="workspace-a"
         fetch={fetch}
       />,
     );
@@ -322,7 +318,7 @@ describe("McpAppRenderer", () => {
       <RemoteHarness
         url="/host"
         headers={() => ({ authorization: "Bearer b" })}
-        hostKey="workspace-b"
+        resourceKey="workspace-b"
         fetch={fetch}
       />,
     );

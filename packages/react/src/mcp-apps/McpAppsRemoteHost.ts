@@ -112,7 +112,6 @@ const useMcpAppsRemoteHost = (
     };
   }
   const staticHeaders = headersRef.current.value;
-  const hostKey = options.hostKey;
   const url = options.url;
 
   return useMemo((): McpAppsHost => {
@@ -120,7 +119,6 @@ const useMcpAppsRemoteHost = (
       const current = optionsRef.current;
       return {
         url,
-        ...(hostKey !== undefined ? { hostKey } : {}),
         ...(current.fetch !== undefined ? { fetch: current.fetch } : {}),
         ...(typeof current.headers === "function"
           ? { headers: current.headers }
@@ -143,7 +141,7 @@ const useMcpAppsRemoteHost = (
       listResources: (params) =>
         postToHost(getCurrentOptions(), "resources/list", params),
     };
-  }, [hostKey, staticHeaders, url]);
+  }, [staticHeaders, url]);
 };
 
 export const McpAppsRemoteHost = resource(useMcpAppsRemoteHost);
