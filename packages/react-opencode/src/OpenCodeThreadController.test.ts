@@ -4,6 +4,23 @@ import { STREAM_RECONNECTED_EVENT_TYPE } from "./OpenCodeEventSource";
 import { rejectWhenThrowing } from "./testUtils";
 import type { OpenCodeServerEvent } from "./types";
 
+const getOpenCodeTaskSessionIdSpy = vi.hoisted(() => vi.fn());
+
+vi.mock("./openCodeTaskSession", async (importOriginal) => {
+  const original =
+    await importOriginal<typeof import("./openCodeTaskSession")>();
+
+  return {
+    ...original,
+    getOpenCodeTaskSessionId: (
+      part: Parameters<typeof original.getOpenCodeTaskSessionId>[0],
+    ) => {
+      getOpenCodeTaskSessionIdSpy(part);
+      return original.getOpenCodeTaskSessionId(part);
+    },
+  };
+});
+
 const createDeferred = <T>() => {
   let resolve!: (value: T) => void;
   let reject!: (error: unknown) => void;
@@ -362,6 +379,56 @@ describe("OpenCodeThreadController", () => {
     unsubscribe();
 
     expect(eventSource.unsubscribe).toHaveBeenCalledTimes(1);
+  });
+
+  it("inspects only the updated part during live child-session sync", async () => {
+    getOpenCodeTaskSessionIdSpy.mockClear();
+    const eventSource = createEventSource();
+    const message = {
+      ...createTaskMessage("ses_parent", "parent-assistant", []),
+      parts: Array.from({ length: 50 }, (_, index) => ({
+        id: `parent-text-${index}`,
+        sessionID: "ses_parent",
+        messageID: "parent-assistant",
+        type: "text",
+        text: `Part ${index}`,
+      })),
+    };
+    const client = {
+      session: {
+        get: vi.fn().mockResolvedValue({
+          data: { id: "ses_parent", title: "Parent", time: {} },
+        }),
+        messages: vi.fn().mockResolvedValue({ data: [message] }),
+      },
+    };
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => eventSource,
+      "ses_parent",
+    );
+    const unsubscribe = controller.subscribe(vi.fn());
+
+    await controller.load();
+    const inspectionsAfterLoad = getOpenCodeTaskSessionIdSpy.mock.calls.length;
+
+    eventSource.emit({
+      type: "message.part.updated",
+      sessionId: "ses_parent",
+      properties: {
+        part: {
+          ...message.parts[0],
+          text: "Updated",
+        },
+      },
+      raw: {},
+    });
+
+    expect(getOpenCodeTaskSessionIdSpy).toHaveBeenCalledTimes(
+      inspectionsAfterLoad + 1,
+    );
+
+    unsubscribe();
   });
 
   it("defers child-session work until the parent has a listener", async () => {
@@ -896,6 +963,73 @@ describe("OpenCodeThreadController", () => {
     unsubscribe();
 
     expect(eventSource.unsubscribe).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps a child controller while another Task part references it", async () => {
+    const eventSource = createEventSource();
+    const client = {
+      session: {
+        get: vi.fn(({ sessionID }: { sessionID: string }) =>
+          Promise.resolve({
+            data: { id: sessionID, title: sessionID, time: {} },
+          }),
+        ),
+        messages: vi.fn(({ sessionID }: { sessionID: string }) =>
+          Promise.resolve({
+            data:
+              sessionID === "ses_parent"
+                ? [
+                    createTaskMessage("ses_parent", "parent-assistant", [
+                      "ses_child",
+                      "ses_child",
+                    ]),
+                  ]
+                : [],
+          }),
+        ),
+      },
+    };
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => eventSource,
+      "ses_parent",
+    );
+    const unsubscribe = controller.subscribe(vi.fn());
+
+    await controller.load();
+    await vi.waitFor(() => {
+      expect(
+        controller.getState().childSessionsById.ses_child?.loadState.type,
+      ).toBe("ready");
+    });
+
+    eventSource.emit({
+      type: "message.part.removed",
+      sessionId: "ses_parent",
+      properties: {
+        messageID: "parent-assistant",
+        partID: "parent-assistant-task-0",
+      },
+      raw: {},
+    });
+
+    expect(controller.getState().childSessionsById.ses_child).toBeDefined();
+    expect(eventSource.unsubscribe).not.toHaveBeenCalled();
+
+    eventSource.emit({
+      type: "message.part.removed",
+      sessionId: "ses_parent",
+      properties: {
+        messageID: "parent-assistant",
+        partID: "parent-assistant-task-1",
+      },
+      raw: {},
+    });
+
+    expect(controller.getState().childSessionsById).toEqual({});
+    expect(eventSource.unsubscribe).toHaveBeenCalledTimes(1);
+
+    unsubscribe();
   });
 
   it("does not attach descendants from a removed Task's in-flight history", async () => {

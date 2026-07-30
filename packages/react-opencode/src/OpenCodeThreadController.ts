@@ -14,6 +14,7 @@ import type {
   OpenCodePermissionRequest,
   OpenCodePermissionResponse,
   OpenCodeQuestionRequest,
+  Part,
   QuestionAnswer,
   OpenCodeServerEvent,
   OpenCodeStateEvent,
@@ -37,12 +38,6 @@ type ChildControllerEntry = {
   controller: OpenCodeThreadController;
   unsubscribe: (() => void) | null;
 };
-
-const shouldSyncChildControllers = (event: OpenCodeStateEvent) =>
-  event.type === "history.loaded" ||
-  event.type === "message.removed" ||
-  event.type === "part.updated" ||
-  event.type === "part.removed";
 
 const createLocalId = (prefix: string) =>
   `${prefix}_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
@@ -197,6 +192,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     string,
     ChildControllerEntry
   >();
+  private readonly childSessionIdByPartId = new Map<string, string>();
   private ancestorSessionIds: ReadonlySet<string>;
   private isChildSession = false;
   private readonly stagedMessages = new Map<
@@ -277,18 +273,45 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
       entry.controller.discard();
     }
     this.childControllersById.clear();
+    this.childSessionIdByPartId.clear();
     this.listeners.clear();
   }
 
-  private syncChildControllers() {
-    const sessionIds = new Set<string>();
+  private rebuildChildSessionIndex() {
+    this.childSessionIdByPartId.clear();
     for (const message of Object.values(this.state.messagesById)) {
       for (const part of message.parts) {
         const sessionId = getOpenCodeTaskSessionId(part);
-        if (sessionId && !this.ancestorSessionIds.has(sessionId)) {
-          sessionIds.add(sessionId);
+        if (sessionId) {
+          this.childSessionIdByPartId.set(part.id, sessionId);
         }
       }
+    }
+    this.syncChildControllers();
+  }
+
+  private updateChildSessionIndex(part: Part) {
+    const previousSessionId = this.childSessionIdByPartId.get(part.id);
+    const sessionId = getOpenCodeTaskSessionId(part);
+    if (sessionId === previousSessionId) return;
+
+    if (sessionId) {
+      this.childSessionIdByPartId.set(part.id, sessionId);
+    } else {
+      this.childSessionIdByPartId.delete(part.id);
+    }
+    this.syncChildControllers();
+  }
+
+  private removeFromChildSessionIndex(partId: string) {
+    if (!this.childSessionIdByPartId.delete(partId)) return;
+    this.syncChildControllers();
+  }
+
+  private syncChildControllers() {
+    const sessionIds = new Set(this.childSessionIdByPartId.values());
+    for (const sessionId of this.ancestorSessionIds) {
+      sessionIds.delete(sessionId);
     }
 
     let childSessionsById = this.state.childSessionsById;
@@ -335,6 +358,23 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     for (const [sessionId, entry] of added) {
       if (this.listeners.size === 0) break;
       this.attachChildController(sessionId, entry);
+    }
+  }
+
+  private syncChildSessionIndex(event: OpenCodeStateEvent) {
+    switch (event.type) {
+      case "history.loaded":
+      case "message.removed":
+        this.rebuildChildSessionIndex();
+        break;
+      case "part.updated":
+        this.updateChildSessionIndex(event.part);
+        break;
+      case "part.removed":
+        this.removeFromChildSessionIndex(event.partId);
+        break;
+      default:
+        break;
     }
   }
 
@@ -890,9 +930,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     const nextState = reduceOpenCodeThreadState(this.state, event);
     if (nextState === this.state) return;
     this.state = nextState;
-    if (shouldSyncChildControllers(event)) {
-      this.syncChildControllers();
-    }
+    this.syncChildSessionIndex(event);
     this.notifyListeners();
   }
 }
