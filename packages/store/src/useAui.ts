@@ -225,11 +225,11 @@ const useScopeMounts = (entries: ScopeEntry[]): ScopeAccessor[] =>
     entries.map(([name, element]) => withKey(name, ScopeMount(name, element))),
   );
 
-// Commits the freshly built client only when its identity-relevant inputs
-// changed: value-only updates keep the committed client's identity, a
-// structural change produces a new one
+// Creates and commits a client only when its identity-relevant inputs change:
+// value-only updates keep the committed client's identity, while a structural
+// change produces a new one
 const useCommittedClient = (
-  building: AssistantClient,
+  create: () => AssistantClient,
   deps: readonly unknown[],
 ): AssistantClient => {
   const stableDeps = useShallowStable(deps);
@@ -239,7 +239,7 @@ const useCommittedClient = (
   );
   if (cell.deps !== stableDeps) {
     cell.deps = stableDeps;
-    cell.client = building;
+    cell.client = create();
   }
   return cell.client!;
 };
@@ -273,7 +273,7 @@ const useAuiRoot = ({
   // Fresh envelope per commit so value-only updates reach the store's
   // subscribers; the client inside keeps its identity
   return {
-    client: useCommittedClient(building, [parent, ...accessors]),
+    client: useCommittedClient(() => building, [parent, ...accessors]),
   };
 };
 
@@ -336,7 +336,6 @@ const useHostedAssistantClient = (props: {
 };
 
 const useDerivedScopeMount = (
-  building: AssistantClient,
   name: ClientNames,
   element: ScopeElement,
 ): ScopeAccessor => {
@@ -347,8 +346,6 @@ const useDerivedScopeMount = (
     () => createAccessor(name, meta, () => value),
     [name, meta, value],
   );
-
-  (building as Record<ClientNames, unknown>)[name] = accessor;
 
   return accessor;
 };
@@ -371,16 +368,23 @@ const useDerivedOnlyClient = (
     }
   }
 
-  const building = createClientObject(parent, {
-    subscribe: parent.subscribe,
-    on: parent.on,
-  });
-
   const accessors = entries.map(([name, element]) =>
-    // oxlint-disable-next-line react-hooks/rules-of-hooks -- fixed per call site; React throws on a count change
-    useDerivedScopeMount(building, name, element),
+    // oxlint-disable-next-line react-hooks/rules-of-hooks -- useAui scope shape is fixed per call site
+    useDerivedScopeMount(name, element),
   );
-  return useCommittedClient(building, [parent, ...accessors]);
+  // Accessor identity includes the scope name, so renaming a scope invalidates
+  // these dependencies before the factory reads the new entries.
+  return useCommittedClient(() => {
+    const client = createClientObject(parent, {
+      subscribe: parent.subscribe,
+      on: parent.on,
+    });
+    const scopes = client as unknown as Record<ClientNames, ScopeAccessor>;
+    for (let index = 0; index < entries.length; index++) {
+      scopes[entries[index]![0]] = accessors[index]!;
+    }
+    return client;
+  }, [parent, ...accessors]);
 };
 
 const useScopedClient = (
