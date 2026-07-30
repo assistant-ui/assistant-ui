@@ -372,6 +372,32 @@ const MyModelAdapter: ChatModelAdapter = {
 
 Each yield replaces the previous content. Yield the full state every time, not deltas.
 
+### Only the last part streams
+
+A part reports `status.type === "running"` only while it is the last part of the message. Every earlier part reads as complete, and the components that react to streaming follow that status: the reasoning disclosure auto-opens and pins its live preview while its part is running, and part status indicators resolve the same way.
+
+That makes an empty trailing part destructive. Yielding `[reasoning, text("")]` to reserve the text slot marks the reasoning part complete the moment the empty text part appears, even though reasoning is still streaming, and nothing in the UI signals why. Add a part on its first token instead of reserving it:
+
+```tsx
+let reasoning = "";
+let text = "";
+
+for await (const part of stream) {
+  reasoning += part.reasoningDelta ?? "";
+  text += part.textDelta ?? "";
+
+  yield {
+    content: [
+      { type: "reasoning" as const, text: reasoning },
+      // Only include the text part once it has content
+      ...(text ? [{ type: "text" as const, text }] : []),
+    ],
+  };
+}
+```
+
+The same applies to any part type: an empty placeholder at the end of the content array completes everything before it.
+
 ### Streaming with tool calls
 
 Accumulate tool calls in a `Map` outside the streaming loop so they persist across chunks:
