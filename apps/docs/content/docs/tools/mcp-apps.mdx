@@ -70,13 +70,15 @@ pnpm add @assistant-ui/tap
 ```tsx
 import { withKey } from "@assistant-ui/tap";
 
-const host = withKey(
-  workspaceId,
-  McpAppsRemoteHost({
-    url: "/api/mcp-apps",
-    headers: () => getWorkspaceHeaders(workspaceId),
-  }),
-);
+const mcpApp = McpAppRenderer({
+  host: withKey(
+    workspaceId,
+    McpAppsRemoteHost({
+      url: "/api/mcp-apps",
+      headers: () => getWorkspaceHeaders(workspaceId),
+    }),
+  ),
+});
 ```
 
 `openLink` is auto-wired to `window.open(url, "_blank", "noopener,noreferrer")`. `sendMessage` is auto-wired to append a user message to the current thread (accepts `string`, `{ prompt }`, `{ text }`, or `{ message }`).
