@@ -2579,6 +2579,7 @@ declare const McpAppsRemoteHost: Resource<McpAppsHost, [
 
 type McpAppsRemoteHostOptions = {
   url: string;
+  hostKey?: string | number;
   fetch?: typeof fetch;
   headers?: Record<string, string> | (() => Record<string, string> | Promise<Record<string, string>>);
 };
