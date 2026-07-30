@@ -196,7 +196,12 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
   });
 
   const [isRunning, setIsRunning] = useState(false);
-  const [isLoadingThread, setIsLoadingThread] = useState(false);
+  const [isLoadingThread, setIsLoadingThread] = useState(
+    () =>
+      load !== undefined &&
+      aui.threadListItem.source !== null &&
+      aui.threadListItem.getState().externalId != null,
+  );
   const [toolStatuses, setToolStatuses] = useState<
     Record<string, ToolExecutionStatus>
   >({});
