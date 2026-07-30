@@ -769,6 +769,7 @@ type ReadonlyJSONValue = null | string | number | boolean | ReadonlyJSONObject |
 type ReasoningMessagePart = {
   readonly type: "reasoning";
   readonly text: string;
+  readonly status?: MessagePartStatus;
   readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };
@@ -1191,6 +1192,7 @@ type TeamsTextSize = "extraLarge" | "large" | "medium" | "small";
 type TextMessagePart = {
   readonly type: "text";
   readonly text: string;
+  readonly status?: MessagePartStatus;
   readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };

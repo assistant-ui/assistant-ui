@@ -1180,6 +1180,7 @@ type RealtimeVoiceAdapter = {
 type ReasoningMessagePart = {
   readonly type: "reasoning";
   readonly text: string;
+  readonly status?: MessagePartStatus;
   readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };
@@ -1306,6 +1307,7 @@ declare const TOOL_RESPONSE_SYMBOL: unique symbol;
 type TextMessagePart = {
   readonly type: "text";
   readonly text: string;
+  readonly status?: MessagePartStatus;
   readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };
