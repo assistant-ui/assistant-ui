@@ -136,7 +136,7 @@ export function XuluxCanvas({
       document.body.appendChild(link);
       link.click();
       link.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 0);
+      setTimeout(() => URL.revokeObjectURL(url), 40_000);
       trackXuluxDownload(analyticsCtx, {
         surface: "canvas",
         download_type: "sandbox",
