@@ -16,6 +16,26 @@ describe("scheduler update depth", () => {
     expect(schedulers.every((scheduler) => !scheduler.isDirty)).toBe(true);
   });
 
+  it("throws inside the markDirty call that schedules the run past the limit", () => {
+    let caught: unknown;
+    let selfRuns = 0;
+    const self: UpdateScheduler = new UpdateScheduler(() => {
+      selfRuns++;
+      try {
+        self.markDirty();
+      } catch (error) {
+        caught = error;
+      }
+    });
+
+    flushTapSync(() => self.markDirty());
+
+    expect(selfRuns).toBe(50);
+    expect(caught).toBeInstanceOf(Error);
+    expect((caught as Error).message).toMatch(/Maximum update depth exceeded/);
+    expect((caught as Error).stack).toContain("markDirty");
+  });
+
   it("stops a self-re-dirtying scheduler after the limit without starving others", () => {
     let selfRuns = 0;
     const self: UpdateScheduler = new UpdateScheduler(() => {
@@ -38,7 +58,7 @@ describe("scheduler update depth", () => {
     expect(otherRan).toBe(true);
   });
 
-  it("recovers the offending scheduler on the next flush", () => {
+  it("leaves the offender clean and resumes on the next external markDirty", () => {
     let looping = true;
     let runCount = 0;
     const scheduler: UpdateScheduler = new UpdateScheduler(() => {
@@ -49,7 +69,7 @@ describe("scheduler update depth", () => {
     expect(() => flushTapSync(() => scheduler.markDirty())).toThrow(
       /Maximum update depth exceeded/,
     );
-    expect(scheduler.isDirty).toBe(true);
+    expect(scheduler.isDirty).toBe(false);
 
     looping = false;
     const runsBefore = runCount;

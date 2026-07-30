@@ -12,6 +12,7 @@ let flushState: GlobalFlushState = {
   schedulers: new Set([]),
   isScheduled: false,
 };
+let activeDrainRuns: Map<UpdateScheduler, number> | null = null;
 
 export class UpdateScheduler {
   private _isDirty = false;
@@ -27,6 +28,16 @@ export class UpdateScheduler {
   }
 
   markDirty() {
+    if (
+      activeDrainRuns &&
+      (activeDrainRuns.get(this) ?? 0) >= MAX_UPDATE_DEPTH
+    ) {
+      throw new Error(
+        `Maximum update depth exceeded. This can happen when a resource ` +
+          `repeatedly calls setState inside useEffect.`,
+      );
+    }
+
     this._isDirty = true;
 
     flushState.schedulers.add(this);
@@ -34,6 +45,8 @@ export class UpdateScheduler {
   }
 
   runTask() {
+    activeDrainRuns?.set(this, (activeDrainRuns.get(this) ?? 0) + 1);
+
     this._isDirty = false;
     this._task();
   }
@@ -46,30 +59,15 @@ const scheduleFlush = () => {
 };
 
 const flushScheduled = () => {
+  // save/restore: flushTapSync re-enters flushScheduled with its own flushState
+  const prevDrainRuns = activeDrainRuns;
+  activeDrainRuns = new Map();
   try {
     const errors = [];
-    const runs = new Map<UpdateScheduler, number>();
-    let depthExceeded = false;
 
     for (const scheduler of flushState.schedulers) {
       flushState.schedulers.delete(scheduler);
       if (!scheduler.isDirty) continue;
-
-      const count = (runs.get(scheduler) ?? 0) + 1;
-      runs.set(scheduler, count);
-
-      if (count > MAX_UPDATE_DEPTH) {
-        if (!depthExceeded) {
-          depthExceeded = true;
-          errors.push(
-            new Error(
-              `Maximum update depth exceeded. This can happen when a resource ` +
-                `repeatedly calls setState inside useEffect.`,
-            ),
-          );
-        }
-        continue;
-      }
 
       try {
         scheduler.runTask();
@@ -80,6 +78,7 @@ const flushScheduled = () => {
 
     throwAggregated(errors, "Errors occurred during flushSync");
   } finally {
+    activeDrainRuns = prevDrainRuns;
     flushState.schedulers.clear();
     flushState.isScheduled = false;
   }
