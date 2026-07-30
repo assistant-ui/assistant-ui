@@ -467,6 +467,9 @@ importers:
       '@ai-sdk/openai':
         specifier: ^4.0.20
         version: 4.0.20(zod@4.4.3)
+      '@assistant-ui/eve':
+        specifier: workspace:*
+        version: link:../../packages/eve
       '@assistant-ui/react':
         specifier: workspace:*
         version: link:../../packages/react
