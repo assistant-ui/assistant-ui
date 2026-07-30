@@ -708,48 +708,19 @@ export function fromAgUiMessages(
         : null;
       const operations = activityContent?.["a2ui_operations"];
       if (!Array.isArray(operations)) continue;
-      const messageId =
-        (activityContent
-          ? getString(activityContent, "messageId")
-          : undefined) ?? getString(rawMessage, "messageId");
-      let replace: boolean | undefined =
-        typeof rawMessage.replace === "boolean"
-          ? rawMessage.replace
-          : undefined;
-      if (replace === undefined && activityContent) {
-        const contentReplace = activityContent["replace"];
-        if (typeof contentReplace === "boolean") replace = contentReplace;
-      }
 
       let ownerIndex = -1;
-      if (messageId !== undefined) {
-        for (let i = converted.length - 1; i >= 0; i--) {
-          const candidate = converted[i];
-          if (
-            candidate &&
-            candidate.role === "assistant" &&
-            candidate.id === messageId
-          ) {
-            ownerIndex = i;
-            break;
-          }
-        }
-      }
-      if (ownerIndex === -1) {
-        for (let i = converted.length - 1; i >= 0; i--) {
-          const candidate = converted[i];
-          if (candidate && candidate.role === "assistant") {
-            ownerIndex = i;
-            break;
-          }
+      for (let i = converted.length - 1; i >= 0; i--) {
+        const candidate = converted[i];
+        if (candidate && candidate.role === "assistant") {
+          ownerIndex = i;
+          break;
         }
       }
       if (ownerIndex === -1) continue;
 
       const owner = converted[ownerIndex]!;
-      const bucketKey =
-        getString(rawMessage, "id") ?? messageId ?? "a2ui:anonymous";
-      if (replace === false && a2uiBuckets.has(bucketKey)) continue;
+      const bucketKey = getString(rawMessage, "id") ?? "a2ui:anonymous";
       const { state } = applyA2uiOperations(new Map(), operations);
       a2uiBuckets.delete(bucketKey);
       a2uiBucketOwnerIndices.delete(bucketKey);

@@ -1783,27 +1783,6 @@ describe("a2ui surface rehydration from restored activity messages", () => {
     ).toBe("Here is the dashboard");
   });
 
-  it("targets the assistant referenced by the activity messageId over a more recent one", () => {
-    const result = fromAgUiMessages([
-      { id: "a-1", role: "assistant", content: "first" },
-      { id: "a-2", role: "assistant", content: "second" },
-      {
-        id: "act-1",
-        role: "activity",
-        activityType: "a2ui-surface",
-        content: {
-          a2ui_operations: a2uiSurfaceOperations("surface-1", "Welcome"),
-          messageId: "a-1",
-        },
-      },
-    ] as any);
-
-    const first = result.find((m: any) => m.id === "a-1") as any;
-    const second = result.find((m: any) => m.id === "a-2") as any;
-    expectSurfacePart(findA2uiPart(first), "surface-1", "Welcome");
-    expect(findA2uiPart(second)).toBeUndefined();
-  });
-
   it("preserves existing tool calls and text alongside the rehydrated a2ui part", () => {
     const result = fromAgUiMessages([
       {
@@ -1901,46 +1880,6 @@ describe("a2ui surface rehydration from restored activity messages", () => {
     expect(a2uiParts[0].args).toEqual({
       $type: "Markdown",
       value: "Replacement",
-    });
-  });
-
-  it("keeps the first snapshot when a later replace-false activity targets the same owner", () => {
-    const result = fromAgUiMessages([
-      { id: "a-1", role: "assistant", content: "ok" },
-      {
-        id: "act-1",
-        role: "activity",
-        activityType: "a2ui-surface",
-        content: {
-          a2ui_operations: a2uiSurfaceOperations("surface-1", "Original"),
-        },
-      },
-      {
-        id: "act-2",
-        role: "activity",
-        activityType: "a2ui-surface",
-        content: {
-          replace: false,
-          a2ui_operations: [
-            {
-              version: "v0.9",
-              updateDataModel: {
-                surfaceId: "surface-1",
-                data: { title: "Incremental" },
-              },
-            },
-          ],
-        },
-      },
-    ] as any);
-
-    const assistant = result[0] as any;
-    expect(findA2uiPart(assistant).args).toMatchObject({
-      $type: "Col",
-      children: [
-        { $type: "Header", text: "Original" },
-        { $type: "Markdown", value: "Original body" },
-      ],
     });
   });
 
