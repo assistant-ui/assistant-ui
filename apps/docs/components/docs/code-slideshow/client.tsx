@@ -50,6 +50,13 @@ const tooltip: AnnotationHandler = {
   ),
 };
 
+const TouchTarget = () => (
+  <span
+    className="absolute top-1/2 left-1/2 size-[max(100%,3rem)] -translate-1/2 pointer-fine:hidden"
+    aria-hidden="true"
+  />
+);
+
 export const CodeSlideshowClient = ({
   steps,
   testId,
@@ -58,10 +65,9 @@ export const CodeSlideshowClient = ({
   testId?: string | undefined;
 }) => {
   const [nav, setNav] = useState({ index: 0, prevIndex: -1, epoch: 0 });
-  const lastStepIndex = steps.length - 1;
   const step = steps[nav.index]!;
   const isFirst = nav.index === 0;
-  const isLast = nav.index === lastStepIndex;
+  const isLast = nav.index === steps.length - 1;
 
   const crossesCut = (from: number, to: number) =>
     steps
@@ -126,6 +132,10 @@ export const CodeSlideshowClient = ({
     [steps, nav, hardCut],
   );
 
+  const dimmed =
+    annotations.length > 0 ||
+    step.code.annotations.some((annotation) => annotation.name === "mark");
+
   const collapseSettled =
     nav.prevIndex < 0 ||
     hardCut ||
@@ -176,14 +186,7 @@ export const CodeSlideshowClient = ({
           </div>
           <div
             ref={scrollRef}
-            data-dimmed={
-              annotations.length ||
-              step.code.annotations.some(
-                (annotation) => annotation.name === "mark",
-              )
-                ? ""
-                : undefined
-            }
+            data-dimmed={dimmed ? "" : undefined}
             className="not-fumadocs-codeblock h-96 overflow-auto text-[0.8125rem]"
           >
             <CollapseSettledContext.Provider value={collapseSettled}>
@@ -219,10 +222,7 @@ export const CodeSlideshowClient = ({
               disabled={isFirst}
               className="text-fd-muted-foreground hover:text-fd-foreground relative"
             >
-              <span
-                className="absolute top-1/2 left-1/2 size-[max(100%,3rem)] -translate-1/2 pointer-fine:hidden"
-                aria-hidden="true"
-              />
+              <TouchTarget />
               <ChevronLeftIcon />
               Back
             </Button>
@@ -231,10 +231,7 @@ export const CodeSlideshowClient = ({
               onClick={() => goTo(isLast ? 0 : nav.index + 1)}
               className="relative"
             >
-              <span
-                className="absolute top-1/2 left-1/2 size-[max(100%,3rem)] -translate-1/2 pointer-fine:hidden"
-                aria-hidden="true"
-              />
+              <TouchTarget />
               {isLast ? (
                 <>
                   <RotateCcwIcon />

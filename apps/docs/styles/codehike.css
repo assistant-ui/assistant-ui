@@ -59,10 +59,6 @@
   --ch-26: #0d1117e6;
 }
 
-.code-slideshow [data-changed] {
-  animation: code-line-changed 400ms ease 250ms backwards;
-}
-
 .code-slideshow [data-line] {
   transition: opacity 300ms ease;
 }
@@ -71,8 +67,15 @@
   opacity: 0.5;
 }
 
-.ch-collapse-trigger[data-state="closed"]::after {
-  animation: ch-hint-in 200ms ease 400ms backwards;
+.code-slideshow [data-changed] {
+  animation: code-line-changed 400ms ease 250ms backwards;
+}
+
+@keyframes code-line-changed {
+  from {
+    background-color: transparent;
+    border-left-color: transparent;
+  }
 }
 
 .code-slideshow .ch-tooltip {
@@ -83,6 +86,10 @@
   from {
     border-color: transparent;
   }
+}
+
+.ch-collapse-trigger[data-state="closed"]::after {
+  animation: ch-hint-in 200ms ease 400ms backwards;
 }
 
 @keyframes ch-hint-in {
@@ -122,23 +129,11 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ch-collapse-content[data-state="open"],
-  .ch-collapse-content[data-state="closed"],
+  .code-slideshow [data-changed],
+  .code-slideshow .ch-tooltip,
   .ch-collapse-trigger[data-state="closed"]::after,
-  .code-slideshow .ch-tooltip {
-    animation: none;
-  }
-}
-
-@keyframes code-line-changed {
-  from {
-    background-color: transparent;
-    border-left-color: transparent;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .code-slideshow [data-changed] {
+  .ch-collapse-content[data-state="open"],
+  .ch-collapse-content[data-state="closed"] {
     animation: none;
   }
 }
