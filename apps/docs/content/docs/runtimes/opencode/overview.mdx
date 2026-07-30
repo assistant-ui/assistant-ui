@@ -28,6 +28,12 @@ If your backend is not OpenCode-based, see [picking a runtime](/docs/runtimes/pi
 - A running [OpenCode](https://opencode.ai/) server (defaults to `http://localhost:4096`).
 - React 18 or 19.
 
+## Sub-agent conversations
+
+OpenCode `task` tool calls expose their child session through tool metadata. The runtime loads those child sessions, keeps them synchronized from the same OpenCode event stream, and projects their transcripts into `ToolCallMessagePart.messages`. Parallel and recursively nested tasks are supported.
+
+Use assistant-ui's [`MessagePartPrimitive.Messages`](/docs/tools/multi-agent) inside a `task` tool renderer to display the child conversation. Nested conversations are read-only and inherit the parent thread's tool renderers.
+
 ## Install
 
 <InstallCommand npm={["@assistant-ui/react", "@assistant-ui/react-opencode", "@opencode-ai/sdk"]} />

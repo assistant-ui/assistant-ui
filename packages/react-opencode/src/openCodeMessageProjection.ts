@@ -15,6 +15,7 @@ import {
   projectOpenCodePermissionApproval,
   projectResolvedOpenCodePermissionApproval,
 } from "./openCodePermissionApproval";
+import { getOpenCodeTaskSessionId } from "./openCodeTaskSession";
 
 type ProjectedContentPart = Exclude<
   OpenCodeProjectedThreadMessage["content"],
@@ -281,6 +282,15 @@ const projectAssistantContent = (
       case "tool": {
         const toolState = mapToolState(part.state);
         const toolCallId = part.callID ?? part.id ?? `tool-${index}`;
+        const childSessionId = getOpenCodeTaskSessionId(part);
+        const childState = childSessionId
+          ? state.childSessionsById[childSessionId]
+          : undefined;
+        const childMessages = childState
+          ? ExportedMessageRepository.fromArray(
+              projectOpenCodeThreadMessages(childState),
+            ).messages.map(({ message }) => message)
+          : undefined;
         const permission = getPendingPermissionForToolCall(state, toolCallId);
         const resolvedPermission = permission
           ? undefined
@@ -295,6 +305,7 @@ const projectAssistantContent = (
             ? { result: toolState.result }
             : {}),
           ...(toolState.isError ? { isError: true } : {}),
+          ...(childMessages !== undefined ? { messages: childMessages } : {}),
           ...(permission
             ? { approval: projectOpenCodePermissionApproval(permission) }
             : resolvedPermission
@@ -594,10 +605,10 @@ const projectPendingMessage = (
   },
 });
 
-export const projectOpenCodeThreadMessages = (
+export function projectOpenCodeThreadMessages(
   state: OpenCodeThreadState,
   messageTiming: Record<string, MessageTiming> = {},
-): OpenCodeProjectedThreadMessage[] => {
+): OpenCodeProjectedThreadMessage[] {
   const mergedServerMessages = mergeServerMessages(
     state.messageOrder.flatMap((messageId: string) => {
       const message = state.messagesById[messageId];
@@ -620,7 +631,7 @@ export const projectOpenCodeThreadMessages = (
     .map((pending) => projectPendingMessage(pending));
 
   return mergeProjectedMessages(serverMessages, pendingMessages);
-};
+}
 
 export const projectOpenCodeThreadRepository = (
   state: OpenCodeThreadState,

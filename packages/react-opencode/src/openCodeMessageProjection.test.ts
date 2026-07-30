@@ -143,6 +143,273 @@ describe("projectOpenCodeThreadMessages", () => {
     ]);
   });
 
+  it("projects Task child sessions into nested tool-call messages", () => {
+    const grandchildState: OpenCodeThreadState = {
+      ...createOpenCodeThreadState("ses_grandchild"),
+      messageOrder: ["grandchild-assistant"],
+      messagesById: {
+        "grandchild-assistant": {
+          id: "grandchild-assistant",
+          info: {
+            id: "grandchild-assistant",
+            role: "assistant",
+            sessionID: "ses_grandchild",
+            parentID: "grandchild-user",
+            modelID: "model",
+            providerID: "provider",
+            mode: "subagent",
+            path: { cwd: "/", root: "/" },
+            cost: 0,
+            tokens: {
+              input: 0,
+              output: 0,
+              reasoning: 0,
+              cache: { read: 0, write: 0 },
+            },
+            time: { created: 4 },
+            finish: "stop",
+          } as never,
+          parts: [
+            {
+              id: "grandchild-text",
+              sessionID: "ses_grandchild",
+              messageID: "grandchild-assistant",
+              type: "text",
+              text: "The nested dependency is healthy.",
+            } as never,
+          ],
+          shadowParts: undefined,
+        },
+      },
+    };
+    const childState: OpenCodeThreadState = {
+      ...createOpenCodeThreadState("ses_child"),
+      childSessionsById: { ses_grandchild: grandchildState },
+      messageOrder: ["child-user", "child-assistant"],
+      messagesById: {
+        "child-user": {
+          id: "child-user",
+          info: {
+            id: "child-user",
+            role: "user",
+            sessionID: "ses_child",
+            time: { created: 2 },
+          } as never,
+          parts: [
+            {
+              id: "child-user-text",
+              sessionID: "ses_child",
+              messageID: "child-user",
+              type: "text",
+              text: "Inspect the package",
+            } as never,
+          ],
+          shadowParts: undefined,
+        },
+        "child-assistant": {
+          id: "child-assistant",
+          info: {
+            id: "child-assistant",
+            role: "assistant",
+            sessionID: "ses_child",
+            parentID: "child-user",
+            modelID: "model",
+            providerID: "provider",
+            mode: "subagent",
+            path: { cwd: "/", root: "/" },
+            cost: 0,
+            tokens: {
+              input: 0,
+              output: 0,
+              reasoning: 0,
+              cache: { read: 0, write: 0 },
+            },
+            time: { created: 3 },
+            finish: "stop",
+          } as never,
+          parts: [
+            {
+              id: "child-assistant-text",
+              sessionID: "ses_child",
+              messageID: "child-assistant",
+              type: "text",
+              text: "The package is healthy.",
+            } as never,
+            {
+              id: "child-task",
+              callID: "child-task-call",
+              sessionID: "ses_child",
+              messageID: "child-assistant",
+              type: "tool",
+              tool: "task",
+              state: {
+                status: "completed",
+                input: { description: "Inspect nested dependency" },
+                output: "Done",
+                metadata: { sessionId: "ses_grandchild" },
+              },
+            } as never,
+          ],
+          shadowParts: undefined,
+        },
+      },
+    };
+    const state: OpenCodeThreadState = {
+      ...createOpenCodeThreadState("ses_parent"),
+      childSessionsById: { ses_child: childState },
+      messageOrder: ["assistant-1"],
+      messagesById: {
+        "assistant-1": {
+          id: "assistant-1",
+          info: {
+            id: "assistant-1",
+            role: "assistant",
+            sessionID: "ses_parent",
+            parentID: "user-1",
+            modelID: "model",
+            providerID: "provider",
+            mode: "primary",
+            path: { cwd: "/", root: "/" },
+            cost: 0,
+            tokens: {
+              input: 0,
+              output: 0,
+              reasoning: 0,
+              cache: { read: 0, write: 0 },
+            },
+            time: { created: 1 },
+            finish: "stop",
+          } as never,
+          parts: [
+            {
+              id: "tool-1",
+              callID: "call-1",
+              sessionID: "ses_parent",
+              messageID: "assistant-1",
+              type: "tool",
+              tool: "task",
+              state: {
+                status: "completed",
+                input: { description: "Review package" },
+                output: "Done",
+                metadata: { sessionId: "ses_child" },
+              },
+            } as never,
+          ],
+          shadowParts: undefined,
+        },
+      },
+    };
+
+    const messages = projectOpenCodeThreadMessages(state);
+    const tool = messages[0]?.content[0];
+
+    expect(tool).toMatchObject({
+      type: "tool-call",
+      toolName: "task",
+      messages: [
+        { id: "child-user", role: "user" },
+        { id: "child-assistant", role: "assistant" },
+      ],
+    });
+    if (typeof tool === "string" || tool?.type !== "tool-call") {
+      throw new Error("Expected a task tool call");
+    }
+    expect(tool.messages?.[0]?.content).toEqual([
+      { type: "text", text: "Inspect the package" },
+    ]);
+    expect(tool.messages?.[1]?.content).toEqual([
+      { type: "text", text: "The package is healthy." },
+      expect.objectContaining({
+        type: "tool-call",
+        toolName: "task",
+        messages: [
+          expect.objectContaining({
+            id: "grandchild-assistant",
+            role: "assistant",
+            content: [
+              {
+                type: "text",
+                text: "The nested dependency is healthy.",
+              },
+            ],
+          }),
+        ],
+      }),
+    ]);
+  });
+
+  it("does not associate non-Task tools or invalid child metadata", () => {
+    const state: OpenCodeThreadState = {
+      ...createOpenCodeThreadState("ses_parent"),
+      childSessionsById: {
+        ses_child: createOpenCodeThreadState("ses_child"),
+      },
+      messageOrder: ["assistant-1"],
+      messagesById: {
+        "assistant-1": {
+          id: "assistant-1",
+          info: {
+            id: "assistant-1",
+            role: "assistant",
+            sessionID: "ses_parent",
+            parentID: "user-1",
+            modelID: "model",
+            providerID: "provider",
+            mode: "primary",
+            path: { cwd: "/", root: "/" },
+            cost: 0,
+            tokens: {
+              input: 0,
+              output: 0,
+              reasoning: 0,
+              cache: { read: 0, write: 0 },
+            },
+            time: { created: 1 },
+            finish: "stop",
+          } as never,
+          parts: [
+            {
+              id: "tool-1",
+              callID: "call-1",
+              sessionID: "ses_parent",
+              messageID: "assistant-1",
+              type: "tool",
+              tool: "read",
+              state: {
+                status: "completed",
+                input: {},
+                output: "Done",
+                metadata: { sessionId: "ses_child" },
+              },
+            } as never,
+            {
+              id: "tool-2",
+              callID: "call-2",
+              sessionID: "ses_parent",
+              messageID: "assistant-1",
+              type: "tool",
+              tool: "task",
+              state: {
+                status: "completed",
+                input: {},
+                output: "Done",
+                metadata: { sessionId: 42 },
+              },
+            } as never,
+          ],
+          shadowParts: undefined,
+        },
+      },
+    };
+
+    const messages = projectOpenCodeThreadMessages(state);
+    expect(messages[0]?.content).toEqual([
+      expect.not.objectContaining({ messages: expect.anything() }),
+      expect.not.objectContaining({ messages: expect.anything() }),
+    ]);
+  });
+
   it("marks assistant messages with pending permission requests as requires-action", () => {
     const state: OpenCodeThreadState = {
       ...createOpenCodeThreadState("ses_1"),

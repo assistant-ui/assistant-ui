@@ -253,6 +253,7 @@ export const createOpenCodeThreadState = (
   runState: { type: "idle" },
   messageOrder: [],
   messagesById: {} as Readonly<Record<string, OpenCodeServerMessage>>,
+  childSessionsById: {} as Readonly<Record<string, OpenCodeThreadState>>,
   pendingUserMessages: {} as Readonly<Record<string, PendingUserMessage>>,
   interactions: {
     permissions: {
