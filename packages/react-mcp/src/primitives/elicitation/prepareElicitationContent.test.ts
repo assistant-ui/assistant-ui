@@ -280,6 +280,21 @@ describe("prepareElicitationContent", () => {
     ).toEqual({ content: { note: "" }, missingRequired: [], invalid: [] });
   });
 
+  it("ignores an empty-string default the enum does not admit", () => {
+    expect(
+      prepareElicitationContent(
+        {
+          type: "object",
+          required: ["color"],
+          properties: {
+            color: { type: "string", enum: ["red", "blue"], default: "" },
+          },
+        },
+        { color: "" },
+      ),
+    ).toEqual({ content: {}, missingRequired: ["color"], invalid: [] });
+  });
+
   it("keeps an empty string the schema defaults to", () => {
     expect(
       prepareElicitationContent(
