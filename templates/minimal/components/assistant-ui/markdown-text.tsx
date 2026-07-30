@@ -142,7 +142,7 @@ const defaultComponents = memoizeMarkdownComponents({
   ),
   a: ({ className, href, children, ...props }) => {
     const label = typeof children === "string" ? children.trim() : undefined;
-    if (label && /^\d{1,3}$/.test(label)) {
+    if (label && /^\d{1,3}$/.test(label) && href && /^https?:\/\//.test(href)) {
       return (
         <a
           href={href}
@@ -166,7 +166,9 @@ const defaultComponents = memoizeMarkdownComponents({
         )}
         href={href}
         {...props}
-      />
+      >
+        {children}
+      </a>
     );
   },
   blockquote: ({ className, ...props }) => (

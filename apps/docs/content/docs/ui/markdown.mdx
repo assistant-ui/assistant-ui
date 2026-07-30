@@ -56,7 +56,7 @@ const AssistantMessage: FC = () => {
 
 ## Inline citations
 
-Links whose text is only a number, e.g. `[1](https://example.com)`, render as compact citation badges inside the streamed text and open the source in a new tab. All other links render as regular underlined links.
+Links whose text is only a number and that point to an absolute `http(s)` URL, e.g. `[1](https://example.com)`, render as compact citation badges inside the streamed text and open the source in a new tab. All other links — including GFM footnote references — render as regular underlined links.
 
 To produce inline citations, instruct your model accordingly:
 
