@@ -23,8 +23,13 @@ const coerceValue = (schema: unknown, value: unknown): unknown => {
 const isBooleanSchema = (schema: unknown): schema is Record<string, unknown> =>
   isRecord(schema) && schema.type === "boolean";
 
+const isNonStringTypedSchema = (schema: Record<string, unknown>): boolean =>
+  schema.type === "boolean" ||
+  schema.type === "number" ||
+  schema.type === "integer";
+
 const schemaAdmitsEmptyString = (schema: unknown): boolean => {
-  if (!isRecord(schema)) return false;
+  if (!isRecord(schema) || isNonStringTypedSchema(schema)) return false;
 
   const values = Object.hasOwn(schema, "enum") ? schema.enum : undefined;
   if (Array.isArray(values)) return values.includes("");

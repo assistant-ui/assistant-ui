@@ -222,6 +222,38 @@ describe("prepareElicitationContent", () => {
     ).toEqual({ content: {}, missingRequired: [], invalid: [] });
   });
 
+  it("ignores empty-string defaults and enums on non-string schemas", () => {
+    expect(
+      prepareElicitationContent(
+        {
+          type: "object",
+          properties: {
+            limit: { type: "number", default: "" },
+            count: { type: "integer", enum: [1, 2, ""] },
+          },
+        },
+        { limit: "", count: "" },
+      ),
+    ).toEqual({ content: {}, missingRequired: [], invalid: [] });
+  });
+
+  it("seeds a required boolean whose schema declares an empty-string default", () => {
+    expect(
+      prepareElicitationContent(
+        {
+          type: "object",
+          required: ["enabled"],
+          properties: { enabled: { type: "boolean", default: "" } },
+        },
+        { enabled: "" },
+      ),
+    ).toEqual({
+      content: { enabled: false },
+      missingRequired: [],
+      invalid: [],
+    });
+  });
+
   it("reports a cleared required enum draft as missing instead of invalid", () => {
     expect(
       prepareElicitationContent(
