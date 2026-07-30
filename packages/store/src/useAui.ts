@@ -25,7 +25,7 @@ import type {
   ClientElement,
   ClientMethods,
 } from "./types/client";
-import { useDerived, type DerivedElement } from "./Derived";
+import { useDerived, type Derived, type DerivedElement } from "./Derived";
 import {
   useAssistantContextValue,
   useAssistantContextProvider,
@@ -357,23 +357,31 @@ const useHostedAssistantClient = (props: {
   return client;
 };
 
-// The building-client context can only be provided inside a fiber, so each
-// scope mount carries its own provider
-const useDerivedOnlyScopeMount = (
+const useDerivedScopeMount = (
   building: AssistantClient,
   name: ClientNames,
   element: ScopeElement,
-): ScopeResult =>
-  useAssistantContextProvider(building, function WithBuildingClient() {
-    return useScopeMount(name, element);
-  });
+): ScopeResult => {
+  const value = useDerived(element.args[0] as Derived.Props<ClientNames>);
+  const state = (value as { getState?: () => unknown }).getState?.();
 
-const DerivedOnlyScopeMount = resource(useDerivedOnlyScopeMount);
+  const meta = useScopeMeta(element);
+  const accessor = useMemo(
+    () => createAccessor(name, meta, () => value),
+    [name, meta, value],
+  );
 
-// Derived-only hosts run without a tap root: no store, no notification
-// manager, no effects handshake. useResources self-hosts on React state, so
-// the scope set stays dynamic; subscribe/on delegate wholesale to the parent,
-// so emissions and state updates flow through the parent's machinery.
+  if (!Object.hasOwn(building, name)) {
+    (building as Record<ClientNames, unknown>)[name] = accessor;
+  }
+
+  return useMemo(() => ({ name, accessor, state }), [name, accessor, state]);
+};
+
+// Derived-only hosts run without tap: each Derived scope is a plain React
+// hook call, so the scope count is fixed per call site (React throws on a
+// hook-count change). subscribe/on delegate wholesale to the parent, so
+// emissions and state updates flow through the parent's machinery.
 const useDerivedOnlyClient = (
   parent: AssistantClient,
   entries: ScopeEntry[],
@@ -394,10 +402,9 @@ const useDerivedOnlyClient = (
   );
   const building = createClientObject(parent, fields);
 
-  const results = useResources(
-    entries.map(([name, element]) =>
-      withKey(name, DerivedOnlyScopeMount(building, name, element)),
-    ),
+  const results = entries.map(([name, element]) =>
+    // oxlint-disable-next-line react-hooks/rules-of-hooks -- fixed per call site; React throws on a count change
+    useDerivedScopeMount(building, name, element),
   );
 
   const accessors = useShallowStable(results.map((r) => r.accessor));
