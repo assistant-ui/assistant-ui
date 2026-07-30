@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { LangGraphMessageAccumulator } from "./LangGraphMessageAccumulator";
+import { appendLangChainChunk } from "./appendLangChainChunk";
 import type { LangChainMessage, UIMessage } from "./types";
 
 const makeUIMessage = (
@@ -356,5 +357,97 @@ describe("LangGraphMessageAccumulator reconcileMessages", () => {
     const result = acc.reconcileMessages([]);
     expect(result).toHaveLength(1);
     expect(result[0]!.id).toBe("ai-1");
+  });
+});
+
+describe("LangGraphMessageAccumulator values-path appendMessage", () => {
+  // The chunk path routes through appendMessage, where the partial_json
+  // carry-forward lives. The values path (replaceMessages / reconcileMessages)
+  // must route through the same hook so the carry runs there too; otherwise a
+  // values-mode reconcile re-introduces the full server AIMessage and drops the
+  // streamed partial_json.
+  const streamedPartialJson = '{"q":"test"}';
+  type AiMessage = Extract<LangChainMessage, { type: "ai" }>;
+
+  const streamChunk = (): LangChainMessage =>
+    ({
+      type: "AIMessageChunk",
+      id: "ai-1",
+      content: "",
+      tool_call_chunks: [
+        { id: "tc-1", index: 0, name: "search", args: streamedPartialJson },
+      ],
+    }) as unknown as LangChainMessage;
+
+  const fullAiMessage = (): LangChainMessage => ({
+    id: "ai-1",
+    type: "ai",
+    content: "Let me search",
+    tool_calls: [{ id: "tc-1", index: 0, name: "search", args: { q: "test" } }],
+  });
+
+  const toolMessage = (): LangChainMessage => ({
+    id: "tool-1",
+    type: "tool",
+    content: "r",
+    tool_call_id: "tc-1",
+    name: "search",
+    status: "success",
+  });
+
+  const makeAcc = () =>
+    new LangGraphMessageAccumulator<LangChainMessage>({
+      appendMessage: appendLangChainChunk,
+    });
+
+  const aiMessageOf = (
+    acc: LangGraphMessageAccumulator<LangChainMessage>,
+  ): AiMessage | undefined =>
+    acc.getMessages().find((m) => m.id === "ai-1") as AiMessage | undefined;
+
+  const partialJsonOf = (
+    acc: LangGraphMessageAccumulator<LangChainMessage>,
+  ): string | undefined => aiMessageOf(acc)?.tool_calls?.[0]?.partial_json;
+
+  it("carries streamed partial_json through reconcileMessages", () => {
+    const acc = makeAcc();
+    acc.addMessages([streamChunk()]);
+    expect(partialJsonOf(acc)).toBe(streamedPartialJson);
+
+    acc.reconcileMessages([fullAiMessage()]);
+    expect(partialJsonOf(acc)).toBe(streamedPartialJson);
+    // The carry fills only partial_json; server-authoritative content wins.
+    expect(aiMessageOf(acc)?.content).toBe("Let me search");
+  });
+
+  it("carries streamed partial_json through replaceMessages", () => {
+    const acc = makeAcc();
+    acc.addMessages([streamChunk()]);
+    expect(partialJsonOf(acc)).toBe(streamedPartialJson);
+
+    acc.replaceMessages([fullAiMessage()]);
+    expect(partialJsonOf(acc)).toBe(streamedPartialJson);
+  });
+
+  it("replaceMessages still drops messages absent from the snapshot", () => {
+    const acc = makeAcc();
+    acc.addMessages([streamChunk()]);
+    acc.addMessages([toolMessage()]);
+    expect(acc.getMessages().map((m) => m.id)).toEqual(["ai-1", "tool-1"]);
+
+    acc.replaceMessages([fullAiMessage()]);
+    expect(acc.getMessages().map((m) => m.id)).toEqual(["ai-1"]);
+    expect(partialJsonOf(acc)).toBe(streamedPartialJson);
+  });
+
+  it("reconcileMessages still preserves tuple-only messages absent from the snapshot", () => {
+    const acc = makeAcc();
+    acc.addMessages([streamChunk()]);
+    acc.addMessages([toolMessage()]);
+    expect(acc.getMessages().map((m) => m.id)).toEqual(["ai-1", "tool-1"]);
+
+    acc.reconcileMessages([fullAiMessage()]);
+    expect(acc.getMessages().map((m) => m.id)).toEqual(["ai-1", "tool-1"]);
+    expect(partialJsonOf(acc)).toBe(streamedPartialJson);
   });
 });

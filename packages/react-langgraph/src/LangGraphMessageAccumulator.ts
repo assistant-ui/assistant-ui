@@ -102,11 +102,16 @@ export class LangGraphMessageAccumulator<TMessage extends { id?: string }> {
   }
 
   public replaceMessages(newMessages: TMessage[]): TMessage[] {
+    // Snapshot before the clear so appendMessage receives the prior entry as
+    // `previous`; routing the values path through the hook keeps the
+    // partial_json carry-forward consistent with the chunk path.
+    const previousMessages = new Map(this.messagesMap);
     this.messagesMap.clear();
     this.metadataMap.clear();
 
     for (const message of newMessages.map(this.ensureMessageId)) {
-      this.messagesMap.set(message.id!, message);
+      const previous = previousMessages.get(message.id!);
+      this.messagesMap.set(message.id!, this.appendMessage(previous, message));
     }
     return this.getMessages();
   }
@@ -114,7 +119,8 @@ export class LangGraphMessageAccumulator<TMessage extends { id?: string }> {
   // upsert-only: tuple-only messages (e.g. subgraph internals absent from parent `values`) are preserved
   public reconcileMessages(serverMessages: TMessage[]): TMessage[] {
     for (const message of serverMessages.map(this.ensureMessageId)) {
-      this.messagesMap.set(message.id!, message);
+      const previous = this.messagesMap.get(message.id!);
+      this.messagesMap.set(message.id!, this.appendMessage(previous, message));
     }
     return this.getMessages();
   }
