@@ -188,7 +188,7 @@ describe("McpAppRenderer", () => {
     );
   });
 
-  it("reloads remote resources when the URL or headers change", async () => {
+  it("reloads remote resources when the URL changes and keeps headers current", async () => {
     const fetch = vi.fn(
       async (url: string | URL | Request, init?: RequestInit) =>
         Response.json({
@@ -231,13 +231,21 @@ describe("McpAppRenderer", () => {
         fetch={fetch}
       />,
     );
-    await waitFor(() =>
-      expect(framePropsMock.mock.lastCall?.[0].resource.html).toBe(
-        "/host-b:Bearer b",
-      ),
+    expect(fetch).toHaveBeenCalledTimes(2);
+    await framePropsMock.mock.lastCall?.[0].handlers.callTool({
+      name: "search",
+    });
+    expect(fetch).toHaveBeenNthCalledWith(
+      3,
+      "/host-b",
+      expect.objectContaining({
+        headers: {
+          "content-type": "application/json",
+          authorization: "Bearer b",
+        },
+      }),
     );
 
-    expect(fetch).toHaveBeenCalledTimes(3);
     view.rerender(
       <RemoteHarness
         url="/host-b"
@@ -248,7 +256,7 @@ describe("McpAppRenderer", () => {
     expect(fetch).toHaveBeenCalledTimes(3);
   });
 
-  it("reloads remote resources when a static headers object is mutated", async () => {
+  it("keeps mutated static headers current without reloading the resource", async () => {
     const fetch = vi.fn(
       async (url: string | URL | Request, init?: RequestInit) =>
         Response.json({
@@ -272,10 +280,19 @@ describe("McpAppRenderer", () => {
     view.rerender(
       <RemoteHarness url="/host" headers={headers} fetch={fetch} />,
     );
-    await waitFor(() =>
-      expect(framePropsMock.mock.lastCall?.[0].resource.html).toBe(
-        "/host:Bearer b",
-      ),
+    expect(fetch).toHaveBeenCalledTimes(1);
+    await framePropsMock.mock.lastCall?.[0].handlers.callTool({
+      name: "search",
+    });
+    expect(fetch).toHaveBeenNthCalledWith(
+      2,
+      "/host",
+      expect.objectContaining({
+        headers: {
+          "content-type": "application/json",
+          authorization: "Bearer b",
+        },
+      }),
     );
     expect(fetch).toHaveBeenCalledTimes(2);
   });

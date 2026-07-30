@@ -39,18 +39,6 @@ const readErrorBody = async (res: Response): Promise<string | undefined> => {
   }
 };
 
-const getStaticHeadersIdentity = (
-  headers: McpAppsRemoteHostOptions["headers"],
-) => {
-  if (typeof headers === "function") return undefined;
-  if (headers === undefined) return undefined;
-  return JSON.stringify(
-    Object.entries(headers).sort(([left], [right]) =>
-      left.localeCompare(right),
-    ),
-  );
-};
-
 async function postToHost(
   options: McpAppsRemoteHostOptions,
   method: string,
@@ -91,27 +79,6 @@ const useMcpAppsRemoteHost = (
   const optionsRef = useRef(options);
   optionsRef.current = options;
 
-  const headersIdentity = getStaticHeadersIdentity(options.headers);
-  const headersRef = useRef<{
-    identity: ReturnType<typeof getStaticHeadersIdentity>;
-    value: Record<string, string> | undefined;
-  }>({
-    identity: headersIdentity,
-    value:
-      typeof options.headers === "function" || options.headers === undefined
-        ? undefined
-        : { ...options.headers },
-  });
-  if (!Object.is(headersRef.current.identity, headersIdentity)) {
-    headersRef.current = {
-      identity: headersIdentity,
-      value:
-        typeof options.headers === "function" || options.headers === undefined
-          ? undefined
-          : { ...options.headers },
-    };
-  }
-  const staticHeaders = headersRef.current.value;
   const url = options.url;
 
   return useMemo((): McpAppsHost => {
@@ -120,11 +87,7 @@ const useMcpAppsRemoteHost = (
       return {
         url,
         ...(current.fetch !== undefined ? { fetch: current.fetch } : {}),
-        ...(typeof current.headers === "function"
-          ? { headers: current.headers }
-          : staticHeaders !== undefined
-            ? { headers: staticHeaders }
-            : {}),
+        ...(current.headers !== undefined ? { headers: current.headers } : {}),
       };
     };
     return {
@@ -141,7 +104,7 @@ const useMcpAppsRemoteHost = (
       listResources: (params) =>
         postToHost(getCurrentOptions(), "resources/list", params),
     };
-  }, [staticHeaders, url]);
+  }, [url]);
 };
 
 export const McpAppsRemoteHost = resource(useMcpAppsRemoteHost);

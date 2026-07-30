@@ -59,7 +59,13 @@ function MyAssistant() {
 
 `McpAppsRemoteHost` is the default host strategy — it POSTs `{ method, params }` to your route. A different strategy (e.g. a client-side MCP client) can be plugged in by writing a custom resource that returns the same `McpAppsHost` shape (`{ loadResource, callTool, readResource, listResources }`).
 
-Callback `headers` and custom `fetch` references may change between renders without reloading the widget. When a callback begins targeting a different account or workspace, key the host resource with that identity:
+Changes to `headers` or a custom `fetch` function apply to subsequent host requests without reloading the widget. When the account or workspace identity changes, key the host resource explicitly so its UI resource reloads.
+
+Install the resource helper:
+
+```bash
+pnpm add @assistant-ui/tap
+```
 
 ```tsx
 import { withKey } from "@assistant-ui/tap";
