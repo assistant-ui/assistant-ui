@@ -1069,6 +1069,7 @@ declare class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   private loadPromise;
   private reconnectSyncToken;
   private readonly childControllersById;
+  private readonly childSessionIdByPartId;
   private ancestorSessionIds;
   private isChildSession;
   private readonly stagedMessages;
@@ -1080,7 +1081,11 @@ declare class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   private attachChildController;
   private detachChildControllers;
   private discard;
+  private rebuildChildSessionIndex;
+  private updateChildSessionIndex;
+  private removeFromChildSessionIndex;
   private syncChildControllers;
+  private syncChildSessionIndex;
   private ensureEventSubscription;
   private handleStreamReconnect;
   dispose(): void;
