@@ -7,13 +7,13 @@ export function LearnCourseSpotlight() {
     <section className="border-primary/20 bg-primary/[0.055] mt-6 grid w-full grid-cols-1 items-center gap-4 rounded-2xl border px-5 py-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-6">
       <div className="min-w-0">
         <div className="text-primary text-[11px] font-semibold tracking-[0.08em] uppercase">
-          New · Guided course
+          New · Interactive course
         </div>
         <h2 className="mt-1 text-base font-semibold tracking-tight sm:text-lg">
-          Build your first assistant-ui application
+          Not sure what to build? Build your first AI app
         </h2>
         <p className="text-muted-foreground mt-1 text-xs">
-          Eight focused lessons · About 45 min · No setup required
+          Interactive lessons · Live code and preview · No setup required
         </p>
       </div>
 

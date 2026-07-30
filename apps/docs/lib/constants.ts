@@ -120,9 +120,9 @@ export const NAV_ITEMS: NavItem[] = [
         label: "Learn",
         items: [
           {
-            label: "Course",
+            label: "Interactive course",
             href: "/learn",
-            description: "Build assistant-ui through a guided course",
+            description: "Build your first AI app, step by step",
             external: false,
           },
           {

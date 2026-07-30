@@ -11,9 +11,9 @@ describe("global navigation", () => {
 
     const learn = resources.groups.find((group) => group.label === "Learn");
     expect(learn?.items[0]).toEqual({
-      label: "Course",
+      label: "Interactive course",
       href: "/learn",
-      description: "Build assistant-ui through a guided course",
+      description: "Build your first AI app, step by step",
       external: false,
     });
   });
