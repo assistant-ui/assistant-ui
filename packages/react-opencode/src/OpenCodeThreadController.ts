@@ -299,6 +299,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
       childSessionsById = remaining;
     }
 
+    const added: [string, ChildControllerEntry][] = [];
     for (const sessionId of sessionIds) {
       if (this.childControllersById.has(sessionId)) continue;
 
@@ -320,13 +321,17 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
         ...childSessionsById,
         [sessionId]: controller.getState(),
       };
-      if (this.listeners.size > 0) {
-        this.attachChildController(sessionId, entry);
-      }
+      added.push([sessionId, entry]);
     }
 
     if (childSessionsById !== this.state.childSessionsById) {
       this.state = { ...this.state, childSessionsById };
+    }
+
+    if (this.listeners.size > 0) {
+      for (const [sessionId, entry] of added) {
+        this.attachChildController(sessionId, entry);
+      }
     }
   }
 

@@ -417,6 +417,96 @@ describe("OpenCodeThreadController", () => {
     expect(eventSource.unsubscribe).toHaveBeenCalledTimes(2);
   });
 
+  it("reports a child discovered on a live thread as loading before its history resolves", async () => {
+    const eventSource = createEventSource();
+    let resolveChildMessages: ((value: unknown) => void) | undefined;
+    const messages = vi.fn(({ sessionID }: { sessionID: string }) => {
+      if (sessionID === "ses_parent") return Promise.resolve({ data: [] });
+      return new Promise((resolve) => {
+        resolveChildMessages = resolve;
+      });
+    });
+    const client = {
+      session: {
+        get: vi.fn(({ sessionID }: { sessionID: string }) =>
+          Promise.resolve({
+            data: { id: sessionID, title: sessionID, time: {} },
+          }),
+        ),
+        messages,
+      },
+    };
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => eventSource,
+      "ses_parent",
+    );
+    const unsubscribe = controller.subscribe(vi.fn());
+
+    await controller.load();
+
+    eventSource.emit({
+      type: "message.updated",
+      sessionId: "ses_parent",
+      properties: {
+        info: {
+          id: "parent-assistant",
+          role: "assistant",
+          sessionID: "ses_parent",
+          parentID: "parent-user",
+          modelID: "model",
+          providerID: "provider",
+          mode: "primary",
+          path: { cwd: "/", root: "/" },
+          cost: 0,
+          tokens: {
+            input: 0,
+            output: 0,
+            reasoning: 0,
+            cache: { read: 0, write: 0 },
+          },
+          time: { created: 1 },
+        },
+      },
+      raw: {},
+    });
+    eventSource.emit({
+      type: "message.part.updated",
+      sessionId: "ses_parent",
+      properties: {
+        part: {
+          id: "parent-task",
+          callID: "parent-call",
+          sessionID: "ses_parent",
+          messageID: "parent-assistant",
+          type: "tool",
+          tool: "task",
+          state: {
+            status: "running",
+            input: { description: "Inspect" },
+            metadata: { sessionId: "ses_child" },
+            time: { start: 1 },
+          },
+        },
+      },
+      raw: {},
+    });
+
+    expect(
+      controller.getState().childSessionsById.ses_child?.loadState.type,
+    ).toBe("loading");
+
+    resolveChildMessages?.({ data: [] });
+
+    await vi.waitFor(() => {
+      expect(
+        controller.getState().childSessionsById.ses_child?.loadState.type,
+      ).toBe("ready");
+    });
+
+    unsubscribe();
+  });
+
   it("loads parallel and recursive Task child sessions without following ancestor cycles", async () => {
     const eventSource = createEventSource();
     const messagesBySessionId: Record<string, unknown[]> = {
