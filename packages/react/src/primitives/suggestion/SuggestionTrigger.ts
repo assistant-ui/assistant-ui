@@ -42,7 +42,7 @@ const useSuggestionTrigger = ({
         content: [{ type: "text", text: prompt }],
         runConfig: aui.composer.getState().runConfig,
       });
-      if (clearComposer) {
+      if (clearComposer && !isRunning) {
         aui.composer.setText("");
       }
     } else {

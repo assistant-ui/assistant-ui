@@ -82,9 +82,10 @@ describe("useSuggestionTrigger", () => {
     expect(mocks.setText).not.toHaveBeenCalled();
   });
 
-  it("appends while running when the thread supports queueing", () => {
+  it("appends without touching the composer while running when the thread supports queueing", () => {
     mocks.threadState.isRunning = true;
     mocks.threadState.capabilities = { queue: true };
+    mocks.composerState.text = "my draft";
     const { trigger } = useSuggestionTrigger({ prompt: "Hello", send: true });
 
     trigger();
@@ -93,6 +94,7 @@ describe("useSuggestionTrigger", () => {
       content: [{ type: "text", text: "Hello" }],
       runConfig: { custom: { model: "gpt-test" } },
     });
+    expect(mocks.setText).not.toHaveBeenCalled();
   });
 
   it("replaces the composer text when send is false", () => {
