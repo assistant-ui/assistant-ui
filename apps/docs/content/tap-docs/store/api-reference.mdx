@@ -21,8 +21,6 @@ function useAui(scopes: useAui.Props): AssistantClient;
 
 Takes the store from the nearest `AuiProvider` and extends it by filling the provided scopes. Returns a new `AssistantClient` that includes both the parent's scopes and the newly provided ones.
 
-The mode is fixed at mount: if any scope is a root (non-`Derived`) element, the scopes run in a tap host; an all-`Derived` call site resolves each scope as a plain hook call, so its scope count is fixed. Changing a scope's kind requires a remount (new key).
-
 ```ts
 type useAui.Props = {
   [K in ClientNames]?: ClientElement<K> | DerivedElement<K>;
@@ -367,7 +365,8 @@ A resource element that implements scope `K`.
 ### DerivedElement
 
 ```ts
-type DerivedElement<K extends ClientNames> = ResourceElement<DerivedInstance<K>>;
+type DerivedElement<K extends ClientNames> =
+  ResourceElement<ReturnType<AssistantClientAccessor<K>>>;
 ```
 
 The element returned by `Derived(...)` for scope `K`.
@@ -385,7 +384,11 @@ Base constraint for a scope's methods.
 ### ClientSchema
 
 ```ts
-type ClientSchema<TMethods, TMeta, TEvents> = {
+type ClientSchema<
+  TMethods extends ClientMethods = ClientMethods,
+  TMeta extends ClientMetaType = never,
+  TEvents extends Record<string, unknown> = never,
+> = {
   methods: TMethods;
   meta?: TMeta;
   events?: TEvents;
@@ -397,7 +400,12 @@ Helper for declaring a `ScopeRegistry` entry.
 ### ClientEvents
 
 ```ts
-type ClientEvents<K extends ClientNames> = ClientSchemas[K]["events"];
+type ClientEvents<K extends ClientNames> =
+  "events" extends keyof ClientSchemas[K]
+    ? ClientSchemas[K]["events"] extends Record<`${K}.${string}`, unknown>
+      ? ClientSchemas[K]["events"]
+      : never
+    : never;
 ```
 
 The event map declared by scope `K`, if any.
