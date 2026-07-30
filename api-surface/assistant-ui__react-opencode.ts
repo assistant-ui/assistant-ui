@@ -1068,10 +1068,18 @@ declare class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   private unsubscribeFromEvents;
   private loadPromise;
   private reconnectSyncToken;
+  private readonly childControllersById;
+  private ancestorSessionIds;
   private readonly stagedMessages;
   private readonly client;
   private readonly sessionId;
   constructor(client: OpencodeClient, getEventSource: OpenCodeEventSourceProvider, sessionId: string);
+  private notifyListeners;
+  private updateChildSnapshot;
+  private attachChildController;
+  private detachChildControllers;
+  private discard;
+  private syncChildControllers;
   private ensureEventSubscription;
   private handleStreamReconnect;
   dispose(): void;
@@ -1123,6 +1131,7 @@ type OpenCodeThreadState = {
   runState: OpenCodeRunState;
   messageOrder: readonly string[];
   messagesById: Readonly<Record<string, OpenCodeServerMessage>>;
+  childSessionsById: Readonly<Record<string, OpenCodeThreadState>>;
   pendingUserMessages: Readonly<Record<string, PendingUserMessage>>;
   interactions: {
     permissions: {
@@ -1939,7 +1948,7 @@ declare namespace entry_root_exports {
   export { AssistantMessage, Event, FilePart, GlobalSession, Message$2 as Message, MessageWithParts, Model, OpenCodeEventSource, OpenCodeLoadState, OpenCodePartPayload, OpenCodePermissionRequest, OpenCodePermissionResponse, OpenCodeProjectedThreadMessage, OpenCodeQuestionRequest, OpenCodeRunState, OpenCodeRuntime, OpenCodeRuntimeExtras, OpenCodeRuntimeOptions, OpenCodeServerEvent, OpenCodeServerMessage, OpenCodeStateEvent, OpenCodeThreadController, OpenCodeThreadControllerLike, OpenCodeThreadControllerSnapshot, OpenCodeThreadState, OpenCodeThreadStateSelector, OpenCodeUnhandledEvent, OpenCodeUserMessageOptions, OpencodeClient$1 as OpencodeClient, OpencodeClientConfig, Part$1 as Part, PendingUserMessage, PermissionRequest$1 as PermissionRequest, Provider, QuestionAnswer$1 as QuestionAnswer, QuestionRequest$1 as QuestionRequest, ReasoningPart, STREAM_RECONNECTED_EVENT_TYPE, Session$1 as Session, SessionStatus$1 as SessionStatus, SnapshotPart, StepFinishPart, StepStartPart, TextPart, ToolPart, ToolState, UserMessage, createOpenCodeThreadState, createOpencodeClient$1 as createOpencodeClient, projectOpenCodeThreadMessages, reduceOpenCodeThreadState, useOpenCodePermissions, useOpenCodeQuestions, useOpenCodeRuntime, useOpenCodeRuntimeExtras, useOpenCodeSession, useOpenCodeStreamingTiming, useOpenCodeThreadState };
 }
 
-declare const projectOpenCodeThreadMessages: (state: OpenCodeThreadState, messageTiming?: Record<string, MessageTiming>) => OpenCodeProjectedThreadMessage[];
+declare function projectOpenCodeThreadMessages(state: OpenCodeThreadState, messageTiming?: Record<string, MessageTiming>): OpenCodeProjectedThreadMessage[];
 
 declare const reduceOpenCodeThreadState: (state: OpenCodeThreadState, event: OpenCodeStateEvent) => OpenCodeThreadState;
 
