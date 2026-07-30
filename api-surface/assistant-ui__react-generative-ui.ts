@@ -688,6 +688,15 @@ type MessagePartStatus = {
   readonly error?: unknown;
 };
 
+type MessagePartStreamStatus = {
+  readonly type: "running";
+} | {
+  readonly type: "complete";
+} | {
+  readonly type: "incomplete";
+  readonly reason: "cancelled" | "content-filter" | "error" | "length" | "other";
+};
+
 type MessageStatus = {
   readonly type: "running";
 } | {
@@ -769,7 +778,7 @@ type ReadonlyJSONValue = null | string | number | boolean | ReadonlyJSONObject |
 type ReasoningMessagePart = {
   readonly type: "reasoning";
   readonly text: string;
-  readonly status?: MessagePartStatus;
+  readonly status?: MessagePartStreamStatus;
   readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };
@@ -1192,7 +1201,7 @@ type TeamsTextSize = "extraLarge" | "large" | "medium" | "small";
 type TextMessagePart = {
   readonly type: "text";
   readonly text: string;
-  readonly status?: MessagePartStatus;
+  readonly status?: MessagePartStreamStatus;
   readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };
