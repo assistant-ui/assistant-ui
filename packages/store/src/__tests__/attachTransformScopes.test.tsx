@@ -65,6 +65,23 @@ describe("attachTransformScopes", () => {
     expect(getAui().c.getState()).toEqual({ name: "c" });
   });
 
+  it("transforms resources that replace an existing scope", () => {
+    const [useA, A] = makeClient("a");
+    const [useB, B] = makeClient("b");
+    const [, C] = makeClient("c");
+    attachTransformScopes(useA, (scopes) => {
+      (scopes as AnyScopes).a = B();
+    });
+    attachTransformScopes(useB, (scopes) => {
+      (scopes as AnyScopes).c = C();
+    });
+
+    const getAui = mount({ a: A() });
+
+    expect(getAui().a.getState()).toEqual({ name: "b" });
+    expect(getAui().c.getState()).toEqual({ name: "c" });
+  });
+
   it("each transform runs once per pass, even when it always writes", () => {
     const [useA, A] = makeClient("a");
     const [, B] = makeClient("b");
@@ -73,10 +90,28 @@ describe("attachTransformScopes", () => {
     });
     attachTransformScopes(useA, transform);
 
-    const getAui = mount({ a: A() });
+    const getAui = mount({ a: A(), composer: A() });
 
     expect(transform).toHaveBeenCalledTimes(1);
     expect(getAui().b.getState()).toEqual({ name: "b" });
+  });
+
+  it("does not transform a scope replaced before its turn", () => {
+    const [useA, A] = makeClient("a");
+    const [useB, B] = makeClient("b");
+    const [, Replacement] = makeClient("replacement");
+    const [, C] = makeClient("c");
+    attachTransformScopes(useA, (scopes) => {
+      (scopes as AnyScopes).b = Replacement();
+    });
+    attachTransformScopes(useB, (scopes) => {
+      (scopes as AnyScopes).c = C();
+    });
+
+    const getAui = mount({ a: A(), b: B() });
+
+    expect(getAui().b.getState()).toEqual({ name: "replacement" });
+    expect(Object.hasOwn(getAui(), "c")).toBe(false);
   });
 
   it("a transform can inspect the parent client to add scopes conditionally", () => {

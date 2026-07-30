@@ -1,11 +1,35 @@
 import type React from "react";
 import { createContext, useContext, useEffect } from "react";
 import { useContextProvider } from "@assistant-ui/tap";
-import type { AssistantClient } from "../types/client";
+import type {
+  AssistantClient,
+  AssistantClientAccessor,
+  ClientNames,
+} from "../types/client";
 import { BaseProxyHandler, handleIntrospectionProp } from "./BaseProxyHandler";
 import { createErrorClientAccessor } from "./client-accessor";
 
 const NO_OP_SUBSCRIBE = () => () => {};
+const MAX_CACHED_ACCESSORS = 64;
+
+type ErrorAccessor = AssistantClientAccessor<ClientNames>;
+type ErrorAccessorCache = Map<string, ErrorAccessor>;
+
+const getCachedErrorAccessor = (
+  cache: ErrorAccessorCache,
+  name: string,
+  message: string,
+): ErrorAccessor => {
+  let accessor = cache.get(name);
+  if (accessor) return accessor;
+
+  if (cache.size >= MAX_CACHED_ACCESSORS) {
+    cache.delete(cache.keys().next().value!);
+  }
+  accessor = createErrorClientAccessor(message, name);
+  cache.set(name, accessor);
+  return accessor;
+};
 
 const MISSING_PROVIDER_MESSAGE =
   "You are using a component or hook that requires an AuiProvider. Wrap your component in an <AuiProvider> component.";
@@ -16,6 +40,7 @@ class EmptyAssistantClientProxyHandler
 {
   readonly #displayName: string;
   readonly #messageOf: (prop: string) => string;
+  readonly #accessors: ErrorAccessorCache = new Map();
 
   constructor(displayName: string, messageOf: (prop: string) => string) {
     super();
@@ -28,10 +53,8 @@ class EmptyAssistantClientProxyHandler
     if (prop === "on") return NO_OP_SUBSCRIBE;
     const introspection = handleIntrospectionProp(prop, this.#displayName);
     if (introspection !== false) return introspection;
-    return createErrorClientAccessor(
-      this.#messageOf(String(prop)),
-      String(prop),
-    );
+    const name = String(prop);
+    return getCachedErrorAccessor(this.#accessors, name, this.#messageOf(name));
   }
 
   ownKeys(): ArrayLike<string | symbol> {
@@ -59,19 +82,25 @@ export const DefaultAssistantClient: AssistantClient =
     () => MISSING_PROVIDER_MESSAGE,
   );
 
-/** Root prototype for created clients - throws "scope not defined" error */
-export const createRootAssistantClient = (): AssistantClient =>
-  new Proxy<AssistantClient>({} as AssistantClient, {
-    get(_: AssistantClient, prop: string | symbol) {
-      const introspection = handleIntrospectionProp(prop, "AssistantClient");
-      if (introspection !== false) return introspection;
+const rootAccessors: ErrorAccessorCache = new Map();
 
-      return createErrorClientAccessor(
-        `The current scope does not have a "${String(prop)}" property.`,
-        String(prop),
-      );
-    },
-  });
+/** Root prototype for created clients - throws "scope not defined" error */
+const RootAssistantClient = new Proxy<AssistantClient>({} as AssistantClient, {
+  get(_: AssistantClient, prop: string | symbol) {
+    const introspection = handleIntrospectionProp(prop, "AssistantClient");
+    if (introspection !== false) return introspection;
+
+    const name = String(prop);
+    return getCachedErrorAccessor(
+      rootAccessors,
+      name,
+      `The current scope does not have a "${name}" property.`,
+    );
+  },
+});
+
+export const createRootAssistantClient = (): AssistantClient =>
+  RootAssistantClient;
 
 /**
  * React Context for the AssistantClient

@@ -65,22 +65,36 @@ const applyTransformScopes = (
   clients: useAui.Props,
   parent: AssistantClient,
 ): Record<string, ScopeElement> => {
+  const initialElements = Object.values(clients) as ScopeElement[];
+  if (
+    !initialElements.some((element) => getTransformScopes(element.hook) != null)
+  ) {
+    return clients as Record<string, ScopeElement>;
+  }
+
   const scopes = { ...clients } as Record<string, ScopeElement>;
-  const visited = new Set<ScopeElement["hook"]>();
+  const pending: ScopeElement["hook"][] = [];
+  const queued = new Set<ScopeElement["hook"]>();
+  for (const element of initialElements) {
+    if (queued.has(element.hook)) continue;
+    queued.add(element.hook);
+    pending.push(element.hook);
+  }
 
-  let changed = true;
-  while (changed) {
-    changed = false;
+  for (let index = 0; index < pending.length; index++) {
+    const hook = pending[index]!;
+    if (!Object.values(scopes).some((element) => element.hook === hook)) {
+      continue;
+    }
+
+    const transform = getTransformScopes(hook);
+    if (!transform) continue;
+
+    transform(scopes as ScopesConfig, parent);
     for (const element of Object.values(scopes)) {
-      if (visited.has(element.hook)) continue;
-      visited.add(element.hook);
-
-      const transform = getTransformScopes(element.hook);
-      if (transform) {
-        transform(scopes as ScopesConfig, parent);
-        changed = true;
-        break;
-      }
+      if (queued.has(element.hook)) continue;
+      queued.add(element.hook);
+      pending.push(element.hook);
     }
   }
 

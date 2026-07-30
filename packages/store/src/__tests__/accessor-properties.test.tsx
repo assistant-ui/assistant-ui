@@ -148,6 +148,7 @@ describe("accessor property API", () => {
     expect(() => accessor()).toThrow(/AuiProvider/);
     expect(() => accessor.getState()).toThrow(/AuiProvider/);
     expect(accessor.source).toBeNull();
+    expect(accessor).toBe((aui as AnyClient).thread);
   });
 
   it("undefined scopes never throw at selection time, only on use", () => {
@@ -160,5 +161,12 @@ describe("accessor property API", () => {
     expect(aui.composer.name).toBe("composer");
     expect(() => aui.composer()).toThrow(/"composer"/);
     expect(() => aui.composer.send()).toThrow(/"composer"/);
+  });
+
+  it("reuses unavailable scope accessors", () => {
+    const { getAui } = setup();
+    const aui = getAui();
+
+    expect(aui.composer).toBe(aui.composer);
   });
 });
