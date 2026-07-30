@@ -2,9 +2,8 @@ type EventListener<T> = (payload: T) => unknown;
 
 export const notifyEventListeners = <T>(
   listeners: Iterable<EventListener<T>>,
-  payload: T,
+  payloadOrFactory: T | (() => T),
   errorContext: string,
-  createPayload: (() => T) | undefined = undefined,
 ) => {
   const reportError = (error: unknown) => {
     console.error(
@@ -15,7 +14,11 @@ export const notifyEventListeners = <T>(
 
   for (const listener of listeners) {
     try {
-      const result = listener(createPayload ? createPayload() : payload);
+      const result = listener(
+        typeof payloadOrFactory === "function"
+          ? (payloadOrFactory as () => T)()
+          : payloadOrFactory,
+      );
       if (
         result !== null &&
         (typeof result === "object" || typeof result === "function") &&

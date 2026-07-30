@@ -280,21 +280,17 @@ export class WebSpeechDictationAdapter implements DictationAdapter {
 
         if (result.isFinal) {
           finalTranscript += transcript;
-          const payload: DictationAdapter.Result = {
-            transcript,
-            isFinal: true,
-          };
-          notifyEventListeners(speechCallbacks, payload, "Dictation", () => ({
-            ...payload,
-          }));
+          notifyEventListeners(
+            speechCallbacks,
+            () => ({ transcript, isFinal: true }),
+            "Dictation",
+          );
         } else {
-          const payload: DictationAdapter.Result = {
-            transcript,
-            isFinal: false,
-          };
-          notifyEventListeners(speechCallbacks, payload, "Dictation", () => ({
-            ...payload,
-          }));
+          notifyEventListeners(
+            speechCallbacks,
+            () => ({ transcript, isFinal: false }),
+            "Dictation",
+          );
         }
       }
     });
@@ -309,12 +305,11 @@ export class WebSpeechDictationAdapter implements DictationAdapter {
         updateStatus({ type: "ended", reason: "stopped" });
       }
       if (finalTranscript) {
-        const payload: DictationAdapter.Result = {
-          transcript: finalTranscript,
-        };
-        notifyEventListeners(speechEndCallbacks, payload, "Dictation", () => ({
-          ...payload,
-        }));
+        notifyEventListeners(
+          speechEndCallbacks,
+          () => ({ transcript: finalTranscript }),
+          "Dictation",
+        );
         finalTranscript = "";
       }
     });
