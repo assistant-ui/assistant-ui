@@ -1,5 +1,17 @@
 # @assistant-ui/react
 
+## 0.15.2
+
+### Patch Changes
+
+- [#5419](https://github.com/assistant-ui/assistant-ui/pull/5419) [`aa74b0d`](https://github.com/assistant-ui/assistant-ui/commit/aa74b0d7c5e334385fabbe48ed79e90b36f63029) - fix: enumerate the attachment content fields the aui/v0 encoder persists so per-part status stays out of the stored shape ([@okisdev](https://github.com/okisdev))
+
+- [#5403](https://github.com/assistant-ui/assistant-ui/pull/5403) [`6e5c450`](https://github.com/assistant-ui/assistant-ui/commit/6e5c450d71242acda30b41c8601b7edb6ed5c701) - refactor: share the part status derivation with core ([@okisdev](https://github.com/okisdev))
+
+- Updated dependencies [[`aa74b0d`](https://github.com/assistant-ui/assistant-ui/commit/aa74b0d7c5e334385fabbe48ed79e90b36f63029), [`6e5c450`](https://github.com/assistant-ui/assistant-ui/commit/6e5c450d71242acda30b41c8601b7edb6ed5c701), [`59ec21b`](https://github.com/assistant-ui/assistant-ui/commit/59ec21b5f610aaf7c0082508b3a6cbf950ffc1db), [`4fd698b`](https://github.com/assistant-ui/assistant-ui/commit/4fd698ba5a3b23ea57b667a02c6f784147f5c42d), [`b8daa96`](https://github.com/assistant-ui/assistant-ui/commit/b8daa967f4e5cb181c3e9ed065ab6949ee848fa4)]:
+  - @assistant-ui/core@0.3.3
+  - @assistant-ui/tap@0.9.9
+
 ## 0.15.1
 
 ### Patch Changes

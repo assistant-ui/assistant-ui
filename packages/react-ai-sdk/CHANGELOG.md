@@ -1,5 +1,14 @@
 # @assistant-ui/react-ai-sdk
 
+## 1.4.3
+
+### Patch Changes
+
+- [#5413](https://github.com/assistant-ui/assistant-ui/pull/5413) [`e61ed61`](https://github.com/assistant-ui/assistant-ui/commit/e61ed610f75d444aa150a11e8e965731cf988566) - feat: map AI SDK text and reasoning part state onto the per-part status ([@rupic-app](https://github.com/apps/rupic-app))
+
+- Updated dependencies [[`aa74b0d`](https://github.com/assistant-ui/assistant-ui/commit/aa74b0d7c5e334385fabbe48ed79e90b36f63029), [`6e5c450`](https://github.com/assistant-ui/assistant-ui/commit/6e5c450d71242acda30b41c8601b7edb6ed5c701), [`59ec21b`](https://github.com/assistant-ui/assistant-ui/commit/59ec21b5f610aaf7c0082508b3a6cbf950ffc1db), [`4fd698b`](https://github.com/assistant-ui/assistant-ui/commit/4fd698ba5a3b23ea57b667a02c6f784147f5c42d)]:
+  - @assistant-ui/core@0.3.3
+
 ## 1.4.2
 
 ### Patch Changes
