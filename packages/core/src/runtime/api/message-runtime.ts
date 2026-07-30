@@ -7,7 +7,11 @@ import type {
   ThreadUserMessagePart,
 } from "../../types/message";
 import type { Unsubscribe } from "../../types/unsubscribe";
-import type { MessagePartStatus, RunConfig } from "../../types/message";
+import type {
+  MessagePartStatus,
+  MessagePartStreamStatus,
+  RunConfig,
+} from "../../types/message";
 import { getThreadMessageText } from "../../utils/text";
 import { NestedSubscriptionSubject } from "../../subscribable/subscribable";
 import {
@@ -38,6 +42,22 @@ const COMPLETE_STATUS: MessagePartStatus = Object.freeze({
 const RUNNING_STATUS: MessagePartStatus = Object.freeze({
   type: "running",
 });
+type IncompleteMessagePartStatus = Extract<
+  MessagePartStreamStatus,
+  { readonly type: "incomplete" }
+>;
+const INCOMPLETE_STATUSES: Readonly<
+  Record<IncompleteMessagePartStatus["reason"], IncompleteMessagePartStatus>
+> = Object.freeze({
+  cancelled: Object.freeze({ type: "incomplete", reason: "cancelled" }),
+  length: Object.freeze({ type: "incomplete", reason: "length" }),
+  "content-filter": Object.freeze({
+    type: "incomplete",
+    reason: "content-filter",
+  }),
+  other: Object.freeze({ type: "incomplete", reason: "other" }),
+  error: Object.freeze({ type: "incomplete", reason: "error" }),
+});
 
 const normalizePartStatus = (
   part: ThreadUserMessagePart | ThreadAssistantMessagePart,
@@ -50,11 +70,10 @@ const normalizePartStatus = (
   if (type === "complete") return COMPLETE_STATUS;
   if (type !== "incomplete") return undefined;
 
-  const { reason, error } = status as {
+  const { reason } = status as {
     readonly reason?: unknown;
-    readonly error?: unknown;
   };
-  const normalizedReason =
+  const normalizedReason: IncompleteMessagePartStatus["reason"] =
     reason === "cancelled" ||
     reason === "length" ||
     reason === "content-filter" ||
@@ -63,11 +82,7 @@ const normalizePartStatus = (
       ? reason
       : "other";
 
-  return {
-    type: "incomplete",
-    reason: normalizedReason,
-    ...("error" in status ? { error } : undefined),
-  };
+  return INCOMPLETE_STATUSES[normalizedReason];
 };
 
 export const toMessagePartStatus = (
@@ -106,14 +121,6 @@ const getMessagePartState = (
 
   // if the message part is the same, don't update
   const status = toMessagePartStatus(message, partIndex, part);
-  if (part.type === "tool-call") {
-    return Object.freeze({
-      ...part,
-      ...{ [symbolInnerMessage]: (part as any)[symbolInnerMessage] },
-      status,
-    });
-  }
-
   return Object.freeze({
     ...part,
     ...{ [symbolInnerMessage]: (part as any)[symbolInnerMessage] },

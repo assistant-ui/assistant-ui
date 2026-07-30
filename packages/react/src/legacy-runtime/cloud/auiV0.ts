@@ -85,7 +85,7 @@ type AuiV0MessagePart =
     };
 
 type AuiV0AttachmentPart =
-  | Omit<TextMessagePart, "status">
+  | TextMessagePart
   | ImageMessagePart
   | FileMessagePart
   | Unstable_AudioMessagePart

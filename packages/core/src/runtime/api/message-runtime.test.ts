@@ -199,7 +199,6 @@ describe("toMessagePartStatus", () => {
     expect(toMessagePartStatus(message, 1, message.content[1]!)).toEqual({
       type: "incomplete",
       reason: "other",
-      error: "upstream error",
     });
   });
 });

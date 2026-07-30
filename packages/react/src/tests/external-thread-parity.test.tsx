@@ -169,7 +169,6 @@ describe("ExternalThread part status", () => {
     expect(state.parts[1]!.status).toEqual({
       type: "incomplete",
       reason: "other",
-      error: "upstream error",
     });
   });
 

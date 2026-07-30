@@ -14,7 +14,7 @@ export type PartProviderMetadata = {
 export type TextMessagePart = {
   readonly type: "text";
   readonly text: string;
-  readonly status?: MessagePartStatus;
+  readonly status?: MessagePartStreamStatus;
   readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };
@@ -22,7 +22,7 @@ export type TextMessagePart = {
 export type ReasoningMessagePart = {
   readonly type: "reasoning";
   readonly text: string;
-  readonly status?: MessagePartStatus;
+  readonly status?: MessagePartStreamStatus;
   readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };
@@ -266,6 +266,23 @@ export type MessagePartStatus =
         | "other"
         | "error";
       readonly error?: unknown;
+    };
+
+export type MessagePartStreamStatus =
+  | {
+      readonly type: "running";
+    }
+  | {
+      readonly type: "complete";
+    }
+  | {
+      readonly type: "incomplete";
+      readonly reason:
+        | "cancelled"
+        | "length"
+        | "content-filter"
+        | "other"
+        | "error";
     };
 
 export type ToolCallMessagePartStatus =
