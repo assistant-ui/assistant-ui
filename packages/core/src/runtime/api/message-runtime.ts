@@ -35,6 +35,9 @@ import type { MessageStateBinding } from "./bindings";
 const COMPLETE_STATUS: MessagePartStatus = Object.freeze({
   type: "complete",
 });
+const RUNNING_STATUS: MessagePartStatus = Object.freeze({
+  type: "running",
+});
 
 const normalizePartStatus = (
   part: ThreadUserMessagePart | ThreadAssistantMessagePart,
@@ -43,7 +46,7 @@ const normalizePartStatus = (
   if (!status || typeof status !== "object") return undefined;
 
   const { type } = status as { readonly type?: unknown };
-  if (type === "running") return { type: "running" };
+  if (type === "running") return RUNNING_STATUS;
   if (type === "complete") return COMPLETE_STATUS;
   if (type !== "incomplete") return undefined;
 
