@@ -99,6 +99,7 @@ export class AgUiThreadRuntimeCore {
   private _isLoading = false;
   private _loadPromise: Promise<void> | undefined;
   private pendingResumeMessageId: string | null = null;
+  private pendingA2uiResume: string | null = null;
   private pendingA2uiAction: Record<string, unknown> | undefined;
 
   constructor(options: CoreOptions) {
@@ -690,6 +691,7 @@ export class AgUiThreadRuntimeCore {
   }
 
   sendA2uiAction(action: Record<string, unknown>): void {
+    this.assertNoPendingInterrupts();
     const parentId = this.repository.headId;
     if (parentId === null) {
       this.logger.debug(
@@ -700,11 +702,13 @@ export class AgUiThreadRuntimeCore {
 
     const userAction = { ...action };
     delete userAction.type;
-    if (!("timestamp" in userAction)) userAction.timestamp = Date.now();
+    if (!("timestamp" in userAction)) {
+      userAction.timestamp = new Date().toISOString();
+    }
     this.pendingA2uiAction = userAction;
 
     if (this.isRunningFlag) {
-      this.pendingResumeMessageId = parentId;
+      this.pendingA2uiResume = parentId;
       return;
     }
     this.startResumeRun(parentId);
@@ -1044,6 +1048,7 @@ export class AgUiThreadRuntimeCore {
       const err = this.pendingError;
       this.pendingError = null;
       this.pendingResumeMessageId = null;
+      this.pendingA2uiResume = null;
       this.pendingA2uiAction = undefined;
       throw err;
     }
@@ -1054,6 +1059,16 @@ export class AgUiThreadRuntimeCore {
       const resumeMessageId = this.pendingResumeMessageId;
       this.pendingResumeMessageId = null;
       if (!abortSignal.aborted) {
+        this.startResumeRun(resumeMessageId);
+      } else {
+        this.pendingA2uiAction = undefined;
+      }
+    }
+
+    if (this.pendingA2uiResume !== null) {
+      const resumeMessageId = this.pendingA2uiResume;
+      this.pendingA2uiResume = null;
+      if (!abortSignal.aborted && this.pendingA2uiAction !== undefined) {
         this.startResumeRun(resumeMessageId);
       } else {
         this.pendingA2uiAction = undefined;
@@ -1075,6 +1090,8 @@ export class AgUiThreadRuntimeCore {
       getAssistantMessageId: () => string | undefined;
     },
   ): Promise<void> {
+    this.pendingA2uiAction = undefined;
+    this.pendingA2uiResume = null;
     const assistantId = ctx.ensureAssistant();
     const currentId = () => ctx.getAssistantMessageId() ?? assistantId;
     const options: ChatModelRunOptions = {

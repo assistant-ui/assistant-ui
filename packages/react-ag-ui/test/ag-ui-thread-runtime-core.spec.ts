@@ -4659,7 +4659,7 @@ describe("AGUIThreadRuntimeCore", () => {
           sourceComponentId: "btn",
           context: { total: 1 },
           $input: "x",
-          timestamp: expect.any(Number),
+          timestamp: expect.any(String),
         },
       },
     });
@@ -4704,7 +4704,7 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(runInputs[1].forwardedProps.a2uiAction).toMatchObject({
       userAction: {
         name: "continue",
-        timestamp: expect.any(Number),
+        timestamp: expect.any(String),
       },
     });
   });
@@ -4766,6 +4766,119 @@ describe("AGUIThreadRuntimeCore", () => {
     failRun();
     await expect(initialRun).rejects.toThrow("boom");
 
+    await core.append(createAppendMessage());
+
+    expect(runInputs).toHaveLength(2);
+    expect(runInputs[1].forwardedProps.a2uiAction).toBeUndefined();
+  });
+
+  it("does not start an actionless run when an append consumes a deferred A2UI action", async () => {
+    const runInputs: any[] = [];
+    let releaseRun!: () => void;
+    const activeRun = new Promise<void>((resolve) => {
+      releaseRun = resolve;
+    });
+    const agent = {
+      runAgent: vi.fn(async (input, subscriber) => {
+        runInputs.push(input);
+        if (runInputs.length === 1) await activeRun;
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+    const core = createCore(agent);
+
+    const initialRun = core.append(createAppendMessage());
+    core.sendA2uiAction({ type: "a2ui:action", name: "continue" });
+    await core.append(createAppendMessage());
+
+    releaseRun();
+    await initialRun;
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(agent.runAgent).toHaveBeenCalledTimes(2);
+    expect(runInputs[1].forwardedProps.a2uiAction).toMatchObject({
+      userAction: { name: "continue" },
+    });
+  });
+
+  it("rejects A2UI actions while interrupts are pending without retaining them", async () => {
+    const runInputs: any[] = [];
+    let runCount = 0;
+    const agent = {
+      runAgent: vi.fn(async (input: any, subscriber: any) => {
+        runInputs.push(input);
+        runCount++;
+        subscriber.onRunFinishedEvent?.({
+          event: {
+            type: "RUN_FINISHED",
+            runId: input.runId,
+            outcome:
+              runCount === 1
+                ? {
+                    type: "interrupt",
+                    interrupts: [{ id: "int-1", reason: "tool_call" }],
+                  }
+                : { type: "success" },
+          },
+        });
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+    const core = createCore(agent);
+
+    await core.append(createAppendMessage());
+
+    expect(() =>
+      core.sendA2uiAction({ type: "a2ui:action", name: "continue" }),
+    ).toThrow(
+      "[agui] cannot start a new run while interrupts are pending; resolve them with submitInterruptResponses()",
+    );
+
+    await core.submitInterruptResponses([
+      { interruptId: "int-1", status: "resolved" },
+    ]);
+
+    expect(runInputs[1].forwardedProps.a2uiAction).toBeUndefined();
+  });
+
+  it("clears pending A2UI actions before replaying a resume stream", async () => {
+    const runInputs: any[] = [];
+    let releaseRun!: () => void;
+    const activeRun = new Promise<void>((resolve) => {
+      releaseRun = resolve;
+    });
+    const agent = {
+      runAgent: vi.fn(async (input, subscriber) => {
+        runInputs.push(input);
+        if (runInputs.length === 1) await activeRun;
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+    const core = createCore(agent);
+
+    const initialRun = core.append(createAppendMessage());
+    const userId = core.getMessages()[0]!.id;
+    core.sendA2uiAction({ type: "a2ui:action", name: "continue" });
+
+    await core.resume({
+      parentId: userId,
+      sourceId: null,
+      runConfig: {} as TestRunConfig,
+      stream: async function* (): AsyncGenerator<
+        ChatModelRunResult,
+        void,
+        unknown
+      > {
+        yield {
+          content: [{ type: "text", text: "resumed" }],
+          status: { type: "complete", reason: "unknown" },
+        };
+      },
+    });
+
+    releaseRun();
+    await initialRun;
+    await new Promise((resolve) => setTimeout(resolve, 0));
     await core.append(createAppendMessage());
 
     expect(runInputs).toHaveLength(2);
