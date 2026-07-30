@@ -1572,12 +1572,14 @@ declare global {
 }
 
 declare namespace entry_root_exports {
-  export { AgUiAssistantRuntime, AgUiInterrupt, AgUiInterruptReason, AgUiResumeEntry, AgUiRunFinishedOutcome, FromAgUiMessagesOptions, UseAgUiRuntimeAdapters, UseAgUiRuntimeOptions, UseAgUiThreadListAdapter, fromAgUiMessages, useAgUiInterrupts, useAgUiRuntime, useAgUiSetState, useAgUiState, useAgUiSteerAway, useAgUiSubmitInterruptResponses };
+  export { AgUiAssistantRuntime, AgUiInterrupt, AgUiInterruptReason, AgUiResumeEntry, AgUiRunFinishedOutcome, FromAgUiMessagesOptions, UseAgUiRuntimeAdapters, UseAgUiRuntimeOptions, UseAgUiThreadListAdapter, fromAgUiMessages, useAgUiInterrupts, useAgUiRuntime, useAgUiSendA2uiAction, useAgUiSetState, useAgUiState, useAgUiSteerAway, useAgUiSubmitInterruptResponses };
 }
 
 declare const useAgUiInterrupts: () => readonly AgUiInterrupt[];
 
 declare function useAgUiRuntime(options: UseAgUiRuntimeOptions): AgUiAssistantRuntime;
+
+declare const useAgUiSendA2uiAction: () => (action: Record<string, unknown>) => void;
 
 declare const useAgUiSetState: <TState = ReadonlyJSONValue>() => (next: TState | ((prev: TState | undefined) => TState)) => void;
 
