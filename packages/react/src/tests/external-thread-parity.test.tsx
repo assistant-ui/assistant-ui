@@ -138,22 +138,28 @@ describe("ExternalThread part status", () => {
   it("normalizes supplied upstream statuses", () => {
     const { aui } = renderThread({
       messages: [
-        assistantMessageWithContent({ type: "running" }, [
-          {
-            type: "text",
-            text: "done",
-            status: { type: "complete", reason: "unknown" },
-          } as unknown as ExternalThreadMessage["content"][number],
-          {
-            type: "reasoning",
-            text: "interrupted",
-            status: {
-              type: "incomplete",
-              reason: "unknown",
-              error: "upstream error",
+        assistantMessageWithContent(
+          { type: "running" },
+          // assistant-stream sends shapes core's MessagePartStatus does not
+          // declare (a reason on complete, an unlisted incomplete reason);
+          // the normalizer absorbs them.
+          [
+            {
+              type: "text",
+              text: "done",
+              status: { type: "complete", reason: "unknown" },
             },
-          } as unknown as ExternalThreadMessage["content"][number],
-        ]),
+            {
+              type: "reasoning",
+              text: "interrupted",
+              status: {
+                type: "incomplete",
+                reason: "unknown",
+                error: "upstream error",
+              },
+            },
+          ] as unknown as ExternalThreadMessage["content"],
+        ),
       ],
       isRunning: true,
     });

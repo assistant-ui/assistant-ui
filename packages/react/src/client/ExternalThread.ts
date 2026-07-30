@@ -298,10 +298,10 @@ const usePartResource = ({
   onResumeToolCall,
 }: PartResourceProps): ClientOutput<"part"> => {
   const state = useMemo(
-    () => ({
-      ...part,
-      status,
-    }),
+    () =>
+      part.type === "tool-call"
+        ? { ...part, status }
+        : { ...part, status: status as MessagePartStatus },
     [part, status],
   );
 
