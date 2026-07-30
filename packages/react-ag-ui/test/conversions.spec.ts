@@ -1944,6 +1944,97 @@ describe("a2ui surface rehydration from restored activity messages", () => {
     });
   });
 
+  it("keeps every surface when each arrives as its own activity message", () => {
+    const result = fromAgUiMessages([
+      { id: "a-1", role: "assistant", content: "ok" },
+      {
+        id: "a2ui-surface-s-1-call_9",
+        role: "activity",
+        activityType: "a2ui-surface",
+        content: {
+          a2ui_operations: a2uiSurfaceOperations("s-1", "First"),
+        },
+      },
+      {
+        id: "a2ui-surface-s-2-call_9",
+        role: "activity",
+        activityType: "a2ui-surface",
+        content: {
+          a2ui_operations: a2uiSurfaceOperations("s-2", "Second"),
+        },
+      },
+    ] as any);
+
+    const a2uiParts = (result[0] as any).content.filter((part: any) =>
+      part.toolCallId?.startsWith("a2ui:"),
+    );
+    expect(a2uiParts.map((part: any) => part.toolCallId)).toEqual([
+      "a2ui:s-1",
+      "a2ui:s-2",
+    ]);
+    expectSurfacePart(a2uiParts[0], "s-1", "First");
+    expectSurfacePart(a2uiParts[1], "s-2", "Second");
+  });
+
+  it("overwrites a surface when a later activity message reuses the same id", () => {
+    const result = fromAgUiMessages([
+      { id: "a-1", role: "assistant", content: "ok" },
+      {
+        id: "a2ui-surface-s-1-call_9",
+        role: "activity",
+        activityType: "a2ui-surface",
+        content: {
+          a2ui_operations: a2uiSurfaceOperations("s-1", "First"),
+        },
+      },
+      {
+        id: "a2ui-surface-s-1-call_9",
+        role: "activity",
+        activityType: "a2ui-surface",
+        content: {
+          a2ui_operations: a2uiSurfaceOperations("s-1", "Second"),
+        },
+      },
+    ] as any);
+
+    const a2uiParts = (result[0] as any).content.filter((part: any) =>
+      part.toolCallId?.startsWith("a2ui:"),
+    );
+    expect(a2uiParts).toHaveLength(1);
+    expectSurfacePart(a2uiParts[0], "s-1", "Second");
+  });
+
+  it("removes a surface when the same activity id is re-materialized without it", () => {
+    const result = fromAgUiMessages([
+      { id: "a-1", role: "assistant", content: "ok" },
+      {
+        id: "a2ui-surface-s-1-call_9",
+        role: "activity",
+        activityType: "a2ui-surface",
+        content: {
+          a2ui_operations: [
+            ...a2uiSurfaceOperations("s-1", "First"),
+            ...a2uiSurfaceOperations("s-2", "Second"),
+          ],
+        },
+      },
+      {
+        id: "a2ui-surface-s-1-call_9",
+        role: "activity",
+        activityType: "a2ui-surface",
+        content: {
+          a2ui_operations: a2uiSurfaceOperations("s-2", "Second"),
+        },
+      },
+    ] as any);
+
+    const a2uiParts = (result[0] as any).content.filter((part: any) =>
+      part.toolCallId?.startsWith("a2ui:"),
+    );
+    expect(a2uiParts).toHaveLength(1);
+    expectSurfacePart(a2uiParts[0], "s-2", "Second");
+  });
+
   it("drops an a2ui activity with no owning assistant message", () => {
     const result = fromAgUiMessages([
       { id: "u-1", role: "user", content: "hi" },

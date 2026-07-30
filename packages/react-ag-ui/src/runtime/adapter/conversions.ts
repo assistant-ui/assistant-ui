@@ -22,6 +22,7 @@ import {
   applyA2uiOperations,
   convertSurfaceToUISpec,
   type A2uiState,
+  type A2uiSurfaceState,
 } from "@assistant-ui/react-generative-ui/a2ui";
 import type { AgUiInterrupt } from "../types";
 import {
@@ -588,9 +589,8 @@ export function fromAgUiMessages(
 ): CoreThreadMessageLike[] {
   const showThinking = options?.showThinking ?? true;
   const converted: CoreThreadMessageLike[] = [];
-  // Per-messageId rebuilt surface state, mirroring RunAggregator.a2uiBuckets
-  // so the replace logic converges with the live run on restore.
   const a2uiBuckets = new Map<string, A2uiState>();
+  const a2uiBucketOwnerIndices = new Map<string, number>();
 
   for (const rawMessage of messages) {
     if (!isObject(rawMessage)) continue;
@@ -747,11 +747,24 @@ export function fromAgUiMessages(
       if (ownerIndex === -1) continue;
 
       const owner = converted[ownerIndex]!;
-      const bucketKey = messageId ?? owner.id ?? "a2ui:anonymous";
+      const bucketKey =
+        getString(rawMessage, "id") ?? messageId ?? "a2ui:anonymous";
       if (replace === false && a2uiBuckets.has(bucketKey)) continue;
       const { state } = applyA2uiOperations(new Map(), operations);
+      a2uiBuckets.delete(bucketKey);
+      a2uiBucketOwnerIndices.delete(bucketKey);
       a2uiBuckets.set(bucketKey, state);
-      converted[ownerIndex] = attachA2uiSurfaces(owner, state);
+      a2uiBucketOwnerIndices.set(bucketKey, ownerIndex);
+
+      const ownerState = new Map<string, A2uiSurfaceState>();
+      for (const [candidateBucketKey, candidateState] of a2uiBuckets) {
+        if (a2uiBucketOwnerIndices.get(candidateBucketKey) !== ownerIndex)
+          continue;
+        for (const [surfaceId, surface] of candidateState) {
+          ownerState.set(surfaceId, surface);
+        }
+      }
+      converted[ownerIndex] = attachA2uiSurfaces(owner, ownerState);
       continue;
     }
 
