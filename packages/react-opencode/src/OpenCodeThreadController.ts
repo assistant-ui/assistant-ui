@@ -254,7 +254,9 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
       this.updateChildSnapshot(sessionId, entry.controller.getState());
     });
     this.updateChildSnapshot(sessionId, entry.controller.getState());
-    void entry.controller.load().catch(() => undefined);
+    if (entry.controller.getState().loadState.type !== "ready") {
+      void entry.controller.load().catch(() => undefined);
+    }
   }
 
   private detachChildControllers() {

@@ -417,6 +417,57 @@ describe("OpenCodeThreadController", () => {
     expect(eventSource.unsubscribe).toHaveBeenCalledTimes(2);
   });
 
+  it("does not refetch a loaded child when the parent re-attaches", async () => {
+    const eventSource = createEventSource();
+    const messages = vi.fn(({ sessionID }: { sessionID: string }) =>
+      Promise.resolve({
+        data:
+          sessionID === "ses_parent"
+            ? [
+                createTaskMessage("ses_parent", "parent-assistant", [
+                  "ses_child",
+                ]),
+              ]
+            : [],
+      }),
+    );
+    const client = {
+      session: {
+        get: vi.fn(({ sessionID }: { sessionID: string }) =>
+          Promise.resolve({
+            data: { id: sessionID, title: sessionID, time: {} },
+          }),
+        ),
+        messages,
+      },
+    };
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => eventSource,
+      "ses_parent",
+    );
+
+    await controller.load();
+    const unsubscribe = controller.subscribe(vi.fn());
+    await vi.waitFor(() => {
+      expect(
+        controller.getState().childSessionsById.ses_child?.loadState.type,
+      ).toBe("ready");
+    });
+
+    const callsAfterFirstAttach = messages.mock.calls.length;
+
+    unsubscribe();
+    const resubscribe = controller.subscribe(vi.fn());
+
+    expect(messages.mock.calls.length).toBe(callsAfterFirstAttach);
+    expect(
+      controller.getState().childSessionsById.ses_child?.loadState.type,
+    ).toBe("ready");
+
+    resubscribe();
+  });
+
   it("reports a child discovered on a live thread as loading before its history resolves", async () => {
     const eventSource = createEventSource();
     let resolveChildMessages: ((value: unknown) => void) | undefined;

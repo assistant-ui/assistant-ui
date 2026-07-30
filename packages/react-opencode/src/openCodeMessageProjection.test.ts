@@ -146,6 +146,7 @@ describe("projectOpenCodeThreadMessages", () => {
   it("projects Task child sessions into nested tool-call messages", () => {
     const grandchildState: OpenCodeThreadState = {
       ...createOpenCodeThreadState("ses_grandchild"),
+      loadState: { type: "ready" },
       messageOrder: ["grandchild-assistant"],
       messagesById: {
         "grandchild-assistant": {
@@ -184,6 +185,7 @@ describe("projectOpenCodeThreadMessages", () => {
     };
     const childState: OpenCodeThreadState = {
       ...createOpenCodeThreadState("ses_child"),
+      loadState: { type: "ready" },
       childSessionsById: { ses_grandchild: grandchildState },
       messageOrder: ["child-user", "child-assistant"],
       messagesById: {
@@ -811,6 +813,7 @@ describe("projectOpenCodeThreadMessages", () => {
   it("reuses the projected child transcript while the child state is unchanged", () => {
     const childState: OpenCodeThreadState = {
       ...createOpenCodeThreadState("ses_child"),
+      loadState: { type: "ready" },
       messageOrder: ["child-assistant"],
       messagesById: {
         "child-assistant": {
@@ -908,5 +911,71 @@ describe("projectOpenCodeThreadMessages", () => {
 
     expect(first).toHaveLength(1);
     expect(second).toBe(first);
+  });
+
+  it("omits nested messages until the child session has loaded", () => {
+    const state = (loadState: OpenCodeThreadState["loadState"]) =>
+      ({
+        ...createOpenCodeThreadState("ses_parent"),
+        childSessionsById: {
+          ses_child: {
+            ...createOpenCodeThreadState("ses_child"),
+            loadState,
+          },
+        },
+        messageOrder: ["assistant-1"],
+        messagesById: {
+          "assistant-1": {
+            id: "assistant-1",
+            info: {
+              id: "assistant-1",
+              role: "assistant",
+              sessionID: "ses_parent",
+              parentID: "user-1",
+              modelID: "model",
+              providerID: "provider",
+              mode: "primary",
+              path: { cwd: "/", root: "/" },
+              cost: 0,
+              tokens: {
+                input: 0,
+                output: 0,
+                reasoning: 0,
+                cache: { read: 0, write: 0 },
+              },
+              time: { created: 1 },
+            } as never,
+            parts: [
+              {
+                id: "task-part",
+                callID: "task-call",
+                sessionID: "ses_parent",
+                messageID: "assistant-1",
+                type: "tool",
+                tool: "task",
+                state: {
+                  status: "running",
+                  input: { description: "Inspect" },
+                  metadata: { sessionId: "ses_child" },
+                },
+              } as never,
+            ],
+            shadowParts: undefined,
+          },
+        },
+      }) satisfies OpenCodeThreadState;
+
+    const toolPart = (loadState: OpenCodeThreadState["loadState"]) =>
+      projectOpenCodeThreadMessages(state(loadState))[0]?.content.find(
+        (p) => p.type === "tool-call",
+      );
+
+    expect(toolPart({ type: "loading" })).toBeDefined();
+    expect(toolPart({ type: "loading" })).not.toHaveProperty("messages");
+    expect(toolPart({ type: "idle" })).not.toHaveProperty("messages");
+    expect(toolPart({ type: "error", error: "boom" })).not.toHaveProperty(
+      "messages",
+    );
+    expect(toolPart({ type: "ready" })).toHaveProperty("messages", []);
   });
 });

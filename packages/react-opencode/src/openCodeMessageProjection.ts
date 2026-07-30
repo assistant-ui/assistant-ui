@@ -305,9 +305,10 @@ const projectAssistantContent = (
         const childState = childSessionId
           ? state.childSessionsById[childSessionId]
           : undefined;
-        const childMessages = childState
-          ? getChildMessages(childState)
-          : undefined;
+        const childMessages =
+          childState?.loadState.type === "ready"
+            ? getChildMessages(childState)
+            : undefined;
         const permission = getPendingPermissionForToolCall(state, toolCallId);
         const resolvedPermission = permission
           ? undefined
