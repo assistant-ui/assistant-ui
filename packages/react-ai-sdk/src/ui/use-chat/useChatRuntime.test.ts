@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import { act, renderHook, waitFor } from "@testing-library/react";
+import type { UIMessage } from "ai";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => {
@@ -68,17 +69,18 @@ describe("useChatRuntime", () => {
 
     const { rerender } = renderHook(() => useChatRuntime());
     const dynamicTransport = mocks.useChat.mock.calls[0]![0]
-      .transport as AssistantChatTransport;
+      .transport as AssistantChatTransport<UIMessage>;
 
     setRuntime.mockClear();
     dynamicTransport.setRuntime(mocks.runtime as never);
-    const initialTransport = setRuntime.mock.instances[0];
+    const initialTransport = setRuntime.mock.contexts[0];
+    expect(initialTransport).toBeInstanceOf(AssistantChatTransport);
 
     rerender();
 
     setRuntime.mockClear();
     dynamicTransport.setRuntime(mocks.runtime as never);
-    expect(setRuntime.mock.instances[0]).toBe(initialTransport);
+    expect(setRuntime.mock.contexts[0]).toBe(initialTransport);
   });
 
   it("wires a replacement AssistantChatTransport", () => {
