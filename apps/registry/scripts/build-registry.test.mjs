@@ -667,6 +667,30 @@ test("bundling leaves an item without bundled dependencies untouched and rejects
   );
 });
 
+test("bundling rejects a foreign registry url inside the closure", () => {
+  const thread = {
+    name: "thread",
+    type: "registry:component",
+    registryDependencies: ["https://example.com/foreign.json"],
+  };
+
+  assert.throws(
+    () =>
+      expandBundledRegistryDependencies(
+        {
+          name: "eve-chat",
+          type: "registry:item",
+          bundledRegistryDependencies: [
+            "https://r.assistant-ui.com/thread.json",
+          ],
+        },
+        new Map([["thread", thread]]),
+        "radix",
+      ),
+    /eve-chat: bundled closure depends on foreign registry item "https:\/\/example\.com\/foreign\.json", which cannot be inlined/,
+  );
+});
+
 test("universal item validation rejects a bundled item a partial config cannot install", () => {
   const items = [
     {

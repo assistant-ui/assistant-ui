@@ -608,7 +608,12 @@ export function expandBundledRegistryDependencies(
       const name = getAssistantRegistryDependencyName(dependency);
 
       if (!name) {
-        if (!dependency.startsWith("http")) uiPrimitives.add(dependency);
+        if (dependency.startsWith("http")) {
+          throw new Error(
+            `${item.name}: bundled closure depends on foreign registry item "${dependency}", which cannot be inlined`,
+          );
+        }
+        uiPrimitives.add(dependency);
         continue;
       }
 
@@ -1008,7 +1013,10 @@ async function buildRegistry(registry: RegistryItem[]) {
 
   const universalNames = new Set(
     registry
-      .filter((item) => item.bundledRegistryDependencies)
+      .filter(
+        (item) =>
+          item.bundledRegistryDependencies || UNIVERSAL_TYPES.has(item.type),
+      )
       .map((item) => item.name),
   );
   const itemsByName = new Map(registry.map((item) => [item.name, item]));
