@@ -1,31 +1,19 @@
 import Link from "next/link";
-import { ArrowRightIcon, BookOpenIcon } from "lucide-react";
+import { ArrowRightIcon } from "lucide-react";
 import { LEARN_SPOTLIGHT_HREF } from "@/lib/xulux/learn/entry";
 
 export function LearnCourseSpotlight() {
   return (
     <section
       aria-label="Interactive course"
-      className="mt-5 grid w-full max-w-2xl grid-cols-[auto_minmax(0,1fr)] items-center gap-x-3 gap-y-1.5 rounded-2xl border border-[#dcd9ea] bg-[#f0edff] px-3.5 py-3 sm:w-[86%] sm:grid-cols-[auto_minmax(0,1fr)_auto] dark:border-[#3e3a51] dark:bg-violet-950/30"
+      className="mt-5 flex w-full flex-wrap items-center justify-center gap-x-1.5 gap-y-1 text-center text-sm"
     >
-      <div className="row-span-2 grid size-9 shrink-0 place-items-center rounded-xl border border-[#d9d2ff] bg-white/70 text-[#6557dc] sm:row-span-1 dark:border-violet-800/60 dark:bg-violet-950/50 dark:text-violet-400">
-        <BookOpenIcon className="size-4" />
-      </div>
-
-      <div className="min-w-0">
-        <div className="text-[10px] font-semibold tracking-[0.08em] text-[#6557dc] uppercase dark:text-violet-400">
-          New · Interactive course
-        </div>
-        <h2 className="mt-0.5 truncate text-sm font-semibold tracking-tight">
-          Learn to create your first AI app
-        </h2>
-      </div>
-
+      <span className="text-muted-foreground">Not sure what to build?</span>
       <Link
         href={LEARN_SPOTLIGHT_HREF}
-        className="col-start-2 inline-flex shrink-0 items-center gap-1 justify-self-start text-xs font-semibold text-[#6557dc] transition-colors hover:text-[#4f43bd] sm:col-start-3 sm:row-start-1 sm:justify-self-end dark:text-violet-400 dark:hover:text-violet-300"
+        className="inline-flex items-center gap-1 font-semibold text-[#6557dc] transition-colors hover:text-[#4f43bd] dark:text-violet-400 dark:hover:text-violet-300"
       >
-        Start course
+        Learn to create your first AI app
         <ArrowRightIcon className="size-3.5" />
       </Link>
     </section>
