@@ -39,6 +39,16 @@ const readErrorBody = async (res: Response): Promise<string | undefined> => {
   }
 };
 
+const getHeadersIdentity = (headers: McpAppsRemoteHostOptions["headers"]) => {
+  if (typeof headers === "function") return headers;
+  if (headers === undefined) return undefined;
+  return JSON.stringify(
+    Object.entries(headers).sort(([left], [right]) =>
+      left.localeCompare(right),
+    ),
+  );
+};
+
 async function postToHost(
   options: McpAppsRemoteHostOptions,
   method: string,
@@ -76,26 +86,44 @@ async function postToHost(
 const useMcpAppsRemoteHost = (
   options: McpAppsRemoteHostOptions,
 ): McpAppsHost => {
-  const optionsRef = useRef(options);
-  optionsRef.current = options;
+  const headersIdentity = getHeadersIdentity(options.headers);
+  const headersRef = useRef<{
+    identity: ReturnType<typeof getHeadersIdentity>;
+    value: McpAppsRemoteHostOptions["headers"];
+  }>({
+    identity: headersIdentity,
+    value: options.headers,
+  });
+  if (!Object.is(headersRef.current.identity, headersIdentity)) {
+    headersRef.current = {
+      identity: headersIdentity,
+      value: options.headers,
+    };
+  }
+  const headers = headersRef.current.value;
+  const fetch = options.fetch;
+  const url = options.url;
 
-  return useMemo(
-    (): McpAppsHost => ({
+  return useMemo((): McpAppsHost => {
+    const currentOptions: McpAppsRemoteHostOptions = {
+      url,
+      ...(fetch !== undefined ? { fetch } : {}),
+      ...(headers !== undefined ? { headers } : {}),
+    };
+    return {
       loadResource: (params) =>
         postToHost(
-          optionsRef.current,
+          currentOptions,
           "mcp-apps/read-resource",
           params,
         ) as Promise<McpAppResource>,
-      callTool: (params) =>
-        postToHost(optionsRef.current, "tools/call", params),
+      callTool: (params) => postToHost(currentOptions, "tools/call", params),
       readResource: (params) =>
-        postToHost(optionsRef.current, "resources/read", params),
+        postToHost(currentOptions, "resources/read", params),
       listResources: (params) =>
-        postToHost(optionsRef.current, "resources/list", params),
-    }),
-    [],
-  );
+        postToHost(currentOptions, "resources/list", params),
+    };
+  }, [fetch, headers, url]);
 };
 
 export const McpAppsRemoteHost = resource(useMcpAppsRemoteHost);

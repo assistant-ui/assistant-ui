@@ -22,9 +22,18 @@ vi.mock("./app-frame", () => ({
 }));
 
 import { McpAppRenderer } from "./McpAppRenderer";
+import { McpAppsRemoteHost } from "./McpAppsRemoteHost";
 
 const useHost = ({ host }: { host: McpAppsHost }) => host;
 const Host = resource(useHost);
+
+const createDeferred = <T,>() => {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((res) => {
+    resolve = res;
+  });
+  return { promise, resolve };
+};
 
 const createPart = (serverId?: string): ToolCallMessagePartProps => ({
   type: "tool-call",
@@ -52,6 +61,24 @@ function Harness({ host, serverId }: { host: McpAppsHost; serverId?: string }) {
   );
   const Renderer = renderer.render;
   return <Renderer {...createPart(serverId)} />;
+}
+
+function RemoteHarness({
+  url,
+  headers,
+  fetch,
+}: {
+  url: string;
+  headers: Record<string, string>;
+  fetch: typeof globalThis.fetch;
+}) {
+  const renderer = useResource(
+    McpAppRenderer({
+      host: McpAppsRemoteHost({ url, headers, fetch }),
+    }),
+  );
+  const Renderer = renderer.render;
+  return <Renderer {...createPart()} />;
 }
 
 describe("McpAppRenderer", () => {
@@ -86,6 +113,112 @@ describe("McpAppRenderer", () => {
       uri: "ui://example/search",
       serverId: "server-b",
     });
+  });
+
+  it("reloads the resource and hides stale HTML when the host changes", async () => {
+    const nextResource = createDeferred<{
+      uri: string;
+      mimeType: "text/html;profile=mcp-app";
+      html: string;
+    }>();
+    const firstHost: McpAppsHost = {
+      loadResource: vi.fn(async ({ uri }) => ({
+        uri,
+        mimeType: "text/html;profile=mcp-app" as const,
+        html: "first host",
+      })),
+      callTool: vi.fn(),
+      readResource: vi.fn(),
+      listResources: vi.fn(),
+    };
+    const nextHost: McpAppsHost = {
+      loadResource: vi.fn(() => nextResource.promise),
+      callTool: vi.fn(),
+      readResource: vi.fn(),
+      listResources: vi.fn(),
+    };
+
+    const view = render(<Harness host={firstHost} />);
+    await waitFor(() =>
+      expect(framePropsMock.mock.lastCall?.[0].resource.html).toBe(
+        "first host",
+      ),
+    );
+
+    framePropsMock.mockClear();
+    view.rerender(<Harness host={nextHost} />);
+
+    expect(nextHost.loadResource).toHaveBeenCalledTimes(1);
+    expect(framePropsMock).not.toHaveBeenCalled();
+
+    nextResource.resolve({
+      uri: "ui://example/search",
+      mimeType: "text/html;profile=mcp-app",
+      html: "next host",
+    });
+    await waitFor(() =>
+      expect(framePropsMock.mock.lastCall?.[0].resource.html).toBe("next host"),
+    );
+  });
+
+  it("reloads remote resources when the URL or headers change", async () => {
+    const fetch = vi.fn(
+      async (url: string | URL | Request, init?: RequestInit) =>
+        Response.json({
+          uri: "ui://example/search",
+          mimeType: "text/html;profile=mcp-app",
+          html: `${String(url)}:${new Headers(init?.headers).get("authorization")}`,
+        }),
+    ) as unknown as typeof globalThis.fetch;
+
+    const view = render(
+      <RemoteHarness
+        url="/host-a"
+        headers={{ authorization: "Bearer a" }}
+        fetch={fetch}
+      />,
+    );
+    await waitFor(() =>
+      expect(framePropsMock.mock.lastCall?.[0].resource.html).toBe(
+        "/host-a:Bearer a",
+      ),
+    );
+
+    view.rerender(
+      <RemoteHarness
+        url="/host-b"
+        headers={{ authorization: "Bearer a" }}
+        fetch={fetch}
+      />,
+    );
+    await waitFor(() =>
+      expect(framePropsMock.mock.lastCall?.[0].resource.html).toBe(
+        "/host-b:Bearer a",
+      ),
+    );
+
+    view.rerender(
+      <RemoteHarness
+        url="/host-b"
+        headers={{ authorization: "Bearer b" }}
+        fetch={fetch}
+      />,
+    );
+    await waitFor(() =>
+      expect(framePropsMock.mock.lastCall?.[0].resource.html).toBe(
+        "/host-b:Bearer b",
+      ),
+    );
+
+    expect(fetch).toHaveBeenCalledTimes(3);
+    view.rerender(
+      <RemoteHarness
+        url="/host-b"
+        headers={{ authorization: "Bearer b" }}
+        fetch={fetch}
+      />,
+    );
+    expect(fetch).toHaveBeenCalledTimes(3);
   });
 
   it("gives the renderer serverId precedence in listResources", async () => {

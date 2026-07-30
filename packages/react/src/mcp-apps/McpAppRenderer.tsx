@@ -55,6 +55,7 @@ export type McpAppRendererOptions = {
 };
 
 type LoadedResourceState = {
+  host: McpAppsHost;
   resourceUri: string;
   serverId?: string;
   resource?: McpAppResource;
@@ -113,17 +114,19 @@ function InlineRenderer({
 
   const [loadedResource, setLoadedResource] = useState<LoadedResourceState>();
 
+  const host = internalsRef.current.host;
   const resourceUri = appForRender?.resourceUri;
   const serverId = appForRender?.serverId;
   const serverIdRef = useRef<string | undefined>(undefined);
   serverIdRef.current = serverId;
   useEffect(() => {
-    if (appForRender == null || resourceUri == null) return;
+    if (resourceUri == null) return;
     let cancelled = false;
+    const targetHost = host;
     const targetUri = resourceUri;
     const targetServerId = serverId;
 
-    internalsRef.current.host
+    targetHost
       .loadResource({
         uri: targetUri,
         ...(targetServerId ? { serverId: targetServerId } : {}),
@@ -131,6 +134,7 @@ function InlineRenderer({
       .then((res) => {
         if (!cancelled)
           setLoadedResource({
+            host: targetHost,
             resourceUri: targetUri,
             ...(targetServerId !== undefined
               ? { serverId: targetServerId }
@@ -141,6 +145,7 @@ function InlineRenderer({
       .catch((error: unknown) => {
         if (!cancelled) {
           setLoadedResource({
+            host: targetHost,
             resourceUri: targetUri,
             ...(targetServerId !== undefined
               ? { serverId: targetServerId }
@@ -153,8 +158,7 @@ function InlineRenderer({
     return () => {
       cancelled = true;
     };
-    // oxlint-disable-next-line react/exhaustive-deps -- re-fetch only when URI or server identity changes; appForRender identity is unstable and internalsRef is a stable ref
-  }, [resourceUri, serverId]);
+  }, [host, resourceUri, serverId]);
 
   const bridgeHandlers = useMemo<McpAppBridgeHandlers>(
     () => ({
@@ -189,6 +193,7 @@ function InlineRenderer({
   );
 
   const loadedResourceForApp =
+    loadedResource?.host === host &&
     loadedResource?.resourceUri === appForRender?.resourceUri &&
     loadedResource?.serverId === appForRender?.serverId
       ? loadedResource
