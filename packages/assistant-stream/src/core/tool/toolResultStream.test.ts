@@ -694,6 +694,54 @@ describe("unstable_runPendingTools", () => {
       ]);
     });
 
+    it("executes a tool with replacement argsText", async () => {
+      let executedArgs: unknown;
+      const tool: Tool = {
+        parameters: { type: "object", properties: {} },
+        execute: async (args) => {
+          executedArgs = args;
+          return "done";
+        },
+      };
+      const inputChunks: AssistantStreamChunk[] = [
+        {
+          type: "part-start",
+          path: [],
+          part: {
+            type: "tool-call",
+            toolCallId: "tc-replace",
+            toolName: "search",
+          },
+        },
+        {
+          type: "text-delta",
+          path: [0],
+          textDelta: '{"query":"a much longer query","limit":10}',
+        },
+        { type: "text-replace", path: [0], text: '{"query":"Oslo"}' },
+        { type: "tool-call-args-text-finish", path: [0] },
+        { type: "part-finish", path: [0] },
+      ];
+      const inputStream = new ReadableStream<AssistantStreamChunk>({
+        start(controller) {
+          for (const chunk of inputChunks) controller.enqueue(chunk);
+          controller.close();
+        },
+      });
+
+      await inputStream
+        .pipeThrough(
+          unstable_toolResultStream(
+            { search: tool },
+            new AbortController().signal,
+            async () => {},
+          ),
+        )
+        .pipeTo(new WritableStream());
+
+      expect(executedArgs).toEqual({ query: "Oslo" });
+    });
+
     it("falls back to the plain result when toModelOutput throws in the streaming path", async () => {
       const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
       const tool: Tool = {

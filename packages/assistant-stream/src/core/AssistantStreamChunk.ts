@@ -67,6 +67,11 @@ export type AssistantStreamChunk = { readonly path: readonly number[] } & (
       readonly textDelta: string;
     }
   | {
+      /** Replaces accumulated text in a text, reasoning, or tool-call argument part. */
+      readonly type: "text-replace";
+      readonly text: string;
+    }
+  | {
       /** Appends provider or application annotations to the current message. */
       readonly type: "annotations";
       readonly annotations: ReadonlyJSONValue[];

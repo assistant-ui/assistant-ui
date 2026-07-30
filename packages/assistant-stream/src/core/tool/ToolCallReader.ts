@@ -486,6 +486,11 @@ export class ToolCallReaderImpl<
     this.argsText += text;
   }
 
+  async replaceArgsText(text: string): Promise<void> {
+    // The already-consumed preview stream cannot be rewound.
+    this.argsText = text;
+  }
+
   async finishArgsText(): Promise<void> {
     const writer = this.writable.getWriter();
     try {

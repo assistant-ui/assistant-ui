@@ -187,6 +187,7 @@ export class DataStreamEncoder
 
             // TODO ignore for now
             // in the future, we should create a handler that waits for text parts to finish before continuing
+            case "text-replace":
             case "tool-call-args-text-finish":
             case "part-finish":
               break;

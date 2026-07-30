@@ -82,7 +82,8 @@ export class ToolExecutionStream extends PipeableTransformStream<
                 });
               }
               break;
-            case "text-delta": {
+            case "text-delta":
+            case "text-replace": {
               if (chunk.meta.type === "tool-call") {
                 const toolCallId = chunk.meta.toolCallId;
 
@@ -91,7 +92,9 @@ export class ToolExecutionStream extends PipeableTransformStream<
                   throw new Error("No controller found for tool call");
                 // Awaited so the writer lock is released (and argsText updated)
                 // before the next chunk acquires the writer.
-                await controller.appendArgsTextDelta(chunk.textDelta);
+                await (type === "text-delta"
+                  ? controller.appendArgsTextDelta(chunk.textDelta)
+                  : controller.replaceArgsText(chunk.text));
               }
               break;
             }

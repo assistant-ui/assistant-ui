@@ -38,6 +38,7 @@ class ToolCallStreamControllerImpl implements ToolCallStreamController {
         write: (chunk) => {
           switch (chunk.type) {
             case "text-delta":
+            case "text-replace":
               hasArgsText = true;
               this._controller.enqueue(chunk);
               break;

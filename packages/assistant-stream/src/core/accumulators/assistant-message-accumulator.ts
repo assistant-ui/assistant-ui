@@ -241,6 +241,29 @@ const handleTextDelta = (
   });
 };
 
+const handleTextReplace = (
+  message: AssistantMessage,
+  chunk: AssistantStreamChunk & { type: "text-replace" },
+  warnOnce: WarnOnce,
+): AssistantMessage => {
+  return updatePartForPath(message, chunk, warnOnce, (part) => {
+    if (part.type === "text" || part.type === "reasoning") {
+      return { ...part, text: chunk.text };
+    } else if (part.type === "tool-call") {
+      const newArgsText = chunk.text;
+      const newArgs = parsePartialJsonObject(newArgsText) ?? part.args;
+
+      return { ...part, argsText: newArgsText, args: newArgs };
+    } else {
+      warnOnce(
+        "wrong-part:text-replace",
+        "Dropped text-replace chunk: part is neither text nor tool-call",
+      );
+      return part;
+    }
+  });
+};
+
 const handleResult = (
   message: AssistantMessage,
   chunk: AssistantStreamChunk & { type: "result" },
@@ -533,6 +556,12 @@ export class AssistantMessageAccumulator extends TransformStream<
 
           case "text-delta": {
             const next = handleTextDelta(message, chunk, warnOnce);
+            if (next !== message) tracker.recordFirstToken();
+            message = next;
+            break;
+          }
+          case "text-replace": {
+            const next = handleTextReplace(message, chunk, warnOnce);
             if (next !== message) tracker.recordFirstToken();
             message = next;
             break;

@@ -9,7 +9,7 @@ import type {
  */
 export type AssistantMetaStreamChunk =
   | (AssistantStreamChunk & {
-      type: "text-delta" | "part-finish";
+      type: "text-delta" | "text-replace" | "part-finish";
       meta: PartInit;
     })
   | (AssistantStreamChunk & {
@@ -19,7 +19,11 @@ export type AssistantMetaStreamChunk =
   | (AssistantStreamChunk & {
       type: Exclude<
         AssistantStreamChunk["type"],
-        "text-delta" | "result" | "tool-call-args-text-finish" | "part-finish"
+        | "text-delta"
+        | "text-replace"
+        | "result"
+        | "tool-call-args-text-finish"
+        | "part-finish"
       >;
     });
 export class AssistantMetaTransformStream extends TransformStream<
@@ -46,6 +50,7 @@ export class AssistantMetaTransformStream extends TransformStream<
         // For chunks that expect an associated part.
         if (
           chunk.type === "text-delta" ||
+          chunk.type === "text-replace" ||
           chunk.type === "result" ||
           chunk.type === "part-finish" ||
           chunk.type === "tool-call-args-text-finish"

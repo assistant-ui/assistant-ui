@@ -4,6 +4,7 @@ import type { UnderlyingReadable } from "../utils/stream/UnderlyingReadable";
 
 export type TextStreamController = {
   append(textDelta: string): void;
+  replace(text: string): void;
   close(): void; // TODO reason? error?
 };
 
@@ -22,6 +23,15 @@ class TextStreamControllerImpl implements TextStreamController {
       type: "text-delta",
       path: [],
       textDelta,
+    });
+    return this;
+  }
+
+  replace(text: string) {
+    this._controller.enqueue({
+      type: "text-replace",
+      path: [],
+      text,
     });
     return this;
   }

@@ -26,7 +26,10 @@ const requiredArray = (key: string) => (c: ChunkFields) =>
 const optionalBoolean = (key: string) => (c: ChunkFields) =>
   c[key] === undefined || typeof c[key] === "boolean";
 
-const KNOWN_CHUNK_TYPES: Record<AssistantStreamChunk["type"], ChunkRule> = {
+const KNOWN_CHUNK_TYPES: Record<
+  Exclude<AssistantStreamChunk["type"], "text-replace">,
+  ChunkRule
+> = {
   "part-start": { kind: "message", valid: requiredObject("part") },
   "part-finish": { kind: "part-addressed", valid: noFields },
   "tool-call-args-text-finish": { kind: "part-addressed", valid: noFields },
@@ -56,7 +59,10 @@ const parseChunk = (data: string): AssistantStreamChunk | string => {
     !Object.prototype.hasOwnProperty.call(KNOWN_CHUNK_TYPES, type)
   )
     return "unknown-type";
-  const rule = KNOWN_CHUNK_TYPES[type as AssistantStreamChunk["type"]];
+  const rule =
+    KNOWN_CHUNK_TYPES[
+      type as Exclude<AssistantStreamChunk["type"], "text-replace">
+    ];
   if (!rule.valid(value as Record<string, unknown>))
     return `invalid-fields:${type}`;
   if (path === undefined) {

@@ -29,6 +29,47 @@ const collectStream = async (
   return messages;
 };
 
+describe("AssistantMessageAccumulator text-replace", () => {
+  it("replaces accumulated text", async () => {
+    const messages = await collectStream([
+      { type: "part-start", path: [0], part: { type: "text" } },
+      { type: "text-delta", path: [0], textDelta: "longer text" },
+      { type: "text-replace", path: [0], text: "short" },
+    ]);
+
+    expect(messages.at(-1)!.parts[0]).toMatchObject({
+      type: "text",
+      text: "short",
+    });
+  });
+
+  it("replaces tool-call argsText and recomputes args", async () => {
+    const messages = await collectStream([
+      {
+        type: "part-start",
+        path: [0],
+        part: {
+          type: "tool-call",
+          toolCallId: "tc-1",
+          toolName: "search",
+        },
+      },
+      {
+        type: "text-delta",
+        path: [0],
+        textDelta: '{"query":"a much longer query","limit":10}',
+      },
+      { type: "text-replace", path: [0], text: '{"query":"Oslo"}' },
+    ]);
+
+    expect(messages.at(-1)!.parts[0]).toMatchObject({
+      type: "tool-call",
+      argsText: '{"query":"Oslo"}',
+      args: { query: "Oslo" },
+    });
+  });
+});
+
 describe("AssistantMessageAccumulator timing", () => {
   it("should include timing on message-finish", async () => {
     const chunks: AssistantStreamChunk[] = [
