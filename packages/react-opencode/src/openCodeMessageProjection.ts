@@ -10,6 +10,7 @@ import type {
 import {
   ExportedMessageRepository,
   type MessageTiming,
+  type ThreadMessage,
 } from "@assistant-ui/react";
 import {
   projectOpenCodePermissionApproval,
@@ -156,6 +157,24 @@ const getPermissionIndex = (state: OpenCodeThreadState): PermissionIndex => {
   return index;
 };
 
+const childMessagesCache = new WeakMap<
+  OpenCodeThreadState,
+  readonly ThreadMessage[]
+>();
+
+const getChildMessages = (
+  childState: OpenCodeThreadState,
+): readonly ThreadMessage[] => {
+  const cached = childMessagesCache.get(childState);
+  if (cached) return cached;
+
+  const messages = projectOpenCodeThreadRepository(childState).messages.map(
+    ({ message }) => message,
+  );
+  childMessagesCache.set(childState, messages);
+  return messages;
+};
+
 const getPendingPermissionForToolCall = (
   state: OpenCodeThreadState,
   toolCallId: string,
@@ -287,9 +306,7 @@ const projectAssistantContent = (
           ? state.childSessionsById[childSessionId]
           : undefined;
         const childMessages = childState
-          ? projectOpenCodeThreadRepository(childState).messages.map(
-              ({ message }) => message,
-            )
+          ? getChildMessages(childState)
           : undefined;
         const permission = getPendingPermissionForToolCall(state, toolCallId);
         const resolvedPermission = permission

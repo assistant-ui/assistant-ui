@@ -807,4 +807,106 @@ describe("projectOpenCodeThreadMessages", () => {
       error: "Request failed",
     });
   });
+
+  it("reuses the projected child transcript while the child state is unchanged", () => {
+    const childState: OpenCodeThreadState = {
+      ...createOpenCodeThreadState("ses_child"),
+      messageOrder: ["child-assistant"],
+      messagesById: {
+        "child-assistant": {
+          id: "child-assistant",
+          info: {
+            id: "child-assistant",
+            role: "assistant",
+            sessionID: "ses_child",
+            parentID: "child-user",
+            modelID: "model",
+            providerID: "provider",
+            mode: "subagent",
+            path: { cwd: "/", root: "/" },
+            cost: 0,
+            tokens: {
+              input: 0,
+              output: 0,
+              reasoning: 0,
+              cache: { read: 0, write: 0 },
+            },
+            time: { created: 2 },
+            finish: "stop",
+          } as never,
+          parts: [
+            {
+              id: "child-text",
+              sessionID: "ses_child",
+              messageID: "child-assistant",
+              type: "text",
+              text: "Subagent finished.",
+            } as never,
+          ],
+          shadowParts: undefined,
+        },
+      },
+    };
+    const state: OpenCodeThreadState = {
+      ...createOpenCodeThreadState("ses_parent"),
+      childSessionsById: { ses_child: childState },
+      messageOrder: ["assistant-1"],
+      messagesById: {
+        "assistant-1": {
+          id: "assistant-1",
+          info: {
+            id: "assistant-1",
+            role: "assistant",
+            sessionID: "ses_parent",
+            parentID: "user-1",
+            modelID: "model",
+            providerID: "provider",
+            mode: "primary",
+            path: { cwd: "/", root: "/" },
+            cost: 0,
+            tokens: {
+              input: 0,
+              output: 0,
+              reasoning: 0,
+              cache: { read: 0, write: 0 },
+            },
+            time: { created: 1 },
+            finish: "stop",
+          } as never,
+          parts: [
+            {
+              id: "task-part",
+              callID: "task-call",
+              sessionID: "ses_parent",
+              messageID: "assistant-1",
+              type: "tool",
+              tool: "task",
+              state: {
+                status: "completed",
+                input: { description: "Inspect dependency" },
+                output: "Done",
+                metadata: { sessionId: "ses_child" },
+              },
+            } as never,
+          ],
+          shadowParts: undefined,
+        },
+      },
+    };
+
+    const readNested = (
+      projected: ReturnType<typeof projectOpenCodeThreadMessages>,
+    ) => {
+      const part = projected[0]?.content.find((p) => p.type === "tool-call");
+      return part?.type === "tool-call" ? part.messages : undefined;
+    };
+
+    const first = readNested(projectOpenCodeThreadMessages(state));
+    const second = readNested(
+      projectOpenCodeThreadMessages({ ...state, runState: { type: "idle" } }),
+    );
+
+    expect(first).toHaveLength(1);
+    expect(second).toBe(first);
+  });
 });
