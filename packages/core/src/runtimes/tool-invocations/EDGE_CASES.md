@@ -31,24 +31,9 @@ tracker appends the delta into the active controller's `argsText`
 stream. No re-fire.
 
 ### A.2. Args regress mid-stream (snapshot regression)
-A later snapshot's `argsText` is shorter than what we already streamed,
-or otherwise *not* a prefix of it. Under the exactly-once contract, the
-tracker does **not** restart the stream. The controller keeps whatever
-prefix already streamed. The regression is logged in non-prod. The
-host's view diverges from the snapshot until `reader.events()` ships.
+A later snapshot's `argsText` is shorter than what we already streamed, or otherwise *not* a prefix of it. A complete divergent snapshot is authoritative: the tracker replaces the controller's streamed args text with the snapshot, then closes the stream when the normal close rules allow it. This lets execution parse the complete snapshot without re-firing `streamCall` or `execute`.
 
-Subsequent snapshots that *are* prefixes of the new (regressed) snapshot
-also won't be appended, because `entry.argsText` still points at the
-pre-regression value used for delta calculation.
-
-The args stream closes only when the controller's *streamed* content
-(`entry.argsText`) is complete, not when a later snapshot is. A divergent
-snapshot can be complete while the controller still holds an incomplete
-stale prefix; closing on the snapshot would parse that stale prefix and
-auto-submit a bogus parse-error result (resuming the host graph and
-abandoning a pending interrupt). Gating the close on the streamed content
-leaves the stream open until the prefix itself completes, so no stale
-parse runs and no error result is fabricated from divergent args.
+An incomplete divergent snapshot is not authoritative-final. The tracker keeps the existing streamed prefix and logs the regression in non-prod. Subsequent snapshots are compared against that prefix until a complete divergent snapshot arrives or the stream reconverges, so a snapshot that extends the *regressed* text is still not appended: `entry.argsText` remains the pre-regression value the delta is computed from.
 
 ### A.3. Args complete then equivalent-JSON key reorder
 Both old and new `argsText` parse to equivalent JSON values (e.g. keys
@@ -182,7 +167,7 @@ keep the tracker dead with a visible error to avoid restart loops.
 catch and log. The tracker continues to function; the host's bad
 callback is isolated.
 
-### Args-stream divergence after A.2 / A.4
+### Args-stream divergence after incomplete A.2 / A.4
 Documented in the corresponding sections. The host's `streamCall` may
 operate on stale args. The `reader.events()` follow-up gives consumers
 a way to observe and react to these post-completion transitions.

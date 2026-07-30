@@ -151,13 +151,58 @@ describe("ToolInvocationTracker", () => {
     }
   });
 
+  it("executes with a complete divergent argsText snapshot", async () => {
+    const execute = vi.fn(async () => ({ forecast: "ok" }));
+    const getTools = () => ({
+      weatherSearch: {
+        parameters: { type: "object", properties: {} },
+        execute,
+      } satisfies Tool,
+    });
+    const onResult = vi.fn();
+    const onStatusesChange = () => {};
+    const tracker = new ToolInvocationTracker(getTools, {
+      onResult,
+      onStatusesChange,
+    });
+    tracker.setState(createState([]));
+
+    tracker.setState(
+      createState([
+        createAssistantMessage('{"question": "What?", "options":', {
+          question: "What?",
+          options: ["a", "b"],
+          allow_multiple: false,
+        }),
+      ]),
+    );
+
+    tracker.setState(
+      createState([
+        createAssistantMessage(
+          '{"question":"What?","options":["a","b"],"allow_multiple":false}',
+          {
+            question: "What?",
+            options: ["a", "b"],
+            allow_multiple: false,
+          },
+        ),
+      ]),
+    );
+
+    await waitFor(() => {
+      expect(execute).toHaveBeenCalledWith(
+        {
+          question: "What?",
+          options: ["a", "b"],
+          allow_multiple: false,
+        },
+        expect.objectContaining({ toolCallId: "tool-1" }),
+      );
+    });
+  });
+
   it("does not auto-submit a parse-error result when divergent argsText closes without a backend result", async () => {
-    // A human-in-the-loop tool whose argsText diverges mid-stream and never
-    // re-converges, with no backend result at close time. The args stream must
-    // not close on the divergent snapshot (which holds a stale prefix the
-    // execution path would parse), so no bogus parse-error result is
-    // auto-submitted to resume the host graph and abandon the pending
-    // interrupt.
     const execute = vi.fn(async () => ({ forecast: "ok" }));
     const streamCall = vi.fn((_reader, { human }) => {
       // Request human input immediately — sets up the pending interrupt.
@@ -208,9 +253,6 @@ describe("ToolInvocationTracker", () => {
         ]),
       );
 
-      // Complete valid JSON, divergent from the streamed prefix, no backend
-      // result. Previously this closed the args stream on the snapshot's
-      // completeness, parsed the stale prefix, and auto-submitted an error.
       tracker.setState(
         createState([
           createAssistantMessage(
@@ -224,12 +266,19 @@ describe("ToolInvocationTracker", () => {
         await new Promise((r) => setTimeout(r, 0));
       }
 
-      // No bogus parse-error result is auto-submitted, so the host graph is
-      // not resumed with a fake tool failure and the pending interrupt is
-      // preserved.
-      expect(onResult).not.toHaveBeenCalled();
-      // The frontend execute never ran: the stale prefix was never parsed.
-      expect(execute).not.toHaveBeenCalled();
+      await waitFor(() => {
+        expect(execute).toHaveBeenCalledWith(
+          {
+            query: "London",
+            longitude: -0.125,
+            latitude: 51.5072,
+          },
+          expect.objectContaining({ toolCallId: "tool-1" }),
+        );
+      });
+      expect(onResult).toHaveBeenCalledWith(
+        expect.objectContaining({ result: { forecast: "ok" }, isError: false }),
+      );
     } finally {
       warnSpy.mockRestore();
     }

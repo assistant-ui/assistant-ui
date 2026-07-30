@@ -625,24 +625,31 @@ export class ToolInvocationTracker {
           entry.argsComplete = shouldClose;
           shouldWriteArgsText = false;
         } else {
-          // A.2 — args regressed mid-stream. Under the "exactly once"
-          // contract we do not restart. The controller keeps whatever
-          // prefix we already streamed; subsequent prefix-respecting
-          // updates can still flow against it. Snapshots that never
-          // re-converge to a prefix will leave the controller's args
-          // view stale relative to the snapshot. Events API in a
-          // follow-up will expose this to consumers that opt in.
-          if (process.env.NODE_ENV !== "production") {
-            console.warn(
-              "[ToolInvocationTracker] argsText regressed mid-stream; not restarting (see EDGE_CASES.md A.2)",
-              {
-                previous: entry.argsText,
-                next: content.argsText,
-                toolCallId: content.toolCallId,
-              },
-            );
+          if (isArgsTextComplete(content.argsText)) {
+            entry.controller.argsText.replace(content.argsText);
+            const shouldClose = this._shouldCloseArgsStream({
+              toolName: content.toolName,
+              argsText: content.argsText,
+              hasResult,
+            });
+            if (shouldClose) entry.controller.argsText.close();
+            entry.argsText = content.argsText;
+            entry.argsComplete = shouldClose;
+            shouldWriteArgsText = false;
+          } else {
+            // A.2: a complete divergent snapshot replaces the streamed text. An incomplete divergent snapshot is not authoritative, so the controller keeps its current prefix until a complete snapshot arrives.
+            if (process.env.NODE_ENV !== "production") {
+              console.warn(
+                "[ToolInvocationTracker] argsText regressed mid-stream; not restarting (see EDGE_CASES.md A.2)",
+                {
+                  previous: entry.argsText,
+                  next: content.argsText,
+                  toolCallId: content.toolCallId,
+                },
+              );
+            }
+            shouldWriteArgsText = false;
           }
-          shouldWriteArgsText = false;
         }
       }
 
@@ -661,9 +668,6 @@ export class ToolInvocationTracker {
     }
 
     if (!entry.argsComplete && entry.controller) {
-      // ToolExecutionStream parses the streamed prefix on close, so the close
-      // gates on the streamed content; a divergent snapshot (A.2) can be
-      // complete while the controller still holds an incomplete stale prefix.
       const shouldClose = this._shouldCloseArgsStream({
         toolName: content.toolName,
         argsText: entry.argsText,
