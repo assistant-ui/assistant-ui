@@ -61,11 +61,7 @@ type ScopeMeta = {
   source: ClientNames | "root";
   query: Record<string, unknown>;
 };
-type ScopeResult = {
-  name: ClientNames;
-  accessor: AssistantClientAccessor<ClientNames>;
-  state: unknown;
-};
+type ScopeAccessor = AssistantClientAccessor<ClientNames>;
 
 const applyTransformScopes = (
   clients: useAui.Props,
@@ -206,8 +202,8 @@ const useScopeValue = (element: ScopeElement, derived: boolean) =>
 const useScopeMount = (
   name: ClientNames,
   element: ScopeElement,
-): ScopeResult => {
-  const client = useAssistantContextValue();
+): ScopeAccessor => {
+  const building = useAssistantContextValue();
 
   // A derived element resolves to an existing client; mount it directly
   const derived = isDerivedElement(element);
@@ -216,9 +212,6 @@ const useScopeMount = (
   const methods = derived
     ? (value as ClientMethods)
     : (value as { methods: ClientMethods }).methods;
-  const state = derived
-    ? (value as { getState?: () => unknown }).getState?.()
-    : (value as { state: unknown }).state;
 
   const meta = useScopeMeta(element);
   const accessor = useMemo(
@@ -226,17 +219,14 @@ const useScopeMount = (
     [name, meta, methods],
   );
 
-  // Only fill vacant slots so a re-render never mutates an already-built client
-  if (!Object.hasOwn(client, name)) {
-    (client as Record<ClientNames, unknown>)[name] = accessor;
-  }
+  (building as Record<ClientNames, unknown>)[name] = accessor;
 
-  return useMemo(() => ({ name, accessor, state }), [name, accessor, state]);
+  return accessor;
 };
 
 const ScopeMount = resource(useScopeMount);
 
-const useScopeMounts = (entries: ScopeEntry[]): ScopeResult[] =>
+const useScopeMounts = (entries: ScopeEntry[]): ScopeAccessor[] =>
   useResources(
     entries.map(([name, element]) => withKey(name, ScopeMount(name, element))),
   );
@@ -278,19 +268,19 @@ const useAuiRoot = ({
   const fields = useClientFields({ notifications, clientRef });
   const building = createClientObject(parent, fields);
 
-  const results = useAssistantTapContextProvider(
-    { clientRef, emit: notifications.emit },
-    function WithTapContext() {
-      return useAssistantContextProvider(
-        building,
-        function WithBuildingClient() {
-          return useScopeMounts(entries);
-        },
-      );
-    },
+  const accessors = useShallowStable(
+    useAssistantTapContextProvider(
+      { clientRef, emit: notifications.emit },
+      function WithTapContext() {
+        return useAssistantContextProvider(
+          building,
+          function WithBuildingClient() {
+            return useScopeMounts(entries);
+          },
+        );
+      },
+    ),
   );
-
-  const accessors = useShallowStable(results.map((r) => r.accessor));
 
   // Fresh envelope per commit so value-only updates reach the store's
   // subscribers; the client inside keeps its identity
@@ -361,9 +351,8 @@ const useDerivedScopeMount = (
   building: AssistantClient,
   name: ClientNames,
   element: ScopeElement,
-): ScopeResult => {
+): ScopeAccessor => {
   const value = useDerived(element.args[0] as Derived.Props<ClientNames>);
-  const state = (value as { getState?: () => unknown }).getState?.();
 
   const meta = useScopeMeta(element);
   const accessor = useMemo(
@@ -371,11 +360,9 @@ const useDerivedScopeMount = (
     [name, meta, value],
   );
 
-  if (!Object.hasOwn(building, name)) {
-    (building as Record<ClientNames, unknown>)[name] = accessor;
-  }
+  (building as Record<ClientNames, unknown>)[name] = accessor;
 
-  return useMemo(() => ({ name, accessor, state }), [name, accessor, state]);
+  return accessor;
 };
 
 // Derived-only hosts run without tap: each Derived scope is a plain React
@@ -402,12 +389,12 @@ const useDerivedOnlyClient = (
   );
   const building = createClientObject(parent, fields);
 
-  const results = entries.map(([name, element]) =>
-    // oxlint-disable-next-line react-hooks/rules-of-hooks -- fixed per call site; React throws on a count change
-    useDerivedScopeMount(building, name, element),
+  const accessors = useShallowStable(
+    entries.map(([name, element]) =>
+      // oxlint-disable-next-line react-hooks/rules-of-hooks -- fixed per call site; React throws on a count change
+      useDerivedScopeMount(building, name, element),
+    ),
   );
-
-  const accessors = useShallowStable(results.map((r) => r.accessor));
   return useCommittedClient({ building, parent, fields, accessors });
 };
 
