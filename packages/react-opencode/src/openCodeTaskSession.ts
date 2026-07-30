@@ -13,7 +13,9 @@ const getSessionId = (metadata: unknown) => {
 export const getOpenCodeTaskSessionId = (part: Part) => {
   if (part.type !== "tool" || part.tool !== "task") return undefined;
 
-  const stateSessionId =
-    "metadata" in part.state ? getSessionId(part.state.metadata) : undefined;
+  const state: unknown = part.state;
+  const stateSessionId = isRecord(state)
+    ? getSessionId(state.metadata)
+    : undefined;
   return stateSessionId ?? getSessionId(part.metadata);
 };

@@ -287,9 +287,9 @@ const projectAssistantContent = (
           ? state.childSessionsById[childSessionId]
           : undefined;
         const childMessages = childState
-          ? ExportedMessageRepository.fromArray(
-              projectOpenCodeThreadMessages(childState),
-            ).messages.map(({ message }) => message)
+          ? projectOpenCodeThreadRepository(childState).messages.map(
+              ({ message }) => message,
+            )
           : undefined;
         const permission = getPendingPermissionForToolCall(state, toolCallId);
         const resolvedPermission = permission
@@ -633,11 +633,11 @@ export function projectOpenCodeThreadMessages(
   return mergeProjectedMessages(serverMessages, pendingMessages);
 }
 
-export const projectOpenCodeThreadRepository = (
+export function projectOpenCodeThreadRepository(
   state: OpenCodeThreadState,
   messageTiming: Record<string, MessageTiming> = {},
-) => {
+) {
   return ExportedMessageRepository.fromArray(
     projectOpenCodeThreadMessages(state, messageTiming),
   );
-};
+}

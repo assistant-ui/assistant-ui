@@ -45,4 +45,15 @@ describe("getOpenCodeTaskSessionId", () => {
       getOpenCodeTaskSessionId(taskPart({ metadata: { sessionId: 42 } })),
     ).toBeUndefined();
   });
+
+  it("reads a Task part whose state is absent", () => {
+    expect(
+      getOpenCodeTaskSessionId(taskPart({ state: undefined })),
+    ).toBeUndefined();
+    expect(
+      getOpenCodeTaskSessionId(
+        taskPart({ state: undefined, metadata: { sessionId: "child" } }),
+      ),
+    ).toBe("child");
+  });
 });
