@@ -99,6 +99,7 @@ export class AgUiThreadRuntimeCore {
   private _isLoading = false;
   private _loadPromise: Promise<void> | undefined;
   private pendingResumeMessageId: string | null = null;
+  private pendingA2uiAction: Record<string, unknown> | undefined;
 
   constructor(options: CoreOptions) {
     this.agent = options.agent;
@@ -688,6 +689,27 @@ export class AgUiThreadRuntimeCore {
     this.maybeResumeAfterToolResults(options.messageId);
   }
 
+  sendA2uiAction(action: Record<string, unknown>): void {
+    const parentId = this.repository.headId;
+    if (parentId === null) {
+      this.logger.debug(
+        "[agui] sendA2uiAction: no messages to resume, dropping action",
+      );
+      return;
+    }
+
+    const userAction = { ...action };
+    delete userAction.type;
+    if (!("timestamp" in userAction)) userAction.timestamp = Date.now();
+    this.pendingA2uiAction = userAction;
+
+    if (this.isRunningFlag) {
+      this.pendingResumeMessageId = parentId;
+      return;
+    }
+    this.startResumeRun(parentId);
+  }
+
   // The continuation fires whether the frontend result lands before
   // RUN_FINISHED (the status flips to requires-action only later, while the
   // run is still draining) or after it.
@@ -1105,7 +1127,7 @@ export class AgUiThreadRuntimeCore {
       historyMessages ?? this.repository.getMessages(),
     );
     const context = this.runtime?.thread.getModelContext();
-    return {
+    const input = {
       threadId,
       runId,
       state: this.stateSnapshot ?? null,
@@ -1118,9 +1140,14 @@ export class AgUiThreadRuntimeCore {
         ...(context?.callSettings ?? {}),
         ...(context?.config ?? {}),
         ...(runConfig?.custom ? { runConfig: runConfig.custom } : {}),
+        ...(this.pendingA2uiAction
+          ? { a2uiAction: { userAction: this.pendingA2uiAction } }
+          : {}),
       },
       ...(resume !== undefined ? { resume } : {}),
     };
+    this.pendingA2uiAction = undefined;
+    return input;
   }
 
   private installResumeShim(): void {

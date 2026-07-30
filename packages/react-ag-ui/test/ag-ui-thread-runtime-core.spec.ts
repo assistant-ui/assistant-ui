@@ -4616,4 +4616,96 @@ describe("AGUIThreadRuntimeCore", () => {
     await core.append(createAppendMessage());
     expect(observed).toEqual(["Hel", "Hello"]);
   });
+
+  it("sends A2UI actions in forwarded props without appending a user message", async () => {
+    const runInputs: any[] = [];
+    const agent = {
+      runAgent: vi.fn(async (input, subscriber) => {
+        runInputs.push(input);
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+    const core = createCore(agent);
+
+    await core.append(
+      createAppendMessage({
+        runConfig: { custom: { source: "a2ui" } } as TestRunConfig,
+      }),
+    );
+    const userMessageCount = core
+      .getMessages()
+      .filter((message) => message.role === "user").length;
+
+    core.sendA2uiAction({
+      type: "a2ui:action",
+      name: "submit",
+      surfaceId: "s1",
+      sourceComponentId: "btn",
+      context: { total: 1 },
+      $input: "x",
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(runInputs).toHaveLength(2);
+    expect(
+      core.getMessages().filter((message) => message.role === "user"),
+    ).toHaveLength(userMessageCount);
+    expect(runInputs[1].forwardedProps).toMatchObject({
+      runConfig: { source: "a2ui" },
+      a2uiAction: {
+        userAction: {
+          name: "submit",
+          surfaceId: "s1",
+          sourceComponentId: "btn",
+          context: { total: 1 },
+          $input: "x",
+          timestamp: expect.any(Number),
+        },
+      },
+    });
+    expect(
+      runInputs[1].forwardedProps.a2uiAction.userAction.type,
+    ).toBeUndefined();
+    expect(runInputs[1].forwardedProps.runConfig.a2uiAction).toBeUndefined();
+
+    await core.append(createAppendMessage());
+
+    expect(runInputs).toHaveLength(3);
+    expect(runInputs[2].forwardedProps.a2uiAction).toBeUndefined();
+  });
+
+  it("defers A2UI action runs until the active run settles", async () => {
+    const runInputs: any[] = [];
+    let releaseRun!: () => void;
+    const activeRun = new Promise<void>((resolve) => {
+      releaseRun = resolve;
+    });
+    const agent = {
+      runAgent: vi.fn(async (input, subscriber) => {
+        runInputs.push(input);
+        if (runInputs.length === 1) await activeRun;
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+    const core = createCore(agent);
+
+    const initialRun = core.append(createAppendMessage());
+    expect(agent.runAgent).toHaveBeenCalledTimes(1);
+
+    core.sendA2uiAction({ type: "a2ui:action", name: "continue" });
+
+    expect(agent.runAgent).toHaveBeenCalledTimes(1);
+
+    releaseRun();
+    await initialRun;
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(agent.runAgent).toHaveBeenCalledTimes(2);
+    expect(runInputs[1].forwardedProps.a2uiAction).toMatchObject({
+      userAction: {
+        name: "continue",
+        timestamp: expect.any(Number),
+      },
+    });
+  });
 });
