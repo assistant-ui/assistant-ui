@@ -885,6 +885,12 @@ type AttachmentState = ThreadComposerAttachmentState | EditComposerAttachmentSta
 
 type AttachmentStatus = PendingAttachmentStatus | CompleteAttachmentStatus;
 
+type AuiConfig = {
+  [K in ClientNames]?: ClientElement<K> | DerivedElement<K>;
+};
+
+declare const AuiConfig: (config: AuiConfig) => AuiConfig;
+
 declare namespace AuiIf {
   type Props = PropsWithChildren<{
     condition: AuiIf.Condition;
@@ -901,6 +907,12 @@ declare const AuiProvider: {
   }): React.ReactElement;
   (props: {
     value: null;
+    children: React.ReactNode;
+  }): React.ReactElement;
+  (props: {
+    config: AuiConfig;
+    value?: AssistantClient | null;
+    ref?: React.Ref<AssistantClient>;
     children: React.ReactNode;
   }): React.ReactElement;
 };
@@ -6052,9 +6064,7 @@ declare function useAssistantTransportState<T>(selector: (state: UserExternalSta
 declare const useAttachmentRemove: () => () => void;
 
 declare namespace useAui {
-  type Props = {
-    [K in ClientNames]?: ClientElement<K> | DerivedElement<K>;
-  };
+  type Props = AuiConfig;
 }
 
 declare function useAui(): AssistantClient;

@@ -5,7 +5,7 @@ import { useState } from "react";
 import { cleanup, render } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { resource } from "@assistant-ui/tap";
-import { AuiProvider } from "../utils/react-assistant-context";
+import { AuiProvider } from "../AuiProvider";
 import { useAui } from "../useAui";
 
 type AnyClient = Record<string, any>;

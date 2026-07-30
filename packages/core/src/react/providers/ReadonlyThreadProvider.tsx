@@ -5,7 +5,7 @@ import {
   useMemo,
   useState,
 } from "react";
-import { useAui, AuiProvider, Derived } from "@assistant-ui/store";
+import { AuiConfig, AuiProvider, Derived } from "@assistant-ui/store";
 import type { ThreadMessage } from "../../types/message";
 import { ReadonlyThreadRuntimeCore } from "../../runtimes/readonly/ReadonlyThreadRuntimeCore";
 import {
@@ -71,14 +71,18 @@ export const ReadonlyThreadProvider: FC<ReadonlyThreadProvider.Props> = ({
     );
   }, [core]);
 
-  const aui = useAui({
-    thread: ThreadClient({ runtime: threadRuntime }),
-    composer: Derived({
-      source: "thread",
-      query: {},
-      get: (aui) => aui.thread.composer(),
-    }),
-  });
-
-  return <AuiProvider value={aui}>{children}</AuiProvider>;
+  return (
+    <AuiProvider
+      config={AuiConfig({
+        thread: ThreadClient({ runtime: threadRuntime }),
+        composer: Derived({
+          source: "thread",
+          query: {},
+          get: (aui) => aui.thread.composer(),
+        }),
+      })}
+    >
+      {children}
+    </AuiProvider>
+  );
 };

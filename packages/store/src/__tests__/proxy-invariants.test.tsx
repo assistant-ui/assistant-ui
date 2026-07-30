@@ -4,7 +4,7 @@ import type { FC } from "react";
 import { cleanup, render } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { resource, withKey } from "@assistant-ui/tap";
-import { AuiProvider } from "../utils/react-assistant-context";
+import { AuiProvider } from "../AuiProvider";
 import { useAui } from "../useAui";
 import { useAuiState } from "../useAuiState";
 import { useClientLookup } from "../useClientLookup";

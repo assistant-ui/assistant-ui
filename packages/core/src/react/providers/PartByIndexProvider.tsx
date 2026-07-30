@@ -1,18 +1,20 @@
 import type { FC, PropsWithChildren } from "react";
-import { useAui, AuiProvider, Derived } from "@assistant-ui/store";
+import { AuiConfig, AuiProvider, Derived } from "@assistant-ui/store";
 
 export const PartByIndexProvider: FC<
   PropsWithChildren<{
     index: number;
   }>
-> = ({ index, children }) => {
-  const aui = useAui({
-    part: Derived({
-      source: "message",
-      query: { type: "index", index },
-      get: (aui) => aui.message.part({ index }),
-    }),
-  });
-
-  return <AuiProvider value={aui}>{children}</AuiProvider>;
-};
+> = ({ index, children }) => (
+  <AuiProvider
+    config={AuiConfig({
+      part: Derived({
+        source: "message",
+        query: { type: "index", index },
+        get: (aui) => aui.message.part({ index }),
+      }),
+    })}
+  >
+    {children}
+  </AuiProvider>
+);

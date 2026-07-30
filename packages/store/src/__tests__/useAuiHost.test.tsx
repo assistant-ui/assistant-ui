@@ -5,7 +5,7 @@ import { useEffect, useLayoutEffect, useState } from "react";
 import { act, cleanup, render } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { flushTapSync, resource } from "@assistant-ui/tap";
-import { AuiProvider } from "../utils/react-assistant-context";
+import { AuiProvider } from "../AuiProvider";
 import { useAui } from "../useAui";
 import { useAuiState } from "../useAuiState";
 

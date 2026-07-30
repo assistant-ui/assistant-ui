@@ -1,4 +1,3 @@
-import type React from "react";
 import { createContext, useContext, useEffect } from "react";
 import { useContextProvider } from "@assistant-ui/tap";
 import type { AssistantClient } from "../types/client";
@@ -76,7 +75,9 @@ export const createRootAssistantClient = (): AssistantClient =>
 /**
  * React Context for the AssistantClient
  */
-const AssistantContext = createContext<AssistantClient>(DefaultAssistantClient);
+export const AssistantContext = createContext<AssistantClient>(
+  DefaultAssistantClient,
+);
 
 const NOOP_EFFECT = () => {};
 const tapEffects = new WeakMap<AssistantClient, () => void>();
@@ -86,8 +87,9 @@ const getTapEffects = (client: AssistantClient): (() => void) => {
 };
 
 /**
- * Records the tap host's effects callback so AuiProvider can mount the host's
- * commit ahead of its children's effects.
+ * Records the tap host's effects callback for clients created by the
+ * deprecated `useAui({...})` overload; the AuiProvider the client is passed
+ * to mounts the host's commit ahead of its children's effects.
  */
 export const setTapEffects = (
   client: AssistantClient,
@@ -96,7 +98,7 @@ export const setTapEffects = (
   tapEffects.set(client, effects);
 };
 
-const UseTapEffects = () => {
+export const UseTapEffects = () => {
   "use no memo";
 
   const aui = useAssistantContextValue();
@@ -114,56 +116,4 @@ export const useAssistantContextProvider = <T,>(
   fn: () => T,
 ): T => {
   return useContextProvider(AssistantContext, value, fn);
-};
-
-/**
- * Supplies an `AssistantClient` to the React tree.
- *
- * Place near the root of any subtree that uses {@link useAui} or the
- * primitives built on it. Components rendered outside an `AuiProvider`
- * receive a default client whose scope accessors throw on use, so
- * missing-provider mistakes surface at the point of use.
- *
- * When mounting a runtime built with one of the runtime hooks, use
- * {@link AssistantRuntimeProvider} — it installs an `AuiProvider`
- * internally — rather than wiring `AuiProvider` yourself.
- *
- * @example
- * ```tsx
- * function ScopedAssistant({ children, scopes }) {
- *   const aui = useAui(scopes);
- *
- *   return <AuiProvider value={aui}>{children}</AuiProvider>;
- * }
- * ```
- */
-export const AuiProvider: {
-  (props: {
-    /** Assistant client to expose to descendants. */
-    value: AssistantClient;
-    /** Subtree that may read from the client. */
-    children: React.ReactNode;
-  }): React.ReactElement;
-  /**
-   * Provides an isolated empty root: scopes from surrounding providers do not
-   * leak past the boundary.
-   *
-   * @deprecated This API is still under active development and might change without notice.
-   */
-  (props: { value: null; children: React.ReactNode }): React.ReactElement;
-} = ({
-  value,
-  children,
-}: {
-  value: AssistantClient | null;
-  children: React.ReactNode;
-}): React.ReactElement => {
-  // The <UseTapEffects /> element must be created fresh each render
-  "use no memo";
-  return (
-    <AssistantContext.Provider value={value ?? DefaultAssistantClient}>
-      <UseTapEffects />
-      {children}
-    </AssistantContext.Provider>
-  );
 };

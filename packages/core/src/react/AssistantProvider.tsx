@@ -4,7 +4,11 @@ import {
   type FC,
   type PropsWithChildren,
 } from "react";
-import { useAui, AuiProvider, type AssistantClient } from "@assistant-ui/store";
+import {
+  AuiConfig,
+  AuiProvider,
+  type AssistantClient,
+} from "@assistant-ui/store";
 import type { AssistantRuntime } from "../runtime/api/assistant-runtime";
 import type { AssistantRuntimeCore } from "../runtime/interfaces/assistant-runtime-core";
 import { RuntimeAdapter } from "./RuntimeAdapter";
@@ -29,10 +33,9 @@ const AssistantProviderInner: FC<
   // stable RenderComponent type, which silences the effect and stops option
   // changes (e.g. unstable_enableMessageQueue) from reaching the runtime.
   "use no memo";
-  const aui = useAui({ threads: RuntimeAdapter(runtime) });
   const RenderComponent = getRenderComponent(runtime);
   return (
-    <AuiProvider value={aui}>
+    <AuiProvider config={AuiConfig({ threads: RuntimeAdapter(runtime) })}>
       {RenderComponent && <RenderComponent />}
       {children}
     </AuiProvider>

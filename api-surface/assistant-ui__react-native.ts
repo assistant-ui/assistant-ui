@@ -578,6 +578,12 @@ declare const AttachmentThumb: FC<AttachmentThumbProps>;
 
 type AttachmentThumbProps = TextProps;
 
+type AuiConfig = {
+  [K in ClientNames]?: ClientElement<K> | DerivedElement<K>;
+};
+
+declare const AuiConfig: (config: AuiConfig) => AuiConfig;
+
 declare namespace AuiIf {
   type Props = PropsWithChildren<{
     condition: AuiIf.Condition;
@@ -594,6 +600,12 @@ declare const AuiProvider: {
   }): React.ReactElement;
   (props: {
     value: null;
+    children: React.ReactNode;
+  }): React.ReactElement;
+  (props: {
+    config: AuiConfig;
+    value?: AssistantClient | null;
+    ref?: React.Ref<AssistantClient>;
     children: React.ReactNode;
   }): React.ReactElement;
 };
@@ -4161,9 +4173,7 @@ declare const useAssistantTool: <TArgs extends Record<string, unknown>, TResult>
 declare const useAssistantToolUI: (tool: AssistantToolUIProps<any, any> | null) => void;
 
 declare namespace useAui {
-  type Props = {
-    [K in ClientNames]?: ClientElement<K> | DerivedElement<K>;
-  };
+  type Props = AuiConfig;
 }
 
 declare function useAui(): AssistantClient;

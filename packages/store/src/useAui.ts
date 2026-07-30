@@ -22,10 +22,9 @@ import type {
   AssistantClient,
   AssistantClientAccessor,
   ClientNames,
-  ClientElement,
   ClientMethods,
 } from "./types/client";
-import { useDerived, type Derived, type DerivedElement } from "./Derived";
+import { useDerived, type Derived } from "./Derived";
 import {
   useAssistantContextValue,
   useAssistantContextProvider,
@@ -33,6 +32,7 @@ import {
   createRootAssistantClient,
   setTapEffects,
 } from "./utils/react-assistant-context";
+import type { AuiConfig } from "./AuiConfig";
 import { getTransformScopes, type ScopesConfig } from "./attachTransformScopes";
 import {
   normalizeEventSelector,
@@ -281,7 +281,7 @@ const useHostedAssistantClient = ({
 }: {
   parent: AssistantClient;
   entries: ScopeEntry[];
-}): AssistantClient => {
+}): ScopedAuiClient => {
   const { value: client, effects } = useTapHost(function AssistantClientHost() {
     const clientRef = useRef<ClientRef>({ parent, current: null }).current;
     const notifications = useNotificationManager();
@@ -321,9 +321,7 @@ const useHostedAssistantClient = ({
     return client;
   });
 
-  setTapEffects(client, effects);
-
-  return client;
+  return { client, effects };
 };
 
 const useDerivedScopeMount = (
@@ -374,10 +372,12 @@ const useDerivedOnlyClient = (
   return useCommittedClient(building, [parent, ...accessors]);
 };
 
-const useScopedClient = (
+type ScopedAuiClient = { client: AssistantClient; effects?: () => void };
+
+export const useScopedClient = (
   parent: AssistantClient,
-  clients: useAui.Props,
-): AssistantClient => {
+  clients: AuiConfig,
+): ScopedAuiClient => {
   const entries = Object.entries(
     applyTransformScopes(clients, parent),
   ) as ScopeEntry[];
@@ -393,13 +393,11 @@ const useScopedClient = (
     return useHostedAssistantClient({ parent, entries });
   }
   // oxlint-disable-next-line react-hooks/rules-of-hooks
-  return useDerivedOnlyClient(parent, entries);
+  return { client: useDerivedOnlyClient(parent, entries) };
 };
 
 export namespace useAui {
-  export type Props = {
-    [K in ClientNames]?: ClientElement<K> | DerivedElement<K>;
-  };
+  export type Props = AuiConfig;
 }
 
 /**
@@ -464,12 +462,17 @@ export function useAui(): AssistantClient;
  *
  * const role = useAuiState((s) => s.message.role);
  * ```
+ *
+ * @deprecated Use `<AuiProvider config={AuiConfig({ ... })}>` instead; it
+ * creates the client and provides it to the subtree in one step.
  */
 export function useAui(clients: useAui.Props): AssistantClient;
 export function useAui(clients?: useAui.Props): AssistantClient {
   const parent = useAssistantContextValue();
   if (clients) {
-    return useScopedClient(parent, clients);
+    const { client, effects } = useScopedClient(parent, clients);
+    if (effects) setTapEffects(client, effects);
+    return client;
   }
   return parent;
 }

@@ -48,15 +48,31 @@ primitives built on it. Components rendered outside an `AuiProvider`
 receive a default client whose scope accessors throw on use, so
 missing-provider mistakes surface at the point of use.
 
+Pass `config` to create the client in place: the provider extends the
+parent client (the inherited one, an empty root with `value={null}`, or an
+explicit `value`) with the configured scopes and provides the result.
+Configs are identity-insensitive — a fresh object per render is safe.
+`ref` receives the created client after mount.
+
 When mounting a runtime built with one of the runtime hooks, use
 [AssistantRuntimeProvider](/docs/api-reference/context-providers/assistant-runtime-provider#assistantruntimeprovider) — it installs an `AuiProvider`
 internally — rather than wiring `AuiProvider` yourself.
 
 ```tsx
-function ScopedAssistant({ children, scopes }) {
-  const aui = useAui(scopes);
-
-  return <AuiProvider value={aui}>{children}</AuiProvider>;
+function MessageScope({ index, children }) {
+  return (
+    <AuiProvider
+      config={AuiConfig({
+        message: Derived({
+          source: "thread",
+          query: { index },
+          get: (aui) => aui.thread.message({ index }),
+        }),
+      })}
+    >
+      {children}
+    </AuiProvider>
+  );
 }
 ```
 

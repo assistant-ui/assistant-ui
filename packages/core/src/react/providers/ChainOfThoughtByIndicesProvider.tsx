@@ -1,5 +1,10 @@
 import type { FC, PropsWithChildren } from "react";
-import { useAui, useAuiState, AuiProvider } from "@assistant-ui/store";
+import {
+  useAui,
+  useAuiState,
+  AuiConfig,
+  AuiProvider,
+} from "@assistant-ui/store";
 import { ChainOfThoughtClient } from "../../store/clients/chain-of-thought-client";
 import type { ChainOfThoughtPart } from "../../store/scopes/chain-of-thought";
 
@@ -16,19 +21,23 @@ export const ChainOfThoughtByIndicesProvider: FC<
 
   const parentAui = useAui();
 
-  const aui = useAui({
-    chainOfThought: ChainOfThoughtClient({
-      parts,
-      getMessagePart: ({ index }) => {
-        if (index < 0 || index >= parts.length) {
-          throw new Error(
-            `ChainOfThought part index ${index} is out of bounds (0..${parts.length - 1})`,
-          );
-        }
-        return parentAui.message.part({ index: startIndex + index });
-      },
-    }),
-  });
-
-  return <AuiProvider value={aui}>{children}</AuiProvider>;
+  return (
+    <AuiProvider
+      config={AuiConfig({
+        chainOfThought: ChainOfThoughtClient({
+          parts,
+          getMessagePart: ({ index }) => {
+            if (index < 0 || index >= parts.length) {
+              throw new Error(
+                `ChainOfThought part index ${index} is out of bounds (0..${parts.length - 1})`,
+              );
+            }
+            return parentAui.message.part({ index: startIndex + index });
+          },
+        }),
+      })}
+    >
+      {children}
+    </AuiProvider>
+  );
 };

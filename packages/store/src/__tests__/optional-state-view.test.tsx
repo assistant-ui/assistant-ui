@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { resource } from "@assistant-ui/tap";
 import { useAui } from "../useAui";
 import { useAuiState } from "../useAuiState";
-import { AuiProvider } from "../utils/react-assistant-context";
+import { AuiProvider } from "../AuiProvider";
 import { getProxiedAssistantState } from "../utils/proxied-assistant-state";
 import type { AssistantClient } from "../types/client";
 
