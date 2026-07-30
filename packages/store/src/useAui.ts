@@ -424,9 +424,10 @@ const useDerivedOnlyClient = (
   parent: AssistantClient,
   entries: ScopeEntry[],
 ): AssistantClient => {
-  const signature = entries.map((entry) => entry.name).join(",");
-  const committedSignature = useRef(signature).current;
   if (isDevelopment) {
+    const signature = entries.map((entry) => entry.name).join(",");
+    // oxlint-disable-next-line react-hooks/rules-of-hooks -- isDevelopment is constant for the app lifetime
+    const committedSignature = useRef(signature).current;
     const root = entries.find((entry) => !isDerivedElement(entry.element));
     if (root) {
       throw new Error(
