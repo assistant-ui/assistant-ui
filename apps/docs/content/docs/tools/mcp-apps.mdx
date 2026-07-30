@@ -59,6 +59,8 @@ function MyAssistant() {
 
 `McpAppsRemoteHost` is the default host strategy — it POSTs `{ method, params }` to your route. A different strategy (e.g. a client-side MCP client) can be plugged in by writing a custom resource that returns the same `McpAppsHost` shape (`{ loadResource, callTool, readResource, listResources }`).
 
+When `headers` is a function, set `hostKey` to the current account or workspace ID and update it when that identity changes. Callback and custom `fetch` references may change between renders without reloading the widget; `hostKey` explicitly controls when dynamically authenticated resources reload.
+
 `openLink` is auto-wired to `window.open(url, "_blank", "noopener,noreferrer")`. `sendMessage` is auto-wired to append a user message to the current thread (accepts `string`, `{ prompt }`, `{ text }`, or `{ message }`).
 
 ### Route handler
@@ -314,4 +316,4 @@ McpAppRenderer({
 - Widgets run cross-origin in a sandboxed iframe. The bridge filters incoming messages by both source window and origin.
 - The host route is your auth boundary — apply session checks, rate limiting, and per-tool allowlists there. The renderer trusts whatever the route returns.
 - `openLink` rejects non-`http(s)` URLs at the bridge layer, but your `openLink` handler should still treat the URL as untrusted (e.g. always use `noopener,noreferrer`).
-- Keep `host` and `handlers` references stable across renders (e.g. module-scope constants or `useMemo`); an unstable identity will tear down and refetch the widget on every parent re-render.
+- Keep custom `host` and `handlers` references stable across renders (e.g. module-scope constants or `useMemo`); an unstable custom-host identity will tear down and refetch the widget on every parent re-render.

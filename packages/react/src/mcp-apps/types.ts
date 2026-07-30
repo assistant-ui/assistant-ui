@@ -75,6 +75,12 @@ export type McpAppsHost = {
  */
 export type McpAppsRemoteHostOptions = {
   url: string;
+  /**
+   * Identifies the current host session or workspace. Change this value when
+   * dynamic headers begin targeting a different account or workspace so
+   * mounted MCP App resources reload.
+   */
+  hostKey?: string | number;
   fetch?: typeof fetch;
   headers?:
     | Record<string, string>

@@ -1,9 +1,17 @@
 // @vitest-environment jsdom
 import { render, waitFor } from "@testing-library/react";
 import { resource, useResource } from "@assistant-ui/tap";
-import type { ToolCallMessagePartProps } from "@assistant-ui/core/react";
+import { memo } from "react";
+import type {
+  ToolCallMessagePartComponent,
+  ToolCallMessagePartProps,
+} from "@assistant-ui/core/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { McpAppBridgeHandlers, McpAppsHost } from "./types";
+import type {
+  McpAppBridgeHandlers,
+  McpAppsHost,
+  McpAppsRemoteHostOptions,
+} from "./types";
 
 const { framePropsMock } = vi.hoisted(() => ({ framePropsMock: vi.fn() }));
 
@@ -63,22 +71,45 @@ function Harness({ host, serverId }: { host: McpAppsHost; serverId?: string }) {
   return <Renderer {...createPart(serverId)} />;
 }
 
+const MemoizedPart = memo(function MemoizedPart({
+  Renderer,
+}: {
+  Renderer: ToolCallMessagePartComponent;
+}) {
+  return <Renderer {...createPart()} />;
+});
+
+function MemoizedHarness({ host }: { host: McpAppsHost }) {
+  const renderer = useResource(
+    McpAppRenderer({
+      host: Host({ host }),
+    }),
+  );
+  return <MemoizedPart Renderer={renderer.render} />;
+}
+
 function RemoteHarness({
   url,
   headers,
   fetch,
+  hostKey,
 }: {
   url: string;
-  headers: Record<string, string>;
+  headers: NonNullable<McpAppsRemoteHostOptions["headers"]>;
   fetch: typeof globalThis.fetch;
+  hostKey?: string | number;
 }) {
   const renderer = useResource(
     McpAppRenderer({
-      host: McpAppsRemoteHost({ url, headers, fetch }),
+      host: McpAppsRemoteHost({
+        url,
+        headers,
+        fetch,
+        ...(hostKey !== undefined ? { hostKey } : {}),
+      }),
     }),
   );
-  const Renderer = renderer.render;
-  return <Renderer {...createPart()} />;
+  return <MemoizedPart Renderer={renderer.render} />;
 }
 
 describe("McpAppRenderer", () => {
@@ -138,7 +169,7 @@ describe("McpAppRenderer", () => {
       listResources: vi.fn(),
     };
 
-    const view = render(<Harness host={firstHost} />);
+    const view = render(<MemoizedHarness host={firstHost} />);
     await waitFor(() =>
       expect(framePropsMock.mock.lastCall?.[0].resource.html).toBe(
         "first host",
@@ -146,7 +177,7 @@ describe("McpAppRenderer", () => {
     );
 
     framePropsMock.mockClear();
-    view.rerender(<Harness host={nextHost} />);
+    view.rerender(<MemoizedHarness host={nextHost} />);
 
     expect(nextHost.loadResource).toHaveBeenCalledTimes(1);
     expect(framePropsMock).not.toHaveBeenCalled();
@@ -219,6 +250,56 @@ describe("McpAppRenderer", () => {
       />,
     );
     expect(fetch).toHaveBeenCalledTimes(3);
+  });
+
+  it("uses hostKey to reload resources without callback identity churn", async () => {
+    const fetch = vi.fn(
+      async (url: string | URL | Request, init?: RequestInit) =>
+        Response.json({
+          uri: "ui://example/search",
+          mimeType: "text/html;profile=mcp-app",
+          html: `${String(url)}:${new Headers(init?.headers).get("authorization")}`,
+        }),
+    ) as unknown as typeof globalThis.fetch;
+
+    const view = render(
+      <RemoteHarness
+        url="/host"
+        headers={() => ({ authorization: "Bearer a" })}
+        hostKey="workspace-a"
+        fetch={fetch}
+      />,
+    );
+    await waitFor(() =>
+      expect(framePropsMock.mock.lastCall?.[0].resource.html).toBe(
+        "/host:Bearer a",
+      ),
+    );
+
+    view.rerender(
+      <RemoteHarness
+        url="/host"
+        headers={() => ({ authorization: "Bearer a" })}
+        hostKey="workspace-a"
+        fetch={fetch}
+      />,
+    );
+    expect(fetch).toHaveBeenCalledTimes(1);
+
+    view.rerender(
+      <RemoteHarness
+        url="/host"
+        headers={() => ({ authorization: "Bearer b" })}
+        hostKey="workspace-b"
+        fetch={fetch}
+      />,
+    );
+    await waitFor(() =>
+      expect(framePropsMock.mock.lastCall?.[0].resource.html).toBe(
+        "/host:Bearer b",
+      ),
+    );
+    expect(fetch).toHaveBeenCalledTimes(2);
   });
 
   it("gives the renderer serverId precedence in listResources", async () => {

@@ -14,6 +14,7 @@ import type {
   ToolCallMessagePartProps,
 } from "@assistant-ui/core/react";
 import { useAui } from "@assistant-ui/store";
+import { create, type StoreApi, type UseBoundStore } from "zustand";
 
 import { useResource, resource, type ResourceElement } from "@assistant-ui/tap";
 import { McpAppFrame } from "./app-frame";
@@ -62,6 +63,8 @@ type LoadedResourceState = {
   error?: Error;
 };
 
+type HostStore = UseBoundStore<StoreApi<{ host: McpAppsHost }>>;
+
 function getInput(part: {
   status: { type: string };
   argsText: string;
@@ -92,11 +95,11 @@ function extractSendMessageText(params: unknown): string | undefined {
 
 function InlineRenderer({
   part,
-  internalsRef,
+  hostStore,
   optionsRef,
 }: {
   part: ToolCallMessagePartProps;
-  internalsRef: MutableRefObject<{ host: McpAppsHost }>;
+  hostStore: HostStore;
   optionsRef: MutableRefObject<McpAppRendererOptions>;
 }) {
   const opts = optionsRef.current;
@@ -114,7 +117,7 @@ function InlineRenderer({
 
   const [loadedResource, setLoadedResource] = useState<LoadedResourceState>();
 
-  const host = internalsRef.current.host;
+  const host = hostStore((state) => state.host);
   const resourceUri = appForRender?.resourceUri;
   const serverId = appForRender?.serverId;
   const serverIdRef = useRef<string | undefined>(undefined);
@@ -170,26 +173,26 @@ function InlineRenderer({
         return { ok: true };
       },
       callTool: (params) =>
-        internalsRef.current.host.callTool({
+        hostStore.getState().host.callTool({
           ...params,
           ...(serverIdRef.current ? { serverId: serverIdRef.current } : {}),
         }),
       readResource: (params) =>
-        internalsRef.current.host.readResource({
+        hostStore.getState().host.readResource({
           ...params,
           ...(serverIdRef.current ? { serverId: serverIdRef.current } : {}),
         }),
       listResources: (params) => {
         if (!serverIdRef.current) {
-          return internalsRef.current.host.listResources(params);
+          return hostStore.getState().host.listResources(params);
         }
-        return internalsRef.current.host.listResources({
+        return hostStore.getState().host.listResources({
           ...(isRecord(params) ? params : {}),
           serverId: serverIdRef.current,
         });
       },
     }),
-    [aui, internalsRef],
+    [aui, hostStore],
   );
 
   const loadedResourceForApp =
@@ -246,20 +249,24 @@ const useMcpAppRenderer = (
   const optionsRef = useRef<McpAppRendererOptions>(options);
   optionsRef.current = options;
 
-  const internalsRef = useRef<{ host: McpAppsHost }>({ host });
-  internalsRef.current = { host };
+  const [hostStore] = useState(() =>
+    create<{ host: McpAppsHost }>(() => ({ host })),
+  );
+  useEffect(() => {
+    hostStore.setState({ host });
+  }, [host, hostStore]);
 
   const render = useMemo((): ToolCallMessagePartComponent => {
     const Render: ToolCallMessagePartComponent = (props) => (
       <InlineRenderer
         part={props}
-        internalsRef={internalsRef}
+        hostStore={hostStore}
         optionsRef={optionsRef}
       />
     );
     Render.displayName = "McpAppRenderer";
     return Render;
-  }, []);
+  }, [hostStore]);
 
   return { render };
 };

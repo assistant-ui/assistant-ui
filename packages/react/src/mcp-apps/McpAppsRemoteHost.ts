@@ -39,8 +39,10 @@ const readErrorBody = async (res: Response): Promise<string | undefined> => {
   }
 };
 
-const getHeadersIdentity = (headers: McpAppsRemoteHostOptions["headers"]) => {
-  if (typeof headers === "function") return headers;
+const getStaticHeadersIdentity = (
+  headers: McpAppsRemoteHostOptions["headers"],
+) => {
+  if (typeof headers === "function") return undefined;
   if (headers === undefined) return undefined;
   return JSON.stringify(
     Object.entries(headers).sort(([left], [right]) =>
@@ -86,44 +88,57 @@ async function postToHost(
 const useMcpAppsRemoteHost = (
   options: McpAppsRemoteHostOptions,
 ): McpAppsHost => {
-  const headersIdentity = getHeadersIdentity(options.headers);
+  const optionsRef = useRef(options);
+  optionsRef.current = options;
+
+  const headersIdentity = getStaticHeadersIdentity(options.headers);
   const headersRef = useRef<{
-    identity: ReturnType<typeof getHeadersIdentity>;
-    value: McpAppsRemoteHostOptions["headers"];
+    identity: ReturnType<typeof getStaticHeadersIdentity>;
+    value: Record<string, string> | undefined;
   }>({
     identity: headersIdentity,
-    value: options.headers,
+    value: typeof options.headers === "function" ? undefined : options.headers,
   });
   if (!Object.is(headersRef.current.identity, headersIdentity)) {
     headersRef.current = {
       identity: headersIdentity,
-      value: options.headers,
+      value:
+        typeof options.headers === "function" ? undefined : options.headers,
     };
   }
-  const headers = headersRef.current.value;
-  const fetch = options.fetch;
+  const staticHeaders = headersRef.current.value;
+  const hostKey = options.hostKey;
   const url = options.url;
 
   return useMemo((): McpAppsHost => {
-    const currentOptions: McpAppsRemoteHostOptions = {
-      url,
-      ...(fetch !== undefined ? { fetch } : {}),
-      ...(headers !== undefined ? { headers } : {}),
+    const getCurrentOptions = (): McpAppsRemoteHostOptions => {
+      const current = optionsRef.current;
+      return {
+        url,
+        ...(hostKey !== undefined ? { hostKey } : {}),
+        ...(current.fetch !== undefined ? { fetch: current.fetch } : {}),
+        ...(typeof current.headers === "function"
+          ? { headers: current.headers }
+          : staticHeaders !== undefined
+            ? { headers: staticHeaders }
+            : {}),
+      };
     };
     return {
       loadResource: (params) =>
         postToHost(
-          currentOptions,
+          getCurrentOptions(),
           "mcp-apps/read-resource",
           params,
         ) as Promise<McpAppResource>,
-      callTool: (params) => postToHost(currentOptions, "tools/call", params),
+      callTool: (params) =>
+        postToHost(getCurrentOptions(), "tools/call", params),
       readResource: (params) =>
-        postToHost(currentOptions, "resources/read", params),
+        postToHost(getCurrentOptions(), "resources/read", params),
       listResources: (params) =>
-        postToHost(currentOptions, "resources/list", params),
+        postToHost(getCurrentOptions(), "resources/list", params),
     };
-  }, [fetch, headers, url]);
+  }, [hostKey, staticHeaders, url]);
 };
 
 export const McpAppsRemoteHost = resource(useMcpAppsRemoteHost);
