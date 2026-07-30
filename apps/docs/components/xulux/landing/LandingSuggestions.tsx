@@ -68,7 +68,7 @@ export function LandingSuggestions({ onSelectPrompt, disabled }: Props) {
               }
             >
               {GROUP_ICONS[group.label]}
-              {group.label}
+              {group.label === "Learn" ? "Learn topics" : group.label}
             </Button>
           ))}
         </div>
