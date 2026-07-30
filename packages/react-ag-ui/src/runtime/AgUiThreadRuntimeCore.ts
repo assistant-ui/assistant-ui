@@ -1044,6 +1044,7 @@ export class AgUiThreadRuntimeCore {
       const err = this.pendingError;
       this.pendingError = null;
       this.pendingResumeMessageId = null;
+      this.pendingA2uiAction = undefined;
       throw err;
     }
 
@@ -1054,6 +1055,8 @@ export class AgUiThreadRuntimeCore {
       this.pendingResumeMessageId = null;
       if (!abortSignal.aborted) {
         this.startResumeRun(resumeMessageId);
+      } else {
+        this.pendingA2uiAction = undefined;
       }
     }
   }

@@ -4708,4 +4708,67 @@ describe("AGUIThreadRuntimeCore", () => {
       },
     });
   });
+
+  it("clears deferred A2UI actions when the active run is cancelled", async () => {
+    const runInputs: any[] = [];
+    const agent = {
+      runAgent: vi.fn((input, subscriber, { signal }) => {
+        runInputs.push(input);
+        if (runInputs.length > 1) {
+          subscriber.onRunFinalized?.();
+          return Promise.resolve();
+        }
+        return new Promise((_, reject) => {
+          signal.addEventListener("abort", () => {
+            const error = new Error("aborted");
+            error.name = "AbortError";
+            reject(error);
+          });
+        });
+      }),
+    } as unknown as HttpAgent;
+    const core = createCore(agent);
+
+    const initialRun = core.append(createAppendMessage());
+    core.sendA2uiAction({ type: "a2ui:action", name: "continue" });
+    await core.cancel();
+    await initialRun;
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(runInputs).toHaveLength(1);
+
+    await core.append(createAppendMessage());
+
+    expect(runInputs).toHaveLength(2);
+    expect(runInputs[1].forwardedProps.a2uiAction).toBeUndefined();
+  });
+
+  it("clears deferred A2UI actions when the active run errors", async () => {
+    const runInputs: any[] = [];
+    let failRun!: () => void;
+    const activeRun = new Promise<void>((resolve) => {
+      failRun = resolve;
+    });
+    const agent = {
+      runAgent: vi.fn(async (input, subscriber) => {
+        runInputs.push(input);
+        if (runInputs.length === 1) {
+          await activeRun;
+          throw new Error("boom");
+        }
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+    const core = createCore(agent);
+
+    const initialRun = core.append(createAppendMessage());
+    core.sendA2uiAction({ type: "a2ui:action", name: "continue" });
+    failRun();
+    await expect(initialRun).rejects.toThrow("boom");
+
+    await core.append(createAppendMessage());
+
+    expect(runInputs).toHaveLength(2);
+    expect(runInputs[1].forwardedProps.a2uiAction).toBeUndefined();
+  });
 });
