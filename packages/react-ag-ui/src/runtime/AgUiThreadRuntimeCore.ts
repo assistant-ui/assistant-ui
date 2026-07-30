@@ -692,6 +692,7 @@ export class AgUiThreadRuntimeCore {
 
   sendA2uiAction(action: Record<string, unknown>): void {
     this.assertNoPendingInterrupts();
+    this.maybeAutoCancelPendingToolCalls();
     const parentId = this.repository.headId;
     if (parentId === null) {
       this.logger.debug(

@@ -4966,4 +4966,35 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(runInputs).toHaveLength(2);
     expect(runInputs[1].forwardedProps.a2uiAction).toBeUndefined();
   });
+
+  it("sendA2uiAction auto-cancels pending client-side tool calls", async () => {
+    const { runAgent, runInputs, getRunCount } = createPendingToolCallAgent();
+    const core = createCore({ runAgent } as unknown as HttpAgent);
+    await core.append(createAppendMessage());
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(core.getPendingToolCalls()?.toolCallIds).toEqual(["call-1"]);
+
+    core.sendA2uiAction({ type: "a2ui:action", name: "submit" });
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(getRunCount()).toBe(2);
+
+    const assistant = core
+      .getMessages()
+      .find((m) => m.role === "assistant") as ThreadAssistantMessage;
+    const call1 = assistant.content.find(
+      (p) => p.type === "tool-call" && p.toolCallId === "call-1",
+    ) as any;
+    expect(call1.result).toEqual({ error: "Tool call cancelled by user" });
+
+    const run2Messages = runInputs[1]?.messages ?? [];
+    const toolMsg = run2Messages.find(
+      (m: any) => m.role === "tool" && m.toolCallId === "call-1",
+    );
+    expect(toolMsg?.content).toContain("Tool call cancelled by user");
+    expect(runInputs[1].forwardedProps.a2uiAction.userAction.name).toBe(
+      "submit",
+    );
+  });
 });
