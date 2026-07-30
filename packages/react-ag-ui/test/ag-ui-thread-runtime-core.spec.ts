@@ -4709,6 +4709,88 @@ describe("AGUIThreadRuntimeCore", () => {
     });
   });
 
+  it("clears deferred A2UI actions when external messages replace the thread", async () => {
+    const runInputs: any[] = [];
+    let releaseRun!: () => void;
+    const activeRun = new Promise<void>((resolve) => {
+      releaseRun = resolve;
+    });
+    const agent = {
+      runAgent: vi.fn(async (input, subscriber) => {
+        runInputs.push(input);
+        if (runInputs.length === 1) await activeRun;
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+    const core = createCore(agent);
+
+    const initialRun = core.append(createAppendMessage());
+    core.sendA2uiAction({ type: "a2ui:action", name: "continue" });
+    core.applyExternalMessages([]);
+
+    releaseRun();
+    await initialRun;
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(runInputs).toHaveLength(1);
+
+    await core.append(createAppendMessage());
+
+    expect(runInputs).toHaveLength(2);
+    expect(runInputs[1].forwardedProps.a2uiAction).toBeUndefined();
+  });
+
+  it("resumes deferred A2UI actions from the current head", async () => {
+    const runInputs: any[] = [];
+    let releaseRun!: () => void;
+    let postRunHead: string | undefined;
+    let core: AgUiThreadRuntimeCore;
+    const activeRun = new Promise<void>((resolve) => {
+      releaseRun = resolve;
+    });
+    const agent = {
+      runAgent: vi.fn(async (input, subscriber) => {
+        runInputs.push(input);
+        if (runInputs.length === 1) {
+          await activeRun;
+          subscriber.onTextMessageStartEvent?.({
+            event: { type: "TEXT_MESSAGE_START", messageId: "assistant-1" },
+          });
+          subscriber.onTextMessageContentEvent?.({
+            event: {
+              type: "TEXT_MESSAGE_CONTENT",
+              messageId: "assistant-1",
+              delta: "first response",
+            },
+          });
+          postRunHead = core.getMessages().at(-1)?.id;
+        }
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+    core = createCore(agent);
+
+    const initialRun = core.append(createAppendMessage());
+    const preRunHead = core.getMessages().at(-1)!.id;
+    core.sendA2uiAction({ type: "a2ui:action", name: "continue" });
+
+    releaseRun();
+    await initialRun;
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(runInputs).toHaveLength(2);
+    expect(postRunHead).toBe("assistant-1");
+    expect(preRunHead).not.toBe(postRunHead);
+    expect(runInputs[1].messages).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: postRunHead, role: "assistant" }),
+      ]),
+    );
+    expect(runInputs[1].forwardedProps.a2uiAction).toMatchObject({
+      userAction: { name: "continue" },
+    });
+  });
+
   it("clears deferred A2UI actions when the active run is cancelled", async () => {
     const runInputs: any[] = [];
     const agent = {
