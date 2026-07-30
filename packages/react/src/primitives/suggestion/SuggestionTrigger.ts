@@ -34,9 +34,10 @@ const useSuggestionTrigger = ({
   const resolvedSend = send ?? false;
 
   const callback = useCallback(() => {
-    const isRunning = aui.thread.getState().isRunning;
+    if (resolvedSend) {
+      const { isRunning, capabilities } = aui.thread.getState();
+      if (isRunning && !capabilities.queue) return;
 
-    if (resolvedSend && !isRunning) {
       aui.thread.append({
         content: [{ type: "text", text: prompt }],
         runConfig: aui.composer.getState().runConfig,
