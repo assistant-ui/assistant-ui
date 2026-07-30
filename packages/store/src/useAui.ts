@@ -231,24 +231,20 @@ const useScopeMounts = (entries: ScopeEntry[]): ScopeAccessor[] =>
     entries.map(([name, element]) => withKey(name, ScopeMount(name, element))),
   );
 
-const useCommittedClient = ({
-  building,
-  parent,
-  fields,
-  accessors,
-}: {
-  building: AssistantClient;
-  parent: AssistantClient;
-  fields: ClientFields;
-  accessors: readonly AssistantClientAccessor<ClientNames>[];
-}): AssistantClient => {
-  const deps = useShallowStable([parent, fields, accessors]);
+// Commits the freshly built client only when its identity-relevant inputs
+// changed: value-only updates keep the committed client's identity, a
+// structural change produces a new one
+const useCommittedClient = (
+  building: AssistantClient,
+  deps: readonly unknown[],
+): AssistantClient => {
+  const stableDeps = useShallowStable(deps);
   const cell = useMemo(
     () => ({}) as { deps?: unknown; client?: AssistantClient },
     [],
   );
-  if (cell.deps !== deps) {
-    cell.deps = deps;
+  if (cell.deps !== stableDeps) {
+    cell.deps = stableDeps;
     cell.client = building;
   }
   return cell.client!;
@@ -268,24 +264,22 @@ const useAuiRoot = ({
   const fields = useClientFields({ notifications, clientRef });
   const building = createClientObject(parent, fields);
 
-  const accessors = useShallowStable(
-    useAssistantTapContextProvider(
-      { clientRef, emit: notifications.emit },
-      function WithTapContext() {
-        return useAssistantContextProvider(
-          building,
-          function WithBuildingClient() {
-            return useScopeMounts(entries);
-          },
-        );
-      },
-    ),
+  const accessors = useAssistantTapContextProvider(
+    { clientRef, emit: notifications.emit },
+    function WithTapContext() {
+      return useAssistantContextProvider(
+        building,
+        function WithBuildingClient() {
+          return useScopeMounts(entries);
+        },
+      );
+    },
   );
 
   // Fresh envelope per commit so value-only updates reach the store's
   // subscribers; the client inside keeps its identity
   return {
-    client: useCommittedClient({ building, parent, fields, accessors }),
+    client: useCommittedClient(building, [parent, ...accessors]),
   };
 };
 
@@ -383,19 +377,16 @@ const useDerivedOnlyClient = (
     }
   }
 
-  const fields = useMemo(
-    () => ({ subscribe: parent.subscribe, on: parent.on }),
-    [parent],
-  );
-  const building = createClientObject(parent, fields);
+  const building = createClientObject(parent, {
+    subscribe: parent.subscribe,
+    on: parent.on,
+  });
 
-  const accessors = useShallowStable(
-    entries.map(([name, element]) =>
-      // oxlint-disable-next-line react-hooks/rules-of-hooks -- fixed per call site; React throws on a count change
-      useDerivedScopeMount(building, name, element),
-    ),
+  const accessors = entries.map(([name, element]) =>
+    // oxlint-disable-next-line react-hooks/rules-of-hooks -- fixed per call site; React throws on a count change
+    useDerivedScopeMount(building, name, element),
   );
-  return useCommittedClient({ building, parent, fields, accessors });
+  return useCommittedClient(building, [parent, ...accessors]);
 };
 
 const useScopedClient = (
