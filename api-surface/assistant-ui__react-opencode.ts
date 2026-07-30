@@ -1070,6 +1070,7 @@ declare class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   private reconnectSyncToken;
   private readonly childControllersById;
   private ancestorSessionIds;
+  private isChildSession;
   private readonly stagedMessages;
   private readonly client;
   private readonly sessionId;
