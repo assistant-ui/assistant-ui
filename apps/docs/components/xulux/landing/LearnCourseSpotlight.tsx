@@ -6,7 +6,7 @@ export function LearnCourseSpotlight() {
   return (
     <section
       aria-label="Interactive course"
-      className="mt-5 grid w-full max-w-2xl grid-cols-[auto_minmax(0,1fr)] items-center gap-x-3 gap-y-1.5 rounded-2xl border border-[#d9d2ff] bg-[#f0edff] px-3.5 py-3 sm:w-[86%] sm:grid-cols-[auto_minmax(0,1fr)_auto] dark:border-violet-800/60 dark:bg-violet-950/30"
+      className="mt-5 grid w-full max-w-2xl grid-cols-[auto_minmax(0,1fr)] items-center gap-x-3 gap-y-1.5 rounded-2xl border border-[#dcd9ea] bg-[#f0edff] px-3.5 py-3 sm:w-[86%] sm:grid-cols-[auto_minmax(0,1fr)_auto] dark:border-[#3e3a51] dark:bg-violet-950/30"
     >
       <div className="row-span-2 grid size-9 shrink-0 place-items-center rounded-xl border border-[#d9d2ff] bg-white/70 text-[#6557dc] sm:row-span-1 dark:border-violet-800/60 dark:bg-violet-950/50 dark:text-violet-400">
         <BookOpenIcon className="size-4" />
