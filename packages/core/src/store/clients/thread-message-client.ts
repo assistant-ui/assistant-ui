@@ -11,9 +11,11 @@ import { useClientLookup } from "@assistant-ui/store";
 import type { MessageState } from "../scopes/message";
 import type { PartState } from "../scopes/part";
 import { NoOpComposerClient } from "./no-op-composer-client";
+import {
+  COMPLETE_STATUS,
+  normalizePartStatus,
+} from "../../utils/normalizePartStatus";
 import { getThreadMessageText } from "../../utils/text";
-
-const COMPLETE_STATUS = Object.freeze({ type: "complete" } as const);
 
 const useThreadMessagePartClient = ({
   part,
@@ -27,7 +29,7 @@ const useThreadMessagePartClient = ({
       ...part,
       status:
         isMessageRunning && "status" in part
-          ? (part.status ?? COMPLETE_STATUS)
+          ? (normalizePartStatus(part) ?? COMPLETE_STATUS)
           : COMPLETE_STATUS,
     };
   }, [part, isMessageRunning]);
