@@ -4,7 +4,7 @@ import {
 } from "./xulux-suggestions";
 
 describe("Xulux Learn suggestions", () => {
-  it("leaves course entry to the dedicated spotlight", () => {
+  it("does not encode course navigation as a prompt replay", () => {
     expect(findXuluxSuggestion("learn-guided-course")).toBeUndefined();
     expect(
       XULUX_SUGGESTION_GROUPS.flatMap((group) => group.options).some(
@@ -13,7 +13,7 @@ describe("Xulux Learn suggestions", () => {
     ).toBe(false);
   });
 
-  it("keeps topic-based Learn suggestions", () => {
+  it("keeps existing Learn replay data available for compatibility", () => {
     expect(findXuluxSuggestion("learn-thread-component")).toMatchObject({
       label: "Thread component",
     });

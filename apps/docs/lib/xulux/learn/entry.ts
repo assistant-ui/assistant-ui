@@ -10,6 +10,7 @@ export type LearnAutoStartSource = Extract<
 >;
 
 export const LEARN_SPOTLIGHT_HREF = "/learn?start=1&source=spotlight";
+export const LEARN_SUGGESTION_HREF = "/learn?start=1&source=suggestion";
 
 export function parseLearnAutoStartSource(
   value: unknown,
