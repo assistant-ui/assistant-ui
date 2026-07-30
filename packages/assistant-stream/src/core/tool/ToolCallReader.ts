@@ -17,6 +17,10 @@ import type {
   ReadonlyJSONValue,
 } from "../../utils";
 
+type ArgsTextEvent =
+  | { type: "delta"; text: string }
+  | { type: "replace"; text: string };
+
 // TODO: remove dispose
 
 function getField<T>(obj: T, fieldPath: (string | number)[]): unknown {
@@ -267,26 +271,30 @@ class ForEachHandle<T> implements Handle {
 export class ToolCallArgsReaderImpl<
   T extends ReadonlyJSONObject,
 > implements ToolCallArgsReader<T> {
-  private argTextDeltas: ReadableStream<string>;
+  private argTextEvents: ReadableStream<ArgsTextEvent>;
   private handles: Set<Handle> = new Set();
   private args: unknown = parsePartialJsonObject("");
   private finished = false;
 
-  constructor(argTextDeltas: ReadableStream<string>) {
-    this.argTextDeltas = argTextDeltas;
+  constructor(argTextEvents: ReadableStream<ArgsTextEvent>) {
+    this.argTextEvents = argTextEvents;
     this.processStream();
   }
 
   private async processStream(): Promise<void> {
     try {
       let accumulatedText = "";
-      const reader = this.argTextDeltas.getReader();
+      const reader = this.argTextEvents.getReader();
 
       while (true) {
         const { value, done } = await reader.read();
         if (done) break;
 
-        accumulatedText += value;
+        if (value.type === "delta") {
+          accumulatedText += value.text;
+        } else {
+          accumulatedText = value.text;
+        }
         const parsedArgs = parsePartialJsonObject(accumulatedText);
 
         if (parsedArgs !== undefined) {
@@ -458,13 +466,13 @@ export class ToolCallReaderImpl<
 > implements ToolCallReader<TArgs, TResult> {
   public readonly args: ToolCallArgsReaderImpl<TArgs>;
   public readonly response: ToolCallResponseReaderImpl<TResult>;
-  private readonly writable: WritableStream<string>;
+  private readonly writable: WritableStream<ArgsTextEvent>;
   private readonly resolve: (value: ToolResponse<TResult>) => void;
 
   public argsText: string = "";
 
   constructor() {
-    const stream = new TransformStream<string, string>();
+    const stream = new TransformStream<ArgsTextEvent, ArgsTextEvent>();
     this.writable = stream.writable;
     this.args = new ToolCallArgsReaderImpl<TArgs>(stream.readable);
 
@@ -476,7 +484,7 @@ export class ToolCallReaderImpl<
   async appendArgsTextDelta(text: string): Promise<void> {
     const writer = this.writable.getWriter();
     try {
-      await writer.write(text);
+      await writer.write({ type: "delta", text });
     } catch (err) {
       console.warn(err);
     } finally {
@@ -487,7 +495,15 @@ export class ToolCallReaderImpl<
   }
 
   async replaceArgsText(text: string): Promise<void> {
-    // The already-consumed preview stream cannot be rewound.
+    const writer = this.writable.getWriter();
+    try {
+      await writer.write({ type: "replace", text });
+    } catch (err) {
+      console.warn(err);
+    } finally {
+      writer.releaseLock();
+    }
+
     this.argsText = text;
   }
 

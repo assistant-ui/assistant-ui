@@ -69,10 +69,11 @@ export type AssistantStreamChunk = { readonly path: readonly number[] } & (
   | {
       /**
        * Replaces accumulated text in a text, reasoning, or tool-call argument
-       * part. Client-internal: it is produced locally to correct a controller
-       * whose streamed text diverged from an authoritative snapshot, and the
-       * wire transports do not carry it (the data stream drops it and the
-       * assistant transport rejects it as an unknown type).
+       * part. Values already delivered to consumers are not rewritten.
+       * Client-internal: it is produced locally to correct a controller whose
+       * streamed text diverged from an authoritative snapshot, and the wire
+       * transports do not carry it (the data stream drops it and the assistant
+       * transport rejects it as an unknown type).
        */
       readonly type: "text-replace";
       readonly text: string;

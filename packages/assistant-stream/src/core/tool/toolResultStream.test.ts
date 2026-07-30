@@ -742,6 +742,64 @@ describe("unstable_runPendingTools", () => {
       expect(executedArgs).toEqual({ query: "Oslo" });
     });
 
+    it("propagates shorter replacement args to streamCall readers", async () => {
+      const observedQueries: unknown[] = [];
+      const observedQueriesDone: Promise<void>[] = [];
+      const terminalQueries: Promise<unknown>[] = [];
+      const tool: Tool = {
+        parameters: { type: "object", properties: {} },
+        streamCall: (reader) => {
+          terminalQueries.push(reader.args.get("query"));
+          observedQueriesDone.push(
+            (async () => {
+              for await (const query of reader.args.streamValues("query")) {
+                observedQueries.push(query);
+              }
+            })(),
+          );
+        },
+      };
+      const inputChunks: AssistantStreamChunk[] = [
+        {
+          type: "part-start",
+          path: [],
+          part: {
+            type: "tool-call",
+            toolCallId: "tc-stream-replace",
+            toolName: "search",
+          },
+        },
+        {
+          type: "text-delta",
+          path: [0],
+          textDelta: '{"query":"a much longer query',
+        },
+        { type: "text-replace", path: [0], text: '{"query":"Oslo' },
+        { type: "tool-call-args-text-finish", path: [0] },
+        { type: "part-finish", path: [0] },
+      ];
+      const inputStream = new ReadableStream<AssistantStreamChunk>({
+        start(controller) {
+          for (const chunk of inputChunks) controller.enqueue(chunk);
+          controller.close();
+        },
+      });
+
+      await inputStream
+        .pipeThrough(
+          unstable_toolResultStream(
+            { search: tool },
+            new AbortController().signal,
+            async () => {},
+          ),
+        )
+        .pipeTo(new WritableStream());
+      await Promise.all(observedQueriesDone);
+
+      expect(observedQueries.at(-1)).toBe("Oslo");
+      expect(await terminalQueries[0]!).toBe("Oslo");
+    });
+
     it("falls back to the plain result when toModelOutput throws in the streaming path", async () => {
       const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
       const tool: Tool = {

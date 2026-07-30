@@ -610,11 +610,8 @@ export class ToolInvocationTracker {
           shouldWriteArgsText = false;
         }
       } else if (!content.argsText.startsWith(entry.argsText)) {
-        if (
-          isArgsTextComplete(entry.argsText) &&
-          isArgsTextComplete(content.argsText) &&
-          isEquivalentCompleteArgsText(entry.argsText, content.argsText)
-        ) {
+        if (isArgsTextComplete(content.argsText)) {
+          entry.controller.argsText.replace(content.argsText);
           const shouldClose = this._shouldCloseArgsStream({
             toolName: content.toolName,
             argsText: content.argsText,
@@ -625,31 +622,17 @@ export class ToolInvocationTracker {
           entry.argsComplete = shouldClose;
           shouldWriteArgsText = false;
         } else {
-          if (isArgsTextComplete(content.argsText)) {
-            entry.controller.argsText.replace(content.argsText);
-            const shouldClose = this._shouldCloseArgsStream({
-              toolName: content.toolName,
-              argsText: content.argsText,
-              hasResult,
-            });
-            if (shouldClose) entry.controller.argsText.close();
-            entry.argsText = content.argsText;
-            entry.argsComplete = shouldClose;
-            shouldWriteArgsText = false;
-          } else {
-            // A.2: a complete divergent snapshot replaces the streamed text. An incomplete divergent snapshot is not authoritative, so the controller keeps its current prefix until a complete snapshot arrives.
-            if (process.env.NODE_ENV !== "production") {
-              console.warn(
-                "[ToolInvocationTracker] argsText regressed mid-stream; not restarting (see EDGE_CASES.md A.2)",
-                {
-                  previous: entry.argsText,
-                  next: content.argsText,
-                  toolCallId: content.toolCallId,
-                },
-              );
-            }
-            shouldWriteArgsText = false;
+          if (process.env.NODE_ENV !== "production") {
+            console.warn(
+              "[ToolInvocationTracker] argsText regressed mid-stream; not restarting (see EDGE_CASES.md A.2)",
+              {
+                previous: entry.argsText,
+                next: content.argsText,
+                toolCallId: content.toolCallId,
+              },
+            );
           }
+          shouldWriteArgsText = false;
         }
       }
 

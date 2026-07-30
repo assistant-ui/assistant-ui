@@ -202,10 +202,10 @@ describe("ToolInvocationTracker", () => {
     });
   });
 
-  it("does not auto-submit a parse-error result when divergent argsText closes without a backend result", async () => {
+  it("adopts a complete divergent argsText snapshot and executes with the authoritative args", async () => {
+    // A complete divergent snapshot is authoritative. The controller text is replaced before closing, so execution parses no stale prefix and its result is legitimate despite the pending human interrupt.
     const execute = vi.fn(async () => ({ forecast: "ok" }));
     const streamCall = vi.fn((_reader, { human }) => {
-      // Request human input immediately — sets up the pending interrupt.
       void human({ request: "approve" });
     });
     const getTools = () => ({
@@ -238,12 +238,10 @@ describe("ToolInvocationTracker", () => {
         ]),
       );
 
-      // The pending interrupt is set up via streamCall → human().
       await waitFor(() => {
         expect(statuses["tool-1"]?.type).toBe("interrupt");
       });
 
-      // Divergent regression (not a prefix of the streamed text).
       tracker.setState(
         createState([
           createAssistantMessage('{"query":"London","longitude":-0.125', {
@@ -279,6 +277,72 @@ describe("ToolInvocationTracker", () => {
       expect(onResult).toHaveBeenCalledWith(
         expect.objectContaining({ result: { forecast: "ok" }, isError: false }),
       );
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
+  it("keeps the pending human interrupt when incomplete divergent argsText never reconverges", async () => {
+    // An incomplete divergent snapshot is not authoritative. The controller retains its prefix and does not close, so it neither executes nor submits a bogus result and the pending human interrupt survives.
+    let responseSettled = false;
+    const execute = vi.fn(async () => ({ forecast: "ok" }));
+    const streamCall = vi.fn((reader, { human }) => {
+      void reader.response.get().then(() => {
+        responseSettled = true;
+      });
+      void human({ request: "approve" });
+    });
+    const getTools = () => ({
+      weatherSearch: {
+        parameters: { type: "object", properties: {} },
+        execute,
+        streamCall,
+      } satisfies Tool,
+    });
+    const onResult = vi.fn();
+    let statuses: Record<string, ToolExecutionStatus> = {};
+    const onStatusesChange = (s: ReadonlyMap<string, ToolExecutionStatus>) => {
+      statuses = Object.fromEntries(s);
+    };
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    try {
+      const tracker = new ToolInvocationTracker(getTools, {
+        onResult,
+        onStatusesChange,
+      });
+      tracker.setState(createState([]));
+
+      tracker.setState(
+        createState([
+          createAssistantMessage('{"query":"London","longitude":0', {
+            query: "London",
+            longitude: 0,
+          }),
+        ]),
+      );
+
+      await waitFor(() => {
+        expect(statuses["tool-1"]?.type).toBe("interrupt");
+      });
+
+      tracker.setState(
+        createState([
+          createAssistantMessage('{"query":"London","longitude":-0.125', {
+            query: "London",
+            longitude: -0.125,
+          }),
+        ]),
+      );
+
+      for (let i = 0; i < 5; i++) {
+        await new Promise((r) => setTimeout(r, 0));
+      }
+
+      expect(responseSettled).toBe(false);
+      expect(statuses["tool-1"]?.type).toBe("interrupt");
+      expect(execute).not.toHaveBeenCalled();
+      expect(onResult).not.toHaveBeenCalled();
     } finally {
       warnSpy.mockRestore();
     }
