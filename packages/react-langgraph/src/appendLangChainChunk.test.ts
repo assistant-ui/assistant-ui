@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import type { ReadonlyJSONObject } from "assistant-stream/utils";
 import { appendLangChainChunk } from "./appendLangChainChunk";
 import { convertLangChainMessages } from "./convertLangChainMessages";
 import type { LangChainMessage, LangChainMessageChunk } from "./types";
@@ -21,6 +22,7 @@ const convert = convertLangChainMessages as unknown as (
 ) => {
   content: ReadonlyArray<{
     type: string;
+    args?: unknown;
     argsText?: string;
     toolCallId?: string;
   }>;
@@ -30,6 +32,12 @@ const toolCallArgsText = (result: ReturnType<typeof convert>): string => {
   const part = result.content.find((p) => p.type === "tool-call");
   if (!part?.argsText) throw new Error("Expected tool-call argsText");
   return part.argsText;
+};
+
+const toolCallArgs = (result: ReturnType<typeof convert>): unknown => {
+  const part = result.content.find((p) => p.type === "tool-call");
+  if (!part?.args) throw new Error("Expected tool-call args");
+  return part.args;
 };
 
 const aiChunk = (
@@ -324,5 +332,62 @@ describe("appendLangChainChunk updates-event partial_json", () => {
       toolMessage,
     );
     expect(final).toBe(toolMessage);
+  });
+});
+
+describe("appendLangChainChunk carry gate", () => {
+  // resolveToolCallArgs reads partial_json before chunk.args, so the carry is
+  // only safe when the streamed text serializes the same value as the incoming
+  // args.
+  const metadata = {
+    toolArgsKeyOrderCache: new Map<string, Map<string, string[]>>(),
+  };
+
+  const streamArgs = (argsJson: string): AiMessage =>
+    appendAi(undefined, {
+      type: "AIMessageChunk",
+      id: "ai-1",
+      content: "",
+      tool_call_chunks: [
+        { id: "call-1", index: 0, name: "weather", args_json: argsJson },
+      ],
+    });
+
+  const fullAi = (args: ReadonlyJSONObject): AiMessage => ({
+    type: "ai",
+    id: "ai-1",
+    content: "",
+    tool_calls: [{ id: "call-1", index: 0, name: "weather", args }],
+  });
+
+  it("carries the streamed partial_json when it serializes the same args", () => {
+    const streamed = '{"city": "Tokyo"}';
+    const final = appendAi(streamArgs(streamed), fullAi({ city: "Tokyo" }));
+
+    expect(final.tool_calls?.[0]?.partial_json).toBe(streamed);
+    expect(toolCallArgs(convert(final, metadata))).toMatchObject({
+      city: "Tokyo",
+    });
+  });
+
+  it("declines the carry when a server-side rewrite changes the args", () => {
+    const final = appendAi(
+      streamArgs('{"city": "Tokyo"}'),
+      fullAi({ city: "Osaka" }),
+    );
+
+    expect(final.tool_calls?.[0]?.partial_json).toBeUndefined();
+    expect(toolCallArgs(convert(final, metadata))).toMatchObject({
+      city: "Osaka",
+    });
+  });
+
+  it("declines the carry when the streamed partial_json is truncated", () => {
+    const final = appendAi(streamArgs('{"city":'), fullAi({ city: "Tokyo" }));
+
+    expect(final.tool_calls?.[0]?.partial_json).toBeUndefined();
+    expect(toolCallArgs(convert(final, metadata))).toMatchObject({
+      city: "Tokyo",
+    });
   });
 });

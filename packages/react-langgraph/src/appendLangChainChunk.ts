@@ -5,6 +5,7 @@ import type {
   LangChainToolCallChunk,
   MessageContentText,
 } from "./types";
+import { isJSONValueEqual } from "@assistant-ui/core/internal";
 import { parsePartialJsonObject } from "assistant-stream/utils";
 
 type AiMessage = Extract<LangChainMessage, { type: "ai" }>;
@@ -38,8 +39,11 @@ const findMatchingToolCall = (
 
 // The full AIMessage a LangGraph `updates` event delivers on node completion
 // carries parsed tool_calls with no partial_json. Carry over the partial_json
-// already streamed on matching tool calls so argsText stays a byte-prefix of
-// what the tracker already observed, instead of re-stringifying parsed args.
+// already streamed on matching tool calls when it serializes the same args, so
+// argsText stays a byte-prefix of what the tracker already observed instead of
+// re-stringifying parsed args. Decline the carry when the streamed text is a
+// different value (a server-side rewrite) or truncated: resolveToolCallArgs
+// reads partial_json first, so a divergent carry would discard the server's args.
 const mergeStreamedToolCallArgs = (
   prev: AiMessage,
   curr: AiMessage,
@@ -56,6 +60,13 @@ const mergeStreamedToolCallArgs = (
       toolCall,
     )?.partial_json;
     if (!streamedPartialJson) return toolCall;
+    if (
+      !isJSONValueEqual(
+        parsePartialJsonObject(streamedPartialJson),
+        toolCall.args,
+      )
+    )
+      return toolCall;
     changed = true;
     return { ...toolCall, partial_json: streamedPartialJson };
   });

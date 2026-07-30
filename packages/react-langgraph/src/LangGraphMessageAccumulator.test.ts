@@ -365,7 +365,9 @@ describe("LangGraphMessageAccumulator reconcileMessages", () => {
 });
 
 describe("LangGraphMessageAccumulator values-path appendMessage", () => {
-  const partialJson = '{"city":';
+  // Complete same-value stream: the gate only fires the carry for matching args,
+  // so this fixture proves the values path routes through appendMessage.
+  const partialJson = '{"city": "Tokyo"}';
 
   const streamedChunk = (): LangChainMessageChunk => ({
     id: "ai-1",
@@ -432,6 +434,39 @@ describe("LangGraphMessageAccumulator values-path appendMessage", () => {
         },
       ],
     });
+  });
+
+  it("declines a truncated partial_json carry through both values paths", () => {
+    const streamedTruncated = (): LangChainMessageChunk => ({
+      id: "ai-1",
+      type: "AIMessageChunk",
+      content: "",
+      tool_call_chunks: [
+        { id: "call-1", index: 0, name: "weather", args_json: '{"city":' },
+      ],
+    });
+
+    const replaceAcc = createAccumulator();
+    replaceAcc.addMessages([
+      streamedTruncated() as unknown as LangChainMessage,
+    ]);
+    const replaceResult = replaceAcc.replaceMessages([fullAiMessage()]);
+    expect(replaceResult[0]).toMatchObject({
+      type: "ai",
+      tool_calls: [{ args: { city: "Tokyo" } }],
+    });
+    expect(replaceResult[0]!.tool_calls![0]!.partial_json).toBeUndefined();
+
+    const reconcileAcc = createAccumulator();
+    reconcileAcc.addMessages([
+      streamedTruncated() as unknown as LangChainMessage,
+    ]);
+    const reconcileResult = reconcileAcc.reconcileMessages([fullAiMessage()]);
+    expect(reconcileResult[0]).toMatchObject({
+      type: "ai",
+      tool_calls: [{ args: { city: "Tokyo" } }],
+    });
+    expect(reconcileResult[0]!.tool_calls![0]!.partial_json).toBeUndefined();
   });
 
   it("drops ids absent from a replaceMessages snapshot", () => {

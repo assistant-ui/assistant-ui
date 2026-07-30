@@ -54,6 +54,10 @@ export {
 // validation lives in one place.
 export { isJSONValue, isRecord } from "./utils/json/is-json";
 
+// JSON deep-equality, reused by framework adapters so the key-order-agnostic
+// comparison lives in one place.
+export { isJSONValueEqual } from "./utils/json/is-json-equal";
+
 // Data-URL decoder and http(s) matcher, reused by framework adapters so the
 // outbound part conversion lives in one place.
 export { httpUrlPattern, parseDataUrl } from "./utils/data-url";
