@@ -78,18 +78,22 @@ export const createRootAssistantClient = (): AssistantClient =>
  */
 const AssistantContext = createContext<AssistantClient>(DefaultAssistantClient);
 
-/**
- * Carries the tap host's effects callback on the client so AuiProvider can
- * mount the host's commit ahead of its children's effects.
- */
-export const AUI_USE_EFFECTS_SYMBOL = Symbol("assistant-ui.store.useEffects");
-
 const NOOP_EFFECT = () => {};
+const tapEffects = new WeakMap<AssistantClient, () => void>();
 
 const getTapEffects = (client: AssistantClient): (() => void) => {
-  return (
-    (client as Record<symbol, never>)[AUI_USE_EFFECTS_SYMBOL] ?? NOOP_EFFECT
-  );
+  return tapEffects.get(client) ?? NOOP_EFFECT;
+};
+
+/**
+ * Records the tap host's effects callback so AuiProvider can mount the host's
+ * commit ahead of its children's effects.
+ */
+export const setTapEffects = (
+  client: AssistantClient,
+  effects: () => void,
+): void => {
+  tapEffects.set(client, effects);
 };
 
 const UseTapEffects = () => {

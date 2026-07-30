@@ -31,7 +31,7 @@ import {
   useAssistantContextProvider,
   DefaultAssistantClient,
   createRootAssistantClient,
-  AUI_USE_EFFECTS_SYMBOL,
+  setTapEffects,
 } from "./utils/react-assistant-context";
 import { getTransformScopes, type ScopesConfig } from "./attachTransformScopes";
 import {
@@ -40,7 +40,10 @@ import {
   type AssistantEventCallback,
   type AssistantEventSelector,
 } from "./types/events";
-import { NotificationManager } from "./utils/NotificationManager";
+import {
+  useNotificationManager,
+  type NotificationManager,
+} from "./utils/NotificationManager";
 import { useAssistantTapContextProvider } from "./utils/tap-assistant-context";
 import { ClientResource } from "./useClientResource";
 import { useShallowStable } from "./utils/useShallowStable";
@@ -272,8 +275,6 @@ const useAuiRoot = ({
   };
 };
 
-const useNotifications = () => useResource(NotificationManager());
-
 const useHostedAssistantClient = ({
   parent,
   entries,
@@ -283,7 +284,7 @@ const useHostedAssistantClient = ({
 }): AssistantClient => {
   const { value: client, effects } = useTapHost(function AssistantClientHost() {
     const clientRef = useRef<ClientRef>({ parent, current: null }).current;
-    const notifications = useNotifications();
+    const notifications = useNotificationManager();
 
     const store = useTapRoot(function AuiRoot() {
       return useAuiRoot({ parent, entries, clientRef, notifications });
@@ -297,17 +298,16 @@ const useHostedAssistantClient = ({
 
     // flushTapSync makes structural rebinds triggered by a notification land
     // before the notification returns
-    useEffect(
-      () =>
-        store.subscribe(() => flushTapSync(notifications.notifySubscribers)),
-      [store, notifications],
-    );
-    useEffect(
-      () =>
-        parent.subscribe(() => flushTapSync(notifications.notifySubscribers)),
+    useEffect(() => {
+      const notify = () => flushTapSync(notifications.notifySubscribers);
+      const unsubscribeStore = store.subscribe(notify);
+      const unsubscribeParent = parent.subscribe(notify);
+      return () => {
+        unsubscribeStore();
+        unsubscribeParent();
+      };
       // oxlint-disable-next-line react-hooks/exhaustive-deps -- parent is a prop of the outer hook; the host re-renders with a fresh closure when it changes
-      [parent, notifications],
-    );
+    }, [store, parent, notifications]);
 
     useEffect(() => {
       clientRef.parent = parent;
@@ -321,7 +321,7 @@ const useHostedAssistantClient = ({
     return client;
   });
 
-  (client as Record<symbol, unknown>)[AUI_USE_EFFECTS_SYMBOL] = effects;
+  setTapEffects(client, effects);
 
   return client;
 };
