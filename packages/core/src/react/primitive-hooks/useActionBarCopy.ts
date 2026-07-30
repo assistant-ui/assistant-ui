@@ -24,26 +24,36 @@ export const useActionBarCopy = ({
   const copiedTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(
     undefined,
   );
+  const scopeGenerationRef = useRef(0);
 
-  const clearCopiedTimer = useCallback(() => {
-    if (copiedTimerRef.current === undefined) return;
-    clearTimeout(copiedTimerRef.current);
-    copiedTimerRef.current = undefined;
-  }, []);
+  useEffect(
+    () => () => {
+      scopeGenerationRef.current += 1;
+      if (copiedTimerRef.current === undefined) return;
 
-  useEffect(() => clearCopiedTimer, [aui, clearCopiedTimer]);
+      clearTimeout(copiedTimerRef.current);
+      copiedTimerRef.current = undefined;
+      aui.message.setIsCopied(false);
+    },
+    [aui],
+  );
 
   const copy = useCallback(() => {
     if (!copyToClipboard) return;
 
     const valueToCopy = isEditing ? composerValue : aui.message.getCopyText();
     if (!valueToCopy) return;
+    const scopeGeneration = scopeGenerationRef.current;
 
     // The rejection handler swallows clipboard write failures (permission denied,
     // API unavailable) so they don't surface as unhandled promise rejections.
     Promise.resolve(copyToClipboard(valueToCopy)).then(
       () => {
-        clearCopiedTimer();
+        if (scopeGeneration !== scopeGenerationRef.current) return;
+
+        if (copiedTimerRef.current !== undefined) {
+          clearTimeout(copiedTimerRef.current);
+        }
         aui.message.setIsCopied(true);
         copiedTimerRef.current = setTimeout(() => {
           copiedTimerRef.current = undefined;
@@ -52,14 +62,7 @@ export const useActionBarCopy = ({
       },
       () => {},
     );
-  }, [
-    aui,
-    isEditing,
-    composerValue,
-    copiedDuration,
-    copyToClipboard,
-    clearCopiedTimer,
-  ]);
+  }, [aui, isEditing, composerValue, copiedDuration, copyToClipboard]);
 
   return { copy, disabled: disabled || !copyToClipboard, isCopied };
 };

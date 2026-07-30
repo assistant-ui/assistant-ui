@@ -1,5 +1,5 @@
 /** @vitest-environment jsdom */
-import { renderHook } from "@testing-library/react";
+import { cleanup, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => {
@@ -25,12 +25,18 @@ const mocks = vi.hoisted(() => {
         setIsCopied,
       },
     },
+    currentAui: {
+      message: {
+        getCopyText: () => "Hello",
+        setIsCopied,
+      },
+    },
   };
 });
 
 vi.mock("@assistant-ui/store", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@assistant-ui/store")>()),
-  useAui: () => mocks.aui,
+  useAui: () => mocks.currentAui,
   useAuiState: ((selector: (state: typeof mocks.state) => unknown) =>
     selector(mocks.state)) as typeof import("@assistant-ui/store").useAuiState,
 }));
@@ -38,8 +44,10 @@ vi.mock("@assistant-ui/store", async (importOriginal) => ({
 import { useActionBarCopy } from "./useActionBarCopy";
 
 afterEach(() => {
+  cleanup();
   vi.clearAllMocks();
   vi.useRealTimers();
+  mocks.currentAui = mocks.aui;
 });
 
 describe("useActionBarCopy", () => {
@@ -99,7 +107,7 @@ describe("useActionBarCopy", () => {
     expect(mocks.setIsCopied).toHaveBeenCalledWith(false);
   });
 
-  it("clears the copy feedback timer when unmounted", async () => {
+  it("resets copy feedback when unmounted", async () => {
     vi.useFakeTimers();
     const copyToClipboard = vi.fn();
     const { result, unmount } = renderHook(() =>
@@ -110,7 +118,57 @@ describe("useActionBarCopy", () => {
     await Promise.resolve();
     expect(vi.getTimerCount()).toBe(1);
 
+    mocks.setIsCopied.mockClear();
     unmount();
+
+    expect(vi.getTimerCount()).toBe(0);
+    expect(mocks.setIsCopied).toHaveBeenCalledWith(false);
+  });
+
+  it("ignores clipboard success after unmount", async () => {
+    vi.useFakeTimers();
+    let resolveCopy: (() => void) | undefined;
+    const copyToClipboard = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveCopy = resolve;
+        }),
+    );
+    const { result, unmount } = renderHook(() =>
+      useActionBarCopy({ copyToClipboard }),
+    );
+
+    result.current.copy();
+    unmount();
+    resolveCopy?.();
+    await Promise.resolve();
+
+    expect(mocks.setIsCopied).not.toHaveBeenCalled();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("resets feedback for the previous message scope", async () => {
+    vi.useFakeTimers();
+    const copyToClipboard = vi.fn();
+    const nextSetIsCopied = vi.fn();
+    const { result, rerender } = renderHook(() =>
+      useActionBarCopy({ copyToClipboard }),
+    );
+
+    result.current.copy();
+    await Promise.resolve();
+    mocks.setIsCopied.mockClear();
+
+    mocks.currentAui = {
+      message: {
+        getCopyText: () => "Next message",
+        setIsCopied: nextSetIsCopied,
+      },
+    };
+    rerender();
+
+    expect(mocks.setIsCopied).toHaveBeenCalledWith(false);
+    expect(nextSetIsCopied).not.toHaveBeenCalled();
     expect(vi.getTimerCount()).toBe(0);
   });
 });
