@@ -96,13 +96,6 @@ const metaOf = (element: ScopeElement): ScopeMeta => {
   return { source: props.source, query: props.query ?? {} };
 };
 
-const createAccessor = <K extends ClientNames>(
-  name: K,
-  meta: ScopeMeta,
-  read: () => ClientMethods,
-): AssistantClientAccessor<K> =>
-  createClientAccessor<K>({ name, ...meta }, read);
-
 type ClientFields = {
   subscribe: AssistantClient["subscribe"];
   on: AssistantClient["on"];
@@ -190,6 +183,8 @@ const useScopeMeta = (element: ScopeElement): ScopeMeta => {
   return useShallowStable({ source, query: useShallowStable(query) });
 };
 
+// Kept separate from useScopeMount: the building-client mutation there makes
+// the React Compiler bail, which would leave the resource element unmemoized
 const useScopeValue = (element: ScopeElement, derived: boolean) =>
   useResource(derived ? element : ClientResource(element));
 
@@ -209,7 +204,7 @@ const useScopeMount = (
 
   const meta = useScopeMeta(element);
   const accessor = useMemo(
-    () => createAccessor(name, meta, () => methods),
+    () => createClientAccessor({ name, ...meta }, () => methods),
     [name, meta, methods],
   );
 
@@ -279,55 +274,51 @@ const useAuiRoot = ({
 
 const useNotifications = () => useResource(NotificationManager());
 
-const useAssistantClient = ({
+const useHostedAssistantClient = ({
   parent,
   entries,
 }: {
   parent: AssistantClient;
   entries: ScopeEntry[];
 }): AssistantClient => {
-  const clientRef = useRef<ClientRef>({ parent, current: null }).current;
-  const notifications = useNotifications();
-
-  const store = useTapRoot(function AuiRoot() {
-    return useAuiRoot({ parent, entries, clientRef, notifications });
-  });
-
-  const client = useSyncExternalStore(
-    store.subscribe,
-    () => store.getValue().client,
-    () => store.getValue().client,
-  );
-
-  // flushTapSync makes structural rebinds triggered by a notification land
-  // before the notification returns
-  useEffect(
-    () => store.subscribe(() => flushTapSync(notifications.notifySubscribers)),
-    [store, notifications],
-  );
-  useEffect(
-    () => parent.subscribe(() => flushTapSync(notifications.notifySubscribers)),
-    [parent, notifications],
-  );
-
-  useEffect(() => {
-    clientRef.parent = parent;
-    clientRef.current = client;
-  });
-
-  if (clientRef.current === null) {
-    clientRef.current = client;
-  }
-
-  return client;
-};
-
-const useHostedAssistantClient = (props: {
-  parent: AssistantClient;
-  entries: ScopeEntry[];
-}): AssistantClient => {
   const { value: client, effects } = useTapHost(function AssistantClientHost() {
-    return useAssistantClient(props);
+    const clientRef = useRef<ClientRef>({ parent, current: null }).current;
+    const notifications = useNotifications();
+
+    const store = useTapRoot(function AuiRoot() {
+      return useAuiRoot({ parent, entries, clientRef, notifications });
+    });
+
+    const client = useSyncExternalStore(
+      store.subscribe,
+      () => store.getValue().client,
+      () => store.getValue().client,
+    );
+
+    // flushTapSync makes structural rebinds triggered by a notification land
+    // before the notification returns
+    useEffect(
+      () =>
+        store.subscribe(() => flushTapSync(notifications.notifySubscribers)),
+      [store, notifications],
+    );
+    useEffect(
+      () =>
+        parent.subscribe(() => flushTapSync(notifications.notifySubscribers)),
+      // oxlint-disable-next-line react-hooks/exhaustive-deps -- parent is a prop of the outer hook; the host re-renders with a fresh closure when it changes
+      [parent, notifications],
+    );
+
+    useEffect(() => {
+      clientRef.parent = parent;
+      clientRef.current = client;
+    });
+
+    if (clientRef.current === null) {
+      clientRef.current = client;
+    }
+
+    return client;
   });
 
   (client as Record<symbol, unknown>)[AUI_USE_EFFECTS_SYMBOL] = effects;
@@ -344,7 +335,7 @@ const useDerivedScopeMount = (
 
   const meta = useScopeMeta(element);
   const accessor = useMemo(
-    () => createAccessor(name, meta, () => value),
+    () => createClientAccessor({ name, ...meta }, () => value),
     [name, meta, value],
   );
 
