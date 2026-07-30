@@ -357,88 +357,35 @@ const useHostedAssistantClient = (props: {
   return client;
 };
 
-// A Derived scope of a derived-only host runs under React's dispatcher: a
-// useSyncExternalStore against a bare building client (parent prototype plus
-// delegating fields). Mirroring tap's useSyncExternalStore, a throwing
-// snapshot keeps the committed value.
-const useDerivedScope = (
-  building: AssistantClient,
-  { name, element }: ScopeEntry,
-): ScopeResult => {
-  const { get } = element.args[0] as {
-    get: (client: AssistantClient) => ClientMethods;
-  };
-
-  const cell = useMemo(() => ({}) as { value?: ClientMethods }, []);
-  const select = () => {
-    try {
-      cell.value = get(building);
-    } catch (e) {
-      if (!("value" in cell)) throw e;
-    }
-    return cell.value!;
-  };
-  const value = useSyncExternalStore(building.subscribe, select, select);
-  const state = (value as { getState?: () => unknown }).getState?.();
-
-  const meta = useScopeMeta(element);
-  const accessor = useMemo(
-    () => createAccessor(name, meta, () => value),
-    [name, meta, value],
-  );
-
-  return useMemo(() => ({ name, accessor, state }), [name, accessor, state]);
-};
-
-const useAssembledClient = ({
-  parent,
-  fields,
-  results,
+// The building-client context can only be provided inside a fiber, so each
+// scope mount carries its own provider
+const useDerivedOnlyScopeMount = ({
+  building,
+  entry,
 }: {
-  parent: AssistantClient;
-  fields: ClientFields;
-  results: ScopeResult[];
-}): AssistantClient => {
-  const accessors = useShallowStable(results.map((r) => r.accessor));
-  const deps = useShallowStable([parent, fields, accessors]);
-  const cell = useMemo(
-    () => ({}) as { deps?: unknown; client?: AssistantClient },
-    [],
-  );
-  if (cell.deps !== deps) {
-    cell.deps = deps;
-    const client = createClientObject(parent, fields);
-    for (const { name, accessor } of results) {
-      (client as Record<ClientNames, unknown>)[name] = accessor;
-    }
-    cell.client = client;
-  }
-  return cell.client!;
-};
+  building: AssistantClient;
+  entry: ScopeEntry;
+}): ScopeResult =>
+  useBuildingClientProvider(building, function WithBuildingClient() {
+    return useScopeMount(entry);
+  });
 
-// Derived-only hosts run without tap: no root, no scheduler, no notification
-// manager. Derived gets see only the parent's scopes; subscribe/on delegate
-// wholesale to the parent, so emissions and state updates flow through the
-// parent's machinery.
+const DerivedOnlyScopeMount = resource(useDerivedOnlyScopeMount);
+
+// Derived-only hosts run without a tap root: no store, no notification
+// manager, no effects handshake. useResources self-hosts on React state, so
+// the scope set stays dynamic; subscribe/on delegate wholesale to the parent,
+// so emissions and state updates flow through the parent's machinery.
 const useDerivedOnlyClient = (
   parent: AssistantClient,
   entries: ScopeEntry[],
 ): AssistantClient => {
   if (isDevelopment) {
-    const signature = entries.map((entry) => entry.name).join(",");
-    // oxlint-disable-next-line react-hooks/rules-of-hooks -- isDevelopment is constant for the app lifetime
-    const committedSignature = useRef(signature).current;
     const root = entries.find((entry) => !isDerivedElement(entry.element));
     if (root) {
       throw new Error(
         `Scope "${root.name}" is a root scope but this useAui mounted derived-only; ` +
           "remount with a new key to change scope kinds.",
-      );
-    }
-    if (committedSignature !== signature) {
-      throw new Error(
-        `useAui Derived scopes changed between renders (previous: "${committedSignature}", next: "${signature}"); ` +
-          "remount with a new key to change the scopes of a derived-only useAui.",
       );
     }
   }
@@ -449,12 +396,14 @@ const useDerivedOnlyClient = (
   );
   const building = createClientObject(parent, fields);
 
-  const results = entries.map((entry) =>
-    // oxlint-disable-next-line react-hooks/rules-of-hooks -- the Derived set is static per call site (dev invariant above)
-    useDerivedScope(building, entry),
+  const results = useResources(
+    entries.map((entry) =>
+      withKey(entry.name, DerivedOnlyScopeMount({ building, entry })),
+    ),
   );
 
-  return useAssembledClient({ parent, fields, results });
+  const accessors = useShallowStable(results.map((r) => r.accessor));
+  return useCommittedClient({ building, parent, fields, accessors });
 };
 
 const useScopedClient = (
@@ -463,8 +412,8 @@ const useScopedClient = (
 ): AssistantClient => {
   const entries = toScopeEntries(applyTransformScopes(clients, parent));
 
-  // The mode is frozen at mount: the rooted branch handles dynamic scope sets
-  // inside tap, the derived-only branch runs fixed per-entry React hooks
+  // The mode is frozen at mount; both branches handle dynamic scope sets of
+  // their own kind, only a scope-kind change requires a remount
   const [rooted] = useState(() =>
     entries.some((entry) => !isDerivedElement(entry.element)),
   );
