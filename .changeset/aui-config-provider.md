@@ -4,6 +4,7 @@
 "@assistant-ui/react": patch
 "@assistant-ui/react-mcp": patch
 "@assistant-ui/react-o11y": patch
+"@assistant-ui/react-ink": patch
 ---
 
 feat: AuiConfig and AuiProvider config/ref props; deprecate the useAui extension overload
