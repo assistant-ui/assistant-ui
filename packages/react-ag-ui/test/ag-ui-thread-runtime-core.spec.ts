@@ -2630,13 +2630,16 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(runCount).toBe(1);
   });
 
-  const createPendingToolCallAgent = () => {
+  const createPendingToolCallAgent = (
+    beforeFirstRunFinalized?: () => Promise<void>,
+  ) => {
     const runInputs: any[] = [];
     let runCount = 0;
     const runAgent = vi.fn(async (input: any, subscriber: any) => {
       runInputs.push(JSON.parse(JSON.stringify(input)));
       runCount++;
       if (runCount === 1) {
+        await beforeFirstRunFinalized?.();
         subscriber.onToolCallStartEvent?.({
           event: {
             type: "TOOL_CALL_START",
@@ -3448,6 +3451,136 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(assistant.content).toContainEqual(
       expect.objectContaining({ type: "text", text: "Hello" }),
     );
+  });
+
+  const a2uiSurfaceOperations = (surfaceId: string, title: string) => [
+    { version: "v0.9", createSurface: { surfaceId } },
+    {
+      version: "v0.9",
+      updateComponents: {
+        surfaceId,
+        components: [
+          { id: "root", component: "Column", children: ["heading", "body"] },
+          {
+            id: "heading",
+            component: "Text",
+            variant: "h1",
+            text: { path: "/title" },
+          },
+          { id: "body", component: "Text", text: { path: "/body" } },
+        ],
+      },
+    },
+    {
+      version: "v0.9",
+      updateDataModel: { surfaceId, data: { title, body: `${title} body` } },
+    },
+  ];
+
+  it("keeps a restored a2ui surface separate from a live snapshot with the same surfaceId", async () => {
+    const runAgent = vi.fn(async (_input: any, subscriber: any) => {
+      subscriber.onMessagesSnapshotEvent?.({
+        event: {
+          type: "MESSAGES_SNAPSHOT",
+          messages: [
+            { id: "msg-1", role: "user", content: "show me a dashboard" },
+            {
+              id: "msg-2",
+              role: "assistant",
+              content: "Here is the dashboard",
+            },
+            {
+              id: "act-1",
+              role: "activity",
+              activityType: "a2ui-surface",
+              content: {
+                a2ui_operations: a2uiSurfaceOperations("surface-1", "Welcome"),
+              },
+            },
+          ],
+        },
+      });
+      subscriber.onActivitySnapshotEvent?.({
+        event: {
+          type: "ACTIVITY_SNAPSHOT",
+          activityType: "a2ui-surface",
+          content: {
+            a2ui_operations: a2uiSurfaceOperations("surface-1", "Updated"),
+          },
+        },
+      });
+      subscriber.onRunFinalized?.();
+    });
+    const agent = { runAgent } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    await core.append(createAppendMessage());
+
+    const restored = core
+      .getMessages()
+      .find((m) => m.id === "msg-2") as ThreadAssistantMessage;
+    const live = core
+      .getMessages()
+      .find(
+        (m) => m.role === "assistant" && m.id !== "msg-2",
+      ) as ThreadAssistantMessage;
+    const restoredPart = restored.content.find(
+      (p) => p.type === "tool-call" && p.toolCallId === "a2ui:surface-1",
+    ) as any;
+    const livePart = live.content.find(
+      (p) => p.type === "tool-call" && p.toolCallId === "a2ui:surface-1",
+    ) as any;
+
+    expect(restoredPart.args).toMatchObject({
+      $type: "Col",
+      children: [
+        { $type: "Header", text: "Welcome" },
+        { $type: "Markdown", value: "Welcome body" },
+      ],
+    });
+    expect(livePart.args).toMatchObject({
+      $type: "Col",
+      children: [
+        { $type: "Header", text: "Updated" },
+        { $type: "Markdown", value: "Updated body" },
+      ],
+    });
+  });
+
+  it("routes an a2ui-surface ACTIVITY_SNAPSHOT to the live aggregator when no restored message owns the surface", async () => {
+    const runAgent = vi.fn(async (_input: any, subscriber: any) => {
+      subscriber.onActivitySnapshotEvent?.({
+        event: {
+          type: "ACTIVITY_SNAPSHOT",
+          activityType: "a2ui-surface",
+          messageId: "live-msg",
+          content: {
+            a2ui_operations: a2uiSurfaceOperations("surface-1", "Welcome"),
+          },
+        },
+      });
+      subscriber.onRunFinalized?.();
+    });
+    const agent = { runAgent } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    await core.append(createAppendMessage());
+
+    const assistant = core
+      .getMessages()
+      .find((m) => m.role === "assistant") as ThreadAssistantMessage;
+    const a2uiPart = assistant.content.find(
+      (p) => p.type === "tool-call" && p.toolCallId === "a2ui:surface-1",
+    ) as any;
+    expect(a2uiPart).toBeDefined();
+    expect(a2uiPart.toolName).toBe("present");
+    expect(a2uiPart.args).toMatchObject({
+      $type: "Col",
+      children: [
+        { $type: "Header", text: "Welcome" },
+        { $type: "Markdown", value: "Welcome body" },
+      ],
+    });
   });
 
   it("rejects interrupt resume that does not cover every open interrupt", async () => {
@@ -4485,5 +4618,466 @@ describe("AGUIThreadRuntimeCore", () => {
     core = createCore(agent);
     await core.append(createAppendMessage());
     expect(observed).toEqual(["Hel", "Hello"]);
+  });
+
+  it("sends A2UI actions in forwarded props without appending a user message", async () => {
+    const runInputs: any[] = [];
+    const agent = {
+      runAgent: vi.fn(async (input, subscriber) => {
+        runInputs.push(input);
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+    const core = createCore(agent);
+
+    await core.append(
+      createAppendMessage({
+        runConfig: { custom: { source: "a2ui" } } as TestRunConfig,
+      }),
+    );
+    const userMessageCount = core
+      .getMessages()
+      .filter((message) => message.role === "user").length;
+
+    core.sendA2uiAction({
+      type: "a2ui:action",
+      name: "submit",
+      surfaceId: "s1",
+      sourceComponentId: "btn",
+      context: { total: 1 },
+      $input: "x",
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(runInputs).toHaveLength(2);
+    expect(
+      core.getMessages().filter((message) => message.role === "user"),
+    ).toHaveLength(userMessageCount);
+    expect(runInputs[1].forwardedProps).toMatchObject({
+      runConfig: { source: "a2ui" },
+      a2uiAction: {
+        userAction: {
+          name: "submit",
+          surfaceId: "s1",
+          sourceComponentId: "btn",
+          context: { total: 1 },
+          $input: "x",
+          timestamp: expect.any(String),
+        },
+      },
+    });
+    expect(
+      runInputs[1].forwardedProps.a2uiAction.userAction.type,
+    ).toBeUndefined();
+    expect(runInputs[1].forwardedProps.runConfig.a2uiAction).toBeUndefined();
+
+    await core.append(createAppendMessage());
+
+    expect(runInputs).toHaveLength(3);
+    expect(runInputs[2].forwardedProps.a2uiAction).toBeUndefined();
+  });
+
+  it("defers A2UI action runs until the active run settles", async () => {
+    const runInputs: any[] = [];
+    let releaseRun!: () => void;
+    const activeRun = new Promise<void>((resolve) => {
+      releaseRun = resolve;
+    });
+    const agent = {
+      runAgent: vi.fn(async (input, subscriber) => {
+        runInputs.push(input);
+        if (runInputs.length === 1) await activeRun;
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+    const core = createCore(agent);
+
+    const initialRun = core.append(createAppendMessage());
+    expect(agent.runAgent).toHaveBeenCalledTimes(1);
+
+    core.sendA2uiAction({ type: "a2ui:action", name: "continue" });
+
+    expect(agent.runAgent).toHaveBeenCalledTimes(1);
+
+    releaseRun();
+    await initialRun;
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(agent.runAgent).toHaveBeenCalledTimes(2);
+    expect(runInputs[1].forwardedProps.a2uiAction).toMatchObject({
+      userAction: {
+        name: "continue",
+        timestamp: expect.any(String),
+      },
+    });
+  });
+
+  it("clears deferred A2UI actions when external messages replace the thread", async () => {
+    const runInputs: any[] = [];
+    let releaseRun!: () => void;
+    const activeRun = new Promise<void>((resolve) => {
+      releaseRun = resolve;
+    });
+    const agent = {
+      runAgent: vi.fn(async (input, subscriber) => {
+        runInputs.push(input);
+        if (runInputs.length === 1) await activeRun;
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+    const core = createCore(agent);
+
+    const initialRun = core.append(createAppendMessage());
+    core.sendA2uiAction({ type: "a2ui:action", name: "continue" });
+    core.applyExternalMessages([]);
+
+    releaseRun();
+    await initialRun;
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(runInputs).toHaveLength(1);
+
+    await core.append(createAppendMessage());
+
+    expect(runInputs).toHaveLength(2);
+    expect(runInputs[1].forwardedProps.a2uiAction).toBeUndefined();
+  });
+
+  it("resumes deferred A2UI actions from the current head", async () => {
+    const runInputs: any[] = [];
+    let releaseRun!: () => void;
+    let postRunHead: string | undefined;
+    let core: AgUiThreadRuntimeCore;
+    const activeRun = new Promise<void>((resolve) => {
+      releaseRun = resolve;
+    });
+    const agent = {
+      runAgent: vi.fn(async (input, subscriber) => {
+        runInputs.push(input);
+        if (runInputs.length === 1) {
+          await activeRun;
+          subscriber.onTextMessageStartEvent?.({
+            event: { type: "TEXT_MESSAGE_START", messageId: "assistant-1" },
+          });
+          subscriber.onTextMessageContentEvent?.({
+            event: {
+              type: "TEXT_MESSAGE_CONTENT",
+              messageId: "assistant-1",
+              delta: "first response",
+            },
+          });
+          postRunHead = core.getMessages().at(-1)?.id;
+        }
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+    core = createCore(agent);
+
+    const initialRun = core.append(createAppendMessage());
+    const preRunHead = core.getMessages().at(-1)!.id;
+    core.sendA2uiAction({ type: "a2ui:action", name: "continue" });
+
+    releaseRun();
+    await initialRun;
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(runInputs).toHaveLength(2);
+    expect(postRunHead).toBe("assistant-1");
+    expect(preRunHead).not.toBe(postRunHead);
+    expect(runInputs[1].messages).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: postRunHead, role: "assistant" }),
+      ]),
+    );
+    expect(runInputs[1].forwardedProps.a2uiAction).toMatchObject({
+      userAction: { name: "continue" },
+    });
+  });
+
+  it("clears deferred A2UI actions when the active run is cancelled", async () => {
+    const runInputs: any[] = [];
+    const agent = {
+      runAgent: vi.fn((input, subscriber, { signal }) => {
+        runInputs.push(input);
+        if (runInputs.length > 1) {
+          subscriber.onRunFinalized?.();
+          return Promise.resolve();
+        }
+        return new Promise((_, reject) => {
+          signal.addEventListener("abort", () => {
+            const error = new Error("aborted");
+            error.name = "AbortError";
+            reject(error);
+          });
+        });
+      }),
+    } as unknown as HttpAgent;
+    const core = createCore(agent);
+
+    const initialRun = core.append(createAppendMessage());
+    core.sendA2uiAction({ type: "a2ui:action", name: "continue" });
+    await core.cancel();
+    await initialRun;
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(runInputs).toHaveLength(1);
+
+    await core.append(createAppendMessage());
+
+    expect(runInputs).toHaveLength(2);
+    expect(runInputs[1].forwardedProps.a2uiAction).toBeUndefined();
+  });
+
+  it("clears deferred A2UI actions when the active run errors", async () => {
+    const runInputs: any[] = [];
+    let failRun!: () => void;
+    const activeRun = new Promise<void>((resolve) => {
+      failRun = resolve;
+    });
+    const agent = {
+      runAgent: vi.fn(async (input, subscriber) => {
+        runInputs.push(input);
+        if (runInputs.length === 1) {
+          await activeRun;
+          throw new Error("boom");
+        }
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+    const core = createCore(agent);
+
+    const initialRun = core.append(createAppendMessage());
+    core.sendA2uiAction({ type: "a2ui:action", name: "continue" });
+    failRun();
+    await expect(initialRun).rejects.toThrow("boom");
+
+    await core.append(createAppendMessage());
+
+    expect(runInputs).toHaveLength(2);
+    expect(runInputs[1].forwardedProps.a2uiAction).toBeUndefined();
+  });
+
+  it("does not start an actionless run when an append consumes a deferred A2UI action", async () => {
+    const runInputs: any[] = [];
+    let releaseRun!: () => void;
+    const activeRun = new Promise<void>((resolve) => {
+      releaseRun = resolve;
+    });
+    const agent = {
+      runAgent: vi.fn(async (input, subscriber) => {
+        runInputs.push(input);
+        if (runInputs.length === 1) await activeRun;
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+    const core = createCore(agent);
+
+    const initialRun = core.append(createAppendMessage());
+    core.sendA2uiAction({ type: "a2ui:action", name: "continue" });
+    await core.append(createAppendMessage());
+
+    releaseRun();
+    await initialRun;
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(agent.runAgent).toHaveBeenCalledTimes(2);
+    expect(runInputs[1].forwardedProps.a2uiAction).toMatchObject({
+      userAction: { name: "continue" },
+    });
+  });
+
+  it("rejects A2UI actions while interrupts are pending without retaining them", async () => {
+    const runInputs: any[] = [];
+    let runCount = 0;
+    const agent = {
+      runAgent: vi.fn(async (input: any, subscriber: any) => {
+        runInputs.push(input);
+        runCount++;
+        subscriber.onRunFinishedEvent?.({
+          event: {
+            type: "RUN_FINISHED",
+            runId: input.runId,
+            outcome:
+              runCount === 1
+                ? {
+                    type: "interrupt",
+                    interrupts: [{ id: "int-1", reason: "tool_call" }],
+                  }
+                : { type: "success" },
+          },
+        });
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+    const core = createCore(agent);
+
+    await core.append(createAppendMessage());
+
+    expect(() =>
+      core.sendA2uiAction({ type: "a2ui:action", name: "continue" }),
+    ).toThrow(
+      "[agui] cannot start a new run while interrupts are pending; resolve them with submitInterruptResponses()",
+    );
+
+    await core.submitInterruptResponses([
+      { interruptId: "int-1", status: "resolved" },
+    ]);
+
+    expect(runInputs[1].forwardedProps.a2uiAction).toBeUndefined();
+  });
+
+  it("clears pending A2UI actions before replaying a resume stream", async () => {
+    const runInputs: any[] = [];
+    let releaseRun!: () => void;
+    const activeRun = new Promise<void>((resolve) => {
+      releaseRun = resolve;
+    });
+    const agent = {
+      runAgent: vi.fn(async (input, subscriber) => {
+        runInputs.push(input);
+        if (runInputs.length === 1) await activeRun;
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+    const core = createCore(agent);
+
+    const initialRun = core.append(createAppendMessage());
+    const userId = core.getMessages()[0]!.id;
+    core.sendA2uiAction({ type: "a2ui:action", name: "continue" });
+
+    await core.resume({
+      parentId: userId,
+      sourceId: null,
+      runConfig: {} as TestRunConfig,
+      stream: async function* (): AsyncGenerator<
+        ChatModelRunResult,
+        void,
+        unknown
+      > {
+        yield {
+          content: [{ type: "text", text: "resumed" }],
+          status: { type: "complete", reason: "unknown" },
+        };
+      },
+    });
+
+    releaseRun();
+    await initialRun;
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await core.append(createAppendMessage());
+
+    expect(runInputs).toHaveLength(2);
+    expect(runInputs[1].forwardedProps.a2uiAction).toBeUndefined();
+  });
+
+  it("sendA2uiAction auto-cancels pending client-side tool calls", async () => {
+    const { runAgent, runInputs, getRunCount } = createPendingToolCallAgent();
+    const core = createCore({ runAgent } as unknown as HttpAgent);
+    await core.append(createAppendMessage());
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(core.getPendingToolCalls()?.toolCallIds).toEqual(["call-1"]);
+
+    core.sendA2uiAction({ type: "a2ui:action", name: "submit" });
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(getRunCount()).toBe(2);
+
+    const assistant = core
+      .getMessages()
+      .find((m) => m.role === "assistant") as ThreadAssistantMessage;
+    const call1 = assistant.content.find(
+      (p) => p.type === "tool-call" && p.toolCallId === "call-1",
+    ) as any;
+    expect(call1.result).toEqual({ error: "Tool call cancelled by user" });
+
+    const run2Messages = runInputs[1]?.messages ?? [];
+    const toolMsg = run2Messages.find(
+      (m: any) => m.role === "tool" && m.toolCallId === "call-1",
+    );
+    expect(toolMsg?.content).toContain("Tool call cancelled by user");
+    expect(runInputs[1].forwardedProps.a2uiAction.userAction.name).toBe(
+      "submit",
+    );
+  });
+
+  it("drops deferred A2UI actions when the active run finishes with interrupts", async () => {
+    const runInputs: any[] = [];
+    let runCount = 0;
+    let releaseRun!: () => void;
+    const activeRun = new Promise<void>((resolve) => {
+      releaseRun = resolve;
+    });
+    const agent = {
+      runAgent: vi.fn(async (input: any, subscriber: any) => {
+        runInputs.push(JSON.parse(JSON.stringify(input)));
+        runCount++;
+        if (runCount === 1) {
+          await activeRun;
+          subscriber.onRunFinishedEvent?.({
+            event: {
+              type: "RUN_FINISHED",
+              runId: input.runId,
+              outcome: {
+                type: "interrupt",
+                interrupts: [{ id: "int-1", reason: "tool_call" }],
+              },
+            },
+          });
+        } else {
+          subscriber.onRunFinishedEvent?.({
+            event: {
+              type: "RUN_FINISHED",
+              runId: input.runId,
+              outcome: { type: "success" },
+            },
+          });
+        }
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+    const core = createCore(agent);
+
+    const initialRun = core.append(createAppendMessage());
+    core.sendA2uiAction({ type: "a2ui:action", name: "continue" });
+    releaseRun();
+    await initialRun;
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(runCount).toBe(1);
+
+    await core.submitInterruptResponses([
+      { interruptId: "int-1", status: "resolved", payload: { ok: true } },
+    ]);
+
+    expect(runCount).toBe(2);
+    expect(runInputs[1].forwardedProps.a2uiAction).toBeUndefined();
+  });
+
+  it("resumes deferred A2UI actions once after cancelling tool calls from the active run", async () => {
+    let releaseRun!: () => void;
+    const activeRun = new Promise<void>((resolve) => {
+      releaseRun = resolve;
+    });
+    const { runAgent, runInputs, getRunCount } = createPendingToolCallAgent(
+      () => activeRun,
+    );
+    const core = createCore({ runAgent } as unknown as HttpAgent);
+
+    const initialRun = core.append(createAppendMessage());
+    core.sendA2uiAction({ type: "a2ui:action", name: "submit" });
+    releaseRun();
+    await initialRun;
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(getRunCount()).toBe(2);
+    const toolMsg = runInputs[1]?.messages.find(
+      (message: any) =>
+        message.role === "tool" && message.toolCallId === "call-1",
+    );
+    expect(toolMsg?.content).toContain("Tool call cancelled by user");
+    expect(runInputs[1].forwardedProps.a2uiAction.userAction.name).toBe(
+      "submit",
+    );
   });
 });

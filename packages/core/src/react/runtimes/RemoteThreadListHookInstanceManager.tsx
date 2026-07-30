@@ -4,6 +4,7 @@ import {
   useCallback,
   useRef,
   useEffect,
+  useEffectEvent,
   useLayoutEffect,
   memo,
   type PropsWithChildren,
@@ -142,23 +143,25 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
       }
     }, [threadBinding]);
 
+    const handleInitialize = useEffectEvent(() => {
+      if (hasInitializedRef.current) return;
+
+      const state = aui.threadListItem.getState();
+      if (state.status !== "new") return;
+      hasInitializedRef.current = true;
+
+      initPromiseRef.current = aui.threadListItem.initialize();
+
+      const dispose = runtime.thread.unstable_on("runEnd", () => {
+        dispose();
+        aui.threadListItem.generateTitle();
+      });
+    });
+
     useEffect(() => {
       hasInitializedRef.current = false;
-      return runtime.threads.main.unstable_on("initialize", () => {
-        if (hasInitializedRef.current) return;
-
-        const state = aui.threadListItem.getState();
-        if (state.status !== "new") return;
-        hasInitializedRef.current = true;
-
-        initPromiseRef.current = aui.threadListItem.initialize();
-
-        const dispose = runtime.thread.unstable_on("runEnd", () => {
-          dispose();
-          aui.threadListItem.generateTitle();
-        });
-      });
-    }, [runtime, aui]);
+      return runtime.threads.main.unstable_on("initialize", handleInitialize);
+    }, [runtime]);
 
     return <>{children}</>;
   };

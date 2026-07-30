@@ -11,7 +11,7 @@ description: All exports from @assistant-ui/store.
 function useAui(): AssistantClient;
 ```
 
-Returns the store from the nearest `AuiProvider`. Does not re-render when scopes change — returns a stable reference.
+Returns the store from the nearest `AuiProvider`. The client is immutable: state updates keep its identity, while a structural change (a scope resolving to a different instance) produces a new client and re-renders consumers.
 
 ### useAui(scopes)
 
@@ -33,7 +33,7 @@ type useAui.Props = {
 function useAuiState<T>(selector: (state: AssistantState) => T): T;
 ```
 
-Subscribes to a slice of state. Re-renders only when the selected value changes (compared by `Object.is`). The selector must return a specific value — not the entire state object.
+Subscribes to a slice of state. Re-renders only when the selected value changes (compared by `Object.is`). The selector must return a specific value — not the entire state object. Scopes that may be unavailable can be read via `s.optional.<scope>`, which resolves to `undefined` instead of throwing.
 
 ### useAuiEvent
 
@@ -113,20 +113,41 @@ Derived({
 });
 ```
 
-The `get` function receives the current `AssistantClient` and must return the result of calling a parent scope method. The meta (`source`, `query`) acts as identity: when `query` changes between renders, a new derived client function is returned in the same render pass — useful for keying child consumers like `MessageByIndex` by index.
+The `get` function receives the current `AssistantClient` and must return a client created via `useClientResource` (or `useClientLookup`/`useClientList`) — typically the result of calling a parent scope method. The meta (`source`, `query`) acts as identity: when `query` changes between renders, a new accessor is returned in the same render pass — useful for keying child consumers like `MessageByIndex` by index.
 
 ### attachTransformScopes
 
 ```ts
-function attachTransformScopes<T extends (...args: any[]) => ResourceElement<any>>(
-  resource: T,
-  transform: (scopes: ScopesConfig, parent: AssistantClient) => ScopesConfig,
+function attachTransformScopes(
+  hook: (...args: any[]) => any,
+  transform: (scopes: ScopesConfig, parent: AssistantClient) => void,
 ): void;
 ```
 
-Attaches a transform function to a resource. When the resource is mounted via `useAui`, the transform runs and can add or modify sibling scopes. Transforms are applied iteratively — new root scopes trigger their own transforms.
+Attaches a transform function to a resource hook — pass the hook function you gave to `resource()`, not the resource wrapper. When the resource is mounted via `useAui`, the transform runs and can add or modify sibling scopes by mutating `scopes`. Transforms are applied iteratively — new root scopes trigger their own transforms.
 
-One transform per resource. Throws on duplicate.
+One transform per hook. Throws on duplicate.
+
+### forwardTransformScopes
+
+```ts
+function forwardTransformScopes(
+  target: (...args: any[]) => any,
+  source: (...args: any[]) => any,
+): void;
+```
+
+Copies `source`'s transform onto `target`, composing with any transform `target` already has. Use when one resource hook wraps another.
+
+### ScopesConfig
+
+```ts
+type ScopesConfig = {
+  [K in ClientNames]?: ClientElement<K> | DerivedElement<K>;
+};
+```
+
+The scopes object passed to `useAui` and mutated by transforms.
 
 ---
 
@@ -183,7 +204,7 @@ Manages a dynamic list of clients with add/remove. Built on `useClientLookup`.
 type useClientList.Props<TData, TMethods> = {
   initialValues: TData[];
   getKey: (data: TData) => string;
-  resource: ContravariantResource<TMethods, useClientList.ResourceProps<TData>>;
+  resource: Resource<TMethods, [useClientList.ResourceProps<TData>]>;
 };
 
 type useClientList.ResourceProps<TData> = {
@@ -216,6 +237,14 @@ function useAssistantEmit(): <TEvent extends Exclude<AssistantEventName, "*">>(
 ```
 
 Returns a stable emit function. Events are delivered via microtask — listeners fire after the current state update settles.
+
+### getClientId
+
+```ts
+function getClientId(client: object): getClientId.ClientId;
+```
+
+Returns the opaque identity of a bound client instance. Stable for the lifetime of the bound client regardless of accessor wrapping — a reliable `WeakMap` key for per-client caches. Throws for an unavailable scope's accessor.
 
 ---
 
@@ -282,13 +311,14 @@ The store object returned by `useAui()`. Each scope is an accessor. `subscribe` 
 
 ```ts
 type AssistantClientAccessor<K extends ClientNames> =
-  (() => ClientSchemas[K]["methods"]) &
-  (
+  ClientSchemas[K]["methods"] & {
+    /** @deprecated Access the scope as a property instead. */
+    (): ClientSchemas[K]["methods"];
+  } & (
     | ClientMeta<K>
     | { source: "root"; query: Record<string, never> }
     | { source: null; query: null }
-  ) &
-  { name: K };
+  ) & { name: K };
 ```
 
 A scope accessor exposing the scope's methods as properties (`aui.counter.increment()`). Read `.source`, `.query`, and `.name` for metadata. The call signature (`aui.counter()`) is deprecated and returns the same accessor.
@@ -296,7 +326,13 @@ A scope accessor exposing the scope's methods as properties (`aui.counter.increm
 ### AssistantState
 
 ```ts
-type AssistantState = {
+type AssistantState = ScopeStates & {
+  readonly optional: {
+    readonly [K in keyof ScopeStates]: ScopeStates[K] | undefined;
+  };
+};
+
+type ScopeStates = {
   [K in ClientNames]: ClientSchemas[K]["methods"] extends {
     getState: () => infer S;
   }
@@ -305,7 +341,7 @@ type AssistantState = {
 };
 ```
 
-The state object passed to `useAuiState` selectors. Each key is the return type of that scope's `getState()`.
+The state object passed to `useAuiState` selectors. Each key is the return type of that scope's `getState()`. `optional` exposes the same scopes, but an unavailable scope resolves to `undefined` instead of throwing: `s.optional.counter?.count`.
 
 ### ClientMeta
 
@@ -325,6 +361,54 @@ type ClientElement<K extends ClientNames> = ResourceElement<ClientOutput<K>>;
 ```
 
 A resource element that implements scope `K`.
+
+### DerivedElement
+
+```ts
+type DerivedElement<K extends ClientNames> =
+  ResourceElement<ReturnType<AssistantClientAccessor<K>>>;
+```
+
+The element returned by `Derived(...)` for scope `K`.
+
+### ClientMethods
+
+```ts
+interface ClientMethods {
+  [key: string | symbol]: (...args: any[]) => any;
+}
+```
+
+Base constraint for a scope's methods.
+
+### ClientSchema
+
+```ts
+type ClientSchema<
+  TMethods extends ClientMethods = ClientMethods,
+  TMeta extends { source: ClientNames; query: Record<string, unknown> } = never,
+  TEvents extends Record<string, unknown> = never,
+> = {
+  methods: TMethods;
+  meta?: TMeta;
+  events?: TEvents;
+};
+```
+
+Helper for declaring a `ScopeRegistry` entry.
+
+### ClientEvents
+
+```ts
+type ClientEvents<K extends ClientNames> =
+  "events" extends keyof ClientSchemas[K]
+    ? ClientSchemas[K]["events"] extends Record<`${K}.${string}`, unknown>
+      ? ClientSchemas[K]["events"]
+      : never
+    : never;
+```
+
+The event map declared by scope `K`, if any.
 
 ### Unsubscribe
 

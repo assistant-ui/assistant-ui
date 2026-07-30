@@ -40,7 +40,8 @@ describe("AuiProvider value={null} isolation boundary", () => {
     );
 
     expect(() => aui.thread.getState()).toThrow(
-      'Scope "thread" is not available inside this isolation boundary (<AuiProvider value={null}>).',
+      "You are using a component or hook that requires an AuiProvider. " +
+        "Wrap your component in an <AuiProvider> component.",
     );
   });
 

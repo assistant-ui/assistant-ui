@@ -1007,6 +1007,7 @@ declare class LangGraphMessageAccumulator<TMessage extends {
   private appendMessage;
   constructor(_param0?: LangGraphStateAccumulatorConfig<TMessage>);
   private ensureMessageId;
+  private upsertMessage;
   private applyRemove;
   addMessages(newMessages: TMessage[]): TMessage[];
   addMessageWithMetadata(message: TMessage, metadata: LangGraphTupleMetadata): TMessage[];
@@ -1224,6 +1225,15 @@ type MessagePartStatus = {
   readonly type: "incomplete";
   readonly reason: "cancelled" | "content-filter" | "error" | "length" | "other";
   readonly error?: unknown;
+};
+
+type MessagePartStreamStatus = {
+  readonly type: "running";
+} | {
+  readonly type: "complete";
+} | {
+  readonly type: "incomplete";
+  readonly reason: "cancelled" | "content-filter" | "error" | "length" | "other";
 };
 
 type MessageRole = ThreadMessage["role"];
@@ -1463,6 +1473,7 @@ type RealtimeVoiceAdapter = {
 type ReasoningMessagePart = {
   readonly type: "reasoning";
   readonly text: string;
+  readonly status?: MessagePartStreamStatus;
   readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };
@@ -1640,6 +1651,7 @@ declare const TOOL_RESPONSE_SYMBOL: unique symbol;
 type TextMessagePart = {
   readonly type: "text";
   readonly text: string;
+  readonly status?: MessagePartStreamStatus;
   readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };

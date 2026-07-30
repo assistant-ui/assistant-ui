@@ -29,7 +29,7 @@ todo scope (child, via Derived)
 ### 1. Register both scopes
 
 ```ts title="lib/store/todo-scope.ts"
-import "@assistant-ui/store";
+import type { ClientOutput } from "@assistant-ui/store";
 
 declare module "@assistant-ui/store" {
   interface ScopeRegistry {
