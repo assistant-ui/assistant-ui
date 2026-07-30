@@ -54,7 +54,9 @@ eve registry add @assistant-ui=https://r.assistant-ui.com/{name}.json
 eve add @assistant-ui/eve-chat --overwrite
 ```
 
-`eve registry add` records the namespace in your `package.json`. `eve add` then installs `@assistant-ui/react` and `@assistant-ui/eve`, writes `app/page.tsx`, and writes the thread component together with everything it imports into `components/assistant-ui` and `components/ui`. Pass `--overwrite` so it can replace the scaffold's own `app/page.tsx`; a plain `eve add` skips every file that already exists. Inspect an item before installing it with `eve registry view @assistant-ui/eve-chat`, and browse the rest of the registry with `eve registry list --registry @assistant-ui`.
+`eve registry add` records the namespace in your `package.json`. `eve add` then installs `@assistant-ui/react` and `@assistant-ui/eve`, writes `app/page.tsx`, and writes the thread component together with everything it imports into `components/assistant-ui` and `components/ui`. It expects an Eve app that carries the Next.js Web Chat scaffold, because the installed files import `@/lib/utils` through the `@/*` alias that `eve init --channel-web-nextjs` sets up.
+
+`--overwrite` is global rather than per file. It is what lets the item replace the scaffold's own `app/page.tsx`, and it also replaces any `components/assistant-ui` or `components/ui` file already in the project, including `avatar`, `button`, `collapsible`, `dialog`, and `tooltip`, so install on a clean tree and read the diff before keeping it. A plain `eve add` skips every pre-existing file instead, which leaves `app/page.tsx` untouched. Inspect an item before installing it with `eve registry view @assistant-ui/eve-chat`, and browse the rest of the registry with `eve registry list --registry @assistant-ui`.
 
 That namespace serves the Radix flavor, which matches the shadcn components in Eve's Next.js scaffold. Point it at `https://r.assistant-ui.com/base/{name}.json` instead for a Base UI project.
 
