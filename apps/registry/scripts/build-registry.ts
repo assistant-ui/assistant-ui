@@ -956,9 +956,50 @@ function validateRegistryInstallMetadata(payloads: RegistryOutputItem[]) {
   throwIfFindings("Invalid registry install metadata:", findings);
 }
 
+const UNIVERSAL_TYPES = new Set(["registry:item", "registry:file"]);
+
+/**
+ * Holds bundled items to the shape a consumer without a full project config accepts.
+ *
+ * Bundling only exists to serve that consumer, so an item that bundles and then
+ * declares a type or an untargeted file it cannot install is inert. The failure
+ * surfaces at install time in the consumer, not here, unless the build rejects it.
+ */
+export function validateUniversalItems(
+  items: RegistryBuildItem[],
+  universalNames: Set<string>,
+) {
+  const findings = new Set<string>();
+
+  for (const item of items) {
+    if (!universalNames.has(item.name)) continue;
+
+    if (!UNIVERSAL_TYPES.has(item.type)) {
+      findings.add(
+        `${item.name}: type "${item.type}" is not installable without a full project config`,
+      );
+    }
+
+    for (const file of item.files ?? []) {
+      if (!file.target || !UNIVERSAL_TYPES.has(file.type)) {
+        findings.add(
+          `${item.name}: ${file.path} needs an explicit target and a universal file type`,
+        );
+      }
+    }
+  }
+
+  throwIfFindings("Invalid universal registry items:", findings);
+}
+
 async function buildRegistry(registry: RegistryItem[]) {
   validateRegistrySchema(registry);
 
+  const universalNames = new Set(
+    registry
+      .filter((item) => item.bundledRegistryDependencies)
+      .map((item) => item.name),
+  );
   const itemsByName = new Map(registry.map((item) => [item.name, item]));
   const radixRegistry = registry.map((item) =>
     createRadixRegistryItem(
@@ -972,6 +1013,8 @@ async function buildRegistry(registry: RegistryItem[]) {
   );
   validateRegistrySchema(radixRegistry);
   validateRegistrySchema(baseRegistry);
+  validateUniversalItems(radixRegistry, universalNames);
+  validateUniversalItems(baseRegistry, universalNames);
 
   const radixBuilt = radixRegistry.map((item) =>
     createRegistryPayload(item, true),

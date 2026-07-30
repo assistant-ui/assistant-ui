@@ -13,6 +13,7 @@ const {
   validateBaseVariantContent,
   validateEmittedSpecifierHygiene,
   validateStyleScopedDependencies,
+  validateUniversalItems,
   validateVariantExportParity,
   validateVariantSlotParity,
   validateVariantTreesDiffer,
@@ -664,6 +665,45 @@ test("bundling leaves an item without bundled dependencies untouched and rejects
       ),
     /eve-chat: bundled registry dependency "https:\/\/r\.assistant-ui\.com\/missing\.json" does not match a local registry item/,
   );
+});
+
+test("universal item validation rejects a bundled item a partial config cannot install", () => {
+  const items = [
+    {
+      name: "eve-chat",
+      type: "registry:page",
+      files: [
+        { type: "registry:page", path: "app/page.tsx", target: "app/page.tsx" },
+        {
+          type: "registry:component",
+          path: "components/assistant-ui/thread.tsx",
+        },
+      ],
+    },
+    {
+      name: "thread",
+      type: "registry:component",
+      files: [
+        {
+          type: "registry:component",
+          path: "components/assistant-ui/thread.tsx",
+        },
+      ],
+    },
+  ];
+
+  assert.throws(
+    () => validateUniversalItems(items, new Set(["eve-chat"])),
+    (error) =>
+      error.message.includes(
+        'eve-chat: type "registry:page" is not installable without a full project config',
+      ) &&
+      error.message.includes(
+        "eve-chat: components/assistant-ui/thread.tsx needs an explicit target and a universal file type",
+      ) &&
+      !error.message.includes("thread:"),
+  );
+  assert.doesNotThrow(() => validateUniversalItems(items, new Set()));
 });
 
 test("slot parity reports mismatched data-slot attributes", () => {
