@@ -30,7 +30,7 @@ export const TooltipIconButton = forwardRef<
               size="icon"
               {...rest}
               className={cn(
-                "aui-button-icon size-6 p-1 transition-[color,scale] active:scale-[0.98] motion-reduce:transition-none",
+                "aui-button-icon size-6 p-1 active:scale-[0.96]",
                 className,
               )}
               ref={ref}
