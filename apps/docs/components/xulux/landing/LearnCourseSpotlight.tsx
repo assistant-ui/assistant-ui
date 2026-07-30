@@ -10,7 +10,7 @@ export function LearnCourseSpotlight() {
           New · Interactive course
         </div>
         <h2 className="mt-1 text-base font-semibold tracking-tight sm:text-lg">
-          Not sure what to build? Build your first AI app
+          Not sure where to start? Learn to create your first AI app
         </h2>
         <p className="text-muted-foreground mt-1 text-xs">
           Interactive lessons · Live code and preview · No setup required
