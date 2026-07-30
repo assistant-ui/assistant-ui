@@ -382,9 +382,11 @@ That makes an empty trailing part destructive. Yielding `[reasoning, text("")]` 
 let reasoning = "";
 let text = "";
 
-for await (const part of stream) {
-  reasoning += part.reasoningDelta ?? "";
-  text += part.textDelta ?? "";
+for await (const chunk of stream) {
+  const delta = chunk.choices[0]?.delta;
+  text += delta?.content ?? "";
+  // Reasoning deltas are provider-specific; read whichever field yours sends
+  reasoning += (delta as { reasoning?: string })?.reasoning ?? "";
 
   // Include each part only once it has content
   yield {
