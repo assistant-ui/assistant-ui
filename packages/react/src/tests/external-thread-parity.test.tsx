@@ -36,28 +36,35 @@ const renderThread = (props: ExternalThreadProps) => {
   };
 };
 
-const assistantMessage = (
+const assistantMessageWithContent = (
   status: ThreadMessage["status"],
-  result?: string,
+  content: ExternalThreadMessage["content"],
+  id = "a1",
 ): ExternalThreadMessage =>
   ({
-    id: "a1",
+    id,
     role: "assistant",
-    content: [
-      { type: "text", text: "let me check" },
-      {
-        type: "tool-call",
-        toolCallId: "tc1",
-        toolName: "probe_tool",
-        args: {},
-        argsText: "{}",
-        ...(result !== undefined && { result }),
-      },
-    ],
+    content,
     createdAt: new Date(0),
     status,
     metadata: { custom: {} },
   }) as unknown as ExternalThreadMessage;
+
+const assistantMessage = (
+  status: ThreadMessage["status"],
+  result?: string,
+): ExternalThreadMessage =>
+  assistantMessageWithContent(status, [
+    { type: "text", text: "let me check" },
+    {
+      type: "tool-call",
+      toolCallId: "tc1",
+      toolName: "probe_tool",
+      args: {},
+      argsText: "{}",
+      ...(result !== undefined && { result }),
+    },
+  ]);
 
 describe("ExternalThread part status", () => {
   it("gives an unresolved tool call its message's status", () => {
@@ -70,14 +77,99 @@ describe("ExternalThread part status", () => {
     expect(part("tc1").status).toEqual({ type: "running" });
   });
 
-  it("marks a resolved tool call complete and streams only the last part", () => {
+  it("uses positional fallback for statusless parts and resolved tool calls", () => {
     const { aui } = renderThread({
-      messages: [assistantMessage({ type: "running" }, "ok")],
+      messages: [
+        assistantMessage({ type: "running" }, "ok"),
+        assistantMessageWithContent(
+          { type: "running" },
+          [
+            { type: "text", text: "first" },
+            { type: "reasoning", text: "last" },
+          ],
+          "a2",
+        ),
+      ],
       isRunning: true,
     });
     const state = aui().thread.message({ id: "a1" }).getState();
     expect(state.parts[0]!.status).toEqual({ type: "complete" });
     expect(state.parts[1]!.status).toEqual({ type: "complete" });
+    const fallbackState = aui().thread.message({ id: "a2" }).getState();
+    expect(fallbackState.parts[0]!.status).toEqual({ type: "complete" });
+    expect(fallbackState.parts[1]!.status).toEqual({ type: "running" });
+  });
+
+  it("honours supplied statuses while the message is running", () => {
+    const { aui } = renderThread({
+      messages: [
+        assistantMessageWithContent({ type: "running" }, [
+          { type: "text", text: "first", status: { type: "running" } },
+          {
+            type: "reasoning",
+            text: "last",
+            status: { type: "complete" },
+          },
+        ]),
+      ],
+      isRunning: true,
+    });
+    const state = aui().thread.message({ id: "a1" }).getState();
+
+    expect(state.parts[0]!.status).toEqual({ type: "running" });
+    expect(state.parts[1]!.status).toEqual({ type: "complete" });
+  });
+
+  it("ignores supplied statuses after the message completes", () => {
+    const { aui } = renderThread({
+      messages: [
+        assistantMessageWithContent({ type: "complete", reason: "stop" }, [
+          { type: "text", text: "truncated", status: { type: "running" } },
+        ]),
+      ],
+      isRunning: false,
+    });
+
+    expect(
+      aui().thread.message({ id: "a1" }).part({ index: 0 }).getState().status,
+    ).toEqual({ type: "complete", reason: "stop" });
+  });
+
+  it("normalizes supplied upstream statuses", () => {
+    const { aui } = renderThread({
+      messages: [
+        assistantMessageWithContent(
+          { type: "running" },
+          // assistant-stream sends shapes core's MessagePartStatus does not
+          // declare (a reason on complete, an unlisted incomplete reason);
+          // the normalizer absorbs them.
+          [
+            {
+              type: "text",
+              text: "done",
+              status: { type: "complete", reason: "unknown" },
+            },
+            {
+              type: "reasoning",
+              text: "interrupted",
+              status: {
+                type: "incomplete",
+                reason: "unknown",
+                error: "upstream error",
+              },
+            },
+          ] as unknown as ExternalThreadMessage["content"],
+        ),
+      ],
+      isRunning: true,
+    });
+    const state = aui().thread.message({ id: "a1" }).getState();
+
+    expect(state.parts[0]!.status).toEqual({ type: "complete" });
+    expect(state.parts[1]!.status).toEqual({
+      type: "incomplete",
+      reason: "other",
+    });
   });
 
   it("keeps parts complete on requires-action and user messages", () => {

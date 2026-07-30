@@ -42,6 +42,7 @@ import {
   getThreadMessageText,
   isCreateAttachment,
   resolveToolApprovalResponse,
+  toMessagePartStatus,
 } from "@assistant-ui/core/internal";
 import { ModelContext, Suggestions } from "@assistant-ui/core/store";
 import { Tools, DataRenderers } from "@assistant-ui/core/react";
@@ -58,23 +59,13 @@ const COMPLETE_STATUS: MessagePartStatus = Object.freeze({
   type: "complete",
 });
 
-// Legacy runtime parity (toMessagePartStatus): a tool call without a result
-// carries its message's status; the last part of a streaming message streams.
 const derivePartStatus = (
   message: ExternalThreadMessage,
   partIndex: number,
   part: ThreadAssistantMessagePart | ThreadUserMessagePart,
 ): ToolCallMessagePartStatus => {
-  if (message.role !== "assistant" || !message.status) return COMPLETE_STATUS;
-
-  if (part.type === "tool-call") {
-    if (!part.result) return message.status as ToolCallMessagePartStatus;
-    return COMPLETE_STATUS;
-  }
-
-  const isLastPart = partIndex === Math.max(0, message.content.length - 1);
-  if (message.status.type === "requires-action") return COMPLETE_STATUS;
-  return isLastPart ? (message.status as MessagePartStatus) : COMPLETE_STATUS;
+  if (!message.status) return COMPLETE_STATUS;
+  return toMessagePartStatus(message, partIndex, part);
 };
 
 export type ExternalThreadProps = {
@@ -307,10 +298,7 @@ const usePartResource = ({
   onResumeToolCall,
 }: PartResourceProps): ClientOutput<"part"> => {
   const state = useMemo(
-    () => ({
-      ...part,
-      status,
-    }),
+    () => ({ ...part, status: status as MessagePartStatus }),
     [part, status],
   );
 

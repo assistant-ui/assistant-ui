@@ -82,6 +82,19 @@ describe("validateElicitationContent", () => {
     ).toEqual([{ property: "answer", message: "This property is required." }]);
   });
 
+  it("accepts an empty string as a present required property", () => {
+    expect(
+      validateElicitationContent(
+        {
+          type: "object",
+          required: ["answer"],
+          properties: { answer: { type: "string" } },
+        },
+        { answer: "" },
+      ),
+    ).toEqual([]);
+  });
+
   it("allows unknown content properties", () => {
     expect(
       validateElicitationContent(

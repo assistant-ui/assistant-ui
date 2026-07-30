@@ -2179,6 +2179,15 @@ type MessagePartStatus = {
   readonly error?: unknown;
 };
 
+type MessagePartStreamStatus = {
+  readonly type: "running";
+} | {
+  readonly type: "complete";
+} | {
+  readonly type: "incomplete";
+  readonly reason: "cancelled" | "content-filter" | "error" | "length" | "other";
+};
+
 declare namespace MessagePrimitiveAttachmentByIndex {
   type Props = {
     index: number;
@@ -2787,6 +2796,7 @@ type ReasoningGroupProps = PropsWithChildren<{
 type ReasoningMessagePart = {
   readonly type: "reasoning";
   readonly text: string;
+  readonly status?: MessagePartStreamStatus;
   readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };
@@ -3224,6 +3234,7 @@ type TextInputProps = ComponentProps<typeof Box> & {
 type TextMessagePart = {
   readonly type: "text";
   readonly text: string;
+  readonly status?: MessagePartStreamStatus;
   readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };
