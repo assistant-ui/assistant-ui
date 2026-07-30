@@ -54,6 +54,14 @@ const AssistantMessage: FC = () => {
 
 </Steps>
 
+## Inline citations
+
+Links whose text is only a number, e.g. `[1](https://example.com)`, render as compact citation badges inside the streamed text and open the source in a new tab. All other links render as regular underlined links.
+
+To produce inline citations, instruct your model accordingly:
+
+> When citing sources, insert inline citations as markdown links whose text is the source number, e.g. `[1](https://example.com/article)`.
+
 ## Syntax highlighting
 
 Syntax Highlighting is not included by default, see [Syntax Highlighting](/docs/ui/syntax-highlighting) to learn how to add it.

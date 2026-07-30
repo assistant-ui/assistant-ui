@@ -140,15 +140,35 @@ const defaultComponents = memoizeMarkdownComponents({
       {...props}
     />
   ),
-  a: ({ className, ...props }) => (
-    <a
-      className={cn(
-        "aui-md-a text-primary hover:text-primary/80 underline underline-offset-2",
-        className,
-      )}
-      {...props}
-    />
-  ),
+  a: ({ className, href, children, ...props }) => {
+    const label = typeof children === "string" ? children.trim() : undefined;
+    if (label && /^\d{1,3}$/.test(label)) {
+      return (
+        <a
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={cn(
+            "aui-md-citation bg-muted text-muted-foreground hover:bg-primary hover:text-primary-foreground mx-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 align-super text-[10px] font-medium tabular-nums no-underline transition-colors",
+            className,
+          )}
+          {...props}
+        >
+          {label}
+        </a>
+      );
+    }
+    return (
+      <a
+        className={cn(
+          "aui-md-a text-primary hover:text-primary/80 underline underline-offset-2",
+          className,
+        )}
+        href={href}
+        {...props}
+      />
+    );
+  },
   blockquote: ({ className, ...props }) => (
     <blockquote
       className={cn(
