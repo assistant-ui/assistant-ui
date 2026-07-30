@@ -1,14 +1,24 @@
 ---
 title: API Reference
-description: Every export from @assistant-ui/tap.
+description: Public API exported from @assistant-ui/tap.
 ---
 
 ## resource
 
-Turns a hook into a resource factory. Wrap a **`use`-prefixed** hook.
+Turns a Hook into a resource factory.
+
+```ts
+function resource<R, A extends readonly unknown[]>(
+  hook: (...args: A) => R,
+): Resource<R, A>;
+```
+
+The Hook should use a **`use`-prefixed** name so the rules of Hooks lint its
+body.
 
 ```ts
 import { resource } from "@assistant-ui/tap";
+import { useState } from "react";
 
 const useCounter = (props: { initialValue: number }) => {
   const [count, setCount] = useState(props.initialValue);
@@ -22,31 +32,69 @@ Calling the factory produces a [`ResourceElement`](#resourceelement).
 
 ## withKey
 
-Attaches a key to a `ResourceElement` for identity preservation in
-[lists](/tap/docs/tap/composition#useresources).
+Attaches a key to a resource element or resource factory.
+
+```ts
+function withKey<E extends ResourceElement<any>>(
+  key: string | number,
+  element: E,
+  deps?: readonly unknown[],
+): E;
+
+function withKey<F extends Resource<any, any[]>>(
+  key: string | number,
+  resource: F,
+): F;
+```
+
+Keyed elements preserve their identity in
+[`useResources`](#useresources). Keys in the same list must be unique.
 
 ```ts
 import { withKey } from "@assistant-ui/tap";
 
-withKey("my-key", Counter({ initialValue: 0 }))
+const element = withKey("my-key", Counter({ initialValue: 0 }));
 ```
 
----
+<Callout type="warn">
+Passing a resource factory to `withKey` is experimental and may change.
+</Callout>
+
+Passing a resource factory returns a factory that adds the key to every element
+it creates:
+
+```ts
+const KeyedCounter = withKey("my-key", Counter);
+const element = KeyedCounter({ initialValue: 0 });
+```
+
+<Callout type="warn">
+Passing `deps` to `withKey` is experimental and may change.
+</Callout>
+
+The optional `deps` array applies only to an element. In `useResources`, an
+element with unchanged dependencies can reuse its last committed value without
+rendering again. State updates and context changes still render it.
 
 ## Hooks
 
 Inside a resource body you use React's own hooks, imported from `"react"`:
 `useState`, `useReducer`, `useEffect`, `useMemo`, `useCallback`, `useRef`,
-`useEffectEvent`, and `use`. They behave as they do in a component and follow
-the [rules of hooks](/tap/docs/tap/hooks), with a few
+`useLayoutEffect`, `useEffectEvent`, `useSyncExternalStore`, `useDebugValue`,
+`useContext`, and `use` (tap contexts only — promises are not supported). They
+follow React's rules of Hooks, with a few
 [differences](/tap/docs/tap/differences-from-react).
 
-The hooks below are tap's own additions.
+The Hooks below are exported by tap.
 
 ## useResource
 
-Hosts a single resource element. Isomorphic: works both inside a React component
-and inside another resource. Returns the resource's value.
+Hosts a single resource element and returns its value. It works inside either a
+React component or another resource.
+
+```ts
+function useResource<V>(element: ResourceElement<V>): V;
+```
 
 ```ts
 const value = useResource(Counter({ initialValue: 0 }));
@@ -54,8 +102,16 @@ const value = useResource(Counter({ initialValue: 0 }));
 
 ## useResources
 
-Hosts a dynamic, keyed list of resources. Takes an array of elements; every
-element must have a key via [`withKey`](#withkey). Isomorphic.
+Hosts a dynamic list of resource elements and returns their values in the same
+order. Every element must have a unique key attached with
+[`withKey`](#withkey). It works inside either a React component or another
+resource.
+
+```ts
+function useResources<V>(
+  elements: readonly ResourceElement<V>[],
+): V[];
+```
 
 ```ts
 const values = useResources(
@@ -65,9 +121,19 @@ const values = useResources(
 
 ## useTapRoot
 
-Takes a render callback and hosts it as a subscribable boundary, returning a stable
-`{ getValue, subscribe }` handle instead of the value directly. Isomorphic. See
-[Subscribable boundary](/tap/docs/tap/composition#usetaproot).
+Hosts a render callback behind a subscribable boundary. It returns a stable root
+handle instead of the render value, and works inside either a React component or
+another resource.
+
+```ts
+function useTapRoot<R>(render: () => R): {
+  getValue(): R;
+  subscribe(listener: () => void): () => void;
+};
+```
+
+Use a named function so the rules of Hooks lint the callback body. See
+[Trees & Re-renders](/tap/docs/tap/trees-and-rerenders#separate-scheduling-with-usetaproot).
 
 ```ts
 const handle = useTapRoot(function CounterRoot() {
@@ -79,16 +145,20 @@ handle.subscribe(() => {});
 
 ## useTapHost
 
-Hosts a resource tree inside a React component. The tree renders with the
-component and commits in a passive effect, so it never blocks paint. Returns
-`{ value, effects }`.
+Hosts a resource render callback inside a React component.
 
-`effects` is a per-render callback (not a hook) that performs the commit. The
-host mounts it itself, but parent effects run after children's, so a child
-effect that subscribes to the tree would run before the commit. To commit
-ahead of a subtree, render a component before it that passes `effects` to a
-deps-less `useEffect`; the first instance to run wins. Consumers of `effects`
-must be descendants of the host component.
+```ts
+function useTapHost<R>(render: () => R): {
+  value: R;
+  effects: () => void;
+};
+```
+
+The resource renders with the component and commits in a passive effect.
+`effects` is the per-render commit callback, not a Hook. The host calls it
+automatically. A descendant can also pass it to a dependency-less `useEffect`
+to commit before that descendant's other effects; the first call commits the
+render.
 
 ```tsx
 function CounterProvider({ children }: { children: ReactNode }) {
@@ -111,8 +181,15 @@ function TapEffects({ effects }: { effects: () => void }) {
 
 ## createTapRoot
 
-Hosts a resource tree [outside React](/tap/docs/tap/outside-react). Takes a render
-callback and returns `{ getValue, subscribe, unmount }` directly.
+Hosts a render callback [outside React](/tap/docs/tap/outside-react).
+
+```ts
+function createTapRoot<R>(render: () => R): {
+  getValue(): R;
+  subscribe(listener: () => void): () => void;
+  unmount(): void;
+};
+```
 
 ```ts
 const root = createTapRoot(function CounterRoot() {
@@ -125,9 +202,15 @@ root.unmount();
 
 ## flushTapSync
 
-Flushes pending tap-scheduled updates synchronously. Applies to tap-scheduled
-trees (`createTapRoot` / `useTapRoot`); for `useResource` trees use
-`flushSync` from `react-dom`.
+Runs a callback and synchronously flushes the tap updates it schedules. The
+callback's return value is returned.
+
+```ts
+function flushTapSync<T>(callback: () => T): T;
+```
+
+This applies to tap-scheduled trees created by `createTapRoot` or `useTapRoot`.
+For a resource hosted directly in React, use `flushSync` from `react-dom`.
 
 ```ts
 flushTapSync(() => handle.getValue().increment());
@@ -135,10 +218,8 @@ flushTapSync(() => handle.getValue().increment());
 
 ## Context
 
-Tap context uses regular React contexts and is supported as of `@assistant-ui/tap` 0.9.
-
 Create a [context](/tap/docs/tap/context) with `createContext` from `"react"`.
-Read it with `use` / `useContext` from `"react"`.
+Read it with `use` or `useContext` from `"react"`.
 
 ```ts
 const ThemeContext = createContext("light");
@@ -146,7 +227,16 @@ const ThemeContext = createContext("light");
 
 ## useContextProvider
 
-Provides a context value to every resource rendered inside the callback.
+Provides a React context value to every resource rendered inside a callback and
+returns the callback's value.
+
+```ts
+function useContextProvider<T, R>(
+  context: React.Context<T>,
+  value: T,
+  render: () => R,
+): R;
+```
 
 ```ts
 useContextProvider(ThemeContext, "dark", () => useResource(Button()));
@@ -157,34 +247,24 @@ useContextProvider(ThemeContext, "dark", () => useResource(Button()));
 ### Resource
 
 ```ts
-type Resource<R, A extends readonly unknown[]> = (
-  ...args: A
-) => ResourceElement<R, A>;
-```
-
-The factory returned by `resource()`. `A` is the tuple of arguments the hook
-takes (a single-object hook is just `A = [Props]`).
-
-### ResourceElement
-
-```ts
-type ResourceElement<R, A extends readonly unknown[]> = {
-  hook: (...args: A) => R;
-  args: Readonly<A>;
-  key?: string | number;
-};
-```
-
-An inert `{ hook, args }` description of a resource to host: the hook plus the
-arguments to call it with. Hosting it is just `hook(...args)`.
-
-### ContravariantResource
-
-```ts
-type ContravariantResource<R, A extends readonly unknown[]> = (
+type Resource<R, A extends readonly unknown[] = any[]> = (
   ...args: A
 ) => ResourceElement<R>;
 ```
 
-A contravariant `Resource` for accepting resources as parameters with broader
-assignability (the returned element omits the `A` parameter).
+The factory returned by `resource()`. `R` is the Hook's return value and `A` is
+its argument tuple. For a Hook with one props object, `A` is `[Props]`.
+
+### ResourceElement
+
+```ts
+type ResourceElement<R> = {
+  readonly hook: (...args: any[]) => R;
+  readonly args: readonly unknown[];
+  readonly key?: string | number;
+  readonly deps?: readonly unknown[];
+};
+```
+
+An inert description of a resource to host. `resource()` supplies `hook` and
+`args`; [`withKey`](#withkey) can add `key` and `deps`.

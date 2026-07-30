@@ -178,7 +178,7 @@ describe("prepareElicitationContent", () => {
     });
   });
 
-  it("submits an empty optional string draft", () => {
+  it("omits an empty optional string draft", () => {
     expect(
       prepareElicitationContent(
         {
@@ -187,10 +187,10 @@ describe("prepareElicitationContent", () => {
         },
         { query: "" },
       ),
-    ).toEqual({ content: { query: "" }, missingRequired: [], invalid: [] });
+    ).toEqual({ content: {}, missingRequired: [], invalid: [] });
   });
 
-  it("keeps an empty required string draft in content while reporting it missing", () => {
+  it("treats an empty required string draft as absent", () => {
     expect(
       prepareElicitationContent(
         {
@@ -201,10 +201,111 @@ describe("prepareElicitationContent", () => {
         { query: "" },
       ),
     ).toEqual({
-      content: { query: "" },
+      content: {},
       missingRequired: ["query"],
       invalid: [],
     });
+  });
+
+  it("treats a cleared enum draft as absent instead of invalid", () => {
+    expect(
+      prepareElicitationContent(
+        {
+          type: "object",
+          properties: {
+            color: { type: "string", enum: ["red", "blue"] },
+            shade: { enum: ["light", "dark"] },
+          },
+        },
+        { color: "", shade: "" },
+      ),
+    ).toEqual({ content: {}, missingRequired: [], invalid: [] });
+  });
+
+  it("ignores empty-string defaults and enums on non-string schemas", () => {
+    expect(
+      prepareElicitationContent(
+        {
+          type: "object",
+          properties: {
+            limit: { type: "number", default: "" },
+            count: { type: "integer", enum: [1, 2, ""] },
+          },
+        },
+        { limit: "", count: "" },
+      ),
+    ).toEqual({ content: {}, missingRequired: [], invalid: [] });
+  });
+
+  it("seeds a required boolean whose schema declares an empty-string default", () => {
+    expect(
+      prepareElicitationContent(
+        {
+          type: "object",
+          required: ["enabled"],
+          properties: { enabled: { type: "boolean", default: "" } },
+        },
+        { enabled: "" },
+      ),
+    ).toEqual({
+      content: { enabled: false },
+      missingRequired: [],
+      invalid: [],
+    });
+  });
+
+  it("reports a cleared required enum draft as missing instead of invalid", () => {
+    expect(
+      prepareElicitationContent(
+        {
+          type: "object",
+          required: ["color"],
+          properties: { color: { type: "string", enum: ["red", "blue"] } },
+        },
+        { color: "" },
+      ),
+    ).toEqual({ content: {}, missingRequired: ["color"], invalid: [] });
+  });
+
+  it("keeps an empty string the enum admits", () => {
+    expect(
+      prepareElicitationContent(
+        {
+          type: "object",
+          required: ["note"],
+          properties: { note: { type: "string", enum: ["", "none"] } },
+        },
+        { note: "" },
+      ),
+    ).toEqual({ content: { note: "" }, missingRequired: [], invalid: [] });
+  });
+
+  it("ignores an empty-string default the enum does not admit", () => {
+    expect(
+      prepareElicitationContent(
+        {
+          type: "object",
+          required: ["color"],
+          properties: {
+            color: { type: "string", enum: ["red", "blue"], default: "" },
+          },
+        },
+        { color: "" },
+      ),
+    ).toEqual({ content: {}, missingRequired: ["color"], invalid: [] });
+  });
+
+  it("keeps an empty string the schema defaults to", () => {
+    expect(
+      prepareElicitationContent(
+        {
+          type: "object",
+          required: ["prefix"],
+          properties: { prefix: { type: "string", default: "" } },
+        },
+        { prefix: "" },
+      ),
+    ).toEqual({ content: { prefix: "" }, missingRequired: [], invalid: [] });
   });
 
   it("treats an empty optional boolean draft as absent", () => {
@@ -299,7 +400,7 @@ describe("prepareElicitationContent", () => {
     });
   });
 
-  it("reports required draft values that are absent or empty", () => {
+  it("reports required draft values that resolve to absent", () => {
     expect(
       prepareElicitationContent(
         {

@@ -1,5 +1,11 @@
 # @assistant-ui/cloud-ai-sdk
 
+## 0.1.28
+
+### Patch Changes
+
+- [#5351](https://github.com/assistant-ui/assistant-ui/pull/5351) [`cc00397`](https://github.com/assistant-ui/assistant-ui/commit/cc0039776c879df12718e24a269fd6408c08c00e) - fix: preserve AI SDK finish callback error handling ([@Kinfe123](https://github.com/Kinfe123))
+
 ## 0.1.27
 
 ### Patch Changes

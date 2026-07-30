@@ -1,6 +1,6 @@
 ---
 title: Quickstart
-description: Install tap and build your first resource.
+description: Install tap and build your first Resource.
 ---
 
 ## Install
@@ -9,10 +9,10 @@ description: Install tap and build your first resource.
 npm install @assistant-ui/tap
 ```
 
-## Define a resource
+## Define a Resource
 
-A resource is a React component without the UI. Write a `use`-prefixed hook with
-the hooks you already know, imported from `"react"`, then wrap it with `resource`.
+Write a `use`-prefixed Hook with the React Hooks you already know, then wrap it
+with `resource()`:
 
 ```ts
 import { resource } from "@assistant-ui/tap";
@@ -20,41 +20,46 @@ import { useState } from "react";
 
 const useCounter = () => {
   const [count, setCount] = useState(0);
-  return { count, increment: () => setCount((c) => c + 1) };
+
+  return {
+    count,
+    increment: () => setCount((value) => value + 1),
+  };
 };
 
 const Counter = resource(useCounter);
 ```
 
-Instead of JSX, a resource returns a plain value: the state and methods you want
-callers to use.
+The Resource returns state and methods instead of JSX.
 
 ## Use it in React
 
-`useResource` hosts a resource inside a React component. The component re-renders
-whenever the resource's state changes, and unmounts the resource when it unmounts.
+`useResource` evaluates a Resource and returns its current value:
 
 ```tsx
 import { useResource } from "@assistant-ui/tap";
 
 function CounterButton() {
-  const { count, increment } = useResource(Counter());
+  const counter = useResource(Counter());
 
-  return <button onClick={increment}>Count: {count}</button>;
+  return (
+    <button onClick={counter.increment}>
+      Count: {counter.count}
+    </button>
+  );
 }
 ```
 
-`resource()` turns a hook into a Resource; `useResource(Counter())` turns it back
-into a hook call. Calling the factory (`Counter()`) creates an inert element;
-`useResource` brings it to life.
+The component re-renders when the Resource changes and cleans it up when it
+unmounts.
 
 ## Next steps
 
 <Cards>
-  <Card title="Hooks" href="/tap/docs/tap/hooks">
-    React's hooks inside resources, plus tap's additions.
+  <Card title="Resources" href="/tap/docs/tap/resources">
+    Learn how Resources package state and act as composable configuration.
   </Card>
   <Card title="Composition" href="/tap/docs/tap/composition">
-    Nest resources with useResource and useResources.
+    Compose individual Resources and dynamic keyed collections.
   </Card>
 </Cards>

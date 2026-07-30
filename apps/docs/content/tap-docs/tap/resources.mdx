@@ -1,16 +1,18 @@
 ---
 title: Resources
-description: Define resources, pass props, and host them.
+description: Package stateful behavior into reusable, configurable values.
 ---
 
-A **resource** is a self-contained unit of reactive state and logic: like a React
-component, but without UI.
+A **Resource** packages stateful behavior behind a JavaScript value. It renders
+with inputs, keeps Hook state between renders, mounts effects, and cleans up
+when it unmounts.
 
-## Defining a resource
+Its return value is its public API: the state and methods available wherever the
+Resource is rendered.
 
-A resource body **is a hook**: a function that calls the React hooks you know,
-imported from `"react"`. Write it as a `use`-prefixed hook, then pass it to
-`resource()` to turn it into a Resource.
+## Package a Hook as a Resource
+
+Start with an ordinary Hook, then pass it to `resource()`:
 
 ```ts
 import { resource } from "@assistant-ui/tap";
@@ -25,46 +27,50 @@ const useCounter = (props: { initialValue?: number }) => {
 const Counter = resource(useCounter);
 ```
 
-`resource()` turns a hook into a Resource, and [`useResource`](#hosting-a-resource)
-turns it back into a hook call. Keep the body in a `use`-prefixed binding: it gives
-the resource a stable identity for keys and devtools, and lets React's
-rules-of-hooks lint the body.
+`useCounter` contains the implementation. `Counter` is the reusable Resource.
+Keep the implementation in a `use`-prefixed Hook so React's rules of Hooks lint
+it normally.
 
-`resource()` returns a **factory function**. Calling the factory creates a
-`ResourceElement`, a lightweight description of what to render, not a live
-instance yet.
-
-### Resource elements
-
-A `ResourceElement` is a plain `{ hook, args }` object, the same idea as a React
-JSX element, but written as a function call instead of JSX.
+Calling a Resource configures it:
 
 ```ts
-const element = Counter({ initialValue: 10 });
-// { hook: useCounter, args: [{ initialValue: 10 }] }
+const counter = Counter({ initialValue: 10 });
 ```
 
-Calling the factory (`Counter({ ... })`) reads like the plain function call it
-is. Like a JSX element, the result is inert until you host it.
+This does not run `useCounter` or create state. It returns an inert
+`ResourceElement` describing what to render, much like JSX describes a component
+before React renders it.
 
-### Props
+## Configuration is a value
 
-Resources accept props like components do. When a resource re-renders with new
-props, hooks react to the change through their dependency arrays, exactly as in
-React.
+Because a configured Resource is a value, an application can choose, pass, and
+nest it before any state is created:
 
-### Return value
+```tsx
+import { useResource, type ResourceElement } from "@assistant-ui/tap";
 
-Instead of JSX, a resource returns any JavaScript value: an object, array, or
-primitive. That return value is the resource's public API, and it is what callers
-read when they host it.
+type CounterState = ReturnType<typeof useCounter>;
 
-## Hosting a resource
+function CounterButton({
+  counter = Counter({ initialValue: 0 }),
+}: {
+  counter?: ResourceElement<CounterState>;
+}) {
+  const state = useResource(counter);
 
-`useResource` hosts a single element, re-entering the Resource as a hook call. It
-works the same way in both worlds: inside a React component it ties the resource to
-the component's lifecycle, and inside another resource it nests the resource as a
-child.
+  return <button onClick={state.increment}>{state.count}</button>;
+}
+```
+
+The component owns where the state is rendered without owning its
+implementation or configuration. A caller can use the default or provide any
+other Resource that returns the same API.
+
+## Hosting a Resource
+
+Use `useResource` to render a single Resource, or
+[`useResources`](/tap/docs/tap/composition#useresources) to render a keyed list
+of Resources.
 
 ```tsx
 import { useResource } from "@assistant-ui/tap";
@@ -75,21 +81,17 @@ function CounterButton() {
 }
 ```
 
-Unlike React, a parent reads its child's return value directly, which makes
-composition a tool for building up state and logic, not just trees.
+Rendering creates the Resource's state and returns its current public API. In a
+React component, the component re-renders when that state changes and the
+Resource unmounts with the component. Inside another Resource, it becomes a
+child in the same resource tree.
 
-```ts
-import { resource, useResource } from "@assistant-ui/tap";
-
-const useDashboard = () => {
-  const counter = useResource(Counter({ initialValue: 0 }));
-  return { total: counter.count };
-};
-
-const Dashboard = resource(useDashboard);
-```
+Arguments can change across renders without replacing the Resource's state.
+Effects respond through their dependency arrays, just as they do in a React
+component.
 
 ## Next
 
-- [Composition](/tap/docs/tap/composition): render keyed lists with `useResources` and expose subscribable boundaries with `useTapRoot`.
+- [Composition](/tap/docs/tap/composition): compose individual resources and keyed lists.
+- [Trees & Re-renders](/tap/docs/tap/trees-and-rerenders): give a resource tree its own scheduler with `useTapRoot`.
 - [Context](/tap/docs/tap/context): pass values through the resource tree without prop drilling.

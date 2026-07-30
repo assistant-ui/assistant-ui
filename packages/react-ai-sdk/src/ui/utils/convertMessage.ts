@@ -21,6 +21,7 @@ import {
   type FileMessagePart,
   type ThreadMessageLike,
   type McpAppMetadata,
+  type MessagePartStreamStatus,
 } from "@assistant-ui/core";
 import { stableStringifyToolArgs } from "@assistant-ui/core/internal";
 import {
@@ -168,6 +169,14 @@ function getToolApprovalAndInterrupt(
 
 type MessageContent = Exclude<ThreadMessageLike["content"], string>;
 
+const uiPartStateToStatus = (
+  state: "streaming" | "done" | undefined,
+): MessagePartStreamStatus | undefined => {
+  if (state === "streaming") return { type: "running" };
+  if (state === "done") return { type: "complete" };
+  return undefined;
+};
+
 function convertParts(
   message: UIMessage,
   metadata: AISDKMessageConverterMetadata,
@@ -184,9 +193,11 @@ function convertParts(
     )
     .map((part) => {
       if (part.type === "text") {
+        const status = uiPartStateToStatus(part.state);
         return {
           type: "text",
           text: part.text,
+          ...(status != null ? { status } : undefined),
           ...(part.providerMetadata != null
             ? {
                 providerMetadata: part.providerMetadata as PartProviderMetadata,
@@ -196,9 +207,11 @@ function convertParts(
       }
 
       if (part.type === "reasoning") {
+        const status = uiPartStateToStatus(part.state);
         return {
           type: "reasoning",
           text: part.text,
+          ...(status != null ? { status } : undefined),
           ...(part.providerMetadata != null
             ? {
                 providerMetadata: part.providerMetadata as PartProviderMetadata,

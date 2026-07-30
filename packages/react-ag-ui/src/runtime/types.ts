@@ -100,6 +100,7 @@ export type AgUiResumeEntry = {
 
 export type AgUiRuntimeExtras = {
   interrupts: readonly AgUiInterrupt[];
+  sendA2uiAction: (action: Record<string, unknown>) => void;
   submitInterruptResponses: (
     responses: readonly AgUiResumeEntry[],
   ) => Promise<void>;

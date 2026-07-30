@@ -1,0 +1,139 @@
+/* github-from-css theme variables — https://github.com/code-hike/lighter/blob/main/lib/themes/github-from-css.css */
+:root {
+  --ch-0: light;
+  --ch-1: #6e7781;
+  --ch-2: #0550ae;
+  --ch-3: #953800;
+  --ch-4: #24292f;
+  --ch-5: #8250df;
+  --ch-6: #116329;
+  --ch-7: #cf222e;
+  --ch-8: #0a3069;
+  --ch-9: #82071e;
+  --ch-10: #f6f8fa;
+  --ch-11: #ffebe9;
+  --ch-12: #dafbe1;
+  --ch-13: #ffd8b5;
+  --ch-14: #eaeef2;
+  --ch-15: #57606a;
+  --ch-16: #ffffff;
+  --ch-17: #eaeef280;
+  --ch-18: #fdff0033;
+  --ch-19: #1a85ff;
+  --ch-20: #add6ff;
+  --ch-21: #0969da;
+  --ch-22: #f6f8fa;
+  --ch-23: #d0d7de;
+  --ch-24: #8c959f;
+  --ch-25: #afb8c133;
+  --ch-26: #ffffffe6;
+}
+
+.dark {
+  --ch-0: dark;
+  --ch-1: #8b949e;
+  --ch-2: #79c0ff;
+  --ch-3: #ffa657;
+  --ch-4: #c9d1d9;
+  --ch-5: #d2a8ff;
+  --ch-6: #7ee787;
+  --ch-7: #ff7b72;
+  --ch-8: #a5d6ff;
+  --ch-9: #ffa198;
+  --ch-10: #f0f6fc;
+  --ch-11: #490202;
+  --ch-12: #04260f;
+  --ch-13: #5a1e02;
+  --ch-14: #161b22;
+  --ch-15: #8b949e;
+  --ch-16: #0d1117;
+  --ch-17: #6e76811a;
+  --ch-18: #ffffff0b;
+  --ch-19: #3794ff;
+  --ch-20: #264f78;
+  --ch-21: #1f6feb;
+  --ch-22: #010409;
+  --ch-23: #30363d;
+  --ch-24: #6e7681;
+  --ch-25: #6e768166;
+  --ch-26: #0d1117e6;
+}
+
+.code-slideshow [data-line] {
+  transition: opacity 300ms ease;
+}
+
+.code-slideshow [data-dimmed] [data-line]:not([data-changed]) {
+  opacity: 0.5;
+}
+
+.code-slideshow [data-changed] {
+  animation: code-line-changed 400ms ease 250ms backwards;
+}
+
+@keyframes code-line-changed {
+  from {
+    background-color: transparent;
+    border-left-color: transparent;
+  }
+}
+
+.code-slideshow .ch-tooltip {
+  animation: ch-underline-in 300ms ease 600ms backwards;
+}
+
+@keyframes ch-underline-in {
+  from {
+    border-color: transparent;
+  }
+}
+
+.ch-collapse-trigger[data-state="closed"]::after {
+  animation: ch-hint-in 200ms ease 400ms backwards;
+}
+
+@keyframes ch-hint-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.ch-collapse-content {
+  overflow: hidden;
+}
+
+.ch-collapse-content[data-state="open"] {
+  animation: ch-fold-open 200ms ease-out;
+}
+
+.ch-collapse-content[data-state="closed"] {
+  animation: ch-fold-close 200ms ease-out;
+}
+
+@keyframes ch-fold-open {
+  from {
+    height: 0;
+  }
+  to {
+    height: var(--radix-collapsible-content-height);
+  }
+}
+
+@keyframes ch-fold-close {
+  from {
+    height: var(--radix-collapsible-content-height);
+  }
+  to {
+    height: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .code-slideshow [data-changed],
+  .code-slideshow .ch-tooltip,
+  .ch-collapse-trigger[data-state="closed"]::after,
+  .ch-collapse-content[data-state="open"],
+  .ch-collapse-content[data-state="closed"] {
+    animation: none;
+  }
+}

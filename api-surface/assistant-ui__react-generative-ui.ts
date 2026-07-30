@@ -688,6 +688,15 @@ type MessagePartStatus = {
   readonly error?: unknown;
 };
 
+type MessagePartStreamStatus = {
+  readonly type: "running";
+} | {
+  readonly type: "complete";
+} | {
+  readonly type: "incomplete";
+  readonly reason: "cancelled" | "content-filter" | "error" | "length" | "other";
+};
+
 type MessageStatus = {
   readonly type: "running";
 } | {
@@ -769,6 +778,7 @@ type ReadonlyJSONValue = null | string | number | boolean | ReadonlyJSONObject |
 type ReasoningMessagePart = {
   readonly type: "reasoning";
   readonly text: string;
+  readonly status?: MessagePartStreamStatus;
   readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };
@@ -1191,6 +1201,7 @@ type TeamsTextSize = "extraLarge" | "large" | "medium" | "small";
 type TextMessagePart = {
   readonly type: "text";
   readonly text: string;
+  readonly status?: MessagePartStreamStatus;
   readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };
@@ -1545,7 +1556,7 @@ declare function applyA2uiOperations(state: A2uiState, operations: unknown): A2u
 declare function buildPresentParameters(library: GenerativeUILibrary): JSONSchema7$1;
 
 declare function convertSurfaceToUISpec(surface: A2uiSurfaceState): {
-  spec: UISpec | null;
+  spec: UIElement | null;
   warnings: string[];
 };
 

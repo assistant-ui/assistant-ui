@@ -1,5 +1,11 @@
 # @assistant-ui/react-devtools
 
+## 1.2.12
+
+### Patch Changes
+
+- [#5323](https://github.com/assistant-ui/assistant-ui/pull/5323) [`5caac74`](https://github.com/assistant-ui/assistant-ui/commit/5caac7482407f682930cb5ac1f0db00485c8e4bd) - fix: case-insensitive data: and http(s) scheme checks in preview parsing ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
 ## 1.2.11
 
 ### Patch Changes

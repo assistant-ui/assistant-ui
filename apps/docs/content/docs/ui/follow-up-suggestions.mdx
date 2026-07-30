@@ -74,6 +74,8 @@ const ThreadViewportFooter = () => {
 
 The component only renders when the thread is not empty, not currently running, and has at least one suggestion. Each suggestion uses `ThreadPrimitive.Suggestion`, replaces the composer text with the prompt, and sends it immediately.
 
+Suggestions stay on a single line. When they overflow, the row scrolls horizontally without a scrollbar, and each edge with clipped content fades out — so no fade shows at the start edge until you scroll.
+
 ## Related Components
 
 - [Thread](/docs/ui/thread) - Complete chat interface with message list and composer
