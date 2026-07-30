@@ -1,4 +1,5 @@
 import type { Unsubscribe } from "../types/unsubscribe";
+import { notifyEventListeners } from "../utils/notify-event-listeners";
 
 export namespace SpeechSynthesisAdapter {
   export type Status =
@@ -20,34 +21,6 @@ export namespace SpeechSynthesisAdapter {
 
 export type SpeechSynthesisAdapter = {
   speak: (text: string) => SpeechSynthesisAdapter.Utterance;
-};
-
-const notifySpeechSynthesisListeners = (
-  listeners: Iterable<() => void>,
-): void => {
-  for (const listener of listeners) {
-    try {
-      listener();
-    } catch (error) {
-      console.error(
-        "[assistant-ui] Speech synthesis listener threw an error",
-        error,
-      );
-    }
-  }
-};
-
-const notifyDictationListeners = <T>(
-  listeners: Iterable<(value: T) => void>,
-  value: T,
-): void => {
-  for (const listener of listeners) {
-    try {
-      listener(value);
-    } catch (error) {
-      console.error("[assistant-ui] Dictation listener threw an error", error);
-    }
-  }
 };
 
 export namespace DictationAdapter {
@@ -92,7 +65,7 @@ export class WebSpeechSynthesisAdapter implements SpeechSynthesisAdapter {
       if (res.status.type === "ended") return;
 
       res.status = { type: "ended", reason, error };
-      notifySpeechSynthesisListeners(subscribers);
+      notifyEventListeners(subscribers, undefined, "Speech synthesis");
     };
 
     utterance.addEventListener("end", () => handleEnd("finished"));
@@ -110,7 +83,9 @@ export class WebSpeechSynthesisAdapter implements SpeechSynthesisAdapter {
         if (res.status.type === "ended") {
           let cancelled = false;
           queueMicrotask(() => {
-            if (!cancelled) notifySpeechSynthesisListeners([callback]);
+            if (!cancelled) {
+              notifyEventListeners([callback], undefined, "Speech synthesis");
+            }
           });
           return () => {
             cancelled = true;
@@ -283,7 +258,7 @@ export class WebSpeechDictationAdapter implements DictationAdapter {
     };
 
     recognition.addEventListener("speechstart", () => {
-      notifyDictationListeners(speechStartCallbacks, undefined);
+      notifyEventListeners(speechStartCallbacks, undefined, "Dictation");
     });
 
     recognition.addEventListener("start", () => {
@@ -305,15 +280,21 @@ export class WebSpeechDictationAdapter implements DictationAdapter {
 
         if (result.isFinal) {
           finalTranscript += transcript;
-          notifyDictationListeners(speechCallbacks, {
+          const payload: DictationAdapter.Result = {
             transcript,
             isFinal: true,
-          });
+          };
+          notifyEventListeners(speechCallbacks, payload, "Dictation", () => ({
+            ...payload,
+          }));
         } else {
-          notifyDictationListeners(speechCallbacks, {
+          const payload: DictationAdapter.Result = {
             transcript,
             isFinal: false,
-          });
+          };
+          notifyEventListeners(speechCallbacks, payload, "Dictation", () => ({
+            ...payload,
+          }));
         }
       }
     });
@@ -328,9 +309,12 @@ export class WebSpeechDictationAdapter implements DictationAdapter {
         updateStatus({ type: "ended", reason: "stopped" });
       }
       if (finalTranscript) {
-        notifyDictationListeners(speechEndCallbacks, {
+        const payload: DictationAdapter.Result = {
           transcript: finalTranscript,
-        });
+        };
+        notifyEventListeners(speechEndCallbacks, payload, "Dictation", () => ({
+          ...payload,
+        }));
         finalTranscript = "";
       }
     });

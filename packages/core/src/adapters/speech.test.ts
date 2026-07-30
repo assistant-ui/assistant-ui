@@ -158,4 +158,59 @@ describe("WebSpeechDictationAdapter", () => {
       listenerError,
     );
   });
+
+  it("isolates async failures and payload mutations", async () => {
+    const listeners = new Map<string, EventListener>();
+    class MockSpeechRecognition {
+      lang = "";
+      continuous = false;
+      interimResults = false;
+
+      addEventListener(type: string, listener: EventListener) {
+        listeners.set(type, listener);
+      }
+
+      start() {}
+      stop() {}
+      abort() {}
+    }
+    vi.stubGlobal("window", {
+      SpeechRecognition: MockSpeechRecognition,
+    });
+    const listenerError = new Error("async listener failed");
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const session = new WebSpeechDictationAdapter().listen();
+    const laterListener = vi.fn();
+
+    session.onSpeech(async (result) => {
+      result.transcript = "Changed";
+      result.isFinal = false;
+      throw listenerError;
+    });
+    session.onSpeech(laterListener);
+
+    const event = {
+      resultIndex: 0,
+      results: [
+        {
+          0: { transcript: "Hello" },
+          isFinal: true,
+        },
+      ],
+    } as unknown as Event;
+
+    expect(() => listeners.get("result")?.(event)).not.toThrow();
+    expect(laterListener).toHaveBeenCalledWith({
+      transcript: "Hello",
+      isFinal: true,
+    });
+    await vi.waitFor(() => {
+      expect(consoleError).toHaveBeenCalledWith(
+        "[assistant-ui] Dictation listener threw an error",
+        listenerError,
+      );
+    });
+  });
 });
