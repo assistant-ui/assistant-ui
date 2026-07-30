@@ -10,9 +10,6 @@ const NO_OP_SUBSCRIBE = () => () => {};
 const MISSING_PROVIDER_MESSAGE =
   "You are using a component or hook that requires an AuiProvider. Wrap your component in an <AuiProvider> component.";
 
-const isolationBoundaryMessage = (prop: string) =>
-  `Scope "${prop}" is not available inside this isolation boundary (<AuiProvider value={null}>).`;
-
 class EmptyAssistantClientProxyHandler
   extends BaseProxyHandler
   implements ProxyHandler<AssistantClient>
@@ -62,34 +59,19 @@ export const DefaultAssistantClient: AssistantClient =
     () => MISSING_PROVIDER_MESSAGE,
   );
 
-/** Isolated empty root provided by `<AuiProvider value={null}>` */
-export const IsolatedAssistantClient: AssistantClient =
-  createEmptyAssistantClient(
-    "IsolatedAssistantClient",
-    isolationBoundaryMessage,
-  );
-
-const createErrorRootClient = (
-  messageOf: (prop: string) => string,
-): AssistantClient =>
+/** Root prototype for created clients - throws "scope not defined" error */
+export const createRootAssistantClient = (): AssistantClient =>
   new Proxy<AssistantClient>({} as AssistantClient, {
     get(_: AssistantClient, prop: string | symbol) {
       const introspection = handleIntrospectionProp(prop, "AssistantClient");
       if (introspection !== false) return introspection;
 
-      return createErrorClientAccessor(messageOf(String(prop)), String(prop));
+      return createErrorClientAccessor(
+        `The current scope does not have a "${String(prop)}" property.`,
+        String(prop),
+      );
     },
   });
-
-/** Root prototype for created clients - throws "scope not defined" error */
-export const createRootAssistantClient = (): AssistantClient =>
-  createErrorRootClient(
-    (prop) => `The current scope does not have a "${prop}" property.`,
-  );
-
-/** Root prototype for clients built under an isolation boundary */
-export const createIsolatedRootAssistantClient = (): AssistantClient =>
-  createErrorRootClient(isolationBoundaryMessage);
 
 /**
  * React Context for the AssistantClient
@@ -175,7 +157,7 @@ export const AuiProvider: {
   // The <UseTapEffects /> element must be created fresh each render
   "use no memo";
   return (
-    <AssistantContext.Provider value={value ?? IsolatedAssistantClient}>
+    <AssistantContext.Provider value={value ?? DefaultAssistantClient}>
       <UseTapEffects />
       {children}
     </AssistantContext.Provider>

@@ -30,9 +30,7 @@ import {
   useAssistantContextValue,
   useAssistantContextProvider,
   DefaultAssistantClient,
-  IsolatedAssistantClient,
   createRootAssistantClient,
-  createIsolatedRootAssistantClient,
   AUI_USE_EFFECTS_SYMBOL,
 } from "./utils/react-assistant-context";
 import { getTransformScopes, type ScopesConfig } from "./attachTransformScopes";
@@ -114,13 +112,9 @@ const createClientObject = (
   parent: AssistantClient,
   fields: ClientFields,
 ): AssistantClient => {
-  // Swap the sentinel parents for root prototypes to change the error message
+  // Swap the sentinel parent for a root prototype to change the error message
   const proto =
-    parent === DefaultAssistantClient
-      ? createRootAssistantClient()
-      : parent === IsolatedAssistantClient
-        ? createIsolatedRootAssistantClient()
-        : parent;
+    parent === DefaultAssistantClient ? createRootAssistantClient() : parent;
 
   const client = Object.create(proto) as AssistantClient;
   Object.assign(client, fields);
