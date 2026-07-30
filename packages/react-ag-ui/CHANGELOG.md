@@ -1,5 +1,29 @@
 # @assistant-ui/react-ag-ui
 
+## 0.0.49
+
+### Patch Changes
+
+- [#5386](https://github.com/assistant-ui/assistant-ui/pull/5386) [`d9502b2`](https://github.com/assistant-ui/assistant-ui/commit/d9502b24b86ff59f1a68b1a2d30db3491d16f2e0) - feat: send A2UI actions back to the agent as forwardedProps.a2uiAction on the next run ([@okisdev](https://github.com/okisdev))
+
+- [#5329](https://github.com/assistant-ui/assistant-ui/pull/5329) [`f30b54c`](https://github.com/assistant-ui/assistant-ui/commit/f30b54c9856d50a18f738c4d485c02bcd039151c) - refactor: move createRuntimeExtras to the @assistant-ui/core/react entry and drop the internal re-export ([@okisdev](https://github.com/okisdev))
+
+- [#5314](https://github.com/assistant-ui/assistant-ui/pull/5314) [`3d45df9`](https://github.com/assistant-ui/assistant-ui/commit/3d45df9626ebb8f8403e6e209329de2accdaa0a4) - feat: read the canonical nested `_meta.ui.resourceUri` MCP Apps pointer, keeping the deprecated flat `"ui/resourceUri"` key as a fallback ([@okisdev](https://github.com/okisdev))
+
+- [#5345](https://github.com/assistant-ui/assistant-ui/pull/5345) [`ed3794c`](https://github.com/assistant-ui/assistant-ui/commit/ed3794c031d5d1eff36d0336140cf9f253e1a314) - feat: consume a2ui-surface activity snapshots and render A2UI surfaces as present tool-call parts ([@okisdev](https://github.com/okisdev))
+
+- [#5352](https://github.com/assistant-ui/assistant-ui/pull/5352) [`4a9a765`](https://github.com/assistant-ui/assistant-ui/commit/4a9a7650503956b3397fe5a4d5e74794ba40ec07) - feat: rehydrate A2UI surfaces from restored activity history ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#5315](https://github.com/assistant-ui/assistant-ui/pull/5315) [`676c751`](https://github.com/assistant-ui/assistant-ui/commit/676c75178c59bfd497e58b30b2fecabf66be7929) - fix: forward audio message parts and skip data parts instead of dropping or throwing ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#5311](https://github.com/assistant-ui/assistant-ui/pull/5311) [`34e95a1`](https://github.com/assistant-ui/assistant-ui/commit/34e95a1c2fe39ffa1ba7521d2f983e30d2c35c1f) - fix: keep streaming across mid-run MESSAGES_SNAPSHOT imports. The active assistant is preserved and re-anchored when the snapshot omits it, and when a snapshot shape still evicts it, the placeholder is recreated under its original id on the next content-bearing emit, so neither the token stream nor the message identity is lost. ([@Gujiassh](https://github.com/Gujiassh))
+
+- Updated dependencies [[`d2e7a4a`](https://github.com/assistant-ui/assistant-ui/commit/d2e7a4a1c71c214fd8c4363ec16e879d1122639e), [`ecd7c87`](https://github.com/assistant-ui/assistant-ui/commit/ecd7c879cace69d6371b3f673c52a80669377fc0), [`2daf2d5`](https://github.com/assistant-ui/assistant-ui/commit/2daf2d5dfcb77938f6deb63d048575540e1806a2), [`a5bdbed`](https://github.com/assistant-ui/assistant-ui/commit/a5bdbed993d8f14c919b692b40d51f5cd64467b9), [`fb993c3`](https://github.com/assistant-ui/assistant-ui/commit/fb993c34ca1623bac373137c5ab207dd79cb500c), [`3ae058c`](https://github.com/assistant-ui/assistant-ui/commit/3ae058c5d275e2444701da70a6513528439ecb3e), [`f30b54c`](https://github.com/assistant-ui/assistant-ui/commit/f30b54c9856d50a18f738c4d485c02bcd039151c), [`7f9b91f`](https://github.com/assistant-ui/assistant-ui/commit/7f9b91fc0b356286b66e7751339aa19d0d220f29), [`936c52c`](https://github.com/assistant-ui/assistant-ui/commit/936c52c4301b89242572d9890c870050f63cbe93), [`ee87dd9`](https://github.com/assistant-ui/assistant-ui/commit/ee87dd9fef1389165bbfe0019be2a6995b2cfb24), [`e41734c`](https://github.com/assistant-ui/assistant-ui/commit/e41734c102a192ab772703899d7980bb5c055d07), [`1c5266c`](https://github.com/assistant-ui/assistant-ui/commit/1c5266c1fb32bc71647fedc485372f6ffa25171f), [`cdcdbd0`](https://github.com/assistant-ui/assistant-ui/commit/cdcdbd0a9354483a72edbc01f51a850a1d6b5dc5), [`42dbc69`](https://github.com/assistant-ui/assistant-ui/commit/42dbc697642c0fa327728860f78a8ce5270bf32d), [`25f1e4f`](https://github.com/assistant-ui/assistant-ui/commit/25f1e4f9d33073216458d3c5a05e8d79845d4b3b), [`d16e62d`](https://github.com/assistant-ui/assistant-ui/commit/d16e62d25b5c1e7e2bc1504fb4a5e97c3c25b6e3), [`60d049e`](https://github.com/assistant-ui/assistant-ui/commit/60d049eeadf681f4235157c903543493c98cc258), [`8643393`](https://github.com/assistant-ui/assistant-ui/commit/8643393490ebe1aa86661f705bb9ac907bfb4eac), [`2eca438`](https://github.com/assistant-ui/assistant-ui/commit/2eca4386778618f555258855ee6612eb44d89bb2), [`23ee5db`](https://github.com/assistant-ui/assistant-ui/commit/23ee5dbb60e6ac7993b8ce4023fb63a5f7eea713), [`f4aabe9`](https://github.com/assistant-ui/assistant-ui/commit/f4aabe9ca57d14a13e60932c4cc41e8b4864a21c)]:
+  - @assistant-ui/store@0.3.2
+  - @assistant-ui/core@0.3.2
+  - @assistant-ui/react-generative-ui@0.0.11
+  - assistant-stream@0.3.31
+
 ## 0.0.48
 
 ### Patch Changes
