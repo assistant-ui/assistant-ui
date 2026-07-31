@@ -246,4 +246,88 @@ describe("toCreateMessage", () => {
       },
     ]);
   });
+
+  it("converts an audio part into a file part with the format-derived media type", () => {
+    const message = {
+      ...baseMessage,
+      content: [{ type: "audio", audio: { data: "QUJD", format: "mp3" } }],
+    } as unknown as AppendMessage;
+
+    const result = toCreateMessage(message);
+
+    expect(result.parts).toEqual([
+      {
+        type: "file",
+        url: "data:audio/mp3;base64,QUJD",
+        mediaType: "audio/mp3",
+      },
+    ]);
+  });
+
+  it("converts a wav audio part", () => {
+    const message = {
+      ...baseMessage,
+      content: [{ type: "audio", audio: { data: "QUJD", format: "wav" } }],
+    } as unknown as AppendMessage;
+
+    const result = toCreateMessage(message);
+
+    expect(result.parts).toEqual([
+      {
+        type: "file",
+        url: "data:audio/wav;base64,QUJD",
+        mediaType: "audio/wav",
+      },
+    ]);
+  });
+
+  it("rebuilds the audio data URL envelope from the typed format", () => {
+    const message = {
+      ...baseMessage,
+      content: [
+        {
+          type: "audio",
+          audio: { data: "data:audio/mpeg;base64,QUJD", format: "mp3" },
+        },
+      ],
+    } as unknown as AppendMessage;
+
+    const result = toCreateMessage(message);
+
+    expect(result.parts).toEqual([
+      {
+        type: "file",
+        url: "data:audio/mp3;base64,QUJD",
+        mediaType: "audio/mp3",
+      },
+    ]);
+  });
+
+  it("keeps the attachment name on audio attachment content", () => {
+    const message = {
+      ...baseMessage,
+      content: [],
+      attachments: [
+        {
+          id: "some-id",
+          type: "audio",
+          name: "audio.mp3",
+          contentType: "audio/mp3",
+          status: { type: "complete" },
+          content: [{ type: "audio", audio: { data: "QUJD", format: "mp3" } }],
+        },
+      ],
+    } as unknown as AppendMessage;
+
+    const result = toCreateMessage(message);
+
+    expect(result.parts).toEqual([
+      {
+        type: "file",
+        url: "data:audio/mp3;base64,QUJD",
+        mediaType: "audio/mp3",
+        filename: "audio.mp3",
+      },
+    ]);
+  });
 });

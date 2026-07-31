@@ -1,4 +1,5 @@
 import type { AppendMessage } from "@assistant-ui/core";
+import { parseDataUrl } from "@assistant-ui/core/internal";
 import type {
   CreateUIMessage,
   UIDataTypes,
@@ -64,6 +65,18 @@ export const toCreateMessage = <UI_MESSAGE extends UIMessage = UIMessage>(
           mediaType: part.mimeType,
           ...(part.filename && { filename: part.filename }),
         };
+      case "audio": {
+        // A data URL's own media type wins over `mediaType` downstream, so the
+        // envelope is rebuilt from the typed format rather than forwarded.
+        const mediaType = `audio/${part.audio.format}`;
+        const base64 = parseDataUrl(part.audio.data)?.data ?? part.audio.data;
+        return {
+          type: "file",
+          url: `data:${mediaType};base64,${base64}`,
+          mediaType,
+          ...(part.filename && { filename: part.filename }),
+        };
+      }
       case "data":
         return {
           type: `data-${part.name}`,
