@@ -71,16 +71,23 @@ describe("ModelContextRegistry", () => {
   it("rolls back providers that fail to subscribe", () => {
     const registry = new ModelContextRegistry();
     const error = new Error("subscription failed");
+    const observedSystems: Array<string | undefined> = [];
+
+    registry.subscribe(() => {
+      observedSystems.push(registry.getModelContext().system);
+    });
 
     expect(() =>
       registry.addProvider({
         getModelContext: () => ({ system: "provider instructions" }),
-        subscribe: () => {
+        subscribe: (callback) => {
+          callback();
           throw error;
         },
       }),
     ).toThrow(error);
 
     expect(registry.getModelContext().system).toBeUndefined();
+    expect(observedSystems).toEqual(["provider instructions", undefined]);
   });
 });

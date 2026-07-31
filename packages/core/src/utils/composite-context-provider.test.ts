@@ -39,16 +39,47 @@ describe("CompositeContextProvider", () => {
   it("rolls back providers that fail to subscribe", () => {
     const composite = new CompositeContextProvider();
     const error = new Error("subscription failed");
+    const observedSystems: Array<string | undefined> = [];
+
+    composite.subscribe(() => {
+      observedSystems.push(composite.getModelContext().system);
+    });
 
     expect(() =>
       composite.registerModelContextProvider({
         getModelContext: () => ({ system: "provider instructions" }),
-        subscribe: () => {
+        subscribe: (callback) => {
+          callback();
           throw error;
         },
       }),
     ).toThrow(error);
 
+    expect(composite.getModelContext().system).toBeUndefined();
+    expect(observedSystems).toEqual(["provider instructions", undefined]);
+  });
+
+  it("preserves an earlier registration when a duplicate fails to subscribe", () => {
+    const composite = new CompositeContextProvider();
+    const error = new Error("subscription failed");
+    let subscriptionCount = 0;
+    const provider = {
+      getModelContext: () => ({ system: "provider instructions" }),
+      subscribe: () => {
+        subscriptionCount++;
+        if (subscriptionCount === 2) throw error;
+        return () => {};
+      },
+    };
+
+    const unregister = composite.registerModelContextProvider(provider);
+
+    expect(() => composite.registerModelContextProvider(provider)).toThrow(
+      error,
+    );
+    expect(composite.getModelContext().system).toBe("provider instructions");
+
+    unregister();
     expect(composite.getModelContext().system).toBeUndefined();
   });
 });

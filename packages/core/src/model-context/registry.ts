@@ -154,6 +154,7 @@ export class ModelContextRegistry implements ModelContextProvider {
       });
     } catch (error) {
       this._providers.delete(id);
+      this.notifySubscribers();
       throw error;
     }
     this._providerUnsubscribes.set(id, unsubscribe);

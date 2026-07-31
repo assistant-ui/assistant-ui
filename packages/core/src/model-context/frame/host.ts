@@ -1,7 +1,7 @@
 import type { ModelContextProvider, ModelContext } from "../types";
 import type { Unsubscribe } from "../../types/unsubscribe";
 import type { Tool } from "assistant-stream";
-import { notifyEventListeners } from "../../utils/notify-event-listeners";
+import { notifySubscribers as notifyStateSubscribers } from "../../subscribable/subscribable";
 import {
   type FrameMessage,
   FRAME_MESSAGE_CHANNEL,
@@ -208,7 +208,7 @@ export class AssistantFrameHost implements ModelContextProvider {
   }
 
   private notifySubscribers() {
-    notifyEventListeners(this._subscribers, undefined, "Assistant frame host");
+    notifyStateSubscribers(this._subscribers);
   }
 
   getModelContext(): ModelContext {

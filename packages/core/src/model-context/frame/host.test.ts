@@ -149,28 +149,22 @@ describe("AssistantFrameHost", () => {
     const { dispatchMessage, host } = createHost();
     const error = new Error("subscriber failed");
     const laterSubscriber = vi.fn();
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
 
     host.subscribe(() => {
       throw error;
     });
     host.subscribe(laterSubscriber);
 
-    dispatchMessage({
-      type: "model-context-update",
-      context: { system: "frame instructions" },
-    });
+    expect(() =>
+      dispatchMessage({
+        type: "model-context-update",
+        context: { system: "frame instructions" },
+      }),
+    ).toThrow(error);
 
     expect(host.getModelContext().system).toBe("frame instructions");
     expect(laterSubscriber).toHaveBeenCalledOnce();
-    expect(consoleError).toHaveBeenCalledWith(
-      "[assistant-ui] Assistant frame host listener threw an error",
-      error,
-    );
 
-    consoleError.mockRestore();
     host.dispose();
   });
 });

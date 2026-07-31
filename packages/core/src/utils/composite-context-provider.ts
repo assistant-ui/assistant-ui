@@ -13,6 +13,7 @@ export class CompositeContextProvider implements ModelContextProvider {
   }
 
   registerModelContextProvider(provider: ModelContextProvider) {
+    const wasRegistered = this._providers.has(provider);
     this._providers.add(provider);
     let unsubscribe: Unsubscribe | undefined;
     try {
@@ -20,7 +21,8 @@ export class CompositeContextProvider implements ModelContextProvider {
         this.notifySubscribers();
       });
     } catch (error) {
-      this._providers.delete(provider);
+      if (!wasRegistered) this._providers.delete(provider);
+      this.notifySubscribers();
       throw error;
     }
     this.notifySubscribers();
