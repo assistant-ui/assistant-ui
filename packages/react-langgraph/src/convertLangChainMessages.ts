@@ -331,8 +331,9 @@ export const convertLangChainMessages: useExternalMessageConverter.Callback<
 
 /**
  * Audio media types that reach a provider's audio input through the LangChain
- * `audio` block. `langchain-openai`'s completions converter accepts exactly
- * `audio/mp3` and `audio/wav`, so the spelling is normalized, not forwarded.
+ * `audio` block. langchain-core derives OpenAI's `input_audio.format` by
+ * splitting `mime_type` on `/`, and that format is a wav-or-mp3 enum, so
+ * `audio/mpeg` passes the converter and is rejected at the provider.
  */
 const audioBlockMimeTypes = new Map<string, "audio/mp3" | "audio/wav">([
   ["audio/mp3", "audio/mp3"],
