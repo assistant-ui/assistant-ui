@@ -23,7 +23,7 @@ import { SourceLink } from "@/components/docs/source-link";
 import { DemoIframe } from "@/components/docs/demo-iframe";
 import { Flow } from "@/components/assistant-ui/flow";
 import { MermaidDiagram } from "@/components/docs/mermaid-diagram";
-import { TapTutorialSlideshow } from "@/components/docs/tap/tutorial-slideshow";
+import { TapTutorialPlayground } from "@/components/docs/tap/tutorial-playground";
 
 function Kbd({ children, ...props }: ComponentProps<"kbd">) {
   return (
@@ -76,7 +76,7 @@ export function getMDXComponents(components: MDXComponents): MDXComponents {
     DemoIframe,
     Flow,
     MermaidDiagram,
-    TapTutorialSlideshow,
+    TapTutorialPlayground,
     Code,
     blockquote: (props) => <Callout>{props.children}</Callout>,
     ...components,
