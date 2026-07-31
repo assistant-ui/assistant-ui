@@ -92,6 +92,24 @@ const client = createOpencodeClient({
 const runtime = useOpenCodeRuntime({ client });
 ```
 
+## Attach files
+
+Use the OpenCode attachment adapter to preserve native image and file parts:
+
+```tsx
+import {
+  openCodeAttachmentAdapter,
+  useOpenCodeRuntime,
+} from "@assistant-ui/react-opencode";
+
+const runtime = useOpenCodeRuntime({
+  baseUrl: "http://localhost:4096",
+  adapters: { attachments: openCodeAttachmentAdapter },
+});
+```
+
+The adapter follows OpenCode's native prompt attachment policy: PNG, JPEG, GIF, WebP, PDF, and text/source files are accepted. Text-like browser files are normalized to `text/plain`, matching OpenCode's own client, while images and PDFs retain their media type. Unsupported binary formats such as DOCX are rejected by the composer before a message is sent. Whether the selected model supports an accepted image or PDF remains an OpenCode/provider capability. When using a custom OpenAI-compatible gateway, declare the model's `modalities.input` accurately in the OpenCode configuration so unsupported media is not forwarded to the gateway.
+
 ## Resuming a session
 
 Pass `initialSessionId` to open the runtime against an existing session on first load:

@@ -9,6 +9,7 @@ export {
 } from "./hooks";
 
 export { useOpenCodeStreamingTiming } from "./useOpenCodeStreamingTiming";
+export { openCodeAttachmentAdapter } from "./openCodeAttachmentAdapter";
 
 // Lower-level building blocks, deliberately public as advanced API and
 // documented in the docs site's OpenCode "lower-level building blocks" table.
