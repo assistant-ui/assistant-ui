@@ -170,7 +170,7 @@ function SidebarSection({
             transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
             className="overflow-hidden"
           >
-            <div className="border-border/50 mt-0.5 mb-1 ml-3 flex flex-col gap-0.5 border-l pl-2">
+            <div className="border-border/50 mt-0.5 mb-1 ml-4 flex flex-col gap-0.5 border-l pl-2">
               {folder.children.map((child) => (
                 <SectionItem
                   key={child.$id}
