@@ -64,16 +64,14 @@ const connectors = [
 ];
 
 export function Providers({ children }: { children: React.ReactNode }) {
+  const config = AuiConfig({
+    mcp: McpManagerResource({
+      connectors,
+      connectionTimeout: 15_000,
+    }),
+  });
   return (
-    <AuiProvider
-      aui={useAui()}
-      config={AuiConfig({
-        mcp: McpManagerResource({
-          connectors,
-          connectionTimeout: 15_000,
-        }),
-      })}
-    >
+    <AuiProvider aui={useAui()} config={config}>
       {children}
     </AuiProvider>
   );

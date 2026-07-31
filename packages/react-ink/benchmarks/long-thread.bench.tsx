@@ -89,8 +89,10 @@ const BenchProvider: React.FC<{
     }),
   });
 
+  const config = AuiConfig({});
+
   return (
-    <AuiProvider aui={aui} config={AuiConfig({})}>
+    <AuiProvider aui={aui} config={config}>
       {children}
     </AuiProvider>
   );

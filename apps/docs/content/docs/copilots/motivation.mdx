@@ -136,8 +136,9 @@ import toolkit from "./transaction-toolkit";
 
 function SmartTransactionHistory() {
   // Previous instructions...
+  const config = AuiConfig({ tools: Tools({ toolkit }) });
   return (
-    <AuiProvider aui={useAui()} config={AuiConfig({ tools: Tools({ toolkit }) })}>
+    <AuiProvider aui={useAui()} config={config}>
       <TransactionHistory transactions={transactions} />
     </AuiProvider>
   );

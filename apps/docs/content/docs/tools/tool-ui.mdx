@@ -75,11 +75,9 @@ import toolkit from "./toolkit";
 
 function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
   const runtime = useChatRuntime();
+  const config = AuiConfig({ tools: Tools({ toolkit }) });
   return (
-    <AssistantRuntimeProvider
-      runtime={runtime}
-      config={AuiConfig({ tools: Tools({ toolkit }) })}
-    >
+    <AssistantRuntimeProvider runtime={runtime} config={config}>
       {children}
     </AssistantRuntimeProvider>
   );
@@ -192,11 +190,9 @@ const toolkit = defineToolkit({
 });
 
 function App({ runtime }: { runtime: AssistantRuntime }) {
+  const config = AuiConfig({ tools: Tools({ toolkit }) });
   return (
-    <AssistantRuntimeProvider
-      runtime={runtime}
-      config={AuiConfig({ tools: Tools({ toolkit }) })}
-    >
+    <AssistantRuntimeProvider runtime={runtime} config={config}>
       <Thread />
     </AssistantRuntimeProvider>
   );
@@ -341,9 +337,10 @@ import { useAnalyzeDataToolkit } from "./analyze-data-toolkit";
 function DynamicToolUI({ children }: { children: React.ReactNode }) {
   const [theme] = useState<"light" | "dark">("light");
   const toolkit = useAnalyzeDataToolkit(theme);
+  const config = AuiConfig({ tools: Tools({ toolkit }) });
 
   return (
-    <AuiProvider aui={useAui()} config={AuiConfig({ tools: Tools({ toolkit }) })}>
+    <AuiProvider aui={useAui()} config={config}>
       {children}
     </AuiProvider>
   );
@@ -398,9 +395,10 @@ import { useInventoryToolkit } from "./inventory-toolkit";
 
 function ProductPage({ productId, productName }) {
   const toolkit = useInventoryToolkit(productId, productName);
+  const config = AuiConfig({ tools: Tools({ toolkit }) });
 
   return (
-    <AuiProvider aui={useAui()} config={AuiConfig({ tools: Tools({ toolkit }) })}>
+    <AuiProvider aui={useAui()} config={config}>
       <div>Product details...</div>
     </AuiProvider>
   );
@@ -947,9 +945,10 @@ import { useHeavyComputationToolkit } from "./heavy-computation-toolkit";
 
 function HeavyComputationToolProvider({ children }: { children: ReactNode }) {
   const toolkit = useHeavyComputationToolkit();
+  const config = AuiConfig({ tools: Tools({ toolkit }) });
 
   return (
-    <AuiProvider aui={useAui()} config={AuiConfig({ tools: Tools({ toolkit }) })}>
+    <AuiProvider aui={useAui()} config={config}>
       {children}
     </AuiProvider>
   );

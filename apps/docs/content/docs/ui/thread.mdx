@@ -119,12 +119,11 @@ import {
 } from "@assistant-ui/react";
 
 // Configure suggestions in your runtime provider
-<AssistantRuntimeProvider
-  runtime={runtime}
-  config={AuiConfig({
-    suggestions: Suggestions(["What's the weather?", "Tell me a joke"]),
-  })}
->
+const config = AuiConfig({
+  suggestions: Suggestions(["What's the weather?", "Tell me a joke"]),
+});
+
+<AssistantRuntimeProvider runtime={runtime} config={config}>
 
 // Display suggestions in your thread component
 <ThreadPrimitive.Suggestions>

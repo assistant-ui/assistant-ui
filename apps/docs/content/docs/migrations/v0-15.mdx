@@ -132,32 +132,39 @@ The second argument (`useAui(clients, { parent })`) is removed. Provide the pare
 const aui = useAui(scopes, { parent });
 
 // After
-const Scoped = ({ children }) => (
-  <AuiProvider aui={useAui()} config={AuiConfig(scopes)}>
-    {children}
-  </AuiProvider>
-);
+const Scoped = ({ children }) => {
+  const config = AuiConfig(scopes);
+  return (
+    <AuiProvider aui={useAui()} config={config}>
+      {children}
+    </AuiProvider>
+  );
+};
 
-<AuiProvider aui={parent} config={AuiConfig({})}>
+const rootConfig = AuiConfig({});
+
+<AuiProvider aui={parent} config={rootConfig}>
   <Scoped />
 </AuiProvider>;
 ```
 
-Where `{ parent: null }` was used to detach from context, `<AuiProvider aui={null} config={AuiConfig({})}>` now provides an isolated empty root.
+Where `{ parent: null }` was used to detach from context, `<AuiProvider aui={null} config={config}>` where `const config = AuiConfig({})` now provides an isolated empty root.
 
 ## `AuiProvider` Grammar
 
 `AuiProvider` takes a `config` built with `AuiConfig(...)` — raw object literals are a type error. At the top level, `config` alone creates the subtree's client. Nested under a parent provider, `aui` is mandatory: `aui={useAui()}` extends the parent, `aui={null}` isolates (dev-enforced). An empty config provides the `aui` client as-is. `ref` receives the resulting client after mount.
 
 ```tsx
+const config = AuiConfig({ tools: Tools({ toolkit }) });
+
 // Top-level root
-<AuiProvider config={AuiConfig({ tools: Tools({ toolkit }) })}>
+<AuiProvider config={config}>
 
 // Nested: extend the parent
-<AuiProvider aui={useAui()} config={AuiConfig({ tools: Tools({ toolkit }) })}>
+<AuiProvider aui={useAui()} config={config}>
 
 // Nested: isolate from the parent
-<AuiProvider aui={null} config={AuiConfig({ tools: Tools({ toolkit }) })}>
+<AuiProvider aui={null} config={config}>
 ```
 
 `AuiConfig` is exported from `@assistant-ui/store` and re-exported from `@assistant-ui/react`, `@assistant-ui/react-native`, and `@assistant-ui/react-ink`.
@@ -170,8 +177,10 @@ Where `{ parent: null }` was used to detach from context, `<AuiProvider aui={nul
 <AuiProvider value={null}>
 
 // After
-<AuiProvider aui={client} config={AuiConfig({})}>
-<AuiProvider aui={null} config={AuiConfig({})}>
+const config = AuiConfig({});
+
+<AuiProvider aui={client} config={config}>
+<AuiProvider aui={null} config={config}>
 ```
 
 ### `useAui({ ... })` Extension Overload Deprecated
@@ -182,8 +191,9 @@ const aui = useAui({ tools: Tools({ toolkit }) });
 return <AuiProvider value={aui}>{children}</AuiProvider>;
 
 // After
+const config = AuiConfig({ tools: Tools({ toolkit }) });
 return (
-  <AuiProvider aui={useAui()} config={AuiConfig({ tools: Tools({ toolkit }) })}>
+  <AuiProvider aui={useAui()} config={config}>
     {children}
   </AuiProvider>
 );
@@ -201,11 +211,9 @@ return (
 );
 
 // After
+const config = AuiConfig({ tools: Tools({ toolkit }) });
 return (
-  <AssistantRuntimeProvider
-    runtime={runtime}
-    config={AuiConfig({ tools: Tools({ toolkit }) })}
-  >
+  <AssistantRuntimeProvider runtime={runtime} config={config}>
     {children}
   </AssistantRuntimeProvider>
 );

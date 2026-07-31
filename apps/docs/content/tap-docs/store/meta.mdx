@@ -16,7 +16,9 @@ aui.thread.name; // "thread"
 When you fill a scope directly via a provider's `AuiConfig({ ... })`, it gets `source: "root"` and an empty `query`:
 
 ```tsx
-<AuiProvider config={AuiConfig({ thread: ThreadResource() })}>
+const config = AuiConfig({ thread: ThreadResource() });
+
+<AuiProvider config={config}>
 
 aui.thread.source; // "root"
 aui.thread.query; // {}
@@ -29,16 +31,15 @@ This is the default — the scope was provided directly, not derived from anothe
 When a scope is created via `Derived`, its `source` points to the parent scope it was derived from, and `query` carries the lookup parameters:
 
 ```tsx
-<AuiProvider
-  aui={useAui()}
-  config={AuiConfig({
-    message: Derived({
-      source: "thread",
-      query: { index: 0 },
-      get: (aui) => aui.thread.message({ index: 0 }),
-    }),
-  })}
->
+const config = AuiConfig({
+  message: Derived({
+    source: "thread",
+    query: { index: 0 },
+    get: (aui) => aui.thread.message({ index: 0 }),
+  }),
+});
+
+<AuiProvider aui={useAui()} config={config}>
 
 aui.message.source; // "thread"
 aui.message.query; // { index: 0 }

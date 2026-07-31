@@ -22,8 +22,9 @@ const spans = [
 ];
 
 export function Waterfall() {
+  const config = AuiConfig({ span: SpanResource({ spans }) });
   return (
-    <AuiProvider config={AuiConfig({ span: SpanResource({ spans }) })}>
+    <AuiProvider config={config}>
       <SpanPrimitive.Timeline>
         <SpanPrimitive.Children>
           {() => (

@@ -473,11 +473,9 @@ import toolkit from "./toolkit";
 
 function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
   const runtime = useLocalRuntime(MyModelAdapter);
+  const config = AuiConfig({ tools: Tools({ toolkit }) });
   return (
-    <AssistantRuntimeProvider
-      runtime={runtime}
-      config={AuiConfig({ tools: Tools({ toolkit }) })}
-    >
+    <AssistantRuntimeProvider runtime={runtime} config={config}>
       {children}
     </AssistantRuntimeProvider>
   );

@@ -130,14 +130,12 @@ function DrawerLayout() {
 export default function RootLayout() {
   const [fontsLoaded] = useFonts(Ionicons.font);
   const runtime = useAppRuntime();
+  const config = AuiConfig({ tools: Tools({ toolkit: expoToolkit }) });
   if (!fontsLoaded) return null;
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <AssistantRuntimeProvider
-        runtime={runtime}
-        config={AuiConfig({ tools: Tools({ toolkit: expoToolkit }) })}
-      >
+      <AssistantRuntimeProvider runtime={runtime} config={config}>
         <DrawerLayout />
       </AssistantRuntimeProvider>
     </GestureHandlerRootView>

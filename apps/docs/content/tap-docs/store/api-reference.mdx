@@ -25,7 +25,7 @@ type AuiConfig.Input = {
 
 Builds the branded config object accepted by `AuiProvider`'s `config` prop. Raw object literals are a type error.
 
-The `useAui(scopes)` extension overload is deprecated; use `<AuiProvider aui={useAui()} config={AuiConfig(scopes)}>` instead.
+The `useAui(scopes)` extension overload is deprecated; hoist `const config = AuiConfig(scopes)` and use `<AuiProvider aui={useAui()} config={config}>` instead.
 
 ### useAuiState
 
@@ -53,11 +53,13 @@ Subscribes to events. The selector can be a string (`"scope.event"`) or an objec
 ### AuiProvider
 
 ```tsx
+const config = AuiConfig({ counter: CounterResource() });
+
 // Top-level root
-<AuiProvider config={AuiConfig({ counter: CounterResource() })}>{children}</AuiProvider>
+<AuiProvider config={config}>{children}</AuiProvider>
 
 // Nested: extend the parent (or aui={null} to isolate)
-<AuiProvider aui={useAui()} config={AuiConfig({ counter: CounterResource() })}>{children}</AuiProvider>
+<AuiProvider aui={useAui()} config={config}>{children}</AuiProvider>
 ```
 
 Provides an `AssistantClient` to the React tree, created from a `config` built with `AuiConfig(...)`. Nested under a parent provider, `aui` is mandatory: `aui={useAui()}` extends the parent, `aui={null}` isolates. An empty config provides the `aui` client as-is. `ref` receives the resulting client after mount. Child components access the client via `useAui()`.

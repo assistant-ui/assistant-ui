@@ -397,11 +397,9 @@ export default function Page() {
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
   });
   const runtime = useAISDKRuntime(chat);
+  const config = AuiConfig({ tools: Tools({ toolkit }) });
   return (
-    <AssistantRuntimeProvider
-      runtime={runtime}
-      config={AuiConfig({ tools: Tools({ toolkit }) })}
-    >
+    <AssistantRuntimeProvider runtime={runtime} config={config}>
       <Thread />
     </AssistantRuntimeProvider>
   );

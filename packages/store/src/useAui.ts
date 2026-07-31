@@ -463,9 +463,10 @@ export function useAui(): AssistantClient;
  * const role = useAuiState((s) => s.message.role);
  * ```
  *
- * @deprecated Use `<AuiProvider aui={useAui()} config={AuiConfig({ ... })}>`
- * instead; it
- * creates the client and provides it to the subtree in one step.
+ * @deprecated Build a config in the component body (`const config =
+ * AuiConfig({ ... })`) and render `<AuiProvider aui={useAui()}
+ * config={config}>` instead; it creates the client and provides it to the
+ * subtree in one step.
  */
 export function useAui(clients: useAui.Props): AssistantClient;
 export function useAui(clients?: useAui.Props): AssistantClient {

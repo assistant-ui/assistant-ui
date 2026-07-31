@@ -410,11 +410,9 @@ function App() {
   const runtime = useAdkRuntime({
     stream: createAdkStream({ api: "/api/chat" }),
   });
+  const config = AuiConfig({ tools: Tools({ toolkit }) });
   return (
-    <AssistantRuntimeProvider
-      runtime={runtime}
-      config={AuiConfig({ tools: Tools({ toolkit }) })}
-    >
+    <AssistantRuntimeProvider runtime={runtime} config={config}>
       <Thread />
     </AssistantRuntimeProvider>
   );
@@ -451,11 +449,9 @@ function App() {
   const runtime = useAdkRuntime({
     stream: createAdkStream({ api: `${API_URL}/api/chat` }),
   });
+  const config = AuiConfig({ tools: Tools({ toolkit }) });
   return (
-    <AssistantRuntimeProvider
-      runtime={runtime}
-      config={AuiConfig({ tools: Tools({ toolkit }) })}
-    >
+    <AssistantRuntimeProvider runtime={runtime} config={config}>
       <View style={{ flex: 1 }}>
         <Thread />
       </View>
@@ -492,11 +488,9 @@ function App() {
   const runtime = useAdkRuntime({
     stream: createAdkStream({ api: "http://localhost:3000/api/chat" }),
   });
+  const config = AuiConfig({ tools: Tools({ toolkit }) });
   return (
-    <AssistantRuntimeProvider
-      runtime={runtime}
-      config={AuiConfig({ tools: Tools({ toolkit }) })}
-    >
+    <AssistantRuntimeProvider runtime={runtime} config={config}>
       <Box flexDirection="column">
         <Thread />
       </Box>

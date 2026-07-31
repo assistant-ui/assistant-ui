@@ -126,10 +126,11 @@ import toolkit from "./toolkit";
 
 export function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
   const runtime = useChatRuntime();
+  const config = AuiConfig({ tools: Tools({ toolkit }) });
   return (
     <AssistantRuntimeProvider
       runtime={runtime}
-      config={AuiConfig({ tools: Tools({ toolkit }) })}
+      config={config}
     >
       {children}
     </AssistantRuntimeProvider>
@@ -369,7 +370,7 @@ export const toolkit = defineToolkit({
 });
 ```
 
-Register it exactly like a generative toolkit: `config={AuiConfig({ tools: Tools({ toolkit }) })}`. The key must match the tool name your backend or MCP server publishes. Render-only entries upload no schema and run no browser code — they only attach UI to matching tool-call message parts.
+Register it exactly like a generative toolkit: hoist `const config = AuiConfig({ tools: Tools({ toolkit }) })` in the component body and pass `config={config}`. The key must match the tool name your backend or MCP server publishes. Render-only entries upload no schema and run no browser code — they only attach UI to matching tool-call message parts.
 
 <Callout type="warn">
   This `{ type: "backend", render }` shape is **plain-toolkit only**. Inside a

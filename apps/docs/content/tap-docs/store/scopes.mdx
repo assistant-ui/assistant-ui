@@ -63,8 +63,9 @@ At the top level, `config` alone creates the store:
 
 ```tsx
 const App = () => {
+  const config = AuiConfig({ threadList: ThreadListResource() });
   return (
-    <AuiProvider config={AuiConfig({ threadList: ThreadListResource() })}>
+    <AuiProvider config={config}>
       <ThreadView />
     </AuiProvider>
   );
@@ -78,8 +79,9 @@ You don't have to fill every scope at once. Each level of your tree can extend t
 ```tsx
 const ThreadView = () => {
   // extends the parent store with a thread scope
+  const config = AuiConfig({ thread: ThreadResource() });
   return (
-    <AuiProvider aui={useAui()} config={AuiConfig({ thread: ThreadResource() })}>
+    <AuiProvider aui={useAui()} config={config}>
       <MessageList />
     </AuiProvider>
   );

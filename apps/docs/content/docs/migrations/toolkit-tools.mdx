@@ -81,12 +81,10 @@ import toolkit from "./toolkit";
 
 export function App() {
   const runtime = useChatRuntime();
+  const config = AuiConfig({ tools: Tools({ toolkit }) });
 
   return (
-    <AssistantRuntimeProvider
-      runtime={runtime}
-      config={AuiConfig({ tools: Tools({ toolkit }) })}
-    >
+    <AssistantRuntimeProvider runtime={runtime} config={config}>
       <Thread />
     </AssistantRuntimeProvider>
   );
@@ -100,7 +98,7 @@ export function App() {
 1. Create a `Toolkit` object.
 2. Move each `toolName` into the toolkit key.
 3. Move `description`, `parameters`, `execute`, `providerOptions`, `render`, `renderText`, and `display` onto the toolkit entry.
-4. Register the toolkit once with `config={AuiConfig({ tools: Tools({ toolkit }) })}` on your runtime provider.
+4. Register the toolkit once with `config={config}` on your runtime provider, where `const config = AuiConfig({ tools: Tools({ toolkit }) })`.
 5. Remove `<Tool />`, `<ToolUI />`, `useAssistantTool(...)`, and `useAssistantToolUI(...)` registrations.
 
 ## UI-Only Tool Renderers
@@ -126,7 +124,7 @@ export default defineToolkit({
 });
 ```
 
-Register it like any toolkit: `config={AuiConfig({ tools: Tools({ toolkit }) })}`.
+Register it like any toolkit: `config={config}` where `const config = AuiConfig({ tools: Tools({ toolkit }) })`.
 Render-only entries upload no schema and run no browser code — they only attach
 UI for matching tool-call message parts. For MCP server catalogs, spread
 `defineMcpToolkit({ ... })` in the same generative toolkit.
@@ -176,9 +174,10 @@ import toolkit from "./task-board-toolkit";
 
 function TaskBoard() {
   const [tasks, setTasks] = useState<Task[]>([]);
+  const config = AuiConfig({ tools: Tools({ toolkit }) });
 
   return (
-    <AuiProvider aui={useAui()} config={AuiConfig({ tools: Tools({ toolkit }) })}>
+    <AuiProvider aui={useAui()} config={config}>
       <TaskBoardToolOverrides setTasks={setTasks} />
       <TaskList tasks={tasks} />
     </AuiProvider>

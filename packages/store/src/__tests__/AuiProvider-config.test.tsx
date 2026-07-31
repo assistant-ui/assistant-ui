@@ -41,6 +41,8 @@ const useCounter = () => {
 };
 const Counter = resource(useCounter);
 
+const emptyConfig = AuiConfig({});
+
 const threadConfig = (ids: string[]) =>
   ({ thread: Thread({ ids }) }) as unknown as AuiConfig;
 
@@ -251,7 +253,7 @@ describe("AuiProvider config", () => {
     const Portal: FC<{ children: ReactNode }> = ({ children }) => {
       parent = useAui();
       return (
-        <AuiProvider aui={parent as never} config={AuiConfig({})}>
+        <AuiProvider aui={parent as never} config={emptyConfig}>
           {children}
         </AuiProvider>
       );
@@ -279,7 +281,7 @@ describe("AuiProvider config", () => {
       return (
         <AuiProvider
           aui={parent as never}
-          config={AuiConfig({})}
+          config={emptyConfig}
           ref={ref as never}
         >
           {null}
@@ -302,7 +304,7 @@ describe("AuiProvider config", () => {
     render(
       <AuiProvider config={threadConfig(["a"])}>
         <Probe onRender={(c) => (parent = c)} />
-        <AuiProvider aui={null} config={AuiConfig({})}>
+        <AuiProvider aui={null} config={emptyConfig}>
           <Probe onRender={(c) => (inner = c)} />
         </AuiProvider>
       </AuiProvider>,
@@ -444,6 +446,6 @@ describe("AuiProvider config", () => {
   it("rejects raw object literals for the config prop at the type level", () => {
     // @ts-expect-error config must be built with AuiConfig(...)
     void (<AuiProvider config={{}}>{null}</AuiProvider>);
-    void (<AuiProvider config={AuiConfig({})}>{null}</AuiProvider>);
+    void (<AuiProvider config={emptyConfig}>{null}</AuiProvider>);
   });
 });

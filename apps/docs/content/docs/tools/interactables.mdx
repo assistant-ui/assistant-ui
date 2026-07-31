@@ -50,13 +50,14 @@ import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 
 function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
   const runtime = useChatRuntime();
+  const config = AuiConfig({
+    unstable_interactables: unstable_Interactables(), // [!code ++]
+  });
 
   return (
     <AssistantRuntimeProvider
       runtime={runtime}
-      config={AuiConfig({
-        unstable_interactables: unstable_Interactables(), // [!code ++]
-      })}
+      config={config}
     >
       {children}
     </AssistantRuntimeProvider>
@@ -612,14 +613,15 @@ const persistenceAdapter = {
 };
 
 function MyRuntimeProvider({ children }) {
+  const config = AuiConfig({
+    unstable_interactables: unstable_Interactables({
+      persistence: persistenceAdapter,
+    }),
+  });
   return (
     <AuiProvider
       aui={useAui()}
-      config={AuiConfig({
-        unstable_interactables: unstable_Interactables({
-          persistence: persistenceAdapter,
-        }),
-      })}
+      config={config}
     >
       {children}
     </AuiProvider>

@@ -377,10 +377,11 @@ import { toolkit } from "./GitHubIssueToolUI";
 
 export function MyRuntimeProvider({ children }: { children: ReactNode }) {
   const runtime = useChatRuntime();
+  const config = AuiConfig({ tools: Tools({ toolkit }) });
   return (
     <AssistantRuntimeProvider
       runtime={runtime}
-      config={AuiConfig({ tools: Tools({ toolkit }) })}
+      config={config}
     >
       {children}
     </AssistantRuntimeProvider>

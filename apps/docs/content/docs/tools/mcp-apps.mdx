@@ -45,19 +45,20 @@ import {
 } from "@assistant-ui/react";
 
 function MyAssistant({ children }) {
+  const config = AuiConfig({
+    tools: Tools({
+      toolkit: myToolkit,
+      mcpApp: McpAppRenderer({
+        host: McpAppsRemoteHost({ url: "/api/mcp-apps" }),
+        hostInfo: { name: "my-app", version: "1.0.0" },
+        hostContext: { theme: "light" },
+      }),
+    }),
+  });
   return (
     <AuiProvider
       aui={useAui()}
-      config={AuiConfig({
-        tools: Tools({
-          toolkit: myToolkit,
-          mcpApp: McpAppRenderer({
-            host: McpAppsRemoteHost({ url: "/api/mcp-apps" }),
-            hostInfo: { name: "my-app", version: "1.0.0" },
-            hostContext: { theme: "light" },
-          }),
-        }),
-      })}
+      config={config}
     >
       {children}
     </AuiProvider>

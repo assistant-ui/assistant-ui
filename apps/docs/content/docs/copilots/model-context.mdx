@@ -78,8 +78,9 @@ const ClickableButton = makeAssistantVisible(Button, {
 
 // Use in your component
 function Form() {
+  const config = AuiConfig({ tools: Tools({ toolkit }) });
   return (
-    <AuiProvider aui={useAui()} config={AuiConfig({ tools: Tools({ toolkit }) })}>
+    <AuiProvider aui={useAui()} config={config}>
       <form>{/* form fields */}</form>
     </AuiProvider>
   );

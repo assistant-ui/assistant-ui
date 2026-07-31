@@ -50,9 +50,11 @@ Selectors: `"client.event"` | `{ scope: "parent", event }` | `{ scope: "*", even
 ```typescript
 AuiConfig(config: { [K]?: ClientElement<K> | DerivedElement<K> }): AuiConfig;
 
-<AuiProvider config={AuiConfig({ ... })}>{children}</AuiProvider>               // top-level root
-<AuiProvider aui={useAui()} config={AuiConfig({ ... })}>{children}</AuiProvider> // extend parent
-<AuiProvider aui={null} config={AuiConfig({ ... })}>{children}</AuiProvider>     // isolate from parent
+const config = AuiConfig({ ... }); // always a body const, never inlined in JSX
+
+<AuiProvider config={config}>{children}</AuiProvider>            // top-level root
+<AuiProvider aui={useAui()} config={config}>{children}</AuiProvider> // extend parent
+<AuiProvider aui={null} config={config}>{children}</AuiProvider>     // isolate from parent
 <AuiIf condition={(s) => boolean}>{children}</AuiIf>
 ```
 `config` must be built with `AuiConfig` (branded type) and is identity-insensitive. Under a parent provider, `aui` is mandatory (dev error otherwise); `aui` requires `config`; `aui={client}` with an empty config provides that client as-is. Config flow: splitClients → apply transformScopes → mount root clients → create derived accessors → merge with parent.

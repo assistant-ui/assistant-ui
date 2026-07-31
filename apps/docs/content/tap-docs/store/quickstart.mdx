@@ -69,10 +69,9 @@ import { CounterResource } from "@/lib/store/counter-store";
 import { CounterDisplay } from "./CounterDisplay";
 
 export const CounterApp = () => {
+  const config = AuiConfig({ counter: CounterResource({ initialCount: 0 }) });
   return (
-    <AuiProvider
-      config={AuiConfig({ counter: CounterResource({ initialCount: 0 }) })}
-    >
+    <AuiProvider config={config}>
       <CounterDisplay />
     </AuiProvider>
   );

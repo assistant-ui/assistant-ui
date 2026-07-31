@@ -59,8 +59,9 @@ function SpanRow() {
 }
 
 export function TraceView({ spans }: { spans: SpanData[] }) {
+  const config = AuiConfig({ span: SpanResource({ spans }) });
   return (
-    <AuiProvider config={AuiConfig({ span: SpanResource({ spans }) })}>
+    <AuiProvider config={config}>
       <SpanPrimitive.Children components={{ Span: SpanRow }} />
     </AuiProvider>
   );
@@ -105,7 +106,8 @@ import {
 } from "@assistant-ui/react-o11y";
 
 // Top-level: mount SpanResource via AuiProvider
-<AuiProvider config={AuiConfig({ span: SpanResource({ spans }) })}>
+const config = AuiConfig({ span: SpanResource({ spans }) });
+<AuiProvider config={config}>
   {/* Render visible spans (flat-list output respecting collapsed state) */}
   <SpanPrimitive.Children components={{ Span: SpanRow }} />
 </AuiProvider>;
@@ -136,7 +138,7 @@ Resource that ingests raw span data and exposes a tree-aware reactive state to p
 SpanResource({ spans }: { spans: SpanData[] }): ClientOutput<"span">;
 ```
 
-Mount through `config={AuiConfig({ span: SpanResource({ spans }) })}`.
+Mount through `config={config}`, where `const config = AuiConfig({ span: SpanResource({ spans }) })`.
 
 The resource computes:
 

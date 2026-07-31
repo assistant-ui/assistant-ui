@@ -136,9 +136,9 @@ export const AuiProvider: {
      * Assistant client to expose to descendants, or `null` for an isolated
      * empty root.
      *
-     * @deprecated Use `aui={client} config={AuiConfig({})}` to provide an
-     * existing client, or `aui={null} config={AuiConfig({})}` for an
-     * isolated empty root.
+     * @deprecated Pass an empty config built in the component body
+     * (`const config = AuiConfig({})`) with `aui={client}` to provide an
+     * existing client, or with `aui={null}` for an isolated empty root.
      */
     value: AssistantClient | null;
     aui?: never;

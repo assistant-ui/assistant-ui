@@ -32,6 +32,7 @@ const inputHandlers: InputHandler[] = [];
 vi.mock("@assistant-ui/store", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@assistant-ui/store")>();
   const { createElement } = await import("react");
+  const emptyConfig = actual.AuiConfig({});
   return {
     ...actual,
     useAui: () => mockUseAui(),
@@ -43,7 +44,7 @@ vi.mock("@assistant-ui/store", async (importOriginal) => {
         actual.AuiProvider,
         {
           aui: mockUseAui() as never,
-          config: actual.AuiConfig({}),
+          config: emptyConfig,
         } as never,
         children as never,
       ),

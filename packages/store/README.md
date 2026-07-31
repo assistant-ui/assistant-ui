@@ -48,8 +48,9 @@ const useCounterClient = (): ClientOutput<"counter"> => {
 const CounterClient = resource(useCounterClient);
 
 function App() {
+  const config = AuiConfig({ counter: CounterClient() });
   return (
-    <AuiProvider config={AuiConfig({ counter: CounterClient() })}>
+    <AuiProvider config={config}>
       <Counter />
     </AuiProvider>
   );

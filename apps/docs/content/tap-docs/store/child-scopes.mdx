@@ -126,8 +126,9 @@ Each element must have a key via `withKey`. Keys let Store track identity across
 import { AuiConfig, AuiProvider, useAui, useAuiState, Derived } from "@assistant-ui/store";
 
 const TodoApp = () => {
+  const config = AuiConfig({ todoList: TodoListResource() });
   return (
-    <AuiProvider config={AuiConfig({ todoList: TodoListResource() })}>
+    <AuiProvider config={config}>
       <TodoList />
     </AuiProvider>
   );
@@ -145,17 +146,15 @@ const TodoList = () => {
 };
 
 const TodoItem = ({ index }: { index: number }) => {
+  const config = AuiConfig({
+    todo: Derived({
+      source: "todoList",
+      query: { index },
+      get: (aui) => aui.todoList.todo({ index }),
+    }),
+  });
   return (
-    <AuiProvider
-      aui={useAui()}
-      config={AuiConfig({
-        todo: Derived({
-          source: "todoList",
-          query: { index },
-          get: (aui) => aui.todoList.todo({ index }),
-        }),
-      })}
-    >
+    <AuiProvider aui={useAui()} config={config}>
       <TodoDisplay />
     </AuiProvider>
   );

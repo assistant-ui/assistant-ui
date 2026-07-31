@@ -21,18 +21,17 @@ import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
   const runtime = useChatRuntime();
 
+  const config = AuiConfig({
+    tools: Tools({ toolkit: myToolkit }),
+    suggestions: Suggestions([
+      "What can you help me with?",
+      "Tell me a joke",
+      "Explain quantum computing",
+    ]),
+  });
+
   return (
-    <AssistantRuntimeProvider
-      runtime={runtime}
-      config={AuiConfig({
-        tools: Tools({ toolkit: myToolkit }),
-        suggestions: Suggestions([
-          "What can you help me with?",
-          "Tell me a joke",
-          "Explain quantum computing",
-        ]),
-      })}
-    >
+    <AssistantRuntimeProvider runtime={runtime} config={config}>
       {children}
     </AssistantRuntimeProvider>
   );
@@ -316,14 +315,13 @@ function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
     ];
   }, [user.isPremium]);
 
+  const config = AuiConfig({
+    tools: Tools({ toolkit: myToolkit }),
+    suggestions: Suggestions(suggestions),
+  });
+
   return (
-    <AssistantRuntimeProvider
-      runtime={runtime}
-      config={AuiConfig({
-        tools: Tools({ toolkit: myToolkit }),
-        suggestions: Suggestions(suggestions),
-      })}
-    >
+    <AssistantRuntimeProvider runtime={runtime} config={config}>
       {children}
     </AssistantRuntimeProvider>
   );

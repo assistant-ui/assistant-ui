@@ -38,13 +38,14 @@ import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 
 function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
   const runtime = useChatRuntime();
+  const config = AuiConfig({
+    interactables: Interactables(), // [!code ++]
+  });
 
   return (
     <AssistantRuntimeProvider
       runtime={runtime}
-      config={AuiConfig({
-        interactables: Interactables(), // [!code ++]
-      })}
+      config={config}
     >
       {children}
     </AssistantRuntimeProvider>
@@ -295,8 +296,9 @@ import { useEffect } from "react";
 import { AuiConfig, AuiProvider, Interactables, useAui } from "@assistant-ui/react";
 
 function MyRuntimeProvider({ children }) {
+  const config = AuiConfig({ interactables: Interactables() });
   return (
-    <AuiProvider aui={useAui()} config={AuiConfig({ interactables: Interactables() })}>
+    <AuiProvider aui={useAui()} config={config}>
       <PersistenceSetup />
       {children}
     </AuiProvider>
