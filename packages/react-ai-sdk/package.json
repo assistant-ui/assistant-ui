@@ -46,6 +46,7 @@
   "files": [
     "dist",
     "src",
+    "server",
     "README.md"
   ],
   "sideEffects": false,
