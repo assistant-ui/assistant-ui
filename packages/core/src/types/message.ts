@@ -67,6 +67,14 @@ export type FileMessagePart = {
   readonly parentId?: string;
 };
 
+/**
+ * @deprecated Use {@link FileMessagePart} with an `audio/*` mime type. `file`
+ * is the carrier for every non-image binary modality: it reaches the same
+ * provider audio inputs, is a member of both the user and assistant unions,
+ * carries a filename, and supports url and id references through `sourceType`,
+ * none of which this shape can express. Still honored everywhere it is
+ * accepted; it will not gain fields.
+ */
 export type Unstable_AudioMessagePart = {
   readonly type: "audio";
   readonly audio: {

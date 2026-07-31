@@ -44,8 +44,16 @@ export type ImageMessagePartComponent = ComponentType<ImageMessagePartProps>;
 export type FileMessagePartProps = MessagePartState & FileMessagePart;
 export type FileMessagePartComponent = ComponentType<FileMessagePartProps>;
 
+/**
+ * @deprecated Use {@link FileMessagePartProps} and render `audio/*` mime types
+ * from the `File` slot.
+ */
 export type Unstable_AudioMessagePartProps = MessagePartState &
   Unstable_AudioMessagePart;
+/**
+ * @deprecated Use {@link FileMessagePartComponent} and render `audio/*` mime
+ * types from the `File` slot.
+ */
 export type Unstable_AudioMessagePartComponent =
   ComponentType<Unstable_AudioMessagePartProps>;
 
