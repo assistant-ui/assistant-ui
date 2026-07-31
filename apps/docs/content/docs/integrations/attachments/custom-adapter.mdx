@@ -494,7 +494,7 @@ In the adapter's `add`, call Uploadthing's client upload and read `url` from the
 When the backend resolves stored files itself and the browser never holds a usable URL, send the storage id instead: set `sourceType: "id"` on the file part in `send()`, and the LangChain-family runtimes emit a `source_type: "id"` block with the value in the `id` key. `sourceType: "url"` similarly forces a url block for non-http references. Other runtimes ignore the field.
 
 ```ts
-content: [
+const content = [
   {
     type: "file" as const,
     filename: name,
