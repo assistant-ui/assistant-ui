@@ -64,7 +64,7 @@ export function getTapDocsPage(slugs: string[] | undefined) {
  * throws NEXT_REDIRECT when rendered.
  */
 export function getTapDocsPages() {
-  return tapDocs.getPages().filter((page) => page.url !== "/tap/docs");
+  return tapDocs.getPages().filter((page) => page.slugs.length > 0);
 }
 
 export const examples = loader({
