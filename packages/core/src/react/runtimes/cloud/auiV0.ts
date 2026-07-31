@@ -77,6 +77,7 @@ type AuiV0MessagePart =
       readonly data: string;
       readonly mimeType: string;
       readonly filename?: string;
+      readonly sourceType?: "url" | "id";
     };
 
 type AuiV0AttachmentPart =
@@ -94,6 +95,7 @@ type AuiV0AttachmentPart =
       readonly data: string;
       readonly mimeType: string;
       readonly filename?: string;
+      readonly sourceType?: "url" | "id";
     }
   | {
       readonly type: "audio";
@@ -157,6 +159,9 @@ const encodeAttachmentPart = (
         data: part.data,
         mimeType: part.mimeType,
         ...(part.filename != null ? { filename: part.filename } : undefined),
+        ...(part.sourceType != null
+          ? { sourceType: part.sourceType }
+          : undefined),
       };
 
     case "audio":
@@ -281,6 +286,7 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
             data: part.data,
             mimeType: part.mimeType,
             ...(part.filename ? { filename: part.filename } : undefined),
+            ...(part.sourceType ? { sourceType: part.sourceType } : undefined),
           };
 
         default: {

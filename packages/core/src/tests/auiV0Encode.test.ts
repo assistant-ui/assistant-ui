@@ -127,6 +127,61 @@ describe("auiV0Encode", () => {
     ]);
   });
 
+  it("preserves file sourceType in the core cloud encoder", () => {
+    const encoded = auiV0Encode({
+      id: "m1",
+      createdAt: new Date("2026-03-15T00:00:00.000Z"),
+      role: "user",
+      metadata: { custom: {} },
+      content: [
+        {
+          type: "file",
+          data: "file-abc123",
+          mimeType: "application/pdf",
+          filename: "a.pdf",
+          sourceType: "id",
+        },
+      ],
+      attachments: [
+        {
+          id: "att-1",
+          type: "document",
+          name: "a.pdf",
+          contentType: "application/pdf",
+          status: { type: "complete" },
+          content: [
+            {
+              type: "file",
+              data: "file-abc123",
+              mimeType: "application/pdf",
+              filename: "a.pdf",
+              sourceType: "id",
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(encoded.content).toEqual([
+      {
+        type: "file",
+        data: "file-abc123",
+        mimeType: "application/pdf",
+        filename: "a.pdf",
+        sourceType: "id",
+      },
+    ]);
+    expect(encoded.attachments?.[0]?.content).toEqual([
+      {
+        type: "file",
+        data: "file-abc123",
+        mimeType: "application/pdf",
+        filename: "a.pdf",
+        sourceType: "id",
+      },
+    ]);
+  });
+
   it("omits missing attachment contentType in the core cloud encoder", () => {
     const encoded = auiV0Encode({
       id: "m1",
