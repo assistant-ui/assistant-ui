@@ -7,6 +7,7 @@ import {
   type AssistantInstructionsConfig,
 } from "./types";
 import type { Unsubscribe } from "../types/unsubscribe";
+import { notifyEventListeners } from "../utils/notify-event-listeners";
 import type {
   ModelContextRegistryToolHandle,
   ModelContextRegistryInstructionHandle,
@@ -75,9 +76,11 @@ export class ModelContextRegistry implements ModelContextProvider {
   }
 
   private notifySubscribers(): void {
-    for (const callback of this._subscribers) {
-      callback();
-    }
+    notifyEventListeners(
+      this._subscribers,
+      undefined,
+      "Model context registry",
+    );
   }
 
   addTool<TArgs extends Record<string, unknown>, TResult>(
