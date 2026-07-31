@@ -66,15 +66,11 @@ export const useExternalHistory = <TMessage>(
   storageFormatAdapter: MessageFormatAdapter<TMessage, any>,
   onSetMessages: (messages: TMessage[]) => void,
 ) => {
-  const loadedRef = useRef(false);
-
   const aui = useAui();
   const optionalThreadListItem = useCallback(
     () => (aui.threadListItem.source ? aui.threadListItem : null),
     [aui],
   );
-
-  const [hasLoaded, setHasLoaded] = useState(false);
 
   const historyIds = useRef(new Set<string>());
   const persistedInnerIds = useRef(new Set<string>());
@@ -96,14 +92,60 @@ export const useExternalHistory = <TMessage>(
     return historyAdapter.withFormat<TMessage, any>(storageFormatAdapter);
   }, [historyAdapter, storageFormatAdapter]);
 
-  const isLoading = formatAdapter != null && !hasLoaded;
+  type FormatAdapter = NonNullable<typeof formatAdapter>;
+  type LoadRequest = {
+    adapter: FormatAdapter;
+    promise: ReturnType<FormatAdapter["load"]> | null;
+    settled: boolean;
+  };
+
+  const loadRequestRef = useRef<LoadRequest | null>(null);
+  const [loadedAdapter, setLoadedAdapter] = useState<
+    FormatAdapter | undefined
+  >();
+
+  const isLoading = formatAdapter != null && loadedAdapter !== formatAdapter;
 
   useEffect(() => {
-    if (!formatAdapter || loadedRef.current) return;
+    if (!formatAdapter) {
+      loadRequestRef.current = null;
+      setLoadedAdapter(undefined);
+      return;
+    }
+
+    let request = loadRequestRef.current;
+    if (request?.adapter !== formatAdapter) {
+      historyIds.current.clear();
+      persistedInnerIds.current.clear();
+      deferredTelemetryIds.current.clear();
+      persistedExternalMessages.current.clear();
+
+      const remoteId = optionalThreadListItem()?.getState().remoteId;
+      request = {
+        adapter: formatAdapter,
+        promise: remoteId
+          ? Promise.resolve().then(() => formatAdapter.load())
+          : null,
+        settled: !remoteId,
+      };
+      loadRequestRef.current = request;
+    }
+
+    if (request.settled) {
+      setLoadedAdapter(formatAdapter);
+      return;
+    }
+
+    const loadPromise = request.promise;
+    if (!loadPromise) return;
+
+    let cancelled = false;
 
     const loadHistory = async () => {
       try {
-        const repo = await formatAdapter.load();
+        const repo = await loadPromise;
+        if (cancelled || loadRequestRef.current !== request) return;
+
         if (repo && repo.messages.length > 0) {
           for (const m of repo.messages) {
             persistedInnerIds.current.add(
@@ -134,20 +176,21 @@ export const useExternalHistory = <TMessage>(
             );
         }
       } catch (error) {
+        if (cancelled || loadRequestRef.current !== request) return;
         console.error("Failed to load message history:", error);
       } finally {
-        setHasLoaded(true);
+        if (!cancelled && loadRequestRef.current === request) {
+          request.settled = true;
+          setLoadedAdapter(formatAdapter);
+        }
       }
     };
 
-    loadedRef.current = true;
+    void loadHistory();
 
-    if (!optionalThreadListItem()?.getState().remoteId) {
-      setHasLoaded(true);
-      return;
-    }
-
-    loadHistory();
+    return () => {
+      cancelled = true;
+    };
   }, [
     formatAdapter,
     toThreadMessages,
