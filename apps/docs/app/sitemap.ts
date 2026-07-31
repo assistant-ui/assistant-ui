@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 import { source, tapDocs, blog, examples, careers } from "@/lib/source";
 import { DEMOS } from "@/lib/demos";
+import { GALLERY_TEMPLATES } from "@/lib/gallery-templates";
 import { BASE_URL, PRODUCTS } from "@/lib/constants";
 
 export default function sitemap(): MetadataRoute.Sitemap {
@@ -11,6 +12,11 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${BASE_URL}/pricing`, changeFrequency: "monthly", priority: 0.8 },
     { url: `${BASE_URL}/showcase`, changeFrequency: "weekly", priority: 0.7 },
     { url: `${BASE_URL}/gallery`, changeFrequency: "weekly", priority: 0.7 },
+    {
+      url: `${BASE_URL}/gallery/components`,
+      changeFrequency: "weekly",
+      priority: 0.6,
+    },
     { url: `${BASE_URL}/oss`, changeFrequency: "weekly", priority: 0.7 },
     { url: `${BASE_URL}/packages`, changeFrequency: "weekly", priority: 0.6 },
     { url: `${BASE_URL}/changelog`, changeFrequency: "weekly", priority: 0.6 },
@@ -71,6 +77,14 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.6,
   }));
 
+  const galleryPages: MetadataRoute.Sitemap = GALLERY_TEMPLATES.map(
+    (template) => ({
+      url: `${BASE_URL}/gallery/${template.slug}`,
+      changeFrequency: "monthly" as const,
+      priority: 0.6,
+    }),
+  );
+
   const careerPages: MetadataRoute.Sitemap = careers.getPages().map((page) => ({
     url: `${BASE_URL}${page.url}`,
     lastModified: page.data.lastModified,
@@ -86,6 +100,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     ...blogPages,
     ...examplePages,
     ...demoPages,
+    ...galleryPages,
     ...careerPages,
   ];
 }
