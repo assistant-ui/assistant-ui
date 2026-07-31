@@ -53,8 +53,8 @@ const getTextContent = (parts: readonly ThreadUserMessagePart[]) =>
 
 // OpenCode forwards this into an AI SDK file part, where `url` reaches an
 // unguarded `new URL()` and a data URL's own media type wins over the declared
-// one. So an inline payload is always re-enveloped with the resolved type, and
-// only a payload that is already a url of some other scheme is forwarded.
+// one. So an envelope that disagrees with the resolved type is rebuilt, while
+// one that agrees, and a url of any other scheme, passes through byte for byte.
 const toWireUrl = (
   payload: string,
   mime: string,

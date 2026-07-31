@@ -360,6 +360,7 @@ describe("OpenCodeThreadController", () => {
     };
     expect(sent.parts.find((part) => part["type"] === "file")).toMatchObject({
       mime: "image/jpeg",
+      url: "data:image/jpeg;base64,/9j/4AAQSkZJRg==",
     });
   });
 

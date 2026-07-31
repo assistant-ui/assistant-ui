@@ -19,9 +19,9 @@ type InputPart = AppendMessage["content"][number] & {
   readonly filename?: string | undefined;
 };
 
-// A data URL's own media type wins over `mediaType` downstream, so an inline
-// payload is re-enveloped with the resolved type rather than forwarded. Only a
-// url of some other scheme passes through untouched.
+// A data URL's own media type wins over `mediaType` downstream, so an envelope
+// that disagrees with the resolved type is rebuilt. One that agrees, and a url
+// of any other scheme, passes through byte for byte.
 const toWireUrl = (payload: string, mediaType: string) => {
   const parsed = parseDataUrl(payload);
   if (parsed) {
