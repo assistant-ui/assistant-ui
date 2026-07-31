@@ -60,7 +60,9 @@ export const getMessageContent = (msg: AppendMessage) => {
         return {
           type: "file" as const,
           mimeType: part.mimeType,
-          data: part.data,
+          // Lands in Gemini `inlineData.data`, which takes bare base64, so a
+          // data URL envelope is stripped rather than forwarded.
+          data: parseDataUrl(part.data)?.data ?? part.data,
           ...(part.filename != null && { filename: part.filename }),
         };
       case "audio": {

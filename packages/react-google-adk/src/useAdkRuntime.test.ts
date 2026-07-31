@@ -329,6 +329,64 @@ describe("getMessageContent", () => {
     ]);
   });
 
+  it("strips a data URL envelope from file data", () => {
+    const result = getMessageContent(
+      makeAppendMessage([
+        {
+          type: "file",
+          data: "data:application/pdf;base64,QUJD",
+          mimeType: "application/pdf",
+          filename: "a.pdf",
+        },
+      ]),
+    );
+    expect(result).toEqual([
+      {
+        type: "file",
+        mimeType: "application/pdf",
+        data: "QUJD",
+        filename: "a.pdf",
+      },
+    ]);
+  });
+
+  it("leaves bare base64 file data untouched", () => {
+    const result = getMessageContent(
+      makeAppendMessage([
+        { type: "file", data: "QUJD", mimeType: "application/pdf" },
+      ]),
+    );
+    expect(result).toEqual([
+      { type: "file", mimeType: "application/pdf", data: "QUJD" },
+    ]);
+  });
+
+  it("round-trips an audio file part through both converters", () => {
+    const outbound = getMessageContent(
+      makeAppendMessage([
+        {
+          type: "file",
+          data: "data:audio/mp3;base64,QUJD",
+          mimeType: "audio/mp3",
+        },
+      ]),
+    );
+
+    expect(outbound).toEqual([
+      { type: "file", mimeType: "audio/mp3", data: "QUJD" },
+    ]);
+
+    const inbound = convertAdkMessage(
+      { id: "m1", type: "human", content: outbound } as never,
+      {},
+    );
+
+    expect(inbound).toMatchObject({
+      role: "user",
+      content: [{ type: "file", data: "QUJD", mimeType: "audio/mp3" }],
+    });
+  });
+
   it("skips data parts while keeping surrounding text", () => {
     const result = getMessageContent(
       makeAppendMessage([

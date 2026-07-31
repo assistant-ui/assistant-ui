@@ -140,7 +140,7 @@ Anything that is not a modality the model consumes or a channel it emits is a `d
 <Callout type="warn">
 `Unstable_AudioMessagePart` and the `Unstable_Audio` slot are deprecated. The audio part cannot carry a filename, has no way to declare how its payload goes on the wire (no `sourceType`, so no storage id), and exists only on user messages, so a model that returns audio has no way to express it. Send audio as a `file` part with an `audio/*` mime type instead, and give it a filename.
 
-Adapter coverage for the file path is still uneven, so check your adapter's converter before relying on a particular payload form. Known so far: `react-google-adk` needs the payload as bare base64 rather than a data URL, and additionally restores a filename-less `audio/mp3` or `audio/wav` file part back into an audio part; `react-ag-ui` carries binary through `attachments` rather than content parts; `react-opencode` forwards the payload into a `url` field without inspecting it, so bare base64 is corrupted there. Existing audio parts keep working; they will not gain fields.
+Adapter coverage for the file path is still uneven, so check your adapter's converter before relying on a particular payload form. Known so far: `react-ag-ui` carries binary through `attachments` rather than content parts; `react-opencode` forwards the payload into a `url` field without inspecting it, so bare base64 is corrupted there. Existing audio parts keep working; they will not gain fields.
 </Callout>
 
 ### Tool Resolution
