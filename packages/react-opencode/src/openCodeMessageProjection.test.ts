@@ -4,6 +4,160 @@ import { createOpenCodeThreadState } from "./openCodeThreadState";
 import type { OpenCodeThreadState } from "./types";
 
 describe("projectOpenCodeThreadMessages", () => {
+  it("projects user file parts as standard message attachments", () => {
+    const state: OpenCodeThreadState = {
+      ...createOpenCodeThreadState("ses_1"),
+      messageOrder: ["user-1"],
+      messagesById: {
+        "user-1": {
+          id: "user-1",
+          info: {
+            id: "user-1",
+            role: "user",
+            sessionID: "ses_1",
+            time: { created: 1 },
+          } as never,
+          parts: [
+            {
+              id: "text-1",
+              sessionID: "ses_1",
+              messageID: "user-1",
+              type: "text",
+              text: "Inspect these files",
+            } as never,
+            {
+              id: "image-1",
+              sessionID: "ses_1",
+              messageID: "user-1",
+              type: "file",
+              mime: "image/png",
+              filename: "photo.png",
+              url: "data:image/png;base64,AA==",
+            } as never,
+            {
+              id: "file-1",
+              sessionID: "ses_1",
+              messageID: "user-1",
+              type: "file",
+              mime: "application/pdf",
+              filename: "report.pdf",
+              url: "data:application/pdf;base64,AA==",
+            } as never,
+          ],
+          shadowParts: undefined,
+        },
+      },
+    };
+
+    const message = projectOpenCodeThreadMessages(state)[0];
+
+    expect(message?.content).toEqual([
+      { type: "text", text: "Inspect these files" },
+    ]);
+    expect(message?.attachments).toEqual([
+      {
+        id: "image-1",
+        type: "image",
+        name: "photo.png",
+        contentType: "image/png",
+        content: [
+          {
+            type: "image",
+            image: "data:image/png;base64,AA==",
+            filename: "photo.png",
+          },
+        ],
+        status: { type: "complete" },
+      },
+      {
+        id: "file-1",
+        type: "file",
+        name: "report.pdf",
+        contentType: "application/pdf",
+        content: [
+          {
+            type: "file",
+            filename: "report.pdf",
+            data: "data:application/pdf;base64,AA==",
+            mimeType: "application/pdf",
+          },
+        ],
+        status: { type: "complete" },
+      },
+    ]);
+  });
+
+  it("projects pending files with the same attachment presentation", () => {
+    const state: OpenCodeThreadState = {
+      ...createOpenCodeThreadState("ses_1"),
+      pendingUserMessages: {
+        "pending-1": {
+          clientId: "pending-1",
+          sessionId: "ses_1",
+          createdAt: 1,
+          parentId: null,
+          sourceId: null,
+          runConfig: undefined,
+          contentText: "Inspect these files",
+          parts: [
+            { type: "text", text: "Inspect these files" },
+            {
+              type: "image",
+              image: "data:image/webp;base64,AA==",
+              filename: "photo.webp",
+              contentType: "image/webp",
+            } as never,
+            {
+              type: "file",
+              data: "data:application/pdf;base64,AA==",
+              filename: "report.pdf",
+              mimeType: "application/pdf",
+            },
+          ],
+          status: "pending",
+        },
+      },
+    };
+
+    const message = projectOpenCodeThreadMessages(state)[0];
+
+    expect(message?.content).toEqual([
+      { type: "text", text: "Inspect these files" },
+    ]);
+    expect(message?.attachments).toEqual([
+      {
+        id: "local:pending-1:attachment:1",
+        type: "image",
+        name: "photo.webp",
+        contentType: "image/webp",
+        content: [
+          {
+            type: "image",
+            image: "data:image/webp;base64,AA==",
+            filename: "photo.webp",
+            contentType: "image/webp",
+          },
+        ],
+        status: { type: "complete" },
+      },
+      {
+        id: "local:pending-1:attachment:2",
+        type: "file",
+        name: "report.pdf",
+        contentType: "application/pdf",
+        content: [
+          {
+            type: "file",
+            data: "data:application/pdf;base64,AA==",
+            filename: "report.pdf",
+            mimeType: "application/pdf",
+          },
+        ],
+        status: { type: "complete" },
+      },
+    ]);
+  });
+
   it("merges consecutive assistant messages into one projected message", () => {
     const state: OpenCodeThreadState = {
       ...createOpenCodeThreadState("ses_1"),
