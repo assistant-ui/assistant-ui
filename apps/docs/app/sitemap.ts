@@ -1,5 +1,5 @@
 import type { MetadataRoute } from "next";
-import { source, tapDocs, blog, examples, careers } from "@/lib/source";
+import { source, getTapDocsPages, blog, examples, careers } from "@/lib/source";
 import { DEMOS } from "@/lib/demos";
 import { GALLERY_TEMPLATES } from "@/lib/gallery-templates";
 import { BASE_URL, PRODUCTS } from "@/lib/constants";
@@ -46,14 +46,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.9,
   }));
 
-  const tapDocsPages: MetadataRoute.Sitemap = tapDocs
-    .getPages()
-    .map((page) => ({
-      url: `${BASE_URL}${page.url}`,
-      lastModified: page.data.lastModified,
-      changeFrequency: "weekly",
-      priority: 0.7,
-    }));
+  const tapDocsPages: MetadataRoute.Sitemap = getTapDocsPages().map((page) => ({
+    url: `${BASE_URL}${page.url}`,
+    lastModified: page.data.lastModified,
+    changeFrequency: "weekly",
+    priority: 0.7,
+  }));
 
   const blogPages: MetadataRoute.Sitemap = blog.getPages().map((page) => ({
     url: `${BASE_URL}${page.url}`,
