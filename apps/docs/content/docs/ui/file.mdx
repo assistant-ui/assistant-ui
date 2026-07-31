@@ -134,12 +134,16 @@ The component also exports utility functions:
 ```tsx
 import {
   getMimeTypeIcon,
+  getFileDataKind,
   getBase64Size,
   formatFileSize,
 } from "@/components/assistant-ui/file";
 
 // Get icon component for a MIME type
 const Icon = getMimeTypeIcon("application/pdf"); // FileTextIcon
+
+// Classify the data field of a file part
+const kind = getFileDataKind("https://example.com/report.pdf"); // "url"
 
 // Calculate size from base64 string
 const bytes = getBase64Size("SGVsbG8gV29ybGQh"); // 12
