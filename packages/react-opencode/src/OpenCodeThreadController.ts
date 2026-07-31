@@ -111,8 +111,11 @@ const getPromptParts = (message: AppendMessage) => {
 
     if (part.type === "file") {
       // `FileMessagePart.mimeType` is a plain string, and an adapter reading
-      // `file.type` on a typeless file yields "".
-      const fileMime = part.mimeType || "application/octet-stream";
+      // `file.type` on a typeless file yields "". Same ladder as the image
+      // branch: declared, then the envelope, then the floor.
+      const parsedFile = parseDataUrl(part.data);
+      const fileMime =
+        part.mimeType || parsedFile?.mimeType || "application/octet-stream";
       promptParts.push({
         type: "file",
         filename: part.filename,
@@ -122,7 +125,7 @@ const getPromptParts = (message: AppendMessage) => {
         url:
           part.sourceType === "id"
             ? part.data
-            : toWireUrl(part.data, fileMime, parseDataUrl(part.data)),
+            : toWireUrl(part.data, fileMime, parsedFile),
       });
     }
   }
