@@ -59,9 +59,14 @@ function getMimeTypeIcon(mimeType: string): FC<{ className?: string }> {
   return FileIcon;
 }
 
-export type FileDataKind = "data-uri" | "url" | "base64";
+export type FileDataKind = "data-uri" | "url" | "base64" | "id";
 
-function getFileDataKind(data: string): FileDataKind {
+function getFileDataKind(
+  data: string,
+  sourceType?: "url" | "id",
+): FileDataKind {
+  if (sourceType === "url" && /^data:/i.test(data)) return "data-uri";
+  if (sourceType) return sourceType;
   if (/^data:/i.test(data)) return "data-uri";
   if (/^https?:\/\//i.test(data)) return "url";
   return "base64";
@@ -166,17 +171,21 @@ type FileDownloadProps = Omit<React.ComponentProps<"a">, "href"> & {
   data: string;
   mimeType: string;
   filename?: string;
+  sourceType?: "url" | "id";
 };
 
 function FileDownload({
   data,
   mimeType,
   filename,
+  sourceType,
   className,
   children,
   ...props
 }: FileDownloadProps) {
-  const kind = getFileDataKind(data);
+  const kind = getFileDataKind(data, sourceType);
+  if (kind === "id") return null;
+  if (kind === "url" && !/^(https?:\/\/|blob:)/i.test(data)) return null;
   const href = kind === "base64" ? `data:${mimeType};base64,${data}` : data;
 
   return (
@@ -196,8 +205,14 @@ function FileDownload({
   );
 }
 
-const FileImpl: FileMessagePartComponent = ({ filename, data, mimeType }) => {
-  const showSize = getFileDataKind(data) !== "url";
+const FileImpl: FileMessagePartComponent = ({
+  filename,
+  data,
+  mimeType,
+  sourceType,
+}) => {
+  const kind = getFileDataKind(data, sourceType);
+  const showSize = kind === "base64" || kind === "data-uri";
 
   return (
     <FileRoot>
@@ -212,6 +227,7 @@ const FileImpl: FileMessagePartComponent = ({ filename, data, mimeType }) => {
         data={data}
         mimeType={mimeType}
         {...(filename !== undefined && { filename })}
+        {...(sourceType !== undefined && { sourceType })}
       />
     </FileRoot>
   );

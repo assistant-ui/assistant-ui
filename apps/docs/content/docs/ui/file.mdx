@@ -115,7 +115,7 @@ import {
 | `File.Icon` | MIME type-aware icon, or pass custom `children` |
 | `File.Name` | Truncated filename |
 | `File.Size` | Human-readable file size |
-| `File.Download` | Download link button |
+| `File.Download` | Download link button; renders nothing without a browser-resolvable target (`sourceType: "id"`, urls that are not http(s)/blob/data) |
 
 ### Custom Icon
 
@@ -142,8 +142,9 @@ import {
 // Get icon component for a MIME type
 const Icon = getMimeTypeIcon("application/pdf"); // FileTextIcon
 
-// Classify the data field of a file part
+// Classify the data field of a file part; a declared sourceType wins over sniffing, except a data: payload declared as "url"
 const kind = getFileDataKind("https://example.com/report.pdf"); // "url"
+const ref = getFileDataKind("file-abc123", "id"); // "id"
 
 // Calculate size from base64 string
 const bytes = getBase64Size("SGVsbG8gV29ybGQh"); // 12
