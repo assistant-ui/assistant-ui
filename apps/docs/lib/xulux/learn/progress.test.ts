@@ -10,7 +10,17 @@ import {
 } from "./progress";
 import type { LearnProgress } from "./types";
 
-const COURSE_ID = "learn-ui-prototype";
+const COURSE_ID = "build-generative-ui-assistant";
+const STEP_IDS = [
+  "meet-the-project",
+  "connect-first-assistant",
+  "guide-first-message",
+  "add-weather-tool",
+  "render-weather-ui",
+  "share-editable-notepad",
+  "persist-conversations",
+  "revise-and-branch",
+];
 
 function createStorage(): LearnProgressStorage {
   const values = new Map<string, string>();
@@ -28,9 +38,9 @@ describe("Learn progress", () => {
       ...createInitialLearnProgress(COURSE_ID, 100),
       threadId: "thread_123",
       status: "in_progress",
-      currentStepId: "welcome",
-      selectedStepId: "welcome",
-      completedStepIds: ["welcome"],
+      currentStepId: "connect-first-assistant",
+      selectedStepId: "connect-first-assistant",
+      completedStepIds: ["meet-the-project"],
       startedAt: 100,
       updatedAt: 200,
       certificateName: "Ada Lovelace",
@@ -92,15 +102,15 @@ describe("Learn progress", () => {
     const result = {
       course: { id: COURSE_ID, status: "in_progress" as const },
       step: {
-        id: "welcome",
-        title: "Welcome",
+        id: "meet-the-project",
+        title: "Meet the project",
         index: 1,
-        total: 2,
+        total: 8,
         content: "Lesson",
       },
       stage: {
-        id: "P0",
-        previewPath: "/learn/preview/P0",
+        id: "S0",
+        previewPath: "/learn/preview/S0",
         downloadUrl: "/download",
         focusFiles: ["app/page.tsx"],
       },
@@ -109,7 +119,7 @@ describe("Learn progress", () => {
 
     const once = applyLearnCourseStepResult(started, result, 200);
     const twice = applyLearnCourseStepResult(once, result, 300);
-    expect(once.currentStepId).toBe("welcome");
+    expect(once.currentStepId).toBe("meet-the-project");
     expect(twice.completedStepIds).toEqual([]);
   });
 
@@ -117,17 +127,17 @@ describe("Learn progress", () => {
     const progress: LearnProgress = {
       ...createInitialLearnProgress(COURSE_ID, 100),
       status: "in_progress",
-      currentStepId: "first-change",
-      selectedStepId: "first-change",
-      completedStepIds: ["welcome"],
+      currentStepId: "revise-and-branch",
+      selectedStepId: "revise-and-branch",
+      completedStepIds: STEP_IDS.slice(0, -1),
     };
     const completed = applyLearnCourseStepResult(
       progress,
       {
         course: { id: COURSE_ID, status: "completed" },
         finalStage: {
-          id: "P1",
-          previewPath: "/learn/preview/P1",
+          id: "S7",
+          previewPath: "/learn/preview/S7",
           downloadUrl: "/download",
         },
       },
@@ -135,7 +145,7 @@ describe("Learn progress", () => {
     );
 
     expect(completed.status).toBe("completed");
-    expect(completed.completedStepIds).toEqual(["welcome", "first-change"]);
+    expect(completed.completedStepIds).toEqual(STEP_IDS);
     expect(completed.completedAt).toBe(500);
   });
 });

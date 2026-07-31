@@ -54,7 +54,10 @@ export function LearnStepFileChanges({
       .then(([currentFiles, previousFiles]) => {
         setLoaded({
           key: sourceKey,
-          records: createLearnFileRecords(previousFiles, currentFiles),
+          records: createLearnFileRecords(
+            previousStageId ? previousFiles : currentFiles,
+            currentFiles,
+          ),
         });
         setLoading(false);
       })

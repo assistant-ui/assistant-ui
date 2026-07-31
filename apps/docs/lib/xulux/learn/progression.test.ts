@@ -5,23 +5,25 @@ describe("getNextStep", () => {
   it("returns the first step when no step is current", () => {
     expect(getNextStep(null)).toMatchObject({
       status: "in_progress",
-      step: { id: "welcome", stageId: "P0" },
+      step: { id: "meet-the-project", stageId: "S0" },
     });
   });
 
   it("returns the next step", () => {
-    expect(getNextStep("welcome")).toMatchObject({
+    expect(getNextStep("meet-the-project")).toMatchObject({
       status: "in_progress",
-      step: { id: "first-change", stageId: "P1" },
+      step: { id: "connect-first-assistant", stageId: "S1" },
     });
   });
 
   it("returns completed after the final step", () => {
-    expect(getNextStep("first-change")).toEqual({ status: "completed" });
+    expect(getNextStep("revise-and-branch")).toEqual({ status: "completed" });
   });
 
   it("is idempotent for the same current step", () => {
-    expect(getNextStep("welcome")).toEqual(getNextStep("welcome"));
+    expect(getNextStep("meet-the-project")).toEqual(
+      getNextStep("meet-the-project"),
+    );
   });
 
   it("rejects invalid course and step IDs", () => {

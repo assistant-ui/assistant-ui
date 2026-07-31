@@ -1,14 +1,14 @@
-import { learnUiPrototypeCourse } from "./courses/learn-ui-prototype/course";
+import { buildGenerativeUiAssistantCourse } from "./courses/build-generative-ui-assistant/course";
 import type {
   LearnCourseDefinition,
   LearnStageDefinition,
   LearnStepDefinition,
 } from "./types";
 
-export const DEFAULT_LEARN_COURSE_ID = learnUiPrototypeCourse.id;
+export const DEFAULT_LEARN_COURSE_ID = buildGenerativeUiAssistantCourse.id;
 
 const LEARN_COURSES: Record<string, LearnCourseDefinition> = {
-  [learnUiPrototypeCourse.id]: learnUiPrototypeCourse,
+  [buildGenerativeUiAssistantCourse.id]: buildGenerativeUiAssistantCourse,
 };
 
 export class LearnRegistryError extends Error {

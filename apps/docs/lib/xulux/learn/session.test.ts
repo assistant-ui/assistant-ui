@@ -5,7 +5,7 @@ import {
   startLearnCourse,
 } from "./session";
 
-const COURSE_ID = "learn-ui-prototype";
+const COURSE_ID = "build-generative-ui-assistant";
 
 describe("Learn course session", () => {
   it("starts the course once with the existing session ID", () => {

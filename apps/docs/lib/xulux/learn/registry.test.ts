@@ -12,15 +12,15 @@ describe("Learn course registry", () => {
 
     expect(
       course.steps.map((step) => getLearnStageForStep(course.id, step.id).id),
-    ).toEqual(["P0", "P1"]);
+    ).toEqual(["S0", "S1", "S2", "S3", "S4", "S5", "S6", "S7"]);
   });
 
   it("keeps preview and source selection on the same stage", () => {
-    const stage = getLearnStage(DEFAULT_LEARN_COURSE_ID, "P1");
+    const stage = getLearnStage(DEFAULT_LEARN_COURSE_ID, "S7");
 
-    expect(stage.previewPath).toBe("/learn/preview/P1");
+    expect(stage.previewPath).toBe("/learn/preview/S7");
     expect(stage.sourceRoot).toMatch(
-      /learn-ui-prototype\/stages\/P1\/project$/,
+      /build-generative-ui-assistant\/stages\/S7\/project$/,
     );
     expect(stage.loadPreview).toBeTypeOf("function");
   });

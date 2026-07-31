@@ -4,17 +4,17 @@ describe("Learn course tool result", () => {
   it("validates in-progress and completion results", () => {
     expect(
       parseLearnCourseStepResult({
-        course: { id: "learn-ui-prototype", status: "in_progress" },
+        course: { id: "build-generative-ui-assistant", status: "in_progress" },
         step: {
-          id: "welcome",
-          title: "Welcome",
+          id: "meet-the-project",
+          title: "Meet the project",
           index: 1,
-          total: 2,
+          total: 8,
           content: "Lesson",
         },
         stage: {
-          id: "P0",
-          previewPath: "/learn/preview/P0",
+          id: "S0",
+          previewPath: "/learn/preview/S0",
           downloadUrl: "/download",
           focusFiles: ["app/page.tsx"],
         },
@@ -23,10 +23,10 @@ describe("Learn course tool result", () => {
     ).not.toBeNull();
     expect(
       parseLearnCourseStepResult({
-        course: { id: "learn-ui-prototype", status: "completed" },
+        course: { id: "build-generative-ui-assistant", status: "completed" },
         finalStage: {
-          id: "P1",
-          previewPath: "/learn/preview/P1",
+          id: "S7",
+          previewPath: "/learn/preview/S7",
           downloadUrl: "/download",
         },
       }),

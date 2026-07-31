@@ -40,7 +40,7 @@ export async function resolveNextCourseStep(
         previousStep.stageId,
         snapshot,
       )
-    : {};
+    : currentFiles;
   const content = snapshot[next.step.lessonPath];
   if (typeof content !== "string") {
     throw new Error(`Missing Learn lesson: ${next.step.lessonPath}`);

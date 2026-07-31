@@ -4,16 +4,16 @@ import { createInitialLearnProgress } from "./progress";
 describe("Learn context", () => {
   it("accepts the compact registered context", () => {
     const progress = {
-      ...createInitialLearnProgress("learn-ui-prototype", 100),
+      ...createInitialLearnProgress("build-generative-ui-assistant", 100),
       status: "in_progress" as const,
-      currentStepId: "welcome",
-      selectedStepId: "welcome",
+      currentStepId: "meet-the-project",
+      selectedStepId: "meet-the-project",
     };
     expect(parseLearnContext(toLearnContext(progress))).toEqual({
-      courseId: "learn-ui-prototype",
+      courseId: "build-generative-ui-assistant",
       status: "in_progress",
-      currentStepId: "welcome",
-      selectedStepId: "welcome",
+      currentStepId: "meet-the-project",
+      selectedStepId: "meet-the-project",
     });
   });
 
@@ -27,7 +27,7 @@ describe("Learn context", () => {
       selectedStepId: null,
     },
     {
-      courseId: "learn-ui-prototype",
+      courseId: "build-generative-ui-assistant",
       status: "in_progress",
       currentStepId: "missing",
       selectedStepId: null,

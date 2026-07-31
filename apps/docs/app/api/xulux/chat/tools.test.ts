@@ -24,10 +24,10 @@ describe("Xulux chat tool inventories", () => {
     const tools = createLearnAgentTools({
       routeUrl,
       learnContext: {
-        courseId: "learn-ui-prototype",
+        courseId: "build-generative-ui-assistant",
         status: "in_progress",
-        currentStepId: "welcome",
-        selectedStepId: "welcome",
+        currentStepId: "meet-the-project",
+        selectedStepId: "meet-the-project",
       },
     });
 

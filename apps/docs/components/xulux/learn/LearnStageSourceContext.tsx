@@ -90,8 +90,11 @@ export function LearnStageSourceProvider({
         : Promise.resolve(EMPTY_FILES),
     ])
       .then(([nextCurrentFiles, nextPreviousFiles]) => {
+        const resolvedPreviousFiles = previousStep
+          ? nextPreviousFiles
+          : nextCurrentFiles;
         setCurrentFiles(nextCurrentFiles);
-        setPreviousFiles(nextPreviousFiles);
+        setPreviousFiles(resolvedPreviousFiles);
         setStatus("ready");
       })
       .catch((nextError: unknown) => {

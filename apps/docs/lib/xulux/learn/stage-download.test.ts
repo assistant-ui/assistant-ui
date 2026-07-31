@@ -8,7 +8,7 @@ import { resolveStageFilesFromSnapshot } from "./stage-source";
 
 describe("Learn stage downloads", () => {
   it("packages the exact file map selected for the registered stage", () => {
-    const stage = getLearnStage(DEFAULT_LEARN_COURSE_ID, "P1");
+    const stage = getLearnStage(DEFAULT_LEARN_COURSE_ID, "S7");
     const snapshot = {
       [`${stage.sourceRoot}/app/page.tsx`]: "page",
       [`${stage.sourceRoot}/components/assistant.tsx`]: "assistant",
@@ -16,18 +16,18 @@ describe("Learn stage downloads", () => {
     };
     const files = resolveStageFilesFromSnapshot(
       DEFAULT_LEARN_COURSE_ID,
-      "P1",
+      "S7",
       snapshot,
     );
     const zip = createLearnStageZipFromSnapshot(
       DEFAULT_LEARN_COURSE_ID,
-      "P1",
+      "S7",
       snapshot,
     );
 
     expect(listZipEntries(zip)).toEqual(Object.keys(files).sort());
-    expect(getLearnStageArchiveFilename(DEFAULT_LEARN_COURSE_ID, "P1")).toBe(
-      "xulux-learn-ui-prototype-p1.zip",
+    expect(getLearnStageArchiveFilename(DEFAULT_LEARN_COURSE_ID, "S7")).toBe(
+      "xulux-build-generative-ui-assistant-s7.zip",
     );
   });
 

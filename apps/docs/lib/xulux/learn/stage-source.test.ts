@@ -3,7 +3,7 @@ import { resolveStageFilesFromSnapshot } from "./stage-source";
 
 describe("resolveStageFiles", () => {
   it("selects only files below the registered project root", () => {
-    const stage = getLearnStage(DEFAULT_LEARN_COURSE_ID, "P0");
+    const stage = getLearnStage(DEFAULT_LEARN_COURSE_ID, "S0");
     const snapshot = {
       [`${stage.sourceRoot}/app/page.tsx`]: "export default function Page() {}",
       [`${stage.sourceRoot}/components/card.tsx`]: "export const Card = 1;",
@@ -12,7 +12,7 @@ describe("resolveStageFiles", () => {
     };
 
     expect(
-      resolveStageFilesFromSnapshot(DEFAULT_LEARN_COURSE_ID, "P0", snapshot),
+      resolveStageFilesFromSnapshot(DEFAULT_LEARN_COURSE_ID, "S0", snapshot),
     ).toEqual({
       "app/page.tsx": "export default function Page() {}",
       "components/card.tsx": "export const Card = 1;",
@@ -21,7 +21,7 @@ describe("resolveStageFiles", () => {
 
   it("rejects unregistered IDs before reading the snapshot", () => {
     expect(() =>
-      resolveStageFilesFromSnapshot("missing-course", "P0", {}),
+      resolveStageFilesFromSnapshot("missing-course", "S0", {}),
     ).toThrow(/Unregistered Learn course/);
     expect(() =>
       resolveStageFilesFromSnapshot(
@@ -34,7 +34,7 @@ describe("resolveStageFiles", () => {
 
   it("fails when a registered stage has no tracked source", () => {
     expect(() =>
-      resolveStageFilesFromSnapshot(DEFAULT_LEARN_COURSE_ID, "P0", {}),
+      resolveStageFilesFromSnapshot(DEFAULT_LEARN_COURSE_ID, "S0", {}),
     ).toThrow(/No source snapshot files found/);
   });
 });

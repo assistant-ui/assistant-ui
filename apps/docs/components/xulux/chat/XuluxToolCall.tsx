@@ -355,7 +355,7 @@ function LearnCompletionCard({
     { course: { status: "completed" } }
   >;
 }) {
-  const { progress, updateProgress, openTab } = useLearnMode();
+  const { course, progress, updateProgress, openTab } = useLearnMode();
   const analyticsCtx = useXuluxAnalytics();
   const [certificateOpen, setCertificateOpen] = useState(false);
   const [celebrate, setCelebrate] = useState(false);
@@ -382,8 +382,9 @@ function LearnCompletionCard({
         <CheckCircle2 className="size-7 text-green-600" />
         <h3 className="mt-3 text-lg font-semibold">Course complete</h3>
         <p className="text-muted-foreground mt-1 text-sm">
-          You built and inspected both canonical stages. Your final preview and
-          files remain available in the workspace.
+          You built a streamed assistant with tools, generative UI, shared
+          editable state, persisted conversations, and message branches. Your
+          final preview and files remain available in the workspace.
         </p>
         <div className="mt-4 flex flex-wrap gap-2">
           <Button
@@ -420,6 +421,7 @@ function LearnCompletionCard({
       {certificateOpen && (
         <CertificateDialog
           courseId={result.course.id}
+          courseTitle={course.title}
           {...(progress.certificateName
             ? { certificateName: progress.certificateName }
             : {})}
@@ -453,12 +455,14 @@ function LearnCompletionCard({
 
 function CertificateDialog({
   courseId,
+  courseTitle,
   certificateName,
   certificateGeneratedAt,
   onGenerated,
   onClose,
 }: {
   courseId: string;
+  courseTitle: string;
   certificateName?: string;
   certificateGeneratedAt?: number;
   onGenerated: (name: string, generatedAt: number) => void;
@@ -515,7 +519,7 @@ function CertificateDialog({
                 for successfully completing
               </p>
               <p className="mt-2 text-lg font-semibold text-blue-950">
-                Build your first assistant UI
+                {courseTitle}
               </p>
               <div className="mt-8 flex items-end justify-between gap-4 text-left text-[11px] text-slate-500">
                 <div>

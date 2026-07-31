@@ -1,8 +1,9 @@
 # Xulux Learn Mode
 
-Learn Mode is a fixed, two-step prototype course backed by canonical lesson and
-project files. It intentionally replaces the larger `S0`–`S7` concept with the
-registered `P0` and `P1` stages while the product flow is validated.
+Learn Mode ships one fixed course, **Build a Generative UI Assistant**, backed
+by canonical lesson and project files. Its eight `S0`–`S7` snapshots take a
+learner from the starter project through streaming chat, suggestions, tools,
+generative UI, shared editable state, persisted conversations, and branching.
 
 The `/api/xulux/learn/chat` route binds the Learn agent directly instead of
 deriving an agent mode from the request pathname. App Builder and Learn use the
@@ -18,11 +19,14 @@ therefore inspect `/course` without advancing. The course tool reads lessons
 and stages from the generated source snapshot and returns a validated
 product-owned result.
 
-Preview, source, diff, and ZIP downloads all resolve through the course
-registry. Local storage persists the one course thread, current versus selected
-step, completion, celebration, and certificate dismissal.
+Preview, source, diff, agent context, and ZIP downloads all resolve from the
+same immutable stage snapshots through the course registry. Local storage
+persists the one course thread, current versus selected step, completion,
+celebration, and certificate dismissal. The course project itself also adds a
+browser-backed thread-list adapter in S6 so its conversations survive reloads.
 
-Run verification in the Blaxel development sandbox:
+Run focused verification locally. Sandbox deployment is a separate operational
+step and is not required to author course content:
 
 ```bash
 packages/react/node_modules/.bin/vitest --config apps/docs/vitest.config.ts run apps/docs/lib/xulux/learn
