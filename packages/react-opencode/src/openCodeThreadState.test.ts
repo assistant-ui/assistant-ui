@@ -55,6 +55,9 @@ describe("reduceOpenCodeThreadState", () => {
       parentId: null,
       sourceId: null,
       runConfig: undefined,
+      // deliberately the un-rewritten payload, as a copy created before this
+      // fix would hold. it cannot match the server url, which forces the match
+      // through `partTextFingerprint`, the arm under test.
       contentText: "data:image/jpeg;base64,QUJD",
       parts: [
         {
