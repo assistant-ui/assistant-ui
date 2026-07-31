@@ -140,7 +140,7 @@ Anything that is not a modality the model consumes or a channel it emits is a `d
 <Callout type="warn">
 `Unstable_AudioMessagePart` and the `Unstable_Audio` slot are deprecated. The audio part cannot carry a filename, cannot reference a URL or storage id, and exists only on user messages, so a model that returns audio has no way to express it. Send audio as a `file` part with an `audio/*` mime type instead, giving it a filename and a data URL or http source rather than bare base64.
 
-Adapter coverage for the file path is still uneven: `react-ag-ui` carries binary through `attachments` rather than content parts, and `react-google-adk` still restores a filename-less `audio/mp3` file part back into an audio part. Existing audio parts keep working; they will not gain fields.
+Adapter coverage for the file path is still uneven: `react-ag-ui` carries binary through `attachments` rather than content parts, and `react-google-adk` still restores a filename-less `audio/mp3` or `audio/wav` file part back into an audio part. Existing audio parts keep working; they will not gain fields.
 </Callout>
 
 ### Tool Resolution
@@ -180,7 +180,8 @@ Returning `null` still allows registered tool UIs and data renderer UIs to rende
 - `components.ChainOfThought` takes over all reasoning and tool-call rendering (mutually exclusive with `ToolGroup`, `ReasoningGroup`, `tools`, and `Reasoning`). This legacy path is deprecated; use `MessagePrimitive.GroupedParts` for grouped Chain of Thought in new code.
 - `data.by_name` and `data.Fallback` let you route custom data part types
 - `Quote` renders quoted message references from metadata
-- `Empty` renders for messages with no parts; `Unstable_Audio` is deprecated, render `audio/*` from `File` instead
+- `Empty` is available for edge rendering paths
+- `Unstable_Audio` is deprecated; render `audio/*` from the `File` slot instead
 
 ```tsx
 <MessagePrimitive.Parts
