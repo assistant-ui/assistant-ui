@@ -1,9 +1,10 @@
-import { detectMediaType } from "@ai-sdk/provider-utils";
 import type { AppendMessage } from "@assistant-ui/core";
 import {
   httpUrlPattern,
-  isParsableUrl,
   parseDataUrl,
+  resolveFileMediaType,
+  resolveImageMediaType,
+  toMediaWireUrl,
 } from "@assistant-ui/core/internal";
 import type {
   CreateUIMessage,
@@ -16,40 +17,6 @@ import type {
 type InputPart = AppendMessage["content"][number] & {
   readonly contentType?: string | undefined;
   readonly filename?: string | undefined;
-};
-
-const getDataUrlMediaType = (url: string) => {
-  const match = /^data:([^;,]+)(?:[;,])/i.exec(url);
-  return match?.[1]?.toLowerCase();
-};
-
-// `detectMediaType` throws on a payload that is not valid base64, and this
-// runs on unvalidated input.
-const sniffImageMediaType = (data: string) => {
-  try {
-    return detectMediaType({ data, topLevelType: "image" });
-  } catch {
-    return undefined;
-  }
-};
-
-const getImageMediaType = (part: {
-  readonly contentType?: string | undefined;
-  readonly image: string;
-}) => {
-  if (part.contentType?.startsWith("image/")) return part.contentType;
-
-  const dataUrlMediaType = getDataUrlMediaType(part.image);
-  if (dataUrlMediaType?.startsWith("image/")) return dataUrlMediaType;
-
-  // A bare base64 payload carries its format in its leading bytes; without
-  // this the declared type is `image/png` whatever the image actually is.
-  if (!isParsableUrl(part.image)) {
-    const sniffed = sniffImageMediaType(part.image);
-    if (sniffed) return sniffed;
-  }
-
-  return "image/png";
 };
 
 export const toCreateMessage = <UI_MESSAGE extends UIMessage = UIMessage>(
@@ -74,29 +41,32 @@ export const toCreateMessage = <UI_MESSAGE extends UIMessage = UIMessage>(
           text: part.text,
         };
       case "image": {
-        const mediaType = getImageMediaType(part);
+        const mediaType = resolveImageMediaType(part.image, part.contentType);
         return {
           type: "file",
-          url: isParsableUrl(part.image)
-            ? part.image
-            : `data:${mediaType};base64,${part.image}`,
+          url: toMediaWireUrl(part.image, mediaType),
           ...(part.filename && { filename: part.filename }),
           mediaType,
         };
       }
-      case "file":
+      case "file": {
+        // `mimeType` is a plain string, and an adapter reading `file.type` on a
+        // file the OS cannot type yields "". Same ladder as images: declared,
+        // then the envelope, then the floor.
+        const mediaType = resolveFileMediaType(part.data, part.mimeType);
         return {
           type: "file",
           // An `id` reference is an opaque provider handle, not base64, and
           // this adapter has no way to send one. Left unwrapped so it fails
           // loudly upstream rather than shipping a corrupt payload.
           url:
-            isParsableUrl(part.data) || part.sourceType === "id"
+            part.sourceType === "id"
               ? part.data
-              : `data:${part.mimeType};base64,${part.data}`,
-          mediaType: part.mimeType,
+              : toMediaWireUrl(part.data, mediaType),
+          mediaType,
           ...(part.filename && { filename: part.filename }),
         };
+      }
       case "audio": {
         // A data URL's own media type wins over `mediaType` downstream, so the
         // envelope is rebuilt from the typed format rather than forwarded.

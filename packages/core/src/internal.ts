@@ -57,7 +57,18 @@ export { isJSONValue, isRecord } from "./utils/json/is-json";
 
 // Data-URL decoder and http(s) matcher, reused by framework adapters so the
 // outbound part conversion lives in one place.
-export { httpUrlPattern, isParsableUrl, parseDataUrl } from "./utils/data-url";
+export {
+  dataUrlMediaType,
+  httpUrlPattern,
+  isParsableUrl,
+  parseDataUrl,
+} from "./utils/data-url";
+export { detectImageMediaType } from "./utils/image-media-type";
+export {
+  resolveFileMediaType,
+  resolveImageMediaType,
+  toMediaWireUrl,
+} from "./utils/wire-media";
 
 export * from "./runtime/internal";
 export * from "./runtimes/internal";

@@ -28,12 +28,13 @@ import {
   STREAM_RECONNECTED_EVENT_TYPE,
   type OpenCodeEventSource,
 } from "./OpenCodeEventSource";
-import { parseDataUrl } from "@assistant-ui/core/internal";
-import { OPEN_CODE_REQUEST_OPTIONS } from "./openCodeRequestOptions";
 import {
-  serializeOpenCodeParts,
-  toOpenCodeWireUrl,
-} from "./serializeUserParts";
+  resolveFileMediaType,
+  resolveImageMediaType,
+  toMediaWireUrl,
+} from "@assistant-ui/core/internal";
+import { OPEN_CODE_REQUEST_OPTIONS } from "./openCodeRequestOptions";
+import { serializeOpenCodeParts } from "./serializeUserParts";
 import { getOpenCodeTaskSessionId } from "./openCodeTaskSession";
 
 type OpenCodeEventSourceProvider = () => Pick<OpenCodeEventSource, "subscribe">;
@@ -79,32 +80,22 @@ const getPromptParts = (message: AppendMessage) => {
 
     if (part.type === "image") {
       // OpenCode has no image part: its input union is text, file, agent and
-      // subtask, so an `image` part never reached the model. A wildcard is not
-      // usable as the floor: `resolveFullMediaType` rejects one outright for a
-      // url source and whenever the inline bytes cannot be sniffed.
-      const contentType = (part as { contentType?: string }).contentType;
-      const parsed = parseDataUrl(part.image);
-      const mime = contentType?.startsWith("image/")
-        ? contentType
-        : parsed?.mimeType?.startsWith("image/")
-          ? parsed.mimeType
-          : "image/png";
+      // subtask, so an `image` part never reached the model.
+      const mime = resolveImageMediaType(
+        part.image,
+        (part as { contentType?: string }).contentType,
+      );
       promptParts.push({
         type: "file",
         ...(part.filename != null && { filename: part.filename }),
         mime,
-        url: toOpenCodeWireUrl(part.image, mime, parsed),
+        url: toMediaWireUrl(part.image, mime),
       });
       continue;
     }
 
     if (part.type === "file") {
-      // `FileMessagePart.mimeType` is a plain string, and an adapter reading
-      // `file.type` on a typeless file yields "". Same ladder as the image
-      // branch: declared, then the envelope, then the floor.
-      const parsedFile = parseDataUrl(part.data);
-      const fileMime =
-        part.mimeType || parsedFile?.mimeType || "application/octet-stream";
+      const fileMime = resolveFileMediaType(part.data, part.mimeType);
       promptParts.push({
         type: "file",
         filename: part.filename,
@@ -114,7 +105,7 @@ const getPromptParts = (message: AppendMessage) => {
         url:
           part.sourceType === "id"
             ? part.data
-            : toOpenCodeWireUrl(part.data, fileMime, parsedFile),
+            : toMediaWireUrl(part.data, fileMime),
       });
     }
   }

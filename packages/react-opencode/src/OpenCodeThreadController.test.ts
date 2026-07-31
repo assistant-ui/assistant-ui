@@ -238,6 +238,132 @@ describe("OpenCodeThreadController", () => {
     },
   );
 
+  it.each([
+    { label: "jpeg", image: "/9j/4AAQSkZJRg==", mime: "image/jpeg" },
+    { label: "png", image: "iVBORw0KGgoAAAANSUhEUg==", mime: "image/png" },
+    { label: "gif", image: "R0lGODlhAQABAA==", mime: "image/gif" },
+    { label: "webp", image: "UklGRiIAAABXRUJQVlA4", mime: "image/webp" },
+  ])("sniffs a bare base64 $label image", async ({ image, mime }) => {
+    const client = {
+      session: { promptAsync: vi.fn().mockResolvedValue({}) },
+    };
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => ({ subscribe: () => () => {} }),
+      "ses_1",
+    );
+
+    await controller.stageMessage(
+      {
+        role: "user",
+        parentId: null,
+        sourceId: null,
+        content: [{ type: "image", image }],
+        attachments: [],
+        metadata: { custom: {} },
+        runConfig: {},
+        createdAt: new Date(),
+      } as never,
+      { model: { providerID: "anthropic", modelID: "claude" } },
+    );
+
+    const pendingId = Object.keys(
+      controller.getState().pendingUserMessages,
+    )[0]!;
+    await controller.sendStagedMessage(`local:${pendingId}`);
+
+    const sent = client.session.promptAsync.mock.calls[0]![0] as {
+      parts: Array<Record<string, unknown>>;
+    };
+    expect(sent.parts.find((part) => part["type"] === "file")).toMatchObject({
+      mime,
+      url: `data:${mime};base64,${image}`,
+    });
+  });
+
+  it("reads the declared type of a non-base64 data url image", async () => {
+    const client = {
+      session: { promptAsync: vi.fn().mockResolvedValue({}) },
+    };
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => ({ subscribe: () => () => {} }),
+      "ses_1",
+    );
+
+    await controller.stageMessage(
+      {
+        role: "user",
+        parentId: null,
+        sourceId: null,
+        content: [
+          { type: "image", image: "data:image/svg+xml,%3Csvg%3E%3C/svg%3E" },
+        ],
+        attachments: [],
+        metadata: { custom: {} },
+        runConfig: {},
+        createdAt: new Date(),
+      } as never,
+      { model: { providerID: "anthropic", modelID: "claude" } },
+    );
+
+    const pendingId = Object.keys(
+      controller.getState().pendingUserMessages,
+    )[0]!;
+    await controller.sendStagedMessage(`local:${pendingId}`);
+
+    const sent = client.session.promptAsync.mock.calls[0]![0] as {
+      parts: Array<Record<string, unknown>>;
+    };
+    expect(sent.parts.find((part) => part["type"] === "file")).toMatchObject({
+      mime: "image/svg+xml",
+      url: "data:image/svg+xml,%3Csvg%3E%3C/svg%3E",
+    });
+  });
+
+  it("sniffs through a generic data url envelope", async () => {
+    const client = {
+      session: { promptAsync: vi.fn().mockResolvedValue({}) },
+    };
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => ({ subscribe: () => () => {} }),
+      "ses_1",
+    );
+
+    await controller.stageMessage(
+      {
+        role: "user",
+        parentId: null,
+        sourceId: null,
+        content: [
+          {
+            type: "image",
+            image: "data:application/octet-stream;base64,/9j/4AAQSkZJRg==",
+          },
+        ],
+        attachments: [],
+        metadata: { custom: {} },
+        runConfig: {},
+        createdAt: new Date(),
+      } as never,
+      { model: { providerID: "anthropic", modelID: "claude" } },
+    );
+
+    const pendingId = Object.keys(
+      controller.getState().pendingUserMessages,
+    )[0]!;
+    await controller.sendStagedMessage(`local:${pendingId}`);
+
+    const sent = client.session.promptAsync.mock.calls[0]![0] as {
+      parts: Array<Record<string, unknown>>;
+    };
+    expect(sent.parts.find((part) => part["type"] === "file")).toMatchObject({
+      mime: "image/jpeg",
+      url: "data:image/jpeg;base64,/9j/4AAQSkZJRg==",
+    });
+  });
+
   it("ignores a non-image data url envelope when typing an image part", async () => {
     const client = {
       session: { promptAsync: vi.fn().mockResolvedValue({}) },

@@ -326,6 +326,97 @@ describe("toCreateMessage", () => {
     }
   });
 
+  it("reads the declared type of a non-base64 data url image", () => {
+    const message = {
+      ...baseMessage,
+      content: [
+        { type: "image", image: "data:image/svg+xml,%3Csvg%3E%3C/svg%3E" },
+      ],
+    } as unknown as AppendMessage;
+
+    expect(toCreateMessage(message).parts[0]).toMatchObject({
+      mediaType: "image/svg+xml",
+      url: "data:image/svg+xml,%3Csvg%3E%3C/svg%3E",
+    });
+  });
+
+  it("re-envelopes an image whose envelope disagrees with the resolved type", () => {
+    const message = {
+      ...baseMessage,
+      content: [
+        {
+          type: "image",
+          image: "data:application/octet-stream;base64,/9j/4AAQSkZJRg==",
+        },
+      ],
+    } as unknown as AppendMessage;
+
+    expect(toCreateMessage(message).parts[0]).toMatchObject({
+      mediaType: "image/jpeg",
+      url: "data:image/jpeg;base64,/9j/4AAQSkZJRg==",
+    });
+  });
+
+  it("keeps a good envelope when the declared file mime is empty", () => {
+    const message = {
+      ...baseMessage,
+      content: [
+        {
+          type: "file",
+          data: "data:application/octet-stream;base64,JVBERi0xLjQ=",
+          mimeType: "",
+        },
+      ],
+    } as unknown as AppendMessage;
+
+    expect(toCreateMessage(message).parts[0]).toMatchObject({
+      mediaType: "application/octet-stream",
+      url: "data:application/octet-stream;base64,JVBERi0xLjQ=",
+    });
+  });
+
+  it("reads the declared type of a non-base64 data url file", () => {
+    const message = {
+      ...baseMessage,
+      content: [{ type: "file", data: "data:text/plain,hello", mimeType: "" }],
+    } as unknown as AppendMessage;
+
+    expect(toCreateMessage(message).parts[0]).toMatchObject({
+      mediaType: "text/plain",
+      url: "data:text/plain,hello",
+    });
+  });
+
+  it("floors a bare base64 file payload with no declared mime", () => {
+    const message = {
+      ...baseMessage,
+      content: [{ type: "file", data: "JVBERi0xLjQ=", mimeType: "" }],
+    } as unknown as AppendMessage;
+
+    expect(toCreateMessage(message).parts[0]).toMatchObject({
+      mediaType: "application/octet-stream",
+      url: "data:application/octet-stream;base64,JVBERi0xLjQ=",
+    });
+  });
+
+  it("re-envelopes a file whose envelope disagrees with its declared type", () => {
+    const message = {
+      ...baseMessage,
+      content: [
+        {
+          type: "file",
+          data: "data:application/octet-stream;base64,JVBERi0xLjQ=",
+          mimeType: "application/pdf",
+        },
+      ],
+    } as unknown as AppendMessage;
+
+    expect(toCreateMessage(message).parts[0]).toMatchObject({
+      mediaType: "application/pdf",
+      url: "data:application/pdf;base64,JVBERi0xLjQ=",
+    });
+  });
+
   it("falls back to image/png when the bytes match no known signature", () => {
     const message = {
       ...baseMessage,

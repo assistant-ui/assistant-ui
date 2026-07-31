@@ -1,18 +1,18 @@
-import { isParsableUrl, parseDataUrl } from "@assistant-ui/core/internal";
+import {
+  resolveFileMediaType,
+  resolveImageMediaType,
+  toMediaWireUrl,
+} from "@assistant-ui/core/internal";
 import type { Part, ThreadUserMessagePart } from "./types";
 
-// OpenCode forwards file URLs to an unguarded `new URL()`, and a data URL's
-// media type wins over the separately declared one.
-export const toOpenCodeWireUrl = (
-  payload: string,
-  mime: string,
-  parsed: { data: string } | null,
-) => {
-  if (parsed) return `data:${mime};base64,${parsed.data}`;
-  if (isParsableUrl(payload)) return payload;
-  return `data:${mime};base64,${payload}`;
-};
-
+/**
+ * One rendering for both an outbound part and the server's echo of it.
+ *
+ * The pending copy and the loaded history are fingerprinted against each other
+ * to reconcile an optimistic message, so an inline payload has to be rendered
+ * as the url that actually went out. Rendering the original payload on one side
+ * and the rewritten url on the other leaves the two unable to match.
+ */
 export const serializeOpenCodeParts = (
   parts: readonly (Part | ThreadUserMessagePart)[],
 ) => {
@@ -21,23 +21,20 @@ export const serializeOpenCodeParts = (
       if (part.type === "text") return part.text;
       if (part.type === "image") {
         if (part.filename) return part.filename;
-        const parsed = parseDataUrl(part.image);
-        const contentType = (part as { contentType?: string }).contentType;
-        const mime = contentType?.startsWith("image/")
-          ? contentType
-          : parsed?.mimeType?.startsWith("image/")
-            ? parsed.mimeType
-            : "image/png";
-        return toOpenCodeWireUrl(part.image, mime, parsed);
+        const mime = resolveImageMediaType(
+          part.image,
+          (part as { contentType?: string }).contentType,
+        );
+        return toMediaWireUrl(part.image, mime);
       }
       if (part.type === "file") {
         if (part.filename) return part.filename;
         if ("url" in part) return part.url;
         if (part.sourceType === "id") return part.data;
-        const parsed = parseDataUrl(part.data);
-        const mime =
-          part.mimeType || parsed?.mimeType || "application/octet-stream";
-        return toOpenCodeWireUrl(part.data, mime, parsed);
+        return toMediaWireUrl(
+          part.data,
+          resolveFileMediaType(part.data, part.mimeType),
+        );
       }
       if (part.type === "tool") return JSON.stringify(part.state?.input ?? {});
       if (part.type === "data") return JSON.stringify(part.data) ?? "";
