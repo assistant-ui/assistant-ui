@@ -1110,6 +1110,7 @@ describe("user message projection", () => {
         id: "0",
         type: "image",
         name: "photo.png",
+        contentType: "image/png",
         status: { type: "complete" },
         content: [
           {

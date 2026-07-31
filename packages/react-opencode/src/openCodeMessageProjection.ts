@@ -14,6 +14,10 @@ import {
   type ThreadMessage,
 } from "@assistant-ui/react";
 import {
+  resolveFileMediaType,
+  resolveImageMediaType,
+} from "@assistant-ui/core/internal";
+import {
   projectOpenCodePermissionApproval,
   projectResolvedOpenCodePermissionApproval,
 } from "./openCodePermissionApproval";
@@ -452,11 +456,6 @@ type ProjectedAttachment = NonNullable<
   OpenCodeProjectedThreadMessage["attachments"]
 >[number];
 
-const getUserPartContentType = (part: ThreadUserMessagePart) => {
-  if (part.type === "file") return part.mimeType;
-  return (part as { contentType?: string }).contentType;
-};
-
 const splitUserParts = (
   parts: readonly ThreadUserMessagePart[],
 ): { content: ProjectedContentPart[]; attachments: ProjectedAttachment[] } => {
@@ -467,12 +466,20 @@ const splitUserParts = (
       content.push(part as ProjectedContentPart);
       continue;
     }
-    const contentType = getUserPartContentType(part);
+    // The same ladders the outbound prompt uses, so the pending copy and the
+    // reconciled server copy agree on the attachment's type and content type.
+    const mediaType =
+      part.type === "image"
+        ? resolveImageMediaType(
+            part.image,
+            (part as { contentType?: string }).contentType,
+          )
+        : resolveFileMediaType(part.data, part.mimeType);
     attachments.push({
       id: attachments.length.toString(),
-      type: part.type === "image" ? "image" : "file",
+      type: mediaType.startsWith("image/") ? "image" : "file",
       name: part.filename ?? "file",
-      ...(contentType != null && { contentType }),
+      contentType: mediaType,
       status: { type: "complete" },
       content: [part],
     });
