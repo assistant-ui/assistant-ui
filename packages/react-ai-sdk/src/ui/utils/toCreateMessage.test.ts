@@ -303,6 +303,28 @@ describe("toCreateMessage", () => {
     ]);
   });
 
+  it("forwards an http audio source instead of wrapping it in a data URL", () => {
+    const message = {
+      ...baseMessage,
+      content: [
+        {
+          type: "audio",
+          audio: { data: "https://cdn.example.com/memo.mp3", format: "mp3" },
+        },
+      ],
+    } as unknown as AppendMessage;
+
+    const result = toCreateMessage(message);
+
+    expect(result.parts).toEqual([
+      {
+        type: "file",
+        url: "https://cdn.example.com/memo.mp3",
+        mediaType: "audio/mp3",
+      },
+    ]);
+  });
+
   it("keeps the attachment name on audio attachment content", () => {
     const message = {
       ...baseMessage,

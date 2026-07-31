@@ -349,6 +349,26 @@ describe("getEveMessageContent", () => {
     ]);
   });
 
+  it("forwards an http audio source instead of wrapping it in a data URL", () => {
+    const message = {
+      ...baseAppendMessage,
+      content: [
+        {
+          type: "audio",
+          audio: { data: "https://cdn.example.com/memo.mp3", format: "mp3" },
+        },
+      ],
+    } as unknown as AppendMessage;
+
+    expect(getEveMessageContent(message)).toEqual([
+      {
+        type: "file",
+        data: "https://cdn.example.com/memo.mp3",
+        mediaType: "audio/mp3",
+      },
+    ]);
+  });
+
   it("skips data parts while keeping surrounding text", () => {
     const message = {
       ...baseAppendMessage,

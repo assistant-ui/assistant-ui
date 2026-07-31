@@ -10,7 +10,7 @@ import {
   type ToolApprovalOption,
   type ToolCallMessagePart,
 } from "@assistant-ui/core";
-import { parseDataUrl } from "@assistant-ui/core/internal";
+import { httpUrlPattern, parseDataUrl } from "@assistant-ui/core/internal";
 import type {
   EveDynamicToolPart,
   EveMessage,
@@ -307,10 +307,12 @@ export const getEveMessageContent = (
         // A data URL's own media type wins over `mediaType` downstream, so the
         // envelope is rebuilt from the typed format rather than forwarded.
         const mediaType = `audio/${part.audio.format}`;
-        const base64 = parseDataUrl(part.audio.data)?.data ?? part.audio.data;
+        const data = part.audio.data;
         return {
           type: "file" as const,
-          data: `data:${mediaType};base64,${base64}`,
+          data: httpUrlPattern.test(data)
+            ? data
+            : `data:${mediaType};base64,${parseDataUrl(data)?.data ?? data}`,
           mediaType,
         };
       }
