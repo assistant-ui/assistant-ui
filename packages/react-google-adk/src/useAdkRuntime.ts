@@ -13,7 +13,7 @@ import {
   type ToolExecutionStatus,
   generateId,
 } from "@assistant-ui/core";
-import { parseDataUrl } from "@assistant-ui/core/internal";
+import { httpUrlPattern, parseDataUrl } from "@assistant-ui/core/internal";
 import {
   useCloudThreadListAdapter,
   useRemoteThreadListRuntime,
@@ -50,7 +50,7 @@ export const getMessageContent = (msg: AppendMessage) => {
       case "image":
         return { type: "image_url" as const, url: part.image };
       case "file":
-        if (part.sourceType === "url") {
+        if (part.sourceType === "url" || httpUrlPattern.test(part.data)) {
           return {
             type: "file_url" as const,
             url: part.data,

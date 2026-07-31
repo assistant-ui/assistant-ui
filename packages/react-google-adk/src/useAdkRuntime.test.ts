@@ -350,6 +350,25 @@ describe("getMessageContent", () => {
     ]);
   });
 
+  it("emits a file_url part for an unmarked http source", () => {
+    const result = getMessageContent(
+      makeAppendMessage([
+        {
+          type: "file",
+          data: "https://cdn.example.com/a.pdf",
+          mimeType: "application/pdf",
+        },
+      ]),
+    );
+    expect(result).toEqual([
+      {
+        type: "file_url",
+        url: "https://cdn.example.com/a.pdf",
+        mimeType: "application/pdf",
+      },
+    ]);
+  });
+
   it("leaves bare base64 file data untouched", () => {
     const result = getMessageContent(
       makeAppendMessage([

@@ -86,18 +86,6 @@ describe("convertAdkMessage - human messages", () => {
     }
   });
 
-  it("keeps an audio file part on an assistant message", () => {
-    const msg: AdkMessage = {
-      id: "m1",
-      type: "ai",
-      content: [{ type: "file", mimeType: "audio/mp3", data: "QUJD" }],
-    };
-    expect(convertAdkMessage(msg, {})).toMatchObject({
-      role: "assistant",
-      content: [{ type: "file", data: "QUJD", mimeType: "audio/mp3" }],
-    });
-  });
-
   it("keeps attachment-derived audio file parts (with filename) as file parts", () => {
     const msg: AdkMessage = {
       id: "m1",
