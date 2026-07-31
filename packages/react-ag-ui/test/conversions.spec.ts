@@ -663,6 +663,81 @@ describe("adapter conversions", () => {
     expect(() => UserMessageSchema.parse(result[0])).not.toThrow();
   });
 
+  it("converts a file part placed directly in message content", () => {
+    const result = toAgUiMessages([
+      {
+        id: "u-1",
+        role: "user",
+        content: [
+          { type: "text", text: "review this" },
+          {
+            type: "file",
+            data: "data:application/pdf;base64,JVBERi0xLjQ=",
+            mimeType: "application/pdf",
+            filename: "a.pdf",
+          },
+        ],
+      },
+    ] as any);
+
+    expect(result[0]).toMatchObject({
+      role: "user",
+      content: [
+        { type: "text", text: "review this" },
+        {
+          type: "document",
+          source: {
+            type: "data",
+            value: "JVBERi0xLjQ=",
+            mimeType: "application/pdf",
+          },
+          metadata: { filename: "a.pdf" },
+        },
+      ],
+    });
+  });
+
+  it("emits content and attachment file parts once each", () => {
+    const result = toAgUiMessages([
+      {
+        id: "u-1",
+        role: "user",
+        content: [
+          {
+            type: "file",
+            data: "data:application/pdf;base64,QUFB",
+            mimeType: "application/pdf",
+            filename: "from-content.pdf",
+          },
+        ],
+        attachments: [
+          {
+            id: "a-1",
+            type: "document",
+            name: "from-attachment.pdf",
+            content: [
+              {
+                type: "file",
+                data: "data:application/pdf;base64,QkJC",
+                mimeType: "application/pdf",
+                filename: "from-attachment.pdf",
+              },
+            ],
+          },
+        ],
+      },
+    ] as any);
+
+    const documents = (result[0] as any).content.filter(
+      (part: any) => part.type === "document",
+    );
+    expect(documents).toHaveLength(2);
+    expect(documents.map((part: any) => part.source.value)).toEqual([
+      "QUFB",
+      "QkJC",
+    ]);
+  });
+
   it("converts image attachment with data URL to AG-UI image source", () => {
     const result = toAgUiMessages([
       {

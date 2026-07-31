@@ -357,13 +357,7 @@ function toSnapshotAttachments(content: unknown): SnapshotAttachment[] {
 }
 
 function buildUserContent(message: ThreadMessageLike): string | InputContent[] {
-  // File parts in message.content are intentionally skipped: the canonical
-  // binary payload for files always flows through message.attachments.
-  const contentParts = Array.isArray(message.content)
-    ? message.content.filter(
-        (part) => !(isObject(part) && part.type === "file"),
-      )
-    : [];
+  const contentParts = Array.isArray(message.content) ? message.content : [];
 
   const attachments = message.attachments ?? [];
 
