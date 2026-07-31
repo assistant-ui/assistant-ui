@@ -110,6 +110,8 @@ type JsonObject = { [key: string]: JsonValue };
 
 const MAX_ACTIVE_PREVIEW_CONFIG_CHARS = 8_000;
 const MAX_RAW_MESSAGES_CHARS = 1_000_000;
+const MAX_SYSTEM_CHARS = 4_000;
+const MAX_SESSION_ID_CHARS = 128;
 
 async function prepareMessages(messages: readonly UIMessage[]) {
   const modelMessages = await convertToModelMessages(
@@ -236,9 +238,9 @@ export function createXuluxChatHandler(agent: XuluxAgentDefinition) {
       const {
         messages,
         tools: clientTools,
-        system: pageContext,
+        system: rawPageContext,
         config,
-        sessionId,
+        sessionId: bodySessionId,
         selectedTemplate,
         activePreviewContext,
       } = body;
@@ -251,18 +253,40 @@ export function createXuluxChatHandler(agent: XuluxAgentDefinition) {
       }
 
       const uiMessages = messages as UIMessage[];
-      const prunedMessages = await prepareMessages(uiMessages);
+      const preparedUiMessages = agent.prepareMessages
+        ? agent.prepareMessages({
+            body,
+            messages: uiMessages,
+            routeUrl: req.url,
+          })
+        : uiMessages;
+      const prunedMessages = await prepareMessages(preparedUiMessages);
+      const pageContext =
+        agent.allowRequestSystemPrompt !== false &&
+        typeof rawPageContext === "string" &&
+        rawPageContext.length <= MAX_SYSTEM_CHARS
+          ? rawPageContext
+          : undefined;
 
       const normalizedPreviewContext =
         normalizeActivePreviewContext(activePreviewContext);
       const userMessageId = getLatestUserMessageId(uiMessages);
 
-      if (typeof sessionId !== "string" || sessionId.trim().length === 0) {
+      const resolvedSessionId = agent.resolveSessionId
+        ? agent.resolveSessionId({ body, routeUrl: req.url })
+        : bodySessionId;
+
+      if (
+        typeof resolvedSessionId !== "string" ||
+        resolvedSessionId.trim().length === 0 ||
+        resolvedSessionId.trim().length > MAX_SESSION_ID_CHARS
+      ) {
         return NextResponse.json(
           { error: "sessionId required" },
           { status: 400 },
         );
       }
+      const sessionId = resolvedSessionId.trim();
 
       const isFirstUserTurn =
         prunedMessages.filter((m) => m.role === "user").length === 1 &&
@@ -289,8 +313,16 @@ export function createXuluxChatHandler(agent: XuluxAgentDefinition) {
       const inputError = validateDocChatInput(prunedMessages);
       if (inputError) return inputError;
 
+      const preparedTools = agent.prepareTools({
+        body,
+        clientTools: clientTools as FrontendTools,
+        routeUrl: req.url,
+      });
+      if (preparedTools instanceof Response) return preparedTools;
+      const xuluxTools: ToolSet = preparedTools;
+
       const distinctId = getDistinctId(req);
-      const budget = await beginTurn(sessionId.trim(), distinctId);
+      const budget = await beginTurn(sessionId, distinctId);
       if (budget.denied) {
         const payload = await budget.denied
           .clone()
@@ -308,7 +340,7 @@ export function createXuluxChatHandler(agent: XuluxAgentDefinition) {
           outcome: createXuluxTurnOutcome({
             type: "budget_denied",
             requestId,
-            sessionId: sessionId.trim(),
+            sessionId,
             distinctId,
             statusCode: budget.denied.status,
             userVisibleMessage,
@@ -321,16 +353,16 @@ export function createXuluxChatHandler(agent: XuluxAgentDefinition) {
 
       const evalRunId = req.headers.get("x-agent-eval-run-id");
       const localTraceUrl = req.headers.get("x-agent-eval-trace-url");
-      const modelConfig = resolveXuluxModel(config);
+      const modelConfig = resolveXuluxModel(
+        agent.modelName ? { modelName: agent.modelName } : config,
+      );
       const baseModel = modelConfig.model;
       const prismTracer = createPrismTracer({ evalRunId, localTraceUrl });
-      const preparedTools = agent.prepareTools({
+      const traceName = agent.traceName ?? "xulux_chat";
+      const traceMetadata = agent.getTraceMetadata?.({
         body,
-        clientTools: clientTools as FrontendTools,
         routeUrl: req.url,
       });
-      if (preparedTools instanceof Response) return preparedTools;
-      const xuluxTools: ToolSet = preparedTools;
       const toolManifest =
         process.env.XULUX_EVAL_MODE === "1"
           ? Object.entries(xuluxTools).map(([name, tool]) => {
@@ -353,20 +385,22 @@ export function createXuluxChatHandler(agent: XuluxAgentDefinition) {
             posthogDistinctId: distinctId,
             posthogPrivacyMode: false,
             posthogProperties: {
-              $ai_span_name: "xulux_chat",
-              source: "xulux_chat",
+              $ai_span_name: traceName,
+              source: traceName,
+              ...(traceMetadata ?? {}),
             },
           })
         : baseModel;
 
       const prism = prismTracer
         ? prismAISDK(prismTracer, posthogModel, {
-            name: "xulux_chat",
+            name: traceName,
             endUserId: distinctId,
             metadata: {
               evalRunId,
               sessionId,
-              source: "xulux_chat",
+              source: traceName,
+              ...(traceMetadata ?? {}),
               ...(toolManifest ? { toolManifest } : undefined),
             },
           })
@@ -379,7 +413,7 @@ export function createXuluxChatHandler(agent: XuluxAgentDefinition) {
           : undefined),
         system: [agent.systemPrompt, pageContext].filter(Boolean).join("\n\n"),
         messages: prunedMessages,
-        maxOutputTokens: 8192,
+        maxOutputTokens: agent.maxOutputTokens ?? 8192,
         stopWhen: stepCountIs(agent.maxSteps),
         tools: xuluxTools,
         ...(agent.activeToolsAfterFirstStep
@@ -392,7 +426,7 @@ export function createXuluxChatHandler(agent: XuluxAgentDefinition) {
           : {}),
         onFinish: async ({ usage, response }) => {
           await finishTurn(
-            sessionId.trim(),
+            sessionId,
             distinctId,
             usage,
             response.modelId,
@@ -424,7 +458,7 @@ export function createXuluxChatHandler(agent: XuluxAgentDefinition) {
                   outcome: createXuluxTurnOutcome({
                     type: "assistant_response_completed",
                     requestId,
-                    sessionId: sessionId.trim(),
+                    sessionId,
                     distinctId,
                     ...(userMessageId ? { userMessageId } : {}),
                   }),

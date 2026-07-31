@@ -36,10 +36,13 @@ export default async function LearnStagePreviewPage({
   }
 
   const { RuntimeProvider } = await stage.loadPreviewRuntime();
+  const previewSessionId = crypto.randomUUID();
 
   return (
     <div className="bg-background h-dvh overflow-hidden">
-      <RuntimeProvider api={`/api/xulux/learn/preview/${stageId}/chat`}>
+      <RuntimeProvider
+        api={`/api/xulux/learn/preview/${stageId}/chat?sessionId=${previewSessionId}`}
+      >
         {preview}
       </RuntimeProvider>
     </div>

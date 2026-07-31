@@ -1,5 +1,5 @@
 import type { FrontendTools } from "@assistant-ui/react-ai-sdk";
-import type { ToolSet } from "ai";
+import type { ToolSet, UIMessage } from "ai";
 import { NextResponse } from "next/server";
 import { parseLearnContext } from "@/lib/xulux/learn/context";
 import { APP_BUILDER_SYSTEM_PROMPT, LEARN_SYSTEM_PROMPT } from "./prompts";
@@ -11,10 +11,29 @@ type PrepareAgentToolsOptions = {
   routeUrl: string;
 };
 
+type PrepareAgentMessagesOptions = {
+  body: Record<string, unknown>;
+  messages: UIMessage[];
+  routeUrl: string;
+};
+
 export type XuluxAgentDefinition = {
   systemPrompt: string;
   maxSteps: number;
+  maxOutputTokens?: number;
+  modelName?: string;
+  traceName?: string;
+  getTraceMetadata?: (options: {
+    body: Record<string, unknown>;
+    routeUrl: string;
+  }) => Record<string, string>;
+  allowRequestSystemPrompt?: boolean;
   activeToolsAfterFirstStep?: string[];
+  resolveSessionId?: (options: {
+    body: Record<string, unknown>;
+    routeUrl: string;
+  }) => unknown;
+  prepareMessages?: (options: PrepareAgentMessagesOptions) => UIMessage[];
   prepareTools: (options: PrepareAgentToolsOptions) => ToolSet | NextResponse;
 };
 
