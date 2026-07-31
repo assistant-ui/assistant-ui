@@ -4,20 +4,20 @@ import type {
   AssistantRuntime,
   ThreadHistoryAdapter,
   ThreadMessage,
-  GenericThreadHistoryAdapter,
   MessageFormatAdapter,
   MessageFormatRepository,
   ExportedMessageRepository,
 } from "@assistant-ui/core";
 import { getExternalStoreMessages } from "@assistant-ui/core";
 import { MessageRepository } from "@assistant-ui/core/internal";
-import { useAuiState } from "@assistant-ui/store";
+import { useAui } from "@assistant-ui/store";
 import {
   useRef,
   useEffect,
   useState,
   type RefObject,
   useCallback,
+  useMemo,
 } from "react";
 
 export const toExportedMessageRepository = <TMessage>(
@@ -59,26 +59,21 @@ const snapshotExternalMessages = <TMessage>(
     ]),
   );
 
-const areEquivalentHistoryAdapters = (
-  left: ThreadHistoryAdapter,
-  right: ThreadHistoryAdapter,
-) => {
-  if (left === right) return true;
-  if (
-    Object.getPrototypeOf(left) !== Object.prototype ||
-    Object.getPrototypeOf(right) !== Object.prototype
-  ) {
-    return false;
+const PLAIN_HISTORY_ADAPTER_KEY = Symbol("plain-history-adapter");
+const STABLE_HISTORY_ADAPTER_KEYS = new WeakMap<ThreadHistoryAdapter, symbol>();
+
+// Plain adapters are commonly declared inline, so only stable instances can signal a storage boundary.
+const getHistoryAdapterKey = (adapter: ThreadHistoryAdapter) => {
+  if (Object.getPrototypeOf(adapter) === Object.prototype) {
+    return PLAIN_HISTORY_ADAPTER_KEY;
   }
 
-  return (
-    left.load === right.load &&
-    left.resume === right.resume &&
-    left.append === right.append &&
-    left.update === right.update &&
-    left.delete === right.delete &&
-    left.withFormat === right.withFormat
-  );
+  let key = STABLE_HISTORY_ADAPTER_KEYS.get(adapter);
+  if (!key) {
+    key = Symbol("history-adapter");
+    STABLE_HISTORY_ADAPTER_KEYS.set(adapter, key);
+  }
+  return key;
 };
 
 export const useExternalHistory = <TMessage>(
@@ -88,8 +83,10 @@ export const useExternalHistory = <TMessage>(
   storageFormatAdapter: MessageFormatAdapter<TMessage, any>,
   onSetMessages: (messages: TMessage[]) => void,
 ) => {
-  const remoteId = useAuiState(
-    (state) => state.optional.threadListItem?.remoteId,
+  const aui = useAui();
+  const optionalThreadListItem = useCallback(
+    () => (aui.threadListItem.source ? aui.threadListItem : null),
+    [aui],
   );
 
   const historyIds = useRef(new Set<string>());
@@ -104,60 +101,36 @@ export const useExternalHistory = <TMessage>(
     onSetMessagesRef.current = onSetMessages;
   });
 
-  const formatAdapterCacheRef = useRef<
-    | {
-        historyAdapter: ThreadHistoryAdapter;
-        storageFormatAdapter: MessageFormatAdapter<TMessage, any>;
-        formatAdapter: GenericThreadHistoryAdapter<TMessage>;
-      }
-    | undefined
-  >(undefined);
-  const cachedFormatAdapter = formatAdapterCacheRef.current;
-
-  if (!historyAdapter) {
-    formatAdapterCacheRef.current = undefined;
-  } else if (
-    !cachedFormatAdapter ||
-    cachedFormatAdapter.storageFormatAdapter !== storageFormatAdapter ||
-    !areEquivalentHistoryAdapters(
-      cachedFormatAdapter.historyAdapter,
-      historyAdapter,
-    )
-  ) {
+  const formatAdapter = useMemo(() => {
+    if (!historyAdapter) return undefined;
     if (!historyAdapter.withFormat) {
       throw new Error(
         "useAISDKRuntime: ThreadHistoryAdapter is missing the required `withFormat` method.",
       );
     }
-    formatAdapterCacheRef.current = {
-      historyAdapter,
-      storageFormatAdapter,
-      formatAdapter: historyAdapter.withFormat<TMessage, any>(
-        storageFormatAdapter,
-      ),
-    };
-  }
-
-  const formatAdapter = formatAdapterCacheRef.current?.formatAdapter;
+    return historyAdapter.withFormat<TMessage, any>(storageFormatAdapter);
+  }, [historyAdapter, storageFormatAdapter]);
+  const adapterKey = historyAdapter
+    ? getHistoryAdapterKey(historyAdapter)
+    : undefined;
 
   type FormatAdapter = NonNullable<typeof formatAdapter>;
   type LoadRequest = {
-    adapter: FormatAdapter;
-    remoteId: string | undefined;
+    key: symbol;
     promise: ReturnType<FormatAdapter["load"]> | null;
     settled: boolean;
   };
 
   const loadRequestRef = useRef<LoadRequest | null>(null);
+  const lastAdapterKeyRef = useRef<symbol | undefined>(undefined);
   const [loadedRequest, setLoadedRequest] = useState<LoadRequest | null>(null);
 
   const isLoading =
     formatAdapter != null &&
-    (loadedRequest?.adapter !== formatAdapter ||
-      loadedRequest.remoteId !== remoteId);
+    (adapterKey == null || loadedRequest?.key !== adapterKey);
 
   useEffect(() => {
-    if (!formatAdapter) {
+    if (!formatAdapter || !adapterKey) {
       if (loadRequestRef.current) {
         persistenceGenerationRef.current += 1;
         persistInFlightRef.current = Promise.resolve();
@@ -168,10 +141,10 @@ export const useExternalHistory = <TMessage>(
     }
 
     let request = loadRequestRef.current;
-    if (request?.adapter !== formatAdapter || request?.remoteId !== remoteId) {
+    if (request?.key !== adapterKey) {
       const shouldResetMessages =
-        request !== null &&
-        (request.adapter !== formatAdapter || request.remoteId !== undefined);
+        lastAdapterKeyRef.current !== undefined &&
+        lastAdapterKeyRef.current !== adapterKey;
 
       persistenceGenerationRef.current += 1;
       persistInFlightRef.current = Promise.resolve();
@@ -185,15 +158,16 @@ export const useExternalHistory = <TMessage>(
         onSetMessagesRef.current([]);
       }
 
+      const remoteId = optionalThreadListItem()?.getState().remoteId;
       request = {
-        adapter: formatAdapter,
-        remoteId,
+        key: adapterKey,
         promise: remoteId
           ? Promise.resolve().then(() => formatAdapter.load())
           : null,
         settled: !remoteId,
       };
       loadRequestRef.current = request;
+      lastAdapterKeyRef.current = adapterKey;
     }
 
     if (request.settled) {
@@ -257,10 +231,11 @@ export const useExternalHistory = <TMessage>(
       cancelled = true;
     };
   }, [
+    adapterKey,
     formatAdapter,
-    remoteId,
     toThreadMessages,
     runtimeRef,
+    optionalThreadListItem,
     storageFormatAdapter,
   ]);
 
@@ -274,8 +249,8 @@ export const useExternalHistory = <TMessage>(
     const activeLoadRequest = loadRequestRef.current;
     if (
       !formatAdapter ||
-      activeLoadRequest?.adapter !== formatAdapter ||
-      activeLoadRequest.remoteId !== remoteId ||
+      !adapterKey ||
+      activeLoadRequest?.key !== adapterKey ||
       !activeLoadRequest.settled
     ) {
       return;
@@ -507,9 +482,9 @@ export const useExternalHistory = <TMessage>(
       }
     };
   }, [
+    adapterKey,
     formatAdapter,
     loadedRequest,
-    remoteId,
     storageFormatAdapter,
     runtimeRef,
   ]);

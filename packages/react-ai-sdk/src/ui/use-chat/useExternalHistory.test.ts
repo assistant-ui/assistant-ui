@@ -6,6 +6,7 @@ import { createElement, StrictMode, type ReactNode } from "react";
 import { bindExternalStoreMessage } from "@assistant-ui/core";
 import type {
   AssistantRuntime,
+  GenericThreadHistoryAdapter,
   MessageFormatAdapter,
   MessageFormatRepository,
   ThreadAssistantMessage,
@@ -13,12 +14,21 @@ import type {
   ThreadMessage,
 } from "@assistant-ui/core";
 
-const mocks = vi.hoisted(() => ({
-  remoteId: undefined as string | undefined,
-}));
+const mocks = vi.hoisted(() => {
+  const state = { remoteId: undefined as string | undefined };
+  return {
+    state,
+    aui: {
+      threadListItem: {
+        source: true,
+        getState: () => ({ remoteId: state.remoteId }),
+      },
+    },
+  };
+});
 
 vi.mock("@assistant-ui/store", () => ({
-  useAuiState: () => mocks.remoteId,
+  useAui: () => mocks.aui,
 }));
 
 import { MessageRepository } from "@assistant-ui/core/internal";
@@ -48,12 +58,25 @@ const storageFormat: MessageFormatAdapter<unknown, Record<string, unknown>> = {
   getId: () => "id",
 };
 
+class StableHistoryAdapter<TMessage> implements ThreadHistoryAdapter {
+  load = vi.fn();
+  append = vi.fn();
+
+  constructor(
+    private readonly formatted: GenericThreadHistoryAdapter<TMessage>,
+  ) {}
+
+  withFormat<TOtherMessage>(): GenericThreadHistoryAdapter<TOtherMessage> {
+    return this.formatted as GenericThreadHistoryAdapter<TOtherMessage>;
+  }
+}
+
 const toThreadMessages = (_messages: unknown[]): ThreadMessage[] => [];
 const onSetMessages = () => {};
 
 describe("useExternalHistory withFormat contract", () => {
   beforeEach(() => {
-    mocks.remoteId = undefined;
+    mocks.state.remoteId = undefined;
   });
 
   it("throws when the adapter omits withFormat", () => {
@@ -120,7 +143,7 @@ describe("useExternalHistory withFormat contract", () => {
   });
 
   it("reports loading before an asynchronous history load settles", async () => {
-    mocks.remoteId = "remote-thread";
+    mocks.state.remoteId = "remote-thread";
     let resolveLoad!: (repo: MessageFormatRepository<unknown>) => void;
     const load = vi.fn(
       () =>
@@ -158,7 +181,7 @@ describe("useExternalHistory withFormat contract", () => {
   });
 
   it("does not duplicate history loads in Strict Mode", async () => {
-    mocks.remoteId = "remote-thread";
+    mocks.state.remoteId = "remote-thread";
     const load = vi.fn().mockResolvedValue({ headId: null, messages: [] });
     const adapter: ThreadHistoryAdapter = {
       load: vi.fn(),
@@ -187,56 +210,22 @@ describe("useExternalHistory withFormat contract", () => {
     expect(load).toHaveBeenCalledTimes(1);
   });
 
-  it("does not reload equivalent plain adapter wrappers", async () => {
-    mocks.remoteId = "remote-thread";
+  it("does not reload inline adapters with fresh callbacks", async () => {
+    mocks.state.remoteId = "remote-thread";
     const load = vi.fn().mockResolvedValue({ headId: null, messages: [] });
-    const append = vi.fn().mockResolvedValue(undefined);
-    const formattedAppend = vi.fn().mockResolvedValue(undefined);
-    const withFormat = vi.fn().mockReturnValue({
-      load,
-      append: formattedAppend,
-    });
-    const createAdapter = (): ThreadHistoryAdapter => ({
-      load,
-      append,
-      withFormat,
-    });
-
-    const { result, rerender } = renderHook(
-      ({ adapter }: { adapter: ThreadHistoryAdapter }) =>
-        useExternalHistory(
-          runtimeRef,
-          adapter,
-          toThreadMessages,
-          storageFormat,
-          onSetMessages,
-        ),
-      { initialProps: { adapter: createAdapter() } },
-    );
-
-    await waitFor(() => expect(result.current.isLoading).toBe(false));
-    rerender({ adapter: createAdapter() });
-    await act(async () => Promise.resolve());
-
-    expect(withFormat).toHaveBeenCalledTimes(1);
-    expect(load).toHaveBeenCalledTimes(1);
-  });
-
-  it("loads history when a remote id becomes available", async () => {
-    const load = vi.fn().mockResolvedValue({ headId: null, messages: [] });
-    const adapter: ThreadHistoryAdapter = {
-      load: vi.fn(),
-      append: vi.fn(),
-      withFormat: vi.fn().mockReturnValue({
-        load,
-        append: vi.fn().mockResolvedValue(undefined),
-      }),
-    };
+    const format = vi.fn();
 
     const { result, rerender } = renderHook(() =>
       useExternalHistory(
         runtimeRef,
-        adapter,
+        {
+          load: async () => ({ headId: null, messages: [] }),
+          append: async () => {},
+          withFormat: () => {
+            format();
+            return { load, append: async () => {} };
+          },
+        },
         toThreadMessages,
         storageFormat,
         onSetMessages,
@@ -244,17 +233,15 @@ describe("useExternalHistory withFormat contract", () => {
     );
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
-    expect(load).not.toHaveBeenCalled();
-
-    mocks.remoteId = "remote-thread";
     rerender();
+    await act(async () => Promise.resolve());
 
-    await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
-    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(load).toHaveBeenCalledTimes(1);
+    expect(format).toHaveBeenCalled();
   });
 
   it("loads replacement adapters and ignores stale history responses", async () => {
-    mocks.remoteId = "remote-thread";
+    mocks.state.remoteId = "remote-thread";
     let resolveFirstLoad!: (repo: MessageFormatRepository<unknown>) => void;
     const firstLoad = vi.fn(
       () =>
@@ -268,14 +255,11 @@ describe("useExternalHistory withFormat contract", () => {
     });
     const createAdapter = (
       load: () => Promise<MessageFormatRepository<unknown>>,
-    ): ThreadHistoryAdapter => ({
-      load: vi.fn(),
-      append: vi.fn(),
-      withFormat: vi.fn().mockReturnValue({
+    ): ThreadHistoryAdapter =>
+      new StableHistoryAdapter({
         load,
         append: vi.fn().mockResolvedValue(undefined),
-      }),
-    });
+      });
     const firstAdapter = createAdapter(firstLoad);
     const secondAdapter = createAdapter(secondLoad);
     const importHistory = vi.fn();
@@ -300,7 +284,7 @@ describe("useExternalHistory withFormat contract", () => {
       });
 
     const { result, rerender } = renderHook(
-      ({ adapter }: { adapter: ThreadHistoryAdapter }) =>
+      ({ adapter }: { adapter: ThreadHistoryAdapter | undefined }) =>
         useExternalHistory(
           localRuntimeRef,
           adapter,
@@ -312,6 +296,7 @@ describe("useExternalHistory withFormat contract", () => {
     );
 
     await waitFor(() => expect(firstLoad).toHaveBeenCalledTimes(1));
+    rerender({ adapter: undefined });
     rerender({ adapter: secondAdapter });
 
     await waitFor(() => expect(secondLoad).toHaveBeenCalledTimes(1));
@@ -335,17 +320,14 @@ describe("useExternalHistory withFormat contract", () => {
   });
 
   it("clears messages when replacement history is empty", async () => {
-    mocks.remoteId = "remote-thread";
+    mocks.state.remoteId = "remote-thread";
     const createAdapter = (
       repo: MessageFormatRepository<unknown>,
-    ): ThreadHistoryAdapter => ({
-      load: vi.fn(),
-      append: vi.fn(),
-      withFormat: vi.fn().mockReturnValue({
+    ): ThreadHistoryAdapter =>
+      new StableHistoryAdapter({
         load: vi.fn().mockResolvedValue(repo),
         append: vi.fn().mockResolvedValue(undefined),
-      }),
-    });
+      });
     const firstAdapter = createAdapter({
       headId: "message-a",
       messages: [{ parentId: null, message: { id: "message-a" } }],
@@ -457,7 +439,7 @@ describe("toExportedMessageRepository", () => {
 
 describe("useExternalHistory persistence", () => {
   beforeEach(() => {
-    mocks.remoteId = undefined;
+    mocks.state.remoteId = undefined;
   });
 
   type InnerMessage = { id: string; parts: string[] };
@@ -505,7 +487,7 @@ describe("useExternalHistory persistence", () => {
       toThreadMessages?: (messages: InnerMessage[]) => ThreadMessage[];
     },
   ) => {
-    if (options?.loadMessages) mocks.remoteId = "remote-thread";
+    if (options?.loadMessages) mocks.state.remoteId = "remote-thread";
 
     const append = vi.fn(
       async (_item: { parentId: string | null; message: InnerMessage }) => {},
@@ -555,7 +537,7 @@ describe("useExternalHistory persistence", () => {
       current: { thread } as AssistantRuntime,
     };
 
-    const { result, unmount } = renderHook(() =>
+    const { result, rerender, unmount } = renderHook(() =>
       useExternalHistory(
         persistenceRuntimeRef,
         historyAdapter,
@@ -603,9 +585,26 @@ describe("useExternalHistory persistence", () => {
       runCycle,
       flush,
       step,
+      rerender,
       unmount,
     };
   };
+
+  it("keeps persistence active when a new thread receives its remote id", async () => {
+    const { append, step, flush, rerender } = createPersistenceHarness(false);
+    const message = createAssistantMessage(
+      { type: "complete", reason: "stop" },
+      [{ id: "inner-a", parts: ["first"] }],
+    );
+
+    await step({ isRunning: true, messages: [message] });
+    mocks.state.remoteId = "remote-thread";
+    rerender();
+    await step({ isRunning: false });
+    await flush();
+
+    expect(append).toHaveBeenCalledTimes(1);
+  });
 
   it("retries a failed append on the next persistence pass", async () => {
     const consoleError = vi
@@ -923,14 +922,11 @@ describe("useExternalHistory persistence", () => {
         parentId: string | null;
         message: InnerMessage;
       }) => Promise<void>,
-    ): ThreadHistoryAdapter => ({
-      load: vi.fn(),
-      append: vi.fn(),
-      withFormat: vi.fn().mockReturnValue({
+    ): ThreadHistoryAdapter =>
+      new StableHistoryAdapter({
         load: vi.fn().mockResolvedValue({ messages: [] }),
         append,
-      }),
-    });
+      });
     const firstAdapter = createAdapter(firstAppendMock);
     const secondAdapter = createAdapter(secondAppendMock);
     const setMessages = vi.fn((nextMessages: InnerMessage[]) => {
