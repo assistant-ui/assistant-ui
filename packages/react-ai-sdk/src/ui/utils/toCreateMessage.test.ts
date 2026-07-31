@@ -247,6 +247,62 @@ describe("toCreateMessage", () => {
     ]);
   });
 
+  it("wraps bare base64 file data so the url survives convertToModelMessages", async () => {
+    const message = {
+      ...baseMessage,
+      content: [
+        { type: "file", data: "JVBERi0xLjQ=", mimeType: "application/pdf" },
+      ],
+    } as unknown as AppendMessage;
+
+    const result = toCreateMessage(message);
+
+    expect(result.parts).toEqual([
+      {
+        type: "file",
+        url: "data:application/pdf;base64,JVBERi0xLjQ=",
+        mediaType: "application/pdf",
+      },
+    ]);
+
+    // convertToModelMessages is async and passes `url` to an unguarded
+    // `new URL()`, so the bare payload rejects while the wrapped one resolves.
+    const { convertToModelMessages } = await import("ai");
+    await expect(
+      convertToModelMessages([{ ...result, id: "m1" } as never]),
+    ).resolves.toBeDefined();
+    await expect(
+      convertToModelMessages([
+        {
+          id: "m1",
+          role: "user",
+          parts: [
+            {
+              type: "file",
+              url: "JVBERi0xLjQ=",
+              mediaType: "application/pdf",
+            },
+          ],
+        } as never,
+      ]),
+    ).rejects.toThrow(/Invalid URL/);
+  });
+
+  it("wraps bare base64 image data", () => {
+    const message = {
+      ...baseMessage,
+      content: [{ type: "image", image: "/9j/4AAQSkZJRg==" }],
+    } as unknown as AppendMessage;
+
+    expect(toCreateMessage(message).parts).toEqual([
+      {
+        type: "file",
+        url: "data:image/png;base64,/9j/4AAQSkZJRg==",
+        mediaType: "image/png",
+      },
+    ]);
+  });
+
   it("converts an audio part into a file part with the format-derived media type", () => {
     const message = {
       ...baseMessage,

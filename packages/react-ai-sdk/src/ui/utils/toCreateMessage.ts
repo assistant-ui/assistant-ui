@@ -13,6 +13,9 @@ type InputPart = AppendMessage["content"][number] & {
   readonly filename?: string | undefined;
 };
 
+const isUrl = (value: string) =>
+  /^data:/i.test(value) || httpUrlPattern.test(value);
+
 const getDataUrlMediaType = (url: string) => {
   const match = /^data:([^;,]+)(?:[;,])/i.exec(url);
   return match?.[1]?.toLowerCase();
@@ -51,17 +54,26 @@ export const toCreateMessage = <UI_MESSAGE extends UIMessage = UIMessage>(
           type: "text",
           text: part.text,
         };
-      case "image":
+      case "image": {
+        const mediaType = getImageMediaType(part);
         return {
           type: "file",
-          url: part.image,
+          url: isUrl(part.image)
+            ? part.image
+            : `data:${mediaType};base64,${part.image}`,
           ...(part.filename && { filename: part.filename }),
-          mediaType: getImageMediaType(part),
+          mediaType,
         };
+      }
       case "file":
         return {
           type: "file",
-          url: part.data,
+          // `convertToModelMessages` passes this through an unguarded
+          // `new URL()`, so a payload that is not already a URL is wrapped
+          // rather than forwarded.
+          url: isUrl(part.data)
+            ? part.data
+            : `data:${part.mimeType};base64,${part.data}`,
           mediaType: part.mimeType,
           ...(part.filename && { filename: part.filename }),
         };
