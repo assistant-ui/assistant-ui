@@ -303,6 +303,24 @@ describe("toCreateMessage", () => {
     ]);
   });
 
+  it("leaves an id reference unwrapped rather than shipping it as base64", () => {
+    const message = {
+      ...baseMessage,
+      content: [
+        {
+          type: "file",
+          data: "file-abc123",
+          mimeType: "application/pdf",
+          sourceType: "id",
+        },
+      ],
+    } as unknown as AppendMessage;
+
+    expect(toCreateMessage(message).parts).toEqual([
+      { type: "file", url: "file-abc123", mediaType: "application/pdf" },
+    ]);
+  });
+
   it("forwards blob and other parsable url schemes untouched", () => {
     const message = {
       ...baseMessage,

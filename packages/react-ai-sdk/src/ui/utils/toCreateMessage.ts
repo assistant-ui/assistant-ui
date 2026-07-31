@@ -77,9 +77,13 @@ export const toCreateMessage = <UI_MESSAGE extends UIMessage = UIMessage>(
       case "file":
         return {
           type: "file",
-          url: isUrl(part.data)
-            ? part.data
-            : `data:${part.mimeType};base64,${part.data}`,
+          // An `id` reference is an opaque provider handle, not base64, and
+          // this adapter has no way to send one. Left unwrapped so it fails
+          // loudly upstream rather than shipping a corrupt payload.
+          url:
+            isUrl(part.data) || part.sourceType === "id"
+              ? part.data
+              : `data:${part.mimeType};base64,${part.data}`,
           mediaType: part.mimeType,
           ...(part.filename && { filename: part.filename }),
         };
