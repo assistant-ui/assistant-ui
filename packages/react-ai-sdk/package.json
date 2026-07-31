@@ -52,6 +52,7 @@
   },
   "dependencies": {
     "@ai-sdk/mcp": "^2.0.16",
+    "@ai-sdk/provider-utils": "^5.0.12",
     "@ai-sdk/react": "^4.0.40",
     "@assistant-ui/core": "^0.3.3",
     "@assistant-ui/store": "^0.3.2",

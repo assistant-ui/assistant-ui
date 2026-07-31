@@ -1,3 +1,4 @@
+import { detectMediaType } from "@ai-sdk/provider-utils";
 import type { AppendMessage } from "@assistant-ui/core";
 import {
   httpUrlPattern,
@@ -22,6 +23,16 @@ const getDataUrlMediaType = (url: string) => {
   return match?.[1]?.toLowerCase();
 };
 
+// `detectMediaType` throws on a payload that is not valid base64, and this
+// runs on unvalidated input.
+const sniffImageMediaType = (data: string) => {
+  try {
+    return detectMediaType({ data, topLevelType: "image" });
+  } catch {
+    return undefined;
+  }
+};
+
 const getImageMediaType = (part: {
   readonly contentType?: string | undefined;
   readonly image: string;
@@ -30,6 +41,13 @@ const getImageMediaType = (part: {
 
   const dataUrlMediaType = getDataUrlMediaType(part.image);
   if (dataUrlMediaType?.startsWith("image/")) return dataUrlMediaType;
+
+  // A bare base64 payload carries its format in its leading bytes; without
+  // this the declared type is `image/png` whatever the image actually is.
+  if (!isParsableUrl(part.image)) {
+    const sniffed = sniffImageMediaType(part.image);
+    if (sniffed) return sniffed;
+  }
 
   return "image/png";
 };

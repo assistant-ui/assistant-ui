@@ -288,6 +288,59 @@ describe("toCreateMessage", () => {
     ).rejects.toThrow(/Invalid URL/);
   });
 
+  it("sniffs the media type of a bare base64 image", () => {
+    const cases = [
+      { image: "/9j/4AAQSkZJRg==", mediaType: "image/jpeg" },
+      { image: "iVBORw0KGgoAAAANSUhEUg==", mediaType: "image/png" },
+      { image: "R0lGODlhAQABAA==", mediaType: "image/gif" },
+      { image: "UklGRiIAAABXRUJQVlA4", mediaType: "image/webp" },
+    ];
+
+    for (const { image, mediaType } of cases) {
+      const message = {
+        ...baseMessage,
+        content: [{ type: "image", image }],
+      } as unknown as AppendMessage;
+
+      expect(toCreateMessage(message).parts).toEqual([
+        { type: "file", url: `data:${mediaType};base64,${image}`, mediaType },
+      ]);
+    }
+  });
+
+  it("does not sniff a payload that is not base64", () => {
+    for (const image of [
+      "https://cdn.example.com/photo",
+      "blob:https://app.example/1-2-3",
+      "not base64 at all!!",
+    ]) {
+      const message = {
+        ...baseMessage,
+        content: [{ type: "image", image }],
+      } as unknown as AppendMessage;
+
+      expect(() => toCreateMessage(message)).not.toThrow();
+      expect(toCreateMessage(message).parts[0]).toMatchObject({
+        mediaType: "image/png",
+      });
+    }
+  });
+
+  it("falls back to image/png when the bytes match no known signature", () => {
+    const message = {
+      ...baseMessage,
+      content: [{ type: "image", image: "QUJD" }],
+    } as unknown as AppendMessage;
+
+    expect(toCreateMessage(message).parts).toEqual([
+      {
+        type: "file",
+        url: "data:image/png;base64,QUJD",
+        mediaType: "image/png",
+      },
+    ]);
+  });
+
   it("wraps bare base64 image data using the resolved media type", () => {
     const message = {
       ...baseMessage,
