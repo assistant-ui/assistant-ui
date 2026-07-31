@@ -143,10 +143,11 @@ Scope the key to the thread, and construct the transport and storage per thread 
 "use client";
 
 import {
+  AssistantCloud,
   AssistantRuntimeProvider,
   useAui,
+  useCloudThreadListAdapter,
   useRemoteThreadListRuntime,
-  type RemoteThreadListAdapter,
 } from "@assistant-ui/react";
 import {
   AssistantChatTransport,
@@ -157,9 +158,10 @@ import { useMemo } from "react";
 import { Thread } from "@/components/assistant-ui/thread";
 import { ThreadList } from "@/components/assistant-ui/thread-list";
 
-const threadListAdapter: RemoteThreadListAdapter = {
-  /* list, initialize, rename, archive, delete, fetch, … */
-};
+const cloud = new AssistantCloud({
+  baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
+  anonymous: true,
+});
 
 function ResumableThreadRuntime() {
   const aui = useAui();
@@ -183,8 +185,9 @@ function ResumableThreadRuntime() {
 }
 
 export default function Page() {
+  const adapter = useCloudThreadListAdapter({ cloud });
   const runtime = useRemoteThreadListRuntime({
-    adapter: threadListAdapter,
+    adapter,
     runtimeHook: ResumableThreadRuntime,
   });
 
@@ -197,7 +200,7 @@ export default function Page() {
 }
 ```
 
-Each thread's runtime hook constructs its own transport and storage, keyed by that thread's identity, so one conversation's stream id can never be read or cleared by another. `useChatRuntime` is a no-op thread list when nested as a `runtimeHook`, so it only runs the per-thread chat runtime against the per-thread transport; the real thread list is the outer `useRemoteThreadListRuntime`.
+`useCloudThreadListAdapter` is the same adapter `useChatRuntime({ cloud })` builds internally, so cloud thread history and attachments keep working; to bring your own backend, pass a custom `RemoteThreadListAdapter` instead. Each thread's runtime hook constructs its own transport and storage, keyed by that thread's identity, so one conversation's stream id can never be read or cleared by another. `useChatRuntime` is a no-op thread list when nested as a `runtimeHook`, so it only runs the per-thread chat runtime against the per-thread transport; the real thread list is the outer `useRemoteThreadListRuntime`.
 
 Key by `remoteId ?? id` under a recognizable prefix, read lazily. A brand-new thread has no `remoteId` yet, but the transport initializes the thread before the request goes out, so by the time the response header delivers the stream id the getter resolves to the `remoteId`. After a reload the same conversation comes back with that `remoteId` as its id, so the stored entry is found again and the pending stream resumes. The local-id fallback covers a thread that has never sent, whose key nothing else reads or writes. Keying by the local id alone would break resume across reloads for threads created in the current session, because their local `__LOCALID_` id is replaced by the `remoteId` when the list reloads.
 
