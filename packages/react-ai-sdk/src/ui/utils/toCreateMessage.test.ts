@@ -288,18 +288,41 @@ describe("toCreateMessage", () => {
     ).rejects.toThrow(/Invalid URL/);
   });
 
-  it("wraps bare base64 image data", () => {
+  it("wraps bare base64 image data using the resolved media type", () => {
     const message = {
       ...baseMessage,
-      content: [{ type: "image", image: "/9j/4AAQSkZJRg==" }],
+      content: [{ type: "image", image: "QUJD", contentType: "image/webp" }],
     } as unknown as AppendMessage;
 
     expect(toCreateMessage(message).parts).toEqual([
       {
         type: "file",
-        url: "data:image/png;base64,/9j/4AAQSkZJRg==",
-        mediaType: "image/png",
+        url: "data:image/webp;base64,QUJD",
+        mediaType: "image/webp",
       },
+    ]);
+  });
+
+  it("forwards blob and other parsable url schemes untouched", () => {
+    const message = {
+      ...baseMessage,
+      content: [
+        { type: "image", image: "blob:https://app.example/1-2-3" },
+        {
+          type: "file",
+          data: "blob:https://app.example/4-5-6",
+          mimeType: "application/pdf",
+        },
+      ],
+    } as unknown as AppendMessage;
+
+    const urls = toCreateMessage(message).parts.map((p) =>
+      "url" in p ? p.url : undefined,
+    );
+
+    expect(urls).toEqual([
+      "blob:https://app.example/1-2-3",
+      "blob:https://app.example/4-5-6",
     ]);
   });
 

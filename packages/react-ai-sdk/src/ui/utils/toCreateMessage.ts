@@ -13,8 +13,17 @@ type InputPart = AppendMessage["content"][number] & {
   readonly filename?: string | undefined;
 };
 
-const isUrl = (value: string) =>
-  /^data:/i.test(value) || httpUrlPattern.test(value);
+// Mirrors the upstream failure condition exactly: `convertToModelMessages`
+// hands `url` to an unguarded `new URL()`. Base64 cannot contain a colon, so
+// no payload is misread as a URL.
+const isUrl = (value: string) => {
+  try {
+    new URL(value);
+    return true;
+  } catch {
+    return false;
+  }
+};
 
 const getDataUrlMediaType = (url: string) => {
   const match = /^data:([^;,]+)(?:[;,])/i.exec(url);
@@ -68,9 +77,6 @@ export const toCreateMessage = <UI_MESSAGE extends UIMessage = UIMessage>(
       case "file":
         return {
           type: "file",
-          // `convertToModelMessages` passes this through an unguarded
-          // `new URL()`, so a payload that is not already a URL is wrapped
-          // rather than forwarded.
           url: isUrl(part.data)
             ? part.data
             : `data:${part.mimeType};base64,${part.data}`,
