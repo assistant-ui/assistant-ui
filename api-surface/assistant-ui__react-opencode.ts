@@ -855,6 +855,20 @@ type ObjectKey<T> = keyof T & (string | number);
 
 type OnSchemaValidationErrorFunction<TResult> = ToolExecuteFunction<unknown, TResult>;
 
+declare class OpenCodeAttachmentAdapter implements AttachmentAdapter {
+  accept: string;
+  constructor(options?: OpenCodeAttachmentAdapterOptions);
+  add(state: {
+    file: File;
+  }): Promise<PendingAttachment>;
+  send(attachment: PendingAttachment): Promise<CompleteAttachment>;
+  remove(): Promise<void>;
+}
+
+type OpenCodeAttachmentAdapterOptions = {
+  accept?: string | undefined;
+};
+
 declare class OpenCodeEventSource {
   private readonly listeners;
   private readonly reconnectDelayMs;
@@ -1952,7 +1966,7 @@ declare global {
 }
 
 declare namespace entry_root_exports {
-  export { AssistantMessage, Event, FilePart, GlobalSession, Message$2 as Message, MessageWithParts, Model, OpenCodeEventSource, OpenCodeLoadState, OpenCodePartPayload, OpenCodePermissionRequest, OpenCodePermissionResponse, OpenCodeProjectedThreadMessage, OpenCodeQuestionRequest, OpenCodeRunState, OpenCodeRuntime, OpenCodeRuntimeExtras, OpenCodeRuntimeOptions, OpenCodeServerEvent, OpenCodeServerMessage, OpenCodeStateEvent, OpenCodeThreadController, OpenCodeThreadControllerLike, OpenCodeThreadControllerSnapshot, OpenCodeThreadState, OpenCodeThreadStateSelector, OpenCodeUnhandledEvent, OpenCodeUserMessageOptions, OpencodeClient$1 as OpencodeClient, OpencodeClientConfig, Part$1 as Part, PendingUserMessage, PermissionRequest$1 as PermissionRequest, Provider, QuestionAnswer$1 as QuestionAnswer, QuestionRequest$1 as QuestionRequest, ReasoningPart, STREAM_RECONNECTED_EVENT_TYPE, Session$1 as Session, SessionStatus$1 as SessionStatus, SnapshotPart, StepFinishPart, StepStartPart, TextPart, ToolPart, ToolState, UserMessage, createOpenCodeThreadState, createOpencodeClient$1 as createOpencodeClient, projectOpenCodeThreadMessages, reduceOpenCodeThreadState, useOpenCodePermissions, useOpenCodeQuestions, useOpenCodeRuntime, useOpenCodeRuntimeExtras, useOpenCodeSession, useOpenCodeStreamingTiming, useOpenCodeThreadState };
+  export { AssistantMessage, Event, FilePart, GlobalSession, Message$2 as Message, MessageWithParts, Model, OpenCodeAttachmentAdapter, OpenCodeAttachmentAdapterOptions, OpenCodeEventSource, OpenCodeLoadState, OpenCodePartPayload, OpenCodePermissionRequest, OpenCodePermissionResponse, OpenCodeProjectedThreadMessage, OpenCodeQuestionRequest, OpenCodeRunState, OpenCodeRuntime, OpenCodeRuntimeExtras, OpenCodeRuntimeOptions, OpenCodeServerEvent, OpenCodeServerMessage, OpenCodeStateEvent, OpenCodeThreadController, OpenCodeThreadControllerLike, OpenCodeThreadControllerSnapshot, OpenCodeThreadState, OpenCodeThreadStateSelector, OpenCodeUnhandledEvent, OpenCodeUserMessageOptions, OpencodeClient$1 as OpencodeClient, OpencodeClientConfig, Part$1 as Part, PendingUserMessage, PermissionRequest$1 as PermissionRequest, Provider, QuestionAnswer$1 as QuestionAnswer, QuestionRequest$1 as QuestionRequest, ReasoningPart, STREAM_RECONNECTED_EVENT_TYPE, Session$1 as Session, SessionStatus$1 as SessionStatus, SnapshotPart, StepFinishPart, StepStartPart, TextPart, ToolPart, ToolState, UserMessage, createOpenCodeThreadState, createOpencodeClient$1 as createOpencodeClient, projectOpenCodeThreadMessages, reduceOpenCodeThreadState, useOpenCodePermissions, useOpenCodeQuestions, useOpenCodeRuntime, useOpenCodeRuntimeExtras, useOpenCodeSession, useOpenCodeStreamingTiming, useOpenCodeThreadState };
 }
 
 declare function projectOpenCodeThreadMessages(state: OpenCodeThreadState, messageTiming?: Record<string, MessageTiming>): OpenCodeProjectedThreadMessage[];
