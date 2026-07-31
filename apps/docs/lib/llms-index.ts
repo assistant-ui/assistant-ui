@@ -25,6 +25,7 @@ function addPageToSection(
 
 export function buildLLMSIndex(
   docsPages: LLMIndexPage[],
+  tapPages: LLMIndexPage[],
   examplesPages: LLMIndexPage[],
 ) {
   const lines: string[] = [];
@@ -35,7 +36,7 @@ export function buildLLMSIndex(
   lines.push("## LLM Documentation Files");
   lines.push("");
   lines.push(
-    `- [Full documentation](${BASE_URL}/llms-full.txt): all docs and examples pages rendered into one large text file.`,
+    `- [Full documentation](${BASE_URL}/llms-full.txt): every documentation page rendered into one large text file.`,
   );
   lines.push(
     "- Per-page markdown: append `.md` to any docs page URL. `.mdx` is kept as a backwards-compatible alias for agents that request source-style URLs. For example, `/docs/installation.md` and `/docs/installation.mdx` both return markdown for `/docs/installation`.",
@@ -53,6 +54,10 @@ export function buildLLMSIndex(
 
   for (const page of docsPages) {
     addPageToSection(map, page.slugs[0] || "root", page);
+  }
+
+  for (const page of tapPages) {
+    addPageToSection(map, "tap", page);
   }
 
   for (const page of examplesPages) {
