@@ -434,6 +434,12 @@ figure.shiki {
     padding-left: calc(0.875rem + 2.25rem) !important;
   }
 
+  /* Blank lines in plaintext fences render as an empty child span, dodging
+     fumadocs' .line:empty height rule; keep every line one line tall. */
+  & .line {
+    min-height: 1lh;
+  }
+
   /* Highlighted lines */
   & .highlighted {
     background: oklch(0.7 0.12 250 / 0.1) !important;
