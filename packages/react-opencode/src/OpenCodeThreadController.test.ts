@@ -178,6 +178,66 @@ describe("OpenCodeThreadController", () => {
     expect(() => new URL(String(filePart!["url"]))).not.toThrow();
   });
 
+  it.each([
+    {
+      label: "data url image keeps its declared type",
+      image: "data:image/jpeg;base64,QUJD",
+      mime: "image/jpeg",
+      url: "data:image/jpeg;base64,QUJD",
+    },
+    {
+      label: "bare base64 image is wrapped and marked as an unknown image",
+      image: "QUJD",
+      mime: "image/*",
+      url: "data:image/*;base64,QUJD",
+    },
+    {
+      label: "http image source is forwarded",
+      image: "https://cdn.example.com/a.png",
+      mime: "image/*",
+      url: "https://cdn.example.com/a.png",
+    },
+  ])(
+    "sends an image part as a file part: $label",
+    async ({ image, mime, url }) => {
+      const client = {
+        session: { promptAsync: vi.fn().mockResolvedValue({}) },
+      };
+      const controller = new OpenCodeThreadController(
+        client as never,
+        () => ({ subscribe: () => () => {} }),
+        "ses_1",
+      );
+
+      await controller.stageMessage(
+        {
+          role: "user",
+          parentId: null,
+          sourceId: null,
+          content: [{ type: "image", image }],
+          attachments: [],
+          metadata: { custom: {} },
+          runConfig: {},
+          createdAt: new Date(),
+        } as never,
+        { model: { providerID: "anthropic", modelID: "claude" } },
+      );
+
+      const pendingId = Object.keys(
+        controller.getState().pendingUserMessages,
+      )[0]!;
+      await controller.sendStagedMessage(`local:${pendingId}`);
+
+      const sent = client.session.promptAsync.mock.calls[0]![0] as {
+        parts: Array<Record<string, unknown>>;
+      };
+      const imagePart = sent.parts.find((part) => part["type"] === "file");
+      expect(imagePart).toMatchObject({ type: "file", mime, url });
+      expect(sent.parts.some((part) => part["type"] === "image")).toBe(false);
+      expect(() => new URL(String(imagePart!["url"]))).not.toThrow();
+    },
+  );
+
   it("leaves an id reference unwrapped rather than shipping it as base64", async () => {
     const client = {
       session: { promptAsync: vi.fn().mockResolvedValue({}) },

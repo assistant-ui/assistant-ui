@@ -28,7 +28,7 @@ import {
   STREAM_RECONNECTED_EVENT_TYPE,
   type OpenCodeEventSource,
 } from "./OpenCodeEventSource";
-import { isParsableUrl } from "@assistant-ui/core/internal";
+import { isParsableUrl, parseDataUrl } from "@assistant-ui/core/internal";
 import { OPEN_CODE_REQUEST_OPTIONS } from "./openCodeRequestOptions";
 import { serializeUserParts } from "./serializeUserParts";
 import { getOpenCodeTaskSessionId } from "./openCodeTaskSession";
@@ -62,7 +62,18 @@ const getPromptParts = (message: AppendMessage) => {
     }
 
     if (part.type === "image") {
-      promptParts.push({ type: "image", image: part.image });
+      // OpenCode has no image part: its input union is text, file, agent and
+      // subtask, so an `image` part never reached the model. `image/*` marks an
+      // image whose type the part does not carry, rather than guessing one.
+      const mime = parseDataUrl(part.image)?.mimeType ?? "image/*";
+      promptParts.push({
+        type: "file",
+        ...(part.filename != null && { filename: part.filename }),
+        mime,
+        url: isParsableUrl(part.image)
+          ? part.image
+          : `data:${mime};base64,${part.image}`,
+      });
       continue;
     }
 
