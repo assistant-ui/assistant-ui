@@ -1,5 +1,6 @@
 import type { AppendMessage } from "@assistant-ui/core";
 import {
+  dataUrlMediaType,
   detectImageMediaType,
   httpUrlPattern,
   isParsableUrl,
@@ -16,11 +17,6 @@ import type {
 type InputPart = AppendMessage["content"][number] & {
   readonly contentType?: string | undefined;
   readonly filename?: string | undefined;
-};
-
-const getDataUrlMediaType = (url: string) => {
-  const match = /^data:([^;,]+)(?:[;,])/i.exec(url);
-  return match?.[1]?.toLowerCase();
 };
 
 // A data URL's own media type wins over `mediaType` downstream, so an inline
@@ -43,8 +39,8 @@ const getImageMediaType = (part: {
 }) => {
   if (part.contentType?.startsWith("image/")) return part.contentType;
 
-  const dataUrlMediaType = getDataUrlMediaType(part.image);
-  if (dataUrlMediaType?.startsWith("image/")) return dataUrlMediaType;
+  const envelopeType = dataUrlMediaType(part.image);
+  if (envelopeType?.startsWith("image/")) return envelopeType;
 
   // The payload's own leading bytes, read through a data URL envelope too so a
   // generic one such as `application/octet-stream` does not mask the format.

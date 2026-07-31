@@ -22,3 +22,12 @@ export function isParsableUrl(value: string): boolean {
     return false;
   }
 }
+
+/**
+ * The media type a data URL declares, whether or not its payload is base64.
+ * `parseDataUrl` only matches base64 payloads because it also returns the
+ * bytes; this reads the declaration alone.
+ */
+export function dataUrlMediaType(value: string): string | undefined {
+  return /^data:([^;,]+)(?:[;,])/i.exec(value)?.[1]?.toLowerCase();
+}

@@ -29,6 +29,7 @@ import {
   type OpenCodeEventSource,
 } from "./OpenCodeEventSource";
 import {
+  dataUrlMediaType,
   detectImageMediaType,
   isParsableUrl,
   parseDataUrl,
@@ -105,8 +106,8 @@ const getPromptParts = (message: AppendMessage) => {
       const parsed = parseDataUrl(part.image);
       const mime = contentType?.startsWith("image/")
         ? contentType
-        : parsed?.mimeType?.startsWith("image/")
-          ? parsed.mimeType
+        : dataUrlMediaType(part.image)?.startsWith("image/")
+          ? dataUrlMediaType(part.image)!
           : (detectImageMediaType(parsed?.data ?? part.image) ?? "image/png");
       promptParts.push({
         type: "file",

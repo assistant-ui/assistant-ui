@@ -326,6 +326,20 @@ describe("toCreateMessage", () => {
     }
   });
 
+  it("reads the declared type of a non-base64 data url image", () => {
+    const message = {
+      ...baseMessage,
+      content: [
+        { type: "image", image: "data:image/svg+xml,%3Csvg%3E%3C/svg%3E" },
+      ],
+    } as unknown as AppendMessage;
+
+    expect(toCreateMessage(message).parts[0]).toMatchObject({
+      mediaType: "image/svg+xml",
+      url: "data:image/svg+xml,%3Csvg%3E%3C/svg%3E",
+    });
+  });
+
   it("re-envelopes an image whose envelope disagrees with the resolved type", () => {
     const message = {
       ...baseMessage,
