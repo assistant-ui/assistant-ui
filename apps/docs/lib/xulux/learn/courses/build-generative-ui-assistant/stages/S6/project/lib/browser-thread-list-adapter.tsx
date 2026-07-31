@@ -2,6 +2,9 @@
 
 import { createAssistantStream } from "assistant-stream";
 import {
+  type GenericThreadHistoryAdapter,
+  type MessageFormatAdapter,
+  type MessageStorageEntry,
   RuntimeAdapterProvider,
   type RemoteThreadListAdapter,
   type ThreadHistoryAdapter,
@@ -13,6 +16,13 @@ type StoredThread = {
   remoteId: string;
   status: "regular" | "archived";
   title?: string;
+};
+
+type StoredFormattedMessage = MessageStorageEntry<Record<string, unknown>>;
+
+type StoredFormattedRepository = {
+  headId?: string | null;
+  messages: StoredFormattedMessage[];
 };
 
 const read = <T,>(key: string, fallback: T): T => {
@@ -54,6 +64,53 @@ function createHistoryProvider(prefix: string) {
           if (index === -1) messages.push(item);
           else messages[index] = item;
           write(key(), { headId: item.message.id, messages });
+        },
+        withFormat<TMessage, TStorageFormat extends Record<string, unknown>>(
+          formatAdapter: MessageFormatAdapter<TMessage, TStorageFormat>,
+        ): GenericThreadHistoryAdapter<TMessage> {
+          const loadFormatted = async () => {
+            const stored = read<StoredFormattedRepository>(key(), {
+              messages: [],
+            });
+            const messages = stored.messages.flatMap((entry) =>
+              entry.format === formatAdapter.format
+                ? [
+                    formatAdapter.decode(
+                      entry as MessageStorageEntry<TStorageFormat>,
+                    ),
+                  ]
+                : [],
+            );
+            return {
+              ...(stored.headId !== undefined
+                ? { headId: stored.headId }
+                : undefined),
+              messages,
+            };
+          };
+
+          return {
+            load: loadFormatted,
+            async append(item) {
+              const stored = read<StoredFormattedRepository>(key(), {
+                messages: [],
+              });
+              const id = formatAdapter.getId(item.message);
+              const entry: MessageStorageEntry<TStorageFormat> = {
+                id,
+                parent_id: item.parentId,
+                format: formatAdapter.format,
+                content: formatAdapter.encode(item),
+              };
+              const index = stored.messages.findIndex(
+                (message) => message.id === id,
+              );
+              const messages = [...stored.messages];
+              if (index === -1) messages.push(entry);
+              else messages[index] = entry;
+              write(key(), { headId: id, messages });
+            },
+          };
         },
       };
     }, [aui]);
