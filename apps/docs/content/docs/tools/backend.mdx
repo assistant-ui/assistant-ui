@@ -98,6 +98,27 @@ export async function POST(req: Request) {
 `AISDKToolkit.tools()` calls `frontendTools` for you under the hood; reach for
 `frontendTools` directly when you're not on the generative build.
 
+### The `/server` entry
+
+`frontendTools`, `AISDKToolkit`, and `generativeTools` run on the server and do
+no React work, so they also ship from `@assistant-ui/react-ai-sdk/server`:
+
+```ts title="server.ts"
+import { frontendTools, AISDKToolkit } from "@assistant-ui/react-ai-sdk/server";
+```
+
+Prefer that entry in an API route or a standalone backend; it keeps the client
+runtime out of the module graph. The package root exports the same symbols and
+keeps working, which is what the Next.js examples above use, since there the
+route and the client ship from one install.
+
+The adapter is still the package to install, including for a backend that never
+renders: these helpers convert between the AI SDK's shapes and assistant-ui's,
+which is adapter work, so they live with the adapter rather than in a
+framework-neutral package. Installing it in an Express or Hono service leaves
+`react` as an unmet peer dependency of `@ai-sdk/react`; nothing installs React
+itself, and nothing at runtime needs it.
+
 <Callout type="tip">
   `toToolsJSONSchema` emits the uploaded tools in alphabetical order, so two
   renders that register the same set produce byte-identical request bodies —

@@ -28,7 +28,7 @@ import {
   parsePartialJsonObject,
   type ReadonlyJSONObject,
 } from "assistant-stream/utils";
-import { unwrapModelContentEnvelope } from "../../modelContentEnvelope";
+import { unwrapModelContentEnvelope } from "../../server/modelContentEnvelope";
 
 type MessageMetadata = ThreadMessageLike["metadata"];
 export type AISDKMessageConverterMetadata =
