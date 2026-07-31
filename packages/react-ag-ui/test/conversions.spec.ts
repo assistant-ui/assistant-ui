@@ -1272,6 +1272,72 @@ describe("adapter conversions", () => {
     expect(() => UserMessageSchema.parse(result[0])).not.toThrow();
   });
 
+  it("converts an audio file part placed in content to an AG-UI audio source", () => {
+    const result = toAgUiMessages([
+      {
+        id: "u-1",
+        role: "user",
+        content: [
+          { type: "text", text: "listen to this" },
+          {
+            type: "file",
+            data: "QUJD",
+            mimeType: "audio/mpeg",
+            filename: "clip.mp3",
+          },
+        ],
+      },
+    ] as any);
+
+    expect(result[0]).toMatchObject({
+      role: "user",
+      content: [
+        { type: "text", text: "listen to this" },
+        {
+          type: "audio",
+          source: { type: "data", value: "QUJD", mimeType: "audio/mpeg" },
+          metadata: { filename: "clip.mp3" },
+        },
+      ],
+    });
+    expect(() => UserMessageSchema.parse(result[0])).not.toThrow();
+  });
+
+  it("converts a non-audio file part placed in content to an AG-UI document part", () => {
+    const result = toAgUiMessages([
+      {
+        id: "u-1",
+        role: "user",
+        content: [
+          { type: "text", text: "review this" },
+          {
+            type: "file",
+            data: "JVBERi0xLjQK",
+            mimeType: "application/pdf",
+            filename: "spec.pdf",
+          },
+        ],
+      },
+    ] as any);
+
+    expect(result[0]).toMatchObject({
+      role: "user",
+      content: [
+        { type: "text", text: "review this" },
+        {
+          type: "document",
+          source: {
+            type: "data",
+            value: "JVBERi0xLjQK",
+            mimeType: "application/pdf",
+          },
+          metadata: { filename: "spec.pdf" },
+        },
+      ],
+    });
+    expect(() => UserMessageSchema.parse(result[0])).not.toThrow();
+  });
+
   it("derives the audio mime type from the wav format", () => {
     const result = toAgUiMessages([
       {
