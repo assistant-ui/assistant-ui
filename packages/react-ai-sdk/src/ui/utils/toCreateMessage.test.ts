@@ -36,6 +36,71 @@ describe("toCreateMessage", () => {
     ]);
   });
 
+  it("wraps a bare-base64 file part in a data URL envelope", () => {
+    const message = {
+      ...baseMessage,
+      content: [{ type: "file", data: "QUJD", mimeType: "audio/mp3" }],
+    } as unknown as AppendMessage;
+
+    const result = toCreateMessage(message);
+
+    expect(result.parts).toEqual([
+      {
+        type: "file",
+        url: "data:audio/mp3;base64,QUJD",
+        mediaType: "audio/mp3",
+      },
+    ]);
+  });
+
+  it("forwards an http file source instead of wrapping it in a data URL", () => {
+    const message = {
+      ...baseMessage,
+      content: [
+        {
+          type: "file",
+          data: "https://cdn.example.com/invoice.pdf",
+          mimeType: "application/pdf",
+          filename: "invoice.pdf",
+        },
+      ],
+    } as unknown as AppendMessage;
+
+    const result = toCreateMessage(message);
+
+    expect(result.parts).toEqual([
+      {
+        type: "file",
+        url: "https://cdn.example.com/invoice.pdf",
+        mediaType: "application/pdf",
+        filename: "invoice.pdf",
+      },
+    ]);
+  });
+
+  it("rebuilds the file data URL envelope from the declared media type", () => {
+    const message = {
+      ...baseMessage,
+      content: [
+        {
+          type: "file",
+          data: "data:application/octet-stream;base64,QUJD",
+          mimeType: "audio/mp3",
+        },
+      ],
+    } as unknown as AppendMessage;
+
+    const result = toCreateMessage(message);
+
+    expect(result.parts).toEqual([
+      {
+        type: "file",
+        url: "data:audio/mp3;base64,QUJD",
+        mediaType: "audio/mp3",
+      },
+    ]);
+  });
+
   it("preserves text and direct file parts together", () => {
     const message = {
       ...baseMessage,

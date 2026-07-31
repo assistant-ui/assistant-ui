@@ -58,13 +58,20 @@ export const toCreateMessage = <UI_MESSAGE extends UIMessage = UIMessage>(
           ...(part.filename && { filename: part.filename }),
           mediaType: getImageMediaType(part),
         };
-      case "file":
+      case "file": {
+        // A data URL's own media type wins over `mimeType` downstream, so the
+        // envelope is rebuilt from `mimeType` rather than forwarded; bare base64
+        // has no envelope and is wrapped fresh.
+        const data = part.data;
         return {
           type: "file",
-          url: part.data,
+          url: httpUrlPattern.test(data)
+            ? data
+            : `data:${part.mimeType};base64,${parseDataUrl(data)?.data ?? data}`,
           mediaType: part.mimeType,
           ...(part.filename && { filename: part.filename }),
         };
+      }
       case "audio": {
         // A data URL's own media type wins over `mediaType` downstream, so the
         // envelope is rebuilt from the typed format rather than forwarded.
