@@ -4,20 +4,20 @@ import type {
   AssistantRuntime,
   ThreadHistoryAdapter,
   ThreadMessage,
+  GenericThreadHistoryAdapter,
   MessageFormatAdapter,
   MessageFormatRepository,
   ExportedMessageRepository,
 } from "@assistant-ui/core";
 import { getExternalStoreMessages } from "@assistant-ui/core";
 import { MessageRepository } from "@assistant-ui/core/internal";
-import { useAui } from "@assistant-ui/store";
+import { useAuiState } from "@assistant-ui/store";
 import {
   useRef,
   useEffect,
   useState,
   type RefObject,
   useCallback,
-  useMemo,
 } from "react";
 
 export const toExportedMessageRepository = <TMessage>(
@@ -59,6 +59,28 @@ const snapshotExternalMessages = <TMessage>(
     ]),
   );
 
+const areEquivalentHistoryAdapters = (
+  left: ThreadHistoryAdapter,
+  right: ThreadHistoryAdapter,
+) => {
+  if (left === right) return true;
+  if (
+    Object.getPrototypeOf(left) !== Object.prototype ||
+    Object.getPrototypeOf(right) !== Object.prototype
+  ) {
+    return false;
+  }
+
+  return (
+    left.load === right.load &&
+    left.resume === right.resume &&
+    left.append === right.append &&
+    left.update === right.update &&
+    left.delete === right.delete &&
+    left.withFormat === right.withFormat
+  );
+};
+
 export const useExternalHistory = <TMessage>(
   runtimeRef: RefObject<AssistantRuntime>,
   historyAdapter: ThreadHistoryAdapter | undefined,
@@ -66,63 +88,106 @@ export const useExternalHistory = <TMessage>(
   storageFormatAdapter: MessageFormatAdapter<TMessage, any>,
   onSetMessages: (messages: TMessage[]) => void,
 ) => {
-  const aui = useAui();
-  const optionalThreadListItem = useCallback(
-    () => (aui.threadListItem.source ? aui.threadListItem : null),
-    [aui],
+  const remoteId = useAuiState(
+    (state) => state.optional.threadListItem?.remoteId,
   );
 
   const historyIds = useRef(new Set<string>());
   const persistedInnerIds = useRef(new Set<string>());
   const deferredTelemetryIds = useRef(new Set<string>());
   const persistedExternalMessages = useRef(new Map<string, TMessage[]>());
+  const persistenceGenerationRef = useRef(0);
+  const persistInFlightRef = useRef<Promise<void>>(Promise.resolve());
 
   const onSetMessagesRef = useRef(onSetMessages);
   useEffect(() => {
     onSetMessagesRef.current = onSetMessages;
   });
 
-  const formatAdapter = useMemo(() => {
-    if (!historyAdapter) return undefined;
+  const formatAdapterCacheRef = useRef<
+    | {
+        historyAdapter: ThreadHistoryAdapter;
+        storageFormatAdapter: MessageFormatAdapter<TMessage, any>;
+        formatAdapter: GenericThreadHistoryAdapter<TMessage>;
+      }
+    | undefined
+  >(undefined);
+  const cachedFormatAdapter = formatAdapterCacheRef.current;
+
+  if (!historyAdapter) {
+    formatAdapterCacheRef.current = undefined;
+  } else if (
+    !cachedFormatAdapter ||
+    cachedFormatAdapter.storageFormatAdapter !== storageFormatAdapter ||
+    !areEquivalentHistoryAdapters(
+      cachedFormatAdapter.historyAdapter,
+      historyAdapter,
+    )
+  ) {
     if (!historyAdapter.withFormat) {
       throw new Error(
         "useAISDKRuntime: ThreadHistoryAdapter is missing the required `withFormat` method.",
       );
     }
-    return historyAdapter.withFormat<TMessage, any>(storageFormatAdapter);
-  }, [historyAdapter, storageFormatAdapter]);
+    formatAdapterCacheRef.current = {
+      historyAdapter,
+      storageFormatAdapter,
+      formatAdapter: historyAdapter.withFormat<TMessage, any>(
+        storageFormatAdapter,
+      ),
+    };
+  }
+
+  const formatAdapter = formatAdapterCacheRef.current?.formatAdapter;
 
   type FormatAdapter = NonNullable<typeof formatAdapter>;
   type LoadRequest = {
     adapter: FormatAdapter;
+    remoteId: string | undefined;
     promise: ReturnType<FormatAdapter["load"]> | null;
     settled: boolean;
   };
 
   const loadRequestRef = useRef<LoadRequest | null>(null);
-  const [loadedAdapter, setLoadedAdapter] = useState<
-    FormatAdapter | undefined
-  >();
+  const [loadedRequest, setLoadedRequest] = useState<LoadRequest | null>(null);
 
-  const isLoading = formatAdapter != null && loadedAdapter !== formatAdapter;
+  const isLoading =
+    formatAdapter != null &&
+    (loadedRequest?.adapter !== formatAdapter ||
+      loadedRequest.remoteId !== remoteId);
 
   useEffect(() => {
     if (!formatAdapter) {
+      if (loadRequestRef.current) {
+        persistenceGenerationRef.current += 1;
+        persistInFlightRef.current = Promise.resolve();
+      }
       loadRequestRef.current = null;
-      setLoadedAdapter(undefined);
+      setLoadedRequest(null);
       return;
     }
 
     let request = loadRequestRef.current;
-    if (request?.adapter !== formatAdapter) {
+    if (request?.adapter !== formatAdapter || request?.remoteId !== remoteId) {
+      const shouldResetMessages =
+        request !== null &&
+        (request.adapter !== formatAdapter || request.remoteId !== undefined);
+
+      persistenceGenerationRef.current += 1;
+      persistInFlightRef.current = Promise.resolve();
       historyIds.current.clear();
       persistedInnerIds.current.clear();
       deferredTelemetryIds.current.clear();
       persistedExternalMessages.current.clear();
 
-      const remoteId = optionalThreadListItem()?.getState().remoteId;
+      if (shouldResetMessages) {
+        runtimeRef.current.thread.import({ headId: null, messages: [] });
+        onSetMessagesRef.current([]);
+      }
+
       request = {
         adapter: formatAdapter,
+        remoteId,
         promise: remoteId
           ? Promise.resolve().then(() => formatAdapter.load())
           : null,
@@ -132,7 +197,7 @@ export const useExternalHistory = <TMessage>(
     }
 
     if (request.settled) {
-      setLoadedAdapter(formatAdapter);
+      setLoadedRequest(request);
       return;
     }
 
@@ -181,7 +246,7 @@ export const useExternalHistory = <TMessage>(
       } finally {
         if (!cancelled && loadRequestRef.current === request) {
           request.settled = true;
-          setLoadedAdapter(formatAdapter);
+          setLoadedRequest(request);
         }
       }
     };
@@ -193,21 +258,28 @@ export const useExternalHistory = <TMessage>(
     };
   }, [
     formatAdapter,
+    remoteId,
     toThreadMessages,
     runtimeRef,
-    optionalThreadListItem,
     storageFormatAdapter,
   ]);
 
   const runStartRef = useRef<number | null>(null);
   const persistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const persistInFlightRef = useRef<Promise<void>>(Promise.resolve());
   const stepBoundariesRef = useRef<number[]>([]);
   const wasRunningRef = useRef(false);
   const toolCallCountRef = useRef(0);
 
   useEffect(() => {
-    if (!formatAdapter) return;
+    const activeLoadRequest = loadRequestRef.current;
+    if (
+      !formatAdapter ||
+      activeLoadRequest?.adapter !== formatAdapter ||
+      activeLoadRequest.remoteId !== remoteId ||
+      !activeLoadRequest.settled
+    ) {
+      return;
+    }
 
     const unsubscribe = runtimeRef.current.thread.subscribe(() => {
       const threadState = runtimeRef.current.thread.getState();
@@ -255,6 +327,7 @@ export const useExternalHistory = <TMessage>(
       if (persistTimerRef.current) clearTimeout(persistTimerRef.current);
       persistTimerRef.current = setTimeout(() => {
         persistTimerRef.current = null;
+        const persistenceGeneration = persistenceGenerationRef.current;
 
         const latest = runtimeRef.current.thread.getState();
         if (latest.isRunning) return;
@@ -302,6 +375,10 @@ export const useExternalHistory = <TMessage>(
 
         persistInFlightRef.current = persistInFlightRef.current
           .then(async () => {
+            if (persistenceGeneration !== persistenceGenerationRef.current) {
+              return;
+            }
+
             const changedRunMessageIds = new Set<string>();
             for (const message of latest.messages) {
               const externalMessages =
@@ -369,11 +446,26 @@ export const useExternalHistory = <TMessage>(
                 const innerId = storageFormatAdapter.getId(item.message);
                 if (!persistedInnerIds.current.has(innerId)) {
                   await formatAdapter.append(item);
+                  if (
+                    persistenceGeneration !== persistenceGenerationRef.current
+                  ) {
+                    return;
+                  }
                   persistedInnerIds.current.add(innerId);
                 } else if (durationMs !== undefined) {
                   try {
                     await formatAdapter.update?.(item, innerId);
+                    if (
+                      persistenceGeneration !== persistenceGenerationRef.current
+                    ) {
+                      return;
+                    }
                   } catch {
+                    if (
+                      persistenceGeneration !== persistenceGenerationRef.current
+                    ) {
+                      return;
+                    }
                     // A failed update drops the message from the refreshed baseline so it retries on the next run stop.
                     failedUpdateIds.add(message.id);
                   }
@@ -395,10 +487,14 @@ export const useExternalHistory = <TMessage>(
             for (const id of failedUpdateIds) {
               nextSnapshot.delete(id);
             }
-            persistedExternalMessages.current = nextSnapshot;
+            if (persistenceGeneration === persistenceGenerationRef.current) {
+              persistedExternalMessages.current = nextSnapshot;
+            }
           })
           .catch((error) => {
-            console.error("Failed to persist message history:", error);
+            if (persistenceGeneration === persistenceGenerationRef.current) {
+              console.error("Failed to persist message history:", error);
+            }
           });
       }, 0);
     });
@@ -410,7 +506,13 @@ export const useExternalHistory = <TMessage>(
         persistTimerRef.current = null;
       }
     };
-  }, [formatAdapter, storageFormatAdapter, runtimeRef]);
+  }, [
+    formatAdapter,
+    loadedRequest,
+    remoteId,
+    storageFormatAdapter,
+    runtimeRef,
+  ]);
 
   const deleteMessage = useCallback(
     async (messageId: string) => {
@@ -435,8 +537,11 @@ export const useExternalHistory = <TMessage>(
         return item;
       });
 
+      const persistenceGeneration = persistenceGenerationRef.current;
       const deletion = persistInFlightRef.current.then(async () => {
+        if (persistenceGeneration !== persistenceGenerationRef.current) return;
         await deleteMessages(itemsToDelete);
+        if (persistenceGeneration !== persistenceGenerationRef.current) return;
 
         historyIds.current.delete(messageId);
         deferredTelemetryIds.current.delete(messageId);
