@@ -11,17 +11,17 @@ import { ToolFallback } from "./tool-fallback";
 
 const suggestions = [
   {
-    label: "Weather",
+    label: "Weather chat",
     prompt: "What's the weather in San Francisco?",
     icon: CloudSun,
   },
   {
-    label: "Code",
+    label: "Code chat",
     prompt: "Explain React hooks like useState and useEffect.",
     icon: Code2,
   },
   {
-    label: "Write",
+    label: "Writing chat",
     prompt:
       "Draft a short product announcement for a new dark mode in the notepad.",
     icon: PencilLine,

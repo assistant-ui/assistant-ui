@@ -11,10 +11,11 @@ import {
 } from "@assistant-ui/react-ai-sdk";
 
 export function RuntimeProvider({
+  api = "/api/chat",
   children,
-}: Readonly<{ children: React.ReactNode }>) {
+}: Readonly<{ api?: string; children: React.ReactNode }>) {
   const runtime = useChatRuntime({
-    transport: new AssistantChatTransport({ api: "/api/chat" }),
+    transport: new AssistantChatTransport({ api }),
   });
   const aui = useAui({ unstable_interactables: unstable_Interactables() });
 

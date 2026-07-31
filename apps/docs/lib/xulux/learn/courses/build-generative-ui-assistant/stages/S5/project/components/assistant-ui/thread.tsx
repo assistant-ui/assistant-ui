@@ -6,25 +6,31 @@ import {
   MessagePrimitive,
   ThreadPrimitive,
 } from "@assistant-ui/react";
-import { ArrowUp, CloudSun, Code2, PencilLine, Square } from "lucide-react";
+import {
+  ArrowUp,
+  CloudSun,
+  ListChecks,
+  NotebookPen,
+  Square,
+} from "lucide-react";
 import { ToolFallback } from "./tool-fallback";
 
 const suggestions = [
   {
-    label: "Weather",
+    label: "Create note",
+    prompt:
+      "Draft a short product announcement for a new dark mode in the notepad.",
+    icon: NotebookPen,
+  },
+  {
+    label: "Weather card",
     prompt: "What's the weather in San Francisco?",
     icon: CloudSun,
   },
   {
-    label: "Code",
-    prompt: "Explain React hooks like useState and useEffect.",
-    icon: Code2,
-  },
-  {
-    label: "Write",
-    prompt:
-      "Draft a short product announcement for a new dark mode in the notepad.",
-    icon: PencilLine,
+    label: "Writing note",
+    prompt: "Create an editable notepad with a four-line launch checklist.",
+    icon: ListChecks,
   },
 ];
 

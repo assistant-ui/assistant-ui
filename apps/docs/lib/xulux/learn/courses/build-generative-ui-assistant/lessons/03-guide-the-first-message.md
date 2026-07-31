@@ -1,6 +1,6 @@
 # Guide the first message
 
-This stage gives the empty conversation a focused welcome and a small set of Weather, Code, and Write suggestions.
+This stage gives the empty conversation a focused welcome and a small set of Ideas, Code, and Write suggestions. They deliberately exercise ordinary text responses; tools begin in the next stage.
 
 Explain that the copied `Thread` is application-owned UI. assistant-ui primitives supply behavior, while the application controls the welcome copy, suggestion labels, prompts, layout, and styling.
 

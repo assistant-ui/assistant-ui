@@ -6,24 +6,24 @@ import {
   MessagePrimitive,
   ThreadPrimitive,
 } from "@assistant-ui/react";
-import { ArrowUp, CloudSun, Code2, PencilLine, Square } from "lucide-react";
+import { ArrowUp, CloudRain, CloudSun, MapPin, Square } from "lucide-react";
 import { ToolFallback } from "./tool-fallback";
 
 const suggestions = [
   {
-    label: "Weather",
+    label: "Weather card",
     prompt: "What's the weather in San Francisco?",
     icon: CloudSun,
   },
   {
-    label: "Code",
-    prompt: "Explain React hooks like useState and useEffect.",
-    icon: Code2,
+    label: "Rainy card",
+    prompt: "What's the weather in Singapore?",
+    icon: CloudRain,
   },
   {
-    label: "Write",
-    prompt: "Draft a short product announcement for a new dark mode.",
-    icon: PencilLine,
+    label: "Fallback call",
+    prompt: "Find the coordinates for Tokyo without checking the weather.",
+    icon: MapPin,
   },
 ];
 

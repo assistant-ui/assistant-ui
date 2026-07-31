@@ -107,42 +107,56 @@ export const buildGenerativeUiAssistantCourse = {
       previewPath: "/learn/preview/S1",
       sourceRoot: `${COURSE_ROOT}/stages/S1/project`,
       loadPreview: () => import("./stages/S1/project/app/page"),
+      loadPreviewRuntime: () =>
+        import("./stages/S1/project/components/runtime-provider"),
     },
     S2: {
       id: "S2",
       previewPath: "/learn/preview/S2",
       sourceRoot: `${COURSE_ROOT}/stages/S2/project`,
       loadPreview: () => import("./stages/S2/project/app/page"),
+      loadPreviewRuntime: () =>
+        import("./stages/S2/project/components/runtime-provider"),
     },
     S3: {
       id: "S3",
       previewPath: "/learn/preview/S3",
       sourceRoot: `${COURSE_ROOT}/stages/S3/project`,
       loadPreview: () => import("./stages/S3/project/app/page"),
+      loadPreviewRuntime: () =>
+        import("./stages/S3/project/components/runtime-provider"),
     },
     S4: {
       id: "S4",
       previewPath: "/learn/preview/S4",
       sourceRoot: `${COURSE_ROOT}/stages/S4/project`,
       loadPreview: () => import("./stages/S4/project/app/page"),
+      loadPreviewRuntime: () =>
+        import("./stages/S4/project/components/runtime-provider"),
     },
     S5: {
       id: "S5",
       previewPath: "/learn/preview/S5",
       sourceRoot: `${COURSE_ROOT}/stages/S5/project`,
       loadPreview: () => import("./stages/S5/project/app/page"),
+      loadPreviewRuntime: () =>
+        import("./stages/S5/project/components/runtime-provider"),
     },
     S6: {
       id: "S6",
       previewPath: "/learn/preview/S6",
       sourceRoot: `${COURSE_ROOT}/stages/S6/project`,
       loadPreview: () => import("./stages/S6/project/app/page"),
+      loadPreviewRuntime: () =>
+        import("./stages/S6/project/components/runtime-provider"),
     },
     S7: {
       id: "S7",
       previewPath: "/learn/preview/S7",
       sourceRoot: `${COURSE_ROOT}/stages/S7/project`,
       loadPreview: () => import("./stages/S7/project/app/page"),
+      loadPreviewRuntime: () =>
+        import("./stages/S7/project/components/runtime-provider"),
     },
   },
 } satisfies LearnCourseDefinition;

@@ -299,15 +299,31 @@ function LearnStepCard({
   >;
 }) {
   const aui = useAui();
-  const { openTab } = useLearnMode();
+  const { course, openTab } = useLearnMode();
+  const nextStep = course.steps[result.step.index];
+
+  if (!nextStep) {
+    return (
+      <LearnCompletionCard
+        result={{
+          course: { id: result.course.id, status: "completed" },
+          finalStage: {
+            id: result.stage.id,
+            previewPath: result.stage.previewPath,
+            downloadUrl: result.stage.downloadUrl,
+          },
+        }}
+      />
+    );
+  }
 
   return (
     <article className="bg-card my-3 overflow-hidden rounded-xl border shadow-sm">
       <div className="p-4">
         <p className="text-muted-foreground text-xs font-medium">
-          Step {result.step.index} of {result.step.total}
+          Up next · Step {result.step.index + 1} of {result.step.total}
         </p>
-        <h3 className="mt-1 font-semibold">{result.step.title}</h3>
+        <h3 className="mt-1 font-semibold">{nextStep.title}</h3>
       </div>
       <div className="border-t p-3">
         <div className="flex flex-wrap gap-2">
@@ -317,7 +333,7 @@ function LearnStepCard({
             size="sm"
             onClick={() => openTab("preview")}
           >
-            Open preview
+            Review current preview
           </Button>
           <Button
             type="button"

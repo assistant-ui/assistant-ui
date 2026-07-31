@@ -6,13 +6,13 @@ import {
   MessagePrimitive,
   ThreadPrimitive,
 } from "@assistant-ui/react";
-import { ArrowUp, CloudSun, Code2, PencilLine, Square } from "lucide-react";
+import { ArrowUp, Code2, Lightbulb, PencilLine, Square } from "lucide-react";
 
 const suggestions = [
   {
-    label: "Weather",
-    prompt: "What's the weather in San Francisco?",
-    icon: CloudSun,
+    label: "Ideas",
+    prompt: "Give me three ideas for a small weekend React project.",
+    icon: Lightbulb,
   },
   {
     label: "Code",

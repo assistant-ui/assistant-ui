@@ -63,18 +63,20 @@ export function LearnCourseObserver() {
     updateProgress(next);
     openTab("preview");
 
-    if ("finalStage" in parsed.payload) {
-      analytics.xulux.learnCourseCompleted(
-        withXuluxContext(analyticsCtx, {
-          course_id: progress.courseId,
-        }),
-      );
-    } else {
+    if (!("finalStage" in parsed.payload)) {
       analytics.xulux.learnStepAdvanced(
         withXuluxContext(analyticsCtx, {
           course_id: progress.courseId,
           step_id: parsed.payload.step.id,
           step_index: parsed.payload.step.index,
+        }),
+      );
+    }
+
+    if (next.status === "completed") {
+      analytics.xulux.learnCourseCompleted(
+        withXuluxContext(analyticsCtx, {
+          course_id: progress.courseId,
         }),
       );
     }

@@ -148,4 +148,40 @@ describe("Learn progress", () => {
     expect(completed.completedStepIds).toEqual(STEP_IDS);
     expect(completed.completedAt).toBe(500);
   });
+
+  it("completes the course when the final lesson is loaded", () => {
+    const progress: LearnProgress = {
+      ...createInitialLearnProgress(COURSE_ID, 100),
+      status: "in_progress",
+      currentStepId: "persist-conversations",
+      selectedStepId: "persist-conversations",
+      completedStepIds: STEP_IDS.slice(0, -2),
+    };
+    const completed = applyLearnCourseStepResult(
+      progress,
+      {
+        course: { id: COURSE_ID, status: "in_progress" },
+        step: {
+          id: "revise-and-branch",
+          title: "Revise and branch a conversation",
+          index: 8,
+          total: 8,
+          content: "Lesson",
+        },
+        stage: {
+          id: "S7",
+          previewPath: "/learn/preview/S7",
+          downloadUrl: "/download",
+          focusFiles: ["components/assistant-ui/thread.tsx"],
+        },
+        changes: { files: [], additions: 0, deletions: 0 },
+      },
+      500,
+    );
+
+    expect(completed.status).toBe("completed");
+    expect(completed.currentStepId).toBe("revise-and-branch");
+    expect(completed.completedStepIds).toEqual(STEP_IDS);
+    expect(completed.completedAt).toBe(500);
+  });
 });

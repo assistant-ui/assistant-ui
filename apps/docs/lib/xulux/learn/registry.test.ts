@@ -25,6 +25,15 @@ describe("Learn course registry", () => {
     expect(stage.loadPreview).toBeTypeOf("function");
   });
 
+  it("uses each interactive stage's own runtime in the hosted preview", () => {
+    const course = getLearnCourse(DEFAULT_LEARN_COURSE_ID);
+
+    expect(course.stages.S0?.loadPreviewRuntime).toBeUndefined();
+    for (const stageId of ["S1", "S2", "S3", "S4", "S5", "S6", "S7"]) {
+      expect(course.stages[stageId]?.loadPreviewRuntime).toBeTypeOf("function");
+    }
+  });
+
   it("rejects unregistered course and stage IDs", () => {
     expect(() => getLearnCourse("missing-course")).toThrow(LearnRegistryError);
     expect(() =>

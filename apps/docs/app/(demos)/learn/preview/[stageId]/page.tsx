@@ -1,5 +1,4 @@
 import { notFound } from "next/navigation";
-import { DocsRuntimeProvider } from "@/contexts/DocsRuntimeProvider";
 import { isAiPlaygroundEnabled } from "@/lib/feature-flags";
 import {
   DEFAULT_LEARN_COURSE_ID,
@@ -30,12 +29,19 @@ export default async function LearnStagePreviewPage({
   }
 
   const { default: StagePage } = await stage.loadPreview();
+  const preview = <StagePage />;
+
+  if (!stage.loadPreviewRuntime) {
+    return <div className="bg-background h-dvh overflow-hidden">{preview}</div>;
+  }
+
+  const { RuntimeProvider } = await stage.loadPreviewRuntime();
 
   return (
     <div className="bg-background h-dvh overflow-hidden">
-      <DocsRuntimeProvider>
-        <StagePage />
-      </DocsRuntimeProvider>
+      <RuntimeProvider api={`/api/xulux/learn/preview/${stageId}/chat`}>
+        {preview}
+      </RuntimeProvider>
     </div>
   );
 }

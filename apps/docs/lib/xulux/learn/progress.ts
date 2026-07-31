@@ -110,6 +110,19 @@ export function applyLearnCourseStepResult(
     };
   }
 
+  const isFinalStep = course.steps.at(-1)?.id === result.step.id;
+  if (isFinalStep) {
+    return {
+      ...progress,
+      status: "completed",
+      currentStepId: result.step.id,
+      selectedStepId: result.step.id,
+      completedStepIds: course.steps.map(({ id }) => id),
+      completedAt: progress.completedAt ?? now,
+      updatedAt: now,
+    };
+  }
+
   const previousCompleted =
     progress.currentStepId &&
     progress.currentStepId !== result.step.id &&

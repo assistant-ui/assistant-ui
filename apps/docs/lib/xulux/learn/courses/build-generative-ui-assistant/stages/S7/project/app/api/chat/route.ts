@@ -24,7 +24,7 @@ export async function POST(request: Request) {
     system:
       "You are a concise, helpful assistant. Use the weather tools for weather questions.",
     messages: await convertToModelMessages(injectInteractableContext(messages)),
-    tools: await aiToolkit.tools({ frontend: tools }),
+    tools: await aiToolkit.tools(tools ? { frontend: tools } : undefined),
     stopWhen: stepCountIs(5),
   });
 

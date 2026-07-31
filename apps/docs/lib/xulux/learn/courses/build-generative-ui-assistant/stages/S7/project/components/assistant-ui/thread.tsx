@@ -13,7 +13,7 @@ import {
   ChevronLeft,
   ChevronRight,
   CloudSun,
-  Code2,
+  GitBranch,
   Pencil,
   PencilLine,
   RefreshCw,
@@ -23,20 +23,19 @@ import { ToolFallback } from "./tool-fallback";
 
 const suggestions = [
   {
-    label: "Weather",
-    prompt: "What's the weather in San Francisco?",
-    icon: CloudSun,
+    label: "Branch a response",
+    prompt: "Give me three launch taglines for an AI assistant.",
+    icon: GitBranch,
   },
   {
-    label: "Code",
-    prompt: "Explain React hooks like useState and useEffect.",
-    icon: Code2,
-  },
-  {
-    label: "Write",
-    prompt:
-      "Draft a short product announcement for a new dark mode in the notepad.",
+    label: "Compare an edit",
+    prompt: "Explain React state in exactly three bullet points.",
     icon: PencilLine,
+  },
+  {
+    label: "Regenerate weather",
+    prompt: "What's the weather in London?",
+    icon: CloudSun,
   },
 ];
 
