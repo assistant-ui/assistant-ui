@@ -55,7 +55,7 @@ describe("reduceOpenCodeThreadState", () => {
       parentId: null,
       sourceId: null,
       runConfig: undefined,
-      contentText: "data:image/jpeg;base64,QUJD",
+      contentText: "data:image/png;base64,QUJD",
       parts: [
         {
           type: "file",

@@ -6,12 +6,30 @@ import type { Part, ThreadUserMessagePart } from "./types";
 export const toOpenCodeWireUrl = (
   payload: string,
   mime: string,
-  parsed: { data: string } | null,
+  parsed: { data: string; mimeType: string } | null,
 ) => {
-  if (parsed) return `data:${mime};base64,${parsed.data}`;
+  if (parsed) {
+    if (parsed.mimeType.toLowerCase() === mime.toLowerCase()) return payload;
+    return `data:${mime};base64,${parsed.data}`;
+  }
   if (isParsableUrl(payload)) return payload;
   return `data:${mime};base64,${payload}`;
 };
+
+export const resolveOpenCodeImageMime = (
+  contentType: string | undefined,
+  parsed: { mimeType: string } | null,
+) =>
+  contentType?.toLowerCase().startsWith("image/")
+    ? contentType
+    : parsed?.mimeType.toLowerCase().startsWith("image/")
+      ? parsed.mimeType
+      : "image/png";
+
+export const resolveOpenCodeFileMime = (
+  mimeType: string,
+  parsed: { mimeType: string } | null,
+) => mimeType || parsed?.mimeType || "application/octet-stream";
 
 export const serializeOpenCodeParts = (
   parts: readonly (Part | ThreadUserMessagePart)[],
@@ -23,11 +41,7 @@ export const serializeOpenCodeParts = (
         if (part.filename) return part.filename;
         const parsed = parseDataUrl(part.image);
         const contentType = (part as { contentType?: string }).contentType;
-        const mime = contentType?.startsWith("image/")
-          ? contentType
-          : parsed?.mimeType?.startsWith("image/")
-            ? parsed.mimeType
-            : "image/png";
+        const mime = resolveOpenCodeImageMime(contentType, parsed);
         return toOpenCodeWireUrl(part.image, mime, parsed);
       }
       if (part.type === "file") {
@@ -35,8 +49,7 @@ export const serializeOpenCodeParts = (
         if ("url" in part) return part.url;
         if (part.sourceType === "id") return part.data;
         const parsed = parseDataUrl(part.data);
-        const mime =
-          part.mimeType || parsed?.mimeType || "application/octet-stream";
+        const mime = resolveOpenCodeFileMime(part.mimeType, parsed);
         return toOpenCodeWireUrl(part.data, mime, parsed);
       }
       if (part.type === "tool") return JSON.stringify(part.state?.input ?? {});

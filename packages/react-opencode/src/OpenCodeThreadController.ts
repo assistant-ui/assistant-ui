@@ -31,6 +31,8 @@ import {
 import { parseDataUrl } from "@assistant-ui/core/internal";
 import { OPEN_CODE_REQUEST_OPTIONS } from "./openCodeRequestOptions";
 import {
+  resolveOpenCodeFileMime,
+  resolveOpenCodeImageMime,
   serializeOpenCodeParts,
   toOpenCodeWireUrl,
 } from "./serializeUserParts";
@@ -84,11 +86,7 @@ const getPromptParts = (message: AppendMessage) => {
       // url source and whenever the inline bytes cannot be sniffed.
       const contentType = (part as { contentType?: string }).contentType;
       const parsed = parseDataUrl(part.image);
-      const mime = contentType?.startsWith("image/")
-        ? contentType
-        : parsed?.mimeType?.startsWith("image/")
-          ? parsed.mimeType
-          : "image/png";
+      const mime = resolveOpenCodeImageMime(contentType, parsed);
       promptParts.push({
         type: "file",
         ...(part.filename != null && { filename: part.filename }),
@@ -103,8 +101,7 @@ const getPromptParts = (message: AppendMessage) => {
       // `file.type` on a typeless file yields "". Same ladder as the image
       // branch: declared, then the envelope, then the floor.
       const parsedFile = parseDataUrl(part.data);
-      const fileMime =
-        part.mimeType || parsedFile?.mimeType || "application/octet-stream";
+      const fileMime = resolveOpenCodeFileMime(part.mimeType, parsedFile);
       promptParts.push({
         type: "file",
         filename: part.filename,

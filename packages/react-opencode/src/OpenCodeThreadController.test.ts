@@ -417,6 +417,86 @@ describe("OpenCodeThreadController", () => {
     });
   });
 
+  it("preserves a matching data URL envelope", async () => {
+    const client = {
+      session: { promptAsync: vi.fn().mockResolvedValue({}) },
+    };
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => ({ subscribe: () => () => {} }),
+      "ses_1",
+    );
+
+    await controller.stageMessage(
+      {
+        role: "user",
+        parentId: null,
+        sourceId: null,
+        content: [
+          {
+            type: "file",
+            data: "data:application/pdf;charset=utf-8;base64,QUJD",
+            mimeType: "",
+          },
+        ],
+        attachments: [],
+        metadata: { custom: {} },
+        runConfig: {},
+        createdAt: new Date(),
+      } as never,
+      { model: { providerID: "anthropic", modelID: "claude" } },
+    );
+
+    const pendingId = Object.keys(
+      controller.getState().pendingUserMessages,
+    )[0]!;
+    await controller.sendStagedMessage(`local:${pendingId}`);
+
+    const sent = client.session.promptAsync.mock.calls[0]![0] as {
+      parts: Array<Record<string, unknown>>;
+    };
+    expect(sent.parts.find((part) => part["type"] === "file")).toMatchObject({
+      mime: "application/pdf",
+      url: "data:application/pdf;charset=utf-8;base64,QUJD",
+    });
+  });
+
+  it("uses the rewritten wire URL for pending message text", async () => {
+    const client = {
+      session: { promptAsync: vi.fn().mockResolvedValue({}) },
+    };
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => ({ subscribe: () => () => {} }),
+      "ses_1",
+    );
+
+    await controller.stageMessage(
+      {
+        role: "user",
+        parentId: null,
+        sourceId: null,
+        content: [
+          {
+            type: "file",
+            data: "data:image/jpeg;base64,QUJD",
+            mimeType: "image/png",
+          },
+        ],
+        attachments: [],
+        metadata: { custom: {} },
+        runConfig: {},
+        createdAt: new Date(),
+      } as never,
+      { model: { providerID: "anthropic", modelID: "claude" } },
+    );
+
+    const pending = Object.values(
+      controller.getState().pendingUserMessages,
+    )[0]!;
+    expect(pending.contentText).toBe("data:image/png;base64,QUJD");
+  });
+
   it("names the pending message from the attachment rather than its payload", async () => {
     const client = {
       session: { promptAsync: vi.fn().mockResolvedValue({}) },
@@ -477,7 +557,7 @@ describe("OpenCodeThreadController", () => {
             id: "a-1",
             type: "image",
             name: "photo.webp",
-            contentType: "image/webp",
+            contentType: "IMAGE/WEBP",
             status: { type: "complete" },
             content: [{ type: "image", image: "QUJD" }],
           },
@@ -498,9 +578,9 @@ describe("OpenCodeThreadController", () => {
       parts: Array<Record<string, unknown>>;
     };
     expect(sent.parts.find((part) => part["type"] === "file")).toMatchObject({
-      mime: "image/webp",
+      mime: "IMAGE/WEBP",
       filename: "photo.webp",
-      url: "data:image/webp;base64,QUJD",
+      url: "data:IMAGE/WEBP;base64,QUJD",
     });
   });
 
