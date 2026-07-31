@@ -28,9 +28,12 @@ import {
   STREAM_RECONNECTED_EVENT_TYPE,
   type OpenCodeEventSource,
 } from "./OpenCodeEventSource";
-import { isParsableUrl, parseDataUrl } from "@assistant-ui/core/internal";
+import { parseDataUrl } from "@assistant-ui/core/internal";
 import { OPEN_CODE_REQUEST_OPTIONS } from "./openCodeRequestOptions";
-import { serializeUserParts } from "./serializeUserParts";
+import {
+  serializeOpenCodeParts,
+  toOpenCodeWireUrl,
+} from "./serializeUserParts";
 import { getOpenCodeTaskSessionId } from "./openCodeTaskSession";
 
 type OpenCodeEventSourceProvider = () => Pick<OpenCodeEventSource, "subscribe">;
@@ -44,21 +47,7 @@ const createLocalId = (prefix: string) =>
   `${prefix}_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
 
 const getTextContent = (parts: readonly ThreadUserMessagePart[]) =>
-  serializeUserParts(parts).trim();
-
-// OpenCode forwards this into an AI SDK file part, where `url` reaches an
-// unguarded `new URL()` and a data URL's own media type wins over the declared
-// one. So an inline payload is always re-enveloped with the resolved type, and
-// only a payload that is already a url of some other scheme is forwarded.
-const toWireUrl = (
-  payload: string,
-  mime: string,
-  parsed: { data: string } | null,
-) => {
-  if (parsed) return `data:${mime};base64,${parsed.data}`;
-  if (isParsableUrl(payload)) return payload;
-  return `data:${mime};base64,${payload}`;
-};
+  serializeOpenCodeParts(parts).trim();
 
 // The attachment carries a name and content type its parts do not, so they
 // ride along rather than being dropped at the flatten. Both the outbound
@@ -104,7 +93,7 @@ const getPromptParts = (message: AppendMessage) => {
         type: "file",
         ...(part.filename != null && { filename: part.filename }),
         mime,
-        url: toWireUrl(part.image, mime, parsed),
+        url: toOpenCodeWireUrl(part.image, mime, parsed),
       });
       continue;
     }
@@ -125,7 +114,7 @@ const getPromptParts = (message: AppendMessage) => {
         url:
           part.sourceType === "id"
             ? part.data
-            : toWireUrl(part.data, fileMime, parsedFile),
+            : toOpenCodeWireUrl(part.data, fileMime, parsedFile),
       });
     }
   }
