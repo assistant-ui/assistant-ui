@@ -19,9 +19,10 @@ instead of JSX.
 
 <TapTutorialPlayground />
 
-`resource()` turns a Hook into a Resource. Use
-[`useResource`](/tap/docs/tap/resources#hosting-a-resource) to compose one Resource
-or [`useResources`](/tap/docs/tap/composition#useresources) to compose a keyed
+`resource()` turns a Hook into a Resource — the pattern in the playground
+above. To go further, [`useResource`](/tap/docs/tap/resources#hosting-a-resource)
+hosts a single Resource, and
+[`useResources`](/tap/docs/tap/composition#useresources) composes a keyed
 collection.
 
 Nested Resources behave as if their Hook logic were inlined, so effects follow

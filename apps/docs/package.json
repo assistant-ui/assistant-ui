@@ -29,6 +29,7 @@
     "@assistant-ui/react-streamdown": "workspace:*",
     "@assistant-ui/react-syntax-highlighter": "workspace:*",
     "@assistant-ui/store": "workspace:*",
+    "@assistant-ui/tap": "workspace:*",
     "@assistant-ui/ui": "workspace:*",
     "@aui-x/prism": "^0.0.5",
     "@base-ui/react": "^1.6.0",

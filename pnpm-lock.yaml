@@ -198,6 +198,9 @@ importers:
       '@assistant-ui/store':
         specifier: workspace:*
         version: link:../../packages/store
+      '@assistant-ui/tap':
+        specifier: workspace:*
+        version: link:../../packages/tap
       '@assistant-ui/ui':
         specifier: workspace:*
         version: link:../../packages/ui
