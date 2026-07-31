@@ -53,11 +53,11 @@ describe("reduceOpenCodeThreadState", () => {
 
   it("reconciles a pending copy whose unsendable parts never reached the wire", () => {
     const initial = createOpenCodeThreadState("ses_1");
-    const parts = [
+    const parts: readonly ThreadUserMessagePart[] = [
       { type: "text", text: "hello" },
       { type: "audio", audio: { data: "QUJD", format: "mp3" } },
-      { type: "data", data: { foo: "bar" } },
-    ] as unknown as readonly ThreadUserMessagePart[];
+      { type: "data", name: "custom", data: { foo: "bar" } },
+    ];
     const pending: PendingUserMessage = {
       clientId: "local_1",
       sessionId: "ses_1",
