@@ -3,7 +3,12 @@ import {
   createOpenCodeThreadState,
   reduceOpenCodeThreadState,
 } from "./openCodeThreadState";
-import type { MessageWithParts, PendingUserMessage } from "./types";
+import { serializeOpenCodeParts } from "./serializeUserParts";
+import type {
+  MessageWithParts,
+  PendingUserMessage,
+  ThreadUserMessagePart,
+} from "./types";
 
 describe("reduceOpenCodeThreadState", () => {
   it("reconciles a pending user message with loaded history", () => {
@@ -44,6 +49,49 @@ describe("reduceOpenCodeThreadState", () => {
     expect(Object.keys(history.pendingUserMessages)).toHaveLength(0);
     expect(history.messageOrder).toEqual(["msg_1"]);
     expect(history.messagesById.msg_1?.shadowParts).toEqual(pending.parts);
+  });
+
+  it("reconciles a pending copy whose unsendable parts never reached the wire", () => {
+    const initial = createOpenCodeThreadState("ses_1");
+    const parts = [
+      { type: "text", text: "hello" },
+      { type: "audio", audio: { data: "QUJD", format: "mp3" } },
+      { type: "data", data: { foo: "bar" } },
+    ] as unknown as readonly ThreadUserMessagePart[];
+    const pending: PendingUserMessage = {
+      clientId: "local_1",
+      sessionId: "ses_1",
+      createdAt: 1000,
+      parentId: null,
+      sourceId: null,
+      runConfig: undefined,
+      contentText: serializeOpenCodeParts(parts).trim(),
+      parts,
+      status: "pending",
+    };
+
+    const queued = reduceOpenCodeThreadState(initial, {
+      type: "local.message.queued",
+      pending,
+    });
+    const history = reduceOpenCodeThreadState(queued, {
+      type: "history.loaded",
+      session: null,
+      messages: [
+        {
+          info: {
+            id: "msg_1",
+            role: "user",
+            sessionID: "ses_1",
+            time: { created: 1000 },
+          },
+          parts: [{ type: "text", text: "hello" }],
+        } as unknown as MessageWithParts,
+      ],
+    });
+
+    expect(Object.keys(history.pendingUserMessages)).toHaveLength(0);
+    expect(history.messageOrder).toEqual(["msg_1"]);
   });
 
   it("reconciles a filename-less inline file after its media type is rewritten", () => {

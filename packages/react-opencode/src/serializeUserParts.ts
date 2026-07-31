@@ -11,7 +11,9 @@ import type { Part, ThreadUserMessagePart } from "./types";
  * The pending copy and the loaded history are fingerprinted against each other
  * to reconcile an optimistic message, so an inline payload has to be rendered
  * as the url that actually went out. Rendering the original payload on one side
- * and the rewritten url on the other leaves the two unable to match.
+ * and the rewritten url on the other leaves the two unable to match. Parts the
+ * outbound path never sends render empty for the same reason: the echo cannot
+ * carry them back.
  */
 export const serializeOpenCodeParts = (
   parts: readonly (Part | ThreadUserMessagePart)[],
@@ -40,8 +42,6 @@ export const serializeOpenCodeParts = (
         );
       }
       if (part.type === "tool") return JSON.stringify(part.state?.input ?? {});
-      if (part.type === "data") return JSON.stringify(part.data) ?? "";
-      if (part.type === "audio") return part.audio.data;
       return "";
     })
     .join("\n");
