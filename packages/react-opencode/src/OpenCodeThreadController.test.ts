@@ -291,6 +291,44 @@ describe("OpenCodeThreadController", () => {
     });
   });
 
+  it("floors an empty file mime type", async () => {
+    const client = {
+      session: { promptAsync: vi.fn().mockResolvedValue({}) },
+    };
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => ({ subscribe: () => () => {} }),
+      "ses_1",
+    );
+
+    await controller.stageMessage(
+      {
+        role: "user",
+        parentId: null,
+        sourceId: null,
+        content: [{ type: "file", data: "QUJD", mimeType: "" }],
+        attachments: [],
+        metadata: { custom: {} },
+        runConfig: {},
+        createdAt: new Date(),
+      } as never,
+      { model: { providerID: "anthropic", modelID: "claude" } },
+    );
+
+    const pendingId = Object.keys(
+      controller.getState().pendingUserMessages,
+    )[0]!;
+    await controller.sendStagedMessage(`local:${pendingId}`);
+
+    const sent = client.session.promptAsync.mock.calls[0]![0] as {
+      parts: Array<Record<string, unknown>>;
+    };
+    expect(sent.parts.find((part) => part["type"] === "file")).toMatchObject({
+      mime: "application/octet-stream",
+      url: "data:application/octet-stream;base64,QUJD",
+    });
+  });
+
   it("re-envelopes a file payload so the declared mime wins", async () => {
     const client = {
       session: { promptAsync: vi.fn().mockResolvedValue({}) },

@@ -110,16 +110,19 @@ const getPromptParts = (message: AppendMessage) => {
     }
 
     if (part.type === "file") {
+      // `FileMessagePart.mimeType` is a plain string, and an adapter reading
+      // `file.type` on a typeless file yields "".
+      const fileMime = part.mimeType || "application/octet-stream";
       promptParts.push({
         type: "file",
         filename: part.filename,
-        mime: part.mimeType,
+        mime: fileMime,
         // An `id` reference is an opaque handle this adapter cannot send, left
         // unwrapped so it fails loudly rather than shipping a corrupt payload.
         url:
           part.sourceType === "id"
             ? part.data
-            : toWireUrl(part.data, part.mimeType, parseDataUrl(part.data)),
+            : toWireUrl(part.data, fileMime, parseDataUrl(part.data)),
       });
     }
   }
