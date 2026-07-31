@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { detectImageMediaType } from "./image-media-type";
 
 const toBase64 = (bytes: number[]) =>
@@ -47,6 +47,30 @@ describe("detectImageMediaType", () => {
       const bytes = [0x00, 0x00, 0x00, size, 0x66, 0x74, 0x79, 0x70, ...eighth];
       expect(detectImageMediaType(toBase64(bytes))).toBe(type);
     }
+  });
+
+  describe("without Buffer, as in a browser", () => {
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    it("decodes through atob", () => {
+      // encoded before the stub, since the helper itself uses Buffer
+      const jpeg = toBase64([0xff, 0xd8, 0xff, 0xe0]);
+      const webp = toBase64([
+        0x52, 0x49, 0x46, 0x46, 0xde, 0xad, 0xbe, 0xef, 0x57, 0x45, 0x42, 0x50,
+      ]);
+      vi.stubGlobal("Buffer", undefined);
+
+      expect(detectImageMediaType(jpeg)).toBe("image/jpeg");
+      expect(detectImageMediaType(webp)).toBe("image/webp");
+    });
+
+    it("returns undefined when atob rejects the input", () => {
+      vi.stubGlobal("Buffer", undefined);
+
+      expect(detectImageMediaType("$$$$")).toBe(undefined);
+    });
   });
 
   it("returns undefined for bytes matching no signature", () => {
