@@ -28,6 +28,7 @@ import {
   STREAM_RECONNECTED_EVENT_TYPE,
   type OpenCodeEventSource,
 } from "./OpenCodeEventSource";
+import { detectMediaType } from "@ai-sdk/provider-utils";
 import { isParsableUrl, parseDataUrl } from "@assistant-ui/core/internal";
 import { OPEN_CODE_REQUEST_OPTIONS } from "./openCodeRequestOptions";
 import { serializeUserParts } from "./serializeUserParts";
@@ -45,6 +46,17 @@ const createLocalId = (prefix: string) =>
 
 const getTextContent = (parts: readonly ThreadUserMessagePart[]) =>
   serializeUserParts(parts).trim();
+
+// The payload's own leading bytes, read with the detector the AI SDK uses on
+// the other side of OpenCode's own conversion. It throws on input that is not
+// valid base64, and this runs on unvalidated input.
+const sniffImageMediaType = (data: string) => {
+  try {
+    return detectMediaType({ data, topLevelType: "image" });
+  } catch {
+    return undefined;
+  }
+};
 
 // OpenCode forwards this into an AI SDK file part, where `url` reaches an
 // unguarded `new URL()` and a data URL's own media type wins over the declared
@@ -99,7 +111,7 @@ const getPromptParts = (message: AppendMessage) => {
         ? contentType
         : parsed?.mimeType?.startsWith("image/")
           ? parsed.mimeType
-          : "image/png";
+          : (sniffImageMediaType(parsed?.data ?? part.image) ?? "image/png");
       promptParts.push({
         type: "file",
         ...(part.filename != null && { filename: part.filename }),

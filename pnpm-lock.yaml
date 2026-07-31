@@ -4501,6 +4501,9 @@ importers:
 
   packages/react-opencode:
     dependencies:
+      '@ai-sdk/provider-utils':
+        specifier: ^5.0.12
+        version: 5.0.12(zod@4.4.3)
       '@assistant-ui/core':
         specifier: ^0.3.3
         version: link:../core
