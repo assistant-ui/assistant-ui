@@ -25,7 +25,7 @@ describe("ModelContextRegistry", () => {
         error,
       );
 
-      handle.remove();
+      expect(() => handle.remove()).toThrow(error);
 
       expect(registry.getModelContext().tools).toBeUndefined();
       expect(laterSubscriber).toHaveBeenCalledTimes(2);
@@ -59,7 +59,7 @@ describe("ModelContextRegistry", () => {
         error,
       );
 
-      handle.remove();
+      expect(() => handle.remove()).toThrow(error);
 
       expect(registry.getModelContext().system).toBeUndefined();
       expect(laterSubscriber).toHaveBeenCalledTimes(2);
@@ -89,5 +89,38 @@ describe("ModelContextRegistry", () => {
 
     expect(registry.getModelContext().system).toBeUndefined();
     expect(observedSystems).toEqual(["provider instructions", undefined]);
+  });
+
+  it("rethrows subscriber errors from provider updates after notifying everyone", () => {
+    const registry = new ModelContextRegistry();
+    const error = new Error("subscriber failed");
+    const laterSubscriber = vi.fn();
+    let publishUpdate = () => {};
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    registry.subscribe(() => {
+      throw error;
+    });
+    registry.subscribe(laterSubscriber);
+
+    try {
+      registry.addProvider({
+        getModelContext: () => ({ system: "provider instructions" }),
+        subscribe: (callback) => {
+          publishUpdate = callback;
+          callback();
+          return () => {};
+        },
+      });
+
+      expect(consoleError).toHaveBeenCalledTimes(2);
+      expect(laterSubscriber).toHaveBeenCalledTimes(2);
+      expect(() => publishUpdate()).toThrow(error);
+      expect(laterSubscriber).toHaveBeenCalledTimes(3);
+    } finally {
+      consoleError.mockRestore();
+    }
   });
 });

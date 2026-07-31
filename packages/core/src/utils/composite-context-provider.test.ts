@@ -27,7 +27,7 @@ describe("CompositeContextProvider", () => {
         error,
       );
 
-      unregister();
+      expect(() => unregister()).toThrow(error);
 
       expect(composite.getModelContext().system).toBeUndefined();
       expect(laterSubscriber).toHaveBeenCalledTimes(2);
@@ -81,5 +81,38 @@ describe("CompositeContextProvider", () => {
 
     unregister();
     expect(composite.getModelContext().system).toBeUndefined();
+  });
+
+  it("rethrows subscriber errors from provider updates after notifying everyone", () => {
+    const composite = new CompositeContextProvider();
+    const error = new Error("subscriber failed");
+    const laterSubscriber = vi.fn();
+    let publishUpdate = () => {};
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    composite.subscribe(() => {
+      throw error;
+    });
+    composite.subscribe(laterSubscriber);
+
+    try {
+      composite.registerModelContextProvider({
+        getModelContext: () => ({ system: "provider instructions" }),
+        subscribe: (callback) => {
+          publishUpdate = callback;
+          callback();
+          return () => {};
+        },
+      });
+
+      expect(consoleError).toHaveBeenCalledTimes(2);
+      expect(laterSubscriber).toHaveBeenCalledTimes(2);
+      expect(() => publishUpdate()).toThrow(error);
+      expect(laterSubscriber).toHaveBeenCalledTimes(3);
+    } finally {
+      consoleError.mockRestore();
+    }
   });
 });
