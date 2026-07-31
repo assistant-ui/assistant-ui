@@ -78,7 +78,7 @@ export async function getRepo(
       `https://api.github.com/repos/${fullName}`,
     );
     if (!res.ok) return null;
-    const data = await res.json();
+    const data = await withTimeout(res.json());
     if (typeof data?.stargazers_count !== "number") return null;
     return {
       stars: data.stargazers_count,
@@ -113,7 +113,7 @@ export async function getReleases(
         revalidate,
       );
       if (!res.ok) break;
-      const batch = (await res.json()) as GitHubRelease[];
+      const batch = (await withTimeout(res.json())) as GitHubRelease[];
       if (batch.length === 0) break;
       all.push(...batch);
       if (batch.length < 100) break;
@@ -135,7 +135,7 @@ export async function getCommitActivityStats(
     const res = await ghFetch("/stats/commit_activity", revalidate);
     // 202 means GitHub is still computing; caller falls back to commit list.
     if (!res.ok || res.status === 202) return null;
-    const data = (await res.json()) as CommitActivityWeek[];
+    const data = (await withTimeout(res.json())) as CommitActivityWeek[];
     return Array.isArray(data) && data.length > 0 ? data : null;
   } catch {
     return null;
@@ -163,7 +163,7 @@ export async function getCommitsSince(
         revalidate,
       );
       if (!res.ok) break;
-      const batch = (await res.json()) as CommitListItem[];
+      const batch = (await withTimeout(res.json())) as CommitListItem[];
       if (batch.length === 0) break;
       all.push(...batch);
       if (batch.length < 100) break;
@@ -188,7 +188,7 @@ export async function getCommitStats(
     if (!res.ok) return { total: null, firstCommitDate: null };
     // With per_page=1 the last page number equals the total number of commits on the default branch (every author, bots included).
     const last = parseLastPage(res.headers.get("Link"));
-    const page1 = (await res.json()) as CommitListItem[];
+    const page1 = (await withTimeout(res.json())) as CommitListItem[];
     const total = last ?? (Array.isArray(page1) ? page1.length : null);
 
     if (last == null || last <= 1) {
@@ -231,7 +231,7 @@ export async function getCommitCoAuthors(
       MAX_COMMIT_PAGES,
     );
     const pages: CommitListItem[][] = [
-      (await first.json()) as CommitListItem[],
+      (await withTimeout(first.json())) as CommitListItem[],
     ];
 
     const rest: number[] = [];
@@ -243,7 +243,9 @@ export async function getCommitCoAuthors(
             `/commits?per_page=100&page=${page}`,
             revalidate,
           );
-          return res.ok ? ((await res.json()) as CommitListItem[]) : [];
+          return res.ok
+            ? ((await withTimeout(res.json())) as CommitListItem[])
+            : [];
         }),
       );
       pages.push(...batch);
@@ -298,7 +300,7 @@ async function fetchGitHubUser(
       }),
     );
     if (!res.ok) return null;
-    const data = await res.json();
+    const data = await withTimeout(res.json());
     if (typeof data?.login !== "string") return null;
     return {
       login: data.login,
@@ -340,7 +342,7 @@ export async function getContributors(
         if (page === 1) return null;
         break;
       }
-      const batch = (await res.json()) as GitHubContributor[];
+      const batch = (await withTimeout(res.json())) as GitHubContributor[];
       if (batch.length === 0) break;
       all.push(...batch);
       if (batch.length < 100) break;
@@ -367,7 +369,7 @@ export async function getStargazersPage(
       { headers: { Accept: "application/vnd.github.star+json" } },
     );
     if (!res.ok) return { data: [], lastPage: null };
-    const data = (await res.json()) as StargazerEntry[];
+    const data = (await withTimeout(res.json())) as StargazerEntry[];
     return { data, lastPage: parseLastPage(res.headers.get("Link")) };
   } catch {
     return { data: [], lastPage: null };
@@ -388,7 +390,7 @@ export async function getDependents(
       }),
     );
     if (!res.ok) return null;
-    const html = await res.text();
+    const html = await withTimeout(res.text());
     const reposMatch = html.match(/([\d,]+)\s+Repositories\b/);
     const packagesMatch = html.match(/([\d,]+)\s+Packages\b/);
     if (!reposMatch && !packagesMatch) return null;

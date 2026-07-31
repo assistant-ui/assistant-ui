@@ -2,8 +2,8 @@ export const UPSTREAM_TIMEOUT_MS = 5000;
 
 /**
  * Stops awaiting an upstream request once the deadline passes. The request is
- * left running so a fetch that completes late still populates the data cache
- * for the next render; callers treat the rejection as an unavailable upstream.
+ * deliberately not aborted, and callers treat the rejection as an unavailable
+ * upstream.
  */
 export async function withTimeout<T>(
   promise: Promise<T>,
