@@ -325,9 +325,19 @@ export const getMessageContent = (msg: AppendMessage) => {
       case "image":
         return { type: "image_url" as const, image_url: { url: part.image } };
       case "file": {
+        // Preserve adapter-defined custom fields (e.g. storage ids) by
+        // spreading the remainder after extracting known keys (#5425).
+        const {
+          type: _type,
+          data: _data,
+          mimeType: _mimeType,
+          filename: _filename,
+          ...customFields
+        } = part;
         const metadata = { filename: part.filename ?? "file" };
         if (httpUrlPattern.test(part.data)) {
           return {
+            ...customFields,
             type: "file" as const,
             url: part.data,
             mime_type: part.mimeType,
@@ -337,6 +347,7 @@ export const getMessageContent = (msg: AppendMessage) => {
         }
         const parsed = parseDataUrl(part.data);
         return {
+          ...customFields,
           type: "file" as const,
           data: parsed?.data ?? part.data,
           mime_type: parsed?.mimeType ?? part.mimeType,
