@@ -57,6 +57,18 @@ describe("useAISDKRuntime", () => {
     });
   });
 
+  it("forwards the history adapter key", () => {
+    const chat = createChatHelpers();
+
+    renderHook(() =>
+      useAISDKRuntime(chat, { historyAdapterKey: "workspace-b" }),
+    );
+
+    expect(vi.mocked(useExternalHistory).mock.calls.at(-1)?.[5]).toBe(
+      "workspace-b",
+    );
+  });
+
   it("sends a new user message through the runtime", async () => {
     const chat = createChatHelpers();
 

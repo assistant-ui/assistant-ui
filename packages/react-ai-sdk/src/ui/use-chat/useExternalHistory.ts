@@ -59,22 +59,7 @@ const snapshotExternalMessages = <TMessage>(
     ]),
   );
 
-const PLAIN_HISTORY_ADAPTER_KEY = Symbol("plain-history-adapter");
-const STABLE_HISTORY_ADAPTER_KEYS = new WeakMap<ThreadHistoryAdapter, symbol>();
-
-// Plain adapters are commonly declared inline, so only stable instances can signal a storage boundary.
-const getHistoryAdapterKey = (adapter: ThreadHistoryAdapter) => {
-  if (Object.getPrototypeOf(adapter) === Object.prototype) {
-    return PLAIN_HISTORY_ADAPTER_KEY;
-  }
-
-  let key = STABLE_HISTORY_ADAPTER_KEYS.get(adapter);
-  if (!key) {
-    key = Symbol("history-adapter");
-    STABLE_HISTORY_ADAPTER_KEYS.set(adapter, key);
-  }
-  return key;
-};
+const DEFAULT_HISTORY_ADAPTER_KEY = Symbol("history-adapter");
 
 export const useExternalHistory = <TMessage>(
   runtimeRef: RefObject<AssistantRuntime>,
@@ -82,6 +67,7 @@ export const useExternalHistory = <TMessage>(
   toThreadMessages: (messages: TMessage[]) => ThreadMessage[],
   storageFormatAdapter: MessageFormatAdapter<TMessage, any>,
   onSetMessages: (messages: TMessage[]) => void,
+  historyAdapterKey?: string,
 ) => {
   const aui = useAui();
   const optionalThreadListItem = useCallback(
@@ -111,18 +97,18 @@ export const useExternalHistory = <TMessage>(
     return historyAdapter.withFormat<TMessage, any>(storageFormatAdapter);
   }, [historyAdapter, storageFormatAdapter]);
   const adapterKey = historyAdapter
-    ? getHistoryAdapterKey(historyAdapter)
+    ? (historyAdapterKey ?? DEFAULT_HISTORY_ADAPTER_KEY)
     : undefined;
 
   type FormatAdapter = NonNullable<typeof formatAdapter>;
   type LoadRequest = {
-    key: symbol;
+    key: string | typeof DEFAULT_HISTORY_ADAPTER_KEY;
     promise: ReturnType<FormatAdapter["load"]> | null;
     settled: boolean;
   };
 
   const loadRequestRef = useRef<LoadRequest | null>(null);
-  const lastAdapterKeyRef = useRef<symbol | undefined>(undefined);
+  const lastAdapterKeyRef = useRef<LoadRequest["key"] | undefined>(undefined);
   const [loadedRequest, setLoadedRequest] = useState<LoadRequest | null>(null);
 
   const isLoading =
@@ -130,7 +116,7 @@ export const useExternalHistory = <TMessage>(
     (adapterKey == null || loadedRequest?.key !== adapterKey);
 
   useEffect(() => {
-    if (!formatAdapter || !adapterKey) {
+    if (!formatAdapter || adapterKey == null) {
       if (loadRequestRef.current) {
         persistenceGenerationRef.current += 1;
         persistInFlightRef.current = Promise.resolve();
@@ -249,9 +235,8 @@ export const useExternalHistory = <TMessage>(
     const activeLoadRequest = loadRequestRef.current;
     if (
       !formatAdapter ||
-      !adapterKey ||
-      activeLoadRequest?.key !== adapterKey ||
-      !activeLoadRequest.settled
+      adapterKey == null ||
+      activeLoadRequest?.key !== adapterKey
     ) {
       return;
     }
@@ -481,13 +466,7 @@ export const useExternalHistory = <TMessage>(
         persistTimerRef.current = null;
       }
     };
-  }, [
-    adapterKey,
-    formatAdapter,
-    loadedRequest,
-    storageFormatAdapter,
-    runtimeRef,
-  ]);
+  }, [adapterKey, formatAdapter, storageFormatAdapter, runtimeRef]);
 
   const deleteMessage = useCallback(
     async (messageId: string) => {

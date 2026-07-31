@@ -11,6 +11,7 @@ type AISDKRuntimeAdapter = ExternalStoreSharedOptions & {
     history?: ThreadHistoryAdapter | undefined;
     suggestion?: SuggestionAdapter | undefined;
   }) | undefined;
+  historyAdapterKey?: string | undefined;
   toCreateMessage?: CustomToCreateMessageFunction;
   cancelPendingToolCallsOnSend?: boolean | undefined;
   onResume?: ExternalStoreAdapter["onResume"];
@@ -2035,6 +2036,7 @@ type Unsubscribe = () => void;
 type UseChatRuntimeOptions<UI_MESSAGE extends UIMessage$1 = UIMessage$1> = ChatInit<UI_MESSAGE> & ExternalStoreSharedOptions & {
   cloud?: AssistantCloud | undefined;
   adapters?: AISDKRuntimeAdapter["adapters"] | undefined;
+  historyAdapterKey?: AISDKRuntimeAdapter["historyAdapterKey"];
   toCreateMessage?: CustomToCreateMessageFunction;
   onResume?: AISDKRuntimeAdapter["onResume"];
   onResumeToolCall?: AISDKRuntimeAdapter["onResumeToolCall"];

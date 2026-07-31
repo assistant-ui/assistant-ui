@@ -33,6 +33,7 @@ export type UseChatRuntimeOptions<UI_MESSAGE extends UIMessage = UIMessage> =
     ExternalStoreSharedOptions & {
       cloud?: AssistantCloud | undefined;
       adapters?: AISDKRuntimeAdapter["adapters"] | undefined;
+      historyAdapterKey?: AISDKRuntimeAdapter["historyAdapterKey"];
       toCreateMessage?: CustomToCreateMessageFunction;
       onResume?: AISDKRuntimeAdapter["onResume"];
       onResumeToolCall?: AISDKRuntimeAdapter["onResumeToolCall"];
@@ -87,6 +88,7 @@ const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
 ): AssistantRuntime => {
   const {
     adapters,
+    historyAdapterKey,
     transport: transportOptions,
     toCreateMessage,
     isDisabled: _isDisabled,
@@ -119,6 +121,7 @@ const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
 
   const runtime = useAISDKRuntime(chat, {
     adapters,
+    historyAdapterKey,
     ...pickExternalStoreSharedOptions(options ?? {}),
     ...(toCreateMessage && { toCreateMessage }),
     ...(onResume && { onResume }),
