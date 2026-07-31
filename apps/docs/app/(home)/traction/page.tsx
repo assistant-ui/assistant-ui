@@ -256,8 +256,8 @@ export default async function TractionPage({
             Shipping cadence
           </h2>
           <p className="text-muted-foreground text-sm">
-            Daily commits over the last year. Cells with a ring mark the days we
-            shipped a release.
+            Daily commits over the last year. A dot marks the days we shipped a
+            release.
           </p>
         </div>
         <ActivityHeatmap commits={commitActivity} releases={releaseActivity} />
