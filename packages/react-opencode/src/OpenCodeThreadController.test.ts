@@ -178,6 +178,50 @@ describe("OpenCodeThreadController", () => {
     expect(() => new URL(String(filePart!["url"]))).not.toThrow();
   });
 
+  it("leaves an id reference unwrapped rather than shipping it as base64", async () => {
+    const client = {
+      session: { promptAsync: vi.fn().mockResolvedValue({}) },
+    };
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => ({ subscribe: () => () => {} }),
+      "ses_1",
+    );
+
+    await controller.stageMessage(
+      {
+        role: "user",
+        parentId: null,
+        sourceId: null,
+        content: [
+          {
+            type: "file",
+            data: "file-abc123",
+            mimeType: "application/pdf",
+            sourceType: "id",
+          },
+        ],
+        attachments: [],
+        metadata: { custom: {} },
+        runConfig: {},
+        createdAt: new Date(),
+      } as never,
+      { model: { providerID: "anthropic", modelID: "claude" } },
+    );
+
+    const pendingId = Object.keys(
+      controller.getState().pendingUserMessages,
+    )[0]!;
+    await controller.sendStagedMessage(`local:${pendingId}`);
+
+    const sent = client.session.promptAsync.mock.calls[0]![0] as {
+      parts: Array<Record<string, unknown>>;
+    };
+    expect(sent.parts.find((part) => part["type"] === "file")).toMatchObject({
+      url: "file-abc123",
+    });
+  });
+
   it("stages a message locally and sends it later", async () => {
     const client = {
       session: {

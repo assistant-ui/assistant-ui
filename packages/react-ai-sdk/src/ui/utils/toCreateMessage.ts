@@ -1,5 +1,9 @@
 import type { AppendMessage } from "@assistant-ui/core";
-import { httpUrlPattern, parseDataUrl } from "@assistant-ui/core/internal";
+import {
+  httpUrlPattern,
+  isParsableUrl,
+  parseDataUrl,
+} from "@assistant-ui/core/internal";
 import type {
   CreateUIMessage,
   UIDataTypes,
@@ -11,18 +15,6 @@ import type {
 type InputPart = AppendMessage["content"][number] & {
   readonly contentType?: string | undefined;
   readonly filename?: string | undefined;
-};
-
-// Mirrors the upstream failure condition exactly: `convertToModelMessages`
-// hands `url` to an unguarded `new URL()`. Base64 cannot contain a colon, so
-// no payload is misread as a URL.
-const isUrl = (value: string) => {
-  try {
-    new URL(value);
-    return true;
-  } catch {
-    return false;
-  }
 };
 
 const getDataUrlMediaType = (url: string) => {
@@ -67,7 +59,7 @@ export const toCreateMessage = <UI_MESSAGE extends UIMessage = UIMessage>(
         const mediaType = getImageMediaType(part);
         return {
           type: "file",
-          url: isUrl(part.image)
+          url: isParsableUrl(part.image)
             ? part.image
             : `data:${mediaType};base64,${part.image}`,
           ...(part.filename && { filename: part.filename }),
@@ -81,7 +73,7 @@ export const toCreateMessage = <UI_MESSAGE extends UIMessage = UIMessage>(
           // this adapter has no way to send one. Left unwrapped so it fails
           // loudly upstream rather than shipping a corrupt payload.
           url:
-            isUrl(part.data) || part.sourceType === "id"
+            isParsableUrl(part.data) || part.sourceType === "id"
               ? part.data
               : `data:${part.mimeType};base64,${part.data}`,
           mediaType: part.mimeType,
