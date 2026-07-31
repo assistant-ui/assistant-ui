@@ -1,0 +1,107 @@
+---
+title: A2UI over AG-UI
+description: Render A2UI surfaces from AG-UI activity snapshots as generative UI, using the community a2ui-surface convention.
+platforms: ["react"]
+---
+
+[A2UI](https://a2ui.org/) is a declarative generative UI protocol: the agent streams surface operations (create a surface, upsert components, update a data model) and the host renders them from a pre-approved component catalog, with no code over the wire. The AG-UI ecosystem carries A2UI as `ACTIVITY_SNAPSHOT` events with `activityType: "a2ui-surface"` and the operations under `content.a2ui_operations`; this is the convention emitted by [`@ag-ui/a2ui-middleware`](https://github.com/ag-ui-protocol/ag-ui/tree/main/middlewares/a2ui-middleware).
+
+`useAgUiRuntime` consumes these snapshots natively. Each surface becomes one tool-call part with `toolCallId` `a2ui:<surfaceId>` and `toolName` `"present"`, whose args are the converted generative UI spec, so surfaces render through the same path as the [`present` frontend tool](/docs/tools/generative-ui). Snapshots with any other `activityType` are ignored, and the MCP Apps activity path is unaffected.
+
+## Wire contract
+
+A backend paints or updates a surface by emitting an activity snapshot on the AG-UI stream:
+
+```json
+{
+  "type": "ACTIVITY_SNAPSHOT",
+  "messageId": "a2ui-surface-call_1",
+  "activityType": "a2ui-surface",
+  "replace": true,
+  "content": {
+    "a2ui_operations": [
+      { "version": "v0.9", "createSurface": { "surfaceId": "s1" } },
+      {
+        "version": "v0.9",
+        "updateComponents": {
+          "surfaceId": "s1",
+          "components": [
+            { "id": "root", "component": "Card", "title": "Order", "children": ["total"] },
+            { "id": "total", "component": "Text", "text": { "path": "/total" } }
+          ]
+        }
+      },
+      {
+        "version": "v0.9",
+        "updateDataModel": { "surfaceId": "s1", "path": "/", "contents": { "total": "$42" } }
+      }
+    ]
+  }
+}
+```
+
+- A snapshot with `replace: true` (the schema default) rebuilds that `messageId`'s surface state from the operations it carries. `replace: false` means the snapshot is ignored when that `messageId` has already been seen, matching the AG-UI event spec. The middleware always emits `replace: true`.
+- Surfaces are keyed by the `surfaceId` inside the operations, not by `messageId`. Multiple snapshots that share a `messageId` update their surfaces in place, and the synthesized part keeps its `toolCallId`, so the rendered surface updates without duplicating parts.
+- Component trees use the A2UI adjacency-list model: nodes reference children by id, the root node has id `root`, and props of shape `{ "path": "/x/y" }` are JSON Pointer bindings resolved against the surface data model. Both v0.9 and v1.0 operation payloads are accepted, including the v1.0 inline `components` and `dataModel` on `createSurface`.
+- Lifecycle snapshots that carry a `status` (such as `"building"`) but no `a2ui_operations` are tolerated and produce no part until operations arrive. A `deleteSurface` operation removes the surface's part.
+- The `a2ui:` tool-call id prefix is reserved for synthesized surface parts: they are client-side render artifacts and are excluded from the history sent back to the agent, so genuine agent tool calls must not use ids starting with `a2ui:`.
+
+## Quick start
+
+Register the `present` frontend tool from `@assistant-ui/react-generative-ui`; incoming surfaces then render with the default vocabulary:
+
+```tsx
+import {
+  JSONGenerativeUI,
+  defaultGenerativeUILibrary,
+} from "@assistant-ui/react-generative-ui";
+
+const generative = new JSONGenerativeUI({
+  library: defaultGenerativeUILibrary,
+});
+
+const toolkit = {
+  present: generative.present({ display: "standalone" }),
+};
+```
+
+Pass the toolkit to your assistant as on the [Generative UI](/docs/tools/generative-ui) page; no other configuration is needed on `useAgUiRuntime`.
+
+## Actions
+
+`Button` nodes dispatch `$action` objects with type `"a2ui:action"` through the action registry. Wire the registry to `useAgUiSendA2uiAction` inside a component; the hook returns a stable function, so the toolkit can be memoized on it:
+
+```tsx
+import { useMemo } from "react";
+import { useAgUiSendA2uiAction } from "@assistant-ui/react-ag-ui";
+import {
+  JSONGenerativeUI,
+  createActionRegistry,
+  defaultGenerativeUILibrary,
+} from "@assistant-ui/react-generative-ui";
+
+function useA2uiToolkit() {
+  const sendA2uiAction = useAgUiSendA2uiAction();
+  return useMemo(() => {
+    const generative = new JSONGenerativeUI({
+      library: defaultGenerativeUILibrary,
+      actions: createActionRegistry({
+        "a2ui:action": ({ payload }) => sendA2uiAction(payload),
+      }),
+    });
+    return { present: generative.present({ display: "standalone" }) };
+  }, [sendA2uiAction]);
+}
+```
+
+Sending an action triggers a run with no new user message, and the agent receives it as `forwardedProps.a2uiAction.userAction`, the convention `@ag-ui/a2ui-middleware` consumes. The action rides exactly one run; the `type` field is stripped and a `timestamp` is added when absent.
+
+The middleware turns the action into a synthetic `log_a2ui_event` tool-call pair that is never declared in `input.tools`; a backend that validates tool calls against the declared tool list will reject it.
+
+## Component mapping
+
+The converter maps the A2UI basic catalog onto the default generative UI vocabulary: `Text` becomes `Markdown` (`h1` to `h6` variants become `Header`, `caption` becomes `Caption`), `Column` becomes `Col`, `TextField` becomes `Input` (the control name is derived from the last segment of its binding path), `CheckBox` becomes `Checkbox`, and `Image`, `Row`, `Card`, `Divider`, `Button` map one to one. A node with template children expands into a `ListView` over the bound list. `Button` actions become `$action` objects with type `"a2ui:action"` carrying the action name, `surfaceId`, and `sourceComponentId`, which is how your action registry receives them. Unknown components and operations are skipped with a debug warning, and conversion is bounded (depth 32, 100 template items, 5000 nodes) so a malformed stream cannot hang the client.
+
+## Limitations
+
+- The upstream middleware currently emits v0.9 operation payloads; the renderer accepts v0.9 and v1.0 shapes.

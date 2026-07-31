@@ -106,6 +106,90 @@ describe("adapter conversions", () => {
     });
   });
 
+  it("excludes synthesized a2ui tool calls and results from outbound messages", () => {
+    const result = toAgUiMessages([
+      {
+        id: "assistant-1",
+        role: "assistant",
+        content: [
+          {
+            type: "tool-call",
+            toolCallId: "call-42",
+            toolName: "search",
+            argsText: '{"query":"x"}',
+            result: { ok: true },
+          },
+          {
+            type: "tool-call",
+            toolCallId: "a2ui:surface-1",
+            toolName: "present",
+            argsText: '{"$type":"Markdown","value":"Welcome"}',
+            result: {},
+          },
+        ],
+      },
+    ] as any);
+
+    expect(result).toHaveLength(2);
+    const assistantMessage = result[0] as any;
+    expect(assistantMessage.role).toBe("assistant");
+    expect(assistantMessage.toolCalls).toHaveLength(1);
+    expect(assistantMessage.toolCalls[0]).toMatchObject({
+      id: "call-42",
+      function: { name: "search", arguments: '{"query":"x"}' },
+    });
+    const toolMessages = result.filter((message) => message.role === "tool");
+    expect(toolMessages).toHaveLength(1);
+    expect(toolMessages[0]).toMatchObject({
+      role: "tool",
+      toolCallId: "call-42",
+      content: '{"ok":true}',
+    });
+  });
+
+  it("drops an assistant message with only a synthesized a2ui tool call", () => {
+    const withoutText = toAgUiMessages([
+      {
+        id: "assistant-1",
+        role: "assistant",
+        content: [
+          {
+            type: "tool-call",
+            toolCallId: "a2ui:surface-1",
+            toolName: "present",
+            argsText: "{}",
+            result: {},
+          },
+        ],
+      },
+    ] as any);
+    const withText = toAgUiMessages([
+      {
+        id: "assistant-2",
+        role: "assistant",
+        content: [
+          { type: "text", text: "Here is the surface" },
+          {
+            type: "tool-call",
+            toolCallId: "a2ui:surface-1",
+            toolName: "present",
+            argsText: "{}",
+            result: {},
+          },
+        ],
+      },
+    ] as any);
+
+    expect(withoutText).toEqual([]);
+    expect(withText).toEqual([
+      {
+        id: "assistant-2",
+        role: "assistant",
+        content: "Here is the surface",
+      },
+    ]);
+  });
+
   it("does not serialize Host-only data when modelContent is empty", () => {
     const result = toAgUiMessages([
       {
@@ -579,6 +663,83 @@ describe("adapter conversions", () => {
     expect(() => UserMessageSchema.parse(result[0])).not.toThrow();
   });
 
+  it("converts a file part placed directly in message content", () => {
+    const result = toAgUiMessages([
+      {
+        id: "u-1",
+        role: "user",
+        content: [
+          { type: "text", text: "review this" },
+          {
+            type: "file",
+            data: "data:application/pdf;base64,JVBERi0xLjQ=",
+            mimeType: "application/pdf",
+            filename: "a.pdf",
+          },
+        ],
+      },
+    ] as any);
+
+    expect(result[0]).toMatchObject({
+      role: "user",
+      content: [
+        { type: "text", text: "review this" },
+        {
+          type: "document",
+          source: {
+            type: "data",
+            value: "JVBERi0xLjQ=",
+            mimeType: "application/pdf",
+          },
+          metadata: { filename: "a.pdf" },
+        },
+      ],
+    });
+    expect(() => UserMessageSchema.parse(result[0])).not.toThrow();
+  });
+
+  it("emits content and attachment file parts once each", () => {
+    const result = toAgUiMessages([
+      {
+        id: "u-1",
+        role: "user",
+        content: [
+          {
+            type: "file",
+            data: "data:application/pdf;base64,QUFB",
+            mimeType: "application/pdf",
+            filename: "from-content.pdf",
+          },
+        ],
+        attachments: [
+          {
+            id: "a-1",
+            type: "document",
+            name: "from-attachment.pdf",
+            content: [
+              {
+                type: "file",
+                data: "data:application/pdf;base64,QkJC",
+                mimeType: "application/pdf",
+                filename: "from-attachment.pdf",
+              },
+            ],
+          },
+        ],
+      },
+    ] as any);
+
+    const documents = (result[0] as any).content.filter(
+      (part: any) => part.type === "document",
+    );
+    expect(documents).toHaveLength(2);
+    expect(documents.map((part: any) => part.source.value)).toEqual([
+      "QUFB",
+      "QkJC",
+    ]);
+    expect(() => UserMessageSchema.parse(result[0])).not.toThrow();
+  });
+
   it("converts image attachment with data URL to AG-UI image source", () => {
     const result = toAgUiMessages([
       {
@@ -977,6 +1138,121 @@ describe("adapter conversions", () => {
     });
     expect((result[0] as any).content[0].source).not.toHaveProperty("data");
     expect(() => UserMessageSchema.parse(result[0])).not.toThrow();
+  });
+
+  it("honors sourceType url for non-http file references", () => {
+    const result = toAgUiMessages([
+      {
+        id: "u-1",
+        role: "user",
+        content: [],
+        attachments: [
+          {
+            id: "a-1",
+            type: "file",
+            name: "report.pdf",
+            content: [
+              {
+                type: "file",
+                data: "s3://bucket/report.pdf",
+                mimeType: "application/pdf",
+                filename: "report.pdf",
+                sourceType: "url",
+              },
+            ],
+          },
+        ],
+      },
+    ] as any);
+
+    expect(result[0]).toMatchObject({
+      role: "user",
+      content: [
+        {
+          type: "document",
+          source: {
+            type: "url",
+            value: "s3://bucket/report.pdf",
+            mimeType: "application/pdf",
+          },
+          metadata: { filename: "report.pdf" },
+        },
+      ],
+    });
+    expect((result[0] as any).content[0].source).not.toHaveProperty("data");
+    expect(() => UserMessageSchema.parse(result[0])).not.toThrow();
+  });
+
+  it("routes non-http file references to a data source without sourceType", () => {
+    const result = toAgUiMessages([
+      {
+        id: "u-1",
+        role: "user",
+        content: [],
+        attachments: [
+          {
+            id: "a-1",
+            type: "file",
+            name: "report.pdf",
+            content: [
+              {
+                type: "file",
+                data: "s3://bucket/report.pdf",
+                mimeType: "application/pdf",
+              },
+            ],
+          },
+        ],
+      },
+    ] as any);
+
+    expect((result[0] as any).content[0].source).toMatchObject({
+      type: "data",
+      value: "s3://bucket/report.pdf",
+    });
+  });
+
+  it("stamps sourceType url on restored url file parts so they round-trip", () => {
+    const restored = fromAgUiMessages([
+      {
+        id: "u-1",
+        role: "user",
+        content: [
+          {
+            type: "document",
+            source: {
+              type: "url",
+              value: "s3://bucket/spec.pdf",
+              mimeType: "application/pdf",
+            },
+            metadata: { filename: "spec.pdf" },
+          },
+        ],
+      },
+    ]);
+
+    expect(restored[0]).toMatchObject({
+      role: "user",
+      attachments: [
+        {
+          type: "document",
+          content: [
+            {
+              type: "file",
+              data: "s3://bucket/spec.pdf",
+              mimeType: "application/pdf",
+              sourceType: "url",
+            },
+          ],
+        },
+      ],
+    });
+
+    const resent = toAgUiMessages([restored[0]] as any);
+    expect((resent[0] as any).content[0].source).toMatchObject({
+      type: "url",
+      value: "s3://bucket/spec.pdf",
+    });
   });
 
   it("restores a document input part as a user attachment", () => {
@@ -1626,6 +1902,313 @@ describe("mcp app rehydration from restored tool messages", () => {
       (p: { type: string }) => p.type === "tool-call",
     );
     expect(part.mcp).toBeUndefined();
+  });
+});
+
+describe("a2ui surface rehydration from restored activity messages", () => {
+  const a2uiSurfaceOperations = (surfaceId: string, title: string) => [
+    { version: "v0.9", createSurface: { surfaceId } },
+    {
+      version: "v0.9",
+      updateComponents: {
+        surfaceId,
+        components: [
+          { id: "root", component: "Column", children: ["heading", "body"] },
+          {
+            id: "heading",
+            component: "Text",
+            variant: "h1",
+            text: { path: "/title" },
+          },
+          { id: "body", component: "Text", text: { path: "/body" } },
+        ],
+      },
+    },
+    {
+      version: "v0.9",
+      updateDataModel: { surfaceId, data: { title, body: `${title} body` } },
+    },
+  ];
+
+  const findA2uiPart = (message: any) =>
+    message.content.find(
+      (p: { type: string; toolCallId?: string }) =>
+        p.type === "tool-call" && p.toolCallId?.startsWith("a2ui:"),
+    );
+
+  const expectSurfacePart = (part: any, surfaceId: string, title: string) => {
+    expect(part).toMatchObject({
+      type: "tool-call",
+      toolCallId: `a2ui:${surfaceId}`,
+      toolName: "present",
+      args: {
+        $type: "Col",
+        children: [
+          { $type: "Header", text: title },
+          { $type: "Markdown", value: `${title} body` },
+        ],
+      },
+    });
+    expect(part.result).toEqual({});
+    expect(part.argsText).toBe(JSON.stringify(part.args));
+  };
+
+  it("rehydrates an a2ui surface onto the preceding assistant message", () => {
+    const result = fromAgUiMessages([
+      { id: "u-1", role: "user", content: "show me a dashboard" },
+      { id: "a-1", role: "assistant", content: "Here is the dashboard" },
+      {
+        id: "act-1",
+        role: "activity",
+        activityType: "a2ui-surface",
+        content: {
+          a2ui_operations: a2uiSurfaceOperations("surface-1", "Welcome"),
+        },
+      },
+    ] as any);
+
+    expect(result.map((m) => m.role)).toEqual(["user", "assistant"]);
+    const assistant = result[1] as any;
+    expectSurfacePart(findA2uiPart(assistant), "surface-1", "Welcome");
+    expect(
+      assistant.content.find((p: { type: string }) => p.type === "text").text,
+    ).toBe("Here is the dashboard");
+  });
+
+  it("preserves existing tool calls and text alongside the rehydrated a2ui part", () => {
+    const result = fromAgUiMessages([
+      {
+        id: "a-1",
+        role: "assistant",
+        content: "",
+        tool_calls: [
+          {
+            id: "call-1",
+            type: "function",
+            function: { name: "search", arguments: "{}" },
+          },
+        ],
+      },
+      {
+        id: "act-1",
+        role: "activity",
+        activityType: "a2ui-surface",
+        content: {
+          a2ui_operations: a2uiSurfaceOperations("surface-1", "Welcome"),
+        },
+      },
+    ] as any);
+
+    const assistant = result[0] as any;
+    const toolCallIds = assistant.content
+      .filter((p: { type: string }) => p.type === "tool-call")
+      .map((p: { toolCallId: string }) => p.toolCallId);
+    expect(toolCallIds).toEqual(["call-1", "a2ui:surface-1"]);
+  });
+
+  it("rehydrates multiple surfaces from one snapshot", () => {
+    const result = fromAgUiMessages([
+      { id: "a-1", role: "assistant", content: "ok" },
+      {
+        id: "act-1",
+        role: "activity",
+        activityType: "a2ui-surface",
+        content: {
+          a2ui_operations: [
+            ...a2uiSurfaceOperations("s-1", "First"),
+            ...a2uiSurfaceOperations("s-2", "Second"),
+          ],
+        },
+      },
+    ] as any);
+
+    const assistant = result[0] as any;
+    const a2uiIds = assistant.content
+      .filter((p: { type: string; toolCallId?: string }) =>
+        p.toolCallId?.startsWith("a2ui:"),
+      )
+      .map((p: { toolCallId: string }) => p.toolCallId);
+    expect(a2uiIds).toEqual(["a2ui:s-1", "a2ui:s-2"]);
+  });
+
+  it("replaces the rehydrated surface when a later snapshot targets the same owner", () => {
+    const result = fromAgUiMessages([
+      { id: "a-1", role: "assistant", content: "ok" },
+      {
+        id: "act-1",
+        role: "activity",
+        activityType: "a2ui-surface",
+        content: {
+          a2ui_operations: a2uiSurfaceOperations("surface-1", "Original"),
+        },
+      },
+      {
+        id: "act-2",
+        role: "activity",
+        activityType: "a2ui-surface",
+        content: {
+          replace: true,
+          a2ui_operations: [
+            { version: "v0.9", createSurface: { surfaceId: "surface-1" } },
+            {
+              version: "v0.9",
+              updateComponents: {
+                surfaceId: "surface-1",
+                components: [
+                  { id: "root", component: "Text", text: "Replacement" },
+                ],
+              },
+            },
+          ],
+        },
+      },
+    ] as any);
+
+    const assistant = result[0] as any;
+    const a2uiParts = assistant.content.filter((p: any) =>
+      p.toolCallId?.startsWith("a2ui:"),
+    );
+    expect(a2uiParts).toHaveLength(1);
+    expect(a2uiParts[0].args).toEqual({
+      $type: "Markdown",
+      value: "Replacement",
+    });
+  });
+
+  it("keeps every surface when each arrives as its own activity message", () => {
+    const result = fromAgUiMessages([
+      { id: "a-1", role: "assistant", content: "ok" },
+      {
+        id: "a2ui-surface-s-1-call_9",
+        role: "activity",
+        activityType: "a2ui-surface",
+        content: {
+          a2ui_operations: a2uiSurfaceOperations("s-1", "First"),
+        },
+      },
+      {
+        id: "a2ui-surface-s-2-call_9",
+        role: "activity",
+        activityType: "a2ui-surface",
+        content: {
+          a2ui_operations: a2uiSurfaceOperations("s-2", "Second"),
+        },
+      },
+    ] as any);
+
+    const a2uiParts = (result[0] as any).content.filter((part: any) =>
+      part.toolCallId?.startsWith("a2ui:"),
+    );
+    expect(a2uiParts.map((part: any) => part.toolCallId)).toEqual([
+      "a2ui:s-1",
+      "a2ui:s-2",
+    ]);
+    expectSurfacePart(a2uiParts[0], "s-1", "First");
+    expectSurfacePart(a2uiParts[1], "s-2", "Second");
+  });
+
+  it("overwrites a surface when a later activity message reuses the same id", () => {
+    const result = fromAgUiMessages([
+      { id: "a-1", role: "assistant", content: "ok" },
+      {
+        id: "a2ui-surface-s-1-call_9",
+        role: "activity",
+        activityType: "a2ui-surface",
+        content: {
+          a2ui_operations: a2uiSurfaceOperations("s-1", "First"),
+        },
+      },
+      {
+        id: "a2ui-surface-s-1-call_9",
+        role: "activity",
+        activityType: "a2ui-surface",
+        content: {
+          a2ui_operations: a2uiSurfaceOperations("s-1", "Second"),
+        },
+      },
+    ] as any);
+
+    const a2uiParts = (result[0] as any).content.filter((part: any) =>
+      part.toolCallId?.startsWith("a2ui:"),
+    );
+    expect(a2uiParts).toHaveLength(1);
+    expectSurfacePart(a2uiParts[0], "s-1", "Second");
+  });
+
+  it("removes a surface when the same activity id is re-materialized without it", () => {
+    const result = fromAgUiMessages([
+      { id: "a-1", role: "assistant", content: "ok" },
+      {
+        id: "a2ui-surface-s-1-call_9",
+        role: "activity",
+        activityType: "a2ui-surface",
+        content: {
+          a2ui_operations: [
+            ...a2uiSurfaceOperations("s-1", "First"),
+            ...a2uiSurfaceOperations("s-2", "Second"),
+          ],
+        },
+      },
+      {
+        id: "a2ui-surface-s-1-call_9",
+        role: "activity",
+        activityType: "a2ui-surface",
+        content: {
+          a2ui_operations: a2uiSurfaceOperations("s-2", "Second"),
+        },
+      },
+    ] as any);
+
+    const a2uiParts = (result[0] as any).content.filter((part: any) =>
+      part.toolCallId?.startsWith("a2ui:"),
+    );
+    expect(a2uiParts).toHaveLength(1);
+    expectSurfacePart(a2uiParts[0], "s-2", "Second");
+  });
+
+  it("drops an a2ui activity with no owning assistant message", () => {
+    const result = fromAgUiMessages([
+      { id: "u-1", role: "user", content: "hi" },
+      {
+        id: "act-1",
+        role: "activity",
+        activityType: "a2ui-surface",
+        content: {
+          a2ui_operations: a2uiSurfaceOperations("surface-1", "Welcome"),
+        },
+      },
+    ] as any);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({ role: "user" });
+  });
+
+  it("drops a non-a2ui activity type", () => {
+    const result = fromAgUiMessages([
+      { id: "a-1", role: "assistant", content: "ok" },
+      {
+        id: "act-1",
+        role: "activity",
+        activityType: "search",
+        content: { query: "weather" },
+      },
+    ] as any);
+
+    expect((result[0] as any).content).toEqual([{ type: "text", text: "ok" }]);
+  });
+
+  it("ignores an a2ui activity whose content has no a2ui_operations", () => {
+    const result = fromAgUiMessages([
+      { id: "a-1", role: "assistant", content: "ok" },
+      {
+        id: "act-1",
+        role: "activity",
+        activityType: "a2ui-surface",
+        content: { status: "building" },
+      },
+    ] as any);
+
+    expect((result[0] as any).content).toEqual([{ type: "text", text: "ok" }]);
   });
 });
 

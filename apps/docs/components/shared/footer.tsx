@@ -32,6 +32,7 @@ const FOOTER_LINKS: Record<string, FooterLinkItem[]> = {
     { label: "Examples", href: "/examples" },
     { label: "Showcase", href: "/showcase" },
     { label: "Traction", href: "/traction" },
+    { label: "Open source", href: "/oss" },
     { label: "Packages", href: "/packages" },
     { label: "Blog", href: "/blog" },
   ],

@@ -2,10 +2,6 @@ import type React from "react";
 import { createContext, useContext, useEffect } from "react";
 import { useContextProvider } from "@assistant-ui/tap";
 import type { AssistantClient } from "../types/client";
-import {
-  createProxiedAssistantState,
-  PROXIED_ASSISTANT_STATE_SYMBOL,
-} from "./proxied-assistant-state";
 import { BaseProxyHandler, handleIntrospectionProp } from "./BaseProxyHandler";
 import { createErrorClientAccessor } from "./client-accessor";
 
@@ -14,45 +10,54 @@ const NO_OP_SUBSCRIBE = () => () => {};
 const MISSING_PROVIDER_MESSAGE =
   "You are using a component or hook that requires an AuiProvider. Wrap your component in an <AuiProvider> component.";
 
-class DefaultAssistantClientProxyHandler
+class EmptyAssistantClientProxyHandler
   extends BaseProxyHandler
   implements ProxyHandler<AssistantClient>
 {
+  readonly #displayName: string;
+  readonly #messageOf: (prop: string) => string;
+
+  constructor(displayName: string, messageOf: (prop: string) => string) {
+    super();
+    this.#displayName = displayName;
+    this.#messageOf = messageOf;
+  }
+
   get(_: unknown, prop: string | symbol) {
     if (prop === "subscribe") return NO_OP_SUBSCRIBE;
     if (prop === "on") return NO_OP_SUBSCRIBE;
-    if (prop === PROXIED_ASSISTANT_STATE_SYMBOL)
-      return DefaultAssistantClientProxiedAssistantState;
-    const introspection = handleIntrospectionProp(
-      prop,
-      "DefaultAssistantClient",
-    );
+    const introspection = handleIntrospectionProp(prop, this.#displayName);
     if (introspection !== false) return introspection;
-    return createErrorClientAccessor(MISSING_PROVIDER_MESSAGE, String(prop));
+    return createErrorClientAccessor(
+      this.#messageOf(String(prop)),
+      String(prop),
+    );
   }
 
   ownKeys(): ArrayLike<string | symbol> {
-    return ["subscribe", "on", PROXIED_ASSISTANT_STATE_SYMBOL];
+    return ["subscribe", "on"];
   }
 
   has(_: unknown, prop: string | symbol): boolean {
-    return (
-      prop === "subscribe" ||
-      prop === "on" ||
-      prop === PROXIED_ASSISTANT_STATE_SYMBOL
-    );
+    return prop === "subscribe" || prop === "on";
   }
 }
-/** Default context value - throws "wrap in AuiProvider" error */
-export const DefaultAssistantClient: AssistantClient =
+
+const createEmptyAssistantClient = (
+  displayName: string,
+  messageOf: (prop: string) => string,
+): AssistantClient =>
   new Proxy<AssistantClient>(
     {} as AssistantClient,
-    new DefaultAssistantClientProxyHandler(),
+    new EmptyAssistantClientProxyHandler(displayName, messageOf),
   );
 
-const DefaultAssistantClientProxiedAssistantState = createProxiedAssistantState(
-  DefaultAssistantClient,
-);
+/** Default context value - throws "wrap in AuiProvider" error */
+export const DefaultAssistantClient: AssistantClient =
+  createEmptyAssistantClient(
+    "DefaultAssistantClient",
+    () => MISSING_PROVIDER_MESSAGE,
+  );
 
 /** Root prototype for created clients - throws "scope not defined" error */
 export const createRootAssistantClient = (): AssistantClient =>
@@ -73,18 +78,22 @@ export const createRootAssistantClient = (): AssistantClient =>
  */
 const AssistantContext = createContext<AssistantClient>(DefaultAssistantClient);
 
-/**
- * Carries the tap host's effects callback on the client so AuiProvider can
- * mount the host's commit ahead of its children's effects.
- */
-export const AUI_USE_EFFECTS_SYMBOL = Symbol("assistant-ui.store.useEffects");
-
 const NOOP_EFFECT = () => {};
+const tapEffects = new WeakMap<AssistantClient, () => void>();
 
 const getTapEffects = (client: AssistantClient): (() => void) => {
-  return (
-    (client as Record<symbol, never>)[AUI_USE_EFFECTS_SYMBOL] ?? NOOP_EFFECT
-  );
+  return tapEffects.get(client) ?? NOOP_EFFECT;
+};
+
+/**
+ * Records the tap host's effects callback so AuiProvider can mount the host's
+ * commit ahead of its children's effects.
+ */
+export const setTapEffects = (
+  client: AssistantClient,
+  effects: () => void,
+): void => {
+  tapEffects.set(client, effects);
 };
 
 const UseTapEffects = () => {
@@ -128,19 +137,31 @@ export const useAssistantContextProvider = <T,>(
  * }
  * ```
  */
-export const AuiProvider = ({
+export const AuiProvider: {
+  (props: {
+    /** Assistant client to expose to descendants. */
+    value: AssistantClient;
+    /** Subtree that may read from the client. */
+    children: React.ReactNode;
+  }): React.ReactElement;
+  /**
+   * Provides an isolated empty root: scopes from surrounding providers do not
+   * leak past the boundary.
+   *
+   * @deprecated This API is still under active development and might change without notice.
+   */
+  (props: { value: null; children: React.ReactNode }): React.ReactElement;
+} = ({
   value,
   children,
 }: {
-  /** Assistant client to expose to descendants. */
-  value: AssistantClient;
-  /** Subtree that may read from the client. */
+  value: AssistantClient | null;
   children: React.ReactNode;
 }): React.ReactElement => {
   // The <UseTapEffects /> element must be created fresh each render
   "use no memo";
   return (
-    <AssistantContext.Provider value={value}>
+    <AssistantContext.Provider value={value ?? DefaultAssistantClient}>
       <UseTapEffects />
       {children}
     </AssistantContext.Provider>

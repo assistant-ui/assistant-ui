@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-opencode",
-  "version": "0.2.14",
+  "version": "0.2.16",
   "description": "OpenCode runtime adapter for assistant-ui",
   "keywords": [
     "opencode",
@@ -46,10 +46,9 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@assistant-ui/core": "^0.3.1",
-    "@assistant-ui/store": "^0.3.1",
-    "@opencode-ai/sdk": "^1.18.5",
-    "use-effect-event": "^2.0.3"
+    "@assistant-ui/core": "^0.3.3",
+    "@assistant-ui/store": "^0.3.2",
+    "@opencode-ai/sdk": "^1.18.5"
   },
   "peerDependencies": {
     "@assistant-ui/react": "^0.15.0",

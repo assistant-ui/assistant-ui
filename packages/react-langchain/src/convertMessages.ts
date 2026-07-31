@@ -33,7 +33,7 @@ export const getMessageType = (message: LangChainBaseMessage): string => {
   throw new Error("Cannot determine message type");
 };
 
-const contentToParts = (content: unknown, role: "user" | "assistant") => {
+const contentToParts = (content: unknown) => {
   if (typeof content === "string")
     return [{ type: "text" as const, text: content }];
 
@@ -64,19 +64,20 @@ const contentToParts = (content: unknown, role: "user" | "assistant") => {
                   ? part.id
                   : part.data,
             mimeType: part.mime_type ?? "application/octet-stream",
+            ...((part.source_type === "url" || part.source_type === "id") && {
+              sourceType: part.source_type,
+            }),
           };
         case "audio": {
-          if (role !== "user") return null;
-          const format =
-            part.mime_type === "audio/wav"
-              ? ("wav" as const)
-              : part.mime_type === "audio/mp3"
-                ? ("mp3" as const)
-                : null;
-          if (!format) return null;
+          const mimeType = part.mime_type ?? "application/octet-stream";
+          const subtype = mimeType.startsWith("audio/")
+            ? mimeType.slice("audio/".length)
+            : undefined;
           return {
-            type: "audio" as const,
-            audio: { data: part.data, format },
+            type: "file" as const,
+            filename: subtype ? `audio.${subtype}` : "audio",
+            data: part.data,
+            mimeType,
           };
         }
         case "thinking":
@@ -134,7 +135,7 @@ export const convertLangChainBaseMessage = (
       return {
         role: "user",
         id: message.id,
-        content: contentToParts(message.content, "user"),
+        content: contentToParts(message.content),
         metadata: {
           custom: getCustomMetadata(message.additional_kwargs),
         },
@@ -166,7 +167,7 @@ export const convertLangChainBaseMessage = (
         role: "assistant",
         id: message.id,
         content: [
-          ...contentToParts(message.content, "assistant"),
+          ...contentToParts(message.content),
           ...toolCallParts,
           ...uiDataParts,
         ],
@@ -205,6 +206,20 @@ export const convertLangChainBaseMessage = (
   }
 };
 
+/**
+ * Audio media types that reach a provider's audio input through the LangChain
+ * `audio` block. langchain-core derives OpenAI's `input_audio.format` by
+ * splitting `mime_type` on `/`, and that format is a wav-or-mp3 enum, so
+ * `audio/mpeg` passes the converter and is rejected at the provider.
+ */
+const audioBlockMimeTypes = new Map<string, "audio/mp3" | "audio/wav">([
+  ["audio/mp3", "audio/mp3"],
+  ["audio/mpeg", "audio/mp3"],
+  ["audio/wav", "audio/wav"],
+  ["audio/wave", "audio/wav"],
+  ["audio/x-wav", "audio/wav"],
+]);
+
 export const getMessageContent = (msg: AppendMessage) => {
   const allContent = [
     ...msg.content,
@@ -229,7 +244,16 @@ export const getMessageContent = (msg: AppendMessage) => {
         return { type: "image_url" as const, image_url: { url: part.image } };
       case "file": {
         const metadata = { filename: part.filename ?? "file" };
-        if (httpUrlPattern.test(part.data)) {
+        if (part.sourceType === "id") {
+          return {
+            type: "file" as const,
+            id: part.data,
+            mime_type: part.mimeType,
+            metadata,
+            source_type: "id" as const,
+          };
+        }
+        if (part.sourceType === "url" || httpUrlPattern.test(part.data)) {
           return {
             type: "file" as const,
             url: part.data,
@@ -239,6 +263,17 @@ export const getMessageContent = (msg: AppendMessage) => {
           };
         }
         const parsed = parseDataUrl(part.data);
+        const audioMimeType = audioBlockMimeTypes.get(
+          (parsed?.mimeType ?? part.mimeType).toLowerCase(),
+        );
+        if (audioMimeType) {
+          return {
+            type: "audio" as const,
+            data: parsed?.data ?? part.data,
+            mime_type: audioMimeType,
+            source_type: "base64" as const,
+          };
+        }
         return {
           type: "file" as const,
           data: parsed?.data ?? part.data,

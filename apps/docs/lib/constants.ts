@@ -165,6 +165,12 @@ export const NAV_ITEMS: NavItem[] = [
         label: "Open source",
         items: [
           {
+            label: "All projects",
+            href: "/oss",
+            description: "Everything we build in the open",
+            external: false,
+          },
+          {
             label: "GitHub",
             href: "https://github.com/assistant-ui/assistant-ui",
             description: "Star us on GitHub",

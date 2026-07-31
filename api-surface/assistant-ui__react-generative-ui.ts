@@ -12,6 +12,84 @@ import { ZodType } from "zod";
 
 import "zustand";
 
+type A2uiCreateSurfaceOperation = {
+  readonly version: "v0.9";
+  readonly createSurface: A2uiCreateSurfaceV09Payload;
+} | {
+  readonly version: "v1.0";
+  readonly createSurface: A2uiCreateSurfaceV10Payload;
+};
+
+interface A2uiCreateSurfaceV09Payload {
+  readonly surfaceId: string;
+  readonly catalogId?: string;
+  readonly theme?: unknown;
+  readonly attachDataModel?: unknown;
+}
+
+interface A2uiCreateSurfaceV10Payload {
+  readonly surfaceId: string;
+  readonly surfaceProperties?: unknown;
+  readonly sendDataModel?: unknown;
+  readonly components?: readonly ComponentNode[];
+  readonly dataModel?: unknown;
+}
+
+interface A2uiDeleteSurfaceOperation {
+  readonly version: A2uiVersion;
+  readonly deleteSurface: A2uiDeleteSurfacePayload;
+}
+
+interface A2uiDeleteSurfacePayload {
+  readonly surfaceId: string;
+}
+
+type A2uiOperation = A2uiCreateSurfaceOperation | A2uiUpdateComponentsOperation | A2uiUpdateDataModelOperation | A2uiDeleteSurfaceOperation;
+
+interface A2uiOperationResult {
+  readonly state: A2uiState;
+  readonly warnings: string[];
+}
+
+type A2uiState = ReadonlyMap<string, A2uiSurfaceState>;
+
+type A2uiSurfaceState = {
+  components: Map<string, Record<string, unknown>>;
+  dataModel: unknown;
+};
+
+interface A2uiTemplateChildren {
+  readonly template: {
+    readonly componentId: string;
+    readonly path: string;
+  };
+}
+
+interface A2uiUpdateComponentsOperation {
+  readonly version: A2uiVersion;
+  readonly updateComponents: A2uiUpdateComponentsPayload;
+}
+
+interface A2uiUpdateComponentsPayload {
+  readonly surfaceId: string;
+  readonly components: readonly ComponentNode[];
+}
+
+interface A2uiUpdateDataModelOperation {
+  readonly version: A2uiVersion;
+  readonly updateDataModel: A2uiUpdateDataModelPayload;
+}
+
+interface A2uiUpdateDataModelPayload {
+  readonly surfaceId: string;
+  readonly path?: string;
+  readonly contents?: unknown;
+  readonly value?: unknown;
+  readonly data?: unknown;
+}
+
+type A2uiVersion = "v0.9" | "v1.0";
+
 declare const ALERT_TONES: readonly [
   "info",
   "success",
@@ -199,6 +277,12 @@ type CompleteAttachmentStatus = {
   type: "complete";
 };
 
+interface ComponentNode extends Record<string, unknown> {
+  readonly id: string;
+  readonly component: string;
+  readonly children?: readonly string[] | A2uiTemplateChildren;
+}
+
 type DataMessagePart<T = any> = {
   readonly type: "data";
   readonly name: string;
@@ -235,6 +319,7 @@ type FileMessagePart = {
   readonly filename?: string;
   readonly data: string;
   readonly mimeType: string;
+  readonly sourceType?: "id" | "url";
   readonly parentId?: string;
 };
 
@@ -604,6 +689,15 @@ type MessagePartStatus = {
   readonly error?: unknown;
 };
 
+type MessagePartStreamStatus = {
+  readonly type: "running";
+} | {
+  readonly type: "complete";
+} | {
+  readonly type: "incomplete";
+  readonly reason: "cancelled" | "content-filter" | "error" | "length" | "other";
+};
+
 type MessageStatus = {
   readonly type: "running";
 } | {
@@ -685,6 +779,7 @@ type ReadonlyJSONValue = null | string | number | boolean | ReadonlyJSONObject |
 type ReasoningMessagePart = {
   readonly type: "reasoning";
   readonly text: string;
+  readonly status?: MessagePartStreamStatus;
   readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };
@@ -1107,6 +1202,7 @@ type TeamsTextSize = "extraLarge" | "large" | "medium" | "small";
 type TextMessagePart = {
   readonly type: "text";
   readonly text: string;
+  readonly status?: MessagePartStreamStatus;
   readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };
@@ -1410,9 +1506,15 @@ type Unstable_AudioMessagePart = {
 
 type Unsubscribe = () => void;
 
-type ValidateClient<K extends string, TClient> = K extends ReservedScopeNames ? ClientError<`ERROR: ${K} is a reserved scope name`> : TClient extends {
+type ValidateClient<K extends string, TClient> = K extends ReservedScopeNames ? ClientError<`ERROR: ${K} is a reserved scope name`> : unknown extends ValidateMethods<K, TClient> & ValidateMeta<K, TClient> & ValidateEvents<K, TClient> ? TClient : ValidateMethods<K, TClient> & ValidateMeta<K, TClient> & ValidateEvents<K, TClient> & ClientError<never>;
+
+type ValidateEvents<K extends string, TClient> = "events" extends keyof TClient ? TClient["events"] extends ClientEventsType<K> ? unknown : ClientError<`ERROR: ${K} has invalid events type`> : unknown;
+
+type ValidateMeta<K extends string, TClient> = "meta" extends keyof TClient ? TClient["meta"] extends ClientMetaType ? unknown : ClientError<`ERROR: ${K} has invalid meta type`> : unknown;
+
+type ValidateMethods<K extends string, TClient> = TClient extends {
   methods: ClientMethods;
-} ? keyof TClient["methods"] & ReservedAccessorProps extends never ? "meta" extends keyof TClient ? TClient["meta"] extends ClientMetaType ? "events" extends keyof TClient ? TClient["events"] extends ClientEventsType<K> ? TClient : ClientError<`ERROR: ${K} has invalid events type`> : TClient : ClientError<`ERROR: ${K} has invalid meta type`> : "events" extends keyof TClient ? TClient["events"] extends ClientEventsType<K> ? TClient : ClientError<`ERROR: ${K} has invalid events type`> : TClient : ClientError<`ERROR: ${K} methods declare a reserved accessor property (source/query/name)`> : ClientError<`ERROR: ${K} has invalid methods type`>;
+} ? keyof TClient["methods"] & ReservedAccessorProps extends never ? unknown : ClientError<`ERROR: ${K} methods declare a reserved accessor property (source/query/name)`> : ClientError<`ERROR: ${K} has invalid methods type`>;
 
 declare const WEIGHTS: readonly [
   "normal",
@@ -1446,7 +1548,18 @@ type WithRender<T, TArgs extends Record<string, unknown>, TResult> = T extends {
   renderText?: ToolCallText<TArgs, TResult> | undefined;
 };
 
+declare namespace entry_a2ui_exports {
+  export { A2uiCreateSurfaceOperation, A2uiCreateSurfaceV09Payload, A2uiCreateSurfaceV10Payload, A2uiDeleteSurfaceOperation, A2uiDeleteSurfacePayload, A2uiOperation, A2uiOperationResult, A2uiState, A2uiSurfaceState, A2uiTemplateChildren, A2uiUpdateComponentsOperation, A2uiUpdateComponentsPayload, A2uiUpdateDataModelOperation, A2uiUpdateDataModelPayload, A2uiVersion, ComponentNode, applyA2uiOperations, convertSurfaceToUISpec };
+}
+
+declare function applyA2uiOperations(state: A2uiState, operations: unknown): A2uiOperationResult;
+
 declare function buildPresentParameters(library: GenerativeUILibrary): JSONSchema7$1;
+
+declare function convertSurfaceToUISpec(surface: A2uiSurfaceState): {
+  spec: UIElement | null;
+  warnings: string[];
+};
 
 declare function createActionRegistry(handlers: Readonly<Record<string, ActionHandler>>): ActionRegistry;
 
@@ -1511,4 +1624,4 @@ declare function toSlackBlocks(node: unknown, options?: ToSlackBlocksOptions): S
 
 declare function toTeamsAttachments(node: unknown, _options?: ToAdaptiveCardOptions): TeamsAttachmentsResult;
 
-export { entry_ir_exports as entry_ir, entry_root_default_exports as entry_root_default, entry_root_react_server_exports as entry_root_react_server, entry_slack_exports as entry_slack, entry_teams_exports as entry_teams };
+export { entry_a2ui_exports as entry_a2ui, entry_ir_exports as entry_ir, entry_root_default_exports as entry_root_default, entry_root_react_server_exports as entry_root_react_server, entry_slack_exports as entry_slack, entry_teams_exports as entry_teams };

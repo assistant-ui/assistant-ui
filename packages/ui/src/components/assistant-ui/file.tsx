@@ -37,25 +37,34 @@ const fileVariants = cva(
 );
 
 function getMimeTypeIcon(mimeType: string): FC<{ className?: string }> {
-  if (mimeType.startsWith("image/")) {
+  const type = mimeType.toLowerCase();
+  if (type.startsWith("image/")) {
     return ImageIcon;
   }
-  if (mimeType === "application/pdf") {
+  if (type === "application/pdf") {
     return FileTextIcon;
   }
-  if (mimeType === "application/json") {
+  if (type === "application/json") {
     return BracesIcon;
   }
-  if (mimeType.startsWith("text/")) {
+  if (type.startsWith("text/")) {
     return FileTextIcon;
   }
-  if (mimeType.startsWith("audio/")) {
+  if (type.startsWith("audio/")) {
     return MusicIcon;
   }
-  if (mimeType.startsWith("video/")) {
+  if (type.startsWith("video/")) {
     return VideoIcon;
   }
   return FileIcon;
+}
+
+export type FileDataKind = "data-uri" | "url" | "base64";
+
+function getFileDataKind(data: string): FileDataKind {
+  if (/^data:/i.test(data)) return "data-uri";
+  if (/^https?:\/\//i.test(data)) return "url";
+  return "base64";
 }
 
 function getBase64Size(base64: string): number {
@@ -167,15 +176,15 @@ function FileDownload({
   children,
   ...props
 }: FileDownloadProps) {
-  const href = data.startsWith("data:")
-    ? data
-    : `data:${mimeType};base64,${data}`;
+  const kind = getFileDataKind(data);
+  const href = kind === "base64" ? `data:${mimeType};base64,${data}` : data;
 
   return (
     <a
       data-slot="file-download"
       href={href}
       download={filename || "download"}
+      {...(kind === "url" && { target: "_blank", rel: "noopener noreferrer" })}
       className={cn(
         "text-muted-foreground hover:bg-accent hover:text-accent-foreground shrink-0 rounded-md p-1 transition-colors",
         className,
@@ -188,14 +197,16 @@ function FileDownload({
 }
 
 const FileImpl: FileMessagePartComponent = ({ filename, data, mimeType }) => {
-  const bytes = getBase64Size(data);
+  const showSize = getFileDataKind(data) !== "url";
 
   return (
     <FileRoot>
       <FileIconDisplay mimeType={mimeType} />
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
         <FileName>{filename}</FileName>
-        <FileSize bytes={bytes} className="text-xs" />
+        {showSize && (
+          <FileSize bytes={getBase64Size(data)} className="text-xs" />
+        )}
       </div>
       <FileDownload
         data={data}
@@ -230,6 +241,7 @@ export {
   FileDownload,
   fileVariants,
   getMimeTypeIcon,
+  getFileDataKind,
   getBase64Size,
   formatFileSize,
 };

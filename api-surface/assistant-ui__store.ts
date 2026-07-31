@@ -51,10 +51,16 @@ declare namespace AuiIf {
 
 declare const AuiIf: FC<AuiIf.Props>;
 
-declare const AuiProvider: (_param0: {
-  value: AssistantClient;
-  children: React.ReactNode;
-}) => React.ReactElement;
+declare const AuiProvider: {
+  (props: {
+    value: AssistantClient;
+    children: React.ReactNode;
+  }): React.ReactElement;
+  (props: {
+    value: null;
+    children: React.ReactNode;
+  }): React.ReactElement;
+};
 
 type ClientElement<K extends ClientNames> = ResourceElement<ClientOutput<K>>;
 
@@ -120,21 +126,13 @@ type Hook = (...args: any[]) => any;
 
 type InferClientState<TMethods> = TMethods extends {
   getState: () => infer S;
-} ? S : unknown;
-
-type InferClientState$1<TMethods> = TMethods extends {
-  getState: () => infer S;
-} ? S : unknown;
-
-type InferClientState$2<TMethods> = TMethods extends {
-  getState: () => infer S;
 } ? S : undefined;
 
 type ParentOf<K extends ClientNames> = ClientMeta<K> extends {
   source: infer S;
 } ? S extends ClientNames ? S : never : never;
 
-declare function RenderChildrenWithAccessor<T>(_param1: {
+declare function RenderChildrenWithAccessor<T>(_param0: {
   getItemState: (aui: AssistantClient) => T;
   children: (getItem: () => T) => ReactNode;
 }): ReactNode;
@@ -172,9 +170,15 @@ type UnionToIntersection<U> = (U extends unknown ? (x: U) => void : never) exten
 
 type Unsubscribe = () => void;
 
-type ValidateClient<K extends string, TClient> = K extends ReservedScopeNames ? ClientError<`ERROR: ${K} is a reserved scope name`> : TClient extends {
+type ValidateClient<K extends string, TClient> = K extends ReservedScopeNames ? ClientError<`ERROR: ${K} is a reserved scope name`> : unknown extends ValidateMethods<K, TClient> & ValidateMeta<K, TClient> & ValidateEvents<K, TClient> ? TClient : ValidateMethods<K, TClient> & ValidateMeta<K, TClient> & ValidateEvents<K, TClient> & ClientError<never>;
+
+type ValidateEvents<K extends string, TClient> = "events" extends keyof TClient ? TClient["events"] extends ClientEventsType<K> ? unknown : ClientError<`ERROR: ${K} has invalid events type`> : unknown;
+
+type ValidateMeta<K extends string, TClient> = "meta" extends keyof TClient ? TClient["meta"] extends ClientMetaType ? unknown : ClientError<`ERROR: ${K} has invalid meta type`> : unknown;
+
+type ValidateMethods<K extends string, TClient> = TClient extends {
   methods: ClientMethods;
-} ? keyof TClient["methods"] & ReservedAccessorProps extends never ? "meta" extends keyof TClient ? TClient["meta"] extends ClientMetaType ? "events" extends keyof TClient ? TClient["events"] extends ClientEventsType<K> ? TClient : ClientError<`ERROR: ${K} has invalid events type`> : TClient : ClientError<`ERROR: ${K} has invalid meta type`> : "events" extends keyof TClient ? TClient["events"] extends ClientEventsType<K> ? TClient : ClientError<`ERROR: ${K} has invalid events type`> : TClient : ClientError<`ERROR: ${K} methods declare a reserved accessor property (source/query/name)`> : ClientError<`ERROR: ${K} has invalid methods type`>;
+} ? keyof TClient["methods"] & ReservedAccessorProps extends never ? unknown : ClientError<`ERROR: ${K} methods declare a reserved accessor property (source/query/name)`> : ClientError<`ERROR: ${K} has invalid methods type`>;
 
 type WildcardPayload = {
   [K in keyof ClientEventMap]: {
@@ -223,10 +227,6 @@ declare function useAui(): AssistantClient;
 
 declare function useAui(clients: useAui.Props): AssistantClient;
 
-declare function useAui(clients: useAui.Props, config: {
-  parent: null | AssistantClient;
-}): AssistantClient;
-
 declare const useAuiEvent: <TEvent extends AssistantEventName>(selector: AssistantEventSelector<TEvent>, callback: AssistantEventCallback<TEvent>) => void;
 
 declare const useAuiState: <T>(selector: (state: AssistantState) => T) => T;
@@ -257,7 +257,7 @@ declare namespace useClientList {
 }
 
 declare function useClientLookup<TMethods extends ClientMethods>(elements: readonly ResourceElement<TMethods>[]): {
-  state: InferClientState$1<TMethods>[];
+  state: InferClientState<TMethods>[];
   get: (lookup: {
     index: number;
   } | {
@@ -266,7 +266,7 @@ declare function useClientLookup<TMethods extends ClientMethods>(elements: reado
 };
 
 declare const useClientResource: <TMethods extends ClientMethods>(element: ResourceElement<TMethods>) => {
-  state: InferClientState$2<TMethods>;
+  state: InferClientState<TMethods>;
   methods: TMethods;
   key: string | number | undefined;
 };

@@ -13,7 +13,7 @@ import {
   type ToolExecutionStatus,
   generateId,
 } from "@assistant-ui/core";
-import { parseDataUrl } from "@assistant-ui/core/internal";
+import { httpUrlPattern, parseDataUrl } from "@assistant-ui/core/internal";
 import {
   useCloudThreadListAdapter,
   useRemoteThreadListRuntime,
@@ -50,10 +50,19 @@ export const getMessageContent = (msg: AppendMessage) => {
       case "image":
         return { type: "image_url" as const, url: part.image };
       case "file":
+        if (part.sourceType === "url" || httpUrlPattern.test(part.data)) {
+          return {
+            type: "file_url" as const,
+            url: part.data,
+            mimeType: part.mimeType,
+          };
+        }
         return {
           type: "file" as const,
           mimeType: part.mimeType,
-          data: part.data,
+          // Lands in Gemini `inlineData.data`, which takes bare base64, so a
+          // data URL envelope is stripped rather than forwarded.
+          data: parseDataUrl(part.data)?.data ?? part.data,
           ...(part.filename != null && { filename: part.filename }),
         };
       case "audio": {

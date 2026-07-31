@@ -437,7 +437,7 @@ Renders message content parts via a `components` prop. Tool call and data parts 
 | `Reasoning` | `ReasoningMessagePartComponent` | Reasoning part renderer |
 | `Source` | `SourceMessagePartComponent` | Source part renderer |
 | `File` | `FileMessagePartComponent` | File part renderer |
-| `Unstable_Audio` | `AudioMessagePartComponent` | Audio part renderer (experimental) |
+| `Unstable_Audio` | `Unstable_AudioMessagePartComponent` | Audio part renderer (deprecated, render `audio/*` from `File`) |
 | `tools` | `{ by_name?, Fallback? }` or `{ Override }` | Tool call rendering config — use `by_name` to map tool names to components, `Fallback` for unregistered tools, or `Override` to handle all tool calls |
 | `data` | `{ by_name?, Fallback? }` | Data part rendering config — use `by_name` to map data event names, `Fallback` for unmatched events |
 | `Empty` | `EmptyMessagePartComponent` | Component shown for empty messages |

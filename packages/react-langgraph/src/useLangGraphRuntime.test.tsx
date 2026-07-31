@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { act, renderHook, waitFor } from "@testing-library/react";
+import { act, render, renderHook, waitFor } from "@testing-library/react";
 import type {
   AssistantRuntime,
   AttachmentAdapter,
@@ -535,6 +535,53 @@ describe("useLangGraphRuntime", () => {
     });
 
     await waitFor(() => expect(isLoadingResult.current).toBe(false));
+  });
+
+  it("reports loading on the first frame of a controlled thread", async () => {
+    const pending = deferred<LoadResult>();
+    const load = vi.fn(() => pending.promise);
+    const streamMock = vi
+      .fn()
+      .mockImplementation(() => mockStreamCallbackFactory([])());
+    const adapter = makeThreadListAdapter();
+    const frames: Array<{ threadId: string; isLoading: boolean }> = [];
+
+    const LoadingProbe = () => {
+      const threadId = useAuiState((s) => s.threads.mainThreadId);
+      const isLoading = useAuiState((s) => s.thread.isLoading);
+      frames.push({ threadId, isLoading });
+      return null;
+    };
+
+    const TestRuntime = () => {
+      const runtime = useLangGraphRuntime({
+        stream: streamMock,
+        load,
+        unstable_threadListAdapter: adapter,
+        threadId: "lg-thread-1",
+      });
+
+      return (
+        <AssistantRuntimeProvider runtime={runtime}>
+          <LoadingProbe />
+        </AssistantRuntimeProvider>
+      );
+    };
+
+    const { unmount } = render(<TestRuntime />);
+
+    await waitFor(() =>
+      expect(load).toHaveBeenCalledWith("lg-thread-1", {
+        signal: expect.any(AbortSignal),
+      }),
+    );
+
+    const firstThreadFrame = frames.find(
+      ({ threadId }) => threadId === "lg-thread-1",
+    );
+    expect(firstThreadFrame?.isLoading).toBe(true);
+
+    unmount();
   });
 
   it("should reset thread.isLoading to false and surface the error when load rejects", async () => {

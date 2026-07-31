@@ -630,6 +630,61 @@ describe("createAdkStream - SSE parsing", () => {
     expect(collected).toHaveLength(1);
     expect(collected[0]!.id).toBe("e1");
   });
+
+  it("cancels the response body when iteration stops early", async () => {
+    const cancel = vi.fn();
+    const encoder = new TextEncoder();
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(
+          encoder.encode(`data: ${JSON.stringify({ id: "e1" })}\n\n`),
+        );
+      },
+      cancel,
+    });
+    mockFetch.mockResolvedValueOnce(sseResponse(body));
+
+    const stream = createAdkStream({ api: "/api/adk" });
+    const gen = await stream(
+      [{ id: "m1", type: "human", content: "Hi" }],
+      makeConfig(),
+    );
+
+    for await (const _event of gen) {
+      break;
+    }
+
+    expect(cancel).toHaveBeenCalledOnce();
+  });
+
+  it("does not surface cancellation errors on early exit", async () => {
+    const encoder = new TextEncoder();
+    let controller!: ReadableStreamDefaultController<Uint8Array>;
+    const body = new ReadableStream<Uint8Array>({
+      start(streamController) {
+        controller = streamController;
+        controller.enqueue(
+          encoder.encode(`data: ${JSON.stringify({ id: "e1" })}\n\n`),
+        );
+      },
+    });
+    mockFetch.mockResolvedValueOnce(sseResponse(body));
+
+    const stream = createAdkStream({ api: "/api/adk" });
+    const gen = await stream(
+      [{ id: "m1", type: "human", content: "Hi" }],
+      makeConfig(),
+    );
+
+    const consume = async () => {
+      for await (const _event of gen) {
+        controller.error(new Error("stream failed"));
+        break;
+      }
+    };
+
+    await expect(consume()).resolves.toBeUndefined();
+  });
 });
 
 // ── Error handling ──

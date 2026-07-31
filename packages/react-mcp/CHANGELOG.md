@@ -1,5 +1,40 @@
 # @assistant-ui/react-mcp
 
+## 0.1.1
+
+### Patch Changes
+
+- Updated dependencies [[`aa74b0d`](https://github.com/assistant-ui/assistant-ui/commit/aa74b0d7c5e334385fabbe48ed79e90b36f63029), [`6e5c450`](https://github.com/assistant-ui/assistant-ui/commit/6e5c450d71242acda30b41c8601b7edb6ed5c701), [`59ec21b`](https://github.com/assistant-ui/assistant-ui/commit/59ec21b5f610aaf7c0082508b3a6cbf950ffc1db), [`4fd698b`](https://github.com/assistant-ui/assistant-ui/commit/4fd698ba5a3b23ea57b667a02c6f784147f5c42d), [`b8daa96`](https://github.com/assistant-ui/assistant-ui/commit/b8daa967f4e5cb181c3e9ed065ab6949ee848fa4)]:
+  - @assistant-ui/core@0.3.3
+  - @assistant-ui/tap@0.9.9
+  - @assistant-ui/store@0.3.2
+
+## 0.1.0
+
+### Minor Changes
+
+- [#5316](https://github.com/assistant-ui/assistant-ui/pull/5316) [`b5f20a9`](https://github.com/assistant-ui/assistant-ui/commit/b5f20a9607af038a10e99e237a4e2ea3f5d31875) - feat: migrate to MCP TypeScript SDK v2 scoped packages (`@modelcontextprotocol/client`, `@modelcontextprotocol/core`, `@modelcontextprotocol/server`), replacing the monolithic `@modelcontextprotocol/sdk` 1.x dependency ([@okisdev](https://github.com/okisdev))
+
+### Patch Changes
+
+- [#5377](https://github.com/assistant-ui/assistant-ui/pull/5377) [`3b98b89`](https://github.com/assistant-ui/assistant-ui/commit/3b98b8922701465deffb109cac910fd1ab1bd606) - fix(react-mcp): resolve empty elicitation drafts to the unanswered state ([@okisdev](https://github.com/okisdev))
+
+  a cleared `enum` field kept `""` as a candidate value, so the accept gate flagged it invalid with no way back to unanswered, and the gate's own required rule counted `""` as missing while the response validator counted it as present. an empty-string draft is now a field's blank state unless the schema names `""` as a legal value (an `enum` member or a `""` default), and the gate reports missing required properties from the response validator alone instead of adding a second rule.
+
+- [#5334](https://github.com/assistant-ui/assistant-ui/pull/5334) [`8b0f53f`](https://github.com/assistant-ui/assistant-ui/commit/8b0f53fa9115502b2319f8e649f77a3361187fde) - feat: form-mode MCP elicitation (pending state, `answerElicitation`, unstyled `McpElicitationPrimitive` namespace), tool list-change auto-refresh, and `cache.defaultTtlMs` response cache configuration ([@okisdev](https://github.com/okisdev))
+
+- [#5341](https://github.com/assistant-ui/assistant-ui/pull/5341) [`c26ef59`](https://github.com/assistant-ui/assistant-ui/commit/c26ef59424f203472e2edee783c5710fc79168ae) - fix: honor boolean schema defaults in elicitation seeding, flag mistyped boolean drafts as invalid, and add an `elicitation: false` opt-out ([@okisdev](https://github.com/okisdev))
+
+- [#5342](https://github.com/assistant-ui/assistant-ui/pull/5342) [`647a81e`](https://github.com/assistant-ui/assistant-ui/commit/647a81e6842f7f0106246ed79ff8d2d412898015) - fix: surface elicitation validation on the pending item (stay-pending accept errors and `McpElicitationPrimitive.Error`), seed drafts from schema defaults ([@okisdev](https://github.com/okisdev))
+
+- [#5347](https://github.com/assistant-ui/assistant-ui/pull/5347) [`2efad15`](https://github.com/assistant-ui/assistant-ui/commit/2efad157f4128eb72646044a53528b04a10ddaf6) - fix: handle custom MCP server storage failures ([@Kinfe123](https://github.com/Kinfe123))
+
+- Updated dependencies [[`d2e7a4a`](https://github.com/assistant-ui/assistant-ui/commit/d2e7a4a1c71c214fd8c4363ec16e879d1122639e), [`ecd7c87`](https://github.com/assistant-ui/assistant-ui/commit/ecd7c879cace69d6371b3f673c52a80669377fc0), [`2daf2d5`](https://github.com/assistant-ui/assistant-ui/commit/2daf2d5dfcb77938f6deb63d048575540e1806a2), [`a5bdbed`](https://github.com/assistant-ui/assistant-ui/commit/a5bdbed993d8f14c919b692b40d51f5cd64467b9), [`fb993c3`](https://github.com/assistant-ui/assistant-ui/commit/fb993c34ca1623bac373137c5ab207dd79cb500c), [`3ae058c`](https://github.com/assistant-ui/assistant-ui/commit/3ae058c5d275e2444701da70a6513528439ecb3e), [`f30b54c`](https://github.com/assistant-ui/assistant-ui/commit/f30b54c9856d50a18f738c4d485c02bcd039151c), [`936c52c`](https://github.com/assistant-ui/assistant-ui/commit/936c52c4301b89242572d9890c870050f63cbe93), [`ee87dd9`](https://github.com/assistant-ui/assistant-ui/commit/ee87dd9fef1389165bbfe0019be2a6995b2cfb24), [`e41734c`](https://github.com/assistant-ui/assistant-ui/commit/e41734c102a192ab772703899d7980bb5c055d07), [`1c5266c`](https://github.com/assistant-ui/assistant-ui/commit/1c5266c1fb32bc71647fedc485372f6ffa25171f), [`cdcdbd0`](https://github.com/assistant-ui/assistant-ui/commit/cdcdbd0a9354483a72edbc01f51a850a1d6b5dc5), [`42dbc69`](https://github.com/assistant-ui/assistant-ui/commit/42dbc697642c0fa327728860f78a8ce5270bf32d), [`25f1e4f`](https://github.com/assistant-ui/assistant-ui/commit/25f1e4f9d33073216458d3c5a05e8d79845d4b3b), [`d16e62d`](https://github.com/assistant-ui/assistant-ui/commit/d16e62d25b5c1e7e2bc1504fb4a5e97c3c25b6e3), [`60d049e`](https://github.com/assistant-ui/assistant-ui/commit/60d049eeadf681f4235157c903543493c98cc258), [`feef8fd`](https://github.com/assistant-ui/assistant-ui/commit/feef8fda65e999a90d283dca23ff656b56456803), [`c02680a`](https://github.com/assistant-ui/assistant-ui/commit/c02680a16425669589db74ba1a601a8f6c4bf8e6), [`e6045bb`](https://github.com/assistant-ui/assistant-ui/commit/e6045bbb1cfc0d63ef75f46cf2de7fa010183451), [`04c070e`](https://github.com/assistant-ui/assistant-ui/commit/04c070e63c5dd1c51355037e42cf24c77c56da6e), [`d7afb3d`](https://github.com/assistant-ui/assistant-ui/commit/d7afb3dbd2dbc76ed90f9091b599ea81bfd6e363), [`8643393`](https://github.com/assistant-ui/assistant-ui/commit/8643393490ebe1aa86661f705bb9ac907bfb4eac), [`2eca438`](https://github.com/assistant-ui/assistant-ui/commit/2eca4386778618f555258855ee6612eb44d89bb2), [`23ee5db`](https://github.com/assistant-ui/assistant-ui/commit/23ee5dbb60e6ac7993b8ce4023fb63a5f7eea713)]:
+  - @assistant-ui/store@0.3.2
+  - @assistant-ui/core@0.3.2
+  - assistant-stream@0.3.31
+  - @assistant-ui/tap@0.9.8
+
 ## 0.0.22
 
 ### Patch Changes

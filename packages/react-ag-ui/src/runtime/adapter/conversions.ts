@@ -15,8 +15,15 @@ import { type Tool, toToolsJSONSchema } from "assistant-stream";
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
 import {
   AG_UI_METADATA_NAMESPACE,
+  A2UI_SURFACE_ACTIVITY_TYPE,
   type AgUiCustomMetadata,
 } from "./run-aggregator";
+import {
+  applyA2uiOperations,
+  convertSurfaceToUISpec,
+  type A2uiState,
+  type A2uiSurfaceState,
+} from "@assistant-ui/react-generative-ui/a2ui";
 import type { AgUiInterrupt } from "../types";
 import {
   parseMcpToolCallResult,
@@ -154,12 +161,14 @@ function mediaTypeForMime(mimeType: string | undefined): MediaInputType {
 
 // Build an AG-UI multimodal source from a data URL, raw base64 payload, or an
 // http(s) URL. A `url` source may omit the mime type; a `data` source always
-// resolves one (falling back to application/octet-stream).
+// resolves one (falling back to application/octet-stream). An explicit
+// `sourceType: "url"` on the part forces the url leg for non-http references.
 function buildInputSource(
   value: string,
   declaredMimeType: string | undefined,
+  sourceType?: string,
 ): InputContentSource {
-  if (httpUrlPattern.test(value)) {
+  if (sourceType === "url" || httpUrlPattern.test(value)) {
     return declaredMimeType !== undefined
       ? { type: "url", value, mimeType: declaredMimeType }
       : { type: "url", value };
@@ -197,7 +206,11 @@ function toInputContent(
     if (data === undefined) return null;
     const declaredMimeType = getString(part, "mimeType") || fallbackMimeType;
     const filename = getString(part, "filename");
-    const source = buildInputSource(data, declaredMimeType);
+    const source = buildInputSource(
+      data,
+      declaredMimeType,
+      getString(part, "sourceType"),
+    );
     const metadata = filename !== undefined ? { filename } : undefined;
     switch (mediaTypeForMime(source.mimeType)) {
       case "image":
@@ -238,14 +251,18 @@ const mediaInputTypes = new Set(["image", "audio", "video", "document"]);
 // Inverse of buildInputSource.
 function inputSourceToString(
   value: unknown,
-): { value: string; mimeType?: string } | null {
+): { value: string; mimeType?: string; isUrl?: boolean } | null {
   if (!isObject(value)) return null;
   const sourceValue = getString(value, "value");
   if (sourceValue === undefined) return null;
   const mimeType = getString(value, "mimeType");
   const type = getString(value, "type");
   if (type === "url") {
-    return { value: sourceValue, ...(mimeType !== undefined && { mimeType }) };
+    return {
+      value: sourceValue,
+      isUrl: true,
+      ...(mimeType !== undefined && { mimeType }),
+    };
   }
   if (type === "data") {
     const resolvedMimeType = mimeType ?? "application/octet-stream";
@@ -330,6 +347,7 @@ function toSnapshotAttachments(content: unknown): SnapshotAttachment[] {
           type: "file",
           data: source.value,
           mimeType,
+          ...(source.isUrl && { sourceType: "url" as const }),
           ...(filename !== undefined && { filename }),
         },
       ],
@@ -339,13 +357,7 @@ function toSnapshotAttachments(content: unknown): SnapshotAttachment[] {
 }
 
 function buildUserContent(message: ThreadMessageLike): string | InputContent[] {
-  // File parts in message.content are intentionally skipped: the canonical
-  // binary payload for files always flows through message.attachments.
-  const contentParts = Array.isArray(message.content)
-    ? message.content.filter(
-        (part) => !(isObject(part) && part.type === "file"),
-      )
-    : [];
+  const contentParts = Array.isArray(message.content) ? message.content : [];
 
   const attachments = message.attachments ?? [];
 
@@ -532,6 +544,42 @@ function toUserOrSystemSnapshotMessage(
   };
 }
 
+// Rebuilds the a2ui:<surfaceId> "present" tool-call parts for one owning
+// assistant message from a bucket of rebuilt surface state, mirroring the
+// live RunAggregator.synthesizeA2uiToolCalls shape. Non-a2ui parts (text,
+// other tool calls) are preserved; existing a2ui parts are replaced wholesale
+// so create/update/delete within the bucket all converge on the rebuilt set.
+function attachA2uiSurfaces(
+  message: CoreThreadMessageLike,
+  state: A2uiState,
+): CoreThreadMessageLike {
+  const a2uiParts: ToolCallPart[] = [];
+  for (const [surfaceId, surface] of state) {
+    const { spec } = convertSurfaceToUISpec(surface);
+    if (!spec) continue;
+    a2uiParts.push({
+      type: "tool-call",
+      toolCallId: `a2ui:${surfaceId}`,
+      toolName: "present",
+      args: spec as unknown as ReadonlyJSONObject,
+      argsText: JSON.stringify(spec),
+      result: {},
+    });
+  }
+
+  const content = Array.isArray(message.content) ? message.content : [];
+  const preserved = content.filter(
+    (part) =>
+      !(
+        isObject(part) &&
+        part.type === "tool-call" &&
+        typeof part.toolCallId === "string" &&
+        part.toolCallId.startsWith("a2ui:")
+      ),
+  );
+  return { ...message, content: [...preserved, ...a2uiParts] };
+}
+
 export type FromAgUiMessagesOptions = {
   /**
    * Whether to convert `reasoning` messages into visible reasoning parts.
@@ -546,6 +594,8 @@ export function fromAgUiMessages(
 ): CoreThreadMessageLike[] {
   const showThinking = options?.showThinking ?? true;
   const converted: CoreThreadMessageLike[] = [];
+  const a2uiBuckets = new Map<string, A2uiState>();
+  const a2uiBucketOwnerIndices = new Map<string, number>();
 
   for (const rawMessage of messages) {
     if (!isObject(rawMessage)) continue;
@@ -653,6 +703,47 @@ export function fromAgUiMessages(
       continue;
     }
 
+    if (role === "activity") {
+      // Only a2ui-surface activity messages have an assistant-part equivalent
+      // to rehydrate; other activity types still have no surface to repaint.
+      const activityType = getString(rawMessage, "activityType");
+      if (activityType !== A2UI_SURFACE_ACTIVITY_TYPE) continue;
+      const activityContent = isObject(rawMessage.content)
+        ? (rawMessage.content as Record<string, unknown>)
+        : null;
+      const operations = activityContent?.["a2ui_operations"];
+      if (!Array.isArray(operations)) continue;
+
+      let ownerIndex = -1;
+      for (let i = converted.length - 1; i >= 0; i--) {
+        const candidate = converted[i];
+        if (candidate && candidate.role === "assistant") {
+          ownerIndex = i;
+          break;
+        }
+      }
+      if (ownerIndex === -1) continue;
+
+      const owner = converted[ownerIndex]!;
+      const bucketKey = getString(rawMessage, "id") ?? "a2ui:anonymous";
+      const { state } = applyA2uiOperations(new Map(), operations);
+      a2uiBuckets.delete(bucketKey);
+      a2uiBucketOwnerIndices.delete(bucketKey);
+      a2uiBuckets.set(bucketKey, state);
+      a2uiBucketOwnerIndices.set(bucketKey, ownerIndex);
+
+      const ownerState = new Map<string, A2uiSurfaceState>();
+      for (const [candidateBucketKey, candidateState] of a2uiBuckets) {
+        if (a2uiBucketOwnerIndices.get(candidateBucketKey) !== ownerIndex)
+          continue;
+        for (const [surfaceId, surface] of candidateState) {
+          ownerState.set(surfaceId, surface);
+        }
+      }
+      converted[ownerIndex] = attachA2uiSurfaces(owner, ownerState);
+      continue;
+    }
+
     if (role === "assistant") {
       converted.push(toAssistantSnapshotMessage(rawMessage));
       continue;
@@ -717,7 +808,12 @@ function convertAssistantMessage(
   const contentArray = Array.isArray(message.content) ? message.content : [];
 
   const toolCallParts = contentArray.filter(
-    (part): part is ToolCallPart => part?.type === "tool-call",
+    (part): part is ToolCallPart =>
+      part?.type === "tool-call" &&
+      !(
+        typeof part.toolCallId === "string" &&
+        part.toolCallId.startsWith("a2ui:")
+      ),
   );
 
   const toolCalls = toolCallParts.map((part) => ({

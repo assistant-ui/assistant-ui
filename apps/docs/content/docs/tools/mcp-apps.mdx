@@ -59,6 +59,28 @@ function MyAssistant() {
 
 `McpAppsRemoteHost` is the default host strategy — it POSTs `{ method, params }` to your route. A different strategy (e.g. a client-side MCP client) can be plugged in by writing a custom resource that returns the same `McpAppsHost` shape (`{ loadResource, callTool, readResource, listResources }`).
 
+Changes to `headers` or a custom `fetch` function apply to subsequent host requests without reloading the widget. When the account or workspace identity changes, key the host resource explicitly so its UI resource reloads.
+
+Install the resource helper:
+
+```bash
+pnpm add @assistant-ui/tap
+```
+
+```tsx
+import { withKey } from "@assistant-ui/tap";
+
+const mcpApp = McpAppRenderer({
+  host: withKey(
+    workspaceId,
+    McpAppsRemoteHost({
+      url: "/api/mcp-apps",
+      headers: () => getWorkspaceHeaders(workspaceId),
+    }),
+  ),
+});
+```
+
 `openLink` is auto-wired to `window.open(url, "_blank", "noopener,noreferrer")`. `sendMessage` is auto-wired to append a user message to the current thread (accepts `string`, `{ prompt }`, `{ text }`, or `{ message }`).
 
 ### Route handler
@@ -314,4 +336,4 @@ McpAppRenderer({
 - Widgets run cross-origin in a sandboxed iframe. The bridge filters incoming messages by both source window and origin.
 - The host route is your auth boundary — apply session checks, rate limiting, and per-tool allowlists there. The renderer trusts whatever the route returns.
 - `openLink` rejects non-`http(s)` URLs at the bridge layer, but your `openLink` handler should still treat the URL as untrusted (e.g. always use `noopener,noreferrer`).
-- Keep `host` and `handlers` references stable across renders (e.g. module-scope constants or `useMemo`); an unstable identity will tear down and refetch the widget on every parent re-render.
+- Keep custom `host` and `handlers` references stable across renders (e.g. module-scope constants or `useMemo`); an unstable custom-host identity keeps the widget in `loadingFallback` while refetching on every parent re-render.

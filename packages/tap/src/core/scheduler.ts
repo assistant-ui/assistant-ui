@@ -1,3 +1,5 @@
+import { throwAggregated } from "./helpers/throwAggregated";
+
 type Task = () => void;
 
 type GlobalFlushState = {
@@ -5,11 +7,12 @@ type GlobalFlushState = {
   isScheduled: boolean;
 };
 
-const MAX_FLUSH_LIMIT = 50;
+const MAX_UPDATE_DEPTH = 50;
 let flushState: GlobalFlushState = {
   schedulers: new Set([]),
   isScheduled: false,
 };
+let activeDrainRuns: Map<UpdateScheduler, number> | null = null;
 
 export class UpdateScheduler {
   private _isDirty = false;
@@ -25,6 +28,16 @@ export class UpdateScheduler {
   }
 
   markDirty() {
+    if (
+      activeDrainRuns &&
+      (activeDrainRuns.get(this) ?? 0) >= MAX_UPDATE_DEPTH
+    ) {
+      throw new Error(
+        `Maximum update depth exceeded. This can happen when a resource ` +
+          `repeatedly calls setState inside useEffect.`,
+      );
+    }
+
     this._isDirty = true;
 
     flushState.schedulers.add(this);
@@ -32,6 +45,8 @@ export class UpdateScheduler {
   }
 
   runTask() {
+    activeDrainRuns?.set(this, (activeDrainRuns.get(this) ?? 0) + 1);
+
     this._isDirty = false;
     this._task();
   }
@@ -44,22 +59,15 @@ const scheduleFlush = () => {
 };
 
 const flushScheduled = () => {
+  // save/restore: flushTapSync re-enters flushScheduled with its own flushState
+  const prevDrainRuns = activeDrainRuns;
+  activeDrainRuns = new Map();
   try {
     const errors = [];
-    let flushDepth = 0;
 
     for (const scheduler of flushState.schedulers) {
       flushState.schedulers.delete(scheduler);
       if (!scheduler.isDirty) continue;
-
-      flushDepth++;
-
-      if (flushDepth > MAX_FLUSH_LIMIT) {
-        throw new Error(
-          `Maximum update depth exceeded. This can happen when a resource ` +
-            `repeatedly calls setState inside useEffect.`,
-        );
-      }
 
       try {
         scheduler.runTask();
@@ -68,17 +76,9 @@ const flushScheduled = () => {
       }
     }
 
-    if (errors.length > 0) {
-      if (errors.length === 1) {
-        throw errors[0];
-      } else {
-        for (const error of errors) {
-          console.error(error);
-        }
-        throw new AggregateError(errors, "Errors occurred during flushSync");
-      }
-    }
+    throwAggregated(errors, "Errors occurred during flushSync");
   } finally {
+    activeDrainRuns = prevDrainRuns;
     flushState.schedulers.clear();
     flushState.isScheduled = false;
   }

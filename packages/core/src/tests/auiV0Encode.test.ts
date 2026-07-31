@@ -127,6 +127,61 @@ describe("auiV0Encode", () => {
     ]);
   });
 
+  it("preserves file sourceType in the core cloud encoder", () => {
+    const encoded = auiV0Encode({
+      id: "m1",
+      createdAt: new Date("2026-03-15T00:00:00.000Z"),
+      role: "user",
+      metadata: { custom: {} },
+      content: [
+        {
+          type: "file",
+          data: "file-abc123",
+          mimeType: "application/pdf",
+          filename: "a.pdf",
+          sourceType: "id",
+        },
+      ],
+      attachments: [
+        {
+          id: "att-1",
+          type: "document",
+          name: "a.pdf",
+          contentType: "application/pdf",
+          status: { type: "complete" },
+          content: [
+            {
+              type: "file",
+              data: "file-abc123",
+              mimeType: "application/pdf",
+              filename: "a.pdf",
+              sourceType: "id",
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(encoded.content).toEqual([
+      {
+        type: "file",
+        data: "file-abc123",
+        mimeType: "application/pdf",
+        filename: "a.pdf",
+        sourceType: "id",
+      },
+    ]);
+    expect(encoded.attachments?.[0]?.content).toEqual([
+      {
+        type: "file",
+        data: "file-abc123",
+        mimeType: "application/pdf",
+        filename: "a.pdf",
+        sourceType: "id",
+      },
+    ]);
+  });
+
   it("omits missing attachment contentType in the core cloud encoder", () => {
     const encoded = auiV0Encode({
       id: "m1",
@@ -153,6 +208,99 @@ describe("auiV0Encode", () => {
         status: { type: "complete" },
         content: [{ type: "text", text: "notes" }],
       },
+    ]);
+  });
+
+  it("drops per-part status from message parts in the core cloud encoder", () => {
+    const encoded = auiV0Encode({
+      id: "m1",
+      createdAt: new Date("2026-03-15T00:00:00.000Z"),
+      role: "assistant",
+      status: { type: "complete", reason: "stop" },
+      metadata: {
+        unstable_state: null,
+        unstable_annotations: [],
+        unstable_data: [],
+        steps: [],
+        custom: {},
+      },
+      content: [
+        { type: "reasoning", text: "thinking", status: { type: "complete" } },
+        { type: "text", text: "answer", status: { type: "running" } },
+      ],
+    });
+
+    expect(encoded.content).toEqual([
+      { type: "reasoning", text: "thinking" },
+      { type: "text", text: "answer" },
+    ]);
+  });
+
+  it("drops per-part status from attachment content in the core cloud encoder", () => {
+    const encoded = auiV0Encode({
+      id: "m1",
+      createdAt: new Date("2026-03-15T00:00:00.000Z"),
+      role: "user",
+      metadata: { custom: {} },
+      content: [{ type: "text", text: "please review this" }],
+      attachments: [
+        {
+          id: "att-1",
+          type: "document",
+          name: "notes.txt",
+          status: { type: "complete" },
+          content: [
+            { type: "text", text: "notes", status: { type: "running" } },
+          ],
+        },
+      ],
+    });
+
+    expect(encoded.attachments?.[0]?.content).toEqual([
+      { type: "text", text: "notes" },
+    ]);
+  });
+
+  it("preserves every attachment content field the wire shape carries in the core cloud encoder", () => {
+    const encoded = auiV0Encode({
+      id: "m1",
+      createdAt: new Date("2026-03-15T00:00:00.000Z"),
+      role: "user",
+      metadata: { custom: {} },
+      content: [{ type: "text", text: "please review these" }],
+      attachments: [
+        {
+          id: "att-1",
+          type: "file",
+          name: "bundle",
+          status: { type: "complete" },
+          content: [
+            {
+              type: "image",
+              image: "data:image/png;base64,iVBORw0KGgo=",
+              filename: "shot.png",
+            },
+            {
+              type: "audio",
+              audio: { data: "data:audio/mp3;base64,SUQzAw==", format: "mp3" },
+            },
+            { type: "data", name: "telemetry", data: { runs: 3 } },
+          ],
+        },
+      ],
+    });
+
+    expect(encoded.attachments?.[0]?.content).toEqual([
+      {
+        type: "image",
+        image: "data:image/png;base64,iVBORw0KGgo=",
+        filename: "shot.png",
+      },
+      {
+        type: "audio",
+        audio: { data: "data:audio/mp3;base64,SUQzAw==", format: "mp3" },
+      },
+      { type: "data", name: "telemetry", data: { runs: 3 } },
     ]);
   });
 });

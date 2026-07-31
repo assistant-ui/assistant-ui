@@ -13,6 +13,7 @@ import { InstallCommandLLM } from "@/components/docs/fumadocs/install/install-co
 import { ParametersTableLLM } from "@/components/docs/parameters-table";
 import { PrimitivesTypeTableLLM } from "@/components/docs/primitives-type-table";
 import { FlowLLM } from "@/components/assistant-ui/flow";
+import { TapTutorialSlideshowLLM } from "@/components/docs/tap/tutorial-slideshow.llm";
 
 /**
  * The single substitution point mapping MDX components to their text variants
@@ -62,4 +63,5 @@ export const LLM_COMPONENTS: MDXComponents = {
   ParametersTable: ParametersTableLLM,
   PrimitivesTypeTable: PrimitivesTypeTableLLM,
   Flow: FlowLLM,
+  TapTutorialSlideshow: TapTutorialSlideshowLLM,
 };

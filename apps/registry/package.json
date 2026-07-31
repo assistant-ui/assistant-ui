@@ -12,6 +12,7 @@
   },
   "devDependencies": {
     "@ai-sdk/openai": "^4.0.20",
+    "@assistant-ui/eve": "workspace:*",
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/react-ai-sdk": "workspace:*",
     "@assistant-ui/react-markdown": "workspace:*",

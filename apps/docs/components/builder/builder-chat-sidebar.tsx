@@ -30,7 +30,7 @@ import {
   createPlaygroundChatToolkit,
   type PartialBuilderConfig,
 } from "@/lib/playground-chat-toolkit";
-import { useAui } from "@assistant-ui/store";
+import { useAui, AuiProvider } from "@assistant-ui/store";
 import type { BuilderConfig } from "./types";
 import { applyDiff } from "@/lib/playground-url-state";
 
@@ -80,7 +80,15 @@ interface PlaygroundChatProviderProps {
   children: ReactNode;
 }
 
-export function PlaygroundChatProvider({
+export function PlaygroundChatProvider(props: PlaygroundChatProviderProps) {
+  return (
+    <AuiProvider value={null}>
+      <PlaygroundChatProviderInner {...props} />
+    </AuiProvider>
+  );
+}
+
+function PlaygroundChatProviderInner({
   config,
   setConfig,
   children,
@@ -130,13 +138,10 @@ export function PlaygroundChatProvider({
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
   });
 
-  const aui = useAui(
-    {
-      tools: Tools({ toolkit }),
-      suggestions: Suggestions(PLAYGROUND_SUGGESTIONS),
-    },
-    { parent: null },
-  );
+  const aui = useAui({
+    tools: Tools({ toolkit }),
+    suggestions: Suggestions(PLAYGROUND_SUGGESTIONS),
+  });
 
   const value = useMemo(() => ({ runtime, aui }), [runtime, aui]);
 

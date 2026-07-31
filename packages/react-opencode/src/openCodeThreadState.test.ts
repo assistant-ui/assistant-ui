@@ -46,6 +46,80 @@ describe("reduceOpenCodeThreadState", () => {
     expect(history.messagesById.msg_1?.shadowParts).toEqual(pending.parts);
   });
 
+  it("reconciles a filename-less inline file after its media type is rewritten", () => {
+    const initial = createOpenCodeThreadState("ses_1");
+    const pending: PendingUserMessage = {
+      clientId: "local_1",
+      sessionId: "ses_1",
+      createdAt: 1000,
+      parentId: null,
+      sourceId: null,
+      runConfig: undefined,
+      // deliberately the un-rewritten payload, as a copy created before this
+      // fix would hold. it cannot match the server url, which forces the match
+      // through `partTextFingerprint`, the arm under test.
+      contentText: "data:image/jpeg;base64,QUJD",
+      parts: [
+        {
+          type: "file",
+          data: "data:image/jpeg;base64,QUJD",
+          mimeType: "image/png",
+        },
+      ],
+      status: "pending",
+    };
+
+    const queued = reduceOpenCodeThreadState(initial, {
+      type: "local.message.queued",
+      pending,
+    });
+    const history = reduceOpenCodeThreadState(queued, {
+      type: "history.loaded",
+      session: null,
+      messages: [
+        {
+          info: {
+            id: "msg_1",
+            role: "user",
+            sessionID: "ses_1",
+            time: { created: 1000 },
+          },
+          parts: [
+            {
+              type: "file",
+              url: "data:image/png;base64,QUJD",
+            },
+          ],
+        } as unknown as MessageWithParts,
+      ],
+    });
+
+    expect(Object.keys(history.pendingUserMessages)).toHaveLength(0);
+    expect(history.messageOrder).toEqual(["msg_1"]);
+  });
+
+  it("loads history containing a file part that carries no url", () => {
+    const initial = createOpenCodeThreadState("ses_1");
+
+    const history = reduceOpenCodeThreadState(initial, {
+      type: "history.loaded",
+      session: null,
+      messages: [
+        {
+          info: {
+            id: "msg_1",
+            role: "user",
+            sessionID: "ses_1",
+            time: { created: 1000 },
+          },
+          parts: [{ type: "file" }],
+        } as unknown as MessageWithParts,
+      ],
+    });
+
+    expect(history.messageOrder).toEqual(["msg_1"]);
+  });
+
   it("adds assistant parts without losing message order", () => {
     const initial = createOpenCodeThreadState("ses_1");
 

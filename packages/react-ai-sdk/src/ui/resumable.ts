@@ -24,27 +24,57 @@ const getSessionStorage = (): Storage | null => {
   }
 };
 
+type StorageSlot = {
+  value: string | null;
+  owner: string | undefined;
+};
+
 /** `sessionStorage`-backed storage for the pending resumable stream id. See the [Resumable Streams](/docs/guides/resumable-streams) guide for end-to-end wiring. */
 export function createResumableSessionStorage(options?: {
-  key?: string;
+  /**
+   * Storage key for the pending stream id. A static string namespaces per route
+   * or chat surface. A getter is read lazily on every access, so the key can be
+   * derived from the active thread's identity; while the getter returns
+   * `undefined`, reads report no pending stream and writes are dropped, so a
+   * thread whose identity is not known yet never touches another thread's key.
+   *
+   * Under a remote thread list with more than one thread, scope the key per
+   * thread and create one storage instance per thread runtime rather than a
+   * single shared one. A shared key is written and cleared by whichever thread
+   * acts last, so one conversation's stream can resume inside another.
+   */
+  key?: string | (() => string | undefined);
 }): ResumableClientStorage {
-  const key = options?.key ?? DEFAULT_STORAGE_KEY;
-  let cachedStreamId: string | null | undefined;
-  let ownerThreadId: string | undefined;
+  const keyOption = options?.key;
+  const resolveKey = (): string | undefined => {
+    if (typeof keyOption !== "function")
+      return keyOption ?? DEFAULT_STORAGE_KEY;
+    try {
+      return keyOption();
+    } catch {
+      return undefined;
+    }
+  };
+  const slots = new Map<string, StorageSlot>();
   const listeners = new Set<{
     listener: () => void;
     threadId: string | undefined;
   }>();
-  const readStoredStreamId = () => {
-    if (cachedStreamId !== undefined) return cachedStreamId;
+  const readSlot = (key: string): StorageSlot => {
+    let slot = slots.get(key);
+    if (slot) return slot;
     const storage = getSessionStorage();
-    if (!storage) return null;
-    try {
-      cachedStreamId = storage.getItem(key);
-    } catch {
-      cachedStreamId = null;
+    let value: string | null = null;
+    if (storage) {
+      try {
+        value = storage.getItem(key);
+      } catch {
+        value = null;
+      }
     }
-    return cachedStreamId;
+    slot = { value, owner: undefined };
+    slots.set(key, slot);
+    return slot;
   };
   const notify = (threadId?: string) => {
     for (const subscription of listeners) {
@@ -62,32 +92,39 @@ export function createResumableSessionStorage(options?: {
 
   return {
     getStreamId(threadId) {
-      const streamId = readStoredStreamId();
-      if (streamId === null) return null;
-      if (ownerThreadId && threadId && ownerThreadId !== threadId) return null;
-      return streamId;
+      const key = resolveKey();
+      if (!key) return null;
+      const slot = readSlot(key);
+      if (slot.value === null) return null;
+      if (slot.owner && threadId && slot.owner !== threadId) return null;
+      return slot.value;
     },
     setStreamId(id, threadId) {
+      const key = resolveKey();
       const storage = getSessionStorage();
-      if (!storage) return;
+      if (!key || !storage) return;
       try {
         storage.setItem(key, id);
       } catch {
         // Ignore blocked or unavailable sessionStorage.
         return;
       }
-      cachedStreamId = id;
+      const slot = readSlot(key);
+      slot.value = id;
       if (threadId) {
-        ownerThreadId = threadId;
-      } else if (!ownerThreadId) {
-        ownerThreadId = Array.from(listeners).find(
+        slot.owner = threadId;
+      } else if (!slot.owner) {
+        slot.owner = Array.from(listeners).find(
           (subscription) => subscription.threadId !== undefined,
         )?.threadId;
       }
-      notify(ownerThreadId);
+      notify(slot.owner);
     },
     clear(threadId) {
-      if (ownerThreadId && threadId && ownerThreadId !== threadId) return;
+      const key = resolveKey();
+      if (!key) return;
+      const slot = readSlot(key);
+      if (slot.owner && threadId && slot.owner !== threadId) return;
       const storage = getSessionStorage();
       if (!storage) return;
       try {
@@ -96,13 +133,15 @@ export function createResumableSessionStorage(options?: {
         // Ignore blocked or unavailable sessionStorage.
         return;
       }
-      cachedStreamId = null;
-      ownerThreadId = undefined;
+      slot.value = null;
+      slot.owner = undefined;
       notify(threadId);
     },
     subscribe(listener, threadId) {
-      if (threadId && readStoredStreamId() !== null) {
-        ownerThreadId ??= threadId;
+      const key = resolveKey();
+      if (key && threadId) {
+        const slot = readSlot(key);
+        if (slot.value !== null) slot.owner ??= threadId;
       }
       const subscription = { listener, threadId };
       listeners.add(subscription);

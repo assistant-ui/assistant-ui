@@ -151,7 +151,12 @@ export namespace MessagePrimitiveUnstable_PartsGrouped {
           Image?: ImageMessagePartComponent | undefined;
           /** Component for rendering file content */
           File?: FileMessagePartComponent | undefined;
-          /** Component for rendering audio content (experimental) */
+          /**
+           * Component for rendering audio content.
+           *
+           * @deprecated Render audio through the `File` slot instead, branching
+           * on an `audio/*` mime type.
+           */
           Unstable_Audio?: Unstable_AudioMessagePartComponent | undefined;
           /** Configuration for data part rendering */
           data?:

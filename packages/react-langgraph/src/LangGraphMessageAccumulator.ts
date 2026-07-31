@@ -44,6 +44,17 @@ export class LangGraphMessageAccumulator<TMessage extends { id?: string }> {
     return message.id ? message : { ...message, id: uuidv4() };
   }
 
+  private upsertMessage(
+    message: TMessage,
+    previousSource: ReadonlyMap<string, TMessage> = this.messagesMap,
+  ): void {
+    const id = message.id!;
+    this.messagesMap.set(
+      id,
+      this.appendMessage(previousSource.get(id), message),
+    );
+  }
+
   private applyRemove(messageId: string) {
     if (messageId === REMOVE_ALL_MESSAGES) {
       this.messagesMap.clear();
@@ -63,8 +74,7 @@ export class LangGraphMessageAccumulator<TMessage extends { id?: string }> {
         this.applyRemove(messageId);
         continue;
       }
-      const previous = this.messagesMap.get(messageId);
-      this.messagesMap.set(messageId, this.appendMessage(previous, message));
+      this.upsertMessage(message);
     }
     return this.getMessages();
   }
@@ -81,11 +91,7 @@ export class LangGraphMessageAccumulator<TMessage extends { id?: string }> {
       return this.getMessages();
     }
 
-    const previous = this.messagesMap.get(messageId);
-    this.messagesMap.set(
-      messageId,
-      this.appendMessage(previous, messageWithId),
-    );
+    this.upsertMessage(messageWithId);
 
     const existingMetadata = this.metadataMap.get(messageId);
     this.metadataMap.set(messageId, { ...existingMetadata, ...metadata });
@@ -102,11 +108,12 @@ export class LangGraphMessageAccumulator<TMessage extends { id?: string }> {
   }
 
   public replaceMessages(newMessages: TMessage[]): TMessage[] {
-    this.messagesMap.clear();
+    const previous = this.messagesMap;
+    this.messagesMap = new Map();
     this.metadataMap.clear();
 
     for (const message of newMessages.map(this.ensureMessageId)) {
-      this.messagesMap.set(message.id!, message);
+      this.upsertMessage(message, previous);
     }
     return this.getMessages();
   }
@@ -114,7 +121,7 @@ export class LangGraphMessageAccumulator<TMessage extends { id?: string }> {
   // upsert-only: tuple-only messages (e.g. subgraph internals absent from parent `values`) are preserved
   public reconcileMessages(serverMessages: TMessage[]): TMessage[] {
     for (const message of serverMessages.map(this.ensureMessageId)) {
-      this.messagesMap.set(message.id!, message);
+      this.upsertMessage(message);
     }
     return this.getMessages();
   }

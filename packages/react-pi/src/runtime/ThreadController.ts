@@ -134,9 +134,13 @@ const KNOWN_EVENT_TYPES: ReadonlySet<string> = new Set([
 /** Parse a `data:<mime>;base64,<data>` URL into Pi `ImageContent`. Non-data-URL
  * strings pass through as opaque base64 with a generic image mime. */
 const toImageContent = (image: string): PiImageContent => {
-  const match = /^data:([^;,]+)(?:;base64)?,(.*)$/s.exec(image);
+  const match = /^data:([^;,]+)(?:;base64)?,(.*)$/is.exec(image);
   if (match) {
-    return { type: "image", mimeType: match[1]!, data: match[2]! };
+    return {
+      type: "image",
+      mimeType: match[1]!.toLowerCase(),
+      data: match[2]!,
+    };
   }
   return { type: "image", mimeType: "image/png", data: image };
 };

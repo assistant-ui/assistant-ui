@@ -334,12 +334,12 @@ describe("useChatRuntime", () => {
       status: "ready",
     });
     const storageA = {
-      getStreamId: () => null,
+      getStreamId: (): string | null => null,
       setStreamId: vi.fn(),
       clear: vi.fn(),
     };
     const storageB = {
-      getStreamId: () => "stream-b",
+      getStreamId: (): string | null => "stream-b",
       setStreamId: vi.fn(),
       clear: vi.fn(),
     };

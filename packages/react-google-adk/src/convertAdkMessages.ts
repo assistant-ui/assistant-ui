@@ -8,8 +8,13 @@ type ContentPart =
   | { type: "text"; text: string }
   | { type: "reasoning"; text: string }
   | { type: "image"; image: string }
-  | { type: "file"; data: string; mimeType: string; filename?: string }
-  | { type: "audio"; audio: { data: string; format: "mp3" | "wav" } }
+  | {
+      type: "file";
+      data: string;
+      mimeType: string;
+      filename?: string;
+      sourceType?: "url";
+    }
   | { type: "data"; name: string; data: unknown };
 
 const contentToParts = (
@@ -33,26 +38,22 @@ const contentToParts = (
           };
         case "image_url":
           return { type: "image", image: part.url };
-        case "file": {
-          const format =
-            role === "user" && part.filename == null
-              ? part.mimeType === "audio/wav"
-                ? ("wav" as const)
-                : part.mimeType === "audio/mp3"
-                  ? ("mp3" as const)
-                  : null
-              : null;
-          if (format) {
-            return { type: "audio", audio: { data: part.data, format } };
-          }
+        case "file":
           return {
             type: "file",
             data: part.data,
             mimeType: part.mimeType,
             ...(part.filename != null && { filename: part.filename }),
           };
-        }
         case "file_url":
+          if (role === "user") {
+            return {
+              type: "file",
+              data: part.url,
+              mimeType: part.mimeType ?? "application/octet-stream",
+              sourceType: "url",
+            };
+          }
           return {
             type: "data",
             name: "file_url",

@@ -123,6 +123,27 @@ groupPartByType({
 });
 ```
 
+## `useAui` `{ parent }` Config Removed
+
+The second argument (`useAui(clients, { parent })`) is removed. Provide the parent via context instead: wrap with `AuiProvider` and call the context form beneath it.
+
+```tsx
+// Before
+const aui = useAui(scopes, { parent });
+
+// After
+const Scoped = ({ children }) => {
+  const aui = useAui(scopes); // extends the AuiProvider parent
+  return <AuiProvider value={aui}>{children}</AuiProvider>;
+};
+
+<AuiProvider value={parent}>
+  <Scoped />
+</AuiProvider>;
+```
+
+Where `{ parent: null }` was used to detach from context, `<AuiProvider value={null}>` now provides an isolated empty root (experimental).
+
 ## Still Deprecated (not removed)
 
 - Primitive `If` components (`ThreadPrimitive.If`, `MessagePrimitive.If`, `ThreadPrimitive.Empty`) — replaced by `AuiIf`. The codemod migrates these.

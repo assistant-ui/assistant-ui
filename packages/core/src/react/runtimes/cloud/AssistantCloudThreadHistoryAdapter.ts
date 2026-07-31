@@ -22,18 +22,18 @@ const globalPersistence = new WeakMap<
 
 class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
   private cloudRef: RefObject<AssistantCloud>;
-  private auiRef: RefObject<AssistantClient>;
+  private getAui: () => AssistantClient;
 
   constructor(
     cloudRef: RefObject<AssistantCloud>,
-    auiRef: RefObject<AssistantClient>,
+    getAui: () => AssistantClient,
   ) {
     this.cloudRef = cloudRef;
-    this.auiRef = auiRef;
+    this.getAui = getAui;
   }
 
   private get aui(): AssistantClient {
-    return this.auiRef.current;
+    return this.getAui();
   }
 
   private get _persistence(): CloudMessagePersistence {
@@ -816,12 +816,14 @@ export function useAssistantCloudThreadHistoryAdapter(
   cloudRef: RefObject<AssistantCloud>,
 ): ThreadHistoryAdapter {
   const aui = useAui();
+  // Not useEffectEvent: history adapter methods run during render (SSR load).
   const auiRef = useRef(aui);
   useEffect(() => {
     auiRef.current = aui;
   });
   const [adapter] = useState(
-    () => new AssistantCloudThreadHistoryAdapter(cloudRef, auiRef),
+    () =>
+      new AssistantCloudThreadHistoryAdapter(cloudRef, () => auiRef.current),
   );
   return adapter;
 }

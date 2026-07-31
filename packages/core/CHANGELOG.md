@@ -1,5 +1,38 @@
 # @assistant-ui/core
 
+## 0.3.3
+
+### Patch Changes
+
+- [#5419](https://github.com/assistant-ui/assistant-ui/pull/5419) [`aa74b0d`](https://github.com/assistant-ui/assistant-ui/commit/aa74b0d7c5e334385fabbe48ed79e90b36f63029) - fix: enumerate the attachment content fields the aui/v0 encoder persists so per-part status stays out of the stored shape ([@okisdev](https://github.com/okisdev))
+
+- [#5403](https://github.com/assistant-ui/assistant-ui/pull/5403) [`6e5c450`](https://github.com/assistant-ui/assistant-ui/commit/6e5c450d71242acda30b41c8601b7edb6ed5c701) - feat: honour a supplied per-part status while the message is running ([@okisdev](https://github.com/okisdev))
+
+- [#5404](https://github.com/assistant-ui/assistant-ui/pull/5404) [`59ec21b`](https://github.com/assistant-ui/assistant-ui/commit/59ec21b5f610aaf7c0082508b3a6cbf950ffc1db) - fix: keep copied feedback visible for the full duration after repeated copies ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5410](https://github.com/assistant-ui/assistant-ui/pull/5410) [`4fd698b`](https://github.com/assistant-ui/assistant-ui/commit/4fd698ba5a3b23ea57b667a02c6f784147f5c42d) - fix: keep grouped and detached part statuses in sync ([@okisdev](https://github.com/okisdev))
+
+## 0.3.2
+
+### Patch Changes
+
+- [#5367](https://github.com/assistant-ui/assistant-ui/pull/5367) [`ecd7c87`](https://github.com/assistant-ui/assistant-ui/commit/ecd7c879cace69d6371b3f673c52a80669377fc0) - feat: AuiProvider accepts value={null} as an isolation boundary; useAui runs a fixed hook count per overload and deprecates the explicit-parent config ([@Yonom](https://github.com/Yonom))
+
+- [#5230](https://github.com/assistant-ui/assistant-ui/pull/5230) [`3ae058c`](https://github.com/assistant-ui/assistant-ui/commit/3ae058c5d275e2444701da70a6513528439ecb3e) - fix: suppress `onThreadIdChange` callbacks for prop-driven thread switches ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5329](https://github.com/assistant-ui/assistant-ui/pull/5329) [`f30b54c`](https://github.com/assistant-ui/assistant-ui/commit/f30b54c9856d50a18f738c4d485c02bcd039151c) - refactor: move createRuntimeExtras to the @assistant-ui/core/react entry and drop the internal re-export ([@okisdev](https://github.com/okisdev))
+
+- [#5318](https://github.com/assistant-ui/assistant-ui/pull/5318) [`ee87dd9`](https://github.com/assistant-ui/assistant-ui/commit/ee87dd9fef1389165bbfe0019be2a6995b2cfb24) - fix: accept case-insensitive `data:` URL schemes and normalize parsed mime types to lowercase ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#5220](https://github.com/assistant-ui/assistant-ui/pull/5220) [`e41734c`](https://github.com/assistant-ui/assistant-ui/commit/e41734c102a192ab772703899d7980bb5c055d07) - fix: parse zero-byte base64 payloads in parseDataUrl ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#5369](https://github.com/assistant-ui/assistant-ui/pull/5369) [`8643393`](https://github.com/assistant-ui/assistant-ui/commit/8643393490ebe1aa86661f705bb9ac907bfb4eac) - refactor: make Thread client importExternalState required ([@Yonom](https://github.com/Yonom))
+
+- [#5312](https://github.com/assistant-ui/assistant-ui/pull/5312) [`2eca438`](https://github.com/assistant-ui/assistant-ui/commit/2eca4386778618f555258855ee6612eb44d89bb2) - refactor: import `useEffectEvent` from React directly for latest-client reads and drop the `use-effect-event` ponyfill dependency ([@Yonom](https://github.com/Yonom))
+
+- Updated dependencies [[`936c52c`](https://github.com/assistant-ui/assistant-ui/commit/936c52c4301b89242572d9890c870050f63cbe93), [`ee87dd9`](https://github.com/assistant-ui/assistant-ui/commit/ee87dd9fef1389165bbfe0019be2a6995b2cfb24)]:
+  - assistant-stream@0.3.31
+
 ## 0.3.1
 
 ### Patch Changes

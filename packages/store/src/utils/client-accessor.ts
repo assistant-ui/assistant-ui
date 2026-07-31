@@ -55,7 +55,7 @@ export const createClientAccessor = <K extends ClientNames>(
 
 export const createErrorClientAccessor = (
   message: string,
-  name?: string,
+  name: string,
 ): AssistantClientAccessor<ClientNames> => {
   const fail = () => {
     throw new Error(message);

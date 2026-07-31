@@ -255,6 +255,9 @@ importers:
       cmdk:
         specifier: ^1.1.1
         version: 1.1.1(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      codehike:
+        specifier: ^1.1.0
+        version: 1.1.0
       date-fns:
         specifier: ^4.4.0
         version: 4.4.0
@@ -467,6 +470,9 @@ importers:
       '@ai-sdk/openai':
         specifier: ^4.0.20
         version: 4.0.20(zod@4.4.3)
+      '@assistant-ui/eve':
+        specifier: workspace:*
+        version: link:../../packages/eve
       '@assistant-ui/react':
         specifier: workspace:*
         version: link:../../packages/react
@@ -3514,7 +3520,7 @@ importers:
         specifier: npm:ai@^6.0.209
         version: ai@6.0.235(zod@4.4.3)
       assistant-stream:
-        specifier: ^0.3.29
+        specifier: ^0.3.31
         version: link:../assistant-stream
       jsdom:
         specifier: ^29.1.1
@@ -3529,7 +3535,7 @@ importers:
   packages/core:
     dependencies:
       assistant-stream:
-        specifier: ^0.3.30
+        specifier: ^0.3.31
         version: link:../assistant-stream
       nanoid:
         specifier: ^6.0.0
@@ -3725,13 +3731,13 @@ importers:
   packages/react:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.1
+        specifier: ^0.3.3
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.3.1
         version: link:../store
       '@assistant-ui/tap':
-        specifier: ^0.9.7
+        specifier: ^0.9.9
         version: link:../tap
       '@radix-ui/primitive':
         specifier: ^1.1.7
@@ -3819,13 +3825,13 @@ importers:
   packages/react-a2a:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.0
+        specifier: ^0.3.2
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.3.0
+        specifier: ^0.3.2
         version: link:../store
       assistant-stream:
-        specifier: ^0.3.29
+        specifier: ^0.3.31
         version: link:../assistant-stream
     devDependencies:
       '@assistant-ui/x-buildutils':
@@ -3859,13 +3865,16 @@ importers:
         specifier: ^0.0.57
         version: 0.0.57
       '@assistant-ui/core':
-        specifier: ^0.3.0
+        specifier: ^0.3.2
         version: link:../core
+      '@assistant-ui/react-generative-ui':
+        specifier: ^0.0.11
+        version: link:../react-generative-ui
       '@assistant-ui/store':
-        specifier: ^0.3.0
+        specifier: ^0.3.2
         version: link:../store
       assistant-stream:
-        specifier: ^0.3.29
+        specifier: ^0.3.31
         version: link:../assistant-stream
       fast-json-patch:
         specifier: ^3.1.1
@@ -3896,10 +3905,10 @@ importers:
         specifier: ^4.0.40
         version: 4.0.40(react@19.2.8)(zod@4.4.3)
       '@assistant-ui/core':
-        specifier: ^0.3.0
+        specifier: ^0.3.3
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.3.0
+        specifier: ^0.3.2
         version: link:../store
       ai:
         specifier: ^7.0.37
@@ -3908,7 +3917,7 @@ importers:
         specifier: '*'
         version: link:../cloud
       assistant-stream:
-        specifier: ^0.3.29
+        specifier: ^0.3.31
         version: link:../assistant-stream
     devDependencies:
       '@assistant-ui/x-buildutils':
@@ -4013,7 +4022,7 @@ importers:
   packages/react-generative-ui:
     dependencies:
       assistant-stream:
-        specifier: ^0.3.30
+        specifier: ^0.3.31
         version: link:../assistant-stream
     devDependencies:
       '@assistant-ui/react':
@@ -4044,10 +4053,10 @@ importers:
   packages/react-google-adk:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.0
+        specifier: ^0.3.2
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.3.0
+        specifier: ^0.3.2
         version: link:../store
       '@google/adk':
         specifier: '>=0.5.0'
@@ -4056,7 +4065,7 @@ importers:
         specifier: '*'
         version: link:../cloud
       assistant-stream:
-        specifier: ^0.3.29
+        specifier: ^0.3.31
         version: link:../assistant-stream
       uuid:
         specifier: ^14.0.1
@@ -4076,7 +4085,7 @@ importers:
         version: 19.2.8
       vitest:
         specifier: ^4.1.10
-        version: 4.1.10(@opentelemetry/api@1.9.1)(@types/node@26.1.1)(@vitest/coverage-v8@4.1.10)(@vitest/ui@4.1.10)(jsdom@29.1.1)(vite@8.1.5(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.1)(yaml@2.9.0))
+        version: 4.1.10(@opentelemetry/api@1.9.0)(@types/node@26.1.1)(@vitest/coverage-v8@4.1.10)(@vitest/ui@4.1.10)(jsdom@29.1.1)(vite@8.1.5(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.1)(yaml@2.9.0))
 
   packages/react-hook-form:
     dependencies:
@@ -4170,10 +4179,10 @@ importers:
   packages/react-ink-markdown:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.1
+        specifier: ^0.3.3
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.3.1
+        specifier: ^0.3.2
         version: link:../store
       markdansi:
         specifier: ^0.3.2
@@ -4207,16 +4216,16 @@ importers:
   packages/react-langchain:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.0
+        specifier: ^0.3.2
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.3.0
+        specifier: ^0.3.2
         version: link:../store
       assistant-cloud:
         specifier: '*'
         version: link:../cloud
       assistant-stream:
-        specifier: ^0.3.29
+        specifier: ^0.3.31
         version: link:../assistant-stream
     devDependencies:
       '@assistant-ui/x-buildutils':
@@ -4250,16 +4259,16 @@ importers:
   packages/react-langgraph:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.1
+        specifier: ^0.3.3
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.3.1
+        specifier: ^0.3.2
         version: link:../store
       assistant-cloud:
         specifier: '*'
         version: link:../cloud
       assistant-stream:
-        specifier: ^0.3.30
+        specifier: ^0.3.31
         version: link:../assistant-stream
       uuid:
         specifier: ^14.0.1
@@ -4490,17 +4499,14 @@ importers:
   packages/react-opencode:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.1
+        specifier: ^0.3.3
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.3.1
+        specifier: ^0.3.2
         version: link:../store
       '@opencode-ai/sdk':
         specifier: ^1.18.5
         version: 1.18.5
-      use-effect-event:
-        specifier: ^2.0.3
-        version: 2.0.3(react@19.2.8)
     devDependencies:
       '@assistant-ui/react':
         specifier: workspace:*
@@ -4533,14 +4539,11 @@ importers:
   packages/react-pi:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.1
+        specifier: ^0.3.3
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.3.1
+        specifier: ^0.3.2
         version: link:../store
-      use-effect-event:
-        specifier: ^2.0.3
-        version: 2.0.3(react@19.2.8)
     devDependencies:
       '@assistant-ui/react':
         specifier: workspace:*
@@ -4662,10 +4665,6 @@ importers:
         version: 4.1.10(@opentelemetry/api@1.9.1)(@types/node@26.1.1)(@vitest/coverage-v8@4.1.10)(@vitest/ui@4.1.10)(jsdom@29.1.1)(vite@8.1.5(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.1)(yaml@2.9.0))
 
   packages/store:
-    dependencies:
-      use-effect-event:
-        specifier: ^2.0.3
-        version: 2.0.3(react@19.2.8)
     devDependencies:
       '@assistant-ui/tap':
         specifier: workspace:*
@@ -6491,6 +6490,9 @@ packages:
   '@clerk/themes@2.4.57':
     resolution: {integrity: sha512-Nb3bO79rMTU/MPVTC/dde6LG27/IgOMKIYi5KSvAmO4ZUHlj0OWufu6CMvz5OYVZ0YdyMnTBU2aPGRUiRzO+2w==}
     engines: {node: '>=18.17.0'}
+
+  '@code-hike/lighter@1.0.1':
+    resolution: {integrity: sha512-mccvcsk5UTScRrE02oBz1/qzckyhD8YE3VQlQv++2bSVVZgNuCUX8MpokSCi5OmfRAAxbj6kmNiqq1Um8eXPrw==}
 
   '@colors/colors@1.6.0':
     resolution: {integrity: sha512-Ir+AOibqzrIsL6ajt3Rz3LskB7OiMVHqltZmspbW/TJuTVuyOMirVqAkjfY6JISiLHgyNqicAC8AyHHGzNd/dA==}
@@ -11161,6 +11163,9 @@ packages:
     resolution: {integrity: sha512-Bq3SmSpyFHaWjPk8If9yc6svM8c56dB5BAtW4Qbw5jHTwwXXcTLoRMkpDJp6VL0XzlWaCHTXrkFURMYmD0sLqg==}
     engines: {node: '>=12'}
 
+  ansi-sequence-parser@1.1.1:
+    resolution: {integrity: sha512-vJXt3yiaUL4UU546s3rPXlsry/RnM730G1+HkpKE012AN0sx1eOrxSu95oKDIonskeLTijMgqWZ3uDEe3NFvyg==}
+
   ansi-styles@3.2.1:
     resolution: {integrity: sha512-VT0ZI6kZRdTh8YyJw3SMbYm/u+NqfsAxEpWO0Pf9sq8/e94WxxOpPKx9FR1FlyCtOVDNOQ+8ntlqFxiRc+r5qA==}
     engines: {node: '>=4'}
@@ -11705,6 +11710,9 @@ packages:
   code-excerpt@4.0.0:
     resolution: {integrity: sha512-xxodCmBen3iy2i0WtAK8FlFNrRzjUqjRsMfho58xT/wvZU1YTM3fCnRjcy1gJPMepaRlgm/0e6w8SpWHpn3/cA==}
     engines: {node: ^12.20.0 || ^14.13.1 || >=16.0.0}
+
+  codehike@1.1.0:
+    resolution: {integrity: sha512-hOxqmTHjiOxhlcVEuDTCoAQ8TW358HVrNKlOwuKcnbwkuTpbGtwj5TnQ7AZjnZiQvJ3LeXohrd1E7qfYYN0Rdg==}
 
   collapse-white-space@2.1.0:
     resolution: {integrity: sha512-loKTxY1zCOuG4j9f6EPnuyyYkf58RnhhWTvRoZEokgB+WbdXehfjFviyOVYkqzEWz1Q5kRiZdBYS5SwxbQYwzw==}
@@ -12305,6 +12313,10 @@ packages:
 
   devlop@1.1.0:
     resolution: {integrity: sha512-RWmIqhcFf1lRYBvNmr7qTNuyCt/7/ns2jbpp1+PalgE/rDQcBT0fioSMUpJ93irlUhC5hrg4cYqe6U+0ImW0rA==}
+
+  diff@5.2.2:
+    resolution: {integrity: sha512-vtcDfH3TOjP8UekytvnHH1o1P4FcUdt4eQ1Y+Abap1tk/OB2MWQvcwS2ClCd1zuIhc3JKOx6p3kod8Vfys3E+A==}
+    engines: {node: '>=0.3.1'}
 
   diff@8.0.4:
     resolution: {integrity: sha512-DPi0FmjiSU5EvQV0++GFDOJ9ASQUVFh5kD+OzOnYdi7n3Wpm9hWWGfB/O2blfHcMVTL5WkQXSnRiK9makhrcnw==}
@@ -17558,11 +17570,6 @@ packages:
       '@types/react':
         optional: true
 
-  use-effect-event@2.0.3:
-    resolution: {integrity: sha512-fz1en+z3fYXCXx3nMB8hXDMuygBltifNKZq29zDx+xNJ+1vEs6oJlYd9sK31vxJ0YI534VUsHEBY0k2BATsmBQ==}
-    peerDependencies:
-      react: ^18.3 || ^19.0.0-0
-
   use-isomorphic-layout-effect@1.2.1:
     resolution: {integrity: sha512-tpZZ+EX0gaghDAiFR37hj5MgY6ZN55kLiPkJsKxBMZ6GZdOSPJXiOzPM984oPYZ5AnehYx5WQp1+ME8I/P/pRA==}
     peerDependencies:
@@ -19432,6 +19439,10 @@ snapshots:
     transitivePeerDependencies:
       - react
       - react-dom
+
+  '@code-hike/lighter@1.0.1':
+    dependencies:
+      ansi-sequence-parser: 1.1.1
 
   '@colors/colors@1.6.0': {}
 
@@ -24764,6 +24775,8 @@ snapshots:
 
   ansi-regex@6.2.2: {}
 
+  ansi-sequence-parser@1.1.1: {}
+
   ansi-styles@3.2.1:
     dependencies:
       color-convert: 1.9.3
@@ -25391,6 +25404,16 @@ snapshots:
     dependencies:
       convert-to-spaces: 2.0.1
 
+  codehike@1.1.0:
+    dependencies:
+      '@code-hike/lighter': 1.0.1
+      diff: 5.2.2
+      estree-util-visit: 2.0.0
+      mdast-util-mdx-jsx: 3.2.0
+      unist-util-visit: 5.1.0
+    transitivePeerDependencies:
+      - supports-color
+
   collapse-white-space@2.1.0: {}
 
   color-convert@1.9.3:
@@ -25924,6 +25947,8 @@ snapshots:
   devlop@1.1.0:
     dependencies:
       dequal: 2.0.3
+
+  diff@5.2.2: {}
 
   diff@8.0.4: {}
 
@@ -32331,10 +32356,6 @@ snapshots:
     optionalDependencies:
       '@types/react': 19.2.17
 
-  use-effect-event@2.0.3(react@19.2.8):
-    dependencies:
-      react: 19.2.8
-
   use-isomorphic-layout-effect@1.2.1(@types/react@19.2.17)(react@19.2.8):
     dependencies:
       react: 19.2.8
@@ -32494,6 +32515,37 @@ snapshots:
   vitefu@1.1.3(vite@8.1.5(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.1)(yaml@2.9.0)):
     optionalDependencies:
       vite: 8.1.5(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.1)(yaml@2.9.0)
+
+  vitest@4.1.10(@opentelemetry/api@1.9.0)(@types/node@26.1.1)(@vitest/coverage-v8@4.1.10)(@vitest/ui@4.1.10)(jsdom@29.1.1)(vite@8.1.5(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.1)(yaml@2.9.0)):
+    dependencies:
+      '@vitest/expect': 4.1.10
+      '@vitest/mocker': 4.1.10(vite@8.1.5(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.1)(yaml@2.9.0))
+      '@vitest/pretty-format': 4.1.10
+      '@vitest/runner': 4.1.10
+      '@vitest/snapshot': 4.1.10
+      '@vitest/spy': 4.1.10
+      '@vitest/utils': 4.1.10
+      es-module-lexer: 2.3.1
+      expect-type: 1.4.0
+      magic-string: 0.30.21
+      obug: 2.1.4
+      pathe: 2.0.3
+      picomatch: 4.0.5
+      std-env: 4.2.0
+      tinybench: 2.9.0
+      tinyexec: 1.2.4
+      tinyglobby: 0.2.17
+      tinyrainbow: 3.1.0
+      vite: 8.1.5(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.1)(yaml@2.9.0)
+      why-is-node-running: 2.3.0
+    optionalDependencies:
+      '@opentelemetry/api': 1.9.0
+      '@types/node': 26.1.1
+      '@vitest/coverage-v8': 4.1.10(vitest@4.1.10)
+      '@vitest/ui': 4.1.10(vitest@4.1.10)
+      jsdom: 29.1.1
+    transitivePeerDependencies:
+      - msw
 
   vitest@4.1.10(@opentelemetry/api@1.9.1)(@types/node@26.1.1)(@vitest/coverage-v8@4.1.10)(@vitest/ui@4.1.10)(jsdom@29.1.1)(vite@8.1.5(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.1)(yaml@2.9.0)):
     dependencies:

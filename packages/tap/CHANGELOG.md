@@ -1,5 +1,27 @@
 # @assistant-ui/tap
 
+## 0.9.9
+
+### Patch Changes
+
+- [#5399](https://github.com/assistant-ui/assistant-ui/pull/5399) [`b8daa96`](https://github.com/assistant-ui/assistant-ui/commit/b8daa967f4e5cb181c3e9ed065ab6949ee848fa4) - re-add the deprecated useMemoCache export for older @assistant-ui/store versions ([@Yonom](https://github.com/Yonom))
+
+## 0.9.8
+
+### Patch Changes
+
+- [#5368](https://github.com/assistant-ui/assistant-ui/pull/5368) [`60d049e`](https://github.com/assistant-ui/assistant-ui/commit/60d049eeadf681f4235157c903543493c98cc258) - refactor(store): local useShallowStable helper replaces tap useMemoCache; drop useMemoCache from tap's public entrypoint ([@Yonom](https://github.com/Yonom))
+
+- [#5375](https://github.com/assistant-ui/assistant-ui/pull/5375) [`feef8fd`](https://github.com/assistant-ui/assistant-ui/commit/feef8fda65e999a90d283dca23ff656b56456803) - The update-depth error now throws from the markDirty that schedules the run past the limit, so the stack points at the offending setState. ([@Yonom](https://github.com/Yonom))
+
+- [#5370](https://github.com/assistant-ui/assistant-ui/pull/5370) [`c02680a`](https://github.com/assistant-ui/assistant-ui/commit/c02680a16425669589db74ba1a601a8f6c4bf8e6) - fix: count update depth per scheduler in UpdateScheduler and drop only the offending scheduler from a flush, so one looping root no longer starves or wedges unrelated roots ([@Yonom](https://github.com/Yonom))
+
+- [#5357](https://github.com/assistant-ui/assistant-ui/pull/5357) [`e6045bb`](https://github.com/assistant-ui/assistant-ui/commit/e6045bbb1cfc0d63ef75f46cf2de7fa010183451) - createTapRoot: reuse a single per-root UpdateScheduler across dispatches and assert without applying first ([@Yonom](https://github.com/Yonom))
+
+- [#5358](https://github.com/assistant-ui/assistant-ui/pull/5358) [`04c070e`](https://github.com/assistant-ui/assistant-ui/commit/04c070e63c5dd1c51355037e42cf24c77c56da6e) - Deduplicate the rethrow-or-AggregateError error handling into a shared internal helper ([@Yonom](https://github.com/Yonom))
+
+- [#5331](https://github.com/assistant-ui/assistant-ui/pull/5331) [`d7afb3d`](https://github.com/assistant-ui/assistant-ui/commit/d7afb3dbd2dbc76ed90f9091b599ea81bfd6e363) - fix: accept reducer replays below the committed version instead of throwing ([@okisdev](https://github.com/okisdev))
+
 ## 0.9.7
 
 ### Patch Changes

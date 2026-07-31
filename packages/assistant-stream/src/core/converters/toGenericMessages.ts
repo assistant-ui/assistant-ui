@@ -13,6 +13,7 @@ export type GenericFilePart = {
   type: "file";
   data: string | URL;
   mediaType: string;
+  filename?: string;
 };
 
 export type GenericToolCallPart = {
@@ -62,6 +63,7 @@ type MessagePartLike = {
   image?: string;
   data?: string;
   mimeType?: string;
+  filename?: string;
   toolCallId?: string;
   toolName?: string;
   args?: Record<string, unknown>;
@@ -97,9 +99,9 @@ const IMAGE_MEDIA_TYPES: Record<string, string> = {
 
 function inferImageMediaType(url: string): string {
   // Handle data URLs: data:[<mediatype>][;base64],<data>
-  if (url.startsWith("data:")) {
-    const match = url.match(/^data:([^;,]+)/);
-    if (match?.[1]) return match[1];
+  if (/^data:/i.test(url)) {
+    const match = url.match(/^data:([^;,]+)/i);
+    if (match?.[1]) return match[1].toLowerCase();
   }
 
   // Extract extension from URL path, ignoring query string and hash
@@ -194,12 +196,14 @@ function convertUserMessage(
         type: "file",
         data: toUrlOrString(part.image),
         mediaType: inferImageMediaType(part.image),
+        ...(part.filename && { filename: part.filename }),
       });
     } else if (part.type === "file" && part.data && part.mimeType) {
       content.push({
         type: "file",
         data: toUrlOrString(part.data),
         mediaType: part.mimeType,
+        ...(part.filename && { filename: part.filename }),
       });
     }
   }

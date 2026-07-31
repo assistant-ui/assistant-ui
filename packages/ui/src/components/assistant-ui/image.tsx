@@ -44,7 +44,9 @@ const extensionForMimeType = (mimeType?: string): string => {
 
 const dataUriToBlob = (dataUri: string): Blob => {
   const [meta, data] = dataUri.split(",");
-  const mime = meta?.match(/data:([^;]+)/)?.[1] ?? "application/octet-stream";
+  const mime =
+    meta?.match(/data:([^;]+)/i)?.[1]?.toLowerCase() ??
+    "application/octet-stream";
   if (!/;base64/i.test(meta ?? "")) {
     return new Blob([decodeURIComponent(data ?? "")], { type: mime });
   }
@@ -55,7 +57,7 @@ const dataUriToBlob = (dataUri: string): Blob => {
 };
 
 const mimeFromImage = (image: string): string | undefined =>
-  image.match(/^data:([^;,]+)/)?.[1];
+  image.match(/^data:([^;,]+)/i)?.[1]?.toLowerCase();
 
 const downloadImagePart = (
   part: Pick<ImageMessagePart, "image" | "filename">,
@@ -63,7 +65,7 @@ const downloadImagePart = (
   if (typeof document === "undefined") return;
   const ext = extensionForMimeType(mimeFromImage(part.image));
   const filename = part.filename ?? `image.${ext}`;
-  const isDataUri = part.image.startsWith("data:");
+  const isDataUri = /^data:/i.test(part.image);
   const objectUrl = isDataUri
     ? URL.createObjectURL(dataUriToBlob(part.image))
     : null;
@@ -88,7 +90,7 @@ const copyImagePart = async (
   ) {
     throw new Error("Clipboard API is not available in this environment.");
   }
-  const blob = part.image.startsWith("data:")
+  const blob = /^data:/i.test(part.image)
     ? dataUriToBlob(part.image)
     : await fetch(part.image).then((r) => r.blob());
   const mime = mimeFromImage(part.image) ?? blob.type ?? "image/png";

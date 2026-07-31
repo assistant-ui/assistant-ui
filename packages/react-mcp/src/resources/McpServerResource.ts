@@ -5,15 +5,21 @@ import {
   Client,
   StreamableHTTPClientTransport,
   UnauthorizedError,
+  type ClientOptions,
+  type ElicitRequest,
+  type ElicitResult,
   type StreamableHTTPClientTransportOptions,
 } from "@modelcontextprotocol/client";
 import { createOAuthProvider } from "../auth/createOAuthProvider";
 import { buildHeaders } from "../auth/buildHeaders";
 import { assertValidServerId } from "../utils/serverId";
+import { validateElicitationContent } from "./validateElicitationContent";
 import type { MCPStorage } from "./storage/types";
 import type {
   MCPAuthConfig,
   MCPConnectionState,
+  MCPElicitation,
+  MCPElicitationResponse,
   MCPServerKind,
   MCPServerState,
   MCPToolInfo,
@@ -30,6 +36,8 @@ export type McpServerResourceProps = {
   redirectUri: string;
   autoConnect: boolean;
   connectionTimeout?: number | undefined;
+  cache?: { readonly defaultTtlMs?: number } | undefined;
+  readonly elicitation?: boolean;
   onRemove: () => Promise<void>;
 };
 
@@ -42,6 +50,9 @@ const useMcpServerResource = (
   const [tools, setTools] = useState<MCPToolInfo[]>([]);
   const [lastError, setLastError] = useState<{ message: string } | null>(null);
   const [authorizationUrl, setAuthorizationUrl] = useState<string | null>(null);
+  const [pendingElicitations, setPendingElicitations] = useState<
+    MCPElicitation[]
+  >([]);
 
   const clientRef = useRef<Client | null>(null);
   const transportRef = useRef<StreamableHTTPClientTransport | null>(null);
@@ -50,6 +61,17 @@ const useMcpServerResource = (
   );
   const transportCloseQueueRef = useRef(Promise.resolve());
   const connectionGenerationRef = useRef(0);
+  const elicitationResolversRef = useRef(
+    new Map<
+      string,
+      {
+        resolve: (result: ElicitResult) => void;
+        signal: AbortSignal;
+        onAbort: () => void;
+        requestedSchema: unknown;
+      }
+    >(),
+  );
   const pendingDisposalRef = useRef<{ cancelled: boolean } | null>(null);
   const mountedRef = useRef(true);
 
@@ -79,7 +101,39 @@ const useMcpServerResource = (
     await closeQueuedTransports(transport ? [transport] : []);
   };
 
+  const resolvePendingElicitation = (id: string, result: ElicitResult) => {
+    const entry = elicitationResolversRef.current.get(id);
+    if (!entry) return false;
+    elicitationResolversRef.current.delete(id);
+    entry.signal.removeEventListener("abort", entry.onAbort);
+    setPendingElicitations((current) =>
+      current.filter((elicitation) => elicitation.id !== id),
+    );
+    entry.resolve(result);
+    return true;
+  };
+
+  const setPendingElicitationError = (
+    id: string,
+    error: NonNullable<MCPElicitation["error"]>,
+  ) => {
+    if (!elicitationResolversRef.current.has(id)) return false;
+    setPendingElicitations((current) =>
+      current.map((elicitation) =>
+        elicitation.id === id ? { ...elicitation, error } : elicitation,
+      ),
+    );
+    return true;
+  };
+
+  const cancelPendingElicitations = () => {
+    for (const [id] of elicitationResolversRef.current) {
+      resolvePendingElicitation(id, { action: "cancel" });
+    }
+  };
+
   const closeTransports = async () => {
+    cancelPendingElicitations();
     const pendingTransport = pendingTransportRef.current;
     const activeTransport = transportRef.current;
     pendingTransportRef.current = null;
@@ -161,15 +215,133 @@ const useMcpServerResource = (
     },
   );
 
+  const applyToolsList = useEffectEvent(
+    (list: {
+      tools: Array<{
+        name: string;
+        description?: string | undefined;
+        inputSchema: unknown;
+      }>;
+    }) => {
+      setTools(
+        list.tools.map((t) => {
+          const info: MCPToolInfo = {
+            name: t.name,
+            inputSchema: t.inputSchema,
+          };
+          if (t.description !== undefined) info.description = t.description;
+          return info;
+        }),
+      );
+    },
+  );
+
+  const syncTools = useEffectEvent(
+    async (
+      client: Client,
+      generation: number,
+      options?: { startedAt?: number | undefined },
+    ): Promise<boolean> => {
+      const listPromise = client.listTools();
+      const list =
+        options?.startedAt === undefined
+          ? await listPromise
+          : await withConnectionTimeout(
+              listPromise,
+              "listing tools",
+              options.startedAt,
+            );
+      if (!isCurrentConnection(generation)) return false;
+      applyToolsList(list);
+      return true;
+    },
+  );
+
   const finalizeConnect = useEffectEvent(
     async (
       transport: StreamableHTTPClientTransport,
       generation: number,
     ): Promise<boolean> => {
-      const client = new Client({
-        name: "assistant-ui-mcp",
-        version: "0.0.0",
-      });
+      const clientOptions: ClientOptions = {
+        ...(props.elicitation === false
+          ? {}
+          : { capabilities: { elicitation: {} } }),
+        listChanged: {
+          tools: {
+            autoRefresh: true,
+            debounceMs: 300,
+            onChanged: (error, items) => {
+              if (!isCurrentConnection(generation)) return;
+              if (error !== null) {
+                setLastError({ message: error.message });
+                return;
+              }
+              if (items === null) return;
+              setLastError(null);
+              applyToolsList({ tools: items });
+            },
+          },
+        },
+      };
+      if (props.cache?.defaultTtlMs !== undefined) {
+        clientOptions.defaultCacheTtlMs = props.cache.defaultTtlMs;
+      }
+      const client = new Client(
+        {
+          name: "assistant-ui-mcp",
+          version: "0.0.0",
+        },
+        clientOptions,
+      );
+      if (props.elicitation !== false) {
+        client.setRequestHandler(
+          "elicitation/create",
+          (request: ElicitRequest, context): Promise<ElicitResult> => {
+            if (!isCurrentConnection(generation)) {
+              return Promise.resolve({ action: "cancel" });
+            }
+            if (!("requestedSchema" in request.params)) {
+              return Promise.resolve({ action: "cancel" });
+            }
+            const { message, requestedSchema } = request.params;
+
+            const id =
+              typeof crypto !== "undefined" && "randomUUID" in crypto
+                ? crypto.randomUUID()
+                : `mcp-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+            const promise = new Promise<ElicitResult>((resolve) => {
+              const onAbort = () => {
+                resolvePendingElicitation(id, { action: "cancel" });
+              };
+              elicitationResolversRef.current.set(id, {
+                resolve,
+                signal: context.signal,
+                onAbort,
+                requestedSchema,
+              });
+            });
+            setPendingElicitations((current) => [
+              ...current,
+              {
+                id,
+                message,
+                requestedSchema,
+              },
+            ]);
+            const entry = elicitationResolversRef.current.get(id);
+            if (entry) {
+              if (context.signal.aborted) {
+                entry.onAbort();
+              } else {
+                context.signal.addEventListener("abort", entry.onAbort, {
+                  once: true,
+                });
+              }
+            }
+            return promise;
+          },
+        );
+      }
       const startedAt = Date.now();
       await withConnectionTimeout(
         client.connect(transport),
@@ -181,26 +353,12 @@ const useMcpServerResource = (
       // post-connect failure leaves stale refs that `callTool()` would
       // happily walk into, producing confusing SDK errors instead of
       // "not connected".
-      const list = await withConnectionTimeout(
-        client.listTools(),
-        "listing tools",
-        startedAt,
-      );
-      if (!isCurrentConnection(generation)) return false;
+      const synced = await syncTools(client, generation, { startedAt });
+      if (!synced) return false;
 
       pendingTransportRef.current = null;
       clientRef.current = client;
       transportRef.current = transport;
-      setTools(
-        list.tools.map((t) => {
-          const info: MCPToolInfo = {
-            name: t.name,
-            inputSchema: t.inputSchema,
-          };
-          if (t.description !== undefined) info.description = t.description;
-          return info;
-        }),
-      );
       setConnectionState("connected");
       return true;
     },
@@ -241,6 +399,7 @@ const useMcpServerResource = (
         transportRef.current = transport;
         setConnectionState("authRequired");
       } else {
+        cancelPendingElicitations();
         if (transport) {
           pendingTransportRef.current = null;
           await closeQueuedTransports([transport]);
@@ -263,6 +422,7 @@ const useMcpServerResource = (
 
   const doCompleteAuth = useEffectEvent(async (callbackUrl: string) => {
     const generation = ++connectionGenerationRef.current;
+    cancelPendingElicitations();
     await closePendingTransport();
     if (!isCurrentConnection(generation)) throw createInterruptedAuthError();
 
@@ -357,6 +517,7 @@ const useMcpServerResource = (
       lastError,
       tools,
       authorizationUrl,
+      pendingElicitations,
     }),
     [
       props.id,
@@ -368,6 +529,7 @@ const useMcpServerResource = (
       lastError,
       tools,
       authorizationUrl,
+      pendingElicitations,
     ],
   );
 
@@ -405,6 +567,57 @@ const useMcpServerResource = (
       return await client.readResource({ uri });
     },
     completeAuth: doCompleteAuth,
+    answerElicitation: (
+      id: string,
+      response: MCPElicitationResponse,
+    ): readonly { property: string; message: string }[] | undefined => {
+      if (response.action === "accept") {
+        const entry = elicitationResolversRef.current.get(id);
+        if (!entry) return;
+
+        if (
+          typeof response.content !== "object" ||
+          response.content === null ||
+          Array.isArray(response.content)
+        ) {
+          const errors = [
+            {
+              property: "content",
+              message: "Response content must be an object.",
+            },
+          ];
+          setPendingElicitationError(id, {
+            message: "Invalid elicitation content: content.",
+            properties: ["content"],
+          });
+          return errors;
+        }
+
+        const errors = validateElicitationContent(
+          entry.requestedSchema,
+          response.content,
+        );
+        if (errors.length > 0) {
+          const properties = [
+            ...new Set(errors.map((error) => error.property)),
+          ];
+          setPendingElicitationError(id, {
+            message: `Invalid elicitation content: ${properties.join(", ")}.`,
+            properties,
+          });
+          return errors;
+        }
+
+        const result: ElicitResult = {
+          action: "accept",
+          content: response.content as ElicitResult["content"],
+        };
+        resolvePendingElicitation(id, result);
+        return;
+      }
+
+      resolvePendingElicitation(id, { action: response.action });
+    },
   };
 };
 

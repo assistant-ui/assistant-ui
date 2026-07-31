@@ -151,6 +151,54 @@ describe("toGenericMessages", () => {
       ]);
     });
 
+    it("carries a file part filename through", () => {
+      const result = toGenericMessages([
+        {
+          role: "user",
+          content: [
+            {
+              type: "file",
+              data: "https://cdn.example.com/a.pdf",
+              mimeType: "application/pdf",
+              filename: "invoice.pdf",
+            },
+          ],
+        },
+      ] as never);
+
+      expect(result).toEqual([
+        {
+          role: "user",
+          content: [
+            {
+              type: "file",
+              data: new URL("https://cdn.example.com/a.pdf"),
+              mediaType: "application/pdf",
+              filename: "invoice.pdf",
+            },
+          ],
+        },
+      ]);
+    });
+
+    it("omits filename when the part has none", () => {
+      const result = toGenericMessages([
+        {
+          role: "user",
+          content: [
+            {
+              type: "file",
+              data: "https://cdn.example.com/a.pdf",
+              mimeType: "application/pdf",
+            },
+          ],
+        },
+      ] as never);
+
+      const part = (result[0] as { content: unknown[] }).content[0];
+      expect(part).not.toHaveProperty("filename");
+    });
+
     it("filters invalid parts", () => {
       const result = toGenericMessages([
         {
@@ -187,6 +235,23 @@ describe("toGenericMessages", () => {
         mediaType: "image/png",
       });
       expect((content[0] as { data: unknown }).data).toBeInstanceOf(URL);
+    });
+
+    it("infers a lowercase media type from an uppercase-scheme data URL", () => {
+      const dataUrl =
+        "DATA:IMAGE/PNG;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+      const result = toGenericMessages([
+        {
+          role: "user",
+          content: [{ type: "image", image: dataUrl }],
+        },
+      ]);
+
+      const content = (result[0] as { content: unknown[] }).content;
+      expect(content[0]).toMatchObject({
+        type: "file",
+        mediaType: "image/png",
+      });
     });
 
     it("handles relative/invalid URL as string", () => {
