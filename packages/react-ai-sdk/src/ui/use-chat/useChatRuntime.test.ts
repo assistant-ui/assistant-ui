@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import { act, renderHook, waitFor } from "@testing-library/react";
+import type { UIMessage } from "ai";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => {
@@ -52,6 +53,7 @@ vi.mock("./useAISDKRuntime", () => ({
   useAISDKRuntime: mocks.useAISDKRuntime,
 }));
 
+import { AssistantChatTransport } from "./AssistantChatTransport";
 import { useChatRuntime } from "./useChatRuntime";
 
 describe("useChatRuntime", () => {
@@ -59,6 +61,83 @@ describe("useChatRuntime", () => {
     vi.clearAllMocks();
     mocks.state.isLoadingHistory = false;
     mocks.subscribers.clear();
+    mocks.useChat.mockReturnValue({});
+  });
+
+  it("keeps the default transport instance across rerenders", () => {
+    const setRuntime = vi.spyOn(AssistantChatTransport.prototype, "setRuntime");
+
+    const { rerender } = renderHook(() => useChatRuntime());
+    const dynamicTransport = mocks.useChat.mock.calls[0]![0]
+      .transport as AssistantChatTransport<UIMessage>;
+
+    setRuntime.mockClear();
+    dynamicTransport.setRuntime(mocks.runtime as never);
+    const initialTransport = setRuntime.mock.contexts[0];
+    expect(initialTransport).toBeInstanceOf(AssistantChatTransport);
+
+    rerender();
+
+    setRuntime.mockClear();
+    dynamicTransport.setRuntime(mocks.runtime as never);
+    expect(setRuntime.mock.contexts[0]).toBe(initialTransport);
+  });
+
+  it("wires a replacement AssistantChatTransport", () => {
+    const firstTransport = new AssistantChatTransport();
+    const secondTransport = new AssistantChatTransport();
+    const firstSetRuntime = vi.spyOn(firstTransport, "setRuntime");
+    const secondSetRuntime = vi.spyOn(secondTransport, "setRuntime");
+
+    const { rerender } = renderHook(
+      ({ transport }) => useChatRuntime({ transport }),
+      {
+        initialProps: { transport: firstTransport },
+      },
+    );
+    rerender({ transport: secondTransport });
+
+    expect(firstSetRuntime).toHaveBeenCalledWith(mocks.runtime);
+    expect(secondSetRuntime).toHaveBeenCalledWith(mocks.runtime);
+  });
+
+  it("supports switching from AssistantChatTransport to a custom transport", () => {
+    const assistantTransport = new AssistantChatTransport();
+    const customTransport = {
+      sendMessages: vi.fn(),
+      reconnectToStream: vi.fn(),
+    };
+
+    const { rerender } = renderHook(
+      ({ transport }) => useChatRuntime({ transport: transport as never }),
+      {
+        initialProps: { transport: assistantTransport as never },
+      },
+    );
+
+    rerender({ transport: customTransport as never });
+    expect(() =>
+      rerender({ transport: customTransport as never }),
+    ).not.toThrow();
+  });
+
+  it("wires AssistantChatTransport after switching from a custom transport", () => {
+    const customTransport = {
+      sendMessages: vi.fn(),
+      reconnectToStream: vi.fn(),
+    };
+    const assistantTransport = new AssistantChatTransport();
+    const setRuntime = vi.spyOn(assistantTransport, "setRuntime");
+
+    const { rerender } = renderHook(
+      ({ transport }) => useChatRuntime({ transport: transport as never }),
+      {
+        initialProps: { transport: customTransport as never },
+      },
+    );
+    rerender({ transport: assistantTransport as never });
+
+    expect(setRuntime).toHaveBeenCalledWith(mocks.runtime);
   });
 
   it("waits for external history to load before resuming a stream", async () => {

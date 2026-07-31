@@ -105,9 +105,12 @@ const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     ? true
     : never;
 
-  const transport = useDynamicChatTransport(
-    transportOptions ?? new AssistantChatTransport(),
+  const defaultTransport = useMemo(
+    () => new AssistantChatTransport<UI_MESSAGE>(),
+    [],
   );
+  const currentTransport = transportOptions ?? defaultTransport;
+  const transport = useDynamicChatTransport(currentTransport);
 
   const id = useAuiState((s) => s.threadListItem.id);
   const aui = useAui();
@@ -126,9 +129,9 @@ const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     ...(joinStrategy && { joinStrategy }),
   });
 
-  if (transport instanceof AssistantChatTransport) {
-    transport.setRuntime(runtime);
-    transport.__internal_setGetThreadListItem(() =>
+  if (currentTransport instanceof AssistantChatTransport) {
+    currentTransport.setRuntime(runtime);
+    currentTransport.__internal_setGetThreadListItem(() =>
       aui.threadListItem.source ? aui.threadListItem : undefined,
     );
   }
@@ -154,7 +157,7 @@ const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   });
   useEffect(() => {
     if (resumeFiredRef.current || isLoadingHistory) return;
-    const adapter = getResumableAdapter(transport);
+    const adapter = getResumableAdapter(currentTransport);
     if (!adapter) return;
     const pending = adapter.storage.getStreamId();
     if (!pending) return;
@@ -175,7 +178,7 @@ const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
         adapter.storage.clear();
       }
     });
-  }, [transport, chat, isLoadingHistory]);
+  }, [currentTransport, chat, isLoadingHistory]);
 
   return runtime;
 };
