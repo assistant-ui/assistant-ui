@@ -73,12 +73,13 @@ const getPromptParts = (message: AppendMessage) => {
 
     if (part.type === "image") {
       // OpenCode has no image part: its input union is text, file, agent and
-      // subtask, so an `image` part never reached the model. `image/*` marks an
-      // image whose type the part does not carry, rather than guessing one.
+      // subtask, so an `image` part never reached the model. A wildcard is not
+      // usable as the floor: `resolveFullMediaType` rejects one outright for a
+      // url source and whenever the inline bytes cannot be sniffed.
       const contentType = (part as { contentType?: string }).contentType;
       const mime = contentType?.startsWith("image/")
         ? contentType
-        : (parseDataUrl(part.image)?.mimeType ?? "image/*");
+        : (parseDataUrl(part.image)?.mimeType ?? "image/png");
       promptParts.push({
         type: "file",
         ...(part.filename != null && { filename: part.filename }),

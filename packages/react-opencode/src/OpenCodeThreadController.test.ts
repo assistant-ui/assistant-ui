@@ -186,15 +186,15 @@ describe("OpenCodeThreadController", () => {
       url: "data:image/jpeg;base64,QUJD",
     },
     {
-      label: "bare base64 image is wrapped and marked as an unknown image",
+      label: "bare base64 image is wrapped with the fallback type",
       image: "QUJD",
-      mime: "image/*",
-      url: "data:image/*;base64,QUJD",
+      mime: "image/png",
+      url: "data:image/png;base64,QUJD",
     },
     {
       label: "http image source is forwarded",
       image: "https://cdn.example.com/a.png",
-      mime: "image/*",
+      mime: "image/png",
       url: "https://cdn.example.com/a.png",
     },
   ])(
