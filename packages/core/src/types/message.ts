@@ -71,9 +71,10 @@ export type FileMessagePart = {
  * @deprecated Use {@link FileMessagePart} with an `audio/*` mime type. `file`
  * is the carrier for every non-image binary modality: it is a member of both
  * the user and assistant unions, carries a filename, and can declare how its
- * payload goes on the wire, none of which this shape can express. The payload form a `file` part needs is still adapter
- * specific; see the Part Types section of the message primitive docs. Honored
- * everywhere it is accepted; it will not gain fields.
+ * payload goes on the wire, none of which this shape can express. The payload
+ * form a `file` part needs is still adapter specific; see the Part Types
+ * section of the message primitive docs. Honored everywhere it is accepted; it
+ * will not gain fields.
  */
 export type Unstable_AudioMessagePart = {
   readonly type: "audio";
