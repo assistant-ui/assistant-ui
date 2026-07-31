@@ -14,6 +14,7 @@ import {
   type LearnFileRecord,
 } from "@/lib/xulux/learn/file-reference";
 import { compareStageFiles } from "@/lib/xulux/learn/stage-diff";
+import { fetchLearnStageFiles } from "@/lib/xulux/learn/stage-source-client";
 import type { LearnStageFiles } from "@/lib/xulux/learn/stage-source";
 import type {
   LearnStageChanges,
@@ -76,27 +77,17 @@ export function LearnStageSourceProvider({
     }
 
     const controller = new AbortController();
-    const load = async (stageId: string) => {
-      const params = new URLSearchParams({ courseId: course.id, stageId });
-      const response = await fetch(`/api/xulux/learn/source?${params}`, {
-        signal: controller.signal,
-      });
-      if (!response.ok) {
-        throw new Error(`Source request failed (${response.status})`);
-      }
-
-      const payload = (await response.json()) as { files?: unknown };
-      if (!payload.files || typeof payload.files !== "object") {
-        throw new Error("Source response was invalid.");
-      }
-      return payload.files as LearnStageFiles;
-    };
-
     setStatus("loading");
     setError(null);
     void Promise.all([
-      load(selectedStep.stageId),
-      previousStep ? load(previousStep.stageId) : Promise.resolve(EMPTY_FILES),
+      fetchLearnStageFiles(course.id, selectedStep.stageId, controller.signal),
+      previousStep
+        ? fetchLearnStageFiles(
+            course.id,
+            previousStep.stageId,
+            controller.signal,
+          )
+        : Promise.resolve(EMPTY_FILES),
     ])
       .then(([nextCurrentFiles, nextPreviousFiles]) => {
         setCurrentFiles(nextCurrentFiles);

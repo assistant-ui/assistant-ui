@@ -18,7 +18,6 @@ import {
   ArrowRight,
   CheckCircle2,
   Download,
-  Files,
   PartyPopper,
   Award,
   Sparkles,
@@ -34,6 +33,7 @@ import {
   useXuluxAnalytics,
   withXuluxContext,
 } from "@/lib/xulux/analytics-context";
+import { LearnStepFileChanges } from "../learn/LearnStepFileChanges";
 
 function getToolIcon(toolName: string): ReactNode {
   const Icon = getToolIconComponent(toolName);
@@ -300,8 +300,7 @@ function LearnStepCard({
   >;
 }) {
   const aui = useAui();
-  const { openFile, openTab } = useLearnMode();
-  const [changesOpen, setChangesOpen] = useState(false);
+  const { openTab } = useLearnMode();
 
   return (
     <article className="bg-card my-3 overflow-hidden rounded-xl border shadow-sm">
@@ -312,38 +311,12 @@ function LearnStepCard({
         <h3 className="mt-1 font-semibold">{result.step.title}</h3>
       </div>
       <div className="border-t p-3">
-        <button
-          type="button"
-          className="hover:bg-muted flex w-full items-center justify-between rounded-md px-2 py-2 text-left text-sm"
-          aria-expanded={changesOpen}
-          onClick={() => setChangesOpen((open) => !open)}
-        >
-          <span className="flex items-center gap-2">
-            <Files className="size-4" />
-            {result.changes.files.length} changed files
-          </span>
-          <span className="text-xs">
-            <span className="text-green-600">+{result.changes.additions}</span>{" "}
-            <span className="text-red-600">−{result.changes.deletions}</span>
-          </span>
-        </button>
-        {changesOpen && (
-          <ul className="mt-1 space-y-1 px-2 pb-2">
-            {result.changes.files.map((file) => (
-              <li key={file.path}>
-                <button
-                  type="button"
-                  className="hover:text-foreground text-muted-foreground flex w-full items-center justify-between gap-2 py-1 text-left font-mono text-xs"
-                  onClick={() => openFile(file.path, "diff")}
-                >
-                  <span className="truncate">{file.path}</span>
-                  <span className="uppercase">{file.status[0]}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-        <div className="mt-2 flex flex-wrap gap-2">
+        <LearnStepFileChanges
+          stepId={result.step.id}
+          stageId={result.stage.id}
+          files={result.changes.files}
+        />
+        <div className="mt-3 flex flex-wrap gap-2">
           <Button
             type="button"
             variant="outline"

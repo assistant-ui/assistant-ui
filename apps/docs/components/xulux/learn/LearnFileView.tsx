@@ -15,6 +15,7 @@ export function LearnFileView({
   displayMode,
   diffViewMode = "unified",
   variant,
+  showHeader = true,
   onDisplayModeChange,
   onDiffViewModeChange,
   onOpenInFiles,
@@ -23,6 +24,7 @@ export function LearnFileView({
   displayMode: LearnFileDisplayMode;
   diffViewMode?: LearnDiffViewMode;
   variant: "inline" | "full";
+  showHeader?: boolean;
   onDisplayModeChange?: (mode: LearnFileDisplayMode) => void;
   onDiffViewModeChange?: (mode: LearnDiffViewMode) => void;
   onOpenInFiles?: () => void;
@@ -38,67 +40,71 @@ export function LearnFileView({
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-      <div className="bg-background flex shrink-0 flex-wrap items-center gap-2 border-b px-3 py-2">
-        <span className="min-w-0 flex-1 truncate font-mono text-xs">
-          {record.path}
-        </span>
-        {record.status !== "unchanged" ? (
-          <span className="flex shrink-0 gap-1.5 text-xs">
-            <span className="text-green-600">+{record.additions}</span>
-            <span className="text-red-600">−{record.deletions}</span>
+      {showHeader ? (
+        <div className="bg-background flex shrink-0 flex-wrap items-center gap-2 border-b px-3 py-2">
+          <span className="min-w-0 flex-1 truncate font-mono text-xs">
+            {record.path}
           </span>
-        ) : null}
-        {variant === "full" && hasSource && hasDiff ? (
-          <div className="flex shrink-0 gap-1">
-            <Button
-              type="button"
-              size="sm"
-              variant={resolvedDisplayMode === "source" ? "secondary" : "ghost"}
-              className="h-7"
-              onClick={() => onDisplayModeChange?.("source")}
-            >
-              Source
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant={resolvedDisplayMode === "diff" ? "secondary" : "ghost"}
-              className="h-7"
-              onClick={() => onDisplayModeChange?.("diff")}
-            >
-              Changes
-            </Button>
-          </div>
-        ) : null}
-        {variant === "full" && resolvedDisplayMode === "diff" ? (
-          <div className="flex shrink-0 gap-1">
-            {(["unified", "split"] as const).map((mode) => (
+          {record.status !== "unchanged" ? (
+            <span className="flex shrink-0 gap-1.5 text-xs">
+              <span className="text-green-600">+{record.additions}</span>
+              <span className="text-red-600">−{record.deletions}</span>
+            </span>
+          ) : null}
+          {variant === "full" && hasSource && hasDiff ? (
+            <div className="flex shrink-0 gap-1">
               <Button
-                key={mode}
                 type="button"
                 size="sm"
-                variant={diffViewMode === mode ? "secondary" : "ghost"}
-                className="h-7 capitalize"
-                onClick={() => onDiffViewModeChange?.(mode)}
+                variant={
+                  resolvedDisplayMode === "source" ? "secondary" : "ghost"
+                }
+                className="h-7"
+                onClick={() => onDisplayModeChange?.("source")}
               >
-                {mode}
+                Source
               </Button>
-            ))}
-          </div>
-        ) : null}
-        {variant === "inline" && onOpenInFiles ? (
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            className="h-7 shrink-0 gap-1.5"
-            onClick={onOpenInFiles}
-          >
-            Open in Files
-            <ExternalLink className="size-3.5" />
-          </Button>
-        ) : null}
-      </div>
+              <Button
+                type="button"
+                size="sm"
+                variant={resolvedDisplayMode === "diff" ? "secondary" : "ghost"}
+                className="h-7"
+                onClick={() => onDisplayModeChange?.("diff")}
+              >
+                Changes
+              </Button>
+            </div>
+          ) : null}
+          {variant === "full" && resolvedDisplayMode === "diff" ? (
+            <div className="flex shrink-0 gap-1">
+              {(["unified", "split"] as const).map((mode) => (
+                <Button
+                  key={mode}
+                  type="button"
+                  size="sm"
+                  variant={diffViewMode === mode ? "secondary" : "ghost"}
+                  className="h-7 capitalize"
+                  onClick={() => onDiffViewModeChange?.(mode)}
+                >
+                  {mode}
+                </Button>
+              ))}
+            </div>
+          ) : null}
+          {variant === "inline" && onOpenInFiles ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              className="h-7 shrink-0 gap-1.5"
+              onClick={onOpenInFiles}
+            >
+              Open in Files
+              <ExternalLink className="size-3.5" />
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
       <div
         className={cn(
           "min-h-0 flex-1 overflow-auto",
