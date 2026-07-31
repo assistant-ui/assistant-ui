@@ -59,7 +59,7 @@ function getMimeTypeIcon(mimeType: string): FC<{ className?: string }> {
   return FileIcon;
 }
 
-type FileDataKind = "data-uri" | "url" | "base64";
+export type FileDataKind = "data-uri" | "url" | "base64";
 
 function getFileDataKind(data: string): FileDataKind {
   if (/^data:/i.test(data)) return "data-uri";
