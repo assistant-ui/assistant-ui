@@ -45,19 +45,7 @@
     },
     "dev": {
       "cache": false,
-      "persistent": true,
-      "env": [
-        "OPENAI_*",
-        "ASSISTANT_*",
-        "JWT_*",
-        "ENTELLIGENCE_*",
-        "NEXT_PUBLIC_*",
-        "KV_*",
-        "SENTRY_*",
-        "REDIS_*",
-        "AUIX_*",
-        "XULUX_*"
-      ]
+      "persistent": true
     }
   }
 }
