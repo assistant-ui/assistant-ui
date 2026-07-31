@@ -1,18 +1,7 @@
-import type { ComponentType, ReactNode } from "react";
-
-export type LearnPreviewRuntimeProps = Readonly<{
-  api?: string;
-  children: ReactNode;
-}>;
-
 export type LearnStageDefinition = {
   id: string;
   previewPath: string;
   sourceRoot: string;
-  loadPreview: () => Promise<{ default: ComponentType }>;
-  loadPreviewRuntime?: () => Promise<{
-    RuntimeProvider: ComponentType<LearnPreviewRuntimeProps>;
-  }>;
 };
 
 export type LearnStepDefinition = {

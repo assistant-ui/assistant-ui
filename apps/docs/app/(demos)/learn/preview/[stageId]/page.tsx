@@ -2,10 +2,9 @@ import { notFound } from "next/navigation";
 import { isAiPlaygroundEnabled } from "@/lib/feature-flags";
 import {
   DEFAULT_LEARN_COURSE_ID,
-  getLearnStage,
   listLearnStageIds,
 } from "@/lib/xulux/learn/registry";
-import type { LearnStageDefinition } from "@/lib/xulux/learn/types";
+import { getLearnPreview } from "@/lib/xulux/learn/preview-registry";
 
 export function generateStaticParams() {
   return listLearnStageIds(DEFAULT_LEARN_COURSE_ID).map((stageId) => ({
@@ -21,21 +20,21 @@ export default async function LearnStagePreviewPage({
   if (!isAiPlaygroundEnabled) notFound();
 
   const { stageId } = await params;
-  let stage: LearnStageDefinition;
+  let previewDefinition;
   try {
-    stage = getLearnStage(DEFAULT_LEARN_COURSE_ID, stageId);
+    previewDefinition = getLearnPreview(stageId);
   } catch {
     notFound();
   }
 
-  const { default: StagePage } = await stage.loadPreview();
+  const { default: StagePage } = await previewDefinition.loadPage();
   const preview = <StagePage />;
 
-  if (!stage.loadPreviewRuntime) {
+  if (!previewDefinition.loadRuntime) {
     return <div className="bg-background h-dvh overflow-hidden">{preview}</div>;
   }
 
-  const { RuntimeProvider } = await stage.loadPreviewRuntime();
+  const { RuntimeProvider } = await previewDefinition.loadRuntime();
   const previewSessionId = crypto.randomUUID();
 
   return (
