@@ -13,6 +13,7 @@ export type GenericFilePart = {
   type: "file";
   data: string | URL;
   mediaType: string;
+  filename?: string;
 };
 
 export type GenericToolCallPart = {
@@ -62,6 +63,7 @@ type MessagePartLike = {
   image?: string;
   data?: string;
   mimeType?: string;
+  filename?: string;
   toolCallId?: string;
   toolName?: string;
   args?: Record<string, unknown>;
@@ -194,12 +196,14 @@ function convertUserMessage(
         type: "file",
         data: toUrlOrString(part.image),
         mediaType: inferImageMediaType(part.image),
+        ...(part.filename && { filename: part.filename }),
       });
     } else if (part.type === "file" && part.data && part.mimeType) {
       content.push({
         type: "file",
         data: toUrlOrString(part.data),
         mediaType: part.mimeType,
+        ...(part.filename && { filename: part.filename }),
       });
     }
   }

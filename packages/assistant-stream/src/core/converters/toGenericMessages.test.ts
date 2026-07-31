@@ -151,6 +151,54 @@ describe("toGenericMessages", () => {
       ]);
     });
 
+    it("carries a file part filename through", () => {
+      const result = toGenericMessages([
+        {
+          role: "user",
+          content: [
+            {
+              type: "file",
+              data: "https://cdn.example.com/a.pdf",
+              mimeType: "application/pdf",
+              filename: "invoice.pdf",
+            },
+          ],
+        },
+      ] as never);
+
+      expect(result).toEqual([
+        {
+          role: "user",
+          content: [
+            {
+              type: "file",
+              data: new URL("https://cdn.example.com/a.pdf"),
+              mediaType: "application/pdf",
+              filename: "invoice.pdf",
+            },
+          ],
+        },
+      ]);
+    });
+
+    it("omits filename when the part has none", () => {
+      const result = toGenericMessages([
+        {
+          role: "user",
+          content: [
+            {
+              type: "file",
+              data: "https://cdn.example.com/a.pdf",
+              mimeType: "application/pdf",
+            },
+          ],
+        },
+      ] as never);
+
+      const part = (result[0] as { content: unknown[] }).content[0];
+      expect(part).not.toHaveProperty("filename");
+    });
+
     it("filters invalid parts", () => {
       const result = toGenericMessages([
         {
