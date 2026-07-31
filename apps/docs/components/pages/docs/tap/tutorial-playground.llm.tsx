@@ -6,7 +6,7 @@ const stripAnnotationComments = (code: string) =>
     .filter((line) => !line.trimStart().startsWith("// !"))
     .join("\n");
 
-export function TapTutorialSlideshowLLM() {
+export function TapTutorialPlaygroundLLM() {
   return (
     <>
       {tapTutorialSteps.map((step, index) => (
@@ -14,6 +14,7 @@ export function TapTutorialSlideshowLLM() {
           <h3>
             {index + 1}. {step.title}
           </h3>
+          <p>{step.prose}</p>
           <pre>
             <code className={`language-${step.language}`}>
               {stripAnnotationComments(step.code)}
