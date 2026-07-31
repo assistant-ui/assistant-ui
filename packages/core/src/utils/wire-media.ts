@@ -51,9 +51,12 @@ export function resolveFileMediaType(
  *
  * Two hazards drive this. A consumer may hand the value to an unguarded
  * `new URL()`, so a payload that is not a url has to be wrapped; and a data
- * URL's own media type wins over a separately declared one downstream, so an
- * envelope that disagrees with `mediaType` has to be rebuilt. An envelope that
- * agrees, and a url of any other scheme, pass through byte for byte.
+ * URL's own media type wins over a separately declared one downstream, so a
+ * base64 envelope that disagrees with `mediaType` is rebuilt around the same
+ * bytes. Everything else passes through byte for byte: an envelope that agrees,
+ * a url of any other scheme, and a percent-encoded data URL, whose declaration
+ * cannot be corrected without transcoding the payload and is authoritative for
+ * the bytes it carries anyway.
  */
 export function toMediaWireUrl(payload: string, mediaType: string): string {
   const parsed = parseDataUrl(payload);
