@@ -705,6 +705,104 @@ describe("getMessageContent file blocks", () => {
       },
     ]);
   });
+
+  it("emits an audio block for a base64 file part with an audio mime type", () => {
+    const content = getMessageContent(
+      appendMessage({
+        type: "file",
+        data: "c291bmQ=",
+        mimeType: "audio/mp3",
+        filename: "memo.mp3",
+      }),
+    );
+
+    expect(content).toEqual([
+      { type: "text", text: " " },
+      {
+        type: "audio",
+        data: "c291bmQ=",
+        mime_type: "audio/mp3",
+        source_type: "base64",
+      },
+    ]);
+  });
+
+  it("normalizes audio/mpeg and audio/x-wav to the accepted spellings", () => {
+    expect(
+      getMessageContent(
+        appendMessage({
+          type: "file",
+          data: "c291bmQ=",
+          mimeType: "audio/mpeg",
+        }),
+      )[1],
+    ).toMatchObject({ type: "audio", mime_type: "audio/mp3" });
+
+    expect(
+      getMessageContent(
+        appendMessage({
+          type: "file",
+          data: "c291bmQ=",
+          mimeType: "audio/x-wav",
+        }),
+      )[1],
+    ).toMatchObject({ type: "audio", mime_type: "audio/wav" });
+  });
+
+  it("strips the data URL envelope from an audio file part", () => {
+    const content = getMessageContent(
+      appendMessage({
+        type: "file",
+        data: "data:audio/mpeg;base64,c291bmQ=",
+        mimeType: "audio/mp3",
+      }),
+    );
+
+    expect(content[1]).toEqual({
+      type: "audio",
+      data: "c291bmQ=",
+      mime_type: "audio/mp3",
+      source_type: "base64",
+    });
+  });
+
+  it("keeps url and id audio references as file blocks", () => {
+    expect(
+      getMessageContent(
+        appendMessage({
+          type: "file",
+          data: "https://cdn.example.com/memo.mp3",
+          mimeType: "audio/mp3",
+          filename: "memo.mp3",
+        }),
+      )[1],
+    ).toMatchObject({ type: "file", source_type: "url" });
+
+    expect(
+      getMessageContent(
+        appendMessage({
+          type: "file",
+          data: "file-abc123",
+          mimeType: "audio/mp3",
+          filename: "memo.mp3",
+          sourceType: "id",
+        }),
+      )[1],
+    ).toMatchObject({ type: "file", source_type: "id" });
+  });
+
+  it("leaves non-audio file parts as file blocks", () => {
+    expect(
+      getMessageContent(
+        appendMessage({
+          type: "file",
+          data: "ZmFrZQ==",
+          mimeType: "application/pdf",
+          filename: "a.pdf",
+        }),
+      )[1],
+    ).toMatchObject({ type: "file", mime_type: "application/pdf" });
+  });
 });
 
 describe("convertLangChainMessages reasoning content", () => {
