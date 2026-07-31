@@ -132,4 +132,17 @@ describe("createResumableSessionStorage", () => {
     current = "thread-a";
     expect(storage.getStreamId()).toBe("stream-1");
   });
+
+  it("treats a throwing key getter as no key", () => {
+    const storage = createResumableSessionStorage({
+      key: () => {
+        throw new Error("no thread context");
+      },
+    });
+
+    expect(() => storage.setStreamId("stream-1")).not.toThrow();
+    expect(storage.getStreamId()).toBeNull();
+    expect(() => storage.clear()).not.toThrow();
+    expect(window.sessionStorage.getItem("aui-resumable-stream-id")).toBeNull();
+  });
 });

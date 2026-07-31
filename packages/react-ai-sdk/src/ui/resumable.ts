@@ -40,8 +40,13 @@ export function createResumableSessionStorage(options?: {
 }): ResumableClientStorage {
   const keyOption = options?.key;
   const resolveKey = (): string | undefined => {
-    if (typeof keyOption === "function") return keyOption();
-    return keyOption ?? DEFAULT_STORAGE_KEY;
+    if (typeof keyOption !== "function")
+      return keyOption ?? DEFAULT_STORAGE_KEY;
+    try {
+      return keyOption();
+    } catch {
+      return undefined;
+    }
   };
   return {
     getStreamId() {
