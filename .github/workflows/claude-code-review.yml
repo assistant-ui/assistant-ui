@@ -5,8 +5,10 @@ name: Claude Code Review
 # come only from the trusted base branch.
 on:
   pull_request:
+    branches: [main]
     types: [opened, synchronize, ready_for_review, reopened]
   pull_request_target:
+    branches: [main]
     types: [opened, synchronize, ready_for_review, reopened]
 
 env:
