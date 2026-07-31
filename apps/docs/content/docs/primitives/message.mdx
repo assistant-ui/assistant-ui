@@ -122,7 +122,7 @@ A message part is one of three kinds, and which kind a new capability belongs to
 | Provider channel | `reasoning`, `source`, `tool-call`, `generative-ui` | Never. These mirror channels a model already emits. |
 | Extensibility | `data` | Freely, through `name`. This is the growth path for anything app-level. |
 
-`file` is the media carrier. Audio, video, PDFs and everything else are `{ type: "file", mimeType: "audio/mpeg" }` rather than part types of their own, so one renderer and one converter branch handle them all, and a part can be inline base64, a URL, or an opaque storage id through `sourceType`.
+`file` is the media carrier. Audio, video, PDFs and everything else are `{ type: "file", mimeType: "audio/mpeg" }` rather than part types of their own, so one renderer and one converter branch handle them all. The payload can be inline base64 or a URL; `sourceType` additionally allows an opaque storage id, which the LangChain-family runtimes honor and other adapters ignore.
 
 Anything that is not a modality the model consumes or a channel it emits is a `data` part, routed by `name`:
 
