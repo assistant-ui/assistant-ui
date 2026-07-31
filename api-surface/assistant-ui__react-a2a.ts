@@ -753,6 +753,7 @@ type FileMessagePart = {
   readonly filename?: string;
   readonly data: string;
   readonly mimeType: string;
+  readonly sourceType?: "id" | "url";
   readonly parentId?: string;
 };
 

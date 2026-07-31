@@ -62,6 +62,8 @@ export type FileMessagePart = {
   readonly filename?: string;
   readonly data: string;
   readonly mimeType: string;
+  /** How `data` goes on the wire: a url or id reference; omitted = inferred (http(s) → url, else base64). Honored by the LangChain-family runtimes; others ignore it. */
+  readonly sourceType?: "url" | "id";
   readonly parentId?: string;
 };
 

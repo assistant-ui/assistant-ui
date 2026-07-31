@@ -64,6 +64,9 @@ const contentToParts = (content: unknown, role: "user" | "assistant") => {
                   ? part.id
                   : part.data,
             mimeType: part.mime_type ?? "application/octet-stream",
+            ...((part.source_type === "url" || part.source_type === "id") && {
+              sourceType: part.source_type,
+            }),
           };
         case "audio": {
           if (role !== "user") return null;
@@ -229,7 +232,16 @@ export const getMessageContent = (msg: AppendMessage) => {
         return { type: "image_url" as const, image_url: { url: part.image } };
       case "file": {
         const metadata = { filename: part.filename ?? "file" };
-        if (httpUrlPattern.test(part.data)) {
+        if (part.sourceType === "id") {
+          return {
+            type: "file" as const,
+            id: part.data,
+            mime_type: part.mimeType,
+            metadata,
+            source_type: "id" as const,
+          };
+        }
+        if (part.sourceType === "url" || httpUrlPattern.test(part.data)) {
           return {
             type: "file" as const,
             url: part.data,

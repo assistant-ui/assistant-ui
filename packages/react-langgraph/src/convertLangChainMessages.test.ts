@@ -473,6 +473,7 @@ describe("convertLangChainMessages file content", () => {
           filename: "file.pdf",
           data: "https://r2.example/u/abc/file.pdf",
           mimeType: "application/pdf",
+          sourceType: "url",
         },
       ],
     });
@@ -499,6 +500,7 @@ describe("convertLangChainMessages file content", () => {
           filename: "file",
           data: "file-abc123",
           mimeType: "application/octet-stream",
+          sourceType: "id",
         },
       ],
     });
@@ -594,6 +596,112 @@ describe("getMessageContent file blocks", () => {
         mime_type: "application/pdf",
         metadata: { filename: "a.pdf" },
         source_type: "base64",
+      },
+    ]);
+  });
+
+  it("emits an id source block with the value in the id key for sourceType id", () => {
+    const content = getMessageContent(
+      appendMessage({
+        type: "file",
+        data: "flx::storage:file_object:abc",
+        mimeType: "application/pdf",
+        filename: "invoice.pdf",
+        sourceType: "id",
+      }),
+    );
+
+    expect(content).toEqual([
+      { type: "text", text: " " },
+      {
+        type: "file",
+        id: "flx::storage:file_object:abc",
+        mime_type: "application/pdf",
+        metadata: { filename: "invoice.pdf" },
+        source_type: "id",
+      },
+    ]);
+    expect(content[1]).not.toHaveProperty("data");
+  });
+
+  it("lets sourceType url override sniffing for non-http data", () => {
+    const content = getMessageContent(
+      appendMessage({
+        type: "file",
+        data: "s3://bucket/key.pdf",
+        mimeType: "application/pdf",
+        filename: "key.pdf",
+        sourceType: "url",
+      }),
+    );
+
+    expect(content).toEqual([
+      { type: "text", text: " " },
+      {
+        type: "file",
+        url: "s3://bucket/key.pdf",
+        mime_type: "application/pdf",
+        metadata: { filename: "key.pdf" },
+        source_type: "url",
+      },
+    ]);
+  });
+
+  it("emits an id source block for attachment content parts", () => {
+    const content = getMessageContent({
+      content: [{ type: "text", text: "see attached" }],
+      attachments: [
+        {
+          content: [
+            {
+              type: "file",
+              data: "file-abc123",
+              mimeType: "application/pdf",
+              filename: "a.pdf",
+              sourceType: "id",
+            },
+          ],
+        },
+      ],
+    } as unknown as AppendMessage);
+
+    expect(content).toEqual([
+      { type: "text", text: "see attached" },
+      {
+        type: "file",
+        id: "file-abc123",
+        mime_type: "application/pdf",
+        metadata: { filename: "a.pdf" },
+        source_type: "id",
+      },
+    ]);
+  });
+
+  it("round-trips an id source block through both converters", () => {
+    const converted = convertLangChainMessages({
+      type: "human",
+      id: "human-roundtrip-id-file",
+      content: [
+        {
+          type: "file",
+          id: "file-abc123",
+          mime_type: "application/pdf",
+          source_type: "id",
+          metadata: { filename: "a.pdf" },
+        },
+      ],
+    });
+
+    const content = getMessageContent(converted as unknown as AppendMessage);
+
+    expect(content).toEqual([
+      { type: "text", text: " " },
+      {
+        type: "file",
+        id: "file-abc123",
+        mime_type: "application/pdf",
+        metadata: { filename: "a.pdf" },
+        source_type: "id",
       },
     ]);
   });
