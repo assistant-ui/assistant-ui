@@ -565,11 +565,11 @@ describe("contentToParts audio blocks", () => {
 
     expect(result).toMatchObject({
       role: "user",
-      content: [{ type: "audio", audio: { data: "c291bmQ=", format: "mp3" } }],
+      content: [{ type: "file", data: "c291bmQ=", mimeType: "audio/mp3" }],
     });
   });
 
-  it("drops an inbound audio block with an unrepresentable mime type", () => {
+  it("keeps an inbound audio block whose mime type has no wire format", () => {
     const result = convertLangChainBaseMessage(
       {
         _getType: () => "human",
@@ -586,10 +586,13 @@ describe("contentToParts audio blocks", () => {
       {},
     );
 
-    expect(result).toMatchObject({ role: "user", content: [] });
+    expect(result).toMatchObject({
+      role: "user",
+      content: [{ type: "file", data: "b2dn", mimeType: "audio/ogg" }],
+    });
   });
 
-  it("drops an audio block on an assistant message", () => {
+  it("keeps an audio block on an assistant message", () => {
     const result = convertLangChainBaseMessage(
       {
         _getType: () => "ai",
@@ -609,8 +612,43 @@ describe("contentToParts audio blocks", () => {
 
     expect(result).toMatchObject({
       role: "assistant",
-      content: [{ type: "text", text: "done" }],
+      content: [
+        { type: "file", data: "c291bmQ=", mimeType: "audio/mp3" },
+        { type: "text", text: "done" },
+      ],
     });
+  });
+  it("round-trips an audio file part through both converters", () => {
+    const outbound = getMessageContent({
+      content: [
+        {
+          type: "file",
+          data: "data:audio/mpeg;base64,c291bmQ=",
+          mimeType: "audio/mpeg",
+          filename: "memo.mp3",
+        },
+      ],
+    } as unknown as AppendMessage);
+
+    const inbound = convertLangChainBaseMessage(
+      {
+        _getType: () => "human",
+        id: "h1",
+        content: outbound as never,
+      },
+      {},
+    );
+
+    expect(contentOf(inbound)).toEqual([
+      { type: "text", text: " " },
+      { type: "file", data: "c291bmQ=", mimeType: "audio/mp3" },
+    ]);
+
+    expect(
+      getMessageContent({
+        content: contentOf(inbound),
+      } as unknown as AppendMessage),
+    ).toEqual(outbound);
   });
 });
 

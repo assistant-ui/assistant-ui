@@ -33,7 +33,7 @@ export const getMessageType = (message: LangChainBaseMessage): string => {
   throw new Error("Cannot determine message type");
 };
 
-const contentToParts = (content: unknown, role: "user" | "assistant") => {
+const contentToParts = (content: unknown) => {
   if (typeof content === "string")
     return [{ type: "text" as const, text: content }];
 
@@ -68,20 +68,12 @@ const contentToParts = (content: unknown, role: "user" | "assistant") => {
               sourceType: part.source_type,
             }),
           };
-        case "audio": {
-          if (role !== "user") return null;
-          const format =
-            part.mime_type === "audio/wav"
-              ? ("wav" as const)
-              : part.mime_type === "audio/mp3"
-                ? ("mp3" as const)
-                : null;
-          if (!format) return null;
+        case "audio":
           return {
-            type: "audio" as const,
-            audio: { data: part.data, format },
+            type: "file" as const,
+            data: part.data,
+            mimeType: part.mime_type ?? "application/octet-stream",
           };
-        }
         case "thinking":
           return { type: "reasoning" as const, text: part.thinking };
         case "reasoning":
@@ -137,7 +129,7 @@ export const convertLangChainBaseMessage = (
       return {
         role: "user",
         id: message.id,
-        content: contentToParts(message.content, "user"),
+        content: contentToParts(message.content),
         metadata: {
           custom: getCustomMetadata(message.additional_kwargs),
         },
@@ -169,7 +161,7 @@ export const convertLangChainBaseMessage = (
         role: "assistant",
         id: message.id,
         content: [
-          ...contentToParts(message.content, "assistant"),
+          ...contentToParts(message.content),
           ...toolCallParts,
           ...uiDataParts,
         ],

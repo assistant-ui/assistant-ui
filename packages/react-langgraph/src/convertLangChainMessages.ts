@@ -125,7 +125,6 @@ const contentToParts = (
   content: LangChainMessage["content"],
   metadata: LangGraphMessageConverterMetadata,
   messageId: string | undefined,
-  role: "user" | "assistant",
 ) => {
   if (typeof content === "string")
     return [{ type: "text" as const, text: content }];
@@ -166,20 +165,12 @@ const contentToParts = (
               }),
             };
 
-          case "audio": {
-            if (role !== "user") return null;
-            const format =
-              part.mime_type === "audio/wav"
-                ? ("wav" as const)
-                : part.mime_type === "audio/mp3"
-                  ? ("mp3" as const)
-                  : null;
-            if (!format) return null;
+          case "audio":
             return {
-              type: "audio" as const,
-              audio: { data: part.data, format },
+              type: "file" as const,
+              data: part.data,
+              mimeType: part.mime_type ?? "application/octet-stream",
             };
-          }
 
           case "thinking":
             return { type: "reasoning", text: part.thinking };
@@ -246,7 +237,7 @@ export const convertLangChainMessages: useExternalMessageConverter.Callback<
       return {
         role: "user",
         id: message.id,
-        content: contentToParts(message.content, metadata, message.id, "user"),
+        content: contentToParts(message.content, metadata, message.id),
         metadata: { custom: getCustomMetadata(message.additional_kwargs) },
         ...(attachments?.length ? { attachments } : {}),
       };
@@ -304,7 +295,7 @@ export const convertLangChainMessages: useExternalMessageConverter.Callback<
         role: "assistant",
         id: message.id,
         content: [
-          ...contentToParts(allContent, metadata, message.id, "assistant"),
+          ...contentToParts(allContent, metadata, message.id),
           ...toolCallParts,
           ...uiDataParts,
         ],
