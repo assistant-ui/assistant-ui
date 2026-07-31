@@ -150,7 +150,12 @@ function resolveDocPage(slugs: string[]) {
     return examplesSource.getPage(slugs.slice(1));
   }
   if (slugs[0] === "tap") {
-    return getTapDocsPage(slugs.slice(slugs[1] === "docs" ? 2 : 1));
+    // "tap" is both the url prefix and a section inside the tree, so a
+    // shorthand slug like "tap/api-reference" needs the unstripped form too.
+    return (
+      getTapDocsPage(slugs.slice(slugs[1] === "docs" ? 2 : 1)) ??
+      tapSource.getPage(slugs)
+    );
   }
   return source.getPage(slugs);
 }
