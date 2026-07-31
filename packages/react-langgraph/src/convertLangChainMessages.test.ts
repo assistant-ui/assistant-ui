@@ -791,6 +791,38 @@ describe("getMessageContent file blocks", () => {
     ).toMatchObject({ type: "file", source_type: "id" });
   });
 
+  it("does not treat inherited object keys as audio media types", () => {
+    for (const mimeType of ["__proto__", "constructor"]) {
+      expect(
+        getMessageContent(
+          appendMessage({
+            type: "file",
+            data: "ZmFrZQ==",
+            mimeType,
+            filename: "a.bin",
+          }),
+        )[1],
+      ).toMatchObject({ type: "file", mime_type: mimeType });
+    }
+  });
+
+  it("detects audio from the data URL envelope when the declared type is generic", () => {
+    expect(
+      getMessageContent(
+        appendMessage({
+          type: "file",
+          data: "data:audio/mpeg;base64,c291bmQ=",
+          mimeType: "application/octet-stream",
+        }),
+      )[1],
+    ).toEqual({
+      type: "audio",
+      data: "c291bmQ=",
+      mime_type: "audio/mp3",
+      source_type: "base64",
+    });
+  });
+
   it("leaves non-audio file parts as file blocks", () => {
     expect(
       getMessageContent(

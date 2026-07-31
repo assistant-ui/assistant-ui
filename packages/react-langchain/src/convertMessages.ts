@@ -213,13 +213,13 @@ export const convertLangChainBaseMessage = (
  * `audio` block. `langchain-openai`'s completions converter accepts exactly
  * `audio/mp3` and `audio/wav`, so the spelling is normalized, not forwarded.
  */
-const audioBlockMimeTypes: Record<string, "audio/mp3" | "audio/wav"> = {
-  "audio/mp3": "audio/mp3",
-  "audio/mpeg": "audio/mp3",
-  "audio/wav": "audio/wav",
-  "audio/wave": "audio/wav",
-  "audio/x-wav": "audio/wav",
-};
+const audioBlockMimeTypes = new Map<string, "audio/mp3" | "audio/wav">([
+  ["audio/mp3", "audio/mp3"],
+  ["audio/mpeg", "audio/mp3"],
+  ["audio/wav", "audio/wav"],
+  ["audio/wave", "audio/wav"],
+  ["audio/x-wav", "audio/wav"],
+]);
 
 export const getMessageContent = (msg: AppendMessage) => {
   const allContent = [
@@ -264,7 +264,9 @@ export const getMessageContent = (msg: AppendMessage) => {
           };
         }
         const parsed = parseDataUrl(part.data);
-        const audioMimeType = audioBlockMimeTypes[part.mimeType.toLowerCase()];
+        const audioMimeType = audioBlockMimeTypes.get(
+          (parsed?.mimeType ?? part.mimeType).toLowerCase(),
+        );
         if (audioMimeType) {
           return {
             type: "audio" as const,
