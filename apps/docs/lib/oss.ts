@@ -1,5 +1,6 @@
-import { getRepoStars } from "./github";
-import { getWeeklyDownloads } from "./npm";
+import { REVALIDATE, getRepo } from "./github";
+import { NPM_REVALIDATE, getWeeklyDownloads } from "./npm";
+import { PACKAGES } from "./traction";
 
 export const OSS_MONOREPO = "assistant-ui/assistant-ui";
 
@@ -55,11 +56,14 @@ export const OSS_CATEGORIES: Record<
   },
 };
 
-export const OSS_PROJECTS: OssProject[] = [
+type OssProjectInput = Omit<OssProject, "description"> & {
+  description?: string;
+};
+
+const OSS_PROJECT_INPUTS: OssProjectInput[] = [
   {
     id: "assistant-ui",
     name: "assistant-ui",
-    description: "TypeScript and React library for AI chat.",
     category: "sdk",
     repo: OSS_MONOREPO,
     docs: "/docs",
@@ -69,7 +73,6 @@ export const OSS_PROJECTS: OssProject[] = [
   {
     id: "tap",
     name: "@assistant-ui/tap",
-    description: "Zero-dependency reactive primitives.",
     category: "libraries",
     repo: OSS_MONOREPO,
     path: "packages/tap",
@@ -80,7 +83,6 @@ export const OSS_PROJECTS: OssProject[] = [
   {
     id: "store",
     name: "@assistant-ui/store",
-    description: "Tap-based state management.",
     category: "libraries",
     repo: OSS_MONOREPO,
     path: "packages/store",
@@ -91,7 +93,6 @@ export const OSS_PROJECTS: OssProject[] = [
   {
     id: "assistant-stream",
     name: "assistant-stream",
-    description: "Streaming utilities for AI assistants.",
     category: "libraries",
     repo: OSS_MONOREPO,
     path: "packages/assistant-stream",
@@ -138,7 +139,6 @@ export const OSS_PROJECTS: OssProject[] = [
   {
     id: "tw-shimmer",
     name: "tw-shimmer",
-    description: "Tailwind v4 plugin for shimmer effects.",
     category: "primitives",
     repo: OSS_MONOREPO,
     path: "packages/tw-shimmer",
@@ -149,7 +149,6 @@ export const OSS_PROJECTS: OssProject[] = [
   {
     id: "tw-glass",
     name: "tw-glass",
-    description: "Tailwind v4 plugin for glass refraction effects.",
     category: "primitives",
     repo: OSS_MONOREPO,
     path: "packages/tw-glass",
@@ -160,7 +159,6 @@ export const OSS_PROJECTS: OssProject[] = [
   {
     id: "heat-graph",
     name: "heat-graph",
-    description: "Headless React components for activity heatmaps.",
     category: "primitives",
     repo: OSS_MONOREPO,
     path: "packages/heat-graph",
@@ -171,7 +169,6 @@ export const OSS_PROJECTS: OssProject[] = [
   {
     id: "safe-content-frame",
     name: "safe-content-frame",
-    description: "Secure iframe rendering for untrusted content.",
     category: "primitives",
     repo: OSS_MONOREPO,
     path: "packages/safe-content-frame",
@@ -190,7 +187,6 @@ export const OSS_PROJECTS: OssProject[] = [
   {
     id: "mcp-docs-server",
     name: "@assistant-ui/mcp-docs-server",
-    description: "MCP server exposing assistant-ui docs.",
     category: "agents",
     repo: OSS_MONOREPO,
     path: "packages/mcp-docs-server",
@@ -206,6 +202,22 @@ export const OSS_PROJECTS: OssProject[] = [
     license: null,
   },
 ];
+
+function describe(project: OssProjectInput): string {
+  if (project.description) return project.description;
+  const pkg = PACKAGES.find((entry) => entry.name === project.npm);
+  if (!pkg) {
+    throw new Error(
+      `OSS project "${project.id}" has no description and no matching package in PACKAGES.`,
+    );
+  }
+  return pkg.description;
+}
+
+export const OSS_PROJECTS: OssProject[] = OSS_PROJECT_INPUTS.map((project) => ({
+  ...project,
+  description: describe(project),
+}));
 
 export function ossRepoUrl(project: OssProject): string {
   return project.path
@@ -224,11 +236,9 @@ export function ossNpmUrl(pkg: string): string {
 export type OssStats = {
   stars: Record<string, number>;
   weekly: Record<string, number>;
-  totalStars: number;
-  totalWeekly: number;
 };
 
-export async function fetchOssStats(revalidate?: number): Promise<OssStats> {
+export async function fetchOssStats(): Promise<OssStats> {
   const repos = [
     ...new Set(
       OSS_PROJECTS.filter((project) => !project.path).map(
@@ -247,32 +257,32 @@ export async function fetchOssStats(revalidate?: number): Promise<OssStats> {
   const [repoEntries, packageEntries] = await Promise.all([
     Promise.all(
       repos.map(
-        async (repo) => [repo, await getRepoStars(repo, revalidate)] as const,
+        async (repo) =>
+          [
+            repo,
+            (await getRepo(REVALIDATE.WARM, repo))?.stars ?? null,
+          ] as const,
       ),
     ),
     Promise.all(
       packages.map(
         async (name) =>
-          [name, await getWeeklyDownloads(name, revalidate)] as const,
+          [name, await getWeeklyDownloads(name, NPM_REVALIDATE.WARM)] as const,
       ),
     ),
   ]);
 
   const stars: Record<string, number> = {};
-  let totalStars = 0;
   for (const [repo, count] of repoEntries) {
     if (count === null) continue;
     stars[repo] = count;
-    totalStars += count;
   }
 
   const weekly: Record<string, number> = {};
-  let totalWeekly = 0;
   for (const [name, count] of packageEntries) {
     if (count === null) continue;
     weekly[name] = count;
-    totalWeekly += count;
   }
 
-  return { stars, weekly, totalStars, totalWeekly };
+  return { stars, weekly };
 }

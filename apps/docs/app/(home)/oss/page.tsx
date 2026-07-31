@@ -23,27 +23,13 @@ export const metadata: Metadata = {
   ...createOgMetadata(title, description),
 };
 
-export default async function OssPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ refresh?: string }>;
-}) {
-  const forceFresh = (await searchParams).refresh === "true";
-  const stats = await fetchOssStats(forceFresh ? 0 : undefined);
+export default async function OssPage() {
+  const stats = await fetchOssStats();
 
   const grouped = groupByCategory(OSS_PROJECTS);
   const visibleCategories = (
     Object.keys(OSS_CATEGORIES) as OssCategory[]
   ).filter((category) => (grouped[category]?.length ?? 0) > 0);
-
-  const headline = [
-    stats.totalStars > 0
-      ? `${formatCompact(stats.totalStars)} stars on GitHub`
-      : null,
-    stats.totalWeekly > 0
-      ? `${formatCompact(stats.totalWeekly)} downloads a week`
-      : null,
-  ].filter((fact): fact is string => fact !== null);
 
   return (
     <main className="mx-auto w-full max-w-7xl px-4 pt-20 pb-32 md:pt-32">
@@ -55,11 +41,6 @@ export default async function OssPage({
           {OSS_PROJECTS.length} projects across the assistant-ui organization,
           from the chat runtime to the primitives we extracted along the way.
         </p>
-        {headline.length > 0 ? (
-          <p className="text-muted-foreground/70 mt-8 text-sm tabular-nums">
-            {headline.join(" · ")}
-          </p>
-        ) : null}
       </header>
 
       <div className="mt-24 flex flex-col gap-16 md:mt-32">

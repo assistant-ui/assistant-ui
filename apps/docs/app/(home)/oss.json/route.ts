@@ -2,6 +2,7 @@ import { BASE_URL } from "@/lib/constants";
 import {
   OSS_CATEGORIES,
   OSS_PROJECTS,
+  ossNpmUrl,
   ossPrimaryUrl,
   ossRepoUrl,
 } from "@/lib/oss";
@@ -21,6 +22,10 @@ export function GET() {
       repoUrl: ossRepoUrl(project),
       ...(project.docs ? { docs: absolute(project.docs) } : {}),
       ...(project.site ? { site: absolute(project.site) } : {}),
+      ...(project.npm ? { npmUrl: ossNpmUrl(project.npm) } : {}),
+      ...(project.pypi
+        ? { pypiUrl: `https://pypi.org/project/${project.pypi}/` }
+        : {}),
     })),
   };
 
