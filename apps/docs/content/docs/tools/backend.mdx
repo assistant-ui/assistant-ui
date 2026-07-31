@@ -112,12 +112,11 @@ runtime out of the module graph. The package root exports the same symbols and
 keeps working, which is what the Next.js examples above use, since there the
 route and the client ship from one install.
 
-The adapter is still the package to install, including for a backend that never
-renders: these helpers convert between the AI SDK's shapes and assistant-ui's,
-which is adapter work, so they live with the adapter rather than in a
-framework-neutral package. Installing it in an Express or Hono service leaves
-`react` as an unmet peer dependency of `@ai-sdk/react`; nothing installs React
-itself, and nothing at runtime needs it.
+`@assistant-ui/react-ai-sdk` remains the package to install either way, and it
+declares `react` as a peer dependency, so a backend that never renders still
+resolves React. If that matters for your deployment, convert the uploaded tools
+yourself: each entry is a JSON Schema, and `jsonSchema()` from `ai` is all that
+is needed to turn one into an AI SDK tool.
 
 <Callout type="tip">
   `toToolsJSONSchema` emits the uploaded tools in alphabetical order, so two

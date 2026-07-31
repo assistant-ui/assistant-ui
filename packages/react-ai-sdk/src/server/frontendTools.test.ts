@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { frontendTools } from "./frontendTools";
-import { wrapModelContentEnvelope } from "./modelContentEnvelope";
+import { wrapModelContentEnvelope } from "../modelContentEnvelope";
 
 describe("frontendTools", () => {
   it("forwards description and inputSchema for each tool", () => {

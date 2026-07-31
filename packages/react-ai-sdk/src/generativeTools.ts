@@ -21,7 +21,7 @@ import {
 import {
   unwrapModelContentEnvelope,
   type ModelContentEnvelope,
-} from "./server/modelContentEnvelope";
+} from "./modelContentEnvelope";
 
 const EMPTY_SCHEMA = { type: "object" as const, properties: {} };
 

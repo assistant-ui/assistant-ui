@@ -2,7 +2,7 @@ import { CreateUIMessage, UIMessage as UIMessage$1, UseChatHelpers, useChat } fr
 
 import { StandardSchemaV1 } from "@standard-schema/spec";
 
-import { ChatInit, DefaultChatTransport, HttpChatTransportInitOptions, JSONValue, ToolSet, UIMessage } from "ai";
+import { ChatInit, DefaultChatTransport, HttpChatTransportInitOptions, ToolSet, UIMessage } from "ai";
 
 import { ComponentType, ReactNode } from "react";
 
@@ -661,8 +661,6 @@ type DictationState = {
   readonly inputDisabled?: boolean;
 };
 
-declare const ENVELOPE_KEY = "__aui_modelContent";
-
 type EditComposerAttachmentState = Attachment & {
   readonly source: "edit-composer";
 };
@@ -1177,11 +1175,6 @@ type MessageTiming = {
   readonly tokensPerSecond?: number;
   readonly totalChunks: number;
   readonly toolCallCount: number;
-};
-
-type ModelContentEnvelope<TResult = unknown> = {
-  readonly [ENVELOPE_KEY]: readonly ToolModelContentPart[];
-  readonly value: TResult;
 };
 
 type ModelContext = {
@@ -2075,31 +2068,6 @@ declare function createResumableSessionStorage(options?: {
   key?: string;
 }): ResumableClientStorage;
 
-declare const defaultToModelOutput: (_param2: {
-  output: unknown;
-}) => {
-  type: "content";
-  value: ({
-    type: "text";
-    text: string;
-  } | {
-    filename?: string;
-    type: "file";
-    data: {
-      type: "data";
-      data: string;
-    };
-    mediaType: string;
-    text?: never;
-  })[];
-} | {
-  type: "text";
-  value: string;
-} | {
-  type: "json";
-  value: import("ai").JSONValue;
-};
-
 declare const frontendTools: (tools: FrontendTools) => ToolSet;
 
 declare const generativeTools: (options: GenerativeToolsOptions) => ToolSet;
@@ -2118,44 +2086,12 @@ declare namespace entry_root_exports {
 }
 
 declare namespace entry_server_exports {
-  export { AISDKToolkit, AISDKToolkitOptions, AISDKToolkitToolsOptions, FrontendTools, GenerativeToolsOptions, ModelContentEnvelope, defaultToModelOutput, frontendTools, generativeTools, isModelContentEnvelope, toAISDKContent, toAISDKDefaultOutput, unwrapModelContentEnvelope, wrapModelContentEnvelope };
+  export { AISDKToolkit, AISDKToolkitOptions, AISDKToolkitToolsOptions, FrontendTools, GenerativeToolsOptions, frontendTools, generativeTools };
 }
 
 declare function injectQuoteContext(messages: UIMessage[]): UIMessage[];
 
-declare function isModelContentEnvelope<TResult = unknown>(value: TResult | ModelContentEnvelope<TResult>): value is ModelContentEnvelope<TResult>;
-
-declare const toAISDKContent: (parts: readonly ToolModelContentPart[]) => {
-  type: "content";
-  value: ({
-    type: "text";
-    text: string;
-  } | {
-    filename?: string;
-    type: "file";
-    data: {
-      type: "data";
-      data: string;
-    };
-    mediaType: string;
-    text?: never;
-  })[];
-};
-
-declare const toAISDKDefaultOutput: (output: unknown) => {
-  type: "text";
-  value: string;
-} | {
-  type: "json";
-  value: JSONValue;
-};
-
 declare function unstable_injectInteractableContext(messages: UIMessage[], format?: (item: Unstable_InteractableSnapshotEntry) => string): UIMessage[];
-
-declare function unwrapModelContentEnvelope<TResult>(output: TResult | ModelContentEnvelope<TResult>): {
-  result: TResult;
-  modelContent?: readonly ToolModelContentPart[];
-};
 
 declare const useAISDKChat: <UI_MESSAGE extends UIMessage = UIMessage>() => UseChatHelpers<UI_MESSAGE> | undefined;
 
@@ -2163,10 +2099,8 @@ declare const useAISDKError: () => Error | undefined;
 
 declare const useAISDKRuntime: <UI_MESSAGE extends UIMessage$1 = UIMessage$1>(chatHelpers: ReturnType<typeof useChat<UI_MESSAGE>>, adapter?: AISDKRuntimeAdapter) => AssistantRuntime;
 
-declare const useChatRuntime: <UI_MESSAGE extends UIMessage$1 = UIMessage$1>(_param3?: UseChatRuntimeOptions<UI_MESSAGE>) => AssistantRuntime;
+declare const useChatRuntime: <UI_MESSAGE extends UIMessage$1 = UIMessage$1>(_param2?: UseChatRuntimeOptions<UI_MESSAGE>) => AssistantRuntime;
 
 declare function useThreadTokenUsage(): ThreadTokenUsage | undefined;
-
-declare function wrapModelContentEnvelope<TResult>(result: TResult, modelContent: readonly ToolModelContentPart[]): ModelContentEnvelope<TResult>;
 
 export { entry_root_exports as entry_root, entry_server_exports as entry_server };

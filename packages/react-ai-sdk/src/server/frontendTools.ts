@@ -1,6 +1,6 @@
 import { jsonSchema, type ToolSet } from "ai";
 import type { ToolJSONSchema } from "assistant-stream";
-import { unwrapModelContentEnvelope } from "./modelContentEnvelope";
+import { unwrapModelContentEnvelope } from "../modelContentEnvelope";
 import { toAISDKContent, toAISDKDefaultOutput } from "./toolOutputConversion";
 
 /** Frontend tool definitions uploaded by AssistantChatTransport. */
