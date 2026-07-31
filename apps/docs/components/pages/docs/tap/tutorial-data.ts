@@ -7,14 +7,13 @@ export type TapTutorialStep = {
   cut?: boolean;
   /** Footer explanation for the step. */
   prose: string;
-  /** What drives the (unchanging) counter preview on this step. */
-  poweredBy: string;
 };
 
 const useCounterFull = `const useCounter = () => {
   const [count, setCount] = useState(0);
   const increment = () => setCount((value) => value + 1);
-  return { count, increment };
+  const decrement = () => setCount((value) => value - 1);
+  return { count, increment, decrement };
 };`;
 
 export const tapTutorialSteps: TapTutorialStep[] = [
@@ -24,7 +23,6 @@ export const tapTutorialSteps: TapTutorialStep[] = [
     language: "jsx",
     prose:
       "Start with a Hook you'd write anyway: a count and the method that updates it.",
-    poweredBy: "useCounter — a plain React Hook",
     code: `import { useState } from "react";
 
 ${useCounterFull}`,
@@ -35,35 +33,38 @@ ${useCounterFull}`,
     language: "jsx",
     prose:
       "resource() packages the Hook into Counter — a reusable building block for state.",
-    poweredBy: "the same Hook, packaged as the Counter Resource",
     code: `import { useState } from "react";
 import { resource } from "@assistant-ui/tap";
 
 ${useCounterFull}
 
 // !tooltip[/resource/] Wraps a hook into a resource element factory.
-const Counter = resource(useCounter);`,
+export const Counter = resource(useCounter);`,
   },
   {
     title: "Render it in React",
     filename: "counter.jsx",
     language: "jsx",
-    prose:
-      "useResource(Counter()) renders the Resource and returns its value. This preview is that component.",
-    poweredBy: "<CounterButton /> via useResource(Counter())",
+    prose: "useResource(Counter()) renders the Resource and returns its value.",
     code: `import { useState } from "react";
 import { resource, useResource } from "@assistant-ui/tap";
 
-// !collapse(1:5) collapsed
+// !collapse(1:6) collapsed
 ${useCounterFull}
 
-const Counter = resource(useCounter);
+export const Counter = resource(useCounter);
 
 function CounterButton() {
   // !tooltip[/useResource/] Renders the resource and returns its value.
-  const { count, increment } = useResource(Counter());
+  const { count, increment, decrement } = useResource(Counter());
 
-  return <button onClick={increment}>{count}</button>;
+  return (
+    <>
+      <button onClick={decrement}>-</button>
+      <span>{count}</span>
+      <button onClick={increment}>+</button>
+    </>
+  );
 }`,
   },
   {
@@ -73,7 +74,6 @@ function CounterButton() {
     cut: true,
     prose:
       "The exact same Counter, no React tree. createTapRoot hosts it; subscribe and call its methods directly.",
-    poweredBy: "a tap root — no React involved",
     code: `import { createTapRoot, useResource } from "@assistant-ui/tap";
 import { Counter } from "./counter";
 
@@ -85,6 +85,8 @@ root.subscribe(() => {
   console.log(root.getValue().count);
 });
 
-root.getValue().increment();`,
+root.getValue().increment();
+
+root.unmount();`,
   },
 ];

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { resource, useResource } from "@assistant-ui/tap";
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -27,13 +28,22 @@ const TouchTarget = () => (
   />
 );
 
+const useCounter = () => {
+  const [count, setCount] = useState(0);
+  const increment = () => setCount((value) => value + 1);
+  const decrement = () => setCount((value) => value - 1);
+  return { count, increment, decrement };
+};
+
+const Counter = resource(useCounter);
+
 export const TapTutorialPlaygroundClient = ({
   steps,
 }: {
   steps: TapTutorialClientStep[];
 }) => {
   const [index, setIndex] = useState(0);
-  const [count, setCount] = useState(0);
+  const counter = useResource(Counter());
 
   const step = steps[index]!;
   const isFirst = index === 0;
@@ -60,7 +70,7 @@ export const TapTutorialPlaygroundClient = ({
               <div className="flex items-stretch gap-2">
                 <button
                   type="button"
-                  onClick={() => setCount((value) => value - 1)}
+                  onClick={counter.decrement}
                   aria-label="Decrement"
                   className="border-fd-border bg-fd-background hover:bg-fd-accent flex w-12 cursor-pointer items-center justify-center rounded-lg border shadow-xs transition-colors active:scale-95"
                 >
@@ -70,11 +80,11 @@ export const TapTutorialPlaygroundClient = ({
                   aria-live="polite"
                   className="border-fd-border bg-fd-background flex min-w-24 items-center justify-center rounded-lg border px-6 py-3 font-mono text-2xl font-medium tabular-nums shadow-xs"
                 >
-                  {count}
+                  {counter.count}
                 </output>
                 <button
                   type="button"
-                  onClick={() => setCount((value) => value + 1)}
+                  onClick={counter.increment}
                   aria-label="Increment"
                   className="border-fd-border bg-fd-background hover:bg-fd-accent flex w-12 cursor-pointer items-center justify-center rounded-lg border shadow-xs transition-colors active:scale-95"
                 >
@@ -82,9 +92,11 @@ export const TapTutorialPlaygroundClient = ({
                 </button>
               </div>
               <p className="text-fd-muted-foreground text-center text-xs text-balance">
-                The same counter on every step — right now powered by{" "}
+                The same counter on every step — one{" "}
+                <span className="text-fd-foreground font-medium">Counter</span>{" "}
+                resource, rendered with{" "}
                 <span className="text-fd-foreground font-medium">
-                  {step.poweredBy}
+                  useResource(Counter())
                 </span>
                 .
               </p>
@@ -95,7 +107,7 @@ export const TapTutorialPlaygroundClient = ({
                 State
               </p>
               <pre className="border-fd-border/70 bg-fd-background overflow-auto rounded-lg border p-3 font-mono text-xs leading-relaxed">
-                {JSON.stringify({ count }, null, 2)}
+                {JSON.stringify({ count: counter.count }, null, 2)}
               </pre>
             </div>
           </div>
@@ -122,7 +134,7 @@ export const TapTutorialPlaygroundClient = ({
               className="text-fd-muted-foreground hover:text-fd-foreground relative"
             >
               <TouchTarget />
-              <ChevronLeftIcon data-icon="inline-start" />
+              <ChevronLeftIcon />
               Back
             </Button>
             <Button
@@ -133,13 +145,13 @@ export const TapTutorialPlaygroundClient = ({
               <TouchTarget />
               {isLast ? (
                 <>
-                  <RotateCcwIcon data-icon="inline-start" />
+                  <RotateCcwIcon />
                   Start over
                 </>
               ) : (
                 <>
                   Next
-                  <ChevronRightIcon data-icon="inline-end" />
+                  <ChevronRightIcon />
                 </>
               )}
             </Button>
