@@ -239,13 +239,17 @@ export async function getCommitCoAuthors(
     for (let i = 0; i < rest.length; i += COMMIT_PAGE_CONCURRENCY) {
       const batch = await Promise.all(
         rest.slice(i, i + COMMIT_PAGE_CONCURRENCY).map(async (page) => {
-          const res = await ghFetch(
-            `/commits?per_page=100&page=${page}`,
-            revalidate,
-          );
-          return res.ok
-            ? ((await withTimeout(res.json())) as CommitListItem[])
-            : [];
+          try {
+            const res = await ghFetch(
+              `/commits?per_page=100&page=${page}`,
+              revalidate,
+            );
+            return res.ok
+              ? ((await withTimeout(res.json())) as CommitListItem[])
+              : [];
+          } catch {
+            return [];
+          }
         }),
       );
       pages.push(...batch);
@@ -331,8 +335,8 @@ export async function getContributors(
   maxPages = 2,
   revalidate: number = REVALIDATE.COOL,
 ): Promise<GitHubContributor[] | null> {
+  const all: GitHubContributor[] = [];
   try {
-    const all: GitHubContributor[] = [];
     for (let page = 1; page <= maxPages; page++) {
       const res = await ghFetch(
         `/contributors?per_page=100&page=${page}`,
@@ -347,10 +351,10 @@ export async function getContributors(
       all.push(...batch);
       if (batch.length < 100) break;
     }
-    return all;
   } catch {
-    return null;
+    if (all.length === 0) return null;
   }
+  return all;
 }
 
 export type StargazerEntry = { starred_at: string };
