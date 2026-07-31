@@ -10,7 +10,6 @@ export default {
   },
   resolve: {
     alias: {
-      "@/lib/utils": resolve(__dirname, "../../packages/ui/src/lib/utils.ts"),
       "@": resolve(__dirname),
     },
   },
