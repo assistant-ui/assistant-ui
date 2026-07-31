@@ -546,6 +546,18 @@ describe("getMessageContent audio and data parts", () => {
 });
 
 describe("contentToParts audio blocks", () => {
+  const inboundAudioPart = (block: Record<string, unknown>) => {
+    const result = convertLangChainBaseMessage(
+      {
+        _getType: () => "human",
+        id: "h1",
+        content: [{ type: "audio", data: "c291bmQ=", ...block }],
+      },
+      {},
+    );
+    return contentOf(result)[0];
+  };
+
   it("converts an inbound base64 audio block back to an audio part", () => {
     const result = convertLangChainBaseMessage(
       {
@@ -565,7 +577,14 @@ describe("contentToParts audio blocks", () => {
 
     expect(result).toMatchObject({
       role: "user",
-      content: [{ type: "file", data: "c291bmQ=", mimeType: "audio/mp3" }],
+      content: [
+        {
+          type: "file",
+          filename: "audio.mp3",
+          data: "c291bmQ=",
+          mimeType: "audio/mp3",
+        },
+      ],
     });
   });
 
@@ -588,7 +607,14 @@ describe("contentToParts audio blocks", () => {
 
     expect(result).toMatchObject({
       role: "user",
-      content: [{ type: "file", data: "b2dn", mimeType: "audio/ogg" }],
+      content: [
+        {
+          type: "file",
+          filename: "audio.ogg",
+          data: "b2dn",
+          mimeType: "audio/ogg",
+        },
+      ],
     });
   });
 
@@ -613,7 +639,12 @@ describe("contentToParts audio blocks", () => {
     expect(result).toMatchObject({
       role: "assistant",
       content: [
-        { type: "file", data: "c291bmQ=", mimeType: "audio/mp3" },
+        {
+          type: "file",
+          filename: "audio.mp3",
+          data: "c291bmQ=",
+          mimeType: "audio/mp3",
+        },
         { type: "text", text: "done" },
       ],
     });
@@ -641,7 +672,12 @@ describe("contentToParts audio blocks", () => {
 
     expect(contentOf(inbound)).toEqual([
       { type: "text", text: " " },
-      { type: "file", data: "c291bmQ=", mimeType: "audio/mp3" },
+      {
+        type: "file",
+        filename: "audio.mp3",
+        data: "c291bmQ=",
+        mimeType: "audio/mp3",
+      },
     ]);
 
     expect(
@@ -649,6 +685,15 @@ describe("contentToParts audio blocks", () => {
         content: contentOf(inbound),
       } as unknown as AppendMessage),
     ).toEqual(outbound);
+  });
+  it("names an inbound audio attachment from its media subtype", () => {
+    expect(inboundAudioPart({ mime_type: "audio/wav" })).toMatchObject({
+      filename: "audio.wav",
+    });
+    expect(inboundAudioPart({})).toMatchObject({
+      filename: "audio",
+      mimeType: "application/octet-stream",
+    });
   });
 });
 

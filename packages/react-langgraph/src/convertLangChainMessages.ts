@@ -165,12 +165,18 @@ const contentToParts = (
               }),
             };
 
-          case "audio":
+          case "audio": {
+            const mimeType = part.mime_type ?? "application/octet-stream";
+            const subtype = mimeType.startsWith("audio/")
+              ? mimeType.slice("audio/".length)
+              : undefined;
             return {
               type: "file" as const,
+              filename: subtype ? `audio.${subtype}` : "audio",
               data: part.data,
-              mimeType: part.mime_type ?? "application/octet-stream",
+              mimeType,
             };
+          }
 
           case "thinking":
             return { type: "reasoning", text: part.thinking };

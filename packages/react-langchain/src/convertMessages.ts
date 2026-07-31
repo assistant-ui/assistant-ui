@@ -68,12 +68,18 @@ const contentToParts = (content: unknown) => {
               sourceType: part.source_type,
             }),
           };
-        case "audio":
+        case "audio": {
+          const mimeType = part.mime_type ?? "application/octet-stream";
+          const subtype = mimeType.startsWith("audio/")
+            ? mimeType.slice("audio/".length)
+            : undefined;
           return {
             type: "file" as const,
+            filename: subtype ? `audio.${subtype}` : "audio",
             data: part.data,
-            mimeType: part.mime_type ?? "application/octet-stream",
+            mimeType,
           };
+        }
         case "thinking":
           return { type: "reasoning" as const, text: part.thinking };
         case "reasoning":
