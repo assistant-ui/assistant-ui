@@ -695,6 +695,7 @@ describe("adapter conversions", () => {
         },
       ],
     });
+    expect(() => UserMessageSchema.parse(result[0])).not.toThrow();
   });
 
   it("emits content and attachment file parts once each", () => {
@@ -736,6 +737,7 @@ describe("adapter conversions", () => {
       "QUFB",
       "QkJC",
     ]);
+    expect(() => UserMessageSchema.parse(result[0])).not.toThrow();
   });
 
   it("converts image attachment with data URL to AG-UI image source", () => {
