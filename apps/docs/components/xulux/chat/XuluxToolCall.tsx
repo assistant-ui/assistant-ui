@@ -33,7 +33,6 @@ import {
   useXuluxAnalytics,
   withXuluxContext,
 } from "@/lib/xulux/analytics-context";
-import { LearnStepFileChanges } from "../learn/LearnStepFileChanges";
 
 function getToolIcon(toolName: string): ReactNode {
   const Icon = getToolIconComponent(toolName);
@@ -311,12 +310,7 @@ function LearnStepCard({
         <h3 className="mt-1 font-semibold">{result.step.title}</h3>
       </div>
       <div className="border-t p-3">
-        <LearnStepFileChanges
-          stepId={result.step.id}
-          stageId={result.stage.id}
-          files={result.changes.files}
-        />
-        <div className="mt-3 flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button
             type="button"
             variant="outline"
