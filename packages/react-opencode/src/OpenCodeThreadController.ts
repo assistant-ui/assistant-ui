@@ -49,8 +49,18 @@ const getTextContent = (parts: readonly ThreadUserMessagePart[]) =>
 const getPromptParts = (message: AppendMessage) => {
   const content = [
     ...message.content,
-    ...(message.attachments?.flatMap(
-      (attachment: any) => attachment.content ?? [],
+    // The attachment carries a name and content type its parts do not, so
+    // they ride along rather than being dropped at the flatten.
+    ...(message.attachments?.flatMap((attachment: any) =>
+      (attachment.content ?? []).map((part: any) => ({
+        ...part,
+        ...(attachment.name != null && {
+          filename: part.filename ?? attachment.name,
+        }),
+        ...(attachment.contentType != null && {
+          contentType: attachment.contentType,
+        }),
+      })),
     ) ?? []),
   ];
 
@@ -65,7 +75,10 @@ const getPromptParts = (message: AppendMessage) => {
       // OpenCode has no image part: its input union is text, file, agent and
       // subtask, so an `image` part never reached the model. `image/*` marks an
       // image whose type the part does not carry, rather than guessing one.
-      const mime = parseDataUrl(part.image)?.mimeType ?? "image/*";
+      const contentType = (part as { contentType?: string }).contentType;
+      const mime = contentType?.startsWith("image/")
+        ? contentType
+        : (parseDataUrl(part.image)?.mimeType ?? "image/*");
       promptParts.push({
         type: "file",
         ...(part.filename != null && { filename: part.filename }),
