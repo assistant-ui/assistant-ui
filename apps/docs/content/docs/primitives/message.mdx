@@ -138,7 +138,7 @@ Anything that is not a modality the model consumes or a channel it emits is a `d
 ```
 
 <Callout type="warn">
-`Unstable_AudioMessagePart` and the `Unstable_Audio` slot are deprecated. The audio part cannot carry a filename, cannot reference a URL or storage id, and exists only on user messages, so a model that returns audio has no way to express it. Send audio as a `file` part with an `audio/*` mime type instead, and give it a filename.
+`Unstable_AudioMessagePart` and the `Unstable_Audio` slot are deprecated. The audio part cannot carry a filename, has no way to declare how its payload goes on the wire (no `sourceType`, so no storage id), and exists only on user messages, so a model that returns audio has no way to express it. Send audio as a `file` part with an `audio/*` mime type instead, and give it a filename.
 
 Adapter coverage for the file path is still uneven, and the payload form a `file` part needs is currently adapter-specific rather than uniform: `react-ai-sdk` and `@assistant-ui/eve` need a data URL or an http source, `react-google-adk` needs bare base64 and additionally restores a filename-less `audio/mp3` or `audio/wav` file part back into an audio part, and `react-ag-ui` carries binary through `attachments` rather than content parts. Existing audio parts keep working; they will not gain fields.
 </Callout>
