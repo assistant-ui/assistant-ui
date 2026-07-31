@@ -375,6 +375,18 @@ describe("toCreateMessage", () => {
     });
   });
 
+  it("reads the declared type of a non-base64 data url file", () => {
+    const message = {
+      ...baseMessage,
+      content: [{ type: "file", data: "data:text/plain,hello", mimeType: "" }],
+    } as unknown as AppendMessage;
+
+    expect(toCreateMessage(message).parts[0]).toMatchObject({
+      mediaType: "text/plain",
+      url: "data:text/plain,hello",
+    });
+  });
+
   it("floors a bare base64 file payload with no declared mime", () => {
     const message = {
       ...baseMessage,

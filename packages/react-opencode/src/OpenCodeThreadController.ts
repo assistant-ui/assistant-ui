@@ -124,7 +124,9 @@ const getPromptParts = (message: AppendMessage) => {
       // branch: declared, then the envelope, then the floor.
       const parsedFile = parseDataUrl(part.data);
       const fileMime =
-        part.mimeType || parsedFile?.mimeType || "application/octet-stream";
+        part.mimeType ||
+        dataUrlMediaType(part.data) ||
+        "application/octet-stream";
       promptParts.push({
         type: "file",
         filename: part.filename,

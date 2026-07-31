@@ -1,7 +1,8 @@
 /**
  * Leading-byte signatures for the image formats a browser or attachment
  * adapter realistically produces. `null` matches any byte, which WebP needs
- * because its four size bytes sit between the two markers.
+ * because its four size bytes sit between the two markers, and AVIF and HEIC
+ * need because their leading `ftyp` box size varies by encoder.
  *
  * These are file format constants rather than an evolving API, so the table
  * mirrors the one the AI SDK applies on the far side of several adapters
@@ -37,13 +38,35 @@ const IMAGE_SIGNATURES: readonly {
   {
     mediaType: "image/avif",
     prefix: [
-      0x00, 0x00, 0x00, 0x20, 0x66, 0x74, 0x79, 0x70, 0x61, 0x76, 0x69, 0x66,
+      null,
+      null,
+      null,
+      null,
+      0x66,
+      0x74,
+      0x79,
+      0x70,
+      0x61,
+      0x76,
+      0x69,
+      0x66,
     ],
   },
   {
     mediaType: "image/heic",
     prefix: [
-      0x00, 0x00, 0x00, 0x20, 0x66, 0x74, 0x79, 0x70, 0x68, 0x65, 0x69, 0x63,
+      null,
+      null,
+      null,
+      null,
+      0x66,
+      0x74,
+      0x79,
+      0x70,
+      0x68,
+      0x65,
+      0x69,
+      0x63,
     ],
   },
 ];

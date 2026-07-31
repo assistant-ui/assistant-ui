@@ -42,9 +42,11 @@ describe("detectImageMediaType", () => {
   it.each([
     { label: "avif", eighth: [0x61, 0x76, 0x69, 0x66], type: "image/avif" },
     { label: "heic", eighth: [0x68, 0x65, 0x69, 0x63], type: "image/heic" },
-  ])("detects $label", ({ eighth, type }) => {
-    const bytes = [0x00, 0x00, 0x00, 0x20, 0x66, 0x74, 0x79, 0x70, ...eighth];
-    expect(detectImageMediaType(toBase64(bytes))).toBe(type);
+  ])("detects $label whatever its ftyp box size", ({ eighth, type }) => {
+    for (const size of [0x20, 0x18, 0x1c]) {
+      const bytes = [0x00, 0x00, 0x00, size, 0x66, 0x74, 0x79, 0x70, ...eighth];
+      expect(detectImageMediaType(toBase64(bytes))).toBe(type);
+    }
   });
 
   it("returns undefined for bytes matching no signature", () => {

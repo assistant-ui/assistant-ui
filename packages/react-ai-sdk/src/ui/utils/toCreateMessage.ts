@@ -92,7 +92,7 @@ export const toCreateMessage = <UI_MESSAGE extends UIMessage = UIMessage>(
         // then the envelope, then the floor.
         const mediaType =
           part.mimeType ||
-          parseDataUrl(part.data)?.mimeType ||
+          dataUrlMediaType(part.data) ||
           "application/octet-stream";
         return {
           type: "file",
