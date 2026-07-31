@@ -1863,6 +1863,7 @@ declare function contentPartsToA2AParts(content: ReadonlyArray<{
   data?: unknown;
   mimeType?: string | undefined;
   filename?: string | undefined;
+  sourceType?: "url" | "id" | undefined;
   audio?: {
     data: string;
     format: string;

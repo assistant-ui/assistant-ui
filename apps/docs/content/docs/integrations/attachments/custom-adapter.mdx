@@ -491,7 +491,7 @@ In the adapter's `add`, call Uploadthing's client upload and read `url` from the
 
 ### Opaque file references (LangGraph / LangChain)
 
-When the backend resolves stored files itself and the browser never holds a usable URL, send the storage id instead: set `sourceType: "id"` on the file part in `send()`, and the LangChain-family runtimes emit a `source_type: "id"` block with the value in the `id` key. `sourceType: "url"` similarly forces a url block for non-http references. Other runtimes ignore the field.
+When the backend resolves stored files itself and the browser never holds a usable URL, send the storage id instead: set `sourceType: "id"` on the file part in `send()`, and the LangChain-family runtimes emit a `source_type: "id"` block with the value in the `id` key. `sourceType: "url"` similarly forces a url reference for non-http data and is honored by the LangChain-family, A2A, AG-UI, and Google ADK runtimes. `sourceType: "id"` is LangChain-family only; runtimes without the concept ignore the field.
 
 ```ts
 const content = [

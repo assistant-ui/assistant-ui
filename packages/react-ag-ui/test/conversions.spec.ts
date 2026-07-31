@@ -1063,6 +1063,121 @@ describe("adapter conversions", () => {
     expect(() => UserMessageSchema.parse(result[0])).not.toThrow();
   });
 
+  it("honors sourceType url for non-http file references", () => {
+    const result = toAgUiMessages([
+      {
+        id: "u-1",
+        role: "user",
+        content: [],
+        attachments: [
+          {
+            id: "a-1",
+            type: "file",
+            name: "report.pdf",
+            content: [
+              {
+                type: "file",
+                data: "s3://bucket/report.pdf",
+                mimeType: "application/pdf",
+                filename: "report.pdf",
+                sourceType: "url",
+              },
+            ],
+          },
+        ],
+      },
+    ] as any);
+
+    expect(result[0]).toMatchObject({
+      role: "user",
+      content: [
+        {
+          type: "document",
+          source: {
+            type: "url",
+            value: "s3://bucket/report.pdf",
+            mimeType: "application/pdf",
+          },
+          metadata: { filename: "report.pdf" },
+        },
+      ],
+    });
+    expect((result[0] as any).content[0].source).not.toHaveProperty("data");
+    expect(() => UserMessageSchema.parse(result[0])).not.toThrow();
+  });
+
+  it("routes non-http file references to a data source without sourceType", () => {
+    const result = toAgUiMessages([
+      {
+        id: "u-1",
+        role: "user",
+        content: [],
+        attachments: [
+          {
+            id: "a-1",
+            type: "file",
+            name: "report.pdf",
+            content: [
+              {
+                type: "file",
+                data: "s3://bucket/report.pdf",
+                mimeType: "application/pdf",
+              },
+            ],
+          },
+        ],
+      },
+    ] as any);
+
+    expect((result[0] as any).content[0].source).toMatchObject({
+      type: "data",
+      value: "s3://bucket/report.pdf",
+    });
+  });
+
+  it("stamps sourceType url on restored url file parts so they round-trip", () => {
+    const restored = fromAgUiMessages([
+      {
+        id: "u-1",
+        role: "user",
+        content: [
+          {
+            type: "document",
+            source: {
+              type: "url",
+              value: "s3://bucket/spec.pdf",
+              mimeType: "application/pdf",
+            },
+            metadata: { filename: "spec.pdf" },
+          },
+        ],
+      },
+    ]);
+
+    expect(restored[0]).toMatchObject({
+      role: "user",
+      attachments: [
+        {
+          type: "document",
+          content: [
+            {
+              type: "file",
+              data: "s3://bucket/spec.pdf",
+              mimeType: "application/pdf",
+              sourceType: "url",
+            },
+          ],
+        },
+      ],
+    });
+
+    const resent = toAgUiMessages([restored[0]] as any);
+    expect((resent[0] as any).content[0].source).toMatchObject({
+      type: "url",
+      value: "s3://bucket/spec.pdf",
+    });
+  });
+
   it("restores a document input part as a user attachment", () => {
     const result = fromAgUiMessages([
       {

@@ -26,6 +26,52 @@ describe("convertAdkMessage - human messages", () => {
     });
   });
 
+  it("restores a file_url part as a file part stamped with sourceType url", () => {
+    const msg: AdkMessage = {
+      id: "m1",
+      type: "human",
+      content: [
+        {
+          type: "file_url",
+          url: "gs://bucket/report.pdf",
+          mimeType: "application/pdf",
+        },
+      ],
+    };
+    const result = convertAdkMessage(msg, {});
+    expect(result).toMatchObject({
+      role: "user",
+      content: [
+        {
+          type: "file",
+          data: "gs://bucket/report.pdf",
+          mimeType: "application/pdf",
+          sourceType: "url",
+        },
+      ],
+    });
+  });
+
+  it("falls back to application/octet-stream for file_url parts without mimeType", () => {
+    const msg: AdkMessage = {
+      id: "m1",
+      type: "human",
+      content: [{ type: "file_url", url: "gs://bucket/blob" }],
+    };
+    const result = convertAdkMessage(msg, {});
+    expect(result).toMatchObject({
+      role: "user",
+      content: [
+        {
+          type: "file",
+          data: "gs://bucket/blob",
+          mimeType: "application/octet-stream",
+          sourceType: "url",
+        },
+      ],
+    });
+  });
+
   it("restores an audio/mp3 file part as an audio message part", () => {
     const msg: AdkMessage = {
       id: "m1",

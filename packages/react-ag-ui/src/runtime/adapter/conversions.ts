@@ -161,12 +161,14 @@ function mediaTypeForMime(mimeType: string | undefined): MediaInputType {
 
 // Build an AG-UI multimodal source from a data URL, raw base64 payload, or an
 // http(s) URL. A `url` source may omit the mime type; a `data` source always
-// resolves one (falling back to application/octet-stream).
+// resolves one (falling back to application/octet-stream). An explicit
+// `sourceType: "url"` on the part forces the url leg for non-http references.
 function buildInputSource(
   value: string,
   declaredMimeType: string | undefined,
+  sourceType?: string,
 ): InputContentSource {
-  if (httpUrlPattern.test(value)) {
+  if (sourceType === "url" || httpUrlPattern.test(value)) {
     return declaredMimeType !== undefined
       ? { type: "url", value, mimeType: declaredMimeType }
       : { type: "url", value };
@@ -204,7 +206,11 @@ function toInputContent(
     if (data === undefined) return null;
     const declaredMimeType = getString(part, "mimeType") || fallbackMimeType;
     const filename = getString(part, "filename");
-    const source = buildInputSource(data, declaredMimeType);
+    const source = buildInputSource(
+      data,
+      declaredMimeType,
+      getString(part, "sourceType"),
+    );
     const metadata = filename !== undefined ? { filename } : undefined;
     switch (mediaTypeForMime(source.mimeType)) {
       case "image":
@@ -245,14 +251,18 @@ const mediaInputTypes = new Set(["image", "audio", "video", "document"]);
 // Inverse of buildInputSource.
 function inputSourceToString(
   value: unknown,
-): { value: string; mimeType?: string } | null {
+): { value: string; mimeType?: string; isUrl?: boolean } | null {
   if (!isObject(value)) return null;
   const sourceValue = getString(value, "value");
   if (sourceValue === undefined) return null;
   const mimeType = getString(value, "mimeType");
   const type = getString(value, "type");
   if (type === "url") {
-    return { value: sourceValue, ...(mimeType !== undefined && { mimeType }) };
+    return {
+      value: sourceValue,
+      isUrl: true,
+      ...(mimeType !== undefined && { mimeType }),
+    };
   }
   if (type === "data") {
     const resolvedMimeType = mimeType ?? "application/octet-stream";
@@ -337,6 +347,7 @@ function toSnapshotAttachments(content: unknown): SnapshotAttachment[] {
           type: "file",
           data: source.value,
           mimeType,
+          ...(source.isUrl && { sourceType: "url" as const }),
           ...(filename !== undefined && { filename }),
         },
       ],

@@ -50,6 +50,13 @@ export const getMessageContent = (msg: AppendMessage) => {
       case "image":
         return { type: "image_url" as const, url: part.image };
       case "file":
+        if (part.sourceType === "url") {
+          return {
+            type: "file_url" as const,
+            url: part.data,
+            mimeType: part.mimeType,
+          };
+        }
         return {
           type: "file" as const,
           mimeType: part.mimeType,

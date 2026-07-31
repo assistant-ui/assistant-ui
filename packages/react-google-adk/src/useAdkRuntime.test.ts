@@ -4,6 +4,7 @@ import {
   getPendingCancellations,
   getPendingToolCalls,
 } from "./useAdkRuntime";
+import { convertAdkMessage } from "./convertAdkMessages";
 import type { AppendMessage } from "@assistant-ui/core";
 import type { AdkMessage } from "./types";
 
@@ -206,6 +207,89 @@ describe("getMessageContent", () => {
     );
     expect(result).toEqual([
       { type: "file", mimeType: "application/pdf", data: "AAAA" },
+    ]);
+  });
+
+  it("emits a file_url part for file parts with sourceType url", () => {
+    const result = getMessageContent(
+      makeAppendMessage([
+        {
+          type: "file",
+          mimeType: "application/pdf",
+          data: "gs://bucket/report.pdf",
+          filename: "report.pdf",
+          sourceType: "url",
+        },
+      ]),
+    );
+    expect(result).toEqual([
+      {
+        type: "file_url",
+        url: "gs://bucket/report.pdf",
+        mimeType: "application/pdf",
+      },
+    ]);
+  });
+
+  it("keeps file parts inline without sourceType", () => {
+    const result = getMessageContent(
+      makeAppendMessage([
+        {
+          type: "file",
+          mimeType: "application/pdf",
+          data: "gs://bucket/report.pdf",
+        },
+      ]),
+    );
+    expect(result).toEqual([
+      {
+        type: "file",
+        mimeType: "application/pdf",
+        data: "gs://bucket/report.pdf",
+      },
+    ]);
+  });
+
+  it("round-trips a file_url part through convert and edit-resend", () => {
+    const converted = convertAdkMessage(
+      {
+        id: "m1",
+        type: "human",
+        content: [
+          {
+            type: "file_url",
+            url: "gs://bucket/report.pdf",
+            mimeType: "application/pdf",
+          },
+        ],
+      },
+      {},
+    );
+    const content = (converted as { content: AppendMessage["content"] })
+      .content;
+    const result = getMessageContent(makeAppendMessage(content));
+    expect(result).toEqual([
+      {
+        type: "file_url",
+        url: "gs://bucket/report.pdf",
+        mimeType: "application/pdf",
+      },
+    ]);
+  });
+
+  it("ignores sourceType id on file parts", () => {
+    const result = getMessageContent(
+      makeAppendMessage([
+        {
+          type: "file",
+          mimeType: "application/pdf",
+          data: "file-abc123",
+          sourceType: "id",
+        },
+      ]),
+    );
+    expect(result).toEqual([
+      { type: "file", mimeType: "application/pdf", data: "file-abc123" },
     ]);
   });
 
