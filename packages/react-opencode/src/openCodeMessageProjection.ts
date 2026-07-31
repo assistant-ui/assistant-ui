@@ -6,6 +6,7 @@ import type {
   OpenCodeThreadState,
   Part,
   PendingUserMessage,
+  ThreadUserMessagePart,
 } from "./types";
 import {
   ExportedMessageRepository,
@@ -447,25 +448,69 @@ const projectAssistantContent = (
   return content;
 };
 
-const projectUserContent = (
+type ProjectedAttachment = NonNullable<
+  OpenCodeProjectedThreadMessage["attachments"]
+>[number];
+
+const getUserPartContentType = (part: ThreadUserMessagePart) => {
+  if (part.type === "file") return part.mimeType;
+  return (part as { contentType?: string }).contentType;
+};
+
+const splitUserParts = (
+  parts: readonly ThreadUserMessagePart[],
+): { content: ProjectedContentPart[]; attachments: ProjectedAttachment[] } => {
+  const content: ProjectedContentPart[] = [];
+  const attachments: ProjectedAttachment[] = [];
+  for (const part of parts) {
+    if (part.type !== "image" && part.type !== "file") {
+      content.push(part as ProjectedContentPart);
+      continue;
+    }
+    const contentType = getUserPartContentType(part);
+    attachments.push({
+      id: attachments.length.toString(),
+      type: part.type === "image" ? "image" : "file",
+      name: part.filename ?? "file",
+      ...(contentType != null && { contentType }),
+      status: { type: "complete" },
+      content: [part],
+    });
+  }
+  return { content, attachments };
+};
+
+const projectUserFileAttachment = (
+  part: Extract<Part, { type: "file" }>,
+): ProjectedAttachment => {
+  const content = convertFilePart(part);
+  return {
+    id: part.id,
+    type: content.type === "image" ? "image" : "file",
+    name: part.filename ?? "file",
+    contentType: part.mime ?? "application/octet-stream",
+    status: { type: "complete" },
+    content: [content],
+  };
+};
+
+const projectUserMessage = (
   message: OpenCodeServerMessage,
-): ProjectedContentPart[] => {
+): { content: ProjectedContentPart[]; attachments: ProjectedAttachment[] } => {
   if (message.parts.length === 0) {
-    return (message.shadowParts ?? []) as ProjectedContentPart[];
+    return splitUserParts(message.shadowParts ?? []);
   }
 
-  return message.parts.flatMap((part) => {
-    switch (part.type) {
-      case "text":
-        return [
-          { type: "text" as const, text: part.text ?? "" },
-        ] satisfies ProjectedContentPart[];
-      case "file":
-        return [convertFilePart(part)] satisfies ProjectedContentPart[];
-      default:
-        return [] as ProjectedContentPart[];
+  const content: ProjectedContentPart[] = [];
+  const attachments: ProjectedAttachment[] = [];
+  for (const part of message.parts) {
+    if (part.type === "text") {
+      content.push({ type: "text", text: part.text ?? "" });
+    } else if (part.type === "file") {
+      attachments.push(projectUserFileAttachment(part));
     }
-  });
+  }
+  return { content, attachments };
 };
 
 const getMessageStatus = (
@@ -586,12 +631,13 @@ const projectServerMessage = (
   }
 
   if (message.info.role === "user") {
+    const { content, attachments } = projectUserMessage(message);
     return {
       id: message.info.id,
       role: "user",
       createdAt: new Date(message.info.time?.created ?? Date.now()),
-      content: projectUserContent(message),
-      attachments: [],
+      content,
+      attachments,
       metadata,
     };
   }
@@ -605,8 +651,7 @@ const projectPendingMessage = (
   id: `local:${pending.clientId}`,
   role: "user",
   createdAt: new Date(pending.createdAt),
-  content: pending.parts as OpenCodeProjectedThreadMessage["content"],
-  attachments: [],
+  ...splitUserParts(pending.parts),
   metadata: {
     custom: {
       opencode: {
