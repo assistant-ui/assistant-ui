@@ -140,7 +140,7 @@ Anything that is not a modality the model consumes or a channel it emits is a `d
 <Callout type="warn">
 `Unstable_AudioMessagePart` and the `Unstable_Audio` slot are deprecated. The audio part cannot carry a filename, has no way to declare how its payload goes on the wire (no `sourceType`, so no storage id), and exists only on user messages, so a model that returns audio has no way to express it. Send audio as a `file` part with an `audio/*` mime type instead, and give it a filename.
 
-Existing audio parts keep working; they will not gain fields.
+Adapter coverage for the file path is still uneven, so check your adapter's converter before relying on file parts. Known so far: `react-pi` and the assistant-transport runtime have no file part on their user-content surface at all, so one is dropped; `react-data-stream` carries the payload but not the filename. Existing audio parts keep working; they will not gain fields.
 </Callout>
 
 ### Tool Resolution
