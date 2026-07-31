@@ -80,9 +80,12 @@ const getPromptParts = (message: AppendMessage) => {
       // usable as the floor: `resolveFullMediaType` rejects one outright for a
       // url source and whenever the inline bytes cannot be sniffed.
       const contentType = (part as { contentType?: string }).contentType;
+      const envelopeType = parseDataUrl(part.image)?.mimeType;
       const mime = contentType?.startsWith("image/")
         ? contentType
-        : (parseDataUrl(part.image)?.mimeType ?? "image/png");
+        : envelopeType?.startsWith("image/")
+          ? envelopeType
+          : "image/png";
       promptParts.push({
         type: "file",
         ...(part.filename != null && { filename: part.filename }),
