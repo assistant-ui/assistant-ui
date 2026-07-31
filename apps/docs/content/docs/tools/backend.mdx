@@ -114,9 +114,11 @@ route and the client ship from one install.
 
 `@assistant-ui/react-ai-sdk` remains the package to install either way, and it
 declares `react` as a peer dependency, so a backend that never renders still
-resolves React. If that matters for your deployment, convert the uploaded tools
-yourself: each entry is a JSON Schema, and `jsonSchema()` from `ai` is all that
-is needed to turn one into an AI SDK tool.
+resolves React. Reach for `frontendTools` rather than converting the uploaded
+schemas by hand: besides `inputSchema`, it attaches the `toModelOutput` that
+unwraps the envelope described under [Multi-modal results](#multi-modal-results),
+and a hand-rolled conversion that omits it sends the raw envelope to the model
+with nothing reporting the mistake.
 
 <Callout type="tip">
   `toToolsJSONSchema` emits the uploaded tools in alphabetical order, so two
