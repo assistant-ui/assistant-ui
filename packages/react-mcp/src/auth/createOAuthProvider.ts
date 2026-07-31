@@ -1,9 +1,9 @@
-import type { OAuthClientProvider } from "@modelcontextprotocol/sdk/client/auth.js";
 import type {
+  OAuthClientProvider,
   OAuthClientInformationFull,
   OAuthClientMetadata,
   OAuthTokens,
-} from "@modelcontextprotocol/sdk/shared/auth.js";
+} from "@modelcontextprotocol/client";
 import type { MCPStorage } from "../resources/storage/types";
 import type { MCPAuthConfig } from "../mcp-scope";
 

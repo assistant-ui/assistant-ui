@@ -48,15 +48,15 @@ const threadState = {
 vi.mock("@assistant-ui/store", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@assistant-ui/store")>();
   const aui = {
-    composer: () => ({
-      setText,
+    composer: {
+      setText: (text: string) => setText(text),
       getState: () => composerState,
-      cancel: cancelSpy,
-      send: sendSpy,
-    }),
-    thread: () => ({
+      cancel: () => cancelSpy(),
+      send: () => sendSpy(),
+    },
+    thread: {
       getState: () => threadState,
-    }),
+    },
     on: () => () => {},
   };
   type Selector<T> = (s: {

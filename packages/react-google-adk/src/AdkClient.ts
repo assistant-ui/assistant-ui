@@ -243,10 +243,20 @@ async function* parseSSEResponse(response: Response): AsyncGenerator<AdkEvent> {
   const decoder = new TextDecoder();
   const sseDecoder = new SSEEventDecoder({ trailing: "dispatch" });
 
+  let shouldCancel = true;
   try {
     while (true) {
-      const { done, value } = await reader.read();
+      let result: ReadableStreamReadResult<Uint8Array>;
+      try {
+        result = await reader.read();
+      } catch (error) {
+        shouldCancel = false;
+        throw error;
+      }
+
+      const { done, value } = result;
       if (done) {
+        shouldCancel = false;
         for (const event of sseDecoder.push(decoder.decode())) {
           yield JSON.parse(event.data) as AdkEvent;
         }
@@ -263,6 +273,10 @@ async function* parseSSEResponse(response: Response): AsyncGenerator<AdkEvent> {
     const trailing = sseDecoder.flush();
     if (trailing !== null) yield JSON.parse(trailing.data) as AdkEvent;
   } finally {
-    reader.releaseLock();
+    try {
+      if (shouldCancel) await reader.cancel().catch(() => undefined);
+    } finally {
+      reader.releaseLock();
+    }
   }
 }

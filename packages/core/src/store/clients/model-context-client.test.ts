@@ -149,7 +149,7 @@ describe("mergeModelContexts", () => {
     });
   });
 
-  it("still rejects duplicate tools at the same priority", () => {
+  it("rejects duplicate tools at the same priority", () => {
     expect(() =>
       mergeModelContexts(
         new Set([
@@ -158,6 +158,26 @@ describe("mergeModelContexts", () => {
         ]),
       ),
     ).toThrow(/already exists/);
+  });
+
+  it("silently replaces a same-priority tool when the later registration sets overwrite", () => {
+    const merged = mergeModelContexts(
+      new Set([
+        provider({ tools: { duplicate: toolFixture() } }),
+        provider({
+          tools: {
+            duplicate: {
+              ...toolFixture(),
+              description: "latest",
+              overwrite: true,
+            } as Tool<any, any>,
+          },
+        }),
+      ]),
+    );
+
+    expect(merged.tools?.duplicate?.description).toBe("latest");
+    expect(merged.tools?.duplicate?.overwrite).toBeUndefined();
   });
 
   it("preserves the highest priority when a lower-priority provider reuses the same tool object", () => {

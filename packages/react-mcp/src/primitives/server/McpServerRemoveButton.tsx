@@ -26,7 +26,7 @@ export const McpServerPrimitiveRemoveButton = forwardRef<
       onClick={(e) => {
         props.onClick?.(e);
         if (e.defaultPrevented) return;
-        void aui.mcpServer().remove();
+        void aui.mcpServer.remove();
       }}
     />
   );

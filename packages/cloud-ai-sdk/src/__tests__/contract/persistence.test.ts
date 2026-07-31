@@ -75,6 +75,33 @@ describe("Contract: Persistence", () => {
     expect(loadMessagesMock).toHaveBeenCalledWith("thread-1");
   });
 
+  it("suppresses append errors after unmount, reports them while mounted", async () => {
+    const { MessagePersistence } = await vi.importActual<
+      typeof import("../../chat/MessagePersistence")
+    >("../../chat/MessagePersistence");
+
+    const onError = vi.fn();
+    const cloud = {
+      threads: {
+        messages: {
+          create: vi.fn().mockRejectedValue(new Error("network error")),
+        },
+      },
+    };
+    const persistence = new MessagePersistence(cloud as never, onError);
+    const message = (id: string) => ({ id, role: "user", parts: [] }) as never;
+
+    await persistence.persist("thread-1", [message("m-1")], {
+      current: false,
+    });
+    expect(onError).not.toHaveBeenCalled();
+
+    await persistence.persist("thread-1", [message("m-2")], {
+      current: true,
+    });
+    expect(onError).toHaveBeenCalledWith(new Error("network error"));
+  });
+
   it("persist errors route to onSyncError via MessagePersistence constructor callback", () => {
     const onSyncError = vi.fn();
     const refs = {

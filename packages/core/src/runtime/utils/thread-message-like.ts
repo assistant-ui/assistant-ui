@@ -131,12 +131,12 @@ export const fromThreadMessageLike = (
   }: ImageMessagePart): ImageMessagePart | null => {
     if (typeof image !== "string") return null;
     const dataUri = image.match(
-      /^data:image\/(png|jpeg|jpg|gif|webp|svg\+xml);base64,(.*)$/,
+      /^data:image\/(png|jpeg|jpg|gif|webp|svg\+xml);base64,(.*)$/i,
     );
     if (dataUri) {
       return { ...rest, image };
     }
-    if (/^(https:\/\/|blob:)/.test(image)) {
+    if (/^(https:\/\/|blob:)/i.test(image)) {
       return { ...rest, image };
     }
     console.warn(`Invalid image data format detected`);
@@ -266,6 +266,7 @@ export const fromThreadMessageLike = (
         })),
         metadata: {
           custom: metadata?.custom ?? {},
+          ...(metadata?.isOptimistic && { isOptimistic: true }),
         },
       } satisfies ThreadUserMessage;
 

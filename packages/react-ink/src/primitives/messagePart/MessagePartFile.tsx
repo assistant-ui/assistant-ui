@@ -15,10 +15,7 @@ export const MessagePartPrimitiveFile = (
   props: MessagePartPrimitiveFile.Props,
 ) => {
   const label = useAuiState((s) => {
-    if (s.part.type !== "file")
-      throw new Error(
-        "MessagePartPrimitive.File can only be used inside file message parts.",
-      );
+    if (s.part.type !== "file") return "";
     const { filename, mimeType } = s.part;
     return filename ? `[file: ${filename} ${mimeType}]` : `[file: ${mimeType}]`;
   });

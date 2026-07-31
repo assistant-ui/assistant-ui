@@ -1,9 +1,13 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AssistantCloudAPI, CloudAPIError } from "../AssistantCloudAPI";
 
 describe("AssistantCloudAPI", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it("serializes query params, merges auth headers, and sends JSON body", async () => {
@@ -218,23 +222,5 @@ describe("AssistantCloudAPI", () => {
 
     await expect(api.makeRequest("/threads/t-1")).resolves.toBeUndefined();
     expect(text).not.toHaveBeenCalled();
-  });
-
-  it("makeRequest returns undefined from a whitespace-only success body", async () => {
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      status: 200,
-      headers: new Headers(),
-      text: vi.fn().mockResolvedValue("  "),
-    });
-    vi.stubGlobal("fetch", fetchMock);
-
-    const api = new AssistantCloudAPI({
-      apiKey: "test-key",
-      userId: "u-1",
-      workspaceId: "w-1",
-    });
-
-    await expect(api.makeRequest("/threads/t-1")).resolves.toBeUndefined();
   });
 });

@@ -575,4 +575,180 @@ describe("UIMessageStreamDecoder", () => {
     // Should not throw, should complete successfully
     expect(chunks.some((c) => c.type === "message-finish")).toBe(true);
   });
+
+  it("drops frames that are not objects with a string type", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const invalidFrames = [
+      "null",
+      "5",
+      '"text"',
+      "[1,2]",
+      '{"foo":1}',
+      '{"type":5}',
+    ];
+    const events = [
+      ...invalidFrames,
+      JSON.stringify({ type: "start", messageId: "msg_123" }),
+      JSON.stringify({ type: "text-delta", id: "t", delta: "ok" }),
+      "[DONE]",
+    ];
+
+    const chunks = await collectChunks(
+      createUIMessageStream(events).pipeThrough(new UIMessageStreamDecoder()),
+    );
+
+    expect(warn.mock.calls.map((c) => c[0])).toEqual(
+      invalidFrames.map((f) => `Dropped invalid UIMessageStream chunk: ${f}`),
+    );
+    expect(chunks.some((c) => c.type === "text-delta")).toBe(true);
+    warn.mockRestore();
+  });
+
+  it("drops frames carrying prototype-pollution keys", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const events = [
+      '{"type":"text-delta","delta":"x","__proto__":{"polluted":true}}',
+      '{"type":"text-delta","delta":"y","constructor":{"prototype":{"polluted":true}}}',
+      JSON.stringify({ type: "start", messageId: "msg_123" }),
+      JSON.stringify({ type: "text-delta", id: "t", delta: "ok" }),
+      "[DONE]",
+    ];
+
+    const chunks = await collectChunks(
+      createUIMessageStream(events).pipeThrough(new UIMessageStreamDecoder()),
+    );
+
+    expect(warn).toHaveBeenCalledTimes(2);
+    const deltas = chunks.filter(
+      (c): c is AssistantStreamChunk & { type: "text-delta" } =>
+        c.type === "text-delta",
+    );
+    expect(deltas).toHaveLength(1);
+    expect(deltas[0]!.textDelta).toBe("ok");
+    warn.mockRestore();
+  });
+
+  it("drops frames that are not valid JSON", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const invalidFrames = ['{"type":"te', "not json"];
+    const events = [
+      ...invalidFrames,
+      JSON.stringify({ type: "start", messageId: "msg_123" }),
+      JSON.stringify({ type: "text-delta", id: "t", delta: "ok" }),
+      "[DONE]",
+    ];
+
+    const chunks = await collectChunks(
+      createUIMessageStream(events).pipeThrough(new UIMessageStreamDecoder()),
+    );
+
+    expect(warn.mock.calls.map((c) => c[0])).toEqual(
+      invalidFrames.map((f) => `Dropped invalid UIMessageStream chunk: ${f}`),
+    );
+    expect(chunks.some((c) => c.type === "text-delta")).toBe(true);
+    warn.mockRestore();
+  });
+
+  it("ignores a tool-call-delta arriving after tool-result", async () => {
+    const events = [
+      JSON.stringify({ type: "start", messageId: "msg_123" }),
+      JSON.stringify({
+        type: "tool-call-start",
+        toolCallId: "call_abc",
+        toolName: "weather",
+      }),
+      JSON.stringify({ type: "tool-call-delta", argsText: '{"city":"NYC"}' }),
+      JSON.stringify({
+        type: "tool-result",
+        toolCallId: "call_abc",
+        result: { temp: 72 },
+      }),
+      JSON.stringify({ type: "tool-call-delta", argsText: '{"late":true}' }),
+      "[DONE]",
+    ];
+
+    const chunks = await collectChunks(
+      createUIMessageStream(events).pipeThrough(new UIMessageStreamDecoder()),
+    );
+
+    const argDeltas = chunks.filter((c) => c.type === "text-delta");
+    expect(argDeltas).toHaveLength(1);
+    expect(chunks.some((c) => c.type === "result")).toBe(true);
+  });
+
+  it("settles the tool part at result time instead of decoder flush", async () => {
+    const events = [
+      JSON.stringify({ type: "start", messageId: "msg_123" }),
+      JSON.stringify({
+        type: "tool-call-start",
+        toolCallId: "call_abc",
+        toolName: "weather",
+      }),
+      JSON.stringify({ type: "tool-call-delta", argsText: '{"city":"NYC"}' }),
+      JSON.stringify({ type: "tool-call-end" }),
+      JSON.stringify({
+        type: "tool-result",
+        toolCallId: "call_abc",
+        result: { temp: 72 },
+      }),
+      JSON.stringify({ type: "text-start", id: "text_1" }),
+      JSON.stringify({ type: "text-delta", id: "text_1", delta: "Hello" }),
+      JSON.stringify({ type: "text-end" }),
+      JSON.stringify({
+        type: "finish",
+        finishReason: "stop",
+        usage: { inputTokens: 10, outputTokens: 5 },
+      }),
+      "[DONE]",
+    ];
+
+    const chunks = await collectChunks(
+      createUIMessageStream(events).pipeThrough(new UIMessageStreamDecoder()),
+    );
+
+    const toolPartFinish = chunks.findIndex(
+      (c) => c.type === "part-finish" && c.path[0] === 0,
+    );
+    const result = chunks.findIndex((c) => c.type === "result");
+    const messageFinish = chunks.findIndex((c) => c.type === "message-finish");
+    expect(result).toBeGreaterThan(-1);
+    expect(messageFinish).toBeGreaterThan(-1);
+    expect(toolPartFinish).toBeGreaterThan(result);
+    expect(toolPartFinish).toBeLessThan(messageFinish);
+  });
+
+  it("keeps the active tool call writable when another call receives its result", async () => {
+    const events = [
+      JSON.stringify({
+        type: "tool-call-start",
+        toolCallId: "call_a",
+        toolName: "first",
+      }),
+      JSON.stringify({
+        type: "tool-call-start",
+        toolCallId: "call_b",
+        toolName: "second",
+      }),
+      JSON.stringify({
+        type: "tool-result",
+        toolCallId: "call_a",
+        result: { ok: true },
+      }),
+      JSON.stringify({ type: "tool-call-delta", argsText: '{"x":1}' }),
+      "[DONE]",
+    ];
+
+    const chunks = await collectChunks(
+      createUIMessageStream(events).pipeThrough(new UIMessageStreamDecoder()),
+    );
+
+    const argDeltas = chunks.filter(
+      (c): c is AssistantStreamChunk & { type: "text-delta" } =>
+        c.type === "text-delta",
+    );
+    expect(argDeltas).toHaveLength(2);
+    const byPath = new Map(argDeltas.map((c) => [c.path[0], c.textDelta]));
+    expect(byPath.get(0)).toBe("{}");
+    expect(byPath.get(1)).toBe('{"x":1}');
+  });
 });

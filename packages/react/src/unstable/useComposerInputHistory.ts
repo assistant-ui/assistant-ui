@@ -70,7 +70,7 @@ export function unstable_useComposerInputHistory(): Unstable_ComposerInputHistor
   const browseRef = useRef<BrowseState | null>(null);
 
   useEffect(() => {
-    if (aui.composer().getState().type !== "thread") return undefined;
+    if (aui.composer.getState().type !== "thread") return undefined;
 
     return aui.on("threadListItem.switchedTo", () => {
       browseRef.current = null;
@@ -84,7 +84,7 @@ export function unstable_useComposerInputHistory(): Unstable_ComposerInputHistor
       if (e.nativeEvent.isComposing) return;
       if (e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) return;
       if (popoverCtx && popoverCtx.getActiveAria() !== null) return;
-      if (aui.composer().getState().type !== "thread") return;
+      if (aui.composer.getState().type !== "thread") return;
 
       const textarea = e.currentTarget;
       const { selectionStart, selectionEnd, value } = textarea;
@@ -96,7 +96,7 @@ export function unstable_useComposerInputHistory(): Unstable_ComposerInputHistor
       const browse = browseRef.current;
 
       const commitText = (text: string): void => {
-        flushTapSync(() => aui.composer().setText(text));
+        flushTapSync(() => aui.composer.setText(text));
         // React's controlled-value commit restores the pre-recall caret;
         // reposition after the commit, before paint.
         requestAnimationFrame(() => {
@@ -124,13 +124,13 @@ export function unstable_useComposerInputHistory(): Unstable_ComposerInputHistor
 
         if (!browse) {
           if (value.trim() !== "") return;
-          const history = deriveHistory(aui.thread().getState().messages);
+          const history = deriveHistory(aui.thread.getState().messages);
           if (history.length === 0) return;
           recall(history, 0, value);
           return;
         }
 
-        const history = deriveHistory(aui.thread().getState().messages);
+        const history = deriveHistory(aui.thread.getState().messages);
         const next = browse.cursor + 1;
         if (next >= history.length) {
           e.preventDefault();
@@ -150,7 +150,7 @@ export function unstable_useComposerInputHistory(): Unstable_ComposerInputHistor
         return;
       }
 
-      const history = deriveHistory(aui.thread().getState().messages);
+      const history = deriveHistory(aui.thread.getState().messages);
       recall(history, next, browse.draftSnapshot);
     },
     [aui, popoverCtx],

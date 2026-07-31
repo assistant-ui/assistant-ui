@@ -6,7 +6,7 @@ export const useActionBarStopSpeaking = () => {
   const disabled = useAuiState((s) => s.message.speech == null);
 
   const stopSpeaking = useCallback(() => {
-    aui.message().stopSpeaking();
+    aui.message.stopSpeaking();
   }, [aui]);
 
   return { stopSpeaking, disabled };

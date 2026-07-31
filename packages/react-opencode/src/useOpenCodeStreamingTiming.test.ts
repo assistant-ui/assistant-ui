@@ -20,6 +20,7 @@ function makeState(
     runState: { type: "idle" },
     messageOrder: overrides.messageOrder ?? [],
     messagesById: overrides.messagesById ?? {},
+    childSessionsById: {},
     pendingUserMessages: {},
     interactions: {
       permissions: { pending: {}, resolved: {} },

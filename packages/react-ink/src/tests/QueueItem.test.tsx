@@ -6,15 +6,15 @@ const remove = vi.fn();
 const steer = vi.fn();
 
 const mockUseAui = vi.fn(() => ({
-  composer: () => ({
+  composer: {
     queueItem: ({ index }: { index: number }) => ({
       getState: () => ({
         id: `queue-item-${index}`,
         prompt: `prompt ${index}`,
       }),
     }),
-  }),
-  queueItem: () => ({ remove, steer }),
+  },
+  queueItem: { remove, steer },
 }));
 const mockUseAuiState = vi.fn();
 

@@ -39,7 +39,9 @@ type AssistantClient = {
   on<TEvent extends AssistantEventName>(selector: AssistantEventSelector<TEvent>, callback: AssistantEventCallback<TEvent>): Unsubscribe$1;
 };
 
-type AssistantClientAccessor<K extends ClientNames> = (() => ClientSchemas[K]["methods"]) & (ClientMeta<K> | {
+type AssistantClientAccessor<K extends ClientNames> = ClientSchemas[K]["methods"] & {
+  (): ClientSchemas[K]["methods"];
+} & (ClientMeta<K> | {
   source: "root";
   query: Record<string, never>;
 } | {
@@ -214,9 +216,9 @@ type ClientEventMap = UnionToIntersection<{
   [K in ClientNames]: ClientEvents<K>;
 }[ClientNames]>;
 
-type ClientEvents<K extends ClientNames> = "events" extends keyof ClientSchemas[K] ? ClientSchemas[K]["events"] extends ClientEventsType<K> ? ClientSchemas[K]["events"] : never : never;
+type ClientEvents<K extends ClientNames> = "events" extends keyof ClientSchemas[K] ? ClientSchemas[K]["events"] extends ClientEventsType<K & string> ? ClientSchemas[K]["events"] : never : never;
 
-type ClientEventsType<K extends ClientNames> = Record<`${K}.${string}`, unknown>;
+type ClientEventsType<K extends string> = Record<`${K}.${string}`, unknown>;
 
 type ClientMeta<K extends ClientNames> = "meta" extends keyof ClientSchemas[K] ? Pick<ClientSchemas[K]["meta"] extends ClientMetaType ? ClientSchemas[K]["meta"] : never, "query" | "source"> : never;
 
@@ -234,7 +236,7 @@ type ClientNames = keyof ClientSchemas extends (infer U) ? U : never;
 type ClientSchemas = keyof ScopeRegistry extends never ? {
   "ERROR: No clients were defined": ClientError<"ERROR: No clients were defined">;
 } : {
-  [K in keyof ScopeRegistry]: ValidateClient<K>;
+  [K in keyof ScopeRegistry]: ValidateClient<K & string, ScopeRegistry[K]>;
 };
 
 type CompleteAttachment = BaseAttachment & {
@@ -533,6 +535,7 @@ type FileMessagePart = {
   readonly filename?: string;
   readonly data: string;
   readonly mimeType: string;
+  readonly sourceType?: "id" | "url";
   readonly parentId?: string;
 };
 
@@ -751,6 +754,15 @@ type MessagePartStatus = {
   readonly error?: unknown;
 };
 
+type MessagePartStreamStatus = {
+  readonly type: "running";
+} | {
+  readonly type: "complete";
+} | {
+  readonly type: "incomplete";
+  readonly reason: "cancelled" | "content-filter" | "error" | "length" | "other";
+};
+
 type MessageRole = ThreadMessage["role"];
 
 type MessageRuntime = {
@@ -838,7 +850,7 @@ type ObjectKey<T> = keyof T & (string | number);
 
 type OnSchemaValidationErrorFunction<TResult> = ToolExecuteFunction<unknown, TResult>;
 
-type ParentOf<K extends ClientNames> = AssistantClientAccessor<K> extends {
+type ParentOf<K extends ClientNames> = ClientMeta<K> extends {
   source: infer S;
 } ? S extends ClientNames ? S : never : never;
 
@@ -867,6 +879,8 @@ type PendingAttachmentStatus = {
 type PiAgentMessage = PiKnownAgentMessage | PiUnknownAgentMessage;
 
 type PiAnyClientEvent = PiClientEvent | (PiUnknownClientEventBody & PiClientEventEnvelope);
+
+type PiAnySessionEntry = PiSessionEntry | PiUnknownSessionEntry;
 
 type PiAssistantContent = PiTextContent | PiThinkingContent | PiToolCall;
 
@@ -1004,6 +1018,8 @@ type PiClientEventBody = {
   type: "agent_end";
   willRetry?: boolean;
 } | {
+  type: "agent_settled";
+} | {
   type: "turn_start";
   turnIndex: number;
 } | {
@@ -1045,6 +1061,9 @@ type PiClientEventBody = {
   type: "compaction_end";
   aborted: boolean;
   willRetry: boolean;
+} | {
+  type: "entry_appended";
+  entry: PiAnySessionEntry;
 } | {
   type: "auto_retry_start";
   attempt: number;
@@ -1278,6 +1297,54 @@ type PiSendOptions = {
   streamingBehavior?: "followUp" | "steer";
 };
 
+type PiSessionEntry = (PiSessionEntryBase & {
+  type: "message";
+  message: PiAgentMessage;
+}) | (PiSessionEntryBase & {
+  type: "thinking_level_change";
+  thinkingLevel: string;
+}) | (PiSessionEntryBase & {
+  type: "model_change";
+  provider: string;
+  modelId: string;
+}) | (PiSessionEntryBase & {
+  type: "compaction";
+  summary: string;
+  firstKeptEntryId: string;
+  tokensBefore: number;
+  details?: unknown;
+  fromHook?: boolean;
+}) | (PiSessionEntryBase & {
+  type: "branch_summary";
+  fromId: string;
+  summary: string;
+  details?: unknown;
+  fromHook?: boolean;
+}) | (PiSessionEntryBase & {
+  type: "custom";
+  customType: string;
+  data?: unknown;
+}) | (PiSessionEntryBase & {
+  type: "custom_message";
+  customType: string;
+  content: string | (PiTextContent | PiImageContent)[];
+  details?: unknown;
+  display: boolean;
+}) | (PiSessionEntryBase & {
+  type: "label";
+  targetId: string;
+  label?: string | undefined;
+}) | (PiSessionEntryBase & {
+  type: "session_info";
+  name?: string;
+});
+
+type PiSessionEntryBase = {
+  id: string;
+  parentId: string | null;
+  timestamp: string;
+};
+
 type PiSessionModel = NonNullable<Parameters<typeof createAgentSession>[0]>["model"];
 
 type PiStopReason = "aborted" | "error" | "length" | "stop" | "toolUse";
@@ -1298,9 +1365,6 @@ interface PiThinkingContent {
 type PiThinkingLevel = "high" | "low" | "medium" | "minimal" | "off" | "xhigh";
 
 declare class PiThreadController implements PiThreadControllerLike {
-  private readonly client;
-  private readonly threadId;
-  private readonly options;
   private state;
   private projectedMessages;
   private messageRepository;
@@ -1315,6 +1379,9 @@ declare class PiThreadController implements PiThreadControllerLike {
   private loadPromise;
   private messageFlushScheduled;
   private readonly localSnapshotSeq;
+  private readonly client;
+  private readonly threadId;
+  private readonly options;
   constructor(client: PiClient, threadId: string, options?: {
     scheduleNotify?: PiNotificationScheduler;
   });
@@ -1456,7 +1523,7 @@ declare class PiThreadSupervisor {
   private readonly workspacePath;
   private readonly agentDir;
   private readonly model;
-  private readonly modelRegistry;
+  private modelRuntimePromise;
   private readonly archivedSessionFiles;
   private readonly catalogCache;
   private readonly catalogInfoByThreadId;
@@ -1492,6 +1559,7 @@ declare class PiThreadSupervisor {
     includeSnapshot?: boolean;
   }): () => void;
   dispose(): Promise<void>;
+  private getModelRuntime;
   private openSession;
   private ensureOpen;
   private openCold;
@@ -1558,6 +1626,11 @@ type PiUnknownClientEventBody = {
   type: string;
   [key: string]: unknown;
 };
+
+interface PiUnknownSessionEntry extends PiSessionEntryBase {
+  type: string;
+  [key: string]: unknown;
+}
 
 declare class PiUnsupportedHostUiError extends Error {
   readonly method: string;
@@ -1657,6 +1730,7 @@ type RealtimeVoiceAdapter = {
 type ReasoningMessagePart = {
   readonly type: "reasoning";
   readonly text: string;
+  readonly status?: MessagePartStreamStatus;
   readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };
@@ -1664,6 +1738,10 @@ type ReasoningMessagePart = {
 type ReloadConfig = {
   runConfig?: RunConfig;
 };
+
+type ReservedAccessorProps = "name" | "query" | "source";
+
+type ReservedScopeNames = "on" | "optional" | "subscribe";
 
 type RespondToToolApprovalOptions = {
   approvalId: string;
@@ -1703,12 +1781,6 @@ interface ScopeRegistry {
 type SendOptions = {
   startRun?: boolean;
   steer?: boolean;
-};
-
-type SharedStream = {
-  listeners: Set<(event: PiClientEvent) => void>;
-  close: () => void;
-  closeTimer: ReturnType<typeof setTimeout> | undefined;
 };
 
 type SourceMessagePart = {
@@ -1792,6 +1864,7 @@ declare const TOOL_RESPONSE_SYMBOL: unique symbol;
 type TextMessagePart = {
   readonly type: "text";
   readonly text: string;
+  readonly status?: MessagePartStreamStatus;
   readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };
@@ -2078,6 +2151,7 @@ type ThreadUserMessage = MessageCommonProps & {
     readonly steps?: undefined;
     readonly submittedFeedback?: undefined;
     readonly timing?: undefined;
+    readonly isOptimistic?: boolean;
     readonly custom: Record<string, unknown>;
   };
 };
@@ -2115,6 +2189,7 @@ type ToolApprovalResponse = {
 type ToolBase<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = {
   streamCall?: ToolStreamCallFunction<TArgs, TResult>;
   display?: ToolDisplay;
+  overwrite?: boolean;
 };
 
 interface ToolCallArgsReader<TArgs extends Record<string, unknown>> {
@@ -2280,9 +2355,15 @@ type Unsubscribe = () => void;
 
 type Unsubscribe$1 = () => void;
 
-type ValidateClient<K extends keyof ScopeRegistry> = ScopeRegistry[K] extends {
+type ValidateClient<K extends string, TClient> = K extends ReservedScopeNames ? ClientError<`ERROR: ${K} is a reserved scope name`> : unknown extends ValidateMethods<K, TClient> & ValidateMeta<K, TClient> & ValidateEvents<K, TClient> ? TClient : ValidateMethods<K, TClient> & ValidateMeta<K, TClient> & ValidateEvents<K, TClient> & ClientError<never>;
+
+type ValidateEvents<K extends string, TClient> = "events" extends keyof TClient ? TClient["events"] extends ClientEventsType<K> ? unknown : ClientError<`ERROR: ${K} has invalid events type`> : unknown;
+
+type ValidateMeta<K extends string, TClient> = "meta" extends keyof TClient ? TClient["meta"] extends ClientMetaType ? unknown : ClientError<`ERROR: ${K} has invalid meta type`> : unknown;
+
+type ValidateMethods<K extends string, TClient> = TClient extends {
   methods: ClientMethods;
-} ? "meta" extends keyof ScopeRegistry[K] ? ScopeRegistry[K]["meta"] extends ClientMetaType ? "events" extends keyof ScopeRegistry[K] ? ScopeRegistry[K]["events"] extends ClientEventsType<K> ? ScopeRegistry[K] : ClientError<`ERROR: ${K & string} has invalid events type`> : ScopeRegistry[K] : ClientError<`ERROR: ${K & string} has invalid meta type`> : "events" extends keyof ScopeRegistry[K] ? ScopeRegistry[K]["events"] extends ClientEventsType<K> ? ScopeRegistry[K] : ClientError<`ERROR: ${K & string} has invalid events type`> : ScopeRegistry[K] : ClientError<`ERROR: ${K & string} has invalid methods type`>;
+} ? keyof TClient["methods"] & ReservedAccessorProps extends never ? unknown : ClientError<`ERROR: ${K} methods declare a reserved accessor property (source/query/name)`> : ClientError<`ERROR: ${K} has invalid methods type`>;
 
 type VoiceSessionState = {
   readonly status: RealtimeVoiceAdapter.Status;
@@ -2310,10 +2391,6 @@ declare const createSseDecoder: () => {
 declare const getPiThreadSupervisor: (options?: PiNodeClientOptions) => PiThreadSupervisor;
 
 declare global {
-  var __assistantUiPiHttpStreams: Map<string, SharedStream> | undefined;
-}
-
-declare global {
   interface Window {
     SpeechRecognition?: SpeechRecognitionConstructor;
     webkitSpeechRecognition?: SpeechRecognitionConstructor;
@@ -2327,13 +2404,15 @@ declare global {
 }
 
 declare namespace entry_root_exports {
-  export { PiAgentMessage, PiAnyClientEvent, PiAssistantContent, PiAssistantMessage, PiAssistantMessageDelta, PiBashExecutionMessage, PiBranchSummaryMessage, PiClient, PiClientEvent, PiClientEventBody, PiClientEventEnvelope, PiCompactionSummaryMessage, PiContextUsage, PiCustomMessage, PiEventStreamOptions, PiHostUiRequest, PiHostUiRequestKind, PiHostUiResponse, PiHttpClientOptions, PiImageContent, PiInputAttachment, PiInterruptAnswer, PiKnownAgentMessage, PiLoadState, PiModelInfo, ContentPart as PiProjectedContentPart, PiProjectionInput, PiQueueMode, PiQueuedMessage, PiRunStatus, PiRuntimeExtras, PiRuntimeOptions, PiRuntimeReadiness, PiSendMessageInput, PiSendOptions, PiStopReason, PiTextContent, PiThinkingContent, PiThinkingLevel, PiThreadController, PiThreadControllerLike, PiThreadMetadata, PiThreadSnapshot, PiThreadState, PiThreadStatus, PiToolCall, PiToolExecutionState, PiToolResultContent, PiToolResultMessage, PiTranscriptMessage, PiUnknownAgentMessage, PiUnknownClientEventBody, PiUsage, PiUserContent, PiUserMessage, SplitHostUiRequests, SseFrame, createPiHttpClient, createPiThreadState, createSseDecoder, isPiSteerQueueItemId, openPiEventStream, piQueueItemId, projectPiThreadMessages, projectPiThreadRepository, reducePiThreadState, responseForApproval, responseForInterrupt, responseForRequest, splitHostUiRequests, usePiHostUiRequests, usePiRuntime, usePiRuntimeExtras, usePiSession, usePiThreadState };
+  export { PiAgentMessage, PiAnyClientEvent, PiAnySessionEntry, PiAssistantContent, PiAssistantMessage, PiAssistantMessageDelta, PiBashExecutionMessage, PiBranchSummaryMessage, PiClient, PiClientEvent, PiClientEventBody, PiClientEventEnvelope, PiCompactionSummaryMessage, PiContextUsage, PiCustomMessage, PiEventStreamOptions, PiHostUiRequest, PiHostUiRequestKind, PiHostUiResponse, PiHttpClientOptions, PiImageContent, PiInputAttachment, PiInterruptAnswer, PiKnownAgentMessage, PiLoadState, PiModelInfo, ContentPart as PiProjectedContentPart, PiProjectionInput, PiQueueMode, PiQueuedMessage, PiRunStatus, PiRuntimeExtras, PiRuntimeOptions, PiRuntimeReadiness, PiSendMessageInput, PiSendOptions, PiSessionEntry, PiStopReason, PiTextContent, PiThinkingContent, PiThinkingLevel, PiThreadController, PiThreadControllerLike, PiThreadMetadata, PiThreadSnapshot, PiThreadState, PiThreadStatus, PiToolCall, PiToolExecutionState, PiToolResultContent, PiToolResultMessage, PiTranscriptMessage, PiUnknownAgentMessage, PiUnknownClientEventBody, PiUnknownSessionEntry, PiUsage, PiUserContent, PiUserMessage, SplitHostUiRequests, SseFrame, createPiHttpClient, createPiThreadState, createSseDecoder, isKnownPiSessionEntry, isPiSteerQueueItemId, openPiEventStream, piQueueItemId, projectPiThreadMessages, projectPiThreadRepository, reducePiThreadState, responseForApproval, responseForInterrupt, responseForRequest, splitHostUiRequests, usePiHostUiRequests, usePiRuntime, usePiRuntimeExtras, usePiSession, usePiThreadState };
 }
+
+declare const isKnownPiSessionEntry: (entry: PiAnySessionEntry) => entry is PiSessionEntry;
 
 declare const isPiSteerQueueItemId: (id: string) => boolean;
 
 declare namespace entry_node_exports {
-  export { PiAgentMessage, PiAnyClientEvent, PiAssistantContent, PiAssistantMessage, PiAssistantMessageDelta, PiBashExecutionMessage, PiBranchSummaryMessage, PiClient, PiClientEvent, PiClientEventBody, PiClientEventEnvelope, PiCompactionSummaryMessage, PiContextUsage, PiCustomMessage, PiHostUiRequest, PiHostUiRequestKind, PiHostUiResponse, PiImageContent, PiInputAttachment, PiKnownAgentMessage, PiModelInfo, PiNodeClientOptions, PiQueuedMessage, PiRuntimeReadiness, PiSendMessageInput, PiStopReason, PiTextContent, PiThinkingContent, PiThinkingLevel, PiThreadMetadata, PiThreadSnapshot, PiThreadStatus, PiThreadSupervisor, PiThreadSupervisorOptions, PiToolCall, PiToolResultContent, PiToolResultMessage, PiTranscriptMessage, PiUnknownAgentMessage, PiUnknownClientEventBody, PiUnsupportedHostUiError, PiUsage, PiUserContent, PiUserMessage, createPiNodeClient, getPiThreadSupervisor };
+  export { PiAgentMessage, PiAnyClientEvent, PiAnySessionEntry, PiAssistantContent, PiAssistantMessage, PiAssistantMessageDelta, PiBashExecutionMessage, PiBranchSummaryMessage, PiClient, PiClientEvent, PiClientEventBody, PiClientEventEnvelope, PiCompactionSummaryMessage, PiContextUsage, PiCustomMessage, PiHostUiRequest, PiHostUiRequestKind, PiHostUiResponse, PiImageContent, PiInputAttachment, PiKnownAgentMessage, PiModelInfo, PiNodeClientOptions, PiQueuedMessage, PiRuntimeReadiness, PiSendMessageInput, PiSessionEntry, PiStopReason, PiTextContent, PiThinkingContent, PiThinkingLevel, PiThreadMetadata, PiThreadSnapshot, PiThreadStatus, PiThreadSupervisor, PiThreadSupervisorOptions, PiToolCall, PiToolResultContent, PiToolResultMessage, PiTranscriptMessage, PiUnknownAgentMessage, PiUnknownClientEventBody, PiUnknownSessionEntry, PiUnsupportedHostUiError, PiUsage, PiUserContent, PiUserMessage, createPiNodeClient, getPiThreadSupervisor, isKnownPiSessionEntry };
 }
 
 declare const openPiEventStream: (options: PiEventStreamOptions) => (() => void);

@@ -8,6 +8,10 @@ import type {
 } from "../../types/message";
 import type { Unsubscribe } from "../../types/unsubscribe";
 import type { MessagePartStatus, RunConfig } from "../../types/message";
+import {
+  COMPLETE_STATUS,
+  normalizePartStatus,
+} from "../../utils/normalizePartStatus";
 import { getThreadMessageText } from "../../utils/text";
 import { NestedSubscriptionSubject } from "../../subscribable/subscribable";
 import {
@@ -32,10 +36,6 @@ import type { MessageRuntimePath } from "./paths";
 import type { ThreadRuntimeCoreBinding } from "./thread-runtime";
 import type { MessageStateBinding } from "./bindings";
 
-const COMPLETE_STATUS: MessagePartStatus = Object.freeze({
-  type: "complete",
-});
-
 export const toMessagePartStatus = (
   message: ThreadMessage,
   partIndex: number,
@@ -49,6 +49,11 @@ export const toMessagePartStatus = (
     } else {
       return COMPLETE_STATUS;
     }
+  }
+
+  if (message.status.type === "running") {
+    const status = normalizePartStatus(part);
+    if (status) return status;
   }
 
   const isLastPart = partIndex === Math.max(0, message.content.length - 1);
@@ -70,7 +75,7 @@ const getMessagePartState = (
   return Object.freeze({
     ...part,
     ...{ [symbolInnerMessage]: (part as any)[symbolInnerMessage] },
-    status,
+    status: status as MessagePartStatus,
   });
 };
 
@@ -134,15 +139,20 @@ export class MessageRuntimeImpl implements MessageRuntime {
     return this._core.path;
   }
 
+  private _core: MessageStateBinding;
+  private _threadBinding: ThreadRuntimeCoreBinding;
+
   constructor(
-    private _core: MessageStateBinding,
-    private _threadBinding: ThreadRuntimeCoreBinding,
+    _core: MessageStateBinding,
+    _threadBinding: ThreadRuntimeCoreBinding,
   ) {
+    this._core = _core;
+    this._threadBinding = _threadBinding;
     this.composer = new EditComposerRuntimeImpl(
       new NestedSubscriptionSubject({
         path: {
           ...this.path,
-          ref: `${this.path.ref}${this.path.ref}.composer`,
+          ref: `${this.path.ref}.composer`,
           composerSource: "edit",
         },
         getState: this._getEditComposerRuntimeCore,
@@ -269,7 +279,7 @@ export class MessageRuntimeImpl implements MessageRuntime {
       new ShallowMemoizeSubject({
         path: {
           ...this.path,
-          ref: `${this.path.ref}${this.path.ref}.content[${idx}]`,
+          ref: `${this.path.ref}.content[${idx}]`,
           messagePartSelector: { type: "index", index: idx },
         },
         getState: () => {
@@ -287,9 +297,7 @@ export class MessageRuntimeImpl implements MessageRuntime {
       new ShallowMemoizeSubject({
         path: {
           ...this.path,
-          ref:
-            this.path.ref +
-            `${this.path.ref}.content[toolCallId=${JSON.stringify(toolCallId)}]`,
+          ref: `${this.path.ref}.content[toolCallId=${JSON.stringify(toolCallId)}]`,
           messagePartSelector: { type: "toolCallId", toolCallId },
         },
         getState: () => {
@@ -313,7 +321,7 @@ export class MessageRuntimeImpl implements MessageRuntime {
       new ShallowMemoizeSubject({
         path: {
           ...this.path,
-          ref: `${this.path.ref}${this.path.ref}.attachments[${idx}]`,
+          ref: `${this.path.ref}.attachments[${idx}]`,
           attachmentSource: "message",
           attachmentSelector: { type: "index", index: idx },
         },

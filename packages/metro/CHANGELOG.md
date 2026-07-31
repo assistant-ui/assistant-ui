@@ -1,5 +1,11 @@
 # @assistant-ui/metro
 
+## 0.0.6
+
+### Patch Changes
+
+- [#5079](https://github.com/assistant-ui/assistant-ui/pull/5079) [`390e417`](https://github.com/assistant-ui/assistant-ui/commit/390e4177ca47f7ece839613ad0f076add9313328) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
 ## 0.0.5
 
 ### Patch Changes

@@ -151,6 +151,54 @@ describe("toGenericMessages", () => {
       ]);
     });
 
+    it("carries a file part filename through", () => {
+      const result = toGenericMessages([
+        {
+          role: "user",
+          content: [
+            {
+              type: "file",
+              data: "https://cdn.example.com/a.pdf",
+              mimeType: "application/pdf",
+              filename: "invoice.pdf",
+            },
+          ],
+        },
+      ] as never);
+
+      expect(result).toEqual([
+        {
+          role: "user",
+          content: [
+            {
+              type: "file",
+              data: new URL("https://cdn.example.com/a.pdf"),
+              mediaType: "application/pdf",
+              filename: "invoice.pdf",
+            },
+          ],
+        },
+      ]);
+    });
+
+    it("omits filename when the part has none", () => {
+      const result = toGenericMessages([
+        {
+          role: "user",
+          content: [
+            {
+              type: "file",
+              data: "https://cdn.example.com/a.pdf",
+              mimeType: "application/pdf",
+            },
+          ],
+        },
+      ] as never);
+
+      const part = (result[0] as { content: unknown[] }).content[0];
+      expect(part).not.toHaveProperty("filename");
+    });
+
     it("filters invalid parts", () => {
       const result = toGenericMessages([
         {
@@ -187,6 +235,23 @@ describe("toGenericMessages", () => {
         mediaType: "image/png",
       });
       expect((content[0] as { data: unknown }).data).toBeInstanceOf(URL);
+    });
+
+    it("infers a lowercase media type from an uppercase-scheme data URL", () => {
+      const dataUrl =
+        "DATA:IMAGE/PNG;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+      const result = toGenericMessages([
+        {
+          role: "user",
+          content: [{ type: "image", image: dataUrl }],
+        },
+      ]);
+
+      const content = (result[0] as { content: unknown[] }).content;
+      expect(content[0]).toMatchObject({
+        type: "file",
+        mediaType: "image/png",
+      });
     });
 
     it("handles relative/invalid URL as string", () => {
@@ -563,66 +628,30 @@ describe("toGenericMessages", () => {
       expect(content[0]!.mediaType).toBe(expectedType);
     };
 
-    it("handles jpg extension", () => {
+    it("maps known extensions to their media types", () => {
       testMediaType("https://example.com/photo.jpg", "image/jpeg");
-    });
-
-    it("handles jpeg extension", () => {
       testMediaType("https://example.com/photo.jpeg", "image/jpeg");
-    });
-
-    it("handles png extension", () => {
       testMediaType("https://example.com/photo.png", "image/png");
-    });
-
-    it("handles gif extension", () => {
       testMediaType("https://example.com/photo.gif", "image/gif");
-    });
-
-    it("handles webp extension", () => {
       testMediaType("https://example.com/photo.webp", "image/webp");
-    });
-
-    it("handles svg extension", () => {
       testMediaType("https://example.com/icon.svg", "image/svg+xml");
-    });
-
-    it("handles avif extension", () => {
       testMediaType("https://example.com/photo.avif", "image/avif");
-    });
-
-    it("handles bmp extension", () => {
       testMediaType("https://example.com/photo.bmp", "image/bmp");
-    });
-
-    it("handles ico extension", () => {
       testMediaType("https://example.com/favicon.ico", "image/x-icon");
-    });
-
-    it("handles tiff extension", () => {
       testMediaType("https://example.com/photo.tiff", "image/tiff");
-    });
-
-    it("handles tif extension", () => {
       testMediaType("https://example.com/photo.tif", "image/tiff");
     });
 
-    it("defaults to image/png for unknown extension", () => {
+    it("defaults to image/png for unknown or missing extensions", () => {
       testMediaType("https://example.com/photo.unknown", "image/png");
-    });
-
-    it("defaults to image/png for no extension", () => {
       testMediaType("https://example.com/photo", "image/png");
     });
 
-    it("handles query params in URL", () => {
+    it("ignores query params and casing in the extension", () => {
       testMediaType(
         "https://example.com/photo.jpg?size=large&quality=high",
         "image/jpeg",
       );
-    });
-
-    it("handles uppercase extensions", () => {
       testMediaType("https://example.com/photo.JPG", "image/jpeg");
     });
   });

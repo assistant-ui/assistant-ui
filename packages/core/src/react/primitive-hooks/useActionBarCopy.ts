@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useAui, useAuiState } from "@assistant-ui/store";
 
 export type UseActionBarCopyOptions = {
@@ -21,22 +21,48 @@ export const useActionBarCopy = ({
   const isCopied = useAuiState((s) => s.message.isCopied);
   const isEditing = useAuiState((s) => s.composer.isEditing);
   const composerValue = useAuiState((s) => s.composer.text);
+  const copiedTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined,
+  );
+  const scopeGenerationRef = useRef(0);
+
+  useEffect(
+    () => () => {
+      scopeGenerationRef.current += 1;
+      if (copiedTimerRef.current === undefined) return;
+
+      clearTimeout(copiedTimerRef.current);
+      copiedTimerRef.current = undefined;
+      aui.message.setIsCopied(false);
+    },
+    [aui],
+  );
 
   const copy = useCallback(() => {
-    const valueToCopy = isEditing ? composerValue : aui.message().getCopyText();
-    if (!valueToCopy) return;
+    if (!copyToClipboard) return;
 
-    const write = copyToClipboard ?? (() => {});
+    const valueToCopy = isEditing ? composerValue : aui.message.getCopyText();
+    if (!valueToCopy) return;
+    const scopeGeneration = scopeGenerationRef.current;
+
     // The rejection handler swallows clipboard write failures (permission denied,
     // API unavailable) so they don't surface as unhandled promise rejections.
-    Promise.resolve(write(valueToCopy)).then(
+    Promise.resolve(copyToClipboard(valueToCopy)).then(
       () => {
-        aui.message().setIsCopied(true);
-        setTimeout(() => aui.message().setIsCopied(false), copiedDuration);
+        if (scopeGeneration !== scopeGenerationRef.current) return;
+
+        if (copiedTimerRef.current !== undefined) {
+          clearTimeout(copiedTimerRef.current);
+        }
+        aui.message.setIsCopied(true);
+        copiedTimerRef.current = setTimeout(() => {
+          copiedTimerRef.current = undefined;
+          aui.message.setIsCopied(false);
+        }, copiedDuration);
       },
       () => {},
     );
   }, [aui, isEditing, composerValue, copiedDuration, copyToClipboard]);
 
-  return { copy, disabled, isCopied };
+  return { copy, disabled: disabled || !copyToClipboard, isCopied };
 };

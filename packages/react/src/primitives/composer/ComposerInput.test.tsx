@@ -9,6 +9,7 @@ import { ComposerPrimitiveInput } from "./ComposerInput";
 const setText = vi.fn<(text: string) => void>();
 const setCursorPosition = vi.fn<(pos: number) => void>();
 const sendSpy = vi.fn<(options?: { steer?: boolean }) => void>();
+const addAttachment = vi.fn<(file: File) => Promise<void>>();
 
 const composerState = {
   isEditing: true,
@@ -37,16 +38,16 @@ let pluginRegistry: { getPlugins: () => (typeof plugin)[] } | null = null;
 
 vi.mock("@assistant-ui/store", () => {
   const aui = {
-    composer: () => ({
-      setText,
+    composer: {
+      setText: (text: string) => setText(text),
       getState: () => composerState,
       cancel: () => {},
-      send: sendSpy,
-      addAttachment: async () => {},
-    }),
-    thread: () => ({
+      send: (options?: { steer?: boolean }) => sendSpy(options),
+      addAttachment: (file: File) => addAttachment(file),
+    },
+    thread: {
       getState: () => threadState,
-    }),
+    },
     on: () => () => {},
   };
   type Selector<T> = (s: {
@@ -140,6 +141,16 @@ const fireKeyDown = (
   return event;
 };
 
+const firePaste = (textarea: HTMLTextAreaElement, files: File[]) => {
+  const event = new Event("paste", { bubbles: true, cancelable: true });
+  Object.defineProperty(event, "clipboardData", {
+    value: { files },
+    configurable: true,
+  });
+  textarea.dispatchEvent(event);
+  return event;
+};
+
 const setMatchMedia = (matches: boolean) => {
   Object.defineProperty(window, "matchMedia", {
     writable: true,
@@ -169,6 +180,7 @@ describe("ComposerPrimitiveInput", () => {
     setText.mockReset();
     setCursorPosition.mockReset();
     sendSpy.mockReset();
+    addAttachment.mockReset();
     composerState.isEditing = true;
     composerState.text = "";
     composerState.isEmpty = true;
@@ -499,6 +511,91 @@ describe("ComposerPrimitiveInput", () => {
       expect(sendSpy).toHaveBeenCalledWith({ steer: true });
       expect(requestSubmitSpy).not.toHaveBeenCalled();
       expect(event.defaultPrevented).toBe(true);
+    });
+  });
+
+  describe("paste attachments", () => {
+    it("attempts every pasted file and prevents default when attachments are supported", async () => {
+      threadState.capabilities = { queue: false, attachments: true };
+
+      const textarea = await mount();
+
+      let event!: Event;
+      await act(async () => {
+        event = firePaste(textarea, [
+          new File(["a"], "first.txt", { type: "text/plain" }),
+          new File(["b"], "second.txt", { type: "text/plain" }),
+          new File(["c"], "third.txt", { type: "text/plain" }),
+        ]);
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+
+      expect(addAttachment).toHaveBeenCalledTimes(3);
+      expect(addAttachment.mock.calls.map(([file]) => file.name)).toEqual([
+        "first.txt",
+        "second.txt",
+        "third.txt",
+      ]);
+      expect(event.defaultPrevented).toBe(true);
+    });
+
+    it("continues processing other files when one attachment fails without console.error", async () => {
+      threadState.capabilities = { queue: false, attachments: true };
+      const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+      addAttachment
+        .mockRejectedValueOnce(new Error("upload failed"))
+        .mockResolvedValueOnce(undefined)
+        .mockResolvedValueOnce(undefined);
+
+      const textarea = await mount();
+
+      await act(async () => {
+        firePaste(textarea, [
+          new File(["a"], "first.txt", { type: "text/plain" }),
+          new File(["b"], "second.txt", { type: "text/plain" }),
+          new File(["c"], "third.txt", { type: "text/plain" }),
+        ]);
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+
+      expect(addAttachment).toHaveBeenCalledTimes(3);
+      expect(errorSpy).not.toHaveBeenCalled();
+      errorSpy.mockRestore();
+    });
+
+    it("does not add attachments on paste when attachments are unsupported", async () => {
+      threadState.capabilities = { queue: false, attachments: false };
+
+      const textarea = await mount();
+
+      let event!: Event;
+      await act(async () => {
+        event = firePaste(textarea, [
+          new File(["a"], "first.txt", { type: "text/plain" }),
+        ]);
+        await Promise.resolve();
+      });
+
+      expect(addAttachment).not.toHaveBeenCalled();
+      expect(event.defaultPrevented).toBe(false);
+    });
+
+    it("skips attachment handling when addAttachmentOnPaste is false", async () => {
+      threadState.capabilities = { queue: false, attachments: true };
+
+      const textarea = await mount({ addAttachmentOnPaste: false });
+
+      await act(async () => {
+        firePaste(textarea, [
+          new File(["a"], "first.txt", { type: "text/plain" }),
+        ]);
+        await Promise.resolve();
+      });
+
+      expect(addAttachment).not.toHaveBeenCalled();
     });
   });
 });

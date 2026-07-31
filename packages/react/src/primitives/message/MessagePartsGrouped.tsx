@@ -151,7 +151,12 @@ export namespace MessagePrimitiveUnstable_PartsGrouped {
           Image?: ImageMessagePartComponent | undefined;
           /** Component for rendering file content */
           File?: FileMessagePartComponent | undefined;
-          /** Component for rendering audio content (experimental) */
+          /**
+           * Component for rendering audio content.
+           *
+           * @deprecated Render audio through the `File` slot instead, branching
+           * on an `audio/*` mime type.
+           */
           Unstable_Audio?: Unstable_AudioMessagePartComponent | undefined;
           /** Configuration for data part rendering */
           data?:
@@ -230,11 +235,9 @@ const ToolUIDisplay = ({
 }: {
   Fallback: ToolCallMessagePartComponent | undefined;
 } & ToolCallMessagePartProps) => {
-  const Render = useAuiState((s) => {
-    const Render = s.tools.tools[props.toolName] ?? Fallback;
-    if (Array.isArray(Render)) return Render[0] ?? Fallback;
-    return Render;
-  });
+  const Render = useAuiState(
+    (s) => s.tools.toolUIs[props.toolName]?.[0]?.render ?? Fallback,
+  );
   if (!Render) return null;
   return <Render {...props} />;
 };
@@ -292,9 +295,9 @@ const MessagePartComponent: FC<MessagePartComponentProps> = ({
 
   const type = part.type;
   if (type === "tool-call") {
-    const addResult = aui.part().addToolResult;
-    const resume = aui.part().resumeToolCall;
-    const respondToApproval = aui.part().respondToToolApproval;
+    const addResult = aui.part.addToolResult;
+    const resume = aui.part.resumeToolCall;
+    const respondToApproval = aui.part.respondToToolApproval;
     if ("Override" in tools)
       return (
         <tools.Override

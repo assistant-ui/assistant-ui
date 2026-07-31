@@ -20,7 +20,7 @@ Returns the current `AssistantClient` from context.
 
 Read the client supplied by the nearest [AuiProvider](/docs/api-reference/context-providers/assistant-runtime-provider#auiprovider) or
 [AssistantRuntimeProvider](/docs/api-reference/context-providers/assistant-runtime-provider#assistantruntimeprovider), then access a scope on it —
-`aui.thread()`, `aui.composer()`, `aui.message()`, and so on. Pair
+`aui.thread`, `aui.composer`, `aui.message`, and so on. Pair
 with [useAuiState](/docs/api-reference/hooks/state#useauistate) to read reactive state and [useAuiEvent](/docs/api-reference/hooks/state#useauievent)
 to subscribe to events. The returned client also exposes lower-level
 methods such as `aui.on(...)` and `aui.subscribe(...)`; prefer
@@ -79,6 +79,9 @@ compose multiple `useAuiState` calls. Returning a new object or array
 literal, including spreading `s.thread` into a new object, causes a
 re-render on every store update; either select primitives or return a
 memoized reference.
+
+Scopes that may be unavailable can be read via `s.optional.<scope>`,
+which resolves to `undefined` instead of throwing.
 
 {/* api-example:useAuiState:start */}
 ```tsx

@@ -34,7 +34,7 @@ function NewChatButton() {
       hitSlop={8}
       onPress={() => {
         haptics.selection();
-        aui.threads().switchToNewThread();
+        aui.threads.switchToNewThread();
       }}
       style={{ marginRight: 16 }}
     >

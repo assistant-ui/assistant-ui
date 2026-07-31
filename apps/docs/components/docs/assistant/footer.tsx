@@ -64,7 +64,7 @@ function AssistantFooterContent({
         <button
           type="button"
           onClick={() => {
-            const modelName = aui.thread().getModelContext()?.config?.modelName;
+            const modelName = aui.thread.getModelContext()?.config?.modelName;
             analytics.assistant.newThreadClicked({
               threadId,
               previous_message_count: messages.length,
@@ -76,7 +76,7 @@ function AssistantFooterContent({
             if (onNewThread) {
               onNewThread();
             } else {
-              aui.threads().switchToNewThread();
+              aui.threads.switchToNewThread();
             }
           }}
           className="text-muted-foreground hover:bg-muted hover:text-foreground flex items-center gap-1.5 rounded-md px-2 py-1 text-xs transition-colors"
@@ -87,7 +87,6 @@ function AssistantFooterContent({
       ) : (
         <div aria-hidden />
       )}
-
       {centerContent ? (
         <>
           <div className="min-w-0 px-1">{centerContent}</div>

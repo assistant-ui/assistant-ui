@@ -99,4 +99,25 @@ describe("useExternalMessageConverter", () => {
       text: "HELLO",
     });
   });
+
+  it.each([
+    ["false", false],
+    ["zero", 0],
+    ["an empty string", ""],
+  ])("preserves %s assistant state", (_label, state) => {
+    const callback: useExternalMessageConverter.Callback<TestMessage> = (
+      message,
+    ) => ({
+      role: message.role,
+      id: message.id,
+      content: [{ type: "text", text: message.text }],
+      ...(message.role === "assistant"
+        ? { metadata: { unstable_state: state } }
+        : undefined),
+    });
+
+    const { result } = renderConverter({ callback });
+
+    expect(result.current[1]?.metadata.unstable_state).toBe(state);
+  });
 });

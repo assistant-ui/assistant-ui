@@ -208,7 +208,7 @@ export class DataStreamEncoder
   }
 }
 
-const TOOL_CALL_ARGS_CLOSING_CHUNKS = [
+const TOOL_CALL_ARGS_CLOSING_CHUNKS: DataStreamStreamChunkType[] = [
   DataStreamStreamChunkType.StartToolCall,
   DataStreamStreamChunkType.ToolCall,
   DataStreamStreamChunkType.TextDelta,
@@ -229,14 +229,21 @@ export class DataStreamDecoder extends PipeableTransformStream<
   constructor() {
     super((readable) => {
       const toolCallControllers = new Map<string, ToolCallStreamController>();
+      const closedToolCallArgs = new Set<string>();
+      const warnedDroppedArgs = new Set<string>();
       let activeToolCallArgsText: TextStreamController | undefined;
+      let activeToolCallArgsId: string | undefined;
       const transform = new AssistantTransformStream<DataStreamChunk>({
         transform(chunk, controller) {
           const { type, value } = chunk;
 
           if (TOOL_CALL_ARGS_CLOSING_CHUNKS.includes(type)) {
-            activeToolCallArgsText?.close();
+            if (activeToolCallArgsText && activeToolCallArgsId !== undefined) {
+              activeToolCallArgsText.close();
+              closedToolCallArgs.add(activeToolCallArgsId);
+            }
             activeToolCallArgsText = undefined;
+            activeToolCallArgsId = undefined;
           }
 
           switch (type) {
@@ -278,11 +285,21 @@ export class DataStreamDecoder extends PipeableTransformStream<
               toolCallControllers.set(toolCallId, toolCallController);
 
               activeToolCallArgsText = toolCallController.argsText;
+              activeToolCallArgsId = toolCallId;
               break;
             }
 
             case DataStreamStreamChunkType.ToolCallArgsTextDelta: {
               const { toolCallId, argsTextDelta } = value;
+              if (closedToolCallArgs.has(toolCallId)) {
+                if (!warnedDroppedArgs.has(toolCallId)) {
+                  warnedDroppedArgs.add(toolCallId);
+                  console.warn(
+                    `Dropped tool-call args delta for closed args stream: ${toolCallId}`,
+                  );
+                }
+                break;
+              }
               const toolCallController = toolCallControllers.get(toolCallId);
               if (!toolCallController)
                 throw new Error(
@@ -304,6 +321,11 @@ export class DataStreamDecoder extends PipeableTransformStream<
                 result,
                 isError,
               });
+              closedToolCallArgs.add(toolCallId);
+              if (activeToolCallArgsId === toolCallId) {
+                activeToolCallArgsText = undefined;
+                activeToolCallArgsId = undefined;
+              }
               break;
             }
 
@@ -320,6 +342,11 @@ export class DataStreamDecoder extends PipeableTransformStream<
                   args,
                 });
                 toolCallControllers.set(toolCallId, toolCallController);
+              }
+              closedToolCallArgs.add(toolCallId);
+              if (activeToolCallArgsId === toolCallId) {
+                activeToolCallArgsText = undefined;
+                activeToolCallArgsId = undefined;
               }
               break;
             }
@@ -419,6 +446,7 @@ export class DataStreamDecoder extends PipeableTransformStream<
         flush() {
           activeToolCallArgsText?.close();
           activeToolCallArgsText = undefined;
+          activeToolCallArgsId = undefined;
           toolCallControllers.forEach((controller) => controller.close());
           toolCallControllers.clear();
         },

@@ -127,14 +127,20 @@ const KNOWN_EVENT_TYPES: ReadonlySet<string> = new Set([
   "turn_start",
   "turn_end",
   "tool_execution_start",
+  "agent_settled",
+  "entry_appended",
 ]);
 
 /** Parse a `data:<mime>;base64,<data>` URL into Pi `ImageContent`. Non-data-URL
  * strings pass through as opaque base64 with a generic image mime. */
 const toImageContent = (image: string): PiImageContent => {
-  const match = /^data:([^;,]+)(?:;base64)?,(.*)$/s.exec(image);
+  const match = /^data:([^;,]+)(?:;base64)?,(.*)$/is.exec(image);
   if (match) {
-    return { type: "image", mimeType: match[1]!, data: match[2]! };
+    return {
+      type: "image",
+      mimeType: match[1]!.toLowerCase(),
+      data: match[2]!,
+    };
   }
   return { type: "image", mimeType: "image/png", data: image };
 };
@@ -239,13 +245,22 @@ export class PiThreadController implements PiThreadControllerLike {
    * the supervisor's live seqs so they never suppress real events. */
   private readonly localSnapshotSeq = 0;
 
+  private readonly client: PiClient;
+  private readonly threadId: string;
+  private readonly options: {
+    scheduleNotify?: PiNotificationScheduler;
+  };
+
   constructor(
-    private readonly client: PiClient,
-    private readonly threadId: string,
-    private readonly options: {
+    client: PiClient,
+    threadId: string,
+    options: {
       scheduleNotify?: PiNotificationScheduler;
     } = {},
   ) {
+    this.client = client;
+    this.threadId = threadId;
+    this.options = options;
     this.state = createPiThreadState(threadId);
   }
 
@@ -588,10 +603,12 @@ export class PiThreadController implements PiThreadControllerLike {
       }
     }
 
-    // Forward-compat fallback: the reducer tolerates unknown event types but
-    // can't act on them; reconcile from a fresh snapshot so nothing the
-    // reducer ignored leaves local state stale.
-    if (!KNOWN_EVENT_TYPES.has(event.type)) this.refreshInBackground();
+    // Pi 0.80.7 emits entry_appended only for custom extension entries. Keep
+    // snapshot reconciliation for other variants if Pi broadens that event.
+    const needsSnapshotRefresh =
+      !KNOWN_EVENT_TYPES.has(event.type) ||
+      (event.type === "entry_appended" && event.entry?.type !== "custom");
+    if (needsSnapshotRefresh) this.refreshInBackground();
   }
 
   private setState(next: PiThreadState) {

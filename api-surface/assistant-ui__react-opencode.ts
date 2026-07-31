@@ -39,7 +39,9 @@ type AssistantClient = {
   on<TEvent extends AssistantEventName>(selector: AssistantEventSelector<TEvent>, callback: AssistantEventCallback<TEvent>): Unsubscribe$1;
 };
 
-type AssistantClientAccessor<K extends ClientNames> = (() => ClientSchemas[K]["methods"]) & (ClientMeta<K> | {
+type AssistantClientAccessor<K extends ClientNames> = ClientSchemas[K]["methods"] & {
+  (): ClientSchemas[K]["methods"];
+} & (ClientMeta<K> | {
   source: "root";
   query: Record<string, never>;
 } | {
@@ -214,9 +216,9 @@ type ClientEventMap = UnionToIntersection<{
   [K in ClientNames]: ClientEvents<K>;
 }[ClientNames]>;
 
-type ClientEvents<K extends ClientNames> = "events" extends keyof ClientSchemas[K] ? ClientSchemas[K]["events"] extends ClientEventsType<K> ? ClientSchemas[K]["events"] : never : never;
+type ClientEvents<K extends ClientNames> = "events" extends keyof ClientSchemas[K] ? ClientSchemas[K]["events"] extends ClientEventsType<K & string> ? ClientSchemas[K]["events"] : never : never;
 
-type ClientEventsType<K extends ClientNames> = Record<`${K}.${string}`, unknown>;
+type ClientEventsType<K extends string> = Record<`${K}.${string}`, unknown>;
 
 type ClientMeta<K extends ClientNames> = "meta" extends keyof ClientSchemas[K] ? Pick<ClientSchemas[K]["meta"] extends ClientMetaType ? ClientSchemas[K]["meta"] : never, "query" | "source"> : never;
 
@@ -234,7 +236,7 @@ type ClientNames = keyof ClientSchemas extends (infer U) ? U : never;
 type ClientSchemas = keyof ScopeRegistry extends never ? {
   "ERROR: No clients were defined": ClientError<"ERROR: No clients were defined">;
 } : {
-  [K in keyof ScopeRegistry]: ValidateClient<K>;
+  [K in keyof ScopeRegistry]: ValidateClient<K & string, ScopeRegistry[K]>;
 };
 
 type CompleteAttachment = BaseAttachment & {
@@ -531,6 +533,7 @@ type FileMessagePart = {
   readonly filename?: string;
   readonly data: string;
   readonly mimeType: string;
+  readonly sourceType?: "id" | "url";
   readonly parentId?: string;
 };
 
@@ -751,6 +754,15 @@ type MessagePartStatus = {
   readonly error?: unknown;
 };
 
+type MessagePartStreamStatus = {
+  readonly type: "running";
+} | {
+  readonly type: "complete";
+} | {
+  readonly type: "incomplete";
+  readonly reason: "cancelled" | "content-filter" | "error" | "length" | "other";
+};
+
 type MessageRole = ThreadMessage["role"];
 
 type MessageRuntime = {
@@ -843,8 +855,21 @@ type ObjectKey<T> = keyof T & (string | number);
 
 type OnSchemaValidationErrorFunction<TResult> = ToolExecuteFunction<unknown, TResult>;
 
+declare class OpenCodeAttachmentAdapter implements AttachmentAdapter {
+  accept: string;
+  constructor(options?: OpenCodeAttachmentAdapterOptions);
+  add(state: {
+    file: File;
+  }): Promise<PendingAttachment>;
+  send(attachment: PendingAttachment): Promise<CompleteAttachment>;
+  remove(): Promise<void>;
+}
+
+type OpenCodeAttachmentAdapterOptions = {
+  accept?: string | undefined;
+};
+
 declare class OpenCodeEventSource {
-  private readonly client;
   private readonly listeners;
   private readonly reconnectDelayMs;
   private readonly maxReconnectDelayMs;
@@ -853,6 +878,7 @@ declare class OpenCodeEventSource {
   private stopped;
   private nextReconnectDelayMs;
   private hadConnection;
+  private readonly client;
   constructor(client: OpencodeClient);
   subscribe(listener: Listener): () => void;
   dispose(): void;
@@ -1051,16 +1077,30 @@ type OpenCodeStateEvent = {
 };
 
 declare class OpenCodeThreadController implements OpenCodeThreadControllerLike {
-  private readonly client;
-  private readonly sessionId;
   private state;
   private readonly listeners;
   private readonly getEventSource;
   private unsubscribeFromEvents;
   private loadPromise;
   private reconnectSyncToken;
+  private readonly childControllersById;
+  private readonly childSessionIdByPartId;
+  private ancestorSessionIds;
+  private isChildSession;
   private readonly stagedMessages;
+  private readonly client;
+  private readonly sessionId;
   constructor(client: OpencodeClient, getEventSource: OpenCodeEventSourceProvider, sessionId: string);
+  private notifyListeners;
+  private updateChildSnapshot;
+  private attachChildController;
+  private detachChildControllers;
+  private discard;
+  private rebuildChildSessionIndex;
+  private updateChildSessionIndex;
+  private removeFromChildSessionIndex;
+  private syncChildControllers;
+  private syncChildSessionIndex;
   private ensureEventSubscription;
   private handleStreamReconnect;
   dispose(): void;
@@ -1112,6 +1152,7 @@ type OpenCodeThreadState = {
   runState: OpenCodeRunState;
   messageOrder: readonly string[];
   messagesById: Readonly<Record<string, OpenCodeServerMessage>>;
+  childSessionsById: Readonly<Record<string, OpenCodeThreadState>>;
   pendingUserMessages: Readonly<Record<string, PendingUserMessage>>;
   interactions: {
     permissions: {
@@ -1161,7 +1202,7 @@ type OpenCodeUserMessageOptions = {
   noReply?: boolean | undefined;
 };
 
-type ParentOf<K extends ClientNames> = AssistantClientAccessor<K> extends {
+type ParentOf<K extends ClientNames> = ClientMeta<K> extends {
   source: infer S;
 } ? S extends ClientNames ? S : never : never;
 
@@ -1270,6 +1311,7 @@ type RealtimeVoiceAdapter = {
 type ReasoningMessagePart = {
   readonly type: "reasoning";
   readonly text: string;
+  readonly status?: MessagePartStreamStatus;
   readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };
@@ -1277,6 +1319,10 @@ type ReasoningMessagePart = {
 type ReloadConfig = {
   runConfig?: RunConfig;
 };
+
+type ReservedAccessorProps = "name" | "query" | "source";
+
+type ReservedScopeNames = "on" | "optional" | "subscribe";
 
 type RespondToToolApprovalOptions = {
   approvalId: string;
@@ -1390,6 +1436,7 @@ declare const TOOL_RESPONSE_SYMBOL: unique symbol;
 type TextMessagePart = {
   readonly type: "text";
   readonly text: string;
+  readonly status?: MessagePartStreamStatus;
   readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };
@@ -1676,6 +1723,7 @@ type ThreadUserMessage = MessageCommonProps & {
     readonly steps?: undefined;
     readonly submittedFeedback?: undefined;
     readonly timing?: undefined;
+    readonly isOptimistic?: boolean;
     readonly custom: Record<string, unknown>;
   };
 };
@@ -1713,6 +1761,7 @@ type ToolApprovalResponse = {
 type ToolBase<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = {
   streamCall?: ToolStreamCallFunction<TArgs, TResult>;
   display?: ToolDisplay;
+  overwrite?: boolean;
 };
 
 interface ToolCallArgsReader<TArgs extends Record<string, unknown>> {
@@ -1878,9 +1927,15 @@ type Unsubscribe = () => void;
 
 type Unsubscribe$1 = () => void;
 
-type ValidateClient<K extends keyof ScopeRegistry> = ScopeRegistry[K] extends {
+type ValidateClient<K extends string, TClient> = K extends ReservedScopeNames ? ClientError<`ERROR: ${K} is a reserved scope name`> : unknown extends ValidateMethods<K, TClient> & ValidateMeta<K, TClient> & ValidateEvents<K, TClient> ? TClient : ValidateMethods<K, TClient> & ValidateMeta<K, TClient> & ValidateEvents<K, TClient> & ClientError<never>;
+
+type ValidateEvents<K extends string, TClient> = "events" extends keyof TClient ? TClient["events"] extends ClientEventsType<K> ? unknown : ClientError<`ERROR: ${K} has invalid events type`> : unknown;
+
+type ValidateMeta<K extends string, TClient> = "meta" extends keyof TClient ? TClient["meta"] extends ClientMetaType ? unknown : ClientError<`ERROR: ${K} has invalid meta type`> : unknown;
+
+type ValidateMethods<K extends string, TClient> = TClient extends {
   methods: ClientMethods;
-} ? "meta" extends keyof ScopeRegistry[K] ? ScopeRegistry[K]["meta"] extends ClientMetaType ? "events" extends keyof ScopeRegistry[K] ? ScopeRegistry[K]["events"] extends ClientEventsType<K> ? ScopeRegistry[K] : ClientError<`ERROR: ${K & string} has invalid events type`> : ScopeRegistry[K] : ClientError<`ERROR: ${K & string} has invalid meta type`> : "events" extends keyof ScopeRegistry[K] ? ScopeRegistry[K]["events"] extends ClientEventsType<K> ? ScopeRegistry[K] : ClientError<`ERROR: ${K & string} has invalid events type`> : ScopeRegistry[K] : ClientError<`ERROR: ${K & string} has invalid methods type`>;
+} ? keyof TClient["methods"] & ReservedAccessorProps extends never ? unknown : ClientError<`ERROR: ${K} methods declare a reserved accessor property (source/query/name)`> : ClientError<`ERROR: ${K} has invalid methods type`>;
 
 type VoiceSessionState = {
   readonly status: RealtimeVoiceAdapter.Status;
@@ -1911,10 +1966,10 @@ declare global {
 }
 
 declare namespace entry_root_exports {
-  export { AssistantMessage, Event, FilePart, GlobalSession, Message$2 as Message, MessageWithParts, Model, OpenCodeEventSource, OpenCodeLoadState, OpenCodePartPayload, OpenCodePermissionRequest, OpenCodePermissionResponse, OpenCodeProjectedThreadMessage, OpenCodeQuestionRequest, OpenCodeRunState, OpenCodeRuntime, OpenCodeRuntimeExtras, OpenCodeRuntimeOptions, OpenCodeServerEvent, OpenCodeServerMessage, OpenCodeStateEvent, OpenCodeThreadController, OpenCodeThreadControllerLike, OpenCodeThreadControllerSnapshot, OpenCodeThreadState, OpenCodeThreadStateSelector, OpenCodeUnhandledEvent, OpenCodeUserMessageOptions, OpencodeClient$1 as OpencodeClient, OpencodeClientConfig, Part$1 as Part, PendingUserMessage, PermissionRequest$1 as PermissionRequest, Provider, QuestionAnswer$1 as QuestionAnswer, QuestionRequest$1 as QuestionRequest, ReasoningPart, STREAM_RECONNECTED_EVENT_TYPE, Session$1 as Session, SessionStatus$1 as SessionStatus, SnapshotPart, StepFinishPart, StepStartPart, TextPart, ToolPart, ToolState, UserMessage, createOpenCodeThreadState, createOpencodeClient$1 as createOpencodeClient, projectOpenCodeThreadMessages, reduceOpenCodeThreadState, useOpenCodePermissions, useOpenCodeQuestions, useOpenCodeRuntime, useOpenCodeRuntimeExtras, useOpenCodeSession, useOpenCodeStreamingTiming, useOpenCodeThreadState };
+  export { AssistantMessage, Event, FilePart, GlobalSession, Message$2 as Message, MessageWithParts, Model, OpenCodeAttachmentAdapter, OpenCodeAttachmentAdapterOptions, OpenCodeEventSource, OpenCodeLoadState, OpenCodePartPayload, OpenCodePermissionRequest, OpenCodePermissionResponse, OpenCodeProjectedThreadMessage, OpenCodeQuestionRequest, OpenCodeRunState, OpenCodeRuntime, OpenCodeRuntimeExtras, OpenCodeRuntimeOptions, OpenCodeServerEvent, OpenCodeServerMessage, OpenCodeStateEvent, OpenCodeThreadController, OpenCodeThreadControllerLike, OpenCodeThreadControllerSnapshot, OpenCodeThreadState, OpenCodeThreadStateSelector, OpenCodeUnhandledEvent, OpenCodeUserMessageOptions, OpencodeClient$1 as OpencodeClient, OpencodeClientConfig, Part$1 as Part, PendingUserMessage, PermissionRequest$1 as PermissionRequest, Provider, QuestionAnswer$1 as QuestionAnswer, QuestionRequest$1 as QuestionRequest, ReasoningPart, STREAM_RECONNECTED_EVENT_TYPE, Session$1 as Session, SessionStatus$1 as SessionStatus, SnapshotPart, StepFinishPart, StepStartPart, TextPart, ToolPart, ToolState, UserMessage, createOpenCodeThreadState, createOpencodeClient$1 as createOpencodeClient, projectOpenCodeThreadMessages, reduceOpenCodeThreadState, useOpenCodePermissions, useOpenCodeQuestions, useOpenCodeRuntime, useOpenCodeRuntimeExtras, useOpenCodeSession, useOpenCodeStreamingTiming, useOpenCodeThreadState };
 }
 
-declare const projectOpenCodeThreadMessages: (state: OpenCodeThreadState, messageTiming?: Record<string, MessageTiming>) => OpenCodeProjectedThreadMessage[];
+declare function projectOpenCodeThreadMessages(state: OpenCodeThreadState, messageTiming?: Record<string, MessageTiming>): OpenCodeProjectedThreadMessage[];
 
 declare const reduceOpenCodeThreadState: (state: OpenCodeThreadState, event: OpenCodeStateEvent) => OpenCodeThreadState;
 

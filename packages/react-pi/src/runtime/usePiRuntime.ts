@@ -16,15 +16,13 @@ import type {
 } from "@assistant-ui/react";
 import {
   useEffect,
+  useEffectEvent,
   useCallback,
   useMemo,
   useRef,
   useState,
   useSyncExternalStore,
 } from "react";
-// Ponyfill: React only ships `useEffectEvent` from 19.2, but the peer range
-// allows React 18.
-import { useEffectEvent } from "use-effect-event";
 import {
   appendMessageParts,
   buildPiSendInput,
@@ -385,7 +383,7 @@ const useNewPiThreadStore = (
         pendingInitialMessageRef.current = initialMessage;
         setOptimisticMessages((messages) => [...messages, optimistic]);
         try {
-          await aui.threadListItem().initialize();
+          await aui.threadListItem.initialize();
           setOptimisticMessages([]);
         } catch (error) {
           if (pendingInitialMessageRef.current === initialMessage) {

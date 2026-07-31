@@ -100,7 +100,7 @@ export const McpAddFormPrimitiveRoot = forwardRef<
     }
     setState((p) => ({ ...p, submitting: true, error: null }));
     try {
-      const id = await aui.mcp().addCustomServer({
+      const id = await aui.mcp.addCustomServer({
         name: state.name.trim(),
         url: urlResult.url,
         auth: buildAuth(),

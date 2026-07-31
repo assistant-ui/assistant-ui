@@ -49,6 +49,12 @@ export type LangChainContentBlock =
       source_type: "id";
       metadata?: { filename?: string };
     }
+  | {
+      type: "audio";
+      data: string;
+      mime_type: string;
+      source_type: "base64";
+    }
   | { type: "tool_use" | "input_json_delta" };
 
 export type LangChainToolCall = {

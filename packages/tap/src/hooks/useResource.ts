@@ -9,7 +9,7 @@ import { useResourceFiberHost } from "./utils/useResourceFiberHostUtils";
 import { useEffect, useMemo } from "react";
 import { useRenderMemo } from "./utils/useRenderMemo";
 
-export function useResource<E extends ResourceElement<any, any[]>>(
+export function useResource<E extends ResourceElement<any>>(
   element: E,
 ): ExtractResourceReturnType<E> {
   const { version, createFiber } = useResourceFiberHost();

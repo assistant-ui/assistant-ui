@@ -226,6 +226,10 @@ export {
   type StreamingTimingOptions,
   type StreamingTimingState,
 } from "./runtimes/useStreamingTiming";
+export {
+  createRuntimeExtras,
+  type RuntimeExtras,
+} from "./runtimes/createRuntimeExtras";
 export { RemoteThreadListHookInstanceManager } from "./runtimes/RemoteThreadListHookInstanceManager";
 export { RemoteThreadListThreadListRuntimeCore } from "./runtimes/RemoteThreadListThreadListRuntimeCore";
 export { useRemoteThreadListRuntime } from "./runtimes/useRemoteThreadListRuntime";

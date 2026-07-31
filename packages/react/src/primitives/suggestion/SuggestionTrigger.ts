@@ -34,24 +34,24 @@ const useSuggestionTrigger = ({
   const resolvedSend = send ?? false;
 
   const callback = useCallback(() => {
-    const isRunning = aui.thread().getState().isRunning;
+    const isRunning = aui.thread.getState().isRunning;
 
     if (resolvedSend && !isRunning) {
-      aui.thread().append({
+      aui.thread.append({
         content: [{ type: "text", text: prompt }],
-        runConfig: aui.composer().getState().runConfig,
+        runConfig: aui.composer.getState().runConfig,
       });
       if (clearComposer) {
-        aui.composer().setText("");
+        aui.composer.setText("");
       }
     } else {
       if (clearComposer) {
-        aui.composer().setText(prompt);
+        aui.composer.setText(prompt);
       } else {
-        const currentText = aui.composer().getState().text;
-        aui
-          .composer()
-          .setText(currentText.trim() ? `${currentText} ${prompt}` : prompt);
+        const currentText = aui.composer.getState().text;
+        aui.composer.setText(
+          currentText.trim() ? `${currentText} ${prompt}` : prompt,
+        );
       }
     }
   }, [aui, resolvedSend, clearComposer, prompt]);

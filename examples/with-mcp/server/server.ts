@@ -1,7 +1,7 @@
 /**
  * Standalone test MCP server with OAuth.
  *
- * - OAuth 2.1 authorization server (PKCE + DCR) via @modelcontextprotocol/sdk auth router.
+ * - OAuth 2.1 authorization server (PKCE + DCR) via @modelcontextprotocol/server-legacy's auth router.
  * - One MCP tool, `echo`, that returns its input.
  * - All state in memory; for local development / E2E only.
  *
@@ -10,17 +10,19 @@
 import express from "express";
 import cors from "cors";
 import { randomBytes, randomUUID, createHash } from "node:crypto";
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import { mcpAuthRouter } from "@modelcontextprotocol/sdk/server/auth/router.js";
-import { requireBearerAuth } from "@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js";
-import type { OAuthServerProvider } from "@modelcontextprotocol/sdk/server/auth/provider.js";
-import type { OAuthRegisteredClientsStore } from "@modelcontextprotocol/sdk/server/auth/clients.js";
+import { McpServer } from "@modelcontextprotocol/server";
 import type {
+  AuthInfo,
   OAuthClientInformationFull,
   OAuthTokens,
-} from "@modelcontextprotocol/sdk/shared/auth.js";
-import type { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types.js";
+} from "@modelcontextprotocol/server";
+import { NodeStreamableHTTPServerTransport } from "@modelcontextprotocol/node";
+import { mcpAuthRouter } from "@modelcontextprotocol/server-legacy/auth";
+import type {
+  OAuthServerProvider,
+  OAuthRegisteredClientsStore,
+} from "@modelcontextprotocol/server-legacy/auth";
+import { requireBearerAuth } from "@modelcontextprotocol/express";
 import { z } from "zod";
 
 const PORT = Number(process.env.PORT ?? 8787);
@@ -170,7 +172,7 @@ function buildMcpServer(): McpServer {
     {
       title: "Echo",
       description: "Echo back the provided text.",
-      inputSchema: { text: z.string().describe("Text to echo back") },
+      inputSchema: z.object({ text: z.string().describe("Text to echo back") }),
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
     async ({ text }) => ({
@@ -183,7 +185,7 @@ function buildMcpServer(): McpServer {
       title: "Fingerprint",
       description:
         "Return a deterministic fingerprint of a string (sha256 hex).",
-      inputSchema: { input: z.string() },
+      inputSchema: z.object({ input: z.string() }),
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
     async ({ input }) => ({
@@ -234,7 +236,7 @@ async function main() {
 
   app.post("/mcp", bearer, async (req, res) => {
     try {
-      const transport = new StreamableHTTPServerTransport({
+      const transport = new NodeStreamableHTTPServerTransport({
         sessionIdGenerator: undefined,
       });
       res.on("close", () => transport.close());

@@ -40,11 +40,18 @@ export class MessagePartRuntimeImpl implements MessagePartRuntime {
     return this.contentBinding.path;
   }
 
+  private contentBinding: MessagePartSnapshotBinding;
+  private messageApi: MessageStateBinding | undefined;
+  private threadApi: ThreadRuntimeCoreBinding | undefined;
+
   constructor(
-    private contentBinding: MessagePartSnapshotBinding,
-    private messageApi?: MessageStateBinding,
-    private threadApi?: ThreadRuntimeCoreBinding,
+    contentBinding: MessagePartSnapshotBinding,
+    messageApi?: MessageStateBinding,
+    threadApi?: ThreadRuntimeCoreBinding,
   ) {
+    this.contentBinding = contentBinding;
+    this.messageApi = messageApi;
+    this.threadApi = threadApi;
     this.__internal_bindMethods();
   }
 

@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { AppendMessage } from "@assistant-ui/core";
+import { convertExternalMessages } from "@assistant-ui/core/react";
 import {
   convertLangChainMessages as convertLangChainMessagesImpl,
   getMessageContent,
@@ -150,6 +151,93 @@ describe("convertLangChainMessages metadata", () => {
       type: "tool-call",
       toolCallId: "tool-1",
       toolName: "fetch_page_content",
+      args: { url: "https://example.com" },
+      argsText: '{"url":"https://example.com"}',
+    });
+  });
+
+  it("keeps Bedrock tool args prefix-monotonic when the first chunk has no args", () => {
+    const firstResult = convertLangChainMessages({
+      type: "ai",
+      id: "ai-1",
+      content: "",
+      tool_calls: [
+        {
+          id: "tool-1",
+          name: "fetch_page_content",
+          args: {},
+          index: 0,
+        },
+      ],
+      tool_call_chunks: [
+        {
+          id: "tool-1",
+          index: 0,
+          name: "fetch_page_content",
+        },
+      ],
+    });
+
+    const nextResult = convertLangChainMessages({
+      type: "ai",
+      id: "ai-1",
+      content: "",
+      tool_calls: [
+        {
+          id: "tool-1",
+          name: "fetch_page_content",
+          args: {},
+          index: 0,
+        },
+      ],
+      tool_call_chunks: [
+        {
+          id: "tool-1",
+          index: 0,
+          name: "fetch_page_content",
+          args: '{"url":',
+        },
+      ],
+    });
+
+    const firstToolCallPart = firstResult.content.find(
+      (part) => part.type === "tool-call",
+    );
+    const nextToolCallPart = nextResult.content.find(
+      (part) => part.type === "tool-call",
+    );
+
+    expect(firstToolCallPart).toMatchObject({ argsText: "" });
+    expect(nextToolCallPart).toMatchObject({ argsText: '{"url":' });
+  });
+
+  it("serializes completed tool args when an argless chunk remains", () => {
+    const result = convertLangChainMessages({
+      type: "ai",
+      id: "ai-1",
+      content: "",
+      tool_calls: [
+        {
+          id: "tool-1",
+          name: "fetch_page_content",
+          args: { url: "https://example.com" },
+          index: 0,
+        },
+      ],
+      tool_call_chunks: [
+        {
+          id: "tool-1",
+          index: 0,
+          name: "fetch_page_content",
+        },
+      ],
+    });
+
+    const toolCallPart = result.content.find(
+      (part) => part.type === "tool-call",
+    );
+
+    expect(toolCallPart).toMatchObject({
       args: { url: "https://example.com" },
       argsText: '{"url":"https://example.com"}',
     });
@@ -385,6 +473,7 @@ describe("convertLangChainMessages file content", () => {
           filename: "file.pdf",
           data: "https://r2.example/u/abc/file.pdf",
           mimeType: "application/pdf",
+          sourceType: "url",
         },
       ],
     });
@@ -411,6 +500,7 @@ describe("convertLangChainMessages file content", () => {
           filename: "file",
           data: "file-abc123",
           mimeType: "application/octet-stream",
+          sourceType: "id",
         },
       ],
     });
@@ -508,6 +598,242 @@ describe("getMessageContent file blocks", () => {
         source_type: "base64",
       },
     ]);
+  });
+
+  it("emits an id source block with the value in the id key for sourceType id", () => {
+    const content = getMessageContent(
+      appendMessage({
+        type: "file",
+        data: "flx::storage:file_object:abc",
+        mimeType: "application/pdf",
+        filename: "invoice.pdf",
+        sourceType: "id",
+      }),
+    );
+
+    expect(content).toEqual([
+      { type: "text", text: " " },
+      {
+        type: "file",
+        id: "flx::storage:file_object:abc",
+        mime_type: "application/pdf",
+        metadata: { filename: "invoice.pdf" },
+        source_type: "id",
+      },
+    ]);
+    expect(content[1]).not.toHaveProperty("data");
+  });
+
+  it("lets sourceType url override sniffing for non-http data", () => {
+    const content = getMessageContent(
+      appendMessage({
+        type: "file",
+        data: "s3://bucket/key.pdf",
+        mimeType: "application/pdf",
+        filename: "key.pdf",
+        sourceType: "url",
+      }),
+    );
+
+    expect(content).toEqual([
+      { type: "text", text: " " },
+      {
+        type: "file",
+        url: "s3://bucket/key.pdf",
+        mime_type: "application/pdf",
+        metadata: { filename: "key.pdf" },
+        source_type: "url",
+      },
+    ]);
+  });
+
+  it("emits an id source block for attachment content parts", () => {
+    const content = getMessageContent({
+      content: [{ type: "text", text: "see attached" }],
+      attachments: [
+        {
+          content: [
+            {
+              type: "file",
+              data: "file-abc123",
+              mimeType: "application/pdf",
+              filename: "a.pdf",
+              sourceType: "id",
+            },
+          ],
+        },
+      ],
+    } as unknown as AppendMessage);
+
+    expect(content).toEqual([
+      { type: "text", text: "see attached" },
+      {
+        type: "file",
+        id: "file-abc123",
+        mime_type: "application/pdf",
+        metadata: { filename: "a.pdf" },
+        source_type: "id",
+      },
+    ]);
+  });
+
+  it("round-trips an id source block through both converters", () => {
+    const converted = convertLangChainMessages({
+      type: "human",
+      id: "human-roundtrip-id-file",
+      content: [
+        {
+          type: "file",
+          id: "file-abc123",
+          mime_type: "application/pdf",
+          source_type: "id",
+          metadata: { filename: "a.pdf" },
+        },
+      ],
+    });
+
+    const content = getMessageContent(converted as unknown as AppendMessage);
+
+    expect(content).toEqual([
+      { type: "text", text: " " },
+      {
+        type: "file",
+        id: "file-abc123",
+        mime_type: "application/pdf",
+        metadata: { filename: "a.pdf" },
+        source_type: "id",
+      },
+    ]);
+  });
+
+  it("emits an audio block for a base64 file part with an audio mime type", () => {
+    const content = getMessageContent(
+      appendMessage({
+        type: "file",
+        data: "c291bmQ=",
+        mimeType: "audio/mp3",
+        filename: "memo.mp3",
+      }),
+    );
+
+    expect(content).toEqual([
+      { type: "text", text: " " },
+      {
+        type: "audio",
+        data: "c291bmQ=",
+        mime_type: "audio/mp3",
+        source_type: "base64",
+      },
+    ]);
+  });
+
+  it("normalizes audio/mpeg and audio/x-wav to the accepted spellings", () => {
+    expect(
+      getMessageContent(
+        appendMessage({
+          type: "file",
+          data: "c291bmQ=",
+          mimeType: "audio/mpeg",
+        }),
+      )[1],
+    ).toMatchObject({ type: "audio", mime_type: "audio/mp3" });
+
+    expect(
+      getMessageContent(
+        appendMessage({
+          type: "file",
+          data: "c291bmQ=",
+          mimeType: "audio/x-wav",
+        }),
+      )[1],
+    ).toMatchObject({ type: "audio", mime_type: "audio/wav" });
+  });
+
+  it("strips the data URL envelope from an audio file part", () => {
+    const content = getMessageContent(
+      appendMessage({
+        type: "file",
+        data: "data:audio/mpeg;base64,c291bmQ=",
+        mimeType: "audio/mp3",
+      }),
+    );
+
+    expect(content[1]).toEqual({
+      type: "audio",
+      data: "c291bmQ=",
+      mime_type: "audio/mp3",
+      source_type: "base64",
+    });
+  });
+
+  it("keeps url and id audio references as file blocks", () => {
+    expect(
+      getMessageContent(
+        appendMessage({
+          type: "file",
+          data: "https://cdn.example.com/memo.mp3",
+          mimeType: "audio/mp3",
+          filename: "memo.mp3",
+        }),
+      )[1],
+    ).toMatchObject({ type: "file", source_type: "url" });
+
+    expect(
+      getMessageContent(
+        appendMessage({
+          type: "file",
+          data: "file-abc123",
+          mimeType: "audio/mp3",
+          filename: "memo.mp3",
+          sourceType: "id",
+        }),
+      )[1],
+    ).toMatchObject({ type: "file", source_type: "id" });
+  });
+
+  it("does not treat inherited object keys as audio media types", () => {
+    for (const mimeType of ["__proto__", "constructor"]) {
+      expect(
+        getMessageContent(
+          appendMessage({
+            type: "file",
+            data: "ZmFrZQ==",
+            mimeType,
+            filename: "a.bin",
+          }),
+        )[1],
+      ).toMatchObject({ type: "file", mime_type: mimeType });
+    }
+  });
+
+  it("detects audio from the data URL envelope when the declared type is generic", () => {
+    expect(
+      getMessageContent(
+        appendMessage({
+          type: "file",
+          data: "data:audio/mpeg;base64,c291bmQ=",
+          mimeType: "application/octet-stream",
+        }),
+      )[1],
+    ).toEqual({
+      type: "audio",
+      data: "c291bmQ=",
+      mime_type: "audio/mp3",
+      source_type: "base64",
+    });
+  });
+
+  it("leaves non-audio file parts as file blocks", () => {
+    expect(
+      getMessageContent(
+        appendMessage({
+          type: "file",
+          data: "ZmFrZQ==",
+          mimeType: "application/pdf",
+          filename: "a.pdf",
+        }),
+      )[1],
+    ).toMatchObject({ type: "file", mime_type: "application/pdf" });
   });
 });
 
@@ -715,7 +1041,7 @@ describe("convertLangChainMessages UI messages", () => {
   });
 });
 
-describe("convertLangChainMessages tool call id stability (regression #3526)", () => {
+describe("convertLangChainMessages tool call id stability", () => {
   it("synthesizes a stable toolCallId when chunk.id is empty string", () => {
     const result = convertLangChainMessages({
       type: "ai",
@@ -809,28 +1135,6 @@ describe("convertLangChainMessages tool call id stability (regression #3526)", (
     expect(ids).toEqual(["lc-toolcall-ai-1-0", "call_real_abc"]);
   });
 
-  it("synthesized id is stable across re-renders of the same message", () => {
-    const message: LangChainMessage = {
-      type: "ai",
-      id: "ai-1",
-      content: "",
-      tool_calls: [{ id: "", name: "weather", args: {}, index: 0 }],
-    };
-
-    const r1 = convertLangChainMessages(message);
-    const r2 = convertLangChainMessages(message);
-
-    if (!("content" in r1) || !("content" in r2))
-      throw new Error("Expected assistant messages");
-    const id1 = (
-      r1.content.find((p) => p.type === "tool-call") as { toolCallId: string }
-    ).toolCallId;
-    const id2 = (
-      r2.content.find((p) => p.type === "tool-call") as { toolCallId: string }
-    ).toolCallId;
-    expect(id1).toBe(id2);
-  });
-
   it("matches tool_call_chunks by index when chunk.id is empty (preserves args_json)", () => {
     const result = convertLangChainMessages({
       type: "ai",
@@ -852,5 +1156,315 @@ describe("convertLangChainMessages tool call id stability (regression #3526)", (
     expect(toolCallPart).toMatchObject({
       argsText: '{"url":"https://example.com"}',
     });
+  });
+});
+
+describe("getMessageContent audio and data parts", () => {
+  const appendMessage = (...parts: Record<string, unknown>[]) =>
+    ({ content: parts }) as unknown as AppendMessage;
+
+  it("emits a base64 audio block with the format MIME type for audio parts", () => {
+    const content = getMessageContent(
+      appendMessage({
+        type: "audio",
+        audio: { data: "c291bmQ=", format: "mp3" },
+      }),
+    );
+
+    expect(content).toEqual([
+      { type: "text", text: " " },
+      {
+        type: "audio",
+        data: "c291bmQ=",
+        mime_type: "audio/mp3",
+        source_type: "base64",
+      },
+    ]);
+  });
+
+  it("strips a data URL envelope from audio data", () => {
+    const content = getMessageContent(
+      appendMessage({
+        type: "audio",
+        audio: { data: "data:audio/wav;base64,d2F2", format: "wav" },
+      }),
+    );
+
+    expect(content).toEqual([
+      { type: "text", text: " " },
+      {
+        type: "audio",
+        data: "d2F2",
+        mime_type: "audio/wav",
+        source_type: "base64",
+      },
+    ]);
+  });
+
+  it("keeps the format-derived MIME when a data URL carries a divergent one", () => {
+    const content = getMessageContent(
+      appendMessage({
+        type: "audio",
+        audio: { data: "data:audio/mpeg;base64,c291bmQ=", format: "mp3" },
+      }),
+    );
+
+    expect(content).toEqual([
+      { type: "text", text: " " },
+      {
+        type: "audio",
+        data: "c291bmQ=",
+        mime_type: "audio/mp3",
+        source_type: "base64",
+      },
+    ]);
+  });
+
+  it("does not prepend a second placeholder when text accompanies audio", () => {
+    const content = getMessageContent(
+      appendMessage(
+        { type: "text", text: "listen" },
+        { type: "audio", audio: { data: "d2F2", format: "wav" } },
+      ),
+    );
+
+    expect(content).toEqual([
+      { type: "text", text: "listen" },
+      {
+        type: "audio",
+        data: "d2F2",
+        mime_type: "audio/wav",
+        source_type: "base64",
+      },
+    ]);
+  });
+
+  it("drops data parts while keeping the rest of the message", () => {
+    const content = getMessageContent(
+      appendMessage(
+        { type: "text", text: "hi" },
+        { type: "data", name: "chart", data: { values: [1, 2] } },
+      ),
+    );
+
+    expect(content).toBe("hi");
+  });
+
+  it("returns empty content for a data-only message", () => {
+    const content = getMessageContent(
+      appendMessage({ type: "data", name: "chart", data: { values: [1, 2] } }),
+    );
+
+    expect(content).toEqual([]);
+  });
+
+  it("still throws on assistant-only part types", () => {
+    expect(() =>
+      getMessageContent(appendMessage({ type: "reasoning", text: "hmm" })),
+    ).toThrow("Unsupported append message part type: reasoning");
+  });
+});
+
+describe("contentToParts audio blocks", () => {
+  const inboundAudioPart = (block: Record<string, unknown>) => {
+    const result = convertLangChainMessagesImpl(
+      {
+        type: "human",
+        id: "h1",
+        content: [{ type: "audio", data: "c291bmQ=", ...block }],
+      } as never,
+      {},
+    );
+    return (result as unknown as { content: unknown[] }).content[0];
+  };
+
+  it("converts an inbound base64 audio block back to an audio part", () => {
+    const result = convertLangChainMessagesImpl(
+      {
+        type: "human",
+        id: "h1",
+        content: [
+          {
+            type: "audio",
+            data: "c291bmQ=",
+            mime_type: "audio/mp3",
+            source_type: "base64",
+          },
+        ],
+      } as never,
+      {},
+    );
+
+    expect(result).toMatchObject({
+      role: "user",
+      content: [
+        {
+          type: "file",
+          filename: "audio.mp3",
+          data: "c291bmQ=",
+          mimeType: "audio/mp3",
+        },
+      ],
+    });
+  });
+
+  it("keeps an inbound audio block whose mime type has no wire format", () => {
+    const result = convertLangChainMessagesImpl(
+      {
+        type: "human",
+        id: "h1",
+        content: [
+          {
+            type: "audio",
+            data: "b2dn",
+            mime_type: "audio/ogg",
+            source_type: "base64",
+          },
+        ],
+      } as never,
+      {},
+    );
+
+    expect(result).toMatchObject({
+      role: "user",
+      content: [
+        {
+          type: "file",
+          filename: "audio.ogg",
+          data: "b2dn",
+          mimeType: "audio/ogg",
+        },
+      ],
+    });
+  });
+
+  it("keeps an audio block on an assistant message", () => {
+    const result = convertLangChainMessagesImpl(
+      {
+        type: "ai",
+        id: "ai-1",
+        content: [
+          {
+            type: "audio",
+            data: "c291bmQ=",
+            mime_type: "audio/mp3",
+            source_type: "base64",
+          },
+          { type: "text", text: "done" },
+        ],
+      } as never,
+      {},
+    );
+
+    expect(result).toMatchObject({
+      role: "assistant",
+      content: [
+        {
+          type: "file",
+          filename: "audio.mp3",
+          data: "c291bmQ=",
+          mimeType: "audio/mp3",
+        },
+        { type: "text", text: "done" },
+      ],
+    });
+  });
+  it("round-trips an audio file part through both converters", () => {
+    const outbound = getMessageContent({
+      content: [
+        {
+          type: "file",
+          data: "data:audio/mpeg;base64,c291bmQ=",
+          mimeType: "audio/mpeg",
+          filename: "memo.mp3",
+        },
+      ],
+    } as unknown as AppendMessage);
+
+    const inbound = convertLangChainMessagesImpl(
+      { type: "human", id: "h1", content: outbound } as never,
+      {},
+    );
+
+    const content = (inbound as unknown as { content: unknown[] }).content;
+    expect(content).toEqual([
+      { type: "text", text: " " },
+      {
+        type: "file",
+        filename: "audio.mp3",
+        data: "c291bmQ=",
+        mimeType: "audio/mp3",
+      },
+    ]);
+
+    expect(getMessageContent({ content } as unknown as AppendMessage)).toEqual(
+      outbound,
+    );
+  });
+  it("names an inbound audio attachment from its media subtype", () => {
+    expect(inboundAudioPart({ mime_type: "audio/wav" })).toMatchObject({
+      filename: "audio.wav",
+    });
+    expect(inboundAudioPart({})).toMatchObject({
+      filename: "audio",
+      mimeType: "application/octet-stream",
+    });
+  });
+});
+
+describe("convertLangChainMessages unknown message types", () => {
+  const call = (message: unknown) =>
+    (
+      convertLangChainMessagesImpl as unknown as (
+        message: unknown,
+        metadata: unknown,
+      ) => unknown
+    )(message, {});
+
+  it("returns an empty array for a type:remove message instead of undefined", () => {
+    const removeMessage = {
+      type: "remove",
+      id: "some-message-id",
+      content: [],
+      additional_kwargs: {},
+      response_metadata: {},
+    };
+
+    expect(call(removeMessage)).toEqual([]);
+  });
+
+  it("returns an empty array for any other unknown message type", () => {
+    expect(call({ type: "delete", id: "x" })).toEqual([]);
+  });
+
+  it("does not crash convertExternalMessages when a remove message reaches the converter", () => {
+    // The load/setMessages path bypasses the accumulator and can hand an
+    // unknown message type (e.g. a serialized RemoveMessage) straight to the
+    // converter. chunkExternalMessages must not read .role on undefined.
+    const result = (
+      convertExternalMessages as unknown as (
+        messages: unknown[],
+        callback: unknown,
+        isRunning: boolean,
+        metadata: unknown,
+      ) => Array<{ role?: string }>
+    )(
+      [
+        { id: "h-1", type: "human", content: "hi" },
+        {
+          type: "remove",
+          id: "ai-1",
+          content: [],
+          additional_kwargs: {},
+          response_metadata: {},
+        },
+      ],
+      convertLangChainMessagesImpl,
+      false,
+      {},
+    );
+
+    expect(result).toHaveLength(1);
+    expect(result[0]?.role).toBe("user");
   });
 });

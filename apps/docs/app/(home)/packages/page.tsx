@@ -35,13 +35,8 @@ const HERO_STAT_ICONS = {
   Download,
 };
 
-export default async function PackagesPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ refresh?: string }>;
-}) {
-  const forceFresh = (await searchParams).refresh === "true";
-  const npm = await fetchNpmDownloads(forceFresh ? 0 : undefined);
+export default async function PackagesPage() {
+  const npm = await fetchNpmDownloads();
 
   const topPackages = PACKAGES.filter((pkg) => !pkg.deprecated)
     .map((pkg) => ({

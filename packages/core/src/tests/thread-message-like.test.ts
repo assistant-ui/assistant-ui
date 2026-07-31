@@ -159,6 +159,21 @@ describe("fromThreadMessageLike", () => {
 
       expect(result.content).toEqual([]);
     });
+
+    it("keeps an image part with an uppercase-scheme data URL", () => {
+      const result = fromThreadMessageLike(
+        {
+          role: "assistant",
+          content: [{ type: "image", image: "DATA:IMAGE/PNG;base64,AAAA" }],
+        },
+        fallbackId,
+        fallbackStatus,
+      );
+
+      expect(result.content).toEqual([
+        { type: "image", image: "DATA:IMAGE/PNG;base64,AAAA" },
+      ]);
+    });
   });
 
   describe("providerMetadata passthrough", () => {
@@ -198,6 +213,63 @@ describe("fromThreadMessageLike", () => {
         toolCallId: "tc-1",
         providerMetadata,
       });
+    });
+  });
+
+  describe("metadata.isOptimistic", () => {
+    it("preserves isOptimistic on user messages", () => {
+      const result = fromThreadMessageLike(
+        {
+          role: "user",
+          content: [{ type: "text", text: "hello" }],
+          metadata: { isOptimistic: true },
+        },
+        fallbackId,
+        fallbackStatus,
+      );
+
+      expect(result.metadata.isOptimistic).toBe(true);
+    });
+
+    it("preserves isOptimistic on assistant messages", () => {
+      const result = fromThreadMessageLike(
+        {
+          role: "assistant",
+          content: [{ type: "text", text: "hello" }],
+          metadata: { isOptimistic: true },
+        },
+        fallbackId,
+        fallbackStatus,
+      );
+
+      expect(result.metadata.isOptimistic).toBe(true);
+    });
+
+    it("omits isOptimistic when false", () => {
+      const result = fromThreadMessageLike(
+        {
+          role: "user",
+          content: [{ type: "text", text: "hello" }],
+          metadata: { isOptimistic: false },
+        },
+        fallbackId,
+        fallbackStatus,
+      );
+
+      expect(result.metadata).not.toHaveProperty("isOptimistic");
+    });
+
+    it("omits isOptimistic when not set", () => {
+      const result = fromThreadMessageLike(
+        {
+          role: "user",
+          content: [{ type: "text", text: "hello" }],
+        },
+        fallbackId,
+        fallbackStatus,
+      );
+
+      expect(result.metadata).not.toHaveProperty("isOptimistic");
     });
   });
 });

@@ -77,7 +77,7 @@ export const useAssistantTool = <
 
   useEffect(() => {
     if (!render) return undefined;
-    return aui.tools().setToolUI(tool.toolName, render, { standalone });
+    return aui.tools.setToolUI(tool.toolName, render, { standalone });
   }, [aui, tool.toolName, render, standalone]);
 
   useEffect(() => {
@@ -89,7 +89,7 @@ export const useAssistantTool = <
         [toolName]: rest,
       },
     };
-    return aui.modelContext().register({
+    return aui.modelContext.register({
       getModelContext: () => context,
     });
   }, [aui, tool]);

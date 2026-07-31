@@ -14,12 +14,7 @@ import {
   ToolGroupRoot,
   ToolGroupTrigger,
 } from "@/components/assistant-ui/tool-group";
-import {
-  ThreadList,
-  ThreadListItems,
-  ThreadListNew,
-  ThreadListRoot,
-} from "@/components/assistant-ui/thread-list";
+import { CloneThreadShell } from "./clone-thread-shell";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import {
   Reasoning,
@@ -28,7 +23,7 @@ import {
   ReasoningText,
   ReasoningTrigger,
 } from "@/components/assistant-ui/reasoning";
-import { Button } from "@/components/ui/radix/button";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import icon from "@/public/favicon/icon.svg";
 import {
@@ -89,12 +84,6 @@ import {
 } from "@assistant-ui/react-lexical";
 import Image from "next/image";
 import { useState, type FC, type ReactNode } from "react";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/radix/sheet";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/radix/tooltip";
 import { ModelSelector } from "@/components/assistant-ui/model-selector";
 import { docsModelOptions } from "@/components/docs/assistant/docs-model-options";
 import { DEFAULT_MODEL_ID } from "@/constants/model";
@@ -105,103 +94,10 @@ const Logo: FC = () => {
       <Image
         src={icon}
         alt="logo"
-        className="size-5 dark:hue-rotate-180 dark:invert"
+        className="size-5 shrink-0 dark:hue-rotate-180 dark:invert"
       />
-      <span className="text-foreground/90">assistant-ui</span>
+      <span className="text-foreground/90 truncate">assistant-ui</span>
     </div>
-  );
-};
-
-const Sidebar: FC<{ collapsed?: boolean }> = ({ collapsed }) => {
-  return (
-    <aside
-      className={cn(
-        "flex h-full flex-col overflow-hidden transition-all duration-200",
-        collapsed ? "w-12" : "w-65",
-      )}
-    >
-      <div
-        className={cn(
-          "mt-2 flex h-12 shrink-0 items-center transition-[padding] duration-200",
-          collapsed ? "px-3.5" : "px-6",
-        )}
-      >
-        <Image
-          src={icon}
-          alt="logo"
-          className="size-5 shrink-0 dark:hue-rotate-180 dark:invert"
-        />
-        <span
-          className={cn(
-            "text-foreground/90 ml-2 text-sm font-medium whitespace-nowrap transition-opacity duration-200",
-            collapsed && "opacity-0",
-          )}
-        >
-          assistant-ui
-        </span>
-      </div>
-      <ThreadListRoot
-        className={cn(
-          "relative flex-1 overflow-y-auto transition-[padding,width] duration-200",
-          collapsed ? "w-12 px-2 pt-1" : "w-65 p-3",
-        )}
-      >
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <ThreadListNew
-              className={cn(
-                "overflow-hidden transition-all duration-200",
-                collapsed
-                  ? "w-8 gap-0 px-2 has-[>svg]:px-2"
-                  : "w-full gap-2 px-2.5 has-[>svg]:px-2.5",
-              )}
-              labelClassName={cn(
-                "overflow-hidden transition-all duration-200",
-                collapsed ? "max-w-0 opacity-0" : "max-w-24 opacity-100",
-              )}
-            />
-          </TooltipTrigger>
-          {collapsed && (
-            <TooltipContent side="right">New Thread</TooltipContent>
-          )}
-        </Tooltip>
-        <ThreadListItems
-          aria-hidden={collapsed}
-          inert={collapsed}
-          className={cn(
-            "transition-[opacity,transform] duration-150",
-            collapsed
-              ? "pointer-events-none opacity-0 delay-50"
-              : "translate-x-0 opacity-100",
-          )}
-        />
-      </ThreadListRoot>
-    </aside>
-  );
-};
-
-const MobileSidebar: FC = () => {
-  return (
-    <Sheet>
-      <SheetTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="size-8 shrink-0 md:hidden"
-        >
-          <MenuIcon className="size-4" />
-          <span className="sr-only">Toggle menu</span>
-        </Button>
-      </SheetTrigger>
-      <SheetContent side="left" className="flex w-70 flex-col p-0">
-        <div className="flex h-12 shrink-0 items-center px-4">
-          <Logo />
-        </div>
-        <div className="relative flex-1 overflow-y-auto p-3">
-          <ThreadList />
-        </div>
-      </SheetContent>
-    </Sheet>
   );
 };
 
@@ -235,10 +131,19 @@ const ThreadTitle: FC = () => {
 const Header: FC<{
   sidebarCollapsed: boolean;
   onToggleSidebar: () => void;
-}> = ({ sidebarCollapsed, onToggleSidebar }) => {
+  onOpenMobileSidebar: () => void;
+}> = ({ sidebarCollapsed, onToggleSidebar, onOpenMobileSidebar }) => {
   return (
     <header className="flex h-12 shrink-0 items-center gap-2 px-4">
-      <MobileSidebar />
+      <Button
+        variant="ghost"
+        size="icon"
+        className="size-8 shrink-0 md:hidden"
+        onClick={onOpenMobileSidebar}
+      >
+        <MenuIcon className="size-4" />
+        <span className="sr-only">Toggle menu</span>
+      </Button>
       <TooltipIconButton
         variant="ghost"
         size="icon"
@@ -469,10 +374,10 @@ const ThreadSuggestions: FC = () => {
   );
 
   const sendPrompt = (prompt: string) => {
-    if (aui.thread().getState().isRunning) return;
-    aui.thread().append({
+    if (aui.thread.getState().isRunning) return;
+    aui.thread.append({
       content: [{ type: "text", text: prompt }],
-      runConfig: aui.composer().getState().runConfig,
+      runConfig: aui.composer.getState().runConfig,
     });
   };
 
@@ -962,23 +867,31 @@ const BranchPicker: FC<BranchPickerPrimitive.Root.Props> = ({
 
 export const Base: FC = () => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   return (
-    <div className="bg-muted/30 flex h-full w-full">
-      <div className="hidden md:block">
-        <Sidebar collapsed={sidebarCollapsed} />
-      </div>
-      <div className="flex flex-1 flex-col overflow-hidden p-2 md:pl-0">
+    <CloneThreadShell
+      collapsed={sidebarCollapsed}
+      onCollapsedChange={setSidebarCollapsed}
+      mobileSidebarOpen={mobileSidebarOpen}
+      onMobileSidebarOpenChange={setMobileSidebarOpen}
+      headerContent={<Logo />}
+      sheetTitle={<Logo />}
+      showSearch={false}
+      wrapNewThreadTooltip
+    >
+      <div className="bg-muted/30 flex h-full flex-col overflow-hidden p-2 md:pl-0">
         <div className="bg-background flex flex-1 flex-col overflow-hidden rounded-lg">
           <Header
             sidebarCollapsed={sidebarCollapsed}
             onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}
+            onOpenMobileSidebar={() => setMobileSidebarOpen(true)}
           />
           <main className="flex-1 overflow-hidden">
             <Thread />
           </main>
         </div>
       </div>
-    </div>
+    </CloneThreadShell>
   );
 };

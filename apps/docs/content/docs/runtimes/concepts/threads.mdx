@@ -149,7 +149,7 @@ const adapterWithHistory: RemoteThreadListAdapter = {
     const history = useMemo<ThreadHistoryAdapter>(
       () => ({
         async load() {
-          const { remoteId } = aui.threadListItem().getState();
+          const { remoteId } = aui.threadListItem.getState();
           if (!remoteId) return { messages: [] };
           const rows = await fetch(
             `/api/threads/${remoteId}/messages`,
@@ -157,7 +157,7 @@ const adapterWithHistory: RemoteThreadListAdapter = {
           return { messages: rows.map(toThreadMessage) };
         },
         async append({ message, parentId }) {
-          const { remoteId } = await aui.threadListItem().initialize();
+          const { remoteId } = await aui.threadListItem.initialize();
           await fetch(`/api/threads/${remoteId}/messages`, {
             method: "POST",
             body: JSON.stringify({ message, parentId }),
@@ -181,11 +181,11 @@ const adapterWithHistory: RemoteThreadListAdapter = {
 
 ### Avoiding the first-message race
 
-`append` may be called before the thread record exists in your backend. Always await `aui.threadListItem().initialize()` before writing:
+`append` may be called before the thread record exists in your backend. Always await `aui.threadListItem.initialize()` before writing:
 
 ```ts
 async append({ message, parentId }) {
-  const { remoteId } = await aui.threadListItem().initialize();
+  const { remoteId } = await aui.threadListItem.initialize();
   await saveMessage(remoteId, parentId, message);
 }
 ```
@@ -194,14 +194,14 @@ async append({ message, parentId }) {
 
 ### Reloading after async authentication
 
-If your adapter depends on a user that resolves asynchronously (oidc, `next-auth`, `better-auth`), the initial `list()` may run before the user is available. Call `aui.threads().reload()` after auth completes:
+If your adapter depends on a user that resolves asynchronously (oidc, `next-auth`, `better-auth`), the initial `list()` may run before the user is available. Call `aui.threads.reload()` after auth completes:
 
 ```tsx
 function ReloadOnAuth() {
   const aui = useAui();
   const { isLoading, user } = useAuth();
   useEffect(() => {
-    if (!isLoading && user) aui.threads().reload();
+    if (!isLoading && user) aui.threads.reload();
   }, [isLoading, user?.id]);
   return null;
 }
@@ -211,7 +211,7 @@ function ReloadOnAuth() {
 
 ### Paginating the thread list
 
-If your backend returns thread pages, return a `nextCursor` from `list()` and consume `aui.threads().hasMore` plus `aui.threads().loadMore()` in the UI. The runtime threads `params.after` back through `list()` on every `loadMore()`; the initial call passes no `params`, so treat a missing `after` as "first page". `reload()` resets the cursor so the next load starts from page 1 again.
+If your backend returns thread pages, return a `nextCursor` from `list()` and consume `aui.threads.hasMore` plus `aui.threads.loadMore()` in the UI. The runtime threads `params.after` back through `list()` on every `loadMore()`; the initial call passes no `params`, so treat a missing `after` as "first page". `reload()` resets the cursor so the next load starts from page 1 again.
 
 ```ts title="threadListAdapter.ts (excerpt)"
 async list({ after } = {}) {
@@ -271,7 +271,7 @@ A few invariants worth knowing when wiring a custom UI on top of `loadMore()`:
       name: "list",
       type: "(params?: { after?: string }) => Promise<{ threads: RemoteThreadMetadata[]; nextCursor?: string }>",
       description:
-        "Hydrate threads on mount. Each thread must include status and remoteId; title, externalId, and custom are optional. Return a `nextCursor` to enable `aui.threads().loadMore()`; the runtime will pass it back as `params.after` on the next call.",
+        "Hydrate threads on mount. Each thread must include status and remoteId; title, externalId, and custom are optional. Return a `nextCursor` to enable `aui.threads.loadMore()`; the runtime will pass it back as `params.after` on the next call.",
       required: true,
     },
     {
@@ -291,7 +291,7 @@ A few invariants worth knowing when wiring a custom UI on top of `loadMore()`:
       name: "updateCustom",
       type: "(remoteId: string, custom: Record<string, unknown> | undefined) => Promise<void>",
       description:
-        "Optional. Persist replacement custom metadata from `aui.threadListItem().updateCustom(custom)`.",
+        "Optional. Persist replacement custom metadata from `aui.threadListItem.updateCustom(custom)`.",
     },
     {
       name: "archive",
@@ -361,7 +361,7 @@ function ThreadListItemMeta() {
 }
 ```
 
-`custom` is preserved across `rename`, `archive`, `unarchive`, and `generateTitle`. To replace it from your UI, implement `RemoteThreadListAdapter.updateCustom` and call `aui.threadListItem().updateCustom(custom)`. The cloud adapter persists this through `cloud.threads.update(threadId, { metadata })`. If your adapter mutates thread metadata through a separate application path, return the updated values from `fetch()` or call `aui.threads().reload()` to re-run `list()`.
+`custom` is preserved across `rename`, `archive`, `unarchive`, and `generateTitle`. To replace it from your UI, implement `RemoteThreadListAdapter.updateCustom` and call `aui.threadListItem.updateCustom(custom)`. The cloud adapter persists this through `cloud.threads.update(threadId, { metadata })`. If your adapter mutates thread metadata through a separate application path, return the updated values from `fetch()` or call `aui.threads.reload()` to re-run `list()`.
 
 ## ExternalStoreThreadListAdapter
 

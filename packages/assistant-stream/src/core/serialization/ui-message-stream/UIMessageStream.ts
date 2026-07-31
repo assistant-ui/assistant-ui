@@ -1,3 +1,4 @@
+import sjson from "secure-json-parse";
 import type { AssistantStreamChunk } from "../../AssistantStreamChunk";
 import type { ToolCallStreamController } from "../../modules/tool-call";
 import type { TextStreamController } from "../../modules/text";
@@ -149,6 +150,9 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
                   `Encountered tool result with unknown id: ${chunk.toolCallId}`,
                 );
               }
+              if (toolCallController.argsText === activeToolCallArgsText) {
+                activeToolCallArgsText = undefined;
+              }
               toolCallController.setResponse({
                 result: chunk.result,
                 isError: chunk.isError ?? false,
@@ -222,7 +226,23 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
                 return;
               }
 
-              const chunk = JSON.parse(event.data);
+              let chunk;
+              try {
+                chunk = sjson.parse(event.data);
+              } catch {
+                chunk = undefined;
+              }
+              if (
+                typeof chunk !== "object" ||
+                chunk === null ||
+                Array.isArray(chunk) ||
+                typeof chunk.type !== "string"
+              ) {
+                console.warn(
+                  `Dropped invalid UIMessageStream chunk: ${event.data.slice(0, 200)}`,
+                );
+                return;
+              }
               if (
                 chunk.type === "text-delta" &&
                 chunk.textDelta === undefined

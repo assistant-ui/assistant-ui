@@ -6,7 +6,7 @@ export const useMessageReload = () => {
   const canReload = useAuiState((s) => s.message.role === "assistant");
 
   const reload = useCallback(() => {
-    aui.message().reload();
+    aui.message.reload();
   }, [aui]);
 
   return { reload, canReload };

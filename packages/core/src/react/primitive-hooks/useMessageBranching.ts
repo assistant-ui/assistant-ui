@@ -7,11 +7,11 @@ export const useMessageBranching = () => {
   const branchCount = useAuiState((s) => s.message.branchCount);
 
   const goToPrev = useCallback(() => {
-    aui.message().switchToBranch({ position: "previous" });
+    aui.message.switchToBranch({ position: "previous" });
   }, [aui]);
 
   const goToNext = useCallback(() => {
-    aui.message().switchToBranch({ position: "next" });
+    aui.message.switchToBranch({ position: "next" });
   }, [aui]);
 
   return { branchNumber, branchCount, goToPrev, goToNext };

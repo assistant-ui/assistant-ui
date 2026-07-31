@@ -1,12 +1,13 @@
-import type { ReactNode } from "react";
+import { type ReactNode, useLayoutEffect, useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render } from "ink-testing-library";
 import { Text } from "ink";
 
 const hoisted = vi.hoisted(() => ({
-  state: { messagesLength: 0 },
+  state: { messagesLength: 0, mainThreadId: "t-default" },
   capturedIndices: [] as number[],
   staticItemCounts: [] as number[],
+  emittedStaticItems: [] as unknown[],
   tailItemCounts: [] as number[],
 }));
 
@@ -14,6 +15,7 @@ vi.mock("ink", async (importOriginal) => {
   const actual = await importOriginal<typeof import("ink")>();
   return {
     ...actual,
+    // Mirrors Ink's real emit-once cursor so remount/shrink semantics match.
     Static: <T,>({
       items,
       children,
@@ -21,8 +23,14 @@ vi.mock("ink", async (importOriginal) => {
       items: readonly T[];
       children: (item: T, index: number) => ReactNode;
     }) => {
+      const [index, setIndex] = useState(0);
+      const newItems = items.slice(index);
+      useLayoutEffect(() => {
+        setIndex(items.length);
+      }, [items.length]);
       hoisted.staticItemCounts.push(items.length);
-      return <>{items.map((item, i) => children(item, i))}</>;
+      hoisted.emittedStaticItems.push(...newItems);
+      return <>{newItems.map((item, i) => children(item, index + i))}</>;
     },
   };
 });
@@ -34,6 +42,7 @@ vi.mock("@assistant-ui/store", async (importOriginal) => {
     useAuiState: (selector: (s: unknown) => unknown) => {
       const state = {
         thread: { messages: { length: hoisted.state.messagesLength } },
+        threads: { mainThreadId: hoisted.state.mainThreadId },
         message: {
           role: "user" as const,
           composer: { isEditing: false },
@@ -72,8 +81,10 @@ import { ThreadPrimitive } from "../../index";
 
 beforeEach(() => {
   hoisted.state.messagesLength = 0;
+  hoisted.state.mainThreadId = "t-default";
   hoisted.capturedIndices = [];
   hoisted.staticItemCounts = [];
+  hoisted.emittedStaticItems = [];
   hoisted.tailItemCounts = [];
 });
 
@@ -203,6 +214,53 @@ describe("ThreadPrimitive.Messages", () => {
     );
 
     expect(hoisted.capturedIndices).toEqual([0, 1, 2, 3]);
+  });
+
+  it("re-emits the new thread's Static prefix on thread switch", () => {
+    hoisted.state.messagesLength = 20;
+    hoisted.state.mainThreadId = "thread-a";
+    const stableRender = () => <Text>m</Text>;
+
+    const instance = render(
+      <ThreadPrimitive.Messages windowSize={3} windowOverscan={4}>
+        {stableRender}
+      </ThreadPrimitive.Messages>,
+    );
+    expect(hoisted.emittedStaticItems).toEqual(
+      Array.from({ length: 13 }, (_, i) => i),
+    );
+
+    hoisted.state.mainThreadId = "thread-b";
+    instance.rerender(
+      <ThreadPrimitive.Messages windowSize={3} windowOverscan={4}>
+        {stableRender}
+      </ThreadPrimitive.Messages>,
+    );
+    expect(hoisted.emittedStaticItems.slice(13)).toEqual(
+      Array.from({ length: 13 }, (_, i) => i),
+    );
+  });
+
+  it("emits only newly graduated Static rows when the same thread grows", () => {
+    hoisted.state.messagesLength = 20;
+    const stableRender = () => <Text>m</Text>;
+
+    const instance = render(
+      <ThreadPrimitive.Messages windowSize={3} windowOverscan={4}>
+        {stableRender}
+      </ThreadPrimitive.Messages>,
+    );
+    expect(hoisted.emittedStaticItems).toEqual(
+      Array.from({ length: 13 }, (_, i) => i),
+    );
+
+    hoisted.state.messagesLength = 22;
+    instance.rerender(
+      <ThreadPrimitive.Messages windowSize={3} windowOverscan={4}>
+        {stableRender}
+      </ThreadPrimitive.Messages>,
+    );
+    expect(hoisted.emittedStaticItems.slice(13)).toEqual([13, 14]);
   });
 
   it("does not re-render messages when an inline components literal is passed", () => {

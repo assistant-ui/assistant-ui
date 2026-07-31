@@ -157,12 +157,7 @@ export function buildAlertBlock(
   text: string,
   tone: "info" | "success" | "warning" | "danger",
 ): SlackAlertBlock {
-  const level = {
-    info: "info",
-    success: "success",
-    warning: "warning",
-    danger: "error",
-  }[tone] as const;
+  const level = tone === "danger" ? "error" : tone;
   return { type: "alert", text: { type: "mrkdwn", text }, level };
 }
 

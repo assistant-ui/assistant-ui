@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 
 import { act, renderHook } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { UseThreadsResult } from "../types";
+import { CloudChatCore } from "../core/CloudChatCore";
 import { useCloudChat } from "./useCloudChat";
 
 function createThreads(
@@ -28,6 +29,10 @@ function createThreads(
 }
 
 describe("useCloudChat thread switching", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it("resets visible chat messages immediately when switching to new chat (threadId -> null)", () => {
     const mockCloud = {
       threads: {
@@ -59,5 +64,47 @@ describe("useCloudChat thread switching", () => {
     rerender({ tid: null });
 
     expect(result.current.messages).toHaveLength(0);
+  });
+
+  it("retries an interrupted history load when switching back to a thread", () => {
+    const interruptedLoad = new Promise<void>(() => {});
+    let threadALoads = 0;
+    const loadThreadMessages = vi
+      .spyOn(CloudChatCore.prototype, "loadThreadMessages")
+      .mockImplementation((threadId) => {
+        if (threadId === "thread-a") {
+          threadALoads += 1;
+          if (threadALoads === 1) return interruptedLoad;
+        }
+        return Promise.resolve();
+      });
+
+    const mockCloud = {
+      threads: {
+        create: vi.fn(),
+        list: vi.fn(),
+        get: vi.fn(),
+        delete: vi.fn(),
+        update: vi.fn(),
+      },
+    };
+    const threads = createThreads(mockCloud, "thread-a");
+
+    const { rerender } = renderHook(
+      ({ tid }) => {
+        threads.threadId = tid;
+        return useCloudChat({ threads });
+      },
+      { initialProps: { tid: "thread-a" as string | null } },
+    );
+
+    rerender({ tid: "thread-b" });
+    rerender({ tid: "thread-a" });
+
+    expect(
+      loadThreadMessages.mock.calls.filter(
+        ([threadId]) => threadId === "thread-a",
+      ),
+    ).toHaveLength(2);
   });
 });

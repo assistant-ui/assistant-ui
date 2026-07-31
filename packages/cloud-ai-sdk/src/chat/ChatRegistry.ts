@@ -7,7 +7,11 @@ export class ChatRegistry {
   private metaByKey = new Map<string, ChatMeta>();
   private keyByThreadId = new Map<string, string>();
 
-  constructor(private createChatFn: (chatKey: string) => Chat<UIMessage>) {}
+  private createChatFn: (chatKey: string) => Chat<UIMessage>;
+
+  constructor(createChatFn: (chatKey: string) => Chat<UIMessage>) {
+    this.createChatFn = createChatFn;
+  }
 
   getOrCreate(chatKey: string, threadId?: string | null): Chat<UIMessage> {
     const existing = this.chatByKey.get(chatKey);

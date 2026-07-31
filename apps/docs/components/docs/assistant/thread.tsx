@@ -63,14 +63,14 @@ function PendingMessageHandler() {
       ...(pathname ? { pathname } : {}),
       ...(() => {
         try {
-          const modelName = aui.thread().getModelContext()?.config?.modelName;
+          const modelName = aui.thread.getModelContext()?.config?.modelName;
           return modelName ? { model_name: modelName } : {};
         } catch {
           return {};
         }
       })(),
     });
-    aui.thread().append(pendingMessage);
+    aui.thread.append(pendingMessage);
   }, [pendingMessage, clearPendingMessage, aui, isRunning, threadId, pathname]);
 
   return null;
@@ -165,8 +165,8 @@ function PanelHeader(): React.ReactNode {
               variant="ghost"
               size="icon-sm"
               onClick={() => {
-                const modelName = aui.thread().getModelContext()
-                  ?.config?.modelName;
+                const modelName =
+                  aui.thread.getModelContext()?.config?.modelName;
                 analytics.assistant.newThreadClicked({
                   threadId,
                   previous_message_count: messages.length,
@@ -175,7 +175,7 @@ function PanelHeader(): React.ReactNode {
                   ...(pathname ? { pathname } : {}),
                   ...(modelName ? { model_name: modelName } : {}),
                 });
-                aui.threads().switchToNewThread();
+                aui.threads.switchToNewThread();
               }}
               aria-label="New chat"
             >

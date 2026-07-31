@@ -24,21 +24,27 @@ const useComposerAddAttachment = ({
     input.multiple = multiple;
     input.hidden = true;
 
-    const attachmentAccept = aui.composer().getState().attachmentAccept;
+    const attachmentAccept = aui.composer.getState().attachmentAccept;
     if (attachmentAccept !== "*") {
       input.accept = attachmentAccept;
     }
 
     document.body.appendChild(input);
 
-    input.onchange = (e) => {
+    input.onchange = async (e) => {
       const fileList = (e.target as HTMLInputElement).files;
       if (!fileList) return;
-      for (const file of fileList) {
-        addAttachment(file);
-      }
+
+      const attachmentPromises = Array.from(fileList, async (file) => {
+        try {
+          await addAttachment(file);
+        } catch {
+          // The composer runtime emits composer.attachmentAddError before rejecting.
+        }
+      });
 
       document.body.removeChild(input);
+      await Promise.all(attachmentPromises);
     };
 
     input.oncancel = () => {

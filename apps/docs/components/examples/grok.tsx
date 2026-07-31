@@ -29,6 +29,7 @@ import {
 import { useEffect, useState, type FC } from "react";
 import { useShallow } from "zustand/shallow";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
+import { CloneThreadShell } from "./clone-thread-shell";
 import { GrokIcon } from "@/components/icons/grok";
 import {
   DropdownMenu,
@@ -40,26 +41,28 @@ import {
 
 export const Grok: FC = () => {
   return (
-    <ThreadPrimitive.Root className="flex h-full flex-col items-stretch bg-[#fdfdfd] px-4 dark:bg-[#141414]">
-      <AuiIf condition={(s) => s.thread.isEmpty}>
-        <div className="flex h-full flex-col items-center justify-center">
-          <GrokIcon className="mb-6 h-10 text-[#0d0d0d] dark:text-white" />
-          <Composer />
-        </div>
-      </AuiIf>
+    <CloneThreadShell>
+      <ThreadPrimitive.Root className="flex h-full flex-col items-stretch bg-[#fdfdfd] px-4 dark:bg-[#141414]">
+        <AuiIf condition={(s) => s.thread.isEmpty}>
+          <div className="flex h-full flex-col items-center justify-center">
+            <GrokIcon className="mb-6 h-10 text-[#0d0d0d] dark:text-white" />
+            <Composer />
+          </div>
+        </AuiIf>
 
-      <AuiIf condition={(s) => s.thread.isEmpty === false}>
-        <ThreadPrimitive.Viewport className="flex grow flex-col overflow-y-scroll pt-16">
-          <ThreadPrimitive.Messages>
-            {() => <ChatMessage />}
-          </ThreadPrimitive.Messages>
-        </ThreadPrimitive.Viewport>
-        <Composer />
-        <p className="mx-auto w-full max-w-3xl pb-2 text-center text-xs text-[#9a9a9a]">
-          Grok can make mistakes. Verify important information.
-        </p>
-      </AuiIf>
-    </ThreadPrimitive.Root>
+        <AuiIf condition={(s) => s.thread.isEmpty === false}>
+          <ThreadPrimitive.Viewport className="flex grow flex-col overflow-y-scroll pt-16">
+            <ThreadPrimitive.Messages>
+              {() => <ChatMessage />}
+            </ThreadPrimitive.Messages>
+          </ThreadPrimitive.Viewport>
+          <Composer />
+          <p className="mx-auto w-full max-w-3xl pb-2 text-center text-xs text-[#9a9a9a]">
+            Grok can make mistakes. Verify important information.
+          </p>
+        </AuiIf>
+      </ThreadPrimitive.Root>
+    </CloneThreadShell>
   );
 };
 

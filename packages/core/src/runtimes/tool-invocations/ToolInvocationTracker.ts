@@ -35,34 +35,6 @@ export type AddToolResultCommand = {
   readonly modelContent?: readonly ToolModelContentPart[];
 };
 
-export type ToolInvocationTrackerSnapshot = {
-  readonly messages: readonly ThreadMessage[];
-  /** Whether the producing runtime is currently streaming new output. */
-  readonly isRunning: boolean;
-  /**
-   * Whether the producing runtime is still loading historical state.
-   * When `true`, every snapshot is treated as historical (no `streamCall` /
-   * `execute` fires). When `false`, processing resumes as live.
-   */
-  readonly isLoading?: boolean;
-};
-
-export type ToolInvocationTrackerCallbacks = {
-  /**
-   * Invoked when a client-side `execute()` returns a result and the runtime
-   * needs to feed it back into the conversation.
-   */
-  onResult: (command: AddToolResultCommand) => void;
-  /**
-   * Invoked whenever the per-tool-call status map changes (executing /
-   * interrupt / cleared). The callback receives a fresh map; mutating the
-   * argument is not supported.
-   */
-  onStatusesChange: (
-    statuses: ReadonlyMap<string, ToolExecutionStatus>,
-  ) => void;
-};
-
 type ToolCallEntry = {
   toolName: string;
   argsText: string;
@@ -123,10 +95,12 @@ const isEquivalentCompleteArgsText = (previous: string, next: string) => {
  * the hot message-processing path, so a malformed snapshot must never crash
  * the host runtime. See ./EDGE_CASES.md for the known non-trivial state
  * transitions and what each does today.
+ *
+ * @deprecated Internal — for framework bindings; not a public API. May change without notice.
  */
 export class ToolInvocationTracker {
   private readonly _getTools: () => Record<string, Tool> | undefined;
-  private readonly _callbacks: ToolInvocationTrackerCallbacks;
+  private readonly _callbacks: ToolInvocationTracker.Callbacks;
 
   private readonly _entries = new Map<string, ToolCallEntry>();
   /**
@@ -157,7 +131,7 @@ export class ToolInvocationTracker {
   private _pendingRestore = true;
 
   /** Cached last snapshot, used to skip processing on identical re-renders. */
-  private _lastSnapshot: ToolInvocationTrackerSnapshot | null = null;
+  private _lastSnapshot: ToolInvocationTracker.Snapshot | null = null;
   private _isRunning = false;
 
   private _controller!: ReturnType<typeof createAssistantStreamController>[1];
@@ -175,7 +149,7 @@ export class ToolInvocationTracker {
 
   constructor(
     getTools: () => Record<string, Tool> | undefined,
-    callbacks: ToolInvocationTrackerCallbacks,
+    callbacks: ToolInvocationTracker.Callbacks,
   ) {
     this._getTools = getTools;
     this._callbacks = callbacks;
@@ -235,7 +209,7 @@ export class ToolInvocationTracker {
    * Feed the next observed snapshot into the tracker. Called from the host
    * runtime whenever its message list / running state changes.
    */
-  public setState(snapshot: ToolInvocationTrackerSnapshot): void {
+  public setState(snapshot: ToolInvocationTracker.Snapshot): void {
     try {
       // Recover from a dead pipeline before processing anything. We demote
       // all active entries to "restored" so the rebuilt pipeline does not
@@ -687,14 +661,16 @@ export class ToolInvocationTracker {
     }
 
     if (!entry.argsComplete && entry.controller) {
+      // ToolExecutionStream parses the streamed prefix on close, so the close
+      // gates on the streamed content; a divergent snapshot (A.2) can be
+      // complete while the controller still holds an incomplete stale prefix.
       const shouldClose = this._shouldCloseArgsStream({
         toolName: content.toolName,
-        argsText: content.argsText,
+        argsText: entry.argsText,
         hasResult,
       });
       if (shouldClose) {
         entry.controller.argsText.close();
-        entry.argsText = content.argsText;
         entry.argsComplete = true;
       }
     }
@@ -779,4 +755,36 @@ export class ToolInvocationTracker {
       }
     }
   }
+}
+
+export namespace ToolInvocationTracker {
+  export type ExecutionStatus = ToolExecutionStatus;
+
+  export type Snapshot = {
+    readonly messages: readonly ThreadMessage[];
+    /** Whether the producing runtime is currently streaming new output. */
+    readonly isRunning: boolean;
+    /**
+     * Whether the producing runtime is still loading historical state.
+     * When `true`, every snapshot is treated as historical (no `streamCall` /
+     * `execute` fires). When `false`, processing resumes as live.
+     */
+    readonly isLoading?: boolean;
+  };
+
+  export type Callbacks = {
+    /**
+     * Invoked when a client-side `execute()` returns a result and the runtime
+     * needs to feed it back into the conversation.
+     */
+    onResult: (command: AddToolResultCommand) => void;
+    /**
+     * Invoked whenever the per-tool-call status map changes (executing /
+     * interrupt / cleared). The callback receives a fresh map; mutating the
+     * argument is not supported.
+     */
+    onStatusesChange: (
+      statuses: ReadonlyMap<string, ToolExecutionStatus>,
+    ) => void;
+  };
 }

@@ -59,9 +59,10 @@ function getToolResponse(
 
     // Create abort promise that resolves after 2 microtasks
     // This gives tools that handle abort a chance to win the race
+    let onAbort!: () => void;
     const abortPromise = new Promise<ToolResponse<ReadonlyJSONValue>>(
       (resolve) => {
-        const onAbort = () => {
+        onAbort = () => {
           queueMicrotask(() => {
             queueMicrotask(() => {
               resolve(
@@ -116,7 +117,11 @@ function getToolResponse(
       return response;
     })();
 
-    return Promise.race([executePromise, abortPromise]);
+    try {
+      return await Promise.race([executePromise, abortPromise]);
+    } finally {
+      abortSignal.removeEventListener("abort", onAbort);
+    }
   };
 
   return getResult(tool.execute);

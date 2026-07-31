@@ -118,7 +118,7 @@ const joinExternalMessages = (
         const toolCall = assistantMessage.content[
           toolCallIdx
         ]! as ToolCallMessagePart;
-        if (output.toolName !== undefined) {
+        if (output.toolName != null) {
           if (toolCall.toolName !== output.toolName)
             throw new Error(
               `Tool call name ${output.toolCallId} ${output.toolName} does not match existing tool call ${toolCall.toolName}`,
@@ -170,7 +170,7 @@ const joinExternalMessages = (
 
             if (output.metadata) {
               assistantMessage.metadata ??= {};
-              if (output.metadata.unstable_state) {
+              if (output.metadata.unstable_state !== undefined) {
                 assistantMessage.metadata.unstable_state =
                   output.metadata.unstable_state;
               }

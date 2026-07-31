@@ -82,8 +82,6 @@ export const useAssistantForm = <
   const aui = useAui();
   useEffect(() => {
     const value: ModelContext = {
-      system: `Form State:\n${JSON.stringify(getValues())}`,
-
       tools: {
         set_form_field: tool({
           ...formTools.set_form_field,
@@ -141,27 +139,31 @@ export const useAssistantForm = <
         }),
       },
     };
-    return aui.modelContext().register({
-      getModelContext: () => value,
+
+    return aui.modelContext.register({
+      getModelContext: () => ({
+        ...value,
+        system: `Form State:\n${JSON.stringify(getValues())}`,
+      }),
     });
   }, [control, setValue, getValues, aui, reset, isSubmitting]);
 
   const renderFormFieldTool = props?.assistant?.tools?.set_form_field?.render;
   useEffect(() => {
     if (!renderFormFieldTool) return undefined;
-    return aui.tools().setToolUI("set_form_field", renderFormFieldTool);
+    return aui.tools.setToolUI("set_form_field", renderFormFieldTool);
   }, [aui, renderFormFieldTool]);
 
   const renderSubmitFormTool = props?.assistant?.tools?.submit_form?.render;
   useEffect(() => {
     if (!renderSubmitFormTool) return undefined;
-    return aui.tools().setToolUI("submit_form", renderSubmitFormTool);
+    return aui.tools.setToolUI("submit_form", renderSubmitFormTool);
   }, [aui, renderSubmitFormTool]);
 
   const renderResetFormTool = props?.assistant?.tools?.reset_form?.render;
   useEffect(() => {
     if (!renderResetFormTool) return undefined;
-    return aui.tools().setToolUI("reset_form", renderResetFormTool);
+    return aui.tools.setToolUI("reset_form", renderResetFormTool);
   }, [aui, renderResetFormTool]);
 
   return form;

@@ -9,6 +9,10 @@ from assistant_stream.assistant_stream_chunk import (
     DataChunk,
     ErrorChunk,
     SourceChunk,
+    FileChunk,
+    AnnotationsChunk,
+    StepStartChunk,
+    StepFinishChunk,
     ToolCallBeginChunk,
 )
 from assistant_stream.modules.tool_call import (
@@ -47,7 +51,7 @@ class RunController:
 
     def with_parent_id(self, parent_id: str) -> 'RunController':
         """Create a new RunController instance with the specified parent_id."""
-        controller = RunController(self._queue, self._state_manager._state_data, parent_id)
+        controller = RunController(self._queue, self._state_manager.state_data, parent_id)
         controller._loop = self._loop
         controller._dispose_callbacks = self._dispose_callbacks
         controller._stream_tasks = self._stream_tasks
@@ -120,6 +124,41 @@ class RunController:
             url=url,
             title=title,
             parent_id=self._parent_id
+        )
+        self._flush_and_put_chunk(chunk)
+
+    def add_file(self, data: str, mime_type: str) -> None:
+        """Add a file to the stream."""
+        chunk = FileChunk(
+            data=data,
+            mime_type=mime_type,
+            parent_id=self._parent_id,
+        )
+        self._flush_and_put_chunk(chunk)
+
+    def add_annotations(self, annotations: List[Any]) -> None:
+        """Add annotations to the stream."""
+        chunk = AnnotationsChunk(annotations=annotations)
+        self._flush_and_put_chunk(chunk)
+
+    def add_step_start(self, message_id: str) -> None:
+        """Start a model generation step."""
+        chunk = StepStartChunk(message_id=message_id)
+        self._flush_and_put_chunk(chunk)
+
+    def add_step_finish(
+        self,
+        finish_reason: str,
+        input_tokens: int = 0,
+        output_tokens: int = 0,
+        is_continued: bool = False,
+    ) -> None:
+        """Finish a model generation step and report usage for that step."""
+        chunk = StepFinishChunk(
+            finish_reason=finish_reason,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            is_continued=is_continued,
         )
         self._flush_and_put_chunk(chunk)
 

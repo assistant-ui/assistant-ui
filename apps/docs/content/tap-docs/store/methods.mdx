@@ -55,18 +55,17 @@ Call `useAui()` with no arguments inside any `AuiProvider` to get the current st
 const aui = useAui();
 ```
 
-The returned object has a property for every scope available in the current context. Crucially, `useAui()` does **not** re-render your component when scopes change: it returns a stable reference. The actual scope is only resolved when you call `aui.counter()`.
+The returned client has an accessor for every scope available in the current context. The client is immutable: state updates never change its identity, while a structural change (a scope resolving to a different instance) produces a new client and re-renders consumers through React.
 
-## Scope resolution
+## Scope accessors
 
-`aui.counter` is not the scope itself, it's an accessor. The scope resolves when you call it:
+`aui.counter` is the scope accessor: it exposes the scope's methods plus `source`/`query`/`name` metadata. Its identity is stable per scope binding and changes when the binding changes:
 
 ```tsx
-// resolves the counter scope, returns its methods
-aui.counter().increment();
+aui.counter.increment();
 ```
 
-This distinction matters. The `aui` object is stable across re-renders and scope changes. When a derived scope switches which item it points to, `aui` stays the same, but `aui.counter()` returns the new scope's methods. This is why you should always resolve at the point of use:
+When a derived scope switches which item it points to, the component re-renders with a new client and a new accessor. Access scopes at the point of use:
 
 ```tsx
 const MessageActions = () => {
@@ -76,58 +75,47 @@ const MessageActions = () => {
     <button
       onClick={() => {
         // resolves at click time, always gets the current scope
-        aui.message().reload();
-        aui.thread().cancelRun();
+        aui.message.reload();
+        aui.thread.cancelRun();
       }}
     />
   );
 };
 ```
 
-### Don't resolve during render
+### Don't read state during render
 
-Because `useAui()` doesn't subscribe to scope changes, resolving during render gives you a snapshot that can go stale. Use `useAuiState` to read state during render instead.
+`aui.counter.getState()` returns a snapshot without subscribing, so render output built from it goes stale. Use `useAuiState` to read state during render instead.
 
 ```tsx
 const Counter = () => {
   const aui = useAui();
 
-  // ❌ Don't resolve during render
-  const count = aui.counter().getState().count;
+  // ❌ Don't read state during render
+  const count = aui.counter.getState().count;
 
   // ✅ Use useAuiState for render-time reads
   const count = useAuiState((s) => s.counter.count);
 
-  // ✅ Resolve in event handlers, effects, or callbacks
-  const handleClick = () => aui.counter().increment();
+  // ✅ Read in event handlers, effects, or callbacks
+  const handleClick = () => aui.counter.increment();
 };
-```
-
-For the same reason, avoid storing a resolved scope in a variable during render:
-
-```tsx
-// ❌ Resolves during render, can go stale
-const counter = aui.counter();
-const handleClick = () => counter.increment();
-
-// ✅ Resolves at call time, always current
-const handleClick = () => aui.counter().increment();
 ```
 
 ## Checking if a scope exists
 
-Calling `aui.counter()` throws if the `counter` scope hasn't been provided by any `AuiProvider` above. To safely check, inspect the accessor's `source` property:
+Accessing `aui.counter` never throws, and the accessor is always truthy — `if (aui.counter)` does not tell you anything. When the scope hasn't been provided by any `AuiProvider` above, the accessor still answers `source` (`null`), `query`, and `name`; calling it or reading any other property throws. Check `source`:
 
 ```tsx
 const aui = useAui();
 
-if (aui.counter.source !== null) {
-  // safe to call
-  aui.counter().increment();
+if (aui.counter.source != null) {
+  // safe to use
+  aui.counter.increment();
 }
 ```
 
-`source` is `null` when the scope isn't available. Any other value (`"root"`, a parent scope name) means it's safe to resolve.
+`source` is `null` when the scope isn't available. Any other value (`"root"`, a parent scope name) means the scope is bound.
 
 ## Subscribing to scope identity
 
@@ -137,10 +125,10 @@ This is an advanced pattern. In the entire assistant-ui codebase, there are only
 
 Sometimes you need to know when the scope itself changes, for example to register/unregister with an external system when a derived scope switches to a different item.
 
-Since `useAui()` doesn't re-render on scope changes, you need to opt in explicitly. Use `useAuiState` to subscribe to the scope identity:
+Use `useAuiState` to subscribe to the scope identity:
 
 ```tsx
-const thread = useAuiState(() => aui.thread());
+const thread = useAuiState(() => aui.thread);
 
 useEffect(() => {
   analytics.register(thread);
@@ -148,4 +136,4 @@ useEffect(() => {
 }, [thread]);
 ```
 
-`aui.thread()` returns a stable methods object per scope instance. When a derived scope switches which thread it points to, `useAuiState` detects the new reference and re-renders, triggering the effect cleanup and re-registration.
+`aui.thread` is a stable accessor per scope binding. When a derived scope switches which thread it points to, `useAuiState` detects the new accessor and re-renders, triggering the effect cleanup and re-registration.

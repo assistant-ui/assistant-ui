@@ -112,7 +112,7 @@ function MyComponent() {
 
   useEffect(() => {
     // Register context provider
-    return aui.modelContext().register({
+    return aui.modelContext.register({
       getModelContext: () => ({
         system: "You are a helpful search assistant...",
         tools: { myTool },

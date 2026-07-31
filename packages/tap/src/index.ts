@@ -9,14 +9,15 @@ export { flushTapSync } from "./core/scheduler";
 export { useContextProvider } from "./core/context";
 
 // hooks
+import { useMemoCache as useMemoCacheInternal } from "./react-hooks/useMemoCache";
+/**
+ * @deprecated Internal API kept for older @assistant-ui/store versions; do not use.
+ */
+export const useMemoCache = useMemoCacheInternal;
 export { useResource } from "./hooks/useResource";
 export { useResources } from "./hooks/useResources";
 export { useTapRoot } from "./hooks/useTapRoot";
 export { useTapHost } from "./hooks/useTapHost";
 
 // types
-export type {
-  Resource,
-  ContravariantResource,
-  ResourceElement,
-} from "./core/types";
+export type { Resource, ResourceElement } from "./core/types";

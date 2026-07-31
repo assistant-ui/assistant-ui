@@ -26,6 +26,7 @@ import {
   KEY_BACKSPACE_COMMAND,
   KEY_ENTER_COMMAND,
   KEY_ESCAPE_COMMAND,
+  KEY_TAB_COMMAND,
 } from "lexical";
 import { mergeRegister } from "@lexical/utils";
 import { useAui, useAuiState } from "@assistant-ui/store";
@@ -96,7 +97,7 @@ function KeyboardPlugin({
 
           if (submitMode === "none") return false;
 
-          const isRunning = aui.thread().getState().isRunning;
+          const isRunning = aui.thread.getState().isRunning;
           if (isRunning) return false;
 
           let shouldSubmit = false;
@@ -108,7 +109,7 @@ function KeyboardPlugin({
 
           if (shouldSubmit) {
             event.preventDefault();
-            aui.composer().send();
+            aui.composer.send();
             return true;
           }
 
@@ -123,7 +124,7 @@ function KeyboardPlugin({
           if (event && delegateToPlugins(event)) return true;
 
           if (!cancelOnEscape) return false;
-          const composer = aui.composer();
+          const composer = aui.composer;
           if (composer.getState().canCancel) {
             composer.cancel();
             event?.preventDefault();
@@ -154,6 +155,15 @@ function KeyboardPlugin({
 
       editor.registerCommand(
         KEY_BACKSPACE_COMMAND,
+        (event) => {
+          if (event && delegateToPlugins(event)) return true;
+          return false;
+        },
+        COMMAND_PRIORITY_HIGH,
+      ),
+
+      editor.registerCommand(
+        KEY_TAB_COMMAND,
         (event) => {
           if (event && delegateToPlugins(event)) return true;
           return false;

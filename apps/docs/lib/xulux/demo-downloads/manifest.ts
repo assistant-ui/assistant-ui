@@ -65,15 +65,27 @@ const BASE_EXTRA_SOURCE_FILES = [
   "packages/ui/src/components/assistant-ui/select.tsx",
   "packages/ui/src/components/assistant-ui/thread-list.tsx",
   "packages/ui/src/components/assistant-ui/tool-group.tsx",
-  "packages/ui/src/components/ui/radix/avatar.tsx",
-  "packages/ui/src/components/ui/radix/button.tsx",
-  "packages/ui/src/components/ui/radix/collapsible.tsx",
-  "packages/ui/src/components/ui/radix/command.tsx",
-  "packages/ui/src/components/ui/radix/dialog.tsx",
-  "packages/ui/src/components/ui/radix/popover.tsx",
-  "packages/ui/src/components/ui/radix/sheet.tsx",
-  "packages/ui/src/components/ui/radix/skeleton.tsx",
-  "packages/ui/src/components/ui/radix/tooltip.tsx",
+  "packages/ui/src/components/ui/base/avatar.tsx",
+  "packages/ui/src/components/ui/base/button.tsx",
+  "packages/ui/src/components/ui/base/collapsible.tsx",
+  "packages/ui/src/components/ui/base/command.tsx",
+  "packages/ui/src/components/ui/base/dialog.tsx",
+  "packages/ui/src/components/ui/base/input.tsx",
+  "packages/ui/src/components/ui/base/popover.tsx",
+  "packages/ui/src/components/ui/base/sheet.tsx",
+  "packages/ui/src/components/ui/base/skeleton.tsx",
+  "packages/ui/src/components/ui/base/tooltip.tsx",
+  "apps/docs/components/examples/clone-thread-shell.tsx",
+] as const;
+
+const CLONE_SIDEBAR_SOURCE_FILES = [
+  "apps/docs/components/examples/clone-thread-shell.tsx",
+  "packages/ui/src/components/assistant-ui/thread-list.tsx",
+  "packages/ui/src/components/ui/base/button.tsx",
+  "packages/ui/src/components/ui/base/input.tsx",
+  "packages/ui/src/components/ui/base/sheet.tsx",
+  "packages/ui/src/components/ui/base/skeleton.tsx",
+  "packages/ui/src/components/ui/base/tooltip.tsx",
 ] as const;
 
 export const DEMO_DOWNLOAD_MANIFESTS: Record<
@@ -117,7 +129,10 @@ export const DEMO_DOWNLOAD_MANIFESTS: Record<
     tags: ["assistant-ui", "ChatGPT", "clone", "chat"],
     gradient: "from-emerald-500/35 via-zinc-400/25 to-neutral-300/20",
     featured: true,
-    extraSourceFiles: [...COMMON_EXTRA_SOURCE_FILES],
+    extraSourceFiles: [
+      ...COMMON_EXTRA_SOURCE_FILES,
+      ...CLONE_SIDEBAR_SOURCE_FILES,
+    ],
   },
   claude: {
     slug: "claude",
@@ -134,7 +149,10 @@ export const DEMO_DOWNLOAD_MANIFESTS: Record<
     componentName: "Claude",
     tags: ["assistant-ui", "Claude", "clone", "chat"],
     gradient: "from-orange-400/35 via-stone-300/25 to-zinc-200/20",
-    extraSourceFiles: [...COMMON_EXTRA_SOURCE_FILES],
+    extraSourceFiles: [
+      ...COMMON_EXTRA_SOURCE_FILES,
+      ...CLONE_SIDEBAR_SOURCE_FILES,
+    ],
   },
   grok: {
     slug: "grok",
@@ -153,6 +171,7 @@ export const DEMO_DOWNLOAD_MANIFESTS: Record<
     gradient: "from-neutral-700/35 via-zinc-500/25 to-cyan-300/20",
     extraSourceFiles: [
       ...COMMON_EXTRA_SOURCE_FILES,
+      ...CLONE_SIDEBAR_SOURCE_FILES,
       "apps/docs/components/icons/grok.tsx",
     ],
   },
@@ -171,7 +190,10 @@ export const DEMO_DOWNLOAD_MANIFESTS: Record<
     componentName: "Gemini",
     tags: ["assistant-ui", "Gemini", "clone", "chat"],
     gradient: "from-blue-500/35 via-sky-300/25 to-rose-300/20",
-    extraSourceFiles: [...COMMON_EXTRA_SOURCE_FILES],
+    extraSourceFiles: [
+      ...COMMON_EXTRA_SOURCE_FILES,
+      ...CLONE_SIDEBAR_SOURCE_FILES,
+    ],
   },
   perplexity: {
     slug: "perplexity",
@@ -189,7 +211,10 @@ export const DEMO_DOWNLOAD_MANIFESTS: Record<
     tags: ["assistant-ui", "Perplexity", "clone", "search"],
     gradient: "from-teal-500/35 via-cyan-300/25 to-zinc-200/20",
     featured: true,
-    extraSourceFiles: [...COMMON_EXTRA_SOURCE_FILES],
+    extraSourceFiles: [
+      ...COMMON_EXTRA_SOURCE_FILES,
+      ...CLONE_SIDEBAR_SOURCE_FILES,
+    ],
   },
   "react-ink": {
     slug: "react-ink",

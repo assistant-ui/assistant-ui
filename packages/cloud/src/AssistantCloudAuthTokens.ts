@@ -5,7 +5,11 @@ type AssistantCloudAuthTokensCreateResponse = {
 };
 
 export class AssistantCloudAuthTokens {
-  constructor(private cloud: AssistantCloudAPI) {}
+  private cloud: AssistantCloudAPI;
+
+  constructor(cloud: AssistantCloudAPI) {
+    this.cloud = cloud;
+  }
 
   public async create(): Promise<AssistantCloudAuthTokensCreateResponse> {
     return this.cloud.makeRequest("/auth/tokens", { method: "POST" });

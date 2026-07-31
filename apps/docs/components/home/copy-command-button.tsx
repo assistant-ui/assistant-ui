@@ -2,7 +2,7 @@
 
 import { analytics, type AnalyticsProperties } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
-import { CheckIcon, CopyIcon, SparklesIcon, TerminalIcon } from "lucide-react";
+import { BotIcon, CheckIcon, CopyIcon, TerminalIcon } from "lucide-react";
 import { useState } from "react";
 import { Menu } from "@base-ui/react/menu";
 import {
@@ -93,7 +93,7 @@ export function CopyCommandButton({
           Copy CLI command
         </DropdownMenuItem>
         <DropdownMenuItem onClick={copyPrompt}>
-          <SparklesIcon className="size-3.5" />
+          <BotIcon className="size-3.5" />
           Copy coding agent prompt
         </DropdownMenuItem>
       </DropdownMenuContent>

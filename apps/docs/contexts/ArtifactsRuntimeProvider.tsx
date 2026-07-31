@@ -7,7 +7,6 @@ import {
   AssistantCloud,
   useAui,
   Tools,
-  AuiProvider,
   type Toolkit,
 } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
@@ -64,12 +63,10 @@ export function ArtifactsRuntimeProvider({
   });
 
   return (
-    <AuiProvider value={aui}>
-      <AssistantRuntimeProvider runtime={runtime}>
-        {children}
+    <AssistantRuntimeProvider runtime={runtime} aui={aui}>
+      {children}
 
-        <DevToolsModal />
-      </AssistantRuntimeProvider>
-    </AuiProvider>
+      <DevToolsModal />
+    </AssistantRuntimeProvider>
   );
 }

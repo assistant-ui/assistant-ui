@@ -5,7 +5,7 @@ import { Text } from "ink";
 const setQuote = vi.fn();
 
 const mockUseAui = vi.fn(() => ({
-  composer: () => ({ setQuote }),
+  composer: { setQuote },
 }));
 const mockUseAuiState = vi.fn();
 

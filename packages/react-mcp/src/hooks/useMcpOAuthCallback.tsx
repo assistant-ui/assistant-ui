@@ -69,7 +69,7 @@ export function useMcpOAuthCallback(
           throw new Error("state was not created by assistant-ui MCP");
         }
         setResult({ status: "running", serverId, error: null });
-        await aui.mcp().server({ id: serverId }).completeAuth(url);
+        await aui.mcp.server({ id: serverId }).completeAuth(url);
         setResult({ status: "done", serverId, error: null });
         optsRef.current.onComplete?.(serverId);
       } catch (err) {

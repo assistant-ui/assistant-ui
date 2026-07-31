@@ -5,7 +5,6 @@ import { act, render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AuiProvider } from "../utils/react-assistant-context";
 import { RenderChildrenWithAccessor } from "../RenderChildrenWithAccessor";
-import { PROXIED_ASSISTANT_STATE_SYMBOL } from "../utils/proxied-assistant-state";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -20,17 +19,12 @@ const createTestAuiClient = () => {
     isEditing: false,
   };
 
-  const proxiedState = {
-    item: itemState,
-  };
-
   const client = {
     subscribe: (listener: Listener) => {
       listeners.add(listener);
       return () => listeners.delete(listener);
     },
     on: () => () => {},
-    [PROXIED_ASSISTANT_STATE_SYMBOL]: proxiedState,
   } as const;
 
   return {
@@ -38,14 +32,13 @@ const createTestAuiClient = () => {
     getItemState: () => itemState,
     update: (next: Partial<typeof itemState>) => {
       itemState = { ...itemState, ...next };
-      proxiedState.item = itemState;
       listeners.forEach((listener) => listener());
     },
   };
 };
 
 describe("RenderChildrenWithAccessor", () => {
-  it("re-renders when accessed state updates (regression: issue #3838)", () => {
+  it("re-renders when accessed state updates", () => {
     const testClient = createTestAuiClient();
     const wrapper = ({ children }: { children: ReactNode }) => (
       <AuiProvider value={testClient.client as never}>{children}</AuiProvider>

@@ -29,7 +29,7 @@ export const McpServerPrimitiveConnectButton = forwardRef<
       onClick={(e) => {
         props.onClick?.(e);
         if (e.defaultPrevented) return;
-        void aui.mcpServer().connect();
+        void aui.mcpServer.connect();
       }}
     />
   );

@@ -2,6 +2,7 @@ export { useAgUiRuntime } from "./useAgUiRuntime";
 export type { AgUiAssistantRuntime } from "./useAgUiRuntime";
 export {
   useAgUiInterrupts,
+  useAgUiSendA2uiAction,
   useAgUiSubmitInterruptResponses,
   useAgUiSteerAway,
   useAgUiState,

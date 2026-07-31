@@ -12,7 +12,7 @@ export const useBranchPickerNext = () => {
   });
 
   const next = useCallback(() => {
-    aui.message().switchToBranch({ position: "next" });
+    aui.message.switchToBranch({ position: "next" });
   }, [aui]);
 
   return { next, disabled };

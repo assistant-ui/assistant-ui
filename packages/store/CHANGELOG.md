@@ -1,5 +1,69 @@
 # @assistant-ui/store
 
+## 0.3.2
+
+### Patch Changes
+
+- [#5364](https://github.com/assistant-ui/assistant-ui/pull/5364) [`d2e7a4a`](https://github.com/assistant-ui/assistant-ui/commit/d2e7a4a1c71c214fd8c4363ec16e879d1122639e) - AuiIf: trim JSDoc and add a mount/unmount contract test ([@Yonom](https://github.com/Yonom))
+
+- [#5367](https://github.com/assistant-ui/assistant-ui/pull/5367) [`ecd7c87`](https://github.com/assistant-ui/assistant-ui/commit/ecd7c879cace69d6371b3f673c52a80669377fc0) - feat: AuiProvider accepts value={null} as an isolation boundary; useAui runs a fixed hook count per overload and deprecates the explicit-parent config ([@Yonom](https://github.com/Yonom))
+
+- [#5385](https://github.com/assistant-ui/assistant-ui/pull/5385) [`2daf2d5`](https://github.com/assistant-ui/assistant-ui/commit/2daf2d5dfcb77938f6deb63d048575540e1806a2) - perf: simplify useAui notification and effect plumbing ([@Yonom](https://github.com/Yonom))
+
+- [#5354](https://github.com/assistant-ui/assistant-ui/pull/5354) [`a5bdbed`](https://github.com/assistant-ui/assistant-ui/commit/a5bdbed993d8f14c919b692b40d51f5cd64467b9) - useClientList: clear initial-data handles on commit instead of during render so discarded renders can replay ([@Yonom](https://github.com/Yonom))
+
+- [#5361](https://github.com/assistant-ui/assistant-ui/pull/5361) [`fb993c3`](https://github.com/assistant-ui/assistant-ui/commit/fb993c34ca1623bac373137c5ab207dd79cb500c) - useClientLookup: derive the key-to-index map from the validated element keys and drop the redundant keys memo ([@Yonom](https://github.com/Yonom))
+
+- [#5355](https://github.com/assistant-ui/assistant-ui/pull/5355) [`1c5266c`](https://github.com/assistant-ui/assistant-ui/commit/1c5266c1fb32bc71647fedc485372f6ffa25171f) - useAuiState: derive the assistant state proxy from the client via a WeakMap so hand-built clients no longer yield an undefined selector argument ([@Yonom](https://github.com/Yonom))
+
+- [#5353](https://github.com/assistant-ui/assistant-ui/pull/5353) [`cdcdbd0`](https://github.com/assistant-ui/assistant-ui/commit/cdcdbd0a9354483a72edbc01f51a850a1d6b5dc5) - fix: report proxy properties as configurable so `Object.keys`, spread, and `Object.getOwnPropertyDescriptor` on clients and the proxied assistant state no longer throw the proxy invariant TypeError ([@Yonom](https://github.com/Yonom))
+
+- [#5360](https://github.com/assistant-ui/assistant-ui/pull/5360) [`42dbc69`](https://github.com/assistant-ui/assistant-ui/commit/42dbc697642c0fa327728860f78a8ce5270bf32d) - useAui: memoize scope meta via shallow equality on the query object instead of a spread deps array, so query key-count changes are detected reliably ([@Yonom](https://github.com/Yonom))
+
+- [#5356](https://github.com/assistant-ui/assistant-ui/pull/5356) [`25f1e4f`](https://github.com/assistant-ui/assistant-ui/commit/25f1e4f9d33073216458d3c5a05e8d79845d4b3b) - Share a single InferClientState type across useClientResource, useClientLookup, and useClientList ([@Yonom](https://github.com/Yonom))
+
+- [#5380](https://github.com/assistant-ui/assistant-ui/pull/5380) [`d16e62d`](https://github.com/assistant-ui/assistant-ui/commit/d16e62d25b5c1e7e2bc1504fb4a5e97c3c25b6e3) - refactor: inline single-call-site useAui helper hooks ([@Yonom](https://github.com/Yonom))
+
+- [#5368](https://github.com/assistant-ui/assistant-ui/pull/5368) [`60d049e`](https://github.com/assistant-ui/assistant-ui/commit/60d049eeadf681f4235157c903543493c98cc258) - refactor(store): local useShallowStable helper replaces tap useMemoCache; drop useMemoCache from tap's public entrypoint ([@Yonom](https://github.com/Yonom))
+
+- [#5312](https://github.com/assistant-ui/assistant-ui/pull/5312) [`2eca438`](https://github.com/assistant-ui/assistant-ui/commit/2eca4386778618f555258855ee6612eb44d89bb2) - refactor: import `useEffectEvent` from React directly for latest-client reads and drop the `use-effect-event` ponyfill dependency ([@Yonom](https://github.com/Yonom))
+
+- [#5362](https://github.com/assistant-ui/assistant-ui/pull/5362) [`23ee5db`](https://github.com/assistant-ui/assistant-ui/commit/23ee5dbb60e6ac7993b8ce4023fb63a5f7eea713) - ValidateClient: restructure into independent per-facet checks; createErrorClientAccessor now requires the scope name ([@Yonom](https://github.com/Yonom))
+
+## 0.3.1
+
+### Patch Changes
+
+- [#5297](https://github.com/assistant-ui/assistant-ui/pull/5297) [`3a762ed`](https://github.com/assistant-ui/assistant-ui/commit/3a762edd7e4645ea4aa50691bab680af73e5cff6) - feat: optional state view — `s.optional.<scope>` resolves to `undefined` when the scope is unavailable instead of throwing, so `useAuiState((s) => s.optional.threadListItem?.remoteId)` works outside a thread list item. The base state stays non-optional and keeps throwing on unavailable scopes. ([@Yonom](https://github.com/Yonom))
+
+## 0.3.0
+
+### Minor Changes
+
+- [#5275](https://github.com/assistant-ui/assistant-ui/pull/5275) [`9a7e776`](https://github.com/assistant-ui/assistant-ui/commit/9a7e77603d59b5e091ee922e2e087f0101679321) - feat: property API for aui — nullary scope accessors are now properties (`aui.thread.getState()` instead of `aui.thread().getState()`); calling them still works but is deprecated. Accessors keep `source`/`query`/`name` selection metadata as properties; these are reserved names for scope methods. An unavailable scope's accessor no longer throws at selection time: `aui.thread` always succeeds and is always truthy, `.source` is null, and any other property read (or a call) throws — check availability via `aui.thread.source != null`. Accessor identity is binding-keyed: stable across renders without structural change, new on structural change — memoization keyed on an accessor now invalidates exactly when its binding changes. ([@Yonom](https://github.com/Yonom))
+
+### Patch Changes
+
+- [#5282](https://github.com/assistant-ui/assistant-ui/pull/5282) [`ae5f831`](https://github.com/assistant-ui/assistant-ui/commit/ae5f83129b20edb38b7f9e7f92b6c60f3c8fe8d9) - feat: `getClientId(client)` returns an opaque, WeakMap-legal identity for a bound client — the same object regardless of accessor wrapping depth. The cloud message persistence cache is now keyed on it instead of the per-mount accessor proxy. Removes `unwrapClientAccessor` and `getBoundClient` (introduced and replaced pre-release, never published). ([@Yonom](https://github.com/Yonom))
+
+- [#5270](https://github.com/assistant-ui/assistant-ui/pull/5270) [`dcc41bb`](https://github.com/assistant-ui/assistant-ui/commit/dcc41bb50948f64744a052b22720f0f8dffa510e) - feat: render-bound immutable aui instances — derived scopes resolve to client instances during render and are frozen into the returned client; structural swaps produce a new client through React while value updates never change client identity. Removes the PartByIndexProvider lastPartRef guards and the useClientLookup stale-index clamp. ([@Yonom](https://github.com/Yonom))
+
+## 0.2.22
+
+### Patch Changes
+
+- [#5250](https://github.com/assistant-ui/assistant-ui/pull/5250) [`d4bdf2c`](https://github.com/assistant-ui/assistant-ui/commit/d4bdf2c50f741912c1c165bd65441ff91bc632dc) - Warn instead of throw on recoverable inconsistencies: duplicate same-priority tool registrations merge with the latest registration taking precedence, duplicate message ids skip linking, stale client lookup indices are clamped, and null tool names in tool result messages are tolerated. ([@Yonom](https://github.com/Yonom))
+
+- [#5208](https://github.com/assistant-ui/assistant-ui/pull/5208) [`a0ddc86`](https://github.com/assistant-ui/assistant-ui/commit/a0ddc862b0c506bd791238ebf800868e4836820a) - Adopt `erasableSyntaxOnly`; public enums are now `as const` objects. ([@Yonom](https://github.com/Yonom))
+
+## 0.2.21
+
+### Patch Changes
+
+- [#5190](https://github.com/assistant-ui/assistant-ui/pull/5190) [`5412099`](https://github.com/assistant-ui/assistant-ui/commit/541209975bdc380edf7b34ecc270c201abd14788) - refactor: `ResourceElement<Result>` drops its args type parameter — elements are opaque descriptors; `Resource<Result, Args>` keeps the callable typing and `ContravariantResource` is removed ([@Yonom](https://github.com/Yonom))
+
+- [#5079](https://github.com/assistant-ui/assistant-ui/pull/5079) [`390e417`](https://github.com/assistant-ui/assistant-ui/commit/390e4177ca47f7ece839613ad0f076add9313328) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
 ## 0.2.20
 
 ### Patch Changes

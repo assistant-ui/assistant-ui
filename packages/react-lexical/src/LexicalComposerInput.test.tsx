@@ -11,6 +11,9 @@ import { LexicalComposerInput } from "./LexicalComposerInput";
 const setText = vi.fn<(text: string) => void>();
 const sendSpy = vi.fn<(options?: { steer?: boolean }) => void>();
 const cancelSpy = vi.fn<() => void>();
+const pluginHandleKeyDown = vi.fn<(event: KeyboardEvent) => boolean>();
+const setCursorPosition = vi.fn<(position: number) => void>();
+const registerInput = vi.fn(() => () => {});
 
 const composerState = {
   isEditing: true,
@@ -32,15 +35,15 @@ const threadState = {
 vi.mock("@assistant-ui/store", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@assistant-ui/store")>();
   const aui = {
-    composer: () => ({
-      setText,
+    composer: {
+      setText: (text: string) => setText(text),
       getState: () => composerState,
-      cancel: cancelSpy,
-      send: sendSpy,
-    }),
-    thread: () => ({
+      cancel: () => cancelSpy(),
+      send: () => sendSpy(),
+    },
+    thread: {
       getState: () => threadState,
-    }),
+    },
     on: () => () => {},
   };
   type Selector<T> = (s: {
@@ -55,6 +58,25 @@ vi.mock("@assistant-ui/store", async (importOriginal) => {
   };
 });
 
+vi.mock("@assistant-ui/react", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@assistant-ui/react")>();
+  return {
+    ...actual,
+    INTERNAL: {
+      ...actual.INTERNAL,
+      useComposerInputPluginRegistryOptional: () => ({
+        getPlugins: () => [
+          {
+            handleKeyDown: pluginHandleKeyDown,
+            setCursorPosition,
+          },
+        ],
+        registerInput,
+      }),
+    },
+  };
+});
+
 describe("LexicalComposerInput", () => {
   let container: HTMLDivElement;
   let root: Root;
@@ -63,6 +85,10 @@ describe("LexicalComposerInput", () => {
     setText.mockReset();
     sendSpy.mockReset();
     cancelSpy.mockReset();
+    pluginHandleKeyDown.mockReset();
+    pluginHandleKeyDown.mockReturnValue(false);
+    setCursorPosition.mockReset();
+    registerInput.mockClear();
     composerState.isEditing = true;
     composerState.text = "";
     composerState.isEmpty = true;
@@ -134,5 +160,27 @@ describe("LexicalComposerInput", () => {
     });
 
     expect(container.querySelector(".aui-lexical-input")).not.toBeNull();
+  });
+
+  it("delegates Tab to composer input plugins", async () => {
+    await act(async () => {
+      root.render(<LexicalComposerInput />);
+    });
+
+    const input = container.querySelector(".aui-lexical-input");
+    expect(input).not.toBeNull();
+
+    await act(async () => {
+      input!.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "Tab",
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
+    });
+
+    expect(pluginHandleKeyDown).toHaveBeenCalledOnce();
+    expect(pluginHandleKeyDown.mock.calls[0]![0].key).toBe("Tab");
   });
 });

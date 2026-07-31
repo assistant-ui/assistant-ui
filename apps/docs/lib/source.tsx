@@ -59,6 +59,14 @@ export function getTapDocsPage(slugs: string[] | undefined) {
   );
 }
 
+/**
+ * The tap docs root is a redirect stub, so it carries no content to index and
+ * throws NEXT_REDIRECT when rendered.
+ */
+export function getTapDocsPages() {
+  return tapDocs.getPages().filter((page) => page.slugs.length > 0);
+}
+
 export const examples = loader({
   baseUrl: "/examples",
   source: toFumadocsSource(examplePages, []),

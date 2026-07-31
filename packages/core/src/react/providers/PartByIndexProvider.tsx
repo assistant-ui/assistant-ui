@@ -10,7 +10,7 @@ export const PartByIndexProvider: FC<
     part: Derived({
       source: "message",
       query: { type: "index", index },
-      get: (aui) => aui.message().part({ index }),
+      get: (aui) => aui.message.part({ index }),
     }),
   });
 

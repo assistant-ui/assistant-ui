@@ -1,10 +1,13 @@
 import type {
   LangChainMessage,
   LangChainMessageChunk,
+  LangChainToolCall,
   LangChainToolCallChunk,
   MessageContentText,
 } from "./types";
 import { parsePartialJsonObject } from "assistant-stream/utils";
+
+type AiMessage = Extract<LangChainMessage, { type: "ai" }>;
 
 const chunkToToolCall = (chunk: LangChainToolCallChunk) => {
   const partialJson = chunk.args ?? chunk.args_json ?? "";
@@ -13,6 +16,51 @@ const chunkToToolCall = (chunk: LangChainToolCallChunk) => {
     partial_json: partialJson,
     args: parsePartialJsonObject(partialJson) ?? {},
   };
+};
+
+const findMatchingToolCall = (
+  prevToolCalls: readonly LangChainToolCall[],
+  toolCall: LangChainToolCall,
+): LangChainToolCall | undefined => {
+  if (toolCall.id != null && toolCall.id !== "") {
+    const byId = prevToolCalls.find(
+      (p) => p.id != null && p.id !== "" && p.id === toolCall.id,
+    );
+    if (byId) return byId;
+  }
+  if (toolCall.index != null) {
+    return prevToolCalls.find(
+      (p) => p.index === toolCall.index && (!p.id || !toolCall.id),
+    );
+  }
+  return undefined;
+};
+
+// The full AIMessage a LangGraph `updates` event delivers on node completion
+// carries parsed tool_calls with no partial_json. Carry over the partial_json
+// already streamed on matching tool calls so argsText stays a byte-prefix of
+// what the tracker already observed, instead of re-stringifying parsed args.
+const mergeStreamedToolCallArgs = (
+  prev: AiMessage,
+  curr: AiMessage,
+): AiMessage => {
+  const prevToolCalls = prev.tool_calls ?? [];
+  const currToolCalls = curr.tool_calls ?? [];
+  if (prevToolCalls.length === 0 || currToolCalls.length === 0) return curr;
+
+  let changed = false;
+  const mergedToolCalls = currToolCalls.map((toolCall) => {
+    if (toolCall.partial_json) return toolCall;
+    const streamedPartialJson = findMatchingToolCall(
+      prevToolCalls,
+      toolCall,
+    )?.partial_json;
+    if (!streamedPartialJson) return toolCall;
+    changed = true;
+    return { ...toolCall, partial_json: streamedPartialJson };
+  });
+
+  return changed ? { ...curr, tool_calls: mergedToolCalls } : curr;
 };
 
 /**
@@ -25,6 +73,9 @@ export const appendLangChainChunk = (
   curr: LangChainMessage | LangChainMessageChunk,
 ): LangChainMessage => {
   if (curr.type !== "AIMessageChunk") {
+    if (prev?.type === "ai" && curr.type === "ai") {
+      return mergeStreamedToolCallArgs(prev, curr);
+    }
     return curr;
   }
 

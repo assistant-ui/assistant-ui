@@ -27,8 +27,7 @@ const createCountingAdapter = () => {
 };
 
 const userTexts = (aui: ReturnType<typeof useAui>) =>
-  aui
-    .thread()
+  aui.thread
     .getState()
     .messages.filter((m) => m.role === "user")
     .map((m) =>
@@ -57,8 +56,8 @@ const renderWithRuntime = (adapter: ChatModelAdapter, enableQueue: boolean) => {
 
 const send = async (aui: ReturnType<typeof useAui>, text: string) => {
   await act(async () => {
-    aui.thread().composer().setText(text);
-    aui.thread().composer().send();
+    aui.thread.composer().setText(text);
+    aui.thread.composer().send();
     await flush();
   });
 };
@@ -69,13 +68,12 @@ describe("local runtime message queue", () => {
     const aui = renderWithRuntime(adapter, true);
 
     await send(aui, "first");
-    expect(aui.thread().getState().isRunning).toBe(true);
-    expect(aui.thread().getState().capabilities.queue).toBe(true);
+    expect(aui.thread.getState().isRunning).toBe(true);
+    expect(aui.thread.getState().capabilities.queue).toBe(true);
 
     await send(aui, "second");
     expect(
-      aui
-        .thread()
+      aui.thread
         .composer()
         .getState()
         .queue.map((q) => q.prompt),
@@ -87,7 +85,7 @@ describe("local runtime message queue", () => {
       await flush();
       await flush();
     });
-    expect(aui.thread().composer().getState().queue).toEqual([]);
+    expect(aui.thread.composer().getState().queue).toEqual([]);
     expect(userTexts(aui)).toContain("second");
   });
 
@@ -100,7 +98,7 @@ describe("local runtime message queue", () => {
 
     await send(aui, "a");
     await send(aui, "b");
-    expect(aui.thread().composer().getState().queue).toHaveLength(2);
+    expect(aui.thread.composer().getState().queue).toHaveLength(2);
 
     await act(async () => {
       releases[0]!();
@@ -109,8 +107,7 @@ describe("local runtime message queue", () => {
     });
     expect(getRunCount()).toBe(2);
     expect(
-      aui
-        .thread()
+      aui.thread
         .composer()
         .getState()
         .queue.map((q) => q.prompt),
@@ -124,13 +121,13 @@ describe("local runtime message queue", () => {
     await send(aui, "first");
     await send(aui, "a");
     await send(aui, "b");
-    expect(aui.thread().composer().getState().queue).toHaveLength(2);
+    expect(aui.thread.composer().getState().queue).toHaveLength(2);
 
     await act(async () => {
-      aui.thread().composer().queueItem({ index: 0 }).remove();
+      aui.thread.composer().queueItem({ index: 0 }).remove();
       await flush();
     });
-    const queue = aui.thread().composer().getState().queue;
+    const queue = aui.thread.composer().getState().queue;
     expect(queue).toHaveLength(1);
     expect(queue[0]!.prompt).toBe("b");
   });
@@ -142,15 +139,15 @@ describe("local runtime message queue", () => {
     await send(aui, "first");
     await send(aui, "a");
     await send(aui, "b");
-    expect(aui.thread().composer().getState().queue).toHaveLength(2);
+    expect(aui.thread.composer().getState().queue).toHaveLength(2);
 
     await act(async () => {
-      aui.thread().cancelRun();
+      aui.thread.cancelRun();
       await flush();
       await flush();
     });
 
-    expect(aui.thread().composer().getState().queue).toEqual([]);
+    expect(aui.thread.composer().getState().queue).toEqual([]);
     // cancelling must not start the next queued message
     expect(getRunCount()).toBe(1);
   });
@@ -168,11 +165,11 @@ describe("local runtime message queue", () => {
     // start a second run and queue a message behind it
     await send(aui, "second");
     await send(aui, "queued");
-    expect(aui.thread().composer().getState().queue).toHaveLength(1);
+    expect(aui.thread.composer().getState().queue).toHaveLength(1);
 
     // edit the first message while the run is in progress
     await act(async () => {
-      const message = aui.thread().message({ index: 0 });
+      const message = aui.thread.message({ index: 0 });
       message.composer().beginEdit();
       message.composer().setText("edited");
       message.composer().send();
@@ -180,7 +177,7 @@ describe("local runtime message queue", () => {
     });
 
     // the edit is applied (branches the thread) and the stale queue is cleared
-    expect(aui.thread().composer().getState().queue).toEqual([]);
+    expect(aui.thread.composer().getState().queue).toEqual([]);
   });
 
   it("buffers a send during a regenerate instead of interrupting it", async () => {
@@ -196,22 +193,21 @@ describe("local runtime message queue", () => {
 
     // regenerate the assistant message: a run started outside the queue
     await act(async () => {
-      aui.thread().message({ index: 1 }).reload();
+      aui.thread.message({ index: 1 }).reload();
       await flush();
     });
     expect(getRunCount()).toBe(2);
-    expect(aui.thread().getState().isRunning).toBe(true);
+    expect(aui.thread.getState().isRunning).toBe(true);
 
     // sending now must buffer, not interrupt the regenerate
     await act(async () => {
-      aui.thread().composer().setText("Y");
-      aui.thread().composer().send();
+      aui.thread.composer().setText("Y");
+      aui.thread.composer().send();
       await flush();
     });
     expect(getRunCount()).toBe(2);
     expect(
-      aui
-        .thread()
+      aui.thread
         .composer()
         .getState()
         .queue.map((q) => q.prompt),
@@ -239,7 +235,7 @@ describe("local runtime message queue", () => {
     await send(aui, "first");
     await send(aui, "a");
     await send(aui, "b");
-    expect(aui.thread().composer().getState().queue).toHaveLength(2);
+    expect(aui.thread.composer().getState().queue).toHaveLength(2);
 
     // run 1 settles -> "a" drains (run 2 throws) -> "b" drains (run 3)
     await act(async () => {
@@ -248,18 +244,17 @@ describe("local runtime message queue", () => {
       await flush();
     });
     expect(runCount).toBe(3);
-    expect(aui.thread().composer().getState().queue).toEqual([]);
+    expect(aui.thread.composer().getState().queue).toEqual([]);
 
     // "b" is running; a new send must buffer behind it, not interrupt it
     await act(async () => {
-      aui.thread().composer().setText("c");
-      aui.thread().composer().send();
+      aui.thread.composer().setText("c");
+      aui.thread.composer().send();
       await flush();
     });
     expect(runCount).toBe(3);
     expect(
-      aui
-        .thread()
+      aui.thread
         .composer()
         .getState()
         .queue.map((q) => q.prompt),
@@ -269,7 +264,7 @@ describe("local runtime message queue", () => {
   it("does not expose the queue capability when the flag is off", async () => {
     const { adapter } = createCountingAdapter();
     const aui = renderWithRuntime(adapter, false);
-    expect(aui.thread().getState().capabilities.queue).toBe(false);
+    expect(aui.thread.getState().capabilities.queue).toBe(false);
   });
 
   it("tears the queue down when the flag is toggled off at runtime", async () => {

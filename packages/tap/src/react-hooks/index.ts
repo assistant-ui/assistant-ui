@@ -8,6 +8,7 @@ export { useEffectEvent } from "./useEffectEvent";
 export { use } from "./use";
 export { useSyncExternalStore } from "./useSyncExternalStore";
 export { useDebugValue } from "./useDebugValue";
+export { useMemoCache } from "./useMemoCache";
 export { useResource } from "../hooks/useResource";
 export { useResources } from "../hooks/useResources";
 export { useTapRoot } from "../hooks/useTapRoot";

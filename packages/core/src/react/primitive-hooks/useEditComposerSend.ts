@@ -6,7 +6,7 @@ export const useEditComposerSend = () => {
   const disabled = useAuiState((s) => s.composer.isEmpty);
 
   const send = useCallback(() => {
-    aui.composer().send();
+    aui.composer.send();
   }, [aui]);
 
   return { send, disabled };

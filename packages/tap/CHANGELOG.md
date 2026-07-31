@@ -1,5 +1,59 @@
 # @assistant-ui/tap
 
+## 0.9.9
+
+### Patch Changes
+
+- [#5399](https://github.com/assistant-ui/assistant-ui/pull/5399) [`b8daa96`](https://github.com/assistant-ui/assistant-ui/commit/b8daa967f4e5cb181c3e9ed065ab6949ee848fa4) - re-add the deprecated useMemoCache export for older @assistant-ui/store versions ([@Yonom](https://github.com/Yonom))
+
+## 0.9.8
+
+### Patch Changes
+
+- [#5368](https://github.com/assistant-ui/assistant-ui/pull/5368) [`60d049e`](https://github.com/assistant-ui/assistant-ui/commit/60d049eeadf681f4235157c903543493c98cc258) - refactor(store): local useShallowStable helper replaces tap useMemoCache; drop useMemoCache from tap's public entrypoint ([@Yonom](https://github.com/Yonom))
+
+- [#5375](https://github.com/assistant-ui/assistant-ui/pull/5375) [`feef8fd`](https://github.com/assistant-ui/assistant-ui/commit/feef8fda65e999a90d283dca23ff656b56456803) - The update-depth error now throws from the markDirty that schedules the run past the limit, so the stack points at the offending setState. ([@Yonom](https://github.com/Yonom))
+
+- [#5370](https://github.com/assistant-ui/assistant-ui/pull/5370) [`c02680a`](https://github.com/assistant-ui/assistant-ui/commit/c02680a16425669589db74ba1a601a8f6c4bf8e6) - fix: count update depth per scheduler in UpdateScheduler and drop only the offending scheduler from a flush, so one looping root no longer starves or wedges unrelated roots ([@Yonom](https://github.com/Yonom))
+
+- [#5357](https://github.com/assistant-ui/assistant-ui/pull/5357) [`e6045bb`](https://github.com/assistant-ui/assistant-ui/commit/e6045bbb1cfc0d63ef75f46cf2de7fa010183451) - createTapRoot: reuse a single per-root UpdateScheduler across dispatches and assert without applying first ([@Yonom](https://github.com/Yonom))
+
+- [#5358](https://github.com/assistant-ui/assistant-ui/pull/5358) [`04c070e`](https://github.com/assistant-ui/assistant-ui/commit/04c070e63c5dd1c51355037e42cf24c77c56da6e) - Deduplicate the rethrow-or-AggregateError error handling into a shared internal helper ([@Yonom](https://github.com/Yonom))
+
+- [#5331](https://github.com/assistant-ui/assistant-ui/pull/5331) [`d7afb3d`](https://github.com/assistant-ui/assistant-ui/commit/d7afb3dbd2dbc76ed90f9091b599ea81bfd6e363) - fix: accept reducer replays below the committed version instead of throwing ([@okisdev](https://github.com/okisdev))
+
+## 0.9.7
+
+### Patch Changes
+
+- [#5285](https://github.com/assistant-ui/assistant-ui/pull/5285) [`d72c2b6`](https://github.com/assistant-ui/assistant-ui/commit/d72c2b6b5fd0e0158b07ecf00bfe4c8ac5b3e861) - fix: useSyncExternalStore retains the last committed value when the snapshot getter throws; export `useMemoCache` from the package root ([@Yonom](https://github.com/Yonom))
+
+## 0.9.6
+
+### Patch Changes
+
+- [#5208](https://github.com/assistant-ui/assistant-ui/pull/5208) [`a0ddc86`](https://github.com/assistant-ui/assistant-ui/commit/a0ddc862b0c506bd791238ebf800868e4836820a) - Adopt `erasableSyntaxOnly`; public enums are now `as const` objects. ([@Yonom](https://github.com/Yonom))
+
+- [#5235](https://github.com/assistant-ui/assistant-ui/pull/5235) [`8c97501`](https://github.com/assistant-ui/assistant-ui/commit/8c97501892c5e76a0b10232835818c4be5da37eb) - feat: drop `configurableResource()` — use `resource()` with an options argument instead ([@Yonom](https://github.com/Yonom))
+
+- [#5207](https://github.com/assistant-ui/assistant-ui/pull/5207) [`7e871ef`](https://github.com/assistant-ui/assistant-ui/commit/7e871efe16f1ab0dc3b0e6b21e04728835dbb6da) - Stop shipping react-shim declaration files the exports map disclaims — the shim subpaths are now genuinely untyped in every resolution mode instead of accidentally typed via TypeScript's fallback resolution. ([@Yonom](https://github.com/Yonom))
+
+## 0.9.5
+
+### Patch Changes
+
+- [#5194](https://github.com/assistant-ui/assistant-ui/pull/5194) [`ecd2280`](https://github.com/assistant-ui/assistant-ui/commit/ecd22809f0c1001c1718b53b65e44630cb21414b) - feat: `configurableResource()` — curries an options-first hook into `(options) => Resource<V, A>`, replacing `.bind(null, options)` boilerplate ([@Yonom](https://github.com/Yonom))
+
+- [#5182](https://github.com/assistant-ui/assistant-ui/pull/5182) [`83d7b42`](https://github.com/assistant-ui/assistant-ui/commit/83d7b4273596c6950f3e9548ce3c537b534d804a) - fix: implement useMemoCache on tap's dispatcher so compiled components work under duplicated tap copies ([@Yonom](https://github.com/Yonom))
+
+- [#5181](https://github.com/assistant-ui/assistant-ui/pull/5181) [`5c54141`](https://github.com/assistant-ui/assistant-ui/commit/5c54141d4569796a7de9922285e3447ea4604374) - fix: create the scheduler MessageChannel lazily so importing tap does not hold the Node event loop open ([@Yonom](https://github.com/Yonom))
+
+- [#5190](https://github.com/assistant-ui/assistant-ui/pull/5190) [`5412099`](https://github.com/assistant-ui/assistant-ui/commit/541209975bdc380edf7b34ecc270c201abd14788) - refactor: `ResourceElement<Result>` drops its args type parameter — elements are opaque descriptors; `Resource<Result, Args>` keeps the callable typing and `ContravariantResource` is removed ([@Yonom](https://github.com/Yonom))
+
+- [#5186](https://github.com/assistant-ui/assistant-ui/pull/5186) [`99da4af`](https://github.com/assistant-ui/assistant-ui/commit/99da4afc5d96a6b3ca6e91fe756f0c7b0c2123a0) - feat: `withKey` accepts a Resource — `withKey(key, resourceFn)` returns a resource whose produced elements carry the key ([@Yonom](https://github.com/Yonom))
+
+- [#5079](https://github.com/assistant-ui/assistant-ui/pull/5079) [`390e417`](https://github.com/assistant-ui/assistant-ui/commit/390e4177ca47f7ece839613ad0f076add9313328) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
 ## 0.9.4
 
 ### Patch Changes
