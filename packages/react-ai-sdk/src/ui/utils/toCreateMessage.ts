@@ -90,7 +90,14 @@ export const toCreateMessage = <UI_MESSAGE extends UIMessage = UIMessage>(
           mediaType,
         };
       }
-      case "file":
+      case "file": {
+        // `mimeType` is a plain string, and an adapter reading `file.type` on a
+        // file the OS cannot type yields "". Same ladder as images: declared,
+        // then the envelope, then the floor.
+        const mediaType =
+          part.mimeType ||
+          parseDataUrl(part.data)?.mimeType ||
+          "application/octet-stream";
         return {
           type: "file",
           // An `id` reference is an opaque provider handle, not base64, and
@@ -99,10 +106,11 @@ export const toCreateMessage = <UI_MESSAGE extends UIMessage = UIMessage>(
           url:
             part.sourceType === "id"
               ? part.data
-              : toWireUrl(part.data, part.mimeType),
-          mediaType: part.mimeType,
+              : toWireUrl(part.data, mediaType),
+          mediaType,
           ...(part.filename && { filename: part.filename }),
         };
+      }
       case "audio": {
         // A data URL's own media type wins over `mediaType` downstream, so the
         // envelope is rebuilt from the typed format rather than forwarded.

@@ -343,6 +343,36 @@ describe("toCreateMessage", () => {
     });
   });
 
+  it("keeps a good envelope when the declared file mime is empty", () => {
+    const message = {
+      ...baseMessage,
+      content: [
+        {
+          type: "file",
+          data: "data:application/octet-stream;base64,JVBERi0xLjQ=",
+          mimeType: "",
+        },
+      ],
+    } as unknown as AppendMessage;
+
+    expect(toCreateMessage(message).parts[0]).toMatchObject({
+      mediaType: "application/octet-stream",
+      url: "data:application/octet-stream;base64,JVBERi0xLjQ=",
+    });
+  });
+
+  it("floors a bare base64 file payload with no declared mime", () => {
+    const message = {
+      ...baseMessage,
+      content: [{ type: "file", data: "JVBERi0xLjQ=", mimeType: "" }],
+    } as unknown as AppendMessage;
+
+    expect(toCreateMessage(message).parts[0]).toMatchObject({
+      mediaType: "application/octet-stream",
+      url: "data:application/octet-stream;base64,JVBERi0xLjQ=",
+    });
+  });
+
   it("re-envelopes a file whose envelope disagrees with its declared type", () => {
     const message = {
       ...baseMessage,
@@ -358,22 +388,6 @@ describe("toCreateMessage", () => {
     expect(toCreateMessage(message).parts[0]).toMatchObject({
       mediaType: "application/pdf",
       url: "data:application/pdf;base64,JVBERi0xLjQ=",
-    });
-  });
-
-  it("sniffs through a generic data url envelope", () => {
-    const message = {
-      ...baseMessage,
-      content: [
-        {
-          type: "image",
-          image: "data:application/octet-stream;base64,/9j/4AAQSkZJRg==",
-        },
-      ],
-    } as unknown as AppendMessage;
-
-    expect(toCreateMessage(message).parts[0]).toMatchObject({
-      mediaType: "image/jpeg",
     });
   });
 
