@@ -142,7 +142,7 @@ export function getLearnPreviewStageId(routeUrl: string): string | null {
 
 function getUploadedUpdateTools(
   clientTools: FrontendTools,
-): ToolSet | Response {
+): ToolSet | NextResponse {
   if (
     !clientTools ||
     typeof clientTools !== "object" ||
@@ -170,7 +170,7 @@ export function createLearnPreviewTools({
 }: {
   clientTools: FrontendTools;
   routeUrl: string;
-}): ToolSet | Response {
+}): ToolSet | NextResponse {
   const stageId = getLearnPreviewStageId(routeUrl);
   if (!stageId) {
     return NextResponse.json(
@@ -182,7 +182,7 @@ export function createLearnPreviewTools({
   if (!interactableStageIds.has(stageId)) return { ...weatherTools };
 
   const updateTools = getUploadedUpdateTools(clientTools);
-  if (updateTools instanceof Response) return updateTools;
+  if (updateTools instanceof NextResponse) return updateTools;
   return { ...weatherTools, ...notepadTool, ...updateTools };
 }
 
