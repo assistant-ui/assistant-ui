@@ -65,9 +65,13 @@ const sniffImageMediaType = (data: string) => {
 const toWireUrl = (
   payload: string,
   mime: string,
-  parsed: { data: string } | null,
+  parsed: { mimeType: string; data: string } | null,
 ) => {
-  if (parsed) return `data:${mime};base64,${parsed.data}`;
+  if (parsed) {
+    return parsed.mimeType === mime
+      ? payload
+      : `data:${mime};base64,${parsed.data}`;
+  }
   if (isParsableUrl(payload)) return payload;
   return `data:${mime};base64,${payload}`;
 };

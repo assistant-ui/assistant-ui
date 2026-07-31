@@ -33,6 +33,20 @@ const sniffImageMediaType = (data: string) => {
   }
 };
 
+// A data URL's own media type wins over `mediaType` downstream, so an inline
+// payload is re-enveloped with the resolved type rather than forwarded. Only a
+// url of some other scheme passes through untouched.
+const toWireUrl = (payload: string, mediaType: string) => {
+  const parsed = parseDataUrl(payload);
+  if (parsed) {
+    return parsed.mimeType === mediaType
+      ? payload
+      : `data:${mediaType};base64,${parsed.data}`;
+  }
+  if (isParsableUrl(payload)) return payload;
+  return `data:${mediaType};base64,${payload}`;
+};
+
 const getImageMediaType = (part: {
   readonly contentType?: string | undefined;
   readonly image: string;
@@ -81,9 +95,7 @@ export const toCreateMessage = <UI_MESSAGE extends UIMessage = UIMessage>(
         const mediaType = getImageMediaType(part);
         return {
           type: "file",
-          url: isParsableUrl(part.image)
-            ? part.image
-            : `data:${mediaType};base64,${part.image}`,
+          url: toWireUrl(part.image, mediaType),
           ...(part.filename && { filename: part.filename }),
           mediaType,
         };
@@ -95,9 +107,9 @@ export const toCreateMessage = <UI_MESSAGE extends UIMessage = UIMessage>(
           // this adapter has no way to send one. Left unwrapped so it fails
           // loudly upstream rather than shipping a corrupt payload.
           url:
-            isParsableUrl(part.data) || part.sourceType === "id"
+            part.sourceType === "id"
               ? part.data
-              : `data:${part.mimeType};base64,${part.data}`,
+              : toWireUrl(part.data, part.mimeType),
           mediaType: part.mimeType,
           ...(part.filename && { filename: part.filename }),
         };

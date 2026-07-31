@@ -326,6 +326,41 @@ describe("toCreateMessage", () => {
     }
   });
 
+  it("re-envelopes an image whose envelope disagrees with the resolved type", () => {
+    const message = {
+      ...baseMessage,
+      content: [
+        {
+          type: "image",
+          image: "data:application/octet-stream;base64,/9j/4AAQSkZJRg==",
+        },
+      ],
+    } as unknown as AppendMessage;
+
+    expect(toCreateMessage(message).parts[0]).toMatchObject({
+      mediaType: "image/jpeg",
+      url: "data:image/jpeg;base64,/9j/4AAQSkZJRg==",
+    });
+  });
+
+  it("re-envelopes a file whose envelope disagrees with its declared type", () => {
+    const message = {
+      ...baseMessage,
+      content: [
+        {
+          type: "file",
+          data: "data:application/octet-stream;base64,JVBERi0xLjQ=",
+          mimeType: "application/pdf",
+        },
+      ],
+    } as unknown as AppendMessage;
+
+    expect(toCreateMessage(message).parts[0]).toMatchObject({
+      mediaType: "application/pdf",
+      url: "data:application/pdf;base64,JVBERi0xLjQ=",
+    });
+  });
+
   it("sniffs through a generic data url envelope", () => {
     const message = {
       ...baseMessage,
