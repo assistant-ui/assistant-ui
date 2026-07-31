@@ -8,15 +8,7 @@ import { tool, zodSchema, type ToolSet } from "ai";
 import { z } from "zod";
 import type { XuluxAgentDefinition } from "../chat/agents";
 
-const previewStageIds = new Set([
-  "S1",
-  "S2",
-  "S3",
-  "S4",
-  "S5",
-  "S6",
-  "S7",
-]);
+const previewStageIds = new Set(["S1", "S2", "S3", "S4", "S5", "S6", "S7"]);
 const weatherStageIds = new Set(["S3", "S4", "S5", "S6", "S7"]);
 const interactableStageIds = new Set(["S5", "S6", "S7"]);
 
@@ -148,7 +140,9 @@ export function getLearnPreviewStageId(routeUrl: string): string | null {
     : null;
 }
 
-function getUploadedUpdateTools(clientTools: FrontendTools): ToolSet | Response {
+function getUploadedUpdateTools(
+  clientTools: FrontendTools,
+): ToolSet | Response {
   if (
     !clientTools ||
     typeof clientTools !== "object" ||
