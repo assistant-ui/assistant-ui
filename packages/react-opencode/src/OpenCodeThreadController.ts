@@ -46,23 +46,26 @@ const createLocalId = (prefix: string) =>
 const getTextContent = (parts: readonly ThreadUserMessagePart[]) =>
   serializeUserParts(parts).trim();
 
+// The attachment carries a name and content type its parts do not, so they
+// ride along rather than being dropped at the flatten. Both the outbound
+// prompt and the pending copy read this, so their fingerprints agree.
+const flattenMessageParts = (message: AppendMessage) => [
+  ...message.content,
+  ...(message.attachments?.flatMap((attachment: any) =>
+    (attachment.content ?? []).map((part: any) => ({
+      ...part,
+      ...(attachment.name != null && {
+        filename: part.filename ?? attachment.name,
+      }),
+      ...(attachment.contentType != null && {
+        contentType: attachment.contentType,
+      }),
+    })),
+  ) ?? []),
+];
+
 const getPromptParts = (message: AppendMessage) => {
-  const content = [
-    ...message.content,
-    // The attachment carries a name and content type its parts do not, so
-    // they ride along rather than being dropped at the flatten.
-    ...(message.attachments?.flatMap((attachment: any) =>
-      (attachment.content ?? []).map((part: any) => ({
-        ...part,
-        ...(attachment.name != null && {
-          filename: part.filename ?? attachment.name,
-        }),
-        ...(attachment.contentType != null && {
-          contentType: attachment.contentType,
-        }),
-      })),
-    ) ?? []),
-  ];
+  const content = flattenMessageParts(message);
 
   const promptParts: Array<Record<string, unknown>> = [];
   for (const part of content) {
@@ -550,12 +553,9 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   }
 
   private createPendingMessage(message: AppendMessage): PendingUserMessage {
-    const parts = [
-      ...message.content,
-      ...(message.attachments?.flatMap(
-        (attachment: any) => attachment.content ?? [],
-      ) ?? []),
-    ] as readonly ThreadUserMessagePart[];
+    const parts = flattenMessageParts(
+      message,
+    ) as readonly ThreadUserMessagePart[];
 
     return {
       clientId: createLocalId("local"),

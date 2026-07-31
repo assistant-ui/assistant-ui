@@ -238,6 +238,45 @@ describe("OpenCodeThreadController", () => {
     },
   );
 
+  it("names the pending message from the attachment rather than its payload", async () => {
+    const client = {
+      session: { promptAsync: vi.fn().mockResolvedValue({}) },
+    };
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => ({ subscribe: () => () => {} }),
+      "ses_1",
+    );
+
+    await controller.stageMessage(
+      {
+        role: "user",
+        parentId: null,
+        sourceId: null,
+        content: [],
+        attachments: [
+          {
+            id: "a-1",
+            type: "image",
+            name: "photo.webp",
+            contentType: "image/webp",
+            status: { type: "complete" },
+            content: [{ type: "image", image: "QUJD" }],
+          },
+        ],
+        metadata: { custom: {} },
+        runConfig: {},
+        createdAt: new Date(),
+      } as never,
+      { model: { providerID: "anthropic", modelID: "claude" } },
+    );
+
+    const pending = Object.values(
+      controller.getState().pendingUserMessages,
+    )[0]!;
+    expect(pending.contentText).toBe("photo.webp");
+  });
+
   it("uses the attachment name and content type its parts do not carry", async () => {
     const client = {
       session: { promptAsync: vi.fn().mockResolvedValue({}) },
