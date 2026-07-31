@@ -118,6 +118,66 @@ const createReconnectClient = ({
 });
 
 describe("OpenCodeThreadController", () => {
+  it.each([
+    {
+      label: "wraps a bare base64 file payload",
+      data: "JVBERi0xLjQ=",
+      url: "data:application/pdf;base64,JVBERi0xLjQ=",
+    },
+    {
+      label: "forwards a data url untouched",
+      data: "data:application/pdf;base64,JVBERi0xLjQ=",
+      url: "data:application/pdf;base64,JVBERi0xLjQ=",
+    },
+    {
+      label: "forwards an http source untouched",
+      data: "https://cdn.example.com/a.pdf",
+      url: "https://cdn.example.com/a.pdf",
+    },
+  ])("$label into a parsable file part url", async ({ data, url }) => {
+    const client = {
+      session: { promptAsync: vi.fn().mockResolvedValue({}) },
+    };
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => ({ subscribe: () => () => {} }),
+      "ses_1",
+    );
+
+    await controller.stageMessage(
+      {
+        role: "user",
+        parentId: null,
+        sourceId: null,
+        content: [
+          {
+            type: "file",
+            data,
+            mimeType: "application/pdf",
+            filename: "a.pdf",
+          },
+        ],
+        attachments: [],
+        metadata: { custom: {} },
+        runConfig: {},
+        createdAt: new Date(),
+      } as never,
+      { model: { providerID: "anthropic", modelID: "claude" } },
+    );
+
+    const pendingId = Object.keys(
+      controller.getState().pendingUserMessages,
+    )[0]!;
+    await controller.sendStagedMessage(`local:${pendingId}`);
+
+    const sent = client.session.promptAsync.mock.calls[0]![0] as {
+      parts: Array<Record<string, unknown>>;
+    };
+    const filePart = sent.parts.find((part) => part["type"] === "file");
+    expect(filePart).toMatchObject({ mime: "application/pdf", url });
+    expect(() => new URL(String(filePart!["url"]))).not.toThrow();
+  });
+
   it("stages a message locally and sends it later", async () => {
     const client = {
       session: {

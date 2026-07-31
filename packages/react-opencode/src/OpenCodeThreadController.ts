@@ -39,6 +39,15 @@ type ChildControllerEntry = {
   unsubscribe: (() => void) | null;
 };
 
+const isUrl = (value: string) => {
+  try {
+    new URL(value);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 const createLocalId = (prefix: string) =>
   `${prefix}_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
 
@@ -70,7 +79,11 @@ const getPromptParts = (message: AppendMessage) => {
         type: "file",
         filename: part.filename,
         mime: part.mimeType,
-        url: part.data,
+        // OpenCode forwards this into an AI SDK file part, whose `url` reaches
+        // an unguarded `new URL()`, so a payload it cannot parse is wrapped.
+        url: isUrl(part.data)
+          ? part.data
+          : `data:${part.mimeType};base64,${part.data}`,
       });
     }
   }
