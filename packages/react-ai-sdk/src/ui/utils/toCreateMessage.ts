@@ -42,10 +42,14 @@ const getImageMediaType = (part: {
   const dataUrlMediaType = getDataUrlMediaType(part.image);
   if (dataUrlMediaType?.startsWith("image/")) return dataUrlMediaType;
 
-  // A bare base64 payload carries its format in its leading bytes; without
-  // this the declared type is `image/png` whatever the image actually is.
-  if (!isParsableUrl(part.image)) {
-    const sniffed = sniffImageMediaType(part.image);
+  // The payload's own leading bytes, read through a data URL envelope too so a
+  // generic one such as `application/octet-stream` does not mask the format.
+  // Only a url of some other scheme has no bytes to read here.
+  const parsed = parseDataUrl(part.image);
+  const payload =
+    parsed?.data ?? (isParsableUrl(part.image) ? undefined : part.image);
+  if (payload !== undefined) {
+    const sniffed = sniffImageMediaType(payload);
     if (sniffed) return sniffed;
   }
 

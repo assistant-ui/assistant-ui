@@ -326,6 +326,22 @@ describe("toCreateMessage", () => {
     }
   });
 
+  it("sniffs through a generic data url envelope", () => {
+    const message = {
+      ...baseMessage,
+      content: [
+        {
+          type: "image",
+          image: "data:application/octet-stream;base64,/9j/4AAQSkZJRg==",
+        },
+      ],
+    } as unknown as AppendMessage;
+
+    expect(toCreateMessage(message).parts[0]).toMatchObject({
+      mediaType: "image/jpeg",
+    });
+  });
+
   it("falls back to image/png when the bytes match no known signature", () => {
     const message = {
       ...baseMessage,
