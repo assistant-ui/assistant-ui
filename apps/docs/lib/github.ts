@@ -199,7 +199,7 @@ export async function getCommitStats(
       revalidate,
     );
     if (!oldest.ok) return { total, firstCommitDate: null };
-    const data = (await oldest.json()) as CommitListItem[];
+    const data = (await withTimeout(oldest.json())) as CommitListItem[];
     return { total, firstCommitDate: commitDate(data[0]) };
   } catch {
     return { total: null, firstCommitDate: null };
