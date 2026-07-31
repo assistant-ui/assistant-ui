@@ -46,6 +46,20 @@ const createLocalId = (prefix: string) =>
 const getTextContent = (parts: readonly ThreadUserMessagePart[]) =>
   serializeUserParts(parts).trim();
 
+// OpenCode forwards this into an AI SDK file part, where `url` reaches an
+// unguarded `new URL()` and a data URL's own media type wins over the declared
+// one. So an inline payload is always re-enveloped with the resolved type, and
+// only a payload that is already a url of some other scheme is forwarded.
+const toWireUrl = (
+  payload: string,
+  mime: string,
+  parsed: { data: string } | null,
+) => {
+  if (parsed) return `data:${mime};base64,${parsed.data}`;
+  if (isParsableUrl(payload)) return payload;
+  return `data:${mime};base64,${payload}`;
+};
+
 // The attachment carries a name and content type its parts do not, so they
 // ride along rather than being dropped at the flatten. Both the outbound
 // prompt and the pending copy read this, so their fingerprints agree.
@@ -80,19 +94,17 @@ const getPromptParts = (message: AppendMessage) => {
       // usable as the floor: `resolveFullMediaType` rejects one outright for a
       // url source and whenever the inline bytes cannot be sniffed.
       const contentType = (part as { contentType?: string }).contentType;
-      const envelopeType = parseDataUrl(part.image)?.mimeType;
+      const parsed = parseDataUrl(part.image);
       const mime = contentType?.startsWith("image/")
         ? contentType
-        : envelopeType?.startsWith("image/")
-          ? envelopeType
+        : parsed?.mimeType?.startsWith("image/")
+          ? parsed.mimeType
           : "image/png";
       promptParts.push({
         type: "file",
         ...(part.filename != null && { filename: part.filename }),
         mime,
-        url: isParsableUrl(part.image)
-          ? part.image
-          : `data:${mime};base64,${part.image}`,
+        url: toWireUrl(part.image, mime, parsed),
       });
       continue;
     }
@@ -102,14 +114,12 @@ const getPromptParts = (message: AppendMessage) => {
         type: "file",
         filename: part.filename,
         mime: part.mimeType,
-        // OpenCode forwards this into an AI SDK file part, whose `url` reaches
-        // an unguarded `new URL()`, so a payload it cannot parse is wrapped. An
-        // `id` reference is an opaque handle this adapter cannot send, left
+        // An `id` reference is an opaque handle this adapter cannot send, left
         // unwrapped so it fails loudly rather than shipping a corrupt payload.
         url:
-          isParsableUrl(part.data) || part.sourceType === "id"
+          part.sourceType === "id"
             ? part.data
-            : `data:${part.mimeType};base64,${part.data}`,
+            : toWireUrl(part.data, part.mimeType, parseDataUrl(part.data)),
       });
     }
   }
