@@ -35,7 +35,7 @@ export const ChainOfThoughtByIndicesProvider: FC<
     }),
   });
   return (
-    <AuiProvider extend={parentAui} config={config}>
+    <AuiProvider aui={parentAui} config={config}>
       {children}
     </AuiProvider>
   );

@@ -41,7 +41,10 @@ vi.mock("@assistant-ui/store", async (importOriginal) => {
     AuiProvider: ({ children }: { children?: unknown }) =>
       createElement(
         actual.AuiProvider,
-        { value: mockUseAui() as never },
+        {
+          aui: mockUseAui() as never,
+          config: actual.AuiConfig({}),
+        } as never,
         children as never,
       ),
   };

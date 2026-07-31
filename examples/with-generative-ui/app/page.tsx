@@ -3,9 +3,9 @@
 import { Thread } from "@/components/assistant-ui/thread";
 import {
   AssistantRuntimeProvider,
+  AuiConfig,
   Suggestions,
   Tools,
-  useAui,
 } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
@@ -17,7 +17,7 @@ export default function Home() {
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
   });
 
-  const aui = useAui({
+  const config = AuiConfig({
     tools: Tools({ toolkit }),
     suggestions: Suggestions([
       {
@@ -46,7 +46,7 @@ export default function Home() {
   });
 
   return (
-    <AssistantRuntimeProvider aui={aui} runtime={runtime}>
+    <AssistantRuntimeProvider config={config} runtime={runtime}>
       <div className="flex h-full flex-col">
         <ExampleNav />
         <main className="min-h-0 flex-1">

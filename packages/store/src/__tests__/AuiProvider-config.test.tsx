@@ -64,7 +64,7 @@ const Extend: FC<{ config: AuiConfig; children: ReactNode }> = ({
 }) => {
   const aui = useAui();
   return (
-    <AuiProvider extend={aui} config={config}>
+    <AuiProvider aui={aui} config={config}>
       {children}
     </AuiProvider>
   );
@@ -141,7 +141,7 @@ describe("AuiProvider config", () => {
     expect(log).toEqual(["tap effect", "consumer effect"]);
   });
 
-  it("extends the parent client with extend={useAui()}", () => {
+  it("extends the parent client with aui={useAui()}", () => {
     let aui!: AnyClient;
     render(
       <AuiProvider config={threadConfig(["a"])}>
@@ -166,12 +166,12 @@ describe("AuiProvider config", () => {
     expect(aui.thread.getState()).toEqual({ count: 1 });
   });
 
-  it("isolates from surrounding providers with extend={null}", () => {
+  it("isolates from surrounding providers with aui={null}", () => {
     let aui!: AnyClient;
     render(
       <AuiProvider config={threadConfig(["a"])}>
         <AuiProvider
-          extend={null}
+          aui={null}
           config={{ counter: Counter() } as unknown as AuiConfig}
         >
           <Probe onRender={(c) => (aui = c)} />
@@ -195,7 +195,7 @@ describe("AuiProvider config", () => {
 
     let aui!: AnyClient;
     render(
-      <AuiProvider extend={portaled as never} config={messageConfig(0)}>
+      <AuiProvider aui={portaled as never} config={messageConfig(0)}>
         <Probe onRender={(c) => (aui = c)} />
       </AuiProvider>,
     );
@@ -204,13 +204,13 @@ describe("AuiProvider config", () => {
     expect(aui.message.getState()).toEqual({ id: "a", text: "text-a" });
   });
 
-  it("errors in dev when nested without an extend prop", () => {
+  it("errors in dev when nested without an aui prop", () => {
     renderExpectingError(
       <AuiProvider config={threadConfig(["a"])}>
         <AuiProvider config={messageConfig(0)}>{null}</AuiProvider>
       </AuiProvider>,
     ).toThrow(
-      "A parent AuiProvider exists — pass extend={useAui()} to inherit it or extend={null} to isolate.",
+      "A parent AuiProvider exists — pass aui={useAui()} to inherit it or aui={null} to isolate.",
     );
   });
 
@@ -220,16 +220,23 @@ describe("AuiProvider config", () => {
     ).not.toThrow();
   });
 
-  it("errors in dev when extend and value are both passed", () => {
+  it("errors in dev when aui and value are both passed", () => {
     renderExpectingError(
-      // @ts-expect-error extend and value are mutually exclusive
-      <AuiProvider extend={null} value={null} config={threadConfig(["a"])}>
+      // @ts-expect-error aui and value are mutually exclusive
+      <AuiProvider aui={null} value={null} config={threadConfig(["a"])}>
         {null}
       </AuiProvider>,
-    ).toThrow("AuiProvider: pass either `extend` or `value`, not both.");
+    ).toThrow("AuiProvider: pass either `aui` or `value`, not both.");
   });
 
-  it("provides the extend client as-is when no config is passed", () => {
+  it("errors in dev when aui is passed without a config", () => {
+    renderExpectingError(
+      // @ts-expect-error aui requires a config
+      <AuiProvider aui={null}>{null}</AuiProvider>,
+    ).toThrow("AuiProvider: `aui` requires a `config`.");
+  });
+
+  it("passes the aui client through as-is for an empty config", () => {
     let parent!: AnyClient;
     let inner!: AnyClient;
     const effects: string[] = [];
@@ -243,7 +250,11 @@ describe("AuiProvider config", () => {
 
     const Portal: FC<{ children: ReactNode }> = ({ children }) => {
       parent = useAui();
-      return <AuiProvider extend={parent as never}>{children}</AuiProvider>;
+      return (
+        <AuiProvider aui={parent as never} config={AuiConfig({})}>
+          {children}
+        </AuiProvider>
+      );
     };
 
     render(
@@ -259,14 +270,18 @@ describe("AuiProvider config", () => {
     expect(effects).toEqual(["tap effect"]);
   });
 
-  it("exposes the portaled client via ref on a config-less extend", () => {
+  it("exposes the pass-through client via ref", () => {
     let parent!: AnyClient;
     const ref = createRef<AnyClient>();
 
     const Portal = () => {
       parent = useAui();
       return (
-        <AuiProvider extend={parent as never} ref={ref as never}>
+        <AuiProvider
+          aui={parent as never}
+          config={AuiConfig({})}
+          ref={ref as never}
+        >
           {null}
         </AuiProvider>
       );
@@ -281,13 +296,13 @@ describe("AuiProvider config", () => {
     expect(ref.current).toBe(parent);
   });
 
-  it("creates a distinct fresh root for extend={null} with an empty config", () => {
+  it("creates a distinct fresh root for aui={null} with an empty config", () => {
     let parent!: AnyClient;
     let inner!: AnyClient;
     render(
       <AuiProvider config={threadConfig(["a"])}>
         <Probe onRender={(c) => (parent = c)} />
-        <AuiProvider extend={null} config={AuiConfig({})}>
+        <AuiProvider aui={null} config={AuiConfig({})}>
           <Probe onRender={(c) => (inner = c)} />
         </AuiProvider>
       </AuiProvider>,
@@ -311,12 +326,12 @@ describe("AuiProvider config", () => {
     expect(ref.current!.thread.getState()).toEqual({ count: 1 });
   });
 
-  it("exposes the created client through ref on an extend usage", () => {
+  it("exposes the created client through ref on an aui usage", () => {
     const ref = createRef<AnyClient>();
     const WithRef = () => {
       const aui = useAui();
       return (
-        <AuiProvider extend={aui} config={messageConfig(0)} ref={ref as never}>
+        <AuiProvider aui={aui} config={messageConfig(0)} ref={ref as never}>
           {null}
         </AuiProvider>
       );
@@ -424,5 +439,11 @@ describe("AuiProvider config", () => {
   it("AuiConfig returns its input for hoisting", () => {
     const input = { thread: Thread({ ids: ["a"] }) } as never;
     expect(AuiConfig(input)).toBe(input);
+  });
+
+  it("rejects raw object literals for the config prop at the type level", () => {
+    // @ts-expect-error config must be built with AuiConfig(...)
+    void (<AuiProvider config={{}}>{null}</AuiProvider>);
+    void (<AuiProvider config={AuiConfig({})}>{null}</AuiProvider>);
   });
 });

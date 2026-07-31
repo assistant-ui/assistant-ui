@@ -20,12 +20,17 @@ export const getRenderComponent = (runtime: AssistantRuntime) => {
 
 export type AssistantProviderBaseProps = PropsWithChildren<{
   runtime: AssistantRuntime;
-  aui?: AssistantClient | null;
+  aui?: AssistantClient | null | undefined;
+  config?: AuiConfig | undefined;
 }>;
 
 const AssistantProviderInner: FC<
-  PropsWithChildren<{ runtime: AssistantRuntime; aui: AssistantClient | null }>
-> = ({ runtime, aui, children }) => {
+  PropsWithChildren<{
+    runtime: AssistantRuntime;
+    aui: AssistantClient | null;
+    config: AuiConfig | undefined;
+  }>
+> = ({ runtime, aui, config, children }) => {
   // The runtime has a stable identity but mutates in place: its options are
   // pushed in by an unconditional effect inside <RenderComponent />, so that
   // element must be re-created every commit for React to re-render it and
@@ -34,9 +39,9 @@ const AssistantProviderInner: FC<
   // changes (e.g. unstable_enableMessageQueue) from reaching the runtime.
   "use no memo";
   const RenderComponent = getRenderComponent(runtime);
-  const config = AuiConfig({ threads: RuntimeAdapter(runtime) });
+  const merged = AuiConfig({ threads: RuntimeAdapter(runtime), ...config });
   return (
-    <AuiProvider extend={aui} config={config}>
+    <AuiProvider aui={aui} config={merged}>
       {RenderComponent && <RenderComponent />}
       {children}
     </AuiProvider>
@@ -44,8 +49,8 @@ const AssistantProviderInner: FC<
 };
 
 export const AssistantProviderBase: FC<AssistantProviderBaseProps> = memo(
-  ({ runtime, aui = null, children }) => (
-    <AssistantProviderInner runtime={runtime} aui={aui}>
+  ({ runtime, aui = null, config, children }) => (
+    <AssistantProviderInner runtime={runtime} aui={aui} config={config}>
       {children}
     </AssistantProviderInner>
   ),

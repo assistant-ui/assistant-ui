@@ -25,7 +25,7 @@ platforms: ["react"]
 ```tsx title="app/providers.tsx"
 "use client";
 
-import { AuiProvider, useAui } from "@assistant-ui/react";
+import { AuiConfig, AuiProvider, useAui } from "@assistant-ui/react";
 import { McpManagerResource, defineConnector } from "@assistant-ui/react-mcp";
 
 const connectors = [
@@ -38,8 +38,14 @@ const connectors = [
 ];
 
 export function Providers({ children }: { children: React.ReactNode }) {
-  const aui = useAui({ mcp: McpManagerResource({ connectors }) });
-  return <AuiProvider value={aui}>{children}</AuiProvider>;
+  return (
+    <AuiProvider
+      aui={useAui()}
+      config={AuiConfig({ mcp: McpManagerResource({ connectors }) })}
+    >
+      {children}
+    </AuiProvider>
+  );
 }
 ```
 

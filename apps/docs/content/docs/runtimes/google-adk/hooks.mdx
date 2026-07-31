@@ -389,9 +389,9 @@ Register the renderer with a backend toolkit entry inside `AssistantRuntimeProvi
 ```tsx
 import {
   AssistantRuntimeProvider,
+  AuiConfig,
   defineToolkit,
   Tools,
-  useAui,
 } from "@assistant-ui/react";
 import {
   createAdkStream,
@@ -410,10 +410,11 @@ function App() {
   const runtime = useAdkRuntime({
     stream: createAdkStream({ api: "/api/chat" }),
   });
-  const aui = useAui({ tools: Tools({ toolkit }) });
-
   return (
-    <AssistantRuntimeProvider aui={aui} runtime={runtime}>
+    <AssistantRuntimeProvider
+      runtime={runtime}
+      config={AuiConfig({ tools: Tools({ toolkit }) })}
+    >
       <Thread />
     </AssistantRuntimeProvider>
   );
@@ -426,9 +427,9 @@ function App() {
 ```tsx
 import {
   AssistantRuntimeProvider,
+  AuiConfig,
   defineToolkit,
   Tools,
-  useAui,
 } from "@assistant-ui/react-native";
 import {
   createAdkStream,
@@ -450,10 +451,11 @@ function App() {
   const runtime = useAdkRuntime({
     stream: createAdkStream({ api: `${API_URL}/api/chat` }),
   });
-  const aui = useAui({ tools: Tools({ toolkit }) });
-
   return (
-    <AssistantRuntimeProvider aui={aui} runtime={runtime}>
+    <AssistantRuntimeProvider
+      runtime={runtime}
+      config={AuiConfig({ tools: Tools({ toolkit }) })}
+    >
       <View style={{ flex: 1 }}>
         <Thread />
       </View>
@@ -468,9 +470,9 @@ function App() {
 ```tsx
 import {
   AssistantRuntimeProvider,
+  AuiConfig,
   defineToolkit,
   Tools,
-  useAui,
 } from "@assistant-ui/react-ink";
 import {
   createAdkStream,
@@ -490,10 +492,11 @@ function App() {
   const runtime = useAdkRuntime({
     stream: createAdkStream({ api: "http://localhost:3000/api/chat" }),
   });
-  const aui = useAui({ tools: Tools({ toolkit }) });
-
   return (
-    <AssistantRuntimeProvider aui={aui} runtime={runtime}>
+    <AssistantRuntimeProvider
+      runtime={runtime}
+      config={AuiConfig({ tools: Tools({ toolkit }) })}
+    >
       <Box flexDirection="column">
         <Thread />
       </Box>

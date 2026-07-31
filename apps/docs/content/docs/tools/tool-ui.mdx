@@ -69,15 +69,17 @@ export default defineToolkit({
 ```
 
 ```tsx title="app/MyRuntimeProvider.tsx"
-import { AssistantRuntimeProvider, Tools, useAui } from "@assistant-ui/react";
+import { AssistantRuntimeProvider, AuiConfig, Tools } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 import toolkit from "./toolkit";
 
 function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
   const runtime = useChatRuntime();
-  const aui = useAui({ tools: Tools({ toolkit }) });
   return (
-    <AssistantRuntimeProvider aui={aui} runtime={runtime}>
+    <AssistantRuntimeProvider
+      runtime={runtime}
+      config={AuiConfig({ tools: Tools({ toolkit }) })}
+    >
       {children}
     </AssistantRuntimeProvider>
   );
@@ -190,10 +192,11 @@ const toolkit = defineToolkit({
 });
 
 function App({ runtime }: { runtime: AssistantRuntime }) {
-  const aui = useAui({ tools: Tools({ toolkit }) });
-
   return (
-    <AssistantRuntimeProvider aui={aui} runtime={runtime}>
+    <AssistantRuntimeProvider
+      runtime={runtime}
+      config={AuiConfig({ tools: Tools({ toolkit }) })}
+    >
       <Thread />
     </AssistantRuntimeProvider>
   );
@@ -331,7 +334,7 @@ export function useAnalyzeDataToolkit(theme: "light" | "dark") {
 ```
 
 ```tsx title="DynamicToolUI.tsx"
-import { AuiProvider, Tools, useAui } from "@assistant-ui/react";
+import { AuiConfig, AuiProvider, Tools, useAui } from "@assistant-ui/react";
 import { useState } from "react";
 import { useAnalyzeDataToolkit } from "./analyze-data-toolkit";
 
@@ -339,11 +342,11 @@ function DynamicToolUI({ children }: { children: React.ReactNode }) {
   const [theme] = useState<"light" | "dark">("light");
   const toolkit = useAnalyzeDataToolkit(theme);
 
-  const aui = useAui({
-    tools: Tools({ toolkit }),
-  });
-
-  return <AuiProvider value={aui}>{children}</AuiProvider>;
+  return (
+    <AuiProvider aui={useAui()} config={AuiConfig({ tools: Tools({ toolkit }) })}>
+      {children}
+    </AuiProvider>
+  );
 }
 ```
 
@@ -390,18 +393,14 @@ export function useInventoryToolkit(productId: string, productName: string) {
 ```
 
 ```tsx title="ProductPage.tsx"
-import { AuiProvider, Tools, useAui } from "@assistant-ui/react";
+import { AuiConfig, AuiProvider, Tools, useAui } from "@assistant-ui/react";
 import { useInventoryToolkit } from "./inventory-toolkit";
 
 function ProductPage({ productId, productName }) {
   const toolkit = useInventoryToolkit(productId, productName);
 
-  const aui = useAui({
-    tools: Tools({ toolkit }),
-  });
-
   return (
-    <AuiProvider value={aui}>
+    <AuiProvider aui={useAui()} config={AuiConfig({ tools: Tools({ toolkit }) })}>
       <div>Product details...</div>
     </AuiProvider>
   );
@@ -942,15 +941,18 @@ export function useHeavyComputationToolkit() {
 ```
 
 ```tsx title="HeavyComputationToolProvider.tsx"
-import { AuiProvider, Tools, useAui } from "@assistant-ui/react";
+import { AuiConfig, AuiProvider, Tools, useAui } from "@assistant-ui/react";
 import type { ReactNode } from "react";
 import { useHeavyComputationToolkit } from "./heavy-computation-toolkit";
 
 function HeavyComputationToolProvider({ children }: { children: ReactNode }) {
   const toolkit = useHeavyComputationToolkit();
-  const aui = useAui({ tools: Tools({ toolkit }) });
 
-  return <AuiProvider value={aui}>{children}</AuiProvider>;
+  return (
+    <AuiProvider aui={useAui()} config={AuiConfig({ tools: Tools({ toolkit }) })}>
+      {children}
+    </AuiProvider>
+  );
 }
 ```
 

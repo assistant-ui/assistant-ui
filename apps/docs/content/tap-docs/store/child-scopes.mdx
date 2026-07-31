@@ -123,12 +123,11 @@ Each element must have a key via `withKey`. Keys let Store track identity across
 `Derived` creates a scope that points to one item from the parent:
 
 ```tsx title="app/TodoApp.tsx"
-import { useAui, AuiProvider, useAuiState, Derived } from "@assistant-ui/store";
+import { AuiConfig, AuiProvider, useAui, useAuiState, Derived } from "@assistant-ui/store";
 
 const TodoApp = () => {
-  const aui = useAui({ todoList: TodoListResource() });
   return (
-    <AuiProvider value={aui}>
+    <AuiProvider config={AuiConfig({ todoList: TodoListResource() })}>
       <TodoList />
     </AuiProvider>
   );
@@ -146,16 +145,17 @@ const TodoList = () => {
 };
 
 const TodoItem = ({ index }: { index: number }) => {
-  const aui = useAui({
-    todo: Derived({
-      source: "todoList",
-      query: { index },
-      get: (aui) => aui.todoList.todo({ index }),
-    }),
-  });
-
   return (
-    <AuiProvider value={aui}>
+    <AuiProvider
+      aui={useAui()}
+      config={AuiConfig({
+        todo: Derived({
+          source: "todoList",
+          query: { index },
+          get: (aui) => aui.todoList.todo({ index }),
+        }),
+      })}
+    >
       <TodoDisplay />
     </AuiProvider>
   );

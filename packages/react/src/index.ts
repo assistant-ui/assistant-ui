@@ -4,6 +4,7 @@
 export {
   useAui,
   AuiProvider,
+  AuiConfig,
   useAuiState,
   useAuiEvent,
   AuiIf,

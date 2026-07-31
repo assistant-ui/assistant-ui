@@ -31,9 +31,8 @@ type AssistantState = { [K]: ReturnType<ClientSchemas[K]["methods"]["getState"]>
 ### useAui
 ```typescript
 useAui(): AssistantClient;
-useAui(clients: { [K]?: ClientElement<K> | DerivedElement<K> }): AssistantClient;
 ```
-Flow: splitClients → apply transformScopes → mount root clients → create derived accessors → merge with parent.
+Returns the `AssistantClient` from context.
 
 ### useAuiState
 ```typescript
@@ -47,11 +46,16 @@ useAuiEvent<E>(selector: E | { scope: EventScope<E>; event: E }, callback: (payl
 ```
 Selectors: `"client.event"` | `{ scope: "parent", event }` | `{ scope: "*", event }`. Wildcard `"*"` receives all.
 
-### AuiProvider / AuiIf
+### AuiConfig / AuiProvider / AuiIf
 ```typescript
-<AuiProvider value={aui}>{children}</AuiProvider>
+AuiConfig(config: { [K]?: ClientElement<K> | DerivedElement<K> }): AuiConfig;
+
+<AuiProvider config={AuiConfig({ ... })}>{children}</AuiProvider>               // top-level root
+<AuiProvider aui={useAui()} config={AuiConfig({ ... })}>{children}</AuiProvider> // extend parent
+<AuiProvider aui={null} config={AuiConfig({ ... })}>{children}</AuiProvider>     // isolate from parent
 <AuiIf condition={(s) => boolean}>{children}</AuiIf>
 ```
+`config` must be built with `AuiConfig` (branded type) and is identity-insensitive. Under a parent provider, `aui` is mandatory (dev error otherwise); `aui` requires `config`; `aui={client}` with an empty config provides that client as-is. Config flow: splitClients → apply transformScopes → mount root clients → create derived accessors → merge with parent.
 
 ### Derived
 ```typescript

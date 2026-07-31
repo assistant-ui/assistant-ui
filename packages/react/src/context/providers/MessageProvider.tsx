@@ -13,7 +13,7 @@ export const MessageProvider: FC<
   const aui = useAui();
   const config = AuiConfig({ message: ThreadMessageClient(props) });
   return (
-    <AuiProvider extend={aui} config={config}>
+    <AuiProvider aui={aui} config={config}>
       {children}
     </AuiProvider>
   );

@@ -52,7 +52,7 @@ export const TextMessagePartProvider: FC<
     part: TextMessagePartClient({ text, isRunning }),
   });
   return (
-    <AuiProvider extend={aui} config={config}>
+    <AuiProvider aui={aui} config={config}>
       {children}
     </AuiProvider>
   );

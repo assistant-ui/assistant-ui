@@ -1,17 +1,17 @@
 "use client";
 
-import { useAui, AuiProvider } from "@assistant-ui/store";
+import { AuiProvider, AuiConfig } from "@assistant-ui/store";
 import { SpanResource } from "@assistant-ui/react-o11y";
 import { mockSpans } from "./mock-data";
 import { WaterfallTimeline } from "./waterfall-timeline";
 
-export function WaterfallPage() {
-  const aui = useAui({
-    span: SpanResource({ spans: mockSpans }),
-  });
+const config = AuiConfig({
+  span: SpanResource({ spans: mockSpans }),
+});
 
+export function WaterfallPage() {
   return (
-    <AuiProvider value={aui}>
+    <AuiProvider config={config}>
       <WaterfallTimeline />
     </AuiProvider>
   );

@@ -42,11 +42,17 @@ type AssistantState = ScopeStates & {
   };
 };
 
-type AuiConfig = {
-  [K in ClientNames]?: ClientElement<K> | DerivedElement<K>;
+type AuiConfig = AuiConfig.Input & {
+  readonly [auiConfigBrand]: true;
 };
 
-declare const AuiConfig: (config: AuiConfig) => AuiConfig;
+declare namespace AuiConfig {
+  type Input = {
+    [K in ClientNames]?: ClientElement<K> | DerivedElement<K>;
+  };
+}
+
+declare const AuiConfig: (config: AuiConfig.Input) => AuiConfig;
 
 declare namespace AuiIf {
   type Props = PropsWithChildren<{
@@ -61,21 +67,21 @@ declare const AuiProvider: {
   (props: {
     config: AuiConfig;
     ref?: React.Ref<AssistantClient>;
-    extend?: never;
+    aui?: never;
     value?: never;
     children: React.ReactNode;
   }): React.ReactElement;
   (props: {
-    extend: AssistantClient | null;
-    config?: AuiConfig;
+    aui: AssistantClient | null;
+    config: AuiConfig;
     ref?: React.Ref<AssistantClient>;
     value?: never;
     children: React.ReactNode;
   }): React.ReactElement;
   (props: {
     value: AssistantClient | null;
-    config?: AuiConfig;
-    extend?: never;
+    aui?: never;
+    config?: never;
     ref?: never;
     children: React.ReactNode;
   }): React.ReactElement;
@@ -208,6 +214,8 @@ type WildcardPayload = {
 
 declare function attachTransformScopes(hook: Hook, transform: TransformScopesFn): void;
 
+declare const auiConfigBrand: unique symbol;
+
 declare const clientIdBrand: unique symbol;
 
 declare function forwardTransformScopes(target: Hook, source: Hook): void;
@@ -237,7 +245,7 @@ declare const useAssistantClientRef: () => {
 declare const useAssistantEmit: () => <TEvent extends Exclude<AssistantEventName, "*">>(event: TEvent, payload: AssistantEventPayload[TEvent]) => void;
 
 declare namespace useAui {
-  type Props = AuiConfig;
+  type Props = AuiConfig.Input;
 }
 
 declare function useAui(): AssistantClient;

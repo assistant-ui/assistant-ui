@@ -14,7 +14,7 @@ export const McpServerByIdProvider: FC<PropsWithChildren<{ id: string }>> = ({
     }),
   });
   return (
-    <AuiProvider extend={aui} config={config}>
+    <AuiProvider aui={aui} config={config}>
       {children}
     </AuiProvider>
   );

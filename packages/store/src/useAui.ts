@@ -376,7 +376,7 @@ type ScopedAuiClient = { client: AssistantClient; effects?: () => void };
 
 export const useScopedClient = (
   parent: AssistantClient,
-  clients: AuiConfig,
+  clients: AuiConfig.Input,
 ): ScopedAuiClient => {
   const entries = Object.entries(
     applyTransformScopes(clients, parent),
@@ -397,7 +397,7 @@ export const useScopedClient = (
 };
 
 export namespace useAui {
-  export type Props = AuiConfig;
+  export type Props = AuiConfig.Input;
 }
 
 /**
@@ -463,7 +463,8 @@ export function useAui(): AssistantClient;
  * const role = useAuiState((s) => s.message.role);
  * ```
  *
- * @deprecated Use `<AuiProvider config={AuiConfig({ ... })}>` instead; it
+ * @deprecated Use `<AuiProvider aui={useAui()} config={AuiConfig({ ... })}>`
+ * instead; it
  * creates the client and provides it to the subtree in one step.
  */
 export function useAui(clients: useAui.Props): AssistantClient;

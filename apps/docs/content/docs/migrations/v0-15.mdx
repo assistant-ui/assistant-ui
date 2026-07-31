@@ -132,17 +132,84 @@ The second argument (`useAui(clients, { parent })`) is removed. Provide the pare
 const aui = useAui(scopes, { parent });
 
 // After
-const Scoped = ({ children }) => {
-  const aui = useAui(scopes); // extends the AuiProvider parent
-  return <AuiProvider value={aui}>{children}</AuiProvider>;
-};
+const Scoped = ({ children }) => (
+  <AuiProvider aui={useAui()} config={AuiConfig(scopes)}>
+    {children}
+  </AuiProvider>
+);
 
-<AuiProvider value={parent}>
+<AuiProvider aui={parent} config={AuiConfig({})}>
   <Scoped />
 </AuiProvider>;
 ```
 
-Where `{ parent: null }` was used to detach from context, `<AuiProvider value={null}>` now provides an isolated empty root (experimental).
+Where `{ parent: null }` was used to detach from context, `<AuiProvider aui={null} config={AuiConfig({})}>` now provides an isolated empty root.
+
+## `AuiProvider` Grammar
+
+`AuiProvider` takes a `config` built with `AuiConfig(...)` — raw object literals are a type error. At the top level, `config` alone creates the subtree's client. Nested under a parent provider, `aui` is mandatory: `aui={useAui()}` extends the parent, `aui={null}` isolates (dev-enforced). An empty config provides the `aui` client as-is. `ref` receives the resulting client after mount.
+
+```tsx
+// Top-level root
+<AuiProvider config={AuiConfig({ tools: Tools({ toolkit }) })}>
+
+// Nested: extend the parent
+<AuiProvider aui={useAui()} config={AuiConfig({ tools: Tools({ toolkit }) })}>
+
+// Nested: isolate from the parent
+<AuiProvider aui={null} config={AuiConfig({ tools: Tools({ toolkit }) })}>
+```
+
+`AuiConfig` is exported from `@assistant-ui/store` and re-exported from `@assistant-ui/react`, `@assistant-ui/react-native`, and `@assistant-ui/react-ink`.
+
+### `value` Prop Deprecated
+
+```tsx
+// Before
+<AuiProvider value={client}>
+<AuiProvider value={null}>
+
+// After
+<AuiProvider aui={client} config={AuiConfig({})}>
+<AuiProvider aui={null} config={AuiConfig({})}>
+```
+
+### `useAui({ ... })` Extension Overload Deprecated
+
+```tsx
+// Before
+const aui = useAui({ tools: Tools({ toolkit }) });
+return <AuiProvider value={aui}>{children}</AuiProvider>;
+
+// After
+return (
+  <AuiProvider aui={useAui()} config={AuiConfig({ tools: Tools({ toolkit }) })}>
+    {children}
+  </AuiProvider>
+);
+```
+
+Where the extended client was passed to `<AssistantRuntimeProvider aui={aui}>`, use the new `config` prop instead — the scopes are provided alongside the runtime's threads scope:
+
+```tsx
+// Before
+const aui = useAui({ tools: Tools({ toolkit }) });
+return (
+  <AssistantRuntimeProvider aui={aui} runtime={runtime}>
+    {children}
+  </AssistantRuntimeProvider>
+);
+
+// After
+return (
+  <AssistantRuntimeProvider
+    runtime={runtime}
+    config={AuiConfig({ tools: Tools({ toolkit }) })}
+  >
+    {children}
+  </AssistantRuntimeProvider>
+);
+```
 
 ## Still Deprecated (not removed)
 

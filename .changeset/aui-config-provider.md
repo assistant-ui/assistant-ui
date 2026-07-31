@@ -2,9 +2,10 @@
 "@assistant-ui/store": patch
 "@assistant-ui/core": patch
 "@assistant-ui/react": patch
+"@assistant-ui/react-native": patch
 "@assistant-ui/react-mcp": patch
 "@assistant-ui/react-o11y": patch
 "@assistant-ui/react-ink": patch
 ---
 
-feat: AuiProvider extend/config grammar. `config={AuiConfig({...})}` alone creates a top-level root client; nested providers must pass `extend` — a client to extend, or `null` to isolate (dev-enforced). `extend` without a `config` provides the given client as-is. `ref` exposes the resulting client after mount. The `useAui({...})` extension overload and the AuiProvider `value` prop are deprecated.
+feat: AuiProvider aui/config grammar. `config={AuiConfig({...})}` alone creates a top-level root client; nested providers must pass `aui` — a client to extend, or `null` to isolate (dev-enforced). An empty config provides the `aui` client as-is; `ref` exposes the resulting client. The `config` prop only accepts configs built with `AuiConfig(...)` (branded type). AssistantRuntimeProvider gains an optional `config` prop whose scopes are provided alongside the runtime scope. The `useAui({...})` extension overload and the AuiProvider `value` prop are deprecated.

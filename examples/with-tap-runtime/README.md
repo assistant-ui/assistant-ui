@@ -47,7 +47,7 @@ const messages: ExternalThreadMessage[] = [
 ### 2. Create Runtime
 
 ```typescript
-const aui = useAui({
+const config = AuiConfig({
   threads: InMemoryThreadList({
     thread: () => ExternalThread({ messages, isRunning: false }),
   }),
@@ -57,7 +57,7 @@ const aui = useAui({
 ### 3. Provide to App
 
 ```typescript
-<AuiProvider value={aui}>
+<AuiProvider config={config}>
   <Thread.Root>
     <Thread.Messages />
   </Thread.Root>

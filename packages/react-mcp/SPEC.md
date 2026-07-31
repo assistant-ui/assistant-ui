@@ -19,7 +19,7 @@ Both share one connection lifecycle, one persisted state surface, and one tool r
 
 ## Design principles
 
-- **One entry point.** `McpManagerResource` — mount via `useAui({ mcp: McpManagerResource(...) })`. No provider wrapper, no imperative hooks.
+- **One entry point.** `McpManagerResource` — mount via `AuiConfig({ mcp: McpManagerResource(...) })`. No provider wrapper, no imperative hooks.
 - **Tap-first.** Connection lifecycle, tool lists, and tool registration are tap state. Components read via `useAuiState`; methods called via `aui.mcp().x()` in callbacks (never during render).
 - **One source of truth.** Persisted state goes through `MCPStorage` (a tap resource). `McpLocalStorage` is the default; swap by passing a different resource.
 - **Unstyled primitives.** `data-*` attributes for styling, no CSS, no business logic — matches `SpanPrimitive`.
@@ -67,7 +67,7 @@ After the v0.1 simplification, the package's runtime surface is:
 
 | Export | Purpose |
 | --- | --- |
-| `McpManagerResource` | Root tap resource — mount via `useAui({ mcp: McpManagerResource({...}) })`. Auto-registers connected tools with `modelContext`. |
+| `McpManagerResource` | Root tap resource — mount via `AuiConfig({ mcp: McpManagerResource({...}) })`. Auto-registers connected tools with `modelContext`. |
 | `McpServerResource` | Per-server resource (advanced — used internally by `McpManagerResource`) |
 | `McpLocalStorage`, `McpMemoryStorage`, `McpCustomStorage` | Storage resource factories |
 | `defineConnector` | Identity-typed helper for `MCPConnector` objects |
@@ -217,7 +217,7 @@ McpCustomStorage(impl: MCPStorage): ResourceElement<MCPStorage>;
 ```tsx
 // One line — no provider component.
 function App() {
-  const aui = useAui({
+  const config = AuiConfig({
     mcp: McpManagerResource({
       connectors: [
         defineConnector({
@@ -234,7 +234,7 @@ function App() {
       // oauthRedirectUri: "https://app.example.com/mcp/callback",
     }),
   });
-  return <AuiProvider value={aui}><Page /></AuiProvider>;
+  return <AuiProvider config={config}><Page /></AuiProvider>;
 }
 ```
 
@@ -413,7 +413,7 @@ Errors surface as rejected promises on the manager/server methods. Tool failures
 ```tsx
 // app/providers.tsx
 "use client";
-import { AuiProvider, useAui } from "@assistant-ui/store";
+import { AuiProvider, AuiConfig } from "@assistant-ui/store";
 import { McpManagerResource, defineConnector } from "@assistant-ui/react-mcp";
 
 const connectors = [
@@ -426,8 +426,8 @@ const connectors = [
 ];
 
 export function Providers({ children }: { children: React.ReactNode }) {
-  const aui = useAui({ mcp: McpManagerResource({ connectors }) });
-  return <AuiProvider value={aui}>{children}</AuiProvider>;
+  const config = AuiConfig({ mcp: McpManagerResource({ connectors }) });
+  return <AuiProvider config={config}>{children}</AuiProvider>;
 }
 ```
 

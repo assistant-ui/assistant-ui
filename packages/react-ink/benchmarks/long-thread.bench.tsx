@@ -10,6 +10,7 @@ import { useMemo, useState } from "react";
 import { Box, Text } from "ink";
 import { render } from "ink-testing-library";
 import {
+  AuiConfig,
   AuiProvider,
   Derived,
   RenderChildrenWithAccessor,
@@ -88,7 +89,11 @@ const BenchProvider: React.FC<{
     }),
   });
 
-  return <AuiProvider extend={aui}>{children}</AuiProvider>;
+  return (
+    <AuiProvider aui={aui} config={AuiConfig({})}>
+      {children}
+    </AuiProvider>
+  );
 };
 
 /**

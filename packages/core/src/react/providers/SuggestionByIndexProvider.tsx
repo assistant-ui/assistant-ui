@@ -18,7 +18,7 @@ export const SuggestionByIndexProvider: FC<SuggestionByIndexProviderProps> = ({
     }),
   });
   return (
-    <AuiProvider extend={aui} config={config}>
+    <AuiProvider aui={aui} config={config}>
       {children}
     </AuiProvider>
   );

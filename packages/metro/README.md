@@ -67,10 +67,12 @@ export default defineToolkit({
 Register it with `Tools({ toolkit })`, the same as on the web:
 
 ```tsx
-import { Tools, useAui } from "@assistant-ui/react-native";
+import { AuiConfig, Tools } from "@assistant-ui/react-native";
 import toolkit from "./toolkit";
 
-const aui = useAui({ tools: Tools({ toolkit }) });
+const config = AuiConfig({ tools: Tools({ toolkit }) });
+
+<AssistantRuntimeProvider runtime={runtime} config={config}>...</AssistantRuntimeProvider>;
 ```
 
 ## How it works
