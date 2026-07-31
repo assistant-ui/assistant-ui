@@ -113,13 +113,23 @@ describe("createResumableSessionStorage", () => {
     expect(window.sessionStorage.getItem("first")).toBe("stream-1");
   });
 
-  it("falls back to the default key when the getter returns undefined", () => {
-    const storage = createResumableSessionStorage({ key: () => undefined });
+  it("disables storage access while the getter returns undefined", () => {
+    let current: string | undefined;
+    const storage = createResumableSessionStorage({ key: () => current });
 
     storage.setStreamId("stream-1");
+    expect(storage.getStreamId()).toBeNull();
+    expect(window.sessionStorage.getItem("aui-resumable-stream-id")).toBeNull();
+
+    current = "thread-a";
+    storage.setStreamId("stream-1");
     expect(storage.getStreamId()).toBe("stream-1");
-    expect(window.sessionStorage.getItem("aui-resumable-stream-id")).toBe(
-      "stream-1",
-    );
+
+    current = undefined;
+    expect(storage.getStreamId()).toBeNull();
+    storage.clear();
+
+    current = "thread-a";
+    expect(storage.getStreamId()).toBe("stream-1");
   });
 });

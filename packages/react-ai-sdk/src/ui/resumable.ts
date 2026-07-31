@@ -27,8 +27,9 @@ export function createResumableSessionStorage(options?: {
   /**
    * Storage key for the pending stream id. A static string namespaces per route
    * or chat surface. A getter is read lazily on every access, so the key can be
-   * derived from the active thread's id, which a brand-new thread does not know
-   * until it mounts; a getter returning `undefined` falls back to the default key.
+   * derived from the active thread's identity; while the getter returns
+   * `undefined`, reads report no pending stream and writes are dropped, so a
+   * thread whose identity is not known yet never touches another thread's key.
    *
    * Under a remote thread list with more than one thread, scope the key per
    * thread and create one storage instance per thread runtime rather than a
@@ -38,35 +39,37 @@ export function createResumableSessionStorage(options?: {
   key?: string | (() => string | undefined);
 }): ResumableClientStorage {
   const keyOption = options?.key;
-  const resolveKey = (): string => {
-    if (typeof keyOption === "function")
-      return keyOption() ?? DEFAULT_STORAGE_KEY;
+  const resolveKey = (): string | undefined => {
+    if (typeof keyOption === "function") return keyOption();
     return keyOption ?? DEFAULT_STORAGE_KEY;
   };
   return {
     getStreamId() {
+      const key = resolveKey();
       const storage = getSessionStorage();
-      if (!storage) return null;
+      if (!key || !storage) return null;
       try {
-        return storage.getItem(resolveKey());
+        return storage.getItem(key);
       } catch {
         return null;
       }
     },
     setStreamId(id) {
+      const key = resolveKey();
       const storage = getSessionStorage();
-      if (!storage) return;
+      if (!key || !storage) return;
       try {
-        storage.setItem(resolveKey(), id);
+        storage.setItem(key, id);
       } catch {
         // Ignore blocked or unavailable sessionStorage.
       }
     },
     clear() {
+      const key = resolveKey();
       const storage = getSessionStorage();
-      if (!storage) return;
+      if (!key || !storage) return;
       try {
-        storage.removeItem(resolveKey());
+        storage.removeItem(key);
       } catch {
         // Ignore blocked or unavailable sessionStorage.
       }
