@@ -147,9 +147,15 @@ export class ModelContextRegistry implements ModelContextProvider {
 
     this._providers.set(id, provider);
 
-    const unsubscribe = provider.subscribe?.(() => {
-      this.notifySubscribers();
-    });
+    let unsubscribe: Unsubscribe | undefined;
+    try {
+      unsubscribe = provider.subscribe?.(() => {
+        this.notifySubscribers();
+      });
+    } catch (error) {
+      this._providers.delete(id);
+      throw error;
+    }
     this._providerUnsubscribes.set(id, unsubscribe);
 
     this.notifySubscribers();
