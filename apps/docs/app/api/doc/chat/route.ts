@@ -10,6 +10,7 @@ import {
   source,
   examples as examplesSource,
   tapDocs as tapSource,
+  getTapDocsPage,
 } from "@/lib/source";
 import { getModel, withTracing } from "@/lib/ai/provider";
 import { frontendTools } from "@assistant-ui/react-ai-sdk";
@@ -144,17 +145,14 @@ function normalizeDocPath(slugOrUrl: string, routeUrl: string): string {
   return cleaned;
 }
 
-function resolveDocSource(slugs: string[]) {
+function resolveDocPage(slugs: string[]) {
   if (slugs[0] === "examples") {
-    return { docSource: examplesSource, docSlugs: slugs.slice(1) };
+    return examplesSource.getPage(slugs.slice(1));
   }
   if (slugs[0] === "tap") {
-    return {
-      docSource: tapSource,
-      docSlugs: slugs.slice(slugs[1] === "docs" ? 2 : 1),
-    };
+    return getTapDocsPage(slugs.slice(slugs[1] === "docs" ? 2 : 1));
   }
-  return { docSource: source, docSlugs: slugs };
+  return source.getPage(slugs);
 }
 
 export const maxDuration = 300;
@@ -439,9 +437,7 @@ export async function POST(req: Request): Promise<Response> {
             }
 
             const slugs = normalized.split("/").filter(Boolean);
-            const { docSource, docSlugs } = resolveDocSource(slugs);
-
-            const page = docSource.getPage(docSlugs);
+            const page = resolveDocPage(slugs);
             if (!page) return { error: `Page not found: ${slugOrUrl}` };
 
             const content = await getLLMText(page);
