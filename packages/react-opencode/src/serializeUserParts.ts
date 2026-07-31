@@ -29,7 +29,10 @@ export const serializeOpenCodeParts = (
       }
       if (part.type === "file") {
         if (part.filename) return part.filename;
-        if ("url" in part) return part.url;
+        // The server shape is the one without `data`, so a malformed part that
+        // reaches history without a url renders empty rather than throwing
+        // inside the reducer and taking the whole load down.
+        if (!("data" in part)) return part.url ?? "";
         if (part.sourceType === "id") return part.data;
         return toMediaWireUrl(
           part.data,

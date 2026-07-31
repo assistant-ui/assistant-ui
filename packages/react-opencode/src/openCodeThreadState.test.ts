@@ -98,6 +98,28 @@ describe("reduceOpenCodeThreadState", () => {
     expect(history.messageOrder).toEqual(["msg_1"]);
   });
 
+  it("loads history containing a file part that carries no url", () => {
+    const initial = createOpenCodeThreadState("ses_1");
+
+    const history = reduceOpenCodeThreadState(initial, {
+      type: "history.loaded",
+      session: null,
+      messages: [
+        {
+          info: {
+            id: "msg_1",
+            role: "user",
+            sessionID: "ses_1",
+            time: { created: 1000 },
+          },
+          parts: [{ type: "file" }],
+        } as unknown as MessageWithParts,
+      ],
+    });
+
+    expect(history.messageOrder).toEqual(["msg_1"]);
+  });
+
   it("adds assistant parts without losing message order", () => {
     const initial = createOpenCodeThreadState("ses_1");
 
