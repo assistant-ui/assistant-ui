@@ -1,5 +1,5 @@
 import type { FC, PropsWithChildren } from "react";
-import { AuiConfig, AuiProvider } from "@assistant-ui/store";
+import { useAui, AuiConfig, AuiProvider } from "@assistant-ui/store";
 import type { ThreadListItemRuntime } from "../..";
 import { ThreadListItemClient } from "../../store/internal";
 
@@ -8,8 +8,13 @@ export const ThreadListItemRuntimeProvider: FC<
     runtime: ThreadListItemRuntime;
   }>
 > = ({ runtime, children }) => {
+  const aui = useAui();
   const config = AuiConfig({
     threadListItem: ThreadListItemClient({ runtime }),
   });
-  return <AuiProvider config={config}>{children}</AuiProvider>;
+  return (
+    <AuiProvider extend={aui} config={config}>
+      {children}
+    </AuiProvider>
+  );
 };

@@ -24,8 +24,8 @@ export type AssistantProviderBaseProps = PropsWithChildren<{
 }>;
 
 const AssistantProviderInner: FC<
-  PropsWithChildren<{ runtime: AssistantRuntime }>
-> = ({ runtime, children }) => {
+  PropsWithChildren<{ runtime: AssistantRuntime; aui: AssistantClient | null }>
+> = ({ runtime, aui, children }) => {
   // The runtime has a stable identity but mutates in place: its options are
   // pushed in by an unconditional effect inside <RenderComponent />, so that
   // element must be re-created every commit for React to re-render it and
@@ -36,7 +36,7 @@ const AssistantProviderInner: FC<
   const RenderComponent = getRenderComponent(runtime);
   const config = AuiConfig({ threads: RuntimeAdapter(runtime) });
   return (
-    <AuiProvider config={config}>
+    <AuiProvider extend={aui} config={config}>
       {RenderComponent && <RenderComponent />}
       {children}
     </AuiProvider>
@@ -44,16 +44,9 @@ const AssistantProviderInner: FC<
 };
 
 export const AssistantProviderBase: FC<AssistantProviderBaseProps> = memo(
-  ({ runtime, aui = null, children }) => {
-    const inner = (
-      <AssistantProviderInner runtime={runtime}>
-        {children}
-      </AssistantProviderInner>
-    );
-    return aui ? (
-      <AuiProvider value={aui}>{inner}</AuiProvider>
-    ) : (
-      <AuiProvider value={null}>{inner}</AuiProvider>
-    );
-  },
+  ({ runtime, aui = null, children }) => (
+    <AssistantProviderInner runtime={runtime} aui={aui}>
+      {children}
+    </AssistantProviderInner>
+  ),
 );

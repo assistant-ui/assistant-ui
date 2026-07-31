@@ -1,11 +1,12 @@
 import type { FC, PropsWithChildren } from "react";
-import { AuiConfig, AuiProvider, Derived } from "@assistant-ui/store";
+import { useAui, AuiConfig, AuiProvider, Derived } from "@assistant-ui/store";
 
 export const MessageAttachmentByIndexProvider: FC<
   PropsWithChildren<{
     index: number;
   }>
 > = ({ index, children }) => {
+  const aui = useAui();
   const config = AuiConfig({
     attachment: Derived({
       source: "message",
@@ -13,7 +14,11 @@ export const MessageAttachmentByIndexProvider: FC<
       get: (aui) => aui.message.attachment({ index }),
     }),
   });
-  return <AuiProvider config={config}>{children}</AuiProvider>;
+  return (
+    <AuiProvider extend={aui} config={config}>
+      {children}
+    </AuiProvider>
+  );
 };
 
 export const ComposerAttachmentByIndexProvider: FC<
@@ -21,6 +26,7 @@ export const ComposerAttachmentByIndexProvider: FC<
     index: number;
   }>
 > = ({ index, children }) => {
+  const aui = useAui();
   const config = AuiConfig({
     attachment: Derived({
       source: "composer",
@@ -28,5 +34,9 @@ export const ComposerAttachmentByIndexProvider: FC<
       get: (aui) => aui.composer.attachment({ index }),
     }),
   });
-  return <AuiProvider config={config}>{children}</AuiProvider>;
+  return (
+    <AuiProvider extend={aui} config={config}>
+      {children}
+    </AuiProvider>
+  );
 };

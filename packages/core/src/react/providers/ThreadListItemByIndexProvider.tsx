@@ -1,5 +1,5 @@
 import type { FC, PropsWithChildren } from "react";
-import { AuiConfig, AuiProvider, Derived } from "@assistant-ui/store";
+import { useAui, AuiConfig, AuiProvider, Derived } from "@assistant-ui/store";
 
 export const ThreadListItemByIndexProvider: FC<
   PropsWithChildren<{
@@ -7,6 +7,7 @@ export const ThreadListItemByIndexProvider: FC<
     archived: boolean;
   }>
 > = ({ index, archived, children }) => {
+  const aui = useAui();
   const config = AuiConfig({
     threadListItem: Derived({
       source: "threads",
@@ -14,5 +15,9 @@ export const ThreadListItemByIndexProvider: FC<
       get: (aui) => aui.threads.item({ index, archived }),
     }),
   });
-  return <AuiProvider config={config}>{children}</AuiProvider>;
+  return (
+    <AuiProvider extend={aui} config={config}>
+      {children}
+    </AuiProvider>
+  );
 };

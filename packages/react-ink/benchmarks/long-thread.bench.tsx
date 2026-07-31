@@ -88,7 +88,7 @@ const BenchProvider: React.FC<{
     }),
   });
 
-  return <AuiProvider value={aui}>{children}</AuiProvider>;
+  return <AuiProvider extend={aui}>{children}</AuiProvider>;
 };
 
 /**

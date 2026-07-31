@@ -59,17 +59,24 @@ declare const AuiIf: FC<AuiIf.Props>;
 
 declare const AuiProvider: {
   (props: {
-    value: AssistantClient;
-    children: React.ReactNode;
-  }): React.ReactElement;
-  (props: {
-    value: null;
-    children: React.ReactNode;
-  }): React.ReactElement;
-  (props: {
     config: AuiConfig;
-    value?: AssistantClient | null;
     ref?: React.Ref<AssistantClient>;
+    extend?: never;
+    value?: never;
+    children: React.ReactNode;
+  }): React.ReactElement;
+  (props: {
+    extend: AssistantClient | null;
+    config?: AuiConfig;
+    ref?: React.Ref<AssistantClient>;
+    value?: never;
+    children: React.ReactNode;
+  }): React.ReactElement;
+  (props: {
+    value: AssistantClient | null;
+    config?: AuiConfig;
+    extend?: never;
+    ref?: never;
     children: React.ReactNode;
   }): React.ReactElement;
 };
