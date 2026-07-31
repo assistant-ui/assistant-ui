@@ -170,8 +170,8 @@ function ResumableThreadRuntime() {
         resumable: {
           storage: createResumableSessionStorage({
             key: () => {
-              const item = aui.threadListItem().getState();
-              return item.remoteId ?? item.id;
+              const item = aui.threadListItem.getState();
+              return `aui-resumable-stream-id:${item.remoteId ?? item.id}`;
             },
           }),
           resumeApi: (streamId) => `/api/chat/resume/${streamId}`,
@@ -199,7 +199,7 @@ export default function Page() {
 
 Each thread's runtime hook constructs its own transport and storage, keyed by that thread's identity, so one conversation's stream id can never be read or cleared by another. `useChatRuntime` is a no-op thread list when nested as a `runtimeHook`, so it only runs the per-thread chat runtime against the per-thread transport; the real thread list is the outer `useRemoteThreadListRuntime`.
 
-Key by `remoteId ?? id`, read lazily. A brand-new thread has no `remoteId` yet, but the transport initializes the thread before the request goes out, so by the time the response header delivers the stream id the getter resolves to the `remoteId`. After a reload the same conversation comes back with that `remoteId` as its id, so the stored entry is found again and the pending stream resumes. The local-id fallback covers a thread that has never sent, whose key nothing else reads or writes. Keying by the local id alone would break resume across reloads for threads created in the current session, because their local `__LOCALID_` id is replaced by the `remoteId` when the list reloads.
+Key by `remoteId ?? id` under a recognizable prefix, read lazily. A brand-new thread has no `remoteId` yet, but the transport initializes the thread before the request goes out, so by the time the response header delivers the stream id the getter resolves to the `remoteId`. After a reload the same conversation comes back with that `remoteId` as its id, so the stored entry is found again and the pending stream resumes. The local-id fallback covers a thread that has never sent, whose key nothing else reads or writes. Keying by the local id alone would break resume across reloads for threads created in the current session, because their local `__LOCALID_` id is replaced by the `remoteId` when the list reloads.
 
 ## Storage choices
 

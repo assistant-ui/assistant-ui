@@ -2,4 +2,4 @@
 "@assistant-ui/react-ai-sdk": patch
 ---
 
-fix: scope the resumable stream id storage key per thread so conversations do not cross-wire under useRemoteThreadListRuntime
+feat: allow the resumable stream id storage key to be derived lazily from a getter, so apps can scope it per thread (see the Resumable Streams guide)
