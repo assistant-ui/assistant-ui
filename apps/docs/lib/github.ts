@@ -81,6 +81,25 @@ export async function getRepo(
   }
 }
 
+export async function getRepoStars(
+  fullName: string,
+  revalidate: number = REVALIDATE.WARM,
+): Promise<number | null> {
+  try {
+    const res = await fetch(`https://api.github.com/repos/${fullName}`, {
+      headers: ghHeaders(),
+      ...cacheInit(revalidate),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return typeof data?.stargazers_count === "number"
+      ? data.stargazers_count
+      : null;
+  } catch {
+    return null;
+  }
+}
+
 export type GitHubRelease = {
   draft: boolean;
   prerelease: boolean;
