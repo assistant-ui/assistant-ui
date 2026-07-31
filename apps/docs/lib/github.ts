@@ -1,4 +1,5 @@
 import "server-only";
+import { withTimeout } from "./with-timeout";
 
 const REPO = "assistant-ui/assistant-ui";
 const API_BASE = `https://api.github.com/repos/${REPO}`;
@@ -41,13 +42,15 @@ async function ghFetch(
 ): Promise<Response> {
   const { next: initNext, ...rest } = init ?? {};
   const cache = cacheInit(revalidate);
-  return fetch(`${base}${path}`, {
-    ...rest,
-    headers: ghHeaders(init?.headers),
-    ...("next" in cache
-      ? { next: { ...cache.next, ...(initNext ?? {}) } }
-      : cache),
-  });
+  return withTimeout(
+    fetch(`${base}${path}`, {
+      ...rest,
+      headers: ghHeaders(init?.headers),
+      ...("next" in cache
+        ? { next: { ...cache.next, ...(initNext ?? {}) } }
+        : cache),
+    }),
+  );
 }
 
 function parseLastPage(linkHeader: string | null): number | null {
@@ -288,10 +291,12 @@ async function fetchGitHubUser(
   revalidate: number,
 ): Promise<GitHubUser | null> {
   try {
-    const res = await fetch(`https://api.github.com/${path}`, {
-      headers: ghHeaders(),
-      ...cacheInit(revalidate),
-    });
+    const res = await withTimeout(
+      fetch(`https://api.github.com/${path}`, {
+        headers: ghHeaders(),
+        ...cacheInit(revalidate),
+      }),
+    );
     if (!res.ok) return null;
     const data = await res.json();
     if (typeof data?.login !== "string") return null;
@@ -376,10 +381,12 @@ export async function getDependents(
   packages: number;
 } | null> {
   try {
-    const res = await fetch(`${HTML_BASE}/network/dependents`, {
-      headers: { "User-Agent": "Mozilla/5.0 (assistant-ui-traction)" },
-      ...cacheInit(revalidate),
-    });
+    const res = await withTimeout(
+      fetch(`${HTML_BASE}/network/dependents`, {
+        headers: { "User-Agent": "Mozilla/5.0 (assistant-ui-traction)" },
+        ...cacheInit(revalidate),
+      }),
+    );
     if (!res.ok) return null;
     const html = await res.text();
     const reposMatch = html.match(/([\d,]+)\s+Repositories\b/);
