@@ -64,6 +64,11 @@ export {
   parseDataUrl,
 } from "./utils/data-url";
 export { detectImageMediaType } from "./utils/image-media-type";
+export {
+  resolveFileMediaType,
+  resolveImageMediaType,
+  toMediaWireUrl,
+} from "./utils/wire-media";
 
 export * from "./runtime/internal";
 export * from "./runtimes/internal";

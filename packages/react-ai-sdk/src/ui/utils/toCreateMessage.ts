@@ -1,10 +1,10 @@
 import type { AppendMessage } from "@assistant-ui/core";
 import {
-  dataUrlMediaType,
-  detectImageMediaType,
   httpUrlPattern,
-  isParsableUrl,
   parseDataUrl,
+  resolveFileMediaType,
+  resolveImageMediaType,
+  toMediaWireUrl,
 } from "@assistant-ui/core/internal";
 import type {
   CreateUIMessage,
@@ -17,43 +17,6 @@ import type {
 type InputPart = AppendMessage["content"][number] & {
   readonly contentType?: string | undefined;
   readonly filename?: string | undefined;
-};
-
-// A data URL's own media type wins over `mediaType` downstream, so an envelope
-// that disagrees with the resolved type is rebuilt. One that agrees, and a url
-// of any other scheme, passes through byte for byte.
-const toWireUrl = (payload: string, mediaType: string) => {
-  const parsed = parseDataUrl(payload);
-  if (parsed) {
-    return parsed.mimeType === mediaType
-      ? payload
-      : `data:${mediaType};base64,${parsed.data}`;
-  }
-  if (isParsableUrl(payload)) return payload;
-  return `data:${mediaType};base64,${payload}`;
-};
-
-const getImageMediaType = (part: {
-  readonly contentType?: string | undefined;
-  readonly image: string;
-}) => {
-  if (part.contentType?.startsWith("image/")) return part.contentType;
-
-  const envelopeType = dataUrlMediaType(part.image);
-  if (envelopeType?.startsWith("image/")) return envelopeType;
-
-  // The payload's own leading bytes, read through a data URL envelope too so a
-  // generic one such as `application/octet-stream` does not mask the format.
-  // Only a url of some other scheme has no bytes to read here.
-  const parsed = parseDataUrl(part.image);
-  const payload =
-    parsed?.data ?? (isParsableUrl(part.image) ? undefined : part.image);
-  if (payload !== undefined) {
-    const sniffed = detectImageMediaType(payload);
-    if (sniffed) return sniffed;
-  }
-
-  return "image/png";
 };
 
 export const toCreateMessage = <UI_MESSAGE extends UIMessage = UIMessage>(
@@ -78,10 +41,10 @@ export const toCreateMessage = <UI_MESSAGE extends UIMessage = UIMessage>(
           text: part.text,
         };
       case "image": {
-        const mediaType = getImageMediaType(part);
+        const mediaType = resolveImageMediaType(part.image, part.contentType);
         return {
           type: "file",
-          url: toWireUrl(part.image, mediaType),
+          url: toMediaWireUrl(part.image, mediaType),
           ...(part.filename && { filename: part.filename }),
           mediaType,
         };
@@ -90,10 +53,7 @@ export const toCreateMessage = <UI_MESSAGE extends UIMessage = UIMessage>(
         // `mimeType` is a plain string, and an adapter reading `file.type` on a
         // file the OS cannot type yields "". Same ladder as images: declared,
         // then the envelope, then the floor.
-        const mediaType =
-          part.mimeType ||
-          dataUrlMediaType(part.data) ||
-          "application/octet-stream";
+        const mediaType = resolveFileMediaType(part.data, part.mimeType);
         return {
           type: "file",
           // An `id` reference is an opaque provider handle, not base64, and
@@ -102,7 +62,7 @@ export const toCreateMessage = <UI_MESSAGE extends UIMessage = UIMessage>(
           url:
             part.sourceType === "id"
               ? part.data
-              : toWireUrl(part.data, mediaType),
+              : toMediaWireUrl(part.data, mediaType),
           mediaType,
           ...(part.filename && { filename: part.filename }),
         };
