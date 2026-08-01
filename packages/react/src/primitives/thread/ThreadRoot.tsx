@@ -6,6 +6,8 @@ import {
   forwardRef,
   type ComponentPropsWithoutRef,
 } from "react";
+import { useEscapeKeydown } from "@radix-ui/react-use-escape-keydown";
+import { useAui } from "@assistant-ui/store";
 
 export namespace ThreadPrimitiveRoot {
   export type Element = ComponentRef<typeof Primitive.div>;
@@ -37,6 +39,14 @@ export const ThreadPrimitiveRoot = forwardRef<
   ThreadPrimitiveRoot.Element,
   ThreadPrimitiveRoot.Props
 >((props, ref) => {
+  const aui = useAui();
+
+  useEscapeKeydown((event) => {
+    if (aui.thread.getState().speech == null) return;
+    event.preventDefault();
+    aui.thread.stopSpeaking();
+  });
+
   return <Primitive.div {...props} ref={ref} />;
 });
 

@@ -2,7 +2,6 @@
 
 import { forwardRef } from "react";
 import type { ActionButtonProps } from "../../utils/createActionButton";
-import { useEscapeKeydown } from "@radix-ui/react-use-escape-keydown";
 import { Primitive } from "../../utils/Primitive";
 import { composeEventHandlers } from "@radix-ui/primitive";
 import { useActionBarStopSpeaking as useActionBarStopSpeakingBehavior } from "@assistant-ui/core/react";
@@ -23,14 +22,6 @@ export const ActionBarPrimitiveStopSpeaking = forwardRef<
   ActionBarPrimitiveStopSpeaking.Props
 >((props, ref) => {
   const callback = useActionBarStopSpeaking();
-
-  // TODO this stops working if the user is not hovering over an older message
-  useEscapeKeydown((e) => {
-    if (callback) {
-      e.preventDefault();
-      callback();
-    }
-  });
 
   return (
     <Primitive.button
