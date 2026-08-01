@@ -269,6 +269,44 @@ describe("appendLangChainChunk updates-event partial_json", () => {
     expect(final.tool_calls?.[0]?.partial_json).toBeUndefined();
   });
 
+  it("does not reuse one call's partial_json for two finalized calls", () => {
+    const previous: AiMessage = {
+      type: "ai",
+      id: "ai-1",
+      content: "",
+      tool_calls: [
+        {
+          id: "",
+          name: "lookup",
+          args: {},
+          partial_json: '{"first":',
+        },
+        {
+          id: "call-real",
+          name: "lookup",
+          args: {},
+          partial_json: '{"second":',
+        },
+      ],
+    };
+    const current: AiMessage = {
+      type: "ai",
+      id: "ai-1",
+      content: "",
+      tool_calls: [
+        { id: "call-real", name: "lookup", args: { second: true } },
+        { id: "", name: "lookup", args: { first: true } },
+      ],
+    };
+
+    const final = appendAi(previous, current);
+
+    expect(final.tool_calls?.map((toolCall) => toolCall.partial_json)).toEqual([
+      '{"second":',
+      undefined,
+    ]);
+  });
+
   it("final argsText stays a byte-extension of the streamed prefix after the updates event", () => {
     const metadata = {
       toolArgsKeyOrderCache: new Map<string, Map<string, string[]>>(),
