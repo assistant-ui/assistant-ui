@@ -58,9 +58,7 @@ function sharedSourceSnapshot(sharedFiles: Record<string, string> | undefined) {
   );
 }
 
-function stageChainSourceSnapshot(
-  course: ReturnType<typeof getLearnCourse>,
-) {
+function stageChainSourceSnapshot(course: ReturnType<typeof getLearnCourse>) {
   return Object.fromEntries(
     Object.values(course.stages).flatMap((stage) => [
       ...Object.values(stage.sharedFiles ?? {}).map((snapshotPath) => [
