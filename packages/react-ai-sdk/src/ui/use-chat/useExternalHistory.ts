@@ -83,6 +83,12 @@ export const useExternalHistory = <TMessage>(
   const persistedExternalMessages = useRef(new Map<string, TMessage[]>());
   const persistenceGenerationRef = useRef(0);
   const persistInFlightRef = useRef<Promise<void>>(Promise.resolve());
+  const runStartRef = useRef<number | null>(null);
+  const runPersistenceGenerationRef = useRef<number | null>(null);
+  const persistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const stepBoundariesRef = useRef<number[]>([]);
+  const wasRunningRef = useRef(false);
+  const toolCallCountRef = useRef(0);
 
   const onSetMessagesRef = useRef(onSetMessages);
   useEffect(() => {
@@ -132,6 +138,7 @@ export const useExternalHistory = <TMessage>(
       const replaceOnLoad =
         lastAdapterKeyRef.current !== undefined &&
         !Object.is(lastAdapterKeyRef.current, key);
+      const previousPersistenceGeneration = persistenceGenerationRef.current;
 
       persistenceGenerationRef.current += 1;
       persistInFlightRef.current = Promise.resolve();
@@ -141,8 +148,20 @@ export const useExternalHistory = <TMessage>(
       persistedExternalMessages.current.clear();
 
       if (replaceOnLoad) {
+        const isRunning = runtimeRef.current.thread.getState().isRunning;
+        if (isRunning) {
+          runPersistenceGenerationRef.current ??= previousPersistenceGeneration;
+          wasRunningRef.current = true;
+        } else {
+          runStartRef.current = null;
+          runPersistenceGenerationRef.current = null;
+          stepBoundariesRef.current = [];
+          toolCallCountRef.current = 0;
+          wasRunningRef.current = false;
+        }
         runtimeRef.current.thread.import({ headId: null, messages: [] });
         onSetMessagesRef.current([]);
+        if (isRunning) runtimeRef.current.thread.cancelRun();
       }
 
       const remoteId = optionalThreadListItem()?.getState().remoteId;
@@ -164,7 +183,6 @@ export const useExternalHistory = <TMessage>(
     }
 
     const loadPromise = request.promise;
-    if (!loadPromise) return;
 
     let cancelled = false;
 
@@ -227,12 +245,6 @@ export const useExternalHistory = <TMessage>(
     storageFormatAdapter,
   ]);
 
-  const runStartRef = useRef<number | null>(null);
-  const persistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const stepBoundariesRef = useRef<number[]>([]);
-  const wasRunningRef = useRef(false);
-  const toolCallCountRef = useRef(0);
-
   useEffect(() => {
     const activeLoadRequest = loadRequestRef.current;
     if (!formatAdapter) {
@@ -240,6 +252,7 @@ export const useExternalHistory = <TMessage>(
     }
     const key = adapterKey;
     if (!Object.is(activeLoadRequest?.key, key)) return;
+    const subscriptionGeneration = persistenceGenerationRef.current;
 
     const unsubscribe = runtimeRef.current.thread.subscribe(() => {
       const threadState = runtimeRef.current.thread.getState();
@@ -264,6 +277,7 @@ export const useExternalHistory = <TMessage>(
       if (isRunning) {
         if (runStartRef.current == null) {
           runStartRef.current = Date.now();
+          runPersistenceGenerationRef.current ??= subscriptionGeneration;
           stepBoundariesRef.current = [];
           toolCallCountRef.current = 0;
         }
@@ -285,9 +299,11 @@ export const useExternalHistory = <TMessage>(
 
       // Debounce: wait one macrotask so agentic step flickers are absorbed
       if (persistTimerRef.current) clearTimeout(persistTimerRef.current);
+      const runPersistenceGeneration =
+        runPersistenceGenerationRef.current ?? subscriptionGeneration;
       persistTimerRef.current = setTimeout(() => {
         persistTimerRef.current = null;
-        const persistenceGeneration = persistenceGenerationRef.current;
+        const persistenceGeneration = runPersistenceGeneration;
 
         const latest = runtimeRef.current.thread.getState();
         if (latest.isRunning) return;
@@ -326,6 +342,7 @@ export const useExternalHistory = <TMessage>(
             : undefined;
 
         runStartRef.current = null;
+        runPersistenceGenerationRef.current = null;
         stepBoundariesRef.current = [];
 
         const telemetryOptions = {

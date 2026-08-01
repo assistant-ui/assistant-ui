@@ -39,6 +39,7 @@ import {
 const noopThread = {
   subscribe: () => () => {},
   getState: () => ({ isRunning: false, messages: [] }),
+  cancelRun: () => {},
   import: () => {},
   export: () => ({ headId: null, messages: [] }),
 } as unknown as AssistantRuntime["thread"];
@@ -1025,6 +1026,7 @@ describe("useExternalHistory persistence", () => {
         };
       },
       getState: () => ({ isRunning, messages }),
+      cancelRun: vi.fn(),
       import: vi.fn(),
       export: vi.fn(() => ({ headId: null, messages: [] })),
     } as unknown as AssistantRuntime["thread"];
@@ -1112,6 +1114,106 @@ describe("useExternalHistory persistence", () => {
     } finally {
       releaseFirstAppend();
     }
+  });
+
+  it("cancels and ignores an active run when the adapter key changes", async () => {
+    mocks.state.remoteId = "remote-thread";
+    let listener: (() => void) | undefined;
+    let isRunning = false;
+    let messages: ThreadMessage[] = [];
+    const cancelRun = vi.fn();
+    const importHistory = vi.fn();
+    const thread = {
+      subscribe: (nextListener: () => void) => {
+        listener = nextListener;
+        return () => {
+          if (listener === nextListener) listener = undefined;
+        };
+      },
+      getState: () => ({ isRunning, messages }),
+      cancelRun,
+      import: importHistory,
+      export: vi.fn(() => ({ headId: null, messages: [] })),
+    } as unknown as AssistantRuntime["thread"];
+    const localRuntimeRef = {
+      current: { thread } as AssistantRuntime,
+    };
+    const firstAppend = vi.fn().mockResolvedValue(undefined);
+    const secondAppend = vi.fn().mockResolvedValue(undefined);
+    const createAdapter = (
+      key: string,
+      append: (item: {
+        parentId: string | null;
+        message: InnerMessage;
+      }) => Promise<void>,
+    ): ThreadHistoryAdapter => ({
+      key,
+      load: vi.fn(),
+      append: vi.fn(),
+      withFormat: vi.fn().mockReturnValue({
+        load: vi.fn().mockResolvedValue({ messages: [] }),
+        append,
+      }),
+    });
+    const firstAdapter = createAdapter("workspace-a", firstAppend);
+    const secondAdapter = createAdapter("workspace-b", secondAppend);
+    const { result, rerender } = renderHook(
+      ({ adapter }) =>
+        useExternalHistory(
+          localRuntimeRef,
+          adapter,
+          () => [],
+          persistenceStorageFormat,
+          () => {},
+        ),
+      { initialProps: { adapter: firstAdapter } },
+    );
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    isRunning = true;
+
+    rerender({ adapter: secondAdapter });
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(cancelRun).toHaveBeenCalledOnce();
+    expect(importHistory.mock.invocationCallOrder[0]!).toBeLessThan(
+      cancelRun.mock.invocationCallOrder[0]!,
+    );
+
+    await act(async () => {
+      listener?.();
+    });
+    await act(async () => {
+      messages = [
+        createAssistantMessage({ type: "complete", reason: "stop" }, [
+          { id: "inner-a", parts: ["from-a"] },
+        ]),
+      ];
+      isRunning = false;
+      listener?.();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(firstAppend).not.toHaveBeenCalled();
+    expect(secondAppend).not.toHaveBeenCalled();
+
+    await act(async () => {
+      messages = [
+        createAssistantMessage(
+          { type: "complete", reason: "stop" },
+          [{ id: "inner-b", parts: ["from-b"] }],
+          "assistant-b",
+        ),
+      ];
+      isRunning = true;
+      listener?.();
+    });
+    await act(async () => {
+      isRunning = false;
+      listener?.();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    await waitFor(() => expect(secondAppend).toHaveBeenCalledOnce());
   });
 
   it("preserves telemetry timing for runs queued behind a pending append", async () => {

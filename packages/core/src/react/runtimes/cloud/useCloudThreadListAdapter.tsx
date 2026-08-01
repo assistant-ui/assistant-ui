@@ -1,15 +1,14 @@
 declare const process: { env: Record<string, string | undefined> };
 
 import {
-  type Dispatch,
   type FC,
   type PropsWithChildren,
-  type SetStateAction,
   useCallback,
   useLayoutEffect,
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from "react";
 import { AssistantCloud } from "assistant-cloud";
 import type { RemoteThreadListAdapter } from "../../../runtimes/remote-thread-list/types";
@@ -40,36 +39,46 @@ const autoCloud = baseUrl
   ? new AssistantCloud({ baseUrl, anonymous: true })
   : undefined;
 
+const createCloudStore = (initialCloud: AssistantCloud | undefined) => {
+  let cloud = initialCloud;
+  const listeners = new Set<() => void>();
+
+  return {
+    getSnapshot: () => cloud,
+    subscribe: (listener: () => void) => {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+    setCloud: (nextCloud: AssistantCloud | undefined) => {
+      if (Object.is(cloud, nextCloud)) return;
+      cloud = nextCloud;
+      for (const listener of listeners) listener();
+    },
+  };
+};
+
 export const useCloudThreadListAdapter = (
   adapter: CloudThreadListAdapterOptions,
 ): RemoteThreadListAdapter => {
   const adapterRef = useRef(adapter);
-  const providerSettersRef = useRef(
-    new Set<Dispatch<SetStateAction<CloudThreadListAdapterOptions>>>(),
-  );
+  const [cloudStore] = useState(() => createCloudStore(adapter.cloud));
 
   useLayoutEffect(() => {
     adapterRef.current = adapter;
-    for (const setProviderAdapter of providerSettersRef.current) {
-      setProviderAdapter(adapter);
-    }
-  }, [adapter]);
+    cloudStore.setCloud(adapter.cloud);
+  }, [adapter, cloudStore]);
 
   const unstable_Provider = useCallback<FC<PropsWithChildren>>(
     function Provider({ children }) {
-      const [providerAdapter, setProviderAdapter] = useState(
-        () => adapterRef.current,
+      const configuredCloud = useSyncExternalStore(
+        cloudStore.subscribe,
+        cloudStore.getSnapshot,
+        cloudStore.getSnapshot,
       );
-      useLayoutEffect(() => {
-        const providerSetters = providerSettersRef.current;
-        providerSetters.add(setProviderAdapter);
-        setProviderAdapter(adapterRef.current);
-        return () => {
-          providerSetters.delete(setProviderAdapter);
-        };
-      }, []);
 
-      const cloudInstance = providerAdapter.cloud ?? autoCloud!;
+      const cloudInstance = configuredCloud ?? autoCloud!;
       const history =
         useAssistantCloudThreadHistoryAdapterForCloud(cloudInstance);
       const attachments = useMemo(
@@ -91,7 +100,7 @@ export const useCloudThreadListAdapter = (
         </RuntimeAdapterProvider>
       );
     },
-    [],
+    [cloudStore],
   );
 
   const cloud = adapter.cloud ?? autoCloud;
