@@ -4442,6 +4442,7 @@ type ThreadListRuntime = {
   switchToNewThread(): Promise<void>;
   getLoadThreadsPromise(): Promise<void>;
   reload(): Promise<void>;
+  reloadMainThread(): Promise<void>;
   loadMore(): Promise<void>;
 };
 
@@ -4463,6 +4464,7 @@ type ThreadListRuntimeCore = {
   switchToNewThread(): Promise<void>;
   getLoadThreadsPromise(): Promise<void>;
   reload?(): Promise<void>;
+  reloadMainThread?(): Promise<void>;
   loadMore?(): Promise<void>;
   detach(threadId: string): Promise<void>;
   rename(threadId: string, newTitle: string): Promise<void>;
@@ -4492,6 +4494,7 @@ declare class ThreadListRuntimeImpl implements ThreadListRuntime {
   switchToNewThread(): Promise<void>;
   getLoadThreadsPromise(): Promise<void>;
   reload(): Promise<void>;
+  reloadMainThread(): Promise<void>;
   loadMore(): Promise<void>;
   getState(): ThreadListState;
   subscribe(callback: () => void): Unsubscribe;

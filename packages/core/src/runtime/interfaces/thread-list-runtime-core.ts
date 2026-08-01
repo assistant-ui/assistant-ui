@@ -41,6 +41,7 @@ export type ThreadListRuntimeCore = {
 
   getLoadThreadsPromise(): Promise<void>;
   reload?(): Promise<void>;
+  reloadMainThread?(): Promise<void>;
   loadMore?(): Promise<void>;
 
   detach(threadId: string): Promise<void>;

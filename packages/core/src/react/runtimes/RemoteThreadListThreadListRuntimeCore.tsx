@@ -245,6 +245,20 @@ export class RemoteThreadListThreadListRuntimeCore
     }
   }
 
+  public async reloadMainThread(): Promise<void> {
+    const threadId = this._mainThreadId;
+    if (threadId === undefined) return;
+
+    const generation = this._switchGeneration;
+    await this._hookManager.__internal_restartThreadRuntime(threadId);
+
+    // a switch started while the thread was remounting owns the main thread now
+    if (generation !== this._switchGeneration) return;
+    if (threadId !== this._mainThreadId) return;
+
+    this._notifySubscribers();
+  }
+
   public reload() {
     this._loadGeneration++;
     this._loadThreadsPromise = undefined;
