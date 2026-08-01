@@ -217,6 +217,76 @@ describe("McpServerResource automatic authentication", () => {
       root.unmount();
     }
   });
+
+  it("ignores auth storage failures from the cancelled StrictMode setup", async () => {
+    let rejectCancelledLoad!: (error: Error) => void;
+    const storage = createStorage();
+    vi.mocked(storage.loadAuthState)
+      .mockImplementationOnce(
+        () =>
+          new Promise((_, reject) => {
+            rejectCancelledLoad = reject;
+          }),
+      )
+      .mockResolvedValueOnce(null);
+    const root = mount({
+      auth: { type: "oauth" },
+      storage,
+      autoConnect: true,
+    });
+
+    try {
+      await waitFor(
+        () => vi.mocked(storage.loadAuthState).mock.calls.length > 1,
+      );
+      rejectCancelledLoad(new Error("cancelled auth storage failure"));
+      await flushMacrotask();
+
+      expect(root.getValue().getState()).toMatchObject({
+        connectionState: "disconnected",
+        lastError: null,
+      });
+      expect(mocks.StreamableHTTPClientTransport).not.toHaveBeenCalled();
+    } finally {
+      root.unmount();
+    }
+  });
+
+  it("ignores auth storage failures superseded by a manual connection", async () => {
+    let rejectLoad!: (error: Error) => void;
+    const storage = createStorage();
+    vi.mocked(storage.loadAuthState).mockImplementation(
+      () =>
+        new Promise((_, reject) => {
+          rejectLoad = reject;
+        }),
+    );
+    const root = mount({
+      auth: { type: "oauth" },
+      storage,
+      autoConnect: true,
+    });
+
+    try {
+      await waitFor(
+        () => vi.mocked(storage.loadAuthState).mock.calls.length > 0,
+      );
+      await root.getValue().connect();
+      await waitForResourceUpdate(
+        () => root.getValue().getState().connectionState === "connected",
+      );
+
+      rejectLoad(new Error("superseded auth storage failure"));
+      await flushMacrotask();
+
+      expect(root.getValue().getState()).toMatchObject({
+        connectionState: "connected",
+        lastError: null,
+      });
+    } finally {
+      root.unmount();
+    }
+  });
 });
 
 describe("McpServerResource connectionTimeout", () => {
