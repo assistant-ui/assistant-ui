@@ -185,7 +185,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
   const unknownRunContextRef = useRef<RunContext>({ runConfig: undefined });
   const toolCallRunContextsRef = useRef(new Map<string, RunContext>());
   const toolCallIdAliasesRef = useRef(new Map<string, string>());
-  const materializingToolCallIdsRef = useRef(new Set<string>());
+  const loadedToolCallIdsBeingMaterializedRef = useRef(new Set<string>());
   const appendMessage = useCallback(
     (previous: LangChainMessage | undefined, current: LangChainMessage) => {
       const message = appendLangChainChunk(previous, current);
@@ -215,7 +215,9 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
           if (
             idlessMessageToolCallId &&
             idlessMessageToolCallId !== toolCallId &&
-            materializingToolCallIdsRef.current.delete(idlessMessageToolCallId)
+            loadedToolCallIdsBeingMaterializedRef.current.delete(
+              idlessMessageToolCallId,
+            )
           ) {
             toolCallIdAliasesRef.current.set(
               idlessMessageToolCallId,
@@ -420,7 +422,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
             toolCall.id,
             unknownRunContextRef.current,
           );
-          materializingToolCallIdsRef.current.add(toolCall.id);
+          loadedToolCallIdsBeingMaterializedRef.current.add(toolCall.id);
         }
       }
       activeRunContextRef.current = runContext;
@@ -440,7 +442,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
           onComplete();
         });
       } finally {
-        materializingToolCallIdsRef.current.clear();
+        loadedToolCallIdsBeingMaterializedRef.current.clear();
       }
     },
     onRunningChange: setIsRunning,

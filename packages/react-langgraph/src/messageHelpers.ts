@@ -4,25 +4,11 @@ import {
 } from "@assistant-ui/core";
 import type { LangChainMessage, LangChainToolCall, UIMessage } from "./types";
 
-const idlessToolCallScopes = new WeakMap<LangChainToolCall, number>();
-let nextIdlessToolCallScope = 0;
-
 const getLangChainToolCallFallbackId = (
   messageId: string | undefined,
   toolCall: LangChainToolCall,
   index: number,
-) => {
-  let scope = messageId;
-  if (!scope) {
-    let idlessScope = idlessToolCallScopes.get(toolCall);
-    if (idlessScope === undefined) {
-      idlessScope = nextIdlessToolCallScope++;
-      idlessToolCallScopes.set(toolCall, idlessScope);
-    }
-    scope = `unknown-${idlessScope}`;
-  }
-  return `lc-toolcall-${scope}-${toolCall.index ?? index}`;
-};
+) => `lc-toolcall-${messageId ?? "unknown"}-${toolCall.index ?? index}`;
 
 export const getLangChainToolCallIds = (
   messageId: string | undefined,
@@ -84,7 +70,7 @@ export const findMatchingLangChainToolCallIndex = (
 
 export const getPendingToolCalls = (messages: LangChainMessage[]) => {
   const pendingToolCalls = new Map<string, LangChainToolCall>();
-  const synthesizedIdsByRawId = new Map<string, string[]>();
+  const synthesizedToolCallIds: string[] = [];
   for (const message of messages) {
     if (message.type === "ai") {
       const toolCallIds = getLangChainToolCallIds(
@@ -98,19 +84,18 @@ export const getPendingToolCalls = (messages: LangChainMessage[]) => {
           toolCall.id ? toolCall : { ...toolCall, id: toolCallId },
         );
         if (!toolCall.id) {
-          const synthesizedIds = synthesizedIdsByRawId.get(toolCall.id) ?? [];
-          synthesizedIds.push(toolCallId);
-          synthesizedIdsByRawId.set(toolCall.id, synthesizedIds);
+          synthesizedToolCallIds.push(toolCallId);
         }
       }
     }
     if (message.type === "tool") {
       if (!pendingToolCalls.delete(message.tool_call_id)) {
-        const synthesizedIds = synthesizedIdsByRawId.get(message.tool_call_id);
-        const synthesizedId = synthesizedIds?.find((id) =>
+        const pendingSynthesizedIds = synthesizedToolCallIds.filter((id) =>
           pendingToolCalls.has(id),
         );
-        if (synthesizedId) pendingToolCalls.delete(synthesizedId);
+        if (pendingSynthesizedIds.length === 1) {
+          pendingToolCalls.delete(pendingSynthesizedIds[0]!);
+        }
       }
     }
   }
