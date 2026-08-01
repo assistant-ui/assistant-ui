@@ -84,7 +84,7 @@ function resolveStage(
 
   if (stageFileCount === 0) {
     throw new Error(
-      `No source snapshot files found for Learn stage: ${courseId}/${stageId}`,
+      `No source snapshot files found for Learn stage: ${course.id}/${stageId}`,
     );
   }
 
