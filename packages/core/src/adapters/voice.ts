@@ -88,9 +88,15 @@ export function createVoiceSession(
   let isMuted = false;
   let disposed = false;
   let controls: VoiceSessionControls | null = null;
+  const abortSignal = options.abortSignal;
+  let abortHandler: (() => void) | undefined;
 
   const cleanup = () => {
     disposed = true;
+    if (abortHandler) {
+      abortSignal?.removeEventListener("abort", abortHandler);
+      abortHandler = undefined;
+    }
     statusCbs.clear();
     transcriptCbs.clear();
     modeCbs.clear();
@@ -132,8 +138,11 @@ export function createVoiceSession(
       return isMuted;
     },
     disconnect: () => {
-      controls?.disconnect();
-      cleanup();
+      try {
+        controls?.disconnect();
+      } finally {
+        cleanup();
+      }
     },
     mute: () => {
       controls?.mute();
@@ -161,10 +170,9 @@ export function createVoiceSession(
     },
   };
 
-  if (options.abortSignal) {
-    options.abortSignal.addEventListener("abort", () => session.disconnect(), {
-      once: true,
-    });
+  if (abortSignal) {
+    abortHandler = () => session.disconnect();
+    abortSignal.addEventListener("abort", abortHandler, { once: true });
   }
 
   const doSetup = async () => {
