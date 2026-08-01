@@ -44,6 +44,7 @@ import { createSerialRunQueue, type SerialRunQueue } from "./serialRunQueue";
 import { langGraphExtras } from "./runtimeExtras";
 import {
   filterUIMessagesBySurvivingIds,
+  getLangChainToolCallId,
   getPendingToolCalls,
   hasToolResult,
   truncateLangChainMessages,
@@ -169,16 +170,20 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
     (previous: LangChainMessage | undefined, current: LangChainMessage) => {
       const message = appendLangChainChunk(previous, current);
       if (message.type === "ai") {
-        for (const toolCall of message.tool_calls ?? []) {
+        for (const [index, toolCall] of (message.tool_calls ?? []).entries()) {
           // The accumulator replays history on every run, so existing calls
           // must retain the context of the run that originally emitted them.
+          const toolCallId = getLangChainToolCallId(
+            message.id,
+            toolCall,
+            index,
+          );
           if (
-            toolCall.id &&
             activeRunContextRef.current &&
-            !toolCallRunContextsRef.current.has(toolCall.id)
+            !toolCallRunContextsRef.current.has(toolCallId)
           ) {
             toolCallRunContextsRef.current.set(
-              toolCall.id,
+              toolCallId,
               activeRunContextRef.current,
             );
           }

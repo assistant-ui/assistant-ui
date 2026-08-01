@@ -4,12 +4,24 @@ import {
 } from "@assistant-ui/core";
 import type { LangChainMessage, LangChainToolCall, UIMessage } from "./types";
 
+export const getLangChainToolCallId = (
+  messageId: string | undefined,
+  toolCall: LangChainToolCall,
+  index: number,
+) =>
+  toolCall.id ||
+  `lc-toolcall-${messageId ?? "unknown"}-${toolCall.index ?? index}`;
+
 export const getPendingToolCalls = (messages: LangChainMessage[]) => {
   const pendingToolCalls = new Map<string, LangChainToolCall>();
   for (const message of messages) {
     if (message.type === "ai") {
-      for (const toolCall of message.tool_calls ?? []) {
-        pendingToolCalls.set(toolCall.id, toolCall);
+      for (const [index, toolCall] of (message.tool_calls ?? []).entries()) {
+        const toolCallId = getLangChainToolCallId(message.id, toolCall, index);
+        pendingToolCalls.set(
+          toolCallId,
+          toolCall.id ? toolCall : { ...toolCall, id: toolCallId },
+        );
       }
     }
     if (message.type === "tool") {

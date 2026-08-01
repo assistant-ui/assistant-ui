@@ -1130,6 +1130,62 @@ describe("useLangGraphRuntime", () => {
       expect(streamMock.mock.calls[1]?.[1].runConfig).toEqual(runConfig);
     });
 
+    it("preserves run config for a tool call with a synthesized id", async () => {
+      const runConfig = {
+        custom: { configurable: { model_name: "gpt-5.4-nano" } },
+      };
+      const emptyIdToolCallEvent = {
+        event: "messages/complete",
+        data: [
+          {
+            id: "ai-empty-id",
+            type: "ai" as const,
+            content: "",
+            tool_calls: [
+              { id: "", index: 0, name: "get_weather", args: { city: "sf" } },
+            ],
+          },
+        ],
+      };
+      const streamMock = vi.fn(async function* (
+        _messages: LangChainMessage[],
+        _config: LangGraphSendMessageConfig,
+      ) {
+        if (streamMock.mock.calls.length === 1) {
+          yield emptyIdToolCallEvent;
+        }
+      });
+
+      const { result: runtimeResult } = renderHook(() =>
+        useLangGraphRuntime({ stream: streamMock }),
+      );
+      const wrapper = wrapperFactory(runtimeResult.current);
+      const { result: auiResult } = renderHook(() => useAui(), { wrapper });
+
+      await act(async () => {
+        auiResult.current.composer.setRunConfig(runConfig);
+        auiResult.current.composer.setText("what's the weather?");
+        auiResult.current.composer.send();
+      });
+      await waitForToolCallPart(auiResult.current, "lc-toolcall-ai-empty-id-0");
+      await waitFor(() =>
+        expect(auiResult.current.thread.getState().isRunning).toBe(false),
+      );
+
+      addToolResult(
+        runtimeResult.current,
+        { temperature: 72 },
+        "ai-empty-id",
+        "lc-toolcall-ai-empty-id-0",
+      );
+
+      await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(2));
+      expect(streamMock.mock.calls[1]?.[0]).toMatchObject([
+        { type: "tool", tool_call_id: "lc-toolcall-ai-empty-id-0" },
+      ]);
+      expect(streamMock.mock.calls[1]?.[1].runConfig).toEqual(runConfig);
+    });
+
     it("preserves run config through a command before a tool resume", async () => {
       const runConfig = {
         custom: { configurable: { model_name: "gpt-5.4-nano" } },
