@@ -100,6 +100,9 @@ const contentToParts = (content: unknown) => {
     .filter((p) => p !== null);
 };
 
+const hasVisibleText = (text: unknown): boolean =>
+  typeof text === "string" && text.trim() !== "";
+
 /**
  * Audio output arrives outside the content array: providers leave `content`
  * empty and put the spoken text in `additional_kwargs.audio.transcript`. The
@@ -113,7 +116,7 @@ const withAudioTranscript = (
   const audio = additionalKwargs?.audio as { transcript?: unknown } | undefined;
   const transcript = audio?.transcript;
   if (typeof transcript !== "string" || !transcript) return parts;
-  if (parts.some((part) => part.type === "text" && part.text?.trim()))
+  if (parts.some((part) => part.type === "text" && hasVisibleText(part.text)))
     return parts;
   return [
     ...parts.filter((part) => part.type !== "text"),

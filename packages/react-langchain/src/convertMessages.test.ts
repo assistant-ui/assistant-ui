@@ -880,13 +880,17 @@ describe("convertLangChainBaseMessage audio transcripts", () => {
     expect(contentOf(result)).toEqual([{ type: "text", text: "spoken words" }]);
   });
 
-  it("does not throw on a non-spec text block that omits text", () => {
-    const result = convertLangChainBaseMessage(
-      audioMessage([{ type: "text" }], { transcript: "spoken words" }),
-      {},
-    );
+  it("does not throw on a non-spec text block whose text is missing or not a string", () => {
+    for (const block of [{ type: "text" }, { type: "text", text: 42 }]) {
+      const result = convertLangChainBaseMessage(
+        audioMessage([block], { transcript: "spoken words" }),
+        {},
+      );
 
-    expect(contentOf(result)).toEqual([{ type: "text", text: "spoken words" }]);
+      expect(contentOf(result)).toEqual([
+        { type: "text", text: "spoken words" },
+      ]);
+    }
   });
 
   it("keeps non-text parts when it substitutes the transcript", () => {

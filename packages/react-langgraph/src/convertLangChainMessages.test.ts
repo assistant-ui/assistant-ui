@@ -1507,14 +1507,16 @@ describe("convertLangChainMessages audio transcripts", () => {
     expect(result.content).toEqual([{ type: "text", text: "spoken words" }]);
   });
 
-  it("does not throw on a non-spec text block that omits text", () => {
-    const result = convertLangChainMessages(
-      audioMessage([{ type: "text" }] as LangChainMessage["content"], {
-        transcript: "spoken words",
-      }),
-    );
+  it("does not throw on a non-spec text block whose text is missing or not a string", () => {
+    for (const block of [{ type: "text" }, { type: "text", text: 42 }]) {
+      const result = convertLangChainMessages(
+        audioMessage([block] as LangChainMessage["content"], {
+          transcript: "spoken words",
+        }),
+      );
 
-    expect(result.content).toEqual([{ type: "text", text: "spoken words" }]);
+      expect(result.content).toEqual([{ type: "text", text: "spoken words" }]);
+    }
   });
 
   it("keeps non-text parts when it substitutes the transcript", () => {
