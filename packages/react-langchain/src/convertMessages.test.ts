@@ -841,3 +841,77 @@ describe("convertLangChainBaseMessage image content parts", () => {
     expect(contentOf(result)).toEqual([]);
   });
 });
+
+describe("convertLangChainBaseMessage audio transcripts", () => {
+  const audioMessage = (
+    content: unknown,
+    audio: unknown,
+  ): LangChainBaseMessage => ({
+    _getType: () => "ai",
+    id: "msg-3",
+    content,
+    additional_kwargs: { audio },
+  });
+
+  it("surfaces the transcript when the provider leaves content empty", () => {
+    const result = convertLangChainBaseMessage(
+      audioMessage("", {
+        id: "audio_1",
+        data: "UklGRg==",
+        expires_at: 1,
+        transcript: "the secret number is four seven two",
+      }),
+      {},
+    );
+
+    expect(contentOf(result)).toEqual([
+      { type: "text", text: "the secret number is four seven two" },
+    ]);
+  });
+
+  it("keeps non-text parts when it substitutes the transcript", () => {
+    const result = convertLangChainBaseMessage(
+      audioMessage(
+        [
+          { type: "text", text: "" },
+          {
+            type: "image_url",
+            image_url: { url: "https://example.com/a.png" },
+          },
+        ],
+        { transcript: "spoken words" },
+      ),
+      {},
+    );
+
+    expect(contentOf(result)).toEqual([
+      { type: "image", image: "https://example.com/a.png" },
+      { type: "text", text: "spoken words" },
+    ]);
+  });
+
+  it("leaves existing text alone so the transcript is not duplicated", () => {
+    const result = convertLangChainBaseMessage(
+      audioMessage([{ type: "text", text: "written answer" }], {
+        transcript: "written answer",
+      }),
+      {},
+    );
+
+    expect(contentOf(result)).toEqual([
+      { type: "text", text: "written answer" },
+    ]);
+  });
+
+  it("ignores an absent, empty, or non-string transcript", () => {
+    for (const audio of [
+      undefined,
+      {},
+      { transcript: "" },
+      { transcript: 42 },
+    ]) {
+      const result = convertLangChainBaseMessage(audioMessage("", audio), {});
+      expect(contentOf(result)).toEqual([{ type: "text", text: "" }]);
+    }
+  });
+});
