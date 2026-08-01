@@ -44,8 +44,7 @@ import { createSerialRunQueue, type SerialRunQueue } from "./serialRunQueue";
 import { langGraphExtras } from "./runtimeExtras";
 import {
   filterUIMessagesBySurvivingIds,
-  getLangChainToolCallFallbackId,
-  getLangChainToolCallId,
+  getLangChainToolCallIds,
   getPendingToolCalls,
   hasToolResult,
   truncateLangChainMessages,
@@ -171,30 +170,30 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
     (previous: LangChainMessage | undefined, current: LangChainMessage) => {
       const message = appendLangChainChunk(previous, current);
       if (message.type === "ai") {
-        for (const [index, toolCall] of (message.tool_calls ?? []).entries()) {
+        const toolCallIds = getLangChainToolCallIds(
+          message.id,
+          message.tool_calls ?? [],
+        );
+        const previousToolCallIds =
+          previous?.type === "ai"
+            ? getLangChainToolCallIds(previous.id, previous.tool_calls ?? [])
+            : [];
+        for (const index of (message.tool_calls ?? []).keys()) {
           // The accumulator replays history on every run, so existing calls
           // must retain the context of the run that originally emitted them.
-          const toolCallId = getLangChainToolCallId(
-            message.id,
-            toolCall,
-            index,
-          );
-          const fallbackToolCallId = getLangChainToolCallFallbackId(
-            message.id,
-            toolCall,
-            index,
-          );
-          if (fallbackToolCallId !== toolCallId) {
-            const fallbackRunContext =
-              toolCallRunContextsRef.current.get(fallbackToolCallId);
-            if (fallbackRunContext) {
+          const toolCallId = toolCallIds[index]!;
+          const previousToolCallId = previousToolCallIds[index];
+          if (previousToolCallId && previousToolCallId !== toolCallId) {
+            const previousRunContext =
+              toolCallRunContextsRef.current.get(previousToolCallId);
+            if (previousRunContext) {
               if (!toolCallRunContextsRef.current.has(toolCallId)) {
                 toolCallRunContextsRef.current.set(
                   toolCallId,
-                  fallbackRunContext,
+                  previousRunContext,
                 );
               }
-              toolCallRunContextsRef.current.delete(fallbackToolCallId);
+              toolCallRunContextsRef.current.delete(previousToolCallId);
             }
           }
           if (
@@ -347,6 +346,8 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
       return sendMessageRef.current(messages, config, () => {
         if (runErrorBalanceRef.current > 0) {
           pendingResumesRef.current.clear();
+          toolCallRunContextsRef.current.clear();
+          activeRunContextRef.current = null;
           runQueueRef.current!.drop();
         }
         onComplete();
@@ -698,6 +699,8 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
     onCancel: unstable_allowCancellation
       ? async () => {
           pendingResumesRef.current.clear();
+          toolCallRunContextsRef.current.clear();
+          activeRunContextRef.current = null;
           runQueue.drop();
           cancel();
         }

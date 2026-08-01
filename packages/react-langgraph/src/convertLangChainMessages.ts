@@ -22,7 +22,7 @@ import type {
   LangChainToolCallChunk,
   UIMessage,
 } from "./types";
-import { getLangChainToolCallId } from "./messageHelpers";
+import { getLangChainToolCallIds } from "./messageHelpers";
 import {
   parsePartialJsonObject,
   type ReadonlyJSONObject,
@@ -250,10 +250,14 @@ export const convertLangChainMessages: useExternalMessageConverter.Callback<
       };
     }
     case "ai": {
+      const toolCallIds = getLangChainToolCallIds(
+        message.id,
+        message.tool_calls ?? [],
+      );
       const toolCallParts =
         message.tool_calls?.map((chunk, idx): ToolCallMessagePart => {
           const fallbackIndex = chunk.index ?? idx;
-          const toolCallId = getLangChainToolCallId(message.id, chunk, idx);
+          const toolCallId = toolCallIds[idx]!;
           const matchingToolCallChunk = message.tool_call_chunks?.find((c) =>
             chunk.id ? c.id === chunk.id : c.index === fallbackIndex,
           );

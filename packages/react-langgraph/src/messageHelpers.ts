@@ -4,24 +4,48 @@ import {
 } from "@assistant-ui/core";
 import type { LangChainMessage, LangChainToolCall, UIMessage } from "./types";
 
-export const getLangChainToolCallFallbackId = (
+const getLangChainToolCallFallbackId = (
   messageId: string | undefined,
   toolCall: LangChainToolCall,
   index: number,
 ) => `lc-toolcall-${messageId ?? "unknown"}-${toolCall.index ?? index}`;
 
-export const getLangChainToolCallId = (
+export const getLangChainToolCallIds = (
   messageId: string | undefined,
-  toolCall: LangChainToolCall,
-  index: number,
-) => toolCall.id || getLangChainToolCallFallbackId(messageId, toolCall, index);
+  toolCalls: readonly LangChainToolCall[],
+) => {
+  const usedIds = new Set(
+    toolCalls.flatMap((toolCall) => (toolCall.id ? [toolCall.id] : [])),
+  );
+
+  return toolCalls.map((toolCall, index) => {
+    if (toolCall.id) return toolCall.id;
+
+    const fallbackId = getLangChainToolCallFallbackId(
+      messageId,
+      toolCall,
+      index,
+    );
+    let toolCallId = fallbackId;
+    let suffix = 1;
+    while (usedIds.has(toolCallId)) {
+      toolCallId = `${fallbackId}-${suffix++}`;
+    }
+    usedIds.add(toolCallId);
+    return toolCallId;
+  });
+};
 
 export const getPendingToolCalls = (messages: LangChainMessage[]) => {
   const pendingToolCalls = new Map<string, LangChainToolCall>();
   for (const message of messages) {
     if (message.type === "ai") {
+      const toolCallIds = getLangChainToolCallIds(
+        message.id,
+        message.tool_calls ?? [],
+      );
       for (const [index, toolCall] of (message.tool_calls ?? []).entries()) {
-        const toolCallId = getLangChainToolCallId(message.id, toolCall, index);
+        const toolCallId = toolCallIds[index]!;
         pendingToolCalls.set(
           toolCallId,
           toolCall.id ? toolCall : { ...toolCall, id: toolCallId },
