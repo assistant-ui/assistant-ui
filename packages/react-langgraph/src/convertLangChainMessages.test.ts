@@ -1158,24 +1158,6 @@ describe("convertLangChainMessages tool call id stability", () => {
     expect(ids).toEqual(["lc-toolcall-ai-1-0", "call_real_abc"]);
   });
 
-  it("disambiguates repeated explicit tool call ids", () => {
-    const result = convertLangChainMessages({
-      type: "ai",
-      id: "ai-1",
-      content: "",
-      tool_calls: [
-        { id: "call-duplicate", name: "a", args: {} },
-        { id: "call-duplicate", name: "b", args: {} },
-      ],
-    });
-
-    if (!("content" in result)) throw new Error("Expected assistant message");
-    const ids = result.content
-      .filter((part) => part.type === "tool-call")
-      .map((part) => (part as { toolCallId: string }).toolCallId);
-    expect(ids).toEqual(["call-duplicate", "call-duplicate-1"]);
-  });
-
   it("matches tool_call_chunks by index when chunk.id is empty (preserves args_json)", () => {
     const result = convertLangChainMessages({
       type: "ai",

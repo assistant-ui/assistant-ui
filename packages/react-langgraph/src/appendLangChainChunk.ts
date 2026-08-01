@@ -31,26 +31,12 @@ const mergeStreamedToolCallArgs = (
   if (prevToolCalls.length === 0 || currToolCalls.length === 0) return curr;
 
   let changed = false;
-  const consumedPreviousIndices = new Set<number>();
-  const mergedToolCalls = currToolCalls.map((toolCall, toolCallIndex) => {
+  const mergedToolCalls = currToolCalls.map((toolCall) => {
     if (toolCall.partial_json) return toolCall;
-    let matchingIndex = findMatchingLangChainToolCallIndex(
+    const matchingIndex = findMatchingLangChainToolCallIndex(
       prevToolCalls,
       toolCall,
-      toolCallIndex,
     );
-    if (consumedPreviousIndices.has(matchingIndex)) matchingIndex = -1;
-    if (matchingIndex === -1 && prevToolCalls.length === currToolCalls.length) {
-      const previousAtIndex = prevToolCalls[toolCallIndex];
-      if (
-        !consumedPreviousIndices.has(toolCallIndex) &&
-        previousAtIndex?.name === toolCall.name &&
-        (!previousAtIndex.id || !toolCall.id)
-      ) {
-        matchingIndex = toolCallIndex;
-      }
-    }
-    if (matchingIndex !== -1) consumedPreviousIndices.add(matchingIndex);
     const streamedPartialJson = prevToolCalls[matchingIndex]?.partial_json;
     if (!streamedPartialJson) return toolCall;
     changed = true;

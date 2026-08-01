@@ -15,63 +15,6 @@ describe("getPendingToolCalls", () => {
     expect(getId()).toBe(getId());
   });
 
-  it("disambiguates repeated explicit tool call ids", () => {
-    const pending = getPendingToolCalls([
-      {
-        id: "ai-1",
-        type: "ai",
-        content: "",
-        tool_calls: [
-          { id: "duplicate", name: "first", args: {} },
-          { id: "duplicate", name: "second", args: {} },
-        ],
-      },
-    ]);
-
-    expect(pending.map((toolCall) => toolCall.id)).toEqual([
-      "duplicate",
-      "duplicate-1",
-    ]);
-  });
-
-  it("matches an empty backend result id to its synthesized tool call id", () => {
-    expect(
-      getPendingToolCalls([
-        {
-          id: "ai-1",
-          type: "ai",
-          content: "",
-          tool_calls: [{ id: "", index: 0, name: "lookup", args: {} }],
-        },
-        {
-          type: "tool",
-          tool_call_id: "",
-          content: "done",
-        },
-      ]),
-    ).toEqual([]);
-  });
-
-  it("does not guess when an empty result id matches multiple pending calls", () => {
-    const pending = getPendingToolCalls([
-      {
-        id: "ai-1",
-        type: "ai",
-        content: "",
-        tool_calls: [{ id: "", index: 0, name: "first", args: {} }],
-      },
-      {
-        id: "ai-2",
-        type: "ai",
-        content: "",
-        tool_calls: [{ id: "", index: 0, name: "second", args: {} }],
-      },
-      { type: "tool", tool_call_id: "", content: "ambiguous" },
-    ]);
-
-    expect(pending).toHaveLength(2);
-  });
-
   it("does not match a non-empty unknown result to a synthesized call", () => {
     const pending = getPendingToolCalls([
       {

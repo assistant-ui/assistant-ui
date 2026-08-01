@@ -65,17 +65,9 @@ const findMatchingToolCallForOwnership = (
   toolCall: LangChainToolCall,
   toolCallIndex: number,
 ) => {
-  if (
-    toolCall.id &&
-    currentToolCalls.filter((candidate) => candidate.id === toolCall.id)
-      .length > 1
-  ) {
-    return -1;
-  }
   const matchingIndex = findMatchingLangChainToolCallIndex(
     previousToolCalls,
     toolCall,
-    toolCallIndex,
   );
   if (
     matchingIndex !== -1 ||

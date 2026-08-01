@@ -14,22 +14,21 @@ export const getLangChainToolCallIds = (
   messageId: string | undefined,
   toolCalls: readonly LangChainToolCall[],
 ) => {
-  const reservedIds = new Set(
+  const usedIds = new Set(
     toolCalls.flatMap((toolCall) => (toolCall.id ? [toolCall.id] : [])),
   );
-  const usedIds = new Set<string>();
 
   return toolCalls.map((toolCall, index) => {
-    if (toolCall.id && !usedIds.has(toolCall.id)) {
-      usedIds.add(toolCall.id);
-      return toolCall.id;
-    }
+    if (toolCall.id) return toolCall.id;
 
-    const fallbackId =
-      toolCall.id || getLangChainToolCallFallbackId(messageId, toolCall, index);
+    const fallbackId = getLangChainToolCallFallbackId(
+      messageId,
+      toolCall,
+      index,
+    );
     let toolCallId = fallbackId;
     let suffix = 1;
-    while (usedIds.has(toolCallId) || reservedIds.has(toolCallId)) {
+    while (usedIds.has(toolCallId)) {
       toolCallId = `${fallbackId}-${suffix++}`;
     }
     usedIds.add(toolCallId);
@@ -40,19 +39,12 @@ export const getLangChainToolCallIds = (
 export const findMatchingLangChainToolCallIndex = (
   previousToolCalls: readonly LangChainToolCall[],
   toolCall: LangChainToolCall,
-  toolCallIndex: number,
 ): number => {
   if (toolCall.id) {
-    const matchingIds = previousToolCalls.flatMap((previous, index) =>
-      previous.id === toolCall.id ? [index] : [],
+    const byId = previousToolCalls.findIndex(
+      (previous) => previous.id && previous.id === toolCall.id,
     );
-    if (matchingIds.length === 1) return matchingIds[0]!;
-    if (
-      matchingIds.length > 1 &&
-      previousToolCalls[toolCallIndex]?.id === toolCall.id
-    ) {
-      return toolCallIndex;
-    }
+    if (byId !== -1) return byId;
   }
 
   if (toolCall.index != null) {
@@ -85,7 +77,6 @@ export const getPendingToolCalls = (
   aliases?: ReadonlyMap<string, string>,
 ) => {
   const pendingToolCalls = new Map<string, LangChainToolCall>();
-  const synthesizedToolCallIds: string[] = [];
   for (const message of messages) {
     if (message.type === "ai") {
       const toolCallIds = getLangChainToolCallIds(
@@ -100,9 +91,6 @@ export const getPendingToolCalls = (
             ? toolCall
             : { ...toolCall, id: toolCallId },
         );
-        if (!toolCall.id) {
-          synthesizedToolCallIds.push(toolCallId);
-        }
       }
     }
     if (message.type === "tool") {
@@ -110,17 +98,7 @@ export const getPendingToolCalls = (
         aliases,
         message.tool_call_id,
       );
-      if (
-        !pendingToolCalls.delete(resolvedToolCallId) &&
-        message.tool_call_id === ""
-      ) {
-        const pendingSynthesizedIds = synthesizedToolCallIds.filter((id) =>
-          pendingToolCalls.has(id),
-        );
-        if (pendingSynthesizedIds.length === 1) {
-          pendingToolCalls.delete(pendingSynthesizedIds[0]!);
-        }
-      }
+      pendingToolCalls.delete(resolvedToolCallId);
     }
   }
 
