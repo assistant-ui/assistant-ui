@@ -1079,6 +1079,40 @@ describe("useLangGraphRuntime", () => {
       await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(2));
     });
 
+    it("preserves run config when a tool result resumes the graph", async () => {
+      const runConfig = {
+        custom: { configurable: { model_name: "gpt-5.4-nano" } },
+      };
+      const streamMock = vi.fn(async function* (_messages: LangChainMessage[]) {
+        if (streamMock.mock.calls.length === 1) {
+          yield toolCallEvent;
+        }
+      });
+
+      const { result: runtimeResult } = renderHook(() =>
+        useLangGraphRuntime({ stream: streamMock }),
+      );
+      const wrapper = wrapperFactory(runtimeResult.current);
+      const { result: auiResult } = renderHook(() => useAui(), { wrapper });
+
+      await act(async () => {
+        auiResult.current.composer.setRunConfig(runConfig);
+        auiResult.current.composer.setText("what's the weather?");
+        auiResult.current.composer.send();
+      });
+      await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(1));
+      expect(streamMock.mock.calls[0]?.[1].runConfig).toEqual(runConfig);
+      await waitForToolCallPart(auiResult.current);
+      await waitFor(() =>
+        expect(auiResult.current.thread.getState().isRunning).toBe(false),
+      );
+
+      addToolResult(runtimeResult.current, { temperature: 72 });
+
+      await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(2));
+      expect(streamMock.mock.calls[1]?.[1].runConfig).toEqual(runConfig);
+    });
+
     it("drops the queued resume when the run is cancelled", async () => {
       const gate = deferred<void>();
       const streamMock = vi.fn(async function* (

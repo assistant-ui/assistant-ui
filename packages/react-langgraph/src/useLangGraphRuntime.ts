@@ -258,6 +258,8 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
 
   const sendMessageRef = useRef(sendMessage);
   sendMessageRef.current = sendMessage;
+  const currentRunConfigRef =
+    useRef<LangGraphSendMessageConfig["runConfig"]>(undefined);
 
   // Runs on a thread never overlap: a send arriving while a run is still
   // draining (e.g. a frontend tool result resuming the graph) waits for it to
@@ -288,6 +290,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
     messages: LangChainMessage[],
     config: LangGraphSendMessageConfig,
   ) => {
+    currentRunConfigRef.current = config.runConfig;
     const state = pendingStateRef.current;
     pendingStateRef.current = undefined;
     return runQueue.enqueue({
@@ -514,8 +517,9 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
       }
       pendingResumeRef.current = batch;
       try {
-        // TODO reuse runconfig here!
-        await handleSendMessage(batch, {});
+        await handleSendMessage(batch, {
+          runConfig: currentRunConfigRef.current,
+        });
       } finally {
         if (pendingResumeRef.current === batch) {
           pendingResumeRef.current = null;
@@ -628,6 +632,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
       // drop stale callbacks and abort the pending load on thread switch/unmount
       const controller = new AbortController();
       toolResultBufferRef.current.clear();
+      currentRunConfigRef.current = undefined;
       pendingStateRef.current = undefined;
       effectiveStateRef.current = undefined;
       setOptimisticState(undefined);
