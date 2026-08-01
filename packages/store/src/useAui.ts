@@ -44,7 +44,10 @@ import {
   useNotificationManager,
   type NotificationManager,
 } from "./utils/NotificationManager";
-import { useAssistantTapContextProvider } from "./utils/tap-assistant-context";
+import {
+  useAssistantTapContextProvider,
+  type AssistantClientStoreRef,
+} from "./utils/tap-assistant-context";
 import { ClientResource } from "./useClientResource";
 import { useShallowStable } from "./utils/useShallowStable";
 import { createClientAccessor, getClientId } from "./utils/client-accessor";
@@ -246,18 +249,20 @@ const useAuiRoot = ({
   parent,
   entries,
   clientRef,
+  clientStoreRef,
   notifications,
 }: {
   parent: AssistantClient;
   entries: ScopeEntry[];
   clientRef: ClientRef;
+  clientStoreRef: AssistantClientStoreRef;
   notifications: NotificationManager;
 }): { client: AssistantClient } => {
   const fields = useClientFields({ notifications, clientRef });
   const building = createClientObject(parent, fields);
 
   const accessors = useAssistantTapContextProvider(
-    { clientRef, emit: notifications.emit },
+    { clientRef, clientStoreRef, emit: notifications.emit },
     function WithTapContext() {
       return useAssistantContextProvider(
         building,
@@ -284,11 +289,19 @@ const useHostedAssistantClient = ({
 }): AssistantClient => {
   const { value: client, effects } = useTapHost(function AssistantClientHost() {
     const clientRef = useRef<ClientRef>({ parent, current: null }).current;
+    const clientStoreRef = useRef<AssistantClientStoreRef["current"]>(null);
     const notifications = useNotificationManager();
 
     const store = useTapRoot(function AuiRoot() {
-      return useAuiRoot({ parent, entries, clientRef, notifications });
+      return useAuiRoot({
+        parent,
+        entries,
+        clientRef,
+        clientStoreRef,
+        notifications,
+      });
     });
+    clientStoreRef.current = store;
 
     const client = useSyncExternalStore(
       store.subscribe,

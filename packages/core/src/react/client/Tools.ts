@@ -1,15 +1,12 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo } from "react";
 import {
   useResources,
   resource,
   withKey,
   type ResourceElement,
 } from "@assistant-ui/tap";
-import {
-  useAssistantClientRef,
-  type ClientOutput,
-  attachTransformScopes,
-} from "@assistant-ui/store";
+import { type ClientOutput, attachTransformScopes } from "@assistant-ui/store";
+import { useAssistantClientEffect } from "@assistant-ui/store/internal";
 import type { McpAppResourceOutput, ToolsState } from "../types/scopes/tools";
 import type { Tool } from "assistant-stream";
 import {
@@ -52,8 +49,6 @@ const useTools = ({
     [toolUIs, mcpAppOutput],
   );
 
-  const clientRef = useAssistantClientRef();
-
   const setToolUI = useCallback(
     (
       toolName: string,
@@ -87,60 +82,63 @@ const useTools = ({
     [],
   );
 
-  useEffect(() => {
-    if (!toolkit) return;
-    const unsubscribes: (() => void)[] = [];
+  useAssistantClientEffect(
+    "modelContext",
+    (modelContext) => {
+      if (!toolkit) return;
+      const unsubscribes: (() => void)[] = [];
 
-    // Register tool UIs (exclude symbols)
-    for (const [toolName, tool] of Object.entries(toolkit)) {
-      const toolRender = "render" in tool ? tool.render : undefined;
-      const toolRenderText = "renderText" in tool ? tool.renderText : undefined;
-      const render =
-        toolRender ??
-        (toolRenderText
-          ? makeToolCallTextComponent(toolRenderText)
-          : undefined);
-      if (render) {
-        unsubscribes.push(
-          setToolUI(toolName, render, {
-            standalone: isStandaloneToolDisplay(tool),
-          }),
-        );
+      // Register tool UIs (exclude symbols)
+      for (const [toolName, tool] of Object.entries(toolkit)) {
+        const toolRender = "render" in tool ? tool.render : undefined;
+        const toolRenderText =
+          "renderText" in tool ? tool.renderText : undefined;
+        const render =
+          toolRender ??
+          (toolRenderText
+            ? makeToolCallTextComponent(toolRenderText)
+            : undefined);
+        if (render) {
+          unsubscribes.push(
+            setToolUI(toolName, render, {
+              standalone: isStandaloneToolDisplay(tool),
+            }),
+          );
+        }
       }
-    }
 
-    // Register tools with model context (exclude symbols). `render`,
-    // `renderText`, and `display` are client-only presentation concerns and
-    // never reach the model.
-    const toolsWithoutRender = Object.entries(toolkit).reduce(
-      (acc, [name, tool]) => {
-        if (tool.type === "mcp") return acc;
-        const {
-          display: _display,
-          render: _render,
-          renderText: _renderText,
-          ...rest
-        } = tool as typeof tool & { renderText?: unknown };
-        acc[name] = rest as Tool<any, any>;
-        return acc;
-      },
-      {} as Record<string, Tool<any, any>>,
-    );
+      // Register tools with model context (exclude symbols). `render`,
+      // `renderText`, and `display` are client-only presentation concerns and
+      // never reach the model.
+      const toolsWithoutRender = Object.entries(toolkit).reduce(
+        (acc, [name, tool]) => {
+          if (tool.type === "mcp") return acc;
+          const {
+            display: _display,
+            render: _render,
+            renderText: _renderText,
+            ...rest
+          } = tool as typeof tool & { renderText?: unknown };
+          acc[name] = rest as Tool<any, any>;
+          return acc;
+        },
+        {} as Record<string, Tool<any, any>>,
+      );
 
-    const modelContextProvider = {
-      getModelContext: () => ({
-        tools: toolsWithoutRender,
-      }),
-    };
+      const modelContextProvider = {
+        getModelContext: () => ({
+          tools: toolsWithoutRender,
+        }),
+      };
 
-    unsubscribes.push(
-      clientRef.current!.modelContext().register(modelContextProvider),
-    );
+      unsubscribes.push(modelContext.register(modelContextProvider));
 
-    return () => {
-      unsubscribes.forEach((fn) => fn());
-    };
-  }, [toolkit, setToolUI, clientRef]);
+      return () => {
+        unsubscribes.forEach((fn) => fn());
+      };
+    },
+    [toolkit, setToolUI],
+  );
 
   return {
     getState: () => state,

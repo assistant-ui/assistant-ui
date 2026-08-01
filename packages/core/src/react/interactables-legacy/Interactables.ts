@@ -1,10 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { resource } from "@assistant-ui/tap";
-import {
-  useAssistantClientRef,
-  type ClientOutput,
-  attachTransformScopes,
-} from "@assistant-ui/store";
+import { type ClientOutput, attachTransformScopes } from "@assistant-ui/store";
+import { useAssistantClientEffect } from "@assistant-ui/store/internal";
 import type {
   InteractablesState,
   InteractableRegistration,
@@ -23,8 +20,6 @@ const useInteractables = (): ClientOutput<"interactables"> => {
     definitions: {},
     persistence: {},
   }));
-
-  const clientRef = useAssistantClientRef();
 
   const stateRef = useRef(state);
   useEffect(() => {
@@ -251,9 +246,11 @@ const useInteractables = (): ClientOutput<"interactables"> => {
     for (const cb of subscribersRef.current) cb();
   }, [state]);
 
-  useEffect(() => {
-    return clientRef.current!.modelContext().register(provider);
-  }, [clientRef, provider]);
+  useAssistantClientEffect(
+    "modelContext",
+    (modelContext) => modelContext.register(provider),
+    [provider],
+  );
 
   const register = useCallback(
     (def: InteractableRegistration) => {

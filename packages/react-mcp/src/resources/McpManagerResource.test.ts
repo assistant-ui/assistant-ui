@@ -30,9 +30,9 @@ vi.mock("@modelcontextprotocol/client", async (importOriginal) => ({
   StreamableHTTPClientTransport: mocks.StreamableHTTPClientTransport,
 }));
 
-vi.mock("@assistant-ui/store", async (importOriginal) => ({
+vi.mock("@assistant-ui/store/internal", async (importOriginal) => ({
   ...(await importOriginal()),
-  useAssistantClientRef: () => ({ current: null }),
+  useAssistantClientEffect: () => {},
 }));
 
 const connector = (id: string, name = id): MCPConnector =>

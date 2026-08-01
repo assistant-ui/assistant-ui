@@ -8,6 +8,9 @@ import type {
 import type { ThreadMessage } from "../../types/message";
 
 const clientHolder: { client: unknown } = { client: null };
+const internalMocks = vi.hoisted(() => ({
+  useAssistantClientEffect: vi.fn(),
+}));
 
 vi.mock("@assistant-ui/store", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@assistant-ui/store")>();
@@ -18,6 +21,15 @@ vi.mock("@assistant-ui/store", async (importOriginal) => {
         return clientHolder.client;
       },
     }),
+  };
+});
+
+vi.mock("@assistant-ui/store/internal", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@assistant-ui/store/internal")>();
+  return {
+    ...actual,
+    useAssistantClientEffect: internalMocks.useAssistantClientEffect,
   };
 });
 
@@ -121,6 +133,7 @@ let root: ReturnType<typeof mount> | undefined;
 
 beforeEach(() => {
   vi.useFakeTimers();
+  internalMocks.useAssistantClientEffect.mockReset();
 });
 
 afterEach(() => {
@@ -240,6 +253,70 @@ describe("Interactables registration", () => {
     expect(removeToolUI).not.toHaveBeenCalled();
     second();
     expect(removeToolUI).toHaveBeenCalledTimes(1);
+  });
+
+  it("replaces an update tool UI installed before tools effect setup", () => {
+    let setupToolsEffect!: (
+      tools: NonNullable<ReturnType<typeof makeClient>["tools"]>,
+    ) => void | (() => void);
+    internalMocks.useAssistantClientEffect.mockImplementation(
+      (scope, setup) => {
+        if (scope === "tools") setupToolsEffect = setup;
+      },
+    );
+    const removeInitialToolUI = vi.fn();
+    const removeEffectToolUI = vi.fn();
+    const setToolUI = vi
+      .fn()
+      .mockReturnValueOnce(removeInitialToolUI)
+      .mockReturnValueOnce(removeEffectToolUI);
+    root = mount({ setToolUI });
+
+    const render = () => null;
+    const unregister = root
+      .getValue()
+      .register(reg("n1", { updateRender: render }));
+    const tools = (clientHolder.client as ReturnType<typeof makeClient>).tools!;
+    const cleanupEffect = setupToolsEffect(tools);
+
+    expect(removeInitialToolUI).toHaveBeenCalledTimes(1);
+    expect(setToolUI).toHaveBeenCalledTimes(2);
+
+    cleanupEffect?.();
+    expect(removeEffectToolUI).toHaveBeenCalledTimes(1);
+    unregister();
+    expect(removeEffectToolUI).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not reinstall an update tool UI removed during tools effect setup", () => {
+    let setupToolsEffect!: (
+      tools: NonNullable<ReturnType<typeof makeClient>["tools"]>,
+    ) => void | (() => void);
+    internalMocks.useAssistantClientEffect.mockImplementation(
+      (scope, setup) => {
+        if (scope === "tools") setupToolsEffect = setup;
+      },
+    );
+    let unregister = () => {};
+    const removeInitialToolUI = vi.fn(() => unregister());
+    const removeEffectToolUI = vi.fn();
+    const setToolUI = vi
+      .fn()
+      .mockReturnValueOnce(removeInitialToolUI)
+      .mockReturnValueOnce(removeEffectToolUI);
+    root = mount({ setToolUI });
+
+    const render = () => null;
+    unregister = root.getValue().register(reg("n1", { updateRender: render }));
+    const tools = (clientHolder.client as ReturnType<typeof makeClient>).tools!;
+    const cleanupEffect = setupToolsEffect(tools);
+
+    expect(removeInitialToolUI).toHaveBeenCalledTimes(1);
+    expect(setToolUI).toHaveBeenCalledTimes(1);
+    expect(removeEffectToolUI).not.toHaveBeenCalled();
+
+    cleanupEffect?.();
+    expect(removeEffectToolUI).not.toHaveBeenCalled();
   });
 });
 

@@ -8,6 +8,7 @@ import { flushTapSync, resource } from "@assistant-ui/tap";
 import { AuiProvider } from "../utils/react-assistant-context";
 import { useAui } from "../useAui";
 import { useAuiState } from "../useAuiState";
+import { useAssistantClientEffect } from "../utils/tap-assistant-context";
 
 const makeTestClient = (log: string[]) => {
   // Runs inside the tap host; "react" imports route to tap's dispatcher.
@@ -37,6 +38,45 @@ const Provider = ({
   const aui = useAui({ thread: client } as unknown as useAui.Props);
   return <AuiProvider value={aui}>{children}</AuiProvider>;
 };
+
+const createRegistrationParent = (id: string, active: Map<string, string>) => {
+  const registrationTarget = Object.assign(() => registrationTarget, {
+    source: "root" as const,
+    query: {},
+    register: (value: string) => {
+      active.set(id, value);
+      return () => {
+        if (active.get(id) === value) active.delete(id);
+      };
+    },
+  });
+  return {
+    registrationTarget,
+    subscribe: () => () => {},
+    on: () => () => {},
+  };
+};
+
+const createUnavailableRegistrationParent = () => ({
+  registrationTarget: Object.assign(
+    () => {
+      throw new Error("registrationTarget scope not available");
+    },
+    { source: null as const, query: {} },
+  ),
+  subscribe: () => () => {},
+  on: () => () => {},
+});
+
+const useRegistrationClient = ({ value }: { value: string }) => {
+  useAssistantClientEffect(
+    "registrationTarget" as any,
+    (target: any) => target.register(value),
+    [value],
+  );
+  return {};
+};
+const RegistrationClient = resource(useRegistrationClient);
 
 describe("useAui tap host", () => {
   afterEach(() => {
@@ -131,5 +171,50 @@ describe("useAui tap host", () => {
     );
     unmount();
     expect(log).toEqual(["tap effect", "tap cleanup"]);
+  });
+
+  it("migrates selected client effects after structural scope changes", () => {
+    const active = new Map<string, string>();
+    const parents = {
+      a: createRegistrationParent("a", active),
+      b: createRegistrationParent("b", active),
+      unavailable: createUnavailableRegistrationParent(),
+    };
+
+    const Child = ({ value }: { value: string }) => {
+      useAui({
+        registration: RegistrationClient({ value }),
+      } as unknown as useAui.Props);
+      return null;
+    };
+    const Harness = ({
+      parent,
+      value,
+    }: {
+      parent: keyof typeof parents;
+      value: string;
+    }) => (
+      <AuiProvider value={parents[parent] as never}>
+        <Child value={value} />
+      </AuiProvider>
+    );
+
+    const { rerender, unmount } = render(<Harness parent="a" value="one" />);
+    expect(Object.fromEntries(active)).toEqual({ a: "one" });
+
+    rerender(<Harness parent="b" value="two" />);
+    expect(Object.fromEntries(active)).toEqual({ b: "two" });
+
+    rerender(<Harness parent="unavailable" value="two" />);
+    expect(active.size).toBe(0);
+
+    rerender(<Harness parent="b" value="two" />);
+    expect(Object.fromEntries(active)).toEqual({ b: "two" });
+
+    rerender(<Harness parent="b" value="three" />);
+    expect(Object.fromEntries(active)).toEqual({ b: "three" });
+
+    unmount();
+    expect(active.size).toBe(0);
   });
 });
