@@ -56,12 +56,12 @@ export function useComposerSubmitHandler(onSubmitProp?: () => void) {
   const pathname = currentPage?.pathname;
 
   return () => {
-    const metrics = getComposerMessageMetrics(aui.composer().getState());
+    const metrics = getComposerMessageMetrics(aui.composer.getState());
     if (!metrics) return;
 
     let modelName: string | undefined;
     try {
-      modelName = aui.thread().getModelContext()?.config?.modelName;
+      modelName = aui.thread.getModelContext()?.config?.modelName;
     } catch {
       // ignore
     }
@@ -92,7 +92,7 @@ export function useSharedDocsModelSelection(): {
     let nextModelName = DEFAULT_MODEL_ID;
     try {
       nextModelName = resolveModelId(
-        aui.thread().getModelContext()?.config?.modelName,
+        aui.thread.getModelContext()?.config?.modelName,
       );
     } catch {
       // ignore

@@ -41,11 +41,11 @@ import { useAui } from "@assistant-ui/react-ink";
 const aui = useAui();
 
 // Composer actions
-aui.composer().setText("Hello");
-aui.composer().send();
+aui.composer.setText("Hello");
+aui.composer.send();
 
 // Thread actions
-aui.thread().cancelRun();
+aui.thread.cancelRun();
 ```
 
 ### useAuiEvent

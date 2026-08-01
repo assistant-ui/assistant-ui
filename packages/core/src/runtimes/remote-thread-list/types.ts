@@ -5,7 +5,7 @@ import type { AssistantStream } from "assistant-stream";
 
 export type RemoteThreadInitializeResponse = {
   remoteId: string;
-  externalId: string | undefined;
+  externalId?: string | undefined;
 };
 
 export type RemoteThreadMetadata = {
@@ -78,10 +78,11 @@ export type RemoteThreadListOptions = {
   threadId?: string | undefined;
 
   /**
-   * Called whenever the active thread's canonical (remote) ID changes, so the
-   * value can be treated as a managed/controlled variable (e.g. synced to a
-   * URL query param). Together with `threadId` this forms the controlled
-   * pattern: `threadId` in, `onThreadIdChange` out.
+   * Called whenever the runtime changes the active thread's canonical (remote)
+   * ID, so the value can be treated as a managed/controlled variable (e.g.
+   * synced to a URL query param). Changes initiated by the controlled
+   * `threadId` option are not echoed back. Together these options form the
+   * controlled pattern: `threadId` in, `onThreadIdChange` out.
    *
    * Only the settled remote ID is emitted: while a freshly created thread is
    * still optimistic (no remote ID yet) the value is `undefined`, and the real

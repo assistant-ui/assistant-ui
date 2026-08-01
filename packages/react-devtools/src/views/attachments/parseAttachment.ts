@@ -26,7 +26,7 @@ const mediaFromContent = (
     if (type === "image") {
       const image = asString(part.image);
       if (image && isSafeImagePreviewUrl(image)) {
-        const sizeBytes = image.startsWith("data:")
+        const sizeBytes = /^data:/i.test(image)
           ? estimateBase64Bytes(image.split(",", 2)[1] ?? image)
           : undefined;
         return {

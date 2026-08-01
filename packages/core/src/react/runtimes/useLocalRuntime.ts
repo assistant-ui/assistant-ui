@@ -35,6 +35,7 @@ const useLocalThreadRuntime = (
   const [runtime] = useState(() => new LocalRuntimeCore(opt, initialMessages));
 
   const threadIdRef = useRef<string | undefined>(undefined);
+  const historyLoadPromiseRef = useRef<Promise<void> | undefined>(undefined);
   threadIdRef.current = useAuiState((s) => s.threadListItem.remoteId);
 
   useEffect(() => {
@@ -51,8 +52,19 @@ const useLocalThreadRuntime = (
 
   useEffect(() => {
     runtime.threads.getMainThreadRuntimeCore().__internal_setOptions(opt);
-    runtime.threads.getMainThreadRuntimeCore().__internal_load();
   });
+
+  useEffect(() => {
+    const loadPromise = runtime.threads
+      .getMainThreadRuntimeCore()
+      .__internal_load();
+    if (historyLoadPromiseRef.current === loadPromise) return;
+
+    historyLoadPromiseRef.current = loadPromise;
+    void loadPromise.catch((error: unknown) => {
+      console.error("[assistant-ui] local thread history load failed:", error);
+    });
+  }, [runtime]);
 
   useEffect(() => {
     if (!modelContext) return undefined;

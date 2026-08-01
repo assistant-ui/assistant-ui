@@ -1,7 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { UIMessage, useChat, CreateUIMessage } from "@ai-sdk/react";
+import type {
+  UIMessage,
+  useChat,
+  CreateUIMessage,
+  UseChatHelpers,
+} from "@ai-sdk/react";
 import { isToolUIPart, generateId } from "ai";
 import {
   useExternalStoreRuntime,
@@ -47,6 +52,7 @@ import {
   toExportedMessageRepository,
 } from "./useExternalHistory";
 import { useStreamingTiming } from "./useStreamingTiming";
+import { aiSDKExtras } from "../../aiSDKExtras";
 
 export type CustomToCreateMessageFunction = <
   UI_MESSAGE extends UIMessage = UIMessage,
@@ -269,6 +275,16 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     },
   );
 
+  const { error } = chatHelpers;
+  const extras = useMemo(
+    () =>
+      aiSDKExtras.provide({
+        chat: chatHelpers as unknown as UseChatHelpers<UIMessage>,
+        error,
+      }),
+    [chatHelpers, error],
+  );
+
   const completePendingToolCalls = async () => {
     if (!cancelPendingToolCallsOnSend) return;
 
@@ -483,6 +499,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       ...contextAdapters,
       ...adapters,
     },
+    extras,
     isLoading,
   });
 

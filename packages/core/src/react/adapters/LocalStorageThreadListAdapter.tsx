@@ -1,5 +1,12 @@
 import { type AssistantStream, createAssistantStream } from "assistant-stream";
-import { type FC, type PropsWithChildren, useMemo } from "react";
+import {
+  type FC,
+  type PropsWithChildren,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useAui } from "@assistant-ui/store";
 import type {
   RemoteThreadInitializeResponse,
@@ -21,6 +28,37 @@ export type AsyncStorageLike = {
   getItem(key: string): Promise<string | null>;
   setItem(key: string, value: string): Promise<void>;
   removeItem(key: string): Promise<void>;
+};
+
+class KeyedMutationQueue {
+  private readonly tails = new Map<string, Promise<void>>();
+
+  run<T>(key: string, mutation: () => Promise<T>): Promise<T> {
+    const previous = this.tails.get(key);
+    const result = previous ? previous.then(mutation) : mutation();
+    const tail = result.then(
+      () => undefined,
+      () => undefined,
+    );
+
+    this.tails.set(key, tail);
+    void tail.then(() => {
+      if (this.tails.get(key) === tail) this.tails.delete(key);
+    });
+
+    return result;
+  }
+}
+
+const mutationQueues = new WeakMap<AsyncStorageLike, KeyedMutationQueue>();
+
+const getMutationQueue = (storage: AsyncStorageLike): KeyedMutationQueue => {
+  let queue = mutationQueues.get(storage);
+  if (!queue) {
+    queue = new KeyedMutationQueue();
+    mutationQueues.set(storage, queue);
+  }
+  return queue;
 };
 
 type LocalStorageAdapterOptions = {
@@ -244,18 +282,33 @@ export const parseStoredMessageRepository = (
 };
 
 class AsyncStorageHistoryAdapter implements ThreadHistoryAdapter {
+  private storage: AsyncStorageLike;
+  private getAui: () => ReturnType<typeof useAui>;
+  private prefix: string;
+  private mutationQueue: KeyedMutationQueue;
+
   constructor(
-    private storage: AsyncStorageLike,
-    private aui: ReturnType<typeof useAui>,
-    private prefix: string,
-  ) {}
+    storage: AsyncStorageLike,
+    getAui: () => ReturnType<typeof useAui>,
+    prefix: string,
+    mutationQueue: KeyedMutationQueue,
+  ) {
+    this.storage = storage;
+    this.getAui = getAui;
+    this.prefix = prefix;
+    this.mutationQueue = mutationQueue;
+  }
+
+  private get aui(): ReturnType<typeof useAui> {
+    return this.getAui();
+  }
 
   private _messagesKey(remoteId: string) {
     return `${this.prefix}messages:${remoteId}`;
   }
 
   async load(): Promise<ExportedMessageRepository> {
-    const remoteId = this.aui.threadListItem().getState().remoteId;
+    const remoteId = this.aui.threadListItem.getState().remoteId;
     if (!remoteId) return { messages: [] };
 
     const raw = await this.storage.getItem(this._messagesKey(remoteId));
@@ -263,35 +316,48 @@ class AsyncStorageHistoryAdapter implements ThreadHistoryAdapter {
   }
 
   async append(item: ExportedMessageRepositoryItem): Promise<void> {
-    const { remoteId } = await this.aui.threadListItem().initialize();
+    const { remoteId } = await this.aui.threadListItem.initialize();
 
     const key = this._messagesKey(remoteId);
-    const raw = await this.storage.getItem(key);
-    const repo = parseStoredMessageRepository(raw);
+    await this.mutationQueue.run(key, async () => {
+      const raw = await this.storage.getItem(key);
+      const repo = parseStoredMessageRepository(raw);
 
-    const idx = repo.messages.findIndex(
-      (m) => m.message.id === item.message.id,
-    );
-    if (idx >= 0) {
-      repo.messages[idx] = item;
-    } else {
-      repo.messages.push(item);
-    }
-    repo.headId = item.message.id;
+      const idx = repo.messages.findIndex(
+        (m) => m.message.id === item.message.id,
+      );
+      if (idx >= 0) {
+        repo.messages[idx] = item;
+      } else {
+        repo.messages.push(item);
+      }
+      repo.headId = item.message.id;
 
-    await this.storage.setItem(key, JSON.stringify(repo));
+      await this.storage.setItem(key, JSON.stringify(repo));
+    });
   }
 }
 
 const createHistoryProvider = (
   storage: AsyncStorageLike,
   prefix: string,
+  mutationQueue: KeyedMutationQueue,
 ): FC<PropsWithChildren> => {
   const Provider: FC<PropsWithChildren> = ({ children }) => {
     const aui = useAui();
-    const history = useMemo(
-      () => new AsyncStorageHistoryAdapter(storage, aui, prefix),
-      [aui],
+    // Not useEffectEvent: history adapter methods run during render (SSR load).
+    const auiRef = useRef(aui);
+    useEffect(() => {
+      auiRef.current = aui;
+    });
+    const [history] = useState(
+      () =>
+        new AsyncStorageHistoryAdapter(
+          storage,
+          () => auiRef.current,
+          prefix,
+          mutationQueue,
+        ),
     );
     const adapters = useMemo(() => ({ history }), [history]);
 
@@ -311,6 +377,7 @@ export const createLocalStorageAdapter = (
 
   const threadsKey = `${prefix}threads`;
   const messagesKey = (threadId: string) => `${prefix}messages:${threadId}`;
+  const mutationQueue = getMutationQueue(storage);
 
   const loadThreadMetadata = async (): Promise<StoredThreadMetadata[]> => {
     const raw = await storage.getItem(threadsKey);
@@ -323,8 +390,22 @@ export const createLocalStorageAdapter = (
     await storage.setItem(threadsKey, JSON.stringify(threads));
   };
 
+  const updateThreadMetadata = async (
+    remoteId: string,
+    update: (thread: StoredThreadMetadata) => void,
+  ): Promise<void> => {
+    await mutationQueue.run(threadsKey, async () => {
+      const threads = await loadThreadMetadata();
+      const thread = threads.find((item) => item.remoteId === remoteId);
+      if (thread) {
+        update(thread);
+        await saveThreadMetadata(threads);
+      }
+    });
+  };
+
   const adapter: RemoteThreadListAdapter = {
-    unstable_Provider: createHistoryProvider(storage, prefix),
+    unstable_Provider: createHistoryProvider(storage, prefix, mutationQueue),
 
     async list(): Promise<RemoteThreadListResponse> {
       const threads = await loadThreadMetadata();
@@ -343,64 +424,57 @@ export const createLocalStorageAdapter = (
       threadId: string,
     ): Promise<RemoteThreadInitializeResponse> {
       const remoteId = threadId;
-      const threads = await loadThreadMetadata();
+      return mutationQueue.run(threadsKey, async () => {
+        const threads = await loadThreadMetadata();
 
-      // Only add if not already present
-      if (!threads.some((t) => t.remoteId === remoteId)) {
-        threads.unshift({
-          remoteId,
-          status: "regular",
-        });
-        await saveThreadMetadata(threads);
-      }
+        // Only add if not already present
+        if (!threads.some((t) => t.remoteId === remoteId)) {
+          threads.unshift({
+            remoteId,
+            status: "regular",
+          });
+          await saveThreadMetadata(threads);
+        }
 
-      return { remoteId, externalId: undefined };
+        return { remoteId, externalId: undefined };
+      });
     },
 
     async rename(remoteId: string, newTitle: string): Promise<void> {
-      const threads = await loadThreadMetadata();
-      const thread = threads.find((t) => t.remoteId === remoteId);
-      if (thread) {
+      await updateThreadMetadata(remoteId, (thread) => {
         thread.title = newTitle;
-        await saveThreadMetadata(threads);
-      }
+      });
     },
 
     async updateCustom(
       remoteId: string,
       custom: Record<string, unknown> | undefined,
     ): Promise<void> {
-      const threads = await loadThreadMetadata();
-      const thread = threads.find((t) => t.remoteId === remoteId);
-      if (thread) {
+      await updateThreadMetadata(remoteId, (thread) => {
         thread.custom = custom;
-        await saveThreadMetadata(threads);
-      }
+      });
     },
 
     async archive(remoteId: string): Promise<void> {
-      const threads = await loadThreadMetadata();
-      const thread = threads.find((t) => t.remoteId === remoteId);
-      if (thread) {
+      await updateThreadMetadata(remoteId, (thread) => {
         thread.status = "archived";
-        await saveThreadMetadata(threads);
-      }
+      });
     },
 
     async unarchive(remoteId: string): Promise<void> {
-      const threads = await loadThreadMetadata();
-      const thread = threads.find((t) => t.remoteId === remoteId);
-      if (thread) {
+      await updateThreadMetadata(remoteId, (thread) => {
         thread.status = "regular";
-        await saveThreadMetadata(threads);
-      }
+      });
     },
 
     async delete(remoteId: string): Promise<void> {
-      const threads = await loadThreadMetadata();
-      const filtered = threads.filter((t) => t.remoteId !== remoteId);
-      await saveThreadMetadata(filtered);
-      await storage.removeItem(messagesKey(remoteId));
+      await mutationQueue.run(threadsKey, async () => {
+        const threads = await loadThreadMetadata();
+        const filtered = threads.filter((t) => t.remoteId !== remoteId);
+        await saveThreadMetadata(filtered);
+      });
+      const key = messagesKey(remoteId);
+      await mutationQueue.run(key, () => storage.removeItem(key));
     },
 
     async fetch(threadId: string): Promise<RemoteThreadMetadata> {
@@ -427,12 +501,9 @@ export const createLocalStorageAdapter = (
         const title = await titleGenerator.generateTitle(messages);
 
         // Update the stored title
-        const threads = await loadThreadMetadata();
-        const thread = threads.find((t) => t.remoteId === remoteId);
-        if (thread) {
+        await updateThreadMetadata(remoteId, (thread) => {
           thread.title = title;
-          await saveThreadMetadata(threads);
-        }
+        });
 
         // Return a stream with a single text part
         return createAssistantStream((controller) => {

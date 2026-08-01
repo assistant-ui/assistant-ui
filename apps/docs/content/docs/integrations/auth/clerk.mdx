@@ -102,7 +102,7 @@ const rows = await db
 
 ### Reload threads after async auth
 
-The first render of `<MyProvider>` may run before Clerk resolves the user on the client. Drop a small effect inside `<AssistantRuntimeProvider>` that calls `aui.threads().reload()` once the user is loaded:
+The first render of `<MyProvider>` may run before Clerk resolves the user on the client. Drop a small effect inside `<AssistantRuntimeProvider>` that calls `aui.threads.reload()` once the user is loaded:
 
 ```tsx title="app/components/ReloadOnAuth.tsx"
 "use client";
@@ -115,7 +115,7 @@ export function ReloadOnAuth() {
   const aui = useAui();
   const { isLoaded, isSignedIn, user } = useUser();
   useEffect(() => {
-    if (isLoaded && isSignedIn) aui.threads().reload();
+    if (isLoaded && isSignedIn) aui.threads.reload();
   }, [isLoaded, isSignedIn, user?.id]);
   return null;
 }

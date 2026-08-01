@@ -14,13 +14,15 @@ Command Scheduling
   - If a run is in progress: do not start another; mark that a follow-up run is pending.
   - When the current run ends: if commands were scheduled during the run, start a new run and publish them.
   - If no run is in progress: start a run immediately and flush commands to the server.
-- Scheduling uses `queueMicrotask` to coalesce multiple synchronous enqueues into a single run start.
+- A follow-up run that finds an empty queue is a no-op: no request is sent and no error is surfaced.
+- A resume run sends no commands; commands enqueued while it is pending or active are flushed in a follow-up run after it settles.
+- Runs execute on a `queueMicrotask`, so multiple synchronous enqueues coalesce into a single request: the first run's flush takes all of them, and the coalesced follow-up run no-ops.
 
 Command Queue
 
 `useCommandQueue({ onQueue() { runManager.schedule(); } })`
 
-- `enqueue(cmd)`: Adds a command to the queue. Calls `onQueue` when transitioning from empty → non-empty (coalesced via `queueMicrotask`).
+- `enqueue(cmd, { schedule? })`: Adds a command to the queue. Calls `onQueue` unless `schedule: false`.
 - `flush(): Command[]`: Returns all queued commands, moves them into `inTransit`, and clears the queue.
 - Internal state tracks `inTransit: Command[]` and `queued: Command[]`.
 
@@ -49,6 +51,11 @@ setInTransitCommands(commands);
         setInTransitCommands(EMPTY_ARRAY);
         setSnapshot(snapshot);
       }
+
+      // A run that completes successfully confirms delivery even when no
+      // state-changing chunk was observed — clear in-transit commands here
+      // as well.
+      setInTransitCommands(EMPTY_ARRAY);
     } catch (error) {
       // Do not restore commands. Surface error to onError for state update.
       callbacks.onError?.({
@@ -65,6 +72,7 @@ setInTransitCommands(commands);
 
 - `schedule()`: Starts immediately if idle, or schedules at most one follow-up run to start right after the current run.
 - `cancel()`: Aborts the active run via `signal` and clears any scheduled follow-up run. Does not restore commands.
+- Unmount aborts the active run via `signal`; no callbacks (`onCancel`, `onError`, `onFinish`) are invoked. StrictMode's setup/cleanup/setup effect cycle re-arms the manager.
 - `isRunning: boolean`: Indicates whether a run is currently active (internal to scheduling).
   UI-facing `isRunning` is controlled by the converter output (see Converter).
 - On cancellation, invoke `callbacks.onCancel?.({ commands, updateState })` where `commands` contains all pending work at the time of cancel: `[...inTransitCommands, ...queuedCommands]`. Note: after the first snapshot arrives, `inTransitCommands` are cleared to `[]`, so cancels after first byte will not include them.

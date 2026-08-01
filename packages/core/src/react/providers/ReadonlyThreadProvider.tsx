@@ -76,7 +76,7 @@ export const ReadonlyThreadProvider: FC<ReadonlyThreadProvider.Props> = ({
     composer: Derived({
       source: "thread",
       query: {},
-      get: (aui) => aui.thread().composer(),
+      get: (aui) => aui.thread.composer(),
     }),
   });
 

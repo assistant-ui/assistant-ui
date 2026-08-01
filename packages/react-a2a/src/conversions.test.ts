@@ -245,12 +245,61 @@ describe("contentPartsToA2AParts", () => {
     expect(result).toEqual([{ text: "hi" }]);
   });
 
-  it("converts image parts", () => {
+  it("converts image URL parts without stamping a mediaType", () => {
     const result = contentPartsToA2AParts([
       { type: "image", image: "https://img.com/a.png" },
     ]);
+    expect(result).toEqual([{ url: "https://img.com/a.png" }]);
+  });
+
+  it("applies the fallback MIME type to image URL parts", () => {
+    const result = contentPartsToA2AParts(
+      [{ type: "image", image: "https://img.com/a.png" }],
+      "image/png",
+    );
     expect(result).toEqual([
-      { url: "https://img.com/a.png", mediaType: "image/*" },
+      { url: "https://img.com/a.png", mediaType: "image/png" },
+    ]);
+  });
+
+  it("applies the fallback MIME type and filename to image URL parts together", () => {
+    const result = contentPartsToA2AParts(
+      [{ type: "image", image: "https://img.com/a.png", filename: "a.png" }],
+      "image/png",
+    );
+    expect(result).toEqual([
+      {
+        url: "https://img.com/a.png",
+        mediaType: "image/png",
+        filename: "a.png",
+      },
+    ]);
+  });
+
+  it("passes non-base64 data URLs through as URLs for image parts", () => {
+    const result = contentPartsToA2AParts([
+      { type: "image", image: "data:text/plain,hello" },
+    ]);
+    expect(result).toEqual([{ url: "data:text/plain,hello" }]);
+  });
+
+  it("converts image data URLs to raw bytes with the embedded MIME type", () => {
+    const result = contentPartsToA2AParts([
+      { type: "image", image: "data:image/png;base64,aGVsbG8=" },
+    ]);
+    expect(result).toEqual([{ raw: "aGVsbG8=", mediaType: "image/png" }]);
+  });
+
+  it("propagates image filenames", () => {
+    const result = contentPartsToA2AParts([
+      {
+        type: "image",
+        image: "data:image/png;base64,aGVsbG8=",
+        filename: "a.png",
+      },
+    ]);
+    expect(result).toEqual([
+      { raw: "aGVsbG8=", mediaType: "image/png", filename: "a.png" },
     ]);
   });
 
@@ -259,10 +308,194 @@ describe("contentPartsToA2AParts", () => {
     expect(result).toEqual([]);
   });
 
+  it("converts file parts with http URLs", () => {
+    const result = contentPartsToA2AParts([
+      {
+        type: "file",
+        data: "https://files.com/doc.pdf",
+        mimeType: "application/pdf",
+        filename: "doc.pdf",
+      },
+    ]);
+    expect(result).toEqual([
+      {
+        url: "https://files.com/doc.pdf",
+        mediaType: "application/pdf",
+        filename: "doc.pdf",
+      },
+    ]);
+  });
+
+  it("honors sourceType url for non-http references", () => {
+    const result = contentPartsToA2AParts([
+      {
+        type: "file",
+        data: "s3://bucket/report.pdf",
+        mimeType: "application/pdf",
+        filename: "report.pdf",
+        sourceType: "url",
+      },
+    ]);
+    expect(result).toEqual([
+      {
+        url: "s3://bucket/report.pdf",
+        mediaType: "application/pdf",
+        filename: "report.pdf",
+      },
+    ]);
+  });
+
+  it("treats non-http references as raw bytes without sourceType", () => {
+    const result = contentPartsToA2AParts([
+      {
+        type: "file",
+        data: "s3://bucket/report.pdf",
+        mimeType: "application/pdf",
+      },
+    ]);
+    expect(result).toEqual([
+      { raw: "s3://bucket/report.pdf", mediaType: "application/pdf" },
+    ]);
+  });
+
+  it("ignores sourceType id", () => {
+    const result = contentPartsToA2AParts([
+      {
+        type: "file",
+        data: "file-abc123",
+        mimeType: "application/pdf",
+        sourceType: "id",
+      },
+    ]);
+    expect(result).toEqual([
+      { raw: "file-abc123", mediaType: "application/pdf" },
+    ]);
+  });
+
+  it("converts file parts with data URLs to raw bytes", () => {
+    const result = contentPartsToA2AParts([
+      {
+        type: "file",
+        data: "data:application/pdf;base64,ZmlsZQ==",
+        mimeType: "application/pdf",
+      },
+    ]);
+    expect(result).toEqual([{ raw: "ZmlsZQ==", mediaType: "application/pdf" }]);
+  });
+
+  it("converts file parts with raw base64 data", () => {
+    const result = contentPartsToA2AParts([
+      { type: "file", data: "ZmlsZQ==", mimeType: "text/csv" },
+    ]);
+    expect(result).toEqual([{ raw: "ZmlsZQ==", mediaType: "text/csv" }]);
+  });
+
+  it("falls back to the attachment MIME type when the file part MIME is empty", () => {
+    const result = contentPartsToA2AParts(
+      [{ type: "file", data: "ZmlsZQ==", mimeType: "" }],
+      "application/pdf",
+    );
+    expect(result).toEqual([{ raw: "ZmlsZQ==", mediaType: "application/pdf" }]);
+  });
+
+  it("omits mediaType when no MIME type is known", () => {
+    const result = contentPartsToA2AParts([
+      { type: "file", data: "ZmlsZQ==", mimeType: "" },
+    ]);
+    expect(result).toEqual([{ raw: "ZmlsZQ==" }]);
+  });
+
+  it("skips file parts with no data", () => {
+    const result = contentPartsToA2AParts([
+      { type: "file", mimeType: "application/pdf" },
+    ]);
+    expect(result).toEqual([]);
+  });
+
+  it("skips file parts with non-string data", () => {
+    const result = contentPartsToA2AParts([
+      { type: "file", data: { nested: true }, mimeType: "application/pdf" },
+    ]);
+    expect(result).toEqual([]);
+  });
+
+  it("passes non-base64 data URLs through as URLs for file parts", () => {
+    const result = contentPartsToA2AParts([
+      { type: "file", data: "data:text/plain,hello", mimeType: "text/plain" },
+    ]);
+    expect(result).toEqual([
+      { url: "data:text/plain,hello", mediaType: "text/plain" },
+    ]);
+  });
+
+  it("passes uppercase-scheme non-base64 data URLs through as URLs for file parts", () => {
+    const result = contentPartsToA2AParts([
+      { type: "file", data: "DATA:text/plain,hello", mimeType: "text/plain" },
+    ]);
+    expect(result).toEqual([
+      { url: "DATA:text/plain,hello", mediaType: "text/plain" },
+    ]);
+  });
+
+  it("converts zero-byte data URLs in file parts to empty raw bytes", () => {
+    const result = contentPartsToA2AParts([
+      { type: "file", data: "data:application/pdf;base64,", mimeType: "" },
+    ]);
+    expect(result).toEqual([{ raw: "", mediaType: "application/pdf" }]);
+  });
+
+  it("converts zero-byte data URLs in image parts to empty raw bytes", () => {
+    const result = contentPartsToA2AParts([
+      { type: "image", image: "data:image/png;base64," },
+    ]);
+    expect(result).toEqual([{ raw: "", mediaType: "image/png" }]);
+  });
+
+  it("converts audio parts to raw bytes with the format MIME type", () => {
+    const result = contentPartsToA2AParts([
+      { type: "audio", audio: { data: "c291bmQ=", format: "mp3" } },
+    ]);
+    expect(result).toEqual([{ raw: "c291bmQ=", mediaType: "audio/mp3" }]);
+  });
+
+  it("strips data URL envelopes from audio payloads and keeps the format MIME type", () => {
+    const result = contentPartsToA2AParts([
+      {
+        type: "audio",
+        audio: { data: "data:audio/mpeg;base64,c291bmQ=", format: "mp3" },
+      },
+    ]);
+    expect(result).toEqual([{ raw: "c291bmQ=", mediaType: "audio/mp3" }]);
+  });
+
+  it("skips audio parts with no payload", () => {
+    const result = contentPartsToA2AParts([{ type: "audio" }]);
+    expect(result).toEqual([]);
+  });
+
+  it("converts data parts to the a2a data field", () => {
+    const result = contentPartsToA2AParts([
+      { type: "data", data: { chart: "bar", values: [1, 2] } },
+    ]);
+    expect(result).toEqual([{ data: { chart: "bar", values: [1, 2] } }]);
+  });
+
+  it("keeps falsy but defined data part payloads", () => {
+    const result = contentPartsToA2AParts([
+      { type: "data", data: null },
+      { type: "data", data: 0 },
+    ]);
+    expect(result).toEqual([{ data: null }, { data: 0 }]);
+  });
+
+  it("skips data parts with an undefined payload", () => {
+    const result = contentPartsToA2AParts([{ type: "data" }]);
+    expect(result).toEqual([]);
+  });
+
   it("skips unknown part types", () => {
     const result = contentPartsToA2AParts([
       { type: "text", text: "hi" },
-      { type: "audio" },
       { type: "video" },
     ]);
     expect(result).toEqual([{ text: "hi" }]);

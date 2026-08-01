@@ -24,7 +24,7 @@ import {
   MessagePrimitive,
   SuggestionPrimitive,
   ThreadPrimitive,
-  useThread,
+  useAuiState,
 } from "@assistant-ui/react";
 import { ArrowDownIcon, ArrowUpIcon, SquareIcon } from "lucide-react";
 
@@ -183,7 +183,7 @@ const SourcesLayout: FC<PropsWithChildren> = ({ children }) => {
 };
 
 const Composer: FC = () => {
-  const isRunning = useThread((state) => state.isRunning);
+  const isRunning = useAuiState((s) => s.thread.isRunning);
 
   return (
     <ComposerPrimitive.Root className="border-input bg-background has-[textarea:focus-visible]:border-foreground/60 flex w-full flex-col rounded-2xl border px-1 pt-2 transition-colors outline-none">

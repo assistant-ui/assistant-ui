@@ -79,6 +79,28 @@ describe("messageProjection", () => {
     });
   });
 
+  it("does not re-wrap image data that is already an uppercase-scheme data URL", () => {
+    const out = projectPiThreadMessages(
+      input([
+        {
+          role: "user",
+          content: [
+            {
+              type: "image",
+              data: "DATA:image/png;base64,abc",
+              mimeType: "image/png",
+            },
+          ],
+          timestamp: 1,
+        },
+      ]),
+    );
+    expect(contentParts(out[0]!)[0]).toEqual({
+      type: "image",
+      image: "DATA:image/png;base64,abc",
+    });
+  });
+
   it("projects assistant text vs thinking vs tool-call distinctly with parentId", () => {
     const out = projectPiThreadMessages(
       input([

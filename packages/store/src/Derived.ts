@@ -5,14 +5,25 @@ import type {
   AssistantClientAccessor,
   ClientMeta,
 } from "./types/client";
+import { useAui } from "./useAui";
+import { useAuiState } from "./useAuiState";
+
+type DerivedInstance<K extends ClientNames> = ReturnType<
+  AssistantClientAccessor<K>
+>;
+
+export const useDerived = <K extends ClientNames>({
+  get,
+}: Derived.Props<K>): DerivedInstance<K> => {
+  const aui = useAui();
+  return useAuiState(() => get(aui) as DerivedInstance<K>);
+};
 
 /**
- * Creates a derived client field that references a client from a parent scope.
- * The get callback always calls the most recent version (useEffectEvent pattern).
- *
- * IMPORTANT: The `get` callback must return a client that was created via
- * `useClientResource` (or `useClientLookup`/`useClientList` which use it internally).
- * This is required for event scoping to work correctly.
+ * Creates a derived client field whose resolved instance is bound into the
+ * client returned by `useAui`; a structural swap produces a new client through
+ * a React re-render. `get` must return a client created via
+ * `useClientResource` (or `useClientLookup`/`useClientList`).
  *
  * @example
  * ```typescript
@@ -20,24 +31,17 @@ import type {
  *   message: Derived({
  *     source: "thread",
  *     query: { index: 0 },
- *     get: (aui) => aui.thread().message({ index: 0 }),
+ *     get: (aui) => aui.thread.message({ index: 0 }),
  *   }),
  * });
  * ```
  */
-// Exported so consumers (e.g. splitClients) can identify a derived element by its
-// hook: a `Derived(...)` element carries `hook === useDerived`.
-export const useDerived = <K extends ClientNames>(
-  _config: Derived.Props<K>,
-): null => {
-  return null;
-};
-
-export const Derived = resource(useDerived);
+export const Derived = resource(useDerived) as <K extends ClientNames>(
+  config: Derived.Props<K>,
+) => DerivedElement<K>;
 
 export type DerivedElement<K extends ClientNames> = ResourceElement<
-  null,
-  [Derived.Props<K>]
+  DerivedInstance<K>
 >;
 
 export namespace Derived {

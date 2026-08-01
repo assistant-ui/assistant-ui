@@ -1,4 +1,8 @@
 export { useOpenCodeRuntime } from "./useOpenCodeRuntime";
+export {
+  OpenCodeAttachmentAdapter,
+  type OpenCodeAttachmentAdapterOptions,
+} from "./openCodeAttachmentAdapter";
 
 export {
   useOpenCodePermissions,

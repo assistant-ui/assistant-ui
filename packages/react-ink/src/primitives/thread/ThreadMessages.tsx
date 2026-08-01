@@ -129,6 +129,8 @@ const ThreadMessagesInner: FC<{
   windowOverscan?: number | undefined;
 }> = ({ children, windowSize, windowOverscan = 4 }) => {
   const messagesLength = useAuiState((s) => s.thread.messages.length);
+  // Subscribed, not just read: a switch to a thread with an equal message count would otherwise never re-render this component, and the Static key would never apply.
+  const mainThreadId = useAuiState((s) => s.threads.mainThreadId);
 
   const tailStart =
     windowSize !== undefined
@@ -158,7 +160,7 @@ const ThreadMessagesInner: FC<{
 
   return (
     <>
-      <Static items={prefixIndices}>
+      <Static key={mainThreadId} items={prefixIndices}>
         {(index) => <MemoMessage key={index} index={index} render={children} />}
       </Static>
       {tail}

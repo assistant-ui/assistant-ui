@@ -308,7 +308,7 @@ The picker implements the WAI-ARIA combobox pattern over Popover + Command.
 
 The default `ModelSelector` export registers the selection with assistant-ui's `ModelContext` system:
 
-1. The component calls `aui.modelContext().register()` with `config.modelName`, plus `config.reasoningEffort` when the selected model supports the chosen level
+1. The component calls `aui.modelContext.register()` with `config.modelName`, plus `config.reasoningEffort` when the selected model supports the chosen level
 2. The `AssistantChatTransport` includes `config` in the request body of every chat request
 3. Your API route reads `config.modelName` and `config.reasoningEffort`
 

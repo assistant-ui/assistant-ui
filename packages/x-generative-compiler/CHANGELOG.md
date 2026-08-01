@@ -1,5 +1,19 @@
 # @assistant-ui/x-generative-compiler
 
+## 0.0.11
+
+### Patch Changes
+
+- [#5210](https://github.com/assistant-ui/assistant-ui/pull/5210) [`45fe20d`](https://github.com/assistant-ui/assistant-ui/commit/45fe20d5cabec0ce934963cdafc1dec8efca4527) - feat: name the winning and overridden sources in the duplicate-tool-name composition warning ([@rupic-app](https://github.com/apps/rupic-app))
+
+## 0.0.10
+
+### Patch Changes
+
+- [#5188](https://github.com/assistant-ui/assistant-ui/pull/5188) [`32f4ba0`](https://github.com/assistant-ui/assistant-ui/commit/32f4ba09b218177f6c93d0ee0fcfb1e5f0475ef3) - fix: give namespace-import toolkit spreads a specific compile error pointing at the default-import form ([@rupic-app](https://github.com/apps/rupic-app))
+
+  A `defineToolkit({ ... })` spread through a namespace import (`import * as kit from "..."; ...kit.default` or `...kit`) of a generative module used to fall through to the generic unsafe-spread message. It now gets a dedicated callout naming the import style and pointing at the supported default-import form (`import kit from "..."` then `...kit`), since only the default export crosses the build-split boundary.
+
 ## 0.0.9
 
 ### Patch Changes

@@ -66,9 +66,9 @@ const AssistantMessage = () => {
 };
 ```
 
-`ActionBarPrimitive.Edit` calls `aui.composer().beginEdit()` under the hood and is disabled when the composer is already in edit mode.
+`ActionBarPrimitive.Edit` calls `aui.composer.beginEdit()` under the hood and is disabled when the composer is already in edit mode.
 
-`ComposerPrimitive.Cancel` calls `aui.composer().cancel()`, which exits edit mode and restores the original message content. See [Composer primitives](/docs/primitives/composer) for the full composer API.
+`ComposerPrimitive.Cancel` calls `aui.composer.cancel()`, which exits edit mode and restores the original message content. See [Composer primitives](/docs/primitives/composer) for the full composer API.
 
 ## Detecting Edit Mode
 
@@ -76,7 +76,7 @@ The `isEditing` flag is available on both `ThreadComposerState` and `EditCompose
 
 ## Imperative API
 
-`aui.composer().beginEdit()` is the programmatic entry point for entering edit mode on a message. Use it for headless or keyboard-shortcut-driven flows where `ActionBarPrimitive.Edit` is not rendered:
+`aui.composer.beginEdit()` is the programmatic entry point for entering edit mode on a message. Use it for headless or keyboard-shortcut-driven flows where `ActionBarPrimitive.Edit` is not rendered:
 
 ```tsx
 import { useAui } from "@assistant-ui/react";
@@ -84,12 +84,12 @@ import { useAui } from "@assistant-ui/react";
 const EditButton = () => {
   const aui = useAui();
   return (
-    <button onClick={() => aui.composer().beginEdit()}>Edit</button>
+    <button onClick={() => aui.composer.beginEdit()}>Edit</button>
   );
 };
 ```
 
-`aui.composer().cancel()` exits edit mode without re-submitting.
+`aui.composer.cancel()` exits edit mode without re-submitting.
 
 ## Editing While Streaming
 

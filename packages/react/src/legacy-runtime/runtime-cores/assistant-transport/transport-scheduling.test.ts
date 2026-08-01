@@ -2,7 +2,7 @@
 
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { useRef } from "react";
+import { createElement, StrictMode, useRef } from "react";
 import { useCommandQueue } from "./commandQueue";
 import { useRunManager } from "./runManager";
 import type { AssistantTransportCommand } from "./types";
@@ -29,6 +29,8 @@ const useTransportSchedulingHarness = (
   opts: {
     onRun?: (signal: AbortSignal) => Promise<void> | void;
     onCancel?: (commands: AssistantTransportCommand[]) => void;
+    onError?: (commands: AssistantTransportCommand[]) => void;
+    onFinish?: () => void;
   } = {},
 ) => {
   const commandQueueRef = useRef<ReturnType<typeof useCommandQueue> | null>(
@@ -49,8 +51,10 @@ const useTransportSchedulingHarness = (
       opts.onCancel?.(commands);
     },
     onError: async () => {
-      // not needed for these contract tests
+      const queue = commandQueueRef.current!;
+      opts.onError?.([...queue.state.inTransit]);
     },
+    onFinish: () => opts.onFinish?.(),
   });
 
   const commandQueue = useCommandQueue({
@@ -121,6 +125,27 @@ describe("assistant transport scheduling contracts", () => {
     expect(result.current.runBatchesRef.current[0]).toHaveLength(1);
   });
 
+  it("onError receives the live in-transit commands at error time", async () => {
+    const seen: AssistantTransportCommand[][] = [];
+    const { result } = renderHook(() =>
+      useTransportSchedulingHarness({
+        onRun: () => {
+          throw new Error("network error");
+        },
+        onError: (commands) => seen.push(commands),
+      }),
+    );
+
+    act(() => {
+      result.current.commandQueue.enqueue(createMessageCommand("m1"));
+    });
+
+    // The flush that moved m1 into transit has not re-rendered yet when the
+    // error fires; the queue state must be read live, not from a render snapshot.
+    await waitFor(() => expect(seen).toHaveLength(1));
+    expect(seen[0]).toEqual([createMessageCommand("m1")]);
+  });
+
   it("cancel returns combined in-flight and queued commands", async () => {
     const onCancel = vi.fn();
     const { result } = renderHook(() =>
@@ -154,5 +179,91 @@ describe("assistant transport scheduling contracts", () => {
       expect(onCancel).toHaveBeenCalledTimes(1);
     });
     expect(onCancel.mock.calls[0]?.[0]).toHaveLength(2);
+  });
+
+  it("unmount aborts the in-flight run without invoking callbacks", async () => {
+    let aborted = false;
+    const onCancel = vi.fn();
+    const onError = vi.fn();
+    const onFinish = vi.fn();
+    const { result, unmount } = renderHook(() =>
+      useTransportSchedulingHarness({
+        onRun: (signal) =>
+          new Promise<void>((_resolve, reject) => {
+            signal.addEventListener(
+              "abort",
+              () => {
+                aborted = true;
+                reject(new Error("aborted"));
+              },
+              { once: true },
+            );
+          }),
+        onCancel,
+        onError,
+        onFinish,
+      }),
+    );
+
+    act(() => {
+      result.current.commandQueue.enqueue(createMessageCommand("in-flight"));
+    });
+    await waitFor(() => {
+      expect(result.current.runBatchesRef.current).toHaveLength(1);
+    });
+
+    unmount();
+
+    expect(aborted).toBe(true);
+    await act(async () => {});
+    expect(onCancel).not.toHaveBeenCalled();
+    expect(onError).not.toHaveBeenCalled();
+    expect(onFinish).not.toHaveBeenCalled();
+  });
+
+  it("ignores schedules after unmount", async () => {
+    const { result, unmount } = renderHook(() =>
+      useTransportSchedulingHarness(),
+    );
+
+    unmount();
+    act(() => {
+      result.current.commandQueue.enqueue(createMessageCommand("late"));
+    });
+
+    await act(async () => {});
+    expect(result.current.runBatchesRef.current).toHaveLength(0);
+  });
+
+  it("survives StrictMode double-mounting", async () => {
+    const gate = createDeferred();
+    const onFinish = vi.fn();
+    const { result } = renderHook(
+      () =>
+        useTransportSchedulingHarness({ onRun: () => gate.promise, onFinish }),
+      { wrapper: ({ children }) => createElement(StrictMode, null, children) },
+    );
+
+    act(() => {
+      result.current.commandQueue.enqueue(createMessageCommand("m1"));
+    });
+    await waitFor(() => {
+      expect(result.current.runBatchesRef.current).toHaveLength(1);
+    });
+
+    // enqueued while the first run is in flight — must restart as a follow-up
+    act(() => {
+      result.current.commandQueue.enqueue(createMessageCommand("m2"));
+    });
+
+    gate.resolve();
+    await waitFor(() => {
+      expect(result.current.runBatchesRef.current).toHaveLength(2);
+    });
+    expect(result.current.runBatchesRef.current[1]).toHaveLength(1);
+    expect(onFinish).toHaveBeenCalled();
+    await waitFor(() => {
+      expect(result.current.runManager.isRunning).toBe(false);
+    });
   });
 });

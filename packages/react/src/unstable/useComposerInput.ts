@@ -83,9 +83,9 @@ export function unstable_useComposerInput(
 
   const setText = useCallback(
     (text: string) => {
-      if (!aui.composer().getState().isEditing) return;
+      if (!aui.composer.getState().isEditing) return;
       flushTapSync(() => {
-        aui.composer().setText(text);
+        aui.composer.setText(text);
       });
     },
     [aui],

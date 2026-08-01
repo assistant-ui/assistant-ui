@@ -58,10 +58,13 @@ class TextStreamAnimator {
   public maxCharsPerFrame: number = Infinity;
   public minCommitMs: number = 0;
 
-  constructor(
-    public currentText: string,
-    private setText: (newText: string) => void,
-  ) {}
+  public currentText: string;
+  private setText: (newText: string) => void;
+
+  constructor(currentText: string, setText: (newText: string) => void) {
+    this.currentText = currentText;
+    this.setText = setText;
+  }
 
   start() {
     if (this.animationFrameId !== null) return;
@@ -178,7 +181,7 @@ export const useSmooth = (
   // of relying on a render-time proxy reference that may be stable
   // across thread swaps.
   const aui = useAui();
-  const part = useAuiState(() => aui.part());
+  const part = useAuiState(() => aui.part);
   const [prevPart, setPrevPart] = useState(part);
   if (part !== prevPart || !text.startsWith(displayedText)) {
     setPrevPart(part);

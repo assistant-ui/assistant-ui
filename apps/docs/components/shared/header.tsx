@@ -83,11 +83,10 @@ function HiringBanner({ onDismiss }: { onDismiss: () => void }) {
   );
 }
 
-export function Header() {
+export function Header({ stars }: { stars: number | null }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const [stars, setStars] = useState<number | null>(null);
   const pathname = usePathname();
   const { toggle } = useAssistantPanel();
   const [dismissed, setDismissed] = usePersistentBoolean(
@@ -107,17 +106,6 @@ export function Header() {
     if (!visited) setVisited(true);
     // oxlint-disable-next-line react/exhaustive-deps
   }, [pathname]);
-
-  useEffect(() => {
-    fetch("/api/github/repo")
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (data && typeof data.stars === "number") {
-          setStars(data.stars);
-        }
-      })
-      .catch(console.error);
-  }, []);
 
   const isHome = pathname === "/";
   const showBanner = mounted && isHome && returningVisitor && !dismissed;

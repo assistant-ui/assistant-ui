@@ -54,15 +54,8 @@ type HeroStat = {
   icon: typeof Star;
 };
 
-export default async function TractionPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ refresh?: string }>;
-}) {
-  const forceFresh = (await searchParams).refresh === "true";
-  const revalidate = forceFresh ? 0 : undefined;
-
-  const repo = await getRepo(revalidate);
+export default async function TractionPage() {
+  const repo = await getRepo();
 
   const [
     npm,
@@ -75,15 +68,15 @@ export default async function TractionPage({
     releaseActivity,
     commitStats,
   ] = await Promise.all([
-    fetchNpmDownloads(revalidate),
-    fetchStarHistory(repo?.stars ?? 0, revalidate),
-    fetchTimelineSeries(TIMELINE_PACKAGES, revalidate),
-    fetchContributors(revalidate),
-    fetchBotCoAuthors(revalidate),
-    getDependents(revalidate),
-    fetchCommitActivity(revalidate),
-    fetchReleaseActivity(revalidate),
-    getCommitStats(revalidate),
+    fetchNpmDownloads(),
+    fetchStarHistory(repo?.stars ?? 0),
+    fetchTimelineSeries(TIMELINE_PACKAGES),
+    fetchContributors(),
+    fetchBotCoAuthors(),
+    getDependents(),
+    fetchCommitActivity(),
+    fetchReleaseActivity(),
+    getCommitStats(),
   ]);
 
   const flagshipWeekly = npm.perPackage[FLAGSHIP_PACKAGE]?.weekly ?? 0;
@@ -256,8 +249,8 @@ export default async function TractionPage({
             Shipping cadence
           </h2>
           <p className="text-muted-foreground text-sm">
-            Daily commits over the last year. Cells with a ring mark the days we
-            shipped a release.
+            Daily commits over the last year. A dot marks the days we shipped a
+            release.
           </p>
         </div>
         <ActivityHeatmap commits={commitActivity} releases={releaseActivity} />

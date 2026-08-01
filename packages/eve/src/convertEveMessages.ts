@@ -1,14 +1,16 @@
-import type {
-  AppendMessage,
-  MessageStatus,
-  RespondToToolApprovalOptions,
-  TextMessagePart,
-  ThreadAssistantMessagePart,
-  ThreadMessage,
-  ThreadUserMessagePart,
-  ToolApprovalOption,
-  ToolCallMessagePart,
+import {
+  fromThreadMessageLike,
+  type AppendMessage,
+  type MessageStatus,
+  type RespondToToolApprovalOptions,
+  type ThreadAssistantMessagePart,
+  type ThreadMessage,
+  type ThreadMessageLike,
+  type ThreadUserMessagePart,
+  type ToolApprovalOption,
+  type ToolCallMessagePart,
 } from "@assistant-ui/core";
+import { httpUrlPattern, parseDataUrl } from "@assistant-ui/core/internal";
 import type {
   EveDynamicToolPart,
   EveMessage,
@@ -205,6 +207,13 @@ const convertUserPart = (
   }
 };
 
+const toUserContent = (
+  parts: readonly EveMessagePart[],
+): readonly ThreadUserMessagePart[] => {
+  const content = parts.map(convertUserPart).filter((part) => part !== null);
+  return content.length > 0 ? content : [{ type: "text", text: "" }];
+};
+
 /**
  * Converts a single Eve message into an assistant-ui thread message.
  */
@@ -222,47 +231,31 @@ export const convertEveMessage = (
     },
   };
 
-  const content =
-    message.role === "assistant"
-      ? message.parts.map(convertAssistantPart).filter((part) => part !== null)
-      : message.parts.map(convertUserPart).filter((part) => part !== null);
+  const like: ThreadMessageLike =
+    message.role === "user"
+      ? {
+          role: "user",
+          id: message.id,
+          createdAt,
+          content: toUserContent(message.parts),
+          attachments: [],
+          metadata,
+        }
+      : {
+          role: "assistant",
+          id: message.id,
+          createdAt,
+          content: message.parts
+            .map(convertAssistantPart)
+            .filter((part) => part !== null),
+          metadata,
+        };
 
-  const fallbackTextPart: TextMessagePart = {
-    type: "text",
-    text: "",
-  };
-
-  if (message.role === "user") {
-    return {
-      id: message.id,
-      createdAt,
-      role: "user",
-      content:
-        content.length > 0
-          ? (content as readonly ThreadUserMessagePart[])
-          : [fallbackTextPart],
-      attachments: [],
-      metadata,
-    };
-  }
-
-  return {
-    id: message.id,
-    createdAt,
-    role: "assistant",
-    content:
-      content.length > 0
-        ? (content as readonly ThreadAssistantMessagePart[])
-        : [],
-    status: toMessageStatus(message, index, messages, options),
-    metadata: {
-      unstable_state: null,
-      unstable_annotations: [],
-      unstable_data: [],
-      steps: [],
-      ...metadata,
-    },
-  };
+  return fromThreadMessageLike(
+    like,
+    message.id,
+    toMessageStatus(message, index, messages, options),
+  );
 };
 
 /**
@@ -288,7 +281,7 @@ export const getEveMessageContent = (
     ...(message.attachments?.flatMap((attachment) => attachment.content) ?? []),
   ];
 
-  const parts = content.map((part) => {
+  const parts = content.flatMap((part) => {
     const type = part.type;
     switch (type) {
       case "text":
@@ -310,10 +303,25 @@ export const getEveMessageContent = (
           ...(part.filename && { filename: part.filename }),
         };
 
+      case "audio": {
+        // A data URL's own media type wins over `mediaType` downstream, so the
+        // envelope is rebuilt from the typed format rather than forwarded.
+        const mediaType = `audio/${part.audio.format}`;
+        const data = part.audio.data;
+        return {
+          type: "file" as const,
+          data: httpUrlPattern.test(data)
+            ? data
+            : `data:${mediaType};base64,${parseDataUrl(data)?.data ?? data}`,
+          mediaType,
+        };
+      }
+
+      case "data":
+        return [];
+
       default: {
         const _exhaustiveCheck:
-          | "audio"
-          | "data"
           | "generative-ui"
           | "reasoning"
           | "source"

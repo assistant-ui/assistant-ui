@@ -368,11 +368,50 @@ function ModelSelectorValue({
   );
 }
 
-export type ModelSelectorContentProps = ComponentPropsWithoutRef<
-  typeof PopoverContent
+export type ModelSelectorContentProps = Omit<
+  ComponentPropsWithoutRef<typeof PopoverContent>,
+  "side"
 > & {
+  /**
+   * Preferred side for the initial placement. Once the popover is open, the
+   * rendered side takes over until it closes, so the popup does not jump
+   * between sides while filtering resizes the list.
+   */
+  side?: ComponentPropsWithoutRef<typeof PopoverContent>["side"];
   searchable?: boolean;
 };
+
+// The popover re-evaluates collision flipping whenever the popup resizes, so
+// filtering the list down flips the popup back to the preferred side
+// mid-interaction. Feed the rendered side back as the preferred side, making
+// the popup keep its side until it no longer fits.
+function useLazyFlipSide(): {
+  side: ModelSelectorContentProps["side"];
+  popupRef: (node: HTMLDivElement | null) => void;
+} {
+  const [side, setSide] = useState<ModelSelectorContentProps["side"]>();
+  const observerRef = useRef<MutationObserver | null>(null);
+  const popupRef = useCallback((node: HTMLDivElement | null) => {
+    observerRef.current?.disconnect();
+    observerRef.current = null;
+    if (!node) {
+      setSide(undefined);
+      return;
+    }
+    const sync = () => {
+      const rendered = node.getAttribute("data-side");
+      if (rendered) setSide(rendered as ModelSelectorContentProps["side"]);
+    };
+    sync();
+    const observer = new MutationObserver(sync);
+    observer.observe(node, {
+      attributes: true,
+      attributeFilter: ["data-side"],
+    });
+    observerRef.current = observer;
+  }, []);
+  return { side, popupRef };
+}
 
 /**
  * Hidden input that anchors cmdk's keyboard navigation, keeping the list
@@ -390,19 +429,23 @@ function ModelSelectorFocusAnchor() {
 function ModelSelectorContent({
   className,
   align = "start",
+  side,
   sideOffset = 6,
   searchable,
   children,
   ...props
 }: ModelSelectorContentProps) {
   const { value } = useModelSelectorContext();
+  const { side: renderedSide, popupRef } = useLazyFlipSide();
   const unfiltered =
     searchable === false || (!searchable && children === undefined);
 
   return (
     <PopoverContent
+      ref={popupRef}
       data-slot="model-selector-content"
       align={align}
+      side={renderedSide ?? side ?? "bottom"}
       sideOffset={sideOffset}
       className={cn(
         "bg-popover/95 w-72 min-w-(--radix-popover-trigger-width) overflow-hidden rounded-xl p-0 shadow-lg backdrop-blur-sm",
@@ -583,7 +626,7 @@ function ModelSelectorEffort({
     <div
       data-slot="model-selector-effort"
       className={cn(
-        "flex items-center justify-between gap-3 border-t px-3 py-2",
+        "flex cursor-default items-center justify-between gap-3 border-t px-3 py-2",
         className,
       )}
       onKeyDown={(e) => {
@@ -655,7 +698,7 @@ function ModelSelectorModelContext() {
         ...(effort !== undefined ? { reasoningEffort: effort } : undefined),
       },
     };
-    return api.modelContext().register({
+    return api.modelContext.register({
       getModelContext: () => config,
     });
   }, [api, value, effort]);

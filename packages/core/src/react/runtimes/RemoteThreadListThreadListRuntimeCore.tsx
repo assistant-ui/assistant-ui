@@ -44,6 +44,8 @@ export class RemoteThreadListThreadListRuntimeCore
   private _loadThreadsPromise: Promise<void> | undefined;
   private _loadMorePromise: Promise<void> | undefined;
   private _loadGeneration = 0;
+  private _switchGeneration = 0;
+  private _switchTask: Promise<void> | undefined;
 
   private _mainThreadId!: string;
   private readonly _state = new OptimisticState<RemoteThreadState>({
@@ -198,6 +200,10 @@ export class RemoteThreadListThreadListRuntimeCore
 
     const adapterChanged =
       this._options !== undefined && this._options.adapter !== options.adapter;
+    const controlledThreadIdChanged =
+      this._initialThreadLoaded &&
+      this._options !== undefined &&
+      this._options.threadId !== options.threadId;
 
     this._options = options;
 
@@ -217,15 +223,25 @@ export class RemoteThreadListThreadListRuntimeCore
         cursor: undefined,
       });
     }
+
+    if (controlledThreadIdChanged) {
+      this._switchToThreadFromProp(options.threadId).catch(() => {});
+    }
   }
 
   public __internal_load() {
     this.getLoadThreadsPromise(); // begin loading on initial bind
+    if (this._initialThreadLoaded) return;
+    this._initialThreadLoaded = true;
+
     const startThreadId =
       this._options.threadId ?? this._options.initialThreadId;
-    if (!this._initialThreadLoaded && startThreadId) {
-      this._initialThreadLoaded = true;
-      this.switchToThread(startThreadId).catch(() => {});
+    if (startThreadId !== undefined) {
+      const switchTask =
+        this._options.threadId !== undefined
+          ? this._switchToThreadFromProp(startThreadId)
+          : this.switchToThread(startThreadId);
+      switchTask.catch(() => {});
     }
   }
 
@@ -277,11 +293,13 @@ export class RemoteThreadListThreadListRuntimeCore
 
   private _lastNotifiedThreadId: string | undefined = undefined;
 
-  private _notifyThreadIdChange() {
+  private _notifyThreadIdChange(emit = true) {
     const threadId = this._mainThreadRemoteId;
     if (this._lastNotifiedThreadId === threadId) return;
     this._lastNotifiedThreadId = threadId;
-    this._options.onThreadIdChange?.(threadId);
+    if (emit) {
+      this._options.onThreadIdChange?.(threadId);
+    }
   }
 
   public getMainThreadRuntimeCore() {
@@ -307,15 +325,42 @@ export class RemoteThreadListThreadListRuntimeCore
     return getThreadData(this._state.value, threadIdOrRemoteId);
   }
 
-  public async switchToThread(
+  public switchToThread(
     threadIdOrRemoteId: string,
     options?: { unarchive?: boolean },
+  ): Promise<void> {
+    return this._startSwitchToThread(threadIdOrRemoteId, options, true);
+  }
+
+  private _startSwitchToThread(
+    threadIdOrRemoteId: string,
+    options: { unarchive?: boolean } | undefined,
+    emitThreadIdChange: boolean,
+  ): Promise<void> {
+    const generation = ++this._switchGeneration;
+    const task = this._switchToThread(
+      threadIdOrRemoteId,
+      options,
+      generation,
+      emitThreadIdChange,
+    );
+    this._switchTask = task;
+    return task;
+  }
+
+  private async _switchToThread(
+    threadIdOrRemoteId: string,
+    options: { unarchive?: boolean } | undefined,
+    generation: number,
+    emitThreadIdChange: boolean,
   ): Promise<void> {
     let data = this.getItemById(threadIdOrRemoteId);
 
     if (!data) {
       const remoteMetadata =
         await this._options.adapter.fetch(threadIdOrRemoteId);
+      if (generation !== this._switchGeneration) return;
+
       const state = this._state.value;
       const mappingId = createThreadMappingId(remoteMetadata.remoteId);
 
@@ -341,22 +386,36 @@ export class RemoteThreadListThreadListRuntimeCore
         [remoteMetadata.remoteId]: mappingId,
       };
 
-      // Filter both arrays first so a concurrent `list()` can't leave the id
-      // duplicated or under the wrong status.
+      // A concurrent `list()` may already have placed this thread; keep that
+      // position and only merge metadata. A genuinely absent thread stays
+      // appended: it may live on an unloaded page, and a prepend would pin it
+      // above newer threads permanently since `classifyThreads` skips ids it
+      // has already seen. Filtering both arrays first still prevents
+      // duplication or a wrong-status entry from `list()`.
+      const remoteId = remoteMetadata.remoteId;
+      const wasInTarget =
+        remoteMetadata.status === "regular"
+          ? state.threadIds.includes(remoteId)
+          : state.archivedThreadIds.includes(remoteId);
+
       const threadIdsWithoutRemote = state.threadIds.filter(
-        (id) => id !== remoteMetadata.remoteId,
+        (id) => id !== remoteId,
       );
       const archivedThreadIdsWithoutRemote = state.archivedThreadIds.filter(
-        (id) => id !== remoteMetadata.remoteId,
+        (id) => id !== remoteId,
       );
 
       const newThreadIds =
         remoteMetadata.status === "regular"
-          ? [...threadIdsWithoutRemote, remoteMetadata.remoteId]
+          ? wasInTarget
+            ? state.threadIds
+            : [...threadIdsWithoutRemote, remoteId]
           : threadIdsWithoutRemote;
       const newArchivedThreadIds =
         remoteMetadata.status === "archived"
-          ? [...archivedThreadIdsWithoutRemote, remoteMetadata.remoteId]
+          ? wasInTarget
+            ? state.archivedThreadIds
+            : [...archivedThreadIdsWithoutRemote, remoteId]
           : archivedThreadIdsWithoutRemote;
 
       this._state.update({
@@ -380,22 +439,46 @@ export class RemoteThreadListThreadListRuntimeCore
       task.then(() => this._notifySubscribers());
     }
 
+    if (generation !== this._switchGeneration) return;
+
     if (data.status === "archived" && options?.unarchive !== false) {
       await this.unarchive(data.id);
+      if (generation !== this._switchGeneration) return;
     }
     this._mainThreadId = data.id;
 
     this._notifySubscribers();
-    this._notifyThreadIdChange();
+    this._notifyThreadIdChange(emitThreadIdChange);
   }
 
-  public async switchToNewThread(): Promise<void> {
+  public switchToNewThread(): Promise<void> {
+    return this._startSwitchToNewThread(true);
+  }
+
+  private _switchToThreadFromProp(threadId: string | undefined): Promise<void> {
+    return threadId !== undefined
+      ? this._startSwitchToThread(threadId, undefined, false)
+      : this._startSwitchToNewThread(false);
+  }
+
+  private _startSwitchToNewThread(emitThreadIdChange: boolean): Promise<void> {
+    const generation = ++this._switchGeneration;
+    const task = this._switchToNewThread(generation, emitThreadIdChange);
+    this._switchTask = task;
+    return task;
+  }
+
+  private async _switchToNewThread(
+    generation: number,
+    emitThreadIdChange: boolean,
+  ): Promise<void> {
     // an initialization transaction is in progress, wait for it to settle
     while (
       this._state.baseValue.newThreadId !== undefined &&
       this._state.value.newThreadId === undefined
     ) {
       await this._state.waitForUpdate();
+      if (generation !== this._switchGeneration) return;
     }
 
     const state = this._state.value;
@@ -427,7 +510,7 @@ export class RemoteThreadListThreadListRuntimeCore
       });
     }
 
-    return this.switchToThread(id);
+    return this._switchToThread(id, undefined, generation, emitThreadIdChange);
   }
 
   public initialize = async (threadId: string) => {
@@ -436,10 +519,11 @@ export class RemoteThreadListThreadListRuntimeCore
       if (!data) throw threadNotFoundError(threadId, "initializing it");
       if (data.status === "new")
         throw threadStatusError(threadId, data.status, "be initialized here");
-      return data.initializeTask;
+      const { remoteId, externalId } = await data.initializeTask;
+      return { remoteId, externalId };
     }
 
-    return this._state.optimisticUpdate({
+    const { remoteId, externalId } = await this._state.optimisticUpdate({
       execute: () => {
         return this._options.adapter.initialize(threadId);
       },
@@ -482,6 +566,7 @@ export class RemoteThreadListThreadListRuntimeCore
         };
       },
     });
+    return { remoteId, externalId };
   };
 
   public generateTitle = async (threadId: string) => {
@@ -604,8 +689,21 @@ export class RemoteThreadListThreadListRuntimeCore
     if (threadId === this.newThreadId)
       throw new Error("Cannot ensure new thread is not main");
 
-    if (threadId === this._mainThreadId) {
-      await this.switchToNewThread();
+    let lastAwaitedTask: Promise<void> | undefined;
+
+    while (threadId === this._mainThreadId) {
+      let switchTask = this._switchTask;
+      const startedFallback = !switchTask || switchTask === lastAwaitedTask;
+      if (startedFallback) switchTask = this.switchToNewThread();
+      lastAwaitedTask = switchTask;
+
+      try {
+        await switchTask;
+      } catch (error) {
+        if (startedFallback && this._switchTask === switchTask) {
+          throw error;
+        }
+      }
     }
   }
 

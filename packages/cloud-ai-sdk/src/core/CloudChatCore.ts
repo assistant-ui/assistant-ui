@@ -107,8 +107,19 @@ export class CloudChatCore {
       .catch(() => {});
 
     if (this.titlePolicy.shouldGenerateTitle(threadId, messages)) {
-      this.titlePolicy.markTitleGenerated(threadId);
-      void this.options.threads.generateTitle(threadId);
+      this.titlePolicy.markTitleGenerationStarted(threadId);
+      void this.options.threads.generateTitle(threadId).then(
+        (title) => {
+          if (title) {
+            this.titlePolicy.markTitleGenerated(threadId);
+          } else {
+            this.titlePolicy.markTitleGenerationFailed(threadId);
+          }
+        },
+        () => {
+          this.titlePolicy.markTitleGenerationFailed(threadId);
+        },
+      );
     }
   }
 
@@ -131,7 +142,9 @@ export class CloudChatCore {
         this.handleSyncError(err);
       }
     }
-    meta.loading = null;
+    if (!cancelledRef.cancelled) {
+      meta.loading = null;
+    }
   }
 
   createTransport(
@@ -181,11 +194,15 @@ export class CloudChatCore {
       ...chatInit,
       id: chatKey,
       transport: this.createTransport(chatKey, registry),
-      onFinish: async (event) => {
+      onFinish: (event) => {
         try {
           this.options.chatConfig.onFinish?.(event);
         } finally {
-          await this.persistChatMessages(chatKey, registry, event);
+          void this.persistChatMessages(chatKey, registry, event).catch(
+            (error) => {
+              this.handleSyncError(error);
+            },
+          );
         }
       },
       onError: (error) => {
@@ -195,7 +212,7 @@ export class CloudChatCore {
         this.options.chatConfig.onData?.(data);
       },
       onToolCall: (toolCall) => {
-        this.options.chatConfig.onToolCall?.(toolCall);
+        return this.options.chatConfig.onToolCall?.(toolCall);
       },
       sendAutomaticallyWhen: (arg) =>
         this.options.chatConfig.sendAutomaticallyWhen?.(arg) ?? false,

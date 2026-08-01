@@ -601,7 +601,7 @@ Beyond transports and adapters, `useChatRuntime` accepts options that control th
 
 ### onThreadIdChange
 
-Called whenever the active thread's settled ID changes, e.g. to sync the active thread to a URL query param:
+Called whenever the runtime changes the active thread's settled ID, e.g. to sync the active thread to a URL query param. Changes supplied through the controlled `threadId` option are not echoed back through this callback.
 
 ```tsx
 const runtime = useChatRuntime({

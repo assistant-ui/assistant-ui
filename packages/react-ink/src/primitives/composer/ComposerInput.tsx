@@ -29,17 +29,17 @@ export const ComposerInput = ({
       return;
     }
 
-    const threadState = aui.thread().getState();
+    const threadState = aui.thread.getState();
     if (threadState.isRunning && !threadState.capabilities.queue) return;
 
-    aui.composer().send();
+    aui.composer.send();
   };
 
   return (
     <TextInput
       {...boxProps}
       value={storeText}
-      onChange={(text) => aui.composer().setText(text)}
+      onChange={(text) => aui.composer.setText(text)}
       onSubmit={submit}
       submitOnEnter={submitOnEnter}
       placeholder={placeholder}

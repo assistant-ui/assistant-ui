@@ -23,7 +23,7 @@ export const useAssistantInstructions = (
     const config = {
       system: instruction,
     };
-    return aui.modelContext().register({
+    return aui.modelContext.register({
       getModelContext: () => config,
     });
   }, [aui, instruction, disabled]);

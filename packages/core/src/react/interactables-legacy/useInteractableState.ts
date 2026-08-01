@@ -35,7 +35,7 @@ export const useInteractableState = <TState>(
 
   const setState = useCallback(
     (updater: StateUpdater<TState>) => {
-      aui.interactables().setState(id, (prev) => {
+      aui.interactables.setState(id, (prev) => {
         if (typeof updater === "function") {
           return (updater as (prev: TState) => TState)(prev as TState);
         }
@@ -47,12 +47,12 @@ export const useInteractableState = <TState>(
 
   const setSelected = useCallback(
     (selected: boolean) => {
-      aui.interactables().setSelected(id, selected);
+      aui.interactables.setSelected(id, selected);
     },
     [aui, id],
   );
 
-  const flush = useCallback(() => aui.interactables().flush(), [aui]);
+  const flush = useCallback(() => aui.interactables.flush(), [aui]);
 
   return [
     state,

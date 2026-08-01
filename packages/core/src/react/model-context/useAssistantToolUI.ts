@@ -41,6 +41,6 @@ export const useAssistantToolUI = (
   const standalone = tool?.display === "standalone";
   useEffect(() => {
     if (!tool?.toolName || !tool?.render) return undefined;
-    return aui.tools().setToolUI(tool.toolName, tool.render, { standalone });
+    return aui.tools.setToolUI(tool.toolName, tool.render, { standalone });
   }, [aui, tool?.toolName, tool?.render, standalone]);
 };

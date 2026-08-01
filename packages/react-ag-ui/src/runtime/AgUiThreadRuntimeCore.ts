@@ -1,6 +1,10 @@
 "use client";
 
-import { generateId, fromThreadMessageLike } from "@assistant-ui/core";
+import {
+  generateId,
+  fromThreadMessageLike,
+  isMcpAppUri,
+} from "@assistant-ui/core";
 import type {
   AddToolResultOptions,
   AppendMessage,
@@ -19,11 +23,14 @@ import { MessageRepository } from "@assistant-ui/core/internal";
 import type { AbstractAgent } from "@ag-ui/client";
 import jsonpatch, { type Operation } from "fast-json-patch";
 import type { Logger } from "./logger";
+import { readMcpAppResourceUri } from "./mcp-tool-result";
 import type { AgUiEvent, AgUiInterrupt, AgUiResumeEntry } from "./types";
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
 import {
   AG_UI_METADATA_NAMESPACE,
   type AgUiCustomMetadata,
+  isPlainObject,
+  MCP_APPS_ACTIVITY_TYPE,
   RunAggregator,
   tryParseJSON,
 } from "./adapter/run-aggregator";
@@ -92,6 +99,8 @@ export class AgUiThreadRuntimeCore {
   private _isLoading = false;
   private _loadPromise: Promise<void> | undefined;
   private pendingResumeMessageId: string | null = null;
+  private pendingA2uiResume = false;
+  private pendingA2uiAction: Record<string, unknown> | undefined;
 
   constructor(options: CoreOptions) {
     this.agent = options.agent;
@@ -425,38 +434,17 @@ export class AgUiThreadRuntimeCore {
       );
     }
 
-    const responsesById = new Map<string, AgUiResumeEntry>();
-    for (const entry of responses) {
-      if (!entry || typeof entry.interruptId !== "string") {
-        throw new Error(
-          "[agui] submitInterruptResponses: every entry must have an interruptId",
-        );
-      }
-      if (entry.status !== "resolved" && entry.status !== "cancelled") {
-        throw new Error(
-          `[agui] submitInterruptResponses: invalid status "${entry.status}" for interrupt ${entry.interruptId}`,
-        );
-      }
-      if (responsesById.has(entry.interruptId)) {
-        throw new Error(
-          `[agui] submitInterruptResponses: duplicate response for interrupt ${entry.interruptId}`,
-        );
-      }
-      responsesById.set(entry.interruptId, entry);
-    }
+    const responsesById = this.collectInterruptResponses(
+      "submitInterruptResponses",
+      pending.interrupts,
+      responses,
+    );
 
     const openIds = pending.interrupts.map((i) => i.id);
     const missing = openIds.filter((id) => !responsesById.has(id));
     if (missing.length > 0) {
       throw new Error(
         `[agui] submitInterruptResponses: missing responses for open interrupts: ${missing.join(", ")}`,
-      );
-    }
-    const known = new Set(openIds);
-    const unknownIds = [...responsesById.keys()].filter((id) => !known.has(id));
-    if (unknownIds.length > 0) {
-      throw new Error(
-        `[agui] submitInterruptResponses: unknown interrupt ids: ${unknownIds.join(", ")}`,
       );
     }
 
@@ -538,35 +526,51 @@ export class AgUiThreadRuntimeCore {
     interrupts: readonly AgUiInterrupt[],
     responses: readonly AgUiResumeEntry[] | undefined,
   ): AgUiResumeEntry[] {
-    const openIds = interrupts.map((interrupt) => interrupt.id);
-    const known = new Set(openIds);
+    const responsesById = this.collectInterruptResponses(
+      "steerAway",
+      interrupts,
+      responses ?? [],
+    );
+    return interrupts.map(
+      (interrupt) =>
+        responsesById.get(interrupt.id) ?? {
+          interruptId: interrupt.id,
+          status: "cancelled",
+        },
+    );
+  }
+
+  private collectInterruptResponses(
+    method: "submitInterruptResponses" | "steerAway",
+    interrupts: readonly AgUiInterrupt[],
+    responses: readonly AgUiResumeEntry[],
+  ): Map<string, AgUiResumeEntry> {
+    const known = new Set(interrupts.map((interrupt) => interrupt.id));
     const responsesById = new Map<string, AgUiResumeEntry>();
-    for (const entry of responses ?? []) {
+    for (const entry of responses) {
       if (!entry || typeof entry.interruptId !== "string") {
         throw new Error(
-          "[agui] steerAway: every response must have an interruptId",
+          `[agui] ${method}: every entry must have an interruptId`,
         );
       }
       if (entry.status !== "resolved" && entry.status !== "cancelled") {
         throw new Error(
-          `[agui] steerAway: invalid status "${entry.status}" for interrupt ${entry.interruptId}`,
+          `[agui] ${method}: invalid status "${entry.status}" for interrupt ${entry.interruptId}`,
         );
       }
       if (!known.has(entry.interruptId)) {
         throw new Error(
-          `[agui] steerAway: unknown interrupt id ${entry.interruptId}`,
+          `[agui] ${method}: unknown interrupt id ${entry.interruptId}`,
         );
       }
       if (responsesById.has(entry.interruptId)) {
         throw new Error(
-          `[agui] steerAway: duplicate response for interrupt ${entry.interruptId}`,
+          `[agui] ${method}: duplicate response for interrupt ${entry.interruptId}`,
         );
       }
       responsesById.set(entry.interruptId, entry);
     }
-    return openIds.map(
-      (id) => responsesById.get(id) ?? { interruptId: id, status: "cancelled" },
-    );
+    return responsesById;
   }
 
   private toAppendMessage(message: CreateAppendMessage): AppendMessage {
@@ -686,6 +690,31 @@ export class AgUiThreadRuntimeCore {
     this.maybeResumeAfterToolResults(options.messageId);
   }
 
+  sendA2uiAction(action: Record<string, unknown>): void {
+    this.assertNoPendingInterrupts();
+    this.maybeAutoCancelPendingToolCalls();
+    const parentId = this.repository.headId;
+    if (parentId === null) {
+      this.logger.debug(
+        "[agui] sendA2uiAction: no messages to resume, dropping action",
+      );
+      return;
+    }
+
+    const userAction = { ...action };
+    delete userAction.type;
+    if (!("timestamp" in userAction)) {
+      userAction.timestamp = new Date().toISOString();
+    }
+    this.pendingA2uiAction = userAction;
+
+    if (this.isRunningFlag) {
+      this.pendingA2uiResume = true;
+      return;
+    }
+    this.startResumeRun(parentId);
+  }
+
   // The continuation fires whether the frontend result lands before
   // RUN_FINISHED (the status flips to requires-action only later, while the
   // run is still draining) or after it.
@@ -737,6 +766,8 @@ export class AgUiThreadRuntimeCore {
   }
 
   applyExternalMessages(messages: readonly ThreadMessage[]): void {
+    this.pendingA2uiResume = false;
+    this.pendingA2uiAction = undefined;
     this.assistantHistoryParents.clear();
 
     if (messages.length === 0) {
@@ -890,20 +921,38 @@ export class AgUiThreadRuntimeCore {
     this.pendingError = null;
     const assistantParentId = parent ? parentId : this.repository.headId;
     let assistantMessageId: string | undefined;
-    const ensureAssistant = () => {
-      if (assistantMessageId) return assistantMessageId;
-      const created = this.insertAssistantPlaceholder(
-        assistantParentId ?? null,
-      );
+    // A snapshot the preserve gate declines still evicts the in-flight
+    // assistant; recreating under the cached id on the next content-bearing
+    // emit keeps both the stream and the message identity. Status-only emits
+    // and server-id collisions must not recreate.
+    let assistantCollided = false;
+    const ensureAssistant = (allowRecreate = false): string => {
+      const cached = assistantMessageId;
+      if (cached !== undefined && this.tryGetMessage(cached)) return cached;
+      if (cached !== undefined && (assistantCollided || !allowRecreate)) {
+        return cached;
+      }
+      const parentId =
+        cached === undefined &&
+        assistantParentId &&
+        this.hasMessage(assistantParentId)
+          ? assistantParentId
+          : this.repository.headId;
+      const created = this.insertAssistantPlaceholder(parentId, cached);
       assistantMessageId = created;
-      this.markPendingAssistantHistory(created, assistantParentId ?? null);
+      this.markPendingAssistantHistory(created, parentId);
       return created;
     };
 
     if (shouldEagerlyInsertAssistant) ensureAssistant();
 
     const applyUpdate = (update: ChatModelRunResult) => {
-      const resolved = this.updateAssistantMessage(ensureAssistant(), update);
+      const hasContent =
+        Array.isArray(update.content) && update.content.length > 0;
+      const resolved = this.updateAssistantMessage(
+        ensureAssistant(hasContent),
+        update,
+      );
       if (resolved !== assistantMessageId) {
         assistantMessageId = resolved;
       }
@@ -914,14 +963,17 @@ export class AgUiThreadRuntimeCore {
       logger: this.logger,
       emit: applyUpdate,
       onServerMessageId: (serverId) => {
-        const placeholder = ensureAssistant();
+        const placeholder = ensureAssistant(true);
         if (placeholder === serverId) return;
         if (this.reassignAssistantId(placeholder, serverId)) {
           assistantMessageId = serverId;
+        } else {
+          assistantCollided = true;
         }
       },
     });
-    const dispatch = (event: AgUiEvent) => this.handleEvent(aggregator, event);
+    const dispatch = (event: AgUiEvent) =>
+      this.handleEvent(aggregator, event, assistantMessageId);
 
     const abortController = new AbortController();
     const abortSignal = abortController.signal;
@@ -999,6 +1051,8 @@ export class AgUiThreadRuntimeCore {
       const err = this.pendingError;
       this.pendingError = null;
       this.pendingResumeMessageId = null;
+      this.pendingA2uiResume = false;
+      this.pendingA2uiAction = undefined;
       throw err;
     }
 
@@ -1009,6 +1063,33 @@ export class AgUiThreadRuntimeCore {
       this.pendingResumeMessageId = null;
       if (!abortSignal.aborted) {
         this.startResumeRun(resumeMessageId);
+      } else {
+        this.pendingA2uiAction = undefined;
+      }
+    }
+
+    if (this.pendingA2uiResume) {
+      this.pendingA2uiResume = false;
+      if (!abortSignal.aborted && this.pendingA2uiAction !== undefined) {
+        if (this.getPendingInterrupts()) {
+          this.pendingA2uiAction = undefined;
+          this.logger.debug(
+            "[agui] sendA2uiAction: pending interrupts, dropping action",
+          );
+          return;
+        }
+        this.maybeAutoCancelPendingToolCalls();
+        const parentId = this.repository.headId;
+        if (parentId !== null) {
+          this.startResumeRun(parentId);
+        } else {
+          this.pendingA2uiAction = undefined;
+          this.logger.debug(
+            "[agui] sendA2uiAction: no messages to resume, dropping action",
+          );
+        }
+      } else {
+        this.pendingA2uiAction = undefined;
       }
     }
   }
@@ -1027,6 +1108,8 @@ export class AgUiThreadRuntimeCore {
       getAssistantMessageId: () => string | undefined;
     },
   ): Promise<void> {
+    this.pendingA2uiAction = undefined;
+    this.pendingA2uiResume = false;
     const assistantId = ctx.ensureAssistant();
     const currentId = () => ctx.getAssistantMessageId() ?? assistantId;
     const options: ChatModelRunOptions = {
@@ -1082,7 +1165,7 @@ export class AgUiThreadRuntimeCore {
       historyMessages ?? this.repository.getMessages(),
     );
     const context = this.runtime?.thread.getModelContext();
-    return {
+    const input = {
       threadId,
       runId,
       state: this.stateSnapshot ?? null,
@@ -1095,9 +1178,14 @@ export class AgUiThreadRuntimeCore {
         ...(context?.callSettings ?? {}),
         ...(context?.config ?? {}),
         ...(runConfig?.custom ? { runConfig: runConfig.custom } : {}),
+        ...(this.pendingA2uiAction
+          ? { a2uiAction: { userAction: this.pendingA2uiAction } }
+          : {}),
       },
       ...(resume !== undefined ? { resume } : {}),
     };
+    this.pendingA2uiAction = undefined;
+    return input;
   }
 
   private installResumeShim(): void {
@@ -1133,8 +1221,10 @@ export class AgUiThreadRuntimeCore {
     this.setRunning(false);
   }
 
-  private insertAssistantPlaceholder(parentId: string | null): string {
-    const id = generateOptimisticId();
+  private insertAssistantPlaceholder(
+    parentId: string | null,
+    id: string = generateOptimisticId(),
+  ): string {
     const assistant: ThreadAssistantMessage = {
       id,
       role: "assistant",
@@ -1146,7 +1236,7 @@ export class AgUiThreadRuntimeCore {
         unstable_annotations: [],
         unstable_data: [],
         steps: [],
-        isOptimistic: true,
+        isOptimistic: isOptimisticId(id),
         custom: {},
       },
     };
@@ -1305,7 +1395,11 @@ export class AgUiThreadRuntimeCore {
     };
   }
 
-  private handleEvent(aggregator: RunAggregator, event: AgUiEvent) {
+  private handleEvent(
+    aggregator: RunAggregator,
+    event: AgUiEvent,
+    activeAssistantId: string | undefined,
+  ) {
     switch (event.type) {
       case "STATE_SNAPSHOT": {
         this.stateSnapshot = event.snapshot as ReadonlyJSONValue;
@@ -1330,7 +1424,7 @@ export class AgUiThreadRuntimeCore {
         return;
       }
       case "MESSAGES_SNAPSHOT": {
-        this.importMessagesSnapshot(event.messages);
+        this.importMessagesSnapshot(event.messages, activeAssistantId);
         return;
       }
       case "TOOL_CALL_RESULT": {
@@ -1338,6 +1432,22 @@ export class AgUiThreadRuntimeCore {
           const messageId = this.findMessageIdForToolCall(event.toolCallId);
           if (messageId !== undefined) {
             this.applyCrossRunToolResult(messageId, event);
+            return;
+          }
+        }
+        aggregator.handle(event);
+        return;
+      }
+      case "ACTIVITY_SNAPSHOT": {
+        const toolCallId = event.content["toolCallId"];
+        if (
+          event.activityType === MCP_APPS_ACTIVITY_TYPE &&
+          typeof toolCallId === "string" &&
+          !aggregator.hasToolCall(toolCallId)
+        ) {
+          const messageId = this.findMessageIdForToolCall(toolCallId);
+          if (messageId !== undefined) {
+            this.applyCrossRunActivitySnapshot(messageId, toolCallId, event);
             return;
           }
         }
@@ -1356,15 +1466,58 @@ export class AgUiThreadRuntimeCore {
     const updated = this.updateMessage(messageId, (message) => {
       if (message.role !== "assistant") return message;
       const assistant = message as ThreadAssistantMessage;
+      const mcpAppUri = readMcpAppResourceUri(event.mcpResult?._meta);
       let matchedToolCall = false;
       const content = assistant.content.map((part) => {
         if (part.type !== "tool-call" || part.toolCallId !== event.toolCallId)
           return part;
         matchedToolCall = true;
+        // An applied activity snapshot owns part.result; a later result only
+        // fills what is missing, mirroring the aggregator's finishToolCall.
+        // The aggregator's flag is set only when the snapshot carried a
+        // result, so app presence alone is not enough: the current result
+        // must be CallToolResult-shaped (a required content array).
+        const snapshotResultApplied =
+          part.mcp?.app !== undefined &&
+          isPlainObject(part.result) &&
+          Array.isArray((part.result as Record<string, unknown>)["content"]);
+        if (snapshotResultApplied) {
+          return {
+            ...part,
+            ...(part.modelContent === undefined && event.content
+              ? {
+                  modelContent: [
+                    { type: "text" as const, text: event.content },
+                  ],
+                }
+              : {}),
+            ...(part.isError === undefined
+              ? typeof event.mcpResult?.isError === "boolean"
+                ? { isError: event.mcpResult.isError }
+                : event.role === "tool"
+                  ? { isError: false }
+                  : {}
+              : {}),
+            ...(event.messageId
+              ? { unstable_toolMessageId: event.messageId }
+              : {}),
+          };
+        }
         return {
           ...part,
-          result: tryParseJSON(event.content ?? "") as ReadonlyJSONValue,
-          ...(event.role === "tool" ? { isError: false } : {}),
+          result: (event.mcpResult ??
+            tryParseJSON(event.content ?? "")) as ReadonlyJSONValue,
+          ...(event.mcpResult !== undefined
+            ? { modelContent: [{ type: "text" as const, text: event.content }] }
+            : {}),
+          ...(typeof event.mcpResult?.isError === "boolean"
+            ? { isError: event.mcpResult.isError }
+            : event.role === "tool"
+              ? { isError: false }
+              : {}),
+          ...(part.mcp === undefined && mcpAppUri !== undefined
+            ? { mcp: { app: { resourceUri: mcpAppUri } } }
+            : {}),
           ...(event.messageId
             ? { unstable_toolMessageId: event.messageId }
             : {}),
@@ -1381,8 +1534,78 @@ export class AgUiThreadRuntimeCore {
     this.maybeCompleteAfterToolResults(messageId);
   }
 
-  private importMessagesSnapshot(rawMessages: readonly unknown[]) {
+  private applyCrossRunActivitySnapshot(
+    messageId: string,
+    toolCallId: string,
+    event: Extract<AgUiEvent, { type: "ACTIVITY_SNAPSHOT" }>,
+  ): void {
+    const resourceUri = event.content["resourceUri"];
+    if (typeof resourceUri !== "string" || !isMcpAppUri(resourceUri)) return;
+    const serverId = event.content["serverId"];
+    const serverHash = event.content["serverHash"];
+    const appServerId =
+      typeof serverId === "string" && serverId.length > 0
+        ? serverId
+        : typeof serverHash === "string" && serverHash.length > 0
+          ? serverHash
+          : undefined;
+    const result = event.content["result"];
+    const updated = this.updateMessage(messageId, (message) => {
+      if (message.role !== "assistant") return message;
+      const assistant = message as ThreadAssistantMessage;
+      let matchedToolCall = false;
+      const content = assistant.content.map((part) => {
+        if (part.type !== "tool-call" || part.toolCallId !== toolCallId)
+          return part;
+        matchedToolCall = true;
+        return {
+          ...part,
+          mcp: {
+            app: {
+              resourceUri,
+              ...(appServerId ? { serverId: appServerId } : {}),
+            },
+          },
+          ...(isPlainObject(result)
+            ? {
+                ...(part.result !== undefined && part.modelContent === undefined
+                  ? {
+                      modelContent: [
+                        {
+                          type: "text" as const,
+                          text:
+                            typeof part.result === "string"
+                              ? part.result
+                              : JSON.stringify(part.result),
+                        },
+                      ],
+                    }
+                  : {}),
+                result: result as ReadonlyJSONValue,
+                isError: result["isError"] === true,
+              }
+            : {}),
+        };
+      });
+      if (!matchedToolCall) return message;
+      return { ...assistant, content };
+    });
+
+    if (!updated) return;
+    this.notifyUpdate();
+    this.maybeCompleteAfterToolResults(messageId);
+  }
+
+  private importMessagesSnapshot(
+    rawMessages: readonly unknown[],
+    activeAssistantId: string | undefined,
+  ) {
     try {
+      const activeMessage = activeAssistantId
+        ? this.tryGetMessage(activeAssistantId)?.message
+        : undefined;
+      const activeAssistant =
+        activeMessage?.role === "assistant" ? activeMessage : undefined;
       const normalized = fromAgUiMessages(rawMessages, {
         showThinking: this.showThinking,
       });
@@ -1399,7 +1622,23 @@ export class AgUiThreadRuntimeCore {
           );
         }
       }
+      const snapshotHeadId = converted.at(-1)?.id ?? null;
+      const snapshotContainsActiveAssistant = converted.some(
+        (message) => message.id === activeAssistant?.id,
+      );
+      const preservesActiveAssistant =
+        activeAssistant !== undefined &&
+        !snapshotContainsActiveAssistant &&
+        (activeAssistant.metadata.isOptimistic !== true ||
+          converted.at(-1)?.role !== "assistant");
+      if (preservesActiveAssistant) {
+        converted.push(activeAssistant);
+      }
       this.applyExternalMessages(converted);
+      if (preservesActiveAssistant) {
+        this.recordedHistoryIds.delete(activeAssistant.id);
+        this.markPendingAssistantHistory(activeAssistant.id, snapshotHeadId);
+      }
     } catch (error) {
       this.logger.error?.("[agui] failed to import messages snapshot", error);
     }

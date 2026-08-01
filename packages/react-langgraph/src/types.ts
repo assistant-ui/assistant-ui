@@ -72,16 +72,18 @@ type MessageContentComputerCall = {
   index: number;
 };
 
-export enum LangGraphKnownEventTypes {
-  Messages = "messages",
-  MessagesPartial = "messages/partial",
-  MessagesComplete = "messages/complete",
-  Metadata = "metadata",
-  Updates = "updates",
-  Values = "values",
-  Info = "info",
-  Error = "error",
-}
+export const LangGraphKnownEventTypes = {
+  Messages: "messages",
+  MessagesPartial: "messages/partial",
+  MessagesComplete: "messages/complete",
+  Metadata: "metadata",
+  Updates: "updates",
+  Values: "values",
+  Info: "info",
+  Error: "error",
+} as const;
+export type LangGraphKnownEventTypes =
+  (typeof LangGraphKnownEventTypes)[keyof typeof LangGraphKnownEventTypes];
 
 type CustomEventType = string;
 
@@ -116,10 +118,18 @@ export type MessageContentFile =
       };
     };
 
+export type MessageContentAudio = {
+  type: "audio";
+  data: string;
+  mime_type: string;
+  source_type: "base64";
+};
+
 type UserMessageContentComplex =
   | MessageContentText
   | MessageContentImageUrl
-  | MessageContentFile;
+  | MessageContentFile
+  | MessageContentAudio;
 type AssistantMessageContentComplex =
   | MessageContentText
   | MessageContentImageUrl
@@ -177,15 +187,15 @@ export type LangChainMessageChunk = {
 
 export type LangChainEvent = {
   event:
-    | LangGraphKnownEventTypes.MessagesPartial
-    | LangGraphKnownEventTypes.MessagesComplete;
+    | typeof LangGraphKnownEventTypes.MessagesPartial
+    | typeof LangGraphKnownEventTypes.MessagesComplete;
   data: LangChainMessage[];
 };
 
 export type LangGraphTupleMetadata = Record<string, unknown>;
 
 export type LangChainMessageTupleEvent = {
-  event: LangGraphKnownEventTypes.Messages;
+  event: typeof LangGraphKnownEventTypes.Messages;
   data: [LangChainMessage | LangChainMessageChunk, LangGraphTupleMetadata];
 };
 

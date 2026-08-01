@@ -8,7 +8,7 @@ export const McpConnectorByIndexProvider: FC<
     mcpServer: Derived({
       source: "mcp",
       query: { kind: "connector", index },
-      get: (parent) => parent.mcp().connector({ index }),
+      get: (parent) => parent.mcp.connector({ index }),
     }),
   });
 

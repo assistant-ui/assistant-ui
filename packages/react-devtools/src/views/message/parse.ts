@@ -128,9 +128,10 @@ export const parsePart = (value: unknown): PartPreview => {
       const image = asString(value.image);
       const previewUrl =
         image && isSafeImagePreviewUrl(image) ? image : undefined;
-      const sizeBytes = previewUrl?.startsWith("data:")
-        ? estimateBase64Bytes(previewUrl.split(",", 2)[1] ?? previewUrl)
-        : undefined;
+      const sizeBytes =
+        previewUrl && /^data:/i.test(previewUrl)
+          ? estimateBase64Bytes(previewUrl.split(",", 2)[1] ?? previewUrl)
+          : undefined;
       return {
         type: "image",
         ...(filename ? { filename } : {}),

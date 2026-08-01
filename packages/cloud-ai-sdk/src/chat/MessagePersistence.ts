@@ -35,10 +35,13 @@ export class MessagePersistence {
   private persistenceByThread = new Map<string, CloudMessagePersistence>();
   private formattedByThread = new Map<string, FormattedPersistence>();
 
-  constructor(
-    private cloud: AssistantCloud,
-    private onError: (err: unknown) => void,
-  ) {}
+  private cloud: AssistantCloud;
+  private onError: (err: unknown) => void;
+
+  constructor(cloud: AssistantCloud, onError: (err: unknown) => void) {
+    this.cloud = cloud;
+    this.onError = onError;
+  }
 
   private getPersistence(threadId: string): CloudMessagePersistence {
     const existing = this.persistenceByThread.get(threadId);

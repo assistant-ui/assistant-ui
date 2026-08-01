@@ -6,7 +6,7 @@ export const useComposerCancel = () => {
   const disabled = useAuiState((s) => !s.composer.canCancel);
 
   const cancel = useCallback(() => {
-    aui.composer().cancel();
+    aui.composer.cancel();
   }, [aui]);
 
   return { cancel, disabled };

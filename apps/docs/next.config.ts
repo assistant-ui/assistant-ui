@@ -173,6 +173,13 @@ const config: NextConfig = {
         destination: "/llms.mdx/examples/:path*",
       },
       {
+        source: "/tap/docs/:path*",
+        has: [
+          { type: "header", key: "accept", value: "(?:.*text/markdown.*)" },
+        ],
+        destination: "/tap-llms.mdx/:path*",
+      },
+      {
         source: "/umami/:path*",
         destination: "https://assistant-ui-umami.vercel.app/:path*",
       },

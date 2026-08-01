@@ -93,7 +93,7 @@ export const ComposerPrimitiveQuoteDismiss = forwardRef<
 >(({ onClick, ...props }, forwardedRef) => {
   const aui = useAui();
   const handleDismiss = useCallback(() => {
-    aui.composer().setQuote(undefined);
+    aui.composer.setQuote(undefined);
   }, [aui]);
 
   return (

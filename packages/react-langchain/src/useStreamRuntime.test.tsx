@@ -103,15 +103,12 @@ const renderAui = (stream: MockStream) => {
 };
 
 const getText = (aui: ReturnType<typeof useAui>) =>
-  aui
-    .thread()
-    .getState()
-    .messages.map((m) =>
-      m.content
-        .filter((part) => part.type === "text")
-        .map((part) => part.text)
-        .join(""),
-    );
+  aui.thread.getState().messages.map((m) =>
+    m.content
+      .filter((part) => part.type === "text")
+      .map((part) => part.text)
+      .join(""),
+  );
 
 describe("useStreamRuntime staged messages", () => {
   it("stages a new user message without submitting when startRun is false", async () => {
@@ -119,7 +116,7 @@ describe("useStreamRuntime staged messages", () => {
     const { auiResult } = renderAui(stream);
 
     await act(async () => {
-      auiResult.current.thread().append({
+      auiResult.current.thread.append({
         role: "user",
         content: [{ type: "text", text: "draft" }],
         startRun: false,
@@ -141,7 +138,7 @@ describe("useStreamRuntime staged messages", () => {
     const { auiResult, rerender } = renderAui(stream);
 
     await act(async () => {
-      auiResult.current.thread().append({
+      auiResult.current.thread.append({
         role: "user",
         parentId: "u1",
         content: [{ type: "text", text: "edited" }],
@@ -171,12 +168,12 @@ describe("useStreamRuntime staged messages", () => {
     const { auiResult, rerender } = renderAui(stream);
 
     await act(async () => {
-      auiResult.current.thread().append({
+      auiResult.current.thread.append({
         role: "user",
         content: [{ type: "text", text: "first staged" }],
         startRun: false,
       });
-      auiResult.current.thread().append({
+      auiResult.current.thread.append({
         role: "user",
         content: [{ type: "text", text: "second staged" }],
         startRun: false,
@@ -191,9 +188,9 @@ describe("useStreamRuntime staged messages", () => {
       ]);
     });
 
-    const firstStagedId = auiResult.current.thread().getState().messages[1]!.id;
+    const firstStagedId = auiResult.current.thread.getState().messages[1]!.id;
     await act(async () => {
-      await auiResult.current.thread().startRun({
+      await auiResult.current.thread.startRun({
         parentId: firstStagedId,
         sourceId: null,
         runConfig: {},

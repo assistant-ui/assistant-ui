@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef } from "react";
 import { resource, useResource, type ResourceElement } from "@assistant-ui/tap";
-import type { ClientMethods } from "./types/client";
+import type { ClientMethods, InferClientState } from "./types/client";
 import {
   useClientStack,
   useClientStackProvider,
@@ -78,13 +78,20 @@ class ClientProxyHandler
     | undefined;
   private cachedReceiver: unknown;
 
+  private readonly outputRef: {
+    current: ClientMethods;
+  };
+  private readonly index: number;
+
   constructor(
-    private readonly outputRef: {
+    outputRef: {
       current: ClientMethods;
     },
-    private readonly index: number,
+    index: number,
   ) {
     super();
+    this.outputRef = outputRef;
+    this.index = index;
   }
 
   get(_: unknown, prop: string | symbol, receiver: unknown) {
@@ -94,7 +101,10 @@ class ClientProxyHandler
     if (introspection !== false) return introspection;
     const value = this.outputRef.current[prop];
     if (typeof value === "function") {
-      if (this.cachedReceiver !== receiver) {
+      // receiver-less reads (getOwnPropertyDescriptor) get the raw method so
+      // the bound-fn cache stays keyed on the real receiver
+      if (receiver === undefined) return value;
+      if (!this.boundFns || this.cachedReceiver !== receiver) {
         this.boundFns = new Map();
         this.cachedReceiver = receiver;
       }
@@ -118,12 +128,6 @@ class ClientProxyHandler
     return prop in this.outputRef.current;
   }
 }
-
-type InferClientState<TMethods> = TMethods extends {
-  getState: () => infer S;
-}
-  ? S
-  : undefined;
 
 export const useClientResource = <TMethods extends ClientMethods>(
   element: ResourceElement<TMethods>,

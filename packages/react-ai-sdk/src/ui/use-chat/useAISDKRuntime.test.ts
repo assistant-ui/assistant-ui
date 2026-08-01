@@ -17,6 +17,7 @@ vi.mock("./useExternalHistory", () => ({
 
 import { useExternalHistory } from "./useExternalHistory";
 import { useAISDKRuntime } from "./useAISDKRuntime";
+import { aiSDKExtras } from "../../aiSDKExtras";
 
 const createChatHelpers = (messages: any[] = []) => {
   let currentMessages = [...messages];
@@ -155,7 +156,7 @@ describe("useAISDKRuntime", () => {
     expect(chat.messages[0].parts[1].state).toBe("output-available");
   });
 
-  it("strips stale approval when cancelling a tool pending approval so history stays valid (#4195)", async () => {
+  it("strips stale approval when cancelling a tool pending approval so history stays valid", async () => {
     const chat = createChatHelpers([
       {
         id: "a1",
@@ -925,5 +926,19 @@ describe("useAISDKRuntime", () => {
       "assistant",
     ]);
     expect(messages.slice(1).map(textOf)).toEqual(["first", "second"]);
+  });
+
+  it("exposes branded extras carrying the chat helpers and error", () => {
+    const chat = createChatHelpers();
+    chat.error = new Error("boom");
+
+    const { result } = renderHook(() => useAISDKRuntime(chat));
+
+    const extras = result.current.thread.getState().extras;
+    expect(aiSDKExtras.is(extras)).toBe(true);
+    expect(aiSDKExtras.tryGet(extras)).toMatchObject({
+      chat,
+      error: chat.error,
+    });
   });
 });

@@ -251,6 +251,21 @@ export class ExternalStoreThreadRuntimeCore
             return newMessage;
           });
 
+      const seenIds = new Set<string>();
+      const deduped: ThreadMessage[] = [];
+      for (let i = messages.length - 1; i >= 0; i--) {
+        const message = messages[i]!;
+        if (seenIds.has(message.id)) {
+          console.warn(
+            `ExternalStoreThreadRuntimeCore: duplicate message id "${message.id}" in the provided messages array; keeping the last occurrence.`,
+          );
+          continue;
+        }
+        seenIds.add(message.id);
+        deduped.push(message);
+      }
+      if (deduped.length !== messages.length) messages = deduped.reverse();
+
       for (let i = 0; i < messages.length; i++) {
         const message = messages[i]!;
         const parent = messages[i - 1];

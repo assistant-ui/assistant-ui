@@ -1,5 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { AssistantCloudAnonymousAuthStrategy } from "../AssistantCloudAuthStrategy";
+import {
+  AssistantCloudAnonymousAuthStrategy,
+  AssistantCloudJWTAuthStrategy,
+} from "../AssistantCloudAuthStrategy";
 
 const baseUrl = "https://test.example.com";
 const accessToken = `${Buffer.from(JSON.stringify({ alg: "none" })).toString("base64url")}.${Buffer.from(JSON.stringify({ exp: 4102444800 })).toString("base64url")}.sig`;
@@ -72,6 +75,25 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
     );
   });
 
+  it("deduplicates concurrent anonymous token requests", async () => {
+    delete (globalThis as { localStorage?: Storage }).localStorage;
+    const fetchMock = mockAnonymousTokenFetch();
+    const strategy = new AssistantCloudAnonymousAuthStrategy(baseUrl);
+
+    await expect(
+      Promise.all([
+        strategy.getAuthHeaders(),
+        strategy.getAuthHeaders(),
+        strategy.getAuthHeaders(),
+      ]),
+    ).resolves.toEqual([
+      { Authorization: `Bearer ${accessToken}` },
+      { Authorization: `Bearer ${accessToken}` },
+      { Authorization: `Bearer ${accessToken}` },
+    ]);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it("returns an anonymous access token without localStorage", async () => {
     delete (globalThis as { localStorage?: Storage }).localStorage;
     mockAnonymousTokenFetch();
@@ -102,7 +124,9 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
   it("returns an anonymous access token when storage methods throw", async () => {
     const getItem = vi
       .fn<(key: string) => string | null>()
-      .mockReturnValueOnce(JSON.stringify(refreshToken))
+      .mockReturnValueOnce(
+        JSON.stringify({ token: "expired", expires_at: "2022-01-01" }),
+      )
       .mockImplementation(() => {
         throw new DOMException("blocked", "SecurityError");
       });
@@ -115,26 +139,12 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
     installLocalStorage({ getItem, setItem, removeItem } as Storage);
     mockAnonymousTokenFetch();
 
-    const originalDate = globalThis.Date;
-    const fixedDate = (originalDate as unknown as () => Date)();
-    const fixedTime = originalDate.now();
-    globalThis.Date = Object.assign(
-      function Date() {
-        return fixedDate;
-      },
-      { now: () => fixedTime },
-    ) as unknown as DateConstructor;
-
-    try {
-      await expect(
-        new AssistantCloudAnonymousAuthStrategy(baseUrl).getAuthHeaders(),
-      ).resolves.toEqual({ Authorization: `Bearer ${accessToken}` });
-      await expect(
-        new AssistantCloudAnonymousAuthStrategy(baseUrl).getAuthHeaders(),
-      ).resolves.toEqual({ Authorization: `Bearer ${accessToken}` });
-    } finally {
-      globalThis.Date = originalDate;
-    }
+    await expect(
+      new AssistantCloudAnonymousAuthStrategy(baseUrl).getAuthHeaders(),
+    ).resolves.toEqual({ Authorization: `Bearer ${accessToken}` });
+    await expect(
+      new AssistantCloudAnonymousAuthStrategy(baseUrl).getAuthHeaders(),
+    ).resolves.toEqual({ Authorization: `Bearer ${accessToken}` });
     expect(getItem).toHaveBeenCalledTimes(2);
     expect(setItem).toHaveBeenCalledTimes(2);
     expect(removeItem).toHaveBeenCalledTimes(1);
@@ -159,5 +169,23 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
       Authorization: `Bearer ${accessToken}`,
     });
     expect(values.get("aui:refresh_token")).toBe(JSON.stringify(refreshToken));
+  });
+});
+
+describe("AssistantCloudJWTAuthStrategy", () => {
+  it("retries token acquisition after a failed request", async () => {
+    const authToken = vi
+      .fn<() => Promise<string | null>>()
+      .mockRejectedValueOnce(new Error("authentication unavailable"))
+      .mockResolvedValueOnce(accessToken);
+    const strategy = new AssistantCloudJWTAuthStrategy(authToken);
+
+    await expect(strategy.getAuthHeaders()).rejects.toThrow(
+      "authentication unavailable",
+    );
+    await expect(strategy.getAuthHeaders()).resolves.toEqual({
+      Authorization: `Bearer ${accessToken}`,
+    });
+    expect(authToken).toHaveBeenCalledTimes(2);
   });
 });

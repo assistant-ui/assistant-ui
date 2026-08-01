@@ -4,7 +4,6 @@
   "pages": [
     "quickstart",
     "resources",
-    "hooks",
     "composition",
     "trees-and-rerenders",
     "lifecycle",

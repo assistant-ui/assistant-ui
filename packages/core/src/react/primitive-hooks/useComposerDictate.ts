@@ -11,7 +11,7 @@ export const useComposerDictate = () => {
   );
 
   const startDictation = useCallback(() => {
-    aui.composer().startDictation();
+    aui.composer.startDictation();
   }, [aui]);
 
   return { startDictation, disabled };

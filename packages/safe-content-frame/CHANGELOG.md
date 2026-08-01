@@ -1,5 +1,19 @@
 # safe-content-frame
 
+## 0.0.25
+
+### Patch Changes
+
+- [#5208](https://github.com/assistant-ui/assistant-ui/pull/5208) [`a0ddc86`](https://github.com/assistant-ui/assistant-ui/commit/a0ddc862b0c506bd791238ebf800868e4836820a) - Adopt `erasableSyntaxOnly`; public enums are now `as const` objects. ([@Yonom](https://github.com/Yonom))
+
+## 0.0.24
+
+### Patch Changes
+
+- [#5096](https://github.com/assistant-ui/assistant-ui/pull/5096) [`7492368`](https://github.com/assistant-ui/assistant-ui/commit/7492368638500f23f4baf9c62d730b479a5f4978) - fix: clean up frame resources after disposal and load failures ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5079](https://github.com/assistant-ui/assistant-ui/pull/5079) [`390e417`](https://github.com/assistant-ui/assistant-ui/commit/390e4177ca47f7ece839613ad0f076add9313328) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
 ## 0.0.23
 
 ### Patch Changes

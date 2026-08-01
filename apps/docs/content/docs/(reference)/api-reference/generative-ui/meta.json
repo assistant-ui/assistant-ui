@@ -10,6 +10,7 @@
     "rendering",
     "slack",
     "teams",
+    "a2ui",
     "tokens"
   ]
 }

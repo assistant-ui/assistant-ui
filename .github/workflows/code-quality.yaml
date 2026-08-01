@@ -44,7 +44,7 @@ concurrency:
 jobs:
   lint:
     name: Oxlint + Oxfmt
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: blacksmith-8vcpu-ubuntu-2404
     timeout-minutes: 5
     steps:
       - name: Checkout code repository
@@ -97,7 +97,7 @@ jobs:
 
   build:
     name: Build Changed Packages
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: blacksmith-8vcpu-ubuntu-2404
     timeout-minutes: 10
     steps:
       - name: Checkout code repository
@@ -152,7 +152,7 @@ jobs:
 
   build-apps:
     name: Build Changed Apps
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: blacksmith-8vcpu-ubuntu-2404
     timeout-minutes: 10
     steps:
       - name: Checkout code repository
@@ -230,7 +230,7 @@ jobs:
 
   test:
     name: Test Changed Packages
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: blacksmith-8vcpu-ubuntu-2404
     timeout-minutes: 5
     # Note: No dependency on 'build' job - Turbo handles test->build dependencies internally via dependsOn
     steps:
@@ -270,3 +270,6 @@ jobs:
             # Push to main: Test packages changed in last commit
             pnpm turbo test --filter="...[HEAD^1]"
           fi
+
+      - name: Run React Compiler tests
+        run: pnpm test:react-compiler

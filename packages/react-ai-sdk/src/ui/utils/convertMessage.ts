@@ -21,6 +21,7 @@ import {
   type FileMessagePart,
   type ThreadMessageLike,
   type McpAppMetadata,
+  type MessagePartStreamStatus,
 } from "@assistant-ui/core";
 import { stableStringifyToolArgs } from "@assistant-ui/core/internal";
 import {
@@ -62,19 +63,40 @@ function extractMcpAppMetadata(
   if (app && typeof app === "object") {
     a = app as Record<string, unknown>;
   } else {
-    // MCP-UI tools (e.g. xmcp) surface the UI pointer as
-    // result._meta["ui/resourceUri"] rather than in callProviderMetadata.
+    // MCP-UI tools surface the pointer on result._meta: canonical nested
+    // `ui.resourceUri`, or the deprecated flat `"ui/resourceUri"` key.
     const output = (part as { output?: unknown }).output;
     const outMeta =
       output && typeof output === "object"
         ? (output as { _meta?: unknown })._meta
         : undefined;
-    const uiResourceUri =
+    const ui =
       outMeta && typeof outMeta === "object"
-        ? (outMeta as Record<string, unknown>)["ui/resourceUri"]
+        ? (outMeta as Record<string, unknown>)["ui"]
         : undefined;
-    if (typeof uiResourceUri !== "string") return undefined;
-    a = { resourceUri: uiResourceUri };
+    if (
+      ui &&
+      typeof ui === "object" &&
+      typeof (ui as Record<string, unknown>)["resourceUri"] === "string" &&
+      isMcpAppUri((ui as Record<string, unknown>)["resourceUri"] as string)
+    ) {
+      // Only the spec'd ui fields cross from the result body; serverId is a
+      // routing key and stays transport-derived via callProviderMetadata.
+      const uiMeta = ui as Record<string, unknown>;
+      a = {
+        resourceUri: uiMeta["resourceUri"],
+        ...(Array.isArray(uiMeta["visibility"])
+          ? { visibility: uiMeta["visibility"] }
+          : {}),
+      };
+    } else {
+      const flat =
+        outMeta && typeof outMeta === "object"
+          ? (outMeta as Record<string, unknown>)["ui/resourceUri"]
+          : undefined;
+      if (typeof flat !== "string" || !isMcpAppUri(flat)) return undefined;
+      a = { resourceUri: flat };
+    }
   }
   if (typeof a["resourceUri"] !== "string") return undefined;
   if (!isMcpAppUri(a["resourceUri"])) return undefined;
@@ -147,6 +169,14 @@ function getToolApprovalAndInterrupt(
 
 type MessageContent = Exclude<ThreadMessageLike["content"], string>;
 
+const uiPartStateToStatus = (
+  state: "streaming" | "done" | undefined,
+): MessagePartStreamStatus | undefined => {
+  if (state === "streaming") return { type: "running" };
+  if (state === "done") return { type: "complete" };
+  return undefined;
+};
+
 function convertParts(
   message: UIMessage,
   metadata: AISDKMessageConverterMetadata,
@@ -163,9 +193,11 @@ function convertParts(
     )
     .map((part) => {
       if (part.type === "text") {
+        const status = uiPartStateToStatus(part.state);
         return {
           type: "text",
           text: part.text,
+          ...(status != null ? { status } : undefined),
           ...(part.providerMetadata != null
             ? {
                 providerMetadata: part.providerMetadata as PartProviderMetadata,
@@ -175,9 +207,11 @@ function convertParts(
       }
 
       if (part.type === "reasoning") {
+        const status = uiPartStateToStatus(part.state);
         return {
           type: "reasoning",
           text: part.text,
+          ...(status != null ? { status } : undefined),
           ...(part.providerMetadata != null
             ? {
                 providerMetadata: part.providerMetadata as PartProviderMetadata,

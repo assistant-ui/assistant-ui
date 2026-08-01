@@ -39,6 +39,16 @@ function defaultRedirectUri(): string {
 // array each render (which would invalidate the serverElements memo below).
 const NO_CONNECTORS: MCPConnector[] = [];
 
+const reportCustomStorageFailure = (
+  operation: "load" | "save",
+  error: unknown,
+) => {
+  console.error(
+    `[assistant-ui/react-mcp] failed to ${operation} custom servers:`,
+    error,
+  );
+};
+
 const useMcpManagerResource = (
   props: McpManagerResourceProps,
 ): ClientOutput<"mcp"> => {
@@ -69,8 +79,11 @@ const useMcpManagerResource = (
     try {
       records = await storage.loadCustomServers();
     } catch (error) {
+      if (!signal.cancelled) {
+        reportCustomStorageFailure("load", error);
+      }
       markHydrated();
-      throw error;
+      return;
     }
 
     if (signal.cancelled) return;
@@ -96,7 +109,11 @@ const useMcpManagerResource = (
   const persistCustomServers = useEffectEvent(
     async (records: MCPCustomServerRecord[]) => {
       if (!hydratedRef.current) return;
-      await storage.saveCustomServers(records);
+      try {
+        await storage.saveCustomServers(records);
+      } catch (error) {
+        reportCustomStorageFailure("save", error);
+      }
     },
   );
 
@@ -124,6 +141,10 @@ const useMcpManagerResource = (
           redirectUri,
           autoConnect,
           connectionTimeout: c.connectionTimeout ?? connectionTimeout,
+          ...(c.cache !== undefined ? { cache: c.cache } : {}),
+          ...(c.elicitation !== undefined
+            ? { elicitation: c.elicitation }
+            : {}),
           onRemove: async () => {
             // connectors cannot be removed
           },
@@ -143,6 +164,10 @@ const useMcpManagerResource = (
           redirectUri,
           autoConnect,
           connectionTimeout: s.connectionTimeout ?? connectionTimeout,
+          ...(s.cache !== undefined ? { cache: s.cache } : {}),
+          ...(s.elicitation !== undefined
+            ? { elicitation: s.elicitation }
+            : {}),
           onRemove: async () => {
             setCustomServers((prev) => prev.filter((x) => x.id !== s.id));
           },
@@ -202,7 +227,7 @@ const useMcpManagerResource = (
   useEffect(() => {
     const client = clientRef.current;
     if (!client) return;
-    return client.modelContext().register({
+    return client.modelContext.register({
       getModelContext: () => ({ tools: toolkit }),
     });
   }, [toolkit, clientRef]);
@@ -226,7 +251,14 @@ const useMcpManagerResource = (
     },
     connector: ({ index }) => serverByKind("connector", index),
     customServer: ({ index }) => serverByKind("custom", index),
-    addCustomServer: async ({ name, url, auth, connectionTimeout }) => {
+    addCustomServer: async ({
+      name,
+      url,
+      auth,
+      connectionTimeout,
+      cache,
+      elicitation,
+    }) => {
       const record: MCPCustomServerRecord = {
         id:
           typeof crypto !== "undefined" && "randomUUID" in crypto
@@ -236,6 +268,8 @@ const useMcpManagerResource = (
         url,
         auth: auth as MCPAuthConfig,
         connectionTimeout,
+        ...(cache !== undefined ? { cache } : {}),
+        ...(elicitation !== undefined ? { elicitation } : {}),
         createdAt: Date.now(),
       };
       setCustomServers((prev) => [...prev, record]);

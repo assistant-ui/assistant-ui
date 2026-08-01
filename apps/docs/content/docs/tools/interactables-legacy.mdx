@@ -298,7 +298,7 @@ function MyRuntimeProvider({ children }) {
 
   useEffect(() => {
     // Set up persistence adapter
-    aui.interactables().setPersistenceAdapter({
+    aui.interactables.setPersistenceAdapter({
       save: async (state) => {
         localStorage.setItem("interactables", JSON.stringify(state));
       },
@@ -307,7 +307,7 @@ function MyRuntimeProvider({ children }) {
     // Restore saved state on mount
     const saved = localStorage.getItem("interactables");
     if (saved) {
-      aui.interactables().importState(JSON.parse(saved));
+      aui.interactables.importState(JSON.parse(saved));
     }
   }, [aui]);
 
@@ -334,10 +334,10 @@ State changes are automatically debounced (500ms) before saving. When a componen
 For custom persistence strategies, use `exportState` and `importState` directly:
 
 ```tsx
-const snapshot = aui.interactables().exportState();
+const snapshot = aui.interactables.exportState();
 // => { "note-1": { name: "note", state: { title: "Hello" } }, ... }
 
-aui.interactables().importState(snapshot);
+aui.interactables.importState(snapshot);
 // Imported state is picked up when components next register
 ```
 

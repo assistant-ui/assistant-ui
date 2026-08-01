@@ -68,6 +68,45 @@ export class LocalThreadRuntimeCore
   private _queue: MessageQueueController | null = null;
   private _queueRunInFlight = false;
 
+  private _historyWrites = new Map<string, Promise<void>>();
+
+  // Writes for one message id must land in issue order; an earlier paused
+  // snapshot arriving after the terminal write would resurrect the pause.
+  private _chainHistoryWrite(
+    id: string,
+    write: () => Promise<void>,
+  ): Promise<void> {
+    const next = (this._historyWrites.get(id) ?? Promise.resolve()).then(
+      write,
+      write,
+    );
+    const stored = next.then(
+      () => {},
+      () => {},
+    );
+    this._historyWrites.set(id, stored);
+    void stored.then(() => {
+      if (this._historyWrites.get(id) === stored) {
+        this._historyWrites.delete(id);
+      }
+    });
+    return next;
+  }
+
+  // A decision recorded on a still-paused message must reach history before
+  // the run resumes, or a refresh would restore the message without it.
+  private _persistPausedMessage(
+    parentId: string | null,
+    message: ThreadAssistantMessage,
+  ) {
+    if (message.status?.type !== "requires-action") return;
+    const history = this._options.adapters.history;
+    if (!history?.update) return;
+    const update = history.update.bind(history);
+    const item = { parentId, message, runConfig: this._lastRunConfig };
+    this._chainHistoryWrite(message.id, () => update(item)).catch(() => {});
+  }
+
   public readonly isDisabled = false;
   public readonly isSendDisabled = false;
 
@@ -351,6 +390,12 @@ export class LocalThreadRuntimeCore
   ): Promise<void> {
     this._notifyEventSubscribers("runStart", {});
 
+    // A run entered on a requires-action message resumes a pause an
+    // update-capable adapter already holds (written at pause time or loaded).
+    const alreadyPersisted =
+      message.status?.type === "requires-action" &&
+      this._options.adapters.history?.update !== undefined;
+
     try {
       // mark busy for runs not started through the queue (regenerate, resume)
       this._queue?.notifyBusy();
@@ -364,6 +409,7 @@ export class LocalThreadRuntimeCore
           parentId,
           message,
           runConfig,
+          alreadyPersisted,
           runCallback,
         );
         runCallback = undefined;
@@ -406,13 +452,15 @@ export class LocalThreadRuntimeCore
     parentId: string | null,
     message: ThreadAssistantMessage,
     runConfig: RunConfig | undefined,
+    alreadyPersisted: boolean,
     runCallback?: ChatModelAdapter["run"],
   ) {
     const messages = parentId ? this.repository.getMessages(parentId) : [];
 
     // abort existing run
     this.abortController?.abort();
-    this.abortController = new AbortController();
+    const abortController = new AbortController();
+    this.abortController = abortController;
 
     const initialContent = message.content;
     const initialAnnotations = message.metadata?.unstable_annotations;
@@ -442,7 +490,7 @@ export class LocalThreadRuntimeCore
           ? {
               metadata: {
                 ...message.metadata,
-                ...(m.metadata.unstable_state
+                ...(m.metadata.unstable_state !== undefined
                   ? { unstable_state: m.metadata.unstable_state }
                   : undefined),
                 ...(annotations
@@ -471,17 +519,18 @@ export class LocalThreadRuntimeCore
 
     const maxSteps = this._options.maxSteps ?? 2;
 
-    const steps = message.metadata?.steps?.length ?? 0;
-    if (steps >= maxSteps) {
-      // reached max tool steps
-      updateMessage({
-        status: {
-          type: "incomplete",
-          reason: "tool-calls",
-        },
-      });
-      return message;
-    } else {
+    try {
+      const steps = message.metadata?.steps?.length ?? 0;
+      if (steps >= maxSteps) {
+        updateMessage({
+          status: {
+            type: "incomplete",
+            reason: "tool-calls",
+          },
+        });
+        return message;
+      }
+
       updateMessage({
         status: {
           type: "running",
@@ -491,9 +540,7 @@ export class LocalThreadRuntimeCore
       // Switch to the new message branch right after adding it for the first time
       this.repository.resetHead(message.id);
       this._notifySubscribers();
-    }
 
-    try {
       this._lastRunConfig = runConfig ?? {};
       // unstable_composerMetadata is composer-only (stamped onto the outgoing
       // message); never expose it to the chat-model adapter's run context.
@@ -504,7 +551,7 @@ export class LocalThreadRuntimeCore
         runCallback ??
         this.adapters.chatModel.run.bind(this.adapters.chatModel);
 
-      const abortSignal = this.abortController.signal;
+      const abortSignal = abortController.signal;
       const threadId = this._getThreadId?.();
       const promiseOrGenerator = runCallback({
         messages,
@@ -537,7 +584,9 @@ export class LocalThreadRuntimeCore
 
       if (message.status.type === "running") {
         updateMessage({
-          status: { type: "complete", reason: "unknown" },
+          status: abortSignal.aborted
+            ? { type: "incomplete", reason: "cancelled" }
+            : { type: "complete", reason: "unknown" },
         });
       }
     } catch (e) {
@@ -561,17 +610,33 @@ export class LocalThreadRuntimeCore
         throw e;
       }
     } finally {
-      this.abortController = null;
+      if (this.abortController === abortController) {
+        this.abortController = null;
+      }
 
-      if (
+      const history = this._options.adapters.history;
+      const item = {
+        parentId,
+        message,
+        runConfig: this._lastRunConfig,
+      };
+      const isTerminal =
         message.status.type === "complete" ||
-        message.status.type === "incomplete"
-      ) {
-        await this._options.adapters.history?.append({
-          parentId,
-          message: message,
-          runConfig: this._lastRunConfig,
-        });
+        message.status.type === "incomplete";
+      const isPausing =
+        message.status.type === "requires-action" &&
+        !shouldContinue(message, this._options.unstable_humanToolNames);
+
+      // Pauses are written only for adapters that can rewrite the entry later;
+      // an append-only adapter would strand a half-finished run in history.
+      if (isTerminal || (isPausing && history?.update)) {
+        const write =
+          alreadyPersisted && history?.update
+            ? history.update.bind(history)
+            : history?.append.bind(history);
+        if (write) {
+          await this._chainHistoryWrite(message.id, () => write(item));
+        }
       }
     }
     return message;
@@ -641,6 +706,8 @@ export class LocalThreadRuntimeCore
       shouldContinue(message, this._options.unstable_humanToolNames)
     ) {
       this._runLoop(parentId, message, this._lastRunConfig).catch(() => {});
+    } else if (added) {
+      this._persistPausedMessage(parentId, message);
     }
   }
 
@@ -719,6 +786,8 @@ export class LocalThreadRuntimeCore
       shouldContinue(message, this._options.unstable_humanToolNames)
     ) {
       this._runLoop(parentId, message, this._lastRunConfig).catch(() => {});
+    } else {
+      this._persistPausedMessage(parentId, message);
     }
   }
 }

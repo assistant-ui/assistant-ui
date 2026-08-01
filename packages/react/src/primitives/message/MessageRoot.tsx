@@ -23,7 +23,7 @@ type ThreadViewportStore = NonNullable<
 
 const useIsHoveringRef = () => {
   const aui = useAui();
-  const message = useAuiState(() => aui.message());
+  const message = useAuiState(() => aui.message);
 
   const callbackRef = useCallback(
     (el: HTMLElement) => {

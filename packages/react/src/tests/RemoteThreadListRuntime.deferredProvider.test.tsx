@@ -6,9 +6,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { useRemoteThreadListRuntime } from "@assistant-ui/core/react";
 import { makeAdapter } from "./remote-thread-list-test-helpers";
 import type { AssistantRuntime } from "@assistant-ui/core";
+import { useAui } from "@assistant-ui/store";
 import { AssistantRuntimeProvider } from "../context";
 import { useLocalRuntime } from "../legacy-runtime/runtime-cores/local/useLocalRuntime";
-import { useAssistantRuntime } from "../legacy-runtime/hooks/AssistantContext";
 import type { ChatModelAdapter, RemoteThreadListAdapter } from "../index";
 
 const noOpAdapter: ChatModelAdapter = {
@@ -34,8 +34,8 @@ const RuntimeProvider: FC<
 const RuntimeCapture: FC<{
   runtimeRef: { current: AssistantRuntime | null };
 }> = ({ runtimeRef }) => {
-  const runtime = useAssistantRuntime();
-  runtimeRef.current = runtime;
+  const aui = useAui();
+  runtimeRef.current = aui.threads.__internal_getAssistantRuntime?.() ?? null;
   return null;
 };
 

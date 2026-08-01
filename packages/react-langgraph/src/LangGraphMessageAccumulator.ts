@@ -11,6 +11,13 @@ export type LangGraphStateAccumulatorConfig<TMessage> = {
   appendMessage?: (prev: TMessage | undefined, curr: TMessage) => TMessage;
 };
 
+// LangChain RemoveMessage (type: "remove") deletes the message with the
+// matching id; the REMOVE_ALL_MESSAGES sentinel id clears every message,
+// mirroring server-side messagesStateReducer.
+const REMOVE_ALL_MESSAGES = "__remove_all__";
+const isRemoveMessage = (message: { id?: string }): boolean =>
+  (message as Record<string, unknown>).type === "remove";
+
 export class LangGraphMessageAccumulator<TMessage extends { id?: string }> {
   private messagesMap = new Map<string, TMessage>();
   private metadataMap = new Map<string, LangGraphTupleMetadata>();
@@ -37,13 +44,37 @@ export class LangGraphMessageAccumulator<TMessage extends { id?: string }> {
     return message.id ? message : { ...message, id: uuidv4() };
   }
 
+  private upsertMessage(
+    message: TMessage,
+    previousSource: ReadonlyMap<string, TMessage> = this.messagesMap,
+  ): void {
+    const id = message.id!;
+    this.messagesMap.set(
+      id,
+      this.appendMessage(previousSource.get(id), message),
+    );
+  }
+
+  private applyRemove(messageId: string) {
+    if (messageId === REMOVE_ALL_MESSAGES) {
+      this.messagesMap.clear();
+      this.metadataMap.clear();
+      return;
+    }
+    this.messagesMap.delete(messageId);
+    this.metadataMap.delete(messageId);
+  }
+
   public addMessages(newMessages: TMessage[]) {
     if (newMessages.length === 0) return this.getMessages();
 
     for (const message of newMessages.map(this.ensureMessageId)) {
       const messageId = message.id!; // ensureMessageId guarantees id exists
-      const previous = this.messagesMap.get(messageId);
-      this.messagesMap.set(messageId, this.appendMessage(previous, message));
+      if (isRemoveMessage(message)) {
+        this.applyRemove(messageId);
+        continue;
+      }
+      this.upsertMessage(message);
     }
     return this.getMessages();
   }
@@ -55,11 +86,12 @@ export class LangGraphMessageAccumulator<TMessage extends { id?: string }> {
     const messageWithId = this.ensureMessageId(message);
     const messageId = messageWithId.id!;
 
-    const previous = this.messagesMap.get(messageId);
-    this.messagesMap.set(
-      messageId,
-      this.appendMessage(previous, messageWithId),
-    );
+    if (isRemoveMessage(messageWithId)) {
+      this.applyRemove(messageId);
+      return this.getMessages();
+    }
+
+    this.upsertMessage(messageWithId);
 
     const existingMetadata = this.metadataMap.get(messageId);
     this.metadataMap.set(messageId, { ...existingMetadata, ...metadata });
@@ -76,11 +108,12 @@ export class LangGraphMessageAccumulator<TMessage extends { id?: string }> {
   }
 
   public replaceMessages(newMessages: TMessage[]): TMessage[] {
-    this.messagesMap.clear();
+    const previous = this.messagesMap;
+    this.messagesMap = new Map();
     this.metadataMap.clear();
 
     for (const message of newMessages.map(this.ensureMessageId)) {
-      this.messagesMap.set(message.id!, message);
+      this.upsertMessage(message, previous);
     }
     return this.getMessages();
   }
@@ -88,7 +121,7 @@ export class LangGraphMessageAccumulator<TMessage extends { id?: string }> {
   // upsert-only: tuple-only messages (e.g. subgraph internals absent from parent `values`) are preserved
   public reconcileMessages(serverMessages: TMessage[]): TMessage[] {
     for (const message of serverMessages.map(this.ensureMessageId)) {
-      this.messagesMap.set(message.id!, message);
+      this.upsertMessage(message);
     }
     return this.getMessages();
   }

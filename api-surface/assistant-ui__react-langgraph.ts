@@ -26,6 +26,7 @@ type AsNumber<K> = K extends `${infer N extends number}` ? N | K : never;
 
 declare class AssistantCloud {
   readonly threads: AssistantCloudThreads;
+  readonly projects: AssistantCloudProjects;
   readonly auth: {
     tokens: AssistantCloudAuthTokens;
   };
@@ -85,6 +86,44 @@ declare class AssistantCloudFiles {
 type AssistantCloudMessageCreateResponse = {
   message_id: string;
 };
+
+type AssistantCloudProjectThreadMessageListQuery = {
+  format?: string;
+  limit?: number;
+  after?: string;
+};
+
+type AssistantCloudProjectThreadMessageListResponse = {
+  messages: CloudMessage[];
+};
+
+declare class AssistantCloudProjectThreadMessages {
+  private cloud;
+  constructor(cloud: AssistantCloudAPI);
+  list(threadId: string, query?: AssistantCloudProjectThreadMessageListQuery): Promise<AssistantCloudProjectThreadMessageListResponse>;
+}
+
+declare class AssistantCloudProjectThreads {
+  readonly messages: AssistantCloudProjectThreadMessages;
+  private cloud;
+  constructor(cloud: AssistantCloudAPI);
+  list(query?: AssistantCloudProjectThreadsListQuery): Promise<AssistantCloudProjectThreadsListResponse>;
+}
+
+type AssistantCloudProjectThreadsListQuery = {
+  is_archived?: boolean;
+  limit?: number;
+  after?: string;
+};
+
+type AssistantCloudProjectThreadsListResponse = {
+  threads: CloudThread[];
+};
+
+declare class AssistantCloudProjects {
+  readonly threads: AssistantCloudProjectThreads;
+  constructor(cloud: AssistantCloudAPI);
+}
 
 type AssistantCloudRunReport = {
   thread_id: string;
@@ -169,8 +208,8 @@ declare class AssistantCloudThreadMessages {
 }
 
 declare class AssistantCloudThreads {
-  private cloud;
   readonly messages: AssistantCloudThreadMessages;
+  private cloud;
   constructor(cloud: AssistantCloudAPI);
   list(query?: AssistantCloudThreadsListQuery): Promise<AssistantCloudThreadsListResponse>;
   get(threadId: string): Promise<CloudThread>;
@@ -276,11 +315,21 @@ type AssistantStreamChunk = {
   readonly severity?: "critical" | "info" | "warning";
 } | {
   readonly type: "update-state";
-  readonly operations: ObjectStreamOperation[];
+  readonly operations: AssistantTransportStateOperation[];
 });
 
 type AssistantStreamEncoder = ReadableWritablePair<Uint8Array<ArrayBuffer>, AssistantStreamChunk> & {
   headers?: Headers;
+};
+
+type AssistantTransportStateOperation = {
+  readonly type: "set";
+  readonly path: readonly string[];
+  readonly value: ReadonlyJSONValue;
+} | {
+  readonly type: "append-text";
+  readonly path: readonly string[];
+  readonly value: string;
 };
 
 type AsyncIterableStream<T> = AsyncIterable<T> & ReadableStream<T>;
@@ -727,6 +776,7 @@ type FileMessagePart = {
   readonly filename?: string;
   readonly data: string;
   readonly mimeType: string;
+  readonly sourceType?: "id" | "url";
   readonly parentId?: string;
 };
 
@@ -866,7 +916,7 @@ type JSONSchema7Version = string;
 type JoinStrategy = "concat-content" | "none";
 
 type LangChainEvent = {
-  event: LangGraphKnownEventTypes.MessagesPartial | LangGraphKnownEventTypes.MessagesComplete;
+  event: typeof LangGraphKnownEventTypes.MessagesPartial | typeof LangGraphKnownEventTypes.MessagesComplete;
   data: LangChainMessage[];
 };
 
@@ -936,16 +986,18 @@ type LangGraphInterruptState = {
   ns?: string[];
 };
 
-declare enum LangGraphKnownEventTypes {
-  Messages = "messages",
-  MessagesPartial = "messages/partial",
-  MessagesComplete = "messages/complete",
-  Metadata = "metadata",
-  Updates = "updates",
-  Values = "values",
-  Info = "info",
-  Error = "error"
-}
+declare const LangGraphKnownEventTypes: {
+  readonly Messages: "messages";
+  readonly MessagesPartial: "messages/partial";
+  readonly MessagesComplete: "messages/complete";
+  readonly Metadata: "metadata";
+  readonly Updates: "updates";
+  readonly Values: "values";
+  readonly Info: "info";
+  readonly Error: "error";
+};
+
+type LangGraphKnownEventTypes = (typeof LangGraphKnownEventTypes)[keyof typeof LangGraphKnownEventTypes];
 
 declare class LangGraphMessageAccumulator<TMessage extends {
   id?: string;
@@ -956,6 +1008,8 @@ declare class LangGraphMessageAccumulator<TMessage extends {
   private appendMessage;
   constructor(_param0?: LangGraphStateAccumulatorConfig<TMessage>);
   private ensureMessageId;
+  private upsertMessage;
+  private applyRemove;
   addMessages(newMessages: TMessage[]): TMessage[];
   addMessageWithMetadata(message: TMessage, metadata: LangGraphTupleMetadata): TMessage[];
   getMessages(): TMessage[];
@@ -1067,6 +1121,13 @@ type MessageCommonProps = {
   readonly createdAt: Date;
 };
 
+type MessageContentAudio = {
+  type: "audio";
+  data: string;
+  mime_type: string;
+  source_type: "base64";
+};
+
 type MessageContentComputerCall = {
   type: "computer_call";
   call_id: string;
@@ -1167,6 +1228,15 @@ type MessagePartStatus = {
   readonly error?: unknown;
 };
 
+type MessagePartStreamStatus = {
+  readonly type: "running";
+} | {
+  readonly type: "complete";
+} | {
+  readonly type: "incomplete";
+  readonly reason: "cancelled" | "content-filter" | "error" | "length" | "other";
+};
+
 type MessageRole = ThreadMessage["role"];
 
 type MessageRuntime = {
@@ -1251,16 +1321,6 @@ type ModelContextProvider = {
 };
 
 type ObjectKey<T> = keyof T & (string | number);
-
-type ObjectStreamOperation = {
-  readonly type: "set";
-  readonly path: readonly string[];
-  readonly value: ReadonlyJSONValue;
-} | {
-  readonly type: "append-text";
-  readonly path: readonly string[];
-  readonly value: string;
-};
 
 type OnCustomEventCallback = (type: string, data: unknown) => void | Promise<void>;
 
@@ -1414,6 +1474,7 @@ type RealtimeVoiceAdapter = {
 type ReasoningMessagePart = {
   readonly type: "reasoning";
   readonly text: string;
+  readonly status?: MessagePartStreamStatus;
   readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };
@@ -1424,7 +1485,7 @@ type ReloadConfig = {
 
 type RemoteThreadInitializeResponse = {
   remoteId: string;
-  externalId: string | undefined;
+  externalId?: string | undefined;
 };
 
 type RemoteThreadListAdapter = {
@@ -1591,6 +1652,7 @@ declare const TOOL_RESPONSE_SYMBOL: unique symbol;
 type TextMessagePart = {
   readonly type: "text";
   readonly text: string;
+  readonly status?: MessagePartStreamStatus;
   readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };
@@ -1877,6 +1939,7 @@ type ThreadUserMessage = MessageCommonProps & {
     readonly steps?: undefined;
     readonly submittedFeedback?: undefined;
     readonly timing?: undefined;
+    readonly isOptimistic?: boolean;
     readonly custom: Record<string, unknown>;
   };
 };
@@ -1914,6 +1977,7 @@ type ToolApprovalResponse = {
 type ToolBase<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = {
   streamCall?: ToolStreamCallFunction<TArgs, TResult>;
   display?: ToolDisplay;
+  overwrite?: boolean;
 };
 
 interface ToolCallArgsReader<TArgs extends Record<string, unknown>> {
@@ -2140,7 +2204,7 @@ type UseLangGraphRuntimeOptions = ExternalStoreSharedOptions & {
 
 type UserMessageContent = string | UserMessageContentComplex[];
 
-type UserMessageContentComplex = MessageContentText | MessageContentImageUrl | MessageContentFile;
+type UserMessageContentComplex = MessageContentText | MessageContentImageUrl | MessageContentFile | MessageContentAudio;
 
 type VoiceSessionState = {
   readonly status: RealtimeVoiceAdapter.Status;

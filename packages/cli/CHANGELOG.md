@@ -1,5 +1,34 @@
 # assistant-ui
 
+## 0.0.108
+
+### Patch Changes
+
+- [#5272](https://github.com/assistant-ui/assistant-ui/pull/5272) [`edcd1b6`](https://github.com/assistant-ui/assistant-ui/commit/edcd1b6052d565d64cb10b37080df44c715b30bf) - fix: await asynchronous CLI command handlers ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5275](https://github.com/assistant-ui/assistant-ui/pull/5275) [`9a7e776`](https://github.com/assistant-ui/assistant-ui/commit/9a7e77603d59b5e091ee922e2e087f0101679321) - feat: `v0-15/aui-accessor-calls-to-properties` codemod — rewrites nullary `aui.x()` accessor calls to `aui.x` property access as part of `npx assistant-ui upgrade`. ([@Yonom](https://github.com/Yonom))
+
+## 0.0.107
+
+### Patch Changes
+
+- [#4993](https://github.com/assistant-ui/assistant-ui/pull/4993) [`6710b1b`](https://github.com/assistant-ui/assistant-ui/commit/6710b1b6227bd5e0dd0925845fe642ce811c8001) - fix: include the running CLI version in info output ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#4990](https://github.com/assistant-ui/assistant-ui/pull/4990) [`5b0b47e`](https://github.com/assistant-ui/assistant-ui/commit/5b0b47e3581a4565214c5aa36c5ced8abf024ebe) - fix: align undefined-style registry defaults with the base default and correct the shipped skill's registry commands ([@ephraimduncan](https://github.com/ephraimduncan))
+
+- [#5021](https://github.com/assistant-ui/assistant-ui/pull/5021) [`00fea57`](https://github.com/assistant-ui/assistant-ui/commit/00fea578f66da78348bb5d0d4e0dd3853b226ec3) - fix: install registry components when scaffolding the voice and interactables examples ([@okisdev](https://github.com/okisdev))
+
+- [#5013](https://github.com/assistant-ui/assistant-ui/pull/5013) [`fec32b1`](https://github.com/assistant-ui/assistant-ui/commit/fec32b116cf7ef3a162a3a62b5c6100a10c37642) - fix: sanitize tsconfig for every create scaffold and surface registry install failures ([@ephraimduncan](https://github.com/ephraimduncan))
+
+- [#5042](https://github.com/assistant-ui/assistant-ui/pull/5042) [`7b13f03`](https://github.com/assistant-ui/assistant-ui/commit/7b13f0316fb2b36cd68580dd6431a96bfb9f6f04) - fix(cli): discover workspace packages from symlinked working directories ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5041](https://github.com/assistant-ui/assistant-ui/pull/5041) [`925fd7e`](https://github.com/assistant-ui/assistant-ui/commit/925fd7e0cbe18d45ad4f85b28cd972640b187e11) - fix(cli): discover assistant-ui packages hoisted above the doctor working directory ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5079](https://github.com/assistant-ui/assistant-ui/pull/5079) [`390e417`](https://github.com/assistant-ui/assistant-ui/commit/390e4177ca47f7ece839613ad0f076add9313328) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- Updated dependencies []:
+  - @assistant-ui/agent-launcher@0.1.9
+
 ## 0.0.106
 
 ### Patch Changes

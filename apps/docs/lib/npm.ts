@@ -1,4 +1,5 @@
 import "server-only";
+import { withTimeout } from "./with-timeout";
 
 const NPM_BASE = "https://api.npmjs.org";
 
@@ -11,12 +12,16 @@ export type NpmDailyDownloads = { day: string; downloads: number };
 
 async function npmGetJson(path: string, revalidate: number): Promise<unknown> {
   try {
-    const res = await fetch(
-      `${NPM_BASE}${path}`,
-      revalidate === 0 ? { cache: "no-store" } : { next: { revalidate } },
+    return await withTimeout(
+      (async () => {
+        const res = await fetch(
+          `${NPM_BASE}${path}`,
+          revalidate === 0 ? { cache: "no-store" } : { next: { revalidate } },
+        );
+        if (!res.ok) return null;
+        return await res.json();
+      })(),
     );
-    if (!res.ok) return null;
-    return await res.json();
   } catch {
     return null;
   }

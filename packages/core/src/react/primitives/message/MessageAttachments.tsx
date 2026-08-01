@@ -101,9 +101,7 @@ const MessagePrimitiveAttachmentsInner: FC<{
       Array.from({ length: attachmentsCount }, (_, index) => (
         <MessageAttachmentByIndexProvider key={index} index={index}>
           <RenderChildrenWithAccessor
-            getItemState={(aui) =>
-              aui.message().attachment({ index }).getState()
-            }
+            getItemState={(aui) => aui.message.attachment({ index }).getState()}
           >
             {(getItem) =>
               children({

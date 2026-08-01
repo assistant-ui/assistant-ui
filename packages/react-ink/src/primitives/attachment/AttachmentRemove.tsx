@@ -14,7 +14,7 @@ export const AttachmentRemove = ({
   const aui = useAui();
 
   const handleRemove = useCallback(() => {
-    aui.attachment().remove();
+    aui.attachment.remove();
   }, [aui]);
 
   return (

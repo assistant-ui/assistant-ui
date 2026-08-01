@@ -54,7 +54,7 @@ const AssistantMessage = () => (
 
 ## Programmatic Branch Navigation
 
-For headless or keyboard-shortcut flows, navigate directly to a branch by id via `aui.message().switchToBranch`:
+For headless or keyboard-shortcut flows, navigate directly to a branch by id via `aui.message.switchToBranch`:
 
 ```tsx
 import { useAui } from "@assistant-ui/react";
@@ -62,7 +62,7 @@ import { useAui } from "@assistant-ui/react";
 const SwitchToBranch = ({ branchId }: { branchId: string }) => {
   const aui = useAui();
   return (
-    <button onClick={() => aui.message().switchToBranch({ branchId })}>
+    <button onClick={() => aui.message.switchToBranch({ branchId })}>
       Go to branch
     </button>
   );

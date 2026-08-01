@@ -26,10 +26,13 @@ import type { PiHostUiRequest, PiHostUiResponse } from "../types";
  * (it renders an arbitrary interactive TUI component). This gives extensions a
  * typed unsupported issue they can catch rather than hanging. */
 export class PiUnsupportedHostUiError extends Error {
-  constructor(public readonly method: string) {
+  public readonly method: string;
+
+  constructor(method: string) {
     super(
       `Pi host-UI method "${method}" is not supported in the assistant-ui node host.`,
     );
+    this.method = method;
     this.name = "PiUnsupportedHostUiError";
   }
 }

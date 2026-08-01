@@ -10,7 +10,7 @@ import {
   useState,
   type ComponentProps,
 } from "react";
-import { Tabs as TabsPrimitive, Slot as SlotPrimitive } from "radix-ui";
+import { Tabs as TabsPrimitive } from "radix-ui";
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
@@ -202,9 +202,7 @@ function TabsTrigger({
   value,
   asChild = false,
   ...props
-}: Omit<ComponentProps<typeof TabsPrimitive.Trigger>, "asChild"> & {
-  asChild?: boolean;
-}) {
+}: ComponentProps<typeof TabsPrimitive.Trigger>) {
   const context = useContext(TabsListContext);
   const ref = useRef<HTMLButtonElement>(null);
 
@@ -221,10 +219,9 @@ function TabsTrigger({
     context?.setHoveredValue(null);
   }, [context]);
 
-  const Comp = asChild ? SlotPrimitive.Root : TabsPrimitive.Trigger;
-
   return (
-    <Comp
+    <TabsPrimitive.Trigger
+      asChild={asChild}
       ref={ref}
       value={value}
       data-slot="tabs-trigger"

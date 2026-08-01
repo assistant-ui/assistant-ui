@@ -6,7 +6,7 @@ type Extras = { value: number; greet: () => string };
 
 const clientWith = (extras: unknown) =>
   ({
-    thread: () => ({ getState: () => ({ extras }) }),
+    thread: { getState: () => ({ extras }) },
   }) as unknown as AssistantClient;
 
 describe("createRuntimeExtras", () => {

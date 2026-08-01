@@ -98,13 +98,21 @@ export type ThreadListRuntimeCoreBinding = ThreadListRuntimeCore;
 
 export class ThreadListRuntimeImpl implements ThreadListRuntime {
   private _getState;
+  private _core: ThreadListRuntimeCoreBinding;
+  private _runtimeFactory: new (
+    binding: ThreadRuntimeCoreBinding,
+    threadListItemBinding: ThreadListItemRuntimeBinding,
+  ) => ThreadRuntime;
+
   constructor(
-    private _core: ThreadListRuntimeCoreBinding,
-    private _runtimeFactory: new (
+    _core: ThreadListRuntimeCoreBinding,
+    _runtimeFactory: new (
       binding: ThreadRuntimeCoreBinding,
       threadListItemBinding: ThreadListItemRuntimeBinding,
     ) => ThreadRuntime = ThreadRuntimeImpl,
   ) {
+    this._core = _core;
+    this._runtimeFactory = _runtimeFactory;
     const stateBinding = new LazyMemoizeSubject({
       path: {},
       getState: () => getThreadListState(_core),

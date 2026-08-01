@@ -225,7 +225,9 @@ type AssistantClient = {
   on<TEvent extends AssistantEventName>(selector: AssistantEventSelector<TEvent>, callback: AssistantEventCallback<TEvent>): Unsubscribe$1;
 };
 
-type AssistantClientAccessor<K extends ClientNames> = (() => ClientSchemas[K]["methods"]) & (ClientMeta<K> | {
+type AssistantClientAccessor<K extends ClientNames> = ClientSchemas[K]["methods"] & {
+  (): ClientSchemas[K]["methods"];
+} & (ClientMeta<K> | {
   source: "root";
   query: Record<string, never>;
 } | {
@@ -237,6 +239,7 @@ type AssistantClientAccessor<K extends ClientNames> = (() => ClientSchemas[K]["m
 
 declare class AssistantCloud {
   readonly threads: AssistantCloudThreads;
+  readonly projects: AssistantCloudProjects;
   readonly auth: {
     tokens: AssistantCloudAuthTokens;
   };
@@ -296,6 +299,44 @@ declare class AssistantCloudFiles {
 type AssistantCloudMessageCreateResponse = {
   message_id: string;
 };
+
+type AssistantCloudProjectThreadMessageListQuery = {
+  format?: string;
+  limit?: number;
+  after?: string;
+};
+
+type AssistantCloudProjectThreadMessageListResponse = {
+  messages: CloudMessage[];
+};
+
+declare class AssistantCloudProjectThreadMessages {
+  private cloud;
+  constructor(cloud: AssistantCloudAPI);
+  list(threadId: string, query?: AssistantCloudProjectThreadMessageListQuery): Promise<AssistantCloudProjectThreadMessageListResponse>;
+}
+
+declare class AssistantCloudProjectThreads {
+  readonly messages: AssistantCloudProjectThreadMessages;
+  private cloud;
+  constructor(cloud: AssistantCloudAPI);
+  list(query?: AssistantCloudProjectThreadsListQuery): Promise<AssistantCloudProjectThreadsListResponse>;
+}
+
+type AssistantCloudProjectThreadsListQuery = {
+  is_archived?: boolean;
+  limit?: number;
+  after?: string;
+};
+
+type AssistantCloudProjectThreadsListResponse = {
+  threads: CloudThread[];
+};
+
+declare class AssistantCloudProjects {
+  readonly threads: AssistantCloudProjectThreads;
+  constructor(cloud: AssistantCloudAPI);
+}
 
 type AssistantCloudRunReport = {
   thread_id: string;
@@ -380,8 +421,8 @@ declare class AssistantCloudThreadMessages {
 }
 
 declare class AssistantCloudThreads {
-  private cloud;
   readonly messages: AssistantCloudThreadMessages;
+  private cloud;
   constructor(cloud: AssistantCloudAPI);
   list(query?: AssistantCloudThreadsListQuery): Promise<AssistantCloudThreadsListResponse>;
   get(threadId: string): Promise<CloudThread>;
@@ -454,6 +495,7 @@ declare class AssistantFrameHost implements ModelContextProvider {
   private _requestCounter;
   private _iframeWindow;
   private _targetOrigin;
+  private _disposed;
   constructor(iframeWindow: Window, targetOrigin?: string);
   private handleMessage;
   private updateContext;
@@ -555,9 +597,9 @@ type AssistantRuntimeCore = {
 };
 
 declare class AssistantRuntimeImpl implements AssistantRuntime {
-  private readonly _core;
   readonly threads: ThreadListRuntimeImpl;
   readonly _thread: ThreadRuntime;
+  private readonly _core;
   constructor(_core: AssistantRuntimeCore);
   protected __internal_bindMethods(): void;
   get thread(): ThreadRuntime;
@@ -573,10 +615,10 @@ declare namespace AssistantRuntimeProvider {
 
 declare const AssistantRuntimeProvider: import("react").NamedExoticComponent<AssistantRuntimeProvider.Props>;
 
-type AssistantState = {
-  [K in ClientNames]: ClientSchemas[K]["methods"] extends {
-    getState: () => infer S;
-  } ? S : never;
+type AssistantState = ScopeStates & {
+  readonly optional: {
+    readonly [K in keyof ScopeStates]: ScopeStates[K] | undefined;
+  };
 };
 
 type AssistantStream = ReadableStream<AssistantStreamChunk>;
@@ -638,7 +680,7 @@ type AssistantStreamChunk = {
   readonly severity?: "critical" | "info" | "warning";
 } | {
   readonly type: "update-state";
-  readonly operations: ObjectStreamOperation[];
+  readonly operations: AssistantTransportStateOperation[];
 });
 
 type AssistantStreamEncoder = ReadableWritablePair<Uint8Array<ArrayBuffer>, AssistantStreamChunk> & {
@@ -716,6 +758,16 @@ type AssistantTransportState = {
 
 type AssistantTransportStateConverter<T> = (state: T, connectionMetadata: AssistantTransportConnectionMetadata) => AssistantTransportState;
 
+type AssistantTransportStateOperation = {
+  readonly type: "set";
+  readonly path: readonly string[];
+  readonly value: ReadonlyJSONValue;
+} | {
+  readonly type: "append-text";
+  readonly path: readonly string[];
+  readonly value: string;
+};
+
 type AsyncIterableStream<T> = AsyncIterable<T> & ReadableStream<T>;
 
 type Attachment = PendingAttachment | CompleteAttachment;
@@ -790,11 +842,11 @@ type AttachmentRuntime<TSource extends AttachmentRuntimeSource = AttachmentRunti
 };
 
 declare abstract class AttachmentRuntimeImpl<Source extends AttachmentRuntimeSource = AttachmentRuntimeSource> implements AttachmentRuntime {
-  private _core;
   get path(): AttachmentRuntimePath & {
     attachmentSource: Source;
   };
   abstract get source(): Source;
+  private _core;
   constructor(_core: AttachmentSnapshotBinding<Source>);
   protected __internal_bindMethods(): void;
   getState(): AttachmentState & {
@@ -842,10 +894,16 @@ declare namespace AuiIf {
 
 declare const AuiIf: FC<AuiIf.Props>;
 
-declare const AuiProvider: (_param0: {
-  value: AssistantClient;
-  children: React.ReactNode;
-}) => React.ReactElement;
+declare const AuiProvider: {
+  (props: {
+    value: AssistantClient;
+    children: React.ReactNode;
+  }): React.ReactElement;
+  (props: {
+    value: null;
+    children: React.ReactNode;
+  }): React.ReactElement;
+};
 
 type AuiToolOverride<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = Partial<Tool<TArgs, TResult>>;
 
@@ -917,6 +975,12 @@ declare abstract class BaseComposerRuntimeCore extends BaseSubscribable implemen
   setText(value: string): void;
   setRole(role: MessageRole): void;
   setRunConfig(runConfig: RunConfig): void;
+  protected _isSending: boolean;
+  private _removedDuringSend;
+  private _sendGeneration;
+  private _attachmentAddOperations;
+  private _cancelAttachmentAdd;
+  private _cancelAllAttachmentAdds;
   private _emptyTextAndAttachments;
   private _onClearAttachments;
   reset(): Promise<void>;
@@ -1149,9 +1213,9 @@ type ClientEventMap = UnionToIntersection<{
   [K in ClientNames]: ClientEvents<K>;
 }[ClientNames]>;
 
-type ClientEvents<K extends ClientNames> = "events" extends keyof ClientSchemas[K] ? ClientSchemas[K]["events"] extends ClientEventsType<K> ? ClientSchemas[K]["events"] : never : never;
+type ClientEvents<K extends ClientNames> = "events" extends keyof ClientSchemas[K] ? ClientSchemas[K]["events"] extends ClientEventsType<K & string> ? ClientSchemas[K]["events"] : never : never;
 
-type ClientEventsType<K extends ClientNames> = Record<`${K}.${string}`, unknown>;
+type ClientEventsType<K extends string> = Record<`${K}.${string}`, unknown>;
 
 type ClientMeta<K extends ClientNames> = "meta" extends keyof ClientSchemas[K] ? Pick<ClientSchemas[K]["meta"] extends ClientMetaType ? ClientSchemas[K]["meta"] : never, "query" | "source"> : never;
 
@@ -1171,15 +1235,15 @@ type ClientOutput<K extends ClientNames> = ClientSchemas[K]["methods"] & ClientM
 type ClientSchemas = keyof ScopeRegistry extends never ? {
   "ERROR: No clients were defined": ClientError<"ERROR: No clients were defined">;
 } : {
-  [K in keyof ScopeRegistry]: ValidateClient<K>;
+  [K in keyof ScopeRegistry]: ValidateClient<K & string, ScopeRegistry[K]>;
 };
 
 declare class CloudFileAttachmentAdapter implements AttachmentAdapter {
-  private cloud;
   accept: string;
+  private cloud;
   constructor(cloud: AssistantCloud);
   private uploadedUrls;
-  add(_param1: {
+  add(_param0: {
     file: File;
   }): AsyncGenerator<PendingAttachment, void>;
   remove(attachment: Attachment): Promise<void>;
@@ -1654,9 +1718,9 @@ type ComposerRuntimeEventPayload = {
 type ComposerRuntimeEventType = keyof ComposerRuntimeEventPayload;
 
 declare abstract class ComposerRuntimeImpl implements ComposerRuntime {
-  protected _core: ComposerRuntimeCoreBinding;
   get path(): ComposerRuntimePath;
   abstract get type(): "edit" | "thread";
+  protected _core: ComposerRuntimeCoreBinding;
   constructor(_core: ComposerRuntimeCoreBinding);
   protected __internal_bindMethods(): void;
   abstract getState(): ComposerState$1;
@@ -1782,7 +1846,6 @@ type DeepPartial<T> = T extends readonly any[] ? readonly DeepPartial<T[number]>
 } : T;
 
 declare class DefaultThreadComposerRuntimeCore extends BaseComposerRuntimeCore implements ThreadComposerRuntimeCore {
-  private runtime;
   private _canCancel;
   get canCancel(): boolean;
   get canSend(): boolean;
@@ -1791,6 +1854,7 @@ declare class DefaultThreadComposerRuntimeCore extends BaseComposerRuntimeCore i
   removeQueueItem(queueItemId: string): void;
   protected getAttachmentAdapter(): AttachmentAdapter | undefined;
   protected getDictationAdapter(): DictationAdapter | undefined;
+  private runtime;
   constructor(runtime: Omit<ThreadRuntimeCore, "composer"> & {
     adapters?: {
       attachments?: AttachmentAdapter | undefined;
@@ -1802,19 +1866,9 @@ declare class DefaultThreadComposerRuntimeCore extends BaseComposerRuntimeCore i
   handleCancel(): Promise<void>;
 }
 
-declare const Derived: <K extends ClientNames>(_config: Derived.Props<K>) => ResourceElement<null, [
-  _config: Derived.Props<K>
-]>;
+type DerivedElement<K extends ClientNames> = ResourceElement<DerivedInstance<K>>;
 
-declare namespace Derived {
-  type Props<K extends ClientNames> = {
-    get: (client: AssistantClient) => ReturnType<AssistantClientAccessor<K>>;
-  } & ClientMeta<K>;
-}
-
-type DerivedElement<K extends ClientNames> = ResourceElement<null, [
-  Derived.Props<K>
-]>;
+type DerivedInstance<K extends ClientNames> = ReturnType<AssistantClientAccessor<K>>;
 
 interface DevToolsApiEntry {
   api: Partial<AssistantClient>;
@@ -1902,12 +1956,12 @@ type EditComposerRuntimeCoreBinding = SubscribableWithState<EditComposerRuntimeC
 }>;
 
 declare class EditComposerRuntimeImpl extends ComposerRuntimeImpl implements EditComposerRuntime {
-  private _beginEdit;
   get path(): ComposerRuntimePath & {
     composerSource: "edit";
   };
   get type(): "edit";
   private _getState;
+  private _beginEdit;
   constructor(core: EditComposerRuntimeCoreBinding, _beginEdit: () => void);
   __internal_bindMethods(): void;
   getState(): EditComposerState;
@@ -2097,12 +2151,20 @@ type ExternalThreadMessage = ThreadMessage & {
 type ExternalThreadProps = {
   messages: readonly ExternalThreadMessage[];
   isRunning?: boolean;
+  isLoading?: boolean | undefined;
+  state?: ReadonlyJSONValue | undefined;
+  extras?: unknown;
   isSendDisabled?: boolean;
   onNew?: (message: AppendMessage) => void;
   onEdit?: (message: AppendMessage) => void;
   onReload?: (parentId: string | null) => void;
   onStartRun?: () => void;
   onCancel?: () => void;
+  onResume?: (() => void) | undefined;
+  onAddToolResult?: ((options: AddToolResultOptions) => void) | undefined;
+  onResumeToolCall?: ((options: ResumeToolCallOptions) => void) | undefined;
+  onLoadExternalState?: ((state: unknown) => void) | undefined;
+  attachmentAdapter?: AttachmentAdapter | undefined;
   queue?: ExternalThreadQueueAdapter;
   branches?: ExternalThreadBranchAdapter;
   onRespondToToolApproval?: (options: RespondToToolApprovalOptions) => void;
@@ -2134,6 +2196,7 @@ type FileMessagePart = {
   readonly filename?: string;
   readonly data: string;
   readonly mimeType: string;
+  readonly sourceType?: "id" | "url";
   readonly parentId?: string;
 };
 
@@ -2240,7 +2303,7 @@ type GroupByContext = {
   readonly toolUIs?: ToolsState["toolUIs"];
 };
 
-type GroupPartType = PartState["type"] | "standalone-tool-call" | "mcp-app";
+type GroupPartType = PartState["type"] | "standalone-tool-call";
 
 type GroupingFunction = (parts: readonly any[]) => MessagePartGroup[];
 
@@ -2673,11 +2736,11 @@ type MessagePartRuntime = {
 };
 
 declare class MessagePartRuntimeImpl implements MessagePartRuntime {
-  private contentBinding;
-  private messageApi?;
-  private threadApi?;
   get path(): MessagePartRuntimePath;
-  constructor(contentBinding: MessagePartSnapshotBinding, messageApi?: MessageStateBinding | undefined, threadApi?: ThreadRuntimeCoreBinding | undefined);
+  private contentBinding;
+  private messageApi;
+  private threadApi;
+  constructor(contentBinding: MessagePartSnapshotBinding, messageApi?: MessageStateBinding, threadApi?: ThreadRuntimeCoreBinding);
   protected __internal_bindMethods(): void;
   getState(): MessagePartState;
   addToolResult(result: any | ToolResponse<any>): void;
@@ -2710,6 +2773,15 @@ type MessagePartStatus = {
   readonly type: "incomplete";
   readonly reason: "cancelled" | "content-filter" | "error" | "length" | "other";
   readonly error?: unknown;
+};
+
+type MessagePartStreamStatus = {
+  readonly type: "running";
+} | {
+  readonly type: "complete";
+} | {
+  readonly type: "incomplete";
+  readonly reason: "cancelled" | "content-filter" | "error" | "length" | "other";
 };
 
 declare namespace MessagePrimitiveAttachmentByIndex {
@@ -2772,7 +2844,7 @@ declare namespace MessagePrimitiveGroupedParts {
 }
 
 declare const MessagePrimitiveGroupedParts: {
-  <TKey extends `group-${string}`>(_param2: MessagePrimitiveGroupedParts.Props<TKey>): ReactNode;
+  <TKey extends `group-${string}`>(_param1: MessagePrimitiveGroupedParts.Props<TKey>): ReactNode;
   displayName: string;
 };
 
@@ -2949,7 +3021,7 @@ declare class MessageRepository {
   resetHead(messageId: string | null): void;
   clear(): void;
   export(): ExportedMessageRepository;
-  import(_param3: ExportedMessageRepository): void;
+  import(_param2: ExportedMessageRepository): void;
 }
 
 type MessageRole = ThreadMessage["role"];
@@ -2962,10 +3034,10 @@ type MessageRuntime = {
   reload(config?: ReloadConfig): void;
   speak(): void;
   stopSpeaking(): void;
-  submitFeedback(_param4: {
+  submitFeedback(_param3: {
     type: "positive" | "negative";
   }): void;
-  switchToBranch(_param5: {
+  switchToBranch(_param4: {
     position?: "previous" | "next" | undefined;
     branchId?: string | undefined;
   }): void;
@@ -2979,9 +3051,9 @@ type MessageRuntime = {
 };
 
 declare class MessageRuntimeImpl implements MessageRuntime {
+  get path(): MessageRuntimePath;
   private _core;
   private _threadBinding;
-  get path(): MessageRuntimePath;
   constructor(_core: MessageStateBinding, _threadBinding: ThreadRuntimeCoreBinding);
   protected __internal_bindMethods(): void;
   readonly composer: EditComposerRuntimeImpl;
@@ -2998,10 +3070,10 @@ declare class MessageRuntimeImpl implements MessageRuntime {
   reload(reloadConfig?: ReloadConfig): void;
   speak(): void;
   stopSpeaking(): void;
-  submitFeedback(_param6: {
+  submitFeedback(_param5: {
     type: "positive" | "negative";
   }): void;
-  switchToBranch(_param7: {
+  switchToBranch(_param6: {
     position?: "previous" | "next" | undefined;
     branchId?: string | undefined;
   }): void;
@@ -3151,16 +3223,6 @@ interface ModelContextRegistryToolHandle<TArgs extends Record<string, unknown> =
 
 type ObjectKey<T> = keyof T & (string | number);
 
-type ObjectStreamOperation = {
-  readonly type: "set";
-  readonly path: readonly string[];
-  readonly value: ReadonlyJSONValue;
-} | {
-  readonly type: "append-text";
-  readonly path: readonly string[];
-  readonly value: string;
-};
-
 type OnSchemaValidationErrorFunction<TResult> = ToolExecuteFunction<unknown, TResult>;
 
 type OverrideOptionalField<T, TKey extends keyof T, TValue> = undefined extends T[TKey] ? Exclude<T[TKey], undefined> extends never ? {
@@ -3177,7 +3239,7 @@ type OverrideToolDeclarationCallbacks<T extends {
   type?: never;
 } & ("execute" extends keyof T ? OverrideOptionalField<T, "execute", ToolExecute<NoInfer<TArgs>, TResult>> : {}) & ("toModelOutput" extends keyof T ? OverrideOptionalField<T, "toModelOutput", ToolModelOutputFunction<NoInfer<TArgs>, NoInfer<TResult>>> : {}) & ("experimental_onSchemaValidationError" extends keyof T ? OverrideOptionalField<T, "experimental_onSchemaValidationError", (args: unknown, context: ToolExecuteContext) => NoInfer<TResult> | Promise<NoInfer<TResult>>> : {}) & OverrideOptionalField<T, "streamCall", ToolStreamCall<TArgs, unknown>>;
 
-type ParentOf<K extends ClientNames> = AssistantClientAccessor<K> extends {
+type ParentOf<K extends ClientNames> = ClientMeta<K> extends {
   source: infer S;
 } ? S extends ClientNames ? S : never : never;
 
@@ -3513,6 +3575,7 @@ type ReasoningGroupProps = PropsWithChildren<{
 type ReasoningMessagePart = {
   readonly type: "reasoning";
   readonly text: string;
+  readonly status?: MessagePartStreamStatus;
   readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };
@@ -3533,7 +3596,7 @@ type ReloadConfig = {
 
 type RemoteThreadInitializeResponse = {
   remoteId: string;
-  externalId: string | undefined;
+  externalId?: string | undefined;
 };
 
 type RemoteThreadListAdapter = {
@@ -3595,11 +3658,15 @@ type RequireAtLeastOne$1<T, Keys extends keyof T = keyof T> = Pick<T, Exclude<ke
   [K in Keys]-?: Required<Pick<T, K>> & Partial<Pick<T, Exclude<Keys, K>>>;
 }[Keys];
 
-type Resource<R, A extends readonly unknown[] = any[]> = (...args: A) => ResourceElement<R, A>;
+type ReservedAccessorProps = "name" | "query" | "source";
 
-type ResourceElement<R, A extends readonly unknown[] = any[]> = {
-  readonly hook: (...args: A) => R;
-  readonly args: Readonly<A>;
+type ReservedScopeNames = "on" | "optional" | "subscribe";
+
+type Resource<V, A extends readonly unknown[] = any[]> = (...args: A) => ResourceElement<V>;
+
+type ResourceElement<V> = {
+  readonly hook: (...args: any[]) => V;
+  readonly args: readonly unknown[];
   readonly key?: string | number;
   readonly deps?: readonly unknown[];
 };
@@ -3680,6 +3747,12 @@ type SandboxOption = "allow-downloads" | "allow-forms" | "allow-modals" | "allow
 interface ScopeRegistry {
   [key: string]: { methods: any; meta?: any; events?: any };
 }
+
+type ScopeStates = {
+  [K in ClientNames]: ClientSchemas[K]["methods"] extends {
+    getState: () => infer S;
+  } ? S : never;
+};
 
 type SelectItemOverride = (item: Unstable_TriggerItem) => boolean;
 
@@ -3955,6 +4028,7 @@ declare const TOOL_RESPONSE_SYMBOL: unique symbol;
 type TextMessagePart = {
   readonly type: "text";
   readonly text: string;
+  readonly status?: MessagePartStreamStatus;
   readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };
@@ -4048,6 +4122,7 @@ type ThreadHistoryAdapter = {
   }>;
   resume?(options: ChatModelRunOptions): AsyncGenerator<ChatModelRunResult, void, unknown>;
   append(item: ExportedMessageRepositoryItem): Promise<void>;
+  update?(item: ExportedMessageRepositoryItem): Promise<void>;
   delete?(items: ExportedMessageRepositoryItem[]): Promise<void>;
   withFormat?<TMessage, TStorageFormat extends Record<string, unknown>>(formatAdapter: MessageFormatAdapter<TMessage, TStorageFormat>): GenericThreadHistoryAdapter<TMessage>;
 };
@@ -4219,9 +4294,9 @@ type ThreadListItemRuntime = {
 type ThreadListItemRuntimeBinding = SubscribableWithState<ThreadListItemState$1, ThreadListItemRuntimePath>;
 
 declare class ThreadListItemRuntimeImpl implements ThreadListItemRuntime {
+  get path(): ThreadListItemRuntimePath;
   private _core;
   private _threadListBinding;
-  get path(): ThreadListItemRuntimePath;
   constructor(_core: ThreadListItemStateBinding, _threadListBinding: ThreadListRuntimeCoreBinding);
   protected __internal_bindMethods(): void;
   getState(): ThreadListItemState$1;
@@ -4406,9 +4481,9 @@ type ThreadListRuntimeCore = {
 type ThreadListRuntimeCoreBinding = ThreadListRuntimeCore;
 
 declare class ThreadListRuntimeImpl implements ThreadListRuntime {
+  private _getState;
   private _core;
   private _runtimeFactory;
-  private _getState;
   constructor(_core: ThreadListRuntimeCoreBinding, _runtimeFactory?: new (binding: ThreadRuntimeCoreBinding, threadListItemBinding: ThreadListItemRuntimeBinding) => ThreadRuntime);
   protected __internal_bindMethods(): void;
   switchToThread(threadId: string, options?: {
@@ -4928,6 +5003,7 @@ type ThreadUserMessage = MessageCommonProps & {
     readonly steps?: undefined;
     readonly submittedFeedback?: undefined;
     readonly timing?: undefined;
+    readonly isOptimistic?: boolean;
     readonly custom: Record<string, unknown>;
   };
 };
@@ -4943,7 +5019,7 @@ type ThreadViewportState = {
   readonly scrollToBottom: (config?: {
     behavior?: ScrollBehavior | undefined;
   }) => void;
-  readonly onScrollToBottom: (callback: (_param8: {
+  readonly onScrollToBottom: (callback: (_param7: {
     behavior: ScrollBehavior;
   }) => void) => Unsubscribe;
   readonly turnAnchor: "bottom" | "top";
@@ -5026,6 +5102,7 @@ type ToolArgsStatus<TArgs extends Record<string, unknown> = Record<string, unkno
 type ToolBase<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = {
   streamCall?: ToolStreamCallFunction<TArgs, TResult>;
   display?: ToolDisplay;
+  overwrite?: boolean;
 };
 
 interface ToolCallArgsReader<TArgs extends Record<string, unknown>> {
@@ -5229,7 +5306,6 @@ declare const Tools: Resource<ClientOutput<"tools">, [
 type ToolsState = {
   toolUIs: Record<string, readonly ToolRegistration[]>;
   mcpApp?: McpAppResourceOutput | undefined;
-  tools: Record<string, ToolCallMessagePartComponent[]>;
 };
 
 type TriggerBehavior = {
@@ -5599,9 +5675,15 @@ type UserMessage = {
 
 type UserMessagePart = TextPart | ImagePart;
 
-type ValidateClient<K extends keyof ScopeRegistry> = ScopeRegistry[K] extends {
+type ValidateClient<K extends string, TClient> = K extends ReservedScopeNames ? ClientError<`ERROR: ${K} is a reserved scope name`> : unknown extends ValidateMethods<K, TClient> & ValidateMeta<K, TClient> & ValidateEvents<K, TClient> ? TClient : ValidateMethods<K, TClient> & ValidateMeta<K, TClient> & ValidateEvents<K, TClient> & ClientError<never>;
+
+type ValidateEvents<K extends string, TClient> = "events" extends keyof TClient ? TClient["events"] extends ClientEventsType<K> ? unknown : ClientError<`ERROR: ${K} has invalid events type`> : unknown;
+
+type ValidateMeta<K extends string, TClient> = "meta" extends keyof TClient ? TClient["meta"] extends ClientMetaType ? unknown : ClientError<`ERROR: ${K} has invalid meta type`> : unknown;
+
+type ValidateMethods<K extends string, TClient> = TClient extends {
   methods: ClientMethods;
-} ? "meta" extends keyof ScopeRegistry[K] ? ScopeRegistry[K]["meta"] extends ClientMetaType ? "events" extends keyof ScopeRegistry[K] ? ScopeRegistry[K]["events"] extends ClientEventsType<K> ? ScopeRegistry[K] : ClientError<`ERROR: ${K & string} has invalid events type`> : ScopeRegistry[K] : ClientError<`ERROR: ${K & string} has invalid meta type`> : "events" extends keyof ScopeRegistry[K] ? ScopeRegistry[K]["events"] extends ClientEventsType<K> ? ScopeRegistry[K] : ClientError<`ERROR: ${K & string} has invalid events type`> : ScopeRegistry[K] : ClientError<`ERROR: ${K & string} has invalid methods type`>;
+} ? keyof TClient["methods"] & ReservedAccessorProps extends never ? unknown : ClientError<`ERROR: ${K} methods declare a reserved accessor property (source/query/name)`> : ClientError<`ERROR: ${K} has invalid methods type`>;
 
 type VoiceSessionControls = {
   disconnect: () => void;
@@ -5701,7 +5783,7 @@ declare namespace composer_d_exports {
 declare const convertExternalMessages: <T extends WeakKey>(messages: T[], callback: useExternalMessageConverter.Callback<T>, isRunning: boolean, metadata: useExternalMessageConverter.Metadata) => ThreadMessage[];
 
 declare const createMessageConverter: <T extends object>(callback: useExternalMessageConverter.Callback<T>) => {
-  useThreadMessages: (_param9: {
+  useThreadMessages: (_param8: {
     messages: T[];
     isRunning: boolean;
     joinStrategy?: JoinStrategy | undefined;
@@ -5776,7 +5858,7 @@ declare const hitlTool: typeof humanTool;
 declare function humanTool(): never;
 
 declare namespace entry_root_exports {
-  export { actionBarMore_d_exports as ActionBarMorePrimitive, actionBar_d_exports as ActionBarPrimitive, AddToolResultOptions, AppendMessage, Assistant, AssistantClient, AssistantCloud, AssistantContextConfig, AssistantDataUI, AssistantDataUIProps, AssistantEventCallback, AssistantEventName, AssistantEventPayload, AssistantEventScope, AssistantEventSelector, AssistantFrameHost, AssistantFrameProvider, AssistantInteractableProps, assistantModal_d_exports as AssistantModalPrimitive, AssistantRuntime, AssistantRuntimeProvider, AssistantState, AssistantTool, AssistantToolProps, AssistantToolUI, AssistantToolUIProps, AssistantTransportCommand, AssistantTransportConnectionMetadata, AssistantTransportProtocol, Attachment, AttachmentAdapter, attachment_d_exports as AttachmentPrimitive, AttachmentRuntime, AttachmentState, AttachmentStatus, AuiIf, AuiProvider, branchPicker_d_exports as BranchPickerPrimitive, ChainOfThoughtByIndicesProvider, ChainOfThoughtClient, chainOfThought_d_exports as ChainOfThoughtPrimitive, ChatModelAdapter, ChatModelRunOptions, ChatModelRunResult, ChatModelRunUpdate, CloudFileAttachmentAdapter, CompleteAttachment, ComposerAttachmentByIndexProvider, composer_d_exports as ComposerPrimitive, ComposerRuntime, ComposerSendOptions, ComposerState$1 as ComposerState, CompositeAttachmentAdapter, CreateAppendMessage, CreateAttachment, CreateResumeRunConfig, CreateStartRunConfig, DataMessagePart, DataMessagePartComponent, DataMessagePartProps, DataRenderers, DevToolsHooks, DevToolsProviderApi, DictationAdapter, DictationState, EditComposerRuntime, EditComposerState, EmptyMessagePartComponent, EmptyMessagePartProps, EnrichedPartState, error_d_exports as ErrorPrimitive, ExportedMessageRepository, ExportedMessageRepositoryItem, ExternalStoreAdapter, ExternalStoreBranchChange, ExternalStoreMessageConverter, ExternalStoreSharedOptions, ExternalStoreThreadData, ExternalStoreThreadListAdapter, ExternalThread, ExternalThreadBranchAdapter, ExternalThreadMessage, ExternalThreadProps, ExternalThreadQueueAdapter, FRAME_MESSAGE_CHANNEL, FeedbackAdapter, FileMessagePart, FileMessagePartComponent, FileMessagePartProps, FrameMessage, FrameMessageType, GenerativeUIComponentRegistry, GenerativeUIMessagePart, GenerativeUIMessagePartComponent, GenerativeUIMessagePartProps, GenerativeUINode, GenerativeUIRender, GenerativeUIRenderError, GenerativeUIRenderProps, GenerativeUISpec, GenericThreadHistoryAdapter, GroupByContext, internal_d_exports as INTERNAL, ImageMessagePart, ImageMessagePartComponent, ImageMessagePartProps, InMemoryThreadList, InMemoryThreadListAdapter, InMemoryThreadListProps, Interactables, LanguageModelConfig, LanguageModelV1CallSettings, LocalRuntimeOptions, LocalRuntimeOptionsBase, McpAppDisplayMode, McpAppHostContext, McpAppHostInfo, McpAppMetadata, McpAppRenderer, McpAppRendererOptions, McpAppResource, McpAppResourceCSP, McpAppResourceMeta, McpAppResourceOutput, McpAppSandboxConfig, McpAppToolCallParams, McpAppsHost, McpAppsRemoteHost, McpAppsRemoteHostOptions, McpToolkitDefinition, McpToolkitEntry, McpToolkitToolConfig, MessageAttachmentByIndexProvider, MessageByIndexProvider, MessageFormatAdapter, MessageFormatItem, MessageFormatRepository, messagePart_d_exports as MessagePartPrimitive, MessagePartRuntime, MessagePartState, MessagePartStatus, message_d_exports as MessagePrimitive, MessageProvider, MessageQueueController, MessageQueueDriver, MessageRuntime, MessageState$1 as MessageState, MessageStatus, MessageStorageEntry, MessageTiming, ModelContext$1 as ModelContext, ModelContext as ModelContextClient, ModelContextProvider, ModelContextRegistry, ModelContextRegistryInstructionHandle, ModelContextRegistryProviderHandle, ModelContextRegistryToolHandle, PartByIndexProvider, PartProviderMetadata, PartState, PendingAttachment, ProviderToolConfig, QueueItemMethods, queueItem_d_exports as QueueItemPrimitive, QueueItemState, QuoteInfo, QuoteMessagePartComponent, QuoteMessagePartProps, ReadonlyThreadProvider, RealtimeVoiceAdapter, ReasoningGroupComponent, ReasoningGroupProps, ReasoningMessagePart, ReasoningMessagePartComponent, ReasoningMessagePartProps, RemoteThreadListAdapter, RespondToToolApprovalOptions, RuntimeAdapterProvider, RuntimeAdapters, selectionToolbar_d_exports as SelectionToolbarPrimitive, SendCommandsRequestBody, SerializedModelContext, SerializedTool, SimpleImageAttachmentAdapter, SimpleTextAttachmentAdapter, SingleThreadList, SmoothOptions, SourceMessagePart, SourceMessagePartComponent, SourceMessagePartProps, SourceProviderMetadata, SpeechSynthesisAdapter, SubmitFeedbackOptions, SuggestionAdapter, SuggestionByIndexProvider, SuggestionConfig, suggestion_d_exports as SuggestionPrimitive, Suggestions, TextMessagePart, TextMessagePartComponent, TextMessagePartProps, TextMessagePartProvider, ThreadAssistantMessage, ThreadAssistantMessagePart, ThreadComposerRuntime, ThreadComposerState, ThreadHistoryAdapter, ThreadListItemByIndexProvider, threadListItemMore_d_exports as ThreadListItemMorePrimitive, threadListItem_d_exports as ThreadListItemPrimitive, ThreadListItemRuntime, ThreadListItemRuntimeProvider, ThreadListItemState$1 as ThreadListItemState, ThreadListItemStatus, threadList_d_exports as ThreadListPrimitive, ThreadListRuntime, ThreadListState, ThreadMessage, ThreadMessageLike, thread_d_exports as ThreadPrimitive, ThreadRuntime, ThreadState, ThreadSuggestion, ThreadSystemMessage, ThreadUserMessage, ThreadUserMessagePart, ThreadViewportState, Tool, ToolApprovalOption, ToolApprovalOptionKind, ToolApprovalResponse, ToolArgsStatus, ToolCallMessagePart, ToolCallMessagePartComponent, ToolCallMessagePartMcpMetadata, ToolCallMessagePartProps, ToolCallMessagePartStatus, ToolCallText, ToolCallTiming, ToolDefinition, ToolExecutionStatus, ToolModelContentPart, Toolkit, ToolkitDefinition, ToolkitDefinitionEntry, Tools, Unstable_AudioMessagePart, Unstable_AudioMessagePartComponent, Unstable_AudioMessagePartProps, Unstable_ComposerInput, Unstable_ComposerInputHistory, Unstable_DirectiveFormatter, Unstable_DirectiveSegment, Unstable_IconComponent, Unstable_InferInteractableState, Unstable_InteractableConfig, Unstable_InteractableDefinition, Unstable_InteractablePersistedState, Unstable_InteractablePersistenceAdapter, Unstable_InteractablePersistenceStatus, Unstable_InteractableRegistration, Unstable_InteractableSnapshotEntry, Unstable_InteractableStateSchema, Unstable_InteractableToolConfig, Unstable_InteractableToolRenderProps, Unstable_InteractableVersion, Unstable_InteractableVersionInfo, Unstable_InteractablesClientSchema, Unstable_InteractablesConfig, Unstable_InteractablesMethods, Unstable_InteractablesState, Unstable_Mention, Unstable_MentionCategory, Unstable_MentionDirective, Unstable_MessageStallDetection, Unstable_MessageStallDetectionOptions, Unstable_ModelContextToolsOptions, RegisteredTrigger as Unstable_RegisteredTrigger, Unstable_SlashCommand, Unstable_SlashCommandAction, TriggerBehavior as Unstable_TriggerBehavior, Unstable_TriggerItem, Unstable_TriggerPopoverAriaProps, Unstable_UseComposerInputOptions, Unstable_UseLiveCompletionAdapterOptions, Unstable_UseMentionAdapterOptions, Unstable_UseSlashCommandAdapterOptions, Unsubscribe, VoiceSessionControls, VoiceSessionHelpers, VoiceSessionState, WebSpeechDictationAdapter, WebSpeechSynthesisAdapter, bindExternalStoreMessage, createMessageQueue, createVoiceSession, defineMcpToolkit, defineToolkit, externalTool, fromThreadMessageLike, generateId, getExternalStoreMessages, getMcpAppFromToolPart, groupPartByType, hitl, hitlTool, humanTool, makeAssistantDataUI, makeAssistantTool, makeAssistantToolUI, makeAssistantVisible, mergeModelContexts, pickExternalStoreSharedOptions, providerTool, stubTool, tool, unstable_Interactables, convertExternalMessages as unstable_convertExternalMessages, createMessageConverter as unstable_createMessageConverter, unstable_defaultDirectiveFormatter, unstable_formatInteractableSnapshot, unstable_getInteractableSnapshots, unstable_getInteractableVersions, unstable_interactableTool, unstable_useComposerInput, unstable_useComposerInputHistory, unstable_useInteractable, unstable_useInteractableState, unstable_useInteractableVersions, unstable_useLiveCompletionAdapter, unstable_useMentionAdapter, unstable_useMessageStallDetection, unstable_useSlashCommandAdapter, unstable_useThreadMessageIds, unstable_useTriggerPopoverAriaProps, useTriggerPopoverRootContext as unstable_useTriggerPopoverRootContext, useTriggerPopoverRootContextOptional as unstable_useTriggerPopoverRootContextOptional, useTriggerPopoverScopeContext as unstable_useTriggerPopoverScopeContext, useTriggerPopoverScopeContextOptional as unstable_useTriggerPopoverScopeContextOptional, useTriggerPopoverTriggers as unstable_useTriggerPopoverTriggers, useTriggerPopoverTriggersOptional as unstable_useTriggerPopoverTriggersOptional, useAssistantContext, useAssistantDataUI, useAssistantFrameHost, useAssistantInstructions, useAssistantInteractable, useAssistantRuntime, useAssistantTool, useAssistantToolUI, useAssistantTransportRuntime, useAssistantTransportSendCommand, useAssistantTransportState, useAttachment, useAttachmentRuntime, useAui, useAuiEvent, useAuiState, useAuiToolOverrides, useCloudThreadListAdapter, useCloudThreadListRuntime, useComposer, useComposerRuntime, useEditComposer, useEditComposerAttachment, useEditComposerAttachmentRuntime, useExternalMessageConverter, useExternalStoreRuntime, useExternalStoreSharedOptions, useInlineRender, useInteractableState, useLocalRuntime, useMessage, useMessageAttachment, useMessageAttachmentRuntime, useMessagePart, useMessagePartData, useMessagePartFile, useMessagePartImage, useMessagePartReasoning, useMessagePartRuntime, useMessagePartSource, useMessagePartText, useMessageQuote, useMessageRuntime, useMessageTiming, useRemoteThreadListRuntime, useRuntimeAdapters, useScrollLock, useSmooth, useThread, useThreadComposer, useThreadComposerAttachment, useThreadComposerAttachmentRuntime, useThreadList, useThreadListItem, useThreadListItemRuntime, useThreadModelContext, useThreadRuntime, useThreadViewport, useThreadViewportAutoScroll, useThreadViewportStore, useToolArgsStatus, useToolCallElapsed, useVoiceControls, useVoiceState, useVoiceVolume };
+  export { actionBarMore_d_exports as ActionBarMorePrimitive, actionBar_d_exports as ActionBarPrimitive, AddToolResultOptions, AppendMessage, Assistant, AssistantClient, AssistantCloud, AssistantContextConfig, AssistantDataUI, AssistantDataUIProps, AssistantEventCallback, AssistantEventName, AssistantEventPayload, AssistantEventScope, AssistantEventSelector, AssistantFrameHost, AssistantFrameProvider, AssistantInteractableProps, assistantModal_d_exports as AssistantModalPrimitive, AssistantRuntime, AssistantRuntimeProvider, AssistantState, AssistantTool, AssistantToolProps, AssistantToolUI, AssistantToolUIProps, AssistantTransportCommand, AssistantTransportConnectionMetadata, AssistantTransportProtocol, Attachment, AttachmentAdapter, attachment_d_exports as AttachmentPrimitive, AttachmentRuntime, AttachmentState, AttachmentStatus, AuiIf, AuiProvider, branchPicker_d_exports as BranchPickerPrimitive, ChainOfThoughtByIndicesProvider, ChainOfThoughtClient, chainOfThought_d_exports as ChainOfThoughtPrimitive, ChatModelAdapter, ChatModelRunOptions, ChatModelRunResult, ChatModelRunUpdate, CloudFileAttachmentAdapter, CompleteAttachment, ComposerAttachmentByIndexProvider, composer_d_exports as ComposerPrimitive, ComposerRuntime, ComposerSendOptions, ComposerState$1 as ComposerState, CompositeAttachmentAdapter, CreateAppendMessage, CreateAttachment, CreateResumeRunConfig, CreateStartRunConfig, DataMessagePart, DataMessagePartComponent, DataMessagePartProps, DataRenderers, DevToolsHooks, DevToolsProviderApi, DictationAdapter, DictationState, EditComposerRuntime, EditComposerState, EmptyMessagePartComponent, EmptyMessagePartProps, EnrichedPartState, error_d_exports as ErrorPrimitive, ExportedMessageRepository, ExportedMessageRepositoryItem, ExternalStoreAdapter, ExternalStoreBranchChange, ExternalStoreMessageConverter, ExternalStoreSharedOptions, ExternalStoreThreadData, ExternalStoreThreadListAdapter, ExternalThread, ExternalThreadBranchAdapter, ExternalThreadMessage, ExternalThreadProps, ExternalThreadQueueAdapter, FRAME_MESSAGE_CHANNEL, FeedbackAdapter, FileMessagePart, FileMessagePartComponent, FileMessagePartProps, FrameMessage, FrameMessageType, GenerativeUIComponentRegistry, GenerativeUIMessagePart, GenerativeUIMessagePartComponent, GenerativeUIMessagePartProps, GenerativeUINode, GenerativeUIRender, GenerativeUIRenderError, GenerativeUIRenderProps, GenerativeUISpec, GenericThreadHistoryAdapter, GroupByContext, internal_d_exports as INTERNAL, ImageMessagePart, ImageMessagePartComponent, ImageMessagePartProps, InMemoryThreadList, InMemoryThreadListAdapter, InMemoryThreadListProps, Interactables, LanguageModelConfig, LanguageModelV1CallSettings, LocalRuntimeOptions, LocalRuntimeOptionsBase, McpAppDisplayMode, McpAppHostContext, McpAppHostInfo, McpAppMetadata, McpAppRenderer, McpAppRendererOptions, McpAppResource, McpAppResourceCSP, McpAppResourceMeta, McpAppResourceOutput, McpAppSandboxConfig, McpAppToolCallParams, McpAppsHost, McpAppsRemoteHost, McpAppsRemoteHostOptions, McpToolkitDefinition, McpToolkitEntry, McpToolkitToolConfig, MessageAttachmentByIndexProvider, MessageByIndexProvider, MessageFormatAdapter, MessageFormatItem, MessageFormatRepository, messagePart_d_exports as MessagePartPrimitive, MessagePartRuntime, MessagePartState, MessagePartStatus, MessagePartStreamStatus, message_d_exports as MessagePrimitive, MessageProvider, MessageQueueController, MessageQueueDriver, MessageRuntime, MessageState$1 as MessageState, MessageStatus, MessageStorageEntry, MessageTiming, ModelContext$1 as ModelContext, ModelContext as ModelContextClient, ModelContextProvider, ModelContextRegistry, ModelContextRegistryInstructionHandle, ModelContextRegistryProviderHandle, ModelContextRegistryToolHandle, PartByIndexProvider, PartProviderMetadata, PartState, PendingAttachment, ProviderToolConfig, QueueItemMethods, queueItem_d_exports as QueueItemPrimitive, QueueItemState, QuoteInfo, QuoteMessagePartComponent, QuoteMessagePartProps, ReadonlyThreadProvider, RealtimeVoiceAdapter, ReasoningGroupComponent, ReasoningGroupProps, ReasoningMessagePart, ReasoningMessagePartComponent, ReasoningMessagePartProps, RemoteThreadListAdapter, RespondToToolApprovalOptions, RuntimeAdapterProvider, RuntimeAdapters, selectionToolbar_d_exports as SelectionToolbarPrimitive, SendCommandsRequestBody, SerializedModelContext, SerializedTool, SimpleImageAttachmentAdapter, SimpleTextAttachmentAdapter, SingleThreadList, SmoothOptions, SourceMessagePart, SourceMessagePartComponent, SourceMessagePartProps, SourceProviderMetadata, SpeechSynthesisAdapter, SubmitFeedbackOptions, SuggestionAdapter, SuggestionByIndexProvider, SuggestionConfig, suggestion_d_exports as SuggestionPrimitive, Suggestions, TextMessagePart, TextMessagePartComponent, TextMessagePartProps, TextMessagePartProvider, ThreadAssistantMessage, ThreadAssistantMessagePart, ThreadComposerRuntime, ThreadComposerState, ThreadHistoryAdapter, ThreadListItemByIndexProvider, threadListItemMore_d_exports as ThreadListItemMorePrimitive, threadListItem_d_exports as ThreadListItemPrimitive, ThreadListItemRuntime, ThreadListItemRuntimeProvider, ThreadListItemState$1 as ThreadListItemState, ThreadListItemStatus, threadList_d_exports as ThreadListPrimitive, ThreadListRuntime, ThreadListState, ThreadMessage, ThreadMessageLike, thread_d_exports as ThreadPrimitive, ThreadRuntime, ThreadState, ThreadSuggestion, ThreadSystemMessage, ThreadUserMessage, ThreadUserMessagePart, ThreadViewportState, Tool, ToolApprovalOption, ToolApprovalOptionKind, ToolApprovalResponse, ToolArgsStatus, ToolCallMessagePart, ToolCallMessagePartComponent, ToolCallMessagePartMcpMetadata, ToolCallMessagePartProps, ToolCallMessagePartStatus, ToolCallText, ToolCallTiming, ToolDefinition, ToolExecutionStatus, ToolModelContentPart, Toolkit, ToolkitDefinition, ToolkitDefinitionEntry, Tools, Unstable_AudioMessagePart, Unstable_AudioMessagePartComponent, Unstable_AudioMessagePartProps, Unstable_ComposerInput, Unstable_ComposerInputHistory, Unstable_DirectiveFormatter, Unstable_DirectiveSegment, Unstable_IconComponent, Unstable_InferInteractableState, Unstable_InteractableConfig, Unstable_InteractableDefinition, Unstable_InteractablePersistedState, Unstable_InteractablePersistenceAdapter, Unstable_InteractablePersistenceStatus, Unstable_InteractableRegistration, Unstable_InteractableSnapshotEntry, Unstable_InteractableStateSchema, Unstable_InteractableToolConfig, Unstable_InteractableToolRenderProps, Unstable_InteractableVersion, Unstable_InteractableVersionInfo, Unstable_InteractablesClientSchema, Unstable_InteractablesConfig, Unstable_InteractablesMethods, Unstable_InteractablesState, Unstable_Mention, Unstable_MentionCategory, Unstable_MentionDirective, Unstable_MessageStallDetection, Unstable_MessageStallDetectionOptions, Unstable_ModelContextToolsOptions, RegisteredTrigger as Unstable_RegisteredTrigger, Unstable_SlashCommand, Unstable_SlashCommandAction, TriggerBehavior as Unstable_TriggerBehavior, Unstable_TriggerItem, Unstable_TriggerPopoverAriaProps, Unstable_UseComposerInputOptions, Unstable_UseLiveCompletionAdapterOptions, Unstable_UseMentionAdapterOptions, Unstable_UseSlashCommandAdapterOptions, Unsubscribe, VoiceSessionControls, VoiceSessionHelpers, VoiceSessionState, WebSpeechDictationAdapter, WebSpeechSynthesisAdapter, bindExternalStoreMessage, createMessageQueue, createVoiceSession, defineMcpToolkit, defineToolkit, externalTool, fromThreadMessageLike, generateId, getExternalStoreMessages, getMcpAppFromToolPart, groupPartByType, hitl, hitlTool, humanTool, makeAssistantDataUI, makeAssistantTool, makeAssistantToolUI, makeAssistantVisible, mergeModelContexts, pickExternalStoreSharedOptions, providerTool, stubTool, tool, unstable_Interactables, convertExternalMessages as unstable_convertExternalMessages, createMessageConverter as unstable_createMessageConverter, unstable_defaultDirectiveFormatter, unstable_formatInteractableSnapshot, unstable_getInteractableSnapshots, unstable_getInteractableVersions, unstable_interactableTool, unstable_useComposerInput, unstable_useComposerInputHistory, unstable_useInteractable, unstable_useInteractableState, unstable_useInteractableVersions, unstable_useLiveCompletionAdapter, unstable_useMentionAdapter, unstable_useMessageStallDetection, unstable_useSlashCommandAdapter, unstable_useThreadMessageIds, unstable_useTriggerPopoverAriaProps, useTriggerPopoverRootContext as unstable_useTriggerPopoverRootContext, useTriggerPopoverRootContextOptional as unstable_useTriggerPopoverRootContextOptional, useTriggerPopoverScopeContext as unstable_useTriggerPopoverScopeContext, useTriggerPopoverScopeContextOptional as unstable_useTriggerPopoverScopeContextOptional, useTriggerPopoverTriggers as unstable_useTriggerPopoverTriggers, useTriggerPopoverTriggersOptional as unstable_useTriggerPopoverTriggersOptional, useAssistantContext, useAssistantDataUI, useAssistantFrameHost, useAssistantInstructions, useAssistantInteractable, useAssistantTool, useAssistantToolUI, useAssistantTransportRuntime, useAssistantTransportSendCommand, useAssistantTransportState, useAui, useAuiEvent, useAuiState, useAuiToolOverrides, useCloudThreadListAdapter, useCloudThreadListRuntime, useExternalMessageConverter, useExternalStoreRuntime, useExternalStoreSharedOptions, useInlineRender, useInteractableState, useLocalRuntime, useMessagePartData, useMessagePartFile, useMessagePartImage, useMessagePartReasoning, useMessagePartSource, useMessagePartText, useMessageQuote, useMessageTiming, useRemoteThreadListRuntime, useRuntimeAdapters, useScrollLock, useSmooth, useThreadViewport, useThreadViewportAutoScroll, useThreadViewportStore, useToolArgsStatus, useToolCallElapsed, useVoiceControls, useVoiceState, useVoiceVolume };
 }
 
 declare namespace internal_d_exports {
@@ -5941,7 +6023,7 @@ declare function unstable_useTriggerPopoverAriaProps(): Unstable_TriggerPopoverA
 
 declare const useActionBarEdit: () => (() => void) | null;
 
-declare const useActionBarExportMarkdown: (_param10?: {
+declare const useActionBarExportMarkdown: (_param9?: {
   filename?: string | undefined;
   onExport?: ((content: string) => void | Promise<void>) | undefined;
 }) => (() => Promise<void>) | null;
@@ -5950,7 +6032,7 @@ declare const useActionBarFeedbackNegative: () => () => void;
 
 declare const useActionBarFeedbackPositive: () => () => void;
 
-declare const useActionBarPrimitiveCopy: (_param11?: {
+declare const useActionBarPrimitiveCopy: (_param10?: {
   copiedDuration?: number | undefined;
 }) => (() => void) | null;
 
@@ -5964,19 +6046,11 @@ declare const useAssistantContext: (config: AssistantContextConfig) => void;
 
 declare const useAssistantDataUI: (dataUI: AssistantDataUIProps | null) => void;
 
-declare const useAssistantFrameHost: (_param12: UseAssistantFrameHostOptions) => void;
+declare const useAssistantFrameHost: (_param11: UseAssistantFrameHostOptions) => void;
 
 declare const useAssistantInstructions: (config: string | AssistantInstructionsConfig) => void;
 
 declare const useAssistantInteractable: (name: string, config: AssistantInteractableProps) => string;
-
-declare function useAssistantRuntime(options?: {
-  optional?: false | undefined;
-}): AssistantRuntime;
-
-declare function useAssistantRuntime(options?: {
-  optional?: boolean | undefined;
-}): AssistantRuntime | null;
 
 declare const useAssistantTool: <TArgs extends Record<string, unknown>, TResult>(tool: AssistantToolProps<TArgs, TResult>) => void;
 
@@ -5990,67 +6064,7 @@ declare function useAssistantTransportState(): UserExternalState;
 
 declare function useAssistantTransportState<T>(selector: (state: UserExternalState) => T): T;
 
-declare const useAttachment: {
-  (): AttachmentState & {
-    source: "edit-composer" | "message" | "thread-composer";
-  };
-  <TSelected>(selector: (state: AttachmentState & {
-    source: "edit-composer" | "message" | "thread-composer";
-  }) => TSelected): TSelected;
-  <TSelected>(selector: ((state: AttachmentState & {
-    source: "edit-composer" | "message" | "thread-composer";
-  }) => TSelected) | undefined): (AttachmentState & {
-    source: "edit-composer" | "message" | "thread-composer";
-  }) | TSelected;
-  (options: {
-    optional?: false | undefined;
-  }): AttachmentState & {
-    source: "edit-composer" | "message" | "thread-composer";
-  };
-  (options: {
-    optional?: boolean | undefined;
-  }): (AttachmentState & {
-    source: "edit-composer" | "message" | "thread-composer";
-  }) | null;
-  <TSelected>(options: {
-    optional?: false | undefined;
-    selector: (state: AttachmentState & {
-      source: "edit-composer" | "message" | "thread-composer";
-    }) => TSelected;
-  }): TSelected;
-  <TSelected>(options: {
-    optional?: false | undefined;
-    selector: ((state: AttachmentState & {
-      source: "edit-composer" | "message" | "thread-composer";
-    }) => TSelected) | undefined;
-  }): (AttachmentState & {
-    source: "edit-composer" | "message" | "thread-composer";
-  }) | TSelected;
-  <TSelected>(options: {
-    optional?: boolean | undefined;
-    selector: (state: AttachmentState & {
-      source: "edit-composer" | "message" | "thread-composer";
-    }) => TSelected;
-  }): TSelected | null;
-  <TSelected>(options: {
-    optional?: boolean | undefined;
-    selector: ((state: AttachmentState & {
-      source: "edit-composer" | "message" | "thread-composer";
-    }) => TSelected) | undefined;
-  }): (AttachmentState & {
-    source: "edit-composer" | "message" | "thread-composer";
-  }) | TSelected | null;
-};
-
 declare const useAttachmentRemove: () => () => void;
-
-declare function useAttachmentRuntime(options?: {
-  optional?: false | undefined;
-}): AttachmentRuntime;
-
-declare function useAttachmentRuntime(options?: {
-  optional?: boolean | undefined;
-}): AttachmentRuntime | null;
 
 declare namespace useAui {
   type Props = {
@@ -6061,10 +6075,6 @@ declare namespace useAui {
 declare function useAui(): AssistantClient;
 
 declare function useAui(clients: useAui.Props): AssistantClient;
-
-declare function useAui(clients: useAui.Props, config: {
-  parent: null | AssistantClient;
-}): AssistantClient;
 
 declare const useAuiEvent: <TEvent extends AssistantEventName>(selector: AssistantEventSelector<TEvent>, callback: AssistantEventCallback<TEvent>) => void;
 
@@ -6080,37 +6090,9 @@ declare const useChainOfThoughtAccordionTrigger: () => () => void;
 
 declare const useCloudThreadListAdapter: (adapter: CloudThreadListAdapterOptions) => RemoteThreadListAdapter;
 
-declare function useCloudThreadListRuntime(_param13: CloudThreadListAdapter): AssistantRuntime;
+declare function useCloudThreadListRuntime(_param12: CloudThreadListAdapter): AssistantRuntime;
 
-declare const useComposer: {
-  (): ComposerState$1;
-  <TSelected>(selector: (state: ComposerState$1) => TSelected): TSelected;
-  <TSelected>(selector: ((state: ComposerState$1) => TSelected) | undefined): ComposerState$1 | TSelected;
-  (options: {
-    optional?: false | undefined;
-  }): ComposerState$1;
-  (options: {
-    optional?: boolean | undefined;
-  }): ComposerState$1 | null;
-  <TSelected>(options: {
-    optional?: false | undefined;
-    selector: (state: ComposerState$1) => TSelected;
-  }): TSelected;
-  <TSelected>(options: {
-    optional?: false | undefined;
-    selector: ((state: ComposerState$1) => TSelected) | undefined;
-  }): ComposerState$1 | TSelected;
-  <TSelected>(options: {
-    optional?: boolean | undefined;
-    selector: (state: ComposerState$1) => TSelected;
-  }): TSelected | null;
-  <TSelected>(options: {
-    optional?: boolean | undefined;
-    selector: ((state: ComposerState$1) => TSelected) | undefined;
-  }): ComposerState$1 | TSelected | null;
-};
-
-declare const useComposerAddAttachment: (_param14?: {
+declare const useComposerAddAttachment: (_param13?: {
   multiple?: boolean | undefined;
 }) => (() => void) | null;
 
@@ -6120,417 +6102,9 @@ declare const useComposerDictate: () => (() => void) | null;
 
 declare const useComposerInputPluginRegistryOptional: () => ComposerInputPluginRegistry | null;
 
-declare function useComposerRuntime(options?: {
-  optional?: false | undefined;
-}): ComposerRuntime;
-
-declare function useComposerRuntime(options?: {
-  optional?: boolean | undefined;
-}): ComposerRuntime | null;
-
 declare const useComposerSend: () => (() => void) | null;
 
 declare const useComposerStopDictation: () => (() => void) | null;
-
-declare const useEditComposer: {
-  (): EditComposerState;
-  <TSelected>(selector: (state: EditComposerState) => TSelected): TSelected;
-  <TSelected>(selector: ((state: EditComposerState) => TSelected) | undefined): EditComposerState | TSelected;
-  (options: {
-    optional?: false | undefined;
-  }): EditComposerState;
-  (options: {
-    optional?: boolean | undefined;
-  }): EditComposerState | null;
-  <TSelected>(options: {
-    optional?: false | undefined;
-    selector: (state: EditComposerState) => TSelected;
-  }): TSelected;
-  <TSelected>(options: {
-    optional?: false | undefined;
-    selector: ((state: EditComposerState) => TSelected) | undefined;
-  }): EditComposerState | TSelected;
-  <TSelected>(options: {
-    optional?: boolean | undefined;
-    selector: (state: EditComposerState) => TSelected;
-  }): TSelected | null;
-  <TSelected>(options: {
-    optional?: boolean | undefined;
-    selector: ((state: EditComposerState) => TSelected) | undefined;
-  }): EditComposerState | TSelected | null;
-};
-
-declare const useEditComposerAttachment: {
-  (): ({
-    id: string;
-    type: "image" | "document" | "file" | (string & {});
-    name: string;
-    contentType?: string | undefined;
-    file?: File;
-    content?: ThreadUserMessagePart[];
-  } & {
-    status: CompleteAttachmentStatus;
-    content: ThreadUserMessagePart[];
-  } & {
-    readonly source: "edit-composer";
-  } & {
-    source: "edit-composer";
-  }) | ({
-    id: string;
-    type: "image" | "document" | "file" | (string & {});
-    name: string;
-    contentType?: string | undefined;
-    file?: File;
-    content?: ThreadUserMessagePart[];
-  } & {
-    status: PendingAttachmentStatus;
-    file: File;
-  } & {
-    readonly source: "edit-composer";
-  } & {
-    source: "edit-composer";
-  });
-  <TSelected>(selector: (state: ({
-    id: string;
-    type: "image" | "document" | "file" | (string & {});
-    name: string;
-    contentType?: string | undefined;
-    file?: File;
-    content?: ThreadUserMessagePart[];
-  } & {
-    status: CompleteAttachmentStatus;
-    content: ThreadUserMessagePart[];
-  } & {
-    readonly source: "edit-composer";
-  } & {
-    source: "edit-composer";
-  }) | ({
-    id: string;
-    type: "image" | "document" | "file" | (string & {});
-    name: string;
-    contentType?: string | undefined;
-    file?: File;
-    content?: ThreadUserMessagePart[];
-  } & {
-    status: PendingAttachmentStatus;
-    file: File;
-  } & {
-    readonly source: "edit-composer";
-  } & {
-    source: "edit-composer";
-  })) => TSelected): TSelected;
-  <TSelected>(selector: ((state: ({
-    id: string;
-    type: "image" | "document" | "file" | (string & {});
-    name: string;
-    contentType?: string | undefined;
-    file?: File;
-    content?: ThreadUserMessagePart[];
-  } & {
-    status: CompleteAttachmentStatus;
-    content: ThreadUserMessagePart[];
-  } & {
-    readonly source: "edit-composer";
-  } & {
-    source: "edit-composer";
-  }) | ({
-    id: string;
-    type: "image" | "document" | "file" | (string & {});
-    name: string;
-    contentType?: string | undefined;
-    file?: File;
-    content?: ThreadUserMessagePart[];
-  } & {
-    status: PendingAttachmentStatus;
-    file: File;
-  } & {
-    readonly source: "edit-composer";
-  } & {
-    source: "edit-composer";
-  })) => TSelected) | undefined): ({
-    id: string;
-    type: "image" | "document" | "file" | (string & {});
-    name: string;
-    contentType?: string | undefined;
-    file?: File;
-    content?: ThreadUserMessagePart[];
-  } & {
-    status: CompleteAttachmentStatus;
-    content: ThreadUserMessagePart[];
-  } & {
-    readonly source: "edit-composer";
-  } & {
-    source: "edit-composer";
-  }) | ({
-    id: string;
-    type: "image" | "document" | "file" | (string & {});
-    name: string;
-    contentType?: string | undefined;
-    file?: File;
-    content?: ThreadUserMessagePart[];
-  } & {
-    status: PendingAttachmentStatus;
-    file: File;
-  } & {
-    readonly source: "edit-composer";
-  } & {
-    source: "edit-composer";
-  }) | TSelected;
-  (options: {
-    optional?: false | undefined;
-  }): ({
-    id: string;
-    type: "image" | "document" | "file" | (string & {});
-    name: string;
-    contentType?: string | undefined;
-    file?: File;
-    content?: ThreadUserMessagePart[];
-  } & {
-    status: CompleteAttachmentStatus;
-    content: ThreadUserMessagePart[];
-  } & {
-    readonly source: "edit-composer";
-  } & {
-    source: "edit-composer";
-  }) | ({
-    id: string;
-    type: "image" | "document" | "file" | (string & {});
-    name: string;
-    contentType?: string | undefined;
-    file?: File;
-    content?: ThreadUserMessagePart[];
-  } & {
-    status: PendingAttachmentStatus;
-    file: File;
-  } & {
-    readonly source: "edit-composer";
-  } & {
-    source: "edit-composer";
-  });
-  (options: {
-    optional?: boolean | undefined;
-  }): ({
-    id: string;
-    type: "image" | "document" | "file" | (string & {});
-    name: string;
-    contentType?: string | undefined;
-    file?: File;
-    content?: ThreadUserMessagePart[];
-  } & {
-    status: CompleteAttachmentStatus;
-    content: ThreadUserMessagePart[];
-  } & {
-    readonly source: "edit-composer";
-  } & {
-    source: "edit-composer";
-  }) | ({
-    id: string;
-    type: "image" | "document" | "file" | (string & {});
-    name: string;
-    contentType?: string | undefined;
-    file?: File;
-    content?: ThreadUserMessagePart[];
-  } & {
-    status: PendingAttachmentStatus;
-    file: File;
-  } & {
-    readonly source: "edit-composer";
-  } & {
-    source: "edit-composer";
-  }) | null;
-  <TSelected>(options: {
-    optional?: false | undefined;
-    selector: (state: ({
-      id: string;
-      type: "image" | "document" | "file" | (string & {});
-      name: string;
-      contentType?: string | undefined;
-      file?: File;
-      content?: ThreadUserMessagePart[];
-    } & {
-      status: CompleteAttachmentStatus;
-      content: ThreadUserMessagePart[];
-    } & {
-      readonly source: "edit-composer";
-    } & {
-      source: "edit-composer";
-    }) | ({
-      id: string;
-      type: "image" | "document" | "file" | (string & {});
-      name: string;
-      contentType?: string | undefined;
-      file?: File;
-      content?: ThreadUserMessagePart[];
-    } & {
-      status: PendingAttachmentStatus;
-      file: File;
-    } & {
-      readonly source: "edit-composer";
-    } & {
-      source: "edit-composer";
-    })) => TSelected;
-  }): TSelected;
-  <TSelected>(options: {
-    optional?: false | undefined;
-    selector: ((state: ({
-      id: string;
-      type: "image" | "document" | "file" | (string & {});
-      name: string;
-      contentType?: string | undefined;
-      file?: File;
-      content?: ThreadUserMessagePart[];
-    } & {
-      status: CompleteAttachmentStatus;
-      content: ThreadUserMessagePart[];
-    } & {
-      readonly source: "edit-composer";
-    } & {
-      source: "edit-composer";
-    }) | ({
-      id: string;
-      type: "image" | "document" | "file" | (string & {});
-      name: string;
-      contentType?: string | undefined;
-      file?: File;
-      content?: ThreadUserMessagePart[];
-    } & {
-      status: PendingAttachmentStatus;
-      file: File;
-    } & {
-      readonly source: "edit-composer";
-    } & {
-      source: "edit-composer";
-    })) => TSelected) | undefined;
-  }): ({
-    id: string;
-    type: "image" | "document" | "file" | (string & {});
-    name: string;
-    contentType?: string | undefined;
-    file?: File;
-    content?: ThreadUserMessagePart[];
-  } & {
-    status: CompleteAttachmentStatus;
-    content: ThreadUserMessagePart[];
-  } & {
-    readonly source: "edit-composer";
-  } & {
-    source: "edit-composer";
-  }) | ({
-    id: string;
-    type: "image" | "document" | "file" | (string & {});
-    name: string;
-    contentType?: string | undefined;
-    file?: File;
-    content?: ThreadUserMessagePart[];
-  } & {
-    status: PendingAttachmentStatus;
-    file: File;
-  } & {
-    readonly source: "edit-composer";
-  } & {
-    source: "edit-composer";
-  }) | TSelected;
-  <TSelected>(options: {
-    optional?: boolean | undefined;
-    selector: (state: ({
-      id: string;
-      type: "image" | "document" | "file" | (string & {});
-      name: string;
-      contentType?: string | undefined;
-      file?: File;
-      content?: ThreadUserMessagePart[];
-    } & {
-      status: CompleteAttachmentStatus;
-      content: ThreadUserMessagePart[];
-    } & {
-      readonly source: "edit-composer";
-    } & {
-      source: "edit-composer";
-    }) | ({
-      id: string;
-      type: "image" | "document" | "file" | (string & {});
-      name: string;
-      contentType?: string | undefined;
-      file?: File;
-      content?: ThreadUserMessagePart[];
-    } & {
-      status: PendingAttachmentStatus;
-      file: File;
-    } & {
-      readonly source: "edit-composer";
-    } & {
-      source: "edit-composer";
-    })) => TSelected;
-  }): TSelected | null;
-  <TSelected>(options: {
-    optional?: boolean | undefined;
-    selector: ((state: ({
-      id: string;
-      type: "image" | "document" | "file" | (string & {});
-      name: string;
-      contentType?: string | undefined;
-      file?: File;
-      content?: ThreadUserMessagePart[];
-    } & {
-      status: CompleteAttachmentStatus;
-      content: ThreadUserMessagePart[];
-    } & {
-      readonly source: "edit-composer";
-    } & {
-      source: "edit-composer";
-    }) | ({
-      id: string;
-      type: "image" | "document" | "file" | (string & {});
-      name: string;
-      contentType?: string | undefined;
-      file?: File;
-      content?: ThreadUserMessagePart[];
-    } & {
-      status: PendingAttachmentStatus;
-      file: File;
-    } & {
-      readonly source: "edit-composer";
-    } & {
-      source: "edit-composer";
-    })) => TSelected) | undefined;
-  }): ({
-    id: string;
-    type: "image" | "document" | "file" | (string & {});
-    name: string;
-    contentType?: string | undefined;
-    file?: File;
-    content?: ThreadUserMessagePart[];
-  } & {
-    status: CompleteAttachmentStatus;
-    content: ThreadUserMessagePart[];
-  } & {
-    readonly source: "edit-composer";
-  } & {
-    source: "edit-composer";
-  }) | ({
-    id: string;
-    type: "image" | "document" | "file" | (string & {});
-    name: string;
-    contentType?: string | undefined;
-    file?: File;
-    content?: ThreadUserMessagePart[];
-  } & {
-    status: PendingAttachmentStatus;
-    file: File;
-  } & {
-    readonly source: "edit-composer";
-  } & {
-    source: "edit-composer";
-  }) | TSelected | null;
-};
-
-declare function useEditComposerAttachmentRuntime(options?: {
-  optional?: false | undefined;
-}): AttachmentRuntime<"edit-composer">;
-
-declare function useEditComposerAttachmentRuntime(options?: {
-  optional?: boolean | undefined;
-}): AttachmentRuntime<"edit-composer"> | null;
 
 declare namespace useExternalMessageConverter {
   type Message = (ThreadMessageLike & {
@@ -6554,7 +6128,7 @@ declare namespace useExternalMessageConverter {
   type Callback<T> = (message: T, metadata: Metadata) => Message | Message[];
 }
 
-declare const useExternalMessageConverter: <T extends WeakKey>(_param15: {
+declare const useExternalMessageConverter: <T extends WeakKey>(_param14: {
   callback: useExternalMessageConverter.Callback<T>;
   messages: T[];
   isRunning: boolean;
@@ -6579,267 +6153,7 @@ declare const useInteractableState: <TState>(id: string, fallback: TState) => [
   }
 ];
 
-declare const useLocalRuntime: (chatModel: ChatModelAdapter, _param16?: LocalRuntimeOptions) => AssistantRuntime;
-
-declare const useMessage: {
-  (): MessageState$1;
-  <TSelected>(selector: (state: MessageState$1) => TSelected): TSelected;
-  <TSelected>(selector: ((state: MessageState$1) => TSelected) | undefined): MessageState$1 | TSelected;
-  (options: {
-    optional?: false | undefined;
-  }): MessageState$1;
-  (options: {
-    optional?: boolean | undefined;
-  }): MessageState$1 | null;
-  <TSelected>(options: {
-    optional?: false | undefined;
-    selector: (state: MessageState$1) => TSelected;
-  }): TSelected;
-  <TSelected>(options: {
-    optional?: false | undefined;
-    selector: ((state: MessageState$1) => TSelected) | undefined;
-  }): MessageState$1 | TSelected;
-  <TSelected>(options: {
-    optional?: boolean | undefined;
-    selector: (state: MessageState$1) => TSelected;
-  }): TSelected | null;
-  <TSelected>(options: {
-    optional?: boolean | undefined;
-    selector: ((state: MessageState$1) => TSelected) | undefined;
-  }): MessageState$1 | TSelected | null;
-};
-
-declare const useMessageAttachment: {
-  (): {
-    id: string;
-    type: "image" | "document" | "file" | (string & {});
-    name: string;
-    contentType?: string | undefined;
-    file?: File;
-    content?: ThreadUserMessagePart[];
-  } & {
-    status: CompleteAttachmentStatus;
-    content: ThreadUserMessagePart[];
-  } & {
-    readonly source: "message";
-  } & {
-    source: "message";
-  };
-  <TSelected>(selector: (state: {
-    id: string;
-    type: "image" | "document" | "file" | (string & {});
-    name: string;
-    contentType?: string | undefined;
-    file?: File;
-    content?: ThreadUserMessagePart[];
-  } & {
-    status: CompleteAttachmentStatus;
-    content: ThreadUserMessagePart[];
-  } & {
-    readonly source: "message";
-  } & {
-    source: "message";
-  }) => TSelected): TSelected;
-  <TSelected>(selector: ((state: {
-    id: string;
-    type: "image" | "document" | "file" | (string & {});
-    name: string;
-    contentType?: string | undefined;
-    file?: File;
-    content?: ThreadUserMessagePart[];
-  } & {
-    status: CompleteAttachmentStatus;
-    content: ThreadUserMessagePart[];
-  } & {
-    readonly source: "message";
-  } & {
-    source: "message";
-  }) => TSelected) | undefined): ({
-    id: string;
-    type: "image" | "document" | "file" | (string & {});
-    name: string;
-    contentType?: string | undefined;
-    file?: File;
-    content?: ThreadUserMessagePart[];
-  } & {
-    status: CompleteAttachmentStatus;
-    content: ThreadUserMessagePart[];
-  } & {
-    readonly source: "message";
-  } & {
-    source: "message";
-  }) | TSelected;
-  (options: {
-    optional?: false | undefined;
-  }): {
-    id: string;
-    type: "image" | "document" | "file" | (string & {});
-    name: string;
-    contentType?: string | undefined;
-    file?: File;
-    content?: ThreadUserMessagePart[];
-  } & {
-    status: CompleteAttachmentStatus;
-    content: ThreadUserMessagePart[];
-  } & {
-    readonly source: "message";
-  } & {
-    source: "message";
-  };
-  (options: {
-    optional?: boolean | undefined;
-  }): ({
-    id: string;
-    type: "image" | "document" | "file" | (string & {});
-    name: string;
-    contentType?: string | undefined;
-    file?: File;
-    content?: ThreadUserMessagePart[];
-  } & {
-    status: CompleteAttachmentStatus;
-    content: ThreadUserMessagePart[];
-  } & {
-    readonly source: "message";
-  } & {
-    source: "message";
-  }) | null;
-  <TSelected>(options: {
-    optional?: false | undefined;
-    selector: (state: {
-      id: string;
-      type: "image" | "document" | "file" | (string & {});
-      name: string;
-      contentType?: string | undefined;
-      file?: File;
-      content?: ThreadUserMessagePart[];
-    } & {
-      status: CompleteAttachmentStatus;
-      content: ThreadUserMessagePart[];
-    } & {
-      readonly source: "message";
-    } & {
-      source: "message";
-    }) => TSelected;
-  }): TSelected;
-  <TSelected>(options: {
-    optional?: false | undefined;
-    selector: ((state: {
-      id: string;
-      type: "image" | "document" | "file" | (string & {});
-      name: string;
-      contentType?: string | undefined;
-      file?: File;
-      content?: ThreadUserMessagePart[];
-    } & {
-      status: CompleteAttachmentStatus;
-      content: ThreadUserMessagePart[];
-    } & {
-      readonly source: "message";
-    } & {
-      source: "message";
-    }) => TSelected) | undefined;
-  }): ({
-    id: string;
-    type: "image" | "document" | "file" | (string & {});
-    name: string;
-    contentType?: string | undefined;
-    file?: File;
-    content?: ThreadUserMessagePart[];
-  } & {
-    status: CompleteAttachmentStatus;
-    content: ThreadUserMessagePart[];
-  } & {
-    readonly source: "message";
-  } & {
-    source: "message";
-  }) | TSelected;
-  <TSelected>(options: {
-    optional?: boolean | undefined;
-    selector: (state: {
-      id: string;
-      type: "image" | "document" | "file" | (string & {});
-      name: string;
-      contentType?: string | undefined;
-      file?: File;
-      content?: ThreadUserMessagePart[];
-    } & {
-      status: CompleteAttachmentStatus;
-      content: ThreadUserMessagePart[];
-    } & {
-      readonly source: "message";
-    } & {
-      source: "message";
-    }) => TSelected;
-  }): TSelected | null;
-  <TSelected>(options: {
-    optional?: boolean | undefined;
-    selector: ((state: {
-      id: string;
-      type: "image" | "document" | "file" | (string & {});
-      name: string;
-      contentType?: string | undefined;
-      file?: File;
-      content?: ThreadUserMessagePart[];
-    } & {
-      status: CompleteAttachmentStatus;
-      content: ThreadUserMessagePart[];
-    } & {
-      readonly source: "message";
-    } & {
-      source: "message";
-    }) => TSelected) | undefined;
-  }): ({
-    id: string;
-    type: "image" | "document" | "file" | (string & {});
-    name: string;
-    contentType?: string | undefined;
-    file?: File;
-    content?: ThreadUserMessagePart[];
-  } & {
-    status: CompleteAttachmentStatus;
-    content: ThreadUserMessagePart[];
-  } & {
-    readonly source: "message";
-  } & {
-    source: "message";
-  }) | TSelected | null;
-};
-
-declare function useMessageAttachmentRuntime(options?: {
-  optional?: false | undefined;
-}): AttachmentRuntime<"message">;
-
-declare function useMessageAttachmentRuntime(options?: {
-  optional?: boolean | undefined;
-}): AttachmentRuntime<"message"> | null;
-
-declare const useMessagePart: {
-  (): MessagePartState;
-  <TSelected>(selector: (state: MessagePartState) => TSelected): TSelected;
-  <TSelected>(selector: ((state: MessagePartState) => TSelected) | undefined): MessagePartState | TSelected;
-  (options: {
-    optional?: false | undefined;
-  }): MessagePartState;
-  (options: {
-    optional?: boolean | undefined;
-  }): MessagePartState | null;
-  <TSelected>(options: {
-    optional?: false | undefined;
-    selector: (state: MessagePartState) => TSelected;
-  }): TSelected;
-  <TSelected>(options: {
-    optional?: false | undefined;
-    selector: ((state: MessagePartState) => TSelected) | undefined;
-  }): MessagePartState | TSelected;
-  <TSelected>(options: {
-    optional?: boolean | undefined;
-    selector: (state: MessagePartState) => TSelected;
-  }): TSelected | null;
-  <TSelected>(options: {
-    optional?: boolean | undefined;
-    selector: ((state: MessagePartState) => TSelected) | undefined;
-  }): MessagePartState | TSelected | null;
-};
+declare const useLocalRuntime: (chatModel: ChatModelAdapter, _param15?: LocalRuntimeOptions) => AssistantRuntime;
 
 declare const useMessagePartData: <T = any>(name?: string) => DataMessagePart<T> | null;
 
@@ -6854,14 +6168,6 @@ declare const useMessagePartImage: () => ImageMessagePart & {
 declare const useMessagePartReasoning: () => ReasoningMessagePart & {
   readonly status: MessagePartStatus | ToolCallMessagePartStatus;
 };
-
-declare function useMessagePartRuntime(options?: {
-  optional?: false | undefined;
-}): MessagePartRuntime;
-
-declare function useMessagePartRuntime(options?: {
-  optional?: boolean | undefined;
-}): MessagePartRuntime | null;
 
 declare const useMessagePartSource: () => ({
   readonly type: "source";
@@ -6894,14 +6200,6 @@ declare const useMessagePartText: () => (TextMessagePart & {
 });
 
 declare const useMessageQuote: () => QuoteInfo | undefined;
-
-declare function useMessageRuntime(options?: {
-  optional?: false | undefined;
-}): MessageRuntime;
-
-declare function useMessageRuntime(options?: {
-  optional?: boolean | undefined;
-}): MessageRuntime | null;
 
 declare const useMessageTiming: () => MessageTiming | undefined;
 
@@ -7000,506 +6298,14 @@ declare const useSmoothStatus: {
   }> | null;
 };
 
-declare const useSuggestionTrigger: (_param17: {
+declare const useSuggestionTrigger: (_param16: {
   send?: boolean | undefined;
   clearComposer?: boolean | undefined;
 }) => (() => void) | null;
 
-declare const useThread: {
-  (): ThreadState;
-  <TSelected>(selector: (state: ThreadState) => TSelected): TSelected;
-  <TSelected>(selector: ((state: ThreadState) => TSelected) | undefined): ThreadState | TSelected;
-  (options: {
-    optional?: false | undefined;
-  }): ThreadState;
-  (options: {
-    optional?: boolean | undefined;
-  }): ThreadState | null;
-  <TSelected>(options: {
-    optional?: false | undefined;
-    selector: (state: ThreadState) => TSelected;
-  }): TSelected;
-  <TSelected>(options: {
-    optional?: false | undefined;
-    selector: ((state: ThreadState) => TSelected) | undefined;
-  }): ThreadState | TSelected;
-  <TSelected>(options: {
-    optional?: boolean | undefined;
-    selector: (state: ThreadState) => TSelected;
-  }): TSelected | null;
-  <TSelected>(options: {
-    optional?: boolean | undefined;
-    selector: ((state: ThreadState) => TSelected) | undefined;
-  }): ThreadState | TSelected | null;
-};
-
-declare const useThreadComposer: {
-  (): ThreadComposerState;
-  <TSelected>(selector: (state: ThreadComposerState) => TSelected): TSelected;
-  <TSelected>(selector: ((state: ThreadComposerState) => TSelected) | undefined): ThreadComposerState | TSelected;
-  (options: {
-    optional?: false | undefined;
-  }): ThreadComposerState;
-  (options: {
-    optional?: boolean | undefined;
-  }): ThreadComposerState | null;
-  <TSelected>(options: {
-    optional?: false | undefined;
-    selector: (state: ThreadComposerState) => TSelected;
-  }): TSelected;
-  <TSelected>(options: {
-    optional?: false | undefined;
-    selector: ((state: ThreadComposerState) => TSelected) | undefined;
-  }): ThreadComposerState | TSelected;
-  <TSelected>(options: {
-    optional?: boolean | undefined;
-    selector: (state: ThreadComposerState) => TSelected;
-  }): TSelected | null;
-  <TSelected>(options: {
-    optional?: boolean | undefined;
-    selector: ((state: ThreadComposerState) => TSelected) | undefined;
-  }): ThreadComposerState | TSelected | null;
-};
-
-declare const useThreadComposerAttachment: {
-  (): ({
-    id: string;
-    type: "image" | "document" | "file" | (string & {});
-    name: string;
-    contentType?: string | undefined;
-    file?: File;
-    content?: ThreadUserMessagePart[];
-  } & {
-    status: CompleteAttachmentStatus;
-    content: ThreadUserMessagePart[];
-  } & {
-    readonly source: "thread-composer";
-  } & {
-    source: "thread-composer";
-  }) | ({
-    id: string;
-    type: "image" | "document" | "file" | (string & {});
-    name: string;
-    contentType?: string | undefined;
-    file?: File;
-    content?: ThreadUserMessagePart[];
-  } & {
-    status: PendingAttachmentStatus;
-    file: File;
-  } & {
-    readonly source: "thread-composer";
-  } & {
-    source: "thread-composer";
-  });
-  <TSelected>(selector: (state: ({
-    id: string;
-    type: "image" | "document" | "file" | (string & {});
-    name: string;
-    contentType?: string | undefined;
-    file?: File;
-    content?: ThreadUserMessagePart[];
-  } & {
-    status: CompleteAttachmentStatus;
-    content: ThreadUserMessagePart[];
-  } & {
-    readonly source: "thread-composer";
-  } & {
-    source: "thread-composer";
-  }) | ({
-    id: string;
-    type: "image" | "document" | "file" | (string & {});
-    name: string;
-    contentType?: string | undefined;
-    file?: File;
-    content?: ThreadUserMessagePart[];
-  } & {
-    status: PendingAttachmentStatus;
-    file: File;
-  } & {
-    readonly source: "thread-composer";
-  } & {
-    source: "thread-composer";
-  })) => TSelected): TSelected;
-  <TSelected>(selector: ((state: ({
-    id: string;
-    type: "image" | "document" | "file" | (string & {});
-    name: string;
-    contentType?: string | undefined;
-    file?: File;
-    content?: ThreadUserMessagePart[];
-  } & {
-    status: CompleteAttachmentStatus;
-    content: ThreadUserMessagePart[];
-  } & {
-    readonly source: "thread-composer";
-  } & {
-    source: "thread-composer";
-  }) | ({
-    id: string;
-    type: "image" | "document" | "file" | (string & {});
-    name: string;
-    contentType?: string | undefined;
-    file?: File;
-    content?: ThreadUserMessagePart[];
-  } & {
-    status: PendingAttachmentStatus;
-    file: File;
-  } & {
-    readonly source: "thread-composer";
-  } & {
-    source: "thread-composer";
-  })) => TSelected) | undefined): ({
-    id: string;
-    type: "image" | "document" | "file" | (string & {});
-    name: string;
-    contentType?: string | undefined;
-    file?: File;
-    content?: ThreadUserMessagePart[];
-  } & {
-    status: CompleteAttachmentStatus;
-    content: ThreadUserMessagePart[];
-  } & {
-    readonly source: "thread-composer";
-  } & {
-    source: "thread-composer";
-  }) | ({
-    id: string;
-    type: "image" | "document" | "file" | (string & {});
-    name: string;
-    contentType?: string | undefined;
-    file?: File;
-    content?: ThreadUserMessagePart[];
-  } & {
-    status: PendingAttachmentStatus;
-    file: File;
-  } & {
-    readonly source: "thread-composer";
-  } & {
-    source: "thread-composer";
-  }) | TSelected;
-  (options: {
-    optional?: false | undefined;
-  }): ({
-    id: string;
-    type: "image" | "document" | "file" | (string & {});
-    name: string;
-    contentType?: string | undefined;
-    file?: File;
-    content?: ThreadUserMessagePart[];
-  } & {
-    status: CompleteAttachmentStatus;
-    content: ThreadUserMessagePart[];
-  } & {
-    readonly source: "thread-composer";
-  } & {
-    source: "thread-composer";
-  }) | ({
-    id: string;
-    type: "image" | "document" | "file" | (string & {});
-    name: string;
-    contentType?: string | undefined;
-    file?: File;
-    content?: ThreadUserMessagePart[];
-  } & {
-    status: PendingAttachmentStatus;
-    file: File;
-  } & {
-    readonly source: "thread-composer";
-  } & {
-    source: "thread-composer";
-  });
-  (options: {
-    optional?: boolean | undefined;
-  }): ({
-    id: string;
-    type: "image" | "document" | "file" | (string & {});
-    name: string;
-    contentType?: string | undefined;
-    file?: File;
-    content?: ThreadUserMessagePart[];
-  } & {
-    status: CompleteAttachmentStatus;
-    content: ThreadUserMessagePart[];
-  } & {
-    readonly source: "thread-composer";
-  } & {
-    source: "thread-composer";
-  }) | ({
-    id: string;
-    type: "image" | "document" | "file" | (string & {});
-    name: string;
-    contentType?: string | undefined;
-    file?: File;
-    content?: ThreadUserMessagePart[];
-  } & {
-    status: PendingAttachmentStatus;
-    file: File;
-  } & {
-    readonly source: "thread-composer";
-  } & {
-    source: "thread-composer";
-  }) | null;
-  <TSelected>(options: {
-    optional?: false | undefined;
-    selector: (state: ({
-      id: string;
-      type: "image" | "document" | "file" | (string & {});
-      name: string;
-      contentType?: string | undefined;
-      file?: File;
-      content?: ThreadUserMessagePart[];
-    } & {
-      status: CompleteAttachmentStatus;
-      content: ThreadUserMessagePart[];
-    } & {
-      readonly source: "thread-composer";
-    } & {
-      source: "thread-composer";
-    }) | ({
-      id: string;
-      type: "image" | "document" | "file" | (string & {});
-      name: string;
-      contentType?: string | undefined;
-      file?: File;
-      content?: ThreadUserMessagePart[];
-    } & {
-      status: PendingAttachmentStatus;
-      file: File;
-    } & {
-      readonly source: "thread-composer";
-    } & {
-      source: "thread-composer";
-    })) => TSelected;
-  }): TSelected;
-  <TSelected>(options: {
-    optional?: false | undefined;
-    selector: ((state: ({
-      id: string;
-      type: "image" | "document" | "file" | (string & {});
-      name: string;
-      contentType?: string | undefined;
-      file?: File;
-      content?: ThreadUserMessagePart[];
-    } & {
-      status: CompleteAttachmentStatus;
-      content: ThreadUserMessagePart[];
-    } & {
-      readonly source: "thread-composer";
-    } & {
-      source: "thread-composer";
-    }) | ({
-      id: string;
-      type: "image" | "document" | "file" | (string & {});
-      name: string;
-      contentType?: string | undefined;
-      file?: File;
-      content?: ThreadUserMessagePart[];
-    } & {
-      status: PendingAttachmentStatus;
-      file: File;
-    } & {
-      readonly source: "thread-composer";
-    } & {
-      source: "thread-composer";
-    })) => TSelected) | undefined;
-  }): ({
-    id: string;
-    type: "image" | "document" | "file" | (string & {});
-    name: string;
-    contentType?: string | undefined;
-    file?: File;
-    content?: ThreadUserMessagePart[];
-  } & {
-    status: CompleteAttachmentStatus;
-    content: ThreadUserMessagePart[];
-  } & {
-    readonly source: "thread-composer";
-  } & {
-    source: "thread-composer";
-  }) | ({
-    id: string;
-    type: "image" | "document" | "file" | (string & {});
-    name: string;
-    contentType?: string | undefined;
-    file?: File;
-    content?: ThreadUserMessagePart[];
-  } & {
-    status: PendingAttachmentStatus;
-    file: File;
-  } & {
-    readonly source: "thread-composer";
-  } & {
-    source: "thread-composer";
-  }) | TSelected;
-  <TSelected>(options: {
-    optional?: boolean | undefined;
-    selector: (state: ({
-      id: string;
-      type: "image" | "document" | "file" | (string & {});
-      name: string;
-      contentType?: string | undefined;
-      file?: File;
-      content?: ThreadUserMessagePart[];
-    } & {
-      status: CompleteAttachmentStatus;
-      content: ThreadUserMessagePart[];
-    } & {
-      readonly source: "thread-composer";
-    } & {
-      source: "thread-composer";
-    }) | ({
-      id: string;
-      type: "image" | "document" | "file" | (string & {});
-      name: string;
-      contentType?: string | undefined;
-      file?: File;
-      content?: ThreadUserMessagePart[];
-    } & {
-      status: PendingAttachmentStatus;
-      file: File;
-    } & {
-      readonly source: "thread-composer";
-    } & {
-      source: "thread-composer";
-    })) => TSelected;
-  }): TSelected | null;
-  <TSelected>(options: {
-    optional?: boolean | undefined;
-    selector: ((state: ({
-      id: string;
-      type: "image" | "document" | "file" | (string & {});
-      name: string;
-      contentType?: string | undefined;
-      file?: File;
-      content?: ThreadUserMessagePart[];
-    } & {
-      status: CompleteAttachmentStatus;
-      content: ThreadUserMessagePart[];
-    } & {
-      readonly source: "thread-composer";
-    } & {
-      source: "thread-composer";
-    }) | ({
-      id: string;
-      type: "image" | "document" | "file" | (string & {});
-      name: string;
-      contentType?: string | undefined;
-      file?: File;
-      content?: ThreadUserMessagePart[];
-    } & {
-      status: PendingAttachmentStatus;
-      file: File;
-    } & {
-      readonly source: "thread-composer";
-    } & {
-      source: "thread-composer";
-    })) => TSelected) | undefined;
-  }): ({
-    id: string;
-    type: "image" | "document" | "file" | (string & {});
-    name: string;
-    contentType?: string | undefined;
-    file?: File;
-    content?: ThreadUserMessagePart[];
-  } & {
-    status: CompleteAttachmentStatus;
-    content: ThreadUserMessagePart[];
-  } & {
-    readonly source: "thread-composer";
-  } & {
-    source: "thread-composer";
-  }) | ({
-    id: string;
-    type: "image" | "document" | "file" | (string & {});
-    name: string;
-    contentType?: string | undefined;
-    file?: File;
-    content?: ThreadUserMessagePart[];
-  } & {
-    status: PendingAttachmentStatus;
-    file: File;
-  } & {
-    readonly source: "thread-composer";
-  } & {
-    source: "thread-composer";
-  }) | TSelected | null;
-};
-
-declare function useThreadComposerAttachmentRuntime(options?: {
-  optional?: false | undefined;
-}): AttachmentRuntime<"thread-composer">;
-
-declare function useThreadComposerAttachmentRuntime(options?: {
-  optional?: boolean | undefined;
-}): AttachmentRuntime<"thread-composer"> | null;
-
-declare const useThreadList: {
-  (): ThreadListState;
-  <TSelected>(selector: (state: ThreadListState) => TSelected): TSelected;
-  <TSelected>(selector: ((state: ThreadListState) => TSelected) | undefined): ThreadListState | TSelected;
-  (options: {
-    optional?: false | undefined;
-  }): ThreadListState;
-  (options: {
-    optional?: boolean | undefined;
-  }): ThreadListState | null;
-  <TSelected>(options: {
-    optional?: false | undefined;
-    selector: (state: ThreadListState) => TSelected;
-  }): TSelected;
-  <TSelected>(options: {
-    optional?: false | undefined;
-    selector: ((state: ThreadListState) => TSelected) | undefined;
-  }): ThreadListState | TSelected;
-  <TSelected>(options: {
-    optional?: boolean | undefined;
-    selector: (state: ThreadListState) => TSelected;
-  }): TSelected | null;
-  <TSelected>(options: {
-    optional?: boolean | undefined;
-    selector: ((state: ThreadListState) => TSelected) | undefined;
-  }): ThreadListState | TSelected | null;
-};
-
-declare const useThreadListItem: {
-  (): ThreadListItemState$1;
-  <TSelected>(selector: (state: ThreadListItemState$1) => TSelected): TSelected;
-  <TSelected>(selector: ((state: ThreadListItemState$1) => TSelected) | undefined): ThreadListItemState$1 | TSelected;
-  (options: {
-    optional?: false | undefined;
-  }): ThreadListItemState$1;
-  (options: {
-    optional?: boolean | undefined;
-  }): ThreadListItemState$1 | null;
-  <TSelected>(options: {
-    optional?: false | undefined;
-    selector: (state: ThreadListItemState$1) => TSelected;
-  }): TSelected;
-  <TSelected>(options: {
-    optional?: false | undefined;
-    selector: ((state: ThreadListItemState$1) => TSelected) | undefined;
-  }): ThreadListItemState$1 | TSelected;
-  <TSelected>(options: {
-    optional?: boolean | undefined;
-    selector: (state: ThreadListItemState$1) => TSelected;
-  }): TSelected | null;
-  <TSelected>(options: {
-    optional?: boolean | undefined;
-    selector: ((state: ThreadListItemState$1) => TSelected) | undefined;
-  }): ThreadListItemState$1 | TSelected | null;
-};
-
 declare const useThreadListItemArchive: () => () => void;
 
 declare const useThreadListItemDelete: () => () => void;
-
-declare function useThreadListItemRuntime(options?: {
-  optional?: false | undefined;
-}): ThreadListItemRuntime;
-
-declare function useThreadListItemRuntime(options?: {
-  optional?: boolean | undefined;
-}): ThreadListItemRuntime | null;
 
 declare const useThreadListItemTrigger: () => () => void;
 
@@ -7507,31 +6313,15 @@ declare const useThreadListItemUnarchive: () => () => void;
 
 declare const useThreadListLoadMore: () => (() => void) | null;
 
-declare function useThreadModelContext(options?: {
-  optional?: false | undefined;
-}): ModelContext$1;
-
-declare function useThreadModelContext(options?: {
-  optional?: boolean | undefined;
-}): ModelContext$1 | null;
-
-declare function useThreadRuntime(options?: {
-  optional?: false | undefined;
-}): ThreadRuntime;
-
-declare function useThreadRuntime(options?: {
-  optional?: boolean | undefined;
-}): ThreadRuntime | null;
-
 declare namespace useThreadScrollToBottom {
   type Options = {
     behavior?: ScrollBehavior | undefined;
   };
 }
 
-declare const useThreadScrollToBottom: (_param18?: useThreadScrollToBottom.Options) => (() => void) | null;
+declare const useThreadScrollToBottom: (_param17?: useThreadScrollToBottom.Options) => (() => void) | null;
 
-declare const useThreadSuggestion: (_param19: {
+declare const useThreadSuggestion: (_param18: {
   prompt: string;
   send?: boolean | undefined;
   clearComposer?: boolean | undefined;
@@ -7565,7 +6355,7 @@ declare namespace useThreadViewportAutoScroll {
   };
 }
 
-declare const useThreadViewportAutoScroll: <TElement extends HTMLElement>(_param20: useThreadViewportAutoScroll.Options) => RefCallback<TElement>;
+declare const useThreadViewportAutoScroll: <TElement extends HTMLElement>(_param19: useThreadViewportAutoScroll.Options) => RefCallback<TElement>;
 
 declare const useToolArgsStatus: <TArgs extends Record<string, unknown> = Record<string, unknown>>() => ToolArgsStatus<TArgs>;
 

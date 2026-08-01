@@ -6,6 +6,7 @@ import {
 } from "ts-morph";
 import * as path from "node:path";
 import {
+  REACT_GENERATIVE_UI_A2UI_INDEX,
   REACT_GENERATIVE_UI_INDEX,
   REACT_GENERATIVE_UI_SLACK_INDEX,
   REACT_GENERATIVE_UI_TEAMS_INDEX,
@@ -356,6 +357,7 @@ function getReactGenerativeUIApiInputs(): ClassifiedExportInput[] {
     ...collectExportInputs(REACT_GENERATIVE_UI_INDEX),
     ...collectExportInputs(REACT_GENERATIVE_UI_SLACK_INDEX),
     ...collectExportInputs(REACT_GENERATIVE_UI_TEAMS_INDEX),
+    ...collectExportInputs(REACT_GENERATIVE_UI_A2UI_INDEX),
   ]).filter((item) => GENERATIVE_UI_PACKAGE_EXPORTS.has(item.name));
   return reactGenerativeUIApiInputs;
 }

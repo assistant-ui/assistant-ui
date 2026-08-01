@@ -1,130 +1,160 @@
-import { describe, it, expect } from "vitest";
-import { server } from "../../index.js";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
-  InitializeRequestSchema,
-  ListToolsRequestSchema,
   CallToolRequestSchema,
-  ListPromptsRequestSchema,
   GetPromptRequestSchema,
-  type InitializeRequest,
-  type ListToolsRequest,
-  type CallToolRequest,
-  type ListPromptsRequest,
-  type GetPromptRequest,
-} from "@modelcontextprotocol/sdk/types.js";
+  InitializeRequestSchema,
+  ListPromptsRequestSchema,
+  ListToolsRequestSchema,
+} from "@modelcontextprotocol/core";
+import { server } from "../../index.js";
+import { createMcpTestClient, type McpTestClient } from "./mcp-test-client.js";
+
+type Tool = {
+  name: string;
+  title?: string;
+  annotations?: {
+    readOnlyHint?: boolean;
+    openWorldHint?: boolean;
+  };
+  inputSchema: {
+    type?: string;
+    properties?: Record<string, { description?: string }>;
+    required?: string[];
+  };
+};
+
+type ToolListResult = {
+  tools: Tool[];
+};
+
+type ToolCallResult = {
+  content: Array<{
+    type: string;
+  }>;
+};
+
+type PromptListResult = {
+  prompts: Array<{
+    name: string;
+    title?: string;
+  }>;
+};
+
+type PromptGetResult = {
+  messages: Array<{
+    content: {
+      type: string;
+      text?: string;
+    };
+  }>;
+};
+
+type InitializeResult = {
+  protocolVersion: string;
+  serverInfo: {
+    name: string;
+  };
+};
+
+function requireTool(tools: Tool[], name: string): Tool {
+  const tool = tools.find((candidate) => candidate.name === name);
+  expect(tool).toBeDefined();
+  if (!tool) throw new Error(`Missing tool: ${name}`);
+  return tool;
+}
 
 describe("MCP Protocol Integration", () => {
-  // These tests verify the MCP protocol layer handles requests correctly
-  // and that parameter schemas are properly converted to JSON schemas
-  it("should handle Initialize request", async () => {
-    const request: InitializeRequest = {
+  let client: McpTestClient;
+  let initializeResult: Promise<InitializeResult>;
+
+  beforeEach(async () => {
+    client = await createMcpTestClient(server);
+    initializeResult = client.initialize() as Promise<InitializeResult>;
+    await initializeResult;
+  });
+
+  afterEach(async () => {
+    await client?.close();
+  });
+
+  it("handles Initialize requests", async () => {
+    const request = {
       method: "initialize",
       params: {
-        protocolVersion: "2024-11-05",
+        protocolVersion: "2025-11-25",
         capabilities: {},
         clientInfo: {
-          name: "test-client",
+          name: "mcp-docs-server-tests",
           version: "1.0.0",
         },
       },
     };
 
-    // Parse and validate the request
-    const parsed = InitializeRequestSchema.parse(request);
-    expect(parsed).toBeDefined();
-
-    // The server should have an initialize handler set up
-    const handlers = (server as any).server._requestHandlers;
-    expect(handlers).toBeDefined();
-    expect(handlers.get("initialize")).toBeDefined();
+    expect(InitializeRequestSchema.parse(request)).toBeDefined();
+    await expect(initializeResult).resolves.toMatchObject({
+      protocolVersion: "2025-11-25",
+      serverInfo: { name: "assistant-ui-docs" },
+    });
   });
 
-  it("should handle ListTools request", async () => {
-    const request: ListToolsRequest = {
+  it("lists tool metadata and JSON schemas", async () => {
+    const request = ListToolsRequestSchema.parse({
       method: "tools/list",
       params: {},
-    };
+    });
+    const result = await client.request<ToolListResult>(request);
 
-    // Parse and validate the request
-    const parsed = ListToolsRequestSchema.parse(request);
-    expect(parsed).toBeDefined();
-
-    // The server should have a tools/list handler
-    const handlers = (server as any).server._requestHandlers;
-    expect(handlers.get("tools/list")).toBeDefined();
-
-    // Call the handler
-    const handler = handlers.get("tools/list");
-    const result = await handler(parsed, {});
-
-    expect(result).toBeDefined();
-    expect(result.tools).toBeInstanceOf(Array);
     expect(result.tools).toHaveLength(6);
 
-    // Check the tools have proper JSON schemas
-    const docsTool = result.tools.find(
-      (t: any) => t.name === "assistantUIDocs",
-    );
-    expect(docsTool).toBeDefined();
-    expect(docsTool.inputSchema).toBeDefined();
-    expect(docsTool.inputSchema.type).toBe("object");
-    expect(docsTool.inputSchema.properties).toBeDefined();
+    for (const expected of [
+      {
+        name: "assistantUIDocs",
+        title: "assistant-ui Documentation",
+        annotations: { readOnlyHint: true, openWorldHint: false },
+      },
+      {
+        name: "assistantUIExamples",
+        title: "assistant-ui Examples",
+        annotations: { readOnlyHint: true, openWorldHint: false },
+      },
+      {
+        name: "assistantUISearch",
+        title: "Search assistant-ui Documentation",
+        annotations: { readOnlyHint: true, openWorldHint: false },
+      },
+      {
+        name: "assistantUITemplates",
+        title: "assistant-ui Templates",
+        annotations: { readOnlyHint: true, openWorldHint: true },
+      },
+      {
+        name: "assistantUITemplateDetails",
+        title: "assistant-ui Template Details",
+        annotations: { readOnlyHint: true, openWorldHint: true },
+      },
+      {
+        name: "assistantUITemplatePreview",
+        title: "assistant-ui Template Preview URLs",
+        annotations: { readOnlyHint: false, openWorldHint: true },
+      },
+    ]) {
+      const tool = requireTool(result.tools, expected.name);
 
-    const examplesTool = result.tools.find(
-      (t: any) => t.name === "assistantUIExamples",
-    );
-    expect(examplesTool).toBeDefined();
-    expect(examplesTool.inputSchema).toBeDefined();
-    expect(examplesTool.inputSchema.type).toBe("object");
-    expect(examplesTool.inputSchema.properties).toBeDefined();
+      expect(tool).toMatchObject({
+        title: expected.title,
+        annotations: expected.annotations,
+      });
+      expect(tool.inputSchema.type).toBe("object");
+      expect(tool.inputSchema.properties).toBeDefined();
+    }
 
-    const searchTool = result.tools.find(
-      (t: any) => t.name === "assistantUISearch",
-    );
-    expect(searchTool).toBeDefined();
-    expect(searchTool.inputSchema).toBeDefined();
-    expect(searchTool.inputSchema.type).toBe("object");
-    expect(searchTool.inputSchema.properties).toBeDefined();
-
-    // registerTool metadata is surfaced on tools/list: `title` is a
-    // top-level field, `annotations` carries only the hint flags.
-    expect(docsTool.title).toBe("assistant-ui Documentation");
-    expect(docsTool.annotations?.readOnlyHint).toBe(true);
-    expect(docsTool.annotations?.openWorldHint).toBe(false);
-    expect(examplesTool.title).toBe("assistant-ui Examples");
-    expect(examplesTool.annotations?.readOnlyHint).toBe(true);
-    expect(examplesTool.annotations?.openWorldHint).toBe(false);
-    expect(searchTool.title).toBe("Search assistant-ui Documentation");
-    expect(searchTool.annotations?.readOnlyHint).toBe(true);
-    expect(searchTool.annotations?.openWorldHint).toBe(false);
-
-    const xuluxListTool = result.tools.find(
-      (t: any) => t.name === "assistantUITemplates",
-    );
-    expect(xuluxListTool).toBeDefined();
-    expect(xuluxListTool.title).toBe("assistant-ui Templates");
-    expect(xuluxListTool.annotations?.readOnlyHint).toBe(true);
-    expect(xuluxListTool.annotations?.openWorldHint).toBe(true);
-
-    const xuluxDetailsTool = result.tools.find(
-      (t: any) => t.name === "assistantUITemplateDetails",
-    );
-    expect(xuluxDetailsTool).toBeDefined();
-    expect(xuluxDetailsTool.title).toBe("assistant-ui Template Details");
-    expect(xuluxDetailsTool.annotations?.readOnlyHint).toBe(true);
-    expect(xuluxDetailsTool.annotations?.openWorldHint).toBe(true);
-
-    const xuluxPreviewTool = result.tools.find(
-      (t: any) => t.name === "assistantUITemplatePreview",
-    );
-    expect(xuluxPreviewTool).toBeDefined();
-    expect(xuluxPreviewTool.title).toBe("assistant-ui Template Preview URLs");
-    expect(xuluxPreviewTool.annotations?.readOnlyHint).toBe(false);
-    expect(xuluxPreviewTool.annotations?.openWorldHint).toBe(true);
+    const search = requireTool(result.tools, "assistantUISearch");
+    expect(search.inputSchema.required ?? []).not.toContain("limit");
+    expect(search.inputSchema.properties?.["query"]?.description).toBeDefined();
   });
 
-  it("should handle CallTool request for assistantUIDocs", async () => {
-    const request: CallToolRequest = {
+  it("calls assistantUIDocs", async () => {
+    const request = CallToolRequestSchema.parse({
       method: "tools/call",
       params: {
         name: "assistantUIDocs",
@@ -132,100 +162,55 @@ describe("MCP Protocol Integration", () => {
           paths: ["/"],
         },
       },
-    };
+    });
+    const result = await client.request<ToolCallResult>(request);
 
-    // Parse and validate the request
-    const parsed = CallToolRequestSchema.parse(request);
-    expect(parsed).toBeDefined();
-
-    // The server should have a tools/call handler
-    const handlers = (server as any).server._requestHandlers;
-    expect(handlers.get("tools/call")).toBeDefined();
-
-    // Call the handler through the MCP protocol layer
-    const handler = handlers.get("tools/call");
-    const result = await handler(parsed, {});
-
-    expect(result).toBeDefined();
-    expect(result.content).toBeDefined();
-    expect(result.content[0].type).toBe("text");
+    expect(result.content[0]?.type).toBe("text");
   });
 
-  it("should handle CallTool request for assistantUIExamples with no arguments", async () => {
-    const request: CallToolRequest = {
+  it("calls assistantUIExamples without arguments", async () => {
+    const request = CallToolRequestSchema.parse({
       method: "tools/call",
       params: {
         name: "assistantUIExamples",
         arguments: {},
       },
-    };
+    });
+    const result = await client.request<ToolCallResult>(request);
 
-    // Parse and validate the request
-    const parsed = CallToolRequestSchema.parse(request);
-    expect(parsed).toBeDefined();
-
-    // The server should have a tools/call handler
-    const handlers = (server as any).server._requestHandlers;
-    expect(handlers.get("tools/call")).toBeDefined();
-
-    // Call the handler
-    const handler = handlers.get("tools/call");
-    const result = await handler(parsed, {});
-
-    expect(result).toBeDefined();
-    expect(result.content).toBeDefined();
-    expect(result.content[0].type).toBe("text");
+    expect(result.content[0]?.type).toBe("text");
   });
 
-  it("should handle ListPrompts request", async () => {
-    const request: ListPromptsRequest = {
+  it("lists prompts", async () => {
+    const request = ListPromptsRequestSchema.parse({
       method: "prompts/list",
       params: {},
-    };
-
-    const parsed = ListPromptsRequestSchema.parse(request);
-    expect(parsed).toBeDefined();
-
-    const handlers = (server as any).server._requestHandlers;
-    expect(handlers.get("prompts/list")).toBeDefined();
-
-    const handler = handlers.get("prompts/list");
-    const result = await handler(parsed, {});
-
-    expect(result.prompts).toBeInstanceOf(Array);
+    });
+    const result = await client.request<PromptListResult>(request);
     const prompt = result.prompts.find(
-      (p: any) => p.name === "assistant-ui-template-workflow",
+      (candidate) => candidate.name === "assistant-ui-template-workflow",
     );
-    expect(prompt).toBeDefined();
-    expect(prompt.title).toBe("assistant-ui Template Workflow");
+
+    expect(prompt).toMatchObject({
+      title: "assistant-ui Template Workflow",
+    });
   });
 
-  it("should handle GetPrompt request for assistant-ui-template-workflow", async () => {
-    const request: GetPromptRequest = {
+  it("gets the assistant-ui-template-workflow prompt", async () => {
+    const request = GetPromptRequestSchema.parse({
       method: "prompts/get",
       params: {
         name: "assistant-ui-template-workflow",
         arguments: {},
       },
-    };
-
-    const parsed = GetPromptRequestSchema.parse(request);
-    expect(parsed).toBeDefined();
-
-    const handlers = (server as any).server._requestHandlers;
-    expect(handlers.get("prompts/get")).toBeDefined();
-
-    const handler = handlers.get("prompts/get");
-    const result = await handler(parsed, {});
+    });
+    const result = await client.request<PromptGetResult>(request);
+    const text = result.messages[0]?.content.text;
 
     expect(result.messages).toHaveLength(1);
-    expect(result.messages[0].content.type).toBe("text");
-    expect(result.messages[0].content.text).toContain("assistantUITemplates");
-    expect(result.messages[0].content.text).toContain(
-      "assistantUITemplateDetails",
-    );
-    expect(result.messages[0].content.text).toContain(
-      "assistantUITemplatePreview",
-    );
+    expect(result.messages[0]?.content.type).toBe("text");
+    expect(text).toContain("assistantUITemplates");
+    expect(text).toContain("assistantUITemplateDetails");
+    expect(text).toContain("assistantUITemplatePreview");
   });
 });

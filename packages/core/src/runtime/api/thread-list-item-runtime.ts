@@ -2,6 +2,7 @@ import type { Unsubscribe } from "../../types/unsubscribe";
 import type { SubscribableWithState } from "../../subscribable/subscribable";
 import type { ThreadListItemRuntimePath } from "./paths";
 import type { ThreadListRuntimeCoreBinding } from "./thread-list-runtime";
+import { notifyEventListeners } from "../../utils/notify-event-listeners";
 
 export type ThreadListItemEventPayload = {
   /**
@@ -65,10 +66,15 @@ export class ThreadListItemRuntimeImpl implements ThreadListItemRuntime {
     return this._core.path;
   }
 
+  private _core: ThreadListItemStateBinding;
+  private _threadListBinding: ThreadListRuntimeCoreBinding;
+
   constructor(
-    private _core: ThreadListItemStateBinding,
-    private _threadListBinding: ThreadListRuntimeCoreBinding,
+    _core: ThreadListItemStateBinding,
+    _threadListBinding: ThreadListRuntimeCoreBinding,
   ) {
+    this._core = _core;
+    this._threadListBinding = _threadListBinding;
     this.__internal_bindMethods();
   }
 
@@ -162,7 +168,11 @@ export class ThreadListItemRuntimeImpl implements ThreadListItemRuntime {
 
       if (event === "switchedTo" && !newIsMain) return;
       if (event === "switchedAway" && newIsMain) return;
-      (callback as (payload?: unknown) => void)({});
+      notifyEventListeners(
+        [callback as (payload?: unknown) => void],
+        {},
+        `Thread list item "${event}"`,
+      );
     });
   }
 

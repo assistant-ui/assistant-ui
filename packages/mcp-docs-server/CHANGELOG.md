@@ -1,5 +1,11 @@
 # @assistant-ui/mcp-docs-server
 
+## 0.2.0
+
+### Minor Changes
+
+- [#5316](https://github.com/assistant-ui/assistant-ui/pull/5316) [`b5f20a9`](https://github.com/assistant-ui/assistant-ui/commit/b5f20a9607af038a10e99e237a4e2ea3f5d31875) - feat: migrate to MCP TypeScript SDK v2 scoped packages (`@modelcontextprotocol/client`, `@modelcontextprotocol/core`, `@modelcontextprotocol/server`), replacing the monolithic `@modelcontextprotocol/sdk` 1.x dependency ([@okisdev](https://github.com/okisdev))
+
 ## 0.1.39
 
 ### Patch Changes

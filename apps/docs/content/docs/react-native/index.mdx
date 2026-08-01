@@ -197,7 +197,7 @@ function Composer() {
     >
       <TextInput
         value={text}
-        onChangeText={(t) => aui.composer().setText(t)}
+        onChangeText={(t) => aui.composer.setText(t)}
         placeholder="Message..."
         multiline
         style={{
@@ -211,7 +211,7 @@ function Composer() {
         }}
       />
       <Pressable
-        onPress={() => aui.composer().send()}
+        onPress={() => aui.composer.send()}
         disabled={isEmpty}
         style={{
           marginLeft: 8,

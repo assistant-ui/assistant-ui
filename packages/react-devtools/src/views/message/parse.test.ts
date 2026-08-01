@@ -99,6 +99,21 @@ describe("parsePart", () => {
     expect(part.subMessageCount).toBe(2);
   });
 
+  it("parses an image part with an uppercase data: scheme", () => {
+    const part = parsePart({
+      type: "image",
+      image: "DATA:IMAGE/PNG;base64,abcd",
+      filename: "shot.png",
+    });
+    expect(part).toMatchObject({
+      type: "image",
+      filename: "shot.png",
+      previewUrl: "DATA:IMAGE/PNG;base64,abcd",
+    });
+    if (part.type !== "image") return;
+    expect(part.sizeBytes).toBeGreaterThan(0);
+  });
+
   it("falls back to unknown for unrecognized part types", () => {
     const part = parsePart({ type: "mystery", foo: 1 });
     expect(part.type).toBe("unknown");

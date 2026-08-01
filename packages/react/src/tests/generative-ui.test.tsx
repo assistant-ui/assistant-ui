@@ -66,37 +66,6 @@ describe("MessagePrimitive.GenerativeUI (same-realm renderer)", () => {
     expect(out).toContain("hello world");
   });
 
-  it("throws GenerativeUIRenderError for unknown components", () => {
-    const spec: GenerativeUISpec = {
-      root: { component: "NotAllowed", props: {} },
-    };
-
-    expect(() =>
-      renderToStaticMarkup(
-        <GenerativeUIRender spec={spec} components={{ Card }} />,
-      ),
-    ).toThrow(GenerativeUIRenderError);
-  });
-
-  it("uses Fallback when provided for unknown components", () => {
-    const spec: GenerativeUISpec = {
-      root: { component: "NotAllowed", props: { foo: 1 } },
-    };
-    const Fallback = ({ component }: any) => (
-      <span data-fallback={component}>missing</span>
-    );
-
-    const out = renderToStaticMarkup(
-      <GenerativeUIRender
-        spec={spec}
-        components={{ Card }}
-        Fallback={Fallback}
-      />,
-    );
-    expect(out).toContain('data-fallback="NotAllowed"');
-    expect(out).toContain("missing");
-  });
-
   it("handles empty / partial specs gracefully (stream-friendly)", () => {
     const out1 = renderToStaticMarkup(
       <GenerativeUIRender spec={{ root: [] }} components={{ Card }} />,
@@ -133,21 +102,7 @@ describe("MessagePrimitive.GenerativeUI (same-realm renderer)", () => {
     }
   });
 
-  it("respects user-provided keys", () => {
-    const spec: GenerativeUISpec = {
-      root: [
-        { component: "Card", props: { title: "x" }, key: "stable-1" },
-        { component: "Card", props: { title: "y" }, key: "stable-2" },
-      ],
-    };
-    expect(() =>
-      renderToStaticMarkup(
-        <GenerativeUIRender spec={spec} components={{ Card }} />,
-      ),
-    ).not.toThrow();
-  });
-
-  it("is a typed error subclass with the offending component name", () => {
+  it("throws a typed error naming the offending unknown component", () => {
     try {
       renderToStaticMarkup(
         <GenerativeUIRender

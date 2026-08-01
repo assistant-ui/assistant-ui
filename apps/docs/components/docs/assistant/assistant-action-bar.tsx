@@ -118,7 +118,7 @@ export function AssistantActionBar(): ReactNode {
     });
 
     try {
-      aui.message().submitFeedback({ type: "positive" });
+      aui.message.submitFeedback({ type: "positive" });
     } catch (error) {
       feedbackSubmissionStartedRef.current = null;
       analytics.assistant.feedbackSubmitFailed({
@@ -154,7 +154,7 @@ export function AssistantActionBar(): ReactNode {
     analytics.assistant.feedbackClicked(negativeFeedbackProps);
 
     try {
-      aui.message().submitFeedback({ type: "negative" });
+      aui.message.submitFeedback({ type: "negative" });
     } catch (error) {
       feedbackSubmissionStartedRef.current = null;
       analytics.assistant.feedbackSubmitFailed({

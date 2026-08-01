@@ -39,6 +39,7 @@ export class AssistantCloudJWTAuthStrategy implements AssistantCloudAuthStrategy
 
   private cachedToken: string | null = null;
   private tokenExpiry: number | null = null;
+  private tokenRequest: Promise<Record<string, string> | false> | null = null;
   #authTokenCallback: () => Promise<string | null>;
 
   constructor(authTokenCallback: () => Promise<string | null>) {
@@ -57,14 +58,28 @@ export class AssistantCloudJWTAuthStrategy implements AssistantCloudAuthStrategy
       return { Authorization: `Bearer ${this.cachedToken}` };
     }
 
-    // Fetch a new token via the callback
-    const newToken = await this.#authTokenCallback();
-    if (!newToken) return false;
+    if (!this.tokenRequest) {
+      this.tokenRequest = this.fetchAuthHeaders();
+    }
 
-    this.cachedToken = newToken;
-    this.tokenExpiry = getJwtExpiry(newToken);
+    const tokenRequest = this.tokenRequest;
+    try {
+      return await tokenRequest;
+    } finally {
+      if (this.tokenRequest === tokenRequest) {
+        this.tokenRequest = null;
+      }
+    }
+  }
 
-    return { Authorization: `Bearer ${newToken}` };
+  private async fetchAuthHeaders(): Promise<Record<string, string> | false> {
+    const token = await this.#authTokenCallback();
+    if (!token) return false;
+
+    this.cachedToken = token;
+    this.tokenExpiry = getJwtExpiry(token);
+
+    return { Authorization: `Bearer ${token}` };
   }
 
   public readAuthHeaders(headers: Headers) {

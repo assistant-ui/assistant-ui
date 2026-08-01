@@ -2,11 +2,13 @@
 
 import { useAuiState } from "@assistant-ui/store";
 
-export enum HideAndFloatStatus {
-  Hidden = "hidden",
-  Floating = "floating",
-  Normal = "normal",
-}
+export const HideAndFloatStatus = {
+  Hidden: "hidden",
+  Floating: "floating",
+  Normal: "normal",
+} as const;
+export type HideAndFloatStatus =
+  (typeof HideAndFloatStatus)[keyof typeof HideAndFloatStatus];
 
 export type UseActionBarFloatStatusProps = {
   hideWhenRunning?: boolean | undefined;

@@ -6,12 +6,14 @@ const {
   collectAttributeSelectorValues,
   createBaseRegistryItem,
   createRadixRegistryItem,
+  expandBundledRegistryDependencies,
   getRadixVariantSourcePath,
   validateBasePassDidNotReadRadixSources,
   validateBaseTreeRadixImports,
   validateBaseVariantContent,
   validateEmittedSpecifierHygiene,
   validateStyleScopedDependencies,
+  validateUniversalItems,
   validateVariantExportParity,
   validateVariantSlotParity,
   validateVariantTreesDiffer,
@@ -525,6 +527,209 @@ test("base registry item merges baseDependencies and drops radixDependencies", (
       dependencies: ["lucide-react", "@base-ui/react", "clsx"],
     },
   );
+});
+
+const bundleFixtures = () => {
+  const thread = {
+    name: "thread",
+    type: "registry:component",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/thread.tsx",
+        sourcePath: "../../packages/ui/src/components/assistant-ui/thread.tsx",
+      },
+    ],
+    dependencies: ["@assistant-ui/react"],
+    radixDependencies: ["radix-ui"],
+    registryDependencies: [
+      "button",
+      "https://r.assistant-ui.com/reasoning.json",
+    ],
+  };
+  const reasoning = {
+    name: "reasoning",
+    type: "registry:component",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/reasoning.tsx",
+      },
+    ],
+    dependencies: ["tw-shimmer"],
+    registryDependencies: ["collapsible"],
+    css: { '@import "tw-shimmer"': {} },
+  };
+
+  return {
+    item: {
+      name: "eve-chat",
+      type: "registry:item",
+      files: [
+        { type: "registry:file", path: "app/page.tsx", target: "app/page.tsx" },
+      ],
+      dependencies: ["@assistant-ui/eve"],
+      bundledRegistryDependencies: ["https://r.assistant-ui.com/thread.json"],
+    },
+    itemsByName: new Map(
+      [thread, reasoning].map((dependencyItem) => [
+        dependencyItem.name,
+        dependencyItem,
+      ]),
+    ),
+  };
+};
+
+test("bundling inlines the closure as targeted files and merges its dependencies and css", () => {
+  const { item, itemsByName } = bundleFixtures();
+
+  const expanded = expandBundledRegistryDependencies(
+    item,
+    itemsByName,
+    "radix",
+  );
+
+  assert.equal(expanded.bundledRegistryDependencies, undefined);
+  assert.equal(expanded.registryDependencies, undefined);
+  assert.deepEqual(
+    expanded.files.map((file) => [file.type, file.target, file.sourcePath]),
+    [
+      ["registry:file", "app/page.tsx", undefined],
+      [
+        "registry:file",
+        "components/assistant-ui/thread.tsx",
+        "../../packages/ui/src/components/assistant-ui/thread.tsx",
+      ],
+      ["registry:file", "components/assistant-ui/reasoning.tsx", undefined],
+      [
+        "registry:file",
+        "components/ui/button.tsx",
+        "../../packages/ui/src/components/ui/radix/button.tsx",
+      ],
+      [
+        "registry:file",
+        "components/ui/collapsible.tsx",
+        "../../packages/ui/src/components/ui/radix/collapsible.tsx",
+      ],
+    ],
+  );
+  assert.deepEqual(expanded.dependencies, [
+    "@assistant-ui/eve",
+    "@assistant-ui/react",
+    "tw-shimmer",
+  ]);
+  assert.deepEqual(expanded.radixDependencies, ["radix-ui"]);
+  assert.deepEqual(Object.keys(expanded.css), ['@import "tw-shimmer"']);
+});
+
+test("bundling sources ui primitives and their package from the requested flavor", () => {
+  const { item, itemsByName } = bundleFixtures();
+
+  const expanded = expandBundledRegistryDependencies(item, itemsByName, "base");
+
+  assert.deepEqual(
+    expanded.files
+      .filter((file) => file.target.startsWith("components/ui/"))
+      .map((file) => file.sourcePath),
+    [
+      "../../packages/ui/src/components/ui/base/button.tsx",
+      "../../packages/ui/src/components/ui/base/collapsible.tsx",
+    ],
+  );
+  assert.deepEqual(expanded.baseDependencies, ["@base-ui/react"]);
+});
+
+test("bundling leaves an item without bundled dependencies untouched and rejects an unknown target", () => {
+  const item = {
+    name: "thread",
+    type: "registry:component",
+    dependencies: ["@assistant-ui/react"],
+  };
+
+  assert.deepEqual(
+    expandBundledRegistryDependencies(item, new Map(), "radix"),
+    item,
+  );
+  assert.throws(
+    () =>
+      expandBundledRegistryDependencies(
+        {
+          name: "eve-chat",
+          type: "registry:item",
+          bundledRegistryDependencies: [
+            "https://r.assistant-ui.com/missing.json",
+          ],
+        },
+        new Map(),
+        "radix",
+      ),
+    /eve-chat: bundled registry dependency "https:\/\/r\.assistant-ui\.com\/missing\.json" does not match a local registry item/,
+  );
+});
+
+test("bundling rejects a foreign registry url inside the closure", () => {
+  const thread = {
+    name: "thread",
+    type: "registry:component",
+    registryDependencies: ["https://example.com/foreign.json"],
+  };
+
+  assert.throws(
+    () =>
+      expandBundledRegistryDependencies(
+        {
+          name: "eve-chat",
+          type: "registry:item",
+          bundledRegistryDependencies: [
+            "https://r.assistant-ui.com/thread.json",
+          ],
+        },
+        new Map([["thread", thread]]),
+        "radix",
+      ),
+    /eve-chat: bundled closure depends on foreign registry item "https:\/\/example\.com\/foreign\.json", which cannot be inlined/,
+  );
+});
+
+test("universal item validation rejects a bundled item a partial config cannot install", () => {
+  const items = [
+    {
+      name: "eve-chat",
+      type: "registry:page",
+      files: [
+        { type: "registry:page", path: "app/page.tsx", target: "app/page.tsx" },
+        {
+          type: "registry:component",
+          path: "components/assistant-ui/thread.tsx",
+        },
+      ],
+      registryDependencies: ["button"],
+    },
+    {
+      name: "thread",
+      type: "registry:component",
+      files: [
+        {
+          type: "registry:component",
+          path: "components/assistant-ui/thread.tsx",
+        },
+      ],
+    },
+  ];
+
+  assert.throws(
+    () => validateUniversalItems(items, new Set(["eve-chat"])),
+    (error) =>
+      error.message.includes(
+        'eve-chat: type "registry:page" is not installable without a full project config',
+      ) &&
+      error.message.includes(
+        "eve-chat: components/assistant-ui/thread.tsx needs an explicit target and a universal file type",
+      ) &&
+      error.message.includes('eve-chat: registry dependency "button"') &&
+      !error.message.includes("thread:"),
+  );
+  assert.doesNotThrow(() => validateUniversalItems(items, new Set()));
 });
 
 test("slot parity reports mismatched data-slot attributes", () => {

@@ -247,7 +247,7 @@ const ThreadPrimitiveMessagesInner: FC<{
     return Array.from({ length: messagesLength }, (_, index) => (
       <MessageByIndexProvider key={index} index={index}>
         <RenderChildrenWithAccessor
-          getItemState={(aui) => aui.thread().message({ index }).getState()}
+          getItemState={(aui) => aui.thread.message({ index }).getState()}
         >
           {(getItem) =>
             children({

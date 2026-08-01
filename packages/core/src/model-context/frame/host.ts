@@ -40,6 +40,13 @@ const deserializeModelContext = (
   }),
 });
 
+const getAbortReason = (signal: AbortSignal): unknown => {
+  if (signal.reason !== undefined) return signal.reason;
+  const error = new Error("Tool call was aborted");
+  error.name = "AbortError";
+  return error;
+};
+
 export class AssistantFrameHost implements ModelContextProvider {
   private _context: ModelContext = {};
   private _subscribers = new Set<() => void>();
@@ -53,6 +60,7 @@ export class AssistantFrameHost implements ModelContextProvider {
   private _requestCounter = 0;
   private _iframeWindow: Window;
   private _targetOrigin: string;
+  private _disposed = false;
 
   constructor(iframeWindow: Window, targetOrigin: string = "*") {
     this._iframeWindow = iframeWindow;
@@ -104,7 +112,8 @@ export class AssistantFrameHost implements ModelContextProvider {
             name,
             {
               ...tool,
-              execute: (args: any) => this.callTool(name, args),
+              execute: (args: any, context: { abortSignal: AbortSignal }) =>
+                this.callTool(name, args, context.abortSignal),
             } as Tool<any, any>,
           ]),
         ),
@@ -112,7 +121,11 @@ export class AssistantFrameHost implements ModelContextProvider {
     this.notifySubscribers();
   }
 
-  private callTool(toolName: string, args: any): Promise<any> {
+  private callTool(
+    toolName: string,
+    args: any,
+    abortSignal: AbortSignal,
+  ): Promise<any> {
     return this.sendRequest(
       {
         type: "tool-call",
@@ -122,6 +135,7 @@ export class AssistantFrameHost implements ModelContextProvider {
       },
       30000,
       `Tool call "${toolName}" timed out`,
+      abortSignal,
     );
   }
 
@@ -129,36 +143,54 @@ export class AssistantFrameHost implements ModelContextProvider {
     message: T,
     timeout = 30000,
     timeoutMessage = "Request timed out",
+    abortSignal?: AbortSignal,
   ): Promise<any> {
+    if (this._disposed) {
+      return Promise.reject(new Error("AssistantFrameHost has been disposed"));
+    }
+    if (abortSignal?.aborted) {
+      return Promise.reject(getAbortReason(abortSignal));
+    }
+
     return new Promise((resolve, reject) => {
-      this._pendingRequests.set(message.id, { resolve, reject });
+      let timeoutId: ReturnType<typeof setTimeout> | undefined;
+      const onAbort = () => {
+        if (!abortSignal) return;
+        const pending = this._pendingRequests.get(message.id);
+        if (pending) {
+          pending.reject(getAbortReason(abortSignal));
+          this._pendingRequests.delete(message.id);
+        }
+      };
+      const cleanup = () => {
+        if (timeoutId !== undefined) clearTimeout(timeoutId);
+        abortSignal?.removeEventListener("abort", onAbort);
+      };
 
-      this._iframeWindow.postMessage(
-        { channel: FRAME_MESSAGE_CHANNEL, message },
-        this._targetOrigin,
-      );
+      this._pendingRequests.set(message.id, {
+        resolve: (value: any) => {
+          cleanup();
+          resolve(value);
+        },
+        reject: (error: any) => {
+          cleanup();
+          reject(error);
+        },
+      });
 
-      const timeoutId = setTimeout(() => {
+      timeoutId = setTimeout(() => {
         const pending = this._pendingRequests.get(message.id);
         if (pending) {
           pending.reject(new Error(timeoutMessage));
           this._pendingRequests.delete(message.id);
         }
       }, timeout);
+      abortSignal?.addEventListener("abort", onAbort, { once: true });
 
-      const originalResolve = this._pendingRequests.get(message.id)!.resolve;
-      const originalReject = this._pendingRequests.get(message.id)!.reject;
-
-      this._pendingRequests.set(message.id, {
-        resolve: (value: any) => {
-          clearTimeout(timeoutId);
-          originalResolve(value);
-        },
-        reject: (error: any) => {
-          clearTimeout(timeoutId);
-          originalReject(error);
-        },
-      });
+      this._iframeWindow.postMessage(
+        { channel: FRAME_MESSAGE_CHANNEL, message },
+        this._targetOrigin,
+      );
     });
   }
 
@@ -188,8 +220,13 @@ export class AssistantFrameHost implements ModelContextProvider {
   }
 
   dispose() {
+    this._disposed = true;
     window.removeEventListener("message", this.handleMessage);
     this._subscribers.clear();
+    const error = new Error("AssistantFrameHost has been disposed");
+    for (const pending of this._pendingRequests.values()) {
+      pending.reject(error);
+    }
     this._pendingRequests.clear();
   }
 }

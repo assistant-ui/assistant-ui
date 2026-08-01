@@ -47,10 +47,8 @@ export const GROUPBY_MEMO_KEY: unique symbol = Symbol.for(
  *   `display: "standalone"`). Resolving the registry-driven cases reads the
  *   {@link GroupByContext} passed to the `groupBy` function. Takes precedence
  *   over the `"tool-call"` entry.
- * - `"mcp-app"` — **deprecated**, kept for back-compat. Matches only MCP-app
- *   tool calls. Prefer `"standalone-tool-call"`, which is a superset.
  */
-type GroupPartType = PartState["type"] | "standalone-tool-call" | "mcp-app";
+type GroupPartType = PartState["type"] | "standalone-tool-call";
 
 /**
  * Build a `groupBy` from a `part.type → group-key path` lookup.
@@ -92,10 +90,6 @@ export const groupPartByType = <TKey extends `group-${string}`>(
         (context?.toolUIs?.[part.toolName]?.[0]?.standalone ?? false);
       if (isStandalone && lookup["standalone-tool-call"] !== undefined) {
         return lookup["standalone-tool-call"]!;
-      }
-      // TODO(v0.15): drop the deprecated "mcp-app" key (superseded by "standalone-tool-call").
-      if (isMcpApp && lookup["mcp-app"] !== undefined) {
-        return lookup["mcp-app"]!;
       }
     }
     return lookup[part.type] ?? [];
