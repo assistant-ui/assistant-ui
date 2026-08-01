@@ -59,7 +59,7 @@ export type ThreadHistoryAdapter = {
    * Stable identifier for the adapter's backing history scope. Change it to
    * reload history without remounting the runtime.
    */
-  key?: PropertyKey | object | undefined;
+  key?: PropertyKey | undefined;
   load(): Promise<
     ExportedMessageRepository & {
       state?: ReadonlyJSONValue;

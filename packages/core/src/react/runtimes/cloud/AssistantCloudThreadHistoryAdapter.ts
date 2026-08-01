@@ -19,6 +19,16 @@ const globalPersistence = new WeakMap<
   getClientId.ClientId,
   CloudMessagePersistence
 >();
+const cloudHistoryKeys = new WeakMap<AssistantCloud, symbol>();
+
+const getCloudHistoryKey = (cloud: AssistantCloud) => {
+  let key = cloudHistoryKeys.get(cloud);
+  if (!key) {
+    key = Symbol("assistant-cloud-history");
+    cloudHistoryKeys.set(cloud, key);
+  }
+  return key;
+};
 
 class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
   private cloudRef: RefObject<AssistantCloud>;
@@ -33,7 +43,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
   }
 
   public get key() {
-    return this.cloudRef.current;
+    return getCloudHistoryKey(this.cloudRef.current);
   }
 
   private get aui(): AssistantClient {

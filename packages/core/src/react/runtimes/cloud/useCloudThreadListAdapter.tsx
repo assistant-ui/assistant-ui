@@ -4,7 +4,6 @@ import {
   type FC,
   type PropsWithChildren,
   useCallback,
-  useEffect,
   useMemo,
   useRef,
 } from "react";
@@ -41,9 +40,7 @@ export const useCloudThreadListAdapter = (
   adapter: CloudThreadListAdapterOptions,
 ): RemoteThreadListAdapter => {
   const adapterRef = useRef(adapter);
-  useEffect(() => {
-    adapterRef.current = adapter;
-  }, [adapter]);
+  adapterRef.current = adapter;
 
   const unstable_Provider = useCallback<FC<PropsWithChildren>>(
     function Provider({ children }) {

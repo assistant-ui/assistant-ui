@@ -226,7 +226,7 @@ describe("useExternalHistory withFormat contract", () => {
     expect(format).toHaveBeenCalled();
   });
 
-  it("does not clear history before the first explicit key reloads", async () => {
+  it("clears keyless history before the first explicit key reloads", async () => {
     mocks.state.remoteId = "remote-thread";
     const storedRepo = {
       headId: "message-a",
@@ -292,14 +292,18 @@ describe("useExternalHistory withFormat contract", () => {
 
     rerender({ adapter: keyedAdapter });
     await waitFor(() => expect(keyedLoad).toHaveBeenCalledOnce());
-    expect(importHistory).toHaveBeenCalledTimes(1);
+    expect(importHistory).toHaveBeenCalledTimes(2);
+    expect(importHistory).toHaveBeenLastCalledWith({
+      headId: null,
+      messages: [],
+    });
 
     await act(async () => {
       resolveKeyedLoad(storedRepo);
     });
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
-    expect(importHistory).toHaveBeenCalledTimes(2);
+    expect(importHistory).toHaveBeenCalledTimes(3);
     expect(importHistory).toHaveBeenLastCalledWith(
       expect.objectContaining({ headId: "message-a" }),
     );

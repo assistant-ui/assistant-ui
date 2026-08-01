@@ -74,26 +74,36 @@ export class LocalThreadRuntimeCore
   private _queue: MessageQueueController | null = null;
   private _queueRunInFlight = false;
 
-  private _historyWrites = new Map<string, Promise<void>>();
+  private _historyScopeGeneration = 0;
+  private _historyWrites = new Map<
+    HistoryAdapterKey,
+    Map<string, Promise<void>>
+  >();
 
   // Writes for one message id must land in issue order; an earlier paused
   // snapshot arriving after the terminal write would resurrect the pause.
   private _chainHistoryWrite(
+    key: HistoryAdapterKey,
     id: string,
     write: () => Promise<void>,
   ): Promise<void> {
-    const next = (this._historyWrites.get(id) ?? Promise.resolve()).then(
-      write,
-      write,
-    );
+    let writes = this._historyWrites.get(key);
+    if (!writes) {
+      writes = new Map();
+      this._historyWrites.set(key, writes);
+    }
+    const next = (writes.get(id) ?? Promise.resolve()).then(write, write);
     const stored = next.then(
       () => {},
       () => {},
     );
-    this._historyWrites.set(id, stored);
+    writes.set(id, stored);
     void stored.then(() => {
-      if (this._historyWrites.get(id) === stored) {
-        this._historyWrites.delete(id);
+      if (writes.get(id) === stored) {
+        writes.delete(id);
+        if (writes.size === 0) {
+          this._historyWrites.delete(key);
+        }
       }
     });
     return next;
@@ -108,9 +118,12 @@ export class LocalThreadRuntimeCore
     if (message.status?.type !== "requires-action") return;
     const history = this._options.adapters.history;
     if (!history?.update) return;
+    const key = history.key ?? DEFAULT_HISTORY_ADAPTER_KEY;
     const update = history.update.bind(history);
     const item = { parentId, message, runConfig: this._lastRunConfig };
-    this._chainHistoryWrite(message.id, () => update(item)).catch(() => {});
+    this._chainHistoryWrite(key, message.id, () => update(item)).catch(
+      () => {},
+    );
   }
 
   public readonly isDisabled = false;
@@ -251,11 +264,13 @@ export class LocalThreadRuntimeCore
     const replacingHistory =
       this._lastHistoryAdapterKey !== undefined &&
       !Object.is(this._lastHistoryAdapterKey, key);
-    const shouldResetMessages =
-      replacingHistory &&
-      this._lastHistoryAdapterKey !== DEFAULT_HISTORY_ADAPTER_KEY;
-
-    if (shouldResetMessages) {
+    if (replacingHistory) {
+      this._historyScopeGeneration += 1;
+      this._queue?.adapter.clear("reload");
+      this.abortController?.abort(new AbortError(false));
+      this.abortController = null;
+      this._suggestionsController?.abort();
+      this._suggestionsController = null;
       this.repository.import({ headId: null, messages: [] });
     }
 
@@ -326,12 +341,14 @@ export class LocalThreadRuntimeCore
   }
 
   private async _runAppend(message: AppendMessage): Promise<void> {
+    const historyScopeGeneration = this._historyScopeGeneration;
     this.ensureInitialized();
 
     const initPromise = this._getInitializePromise?.();
     if (initPromise) {
       await initPromise;
     }
+    if (historyScopeGeneration !== this._historyScopeGeneration) return;
 
     const newMessage = fromThreadMessageLike(message, generateId(), {
       type: "complete",
@@ -422,6 +439,7 @@ export class LocalThreadRuntimeCore
     runConfig: RunConfig | undefined,
     runCallback?: ChatModelAdapter["run"],
   ): Promise<void> {
+    const historyScopeGeneration = this._historyScopeGeneration;
     this._notifyEventSubscribers("runStart", {});
 
     // A run entered on a requires-action message resumes a pause an
@@ -444,8 +462,10 @@ export class LocalThreadRuntimeCore
           message,
           runConfig,
           alreadyPersisted,
+          historyScopeGeneration,
           runCallback,
         );
+        if (historyScopeGeneration !== this._historyScopeGeneration) return;
         runCallback = undefined;
       } while (shouldContinue(message, this._options.unstable_humanToolNames));
     } finally {
@@ -456,6 +476,8 @@ export class LocalThreadRuntimeCore
         queueMicrotask(() => this._queue?.notifyIdle());
       }
     }
+
+    if (historyScopeGeneration !== this._historyScopeGeneration) return;
 
     if (
       this.adapters.suggestion &&
@@ -487,9 +509,12 @@ export class LocalThreadRuntimeCore
     message: ThreadAssistantMessage,
     runConfig: RunConfig | undefined,
     alreadyPersisted: boolean,
+    historyScopeGeneration: number,
     runCallback?: ChatModelAdapter["run"],
   ) {
     const messages = parentId ? this.repository.getMessages(parentId) : [];
+    const history = this._options.adapters.history;
+    const historyKey = history?.key ?? DEFAULT_HISTORY_ADAPTER_KEY;
 
     // abort existing run
     this.abortController?.abort();
@@ -502,6 +527,8 @@ export class LocalThreadRuntimeCore
     const initialSteps = message.metadata?.steps;
     const initialCustom = message.metadata?.custom;
     const updateMessage = (m: Partial<ChatModelRunResult>) => {
+      if (historyScopeGeneration !== this._historyScopeGeneration) return;
+
       const newSteps = m.metadata?.steps;
       const steps = newSteps
         ? [...(initialSteps ?? []), ...newSteps]
@@ -648,7 +675,6 @@ export class LocalThreadRuntimeCore
         this.abortController = null;
       }
 
-      const history = this._options.adapters.history;
       const item = {
         parentId,
         message,
@@ -663,13 +689,18 @@ export class LocalThreadRuntimeCore
 
       // Pauses are written only for adapters that can rewrite the entry later;
       // an append-only adapter would strand a half-finished run in history.
-      if (isTerminal || (isPausing && history?.update)) {
+      if (
+        historyScopeGeneration === this._historyScopeGeneration &&
+        (isTerminal || (isPausing && history?.update))
+      ) {
         const write =
           alreadyPersisted && history?.update
             ? history.update.bind(history)
             : history?.append.bind(history);
         if (write) {
-          await this._chainHistoryWrite(message.id, () => write(item));
+          await this._chainHistoryWrite(historyKey, message.id, () =>
+            write(item),
+          );
         }
       }
     }

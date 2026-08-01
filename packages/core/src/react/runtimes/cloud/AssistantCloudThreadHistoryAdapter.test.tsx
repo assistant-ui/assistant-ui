@@ -21,6 +21,7 @@ const mocks = vi.hoisted(() => {
 
 vi.mock("@assistant-ui/store", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@assistant-ui/store")>()),
+  getClientId: (client: object) => client,
   useAui: () => mocks.aui,
 }));
 
@@ -42,7 +43,8 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
     const { result } = renderHook(() =>
       useAssistantCloudThreadHistoryAdapter(cloudRef),
     );
-    expect(result.current.key).toBe(firstCloud);
+    const firstKey = result.current.key;
+    expect(typeof firstKey).toBe("symbol");
     const formatted = result.current.withFormat<
       { id: string },
       Record<string, unknown>
@@ -62,7 +64,7 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
     expect(firstCloud.threads.messages.list).toHaveBeenCalledTimes(2);
 
     cloudRef.current = secondCloud;
-    expect(result.current.key).toBe(secondCloud);
+    expect(result.current.key).not.toBe(firstKey);
     await formatted.load();
 
     expect(firstCloud.threads.messages.list).toHaveBeenCalledTimes(2);
