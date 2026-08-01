@@ -6,7 +6,7 @@ import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@/components/ui/radix/collapsible";
+} from "@/components/ui/collapsible";
 import { ChevronDownIcon } from "lucide-react";
 
 export function CodeCollapsible({
@@ -27,7 +27,7 @@ export function CodeCollapsible({
       className={cn("group/collapsible relative my-4", className)}
     >
       <CollapsibleContent
-        forceMount
+        keepMounted
         className={cn(
           "relative overflow-hidden [&_figure]:my-0",
           !isOpen && "max-h-[200px]",

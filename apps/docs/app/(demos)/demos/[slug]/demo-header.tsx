@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/radix/button";
+import { Button } from "@/components/ui/button";
 import { Select } from "@/components/assistant-ui/select";
 import { GitHubIcon } from "@/components/icons/github";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
@@ -53,8 +53,13 @@ export function DemoHeader({ slug }: { slug: string }) {
           </a>
         )}
         <ThemeToggle />
-        <Button size="sm" className="ml-1 h-8" asChild>
-          <Link href="/docs">Get started</Link>
+        <Button
+          size="sm"
+          className="ml-1 h-8"
+          nativeButton={false}
+          render={<Link href="/docs" />}
+        >
+          Get started
         </Button>
       </div>
     </header>
