@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
 import type { AppendMessage } from "@assistant-ui/react";
 import { PiThreadController } from "./ThreadController";
 import type {
@@ -240,6 +240,33 @@ describe("PiThreadController", () => {
       content: "second",
       streamingBehavior: "followUp",
     });
+  });
+
+  it("isolates subscriber errors while sending messages", async () => {
+    const client = createFakeClient();
+    const controller = new PiThreadController(client, THREAD);
+    const listenerError = new Error("listener failed");
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    onTestFinished(() => consoleError.mockRestore());
+    const laterListener = vi.fn();
+
+    controller.subscribe(() => {
+      throw listenerError;
+    });
+    controller.subscribe(laterListener);
+
+    await expect(
+      controller.sendMessage(userMessage("hello")),
+    ).resolves.toBeUndefined();
+
+    expect(client.sent).toHaveLength(1);
+    expect(laterListener).toHaveBeenCalled();
+    expect(consoleError).toHaveBeenCalledWith(
+      "[react-pi] Listener threw an error",
+      listenerError,
+    );
   });
 
   it("maps image attachments to Pi image content", async () => {
