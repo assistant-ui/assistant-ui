@@ -1,6 +1,9 @@
 import Link from "next/link";
 
-const GROUPS: { label: string; links: { label: string; href: string }[] }[] = [
+export const GROUPS: {
+  label: string;
+  links: { label: string; href: string }[];
+}[] = [
   {
     label: "Build",
     links: [

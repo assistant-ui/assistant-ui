@@ -5,19 +5,19 @@ import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import { DemoIframe } from "@/components/docs/demo-iframe";
 import { GitHubIcon } from "@/components/icons/github";
-import { DEMOS } from "@/lib/demos";
+import { DEMO_META } from "@/lib/demos-meta";
 import { cn } from "@/lib/utils";
 
 export function DemoShowcase() {
-  const [slug, setSlug] = useState(DEMOS[0]?.slug ?? "");
-  const demo = DEMOS.find((entry) => entry.slug === slug);
+  const [slug, setSlug] = useState(DEMO_META[0]?.slug ?? "");
+  const demo = DEMO_META.find((entry) => entry.slug === slug);
 
   if (!demo) return null;
 
   return (
     <div className="not-prose flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-1">
-        {DEMOS.map((entry) => (
+        {DEMO_META.map((entry) => (
           <button
             key={entry.slug}
             type="button"

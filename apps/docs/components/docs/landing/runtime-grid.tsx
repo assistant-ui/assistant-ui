@@ -9,7 +9,7 @@ import { LangGraphIcon } from "@/components/icons/langgraph";
 import { OpenCodeIcon } from "@/components/icons/opencode";
 import { VercelIcon } from "@/components/icons/vercel";
 
-const RUNTIMES: { label: string; href: string; icon: ReactNode }[] = [
+export const RUNTIMES: { label: string; href: string; icon: ReactNode }[] = [
   {
     label: "Vercel AI SDK",
     href: "/docs/runtimes/ai-sdk/overview",
