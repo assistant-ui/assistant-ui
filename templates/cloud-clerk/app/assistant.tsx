@@ -8,13 +8,57 @@ import {
 } from "@assistant-ui/react-ai-sdk";
 import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 import { Thread } from "@/components/assistant-ui/thread";
-import { AssistantShell } from "@/components/assistant-ui/assistant-shell";
-import { MessagesSquare } from "lucide-react";
-import { useAuth, UserButton, useUser } from "@clerk/nextjs";
+import {
+  AssistantShell,
+  AssistantShellFooterItem,
+} from "@/components/assistant-ui/assistant-shell";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useAuth, useClerk, useUser } from "@clerk/nextjs";
+import { ChevronsUpDownIcon, LogOutIcon, UserRoundIcon } from "lucide-react";
+
+const AccountMenu = () => {
+  const { user } = useUser();
+  const { openUserProfile, signOut } = useClerk();
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <AssistantShellFooterItem
+            icon={
+              <Avatar>
+                <AvatarImage src={user?.imageUrl} alt="" />
+                <AvatarFallback>{user?.firstName?.[0] ?? "?"}</AvatarFallback>
+              </Avatar>
+            }
+            label={user?.fullName ?? "Account"}
+            description={user?.primaryEmailAddress?.emailAddress}
+            trailing={<ChevronsUpDownIcon className="size-4" />}
+          />
+        }
+      />
+      <DropdownMenuContent side="top" align="start" className="w-56">
+        <DropdownMenuItem onClick={() => openUserProfile()}>
+          <UserRoundIcon /> Manage account
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => signOut()}>
+          <LogOutIcon /> Sign out
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+};
 
 export const Assistant = () => {
   const { getToken } = useAuth();
-  const { user } = useUser();
 
   const cloud = useMemo(
     () =>
@@ -41,18 +85,7 @@ export const Assistant = () => {
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
-      <AssistantShell
-        logo={<MessagesSquare className="size-5" />}
-        title="assistant-ui"
-        headerActions={
-          <div className="flex items-center gap-3">
-            <span className="text-muted-foreground text-sm">
-              {`Welcome${user?.firstName ? `, ${user.firstName}` : ""}`}
-            </span>
-            <UserButton />
-          </div>
-        }
-      >
+      <AssistantShell sidebarFooter={<AccountMenu />}>
         <Thread />
       </AssistantShell>
     </AssistantRuntimeProvider>
