@@ -113,7 +113,8 @@ const withAudioTranscript = (
   const audio = additionalKwargs?.audio as { transcript?: unknown } | undefined;
   const transcript = audio?.transcript;
   if (typeof transcript !== "string" || !transcript) return parts;
-  if (parts.some((part) => part.type === "text" && part.text)) return parts;
+  if (parts.some((part) => part.type === "text" && part.text.trim()))
+    return parts;
   return [
     ...parts.filter((part) => part.type !== "text"),
     { type: "text" as const, text: transcript },

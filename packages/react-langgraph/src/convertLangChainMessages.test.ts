@@ -1496,6 +1496,17 @@ describe("convertLangChainMessages audio transcripts", () => {
     ]);
   });
 
+  it("treats a whitespace-only placeholder as no text", () => {
+    const result = convertLangChainMessages(
+      audioMessage(
+        [{ type: "text", text: "   " }] as LangChainMessage["content"],
+        { transcript: "spoken words" },
+      ),
+    );
+
+    expect(result.content).toEqual([{ type: "text", text: "spoken words" }]);
+  });
+
   it("keeps non-text parts when it substitutes the transcript", () => {
     const result = convertLangChainMessages(
       audioMessage(
