@@ -59,7 +59,12 @@ function NavigationMenuLink({ ...props }: NavigationMenuPrimitive.Link.Props) {
 function NavigationMenuPortal({
   ...props
 }: NavigationMenuPrimitive.Portal.Props) {
-  return <NavigationMenuPrimitive.Portal {...props} />;
+  return (
+    <NavigationMenuPrimitive.Portal
+      data-slot="navigation-menu-portal"
+      {...props}
+    />
+  );
 }
 
 function NavigationMenuPositioner({
