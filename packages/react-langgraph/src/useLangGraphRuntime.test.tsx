@@ -2194,6 +2194,45 @@ describe("useLangGraphRuntime", () => {
       expect(streamMock).toHaveBeenCalledTimes(1);
     });
 
+    it("preserves tool ownership when a result arrives after an error", async () => {
+      const runConfig = {
+        custom: { configurable: { model_name: "gpt-5.4-nano" } },
+      };
+      const gate = deferred<void>();
+      const streamMock = vi.fn(async function* (_messages: LangChainMessage[]) {
+        if (streamMock.mock.calls.length === 1) {
+          yield toolCallEvent;
+          await gate.promise;
+          throw new Error("stream failed");
+        }
+      });
+
+      const { result: runtimeResult } = renderHook(() =>
+        useLangGraphRuntime({ stream: streamMock }),
+      );
+      const wrapper = wrapperFactory(runtimeResult.current);
+      const { result: auiResult } = renderHook(() => useAui(), { wrapper });
+
+      await act(async () => {
+        auiResult.current.composer.setRunConfig(runConfig);
+        auiResult.current.composer.setText("what's the weather?");
+        auiResult.current.composer.send();
+      });
+      await waitForToolCallPart(auiResult.current);
+
+      await act(async () => {
+        gate.resolve();
+      });
+      await waitFor(() =>
+        expect(auiResult.current.thread.getState().isRunning).toBe(false),
+      );
+
+      addToolResult(runtimeResult.current, { temperature: 72 });
+
+      await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(2));
+      expect(streamMock.mock.calls[1]?.[1].runConfig).toEqual(runConfig);
+    });
+
     it("replaces a duplicate result in the queued resume instead of double-sending", async () => {
       const gate = deferred<void>();
       const streamMock = vi.fn(async function* (_messages: LangChainMessage[]) {

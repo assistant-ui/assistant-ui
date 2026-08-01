@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getPendingToolCalls } from "./messageHelpers";
+import { getLangChainToolCallIds, getPendingToolCalls } from "./messageHelpers";
 
 describe("getPendingToolCalls", () => {
   it("keeps synthesized ids stable across rebuilt tool call objects", () => {
@@ -13,6 +13,18 @@ describe("getPendingToolCalls", () => {
       ])[0]!.id;
 
     expect(getId()).toBe(getId());
+  });
+
+  it("does not rewrite a synthesized id when a sibling call arrives", () => {
+    const synthesizedId = getLangChainToolCallIds("ai-1", [
+      { id: "", index: 0, name: "lookup", args: {} },
+    ])[0]!;
+    const rebuiltIds = getLangChainToolCallIds("ai-1", [
+      { id: "", index: 0, name: "lookup", args: {} },
+      { id: synthesizedId, index: 1, name: "calendar", args: {} },
+    ]);
+
+    expect(rebuiltIds[0]).toBe(synthesizedId);
   });
 
   it("does not match a non-empty unknown result to a synthesized call", () => {

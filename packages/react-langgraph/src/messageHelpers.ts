@@ -13,28 +13,11 @@ const getLangChainToolCallFallbackId = (
 export const getLangChainToolCallIds = (
   messageId: string | undefined,
   toolCalls: readonly LangChainToolCall[],
-) => {
-  const usedIds = new Set(
-    toolCalls.flatMap((toolCall) => (toolCall.id ? [toolCall.id] : [])),
+) =>
+  toolCalls.map(
+    (toolCall, index) =>
+      toolCall.id || getLangChainToolCallFallbackId(messageId, toolCall, index),
   );
-
-  return toolCalls.map((toolCall, index) => {
-    if (toolCall.id) return toolCall.id;
-
-    const fallbackId = getLangChainToolCallFallbackId(
-      messageId,
-      toolCall,
-      index,
-    );
-    let toolCallId = fallbackId;
-    let suffix = 1;
-    while (usedIds.has(toolCallId)) {
-      toolCallId = `${fallbackId}-${suffix++}`;
-    }
-    usedIds.add(toolCallId);
-    return toolCallId;
-  });
-};
 
 export const findMatchingLangChainToolCallIndex = (
   previousToolCalls: readonly LangChainToolCall[],

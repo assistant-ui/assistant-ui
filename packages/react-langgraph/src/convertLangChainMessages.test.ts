@@ -1064,29 +1064,6 @@ describe("convertLangChainMessages tool call id stability", () => {
     );
   });
 
-  it("avoids collisions between explicit and synthesized tool call ids", () => {
-    const result = convertLangChainMessages({
-      type: "ai",
-      id: "ai-1",
-      content: "",
-      tool_calls: [
-        { id: "", name: "weather", args: {}, index: 0 },
-        {
-          id: "lc-toolcall-ai-1-0",
-          name: "calendar",
-          args: {},
-          index: 1,
-        },
-      ],
-    });
-
-    if (!("content" in result)) throw new Error("Expected assistant message");
-    const toolCallIds = result.content
-      .filter((part) => part.type === "tool-call")
-      .map((part) => part.toolCallId);
-    expect(toolCallIds).toEqual(["lc-toolcall-ai-1-0-1", "lc-toolcall-ai-1-0"]);
-  });
-
   it("synthesizes unique ids for multiple empty-id tool_calls in the same message", () => {
     const result = convertLangChainMessages({
       type: "ai",
