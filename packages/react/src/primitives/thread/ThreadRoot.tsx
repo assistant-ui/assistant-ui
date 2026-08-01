@@ -27,6 +27,8 @@ const isEscapeTargetForRoot = (
 ) => {
   const ownerDocument = root.ownerDocument;
   const roots = threadRootsByDocument.get(ownerDocument);
+  if (roots?.size === 1) return true;
+
   const NodeConstructor = ownerDocument.defaultView?.Node;
 
   if (NodeConstructor && event.target instanceof NodeConstructor) {
@@ -116,7 +118,16 @@ export const ThreadPrimitiveRoot = forwardRef<
     if (!root || !isEscapeTargetForRoot(event, root)) return;
     if (aui.thread.getState().speech == null) return;
     event.preventDefault();
-    aui.thread.stopSpeaking();
+    try {
+      aui.thread.stopSpeaking();
+    } catch (error) {
+      if (
+        !(error instanceof Error) ||
+        error.message !== "No message is being spoken"
+      ) {
+        throw error;
+      }
+    }
   });
 
   return <Primitive.div {...props} ref={composedRef} />;

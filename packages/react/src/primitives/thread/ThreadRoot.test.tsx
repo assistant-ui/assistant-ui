@@ -32,16 +32,24 @@ const initialMessages: ThreadMessageLike[] = [
 
 const createSpeechAdapter = () => {
   const cancel = vi.fn();
+  const subscribers = new Set<() => void>();
   const utterance: SpeechSynthesisAdapter.Utterance = {
     status: { type: "running" },
     cancel,
-    subscribe: () => () => {},
+    subscribe: (callback) => {
+      subscribers.add(callback);
+      return () => subscribers.delete(callback);
+    },
   };
   const adapter: SpeechSynthesisAdapter = {
     speak: vi.fn(() => utterance),
   };
+  const finish = () => {
+    utterance.status = { type: "ended", reason: "finished" };
+    for (const subscriber of subscribers) subscriber();
+  };
 
-  return { adapter, cancel };
+  return { adapter, cancel, finish };
 };
 
 type RuntimeRef = {
@@ -128,6 +136,28 @@ describe("ThreadPrimitiveRoot", () => {
     expect(event.defaultPrevented).toBe(false);
   });
 
+  it("stops speech from outside the only mounted thread", async () => {
+    const speech = createSpeechAdapter();
+    const runtimeRef: RuntimeRef = { current: null };
+    render(
+      <>
+        <RuntimeProvider runtimeRef={runtimeRef} speech={speech.adapter}>
+          <ThreadPrimitiveRoot />
+        </RuntimeProvider>
+        <button data-testid="outside-control" />
+      </>,
+    );
+    startSpeaking(runtimeRef);
+    await waitFor(() => {
+      expect(runtimeRef.current!.thread.getState().speech).toBeDefined();
+    });
+
+    const event = dispatchEscape(screen.getByTestId("outside-control"));
+
+    expect(speech.cancel).toHaveBeenCalledOnce();
+    expect(event.defaultPrevented).toBe(true);
+  });
+
   it("only stops speech in the thread that received Escape", async () => {
     const firstSpeech = createSpeechAdapter();
     const secondSpeech = createSpeechAdapter();
@@ -166,5 +196,74 @@ describe("ThreadPrimitiveRoot", () => {
     expect(firstSpeech.cancel).not.toHaveBeenCalled();
     expect(secondSpeech.cancel).toHaveBeenCalledOnce();
     expect(event.defaultPrevented).toBe(true);
+  });
+
+  it("uses the active thread when Escape targets the document body", async () => {
+    const firstSpeech = createSpeechAdapter();
+    const secondSpeech = createSpeechAdapter();
+    const firstRuntimeRef: RuntimeRef = { current: null };
+    const secondRuntimeRef: RuntimeRef = { current: null };
+    render(
+      <>
+        <RuntimeProvider
+          runtimeRef={firstRuntimeRef}
+          speech={firstSpeech.adapter}
+        >
+          <ThreadPrimitiveRoot>
+            <button data-testid="first-active-control" />
+          </ThreadPrimitiveRoot>
+        </RuntimeProvider>
+        <RuntimeProvider
+          runtimeRef={secondRuntimeRef}
+          speech={secondSpeech.adapter}
+        >
+          <ThreadPrimitiveRoot>
+            <button data-testid="second-active-control" />
+          </ThreadPrimitiveRoot>
+        </RuntimeProvider>
+      </>,
+    );
+
+    startSpeaking(firstRuntimeRef);
+    startSpeaking(secondRuntimeRef);
+    await waitFor(() => {
+      expect(firstRuntimeRef.current!.thread.getState().speech).toBeDefined();
+      expect(secondRuntimeRef.current!.thread.getState().speech).toBeDefined();
+    });
+    fireEvent.pointerDown(screen.getByTestId("second-active-control"));
+
+    const event = dispatchEscape(document.body);
+
+    expect(firstSpeech.cancel).not.toHaveBeenCalled();
+    expect(secondSpeech.cancel).toHaveBeenCalledOnce();
+    expect(event.defaultPrevented).toBe(true);
+  });
+
+  it("ignores speech ending between the rendered state and Escape", async () => {
+    const speech = createSpeechAdapter();
+    const runtimeRef: RuntimeRef = { current: null };
+    render(
+      <RuntimeProvider runtimeRef={runtimeRef} speech={speech.adapter}>
+        <ThreadPrimitiveRoot />
+      </RuntimeProvider>,
+    );
+    startSpeaking(runtimeRef);
+    await waitFor(() => {
+      expect(runtimeRef.current!.thread.getState().speech).toBeDefined();
+    });
+
+    expect(() => {
+      act(() => {
+        speech.finish();
+        document.body.dispatchEvent(
+          new KeyboardEvent("keydown", {
+            key: "Escape",
+            bubbles: true,
+            cancelable: true,
+          }),
+        );
+      });
+    }).not.toThrow();
+    expect(speech.cancel).not.toHaveBeenCalled();
   });
 });
