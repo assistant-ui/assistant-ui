@@ -53,10 +53,7 @@ function resolveStage(
   snapshot: LearnSourceSnapshot,
   resolvingStageIds: Set<string>,
 ): LearnStageFiles {
-  const stage = course.stages[stageId];
-  if (!stage) {
-    throw new Error(`Unregistered Learn stage: ${course.id}/${stageId}`);
-  }
+  const stage = getLearnStage(course.id, stageId);
   if (resolvingStageIds.has(stageId)) {
     throw new Error(`Cyclic Learn stage inheritance: ${course.id}/${stageId}`);
   }

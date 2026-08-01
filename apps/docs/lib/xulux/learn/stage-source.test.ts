@@ -2,6 +2,7 @@ import {
   DEFAULT_LEARN_COURSE_ID,
   getLearnCourse,
   getLearnStage,
+  LearnRegistryError,
 } from "./registry";
 import { listZipEntries } from "../demo-downloads/zip";
 import {
@@ -171,7 +172,7 @@ describe("resolveStageFiles", () => {
         "missing-stage",
         {},
       ),
-    ).toThrow(/Unregistered Learn stage/);
+    ).toThrow(LearnRegistryError);
   });
 });
 
