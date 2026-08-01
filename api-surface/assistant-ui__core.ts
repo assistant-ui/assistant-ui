@@ -3381,7 +3381,59 @@ declare class RemoteThreadListHookInstanceManager extends BaseSubscribable {
   private useAliveThreadsKeysChanged;
   private parent;
   constructor(runtimeHook: RemoteThreadListHook, parent: ThreadListRuntimeCore);
+  private _whenRuntimeAttached;
   startThreadRuntime(threadId: string): Promise<Readonly<{
+    getMessageById: (messageId: string) => {
+      parentId: string | null;
+      message: ThreadMessage;
+      index: number;
+    } | undefined;
+    getBranches: (messageId: string) => readonly string[];
+    switchToBranch: (branchId: string) => void;
+    append: (message: AppendMessage) => void;
+    deleteMessage: (messageId: string) => void | Promise<void>;
+    startRun: (config: StartRunConfig) => void;
+    resumeRun: (config: ResumeRunConfig) => void;
+    cancelRun: () => void;
+    addToolResult: (options: AddToolResultOptions) => void;
+    resumeToolCall: (options: ResumeToolCallOptions) => void;
+    respondToToolApproval: (options: RespondToToolApprovalOptions) => void;
+    speak: (messageId: string) => void;
+    stopSpeaking: () => void;
+    connectVoice: () => void;
+    disconnectVoice: () => void;
+    muteVoice: () => void;
+    unmuteVoice: () => void;
+    submitFeedback: (feedback: SubmitFeedbackOptions) => void;
+    getModelContext: () => ModelContext$1;
+    composer: ThreadComposerRuntimeCore;
+    getEditComposer: (messageId: string) => EditComposerRuntimeCore | undefined;
+    beginEdit: (messageId: string) => void;
+    getQueueItems?: () => readonly QueueItemState[];
+    steerQueueItem?: (queueItemId: string) => void;
+    removeQueueItem?: (queueItemId: string) => void;
+    speech: SpeechState | undefined;
+    voice: VoiceSessionState | undefined;
+    capabilities: Readonly<RuntimeCapabilities>;
+    isDisabled: boolean;
+    isSendDisabled: boolean;
+    isLoading: boolean;
+    isRunning?: boolean | undefined;
+    messages: readonly ThreadMessage[];
+    state: ReadonlyJSONValue;
+    suggestions: readonly ThreadSuggestion[];
+    extras: unknown;
+    subscribe: (callback: () => void) => Unsubscribe$1;
+    getVoiceVolume: () => number;
+    subscribeVoiceVolume: (callback: () => void) => Unsubscribe$1;
+    import(repository: ExportedMessageRepository): void;
+    export(): ExportedMessageRepository;
+    exportExternalState(): any;
+    importExternalState(state: any): void;
+    reset(initialMessages?: readonly ThreadMessageLike[]): void;
+    unstable_on<E extends ThreadRuntimeEventType>(event: E, callback: ThreadRuntimeEventCallback<E>): Unsubscribe$1;
+  }>>;
+  __internal_restartThreadRuntime(threadId: string): Promise<Readonly<{
     getMessageById: (messageId: string) => {
       parentId: string | null;
       message: ThreadMessage;
@@ -3529,6 +3581,7 @@ declare class RemoteThreadListThreadListRuntimeCore extends BaseSubscribable imp
   private useProvider;
   __internal_setOptions(options: RemoteThreadListOptions): void;
   __internal_load(): void;
+  reloadMainThread(): Promise<void>;
   reload(): Promise<void>;
   get isLoading(): boolean;
   get isLoadingMore(): boolean;
@@ -4410,6 +4463,7 @@ type ThreadListRuntime = {
   switchToNewThread(): Promise<void>;
   getLoadThreadsPromise(): Promise<void>;
   reload(): Promise<void>;
+  reloadMainThread(): Promise<void>;
   loadMore(): Promise<void>;
 };
 
@@ -4431,6 +4485,7 @@ type ThreadListRuntimeCore = {
   switchToNewThread(): Promise<void>;
   getLoadThreadsPromise(): Promise<void>;
   reload?(): Promise<void>;
+  reloadMainThread?(): Promise<void>;
   loadMore?(): Promise<void>;
   detach(threadId: string): Promise<void>;
   rename(threadId: string, newTitle: string): Promise<void>;
@@ -4460,6 +4515,7 @@ declare class ThreadListRuntimeImpl implements ThreadListRuntime {
   switchToNewThread(): Promise<void>;
   getLoadThreadsPromise(): Promise<void>;
   reload(): Promise<void>;
+  reloadMainThread(): Promise<void>;
   loadMore(): Promise<void>;
   getState(): ThreadListState;
   subscribe(callback: () => void): Unsubscribe$1;
@@ -4965,6 +5021,7 @@ type ThreadsMethods = {
   thread(selector: "main"): ThreadMethods;
   getLoadThreadsPromise(): Promise<void>;
   reload(): Promise<void>;
+  reloadMainThread(): Promise<void>;
   loadMore(): Promise<void>;
   __internal_getAssistantRuntime?(): AssistantRuntime;
 };

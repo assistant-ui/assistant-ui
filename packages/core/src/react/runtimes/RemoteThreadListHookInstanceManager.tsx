@@ -26,6 +26,9 @@ type RemoteThreadListHook = () => AssistantRuntime;
 
 type RemoteThreadListHookInstance = {
   runtime?: ThreadRuntimeCore;
+  // Part of the binder's React key. Deleting and re-adding an instance in one
+  // tick leaves the key set unchanged, so only a bump remounts the hook.
+  generation: number;
 };
 
 const ProviderRenderDetector: FC<{
@@ -53,12 +56,7 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     this.useRuntimeHook = create(() => ({ useRuntime: runtimeHook }));
   }
 
-  public startThreadRuntime(threadId: string) {
-    if (!this.instances.has(threadId)) {
-      this.instances.set(threadId, {});
-      this.useAliveThreadsKeysChanged.setState({}, true);
-    }
-
+  private _whenRuntimeAttached(threadId: string) {
     return new Promise<ThreadRuntimeCore>((resolve, reject) => {
       const callback = () => {
         const instance = this.instances.get(threadId);
@@ -75,6 +73,26 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
       const dispose = this.subscribe(callback);
       callback();
     });
+  }
+
+  public startThreadRuntime(threadId: string) {
+    if (!this.instances.has(threadId)) {
+      this.instances.set(threadId, { generation: 0 });
+      this.useAliveThreadsKeysChanged.setState({}, true);
+    }
+
+    return this._whenRuntimeAttached(threadId);
+  }
+
+  public __internal_restartThreadRuntime(threadId: string) {
+    const instance = this.instances.get(threadId);
+    if (!instance) return this.startThreadRuntime(threadId);
+
+    this.instances.set(threadId, { generation: instance.generation + 1 });
+    this.useAliveThreadsKeysChanged.setState({}, true);
+    this._notifySubscribers();
+
+    return this._whenRuntimeAttached(threadId);
   }
 
   public getThreadRuntimeCore(threadId: string) {
@@ -208,12 +226,14 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
   }> = ({ provider }) => {
     this.useAliveThreadsKeysChanged(); // trigger re-render on alive threads change
 
-    return Array.from(this.instances.keys()).map((threadId) => (
-      <this._OuterActiveThreadProvider
-        key={threadId}
-        threadId={threadId}
-        provider={provider}
-      />
-    ));
+    return Array.from(this.instances.entries()).map(
+      ([threadId, { generation }]) => (
+        <this._OuterActiveThreadProvider
+          key={`${threadId}:${generation}`}
+          threadId={threadId}
+          provider={provider}
+        />
+      ),
+    );
   };
 }

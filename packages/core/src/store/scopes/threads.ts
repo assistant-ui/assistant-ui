@@ -30,6 +30,7 @@ export type ThreadsMethods = {
   thread(selector: "main"): ThreadMethods;
   getLoadThreadsPromise(): Promise<void>;
   reload(): Promise<void>;
+  reloadMainThread(): Promise<void>;
   loadMore(): Promise<void>;
   __internal_getAssistantRuntime?(): AssistantRuntime;
 };

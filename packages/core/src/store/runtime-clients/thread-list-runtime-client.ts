@@ -93,6 +93,7 @@ const useThreadListClient = ({
     },
     getLoadThreadsPromise: () => runtime.getLoadThreadsPromise(),
     reload: () => runtime.reload(),
+    reloadMainThread: () => runtime.reloadMainThread(),
     loadMore: () => runtime.loadMore(),
     __internal_getAssistantRuntime: () => __internal_assistantRuntime,
   };

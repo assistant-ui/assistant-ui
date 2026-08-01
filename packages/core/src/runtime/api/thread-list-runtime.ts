@@ -56,6 +56,14 @@ export type ThreadListRuntime = {
 
   getLoadThreadsPromise(): Promise<void>;
   reload(): Promise<void>;
+  /**
+   * Refetches the open thread's remote state in place, for state that changed
+   * out of band and so never reached the stream. The thread is restarted
+   * rather than merged into: unsent composer input and optimistic messages are
+   * discarded, and a run that is still streaming is aborted. Resolves without
+   * doing anything on runtimes that hold no remote state.
+   */
+  reloadMainThread(): Promise<void>;
   loadMore(): Promise<void>;
 };
 
@@ -155,6 +163,7 @@ export class ThreadListRuntimeImpl implements ThreadListRuntime {
     this.switchToNewThread = this.switchToNewThread.bind(this);
     this.getLoadThreadsPromise = this.getLoadThreadsPromise.bind(this);
     this.reload = this.reload.bind(this);
+    this.reloadMainThread = this.reloadMainThread.bind(this);
     this.loadMore = this.loadMore.bind(this);
     this.getState = this.getState.bind(this);
     this.subscribe = this.subscribe.bind(this);
@@ -181,6 +190,10 @@ export class ThreadListRuntimeImpl implements ThreadListRuntime {
 
   public reload(): Promise<void> {
     return this._core.reload?.() ?? RESOLVED_PROMISE;
+  }
+
+  public reloadMainThread(): Promise<void> {
+    return this._core.reloadMainThread?.() ?? RESOLVED_PROMISE;
   }
 
   public loadMore(): Promise<void> {
