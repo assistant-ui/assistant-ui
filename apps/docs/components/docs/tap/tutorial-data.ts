@@ -1,143 +1,92 @@
-import type { CodeSlideshowStep } from "@/components/docs/code-slideshow";
+export type TapTutorialStep = {
+  title: string;
+  filename: string;
+  language: string;
+  code: string;
+  /** Hard-cut into this step instead of animating from the previous one. */
+  cut?: boolean;
+  /** Footer explanation for the step. */
+  prose: string;
+};
 
 const useCounterFull = `const useCounter = () => {
   const [count, setCount] = useState(0);
   const increment = () => setCount((value) => value + 1);
-  return { count, increment };
+  const decrement = () => setCount((value) => value - 1);
+  return { count, increment, decrement };
 };`;
 
-const useCounterCollapsed = `// !collapse(1:5) collapsed
-${useCounterFull}`;
-
-export const tapTutorialSteps: CodeSlideshowStep[] = [
+export const tapTutorialSteps: TapTutorialStep[] = [
   {
     title: "Write a Hook",
     filename: "counter.jsx",
     language: "jsx",
+    prose:
+      "Start with a Hook you'd write anyway: a count and the method that updates it.",
     code: `import { useState } from "react";
 
 ${useCounterFull}`,
   },
   {
-    title: "Create a Resource",
+    title: "Turn it into a Resource",
     filename: "counter.jsx",
     language: "jsx",
+    prose:
+      "resource() packages the Hook into Counter — a reusable building block for state.",
     code: `import { useState } from "react";
 import { resource } from "@assistant-ui/tap";
 
 ${useCounterFull}
 
 // !tooltip[/resource/] Wraps a hook into a resource element factory.
-// !tooltip[/Counter/] () => ({ hook: useCounter, args: [] })
-const Counter = resource(useCounter);`,
+export const Counter = resource(useCounter);`,
   },
   {
-    title: "Use it in React",
+    title: "Render it in React",
     filename: "counter.jsx",
     language: "jsx",
+    prose: "useResource(Counter()) renders the Resource and returns its value.",
     code: `import { useState } from "react";
 import { resource, useResource } from "@assistant-ui/tap";
 
-${useCounterCollapsed}
+// !collapse(1:6) collapsed
+${useCounterFull}
 
-const Counter = resource(useCounter);
+export const Counter = resource(useCounter);
 
 function CounterButton() {
-  // !tooltip[/useResource/] Renders the resource as a child and returns its value.
-  // !tooltip[/Counter\\(\\)/] This returns a ResourceElement
-  const { count, increment } = useResource(Counter());
+  // !tooltip[/useResource/] Renders the resource and returns its value.
+  const { count, increment, decrement } = useResource(Counter());
 
-  return <button onClick={increment}>{count}</button>;
-}`,
-  },
-  {
-    title: "Swap the implementation",
-    filename: "counter.jsx",
-    language: "jsx",
-    code: `import { useState } from "react";
-import { resource, useResource } from "@assistant-ui/tap";
-import { PersistentCounter } from "./persistent-counter";
-
-${useCounterCollapsed}
-
-const Counter = resource(useCounter);
-
-function CounterButton({ id }) {
-  const { count, increment } = useResource(
-    id ? PersistentCounter(id) : Counter(),
+  return (
+    <>
+      <button onClick={decrement}>-</button>
+      <span>{count}</span>
+      <button onClick={increment}>+</button>
+    </>
   );
-
-  return <button onClick={increment}>{count}</button>;
 }`,
   },
   {
-    title: "Accept an implementation",
-    filename: "counter.jsx",
-    language: "jsx",
-    code: `import { useState } from "react";
-import { resource, useResource } from "@assistant-ui/tap";
-import { PersistentCounter } from "./persistent-counter";
-
-${useCounterCollapsed}
-
-const Counter = resource(useCounter);
-
-function CounterButton({ counter = Counter() }) {
-  const { count, increment } = useResource(counter);
-
-  return <button onClick={increment}>{count}</button>;
-}
-
-function App() {
-  return <CounterButton counter={PersistentCounter("main")} />;
-}`,
-  },
-  {
-    title: "Render a dynamic collection",
-    filename: "counter-list.jsx",
-    language: "jsx",
-    cut: true,
-    code: `// !mark(1:2)
-import { useResources, withKey } from "@assistant-ui/tap";
-import { Counter } from "./counter";
-
-function CounterList({ ids }) {
-  // !mark(1:3)
-  const counters = useResources(
-    ids.map((id) => withKey(id, Counter())),
-  );
-
-  // !mark(1:9)
-  return ids.map((id, index) => {
-    const { count, increment } = counters[index];
-
-    return (
-      <button key={id} onClick={increment}>
-        {id}: {count}
-      </button>
-    );
-  });
-}`,
-  },
-  {
-    title: "Run hooks outside React",
-    filename: "counter-root.js",
+    title: "Run it without React",
+    filename: "main.js",
     language: "js",
     cut: true,
-    code: `import { createTapRoot, flushTapSync } from "@assistant-ui/tap";
-import { useCounter } from "./counter";
+    prose:
+      "The exact same Counter, no React tree. createTapRoot hosts it; subscribe and call its methods directly.",
+    code: `import { createTapRoot, useResource } from "@assistant-ui/tap";
+import { Counter } from "./counter";
 
 const root = createTapRoot(function CounterRoot() {
-  return useCounter();
+  return useResource(Counter());
 });
 
-const unsubscribe = root.subscribe(() => {
-  console.log(root.getValue().count); // 1
+root.subscribe(() => {
+  console.log(root.getValue().count);
 });
 
-flushTapSync(() => root.getValue().increment());
+root.getValue().increment();
 
-unsubscribe();
 root.unmount();`,
   },
 ];
