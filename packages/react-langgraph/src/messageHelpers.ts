@@ -36,6 +36,27 @@ export const getLangChainToolCallIds = (
   });
 };
 
+export const findMatchingLangChainToolCallIndex = (
+  previousToolCalls: readonly LangChainToolCall[],
+  toolCall: LangChainToolCall,
+): number => {
+  if (toolCall.id) {
+    const byId = previousToolCalls.findIndex(
+      (previous) => previous.id && previous.id === toolCall.id,
+    );
+    if (byId !== -1) return byId;
+  }
+
+  if (toolCall.index != null) {
+    return previousToolCalls.findIndex(
+      (previous) =>
+        previous.index === toolCall.index && (!previous.id || !toolCall.id),
+    );
+  }
+
+  return -1;
+};
+
 export const getPendingToolCalls = (messages: LangChainMessage[]) => {
   const pendingToolCalls = new Map<string, LangChainToolCall>();
   for (const message of messages) {

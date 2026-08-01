@@ -1269,6 +1269,7 @@ describe("useLangGraphRuntime", () => {
           runConfig: commandRunConfig,
         });
       });
+      expect(streamMock.mock.calls[1]?.[1].runConfig).toEqual(commandRunConfig);
       await waitForToolCallPart(auiResult.current);
 
       addToolResult(runtimeResult.current, { temperature: 72 });
@@ -1334,6 +1335,95 @@ describe("useLangGraphRuntime", () => {
       await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(3));
       expect(streamMock.mock.calls[1]?.[1].runConfig).toEqual(nextRunConfig);
       expect(streamMock.mock.calls[2]?.[1].runConfig).toEqual(firstRunConfig);
+    });
+
+    it("keeps run ownership when tool calls are reordered", async () => {
+      const firstRunConfig = {
+        custom: { configurable: { model_name: "gpt-5.4-nano" } },
+      };
+      const secondRunConfig = {
+        custom: { configurable: { model_name: "claude-haiku-4-5" } },
+      };
+      const streamMock = vi.fn(async function* (
+        _messages: LangChainMessage[],
+        _config: LangGraphSendMessageConfig,
+      ) {
+        if (streamMock.mock.calls.length === 1) {
+          yield {
+            event: "messages/complete",
+            data: [
+              {
+                id: "ai-reordered",
+                type: "ai" as const,
+                content: "",
+                tool_calls: [
+                  { id: "", index: 0, name: "first_tool", args: {} },
+                ],
+              },
+            ],
+          };
+        } else if (streamMock.mock.calls.length === 2) {
+          yield {
+            event: "messages/complete",
+            data: [
+              {
+                id: "ai-reordered",
+                type: "ai" as const,
+                content: "",
+                tool_calls: [
+                  { id: "tc-new", index: 1, name: "new_tool", args: {} },
+                  { id: "tc-first", index: 0, name: "first_tool", args: {} },
+                ],
+              },
+            ],
+          };
+        }
+      });
+
+      const { result: runtimeResult } = renderHook(() =>
+        useLangGraphRuntime({
+          stream: streamMock,
+          autoCancelPendingToolCalls: false,
+        }),
+      );
+      const wrapper = wrapperFactory(runtimeResult.current);
+      const { result: auiResult } = renderHook(() => useAui(), { wrapper });
+
+      await act(async () => {
+        auiResult.current.composer.setRunConfig(firstRunConfig);
+        auiResult.current.composer.setText("first turn");
+        auiResult.current.composer.send();
+      });
+      await waitForToolCallPart(
+        auiResult.current,
+        "lc-toolcall-ai-reordered-0",
+      );
+
+      await act(async () => {
+        auiResult.current.composer.setRunConfig(secondRunConfig);
+        auiResult.current.composer.setText("second turn");
+        auiResult.current.composer.send();
+      });
+      await waitForToolCallPart(auiResult.current, "tc-first");
+      await waitForToolCallPart(auiResult.current, "tc-new");
+
+      addToolResult(
+        runtimeResult.current,
+        { first: true },
+        "ai-reordered",
+        "tc-first",
+      );
+      await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(3));
+      expect(streamMock.mock.calls[2]?.[1].runConfig).toEqual(firstRunConfig);
+
+      addToolResult(
+        runtimeResult.current,
+        { next: true },
+        "ai-reordered",
+        "tc-new",
+      );
+      await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(4));
+      expect(streamMock.mock.calls[3]?.[1].runConfig).toEqual(secondRunConfig);
     });
 
     it("resumes pending tools separately for each owning run", async () => {

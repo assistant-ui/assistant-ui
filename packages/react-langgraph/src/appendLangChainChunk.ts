@@ -1,11 +1,11 @@
 import type {
   LangChainMessage,
   LangChainMessageChunk,
-  LangChainToolCall,
   LangChainToolCallChunk,
   MessageContentText,
 } from "./types";
 import { parsePartialJsonObject } from "assistant-stream/utils";
+import { findMatchingLangChainToolCallIndex } from "./messageHelpers";
 
 type AiMessage = Extract<LangChainMessage, { type: "ai" }>;
 
@@ -16,24 +16,6 @@ const chunkToToolCall = (chunk: LangChainToolCallChunk) => {
     partial_json: partialJson,
     args: parsePartialJsonObject(partialJson) ?? {},
   };
-};
-
-const findMatchingToolCall = (
-  prevToolCalls: readonly LangChainToolCall[],
-  toolCall: LangChainToolCall,
-): LangChainToolCall | undefined => {
-  if (toolCall.id != null && toolCall.id !== "") {
-    const byId = prevToolCalls.find(
-      (p) => p.id != null && p.id !== "" && p.id === toolCall.id,
-    );
-    if (byId) return byId;
-  }
-  if (toolCall.index != null) {
-    return prevToolCalls.find(
-      (p) => p.index === toolCall.index && (!p.id || !toolCall.id),
-    );
-  }
-  return undefined;
 };
 
 // The full AIMessage a LangGraph `updates` event delivers on node completion
@@ -51,10 +33,11 @@ const mergeStreamedToolCallArgs = (
   let changed = false;
   const mergedToolCalls = currToolCalls.map((toolCall) => {
     if (toolCall.partial_json) return toolCall;
-    const streamedPartialJson = findMatchingToolCall(
+    const matchingIndex = findMatchingLangChainToolCallIndex(
       prevToolCalls,
       toolCall,
-    )?.partial_json;
+    );
+    const streamedPartialJson = prevToolCalls[matchingIndex]?.partial_json;
     if (!streamedPartialJson) return toolCall;
     changed = true;
     return { ...toolCall, partial_json: streamedPartialJson };
