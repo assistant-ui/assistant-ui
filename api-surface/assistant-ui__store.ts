@@ -214,7 +214,7 @@ declare const normalizeEventSelector: <TEvent extends AssistantEventName>(select
   event: TEvent;
 };
 
-declare const useAssistantClientEffect: <K extends ClientNames>(scope: K, setup: (accessor: AssistantClientAccessor<K>) => undefined | (() => void), deps: readonly unknown[]) => void;
+declare const useAssistantClientEffect: <K extends ClientNames>(scope: K, setup: (accessor: AssistantClientAccessor<K>) => void | (() => void), deps: readonly unknown[]) => void;
 
 declare const useAssistantClientRef: () => {
   parent: AssistantClient;
