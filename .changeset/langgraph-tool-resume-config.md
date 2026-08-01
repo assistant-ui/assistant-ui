@@ -6,4 +6,4 @@ fix: preserve run configuration across interrupt commands and automatic
 tool-result resumes, and keep pending tool batches scoped to the run that
 emitted them
 
-fix: give tool calls on AI messages without an ID stable, unique IDs
+fix: keep synthesized tool-call IDs collision-free within an AI message

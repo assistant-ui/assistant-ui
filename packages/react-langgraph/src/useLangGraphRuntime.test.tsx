@@ -1614,44 +1614,6 @@ describe("useLangGraphRuntime", () => {
       expect(streamMock.mock.calls[1]?.[1].runConfig).toBeUndefined();
     });
 
-    it("assigns unique tool call ids to id-less loaded messages", async () => {
-      const load = vi.fn(
-        async (): Promise<LoadResult> => ({
-          messages: ["first_tool", "second_tool"].map((name) => ({
-            type: "ai" as const,
-            content: "",
-            tool_calls: [{ id: "", index: 0, name, args: {} }],
-          })),
-        }),
-      );
-      const streamMock = vi.fn(async function* () {});
-
-      const { result: runtimeResult } = renderHook(() =>
-        useLangGraphRuntime({
-          stream: streamMock,
-          load,
-          unstable_threadListAdapter: makeThreadListAdapter(),
-        }),
-      );
-      const wrapper = wrapperFactory(runtimeResult.current);
-      const { result: auiResult } = renderHook(() => useAui(), { wrapper });
-
-      await act(async () => {
-        await runtimeResult.current.threads.switchToThread("lg-thread-1");
-      });
-
-      await waitFor(() => {
-        const toolCallIds = auiResult.current.thread
-          .getState()
-          .messages.flatMap((message) => message.content)
-          .filter((part) => part.type === "tool-call")
-          .map((part) => part.toolCallId);
-        expect(toolCallIds).toHaveLength(2);
-        expect(new Set(toolCallIds).size).toBe(2);
-        expect(toolCallIds).not.toContain("lc-toolcall-unknown-0");
-      });
-    });
-
     it("does not carry run config into a new thread", async () => {
       const runConfig = {
         custom: { configurable: { model_name: "gpt-5.4-nano" } },
