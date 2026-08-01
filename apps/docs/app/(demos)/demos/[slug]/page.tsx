@@ -28,10 +28,13 @@ export async function generateMetadata({
 
 export default async function DemoPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ embed?: string }>;
 }) {
   const { slug } = await params;
+  const { embed } = await searchParams;
   const demo = getDemo(slug);
   if (!demo) notFound();
 
@@ -39,7 +42,7 @@ export default async function DemoPage({
 
   return (
     <div className="bg-background flex h-dvh flex-col overflow-hidden">
-      <DemoHeader slug={demo.slug} />
+      {!embed && <DemoHeader slug={demo.slug} />}
       <main className="min-h-0 flex-1">
         <DocsRuntimeProvider>
           <DemoComponent />
