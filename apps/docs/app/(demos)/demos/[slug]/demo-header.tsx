@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/assistant-ui/select";
 import { GitHubIcon } from "@/components/icons/github";
@@ -12,6 +12,11 @@ import { DEMOS, getDemo } from "@/lib/demos";
 export function DemoHeader({ slug }: { slug: string }) {
   const router = useRouter();
   const demo = getDemo(slug);
+  // Read client-side so the demo route keeps its static generation; the landing
+  // page embeds it once per clone and would otherwise render on every view.
+  const isEmbed = useSearchParams().get("embed") !== null;
+
+  if (isEmbed) return null;
 
   return (
     <header className="flex h-12 flex-none items-center justify-between gap-4 border-b px-4">

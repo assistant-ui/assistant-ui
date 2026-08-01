@@ -19,10 +19,12 @@ export function CodeCollapsible({
   className?: string;
 }) {
   const [isOpen, setIsOpen] = React.useState(false);
+  const previewId = React.useId();
 
   return (
     <div className={cn("relative my-4", className)}>
       <div
+        id={previewId}
         className={cn(
           "relative overflow-hidden [&_figure]:my-0",
           !isOpen && "max-h-[200px]",
@@ -34,6 +36,8 @@ export function CodeCollapsible({
         <button
           type="button"
           onClick={() => setIsOpen(true)}
+          aria-expanded={isOpen}
+          aria-controls={previewId}
           className="from-fd-background via-fd-background/90 text-muted-foreground absolute inset-x-0 bottom-0 flex h-24 cursor-pointer items-end justify-center rounded-b-lg bg-linear-to-t to-transparent pb-2 text-sm"
         >
           <span className="flex items-center gap-1">

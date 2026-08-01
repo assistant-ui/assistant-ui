@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { DocsRuntimeProvider } from "@/contexts/DocsRuntimeProvider";
 import { DEMOS, getDemo } from "@/lib/demos";
@@ -28,13 +29,10 @@ export async function generateMetadata({
 
 export default async function DemoPage({
   params,
-  searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ embed?: string }>;
 }) {
   const { slug } = await params;
-  const { embed } = await searchParams;
   const demo = getDemo(slug);
   if (!demo) notFound();
 
@@ -42,7 +40,9 @@ export default async function DemoPage({
 
   return (
     <div className="bg-background flex h-dvh flex-col overflow-hidden">
-      {!embed && <DemoHeader slug={demo.slug} />}
+      <Suspense>
+        <DemoHeader slug={demo.slug} />
+      </Suspense>
       <main className="min-h-0 flex-1">
         <DocsRuntimeProvider>
           <DemoComponent />
