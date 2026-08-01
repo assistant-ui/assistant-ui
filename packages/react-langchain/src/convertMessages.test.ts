@@ -130,6 +130,7 @@ describe("getMessageContent file blocks", () => {
         type: "file",
         data: "ZmFrZQ==",
         mime_type: "application/pdf",
+        filename: "a.pdf",
         metadata: { filename: "a.pdf" },
         source_type: "base64",
       },
@@ -152,6 +153,7 @@ describe("getMessageContent file blocks", () => {
         type: "file",
         url: "https://r2.example/u/abc/file.pdf",
         mime_type: "application/pdf",
+        filename: "file.pdf",
         metadata: { filename: "file.pdf" },
         source_type: "url",
       },
@@ -175,6 +177,7 @@ describe("getMessageContent file blocks", () => {
         type: "file",
         data: "ZmFrZQ==",
         mime_type: "application/pdf",
+        filename: "a.pdf",
         metadata: { filename: "a.pdf" },
         source_type: "base64",
       },
@@ -197,6 +200,7 @@ describe("getMessageContent file blocks", () => {
         type: "file",
         data: "blob:https://app.example/123",
         mime_type: "application/pdf",
+        filename: "a.pdf",
         metadata: { filename: "a.pdf" },
         source_type: "base64",
       },
@@ -220,6 +224,7 @@ describe("getMessageContent file blocks", () => {
         type: "file",
         id: "flx::storage:file_object:abc",
         mime_type: "application/pdf",
+        filename: "invoice.pdf",
         metadata: { filename: "invoice.pdf" },
         source_type: "id",
       },
@@ -244,6 +249,7 @@ describe("getMessageContent file blocks", () => {
         type: "file",
         url: "s3://bucket/key.pdf",
         mime_type: "application/pdf",
+        filename: "key.pdf",
         metadata: { filename: "key.pdf" },
         source_type: "url",
       },
@@ -274,6 +280,7 @@ describe("getMessageContent file blocks", () => {
         type: "file",
         id: "file-abc123",
         mime_type: "application/pdf",
+        filename: "a.pdf",
         metadata: { filename: "a.pdf" },
         source_type: "id",
       },
@@ -302,6 +309,7 @@ describe("getMessageContent file blocks", () => {
         type: "file",
         id: "file-abc123",
         mime_type: "application/pdf",
+        filename: "a.pdf",
         metadata: { filename: "a.pdf" },
         source_type: "id",
       },
@@ -839,5 +847,104 @@ describe("convertLangChainBaseMessage image content parts", () => {
     );
 
     expect(contentOf(result)).toEqual([]);
+  });
+});
+
+describe("convertLangChainBaseMessage audio transcripts", () => {
+  const audioMessage = (
+    content: unknown,
+    audio: unknown,
+  ): LangChainBaseMessage => ({
+    _getType: () => "ai",
+    id: "msg-3",
+    content,
+    additional_kwargs: { audio },
+  });
+
+  it("surfaces the transcript when the provider leaves content empty", () => {
+    const result = convertLangChainBaseMessage(
+      audioMessage("", {
+        id: "audio_1",
+        data: "UklGRg==",
+        expires_at: 1,
+        transcript: "the secret number is four seven two",
+      }),
+      {},
+    );
+
+    expect(contentOf(result)).toEqual([
+      { type: "text", text: "the secret number is four seven two" },
+    ]);
+  });
+
+  it("treats a whitespace-only placeholder as no text", () => {
+    const result = convertLangChainBaseMessage(
+      audioMessage([{ type: "text", text: "   " }], {
+        transcript: "spoken words",
+      }),
+      {},
+    );
+
+    expect(contentOf(result)).toEqual([{ type: "text", text: "spoken words" }]);
+  });
+
+  it("does not throw on a non-spec text block whose text is missing or not a string", () => {
+    for (const block of [{ type: "text" }, { type: "text", text: 42 }]) {
+      const result = convertLangChainBaseMessage(
+        audioMessage([block], { transcript: "spoken words" }),
+        {},
+      );
+
+      expect(contentOf(result)).toEqual([
+        { type: "text", text: "spoken words" },
+      ]);
+    }
+  });
+
+  it("keeps non-text parts when it substitutes the transcript", () => {
+    const result = convertLangChainBaseMessage(
+      audioMessage(
+        [
+          { type: "text", text: "" },
+          {
+            type: "image_url",
+            image_url: { url: "https://example.com/a.png" },
+          },
+        ],
+        { transcript: "spoken words" },
+      ),
+      {},
+    );
+
+    expect(contentOf(result)).toEqual([
+      { type: "image", image: "https://example.com/a.png" },
+      { type: "text", text: "spoken words" },
+    ]);
+  });
+
+  it("leaves existing text alone so the transcript is not duplicated", () => {
+    const result = convertLangChainBaseMessage(
+      audioMessage([{ type: "text", text: "written answer" }], {
+        transcript: "written answer",
+      }),
+      {},
+    );
+
+    expect(contentOf(result)).toEqual([
+      { type: "text", text: "written answer" },
+    ]);
+  });
+
+  it("ignores an absent, blank, or non-string transcript", () => {
+    for (const audio of [
+      undefined,
+      {},
+      { transcript: "" },
+      { transcript: "   " },
+      { transcript: 42 },
+    ]) {
+      const result = convertLangChainBaseMessage(audioMessage("", audio), {});
+      expect(contentOf(result)).toEqual([{ type: "text", text: "" }]);
+    }
   });
 });

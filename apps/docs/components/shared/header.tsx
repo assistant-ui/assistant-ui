@@ -121,6 +121,7 @@ export function Header({ stars }: { stars: number | null }) {
             <NavItems
               items={NAV_ITEMS}
               className="hidden items-center md:flex"
+              contentClassName="mx-auto max-w-7xl"
             />
           </div>
 
@@ -225,11 +226,12 @@ export function Header({ stars }: { stars: number | null }) {
                 );
               }
 
-              const groups = item.groups;
-
               return (
                 <div key={item.label} className="flex flex-col">
-                  {groups.map((group) => (
+                  <span className="text-foreground py-3 text-lg">
+                    {item.label}
+                  </span>
+                  {item.groups.map((group) => (
                     <div key={group.label} className="flex flex-col">
                       <span className="text-muted-foreground py-3 text-sm">
                         {group.label}

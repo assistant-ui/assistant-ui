@@ -14,37 +14,41 @@ type FooterLinkItem = {
 };
 
 const FOOTER_LINKS: Record<string, FooterLinkItem[]> = {
-  Products: [
+  Product: [
     {
       label: "Cloud",
       href: CLOUD_URL,
       external: true,
     },
     { label: "Playground", href: "/playground" },
+    { label: "Gallery", href: "/gallery" },
+    { label: "Pricing", href: "/pricing" },
+  ],
+  Resources: [
+    { label: "Documentation", href: "/docs" },
+    { label: "Examples", href: "/examples" },
+    { label: "Showcase", href: "/showcase" },
+    { label: "Changelog", href: "/changelog" },
+  ],
+  "Open source": [
+    { label: "All projects", href: "/oss" },
+    { label: "Packages", href: "/packages" },
     ...PRODUCTS.map((p) => ({
       label: p.label,
       href: p.href,
       ...(p.external && { external: true }),
     })),
   ],
-  Resources: [
-    { label: "Documentation", href: "/docs" },
-    { label: "Examples", href: "/examples" },
-    { label: "Showcase", href: "/showcase" },
-    { label: "Traction", href: "/traction" },
-    { label: "Open source", href: "/oss" },
-    { label: "Packages", href: "/packages" },
-    { label: "Blog", href: "/blog" },
-  ],
   Company: [
+    { label: "Blog", href: "/blog" },
+    { label: "Traction", href: "/traction" },
     { label: "Careers", href: "/careers" },
+    { label: "Brand", href: "/brand" },
     {
       label: "Contact Sales",
       href: "https://cal.com/simon-farshid/assistant-ui",
       external: true,
     },
-    { label: "Pricing", href: "/pricing" },
-    { label: "Brand", href: "/brand" },
   ],
   Legal: [
     {
@@ -61,8 +65,8 @@ const FOOTER_LINKS: Record<string, FooterLinkItem[]> = {
 export function Footer(): React.ReactElement {
   return (
     <footer className="py-10 md:py-16">
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-10 px-4 md:flex-row md:justify-between">
-        <div className="grid grid-cols-2 gap-x-12 gap-y-8 sm:grid-cols-4 md:order-2 lg:gap-x-16">
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-10 px-4 md:flex-row md:gap-16">
+        <div className="grid flex-1 grid-cols-2 gap-x-8 gap-y-8 sm:grid-cols-3 md:order-2 lg:grid-cols-5">
           {Object.entries(FOOTER_LINKS).map(([category, links]) => (
             <div key={category} className="flex flex-col gap-3">
               <p className="text-sm font-medium">{category}</p>

@@ -12,7 +12,7 @@ import {
   Users,
   Sparkles,
 } from "lucide-react";
-import { Button, buttonVariants } from "@/components/ui/radix/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { GitHubIcon } from "@/components/icons/github";
 import { createOgMetadata } from "@/lib/og";
 import {
@@ -155,21 +155,19 @@ export default async function TractionPage() {
             href={REPO_URL}
             target="_blank"
             rel="noopener noreferrer"
-            className={buttonVariants({ variant: "outline" })}
+            className={buttonVariants({ variant: "outline", size: "sm" })}
           >
             <GitHubIcon className="size-4" />
             Star on GitHub
           </a>
-          <Button asChild>
-            <Link href="/docs">
-              Get started <ArrowRight />
-            </Link>
+          <Button size="sm" nativeButton={false} render={<Link href="/docs" />}>
+            Get started <ArrowRight />
           </Button>
         </div>
       </header>
 
       <section className="mb-20">
-        <div className="border-border bg-border grid grid-cols-2 gap-px overflow-hidden rounded-xl border md:grid-cols-4">
+        <div className="grid grid-cols-2 gap-8 md:grid-cols-4 md:gap-12">
           {heroStats.map((stat) => {
             if (stat.label === "Weekly downloads") {
               return (
@@ -188,10 +186,7 @@ export default async function TractionPage() {
             }
             const Icon = stat.icon;
             return (
-              <div
-                key={stat.label}
-                className="bg-background flex flex-col gap-3 p-6"
-              >
+              <div key={stat.label} className="flex flex-col gap-3">
                 <Icon className="text-muted-foreground size-4" />
                 <div className="text-3xl font-medium tracking-tight tabular-nums md:text-4xl">
                   {stat.value ?? "—"}
@@ -209,7 +204,7 @@ export default async function TractionPage() {
         <div className="mt-6 flex justify-center">
           <Link
             href="/packages"
-            className={buttonVariants({ variant: "outline" })}
+            className={buttonVariants({ variant: "outline", size: "sm" })}
           >
             See packages detail
             <ArrowRight />
@@ -368,14 +363,16 @@ export default async function TractionPage() {
           <div className="flex flex-wrap gap-3 md:justify-end">
             <Link
               href="/showcase"
-              className={buttonVariants({ variant: "outline" })}
+              className={buttonVariants({ variant: "outline", size: "sm" })}
             >
               See the showcase
             </Link>
-            <Button asChild>
-              <Link href="/docs">
-                Read the docs <ArrowRight />
-              </Link>
+            <Button
+              size="sm"
+              nativeButton={false}
+              render={<Link href="/docs" />}
+            >
+              Read the docs <ArrowRight />
             </Button>
           </div>
         </div>
@@ -386,16 +383,14 @@ export default async function TractionPage() {
           Build on a library teams already trust.
         </p>
         <div className="flex items-center gap-3">
-          <Button asChild>
-            <Link href="/docs">
-              Get started <ArrowRight />
-            </Link>
+          <Button size="sm" nativeButton={false} render={<Link href="/docs" />}>
+            Get started <ArrowRight />
           </Button>
           <a
             href={REPO_URL}
             target="_blank"
             rel="noopener noreferrer"
-            className={buttonVariants({ variant: "outline" })}
+            className={buttonVariants({ variant: "outline", size: "sm" })}
           >
             <GitHubIcon className="size-4" />
             {repo ? `${formatCompact(repo.stars)} on GitHub` : "Star on GitHub"}

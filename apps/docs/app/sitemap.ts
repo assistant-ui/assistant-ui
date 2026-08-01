@@ -28,7 +28,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.6,
     },
     { url: `${BASE_URL}/tap`, changeFrequency: "monthly", priority: 0.6 },
-    { url: `${BASE_URL}/tw-glass`, changeFrequency: "monthly", priority: 0.4 },
   ];
 
   const productPages: MetadataRoute.Sitemap = PRODUCTS.filter(

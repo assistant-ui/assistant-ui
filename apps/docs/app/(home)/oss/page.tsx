@@ -52,7 +52,7 @@ export default async function OssPage() {
             <h2 className="text-muted-foreground mb-4 text-sm md:mb-0 md:pt-5">
               {OSS_CATEGORIES[category].label}
             </h2>
-            <div className="flex flex-col">
+            <div className="flex flex-col gap-1">
               {grouped[category]!.map((project) => (
                 <ProjectRow key={project.id} project={project} stats={stats} />
               ))}

@@ -76,14 +76,14 @@ function CommandTabs({
   } = useAnimatedTabs({ activeIndex });
 
   return (
-    <div className="not-prose border-border bg-background my-4 overflow-hidden rounded-xl border">
+    <div className="not-prose bg-code-surface my-4 overflow-hidden rounded-xl">
       <div
         ref={containerRef}
         className="relative flex items-center gap-1 px-3 py-2"
       >
         {hoveredIndex !== null && hoverStyle.width > 0 && (
           <div
-            className="pointer-events-none absolute h-6.5 rounded-md bg-[oklch(0.88_0_0)] transition-all duration-200 ease-out dark:bg-[oklch(0.25_0_0)]"
+            className="bg-foreground/12 pointer-events-none absolute h-6.5 rounded-md transition-all duration-200 ease-out"
             style={{
               left: `${hoverStyle.left}px`,
               width: `${hoverStyle.width}px`,
@@ -93,7 +93,7 @@ function CommandTabs({
 
         {activeStyle.width > 0 && (
           <div
-            className="pointer-events-none absolute h-6.5 rounded-md bg-[oklch(0.92_0_0)] transition-all duration-200 ease-out dark:bg-[oklch(0.22_0_0)]"
+            className="bg-foreground/8 pointer-events-none absolute h-6.5 rounded-md transition-all duration-200 ease-out"
             style={{
               left: `${activeStyle.left}px`,
               width: `${activeStyle.width}px`,
@@ -127,7 +127,7 @@ function CommandTabs({
           </button>
         ))}
       </div>
-      <div className="bg-muted overflow-hidden rounded-t-lg [&_figure]:my-0! [&_figure]:rounded-none! [&_figure]:border-none! [&_figure]:bg-transparent!">
+      <div className="overflow-hidden rounded-t-lg [&_figure]:my-0! [&_figure]:rounded-none! [&_figure]:border-none! [&_figure]:bg-transparent!">
         <DynamicCodeBlock lang="bash" code={getCommand(pm)} />
       </div>
     </div>
