@@ -1,4 +1,5 @@
 import {
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -50,6 +51,9 @@ import {
 
 const EMPTY_QUEUE_ITEMS: readonly QueueItemState[] = Object.freeze([]);
 const subscribeNoop = () => () => {};
+type RunContext = {
+  runConfig: LangGraphSendMessageConfig["runConfig"];
+};
 
 const toLangGraphUserMessage = (
   msg: AppendMessage,
@@ -156,6 +160,22 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
   // balance is positive iff the run saw a top-level error, which drops any
   // sends queued behind it.
   const runErrorBalanceRef = useRef(0);
+  const unknownRunContextRef = useRef<RunContext>({ runConfig: undefined });
+  const activeRunContextRef = useRef<RunContext | null>(null);
+  const messageRunContextsRef = useRef(new Map<string, RunContext>());
+  const appendMessage = useCallback(
+    (previous: LangChainMessage | undefined, current: LangChainMessage) => {
+      const message = appendLangChainChunk(previous, current);
+      if (message.id && !messageRunContextsRef.current.has(message.id)) {
+        messageRunContextsRef.current.set(
+          message.id,
+          activeRunContextRef.current ?? unknownRunContextRef.current,
+        );
+      }
+      return message;
+    },
+    [],
+  );
   const wrappedEventHandlers = useMemo(
     () =>
       ({
@@ -189,11 +209,23 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
     setValues,
     setUIMessages,
   } = useLangGraphMessages({
-    appendMessage: appendLangChainChunk,
+    appendMessage,
     stream,
     eventHandlers: wrappedEventHandlers,
     ...(uiStateKey !== undefined && { uiStateKey }),
   });
+  const langGraphMessagesRef = useRef(messages);
+  langGraphMessagesRef.current = messages;
+  useEffect(() => {
+    const currentMessageIds = new Set(
+      messages.flatMap((message) => (message.id ? [message.id] : [])),
+    );
+    for (const messageId of messageRunContextsRef.current.keys()) {
+      if (!currentMessageIds.has(messageId)) {
+        messageRunContextsRef.current.delete(messageId);
+      }
+    }
+  }, [messages]);
 
   const [isRunning, setIsRunning] = useState(false);
   const [isLoadingThread, setIsLoadingThread] = useState(
@@ -213,12 +245,11 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
   const toolResultBufferRef = useRef<
     Map<string, LangChainMessage & { type: "tool" }>
   >(new Map());
-  // The resume batch currently sitting in the run queue. Referenced so results
-  // arriving before it is sent merge into it instead of deadlocking the buffer
-  // (queued results are not in `messages` yet, so they still count as pending).
-  const pendingResumeRef = useRef<
-    (LangChainMessage & { type: "tool" })[] | null
-  >(null);
+  // Resume batches currently sitting in the run queue, keyed by the run that
+  // emitted their tool calls.
+  const pendingResumesRef = useRef(
+    new Map<RunContext, (LangChainMessage & { type: "tool" })[]>(),
+  );
   const hasExecutingTools = Object.values(toolStatuses).some(
     (s) => s?.type === "executing",
   );
@@ -265,16 +296,27 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
   const runQueueRef = useRef<SerialRunQueue<{
     messages: LangChainMessage[];
     config: LangGraphSendMessageConfig;
+    runContext: RunContext;
   }> | null>(null);
   runQueueRef.current ??= createSerialRunQueue({
-    run: ({ messages, config }, onComplete) => {
-      if (messages === pendingResumeRef.current) {
-        pendingResumeRef.current = null;
+    run: ({ messages, config, runContext }, onComplete) => {
+      for (const message of langGraphMessagesRef.current) {
+        if (message.id && !messageRunContextsRef.current.has(message.id)) {
+          messageRunContextsRef.current.set(
+            message.id,
+            unknownRunContextRef.current,
+          );
+        }
+      }
+      activeRunContextRef.current = runContext;
+      if (messages === pendingResumesRef.current.get(runContext)) {
+        pendingResumesRef.current.delete(runContext);
       }
       runErrorBalanceRef.current = 0;
       return sendMessageRef.current(messages, config, () => {
+        activeRunContextRef.current = null;
         if (runErrorBalanceRef.current > 0) {
-          pendingResumeRef.current = null;
+          pendingResumesRef.current.clear();
           runQueueRef.current!.drop();
         }
         onComplete();
@@ -287,12 +329,15 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
   const handleSendMessage = (
     messages: LangChainMessage[],
     config: LangGraphSendMessageConfig,
+    runContext?: RunContext,
   ) => {
+    const resolvedRunContext = runContext ?? { runConfig: config.runConfig };
     const state = pendingStateRef.current;
     pendingStateRef.current = undefined;
     return runQueue.enqueue({
       messages,
       config: state ? { ...config, state } : config,
+      runContext: resolvedRunContext,
     });
   };
 
@@ -321,7 +366,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
     // A new turn abandons any half-collected parallel tool batch and any
     // queued resume; the cancellations below answer the dangling tool calls.
     toolResultBufferRef.current.clear();
-    pendingResumeRef.current = null;
+    pendingResumesRef.current.clear();
     runQueue.drop();
     const cancellations =
       autoCancelPendingToolCalls !== false
@@ -343,9 +388,6 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
       runConfig: msg.runConfig,
     });
   };
-
-  const langGraphMessagesRef = useRef(messages);
-  langGraphMessagesRef.current = messages;
 
   const stagedMessagesRef = useRef(
     new Map<
@@ -441,6 +483,24 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
   const uiMessagesRef = useRef(uiMessages);
   uiMessagesRef.current = uiMessages;
 
+  const getToolCallRunContext = (toolCallId: string) => {
+    for (const message of messages) {
+      if (message.type !== "ai") continue;
+      const hasToolCall = (message.tool_calls ?? []).some(
+        (toolCall, index) =>
+          (toolCall.id ||
+            `lc-toolcall-${message.id ?? "unknown"}-${toolCall.index ?? index}`) ===
+          toolCallId,
+      );
+      if (!hasToolCall) continue;
+      return message.id
+        ? (messageRunContextsRef.current.get(message.id) ??
+            unknownRunContextRef.current)
+        : unknownRunContextRef.current;
+    }
+    return unknownRunContextRef.current;
+  };
+
   const runtime = useExternalStoreRuntime({
     ...pickExternalStoreSharedOptions(options),
     isRunning: effectiveIsRunning,
@@ -487,11 +547,16 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
       // resume the graph with the full batch in a single run. Sending each
       // result on its own would resume LangGraph while sibling tool calls of a
       // parallel turn are still executing.
-      const queuedResume = pendingResumeRef.current;
+      const runContext = getToolCallRunContext(toolCallId);
+      const queuedResume = pendingResumesRef.current.get(runContext);
       const queuedIds = new Set(queuedResume?.map((m) => m.tool_call_id));
       const batch = bufferToolResult(
         toolResultBufferRef.current,
-        getPendingToolCalls(messages).filter((t) => !queuedIds.has(t.id)),
+        getPendingToolCalls(messages).filter(
+          (toolCall) =>
+            !queuedIds.has(toolCall.id) &&
+            getToolCallRunContext(toolCall.id) === runContext,
+        ),
         {
           type: "tool",
           name: toolName,
@@ -512,20 +577,25 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
         }
         return;
       }
-      pendingResumeRef.current = batch;
+      pendingResumesRef.current.set(runContext, batch);
       try {
-        // TODO reuse runconfig here!
-        await handleSendMessage(batch, {});
+        await handleSendMessage(
+          batch,
+          { runConfig: runContext.runConfig },
+          runContext,
+        );
       } finally {
-        if (pendingResumeRef.current === batch) {
-          pendingResumeRef.current = null;
+        if (pendingResumesRef.current.get(runContext) === batch) {
+          pendingResumesRef.current.delete(runContext);
         }
       }
     },
     onEdit: getCheckpointId
       ? async (msg) => {
           toolResultBufferRef.current.clear();
-          pendingResumeRef.current = null;
+          pendingResumesRef.current.clear();
+          messageRunContextsRef.current.clear();
+          activeRunContextRef.current = null;
           runQueue.drop();
           const truncated = truncateLangChainMessages(
             threadMessagesRef.current,
@@ -579,7 +649,9 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
               throw new Error("Runtime does not support reloading messages.");
 
             toolResultBufferRef.current.clear();
-            pendingResumeRef.current = null;
+            pendingResumesRef.current.clear();
+            messageRunContextsRef.current.clear();
+            activeRunContextRef.current = null;
             runQueue.drop();
             const truncated = truncateLangChainMessages(
               threadMessagesRef.current,
@@ -603,7 +675,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
       : {}),
     onCancel: unstable_allowCancellation
       ? async () => {
-          pendingResumeRef.current = null;
+          pendingResumesRef.current.clear();
           runQueue.drop();
           cancel();
         }
@@ -622,16 +694,24 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
       const load = loadRef.current;
       if (!load || !threadListItem) return;
 
-      const externalId = threadListItem.getState().externalId;
-      if (externalId == null) return;
-
-      // drop stale callbacks and abort the pending load on thread switch/unmount
-      const controller = new AbortController();
       toolResultBufferRef.current.clear();
+      pendingResumesRef.current.clear();
+      messageRunContextsRef.current.clear();
+      activeRunContextRef.current = null;
+      runQueue.drop();
       pendingStateRef.current = undefined;
       effectiveStateRef.current = undefined;
       setOptimisticState(undefined);
       setValues(undefined);
+
+      const externalId = threadListItem.getState().externalId;
+      if (externalId == null) {
+        setIsLoadingThread(false);
+        return;
+      }
+
+      // drop stale callbacks and abort the pending load on thread switch/unmount
+      const controller = new AbortController();
       setIsLoadingThread(true);
       load(externalId, { signal: controller.signal })
         .then(({ messages, interrupts, uiMessages }) => {
@@ -653,7 +733,14 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
         controller.abort();
         setIsLoadingThread(false);
       };
-    }, [threadListItem, setMessages, setUIMessages, setInterrupt, setValues]);
+    }, [
+      threadListItem,
+      runQueue,
+      setMessages,
+      setUIMessages,
+      setInterrupt,
+      setValues,
+    ]);
   }
 
   return runtime;
