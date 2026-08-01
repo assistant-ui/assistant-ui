@@ -67,7 +67,25 @@ export const findMatchingLangChainToolCallIndex = (
   return -1;
 };
 
-export const getPendingToolCalls = (messages: LangChainMessage[]) => {
+const resolveToolCallAlias = (
+  toolCallId: string,
+  aliases: ReadonlyMap<string, string> | undefined,
+) => {
+  const visited = new Set<string>();
+  let resolved = toolCallId;
+  while (!visited.has(resolved)) {
+    visited.add(resolved);
+    const next = aliases?.get(resolved);
+    if (!next) break;
+    resolved = next;
+  }
+  return resolved;
+};
+
+export const getPendingToolCalls = (
+  messages: LangChainMessage[],
+  aliases?: ReadonlyMap<string, string>,
+) => {
   const pendingToolCalls = new Map<string, LangChainToolCall>();
   const synthesizedToolCallIds: string[] = [];
   for (const message of messages) {
@@ -88,7 +106,14 @@ export const getPendingToolCalls = (messages: LangChainMessage[]) => {
       }
     }
     if (message.type === "tool") {
-      if (!pendingToolCalls.delete(message.tool_call_id)) {
+      const resolvedToolCallId = resolveToolCallAlias(
+        message.tool_call_id,
+        aliases,
+      );
+      if (
+        !pendingToolCalls.delete(resolvedToolCallId) &&
+        message.tool_call_id === ""
+      ) {
         const pendingSynthesizedIds = synthesizedToolCallIds.filter((id) =>
           pendingToolCalls.has(id),
         );
@@ -105,8 +130,13 @@ export const getPendingToolCalls = (messages: LangChainMessage[]) => {
 export const hasToolResult = (
   messages: LangChainMessage[],
   toolCallId: string,
+  aliases?: ReadonlyMap<string, string>,
 ): boolean =>
-  messages.some((m) => m.type === "tool" && m.tool_call_id === toolCallId);
+  messages.some(
+    (message) =>
+      message.type === "tool" &&
+      resolveToolCallAlias(message.tool_call_id, aliases) === toolCallId,
+  );
 
 export const truncateLangChainMessages = (
   threadMessages: readonly ThreadMessage[],
