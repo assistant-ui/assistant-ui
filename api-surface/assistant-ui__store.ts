@@ -205,10 +205,16 @@ declare namespace entry_root_exports {
   export { AssistantClient, AssistantClientAccessor, AssistantEventCallback, AssistantEventName, AssistantEventPayload, AssistantEventScope, AssistantEventSelector, AssistantState, AuiIf, AuiProvider, ClientElement, ClientEvents, ClientMeta, ClientMethods, ClientNames, ClientOutput, ClientSchema, Derived, DerivedElement, RenderChildrenWithAccessor, ScopeRegistry, ScopesConfig, Unsubscribe, attachTransformScopes, forwardTransformScopes, getClientId, normalizeEventSelector, useAssistantClientRef, useAssistantEmit, useAui, useAuiEvent, useAuiState, useClientList, useClientLookup, useClientResource };
 }
 
+declare namespace entry_internal_exports {
+  export { useAssistantClientEffect };
+}
+
 declare const normalizeEventSelector: <TEvent extends AssistantEventName>(selector: AssistantEventSelector<TEvent>) => {
   scope: AssistantEventScope<TEvent>;
   event: TEvent;
 };
+
+declare const useAssistantClientEffect: <K extends ClientNames>(scope: K, setup: (accessor: AssistantClientAccessor<K>) => undefined | (() => void), deps: readonly unknown[]) => void;
 
 declare const useAssistantClientRef: () => {
   parent: AssistantClient;
@@ -271,4 +277,4 @@ declare const useClientResource: <TMethods extends ClientMethods>(element: Resou
   key: string | number | undefined;
 };
 
-export { entry_root_exports as entry_root };
+export { entry_internal_exports as entry_internal, entry_root_exports as entry_root };
