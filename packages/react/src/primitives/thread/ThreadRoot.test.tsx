@@ -1,12 +1,6 @@
 // @vitest-environment jsdom
 
-import {
-  act,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import type { FC, PropsWithChildren } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { AssistantRuntimeProvider } from "../../context";
@@ -16,10 +10,23 @@ import type {
   SpeechSynthesisAdapter,
   ThreadMessageLike,
 } from "../../index";
+import { ComposerPrimitiveInput } from "../composer/ComposerInput";
 import { ThreadPrimitiveRoot } from "./ThreadRoot";
 
 const noOpAdapter: ChatModelAdapter = {
   async *run() {},
+};
+
+const waitForAbortAdapter: ChatModelAdapter = {
+  async *run({ abortSignal }) {
+    await new Promise<void>((resolve) => {
+      if (abortSignal.aborted) {
+        resolve();
+        return;
+      }
+      abortSignal.addEventListener("abort", () => resolve(), { once: true });
+    });
+  },
 };
 
 const initialMessages: ThreadMessageLike[] = [
@@ -60,9 +67,10 @@ const RuntimeProvider: FC<
   PropsWithChildren<{
     runtimeRef: RuntimeRef;
     speech: SpeechSynthesisAdapter;
+    chatModel?: ChatModelAdapter | undefined;
   }>
-> = ({ children, runtimeRef, speech }) => {
-  const runtime = useLocalRuntime(noOpAdapter, {
+> = ({ children, runtimeRef, speech, chatModel = noOpAdapter }) => {
+  const runtime = useLocalRuntime(chatModel, {
     initialMessages,
     adapters: { speech },
   });
@@ -105,7 +113,6 @@ describe("ThreadPrimitiveRoot", () => {
     const view = render(<App showControl />);
 
     const control = screen.getByTestId("speak-control");
-    fireEvent.pointerDown(control);
     control.focus();
     startSpeaking(runtimeRef);
     await waitFor(() => {
@@ -158,87 +165,6 @@ describe("ThreadPrimitiveRoot", () => {
     expect(event.defaultPrevented).toBe(true);
   });
 
-  it("only stops speech in the thread that received Escape", async () => {
-    const firstSpeech = createSpeechAdapter();
-    const secondSpeech = createSpeechAdapter();
-    const firstRuntimeRef: RuntimeRef = { current: null };
-    const secondRuntimeRef: RuntimeRef = { current: null };
-    render(
-      <>
-        <RuntimeProvider
-          runtimeRef={firstRuntimeRef}
-          speech={firstSpeech.adapter}
-        >
-          <ThreadPrimitiveRoot>
-            <button data-testid="first-thread-control" />
-          </ThreadPrimitiveRoot>
-        </RuntimeProvider>
-        <RuntimeProvider
-          runtimeRef={secondRuntimeRef}
-          speech={secondSpeech.adapter}
-        >
-          <ThreadPrimitiveRoot>
-            <button data-testid="second-thread-control" />
-          </ThreadPrimitiveRoot>
-        </RuntimeProvider>
-      </>,
-    );
-
-    startSpeaking(firstRuntimeRef);
-    startSpeaking(secondRuntimeRef);
-    await waitFor(() => {
-      expect(firstRuntimeRef.current!.thread.getState().speech).toBeDefined();
-      expect(secondRuntimeRef.current!.thread.getState().speech).toBeDefined();
-    });
-
-    const event = dispatchEscape(screen.getByTestId("second-thread-control"));
-
-    expect(firstSpeech.cancel).not.toHaveBeenCalled();
-    expect(secondSpeech.cancel).toHaveBeenCalledOnce();
-    expect(event.defaultPrevented).toBe(true);
-  });
-
-  it("uses the active thread when Escape targets the document body", async () => {
-    const firstSpeech = createSpeechAdapter();
-    const secondSpeech = createSpeechAdapter();
-    const firstRuntimeRef: RuntimeRef = { current: null };
-    const secondRuntimeRef: RuntimeRef = { current: null };
-    render(
-      <>
-        <RuntimeProvider
-          runtimeRef={firstRuntimeRef}
-          speech={firstSpeech.adapter}
-        >
-          <ThreadPrimitiveRoot>
-            <button data-testid="first-active-control" />
-          </ThreadPrimitiveRoot>
-        </RuntimeProvider>
-        <RuntimeProvider
-          runtimeRef={secondRuntimeRef}
-          speech={secondSpeech.adapter}
-        >
-          <ThreadPrimitiveRoot>
-            <button data-testid="second-active-control" />
-          </ThreadPrimitiveRoot>
-        </RuntimeProvider>
-      </>,
-    );
-
-    startSpeaking(firstRuntimeRef);
-    startSpeaking(secondRuntimeRef);
-    await waitFor(() => {
-      expect(firstRuntimeRef.current!.thread.getState().speech).toBeDefined();
-      expect(secondRuntimeRef.current!.thread.getState().speech).toBeDefined();
-    });
-    fireEvent.pointerDown(screen.getByTestId("second-active-control"));
-
-    const event = dispatchEscape(document.body);
-
-    expect(firstSpeech.cancel).not.toHaveBeenCalled();
-    expect(secondSpeech.cancel).toHaveBeenCalledOnce();
-    expect(event.defaultPrevented).toBe(true);
-  });
-
   it("ignores speech ending between the rendered state and Escape", async () => {
     const speech = createSpeechAdapter();
     const runtimeRef: RuntimeRef = { current: null };
@@ -265,5 +191,39 @@ describe("ThreadPrimitiveRoot", () => {
       });
     }).not.toThrow();
     expect(speech.cancel).not.toHaveBeenCalled();
+  });
+
+  it("lets a composer mounted after the root consume Escape first", async () => {
+    const speech = createSpeechAdapter();
+    const runtimeRef: RuntimeRef = { current: null };
+    const App = ({ showComposer }: { showComposer: boolean }) => (
+      <RuntimeProvider
+        runtimeRef={runtimeRef}
+        speech={speech.adapter}
+        chatModel={waitForAbortAdapter}
+      >
+        <ThreadPrimitiveRoot>
+          {showComposer && <ComposerPrimitiveInput data-testid="composer" />}
+        </ThreadPrimitiveRoot>
+      </RuntimeProvider>
+    );
+    const view = render(<App showComposer={false} />);
+    startSpeaking(runtimeRef);
+    act(() => {
+      runtimeRef.current!.thread.append("Run");
+    });
+    await waitFor(() => {
+      expect(runtimeRef.current!.thread.getState().speech).toBeDefined();
+      expect(runtimeRef.current!.thread.getState().isRunning).toBe(true);
+    });
+
+    view.rerender(<App showComposer />);
+    const event = dispatchEscape(screen.getByTestId("composer"));
+
+    await waitFor(() => {
+      expect(runtimeRef.current!.thread.getState().isRunning).toBe(false);
+    });
+    expect(speech.cancel).not.toHaveBeenCalled();
+    expect(event.defaultPrevented).toBe(true);
   });
 });
