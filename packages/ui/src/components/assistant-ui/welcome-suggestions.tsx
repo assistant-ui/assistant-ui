@@ -7,7 +7,12 @@ import {
   useAuiState,
 } from "@assistant-ui/react";
 import { cva, type VariantProps } from "class-variance-authority";
-import { ChevronRightIcon, XIcon } from "lucide-react";
+import {
+  ChevronRightIcon,
+  CornerDownLeftIcon,
+  SendHorizontalIcon,
+  XIcon,
+} from "lucide-react";
 import {
   createContext,
   useCallback,
@@ -88,7 +93,7 @@ const pillClass =
   "text-foreground hover:bg-muted border-border/60 inline-flex h-auto items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm font-normal whitespace-nowrap transition-colors [&_svg]:size-4";
 
 const welcomeSuggestionRowVariants = cva(
-  "text-foreground/80 hover:text-foreground data-[highlighted]:bg-muted/70 data-[highlighted]:text-foreground relative flex w-full items-center gap-2.5 rounded-lg px-3 text-left text-sm [&_svg]:size-4",
+  "group/aui-row text-foreground/80 hover:text-foreground data-[highlighted]:bg-muted/70 data-[highlighted]:text-foreground relative flex w-full items-center gap-2.5 rounded-lg px-3 text-left text-sm [&_svg]:size-4",
   {
     variants: {
       density: {
@@ -610,12 +615,12 @@ export const WelcomeSuggestionsPicker: FC<WelcomeSuggestionsPickerProps> = ({
 export type WelcomeSuggestionsStackProps = VariantProps<
   typeof welcomeSuggestionRowVariants
 > & {
-  indicator?: "none" | "chevron";
+  indicator?: "none" | "chevron" | "send" | "enter";
   className?: string;
 };
 
 export const WelcomeSuggestionsStack: FC<WelcomeSuggestionsStackProps> = ({
-  indicator = "none",
+  indicator,
   density,
   separators,
   className,
@@ -632,6 +637,10 @@ export const WelcomeSuggestionsStack: FC<WelcomeSuggestionsStackProps> = ({
     popoverId,
     hasRegistry,
   } = useWelcomeSuggestions();
+  // send={false} makes activation insert into the composer rather than send,
+  // so the automatic send glyph would lie there.
+  const resolvedIndicator =
+    indicator ?? (entries.some(isGroup) ? "chevron" : send ? "send" : "none");
   const direction = useDirection();
   const listRef = useRef<HTMLDivElement>(null);
   const [topIdx, setTopIdx] = useState<number | null>(null);
@@ -776,7 +785,7 @@ export const WelcomeSuggestionsStack: FC<WelcomeSuggestionsStackProps> = ({
           setTopIdx(null);
       }}
       data-slot="aui_thread-welcome-stack"
-      data-indicator={indicator}
+      data-indicator={resolvedIndicator}
       data-density={density}
       data-separators={separators}
       className={cn("-mt-1 flex w-full flex-col outline-none", className)}
@@ -810,7 +819,7 @@ export const WelcomeSuggestionsStack: FC<WelcomeSuggestionsStackProps> = ({
                 >
                   {entry.icon}
                   {entry.label}
-                  {indicator === "chevron" && (
+                  {resolvedIndicator === "chevron" && (
                     <ChevronRightIcon className="text-muted-foreground ml-auto size-4 opacity-50 rtl:rotate-180" />
                   )}
                 </button>
@@ -826,6 +835,12 @@ export const WelcomeSuggestionsStack: FC<WelcomeSuggestionsStackProps> = ({
                   })}
                 >
                   {entry.label}
+                  {resolvedIndicator === "send" && (
+                    <SendHorizontalIcon className="text-muted-foreground ml-auto size-4 opacity-0 transition-opacity group-data-[highlighted]/aui-row:opacity-50 rtl:rotate-180" />
+                  )}
+                  {resolvedIndicator === "enter" && (
+                    <CornerDownLeftIcon className="text-muted-foreground ml-auto size-4 opacity-0 transition-opacity group-data-[highlighted]/aui-row:opacity-50" />
+                  )}
                 </ThreadPrimitive.Suggestion>
               ),
             )}

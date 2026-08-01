@@ -159,7 +159,7 @@ Previewing writes over the composer, but a draft is never silently lost: <kbd>Es
 
 - `density`: `"comfortable"` (default) or `"compact"` for tighter rows.
 - `separators`: default `true`; hairline dividers between rows, hidden around the highlighted row.
-- `indicator`: default `"none"`; `"chevron"` adds a trailing chevron to group rows (flips in RTL).
+- `indicator`: `"chevron"` adds a trailing chevron to group rows; `"send"` reveals a trailing send glyph on the highlighted flat row (both flip in RTL); `"enter"` is an opt-in alternative to `"send"` that shows the ↵ Return-key glyph instead. Defaults to `"chevron"` when the list has groups, `"send"` when every entry is flat and sending is on, and `"none"` otherwise.
 - `className`: merged onto the listbox container.
 
 **`WelcomeSuggestionsPicker`**
@@ -173,7 +173,7 @@ Previewing writes over the composer, but a draft is never silently lost: <kbd>Es
 
 ## Styling
 
-Rows default to comfortable density with separators and no group indicator — try the toggles in the demo above. The sub-level rows inherit `density` and `separators` from the stack, and the stack mirrors `indicator` (plus any explicitly set `density` or `separators`) as `data-*` attributes on `[data-slot="aui_thread-welcome-stack"]` for CSS overrides.
+Rows default to comfortable density with separators; the indicator defaults to chevrons when groups are present and to the send glyph on all-flat lists — try the toggles in the demo above. The sub-level rows inherit `density` and `separators` from the stack, and the stack mirrors the resolved `indicator` (plus any explicitly set `density` or `separators`) as `data-*` attributes on `[data-slot="aui_thread-welcome-stack"]` for CSS overrides.
 
 ```tsx
 <WelcomeSuggestionsRoot suggestions={WELCOME_SUGGESTIONS}>

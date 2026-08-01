@@ -198,7 +198,7 @@ const VariantColumn = ({
 export const WelcomeSuggestionsSample = () => {
   const [compact, setCompact] = useState(false);
   const [separators, setSeparators] = useState(true);
-  const [chevron, setChevron] = useState(false);
+  const [chevron, setChevron] = useState(true);
   const density = compact ? "compact" : "comfortable";
 
   return (
