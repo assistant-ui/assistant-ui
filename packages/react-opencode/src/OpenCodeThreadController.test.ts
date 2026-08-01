@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, onTestFinished, vi } from "vitest";
 import { OpenCodeThreadController } from "./OpenCodeThreadController";
 import { STREAM_RECONNECTED_EVENT_TYPE } from "./OpenCodeEventSource";
 import { rejectWhenThrowing } from "./testUtils";
@@ -804,6 +804,46 @@ describe("OpenCodeThreadController", () => {
         parts: [{ type: "text", text: "hello" }],
       },
       { throwOnError: true },
+    );
+  });
+
+  it("isolates subscriber errors while sending messages", async () => {
+    const promptAsync = vi.fn().mockResolvedValue({});
+    const controller = new OpenCodeThreadController(
+      { session: { promptAsync } } as never,
+      () => ({ subscribe: () => () => {} }),
+      "ses_1",
+    );
+    const listenerError = new Error("listener failed");
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    onTestFinished(() => consoleError.mockRestore());
+    const laterListener = vi.fn();
+
+    controller.subscribe(() => {
+      throw listenerError;
+    });
+    controller.subscribe(laterListener);
+
+    await expect(
+      controller.sendMessage({
+        role: "user",
+        parentId: null,
+        sourceId: null,
+        content: [{ type: "text", text: "hello" }],
+        attachments: [],
+        metadata: { custom: {} },
+        runConfig: {},
+        createdAt: new Date(),
+      }),
+    ).resolves.toBeUndefined();
+
+    expect(promptAsync).toHaveBeenCalledOnce();
+    expect(laterListener).toHaveBeenCalled();
+    expect(consoleError).toHaveBeenCalledWith(
+      "[react-opencode] Listener threw an error",
+      listenerError,
     );
   });
 
