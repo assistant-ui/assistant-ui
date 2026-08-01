@@ -249,13 +249,16 @@ export class RemoteThreadListThreadListRuntimeCore
     const threadId = this._mainThreadId;
     if (threadId === undefined) return;
 
-    const generation = this._switchGeneration;
-    await this._hookManager.__internal_restartThreadRuntime(threadId);
+    try {
+      await this._hookManager.__internal_restartThreadRuntime(threadId);
+    } catch (error) {
+      // delete and detach switch the main thread away before stopping the
+      // runtime, so a rejection there means that operation owns the outcome
+      if (threadId !== this._mainThreadId) return;
+      throw error;
+    }
 
-    // a switch started while the thread was remounting owns the main thread now
-    if (generation !== this._switchGeneration) return;
     if (threadId !== this._mainThreadId) return;
-
     this._notifySubscribers();
   }
 

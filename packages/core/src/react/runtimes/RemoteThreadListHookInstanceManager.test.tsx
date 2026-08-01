@@ -56,15 +56,17 @@ describe("RemoteThreadListHookInstanceManager.__internal_restartThreadRuntime", 
     expect(renderedKeys(manager)).toEqual(["thread-1:1"]);
   });
 
-  it("keeps the thread alive across the restart", () => {
-    const manager = makeManager();
-    start(manager, "thread-1");
+  it("keeps the thread rendered across the restart, unlike stop", () => {
+    const restarted = makeManager();
+    start(restarted, "thread-1");
+    restart(restarted, "thread-1");
 
-    restart(manager, "thread-1");
+    const stopped = makeManager();
+    start(stopped, "thread-1");
+    stopped.stopThreadRuntime("thread-1");
 
-    // never leaves a window where the thread is absent, unlike stop-then-start
-    expect(manager.getThreadRuntimeCore("thread-1")).toBeUndefined();
-    expect(renderedKeys(manager)).toHaveLength(1);
+    expect(renderedKeys(restarted)).toHaveLength(1);
+    expect(renderedKeys(stopped)).toHaveLength(0);
   });
 
   it("starts the runtime when the thread is not alive yet", () => {

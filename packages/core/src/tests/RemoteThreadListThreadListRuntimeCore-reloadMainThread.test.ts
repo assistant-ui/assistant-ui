@@ -50,7 +50,53 @@ describe("RemoteThreadListThreadListRuntimeCore.reloadMainThread", () => {
     expect(restart).not.toHaveBeenCalled();
   });
 
-  it("lets a thread switch started mid-reload win", async () => {
+  it("still notifies when a redundant switch to the same thread lands mid-reload", async () => {
+    const core = createCore(makeAdapter());
+    await core.switchToNewThread();
+    const threadId = core.mainThreadId;
+
+    let releaseRestart!: () => void;
+    hookManagerOf(core).__internal_restartThreadRuntime = () =>
+      new Promise((resolve) => {
+        releaseRestart = () => resolve({});
+      });
+
+    const reloadTask = core.reloadMainThread();
+    // bumps the switch generation without changing the main thread
+    await core.switchToThread(threadId);
+
+    const callback = vi.fn();
+    core.subscribe(callback);
+    releaseRestart();
+    await reloadTask;
+
+    expect(callback).toHaveBeenCalled();
+  });
+
+  it("resolves quietly when the thread is removed mid-reload", async () => {
+    const core = createCore(makeAdapter());
+    await core.switchToNewThread();
+
+    hookManagerOf(core).__internal_restartThreadRuntime = async () => {
+      (core as unknown as { _mainThreadId: string })._mainThreadId = "other";
+      throw new Error("Thread was deleted before runtime was started");
+    };
+
+    await expect(core.reloadMainThread()).resolves.toBeUndefined();
+  });
+
+  it("surfaces a restart failure that is not a lifecycle handover", async () => {
+    const core = createCore(makeAdapter());
+    await core.switchToNewThread();
+
+    hookManagerOf(core).__internal_restartThreadRuntime = async () => {
+      throw new Error("boom");
+    };
+
+    await expect(core.reloadMainThread()).rejects.toThrow("boom");
+  });
+
+  it("lets a switch to a different thread win the notification", async () => {
     const core = createCore(makeAdapter());
     await core.switchToNewThread();
 
@@ -61,7 +107,7 @@ describe("RemoteThreadListThreadListRuntimeCore.reloadMainThread", () => {
       });
 
     const reloadTask = core.reloadMainThread();
-    await core.switchToNewThread();
+    (core as unknown as { _mainThreadId: string })._mainThreadId = "elsewhere";
 
     const callback = vi.fn();
     core.subscribe(callback);

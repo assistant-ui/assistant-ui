@@ -116,10 +116,9 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
 
   // Rendered as a child of the user's Provider so the runtime hook can
   // read context the Provider injects (e.g. RuntimeAdapterProvider).
-  private _RuntimeBinder: FC<PropsWithChildren<{ threadId: string }>> = ({
-    threadId,
-    children,
-  }) => {
+  private _RuntimeBinder: FC<
+    PropsWithChildren<{ threadId: string; generation: number }>
+  > = ({ threadId, generation, children }) => {
     const { useRuntime } = this.useRuntimeHook();
     const runtime = useRuntime();
 
@@ -133,9 +132,13 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
           `Thread "${threadId}" runtime binding not found. This is a bug in assistant-ui.`,
         );
 
+      // a restarted binder outlives its generation until React commits the key
+      // change, and must not publish its runtime over the incoming one
+      if (aliveThread.generation !== generation) return;
+
       aliveThread.runtime = threadBinding.getState();
       this._notifySubscribers();
-    }, [threadId, threadBinding]);
+    }, [threadId, generation, threadBinding]);
 
     const isMounted = useRef(false);
     if (!isMounted.current) {
@@ -186,8 +189,9 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
 
   private _OuterActiveThreadProvider: FC<{
     threadId: string;
+    generation: number;
     provider: ComponentType<PropsWithChildren>;
-  }> = memo(({ threadId, provider: Provider }) => {
+  }> = memo(({ threadId, generation, provider: Provider }) => {
     const runtime = useMemo(
       () => new ThreadListRuntimeImpl(this.parent).getItemById(threadId),
       [threadId],
@@ -213,7 +217,7 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     return (
       <ThreadListItemRuntimeProvider runtime={runtime}>
         <Provider>
-          <this._RuntimeBinder threadId={threadId}>
+          <this._RuntimeBinder threadId={threadId} generation={generation}>
             <ProviderRenderDetector detectorRef={detectorRef} />
           </this._RuntimeBinder>
         </Provider>
@@ -231,6 +235,7 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
         <this._OuterActiveThreadProvider
           key={`${threadId}:${generation}`}
           threadId={threadId}
+          generation={generation}
           provider={provider}
         />
       ),
