@@ -60,8 +60,11 @@ export type ThreadListRuntime = {
    * Refetches the open thread's remote state in place, for state that changed
    * out of band and so never reached the stream. The thread is restarted
    * rather than merged into: unsent composer input and optimistic messages are
-   * discarded, and a run that is still streaming is aborted. Resolves without
-   * doing anything on runtimes that hold no remote state.
+   * discarded, and a run that is still streaming is aborted. It resolves once
+   * the thread has been restarted, not once the refetch has landed, because
+   * the adapter owns that request. A thread that has not been sent yet holds
+   * no remote state, so it is left alone. Resolves without doing anything on
+   * runtimes that hold no remote state.
    */
   reloadMainThread(): Promise<void>;
   loadMore(): Promise<void>;

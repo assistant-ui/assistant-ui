@@ -10,10 +10,29 @@ type HookManagerStub = {
 const hookManagerOf = (core: RemoteThreadListThreadListRuntimeCore) =>
   (core as unknown as { _hookManager: HookManagerStub })._hookManager;
 
+const openRegularThread = async () => {
+  const core = createCore(
+    makeAdapter({
+      list: async () => ({
+        threads: [
+          {
+            status: "regular" as const,
+            remoteId: "t-1",
+            externalId: "t-1",
+            title: "Open",
+          },
+        ],
+      }),
+    }),
+  );
+  await core.getLoadThreadsPromise();
+  await core.switchToThread("t-1");
+  return core;
+};
+
 describe("RemoteThreadListThreadListRuntimeCore.reloadMainThread", () => {
   it("restarts the runtime of the thread that is currently open", async () => {
-    const core = createCore(makeAdapter());
-    await core.switchToNewThread();
+    const core = await openRegularThread();
     const threadId = core.mainThreadId;
 
     const restart = vi.fn(async () => ({}));
@@ -25,8 +44,7 @@ describe("RemoteThreadListThreadListRuntimeCore.reloadMainThread", () => {
   });
 
   it("notifies subscribers so the reloaded thread re-renders", async () => {
-    const core = createCore(makeAdapter());
-    await core.switchToNewThread();
+    const core = await openRegularThread();
     hookManagerOf(core).__internal_restartThreadRuntime = async () => ({});
 
     const callback = vi.fn();
@@ -34,6 +52,17 @@ describe("RemoteThreadListThreadListRuntimeCore.reloadMainThread", () => {
     await core.reloadMainThread();
 
     expect(callback).toHaveBeenCalled();
+  });
+
+  it("leaves an unsent thread alone, since it holds no remote state", async () => {
+    const core = createCore(makeAdapter());
+    await core.switchToNewThread();
+
+    const restart = vi.fn(async () => ({}));
+    hookManagerOf(core).__internal_restartThreadRuntime = restart;
+
+    await expect(core.reloadMainThread()).resolves.toBeUndefined();
+    expect(restart).not.toHaveBeenCalled();
   });
 
   it("does nothing before the initial thread is open", async () => {
@@ -51,8 +80,7 @@ describe("RemoteThreadListThreadListRuntimeCore.reloadMainThread", () => {
   });
 
   it("still notifies when a redundant switch to the same thread lands mid-reload", async () => {
-    const core = createCore(makeAdapter());
-    await core.switchToNewThread();
+    const core = await openRegularThread();
     const threadId = core.mainThreadId;
 
     let releaseRestart!: () => void;
@@ -74,8 +102,7 @@ describe("RemoteThreadListThreadListRuntimeCore.reloadMainThread", () => {
   });
 
   it("resolves quietly when the thread is removed mid-reload", async () => {
-    const core = createCore(makeAdapter());
-    await core.switchToNewThread();
+    const core = await openRegularThread();
 
     hookManagerOf(core).__internal_restartThreadRuntime = async () => {
       (core as unknown as { _mainThreadId: string })._mainThreadId = "other";
@@ -86,8 +113,7 @@ describe("RemoteThreadListThreadListRuntimeCore.reloadMainThread", () => {
   });
 
   it("surfaces a restart failure that is not a lifecycle handover", async () => {
-    const core = createCore(makeAdapter());
-    await core.switchToNewThread();
+    const core = await openRegularThread();
 
     hookManagerOf(core).__internal_restartThreadRuntime = async () => {
       throw new Error("boom");
@@ -97,8 +123,7 @@ describe("RemoteThreadListThreadListRuntimeCore.reloadMainThread", () => {
   });
 
   it("lets a switch to a different thread win the notification", async () => {
-    const core = createCore(makeAdapter());
-    await core.switchToNewThread();
+    const core = await openRegularThread();
 
     let releaseRestart!: () => void;
     hookManagerOf(core).__internal_restartThreadRuntime = () =>

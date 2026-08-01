@@ -88,7 +88,12 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     const instance = this.instances.get(threadId);
     if (!instance) return this.startThreadRuntime(threadId);
 
-    this.instances.set(threadId, { generation: instance.generation + 1 });
+    // the outgoing runtime stays readable until the new binder attaches, so
+    // getThreadRuntimeCore never falls back to the empty core mid-restart
+    this.instances.set(threadId, {
+      runtime: instance.runtime,
+      generation: instance.generation + 1,
+    });
     this.useAliveThreadsKeysChanged.setState({}, true);
     this._notifySubscribers();
 

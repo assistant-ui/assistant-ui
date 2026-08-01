@@ -249,6 +249,10 @@ export class RemoteThreadListThreadListRuntimeCore
     const threadId = this._mainThreadId;
     if (threadId === undefined) return;
 
+    // an optimistic thread holds no remote state, so restarting it would only
+    // discard what the user has typed so far
+    if (this.getItemById(threadId)?.status === "new") return;
+
     try {
       await this._hookManager.__internal_restartThreadRuntime(threadId);
     } catch (error) {
