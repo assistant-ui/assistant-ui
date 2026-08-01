@@ -4,7 +4,7 @@ import { LearnRegistryError } from "@/lib/xulux/learn/registry";
 import {
   createLearnStageZip,
   getLearnStageArchiveFilename,
-} from "@/lib/xulux/learn/stage-download";
+} from "@/lib/xulux/learn/stage-source";
 
 export const runtime = "nodejs";
 

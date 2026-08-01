@@ -23,7 +23,7 @@ import ShikiHighlighter from "react-shiki";
 import Link from "next/link";
 import { useCopyToClipboard } from "@assistant-ui/ui/hooks/use-copy-to-clipboard";
 import { parseXuluxFileReference } from "@/lib/xulux/learn/file-reference";
-import { LearnInlineFileReference } from "../learn/LearnFileReference";
+import { LearnInlineFileReference } from "../learn/LearnFileView";
 
 const XuluxMarkdownTextImpl = () => {
   return (

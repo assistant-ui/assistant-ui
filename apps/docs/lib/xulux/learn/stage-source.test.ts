@@ -3,7 +3,12 @@ import {
   getLearnCourse,
   getLearnStage,
 } from "./registry";
-import { resolveStageFilesFromSnapshot } from "./stage-source";
+import { listZipEntries } from "../demo-downloads/zip";
+import {
+  createLearnStageZipFromSnapshot,
+  getLearnStageArchiveFilename,
+  resolveStageFilesFromSnapshot,
+} from "./stage-source";
 
 describe("resolveStageFiles", () => {
   it("materializes shared files and selects only the registered project root", () => {
@@ -124,6 +129,49 @@ describe("resolveStageFiles", () => {
     expect(() =>
       resolveStageFilesFromSnapshot(DEFAULT_LEARN_COURSE_ID, "S0", {}),
     ).toThrow(/Missing shared Learn source snapshot file/);
+  });
+
+  it("packages the exact materialized stage file map", () => {
+    const course = getLearnCourse(DEFAULT_LEARN_COURSE_ID);
+    const stage = getLearnStage(DEFAULT_LEARN_COURSE_ID, "S7");
+    const snapshot = {
+      ...sharedSourceSnapshot(course.sharedFiles, "shared"),
+      ...Object.fromEntries(
+        Object.values(course.stages).flatMap((item) => [
+          ...Object.values(item.sharedFiles ?? {}).map((snapshotPath) => [
+            snapshotPath,
+            snapshotPath,
+          ]),
+          [`${item.sourceRoot}/stage-${item.id}.txt`, item.id],
+        ]),
+      ),
+      [`${stage.sourceRoot}/app/page.tsx`]: "page",
+    };
+    const files = resolveStageFilesFromSnapshot(
+      DEFAULT_LEARN_COURSE_ID,
+      "S7",
+      snapshot,
+    );
+    const zip = createLearnStageZipFromSnapshot(
+      DEFAULT_LEARN_COURSE_ID,
+      "S7",
+      snapshot,
+    );
+
+    expect(listZipEntries(zip)).toEqual(Object.keys(files).sort());
+    expect(getLearnStageArchiveFilename(DEFAULT_LEARN_COURSE_ID, "S7")).toBe(
+      "xulux-build-generative-ui-assistant-s7.zip",
+    );
+  });
+
+  it("rejects unregistered stage downloads", () => {
+    expect(() =>
+      createLearnStageZipFromSnapshot(
+        DEFAULT_LEARN_COURSE_ID,
+        "missing-stage",
+        {},
+      ),
+    ).toThrow(/Unregistered Learn stage/);
   });
 });
 

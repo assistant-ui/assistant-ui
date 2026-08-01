@@ -1,4 +1,4 @@
-import type { LearnCourseStartSource } from "@/lib/xulux/learn/entry";
+import type { LearnCourseStartSource } from "@/lib/xulux/learn/types";
 
 declare global {
   interface Window {

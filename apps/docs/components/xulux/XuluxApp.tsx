@@ -38,7 +38,7 @@ import {
 import { DEFAULT_LEARN_COURSE_ID } from "@/lib/xulux/learn/registry";
 import type { LearnProgress } from "@/lib/xulux/learn/types";
 import { toLearnContext } from "@/lib/xulux/learn/context";
-import type { LearnAutoStartSource } from "@/lib/xulux/learn/entry";
+import type { LearnAutoStartSource } from "@/lib/xulux/learn/types";
 
 export type XuluxMode = "playground" | "learn";
 

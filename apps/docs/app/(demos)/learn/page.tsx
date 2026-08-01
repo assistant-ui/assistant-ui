@@ -5,7 +5,7 @@ import { XuluxApp } from "@/components/xulux/XuluxApp";
 import { isAiPlaygroundEnabled } from "@/lib/feature-flags";
 import { DEFAULT_LEARN_COURSE_ID } from "@/lib/xulux/learn/registry";
 import { createOgMetadata } from "@/lib/og";
-import { parseLearnAutoStartSource } from "@/lib/xulux/learn/entry";
+import { parseLearnAutoStartSource } from "@/lib/xulux/learn/types";
 
 const title = "Learn assistant-ui";
 const description =

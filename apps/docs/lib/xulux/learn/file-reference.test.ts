@@ -2,6 +2,7 @@ import {
   createLearnFileRecords,
   parseXuluxFileReference,
 } from "./file-reference";
+import { compareStageFiles } from "./stage-diff";
 
 describe("parseXuluxFileReference", () => {
   it("parses a complete course-relative path", () => {
@@ -69,6 +70,54 @@ describe("createLearnFileRecords", () => {
       currentContent: undefined,
       additions: 0,
       deletions: 1,
+    });
+  });
+});
+
+describe("compareStageFiles", () => {
+  const previous = {
+    "app/page.tsx": "one\ntwo\nthree\n",
+    "deleted.ts": "first\nsecond\n",
+    "unchanged.ts": "same\n",
+  };
+  const current = {
+    "app/page.tsx": "one\nchanged\nthree\nadded\n",
+    "added.ts": "alpha\nbeta\n",
+    "unchanged.ts": "same\n",
+  };
+
+  it("detects stable added, modified, and deleted statistics", () => {
+    const changes = compareStageFiles(previous, current);
+    expect(changes.files).toEqual([
+      {
+        path: "added.ts",
+        status: "added",
+        additions: 2,
+        deletions: 0,
+      },
+      {
+        path: "app/page.tsx",
+        status: "modified",
+        additions: 2,
+        deletions: 1,
+      },
+      {
+        path: "deleted.ts",
+        status: "deleted",
+        additions: 0,
+        deletions: 2,
+      },
+    ]);
+    expect(changes).toEqual(compareStageFiles(previous, current));
+    expect(changes.additions).toBe(4);
+    expect(changes.deletions).toBe(3);
+  });
+
+  it("returns no changes for identical stages", () => {
+    expect(compareStageFiles(previous, previous)).toEqual({
+      files: [],
+      additions: 0,
+      deletions: 0,
     });
   });
 });

@@ -56,8 +56,10 @@ import type {
   XuluxStoredThread,
 } from "../runtime/types";
 import { LearnCanvas } from "../learn/LearnCanvas";
-import { LearnCourseObserver } from "../learn/LearnCourseObserver";
-import { LearnModeProvider } from "../learn/LearnModeContext";
+import {
+  LearnCourseObserver,
+  LearnModeProvider,
+} from "../learn/LearnModeContext";
 import { LearnStageSourceProvider } from "../learn/LearnStageSourceContext";
 import {
   LEARN_START_MESSAGE,
@@ -69,7 +71,7 @@ import type { LearnProgress } from "@/lib/xulux/learn/types";
 import type {
   LearnAutoStartSource,
   LearnCourseStartSource,
-} from "@/lib/xulux/learn/entry";
+} from "@/lib/xulux/learn/types";
 
 const ASSISTANT_UI_REPO_URL = "https://github.com/assistant-ui/assistant-ui";
 

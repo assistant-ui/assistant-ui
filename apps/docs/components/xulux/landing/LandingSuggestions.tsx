@@ -14,7 +14,7 @@ import {
   useXuluxAnalytics,
   withXuluxContext,
 } from "@/lib/xulux/analytics-context";
-import { LEARN_SUGGESTION_HREF } from "@/lib/xulux/learn/entry";
+import { LEARN_SUGGESTION_HREF } from "@/lib/xulux/learn/types";
 import { cn } from "@/lib/utils";
 import {
   XULUX_SUGGESTION_GROUPS,

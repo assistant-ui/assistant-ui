@@ -1,11 +1,18 @@
 import { frontendTools, type FrontendTools } from "@assistant-ui/react-ai-sdk";
+import { tool, zodSchema } from "ai";
+import { z } from "zod";
+import { resolveNextCourseStep } from "@/lib/xulux/learn/next-step-result";
 import { createDocsTools } from "./tools/docs-tools";
-import { createLearnSourceMapTools } from "./tools/learn-source-map-tools";
-import { createLearnSourceSelection } from "./tools/learn-source-selection";
+import {
+  createLearnSourceMapTools,
+  createLearnSourceSelection,
+} from "./tools/learn-source-map-tools";
 import { createSourceMapTools } from "./tools/source-map-tools";
 import { createTemplateTools } from "./tools/template-tools";
-import { createLearnTools as createLearnCourseTools } from "./tools/learn-tools";
-import type { LearnContext } from "@/lib/xulux/learn/types";
+import type {
+  LearnContext,
+  LearnCourseStepResult,
+} from "@/lib/xulux/learn/types";
 
 type CommonToolOptions = {
   clientTools: FrontendTools;
@@ -15,6 +22,24 @@ type CommonToolOptions = {
 function createCommonTools({ routeUrl }: Pick<CommonToolOptions, "routeUrl">) {
   return {
     ...createDocsTools({ routeUrl }),
+  };
+}
+
+function createLearnCourseTools(
+  context: LearnContext,
+  onResult: (result: LearnCourseStepResult) => void,
+) {
+  return {
+    getNextCourseStep: tool({
+      description:
+        "Advance the active Learn course by exactly one canonical step. Call with no arguments only when the learner starts the course or explicitly asks to continue. Never call it for lesson questions.",
+      inputSchema: zodSchema(z.object({})),
+      execute: async () => {
+        const result = await resolveNextCourseStep(context);
+        onResult(result);
+        return result;
+      },
+    }),
   };
 }
 

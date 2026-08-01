@@ -1,7 +1,7 @@
 import { loadSourceSnapshot } from "../demo-downloads/create-demo-zip";
 import { compareStageFiles } from "./stage-diff";
 import { resolveStageFilesFromSnapshot } from "./stage-source";
-import { getNextStep } from "./progression";
+import { getNextStep } from "./registry";
 import { getLearnCourse, getLearnStage } from "./registry";
 import type { LearnContext, LearnCourseStepResult } from "./types";
 

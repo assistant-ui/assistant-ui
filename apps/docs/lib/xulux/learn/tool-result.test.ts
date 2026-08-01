@@ -1,4 +1,42 @@
 import { parseLearnCourseStepResult } from "./tool-result";
+import { parseLearnContext, toLearnContext } from "./context";
+import { createInitialLearnProgress } from "./progress";
+
+describe("Learn context", () => {
+  it("accepts registered context and rejects invalid values", () => {
+    const progress = {
+      ...createInitialLearnProgress("build-generative-ui-assistant", 100),
+      status: "in_progress" as const,
+      currentStepId: "meet-the-project",
+      selectedStepId: "meet-the-project",
+    };
+    expect(parseLearnContext(toLearnContext(progress))).toEqual({
+      courseId: "build-generative-ui-assistant",
+      status: "in_progress",
+      currentStepId: "meet-the-project",
+      selectedStepId: "meet-the-project",
+    });
+
+    for (const value of [
+      undefined,
+      {},
+      {
+        courseId: "missing",
+        status: "in_progress",
+        currentStepId: null,
+        selectedStepId: null,
+      },
+      {
+        courseId: "build-generative-ui-assistant",
+        status: "in_progress",
+        currentStepId: "missing",
+        selectedStepId: null,
+      },
+    ]) {
+      expect(parseLearnContext(value)).toBeNull();
+    }
+  });
+});
 
 describe("Learn course tool result", () => {
   it("validates in-progress and completion results", () => {
