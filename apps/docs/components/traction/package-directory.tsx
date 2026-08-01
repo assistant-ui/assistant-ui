@@ -55,8 +55,15 @@ export function PackageDirectory({
     : categories;
 
   const leaderNames = new Set(concentration.leaders.map((l) => l.name));
+  // The tail counts only what the share bar measures, so rows without download
+  // data (deprecated, or never downloaded) are not part of that segment.
+  const tailNames = new Set(
+    rows
+      .filter((row) => row.weekly !== null && !leaderNames.has(row.name))
+      .map((row) => row.name),
+  );
   const isLit = (name: string) =>
-    hovered === TAIL_KEY ? !leaderNames.has(name) : hovered === name;
+    hovered === TAIL_KEY ? tailNames.has(name) : hovered === name;
 
   return (
     <>
