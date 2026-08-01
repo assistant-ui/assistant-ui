@@ -18,9 +18,14 @@ const DEMO_COMPONENTS: Record<string, FC> = {
   perplexity: Perplexity,
 };
 
-export const DEMOS: DemoEntry[] = DEMO_META.flatMap((meta) => {
+export const DEMOS: DemoEntry[] = DEMO_META.map((meta) => {
   const component = DEMO_COMPONENTS[meta.slug];
-  return component ? [{ ...meta, component }] : [];
+  if (!component) {
+    throw new Error(
+      `Demo "${meta.slug}" has metadata but no component. Routes, the sitemap and the landing switcher all read this list, so a mismatch would 404 rather than degrade.`,
+    );
+  }
+  return { ...meta, component };
 });
 
 export function getDemo(slug: string): DemoEntry | undefined {

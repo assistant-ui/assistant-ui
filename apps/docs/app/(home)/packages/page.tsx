@@ -155,6 +155,7 @@ export default async function PackagesPage() {
         rows={directoryRows}
         concentration={{
           leaders,
+          tailNames: tail.map((row) => row.name),
           tailCount: tail.length,
           tailWeekly,
           total: rankedWeekly,

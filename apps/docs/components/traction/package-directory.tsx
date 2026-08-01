@@ -43,6 +43,7 @@ export function PackageDirectory({
   rows: DirectoryRow[];
   concentration: {
     leaders: ConcentrationSegment[];
+    tailNames: string[];
     tailCount: number;
     tailWeekly: number;
     total: number;
@@ -54,14 +55,9 @@ export function PackageDirectory({
     ? categories.filter((c) => c.key === active)
     : categories;
 
-  const leaderNames = new Set(concentration.leaders.map((l) => l.name));
-  // The tail counts only what the share bar measures, so rows without download
-  // data (deprecated, or never downloaded) are not part of that segment.
-  const tailNames = new Set(
-    rows
-      .filter((row) => row.weekly !== null && !leaderNames.has(row.name))
-      .map((row) => row.name),
-  );
+  // The page owns the leader/tail split; re-deriving it here would let the
+  // highlight and the segment it belongs to drift apart.
+  const tailNames = new Set(concentration.tailNames);
   const isLit = (name: string) =>
     hovered === TAIL_KEY ? tailNames.has(name) : hovered === name;
 
