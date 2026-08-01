@@ -44,6 +44,7 @@ import { createSerialRunQueue, type SerialRunQueue } from "./serialRunQueue";
 import { langGraphExtras } from "./runtimeExtras";
 import {
   filterUIMessagesBySurvivingIds,
+  getLangChainToolCallFallbackId,
   getLangChainToolCallId,
   getPendingToolCalls,
   hasToolResult,
@@ -178,6 +179,24 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
             toolCall,
             index,
           );
+          const fallbackToolCallId = getLangChainToolCallFallbackId(
+            message.id,
+            toolCall,
+            index,
+          );
+          if (fallbackToolCallId !== toolCallId) {
+            const fallbackRunContext =
+              toolCallRunContextsRef.current.get(fallbackToolCallId);
+            if (fallbackRunContext) {
+              if (!toolCallRunContextsRef.current.has(toolCallId)) {
+                toolCallRunContextsRef.current.set(
+                  toolCallId,
+                  fallbackRunContext,
+                );
+              }
+              toolCallRunContextsRef.current.delete(fallbackToolCallId);
+            }
+          }
           if (
             activeRunContextRef.current &&
             !toolCallRunContextsRef.current.has(toolCallId)
@@ -233,6 +252,8 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
     eventHandlers: wrappedEventHandlers,
     ...(uiStateKey !== undefined && { uiStateKey }),
   });
+  const langGraphMessagesRef = useRef(messages);
+  langGraphMessagesRef.current = messages;
 
   const [isRunning, setIsRunning] = useState(false);
   const [isLoadingThread, setIsLoadingThread] = useState(
@@ -308,6 +329,16 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
   }> | null>(null);
   runQueueRef.current ??= createSerialRunQueue({
     run: ({ messages, config, runContext }, onComplete) => {
+      for (const toolCall of getPendingToolCalls(
+        langGraphMessagesRef.current,
+      )) {
+        if (!toolCallRunContextsRef.current.has(toolCall.id)) {
+          toolCallRunContextsRef.current.set(
+            toolCall.id,
+            unknownRunContextRef.current,
+          );
+        }
+      }
       activeRunContextRef.current = runContext;
       if (messages === pendingResumesRef.current.get(runContext)) {
         pendingResumesRef.current.delete(runContext);
@@ -334,9 +365,15 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
   ) => {
     const state = pendingStateRef.current;
     pendingStateRef.current = undefined;
+    const resolvedConfig =
+      config.command !== undefined &&
+      config.runConfig === undefined &&
+      runContext.runConfig !== undefined
+        ? { ...config, runConfig: runContext.runConfig }
+        : config;
     return runQueue.enqueue({
       messages,
-      config: state ? { ...config, state } : config,
+      config: state ? { ...resolvedConfig, state } : resolvedConfig,
       runContext,
     });
   };
@@ -388,9 +425,6 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
       runConfig: msg.runConfig,
     });
   };
-
-  const langGraphMessagesRef = useRef(messages);
-  langGraphMessagesRef.current = messages;
 
   const stagedMessagesRef = useRef(
     new Map<
@@ -699,7 +733,11 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
       load(externalId, { signal: controller.signal })
         .then(({ messages, interrupts, uiMessages }) => {
           if (controller.signal.aborted) return;
-          setMessages(messages);
+          setMessages(
+            messages.map((message) =>
+              message.id ? message : { ...message, id: generateId() },
+            ),
+          );
           setUIMessages(uiMessages ?? []);
           setInterrupt(interrupts?.[0]);
         })
