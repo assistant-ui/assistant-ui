@@ -372,6 +372,7 @@ export const getMessageContent = (msg: AppendMessage) => {
             type: "file" as const,
             id: part.data,
             mime_type: part.mimeType,
+            filename: metadata.filename,
             metadata,
             source_type: "id" as const,
           };
@@ -381,6 +382,7 @@ export const getMessageContent = (msg: AppendMessage) => {
             type: "file" as const,
             url: part.data,
             mime_type: part.mimeType,
+            filename: metadata.filename,
             metadata,
             source_type: "url" as const,
           };
@@ -401,6 +403,7 @@ export const getMessageContent = (msg: AppendMessage) => {
           type: "file" as const,
           data: parsed?.data ?? part.data,
           mime_type: parsed?.mimeType ?? part.mimeType,
+          filename: metadata.filename,
           metadata,
           source_type: "base64" as const,
         };
