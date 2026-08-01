@@ -43,6 +43,7 @@ const createRegistrationParent = (
   id: string,
   active: Map<string, string>,
   failValue?: string,
+  operations?: string[],
 ) => {
   const registrationTarget = Object.assign(() => registrationTarget, {
     source: "root" as const,
@@ -50,8 +51,10 @@ const createRegistrationParent = (
     id,
     register: (value: string) => {
       if (value === failValue) throw new Error(`registration failed for ${id}`);
+      operations?.push(`setup ${id} ${value}`);
       active.set(id, value);
       return () => {
+        operations?.push(`cleanup ${id} ${value}`);
         if (active.get(id) === value) active.delete(id);
       };
     },
@@ -203,9 +206,10 @@ describe("useAui tap host", () => {
 
   it("migrates selected client effects after structural scope changes", () => {
     const active = new Map<string, string>();
+    const operations: string[] = [];
     const parents = {
-      a: createRegistrationParent("a", active),
-      b: createRegistrationParent("b", active),
+      a: createRegistrationParent("a", active, undefined, operations),
+      b: createRegistrationParent("b", active, undefined, operations),
       unavailable: createUnavailableRegistrationParent(),
     };
 
@@ -229,9 +233,11 @@ describe("useAui tap host", () => {
 
     const { rerender, unmount } = render(<Harness parent="a" value="one" />);
     expect(Object.fromEntries(active)).toEqual({ a: "one" });
+    expect(operations).toEqual(["setup a one"]);
 
     rerender(<Harness parent="b" value="two" />);
     expect(Object.fromEntries(active)).toEqual({ b: "two" });
+    expect(operations).toEqual(["setup a one", "cleanup a one", "setup b two"]);
 
     rerender(<Harness parent="unavailable" value="two" />);
     expect(active.size).toBe(0);

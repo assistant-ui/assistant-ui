@@ -260,9 +260,10 @@ const useAuiRoot = ({
 }): { client: AssistantClient } => {
   const fields = useClientFields({ notifications, clientRef });
   const building = createClientObject(parent, fields);
+  const renderedClientRef = { current: null as AssistantClient | null };
 
   const accessors = useAssistantTapContextProvider(
-    { clientRef, clientStoreRef, emit: notifications.emit },
+    { clientRef, clientStoreRef, renderedClientRef, emit: notifications.emit },
     function WithTapContext() {
       return useAssistantContextProvider(
         building,
@@ -273,11 +274,11 @@ const useAuiRoot = ({
     },
   );
 
+  const client = useCommittedClient(building, [parent, ...accessors]);
+  renderedClientRef.current = client;
   // Fresh envelope per commit so value-only updates reach the store's
   // subscribers; the client inside keeps its identity
-  return {
-    client: useCommittedClient(building, [parent, ...accessors]),
-  };
+  return { client };
 };
 
 const useHostedAssistantClient = ({

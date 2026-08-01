@@ -28,6 +28,7 @@ export type AssistantClientStoreRef = {
 export type AssistantTapContextValue = {
   clientRef: { parent: AssistantClient; current: AssistantClient | null };
   clientStoreRef: AssistantClientStoreRef;
+  renderedClientRef: { current: AssistantClient | null };
   emit: EmitFn;
 };
 
@@ -58,17 +59,24 @@ export const useAssistantClientEffect = <K extends ClientNames>(
   setup: (accessor: AssistantClientAccessor<K>) => void | (() => void),
   deps: readonly unknown[],
 ): void => {
-  const { clientStoreRef } = useAssistantTapContext();
+  const { clientStoreRef, renderedClientRef } = useAssistantTapContext();
   const setupEvent = useEffectEvent(setup);
+  const getRenderedClient = useEffectEvent(() => renderedClientRef.current);
   const stableDeps = useShallowStable(deps);
 
   useEffect(() => {
     const store = clientStoreRef.current;
     if (!store) throw new Error("Assistant client store is not available");
 
+    const renderedClient = getRenderedClient();
+    if (!renderedClient)
+      throw new Error("Rendered assistant client is not available");
+
     const select = () =>
       store.getValue().client[scope] as unknown as AssistantClientAccessor<K>;
-    let selected = select();
+    let selected = renderedClient[
+      scope
+    ] as unknown as AssistantClientAccessor<K>;
     let cleanup: undefined | (() => void);
     let setupComplete = false;
     let disposed = false;
