@@ -87,6 +87,31 @@ describe("createVoiceSession", () => {
     await Promise.resolve();
 
     session.disconnect();
+    session.disconnect();
+    abortController.abort();
+
+    expect(controls.disconnect).toHaveBeenCalledOnce();
+  });
+
+  it("keeps abort teardown available after the session ends", async () => {
+    const abortController = new AbortController();
+    const controls = {
+      disconnect: vi.fn(),
+      mute: vi.fn(),
+      unmute: vi.fn(),
+    };
+    let helpers: VoiceSessionHelpers | undefined;
+    createVoiceSession(
+      { abortSignal: abortController.signal },
+      async (sessionHelpers) => {
+        helpers = sessionHelpers;
+        return controls;
+      },
+    );
+    await Promise.resolve();
+    if (!helpers) throw new Error("Voice session setup did not start");
+
+    helpers.end("error");
     abortController.abort();
 
     expect(controls.disconnect).toHaveBeenCalledOnce();

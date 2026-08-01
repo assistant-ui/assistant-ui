@@ -87,16 +87,20 @@ export function createVoiceSession(
   let currentStatus: RealtimeVoiceAdapter.Status = { type: "starting" };
   let isMuted = false;
   let disposed = false;
+  let disconnected = false;
   let controls: VoiceSessionControls | null = null;
   const abortSignal = options.abortSignal;
   let abortHandler: (() => void) | undefined;
 
-  const cleanup = () => {
-    disposed = true;
+  const detachAbortHandler = () => {
     if (abortHandler) {
       abortSignal?.removeEventListener("abort", abortHandler);
       abortHandler = undefined;
     }
+  };
+
+  const cleanup = () => {
+    disposed = true;
     statusCbs.clear();
     transcriptCbs.clear();
     modeCbs.clear();
@@ -138,6 +142,9 @@ export function createVoiceSession(
       return isMuted;
     },
     disconnect: () => {
+      if (disconnected) return;
+      disconnected = true;
+      detachAbortHandler();
       try {
         controls?.disconnect();
       } finally {
