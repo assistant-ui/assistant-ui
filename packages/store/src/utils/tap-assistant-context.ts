@@ -78,7 +78,6 @@ export const useAssistantClientEffect = <K extends ClientNames>(
       scope
     ] as unknown as AssistantClientAccessor<K>;
     let cleanup: undefined | (() => void);
-    let setupComplete = false;
     let disposed = false;
     let transitioning = true;
     let pending = false;
@@ -95,10 +94,9 @@ export const useAssistantClientEffect = <K extends ClientNames>(
         return;
       }
       cleanup = typeof nextCleanup === "function" ? nextCleanup : undefined;
-      setupComplete = true;
     };
 
-    const migrate = (retriedFailedSetup = false) => {
+    const migrate = () => {
       if (disposed) return;
       if (transitioning) {
         pending = true;
@@ -106,40 +104,30 @@ export const useAssistantClientEffect = <K extends ClientNames>(
       }
 
       transitioning = true;
-      let failed = false;
       try {
         do {
           pending = false;
-          const next = select();
-          if (setupComplete && Object.is(selected, next)) continue;
+          try {
+            const next = select();
+            if (Object.is(selected, next)) continue;
 
-          const previousCleanup = cleanup;
-          cleanup = undefined;
-          setupComplete = false;
-          selected = next;
-          previousCleanup?.();
-          if (disposed) return;
-          setupSelected();
+            const previousCleanup = cleanup;
+            cleanup = undefined;
+            selected = next;
+            previousCleanup?.();
+            if (disposed) return;
+            if (pending) {
+              pending = false;
+              selected = select();
+            }
+            setupSelected();
+          } catch (error) {
+            reportMigrationError(error);
+          }
         } while (pending);
-      } catch (error) {
-        failed = true;
-        reportMigrationError(error);
       } finally {
         transitioning = false;
       }
-
-      if (!failed || !pending || disposed) return;
-      pending = false;
-      let next: AssistantClientAccessor<K>;
-      try {
-        next = select();
-      } catch (error) {
-        reportMigrationError(error);
-        return;
-      }
-      const retryingSameAccessor = Object.is(selected, next);
-      if (retriedFailedSetup && retryingSameAccessor) return;
-      migrate(retryingSameAccessor);
     };
 
     const unsubscribe = store.subscribe(migrate);
@@ -159,7 +147,6 @@ export const useAssistantClientEffect = <K extends ClientNames>(
       unsubscribe();
       const finalCleanup = cleanup;
       cleanup = undefined;
-      setupComplete = false;
       finalCleanup?.();
     };
   }, [clientStoreRef, scope, stableDeps]);

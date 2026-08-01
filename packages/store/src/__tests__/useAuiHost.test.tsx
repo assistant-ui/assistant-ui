@@ -8,7 +8,10 @@ import { flushTapSync, resource } from "@assistant-ui/tap";
 import { AuiProvider } from "../utils/react-assistant-context";
 import { useAui } from "../useAui";
 import { useAuiState } from "../useAuiState";
-import { useAssistantClientEffect } from "../utils/tap-assistant-context";
+import {
+  useAssistantClientEffect,
+  useAssistantTapContextProvider,
+} from "../utils/tap-assistant-context";
 
 const makeTestClient = (log: string[]) => {
   // Runs inside the tap host; "react" imports route to tap's dispatcher.
@@ -50,8 +53,8 @@ const createRegistrationParent = (
     query: {},
     id,
     register: (value: string) => {
-      if (value === failValue) throw new Error(`registration failed for ${id}`);
       operations?.push(`setup ${id} ${value}`);
+      if (value === failValue) throw new Error(`registration failed for ${id}`);
       active.set(id, value);
       return () => {
         operations?.push(`cleanup ${id} ${value}`);
@@ -107,6 +110,72 @@ const useFailingRegistrationClient = ({
   return {};
 };
 const FailingRegistrationClient = resource(useFailingRegistrationClient);
+
+const createClientEffectStore = (initialClient: object) => {
+  let client = initialClient;
+  const listeners = new Set<VoidFunction>();
+  const store = {
+    getValue: () => ({ client }),
+    subscribe: (listener: VoidFunction) => {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+  };
+
+  return {
+    store,
+    publish(nextClient: object) {
+      client = nextClient;
+      for (const listener of [...listeners]) listener();
+    },
+  };
+};
+
+const createClientEffectResource = (
+  initialClient: object,
+  store: ReturnType<typeof createClientEffectStore>["store"],
+  setup: (target: any) => void | VoidFunction,
+) => {
+  const useEffectClient = () => {
+    useAssistantClientEffect("registrationTarget" as any, setup, []);
+    return {};
+  };
+  const useTestClient = () =>
+    useAssistantTapContextProvider(
+      {
+        clientRef: { parent: initialClient, current: initialClient },
+        clientStoreRef: { current: store },
+        renderedClientRef: { current: initialClient },
+        emit: () => {},
+      } as never,
+      useEffectClient,
+    );
+
+  return resource(useTestClient);
+};
+
+const captureQueuedErrors = (message: string) => {
+  const errors: unknown[] = [];
+  const queue = globalThis.queueMicrotask;
+  vi.spyOn(globalThis, "queueMicrotask").mockImplementation((callback) => {
+    queue(() => {
+      try {
+        callback();
+      } catch (error) {
+        if (error instanceof Error && error.message === message) {
+          errors.push(error);
+          return;
+        }
+        throw error;
+      }
+    });
+  });
+
+  return {
+    errors,
+    flush: () => new Promise<void>((resolve) => queue(resolve)),
+  };
+};
 
 describe("useAui tap host", () => {
   afterEach(() => {
@@ -252,13 +321,14 @@ describe("useAui tap host", () => {
     expect(active.size).toBe(0);
   });
 
-  it("continues subscriber delivery and retries after a failed migration setup", () => {
+  it("continues subscriber delivery and retries after a later structural update", async () => {
     const active = new Map<string, string>();
     const migrations: string[] = [];
+    const operations: string[] = [];
     const parents = {
-      a: createRegistrationParent("a", active),
-      b: createRegistrationParent("b", active, "primary"),
-      c: createRegistrationParent("c", active),
+      a: createRegistrationParent("a", active, undefined, operations),
+      b: createRegistrationParent("b", active, "primary", operations),
+      c: createRegistrationParent("c", active, undefined, operations),
     };
 
     const Child = () => {
@@ -277,32 +347,96 @@ describe("useAui tap host", () => {
     expect(Object.fromEntries(active)).toEqual({ a: "primary" });
     expect(migrations).toEqual(["a"]);
 
-    const errors: VoidFunction[] = [];
-    vi.spyOn(globalThis, "queueMicrotask").mockImplementation((callback) => {
-      errors.push(callback);
-    });
+    const reported = captureQueuedErrors("registration failed for b");
 
     rerender(<Harness parent="b" />);
+    await act(reported.flush);
     expect(active.size).toBe(0);
     expect(migrations).toEqual(["a", "b"]);
-    const reportedErrors: unknown[] = [];
-    for (const report of errors) {
-      try {
-        report();
-      } catch (error) {
-        reportedErrors.push(error);
-      }
-    }
-    expect(reportedErrors.length).toBeGreaterThan(0);
-    for (const error of reportedErrors) {
-      expect(error).toEqual(
-        expect.objectContaining({ message: "registration failed for b" }),
-      );
-    }
-    vi.restoreAllMocks();
+    expect(operations).toEqual([
+      "setup a primary",
+      "cleanup a primary",
+      "setup b primary",
+    ]);
+    expect(reported.errors).toHaveLength(1);
 
-    rerender(<Harness parent="a" />);
-    expect(Object.fromEntries(active)).toEqual({ a: "primary" });
-    expect(migrations).toEqual(["a", "b", "a"]);
+    rerender(<Harness parent="b" />);
+    await act(reported.flush);
+    expect(operations).toEqual([
+      "setup a primary",
+      "cleanup a primary",
+      "setup b primary",
+    ]);
+    expect(reported.errors).toHaveLength(1);
+
+    rerender(<Harness parent="c" />);
+    expect(Object.fromEntries(active)).toEqual({ c: "primary" });
+    expect(migrations).toEqual(["a", "b", "c"]);
+  });
+
+  it("selects the latest accessor after cleanup publishes structurally", () => {
+    const operations: string[] = [];
+    const clients = {
+      a: createRegistrationParent("a", new Map()),
+      b: createRegistrationParent("b", new Map()),
+      c: createRegistrationParent("c", new Map()),
+    };
+    const clientStore = createClientEffectStore(clients.a);
+    const Client = createClientEffectResource(
+      clients.a,
+      clientStore.store,
+      (target) => {
+        operations.push(`setup ${target.id}`);
+        return () => {
+          operations.push(`cleanup ${target.id}`);
+          if (target.id === "a") clientStore.publish(clients.c);
+        };
+      },
+    );
+
+    const Host = () => {
+      useAui({ registration: Client() } as unknown as useAui.Props);
+      return null;
+    };
+
+    render(<Host />);
+    act(() => clientStore.publish(clients.b));
+
+    expect(operations).toEqual(["setup a", "cleanup a", "setup c"]);
+  });
+
+  it("processes a structural publish from a failing setup", async () => {
+    const operations: string[] = [];
+    const clients = {
+      a: createRegistrationParent("a", new Map()),
+      b: createRegistrationParent("b", new Map()),
+      c: createRegistrationParent("c", new Map()),
+    };
+    const clientStore = createClientEffectStore(clients.a);
+    const Client = createClientEffectResource(
+      clients.a,
+      clientStore.store,
+      (target) => {
+        operations.push(`setup ${target.id}`);
+        if (target.id === "b") {
+          clientStore.publish(clients.c);
+          throw new Error("registration failed for b");
+        }
+        return () => operations.push(`cleanup ${target.id}`);
+      },
+    );
+
+    const Host = () => {
+      useAui({ registration: Client() } as unknown as useAui.Props);
+      return null;
+    };
+
+    render(<Host />);
+    const reported = captureQueuedErrors("registration failed for b");
+    act(() => clientStore.publish(clients.b));
+    await act(reported.flush);
+
+    expect(operations).toEqual(["setup a", "cleanup a", "setup b", "setup c"]);
+    expect(reported.errors).toHaveLength(1);
   });
 });
