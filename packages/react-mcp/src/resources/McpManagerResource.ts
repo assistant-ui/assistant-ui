@@ -2,10 +2,10 @@ import { useState, useEffect, useMemo, useEffectEvent, useRef } from "react";
 import { useResource, resource, withKey } from "@assistant-ui/tap";
 import {
   useClientLookup,
+  useAssistantClientRef,
   attachTransformScopes,
   type ClientOutput,
 } from "@assistant-ui/store";
-import { useAssistantClientEffect } from "@assistant-ui/store/internal";
 import { ModelContext } from "@assistant-ui/core/store";
 import type { Tool } from "assistant-stream";
 import { McpServerResource } from "./McpServerResource";
@@ -222,15 +222,15 @@ const useMcpManagerResource = (
     return out;
   }, [state, lookup]);
 
-  useAssistantClientEffect(
-    "modelContext",
-    (modelContext) => {
-      return modelContext.register({
-        getModelContext: () => ({ tools: toolkit }),
-      });
-    },
-    [toolkit],
-  );
+  const clientRef = useAssistantClientRef();
+
+  useEffect(() => {
+    const client = clientRef.current;
+    if (!client) return;
+    return client.modelContext.register({
+      getModelContext: () => ({ tools: toolkit }),
+    });
+  }, [toolkit, clientRef]);
 
   const serverByKind = (kind: "connector" | "custom", index: number) => {
     const list = kind === "connector" ? state.connectors : state.customServers;

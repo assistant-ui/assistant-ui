@@ -5,7 +5,6 @@ import {
   type ClientOutput,
   attachTransformScopes,
 } from "@assistant-ui/store";
-import { useAssistantClientEffect } from "@assistant-ui/store/internal";
 import type {
   Unstable_InteractablesState,
   Unstable_InteractableRegistration,
@@ -48,12 +47,6 @@ type MessageLike = {
 
 type InternalInteractableRegistration = Unstable_InteractableRegistration & {
   scope?: "thread" | undefined;
-};
-
-type UpdateToolUIEntry = {
-  count: number;
-  render: NonNullable<Unstable_InteractableRegistration["updateRender"]>;
-  unsubscribe?: () => void;
 };
 
 const hasInteractableCreateCall = (
@@ -99,7 +92,9 @@ const useInteractablesResource = ({
   const registrationCountsRef = useRef(new Map<string, number>());
   // One update-tool UI per interactable name, alive while any registrant
   // that supplied an updateRender is mounted.
-  const updateToolUIsRef = useRef(new Map<string, UpdateToolUIEntry>());
+  const updateToolUIsRef = useRef(
+    new Map<string, { count: number; unsubscribe: () => void }>(),
+  );
   // App-scoped state restored via adapter.load(), consumed as components register.
   const loadedStateRef = useRef(new Map<string, unknown>());
   // Ids edited locally this session — a local edit always wins over a slow load.
@@ -392,37 +387,9 @@ const useInteractablesResource = ({
     for (const cb of subscribersRef.current) cb();
   }, [state]);
 
-  useAssistantClientEffect(
-    "modelContext",
-    (modelContext) => modelContext.register(provider),
-    [provider],
-  );
-
-  useAssistantClientEffect(
-    "tools",
-    (tools) => {
-      if (tools.source === null) return;
-      for (const [name, entry] of [...updateToolUIsRef.current]) {
-        const previousUnsubscribe = entry.unsubscribe;
-        delete entry.unsubscribe;
-        previousUnsubscribe?.();
-        if (updateToolUIsRef.current.get(name) !== entry) continue;
-        entry.unsubscribe = tools().setToolUI(
-          interactableToolName(name),
-          entry.render,
-          { standalone: true },
-        );
-      }
-      return () => {
-        for (const entry of [...updateToolUIsRef.current.values()]) {
-          const currentUnsubscribe = entry.unsubscribe;
-          delete entry.unsubscribe;
-          currentUnsubscribe?.();
-        }
-      };
-    },
-    [],
-  );
+  useEffect(() => {
+    return clientRef.current!.modelContext().register(provider);
+  }, [clientRef, provider]);
 
   const register = useCallback(
     (def: InternalInteractableRegistration) => {
@@ -456,37 +423,36 @@ const useInteractablesResource = ({
 
       let releaseUpdateToolUI: (() => void) | undefined;
       if (def.updateRender) {
-        const existing = updateToolUIsRef.current.get(def.name);
-        if (existing) {
-          existing.count++;
-        } else {
-          const entry: UpdateToolUIEntry = {
-            count: 1,
-            render: def.updateRender,
+        const toolsAccessor = clientRef.current?.tools;
+        if (toolsAccessor && toolsAccessor.source != null) {
+          const toolName = interactableToolName(def.name);
+          const existing = updateToolUIsRef.current.get(def.name);
+          if (existing) {
+            existing.count++;
+          } else {
+            updateToolUIsRef.current.set(def.name, {
+              count: 1,
+              unsubscribe: toolsAccessor().setToolUI(
+                toolName,
+                def.updateRender,
+                { standalone: true },
+              ),
+            });
+          }
+          releaseUpdateToolUI = () => {
+            const entry = updateToolUIsRef.current.get(def.name);
+            if (!entry) return;
+            if (--entry.count === 0) {
+              updateToolUIsRef.current.delete(def.name);
+              entry.unsubscribe();
+            }
           };
-          const tools = clientRef.current?.tools;
-          if (tools && tools.source != null) {
-            entry.unsubscribe = tools().setToolUI(
-              interactableToolName(def.name),
-              def.updateRender,
-              { standalone: true },
-            );
-          } else if (process.env.NODE_ENV !== "production") {
-            console.warn(
-              `[Interactables] "${def.name}" supplied an updateRender, but no ` +
-                `tools scope is available to install it into.`,
-            );
-          }
-          updateToolUIsRef.current.set(def.name, entry);
+        } else if (process.env.NODE_ENV !== "production") {
+          console.warn(
+            `[Interactables] "${def.name}" supplied an updateRender, but no ` +
+              `tools scope is available to install it into.`,
+          );
         }
-        releaseUpdateToolUI = () => {
-          const entry = updateToolUIsRef.current.get(def.name);
-          if (!entry) return;
-          if (--entry.count === 0) {
-            updateToolUIsRef.current.delete(def.name);
-            entry.unsubscribe?.();
-          }
-        };
       }
 
       // The same id re-registers once per anchor (its create call + each update_*).

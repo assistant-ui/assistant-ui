@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import { useEffect, useLayoutEffect, useState } from "react";
 import { act, cleanup, render } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { flushTapSync, resource } from "@assistant-ui/tap";
 import { AuiProvider } from "../utils/react-assistant-context";
 import { useAui } from "../useAui";
@@ -39,11 +39,17 @@ const Provider = ({
   return <AuiProvider value={aui}>{children}</AuiProvider>;
 };
 
-const createRegistrationParent = (id: string, active: Map<string, string>) => {
+const createRegistrationParent = (
+  id: string,
+  active: Map<string, string>,
+  failValue?: string,
+) => {
   const registrationTarget = Object.assign(() => registrationTarget, {
     source: "root" as const,
     query: {},
+    id,
     register: (value: string) => {
+      if (value === failValue) throw new Error(`registration failed for ${id}`);
       active.set(id, value);
       return () => {
         if (active.get(id) === value) active.delete(id);
@@ -78,9 +84,31 @@ const useRegistrationClient = ({ value }: { value: string }) => {
 };
 const RegistrationClient = resource(useRegistrationClient);
 
+const useFailingRegistrationClient = ({
+  migrations,
+}: {
+  migrations: string[];
+}) => {
+  useAssistantClientEffect(
+    "registrationTarget" as any,
+    (target: any) => target.register("primary"),
+    [],
+  );
+  useAssistantClientEffect(
+    "registrationTarget" as any,
+    (target: any) => {
+      migrations.push(target.id);
+    },
+    [],
+  );
+  return {};
+};
+const FailingRegistrationClient = resource(useFailingRegistrationClient);
+
 describe("useAui tap host", () => {
   afterEach(() => {
     cleanup();
+    vi.restoreAllMocks();
   });
 
   it("commits client effects passively, ahead of consumer effects", () => {
@@ -216,5 +244,59 @@ describe("useAui tap host", () => {
 
     unmount();
     expect(active.size).toBe(0);
+  });
+
+  it("continues subscriber delivery and retries after a failed migration setup", () => {
+    const active = new Map<string, string>();
+    const migrations: string[] = [];
+    const parents = {
+      a: createRegistrationParent("a", active),
+      b: createRegistrationParent("b", active, "primary"),
+      c: createRegistrationParent("c", active),
+    };
+
+    const Child = () => {
+      useAui({
+        registration: FailingRegistrationClient({ migrations }),
+      } as unknown as useAui.Props);
+      return null;
+    };
+    const Harness = ({ parent }: { parent: keyof typeof parents }) => (
+      <AuiProvider value={parents[parent] as never}>
+        <Child />
+      </AuiProvider>
+    );
+
+    const { rerender } = render(<Harness parent="a" />);
+    expect(Object.fromEntries(active)).toEqual({ a: "primary" });
+    expect(migrations).toEqual(["a"]);
+
+    const errors: VoidFunction[] = [];
+    vi.spyOn(globalThis, "queueMicrotask").mockImplementation((callback) => {
+      errors.push(callback);
+    });
+
+    rerender(<Harness parent="b" />);
+    expect(active.size).toBe(0);
+    expect(migrations).toEqual(["a", "b"]);
+    const reportedErrors: unknown[] = [];
+    for (const report of errors) {
+      try {
+        report();
+      } catch (error) {
+        reportedErrors.push(error);
+      }
+    }
+    expect(reportedErrors.length).toBeGreaterThan(0);
+    for (const error of reportedErrors) {
+      expect(error).toEqual(
+        expect.objectContaining({ message: "registration failed for b" }),
+      );
+    }
+    vi.restoreAllMocks();
+
+    rerender(<Harness parent="a" />);
+    expect(Object.fromEntries(active)).toEqual({ a: "primary" });
+    expect(migrations).toEqual(["a", "b", "a"]);
   });
 });

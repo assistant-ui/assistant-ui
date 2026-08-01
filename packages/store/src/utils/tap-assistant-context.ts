@@ -55,7 +55,7 @@ export const useAssistantClientRef = () => {
 
 export const useAssistantClientEffect = <K extends ClientNames>(
   scope: K,
-  setup: (accessor: AssistantClientAccessor<K>) => undefined | (() => void),
+  setup: (accessor: AssistantClientAccessor<K>) => void | (() => void),
   deps: readonly unknown[],
 ): void => {
   const { clientStoreRef } = useAssistantTapContext();
@@ -67,17 +67,30 @@ export const useAssistantClientEffect = <K extends ClientNames>(
     if (!store) throw new Error("Assistant client store is not available");
 
     const select = () =>
-      store.getValue().client[scope] as AssistantClientAccessor<K>;
+      store.getValue().client[scope] as unknown as AssistantClientAccessor<K>;
     let selected = select();
     let cleanup: undefined | (() => void);
+    let setupComplete = false;
     let disposed = false;
     let transitioning = true;
     let pending = false;
-    const setupSelected = () =>
-      selected.source === null ? undefined : setupEvent(selected);
-    let unsubscribe = () => {};
+    const reportMigrationError = (error: unknown) => {
+      queueMicrotask(() => {
+        throw error;
+      });
+    };
+    const setupSelected = () => {
+      const nextCleanup =
+        selected.source === null ? undefined : setupEvent(selected);
+      if (disposed) {
+        nextCleanup?.();
+        return;
+      }
+      cleanup = typeof nextCleanup === "function" ? nextCleanup : undefined;
+      setupComplete = true;
+    };
 
-    const migrate = () => {
+    const migrate = (retriedFailedSetup = false) => {
       if (disposed) return;
       if (transitioning) {
         pending = true;
@@ -85,48 +98,45 @@ export const useAssistantClientEffect = <K extends ClientNames>(
       }
 
       transitioning = true;
+      let failed = false;
       try {
         do {
           pending = false;
           const next = select();
-          if (Object.is(selected, next)) continue;
+          if (setupComplete && Object.is(selected, next)) continue;
 
           const previousCleanup = cleanup;
           cleanup = undefined;
+          setupComplete = false;
           selected = next;
           previousCleanup?.();
-          cleanup = setupSelected();
+          if (disposed) return;
+          setupSelected();
         } while (pending);
       } catch (error) {
-        disposed = true;
-        const errors = [error];
-        try {
-          unsubscribe();
-        } catch (disposeError) {
-          errors.push(disposeError);
-        }
-        const failedCleanup = cleanup;
-        cleanup = undefined;
-        try {
-          failedCleanup?.();
-        } catch (disposeError) {
-          errors.push(disposeError);
-        }
-        if (errors.length > 1) {
-          throw new AggregateError(
-            errors,
-            "Errors occurred while disposing a failed client effect migration",
-          );
-        }
-        throw error;
+        failed = true;
+        reportMigrationError(error);
       } finally {
         transitioning = false;
       }
+
+      if (!failed || !pending || disposed) return;
+      pending = false;
+      let next: AssistantClientAccessor<K>;
+      try {
+        next = select();
+      } catch (error) {
+        reportMigrationError(error);
+        return;
+      }
+      const retryingSameAccessor = Object.is(selected, next);
+      if (retriedFailedSetup && retryingSameAccessor) return;
+      migrate(retryingSameAccessor);
     };
 
-    unsubscribe = store.subscribe(migrate);
+    const unsubscribe = store.subscribe(migrate);
     try {
-      cleanup = setupSelected();
+      setupSelected();
     } catch (error) {
       disposed = true;
       unsubscribe();
@@ -141,6 +151,7 @@ export const useAssistantClientEffect = <K extends ClientNames>(
       unsubscribe();
       const finalCleanup = cleanup;
       cleanup = undefined;
+      setupComplete = false;
       finalCleanup?.();
     };
   }, [clientStoreRef, scope, stableDeps]);
