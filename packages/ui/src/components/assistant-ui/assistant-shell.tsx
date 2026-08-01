@@ -91,6 +91,7 @@ export type AssistantShellProps = {
   logo?: ReactNode;
   title?: ReactNode;
   headerActions?: ReactNode;
+  sidebarFooter?: ReactNode;
   defaultCollapsed?: boolean;
   children: ReactNode;
 };
@@ -99,14 +100,19 @@ export const AssistantShell: FC<AssistantShellProps> = ({
   logo,
   title,
   headerActions,
+  sidebarFooter,
   defaultCollapsed,
   children,
 }) => {
   return (
     <AssistantShellRoot defaultCollapsed={defaultCollapsed}>
-      <AssistantShellSidebar logo={logo} title={title} />
+      <AssistantShellSidebar logo={logo} title={title} footer={sidebarFooter} />
       <AssistantShellMain>
-        <AssistantShellHeader logo={logo} title={title}>
+        <AssistantShellHeader
+          logo={logo}
+          title={title}
+          sidebarFooter={sidebarFooter}
+        >
           {headerActions}
         </AssistantShellHeader>
         <main data-slot="aui_shell-content" className="flex-1 overflow-hidden">
@@ -129,10 +135,10 @@ export const AssistantShellRoot: FC<AssistantShellRootProps> = ({
 }) => {
   const [collapsed, setCollapsed] = useState(defaultCollapsed ?? false);
 
-  const toggle = useCallback(() => {
-    const next = !collapsed;
-    setCollapsed(next);
-    document.cookie = `${COLLAPSED_COOKIE}=${next}; path=/; max-age=31536000`;
+  const toggle = useCallback(() => setCollapsed((prev) => !prev), []);
+
+  useEffect(() => {
+    document.cookie = `${COLLAPSED_COOKIE}=${collapsed}; path=/; max-age=31536000`;
   }, [collapsed]);
 
   useEffect(() => {
@@ -167,11 +173,13 @@ export const AssistantShellRoot: FC<AssistantShellRootProps> = ({
 export type AssistantShellSidebarProps = {
   logo?: ReactNode;
   title?: ReactNode;
+  footer?: ReactNode;
 };
 
 export const AssistantShellSidebar: FC<AssistantShellSidebarProps> = ({
   logo = defaultLogo,
   title = "assistant-ui",
+  footer,
 }) => {
   const { collapsed } = useAssistantShell();
   const fade = useScrollFade();
@@ -266,6 +274,17 @@ export const AssistantShellSidebar: FC<AssistantShellSidebarProps> = ({
             />
           </ThreadListRoot>
         </div>
+        {footer != null && (
+          <div
+            data-slot="aui_shell-sidebar-footer"
+            className={cn(
+              "shrink-0 pt-1 transition-[padding] duration-200",
+              collapsed ? "px-2" : "px-3",
+            )}
+          >
+            {footer}
+          </div>
+        )}
       </aside>
     </div>
   );
@@ -295,39 +314,51 @@ export const AssistantShellMain: FC<ComponentPropsWithoutRef<"div">> = ({
   );
 };
 
+export const AssistantShellSidebarToggle: FC = () => {
+  const { collapsed, toggle } = useAssistantShell();
+
+  return (
+    <TooltipIconButton
+      tooltip={collapsed ? "Show sidebar" : "Hide sidebar"}
+      side="bottom"
+      onClick={toggle}
+      data-slot="aui_shell-sidebar-toggle"
+      className="hidden size-8 md:flex"
+    >
+      <PanelLeftIcon className="size-4" />
+    </TooltipIconButton>
+  );
+};
+
 export type AssistantShellHeaderProps = Omit<
   ComponentPropsWithoutRef<"header">,
   "title"
 > & {
   logo?: ReactNode;
   title?: ReactNode;
+  sidebarFooter?: ReactNode;
 };
 
 export const AssistantShellHeader: FC<AssistantShellHeaderProps> = ({
   logo = defaultLogo,
   title = "assistant-ui",
+  sidebarFooter,
   className,
   children,
   ...props
 }) => {
-  const { collapsed, toggle } = useAssistantShell();
-
   return (
     <header
       data-slot="aui_shell-header"
       className={cn("flex h-12 shrink-0 items-center gap-2 px-4", className)}
       {...props}
     >
-      <AssistantShellMobileSidebar logo={logo} title={title} />
-      <TooltipIconButton
-        tooltip={collapsed ? "Show sidebar" : "Hide sidebar"}
-        side="bottom"
-        onClick={toggle}
-        data-slot="aui_shell-sidebar-toggle"
-        className="hidden size-8 md:flex"
-      >
-        <PanelLeftIcon className="size-4" />
-      </TooltipIconButton>
+      <AssistantShellMobileSidebar
+        logo={logo}
+        title={title}
+        footer={sidebarFooter}
+      />
+      <AssistantShellSidebarToggle />
       <AssistantShellThreadTitle />
       {children != null && (
         <div
@@ -344,12 +375,20 @@ export const AssistantShellHeader: FC<AssistantShellHeaderProps> = ({
 export type AssistantShellMobileSidebarProps = {
   logo?: ReactNode;
   title?: ReactNode;
+  footer?: ReactNode;
 };
 
 export const AssistantShellMobileSidebar: FC<
   AssistantShellMobileSidebarProps
-> = ({ logo = defaultLogo, title = "assistant-ui" }) => {
+> = ({ logo = defaultLogo, title = "assistant-ui", footer }) => {
   const fade = useScrollFade();
+  const context = useAssistantShell();
+
+  // The mobile drawer is always full width, so footer items inside it must not inherit the desktop collapsed state.
+  const expandedContext = useMemo(
+    () => ({ ...context, collapsed: false }),
+    [context],
+  );
 
   return (
     <Sheet>
@@ -390,6 +429,16 @@ export const AssistantShellMobileSidebar: FC<
         >
           <ThreadList />
         </div>
+        {footer != null && (
+          <AssistantShellContext.Provider value={expandedContext}>
+            <div
+              data-slot="aui_shell-mobile-footer"
+              className="shrink-0 p-3 pt-1"
+            >
+              {footer}
+            </div>
+          </AssistantShellContext.Provider>
+        )}
       </SheetContent>
     </Sheet>
   );
@@ -408,5 +457,83 @@ export const AssistantShellThreadTitle: FC = () => {
     >
       {title ?? "New Chat"}
     </span>
+  );
+};
+
+export type AssistantShellFooterItemProps = ComponentPropsWithoutRef<
+  typeof Button
+> & {
+  icon: ReactNode;
+  label: ReactNode;
+  description?: ReactNode;
+  trailing?: ReactNode;
+};
+
+export const AssistantShellFooterItem: FC<AssistantShellFooterItemProps> = ({
+  icon,
+  label,
+  description,
+  trailing,
+  className,
+  ...props
+}) => {
+  const { collapsed } = useAssistantShell();
+
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        {/* Base UI merges trigger props over the render element's, so the trigger must re-declare the button's data-slot or it is replaced by "tooltip-trigger". */}
+        <TooltipTrigger
+          data-slot="aui_shell-footer-item"
+          render={
+            <Button
+              variant="ghost"
+              {...props}
+              className={cn(
+                // border-none frees the full 32px rail width for the icon, which the Button's 1px transparent border would otherwise clip.
+                "h-auto overflow-hidden border-none transition-all duration-200",
+                collapsed ? "w-8 gap-0 p-0" : "w-full justify-start gap-2 p-2",
+                className,
+              )}
+            >
+              <span
+                data-slot="aui_shell-footer-item-icon"
+                className="flex size-8 shrink-0 items-center justify-center"
+              >
+                {icon}
+              </span>
+              <span
+                data-slot="aui_shell-footer-item-text"
+                className={cn(
+                  "flex min-w-0 flex-col items-start overflow-hidden text-left transition-all duration-200",
+                  collapsed ? "max-w-0 opacity-0" : "flex-1 opacity-100",
+                )}
+              >
+                <span className="w-full truncate text-sm font-medium">
+                  {label}
+                </span>
+                {description != null && (
+                  <span className="text-muted-foreground w-full truncate text-xs font-normal">
+                    {description}
+                  </span>
+                )}
+              </span>
+              {trailing != null && (
+                <span
+                  data-slot="aui_shell-footer-item-trailing"
+                  className={cn(
+                    "text-muted-foreground shrink-0 transition-opacity duration-200",
+                    collapsed && "w-0 opacity-0",
+                  )}
+                >
+                  {trailing}
+                </span>
+              )}
+            </Button>
+          }
+        />
+        {collapsed && <TooltipContent side="right">{label}</TooltipContent>}
+      </Tooltip>
+    </TooltipProvider>
   );
 };
