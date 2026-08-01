@@ -2,12 +2,30 @@ import type { LearnCourseDefinition } from "../../types";
 
 const COURSE_ROOT =
   "apps/docs/lib/xulux/learn/courses/build-generative-ui-assistant";
+const SHARED_PROJECT_ROOT = `${COURSE_ROOT}/shared/project`;
+
+const SHARED_PROJECT_FILES = {
+  ".env.example": `${SHARED_PROJECT_ROOT}/.env.example`,
+  "README.md": `${SHARED_PROJECT_ROOT}/README.md`,
+  "package.json": `${SHARED_PROJECT_ROOT}/package.json`,
+  "postcss.config.mjs": `${SHARED_PROJECT_ROOT}/postcss.config.mjs`,
+  "tsconfig.json": `${SHARED_PROJECT_ROOT}/tsconfig.json`,
+};
+
+const NEXT_CONFIG_NO_TOOLS = {
+  "next.config.ts": `${SHARED_PROJECT_ROOT}/next.config.no-tools.ts`,
+};
+
+const NEXT_CONFIG_WITH_TOOLS = {
+  "next.config.ts": `${SHARED_PROJECT_ROOT}/next.config.tools.ts`,
+};
 
 export const buildGenerativeUiAssistantCourse = {
   id: "build-generative-ui-assistant",
   title: "Build a Generative UI Assistant",
   outcome:
     "Build a complete assistant and understand how its chat surface, runtime, tools, generative UI, shared state, persisted conversations, and branches work together.",
+  sharedFiles: SHARED_PROJECT_FILES,
   steps: [
     {
       id: "meet-the-project",
@@ -100,41 +118,49 @@ export const buildGenerativeUiAssistantCourse = {
       id: "S0",
       previewPath: "/learn/preview/S0",
       sourceRoot: `${COURSE_ROOT}/stages/S0/project`,
+      sharedFiles: NEXT_CONFIG_NO_TOOLS,
     },
     S1: {
       id: "S1",
       previewPath: "/learn/preview/S1",
       sourceRoot: `${COURSE_ROOT}/stages/S1/project`,
+      sharedFiles: NEXT_CONFIG_NO_TOOLS,
     },
     S2: {
       id: "S2",
       previewPath: "/learn/preview/S2",
       sourceRoot: `${COURSE_ROOT}/stages/S2/project`,
+      sharedFiles: NEXT_CONFIG_NO_TOOLS,
     },
     S3: {
       id: "S3",
       previewPath: "/learn/preview/S3",
       sourceRoot: `${COURSE_ROOT}/stages/S3/project`,
+      sharedFiles: NEXT_CONFIG_WITH_TOOLS,
     },
     S4: {
       id: "S4",
       previewPath: "/learn/preview/S4",
       sourceRoot: `${COURSE_ROOT}/stages/S4/project`,
+      sharedFiles: NEXT_CONFIG_WITH_TOOLS,
     },
     S5: {
       id: "S5",
       previewPath: "/learn/preview/S5",
       sourceRoot: `${COURSE_ROOT}/stages/S5/project`,
+      sharedFiles: NEXT_CONFIG_WITH_TOOLS,
     },
     S6: {
       id: "S6",
       previewPath: "/learn/preview/S6",
       sourceRoot: `${COURSE_ROOT}/stages/S6/project`,
+      sharedFiles: NEXT_CONFIG_WITH_TOOLS,
     },
     S7: {
       id: "S7",
       previewPath: "/learn/preview/S7",
       sourceRoot: `${COURSE_ROOT}/stages/S7/project`,
+      sharedFiles: NEXT_CONFIG_WITH_TOOLS,
     },
   },
 } satisfies LearnCourseDefinition;

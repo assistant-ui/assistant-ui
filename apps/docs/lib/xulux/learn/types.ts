@@ -2,6 +2,7 @@ export type LearnStageDefinition = {
   id: string;
   previewPath: string;
   sourceRoot: string;
+  sharedFiles?: Record<string, string>;
 };
 
 export type LearnStepDefinition = {
@@ -16,6 +17,7 @@ export type LearnCourseDefinition = {
   id: string;
   title: string;
   outcome: string;
+  sharedFiles?: Record<string, string>;
   steps: LearnStepDefinition[];
   stages: Record<string, LearnStageDefinition>;
 };
