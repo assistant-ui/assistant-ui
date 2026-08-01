@@ -2,21 +2,16 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/assistant-ui/select";
 import { GitHubIcon } from "@/components/icons/github";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
-import { DEMOS, getDemo } from "@/lib/demos";
+import { DEMO_META } from "@/lib/demos-meta";
 
 export function DemoHeader({ slug }: { slug: string }) {
   const router = useRouter();
-  const demo = getDemo(slug);
-  // Read client-side so the demo route keeps its static generation; the landing
-  // page embeds it once per clone and would otherwise render on every view.
-  const isEmbed = useSearchParams().get("embed") !== null;
-
-  if (isEmbed) return null;
+  const demo = DEMO_META.find((entry) => entry.slug === slug);
 
   return (
     <header className="flex h-12 flex-none items-center justify-between gap-4 border-b px-4">
@@ -37,7 +32,7 @@ export function DemoHeader({ slug }: { slug: string }) {
         <Select
           value={slug}
           onValueChange={(value) => router.push(`/demos/${value}`)}
-          options={DEMOS.map((d) => ({ value: d.slug, label: d.name }))}
+          options={DEMO_META.map((d) => ({ value: d.slug, label: d.name }))}
         />
         {demo && (
           <p className="text-muted-foreground ml-2 hidden min-w-0 truncate text-xs lg:block">

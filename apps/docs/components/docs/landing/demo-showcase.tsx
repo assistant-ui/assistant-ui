@@ -39,7 +39,7 @@ export function DemoShowcase() {
         <DemoIframe
           key={slug}
           title={`${demo.name} demo`}
-          src={`/demos/${slug}?embed=1`}
+          src={`/demos/${slug}/embed`}
           className="block h-[560px] w-full border-none"
         />
       </div>

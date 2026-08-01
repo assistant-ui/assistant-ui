@@ -1,13 +1,22 @@
 "use client";
 
+import * as React from "react";
 import { NavigationMenu as NavigationMenuPrimitive } from "@base-ui/react/navigation-menu";
 import { cn } from "@/lib/utils";
 
-function NavigationMenu({ ...props }: NavigationMenuPrimitive.Root.Props) {
-  return (
-    <NavigationMenuPrimitive.Root data-slot="navigation-menu" {...props} />
-  );
-}
+// Forwarded because the panel anchors to this element, and the package still
+// peer-supports React 18, where a ref is not an ordinary prop.
+const NavigationMenu = React.forwardRef<
+  HTMLElement,
+  NavigationMenuPrimitive.Root.Props
+>((props, ref) => (
+  <NavigationMenuPrimitive.Root
+    ref={ref}
+    data-slot="navigation-menu"
+    {...props}
+  />
+));
+NavigationMenu.displayName = "NavigationMenu";
 
 function NavigationMenuList({
   className,
