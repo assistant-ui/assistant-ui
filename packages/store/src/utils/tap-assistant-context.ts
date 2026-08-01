@@ -75,6 +75,7 @@ export const useAssistantClientEffect = <K extends ClientNames>(
     let pending = false;
     const setupSelected = () =>
       selected.source === null ? undefined : setupEvent(selected);
+    let unsubscribe = () => {};
 
     const migrate = () => {
       if (disposed) return;
@@ -93,18 +94,37 @@ export const useAssistantClientEffect = <K extends ClientNames>(
           const previousCleanup = cleanup;
           cleanup = undefined;
           selected = next;
-          try {
-            previousCleanup?.();
-          } finally {
-            cleanup = setupSelected();
-          }
+          previousCleanup?.();
+          cleanup = setupSelected();
         } while (pending);
+      } catch (error) {
+        disposed = true;
+        const errors = [error];
+        try {
+          unsubscribe();
+        } catch (disposeError) {
+          errors.push(disposeError);
+        }
+        const failedCleanup = cleanup;
+        cleanup = undefined;
+        try {
+          failedCleanup?.();
+        } catch (disposeError) {
+          errors.push(disposeError);
+        }
+        if (errors.length > 1) {
+          throw new AggregateError(
+            errors,
+            "Errors occurred while disposing a failed client effect migration",
+          );
+        }
+        throw error;
       } finally {
         transitioning = false;
       }
     };
 
-    const unsubscribe = store.subscribe(migrate);
+    unsubscribe = store.subscribe(migrate);
     try {
       cleanup = setupSelected();
     } catch (error) {
