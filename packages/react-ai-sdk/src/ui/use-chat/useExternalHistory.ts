@@ -89,6 +89,7 @@ export const useExternalHistory = <TMessage>(
   const stepBoundariesRef = useRef<number[]>([]);
   const wasRunningRef = useRef(false);
   const toolCallCountRef = useRef(0);
+  const ignoreRunUntilIdleRef = useRef(false);
 
   const onSetMessagesRef = useRef(onSetMessages);
   useEffect(() => {
@@ -138,7 +139,6 @@ export const useExternalHistory = <TMessage>(
       const replaceOnLoad =
         lastAdapterKeyRef.current !== undefined &&
         !Object.is(lastAdapterKeyRef.current, key);
-      const previousPersistenceGeneration = persistenceGenerationRef.current;
 
       persistenceGenerationRef.current += 1;
       persistInFlightRef.current = Promise.resolve();
@@ -149,16 +149,12 @@ export const useExternalHistory = <TMessage>(
 
       if (replaceOnLoad) {
         const isRunning = runtimeRef.current.thread.getState().isRunning;
-        if (isRunning) {
-          runPersistenceGenerationRef.current ??= previousPersistenceGeneration;
-          wasRunningRef.current = true;
-        } else {
-          runStartRef.current = null;
-          runPersistenceGenerationRef.current = null;
-          stepBoundariesRef.current = [];
-          toolCallCountRef.current = 0;
-          wasRunningRef.current = false;
-        }
+        ignoreRunUntilIdleRef.current = isRunning;
+        runStartRef.current = null;
+        runPersistenceGenerationRef.current = null;
+        stepBoundariesRef.current = [];
+        toolCallCountRef.current = 0;
+        wasRunningRef.current = false;
         runtimeRef.current.thread.import({ headId: null, messages: [] });
         onSetMessagesRef.current([]);
         if (isRunning) runtimeRef.current.thread.cancelRun();
@@ -253,10 +249,21 @@ export const useExternalHistory = <TMessage>(
     const key = adapterKey;
     if (!Object.is(activeLoadRequest?.key, key)) return;
     const subscriptionGeneration = persistenceGenerationRef.current;
+    if (
+      ignoreRunUntilIdleRef.current &&
+      !runtimeRef.current.thread.getState().isRunning
+    ) {
+      ignoreRunUntilIdleRef.current = false;
+    }
 
     const unsubscribe = runtimeRef.current.thread.subscribe(() => {
       const threadState = runtimeRef.current.thread.getState();
       const { isRunning } = threadState;
+      if (ignoreRunUntilIdleRef.current) {
+        if (!isRunning) ignoreRunUntilIdleRef.current = false;
+        wasRunningRef.current = false;
+        return;
+      }
       const wasRunning = wasRunningRef.current;
       wasRunningRef.current = isRunning;
 

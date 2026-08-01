@@ -54,6 +54,9 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
   private get _persistence(): CloudMessagePersistence {
     const key = getClientId(this.aui.threadListItem);
     const cloud = this.cloudRef.current;
+    if (!cloud) {
+      throw new Error("Assistant Cloud is not configured.");
+    }
     let cloudPersistence = globalPersistence.get(key);
     if (!cloudPersistence) {
       cloudPersistence = new WeakMap();
@@ -76,11 +79,13 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     return {
       // Note: callers must also call reportTelemetry() for run tracking
       async append(item: MessageFormatItem<TMessage>) {
+        if (!adapter.cloudRef.current) return;
         const formatted = getFormatted();
         const { remoteId } = await adapter.aui.threadListItem.initialize();
         await formatted.append(remoteId, item);
       },
       async update(item: MessageFormatItem<TMessage>, localMessageId: string) {
+        if (!adapter.cloudRef.current) return;
         const formatted = getFormatted();
         const remoteId = adapter.aui.threadListItem.getState().remoteId;
         if (!remoteId) return;
@@ -98,6 +103,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
           stepTimestamps?: StepTimestamp[];
         },
       ) {
+        if (!adapter.cloudRef.current) return;
         const encodedRunMessages = items.map((item) =>
           formatAdapter.encode(item),
         );
@@ -108,6 +114,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
         );
       },
       async load(): Promise<MessageFormatRepository<TMessage>> {
+        if (!adapter.cloudRef.current) return { messages: [] };
         const remoteId = adapter.aui.threadListItem.getState().remoteId;
         if (!remoteId) return { messages: [] };
         return getFormatted().load(remoteId);
@@ -116,17 +123,19 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
   }
 
   async append({ parentId, message }: ExportedMessageRepositoryItem) {
+    if (!this.cloudRef.current) return;
     const persistence = this._persistence;
     const { remoteId } = await this.aui.threadListItem.initialize();
     const encoded = auiV0Encode(message);
     await persistence.append(remoteId, message.id, parentId, "aui/v0", encoded);
 
-    if (this.cloudRef.current.telemetry.enabled) {
+    if (this.cloudRef.current?.telemetry.enabled) {
       this._maybeReportRun(remoteId, "aui/v0", encoded);
     }
   }
 
   async update(item: ExportedMessageRepositoryItem) {
+    if (!this.cloudRef.current) return;
     const persistence = this._persistence;
     if (!persistence.isPersisted(item.message.id)) {
       return this.append(item);
@@ -137,7 +146,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     const encoded = auiV0Encode(message);
     await persistence.update(remoteId, message.id, "aui/v0", encoded);
 
-    if (this.cloudRef.current.telemetry.enabled) {
+    if (this.cloudRef.current?.telemetry.enabled) {
       this._maybeReportRun(remoteId, "aui/v0", encoded);
     }
   }
@@ -149,6 +158,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
   }
 
   async load() {
+    if (!this.cloudRef.current) return { messages: [] };
     const remoteId = this.aui.threadListItem.getState().remoteId;
     if (!remoteId) return { messages: [] };
     const messages = await this._persistence.load(remoteId, "aui/v0");
@@ -170,7 +180,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
       stepTimestamps?: StepTimestamp[];
     },
   ) {
-    if (!this.cloudRef.current.telemetry.enabled) return;
+    if (!this.cloudRef.current?.telemetry.enabled) return;
 
     const remoteId = this.aui.threadListItem.getState().remoteId;
     if (!remoteId) return;
@@ -199,10 +209,12 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     durationMs?: number,
     stepTimestamps?: StepTimestamp[],
   ) {
+    const cloud = this.cloudRef.current;
+    if (!cloud) return;
     const mergedSteps = mergeStepTimestamps(data.steps, stepTimestamps);
     // Keep in sync with assistant-cloud createRunSchema
     // (apps/aui-cloud-api/src/endpoints/runs/create.ts).
-    const initial: Parameters<typeof this.cloudRef.current.runs.report>[0] = {
+    const initial: Parameters<typeof cloud.runs.report>[0] = {
       thread_id: remoteId,
       status: data.status,
       ...(data.totalSteps != null
@@ -230,11 +242,11 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
       ...(data.modelId ? { model_id: data.modelId } : undefined),
     };
 
-    const { beforeReport } = this.cloudRef.current.telemetry;
+    const { beforeReport } = cloud.telemetry;
     const report = beforeReport ? beforeReport(initial) : initial;
     if (!report) return;
 
-    this.cloudRef.current.runs.report(report).catch(() => {});
+    cloud.runs.report(report).catch(() => {});
   }
 }
 

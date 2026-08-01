@@ -4,6 +4,7 @@ import {
   type FC,
   type PropsWithChildren,
   useCallback,
+  useEffect,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -38,6 +39,8 @@ const baseUrl =
 const autoCloud = baseUrl
   ? new AssistantCloud({ baseUrl, anonymous: true })
   : undefined;
+const useIsomorphicLayoutEffect =
+  typeof window === "undefined" ? useEffect : useLayoutEffect;
 
 const createCloudStore = (initialCloud: AssistantCloud | undefined) => {
   let cloud = initialCloud;
@@ -65,7 +68,7 @@ export const useCloudThreadListAdapter = (
   const adapterRef = useRef(adapter);
   const [cloudStore] = useState(() => createCloudStore(adapter.cloud));
 
-  useLayoutEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     adapterRef.current = adapter;
     cloudStore.setCloud(adapter.cloud);
   }, [adapter, cloudStore]);

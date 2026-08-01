@@ -35,7 +35,7 @@ const makeCloud = () =>
   }) as unknown as AssistantCloud;
 
 describe("useAssistantCloudThreadHistoryAdapter", () => {
-  it("uses the default history scope while the Cloud ref is empty", () => {
+  it("uses the default history scope while the Cloud ref is empty", async () => {
     const cloudRef = { current: undefined };
     const { result } = renderHook(() =>
       useAssistantCloudThreadHistoryAdapter(
@@ -44,6 +44,20 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
     );
 
     expect(result.current.key).toBeUndefined();
+    await expect(result.current.load()).resolves.toEqual({ messages: [] });
+    await expect(
+      result.current
+        .withFormat<{ id: string }, Record<string, unknown>>({
+          format: "test",
+          encode: ({ message }) => message,
+          decode: ({ parent_id, content }) => ({
+            parentId: parent_id,
+            message: content as { id: string },
+          }),
+          getId: (message) => message.id,
+        })
+        .append({ parentId: null, message: { id: "message-1" } }),
+    ).resolves.toBeUndefined();
 
     cloudRef.current = makeCloud();
     expect(typeof result.current.key).toBe("symbol");
