@@ -1,4 +1,4 @@
-import { type RefObject, useEffect, useRef, useState } from "react";
+import { type RefObject, useEffect, useMemo, useRef, useState } from "react";
 import type {
   GenericThreadHistoryAdapter,
   ThreadHistoryAdapter,
@@ -17,11 +17,12 @@ import { type AssistantClient, getClientId, useAui } from "@assistant-ui/store";
 
 const globalPersistence = new WeakMap<
   getClientId.ClientId,
-  CloudMessagePersistence
+  WeakMap<AssistantCloud, CloudMessagePersistence>
 >();
 const cloudHistoryKeys = new WeakMap<AssistantCloud, symbol>();
 
-const getCloudHistoryKey = (cloud: AssistantCloud) => {
+const getCloudHistoryKey = (cloud: AssistantCloud | null | undefined) => {
+  if (!cloud) return undefined;
   let key = cloudHistoryKeys.get(cloud);
   if (!key) {
     key = Symbol("assistant-cloud-history");
@@ -52,30 +53,35 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
 
   private get _persistence(): CloudMessagePersistence {
     const key = getClientId(this.aui.threadListItem);
-    if (!globalPersistence.has(key)) {
-      globalPersistence.set(
-        key,
-        new CloudMessagePersistence(() => this.cloudRef.current),
-      );
+    const cloud = this.cloudRef.current;
+    let cloudPersistence = globalPersistence.get(key);
+    if (!cloudPersistence) {
+      cloudPersistence = new WeakMap();
+      globalPersistence.set(key, cloudPersistence);
     }
-    return globalPersistence.get(key)!;
+    let persistence = cloudPersistence.get(cloud);
+    if (!persistence) {
+      persistence = new CloudMessagePersistence(cloud);
+      cloudPersistence.set(cloud, persistence);
+    }
+    return persistence;
   }
 
   withFormat<TMessage, TStorageFormat extends Record<string, unknown>>(
     formatAdapter: MessageFormatAdapter<TMessage, TStorageFormat>,
   ): GenericThreadHistoryAdapter<TMessage> {
     const adapter = this;
-    const formatted = createFormattedPersistence(
-      this._persistence,
-      formatAdapter,
-    );
+    const getFormatted = () =>
+      createFormattedPersistence(adapter._persistence, formatAdapter);
     return {
       // Note: callers must also call reportTelemetry() for run tracking
       async append(item: MessageFormatItem<TMessage>) {
+        const formatted = getFormatted();
         const { remoteId } = await adapter.aui.threadListItem.initialize();
         await formatted.append(remoteId, item);
       },
       async update(item: MessageFormatItem<TMessage>, localMessageId: string) {
+        const formatted = getFormatted();
         const remoteId = adapter.aui.threadListItem.getState().remoteId;
         if (!remoteId) return;
         await formatted.update?.(remoteId, item, localMessageId);
@@ -104,21 +110,16 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
       async load(): Promise<MessageFormatRepository<TMessage>> {
         const remoteId = adapter.aui.threadListItem.getState().remoteId;
         if (!remoteId) return { messages: [] };
-        return formatted.load(remoteId);
+        return getFormatted().load(remoteId);
       },
     };
   }
 
   async append({ parentId, message }: ExportedMessageRepositoryItem) {
+    const persistence = this._persistence;
     const { remoteId } = await this.aui.threadListItem.initialize();
     const encoded = auiV0Encode(message);
-    await this._persistence.append(
-      remoteId,
-      message.id,
-      parentId,
-      "aui/v0",
-      encoded,
-    );
+    await persistence.append(remoteId, message.id, parentId, "aui/v0", encoded);
 
     if (this.cloudRef.current.telemetry.enabled) {
       this._maybeReportRun(remoteId, "aui/v0", encoded);
@@ -126,14 +127,15 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
   }
 
   async update(item: ExportedMessageRepositoryItem) {
-    if (!this._persistence.isPersisted(item.message.id)) {
+    const persistence = this._persistence;
+    if (!persistence.isPersisted(item.message.id)) {
       return this.append(item);
     }
     const { message } = item;
     const remoteId = this.aui.threadListItem.getState().remoteId;
     if (!remoteId) return;
     const encoded = auiV0Encode(message);
-    await this._persistence.update(remoteId, message.id, "aui/v0", encoded);
+    await persistence.update(remoteId, message.id, "aui/v0", encoded);
 
     if (this.cloudRef.current.telemetry.enabled) {
       this._maybeReportRun(remoteId, "aui/v0", encoded);
@@ -829,15 +831,34 @@ function aggregateAiSdkV6RunSteps<T>(stepMessages: T[]): TelemetryData | null {
 export function useAssistantCloudThreadHistoryAdapter(
   cloudRef: RefObject<AssistantCloud>,
 ): ThreadHistoryAdapter {
-  const aui = useAui();
-  // Not useEffectEvent: history adapter methods run during render (SSR load).
-  const auiRef = useRef(aui);
-  useEffect(() => {
-    auiRef.current = aui;
-  });
+  const auiRef = useCurrentAuiRef();
   const [adapter] = useState(
     () =>
       new AssistantCloudThreadHistoryAdapter(cloudRef, () => auiRef.current),
   );
   return adapter;
 }
+
+export function useAssistantCloudThreadHistoryAdapterForCloud(
+  cloud: AssistantCloud,
+): ThreadHistoryAdapter {
+  const auiRef = useCurrentAuiRef();
+  return useMemo(
+    () =>
+      new AssistantCloudThreadHistoryAdapter(
+        { current: cloud },
+        () => auiRef.current,
+      ),
+    [auiRef, cloud],
+  );
+}
+
+const useCurrentAuiRef = () => {
+  const aui = useAui();
+  // Not useEffectEvent: history adapter methods run during render (SSR load).
+  const auiRef = useRef(aui);
+  useEffect(() => {
+    auiRef.current = aui;
+  });
+  return auiRef;
+};

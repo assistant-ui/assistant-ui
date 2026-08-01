@@ -1,16 +1,20 @@
 declare const process: { env: Record<string, string | undefined> };
 
 import {
+  type Dispatch,
   type FC,
   type PropsWithChildren,
+  type SetStateAction,
   useCallback,
+  useLayoutEffect,
   useMemo,
   useRef,
+  useState,
 } from "react";
 import { AssistantCloud } from "assistant-cloud";
 import type { RemoteThreadListAdapter } from "../../../runtimes/remote-thread-list/types";
 import { InMemoryThreadListAdapter } from "../../../runtimes/remote-thread-list/adapter/in-memory";
-import { useAssistantCloudThreadHistoryAdapter } from "./AssistantCloudThreadHistoryAdapter";
+import { useAssistantCloudThreadHistoryAdapterForCloud } from "./AssistantCloudThreadHistoryAdapter";
 import { RuntimeAdapterProvider } from "../RuntimeAdapterProvider";
 import { CloudFileAttachmentAdapter } from "./CloudFileAttachmentAdapter";
 import { isRecord } from "../../../utils/json/is-json";
@@ -40,16 +44,34 @@ export const useCloudThreadListAdapter = (
   adapter: CloudThreadListAdapterOptions,
 ): RemoteThreadListAdapter => {
   const adapterRef = useRef(adapter);
-  adapterRef.current = adapter;
+  const providerSettersRef = useRef(
+    new Set<Dispatch<SetStateAction<CloudThreadListAdapterOptions>>>(),
+  );
+
+  useLayoutEffect(() => {
+    adapterRef.current = adapter;
+    for (const setProviderAdapter of providerSettersRef.current) {
+      setProviderAdapter(adapter);
+    }
+  }, [adapter]);
 
   const unstable_Provider = useCallback<FC<PropsWithChildren>>(
     function Provider({ children }) {
-      const history = useAssistantCloudThreadHistoryAdapter({
-        get current() {
-          return adapterRef.current.cloud ?? autoCloud!;
-        },
-      });
-      const cloudInstance = adapterRef.current.cloud ?? autoCloud!;
+      const [providerAdapter, setProviderAdapter] = useState(
+        () => adapterRef.current,
+      );
+      useLayoutEffect(() => {
+        const providerSetters = providerSettersRef.current;
+        providerSetters.add(setProviderAdapter);
+        setProviderAdapter(adapterRef.current);
+        return () => {
+          providerSetters.delete(setProviderAdapter);
+        };
+      }, []);
+
+      const cloudInstance = providerAdapter.cloud ?? autoCloud!;
+      const history =
+        useAssistantCloudThreadHistoryAdapterForCloud(cloudInstance);
       const attachments = useMemo(
         () => new CloudFileAttachmentAdapter(cloudInstance),
         [cloudInstance],

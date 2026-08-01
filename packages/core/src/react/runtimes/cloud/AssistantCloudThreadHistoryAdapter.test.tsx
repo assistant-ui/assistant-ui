@@ -35,6 +35,20 @@ const makeCloud = () =>
   }) as unknown as AssistantCloud;
 
 describe("useAssistantCloudThreadHistoryAdapter", () => {
+  it("uses the default history scope while the Cloud ref is empty", () => {
+    const cloudRef = { current: undefined };
+    const { result } = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter(
+        cloudRef as unknown as { current: AssistantCloud },
+      ),
+    );
+
+    expect(result.current.key).toBeUndefined();
+
+    cloudRef.current = makeCloud();
+    expect(typeof result.current.key).toBe("symbol");
+  });
+
   it("refreshes formatted persistence when the Cloud client changes", async () => {
     mocks.aui = mocks.makeClient("thread-1");
     const firstCloud = makeCloud();
