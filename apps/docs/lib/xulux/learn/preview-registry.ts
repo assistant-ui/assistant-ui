@@ -21,57 +21,43 @@ const LEARN_PREVIEWS: Record<string, LearnPreviewDefinition> = {
   },
   S1: {
     loadPage: () =>
-      import("./courses/build-generative-ui-assistant/preview-pages").then(
-        ({ S1Page }) => ({ default: S1Page }),
-      ),
+      import("./courses/build-generative-ui-assistant/stages/S1/project/app/page"),
     loadRuntime: () =>
       import("./courses/build-generative-ui-assistant/stages/S1/project/components/runtime-provider"),
   },
   S2: {
     loadPage: () =>
-      import("./courses/build-generative-ui-assistant/preview-pages").then(
-        ({ S2Page }) => ({ default: S2Page }),
-      ),
+      import("./courses/build-generative-ui-assistant/stages/S2/project/app/page"),
     loadRuntime: () =>
       import("./courses/build-generative-ui-assistant/stages/S1/project/components/runtime-provider"),
   },
   S3: {
     loadPage: () =>
-      import("./courses/build-generative-ui-assistant/preview-pages").then(
-        ({ S3Page }) => ({ default: S3Page }),
-      ),
+      import("./courses/build-generative-ui-assistant/stages/S3/project/app/page"),
     loadRuntime: () =>
       import("./courses/build-generative-ui-assistant/stages/S1/project/components/runtime-provider"),
   },
   S4: {
     loadPage: () =>
-      import("./courses/build-generative-ui-assistant/preview-pages").then(
-        ({ S4Page }) => ({ default: S4Page }),
-      ),
+      import("./courses/build-generative-ui-assistant/stages/S4/project/app/page"),
     loadRuntime: () =>
       import("./courses/build-generative-ui-assistant/stages/S1/project/components/runtime-provider"),
   },
   S5: {
     loadPage: () =>
-      import("./courses/build-generative-ui-assistant/preview-pages").then(
-        ({ S5Page }) => ({ default: S5Page }),
-      ),
+      import("./courses/build-generative-ui-assistant/stages/S5/project/app/page"),
     loadRuntime: () =>
       import("./courses/build-generative-ui-assistant/stages/S5/project/components/runtime-provider"),
   },
   S6: {
     loadPage: () =>
-      import("./courses/build-generative-ui-assistant/preview-pages").then(
-        ({ S6Page }) => ({ default: S6Page }),
-      ),
+      import("./courses/build-generative-ui-assistant/stages/S6/project/app/page"),
     loadRuntime: () =>
       import("./courses/build-generative-ui-assistant/stages/S6/project/components/runtime-provider"),
   },
   S7: {
     loadPage: () =>
-      import("./courses/build-generative-ui-assistant/preview-pages").then(
-        ({ S7Page }) => ({ default: S7Page }),
-      ),
+      import("./courses/build-generative-ui-assistant/stages/S7/project/app/page"),
     loadRuntime: () =>
       import("./courses/build-generative-ui-assistant/stages/S6/project/components/runtime-provider"),
   },
