@@ -1326,101 +1326,16 @@ describe("useLangGraphRuntime", () => {
         { type: "tool", tool_call_id: "tc-real" },
       ]);
       expect(streamMock.mock.calls[1]?.[1].runConfig).toEqual(runConfig);
-    });
-
-    it("canonicalizes a tool call when its parent message receives an id", async () => {
-      const runConfig = {
-        custom: { configurable: { model_name: "gpt-5.4-nano" } },
-      };
-      const completionGate = deferred<void>();
-      const streamMock = vi.fn(async function* (
-        _messages: LangChainMessage[],
-        _config: LangGraphSendMessageConfig,
-      ) {
-        if (streamMock.mock.calls.length === 1) {
-          yield {
-            event: "messages/complete",
-            data: [
-              {
-                type: "ai" as const,
-                content: "",
-                tool_calls: [
-                  { id: "", index: 0, name: "get_weather", args: {} },
-                ],
-              },
-            ],
-          };
-          await completionGate.promise;
-          yield {
-            event: "messages/complete",
-            data: [
-              {
-                id: "ai-final-id",
-                type: "ai" as const,
-                content: "",
-                tool_calls: [
-                  {
-                    id: "tc-final-id",
-                    index: 0,
-                    name: "get_weather",
-                    args: {},
-                  },
-                ],
-              },
-            ],
-          };
-        }
-      });
-
-      const { result: runtimeResult } = renderHook(() =>
-        useLangGraphRuntime({ stream: streamMock }),
-      );
-      const wrapper = wrapperFactory(runtimeResult.current);
-      const { result: auiResult } = renderHook(() => useAui(), { wrapper });
-
-      await act(async () => {
-        auiResult.current.composer.setRunConfig(runConfig);
-        auiResult.current.composer.setText("what's the weather?");
-        auiResult.current.composer.send();
-      });
-
-      let generatedMessageId = "";
-      let generatedToolCallId = "";
-      await waitFor(() => {
-        const message = auiResult.current.thread
-          .getState()
-          .messages.find((candidate) =>
-            candidate.content.some((part) => part.type === "tool-call"),
-          );
-        const toolCall = message?.content.find(
-          (part) => part.type === "tool-call",
-        );
-        expect(message).toBeDefined();
-        expect(toolCall).toBeDefined();
-        generatedMessageId = message!.id;
-        generatedToolCallId = toolCall!.toolCallId;
-      });
-      const pendingToolPart = runtimeResult.current.thread
-        .getMessageById(generatedMessageId)
-        .getMessagePartByToolCallId(generatedToolCallId);
-
-      await act(async () => {
-        completionGate.resolve();
-      });
-      await waitForToolCallPart(auiResult.current, "tc-final-id");
       await waitFor(() =>
         expect(auiResult.current.thread.getState().isRunning).toBe(false),
       );
-
       act(() => {
         pendingToolPart.addToolResult({ temperature: 72 });
       });
-
-      await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(2));
-      expect(streamMock.mock.calls[1]?.[0]).toMatchObject([
-        { type: "tool", tool_call_id: "tc-final-id" },
-      ]);
-      expect(streamMock.mock.calls[1]?.[1].runConfig).toEqual(runConfig);
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+      expect(streamMock).toHaveBeenCalledTimes(2);
     });
 
     it("canonicalizes a queued tool result when the real id arrives", async () => {

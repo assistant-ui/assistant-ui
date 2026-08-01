@@ -10,8 +10,8 @@ fix: keep synthesized tool-call IDs collision-free within an AI message
 fix: keep repeated explicit tool-call IDs distinct without carrying streamed
 arguments across shifted calls
 
-fix: canonicalize pending tool results when a streaming tool call or its parent
-message receives a final ID
+fix: canonicalize pending tool results when a streaming tool call receives its
+final ID
 
 fix: preserve pending-tool ownership across loaded message ID materialization,
 tool-call ID upgrades, and graph message removal

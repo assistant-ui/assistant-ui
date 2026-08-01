@@ -18,11 +18,6 @@ const REMOVE_ALL_MESSAGES = "__remove_all__";
 const isRemoveMessage = (message: { id?: string }): boolean =>
   (message as Record<string, unknown>).type === "remove";
 
-const messagesWithGeneratedIds = new WeakSet<object>();
-
-export const hasGeneratedLangGraphMessageId = (message: object) =>
-  messagesWithGeneratedIds.has(message);
-
 export class LangGraphMessageAccumulator<TMessage extends { id?: string }> {
   private messagesMap = new Map<string, TMessage>();
   private metadataMap = new Map<string, LangGraphTupleMetadata>();
@@ -46,10 +41,7 @@ export class LangGraphMessageAccumulator<TMessage extends { id?: string }> {
   }
 
   private ensureMessageId(message: TMessage): TMessage {
-    if (message.id) return message;
-    const messageWithId = { ...message, id: uuidv4() };
-    messagesWithGeneratedIds.add(messageWithId);
-    return messageWithId;
+    return message.id ? message : { ...message, id: uuidv4() };
   }
 
   private upsertMessage(

@@ -39,7 +39,6 @@ import {
   useLangGraphMessages,
 } from "./useLangGraphMessages";
 import { appendLangChainChunk } from "./appendLangChainChunk";
-import { hasGeneratedLangGraphMessageId } from "./LangGraphMessageAccumulator";
 import { useLangGraphStreamingTiming } from "./useLangGraphStreamingTiming";
 import { bufferToolResult } from "./bufferToolResults";
 import { createSerialRunQueue, type SerialRunQueue } from "./serialRunQueue";
@@ -59,14 +58,6 @@ const subscribeNoop = () => () => {};
 type RunContext = {
   runConfig: LangGraphSendMessageConfig["runConfig"];
 };
-
-const toolCallsShareIdentity = (
-  previous: LangChainToolCall,
-  current: LangChainToolCall,
-) =>
-  previous.index != null && current.index != null
-    ? previous.index === current.index
-    : previous.name !== "" && previous.name === current.name;
 
 const findMatchingToolCallForOwnership = (
   previousToolCalls: readonly LangChainToolCall[],
@@ -213,9 +204,6 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
   const toolCallRunContextsRef = useRef(new Map<string, RunContext>());
   const toolCallIdAliasesRef = useRef(new Map<string, string>());
   const loadedToolCallIdsBeingMaterializedRef = useRef(new Set<string>());
-  const generatedMessageToolCallsRef = useRef(
-    new Map<string, { runContext: RunContext; toolCall: LangChainToolCall }>(),
-  );
   // Buffers client tool results within a turn so parallel tool calls resume the
   // graph in one run once every pending call has a result. See bufferToolResult.
   const toolResultBufferRef = useRef<
@@ -230,7 +218,6 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
   const installToolCallIdAlias = useCallback(
     (previousToolCallId: string, toolCallId: string) => {
       toolCallIdAliasesRef.current.set(previousToolCallId, toolCallId);
-      generatedMessageToolCallsRef.current.delete(previousToolCallId);
 
       const previousRunContext =
         toolCallRunContextsRef.current.get(previousToolCallId);
@@ -275,7 +262,6 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
   );
   const appendMessage = useCallback(
     (previous: LangChainMessage | undefined, current: LangChainMessage) => {
-      const hasGeneratedMessageId = hasGeneratedLangGraphMessageId(current);
       const message = appendLangChainChunk(previous, current);
       if (message.type === "ai") {
         const toolCalls = message.tool_calls ?? [];
@@ -306,26 +292,6 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
                 );
           const previousToolCallId = previousToolCallIds[previousToolCallIndex];
           const idlessMessageToolCallId = idlessMessageToolCallIds[index];
-          const generatedMessageCandidates =
-            !hasGeneratedMessageId && previous === undefined && toolCall.id
-              ? [...generatedMessageToolCallsRef.current.entries()].filter(
-                  ([, candidate]) =>
-                    (candidate.runContext === activeRunContextRef.current ||
-                      candidate.runContext === unknownRunContextRef.current) &&
-                    toolCallsShareIdentity(candidate.toolCall, toolCall),
-                )
-              : [];
-          const generatedMessageCandidate = generatedMessageCandidates[0];
-          const generatedMessageToolCallId =
-            generatedMessageCandidates.length === 1 &&
-            toolCalls.filter((candidate) =>
-              toolCallsShareIdentity(
-                generatedMessageCandidate![1].toolCall,
-                candidate,
-              ),
-            ).length === 1
-              ? generatedMessageCandidate![0]
-              : undefined;
           if (
             idlessMessageToolCallId &&
             idlessMessageToolCallId !== toolCallId &&
@@ -339,12 +305,6 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
             installToolCallIdAlias(previousToolCallId, toolCallId);
           }
           if (
-            generatedMessageToolCallId &&
-            generatedMessageToolCallId !== toolCallId
-          ) {
-            installToolCallIdAlias(generatedMessageToolCallId, toolCallId);
-          }
-          if (
             activeRunContextRef.current &&
             !toolCallRunContextsRef.current.has(toolCallId)
           ) {
@@ -353,15 +313,6 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
               activeRunContextRef.current,
             );
           }
-          if (hasGeneratedMessageId && !toolCall.id) {
-            const runContext = toolCallRunContextsRef.current.get(toolCallId);
-            if (runContext) {
-              generatedMessageToolCallsRef.current.set(toolCallId, {
-                runContext,
-                toolCall,
-              });
-            }
-          }
         }
       } else if (message.type === "tool") {
         const toolCallId = resolveToolCallId(
@@ -369,7 +320,6 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
           message.tool_call_id,
         );
         toolCallRunContextsRef.current.delete(toolCallId);
-        generatedMessageToolCallsRef.current.delete(toolCallId);
       }
       return message;
     },
@@ -478,6 +428,19 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
     runContext: RunContext;
   }> | null>(null);
   useEffect(() => {
+    const historyToolCallIds = new Set<string>();
+    for (const message of messages) {
+      if (message.type === "ai") {
+        for (const toolCallId of getLangChainToolCallIds(
+          message.id,
+          message.tool_calls ?? [],
+        )) {
+          historyToolCallIds.add(toolCallId);
+        }
+      } else if (message.type === "tool") {
+        historyToolCallIds.add(message.tool_call_id);
+      }
+    }
     const pendingToolCallIds = new Set(
       getPendingToolCalls(messages, toolCallIdAliasesRef.current).map(
         (toolCall) => toolCall.id,
@@ -492,21 +455,15 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
         toolCallRunContextsRef.current.delete(toolCallId);
       }
     }
-    for (const toolCallId of generatedMessageToolCallsRef.current.keys()) {
-      const resolvedToolCallId = resolveToolCallId(
-        toolCallIdAliasesRef.current,
-        toolCallId,
-      );
-      if (!pendingToolCallIds.has(resolvedToolCallId)) {
-        generatedMessageToolCallsRef.current.delete(toolCallId);
-      }
-    }
     for (const toolCallId of toolCallIdAliasesRef.current.keys()) {
       const resolvedToolCallId = resolveToolCallId(
         toolCallIdAliasesRef.current,
         toolCallId,
       );
-      if (!pendingToolCallIds.has(resolvedToolCallId)) {
+      if (
+        !historyToolCallIds.has(toolCallId) &&
+        !historyToolCallIds.has(resolvedToolCallId)
+      ) {
         toolCallIdAliasesRef.current.delete(toolCallId);
       }
     }
@@ -817,7 +774,6 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
           toolResultBufferRef.current.clear();
           toolCallRunContextsRef.current.clear();
           toolCallIdAliasesRef.current.clear();
-          generatedMessageToolCallsRef.current.clear();
           pendingResumesRef.current.clear();
           activeRunContextRef.current = null;
           runQueue.drop();
@@ -875,7 +831,6 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
             toolResultBufferRef.current.clear();
             toolCallRunContextsRef.current.clear();
             toolCallIdAliasesRef.current.clear();
-            generatedMessageToolCallsRef.current.clear();
             pendingResumesRef.current.clear();
             activeRunContextRef.current = null;
             runQueue.drop();
@@ -922,7 +877,6 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
       toolResultBufferRef.current.clear();
       toolCallRunContextsRef.current.clear();
       toolCallIdAliasesRef.current.clear();
-      generatedMessageToolCallsRef.current.clear();
       pendingResumesRef.current.clear();
       activeRunContextRef.current = null;
       if (!load || !threadListItem) return;
