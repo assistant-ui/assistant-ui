@@ -14,21 +14,22 @@ export const getLangChainToolCallIds = (
   messageId: string | undefined,
   toolCalls: readonly LangChainToolCall[],
 ) => {
-  const usedIds = new Set(
+  const reservedIds = new Set(
     toolCalls.flatMap((toolCall) => (toolCall.id ? [toolCall.id] : [])),
   );
+  const usedIds = new Set<string>();
 
   return toolCalls.map((toolCall, index) => {
-    if (toolCall.id) return toolCall.id;
+    if (toolCall.id && !usedIds.has(toolCall.id)) {
+      usedIds.add(toolCall.id);
+      return toolCall.id;
+    }
 
-    const fallbackId = getLangChainToolCallFallbackId(
-      messageId,
-      toolCall,
-      index,
-    );
+    const fallbackId =
+      toolCall.id || getLangChainToolCallFallbackId(messageId, toolCall, index);
     let toolCallId = fallbackId;
     let suffix = 1;
-    while (usedIds.has(toolCallId)) {
+    while (usedIds.has(toolCallId) || reservedIds.has(toolCallId)) {
       toolCallId = `${fallbackId}-${suffix++}`;
     }
     usedIds.add(toolCallId);
@@ -42,10 +43,16 @@ export const findMatchingLangChainToolCallIndex = (
   toolCallIndex: number,
 ): number => {
   if (toolCall.id) {
-    const byId = previousToolCalls.findIndex(
-      (previous) => previous.id && previous.id === toolCall.id,
+    const matchingIds = previousToolCalls.flatMap((previous, index) =>
+      previous.id === toolCall.id ? [index] : [],
     );
-    if (byId !== -1) return byId;
+    if (matchingIds.length === 1) return matchingIds[0]!;
+    if (
+      matchingIds.length > 1 &&
+      previousToolCalls[toolCallIndex]?.id === toolCall.id
+    ) {
+      return toolCallIndex;
+    }
   }
 
   if (toolCall.index != null) {
@@ -55,21 +62,12 @@ export const findMatchingLangChainToolCallIndex = (
     );
   }
 
-  const previousAtIndex = previousToolCalls[toolCallIndex];
-  if (
-    previousAtIndex &&
-    previousAtIndex.name === toolCall.name &&
-    (!previousAtIndex.id || !toolCall.id)
-  ) {
-    return toolCallIndex;
-  }
-
   return -1;
 };
 
-const resolveToolCallAlias = (
-  toolCallId: string,
+export const resolveToolCallId = (
   aliases: ReadonlyMap<string, string> | undefined,
+  toolCallId: string,
 ) => {
   const visited = new Set<string>();
   let resolved = toolCallId;
@@ -95,10 +93,12 @@ export const getPendingToolCalls = (
         message.tool_calls ?? [],
       );
       for (const [index, toolCall] of (message.tool_calls ?? []).entries()) {
-        const toolCallId = resolveToolCallAlias(toolCallIds[index]!, aliases);
+        const toolCallId = resolveToolCallId(aliases, toolCallIds[index]!);
         pendingToolCalls.set(
           toolCallId,
-          toolCall.id ? toolCall : { ...toolCall, id: toolCallId },
+          toolCall.id === toolCallId
+            ? toolCall
+            : { ...toolCall, id: toolCallId },
         );
         if (!toolCall.id) {
           synthesizedToolCallIds.push(toolCallId);
@@ -106,9 +106,9 @@ export const getPendingToolCalls = (
       }
     }
     if (message.type === "tool") {
-      const resolvedToolCallId = resolveToolCallAlias(
-        message.tool_call_id,
+      const resolvedToolCallId = resolveToolCallId(
         aliases,
+        message.tool_call_id,
       );
       if (
         !pendingToolCalls.delete(resolvedToolCallId) &&
@@ -135,7 +135,7 @@ export const hasToolResult = (
   messages.some(
     (message) =>
       message.type === "tool" &&
-      resolveToolCallAlias(message.tool_call_id, aliases) === toolCallId,
+      resolveToolCallId(aliases, message.tool_call_id) === toolCallId,
   );
 
 export const truncateLangChainMessages = (

@@ -15,6 +15,25 @@ describe("getPendingToolCalls", () => {
     expect(getId()).toBe(getId());
   });
 
+  it("disambiguates repeated explicit tool call ids", () => {
+    const pending = getPendingToolCalls([
+      {
+        id: "ai-1",
+        type: "ai",
+        content: "",
+        tool_calls: [
+          { id: "duplicate", name: "first", args: {} },
+          { id: "duplicate", name: "second", args: {} },
+        ],
+      },
+    ]);
+
+    expect(pending.map((toolCall) => toolCall.id)).toEqual([
+      "duplicate",
+      "duplicate-1",
+    ]);
+  });
+
   it("matches an empty backend result id to its synthesized tool call id", () => {
     expect(
       getPendingToolCalls([

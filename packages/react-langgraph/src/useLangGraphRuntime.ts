@@ -50,6 +50,7 @@ import {
   getLangChainToolCallIds,
   getPendingToolCalls,
   hasToolResult,
+  resolveToolCallId,
   truncateLangChainMessages,
 } from "./messageHelpers";
 
@@ -59,21 +60,6 @@ type RunContext = {
   runConfig: LangGraphSendMessageConfig["runConfig"];
 };
 
-const resolveToolCallId = (
-  aliases: ReadonlyMap<string, string>,
-  toolCallId: string,
-) => {
-  const visited = new Set<string>();
-  let resolved = toolCallId;
-  while (!visited.has(resolved)) {
-    visited.add(resolved);
-    const next = aliases.get(resolved);
-    if (!next) break;
-    resolved = next;
-  }
-  return resolved;
-};
-
 const toolCallsShareIdentity = (
   previous: LangChainToolCall,
   current: LangChainToolCall,
@@ -81,6 +67,39 @@ const toolCallsShareIdentity = (
   previous.index != null && current.index != null
     ? previous.index === current.index
     : previous.name !== "" && previous.name === current.name;
+
+const findMatchingToolCallForOwnership = (
+  previousToolCalls: readonly LangChainToolCall[],
+  currentToolCalls: readonly LangChainToolCall[],
+  toolCall: LangChainToolCall,
+  toolCallIndex: number,
+) => {
+  if (
+    toolCall.id &&
+    currentToolCalls.filter((candidate) => candidate.id === toolCall.id)
+      .length > 1
+  ) {
+    return -1;
+  }
+  const matchingIndex = findMatchingLangChainToolCallIndex(
+    previousToolCalls,
+    toolCall,
+    toolCallIndex,
+  );
+  if (
+    matchingIndex !== -1 ||
+    previousToolCalls.length !== currentToolCalls.length
+  ) {
+    return matchingIndex;
+  }
+
+  const previousAtIndex = previousToolCalls[toolCallIndex];
+  return previousAtIndex &&
+    previousAtIndex.name === toolCall.name &&
+    (!previousAtIndex.id || !toolCall.id)
+    ? toolCallIndex
+    : -1;
+};
 
 const toLangGraphUserMessage = (
   msg: AppendMessage,
@@ -274,11 +293,17 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
           // The accumulator replays history on every run, so existing calls
           // must retain the context of the run that originally emitted them.
           const toolCallId = toolCallIds[index]!;
-          const previousToolCallIndex = findMatchingLangChainToolCallIndex(
-            previousToolCalls,
-            toolCall,
-            index,
-          );
+          const previousCanonicalIndex =
+            previousToolCallIds.indexOf(toolCallId);
+          const previousToolCallIndex =
+            previousCanonicalIndex !== -1
+              ? previousCanonicalIndex
+              : findMatchingToolCallForOwnership(
+                  previousToolCalls,
+                  toolCalls,
+                  toolCall,
+                  index,
+                );
           const previousToolCallId = previousToolCallIds[previousToolCallIndex];
           const idlessMessageToolCallId = idlessMessageToolCallIds[index];
           const generatedMessageCandidates =

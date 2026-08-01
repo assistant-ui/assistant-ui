@@ -7,6 +7,9 @@ pending tool batches scoped to the run that emitted them
 
 fix: keep synthesized tool-call IDs collision-free within an AI message
 
+fix: keep repeated explicit tool-call IDs distinct without carrying streamed
+arguments across shifted calls
+
 fix: canonicalize pending tool results when a streaming tool call or its parent
 message receives a final ID
 
