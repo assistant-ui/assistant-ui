@@ -60,6 +60,7 @@ export const ThreadPrimitiveRoot = forwardRef<
       }
     };
 
+    // Bubble phase lets capture-phase Escape handlers consume the event first.
     document.addEventListener("keydown", handleKeyDown);
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
