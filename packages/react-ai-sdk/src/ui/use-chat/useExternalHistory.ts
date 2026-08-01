@@ -60,6 +60,9 @@ const snapshotExternalMessages = <TMessage>(
   );
 
 const DEFAULT_HISTORY_ADAPTER_KEY = Symbol("history-adapter");
+type HistoryAdapterKey =
+  | NonNullable<ThreadHistoryAdapter["key"]>
+  | typeof DEFAULT_HISTORY_ADAPTER_KEY;
 
 export const useExternalHistory = <TMessage>(
   runtimeRef: RefObject<AssistantRuntime>,
@@ -67,7 +70,6 @@ export const useExternalHistory = <TMessage>(
   toThreadMessages: (messages: TMessage[]) => ThreadMessage[],
   storageFormatAdapter: MessageFormatAdapter<TMessage, any>,
   onSetMessages: (messages: TMessage[]) => void,
-  historyAdapterKey?: string,
 ) => {
   const aui = useAui();
   const optionalThreadListItem = useCallback(
@@ -97,13 +99,14 @@ export const useExternalHistory = <TMessage>(
     return historyAdapter.withFormat<TMessage, any>(storageFormatAdapter);
   }, [historyAdapter, storageFormatAdapter]);
   const adapterKey = historyAdapter
-    ? (historyAdapterKey ?? DEFAULT_HISTORY_ADAPTER_KEY)
+    ? (historyAdapter.key ?? DEFAULT_HISTORY_ADAPTER_KEY)
     : undefined;
 
   type FormatAdapter = NonNullable<typeof formatAdapter>;
   type LoadRequest = {
-    key: string | typeof DEFAULT_HISTORY_ADAPTER_KEY;
+    key: HistoryAdapterKey;
     promise: ReturnType<FormatAdapter["load"]> | null;
+    replaceOnLoad: boolean;
     settled: boolean;
   };
 
@@ -113,7 +116,7 @@ export const useExternalHistory = <TMessage>(
 
   const isLoading =
     formatAdapter != null &&
-    (adapterKey == null || loadedRequest?.key !== adapterKey);
+    (adapterKey == null || !Object.is(loadedRequest?.key, adapterKey));
 
   useEffect(() => {
     if (!formatAdapter || adapterKey == null) {
@@ -127,10 +130,13 @@ export const useExternalHistory = <TMessage>(
     }
 
     let request = loadRequestRef.current;
-    if (request?.key !== adapterKey) {
-      const shouldResetMessages =
+    if (!Object.is(request?.key, adapterKey)) {
+      const replaceOnLoad =
         lastAdapterKeyRef.current !== undefined &&
-        lastAdapterKeyRef.current !== adapterKey;
+        !Object.is(lastAdapterKeyRef.current, adapterKey);
+      const shouldResetMessages =
+        replaceOnLoad &&
+        lastAdapterKeyRef.current !== DEFAULT_HISTORY_ADAPTER_KEY;
 
       persistenceGenerationRef.current += 1;
       persistInFlightRef.current = Promise.resolve();
@@ -150,6 +156,7 @@ export const useExternalHistory = <TMessage>(
         promise: remoteId
           ? Promise.resolve().then(() => formatAdapter.load())
           : null,
+        replaceOnLoad,
         settled: !remoteId,
       };
       loadRequestRef.current = request;
@@ -171,7 +178,7 @@ export const useExternalHistory = <TMessage>(
         const repo = await loadPromise;
         if (cancelled || loadRequestRef.current !== request) return;
 
-        if (repo && repo.messages.length > 0) {
+        if (repo && (repo.messages.length > 0 || request.replaceOnLoad)) {
           for (const m of repo.messages) {
             persistedInnerIds.current.add(
               storageFormatAdapter.getId(m.message),
@@ -236,7 +243,7 @@ export const useExternalHistory = <TMessage>(
     if (
       !formatAdapter ||
       adapterKey == null ||
-      activeLoadRequest?.key !== adapterKey
+      !Object.is(activeLoadRequest?.key, adapterKey)
     ) {
       return;
     }

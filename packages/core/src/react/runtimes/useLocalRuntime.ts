@@ -54,6 +54,7 @@ const useLocalThreadRuntime = (
     runtime.threads.getMainThreadRuntimeCore().__internal_setOptions(opt);
   });
 
+  const historyAdapterKey = opt.adapters.history?.key;
   useEffect(() => {
     const loadPromise = runtime.threads
       .getMainThreadRuntimeCore()
@@ -64,7 +65,7 @@ const useLocalThreadRuntime = (
     void loadPromise.catch((error: unknown) => {
       console.error("[assistant-ui] local thread history load failed:", error);
     });
-  }, [runtime]);
+  }, [historyAdapterKey, runtime]);
 
   useEffect(() => {
     if (!modelContext) return undefined;

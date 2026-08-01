@@ -589,6 +589,8 @@ export const threadListAdapter: RemoteThreadListAdapter = {
 
 The top-level `load`/`append` on the history adapter are required by the type but unused by `useChatRuntime`. The AI SDK code path always goes through `withFormat`.
 
+If one mounted runtime can switch between accounts or workspaces, set the adapter's optional `key` to that persistence scope. Keep it stable for the same scope and change it when the backing history changes; the runtime then clears the previous scope, reloads the new history, and ignores stale load responses. Adapters without a key retain the existing load-once behavior.
+
 </Step>
 <Step>
 

@@ -578,6 +578,8 @@ function Chat() {
 
 Each persisted row follows `{ id, parent_id, format, content }`. `fmt.encode` produces the `content` payload and `fmt.decode` reverses it, so your backend never needs to know about `UIMessage` internals.
 
+For a runtime that stays mounted while its account or workspace changes, set `historyAdapter.key` to a stable scope identifier. Changing the key reloads history for the new scope; omitting it preserves load-once behavior.
+
 ## Custom transport
 
 `AssistantChatTransport` is the default. To point at a non-default endpoint, instantiate it with a custom `api`:

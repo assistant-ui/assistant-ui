@@ -77,8 +77,6 @@ export type AISDKRuntimeAdapter = ExternalStoreSharedOptions & {
         suggestion?: SuggestionAdapter | undefined;
       })
     | undefined;
-  /** Stable identifier for the history adapter's backing scope. Change it to reload history in place. */
-  historyAdapterKey?: string | undefined;
   toCreateMessage?: CustomToCreateMessageFunction;
   /**
    * Whether to automatically cancel pending interactive tool calls when the user sends a new message.
@@ -198,7 +196,6 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     adapters,
     toCreateMessage: customToCreateMessage,
     cancelPendingToolCallsOnSend = true,
-    historyAdapterKey,
     onResume,
     onResumeToolCall,
     joinStrategy,
@@ -276,7 +273,6 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     (messages) => {
       chatHelpers.setMessages(messages);
     },
-    historyAdapterKey,
   );
 
   const { error } = chatHelpers;

@@ -9,6 +9,12 @@ import type { AppendMessage } from "../../types/message";
 import type { LocalRuntimeOptionsBase } from "./local-runtime-options";
 import type { ExportedMessageRepositoryItem } from "../../runtime/utils/message-repository";
 
+type LoadedHistory = Awaited<
+  ReturnType<
+    NonNullable<LocalRuntimeOptionsBase["adapters"]["history"]>["load"]
+  >
+>;
+
 const flush = () => new Promise((resolve) => setTimeout(resolve, 10));
 
 afterEach(() => {
@@ -73,6 +79,15 @@ const toolCallResult = (
   status: { type: "requires-action", reason: "tool-calls" },
 });
 
+const storedUserMessage = (id: string, text: string) => ({
+  id,
+  role: "user" as const,
+  content: [{ type: "text" as const, text }],
+  attachments: [],
+  metadata: { custom: {} },
+  createdAt: new Date(),
+});
+
 const createApprovalThread = (firstResult: ChatModelRunResult) => {
   const runs: ChatModelRunOptions[] = [];
   const thread = createThread({
@@ -84,6 +99,142 @@ const createApprovalThread = (firstResult: ChatModelRunResult) => {
   });
   return { thread, runs };
 };
+
+describe("LocalThreadRuntimeCore history scopes", () => {
+  it("reloads keyed history and ignores stale responses", async () => {
+    let resolveFirstLoad!: (repo: LoadedHistory) => void;
+    const firstLoad = vi.fn(
+      () =>
+        new Promise<LoadedHistory>((resolve) => {
+          resolveFirstLoad = resolve;
+        }),
+    );
+    const secondLoad = vi.fn().mockResolvedValue({
+      headId: "message-b",
+      messages: [
+        {
+          parentId: null,
+          message: storedUserMessage("message-b", "workspace b"),
+        },
+      ],
+    });
+    const chatModel: ChatModelAdapter = {
+      run: async () => ({ content: [] }),
+    };
+    const firstHistory = {
+      key: "workspace-a",
+      load: firstLoad,
+      append: vi.fn().mockResolvedValue(undefined),
+    };
+    const secondHistory = {
+      key: "workspace-b",
+      load: secondLoad,
+      append: vi.fn().mockResolvedValue(undefined),
+    };
+    const thread = createThread(chatModel, { history: firstHistory });
+
+    const firstRequest = thread.__internal_load();
+    thread.__internal_setOptions({
+      adapters: { chatModel, history: secondHistory },
+    });
+    await thread.__internal_load();
+
+    expect(thread.messages.map((message) => message.id)).toEqual(["message-b"]);
+
+    resolveFirstLoad({
+      headId: "message-a",
+      messages: [
+        {
+          parentId: null,
+          message: storedUserMessage("message-a", "workspace a"),
+        },
+      ],
+    });
+    await firstRequest;
+
+    expect(thread.messages.map((message) => message.id)).toEqual(["message-b"]);
+    expect(thread.isLoading).toBe(false);
+  });
+
+  it("does not reload replacement adapters with the same key", async () => {
+    const chatModel: ChatModelAdapter = {
+      run: async () => ({ content: [] }),
+    };
+    const firstLoad = vi.fn().mockResolvedValue({ messages: [] });
+    const secondLoad = vi.fn().mockResolvedValue({ messages: [] });
+    const thread = createThread(chatModel, {
+      history: {
+        key: "workspace-a",
+        load: firstLoad,
+        append: vi.fn().mockResolvedValue(undefined),
+      },
+    });
+
+    await thread.__internal_load();
+    thread.__internal_setOptions({
+      adapters: {
+        chatModel,
+        history: {
+          key: "workspace-a",
+          load: secondLoad,
+          append: vi.fn().mockResolvedValue(undefined),
+        },
+      },
+    });
+    await thread.__internal_load();
+
+    expect(firstLoad).toHaveBeenCalledOnce();
+    expect(secondLoad).not.toHaveBeenCalled();
+  });
+
+  it("keeps loaded messages while the first explicit key reloads", async () => {
+    const chatModel: ChatModelAdapter = {
+      run: async () => ({ content: [] }),
+    };
+    const repo = {
+      headId: "message-a",
+      messages: [
+        {
+          parentId: null,
+          message: storedUserMessage("message-a", "workspace a"),
+        },
+      ],
+    };
+    let resolveKeyedLoad!: (repo: LoadedHistory) => void;
+    const thread = createThread(chatModel, {
+      history: {
+        load: vi.fn().mockResolvedValue(repo),
+        append: vi.fn().mockResolvedValue(undefined),
+      },
+    });
+
+    await thread.__internal_load();
+    thread.__internal_setOptions({
+      adapters: {
+        chatModel,
+        history: {
+          key: "workspace-a",
+          load: vi.fn(
+            () =>
+              new Promise<LoadedHistory>((resolve) => {
+                resolveKeyedLoad = resolve;
+              }),
+          ),
+          append: vi.fn().mockResolvedValue(undefined),
+        },
+      },
+    });
+    const keyedRequest = thread.__internal_load();
+    await Promise.resolve();
+
+    expect(thread.messages.map((message) => message.id)).toEqual(["message-a"]);
+
+    resolveKeyedLoad(repo);
+    await keyedRequest;
+
+    expect(thread.messages.map((message) => message.id)).toEqual(["message-a"]);
+  });
+});
 
 describe("LocalThreadRuntimeCore events", () => {
   it("isolates runEnd listener errors", async () => {

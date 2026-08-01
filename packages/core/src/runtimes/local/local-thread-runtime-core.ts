@@ -1,4 +1,5 @@
 import { fromThreadMessageLike } from "../../runtime/utils/thread-message-like";
+import type { ThreadHistoryAdapter } from "../../adapters/thread-history";
 import { generateId } from "../../utils/id";
 import type {
   ChatModelAdapter,
@@ -42,6 +43,11 @@ class AbortError extends Error {
     this.detach = detach;
   }
 }
+
+const DEFAULT_HISTORY_ADAPTER_KEY = Symbol("history-adapter");
+type HistoryAdapterKey =
+  | NonNullable<ThreadHistoryAdapter["key"]>
+  | typeof DEFAULT_HISTORY_ADAPTER_KEY;
 
 export class LocalThreadRuntimeCore
   extends BaseThreadRuntimeCore
@@ -226,27 +232,54 @@ export class LocalThreadRuntimeCore
     if (hasUpdates) this._notifySubscribers();
   }
 
-  private _loadPromise: Promise<void> | undefined;
-  public __internal_load() {
-    if (this._loadPromise) return this._loadPromise;
+  private _loadRequest:
+    | {
+        key: HistoryAdapterKey;
+        promise: Promise<void>;
+      }
+    | undefined;
+  private _lastHistoryAdapterKey: HistoryAdapterKey | undefined;
 
-    const promise = this.adapters.history?.load() ?? Promise.resolve(null);
+  public __internal_load() {
+    const history = this.adapters.history;
+    const key = history?.key ?? DEFAULT_HISTORY_ADAPTER_KEY;
+    const activeLoadRequest = this._loadRequest;
+    if (activeLoadRequest && Object.is(activeLoadRequest.key, key)) {
+      return activeLoadRequest.promise;
+    }
+
+    const replacingHistory =
+      this._lastHistoryAdapterKey !== undefined &&
+      !Object.is(this._lastHistoryAdapterKey, key);
+    const shouldResetMessages =
+      replacingHistory &&
+      this._lastHistoryAdapterKey !== DEFAULT_HISTORY_ADAPTER_KEY;
+
+    if (shouldResetMessages) {
+      this.repository.import({ headId: null, messages: [] });
+    }
+
+    const request = {
+      key,
+      promise: Promise.resolve(),
+    };
+    this._loadRequest = request;
+    this._lastHistoryAdapterKey = key;
 
     this._isLoading = true;
     this._notifySubscribers();
 
-    this._loadPromise = promise
+    request.promise = Promise.resolve()
+      .then(() => history?.load() ?? null)
       .then((repo) => {
-        if (!repo) return;
+        if (this._loadRequest !== request || !repo) return;
         this.repository.import(repo);
         if (repo.messages.length > 0) {
           this.ensureInitialized();
         }
         this._notifySubscribers();
 
-        const resume = this.adapters.history?.resume?.bind(
-          this.adapters.history,
-        );
+        const resume = history?.resume?.bind(history);
         if (repo.unstable_resume && resume) {
           this.startRun(
             {
@@ -259,11 +292,12 @@ export class LocalThreadRuntimeCore
         }
       })
       .finally(() => {
+        if (this._loadRequest !== request) return;
         this._isLoading = false;
         this._notifySubscribers();
       });
 
-    return this._loadPromise;
+    return request.promise;
   }
 
   public async append(message: AppendMessage): Promise<void> {

@@ -42,6 +42,7 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
     const { result } = renderHook(() =>
       useAssistantCloudThreadHistoryAdapter(cloudRef),
     );
+    expect(result.current.key).toBe(firstCloud);
     const formatted = result.current.withFormat<
       { id: string },
       Record<string, unknown>
@@ -61,6 +62,7 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
     expect(firstCloud.threads.messages.list).toHaveBeenCalledTimes(2);
 
     cloudRef.current = secondCloud;
+    expect(result.current.key).toBe(secondCloud);
     await formatted.load();
 
     expect(firstCloud.threads.messages.list).toHaveBeenCalledTimes(2);

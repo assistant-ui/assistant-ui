@@ -32,6 +32,10 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     this.getAui = getAui;
   }
 
+  public get key() {
+    return this.cloudRef.current;
+  }
+
   private get aui(): AssistantClient {
     return this.getAui();
   }
