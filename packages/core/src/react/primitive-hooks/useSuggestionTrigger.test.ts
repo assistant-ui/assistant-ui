@@ -1,12 +1,17 @@
+/** @vitest-environment jsdom */
+import { cleanup, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => {
   const append = vi.fn();
   const setText = vi.fn();
 
-  const threadState = {
-    isRunning: false,
-    capabilities: { queue: false },
+  const state = {
+    thread: {
+      isDisabled: false,
+      isRunning: false,
+      capabilities: { queue: false },
+    },
   };
   const composerState = {
     text: "",
@@ -16,16 +21,11 @@ const mocks = vi.hoisted(() => {
   return {
     append,
     setText,
-    threadState,
+    state,
     composerState,
-    state: {
-      thread: {
-        isDisabled: false,
-      },
-    },
     aui: {
       thread: {
-        getState: () => threadState,
+        getState: () => state.thread,
         append,
       },
       composer: {
@@ -35,12 +35,6 @@ const mocks = vi.hoisted(() => {
     },
   };
 });
-
-vi.mock("react", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("react")>()),
-  useCallback: ((callback: unknown) =>
-    callback) as typeof import("react").useCallback,
-}));
 
 vi.mock("@assistant-ui/store", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@assistant-ui/store")>()),
@@ -52,18 +46,23 @@ vi.mock("@assistant-ui/store", async (importOriginal) => ({
 import { useSuggestionTrigger } from "./useSuggestionTrigger";
 
 afterEach(() => {
+  cleanup();
   vi.clearAllMocks();
-  mocks.threadState.isRunning = false;
-  mocks.threadState.capabilities = { queue: false };
+  mocks.state.thread.isDisabled = false;
+  mocks.state.thread.isRunning = false;
+  mocks.state.thread.capabilities = { queue: false };
   mocks.composerState.text = "";
 });
 
 describe("useSuggestionTrigger", () => {
   it("appends the prompt and clears the composer when sending while idle", () => {
-    const { trigger } = useSuggestionTrigger({ prompt: "Hello", send: true });
+    const { result } = renderHook(() =>
+      useSuggestionTrigger({ prompt: "Hello", send: true }),
+    );
 
-    trigger();
+    result.current.trigger();
 
+    expect(result.current.disabled).toBe(false);
     expect(mocks.append).toHaveBeenCalledWith({
       content: [{ type: "text", text: "Hello" }],
       runConfig: { custom: { model: "gpt-test" } },
@@ -71,25 +70,31 @@ describe("useSuggestionTrigger", () => {
     expect(mocks.setText).toHaveBeenCalledWith("");
   });
 
-  it("does nothing when sending while running without queue support", () => {
-    mocks.threadState.isRunning = true;
+  it("disables and no-ops when sending while running without queue support", () => {
+    mocks.state.thread.isRunning = true;
     mocks.composerState.text = "my draft";
-    const { trigger } = useSuggestionTrigger({ prompt: "Hello", send: true });
+    const { result } = renderHook(() =>
+      useSuggestionTrigger({ prompt: "Hello", send: true }),
+    );
 
-    trigger();
+    result.current.trigger();
 
+    expect(result.current.disabled).toBe(true);
     expect(mocks.append).not.toHaveBeenCalled();
     expect(mocks.setText).not.toHaveBeenCalled();
   });
 
-  it("appends without touching the composer while running when the thread supports queueing", () => {
-    mocks.threadState.isRunning = true;
-    mocks.threadState.capabilities = { queue: true };
+  it("queues without touching the composer while running when the thread supports queueing", () => {
+    mocks.state.thread.isRunning = true;
+    mocks.state.thread.capabilities = { queue: true };
     mocks.composerState.text = "my draft";
-    const { trigger } = useSuggestionTrigger({ prompt: "Hello", send: true });
+    const { result } = renderHook(() =>
+      useSuggestionTrigger({ prompt: "Hello", send: true }),
+    );
 
-    trigger();
+    result.current.trigger();
 
+    expect(result.current.disabled).toBe(false);
     expect(mocks.append).toHaveBeenCalledWith({
       content: [{ type: "text", text: "Hello" }],
       runConfig: { custom: { model: "gpt-test" } },
@@ -97,25 +102,47 @@ describe("useSuggestionTrigger", () => {
     expect(mocks.setText).not.toHaveBeenCalled();
   });
 
-  it("replaces the composer text when send is false", () => {
+  it("replaces the composer text when send is false, even while running", () => {
+    mocks.state.thread.isRunning = true;
     mocks.composerState.text = "my draft";
-    const { trigger } = useSuggestionTrigger({ prompt: "Hello" });
+    const { result } = renderHook(() =>
+      useSuggestionTrigger({ prompt: "Hello" }),
+    );
 
-    trigger();
+    result.current.trigger();
 
+    expect(result.current.disabled).toBe(false);
     expect(mocks.append).not.toHaveBeenCalled();
     expect(mocks.setText).toHaveBeenCalledWith("Hello");
   });
 
   it("appends to the composer text when clearComposer is false", () => {
     mocks.composerState.text = "my draft";
-    const { trigger } = useSuggestionTrigger({
-      prompt: "Hello",
-      clearComposer: false,
-    });
+    const { result } = renderHook(() =>
+      useSuggestionTrigger({ prompt: "Hello", clearComposer: false }),
+    );
 
-    trigger();
+    result.current.trigger();
 
     expect(mocks.setText).toHaveBeenCalledWith("my draft Hello");
+  });
+
+  it("inserts the prompt alone when the composer is empty and clearComposer is false", () => {
+    const { result } = renderHook(() =>
+      useSuggestionTrigger({ prompt: "Hello", clearComposer: false }),
+    );
+
+    result.current.trigger();
+
+    expect(mocks.setText).toHaveBeenCalledWith("Hello");
+  });
+
+  it("disables when the thread is disabled", () => {
+    mocks.state.thread.isDisabled = true;
+    const { result } = renderHook(() =>
+      useSuggestionTrigger({ prompt: "Hello" }),
+    );
+
+    expect(result.current.disabled).toBe(true);
   });
 });

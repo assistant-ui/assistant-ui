@@ -13,8 +13,12 @@ export const useSuggestionTrigger = ({
   clearComposer = true,
 }: UseSuggestionTriggerOptions) => {
   const aui = useAui();
-  const disabled = useAuiState((s) => s.thread.isDisabled);
   const resolvedSend = send ?? false;
+  const disabled = useAuiState(
+    (s) =>
+      s.thread.isDisabled ||
+      (resolvedSend && s.thread.isRunning && !s.thread.capabilities.queue),
+  );
 
   const trigger = useCallback(() => {
     if (resolvedSend) {
@@ -25,6 +29,7 @@ export const useSuggestionTrigger = ({
         content: [{ type: "text", text: prompt }],
         runConfig: aui.composer.getState().runConfig,
       });
+      // A queued send must not clear the draft the user is still composing.
       if (clearComposer && !isRunning) {
         aui.composer.setText("");
       }
