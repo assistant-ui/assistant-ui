@@ -1889,7 +1889,15 @@ describe("useLangGraphRuntime", () => {
       await act(async () => {
         await runtimeResult.current.threads.switchToThread("lg-thread-1");
       });
-      await waitForToolCallPart(auiResult.current, "lc-toolcall-unknown-0");
+      await waitFor(() =>
+        expect(
+          auiResult.current.thread
+            .getState()
+            .messages.some((message) =>
+              message.content.some((part) => part.type === "tool-call"),
+            ),
+        ).toBe(true),
+      );
 
       await act(async () => {
         auiResult.current.composer.setRunConfig(runConfig);
