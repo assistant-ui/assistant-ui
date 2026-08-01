@@ -467,6 +467,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
       return sendMessageRef.current(messages, config, () => {
         activeRunContextRef.current = null;
         if (runErrorBalanceRef.current > 0) {
+          toolResultBufferRef.current.clear();
           pendingResumesRef.current.clear();
           runQueueRef.current!.drop();
         }

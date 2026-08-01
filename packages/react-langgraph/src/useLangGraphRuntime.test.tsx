@@ -2194,7 +2194,7 @@ describe("useLangGraphRuntime", () => {
       expect(streamMock).toHaveBeenCalledTimes(1);
     });
 
-    it("preserves tool ownership when a result arrives after an error", async () => {
+    it("preserves tool ownership when a result arrives after a stream rejection", async () => {
       const runConfig = {
         custom: { configurable: { model_name: "gpt-5.4-nano" } },
       };
@@ -2231,6 +2231,73 @@ describe("useLangGraphRuntime", () => {
 
       await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(2));
       expect(streamMock.mock.calls[1]?.[1].runConfig).toEqual(runConfig);
+    });
+
+    it("clears buffered parallel results when a graph error occurs", async () => {
+      const gate = deferred<void>();
+      const parallelToolCallEvent = {
+        event: "messages/complete",
+        data: [
+          {
+            id: "ai-parallel-error",
+            type: "ai" as const,
+            content: "",
+            tool_calls: [
+              { id: "tc-first", name: "first_tool", args: {} },
+              { id: "tc-second", name: "second_tool", args: {} },
+            ],
+          },
+        ],
+      };
+      const streamMock = vi.fn(async function* (_messages: LangChainMessage[]) {
+        if (streamMock.mock.calls.length === 1) {
+          yield parallelToolCallEvent;
+          await gate.promise;
+          yield { event: "error", data: { message: "graph failed" } };
+        }
+      });
+
+      const { result: runtimeResult } = renderHook(() =>
+        useLangGraphRuntime({ stream: streamMock }),
+      );
+      const wrapper = wrapperFactory(runtimeResult.current);
+      const { result: auiResult } = renderHook(() => useAui(), { wrapper });
+
+      await act(async () => {
+        auiResult.current.composer.setText("run both tools");
+        auiResult.current.composer.send();
+      });
+      await waitForToolCallPart(auiResult.current, "tc-first");
+      await waitForToolCallPart(auiResult.current, "tc-second");
+
+      addToolResult(
+        runtimeResult.current,
+        { first: true },
+        "ai-parallel-error",
+        "tc-first",
+      );
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      });
+
+      await act(async () => {
+        gate.resolve();
+      });
+      await waitFor(() =>
+        expect(auiResult.current.thread.getState().isRunning).toBe(false),
+      );
+
+      addToolResult(
+        runtimeResult.current,
+        { second: true },
+        "ai-parallel-error",
+        "tc-second",
+      );
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      });
+
+      expect(streamMock).toHaveBeenCalledTimes(1);
     });
 
     it("replaces a duplicate result in the queued resume instead of double-sending", async () => {
