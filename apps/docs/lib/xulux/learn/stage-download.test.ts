@@ -49,9 +49,7 @@ describe("Learn stage downloads", () => {
   });
 });
 
-function sharedSourceSnapshot(
-  sharedFiles: Record<string, string> | undefined,
-) {
+function sharedSourceSnapshot(sharedFiles: Record<string, string> | undefined) {
   return Object.fromEntries(
     Object.values(sharedFiles ?? {}).map((snapshotPath) => [
       snapshotPath,
