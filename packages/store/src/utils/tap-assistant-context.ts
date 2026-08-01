@@ -72,12 +72,19 @@ export const useAssistantClientEffect = <K extends ClientNames>(
     if (!renderedClient)
       throw new Error("Rendered assistant client is not available");
 
-    const select = () =>
-      store.getValue().client[scope] as unknown as AssistantClientAccessor<K>;
+    const select = () => {
+      const client = store.getValue().client;
+      return {
+        client,
+        accessor: client[scope] as unknown as AssistantClientAccessor<K>,
+      };
+    };
+    let selectedClient = renderedClient;
     let selected = renderedClient[
       scope
     ] as unknown as AssistantClientAccessor<K>;
     let cleanup: undefined | (() => void);
+    let setupComplete = false;
     let disposed = false;
     let transitioning = true;
     let pending = false;
@@ -94,6 +101,7 @@ export const useAssistantClientEffect = <K extends ClientNames>(
         return;
       }
       cleanup = typeof nextCleanup === "function" ? nextCleanup : undefined;
+      setupComplete = true;
     };
 
     const migrate = () => {
@@ -109,16 +117,27 @@ export const useAssistantClientEffect = <K extends ClientNames>(
           pending = false;
           try {
             const next = select();
-            if (Object.is(selected, next)) continue;
+            if (Object.is(selected, next.accessor)) {
+              const structurallyChanged = !Object.is(
+                selectedClient,
+                next.client,
+              );
+              selectedClient = next.client;
+              if (setupComplete || !structurallyChanged) continue;
+            }
 
             const previousCleanup = cleanup;
             cleanup = undefined;
-            selected = next;
+            setupComplete = false;
+            selectedClient = next.client;
+            selected = next.accessor;
             previousCleanup?.();
             if (disposed) return;
             if (pending) {
               pending = false;
-              selected = select();
+              const latest = select();
+              selectedClient = latest.client;
+              selected = latest.accessor;
             }
             setupSelected();
           } catch (error) {
@@ -147,6 +166,7 @@ export const useAssistantClientEffect = <K extends ClientNames>(
       unsubscribe();
       const finalCleanup = cleanup;
       cleanup = undefined;
+      setupComplete = false;
       finalCleanup?.();
     };
   }, [clientStoreRef, scope, stableDeps]);

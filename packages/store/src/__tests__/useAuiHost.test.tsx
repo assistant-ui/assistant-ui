@@ -325,9 +325,11 @@ describe("useAui tap host", () => {
     const active = new Map<string, string>();
     const migrations: string[] = [];
     const operations: string[] = [];
+    const b = createRegistrationParent("b", active, "primary", operations);
     const parents = {
       a: createRegistrationParent("a", active, undefined, operations),
-      b: createRegistrationParent("b", active, "primary", operations),
+      b,
+      b2: { ...b },
       c: createRegistrationParent("c", active, undefined, operations),
     };
 
@@ -368,6 +370,17 @@ describe("useAui tap host", () => {
       "setup b primary",
     ]);
     expect(reported.errors).toHaveLength(1);
+
+    rerender(<Harness parent="b2" />);
+    await act(reported.flush);
+    expect(operations).toEqual([
+      "setup a primary",
+      "cleanup a primary",
+      "setup b primary",
+      "setup b primary",
+    ]);
+    expect(migrations).toEqual(["a", "b"]);
+    expect(reported.errors).toHaveLength(2);
 
     rerender(<Harness parent="c" />);
     expect(Object.fromEntries(active)).toEqual({ c: "primary" });
