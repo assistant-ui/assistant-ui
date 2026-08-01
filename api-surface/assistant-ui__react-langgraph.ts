@@ -949,6 +949,12 @@ type LangChainMessage = {
     reasoning?: MessageContentReasoning;
     tool_outputs?: MessageContentComputerCall[];
     metadata?: Record<string, unknown>;
+    audio?: {
+      id?: string;
+      data?: string;
+      expires_at?: number;
+      transcript?: string;
+    };
   };
 };
 
