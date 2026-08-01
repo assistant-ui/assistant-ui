@@ -1,5 +1,6 @@
 import { DEFAULT_TTL_MS } from "../constants";
 import { ResumableStreamError, validateStreamId } from "../errors";
+import { generateId } from "../../core/utils/generateId";
 import type {
   ResumableStreamAcquireOptions,
   ResumableStreamEntry,
@@ -93,18 +94,17 @@ export class RedisResumableStreamStore implements ResumableStreamStore {
   ): Promise<ResumableStreamRole> {
     validateStreamId(streamId);
     const ttlSec = msToSec(options?.ttlMs ?? this.defaultTtlMs);
-    const meta = JSON.stringify({ status: "streaming", ttlSec });
+    const meta = JSON.stringify({
+      status: "streaming",
+      ttlSec,
+      generation: generateId(),
+    });
     const acquired = await this.client.setNX(
       this.metaKey(streamId),
       meta,
       ttlSec,
     );
-    if (acquired) {
-      // a prior producer's data key may outlive its expired meta key.
-      await this.client.del([this.dataKey(streamId)]);
-      return "producer";
-    }
-    return "consumer";
+    return acquired ? "producer" : "consumer";
   }
 
   async append(streamId: string, chunk: Uint8Array): Promise<void> {
@@ -117,7 +117,6 @@ export class RedisResumableStreamStore implements ResumableStreamStore {
         `Chunk exceeds maxChunkBytes (${chunk.byteLength} > ${this.maxChunkBytes})`,
       );
     }
-    const dataKey = this.dataKey(streamId);
     const metaKey = this.metaKey(streamId);
     const meta = await this.readMeta(streamId);
     if (!meta) {
@@ -130,6 +129,7 @@ export class RedisResumableStreamStore implements ResumableStreamStore {
       );
     }
     const ttlSec = meta.ttlSec ?? msToSec(this.defaultTtlMs);
+    const dataKey = this.dataKey(streamId, meta.generation);
     await this.client.pipeline([
       { type: "xAdd", key: dataKey, fields: { [FIELD_CHUNK]: chunk } },
       { type: "expire", key: dataKey, ttlSec },
@@ -143,7 +143,6 @@ export class RedisResumableStreamStore implements ResumableStreamStore {
     error?: string,
   ): Promise<void> {
     validateStreamId(streamId);
-    const dataKey = this.dataKey(streamId);
     const metaKey = this.metaKey(streamId);
     const existing = await this.readMeta(streamId);
     if (!existing) {
@@ -152,17 +151,21 @@ export class RedisResumableStreamStore implements ResumableStreamStore {
     // a second finalize must not append a duplicate FIN entry.
     if (existing.status !== "streaming") return;
     const ttlSec = existing.ttlSec ?? msToSec(this.defaultTtlMs);
-    const meta = JSON.stringify(
-      status === "error"
-        ? { status: "error", error: error ?? "Stream errored", ttlSec }
-        : { status: "done", ttlSec },
-    );
+    const meta = JSON.stringify({
+      status,
+      ...(status === "error" && { error: error ?? "Stream errored" }),
+      ttlSec,
+      ...(existing.generation !== undefined && {
+        generation: existing.generation,
+      }),
+    });
     const fields: Record<string, string> = {
       [FIELD_FIN]: status === "error" ? FIN_ERROR : FIN_DONE,
     };
     if (status === "error") {
       fields[FIELD_ERROR] = error ?? "Stream errored";
     }
+    const dataKey = this.dataKey(streamId, existing.generation);
     await this.client.pipeline([
       { type: "set", key: metaKey, value: meta, ttlSec },
       { type: "xAdd", key: dataKey, fields },
@@ -176,12 +179,13 @@ export class RedisResumableStreamStore implements ResumableStreamStore {
     signal: AbortSignal,
   ): AsyncIterable<ResumableStreamEntry> {
     validateStreamId(streamId);
-    const dataKey = this.dataKey(streamId);
     const metaKey = this.metaKey(streamId);
     const initialMeta = await this.client.get(metaKey);
     if (initialMeta === null) {
       throw new Error(`Stream not found: ${streamId}`);
     }
+    const generation = parseMeta(initialMeta)?.generation;
+    const dataKey = this.dataKey(streamId, generation);
 
     let lastId = cursor === "" ? STREAM_START_ID : cursor;
 
@@ -210,8 +214,9 @@ export class RedisResumableStreamStore implements ResumableStreamStore {
 
       if (entries.length > 0) continue;
 
-      const stillExists = await this.client.exists(metaKey);
-      if (!stillExists) return;
+      const currentMeta = await this.client.get(metaKey);
+      if (currentMeta === null) return;
+      if (parseMeta(currentMeta)?.generation !== generation) return;
 
       await sleep(this.pollIntervalMs, signal);
     }
@@ -230,7 +235,14 @@ export class RedisResumableStreamStore implements ResumableStreamStore {
 
   async delete(streamId: string): Promise<void> {
     validateStreamId(streamId);
-    await this.client.del([this.metaKey(streamId), this.dataKey(streamId)]);
+    const meta = await this.readMeta(streamId);
+    await this.client.del([
+      this.metaKey(streamId),
+      ...new Set([
+        this.dataKey(streamId, meta?.generation),
+        this.dataKey(streamId),
+      ]),
+    ]);
   }
 
   private async readMeta(streamId: string): Promise<ParsedMeta | undefined> {
@@ -245,8 +257,9 @@ export class RedisResumableStreamStore implements ResumableStreamStore {
     return `${this.keyPrefix}:{${streamId}}:meta`;
   }
 
-  private dataKey(streamId: string): string {
-    return `${this.keyPrefix}:{${streamId}}:data`;
+  private dataKey(streamId: string, generation?: string): string {
+    const base = `${this.keyPrefix}:{${streamId}}:data`;
+    return generation ? `${base}:${generation}` : base;
   }
 }
 
@@ -254,6 +267,7 @@ type ParsedMeta = {
   status?: string;
   error?: string;
   ttlSec?: number;
+  generation?: string;
 };
 
 function parseMeta(value: string): ParsedMeta | undefined {
