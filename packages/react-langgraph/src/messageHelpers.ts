@@ -95,7 +95,7 @@ export const getPendingToolCalls = (
         message.tool_calls ?? [],
       );
       for (const [index, toolCall] of (message.tool_calls ?? []).entries()) {
-        const toolCallId = toolCallIds[index]!;
+        const toolCallId = resolveToolCallAlias(toolCallIds[index]!, aliases);
         pendingToolCalls.set(
           toolCallId,
           toolCall.id ? toolCall : { ...toolCall, id: toolCallId },

@@ -7,8 +7,8 @@ pending tool batches scoped to the run that emitted them
 
 fix: keep synthesized tool-call IDs collision-free within an AI message
 
-fix: canonicalize pending tool results when a streaming tool call receives its
-final ID
+fix: canonicalize pending tool results when a streaming tool call or its parent
+message receives a final ID
 
 fix: preserve pending-tool ownership across loaded message ID materialization,
 tool-call ID upgrades, and graph message removal

@@ -8,6 +8,7 @@ import {
 } from "react";
 import type {
   LangChainMessage,
+  LangChainToolCall,
   UIMessage,
   UseLangGraphRuntimeOptions,
 } from "./types";
@@ -38,6 +39,7 @@ import {
   useLangGraphMessages,
 } from "./useLangGraphMessages";
 import { appendLangChainChunk } from "./appendLangChainChunk";
+import { hasGeneratedLangGraphMessageId } from "./LangGraphMessageAccumulator";
 import { useLangGraphStreamingTiming } from "./useLangGraphStreamingTiming";
 import { bufferToolResult } from "./bufferToolResults";
 import { createSerialRunQueue, type SerialRunQueue } from "./serialRunQueue";
@@ -71,6 +73,14 @@ const resolveToolCallId = (
   }
   return resolved;
 };
+
+const toolCallsShareIdentity = (
+  previous: LangChainToolCall,
+  current: LangChainToolCall,
+) =>
+  previous.index != null && current.index != null
+    ? previous.index === current.index
+    : previous.name !== "" && previous.name === current.name;
 
 const toLangGraphUserMessage = (
   msg: AppendMessage,
@@ -184,6 +194,9 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
   const toolCallRunContextsRef = useRef(new Map<string, RunContext>());
   const toolCallIdAliasesRef = useRef(new Map<string, string>());
   const loadedToolCallIdsBeingMaterializedRef = useRef(new Set<string>());
+  const generatedMessageToolCallsRef = useRef(
+    new Map<string, { runContext: RunContext; toolCall: LangChainToolCall }>(),
+  );
   // Buffers client tool results within a turn so parallel tool calls resume the
   // graph in one run once every pending call has a result. See bufferToolResult.
   const toolResultBufferRef = useRef<
@@ -198,6 +211,16 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
   const installToolCallIdAlias = useCallback(
     (previousToolCallId: string, toolCallId: string) => {
       toolCallIdAliasesRef.current.set(previousToolCallId, toolCallId);
+      generatedMessageToolCallsRef.current.delete(previousToolCallId);
+
+      const previousRunContext =
+        toolCallRunContextsRef.current.get(previousToolCallId);
+      if (previousRunContext) {
+        if (!toolCallRunContextsRef.current.has(toolCallId)) {
+          toolCallRunContextsRef.current.set(toolCallId, previousRunContext);
+        }
+        toolCallRunContextsRef.current.delete(previousToolCallId);
+      }
 
       const bufferedResult =
         toolResultBufferRef.current.get(previousToolCallId);
@@ -233,6 +256,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
   );
   const appendMessage = useCallback(
     (previous: LangChainMessage | undefined, current: LangChainMessage) => {
+      const hasGeneratedMessageId = hasGeneratedLangGraphMessageId(current);
       const message = appendLangChainChunk(previous, current);
       if (message.type === "ai") {
         const toolCalls = message.tool_calls ?? [];
@@ -257,6 +281,26 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
           );
           const previousToolCallId = previousToolCallIds[previousToolCallIndex];
           const idlessMessageToolCallId = idlessMessageToolCallIds[index];
+          const generatedMessageCandidates =
+            !hasGeneratedMessageId && previous === undefined && toolCall.id
+              ? [...generatedMessageToolCallsRef.current.entries()].filter(
+                  ([, candidate]) =>
+                    (candidate.runContext === activeRunContextRef.current ||
+                      candidate.runContext === unknownRunContextRef.current) &&
+                    toolCallsShareIdentity(candidate.toolCall, toolCall),
+                )
+              : [];
+          const generatedMessageCandidate = generatedMessageCandidates[0];
+          const generatedMessageToolCallId =
+            generatedMessageCandidates.length === 1 &&
+            toolCalls.filter((candidate) =>
+              toolCallsShareIdentity(
+                generatedMessageCandidate![1].toolCall,
+                candidate,
+              ),
+            ).length === 1
+              ? generatedMessageCandidate![0]
+              : undefined;
           if (
             idlessMessageToolCallId &&
             idlessMessageToolCallId !== toolCallId &&
@@ -265,30 +309,15 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
             )
           ) {
             installToolCallIdAlias(idlessMessageToolCallId, toolCallId);
-            const materializedRunContext = toolCallRunContextsRef.current.get(
-              idlessMessageToolCallId,
-            );
-            if (materializedRunContext) {
-              toolCallRunContextsRef.current.set(
-                toolCallId,
-                materializedRunContext,
-              );
-              toolCallRunContextsRef.current.delete(idlessMessageToolCallId);
-            }
           }
           if (previousToolCallId && previousToolCallId !== toolCallId) {
             installToolCallIdAlias(previousToolCallId, toolCallId);
-            const previousRunContext =
-              toolCallRunContextsRef.current.get(previousToolCallId);
-            if (previousRunContext) {
-              if (!toolCallRunContextsRef.current.has(toolCallId)) {
-                toolCallRunContextsRef.current.set(
-                  toolCallId,
-                  previousRunContext,
-                );
-              }
-              toolCallRunContextsRef.current.delete(previousToolCallId);
-            }
+          }
+          if (
+            generatedMessageToolCallId &&
+            generatedMessageToolCallId !== toolCallId
+          ) {
+            installToolCallIdAlias(generatedMessageToolCallId, toolCallId);
           }
           if (
             activeRunContextRef.current &&
@@ -299,11 +328,23 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
               activeRunContextRef.current,
             );
           }
+          if (hasGeneratedMessageId && !toolCall.id) {
+            const runContext = toolCallRunContextsRef.current.get(toolCallId);
+            if (runContext) {
+              generatedMessageToolCallsRef.current.set(toolCallId, {
+                runContext,
+                toolCall,
+              });
+            }
+          }
         }
       } else if (message.type === "tool") {
-        toolCallRunContextsRef.current.delete(
-          resolveToolCallId(toolCallIdAliasesRef.current, message.tool_call_id),
+        const toolCallId = resolveToolCallId(
+          toolCallIdAliasesRef.current,
+          message.tool_call_id,
         );
+        toolCallRunContextsRef.current.delete(toolCallId);
+        generatedMessageToolCallsRef.current.delete(toolCallId);
       }
       return message;
     },
@@ -424,6 +465,15 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
       );
       if (!pendingToolCallIds.has(resolvedToolCallId)) {
         toolCallRunContextsRef.current.delete(toolCallId);
+      }
+    }
+    for (const toolCallId of generatedMessageToolCallsRef.current.keys()) {
+      const resolvedToolCallId = resolveToolCallId(
+        toolCallIdAliasesRef.current,
+        toolCallId,
+      );
+      if (!pendingToolCallIds.has(resolvedToolCallId)) {
+        generatedMessageToolCallsRef.current.delete(toolCallId);
       }
     }
     for (const toolCallId of toolCallIdAliasesRef.current.keys()) {
@@ -742,6 +792,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
           toolResultBufferRef.current.clear();
           toolCallRunContextsRef.current.clear();
           toolCallIdAliasesRef.current.clear();
+          generatedMessageToolCallsRef.current.clear();
           pendingResumesRef.current.clear();
           activeRunContextRef.current = null;
           runQueue.drop();
@@ -799,6 +850,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
             toolResultBufferRef.current.clear();
             toolCallRunContextsRef.current.clear();
             toolCallIdAliasesRef.current.clear();
+            generatedMessageToolCallsRef.current.clear();
             pendingResumesRef.current.clear();
             activeRunContextRef.current = null;
             runQueue.drop();
@@ -845,6 +897,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
       toolResultBufferRef.current.clear();
       toolCallRunContextsRef.current.clear();
       toolCallIdAliasesRef.current.clear();
+      generatedMessageToolCallsRef.current.clear();
       pendingResumesRef.current.clear();
       activeRunContextRef.current = null;
       if (!load || !threadListItem) return;
