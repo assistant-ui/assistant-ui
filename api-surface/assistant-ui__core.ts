@@ -2271,7 +2271,8 @@ declare class LocalThreadRuntimeCore extends BaseThreadRuntimeCore implements Th
   __internal_setGetInitializePromise(getPromise: () => Promise<unknown> | undefined): void;
   get extras(): undefined;
   __internal_setOptions(options: LocalRuntimeOptionsBase): void;
-  private _loadPromise;
+  private _loadRequest;
+  private _lastHistoryAdapterKey;
   __internal_load(): Promise<void>;
   append(message: AppendMessage): Promise<void>;
   getQueueItems(): readonly QueueItemState[];
