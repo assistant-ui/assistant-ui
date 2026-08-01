@@ -11,10 +11,13 @@ import {
 } from "@assistant-ui/core/react";
 import { useAui, useAuiState } from "@assistant-ui/store";
 import { useLangGraphRuntime } from "./useLangGraphRuntime";
-import { useLangGraphSend } from "./hooks";
+import { useLangGraphSend, useLangGraphSendCommand } from "./hooks";
 import { mockStreamCallbackFactory } from "./testUtils";
 import type { LangChainMessage } from "./types";
-import type { LangGraphInterruptState } from "./useLangGraphMessages";
+import type {
+  LangGraphInterruptState,
+  LangGraphSendMessageConfig,
+} from "./useLangGraphMessages";
 import { useMemo, type ReactNode } from "react";
 
 type LoadResult = {
@@ -1052,7 +1055,10 @@ describe("useLangGraphRuntime", () => {
     });
 
     it("sends a tool result immediately when no run is in flight", async () => {
-      const streamMock = vi.fn(async function* (_messages: LangChainMessage[]) {
+      const streamMock = vi.fn(async function* (
+        _messages: LangChainMessage[],
+        _config: LangGraphSendMessageConfig,
+      ) {
         if (streamMock.mock.calls.length === 1) {
           yield toolCallEvent;
         }
@@ -1083,7 +1089,10 @@ describe("useLangGraphRuntime", () => {
       const runConfig = {
         custom: { configurable: { model_name: "gpt-5.4-nano" } },
       };
-      const streamMock = vi.fn(async function* (_messages: LangChainMessage[]) {
+      const streamMock = vi.fn(async function* (
+        _messages: LangChainMessage[],
+        _config: LangGraphSendMessageConfig,
+      ) {
         if (streamMock.mock.calls.length === 1) {
           yield toolCallEvent;
         }
@@ -1111,6 +1120,224 @@ describe("useLangGraphRuntime", () => {
 
       await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(2));
       expect(streamMock.mock.calls[1]?.[1].runConfig).toEqual(runConfig);
+    });
+
+    it("preserves run config through a command before a tool resume", async () => {
+      const runConfig = {
+        custom: { configurable: { model_name: "gpt-5.4-nano" } },
+      };
+      const streamMock = vi.fn(async function* (
+        _messages: LangChainMessage[],
+        _config: LangGraphSendMessageConfig,
+      ) {
+        if (streamMock.mock.calls.length === 2) {
+          yield toolCallEvent;
+        }
+      });
+
+      const { result: runtimeResult } = renderHook(() =>
+        useLangGraphRuntime({ stream: streamMock }),
+      );
+      const wrapper = wrapperFactory(runtimeResult.current);
+      const { result: auiResult } = renderHook(() => useAui(), { wrapper });
+      const { result: sendCommandResult } = renderHook(
+        () => useLangGraphSendCommand(),
+        { wrapper },
+      );
+
+      await act(async () => {
+        auiResult.current.composer.setRunConfig(runConfig);
+        auiResult.current.composer.setText("begin");
+        auiResult.current.composer.send();
+      });
+      await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(1));
+      await waitFor(() =>
+        expect(auiResult.current.thread.getState().isRunning).toBe(false),
+      );
+
+      await act(async () => {
+        await sendCommandResult.current({ resume: "continue" });
+      });
+      await waitForToolCallPart(auiResult.current);
+
+      addToolResult(runtimeResult.current, { temperature: 72 });
+
+      await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(3));
+      expect(streamMock.mock.calls[2]?.[1].runConfig).toEqual(runConfig);
+    });
+
+    it("uses the owning run config when a later run is already queued", async () => {
+      const firstRunConfig = {
+        custom: { configurable: { model_name: "gpt-5.4-nano" } },
+      };
+      const nextRunConfig = {
+        custom: { configurable: { model_name: "claude-haiku-4-5" } },
+      };
+      const gate = deferred<void>();
+      const streamMock = vi.fn(async function* (
+        _messages: LangChainMessage[],
+        _config: LangGraphSendMessageConfig,
+      ) {
+        if (streamMock.mock.calls.length === 1) {
+          yield toolCallEvent;
+          await gate.promise;
+        }
+      });
+
+      const { result: runtimeResult } = renderHook(() =>
+        useLangGraphRuntime({
+          stream: streamMock,
+          autoCancelPendingToolCalls: false,
+        }),
+      );
+      const wrapper = wrapperFactory(runtimeResult.current);
+      const { result: auiResult } = renderHook(() => useAui(), { wrapper });
+      const { result: sendResult } = renderHook(() => useLangGraphSend(), {
+        wrapper,
+      });
+
+      await act(async () => {
+        auiResult.current.composer.setRunConfig(firstRunConfig);
+        auiResult.current.composer.setText("what's the weather?");
+        auiResult.current.composer.send();
+      });
+      await waitForToolCallPart(auiResult.current);
+
+      act(() => {
+        void sendResult.current(
+          [{ type: "human", content: "use another model next" }],
+          { runConfig: nextRunConfig },
+        );
+      });
+      addToolResult(runtimeResult.current, { temperature: 72 });
+
+      await act(async () => {
+        gate.resolve();
+      });
+      await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(3));
+      expect(streamMock.mock.calls[1]?.[1].runConfig).toEqual(nextRunConfig);
+      expect(streamMock.mock.calls[2]?.[1].runConfig).toEqual(firstRunConfig);
+    });
+
+    it("does not reuse run config for a later unconfigured turn", async () => {
+      const runConfig = {
+        custom: { configurable: { model_name: "gpt-5.4-nano" } },
+      };
+      const streamMock = vi.fn(async function* (
+        _messages: LangChainMessage[],
+        _config: LangGraphSendMessageConfig,
+      ) {
+        if (streamMock.mock.calls.length === 2) {
+          yield toolCallEvent;
+        }
+      });
+
+      const { result: runtimeResult } = renderHook(() =>
+        useLangGraphRuntime({ stream: streamMock }),
+      );
+      const wrapper = wrapperFactory(runtimeResult.current);
+      const { result: auiResult } = renderHook(() => useAui(), { wrapper });
+      const { result: sendResult } = renderHook(() => useLangGraphSend(), {
+        wrapper,
+      });
+
+      await act(async () => {
+        auiResult.current.composer.setRunConfig(runConfig);
+        auiResult.current.composer.setText("first turn");
+        auiResult.current.composer.send();
+      });
+      await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(1));
+      await waitFor(() =>
+        expect(auiResult.current.thread.getState().isRunning).toBe(false),
+      );
+
+      await act(async () => {
+        await sendResult.current(
+          [{ type: "human", content: "unconfigured turn" }],
+          {},
+        );
+      });
+      await waitForToolCallPart(auiResult.current);
+
+      addToolResult(runtimeResult.current, { temperature: 72 });
+
+      await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(3));
+      expect(streamMock.mock.calls[2]?.[1].runConfig).toBeUndefined();
+    });
+
+    it("does not carry run config into a loaded thread", async () => {
+      const runConfig = {
+        custom: { configurable: { model_name: "gpt-5.4-nano" } },
+      };
+      const load = vi.fn(async (): Promise<LoadResult> => ({ messages: [] }));
+      const adapter: RemoteThreadListAdapter = {
+        ...makeThreadListAdapter(),
+        list: vi.fn(async () => ({
+          threads: ["thread-a", "thread-b"].map((threadId) => ({
+            status: "regular" as const,
+            remoteId: threadId,
+            externalId: threadId,
+          })),
+        })),
+      };
+      const streamMock = vi.fn(async function* (
+        _messages: LangChainMessage[],
+        _config: LangGraphSendMessageConfig,
+      ) {
+        if (streamMock.mock.calls.length === 2) {
+          yield toolCallEvent;
+        }
+      });
+
+      const { result: runtimeResult } = renderHook(() =>
+        useLangGraphRuntime({
+          stream: streamMock,
+          load,
+          unstable_threadListAdapter: adapter,
+        }),
+      );
+      const wrapper = wrapperFactory(runtimeResult.current);
+      const { result: auiResult } = renderHook(() => useAui(), { wrapper });
+      const { result: sendResult } = renderHook(() => useLangGraphSend(), {
+        wrapper,
+      });
+      const { result: sendCommandResult } = renderHook(
+        () => useLangGraphSendCommand(),
+        { wrapper },
+      );
+
+      await act(async () => {
+        await runtimeResult.current.threads.switchToThread("thread-a");
+      });
+      await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
+
+      await act(async () => {
+        await sendResult.current([{ type: "human", content: "first thread" }], {
+          runConfig,
+        });
+      });
+      await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(1));
+      await waitFor(() =>
+        expect(auiResult.current.thread.getState().isRunning).toBe(false),
+      );
+
+      await act(async () => {
+        await runtimeResult.current.threads.switchToThread("thread-b");
+      });
+      await waitFor(() => expect(load).toHaveBeenCalledTimes(2));
+      await waitFor(() =>
+        expect(auiResult.current.thread.getState().isLoading).toBe(false),
+      );
+
+      await act(async () => {
+        await sendCommandResult.current({ resume: "continue" });
+      });
+      await waitForToolCallPart(auiResult.current);
+
+      addToolResult(runtimeResult.current, { temperature: 72 });
+
+      await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(3));
+      expect(streamMock.mock.calls[2]?.[1].runConfig).toBeUndefined();
     });
 
     it("drops the queued resume when the run is cancelled", async () => {
