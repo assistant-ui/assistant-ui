@@ -250,8 +250,9 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
   }
 
   public stopSpeaking() {
-    if (!this._stopSpeaking) throw new Error("No message is being spoken");
-    this._stopSpeaking();
+    const stopSpeaking = this._stopSpeaking;
+    if (!stopSpeaking) return;
+    stopSpeaking();
     this._notifySubscribers();
   }
 

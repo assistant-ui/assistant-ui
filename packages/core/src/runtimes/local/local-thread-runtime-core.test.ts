@@ -1274,4 +1274,14 @@ describe("LocalThreadRuntimeCore runs", () => {
     expect(thread.capabilities.attachments).toBe(false);
     expect(thread.capabilities.feedback).toBe(false);
   });
+
+  it("treats stopping inactive speech as a no-op", () => {
+    const thread = createPlainThread({
+      async run() {
+        return { content: [] };
+      },
+    });
+
+    expect(() => thread.stopSpeaking()).not.toThrow();
+  });
 });

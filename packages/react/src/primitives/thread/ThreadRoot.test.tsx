@@ -1,56 +1,170 @@
-/**
- * @vitest-environment jsdom
- */
-import { act, render } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+// @vitest-environment jsdom
+
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
+import type { FC, PropsWithChildren } from "react";
+import { describe, expect, it, vi } from "vitest";
+import { AssistantRuntimeProvider } from "../../context";
+import { useLocalRuntime } from "../../legacy-runtime/runtime-cores/local/useLocalRuntime";
+import type {
+  ChatModelAdapter,
+  SpeechSynthesisAdapter,
+  ThreadMessageLike,
+} from "../../index";
 import { ThreadPrimitiveRoot } from "./ThreadRoot";
 
-const stopSpeaking = vi.fn();
-const threadState = {
-  speech: undefined as undefined | { messageId: string; status: "running" },
+const noOpAdapter: ChatModelAdapter = {
+  async *run() {},
 };
 
-vi.mock("@assistant-ui/store", () => ({
-  useAui: () => ({
-    thread: {
-      getState: () => threadState,
-      stopSpeaking,
-    },
-  }),
-}));
+const initialMessages: ThreadMessageLike[] = [
+  {
+    role: "assistant",
+    content: [{ type: "text", text: "Hello" }],
+    status: { type: "complete", reason: "stop" },
+  },
+];
+
+const createSpeechAdapter = () => {
+  const cancel = vi.fn();
+  const utterance: SpeechSynthesisAdapter.Utterance = {
+    status: { type: "running" },
+    cancel,
+    subscribe: () => () => {},
+  };
+  const adapter: SpeechSynthesisAdapter = {
+    speak: vi.fn(() => utterance),
+  };
+
+  return { adapter, cancel };
+};
+
+type RuntimeRef = {
+  current: ReturnType<typeof useLocalRuntime> | null;
+};
+
+const RuntimeProvider: FC<
+  PropsWithChildren<{
+    runtimeRef: RuntimeRef;
+    speech: SpeechSynthesisAdapter;
+  }>
+> = ({ children, runtimeRef, speech }) => {
+  const runtime = useLocalRuntime(noOpAdapter, {
+    initialMessages,
+    adapters: { speech },
+  });
+  runtimeRef.current = runtime;
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+};
+
+const startSpeaking = (runtimeRef: RuntimeRef) => {
+  act(() => {
+    runtimeRef.current!.thread.getMessageByIndex(0).speak();
+  });
+};
+
+const dispatchEscape = (target: EventTarget) => {
+  const event = new KeyboardEvent("keydown", {
+    key: "Escape",
+    bubbles: true,
+    cancelable: true,
+  });
+  act(() => target.dispatchEvent(event));
+  return event;
+};
 
 describe("ThreadPrimitiveRoot", () => {
-  beforeEach(() => {
-    stopSpeaking.mockReset();
-    threadState.speech = undefined;
-  });
+  it("stops active speech after the initiating control unmounts", async () => {
+    const speech = createSpeechAdapter();
+    const runtimeRef: RuntimeRef = { current: null };
+    const App = ({ showControl }: { showControl: boolean }) => (
+      <RuntimeProvider runtimeRef={runtimeRef} speech={speech.adapter}>
+        <ThreadPrimitiveRoot>
+          {showControl && <button data-testid="speak-control" />}
+        </ThreadPrimitiveRoot>
+      </RuntimeProvider>
+    );
+    const view = render(<App showControl />);
 
-  it("stops active speech on Escape without a message action bar", () => {
-    threadState.speech = { messageId: "msg-1", status: "running" };
-    render(<ThreadPrimitiveRoot />);
-    const event = new KeyboardEvent("keydown", {
-      key: "Escape",
-      bubbles: true,
-      cancelable: true,
+    const control = screen.getByTestId("speak-control");
+    fireEvent.pointerDown(control);
+    control.focus();
+    startSpeaking(runtimeRef);
+    await waitFor(() => {
+      expect(runtimeRef.current!.thread.getState().speech).toBeDefined();
     });
 
-    act(() => document.dispatchEvent(event));
+    view.rerender(<App showControl={false} />);
+    const event = dispatchEscape(document.body);
 
-    expect(stopSpeaking).toHaveBeenCalledOnce();
+    expect(speech.cancel).toHaveBeenCalledOnce();
     expect(event.defaultPrevented).toBe(true);
   });
 
   it("does not consume Escape when no speech is active", () => {
-    render(<ThreadPrimitiveRoot />);
-    const event = new KeyboardEvent("keydown", {
-      key: "Escape",
-      bubbles: true,
-      cancelable: true,
+    const speech = createSpeechAdapter();
+    const runtimeRef: RuntimeRef = { current: null };
+    render(
+      <RuntimeProvider runtimeRef={runtimeRef} speech={speech.adapter}>
+        <ThreadPrimitiveRoot>
+          <button data-testid="thread-control" />
+        </ThreadPrimitiveRoot>
+      </RuntimeProvider>,
+    );
+
+    const event = dispatchEscape(screen.getByTestId("thread-control"));
+
+    expect(speech.cancel).not.toHaveBeenCalled();
+    expect(event.defaultPrevented).toBe(false);
+  });
+
+  it("only stops speech in the thread that received Escape", async () => {
+    const firstSpeech = createSpeechAdapter();
+    const secondSpeech = createSpeechAdapter();
+    const firstRuntimeRef: RuntimeRef = { current: null };
+    const secondRuntimeRef: RuntimeRef = { current: null };
+    render(
+      <>
+        <RuntimeProvider
+          runtimeRef={firstRuntimeRef}
+          speech={firstSpeech.adapter}
+        >
+          <ThreadPrimitiveRoot>
+            <button data-testid="first-thread-control" />
+          </ThreadPrimitiveRoot>
+        </RuntimeProvider>
+        <RuntimeProvider
+          runtimeRef={secondRuntimeRef}
+          speech={secondSpeech.adapter}
+        >
+          <ThreadPrimitiveRoot>
+            <button data-testid="second-thread-control" />
+          </ThreadPrimitiveRoot>
+        </RuntimeProvider>
+      </>,
+    );
+
+    startSpeaking(firstRuntimeRef);
+    startSpeaking(secondRuntimeRef);
+    await waitFor(() => {
+      expect(firstRuntimeRef.current!.thread.getState().speech).toBeDefined();
+      expect(secondRuntimeRef.current!.thread.getState().speech).toBeDefined();
     });
 
-    act(() => document.dispatchEvent(event));
+    const event = dispatchEscape(screen.getByTestId("second-thread-control"));
 
-    expect(stopSpeaking).not.toHaveBeenCalled();
-    expect(event.defaultPrevented).toBe(false);
+    expect(firstSpeech.cancel).not.toHaveBeenCalled();
+    expect(secondSpeech.cancel).toHaveBeenCalledOnce();
+    expect(event.defaultPrevented).toBe(true);
   });
 });
