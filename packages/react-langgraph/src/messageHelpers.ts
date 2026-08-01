@@ -58,9 +58,8 @@ export const findMatchingLangChainToolCallIndex = (
   const previousAtIndex = previousToolCalls[toolCallIndex];
   if (
     previousAtIndex &&
-    !previousAtIndex.id &&
-    previousAtIndex.index == null &&
-    !toolCall.id
+    previousAtIndex.name === toolCall.name &&
+    (!previousAtIndex.id || !toolCall.id)
   ) {
     return toolCallIndex;
   }

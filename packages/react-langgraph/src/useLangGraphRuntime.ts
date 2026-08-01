@@ -186,6 +186,53 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
   const toolCallRunContextsRef = useRef(new Map<string, RunContext>());
   const toolCallIdAliasesRef = useRef(new Map<string, string>());
   const loadedToolCallIdsBeingMaterializedRef = useRef(new Set<string>());
+  // Buffers client tool results within a turn so parallel tool calls resume the
+  // graph in one run once every pending call has a result. See bufferToolResult.
+  const toolResultBufferRef = useRef<
+    Map<string, LangChainMessage & { type: "tool" }>
+  >(new Map());
+  // Resume batches currently sitting in the run queue, keyed by the context of
+  // the run that emitted their tool calls. Results arriving before a batch is
+  // sent merge into that batch without combining separate turns.
+  const pendingResumesRef = useRef(
+    new Map<RunContext, (LangChainMessage & { type: "tool" })[]>(),
+  );
+  const installToolCallIdAlias = useCallback(
+    (previousToolCallId: string, toolCallId: string) => {
+      toolCallIdAliasesRef.current.set(previousToolCallId, toolCallId);
+
+      const bufferedResult =
+        toolResultBufferRef.current.get(previousToolCallId);
+      if (bufferedResult) {
+        toolResultBufferRef.current.delete(previousToolCallId);
+        if (!toolResultBufferRef.current.has(toolCallId)) {
+          toolResultBufferRef.current.set(toolCallId, {
+            ...bufferedResult,
+            tool_call_id: toolCallId,
+          });
+        }
+      }
+
+      for (const batch of pendingResumesRef.current.values()) {
+        const previousIndex = batch.findIndex(
+          (message) => message.tool_call_id === previousToolCallId,
+        );
+        if (previousIndex === -1) continue;
+        const existingIndex = batch.findIndex(
+          (message) => message.tool_call_id === toolCallId,
+        );
+        if (existingIndex === -1) {
+          batch[previousIndex] = {
+            ...batch[previousIndex]!,
+            tool_call_id: toolCallId,
+          };
+        } else {
+          batch.splice(previousIndex, 1);
+        }
+      }
+    },
+    [],
+  );
   const appendMessage = useCallback(
     (previous: LangChainMessage | undefined, current: LangChainMessage) => {
       const message = appendLangChainChunk(previous, current);
@@ -219,10 +266,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
               idlessMessageToolCallId,
             )
           ) {
-            toolCallIdAliasesRef.current.set(
-              idlessMessageToolCallId,
-              toolCallId,
-            );
+            installToolCallIdAlias(idlessMessageToolCallId, toolCallId);
             const materializedRunContext = toolCallRunContextsRef.current.get(
               idlessMessageToolCallId,
             );
@@ -235,7 +279,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
             }
           }
           if (previousToolCallId && previousToolCallId !== toolCallId) {
-            toolCallIdAliasesRef.current.set(previousToolCallId, toolCallId);
+            installToolCallIdAlias(previousToolCallId, toolCallId);
             const previousRunContext =
               toolCallRunContextsRef.current.get(previousToolCallId);
             if (previousRunContext) {
@@ -265,7 +309,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
       }
       return message;
     },
-    [],
+    [installToolCallIdAlias],
   );
   const wrappedEventHandlers = useMemo(
     () =>
@@ -329,17 +373,6 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
   >({});
   const toolArgsKeyOrderCacheRef = useRef<Map<string, Map<string, string[]>>>(
     new Map(),
-  );
-  // Buffers client tool results within a turn so parallel tool calls resume the
-  // graph in one run once every pending call has a result. See bufferToolResult.
-  const toolResultBufferRef = useRef<
-    Map<string, LangChainMessage & { type: "tool" }>
-  >(new Map());
-  // Resume batches currently sitting in the run queue, keyed by the context of
-  // the run that emitted their tool calls. Results arriving before a batch is
-  // sent merge into that batch without combining separate turns.
-  const pendingResumesRef = useRef(
-    new Map<RunContext, (LangChainMessage & { type: "tool" })[]>(),
   );
   const hasExecutingTools = Object.values(toolStatuses).some(
     (s) => s?.type === "executing",

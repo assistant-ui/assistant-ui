@@ -1262,6 +1262,160 @@ describe("useLangGraphRuntime", () => {
       expect(streamMock.mock.calls[1]?.[1].runConfig).toEqual(runConfig);
     });
 
+    it("canonicalizes a queued tool result when the real id arrives", async () => {
+      const runConfig = {
+        custom: { configurable: { model_name: "gpt-5.4-nano" } },
+      };
+      const completionGate = deferred<void>();
+      const streamMock = vi.fn(async function* (
+        _messages: LangChainMessage[],
+        _config: LangGraphSendMessageConfig,
+      ) {
+        if (streamMock.mock.calls.length === 1) {
+          yield {
+            event: "messages/complete",
+            data: [
+              {
+                id: "ai-queued-upgrade",
+                type: "ai" as const,
+                content: "",
+                tool_calls: [
+                  { id: "", index: 0, name: "get_weather", args: {} },
+                ],
+              },
+            ],
+          };
+          await completionGate.promise;
+          yield {
+            event: "messages/complete",
+            data: [
+              {
+                id: "ai-queued-upgrade",
+                type: "ai" as const,
+                content: "",
+                tool_calls: [{ id: "tc-real", name: "get_weather", args: {} }],
+              },
+            ],
+          };
+        }
+      });
+
+      const { result: runtimeResult } = renderHook(() =>
+        useLangGraphRuntime({ stream: streamMock }),
+      );
+      const wrapper = wrapperFactory(runtimeResult.current);
+      const { result: auiResult } = renderHook(() => useAui(), { wrapper });
+
+      await act(async () => {
+        auiResult.current.composer.setRunConfig(runConfig);
+        auiResult.current.composer.setText("what's the weather?");
+        auiResult.current.composer.send();
+      });
+      const synthesizedId = "lc-toolcall-ai-queued-upgrade-0";
+      await waitForToolCallPart(auiResult.current, synthesizedId);
+      addToolResult(
+        runtimeResult.current,
+        { temperature: 72 },
+        "ai-queued-upgrade",
+        synthesizedId,
+      );
+
+      await act(async () => {
+        completionGate.resolve();
+      });
+
+      await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(2));
+      expect(streamMock.mock.calls[1]?.[0]).toMatchObject([
+        { type: "tool", tool_call_id: "tc-real" },
+      ]);
+      expect(streamMock.mock.calls[1]?.[1].runConfig).toEqual(runConfig);
+    });
+
+    it("canonicalizes a buffered parallel result when the real id arrives", async () => {
+      const runConfig = {
+        custom: { configurable: { model_name: "gpt-5.4-nano" } },
+      };
+      const completionGate = deferred<void>();
+      const streamMock = vi.fn(async function* (
+        _messages: LangChainMessage[],
+        _config: LangGraphSendMessageConfig,
+      ) {
+        if (streamMock.mock.calls.length === 1) {
+          yield {
+            event: "messages/complete",
+            data: [
+              {
+                id: "ai-parallel-upgrade",
+                type: "ai" as const,
+                content: "",
+                tool_calls: [
+                  { id: "", index: 0, name: "first_tool", args: {} },
+                  { id: "tc-second", index: 1, name: "second_tool", args: {} },
+                ],
+              },
+            ],
+          };
+          await completionGate.promise;
+          yield {
+            event: "messages/complete",
+            data: [
+              {
+                id: "ai-parallel-upgrade",
+                type: "ai" as const,
+                content: "",
+                tool_calls: [
+                  { id: "tc-first", name: "first_tool", args: {} },
+                  { id: "tc-second", index: 1, name: "second_tool", args: {} },
+                ],
+              },
+            ],
+          };
+        }
+      });
+
+      const { result: runtimeResult } = renderHook(() =>
+        useLangGraphRuntime({ stream: streamMock }),
+      );
+      const wrapper = wrapperFactory(runtimeResult.current);
+      const { result: auiResult } = renderHook(() => useAui(), { wrapper });
+
+      await act(async () => {
+        auiResult.current.composer.setRunConfig(runConfig);
+        auiResult.current.composer.setText("run both tools");
+        auiResult.current.composer.send();
+      });
+      const synthesizedId = "lc-toolcall-ai-parallel-upgrade-0";
+      await waitForToolCallPart(auiResult.current, synthesizedId);
+      await waitForToolCallPart(auiResult.current, "tc-second");
+      addToolResult(
+        runtimeResult.current,
+        { first: true },
+        "ai-parallel-upgrade",
+        synthesizedId,
+      );
+
+      await act(async () => {
+        completionGate.resolve();
+      });
+      await waitForToolCallPart(auiResult.current, "tc-first");
+      await waitFor(() =>
+        expect(auiResult.current.thread.getState().isRunning).toBe(false),
+      );
+      addToolResult(
+        runtimeResult.current,
+        { second: true },
+        "ai-parallel-upgrade",
+        "tc-second",
+      );
+
+      await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(2));
+      expect(streamMock.mock.calls[1]?.[0]).toMatchObject([
+        { type: "tool", tool_call_id: "tc-first" },
+        { type: "tool", tool_call_id: "tc-second" },
+      ]);
+      expect(streamMock.mock.calls[1]?.[1].runConfig).toEqual(runConfig);
+    });
+
     it("preserves run config through a command before a tool resume", async () => {
       const runConfig = {
         custom: { configurable: { model_name: "gpt-5.4-nano" } },

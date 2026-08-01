@@ -204,7 +204,7 @@ describe("appendLangChainChunk updates-event partial_json", () => {
     expect(final.tool_calls?.[0]?.partial_json).toBe(streamed);
   });
 
-  it("matches anonymous tool calls by position when no stable identity exists", () => {
+  it("matches an anonymous indexed call when the final id arrives without an index", () => {
     const previous: AiMessage = {
       type: "ai",
       id: "ai-1",
@@ -212,6 +212,7 @@ describe("appendLangChainChunk updates-event partial_json", () => {
       tool_calls: [
         {
           id: "",
+          index: 0,
           name: "ask_question",
           args: {},
           partial_json: streamed,
@@ -224,7 +225,7 @@ describe("appendLangChainChunk updates-event partial_json", () => {
       content: "",
       tool_calls: [
         {
-          id: "",
+          id: "call-1",
           name: "ask_question",
           args: { question: "What?" },
         },
