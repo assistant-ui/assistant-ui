@@ -10,7 +10,15 @@ describe("scheduler update depth", () => {
     );
 
     for (const scheduler of schedulers) scheduler.markDirty();
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    // The flush arrives as a MessagePort macrotask where MessageChannel
+    // exists; a single setTimeout tick can be ordered before it.
+    for (
+      let attempt = 0;
+      runCount < schedulers.length && attempt < 200;
+      attempt++
+    ) {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
 
     expect(runCount).toBe(60);
     expect(schedulers.every((scheduler) => !scheduler.isDirty)).toBe(true);
