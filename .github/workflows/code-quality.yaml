@@ -70,6 +70,12 @@ jobs:
       - name: Check resource memoization (React Compiler)
         run: pnpm check:resource-memo
 
+      - name: Check useMemo owned state (React Compiler)
+        run: pnpm check:usememo-state
+
+      - name: Test useMemo owned-state check
+        run: pnpm check:usememo-state:test
+
   template-sync:
     name: Template Sync
     runs-on: blacksmith-4vcpu-ubuntu-2404

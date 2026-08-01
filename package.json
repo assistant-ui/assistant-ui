@@ -16,6 +16,8 @@
     "api-surface:test": "node --test scripts/generate-api-surface.test.mjs",
     "lint": "pnpm exec oxlint && pnpm exec oxfmt --check",
     "check:resource-memo": "node packages/x-buildutils/check-resource-memoization.mjs",
+    "check:usememo-state": "node packages/x-buildutils/check-usememo-owned-state.mjs",
+    "check:usememo-state:test": "node --test packages/x-buildutils/check-usememo-owned-state.test.mjs",
     "lint:fix": "pnpm exec oxlint --fix && pnpm exec oxfmt",
     "format": "pnpm exec oxfmt --check",
     "format:fix": "pnpm exec oxfmt",
