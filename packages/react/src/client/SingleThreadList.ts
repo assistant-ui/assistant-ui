@@ -75,6 +75,7 @@ const useSingleThreadList = ({
     },
     getLoadThreadsPromise: () => RESOLVED_PROMISE,
     reload: () => RESOLVED_PROMISE,
+    reloadMainThread: () => RESOLVED_PROMISE,
     loadMore: () => RESOLVED_PROMISE,
     item: (selector) => {
       if (
