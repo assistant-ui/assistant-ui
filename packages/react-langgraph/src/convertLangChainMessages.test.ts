@@ -1552,11 +1552,12 @@ describe("convertLangChainMessages audio transcripts", () => {
     expect(result.content).toEqual([{ type: "text", text: "written answer" }]);
   });
 
-  it("ignores an absent, empty, or non-string transcript", () => {
+  it("ignores an absent, blank, or non-string transcript", () => {
     for (const audio of [
       undefined,
       {},
       { transcript: "" },
+      { transcript: "   " },
       { transcript: 42 },
     ]) {
       const result = convertLangChainMessages(audioMessage("", audio));

@@ -115,7 +115,8 @@ const withAudioTranscript = (
 ): ReturnType<typeof contentToParts> => {
   const audio = additionalKwargs?.audio as { transcript?: unknown } | undefined;
   const transcript = audio?.transcript;
-  if (typeof transcript !== "string" || !transcript) return parts;
+  if (typeof transcript !== "string" || !hasVisibleText(transcript))
+    return parts;
   if (parts.some((part) => part.type === "text" && hasVisibleText(part.text)))
     return parts;
   return [

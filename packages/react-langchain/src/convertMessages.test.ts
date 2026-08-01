@@ -927,11 +927,12 @@ describe("convertLangChainBaseMessage audio transcripts", () => {
     ]);
   });
 
-  it("ignores an absent, empty, or non-string transcript", () => {
+  it("ignores an absent, blank, or non-string transcript", () => {
     for (const audio of [
       undefined,
       {},
       { transcript: "" },
+      { transcript: "   " },
       { transcript: 42 },
     ]) {
       const result = convertLangChainBaseMessage(audioMessage("", audio), {});
