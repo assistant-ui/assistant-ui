@@ -552,7 +552,25 @@ function CertificateDialog({
               <p className="text-muted-foreground text-xs">
                 Certificate saved to this course.
               </p>
-              <Button onClick={() => onClose(false)}>Done</Button>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="gap-2"
+                  onClick={() =>
+                    downloadCertificateImage({
+                      courseId,
+                      courseTitle,
+                      name,
+                      generatedAt,
+                    })
+                  }
+                >
+                  <Download className="size-4" />
+                  Download image
+                </Button>
+                <Button onClick={() => onClose(false)}>Done</Button>
+              </div>
             </div>
           </>
         ) : (
@@ -698,4 +716,108 @@ function formatCertificateDate(timestamp: number) {
     month: "long",
     day: "numeric",
   }).format(timestamp);
+}
+
+function downloadCertificateImage({
+  courseId,
+  courseTitle,
+  name,
+  generatedAt,
+}: {
+  courseId: string;
+  courseTitle: string;
+  name: string;
+  generatedAt: number;
+}) {
+  const canvas = document.createElement("canvas");
+  canvas.width = 1600;
+  canvas.height = 1000;
+  const context = canvas.getContext("2d");
+  if (!context) return;
+
+  const background = context.createRadialGradient(800, 0, 0, 800, 0, 1200);
+  background.addColorStop(0, "#fffbeb");
+  background.addColorStop(0.52, "#ffffff");
+  background.addColorStop(1, "#eff6ff");
+  context.fillStyle = background;
+  context.fillRect(0, 0, canvas.width, canvas.height);
+
+  context.strokeStyle = "#f59e0b";
+  context.lineWidth = 12;
+  context.strokeRect(18, 18, 1564, 964);
+  context.lineWidth = 3;
+  context.strokeRect(38, 38, 1524, 924);
+
+  context.fillStyle = "#172554";
+  context.beginPath();
+  context.arc(800, 155, 66, 0, Math.PI * 2);
+  context.fill();
+  context.strokeStyle = "#fcd34d";
+  context.lineWidth = 10;
+  context.stroke();
+  context.fillStyle = "#fde68a";
+  context.font = "700 32px system-ui, sans-serif";
+  context.textAlign = "center";
+  context.textBaseline = "middle";
+  context.fillText("AUI", 800, 157);
+
+  context.textBaseline = "alphabetic";
+  context.fillStyle = "#172554";
+  context.font = "700 24px system-ui, sans-serif";
+  context.fillText(
+    "C E R T I F I C A T E   O F   C O M P L E T I O N",
+    800,
+    285,
+  );
+  context.font = "700 58px system-ui, sans-serif";
+  context.fillText("assistant-ui", 800, 370);
+
+  context.fillStyle = "#475569";
+  context.font = "400 25px system-ui, sans-serif";
+  context.fillText("This certificate is proudly presented to", 800, 455);
+
+  context.fillStyle = "#0f172a";
+  context.font = "600 55px Georgia, serif";
+  context.fillText(name, 800, 535, 1200);
+  context.strokeStyle = "#d97706";
+  context.lineWidth = 2;
+  context.beginPath();
+  context.moveTo(300, 565);
+  context.lineTo(1300, 565);
+  context.stroke();
+
+  context.fillStyle = "#475569";
+  context.font = "400 25px system-ui, sans-serif";
+  context.fillText("for successfully completing", 800, 635);
+  context.fillStyle = "#172554";
+  context.font = "700 36px system-ui, sans-serif";
+  context.fillText(courseTitle, 800, 700, 1300);
+
+  context.textAlign = "left";
+  context.fillStyle = "#334155";
+  context.font = "600 21px system-ui, sans-serif";
+  context.fillText(formatCertificateDate(generatedAt), 120, 875);
+  context.fillStyle = "#64748b";
+  context.font = "400 18px system-ui, sans-serif";
+  context.fillText("Date awarded", 120, 905);
+
+  context.textAlign = "right";
+  context.fillStyle = "#334155";
+  context.font = "600 21px ui-monospace, monospace";
+  context.fillText(`XLX-${generatedAt.toString(36).toUpperCase()}`, 1480, 875);
+  context.fillStyle = "#64748b";
+  context.font = "400 18px system-ui, sans-serif";
+  context.fillText("Certificate ID", 1480, 905);
+
+  canvas.toBlob((blob) => {
+    if (!blob) return;
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `assistant-ui-${courseId}-certificate.png`;
+    document.body.append(anchor);
+    anchor.click();
+    anchor.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 0);
+  }, "image/png");
 }
