@@ -266,11 +266,7 @@ export class LocalThreadRuntimeCore
       !Object.is(this._lastHistoryAdapterKey, key);
     if (replacingHistory) {
       this._historyScopeGeneration += 1;
-      this._queue?.adapter.clear("reload");
-      this.abortController?.abort(new AbortError(false));
-      this.abortController = null;
-      this._suggestionsController?.abort();
-      this._suggestionsController = null;
+      this.cancelRun();
       this.repository.import({ headId: null, messages: [] });
     }
 
