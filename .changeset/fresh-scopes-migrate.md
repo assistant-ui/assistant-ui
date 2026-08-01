@@ -2,4 +2,4 @@
 "@assistant-ui/store": patch
 ---
 
-fix: add committed-client effects that migrate registrations when their selected scope is replaced
+feat: add a committed-client effect for internal registration consumers
