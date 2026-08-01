@@ -216,6 +216,16 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
   });
   const langGraphMessagesRef = useRef(messages);
   langGraphMessagesRef.current = messages;
+  useEffect(() => {
+    const currentMessageIds = new Set(
+      messages.flatMap((message) => (message.id ? [message.id] : [])),
+    );
+    for (const messageId of messageRunContextsRef.current.keys()) {
+      if (!currentMessageIds.has(messageId)) {
+        messageRunContextsRef.current.delete(messageId);
+      }
+    }
+  }, [messages]);
 
   const [isRunning, setIsRunning] = useState(false);
   const [isLoadingThread, setIsLoadingThread] = useState(
@@ -306,7 +316,6 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
       return sendMessageRef.current(messages, config, () => {
         activeRunContextRef.current = null;
         if (runErrorBalanceRef.current > 0) {
-          toolResultBufferRef.current.clear();
           pendingResumesRef.current.clear();
           runQueueRef.current!.drop();
         }
@@ -323,18 +332,10 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
     runContext?: RunContext,
   ) => {
     const resolvedRunContext = runContext ?? { runConfig: config.runConfig };
-    const messagesWithIds = messages.every((message) => message.id)
-      ? messages
-      : messages.map((message) =>
-          message.id ? message : { ...message, id: generateId() },
-        );
-    for (const message of messagesWithIds) {
-      messageRunContextsRef.current.set(message.id!, resolvedRunContext);
-    }
     const state = pendingStateRef.current;
     pendingStateRef.current = undefined;
     return runQueue.enqueue({
-      messages: messagesWithIds,
+      messages,
       config: state ? { ...config, state } : config,
       runContext: resolvedRunContext,
     });
@@ -557,7 +558,6 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
             getToolCallRunContext(toolCall.id) === runContext,
         ),
         {
-          id: generateId(),
           type: "tool",
           name: toolName,
           tool_call_id: toolCallId,
@@ -694,19 +694,24 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
       const load = loadRef.current;
       if (!load || !threadListItem) return;
 
-      const externalId = threadListItem.getState().externalId;
-      if (externalId == null) return;
-
-      // drop stale callbacks and abort the pending load on thread switch/unmount
-      const controller = new AbortController();
       toolResultBufferRef.current.clear();
       pendingResumesRef.current.clear();
       messageRunContextsRef.current.clear();
       activeRunContextRef.current = null;
+      runQueue.drop();
       pendingStateRef.current = undefined;
       effectiveStateRef.current = undefined;
       setOptimisticState(undefined);
       setValues(undefined);
+
+      const externalId = threadListItem.getState().externalId;
+      if (externalId == null) {
+        setIsLoadingThread(false);
+        return;
+      }
+
+      // drop stale callbacks and abort the pending load on thread switch/unmount
+      const controller = new AbortController();
       setIsLoadingThread(true);
       load(externalId, { signal: controller.signal })
         .then(({ messages, interrupts, uiMessages }) => {
@@ -728,7 +733,14 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
         controller.abort();
         setIsLoadingThread(false);
       };
-    }, [threadListItem, setMessages, setUIMessages, setInterrupt, setValues]);
+    }, [
+      threadListItem,
+      runQueue,
+      setMessages,
+      setUIMessages,
+      setInterrupt,
+      setValues,
+    ]);
   }
 
   return runtime;

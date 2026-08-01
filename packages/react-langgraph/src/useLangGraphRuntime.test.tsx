@@ -14,7 +14,10 @@ import { useLangGraphRuntime } from "./useLangGraphRuntime";
 import { useLangGraphSend } from "./hooks";
 import { mockStreamCallbackFactory } from "./testUtils";
 import type { LangChainMessage } from "./types";
-import type { LangGraphInterruptState } from "./useLangGraphMessages";
+import type {
+  LangGraphInterruptState,
+  LangGraphSendMessageConfig,
+} from "./useLangGraphMessages";
 import { useMemo, type ReactNode } from "react";
 
 type LoadResult = {
@@ -1091,7 +1094,10 @@ describe("useLangGraphRuntime", () => {
       const runConfig = {
         custom: { configurable: { model_name: "gpt-5.4-nano" } },
       };
-      const streamMock = vi.fn(async function* (_messages: LangChainMessage[]) {
+      const streamMock = vi.fn(async function* (
+        _messages: LangChainMessage[],
+        _config: LangGraphSendMessageConfig,
+      ) {
         if (streamMock.mock.calls.length === 1) yield toolCallEvent;
       });
 
@@ -1148,7 +1154,10 @@ describe("useLangGraphRuntime", () => {
           ],
         },
       ];
-      const streamMock = vi.fn(async function* (_messages: LangChainMessage[]) {
+      const streamMock = vi.fn(async function* (
+        _messages: LangChainMessage[],
+        _config: LangGraphSendMessageConfig,
+      ) {
         const event = toolEvents[streamMock.mock.calls.length - 1];
         if (event) yield event;
       });
@@ -1202,6 +1211,98 @@ describe("useLangGraphRuntime", () => {
       );
       await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(4));
       expect(streamMock.mock.calls[3]?.[1].runConfig).toEqual(secondRunConfig);
+    });
+
+    it("clears run ownership when switching to a new thread", async () => {
+      const firstRunConfig = { custom: { model: "first" } };
+      const secondRunConfig = { custom: { model: "second" } };
+      const streamMock = vi.fn(async function* (
+        _messages: LangChainMessage[],
+        _config: LangGraphSendMessageConfig,
+      ) {
+        const callIndex = streamMock.mock.calls.length;
+        if (callIndex === 1) {
+          yield {
+            event: "messages/complete",
+            data: [
+              {
+                id: "shared-ai-id",
+                type: "ai" as const,
+                content: "",
+                tool_calls: [{ id: "tc-first", name: "first_tool", args: {} }],
+              },
+            ],
+          };
+        } else if (callIndex === 2) {
+          yield {
+            event: "messages/complete",
+            data: [
+              {
+                id: "shared-ai-id",
+                type: "ai" as const,
+                content: "",
+                tool_calls: [
+                  { id: "tc-second", name: "second_tool", args: {} },
+                ],
+              },
+            ],
+          };
+        }
+      });
+      const load = vi.fn(async () => ({ messages: [] }));
+
+      const { result: runtimeResult } = renderHook(() =>
+        useLangGraphRuntime({
+          stream: streamMock,
+          load,
+          unstable_threadListAdapter: makeThreadListAdapter(),
+          autoCancelPendingToolCalls: false,
+        }),
+      );
+      const wrapper = wrapperFactory(runtimeResult.current);
+      const { result: auiResult } = renderHook(() => useAui(), { wrapper });
+
+      await act(async () => {
+        await runtimeResult.current.threads.switchToThread("lg-thread-1");
+      });
+      await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
+
+      await act(async () => {
+        auiResult.current.composer.setRunConfig(firstRunConfig);
+        auiResult.current.composer.setText("first thread");
+        auiResult.current.composer.send();
+      });
+      await waitForToolCallPart(auiResult.current, "tc-first");
+      await waitFor(() =>
+        expect(auiResult.current.thread.getState().isRunning).toBe(false),
+      );
+
+      await act(async () => {
+        await runtimeResult.current.threads.switchToNewThread();
+      });
+      await waitFor(() =>
+        expect(auiResult.current.thread.getState().messages).toHaveLength(0),
+      );
+
+      await act(async () => {
+        auiResult.current.composer.setRunConfig(secondRunConfig);
+        auiResult.current.composer.setText("second thread");
+        auiResult.current.composer.send();
+      });
+      await waitForToolCallPart(auiResult.current, "tc-second");
+      await waitFor(() =>
+        expect(auiResult.current.thread.getState().isRunning).toBe(false),
+      );
+
+      addToolResult(
+        runtimeResult.current,
+        { second: true },
+        "shared-ai-id",
+        "tc-second",
+      );
+
+      await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(3));
+      expect(streamMock.mock.calls[2]?.[1].runConfig).toEqual(secondRunConfig);
     });
 
     it("drops the queued resume when the run is cancelled", async () => {
@@ -1340,7 +1441,7 @@ describe("useLangGraphRuntime", () => {
       });
     });
 
-    it("clears buffered results when the run ends with a top-level error event", async () => {
+    it("preserves buffered results when the run ends with a top-level error event", async () => {
       const gate = deferred<void>();
       const parallelToolCallEvent = {
         ...toolCallEvent,
@@ -1391,10 +1492,11 @@ describe("useLangGraphRuntime", () => {
         "ai-1",
         "tc-2",
       );
-      await act(async () => {
-        await new Promise((r) => setTimeout(r, 10));
-      });
-      expect(streamMock).toHaveBeenCalledTimes(1);
+      await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(2));
+      expect(streamMock.mock.calls[1]?.[0]).toMatchObject([
+        { type: "tool", tool_call_id: "tc-1", status: "success" },
+        { type: "tool", tool_call_id: "tc-2", status: "success" },
+      ]);
     });
 
     it("still sends the queued resume when only a subgraph reports an error", async () => {
