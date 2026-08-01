@@ -1,26 +1,32 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { UpdateScheduler, flushTapSync } from "../core/scheduler";
 
 describe("scheduler update depth", () => {
   it("runs many independent schedulers in one flush without tripping the limit", async () => {
     let runCount = 0;
+    let flushes = 0;
+    let batching = false;
     const schedulers = Array.from(
       { length: 60 },
-      () => new UpdateScheduler(() => runCount++),
+      () =>
+        new UpdateScheduler(() => {
+          if (!batching) {
+            batching = true;
+            flushes++;
+            // The drain is synchronous, so the microtask resetting the flag
+            // runs after it; flushes counts drain batches, not tasks.
+            queueMicrotask(() => {
+              batching = false;
+            });
+          }
+          runCount++;
+        }),
     );
 
     for (const scheduler of schedulers) scheduler.markDirty();
-    // The flush arrives as a MessagePort macrotask where MessageChannel
-    // exists; a single setTimeout tick can be ordered before it.
-    for (
-      let attempt = 0;
-      runCount < schedulers.length && attempt < 200;
-      attempt++
-    ) {
-      await new Promise((resolve) => setTimeout(resolve, 0));
-    }
+    await vi.waitFor(() => expect(runCount).toBe(60));
 
-    expect(runCount).toBe(60);
+    expect(flushes).toBe(1);
     expect(schedulers.every((scheduler) => !scheduler.isDirty)).toBe(true);
   });
 
