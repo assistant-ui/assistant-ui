@@ -1909,6 +1909,19 @@ describe("useLangGraphRuntime", () => {
         async (): Promise<LoadResult> => ({
           messages: [
             {
+              id: "answered-ai",
+              type: "ai",
+              content: "",
+              tool_calls: [
+                { id: "", index: 0, name: "answered_tool", args: {} },
+              ],
+            },
+            {
+              type: "tool",
+              tool_call_id: "lc-toolcall-answered-ai-0",
+              content: "already answered",
+            },
+            {
               type: "ai",
               content: "",
               tool_calls: [{ id: "", index: 0, name: "get_weather", args: {} }],
@@ -1958,10 +1971,13 @@ describe("useLangGraphRuntime", () => {
       const loadedMessage = auiResult.current.thread
         .getState()
         .messages.find((message) =>
-          message.content.some((part) => part.type === "tool-call"),
+          message.content.some(
+            (part) =>
+              part.type === "tool-call" && part.toolName === "get_weather",
+          ),
         )!;
       const loadedToolCall = loadedMessage.content.find(
-        (part) => part.type === "tool-call",
+        (part) => part.type === "tool-call" && part.toolName === "get_weather",
       )!;
       addToolResult(
         runtimeResult.current,

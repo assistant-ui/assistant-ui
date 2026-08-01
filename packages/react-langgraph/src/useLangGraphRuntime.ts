@@ -195,7 +195,6 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
   const unknownRunContextRef = useRef<RunContext>({ runConfig: undefined });
   const toolCallRunContextsRef = useRef(new Map<string, RunContext>());
   const toolCallIdAliasesRef = useRef(new Map<string, string>());
-  const loadedToolCallIdsBeingMaterializedRef = useRef(new Set<string>());
   // Buffers client tool results within a turn so parallel tool calls resume the
   // graph in one run once every pending call has a result. See bufferToolResult.
   const toolResultBufferRef = useRef<
@@ -264,9 +263,6 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
           previous?.id,
           previousToolCalls,
         );
-        const idlessMessageToolCallIds = previous
-          ? []
-          : getLangChainToolCallIds(undefined, toolCalls);
         for (const [index, toolCall] of toolCalls.entries()) {
           // The accumulator replays history on every run, so existing calls
           // must retain the context of the run that originally emitted them.
@@ -283,16 +279,6 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
                   index,
                 );
           const previousToolCallId = previousToolCallIds[previousToolCallIndex];
-          const idlessMessageToolCallId = idlessMessageToolCallIds[index];
-          if (
-            idlessMessageToolCallId &&
-            idlessMessageToolCallId !== toolCallId &&
-            loadedToolCallIdsBeingMaterializedRef.current.delete(
-              idlessMessageToolCallId,
-            )
-          ) {
-            installToolCallIdAlias(idlessMessageToolCallId, toolCallId);
-          }
           if (previousToolCallId && previousToolCallId !== toolCallId) {
             installToolCallIdAlias(previousToolCallId, toolCallId);
           }
@@ -471,7 +457,6 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
             toolCall.id,
             unknownRunContextRef.current,
           );
-          loadedToolCallIdsBeingMaterializedRef.current.add(toolCall.id);
         }
       }
       activeRunContextRef.current = runContext;
@@ -479,20 +464,14 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
         pendingResumesRef.current.delete(runContext);
       }
       runErrorBalanceRef.current = 0;
-      // sendMessage replays loaded history before its first await, so these IDs
-      // are needed only during that synchronous accumulator materialization.
-      try {
-        return sendMessageRef.current(messages, config, () => {
-          activeRunContextRef.current = null;
-          if (runErrorBalanceRef.current > 0) {
-            pendingResumesRef.current.clear();
-            runQueueRef.current!.drop();
-          }
-          onComplete();
-        });
-      } finally {
-        loadedToolCallIdsBeingMaterializedRef.current.clear();
-      }
+      return sendMessageRef.current(messages, config, () => {
+        activeRunContextRef.current = null;
+        if (runErrorBalanceRef.current > 0) {
+          pendingResumesRef.current.clear();
+          runQueueRef.current!.drop();
+        }
+        onComplete();
+      });
     },
     onRunningChange: setIsRunning,
   });
@@ -886,7 +865,11 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
       load(externalId, { signal: controller.signal })
         .then(({ messages, interrupts, uiMessages }) => {
           if (controller.signal.aborted) return;
-          setMessages(messages);
+          setMessages(
+            messages.map((message) =>
+              message.id ? message : { ...message, id: generateId() },
+            ),
+          );
           setUIMessages(uiMessages ?? []);
           setInterrupt(interrupts?.[0]);
         })
