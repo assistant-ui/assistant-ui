@@ -397,9 +397,9 @@ if (isMain) {
       `\n   If the memo genuinely owns the state, own it with lazy useState instead:\n` +
         `   \`const [x] = useState(() => …)\` (see packages/core/src/react/runtimes/\n` +
         `   external-message-converter.ts, which documents the invariant). If the\n` +
-        `   container is derived from the deps and only read back — this check flags\n` +
-        `   escaping passthrough conservatively — the site is replay-safe: add a\n` +
-        `   \`${OPT_OUT}\` comment inside the function.\n`,
+        `   container is derived from the deps and only read back, or is a pure cache\n` +
+        `   whose loss only costs recomputation — this check flags conservatively —\n` +
+        `   the site is replay-safe: add a \`${OPT_OUT}\` comment inside the function.\n`,
     );
     process.exit(1);
   }
