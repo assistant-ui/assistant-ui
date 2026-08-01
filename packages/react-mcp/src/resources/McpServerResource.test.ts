@@ -147,6 +147,8 @@ const resetMocks = () => {
 const mount = (
   props?: {
     auth?: MCPAuthConfig | undefined;
+    storage?: MCPStorage | undefined;
+    autoConnect?: boolean | undefined;
     connectionTimeout?: number | undefined;
     cache?: { readonly defaultTtlMs?: number } | undefined;
     elicitation?: boolean | undefined;
@@ -164,9 +166,9 @@ const mount = (
         name: "Docs",
         url: "https://example.com/mcp",
         auth: props?.auth ?? { type: "none" },
-        storage: createStorage(),
+        storage: props?.storage ?? createStorage(),
         redirectUri: "https://example.com/callback",
-        autoConnect: false,
+        autoConnect: props?.autoConnect ?? false,
         connectionTimeout,
         cache: props?.cache,
         ...(props?.elicitation !== undefined
@@ -181,6 +183,41 @@ const mount = (
     return server;
   });
 };
+
+describe("McpServerResource automatic authentication", () => {
+  beforeEach(resetMocks);
+
+  it("reports auth storage load failures", async () => {
+    const storage = createStorage();
+    vi.mocked(storage.loadAuthState).mockRejectedValue(
+      new Error("auth storage unavailable"),
+    );
+    const root = mount({
+      auth: { type: "oauth" },
+      storage,
+      autoConnect: true,
+    });
+
+    try {
+      await waitForResourceUpdate(
+        () => root.getValue().getState().connectionState === "error",
+      );
+
+      expect(storage.loadAuthState).toHaveBeenCalledWith("docs");
+      expect(root.getValue().getState()).toMatchObject({
+        connectionState: "error",
+        tools: [],
+        lastError: {
+          message:
+            'MCP server "docs" failed to load saved authentication: auth storage unavailable',
+        },
+      });
+      expect(mocks.StreamableHTTPClientTransport).not.toHaveBeenCalled();
+    } finally {
+      root.unmount();
+    }
+  });
+});
 
 describe("McpServerResource connectionTimeout", () => {
   beforeEach(() => {
