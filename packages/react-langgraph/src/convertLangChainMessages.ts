@@ -239,7 +239,7 @@ const withAudioTranscript = (
 ): ReturnType<typeof contentToParts> => {
   const transcript: unknown = additionalKwargs?.audio?.transcript;
   if (typeof transcript !== "string" || !transcript) return parts;
-  if (parts.some((part) => part.type === "text" && part.text.trim()))
+  if (parts.some((part) => part.type === "text" && part.text?.trim()))
     return parts;
   return [
     ...parts.filter((part) => part.type !== "text"),
