@@ -31,11 +31,12 @@ const mergeStreamedToolCallArgs = (
   if (prevToolCalls.length === 0 || currToolCalls.length === 0) return curr;
 
   let changed = false;
-  const mergedToolCalls = currToolCalls.map((toolCall) => {
+  const mergedToolCalls = currToolCalls.map((toolCall, toolCallIndex) => {
     if (toolCall.partial_json) return toolCall;
     const matchingIndex = findMatchingLangChainToolCallIndex(
       prevToolCalls,
       toolCall,
+      toolCallIndex,
     );
     const streamedPartialJson = prevToolCalls[matchingIndex]?.partial_json;
     if (!streamedPartialJson) return toolCall;

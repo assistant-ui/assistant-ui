@@ -1380,6 +1380,56 @@ describe("useLangGraphRuntime", () => {
       expect(streamMock.mock.calls[2]?.[1].runConfig).toEqual(runConfig);
     });
 
+    it("uses the latest explicitly queued run config for a later command", async () => {
+      const firstRunConfig = {
+        custom: { configurable: { model_name: "gpt-5.4-nano" } },
+      };
+      const queuedRunConfig = {
+        custom: { configurable: { model_name: "claude-haiku-4-5" } },
+      };
+      const gate = deferred<void>();
+      const streamMock = vi.fn(async function* (
+        _messages: LangChainMessage[],
+        _config: LangGraphSendMessageConfig,
+      ) {
+        if (streamMock.mock.calls.length === 1) await gate.promise;
+      });
+
+      const { result: runtimeResult } = renderHook(() =>
+        useLangGraphRuntime({ stream: streamMock }),
+      );
+      const wrapper = wrapperFactory(runtimeResult.current);
+      renderHook(() => useAui(), { wrapper });
+      const { result: sendResult } = renderHook(() => useLangGraphSend(), {
+        wrapper,
+      });
+      const { result: sendCommandResult } = renderHook(
+        () => useLangGraphSendCommand(),
+        { wrapper },
+      );
+
+      act(() => {
+        void sendResult.current([{ type: "human", content: "first" }], {
+          runConfig: firstRunConfig,
+        });
+      });
+      await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(1));
+
+      act(() => {
+        void sendResult.current([{ type: "human", content: "queued" }], {
+          runConfig: queuedRunConfig,
+        });
+        void sendCommandResult.current({ resume: "continue" });
+      });
+
+      await act(async () => {
+        gate.resolve();
+      });
+      await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(3));
+      expect(streamMock.mock.calls[1]?.[1].runConfig).toEqual(queuedRunConfig);
+      expect(streamMock.mock.calls[2]?.[1].runConfig).toEqual(queuedRunConfig);
+    });
+
     it("prefers an explicit run config on a command", async () => {
       const previousRunConfig = {
         custom: { configurable: { model_name: "gpt-5.4-nano" } },

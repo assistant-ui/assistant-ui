@@ -53,6 +53,7 @@ export const getLangChainToolCallIds = (
 export const findMatchingLangChainToolCallIndex = (
   previousToolCalls: readonly LangChainToolCall[],
   toolCall: LangChainToolCall,
+  toolCallIndex: number,
 ): number => {
   if (toolCall.id) {
     const byId = previousToolCalls.findIndex(
@@ -66,6 +67,16 @@ export const findMatchingLangChainToolCallIndex = (
       (previous) =>
         previous.index === toolCall.index && (!previous.id || !toolCall.id),
     );
+  }
+
+  const previousAtIndex = previousToolCalls[toolCallIndex];
+  if (
+    previousAtIndex &&
+    !previousAtIndex.id &&
+    previousAtIndex.index == null &&
+    !toolCall.id
+  ) {
+    return toolCallIndex;
   }
 
   return -1;

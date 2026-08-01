@@ -179,7 +179,8 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
   const runErrorBalanceRef = useRef(0);
   // A later run may be queued before an earlier tool resolves, so resume
   // configuration follows the tool call rather than the latest send.
-  const lastRunContextRef = useRef<RunContext | null>(null);
+  const activeRunContextRef = useRef<RunContext | null>(null);
+  const latestExplicitRunContextRef = useRef<RunContext | null>(null);
   const interruptRunContextRef = useRef<RunContext | null>(null);
   const unknownRunContextRef = useRef<RunContext>({ runConfig: undefined });
   const toolCallRunContextsRef = useRef(new Map<string, RunContext>());
@@ -207,6 +208,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
           const previousToolCallIndex = findMatchingLangChainToolCallIndex(
             previousToolCalls,
             toolCall,
+            index,
           );
           const previousToolCallId = previousToolCallIds[previousToolCallIndex];
           const idlessMessageToolCallId = idlessMessageToolCallIds[index];
@@ -245,12 +247,12 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
             }
           }
           if (
-            lastRunContextRef.current &&
+            activeRunContextRef.current &&
             !toolCallRunContextsRef.current.has(toolCallId)
           ) {
             toolCallRunContextsRef.current.set(
               toolCallId,
-              lastRunContextRef.current,
+              activeRunContextRef.current,
             );
           }
         }
@@ -280,7 +282,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
             updates as { __interrupt__?: readonly unknown[] }
           ).__interrupt__?.[0];
           interruptRunContextRef.current = nextInterrupt
-            ? lastRunContextRef.current
+            ? activeRunContextRef.current
             : null;
           return eventHandlers?.onUpdates?.(updates);
         },
@@ -421,16 +423,17 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
           materializingToolCallIdsRef.current.add(toolCall.id);
         }
       }
-      lastRunContextRef.current = runContext;
+      activeRunContextRef.current = runContext;
       if (messages === pendingResumesRef.current.get(runContext)) {
         pendingResumesRef.current.delete(runContext);
       }
       runErrorBalanceRef.current = 0;
       try {
         return sendMessageRef.current(messages, config, () => {
+          activeRunContextRef.current = null;
           if (runErrorBalanceRef.current > 0) {
             pendingResumesRef.current.clear();
-            lastRunContextRef.current = null;
+            latestExplicitRunContextRef.current = null;
             interruptRunContextRef.current = null;
             runQueueRef.current!.drop();
           }
@@ -447,23 +450,32 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
   const handleSendMessage = (
     messages: LangChainMessage[],
     config: LangGraphSendMessageConfig,
-    runContext = config.command !== undefined && config.runConfig === undefined
-      ? (interruptRunContextRef.current ??
-        lastRunContextRef.current ?? { runConfig: undefined })
-      : { runConfig: config.runConfig },
+    runContext?: RunContext,
   ) => {
+    const resolvedRunContext =
+      runContext ??
+      (config.command !== undefined && config.runConfig === undefined
+        ? (latestExplicitRunContextRef.current ??
+          interruptRunContextRef.current ?? { runConfig: undefined })
+        : { runConfig: config.runConfig });
+    if (
+      runContext === undefined &&
+      (config.command === undefined || config.runConfig !== undefined)
+    ) {
+      latestExplicitRunContextRef.current = resolvedRunContext;
+    }
     const state = pendingStateRef.current;
     pendingStateRef.current = undefined;
     const resolvedConfig =
       config.command !== undefined &&
       config.runConfig === undefined &&
-      runContext.runConfig !== undefined
-        ? { ...config, runConfig: runContext.runConfig }
+      resolvedRunContext.runConfig !== undefined
+        ? { ...config, runConfig: resolvedRunContext.runConfig }
         : config;
     return runQueue.enqueue({
       messages,
       config: state ? { ...resolvedConfig, state } : resolvedConfig,
-      runContext,
+      runContext: resolvedRunContext,
     });
   };
 
@@ -713,6 +725,8 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
           toolCallRunContextsRef.current.clear();
           toolCallIdAliasesRef.current.clear();
           pendingResumesRef.current.clear();
+          activeRunContextRef.current = null;
+          latestExplicitRunContextRef.current = null;
           runQueue.drop();
           const truncated = truncateLangChainMessages(
             threadMessagesRef.current,
@@ -770,6 +784,8 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
             toolCallRunContextsRef.current.clear();
             toolCallIdAliasesRef.current.clear();
             pendingResumesRef.current.clear();
+            activeRunContextRef.current = null;
+            latestExplicitRunContextRef.current = null;
             runQueue.drop();
             const truncated = truncateLangChainMessages(
               threadMessagesRef.current,
@@ -795,7 +811,8 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
     onCancel: unstable_allowCancellation
       ? async () => {
           pendingResumesRef.current.clear();
-          lastRunContextRef.current = null;
+          activeRunContextRef.current = null;
+          latestExplicitRunContextRef.current = null;
           interruptRunContextRef.current = null;
           runQueue.drop();
           cancel();
@@ -817,7 +834,8 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
       toolCallRunContextsRef.current.clear();
       toolCallIdAliasesRef.current.clear();
       pendingResumesRef.current.clear();
-      lastRunContextRef.current = null;
+      activeRunContextRef.current = null;
+      latestExplicitRunContextRef.current = null;
       interruptRunContextRef.current = null;
       if (!load || !threadListItem) return;
 

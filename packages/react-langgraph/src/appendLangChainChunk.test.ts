@@ -204,6 +204,38 @@ describe("appendLangChainChunk updates-event partial_json", () => {
     expect(final.tool_calls?.[0]?.partial_json).toBe(streamed);
   });
 
+  it("matches anonymous tool calls by position when no stable identity exists", () => {
+    const previous: AiMessage = {
+      type: "ai",
+      id: "ai-1",
+      content: "",
+      tool_calls: [
+        {
+          id: "",
+          name: "ask_question",
+          args: {},
+          partial_json: streamed,
+        },
+      ],
+    };
+    const current: AiMessage = {
+      type: "ai",
+      id: "ai-1",
+      content: "",
+      tool_calls: [
+        {
+          id: "",
+          name: "ask_question",
+          args: { question: "What?" },
+        },
+      ],
+    };
+
+    const final = appendAi(previous, current);
+
+    expect(final.tool_calls?.[0]?.partial_json).toBe(streamed);
+  });
+
   it("final argsText stays a byte-extension of the streamed prefix after the updates event", () => {
     const metadata = {
       toolArgsKeyOrderCache: new Map<string, Map<string, string[]>>(),
