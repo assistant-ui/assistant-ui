@@ -59,6 +59,7 @@ export const findMatchingLangChainToolCallIndex = (
 
 export const getPendingToolCalls = (messages: LangChainMessage[]) => {
   const pendingToolCalls = new Map<string, LangChainToolCall>();
+  const synthesizedIdsByRawId = new Map<string, string[]>();
   for (const message of messages) {
     if (message.type === "ai") {
       const toolCallIds = getLangChainToolCallIds(
@@ -71,10 +72,21 @@ export const getPendingToolCalls = (messages: LangChainMessage[]) => {
           toolCallId,
           toolCall.id ? toolCall : { ...toolCall, id: toolCallId },
         );
+        if (!toolCall.id) {
+          const synthesizedIds = synthesizedIdsByRawId.get(toolCall.id) ?? [];
+          synthesizedIds.push(toolCallId);
+          synthesizedIdsByRawId.set(toolCall.id, synthesizedIds);
+        }
       }
     }
     if (message.type === "tool") {
-      pendingToolCalls.delete(message.tool_call_id);
+      if (!pendingToolCalls.delete(message.tool_call_id)) {
+        const synthesizedIds = synthesizedIdsByRawId.get(message.tool_call_id);
+        const synthesizedId = synthesizedIds?.find((id) =>
+          pendingToolCalls.has(id),
+        );
+        if (synthesizedId) pendingToolCalls.delete(synthesizedId);
+      }
     }
   }
 

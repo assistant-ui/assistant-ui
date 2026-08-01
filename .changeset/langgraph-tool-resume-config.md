@@ -10,3 +10,6 @@ fix: keep synthesized tool-call IDs collision-free within an AI message
 
 fix: canonicalize pending tool results when a streaming tool call receives its
 final ID
+
+fix: preserve pending-tool ownership across loaded message ID materialization,
+interrupt interleaving, and graph message removal
