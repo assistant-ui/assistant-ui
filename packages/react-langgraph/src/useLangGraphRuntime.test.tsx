@@ -1166,6 +1166,52 @@ describe("useLangGraphRuntime", () => {
       expect(streamMock.mock.calls[2]?.[1].runConfig).toEqual(runConfig);
     });
 
+    it("prefers an explicit run config on a command", async () => {
+      const previousRunConfig = {
+        custom: { configurable: { model_name: "gpt-5.4-nano" } },
+      };
+      const commandRunConfig = {
+        custom: { configurable: { model_name: "claude-haiku-4-5" } },
+      };
+      const streamMock = vi.fn(async function* (
+        _messages: LangChainMessage[],
+        _config: LangGraphSendMessageConfig,
+      ) {
+        if (streamMock.mock.calls.length === 2) {
+          yield toolCallEvent;
+        }
+      });
+
+      const { result: runtimeResult } = renderHook(() =>
+        useLangGraphRuntime({ stream: streamMock }),
+      );
+      const wrapper = wrapperFactory(runtimeResult.current);
+      const { result: auiResult } = renderHook(() => useAui(), { wrapper });
+      const { result: sendResult } = renderHook(() => useLangGraphSend(), {
+        wrapper,
+      });
+
+      await act(async () => {
+        await sendResult.current([{ type: "human", content: "begin" }], {
+          runConfig: previousRunConfig,
+        });
+      });
+      await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(1));
+
+      await act(async () => {
+        await sendResult.current([], {
+          command: { resume: "continue" },
+          runConfig: commandRunConfig,
+        });
+      });
+      await waitForToolCallPart(auiResult.current);
+
+      addToolResult(runtimeResult.current, { temperature: 72 });
+
+      await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(3));
+      expect(streamMock.mock.calls[2]?.[1].runConfig).toEqual(commandRunConfig);
+    });
+
     it("uses the owning run config when a later run is already queued", async () => {
       const firstRunConfig = {
         custom: { configurable: { model_name: "gpt-5.4-nano" } },
@@ -1180,6 +1226,7 @@ describe("useLangGraphRuntime", () => {
       ) {
         if (streamMock.mock.calls.length === 1) {
           yield toolCallEvent;
+        } else if (streamMock.mock.calls.length === 2) {
           await gate.promise;
         }
       });
@@ -1202,6 +1249,9 @@ describe("useLangGraphRuntime", () => {
         auiResult.current.composer.send();
       });
       await waitForToolCallPart(auiResult.current);
+      await waitFor(() =>
+        expect(auiResult.current.thread.getState().isRunning).toBe(false),
+      );
 
       act(() => {
         void sendResult.current(
@@ -1209,6 +1259,7 @@ describe("useLangGraphRuntime", () => {
           { runConfig: nextRunConfig },
         );
       });
+      await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(2));
       addToolResult(runtimeResult.current, { temperature: 72 });
 
       await act(async () => {

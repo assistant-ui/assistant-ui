@@ -169,7 +169,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
       const message = appendLangChainChunk(previous, current);
       if (message.type === "ai") {
         for (const toolCall of message.tool_calls ?? []) {
-          if (!toolCallRunConfigsRef.current.has(toolCall.id)) {
+          if (toolCall.id && !toolCallRunConfigsRef.current.has(toolCall.id)) {
             toolCallRunConfigsRef.current.set(
               toolCall.id,
               activeRunConfigRef.current,
@@ -318,7 +318,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
     config: LangGraphSendMessageConfig,
     runConfig = config.command === undefined
       ? config.runConfig
-      : activeRunConfigRef.current,
+      : (config.runConfig ?? activeRunConfigRef.current),
   ) => {
     const state = pendingStateRef.current;
     pendingStateRef.current = undefined;
