@@ -2242,6 +2242,7 @@ declare class LocalThreadRuntimeCore extends BaseThreadRuntimeCore implements Th
   private abortController;
   private _queue;
   private _queueRunInFlight;
+  private _historyScopeGeneration;
   private _historyWrites;
   private _chainHistoryWrite;
   private _persistPausedMessage;
