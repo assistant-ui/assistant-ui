@@ -287,6 +287,39 @@ describe("McpServerResource automatic authentication", () => {
       root.unmount();
     }
   });
+
+  it("ignores successful auth storage loads superseded by disconnect", async () => {
+    let resolveLoad!: (value: { token: string }) => void;
+    const storage = createStorage();
+    vi.mocked(storage.loadAuthState).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveLoad = resolve;
+        }),
+    );
+    const root = mount({
+      auth: { type: "bearer" },
+      storage,
+      autoConnect: true,
+    });
+
+    try {
+      await waitFor(
+        () => vi.mocked(storage.loadAuthState).mock.calls.length > 0,
+      );
+      await root.getValue().disconnect();
+      resolveLoad({ token: "secret" });
+      await flushMacrotask();
+
+      expect(root.getValue().getState()).toMatchObject({
+        connectionState: "disconnected",
+        lastError: null,
+      });
+      expect(mocks.StreamableHTTPClientTransport).not.toHaveBeenCalled();
+    } finally {
+      root.unmount();
+    }
+  });
 });
 
 describe("McpServerResource connectionTimeout", () => {
