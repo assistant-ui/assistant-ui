@@ -130,7 +130,7 @@ export const useExternalHistory = <TMessage>(
     }
 
     let request = loadRequestRef.current;
-    if (!Object.is(request?.key, adapterKey)) {
+    if (!request || !Object.is(request.key, adapterKey)) {
       const replaceOnLoad =
         lastAdapterKeyRef.current !== undefined &&
         !Object.is(lastAdapterKeyRef.current, adapterKey);
