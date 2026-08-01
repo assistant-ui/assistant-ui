@@ -24,6 +24,14 @@ describe("Learn course registry", () => {
     );
   });
 
+  it("registers stages as one cumulative sequence", () => {
+    const course = getLearnCourse(DEFAULT_LEARN_COURSE_ID);
+
+    expect(
+      Object.values(course.stages).map((stage) => stage.previousStageId),
+    ).toEqual([undefined, "S0", "S1", "S2", "S3", "S4", "S5", "S6"]);
+  });
+
   it("rejects unregistered course and stage IDs", () => {
     expect(() => getLearnCourse("missing-course")).toThrow(LearnRegistryError);
     expect(() =>

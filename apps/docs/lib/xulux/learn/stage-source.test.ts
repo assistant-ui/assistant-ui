@@ -48,6 +48,54 @@ describe("resolveStageFiles", () => {
     ).toBe("stage local");
   });
 
+  it("inherits and overlays each earlier stage", () => {
+    const course = getLearnCourse(DEFAULT_LEARN_COURSE_ID);
+    const snapshot = {
+      ...sharedSourceSnapshot(course.sharedFiles, "course shared"),
+      ...Object.fromEntries(
+        Object.values(course.stages).flatMap((stage) => [
+          ...Object.values(stage.sharedFiles ?? {}).map((snapshotPath) => [
+            snapshotPath,
+            `config ${stage.id}`,
+          ]),
+          [`${stage.sourceRoot}/stage-${stage.id}.txt`, stage.id],
+          [`${stage.sourceRoot}/app/version.ts`, stage.id],
+        ]),
+      ),
+    };
+
+    const files = resolveStageFilesFromSnapshot(
+      DEFAULT_LEARN_COURSE_ID,
+      "S7",
+      snapshot,
+    );
+
+    expect(files["stage-S0.txt"]).toBe("S0");
+    expect(files["stage-S7.txt"]).toBe("S7");
+    expect(files["app/version.ts"]).toBe("S7");
+    expect(files["next.config.ts"]).toBe("config S7");
+  });
+
+  it("normalizes preview-only cross-stage imports in materialized source", () => {
+    const course = getLearnCourse(DEFAULT_LEARN_COURSE_ID);
+    const stageS0 = getLearnStage(DEFAULT_LEARN_COURSE_ID, "S0");
+    const stageS1 = getLearnStage(DEFAULT_LEARN_COURSE_ID, "S1");
+    const snapshot = {
+      ...sharedSourceSnapshot(course.sharedFiles, "shared"),
+      ...sharedSourceSnapshot(stageS0.sharedFiles, "shared"),
+      ...sharedSourceSnapshot(stageS1.sharedFiles, "shared"),
+      [`${stageS0.sourceRoot}/components/tool.tsx`]: "export const tool = 1;",
+      [`${stageS1.sourceRoot}/app/page.tsx`]:
+        'import { tool } from "@/lib/xulux/learn/courses/build-generative-ui-assistant/stages/S0/project/components/tool";',
+    };
+
+    expect(
+      resolveStageFilesFromSnapshot(DEFAULT_LEARN_COURSE_ID, "S1", snapshot)[
+        "app/page.tsx"
+      ],
+    ).toBe('import { tool } from "../components/tool";');
+  });
+
   it("rejects unregistered IDs before reading the snapshot", () => {
     expect(() =>
       resolveStageFilesFromSnapshot("missing-course", "S0", {}),

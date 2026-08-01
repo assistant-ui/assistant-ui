@@ -2,6 +2,7 @@ export type LearnStageDefinition = {
   id: string;
   previewPath: string;
   sourceRoot: string;
+  previousStageId?: string;
   sharedFiles?: Record<string, string>;
 };
 

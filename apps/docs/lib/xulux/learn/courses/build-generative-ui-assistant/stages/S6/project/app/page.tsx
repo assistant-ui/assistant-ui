@@ -1,5 +1,5 @@
 import { AssistantShell } from "../components/assistant-shell";
-import { ToolProvider } from "../components/tool-provider";
+import { ToolProvider } from "@/lib/xulux/learn/courses/build-generative-ui-assistant/stages/S4/project/components/tool-provider";
 
 export default function Page() {
   return (

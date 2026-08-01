@@ -16,7 +16,7 @@ describe("Learn stage downloads", () => {
     const stage = getLearnStage(DEFAULT_LEARN_COURSE_ID, "S7");
     const snapshot = {
       ...sharedSourceSnapshot(course.sharedFiles),
-      ...sharedSourceSnapshot(stage.sharedFiles),
+      ...stageChainSourceSnapshot(course),
       [`${stage.sourceRoot}/app/page.tsx`]: "page",
       [`${stage.sourceRoot}/components/assistant.tsx`]: "assistant",
       "apps/docs/private.ts": "unrelated",
@@ -54,6 +54,20 @@ function sharedSourceSnapshot(sharedFiles: Record<string, string> | undefined) {
     Object.values(sharedFiles ?? {}).map((snapshotPath) => [
       snapshotPath,
       snapshotPath,
+    ]),
+  );
+}
+
+function stageChainSourceSnapshot(
+  course: ReturnType<typeof getLearnCourse>,
+) {
+  return Object.fromEntries(
+    Object.values(course.stages).flatMap((stage) => [
+      ...Object.values(stage.sharedFiles ?? {}).map((snapshotPath) => [
+        snapshotPath,
+        snapshotPath,
+      ]),
+      [`${stage.sourceRoot}/stage-${stage.id}.txt`, stage.id],
     ]),
   );
 }

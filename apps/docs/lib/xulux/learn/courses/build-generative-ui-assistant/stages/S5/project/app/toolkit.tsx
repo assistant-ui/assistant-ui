@@ -3,7 +3,7 @@
 import { defineToolkit, unstable_interactableTool } from "@assistant-ui/react";
 import { z } from "zod";
 import { Notepad } from "../components/tools/notepad";
-import { WeatherCard } from "../components/tools/weather-card";
+import { WeatherCard } from "@/lib/xulux/learn/courses/build-generative-ui-assistant/stages/S4/project/components/tools/weather-card";
 
 const notepadSchema = z.object({
   title: z.string().describe("A short title for the note"),

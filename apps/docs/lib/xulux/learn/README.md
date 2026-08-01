@@ -20,7 +20,9 @@ and stages from the generated source snapshot and returns a validated
 product-owned result.
 
 Preview, source, diff, agent context, and ZIP downloads all resolve from the
-same immutable stage snapshots through the course registry. Local storage
+same immutable stage snapshots through the course registry. Canonical stage
+directories store only each lesson's delta; the resolver overlays earlier
+stages and shared scaffold files into the complete project. Local storage
 persists the one course thread, current versus selected step, completion,
 celebration, and certificate dismissal. The course project itself also adds a
 browser-backed thread-list adapter in S6 so its conversations survive reloads.

@@ -7,7 +7,7 @@ import {
   ThreadPrimitive,
 } from "@assistant-ui/react";
 import { ArrowUp, CloudSun, Code2, PencilLine, Square } from "lucide-react";
-import { ToolFallback } from "./tool-fallback";
+import { ToolFallback } from "@/lib/xulux/learn/courses/build-generative-ui-assistant/stages/S3/project/components/assistant-ui/tool-fallback";
 
 const suggestions = [
   {

@@ -1,5 +1,6 @@
 import { loadSourceSnapshot } from "../demo-downloads/create-demo-zip";
-import { getLearnCourse, getLearnStage } from "./registry";
+import { getLearnCourse } from "./registry";
+import type { LearnCourseDefinition } from "./types";
 
 export type LearnSourceSnapshot = Record<string, string>;
 export type LearnStageFiles = Record<string, string>;
@@ -21,20 +22,41 @@ export function resolveStageFilesFromSnapshot(
   snapshot: LearnSourceSnapshot,
 ): LearnStageFiles {
   const course = getLearnCourse(courseId);
-  const stage = getLearnStage(courseId, stageId);
+  return resolveStage(course, stageId, snapshot, new Set());
+}
+
+function resolveStage(
+  course: LearnCourseDefinition,
+  stageId: string,
+  snapshot: LearnSourceSnapshot,
+  resolvingStageIds: Set<string>,
+): LearnStageFiles {
+  const stage = course.stages[stageId];
+  if (!stage) {
+    throw new Error(`Unregistered Learn stage: ${course.id}/${stageId}`);
+  }
+  if (resolvingStageIds.has(stageId)) {
+    throw new Error(`Cyclic Learn stage inheritance: ${course.id}/${stageId}`);
+  }
+
+  resolvingStageIds.add(stageId);
   const sourceRoot = normalizeSourceRoot(stage.sourceRoot);
   const sourcePrefix = `${sourceRoot}/`;
-  const files: LearnStageFiles = {
-    ...resolveSharedFiles(course.sharedFiles, snapshot),
-    ...resolveSharedFiles(stage.sharedFiles, snapshot),
-  };
+  const files: LearnStageFiles = stage.previousStageId
+    ? resolveStage(course, stage.previousStageId, snapshot, resolvingStageIds)
+    : resolveSharedFiles(course.sharedFiles, snapshot);
+
+  Object.assign(files, resolveSharedFiles(stage.sharedFiles, snapshot));
   let stageFileCount = 0;
 
   for (const snapshotPath of Object.keys(snapshot).sort()) {
     if (!snapshotPath.startsWith(sourcePrefix)) continue;
     const relativePath = snapshotPath.slice(sourcePrefix.length);
     if (!relativePath || relativePath.startsWith("../")) continue;
-    files[relativePath] = snapshot[snapshotPath]!;
+    files[relativePath] = normalizePreviewImports(
+      snapshot[snapshotPath]!,
+      relativePath,
+    );
     stageFileCount += 1;
   }
 
@@ -44,7 +66,30 @@ export function resolveStageFilesFromSnapshot(
     );
   }
 
+  resolvingStageIds.delete(stageId);
   return files;
+}
+
+const PREVIEW_STAGE_IMPORT =
+  /@\/lib\/xulux\/learn\/courses\/[^"']+\/stages\/[^/"']+\/project\/([^"']+)/g;
+
+function normalizePreviewImports(source: string, outputPath: string) {
+  return source.replace(PREVIEW_STAGE_IMPORT, (_match, targetPath: string) =>
+    relativeImport(outputPath, targetPath),
+  );
+}
+
+function relativeImport(outputPath: string, targetPath: string) {
+  const from = outputPath.split("/").slice(0, -1);
+  const target = targetPath.split("/");
+
+  while (from.length > 0 && target.length > 0 && from[0] === target[0]) {
+    from.shift();
+    target.shift();
+  }
+
+  const relative = [...from.map(() => ".."), ...target].join("/");
+  return relative.startsWith(".") ? relative : `./${relative}`;
 }
 
 function resolveSharedFiles(
