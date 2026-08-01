@@ -139,7 +139,7 @@ export function DocsHeader({
   const { open, width, isResizing } = useAssistantPanel();
 
   const sectionFilter = (item: (typeof NAV_ITEMS)[number]) =>
-    item.href !== sectionHref;
+    item.type !== "link" || item.href !== sectionHref;
   const filteredItems = NAV_ITEMS.filter(sectionFilter);
   const condensedItems = filteredItems.filter(
     (item) => !CONDENSED_HIDDEN.has(item.label),
@@ -306,8 +306,7 @@ export function DocsHeader({
         >
           <div className="flex h-full flex-col gap-1 overflow-y-auto px-4 pt-4">
             {filteredItems.map((item) => {
-              // A section with a landing page collapses to one row; that page carries the deeper navigation.
-              if (item.href) {
+              if (item.type === "link") {
                 return item.href.startsWith("http") ? (
                   <a
                     key={item.href}
@@ -330,8 +329,6 @@ export function DocsHeader({
                   </Link>
                 );
               }
-
-              if (item.type === "link") return null;
 
               return (
                 <div key={item.label} className="flex flex-col">

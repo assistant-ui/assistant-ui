@@ -106,8 +106,7 @@ export type NavGroup = {
 
 export type NavItem =
   | { type: "link"; label: string; href: string }
-  /** `href` identifies the section the menu covers, so a header already inside it can drop the entry. */
-  | { type: "mega"; label: string; href?: string; groups: NavGroup[] };
+  | { type: "mega"; label: string; groups: NavGroup[] };
 
 export const NAV_ITEMS: NavItem[] = [
   { type: "link", label: "Docs", href: "/docs" },

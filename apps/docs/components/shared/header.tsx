@@ -202,8 +202,7 @@ export function Header({ stars }: { stars: number | null }) {
         >
           <div className="flex h-full flex-col gap-1 overflow-y-auto px-4 pt-4">
             {NAV_ITEMS.map((item) => {
-              // A section with a landing page collapses to one row; that page carries the deeper navigation.
-              if (item.href) {
+              if (item.type === "link") {
                 return item.href.startsWith("http") ? (
                   <a
                     key={item.href}
@@ -226,8 +225,6 @@ export function Header({ stars }: { stars: number | null }) {
                   </Link>
                 );
               }
-
-              if (item.type === "link") return null;
 
               return (
                 <div key={item.label} className="flex flex-col">
