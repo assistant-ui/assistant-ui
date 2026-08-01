@@ -8,7 +8,6 @@ import {
 } from "react";
 import type {
   LangChainMessage,
-  LangChainToolCall,
   UIMessage,
   UseLangGraphRuntimeOptions,
 } from "./types";
@@ -45,11 +44,8 @@ import { createSerialRunQueue, type SerialRunQueue } from "./serialRunQueue";
 import { langGraphExtras } from "./runtimeExtras";
 import {
   filterUIMessagesBySurvivingIds,
-  findMatchingLangChainToolCallIndex,
-  getLangChainToolCallIds,
   getPendingToolCalls,
   hasToolResult,
-  resolveToolCallId,
   truncateLangChainMessages,
 } from "./messageHelpers";
 
@@ -57,31 +53,6 @@ const EMPTY_QUEUE_ITEMS: readonly QueueItemState[] = Object.freeze([]);
 const subscribeNoop = () => () => {};
 type RunContext = {
   runConfig: LangGraphSendMessageConfig["runConfig"];
-};
-
-const findMatchingToolCallForOwnership = (
-  previousToolCalls: readonly LangChainToolCall[],
-  currentToolCalls: readonly LangChainToolCall[],
-  toolCall: LangChainToolCall,
-  toolCallIndex: number,
-) => {
-  const matchingIndex = findMatchingLangChainToolCallIndex(
-    previousToolCalls,
-    toolCall,
-  );
-  if (
-    matchingIndex !== -1 ||
-    previousToolCalls.length !== currentToolCalls.length
-  ) {
-    return matchingIndex;
-  }
-
-  const previousAtIndex = previousToolCalls[toolCallIndex];
-  return previousAtIndex &&
-    previousAtIndex.name === toolCall.name &&
-    (!previousAtIndex.id || !toolCall.id)
-    ? toolCallIndex
-    : -1;
 };
 
 const toLangGraphUserMessage = (
@@ -189,119 +160,21 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
   // balance is positive iff the run saw a top-level error, which drops any
   // sends queued behind it.
   const runErrorBalanceRef = useRef(0);
-  // A later run may be queued before an earlier tool resolves, so resume
-  // configuration follows the tool call rather than the latest send.
-  const activeRunContextRef = useRef<RunContext | null>(null);
   const unknownRunContextRef = useRef<RunContext>({ runConfig: undefined });
-  const toolCallRunContextsRef = useRef(new Map<string, RunContext>());
-  const toolCallIdAliasesRef = useRef(new Map<string, string>());
-  // Buffers client tool results within a turn so parallel tool calls resume the
-  // graph in one run once every pending call has a result. See bufferToolResult.
-  const toolResultBufferRef = useRef<
-    Map<string, LangChainMessage & { type: "tool" }>
-  >(new Map());
-  // Resume batches currently sitting in the run queue, keyed by the context of
-  // the run that emitted their tool calls. Results arriving before a batch is
-  // sent merge into that batch without combining separate turns.
-  const pendingResumesRef = useRef(
-    new Map<RunContext, (LangChainMessage & { type: "tool" })[]>(),
-  );
-  const installToolCallIdAlias = useCallback(
-    (previousToolCallId: string, toolCallId: string) => {
-      toolCallIdAliasesRef.current.set(previousToolCallId, toolCallId);
-
-      const previousRunContext =
-        toolCallRunContextsRef.current.get(previousToolCallId);
-      if (previousRunContext) {
-        if (!toolCallRunContextsRef.current.has(toolCallId)) {
-          toolCallRunContextsRef.current.set(toolCallId, previousRunContext);
-        }
-        toolCallRunContextsRef.current.delete(previousToolCallId);
-      }
-
-      const bufferedResult =
-        toolResultBufferRef.current.get(previousToolCallId);
-      if (bufferedResult) {
-        toolResultBufferRef.current.delete(previousToolCallId);
-        if (!toolResultBufferRef.current.has(toolCallId)) {
-          toolResultBufferRef.current.set(toolCallId, {
-            ...bufferedResult,
-            tool_call_id: toolCallId,
-          });
-        }
-      }
-
-      for (const batch of pendingResumesRef.current.values()) {
-        const previousIndex = batch.findIndex(
-          (message) => message.tool_call_id === previousToolCallId,
-        );
-        if (previousIndex === -1) continue;
-        const existingIndex = batch.findIndex(
-          (message) => message.tool_call_id === toolCallId,
-        );
-        if (existingIndex === -1) {
-          batch[previousIndex] = {
-            ...batch[previousIndex]!,
-            tool_call_id: toolCallId,
-          };
-        } else {
-          batch.splice(previousIndex, 1);
-        }
-      }
-    },
-    [],
-  );
+  const activeRunContextRef = useRef<RunContext | null>(null);
+  const messageRunContextsRef = useRef(new Map<string, RunContext>());
   const appendMessage = useCallback(
     (previous: LangChainMessage | undefined, current: LangChainMessage) => {
       const message = appendLangChainChunk(previous, current);
-      if (message.type === "ai") {
-        const toolCalls = message.tool_calls ?? [];
-        const toolCallIds = getLangChainToolCallIds(message.id, toolCalls);
-        const previousToolCalls =
-          previous?.type === "ai" ? (previous.tool_calls ?? []) : [];
-        const previousToolCallIds = getLangChainToolCallIds(
-          previous?.id,
-          previousToolCalls,
+      if (message.id && !messageRunContextsRef.current.has(message.id)) {
+        messageRunContextsRef.current.set(
+          message.id,
+          activeRunContextRef.current ?? unknownRunContextRef.current,
         );
-        for (const [index, toolCall] of toolCalls.entries()) {
-          // The accumulator replays history on every run, so existing calls
-          // must retain the context of the run that originally emitted them.
-          const toolCallId = toolCallIds[index]!;
-          const previousCanonicalIndex =
-            previousToolCallIds.indexOf(toolCallId);
-          const previousToolCallIndex =
-            previousCanonicalIndex !== -1
-              ? previousCanonicalIndex
-              : findMatchingToolCallForOwnership(
-                  previousToolCalls,
-                  toolCalls,
-                  toolCall,
-                  index,
-                );
-          const previousToolCallId = previousToolCallIds[previousToolCallIndex];
-          if (previousToolCallId && previousToolCallId !== toolCallId) {
-            installToolCallIdAlias(previousToolCallId, toolCallId);
-          }
-          if (
-            activeRunContextRef.current &&
-            !toolCallRunContextsRef.current.has(toolCallId)
-          ) {
-            toolCallRunContextsRef.current.set(
-              toolCallId,
-              activeRunContextRef.current,
-            );
-          }
-        }
-      } else if (message.type === "tool") {
-        const toolCallId = resolveToolCallId(
-          toolCallIdAliasesRef.current,
-          message.tool_call_id,
-        );
-        toolCallRunContextsRef.current.delete(toolCallId);
       }
       return message;
     },
-    [installToolCallIdAlias],
+    [],
   );
   const wrappedEventHandlers = useMemo(
     () =>
@@ -357,6 +230,16 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
   const toolArgsKeyOrderCacheRef = useRef<Map<string, Map<string, string[]>>>(
     new Map(),
   );
+  // Buffers client tool results within a turn so parallel tool calls resume the
+  // graph in one run once every pending call has a result. See bufferToolResult.
+  const toolResultBufferRef = useRef<
+    Map<string, LangChainMessage & { type: "tool" }>
+  >(new Map());
+  // Resume batches currently sitting in the run queue, keyed by the run that
+  // emitted their tool calls.
+  const pendingResumesRef = useRef(
+    new Map<RunContext, (LangChainMessage & { type: "tool" })[]>(),
+  );
   const hasExecutingTools = Object.values(toolStatuses).some(
     (s) => s?.type === "executing",
   );
@@ -405,56 +288,12 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
     config: LangGraphSendMessageConfig;
     runContext: RunContext;
   }> | null>(null);
-  useEffect(() => {
-    const historyToolCallIds = new Set<string>();
-    for (const message of messages) {
-      if (message.type === "ai") {
-        for (const toolCallId of getLangChainToolCallIds(
-          message.id,
-          message.tool_calls ?? [],
-        )) {
-          historyToolCallIds.add(toolCallId);
-        }
-      } else if (message.type === "tool") {
-        historyToolCallIds.add(message.tool_call_id);
-      }
-    }
-    const pendingToolCallIds = new Set(
-      getPendingToolCalls(messages, toolCallIdAliasesRef.current).map(
-        (toolCall) => toolCall.id,
-      ),
-    );
-    for (const toolCallId of toolCallRunContextsRef.current.keys()) {
-      const resolvedToolCallId = resolveToolCallId(
-        toolCallIdAliasesRef.current,
-        toolCallId,
-      );
-      if (!pendingToolCallIds.has(resolvedToolCallId)) {
-        toolCallRunContextsRef.current.delete(toolCallId);
-      }
-    }
-    for (const toolCallId of toolCallIdAliasesRef.current.keys()) {
-      const resolvedToolCallId = resolveToolCallId(
-        toolCallIdAliasesRef.current,
-        toolCallId,
-      );
-      if (
-        !historyToolCallIds.has(toolCallId) &&
-        !historyToolCallIds.has(resolvedToolCallId)
-      ) {
-        toolCallIdAliasesRef.current.delete(toolCallId);
-      }
-    }
-  }, [messages]);
   runQueueRef.current ??= createSerialRunQueue({
     run: ({ messages, config, runContext }, onComplete) => {
-      for (const toolCall of getPendingToolCalls(
-        langGraphMessagesRef.current,
-        toolCallIdAliasesRef.current,
-      )) {
-        if (!toolCallRunContextsRef.current.has(toolCall.id)) {
-          toolCallRunContextsRef.current.set(
-            toolCall.id,
+      for (const message of langGraphMessagesRef.current) {
+        if (message.id && !messageRunContextsRef.current.has(message.id)) {
+          messageRunContextsRef.current.set(
+            message.id,
             unknownRunContextRef.current,
           );
         }
@@ -484,10 +323,18 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
     runContext?: RunContext,
   ) => {
     const resolvedRunContext = runContext ?? { runConfig: config.runConfig };
+    const messagesWithIds = messages.every((message) => message.id)
+      ? messages
+      : messages.map((message) =>
+          message.id ? message : { ...message, id: generateId() },
+        );
+    for (const message of messagesWithIds) {
+      messageRunContextsRef.current.set(message.id!, resolvedRunContext);
+    }
     const state = pendingStateRef.current;
     pendingStateRef.current = undefined;
     return runQueue.enqueue({
-      messages,
+      messages: messagesWithIds,
       config: state ? { ...config, state } : config,
       runContext: resolvedRunContext,
     });
@@ -522,7 +369,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
     runQueue.drop();
     const cancellations =
       autoCancelPendingToolCalls !== false
-        ? getPendingToolCalls(messages, toolCallIdAliasesRef.current).map(
+        ? getPendingToolCalls(messages).map(
             (t) =>
               ({
                 type: "tool",
@@ -635,6 +482,24 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
   const uiMessagesRef = useRef(uiMessages);
   uiMessagesRef.current = uiMessages;
 
+  const getToolCallRunContext = (toolCallId: string) => {
+    for (const message of messages) {
+      if (message.type !== "ai") continue;
+      const hasToolCall = (message.tool_calls ?? []).some(
+        (toolCall, index) =>
+          (toolCall.id ||
+            `lc-toolcall-${message.id ?? "unknown"}-${toolCall.index ?? index}`) ===
+          toolCallId,
+      );
+      if (!hasToolCall) continue;
+      return message.id
+        ? (messageRunContextsRef.current.get(message.id) ??
+            unknownRunContextRef.current)
+        : unknownRunContextRef.current;
+    }
+    return unknownRunContextRef.current;
+  };
+
   const runtime = useExternalStoreRuntime({
     ...pickExternalStoreSharedOptions(options),
     isRunning: effectiveIsRunning,
@@ -672,44 +537,30 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
       isError,
       artifact,
     }) => {
-      const resolvedToolCallId = resolveToolCallId(
-        toolCallIdAliasesRef.current,
-        toolCallId,
-      );
       // A result for a call that already has a tool message (e.g. one
       // auto-cancelled when a new turn started, or a duplicate) must not resume
       // the graph with a second tool message. A call awaiting human input has
       // no tool message yet and stays on the normal pending path.
-      if (
-        hasToolResult(
-          messages,
-          resolvedToolCallId,
-          toolCallIdAliasesRef.current,
-        )
-      ) {
-        return;
-      }
+      if (hasToolResult(messages, toolCallId)) return;
       // Buffer results until every pending tool call in the turn has one, then
       // resume the graph with the full batch in a single run. Sending each
       // result on its own would resume LangGraph while sibling tool calls of a
       // parallel turn are still executing.
-      const runContext =
-        toolCallRunContextsRef.current.get(resolvedToolCallId) ??
-        unknownRunContextRef.current;
+      const runContext = getToolCallRunContext(toolCallId);
       const queuedResume = pendingResumesRef.current.get(runContext);
       const queuedIds = new Set(queuedResume?.map((m) => m.tool_call_id));
       const batch = bufferToolResult(
         toolResultBufferRef.current,
-        getPendingToolCalls(messages, toolCallIdAliasesRef.current).filter(
+        getPendingToolCalls(messages).filter(
           (toolCall) =>
             !queuedIds.has(toolCall.id) &&
-            (toolCallRunContextsRef.current.get(toolCall.id) ??
-              unknownRunContextRef.current) === runContext,
+            getToolCallRunContext(toolCall.id) === runContext,
         ),
         {
+          id: generateId(),
           type: "tool",
           name: toolName,
-          tool_call_id: resolvedToolCallId,
+          tool_call_id: toolCallId,
           content: JSON.stringify(result),
           artifact,
           status: isError ? "error" : "success",
@@ -730,9 +581,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
       try {
         await handleSendMessage(
           batch,
-          {
-            runConfig: runContext.runConfig,
-          },
+          { runConfig: runContext.runConfig },
           runContext,
         );
       } finally {
@@ -744,9 +593,8 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
     onEdit: getCheckpointId
       ? async (msg) => {
           toolResultBufferRef.current.clear();
-          toolCallRunContextsRef.current.clear();
-          toolCallIdAliasesRef.current.clear();
           pendingResumesRef.current.clear();
+          messageRunContextsRef.current.clear();
           activeRunContextRef.current = null;
           runQueue.drop();
           const truncated = truncateLangChainMessages(
@@ -801,9 +649,8 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
               throw new Error("Runtime does not support reloading messages.");
 
             toolResultBufferRef.current.clear();
-            toolCallRunContextsRef.current.clear();
-            toolCallIdAliasesRef.current.clear();
             pendingResumesRef.current.clear();
+            messageRunContextsRef.current.clear();
             activeRunContextRef.current = null;
             runQueue.drop();
             const truncated = truncateLangChainMessages(
@@ -829,7 +676,6 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
     onCancel: unstable_allowCancellation
       ? async () => {
           pendingResumesRef.current.clear();
-          activeRunContextRef.current = null;
           runQueue.drop();
           cancel();
         }
@@ -846,11 +692,6 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
       aui.threadListItem.source !== null ? aui.threadListItem : undefined;
     useEffect(() => {
       const load = loadRef.current;
-      toolResultBufferRef.current.clear();
-      toolCallRunContextsRef.current.clear();
-      toolCallIdAliasesRef.current.clear();
-      pendingResumesRef.current.clear();
-      activeRunContextRef.current = null;
       if (!load || !threadListItem) return;
 
       const externalId = threadListItem.getState().externalId;
@@ -858,6 +699,10 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
 
       // drop stale callbacks and abort the pending load on thread switch/unmount
       const controller = new AbortController();
+      toolResultBufferRef.current.clear();
+      pendingResumesRef.current.clear();
+      messageRunContextsRef.current.clear();
+      activeRunContextRef.current = null;
       pendingStateRef.current = undefined;
       effectiveStateRef.current = undefined;
       setOptimisticState(undefined);
@@ -866,11 +711,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
       load(externalId, { signal: controller.signal })
         .then(({ messages, interrupts, uiMessages }) => {
           if (controller.signal.aborted) return;
-          setMessages(
-            messages.map((message) =>
-              message.id ? message : { ...message, id: generateId() },
-            ),
-          );
+          setMessages(messages);
           setUIMessages(uiMessages ?? []);
           setInterrupt(interrupts?.[0]);
         })
