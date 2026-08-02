@@ -56,14 +56,18 @@ const retainThread = (
       ? undefined
       : target.threadData[listedMappingId];
 
-  if (listedMappingId !== undefined && listedData !== undefined) {
+  if (
+    sourceData.remoteId !== undefined &&
+    listedMappingId !== undefined &&
+    listedData?.remoteId !== undefined
+  ) {
     delete target.threadData[listedMappingId];
     target.threadData[sourceMappingId] = {
       ...listedData,
       id: sourceData.id,
       initializeTask: sourceData.initializeTask,
     };
-    target.threadIdMap[listedData.remoteId] = sourceMappingId;
+    target.threadIdMap[sourceData.remoteId] = sourceMappingId;
   } else {
     target.threadData[sourceMappingId] = sourceData;
   }
