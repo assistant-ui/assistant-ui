@@ -61,13 +61,19 @@ const retainThread = (
     listedMappingId !== undefined &&
     listedData?.remoteId !== undefined
   ) {
+    const remoteId = sourceData.remoteId;
+    const rekey = (ids: string[]) =>
+      ids.map((id) => (id === remoteId ? sourceData.id : id));
+    target.threadIds = rekey(target.threadIds);
+    target.archivedThreadIds = rekey(target.archivedThreadIds);
+
     delete target.threadData[listedMappingId];
     target.threadData[sourceMappingId] = {
       ...listedData,
       id: sourceData.id,
       initializeTask: sourceData.initializeTask,
     };
-    target.threadIdMap[sourceData.remoteId] = sourceMappingId;
+    target.threadIdMap[remoteId] = sourceMappingId;
   } else {
     target.threadData[sourceMappingId] = sourceData;
   }

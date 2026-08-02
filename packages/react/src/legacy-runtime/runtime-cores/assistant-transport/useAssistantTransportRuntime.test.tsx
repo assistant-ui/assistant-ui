@@ -80,6 +80,7 @@ const mountRuntime = (
 ) => {
   const captured: {
     aui?: ReturnType<typeof useAui>;
+    runtime?: ReturnType<typeof useAssistantTransportRuntime>;
     sendCommand?: (command: AssistantTransportCommand) => void;
   } = {};
   const Capture: FC = () => {
@@ -95,6 +96,7 @@ const mountRuntime = (
       converter,
       ...options,
     });
+    captured.runtime = runtime;
     return (
       <AssistantRuntimeProvider runtime={runtime}>
         <Capture />
@@ -104,6 +106,8 @@ const mountRuntime = (
   const utils = render(<App />);
   return {
     aui: () => captured.aui!,
+    runtime: () => captured.runtime!,
+    rerenderRuntime: () => utils.rerender(<App />),
     sendCommand: (command: AssistantTransportCommand) =>
       captured.sendCommand!(command),
     ...utils,
@@ -115,6 +119,30 @@ afterEach(() => {
 });
 
 describe("useAssistantTransportRuntime", () => {
+  it("keeps an in-flight thread switch across host rerenders", async () => {
+    const { runtime, rerenderRuntime } = mountRuntime();
+    await waitFor(() => {
+      expect(runtime().threads.getState().mainThreadId).toBeDefined();
+    });
+    await act(async () => {
+      await runtime().threads.mainItem.initialize();
+    });
+    const previousThreadId = runtime().threads.getState().mainThreadId;
+
+    let switchTask!: Promise<void>;
+    act(() => {
+      switchTask = runtime().threads.switchToNewThread();
+      rerenderRuntime();
+    });
+    await act(async () => {
+      await switchTask;
+    });
+
+    const nextThreadId = runtime().threads.getState().mainThreadId;
+    expect(nextThreadId).toBeDefined();
+    expect(nextThreadId).not.toBe(previousThreadId);
+  });
+
   it("no-ops a follow-up run that finds an empty queue", async () => {
     const fetchMock = installFetch();
     const onError = vi.fn();

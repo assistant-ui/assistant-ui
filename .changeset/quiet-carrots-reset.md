@@ -1,5 +1,6 @@
 ---
 "@assistant-ui/core": patch
+"@assistant-ui/react": patch
 ---
 
-fix: prune stale remote thread records after adapter changes
+fix: isolate remote thread state across adapter changes

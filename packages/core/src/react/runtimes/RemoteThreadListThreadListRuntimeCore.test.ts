@@ -120,6 +120,16 @@ describe("RemoteThreadListThreadListRuntimeCore adapter replacement", () => {
     expect(core.mainThreadId).toBe(localId);
     expect(core.getItemById(localId)?.id).toBe(localId);
     expect(core.getItemById("active-remote")?.id).toBe(localId);
+    expect(core.threadIds).toEqual([localId]);
+
+    await core.archive("active-remote");
+    expect(core.threadIds).toEqual([]);
+    expect(core.archivedThreadIds).toEqual([localId]);
+
+    await core.delete("active-remote");
+    expect(core.archivedThreadIds).toEqual([]);
+    expect(core.getItemById(localId)).toBeUndefined();
+    expect(core.getItemById("active-remote")).toBeUndefined();
   });
 
   it("finishes an in-flight mutation through its originating adapter", async () => {

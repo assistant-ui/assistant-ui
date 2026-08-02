@@ -393,11 +393,12 @@ const useAssistantTransportThreadRuntime = <T>(
 export const useAssistantTransportRuntime = <T>(
   options: AssistantTransportOptions<T>,
 ): AssistantRuntime => {
+  const [threadListAdapter] = useState(() => new InMemoryThreadListAdapter());
   const runtime = useRemoteThreadListRuntime({
     runtimeHook: function RuntimeHook() {
       return useAssistantTransportThreadRuntime(options);
     },
-    adapter: new InMemoryThreadListAdapter(),
+    adapter: threadListAdapter,
     allowNesting: true,
   });
   return runtime;
