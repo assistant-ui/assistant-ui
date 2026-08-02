@@ -244,6 +244,8 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
         let lastValuesMessages: TMessage[] | null = null;
         let lastValuesUIMessages: UIMessage[] | null = null;
         for await (const chunk of response) {
+          // Holds even when the caller's `stream` ignores its abortSignal.
+          if (abortController.signal.aborted) break;
           const { type: eventType, namespace: eventNamespace } = parseEventType(
             chunk.event,
           );
