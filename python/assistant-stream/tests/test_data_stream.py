@@ -4,6 +4,7 @@ import pytest
 
 from assistant_stream.assistant_stream_chunk import (
     AnnotationsChunk,
+    ErrorChunk,
     FileChunk,
     StepFinishChunk,
     StepStartChunk,
@@ -131,4 +132,38 @@ async def test_data_stream_encoder_emits_tool_controller_finish() -> None:
         'b:{"toolCallId": "t1", "toolName": "search"}\n',
         'c:{"toolCallId": "t1", "argsTextDelta": "{\\"q\\": 1}"}\n',
         'c:{"toolCallId": "t1", "argsTextDelta": "", "isFinal": true}\n',
+    ]
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("boundary", "encoded_boundary"),
+    [
+        (
+            StepFinishChunk(
+                finish_reason="tool-calls",
+                input_tokens=1,
+                output_tokens=2,
+            ),
+            'e:{"finishReason": "tool-calls", '
+            '"usage": {"inputTokens": 1, "outputTokens": 2}, '
+            '"isContinued": false}\n',
+        ),
+        (ErrorChunk(error="failed"), '3:"failed"\n'),
+    ],
+)
+async def test_data_stream_encoder_finishes_args_before_boundaries(
+    boundary: StepFinishChunk | ErrorChunk,
+    encoded_boundary: str,
+) -> None:
+    async def stream():
+        yield ToolCallBeginChunk(tool_call_id="t1", tool_name="search")
+        yield boundary
+
+    encoded = [frame async for frame in DataStreamEncoder().encode_stream(stream())]
+
+    assert encoded == [
+        'b:{"toolCallId": "t1", "toolName": "search"}\n',
+        'c:{"toolCallId": "t1", "argsTextDelta": "", "isFinal": true}\n',
+        encoded_boundary,
     ]

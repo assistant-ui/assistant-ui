@@ -90,7 +90,22 @@ class DataStreamEncoder(StreamEncoder):
         self, stream: AsyncGenerator[AssistantStreamChunk, None]
     ) -> AsyncGenerator[str, None]:
         open_tool_call_args: set[str] = set()
+
+        def finish_open_tool_call_args() -> list[str]:
+            frames: list[str] = []
+            for tool_call_id in open_tool_call_args:
+                finish = self.encode_chunk(
+                    ToolCallArgsTextFinishChunk(tool_call_id=tool_call_id)
+                )
+                if finish is not None:
+                    frames.append(finish)
+            open_tool_call_args.clear()
+            return frames
+
         async for chunk in stream:
+            if chunk.type in ("step-finish", "error"):
+                for finish in finish_open_tool_call_args():
+                    yield finish
             if chunk.type == "tool-call-begin":
                 open_tool_call_args.add(chunk.tool_call_id)
             elif chunk.type == "tool-result":
@@ -104,12 +119,8 @@ class DataStreamEncoder(StreamEncoder):
             if encoded is None:
                 continue
             yield encoded
-        for tool_call_id in open_tool_call_args:
-            finish = self.encode_chunk(
-                ToolCallArgsTextFinishChunk(tool_call_id=tool_call_id)
-            )
-            if finish is not None:
-                yield finish
+        for finish in finish_open_tool_call_args():
+            yield finish
 
 
 class DataStreamResponse(AssistantStreamResponse):
