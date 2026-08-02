@@ -257,7 +257,7 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
           };
 
         case "tool-call": {
-          if (!isJSONValue(part.result)) {
+          if (part.result !== undefined && !isJSONValue(part.result)) {
             console.warn(
               `tool-call result is not JSON! ${JSON.stringify(part)}`,
             );
@@ -269,7 +269,7 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
             ...(JSON.stringify(part.args) === part.argsText
               ? { args: part.args }
               : { argsText: part.argsText }),
-            ...(part.result
+            ...(part.result !== undefined
               ? { result: part.result as ReadonlyJSONValue }
               : undefined),
             ...(part.isError ? { isError: true } : undefined),
