@@ -1332,11 +1332,21 @@ describe("useLangGraphRuntime", () => {
     });
     await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
 
-    // the initial load is already fetching what a refetch would ask for
+    // the initial load is already fetching what a refetch would ask for, and
+    // the refetch settles with it rather than resolving ahead of it
+    let refetch!: Promise<void>;
+    act(() => {
+      refetch = runtimeResult.current.threads.reloadMainThread();
+    });
+    let refetchSettled = false;
+    void refetch.then(() => {
+      refetchSettled = true;
+    });
     await act(async () => {
-      await runtimeResult.current.threads.reloadMainThread();
+      await new Promise((resolve) => setTimeout(resolve, 10));
     });
     expect(load).toHaveBeenCalledTimes(1);
+    expect(refetchSettled).toBe(false);
 
     await act(async () => {
       pending.resolve({
@@ -1347,6 +1357,10 @@ describe("useLangGraphRuntime", () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
+    await act(async () => {
+      await refetch;
+    });
+    expect(refetchSettled).toBe(true);
     expect(runtimeResult.current.thread.getState().isLoading).toBe(false);
     expect(textsOf(runtimeResult.current)).toContain("persisted");
   });

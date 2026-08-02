@@ -547,7 +547,10 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
             !baselineIds.has(message.id) || !baselineMessages.has(message);
           if (runTouched) return [message];
           const fromServer = serverById.get(message.id);
-          return fromServer ? [fromServer] : [];
+          if (fromServer) return [fromServer];
+          // Same rule as the messages: absence only means deleted when no run
+          // is in flight. `uiMessages` is optional on the load result too.
+          return accumulator ? [message] : [];
         }),
       ];
       setUIMessagesImmediate(

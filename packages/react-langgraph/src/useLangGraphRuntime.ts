@@ -232,6 +232,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
   const loadControllerRef = useRef<{
     controller: AbortController;
     purpose: "initial" | "reload";
+    promise?: Promise<void>;
   } | null>(null);
   const hasExecutingTools = Object.values(toolStatuses).some(
     (s) => s?.type === "executing",
@@ -489,11 +490,17 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
         purpose === "reload" &&
         loadControllerRef.current?.purpose === "initial"
       )
-        return Promise.resolve();
+        // Settle with the load deferred to, so awaiting a refetch still means
+        // the thread is fresh.
+        return loadControllerRef.current.promise ?? Promise.resolve();
 
       loadControllerRef.current?.controller.abort();
       const controller = new AbortController();
-      loadControllerRef.current = { controller, purpose };
+      const record: NonNullable<typeof loadControllerRef.current> = {
+        controller,
+        purpose,
+      };
+      loadControllerRef.current = record;
 
       const messagesAtLoadStart = langGraphMessagesRef.current;
       const uiMessagesAtLoadStart = uiMessagesRef.current;
@@ -509,7 +516,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
       }
       // A refetch touches nothing else: the load boundary already decides
       // what a run started since keeps, so it needs no reset and no cancel.
-      return load(externalId, { signal: controller.signal })
+      const task = load(externalId, { signal: controller.signal })
         .then(({ messages, interrupts, uiMessages }) => {
           if (controller.signal.aborted) return;
           reconcileMessages(messages, messagesAtLoadStart);
@@ -530,6 +537,8 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
           if (controller.signal.aborted) return;
           setIsLoadingThread(false);
         });
+      record.promise = task;
+      return task;
     },
     [
       threadListItem,
