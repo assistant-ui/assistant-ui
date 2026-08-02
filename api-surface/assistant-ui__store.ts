@@ -272,8 +272,8 @@ declare function useClientLookup<TMethods extends ClientMethods>(elements: reado
 };
 
 declare const useClientResource: <TMethods extends ClientMethods>(element: ResourceElement<TMethods>) => {
-  state: InferClientState<TMethods>;
   methods: TMethods;
+  state: InferClientState<TMethods>;
   key: string | number | undefined;
 };
 
