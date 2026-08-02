@@ -902,6 +902,7 @@ type MessagePartLike = {
   toolCallId?: string;
   toolName?: string;
   args?: Record<string, unknown>;
+  state?: string;
   result?: unknown;
   isError?: boolean;
 };
