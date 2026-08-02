@@ -1,7 +1,9 @@
 import { McpServer } from "@modelcontextprotocol/server";
 
+declare const SERVER_VERSION: string;
+
 declare namespace entry_root_exports {
-  export { runServer, server };
+  export { SERVER_VERSION, runServer, server };
 }
 
 declare function runServer(): Promise<void>;
