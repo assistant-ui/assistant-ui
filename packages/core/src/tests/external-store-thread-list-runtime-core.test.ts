@@ -9,6 +9,7 @@ const makeFactory = (overrides: Record<string, unknown> = {}) =>
     () =>
       ({
         subscribe: () => () => {},
+        capabilities: { cancel: false },
         ...overrides,
       }) as unknown as ExternalStoreThreadRuntimeCore,
   );

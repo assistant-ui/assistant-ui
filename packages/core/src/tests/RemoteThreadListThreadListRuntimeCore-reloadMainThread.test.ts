@@ -5,9 +5,13 @@ import type { RemoteThreadListThreadListRuntimeCore } from "../react/runtimes/Re
 type HookManagerStub = {
   startThreadRuntime: (id: string) => Promise<unknown>;
   __internal_restartThreadRuntime: (id: string) => Promise<unknown>;
-  getThreadRuntimeCore: (
-    id: string,
-  ) => { unstable_refetchThread?: () => Promise<void> } | undefined;
+  getThreadRuntimeCore: (id: string) =>
+    | {
+        unstable_refetchThread?: () => Promise<void>;
+        capabilities?: { cancel: boolean };
+        cancelRun?: () => void;
+      }
+    | undefined;
 };
 
 const hookManagerOf = (core: RemoteThreadListThreadListRuntimeCore) =>
@@ -153,6 +157,7 @@ describe("RemoteThreadListThreadListRuntimeCore.reloadMainThread capability disp
     const restart = vi.fn(async () => ({}));
     hookManagerOf(core).getThreadRuntimeCore = () => ({
       unstable_refetchThread: reload,
+      capabilities: { cancel: false },
     });
     hookManagerOf(core).__internal_restartThreadRuntime = restart;
 
@@ -162,10 +167,43 @@ describe("RemoteThreadListThreadListRuntimeCore.reloadMainThread capability disp
     expect(restart).not.toHaveBeenCalled();
   });
 
+  it("cancels an in-flight run before the in-place reload when the runtime can cancel", async () => {
+    const core = await openRegularThread();
+    const order: string[] = [];
+    hookManagerOf(core).getThreadRuntimeCore = () => ({
+      unstable_refetchThread: async () => {
+        order.push("refetch");
+      },
+      capabilities: { cancel: true },
+      cancelRun: () => {
+        order.push("cancel");
+      },
+    });
+
+    await core.reloadMainThread();
+
+    expect(order).toEqual(["cancel", "refetch"]);
+  });
+
+  it("skips cancelRun when the runtime cannot cancel", async () => {
+    const core = await openRegularThread();
+    const cancelRun = vi.fn();
+    hookManagerOf(core).getThreadRuntimeCore = () => ({
+      unstable_refetchThread: async () => {},
+      capabilities: { cancel: false },
+      cancelRun,
+    });
+
+    await core.reloadMainThread();
+
+    expect(cancelRun).not.toHaveBeenCalled();
+  });
+
   it("notifies subscribers after an in-place reload", async () => {
     const core = await openRegularThread();
     hookManagerOf(core).getThreadRuntimeCore = () => ({
       unstable_refetchThread: async () => {},
+      capabilities: { cancel: false },
     });
 
     const callback = vi.fn();
@@ -206,6 +244,7 @@ describe("RemoteThreadListThreadListRuntimeCore.reloadMainThread capability disp
         new Promise<void>((resolve) => {
           releaseReload = resolve;
         }),
+      capabilities: { cancel: false },
     });
 
     const reloadTask = core.reloadMainThread();
@@ -225,6 +264,7 @@ describe("RemoteThreadListThreadListRuntimeCore.reloadMainThread capability disp
       unstable_refetchThread: async () => {
         throw new Error("refetch failed");
       },
+      capabilities: { cancel: false },
     });
 
     await expect(core.reloadMainThread()).rejects.toThrow("refetch failed");

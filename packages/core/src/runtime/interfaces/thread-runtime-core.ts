@@ -222,8 +222,7 @@ export type ThreadRuntimeCore = Readonly<{
    * Re-fetches this thread's state from its backing store, in place — no
    * runtime-hook remount, so runtime identity and composer drafts survive.
    * Presence signals the capability to `threads.reloadMainThread()`, which
-   * calls it and propagates its rejection. Implementations must cancel an
-   * in-flight run before refetching, or a later chunk clobbers the result.
+   * cancels any in-flight run, calls this, and propagates its rejection.
    * Runtimes without remote state leave it undefined.
    */
   unstable_refetchThread?: (() => Promise<void>) | undefined;
