@@ -26,6 +26,10 @@ type RemoteThreadListHook = () => AssistantRuntime;
 
 type RemoteThreadListHookInstance = {
   runtime?: ThreadRuntimeCore | undefined;
+  // generation of the binder that published `runtime`. A runtime riding
+  // across a restart stays readable but only counts as attached once a
+  // binder of the current generation re-publishes it.
+  publishedGeneration?: number | undefined;
   // Part of the binder's React key. Deleting and re-adding an instance in one
   // tick leaves the key set unchanged, so only a bump remounts the hook.
   generation: number;
@@ -63,8 +67,11 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
         if (!instance) {
           dispose();
           reject(new Error("Thread was deleted before runtime was started"));
-        } else if (!instance.runtime) {
-          return; // misc update
+        } else if (
+          !instance.runtime ||
+          instance.publishedGeneration !== instance.generation
+        ) {
+          return; // not yet published by the current generation's binder
         } else {
           dispose();
           resolve(instance.runtime);
@@ -89,9 +96,12 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     if (!instance) return this.startThreadRuntime(threadId);
 
     // the outgoing runtime stays readable until the new binder attaches, so
-    // getThreadRuntimeCore never falls back to the empty core mid-restart
+    // getThreadRuntimeCore never falls back to the empty core mid-restart —
+    // but its stale publishedGeneration keeps _whenRuntimeAttached pending
+    // until the incoming binder re-publishes
     this.instances.set(threadId, {
       runtime: instance.runtime,
+      publishedGeneration: instance.publishedGeneration,
       generation: instance.generation + 1,
     });
     this.useAliveThreadsKeysChanged.setState({}, true);
@@ -142,6 +152,7 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
       if (aliveThread.generation !== generation) return;
 
       aliveThread.runtime = threadBinding.getState();
+      aliveThread.publishedGeneration = generation;
       this._notifySubscribers();
     }, [threadId, generation, threadBinding]);
 

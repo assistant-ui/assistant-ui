@@ -87,4 +87,90 @@ describe("RemoteThreadListHookInstanceManager.__internal_restartThreadRuntime", 
 
     expect(renderedKeys(manager)).toEqual(before);
   });
+
+  type InstanceInternals = {
+    instances: Map<
+      string,
+      {
+        runtime?: unknown;
+        publishedGeneration?: number;
+        generation: number;
+      }
+    >;
+    _notifySubscribers: () => void;
+  };
+  const internalsOf = (manager: RemoteThreadListHookInstanceManager) =>
+    manager as unknown as InstanceInternals;
+
+  // simulates the binder's updateRuntime: publish a runtime for the
+  // instance's current generation
+  const publish = (
+    manager: RemoteThreadListHookInstanceManager,
+    id: string,
+    runtime: unknown,
+  ) => {
+    const instance = internalsOf(manager).instances.get(id)!;
+    instance.runtime = runtime;
+    instance.publishedGeneration = instance.generation;
+    internalsOf(manager)._notifySubscribers();
+  };
+
+  it("does not settle with the pre-restart runtime; only the incoming binder's publication resolves it", async () => {
+    const manager = makeManager();
+    start(manager, "thread-1");
+    publish(manager, "thread-1", { tag: "pre-reload-runtime" });
+
+    let settledWith = "NOT_SETTLED";
+    manager.__internal_restartThreadRuntime("thread-1").then((r) => {
+      settledWith = (r as { tag: string }).tag;
+    });
+
+    // the outgoing runtime rides across the restart (stays readable)…
+    expect(manager.getThreadRuntimeCore("thread-1")).toEqual({
+      tag: "pre-reload-runtime",
+    });
+    // …but must not count as attached
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(settledWith).toBe("NOT_SETTLED");
+
+    publish(manager, "thread-1", { tag: "post-reload-runtime" });
+    await Promise.resolve();
+    expect(settledWith).toBe("post-reload-runtime");
+  });
+
+  it("keeps the outgoing runtime readable while the restart promise is pending", () => {
+    const manager = makeManager();
+    start(manager, "thread-1");
+    publish(manager, "thread-1", { tag: "pre-reload-runtime" });
+
+    restart(manager, "thread-1");
+
+    expect(manager.getThreadRuntimeCore("thread-1")).toEqual({
+      tag: "pre-reload-runtime",
+    });
+  });
+
+  it("a stale-generation publication does not resolve the restart promise", async () => {
+    const manager = makeManager();
+    start(manager, "thread-1");
+    publish(manager, "thread-1", { tag: "pre-reload-runtime" });
+
+    let settled = false;
+    manager.__internal_restartThreadRuntime("thread-1").then(() => {
+      settled = true;
+    });
+
+    // an outgoing binder re-publishing for its old generation (e.g. a late
+    // outerSubscribe callback) must not count as the new attachment
+    const instance = internalsOf(manager).instances.get("thread-1")!;
+    instance.runtime = { tag: "stale-publication" };
+    instance.publishedGeneration = instance.generation - 1;
+    internalsOf(manager)._notifySubscribers();
+
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(settled).toBe(false);
+  });
 });

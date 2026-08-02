@@ -691,6 +691,85 @@ describe("useLangGraphRuntime", () => {
     });
   });
 
+  it("reloadMainThread cancels an in-flight run so a later chunk cannot clobber the refetched messages", async () => {
+    const load = vi
+      .fn<() => Promise<LoadResult>>()
+      .mockImplementationOnce(async () => ({ messages: [] }))
+      .mockImplementationOnce(async () => ({
+        messages: [
+          { type: "ai" as const, id: "server-1", content: "refetched" },
+        ],
+      }));
+
+    // a stream gated between two chunks so the reload lands mid-run
+    const firstChunkSent = deferred<void>();
+    const releaseSecondChunk = deferred<void>();
+    let streamAborted = false;
+    const streamMock = vi.fn(
+      (_messages: unknown, { abortSignal }: { abortSignal: AbortSignal }) =>
+        (async function* () {
+          abortSignal.addEventListener("abort", () => {
+            streamAborted = true;
+          });
+          yield {
+            event: "messages/complete",
+            data: [{ type: "ai" as const, id: "run-1", content: "chunk one" }],
+          };
+          firstChunkSent.resolve();
+          await releaseSecondChunk.promise;
+          if (abortSignal.aborted) return;
+          yield {
+            event: "messages/complete",
+            data: [{ type: "ai" as const, id: "run-2", content: "chunk two" }],
+          };
+        })(),
+    );
+
+    const { result: runtimeResult } = renderHook(() =>
+      useLangGraphRuntime({
+        stream: streamMock as never,
+        load,
+        unstable_threadListAdapter: makeThreadListAdapter(),
+      }),
+    );
+
+    const wrapper = wrapperFactory(runtimeResult.current);
+    renderHook(() => useAuiState((s) => s.thread.isLoading), { wrapper });
+
+    await act(async () => {
+      await runtimeResult.current.threads.switchToThread("lg-thread-1");
+    });
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
+
+    // start a run and let it stream its first chunk
+    await act(async () => {
+      runtimeResult.current.thread.append("start a run");
+      await firstChunkSent.promise;
+    });
+
+    await act(async () => {
+      await runtimeResult.current.threads.reloadMainThread();
+    });
+    expect(streamAborted).toBe(true);
+
+    // release the gated run; its chunk must not restore the pre-reload list
+    await act(async () => {
+      releaseSecondChunk.resolve();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    const messageTexts = runtimeResult.current.thread
+      .getState()
+      .messages.map((m) =>
+        m.content
+          .filter((p) => p.type === "text")
+          .map((p) => (p as { text: string }).text)
+          .join(""),
+      );
+    expect(messageTexts).toContain("refetched");
+    expect(messageTexts).not.toContain("chunk two");
+  });
+
   it("reloadMainThread rejects when the reload's load fails, while an initial load only warns", async () => {
     const loadError = new Error("refetch failed");
     const load = vi
@@ -723,6 +802,65 @@ describe("useLangGraphRuntime", () => {
         runtimeResult.current.threads.reloadMainThread(),
       ).rejects.toThrow("refetch failed");
     });
+  });
+
+  it("reloadMainThread preserves LangGraph graph state (values), and touches nothing when the reload rejects", async () => {
+    const load = vi
+      .fn<() => Promise<LoadResult>>()
+      .mockImplementationOnce(async () => ({ messages: [] }))
+      .mockImplementationOnce(async () => ({ messages: [] }))
+      .mockImplementationOnce(() => Promise.reject(new Error("boom")));
+
+    const streamMock = vi
+      .fn()
+      .mockImplementation(() =>
+        mockStreamCallbackFactory([
+          { event: "values", data: { my_graph_field: "established" } },
+        ])(),
+      );
+
+    const { result: runtimeResult } = renderHook(() =>
+      useLangGraphRuntime({
+        stream: streamMock,
+        load,
+        unstable_threadListAdapter: makeThreadListAdapter(),
+      }),
+    );
+
+    const wrapper = wrapperFactory(runtimeResult.current);
+    renderHook(() => useAuiState((s) => s.thread.isLoading), { wrapper });
+
+    await act(async () => {
+      await runtimeResult.current.threads.switchToThread("lg-thread-1");
+    });
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
+
+    // establish graph state via a run's values event
+    await act(async () => {
+      runtimeResult.current.thread.append("run once");
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    const stateOf = () =>
+      (
+        runtimeResult.current.thread.getState().extras as {
+          state?: Record<string, unknown>;
+        }
+      ).state;
+    await waitFor(() =>
+      expect(stateOf()).toEqual({ my_graph_field: "established" }),
+    );
+
+    await act(async () => {
+      await runtimeResult.current.threads.reloadMainThread();
+    });
+    expect(stateOf()).toEqual({ my_graph_field: "established" });
+
+    await act(async () => {
+      await expect(
+        runtimeResult.current.threads.reloadMainThread(),
+      ).rejects.toThrow("boom");
+    });
+    expect(stateOf()).toEqual({ my_graph_field: "established" });
   });
 
   it("a newer reload aborts the in-flight one so stale results never land", async () => {

@@ -465,15 +465,35 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
       const controller = new AbortController();
       loadControllerRef.current = controller;
 
-      toolResultBufferRef.current.clear();
-      pendingStateRef.current = undefined;
-      effectiveStateRef.current = undefined;
-      setOptimisticState(undefined);
-      setValues(undefined);
-      if (purpose === "initial") setIsLoadingThread(true);
+      if (purpose === "initial") {
+        // leaving the previous thread behind: wipe run-scoped state up front
+        // and surface the loading state
+        toolResultBufferRef.current.clear();
+        pendingStateRef.current = undefined;
+        effectiveStateRef.current = undefined;
+        setOptimisticState(undefined);
+        setValues(undefined);
+        setIsLoadingThread(true);
+      } else {
+        // reloading in place: a run that is still streaming would clobber the
+        // refetched messages on its next chunk (sendMessage seeds its
+        // accumulator once at run start), so cancel it first — the same
+        // contract the remount fallback enforces via unmount
+        pendingResumeRef.current = null;
+        runQueue.drop();
+        cancel();
+      }
       return load(externalId, { signal: controller.signal })
         .then(({ messages, interrupts, uiMessages }) => {
           if (controller.signal.aborted) return;
+          if (purpose === "reload") {
+            // swap atomically only once the fresh result has landed; `values`
+            // stays untouched since LoadResult cannot restore it
+            toolResultBufferRef.current.clear();
+            pendingStateRef.current = undefined;
+            effectiveStateRef.current = undefined;
+            setOptimisticState(undefined);
+          }
           setMessages(messages);
           setUIMessages(uiMessages ?? []);
           setInterrupt(interrupts?.[0]);
@@ -490,13 +510,24 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
           setIsLoadingThread(false);
         });
     },
-    [threadListItem, setMessages, setUIMessages, setInterrupt, setValues],
+    [
+      threadListItem,
+      setMessages,
+      setUIMessages,
+      setInterrupt,
+      setValues,
+      runQueue,
+      cancel,
+    ],
   );
 
   useEffect(() => {
     runLoad();
+    // runLoad set the ref synchronously, so this is this run's controller —
+    // abort it specifically rather than whatever is current at cleanup time
+    const controller = loadControllerRef.current;
     return () => {
-      loadControllerRef.current?.abort();
+      controller?.abort();
       setIsLoadingThread(false);
     };
   }, [runLoad]);
