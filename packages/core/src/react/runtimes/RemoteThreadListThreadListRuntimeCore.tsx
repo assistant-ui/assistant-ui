@@ -830,13 +830,16 @@ export class RemoteThreadListThreadListRuntimeCore
       throw threadStatusError(threadIdOrRemoteId, data.status, "be unarchived");
 
     const adapter = this._options.adapter;
+    const adapterGeneration = this._adapterGeneration;
     return this._state.optimisticUpdate({
       execute: async () => {
         try {
           const { remoteId } = await data.initializeTask;
           return await adapter.unarchive(remoteId);
         } catch (error) {
-          await this._ensureThreadIsNotMain(data.id);
+          if (adapterGeneration === this._adapterGeneration) {
+            await this._ensureThreadIsNotMain(data.id);
+          }
           throw error;
         }
       },

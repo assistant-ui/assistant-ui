@@ -7,14 +7,19 @@ import { RemoteThreadListThreadListRuntimeCore } from "./RemoteThreadListThreadL
 
 const deferred = <T>() => {
   let resolve!: (value: T) => void;
-  const promise = new Promise<T>((resolvePromise) => {
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
     resolve = resolvePromise;
+    reject = rejectPromise;
   });
-  return { promise, resolve };
+  return { promise, resolve, reject };
 };
 
-const makeThread = (remoteId: string): RemoteThreadMetadata => ({
-  status: "regular",
+const makeThread = (
+  remoteId: string,
+  status: "regular" | "archived" = "regular",
+): RemoteThreadMetadata => ({
+  status,
   remoteId,
 });
 
@@ -131,5 +136,26 @@ describe("RemoteThreadListThreadListRuntimeCore adapter replacement", () => {
     expect(adapterA.rename).toHaveBeenCalledWith("account-a-thread", "Renamed");
     expect(adapterB.rename).not.toHaveBeenCalled();
     expect(core.getItemById("account-a-thread")).toBeUndefined();
+  });
+
+  it("does not navigate the new adapter after an old unarchive fails", async () => {
+    const unarchiveRequest = deferred<void>();
+    const adapterA = makeAdapter([makeThread("shared-thread", "archived")], {
+      unarchive: vi.fn(() => unarchiveRequest.promise),
+    });
+    const adapterB = makeAdapter([makeThread("shared-thread")]);
+    const core = makeCore(adapterA);
+    await core.getLoadThreadsPromise();
+
+    const unarchiveTask = core.unarchive("shared-thread");
+    core.__internal_setOptions(makeOptions(adapterB));
+    await core.getLoadThreadsPromise();
+    await core.switchToThread("shared-thread", { unarchive: false });
+    const mainThreadId = core.mainThreadId;
+
+    unarchiveRequest.reject(new Error("old adapter failed"));
+    await expect(unarchiveTask).rejects.toThrow("old adapter failed");
+
+    expect(core.mainThreadId).toBe(mainThreadId);
   });
 });
