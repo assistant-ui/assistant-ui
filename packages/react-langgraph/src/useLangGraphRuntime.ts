@@ -221,7 +221,12 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
     (LangChainMessage & { type: "tool" })[] | null
   >(null);
   // One controller per in-flight load; a newer load aborts the previous one.
-  const loadControllerRef = useRef<AbortController | null>(null);
+  // The purpose rides along because only a refetch may be superseded by a
+  // send: aborting an initial load would strand its history and loading flag.
+  const loadControllerRef = useRef<{
+    controller: AbortController;
+    purpose: "initial" | "reload";
+  } | null>(null);
   const hasExecutingTools = Object.values(toolStatuses).some(
     (s) => s?.type === "executing",
   );
@@ -297,9 +302,13 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
     messages: LangChainMessage[],
     config: LangGraphSendMessageConfig,
   ) => {
-    // A new run supersedes any in-flight refetch, whose landing snapshot would
-    // otherwise erase the message the user just sent.
-    loadControllerRef.current?.abort();
+    // A new run supersedes an in-flight refetch, whose landing snapshot would
+    // otherwise erase the message the user just sent. An initial load is left
+    // alone: it owns the thread's history and loading flag, and aborting it
+    // would drop both.
+    if (loadControllerRef.current?.purpose === "reload") {
+      loadControllerRef.current.controller.abort();
+    }
     const state = pendingStateRef.current;
     pendingStateRef.current = undefined;
     return runQueue.enqueue({
@@ -469,9 +478,9 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
       const externalId = threadListItem.getState().externalId;
       if (externalId == null) return Promise.resolve();
 
-      loadControllerRef.current?.abort();
+      loadControllerRef.current?.controller.abort();
       const controller = new AbortController();
-      loadControllerRef.current = controller;
+      loadControllerRef.current = { controller, purpose };
 
       if (purpose === "initial") {
         toolResultBufferRef.current.clear();
@@ -528,7 +537,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
     return () => {
       // Whatever is current, not this effect's own controller: a refetch swaps
       // the ref, and one in flight at unmount must be aborted too.
-      loadControllerRef.current?.abort();
+      loadControllerRef.current?.controller.abort();
       setIsLoadingThread(false);
     };
   }, [runLoad]);

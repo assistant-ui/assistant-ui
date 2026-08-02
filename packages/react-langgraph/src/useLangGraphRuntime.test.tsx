@@ -1092,6 +1092,51 @@ describe("useLangGraphRuntime", () => {
     expect(extras.interrupt).toEqual({ value: "fresh" });
   });
 
+  it("a send while the initial load is pending leaves the history and loading flag intact", async () => {
+    const pending = deferred<LoadResult>();
+    const load = vi.fn(() => pending.promise);
+
+    const streamMock = vi
+      .fn()
+      .mockImplementation(() => mockStreamCallbackFactory([])());
+
+    const { result: runtimeResult } = renderHook(() =>
+      useLangGraphRuntime({
+        stream: streamMock,
+        load,
+        unstable_threadListAdapter: makeThreadListAdapter(),
+      }),
+    );
+
+    const wrapper = wrapperFactory(runtimeResult.current);
+    renderHook(() => useAuiState((s) => s.thread.isLoading), { wrapper });
+
+    await act(async () => {
+      await runtimeResult.current.threads.switchToThread("lg-thread-1");
+    });
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
+    expect(runtimeResult.current.thread.getState().isLoading).toBe(true);
+
+    // the composer is live during a load, so this is reachable from the UI
+    await act(async () => {
+      void runtimeResult.current.thread.append("hello");
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    await act(async () => {
+      pending.resolve({
+        messages: [
+          { type: "ai" as const, id: "server-1", content: "persisted" },
+        ],
+      });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    // aborting the initial load here would strand both of these
+    expect(runtimeResult.current.thread.getState().isLoading).toBe(false);
+    expect(textsOf(runtimeResult.current)).toContain("persisted");
+  });
+
   it("should abort the pending load when the runtime unmounts", async () => {
     const pending = deferred<LoadResult>();
     const load = vi.fn(() => pending.promise);
