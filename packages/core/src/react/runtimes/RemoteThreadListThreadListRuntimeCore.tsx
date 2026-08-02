@@ -142,6 +142,13 @@ export class RemoteThreadListThreadListRuntimeCore
   private _switchGeneration = 0;
   private _switchTask: Promise<void> | undefined;
   private _switchTargetThreadId: string | undefined;
+  private _pendingControlledSelection:
+    | {
+        adapterGeneration: number;
+        replacementId: string;
+        threadId: string;
+      }
+    | undefined;
 
   private _mainThreadId!: string;
   private readonly _state = new OptimisticState<RemoteThreadState>(
@@ -214,6 +221,9 @@ export class RemoteThreadListThreadListRuntimeCore
             for (const threadId of removedRuntimeIds ?? []) {
               this._hookManager.stopThreadRuntime(threadId);
             }
+            if (removedRuntimeIds !== undefined) {
+              this._reconcilePendingControlledSelection();
+            }
           }
         });
     }
@@ -232,6 +242,7 @@ export class RemoteThreadListThreadListRuntimeCore
     const generation = this._loadGeneration;
     const adapter = this._options.adapter;
     const cursor = initialState.cursor;
+    let didLoadMore = false;
 
     const dedup = this._state
       .optimisticUpdate({
@@ -243,6 +254,7 @@ export class RemoteThreadListThreadListRuntimeCore
         then: (state, l) => {
           if (generation !== this._loadGeneration) return state;
           if (adapter !== this._options.adapter) return state;
+          didLoadMore = true;
 
           const appended = classifyThreads(l.threads, {
             threadIds: [...state.threadIds],
@@ -268,6 +280,9 @@ export class RemoteThreadListThreadListRuntimeCore
       .then(() => {
         if (this._loadMorePromise === dedup) {
           this._loadMorePromise = undefined;
+        }
+        if (didLoadMore) {
+          this._reconcilePendingControlledSelection();
         }
       });
 
@@ -330,6 +345,7 @@ export class RemoteThreadListThreadListRuntimeCore
       this._loadGeneration++;
       this._switchGeneration++;
       this._switchTargetThreadId = undefined;
+      this._pendingControlledSelection = undefined;
       this._loadThreadsPromise = undefined;
       this._loadMorePromise = undefined;
       this._switchTask = undefined;
@@ -359,21 +375,25 @@ export class RemoteThreadListThreadListRuntimeCore
           const replacementId = replacement.id;
           const controlledThreadId = options.threadId;
           this._switchToThreadFromProp(controlledThreadId).catch(async () => {
+            const pending = {
+              adapterGeneration,
+              replacementId,
+              threadId: controlledThreadId,
+            };
+            this._pendingControlledSelection = pending;
             await this.getLoadThreadsPromise();
+            if (this._pendingControlledSelection !== pending) return;
             if (
               adapterGeneration !== this._adapterGeneration ||
               this._options.threadId !== controlledThreadId ||
-              this._mainThreadId !== replacementId ||
-              this._lastSuccessfulLoadGeneration !== this._loadGeneration ||
-              this.hasMore
+              this._mainThreadId !== replacementId
             ) {
+              this._pendingControlledSelection = undefined;
               return;
             }
-            if (this.getItemById(controlledThreadId) !== undefined) {
-              this._switchToThreadFromProp(controlledThreadId).catch(() => {});
+            if (this._lastSuccessfulLoadGeneration !== this._loadGeneration)
               return;
-            }
-            this._notifyThreadIdChange(true, true);
+            this._reconcilePendingControlledSelection();
           });
         } else {
           this._notifyThreadIdChange();
@@ -391,7 +411,30 @@ export class RemoteThreadListThreadListRuntimeCore
     }
 
     if (controlledThreadIdChanged) {
+      this._pendingControlledSelection = undefined;
       this._switchToThreadFromProp(options.threadId).catch(() => {});
+    }
+  }
+
+  private _reconcilePendingControlledSelection() {
+    const pending = this._pendingControlledSelection;
+    if (!pending) return;
+
+    if (
+      pending.adapterGeneration !== this._adapterGeneration ||
+      this._options.threadId !== pending.threadId ||
+      this._mainThreadId !== pending.replacementId
+    ) {
+      this._pendingControlledSelection = undefined;
+      return;
+    }
+
+    if (this.getItemById(pending.threadId) !== undefined) {
+      this._pendingControlledSelection = undefined;
+      this._switchToThreadFromProp(pending.threadId).catch(() => {});
+    } else if (!this.hasMore) {
+      this._pendingControlledSelection = undefined;
+      this._notifyThreadIdChange(true, true);
     }
   }
 

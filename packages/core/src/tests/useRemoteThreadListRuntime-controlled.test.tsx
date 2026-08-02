@@ -256,6 +256,93 @@ describe("useRemoteThreadListRuntime controlled threadId", () => {
     expect(runtimeRef.current!.threads.mainItem.getState().status).toBe("new");
   });
 
+  it("selects a controlled thread found on a later replacement page", async () => {
+    const adapterA = makeAdapter({ unstable_scopeKey: "a" });
+    const adapterB = makeAdapter({
+      unstable_scopeKey: "b",
+      list: vi
+        .fn()
+        .mockResolvedValueOnce({ threads: [], nextCursor: "next" })
+        .mockResolvedValueOnce({
+          threads: [makeThreadMetadata("thread-a")],
+        }),
+      fetch: vi.fn().mockRejectedValue(new Error("Network unavailable")),
+    });
+    const onThreadIdChange = vi.fn();
+    const runtimeRef: RuntimeRef = { current: null };
+
+    const { rerender } = render(
+      <ControlledRuntime
+        adapter={adapterA}
+        threadId="thread-a"
+        onThreadIdChange={onThreadIdChange}
+        runtimeRef={runtimeRef}
+      />,
+    );
+    await waitForRemoteThread(runtimeRef, "thread-a");
+
+    rerender(
+      <ControlledRuntime
+        adapter={adapterB}
+        threadId="thread-a"
+        onThreadIdChange={onThreadIdChange}
+        runtimeRef={runtimeRef}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(runtimeRef.current!.threads.getState().hasMore).toBe(true);
+      expect(adapterB.fetch).toHaveBeenCalledWith("thread-a");
+    });
+    await act(() => runtimeRef.current!.threads.loadMore());
+
+    await waitForRemoteThread(runtimeRef, "thread-a");
+    expect(onThreadIdChange).not.toHaveBeenCalled();
+  });
+
+  it("clears a controlled thread missing from the final replacement page", async () => {
+    const adapterA = makeAdapter({ unstable_scopeKey: "a" });
+    const adapterB = makeAdapter({
+      unstable_scopeKey: "b",
+      list: vi
+        .fn()
+        .mockResolvedValueOnce({ threads: [], nextCursor: "next" })
+        .mockResolvedValueOnce({ threads: [] }),
+      fetch: vi.fn().mockRejectedValue(new Error("Thread not found")),
+    });
+    const onThreadIdChange = vi.fn();
+    const runtimeRef: RuntimeRef = { current: null };
+
+    const { rerender } = render(
+      <ControlledRuntime
+        adapter={adapterA}
+        threadId="thread-a"
+        onThreadIdChange={onThreadIdChange}
+        runtimeRef={runtimeRef}
+      />,
+    );
+    await waitForRemoteThread(runtimeRef, "thread-a");
+
+    rerender(
+      <ControlledRuntime
+        adapter={adapterB}
+        threadId="thread-a"
+        onThreadIdChange={onThreadIdChange}
+        runtimeRef={runtimeRef}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(runtimeRef.current!.threads.getState().hasMore).toBe(true);
+      expect(adapterB.fetch).toHaveBeenCalledWith("thread-a");
+    });
+    await act(() => runtimeRef.current!.threads.loadMore());
+
+    await waitFor(() => {
+      expect(onThreadIdChange).toHaveBeenCalledWith(undefined);
+    });
+  });
+
   it("retries a controlled selection found by the replacement list", async () => {
     const adapterA = makeAdapter({ unstable_scopeKey: "a" });
     const adapterB = makeAdapter({
