@@ -3,6 +3,7 @@ import type {
   RemoteThreadListAdapter,
   RemoteThreadMetadata,
 } from "../../runtimes/remote-thread-list/types";
+import { setStartThreadRuntime } from "../../tests/remote-thread-list-test-helpers";
 import { RemoteThreadListThreadListRuntimeCore } from "./RemoteThreadListThreadListRuntimeCore";
 
 const deferred = <T>() => {
@@ -52,13 +53,7 @@ const makeCore = (adapter: RemoteThreadListAdapter) => {
   const core = new RemoteThreadListThreadListRuntimeCore(makeOptions(adapter), {
     getModelContext: () => ({}),
   });
-  (
-    core as unknown as {
-      _hookManager: {
-        startThreadRuntime: (id: string) => Promise<unknown>;
-      };
-    }
-  )._hookManager.startThreadRuntime = async () => ({});
+  setStartThreadRuntime(core, async () => ({}));
   return core;
 };
 
@@ -208,13 +203,7 @@ describe("RemoteThreadListThreadListRuntimeCore adapter replacement", () => {
       if (threadId.startsWith("__LOCALID_")) return fallbackStart.promise;
       return {};
     });
-    (
-      core as unknown as {
-        _hookManager: {
-          startThreadRuntime: (id: string) => Promise<unknown>;
-        };
-      }
-    )._hookManager.startThreadRuntime = startThreadRuntime;
+    setStartThreadRuntime(core, startThreadRuntime);
 
     const unarchiveTask = core.unarchive("shared-thread");
     const rejected =
@@ -237,5 +226,40 @@ describe("RemoteThreadListThreadListRuntimeCore adapter replacement", () => {
     fallbackStart.resolve({});
     await rejected;
     expect(core.mainThreadId).toBe("shared-thread");
+  });
+
+  it("does not archive replacement adapter state after switching away", async () => {
+    const fallbackStart = deferred<unknown>();
+    const adapterA = makeAdapter([makeThread("shared-thread")]);
+    const adapterB = makeAdapter([makeThread("shared-thread")]);
+    const core = makeCore(adapterA);
+    await core.getLoadThreadsPromise();
+    core.__internal_load();
+    await core.switchToThread("shared-thread");
+
+    const startThreadRuntime = vi.fn(async (threadId: string) => {
+      if (threadId.startsWith("__LOCALID_")) return fallbackStart.promise;
+      return {};
+    });
+    setStartThreadRuntime(core, startThreadRuntime);
+
+    const archiveTask = core.archive("shared-thread");
+    await vi.waitFor(() => {
+      expect(startThreadRuntime).toHaveBeenCalledWith(
+        expect.stringMatching(/^__LOCALID_/),
+      );
+    });
+
+    core.__internal_setOptions({
+      ...makeOptions(adapterB),
+      threadId: "shared-thread",
+    });
+    fallbackStart.resolve({});
+    await archiveTask;
+    await core.getLoadThreadsPromise();
+
+    expect(adapterA.archive).not.toHaveBeenCalled();
+    expect(adapterB.archive).not.toHaveBeenCalled();
+    expect(core.getItemById("shared-thread")?.status).toBe("regular");
   });
 });

@@ -78,4 +78,23 @@ describe("OptimisticState", () => {
 
     expect(state.value.title).toBe("New backend title");
   });
+
+  it("does not queue an update when execute resets the state", async () => {
+    const state = new OptimisticState({ title: "Untitled" });
+    const request = deferred();
+
+    const update = state.optimisticUpdate({
+      execute: () => {
+        state.reset({ title: "New backend title" });
+        return request.promise;
+      },
+      optimistic: (value) => ({ ...value, title: "Old backend title" }),
+    });
+
+    expect(state.value.title).toBe("New backend title");
+    request.resolve();
+    await update;
+
+    expect(state.value.title).toBe("New backend title");
+  });
 });

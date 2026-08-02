@@ -111,6 +111,8 @@ export class OptimisticState<TState> extends BaseSubscribable {
     const generation = this._generation;
     const order = this._nextTransformOrder++;
     const task = transform.execute();
+    if (generation !== this._generation) return task;
+
     const pendingTransform = {
       ...transform,
       order,

@@ -445,4 +445,29 @@ describe("RemoteThreadListThreadListRuntimeCore.loadMore", () => {
     await core.loadMore();
     expect(listFn).toHaveBeenCalledTimes(2);
   });
+
+  it("reload retains records created by previously loaded pages", async () => {
+    const listFn = vi
+      .fn<ListFn>()
+      .mockResolvedValueOnce({
+        threads: [{ status: "regular", remoteId: "a", externalId: "a" }],
+        nextCursor: "c1",
+      })
+      .mockResolvedValueOnce({
+        threads: [{ status: "regular", remoteId: "b", externalId: "b" }],
+      })
+      .mockResolvedValueOnce({
+        threads: [{ status: "regular", remoteId: "a", externalId: "a" }],
+      });
+    const core = createCore(makeAdapter({ list: listFn }));
+
+    await core.getLoadThreadsPromise();
+    await core.loadMore();
+    expect(core.getItemById("b")).toBeDefined();
+
+    await core.reload();
+
+    expect(core.threadIds).toEqual(["a"]);
+    expect(core.getItemById("b")).toBeDefined();
+  });
 });

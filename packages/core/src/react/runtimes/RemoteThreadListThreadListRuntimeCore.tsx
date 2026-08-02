@@ -183,8 +183,14 @@ export class RemoteThreadListThreadListRuntimeCore
               cursor: normalizeCursor(l.nextCursor),
               threadIds: fresh.threadIds,
               archivedThreadIds: fresh.archivedThreadIds,
-              threadIdMap: fresh.threadIdMap,
-              threadData: fresh.threadData,
+              threadIdMap: {
+                ...state.threadIdMap,
+                ...fresh.threadIdMap,
+              },
+              threadData: {
+                ...state.threadData,
+                ...fresh.threadData,
+              },
             };
           },
         })
@@ -872,7 +878,12 @@ export class RemoteThreadListThreadListRuntimeCore
       throw threadStatusError(threadIdOrRemoteId, data.status, "be archived");
 
     const adapter = this._options.adapter;
-    await this._ensureThreadIsNotMain(data.id);
+    const adapterGeneration = this._adapterGeneration;
+    await this._ensureThreadIsNotMain(
+      data.id,
+      () => adapterGeneration === this._adapterGeneration,
+    );
+    if (adapterGeneration !== this._adapterGeneration) return;
 
     return this._state.optimisticUpdate({
       execute: async () => {
@@ -921,7 +932,12 @@ export class RemoteThreadListThreadListRuntimeCore
       throw threadStatusError(threadIdOrRemoteId, data.status, "be deleted");
 
     const adapter = this._options.adapter;
-    await this._ensureThreadIsNotMain(data.id);
+    const adapterGeneration = this._adapterGeneration;
+    await this._ensureThreadIsNotMain(
+      data.id,
+      () => adapterGeneration === this._adapterGeneration,
+    );
+    if (adapterGeneration !== this._adapterGeneration) return;
     this._hookManager.stopThreadRuntime(data.id);
 
     return this._state.optimisticUpdate({
@@ -941,7 +957,12 @@ export class RemoteThreadListThreadListRuntimeCore
     if (data.status !== "regular" && data.status !== "archived")
       throw threadStatusError(threadIdOrRemoteId, data.status, "be detached");
 
-    await this._ensureThreadIsNotMain(data.id);
+    const adapterGeneration = this._adapterGeneration;
+    await this._ensureThreadIsNotMain(
+      data.id,
+      () => adapterGeneration === this._adapterGeneration,
+    );
+    if (adapterGeneration !== this._adapterGeneration) return;
     this._hookManager.stopThreadRuntime(data.id);
   }
 
