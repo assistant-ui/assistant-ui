@@ -187,6 +187,10 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
   const uiMessagesRef = useRef(uiMessages);
   uiMessagesRef.current = uiMessages;
 
+  const activeAccumulatorRef = useRef<
+    LangGraphMessageAccumulator<TMessage> | undefined
+  >(undefined);
+
   const setUIMessagesImmediate = useCallback((next: UIMessage[]) => {
     uiMessagesRef.current = next;
     _setUIMessages(next);
@@ -219,17 +223,19 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
     ) => {
       const abortController = new AbortController();
       abortControllerRef.current = abortController;
+      let accumulator: LangGraphMessageAccumulator<TMessage> | undefined;
       try {
         // ensure all messages have an ID
         const newMessagesWithId = newMessages.map((m) =>
           m.id ? m : { ...m, id: uuidv4() },
         );
 
-        const accumulator = new LangGraphMessageAccumulator({
+        accumulator = new LangGraphMessageAccumulator({
           initialMessages: messagesRef.current,
           initialUIMessages: uiMessagesRef.current,
           appendMessage,
         });
+        activeAccumulatorRef.current = accumulator;
         setMessagesImmediate(accumulator.addMessages(newMessagesWithId));
 
         const response = await stream(newMessagesWithId, {
@@ -426,6 +432,9 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
         if (abortControllerRef.current === abortController) {
           abortControllerRef.current = null;
         }
+        if (activeAccumulatorRef.current === accumulator) {
+          activeAccumulatorRef.current = undefined;
+        }
         onComplete?.();
       }
     },
@@ -449,6 +458,58 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
     ],
   );
 
+  const reconcileMessages = useCallback(
+    (serverMessages: TMessage[], messagesAtLoadStart: TMessage[]) => {
+      const accumulator = activeAccumulatorRef.current;
+      const currentMessages = accumulator?.getMessages() ?? messagesRef.current;
+      const baselineIds = new Set(
+        messagesAtLoadStart
+          .map((message) => message.id)
+          .filter((id): id is string => id !== undefined),
+      );
+      const serverIds = new Set(
+        serverMessages
+          .map((message) => message.id)
+          .filter((id): id is string => id !== undefined),
+      );
+      const baselineMessages = new Set(messagesAtLoadStart);
+      const pendingMessages = currentMessages.filter((message) => {
+        const wasAtLoadStart = message.id
+          ? baselineIds.has(message.id)
+          : baselineMessages.has(message);
+        return (
+          !wasAtLoadStart &&
+          (message.id === undefined || !serverIds.has(message.id))
+        );
+      });
+      const nextMessages = [...serverMessages, ...pendingMessages];
+      setMessagesImmediate(
+        accumulator?.replaceMessages(nextMessages) ?? nextMessages,
+      );
+    },
+    [setMessagesImmediate],
+  );
+
+  const reconcileUIMessages = useCallback(
+    (serverMessages: UIMessage[], messagesAtLoadStart: UIMessage[]) => {
+      const accumulator = activeAccumulatorRef.current;
+      const currentMessages =
+        accumulator?.getUIMessages() ?? uiMessagesRef.current;
+      const baselineIds = new Set(
+        messagesAtLoadStart.map((message) => message.id),
+      );
+      const serverIds = new Set(serverMessages.map((message) => message.id));
+      const pendingMessages = currentMessages.filter(
+        (message) => !baselineIds.has(message.id) && !serverIds.has(message.id),
+      );
+      const nextMessages = [...serverMessages, ...pendingMessages];
+      setUIMessagesImmediate(
+        accumulator?.replaceUIMessages(nextMessages) ?? nextMessages,
+      );
+    },
+    [setUIMessagesImmediate],
+  );
+
   const cancel = useCallback(() => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -467,5 +528,7 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
     setValues,
     setMessages: setMessagesImmediate,
     setUIMessages: setUIMessagesImmediate,
+    reconcileMessages,
+    reconcileUIMessages,
   };
 };
