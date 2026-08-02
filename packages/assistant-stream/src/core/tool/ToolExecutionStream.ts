@@ -177,7 +177,6 @@ export class ToolExecutionStream extends PipeableTransformStream<
 
                   if (c === undefined) return;
 
-                  // TODO how to handle new ToolResult({ result: undefined })?
                   const result = new ToolResponse({
                     artifact: c.artifact,
                     result: c.result,

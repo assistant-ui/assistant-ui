@@ -7,6 +7,9 @@ import type {
 
 const TOOL_RESPONSE_SYMBOL = Symbol.for("aui.tool-response");
 
+/** Stand-in result for a tool that completed without returning a value. */
+export const NO_RESULT = "<no result>";
+
 /**
  * Shape accepted anywhere a {@link ToolResponse} can be returned.
  */
@@ -64,7 +67,13 @@ export class ToolResponse<TResult> {
     if (options.artifact !== undefined) {
       this.artifact = options.artifact;
     }
-    this.result = options.result;
+    // A settled tool call is recognized downstream by carrying a result, so an
+    // absent one is materialized rather than left indistinguishable from a call
+    // that never completed.
+    this.result =
+      options.result === undefined
+        ? (NO_RESULT as unknown as TResult)
+        : options.result;
     this.isError = options.isError ?? false;
     if (options.modelContent !== undefined) {
       this.modelContent = options.modelContent;
@@ -93,8 +102,6 @@ export class ToolResponse<TResult> {
     if (result instanceof ToolResponse) {
       return result;
     }
-    return new ToolResponse({
-      result: result === undefined ? "<no result>" : result,
-    });
+    return new ToolResponse({ result });
   }
 }

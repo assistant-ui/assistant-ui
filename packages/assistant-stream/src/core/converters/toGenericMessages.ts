@@ -4,6 +4,8 @@
  * various LLM provider formats (AI SDK, LangChain, etc.).
  */
 
+import { NO_RESULT } from "../tool/ToolResponse";
+
 export type GenericTextPart = {
   type: "text";
   text: string;
@@ -163,7 +165,7 @@ function processToolCall(
     result: !settled
       ? { error: "Tool call was not completed" }
       : part.result === undefined
-        ? "<no result>"
+        ? NO_RESULT
         : part.result,
   };
   if (!settled || part.isError) {
