@@ -224,11 +224,11 @@ function RefetchOnInterrupt({ status }: { status: string }) {
 }
 ```
 
-The promise rejects when the refetch itself fails, so handle it rather than leaving it floating.
+What the promise means depends on the path, and today it is always the remount one. There it resolves as soon as the replacement runtime attaches, which happens before that runtime's `load()` has started, so awaiting it does not mean the thread is fresh and a failed load cannot reach the caller. Only the in-place path settles with the refetch itself and rejects when it fails, which is why the example above still handles the rejection.
 
 A thread that has not been sent yet is left alone because it holds no remote state.
 
-What happens to a run in progress depends on the path. The remount path tears the runtime down, which ends the run. On the in-place path the runtime that declared the capability decides, since core does not stop the run for it. Either way this belongs on an event rather than a short timer: drive it from a state change like the one above, or skip the call while `useAuiState((s) => s.thread.isRunning)` is true.
+What happens to a run in progress depends on the path. The remount path drops the runtime that was rendering the run; whether the run itself stops is up to that hook's unmount cleanup, which core cannot enforce. On the in-place path the runtime that declared the capability decides, since core does not stop the run for it. Either way this belongs on an event rather than a short timer: drive it from a state change like the one above, or skip the call while `useAuiState((s) => s.thread.isRunning)` is true.
 
 How the refetch happens depends on the runtime, in one of three ways. When it declares the capability, the thread runtime is reused: composer drafts survive, existing messages stay rendered while the fresh state loads, and the returned promise settles with the refetch, rejecting if it fails. A remote thread list without the capability remounts the runtime hook instead, which re-runs `load()` at the cost of discarding unsent composer input, and resolves once the new runtime attaches. The single and in-memory thread lists hold no remote state and have no hook to remount, so there it resolves without doing anything. If that difference matters to your UI, gate the affordance you build on `useAuiState((s) => s.thread.capabilities.refetchThread)`.
 
