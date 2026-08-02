@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { flushTapSync, resource } from "@assistant-ui/tap";
 import { Derived } from "../Derived";
 import { useAui } from "../useAui";
+import { getClientId } from "./client-accessor";
 import { AuiProvider } from "./react-assistant-context";
 import {
   reportEffectError,
@@ -166,7 +167,7 @@ const ThreadRegistrationClient = resource(useThreadRegistrationClient);
 const useRetainedThreadClient = ({
   onSetup,
 }: {
-  onSetup: (thread: any) => void;
+  onSetup: (thread: any) => void | VoidFunction;
 }) => {
   useAssistantClientEffect("thread" as any, onSetup, []);
   return {};
@@ -318,6 +319,8 @@ describe("useAssistantClientEffect", () => {
 
   it("keeps an accessor retained by setup live after commit", () => {
     let retained: any;
+    let setupClientId: ReturnType<typeof getClientId>;
+    let cleanupClientId: ReturnType<typeof getClientId>;
     const useThreadClient = () => {
       const [id, setId] = useState("a");
       return { getState: () => ({ id }), setId };
@@ -329,6 +332,10 @@ describe("useAssistantClientEffect", () => {
         registration: RetainedThreadClient({
           onSetup: (thread) => {
             retained = thread;
+            setupClientId = getClientId(thread);
+            return () => {
+              cleanupClientId = getClientId(thread);
+            };
           },
         }),
         thread: ThreadClient(),
@@ -336,11 +343,16 @@ describe("useAssistantClientEffect", () => {
       return null;
     };
 
-    render(<Harness />);
+    const { unmount } = render(<Harness />);
     expect(retained.getState()).toEqual({ id: "a" });
+    expect(getClientId(retained)).toBe(setupClientId!);
 
     act(() => flushTapSync(() => retained.setId("b")));
     expect(retained.getState()).toEqual({ id: "b" });
+    expect(getClientId(retained)).toBe(setupClientId!);
+
+    unmount();
+    expect(cleanupClientId!).toBe(setupClientId!);
   });
 
   it("continues subscriber delivery and retries after a later structural update", async () => {

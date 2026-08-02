@@ -225,6 +225,7 @@ const useScopeMount = (
   const renderedAccessor = createClientAccessor(
     { name, ...meta },
     () => renderedMethodsRef.current,
+    () => value.methods,
   );
 
   (building as Record<ClientNames, unknown>)[name] = accessor;
