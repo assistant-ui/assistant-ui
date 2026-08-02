@@ -25,12 +25,20 @@ export class DataStreamEncoder
 
   constructor() {
     super((readable) => {
-      const openToolCallArgs = new Set<string>();
+      const openToolCallArgs = new Map<string, boolean>();
       const finishToolCallArgs = (
         controller: TransformStreamDefaultController<DataStreamChunk>,
         toolCallId: string,
       ) => {
-        if (!openToolCallArgs.delete(toolCallId)) return;
+        const hasArgsText = openToolCallArgs.get(toolCallId);
+        if (hasArgsText === undefined) return;
+        openToolCallArgs.delete(toolCallId);
+        if (!hasArgsText) {
+          controller.enqueue({
+            type: DataStreamStreamChunkType.ToolCallArgsTextDelta,
+            value: { toolCallId, argsTextDelta: "{}" },
+          });
+        }
         controller.enqueue({
           type: DataStreamStreamChunkType.ToolCallArgsTextDelta,
           value: {
@@ -43,7 +51,7 @@ export class DataStreamEncoder
       const finishOpenToolCallArgs = (
         controller: TransformStreamDefaultController<DataStreamChunk>,
       ) => {
-        for (const toolCallId of openToolCallArgs) {
+        for (const toolCallId of openToolCallArgs.keys()) {
           finishToolCallArgs(controller, toolCallId);
         }
       };
@@ -62,7 +70,7 @@ export class DataStreamEncoder
                   type: DataStreamStreamChunkType.StartToolCall,
                   value,
                 });
-                openToolCallArgs.add(part.toolCallId);
+                openToolCallArgs.set(part.toolCallId, false);
               }
               if (part.type === "source") {
                 const { type, ...value } = part;
@@ -119,6 +127,7 @@ export class DataStreamEncoder
                 }
                 case "tool-call": {
                   if (!openToolCallArgs.has(part.toolCallId)) break;
+                  openToolCallArgs.set(part.toolCallId, true);
                   controller.enqueue({
                     type: DataStreamStreamChunkType.ToolCallArgsTextDelta,
                     value: {

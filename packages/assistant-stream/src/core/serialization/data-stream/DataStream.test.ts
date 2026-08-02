@@ -169,10 +169,17 @@ describe("DataStreamEncoder streamed tool-call args", () => {
         chunk,
       ]);
 
+      expect(lines.at(-3)).toBe('c:{"toolCallId":"t1","argsTextDelta":"{}"}');
       expect(lines.at(-2)).toBe(
         'c:{"toolCallId":"t1","argsTextDelta":"","isFinal":true}',
       );
       expect(lines.at(-1)?.startsWith(encodedPrefix)).toBe(true);
+      expect(
+        lines
+          .filter((line) => line.startsWith("c:"))
+          .map((line) => JSON.parse(line.slice(2)).argsTextDelta)
+          .join(""),
+      ).toBe("{}");
     }
   });
 });
