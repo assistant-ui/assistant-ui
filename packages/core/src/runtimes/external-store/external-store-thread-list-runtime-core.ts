@@ -173,9 +173,8 @@ export class ExternalStoreThreadListRuntimeCore implements ThreadListRuntimeCore
     // There is no runtime hook to remount here, so the capability is the only
     // path and an adapter without it has nothing to refetch with.
     if (!this._mainThread.unstable_refetchThread) return;
-    // Same rule the remote thread list applies: an unsent thread holds no
-    // remote state, so a refetch would only discard what the user has typed.
-    if (this.getItemById(this._mainThreadId)?.status === "new") return;
+    // No unsent-thread guard: every entry here is regular or archived, so the
+    // "new" status the remote thread list has to exclude cannot occur.
     // Only while actually running: cancelRun on an idle thread deletes a
     // trailing user message and moves its text back into the composer.
     if (this._mainThread.capabilities.cancel && this._mainThread.isRunning)

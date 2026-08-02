@@ -226,9 +226,9 @@ function RefetchOnInterrupt({ status }: { status: string }) {
 
 The promise rejects when the refetch itself fails, so handle it rather than leaving it floating.
 
-A run that is still streaming is cancelled first on runtimes that support cancelling; on ones that do not, the refetch races that run. A thread that has not been sent yet is left alone because it holds no remote state.
+A thread that has not been sent yet is left alone because it holds no remote state.
 
-That cancellation is why this belongs on an event rather than a short timer: a poller firing every few seconds against runs that take longer will keep cancelling them before they finish. Drive it from a state change like the one above, or skip the call while `useAuiState((s) => s.thread.isRunning)` is true.
+What happens to a run in progress depends on the path. On the in-place path a running thread is cancelled first, and only when the runtime reports it can cancel; otherwise the refetch races that run. The remount path tears the runtime down, which ends the run either way. Both are disruptive enough that this belongs on an event rather than a short timer: drive it from a state change like the one above, or skip the call while `useAuiState((s) => s.thread.isRunning)` is true.
 
 How the refetch happens depends on the runtime, in one of three ways. When it declares the capability, the thread runtime is reused: composer drafts survive, existing messages stay rendered while the fresh state loads, and the returned promise settles with the refetch, rejecting if it fails. A remote thread list without the capability remounts the runtime hook instead, which re-runs `load()` at the cost of discarding unsent composer input, and resolves once the new runtime attaches. The single and in-memory thread lists hold no remote state and have no hook to remount, so there it resolves without doing anything. If that difference matters to your UI, gate the affordance you build on `useAuiState((s) => s.thread.capabilities.refetchThread)`.
 
