@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import { DataStreamDecoder, DataStreamEncoder } from "./DataStream";
 import type { AssistantStreamChunk } from "../../AssistantStreamChunk";
+import { createAssistantStreamController } from "../../modules/assistant-stream";
+import { toolResultStream } from "../../tool/toolResultStream";
 
 const decodeLines = async (lines: string[]) => {
   const bytes = new ReadableStream<Uint8Array>({
@@ -55,7 +57,6 @@ describe("DataStreamEncoder streamed tool-call args", () => {
         },
       },
       { type: "text-delta", path: [0], textDelta: '{"q":1}' },
-      { type: "result", path: [0], result: "done", isError: false },
       { type: "tool-call-args-text-finish", path: [0] },
       { type: "part-finish", path: [0] },
     ]);
@@ -64,8 +65,115 @@ describe("DataStreamEncoder streamed tool-call args", () => {
       'b:{"toolCallId":"t1","toolName":"search"}',
       'c:{"toolCallId":"t1","argsTextDelta":"{\\"q\\":1}"}',
       'c:{"toolCallId":"t1","argsTextDelta":"","isFinal":true}',
-      'a:{"toolCallId":"t1","result":"done"}',
     ]);
+  });
+
+  it("keeps backend results authoritative for tool execution", async () => {
+    const execute = vi.fn(async () => "frontend result");
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const [input, assistantController] = createAssistantStreamController();
+      const toolCallController = assistantController.addToolCallPart({
+        toolCallId: "t1",
+        toolName: "ping",
+      });
+      const chunks: AssistantStreamChunk[] = [];
+      const completion = input
+        .pipeThrough(new DataStreamEncoder())
+        .pipeThrough(new DataStreamDecoder())
+        .pipeThrough(
+          toolResultStream(
+            {
+              ping: {
+                parameters: { type: "object", properties: {} },
+                execute,
+              },
+            },
+            new AbortController().signal,
+            async () => undefined,
+          ),
+        )
+        .pipeTo(
+          new WritableStream({
+            write(chunk) {
+              chunks.push(chunk);
+            },
+          }),
+        );
+
+      toolCallController.setResponse({
+        result: "backend result",
+        isError: false,
+      });
+      assistantController.close();
+      await completion;
+
+      expect(execute).not.toHaveBeenCalled();
+      expect(
+        chunks
+          .filter((chunk) => chunk.type === "result")
+          .map((chunk) => (chunk.type === "result" ? chunk.result : undefined)),
+      ).toEqual(["backend result"]);
+      expect(
+        chunks.some(
+          (chunk) => chunk.type === "text-delta" && chunk.textDelta === "{}",
+        ),
+      ).toBe(true);
+      expect(warn).not.toHaveBeenCalled();
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it("finishes open args before stream boundary frames", async () => {
+    const boundaries: Array<{
+      chunk: AssistantStreamChunk;
+      encodedPrefix: string;
+    }> = [
+      {
+        chunk: {
+          type: "step-finish",
+          path: [],
+          finishReason: "tool-calls",
+          usage: { inputTokens: 1, outputTokens: 1 },
+          isContinued: false,
+        },
+        encodedPrefix: "e:",
+      },
+      {
+        chunk: {
+          type: "message-finish",
+          path: [],
+          finishReason: "tool-calls",
+          usage: { inputTokens: 1, outputTokens: 1 },
+        },
+        encodedPrefix: "d:",
+      },
+      {
+        chunk: { type: "error", path: [], error: "failed" },
+        encodedPrefix: "3:",
+      },
+    ];
+
+    for (const { chunk, encodedPrefix } of boundaries) {
+      const lines = await encodeChunks([
+        {
+          type: "part-start",
+          path: [],
+          part: {
+            type: "tool-call",
+            toolCallId: "t1",
+            toolName: "search",
+          },
+        },
+        chunk,
+      ]);
+
+      expect(lines.at(-2)).toBe(
+        'c:{"toolCallId":"t1","argsTextDelta":"","isFinal":true}',
+      );
+      expect(lines.at(-1)?.startsWith(encodedPrefix)).toBe(true);
+    }
   });
 });
 
@@ -127,6 +235,28 @@ describe("DataStreamDecoder interleaved tool-call args", () => {
       expect(chunks.some((c) => c.type === "tool-call-args-text-finish")).toBe(
         true,
       );
+      expect(warn).not.toHaveBeenCalled();
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it("preserves the empty-object fallback for a final marker", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const chunks = await decodeLines([
+        'b:{"toolCallId":"t1","toolName":"ping"}',
+        'c:{"toolCallId":"t1","argsTextDelta":"","isFinal":true}',
+      ]);
+
+      expect(
+        chunks.some(
+          (chunk) => chunk.type === "text-delta" && chunk.textDelta === "{}",
+        ),
+      ).toBe(true);
+      expect(
+        chunks.some((chunk) => chunk.type === "tool-call-args-text-finish"),
+      ).toBe(true);
       expect(warn).not.toHaveBeenCalled();
     } finally {
       warn.mockRestore();

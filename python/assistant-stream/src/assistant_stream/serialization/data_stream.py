@@ -1,5 +1,6 @@
 from assistant_stream.assistant_stream_chunk import (
     AssistantStreamChunk,
+    ToolCallArgsTextFinishChunk,
 )
 import json
 from typing import AsyncGenerator, Any
@@ -19,10 +20,7 @@ class StateProxyJSONEncoder(json.JSONEncoder):
 
 
 class DataStreamEncoder(StreamEncoder):
-    def __init__(self):
-        pass
-
-    def encode_chunk(self, chunk: AssistantStreamChunk) -> str:
+    def encode_chunk(self, chunk: AssistantStreamChunk) -> str | None:
         if chunk.type == "text-delta":
             if hasattr(chunk, 'parent_id') and chunk.parent_id:
                 return f"aui-text-delta:{json.dumps({'textDelta': chunk.text_delta, 'parentId': chunk.parent_id}, cls=StateProxyJSONEncoder)}\n"
@@ -40,6 +38,8 @@ class DataStreamEncoder(StreamEncoder):
             return f'b:{json.dumps(data, cls=StateProxyJSONEncoder)}\n'
         elif chunk.type == "tool-call-delta":
             return f'c:{json.dumps({ "toolCallId": chunk.tool_call_id, "argsTextDelta": chunk.args_text_delta }, cls=StateProxyJSONEncoder)}\n'
+        elif chunk.type == "tool-call-args-text-finish":
+            return f'c:{json.dumps({ "toolCallId": chunk.tool_call_id, "argsTextDelta": "", "isFinal": True }, cls=StateProxyJSONEncoder)}\n'
         elif chunk.type == "tool-result":
             res = {"toolCallId": chunk.tool_call_id, "result": chunk.result}
             if chunk.artifact is not None:
@@ -88,11 +88,27 @@ class DataStreamEncoder(StreamEncoder):
     async def encode_stream(
         self, stream: AsyncGenerator[AssistantStreamChunk, None]
     ) -> AsyncGenerator[str, None]:
+        open_tool_call_args: set[str] = set()
         async for chunk in stream:
+            if chunk.type == "tool-call-begin":
+                open_tool_call_args.add(chunk.tool_call_id)
+            elif chunk.type == "tool-result":
+                open_tool_call_args.discard(chunk.tool_call_id)
+            elif chunk.type in ("tool-call-delta", "tool-call-args-text-finish"):
+                if chunk.tool_call_id not in open_tool_call_args:
+                    continue
+                if chunk.type == "tool-call-args-text-finish":
+                    open_tool_call_args.remove(chunk.tool_call_id)
             encoded = self.encode_chunk(chunk)
             if encoded is None:
                 continue
             yield encoded
+        for tool_call_id in open_tool_call_args:
+            finish = self.encode_chunk(
+                ToolCallArgsTextFinishChunk(tool_call_id=tool_call_id)
+            )
+            if finish is not None:
+                yield finish
 
 
 class DataStreamResponse(AssistantStreamResponse):

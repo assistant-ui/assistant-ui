@@ -40,6 +40,13 @@ export class DataStreamEncoder
           },
         });
       };
+      const finishOpenToolCallArgs = (
+        controller: TransformStreamDefaultController<DataStreamChunk>,
+      ) => {
+        for (const toolCallId of openToolCallArgs) {
+          finishToolCallArgs(controller, toolCallId);
+        }
+      };
       const transform = new TransformStream<
         AssistantMetaStreamChunk,
         DataStreamChunk
@@ -111,6 +118,7 @@ export class DataStreamEncoder
                   break;
                 }
                 case "tool-call": {
+                  if (!openToolCallArgs.has(part.toolCallId)) break;
                   controller.enqueue({
                     type: DataStreamStreamChunkType.ToolCallArgsTextDelta,
                     value: {
@@ -135,7 +143,7 @@ export class DataStreamEncoder
                   `Result chunk on non-tool-call part not supported: ${part.type}`,
                 );
               }
-              finishToolCallArgs(controller, part.toolCallId);
+              openToolCallArgs.delete(part.toolCallId);
               controller.enqueue({
                 type: DataStreamStreamChunkType.ToolCallResult,
                 value: {
@@ -156,6 +164,7 @@ export class DataStreamEncoder
               break;
             }
             case "step-finish": {
+              finishOpenToolCallArgs(controller);
               const { type, ...value } = chunk;
               controller.enqueue({
                 type: DataStreamStreamChunkType.FinishStep,
@@ -164,6 +173,7 @@ export class DataStreamEncoder
               break;
             }
             case "message-finish": {
+              finishOpenToolCallArgs(controller);
               const { type, ...value } = chunk;
               controller.enqueue({
                 type: DataStreamStreamChunkType.FinishMessage,
@@ -172,6 +182,7 @@ export class DataStreamEncoder
               break;
             }
             case "error": {
+              finishOpenToolCallArgs(controller);
               controller.enqueue({
                 type: DataStreamStreamChunkType.Error,
                 value: chunk.error,
@@ -219,9 +230,7 @@ export class DataStreamEncoder
           }
         },
         flush(controller) {
-          for (const toolCallId of openToolCallArgs) {
-            finishToolCallArgs(controller, toolCallId);
-          }
+          finishOpenToolCallArgs(controller);
         },
       });
 
@@ -310,7 +319,9 @@ export class DataStreamDecoder extends PipeableTransformStream<
                 throw new Error(
                   `Encountered tool call with unknown id: ${toolCallId}`,
                 );
-              toolCallController.argsText.append(argsTextDelta);
+              if (argsTextDelta.length > 0) {
+                toolCallController.argsText.append(argsTextDelta);
+              }
               if (isFinal === true) {
                 toolCallController.argsText.close();
                 closedToolCallArgs.add(toolCallId);

@@ -8,6 +8,7 @@ from assistant_stream.assistant_stream_chunk import (
     StepStartChunk,
     TextDeltaChunk,
     ToolCallBeginChunk,
+    ToolCallArgsTextFinishChunk,
     ToolCallDeltaChunk,
     ToolResultChunk,
 )
@@ -141,6 +142,14 @@ class _Canonicalizer:
         result["path"] = path
         return [result, *self._close_tool_part(chunk.tool_call_id, path)]
 
+    def _finish_tool_call_args(
+        self, chunk: ToolCallArgsTextFinishChunk
+    ) -> list[dict[str, Any]]:
+        path = self._tool_paths.pop(chunk.tool_call_id, None)
+        if path is None:
+            return []
+        return self._close_tool_part(chunk.tool_call_id, path)
+
     def _close_tool_part(
         self, tool_call_id: str, path: list[int]
     ) -> list[dict[str, Any]]:
@@ -193,6 +202,8 @@ class _Canonicalizer:
                 return self._begin_tool_call(chunk)
             case "tool-call-delta":
                 return self._tool_call_delta(chunk)
+            case "tool-call-args-text-finish":
+                return self._finish_tool_call_args(chunk)
             case "tool-result":
                 return self._tool_result(chunk)
             case "source":
