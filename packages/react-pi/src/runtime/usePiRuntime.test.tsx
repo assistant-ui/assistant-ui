@@ -57,11 +57,7 @@ describe("usePiRuntime", () => {
     const mainThreadId = runtimeRef.current!.threads.getState().mainThreadId;
 
     rerender(
-      <TestRuntime
-        client={client}
-        includeArchived
-        runtimeRef={runtimeRef}
-      />,
+      <TestRuntime client={client} includeArchived runtimeRef={runtimeRef} />,
     );
 
     expect(runtimeRef.current!.threads.getState().mainThreadId).toBe(

@@ -3578,6 +3578,7 @@ declare class RemoteThreadListThreadListRuntimeCore extends BaseSubscribable imp
   private _options;
   private readonly _hookManager;
   private _loadThreadsPromise;
+  private _lastSuccessfulLoadGeneration;
   private _loadMorePromise;
   private _loadGeneration;
   private _adapterGeneration;

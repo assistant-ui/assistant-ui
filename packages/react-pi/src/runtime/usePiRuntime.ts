@@ -541,11 +541,7 @@ export const usePiRuntime = (options: PiRuntimeOptions): AssistantRuntime => {
         return mapThreadMetadata(snapshot.metadata);
       },
     }),
-    [
-      client,
-      options.workspacePath,
-      pendingInitialMessageRef,
-    ],
+    [client, options.workspacePath, pendingInitialMessageRef],
   );
 
   return useRemoteThreadListRuntime({
