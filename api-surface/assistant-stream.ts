@@ -906,6 +906,7 @@ type MessagePartLike = {
   result?: unknown;
   isError?: boolean;
   approval?: {
+    approved?: boolean;
     resolution?: string;
     [key: string]: unknown;
   };
