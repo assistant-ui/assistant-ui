@@ -519,16 +519,16 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
       const task = load(externalId, { signal: controller.signal })
         .then(({ messages, interrupts, uiMessages }) => {
           if (controller.signal.aborted) return;
-          reconcileMessages(messages, messagesAtLoadStart);
-          reconcileUIMessages(uiMessages ?? [], uiMessagesAtLoadStart);
+          // Only an initial load is the whole thread; a refetch can race
+          // output the server has not stored yet.
+          const opts = { snapshotIsComplete: purpose === "initial" };
+          reconcileMessages(messages, messagesAtLoadStart, opts);
+          reconcileUIMessages(uiMessages ?? [], uiMessagesAtLoadStart, opts);
           reconcileInterrupt(interrupts?.[0], interruptAtLoadStart);
         })
         .catch((error) => {
           if (controller.signal.aborted) return;
-          // A refetch is awaited by its caller; an initial load has the
-          // loading state as its fallback.
-          if (purpose === "reload") throw error;
-          console.warn("useLangGraphRuntime: load handler rejected", error);
+          throw error;
         })
         .finally(() => {
           if (loadControllerRef.current?.controller === controller) {
@@ -537,8 +537,13 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
           if (controller.signal.aborted) return;
           setIsLoadingThread(false);
         });
+      // `task` rejects so a refetch deferring to it learns of the failure;
+      // only the initial load's caller swallows it.
       record.promise = task;
-      return task;
+      if (purpose === "reload") return task;
+      return task.catch((error) => {
+        console.warn("useLangGraphRuntime: load handler rejected", error);
+      });
     },
     [
       threadListItem,
