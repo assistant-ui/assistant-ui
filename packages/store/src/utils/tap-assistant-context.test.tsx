@@ -156,7 +156,12 @@ const useThreadRegistrationClient = ({
     (thread: any) => {
       const { id } = thread().getState() as unknown as { id: string };
       operations.push(`setup ${id} ${value}`);
-      return () => operations.push(`cleanup ${id} ${value}`);
+      return () => {
+        const { id: cleanupId } = thread().getState() as unknown as {
+          id: string;
+        };
+        operations.push(`cleanup ${cleanupId} ${value}`);
+      };
     },
     [value],
   );
@@ -255,15 +260,25 @@ describe("useAssistantClientEffect", () => {
 
   it("migrates when a sibling root resource is replaced", () => {
     const operations: string[] = [];
+    const clientIds: ReturnType<typeof getClientId>[] = [];
     const ThreadA = createThreadClient("a");
     const ThreadB = createThreadClient("b");
     const threads = { a: ThreadA(), b: ThreadB() };
 
     const Harness = ({ thread }: { thread: keyof typeof threads }) => {
       useAui({
-        registration: ThreadRegistrationClient({
-          operations,
-          value: "one",
+        registration: RetainedThreadClient({
+          onSetup: (accessor) => {
+            clientIds.push(getClientId(accessor));
+            const { id } = accessor().getState() as { id: string };
+            operations.push(`setup ${id} one`);
+            return () => {
+              const { id: cleanupId } = accessor().getState() as {
+                id: string;
+              };
+              operations.push(`cleanup ${cleanupId} one`);
+            };
+          },
         }),
         thread: threads[thread],
       } as unknown as useAui.Props);
@@ -280,6 +295,7 @@ describe("useAssistantClientEffect", () => {
       "setup b one",
       "cleanup b one",
     ]);
+    expect(clientIds[0]).not.toBe(clientIds[1]);
   });
 
   it("uses the current derived accessor for initial setup", () => {

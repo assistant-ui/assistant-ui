@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo } from "react";
 import { resource, useResource, type ResourceElement } from "@assistant-ui/tap";
 import type { ClientMethods, InferClientState } from "./types/client";
 import {
@@ -137,17 +137,15 @@ const useClientResourceInternal = <TMethods extends ClientMethods>(
   renderedMethods: TMethods;
   key: string | number | undefined;
 } => {
-  const valueRef = useRef(null as unknown as TMethods);
-
   const index = useClientStack().length;
-  const methods = useMemo(
-    () =>
-      new Proxy<TMethods>(
-        {} as TMethods,
-        new ClientProxyHandler(valueRef, index),
-      ),
-    [index],
-  );
+  const { methods, valueRef } = useMemo(() => {
+    const valueRef = { current: null as unknown as TMethods };
+    const methods = new Proxy<TMethods>(
+      {} as TMethods,
+      new ClientProxyHandler(valueRef, index),
+    );
+    return { methods, valueRef };
+  }, [index, element.hook, element.key]);
 
   const value = useClientStackProvider(methods, function WithClientStack() {
     return useResource(element);
