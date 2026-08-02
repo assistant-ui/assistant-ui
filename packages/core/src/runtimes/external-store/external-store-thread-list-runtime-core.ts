@@ -175,8 +175,8 @@ export class ExternalStoreThreadListRuntimeCore implements ThreadListRuntimeCore
     if (!this._mainThread.unstable_refetchThread) return;
     // No unsent-thread guard: every entry here is regular or archived, so the
     // "new" status the remote thread list has to exclude cannot occur.
-    // Only while actually running: cancelRun on an idle thread deletes a
-    // trailing user message and moves its text back into the composer.
+    // Only cancel while running, since cancelRun on an idle thread deletes a
+    // trailing user message and moves its text into the composer.
     if (this._mainThread.capabilities.cancel && this._mainThread.isRunning)
       this._mainThread.cancelRun();
     await this._mainThread.unstable_refetchThread();
