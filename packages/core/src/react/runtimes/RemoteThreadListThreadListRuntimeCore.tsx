@@ -257,12 +257,6 @@ export class RemoteThreadListThreadListRuntimeCore
 
     try {
       if (runtimeCore?.unstable_refetchThread) {
-        // A streaming run would clobber the result, so cancel it here rather
-        // than leaving it to each adapter. Only while actually running:
-        // cancelRun on an idle thread deletes a trailing user message and
-        // moves its text into the composer.
-        if (runtimeCore.capabilities.cancel && runtimeCore.isRunning)
-          runtimeCore.cancelRun();
         // Called on the core so class-method implementations keep `this`.
         await runtimeCore.unstable_refetchThread();
       } else {

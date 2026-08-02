@@ -222,11 +222,12 @@ export type ThreadRuntimeCore = Readonly<{
    * Re-fetches this thread's state from its backing store, in place: no
    * runtime-hook remount, so runtime identity and composer drafts survive.
    * Presence signals the capability to `threads.reloadMainThread()`, which
-   * calls this and propagates its rejection. It cancels an in-flight run
-   * first only when the runtime both reports `capabilities.cancel` and is
-   * running, so an implementation that can stream without being cancellable
-   * has to tolerate a run landing mid-refetch. Runtimes without remote state
-   * leave it undefined.
+   * calls this and propagates its rejection. It does not touch a run in
+   * progress first, because stopping one is `cancelRun`, whose contract is
+   * that the user abandoned a send: it returns the trailing user message to
+   * the composer. An implementation is therefore responsible for whatever
+   * coordination a concurrent run needs. Runtimes without remote state leave
+   * it undefined.
    */
   unstable_refetchThread?: (() => Promise<void>) | undefined;
 
