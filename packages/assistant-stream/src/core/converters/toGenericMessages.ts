@@ -70,7 +70,11 @@ type MessagePartLike = {
   state?: string;
   result?: unknown;
   isError?: boolean;
-  approval?: { resolution?: string; [key: string]: unknown };
+  approval?: {
+    approved?: boolean;
+    resolution?: string;
+    [key: string]: unknown;
+  };
   interrupt?: unknown;
 };
 
@@ -128,7 +132,10 @@ type ToolCallAccumulator = {
 
 function isAwaitingHost(part: MessagePartLike): boolean {
   if (part.interrupt != null) return true;
-  return part.approval != null && part.approval.resolution === undefined;
+  if (part.approval == null) return false;
+  return (
+    part.approval.approved !== false && part.approval.resolution === undefined
+  );
 }
 
 function processToolCall(

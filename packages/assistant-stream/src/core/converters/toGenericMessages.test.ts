@@ -390,7 +390,10 @@ describe("toGenericMessages", () => {
       ]);
     });
 
-    it("closes out an approval resolved without a decision", () => {
+    it.each([
+      ["a cancelled approval", { id: "ap_1", resolution: "cancelled" }],
+      ["a denied approval carrying no result", { id: "ap_1", approved: false }],
+    ])("closes out %s", (_label, approval) => {
       const result = toGenericMessages([
         {
           role: "assistant",
@@ -400,7 +403,7 @@ describe("toGenericMessages", () => {
               toolCallId: "call_123",
               toolName: "get_weather",
               args: { city: "London" },
-              approval: { id: "ap_1", resolution: "cancelled" },
+              approval,
             },
           ],
         },
