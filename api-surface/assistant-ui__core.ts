@@ -3586,6 +3586,7 @@ declare class RemoteThreadListThreadListRuntimeCore extends BaseSubscribable imp
   private _switchGeneration;
   private _switchTask;
   private _switchTargetThreadId;
+  private _pendingControlledSelection;
   private _mainThreadId;
   private readonly _state;
   get threadItems(): Readonly<Record<THREAD_MAPPING_ID, RemoteThreadData>>;
@@ -3596,6 +3597,7 @@ declare class RemoteThreadListThreadListRuntimeCore extends BaseSubscribable imp
   private _initialThreadLoaded;
   private useProvider;
   __internal_setOptions(options: RemoteThreadListOptions): void;
+  private _reconcilePendingControlledSelection;
   __internal_load(): void;
   reloadMainThread(): Promise<void>;
   reload(): Promise<void>;
