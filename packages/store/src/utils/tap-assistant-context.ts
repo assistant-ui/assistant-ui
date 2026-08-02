@@ -28,8 +28,31 @@ export type AssistantClientStoreRef = {
 export type AssistantTapContextValue = {
   clientRef: { parent: AssistantClient; current: AssistantClient | null };
   clientStoreRef: AssistantClientStoreRef;
-  renderedClientRef: { current: AssistantClient | null };
+  renderedClientRef: {
+    current: {
+      client: AssistantClient;
+      effectClient: AssistantClient;
+    } | null;
+  };
   emit: EmitFn;
+};
+
+type ErrorReportingTarget = {
+  reportError?: (error: unknown) => void;
+  queueMicrotask(callback: VoidFunction): void;
+};
+
+export const reportEffectError = (
+  error: unknown,
+  target: ErrorReportingTarget = globalThis,
+) => {
+  if (typeof target.reportError === "function") {
+    target.reportError(error);
+    return;
+  }
+  target.queueMicrotask(() => {
+    throw error;
+  });
 };
 
 const AssistantTapContext = createContext<AssistantTapContextValue | null>(
@@ -68,8 +91,8 @@ export const useAssistantClientEffect = <K extends ClientNames>(
     const store = clientStoreRef.current;
     if (!store) throw new Error("Assistant client store is not available");
 
-    const renderedClient = getRenderedClient();
-    if (!renderedClient)
+    const rendered = getRenderedClient();
+    if (!rendered)
       throw new Error("Rendered assistant client is not available");
 
     const select = () => {
@@ -79,8 +102,8 @@ export const useAssistantClientEffect = <K extends ClientNames>(
         accessor: client[scope] as unknown as AssistantClientAccessor<K>,
       };
     };
-    let selectedClient = renderedClient;
-    let selected = renderedClient[
+    let selectedClient = rendered.client;
+    let selected = rendered.client[
       scope
     ] as unknown as AssistantClientAccessor<K>;
     let cleanup: undefined | (() => void);
@@ -88,14 +111,9 @@ export const useAssistantClientEffect = <K extends ClientNames>(
     let disposed = false;
     let transitioning = true;
     let pending = false;
-    const reportMigrationError = (error: unknown) => {
-      queueMicrotask(() => {
-        throw error;
-      });
-    };
-    const setupSelected = () => {
+    const setupSelected = (accessor = selected) => {
       const nextCleanup =
-        selected.source === null ? undefined : setupEvent(selected);
+        accessor.source === null ? undefined : setupEvent(accessor);
       if (disposed) {
         nextCleanup?.();
         return;
@@ -118,6 +136,8 @@ export const useAssistantClientEffect = <K extends ClientNames>(
           try {
             const next = select();
             if (Object.is(selected, next.accessor)) {
+              // Value-only publishes retain the committed client; only a new
+              // structural client retries an incomplete setup.
               const structurallyChanged = !Object.is(
                 selectedClient,
                 next.client,
@@ -134,6 +154,7 @@ export const useAssistantClientEffect = <K extends ClientNames>(
             previousCleanup?.();
             if (disposed) return;
             if (pending) {
+              // Cleanup can synchronously publish a newer structural client.
               pending = false;
               const latest = select();
               selectedClient = latest.client;
@@ -141,7 +162,7 @@ export const useAssistantClientEffect = <K extends ClientNames>(
             }
             setupSelected();
           } catch (error) {
-            reportMigrationError(error);
+            reportEffectError(error);
           }
         } while (pending);
       } finally {
@@ -151,7 +172,9 @@ export const useAssistantClientEffect = <K extends ClientNames>(
 
     const unsubscribe = store.subscribe(migrate);
     try {
-      setupSelected();
+      setupSelected(
+        rendered.effectClient[scope] as unknown as AssistantClientAccessor<K>,
+      );
     } catch (error) {
       disposed = true;
       unsubscribe();

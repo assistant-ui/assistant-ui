@@ -47,6 +47,7 @@ import {
 import {
   useAssistantTapContextProvider,
   type AssistantClientStoreRef,
+  type AssistantTapContextValue,
 } from "./utils/tap-assistant-context";
 import { ClientResource } from "./useClientResource";
 import { useShallowStable } from "./utils/useShallowStable";
@@ -66,6 +67,10 @@ type ScopeMeta = {
   query: Record<string, unknown>;
 };
 type ScopeAccessor = AssistantClientAccessor<ClientNames>;
+type ScopeMountResult = {
+  accessor: ScopeAccessor;
+  renderedAccessor: ScopeAccessor;
+};
 
 const applyTransformScopes = (
   clients: useAui.Props,
@@ -191,37 +196,43 @@ const useScopeMeta = (element: ScopeElement): ScopeMeta => {
 
 // Kept separate from useScopeMount: the building-client mutation there makes
 // the React Compiler bail, which would leave the resource element unmemoized
-const useScopeValue = (element: ScopeElement, derived: boolean) =>
-  useResource(derived ? element : ClientResource(element));
+const useScopeValue = (element: ScopeElement, derived: boolean) => {
+  const value = useResource(derived ? element : ClientResource(element));
+  if (derived) {
+    const methods = value as ClientMethods;
+    return { methods, renderedMethods: methods };
+  }
+  return value as { methods: ClientMethods; renderedMethods: ClientMethods };
+};
 
 const useScopeMount = (
   name: ClientNames,
   element: ScopeElement,
-): ScopeAccessor => {
+): ScopeMountResult => {
   const building = useAssistantContextValue();
 
   // A derived element resolves to an existing client; mount it directly
   const derived = isDerivedElement(element);
   const value = useScopeValue(element, derived);
 
-  const methods = derived
-    ? (value as ClientMethods)
-    : (value as { methods: ClientMethods }).methods;
-
   const meta = useScopeMeta(element);
   const accessor = useMemo(
-    () => createClientAccessor({ name, ...meta }, () => methods),
-    [name, meta, methods],
+    () => createClientAccessor({ name, ...meta }, () => value.methods),
+    [name, meta, value.methods, element.hook, element.key],
+  );
+  const renderedAccessor = createClientAccessor(
+    { name, ...meta },
+    () => value.renderedMethods,
   );
 
   (building as Record<ClientNames, unknown>)[name] = accessor;
 
-  return accessor;
+  return { accessor, renderedAccessor };
 };
 
 const ScopeMount = resource(useScopeMount);
 
-const useScopeMounts = (entries: ScopeEntry[]): ScopeAccessor[] =>
+const useScopeMounts = (entries: ScopeEntry[]): ScopeMountResult[] =>
   useResources(
     entries.map(([name, element]) => withKey(name, ScopeMount(name, element))),
   );
@@ -260,9 +271,13 @@ const useAuiRoot = ({
 }): { client: AssistantClient } => {
   const fields = useClientFields({ notifications, clientRef });
   const building = createClientObject(parent, fields);
-  const renderedClientRef = { current: null as AssistantClient | null };
+  // Tap commits resource effects before publishing, so effects need this
+  // render's client while the Store still exposes the previous commit.
+  const renderedClientRef: AssistantTapContextValue["renderedClientRef"] = {
+    current: null,
+  };
 
-  const accessors = useAssistantTapContextProvider(
+  const scopes = useAssistantTapContextProvider(
     { clientRef, clientStoreRef, renderedClientRef, emit: notifications.emit },
     function WithTapContext() {
       return useAssistantContextProvider(
@@ -274,8 +289,16 @@ const useAuiRoot = ({
     },
   );
 
-  const client = useCommittedClient(building, [parent, ...accessors]);
-  renderedClientRef.current = client;
+  const client = useCommittedClient(building, [
+    parent,
+    ...scopes.map(({ accessor }) => accessor),
+  ]);
+  const effectClient = createClientObject(parent, fields);
+  for (let i = 0; i < entries.length; i++) {
+    (effectClient as Record<ClientNames, unknown>)[entries[i]![0]] =
+      scopes[i]!.renderedAccessor;
+  }
+  renderedClientRef.current = { client, effectClient };
   // Fresh envelope per commit so value-only updates reach the store's
   // subscribers; the client inside keeps its identity
   return { client };

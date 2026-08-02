@@ -129,11 +129,12 @@ class ClientProxyHandler
   }
 }
 
-export const useClientResource = <TMethods extends ClientMethods>(
+const useClientResourceInternal = <TMethods extends ClientMethods>(
   element: ResourceElement<TMethods>,
 ): {
   state: InferClientState<TMethods>;
   methods: TMethods;
+  renderedMethods: TMethods;
   key: string | number | undefined;
 } => {
   const valueRef = useRef(null as unknown as TMethods);
@@ -161,7 +162,14 @@ export const useClientResource = <TMethods extends ClientMethods>(
   });
 
   const state = (value as any).getState?.();
-  return { methods, state, key: element.key };
+  return { methods, renderedMethods: value, state, key: element.key };
 };
 
-export const ClientResource = resource(useClientResource);
+export const useClientResource = <TMethods extends ClientMethods>(
+  element: ResourceElement<TMethods>,
+) => {
+  const client = useClientResourceInternal(element);
+  return { methods: client.methods, state: client.state, key: client.key };
+};
+
+export const ClientResource = resource(useClientResourceInternal);
