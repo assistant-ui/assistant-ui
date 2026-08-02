@@ -89,8 +89,10 @@ ASSISTANT_UI_MCP_TELEMETRY=false npx -y @assistant-ui/mcp-docs-server
 
 When enabled, the server emits one `MCP Tool Call` event per tool execution with only these fields: `tool_name`, `status` (`success | soft_fail | failed | aborted`), `duration_ms`, `failure_category` (when applicable), `transport`, `server_version`, `mcp_client_name`, `mcp_client_version`, and `mcp_protocol_version`.
 
-It also exposes an `assistantUIReportIssue` tool that agents can call to report problems they cannot resolve. A `MCP Report Issue` event (with no message body) is recorded for signal capture.
+It also exposes an `assistantUIReportIssue` tool that agents can call to report problems they cannot resolve. A `MCP Report Issue` signal event is recorded when the tool is used. The signal contains no message body and no tool arguments.
+
+Events are sent with a single anonymous, per-process identifier (`$process_person_profile: false` is set so PostHog does not create person profiles).
 
 ### What is never captured
 
-Tool arguments, prompts, generated code, response bodies, preview URLs, tokens, headers, raw errors, and stack traces are never sent to PostHog. When telemetry is turned off, the `assistantUIReportIssue` tool is not exposed at all.
+Free-text tool arguments, prompts, generated code, response bodies, preview URLs, tokens, headers, raw errors, and stack traces are never sent to PostHog. The `assistantUIReportIssue` tool is always exposed; its telemetry signal carries no message body and no caller-supplied values.

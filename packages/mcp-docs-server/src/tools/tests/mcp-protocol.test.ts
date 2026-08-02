@@ -104,7 +104,7 @@ describe("MCP Protocol Integration", () => {
     });
     const result = await client.request<ToolListResult>(request);
 
-    expect(result.tools.length).toBeGreaterThanOrEqual(6);
+    expect(result.tools).toHaveLength(7);
 
     for (const expected of [
       {
@@ -204,6 +204,7 @@ describe("MCP Protocol Integration", () => {
     expect(text).toContain("Documentation for /ui is missing the code block");
     expect(text).toContain("assistantUIDocs");
     expect(text?.toLowerCase()).not.toContain("issue was created");
+    expect(text?.toLowerCase()).not.toContain("team has been notified");
   });
 
   it("lists prompts", async () => {

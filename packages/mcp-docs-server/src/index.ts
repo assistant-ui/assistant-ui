@@ -4,6 +4,7 @@ import {
   type ServerContext,
 } from "@modelcontextprotocol/server";
 import { StdioServerTransport } from "@modelcontextprotocol/server/stdio";
+import type { ZodType } from "zod";
 import { docsTools } from "./tools/docs.js";
 import { examplesTools } from "./tools/examples.js";
 import { searchTools } from "./tools/search.js";
@@ -19,10 +20,8 @@ import { logger } from "./utils/logger.js";
 import { PACKAGE_DIR } from "./constants.js";
 import {
   classifyToolResult,
-  flushTelemetry,
   getClientContext,
   isTelemetryEnabled,
-  trackReportIssue,
   trackToolCall,
 } from "./telemetry.js";
 
@@ -40,15 +39,20 @@ export const server = new McpServer({
 
 const serverVersion = packageJson.version;
 
-type ToolExecute = (
-  args: any,
-  ctx: ServerContext,
-) => CallToolResult | Promise<CallToolResult>;
+type Tool<TArgs> = {
+  name: string;
+  description: string;
+  parameters: ZodType<TArgs>;
+  execute: (
+    args: TArgs,
+    ctx: ServerContext,
+  ) => CallToolResult | Promise<CallToolResult>;
+};
 
-function withToolTelemetry(
+function withToolTelemetry<TArgs>(
   toolName: string,
-  execute: ToolExecute,
-): ToolExecute {
+  execute: Tool<TArgs>["execute"],
+): Tool<TArgs>["execute"] {
   return async (args, ctx) => {
     const startTime = Date.now();
     const signal = ctx.mcpReq.signal;
@@ -83,116 +87,55 @@ function withToolTelemetry(
   };
 }
 
-function registerTool(
-  name: string,
+function registerTool<TArgs>(
+  tool: Tool<TArgs>,
   config: {
     title: string;
-    description: string;
-    inputSchema: unknown;
     annotations: { readOnlyHint: boolean; openWorldHint: boolean };
   },
-  execute: ToolExecute,
 ): void {
   server.registerTool(
-    name,
+    tool.name,
     {
       title: config.title,
-      description: config.description,
-      inputSchema: config.inputSchema,
+      description: tool.description,
+      inputSchema: tool.parameters,
       annotations: config.annotations,
     },
-    withToolTelemetry(name, execute),
+    withToolTelemetry(tool.name, tool.execute),
   );
 }
 
-registerTool(
-  docsTools.name,
-  {
-    title: "assistant-ui Documentation",
-    description: docsTools.description,
-    inputSchema: docsTools.parameters,
-    annotations: { readOnlyHint: true, openWorldHint: false },
-  },
-  docsTools.execute,
-);
-registerTool(
-  examplesTools.name,
-  {
-    title: "assistant-ui Examples",
-    description: examplesTools.description,
-    inputSchema: examplesTools.parameters,
-    annotations: { readOnlyHint: true, openWorldHint: false },
-  },
-  examplesTools.execute,
-);
-registerTool(
-  searchTools.name,
-  {
-    title: "Search assistant-ui Documentation",
-    description: searchTools.description,
-    inputSchema: searchTools.parameters,
-    annotations: { readOnlyHint: true, openWorldHint: false },
-  },
-  searchTools.execute,
-);
+registerTool(docsTools, {
+  title: "assistant-ui Documentation",
+  annotations: { readOnlyHint: true, openWorldHint: false },
+});
+registerTool(examplesTools, {
+  title: "assistant-ui Examples",
+  annotations: { readOnlyHint: true, openWorldHint: false },
+});
+registerTool(searchTools, {
+  title: "Search assistant-ui Documentation",
+  annotations: { readOnlyHint: true, openWorldHint: false },
+});
 
-registerTool(
-  xuluxTemplatesListTool.name,
-  {
-    title: "assistant-ui Templates",
-    description: xuluxTemplatesListTool.description,
-    inputSchema: xuluxTemplatesListTool.parameters,
-    annotations: { readOnlyHint: true, openWorldHint: true },
-  },
-  xuluxTemplatesListTool.execute,
-);
-registerTool(
-  xuluxTemplateDetailsTool.name,
-  {
-    title: "assistant-ui Template Details",
-    description: xuluxTemplateDetailsTool.description,
-    inputSchema: xuluxTemplateDetailsTool.parameters,
-    annotations: { readOnlyHint: true, openWorldHint: true },
-  },
-  xuluxTemplateDetailsTool.execute,
-);
-registerTool(
-  xuluxTemplatePreviewTool.name,
-  {
-    title: "assistant-ui Template Preview URLs",
-    description: xuluxTemplatePreviewTool.description,
-    inputSchema: xuluxTemplatePreviewTool.parameters,
-    annotations: { readOnlyHint: false, openWorldHint: true },
-  },
-  xuluxTemplatePreviewTool.execute,
-);
+registerTool(xuluxTemplatesListTool, {
+  title: "assistant-ui Templates",
+  annotations: { readOnlyHint: true, openWorldHint: true },
+});
+registerTool(xuluxTemplateDetailsTool, {
+  title: "assistant-ui Template Details",
+  annotations: { readOnlyHint: true, openWorldHint: true },
+});
+registerTool(xuluxTemplatePreviewTool, {
+  title: "assistant-ui Template Preview URLs",
+  annotations: { readOnlyHint: false, openWorldHint: true },
+});
 
-if (isTelemetryEnabled()) {
-  server.registerTool(
-    reportIssueTool.name,
-    {
-      title: "Report an assistant-ui Issue",
-      description: reportIssueTool.description,
-      inputSchema: reportIssueTool.parameters,
-      annotations: { readOnlyHint: true, openWorldHint: false },
-    },
-    async (args, ctx) => {
-      const result = await reportIssueTool.execute(args);
-      try {
-        trackReportIssue({
-          toolName: (args as { tool_name?: string }).tool_name,
-          relatedTools: (args as { related_tools?: string[] }).related_tools,
-          transport: "stdio",
-          serverVersion,
-          clientContext: getClientContext(ctx),
-        });
-      } catch (error) {
-        logger.error("Failed to track MCP report issue telemetry", error);
-      }
-      return result;
-    },
-  );
-}
+registerTool(reportIssueTool, {
+  title: "Report an assistant-ui Issue",
+  annotations: { readOnlyHint: true, openWorldHint: false },
+});
 
 server.registerPrompt(
   xuluxPlaygroundPrompt.name,
@@ -223,21 +166,4 @@ export async function runServer() {
     logger.error("Failed to start MCP server", error);
     process.exit(1);
   }
-}
-
-function flushOnExit() {
-  if (isTelemetryEnabled()) {
-    void flushTelemetry().finally(() => process.exit(0));
-  } else {
-    process.exit(0);
-  }
-}
-
-if (import.meta.url === `file://${process.argv[1]}`) {
-  process.on("SIGINT", flushOnExit);
-  process.on("SIGTERM", flushOnExit);
-  void runServer().catch((error) => {
-    console.error("Failed to start server:", error);
-    process.exit(1);
-  });
 }

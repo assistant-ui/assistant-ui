@@ -10,6 +10,8 @@ import {
 } from "@modelcontextprotocol/server";
 import { logger } from "./utils/logger.js";
 
+let anonymousDistinctId: string | undefined;
+
 const TELEMETRY_ENV = "ASSISTANT_UI_MCP_TELEMETRY";
 const POSTHOG_API_KEY_ENV = "ASSISTANT_UI_POSTHOG_API_KEY";
 const POSTHOG_HOST_ENV = "ASSISTANT_UI_POSTHOG_HOST";
@@ -46,6 +48,13 @@ function getPosthog(): PostHog | null {
   return posthog;
 }
 
+function getAnonymousDistinctId(): string {
+  if (anonymousDistinctId === undefined) {
+    anonymousDistinctId = randomUUID();
+  }
+  return anonymousDistinctId;
+}
+
 export function captureEvent(
   event: string,
   properties: Record<string, string | number | boolean>,
@@ -54,9 +63,13 @@ export function captureEvent(
   if (!client) return;
   try {
     client.capture({
-      distinctId: randomUUID(),
+      distinctId: getAnonymousDistinctId(),
       event,
-      properties,
+      properties: {
+        ...properties,
+        // Do not create PostHog person profiles; we only need aggregate event counts.
+        $process_person_profile: false,
+      },
     });
   } catch (error) {
     logger.error(`Failed to capture ${event} telemetry event`, error);
@@ -246,19 +259,14 @@ export function trackToolCall(params: {
 }
 
 export function trackReportIssue(params: {
-  toolName?: string;
-  relatedTools?: string[];
   transport: string;
   serverVersion: string;
   clientContext: ClientContext;
 }): void {
-  const { toolName, relatedTools, transport, serverVersion, clientContext } =
-    params;
+  const { transport, serverVersion, clientContext } = params;
   // Signal-only event: the message body is user-supplied free text and is
   // intentionally not sent to PostHog (see issue privacy requirements).
   captureEvent("MCP Report Issue", {
-    ...(toolName !== undefined && { tool_name: toolName }),
-    ...(relatedTools !== undefined && { related_tools: relatedTools }),
     transport,
     server_version: serverVersion,
     ...clientContext,
