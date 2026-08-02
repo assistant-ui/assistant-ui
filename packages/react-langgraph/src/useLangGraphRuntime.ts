@@ -1,5 +1,4 @@
 import {
-  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -220,13 +219,6 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
   const pendingResumeRef = useRef<
     (LangChainMessage & { type: "tool" })[] | null
   >(null);
-  // One controller per in-flight load; a newer load aborts the previous one.
-  // The purpose rides along because only a refetch may be superseded by a
-  // send: aborting an initial load would strand its history and loading flag.
-  const loadControllerRef = useRef<{
-    controller: AbortController;
-    purpose: "initial" | "reload";
-  } | null>(null);
   const hasExecutingTools = Object.values(toolStatuses).some(
     (s) => s?.type === "executing",
   );
@@ -292,23 +284,10 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
   });
   const runQueue = runQueueRef.current;
 
-  const cancelActiveRun = useCallback(() => {
-    pendingResumeRef.current = null;
-    runQueue.drop();
-    cancel();
-  }, [runQueue, cancel]);
-
   const handleSendMessage = (
     messages: LangChainMessage[],
     config: LangGraphSendMessageConfig,
   ) => {
-    // A new run supersedes an in-flight refetch, whose landing snapshot would
-    // otherwise erase the message the user just sent. An initial load is left
-    // alone: it owns the thread's history and loading flag, and aborting it
-    // would drop both.
-    if (loadControllerRef.current?.purpose === "reload") {
-      loadControllerRef.current.controller.abort();
-    }
     const state = pendingStateRef.current;
     pendingStateRef.current = undefined;
     return runQueue.enqueue({
@@ -461,86 +440,6 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
 
   const uiMessagesRef = useRef(uiMessages);
   uiMessagesRef.current = uiMessages;
-
-  const loadRef = useRef(load);
-  useEffect(() => {
-    loadRef.current = load;
-  });
-
-  const threadListItem =
-    aui.threadListItem.source !== null ? aui.threadListItem : undefined;
-
-  const runLoad = useCallback(
-    (purpose: "initial" | "reload" = "initial") => {
-      const load = loadRef.current;
-      if (!load || !threadListItem) return Promise.resolve();
-
-      const externalId = threadListItem.getState().externalId;
-      if (externalId == null) return Promise.resolve();
-
-      // The initial load is already fetching the state a refetch would ask
-      // for, and superseding it would leave nobody owning its history or its
-      // loading flag if the refetch then failed.
-      if (
-        purpose === "reload" &&
-        loadControllerRef.current?.purpose === "initial"
-      )
-        return Promise.resolve();
-
-      loadControllerRef.current?.controller.abort();
-      const controller = new AbortController();
-      loadControllerRef.current = { controller, purpose };
-
-      if (purpose === "initial") {
-        toolResultBufferRef.current.clear();
-        pendingStateRef.current = undefined;
-        effectiveStateRef.current = undefined;
-        setOptimisticState(undefined);
-        setValues(undefined);
-        setIsLoadingThread(true);
-      }
-      return load(externalId, { signal: controller.signal })
-        .then(({ messages, interrupts, uiMessages }) => {
-          if (controller.signal.aborted) return;
-          if (purpose === "reload") {
-            // Swapped only once the fresh result has landed. `values` is left
-            // alone because LoadResult cannot restore it, and pendingStateRef
-            // because it is staged for the next send, not for the cancelled run.
-            toolResultBufferRef.current.clear();
-            effectiveStateRef.current = undefined;
-            setOptimisticState(undefined);
-          }
-          setMessages(messages);
-          setUIMessages(uiMessages ?? []);
-          setInterrupt(interrupts?.[0]);
-        })
-        .catch((error) => {
-          if (controller.signal.aborted) return;
-          // A refetch is awaited by its caller; an initial load has the
-          // loading state as its fallback.
-          if (purpose === "reload") throw error;
-          console.warn("useLangGraphRuntime: load handler rejected", error);
-        })
-        .finally(() => {
-          if (loadControllerRef.current?.controller === controller) {
-            loadControllerRef.current = null;
-          }
-          if (controller.signal.aborted) return;
-          setIsLoadingThread(false);
-        });
-    },
-    [threadListItem, setMessages, setUIMessages, setInterrupt, setValues],
-  );
-
-  useEffect(() => {
-    runLoad();
-    return () => {
-      // Whatever is current, not this effect's own controller: a refetch swaps
-      // the ref, and one in flight at unmount must be aborted too.
-      loadControllerRef.current?.controller.abort();
-      setIsLoadingThread(false);
-    };
-  }, [runLoad]);
 
   const runtime = useExternalStoreRuntime({
     ...pickExternalStoreSharedOptions(options),
@@ -703,12 +602,59 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
         }
       : {}),
     onCancel: unstable_allowCancellation
-      ? async () => cancelActiveRun()
+      ? async () => {
+          pendingResumeRef.current = null;
+          runQueue.drop();
+          cancel();
+        }
       : undefined,
-    ...(load !== undefined && {
-      onRefetchThread: () => runLoad("reload"),
-    }),
   });
+
+  {
+    const loadRef = useRef(load);
+    useEffect(() => {
+      loadRef.current = load;
+    });
+
+    const threadListItem =
+      aui.threadListItem.source !== null ? aui.threadListItem : undefined;
+    useEffect(() => {
+      const load = loadRef.current;
+      if (!load || !threadListItem) return;
+
+      const externalId = threadListItem.getState().externalId;
+      if (externalId == null) return;
+
+      // drop stale callbacks and abort the pending load on thread switch/unmount
+      const controller = new AbortController();
+      toolResultBufferRef.current.clear();
+      pendingStateRef.current = undefined;
+      effectiveStateRef.current = undefined;
+      setOptimisticState(undefined);
+      setValues(undefined);
+      setIsLoadingThread(true);
+      load(externalId, { signal: controller.signal })
+        .then(({ messages, interrupts, uiMessages }) => {
+          if (controller.signal.aborted) return;
+          setMessages(messages);
+          setUIMessages(uiMessages ?? []);
+          setInterrupt(interrupts?.[0]);
+        })
+        .catch((error) => {
+          if (controller.signal.aborted) return;
+          console.warn("useLangGraphRuntime: load handler rejected", error);
+        })
+        .finally(() => {
+          if (controller.signal.aborted) return;
+          setIsLoadingThread(false);
+        });
+
+      return () => {
+        controller.abort();
+        setIsLoadingThread(false);
+      };
+    }, [threadListItem, setMessages, setUIMessages, setInterrupt, setValues]);
+  }
 
   return runtime;
 };

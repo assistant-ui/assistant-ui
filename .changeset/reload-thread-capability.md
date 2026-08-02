@@ -1,8 +1,7 @@
 ---
 "@assistant-ui/core": patch
-"@assistant-ui/react-langgraph": patch
 ---
 
-feat: `reloadMainThread()` prefers an in-place reload when the runtime declares `unstable_refetchThread` (via `ExternalStoreAdapter.onRefetchThread`), falling back to remounting the runtime hook otherwise. `useLangGraphRuntime` registers the capability, so reloading re-runs `load()` without destroying the runtime: composer drafts and LangGraph graph state (`values`) survive, existing messages stay rendered while fresh state (including pending interrupts) is fetched, and a refetch failure reaches the caller. A run that is still streaming is cancelled first on runtimes that support cancelling.
+feat: add the in-place refetch contract behind `threads.reloadMainThread()`. A runtime opts in with `unstable_refetchThread` on `ThreadRuntimeCore`, which an external store supplies through the new `ExternalStoreAdapter.onRefetchThread` (unrelated to `onReload`, which re-generates an assistant message) and which surfaces as `RuntimeCapabilities.refetchThread` for a UI to gate on. Runtimes that opt in keep their runtime identity, so composer drafts survive and messages stay rendered while the refetch runs; the rest fall back to remounting the runtime hook. A run that is still streaming is cancelled first, on runtimes that both support cancelling and are actually running.
 
-`react-google-adk` has the same remote session load path but does not register the capability, so `reloadMainThread()` there takes the remount fallback and discards unsent composer input. That divergence is deliberate for this release rather than resolved: adopting it needs verification against that adapter's own runtime, tracked in #5528.
+No adapter registers the capability yet, so every runtime takes the remount fallback for now. `react-langgraph` adoption is #5529 and `react-google-adk` is #5528.
