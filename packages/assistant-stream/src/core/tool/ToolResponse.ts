@@ -70,10 +70,9 @@ export class ToolResponse<TResult> {
     // A part written with `state: "result"` is recognized as settled by
     // carrying a result, and several writers put a response onto the part
     // without ever emitting a chunk, so an absent result is materialized here.
+    const result = options.result;
     this.result =
-      options.result === undefined
-        ? (NO_RESULT as unknown as TResult)
-        : options.result;
+      result === undefined ? (NO_RESULT as unknown as TResult) : result;
     this.isError = options.isError ?? false;
     if (options.modelContent !== undefined) {
       this.modelContent = options.modelContent;
