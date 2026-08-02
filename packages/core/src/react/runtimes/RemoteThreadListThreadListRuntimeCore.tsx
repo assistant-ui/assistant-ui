@@ -156,7 +156,7 @@ export class RemoteThreadListThreadListRuntimeCore
     if (!this._loadThreadsPromise) {
       const generation = this._loadGeneration;
       const adapter = this._options.adapter;
-      let retainedRuntimeIds: ReadonlySet<string> | undefined;
+      let removedRuntimeIds: readonly string[] | undefined;
       this._loadThreadsPromise = this._state
         .optimisticUpdate({
           execute: () => adapter.list(),
@@ -177,9 +177,12 @@ export class RemoteThreadListThreadListRuntimeCore
             retainThread(fresh, state, this._mainThreadId);
             retainThread(fresh, state, state.newThreadId);
             retainThread(fresh, state, this._switchTargetThreadId);
-            retainedRuntimeIds = new Set(
+            const retainedRuntimeIds = new Set(
               Object.values(fresh.threadData).map((thread) => thread.id),
             );
+            removedRuntimeIds = Object.values(state.threadData)
+              .map((thread) => thread.id)
+              .filter((threadId) => !retainedRuntimeIds.has(threadId));
 
             return {
               ...state,
@@ -202,11 +205,10 @@ export class RemoteThreadListThreadListRuntimeCore
           });
         })
         .then(() => {
-          if (
-            generation === this._loadGeneration &&
-            retainedRuntimeIds !== undefined
-          ) {
-            this._hookManager.stopThreadRuntimesExcept(retainedRuntimeIds);
+          if (generation === this._loadGeneration) {
+            for (const threadId of removedRuntimeIds ?? []) {
+              this._hookManager.stopThreadRuntime(threadId);
+            }
           }
         });
     }

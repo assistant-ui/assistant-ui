@@ -122,18 +122,6 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     this._notifySubscribers();
   }
 
-  public stopThreadRuntimesExcept(threadIds: ReadonlySet<string>) {
-    let changed = false;
-    for (const threadId of this.instances.keys()) {
-      if (threadIds.has(threadId)) continue;
-      this.instances.delete(threadId);
-      changed = true;
-    }
-    if (!changed) return;
-    this.useAliveThreadsKeysChanged.setState({}, true);
-    this._notifySubscribers();
-  }
-
   public setRuntimeHook(newRuntimeHook: RemoteThreadListHook) {
     const prevRuntimeHook = this.useRuntimeHook.getState().useRuntime;
     if (prevRuntimeHook !== newRuntimeHook) {
