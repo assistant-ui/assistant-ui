@@ -136,6 +136,20 @@ async def test_data_stream_encoder_emits_tool_controller_finish() -> None:
 
 
 @pytest.mark.anyio
+async def test_data_stream_encoder_defaults_empty_tool_args() -> None:
+    stream, controller = await create_tool_call("now", "t1")
+    controller.close()
+
+    encoded = [frame async for frame in DataStreamEncoder().encode_stream(stream)]
+
+    assert encoded == [
+        'b:{"toolCallId": "t1", "toolName": "now"}\n',
+        'c:{"toolCallId": "t1", "argsTextDelta": "{}"}\n',
+        'c:{"toolCallId": "t1", "argsTextDelta": "", "isFinal": true}\n',
+    ]
+
+
+@pytest.mark.anyio
 @pytest.mark.parametrize(
     ("boundary", "encoded_boundary"),
     [
@@ -164,6 +178,7 @@ async def test_data_stream_encoder_finishes_args_before_boundaries(
 
     assert encoded == [
         'b:{"toolCallId": "t1", "toolName": "search"}\n',
+        'c:{"toolCallId": "t1", "argsTextDelta": "{}"}\n',
         'c:{"toolCallId": "t1", "argsTextDelta": "", "isFinal": true}\n',
         encoded_boundary,
     ]

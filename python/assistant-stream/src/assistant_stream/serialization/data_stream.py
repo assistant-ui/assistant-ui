@@ -1,6 +1,7 @@
 from assistant_stream.assistant_stream_chunk import (
     AssistantStreamChunk,
     ToolCallArgsTextFinishChunk,
+    ToolCallDeltaChunk,
 )
 import json
 from typing import AsyncGenerator, Any
@@ -89,17 +90,35 @@ class DataStreamEncoder(StreamEncoder):
     async def encode_stream(
         self, stream: AsyncGenerator[AssistantStreamChunk, None]
     ) -> AsyncGenerator[str, None]:
-        open_tool_call_args: set[str] = set()
+        open_tool_call_args: dict[str, bool] = {}
+
+        def finish_tool_call_args(tool_call_id: str) -> list[str]:
+            has_args_text = open_tool_call_args.pop(tool_call_id, None)
+            if has_args_text is None:
+                return []
+
+            frames: list[str] = []
+            if not has_args_text:
+                fallback = self.encode_chunk(
+                    ToolCallDeltaChunk(
+                        tool_call_id=tool_call_id,
+                        args_text_delta="{}",
+                    )
+                )
+                if fallback is not None:
+                    frames.append(fallback)
+
+            finish = self.encode_chunk(
+                ToolCallArgsTextFinishChunk(tool_call_id=tool_call_id)
+            )
+            if finish is not None:
+                frames.append(finish)
+            return frames
 
         def finish_open_tool_call_args() -> list[str]:
             frames: list[str] = []
-            for tool_call_id in open_tool_call_args:
-                finish = self.encode_chunk(
-                    ToolCallArgsTextFinishChunk(tool_call_id=tool_call_id)
-                )
-                if finish is not None:
-                    frames.append(finish)
-            open_tool_call_args.clear()
+            for tool_call_id in tuple(open_tool_call_args):
+                frames.extend(finish_tool_call_args(tool_call_id))
             return frames
 
         async for chunk in stream:
@@ -107,14 +126,20 @@ class DataStreamEncoder(StreamEncoder):
                 for finish in finish_open_tool_call_args():
                     yield finish
             if chunk.type == "tool-call-begin":
-                open_tool_call_args.add(chunk.tool_call_id)
+                open_tool_call_args[chunk.tool_call_id] = False
             elif chunk.type == "tool-result":
-                open_tool_call_args.discard(chunk.tool_call_id)
-            elif chunk.type in ("tool-call-delta", "tool-call-args-text-finish"):
+                open_tool_call_args.pop(chunk.tool_call_id, None)
+            elif chunk.type == "tool-call-delta":
                 if chunk.tool_call_id not in open_tool_call_args:
                     continue
-                if chunk.type == "tool-call-args-text-finish":
-                    open_tool_call_args.remove(chunk.tool_call_id)
+                open_tool_call_args[chunk.tool_call_id] = True
+            elif chunk.type == "tool-call-args-text-finish":
+                frames = finish_tool_call_args(chunk.tool_call_id)
+                if not frames:
+                    continue
+                for frame in frames:
+                    yield frame
+                continue
             encoded = self.encode_chunk(chunk)
             if encoded is None:
                 continue
