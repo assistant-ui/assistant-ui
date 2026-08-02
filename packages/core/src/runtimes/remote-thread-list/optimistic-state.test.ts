@@ -60,22 +60,4 @@ describe("OptimisticState", () => {
 
     expect(state.value.title).toBe("Project Beta");
   });
-
-  it("does not replay pending updates after reset", async () => {
-    const state = new OptimisticState({ title: "Untitled" });
-    const request = deferred();
-
-    const update = state.optimisticUpdate({
-      execute: () => request.promise,
-      optimistic: (value) => ({ ...value, title: "Old backend title" }),
-    });
-
-    expect(state.value.title).toBe("Old backend title");
-
-    state.reset({ title: "New backend title" });
-    request.resolve();
-    await update;
-
-    expect(state.value.title).toBe("New backend title");
-  });
 });

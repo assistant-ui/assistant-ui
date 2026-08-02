@@ -62,6 +62,32 @@ const ControlledRuntime = ({
   );
 };
 
+const InlineAdapterRuntime = ({
+  renderKey,
+  createAdapter,
+  runtimeRef,
+}: {
+  renderKey: number;
+  createAdapter: () => RemoteThreadListAdapter;
+  runtimeRef: RuntimeRef;
+}) => {
+  void renderKey;
+  const runtime = useRemoteThreadListRuntime({
+    adapter: createAdapter(),
+    runtimeHook: useTestThreadRuntime,
+  });
+
+  useEffect(() => {
+    runtimeRef.current = runtime;
+  }, [runtime, runtimeRef]);
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      {null}
+    </AssistantRuntimeProvider>
+  );
+};
+
 const waitForRemoteThread = async (
   runtimeRef: RuntimeRef,
   remoteId: string,
@@ -119,6 +145,36 @@ describe("useRemoteThreadListRuntime controlled threadId", () => {
     );
     await waitForRemoteThread(runtimeRef, "");
     expect(adapter.fetch).toHaveBeenLastCalledWith("");
+    expect(onThreadIdChange).not.toHaveBeenCalled();
+  });
+
+  it("switches controlled threads when the adapter changes in the same render", async () => {
+    const adapterA = makeAdapter();
+    const adapterB = makeAdapter();
+    const onThreadIdChange = vi.fn();
+    const runtimeRef: RuntimeRef = { current: null };
+
+    const { rerender } = render(
+      <ControlledRuntime
+        adapter={adapterA}
+        threadId="thread-a"
+        onThreadIdChange={onThreadIdChange}
+        runtimeRef={runtimeRef}
+      />,
+    );
+    await waitForRemoteThread(runtimeRef, "thread-a");
+
+    rerender(
+      <ControlledRuntime
+        adapter={adapterB}
+        threadId="thread-b"
+        onThreadIdChange={onThreadIdChange}
+        runtimeRef={runtimeRef}
+      />,
+    );
+
+    await waitForRemoteThread(runtimeRef, "thread-b");
+    expect(adapterB.fetch).toHaveBeenCalledWith("thread-b");
     expect(onThreadIdChange).not.toHaveBeenCalled();
   });
 
@@ -289,5 +345,48 @@ describe("useRemoteThreadListRuntime controlled threadId", () => {
       await firstThreadBFetch.promise;
     });
     expect(onThreadIdChange).toHaveBeenCalledExactlyOnceWith("thread-b");
+  });
+});
+
+describe("useRemoteThreadListRuntime adapter replacement", () => {
+  it("keeps the active thread when an inline adapter changes on rerender", async () => {
+    const adapters: RemoteThreadListAdapter[] = [];
+    const createAdapter = vi.fn(() => {
+      const adapter = makeAdapter();
+      adapters.push(adapter);
+      return adapter;
+    });
+    const runtimeRef: RuntimeRef = { current: null };
+
+    const { rerender } = render(
+      <InlineAdapterRuntime
+        renderKey={0}
+        createAdapter={createAdapter}
+        runtimeRef={runtimeRef}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(runtimeRef.current).not.toBeNull();
+      expect(runtimeRef.current!.threads.getState().mainThreadId).toBeDefined();
+      expect(adapters[0]!.list).toHaveBeenCalled();
+    });
+    const mainThreadId = runtimeRef.current!.threads.getState().mainThreadId;
+
+    rerender(
+      <InlineAdapterRuntime
+        renderKey={1}
+        createAdapter={createAdapter}
+        runtimeRef={runtimeRef}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(createAdapter).toHaveBeenCalledTimes(2);
+      expect(adapters[1]!.list).toHaveBeenCalled();
+    });
+    expect(runtimeRef.current!.threads.getState().mainThreadId).toBe(
+      mainThreadId,
+    );
   });
 });

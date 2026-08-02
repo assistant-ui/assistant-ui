@@ -2960,7 +2960,6 @@ declare class OptimisticState<TState> extends BaseSubscribable {
   private readonly _pendingTransforms;
   private readonly _completedOptimistics;
   private _nextTransformOrder;
-  private _generation;
   private _baseValue;
   private _cachedValue;
   constructor(initialState: TState);
@@ -2968,7 +2967,6 @@ declare class OptimisticState<TState> extends BaseSubscribable {
   get baseValue(): TState;
   get value(): TState;
   update(state: TState): void;
-  reset(state: TState): void;
   optimisticUpdate<TResult>(transform: Transform<TState, TResult>): Promise<TResult>;
 }
 
@@ -3547,7 +3545,6 @@ declare class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     unstable_on<E extends ThreadRuntimeEventType>(event: E, callback: ThreadRuntimeEventCallback<E>): Unsubscribe$1;
   }> | undefined;
   stopThreadRuntime(threadId: string): void;
-  stopAllThreadRuntimes(): void;
   setRuntimeHook(newRuntimeHook: RemoteThreadListHook): void;
   private _RuntimeBinder;
   private _OuterActiveThreadProvider;
@@ -3583,6 +3580,7 @@ declare class RemoteThreadListThreadListRuntimeCore extends BaseSubscribable imp
   private _adapterGeneration;
   private _switchGeneration;
   private _switchTask;
+  private _switchTargetThreadId;
   private _mainThreadId;
   private readonly _state;
   get threadItems(): Readonly<Record<THREAD_MAPPING_ID, RemoteThreadData>>;

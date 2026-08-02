@@ -241,7 +241,7 @@ describe("RemoteThreadListThreadListRuntimeCore.loadMore", () => {
     expect(core.threadIds).toEqual(["a", "b"]);
   });
 
-  it("__internal_setOptions clears thread state on adapter swap, then refetches via the new adapter", async () => {
+  it("__internal_setOptions preserves thread state until the new adapter responds", async () => {
     const firstAdapter = makeAdapter({
       list: vi.fn<ListFn>(async () => ({
         threads: [{ status: "regular", remoteId: "old", externalId: "old" }],
@@ -263,7 +263,7 @@ describe("RemoteThreadListThreadListRuntimeCore.loadMore", () => {
     });
 
     expect(core.hasMore).toBe(false);
-    expect(core.threadIds).toEqual([]);
+    expect(core.threadIds).toEqual(["old"]);
 
     await core.getLoadThreadsPromise();
     expect(secondList).toHaveBeenCalledTimes(1);
@@ -305,7 +305,7 @@ describe("RemoteThreadListThreadListRuntimeCore.loadMore", () => {
     });
     await stale;
 
-    expect(core.threadIds).toEqual([]);
+    expect(core.threadIds).toEqual(["p1"]);
     expect(core.hasMore).toBe(false);
     expect(core.isLoadingMore).toBe(false);
   });

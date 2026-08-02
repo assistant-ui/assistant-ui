@@ -34,16 +34,46 @@ const threadStatusError = (
     `Thread "${threadIdOrRemoteId}" has status "${status}", so it cannot ${action}.`,
   );
 
-const createInitialState = (): RemoteThreadState => ({
-  isLoading: true,
-  isLoadingMore: false,
-  cursor: undefined,
-  newThreadId: undefined,
-  threadIds: [],
-  archivedThreadIds: [],
-  threadIdMap: {},
-  threadData: {},
-});
+const retainThread = (
+  target: ReturnType<typeof classifyThreads>,
+  source: RemoteThreadState,
+  threadId: string | undefined,
+) => {
+  if (threadId === undefined) return;
+
+  const sourceMappingId = source.threadIdMap[threadId];
+  if (sourceMappingId === undefined) return;
+
+  const sourceData = source.threadData[sourceMappingId];
+  if (sourceData === undefined) return;
+
+  const listedMappingId =
+    sourceData.remoteId === undefined
+      ? undefined
+      : target.threadIdMap[sourceData.remoteId];
+  const listedData =
+    listedMappingId === undefined
+      ? undefined
+      : target.threadData[listedMappingId];
+
+  if (listedMappingId !== undefined && listedData !== undefined) {
+    delete target.threadData[listedMappingId];
+    target.threadData[sourceMappingId] = {
+      ...listedData,
+      id: sourceData.id,
+      initializeTask: sourceData.initializeTask,
+    };
+    target.threadIdMap[listedData.remoteId] = sourceMappingId;
+  } else {
+    target.threadData[sourceMappingId] = sourceData;
+  }
+
+  for (const [id, mappingId] of Object.entries(source.threadIdMap)) {
+    if (mappingId === sourceMappingId) {
+      target.threadIdMap[id] = sourceMappingId;
+    }
+  }
+};
 
 export class RemoteThreadListThreadListRuntimeCore
   extends BaseSubscribable
@@ -58,11 +88,19 @@ export class RemoteThreadListThreadListRuntimeCore
   private _adapterGeneration = 0;
   private _switchGeneration = 0;
   private _switchTask: Promise<void> | undefined;
+  private _switchTargetThreadId: string | undefined;
 
   private _mainThreadId!: string;
-  private readonly _state = new OptimisticState<RemoteThreadState>(
-    createInitialState(),
-  );
+  private readonly _state = new OptimisticState<RemoteThreadState>({
+    isLoading: true,
+    isLoadingMore: false,
+    cursor: undefined,
+    newThreadId: undefined,
+    threadIds: [],
+    archivedThreadIds: [],
+    threadIdMap: {},
+    threadData: {},
+  });
 
   public get threadItems() {
     return this._state.value.threadData;
@@ -72,9 +110,10 @@ export class RemoteThreadListThreadListRuntimeCore
     // TODO this needs to be cached in case this promise is loaded during suspense
     if (!this._loadThreadsPromise) {
       const generation = this._loadGeneration;
+      const adapter = this._options.adapter;
       this._loadThreadsPromise = this._state
         .optimisticUpdate({
-          execute: () => this._options.adapter.list(),
+          execute: () => adapter.list(),
           loading: (state) => {
             return {
               ...state,
@@ -89,6 +128,9 @@ export class RemoteThreadListThreadListRuntimeCore
               threadIdMap: {},
               threadData: {},
             });
+            retainThread(fresh, state, this._mainThreadId);
+            retainThread(fresh, state, state.newThreadId);
+            retainThread(fresh, state, this._switchTargetThreadId);
 
             return {
               ...state,
@@ -96,14 +138,8 @@ export class RemoteThreadListThreadListRuntimeCore
               cursor: normalizeCursor(l.nextCursor),
               threadIds: fresh.threadIds,
               archivedThreadIds: fresh.archivedThreadIds,
-              threadIdMap: {
-                ...state.threadIdMap,
-                ...fresh.threadIdMap,
-              },
-              threadData: {
-                ...state.threadData,
-                ...fresh.threadData,
-              },
+              threadIdMap: fresh.threadIdMap,
+              threadData: fresh.threadData,
             };
           },
         })
@@ -223,19 +259,13 @@ export class RemoteThreadListThreadListRuntimeCore
       this._adapterGeneration++;
       this._loadGeneration++;
       this._switchGeneration++;
+      this._switchTargetThreadId = undefined;
       this._loadThreadsPromise = undefined;
       this._loadMorePromise = undefined;
-      this._switchTask = undefined;
-      this._mainThreadId = undefined!;
-      this._lastNotifiedThreadId = undefined;
-      this._state.reset(createInitialState());
-      this._hookManager.stopAllThreadRuntimes();
-
-      const switchTask = this._initialThreadLoaded
-        ? this._switchToThreadFromProp(options.threadId)
-        : this._startSwitchToNewThread(false);
-      switchTask.catch(() => {});
-      return;
+      this._state.update({
+        ...this._state.baseValue,
+        cursor: undefined,
+      });
     }
 
     if (controlledThreadIdChanged) {
@@ -380,6 +410,7 @@ export class RemoteThreadListThreadListRuntimeCore
     emitThreadIdChange: boolean,
   ): Promise<void> {
     const generation = ++this._switchGeneration;
+    this._switchTargetThreadId = threadIdOrRemoteId;
     const task = this._switchToThread(
       threadIdOrRemoteId,
       options,
@@ -387,6 +418,18 @@ export class RemoteThreadListThreadListRuntimeCore
       emitThreadIdChange,
     );
     this._switchTask = task;
+    task.then(
+      () => {
+        if (generation === this._switchGeneration) {
+          this._switchTargetThreadId = undefined;
+        }
+      },
+      () => {
+        if (generation === this._switchGeneration) {
+          this._switchTargetThreadId = undefined;
+        }
+      },
+    );
     return task;
   }
 

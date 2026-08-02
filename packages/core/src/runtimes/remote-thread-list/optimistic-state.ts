@@ -48,7 +48,6 @@ export class OptimisticState<TState> extends BaseSubscribable {
     [];
 
   private _nextTransformOrder = 0;
-  private _generation = 0;
 
   private _baseValue: TState;
   private _cachedValue: TState;
@@ -96,19 +95,9 @@ export class OptimisticState<TState> extends BaseSubscribable {
     this._updateState();
   }
 
-  public reset(state: TState): void {
-    this._generation++;
-    this._nextTransformOrder = 0;
-    this._pendingTransforms.length = 0;
-    this._completedOptimistics.length = 0;
-    this._baseValue = state;
-    this._updateState();
-  }
-
   public async optimisticUpdate<TResult>(
     transform: Transform<TState, TResult>,
   ): Promise<TResult> {
-    const generation = this._generation;
     const order = this._nextTransformOrder++;
     const task = transform.execute();
     const pendingTransform = {
@@ -121,8 +110,6 @@ export class OptimisticState<TState> extends BaseSubscribable {
       this._updateState();
 
       const result = await task;
-      if (generation !== this._generation) return result;
-
       this._baseValue = pipeTransforms(this._baseValue, result, [
         transform.optimistic,
         transform.then,
@@ -146,18 +133,16 @@ export class OptimisticState<TState> extends BaseSubscribable {
 
       return result;
     } finally {
-      if (generation === this._generation) {
-        const index = this._pendingTransforms.indexOf(pendingTransform);
-        if (index > -1) {
-          this._pendingTransforms.splice(index, 1);
-        }
-
-        if (this._pendingTransforms.length === 0) {
-          this._completedOptimistics.length = 0;
-        }
-
-        this._updateState();
+      const index = this._pendingTransforms.indexOf(pendingTransform);
+      if (index > -1) {
+        this._pendingTransforms.splice(index, 1);
       }
+
+      if (this._pendingTransforms.length === 0) {
+        this._completedOptimistics.length = 0;
+      }
+
+      this._updateState();
     }
   }
 }

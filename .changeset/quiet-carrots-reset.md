@@ -2,4 +2,4 @@
 "@assistant-ui/core": patch
 ---
 
-fix: isolate remote thread state when its adapter changes
+fix: prune stale remote thread records after adapter changes

@@ -43,25 +43,42 @@ const makeOptions = (adapter: RemoteThreadListAdapter) => ({
   },
 });
 
-const makeCore = (adapter: RemoteThreadListAdapter) =>
-  new RemoteThreadListThreadListRuntimeCore(makeOptions(adapter), {
+const makeCore = (adapter: RemoteThreadListAdapter) => {
+  const core = new RemoteThreadListThreadListRuntimeCore(makeOptions(adapter), {
     getModelContext: () => ({}),
   });
+  (
+    core as unknown as {
+      _hookManager: {
+        startThreadRuntime: (id: string) => Promise<unknown>;
+      };
+    }
+  )._hookManager.startThreadRuntime = async () => ({});
+  return core;
+};
 
 describe("RemoteThreadListThreadListRuntimeCore adapter replacement", () => {
-  it("removes thread ids belonging to the previous adapter", async () => {
-    const adapterA = makeAdapter([makeThread("account-a-thread")]);
+  it("prunes inactive threads from the previous adapter after listing", async () => {
+    const adapterA = makeAdapter([
+      makeThread("active-thread"),
+      makeThread("account-a-thread"),
+    ]);
     const adapterB = makeAdapter([makeThread("account-b-thread")]);
     const core = makeCore(adapterA);
 
     await core.getLoadThreadsPromise();
+    await core.switchToThread("active-thread");
     expect(core.getItemById("account-a-thread")).toBeDefined();
+    const mainThreadId = core.mainThreadId;
 
     core.__internal_setOptions(makeOptions(adapterB));
+    expect(core.mainThreadId).toBe(mainThreadId);
     await core.getLoadThreadsPromise();
 
     expect(core.threadIds).toEqual(["account-b-thread"]);
     expect(core.getItemById("account-a-thread")).toBeUndefined();
+    expect(core.getItemById("active-thread")).toBeDefined();
+    expect(core.mainThreadId).toBe(mainThreadId);
   });
 
   it("ignores a thread fetched by the previous adapter after replacement", async () => {
@@ -81,6 +98,25 @@ describe("RemoteThreadListThreadListRuntimeCore adapter replacement", () => {
     expect(adapterB.fetch).not.toHaveBeenCalled();
   });
 
+  it("keeps the local runtime id when the active thread appears in the new list", async () => {
+    const adapterA = makeAdapter([], {
+      initialize: vi.fn(async () => ({ remoteId: "active-remote" })),
+    });
+    const adapterB = makeAdapter([makeThread("active-remote")]);
+    const core = makeCore(adapterA);
+
+    await core.switchToNewThread();
+    const localId = core.mainThreadId;
+    await core.initialize(localId);
+
+    core.__internal_setOptions(makeOptions(adapterB));
+    await core.getLoadThreadsPromise();
+
+    expect(core.mainThreadId).toBe(localId);
+    expect(core.getItemById(localId)?.id).toBe(localId);
+    expect(core.getItemById("active-remote")?.id).toBe(localId);
+  });
+
   it("finishes an in-flight mutation through its originating adapter", async () => {
     const adapterA = makeAdapter([makeThread("account-a-thread")]);
     const adapterB = makeAdapter([]);
@@ -90,6 +126,7 @@ describe("RemoteThreadListThreadListRuntimeCore adapter replacement", () => {
     const renameTask = core.rename("account-a-thread", "Renamed");
     core.__internal_setOptions(makeOptions(adapterB));
     await renameTask;
+    await core.getLoadThreadsPromise();
 
     expect(adapterA.rename).toHaveBeenCalledWith("account-a-thread", "Renamed");
     expect(adapterB.rename).not.toHaveBeenCalled();
