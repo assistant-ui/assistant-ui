@@ -209,6 +209,36 @@ function ReloadOnAuth() {
 
 `reload()` discards in-flight responses from superseded calls, so it is safe to invoke on every auth transition.
 
+### Refetching the open thread
+
+`reload()` re-runs `list()`, which refreshes thread list metadata only. It does not touch the messages of the thread the user is looking at. When the open thread's server state changes out of band, so that nothing arrives over the stream (a human-in-the-loop interrupt raised by another process, a stalled stream, a status change picked up by polling), call `aui.threads.reloadMainThread()`:
+
+```tsx
+function RefetchOnInterrupt({ status }: { status: string }) {
+  const aui = useAui();
+  useEffect(() => {
+    if (status === "interrupted") aui.threads.reloadMainThread();
+  }, [status]);
+  return null;
+}
+```
+
+A run that is still streaming is cancelled first, and a thread that has not been sent yet is left alone because it holds no remote state.
+
+How the refetch happens depends on the runtime. When it declares the capability, the thread runtime is reused: composer drafts survive, existing messages stay rendered while the fresh state loads, and the returned promise settles with the refetch, rejecting if it fails. `useLangGraphRuntime` declares it whenever you pass `load`. Otherwise the runtime hook is remounted, which re-runs `load()` at the cost of discarding unsent composer input, and the promise resolves once the new runtime attaches. If that difference matters to your UI, gate the affordance you build on `useAuiState((s) => s.thread.capabilities.refetchThread)`.
+
+For an external store runtime, declare it with `onRefetchThread`, which is unrelated to `onReload` (that one re-generates an assistant message):
+
+```ts
+useExternalStoreRuntime({
+  messages,
+  onNew,
+  onRefetchThread: async () => {
+    setMessages(await fetchMessages(threadId));
+  },
+});
+```
+
 ### Paginating the thread list
 
 If your backend returns thread pages, return a `nextCursor` from `list()` and consume `aui.threads.hasMore` plus `aui.threads.loadMore()` in the UI. The runtime threads `params.after` back through `list()` on every `loadMore()`; the initial call passes no `params`, so treat a missing `after` as "first page". `reload()` resets the cursor so the next load starts from page 1 again.
