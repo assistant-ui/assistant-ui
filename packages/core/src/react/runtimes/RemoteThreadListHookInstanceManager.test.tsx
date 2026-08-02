@@ -32,6 +32,24 @@ describe("RemoteThreadListHookInstanceManager", () => {
       "Thread was deleted before runtime was started",
     );
   });
+
+  it("stops only runtimes outside the retained set", async () => {
+    const manager = new RemoteThreadListHookInstanceManager(() => {
+      throw new Error("Runtime hook should not render during this test");
+    }, {} as ThreadListRuntimeCore);
+
+    const removedStart = manager.startThreadRuntime("removed");
+    const retainedStart = manager.startThreadRuntime("retained");
+    manager.stopThreadRuntimesExcept(new Set(["retained"]));
+
+    await expect(removedStart).rejects.toThrow(
+      "Thread was deleted before runtime was started",
+    );
+    manager.stopAllThreadRuntimes();
+    await expect(retainedStart).rejects.toThrow(
+      "Thread was deleted before runtime was started",
+    );
+  });
 });
 
 describe("RemoteThreadListHookInstanceManager.__internal_restartThreadRuntime", () => {

@@ -21,6 +21,10 @@ type ThreadData = {
 };
 
 type CloudThreadListAdapterOptions = {
+  /**
+   * Keep this instance stable while the active account or workspace remains
+   * the same. A new instance is treated as a remote thread scope change.
+   */
   cloud?: AssistantCloud | undefined;
 
   create?: (() => Promise<ThreadData>) | undefined;

@@ -195,6 +195,37 @@ describe("RemoteThreadListThreadListRuntimeCore.loadMore", () => {
     expect(core.hasMore).toBe(false);
   });
 
+  it("loads later pages again after reloading the first page", async () => {
+    const listFn = vi
+      .fn<ListFn>()
+      .mockResolvedValueOnce({
+        threads: [{ status: "regular", remoteId: "a", externalId: "a" }],
+        nextCursor: "c1",
+      })
+      .mockResolvedValueOnce({
+        threads: [{ status: "regular", remoteId: "b", externalId: "b" }],
+      })
+      .mockResolvedValueOnce({
+        threads: [{ status: "regular", remoteId: "a", externalId: "a" }],
+        nextCursor: "c1",
+      })
+      .mockResolvedValueOnce({
+        threads: [{ status: "regular", remoteId: "b", externalId: "b" }],
+      });
+    const adapter = makeAdapter({ list: listFn });
+    const core = createCore(adapter);
+
+    await core.getLoadThreadsPromise();
+    await core.loadMore();
+    expect(core.threadIds).toEqual(["a", "b"]);
+
+    await core.reload();
+    expect(core.threadIds).toEqual(["a"]);
+
+    await core.loadMore();
+    expect(core.threadIds).toEqual(["a", "b"]);
+  });
+
   it("releases the dedup handle after a rejection so retries can proceed", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     const listFn = vi
@@ -446,7 +477,7 @@ describe("RemoteThreadListThreadListRuntimeCore.loadMore", () => {
     expect(listFn).toHaveBeenCalledTimes(2);
   });
 
-  it("reload retains records created by previously loaded pages", async () => {
+  it("reload drops inactive records created by previously loaded pages", async () => {
     const listFn = vi
       .fn<ListFn>()
       .mockResolvedValueOnce({
@@ -468,6 +499,6 @@ describe("RemoteThreadListThreadListRuntimeCore.loadMore", () => {
     await core.reload();
 
     expect(core.threadIds).toEqual(["a"]);
-    expect(core.getItemById("b")).toBeDefined();
+    expect(core.getItemById("b")).toBeUndefined();
   });
 });

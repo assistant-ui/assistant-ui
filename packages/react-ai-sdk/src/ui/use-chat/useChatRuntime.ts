@@ -34,6 +34,11 @@ import {
 export type UseChatRuntimeOptions<UI_MESSAGE extends UIMessage = UIMessage> =
   ChatInit<UI_MESSAGE> &
     ExternalStoreSharedOptions & {
+      /**
+       * Keep this instance stable while the active account or workspace
+       * remains the same. A new instance resets remote thread state before
+       * loading from the replacement Cloud scope.
+       */
       cloud?: AssistantCloud | undefined;
       adapters?: AISDKRuntimeAdapter["adapters"] | undefined;
       toCreateMessage?: CustomToCreateMessageFunction;

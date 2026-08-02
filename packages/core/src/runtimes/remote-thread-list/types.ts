@@ -59,6 +59,15 @@ export type RemoteThreadListAdapter = {
 
 export type RemoteThreadListOptions = {
   runtimeHook: () => AssistantRuntime;
+
+  /**
+   * The adapter for the active remote thread scope.
+   *
+   * Keep this object identity stable while the backing account or workspace
+   * remains the same. Replacing it is treated as a scope change: mounted
+   * thread runtimes and cached thread state are discarded before the new
+   * adapter loads.
+   */
   adapter: RemoteThreadListAdapter;
 
   /**
