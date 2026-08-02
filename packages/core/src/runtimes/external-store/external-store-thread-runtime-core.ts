@@ -103,9 +103,7 @@ export class ExternalStoreThreadRuntimeCore
     return this._store.adapters;
   }
 
-  // property (not method) so presence tracks the adapter: undefined when the
-  // store offers no in-place refetch, which routes reloadMainThread to the
-  // remount fallback
+  // A getter, not a method, so its presence tracks the adapter.
   public get unstable_refetchThread(): (() => Promise<void>) | undefined {
     if (!this._store.onRefetchThread) return undefined;
     return () => this._store.onRefetchThread!();

@@ -220,8 +220,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
   const pendingResumeRef = useRef<
     (LangChainMessage & { type: "tool" })[] | null
   >(null);
-  // one controller per in-flight load; a newer load (thread switch, reload,
-  // or a new run superseding a refetch) aborts the previous one
+  // One controller per in-flight load; a newer load aborts the previous one.
   const loadControllerRef = useRef<AbortController | null>(null);
   const hasExecutingTools = Object.values(toolStatuses).some(
     (s) => s?.type === "executing",
@@ -288,8 +287,6 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
   });
   const runQueue = runQueueRef.current;
 
-  // single definition of what cancelling a run means, shared by onCancel and
-  // the reload path so the semantics cannot diverge
   const cancelActiveRun = useCallback(() => {
     pendingResumeRef.current = null;
     runQueue.drop();
@@ -300,8 +297,8 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
     messages: LangChainMessage[],
     config: LangGraphSendMessageConfig,
   ) => {
-    // a new run supersedes any in-flight refetch — otherwise the landing
-    // snapshot would erase the message the user just sent
+    // A new run supersedes any in-flight refetch, whose landing snapshot would
+    // otherwise erase the message the user just sent.
     loadControllerRef.current?.abort();
     const state = pendingStateRef.current;
     pendingStateRef.current = undefined;
@@ -477,8 +474,6 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
       loadControllerRef.current = controller;
 
       if (purpose === "initial") {
-        // leaving the previous thread behind: wipe run-scoped state up front
-        // and surface the loading state
         toolResultBufferRef.current.clear();
         pendingStateRef.current = undefined;
         effectiveStateRef.current = undefined;
@@ -486,20 +481,18 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
         setValues(undefined);
         setIsLoadingThread(true);
       } else {
-        // reloading in place: a run that is still streaming would clobber the
-        // refetched messages on its next chunk (sendMessage seeds its
-        // accumulator once at run start), so cancel it first — the same
-        // contract the remount fallback enforces via unmount
+        // sendMessage seeds its accumulator once at run start, so a run that
+        // is still streaming would clobber the refetched messages on its next
+        // chunk. Cancelling first matches what the remount fallback does.
         cancelActiveRun();
       }
       return load(externalId, { signal: controller.signal })
         .then(({ messages, interrupts, uiMessages }) => {
           if (controller.signal.aborted) return;
           if (purpose === "reload") {
-            // swap atomically only once the fresh result has landed. `values`
-            // stays untouched (LoadResult cannot restore it) and so does
-            // pendingStateRef — it is staged for the *next* send, not scoped
-            // to the run the reload just cancelled
+            // Swapped only once the fresh result has landed. `values` is left
+            // alone because LoadResult cannot restore it, and pendingStateRef
+            // because it is staged for the next send, not for the cancelled run.
             toolResultBufferRef.current.clear();
             effectiveStateRef.current = undefined;
             setOptimisticState(undefined);
@@ -510,8 +503,8 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
         })
         .catch((error) => {
           if (controller.signal.aborted) return;
-          // reloadMainThread's caller awaits the outcome; an initial load
-          // has the loading state as its fallback
+          // A refetch is awaited by its caller; an initial load has the
+          // loading state as its fallback.
           if (purpose === "reload") throw error;
           console.warn("useLangGraphRuntime: load handler rejected", error);
         })
@@ -533,9 +526,8 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
   useEffect(() => {
     runLoad();
     return () => {
-      // abort whatever is current, not this run's controller: a reload from
-      // onRefetchThread swaps the ref, and an in-flight reload at unmount
-      // must be aborted too
+      // Whatever is current, not this effect's own controller: a refetch swaps
+      // the ref, and one in flight at unmount must be aborted too.
       loadControllerRef.current?.abort();
       setIsLoadingThread(false);
     };

@@ -62,7 +62,7 @@ export type ThreadListRuntime = {
    * cancelled first. When the runtime declares the in-place reload capability
    * (`unstable_refetchThread`), composer drafts survive, existing messages
    * stay rendered during the refetch, and the promise settles with the
-   * refetch — rejecting if it fails. Otherwise the runtime hook is remounted,
+   * refetch, rejecting if it fails. Otherwise the runtime hook is remounted,
    * which discards unsent composer input; the promise resolves once the new
    * runtime attaches. A thread that has not been sent yet is left alone.
    */

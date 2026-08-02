@@ -219,7 +219,7 @@ export type ThreadRuntimeCore = Readonly<{
   reset(initialMessages?: readonly ThreadMessageLike[]): void;
 
   /**
-   * Re-fetches this thread's state from its backing store, in place — no
+   * Re-fetches this thread's state from its backing store, in place: no
    * runtime-hook remount, so runtime identity and composer drafts survive.
    * Presence signals the capability to `threads.reloadMainThread()`, which
    * cancels any in-flight run, calls this, and propagates its rejection.

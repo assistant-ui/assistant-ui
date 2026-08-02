@@ -26,12 +26,10 @@ type RemoteThreadListHook = () => AssistantRuntime;
 
 type RemoteThreadListHookInstance = {
   runtime?: ThreadRuntimeCore | undefined;
-  // generation of the binder that published `runtime`. A runtime riding
-  // across a restart stays readable but only counts as attached once a
-  // binder of the current generation re-publishes it.
+  // A runtime riding across a restart stays readable, but only counts as
+  // attached once a binder of the current generation re-publishes it.
   publishedGeneration?: number | undefined;
-  // Part of the binder's React key. Deleting and re-adding an instance in one
-  // tick leaves the key set unchanged, so only a bump remounts the hook.
+  // Part of the binder's React key, so only a bump remounts the hook.
   generation: number;
 };
 
@@ -48,9 +46,8 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     StoreApi<{ useRuntime: RemoteThreadListHook }>
   >;
   private instances = new Map<string, RemoteThreadListHookInstance>();
-  // manager-wide, so it survives instance deletion: a stop/start within one
-  // React commit must not reuse a binder key, or the still-mounted old binder
-  // satisfies the new start with stale state
+  // Manager-wide so it survives instance deletion: a stop and start within one
+  // React commit must not reuse a binder key.
   private nextGeneration = 0;
   private useAliveThreadsKeysChanged = create(() => ({}));
   private parent: ThreadListRuntimeCore;
@@ -99,10 +96,6 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     const instance = this.instances.get(threadId);
     if (!instance) return this.startThreadRuntime(threadId);
 
-    // the outgoing runtime stays readable until the new binder attaches, so
-    // getThreadRuntimeCore never falls back to the empty core mid-restart —
-    // but its stale publishedGeneration keeps _whenRuntimeAttached pending
-    // until the incoming binder re-publishes
     instance.generation = this.nextGeneration++;
     this.useAliveThreadsKeysChanged.setState({}, true);
     this._notifySubscribers();
@@ -147,8 +140,8 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
           `Thread "${threadId}" runtime binding not found. This is a bug in assistant-ui.`,
         );
 
-      // a restarted binder outlives its generation until React commits the key
-      // change, and must not publish its runtime over the incoming one
+      // An outgoing binder outlives its generation until React commits the key
+      // change, and must not publish over the incoming one.
       if (aliveThread.generation !== generation) return;
 
       aliveThread.runtime = threadBinding.getState();

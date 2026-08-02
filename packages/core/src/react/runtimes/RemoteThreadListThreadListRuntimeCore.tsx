@@ -249,28 +249,26 @@ export class RemoteThreadListThreadListRuntimeCore
     const threadId = this._mainThreadId;
     if (threadId === undefined) return;
 
-    // an optimistic thread holds no remote state, so reloading it would only
-    // discard what the user has typed so far
+    // An unsent thread holds no remote state, so a refetch would only discard
+    // what the user has typed.
     if (this.getItemById(threadId)?.status === "new") return;
 
-    // in-place refetch when the runtime declares the capability; remounting
-    // the runtime hook is the fallback for runtimes that don't
     const runtimeCore = this._hookManager.getThreadRuntimeCore(threadId);
 
     try {
       if (runtimeCore?.unstable_refetchThread) {
-        // cancel-first is enforced here so it holds for every adapter, not
-        // only the ones that remember — structurally what the remount
-        // fallback does via unmount
+        // Cancelled here rather than left to each adapter, since a run that is
+        // still streaming would clobber the result. The remount fallback gets
+        // the same effect from unmounting.
         if (runtimeCore.capabilities.cancel) runtimeCore.cancelRun();
-        // invoked through the core so class-method implementations keep `this`
+        // Called on the core so class-method implementations keep `this`.
         await runtimeCore.unstable_refetchThread();
       } else {
         await this._hookManager.__internal_restartThreadRuntime(threadId);
       }
     } catch (error) {
       // delete and detach switch the main thread away before stopping the
-      // runtime, so a rejection there means that operation owns the outcome
+      // runtime, so a rejection once that has happened belongs to them.
       if (threadId !== this._mainThreadId) return;
       throw error;
     }

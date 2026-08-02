@@ -170,10 +170,9 @@ export class ExternalStoreThreadListRuntimeCore implements ThreadListRuntimeCore
   }
 
   public async reloadMainThread(): Promise<void> {
-    // no runtime hook to remount here, so the capability is the only path;
-    // an adapter without onRefetchThread has nothing to refetch with
+    // There is no runtime hook to remount here, so the capability is the only
+    // path and an adapter without it has nothing to refetch with.
     if (!this._mainThread.unstable_refetchThread) return;
-    // cancel-first, same contract as the remote thread list's dispatcher
     if (this._mainThread.capabilities.cancel) this._mainThread.cancelRun();
     await this._mainThread.unstable_refetchThread();
   }
