@@ -77,6 +77,16 @@ export const useAssistantClientRef = () => {
   return useAssistantTapContext().clientRef;
 };
 
+/**
+ * Runs setup during the Tap commit that mounts the effect and migrates it after
+ * committed client structure changes.
+ *
+ * Initial setup runs before Store publication. If it throws, the commit aborts
+ * without publishing and the effect is not retained for retry. No cleanup
+ * handle can be captured, so setup must roll back partial work before throwing.
+ * Migration failures are reported without interrupting Store subscribers and
+ * remain retryable after a later structural client update.
+ */
 export const useAssistantClientEffect = <K extends ClientNames>(
   scope: K,
   setup: (accessor: AssistantClientAccessor<K>) => void | (() => void),

@@ -5,6 +5,7 @@ import { act, cleanup, render } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { flushTapSync, resource } from "@assistant-ui/tap";
 import { Derived } from "../Derived";
+import type { AssistantClientAccessor } from "../types/client";
 import { useAui } from "../useAui";
 import { getClientId } from "./client-accessor";
 import { AuiProvider } from "./react-assistant-context";
@@ -13,6 +14,19 @@ import {
   useAssistantClientEffect,
   useAssistantTapContextProvider,
 } from "./tap-assistant-context";
+
+declare module "../types/client" {
+  interface ScopeRegistry {
+    registration: {
+      methods: Record<never, never>;
+      meta: { source: "registration"; query: Record<string, unknown> };
+    };
+    thread: {
+      methods: { getState(): { id: string } };
+      meta: { source: "thread"; query: Record<string, unknown> };
+    };
+  }
+}
 
 const errorListeners = new Set<(event: ErrorEvent) => void>();
 
@@ -152,14 +166,12 @@ const useThreadRegistrationClient = ({
   value: string;
 }) => {
   useAssistantClientEffect(
-    "thread" as any,
-    (thread: any) => {
-      const { id } = thread().getState() as unknown as { id: string };
+    "thread",
+    (thread) => {
+      const { id } = thread().getState();
       operations.push(`setup ${id} ${value}`);
       return () => {
-        const { id: cleanupId } = thread().getState() as unknown as {
-          id: string;
-        };
+        const { id: cleanupId } = thread().getState();
         operations.push(`cleanup ${cleanupId} ${value}`);
       };
     },
@@ -172,9 +184,9 @@ const ThreadRegistrationClient = resource(useThreadRegistrationClient);
 const useRetainedThreadClient = ({
   onSetup,
 }: {
-  onSetup: (thread: any) => void | VoidFunction;
+  onSetup: (thread: AssistantClientAccessor<"thread">) => void | VoidFunction;
 }) => {
-  useAssistantClientEffect("thread" as any, onSetup, []);
+  useAssistantClientEffect("thread", onSetup, []);
   return {};
 };
 const RetainedThreadClient = resource(useRetainedThreadClient);
@@ -220,11 +232,11 @@ describe("useAssistantClientEffect", () => {
       const registration = ThreadRegistrationClient({ operations, value });
       useAui(
         thread === "unavailable"
-          ? ({ registration } as unknown as useAui.Props)
-          : ({
+          ? { registration }
+          : {
               registration,
               thread: threads[thread],
-            } as unknown as useAui.Props),
+            },
       );
       return null;
     };
@@ -270,18 +282,16 @@ describe("useAssistantClientEffect", () => {
         registration: RetainedThreadClient({
           onSetup: (accessor) => {
             clientIds.push(getClientId(accessor));
-            const { id } = accessor().getState() as { id: string };
+            const { id } = accessor().getState();
             operations.push(`setup ${id} one`);
             return () => {
-              const { id: cleanupId } = accessor().getState() as {
-                id: string;
-              };
+              const { id: cleanupId } = accessor().getState();
               operations.push(`cleanup ${cleanupId} one`);
             };
           },
         }),
         thread: threads[thread],
-      } as unknown as useAui.Props);
+      });
       return null;
     };
 
@@ -308,18 +318,18 @@ describe("useAssistantClientEffect", () => {
           operations,
           value: "one",
         }),
-        thread: Derived({
+        thread: Derived<"thread">({
           source: "thread",
           query: {},
-          get: (parent: any) => parent.thread,
-        } as never),
-      } as unknown as useAui.Props);
+          get: (parent) => parent.thread,
+        }),
+      });
       return null;
     };
     const Parent = () => {
       const parent = useAui({
         thread: ThreadA(),
-      } as unknown as useAui.Props);
+      });
       return (
         <AuiProvider value={parent}>
           <Child />
@@ -355,7 +365,7 @@ describe("useAssistantClientEffect", () => {
           },
         }),
         thread: ThreadClient(),
-      } as unknown as useAui.Props);
+      });
       return null;
     };
 
