@@ -489,10 +489,12 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
         setOptimisticState(undefined);
         setValues(undefined);
         setIsLoadingThread(true);
-      } else {
+      } else if (unstable_allowCancellation) {
         // sendMessage seeds its accumulator once at run start, so a run that
         // is still streaming would clobber the refetched messages on its next
-        // chunk. Cancelling first matches what the remount fallback does.
+        // chunk. Cancelling first matches what the remount fallback does, and
+        // is gated the same way `onCancel` is: an app that opted out of
+        // cancellation does not get its run cancelled by a refetch.
         cancelActiveRun();
       }
       return load(externalId, { signal: controller.signal })
@@ -529,6 +531,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
       setInterrupt,
       setValues,
       cancelActiveRun,
+      unstable_allowCancellation,
     ],
   );
 

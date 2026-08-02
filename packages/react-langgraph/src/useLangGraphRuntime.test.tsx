@@ -695,6 +695,56 @@ describe("useLangGraphRuntime", () => {
     });
   });
 
+  it("reloadMainThread leaves a run alone when the app opted out of cancellation", async () => {
+    const load = vi
+      .fn<() => Promise<LoadResult>>()
+      .mockImplementationOnce(async () => ({ messages: [] }))
+      .mockImplementationOnce(async () => ({ messages: [] }));
+
+    const firstChunkSent = deferred<void>();
+    let streamAborted = false;
+    const streamMock = vi.fn(
+      (_messages: unknown, { abortSignal }: { abortSignal: AbortSignal }) =>
+        (async function* () {
+          abortSignal.addEventListener("abort", () => {
+            streamAborted = true;
+          });
+          yield {
+            event: "messages/complete",
+            data: [{ type: "ai" as const, id: "run-1", content: "chunk one" }],
+          };
+          firstChunkSent.resolve();
+          await new Promise((resolve) => setTimeout(resolve, 50));
+        })(),
+    );
+
+    const { result: runtimeResult } = renderHook(() =>
+      useLangGraphRuntime({
+        stream: streamMock as never,
+        load,
+        unstable_threadListAdapter: makeThreadListAdapter(),
+      }),
+    );
+    const wrapper = wrapperFactory(runtimeResult.current);
+    renderHook(() => useAuiState((s) => s.thread.isLoading), { wrapper });
+
+    await act(async () => {
+      await runtimeResult.current.threads.switchToThread("lg-thread-1");
+    });
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      runtimeResult.current.thread.append("start a run");
+      await firstChunkSent.promise;
+    });
+
+    await act(async () => {
+      await runtimeResult.current.threads.reloadMainThread();
+    });
+
+    expect(streamAborted).toBe(false);
+  });
+
   it("reloadMainThread cancels an in-flight run so a later chunk cannot clobber the refetched messages", async () => {
     const load = vi
       .fn<() => Promise<LoadResult>>()
@@ -734,6 +784,7 @@ describe("useLangGraphRuntime", () => {
         stream: streamMock as never,
         load,
         unstable_threadListAdapter: makeThreadListAdapter(),
+        unstable_allowCancellation: true,
       }),
     );
 
@@ -853,6 +904,7 @@ describe("useLangGraphRuntime", () => {
         stream: streamMock as never,
         load,
         unstable_threadListAdapter: makeThreadListAdapter(),
+        unstable_allowCancellation: true,
       }),
     );
 
