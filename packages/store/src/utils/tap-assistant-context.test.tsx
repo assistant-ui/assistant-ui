@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 
+import { useState } from "react";
 import { act, cleanup, render } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
-import { resource } from "@assistant-ui/tap";
+import { flushTapSync, resource } from "@assistant-ui/tap";
 import { Derived } from "../Derived";
 import { useAui } from "../useAui";
 import { AuiProvider } from "./react-assistant-context";
@@ -162,6 +163,16 @@ const useThreadRegistrationClient = ({
 };
 const ThreadRegistrationClient = resource(useThreadRegistrationClient);
 
+const useRetainedThreadClient = ({
+  onSetup,
+}: {
+  onSetup: (thread: any) => void;
+}) => {
+  useAssistantClientEffect("thread" as any, onSetup, []);
+  return {};
+};
+const RetainedThreadClient = resource(useRetainedThreadClient);
+
 describe("useAssistantClientEffect", () => {
   afterEach(() => {
     cleanup();
@@ -303,6 +314,33 @@ describe("useAssistantClientEffect", () => {
     unmount();
 
     expect(operations).toEqual(["setup a one", "cleanup a one"]);
+  });
+
+  it("keeps an accessor retained by setup live after commit", () => {
+    let retained: any;
+    const useThreadClient = () => {
+      const [id, setId] = useState("a");
+      return { getState: () => ({ id }), setId };
+    };
+    const ThreadClient = resource(useThreadClient);
+
+    const Harness = () => {
+      useAui({
+        registration: RetainedThreadClient({
+          onSetup: (thread) => {
+            retained = thread;
+          },
+        }),
+        thread: ThreadClient(),
+      } as unknown as useAui.Props);
+      return null;
+    };
+
+    render(<Harness />);
+    expect(retained.getState()).toEqual({ id: "a" });
+
+    act(() => flushTapSync(() => retained.setId("b")));
+    expect(retained.getState()).toEqual({ id: "b" });
   });
 
   it("continues subscriber delivery and retries after a later structural update", async () => {

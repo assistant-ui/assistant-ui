@@ -70,6 +70,7 @@ type ScopeAccessor = AssistantClientAccessor<ClientNames>;
 type ScopeMountResult = {
   accessor: ScopeAccessor;
   renderedAccessor: ScopeAccessor;
+  commitRenderedAccessor: VoidFunction;
 };
 
 const applyTransformScopes = (
@@ -220,14 +221,21 @@ const useScopeMount = (
     () => createClientAccessor({ name, ...meta }, () => value.methods),
     [name, meta, value.methods, element.hook, element.key],
   );
+  const renderedMethodsRef = { current: value.renderedMethods };
   const renderedAccessor = createClientAccessor(
     { name, ...meta },
-    () => value.renderedMethods,
+    () => renderedMethodsRef.current,
   );
 
   (building as Record<ClientNames, unknown>)[name] = accessor;
 
-  return { accessor, renderedAccessor };
+  return {
+    accessor,
+    renderedAccessor,
+    commitRenderedAccessor: () => {
+      renderedMethodsRef.current = accessor as unknown as ClientMethods;
+    },
+  };
 };
 
 const ScopeMount = resource(useScopeMount);
@@ -288,6 +296,10 @@ const useAuiRoot = ({
       );
     },
   );
+
+  useEffect(() => {
+    for (const scope of scopes) scope.commitRenderedAccessor();
+  });
 
   const client = useCommittedClient(building, [
     parent,
