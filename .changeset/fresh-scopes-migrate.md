@@ -2,4 +2,4 @@
 "@assistant-ui/store": patch
 ---
 
-feat: add a committed-client effect for internal registration consumers
+feat: add committed-client effects that migrate registrations and isolate structurally replaced client identities

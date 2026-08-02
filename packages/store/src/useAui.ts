@@ -298,6 +298,8 @@ const useAuiRoot = ({
     },
   );
 
+  // Scope setup needs render-time methods during this commit, so its child
+  // callbacks must register before these refs switch to committed accessors.
   useEffect(() => {
     for (const scope of scopes) scope.commitRenderedAccessor();
   });

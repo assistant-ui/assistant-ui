@@ -181,6 +181,26 @@ const useThreadRegistrationClient = ({
 };
 const ThreadRegistrationClient = resource(useThreadRegistrationClient);
 
+const useFailingThreadRegistrationClient = ({
+  operations,
+}: {
+  operations: string[];
+}) => {
+  useAssistantClientEffect(
+    "thread",
+    (thread) => {
+      const { id } = thread().getState();
+      operations.push(`setup ${id}`);
+      throw new Error(`registration failed for ${id}`);
+    },
+    [],
+  );
+  return {};
+};
+const FailingThreadRegistrationClient = resource(
+  useFailingThreadRegistrationClient,
+);
+
 const useRetainedThreadClient = ({
   onSetup,
 }: {
@@ -449,25 +469,25 @@ describe("useAssistantClientEffect", () => {
 
   it("throws an initial setup failure synchronously", () => {
     const operations: string[] = [];
-    const clients = {
-      a: createRegistrationParent("a", new Map()),
-    };
-    const clientStore = createClientEffectStore(clients.a);
-    const Client = createClientEffectResource(
-      clients.a,
-      clientStore.store,
-      (target) => {
-        operations.push(`setup ${target.id}`);
-        if (target.id === "a") throw new Error("registration failed for a");
-        return () => operations.push(`cleanup ${target.id}`);
-      },
-    );
+    const ThreadA = createThreadClient("a");
     const Host = () => {
-      useAui({ registration: Client() } as unknown as useAui.Props);
+      useAui({
+        registration: FailingThreadRegistrationClient({ operations }),
+        thread: ThreadA(),
+      });
       return null;
     };
 
-    expect(() => render(<Host />)).toThrow("registration failed for a");
+    let thrown: unknown;
+    try {
+      render(<Host />);
+    } catch (error) {
+      thrown = error;
+    }
+    expect(thrown).toBeInstanceOf(AggregateError);
+    expect((thrown as AggregateError).errors).toContainEqual(
+      expect.objectContaining({ message: "registration failed for a" }),
+    );
     expect(operations).toEqual(["setup a"]);
   });
 
