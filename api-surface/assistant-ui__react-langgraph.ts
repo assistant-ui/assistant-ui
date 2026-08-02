@@ -2302,12 +2302,16 @@ declare const useLangGraphMessages: <TMessage extends {
   setValues: import("react").Dispatch<import("react").SetStateAction<Record<string, unknown> | undefined>>;
   setMessages: (msgs: TMessage[]) => void;
   setUIMessages: (next: UIMessage[]) => void;
-  reconcileMessages: (serverMessages: TMessage[], messagesAtLoadStart: TMessage[]) => void;
-  reconcileUIMessages: (serverMessages: UIMessage[], messagesAtLoadStart: UIMessage[]) => void;
+  reconcileMessages: (serverMessages: TMessage[], messagesAtLoadStart: TMessage[], _param6?: {
+    snapshotIsComplete?: boolean;
+  }) => void;
+  reconcileUIMessages: (serverMessages: UIMessage[], messagesAtLoadStart: UIMessage[], _param7?: {
+    snapshotIsComplete?: boolean;
+  }) => void;
   reconcileInterrupt: (serverInterrupt: LangGraphInterruptState | undefined, interruptAtLoadStart: LangGraphInterruptState | undefined) => void;
 };
 
-declare const useLangGraphRuntime: (_param6: UseLangGraphRuntimeOptions) => AssistantRuntime;
+declare const useLangGraphRuntime: (_param8: UseLangGraphRuntimeOptions) => AssistantRuntime;
 
 declare const useLangGraphSend: () => (messages: LangChainMessage[], config: LangGraphSendMessageConfig) => Promise<void>;
 
