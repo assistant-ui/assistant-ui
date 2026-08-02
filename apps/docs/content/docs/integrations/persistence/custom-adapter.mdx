@@ -229,6 +229,8 @@ export async function POST(
 
 The adapter calls your endpoints. `unstable_Provider` injects the per-thread history adapter so messages persist alongside metadata.
 
+The module-level adapter below assumes the page reloads when authentication changes. If one mounted runtime can switch accounts or workspaces, construct its adapter from React and set `unstable_scopeKey` to that account or workspace ID so state from the previous scope is cleared.
+
 <PlatformTabs>
 <Tab value="React">
 

@@ -256,6 +256,53 @@ describe("useRemoteThreadListRuntime controlled threadId", () => {
     expect(runtimeRef.current!.threads.mainItem.getState().status).toBe("new");
   });
 
+  it("recovers a pending controlled selection on reload", async () => {
+    const adapterA = makeAdapter({ unstable_scopeKey: "a" });
+    const adapterB = makeAdapter({
+      unstable_scopeKey: "b",
+      list: vi
+        .fn()
+        .mockRejectedValueOnce(new Error("Network unavailable"))
+        .mockResolvedValueOnce({
+          threads: [makeThreadMetadata("thread-a")],
+        }),
+      fetch: vi.fn().mockRejectedValue(new Error("Network unavailable")),
+    });
+    const onThreadIdChange = vi.fn();
+    const runtimeRef: RuntimeRef = { current: null };
+
+    const { rerender } = render(
+      <ControlledRuntime
+        adapter={adapterA}
+        threadId="thread-a"
+        onThreadIdChange={onThreadIdChange}
+        runtimeRef={runtimeRef}
+      />,
+    );
+    await waitForRemoteThread(runtimeRef, "thread-a");
+
+    rerender(
+      <ControlledRuntime
+        adapter={adapterB}
+        threadId="thread-a"
+        onThreadIdChange={onThreadIdChange}
+        runtimeRef={runtimeRef}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(adapterB.list).toHaveBeenCalledTimes(1);
+      expect(runtimeRef.current!.threads.getState().isLoading).toBe(false);
+    });
+    expect(onThreadIdChange).not.toHaveBeenCalled();
+
+    await act(() => runtimeRef.current!.threads.reload());
+
+    await waitForRemoteThread(runtimeRef, "thread-a");
+    expect(adapterB.list).toHaveBeenCalledTimes(2);
+    expect(onThreadIdChange).not.toHaveBeenCalled();
+  });
+
   it("selects a controlled thread found on a later replacement page", async () => {
     const adapterA = makeAdapter({ unstable_scopeKey: "a" });
     const adapterB = makeAdapter({

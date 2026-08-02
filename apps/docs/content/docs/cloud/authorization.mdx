@@ -40,6 +40,8 @@ const cloud = new AssistantCloud({
 });
 ```
 
+Thread state is scoped to the `AssistantCloud` instance. Recreate that instance when the active account or workspace changes so threads from the previous scope are cleared.
+
 ### Backend Server Approach
 
 Use this when you need custom workspace logic or unsupported auth providers.
@@ -165,7 +167,7 @@ import { useAuth } from "@clerk/nextjs";
 import { AssistantCloud } from "@assistant-ui/react";
 
 function Chat() {
-  const { getToken } = useAuth();
+  const { getToken, userId, orgId } = useAuth();
 
   const cloud = useMemo(
     () =>
@@ -173,7 +175,7 @@ function Chat() {
         baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
         authToken: () => getToken({ template: "assistant-ui" }),
       }),
-    [getToken],
+    [getToken, userId, orgId],
   );
 
   // Use with your runtime...

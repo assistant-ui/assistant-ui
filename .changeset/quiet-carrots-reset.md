@@ -17,6 +17,8 @@ compatibility and should provide one when they can switch accounts or
 workspaces.
 Controlled thread selections are reconciled as paginated replacement lists
 load, so a later page can restore the requested thread or confirm it is absent.
+If both the direct fetch and initial list fail, the selection remains pending
+and is reconciled by the next successful `reload()` or `loadMore()` call.
 
 Reloading a paginated list now treats the returned first page as authoritative.
 Records and mounted runtimes from omitted later pages are dropped so a later

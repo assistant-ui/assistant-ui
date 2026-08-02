@@ -364,6 +364,12 @@ A few invariants worth knowing when wiring a custom UI on top of `loadMore()`:
       required: true,
     },
     {
+      name: "unstable_scopeKey",
+      type: "unknown",
+      description:
+        "Optional account or workspace identity. Change it when the adapter starts serving a different scope so cached threads and mounted runtimes are cleared.",
+    },
+    {
       name: "unstable_Provider",
       type: "ComponentType<PropsWithChildren>",
       description:
