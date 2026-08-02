@@ -7,6 +7,7 @@ import { ToolResponse } from "./ToolResponse";
 import type { AssistantStreamChunk } from "../AssistantStreamChunk";
 import type { AssistantMessage, ToolCallPart } from "../utils/types";
 import type { Tool } from "./tool-types";
+import { promiseWithResolvers } from "../../utils/promiseWithResolvers";
 
 const createDelayedTool = (delay: number, result?: string): Tool => ({
   parameters: { type: "object", properties: {} },
@@ -15,6 +16,21 @@ const createDelayedTool = (delay: number, result?: string): Tool => ({
     return result ?? `Tool with ${delay}ms delay executed`;
   },
 });
+
+const captureUnhandledRejections = async (
+  callback: () => Promise<void>,
+): Promise<unknown[]> => {
+  const reasons: unknown[] = [];
+  const listener = (reason: unknown) => reasons.push(reason);
+  process.on("unhandledRejection", listener);
+  try {
+    await callback();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    return reasons;
+  } finally {
+    process.off("unhandledRejection", listener);
+  }
+};
 
 describe("unstable_runPendingTools", () => {
   it("removes the abort listener after tool execution settles", async () => {
@@ -67,61 +83,77 @@ describe("unstable_runPendingTools", () => {
     );
   });
 
-  it("does not enqueue pending tool output after cancellation", async () => {
-    let resolveTool!: (value: string) => void;
-    const toolResult = new Promise<string>((resolve) => {
-      resolveTool = resolve;
-    });
-    let markToolStarted!: () => void;
-    const toolStarted = new Promise<void>((resolve) => {
-      markToolStarted = resolve;
-    });
-    const inputChunks: AssistantStreamChunk[] = [
-      {
-        type: "part-start",
-        path: [],
-        part: {
-          type: "tool-call",
-          toolCallId: "tc-cancelled",
-          toolName: "slowTool",
-        },
-      },
-      { type: "text-delta", path: [0], textDelta: "{}" },
-      { type: "tool-call-args-text-finish", path: [0] },
-      { type: "part-finish", path: [0] },
-    ];
-    const inputStream = new ReadableStream<AssistantStreamChunk>({
-      start(controller) {
-        for (const chunk of inputChunks) controller.enqueue(chunk);
-        controller.close();
-      },
-    });
-    const output = inputStream.pipeThrough(
-      unstable_toolResultStream(
+  it.each(["resolves", "rejects"] as const)(
+    "does not enqueue pending tool output after cancellation when execution %s",
+    async (settlement) => {
+      const toolResult = promiseWithResolvers<string>();
+      const toolStarted = promiseWithResolvers<void>();
+      const inputChunks: AssistantStreamChunk[] = [
         {
-          slowTool: {
-            parameters: { type: "object", properties: {} },
-            execute: () => {
-              markToolStarted();
-              return toolResult;
-            },
+          type: "part-start",
+          path: [],
+          part: {
+            type: "tool-call",
+            toolCallId: "tc-cancelled",
+            toolName: "slowTool",
           },
         },
-        new AbortController().signal,
-        async () => {},
-      ),
-    );
-    const reader = output.getReader();
+        { type: "text-delta", path: [0], textDelta: "{}" },
+        { type: "tool-call-args-text-finish", path: [0] },
+        { type: "part-finish", path: [0] },
+      ];
+      const inputStream = new ReadableStream<AssistantStreamChunk>({
+        start(controller) {
+          for (const chunk of inputChunks) controller.enqueue(chunk);
+          controller.close();
+        },
+      });
+      const output = inputStream.pipeThrough(
+        unstable_toolResultStream(
+          {
+            slowTool: {
+              parameters: { type: "object", properties: {} },
+              execute: () => {
+                toolStarted.resolve();
+                return toolResult.promise;
+              },
+            },
+          },
+          new AbortController().signal,
+          async () => {},
+        ),
+      );
+      const reader = output.getReader();
+      const expectedForwardedTypes = [
+        "part-start",
+        "text-delta",
+        "tool-call-args-text-finish",
+      ];
 
-    for (let index = 0; index < 3; index++) {
-      expect((await reader.read()).done).toBe(false);
-    }
-    await toolStarted;
-    const cancellation = reader.cancel();
-    resolveTool("done");
-    await cancellation;
-    await new Promise((resolve) => setTimeout(resolve, 0));
-  });
+      for (const expectedType of expectedForwardedTypes) {
+        const chunk = await reader.read();
+        expect(chunk.done).toBe(false);
+        expect(chunk.value?.type).toBe(expectedType);
+      }
+      await toolStarted.promise;
+
+      const unhandledRejections = await captureUnhandledRejections(async () => {
+        const cancellation = reader.cancel();
+        if (settlement === "resolves") {
+          toolResult.resolve("done");
+        } else {
+          toolResult.reject(new Error("tool failed"));
+        }
+        await cancellation;
+      });
+
+      expect(unhandledRejections).toEqual([]);
+      await expect(reader.read()).resolves.toEqual({
+        value: undefined,
+        done: true,
+      });
+    },
+  );
 
   describe("parallel execution", () => {
     it("should run tool calls in parallel", async () => {

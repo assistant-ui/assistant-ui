@@ -48,6 +48,7 @@ const enqueueIfOpen = (
   try {
     controller.enqueue(chunk);
   } catch (error) {
+    // enqueue() throwing TypeError is the portable termination signal for TransformStream controllers.
     if (!(error instanceof TypeError)) throw error;
   }
 };
