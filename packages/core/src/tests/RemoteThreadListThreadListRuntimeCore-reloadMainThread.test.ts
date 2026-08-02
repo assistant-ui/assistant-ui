@@ -167,51 +167,20 @@ describe("RemoteThreadListThreadListRuntimeCore.reloadMainThread capability disp
     expect(restart).not.toHaveBeenCalled();
   });
 
-  it("cancels an in-flight run before the in-place reload when the runtime can cancel", async () => {
+  it("leaves a run in progress to the capability implementation", async () => {
     const core = await openRegularThread();
-    const order: string[] = [];
+    const cancelRun = vi.fn();
     hookManagerOf(core).getThreadRuntimeCore = () => ({
-      unstable_refetchThread: async () => {
-        order.push("refetch");
-      },
+      unstable_refetchThread: async () => {},
       capabilities: { cancel: true },
       isRunning: true,
-      cancelRun: () => {
-        order.push("cancel");
-      },
-    });
-
-    await core.reloadMainThread();
-
-    expect(order).toEqual(["cancel", "refetch"]);
-  });
-
-  it("leaves an idle thread alone, since cancelRun would eat its trailing user message", async () => {
-    const core = await openRegularThread();
-    const cancelRun = vi.fn();
-    hookManagerOf(core).getThreadRuntimeCore = () => ({
-      unstable_refetchThread: async () => {},
-      capabilities: { cancel: true },
-      isRunning: false,
       cancelRun,
     });
 
     await core.reloadMainThread();
 
-    expect(cancelRun).not.toHaveBeenCalled();
-  });
-
-  it("skips cancelRun when the runtime cannot cancel", async () => {
-    const core = await openRegularThread();
-    const cancelRun = vi.fn();
-    hookManagerOf(core).getThreadRuntimeCore = () => ({
-      unstable_refetchThread: async () => {},
-      capabilities: { cancel: false },
-      cancelRun,
-    });
-
-    await core.reloadMainThread();
-
+    // cancelRun returns the trailing user message to the composer, which is
+    // the wrong thing to do to a thread that is only being refetched
     expect(cancelRun).not.toHaveBeenCalled();
   });
 

@@ -58,15 +58,14 @@ export type ThreadListRuntime = {
   reload(): Promise<void>;
   /**
    * Refetches the open thread's remote state, for state that changed out of
-   * band and so never reached the stream. A run that is still streaming is
-   * cancelled first on runtimes that support cancelling; on ones that do not,
-   * the refetch races that run. When the runtime declares the in-place reload
-   * capability
-   * (`unstable_refetchThread`), composer drafts survive, existing messages
-   * stay rendered during the refetch, and the promise settles with the
-   * refetch, rejecting if it fails. Otherwise the runtime hook is remounted,
-   * which discards unsent composer input; the promise resolves once the new
-   * runtime attaches. A thread that has not been sent yet is left alone.
+   * band and so never reached the stream. When the runtime declares the
+   * in-place capability (`unstable_refetchThread`), composer drafts survive,
+   * existing messages stay rendered during the refetch, and the promise
+   * settles with the refetch, rejecting if it fails; that runtime also owns
+   * what happens to a run in progress, since this does not stop one. Runtimes
+   * without the capability have their hook remounted instead, which discards
+   * unsent composer input and ends any run, and the promise resolves once the
+   * new runtime attaches. A thread that has not been sent yet is left alone.
    */
   reloadMainThread(): Promise<void>;
   loadMore(): Promise<void>;

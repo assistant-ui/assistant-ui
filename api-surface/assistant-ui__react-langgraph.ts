@@ -2302,6 +2302,9 @@ declare const useLangGraphMessages: <TMessage extends {
   setValues: import("react").Dispatch<import("react").SetStateAction<Record<string, unknown> | undefined>>;
   setMessages: (msgs: TMessage[]) => void;
   setUIMessages: (next: UIMessage[]) => void;
+  reconcileMessages: (serverMessages: TMessage[], messagesAtLoadStart: TMessage[]) => void;
+  reconcileUIMessages: (serverMessages: UIMessage[], messagesAtLoadStart: UIMessage[]) => void;
+  reconcileInterrupt: (serverInterrupt: LangGraphInterruptState | undefined, interruptAtLoadStart: LangGraphInterruptState | undefined) => void;
 };
 
 declare const useLangGraphRuntime: (_param6: UseLangGraphRuntimeOptions) => AssistantRuntime;

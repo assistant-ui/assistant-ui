@@ -7,6 +7,9 @@ import type {
 
 const TOOL_RESPONSE_SYMBOL = Symbol.for("aui.tool-response");
 
+/** Stand-in result for a tool that completed without returning a value. */
+export const NO_RESULT = "<no result>";
+
 /**
  * Shape accepted anywhere a {@link ToolResponse} can be returned.
  */
@@ -64,7 +67,12 @@ export class ToolResponse<TResult> {
     if (options.artifact !== undefined) {
       this.artifact = options.artifact;
     }
-    this.result = options.result;
+    // A part written with `state: "result"` is recognized as settled by
+    // carrying a result, and several writers put a response onto the part
+    // without ever emitting a chunk, so an absent result is materialized here.
+    const result = options.result;
+    this.result =
+      result === undefined ? (NO_RESULT as unknown as TResult) : result;
     this.isError = options.isError ?? false;
     if (options.modelContent !== undefined) {
       this.modelContent = options.modelContent;
@@ -94,7 +102,7 @@ export class ToolResponse<TResult> {
       return result;
     }
     return new ToolResponse({
-      result: result === undefined ? "<no result>" : result,
+      result: result === undefined ? NO_RESULT : result,
     });
   }
 }

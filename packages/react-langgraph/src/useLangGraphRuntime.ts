@@ -40,7 +40,11 @@ import {
 import { appendLangChainChunk } from "./appendLangChainChunk";
 import { useLangGraphStreamingTiming } from "./useLangGraphStreamingTiming";
 import { bufferToolResult } from "./bufferToolResults";
-import { createSerialRunQueue, type SerialRunQueue } from "./serialRunQueue";
+import {
+  createSerialRunQueue,
+  SerialRunQueueDropError,
+  type SerialRunQueue,
+} from "./serialRunQueue";
 import { langGraphExtras } from "./runtimeExtras";
 import {
   filterUIMessagesBySurvivingIds,
@@ -189,6 +193,9 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
     setMessages,
     setValues,
     setUIMessages,
+    reconcileMessages,
+    reconcileUIMessages,
+    reconcileInterrupt,
   } = useLangGraphMessages({
     appendMessage: appendLangChainChunk,
     stream,
@@ -367,6 +374,8 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
 
   const langGraphMessagesRef = useRef(messages);
   langGraphMessagesRef.current = messages;
+  const interruptRef = useRef(interrupt);
+  interruptRef.current = interrupt;
 
   const stagedMessagesRef = useRef(
     new Map<
@@ -491,6 +500,10 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
       const controller = new AbortController();
       loadControllerRef.current = { controller, purpose };
 
+      const messagesAtLoadStart = langGraphMessagesRef.current;
+      const uiMessagesAtLoadStart = uiMessagesRef.current;
+      const interruptAtLoadStart = interruptRef.current;
+
       if (purpose === "initial") {
         toolResultBufferRef.current.clear();
         pendingStateRef.current = undefined;
@@ -499,20 +512,15 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
         setValues(undefined);
         setIsLoadingThread(true);
       }
+      // A refetch touches nothing else. The load boundary already decides what
+      // a run started since may keep, in both directions, so there is no
+      // run-scoped state left for this to reset and no reason to stop the run.
       return load(externalId, { signal: controller.signal })
         .then(({ messages, interrupts, uiMessages }) => {
           if (controller.signal.aborted) return;
-          if (purpose === "reload") {
-            // Swapped only once the fresh result has landed. `values` is left
-            // alone because LoadResult cannot restore it, and pendingStateRef
-            // because it is staged for the next send, not for the cancelled run.
-            toolResultBufferRef.current.clear();
-            effectiveStateRef.current = undefined;
-            setOptimisticState(undefined);
-          }
-          setMessages(messages);
-          setUIMessages(uiMessages ?? []);
-          setInterrupt(interrupts?.[0]);
+          reconcileMessages(messages, messagesAtLoadStart);
+          reconcileUIMessages(uiMessages ?? [], uiMessagesAtLoadStart);
+          reconcileInterrupt(interrupts?.[0], interruptAtLoadStart);
         })
         .catch((error) => {
           if (controller.signal.aborted) return;
@@ -529,7 +537,13 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
           setIsLoadingThread(false);
         });
     },
-    [threadListItem, setMessages, setUIMessages, setInterrupt, setValues],
+    [
+      threadListItem,
+      setValues,
+      reconcileMessages,
+      reconcileUIMessages,
+      reconcileInterrupt,
+    ],
   );
 
   useEffect(() => {
@@ -617,6 +631,8 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
       try {
         // TODO reuse runconfig here!
         await handleSendMessage(batch, {});
+      } catch (error) {
+        if (!(error instanceof SerialRunQueueDropError)) throw error;
       } finally {
         if (pendingResumeRef.current === batch) {
           pendingResumeRef.current = null;
