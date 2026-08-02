@@ -40,9 +40,9 @@ export const MODELS = [
     contextWindow: 131_072,
   },
   {
-    name: "Llama 3.1 8B Instant",
-    value: "groq/llama-3.1-8b-instant",
-    icon: "/icons/meta.svg",
+    name: "GPT-OSS 120B",
+    value: "groq/openai/gpt-oss-120b",
+    icon: "/icons/openai.svg",
     disabled: false,
     contextWindow: 131_072,
   },
