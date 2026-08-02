@@ -905,6 +905,11 @@ type MessagePartLike = {
   state?: string;
   result?: unknown;
   isError?: boolean;
+  approval?: {
+    resolution?: string;
+    [key: string]: unknown;
+  };
+  interrupt?: unknown;
 };
 
 declare type NatMap = {
