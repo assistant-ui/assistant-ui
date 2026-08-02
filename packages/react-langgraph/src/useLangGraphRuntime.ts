@@ -194,6 +194,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
     setUIMessages,
     reconcileMessages,
     reconcileUIMessages,
+    reconcileInterrupt,
   } = useLangGraphMessages({
     appendMessage: appendLangChainChunk,
     stream,
@@ -352,6 +353,8 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
 
   const langGraphMessagesRef = useRef(messages);
   langGraphMessagesRef.current = messages;
+  const interruptRef = useRef(interrupt);
+  interruptRef.current = interrupt;
 
   const stagedMessagesRef = useRef(
     new Map<
@@ -637,6 +640,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
       const controller = new AbortController();
       const messagesAtLoadStart = langGraphMessagesRef.current;
       const uiMessagesAtLoadStart = uiMessagesRef.current;
+      const interruptAtLoadStart = interruptRef.current;
       toolResultBufferRef.current.clear();
       pendingStateRef.current = undefined;
       effectiveStateRef.current = undefined;
@@ -648,7 +652,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
           if (controller.signal.aborted) return;
           reconcileMessages(messages, messagesAtLoadStart);
           reconcileUIMessages(uiMessages ?? [], uiMessagesAtLoadStart);
-          setInterrupt(interrupts?.[0]);
+          reconcileInterrupt(interrupts?.[0], interruptAtLoadStart);
         })
         .catch((error) => {
           if (controller.signal.aborted) return;

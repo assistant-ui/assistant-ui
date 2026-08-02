@@ -537,6 +537,94 @@ describe("useLangGraphRuntime", () => {
     await waitFor(() => expect(isLoadingResult.current).toBe(false));
   });
 
+  it("keeps the streamed version when the load returns the same message id", async () => {
+    const pendingLoad = deferred<LoadResult>();
+    const load = vi.fn(() => pendingLoad.promise);
+    const streamMock = vi.fn(async function* () {
+      yield {
+        event: "messages/partial",
+        data: [{ id: "shared", type: "ai" as const, content: "fresh" }],
+      };
+    });
+
+    const { result: runtimeResult } = renderHook(() =>
+      useLangGraphRuntime({
+        stream: streamMock as never,
+        load,
+        unstable_threadListAdapter: makeThreadListAdapter(),
+      }),
+    );
+    const wrapper = wrapperFactory(runtimeResult.current);
+    renderHook(() => useAuiState((s) => s.thread.isLoading), { wrapper });
+
+    await act(async () => {
+      await runtimeResult.current.threads.switchToThread("lg-thread-1");
+    });
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      runtimeResult.current.thread.append("go");
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    });
+
+    // the snapshot predates the run, so its copy of `shared` is the stale one
+    await act(async () => {
+      pendingLoad.resolve({
+        messages: [{ id: "shared", type: "ai" as const, content: "stale" }],
+      });
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    });
+
+    const texts = runtimeResult.current.thread.getState().messages.map((m) =>
+      m.content
+        .filter((p) => p.type === "text")
+        .map((p) => (p as { text: string }).text)
+        .join(""),
+    );
+    expect(texts).toEqual(["go", "fresh"]);
+  });
+
+  it("keeps an interrupt the racing run raised when the load carries none", async () => {
+    const pendingLoad = deferred<LoadResult>();
+    const load = vi.fn(() => pendingLoad.promise);
+    const streamMock = vi.fn(async function* () {
+      yield {
+        event: "updates",
+        data: { __interrupt__: [{ value: "approval-needed" }] },
+      };
+    });
+
+    const { result: runtimeResult } = renderHook(() =>
+      useLangGraphRuntime({
+        stream: streamMock as never,
+        load,
+        unstable_threadListAdapter: makeThreadListAdapter(),
+      }),
+    );
+    const wrapper = wrapperFactory(runtimeResult.current);
+    renderHook(() => useAuiState((s) => s.thread.isLoading), { wrapper });
+
+    await act(async () => {
+      await runtimeResult.current.threads.switchToThread("lg-thread-1");
+    });
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      runtimeResult.current.thread.append("go");
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    });
+
+    await act(async () => {
+      pendingLoad.resolve({ messages: [] });
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    });
+
+    const extras = runtimeResult.current.thread.getState().extras as {
+      interrupt?: unknown;
+    };
+    expect(extras.interrupt).toEqual({ value: "approval-needed" });
+  });
+
   it("preserves a send that starts while the initial load is pending", async () => {
     const pending = deferred<LoadResult>();
     const streamGate = deferred<void>();

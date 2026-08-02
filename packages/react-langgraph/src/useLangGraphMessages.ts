@@ -170,6 +170,7 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
     onCustomEvent?: OnCustomEventCallback;
   };
 }) => {
+  const interruptRef = useRef<LangGraphInterruptState | undefined>(undefined);
   const [interrupt, setInterrupt] = useState<
     LangGraphInterruptState | undefined
   >();
@@ -177,6 +178,7 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
   const [values, setValues] = useState<Record<string, unknown> | undefined>();
   const messagesRef = useRef(messages);
   messagesRef.current = messages;
+  interruptRef.current = interrupt;
 
   const setMessagesImmediate = useCallback((msgs: TMessage[]) => {
     messagesRef.current = msgs;
@@ -458,6 +460,10 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
     ],
   );
 
+  // Merge a load that started before the current run into what that run has
+  // produced since. Anything the run touched is fresher than the snapshot, so
+  // it wins on an id collision and keeps its position; the snapshot only
+  // contributes history the run has never seen.
   const reconcileMessages = useCallback(
     (serverMessages: TMessage[], messagesAtLoadStart: TMessage[]) => {
       const accumulator = activeAccumulatorRef.current;
@@ -467,27 +473,56 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
           .map((message) => message.id)
           .filter((id): id is string => id !== undefined),
       );
-      const serverIds = new Set(
+      const baselineMessages = new Set(messagesAtLoadStart);
+      const serverById = new Map(
         serverMessages
+          .filter((message) => message.id !== undefined)
+          .map((message) => [message.id as string, message]),
+      );
+      const liveIds = new Set(
+        currentMessages
           .map((message) => message.id)
           .filter((id): id is string => id !== undefined),
       );
-      const baselineMessages = new Set(messagesAtLoadStart);
-      const pendingMessages = currentMessages.filter((message) => {
-        const wasAtLoadStart = message.id
-          ? baselineIds.has(message.id)
-          : baselineMessages.has(message);
-        return (
-          !wasAtLoadStart &&
-          (message.id === undefined || !serverIds.has(message.id))
-        );
-      });
-      const nextMessages = [...serverMessages, ...pendingMessages];
+      const isRunTouched = (message: TMessage) =>
+        message.id !== undefined
+          ? !baselineIds.has(message.id) || !baselineMessages.has(message)
+          : !baselineMessages.has(message);
+
+      const nextMessages = [
+        ...serverMessages.filter(
+          (message) => message.id === undefined || !liveIds.has(message.id),
+        ),
+        ...currentMessages.flatMap((message) => {
+          if (isRunTouched(message)) return [message];
+          if (message.id !== undefined && serverById.has(message.id))
+            return [serverById.get(message.id) as TMessage];
+          // untouched by the run and absent from the snapshot: deleted server side
+          return [];
+        }),
+      ];
       setMessagesImmediate(
         accumulator?.replaceMessages(nextMessages) ?? nextMessages,
       );
+      // replaceMessages rebuilds the metadata map, so republish it the way the
+      // other accumulator mutations in this file do.
+      if (accumulator)
+        setMessageMetadata(new Map(accumulator.getMetadataMap()));
     },
     [setMessagesImmediate],
+  );
+
+  // Same load boundary as the messages: a snapshot taken before the run
+  // started cannot speak for an interrupt that run has since raised.
+  const reconcileInterrupt = useCallback(
+    (
+      serverInterrupt: LangGraphInterruptState | undefined,
+      interruptAtLoadStart: LangGraphInterruptState | undefined,
+    ) => {
+      if (interruptRef.current !== interruptAtLoadStart) return;
+      setInterrupt(serverInterrupt);
+    },
+    [],
   );
 
   const reconcileUIMessages = useCallback(
@@ -498,11 +533,22 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
       const baselineIds = new Set(
         messagesAtLoadStart.map((message) => message.id),
       );
-      const serverIds = new Set(serverMessages.map((message) => message.id));
-      const pendingMessages = currentMessages.filter(
-        (message) => !baselineIds.has(message.id) && !serverIds.has(message.id),
+      const baselineMessages = new Set(messagesAtLoadStart);
+      const serverById = new Map(
+        serverMessages.map((message) => [message.id, message]),
       );
-      const nextMessages = [...serverMessages, ...pendingMessages];
+      const liveIds = new Set(currentMessages.map((message) => message.id));
+
+      const nextMessages = [
+        ...serverMessages.filter((message) => !liveIds.has(message.id)),
+        ...currentMessages.flatMap((message) => {
+          const runTouched =
+            !baselineIds.has(message.id) || !baselineMessages.has(message);
+          if (runTouched) return [message];
+          const fromServer = serverById.get(message.id);
+          return fromServer ? [fromServer] : [];
+        }),
+      ];
       setUIMessagesImmediate(
         accumulator?.replaceUIMessages(nextMessages) ?? nextMessages,
       );
@@ -530,5 +576,6 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
     setUIMessages: setUIMessagesImmediate,
     reconcileMessages,
     reconcileUIMessages,
+    reconcileInterrupt,
   };
 };
