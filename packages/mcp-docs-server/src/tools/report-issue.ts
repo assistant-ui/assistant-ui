@@ -5,6 +5,7 @@ import type {
 } from "@modelcontextprotocol/server";
 import { logger } from "../utils/logger.js";
 import { getClientContext, trackReportIssue } from "../telemetry.js";
+import { SERVER_VERSION } from "../version.js";
 
 const reportIssueInputSchema = z.object({
   message: z
@@ -49,7 +50,7 @@ export const reportIssueTool = {
     try {
       trackReportIssue({
         transport: "stdio",
-        serverVersion: process.env.ASSISTANT_UI_MCP_SERVER_VERSION ?? "unknown",
+        serverVersion: SERVER_VERSION,
         clientContext: getClientContext(ctx),
       });
     } catch (error) {
@@ -83,8 +84,8 @@ Important:
     return {
       content: [{ type: "text" as const, text: prompt }],
       structuredContent: {
-        reported: true,
-        github_issue_expected: true,
+        action: "open_github_issue",
+        issue_url: "https://github.com/assistant-ui/assistant-ui/issues/new",
       },
     };
   },

@@ -6,7 +6,6 @@ export default defineConfig({
     environment: "node",
     env: {
       ASSISTANT_UI_MCP_TELEMETRY: "false",
-      ASSISTANT_UI_MCP_SERVER_VERSION: "0.2.0",
     },
   },
   resolve: {

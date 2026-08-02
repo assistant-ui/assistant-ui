@@ -17,7 +17,6 @@ import { reportIssueTool } from "./tools/report-issue.js";
 import { xuluxPlaygroundPrompt } from "./prompts/xulux-playground.js";
 import { registerResources } from "./tools/resources.js";
 import { logger } from "./utils/logger.js";
-import { PACKAGE_DIR } from "./constants.js";
 import {
   classifyToolResult,
   getClientContext,
@@ -25,19 +24,15 @@ import {
   trackToolCall,
 } from "./telemetry.js";
 
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-
-const packageJson = JSON.parse(
-  readFileSync(join(PACKAGE_DIR, "package.json"), "utf-8"),
-);
+import { SERVER_VERSION } from "./version.js";
 
 export const server = new McpServer({
   name: "assistant-ui-docs",
-  version: packageJson.version,
+  version: SERVER_VERSION,
 });
 
-const serverVersion = packageJson.version;
+const serverVersion = SERVER_VERSION;
+export { SERVER_VERSION };
 
 type Tool<TArgs> = {
   name: string;
@@ -55,7 +50,6 @@ function withToolTelemetry<TArgs>(
 ): Tool<TArgs>["execute"] {
   return async (args, ctx) => {
     const startTime = Date.now();
-    const signal = ctx.mcpReq.signal;
     let result: CallToolResult | undefined;
     let thrownError: unknown;
 
@@ -68,8 +62,9 @@ function withToolTelemetry<TArgs>(
     } finally {
       if (isTelemetryEnabled()) {
         try {
+          const signal = ctx.mcpReq.signal;
           const { status, failure_category: failureCategory } =
-            classifyToolResult(result, thrownError, signal.aborted);
+            classifyToolResult(result, thrownError, signal?.aborted === true);
           trackToolCall({
             toolName,
             startTime,

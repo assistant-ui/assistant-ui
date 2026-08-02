@@ -40,6 +40,10 @@ function getPosthog(): PostHog | null {
   try {
     posthog = new PostHog(apiKey, {
       host: process.env[POSTHOG_HOST_ENV]?.trim() || DEFAULT_POSTHOG_HOST,
+      requestTimeout: 5000,
+    });
+    posthog.on("error", (error) => {
+      logger.error("PostHog telemetry error", error);
     });
   } catch (error) {
     logger.error("Failed to initialize PostHog for MCP telemetry", error);
@@ -67,8 +71,8 @@ export function captureEvent(
       event,
       properties: {
         ...properties,
-        // Do not create PostHog person profiles; we only need aggregate event counts.
         $process_person_profile: false,
+        $ip: null,
       },
     });
   } catch (error) {
@@ -264,8 +268,6 @@ export function trackReportIssue(params: {
   clientContext: ClientContext;
 }): void {
   const { transport, serverVersion, clientContext } = params;
-  // Signal-only event: the message body is user-supplied free text and is
-  // intentionally not sent to PostHog (see issue privacy requirements).
   captureEvent("MCP Report Issue", {
     transport,
     server_version: serverVersion,
