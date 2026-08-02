@@ -36,14 +36,24 @@ describe("RemoteThreadListHookInstanceManager.__internal_restartThreadRuntime", 
     manager.__internal_restartThreadRuntime(id).catch(() => {});
   };
 
+  type InstanceInternals = {
+    instances: Map<
+      string,
+      {
+        runtime?: unknown;
+        publishedGeneration?: number;
+        generation: number;
+      }
+    >;
+    _notifySubscribers: () => void;
+  };
+  const internalsOf = (manager: RemoteThreadListHookInstanceManager) =>
+    manager as unknown as InstanceInternals;
+
   const renderedKeys = (manager: RemoteThreadListHookInstanceManager) =>
-    Array.from(
-      (
-        manager as unknown as {
-          instances: Map<string, { generation: number }>;
-        }
-      ).instances.entries(),
-    ).map(([id, { generation }]) => `${id}:${generation}`);
+    Array.from(internalsOf(manager).instances.entries()).map(
+      ([id, { generation }]) => `${id}:${generation}`,
+    );
 
   it("changes the binder key so React remounts the runtime hook", () => {
     const manager = makeManager();
@@ -89,30 +99,17 @@ describe("RemoteThreadListHookInstanceManager.__internal_restartThreadRuntime", 
     expect(renderedKeys(manager)).toEqual(["thread-1:1"]);
   });
 
-  type InstanceInternals = {
-    instances: Map<
-      string,
-      {
-        runtime?: unknown;
-        publishedGeneration?: number;
-        generation: number;
-      }
-    >;
-    _notifySubscribers: () => void;
-  };
-  const internalsOf = (manager: RemoteThreadListHookInstanceManager) =>
-    manager as unknown as InstanceInternals;
-
   // simulates the binder's updateRuntime: publish a runtime for the
-  // instance's current generation
+  // instance's current generation (or an explicit stale one)
   const publish = (
     manager: RemoteThreadListHookInstanceManager,
     id: string,
     runtime: unknown,
+    options?: { generation?: number },
   ) => {
     const instance = internalsOf(manager).instances.get(id)!;
     instance.runtime = runtime;
-    instance.publishedGeneration = instance.generation;
+    instance.publishedGeneration = options?.generation ?? instance.generation;
     internalsOf(manager)._notifySubscribers();
   };
 
@@ -165,10 +162,14 @@ describe("RemoteThreadListHookInstanceManager.__internal_restartThreadRuntime", 
 
     // an outgoing binder re-publishing for its old generation (e.g. a late
     // outerSubscribe callback) must not count as the new attachment
-    const instance = internalsOf(manager).instances.get("thread-1")!;
-    instance.runtime = { tag: "stale-publication" };
-    instance.publishedGeneration = instance.generation - 1;
-    internalsOf(manager)._notifySubscribers();
+    const staleGeneration =
+      internalsOf(manager).instances.get("thread-1")!.generation - 1;
+    publish(
+      manager,
+      "thread-1",
+      { tag: "stale-publication" },
+      { generation: staleGeneration },
+    );
 
     await Promise.resolve();
     await Promise.resolve();

@@ -288,6 +288,14 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
   });
   const runQueue = runQueueRef.current;
 
+  // single definition of what cancelling a run means, shared by onCancel and
+  // the reload path so the semantics cannot diverge
+  const cancelActiveRun = useCallback(() => {
+    pendingResumeRef.current = null;
+    runQueue.drop();
+    cancel();
+  }, [runQueue, cancel]);
+
   const handleSendMessage = (
     messages: LangChainMessage[],
     config: LangGraphSendMessageConfig,
@@ -482,9 +490,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
         // refetched messages on its next chunk (sendMessage seeds its
         // accumulator once at run start), so cancel it first — the same
         // contract the remount fallback enforces via unmount
-        pendingResumeRef.current = null;
-        runQueue.drop();
-        cancel();
+        cancelActiveRun();
       }
       return load(externalId, { signal: controller.signal })
         .then(({ messages, interrupts, uiMessages }) => {
@@ -520,8 +526,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
       setUIMessages,
       setInterrupt,
       setValues,
-      runQueue,
-      cancel,
+      cancelActiveRun,
     ],
   );
 
@@ -697,11 +702,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
         }
       : {}),
     onCancel: unstable_allowCancellation
-      ? async () => {
-          pendingResumeRef.current = null;
-          runQueue.drop();
-          cancel();
-        }
+      ? async () => cancelActiveRun()
       : undefined,
     ...(load !== undefined && {
       onRefetchThread: () => runLoad("reload"),

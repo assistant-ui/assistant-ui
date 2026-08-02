@@ -48,10 +48,10 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     StoreApi<{ useRuntime: RemoteThreadListHook }>
   >;
   private instances = new Map<string, RemoteThreadListHookInstance>();
-  // survives instance deletion: a stop/start within one React commit must not
-  // reuse a binder key, or the still-mounted old binder satisfies the new
-  // start with stale state
-  private nextGenerations = new Map<string, number>();
+  // manager-wide, so it survives instance deletion: a stop/start within one
+  // React commit must not reuse a binder key, or the still-mounted old binder
+  // satisfies the new start with stale state
+  private nextGeneration = 0;
   private useAliveThreadsKeysChanged = create(() => ({}));
   private parent: ThreadListRuntimeCore;
 
@@ -86,17 +86,9 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     });
   }
 
-  private _takeGeneration(threadId: string) {
-    const generation = this.nextGenerations.get(threadId) ?? 0;
-    this.nextGenerations.set(threadId, generation + 1);
-    return generation;
-  }
-
   public startThreadRuntime(threadId: string) {
     if (!this.instances.has(threadId)) {
-      this.instances.set(threadId, {
-        generation: this._takeGeneration(threadId),
-      });
+      this.instances.set(threadId, { generation: this.nextGeneration++ });
       this.useAliveThreadsKeysChanged.setState({}, true);
     }
 
@@ -111,11 +103,7 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     // getThreadRuntimeCore never falls back to the empty core mid-restart —
     // but its stale publishedGeneration keeps _whenRuntimeAttached pending
     // until the incoming binder re-publishes
-    this.instances.set(threadId, {
-      runtime: instance.runtime,
-      publishedGeneration: instance.publishedGeneration,
-      generation: this._takeGeneration(threadId),
-    });
+    instance.generation = this.nextGeneration++;
     this.useAliveThreadsKeysChanged.setState({}, true);
     this._notifySubscribers();
 

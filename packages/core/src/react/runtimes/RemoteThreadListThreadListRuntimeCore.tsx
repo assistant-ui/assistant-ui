@@ -256,16 +256,16 @@ export class RemoteThreadListThreadListRuntimeCore
     // in-place refetch when the runtime declares the capability; remounting
     // the runtime hook is the fallback for runtimes that don't
     const runtimeCore = this._hookManager.getThreadRuntimeCore(threadId);
-    if (runtimeCore?.unstable_refetchThread) {
-      // invoked through the core so class-method implementations keep `this`
-      await runtimeCore.unstable_refetchThread();
-      if (threadId !== this._mainThreadId) return;
-      this._notifySubscribers();
-      return;
-    }
+    const refetch = runtimeCore?.unstable_refetchThread;
 
     try {
-      await this._hookManager.__internal_restartThreadRuntime(threadId);
+      if (refetch) {
+        // invoked with the core receiver so class-method implementations
+        // keep `this`
+        await refetch.call(runtimeCore);
+      } else {
+        await this._hookManager.__internal_restartThreadRuntime(threadId);
+      }
     } catch (error) {
       // delete and detach switch the main thread away before stopping the
       // runtime, so a rejection there means that operation owns the outcome

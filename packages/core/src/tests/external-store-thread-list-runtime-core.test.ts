@@ -4,11 +4,12 @@ import type { ExternalStoreThreadRuntimeCore } from "../runtimes/external-store/
 import type { ExternalStoreThreadListAdapter } from "../runtimes/external-store/external-store-adapter";
 import { ThreadListRuntimeImpl } from "../runtime/api/thread-list-runtime";
 
-const makeFactory = () =>
+const makeFactory = (overrides: Record<string, unknown> = {}) =>
   vi.fn(
     () =>
       ({
         subscribe: () => () => {},
+        ...overrides,
       }) as unknown as ExternalStoreThreadRuntimeCore,
   );
 
@@ -246,20 +247,11 @@ describe("ExternalStoreThreadListRuntimeCore - switchToThread", () => {
 });
 
 describe("ExternalStoreThreadListRuntimeCore.reloadMainThread", () => {
-  const makeFactoryWithRefetch = (refetch: (() => Promise<void>) | undefined) =>
-    vi.fn(
-      () =>
-        ({
-          subscribe: () => () => {},
-          unstable_refetchThread: refetch,
-        }) as unknown as ExternalStoreThreadRuntimeCore,
-    );
-
   it("dispatches to the main thread's refetch capability", async () => {
     const refetch = vi.fn(async () => {});
     const core = new ExternalStoreThreadListRuntimeCore(
       makeAdapter(),
-      makeFactoryWithRefetch(refetch),
+      makeFactory({ unstable_refetchThread: refetch }),
     );
 
     await core.reloadMainThread();
@@ -270,7 +262,7 @@ describe("ExternalStoreThreadListRuntimeCore.reloadMainThread", () => {
   it("resolves quietly when the adapter declares no refetch capability", async () => {
     const core = new ExternalStoreThreadListRuntimeCore(
       makeAdapter(),
-      makeFactoryWithRefetch(undefined),
+      makeFactory(),
     );
 
     await expect(core.reloadMainThread()).resolves.toBeUndefined();
@@ -279,8 +271,10 @@ describe("ExternalStoreThreadListRuntimeCore.reloadMainThread", () => {
   it("propagates a refetch failure", async () => {
     const core = new ExternalStoreThreadListRuntimeCore(
       makeAdapter(),
-      makeFactoryWithRefetch(async () => {
-        throw new Error("refetch failed");
+      makeFactory({
+        unstable_refetchThread: async () => {
+          throw new Error("refetch failed");
+        },
       }),
     );
 

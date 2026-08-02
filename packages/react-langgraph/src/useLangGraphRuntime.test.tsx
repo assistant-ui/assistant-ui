@@ -9,6 +9,7 @@ import {
   AssistantRuntimeProvider,
   useAssistantTool,
 } from "@assistant-ui/core/react";
+import { getThreadMessageText } from "@assistant-ui/core/internal";
 import { useAui, useAuiState } from "@assistant-ui/store";
 import { useLangGraphRuntime } from "./useLangGraphRuntime";
 import { useLangGraphSend } from "./hooks";
@@ -21,6 +22,9 @@ type LoadResult = {
   messages: LangChainMessage[];
   interrupts?: LangGraphInterruptState[];
 };
+
+const textsOf = (runtime: AssistantRuntime) =>
+  runtime.thread.getState().messages.map(getThreadMessageText);
 
 const deferred = <T,>() => {
   let resolve!: (value: T) => void;
@@ -758,14 +762,7 @@ describe("useLangGraphRuntime", () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
-    const messageTexts = runtimeResult.current.thread
-      .getState()
-      .messages.map((m) =>
-        m.content
-          .filter((p) => p.type === "text")
-          .map((p) => (p as { text: string }).text)
-          .join(""),
-      );
+    const messageTexts = textsOf(runtimeResult.current);
     expect(messageTexts).toContain("refetched");
     expect(messageTexts).not.toContain("chunk two");
   });
@@ -790,14 +787,7 @@ describe("useLangGraphRuntime", () => {
     );
 
     const wrapper = wrapperFactory(runtimeResult.current);
-    const { result: extrasResult } = renderHook(
-      () => {
-        useAuiState((s) => s.thread.isLoading);
-        const aui = useAui();
-        return aui;
-      },
-      { wrapper },
-    );
+    renderHook(() => useAuiState((s) => s.thread.isLoading), { wrapper });
 
     await act(async () => {
       await runtimeResult.current.threads.switchToThread("lg-thread-1");
@@ -812,7 +802,6 @@ describe("useLangGraphRuntime", () => {
         }
       ).setState({ staged_for_next_send: true });
     });
-    void extrasResult;
 
     // a background-poll reload must not discard it
     await act(async () => {
@@ -889,14 +878,7 @@ describe("useLangGraphRuntime", () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
-    const messageTexts = runtimeResult.current.thread
-      .getState()
-      .messages.map((m) =>
-        m.content
-          .filter((p) => p.type === "text")
-          .map((p) => (p as { text: string }).text)
-          .join(""),
-      );
+    const messageTexts = textsOf(runtimeResult.current);
     expect(messageTexts).toContain("refetched");
     expect(messageTexts).not.toContain("chunk two");
   });

@@ -3383,12 +3383,11 @@ type RemoteThreadListHook = () => AssistantRuntime;
 declare class RemoteThreadListHookInstanceManager extends BaseSubscribable {
   private useRuntimeHook;
   private instances;
-  private nextGenerations;
+  private nextGeneration;
   private useAliveThreadsKeysChanged;
   private parent;
   constructor(runtimeHook: RemoteThreadListHook, parent: ThreadListRuntimeCore);
   private _whenRuntimeAttached;
-  private _takeGeneration;
   startThreadRuntime(threadId: string): Promise<Readonly<{
     getMessageById: (messageId: string) => {
       parentId: string | null;
