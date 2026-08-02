@@ -175,6 +175,7 @@ describe("RemoteThreadListThreadListRuntimeCore.reloadMainThread capability disp
         order.push("refetch");
       },
       capabilities: { cancel: true },
+      isRunning: true,
       cancelRun: () => {
         order.push("cancel");
       },
@@ -183,6 +184,21 @@ describe("RemoteThreadListThreadListRuntimeCore.reloadMainThread capability disp
     await core.reloadMainThread();
 
     expect(order).toEqual(["cancel", "refetch"]);
+  });
+
+  it("leaves an idle thread alone, since cancelRun would eat its trailing user message", async () => {
+    const core = await openRegularThread();
+    const cancelRun = vi.fn();
+    hookManagerOf(core).getThreadRuntimeCore = () => ({
+      unstable_refetchThread: async () => {},
+      capabilities: { cancel: true },
+      isRunning: false,
+      cancelRun,
+    });
+
+    await core.reloadMainThread();
+
+    expect(cancelRun).not.toHaveBeenCalled();
   });
 
   it("skips cancelRun when the runtime cannot cancel", async () => {
