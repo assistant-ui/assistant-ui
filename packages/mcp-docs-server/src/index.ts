@@ -1,4 +1,8 @@
-import { McpServer } from "@modelcontextprotocol/server";
+import {
+  McpServer,
+  type CallToolResult,
+  type ServerContext,
+} from "@modelcontextprotocol/server";
 import { StdioServerTransport } from "@modelcontextprotocol/server/stdio";
 import { docsTools } from "./tools/docs.js";
 import { examplesTools } from "./tools/examples.js";
@@ -8,10 +12,19 @@ import {
   xuluxTemplateDetailsTool,
   xuluxTemplatePreviewTool,
 } from "./tools/xulux-templates.js";
+import { reportIssueTool } from "./tools/report-issue.js";
 import { xuluxPlaygroundPrompt } from "./prompts/xulux-playground.js";
 import { registerResources } from "./tools/resources.js";
 import { logger } from "./utils/logger.js";
 import { PACKAGE_DIR } from "./constants.js";
+import {
+  classifyToolResult,
+  flushTelemetry,
+  getClientContext,
+  isTelemetryEnabled,
+  trackReportIssue,
+  trackToolCall,
+} from "./telemetry.js";
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -25,7 +38,75 @@ export const server = new McpServer({
   version: packageJson.version,
 });
 
-server.registerTool(
+const serverVersion = packageJson.version;
+const telemetryEnabled = isTelemetryEnabled();
+
+type ToolExecute = (
+  args: any,
+  ctx: ServerContext,
+) => CallToolResult | Promise<CallToolResult>;
+
+function withToolTelemetry(
+  toolName: string,
+  execute: ToolExecute,
+): ToolExecute {
+  return async (args, ctx) => {
+    const startTime = Date.now();
+    const signal = ctx.mcpReq.signal;
+    let result: CallToolResult | undefined;
+    let thrownError: unknown;
+
+    try {
+      result = await execute(args, ctx);
+      return result;
+    } catch (error) {
+      thrownError = error;
+      throw error;
+    } finally {
+      if (telemetryEnabled) {
+        try {
+          const { status, failure_category: failureCategory } =
+            classifyToolResult(result, thrownError, signal.aborted);
+          trackToolCall({
+            toolName,
+            startTime,
+            status,
+            failureCategory,
+            transport: "stdio",
+            serverVersion,
+            clientContext: getClientContext(ctx),
+          });
+        } catch (error) {
+          logger.error("Failed to track MCP tool call telemetry", error);
+        }
+      }
+    }
+  };
+}
+
+function registerTool(
+  name: string,
+  config: {
+    title: string;
+    description: string;
+    inputSchema: unknown;
+    annotations: { readOnlyHint: boolean; openWorldHint: boolean };
+  },
+  execute: ToolExecute,
+): void {
+  server.registerTool(
+    name,
+    {
+      title: config.title,
+      description: config.description,
+      inputSchema: config.inputSchema,
+      annotations: config.annotations,
+    },
+    withToolTelemetry(name, execute),
+  );
+}
+
+registerTool(
   docsTools.name,
   {
     title: "assistant-ui Documentation",
@@ -35,7 +116,7 @@ server.registerTool(
   },
   docsTools.execute,
 );
-server.registerTool(
+registerTool(
   examplesTools.name,
   {
     title: "assistant-ui Examples",
@@ -45,7 +126,7 @@ server.registerTool(
   },
   examplesTools.execute,
 );
-server.registerTool(
+registerTool(
   searchTools.name,
   {
     title: "Search assistant-ui Documentation",
@@ -56,7 +137,7 @@ server.registerTool(
   searchTools.execute,
 );
 
-server.registerTool(
+registerTool(
   xuluxTemplatesListTool.name,
   {
     title: "assistant-ui Templates",
@@ -66,7 +147,7 @@ server.registerTool(
   },
   xuluxTemplatesListTool.execute,
 );
-server.registerTool(
+registerTool(
   xuluxTemplateDetailsTool.name,
   {
     title: "assistant-ui Template Details",
@@ -76,7 +157,7 @@ server.registerTool(
   },
   xuluxTemplateDetailsTool.execute,
 );
-server.registerTool(
+registerTool(
   xuluxTemplatePreviewTool.name,
   {
     title: "assistant-ui Template Preview URLs",
@@ -86,6 +167,33 @@ server.registerTool(
   },
   xuluxTemplatePreviewTool.execute,
 );
+
+if (telemetryEnabled) {
+  server.registerTool(
+    reportIssueTool.name,
+    {
+      title: "Report an assistant-ui Issue",
+      description: reportIssueTool.description,
+      inputSchema: reportIssueTool.parameters,
+      annotations: { readOnlyHint: true, openWorldHint: false },
+    },
+    async (args, ctx) => {
+      const result = await reportIssueTool.execute(args);
+      try {
+        trackReportIssue({
+          toolName: (args as { tool_name?: string }).tool_name,
+          relatedTools: (args as { related_tools?: string[] }).related_tools,
+          transport: "stdio",
+          serverVersion,
+          clientContext: getClientContext(ctx),
+        });
+      } catch (error) {
+        logger.error("Failed to track MCP report issue telemetry", error);
+      }
+      return result;
+    },
+  );
+}
 
 server.registerPrompt(
   xuluxPlaygroundPrompt.name,
@@ -118,7 +226,17 @@ export async function runServer() {
   }
 }
 
+function flushOnExit() {
+  if (telemetryEnabled) {
+    void flushTelemetry().finally(() => process.exit(0));
+  } else {
+    process.exit(0);
+  }
+}
+
 if (import.meta.url === `file://${process.argv[1]}`) {
+  process.on("SIGINT", flushOnExit);
+  process.on("SIGTERM", flushOnExit);
   void runServer().catch((error) => {
     console.error("Failed to start server:", error);
     process.exit(1);

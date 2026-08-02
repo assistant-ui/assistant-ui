@@ -68,3 +68,29 @@ Add to `settings.json`:
 ```
 
 To list, get, or remove the server, use your editor's MCP management commands.
+
+## Telemetry
+
+The server reports lightweight, privacy-conscious usage analytics to PostHog — the same project used by the assistant-ui docs app. This helps the team understand which tools are used and where they fail.
+
+Telemetry is **enabled by default**. Disable it by setting the environment variable before starting the server:
+
+- `ASSISTANT_UI_MCP_TELEMETRY=false` — opt-out switch. Use `false`, `0`, `off`, or `no` to disable all telemetry. Any other value leaves telemetry on.
+- `ASSISTANT_UI_POSTHOG_API_KEY` — optional. Override the default assistant-ui PostHog project API key.
+- `ASSISTANT_UI_POSTHOG_HOST` — optional. Override the default PostHog host (`https://us.i.posthog.com`).
+
+Example (opt-out):
+
+```bash
+ASSISTANT_UI_MCP_TELEMETRY=false npx -y @assistant-ui/mcp-docs-server
+```
+
+### What is captured
+
+When enabled, the server emits one `MCP Tool Call` event per tool execution with only these fields: `tool_name`, `status` (`success | soft_fail | failed | aborted`), `duration_ms`, `failure_category` (when applicable), `transport`, `server_version`, `mcp_client_name`, `mcp_client_version`, and `mcp_protocol_version`.
+
+It also exposes an `assistantUIReportIssue` tool that agents can call to report problems they cannot resolve. A `MCP Report Issue` event (with no message body) is recorded for signal capture.
+
+### What is never captured
+
+Tool arguments, prompts, generated code, response bodies, preview URLs, tokens, headers, raw errors, and stack traces are never sent to PostHog. When telemetry is turned off, the `assistantUIReportIssue` tool is not exposed at all.

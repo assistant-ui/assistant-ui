@@ -3658,6 +3658,9 @@ importers:
       gray-matter:
         specifier: ^4.0.3
         version: 4.0.3
+      posthog-node:
+        specifier: ^5.46.1
+        version: 5.46.1(rxjs@7.8.2)
       zod:
         specifier: ^4.4.3
         version: 4.4.3

@@ -42,6 +42,7 @@
   "dependencies": {
     "@modelcontextprotocol/server": "^2.0.0",
     "gray-matter": "^4.0.3",
+    "posthog-node": "^5.46.1",
     "zod": "^4.4.3"
   },
   "devDependencies": {
