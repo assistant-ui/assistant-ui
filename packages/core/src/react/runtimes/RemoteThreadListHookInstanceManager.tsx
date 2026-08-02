@@ -115,6 +115,13 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     this._notifySubscribers();
   }
 
+  public stopAllThreadRuntimes() {
+    if (this.instances.size === 0) return;
+    this.instances.clear();
+    this.useAliveThreadsKeysChanged.setState({}, true);
+    this._notifySubscribers();
+  }
+
   public setRuntimeHook(newRuntimeHook: RemoteThreadListHook) {
     const prevRuntimeHook = this.useRuntimeHook.getState().useRuntime;
     if (prevRuntimeHook !== newRuntimeHook) {
