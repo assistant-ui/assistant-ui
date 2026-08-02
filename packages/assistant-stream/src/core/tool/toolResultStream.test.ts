@@ -67,6 +67,62 @@ describe("unstable_runPendingTools", () => {
     );
   });
 
+  it("does not enqueue pending tool output after cancellation", async () => {
+    let resolveTool!: (value: string) => void;
+    const toolResult = new Promise<string>((resolve) => {
+      resolveTool = resolve;
+    });
+    let markToolStarted!: () => void;
+    const toolStarted = new Promise<void>((resolve) => {
+      markToolStarted = resolve;
+    });
+    const inputChunks: AssistantStreamChunk[] = [
+      {
+        type: "part-start",
+        path: [],
+        part: {
+          type: "tool-call",
+          toolCallId: "tc-cancelled",
+          toolName: "slowTool",
+        },
+      },
+      { type: "text-delta", path: [0], textDelta: "{}" },
+      { type: "tool-call-args-text-finish", path: [0] },
+      { type: "part-finish", path: [0] },
+    ];
+    const inputStream = new ReadableStream<AssistantStreamChunk>({
+      start(controller) {
+        for (const chunk of inputChunks) controller.enqueue(chunk);
+        controller.close();
+      },
+    });
+    const output = inputStream.pipeThrough(
+      unstable_toolResultStream(
+        {
+          slowTool: {
+            parameters: { type: "object", properties: {} },
+            execute: () => {
+              markToolStarted();
+              return toolResult;
+            },
+          },
+        },
+        new AbortController().signal,
+        async () => {},
+      ),
+    );
+    const reader = output.getReader();
+
+    for (let index = 0; index < 3; index++) {
+      expect((await reader.read()).done).toBe(false);
+    }
+    await toolStarted;
+    const cancellation = reader.cancel();
+    resolveTool("done");
+    await cancellation;
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
+
   describe("parallel execution", () => {
     it("should run tool calls in parallel", async () => {
       const tool1 = createDelayedTool(100, "Tool 1");

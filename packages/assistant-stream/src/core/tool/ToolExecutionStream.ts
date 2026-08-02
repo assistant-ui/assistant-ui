@@ -41,6 +41,17 @@ type ToolExecutionOptions = {
   onExecutionEnd?: ((toolCallId: string, toolName: string) => void) | undefined;
 };
 
+const enqueueIfOpen = (
+  controller: TransformStreamDefaultController<AssistantStreamChunk>,
+  chunk: AssistantStreamChunk,
+) => {
+  try {
+    controller.enqueue(chunk);
+  } catch (error) {
+    if (!(error instanceof TypeError)) throw error;
+  }
+};
+
 export class ToolExecutionStream extends PipeableTransformStream<
   AssistantStreamChunk,
   AssistantStreamChunk
@@ -174,7 +185,7 @@ export class ToolExecutionStream extends PipeableTransformStream<
                     modelContent: c.modelContent,
                   });
                   streamController.setResponse(result);
-                  controller.enqueue({
+                  enqueueIfOpen(controller, {
                     type: "result",
                     path: chunk.path,
                     ...result,
@@ -191,7 +202,7 @@ export class ToolExecutionStream extends PipeableTransformStream<
                   });
 
                   streamController.setResponse(result);
-                  controller.enqueue({
+                  enqueueIfOpen(controller, {
                     type: "result",
                     path: chunk.path,
                     ...result,
@@ -215,7 +226,7 @@ export class ToolExecutionStream extends PipeableTransformStream<
                   toolCallControllers.delete(toolCallId);
                   toolCallIdsWithBackendResult.delete(toolCallId);
 
-                  controller.enqueue(chunk);
+                  enqueueIfOpen(controller, chunk);
                 });
               } else {
                 toolCallControllers.delete(toolCallId);
