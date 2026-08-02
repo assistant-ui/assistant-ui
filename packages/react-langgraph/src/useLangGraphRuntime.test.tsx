@@ -743,6 +743,8 @@ describe("useLangGraphRuntime", () => {
     });
 
     expect(streamAborted).toBe(false);
+    // the refetch still happened, it just did not take the run down with it
+    expect(load).toHaveBeenCalledTimes(2);
   });
 
   it("reloadMainThread cancels an in-flight run so a later chunk cannot clobber the refetched messages", async () => {
@@ -1142,6 +1144,48 @@ describe("useLangGraphRuntime", () => {
       interrupt?: unknown;
     };
     expect(extras.interrupt).toEqual({ value: "fresh" });
+  });
+
+  it("reloadMainThread defers to an initial load that is still in flight", async () => {
+    const pending = deferred<LoadResult>();
+    const load = vi.fn(() => pending.promise);
+
+    const streamMock = vi
+      .fn()
+      .mockImplementation(() => mockStreamCallbackFactory([])());
+
+    const { result: runtimeResult } = renderHook(() =>
+      useLangGraphRuntime({
+        stream: streamMock,
+        load,
+        unstable_threadListAdapter: makeThreadListAdapter(),
+      }),
+    );
+    const wrapper = wrapperFactory(runtimeResult.current);
+    renderHook(() => useAuiState((s) => s.thread.isLoading), { wrapper });
+
+    await act(async () => {
+      await runtimeResult.current.threads.switchToThread("lg-thread-1");
+    });
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
+
+    // the initial load is already fetching what a refetch would ask for
+    await act(async () => {
+      await runtimeResult.current.threads.reloadMainThread();
+    });
+    expect(load).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      pending.resolve({
+        messages: [
+          { type: "ai" as const, id: "server-1", content: "persisted" },
+        ],
+      });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(runtimeResult.current.thread.getState().isLoading).toBe(false);
+    expect(textsOf(runtimeResult.current)).toContain("persisted");
   });
 
   it("a send while the initial load is pending leaves the history and loading flag intact", async () => {

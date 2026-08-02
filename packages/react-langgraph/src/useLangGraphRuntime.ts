@@ -478,6 +478,15 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
       const externalId = threadListItem.getState().externalId;
       if (externalId == null) return Promise.resolve();
 
+      // The initial load is already fetching the state a refetch would ask
+      // for, and superseding it would leave nobody owning its history or its
+      // loading flag if the refetch then failed.
+      if (
+        purpose === "reload" &&
+        loadControllerRef.current?.purpose === "initial"
+      )
+        return Promise.resolve();
+
       loadControllerRef.current?.controller.abort();
       const controller = new AbortController();
       loadControllerRef.current = { controller, purpose };
@@ -489,13 +498,6 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
         setOptimisticState(undefined);
         setValues(undefined);
         setIsLoadingThread(true);
-      } else if (unstable_allowCancellation) {
-        // sendMessage seeds its accumulator once at run start, so a run that
-        // is still streaming would clobber the refetched messages on its next
-        // chunk. Cancelling first matches what the remount fallback does, and
-        // is gated the same way `onCancel` is: an app that opted out of
-        // cancellation does not get its run cancelled by a refetch.
-        cancelActiveRun();
       }
       return load(externalId, { signal: controller.signal })
         .then(({ messages, interrupts, uiMessages }) => {
@@ -520,19 +522,14 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
           console.warn("useLangGraphRuntime: load handler rejected", error);
         })
         .finally(() => {
+          if (loadControllerRef.current?.controller === controller) {
+            loadControllerRef.current = null;
+          }
           if (controller.signal.aborted) return;
           setIsLoadingThread(false);
         });
     },
-    [
-      threadListItem,
-      setMessages,
-      setUIMessages,
-      setInterrupt,
-      setValues,
-      cancelActiveRun,
-      unstable_allowCancellation,
-    ],
+    [threadListItem, setMessages, setUIMessages, setInterrupt, setValues],
   );
 
   useEffect(() => {
