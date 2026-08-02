@@ -104,7 +104,7 @@ describe("MCP Protocol Integration", () => {
     });
     const result = await client.request<ToolListResult>(request);
 
-    expect(result.tools).toHaveLength(6);
+    expect(result.tools.length).toBeGreaterThanOrEqual(6);
 
     for (const expected of [
       {
@@ -179,6 +179,31 @@ describe("MCP Protocol Integration", () => {
     const result = await client.request<ToolCallResult>(request);
 
     expect(result.content[0]?.type).toBe("text");
+  });
+
+  it("calls assistantUIReportIssue and returns a GitHub issue prompt", async () => {
+    const request = CallToolRequestSchema.parse({
+      method: "tools/call",
+      params: {
+        name: "assistantUIReportIssue",
+        arguments: {
+          message: "Documentation for /ui is missing the code block",
+          tool_name: "assistantUIDocs",
+          related_tools: ["assistantUISearch"],
+        },
+      },
+    });
+    const result = await client.request<ToolCallResult>(request);
+
+    const text = result.content.find(
+      (block): block is { type: string; text?: string } =>
+        block.type === "text" && "text" in block,
+    )?.text;
+
+    expect(text).toContain("github.com/assistant-ui/assistant-ui/issues");
+    expect(text).toContain("Documentation for /ui is missing the code block");
+    expect(text).toContain("assistantUIDocs");
+    expect(text?.toLowerCase()).not.toContain("issue was created");
   });
 
   it("lists prompts", async () => {

@@ -29,7 +29,7 @@ export const reportIssueTool = {
     "Report a problem you could not resolve while working with assistant-ui. " +
     "Call this when assistant-ui documentation, examples, or template tools give an unexpected result, " +
     "are wrong, or are missing something you need. " +
-    "The server records the report for the assistant-ui team and instructs you to open a public GitHub issue at " +
+    "The server records a telemetry signal for the assistant-ui team and asks you to open a public GitHub issue at " +
     "https://github.com/assistant-ui/assistant-ui/issues with the reproduction steps. " +
     "Never include personal data, API keys, tokens, secrets, or code you were asked not to share — the repository is public.",
   parameters: reportIssueInputSchema,
@@ -47,9 +47,7 @@ export const reportIssueTool = {
 
     const prompt = `## Report an issue to assistant-ui
 
-The assistant-ui team has been notified of the problem described below. To get it fixed, open a public GitHub issue.
-
-Open a GitHub issue in the assistant-ui repository: https://github.com/assistant-ui/assistant-ui/issues/new
+Open a public GitHub issue in the assistant-ui repository: https://github.com/assistant-ui/assistant-ui/issues/new
 
 Include this information, adapted into the issue template:
 

@@ -39,7 +39,6 @@ export const server = new McpServer({
 });
 
 const serverVersion = packageJson.version;
-const telemetryEnabled = isTelemetryEnabled();
 
 type ToolExecute = (
   args: any,
@@ -63,7 +62,7 @@ function withToolTelemetry(
       thrownError = error;
       throw error;
     } finally {
-      if (telemetryEnabled) {
+      if (isTelemetryEnabled()) {
         try {
           const { status, failure_category: failureCategory } =
             classifyToolResult(result, thrownError, signal.aborted);
@@ -168,7 +167,7 @@ registerTool(
   xuluxTemplatePreviewTool.execute,
 );
 
-if (telemetryEnabled) {
+if (isTelemetryEnabled()) {
   server.registerTool(
     reportIssueTool.name,
     {
@@ -227,7 +226,7 @@ export async function runServer() {
 }
 
 function flushOnExit() {
-  if (telemetryEnabled) {
+  if (isTelemetryEnabled()) {
     void flushTelemetry().finally(() => process.exit(0));
   } else {
     process.exit(0);
