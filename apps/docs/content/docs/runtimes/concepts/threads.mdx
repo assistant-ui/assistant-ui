@@ -223,9 +223,9 @@ function RefetchOnInterrupt({ status }: { status: string }) {
 }
 ```
 
-A run that is still streaming is cancelled first, and a thread that has not been sent yet is left alone because it holds no remote state.
+A run that is still streaming is cancelled first on runtimes that support cancelling; on ones that do not, the refetch races that run. A thread that has not been sent yet is left alone because it holds no remote state.
 
-How the refetch happens depends on the runtime. When it declares the capability, the thread runtime is reused: composer drafts survive, existing messages stay rendered while the fresh state loads, and the returned promise settles with the refetch, rejecting if it fails. `useLangGraphRuntime` declares it whenever you pass `load`. Otherwise the runtime hook is remounted, which re-runs `load()` at the cost of discarding unsent composer input, and the promise resolves once the new runtime attaches. If that difference matters to your UI, gate the affordance you build on `useAuiState((s) => s.thread.capabilities.refetchThread)`.
+How the refetch happens depends on the runtime, in one of three ways. When it declares the capability, the thread runtime is reused: composer drafts survive, existing messages stay rendered while the fresh state loads, and the returned promise settles with the refetch, rejecting if it fails. `useLangGraphRuntime` declares it whenever you pass `load`. A remote thread list without the capability remounts the runtime hook instead, which re-runs `load()` at the cost of discarding unsent composer input, and resolves once the new runtime attaches. The single and in-memory thread lists hold no remote state and have no hook to remount, so there it resolves without doing anything. If that difference matters to your UI, gate the affordance you build on `useAuiState((s) => s.thread.capabilities.refetchThread)`.
 
 For an external store runtime, declare it with `onRefetchThread`, which is unrelated to `onReload` (that one re-generates an assistant message):
 
