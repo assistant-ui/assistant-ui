@@ -34,7 +34,7 @@ function providerOf(modelId: string): string {
 
 const compactNumber = new Intl.NumberFormat("en", { notation: "compact" });
 
-const EFFORT_SUPPORTED_MODELS = new Set(["gpt-5.6-luna", "grok/grok-4-1-fast"]);
+const EFFORT_SUPPORTED_MODELS = new Set(["gpt-5.6-luna"]);
 
 const models: ModelOption[] = [];
 const modelsByProvider = new Map<string, ModelOption[]>();
