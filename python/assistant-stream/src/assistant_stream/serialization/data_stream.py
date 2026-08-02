@@ -81,6 +81,7 @@ class DataStreamEncoder(StreamEncoder):
         elif chunk.type == "file":
             file_data = {"data": chunk.data, "mimeType": chunk.mime_type}
             return f"k:{json.dumps(file_data, cls=StateProxyJSONEncoder)}\n"
+        return None
 
     def get_media_type(self) -> str:
         return "text/plain"
