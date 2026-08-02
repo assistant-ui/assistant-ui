@@ -136,20 +136,19 @@ function processToolCall(
     args: part.args ?? {},
   });
 
-  if (part.result !== undefined) {
-    const toolResult: GenericToolResultPart = {
-      type: "tool-result",
-      toolCallId: part.toolCallId,
-      toolName: part.toolName,
-      result: part.result,
-    };
-    if (part.isError) {
-      toolResult.isError = true;
-    }
-    accumulator.toolResults.push(toolResult);
-    return true;
+  // Providers reject an assistant tool call that no tool result answers.
+  const unresolved = part.result === undefined;
+  const toolResult: GenericToolResultPart = {
+    type: "tool-result",
+    toolCallId: part.toolCallId,
+    toolName: part.toolName,
+    result: unresolved ? { error: "Tool call was not completed" } : part.result,
+  };
+  if (unresolved || part.isError) {
+    toolResult.isError = true;
   }
-  return false;
+  accumulator.toolResults.push(toolResult);
+  return true;
 }
 
 function flushAccumulator(

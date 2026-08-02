@@ -308,7 +308,7 @@ describe("toGenericMessages", () => {
       ]);
     });
 
-    it("converts tool calls without results", () => {
+    it("closes out tool calls without results", () => {
       const result = toGenericMessages([
         {
           role: "assistant",
@@ -334,6 +334,68 @@ describe("toGenericMessages", () => {
               args: { city: "London" },
             },
           ],
+        },
+        {
+          role: "tool",
+          content: [
+            {
+              type: "tool-result",
+              toolCallId: "call_123",
+              toolName: "get_weather",
+              result: { error: "Tool call was not completed" },
+              isError: true,
+            },
+          ],
+        },
+      ]);
+    });
+
+    it("closes out a tool call left unresolved before a later message", () => {
+      const result = toGenericMessages([
+        {
+          role: "assistant",
+          content: [
+            {
+              type: "tool-call",
+              toolCallId: "call_123",
+              toolName: "get_weather",
+              args: { city: "London" },
+            },
+          ],
+        },
+        {
+          role: "user",
+          content: [{ type: "text", text: "never mind" }],
+        },
+      ]);
+
+      expect(result).toEqual([
+        {
+          role: "assistant",
+          content: [
+            {
+              type: "tool-call",
+              toolCallId: "call_123",
+              toolName: "get_weather",
+              args: { city: "London" },
+            },
+          ],
+        },
+        {
+          role: "tool",
+          content: [
+            {
+              type: "tool-result",
+              toolCallId: "call_123",
+              toolName: "get_weather",
+              result: { error: "Tool call was not completed" },
+              isError: true,
+            },
+          ],
+        },
+        {
+          role: "user",
+          content: [{ type: "text", text: "never mind" }],
         },
       ]);
     });
@@ -537,6 +599,18 @@ describe("toGenericMessages", () => {
             },
           ],
         },
+        {
+          role: "tool",
+          content: [
+            {
+              type: "tool-result",
+              toolCallId: "call_123",
+              toolName: "no_args_tool",
+              result: { error: "Tool call was not completed" },
+              isError: true,
+            },
+          ],
+        },
       ]);
     });
 
@@ -602,6 +676,13 @@ describe("toGenericMessages", () => {
               toolCallId: "call_1",
               toolName: "tool_a",
               result: "result_a",
+            },
+            {
+              type: "tool-result",
+              toolCallId: "call_2",
+              toolName: "tool_b",
+              result: { error: "Tool call was not completed" },
+              isError: true,
             },
             {
               type: "tool-result",
