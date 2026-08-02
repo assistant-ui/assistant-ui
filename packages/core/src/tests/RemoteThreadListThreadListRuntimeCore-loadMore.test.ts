@@ -274,6 +274,7 @@ describe("RemoteThreadListThreadListRuntimeCore.loadMore", () => {
 
   it("__internal_setOptions clears thread state until the new adapter responds", async () => {
     const firstAdapter = makeAdapter({
+      unstable_scopeKey: "a",
       list: vi.fn<ListFn>(async () => ({
         threads: [{ status: "regular", remoteId: "old", externalId: "old" }],
         nextCursor: "old-cursor",
@@ -287,7 +288,10 @@ describe("RemoteThreadListThreadListRuntimeCore.loadMore", () => {
     const secondList = vi.fn<ListFn>(async () => ({
       threads: [{ status: "regular", remoteId: "new", externalId: "new" }],
     }));
-    const secondAdapter = makeAdapter({ list: secondList });
+    const secondAdapter = makeAdapter({
+      unstable_scopeKey: "b",
+      list: secondList,
+    });
     core.__internal_setOptions({
       adapter: secondAdapter,
       runtimeHook: () => ({}) as never,
@@ -314,13 +318,17 @@ describe("RemoteThreadListThreadListRuntimeCore.loadMore", () => {
         nextCursor: "c1",
       })
       .mockReturnValueOnce(slow.promise);
-    const firstAdapter = makeAdapter({ list: firstList });
+    const firstAdapter = makeAdapter({
+      unstable_scopeKey: "a",
+      list: firstList,
+    });
     const core = createCore(firstAdapter);
 
     await core.getLoadThreadsPromise();
     const stale = core.loadMore();
 
     const secondAdapter = makeAdapter({
+      unstable_scopeKey: "b",
       list: vi.fn<ListFn>(async () => ({
         threads: [{ status: "regular", remoteId: "ignored", externalId: "x" }],
       })),
@@ -344,7 +352,10 @@ describe("RemoteThreadListThreadListRuntimeCore.loadMore", () => {
   it("drops the in-flight initial list when the adapter swaps mid-flight", async () => {
     const slow = deferred<RemoteThreadListResponse>();
     const firstList = vi.fn<ListFn>().mockReturnValueOnce(slow.promise);
-    const firstAdapter = makeAdapter({ list: firstList });
+    const firstAdapter = makeAdapter({
+      unstable_scopeKey: "a",
+      list: firstList,
+    });
     const core = createCore(firstAdapter);
 
     core.getLoadThreadsPromise();
@@ -352,7 +363,10 @@ describe("RemoteThreadListThreadListRuntimeCore.loadMore", () => {
     const secondList = vi.fn<ListFn>().mockResolvedValueOnce({
       threads: [{ status: "regular", remoteId: "fresh", externalId: "fresh" }],
     });
-    const secondAdapter = makeAdapter({ list: secondList });
+    const secondAdapter = makeAdapter({
+      unstable_scopeKey: "b",
+      list: secondList,
+    });
     core.__internal_setOptions({
       adapter: secondAdapter,
       runtimeHook: () => ({}) as never,

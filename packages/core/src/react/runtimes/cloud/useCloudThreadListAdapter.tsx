@@ -92,6 +92,7 @@ export const useCloudThreadListAdapter = (
     }
 
     return {
+      unstable_scopeKey: cloud,
       list: async () => {
         const { threads } = await cloud.threads.list();
         return {

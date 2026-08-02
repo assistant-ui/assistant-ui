@@ -24,6 +24,7 @@ const mapThreadMetadata = (session: {
 export const createOpenCodeThreadListAdapter = (
   client: ReturnType<typeof createOpencodeClient>,
 ) => ({
+  unstable_scopeKey: client,
   list: async () => {
     const response = await client.experimental.session.list(
       {

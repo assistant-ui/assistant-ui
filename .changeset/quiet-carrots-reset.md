@@ -6,11 +6,12 @@
 "@assistant-ui/react-pi": patch
 ---
 
-fix: isolate remote thread state across adapter changes
+fix: isolate remote thread state across backing scope changes
 
-Remote thread-list adapters now use object identity as their account or
-workspace boundary. Replacing an adapter clears the previous scope's mounted
-runtimes and cached records before loading the replacement scope.
+Remote thread-list adapters can now identify their backing account or workspace
+with `unstable_scopeKey`. Changing that key clears the previous scope's mounted
+runtimes and cached records before loading the replacement scope, while an
+ordinary adapter recreation performs a non-destructive list refresh.
 
 Reloading a paginated list now treats the returned first page as authoritative.
 Records and mounted runtimes from omitted later pages are dropped so a later

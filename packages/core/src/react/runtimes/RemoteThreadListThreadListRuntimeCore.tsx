@@ -303,6 +303,10 @@ export class RemoteThreadListThreadListRuntimeCore
 
     const adapterChanged =
       this._options !== undefined && this._options.adapter !== options.adapter;
+    const adapterScopeChanged =
+      this._options !== undefined &&
+      this._options.adapter.unstable_scopeKey !==
+        options.adapter.unstable_scopeKey;
     const controlledThreadIdChanged =
       this._initialThreadLoaded &&
       this._options !== undefined &&
@@ -317,7 +321,7 @@ export class RemoteThreadListThreadListRuntimeCore
 
     this._hookManager.setRuntimeHook(options.runtimeHook);
 
-    if (adapterChanged) {
+    if (adapterScopeChanged) {
       this._adapterGeneration++;
       this._loadGeneration++;
       this._switchGeneration++;
@@ -357,9 +361,12 @@ export class RemoteThreadListThreadListRuntimeCore
               this._options.threadId !== controlledThreadId ||
               this._mainThreadId !== replacementId ||
               this._lastSuccessfulLoadGeneration !== this._loadGeneration ||
-              this.hasMore ||
-              this.getItemById(controlledThreadId) !== undefined
+              this.hasMore
             ) {
+              return;
+            }
+            if (this.getItemById(controlledThreadId) !== undefined) {
+              this._switchToThreadFromProp(controlledThreadId).catch(() => {});
               return;
             }
             this._notifyThreadIdChange(true, true);
@@ -369,6 +376,14 @@ export class RemoteThreadListThreadListRuntimeCore
         }
         return;
       }
+    } else if (adapterChanged) {
+      this._loadGeneration++;
+      this._loadThreadsPromise = undefined;
+      this._loadMorePromise = undefined;
+      this._state.update({
+        ...this._state.baseValue,
+        cursor: undefined,
+      });
     }
 
     if (controlledThreadIdChanged) {

@@ -45,6 +45,14 @@ export type RemoteThreadListAdapter = {
   fetch(threadId: string): Promise<RemoteThreadMetadata>;
 
   /**
+   * Identifies the backing account or workspace for this adapter. Changing
+   * this value discards mounted thread runtimes and cached thread state before
+   * loading the replacement scope. Replacing the adapter without changing
+   * this key performs a non-destructive list refresh.
+   */
+  unstable_scopeKey?: unknown;
+
+  /**
    * Optional React component wrapped around each active thread. Use it to
    * inject per-thread context such as a history or attachments adapter (see
    * `useCloudThreadListAdapter` for the canonical shape).
@@ -60,14 +68,7 @@ export type RemoteThreadListAdapter = {
 export type RemoteThreadListOptions = {
   runtimeHook: () => AssistantRuntime;
 
-  /**
-   * The adapter for the active remote thread scope.
-   *
-   * Keep this object identity stable while the backing account or workspace
-   * remains the same. Replacing it is treated as a scope change: mounted
-   * thread runtimes and cached thread state are discarded before the new
-   * adapter loads.
-   */
+  /** The adapter for the active remote thread scope. */
   adapter: RemoteThreadListAdapter;
 
   /**

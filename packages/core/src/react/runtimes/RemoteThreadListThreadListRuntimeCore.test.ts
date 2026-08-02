@@ -59,11 +59,13 @@ const makeCore = (adapter: RemoteThreadListAdapter) => {
 
 describe("RemoteThreadListThreadListRuntimeCore adapter replacement", () => {
   it("replaces the active thread and prunes previous adapter data", async () => {
-    const adapterA = makeAdapter([
-      makeThread("active-thread"),
-      makeThread("account-a-thread"),
-    ]);
-    const adapterB = makeAdapter([makeThread("account-b-thread")]);
+    const adapterA = makeAdapter(
+      [makeThread("active-thread"), makeThread("account-a-thread")],
+      { unstable_scopeKey: "a" },
+    );
+    const adapterB = makeAdapter([makeThread("account-b-thread")], {
+      unstable_scopeKey: "b",
+    });
     const core = makeCore(adapterA);
 
     await core.getLoadThreadsPromise();
@@ -85,9 +87,10 @@ describe("RemoteThreadListThreadListRuntimeCore adapter replacement", () => {
   it("ignores a thread fetched by the previous adapter after replacement", async () => {
     const fetchRequest = deferred<RemoteThreadMetadata>();
     const adapterA = makeAdapter([], {
+      unstable_scopeKey: "a",
       fetch: vi.fn(() => fetchRequest.promise),
     });
-    const adapterB = makeAdapter([]);
+    const adapterB = makeAdapter([], { unstable_scopeKey: "b" });
     const core = makeCore(adapterA);
 
     const switchTask = core.switchToThread("account-a-thread");
@@ -132,9 +135,10 @@ describe("RemoteThreadListThreadListRuntimeCore adapter replacement", () => {
   it("ignores initialization completed by the previous adapter", async () => {
     const initializeRequest = deferred<{ remoteId: string }>();
     const adapterA = makeAdapter([], {
+      unstable_scopeKey: "a",
       initialize: vi.fn(() => initializeRequest.promise),
     });
-    const adapterB = makeAdapter([]);
+    const adapterB = makeAdapter([], { unstable_scopeKey: "b" });
     const core = makeCore(adapterA);
     core.__internal_load();
 
@@ -151,8 +155,10 @@ describe("RemoteThreadListThreadListRuntimeCore adapter replacement", () => {
   });
 
   it("finishes an in-flight mutation through its originating adapter", async () => {
-    const adapterA = makeAdapter([makeThread("account-a-thread")]);
-    const adapterB = makeAdapter([]);
+    const adapterA = makeAdapter([makeThread("account-a-thread")], {
+      unstable_scopeKey: "a",
+    });
+    const adapterB = makeAdapter([], { unstable_scopeKey: "b" });
     const core = makeCore(adapterA);
     await core.getLoadThreadsPromise();
 
@@ -169,9 +175,12 @@ describe("RemoteThreadListThreadListRuntimeCore adapter replacement", () => {
   it("does not navigate the new adapter after an old unarchive fails", async () => {
     const unarchiveRequest = deferred<void>();
     const adapterA = makeAdapter([makeThread("shared-thread", "archived")], {
+      unstable_scopeKey: "a",
       unarchive: vi.fn(() => unarchiveRequest.promise),
     });
-    const adapterB = makeAdapter([makeThread("shared-thread")]);
+    const adapterB = makeAdapter([makeThread("shared-thread")], {
+      unstable_scopeKey: "b",
+    });
     const core = makeCore(adapterA);
     await core.getLoadThreadsPromise();
 
@@ -191,9 +200,12 @@ describe("RemoteThreadListThreadListRuntimeCore adapter replacement", () => {
     const unarchiveRequest = deferred<void>();
     const fallbackStart = deferred<unknown>();
     const adapterA = makeAdapter([makeThread("shared-thread", "archived")], {
+      unstable_scopeKey: "a",
       unarchive: vi.fn(() => unarchiveRequest.promise),
     });
-    const adapterB = makeAdapter([makeThread("shared-thread")]);
+    const adapterB = makeAdapter([makeThread("shared-thread")], {
+      unstable_scopeKey: "b",
+    });
     const core = makeCore(adapterA);
     await core.getLoadThreadsPromise();
     core.__internal_load();
@@ -230,8 +242,12 @@ describe("RemoteThreadListThreadListRuntimeCore adapter replacement", () => {
 
   it("does not archive replacement adapter state after switching away", async () => {
     const fallbackStart = deferred<unknown>();
-    const adapterA = makeAdapter([makeThread("shared-thread")]);
-    const adapterB = makeAdapter([makeThread("shared-thread")]);
+    const adapterA = makeAdapter([makeThread("shared-thread")], {
+      unstable_scopeKey: "a",
+    });
+    const adapterB = makeAdapter([makeThread("shared-thread")], {
+      unstable_scopeKey: "b",
+    });
     const core = makeCore(adapterA);
     await core.getLoadThreadsPromise();
     core.__internal_load();

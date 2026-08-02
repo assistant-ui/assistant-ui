@@ -149,8 +149,8 @@ describe("useRemoteThreadListRuntime controlled threadId", () => {
   });
 
   it("switches controlled threads when the adapter changes in the same render", async () => {
-    const adapterA = makeAdapter();
-    const adapterB = makeAdapter();
+    const adapterA = makeAdapter({ unstable_scopeKey: "a" });
+    const adapterB = makeAdapter({ unstable_scopeKey: "b" });
     const onThreadIdChange = vi.fn();
     const runtimeRef: RuntimeRef = { current: null };
 
@@ -179,8 +179,9 @@ describe("useRemoteThreadListRuntime controlled threadId", () => {
   });
 
   it("clears a controlled selection missing from the replacement adapter", async () => {
-    const adapterA = makeAdapter();
+    const adapterA = makeAdapter({ unstable_scopeKey: "a" });
     const adapterB = makeAdapter({
+      unstable_scopeKey: "b",
       fetch: vi.fn().mockRejectedValue(new Error("Thread not found")),
     });
     const onThreadIdChange = vi.fn();
@@ -216,8 +217,9 @@ describe("useRemoteThreadListRuntime controlled threadId", () => {
   });
 
   it("keeps a controlled selection after a transient replacement fetch failure", async () => {
-    const adapterA = makeAdapter();
+    const adapterA = makeAdapter({ unstable_scopeKey: "a" });
     const adapterB = makeAdapter({
+      unstable_scopeKey: "b",
       list: vi.fn().mockResolvedValue({ threads: [], nextCursor: "next" }),
       fetch: vi.fn().mockRejectedValue(new Error("Network unavailable")),
     });
@@ -247,6 +249,46 @@ describe("useRemoteThreadListRuntime controlled threadId", () => {
       expect(adapterB.fetch).toHaveBeenCalledWith("thread-a");
       expect(runtimeRef.current!.threads.getState().isLoading).toBe(false);
     });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(onThreadIdChange).not.toHaveBeenCalled();
+    expect(runtimeRef.current!.threads.mainItem.getState().status).toBe("new");
+  });
+
+  it("retries a controlled selection found by the replacement list", async () => {
+    const adapterA = makeAdapter({ unstable_scopeKey: "a" });
+    const adapterB = makeAdapter({
+      unstable_scopeKey: "b",
+      list: vi.fn().mockResolvedValue({
+        threads: [makeThreadMetadata("thread-a")],
+      }),
+      fetch: vi.fn().mockRejectedValue(new Error("Network unavailable")),
+    });
+    const onThreadIdChange = vi.fn();
+    const runtimeRef: RuntimeRef = { current: null };
+
+    const { rerender } = render(
+      <ControlledRuntime
+        adapter={adapterA}
+        threadId="thread-a"
+        onThreadIdChange={onThreadIdChange}
+        runtimeRef={runtimeRef}
+      />,
+    );
+    await waitForRemoteThread(runtimeRef, "thread-a");
+
+    rerender(
+      <ControlledRuntime
+        adapter={adapterB}
+        threadId="thread-a"
+        onThreadIdChange={onThreadIdChange}
+        runtimeRef={runtimeRef}
+      />,
+    );
+
+    await waitForRemoteThread(runtimeRef, "thread-a");
+    expect(adapterB.fetch).toHaveBeenCalledWith("thread-a");
     expect(onThreadIdChange).not.toHaveBeenCalled();
   });
 
@@ -254,12 +296,14 @@ describe("useRemoteThreadListRuntime controlled threadId", () => {
     const staleFetch = deferred<RemoteThreadMetadata>();
     const replacementFetch = deferred<RemoteThreadMetadata>();
     const adapterA = makeAdapter({
+      unstable_scopeKey: "a",
       fetch: vi.fn(async (threadId) => {
         if (threadId === "thread-b") return staleFetch.promise;
         return makeThreadMetadata(threadId);
       }),
     });
     const adapterB = makeAdapter({
+      unstable_scopeKey: "b",
       fetch: vi.fn(() => replacementFetch.promise),
     });
     const onThreadIdChange = vi.fn();
@@ -490,8 +534,8 @@ describe("useRemoteThreadListRuntime controlled threadId", () => {
 
 describe("useRemoteThreadListRuntime adapter replacement", () => {
   it("reports an uncontrolled active thread being cleared", async () => {
-    const adapterA = makeAdapter();
-    const adapterB = makeAdapter();
+    const adapterA = makeAdapter({ unstable_scopeKey: "a" });
+    const adapterB = makeAdapter({ unstable_scopeKey: "b" });
     const onThreadIdChange = vi.fn();
     const runtimeRef: RuntimeRef = { current: null };
 
@@ -526,7 +570,7 @@ describe("useRemoteThreadListRuntime adapter replacement", () => {
     expect(onThreadIdChange).toHaveBeenCalledWith(undefined);
   });
 
-  it("replaces the active thread when an inline adapter changes on rerender", async () => {
+  it("preserves the active thread when an unscoped inline adapter changes", async () => {
     const adapters: RemoteThreadListAdapter[] = [];
     const createAdapter = vi.fn(() => {
       const adapter = makeAdapter();
@@ -562,7 +606,7 @@ describe("useRemoteThreadListRuntime adapter replacement", () => {
       expect(createAdapter).toHaveBeenCalledTimes(2);
       expect(adapters[1]!.list).toHaveBeenCalled();
     });
-    expect(runtimeRef.current!.threads.getState().mainThreadId).not.toBe(
+    expect(runtimeRef.current!.threads.getState().mainThreadId).toBe(
       mainThreadId,
     );
   });

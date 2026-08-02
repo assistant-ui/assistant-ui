@@ -486,11 +486,16 @@ export const usePiRuntime = (options: PiRuntimeOptions): AssistantRuntime => {
   );
   const includeArchivedRef = useRef(options.includeArchived);
   includeArchivedRef.current = options.includeArchived;
+  const adapterScope = useMemo(
+    () => ({ client, workspacePath: options.workspacePath }),
+    [client, options.workspacePath],
+  );
 
   useEffect(() => () => registry.dispose(), [registry]);
 
   const adapter = useMemo(
     () => ({
+      unstable_scopeKey: adapterScope,
       list: async () => {
         const threads = await client.listThreads({
           ...(options.workspacePath !== undefined
@@ -541,10 +546,10 @@ export const usePiRuntime = (options: PiRuntimeOptions): AssistantRuntime => {
         return mapThreadMetadata(snapshot.metadata);
       },
     }),
-    [client, options.workspacePath, pendingInitialMessageRef],
+    [adapterScope, client, options.workspacePath, pendingInitialMessageRef],
   );
 
-  return useRemoteThreadListRuntime({
+  const runtime = useRemoteThreadListRuntime({
     allowNesting: true,
     adapter,
     ...(options.initialThreadId !== undefined
@@ -559,4 +564,13 @@ export const usePiRuntime = (options: PiRuntimeOptions): AssistantRuntime => {
       return useRuntimeHook(registry, options, pendingInitialMessageRef);
     },
   });
+
+  const previousIncludeArchivedRef = useRef(options.includeArchived);
+  useEffect(() => {
+    if (previousIncludeArchivedRef.current === options.includeArchived) return;
+    previousIncludeArchivedRef.current = options.includeArchived;
+    void runtime.threads.reload();
+  }, [runtime, options.includeArchived]);
+
+  return runtime;
 };
