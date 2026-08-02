@@ -343,7 +343,18 @@ export class RemoteThreadListThreadListRuntimeCore
 
       if (this._initialThreadLoaded) {
         if (options.threadId !== undefined) {
-          this._switchToThreadFromProp(options.threadId).catch(() => {});
+          const adapterGeneration = this._adapterGeneration;
+          const replacementId = replacement.id;
+          this._switchToThreadFromProp(options.threadId).catch(() => {
+            if (
+              adapterGeneration !== this._adapterGeneration ||
+              this._options.threadId !== options.threadId ||
+              this._mainThreadId !== replacementId
+            ) {
+              return;
+            }
+            this._notifyThreadIdChange(true, true);
+          });
         } else {
           this._notifyThreadIdChange();
         }
@@ -449,10 +460,10 @@ export class RemoteThreadListThreadListRuntimeCore
   private _lastNotifiedThreadId: string | undefined = undefined;
   private _suppressThreadIdChange = false;
 
-  private _notifyThreadIdChange(emit = true) {
+  private _notifyThreadIdChange(emit = true, force = false) {
     if (this._suppressThreadIdChange) return;
     const threadId = this._mainThreadRemoteId;
-    if (this._lastNotifiedThreadId === threadId) return;
+    if (!force && this._lastNotifiedThreadId === threadId) return;
     this._lastNotifiedThreadId = threadId;
     if (emit) {
       this._options.onThreadIdChange?.(threadId);

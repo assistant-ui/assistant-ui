@@ -178,6 +178,43 @@ describe("useRemoteThreadListRuntime controlled threadId", () => {
     expect(onThreadIdChange).not.toHaveBeenCalled();
   });
 
+  it("clears a controlled selection missing from the replacement adapter", async () => {
+    const adapterA = makeAdapter();
+    const adapterB = makeAdapter({
+      fetch: vi.fn().mockRejectedValue(new Error("Thread not found")),
+    });
+    const onThreadIdChange = vi.fn();
+    const runtimeRef: RuntimeRef = { current: null };
+
+    const { rerender } = render(
+      <ControlledRuntime
+        adapter={adapterA}
+        threadId="thread-a"
+        onThreadIdChange={onThreadIdChange}
+        runtimeRef={runtimeRef}
+      />,
+    );
+    await waitForRemoteThread(runtimeRef, "thread-a");
+
+    rerender(
+      <ControlledRuntime
+        adapter={adapterB}
+        threadId="thread-a"
+        onThreadIdChange={onThreadIdChange}
+        runtimeRef={runtimeRef}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(onThreadIdChange).toHaveBeenCalledWith(undefined);
+    });
+    expect(adapterB.fetch).toHaveBeenCalledWith("thread-a");
+    expect(runtimeRef.current!.threads.mainItem.getState().remoteId).toBe(
+      undefined,
+    );
+    expect(runtimeRef.current!.threads.mainItem.getState().status).toBe("new");
+  });
+
   it("restarts a controlled switch when its adapter changes in flight", async () => {
     const staleFetch = deferred<RemoteThreadMetadata>();
     const replacementFetch = deferred<RemoteThreadMetadata>();
