@@ -67,13 +67,7 @@ export class ToolResponse<TResult> {
     if (options.artifact !== undefined) {
       this.artifact = options.artifact;
     }
-    // A settled tool call is recognized downstream by carrying a result, so an
-    // absent one is materialized rather than left indistinguishable from a call
-    // that never completed.
-    this.result =
-      options.result === undefined
-        ? (NO_RESULT as unknown as TResult)
-        : options.result;
+    this.result = options.result;
     this.isError = options.isError ?? false;
     if (options.modelContent !== undefined) {
       this.modelContent = options.modelContent;
@@ -102,6 +96,8 @@ export class ToolResponse<TResult> {
     if (result instanceof ToolResponse) {
       return result;
     }
-    return new ToolResponse({ result });
+    return new ToolResponse({
+      result: result === undefined ? NO_RESULT : result,
+    });
   }
 }
