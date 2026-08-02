@@ -63,7 +63,7 @@ const makeCore = (adapter: RemoteThreadListAdapter) => {
 };
 
 describe("RemoteThreadListThreadListRuntimeCore adapter replacement", () => {
-  it("prunes inactive threads from the previous adapter after listing", async () => {
+  it("replaces the active thread and prunes previous adapter data", async () => {
     const adapterA = makeAdapter([
       makeThread("active-thread"),
       makeThread("account-a-thread"),
@@ -72,18 +72,19 @@ describe("RemoteThreadListThreadListRuntimeCore adapter replacement", () => {
     const core = makeCore(adapterA);
 
     await core.getLoadThreadsPromise();
+    core.__internal_load();
     await core.switchToThread("active-thread");
     expect(core.getItemById("account-a-thread")).toBeDefined();
     const mainThreadId = core.mainThreadId;
 
     core.__internal_setOptions(makeOptions(adapterB));
-    expect(core.mainThreadId).toBe(mainThreadId);
+    expect(core.mainThreadId).not.toBe(mainThreadId);
     await core.getLoadThreadsPromise();
 
     expect(core.threadIds).toEqual(["account-b-thread"]);
     expect(core.getItemById("account-a-thread")).toBeUndefined();
-    expect(core.getItemById("active-thread")).toBeDefined();
-    expect(core.mainThreadId).toBe(mainThreadId);
+    expect(core.getItemById("active-thread")).toBeUndefined();
+    expect(core.getItemById(core.mainThreadId)?.status).toBe("new");
   });
 
   it("ignores a thread fetched by the previous adapter after replacement", async () => {
@@ -103,19 +104,20 @@ describe("RemoteThreadListThreadListRuntimeCore adapter replacement", () => {
     expect(adapterB.fetch).not.toHaveBeenCalled();
   });
 
-  it("keeps the local runtime id when the active thread appears in the new list", async () => {
-    const adapterA = makeAdapter([], {
+  it("keeps the local runtime id when the active thread appears in a refreshed list", async () => {
+    let listedThreads: RemoteThreadMetadata[] = [];
+    const adapter = makeAdapter([], {
+      list: vi.fn(async () => ({ threads: listedThreads })),
       initialize: vi.fn(async () => ({ remoteId: "active-remote" })),
     });
-    const adapterB = makeAdapter([makeThread("active-remote")]);
-    const core = makeCore(adapterA);
+    const core = makeCore(adapter);
 
     await core.switchToNewThread();
     const localId = core.mainThreadId;
     await core.initialize(localId);
 
-    core.__internal_setOptions(makeOptions(adapterB));
-    await core.getLoadThreadsPromise();
+    listedThreads = [makeThread("active-remote")];
+    await core.reload();
 
     expect(core.mainThreadId).toBe(localId);
     expect(core.getItemById(localId)?.id).toBe(localId);
@@ -130,6 +132,27 @@ describe("RemoteThreadListThreadListRuntimeCore adapter replacement", () => {
     expect(core.archivedThreadIds).toEqual([]);
     expect(core.getItemById(localId)).toBeUndefined();
     expect(core.getItemById("active-remote")).toBeUndefined();
+  });
+
+  it("ignores initialization completed by the previous adapter", async () => {
+    const initializeRequest = deferred<{ remoteId: string }>();
+    const adapterA = makeAdapter([], {
+      initialize: vi.fn(() => initializeRequest.promise),
+    });
+    const adapterB = makeAdapter([]);
+    const core = makeCore(adapterA);
+    core.__internal_load();
+
+    const previousThreadId = core.mainThreadId;
+    const initializeTask = core.initialize(previousThreadId);
+    core.__internal_setOptions(makeOptions(adapterB));
+
+    initializeRequest.resolve({ remoteId: "account-a-thread" });
+    await initializeTask;
+
+    expect(core.mainThreadId).not.toBe(previousThreadId);
+    expect(core.getItemById("account-a-thread")).toBeUndefined();
+    expect(core.getItemById(core.mainThreadId)?.status).toBe("new");
   });
 
   it("finishes an in-flight mutation through its originating adapter", async () => {
@@ -167,5 +190,52 @@ describe("RemoteThreadListThreadListRuntimeCore adapter replacement", () => {
     await expect(unarchiveTask).rejects.toThrow("old adapter failed");
 
     expect(core.mainThreadId).toBe(mainThreadId);
+  });
+
+  it("stops unarchive cleanup when the adapter changes during its fallback switch", async () => {
+    const unarchiveRequest = deferred<void>();
+    const fallbackStart = deferred<unknown>();
+    const adapterA = makeAdapter([makeThread("shared-thread", "archived")], {
+      unarchive: vi.fn(() => unarchiveRequest.promise),
+    });
+    const adapterB = makeAdapter([makeThread("shared-thread")]);
+    const core = makeCore(adapterA);
+    await core.getLoadThreadsPromise();
+    core.__internal_load();
+    await core.switchToThread("shared-thread", { unarchive: false });
+
+    const startThreadRuntime = vi.fn(async (threadId: string) => {
+      if (threadId.startsWith("__LOCALID_")) return fallbackStart.promise;
+      return {};
+    });
+    (
+      core as unknown as {
+        _hookManager: {
+          startThreadRuntime: (id: string) => Promise<unknown>;
+        };
+      }
+    )._hookManager.startThreadRuntime = startThreadRuntime;
+
+    const unarchiveTask = core.unarchive("shared-thread");
+    const rejected =
+      expect(unarchiveTask).rejects.toThrow("old adapter failed");
+    unarchiveRequest.reject(new Error("old adapter failed"));
+    await vi.waitFor(() => {
+      expect(startThreadRuntime).toHaveBeenCalledWith(
+        expect.stringMatching(/^__LOCALID_/),
+      );
+    });
+
+    core.__internal_setOptions({
+      ...makeOptions(adapterB),
+      threadId: "shared-thread",
+    });
+    await vi.waitFor(() => {
+      expect(core.mainThreadId).toBe("shared-thread");
+    });
+
+    fallbackStart.resolve({});
+    await rejected;
+    expect(core.mainThreadId).toBe("shared-thread");
   });
 });

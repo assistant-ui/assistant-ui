@@ -115,6 +115,13 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     this._notifySubscribers();
   }
 
+  public stopAllThreadRuntimes() {
+    if (this.instances.size === 0) return;
+    this.instances.clear();
+    this.useAliveThreadsKeysChanged.setState({}, true);
+    this._notifySubscribers();
+  }
+
   public setRuntimeHook(newRuntimeHook: RemoteThreadListHook) {
     const prevRuntimeHook = this.useRuntimeHook.getState().useRuntime;
     if (prevRuntimeHook !== newRuntimeHook) {
@@ -135,10 +142,7 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
 
     const updateRuntime = useCallback(() => {
       const aliveThread = this.instances.get(threadId);
-      if (!aliveThread)
-        throw new Error(
-          `Thread "${threadId}" runtime binding not found. This is a bug in assistant-ui.`,
-        );
+      if (!aliveThread) return;
 
       // An outgoing binder outlives its generation until React commits the key
       // change, and must not publish over the incoming one.

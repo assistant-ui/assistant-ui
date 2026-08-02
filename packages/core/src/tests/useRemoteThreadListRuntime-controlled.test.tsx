@@ -178,6 +178,74 @@ describe("useRemoteThreadListRuntime controlled threadId", () => {
     expect(onThreadIdChange).not.toHaveBeenCalled();
   });
 
+  it("restarts a controlled switch when its adapter changes in flight", async () => {
+    const staleFetch = deferred<RemoteThreadMetadata>();
+    const replacementFetch = deferred<RemoteThreadMetadata>();
+    const adapterA = makeAdapter({
+      fetch: vi.fn(async (threadId) => {
+        if (threadId === "thread-b") return staleFetch.promise;
+        return makeThreadMetadata(threadId);
+      }),
+    });
+    const adapterB = makeAdapter({
+      fetch: vi.fn(() => replacementFetch.promise),
+    });
+    const onThreadIdChange = vi.fn();
+    const runtimeRef: RuntimeRef = { current: null };
+
+    const { rerender } = render(
+      <ControlledRuntime
+        adapter={adapterA}
+        threadId="thread-a"
+        onThreadIdChange={onThreadIdChange}
+        runtimeRef={runtimeRef}
+      />,
+    );
+    await waitForRemoteThread(runtimeRef, "thread-a");
+
+    rerender(
+      <ControlledRuntime
+        adapter={adapterA}
+        threadId="thread-b"
+        onThreadIdChange={onThreadIdChange}
+        runtimeRef={runtimeRef}
+      />,
+    );
+    await waitFor(() => {
+      expect(adapterA.fetch).toHaveBeenCalledWith("thread-b");
+    });
+
+    rerender(
+      <ControlledRuntime
+        adapter={adapterB}
+        threadId="thread-b"
+        onThreadIdChange={onThreadIdChange}
+        runtimeRef={runtimeRef}
+      />,
+    );
+    await waitFor(() => {
+      expect(adapterB.fetch).toHaveBeenCalledWith("thread-b");
+    });
+    expect(runtimeRef.current!.threads.getState().mainThreadId).toMatch(
+      /^__LOCALID_/,
+    );
+    expect(runtimeRef.current!.threads.mainItem.getState().status).toBe("new");
+
+    replacementFetch.resolve(makeThreadMetadata("thread-b"));
+    await waitForRemoteThread(runtimeRef, "thread-b");
+
+    await act(async () => {
+      staleFetch.resolve(makeThreadMetadata("thread-b"));
+      await staleFetch.promise;
+    });
+
+    expect(adapterB.fetch).toHaveBeenCalledWith("thread-b");
+    expect(runtimeRef.current!.threads.mainItem.getState().remoteId).toBe(
+      "thread-b",
+    );
+    expect(onThreadIdChange).not.toHaveBeenCalled();
+  });
+
   it("does not echo prop-driven thread switches", async () => {
     const adapter = makeAdapter();
     const onThreadIdChange = vi.fn();
@@ -349,7 +417,44 @@ describe("useRemoteThreadListRuntime controlled threadId", () => {
 });
 
 describe("useRemoteThreadListRuntime adapter replacement", () => {
-  it("keeps the active thread when an inline adapter changes on rerender", async () => {
+  it("reports an uncontrolled active thread being cleared", async () => {
+    const adapterA = makeAdapter();
+    const adapterB = makeAdapter();
+    const onThreadIdChange = vi.fn();
+    const runtimeRef: RuntimeRef = { current: null };
+
+    const { rerender } = render(
+      <ControlledRuntime
+        adapter={adapterA}
+        threadId={undefined}
+        onThreadIdChange={onThreadIdChange}
+        runtimeRef={runtimeRef}
+      />,
+    );
+    await waitFor(() => expect(runtimeRef.current).not.toBeNull());
+    await act(() => runtimeRef.current!.threads.switchToThread("thread-a"));
+    expect(onThreadIdChange).toHaveBeenLastCalledWith("thread-a");
+
+    onThreadIdChange.mockClear();
+    rerender(
+      <ControlledRuntime
+        adapter={adapterB}
+        threadId={undefined}
+        onThreadIdChange={onThreadIdChange}
+        runtimeRef={runtimeRef}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(runtimeRef.current!.threads.mainItem.getState().status).toBe(
+        "new",
+      );
+    });
+    expect(onThreadIdChange).toHaveBeenCalledOnce();
+    expect(onThreadIdChange).toHaveBeenCalledWith(undefined);
+  });
+
+  it("replaces the active thread when an inline adapter changes on rerender", async () => {
     const adapters: RemoteThreadListAdapter[] = [];
     const createAdapter = vi.fn(() => {
       const adapter = makeAdapter();
@@ -385,7 +490,7 @@ describe("useRemoteThreadListRuntime adapter replacement", () => {
       expect(createAdapter).toHaveBeenCalledTimes(2);
       expect(adapters[1]!.list).toHaveBeenCalled();
     });
-    expect(runtimeRef.current!.threads.getState().mainThreadId).toBe(
+    expect(runtimeRef.current!.threads.getState().mainThreadId).not.toBe(
       mainThreadId,
     );
   });
