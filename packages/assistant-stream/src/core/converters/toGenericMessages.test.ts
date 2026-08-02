@@ -350,6 +350,89 @@ describe("toGenericMessages", () => {
       ]);
     });
 
+    it.each([
+      ["a pending approval", { approval: { id: "ap_1" } }],
+      [
+        "an approved call the host has not run yet",
+        {
+          approval: { id: "ap_1", approved: true },
+        },
+      ],
+      ["an interrupted call", { interrupt: { type: "human", payload: {} } }],
+    ])("leaves %s untouched instead of failing it", (_label, extra) => {
+      const result = toGenericMessages([
+        {
+          role: "assistant",
+          content: [
+            {
+              type: "tool-call",
+              toolCallId: "call_123",
+              toolName: "get_weather",
+              args: { city: "London" },
+              ...extra,
+            },
+          ],
+        },
+      ]);
+
+      expect(result).toEqual([
+        {
+          role: "assistant",
+          content: [
+            {
+              type: "tool-call",
+              toolCallId: "call_123",
+              toolName: "get_weather",
+              args: { city: "London" },
+            },
+          ],
+        },
+      ]);
+    });
+
+    it("closes out an approval resolved without a decision", () => {
+      const result = toGenericMessages([
+        {
+          role: "assistant",
+          content: [
+            {
+              type: "tool-call",
+              toolCallId: "call_123",
+              toolName: "get_weather",
+              args: { city: "London" },
+              approval: { id: "ap_1", resolution: "cancelled" },
+            },
+          ],
+        },
+      ]);
+
+      expect(result).toEqual([
+        {
+          role: "assistant",
+          content: [
+            {
+              type: "tool-call",
+              toolCallId: "call_123",
+              toolName: "get_weather",
+              args: { city: "London" },
+            },
+          ],
+        },
+        {
+          role: "tool",
+          content: [
+            {
+              type: "tool-result",
+              toolCallId: "call_123",
+              toolName: "get_weather",
+              result: { error: "Tool call was not completed" },
+              isError: true,
+            },
+          ],
+        },
+      ]);
+    });
+
     it("treats a settled tool call carrying no result as completed", () => {
       const result = toGenericMessages([
         {

@@ -70,6 +70,8 @@ type MessagePartLike = {
   state?: string;
   result?: unknown;
   isError?: boolean;
+  approval?: { resolution?: string; [key: string]: unknown };
+  interrupt?: unknown;
 };
 
 type AttachmentLike = {
@@ -124,6 +126,11 @@ type ToolCallAccumulator = {
   toolResults: GenericToolResultPart[];
 };
 
+function isAwaitingHost(part: MessagePartLike): boolean {
+  if (part.interrupt != null) return true;
+  return part.approval != null && part.approval.resolution === undefined;
+}
+
 function processToolCall(
   part: MessagePartLike,
   accumulator: ToolCallAccumulator,
@@ -137,8 +144,11 @@ function processToolCall(
     args: part.args ?? {},
   });
 
-  // Providers reject an assistant tool call that no tool result answers.
   const settled = part.state === "result" || part.result !== undefined;
+  // The in-flight message is converted on every roundtrip, so a call still awaiting a decision or an execution is live rather than failed.
+  if (!settled && isAwaitingHost(part)) return false;
+
+  // Providers reject an assistant tool call that no tool result answers.
   const toolResult: GenericToolResultPart = {
     type: "tool-result",
     toolCallId: part.toolCallId,
