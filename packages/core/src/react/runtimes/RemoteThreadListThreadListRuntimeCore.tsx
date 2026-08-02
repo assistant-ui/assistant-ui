@@ -135,6 +135,7 @@ export class RemoteThreadListThreadListRuntimeCore
   private readonly _hookManager: RemoteThreadListHookInstanceManager;
 
   private _loadThreadsPromise: Promise<void> | undefined;
+  private _lastSuccessfulLoadGeneration: number | undefined;
   private _loadMorePromise: Promise<void> | undefined;
   private _loadGeneration = 0;
   private _adapterGeneration = 0;
@@ -206,6 +207,9 @@ export class RemoteThreadListThreadListRuntimeCore
         })
         .then(() => {
           if (generation === this._loadGeneration) {
+            if (removedRuntimeIds !== undefined) {
+              this._lastSuccessfulLoadGeneration = generation;
+            }
             for (const threadId of removedRuntimeIds ?? []) {
               this._hookManager.stopThreadRuntime(threadId);
             }
@@ -345,11 +349,16 @@ export class RemoteThreadListThreadListRuntimeCore
         if (options.threadId !== undefined) {
           const adapterGeneration = this._adapterGeneration;
           const replacementId = replacement.id;
-          this._switchToThreadFromProp(options.threadId).catch(() => {
+          const controlledThreadId = options.threadId;
+          this._switchToThreadFromProp(controlledThreadId).catch(async () => {
+            await this.getLoadThreadsPromise();
             if (
               adapterGeneration !== this._adapterGeneration ||
-              this._options.threadId !== options.threadId ||
-              this._mainThreadId !== replacementId
+              this._options.threadId !== controlledThreadId ||
+              this._mainThreadId !== replacementId ||
+              this._lastSuccessfulLoadGeneration !== this._loadGeneration ||
+              this.hasMore ||
+              this.getItemById(controlledThreadId) !== undefined
             ) {
               return;
             }

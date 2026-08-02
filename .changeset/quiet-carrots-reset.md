@@ -2,6 +2,8 @@
 "@assistant-ui/core": patch
 "@assistant-ui/react": patch
 "@assistant-ui/react-ai-sdk": patch
+"@assistant-ui/react-opencode": patch
+"@assistant-ui/react-pi": patch
 ---
 
 fix: isolate remote thread state across adapter changes
@@ -13,3 +15,6 @@ runtimes and cached records before loading the replacement scope.
 Reloading a paginated list now treats the returned first page as authoritative.
 Records and mounted runtimes from omitted later pages are dropped so a later
 `loadMore()` can fetch and append those pages again.
+
+React Pi now reads `includeArchived` through its stable adapter, so changing
+the list filter refreshes results without resetting the active thread scope.

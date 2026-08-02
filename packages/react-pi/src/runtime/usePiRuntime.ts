@@ -484,6 +484,8 @@ export const usePiRuntime = (options: PiRuntimeOptions): AssistantRuntime => {
   const pendingInitialMessageRef = useRef<PiSendMessageInput | undefined>(
     undefined,
   );
+  const includeArchivedRef = useRef(options.includeArchived);
+  includeArchivedRef.current = options.includeArchived;
 
   useEffect(() => () => registry.dispose(), [registry]);
 
@@ -494,8 +496,8 @@ export const usePiRuntime = (options: PiRuntimeOptions): AssistantRuntime => {
           ...(options.workspacePath !== undefined
             ? { workspacePath: options.workspacePath }
             : {}),
-          ...(options.includeArchived !== undefined
-            ? { includeArchived: options.includeArchived }
+          ...(includeArchivedRef.current !== undefined
+            ? { includeArchived: includeArchivedRef.current }
             : {}),
         });
         return { threads: threads.map(mapThreadMetadata) };
@@ -542,7 +544,6 @@ export const usePiRuntime = (options: PiRuntimeOptions): AssistantRuntime => {
     [
       client,
       options.workspacePath,
-      options.includeArchived,
       pendingInitialMessageRef,
     ],
   );

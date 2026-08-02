@@ -193,6 +193,10 @@ export type OpenCodeRuntimeOptions = ExternalStoreSharedOptions & {
    * surfaced.
    */
   onThreadIdChange?: ((threadId: string | undefined) => void) | undefined;
+  /**
+   * Keep this instance stable while the active account and server remain the
+   * same. Replacing it resets remote thread state.
+   */
   client?: OpencodeClient;
   baseUrl?: string | undefined;
   initialSessionId?: string | undefined;

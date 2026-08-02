@@ -18,7 +18,11 @@ import type {
 } from "../types";
 
 export type PiRuntimeOptions = ExternalStoreSharedOptions & {
-  /** The transport-agnostic Pi client (HTTP/SSE, RPC, IPC). */
+  /**
+   * The transport-agnostic Pi client (HTTP/SSE, RPC, IPC).
+   * Keep this instance stable while the active account and server remain the
+   * same. Replacing it resets remote thread state.
+   */
   client: PiClient;
   /** Workspace scoping for the thread list. */
   workspacePath?: string;

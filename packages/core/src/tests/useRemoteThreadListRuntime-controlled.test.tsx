@@ -215,6 +215,41 @@ describe("useRemoteThreadListRuntime controlled threadId", () => {
     expect(runtimeRef.current!.threads.mainItem.getState().status).toBe("new");
   });
 
+  it("keeps a controlled selection after a transient replacement fetch failure", async () => {
+    const adapterA = makeAdapter();
+    const adapterB = makeAdapter({
+      list: vi.fn().mockResolvedValue({ threads: [], nextCursor: "next" }),
+      fetch: vi.fn().mockRejectedValue(new Error("Network unavailable")),
+    });
+    const onThreadIdChange = vi.fn();
+    const runtimeRef: RuntimeRef = { current: null };
+
+    const { rerender } = render(
+      <ControlledRuntime
+        adapter={adapterA}
+        threadId="thread-a"
+        onThreadIdChange={onThreadIdChange}
+        runtimeRef={runtimeRef}
+      />,
+    );
+    await waitForRemoteThread(runtimeRef, "thread-a");
+
+    rerender(
+      <ControlledRuntime
+        adapter={adapterB}
+        threadId="thread-a"
+        onThreadIdChange={onThreadIdChange}
+        runtimeRef={runtimeRef}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(adapterB.fetch).toHaveBeenCalledWith("thread-a");
+      expect(runtimeRef.current!.threads.getState().isLoading).toBe(false);
+    });
+    expect(onThreadIdChange).not.toHaveBeenCalled();
+  });
+
   it("restarts a controlled switch when its adapter changes in flight", async () => {
     const staleFetch = deferred<RemoteThreadMetadata>();
     const replacementFetch = deferred<RemoteThreadMetadata>();
