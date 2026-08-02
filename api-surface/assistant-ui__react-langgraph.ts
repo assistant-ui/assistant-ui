@@ -2304,6 +2304,7 @@ declare const useLangGraphMessages: <TMessage extends {
   setUIMessages: (next: UIMessage[]) => void;
   reconcileMessages: (serverMessages: TMessage[], messagesAtLoadStart: TMessage[]) => void;
   reconcileUIMessages: (serverMessages: UIMessage[], messagesAtLoadStart: UIMessage[]) => void;
+  reconcileInterrupt: (serverInterrupt: LangGraphInterruptState | undefined, interruptAtLoadStart: LangGraphInterruptState | undefined) => void;
 };
 
 declare const useLangGraphRuntime: (_param6: UseLangGraphRuntimeOptions) => AssistantRuntime;
