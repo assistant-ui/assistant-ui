@@ -497,9 +497,8 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
           if (isRunTouched(message)) return [message];
           if (message.id !== undefined && serverById.has(message.id))
             return [serverById.get(message.id) as TMessage];
-          // Absent from the snapshot. With no run in flight that means the
-          // server dropped it; with one, it is more likely output the server
-          // has not persisted yet, so only the former is a deletion.
+          // Absent from the snapshot only means deleted when no run is in
+          // flight; with one it is more likely output not yet persisted.
           return accumulator ? [message] : [];
         }),
       ];

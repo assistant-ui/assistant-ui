@@ -227,7 +227,6 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
   const pendingResumeRef = useRef<
     (LangChainMessage & { type: "tool" })[] | null
   >(null);
-  // One controller per in-flight load; a newer load aborts the previous one.
   // The purpose rides along because only a refetch may be superseded by a
   // send: aborting an initial load would strand its history and loading flag.
   const loadControllerRef = useRef<{
@@ -309,10 +308,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
     messages: LangChainMessage[],
     config: LangGraphSendMessageConfig,
   ) => {
-    // A new run supersedes an in-flight refetch, whose landing snapshot would
-    // otherwise erase the message the user just sent. An initial load is left
-    // alone: it owns the thread's history and loading flag, and aborting it
-    // would drop both.
+    // Only a refetch: its landing snapshot would erase the message just sent.
     if (loadControllerRef.current?.purpose === "reload") {
       loadControllerRef.current.controller.abort();
     }
@@ -487,9 +483,8 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
       const externalId = threadListItem.getState().externalId;
       if (externalId == null) return Promise.resolve();
 
-      // The initial load is already fetching the state a refetch would ask
-      // for, and superseding it would leave nobody owning its history or its
-      // loading flag if the refetch then failed.
+      // The initial load is already fetching what a refetch would ask for,
+      // and taking it over strands its history if the refetch then fails.
       if (
         purpose === "reload" &&
         loadControllerRef.current?.purpose === "initial"
@@ -512,9 +507,8 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
         setValues(undefined);
         setIsLoadingThread(true);
       }
-      // A refetch touches nothing else. The load boundary already decides what
-      // a run started since may keep, in both directions, so there is no
-      // run-scoped state left for this to reset and no reason to stop the run.
+      // A refetch touches nothing else: the load boundary already decides
+      // what a run started since keeps, so it needs no reset and no cancel.
       return load(externalId, { signal: controller.signal })
         .then(({ messages, interrupts, uiMessages }) => {
           if (controller.signal.aborted) return;
