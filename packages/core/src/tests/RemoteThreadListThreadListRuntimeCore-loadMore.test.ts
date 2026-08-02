@@ -387,6 +387,60 @@ describe("RemoteThreadListThreadListRuntimeCore.loadMore", () => {
     expect(core.threadIds).toEqual(["fresh"]);
   });
 
+  it("settles loading when an unscoped adapter changes during a hanging list", async () => {
+    const slow = deferred<RemoteThreadListResponse>();
+    const firstAdapter = makeAdapter({
+      list: vi.fn<ListFn>().mockReturnValueOnce(slow.promise),
+    });
+    const core = createCore(firstAdapter);
+    const stale = core.getLoadThreadsPromise();
+
+    const secondAdapter = makeAdapter({
+      list: vi.fn<ListFn>().mockResolvedValueOnce({
+        threads: [
+          { status: "regular", remoteId: "fresh", externalId: "fresh" },
+        ],
+      }),
+    });
+    core.__internal_setOptions({
+      adapter: secondAdapter,
+      runtimeHook: () => ({}) as never,
+    });
+
+    await core.getLoadThreadsPromise();
+    expect(core.isLoading).toBe(false);
+    expect(core.threadIds).toEqual(["fresh"]);
+
+    slow.resolve({ threads: [] });
+    await stale;
+  });
+
+  it("settles load-more state when an unscoped adapter changes", async () => {
+    const slow = deferred<RemoteThreadListResponse>();
+    const firstList = vi
+      .fn<ListFn>()
+      .mockResolvedValueOnce({ threads: [], nextCursor: "next" })
+      .mockReturnValueOnce(slow.promise);
+    const core = createCore(makeAdapter({ list: firstList }));
+    await core.getLoadThreadsPromise();
+    const stale = core.loadMore();
+    expect(core.isLoadingMore).toBe(true);
+
+    const secondAdapter = makeAdapter({
+      list: vi.fn<ListFn>().mockResolvedValueOnce({ threads: [] }),
+    });
+    core.__internal_setOptions({
+      adapter: secondAdapter,
+      runtimeHook: () => ({}) as never,
+    });
+
+    await core.getLoadThreadsPromise();
+    expect(core.isLoadingMore).toBe(false);
+
+    slow.resolve({ threads: [] });
+    await stale;
+  });
+
   it("dedupes thread ids that appear twice within a single page", async () => {
     const listFn = vi
       .fn<ListFn>()

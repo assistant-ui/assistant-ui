@@ -49,6 +49,10 @@ export type RemoteThreadListAdapter = {
    * this value discards mounted thread runtimes and cached thread state before
    * loading the replacement scope. Replacing the adapter without changing
    * this key performs a non-destructive list refresh.
+   *
+   * When omitted, adapter replacements are treated as the same scope for
+   * backwards compatibility. Set this whenever one runtime can switch between
+   * accounts or workspaces.
    */
   unstable_scopeKey?: unknown;
 

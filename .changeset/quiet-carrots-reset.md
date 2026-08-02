@@ -12,6 +12,9 @@ Remote thread-list adapters can now identify their backing account or workspace
 with `unstable_scopeKey`. Changing that key clears the previous scope's mounted
 runtimes and cached records before loading the replacement scope, while an
 ordinary adapter recreation performs a non-destructive list refresh.
+Adapters without a scope key retain the non-destructive behavior for backwards
+compatibility and should provide one when they can switch accounts or
+workspaces.
 
 Reloading a paginated list now treats the returned first page as authoritative.
 Records and mounted runtimes from omitted later pages are dropped so a later

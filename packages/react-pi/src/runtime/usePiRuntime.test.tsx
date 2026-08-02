@@ -37,7 +37,7 @@ const TestRuntime = ({
 };
 
 describe("usePiRuntime", () => {
-  it("reloads archived threads without replacing the active thread", async () => {
+  it("reloads archived threads without replacing the new thread", async () => {
     const listThreads = vi.fn().mockResolvedValue([]);
     const client = { listThreads } as unknown as PiClient;
     const runtimeRef: RuntimeRef = { current: null };
@@ -53,6 +53,9 @@ describe("usePiRuntime", () => {
     await waitFor(() => {
       expect(listThreads).toHaveBeenCalledWith({ includeArchived: false });
       expect(runtimeRef.current).not.toBeNull();
+      expect(runtimeRef.current!.threads.getState().mainThreadId).toMatch(
+        /^__LOCALID_/,
+      );
     });
     const mainThreadId = runtimeRef.current!.threads.getState().mainThreadId;
 
@@ -62,6 +65,7 @@ describe("usePiRuntime", () => {
 
     await waitFor(() => {
       expect(listThreads).toHaveBeenLastCalledWith({ includeArchived: true });
+      expect(runtimeRef.current!.threads.getState().isLoading).toBe(false);
     });
     expect(listThreads).toHaveBeenCalledTimes(2);
     expect(runtimeRef.current!.threads.getState().mainThreadId).toBe(

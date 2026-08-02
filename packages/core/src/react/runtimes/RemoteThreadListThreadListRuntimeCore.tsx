@@ -162,6 +162,7 @@ export class RemoteThreadListThreadListRuntimeCore
         .optimisticUpdate({
           execute: () => adapter.list(),
           loading: (state) => {
+            if (generation !== this._loadGeneration) return state;
             return {
               ...state,
               isLoading: true,
@@ -235,7 +236,10 @@ export class RemoteThreadListThreadListRuntimeCore
     const dedup = this._state
       .optimisticUpdate({
         execute: () => adapter.list({ after: cursor }),
-        loading: (state) => ({ ...state, isLoadingMore: true }),
+        loading: (state) =>
+          generation === this._loadGeneration
+            ? { ...state, isLoadingMore: true }
+            : state,
         then: (state, l) => {
           if (generation !== this._loadGeneration) return state;
           if (adapter !== this._options.adapter) return state;
