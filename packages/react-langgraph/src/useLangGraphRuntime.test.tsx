@@ -1178,6 +1178,47 @@ describe("useLangGraphRuntime", () => {
       ).not.toContain("after-cancel");
     });
 
+    it("unblocks cancelRun when the stream stops yielding", async () => {
+      const gate = deferred<void>();
+      const streamMock = vi.fn(async function* () {
+        yield {
+          event: "messages/partial",
+          data: [
+            { type: "ai" as const, id: "run-1", content: "before-cancel" },
+          ],
+        };
+        await gate.promise;
+      });
+
+      const { result: runtimeResult } = renderHook(() =>
+        useLangGraphRuntime({
+          stream: streamMock as never,
+          unstable_allowCancellation: true,
+        }),
+      );
+      const wrapper = wrapperFactory(runtimeResult.current);
+      const { result: auiResult } = renderHook(() => useAui(), { wrapper });
+
+      await act(async () => {
+        auiResult.current.composer.setText("hello");
+        auiResult.current.composer.send();
+      });
+      await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(1));
+      await waitFor(() =>
+        expect(
+          JSON.stringify(runtimeResult.current.thread.getState().messages),
+        ).toContain("before-cancel"),
+      );
+
+      await act(async () => {
+        runtimeResult.current.thread.cancelRun();
+      });
+
+      await waitFor(() =>
+        expect(auiResult.current.thread.getState().isRunning).toBe(false),
+      );
+    });
+
     it("drops the queued resume when the draining run errors", async () => {
       const gate = deferred<void>();
       const streamMock = vi.fn(async function* (_messages: LangChainMessage[]) {
