@@ -147,6 +147,10 @@ type ExternalStoreAdapterBase<T> = {
    * Re-fetches the thread's state from the backing store, in place; a
    * rejection reaches the `threads.reloadMainThread()` caller. Unrelated to
    * `onReload`, which re-generates an assistant message.
+   *
+   * The caller cancels an in-flight run first when `onCancel` is set. Without
+   * it there is nothing to cancel with, so an adapter that can stream without
+   * being cancellable should make this resilient to a run landing mid-refetch.
    */
   onRefetchThread?: (() => Promise<void>) | undefined;
   onAddToolResult?:

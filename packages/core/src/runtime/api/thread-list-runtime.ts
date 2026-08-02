@@ -59,7 +59,9 @@ export type ThreadListRuntime = {
   /**
    * Refetches the open thread's remote state, for state that changed out of
    * band and so never reached the stream. A run that is still streaming is
-   * cancelled first. When the runtime declares the in-place reload capability
+   * cancelled first on runtimes that support cancelling; on ones that do not,
+   * the refetch races that run. When the runtime declares the in-place reload
+   * capability
    * (`unstable_refetchThread`), composer drafts survive, existing messages
    * stay rendered during the refetch, and the promise settles with the
    * refetch, rejecting if it fails. Otherwise the runtime hook is remounted,
