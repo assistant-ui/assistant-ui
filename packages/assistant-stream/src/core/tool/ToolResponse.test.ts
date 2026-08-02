@@ -3,8 +3,8 @@ import { NO_RESULT, ToolResponse } from "./ToolResponse";
 
 describe("ToolResponse", () => {
   describe("constructor", () => {
-    it("keeps an absent result absent, leaving materialization to the emitter", () => {
-      expect(new ToolResponse({ result: undefined }).result).toBeUndefined();
+    it("materializes an absent result", () => {
+      expect(new ToolResponse({ result: undefined }).result).toBe(NO_RESULT);
     });
 
     it.each([

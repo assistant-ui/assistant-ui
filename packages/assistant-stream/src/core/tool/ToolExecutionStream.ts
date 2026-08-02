@@ -9,7 +9,7 @@ import type {
   ReadonlyJSONObject,
   ReadonlyJSONValue,
 } from "../../utils/json/json-value";
-import { NO_RESULT, ToolResponse } from "./ToolResponse";
+import { ToolResponse } from "./ToolResponse";
 import { withPromiseOrValue } from "../utils/withPromiseOrValue";
 import { ToolCallReaderImpl } from "./ToolCallReader";
 import type { ToolCallReader } from "./tool-types";
@@ -179,7 +179,7 @@ export class ToolExecutionStream extends PipeableTransformStream<
 
                   const result = new ToolResponse({
                     artifact: c.artifact,
-                    result: c.result === undefined ? NO_RESULT : c.result,
+                    result: c.result,
                     isError: c.isError,
                     messages: c.messages,
                     modelContent: c.modelContent,

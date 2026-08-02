@@ -3,7 +3,7 @@ import {
   toolResultStream as unstable_toolResultStream,
   unstable_runPendingTools,
 } from "./toolResultStream";
-import { ToolResponse } from "./ToolResponse";
+import { NO_RESULT, ToolResponse } from "./ToolResponse";
 import type { AssistantStreamChunk } from "../AssistantStreamChunk";
 import type { AssistantMessage, ToolCallPart } from "../utils/types";
 import type { Tool } from "./tool-types";
@@ -33,6 +33,45 @@ const captureUnhandledRejections = async (
 };
 
 describe("unstable_runPendingTools", () => {
+  it("settles a tool that returns no value with a concrete result", async () => {
+    const message: AssistantMessage = {
+      role: "assistant",
+      status: { type: "requires-action", reason: "tool-calls" },
+      parts: [
+        {
+          type: "tool-call",
+          toolCallId: "1",
+          toolName: "notify",
+          args: {},
+        } as ToolCallPart,
+      ],
+      content: [],
+      metadata: {
+        unstable_state: {},
+        unstable_data: [],
+        unstable_annotations: [],
+        steps: [],
+        custom: {},
+      },
+    };
+
+    const settled = await unstable_runPendingTools(
+      message,
+      {
+        notify: {
+          parameters: { type: "object", properties: {} },
+          execute: async () => new ToolResponse({ result: undefined }),
+        },
+      },
+      new AbortController().signal,
+      async () => {},
+    );
+
+    const part = settled.parts[0] as ToolCallPart;
+    expect(part.state).toBe("result");
+    expect(part.result).toBe(NO_RESULT);
+  });
+
   it("removes the abort listener after tool execution settles", async () => {
     const abortController = new AbortController();
     const addEventListener = vi.spyOn(
