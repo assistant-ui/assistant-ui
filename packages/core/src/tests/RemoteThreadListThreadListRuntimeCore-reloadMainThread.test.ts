@@ -7,7 +7,7 @@ type HookManagerStub = {
   __internal_restartThreadRuntime: (id: string) => Promise<unknown>;
   getThreadRuntimeCore: (
     id: string,
-  ) => { unstable_reloadThread?: () => Promise<void> } | undefined;
+  ) => { unstable_refetchThread?: () => Promise<void> } | undefined;
 };
 
 const hookManagerOf = (core: RemoteThreadListThreadListRuntimeCore) =>
@@ -152,7 +152,7 @@ describe("RemoteThreadListThreadListRuntimeCore.reloadMainThread capability disp
     const reload = vi.fn(async () => {});
     const restart = vi.fn(async () => ({}));
     hookManagerOf(core).getThreadRuntimeCore = () => ({
-      unstable_reloadThread: reload,
+      unstable_refetchThread: reload,
     });
     hookManagerOf(core).__internal_restartThreadRuntime = restart;
 
@@ -165,7 +165,7 @@ describe("RemoteThreadListThreadListRuntimeCore.reloadMainThread capability disp
   it("notifies subscribers after an in-place reload", async () => {
     const core = await openRegularThread();
     hookManagerOf(core).getThreadRuntimeCore = () => ({
-      unstable_reloadThread: async () => {},
+      unstable_refetchThread: async () => {},
     });
 
     const callback = vi.fn();
@@ -202,7 +202,7 @@ describe("RemoteThreadListThreadListRuntimeCore.reloadMainThread capability disp
 
     let releaseReload!: () => void;
     hookManagerOf(core).getThreadRuntimeCore = () => ({
-      unstable_reloadThread: () =>
+      unstable_refetchThread: () =>
         new Promise<void>((resolve) => {
           releaseReload = resolve;
         }),
@@ -222,7 +222,7 @@ describe("RemoteThreadListThreadListRuntimeCore.reloadMainThread capability disp
   it("propagates an in-place reload failure", async () => {
     const core = await openRegularThread();
     hookManagerOf(core).getThreadRuntimeCore = () => ({
-      unstable_reloadThread: async () => {
+      unstable_refetchThread: async () => {
         throw new Error("refetch failed");
       },
     });

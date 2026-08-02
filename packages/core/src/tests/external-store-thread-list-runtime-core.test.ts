@@ -244,3 +244,46 @@ describe("ExternalStoreThreadListRuntimeCore - switchToThread", () => {
     expect(onSwitchToThread).not.toHaveBeenCalled();
   });
 });
+
+describe("ExternalStoreThreadListRuntimeCore.reloadMainThread", () => {
+  const makeFactoryWithRefetch = (refetch: (() => Promise<void>) | undefined) =>
+    vi.fn(
+      () =>
+        ({
+          subscribe: () => () => {},
+          unstable_refetchThread: refetch,
+        }) as unknown as ExternalStoreThreadRuntimeCore,
+    );
+
+  it("dispatches to the main thread's refetch capability", async () => {
+    const refetch = vi.fn(async () => {});
+    const core = new ExternalStoreThreadListRuntimeCore(
+      makeAdapter(),
+      makeFactoryWithRefetch(refetch),
+    );
+
+    await core.reloadMainThread();
+
+    expect(refetch).toHaveBeenCalledOnce();
+  });
+
+  it("resolves quietly when the adapter declares no refetch capability", async () => {
+    const core = new ExternalStoreThreadListRuntimeCore(
+      makeAdapter(),
+      makeFactoryWithRefetch(undefined),
+    );
+
+    await expect(core.reloadMainThread()).resolves.toBeUndefined();
+  });
+
+  it("propagates a refetch failure", async () => {
+    const core = new ExternalStoreThreadListRuntimeCore(
+      makeAdapter(),
+      makeFactoryWithRefetch(async () => {
+        throw new Error("refetch failed");
+      }),
+    );
+
+    await expect(core.reloadMainThread()).rejects.toThrow("refetch failed");
+  });
+});

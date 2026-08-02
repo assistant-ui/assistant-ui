@@ -220,6 +220,9 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
   const pendingResumeRef = useRef<
     (LangChainMessage & { type: "tool" })[] | null
   >(null);
+  // one controller per in-flight load; a newer load (thread switch, reload,
+  // or a new run superseding a refetch) aborts the previous one
+  const loadControllerRef = useRef<AbortController | null>(null);
   const hasExecutingTools = Object.values(toolStatuses).some(
     (s) => s?.type === "executing",
   );
@@ -289,6 +292,9 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
     messages: LangChainMessage[],
     config: LangGraphSendMessageConfig,
   ) => {
+    // a new run supersedes any in-flight refetch — otherwise the landing
+    // snapshot would erase the message the user just sent
+    loadControllerRef.current?.abort();
     const state = pendingStateRef.current;
     pendingStateRef.current = undefined;
     return runQueue.enqueue({
@@ -450,9 +456,6 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
   const threadListItem =
     aui.threadListItem.source !== null ? aui.threadListItem : undefined;
 
-  // one controller per in-flight load; a newer load (thread switch or reload)
-  // aborts the previous one so stale results never land
-  const loadControllerRef = useRef<AbortController | null>(null);
   const runLoad = useCallback(
     (purpose: "initial" | "reload" = "initial") => {
       const load = loadRef.current;
@@ -487,10 +490,11 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
         .then(({ messages, interrupts, uiMessages }) => {
           if (controller.signal.aborted) return;
           if (purpose === "reload") {
-            // swap atomically only once the fresh result has landed; `values`
-            // stays untouched since LoadResult cannot restore it
+            // swap atomically only once the fresh result has landed. `values`
+            // stays untouched (LoadResult cannot restore it) and so does
+            // pendingStateRef — it is staged for the *next* send, not scoped
+            // to the run the reload just cancelled
             toolResultBufferRef.current.clear();
-            pendingStateRef.current = undefined;
             effectiveStateRef.current = undefined;
             setOptimisticState(undefined);
           }
@@ -523,11 +527,11 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
 
   useEffect(() => {
     runLoad();
-    // runLoad set the ref synchronously, so this is this run's controller —
-    // abort it specifically rather than whatever is current at cleanup time
-    const controller = loadControllerRef.current;
     return () => {
-      controller?.abort();
+      // abort whatever is current, not this run's controller: a reload from
+      // onRefetchThread swaps the ref, and an in-flight reload at unmount
+      // must be aborted too
+      loadControllerRef.current?.abort();
       setIsLoadingThread(false);
     };
   }, [runLoad]);
@@ -700,7 +704,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
         }
       : undefined,
     ...(load !== undefined && {
-      onReloadThread: () => runLoad("reload"),
+      onRefetchThread: () => runLoad("reload"),
     }),
   });
 

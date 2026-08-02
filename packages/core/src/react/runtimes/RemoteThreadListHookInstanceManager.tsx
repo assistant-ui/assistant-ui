@@ -48,6 +48,10 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     StoreApi<{ useRuntime: RemoteThreadListHook }>
   >;
   private instances = new Map<string, RemoteThreadListHookInstance>();
+  // survives instance deletion: a stop/start within one React commit must not
+  // reuse a binder key, or the still-mounted old binder satisfies the new
+  // start with stale state
+  private nextGenerations = new Map<string, number>();
   private useAliveThreadsKeysChanged = create(() => ({}));
   private parent: ThreadListRuntimeCore;
 
@@ -82,9 +86,17 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     });
   }
 
+  private _takeGeneration(threadId: string) {
+    const generation = this.nextGenerations.get(threadId) ?? 0;
+    this.nextGenerations.set(threadId, generation + 1);
+    return generation;
+  }
+
   public startThreadRuntime(threadId: string) {
     if (!this.instances.has(threadId)) {
-      this.instances.set(threadId, { generation: 0 });
+      this.instances.set(threadId, {
+        generation: this._takeGeneration(threadId),
+      });
       this.useAliveThreadsKeysChanged.setState({}, true);
     }
 
@@ -102,7 +114,7 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     this.instances.set(threadId, {
       runtime: instance.runtime,
       publishedGeneration: instance.publishedGeneration,
-      generation: instance.generation + 1,
+      generation: this._takeGeneration(threadId),
     });
     this.useAliveThreadsKeysChanged.setState({}, true);
     this._notifySubscribers();

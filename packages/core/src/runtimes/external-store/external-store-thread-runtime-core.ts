@@ -103,12 +103,11 @@ export class ExternalStoreThreadRuntimeCore
   }
 
   // property (not method) so presence tracks the adapter: undefined when the
-  // store offers no in-place reload, which routes reloadMainThread to the
+  // store offers no in-place refetch, which routes reloadMainThread to the
   // remount fallback
-  public get unstable_reloadThread(): (() => Promise<void>) | undefined {
-    const onReloadThread = this._store.onReloadThread;
-    if (!onReloadThread) return undefined;
-    return () => onReloadThread();
+  public get unstable_refetchThread(): (() => Promise<void>) | undefined {
+    if (!this._store.onRefetchThread) return undefined;
+    return () => this._store.onRefetchThread!();
   }
 
   public suggestions: readonly ThreadSuggestion[] = [];
@@ -165,6 +164,7 @@ export class ExternalStoreThreadRuntimeCore
         this._store.onDelete !== undefined ||
         this._store.setMessages !== undefined,
       reload: this._store.onReload !== undefined,
+      refetchThread: this._store.onRefetchThread !== undefined,
       cancel: this._store.onCancel !== undefined,
       speech: this._store.adapters?.speech !== undefined,
       dictation: this._store.adapters?.dictation !== undefined,

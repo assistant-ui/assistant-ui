@@ -23,6 +23,8 @@ export type RuntimeCapabilities = {
   readonly switchBranchDuringRun: boolean;
   readonly edit: boolean;
   readonly reload: boolean;
+  /** Whether the runtime can refetch this thread's remote state in place. */
+  readonly refetchThread: boolean;
   readonly delete: boolean;
   readonly cancel: boolean;
   readonly unstable_copy: boolean;
@@ -220,10 +222,11 @@ export type ThreadRuntimeCore = Readonly<{
    * Re-fetches this thread's state from its backing store, in place — no
    * runtime-hook remount, so runtime identity and composer drafts survive.
    * Presence signals the capability to `threads.reloadMainThread()`, which
-   * calls it and propagates its rejection. Runtimes without remote state
-   * leave it undefined.
+   * calls it and propagates its rejection. Implementations must cancel an
+   * in-flight run before refetching, or a later chunk clobbers the result.
+   * Runtimes without remote state leave it undefined.
    */
-  unstable_reloadThread?: (() => Promise<void>) | undefined;
+  unstable_refetchThread?: (() => Promise<void>) | undefined;
 
   /**
    * @deprecated This API is still under active development and might change without notice.

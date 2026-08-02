@@ -1652,7 +1652,7 @@ type ExternalStoreAdapterBase<T> = {
   onReload?: ((parentId: string | null, config: StartRunConfig) => Promise<void>) | undefined;
   onResume?: ((config: ResumeRunConfig) => Promise<void>) | undefined;
   onCancel?: (() => Promise<void>) | undefined;
-  onReloadThread?: (() => Promise<void>) | undefined;
+  onRefetchThread?: (() => Promise<void>) | undefined;
   onAddToolResult?: ((options: AddToolResultOptions) => Promise<void> | void) | undefined;
   onResumeToolCall?: ((options: {
     toolCallId: string;
@@ -1739,6 +1739,7 @@ declare class ExternalStoreThreadListRuntimeCore implements ThreadListRuntimeCor
   getThreadRuntimeCore(): never;
   getItemById(threadId: string): ThreadListItemCoreState | undefined;
   __internal_setAdapter(adapter: ExternalStoreThreadListAdapter, initialLoad?: boolean): void;
+  reloadMainThread(): Promise<void>;
   switchToThread(threadId: string, _options?: {
     unarchive?: boolean;
   }): Promise<void>;
@@ -1777,7 +1778,7 @@ declare class ExternalStoreThreadRuntimeCore extends BaseThreadRuntimeCore imple
     feedback?: FeedbackAdapter | undefined;
     threadList?: ExternalStoreThreadListAdapter | undefined;
   } | undefined;
-  get unstable_reloadThread(): (() => Promise<void>) | undefined;
+  get unstable_refetchThread(): (() => Promise<void>) | undefined;
   suggestions: readonly ThreadSuggestion[];
   extras: unknown;
   private _converter;
@@ -2235,6 +2236,7 @@ declare class LocalThreadRuntimeCore extends BaseThreadRuntimeCore implements Th
     edit: boolean;
     delete: boolean;
     reload: boolean;
+    refetchThread: boolean;
     cancel: boolean;
     unstable_copy: boolean;
     speech: boolean;
@@ -3249,6 +3251,7 @@ declare class ReadonlyThreadRuntimeCore extends BaseSubscribable implements Thre
     readonly edit: false;
     readonly delete: false;
     readonly reload: false;
+    readonly refetchThread: false;
     readonly cancel: false;
     readonly unstable_copy: false;
     readonly speech: false;
@@ -3380,10 +3383,12 @@ type RemoteThreadListHook = () => AssistantRuntime;
 declare class RemoteThreadListHookInstanceManager extends BaseSubscribable {
   private useRuntimeHook;
   private instances;
+  private nextGenerations;
   private useAliveThreadsKeysChanged;
   private parent;
   constructor(runtimeHook: RemoteThreadListHook, parent: ThreadListRuntimeCore);
   private _whenRuntimeAttached;
+  private _takeGeneration;
   startThreadRuntime(threadId: string): Promise<Readonly<{
     getMessageById: (messageId: string) => {
       parentId: string | null;
@@ -3433,7 +3438,7 @@ declare class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     exportExternalState(): any;
     importExternalState(state: any): void;
     reset(initialMessages?: readonly ThreadMessageLike[]): void;
-    unstable_reloadThread?: (() => Promise<void>) | undefined;
+    unstable_refetchThread?: (() => Promise<void>) | undefined;
     unstable_on<E extends ThreadRuntimeEventType>(event: E, callback: ThreadRuntimeEventCallback<E>): Unsubscribe$1;
   }>>;
   __internal_restartThreadRuntime(threadId: string): Promise<Readonly<{
@@ -3485,7 +3490,7 @@ declare class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     exportExternalState(): any;
     importExternalState(state: any): void;
     reset(initialMessages?: readonly ThreadMessageLike[]): void;
-    unstable_reloadThread?: (() => Promise<void>) | undefined;
+    unstable_refetchThread?: (() => Promise<void>) | undefined;
     unstable_on<E extends ThreadRuntimeEventType>(event: E, callback: ThreadRuntimeEventCallback<E>): Unsubscribe$1;
   }>>;
   getThreadRuntimeCore(threadId: string): Readonly<{
@@ -3537,7 +3542,7 @@ declare class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     exportExternalState(): any;
     importExternalState(state: any): void;
     reset(initialMessages?: readonly ThreadMessageLike[]): void;
-    unstable_reloadThread?: (() => Promise<void>) | undefined;
+    unstable_refetchThread?: (() => Promise<void>) | undefined;
     unstable_on<E extends ThreadRuntimeEventType>(event: E, callback: ThreadRuntimeEventCallback<E>): Unsubscribe$1;
   }> | undefined;
   stopThreadRuntime(threadId: string): void;
@@ -3647,7 +3652,7 @@ declare class RemoteThreadListThreadListRuntimeCore extends BaseSubscribable imp
     exportExternalState(): any;
     importExternalState(state: any): void;
     reset(initialMessages?: readonly ThreadMessageLike[]): void;
-    unstable_reloadThread?: (() => Promise<void>) | undefined;
+    unstable_refetchThread?: (() => Promise<void>) | undefined;
     unstable_on<E extends ThreadRuntimeEventType>(event: E, callback: ThreadRuntimeEventCallback<E>): Unsubscribe$1;
   }>;
   getThreadRuntimeCore(threadIdOrRemoteId: string): Readonly<{
@@ -3699,7 +3704,7 @@ declare class RemoteThreadListThreadListRuntimeCore extends BaseSubscribable imp
     exportExternalState(): any;
     importExternalState(state: any): void;
     reset(initialMessages?: readonly ThreadMessageLike[]): void;
-    unstable_reloadThread?: (() => Promise<void>) | undefined;
+    unstable_refetchThread?: (() => Promise<void>) | undefined;
     unstable_on<E extends ThreadRuntimeEventType>(event: E, callback: ThreadRuntimeEventCallback<E>): Unsubscribe$1;
   }>;
   getItemById(threadIdOrRemoteId: string): RemoteThreadData | undefined;
@@ -3820,6 +3825,7 @@ type RuntimeCapabilities = {
   readonly switchBranchDuringRun: boolean;
   readonly edit: boolean;
   readonly reload: boolean;
+  readonly refetchThread: boolean;
   readonly delete: boolean;
   readonly cancel: boolean;
   readonly unstable_copy: boolean;
@@ -4785,7 +4791,7 @@ type ThreadRuntimeCore = Readonly<{
   exportExternalState(): any;
   importExternalState(state: any): void;
   reset(initialMessages?: readonly ThreadMessageLike[]): void;
-  unstable_reloadThread?: (() => Promise<void>) | undefined;
+  unstable_refetchThread?: (() => Promise<void>) | undefined;
   unstable_on<E extends ThreadRuntimeEventType>(event: E, callback: ThreadRuntimeEventCallback<E>): Unsubscribe$1;
 }>;
 
@@ -4886,7 +4892,7 @@ declare class ThreadRuntimeImpl implements ThreadRuntime {
       exportExternalState(): any;
       importExternalState(state: any): void;
       reset(initialMessages?: readonly ThreadMessageLike[]): void;
-      unstable_reloadThread?: (() => Promise<void>) | undefined;
+      unstable_refetchThread?: (() => Promise<void>) | undefined;
       unstable_on<E extends ThreadRuntimeEventType>(event: E, callback: ThreadRuntimeEventCallback<E>): Unsubscribe$1;
     }>;
   } & {

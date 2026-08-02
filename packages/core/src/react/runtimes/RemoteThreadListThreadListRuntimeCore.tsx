@@ -253,12 +253,12 @@ export class RemoteThreadListThreadListRuntimeCore
     // discard what the user has typed so far
     if (this.getItemById(threadId)?.status === "new") return;
 
-    // in-place reload when the runtime declares the capability; remounting
+    // in-place refetch when the runtime declares the capability; remounting
     // the runtime hook is the fallback for runtimes that don't
-    const reload =
-      this._hookManager.getThreadRuntimeCore(threadId)?.unstable_reloadThread;
-    if (reload) {
-      await reload();
+    const runtimeCore = this._hookManager.getThreadRuntimeCore(threadId);
+    if (runtimeCore?.unstable_refetchThread) {
+      // invoked through the core so class-method implementations keep `this`
+      await runtimeCore.unstable_refetchThread();
       if (threadId !== this._mainThreadId) return;
       this._notifySubscribers();
       return;

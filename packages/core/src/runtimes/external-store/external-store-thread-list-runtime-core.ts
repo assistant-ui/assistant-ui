@@ -169,6 +169,12 @@ export class ExternalStoreThreadListRuntimeCore implements ThreadListRuntimeCore
     this._notifySubscribers();
   }
 
+  public async reloadMainThread(): Promise<void> {
+    // no runtime hook to remount here, so the capability is the only path;
+    // an adapter without onRefetchThread has nothing to refetch with
+    await this._mainThread.unstable_refetchThread?.();
+  }
+
   public async switchToThread(
     threadId: string,
     _options?: { unarchive?: boolean },

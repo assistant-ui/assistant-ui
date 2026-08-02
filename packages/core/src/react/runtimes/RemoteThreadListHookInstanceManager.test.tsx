@@ -77,7 +77,7 @@ describe("RemoteThreadListHookInstanceManager.__internal_restartThreadRuntime", 
     expect(renderedKeys(manager)).toEqual(["thread-1:0"]);
   });
 
-  it("stop then start in one tick leaves the key unchanged, which is why the generation exists", () => {
+  it("stop then start in one tick yields a fresh key, so the old still-mounted binder cannot satisfy the new start", () => {
     const manager = makeManager();
     start(manager, "thread-1");
     const before = renderedKeys(manager);
@@ -85,7 +85,8 @@ describe("RemoteThreadListHookInstanceManager.__internal_restartThreadRuntime", 
     manager.stopThreadRuntime("thread-1");
     start(manager, "thread-1");
 
-    expect(renderedKeys(manager)).toEqual(before);
+    expect(renderedKeys(manager)).not.toEqual(before);
+    expect(renderedKeys(manager)).toEqual(["thread-1:1"]);
   });
 
   type InstanceInternals = {

@@ -148,7 +148,7 @@ type ExternalStoreAdapterBase<T> = {
    * rejection reaches the `threads.reloadMainThread()` caller. Unrelated to
    * `onReload`, which re-generates an assistant message.
    */
-  onReloadThread?: (() => Promise<void>) | undefined;
+  onRefetchThread?: (() => Promise<void>) | undefined;
   onAddToolResult?:
     | ((options: AddToolResultOptions) => Promise<void> | void)
     | undefined;

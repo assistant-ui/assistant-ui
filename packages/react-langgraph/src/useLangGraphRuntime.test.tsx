@@ -770,6 +770,184 @@ describe("useLangGraphRuntime", () => {
     expect(messageTexts).not.toContain("chunk two");
   });
 
+  it("reloadMainThread keeps state staged via setState for the next send", async () => {
+    const load = vi
+      .fn<() => Promise<LoadResult>>()
+      .mockImplementation(async () => ({ messages: [] }));
+
+    const sentConfigs: unknown[] = [];
+    const streamMock = vi.fn((_messages: unknown, config: unknown) => {
+      sentConfigs.push(config);
+      return mockStreamCallbackFactory([])();
+    });
+
+    const { result: runtimeResult } = renderHook(() =>
+      useLangGraphRuntime({
+        stream: streamMock as never,
+        load,
+        unstable_threadListAdapter: makeThreadListAdapter(),
+      }),
+    );
+
+    const wrapper = wrapperFactory(runtimeResult.current);
+    const { result: extrasResult } = renderHook(
+      () => {
+        useAuiState((s) => s.thread.isLoading);
+        const aui = useAui();
+        return aui;
+      },
+      { wrapper },
+    );
+
+    await act(async () => {
+      await runtimeResult.current.threads.switchToThread("lg-thread-1");
+    });
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
+
+    // stage state for the next send
+    act(() => {
+      (
+        runtimeResult.current.thread.getState().extras as {
+          setState: (next: Record<string, unknown>) => void;
+        }
+      ).setState({ staged_for_next_send: true });
+    });
+    void extrasResult;
+
+    // a background-poll reload must not discard it
+    await act(async () => {
+      await runtimeResult.current.threads.reloadMainThread();
+    });
+
+    await act(async () => {
+      runtimeResult.current.thread.append("next send");
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    await waitFor(() => expect(sentConfigs.length).toBeGreaterThan(0));
+    expect(sentConfigs[0]).toMatchObject({
+      state: { staged_for_next_send: true },
+    });
+  });
+
+  it("cancellation is a hard stop: a stream that ignores its abortSignal still cannot clobber the refetched messages", async () => {
+    const load = vi
+      .fn<() => Promise<LoadResult>>()
+      .mockImplementationOnce(async () => ({ messages: [] }))
+      .mockImplementationOnce(async () => ({
+        messages: [
+          { type: "ai" as const, id: "server-1", content: "refetched" },
+        ],
+      }));
+
+    // deliberately NEVER checks abortSignal — the uncooperative half of the
+    // contract the production loop must enforce itself
+    const firstChunkSent = deferred<void>();
+    const releaseSecondChunk = deferred<void>();
+    const streamMock = vi.fn(() =>
+      (async function* () {
+        yield {
+          event: "messages/complete",
+          data: [{ type: "ai" as const, id: "run-1", content: "chunk one" }],
+        };
+        firstChunkSent.resolve();
+        await releaseSecondChunk.promise;
+        yield {
+          event: "messages/complete",
+          data: [{ type: "ai" as const, id: "run-2", content: "chunk two" }],
+        };
+      })(),
+    );
+
+    const { result: runtimeResult } = renderHook(() =>
+      useLangGraphRuntime({
+        stream: streamMock as never,
+        load,
+        unstable_threadListAdapter: makeThreadListAdapter(),
+      }),
+    );
+
+    const wrapper = wrapperFactory(runtimeResult.current);
+    renderHook(() => useAuiState((s) => s.thread.isLoading), { wrapper });
+
+    await act(async () => {
+      await runtimeResult.current.threads.switchToThread("lg-thread-1");
+    });
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      runtimeResult.current.thread.append("start a run");
+      await firstChunkSent.promise;
+    });
+
+    await act(async () => {
+      await runtimeResult.current.threads.reloadMainThread();
+    });
+
+    await act(async () => {
+      releaseSecondChunk.resolve();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    const messageTexts = runtimeResult.current.thread
+      .getState()
+      .messages.map((m) =>
+        m.content
+          .filter((p) => p.type === "text")
+          .map((p) => (p as { text: string }).text)
+          .join(""),
+      );
+    expect(messageTexts).toContain("refetched");
+    expect(messageTexts).not.toContain("chunk two");
+  });
+
+  it("unmount aborts a reload that is still in flight", async () => {
+    const reloadPending = deferred<LoadResult>();
+    const load = vi
+      .fn<() => Promise<LoadResult>>()
+      .mockImplementationOnce(async () => ({ messages: [] }))
+      .mockImplementationOnce(() => reloadPending.promise);
+
+    const streamMock = vi
+      .fn()
+      .mockImplementation(() => mockStreamCallbackFactory([])());
+
+    const { result: runtimeResult } = renderHook(() =>
+      useLangGraphRuntime({
+        stream: streamMock,
+        load,
+        unstable_threadListAdapter: makeThreadListAdapter(),
+      }),
+    );
+
+    // the load effect lives in the binder inside the provider tree, so the
+    // provider tree is what must unmount (same shape as the initial-load test)
+    const wrapper = wrapperFactory(runtimeResult.current);
+    const { unmount } = renderHook(
+      () => useAuiState((s) => s.thread.isLoading),
+      { wrapper },
+    );
+
+    await act(async () => {
+      await runtimeResult.current.threads.switchToThread("lg-thread-1");
+    });
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
+
+    act(() => {
+      runtimeResult.current.threads.reloadMainThread().catch(() => {});
+    });
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(2));
+    const reloadSignal = (
+      load.mock.calls[1] as unknown as [string, { signal: AbortSignal }]
+    )[1].signal;
+    expect(reloadSignal.aborted).toBe(false);
+
+    unmount();
+
+    expect(reloadSignal.aborted).toBe(true);
+    reloadPending.resolve({ messages: [] });
+  });
+
   it("reloadMainThread rejects when the reload's load fails, while an initial load only warns", async () => {
     const loadError = new Error("refetch failed");
     const load = vi
