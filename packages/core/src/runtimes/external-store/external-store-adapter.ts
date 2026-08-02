@@ -143,6 +143,12 @@ type ExternalStoreAdapterBase<T> = {
     | undefined;
   onResume?: ((config: ResumeRunConfig) => Promise<void>) | undefined;
   onCancel?: (() => Promise<void>) | undefined;
+  /**
+   * Re-fetches the thread's state from the backing store, in place; a
+   * rejection reaches the `threads.reloadMainThread()` caller. Unrelated to
+   * `onReload`, which re-generates an assistant message.
+   */
+  onReloadThread?: (() => Promise<void>) | undefined;
   onAddToolResult?:
     | ((options: AddToolResultOptions) => Promise<void> | void)
     | undefined;

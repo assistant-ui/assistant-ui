@@ -5,6 +5,9 @@ import type { RemoteThreadListThreadListRuntimeCore } from "../react/runtimes/Re
 type HookManagerStub = {
   startThreadRuntime: (id: string) => Promise<unknown>;
   __internal_restartThreadRuntime: (id: string) => Promise<unknown>;
+  getThreadRuntimeCore: (
+    id: string,
+  ) => { unstable_reloadThread?: () => Promise<void> } | undefined;
 };
 
 const hookManagerOf = (core: RemoteThreadListThreadListRuntimeCore) =>
@@ -140,5 +143,90 @@ describe("RemoteThreadListThreadListRuntimeCore.reloadMainThread", () => {
     await reloadTask;
 
     expect(callback).not.toHaveBeenCalled();
+  });
+});
+
+describe("RemoteThreadListThreadListRuntimeCore.reloadMainThread capability dispatch", () => {
+  it("prefers the runtime's in-place reload over remounting", async () => {
+    const core = await openRegularThread();
+    const reload = vi.fn(async () => {});
+    const restart = vi.fn(async () => ({}));
+    hookManagerOf(core).getThreadRuntimeCore = () => ({
+      unstable_reloadThread: reload,
+    });
+    hookManagerOf(core).__internal_restartThreadRuntime = restart;
+
+    await core.reloadMainThread();
+
+    expect(reload).toHaveBeenCalledOnce();
+    expect(restart).not.toHaveBeenCalled();
+  });
+
+  it("notifies subscribers after an in-place reload", async () => {
+    const core = await openRegularThread();
+    hookManagerOf(core).getThreadRuntimeCore = () => ({
+      unstable_reloadThread: async () => {},
+    });
+
+    const callback = vi.fn();
+    core.subscribe(callback);
+    await core.reloadMainThread();
+
+    expect(callback).toHaveBeenCalled();
+  });
+
+  it("falls back to remounting when the runtime lacks the capability", async () => {
+    const core = await openRegularThread();
+    const restart = vi.fn(async () => ({}));
+    hookManagerOf(core).getThreadRuntimeCore = () => ({});
+    hookManagerOf(core).__internal_restartThreadRuntime = restart;
+
+    await core.reloadMainThread();
+
+    expect(restart).toHaveBeenCalledExactlyOnceWith(core.mainThreadId);
+  });
+
+  it("falls back to remounting when no runtime is attached yet", async () => {
+    const core = await openRegularThread();
+    const restart = vi.fn(async () => ({}));
+    hookManagerOf(core).getThreadRuntimeCore = () => undefined;
+    hookManagerOf(core).__internal_restartThreadRuntime = restart;
+
+    await core.reloadMainThread();
+
+    expect(restart).toHaveBeenCalledOnce();
+  });
+
+  it("lets a switch to a different thread win the notification after an in-place reload", async () => {
+    const core = await openRegularThread();
+
+    let releaseReload!: () => void;
+    hookManagerOf(core).getThreadRuntimeCore = () => ({
+      unstable_reloadThread: () =>
+        new Promise<void>((resolve) => {
+          releaseReload = resolve;
+        }),
+    });
+
+    const reloadTask = core.reloadMainThread();
+    (core as unknown as { _mainThreadId: string })._mainThreadId = "elsewhere";
+
+    const callback = vi.fn();
+    core.subscribe(callback);
+    releaseReload();
+    await reloadTask;
+
+    expect(callback).not.toHaveBeenCalled();
+  });
+
+  it("propagates an in-place reload failure", async () => {
+    const core = await openRegularThread();
+    hookManagerOf(core).getThreadRuntimeCore = () => ({
+      unstable_reloadThread: async () => {
+        throw new Error("refetch failed");
+      },
+    });
+
+    await expect(core.reloadMainThread()).rejects.toThrow("refetch failed");
   });
 });

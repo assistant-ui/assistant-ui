@@ -102,6 +102,15 @@ export class ExternalStoreThreadRuntimeCore
     return this._store.adapters;
   }
 
+  // property (not method) so presence tracks the adapter: undefined when the
+  // store offers no in-place reload, which routes reloadMainThread to the
+  // remount fallback
+  public get unstable_reloadThread(): (() => Promise<void>) | undefined {
+    const onReloadThread = this._store.onReloadThread;
+    if (!onReloadThread) return undefined;
+    return () => onReloadThread();
+  }
+
   public suggestions: readonly ThreadSuggestion[] = [];
   public extras: unknown = undefined;
 

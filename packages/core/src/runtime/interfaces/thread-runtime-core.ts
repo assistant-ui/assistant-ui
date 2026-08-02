@@ -217,6 +217,15 @@ export type ThreadRuntimeCore = Readonly<{
   reset(initialMessages?: readonly ThreadMessageLike[]): void;
 
   /**
+   * Re-fetches this thread's state from its backing store, in place — no
+   * runtime-hook remount, so runtime identity and composer drafts survive.
+   * Presence signals the capability to `threads.reloadMainThread()`, which
+   * calls it and propagates its rejection. Runtimes without remote state
+   * leave it undefined.
+   */
+  unstable_reloadThread?: (() => Promise<void>) | undefined;
+
+  /**
    * @deprecated This API is still under active development and might change without notice.
    * For state-derivable transitions, prefer `subscribe` + `getState`. This channel is the
    * escape hatch for transient occurrences not represented in state.

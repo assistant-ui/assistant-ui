@@ -1652,6 +1652,7 @@ type ExternalStoreAdapterBase<T> = {
   onReload?: ((parentId: string | null, config: StartRunConfig) => Promise<void>) | undefined;
   onResume?: ((config: ResumeRunConfig) => Promise<void>) | undefined;
   onCancel?: (() => Promise<void>) | undefined;
+  onReloadThread?: (() => Promise<void>) | undefined;
   onAddToolResult?: ((options: AddToolResultOptions) => Promise<void> | void) | undefined;
   onResumeToolCall?: ((options: {
     toolCallId: string;
@@ -1776,6 +1777,7 @@ declare class ExternalStoreThreadRuntimeCore extends BaseThreadRuntimeCore imple
     feedback?: FeedbackAdapter | undefined;
     threadList?: ExternalStoreThreadListAdapter | undefined;
   } | undefined;
+  get unstable_reloadThread(): (() => Promise<void>) | undefined;
   suggestions: readonly ThreadSuggestion[];
   extras: unknown;
   private _converter;
@@ -3431,6 +3433,7 @@ declare class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     exportExternalState(): any;
     importExternalState(state: any): void;
     reset(initialMessages?: readonly ThreadMessageLike[]): void;
+    unstable_reloadThread?: (() => Promise<void>) | undefined;
     unstable_on<E extends ThreadRuntimeEventType>(event: E, callback: ThreadRuntimeEventCallback<E>): Unsubscribe$1;
   }>>;
   __internal_restartThreadRuntime(threadId: string): Promise<Readonly<{
@@ -3482,6 +3485,7 @@ declare class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     exportExternalState(): any;
     importExternalState(state: any): void;
     reset(initialMessages?: readonly ThreadMessageLike[]): void;
+    unstable_reloadThread?: (() => Promise<void>) | undefined;
     unstable_on<E extends ThreadRuntimeEventType>(event: E, callback: ThreadRuntimeEventCallback<E>): Unsubscribe$1;
   }>>;
   getThreadRuntimeCore(threadId: string): Readonly<{
@@ -3533,6 +3537,7 @@ declare class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     exportExternalState(): any;
     importExternalState(state: any): void;
     reset(initialMessages?: readonly ThreadMessageLike[]): void;
+    unstable_reloadThread?: (() => Promise<void>) | undefined;
     unstable_on<E extends ThreadRuntimeEventType>(event: E, callback: ThreadRuntimeEventCallback<E>): Unsubscribe$1;
   }> | undefined;
   stopThreadRuntime(threadId: string): void;
@@ -3642,6 +3647,7 @@ declare class RemoteThreadListThreadListRuntimeCore extends BaseSubscribable imp
     exportExternalState(): any;
     importExternalState(state: any): void;
     reset(initialMessages?: readonly ThreadMessageLike[]): void;
+    unstable_reloadThread?: (() => Promise<void>) | undefined;
     unstable_on<E extends ThreadRuntimeEventType>(event: E, callback: ThreadRuntimeEventCallback<E>): Unsubscribe$1;
   }>;
   getThreadRuntimeCore(threadIdOrRemoteId: string): Readonly<{
@@ -3693,6 +3699,7 @@ declare class RemoteThreadListThreadListRuntimeCore extends BaseSubscribable imp
     exportExternalState(): any;
     importExternalState(state: any): void;
     reset(initialMessages?: readonly ThreadMessageLike[]): void;
+    unstable_reloadThread?: (() => Promise<void>) | undefined;
     unstable_on<E extends ThreadRuntimeEventType>(event: E, callback: ThreadRuntimeEventCallback<E>): Unsubscribe$1;
   }>;
   getItemById(threadIdOrRemoteId: string): RemoteThreadData | undefined;
@@ -4778,6 +4785,7 @@ type ThreadRuntimeCore = Readonly<{
   exportExternalState(): any;
   importExternalState(state: any): void;
   reset(initialMessages?: readonly ThreadMessageLike[]): void;
+  unstable_reloadThread?: (() => Promise<void>) | undefined;
   unstable_on<E extends ThreadRuntimeEventType>(event: E, callback: ThreadRuntimeEventCallback<E>): Unsubscribe$1;
 }>;
 
@@ -4878,6 +4886,7 @@ declare class ThreadRuntimeImpl implements ThreadRuntime {
       exportExternalState(): any;
       importExternalState(state: any): void;
       reset(initialMessages?: readonly ThreadMessageLike[]): void;
+      unstable_reloadThread?: (() => Promise<void>) | undefined;
       unstable_on<E extends ThreadRuntimeEventType>(event: E, callback: ThreadRuntimeEventCallback<E>): Unsubscribe$1;
     }>;
   } & {

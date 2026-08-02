@@ -1,4 +1,5 @@
 import {
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -441,6 +442,65 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
   const uiMessagesRef = useRef(uiMessages);
   uiMessagesRef.current = uiMessages;
 
+  const loadRef = useRef(load);
+  useEffect(() => {
+    loadRef.current = load;
+  });
+
+  const threadListItem =
+    aui.threadListItem.source !== null ? aui.threadListItem : undefined;
+
+  // one controller per in-flight load; a newer load (thread switch or reload)
+  // aborts the previous one so stale results never land
+  const loadControllerRef = useRef<AbortController | null>(null);
+  const runLoad = useCallback(
+    (purpose: "initial" | "reload" = "initial") => {
+      const load = loadRef.current;
+      if (!load || !threadListItem) return Promise.resolve();
+
+      const externalId = threadListItem.getState().externalId;
+      if (externalId == null) return Promise.resolve();
+
+      loadControllerRef.current?.abort();
+      const controller = new AbortController();
+      loadControllerRef.current = controller;
+
+      toolResultBufferRef.current.clear();
+      pendingStateRef.current = undefined;
+      effectiveStateRef.current = undefined;
+      setOptimisticState(undefined);
+      setValues(undefined);
+      if (purpose === "initial") setIsLoadingThread(true);
+      return load(externalId, { signal: controller.signal })
+        .then(({ messages, interrupts, uiMessages }) => {
+          if (controller.signal.aborted) return;
+          setMessages(messages);
+          setUIMessages(uiMessages ?? []);
+          setInterrupt(interrupts?.[0]);
+        })
+        .catch((error) => {
+          if (controller.signal.aborted) return;
+          // reloadMainThread's caller awaits the outcome; an initial load
+          // has the loading state as its fallback
+          if (purpose === "reload") throw error;
+          console.warn("useLangGraphRuntime: load handler rejected", error);
+        })
+        .finally(() => {
+          if (controller.signal.aborted) return;
+          setIsLoadingThread(false);
+        });
+    },
+    [threadListItem, setMessages, setUIMessages, setInterrupt, setValues],
+  );
+
+  useEffect(() => {
+    runLoad();
+    return () => {
+      loadControllerRef.current?.abort();
+      setIsLoadingThread(false);
+    };
+  }, [runLoad]);
+
   const runtime = useExternalStoreRuntime({
     ...pickExternalStoreSharedOptions(options),
     isRunning: effectiveIsRunning,
@@ -608,53 +668,10 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
           cancel();
         }
       : undefined,
+    ...(load !== undefined && {
+      onReloadThread: () => runLoad("reload"),
+    }),
   });
-
-  {
-    const loadRef = useRef(load);
-    useEffect(() => {
-      loadRef.current = load;
-    });
-
-    const threadListItem =
-      aui.threadListItem.source !== null ? aui.threadListItem : undefined;
-    useEffect(() => {
-      const load = loadRef.current;
-      if (!load || !threadListItem) return;
-
-      const externalId = threadListItem.getState().externalId;
-      if (externalId == null) return;
-
-      // drop stale callbacks and abort the pending load on thread switch/unmount
-      const controller = new AbortController();
-      toolResultBufferRef.current.clear();
-      pendingStateRef.current = undefined;
-      effectiveStateRef.current = undefined;
-      setOptimisticState(undefined);
-      setValues(undefined);
-      setIsLoadingThread(true);
-      load(externalId, { signal: controller.signal })
-        .then(({ messages, interrupts, uiMessages }) => {
-          if (controller.signal.aborted) return;
-          setMessages(messages);
-          setUIMessages(uiMessages ?? []);
-          setInterrupt(interrupts?.[0]);
-        })
-        .catch((error) => {
-          if (controller.signal.aborted) return;
-          console.warn("useLangGraphRuntime: load handler rejected", error);
-        })
-        .finally(() => {
-          if (controller.signal.aborted) return;
-          setIsLoadingThread(false);
-        });
-
-      return () => {
-        controller.abort();
-        setIsLoadingThread(false);
-      };
-    }, [threadListItem, setMessages, setUIMessages, setInterrupt, setValues]);
-  }
 
   return runtime;
 };

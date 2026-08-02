@@ -25,7 +25,7 @@ import { ThreadListRuntimeImpl } from "../../runtime/api/thread-list-runtime";
 type RemoteThreadListHook = () => AssistantRuntime;
 
 type RemoteThreadListHookInstance = {
-  runtime?: ThreadRuntimeCore;
+  runtime?: ThreadRuntimeCore | undefined;
   // Part of the binder's React key. Deleting and re-adding an instance in one
   // tick leaves the key set unchanged, so only a bump remounts the hook.
   generation: number;

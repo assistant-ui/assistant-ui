@@ -627,6 +627,173 @@ describe("useLangGraphRuntime", () => {
     consoleWarnSpy.mockRestore();
   });
 
+  it("reloadMainThread re-runs load in place: composer draft survives, no loading flash, interrupts refreshed", async () => {
+    const loadResults: LoadResult[] = [
+      { messages: [] },
+      {
+        messages: [],
+        interrupts: [{ value: "approval-needed" } as LangGraphInterruptState],
+      },
+    ];
+    const load = vi.fn(async () => loadResults[load.mock.calls.length - 1]!);
+
+    const streamMock = vi
+      .fn()
+      .mockImplementation(() => mockStreamCallbackFactory([])());
+
+    const { result: runtimeResult } = renderHook(() =>
+      useLangGraphRuntime({
+        stream: streamMock,
+        load,
+        unstable_threadListAdapter: makeThreadListAdapter(),
+      }),
+    );
+
+    const wrapper = wrapperFactory(runtimeResult.current);
+    const { result: isLoadingResult } = renderHook(
+      () => useAuiState((s) => s.thread.isLoading),
+      { wrapper },
+    );
+
+    await act(async () => {
+      await runtimeResult.current.threads.switchToThread("lg-thread-1");
+    });
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(isLoadingResult.current).toBe(false));
+
+    // a remount would destroy the runtime and this draft with it
+    act(() => {
+      runtimeResult.current.thread.composer.setText("half-typed draft");
+    });
+
+    const loadingFrames: boolean[] = [];
+    const unsubscribe = runtimeResult.current.thread.subscribe(() => {
+      loadingFrames.push(runtimeResult.current.thread.getState().isLoading);
+    });
+
+    await act(async () => {
+      await runtimeResult.current.threads.reloadMainThread();
+    });
+    unsubscribe();
+
+    expect(load).toHaveBeenCalledTimes(2);
+    expect(runtimeResult.current.thread.composer.getState().text).toBe(
+      "half-typed draft",
+    );
+    // existing messages stay rendered while fresh state is fetched
+    expect(loadingFrames.every((v) => v === false)).toBe(true);
+    // fresh interrupts from the second load are surfaced
+    await waitFor(() => {
+      const extras = runtimeResult.current.thread.getState().extras as {
+        interrupt?: unknown;
+      };
+      expect(extras.interrupt).toEqual({ value: "approval-needed" });
+    });
+  });
+
+  it("reloadMainThread rejects when the reload's load fails, while an initial load only warns", async () => {
+    const loadError = new Error("refetch failed");
+    const load = vi
+      .fn<() => Promise<LoadResult>>()
+      .mockImplementationOnce(async () => ({ messages: [] }))
+      .mockImplementationOnce(() => Promise.reject(loadError));
+
+    const streamMock = vi
+      .fn()
+      .mockImplementation(() => mockStreamCallbackFactory([])());
+
+    const { result: runtimeResult } = renderHook(() =>
+      useLangGraphRuntime({
+        stream: streamMock,
+        load,
+        unstable_threadListAdapter: makeThreadListAdapter(),
+      }),
+    );
+
+    const wrapper = wrapperFactory(runtimeResult.current);
+    renderHook(() => useAuiState((s) => s.thread.isLoading), { wrapper });
+
+    await act(async () => {
+      await runtimeResult.current.threads.switchToThread("lg-thread-1");
+    });
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      await expect(
+        runtimeResult.current.threads.reloadMainThread(),
+      ).rejects.toThrow("refetch failed");
+    });
+  });
+
+  it("a newer reload aborts the in-flight one so stale results never land", async () => {
+    const second = deferred<LoadResult>();
+    const third = deferred<LoadResult>();
+    const load = vi
+      .fn<
+        (
+          id: string,
+          opts?: { signal: AbortSignal } | undefined,
+        ) => Promise<LoadResult>
+      >()
+      .mockImplementationOnce(async () => ({ messages: [] }))
+      .mockImplementationOnce(() => second.promise)
+      .mockImplementationOnce(() => third.promise);
+
+    const streamMock = vi
+      .fn()
+      .mockImplementation(() => mockStreamCallbackFactory([])());
+
+    const { result: runtimeResult } = renderHook(() =>
+      useLangGraphRuntime({
+        stream: streamMock,
+        load,
+        unstable_threadListAdapter: makeThreadListAdapter(),
+      }),
+    );
+
+    const wrapper = wrapperFactory(runtimeResult.current);
+    renderHook(() => useAuiState((s) => s.thread.isLoading), { wrapper });
+
+    await act(async () => {
+      await runtimeResult.current.threads.switchToThread("lg-thread-1");
+    });
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
+
+    let firstReload!: Promise<void>;
+    let secondReload!: Promise<void>;
+    act(() => {
+      firstReload = runtimeResult.current.threads.reloadMainThread();
+    });
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(2));
+    const firstSignal = load.mock.calls[1]![1]!.signal;
+
+    act(() => {
+      secondReload = runtimeResult.current.threads.reloadMainThread();
+    });
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(3));
+
+    expect(firstSignal.aborted).toBe(true);
+    expect(load.mock.calls[2]![1]!.signal.aborted).toBe(false);
+
+    // the stale result resolving must not clobber the newer load's outcome
+    await act(async () => {
+      second.resolve({
+        messages: [],
+        interrupts: [{ value: "stale" } as LangGraphInterruptState],
+      });
+      third.resolve({
+        messages: [],
+        interrupts: [{ value: "fresh" } as LangGraphInterruptState],
+      });
+      await Promise.all([firstReload, secondReload]);
+    });
+
+    const extras = runtimeResult.current.thread.getState().extras as {
+      interrupt?: unknown;
+    };
+    expect(extras.interrupt).toEqual({ value: "fresh" });
+  });
+
   it("should abort the pending load when the runtime unmounts", async () => {
     const pending = deferred<LoadResult>();
     const load = vi.fn(() => pending.promise);
