@@ -350,6 +350,48 @@ describe("toGenericMessages", () => {
       ]);
     });
 
+    it("treats a settled tool call carrying no result as completed", () => {
+      const result = toGenericMessages([
+        {
+          role: "assistant",
+          content: [
+            {
+              type: "tool-call",
+              toolCallId: "call_123",
+              toolName: "void_tool",
+              args: {},
+              state: "result",
+            },
+          ],
+        },
+      ]);
+
+      expect(result).toEqual([
+        {
+          role: "assistant",
+          content: [
+            {
+              type: "tool-call",
+              toolCallId: "call_123",
+              toolName: "void_tool",
+              args: {},
+            },
+          ],
+        },
+        {
+          role: "tool",
+          content: [
+            {
+              type: "tool-result",
+              toolCallId: "call_123",
+              toolName: "void_tool",
+              result: "<no result>",
+            },
+          ],
+        },
+      ]);
+    });
+
     it("closes out a tool call left unresolved before a later message", () => {
       const result = toGenericMessages([
         {

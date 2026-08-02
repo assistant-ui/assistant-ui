@@ -67,6 +67,7 @@ type MessagePartLike = {
   toolCallId?: string;
   toolName?: string;
   args?: Record<string, unknown>;
+  state?: string;
   result?: unknown;
   isError?: boolean;
 };
@@ -137,14 +138,18 @@ function processToolCall(
   });
 
   // Providers reject an assistant tool call that no tool result answers.
-  const unresolved = part.result === undefined;
+  const settled = part.state === "result" || part.result !== undefined;
   const toolResult: GenericToolResultPart = {
     type: "tool-result",
     toolCallId: part.toolCallId,
     toolName: part.toolName,
-    result: unresolved ? { error: "Tool call was not completed" } : part.result,
+    result: !settled
+      ? { error: "Tool call was not completed" }
+      : part.result === undefined
+        ? "<no result>"
+        : part.result,
   };
-  if (unresolved || part.isError) {
+  if (!settled || part.isError) {
     toolResult.isError = true;
   }
   accumulator.toolResults.push(toolResult);
