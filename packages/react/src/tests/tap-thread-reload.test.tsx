@@ -25,9 +25,31 @@ describe("tap thread reload", () => {
     expect(onRefetchThread).toHaveBeenCalledOnce();
   });
 
+  it("rejects when the automatic thread list refetch throws synchronously", async () => {
+    const error = new Error("refetch failed");
+    const onRefetchThread = vi.fn(() => {
+      throw error;
+    });
+    let aui!: ReturnType<typeof useAui>;
+
+    const App = () => {
+      aui = useAui({
+        thread: ExternalThread({ messages: [], onRefetchThread }),
+      });
+      return null;
+    };
+
+    render(<App />);
+
+    const reloadPromise = aui.threads.reloadMainThread();
+    await expect(reloadPromise).rejects.toBe(error);
+  });
+
   it("propagates InMemoryThreadList refetch failures", async () => {
     const error = new Error("refetch failed");
-    const onRefetchThread = vi.fn().mockRejectedValue(error);
+    const onRefetchThread = vi.fn(() => {
+      throw error;
+    });
     let aui!: ReturnType<typeof useAui>;
 
     const App = () => {
@@ -41,7 +63,8 @@ describe("tap thread reload", () => {
 
     render(<App />);
 
-    await expect(aui.threads.reloadMainThread()).rejects.toBe(error);
+    const reloadPromise = aui.threads.reloadMainThread();
+    await expect(reloadPromise).rejects.toBe(error);
     expect(onRefetchThread).toHaveBeenCalledOnce();
   });
 
