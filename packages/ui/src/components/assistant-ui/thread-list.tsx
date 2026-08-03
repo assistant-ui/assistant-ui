@@ -9,11 +9,14 @@ import {
   ThreadListItemMorePrimitive,
   ThreadListItemPrimitive,
   ThreadListPrimitive,
+  useAui,
   useAuiState,
 } from "@assistant-ui/react";
 import {
   ArchiveIcon,
+  Loader2Icon,
   MoreHorizontalIcon,
+  PencilIcon,
   PlusIcon,
   SearchIcon,
   TrashIcon,
@@ -21,11 +24,16 @@ import {
 import {
   forwardRef,
   Fragment,
+  useCallback,
+  useEffect,
   useMemo,
+  useRef,
   useState,
+  useSyncExternalStore,
   type ComponentPropsWithoutRef,
   type FC,
 } from "react";
+import { toast } from "sonner";
 
 export const ThreadList: FC = () => {
   const [search, setSearch] = useState("");
@@ -262,28 +270,147 @@ const ThreadListSkeleton: FC = () => {
 };
 
 export const ThreadListItem: FC = () => {
+  const [isRenaming, setIsRenaming] = useState(false);
+  const isRunning = useThreadListItemIsRunning();
+
   return (
     <ThreadListItemPrimitive.Root
       data-slot="aui_thread-list-item"
       className="group hover:bg-muted focus-visible:bg-muted data-active:bg-muted has-focus-visible:bg-muted has-data-[state=open]:bg-muted relative flex h-8 items-center rounded-md transition-colors focus-visible:outline-none"
     >
-      <ThreadListItemPrimitive.Trigger
-        data-slot="aui_thread-list-item-trigger"
-        className="focus-visible:ring-ring/50 flex h-full min-w-0 flex-1 items-center rounded-md px-2.5 text-start text-sm outline-none group-hover:pe-9 group-has-focus-visible:pe-9 group-has-data-[state=open]:pe-9 group-data-active:pe-9 focus-visible:ring-[3px]"
-      >
-        <span
-          data-slot="aui_thread-list-item-title"
-          className="min-w-0 flex-1 truncate"
+      {isRenaming ? (
+        <ThreadListItemRename onDone={() => setIsRenaming(false)} />
+      ) : (
+        <ThreadListItemPrimitive.Trigger
+          data-slot="aui_thread-list-item-trigger"
+          className="focus-visible:ring-ring/50 flex h-full min-w-0 flex-1 items-center rounded-md px-2.5 text-start text-sm outline-none group-hover:pe-9 group-has-focus-visible:pe-9 group-has-data-[state=open]:pe-9 group-data-active:pe-9 focus-visible:ring-[3px]"
         >
-          <ThreadListItemPrimitive.Title fallback="New Chat" />
-        </span>
-      </ThreadListItemPrimitive.Trigger>
-      <ThreadListItemMore />
+          {isRunning && (
+            <Loader2Icon
+              data-slot="aui_thread-list-item-running"
+              className="text-muted-foreground me-1.5 size-3.5 shrink-0 animate-spin"
+              aria-label="Thread is running"
+            />
+          )}
+          <span
+            data-slot="aui_thread-list-item-title"
+            className="min-w-0 flex-1 truncate"
+          >
+            <ThreadListItemPrimitive.Title fallback="New Chat" />
+          </span>
+        </ThreadListItemPrimitive.Trigger>
+      )}
+      <ThreadListItemMore onRename={() => setIsRenaming(true)} />
     </ThreadListItemPrimitive.Root>
   );
 };
 
-const ThreadListItemMore: FC = () => {
+const useThreadListItemIsRunning = (): boolean => {
+  const aui = useAui();
+  const threadId = useAuiState((s) => s.threadListItem.id);
+  const runtime = aui.threads.__internal_getAssistantRuntime?.();
+
+  const getThreadRuntime = useCallback(() => {
+    if (!runtime) return undefined;
+    try {
+      return runtime.threads.getState().mainThreadId === threadId
+        ? runtime.thread
+        : runtime.threads.getById(threadId);
+    } catch {
+      return undefined;
+    }
+  }, [runtime, threadId]);
+
+  const subscribe = useCallback(
+    (onStoreChange: () => void) => {
+      if (!runtime) return () => {};
+
+      let unsubscribeThread: (() => void) | undefined;
+      const attachThread = () => {
+        unsubscribeThread?.();
+        unsubscribeThread = getThreadRuntime()?.subscribe(onStoreChange);
+        onStoreChange();
+      };
+
+      const unsubscribeThreads = runtime.threads.subscribe(attachThread);
+      attachThread();
+
+      return () => {
+        unsubscribeThreads();
+        unsubscribeThread?.();
+      };
+    },
+    [getThreadRuntime, runtime],
+  );
+
+  const getSnapshot = useCallback(() => {
+    try {
+      return getThreadRuntime()?.getState().isRunning ?? false;
+    } catch {
+      return false;
+    }
+  }, [getThreadRuntime]);
+
+  return useSyncExternalStore(subscribe, getSnapshot, () => false);
+};
+
+const ThreadListItemRename: FC<{ onDone: () => void }> = ({ onDone }) => {
+  const aui = useAui();
+  const title = useAuiState((s) => s.threadListItem.title) ?? "New Chat";
+  const [value, setValue] = useState(title);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const submittedRef = useRef(false);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+    inputRef.current?.select();
+  }, []);
+
+  const commit = () => {
+    if (submittedRef.current) return;
+    submittedRef.current = true;
+    const next = value.trim();
+    if (next && next !== title) {
+      void Promise.resolve()
+        .then(() => aui.threadListItem.rename(next))
+        .catch((error: unknown) => {
+          toast.error(
+            error instanceof Error ? error.message : "Failed to rename thread",
+          );
+        });
+    }
+    onDone();
+  };
+
+  const cancel = () => {
+    if (submittedRef.current) return;
+    submittedRef.current = true;
+    onDone();
+  };
+
+  return (
+    <Input
+      ref={inputRef}
+      data-slot="aui_thread-list-item-rename"
+      value={value}
+      aria-label="Rename thread"
+      className="h-7 min-w-0 flex-1 px-2.5 text-sm"
+      onChange={(event) => setValue(event.target.value)}
+      onBlur={commit}
+      onKeyDown={(event) => {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          commit();
+        } else if (event.key === "Escape") {
+          event.preventDefault();
+          cancel();
+        }
+      }}
+    />
+  );
+};
+
+const ThreadListItemMore: FC<{ onRename: () => void }> = ({ onRename }) => {
   return (
     <ThreadListItemMorePrimitive.Root sharedFocusGroup>
       <ThreadListItemMorePrimitive.Trigger asChild>
@@ -304,6 +431,14 @@ const ThreadListItemMore: FC = () => {
         data-slot="aui_thread-list-item-more-content"
         className="bg-popover/95 text-popover-foreground data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=open]:animate-in data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=closed]:animate-out data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 z-50 min-w-32 overflow-hidden rounded-xl border p-1.5 shadow-lg backdrop-blur-sm"
       >
+        <ThreadListItemMorePrimitive.Item
+          data-slot="aui_thread-list-item-more-item"
+          className="hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm outline-none select-none"
+          onSelect={onRename}
+        >
+          <PencilIcon className="size-4" />
+          Rename
+        </ThreadListItemMorePrimitive.Item>
         <ThreadListItemPrimitive.Archive asChild>
           <ThreadListItemMorePrimitive.Item
             data-slot="aui_thread-list-item-more-item"

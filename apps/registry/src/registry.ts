@@ -314,7 +314,7 @@ export const registry: RegistryItem[] = [
       "skeleton",
       "https://r.assistant-ui.com/tooltip-icon-button.json",
     ],
-    dependencies: ["@assistant-ui/react", "lucide-react"],
+    dependencies: ["@assistant-ui/react", "lucide-react", "sonner"],
   },
   {
     name: "mcp-config",
