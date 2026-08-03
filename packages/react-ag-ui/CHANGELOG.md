@@ -1,5 +1,20 @@
 # @assistant-ui/react-ag-ui
 
+## 0.0.50
+
+### Patch Changes
+
+- [#5461](https://github.com/assistant-ui/assistant-ui/pull/5461) [`1fae3c6`](https://github.com/assistant-ui/assistant-ui/commit/1fae3c6439bac1875bbf0627125e534be8772934) - fix: convert file parts placed directly in message content ([@okisdev](https://github.com/okisdev))
+
+  `buildUserContent` filtered every `file` part out of `message.content`, on the stated grounds that binary always flows through `message.attachments`. That rule was not actually implemented: `image` and `audio` content parts, equally binary, were converted from content all along, so only `file` was excluded. It also guarded nothing, because both composer paths put binary in attachments and leave content as text (the edit composer lifts non-text parts with `liftNonTextParts` and passes none through), and because content-sourced and attachment-sourced parts land in the same flat `InputContent[]` with no downstream distinction. The only way a file part reached that filter was a deliberate `append()`, where it was silently dropped.
+
+- [#5445](https://github.com/assistant-ui/assistant-ui/pull/5445) [`2fdff87`](https://github.com/assistant-ui/assistant-ui/commit/2fdff878211979b1f24d746bf2f16d8b6254102d) - feat: honor sourceType "url" in a2a, ag-ui, and adk file converters ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- Updated dependencies [[`b19c2f5`](https://github.com/assistant-ui/assistant-ui/commit/b19c2f5efd37e1203502c76d92e0554b63020952), [`01140bd`](https://github.com/assistant-ui/assistant-ui/commit/01140bde14fbfa89af9bdd080bbf79b3a509b524), [`8c99934`](https://github.com/assistant-ui/assistant-ui/commit/8c99934ca7fe9a8ffea0aa972e3579ff74e18553), [`ece5a54`](https://github.com/assistant-ui/assistant-ui/commit/ece5a5422e8b45429e1681b7a845d68be2879834), [`2fdff87`](https://github.com/assistant-ui/assistant-ui/commit/2fdff878211979b1f24d746bf2f16d8b6254102d), [`90b3003`](https://github.com/assistant-ui/assistant-ui/commit/90b3003b943e083fa6cd81e30181bf5b88904361), [`4c313cf`](https://github.com/assistant-ui/assistant-ui/commit/4c313cfabe9802a7e59362c323ec926a24d089d4), [`55b2824`](https://github.com/assistant-ui/assistant-ui/commit/55b282476bf3075beff391978a72a13968b6418a), [`22b05a4`](https://github.com/assistant-ui/assistant-ui/commit/22b05a43ec921a6dd7015692a77a746656a61f5f), [`f913c21`](https://github.com/assistant-ui/assistant-ui/commit/f913c2142708d8cd1f4ac63bd801e5b6defcb74e), [`c868710`](https://github.com/assistant-ui/assistant-ui/commit/c8687104b0407f424d55dd0a369d692fe7a4c708), [`011e275`](https://github.com/assistant-ui/assistant-ui/commit/011e275c4df5cd85942b5fd545a74d9c7cf549a6), [`da32fe0`](https://github.com/assistant-ui/assistant-ui/commit/da32fe0b2f51c8a340935c5f4d2e31e747d39460), [`f913c21`](https://github.com/assistant-ui/assistant-ui/commit/f913c2142708d8cd1f4ac63bd801e5b6defcb74e), [`5bb2573`](https://github.com/assistant-ui/assistant-ui/commit/5bb25733674396d496046b7c5443366171d0e8cf), [`5ececc1`](https://github.com/assistant-ui/assistant-ui/commit/5ececc1df536e098f8ee252addd2e62be7d61a7a)]:
+  - @assistant-ui/core@0.3.4
+  - assistant-stream@0.3.32
+  - @assistant-ui/store@0.3.3
+
 ## 0.0.49
 
 ### Patch Changes

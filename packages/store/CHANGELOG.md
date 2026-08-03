@@ -1,5 +1,11 @@
 # @assistant-ui/store
 
+## 0.3.3
+
+### Patch Changes
+
+- [#5411](https://github.com/assistant-ui/assistant-ui/pull/5411) [`90b3003`](https://github.com/assistant-ui/assistant-ui/commit/90b3003b943e083fa6cd81e30181bf5b88904361) - fix: prevent Composer updates from being lost under React StrictMode ([@nyl199310](https://github.com/nyl199310))
+
 ## 0.3.2
 
 ### Patch Changes

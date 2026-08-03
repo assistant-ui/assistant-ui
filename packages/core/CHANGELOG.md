@@ -1,5 +1,62 @@
 # @assistant-ui/core
 
+## 0.3.4
+
+### Patch Changes
+
+- [#5233](https://github.com/assistant-ui/assistant-ui/pull/5233) [`b19c2f5`](https://github.com/assistant-ui/assistant-ui/commit/b19c2f5efd37e1203502c76d92e0554b63020952) - fix: prevent canceled attachment uploads from reappearing and settle failed removals as attachment errors ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5447](https://github.com/assistant-ui/assistant-ui/pull/5447) [`8c99934`](https://github.com/assistant-ui/assistant-ui/commit/8c99934ca7fe9a8ffea0aa972e3579ff74e18553) - docs: deprecate Unstable_AudioMessagePart in favour of file parts ([@okisdev](https://github.com/okisdev))
+
+  Audio belongs on a `file` part with an `audio/*` mime type. `file` is a member of both the user and assistant unions and carries a filename, neither of which the audio part can express. The payload form a `file` part needs is still adapter specific; the message primitive docs enumerate it. The audio part and the `Unstable_Audio` slot stay honored everywhere they are accepted and will not gain fields.
+
+- [#5439](https://github.com/assistant-ui/assistant-ui/pull/5439) [`ece5a54`](https://github.com/assistant-ui/assistant-ui/commit/ece5a5422e8b45429e1681b7a845d68be2879834) - feat: sourceType opt-in on file message parts so attachment adapters can send url/id file references ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#5445](https://github.com/assistant-ui/assistant-ui/pull/5445) [`2fdff87`](https://github.com/assistant-ui/assistant-ui/commit/2fdff878211979b1f24d746bf2f16d8b6254102d) - feat: honor sourceType "url" in a2a, ag-ui, and adk file converters ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#5542](https://github.com/assistant-ui/assistant-ui/pull/5542) [`55b2824`](https://github.com/assistant-ui/assistant-ui/commit/55b282476bf3075beff391978a72a13968b6418a) - feat: expose `threadListItem.isRunning` so a thread list row can show its own run ([@okisdev](https://github.com/okisdev))
+
+  a thread list row had no supported way to tell whether its thread was running: `thread.isRunning` describes the open thread, and the item state carried no run state at all, so a run continuing on a thread the user had switched away from was invisible.
+
+  `threadListItem.isRunning` now reports it, and stays true for a background run. runtimes that keep background threads alive answer it through the new optional `ThreadListRuntimeCore.unstable_isThreadRunning`; the rest report the open thread's run state, which they already track.
+
+  `InMemoryThreadList` also renames threads for real instead of dropping the new title.
+
+- [#5459](https://github.com/assistant-ui/assistant-ui/pull/5459) [`22b05a4`](https://github.com/assistant-ui/assistant-ui/commit/22b05a43ec921a6dd7015692a77a746656a61f5f) - fix: wrap a file part payload that is not a parsable url ([@okisdev](https://github.com/okisdev))
+
+  `getPromptParts` put `FileMessagePart.data` straight into the OpenCode file part's `url`. OpenCode forwards that into an AI SDK file part (`sst/opencode`, `session/message-v2.ts`), whose `url` reaches an unguarded `new URL()`, so a payload that is raw base64 rather than a data URL or an http source failed there. A non-parsable payload is now wrapped in a `data:<mime>;base64,` envelope; data URLs and http sources are forwarded untouched, and a `sourceType: "id"` reference is left alone so it fails loudly instead of shipping a corrupt payload.
+
+  The predicate behind that decision moves to `isParsableUrl` in `@assistant-ui/core/internal`, next to the `httpUrlPattern` and `parseDataUrl` it belongs with, and react-ai-sdk now imports it instead of keeping its own copy. No behavior change there.
+
+- [#5522](https://github.com/assistant-ui/assistant-ui/pull/5522) [`f913c21`](https://github.com/assistant-ui/assistant-ui/commit/f913c2142708d8cd1f4ac63bd801e5b6defcb74e) - feat: add the in-place refetch contract behind `threads.reloadMainThread()`. A runtime opts in with `unstable_refetchThread` on `ThreadRuntimeCore`, which an external store supplies through the new `ExternalStoreAdapter.onRefetchThread` (unrelated to `onReload`, which re-generates an assistant message) and which surfaces as `RuntimeCapabilities.refetchThread`, reporting which mechanism a call would take rather than whether it does anything. Runtimes that opt in keep their runtime identity, so composer drafts survive and messages stay rendered while the refetch runs; the rest fall back to remounting the runtime hook. Core does not stop a run in progress before calling the capability: doing that means `cancelRun`, whose contract is that the user abandoned a send, so it returns the trailing user message to the composer. An implementation owns whatever coordination a concurrent run needs. ([@taoche](https://github.com/taoche))
+
+  The remount fallback needs the binder's React key to carry a generation, which changes it from `threadId` to `${threadId}:${generation}` for every `useRemoteThreadListRuntime` consumer rather than only for callers of the new method. One existing behaviour changes with it: a `stopThreadRuntime` followed by `startThreadRuntime` for the same id inside a single React commit used to reuse the mounted binder and now remounts it, so that binder no longer carries state from before the stop.
+
+  No adapter registers the capability yet, so every runtime takes the remount fallback for now. `react-langgraph` adoption is [#5531](https://github.com/assistant-ui/assistant-ui/issues/5531) and `react-google-adk` is [#5528](https://github.com/assistant-ui/assistant-ui/issues/5528).
+
+- [#5537](https://github.com/assistant-ui/assistant-ui/pull/5537) [`c868710`](https://github.com/assistant-ui/assistant-ui/commit/c8687104b0407f424d55dd0a369d692fe7a4c708) - fix: keep a settled tool call distinguishable from an unfinished one, so a tool returning false, 0, "" or null no longer loses its result on the cloud round trip and no longer reads as never completed ([@okisdev](https://github.com/okisdev))
+
+- [#5479](https://github.com/assistant-ui/assistant-ui/pull/5479) [`011e275`](https://github.com/assistant-ui/assistant-ui/commit/011e275c4df5cd85942b5fd545a74d9c7cf549a6) - fix: read an image's media type from its leading bytes in both adapters ([@okisdev](https://github.com/okisdev))
+
+  `detectImageMediaType` and `dataUrlMediaType` join `parseDataUrl` and `isParsableUrl` in `@assistant-ui/core/internal`. An `ImageMessagePart` carries no media type, so an adapter that must declare one on the wire now reads it from the payload rather than assuming a format. It never throws, whatever a caller put on the part.
+
+  react-ai-sdk and react-opencode run the same ladder rung for rung: the attachment's `contentType`, then a data URL's declared type when that is itself an image type (read whether or not the payload is base64, so an SVG data URL keeps its type), then the leading bytes, then `image/png`. Previously react-opencode had no byte rung at all, and react-ai-sdk's was skipped for any `data:` payload, so a JPEG inside a generic `application/octet-stream` envelope resolved to png on both.
+
+  Resolving the label alone was not enough, because a data URL's own media type wins over the declared one downstream. Both adapters now rebuild the envelope when it disagrees with the resolved type and forward it untouched when it agrees. That applies to file parts too, where a `mimeType: "application/pdf"` part carrying an `application/octet-stream` envelope was announced as pdf and delivered as octet-stream. File parts also gain the same three rungs, so an empty `mimeType` falls to the envelope and then to `application/octet-stream` rather than producing a malformed `data:;base64,` url; `vercelAttachmentAdapter` emits exactly that shape for a file the OS cannot type.
+
+- [#5485](https://github.com/assistant-ui/assistant-ui/pull/5485) [`da32fe0`](https://github.com/assistant-ui/assistant-ui/commit/da32fe0b2f51c8a340935c5f4d2e31e747d39460) - refactor: share the media type ladder and wire url between adapters ([@okisdev](https://github.com/okisdev))
+
+  `resolveImageMediaType`, `resolveFileMediaType` and `toMediaWireUrl` join the data URL helpers in `@assistant-ui/core/internal`. react-ai-sdk and react-opencode had arrived at identical ladders and an identical wire url builder by construction rather than by sharing code, and they had already drifted apart twice while getting there. Both now call the shared functions and keep only their own part-shape plumbing.
+
+  No behavior change: both adapters' existing suites pass untouched.
+
+- [#5522](https://github.com/assistant-ui/assistant-ui/pull/5522) [`f913c21`](https://github.com/assistant-ui/assistant-ui/commit/f913c2142708d8cd1f4ac63bd801e5b6defcb74e) - feat: add `threads.reloadMainThread()` to refetch the open thread's remote state in place ([@taoche](https://github.com/taoche))
+
+- [#5417](https://github.com/assistant-ui/assistant-ui/pull/5417) [`5bb2573`](https://github.com/assistant-ui/assistant-ui/commit/5bb25733674396d496046b7c5443366171d0e8cf) - fix: suggestion trigger with `send` no longer overwrites the composer draft while a run is in progress; on runtimes without queue support it now renders disabled mid-run, matching `ComposerPrimitive.Send` ([@ephraimduncan](https://github.com/ephraimduncan))
+
+- Updated dependencies [[`01140bd`](https://github.com/assistant-ui/assistant-ui/commit/01140bde14fbfa89af9bdd080bbf79b3a509b524), [`4c313cf`](https://github.com/assistant-ui/assistant-ui/commit/4c313cfabe9802a7e59362c323ec926a24d089d4), [`c868710`](https://github.com/assistant-ui/assistant-ui/commit/c8687104b0407f424d55dd0a369d692fe7a4c708), [`5ececc1`](https://github.com/assistant-ui/assistant-ui/commit/5ececc1df536e098f8ee252addd2e62be7d61a7a)]:
+  - assistant-stream@0.3.32
+
 ## 0.3.3
 
 ### Patch Changes
