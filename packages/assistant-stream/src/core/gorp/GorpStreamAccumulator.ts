@@ -6,6 +6,7 @@ export class GorpStreamAccumulator {
   private _state: ReadonlyJSONValue;
   private readonly _strict: boolean;
   private readonly _logged = new Set<string>();
+  private _warnedClamp = false;
 
   constructor(
     initialValue: ReadonlyJSONValue = null,
@@ -84,8 +85,12 @@ export class GorpStreamAccumulator {
       if (idx < 0) throw new Error(`Insert array index out of bounds`);
       if (idx > state.length) {
         if (this._strict) throw new Error(`Insert array index out of bounds`);
-        const message = `Clamped out-of-bounds gorp array index ${idx} to ${state.length}`;
-        this.logOnce("clamp", () => console.warn(message));
+        if (!this._warnedClamp) {
+          this._warnedClamp = true;
+          console.warn(
+            `Clamped out-of-bounds gorp array index ${idx} to ${state.length}`,
+          );
+        }
         idx = Math.min(idx, state.length);
       }
 

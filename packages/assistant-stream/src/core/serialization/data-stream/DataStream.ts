@@ -238,7 +238,7 @@ export class DataStreamDecoder extends PipeableTransformStream<
       const warnedDroppedArgs = new Set<string>();
       const loggedDrops = new Set<string>();
       const logDropped = (key: string, message: string) => {
-        if (loggedDrops.has(key)) return;
+        if (loggedDrops.has(key) || loggedDrops.size >= 20) return;
         loggedDrops.add(key);
         console.error(message);
       };
