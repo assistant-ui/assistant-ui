@@ -931,7 +931,7 @@ const useExternalThread = ({
     export: () => ({ messages: [] }),
     import: () => {},
     reset: () => {},
-    unstable_refetchThread: onRefetchThread,
+    ...(onRefetchThread ? { unstable_refetchThread: onRefetchThread } : {}),
     message: (selector) => {
       if ("id" in selector) {
         return messageClients.get({ key: selector.id });

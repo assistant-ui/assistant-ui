@@ -4649,7 +4649,7 @@ type ThreadMethods = {
   export(): ExportedMessageRepository;
   import(repository: ExportedMessageRepository): void;
   reset(initialMessages?: readonly ThreadMessageLike[]): void;
-  unstable_refetchThread?: (() => Promise<void>) | undefined;
+  unstable_refetchThread?(): Promise<void>;
   importExternalState(state: unknown): void;
   message(selector: {
     id: string;
@@ -5955,7 +5955,7 @@ declare const useActionBarFeedbackPositive: () => {
 
 declare const useActionBarReload: () => {
   reload: () => void;
-  disabled: any;
+  disabled: boolean;
 };
 
 declare const useActionBarSpeak: () => {
@@ -6013,7 +6013,7 @@ declare const useComposerDictate: () => {
 
 declare const useComposerSend: () => {
   send: (opts?: ComposerSendOptions) => void;
-  disabled: any;
+  disabled: boolean;
 };
 
 declare const useEditComposerCancel: () => {
@@ -6096,7 +6096,7 @@ declare const useStreamingTiming: <TMessage>(messages: readonly TMessage[], isRu
 
 declare const useSuggestionTrigger: (_param20: UseSuggestionTriggerOptions) => {
   trigger: () => void;
-  disabled: any;
+  disabled: boolean;
 };
 
 declare const useThreadIsEmpty: () => boolean;
