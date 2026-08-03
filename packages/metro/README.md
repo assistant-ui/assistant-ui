@@ -67,6 +67,7 @@ export default defineToolkit({
 Register it with `Tools({ toolkit })`, the same as on the web:
 
 ```tsx
+import type { ReactNode } from "react";
 import {
   AssistantRuntimeProvider,
   AuiConfig,
@@ -78,7 +79,7 @@ import { modelAdapter } from "./modelAdapter";
 
 const config = AuiConfig({ tools: Tools({ toolkit }) });
 
-const App = ({ children }: { children: React.ReactNode }) => {
+const App = ({ children }: { children: ReactNode }) => {
   const runtime = useLocalRuntime(modelAdapter);
   return (
     <AssistantRuntimeProvider runtime={runtime} config={config}>

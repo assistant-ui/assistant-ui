@@ -196,12 +196,17 @@ export const AuiProvider: {
         </PassthroughAui>
       );
     }
+    const resolved = parentClient ?? DefaultAssistantClient;
+    const configured = (
+      <ConfiguredAui config={config!} ref={ref}>
+        {children}
+      </ConfiguredAui>
+    );
+    if (resolved === contextParent) return configured;
     return (
-      <AssistantContext.Provider value={parentClient ?? DefaultAssistantClient}>
+      <AssistantContext.Provider value={resolved}>
         <UseTapEffects />
-        <ConfiguredAui config={config!} ref={ref}>
-          {children}
-        </ConfiguredAui>
+        {configured}
       </AssistantContext.Provider>
     );
   }

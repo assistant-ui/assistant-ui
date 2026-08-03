@@ -111,6 +111,7 @@ export default function Chat() {
 Display suggested prompts using the Suggestions API. See the [Suggestions guide](/docs/guides/suggestions) for detailed configuration.
 
 ```tsx
+import type { ReactNode } from "react";
 import {
   AssistantRuntimeProvider,
   AuiConfig,
@@ -125,7 +126,7 @@ const config = AuiConfig({
   suggestions: Suggestions(["What's the weather?", "Tell me a joke"]),
 });
 
-const App = ({ children }: { children: React.ReactNode }) => {
+const App = ({ children }: { children: ReactNode }) => {
   const runtime = useChatRuntime();
   return (
     <AssistantRuntimeProvider runtime={runtime} config={config}>
