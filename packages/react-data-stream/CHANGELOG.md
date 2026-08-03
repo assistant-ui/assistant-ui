@@ -1,5 +1,16 @@
 # @assistant-ui/react-data-stream
 
+## 0.12.24
+
+### Patch Changes
+
+- [#5563](https://github.com/assistant-ui/assistant-ui/pull/5563) [`26bc999`](https://github.com/assistant-ui/assistant-ui/commit/26bc999c9e4407712df3cbf5425e790e56b0f377) - fix: report cancellations that occur while resolving request options ([@Kinfe123](https://github.com/Kinfe123))
+
+- Updated dependencies [[`7f7f8a2`](https://github.com/assistant-ui/assistant-ui/commit/7f7f8a24f87bd7eb745675fa2644a5cca2f69372), [`6c062f1`](https://github.com/assistant-ui/assistant-ui/commit/6c062f1b2a7c362fa7eb1b4fecc59c748588cb1a), [`78943a3`](https://github.com/assistant-ui/assistant-ui/commit/78943a37b1006bfbee42596f838850cd96ab4566)]:
+  - @assistant-ui/core@0.3.5
+  - assistant-cloud@0.1.38
+  - assistant-stream@0.3.33
+
 ## 0.12.23
 
 ### Patch Changes

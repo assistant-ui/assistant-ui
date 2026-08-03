@@ -1,5 +1,14 @@
 # @assistant-ui/core
 
+## 0.3.5
+
+### Patch Changes
+
+- [#5552](https://github.com/assistant-ui/assistant-ui/pull/5552) [`7f7f8a2`](https://github.com/assistant-ui/assistant-ui/commit/7f7f8a24f87bd7eb745675fa2644a5cca2f69372) - fix: handle stopped initial thread runtime starts ([@Kinfe123](https://github.com/Kinfe123))
+
+- Updated dependencies [[`78943a3`](https://github.com/assistant-ui/assistant-ui/commit/78943a37b1006bfbee42596f838850cd96ab4566)]:
+  - assistant-stream@0.3.33
+
 ## 0.3.4
 
 ### Patch Changes

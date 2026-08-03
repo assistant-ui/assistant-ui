@@ -3473,7 +3473,7 @@ importers:
   packages/cloud:
     dependencies:
       assistant-stream:
-        specifier: ^0.3.28
+        specifier: ^0.3.33
         version: link:../assistant-stream
     devDependencies:
       '@assistant-ui/x-buildutils':
@@ -3523,7 +3523,7 @@ importers:
         specifier: npm:ai@^6.0.209
         version: ai@6.0.235(zod@4.4.3)
       assistant-stream:
-        specifier: ^0.3.32
+        specifier: ^0.3.33
         version: link:../assistant-stream
       jsdom:
         specifier: ^29.1.1
@@ -3538,7 +3538,7 @@ importers:
   packages/core:
     dependencies:
       assistant-stream:
-        specifier: ^0.3.32
+        specifier: ^0.3.33
         version: link:../assistant-stream
       nanoid:
         specifier: ^6.0.0
@@ -3734,7 +3734,7 @@ importers:
   packages/react:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.4
+        specifier: ^0.3.5
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.3.3
@@ -3767,10 +3767,10 @@ importers:
         specifier: ^1.1.5
         version: 1.1.5(@types/react@19.2.17)(react@19.2.8)
       assistant-cloud:
-        specifier: ^0.1.37
+        specifier: ^0.1.38
         version: link:../cloud
       assistant-stream:
-        specifier: ^0.3.32
+        specifier: ^0.3.33
         version: link:../assistant-stream
       nanoid:
         specifier: ^6.0.0
@@ -3954,13 +3954,13 @@ importers:
         specifier: ^4.0.3
         version: 4.0.3
       '@assistant-ui/core':
-        specifier: ^0.3.4
+        specifier: ^0.3.5
         version: link:../core
       assistant-cloud:
         specifier: '*'
         version: link:../cloud
       assistant-stream:
-        specifier: ^0.3.32
+        specifier: ^0.3.33
         version: link:../assistant-stream
     devDependencies:
       '@assistant-ui/x-buildutils':
@@ -4025,7 +4025,7 @@ importers:
   packages/react-generative-ui:
     dependencies:
       assistant-stream:
-        specifier: ^0.3.32
+        specifier: ^0.3.33
         version: link:../assistant-stream
     devDependencies:
       '@assistant-ui/react':
@@ -4191,7 +4191,7 @@ importers:
   packages/react-ink-markdown:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.4
+        specifier: ^0.3.5
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.3.3
@@ -4511,7 +4511,7 @@ importers:
   packages/react-opencode:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.4
+        specifier: ^0.3.5
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.3.3
@@ -4551,7 +4551,7 @@ importers:
   packages/react-pi:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.4
+        specifier: ^0.3.5
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.3.3
