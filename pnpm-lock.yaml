@@ -85,7 +85,7 @@ importers:
         version: 2.1.0
       eve:
         specifier: ^0.29.5
-        version: 0.29.5(@azure/identity@4.13.1)(@opentelemetry/api@1.9.0)(@upstash/redis@1.38.1)(ai@7.0.48(zod@4.4.3))(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(just-bash@3.2.0)(lru-cache@11.5.2)(mysql2@3.20.0(@types/node@26.1.2))(sqlite3@5.1.7)(vite@8.2.0(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.4)(yaml@2.9.0))
+        version: 0.29.5(@azure/identity@4.13.1(supports-color@10.2.2))(@opentelemetry/api@1.9.0)(@upstash/redis@1.38.1)(ai@7.0.48(zod@4.4.3))(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.1)(ioredis@5.11.1(supports-color@10.2.2))(jiti@2.7.0)(just-bash@3.2.0(supports-color@10.2.2))(lru-cache@11.5.2)(mysql2@3.20.0(@types/node@26.1.2))(sqlite3@5.1.7(supports-color@10.2.2))(vite@8.2.0(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.4)(yaml@2.9.0))
       ink:
         specifier: ^7.1.1
         version: 7.1.1(@types/react@19.2.18)(react-devtools-core@6.1.5)(react@19.2.8)
@@ -1575,7 +1575,7 @@ importers:
         version: 2.1.1
       eve:
         specifier: ^0.29.5
-        version: 0.29.5(@azure/identity@4.13.1)(@opentelemetry/api@1.9.0)(@upstash/redis@1.38.1)(ai@7.0.48(zod@4.4.3))(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(just-bash@3.2.0)(lru-cache@11.5.2)(mysql2@3.20.0(@types/node@26.1.2))(sqlite3@5.1.7)(vite@8.2.0(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.4)(yaml@2.9.0))
+        version: 0.29.5(@azure/identity@4.13.1(supports-color@10.2.2))(@opentelemetry/api@1.9.0)(@upstash/redis@1.38.1)(ai@7.0.48(zod@4.4.3))(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.1)(ioredis@5.11.1(supports-color@10.2.2))(jiti@2.7.0)(just-bash@3.2.0(supports-color@10.2.2))(lru-cache@11.5.2)(mysql2@3.20.0(@types/node@26.1.2))(sqlite3@5.1.7(supports-color@10.2.2))(vite@8.2.0(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.4)(yaml@2.9.0))
       lucide-react:
         specifier: ^1.28.0
         version: 1.28.0(react@19.2.8)
@@ -3174,7 +3174,7 @@ importers:
         version: 1.28.0(react@19.2.8)
       nitro:
         specifier: ^3.0.260311-beta
-        version: 3.0.260311-beta(@azure/identity@4.13.1(supports-color@10.2.2))(@upstash/redis@1.38.1)(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(lru-cache@11.5.2)(mysql2@3.20.0(@types/node@26.1.2))(sqlite3@5.1.7(supports-color@10.2.2))(vite@8.2.0(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.4)(yaml@2.9.0))
+        version: 3.0.260311-beta(@azure/identity@4.13.1(supports-color@10.2.2))(@upstash/redis@1.38.1)(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.1)(ioredis@5.11.1(supports-color@10.2.2))(jiti@2.7.0)(lru-cache@11.5.2)(mysql2@3.20.0(@types/node@26.1.2))(sqlite3@5.1.7(supports-color@10.2.2))(vite@8.2.0(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.4)(yaml@2.9.0))
       openai:
         specifier: ^7.3.0
         version: 7.3.0(@aws-sdk/credential-provider-node@3.972.76)(@smithy/signature-v4@5.6.12)(ws@8.21.1)(zod@4.4.3)
@@ -3391,8 +3391,8 @@ importers:
         specifier: ^7.0.15
         version: 7.0.15
       ioredis:
-        specifier: ^6.0.0
-        version: 6.0.0(supports-color@10.2.2)
+        specifier: ^5.11.1
+        version: 5.11.1(supports-color@10.2.2)
       redis:
         specifier: ^6.2.0
         version: 6.2.0(@opentelemetry/api@1.9.0)
@@ -3610,8 +3610,8 @@ importers:
         specifier: ^19.2.18
         version: 19.2.18
       eve:
-        specifier: ^0.29.5
-        version: 0.29.5(@azure/identity@4.13.1)(@opentelemetry/api@1.9.0)(@upstash/redis@1.38.1)(ai@7.0.48(zod@4.4.3))(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(just-bash@3.2.0)(lru-cache@11.5.2)(mysql2@3.20.0(@types/node@26.1.2))(sqlite3@5.1.7)(vite@8.2.0(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.4)(yaml@2.9.0))
+        specifier: ^0.27.13
+        version: 0.27.13(@azure/identity@4.13.1(supports-color@10.2.2))(@opentelemetry/api@1.9.0)(@upstash/redis@1.38.1)(ai@7.0.48(zod@4.4.3))(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.1)(ioredis@5.11.1(supports-color@10.2.2))(jiti@2.7.0)(just-bash@3.2.0(supports-color@10.2.2))(lru-cache@11.5.2)(mysql2@3.20.0(@types/node@26.1.2))(sqlite3@5.1.7(supports-color@10.2.2))(vite@8.2.0(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.4)(yaml@2.9.0))
       react:
         specifier: ^19.2.8
         version: 19.2.8
@@ -5254,7 +5254,7 @@ importers:
         version: 2.1.1
       eve:
         specifier: ^0.29.5
-        version: 0.29.5(@azure/identity@4.13.1)(@opentelemetry/api@1.9.0)(@upstash/redis@1.38.1)(ai@7.0.48(zod@4.4.3))(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(just-bash@3.2.0)(lru-cache@11.5.2)(mysql2@3.20.0(@types/node@26.1.2))(sqlite3@5.1.7)(vite@8.2.0(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.4)(yaml@2.9.0))
+        version: 0.29.5(@azure/identity@4.13.1(supports-color@10.2.2))(@opentelemetry/api@1.9.0)(@upstash/redis@1.38.1)(ai@7.0.48(zod@4.4.3))(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.1)(ioredis@5.11.1(supports-color@10.2.2))(jiti@2.7.0)(just-bash@3.2.0(supports-color@10.2.2))(lru-cache@11.5.2)(mysql2@3.20.0(@types/node@26.1.2))(sqlite3@5.1.7(supports-color@10.2.2))(vite@8.2.0(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.4)(yaml@2.9.0))
       lucide-react:
         specifier: ^1.28.0
         version: 1.28.0(react@19.2.8)
@@ -7421,8 +7421,8 @@ packages:
       '@types/node':
         optional: true
 
-  '@ioredis/commands@2.0.0':
-    resolution: {integrity: sha512-vrx0AE/T0h7cRZwfo1M39Cr+ZhZrkf0V8mQN75wucKCxCLD9l/VX6no3gFvrLqD1IlG/1LtzWovqEw3t0Vr9zg==}
+  '@ioredis/commands@1.10.0':
+    resolution: {integrity: sha512-UmeW7z4LfctwoQ5wkhVzgq8tXkreED2xZGpX+Bg+zA+WJFZCT6c062AfCK/Dfk81xZnnwdhJCUMkitihRaoC2Q==}
 
   '@isaacs/cliui@8.0.2':
     resolution: {integrity: sha512-O8jcjabXaleOG9DQ0+ARXWZBTfnP4WNAqzuiJK7ll44AmxGKv/J2M4TPjxjY3znBCfvBXFzucm1twdyFybFqEA==}
@@ -12562,6 +12562,26 @@ packages:
     resolution: {integrity: sha512-aIL5Fx7mawVa300al2BnEE4iNvo1qETxLrPI/o05L7z6go7fCw1J6EQmbK4FmJ2AS7kgVF/KEZWufBfdClMcPg==}
     engines: {node: '>= 0.6'}
 
+  eve@0.27.13:
+    resolution: {integrity: sha512-RN5EDp+w3H9kTH/92DYmWlt1vZ1vKLgdfoXpL9zRodC1wEBS51w97odDKcreR5+XtC+q+mNTmmAMQUQvk0c8gg==}
+    engines: {node: '>=24'}
+    hasBin: true
+    peerDependencies:
+      '@opentelemetry/api': ^1.0.0
+      ai: ^7.0.38
+      braintrust: ^3.0.0
+      just-bash: ^3.0.0
+      microsandbox: ^0.5.0
+    peerDependenciesMeta:
+      '@opentelemetry/api':
+        optional: true
+      braintrust:
+        optional: true
+      just-bash:
+        optional: true
+      microsandbox:
+        optional: true
+
   eve@0.29.5:
     resolution: {integrity: sha512-XiIJHANIgT7LQAZ3e2MyQG4N+B9dPYwdFk0rAzSGYSBjgavCbCtX/tXDlqasjIfEH726uxFdYrLGnlGvIZ38vg==}
     engines: {node: '>=24'}
@@ -13770,9 +13790,9 @@ packages:
   invariant@2.2.4:
     resolution: {integrity: sha512-phJfQVBuaJM5raOpJjSfkiD6BpbCE4Ns//LaXl6wGYtUBY83nWS6Rf9tXm2e8VaK60JEjYldbPif/A2B1C2gNA==}
 
-  ioredis@6.0.0:
-    resolution: {integrity: sha512-f+Dtubxfpf6KYFq7WVXJoOLn0bk4TJrMrN9SzeE+jrWrCWj7XX3fA6vkryafhADX+GMymRxgDJDOI33COkJc0w==}
-    engines: {node: '>=20.0.0'}
+  ioredis@5.11.1:
+    resolution: {integrity: sha512-ehuGcf94bQXhfagULNXrJdfnWO38v070jxSx/qE87Kjzmu2fU7ro5EFAb+OPituLqgfyuQaym5DlrNydW2sJ9A==}
+    engines: {node: '>=12.22.0'}
 
   ip-address@10.4.0:
     resolution: {integrity: sha512-oSK96Grm3aP6OrS263xVxbNDGVL7rzBtYdpGqlDG8iQdoenDoTs/nkki+DflYbAEE8Xl6o5YxhxlrKvI3nqKXQ==}
@@ -16245,6 +16265,10 @@ packages:
 
   redis-errors@1.2.0:
     resolution: {integrity: sha512-1qny3OExCf0UvUV/5wpYKf2YwPcOqXzkwKKSmKHiE6ZMQs5heeE/c8eXK+PNllPvmjgAbfnsbpkGZWy8cBpn9w==}
+    engines: {node: '>=4'}
+
+  redis-parser@3.0.0:
+    resolution: {integrity: sha512-DJnGAeenTdpMEH6uAJRK/uiyEIH9WVsUmoLwzudwGJUwZPp80PDBWPHXSAGNPwNvIXAbe7MSUB1zQFugFml66A==}
     engines: {node: '>=4'}
 
   redis@6.2.0:
@@ -20813,7 +20837,7 @@ snapshots:
     optionalDependencies:
       '@types/node': 26.1.2
 
-  '@ioredis/commands@2.0.0': {}
+  '@ioredis/commands@1.10.0': {}
 
   '@isaacs/cliui@8.0.2':
     dependencies:
@@ -26030,7 +26054,7 @@ snapshots:
 
   dayjs@1.11.21: {}
 
-  db0@0.3.4(mysql2@3.20.0(@types/node@26.1.2))(sqlite3@5.1.7):
+  db0@0.3.4(mysql2@3.20.0(@types/node@26.1.2))(sqlite3@5.1.7(supports-color@10.2.2)):
     optionalDependencies:
       mysql2: 3.20.0(@types/node@26.1.2)
       sqlite3: 5.1.7(supports-color@10.2.2)
@@ -26383,10 +26407,58 @@ snapshots:
 
   etag@1.8.1: {}
 
-  eve@0.29.5(@azure/identity@4.13.1)(@opentelemetry/api@1.9.0)(@upstash/redis@1.38.1)(ai@7.0.48(zod@4.4.3))(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(just-bash@3.2.0)(lru-cache@11.5.2)(mysql2@3.20.0(@types/node@26.1.2))(sqlite3@5.1.7)(vite@8.2.0(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.4)(yaml@2.9.0)):
+  eve@0.27.13(@azure/identity@4.13.1(supports-color@10.2.2))(@opentelemetry/api@1.9.0)(@upstash/redis@1.38.1)(ai@7.0.48(zod@4.4.3))(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.1)(ioredis@5.11.1(supports-color@10.2.2))(jiti@2.7.0)(just-bash@3.2.0(supports-color@10.2.2))(lru-cache@11.5.2)(mysql2@3.20.0(@types/node@26.1.2))(sqlite3@5.1.7(supports-color@10.2.2))(vite@8.2.0(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.4)(yaml@2.9.0)):
     dependencies:
       ai: 7.0.48(zod@4.4.3)
-      nitro: 3.0.260610-beta(@azure/identity@4.13.1)(@upstash/redis@1.38.1)(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(lru-cache@11.5.2)(mysql2@3.20.0(@types/node@26.1.2))(sqlite3@5.1.7)(vite@8.2.0(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.4)(yaml@2.9.0))
+      nitro: 3.0.260610-beta(@azure/identity@4.13.1(supports-color@10.2.2))(@upstash/redis@1.38.1)(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.1)(ioredis@5.11.1(supports-color@10.2.2))(jiti@2.7.0)(lru-cache@11.5.2)(mysql2@3.20.0(@types/node@26.1.2))(sqlite3@5.1.7(supports-color@10.2.2))(vite@8.2.0(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.4)(yaml@2.9.0))
+      undici: 8.9.0
+    optionalDependencies:
+      '@opentelemetry/api': 1.9.0
+      just-bash: 3.2.0(supports-color@10.2.2)
+    transitivePeerDependencies:
+      - '@azure/app-configuration'
+      - '@azure/cosmos'
+      - '@azure/data-tables'
+      - '@azure/identity'
+      - '@azure/keyvault-secrets'
+      - '@azure/storage-blob'
+      - '@capacitor/preferences'
+      - '@deno/kv'
+      - '@electric-sql/pglite'
+      - '@libsql/client'
+      - '@netlify/blobs'
+      - '@netlify/runtime'
+      - '@planetscale/database'
+      - '@upstash/redis'
+      - '@vercel/blob'
+      - '@vercel/functions'
+      - '@vercel/kv'
+      - '@vercel/queue'
+      - aws4fetch
+      - better-sqlite3
+      - chokidar
+      - dotenv
+      - drizzle-orm
+      - giget
+      - idb-keyval
+      - ioredis
+      - jiti
+      - lru-cache
+      - miniflare
+      - mongodb
+      - mysql2
+      - rollup
+      - sqlite3
+      - uploadthing
+      - vite
+      - wrangler
+      - xml2js
+      - zephyr-agent
+
+  eve@0.29.5(@azure/identity@4.13.1(supports-color@10.2.2))(@opentelemetry/api@1.9.0)(@upstash/redis@1.38.1)(ai@7.0.48(zod@4.4.3))(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.1)(ioredis@5.11.1(supports-color@10.2.2))(jiti@2.7.0)(just-bash@3.2.0(supports-color@10.2.2))(lru-cache@11.5.2)(mysql2@3.20.0(@types/node@26.1.2))(sqlite3@5.1.7(supports-color@10.2.2))(vite@8.2.0(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.4)(yaml@2.9.0)):
+    dependencies:
+      ai: 7.0.48(zod@4.4.3)
+      nitro: 3.0.260610-beta(@azure/identity@4.13.1(supports-color@10.2.2))(@upstash/redis@1.38.1)(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.1)(ioredis@5.11.1(supports-color@10.2.2))(jiti@2.7.0)(lru-cache@11.5.2)(mysql2@3.20.0(@types/node@26.1.2))(sqlite3@5.1.7(supports-color@10.2.2))(vite@8.2.0(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.4)(yaml@2.9.0))
       undici: 8.9.0
     optionalDependencies:
       '@opentelemetry/api': 1.9.0
@@ -27912,13 +27984,14 @@ snapshots:
     dependencies:
       loose-envify: 1.4.0
 
-  ioredis@6.0.0(supports-color@10.2.2):
+  ioredis@5.11.1(supports-color@10.2.2):
     dependencies:
-      '@ioredis/commands': 2.0.0
+      '@ioredis/commands': 1.10.0
       cluster-key-slot: 1.1.1
       debug: 4.4.3(supports-color@10.2.2)
       denque: 2.1.0
       redis-errors: 1.2.0
+      redis-parser: 3.0.0
       standard-as-callback: 2.1.0
     transitivePeerDependencies:
       - supports-color
@@ -29606,11 +29679,11 @@ snapshots:
 
   nf3@0.3.23: {}
 
-  nitro@3.0.260311-beta(@azure/identity@4.13.1(supports-color@10.2.2))(@upstash/redis@1.38.1)(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(lru-cache@11.5.2)(mysql2@3.20.0(@types/node@26.1.2))(sqlite3@5.1.7(supports-color@10.2.2))(vite@8.2.0(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.4)(yaml@2.9.0)):
+  nitro@3.0.260311-beta(@azure/identity@4.13.1(supports-color@10.2.2))(@upstash/redis@1.38.1)(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.1)(ioredis@5.11.1(supports-color@10.2.2))(jiti@2.7.0)(lru-cache@11.5.2)(mysql2@3.20.0(@types/node@26.1.2))(sqlite3@5.1.7(supports-color@10.2.2))(vite@8.2.0(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.4)(yaml@2.9.0)):
     dependencies:
       consola: 3.4.2
       crossws: 0.4.10(srvx@0.11.22)
-      db0: 0.3.4(mysql2@3.20.0(@types/node@26.1.2))(sqlite3@5.1.7)
+      db0: 0.3.4(mysql2@3.20.0(@types/node@26.1.2))(sqlite3@5.1.7(supports-color@10.2.2))
       env-runner: 0.1.16
       h3: 2.0.1-rc.26(crossws@0.4.10(srvx@0.11.22))
       hookable: 6.1.1
@@ -29621,7 +29694,7 @@ snapshots:
       rolldown: 1.2.1
       srvx: 0.11.22
       unenv: 2.0.0-rc.24
-      unstorage: 2.0.0-alpha.7(@azure/identity@4.13.1)(@upstash/redis@1.38.1)(chokidar@5.0.0)(db0@0.3.4(mysql2@3.20.0(@types/node@26.1.2))(sqlite3@5.1.7))(lru-cache@11.5.2)(ofetch@2.0.0-alpha.3)
+      unstorage: 2.0.0-alpha.7(@azure/identity@4.13.1(supports-color@10.2.2))(@upstash/redis@1.38.1)(chokidar@5.0.0)(db0@0.3.4(mysql2@3.20.0(@types/node@26.1.2))(sqlite3@5.1.7(supports-color@10.2.2)))(ioredis@5.11.1(supports-color@10.2.2))(lru-cache@11.5.2)(ofetch@2.0.0-alpha.3)
     optionalDependencies:
       dotenv: 17.4.2
       giget: 3.3.1
@@ -29660,11 +29733,11 @@ snapshots:
       - uploadthing
       - wrangler
 
-  nitro@3.0.260610-beta(@azure/identity@4.13.1)(@upstash/redis@1.38.1)(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(lru-cache@11.5.2)(mysql2@3.20.0(@types/node@26.1.2))(sqlite3@5.1.7)(vite@8.2.0(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.4)(yaml@2.9.0)):
+  nitro@3.0.260610-beta(@azure/identity@4.13.1(supports-color@10.2.2))(@upstash/redis@1.38.1)(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.1)(ioredis@5.11.1(supports-color@10.2.2))(jiti@2.7.0)(lru-cache@11.5.2)(mysql2@3.20.0(@types/node@26.1.2))(sqlite3@5.1.7(supports-color@10.2.2))(vite@8.2.0(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.4)(yaml@2.9.0)):
     dependencies:
       consola: 3.4.2
       crossws: 0.4.10(srvx@0.11.22)
-      db0: 0.3.4(mysql2@3.20.0(@types/node@26.1.2))(sqlite3@5.1.7)
+      db0: 0.3.4(mysql2@3.20.0(@types/node@26.1.2))(sqlite3@5.1.7(supports-color@10.2.2))
       env-runner: 0.1.16
       h3: 2.0.1-rc.22(crossws@0.4.10(srvx@0.11.22))
       hookable: 6.1.1
@@ -29675,7 +29748,7 @@ snapshots:
       rolldown: 1.2.1
       srvx: 0.11.22
       unenv: 2.0.0-rc.24
-      unstorage: 2.0.0-alpha.7(@azure/identity@4.13.1)(@upstash/redis@1.38.1)(chokidar@5.0.0)(db0@0.3.4(mysql2@3.20.0(@types/node@26.1.2))(sqlite3@5.1.7))(lru-cache@11.5.2)(ofetch@2.0.0-alpha.3)
+      unstorage: 2.0.0-alpha.7(@azure/identity@4.13.1(supports-color@10.2.2))(@upstash/redis@1.38.1)(chokidar@5.0.0)(db0@0.3.4(mysql2@3.20.0(@types/node@26.1.2))(sqlite3@5.1.7(supports-color@10.2.2)))(ioredis@5.11.1(supports-color@10.2.2))(lru-cache@11.5.2)(ofetch@2.0.0-alpha.3)
     optionalDependencies:
       dotenv: 17.4.2
       giget: 3.3.1
@@ -31022,6 +31095,10 @@ snapshots:
       strip-indent: 3.0.0
 
   redis-errors@1.2.0: {}
+
+  redis-parser@3.0.0:
+    dependencies:
+      redis-errors: 1.2.0
 
   redis@6.2.0(@opentelemetry/api@1.9.0):
     dependencies:
@@ -32373,12 +32450,13 @@ snapshots:
       rolldown: 1.2.1
       vite: 8.2.0(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.4)(yaml@2.9.0)
 
-  unstorage@2.0.0-alpha.7(@azure/identity@4.13.1)(@upstash/redis@1.38.1)(chokidar@5.0.0)(db0@0.3.4(mysql2@3.20.0(@types/node@26.1.2))(sqlite3@5.1.7))(lru-cache@11.5.2)(ofetch@2.0.0-alpha.3):
+  unstorage@2.0.0-alpha.7(@azure/identity@4.13.1(supports-color@10.2.2))(@upstash/redis@1.38.1)(chokidar@5.0.0)(db0@0.3.4(mysql2@3.20.0(@types/node@26.1.2))(sqlite3@5.1.7(supports-color@10.2.2)))(ioredis@5.11.1(supports-color@10.2.2))(lru-cache@11.5.2)(ofetch@2.0.0-alpha.3):
     optionalDependencies:
       '@azure/identity': 4.13.1(supports-color@10.2.2)
       '@upstash/redis': 1.38.1
       chokidar: 5.0.0
-      db0: 0.3.4(mysql2@3.20.0(@types/node@26.1.2))(sqlite3@5.1.7)
+      db0: 0.3.4(mysql2@3.20.0(@types/node@26.1.2))(sqlite3@5.1.7(supports-color@10.2.2))
+      ioredis: 5.11.1(supports-color@10.2.2)
       lru-cache: 11.5.2
       ofetch: 2.0.0-alpha.3
 
