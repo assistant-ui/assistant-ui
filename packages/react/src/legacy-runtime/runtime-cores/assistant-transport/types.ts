@@ -93,6 +93,7 @@ export type AssistantTransportProtocol = "data-stream" | "assistant-transport";
 export type SendCommandsRequestBody = {
   commands: QueuedCommand[];
   state: unknown;
+  runId?: string;
   system: string | undefined;
   tools: Record<string, unknown> | undefined;
   callSettings: LanguageModelV1CallSettings | undefined;
@@ -109,6 +110,8 @@ export type AssistantTransportOptions<T> = {
   initialState: T;
   api: string;
   resumeApi?: string;
+  /** Endpoint that returns the initial state and run ID for a resume stream. */
+  resumeStateApi?: string;
   protocol?: AssistantTransportProtocol;
   converter: AssistantTransportStateConverter<T>;
   headers: HeadersValue | (() => Promise<HeadersValue>);

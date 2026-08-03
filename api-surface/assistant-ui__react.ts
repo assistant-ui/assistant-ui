@@ -723,6 +723,7 @@ type AssistantTransportOptions<T> = {
   initialState: T;
   api: string;
   resumeApi?: string;
+  resumeStateApi?: string;
   protocol?: AssistantTransportProtocol;
   converter: AssistantTransportStateConverter<T>;
   headers: HeadersValue | (() => Promise<HeadersValue>);
@@ -3783,6 +3784,7 @@ declare const SelectionToolbarPrimitiveRoot: import("react").ForwardRefExoticCom
 type SendCommandsRequestBody = {
   commands: QueuedCommand[];
   state: unknown;
+  runId?: string;
   system: string | undefined;
   tools: Record<string, unknown> | undefined;
   callSettings: LanguageModelV1CallSettings | undefined;

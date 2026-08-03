@@ -182,4 +182,132 @@ describe("useAssistantTransportRuntime", () => {
     act(() => fetchMock.servers[2]!.close());
     await waitFor(() => expect(aui().thread.getState().isRunning).toBe(false));
   });
+
+  it("applies resumed operations to the retained initial state", async () => {
+    const requests: RecordedRequest[] = [];
+    vi.stubGlobal(
+      "fetch",
+      async (url: RequestInfo | URL, init: RequestInit = {}) => {
+        requests.push({
+          url: String(url),
+          init,
+          body: JSON.parse(init.body as string),
+        });
+
+        if (String(url) === "https://example.com/resume-state") {
+          return Response.json({
+            runId: "run-1",
+            state: { message: "Hello" },
+          });
+        }
+
+        return new Response(
+          'aui-state:[{"type":"append-text","path":["message"],"value":" world"}]\n',
+          { status: 200 },
+        );
+      },
+    );
+    const { aui } = mountRuntime({
+      resumeApi: "https://example.com/resume",
+      resumeStateApi: "https://example.com/resume-state",
+    });
+    await waitFor(() =>
+      expect(
+        (aui().thread.getState().extras as { sendCommand?: unknown })
+          ?.sendCommand,
+      ).toBeTypeOf("function"),
+    );
+
+    act(() => {
+      aui().thread.importExternalState({ message: "Wrong" });
+    });
+    await act(async () => {
+      await aui().thread.resumeRun({ parentId: null });
+    });
+
+    await waitFor(() =>
+      expect(
+        (aui().thread.getState().extras as { state: unknown }).state,
+      ).toEqual({ message: "Hello world" }),
+    );
+    expect(requests.map((request) => request.url)).toEqual([
+      "https://example.com/resume-state",
+      "https://example.com/resume",
+    ]);
+    expect(requests[1]!.body).toMatchObject({
+      runId: "run-1",
+      state: { message: "Hello" },
+    });
+  });
+
+  it("rejects malformed resume state responses before replay", async () => {
+    const fetchMock = vi.fn(async () => Response.json({ state: {} }));
+    vi.stubGlobal("fetch", fetchMock);
+    const onError = vi.fn();
+    const { aui } = mountRuntime({
+      resumeApi: "https://example.com/resume",
+      resumeStateApi: "https://example.com/resume-state",
+      onError,
+    });
+    await waitFor(() =>
+      expect(
+        (aui().thread.getState().extras as { sendCommand?: unknown })
+          ?.sendCommand,
+      ).toBeTypeOf("function"),
+    );
+
+    await act(async () => {
+      await aui().thread.resumeRun({ parentId: null });
+    });
+
+    await waitFor(() =>
+      expect(onError).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: "Resume state response must contain state and runId",
+        }),
+        expect.anything(),
+      ),
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps local state when the matching resume stream is rejected", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        Response.json({ runId: "run-1", state: { message: "Hello" } }),
+      )
+      .mockResolvedValueOnce(new Response("run mismatch", { status: 409 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const onError = vi.fn();
+    const { aui } = mountRuntime({
+      resumeApi: "https://example.com/resume",
+      resumeStateApi: "https://example.com/resume-state",
+      onError,
+    });
+    await waitFor(() =>
+      expect(
+        (aui().thread.getState().extras as { sendCommand?: unknown })
+          ?.sendCommand,
+      ).toBeTypeOf("function"),
+    );
+
+    act(() => {
+      aui().thread.importExternalState({ message: "Wrong" });
+    });
+    await act(async () => {
+      await aui().thread.resumeRun({ parentId: null });
+    });
+
+    await waitFor(() =>
+      expect(onError).toHaveBeenCalledWith(
+        expect.objectContaining({ message: "Status 409: run mismatch" }),
+        expect.anything(),
+      ),
+    );
+    expect(
+      (aui().thread.getState().extras as { state: unknown }).state,
+    ).toEqual({ message: "Wrong" });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
 });

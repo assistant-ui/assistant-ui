@@ -70,6 +70,35 @@ const convertAppendMessageToCommand = (
   };
 };
 
+const readResumeState = async <T>(
+  response: Response,
+): Promise<{ runId: string; state: T }> => {
+  if (!response.ok) {
+    throw new Error(
+      `Resume state request failed with status ${response.status}: ${await response.text()}`,
+    );
+  }
+
+  let value: unknown;
+  try {
+    value = await response.json();
+  } catch {
+    throw new Error("Resume state response was not valid JSON");
+  }
+
+  if (
+    typeof value !== "object" ||
+    value === null ||
+    !("state" in value) ||
+    !("runId" in value) ||
+    typeof value.runId !== "string"
+  ) {
+    throw new Error("Resume state response must contain state and runId");
+  }
+
+  return { runId: value.runId, state: value.state as T };
+};
+
 const symbolAssistantTransportExtras = Symbol("assistant-transport-extras");
 type AssistantTransportExtras = {
   [symbolAssistantTransportExtras]: true;
@@ -144,6 +173,17 @@ const useAssistantTransportThreadRuntime = <T>(
       if (!isResume) parentIdRef.current = undefined;
 
       const headers = await createRequestHeaders(options.headers);
+      let resumeState: { runId: string; state: T } | undefined;
+      if (isResume && options.resumeStateApi) {
+        const resumeStateResponse = await fetch(options.resumeStateApi, {
+          method: "POST",
+          headers,
+          body: JSON.stringify({ threadId }),
+          signal,
+        });
+        resumeState = await readResumeState<T>(resumeStateResponse);
+      }
+
       const bodyValue =
         typeof options.body === "function"
           ? await options.body()
@@ -152,7 +192,8 @@ const useAssistantTransportThreadRuntime = <T>(
 
       let requestBody: Record<string, unknown> = {
         commands,
-        state: agentStateRef.current,
+        state: resumeState?.state ?? agentStateRef.current,
+        ...(resumeState !== undefined && { runId: resumeState.runId }),
         system: context.system,
         tools: context.tools ? toToolsJSONSchema(context.tools) : undefined,
         threadId,
@@ -192,6 +233,11 @@ const useAssistantTransportThreadRuntime = <T>(
 
       if (!response.body) {
         throw new Error("Response body is null");
+      }
+
+      if (resumeState !== undefined) {
+        agentStateRef.current = resumeState.state;
+        rerender((prev) => prev + 1);
       }
 
       const body = await createReplayBoundaryStream(response, {

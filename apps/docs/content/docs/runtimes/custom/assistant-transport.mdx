@@ -300,6 +300,7 @@ aui-state:[{"type":"set","path":["status"],"value":"completed"}]
   initialState: T,
   api: string,
   resumeApi?: string,
+  resumeStateApi?: string,
   protocol?: "data-stream" | "assistant-transport",
   converter: (state: T, connectionMetadata: ConnectionMetadata) => AssistantTransportState,
   headers?: Record<string, string> | Headers | (() => Promise<Record<string, string> | Headers>),
@@ -516,8 +517,17 @@ const runtime = useAssistantTransportRuntime({
   // ...
   api: "http://localhost:8010/assistant",
   resumeApi: "http://localhost:8010/resume",
+  resumeStateApi: "http://localhost:8010/initial-state",
 });
 ```
+
+Before resuming, the runtime posts `{ threadId }` to `resumeStateApi`. The endpoint must return the state that started the active run together with its identity:
+
+```json
+{ "runId": "8b3a...", "state": { "messages": [] } }
+```
+
+The runtime replaces its local base with this snapshot and includes `runId` in the resume request. A sync server should reject the resume when that ID no longer identifies the same run, preventing replay operations from being applied to a drifted or replaced base state.
 
 ```tsx
 import { useAui } from "@assistant-ui/react";
