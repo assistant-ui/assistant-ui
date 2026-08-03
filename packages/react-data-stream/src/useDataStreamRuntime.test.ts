@@ -84,6 +84,19 @@ describe("useDataStreamRuntime request errors", () => {
     expect(onError).toHaveBeenCalledExactlyOnceWith(error);
   });
 
+  it("keeps response callback failures separate from request errors", async () => {
+    const error = new Error("response callback failed");
+    const onResponse = vi.fn().mockRejectedValue(error);
+    const onError = vi.fn();
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response()));
+
+    const adapter = createAdapter({ api: "/api/chat", onResponse, onError });
+
+    await expect(runOnce(adapter, createRunOptions())).rejects.toBe(error);
+    expect(onResponse).toHaveBeenCalledOnce();
+    expect(onError).not.toHaveBeenCalled();
+  });
+
   it("reports resolver failures that race with cancellation", async () => {
     const controller = new AbortController();
     const error = new Error("headers failed");

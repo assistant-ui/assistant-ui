@@ -144,7 +144,12 @@ class DataStreamRuntimeAdapter implements ChatModelAdapter {
 
     try {
       await this.options.onResponse?.(result);
+    } catch (error: unknown) {
+      abortSignal.removeEventListener("abort", handleAbort);
+      throw error;
+    }
 
+    try {
       if (!result.ok) {
         throw new Error(`Status ${result.status}: ${await result.text()}`);
       }
