@@ -15,7 +15,7 @@ export const MessageAttachmentByIndexProvider: FC<
     }),
   });
   return (
-    <AuiProvider aui={aui} config={config}>
+    <AuiProvider extends={aui} config={config}>
       {children}
     </AuiProvider>
   );
@@ -35,7 +35,7 @@ export const ComposerAttachmentByIndexProvider: FC<
     }),
   });
   return (
-    <AuiProvider aui={aui} config={config}>
+    <AuiProvider extends={aui} config={config}>
       {children}
     </AuiProvider>
   );

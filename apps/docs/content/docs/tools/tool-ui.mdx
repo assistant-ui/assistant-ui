@@ -337,10 +337,11 @@ import { useAnalyzeDataToolkit } from "./analyze-data-toolkit";
 function DynamicToolUI({ children }: { children: React.ReactNode }) {
   const [theme] = useState<"light" | "dark">("light");
   const toolkit = useAnalyzeDataToolkit(theme);
+  const aui = useAui();
   const config = AuiConfig({ tools: Tools({ toolkit }) });
 
   return (
-    <AuiProvider aui={useAui()} config={config}>
+    <AuiProvider extends={aui} config={config}>
       {children}
     </AuiProvider>
   );
@@ -395,10 +396,11 @@ import { useInventoryToolkit } from "./inventory-toolkit";
 
 function ProductPage({ productId, productName }) {
   const toolkit = useInventoryToolkit(productId, productName);
+  const aui = useAui();
   const config = AuiConfig({ tools: Tools({ toolkit }) });
 
   return (
-    <AuiProvider aui={useAui()} config={config}>
+    <AuiProvider extends={aui} config={config}>
       <div>Product details...</div>
     </AuiProvider>
   );
@@ -945,10 +947,11 @@ import { useHeavyComputationToolkit } from "./heavy-computation-toolkit";
 
 function HeavyComputationToolProvider({ children }: { children: ReactNode }) {
   const toolkit = useHeavyComputationToolkit();
+  const aui = useAui();
   const config = AuiConfig({ tools: Tools({ toolkit }) });
 
   return (
-    <AuiProvider aui={useAui()} config={config}>
+    <AuiProvider extends={aui} config={config}>
       {children}
     </AuiProvider>
   );

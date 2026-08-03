@@ -612,12 +612,12 @@ declare const AuiProvider: {
   (props: {
     config: AuiConfig;
     ref?: React.Ref<AssistantClient>;
-    aui?: never;
+    extends?: never;
     value?: never;
     children: React.ReactNode;
   }): React.ReactElement;
   (props: {
-    aui: AssistantClient | null;
+    extends: AssistantClient | null;
     config: AuiConfig;
     ref?: React.Ref<AssistantClient>;
     value?: never;
@@ -625,7 +625,7 @@ declare const AuiProvider: {
   }): React.ReactElement;
   (props: {
     value: AssistantClient | null;
-    aui?: never;
+    extends?: never;
     config?: never;
     ref?: never;
     children: React.ReactNode;

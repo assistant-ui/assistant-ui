@@ -174,10 +174,11 @@ import toolkit from "./task-board-toolkit";
 
 function TaskBoard() {
   const [tasks, setTasks] = useState<Task[]>([]);
+  const aui = useAui();
   const config = AuiConfig({ tools: Tools({ toolkit }) });
 
   return (
-    <AuiProvider aui={useAui()} config={config}>
+    <AuiProvider extends={aui} config={config}>
       <TaskBoardToolOverrides setTasks={setTasks} />
       <TaskList tasks={tasks} />
     </AuiProvider>

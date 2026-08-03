@@ -32,7 +32,7 @@ function MyThreadWithSuggestions() {
     ]),
   });
   return (
-    <AuiProvider aui={aui} config={config}>
+    <AuiProvider extends={aui} config={config}>
       <MyThread />
     </AuiProvider>
   );

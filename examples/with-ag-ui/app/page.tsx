@@ -79,7 +79,7 @@ function ThreadWithSuggestions() {
     ]),
   });
   return (
-    <AuiProvider aui={aui} config={config}>
+    <AuiProvider extends={aui} config={config}>
       <Thread />
     </AuiProvider>
   );
@@ -92,7 +92,7 @@ export default function Home() {
   });
 
   return (
-    <AuiProvider aui={aui} config={config}>
+    <AuiProvider extends={aui} config={config}>
       <main className="relative h-dvh">
         <NewThreadButton />
         <ThreadWithSuggestions />

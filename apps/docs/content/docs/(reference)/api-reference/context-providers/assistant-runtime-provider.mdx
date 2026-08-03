@@ -50,9 +50,9 @@ missing-provider mistakes surface at the point of use.
 
 `config` is required and must be built with [AuiConfig](/docs/api-reference/utilities/miscellaneous#auiconfig). At the top
 level, `config` alone creates this subtree's own client. Under a parent
-provider, `aui` is mandatory: pass `aui={useAui()}` to extend the parent
-client or `aui={null}` to isolate from it (enforced with a dev error). An
-empty config passes the `aui` client through as-is. Configs are
+provider, `extends` is mandatory: pass `extends={aui}` to extend the parent
+client or `extends={null}` to isolate from it (enforced with a dev error).
+An empty config passes the `extends` client through as-is. Configs are
 identity-insensitive — a fresh object per render is safe. `ref` receives
 the resulting client after mount.
 
@@ -71,7 +71,7 @@ function MessageScope({ index, children }) {
     }),
   });
   return (
-    <AuiProvider aui={aui} config={config}>
+    <AuiProvider extends={aui} config={config}>
       {children}
     </AuiProvider>
   );

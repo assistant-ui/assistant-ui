@@ -26,7 +26,7 @@ function ThreadWithSuggestions() {
     ]),
   });
   return (
-    <AuiProvider aui={aui} config={config}>
+    <AuiProvider extends={aui} config={config}>
       <Thread />
     </AuiProvider>
   );

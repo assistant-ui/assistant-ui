@@ -76,7 +76,7 @@ export default function Home() {
   });
 
   return (
-    <AuiProvider aui={aui} config={config}>
+    <AuiProvider extends={aui} config={config}>
       <ResizablePanelGroup orientation="horizontal">
         <ResizablePanel defaultSize={60} minSize={40} style={panelStyle}>
           <div className="bg-muted/30 h-full overflow-y-auto">

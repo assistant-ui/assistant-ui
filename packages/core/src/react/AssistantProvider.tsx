@@ -41,7 +41,7 @@ const AssistantProviderInner: FC<
   const RenderComponent = getRenderComponent(runtime);
   const merged = AuiConfig({ threads: RuntimeAdapter(runtime), ...config });
   return (
-    <AuiProvider aui={aui} config={merged}>
+    <AuiProvider extends={aui} config={merged}>
       {RenderComponent && <RenderComponent />}
       {children}
     </AuiProvider>

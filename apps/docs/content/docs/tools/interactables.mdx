@@ -613,16 +613,14 @@ const persistenceAdapter = {
 };
 
 function MyRuntimeProvider({ children }) {
+  const aui = useAui();
   const config = AuiConfig({
     unstable_interactables: unstable_Interactables({
       persistence: persistenceAdapter,
     }),
   });
   return (
-    <AuiProvider
-      aui={useAui()}
-      config={config}
-    >
+    <AuiProvider extends={aui} config={config}>
       {children}
     </AuiProvider>
   );

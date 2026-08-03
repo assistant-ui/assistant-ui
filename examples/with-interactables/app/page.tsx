@@ -287,7 +287,7 @@ function InteractablesExample() {
   });
 
   return (
-    <AuiProvider aui={aui} config={config}>
+    <AuiProvider extends={aui} config={config}>
       <main className="flex h-full min-h-0">
         <div className="min-w-0 flex-1">
           <Thread />

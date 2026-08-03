@@ -22,6 +22,7 @@ export declare namespace AuiConfig {
  *
  * @example
  * ```tsx
+ * const aui = useAui();
  * const config = AuiConfig({
  *   message: Derived({
  *     source: "thread",
@@ -30,7 +31,7 @@ export declare namespace AuiConfig {
  *   }),
  * });
  *
- * <AuiProvider aui={useAui()} config={config}>{children}</AuiProvider>;
+ * <AuiProvider extends={aui} config={config}>{children}</AuiProvider>;
  * ```
  */
 export const AuiConfig = (config: AuiConfig.Input): AuiConfig =>

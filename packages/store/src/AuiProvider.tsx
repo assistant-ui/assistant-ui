@@ -67,9 +67,9 @@ const isEmptyConfig = (config: AuiConfig) => Object.keys(config).length === 0;
  *
  * `config` is required and must be built with {@link AuiConfig}. At the top
  * level, `config` alone creates this subtree's own client. Under a parent
- * provider, `aui` is mandatory: pass `aui={useAui()}` to extend the parent
- * client or `aui={null}` to isolate from it (enforced with a dev error). An
- * empty config passes the `aui` client through as-is. Configs are
+ * provider, `extends` is mandatory: pass `extends={aui}` to extend the parent
+ * client or `extends={null}` to isolate from it (enforced with a dev error).
+ * An empty config passes the `extends` client through as-is. Configs are
  * identity-insensitive — a fresh object per render is safe. `ref` receives
  * the resulting client after mount.
  *
@@ -89,7 +89,7 @@ const isEmptyConfig = (config: AuiConfig) => Object.keys(config).length === 0;
  *     }),
  *   });
  *   return (
- *     <AuiProvider aui={aui} config={config}>
+ *     <AuiProvider extends={aui} config={config}>
  *       {children}
  *     </AuiProvider>
  *   );
@@ -100,29 +100,29 @@ export const AuiProvider: {
   /**
    * Top-level root: creates this subtree's own client from `config`. Only
    * valid when no parent `AuiProvider` exists (dev-enforced); nested
-   * providers must pass `aui`.
+   * providers must pass `extends`.
    */
   (props: {
     /** Scopes to create the client from; built with {@link AuiConfig}. */
     config: AuiConfig;
     /** Receives the resulting client after mount. */
     ref?: React.Ref<AssistantClient>;
-    aui?: never;
+    extends?: never;
     value?: never;
     /** Subtree that may read from the client. */
     children: React.ReactNode;
   }): React.ReactElement;
   /**
    * Extends a parent client with the configured scopes, or isolates with
-   * `aui={null}`. An empty config provides the `aui` client as-is.
+   * `extends={null}`. An empty config provides the `extends` client as-is.
    */
   (props: {
     /**
-     * Parent to extend: pass `aui={useAui()}` to extend the surrounding
-     * client (the empty default client behaves as a root) or `aui={null}`
+     * Parent to extend: pass `extends={aui}` to extend the surrounding
+     * client (the empty default client behaves as a root) or `extends={null}`
      * for an isolated fresh root that ignores context.
      */
-    aui: AssistantClient | null;
+    extends: AssistantClient | null;
     /** Scopes to create the client from; built with {@link AuiConfig}. */
     config: AuiConfig;
     /** Receives the resulting client after mount. */
@@ -137,11 +137,11 @@ export const AuiProvider: {
      * empty root.
      *
      * @deprecated Pass an empty config built in the component body
-     * (`const config = AuiConfig({})`) with `aui={client}` to provide an
-     * existing client, or with `aui={null}` for an isolated empty root.
+     * (`const config = AuiConfig({})`) with `extends={client}` to provide an
+     * existing client, or with `extends={null}` for an isolated empty root.
      */
     value: AssistantClient | null;
-    aui?: never;
+    extends?: never;
     config?: never;
     ref?: never;
     /** Subtree that may read from the client. */
@@ -150,7 +150,7 @@ export const AuiProvider: {
 } = forwardRef<
   AssistantClient,
   {
-    aui?: AssistantClient | null;
+    extends?: AssistantClient | null;
     value?: AssistantClient | null;
     config?: AuiConfig;
     children: React.ReactNode;
@@ -159,35 +159,37 @@ export const AuiProvider: {
   // The <UseTapEffects /> element must be created fresh each render
   "use no memo";
   const { config, children } = props;
-  const hasAui = "aui" in props;
+  const hasExtends = "extends" in props;
   const hasValue = "value" in props;
   const contextParent = useAssistantContextValue();
 
   if (isDevelopment) {
-    if (hasAui && hasValue) {
-      throw new Error("AuiProvider: pass either `aui` or `value`, not both.");
-    }
-    if (hasAui && !config) {
-      throw new Error("AuiProvider: `aui` requires a `config`.");
-    }
-    if (!hasAui && !hasValue && contextParent !== DefaultAssistantClient) {
+    if (hasExtends && hasValue) {
       throw new Error(
-        "A parent AuiProvider exists — pass aui={useAui()} to inherit it or aui={null} to isolate.",
+        "AuiProvider: pass either `extends` or `value`, not both.",
+      );
+    }
+    if (hasExtends && !config) {
+      throw new Error("AuiProvider: `extends` requires a `config`.");
+    }
+    if (!hasExtends && !hasValue && contextParent !== DefaultAssistantClient) {
+      throw new Error(
+        "A parent AuiProvider exists — pass extends={aui} to inherit it or extends={null} to isolate.",
       );
     }
   }
 
-  if (hasAui) {
-    const auiClient = props.aui;
-    if (auiClient && isEmptyConfig(config!)) {
+  if (hasExtends) {
+    const parentClient = props.extends;
+    if (parentClient && isEmptyConfig(config!)) {
       return (
-        <PassthroughAui client={auiClient} ref={ref}>
+        <PassthroughAui client={parentClient} ref={ref}>
           {children}
         </PassthroughAui>
       );
     }
     return (
-      <AssistantContext.Provider value={auiClient ?? DefaultAssistantClient}>
+      <AssistantContext.Provider value={parentClient ?? DefaultAssistantClient}>
         <UseTapEffects />
         <ConfiguredAui config={config!} ref={ref}>
           {children}

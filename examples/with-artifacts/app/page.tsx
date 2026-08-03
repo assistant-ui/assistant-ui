@@ -60,7 +60,7 @@ function ArtifactScopes() {
   });
 
   return (
-    <AuiProvider aui={aui} config={config}>
+    <AuiProvider extends={aui} config={config}>
       <ArtifactSurfaceProvider>
         <ArtifactExperience />
       </ArtifactSurfaceProvider>

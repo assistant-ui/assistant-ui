@@ -15,7 +15,7 @@ export const SpanByIndexProvider: FC<PropsWithChildren<{ index: number }>> = ({
     }),
   });
   return (
-    <AuiProvider aui={parentAui} config={config}>
+    <AuiProvider extends={parentAui} config={config}>
       {children}
     </AuiProvider>
   );

@@ -226,9 +226,10 @@ const toolkit = defineToolkit({
 });
 
 export default function Home() {
+  const aui = useAui();
   const config = AuiConfig({ tools: Tools({ toolkit }) });
   return (
-    <AuiProvider aui={useAui()} config={config}>
+    <AuiProvider extends={aui} config={config}>
       <Thread />
     </AuiProvider>
   );

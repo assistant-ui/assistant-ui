@@ -64,6 +64,7 @@ const connectors = [
 ];
 
 export function Providers({ children }: { children: React.ReactNode }) {
+  const aui = useAui();
   const config = AuiConfig({
     mcp: McpManagerResource({
       connectors,
@@ -71,7 +72,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
     }),
   });
   return (
-    <AuiProvider aui={useAui()} config={config}>
+    <AuiProvider extends={aui} config={config}>
       {children}
     </AuiProvider>
   );

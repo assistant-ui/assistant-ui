@@ -31,6 +31,7 @@ This is the default — the scope was provided directly, not derived from anothe
 When a scope is created via `Derived`, its `source` points to the parent scope it was derived from, and `query` carries the lookup parameters:
 
 ```tsx
+const aui = useAui();
 const config = AuiConfig({
   message: Derived({
     source: "thread",
@@ -39,7 +40,7 @@ const config = AuiConfig({
   }),
 });
 
-<AuiProvider aui={useAui()} config={config}>
+<AuiProvider extends={aui} config={config}>
 
 aui.message.source; // "thread"
 aui.message.query; // { index: 0 }

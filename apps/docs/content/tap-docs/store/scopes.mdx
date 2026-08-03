@@ -74,14 +74,15 @@ const App = () => {
 
 Now any component inside `App` can call `useAui()` to get the store with the `threadList` scope filled.
 
-You don't have to fill every scope at once. Each level of your tree can extend the store with its own scopes — a nested provider passes `aui={useAui()}` to extend the parent (or `aui={null}` to isolate):
+You don't have to fill every scope at once. Each level of your tree can extend the store with its own scopes — a nested provider passes `extends={aui}` to extend the parent (or `extends={null}` to isolate):
 
 ```tsx
 const ThreadView = () => {
   // extends the parent store with a thread scope
+  const aui = useAui();
   const config = AuiConfig({ thread: ThreadResource() });
   return (
-    <AuiProvider aui={useAui()} config={config}>
+    <AuiProvider extends={aui} config={config}>
       <MessageList />
     </AuiProvider>
   );

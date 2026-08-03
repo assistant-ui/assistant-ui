@@ -104,7 +104,7 @@ const FooProvider = ({ index, children }) => {
     }),
   });
   return (
-    <AuiProvider aui={aui} config={config}>
+    <AuiProvider extends={aui} config={config}>
       {children}
     </AuiProvider>
   );

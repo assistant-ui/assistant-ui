@@ -191,9 +191,10 @@ import { AuiConfig, AuiProvider, Tools, useAui } from "@assistant-ui/react-ink";
 import toolkit from "./weather-toolkit";
 
 function ToolProvider({ children }: { children: React.ReactNode }) {
+  const aui = useAui();
   const config = AuiConfig({ tools: Tools({ toolkit }) });
   return (
-    <AuiProvider aui={useAui()} config={config}>
+    <AuiProvider extends={aui} config={config}>
       {children}
     </AuiProvider>
   );
@@ -275,7 +276,7 @@ export function useWeatherToolkit() {
 }
 ```
 
-Import the toolkit hook and mount it with `<AuiProvider aui={useAui()} config={config}>` where `const config = AuiConfig({ tools: Tools({ toolkit }) })`, as shown in the [Tools](#tools) section above.
+Import the toolkit hook and mount it with `<AuiProvider extends={aui} config={config}>` where `const aui = useAui()` and `const config = AuiConfig({ tools: Tools({ toolkit }) })`, as shown in the [Tools](#tools) section above.
 
 ## Runtime Providers
 

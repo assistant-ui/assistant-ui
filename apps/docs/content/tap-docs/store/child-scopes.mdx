@@ -146,6 +146,7 @@ const TodoList = () => {
 };
 
 const TodoItem = ({ index }: { index: number }) => {
+  const aui = useAui();
   const config = AuiConfig({
     todo: Derived({
       source: "todoList",
@@ -154,7 +155,7 @@ const TodoItem = ({ index }: { index: number }) => {
     }),
   });
   return (
-    <AuiProvider aui={useAui()} config={config}>
+    <AuiProvider extends={aui} config={config}>
       <TodoDisplay />
     </AuiProvider>
   );

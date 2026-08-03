@@ -20,7 +20,7 @@ export const MessageByIndexProvider: FC<
     }),
   });
   return (
-    <AuiProvider aui={aui} config={config}>
+    <AuiProvider extends={aui} config={config}>
       {children}
     </AuiProvider>
   );

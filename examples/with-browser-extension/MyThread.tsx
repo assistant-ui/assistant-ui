@@ -24,7 +24,7 @@ const config = AuiConfig({ suggestions });
 export function MyThread() {
   const aui = useAui();
   return (
-    <AuiProvider aui={aui} config={config}>
+    <AuiProvider extends={aui} config={config}>
       <Thread />
     </AuiProvider>
   );

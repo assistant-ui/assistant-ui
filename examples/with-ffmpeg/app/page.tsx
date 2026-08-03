@@ -61,7 +61,7 @@ const FfmpegToolsProvider: FC<{ file: File; children: ReactNode }> = ({
   });
 
   return (
-    <AuiProvider aui={aui} config={config}>
+    <AuiProvider extends={aui} config={config}>
       {children}
     </AuiProvider>
   );
@@ -94,7 +94,7 @@ export default function Home() {
 
   return (
     <div className="flex h-full flex-col">
-      <AuiProvider aui={aui} config={config}>
+      <AuiProvider extends={aui} config={config}>
         {lastFile ? (
           <FfmpegToolsProvider file={lastFile}>
             <Thread />

@@ -45,6 +45,7 @@ import {
 } from "@assistant-ui/react";
 
 function MyAssistant({ children }) {
+  const aui = useAui();
   const config = AuiConfig({
     tools: Tools({
       toolkit: myToolkit,
@@ -56,10 +57,7 @@ function MyAssistant({ children }) {
     }),
   });
   return (
-    <AuiProvider
-      aui={useAui()}
-      config={config}
-    >
+    <AuiProvider extends={aui} config={config}>
       {children}
     </AuiProvider>
   );
