@@ -2,7 +2,11 @@
 
 import { useMemo } from "react";
 import type { StreamdownProps } from "streamdown";
-import { createCodeAdapter, shouldUseCodeAdapter } from "./code-adapter";
+import {
+  createCodeAdapter,
+  type InlineCodeComponent,
+  shouldUseCodeAdapter,
+} from "./code-adapter";
 import { PreOverride } from "./PreOverride";
 import type { ComponentsByLanguage, StreamdownTextComponents } from "../types";
 
@@ -35,7 +39,7 @@ export function useAdaptedComponents({
     const codeAdapterOptions = {
       SyntaxHighlighter,
       CodeHeader,
-      InlineCode,
+      InlineCode: InlineCode as InlineCodeComponent | undefined,
       componentsByLanguage,
     };
 
