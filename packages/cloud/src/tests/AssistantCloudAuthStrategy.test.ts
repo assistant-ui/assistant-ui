@@ -54,36 +54,39 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
     }
   });
 
-  it.each(["2099-01-01", "2099-01-01T00:00:00Z", "2099-01-01T00:00:00+00:00"])(
-    "persists refresh tokens with valid expiry %s",
-    async (expiresAt) => {
-      const nextRefreshToken = { ...refreshToken, expires_at: expiresAt };
-      const values = new Map<string, string>();
-      installLocalStorage({
-        getItem: (key) => values.get(key) ?? null,
-        setItem: (key, value) => {
-          values.set(key, value);
-        },
-        removeItem: (key) => {
-          values.delete(key);
-        },
-      } as Storage);
-      const fetchMock = mockAnonymousTokenFetch(nextRefreshToken);
+  it.each([
+    "2099-01-01",
+    "2099-01-01T00:00:00Z",
+    "2099-01-01T00:00:00+0000",
+    "2099-01-01T00:00:00",
+    "2099-01-01 00:00:00+00",
+  ])("persists refresh tokens with expiry %s", async (expiresAt) => {
+    const nextRefreshToken = { ...refreshToken, expires_at: expiresAt };
+    const values = new Map<string, string>();
+    installLocalStorage({
+      getItem: (key) => values.get(key) ?? null,
+      setItem: (key, value) => {
+        values.set(key, value);
+      },
+      removeItem: (key) => {
+        values.delete(key);
+      },
+    } as Storage);
+    const fetchMock = mockAnonymousTokenFetch(nextRefreshToken);
 
-      const strategy = new AssistantCloudAnonymousAuthStrategy(baseUrl);
+    const strategy = new AssistantCloudAnonymousAuthStrategy(baseUrl);
 
-      await expect(strategy.getAuthHeaders()).resolves.toEqual({
-        Authorization: `Bearer ${accessToken}`,
-      });
-      expect(values.get("aui:refresh_token")).toBe(
-        JSON.stringify(nextRefreshToken),
-      );
-      expect(fetchMock).toHaveBeenCalledWith(
-        `${baseUrl}/v1/auth/tokens/anonymous`,
-        { method: "POST" },
-      );
-    },
-  );
+    await expect(strategy.getAuthHeaders()).resolves.toEqual({
+      Authorization: `Bearer ${accessToken}`,
+    });
+    expect(values.get("aui:refresh_token")).toBe(
+      JSON.stringify(nextRefreshToken),
+    );
+    expect(fetchMock).toHaveBeenCalledWith(
+      `${baseUrl}/v1/auth/tokens/anonymous`,
+      { method: "POST" },
+    );
+  });
 
   it("deduplicates concurrent anonymous token requests", async () => {
     delete (globalThis as { localStorage?: Storage }).localStorage;
@@ -209,7 +212,7 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
     expect(setItem).not.toHaveBeenCalled();
   });
 
-  it("rejects invalid calendar expiry timestamps without persisting them", async () => {
+  it("rejects empty refresh token expiry without persisting it", async () => {
     const setItem = vi.fn();
     installLocalStorage({
       getItem: () => null,
@@ -224,7 +227,7 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
           access_token: accessToken,
           refresh_token: {
             token: "r2",
-            expires_at: "2026-02-30T12:15:00Z",
+            expires_at: "",
           },
         }),
       }),
@@ -234,7 +237,7 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
 
     await expect(strategy.getAuthHeaders()).rejects.toThrow(
       new CloudResponseError(
-        'Invalid Assistant Cloud response for "anonymous auth token response.refresh_token.expires_at": expected a valid timestamp',
+        'Invalid Assistant Cloud response for "anonymous auth token response.refresh_token.expires_at": expected a non-empty string',
       ),
     );
     expect(setItem).not.toHaveBeenCalled();
