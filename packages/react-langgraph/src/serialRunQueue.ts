@@ -9,6 +9,13 @@ export type SerialRunQueue<TPayload> = {
   drop(): void;
 };
 
+export class SerialRunQueueDropError extends Error {
+  constructor() {
+    super("Queued run was dropped.");
+    this.name = "SerialRunQueueDropError";
+  }
+}
+
 /**
  * Serialize runs so at most one is in flight at a time. A payload enqueued
  * while a run is active waits for it to settle; each enqueue resolves once its
@@ -20,8 +27,8 @@ export type SerialRunQueue<TPayload> = {
  * window. `onRunningChange` fires on transitions only.
  *
  * A run that rejects drops the payloads queued behind it (their promises
- * resolve without running) and rejects its own promise. `drop()` does the same
- * for everything not yet started, leaving an active run untouched.
+ * reject) and rejects its own promise. `drop()` does the same for everything
+ * not yet started, leaving an active run untouched.
  */
 export const createSerialRunQueue = <TPayload>({
   run,
@@ -41,7 +48,8 @@ export const createSerialRunQueue = <TPayload>({
   };
 
   const drop = () => {
-    for (const queued of queue.splice(0)) queued.resolve();
+    const error = new SerialRunQueueDropError();
+    for (const queued of queue.splice(0)) queued.reject(error);
   };
 
   const drain = async () => {

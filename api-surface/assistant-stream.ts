@@ -902,8 +902,15 @@ type MessagePartLike = {
   toolCallId?: string;
   toolName?: string;
   args?: Record<string, unknown>;
+  state?: string;
   result?: unknown;
   isError?: boolean;
+  approval?: {
+    approved?: boolean;
+    resolution?: string;
+    [key: string]: unknown;
+  };
+  interrupt?: unknown;
 };
 
 declare type NatMap = {

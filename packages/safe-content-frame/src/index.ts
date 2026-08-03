@@ -165,13 +165,20 @@ export class SafeContentFrame {
       };
 
       let onLoaded: () => void;
-      const loaded = new Promise<void>((r) => {
-        onLoaded = r;
+      let onLoadError: (error: Error) => void;
+      const loaded = new Promise<void>((resolveLoaded, rejectLoaded) => {
+        onLoaded = resolveLoaded;
+        onLoadError = rejectLoaded;
       });
+      void loaded.catch(() => {});
 
       channel.port1.onmessage = (e) => {
         if (e.data?.type === "msg") onLoaded();
-        else if (e.data?.type === "error") reject(new Error(e.data.message));
+        else if (e.data?.type === "error") {
+          const error = new Error(e.data.message);
+          onLoadError(error);
+          cleanup();
+        }
       };
 
       let loadHandled = false;

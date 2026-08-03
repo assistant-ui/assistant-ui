@@ -3,10 +3,14 @@ import {
   AssistantCloudAnonymousAuthStrategy,
   AssistantCloudJWTAuthStrategy,
 } from "../AssistantCloudAuthStrategy";
+import { CloudResponseError } from "../cloudResponse";
 
 const baseUrl = "https://test.example.com";
 const accessToken = `${Buffer.from(JSON.stringify({ alg: "none" })).toString("base64url")}.${Buffer.from(JSON.stringify({ exp: 4102444800 })).toString("base64url")}.sig`;
-const refreshToken = { token: "r1", expires_at: "2099-01-01" };
+const refreshToken = {
+  token: "r1",
+  expires_at: "2099-01-01",
+};
 
 let originalLocalStorageDescriptor: PropertyDescriptor | undefined;
 
@@ -17,12 +21,12 @@ const installLocalStorage = (storage: Storage): void => {
   });
 };
 
-const mockAnonymousTokenFetch = () => {
+const mockAnonymousTokenFetch = (nextRefreshToken = refreshToken) => {
   const fetchMock = vi.fn().mockResolvedValue({
     ok: true,
     json: vi.fn().mockResolvedValue({
       access_token: accessToken,
-      refresh_token: refreshToken,
+      refresh_token: nextRefreshToken,
     }),
   });
   vi.stubGlobal("fetch", fetchMock);
@@ -50,7 +54,14 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
     }
   });
 
-  it("persists the refresh token and returns the anonymous access token", async () => {
+  it.each([
+    "2099-01-01",
+    "2099-01-01T00:00:00Z",
+    "2099-01-01T00:00:00+0000",
+    "2099-01-01T00:00:00",
+    "2099-01-01 00:00:00+00",
+  ])("persists refresh tokens with expiry %s", async (expiresAt) => {
+    const nextRefreshToken = { ...refreshToken, expires_at: expiresAt };
     const values = new Map<string, string>();
     installLocalStorage({
       getItem: (key) => values.get(key) ?? null,
@@ -61,14 +72,16 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
         values.delete(key);
       },
     } as Storage);
-    const fetchMock = mockAnonymousTokenFetch();
+    const fetchMock = mockAnonymousTokenFetch(nextRefreshToken);
 
     const strategy = new AssistantCloudAnonymousAuthStrategy(baseUrl);
 
     await expect(strategy.getAuthHeaders()).resolves.toEqual({
       Authorization: `Bearer ${accessToken}`,
     });
-    expect(values.get("aui:refresh_token")).toBe(JSON.stringify(refreshToken));
+    expect(values.get("aui:refresh_token")).toBe(
+      JSON.stringify(nextRefreshToken),
+    );
     expect(fetchMock).toHaveBeenCalledWith(
       `${baseUrl}/v1/auth/tokens/anonymous`,
       { method: "POST" },
@@ -169,6 +182,139 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
       Authorization: `Bearer ${accessToken}`,
     });
     expect(values.get("aui:refresh_token")).toBe(JSON.stringify(refreshToken));
+  });
+
+  it("rejects malformed anonymous token responses without persisting them", async () => {
+    const setItem = vi.fn();
+    installLocalStorage({
+      getItem: () => null,
+      setItem,
+      removeItem: vi.fn(),
+    } as unknown as Storage);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: vi.fn().mockResolvedValue({
+          access_token: accessToken,
+          refresh_token: "not-a-refresh-token",
+        }),
+      }),
+    );
+
+    const strategy = new AssistantCloudAnonymousAuthStrategy(baseUrl);
+
+    await expect(strategy.getAuthHeaders()).rejects.toThrow(
+      new CloudResponseError(
+        'Invalid Assistant Cloud response for "anonymous auth token response.refresh_token": expected an object',
+      ),
+    );
+    expect(setItem).not.toHaveBeenCalled();
+  });
+
+  it("rejects empty refresh token expiry without persisting it", async () => {
+    const setItem = vi.fn();
+    installLocalStorage({
+      getItem: () => null,
+      setItem,
+      removeItem: vi.fn(),
+    } as unknown as Storage);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: vi.fn().mockResolvedValue({
+          access_token: accessToken,
+          refresh_token: {
+            token: "r2",
+            expires_at: "",
+          },
+        }),
+      }),
+    );
+
+    const strategy = new AssistantCloudAnonymousAuthStrategy(baseUrl);
+
+    await expect(strategy.getAuthHeaders()).rejects.toThrow(
+      new CloudResponseError(
+        'Invalid Assistant Cloud response for "anonymous auth token response.refresh_token.expires_at": expected a non-empty string',
+      ),
+    );
+    expect(setItem).not.toHaveBeenCalled();
+  });
+
+  it("contextualizes malformed refresh token responses", async () => {
+    installLocalStorage({
+      getItem: () => JSON.stringify(refreshToken),
+      setItem: vi.fn(),
+      removeItem: vi.fn(),
+    } as unknown as Storage);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: vi.fn().mockResolvedValue({ access_token: 123 }),
+      }),
+    );
+
+    const strategy = new AssistantCloudAnonymousAuthStrategy(baseUrl);
+
+    await expect(strategy.getAuthHeaders()).rejects.toThrow(
+      new CloudResponseError(
+        'Invalid Assistant Cloud response for "refresh auth token response.access_token": expected a string',
+      ),
+    );
+  });
+
+  it("accepts valid refresh responses without a rotated refresh token", async () => {
+    const setItem = vi.fn();
+    installLocalStorage({
+      getItem: () => JSON.stringify(refreshToken),
+      setItem,
+      removeItem: vi.fn(),
+    } as unknown as Storage);
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue({
+        access_token: accessToken,
+        refresh_token: null,
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const strategy = new AssistantCloudAnonymousAuthStrategy(baseUrl);
+
+    await expect(strategy.getAuthHeaders()).resolves.toEqual({
+      Authorization: `Bearer ${accessToken}`,
+    });
+    expect(fetchMock).toHaveBeenCalledWith(
+      `${baseUrl}/v1/auth/tokens/refresh`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refresh_token: refreshToken.token }),
+      },
+    );
+    expect(setItem).not.toHaveBeenCalled();
+  });
+
+  it("contextualizes invalid JSON token responses", async () => {
+    delete (globalThis as { localStorage?: Storage }).localStorage;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: vi.fn().mockRejectedValue(new SyntaxError("Unexpected token")),
+      }),
+    );
+
+    const strategy = new AssistantCloudAnonymousAuthStrategy(baseUrl);
+
+    await expect(strategy.getAuthHeaders()).rejects.toThrow(
+      new CloudResponseError(
+        'Invalid Assistant Cloud response for "anonymous auth token response": expected valid JSON',
+      ),
+    );
   });
 });
 

@@ -388,6 +388,7 @@ type ExternalStoreAdapterBase<T> = {
   onReload?: ((parentId: string | null, config: StartRunConfig) => Promise<void>) | undefined;
   onResume?: ((config: ResumeRunConfig) => Promise<void>) | undefined;
   onCancel?: (() => Promise<void>) | undefined;
+  onRefetchThread?: (() => Promise<void>) | undefined;
   onAddToolResult?: ((options: AddToolResultOptions) => Promise<void> | void) | undefined;
   onResumeToolCall?: ((options: {
     toolCallId: string;
@@ -953,6 +954,7 @@ type RuntimeCapabilities = {
   readonly switchBranchDuringRun: boolean;
   readonly edit: boolean;
   readonly reload: boolean;
+  readonly refetchThread: boolean;
   readonly delete: boolean;
   readonly cancel: boolean;
   readonly unstable_copy: boolean;
@@ -1150,6 +1152,7 @@ type ThreadListItemRuntimePath = {
 
 type ThreadListItemState = {
   readonly isMain: boolean;
+  readonly isRunning: boolean;
   readonly id: string;
   readonly remoteId: string | undefined;
   readonly externalId: string | undefined;
@@ -1176,6 +1179,7 @@ type ThreadListRuntime = {
   switchToNewThread(): Promise<void>;
   getLoadThreadsPromise(): Promise<void>;
   reload(): Promise<void>;
+  reloadMainThread(): Promise<void>;
   loadMore(): Promise<void>;
 };
 
@@ -1187,7 +1191,7 @@ type ThreadListState = {
   readonly isLoading: boolean;
   readonly isLoadingMore: boolean;
   readonly hasMore: boolean;
-  readonly threadItems: Readonly<Record<string, Omit<ThreadListItemState, "isMain" | "threadId">>>;
+  readonly threadItems: Readonly<Record<string, Omit<ThreadListItemState, "isMain" | "isRunning" | "threadId">>>;
 };
 
 type ThreadMessage = BaseThreadMessage & (ThreadSystemMessage | ThreadUserMessage | ThreadAssistantMessage);

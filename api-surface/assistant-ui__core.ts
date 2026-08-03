@@ -1652,6 +1652,7 @@ type ExternalStoreAdapterBase<T> = {
   onReload?: ((parentId: string | null, config: StartRunConfig) => Promise<void>) | undefined;
   onResume?: ((config: ResumeRunConfig) => Promise<void>) | undefined;
   onCancel?: (() => Promise<void>) | undefined;
+  onRefetchThread?: (() => Promise<void>) | undefined;
   onAddToolResult?: ((options: AddToolResultOptions) => Promise<void> | void) | undefined;
   onResumeToolCall?: ((options: {
     toolCallId: string;
@@ -1738,6 +1739,7 @@ declare class ExternalStoreThreadListRuntimeCore implements ThreadListRuntimeCor
   getThreadRuntimeCore(): never;
   getItemById(threadId: string): ThreadListItemCoreState | undefined;
   __internal_setAdapter(adapter: ExternalStoreThreadListAdapter, initialLoad?: boolean): void;
+  reloadMainThread(): Promise<void>;
   switchToThread(threadId: string, _options?: {
     unarchive?: boolean;
   }): Promise<void>;
@@ -1776,6 +1778,7 @@ declare class ExternalStoreThreadRuntimeCore extends BaseThreadRuntimeCore imple
     feedback?: FeedbackAdapter | undefined;
     threadList?: ExternalStoreThreadListAdapter | undefined;
   } | undefined;
+  get unstable_refetchThread(): (() => Promise<void>) | undefined;
   suggestions: readonly ThreadSuggestion[];
   extras: unknown;
   private _converter;
@@ -2233,6 +2236,7 @@ declare class LocalThreadRuntimeCore extends BaseThreadRuntimeCore implements Th
     edit: boolean;
     delete: boolean;
     reload: boolean;
+    refetchThread: boolean;
     cancel: boolean;
     unstable_copy: boolean;
     speech: boolean;
@@ -3247,6 +3251,7 @@ declare class ReadonlyThreadRuntimeCore extends BaseSubscribable implements Thre
     readonly edit: false;
     readonly delete: false;
     readonly reload: false;
+    readonly refetchThread: false;
     readonly cancel: false;
     readonly unstable_copy: false;
     readonly speech: false;
@@ -3378,9 +3383,11 @@ type RemoteThreadListHook = () => AssistantRuntime;
 declare class RemoteThreadListHookInstanceManager extends BaseSubscribable {
   private useRuntimeHook;
   private instances;
+  private nextGeneration;
   private useAliveThreadsKeysChanged;
   private parent;
   constructor(runtimeHook: RemoteThreadListHook, parent: ThreadListRuntimeCore);
+  private _whenRuntimeAttached;
   startThreadRuntime(threadId: string): Promise<Readonly<{
     getMessageById: (messageId: string) => {
       parentId: string | null;
@@ -3430,6 +3437,59 @@ declare class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     exportExternalState(): any;
     importExternalState(state: any): void;
     reset(initialMessages?: readonly ThreadMessageLike[]): void;
+    unstable_refetchThread?: (() => Promise<void>) | undefined;
+    unstable_on<E extends ThreadRuntimeEventType>(event: E, callback: ThreadRuntimeEventCallback<E>): Unsubscribe$1;
+  }>>;
+  __internal_restartThreadRuntime(threadId: string): Promise<Readonly<{
+    getMessageById: (messageId: string) => {
+      parentId: string | null;
+      message: ThreadMessage;
+      index: number;
+    } | undefined;
+    getBranches: (messageId: string) => readonly string[];
+    switchToBranch: (branchId: string) => void;
+    append: (message: AppendMessage) => void;
+    deleteMessage: (messageId: string) => void | Promise<void>;
+    startRun: (config: StartRunConfig) => void;
+    resumeRun: (config: ResumeRunConfig) => void;
+    cancelRun: () => void;
+    addToolResult: (options: AddToolResultOptions) => void;
+    resumeToolCall: (options: ResumeToolCallOptions) => void;
+    respondToToolApproval: (options: RespondToToolApprovalOptions) => void;
+    speak: (messageId: string) => void;
+    stopSpeaking: () => void;
+    connectVoice: () => void;
+    disconnectVoice: () => void;
+    muteVoice: () => void;
+    unmuteVoice: () => void;
+    submitFeedback: (feedback: SubmitFeedbackOptions) => void;
+    getModelContext: () => ModelContext$1;
+    composer: ThreadComposerRuntimeCore;
+    getEditComposer: (messageId: string) => EditComposerRuntimeCore | undefined;
+    beginEdit: (messageId: string) => void;
+    getQueueItems?: () => readonly QueueItemState[];
+    steerQueueItem?: (queueItemId: string) => void;
+    removeQueueItem?: (queueItemId: string) => void;
+    speech: SpeechState | undefined;
+    voice: VoiceSessionState | undefined;
+    capabilities: Readonly<RuntimeCapabilities>;
+    isDisabled: boolean;
+    isSendDisabled: boolean;
+    isLoading: boolean;
+    isRunning?: boolean | undefined;
+    messages: readonly ThreadMessage[];
+    state: ReadonlyJSONValue;
+    suggestions: readonly ThreadSuggestion[];
+    extras: unknown;
+    subscribe: (callback: () => void) => Unsubscribe$1;
+    getVoiceVolume: () => number;
+    subscribeVoiceVolume: (callback: () => void) => Unsubscribe$1;
+    import(repository: ExportedMessageRepository): void;
+    export(): ExportedMessageRepository;
+    exportExternalState(): any;
+    importExternalState(state: any): void;
+    reset(initialMessages?: readonly ThreadMessageLike[]): void;
+    unstable_refetchThread?: (() => Promise<void>) | undefined;
     unstable_on<E extends ThreadRuntimeEventType>(event: E, callback: ThreadRuntimeEventCallback<E>): Unsubscribe$1;
   }>>;
   getThreadRuntimeCore(threadId: string): Readonly<{
@@ -3481,8 +3541,15 @@ declare class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     exportExternalState(): any;
     importExternalState(state: any): void;
     reset(initialMessages?: readonly ThreadMessageLike[]): void;
+    unstable_refetchThread?: (() => Promise<void>) | undefined;
     unstable_on<E extends ThreadRuntimeEventType>(event: E, callback: ThreadRuntimeEventCallback<E>): Unsubscribe$1;
   }> | undefined;
+  __internal_isThreadRunning(threadId: string): boolean;
+  private runningSubscribers;
+  __internal_subscribeRunningChanged(callback: () => void): Unsubscribe$1;
+  private _publishThreadRuntime;
+  private _trackRunning;
+  private _setRunning;
   stopThreadRuntime(threadId: string): void;
   setRuntimeHook(newRuntimeHook: RemoteThreadListHook): void;
   private _RuntimeBinder;
@@ -3529,6 +3596,7 @@ declare class RemoteThreadListThreadListRuntimeCore extends BaseSubscribable imp
   private useProvider;
   __internal_setOptions(options: RemoteThreadListOptions): void;
   __internal_load(): void;
+  reloadMainThread(): Promise<void>;
   reload(): Promise<void>;
   get isLoading(): boolean;
   get isLoadingMore(): boolean;
@@ -3589,6 +3657,7 @@ declare class RemoteThreadListThreadListRuntimeCore extends BaseSubscribable imp
     exportExternalState(): any;
     importExternalState(state: any): void;
     reset(initialMessages?: readonly ThreadMessageLike[]): void;
+    unstable_refetchThread?: (() => Promise<void>) | undefined;
     unstable_on<E extends ThreadRuntimeEventType>(event: E, callback: ThreadRuntimeEventCallback<E>): Unsubscribe$1;
   }>;
   getThreadRuntimeCore(threadIdOrRemoteId: string): Readonly<{
@@ -3640,8 +3709,10 @@ declare class RemoteThreadListThreadListRuntimeCore extends BaseSubscribable imp
     exportExternalState(): any;
     importExternalState(state: any): void;
     reset(initialMessages?: readonly ThreadMessageLike[]): void;
+    unstable_refetchThread?: (() => Promise<void>) | undefined;
     unstable_on<E extends ThreadRuntimeEventType>(event: E, callback: ThreadRuntimeEventCallback<E>): Unsubscribe$1;
   }>;
+  unstable_isThreadRunning(threadIdOrRemoteId: string): boolean;
   getItemById(threadIdOrRemoteId: string): RemoteThreadData | undefined;
   switchToThread(threadIdOrRemoteId: string, options?: {
     unarchive?: boolean;
@@ -3760,6 +3831,7 @@ type RuntimeCapabilities = {
   readonly switchBranchDuringRun: boolean;
   readonly edit: boolean;
   readonly reload: boolean;
+  readonly refetchThread: boolean;
   readonly delete: boolean;
   readonly cancel: boolean;
   readonly unstable_copy: boolean;
@@ -4191,6 +4263,7 @@ declare const ThreadListItemByIndexProvider: FC<PropsWithChildren<{
 declare const ThreadListItemClient: Resource<ClientOutput<"threadListItem">, [
   {
     runtime: ThreadListItemRuntime;
+    mainThreadIsRunning?: boolean | undefined;
   }
 ]>;
 
@@ -4348,10 +4421,12 @@ type ThreadListItemState = {
   readonly lastMessageAt?: Date | undefined;
   readonly status: ThreadListItemStatus;
   readonly custom?: Record<string, unknown> | undefined;
+  readonly isRunning: boolean;
 };
 
 type ThreadListItemState$1 = {
   readonly isMain: boolean;
+  readonly isRunning: boolean;
   readonly id: string;
   readonly remoteId: string | undefined;
   readonly externalId: string | undefined;
@@ -4410,6 +4485,7 @@ type ThreadListRuntime = {
   switchToNewThread(): Promise<void>;
   getLoadThreadsPromise(): Promise<void>;
   reload(): Promise<void>;
+  reloadMainThread(): Promise<void>;
   loadMore(): Promise<void>;
 };
 
@@ -4424,6 +4500,7 @@ type ThreadListRuntimeCore = {
   readonly threadItems: Readonly<Record<string, ThreadListItemCoreState>>;
   getMainThreadRuntimeCore(): ThreadRuntimeCore;
   getThreadRuntimeCore(threadId: string): ThreadRuntimeCore;
+  unstable_isThreadRunning?(threadId: string): boolean;
   getItemById(threadId: string): ThreadListItemCoreState | undefined;
   switchToThread(threadId: string, options?: {
     unarchive?: boolean;
@@ -4431,6 +4508,7 @@ type ThreadListRuntimeCore = {
   switchToNewThread(): Promise<void>;
   getLoadThreadsPromise(): Promise<void>;
   reload?(): Promise<void>;
+  reloadMainThread?(): Promise<void>;
   loadMore?(): Promise<void>;
   detach(threadId: string): Promise<void>;
   rename(threadId: string, newTitle: string): Promise<void>;
@@ -4460,6 +4538,7 @@ declare class ThreadListRuntimeImpl implements ThreadListRuntime {
   switchToNewThread(): Promise<void>;
   getLoadThreadsPromise(): Promise<void>;
   reload(): Promise<void>;
+  reloadMainThread(): Promise<void>;
   loadMore(): Promise<void>;
   getState(): ThreadListState;
   subscribe(callback: () => void): Unsubscribe$1;
@@ -4480,7 +4559,7 @@ type ThreadListState = {
   readonly isLoading: boolean;
   readonly isLoadingMore: boolean;
   readonly hasMore: boolean;
-  readonly threadItems: Readonly<Record<string, Omit<ThreadListItemState$1, "isMain" | "threadId">>>;
+  readonly threadItems: Readonly<Record<string, Omit<ThreadListItemState$1, "isMain" | "isRunning" | "threadId">>>;
 };
 
 type ThreadMessage = BaseThreadMessage & (ThreadSystemMessage | ThreadUserMessage | ThreadAssistantMessage);
@@ -4722,6 +4801,7 @@ type ThreadRuntimeCore = Readonly<{
   exportExternalState(): any;
   importExternalState(state: any): void;
   reset(initialMessages?: readonly ThreadMessageLike[]): void;
+  unstable_refetchThread?: (() => Promise<void>) | undefined;
   unstable_on<E extends ThreadRuntimeEventType>(event: E, callback: ThreadRuntimeEventCallback<E>): Unsubscribe$1;
 }>;
 
@@ -4822,6 +4902,7 @@ declare class ThreadRuntimeImpl implements ThreadRuntime {
       exportExternalState(): any;
       importExternalState(state: any): void;
       reset(initialMessages?: readonly ThreadMessageLike[]): void;
+      unstable_refetchThread?: (() => Promise<void>) | undefined;
       unstable_on<E extends ThreadRuntimeEventType>(event: E, callback: ThreadRuntimeEventCallback<E>): Unsubscribe$1;
     }>;
   } & {
@@ -4965,6 +5046,7 @@ type ThreadsMethods = {
   thread(selector: "main"): ThreadMethods;
   getLoadThreadsPromise(): Promise<void>;
   reload(): Promise<void>;
+  reloadMainThread(): Promise<void>;
   loadMore(): Promise<void>;
   __internal_getAssistantRuntime?(): AssistantRuntime;
 };

@@ -193,22 +193,31 @@ export type ThreadState = {
   readonly voice: VoiceSessionState | undefined;
 };
 
+/**
+ * The canonical `isRunning` derivation. A runtime that tracks run state itself
+ * reports it directly; the rest fall back to the trailing assistant message.
+ */
+export const getThreadRuntimeCoreIsRunning = (
+  runtime: ThreadRuntimeCore,
+): boolean => {
+  if (runtime.isRunning !== undefined) return runtime.isRunning;
+  const lastMessage = runtime.messages.at(-1);
+  return (
+    lastMessage?.role === "assistant" && lastMessage.status.type === "running"
+  );
+};
+
 export const getThreadState = (
   runtime: ThreadRuntimeCore,
   threadListItemState: ThreadListItemState,
 ): ThreadState => {
-  const lastMessage = runtime.messages.at(-1);
   return Object.freeze({
     threadId: threadListItemState.id,
     metadata: threadListItemState,
     capabilities: runtime.capabilities,
     isDisabled: runtime.isDisabled,
     isLoading: runtime.isLoading,
-    isRunning:
-      runtime.isRunning ??
-      (lastMessage?.role !== "assistant"
-        ? false
-        : lastMessage.status.type === "running"),
+    isRunning: getThreadRuntimeCoreIsRunning(runtime),
     messages: runtime.messages,
     state: runtime.state,
     suggestions: runtime.suggestions,

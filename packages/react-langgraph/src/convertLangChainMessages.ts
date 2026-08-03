@@ -224,6 +224,33 @@ const contentToParts = (
     .filter((a) => a !== null);
 };
 
+const hasVisibleText = (text: unknown): boolean =>
+  typeof text === "string" && text.trim() !== "";
+
+/**
+ * Audio output arrives outside the content array: providers leave `content`
+ * empty and put the spoken text in `additional_kwargs.audio.transcript`. The
+ * audio bytes stay behind because no provider reports their media type, and a
+ * streamed response carries raw PCM rather than a playable file.
+ */
+const withAudioTranscript = (
+  parts: ReturnType<typeof contentToParts>,
+  additionalKwargs: Extract<
+    LangChainMessage,
+    { type: "ai" }
+  >["additional_kwargs"],
+): ReturnType<typeof contentToParts> => {
+  const transcript: unknown = additionalKwargs?.audio?.transcript;
+  if (typeof transcript !== "string" || !hasVisibleText(transcript))
+    return parts;
+  if (parts.some((part) => part.type === "text" && hasVisibleText(part.text)))
+    return parts;
+  return [
+    ...parts.filter((part) => part.type !== "text"),
+    { type: "text" as const, text: transcript },
+  ];
+};
+
 export const convertLangChainMessages: useExternalMessageConverter.Callback<
   LangChainMessage
 > = (message, metadata: LangGraphMessageConverterMetadata = {}) => {
@@ -301,7 +328,10 @@ export const convertLangChainMessages: useExternalMessageConverter.Callback<
         role: "assistant",
         id: message.id,
         content: [
-          ...contentToParts(allContent, metadata, message.id),
+          ...withAudioTranscript(
+            contentToParts(allContent, metadata, message.id),
+            message.additional_kwargs,
+          ),
           ...toolCallParts,
           ...uiDataParts,
         ],
@@ -372,6 +402,7 @@ export const getMessageContent = (msg: AppendMessage) => {
             type: "file" as const,
             id: part.data,
             mime_type: part.mimeType,
+            filename: metadata.filename,
             metadata,
             source_type: "id" as const,
           };
@@ -381,6 +412,7 @@ export const getMessageContent = (msg: AppendMessage) => {
             type: "file" as const,
             url: part.data,
             mime_type: part.mimeType,
+            filename: metadata.filename,
             metadata,
             source_type: "url" as const,
           };
@@ -401,6 +433,7 @@ export const getMessageContent = (msg: AppendMessage) => {
           type: "file" as const,
           data: parsed?.data ?? part.data,
           mime_type: parsed?.mimeType ?? part.mimeType,
+          filename: metadata.filename,
           metadata,
           source_type: "base64" as const,
         };

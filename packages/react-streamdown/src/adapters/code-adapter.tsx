@@ -27,6 +27,7 @@ type PreProps = ComponentPropsWithoutRef<"pre"> & {
 interface CodeAdapterOptions {
   SyntaxHighlighter?: ComponentType<SyntaxHighlighterProps> | undefined;
   CodeHeader?: ComponentType<CodeHeaderProps> | undefined;
+  InlineCode?: ComponentType<CodeProps> | undefined;
   componentsByLanguage?: ComponentsByLanguage | undefined;
 }
 
@@ -60,6 +61,7 @@ export function createCodeAdapter(options: CodeAdapterOptions) {
   const {
     SyntaxHighlighter: UserSyntaxHighlighter,
     CodeHeader: UserCodeHeader,
+    InlineCode,
     componentsByLanguage = {},
   } = options;
 
@@ -75,6 +77,14 @@ export function createCodeAdapter(options: CodeAdapterOptions) {
     ...props
   }: CodeProps & { "data-block"?: string }) {
     if (!dataBlock) {
+      if (InlineCode) {
+        return (
+          <InlineCode node={node} className={className} {...props}>
+            {children}
+          </InlineCode>
+        );
+      }
+
       return (
         <code
           className={`aui-streamdown-inline-code ${className ?? ""}`.trim()}

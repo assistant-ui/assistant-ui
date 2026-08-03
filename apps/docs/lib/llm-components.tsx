@@ -28,6 +28,13 @@ const Heading =
   (Tag: "h1" | "h2" | "h3" | "h4" | "h5" | "h6") =>
   ({ children }: ComponentProps<"h1">) => <Tag>{children}</Tag>;
 
+import {
+  DemoShowcaseLLM,
+  QuickLinksLLM,
+  QuickstartLLM,
+  RuntimeGridLLM,
+} from "@/components/docs/landing/llm";
+
 export const LLM_COMPONENTS: MDXComponents = {
   ...getMDXComponents({}),
   h1: Heading("h1"),
@@ -50,6 +57,10 @@ export const LLM_COMPONENTS: MDXComponents = {
   blockquote: ({ children }: ComponentProps<"blockquote">) => (
     <blockquote>{children}</blockquote>
   ),
+  Quickstart: QuickstartLLM,
+  DemoShowcase: DemoShowcaseLLM,
+  RuntimeGrid: RuntimeGridLLM,
+  QuickLinks: QuickLinksLLM,
   Callout: CalloutLLM,
   Tabs: TabsLLM,
   Tab: TabLLM,

@@ -85,7 +85,7 @@ const SyntaxHighlighter: FC<SyntaxHighlighterProps> = ({ code, language }) => {
       showLanguage={false}
       showLineNumbers
       defaultColor={false}
-      className="[&_pre]:border-border/50 [&_pre]:bg-muted/30 [&_pre]:m-0 [&_pre]:scrollbar-none [&_pre]:overflow-x-auto [&_pre]:rounded-t-none [&_pre]:rounded-b-lg [&_pre]:border [&_pre]:border-t-0 [&_pre]:py-3 [&_pre]:pr-3 [&_pre]:pl-1 [&_pre]:text-xs [&_pre]:leading-relaxed"
+      className="[&_pre]:border-border/50 [&_pre]:bg-muted/30 [&_pre]:scrollbar-none [&_pre]:m-0 [&_pre]:overflow-x-auto [&_pre]:rounded-t-none [&_pre]:rounded-b-lg [&_pre]:border [&_pre]:border-t-0 [&_pre]:py-3 [&_pre]:pr-3 [&_pre]:pl-1 [&_pre]:text-xs [&_pre]:leading-relaxed"
       style={
         {
           "--line-numbers-foreground": "var(--color-muted-foreground)",
@@ -110,7 +110,7 @@ const PlainTextSyntaxHighlighter: FC<SyntaxHighlighterProps> = ({ code }) => {
 
 const markdownComponents = {
   SyntaxHighlighter: SyntaxHighlighter,
-  inlineCode: function InlineCode({
+  code: function InlineCode({
     className,
     children,
     node: _node,

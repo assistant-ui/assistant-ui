@@ -835,6 +835,7 @@ const useExternalThread = ({
         edit: hasEdit,
         delete: false,
         reload: hasReload,
+        refetchThread: false,
         cancel: isRunning,
         speech: false,
         attachments: hasAttachments,

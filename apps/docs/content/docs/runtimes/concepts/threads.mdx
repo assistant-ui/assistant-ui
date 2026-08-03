@@ -209,6 +209,45 @@ function ReloadOnAuth() {
 
 `reload()` discards in-flight responses from superseded calls, so it is safe to invoke on every auth transition.
 
+### Refetching the open thread
+
+`reload()` re-runs `list()`, which refreshes thread list metadata only. It does not touch the messages of the thread the user is looking at. When the open thread's server state changes out of band, so that nothing arrives over the stream (a human-in-the-loop interrupt raised by another process, a stalled stream, a status change picked up by polling), call `aui.threads.reloadMainThread()`:
+
+```tsx
+function RefetchOnInterrupt({ status }: { status: string }) {
+  const aui = useAui();
+  useEffect(() => {
+    if (status !== "interrupted") return;
+    aui.threads.reloadMainThread().catch(reportError);
+  }, [status]);
+  return null;
+}
+```
+
+What the promise means depends on the path, and today it is always the remount one. There it resolves as soon as the replacement runtime attaches, which happens before that runtime's `load()` has started, so awaiting it does not mean the thread is fresh and a failed load cannot reach the caller. Only the in-place path settles with the refetch itself and rejects when it fails, which is why the example above still handles the rejection.
+
+A thread that has not been sent yet is left alone because it holds no remote state.
+
+What happens to a run in progress depends on the path. The remount path drops the runtime that was rendering the run; whether the run itself stops is up to that hook's unmount cleanup, which core cannot enforce. On the in-place path the runtime that declared the capability decides, since core does not stop the run for it. Either way this belongs on an event rather than a short timer: drive it from a state change like the one above, or skip the call while `useAuiState((s) => s.thread.isRunning)` is true.
+
+How the refetch happens depends on the runtime, in one of three ways. When it declares the capability, the thread runtime is reused: composer drafts survive, existing messages stay rendered while the fresh state loads, and the returned promise settles with the refetch, rejecting if it fails. A remote thread list without the capability remounts the runtime hook instead, which re-runs `load()` at the cost of discarding unsent composer input, and resolves once the new runtime attaches. The single and in-memory thread lists hold no remote state and have no hook to remount, so there it resolves without doing anything.
+
+`useAuiState((s) => s.thread.capabilities.refetchThread)` reports which of those you would get, in place or not. It is not a signal for whether to offer a refresh at all: it is false on the remount path, where the call still does the work, and false again where the call does nothing.
+
+No adapter registers the capability yet, so today every runtime takes the remount path.
+
+For an external store runtime, declare it with `onRefetchThread`, which is unrelated to `onReload` (that one re-generates an assistant message):
+
+```ts
+useExternalStoreRuntime({
+  messages,
+  onNew,
+  onRefetchThread: async () => {
+    setMessages(await fetchMessages(threadId));
+  },
+});
+```
+
 ### Paginating the thread list
 
 If your backend returns thread pages, return a `nextCursor` from `list()` and consume `aui.threads.hasMore` plus `aui.threads.loadMore()` in the UI. The runtime threads `params.after` back through `list()` on every `loadMore()`; the initial call passes no `params`, so treat a missing `after` as "first page". `reload()` resets the cursor so the next load starts from page 1 again.

@@ -43,6 +43,24 @@ const write = (key: string, value: unknown) => {
   }
 };
 
+const storageWriteQueues = new Map<string, Promise<void>>();
+
+function enqueueStorageWrite<T>(key: string, operation: () => T | Promise<T>) {
+  const previous = storageWriteQueues.get(key) ?? Promise.resolve();
+  const result = previous.catch(() => undefined).then(operation);
+  const completion = result.then(
+    () => undefined,
+    () => undefined,
+  );
+  storageWriteQueues.set(key, completion);
+  void completion.finally(() => {
+    if (storageWriteQueues.get(key) === completion) {
+      storageWriteQueues.delete(key);
+    }
+  });
+  return result;
+}
+
 function createHistoryProvider(prefix: string) {
   return function BrowserHistoryProvider({ children }: PropsWithChildren) {
     const aui = useAui();
@@ -56,14 +74,17 @@ function createHistoryProvider(prefix: string) {
       return {
         load,
         async append(item) {
-          const current = await load();
-          const index = current.messages.findIndex(
-            ({ message }) => message.id === item.message.id,
-          );
-          const messages = [...current.messages];
-          if (index === -1) messages.push(item);
-          else messages[index] = item;
-          write(key(), { headId: item.message.id, messages });
+          const storageKey = key();
+          await enqueueStorageWrite(storageKey, () => {
+            const current = read(storageKey, { messages: [] });
+            const index = current.messages.findIndex(
+              ({ message }) => message.id === item.message.id,
+            );
+            const messages = [...current.messages];
+            if (index === -1) messages.push(item);
+            else messages[index] = item;
+            write(storageKey, { headId: item.message.id, messages });
+          });
         },
         withFormat<TMessage, TStorageFormat extends Record<string, unknown>>(
           formatAdapter: MessageFormatAdapter<TMessage, TStorageFormat>,
@@ -92,23 +113,26 @@ function createHistoryProvider(prefix: string) {
           return {
             load: loadFormatted,
             async append(item) {
-              const stored = read<StoredFormattedRepository>(key(), {
-                messages: [],
+              const storageKey = key();
+              await enqueueStorageWrite(storageKey, () => {
+                const stored = read<StoredFormattedRepository>(storageKey, {
+                  messages: [],
+                });
+                const id = formatAdapter.getId(item.message);
+                const entry: MessageStorageEntry<TStorageFormat> = {
+                  id,
+                  parent_id: item.parentId,
+                  format: formatAdapter.format,
+                  content: formatAdapter.encode(item),
+                };
+                const index = stored.messages.findIndex(
+                  (message) => message.id === id,
+                );
+                const messages = [...stored.messages];
+                if (index === -1) messages.push(entry);
+                else messages[index] = entry;
+                write(storageKey, { headId: id, messages });
               });
-              const id = formatAdapter.getId(item.message);
-              const entry: MessageStorageEntry<TStorageFormat> = {
-                id,
-                parent_id: item.parentId,
-                format: formatAdapter.format,
-                content: formatAdapter.encode(item),
-              };
-              const index = stored.messages.findIndex(
-                (message) => message.id === id,
-              );
-              const messages = [...stored.messages];
-              if (index === -1) messages.push(entry);
-              else messages[index] = entry;
-              write(key(), { headId: id, messages });
             },
           };
         },
@@ -168,10 +192,17 @@ export function createBrowserThreadListAdapter(
       );
     },
     async delete(remoteId) {
-      saveThreads(
-        loadThreads().filter((thread) => thread.remoteId !== remoteId),
-      );
-      window.localStorage.removeItem(`${prefix}messages:${remoteId}`);
+      const messagesKey = `${prefix}messages:${remoteId}`;
+      await Promise.all([
+        enqueueStorageWrite(threadsKey, () => {
+          saveThreads(
+            loadThreads().filter((thread) => thread.remoteId !== remoteId),
+          );
+        }),
+        enqueueStorageWrite(messagesKey, () => {
+          window.localStorage.removeItem(messagesKey);
+        }),
+      ]);
     },
     async fetch(remoteId) {
       const thread = loadThreads().find((item) => item.remoteId === remoteId);

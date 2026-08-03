@@ -25,12 +25,17 @@ export function useAdaptedComponents({
   componentsByLanguage,
 }: UseAdaptedComponentsOptions): StreamdownProps["components"] {
   return useMemo(() => {
-    const { SyntaxHighlighter, CodeHeader, ...htmlComponents } =
-      components ?? {};
+    const {
+      SyntaxHighlighter,
+      CodeHeader,
+      code: InlineCode,
+      ...htmlComponents
+    } = components ?? {};
 
     const codeAdapterOptions = {
       SyntaxHighlighter,
       CodeHeader,
+      InlineCode,
       componentsByLanguage,
     };
 

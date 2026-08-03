@@ -82,6 +82,16 @@ const defaultScheduleNotify: PiNotificationScheduler = (flush) => {
   setTimeout(flush, 16);
 };
 
+const notifyListeners = (listeners: Iterable<() => void>) => {
+  for (const listener of listeners) {
+    try {
+      listener();
+    } catch (error) {
+      console.error("[react-pi] Listener threw an error", error);
+    }
+  }
+};
+
 /** Event types the reducer acts on. Anything else triggers a snapshot refresh
  * (forward-compat for Pi's open, module-augmented event union). */
 const MESSAGE_DIRTY_EVENT_TYPES: ReadonlySet<string> = new Set([
@@ -679,13 +689,13 @@ export class PiThreadController implements PiThreadControllerLike {
 
   private notifyMetadataListeners() {
     this.bumpVersion();
-    for (const listener of this.metadataListeners) listener();
-    for (const listener of this.allListeners) listener();
+    notifyListeners(this.metadataListeners);
+    notifyListeners(this.allListeners);
   }
 
   private notifyMessageListeners() {
     this.bumpVersion();
-    for (const listener of this.messageListeners) listener();
-    for (const listener of this.allListeners) listener();
+    notifyListeners(this.messageListeners);
+    notifyListeners(this.allListeners);
   }
 }

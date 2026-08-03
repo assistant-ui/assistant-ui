@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AssistantCloudAPI, CloudAPIError } from "../AssistantCloudAPI";
+import { CloudResponseError } from "../cloudResponse";
 
 describe("AssistantCloudAPI", () => {
   beforeEach(() => {
@@ -116,6 +117,30 @@ describe("AssistantCloudAPI", () => {
     });
 
     await expect(api.initializeAuth()).resolves.toBe(false);
+  });
+
+  it("rejects initializeAuth with context for malformed anonymous responses", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: vi.fn().mockResolvedValue({
+          access_token: 123,
+          refresh_token: null,
+        }),
+      }),
+    );
+
+    const api = new AssistantCloudAPI({
+      baseUrl: "https://test.example.com",
+      anonymous: true,
+    });
+
+    await expect(api.initializeAuth()).rejects.toThrow(
+      new CloudResponseError(
+        'Invalid Assistant Cloud response for "anonymous auth token response.access_token": expected a string',
+      ),
+    );
   });
 
   it("throws APIError with parsed message for JSON error responses", async () => {

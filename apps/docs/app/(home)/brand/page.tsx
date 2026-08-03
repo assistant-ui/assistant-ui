@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
 
 export const metadata: Metadata = {
   title: "Brand Guidelines — assistant-ui",
@@ -60,13 +61,12 @@ export default function BrandPage() {
       </section>
 
       <section className="mt-10">
-        <a
-          href="/assistant-ui-brand.zip"
-          download
-          className="bg-foreground text-background inline-flex items-center rounded-lg px-5 py-2.5 text-sm font-medium transition-opacity hover:opacity-90"
+        <Button
+          nativeButton={false}
+          render={<a href="/assistant-ui-brand.zip" download />}
         >
           Download brand assets
-        </a>
+        </Button>
       </section>
     </div>
   );

@@ -5,7 +5,7 @@ import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-} from "@/components/ui/radix/tooltip";
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 const VARIANTS = {
@@ -52,7 +52,7 @@ export function StatusBadge({
 
   return (
     <Tooltip>
-      <TooltipTrigger asChild>{badge}</TooltipTrigger>
+      <TooltipTrigger render={badge} />
       <TooltipContent
         side="top"
         sideOffset={6}

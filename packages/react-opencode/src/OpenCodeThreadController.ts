@@ -256,7 +256,11 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
 
   private notifyListeners() {
     for (const listener of this.listeners) {
-      listener();
+      try {
+        listener();
+      } catch (error) {
+        console.error("[react-opencode] Listener threw an error", error);
+      }
     }
   }
 
