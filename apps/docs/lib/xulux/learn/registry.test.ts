@@ -52,9 +52,9 @@ describe("Learn course registry", () => {
     expect(() =>
       getLearnStage(DEFAULT_LEARN_COURSE_ID, "missing-stage"),
     ).toThrow(LearnRegistryError);
-    expect(() =>
-      getLearnStage(DEFAULT_LEARN_COURSE_ID, "toString"),
-    ).toThrow(LearnRegistryError);
+    expect(() => getLearnStage(DEFAULT_LEARN_COURSE_ID, "toString")).toThrow(
+      LearnRegistryError,
+    );
   });
 });
 
