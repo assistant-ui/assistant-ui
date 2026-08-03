@@ -195,6 +195,14 @@ const useInteractablesResource = ({
     }
   }, [exportState, setStateAndRef]);
 
+  const flushIfPending = useCallback(() => {
+    if (adapterRef.current && debounceTimerRef.current !== undefined) {
+      clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = undefined;
+      runPersistence();
+    }
+  }, [runPersistence]);
+
   const schedulePersistence = useCallback(
     (id: string) => {
       if (!adapterRef.current) return;
@@ -281,10 +289,11 @@ const useInteractablesResource = ({
 
   const setPersistenceAdapter = useCallback(
     (adapter: Unstable_InteractablePersistenceAdapter | undefined) => {
+      if (adapterRef.current !== adapter) flushIfPending();
       adapterRef.current = adapter;
       if (adapter) void loadFromAdapter(adapter);
     },
-    [loadFromAdapter],
+    [flushIfPending, loadFromAdapter],
   );
 
   const getCurrentThreadId = useCallback((): string | undefined => {
@@ -309,7 +318,7 @@ const useInteractablesResource = ({
     setPersistenceAdapter(persistence);
     return () => {
       if (adapterRef.current === persistence) {
-        adapterRef.current = undefined;
+        setPersistenceAdapter(undefined);
       }
     };
   }, [persistence, setPersistenceAdapter]);
@@ -329,14 +338,6 @@ const useInteractablesResource = ({
       runPersistence();
     }
     return p;
-  }, [runPersistence]);
-
-  const flushIfPending = useCallback(() => {
-    if (adapterRef.current && debounceTimerRef.current !== undefined) {
-      clearTimeout(debounceTimerRef.current);
-      debounceTimerRef.current = undefined;
-      runPersistence();
-    }
   }, [runPersistence]);
 
   const setDefState = useCallback(

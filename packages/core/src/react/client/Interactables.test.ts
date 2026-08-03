@@ -301,6 +301,23 @@ describe("Interactables persistence save", () => {
     await p;
     expect(resolved).toBe(true);
   });
+
+  it("saves queued changes with the adapter that observed them", async () => {
+    const firstSave = vi.fn();
+    const secondSave = vi.fn();
+    root = mount({ persistence: { save: firstSave } });
+    await flushMicrotasks();
+    root.getValue().register(reg("n1"));
+
+    root.getValue().setState("n1", () => ({ v: 1 }));
+    root.getValue().setPersistenceAdapter({ save: secondSave });
+    await vi.advanceTimersByTimeAsync(500);
+
+    expect(firstSave).toHaveBeenCalledWith({
+      n1: { name: "note", state: { v: 1 } },
+    });
+    expect(secondSave).not.toHaveBeenCalled();
+  });
 });
 
 describe("Interactables persistence load", () => {
