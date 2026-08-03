@@ -3,11 +3,11 @@
 import { act, render, renderHook, waitFor } from "@testing-library/react";
 import { type FC, type ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
-import {
-  AssistantRuntimeProvider,
-  type AssistantRuntime,
-  type RemoteThreadListAdapter,
-} from "@assistant-ui/core/react";
+import { AssistantRuntimeProvider } from "@assistant-ui/core/react";
+import type {
+  AssistantRuntime,
+  RemoteThreadListAdapter,
+} from "@assistant-ui/core";
 import { useAui } from "@assistant-ui/store";
 import { useAdkRuntime } from "./useAdkRuntime";
 import type { AdkMessage, AdkThreadSnapshot } from "./types";
@@ -220,6 +220,90 @@ describe("useAdkRuntime refetch", () => {
     expect(
       JSON.stringify(capture.runtime!.thread.getState().messages),
     ).toContain("first");
+  });
+
+  it("defers to an initial load still in flight rather than taking it over", async () => {
+    const pending = deferred<AdkThreadSnapshot>();
+    let call = 0;
+    const load = vi.fn(async () => {
+      call++;
+      return call === 1
+        ? pending.promise
+        : { messages: [aiMessage("m-2", "second")] };
+    });
+
+    const streamMock = vi.fn(async function* () {});
+    const capture: { runtime: AssistantRuntime | null } = { runtime: null };
+    const Inner: FC = () => {
+      const runtime = useAdkRuntime({
+        stream: streamMock as never,
+        load: load as never,
+        sessionAdapter: makeThreadListAdapter(),
+      });
+      capture.runtime = runtime;
+      return (
+        <AssistantRuntimeProvider runtime={runtime}>
+          {null}
+        </AssistantRuntimeProvider>
+      );
+    };
+    await act(async () => {
+      render(<Inner />);
+    });
+    await act(async () => {
+      await capture.runtime!.threads.switchToThread("adk-1");
+    });
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
+
+    let settled = false;
+    act(() => {
+      capture.runtime!.threads.reloadMainThread().then(() => {
+        settled = true;
+      });
+    });
+
+    // the refetch waits on the initial load instead of starting a second one
+    expect(load).toHaveBeenCalledTimes(1);
+    expect(settled).toBe(false);
+
+    await act(async () => {
+      pending.resolve({ messages: [aiMessage("m-1", "first")] });
+    });
+    await waitFor(() => expect(settled).toBe(true));
+    expect(
+      JSON.stringify(capture.runtime!.thread.getState().messages),
+    ).toContain("first");
+  });
+
+  it("does not report an aborted load as a failure", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const pending = deferred<AdkThreadSnapshot>();
+    let call = 0;
+    const load = vi.fn(
+      async (_id: string, options?: { signal?: AbortSignal }) => {
+        call++;
+        if (call === 1) {
+          options?.signal?.addEventListener("abort", () =>
+            pending.reject(
+              Object.assign(new Error("aborted"), { name: "AbortError" }),
+            ),
+          );
+          return pending.promise;
+        }
+        return { messages: [] };
+      },
+    );
+
+    const { unmount } = await renderAdk(load as never);
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
+
+    unmount();
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
   });
 
   it("aborts a refetch still in flight when the thread unmounts", async () => {

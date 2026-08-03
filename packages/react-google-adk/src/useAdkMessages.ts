@@ -77,10 +77,9 @@ export const useAdkMessages = ({
       setAuthRequests(snapshot.authRequests ?? []);
       setEscalated(snapshot.escalated ?? false);
       setMessageMetadata(snapshot.messageMetadata ?? new Map());
-      if (snapshot.stateDelta !== undefined) setStateDelta(snapshot.stateDelta);
-      if (snapshot.artifactDelta !== undefined)
-        setArtifactDelta(snapshot.artifactDelta);
-      if (snapshot.agentInfo !== undefined) setAgentInfo(snapshot.agentInfo);
+      setStateDelta(snapshot.stateDelta ?? {});
+      setArtifactDelta(snapshot.artifactDelta ?? {});
+      setAgentInfo(snapshot.agentInfo ?? {});
     },
     [setMessagesImmediate],
   );

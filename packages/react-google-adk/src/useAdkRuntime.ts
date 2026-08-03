@@ -250,7 +250,11 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
 
   const loadRef = useRef(load);
   loadRef.current = load;
-  const loadControllerRef = useRef<AbortController | null>(null);
+  const loadControllerRef = useRef<{
+    controller: AbortController;
+    purpose: "initial" | "reload";
+    promise?: Promise<void> | undefined;
+  } | null>(null);
   const messagesRef = useRef(messages);
   messagesRef.current = messages;
   const [isLoadingThread, setIsLoadingThread] = useState(
@@ -266,6 +270,8 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
     (s) => s?.type === "executing",
   );
   const effectiveIsRunning = isRunning || hasExecutingTools;
+  const isRunningRef = useRef(effectiveIsRunning);
+  isRunningRef.current = effectiveIsRunning;
 
   const handleSendMessage = async (
     msgs: AdkMessage[],
@@ -345,9 +351,21 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
       const externalId = threadListItem.getState().externalId;
       if (externalId == null) return Promise.resolve();
 
-      loadControllerRef.current?.abort();
+      // The initial load is already fetching what a refetch would ask for, and
+      // taking it over strands the thread's history if the refetch then fails.
+      if (
+        purpose === "reload" &&
+        loadControllerRef.current?.purpose === "initial"
+      )
+        return loadControllerRef.current.promise ?? Promise.resolve();
+
+      loadControllerRef.current?.controller.abort();
       const controller = new AbortController();
-      loadControllerRef.current = controller;
+      const record: NonNullable<typeof loadControllerRef.current> = {
+        controller,
+        purpose,
+      };
+      loadControllerRef.current = record;
 
       const messagesAtLoadStart = messagesRef.current;
       if (purpose === "initial") setIsLoadingThread(true);
@@ -359,21 +377,29 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
           // that run has since produced, and an ADK id cannot correlate a
           // message sent optimistically with the one the session stored for it,
           // so there is nothing here that could merge the two. A refetch that
-          // raced a run therefore defers to the run.
+          // raced a run therefore defers to the run, whether the run started
+          // during the load or was already streaming when it began.
           if (
             purpose === "reload" &&
-            messagesRef.current !== messagesAtLoadStart
+            (isRunningRef.current ||
+              messagesRef.current !== messagesAtLoadStart)
           )
             return;
           applySnapshot(snapshot);
         })
+        .catch((error: unknown) => {
+          // Aborting a load the runtime no longer needs is not a failure.
+          if (controller.signal.aborted) return;
+          throw error;
+        })
         .finally(() => {
-          if (loadControllerRef.current === controller) {
+          if (loadControllerRef.current?.controller === controller) {
             loadControllerRef.current = null;
           }
           if (controller.signal.aborted) return;
           setIsLoadingThread(false);
         });
+      record.promise = task;
 
       // A refetch reports the failure to whoever awaited it; the initial load
       // has no caller to tell.
@@ -388,7 +414,9 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
   useEffect(() => {
     runLoad();
     return () => {
-      loadControllerRef.current?.abort();
+      // Whatever is current, not this effect's own controller: a refetch swaps
+      // the ref, and one in flight at unmount must be aborted too.
+      loadControllerRef.current?.controller.abort();
       setIsLoadingThread(false);
     };
   }, [runLoad]);
