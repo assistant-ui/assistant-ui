@@ -240,8 +240,7 @@ describe("AdkEventAccumulator - function responses", () => {
     });
   });
 
-  // A session reload replays the stored events through a fresh accumulator, so
-  // an id minted per replay churns every tool message on every load.
+  // A session load replays the stored events through a fresh accumulator.
   it("gives a tool message the same id on every replay of an event", () => {
     const event = makeEvent({
       id: "evt-tool",
