@@ -55,6 +55,35 @@ const readNonEmptyCloudString = (value: unknown, field: string): string => {
   return result;
 };
 
+const ISO_TIMESTAMP_PATTERN =
+  /^(\d{4})-(\d{2})-(\d{2})(?:T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:\d{2}))?$/;
+
+const isValidTimestamp = (value: string): boolean => {
+  const match = ISO_TIMESTAMP_PATTERN.exec(value);
+  if (!match || Number.isNaN(Date.parse(value))) return false;
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const leapYear = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+  const daysInMonth = [
+    31,
+    leapYear ? 29 : 28,
+    31,
+    30,
+    31,
+    30,
+    31,
+    31,
+    30,
+    31,
+    30,
+    31,
+  ][month - 1];
+
+  return day >= 1 && day <= (daysInMonth ?? 0);
+};
+
 const readRefreshTokenResponse = (
   value: unknown,
   field: string,
@@ -64,7 +93,7 @@ const readRefreshTokenResponse = (
     refreshToken.expires_at,
     `${field}.expires_at`,
   );
-  if (Number.isNaN(new Date(expiresAt).getTime())) {
+  if (!isValidTimestamp(expiresAt)) {
     throw new CloudResponseError(
       `Invalid Assistant Cloud response for "${field}.expires_at": expected a valid timestamp`,
     );
