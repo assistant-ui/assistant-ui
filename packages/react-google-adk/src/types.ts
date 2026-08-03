@@ -287,3 +287,24 @@ export type AdkRuntimeExtras = {
   escalated: boolean;
   messageMetadata: Map<string, AdkMessageMetadata>;
 };
+
+/**
+ * What a session load reconstructs. The messages are the whole thread; the
+ * rest is the per-turn state the events imply, which a caller that replays
+ * them through {@link AdkEventAccumulator} already has. Omitting a field
+ * clears it, since a snapshot that cannot describe the state is not evidence
+ * that the state survived.
+ */
+export type AdkThreadSnapshot = {
+  messages: AdkMessage[];
+  longRunningToolIds?: string[] | undefined;
+  toolConfirmations?: AdkToolConfirmation[] | undefined;
+  authRequests?: AdkAuthRequest[] | undefined;
+  escalated?: boolean | undefined;
+  messageMetadata?: Map<string, AdkMessageMetadata> | undefined;
+  stateDelta?: Record<string, unknown> | undefined;
+  artifactDelta?: Record<string, number> | undefined;
+  agentInfo?:
+    | { name?: string | undefined; branch?: string | undefined }
+    | undefined;
+};
