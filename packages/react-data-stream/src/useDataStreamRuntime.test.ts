@@ -110,6 +110,37 @@ describe("useDataStreamRuntime request errors", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it("reports cancellation while resolving request options", async () => {
+    const controller = new AbortController();
+    const abortError = new DOMException("Cancelled", "AbortError");
+    const onCancel = vi.fn();
+    const onError = vi.fn();
+    let resolveHeaders: ((headers: Headers) => void) | undefined;
+    const headers = new Promise<Headers>((resolve) => {
+      resolveHeaders = resolve;
+    });
+    const fetchMock = vi.fn((_input: RequestInfo | URL, init?: RequestInit) =>
+      Promise.reject(init?.signal?.reason),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const adapter = createAdapter({
+      api: "/api/chat",
+      headers: () => headers,
+      onCancel,
+      onError,
+    });
+    const result = runOnce(adapter, createRunOptions(controller.signal));
+
+    controller.abort(abortError);
+    resolveHeaders?.(new Headers());
+
+    await expect(result).rejects.toBe(abortError);
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(onCancel).toHaveBeenCalledOnce();
+    expect(onError).not.toHaveBeenCalled();
+  });
+
   it("normalizes non-Error resolver failures for onError", async () => {
     const onError = vi.fn();
     const rejection = "headers failed";
