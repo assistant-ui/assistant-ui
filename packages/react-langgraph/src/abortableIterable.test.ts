@@ -132,7 +132,27 @@ describe("abortableIterable", () => {
       break;
     }
 
+    // finalized without the break waiting on it
+    await new Promise((resolve) => setTimeout(resolve, 0));
     expect(finallyRan).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not let a source that parks in its own cleanup stall the break", async () => {
+    const hang = deferred<void>();
+    async function* source() {
+      try {
+        yield 1;
+        yield 2;
+      } finally {
+        await hang.promise;
+      }
+    }
+    const controller = new AbortController();
+
+    // resolves even though the source's finally never does
+    for await (const _ of abortableIterable(source(), controller.signal)) {
+      break;
+    }
   });
 
   it("releases its abort listener after each chunk", async () => {

@@ -2084,6 +2084,60 @@ describe("useLangGraphRuntime", () => {
           JSON.stringify(runtimeResult.current.thread.getState().messages),
         ).toContain("second-run"),
       );
+      // the second run has to settle on its own, not inherit the parked state
+      await waitFor(() =>
+        expect(runtimeResult.current.thread.getState().isRunning).toBe(false),
+      );
+    });
+
+    it("cancelRun settles a run whose stream hangs before yielding the iterable", async () => {
+      // parks before handing the iterable over, one await earlier than the
+      // loop, and ignores the signal just the same
+      const hang = deferred<void>();
+      const streamMock = vi.fn(async () => {
+        if (streamMock.mock.calls.length === 1) {
+          await hang.promise;
+        }
+        return (async function* () {
+          yield {
+            event: "messages/partial",
+            data: [{ type: "ai" as const, id: "run-2", content: "second-run" }],
+          };
+        })();
+      });
+
+      const { result: runtimeResult } = renderHook(() =>
+        useLangGraphRuntime({
+          stream: streamMock as never,
+          unstable_allowCancellation: true,
+        }),
+      );
+      const wrapper = wrapperFactory(runtimeResult.current);
+      const { result: auiResult } = renderHook(() => useAui(), { wrapper });
+
+      await act(async () => {
+        auiResult.current.composer.setText("hello");
+        auiResult.current.composer.send();
+      });
+      await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(1));
+
+      await act(async () => {
+        runtimeResult.current.thread.cancelRun();
+      });
+
+      await waitFor(() =>
+        expect(runtimeResult.current.thread.getState().isRunning).toBe(false),
+      );
+
+      await act(async () => {
+        auiResult.current.composer.setText("second");
+        auiResult.current.composer.send();
+      });
+      await waitFor(() =>
+        expect(
+          JSON.stringify(runtimeResult.current.thread.getState().messages),
+        ).toContain("second-run"),
+      );
     });
 
     it("drops the queued resume when the draining run errors", async () => {

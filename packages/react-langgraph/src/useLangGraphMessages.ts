@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useMemo } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { LangGraphMessageAccumulator } from "./LangGraphMessageAccumulator";
-import { abortableIterable } from "./abortableIterable";
+import { abortableIterable, whenAborted } from "./abortableIterable";
 import {
   type EventType,
   type LangChainMessageTupleEvent,
@@ -241,13 +241,29 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
         activeAccumulatorRef.current = accumulator;
         setMessagesImmediate(accumulator.addMessages(newMessagesWithId));
 
-        const response = await stream(newMessagesWithId, {
-          ...config,
-          abortSignal: abortController.signal,
-          initialize: async () => {
-            return await aui.threadListItem.initialize();
-          },
-        });
+        // A stream that ignores its abortSignal can park before handing the
+        // iterable over, which strands this the same way parking mid-chunk
+        // strands the loop below.
+        const opened = Promise.resolve(
+          stream(newMessagesWithId, {
+            ...config,
+            abortSignal: abortController.signal,
+            initialize: async () => {
+              return await aui.threadListItem.initialize();
+            },
+          }),
+        );
+        const response = await Promise.race([
+          opened,
+          whenAborted(abortController.signal),
+        ]);
+        if (!response) {
+          // finalize whatever it eventually hands over, without waiting for it
+          void opened
+            .then((late) => late?.[Symbol.asyncIterator]().return?.(undefined))
+            .catch(() => {});
+          return;
+        }
 
         let hasTupleMessageEvents = false;
         let lastValuesMessages: TMessage[] | null = null;

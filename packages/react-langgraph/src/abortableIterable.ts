@@ -1,5 +1,12 @@
 const done = <T>(): IteratorResult<T> => ({ done: true, value: undefined });
 
+/** Resolves at cancellation, so an await on a stream can stop being the only way out. */
+export const whenAborted = (signal: AbortSignal): Promise<undefined> =>
+  new Promise((resolve) => {
+    if (signal.aborted) return resolve(undefined);
+    signal.addEventListener("abort", () => resolve(undefined), { once: true });
+  });
+
 /**
  * Presents a stream as exhausted once the signal aborts, so a consumer stops
  * waiting on it.
@@ -59,9 +66,12 @@ export const abortableIterable = <T>(
           );
         });
       },
-      return: async (value?: unknown) => {
-        const result = await iterator.return?.(value);
-        return result ?? done<T>();
+      // The consumer breaks out of the loop to stop a cancelled run, so this is
+      // reached on the same path as an abort and finalizes the same way: a
+      // source whose own cleanup parks must not stall the break either.
+      return: async () => {
+        finalize();
+        return done<T>();
       },
     };
   },
