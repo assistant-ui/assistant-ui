@@ -5,6 +5,7 @@ import {
   ComposerAttachments,
   UserMessageAttachments,
 } from "@/components/assistant-ui/attachment";
+import { File } from "@/components/assistant-ui/file";
 import { ThreadFollowupSuggestions } from "@/components/assistant-ui/follow-up-suggestions";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import {
@@ -398,6 +399,8 @@ const AssistantMessage: FC = () => {
                 return part.toolUI ?? <ToolFallbackComponent {...part} />;
               case "data":
                 return part.dataRendererUI;
+              case "file":
+                return <File {...part} />;
               case "indicator":
                 return (
                   <span
