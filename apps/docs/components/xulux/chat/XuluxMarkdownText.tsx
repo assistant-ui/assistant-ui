@@ -29,6 +29,7 @@ const XuluxMarkdownTextImpl = () => {
   return (
     <StreamdownTextPrimitive
       containerClassName="aui-md-assistant"
+      preprocess={replaceCourseFileReferences}
       components={markdownComponents as StreamdownTextComponents}
       componentsByLanguage={{
         "open-in": {
@@ -48,6 +49,30 @@ const XuluxMarkdownTextImpl = () => {
 };
 
 export const XuluxMarkdownText = memo(XuluxMarkdownTextImpl);
+
+const LEARN_FILE_REFERENCE_FRAGMENT_PREFIX = "#xulux-file:course:";
+const LEARN_FILE_REFERENCE_PATTERN = /`(xulux-file:course:[^`\n]+)`/g;
+
+function replaceCourseFileReferences(text: string) {
+  return text.replace(LEARN_FILE_REFERENCE_PATTERN, (match, token: string) => {
+    const reference = parseXuluxFileReference(token);
+    if (!reference) return match;
+    return `[${reference.path}](${LEARN_FILE_REFERENCE_FRAGMENT_PREFIX}${encodeURIComponent(reference.path)})`;
+  });
+}
+
+function parseLearnFileReferenceFragment(href: string) {
+  if (!href.startsWith(LEARN_FILE_REFERENCE_FRAGMENT_PREFIX)) return null;
+  try {
+    return parseXuluxFileReference(
+      `xulux-file:course:${decodeURIComponent(
+        href.slice(LEARN_FILE_REFERENCE_FRAGMENT_PREFIX.length),
+      )}`,
+    );
+  } catch {
+    return null;
+  }
+}
 
 const CodeHeader: FC<CodeHeaderProps> = ({ language, code }) => {
   const { isCopied, copyToClipboard } = useCopyToClipboard();
@@ -85,7 +110,7 @@ const SyntaxHighlighter: FC<SyntaxHighlighterProps> = ({ code, language }) => {
       showLanguage={false}
       showLineNumbers
       defaultColor={false}
-      className="[&_pre]:border-border/50 [&_pre]:bg-muted/30 [&_pre]:m-0 [&_pre]:scrollbar-none [&_pre]:overflow-x-auto [&_pre]:rounded-t-none [&_pre]:rounded-b-lg [&_pre]:border [&_pre]:border-t-0 [&_pre]:py-3 [&_pre]:pr-3 [&_pre]:pl-1 [&_pre]:text-xs [&_pre]:leading-relaxed"
+      className="[&_pre]:border-border/50 [&_pre]:bg-muted/30 [&_pre]:scrollbar-none [&_pre]:m-0 [&_pre]:overflow-x-auto [&_pre]:rounded-t-none [&_pre]:rounded-b-lg [&_pre]:border [&_pre]:border-t-0 [&_pre]:py-3 [&_pre]:pr-3 [&_pre]:pl-1 [&_pre]:text-xs [&_pre]:leading-relaxed"
       style={
         {
           "--line-numbers-foreground": "var(--color-muted-foreground)",
@@ -110,33 +135,6 @@ const PlainTextSyntaxHighlighter: FC<SyntaxHighlighterProps> = ({ code }) => {
 
 const markdownComponents = {
   SyntaxHighlighter: SyntaxHighlighter,
-  code: function InlineCode({
-    className,
-    children,
-    node: _node,
-    ...props
-  }: ComponentPropsWithoutRef<"code"> & { node?: unknown }) {
-    const reference =
-      typeof children === "string" ? parseXuluxFileReference(children) : null;
-
-    if (reference) {
-      return (
-        <LearnInlineFileReference reference={reference} className={className} />
-      );
-    }
-
-    return (
-      <code
-        className={cn(
-          "border-border/50 bg-muted/50 rounded-md border px-1.5 py-0.5 font-mono text-[0.85em]",
-          className,
-        )}
-        {...props}
-      >
-        {children}
-      </code>
-    );
-  },
   h1: ({ className, ...props }: ComponentPropsWithoutRef<"h1">) => (
     <h1
       className={cn(
@@ -205,6 +203,13 @@ const markdownComponents = {
     target,
     rel,
   }: ComponentPropsWithoutRef<"a">) => {
+    const reference = href ? parseLearnFileReferenceFragment(href) : null;
+    if (reference) {
+      return (
+        <LearnInlineFileReference reference={reference} className={className} />
+      );
+    }
+
     const linkClass = cn(
       "text-primary hover:text-primary/80 underline underline-offset-2",
       className,
