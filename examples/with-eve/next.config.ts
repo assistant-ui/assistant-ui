@@ -3,6 +3,7 @@ import type { NextConfig } from "next";
 import { withEve } from "eve/next";
 
 const nextConfig: NextConfig = {
+  experimental: { useTypeScriptCli: false },
   transpilePackages: ["@assistant-ui/eve", "@assistant-ui/react"],
 };
 

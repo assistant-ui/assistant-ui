@@ -52,6 +52,7 @@ const cspHeader = `
 `;
 
 const config: NextConfig = {
+  experimental: { useTypeScriptCli: false },
   transpilePackages: ["@assistant-ui/ui", "shiki"],
   serverExternalPackages: ["just-bash"],
   skipTrailingSlashRedirect: true,

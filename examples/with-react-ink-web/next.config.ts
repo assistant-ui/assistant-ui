@@ -2,6 +2,7 @@ import path from "node:path";
 import type { NextConfig } from "next";
 
 const config: NextConfig = {
+  experimental: { useTypeScriptCli: false },
   output: "export",
   transpilePackages: ["ink-web"],
   turbopack: {
