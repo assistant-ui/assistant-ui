@@ -5,7 +5,7 @@ import type { GorpStreamOperation } from "./types";
 export class GorpStreamAccumulator {
   private _state: ReadonlyJSONValue;
   private readonly _strict: boolean;
-  private _warnedClamp = false;
+  private readonly _logged = new Set<string>();
 
   constructor(
     initialValue: ReadonlyJSONValue = null,
@@ -19,15 +19,23 @@ export class GorpStreamAccumulator {
     return this._state;
   }
 
+  private logOnce(key: string, log: () => void) {
+    if (this._logged.has(key) || this._logged.size >= 20) return;
+    this._logged.add(key);
+    log();
+  }
+
   append(ops: readonly GorpStreamOperation[]) {
     this._state = ops.reduce((state, op) => {
       if (this._strict) return this.apply(state, op);
       try {
         return this.apply(state, op);
       } catch (error) {
-        console.error(
-          `Skipped unappliable gorp operation: ${String(error)}`,
-          op,
+        this.logOnce(`skip:${String(error)}`, () =>
+          console.error(
+            `Skipped unappliable gorp operation: ${String(error)}`,
+            op,
+          ),
         );
         return state;
       }
@@ -76,12 +84,8 @@ export class GorpStreamAccumulator {
       if (idx < 0) throw new Error(`Insert array index out of bounds`);
       if (idx > state.length) {
         if (this._strict) throw new Error(`Insert array index out of bounds`);
-        if (!this._warnedClamp) {
-          this._warnedClamp = true;
-          console.warn(
-            `Clamped out-of-bounds gorp array index ${idx} to ${state.length}`,
-          );
-        }
+        const message = `Clamped out-of-bounds gorp array index ${idx} to ${state.length}`;
+        this.logOnce("clamp", () => console.warn(message));
         idx = Math.min(idx, state.length);
       }
 

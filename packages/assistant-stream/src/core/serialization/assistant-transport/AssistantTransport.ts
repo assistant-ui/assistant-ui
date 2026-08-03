@@ -147,9 +147,12 @@ export class AssistantTransportDecoder extends PipeableTransformStream<
                 default:
                   if (strict)
                     throw new Error(`Unknown SSE event type: ${event.event}`);
-                  console.error(
-                    `Ignored unknown SSE event type: ${event.event}`,
-                  );
+                  if (!warnedReasons.has(`event:${event.event}`)) {
+                    warnedReasons.add(`event:${event.event}`);
+                    console.error(
+                      `Ignored unknown SSE event type: ${event.event}`,
+                    );
+                  }
               }
             },
             flush() {
