@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useMemo } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { LangGraphMessageAccumulator } from "./LangGraphMessageAccumulator";
+import { abortableIterable } from "./abortableIterable";
 import {
   type EventType,
   type LangChainMessageTupleEvent,
@@ -251,7 +252,10 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
         let hasTupleMessageEvents = false;
         let lastValuesMessages: TMessage[] | null = null;
         let lastValuesUIMessages: UIMessage[] | null = null;
-        for await (const chunk of response) {
+        for await (const chunk of abortableIterable(
+          response,
+          abortController.signal,
+        )) {
           // Holds even when the caller's `stream` ignores its abortSignal.
           if (abortController.signal.aborted) break;
           const { type: eventType, namespace: eventNamespace } = parseEventType(

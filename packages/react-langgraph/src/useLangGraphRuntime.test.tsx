@@ -2024,6 +2024,68 @@ describe("useLangGraphRuntime", () => {
       ).not.toContain("after-cancel");
     });
 
+    it("cancelRun settles a run whose stream hangs instead of yielding", async () => {
+      // never resolved: the stream ignores its abortSignal and parks on its own
+      // work, so the consuming loop is left waiting on next()
+      const hang = deferred<void>();
+      const streamMock = vi.fn(async function* () {
+        if (streamMock.mock.calls.length === 1) {
+          yield {
+            event: "messages/partial",
+            data: [
+              { type: "ai" as const, id: "run-1", content: "before-cancel" },
+            ],
+          };
+          await hang.promise;
+          return;
+        }
+        yield {
+          event: "messages/partial",
+          data: [{ type: "ai" as const, id: "run-2", content: "second-run" }],
+        };
+      });
+
+      const { result: runtimeResult } = renderHook(() =>
+        useLangGraphRuntime({
+          stream: streamMock as never,
+          unstable_allowCancellation: true,
+        }),
+      );
+      const wrapper = wrapperFactory(runtimeResult.current);
+      const { result: auiResult } = renderHook(() => useAui(), { wrapper });
+
+      await act(async () => {
+        auiResult.current.composer.setText("hello");
+        auiResult.current.composer.send();
+      });
+      await waitFor(() =>
+        expect(
+          JSON.stringify(runtimeResult.current.thread.getState().messages),
+        ).toContain("before-cancel"),
+      );
+
+      await act(async () => {
+        runtimeResult.current.thread.cancelRun();
+      });
+
+      // the parked run must stop being the active run
+      await waitFor(() =>
+        expect(runtimeResult.current.thread.getState().isRunning).toBe(false),
+      );
+
+      // and the queue must accept work behind it
+      await act(async () => {
+        auiResult.current.composer.setText("second");
+        auiResult.current.composer.send();
+      });
+      await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(2));
+      await waitFor(() =>
+        expect(
+          JSON.stringify(runtimeResult.current.thread.getState().messages),
+        ).toContain("second-run"),
+      );
+    });
+
     it("drops the queued resume when the draining run errors", async () => {
       const gate = deferred<void>();
       const streamMock = vi.fn(async function* (_messages: LangChainMessage[]) {
