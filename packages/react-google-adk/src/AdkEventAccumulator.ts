@@ -14,6 +14,20 @@ import type { ReadonlyJSONObject } from "assistant-stream/utils";
 
 type InProgressMessage = AdkMessage & { type: "ai" };
 
+/**
+ * A session load replays the stored events through a fresh accumulator, so a
+ * tool message needs an id derived from the event that carries it rather than
+ * one minted per replay. The response id separates several responses in one
+ * event, and the part index covers a payload that omits it. An event with no
+ * id of its own has never been through the session and has nothing stable to
+ * derive from.
+ */
+const toolMessageId = (
+  event: AdkEvent,
+  responseId: string | undefined,
+  partIndex: number,
+): string => (event.id ? `${event.id}:${responseId ?? partIndex}` : uuidv4());
+
 const ADK_REQUEST_CONFIRMATION = "adk_request_confirmation";
 const ADK_REQUEST_CREDENTIAL = "adk_request_credential";
 
@@ -344,8 +358,8 @@ export class AdkEventAccumulator {
       }
     }
 
-    for (const part of parts) {
-      this.processPart(part, event);
+    for (const [index, part] of parts.entries()) {
+      this.processPart(part, event, index);
     }
 
     // Track per-message metadata (grounding, citation, usage)
@@ -379,7 +393,11 @@ export class AdkEventAccumulator {
     return this.getMessages();
   }
 
-  private processPart(part: AdkEventPart, event: AdkEvent): void {
+  private processPart(
+    part: AdkEventPart,
+    event: AdkEvent,
+    partIndex: number,
+  ): void {
     // Detect special ADK function calls
     if (part.functionCall && !event.partial) {
       const name = part.functionCall.name;
@@ -475,7 +493,7 @@ export class AdkEventAccumulator {
     if (part.functionResponse) {
       this.finalizeCurrentMessage();
       const toolMsg: AdkMessage = {
-        id: uuidv4(),
+        id: toolMessageId(event, part.functionResponse.id, partIndex),
         type: "tool",
         tool_call_id: part.functionResponse.id ?? "",
         name: part.functionResponse.name,

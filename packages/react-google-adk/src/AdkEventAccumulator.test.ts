@@ -239,6 +239,89 @@ describe("AdkEventAccumulator - function responses", () => {
       content: JSON.stringify({ results: [] }),
     });
   });
+
+  // A session reload replays the stored events through a fresh accumulator, so
+  // an id minted per replay churns every tool message on every load.
+  it("gives a tool message the same id on every replay of an event", () => {
+    const event = makeEvent({
+      id: "evt-tool",
+      author: "agent",
+      content: {
+        role: "model",
+        parts: [
+          {
+            functionResponse: {
+              name: "search",
+              id: "tc-1",
+              response: { results: [] },
+            },
+          },
+        ],
+      },
+    });
+
+    const first = new AdkEventAccumulator().processEvent(event);
+    const second = new AdkEventAccumulator().processEvent(event);
+
+    expect(first[0]!.id).toBe(second[0]!.id);
+  });
+
+  it("keeps two tool messages from one event distinct", () => {
+    const msgs = new AdkEventAccumulator().processEvent(
+      makeEvent({
+        id: "evt-tool",
+        author: "agent",
+        content: {
+          role: "model",
+          parts: [
+            {
+              functionResponse: {
+                name: "search",
+                id: "tc-1",
+                response: { a: 1 },
+              },
+            },
+            {
+              functionResponse: {
+                name: "lookup",
+                id: "tc-2",
+                response: { b: 2 },
+              },
+            },
+          ],
+        },
+      }),
+    );
+
+    const toolMessages = msgs.filter((m) => m.type === "tool");
+    expect(toolMessages).toHaveLength(2);
+    expect(toolMessages[0]!.id).not.toBe(toolMessages[1]!.id);
+  });
+
+  it("keeps two tool messages distinct when the payload omits response ids", () => {
+    const event = makeEvent({
+      id: "evt-tool",
+      author: "agent",
+      content: {
+        role: "model",
+        parts: [
+          { functionResponse: { name: "search", response: { a: 1 } } },
+          { functionResponse: { name: "lookup", response: { b: 2 } } },
+        ],
+      },
+    });
+
+    const first = new AdkEventAccumulator()
+      .processEvent(event)
+      .filter((m) => m.type === "tool");
+    const second = new AdkEventAccumulator()
+      .processEvent(event)
+      .filter((m) => m.type === "tool");
+
+    expect(first).toHaveLength(2);
+    expect(first[0]!.id).not.toBe(first[1]!.id);
+    expect(first.map((m) => m.id)).toEqual(second.map((m) => m.id));
+  });
 });
 
 describe("AdkEventAccumulator - code execution", () => {
