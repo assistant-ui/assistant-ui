@@ -24,7 +24,6 @@ describe("createCodeAdapter integration", () => {
       expect(codeElement.className).toContain("aui-streamdown-inline-code");
       expect(codeElement.className).toContain("custom-class");
     });
-
   });
 
   describe("code block detection", () => {
