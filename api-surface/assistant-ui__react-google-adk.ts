@@ -298,9 +298,9 @@ type AdkSessionAdapterOptions = {
 
 type AdkSessionAdapterResult = {
   adapter: RemoteThreadListAdapter;
-  load: (sessionId: string) => Promise<{
-    messages: AdkMessage[];
-  }>;
+  load: (sessionId: string, options?: {
+    signal?: AbortSignal | undefined;
+  }) => Promise<AdkThreadSnapshot>;
   artifacts: {
     list: (sessionId: string) => Promise<string[]>;
     load: (sessionId: string, artifactName: string, version?: number) => Promise<AdkArtifactData>;
@@ -361,6 +361,21 @@ type AdkStructuredEvent = {
   confirmations: Record<string, unknown>;
 } | {
   type: "finished";
+};
+
+type AdkThreadSnapshot = {
+  messages: AdkMessage[];
+  longRunningToolIds?: string[] | undefined;
+  toolConfirmations?: AdkToolConfirmation[] | undefined;
+  authRequests?: AdkAuthRequest[] | undefined;
+  escalated?: boolean | undefined;
+  messageMetadata?: Map<string, AdkMessageMetadata> | undefined;
+  stateDelta?: Record<string, unknown> | undefined;
+  artifactDelta?: Record<string, number> | undefined;
+  agentInfo?: {
+    name?: string | undefined;
+    branch?: string | undefined;
+  } | undefined;
 };
 
 type AdkToolCall = {
@@ -2300,9 +2315,9 @@ type UseAdkRuntimeOptions = ExternalStoreSharedOptions & {
   autoCancelPendingToolCalls?: boolean | undefined;
   unstable_allowCancellation?: boolean | undefined;
   getCheckpointId?: (threadId: string, parentMessages: AdkMessage[]) => Promise<string | null>;
-  load?: (threadId: string) => Promise<{
-    messages: AdkMessage[];
-  }>;
+  load?: (threadId: string, options?: {
+    signal?: AbortSignal | undefined;
+  }) => Promise<AdkThreadSnapshot>;
   create?: () => Promise<{
     externalId: string;
   }>;
@@ -2399,6 +2414,7 @@ declare const useAdkMessages: (_param2: UseAdkMessagesOptions) => {
   cancel: () => void;
   setMessages: (msgs: AdkMessage[]) => void;
   replaceMessages: (msgs: AdkMessage[]) => void;
+  applySnapshot: (snapshot: AdkThreadSnapshot) => void;
 };
 
 declare const useAdkRuntime: (_param3: UseAdkRuntimeOptions) => AssistantRuntime;

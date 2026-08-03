@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   getExternalStoreMessages,
   pickExternalStoreSharedOptions,
@@ -25,6 +25,7 @@ import type { AssistantCloud } from "assistant-cloud";
 import type { RemoteThreadListAdapter } from "@assistant-ui/core";
 import type {
   AdkMessage,
+  AdkThreadSnapshot,
   AdkSendMessageConfig,
   AdkStreamCallback,
   OnAdkErrorCallback,
@@ -180,7 +181,16 @@ export type UseAdkRuntimeOptions = ExternalStoreSharedOptions & {
     threadId: string,
     parentMessages: AdkMessage[],
   ) => Promise<string | null>;
-  load?: (threadId: string) => Promise<{ messages: AdkMessage[] }>;
+  /**
+   * Loads a thread's stored state. Called when the thread opens, and again for
+   * `threads.reloadMainThread()`, which refetches in place rather than
+   * remounting the runtime; the signal aborts a load the runtime no longer
+   * needs.
+   */
+  load?: (
+    threadId: string,
+    options?: { signal?: AbortSignal | undefined },
+  ) => Promise<AdkThreadSnapshot>;
   create?: () => Promise<{ externalId: string }>;
   delete?: (threadId: string) => Promise<void>;
   adapters?:
@@ -232,10 +242,21 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
     cancel,
     setMessages,
     replaceMessages,
+    applySnapshot,
   } = useAdkMessages({
     stream,
     ...(eventHandlers && { eventHandlers }),
   });
+
+  const loadRef = useRef(load);
+  loadRef.current = load;
+  const loadControllerRef = useRef<AbortController | null>(null);
+  const messagesRef = useRef(messages);
+  messagesRef.current = messages;
+  const [isLoadingThread, setIsLoadingThread] = useState(
+    () =>
+      load !== undefined && aui.threadListItem.getState().externalId != null,
+  );
 
   const [isRunning, setIsRunning] = useState(false);
   const [toolStatuses, setToolStatuses] = useState<
@@ -311,9 +332,71 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
     setMessages(nextMessages);
   };
 
+  // The scoped client, not `aui` itself: useAui returns a render-bound
+  // instance, so depending on it would re-run the load on every render.
+  const threadListItem =
+    aui.threadListItem.source !== null ? aui.threadListItem : undefined;
+
+  const runLoad = useCallback(
+    (purpose: "initial" | "reload" = "initial") => {
+      const loadFn = loadRef.current;
+      if (!loadFn || !threadListItem) return Promise.resolve();
+
+      const externalId = threadListItem.getState().externalId;
+      if (externalId == null) return Promise.resolve();
+
+      loadControllerRef.current?.abort();
+      const controller = new AbortController();
+      loadControllerRef.current = controller;
+
+      const messagesAtLoadStart = messagesRef.current;
+      if (purpose === "initial") setIsLoadingThread(true);
+
+      const task = loadFn(externalId, { signal: controller.signal })
+        .then((snapshot) => {
+          if (controller.signal.aborted) return;
+          // A snapshot the session assembled before a run cannot speak for what
+          // that run has since produced, and an ADK id cannot correlate a
+          // message sent optimistically with the one the session stored for it,
+          // so there is nothing here that could merge the two. A refetch that
+          // raced a run therefore defers to the run.
+          if (
+            purpose === "reload" &&
+            messagesRef.current !== messagesAtLoadStart
+          )
+            return;
+          applySnapshot(snapshot);
+        })
+        .finally(() => {
+          if (loadControllerRef.current === controller) {
+            loadControllerRef.current = null;
+          }
+          if (controller.signal.aborted) return;
+          setIsLoadingThread(false);
+        });
+
+      // A refetch reports the failure to whoever awaited it; the initial load
+      // has no caller to tell.
+      if (purpose === "reload") return task;
+      return task.catch((e: unknown) => {
+        console.warn("Failed to load ADK session:", e);
+      });
+    },
+    [threadListItem, applySnapshot],
+  );
+
+  useEffect(() => {
+    runLoad();
+    return () => {
+      loadControllerRef.current?.abort();
+      setIsLoadingThread(false);
+    };
+  }, [runLoad]);
+
   const runtime = useExternalStoreRuntime({
     ...pickExternalStoreSharedOptions(options),
     isRunning: effectiveIsRunning,
+    isLoading: isLoadingThread,
     messages: threadMessages,
     unstable_enableToolInvocations: true,
     setToolStatuses,
@@ -450,31 +533,10 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
           cancel();
         }
       : undefined,
+    ...(load !== undefined && {
+      onRefetchThread: () => runLoad("reload"),
+    }),
   });
-
-  {
-    const loadRef = useRef(load);
-    useEffect(() => {
-      loadRef.current = load;
-    });
-
-    useEffect(() => {
-      const loadFn = loadRef.current;
-      if (!loadFn) return;
-
-      const externalId = aui.threadListItem.getState().externalId;
-      if (externalId == null) return;
-
-      loadFn(externalId).then(
-        ({ messages: msgs }) => {
-          replaceMessages(msgs);
-        },
-        (e) => {
-          console.warn("Failed to load ADK session:", e);
-        },
-      );
-    }, [aui, replaceMessages]);
-  }
 
   return runtime;
 };
