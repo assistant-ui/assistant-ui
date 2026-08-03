@@ -3,14 +3,11 @@
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { type FC, useEffect, useReducer } from "react";
 import { describe, expect, it } from "vitest";
-import {
-  useRemoteThreadListRuntime,
-  type AssistantRuntime,
-} from "@assistant-ui/core/react";
+import { useRemoteThreadListRuntime } from "@assistant-ui/core/react";
 import { makeAdapter } from "./remote-thread-list-test-helpers";
 import { AssistantRuntimeProvider } from "../context";
 import * as ThreadListPrimitive from "../primitives/threadList";
-import { useAui, useAuiState } from "../index";
+import { useAui, useAuiState, type AssistantRuntime } from "../index";
 import { useExternalStoreRuntime } from "../legacy-runtime/runtime-cores/external-store/useExternalStoreRuntime";
 
 const Probe: FC = () => {

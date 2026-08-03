@@ -4262,7 +4262,7 @@ declare const ThreadListItemByIndexProvider: FC<PropsWithChildren<{
 declare const ThreadListItemClient: Resource<ClientOutput<"threadListItem">, [
   {
     runtime: ThreadListItemRuntime;
-    mainThreadIsRunning: boolean;
+    mainThreadIsRunning?: boolean | undefined;
   }
 ]>;
 

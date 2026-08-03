@@ -37,6 +37,7 @@ const READONLY_THREAD_LIST_ITEM = Object.freeze({
   remoteId: undefined,
   externalId: undefined,
   isMain: true,
+  isRunning: false,
   status: "regular" as const,
   title: undefined,
 });

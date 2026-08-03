@@ -96,6 +96,7 @@ const makeThreadHarness = (): RuntimeHarness => {
       remoteId: undefined,
       externalId: undefined,
       isMain: true,
+      isRunning: false,
       status: "regular",
       title: undefined,
     }),

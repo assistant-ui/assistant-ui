@@ -10,12 +10,13 @@ import { useSubscribable } from "./useSubscribable";
 
 const useThreadListItemClient = ({
   runtime,
-  mainThreadIsRunning,
+  mainThreadIsRunning = false,
 }: {
   runtime: ThreadListItemRuntime;
   // A thread list that cannot report per-thread run state still leaves the open
-  // thread observable, and the thread client tracks that reactively.
-  mainThreadIsRunning: boolean;
+  // thread observable, and the thread client tracks that reactively. Omitted
+  // where the runtime state is already authoritative for every thread.
+  mainThreadIsRunning?: boolean | undefined;
 }): ClientOutput<"threadListItem"> => {
   const runtimeState = useSubscribable(runtime);
   const state = useMemo(() => {
