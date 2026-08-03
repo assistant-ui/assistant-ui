@@ -58,7 +58,7 @@ const useThreadListClient = ({
           id,
           mainThreadIsRunning: main.state.isRunning,
         }),
-        [runtime, id],
+        [runtime, id, main.state.isRunning],
       ),
     ),
   );

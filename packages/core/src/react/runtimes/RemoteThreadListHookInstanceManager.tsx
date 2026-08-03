@@ -166,17 +166,23 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     const runtime = instance.runtime;
     if (!runtime) {
       instance.unsubscribeRunning = undefined;
-      instance.isRunning = false;
+      this._setRunning(instance, false);
       return;
     }
 
-    instance.isRunning = getThreadRuntimeCoreIsRunning(runtime);
+    this._setRunning(instance, getThreadRuntimeCoreIsRunning(runtime));
     instance.unsubscribeRunning = runtime.subscribe(() => {
-      const isRunning = getThreadRuntimeCoreIsRunning(runtime);
-      if (instance.isRunning === isRunning) return;
-      instance.isRunning = isRunning;
-      for (const callback of this.runningSubscribers) callback();
+      this._setRunning(instance, getThreadRuntimeCoreIsRunning(runtime));
     });
+  }
+
+  private _setRunning(
+    instance: RemoteThreadListHookInstance,
+    isRunning: boolean,
+  ) {
+    if (instance.isRunning === isRunning) return;
+    instance.isRunning = isRunning;
+    for (const callback of this.runningSubscribers) callback();
   }
 
   public stopThreadRuntime(threadId: string) {

@@ -7,8 +7,14 @@ import { useRemoteThreadListRuntime } from "@assistant-ui/core/react";
 import { makeAdapter } from "./remote-thread-list-test-helpers";
 import { AssistantRuntimeProvider } from "../context";
 import * as ThreadListPrimitive from "../primitives/threadList";
-import { useAui, useAuiState, type AssistantRuntime } from "../index";
+import {
+  useAui,
+  useAuiState,
+  type AssistantRuntime,
+  type ChatModelAdapter,
+} from "../index";
 import { useExternalStoreRuntime } from "../legacy-runtime/runtime-cores/external-store/useExternalStoreRuntime";
+import { useLocalRuntime } from "../legacy-runtime/runtime-cores/local/useLocalRuntime";
 
 const Probe: FC = () => {
   const id = useAuiState((s) => s.threadListItem.id);
@@ -23,6 +29,54 @@ const Items: FC = () => (
 );
 
 describe("threadListItem.isRunning", () => {
+  // LocalThreadListRuntimeCore reports no per-thread run state, so the item
+  // reaches its own run state only through the open thread.
+  it("tracks the open thread's run on a thread list with no per-thread capability", async () => {
+    let release!: () => void;
+    const adapter: ChatModelAdapter = {
+      async *run() {
+        await new Promise<void>((resolve) => {
+          release = resolve;
+        });
+        yield { content: [{ type: "text", text: "done" }] };
+      },
+    };
+
+    const capture: { runtime: AssistantRuntime | null } = { runtime: null };
+    const Inner: FC = () => {
+      const runtime = useLocalRuntime(adapter);
+      capture.runtime = runtime;
+      return (
+        <AssistantRuntimeProvider runtime={runtime}>
+          <Probe />
+        </AssistantRuntimeProvider>
+      );
+    };
+
+    await act(async () => {
+      render(<Inner />);
+    });
+    const testId = `item-${capture.runtime!.threads.mainItem.getState().id}`;
+    expect(screen.getByTestId(testId).textContent).toBe("idle");
+
+    await act(async () => {
+      capture.runtime!.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "hi" }],
+      });
+    });
+    await waitFor(() =>
+      expect(screen.getByTestId(testId).textContent).toBe("running"),
+    );
+
+    await act(async () => {
+      release();
+    });
+    await waitFor(() =>
+      expect(screen.getByTestId(testId).textContent).toBe("idle"),
+    );
+  });
+
   it("reports the run of a single-thread runtime that cannot observe background threads", async () => {
     const Inner: FC<{ isRunning: boolean }> = ({ isRunning }) => {
       const runtime = useExternalStoreRuntime({

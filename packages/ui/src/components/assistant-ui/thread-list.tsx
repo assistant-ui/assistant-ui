@@ -323,7 +323,6 @@ const ThreadListItemRename: FC<{
   const aui = useAui();
   const title = useAuiState((s) => s.threadListItem.title) ?? "";
   const [value, setValue] = useState(title);
-  const [isPending, setIsPending] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const settledRef = useRef(false);
 
@@ -341,15 +340,16 @@ const ThreadListItemRename: FC<{
       return;
     }
 
-    setIsPending(true);
-    Promise.resolve(aui.threadListItem.rename(next)).then(
-      () => onDone(restoreFocus),
-      () => {
-        settledRef.current = false;
-        setIsPending(false);
-        inputRef.current?.focus();
-      },
-    );
+    // Deferred so a synchronous throw lands on the rejection path too.
+    Promise.resolve()
+      .then(() => aui.threadListItem.rename(next))
+      .then(
+        () => onDone(restoreFocus),
+        () => {
+          settledRef.current = false;
+          if (restoreFocus) inputRef.current?.focus();
+        },
+      );
   };
 
   const cancel = () => {
@@ -365,8 +365,7 @@ const ThreadListItemRename: FC<{
       data-slot="aui_thread-list-item-rename"
       aria-label="Rename thread"
       value={value}
-      disabled={isPending}
-      className="h-7 min-w-0 flex-1 px-2.5 text-sm"
+      className="h-7 min-w-0 flex-1 ps-2.5 pe-9 text-sm"
       onChange={(event) => setValue(event.target.value)}
       onBlur={() => commit(false)}
       onKeyDown={(event) => {

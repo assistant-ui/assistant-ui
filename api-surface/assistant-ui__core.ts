@@ -3549,6 +3549,7 @@ declare class RemoteThreadListHookInstanceManager extends BaseSubscribable {
   __internal_subscribeRunningChanged(callback: () => void): Unsubscribe$1;
   private _publishThreadRuntime;
   private _trackRunning;
+  private _setRunning;
   stopThreadRuntime(threadId: string): void;
   setRuntimeHook(newRuntimeHook: RemoteThreadListHook): void;
   private _RuntimeBinder;
