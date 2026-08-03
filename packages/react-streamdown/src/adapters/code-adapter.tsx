@@ -1,6 +1,7 @@
 "use client";
 
 import type { Element } from "hast";
+import type { StreamdownProps } from "streamdown";
 import {
   type ComponentPropsWithoutRef,
   type ComponentType,
@@ -27,7 +28,7 @@ type PreProps = ComponentPropsWithoutRef<"pre"> & {
 interface CodeAdapterOptions {
   SyntaxHighlighter?: ComponentType<SyntaxHighlighterProps> | undefined;
   CodeHeader?: ComponentType<CodeHeaderProps> | undefined;
-  InlineCode?: ComponentType<CodeProps> | undefined;
+  InlineCode?: NonNullable<StreamdownProps["components"]>["code"];
   componentsByLanguage?: ComponentsByLanguage | undefined;
 }
 

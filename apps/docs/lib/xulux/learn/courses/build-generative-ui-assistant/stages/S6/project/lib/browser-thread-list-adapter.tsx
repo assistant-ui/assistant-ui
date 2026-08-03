@@ -25,6 +25,8 @@ type StoredFormattedRepository = {
   messages: StoredFormattedMessage[];
 };
 
+type StoredHistory = Awaited<ReturnType<ThreadHistoryAdapter["load"]>>;
+
 const read = <T,>(key: string, fallback: T): T => {
   try {
     const value = window.localStorage.getItem(key);
@@ -76,7 +78,7 @@ function createHistoryProvider(prefix: string) {
         async append(item) {
           const storageKey = key();
           await enqueueStorageWrite(storageKey, () => {
-            const current = read(storageKey, { messages: [] });
+            const current = read<StoredHistory>(storageKey, { messages: [] });
             const index = current.messages.findIndex(
               ({ message }) => message.id === item.message.id,
             );
