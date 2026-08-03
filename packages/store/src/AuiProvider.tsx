@@ -169,6 +169,11 @@ export const AuiProvider: {
         "AuiProvider: pass either `extends` or `value`, not both.",
       );
     }
+    if (hasExtends && props.extends === undefined) {
+      throw new Error(
+        "AuiProvider: `extends` must be a client or null, not undefined.",
+      );
+    }
     if (hasExtends && !config) {
       throw new Error("AuiProvider: `extends` requires a `config`.");
     }
