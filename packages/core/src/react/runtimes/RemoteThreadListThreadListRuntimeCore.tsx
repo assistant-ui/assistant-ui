@@ -185,6 +185,9 @@ export class RemoteThreadListThreadListRuntimeCore
       options.runtimeHook,
       this,
     );
+    this._hookManager.__internal_subscribeRunningChanged(() =>
+      this._notifySubscribers(),
+    );
     this.useProvider = create(() => ({
       Provider: options.adapter.unstable_Provider ?? Fragment,
     }));
@@ -347,6 +350,12 @@ export class RemoteThreadListThreadListRuntimeCore
         `Runtime for thread "${threadIdOrRemoteId}" not found while getting its runtime.`,
       );
     return result;
+  }
+
+  public unstable_isThreadRunning(threadIdOrRemoteId: string) {
+    const data = this.getItemById(threadIdOrRemoteId);
+    if (!data) return false;
+    return this._hookManager.__internal_isThreadRunning(data.id);
   }
 
   public getItemById(threadIdOrRemoteId: string) {

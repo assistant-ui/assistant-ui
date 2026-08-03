@@ -31,6 +31,16 @@ export type ThreadListRuntimeCore = {
   getMainThreadRuntimeCore(): ThreadRuntimeCore;
   getThreadRuntimeCore(threadId: string): ThreadRuntimeCore;
 
+  /**
+   * Whether the thread currently has a run in progress, including a run on a
+   * thread that is not the main one. Implemented by thread lists that keep
+   * runtimes alive for non-main threads, and they notify their subscribers
+   * whenever the answer changes. A thread list that mounts only the main thread
+   * leaves this undefined: its other threads have no runtime and so cannot be
+   * running, and the main thread's run state is read from its runtime directly.
+   */
+  unstable_isThreadRunning?(threadId: string): boolean;
+
   getItemById(threadId: string): ThreadListItemCoreState | undefined;
 
   switchToThread(
