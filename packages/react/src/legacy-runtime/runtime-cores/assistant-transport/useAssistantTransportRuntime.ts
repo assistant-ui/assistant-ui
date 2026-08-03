@@ -129,6 +129,20 @@ const useAssistantTransportThreadRuntime = <T>(
     onQueue: () => runManager.schedule(),
   });
 
+  const enqueueAppendMessage = (message: AppendMessage) => {
+    const command = convertAppendMessageToCommand(message);
+    if (!command) {
+      console.warn(
+        "[assistant-ui] Skipped add-message command with no supported parts",
+      );
+      return;
+    }
+    parentIdRef.current = message.parentId;
+    commandQueue.enqueue(command, {
+      schedule: message.startRun ?? message.role === "user",
+    });
+  };
+
   const threadId = useAuiState((s) => s.threadListItem.remoteId);
 
   const runManager = useRunManager({
@@ -331,33 +345,11 @@ const useAssistantTransportThreadRuntime = <T>(
       },
       state: agentStateRef.current as UserExternalState,
     } satisfies AssistantTransportExtras,
-    onNew: async (message: AppendMessage): Promise<void> => {
-      parentIdRef.current = message.parentId;
-      const command = convertAppendMessageToCommand(message);
-      if (!command) {
-        console.warn(
-          "[assistant-ui] Skipped add-message command with no supported parts",
-        );
-        return;
-      }
-      commandQueue.enqueue(command, {
-        schedule: message.startRun ?? message.role === "user",
-      });
-    },
+    onNew: async (message: AppendMessage): Promise<void> =>
+      enqueueAppendMessage(message),
     ...(options.capabilities?.edit && {
-      onEdit: async (message: AppendMessage): Promise<void> => {
-        parentIdRef.current = message.parentId;
-        const command = convertAppendMessageToCommand(message);
-        if (!command) {
-          console.warn(
-            "[assistant-ui] Skipped add-message command with no supported parts",
-          );
-          return;
-        }
-        commandQueue.enqueue(command, {
-          schedule: message.startRun ?? message.role === "user",
-        });
-      },
+      onEdit: async (message: AppendMessage): Promise<void> =>
+        enqueueAppendMessage(message),
     }),
     ...(commandQueue.state.queued.length > 0 && {
       onReload: async (parentId: string | null) => {
