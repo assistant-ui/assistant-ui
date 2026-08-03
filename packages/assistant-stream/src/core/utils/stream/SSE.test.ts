@@ -1,5 +1,9 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { SSEDecoder, SSEEncoder } from "./SSE";
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 async function collectChunks<T>(stream: ReadableStream<T>): Promise<T[]> {
   const reader = stream.getReader();

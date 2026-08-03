@@ -1,6 +1,10 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { GorpStreamAccumulator } from "./GorpStreamAccumulator";
 import type { GorpStreamOperation } from "./types";
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe("GorpStreamAccumulator", () => {
   it("rejects unsafe path segments", () => {
@@ -60,11 +64,12 @@ describe("GorpStreamAccumulator", () => {
       error.mockRestore();
     });
 
-    it("still throws on negative array indices", () => {
+    it("skips negative array indices", () => {
+      const error = vi.spyOn(console, "error").mockImplementation(() => {});
       const acc = new GorpStreamAccumulator({ list: ["a"] }, { strict: false });
-      expect(() =>
-        acc.append([{ type: "set", path: ["list", "-1"], value: "b" }]),
-      ).toThrow(/out of bounds/);
+      acc.append([{ type: "set", path: ["list", "-1"], value: "b" }]);
+      expect(acc.state).toEqual({ list: ["a"] });
+      expect(error).toHaveBeenCalledOnce();
     });
   });
 

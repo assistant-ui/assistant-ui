@@ -5,6 +5,7 @@ import type { GorpStreamOperation } from "./types";
 export class GorpStreamAccumulator {
   private _state: ReadonlyJSONValue;
   private readonly _strict: boolean;
+  private _warnedClamp = false;
 
   constructor(
     initialValue: ReadonlyJSONValue = null,
@@ -24,7 +25,6 @@ export class GorpStreamAccumulator {
       try {
         return this.apply(state, op);
       } catch (error) {
-        if (error instanceof RangeError) throw error;
         console.error(
           `Skipped unappliable gorp operation: ${String(error)}`,
           op,
@@ -73,12 +73,15 @@ export class GorpStreamAccumulator {
       let idx = Number(key);
       if (Number.isNaN(idx))
         throw new Error(`Expected array index at [${path.join(", ")}]`);
-      if (idx < 0) throw new RangeError(`Insert array index out of bounds`);
+      if (idx < 0) throw new Error(`Insert array index out of bounds`);
       if (idx > state.length) {
         if (this._strict) throw new Error(`Insert array index out of bounds`);
-        console.warn(
-          `Clamped out-of-bounds gorp array index ${idx} to ${state.length}`,
-        );
+        if (!this._warnedClamp) {
+          this._warnedClamp = true;
+          console.warn(
+            `Clamped out-of-bounds gorp array index ${idx} to ${state.length}`,
+          );
+        }
         idx = Math.min(idx, state.length);
       }
 

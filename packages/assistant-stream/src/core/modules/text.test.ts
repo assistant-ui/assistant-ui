@@ -1,5 +1,9 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createTextStreamController } from "./text";
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe("TextStreamController", () => {
   it("throws when appending after close", () => {

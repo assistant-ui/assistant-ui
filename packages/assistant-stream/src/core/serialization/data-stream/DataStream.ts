@@ -28,18 +28,13 @@ export class DataStreamEncoder
     "x-vercel-ai-data-stream": "v1",
   });
 
-  constructor(options: DataStreamOptions = {}) {
-    const strict = options.strict ?? true;
+  constructor() {
     super((readable) => {
       const transform = new TransformStream<
         AssistantMetaStreamChunk,
         DataStreamChunk
       >({
         transform(chunk, controller) {
-          const unsupported = (message: string) => {
-            if (strict) throw new Error(message);
-            console.error(`Dropped chunk: ${message}`);
-          };
           const type = chunk.type;
           switch (type) {
             case "part-start": {
@@ -115,7 +110,7 @@ export class DataStreamEncoder
                   break;
                 }
                 default:
-                  unsupported(
+                  throw new Error(
                     `Unsupported part type for text-delta: ${part.type}`,
                   );
               }
@@ -125,10 +120,9 @@ export class DataStreamEncoder
               // Only tool-call parts can have results.
               const part = chunk.meta;
               if (part.type !== "tool-call") {
-                unsupported(
+                throw new Error(
                   `Result chunk on non-tool-call part not supported: ${part.type}`,
                 );
-                break;
               }
               controller.enqueue({
                 type: DataStreamStreamChunkType.ToolCallResult,
@@ -203,7 +197,7 @@ export class DataStreamEncoder
 
             default: {
               const exhaustiveCheck: never = type;
-              unsupported(`Unsupported chunk type: ${exhaustiveCheck}`);
+              throw new Error(`Unsupported chunk type: ${exhaustiveCheck}`);
             }
           }
         },
@@ -242,6 +236,12 @@ export class DataStreamDecoder extends PipeableTransformStream<
       const toolCallControllers = new Map<string, ToolCallStreamController>();
       const closedToolCallArgs = new Set<string>();
       const warnedDroppedArgs = new Set<string>();
+      const loggedDrops = new Set<string>();
+      const logDropped = (key: string, message: string) => {
+        if (loggedDrops.has(key)) return;
+        loggedDrops.add(key);
+        console.error(message);
+      };
       let activeToolCallArgsText: TextStreamController | undefined;
       let activeToolCallArgsId: string | undefined;
       const transform = new AssistantTransformStream<DataStreamChunk>({
@@ -249,7 +249,14 @@ export class DataStreamDecoder extends PipeableTransformStream<
         transform(chunk, controller) {
           const { type, value } = chunk;
 
-          if (TOOL_CALL_ARGS_CLOSING_CHUNKS.includes(type)) {
+          const isDuplicateToolCallStart =
+            chunk.type === DataStreamStreamChunkType.StartToolCall &&
+            toolCallControllers.has(chunk.value.toolCallId);
+
+          if (
+            TOOL_CALL_ARGS_CLOSING_CHUNKS.includes(type) &&
+            !isDuplicateToolCallStart
+          ) {
             if (activeToolCallArgsText && activeToolCallArgsId !== undefined) {
               activeToolCallArgsText.close();
               closedToolCallArgs.add(activeToolCallArgsId);
@@ -290,7 +297,8 @@ export class DataStreamDecoder extends PipeableTransformStream<
                   throw new Error(
                     `Encountered duplicate tool call id: ${toolCallId}`,
                   );
-                console.error(
+                logDropped(
+                  `duplicate:${toolCallId}`,
                   `Dropped duplicate tool call start: ${toolCallId}`,
                 );
                 break;
@@ -324,7 +332,8 @@ export class DataStreamDecoder extends PipeableTransformStream<
                   throw new Error(
                     `Encountered tool call with unknown id: ${toolCallId}`,
                   );
-                console.error(
+                logDropped(
+                  `args:${toolCallId}`,
                   `Dropped args delta for unknown tool call: ${toolCallId}`,
                 );
                 break;
@@ -341,7 +350,8 @@ export class DataStreamDecoder extends PipeableTransformStream<
                   throw new Error(
                     `Encountered tool call result with unknown id: ${toolCallId}`,
                   );
-                console.error(
+                logDropped(
+                  `result:${toolCallId}`,
                   `Dropped result for unknown tool call: ${toolCallId}`,
                 );
                 break;
@@ -469,7 +479,12 @@ export class DataStreamDecoder extends PipeableTransformStream<
 
             default: {
               const exhaustiveCheck: never = type;
-              throw new Error(`unsupported chunk type: ${exhaustiveCheck}`);
+              if (strict)
+                throw new Error(`unsupported chunk type: ${exhaustiveCheck}`);
+              logDropped(
+                `type:${exhaustiveCheck as string}`,
+                `Dropped unsupported chunk type: ${exhaustiveCheck as string}`,
+              );
             }
           }
         },

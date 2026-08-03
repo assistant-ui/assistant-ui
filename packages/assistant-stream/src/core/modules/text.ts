@@ -15,6 +15,7 @@ class TextStreamControllerImpl implements TextStreamController {
   private _controller: ReadableStreamDefaultController<AssistantStreamChunk>;
   private _strict: boolean;
   private _isClosed = false;
+  private _warnedDropped = false;
 
   constructor(
     controller: ReadableStreamDefaultController<AssistantStreamChunk>,
@@ -37,7 +38,10 @@ class TextStreamControllerImpl implements TextStreamController {
     try {
       this._controller.enqueue(chunk);
     } catch (error) {
-      console.error(`Dropped text delta for closed stream: ${String(error)}`);
+      if (!this._warnedDropped) {
+        this._warnedDropped = true;
+        console.error(`Dropped text delta for closed stream: ${String(error)}`);
+      }
     }
     return this;
   }

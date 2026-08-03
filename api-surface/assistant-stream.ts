@@ -662,7 +662,7 @@ declare class DataStreamDecoder extends PipeableTransformStream<Uint8Array<Array
 
 declare class DataStreamEncoder extends PipeableTransformStream<AssistantStreamChunk, Uint8Array<ArrayBuffer>> implements AssistantStreamEncoder {
   headers: Headers;
-  constructor(options?: DataStreamOptions);
+  constructor();
 }
 
 type DataStreamOptions = {
