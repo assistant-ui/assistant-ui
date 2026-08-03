@@ -5955,7 +5955,7 @@ declare const useActionBarFeedbackPositive: () => {
 
 declare const useActionBarReload: () => {
   reload: () => void;
-  disabled: boolean;
+  disabled: any;
 };
 
 declare const useActionBarSpeak: () => {
@@ -6013,7 +6013,7 @@ declare const useComposerDictate: () => {
 
 declare const useComposerSend: () => {
   send: (opts?: ComposerSendOptions) => void;
-  disabled: boolean;
+  disabled: any;
 };
 
 declare const useEditComposerCancel: () => {
@@ -6096,7 +6096,7 @@ declare const useStreamingTiming: <TMessage>(messages: readonly TMessage[], isRu
 
 declare const useSuggestionTrigger: (_param20: UseSuggestionTriggerOptions) => {
   trigger: () => void;
-  disabled: boolean;
+  disabled: any;
 };
 
 declare const useThreadIsEmpty: () => boolean;
