@@ -212,7 +212,8 @@ const FileImpl: FileMessagePartComponent = ({
   sourceType,
 }) => {
   const kind = getFileDataKind(data, sourceType);
-  const showSize = kind === "base64" || kind === "data-uri";
+  const showSize =
+    typeof data === "string" && (kind === "base64" || kind === "data-uri");
 
   return (
     <FileRoot>
