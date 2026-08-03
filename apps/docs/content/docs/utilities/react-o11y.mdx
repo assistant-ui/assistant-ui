@@ -61,7 +61,7 @@ function SpanRow() {
 export function TraceView({ spans }: { spans: SpanData[] }) {
   const config = AuiConfig({ span: SpanResource({ spans }) });
   return (
-    <AuiProvider config={config}>
+    <AuiProvider extends={null} config={config}>
       <SpanPrimitive.Children components={{ Span: SpanRow }} />
     </AuiProvider>
   );
@@ -107,7 +107,7 @@ import {
 
 // Top-level: mount SpanResource via AuiProvider
 const config = AuiConfig({ span: SpanResource({ spans }) });
-<AuiProvider config={config}>
+<AuiProvider extends={null} config={config}>
   {/* Render visible spans (flat-list output respecting collapsed state) */}
   <SpanPrimitive.Children components={{ Span: SpanRow }} />
 </AuiProvider>;
