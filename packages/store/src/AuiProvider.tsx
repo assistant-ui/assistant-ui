@@ -172,6 +172,14 @@ export const AuiProvider: {
     if (hasExtends && !config) {
       throw new Error("AuiProvider: `extends` requires a `config`.");
     }
+    if (hasValue && config) {
+      throw new Error(
+        "AuiProvider: pass either `value` or `config`, not both.",
+      );
+    }
+    if (!hasValue && !config) {
+      throw new Error("AuiProvider: a `config` is required.");
+    }
     if (!hasExtends && !hasValue && contextParent !== DefaultAssistantClient) {
       throw new Error(
         "A parent AuiProvider exists — pass extends={aui} to inherit it or extends={null} to isolate.",

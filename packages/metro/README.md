@@ -67,12 +67,25 @@ export default defineToolkit({
 Register it with `Tools({ toolkit })`, the same as on the web:
 
 ```tsx
-import { AuiConfig, Tools } from "@assistant-ui/react-native";
+import {
+  AssistantRuntimeProvider,
+  AuiConfig,
+  Tools,
+  useLocalRuntime,
+} from "@assistant-ui/react-native";
 import toolkit from "./toolkit";
+import { modelAdapter } from "./modelAdapter";
 
 const config = AuiConfig({ tools: Tools({ toolkit }) });
 
-<AssistantRuntimeProvider runtime={runtime} config={config}>...</AssistantRuntimeProvider>;
+const App = ({ children }: { children: React.ReactNode }) => {
+  const runtime = useLocalRuntime(modelAdapter);
+  return (
+    <AssistantRuntimeProvider runtime={runtime} config={config}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+};
 ```
 
 ## How it works

@@ -128,4 +128,28 @@ describe("AssistantRuntimeProvider aui composition", () => {
     expect(aui.threads).toBeDefined();
     expect(aui.extraScope.getState()).toEqual({ count: 0 });
   });
+
+  it("keeps the runtime's threads scope when config carries a threads key", () => {
+    let aui!: AnyClient;
+    const Consumer = () => {
+      aui = useAui();
+      return null;
+    };
+
+    const App = () => {
+      const runtime = useLocalRuntime(chatModel);
+      const config = AuiConfig({
+        threads: makeCounterClient()(),
+      } as unknown as AuiConfig.Input);
+      return (
+        <AssistantRuntimeProvider runtime={runtime} config={config}>
+          <Consumer />
+        </AssistantRuntimeProvider>
+      );
+    };
+
+    render(<App />);
+
+    expect(aui.threads.getState().main).toBeDefined();
+  });
 });

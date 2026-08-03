@@ -44,7 +44,7 @@ const messages: ExternalThreadMessage[] = [
 ];
 ```
 
-### 2. Create Runtime
+### 2. Create Config
 
 ```typescript
 const config = AuiConfig({
