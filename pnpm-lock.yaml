@@ -4900,8 +4900,8 @@ importers:
   packages/x-buildutils:
     dependencies:
       '@babel/core':
-        specifier: ^8.0.1
-        version: 8.0.1
+        specifier: ^7.29.7
+        version: 7.29.7(supports-color@10.2.2)
       '@tsconfig/strictest':
         specifier: ^2.0.8
         version: 2.0.8
