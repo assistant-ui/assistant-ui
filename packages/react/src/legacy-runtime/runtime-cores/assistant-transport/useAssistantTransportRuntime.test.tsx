@@ -145,6 +145,32 @@ describe("useAssistantTransportRuntime", () => {
     expect(fetchMock.requests).toHaveLength(1);
   });
 
+  it("skips add-message commands with no supported parts", async () => {
+    const fetchMock = installFetch();
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const { aui } = mountRuntime();
+    await waitFor(() =>
+      expect(
+        (aui().thread.getState().extras as { sendCommand?: unknown })
+          ?.sendCommand,
+      ).toBeTypeOf("function"),
+    );
+
+    act(() =>
+      aui().thread.append({
+        role: "user",
+        content: [{ type: "audio", audio: { data: "", format: "mp3" } }],
+      }),
+    );
+
+    await act(async () => {});
+    expect(warn).toHaveBeenCalledWith(
+      "[assistant-ui] Skipped add-message command with no supported parts",
+    );
+    expect(fetchMock.requests).toHaveLength(0);
+    warn.mockRestore();
+  });
+
   it("flushes commands enqueued during a resume run in a follow-up run", async () => {
     const fetchMock = installFetch();
     const { aui, sendCommand } = mountRuntime({

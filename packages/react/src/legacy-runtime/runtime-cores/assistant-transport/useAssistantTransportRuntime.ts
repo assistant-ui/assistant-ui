@@ -42,7 +42,7 @@ import type { UserExternalState } from "../../../augmentations";
 
 const convertAppendMessageToCommand = (
   message: AppendMessage,
-): AddMessageCommand => {
+): AddMessageCommand | null => {
   if (message.role !== "user")
     throw new Error("Only user messages are supported");
 
@@ -58,6 +58,8 @@ const convertAppendMessageToCommand = (
       parts.push({ type: "image", image: contentPart.image });
     }
   }
+
+  if (parts.length === 0) return null;
 
   return {
     type: "add-message",
@@ -332,6 +334,12 @@ const useAssistantTransportThreadRuntime = <T>(
     onNew: async (message: AppendMessage): Promise<void> => {
       parentIdRef.current = message.parentId;
       const command = convertAppendMessageToCommand(message);
+      if (!command) {
+        console.warn(
+          "[assistant-ui] Skipped add-message command with no supported parts",
+        );
+        return;
+      }
       commandQueue.enqueue(command, {
         schedule: message.startRun ?? message.role === "user",
       });
@@ -340,6 +348,12 @@ const useAssistantTransportThreadRuntime = <T>(
       onEdit: async (message: AppendMessage): Promise<void> => {
         parentIdRef.current = message.parentId;
         const command = convertAppendMessageToCommand(message);
+        if (!command) {
+          console.warn(
+            "[assistant-ui] Skipped add-message command with no supported parts",
+          );
+          return;
+        }
         commandQueue.enqueue(command, {
           schedule: message.startRun ?? message.role === "user",
         });
