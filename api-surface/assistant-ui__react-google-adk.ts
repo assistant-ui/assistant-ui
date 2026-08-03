@@ -93,6 +93,7 @@ declare class AdkEventAccumulator {
   private authRequests;
   private escalated;
   private messageMetadataMap;
+  private aiMessageOrdinals;
   constructor(initialMessages?: AdkMessage[]);
   processEvent(rawEvent: AdkEvent): AdkMessage[];
   private processPart;
