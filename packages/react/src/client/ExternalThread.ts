@@ -88,7 +88,12 @@ export type ExternalThreadProps = {
   onNew?: (message: AppendMessage) => void;
   onEdit?: (message: AppendMessage) => void;
   onReload?: (parentId: string | null) => void;
-  /** Refetches this thread's remote state when `threads.reloadMainThread()` is called. */
+  /**
+   * Re-fetches the thread's state from its backing store in place when
+   * `threads.reloadMainThread()` is called. Rejections reach the caller, and
+   * the implementation owns coordination with any run in progress. Unrelated
+   * to `onReload`, which re-generates an assistant message.
+   */
   onRefetchThread?: (() => Promise<void>) | undefined;
   onStartRun?: () => void;
   onCancel?: () => void;

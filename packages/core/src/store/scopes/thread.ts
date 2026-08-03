@@ -108,6 +108,12 @@ export type ThreadMethods = {
    * @param initialMessages - Optional array of initial messages to populate the thread
    */
   reset(initialMessages?: readonly ThreadMessageLike[]): void;
+  /**
+   * Re-fetches this thread's state from its backing store in place, preserving
+   * runtime identity and composer drafts. Presence enables
+   * `threads.reloadMainThread()`, which calls this method and propagates its
+   * rejection. Implementations own coordination with any run in progress.
+   */
   unstable_refetchThread?(): Promise<void>;
   importExternalState(state: unknown): void;
   message(selector: { id: string } | { index: number }): MessageMethods;
