@@ -72,7 +72,7 @@
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/json-schema": "^7.0.15",
-    "@types/react": "^19.2.17",
+    "@types/react": "^19.2.18",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "vitest": "^4.1.10",

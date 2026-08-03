@@ -47,8 +47,8 @@
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/react": "^19.2.17",
-    "eve": "^0.27.6",
+    "@types/react": "^19.2.18",
+    "eve": "^0.29.5",
     "react": "^19.2.8",
     "vitest": "^4.1.10"
   },

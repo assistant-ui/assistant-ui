@@ -70,8 +70,8 @@
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/json-schema": "^7.0.15",
-    "ioredis": "^5.11.1",
-    "redis": "^6.1.0",
+    "ioredis": "^6.0.0",
+    "redis": "^6.2.0",
     "vitest": "^4.1.10"
   },
   "publishConfig": {

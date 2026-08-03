@@ -65,11 +65,11 @@
     "@assistant-ui/react-ink": "workspace:*",
     "@assistant-ui/store": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/react": "^19.2.17",
+    "@types/react": "^19.2.18",
     "ink": "^7.1.1",
     "ink-testing-library": "^4.0.0",
     "react": "^19.2.8",
-    "shiki": "^4.3.1",
+    "shiki": "^4.4.1",
     "vitest": "^4.1.10"
   },
   "publishConfig": {

@@ -11,20 +11,20 @@
     "@assistant-ui/react-ai-sdk": "workspace:*",
     "@assistant-ui/react-ink": "workspace:*",
     "@assistant-ui/react-ink-markdown": "workspace:*",
-    "@wterm/dom": "^0.3.0",
-    "@wterm/react": "^0.3.0",
-    "ai": "^7.0.37",
+    "@wterm/dom": "^0.3.1",
+    "@wterm/react": "^0.3.1",
+    "ai": "^7.0.48",
     "ink": "^7.1.1",
     "ink-web": "^0.2.0",
-    "next": "^16.2.11",
+    "next": "^16.2.12",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-reconciler": "^0.33.0",
     "scheduler": "^0.27.0"
   },
   "devDependencies": {
-    "@types/node": "^26.1.1",
-    "@types/react": "^19.2.17",
+    "@types/node": "^26.1.2",
+    "@types/react": "^19.2.18",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
     "typescript-7": "npm:typescript@^7.0.2"
   }
