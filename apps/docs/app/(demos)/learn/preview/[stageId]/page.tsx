@@ -6,6 +6,9 @@ import {
 } from "@/lib/xulux/learn/registry";
 import { getLearnPreview } from "@/lib/xulux/learn/preview-registry";
 
+// Each preview needs its own server-side usage-budget session.
+export const dynamic = "force-dynamic";
+
 export function generateStaticParams() {
   return listLearnStageIds(DEFAULT_LEARN_COURSE_ID).map((stageId) => ({
     stageId,
