@@ -6,7 +6,6 @@ import { GitHubIcon } from "@/components/icons/github";
 import { DiscordIcon } from "@/components/icons/discord";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { CLOUD_URL, PRODUCTS } from "@/lib/constants";
-import { isAiPlaygroundEnabled } from "@/lib/feature-flags";
 
 type FooterLinkItem = {
   label: string;
@@ -27,7 +26,6 @@ const FOOTER_LINKS: Record<string, FooterLinkItem[]> = {
   ],
   Resources: [
     { label: "Documentation", href: "/docs" },
-    ...(isAiPlaygroundEnabled ? [{ label: "Learn", href: "/learn" }] : []),
     { label: "Examples", href: "/examples" },
     { label: "Showcase", href: "/showcase" },
     { label: "Changelog", href: "/changelog" },

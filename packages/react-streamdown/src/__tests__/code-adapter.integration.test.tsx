@@ -25,17 +25,6 @@ describe("createCodeAdapter integration", () => {
       expect(codeElement.className).toContain("custom-class");
     });
 
-    it("uses a custom code component for inline code", () => {
-      const InlineCode = vi.fn(({ children }) => (
-        <button type="button">{children}</button>
-      ));
-      const AdaptedCode = createCodeAdapter({ InlineCode });
-
-      render(<AdaptedCode>course-reference</AdaptedCode>);
-
-      expect(screen.getByRole("button").textContent).toBe("course-reference");
-      expect(InlineCode).toHaveBeenCalled();
-    });
   });
 
   describe("code block detection", () => {
