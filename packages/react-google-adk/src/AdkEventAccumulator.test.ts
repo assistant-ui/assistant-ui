@@ -298,6 +298,51 @@ describe("AdkEventAccumulator - function responses", () => {
     expect(toolMessages[0]!.id).not.toBe(toolMessages[1]!.id);
   });
 
+  it("gives an assistant message the same id on every replay", () => {
+    const events = [
+      makeTextEvent("Hel", true),
+      makeTextEvent("lo", true),
+      makeTextEvent("Hello"),
+    ];
+    const replay = () => {
+      const acc = new AdkEventAccumulator();
+      let msgs: AdkMessage[] = [];
+      for (const event of events) msgs = acc.processEvent(event);
+      return msgs;
+    };
+
+    expect(replay().map((m) => m.id)).toEqual(replay().map((m) => m.id));
+  });
+
+  it("keeps two assistant messages opened by one event distinct and stable", () => {
+    const event = makeEvent({
+      id: "evt-mixed",
+      author: "agent",
+      content: {
+        role: "model",
+        parts: [
+          { text: "before" },
+          {
+            functionResponse: {
+              name: "search",
+              id: "tc-1",
+              response: { ok: true },
+            },
+          },
+          { text: "after" },
+        ],
+      },
+    });
+
+    const first = new AdkEventAccumulator().processEvent(event);
+    const second = new AdkEventAccumulator().processEvent(event);
+
+    const aiIds = first.filter((m) => m.type === "ai").map((m) => m.id);
+    expect(aiIds.length).toBeGreaterThan(1);
+    expect(new Set(aiIds).size).toBe(aiIds.length);
+    expect(first.map((m) => m.id)).toEqual(second.map((m) => m.id));
+  });
+
   it("keeps two tool messages distinct when the payload omits response ids", () => {
     const event = makeEvent({
       id: "evt-tool",
