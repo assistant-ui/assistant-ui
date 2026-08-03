@@ -2,7 +2,6 @@ import {
   CloudResponseError,
   readCloudRecord,
   readCloudString,
-  readCloudTimestamp,
 } from "./cloudResponse";
 
 export type AssistantCloudAuthStrategy = {
@@ -61,12 +60,19 @@ const readRefreshTokenResponse = (
   field: string,
 ): RefreshToken => {
   const refreshToken = readCloudRecord(value, field);
+  const expiresAt = readNonEmptyCloudString(
+    refreshToken.expires_at,
+    `${field}.expires_at`,
+  );
+  if (Number.isNaN(new Date(expiresAt).getTime())) {
+    throw new CloudResponseError(
+      `Invalid Assistant Cloud response for "${field}.expires_at": expected a valid timestamp`,
+    );
+  }
+
   return {
     token: readNonEmptyCloudString(refreshToken.token, `${field}.token`),
-    expires_at: readCloudTimestamp(
-      refreshToken.expires_at,
-      `${field}.expires_at`,
-    ).toISOString(),
+    expires_at: expiresAt,
   };
 };
 
@@ -248,7 +254,7 @@ export class AssistantCloudAnonymousAuthStrategy implements AssistantCloudAuthSt
               response,
               "refresh auth token response",
             );
-            if (data.refresh_token !== undefined) {
+            if (data.refresh_token != null) {
               writeRefreshToken(
                 readRefreshTokenResponse(
                   data.refresh_token,

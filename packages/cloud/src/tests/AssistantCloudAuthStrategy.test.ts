@@ -9,7 +9,7 @@ const baseUrl = "https://test.example.com";
 const accessToken = `${Buffer.from(JSON.stringify({ alg: "none" })).toString("base64url")}.${Buffer.from(JSON.stringify({ exp: 4102444800 })).toString("base64url")}.sig`;
 const refreshToken = {
   token: "r1",
-  expires_at: "2099-01-01T00:00:00.000Z",
+  expires_at: "2099-01-01T00:00:00Z",
 };
 
 let originalLocalStorageDescriptor: PropertyDescriptor | undefined;
@@ -54,7 +54,7 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
     }
   });
 
-  it("persists the refresh token and returns the anonymous access token", async () => {
+  it("persists refresh tokens with valid non-canonical expiry timestamps", async () => {
     const values = new Map<string, string>();
     installLocalStorage({
       getItem: (key) => values.get(key) ?? null,
@@ -235,7 +235,10 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
     } as unknown as Storage);
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
-      json: vi.fn().mockResolvedValue({ access_token: accessToken }),
+      json: vi.fn().mockResolvedValue({
+        access_token: accessToken,
+        refresh_token: null,
+      }),
     });
     vi.stubGlobal("fetch", fetchMock);
 
