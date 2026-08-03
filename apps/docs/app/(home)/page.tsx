@@ -1,7 +1,7 @@
 "use client";
 
 import { analytics } from "@/lib/analytics";
-import { Button, buttonVariants } from "@/components/ui/radix/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import Link from "next/link";
 import { TESTIMONIALS } from "@/components/home/testimonials/data";
 import { TestimonialContainer } from "@/components/home/testimonials/testimonials";
@@ -32,13 +32,16 @@ export default function HomePage() {
           The UX of ChatGPT in your own app.
         </p>
         <div className="flex items-center gap-6 pb-16">
-          <Button asChild>
-            <Link
-              href="/docs"
-              onClick={() => analytics.cta.clicked("get_started", "footer")}
-            >
-              Get Started <ArrowRight />
-            </Link>
+          <Button
+            nativeButton={false}
+            render={
+              <Link
+                href="/docs"
+                onClick={() => analytics.cta.clicked("get_started", "footer")}
+              />
+            }
+          >
+            Get Started <ArrowRight />
           </Button>
           <Link
             href="https://cal.com/simon-farshid/assistant-ui"

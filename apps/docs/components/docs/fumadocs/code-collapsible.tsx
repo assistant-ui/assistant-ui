@@ -2,13 +2,13 @@
 
 import * as React from "react";
 import { cn } from "@/lib/utils";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/radix/collapsible";
 import { ChevronDownIcon } from "lucide-react";
 
+/**
+ * The preview stays mounted and visible while collapsed; only its height is
+ * clamped. A collapsible panel hides its content when closed, which is the
+ * opposite, so this owns the reveal rather than wrapping a primitive.
+ */
 export function CodeCollapsible({
   code: _code,
   children,
@@ -19,30 +19,33 @@ export function CodeCollapsible({
   className?: string;
 }) {
   const [isOpen, setIsOpen] = React.useState(false);
+  const previewId = React.useId();
 
   return (
-    <Collapsible
-      open={isOpen}
-      onOpenChange={setIsOpen}
-      className={cn("group/collapsible relative my-4", className)}
-    >
-      <CollapsibleContent
-        forceMount
+    <div className={cn("relative my-4", className)}>
+      <div
+        id={previewId}
         className={cn(
           "relative overflow-hidden [&_figure]:my-0",
           !isOpen && "max-h-[200px]",
         )}
       >
         {children}
-      </CollapsibleContent>
+      </div>
       {!isOpen && (
-        <CollapsibleTrigger className="from-fd-background via-fd-background/90 text-muted-foreground absolute inset-x-0 bottom-0 flex h-24 items-end justify-center rounded-b-lg bg-linear-to-t to-transparent pb-2 text-sm">
+        <button
+          type="button"
+          onClick={() => setIsOpen(true)}
+          aria-expanded={isOpen}
+          aria-controls={previewId}
+          className="from-fd-background via-fd-background/90 text-muted-foreground absolute inset-x-0 bottom-0 flex h-24 cursor-pointer items-end justify-center rounded-b-lg bg-linear-to-t to-transparent pb-2 text-sm"
+        >
           <span className="flex items-center gap-1">
             <ChevronDownIcon className="size-4" />
             Show more
           </span>
-        </CollapsibleTrigger>
+        </button>
       )}
-    </Collapsible>
+    </div>
   );
 }

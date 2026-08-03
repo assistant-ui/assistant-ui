@@ -14,6 +14,7 @@ export type PartProviderMetadata = {
 export type TextMessagePart = {
   readonly type: "text";
   readonly text: string;
+  readonly status?: MessagePartStreamStatus;
   readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };
@@ -21,6 +22,7 @@ export type TextMessagePart = {
 export type ReasoningMessagePart = {
   readonly type: "reasoning";
   readonly text: string;
+  readonly status?: MessagePartStreamStatus;
   readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };
@@ -60,9 +62,20 @@ export type FileMessagePart = {
   readonly filename?: string;
   readonly data: string;
   readonly mimeType: string;
+  /** How `data` goes on the wire: a url or id reference; omitted = inferred (http(s) → url, else base64). "url" is honored by the LangChain-family, A2A, AG-UI, and Google ADK runtimes; "id" by the LangChain family only. */
+  readonly sourceType?: "url" | "id";
   readonly parentId?: string;
 };
 
+/**
+ * @deprecated Use {@link FileMessagePart} with an `audio/*` mime type. `file`
+ * is the carrier for every non-image binary modality: it is a member of both
+ * the user and assistant unions, carries a filename, and can declare how its
+ * payload goes on the wire, none of which this shape can express. The payload
+ * form a `file` part needs is still adapter specific; see the Part Types
+ * section of the message primitive docs. Honored everywhere it is accepted; it
+ * will not gain fields.
+ */
 export type Unstable_AudioMessagePart = {
   readonly type: "audio";
   readonly audio: {
@@ -264,6 +277,23 @@ export type MessagePartStatus =
         | "other"
         | "error";
       readonly error?: unknown;
+    };
+
+export type MessagePartStreamStatus =
+  | {
+      readonly type: "running";
+    }
+  | {
+      readonly type: "complete";
+    }
+  | {
+      readonly type: "incomplete";
+      readonly reason:
+        | "cancelled"
+        | "length"
+        | "content-filter"
+        | "other"
+        | "error";
     };
 
 export type ToolCallMessagePartStatus =

@@ -15,9 +15,11 @@ import type { ThreadsState } from "../scopes/threads";
 const useThreadListItemClientById = ({
   runtime,
   id,
+  mainThreadIsRunning,
 }: {
   runtime: ThreadListRuntime;
   id: string;
+  mainThreadIsRunning: boolean;
 }) => {
   const threadListItemRuntime = useMemo(
     () => runtime.getItemById(id),
@@ -26,6 +28,7 @@ const useThreadListItemClientById = ({
   return useResource(
     ThreadListItemClient({
       runtime: threadListItemRuntime,
+      mainThreadIsRunning,
     }),
   );
 };
@@ -48,7 +51,15 @@ const useThreadListClient = ({
   );
   const threadItems = useClientLookup(
     Object.keys(runtimeState.threadItems).map((id) =>
-      withKey(id, ThreadListItemClientById({ runtime, id }), [runtime, id]),
+      withKey(
+        id,
+        ThreadListItemClientById({
+          runtime,
+          id,
+          mainThreadIsRunning: main.state.isRunning,
+        }),
+        [runtime, id, main.state.isRunning],
+      ),
     ),
   );
 
@@ -93,6 +104,7 @@ const useThreadListClient = ({
     },
     getLoadThreadsPromise: () => runtime.getLoadThreadsPromise(),
     reload: () => runtime.reload(),
+    reloadMainThread: () => runtime.reloadMainThread(),
     loadMore: () => runtime.loadMore(),
     __internal_getAssistantRuntime: () => __internal_assistantRuntime,
   };

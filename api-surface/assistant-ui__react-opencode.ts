@@ -451,6 +451,7 @@ type ExternalStoreAdapterBase<T> = {
   onReload?: ((parentId: string | null, config: StartRunConfig) => Promise<void>) | undefined;
   onResume?: ((config: ResumeRunConfig) => Promise<void>) | undefined;
   onCancel?: (() => Promise<void>) | undefined;
+  onRefetchThread?: (() => Promise<void>) | undefined;
   onAddToolResult?: ((options: AddToolResultOptions) => Promise<void> | void) | undefined;
   onResumeToolCall?: ((options: {
     toolCallId: string;
@@ -533,6 +534,7 @@ type FileMessagePart = {
   readonly filename?: string;
   readonly data: string;
   readonly mimeType: string;
+  readonly sourceType?: "id" | "url";
   readonly parentId?: string;
 };
 
@@ -753,6 +755,15 @@ type MessagePartStatus = {
   readonly error?: unknown;
 };
 
+type MessagePartStreamStatus = {
+  readonly type: "running";
+} | {
+  readonly type: "complete";
+} | {
+  readonly type: "incomplete";
+  readonly reason: "cancelled" | "content-filter" | "error" | "length" | "other";
+};
+
 type MessageRole = ThreadMessage["role"];
 
 type MessageRuntime = {
@@ -844,6 +855,20 @@ type ModelContextProvider = {
 type ObjectKey<T> = keyof T & (string | number);
 
 type OnSchemaValidationErrorFunction<TResult> = ToolExecuteFunction<unknown, TResult>;
+
+declare class OpenCodeAttachmentAdapter implements AttachmentAdapter {
+  accept: string;
+  constructor(options?: OpenCodeAttachmentAdapterOptions);
+  add(state: {
+    file: File;
+  }): Promise<PendingAttachment>;
+  send(attachment: PendingAttachment): Promise<CompleteAttachment>;
+  remove(): Promise<void>;
+}
+
+type OpenCodeAttachmentAdapterOptions = {
+  accept?: string | undefined;
+};
 
 declare class OpenCodeEventSource {
   private readonly listeners;
@@ -1059,10 +1084,24 @@ declare class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   private unsubscribeFromEvents;
   private loadPromise;
   private reconnectSyncToken;
+  private readonly childControllersById;
+  private readonly childSessionIdByPartId;
+  private ancestorSessionIds;
+  private isChildSession;
   private readonly stagedMessages;
   private readonly client;
   private readonly sessionId;
   constructor(client: OpencodeClient, getEventSource: OpenCodeEventSourceProvider, sessionId: string);
+  private notifyListeners;
+  private updateChildSnapshot;
+  private attachChildController;
+  private detachChildControllers;
+  private discard;
+  private rebuildChildSessionIndex;
+  private updateChildSessionIndex;
+  private removeFromChildSessionIndex;
+  private syncChildControllers;
+  private syncChildSessionIndex;
   private ensureEventSubscription;
   private handleStreamReconnect;
   dispose(): void;
@@ -1114,6 +1153,7 @@ type OpenCodeThreadState = {
   runState: OpenCodeRunState;
   messageOrder: readonly string[];
   messagesById: Readonly<Record<string, OpenCodeServerMessage>>;
+  childSessionsById: Readonly<Record<string, OpenCodeThreadState>>;
   pendingUserMessages: Readonly<Record<string, PendingUserMessage>>;
   interactions: {
     permissions: {
@@ -1272,6 +1312,7 @@ type RealtimeVoiceAdapter = {
 type ReasoningMessagePart = {
   readonly type: "reasoning";
   readonly text: string;
+  readonly status?: MessagePartStreamStatus;
   readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };
@@ -1304,6 +1345,7 @@ type RuntimeCapabilities = {
   readonly switchBranchDuringRun: boolean;
   readonly edit: boolean;
   readonly reload: boolean;
+  readonly refetchThread: boolean;
   readonly delete: boolean;
   readonly cancel: boolean;
   readonly unstable_copy: boolean;
@@ -1396,6 +1438,7 @@ declare const TOOL_RESPONSE_SYMBOL: unique symbol;
 type TextMessagePart = {
   readonly type: "text";
   readonly text: string;
+  readonly status?: MessagePartStreamStatus;
   readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };
@@ -1488,6 +1531,7 @@ type ThreadListItemRuntimePath = {
 
 type ThreadListItemState = {
   readonly isMain: boolean;
+  readonly isRunning: boolean;
   readonly id: string;
   readonly remoteId: string | undefined;
   readonly externalId: string | undefined;
@@ -1514,6 +1558,7 @@ type ThreadListRuntime = {
   switchToNewThread(): Promise<void>;
   getLoadThreadsPromise(): Promise<void>;
   reload(): Promise<void>;
+  reloadMainThread(): Promise<void>;
   loadMore(): Promise<void>;
 };
 
@@ -1525,7 +1570,7 @@ type ThreadListState = {
   readonly isLoading: boolean;
   readonly isLoadingMore: boolean;
   readonly hasMore: boolean;
-  readonly threadItems: Readonly<Record<string, Omit<ThreadListItemState, "isMain" | "threadId">>>;
+  readonly threadItems: Readonly<Record<string, Omit<ThreadListItemState, "isMain" | "isRunning" | "threadId">>>;
 };
 
 type ThreadMessage = BaseThreadMessage & (ThreadSystemMessage | ThreadUserMessage | ThreadAssistantMessage);
@@ -1925,10 +1970,10 @@ declare global {
 }
 
 declare namespace entry_root_exports {
-  export { AssistantMessage, Event, FilePart, GlobalSession, Message$2 as Message, MessageWithParts, Model, OpenCodeEventSource, OpenCodeLoadState, OpenCodePartPayload, OpenCodePermissionRequest, OpenCodePermissionResponse, OpenCodeProjectedThreadMessage, OpenCodeQuestionRequest, OpenCodeRunState, OpenCodeRuntime, OpenCodeRuntimeExtras, OpenCodeRuntimeOptions, OpenCodeServerEvent, OpenCodeServerMessage, OpenCodeStateEvent, OpenCodeThreadController, OpenCodeThreadControllerLike, OpenCodeThreadControllerSnapshot, OpenCodeThreadState, OpenCodeThreadStateSelector, OpenCodeUnhandledEvent, OpenCodeUserMessageOptions, OpencodeClient$1 as OpencodeClient, OpencodeClientConfig, Part$1 as Part, PendingUserMessage, PermissionRequest$1 as PermissionRequest, Provider, QuestionAnswer$1 as QuestionAnswer, QuestionRequest$1 as QuestionRequest, ReasoningPart, STREAM_RECONNECTED_EVENT_TYPE, Session$1 as Session, SessionStatus$1 as SessionStatus, SnapshotPart, StepFinishPart, StepStartPart, TextPart, ToolPart, ToolState, UserMessage, createOpenCodeThreadState, createOpencodeClient$1 as createOpencodeClient, projectOpenCodeThreadMessages, reduceOpenCodeThreadState, useOpenCodePermissions, useOpenCodeQuestions, useOpenCodeRuntime, useOpenCodeRuntimeExtras, useOpenCodeSession, useOpenCodeStreamingTiming, useOpenCodeThreadState };
+  export { AssistantMessage, Event, FilePart, GlobalSession, Message$2 as Message, MessageWithParts, Model, OpenCodeAttachmentAdapter, OpenCodeAttachmentAdapterOptions, OpenCodeEventSource, OpenCodeLoadState, OpenCodePartPayload, OpenCodePermissionRequest, OpenCodePermissionResponse, OpenCodeProjectedThreadMessage, OpenCodeQuestionRequest, OpenCodeRunState, OpenCodeRuntime, OpenCodeRuntimeExtras, OpenCodeRuntimeOptions, OpenCodeServerEvent, OpenCodeServerMessage, OpenCodeStateEvent, OpenCodeThreadController, OpenCodeThreadControllerLike, OpenCodeThreadControllerSnapshot, OpenCodeThreadState, OpenCodeThreadStateSelector, OpenCodeUnhandledEvent, OpenCodeUserMessageOptions, OpencodeClient$1 as OpencodeClient, OpencodeClientConfig, Part$1 as Part, PendingUserMessage, PermissionRequest$1 as PermissionRequest, Provider, QuestionAnswer$1 as QuestionAnswer, QuestionRequest$1 as QuestionRequest, ReasoningPart, STREAM_RECONNECTED_EVENT_TYPE, Session$1 as Session, SessionStatus$1 as SessionStatus, SnapshotPart, StepFinishPart, StepStartPart, TextPart, ToolPart, ToolState, UserMessage, createOpenCodeThreadState, createOpencodeClient$1 as createOpencodeClient, projectOpenCodeThreadMessages, reduceOpenCodeThreadState, useOpenCodePermissions, useOpenCodeQuestions, useOpenCodeRuntime, useOpenCodeRuntimeExtras, useOpenCodeSession, useOpenCodeStreamingTiming, useOpenCodeThreadState };
 }
 
-declare const projectOpenCodeThreadMessages: (state: OpenCodeThreadState, messageTiming?: Record<string, MessageTiming>) => OpenCodeProjectedThreadMessage[];
+declare function projectOpenCodeThreadMessages(state: OpenCodeThreadState, messageTiming?: Record<string, MessageTiming>): OpenCodeProjectedThreadMessage[];
 
 declare const reduceOpenCodeThreadState: (state: OpenCodeThreadState, event: OpenCodeStateEvent) => OpenCodeThreadState;
 

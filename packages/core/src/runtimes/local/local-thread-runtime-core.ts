@@ -53,6 +53,7 @@ export class LocalThreadRuntimeCore
     edit: true,
     delete: false,
     reload: true,
+    refetchThread: false,
     cancel: true,
     unstable_copy: true,
     speech: false,

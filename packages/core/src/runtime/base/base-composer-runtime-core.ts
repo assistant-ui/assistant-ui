@@ -34,6 +34,11 @@ import { notifyEventListeners } from "../../utils/notify-event-listeners";
 const isAttachmentComplete = (a: Attachment): a is CompleteAttachment =>
   a.status.type === "complete";
 
+type AttachmentAddOperation = {
+  cancelled: boolean;
+  attachmentIds: Set<string>;
+};
+
 export abstract class BaseComposerRuntimeCore
   extends BaseSubscribable
   implements ComposerRuntimeCore
@@ -138,6 +143,22 @@ export abstract class BaseComposerRuntimeCore
   protected _isSending = false;
   private _removedDuringSend = new Set<string>();
   private _sendGeneration = 0;
+  private _attachmentAddOperations = new Set<AttachmentAddOperation>();
+
+  private _cancelAttachmentAdd(attachmentId: string) {
+    for (const operation of [...this._attachmentAddOperations]) {
+      if (!operation.attachmentIds.has(attachmentId)) continue;
+      operation.cancelled = true;
+      this._attachmentAddOperations.delete(operation);
+    }
+  }
+
+  private _cancelAllAttachmentAdds() {
+    for (const operation of this._attachmentAddOperations) {
+      operation.cancelled = true;
+    }
+    this._attachmentAddOperations.clear();
+  }
 
   private _emptyTextAndAttachments() {
     this._attachments = [];
@@ -154,6 +175,8 @@ export abstract class BaseComposerRuntimeCore
   }
 
   public async reset() {
+    this._cancelAllAttachmentAdds();
+
     // A send whose adapter never settles must not brick the composer; reset is
     // the escape hatch that releases the in-flight lock. Bumping the generation
     // invalidates that send entirely so a late-settling upload can neither
@@ -182,6 +205,7 @@ export abstract class BaseComposerRuntimeCore
   }
 
   public async clearAttachments() {
+    this._cancelAllAttachmentAdds();
     const task = this._onClearAttachments();
     this.setAttachments([]);
 
@@ -324,23 +348,6 @@ export abstract class BaseComposerRuntimeCore
       return;
     }
 
-    const upsertAttachment = (a: PendingAttachment) => {
-      const idx = this._attachments.findIndex(
-        (attachment) => attachment.id === a.id,
-      );
-      if (idx !== -1)
-        this._attachments = [
-          ...this._attachments.slice(0, idx),
-          a,
-          ...this._attachments.slice(idx + 1),
-        ];
-      else {
-        this._attachments = [...this._attachments, a];
-      }
-
-      this._notifySubscribers();
-    };
-
     const adapter = this.getAttachmentAdapter();
     if (!adapter) {
       const message = "Attachments are not supported";
@@ -361,19 +368,46 @@ export abstract class BaseComposerRuntimeCore
       throw err;
     }
 
+    const operation: AttachmentAddOperation = {
+      cancelled: false,
+      attachmentIds: new Set(),
+    };
+    const operations = this._attachmentAddOperations;
+    operations.add(operation);
+    const upsertAttachment = (a: PendingAttachment) => {
+      if (operation.cancelled) return false;
+
+      operation.attachmentIds.add(a.id);
+      const idx = this._attachments.findIndex(
+        (attachment) => attachment.id === a.id,
+      );
+      if (idx !== -1)
+        this._attachments = [
+          ...this._attachments.slice(0, idx),
+          a,
+          ...this._attachments.slice(idx + 1),
+        ];
+      else {
+        this._attachments = [...this._attachments, a];
+      }
+
+      this._notifySubscribers();
+      return true;
+    };
     let lastAttachment: PendingAttachment | undefined;
     try {
       const promiseOrGenerator = adapter.add({ file: fileOrAttachment });
       if (Symbol.asyncIterator in promiseOrGenerator) {
         for await (const r of promiseOrGenerator) {
           lastAttachment = r;
-          upsertAttachment(r);
+          if (!upsertAttachment(r)) break;
         }
       } else {
         lastAttachment = await promiseOrGenerator;
         upsertAttachment(lastAttachment);
       }
     } catch (e) {
+      if (operation.cancelled) return;
       if (lastAttachment) {
         upsertAttachment({
           ...lastAttachment,
@@ -391,8 +425,11 @@ export abstract class BaseComposerRuntimeCore
         e instanceof Error ? e : undefined,
       );
       throw e;
+    } finally {
+      operations.delete(operation);
     }
 
+    if (operation.cancelled) return;
     if (
       lastAttachment?.status.type === "incomplete" &&
       lastAttachment.status.reason === "error"
@@ -434,6 +471,8 @@ export abstract class BaseComposerRuntimeCore
     if (index === -1) throw new Error("Attachment not found");
     const attachment = this._attachments[index]!;
 
+    this._cancelAttachmentAdd(attachmentId);
+
     // A send in flight may already be uploading this attachment; the upload
     // can't be cancelled, so mark it to be dropped from the outgoing message
     // before any await gives the upload a chance to settle first.
@@ -442,7 +481,21 @@ export abstract class BaseComposerRuntimeCore
     if (!isAttachmentComplete(attachment)) {
       const adapter = this.getAttachmentAdapter();
       if (!adapter) throw new Error("Attachments are not supported");
-      await adapter.remove(attachment);
+      try {
+        await adapter.remove(attachment);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        this._attachments = this._attachments.map((candidate) =>
+          candidate.id === attachmentId && !isAttachmentComplete(candidate)
+            ? {
+                ...candidate,
+                status: { type: "incomplete", reason: "error", message },
+              }
+            : candidate,
+        );
+        this._notifySubscribers();
+        throw error;
+      }
     }
     this._attachments = this._attachments.filter((a) => a.id !== attachmentId);
     this._notifySubscribers();

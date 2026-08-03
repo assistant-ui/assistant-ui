@@ -9,7 +9,7 @@ import {
   Loader2,
   RefreshCw,
 } from "lucide-react";
-import { Button } from "@/components/ui/radix/button";
+import { Button } from "@/components/ui/button";
 import { GitHubIcon } from "@/components/icons/github";
 import { Tabs } from "@/components/assistant-ui/tabs";
 import {
@@ -186,12 +186,13 @@ export function XuluxCanvas({
           variant="ghost"
           size="icon"
           className="text-muted-foreground hover:text-foreground size-7"
-          asChild
+          nativeButton={false}
+          render={
+            <a href={resolvedPreviewUrl} target="_blank" rel="noreferrer" />
+          }
         >
-          <a href={resolvedPreviewUrl} target="_blank" rel="noreferrer">
-            <ExternalLink className="size-3.5" />
-            <span className="sr-only">Open preview</span>
-          </a>
+          <ExternalLink className="size-3.5" />
+          <span className="sr-only">Open preview</span>
         </Button>
       )}
       {activeTab === "preview" && canRefresh && (
@@ -215,23 +216,24 @@ export function XuluxCanvas({
           variant="ghost"
           size="icon"
           className="text-muted-foreground hover:text-foreground size-7"
-          asChild
+          nativeButton={false}
+          render={
+            <a
+              href={resolvedDownloadUrl ?? downloadUrl}
+              target="_blank"
+              rel="noreferrer"
+              onClick={() =>
+                trackXuluxDownload(analyticsCtx, {
+                  surface: "canvas",
+                  download_type: "template",
+                  ...(templateId ? { template_id: templateId } : {}),
+                })
+              }
+            />
+          }
         >
-          <a
-            href={resolvedDownloadUrl ?? downloadUrl}
-            target="_blank"
-            rel="noreferrer"
-            onClick={() =>
-              trackXuluxDownload(analyticsCtx, {
-                surface: "canvas",
-                download_type: "template",
-                ...(templateId ? { template_id: templateId } : {}),
-              })
-            }
-          >
-            <Download className="size-3.5" />
-            <span className="sr-only">Download</span>
-          </a>
+          <Download className="size-3.5" />
+          <span className="sr-only">Download</span>
         </Button>
       )}
       {canDownloadSandbox && (
@@ -257,12 +259,11 @@ export function XuluxCanvas({
           variant="ghost"
           size="icon"
           className="text-muted-foreground hover:text-foreground size-7"
-          asChild
+          nativeButton={false}
+          render={<a href={sourceUrl} target="_blank" rel="noreferrer" />}
         >
-          <a href={sourceUrl} target="_blank" rel="noreferrer">
-            <GitHubIcon className="size-3.5" />
-            <span className="sr-only">Source</span>
-          </a>
+          <GitHubIcon className="size-3.5" />
+          <span className="sr-only">Source</span>
         </Button>
       )}
     </>

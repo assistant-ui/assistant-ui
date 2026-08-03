@@ -343,11 +343,10 @@ const ReasoningGroupImpl: ReasoningGroupComponent = ({
 }) => {
   const isReasoningStreaming = useAuiState((s) => {
     if (s.message.status?.type !== "running") return false;
-    const lastIndex = s.message.parts.length - 1;
-    if (lastIndex < 0) return false;
-    const lastType = s.message.parts[lastIndex]?.type;
-    if (lastType !== "reasoning") return false;
-    return lastIndex >= startIndex && lastIndex <= endIndex;
+    for (let index = startIndex; index <= endIndex; index++) {
+      if (s.message.parts[index]?.status.type === "running") return true;
+    }
+    return false;
   });
 
   return (

@@ -38,7 +38,7 @@ import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-} from "@/components/ui/radix/tooltip";
+} from "@/components/ui/tooltip";
 
 function PendingMessageHandler() {
   const { pendingMessage, clearPendingMessage } = useAssistantPanel();
@@ -160,47 +160,51 @@ function PanelHeader(): React.ReactNode {
           side="bottom"
         />
         <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              onClick={() => {
-                const modelName =
-                  aui.thread.getModelContext()?.config?.modelName;
-                analytics.assistant.newThreadClicked({
-                  threadId,
-                  previous_message_count: messages.length,
-                  context_total_tokens: contextTokens,
-                  context_usage_percent: usagePercent,
-                  ...(pathname ? { pathname } : {}),
-                  ...(modelName ? { model_name: modelName } : {}),
-                });
-                aui.threads.switchToNewThread();
-              }}
-              aria-label="New chat"
-            >
-              <PlusIcon className="size-4" />
-            </Button>
-          </TooltipTrigger>
+          <TooltipTrigger
+            render={
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={() => {
+                  const modelName =
+                    aui.thread.getModelContext()?.config?.modelName;
+                  analytics.assistant.newThreadClicked({
+                    threadId,
+                    previous_message_count: messages.length,
+                    context_total_tokens: contextTokens,
+                    context_usage_percent: usagePercent,
+                    ...(pathname ? { pathname } : {}),
+                    ...(modelName ? { model_name: modelName } : {}),
+                  });
+                  aui.threads.switchToNewThread();
+                }}
+                aria-label="New chat"
+              >
+                <PlusIcon className="size-4" />
+              </Button>
+            }
+          />
           <TooltipContent side="bottom">New chat</TooltipContent>
         </Tooltip>
         <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              onClick={() => {
-                analytics.assistant.panelToggled({
-                  open: false,
-                  source: "header",
-                });
-                setOpen(false);
-              }}
-              aria-label="Close chat"
-            >
-              <XIcon className="size-4" />
-            </Button>
-          </TooltipTrigger>
+          <TooltipTrigger
+            render={
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={() => {
+                  analytics.assistant.panelToggled({
+                    open: false,
+                    source: "header",
+                  });
+                  setOpen(false);
+                }}
+                aria-label="Close chat"
+              >
+                <XIcon className="size-4" />
+              </Button>
+            }
+          />
           <TooltipContent side="bottom">Close chat</TooltipContent>
         </Tooltip>
       </div>

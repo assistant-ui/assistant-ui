@@ -703,6 +703,7 @@ type GenericFilePart = {
   type: "file";
   data: string | URL;
   mediaType: string;
+  filename?: string;
 };
 
 type GenericMessage = GenericSystemMessage | GenericUserMessage | GenericAssistantMessage | GenericToolMessage;
@@ -897,11 +898,19 @@ type MessagePartLike = {
   image?: string;
   data?: string;
   mimeType?: string;
+  filename?: string;
   toolCallId?: string;
   toolName?: string;
   args?: Record<string, unknown>;
+  state?: string;
   result?: unknown;
   isError?: boolean;
+  approval?: {
+    approved?: boolean;
+    resolution?: string;
+    [key: string]: unknown;
+  };
+  interrupt?: unknown;
 };
 
 declare type NatMap = {

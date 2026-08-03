@@ -11,7 +11,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { CopyCommandButton } from "@/components/home/copy-command-button";
-import { Button, buttonVariants } from "@/components/ui/radix/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { DynamicCodeBlock } from "fumadocs-ui/components/dynamic-codeblock";
 
 const ANALYTICS_PAGE = "cloud-ai-sdk" as const;
@@ -230,10 +230,12 @@ const { messages, sendMessage, threads } = useCloudChat()`}
           switching is a one-line change. Your components, your route handlers,
           your tool definitions — they all stay the same.
         </p>
-        <Button variant="outline" asChild>
-          <Link href="/docs/cloud/ai-sdk">
-            Read the docs <ArrowRight />
-          </Link>
+        <Button
+          variant="outline"
+          nativeButton={false}
+          render={<Link href="/docs/cloud/ai-sdk" />}
+        >
+          Read the docs <ArrowRight />
         </Button>
       </div>
 
@@ -243,10 +245,11 @@ const { messages, sendMessage, threads } = useCloudChat()`}
           Start building today
         </p>
         <div className="flex flex-wrap items-center justify-center gap-3">
-          <Button asChild>
-            <Link href="/docs/cloud/ai-sdk">
-              Get Started <ArrowRight />
-            </Link>
+          <Button
+            nativeButton={false}
+            render={<Link href="/docs/cloud/ai-sdk" />}
+          >
+            Get Started <ArrowRight />
           </Button>
           <a
             href="https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-cloud-standalone"

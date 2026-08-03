@@ -326,6 +326,52 @@ describe("contentPartsToA2AParts", () => {
     ]);
   });
 
+  it("honors sourceType url for non-http references", () => {
+    const result = contentPartsToA2AParts([
+      {
+        type: "file",
+        data: "s3://bucket/report.pdf",
+        mimeType: "application/pdf",
+        filename: "report.pdf",
+        sourceType: "url",
+      },
+    ]);
+    expect(result).toEqual([
+      {
+        url: "s3://bucket/report.pdf",
+        mediaType: "application/pdf",
+        filename: "report.pdf",
+      },
+    ]);
+  });
+
+  it("treats non-http references as raw bytes without sourceType", () => {
+    const result = contentPartsToA2AParts([
+      {
+        type: "file",
+        data: "s3://bucket/report.pdf",
+        mimeType: "application/pdf",
+      },
+    ]);
+    expect(result).toEqual([
+      { raw: "s3://bucket/report.pdf", mediaType: "application/pdf" },
+    ]);
+  });
+
+  it("ignores sourceType id", () => {
+    const result = contentPartsToA2AParts([
+      {
+        type: "file",
+        data: "file-abc123",
+        mimeType: "application/pdf",
+        sourceType: "id",
+      },
+    ]);
+    expect(result).toEqual([
+      { raw: "file-abc123", mediaType: "application/pdf" },
+    ]);
+  });
+
   it("converts file parts with data URLs to raw bytes", () => {
     const result = contentPartsToA2AParts([
       {

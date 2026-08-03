@@ -1,5 +1,11 @@
 # @assistant-ui/tap
 
+## 0.9.9
+
+### Patch Changes
+
+- [#5399](https://github.com/assistant-ui/assistant-ui/pull/5399) [`b8daa96`](https://github.com/assistant-ui/assistant-ui/commit/b8daa967f4e5cb181c3e9ed065ab6949ee848fa4) - re-add the deprecated useMemoCache export for older @assistant-ui/store versions ([@Yonom](https://github.com/Yonom))
+
 ## 0.9.8
 
 ### Patch Changes

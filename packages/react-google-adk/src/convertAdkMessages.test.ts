@@ -26,30 +26,64 @@ describe("convertAdkMessage - human messages", () => {
     });
   });
 
-  it("restores an audio/mp3 file part as an audio message part", () => {
+  it("restores a file_url part as a file part stamped with sourceType url", () => {
     const msg: AdkMessage = {
       id: "m1",
       type: "human",
-      content: [{ type: "file", mimeType: "audio/mp3", data: "QUJD" }],
+      content: [
+        {
+          type: "file_url",
+          url: "gs://bucket/report.pdf",
+          mimeType: "application/pdf",
+        },
+      ],
     };
     const result = convertAdkMessage(msg, {});
     expect(result).toMatchObject({
       role: "user",
-      content: [{ type: "audio", audio: { data: "QUJD", format: "mp3" } }],
+      content: [
+        {
+          type: "file",
+          data: "gs://bucket/report.pdf",
+          mimeType: "application/pdf",
+          sourceType: "url",
+        },
+      ],
     });
   });
 
-  it("restores an audio/wav file part as an audio message part", () => {
+  it("falls back to application/octet-stream for file_url parts without mimeType", () => {
     const msg: AdkMessage = {
       id: "m1",
       type: "human",
-      content: [{ type: "file", mimeType: "audio/wav", data: "QUJD" }],
+      content: [{ type: "file_url", url: "gs://bucket/blob" }],
     };
     const result = convertAdkMessage(msg, {});
     expect(result).toMatchObject({
       role: "user",
-      content: [{ type: "audio", audio: { data: "QUJD", format: "wav" } }],
+      content: [
+        {
+          type: "file",
+          data: "gs://bucket/blob",
+          mimeType: "application/octet-stream",
+          sourceType: "url",
+        },
+      ],
     });
+  });
+
+  it("keeps an audio file part as a file part", () => {
+    for (const mimeType of ["audio/mp3", "audio/wav"]) {
+      const msg: AdkMessage = {
+        id: "m1",
+        type: "human",
+        content: [{ type: "file", mimeType, data: "QUJD" }],
+      };
+      expect(convertAdkMessage(msg, {})).toMatchObject({
+        role: "user",
+        content: [{ type: "file", data: "QUJD", mimeType }],
+      });
+    }
   });
 
   it("keeps attachment-derived audio file parts (with filename) as file parts", () => {

@@ -663,6 +663,83 @@ describe("adapter conversions", () => {
     expect(() => UserMessageSchema.parse(result[0])).not.toThrow();
   });
 
+  it("converts a file part placed directly in message content", () => {
+    const result = toAgUiMessages([
+      {
+        id: "u-1",
+        role: "user",
+        content: [
+          { type: "text", text: "review this" },
+          {
+            type: "file",
+            data: "data:application/pdf;base64,JVBERi0xLjQ=",
+            mimeType: "application/pdf",
+            filename: "a.pdf",
+          },
+        ],
+      },
+    ] as any);
+
+    expect(result[0]).toMatchObject({
+      role: "user",
+      content: [
+        { type: "text", text: "review this" },
+        {
+          type: "document",
+          source: {
+            type: "data",
+            value: "JVBERi0xLjQ=",
+            mimeType: "application/pdf",
+          },
+          metadata: { filename: "a.pdf" },
+        },
+      ],
+    });
+    expect(() => UserMessageSchema.parse(result[0])).not.toThrow();
+  });
+
+  it("emits content and attachment file parts once each", () => {
+    const result = toAgUiMessages([
+      {
+        id: "u-1",
+        role: "user",
+        content: [
+          {
+            type: "file",
+            data: "data:application/pdf;base64,QUFB",
+            mimeType: "application/pdf",
+            filename: "from-content.pdf",
+          },
+        ],
+        attachments: [
+          {
+            id: "a-1",
+            type: "document",
+            name: "from-attachment.pdf",
+            content: [
+              {
+                type: "file",
+                data: "data:application/pdf;base64,QkJC",
+                mimeType: "application/pdf",
+                filename: "from-attachment.pdf",
+              },
+            ],
+          },
+        ],
+      },
+    ] as any);
+
+    const documents = (result[0] as any).content.filter(
+      (part: any) => part.type === "document",
+    );
+    expect(documents).toHaveLength(2);
+    expect(documents.map((part: any) => part.source.value)).toEqual([
+      "QUFB",
+      "QkJC",
+    ]);
+    expect(() => UserMessageSchema.parse(result[0])).not.toThrow();
+  });
+
   it("converts image attachment with data URL to AG-UI image source", () => {
     const result = toAgUiMessages([
       {
@@ -1061,6 +1138,121 @@ describe("adapter conversions", () => {
     });
     expect((result[0] as any).content[0].source).not.toHaveProperty("data");
     expect(() => UserMessageSchema.parse(result[0])).not.toThrow();
+  });
+
+  it("honors sourceType url for non-http file references", () => {
+    const result = toAgUiMessages([
+      {
+        id: "u-1",
+        role: "user",
+        content: [],
+        attachments: [
+          {
+            id: "a-1",
+            type: "file",
+            name: "report.pdf",
+            content: [
+              {
+                type: "file",
+                data: "s3://bucket/report.pdf",
+                mimeType: "application/pdf",
+                filename: "report.pdf",
+                sourceType: "url",
+              },
+            ],
+          },
+        ],
+      },
+    ] as any);
+
+    expect(result[0]).toMatchObject({
+      role: "user",
+      content: [
+        {
+          type: "document",
+          source: {
+            type: "url",
+            value: "s3://bucket/report.pdf",
+            mimeType: "application/pdf",
+          },
+          metadata: { filename: "report.pdf" },
+        },
+      ],
+    });
+    expect((result[0] as any).content[0].source).not.toHaveProperty("data");
+    expect(() => UserMessageSchema.parse(result[0])).not.toThrow();
+  });
+
+  it("routes non-http file references to a data source without sourceType", () => {
+    const result = toAgUiMessages([
+      {
+        id: "u-1",
+        role: "user",
+        content: [],
+        attachments: [
+          {
+            id: "a-1",
+            type: "file",
+            name: "report.pdf",
+            content: [
+              {
+                type: "file",
+                data: "s3://bucket/report.pdf",
+                mimeType: "application/pdf",
+              },
+            ],
+          },
+        ],
+      },
+    ] as any);
+
+    expect((result[0] as any).content[0].source).toMatchObject({
+      type: "data",
+      value: "s3://bucket/report.pdf",
+    });
+  });
+
+  it("stamps sourceType url on restored url file parts so they round-trip", () => {
+    const restored = fromAgUiMessages([
+      {
+        id: "u-1",
+        role: "user",
+        content: [
+          {
+            type: "document",
+            source: {
+              type: "url",
+              value: "s3://bucket/spec.pdf",
+              mimeType: "application/pdf",
+            },
+            metadata: { filename: "spec.pdf" },
+          },
+        ],
+      },
+    ]);
+
+    expect(restored[0]).toMatchObject({
+      role: "user",
+      attachments: [
+        {
+          type: "document",
+          content: [
+            {
+              type: "file",
+              data: "s3://bucket/spec.pdf",
+              mimeType: "application/pdf",
+              sourceType: "url",
+            },
+          ],
+        },
+      ],
+    });
+
+    const resent = toAgUiMessages([restored[0]] as any);
+    expect((resent[0] as any).content[0].source).toMatchObject({
+      type: "url",
+      value: "s3://bucket/spec.pdf",
+    });
   });
 
   it("restores a document input part as a user attachment", () => {

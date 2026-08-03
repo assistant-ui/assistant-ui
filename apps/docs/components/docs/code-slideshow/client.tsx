@@ -161,7 +161,7 @@ export const CodeSlideshowClient = ({
       className="not-prose code-slideshow @container my-6"
       data-testid={testId}
     >
-      <div className="border-fd-border bg-fd-card overflow-hidden rounded-xl border">
+      <div className="bg-code-surface overflow-hidden rounded-xl">
         <div className="border-fd-border/70 flex gap-1 border-b p-3">
           {steps.map((item, index) => (
             <button

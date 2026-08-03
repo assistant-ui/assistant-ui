@@ -59,6 +59,19 @@ function getMimeTypeIcon(mimeType: string): FC<{ className?: string }> {
   return FileIcon;
 }
 
+export type FileDataKind = "data-uri" | "url" | "base64" | "id";
+
+function getFileDataKind(
+  data: string,
+  sourceType?: "url" | "id",
+): FileDataKind {
+  if (sourceType === "url" && /^data:/i.test(data)) return "data-uri";
+  if (sourceType) return sourceType;
+  if (/^data:/i.test(data)) return "data-uri";
+  if (/^https?:\/\//i.test(data)) return "url";
+  return "base64";
+}
+
 function getBase64Size(base64: string): number {
   const commaIndex = base64.indexOf(",");
   const base64Data = commaIndex >= 0 ? base64.slice(commaIndex + 1) : base64;
@@ -158,23 +171,29 @@ type FileDownloadProps = Omit<React.ComponentProps<"a">, "href"> & {
   data: string;
   mimeType: string;
   filename?: string;
+  sourceType?: "url" | "id";
 };
 
 function FileDownload({
   data,
   mimeType,
   filename,
+  sourceType,
   className,
   children,
   ...props
 }: FileDownloadProps) {
-  const href = /^data:/i.test(data) ? data : `data:${mimeType};base64,${data}`;
+  const kind = getFileDataKind(data, sourceType);
+  if (kind === "id") return null;
+  if (kind === "url" && !/^(https?:\/\/|blob:)/i.test(data)) return null;
+  const href = kind === "base64" ? `data:${mimeType};base64,${data}` : data;
 
   return (
     <a
       data-slot="file-download"
       href={href}
       download={filename || "download"}
+      {...(kind === "url" && { target: "_blank", rel: "noopener noreferrer" })}
       className={cn(
         "text-muted-foreground hover:bg-accent hover:text-accent-foreground shrink-0 rounded-md p-1 transition-colors",
         className,
@@ -186,20 +205,29 @@ function FileDownload({
   );
 }
 
-const FileImpl: FileMessagePartComponent = ({ filename, data, mimeType }) => {
-  const bytes = getBase64Size(data);
+const FileImpl: FileMessagePartComponent = ({
+  filename,
+  data,
+  mimeType,
+  sourceType,
+}) => {
+  const kind = getFileDataKind(data, sourceType);
+  const showSize = kind === "base64" || kind === "data-uri";
 
   return (
     <FileRoot>
       <FileIconDisplay mimeType={mimeType} />
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
         <FileName>{filename}</FileName>
-        <FileSize bytes={bytes} className="text-xs" />
+        {showSize && (
+          <FileSize bytes={getBase64Size(data)} className="text-xs" />
+        )}
       </div>
       <FileDownload
         data={data}
         mimeType={mimeType}
         {...(filename !== undefined && { filename })}
+        {...(sourceType !== undefined && { sourceType })}
       />
     </FileRoot>
   );
@@ -229,6 +257,7 @@ export {
   FileDownload,
   fileVariants,
   getMimeTypeIcon,
+  getFileDataKind,
   getBase64Size,
   formatFileSize,
 };

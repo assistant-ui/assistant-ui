@@ -1,6 +1,8 @@
 name: autofix.ci
 
-on: [pull_request]
+on:
+  pull_request:
+    branches: [main]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number }}

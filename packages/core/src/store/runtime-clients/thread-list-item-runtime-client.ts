@@ -1,5 +1,5 @@
 import type { Unsubscribe } from "../../types/unsubscribe";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { resource } from "@assistant-ui/tap";
 import { type ClientOutput, useAssistantEmit } from "@assistant-ui/store";
 import type {
@@ -10,10 +10,21 @@ import { useSubscribable } from "./useSubscribable";
 
 const useThreadListItemClient = ({
   runtime,
+  mainThreadIsRunning = false,
 }: {
   runtime: ThreadListItemRuntime;
+  // A thread list that cannot report per-thread run state still leaves the open
+  // thread observable, and the thread client tracks that reactively. Omitted
+  // where the runtime state is already authoritative for every thread.
+  mainThreadIsRunning?: boolean | undefined;
 }): ClientOutput<"threadListItem"> => {
-  const state = useSubscribable(runtime);
+  const runtimeState = useSubscribable(runtime);
+  const state = useMemo(() => {
+    const isRunning =
+      runtimeState.isRunning || (runtimeState.isMain && mainThreadIsRunning);
+    if (isRunning === runtimeState.isRunning) return runtimeState;
+    return { ...runtimeState, isRunning };
+  }, [runtimeState, mainThreadIsRunning]);
   const emit = useAssistantEmit();
 
   // Bind thread list item events to event manager

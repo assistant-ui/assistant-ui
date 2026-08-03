@@ -11,8 +11,7 @@ type CardProps = {
   external?: boolean;
 };
 
-const base =
-  "flex flex-col gap-1.5 rounded-xl border border-fd-border bg-fd-card p-4";
+const base = "flex flex-col gap-1.5 rounded-xl border border-fd-border/60 p-4";
 
 export function Card({
   title,

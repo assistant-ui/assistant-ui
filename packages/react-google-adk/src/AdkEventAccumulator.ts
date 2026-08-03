@@ -14,6 +14,23 @@ import type { ReadonlyJSONObject } from "assistant-stream/utils";
 
 type InProgressMessage = AdkMessage & { type: "ai" };
 
+/**
+ * A session load replays the stored events through a fresh accumulator, so a
+ * message needs an id derived from the event that carries it rather than one
+ * minted per replay. An event with no id of its own has never been through the
+ * session and has nothing stable to derive from, so it keeps a generated one.
+ *
+ * A human message keeps the bare event id it has always had. The other kinds
+ * take a suffixed namespace, since one event can carry several of them: a tool
+ * message by the index of its part, an assistant message by how many this
+ * event has already opened.
+ */
+const toolMessageId = (event: AdkEvent, partIndex: number): string =>
+  event.id ? `${event.id}:${partIndex}` : uuidv4();
+
+const aiMessageId = (event: AdkEvent, ordinal: number): string =>
+  event.id ? `${event.id}:ai${ordinal === 0 ? "" : ordinal}` : uuidv4();
+
 const ADK_REQUEST_CONFIRMATION = "adk_request_confirmation";
 const ADK_REQUEST_CREDENTIAL = "adk_request_credential";
 
@@ -187,6 +204,9 @@ export class AdkEventAccumulator {
   private authRequests: AdkAuthRequest[] = [];
   private escalated = false;
   private messageMetadataMap = new Map<string, AdkMessageMetadata>();
+  // How many assistant messages each event has opened, so a replay of that
+  // event opens them with the same ids.
+  private aiMessageOrdinals = new Map<string, number>();
   constructor(initialMessages?: AdkMessage[]) {
     if (initialMessages) {
       for (const msg of initialMessages) {
@@ -344,8 +364,8 @@ export class AdkEventAccumulator {
       }
     }
 
-    for (const part of parts) {
-      this.processPart(part, event);
+    for (const [index, part] of parts.entries()) {
+      this.processPart(part, event, index);
     }
 
     // Track per-message metadata (grounding, citation, usage)
@@ -379,7 +399,11 @@ export class AdkEventAccumulator {
     return this.getMessages();
   }
 
-  private processPart(part: AdkEventPart, event: AdkEvent): void {
+  private processPart(
+    part: AdkEventPart,
+    event: AdkEvent,
+    partIndex: number,
+  ): void {
     // Detect special ADK function calls
     if (part.functionCall && !event.partial) {
       const name = part.functionCall.name;
@@ -475,7 +499,7 @@ export class AdkEventAccumulator {
     if (part.functionResponse) {
       this.finalizeCurrentMessage();
       const toolMsg: AdkMessage = {
-        id: uuidv4(),
+        id: toolMessageId(event, partIndex),
         type: "tool",
         tool_call_id: part.functionResponse.id ?? "",
         name: part.functionResponse.name,
@@ -559,7 +583,9 @@ export class AdkEventAccumulator {
       }
     }
 
-    const id = uuidv4();
+    const ordinal = this.aiMessageOrdinals.get(event.id ?? "") ?? 0;
+    this.aiMessageOrdinals.set(event.id ?? "", ordinal + 1);
+    const id = aiMessageId(event, ordinal);
     const msg: InProgressMessage = {
       id,
       type: "ai",

@@ -9,7 +9,7 @@ import { DocsRuntimeProvider } from "@/contexts/DocsRuntimeProvider";
 import { Gemini } from "@/components/examples/gemini";
 import { Grok } from "@/components/examples/grok";
 import { analytics } from "@/lib/analytics";
-import { Button } from "@/components/ui/radix/button";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ArrowUpRightIcon, Maximize2Icon, XIcon } from "lucide-react";
 import Link from "next/link";
@@ -264,11 +264,10 @@ export function ExampleShowcase() {
                     className="text-muted-foreground hover:text-foreground size-[30px]"
                     aria-label="Open demo"
                     title="Open demo"
-                    asChild
+                    nativeButton={false}
+                    render={<Link href={`/demos/${activeSlug}`} />}
                   >
-                    <Link href={`/demos/${activeSlug}`}>
-                      <ArrowUpRightIcon className="size-4" />
-                    </Link>
+                    <ArrowUpRightIcon className="size-4" />
                   </Button>
                 )}
                 <Button

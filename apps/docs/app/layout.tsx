@@ -4,6 +4,7 @@ import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import Script from "next/script";
 import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Provider } from "./provider";
 import { cn } from "@/lib/utils";
 import { BASE_URL } from "@/lib/constants";
@@ -97,6 +98,7 @@ export default function Layout({ children }: { children: ReactNode }) {
         </div>
         <Provider>{children}</Provider>
         <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );

@@ -38,11 +38,11 @@ const ComposerAction: FC = () => {
     <div className="flex items-center gap-1">
       <ModelSelector
         models={[
-          { id: "gpt-5.4-nano", name: "GPT-5.4 Nano", description: "Fast and efficient" },
-          { id: "gpt-5.4-mini", name: "GPT-5.4 Mini", description: "Balanced performance" },
-          { id: "gpt-5.5", name: "GPT-5.5", description: "Most capable", efforts: true },
+          { id: "gpt-5.6-luna", name: "GPT-5.6 Luna", description: "Fast and efficient" },
+          { id: "gpt-5.6-terra", name: "GPT-5.6 Terra", description: "Balanced performance" },
+          { id: "gpt-5.6-sol", name: "GPT-5.6 Sol", description: "Most capable", efforts: true },
         ]}
-        defaultValue="gpt-5.4-nano"
+        defaultValue="gpt-5.6-luna"
         defaultEffort="medium"
         size="sm"
       />
@@ -63,7 +63,7 @@ export async function POST(req: Request) {
   const { messages, config } = await req.json();
 
   const result = streamText({
-    model: openai(config?.modelName ?? "gpt-5.4-nano"),
+    model: openai(config?.modelName ?? "gpt-5.6-luna"),
     providerOptions: {
       openai:
         config?.reasoningEffort !== undefined
@@ -88,8 +88,8 @@ A model that declares `efforts` shows a "Thinking" row at the bottom of the popo
 
 ```tsx
 {
-  id: "gpt-5.5",
-  name: "GPT-5.5",
+  id: "gpt-5.6-sol",
+  name: "GPT-5.6 Sol",
   efforts: [
     { id: "minimal", name: "Minimal" },
     { id: "high", name: "High" },
@@ -156,7 +156,7 @@ import { ClaudeLogo, GeminiLogo, OpenAILogo } from "@/components/assistant-ui/lo
 
 <ModelSelector
   models={[
-    { id: "gpt-5.5", name: "GPT-5.5", icon: <OpenAILogo /> },
+    { id: "gpt-5.6-sol", name: "GPT-5.6 Sol", icon: <OpenAILogo /> },
     { id: "claude-opus-4.5", name: "Claude Opus 4.5", icon: <ClaudeLogo /> },
     { id: "gemini-3-pro", name: "Gemini 3 Pro", icon: <GeminiLogo /> },
   ]}
