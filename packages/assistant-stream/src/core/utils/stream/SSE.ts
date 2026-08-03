@@ -36,7 +36,8 @@ export class SSEDecoder<T> extends PipeableTransformStream<
   Uint8Array<ArrayBuffer>,
   T
 > {
-  constructor() {
+  constructor(options: { strict?: boolean | undefined } = {}) {
+    const strict = options.strict ?? true;
     super((readable) =>
       readable
         .pipeThrough(new TextDecoderStream())
@@ -59,7 +60,11 @@ export class SSEDecoder<T> extends PipeableTransformStream<
                   break;
                 }
                 default:
-                  throw new Error(`Unknown SSE event type: ${event.event}`);
+                  if (strict)
+                    throw new Error(`Unknown SSE event type: ${event.event}`);
+                  console.error(
+                    `Ignored unknown SSE event type: ${event.event}`,
+                  );
               }
             },
           }),

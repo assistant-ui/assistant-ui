@@ -110,6 +110,12 @@ export type AssistantTransportOptions<T> = {
   api: string;
   resumeApi?: string;
   protocol?: AssistantTransportProtocol;
+  /**
+   * When `false`, stream decoding and state reconciliation tolerate malformed
+   * input (invalid chunks are dropped with a console log) instead of throwing.
+   * Resume runs always decode leniently. Defaults to `true`.
+   */
+  strict?: boolean;
   converter: AssistantTransportStateConverter<T>;
   headers: HeadersValue | (() => Promise<HeadersValue>);
   body?: object | (() => Promise<object | undefined>);

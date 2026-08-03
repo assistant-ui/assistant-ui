@@ -201,10 +201,12 @@ const useAssistantTransportThreadRuntime = <T>(
 
       // Select decoder based on protocol option
       const protocol = options.protocol ?? "data-stream";
+      // Resume replays a best-effort buffer; always reconcile leniently.
+      const strict = isResume ? false : (options.strict ?? true);
       const decoder =
         protocol === "assistant-transport"
-          ? new AssistantTransportDecoder()
-          : new DataStreamDecoder();
+          ? new AssistantTransportDecoder({ strict })
+          : new DataStreamDecoder({ strict });
 
       let err: string | undefined;
       const stream = body.pipeThrough(decoder).pipeThrough(
@@ -214,6 +216,7 @@ const useAssistantTransportThreadRuntime = <T>(
               (agentStateRef.current as ReadonlyJSONValue) ?? null,
           }),
           throttle: isResume,
+          strict,
           onError: (error) => {
             err = error;
           },

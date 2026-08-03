@@ -724,6 +724,7 @@ type AssistantTransportOptions<T> = {
   api: string;
   resumeApi?: string;
   protocol?: AssistantTransportProtocol;
+  strict?: boolean;
   converter: AssistantTransportStateConverter<T>;
   headers: HeadersValue | (() => Promise<HeadersValue>);
   body?: object | (() => Promise<object | undefined>);

@@ -94,4 +94,25 @@ describe("SSEDecoder", () => {
       collectChunks(stream.pipeThrough(new SSEDecoder())),
     ).rejects.toThrow("Unknown SSE event type: custom");
   });
+
+  it("ignores unknown event types with strict: false", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(
+          encoder.encode('event: custom\ndata: x\n\ndata: {"ok":1}\n\n'),
+        );
+        controller.close();
+      },
+    });
+    const chunks = await collectChunks(
+      stream.pipeThrough(new SSEDecoder({ strict: false })),
+    );
+    expect(chunks).toEqual([{ ok: 1 }]);
+    expect(error).toHaveBeenCalledWith(
+      "Ignored unknown SSE event type: custom",
+    );
+    error.mockRestore();
+  });
 });

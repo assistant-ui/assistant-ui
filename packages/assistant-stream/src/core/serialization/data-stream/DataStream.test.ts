@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { DataStreamDecoder } from "./DataStream";
 import type { AssistantStreamChunk } from "../../AssistantStreamChunk";
 
-const decodeLines = async (lines: string[]) => {
+const decodeLines = async (lines: string[], options?: { strict?: boolean }) => {
   const bytes = new ReadableStream<Uint8Array>({
     start(controller) {
       const encoder = new TextEncoder();
@@ -11,7 +11,7 @@ const decodeLines = async (lines: string[]) => {
     },
   });
   const chunks: AssistantStreamChunk[] = [];
-  await bytes.pipeThrough(new DataStreamDecoder()).pipeTo(
+  await bytes.pipeThrough(new DataStreamDecoder(options)).pipeTo(
     new WritableStream({
       write(chunk) {
         chunks.push(chunk);
@@ -104,6 +104,57 @@ describe("DataStreamDecoder interleaved tool-call args", () => {
       ).toBe(false);
     } finally {
       warn.mockRestore();
+    }
+  });
+});
+
+describe("DataStreamDecoder strict: false", () => {
+  it("throws on unknown tool call ids by default", async () => {
+    await expect(
+      decodeLines(['c:{"toolCallId":"missing","argsTextDelta":"{}"}']),
+    ).rejects.toThrow("unknown id: missing");
+  });
+
+  it("drops chunks referencing unknown tool call ids", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const chunks = await decodeLines(
+        [
+          'c:{"toolCallId":"missing","argsTextDelta":"{}"}',
+          'a:{"toolCallId":"missing","result":{}}',
+          '0:"hello"',
+        ],
+        { strict: false },
+      );
+
+      expect(
+        chunks.some((c) => c.type === "text-delta" && c.textDelta === "hello"),
+      ).toBe(true);
+      expect(error).toHaveBeenCalledTimes(2);
+    } finally {
+      error.mockRestore();
+    }
+  });
+
+  it("drops duplicate tool call starts", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const chunks = await decodeLines(
+        [
+          'b:{"toolCallId":"t1","toolName":"search"}',
+          'b:{"toolCallId":"t1","toolName":"search"}',
+        ],
+        { strict: false },
+      );
+
+      expect(
+        chunks.filter(
+          (c) => c.type === "part-start" && c.part.type === "tool-call",
+        ),
+      ).toHaveLength(1);
+      expect(error).toHaveBeenCalledTimes(1);
+    } finally {
+      error.mockRestore();
     }
   });
 });

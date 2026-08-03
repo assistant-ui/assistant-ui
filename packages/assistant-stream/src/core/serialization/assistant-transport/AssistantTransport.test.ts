@@ -421,4 +421,101 @@ describe("AssistantTransportDecoder", () => {
 
     expect(decodedChunks).toEqual(originalChunks);
   });
+
+  it("should throw on unknown SSE event types", async () => {
+    const sseText =
+      "event: custom\ndata: {}\n\n" +
+      'data: {"type":"text-delta","textDelta":"Hello","path":[]}\n\n' +
+      "data: [DONE]\n\n";
+
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode(sseText));
+        controller.close();
+      },
+    });
+
+    await expect(
+      collectChunks(stream.pipeThrough(new AssistantTransportDecoder())),
+    ).rejects.toThrow("Unknown SSE event type: custom");
+  });
+
+  describe("strict: false", () => {
+    it("ignores unknown SSE event types", async () => {
+      const error = vi.spyOn(console, "error").mockImplementation(() => {});
+      const sseText =
+        "event: custom\ndata: {}\n\n" +
+        'data: {"type":"text-delta","textDelta":"Hello","path":[]}\n\n' +
+        "data: [DONE]\n\n";
+
+      const stream = new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode(sseText));
+          controller.close();
+        },
+      });
+
+      const decodedChunks = await collectChunks(
+        stream.pipeThrough(new AssistantTransportDecoder({ strict: false })),
+      );
+
+      expect(decodedChunks).toEqual([
+        { type: "text-delta", textDelta: "Hello", path: [] },
+      ]);
+      expect(error).toHaveBeenCalledWith(
+        "Ignored unknown SSE event type: custom",
+      );
+      error.mockRestore();
+    });
+
+    it("tolerates streams ending without [DONE]", async () => {
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const sseText =
+        'data: {"type":"text-delta","textDelta":"Hello","path":[]}\n\n';
+
+      const stream = new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode(sseText));
+          controller.close();
+        },
+      });
+
+      const decodedChunks = await collectChunks(
+        stream.pipeThrough(new AssistantTransportDecoder({ strict: false })),
+      );
+
+      expect(decodedChunks).toEqual([
+        { type: "text-delta", textDelta: "Hello", path: [] },
+      ]);
+      expect(warn).toHaveBeenCalledWith(
+        "Stream ended abruptly without receiving [DONE] marker",
+      );
+      warn.mockRestore();
+    });
+
+    it("drops invalid JSON and empty data lines", async () => {
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const sseText =
+        "data: {not json\n\n" +
+        "data: \n\n" +
+        'data: {"type":"text-delta","textDelta":"Hello","path":[]}\n\n' +
+        "data: [DONE]\n\n";
+
+      const stream = new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode(sseText));
+          controller.close();
+        },
+      });
+
+      const decodedChunks = await collectChunks(
+        stream.pipeThrough(new AssistantTransportDecoder({ strict: false })),
+      );
+
+      expect(decodedChunks).toEqual([
+        { type: "text-delta", textDelta: "Hello", path: [] },
+      ]);
+      warn.mockRestore();
+    });
+  });
 });
