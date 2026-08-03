@@ -245,8 +245,10 @@ const attachmentPartKey = (part: {
  * getMessageContent flattens attachment content into the wire message while
  * the runtime reattaches the original attachments for chip rendering, so in
  * the sender's session each attachment payload arrives back twice. Drops the
- * flattened copies, at most one content part per attachment part; on reload
- * the staging map is empty and content parts pass through untouched.
+ * flattened copies, at most one content part per attachment part, consuming
+ * from the trailing end because getMessageContent appends the flattened
+ * copies after the user's direct content; on reload the staging map is empty
+ * and content parts pass through untouched.
  */
 const dropAttachmentDuplicates = (
   parts: ReturnType<typeof contentToParts>,
@@ -258,14 +260,17 @@ const dropAttachmentDuplicates = (
     if (key) counts.set(key, (counts.get(key) ?? 0) + 1);
   }
   if (counts.size === 0) return parts;
-  return parts.filter((part) => {
-    const key = attachmentPartKey(part);
-    if (!key) return true;
+  const dropped = new Set<number>();
+  for (let i = parts.length - 1; i >= 0; i--) {
+    const key = attachmentPartKey(parts[i]!);
+    if (!key) continue;
     const remaining = counts.get(key);
-    if (!remaining) return true;
+    if (!remaining) continue;
     counts.set(key, remaining - 1);
-    return false;
-  });
+    dropped.add(i);
+  }
+  if (dropped.size === 0) return parts;
+  return parts.filter((_, i) => !dropped.has(i));
 };
 
 const hasVisibleText = (text: unknown): boolean =>

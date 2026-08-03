@@ -1611,92 +1611,65 @@ describe("convertLangChainMessages attachment dedupe", () => {
     expect(result.content).toEqual([{ type: "text", text: "here is my file" }]);
   });
 
+  const deriveWire = (attachments: readonly unknown[]) =>
+    getMessageContent({
+      role: "user",
+      content: [],
+      attachments,
+    } as unknown as AppendMessage) as LangChainMessage["content"];
+
   it("drops the flattened copy of an attachment image from content", () => {
+    const attachment = {
+      id: "att-img",
+      type: "image",
+      name: "img.png",
+      status: { type: "complete" },
+      content: [{ type: "image", image: "data:image/png;base64,aW1n" }],
+    };
     const result = convertLangChainMessages(
-      {
-        type: "human",
-        id: "m1",
-        content: [
-          {
-            type: "image_url",
-            image_url: { url: "data:image/png;base64,aW1n" },
-          },
-        ],
-      },
-      withAttachments("m1", [
-        {
-          id: "att-img",
-          type: "image",
-          name: "img.png",
-          status: { type: "complete" },
-          content: [{ type: "image", image: "data:image/png;base64,aW1n" }],
-        },
-      ]),
+      { type: "human", id: "m1", content: deriveWire([attachment]) },
+      withAttachments("m1", [attachment]),
     );
 
-    expect(result.content).toEqual([]);
+    expect(result.content).toEqual([{ type: "text", text: " " }]);
   });
 
   it("matches across the wire's data URL stripping", () => {
-    const result = convertLangChainMessages(
-      {
-        type: "human",
-        id: "m1",
-        content: [
-          {
-            type: "audio",
-            data: "QUJD",
-            mime_type: "audio/mp3",
-            source_type: "base64",
-          },
-        ],
-      },
-      withAttachments("m1", [
+    const attachment = {
+      id: "att-audio",
+      type: "file",
+      name: "voice.mp3",
+      status: { type: "complete" },
+      content: [
         {
-          id: "att-audio",
           type: "file",
-          name: "voice.mp3",
-          status: { type: "complete" },
-          content: [
-            {
-              type: "file",
-              data: "data:audio/mp3;base64,QUJD",
-              mimeType: "audio/mp3",
-            },
-          ],
+          data: "data:audio/mp3;base64,QUJD",
+          mimeType: "audio/mp3",
         },
-      ]),
+      ],
+    };
+    const result = convertLangChainMessages(
+      { type: "human", id: "m1", content: deriveWire([attachment]) },
+      withAttachments("m1", [attachment]),
     );
 
-    expect(result.content).toEqual([]);
+    expect(result.content).toEqual([{ type: "text", text: " " }]);
   });
 
   it("dedupes an attachment carrying a legacy audio part", () => {
+    const attachment = {
+      id: "att-legacy-audio",
+      type: "file",
+      name: "voice.mp3",
+      status: { type: "complete" },
+      content: [{ type: "audio", audio: { data: "QUJD", format: "mp3" } }],
+    };
     const result = convertLangChainMessages(
-      {
-        type: "human",
-        id: "m1",
-        content: [
-          {
-            type: "audio",
-            data: "QUJD",
-            mime_type: "audio/mp3",
-            source_type: "base64",
-          },
-        ],
-      },
-      withAttachments("m1", [
-        {
-          id: "att-legacy-audio",
-          type: "file",
-          name: "voice.mp3",
-          status: { type: "complete" },
-          content: [{ type: "audio", audio: { data: "QUJD", format: "mp3" } }],
-        },
-      ]),
+      { type: "human", id: "m1", content: deriveWire([attachment]) },
+      withAttachments("m1", [attachment]),
     );
 
-    expect(result.content).toEqual([]);
+    expect(result.content).toEqual([{ type: "text", text: " " }]);
   });
 
   it("keeps direct-content media sent alongside an attachment", () => {
@@ -1711,6 +1684,36 @@ describe("convertLangChainMessages attachment dedupe", () => {
 
     expect(result.content).toEqual([
       expect.objectContaining({ type: "file", data: "REVG" }),
+    ]);
+  });
+
+  it("keeps the direct part when it shares a payload with an attachment", () => {
+    const directBlock = {
+      type: "file" as const,
+      data: "QUJD",
+      mime_type: "application/pdf",
+      source_type: "base64" as const,
+      metadata: { filename: "mine.pdf" },
+    };
+    const flattenedBlock = {
+      ...fileBlock("QUJD"),
+      metadata: { filename: "attached.pdf" },
+    };
+    const result = convertLangChainMessages(
+      {
+        type: "human",
+        id: "m1",
+        content: [directBlock, flattenedBlock],
+      },
+      withAttachments("m1", [fileAttachment("QUJD", "attached.pdf")]),
+    );
+
+    expect(result.content).toEqual([
+      expect.objectContaining({
+        type: "file",
+        data: "QUJD",
+        filename: "mine.pdf",
+      }),
     ]);
   });
 
