@@ -16,7 +16,11 @@ export function a2aPartToContent(
   }
   if (part.url !== undefined) {
     if (isImageMediaType(part.mediaType)) {
-      return { type: "image", image: part.url };
+      return {
+        type: "image",
+        image: part.url,
+        ...(part.filename && { filename: part.filename }),
+      };
     }
     return {
       type: "file",
@@ -31,6 +35,7 @@ export function a2aPartToContent(
       return {
         type: "image",
         image: `data:${part.mediaType};base64,${part.raw}`,
+        ...(part.filename && { filename: part.filename }),
       };
     }
     return {

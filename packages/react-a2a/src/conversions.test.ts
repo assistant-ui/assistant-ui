@@ -68,6 +68,19 @@ describe("a2aPartToContent", () => {
     });
   });
 
+  it("keeps the wire filename on an image URL part", () => {
+    const part: A2APart = {
+      url: "https://example.com/img.png",
+      mediaType: "image/png",
+      filename: "img.png",
+    };
+    expect(a2aPartToContent(part)).toEqual({
+      type: "image",
+      image: "https://example.com/img.png",
+      filename: "img.png",
+    });
+  });
+
   it("converts raw image bytes to data URI", () => {
     const part: A2APart = {
       raw: "iVBORw0KGgo=",
@@ -76,6 +89,19 @@ describe("a2aPartToContent", () => {
     expect(a2aPartToContent(part)).toEqual({
       type: "image",
       image: "data:image/png;base64,iVBORw0KGgo=",
+    });
+  });
+
+  it("keeps the wire filename on raw image bytes", () => {
+    const part: A2APart = {
+      raw: "iVBORw0KGgo=",
+      mediaType: "image/png",
+      filename: "img.png",
+    };
+    expect(a2aPartToContent(part)).toEqual({
+      type: "image",
+      image: "data:image/png;base64,iVBORw0KGgo=",
+      filename: "img.png",
     });
   });
 
@@ -153,6 +179,17 @@ describe("inbound file part round trip", () => {
       filename: "report.pdf",
     };
     expect(contentPartsToA2AParts([restoreFilePart(part)])).toEqual([part]);
+  });
+
+  it("reproduces a raw image wire part through the outbound converter", () => {
+    const part: A2APart = {
+      raw: "iVBORw0KGgo=",
+      mediaType: "image/png",
+      filename: "img.png",
+    };
+    const restored = a2aPartToContent(part);
+    if (restored.type !== "image") throw new Error("expected an image part");
+    expect(contentPartsToA2AParts([restored])).toEqual([part]);
   });
 
   it("resends a url part without mediaType with the octet-stream fallback", () => {
