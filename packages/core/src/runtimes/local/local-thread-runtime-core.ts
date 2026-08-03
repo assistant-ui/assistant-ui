@@ -681,7 +681,7 @@ export class LocalThreadRuntimeCore
       if (c.type !== "tool-call") return c;
       if (c.toolCallId !== toolCallId) return c;
       found = true;
-      if (!c.result) added = true;
+      if (c.result === undefined) added = true;
       return {
         ...c,
         result,
