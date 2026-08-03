@@ -19,8 +19,11 @@ export function a2aPartToContent(
       return { type: "image", image: part.url };
     }
     return {
-      type: "text",
-      text: part.filename ? `[${part.filename}](${part.url})` : part.url,
+      type: "file",
+      data: part.url,
+      mimeType: part.mediaType ?? "application/octet-stream",
+      sourceType: "url",
+      ...(part.filename && { filename: part.filename }),
     };
   }
   if (part.raw !== undefined) {
@@ -31,8 +34,10 @@ export function a2aPartToContent(
       };
     }
     return {
-      type: "text",
-      text: `[File: ${part.filename ?? "download"}]`,
+      type: "file",
+      data: part.raw,
+      mimeType: part.mediaType ?? "application/octet-stream",
+      ...(part.filename && { filename: part.filename }),
     };
   }
   if (part.data !== undefined) {
