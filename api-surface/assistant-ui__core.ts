@@ -4649,6 +4649,7 @@ type ThreadMethods = {
   export(): ExportedMessageRepository;
   import(repository: ExportedMessageRepository): void;
   reset(initialMessages?: readonly ThreadMessageLike[]): void;
+  unstable_refetchThread?: (() => Promise<void>) | undefined;
   importExternalState(state: unknown): void;
   message(selector: {
     id: string;

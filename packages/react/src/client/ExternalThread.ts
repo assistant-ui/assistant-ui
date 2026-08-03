@@ -88,6 +88,8 @@ export type ExternalThreadProps = {
   onNew?: (message: AppendMessage) => void;
   onEdit?: (message: AppendMessage) => void;
   onReload?: (parentId: string | null) => void;
+  /** Refetches this thread's remote state when `threads.reloadMainThread()` is called. */
+  onRefetchThread?: (() => Promise<void>) | undefined;
   onStartRun?: () => void;
   onCancel?: () => void;
   onResume?: (() => void) | undefined;
@@ -733,6 +735,7 @@ const useExternalThread = ({
   onNew,
   onEdit,
   onReload,
+  onRefetchThread,
   onStartRun,
   onCancel,
   onResume,
@@ -819,6 +822,7 @@ const useExternalThread = ({
   const hasBranches = !!branches;
   const hasEdit = !!onEdit;
   const hasReload = !!onReload;
+  const hasRefetchThread = !!onRefetchThread;
   const hasAttachments = !!attachmentAdapter;
   const state = useMemo(() => {
     const messageStates = messageClients.state.map((s, idx, arr) => ({
@@ -835,7 +839,7 @@ const useExternalThread = ({
         edit: hasEdit,
         delete: false,
         reload: hasReload,
-        refetchThread: false,
+        refetchThread: hasRefetchThread,
         cancel: isRunning,
         speech: false,
         attachments: hasAttachments,
@@ -865,6 +869,7 @@ const useExternalThread = ({
     hasBranches,
     hasEdit,
     hasReload,
+    hasRefetchThread,
     hasAttachments,
     messageClients.state,
     composerClient.state,
@@ -926,6 +931,7 @@ const useExternalThread = ({
     export: () => ({ messages: [] }),
     import: () => {},
     reset: () => {},
+    unstable_refetchThread: onRefetchThread,
     message: (selector) => {
       if ("id" in selector) {
         return messageClients.get({ key: selector.id });
