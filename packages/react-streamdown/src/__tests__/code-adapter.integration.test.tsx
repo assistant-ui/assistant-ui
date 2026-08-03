@@ -33,7 +33,7 @@ describe("createCodeAdapter integration", () => {
 
       render(<AdaptedCode>course-reference</AdaptedCode>);
 
-      expect(screen.getByRole("button")).toHaveTextContent("course-reference");
+      expect(screen.getByRole("button").textContent).toBe("course-reference");
       expect(InlineCode).toHaveBeenCalled();
     });
   });
