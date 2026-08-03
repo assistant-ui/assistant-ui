@@ -183,6 +183,7 @@ function FileDownload({
   children,
   ...props
 }: FileDownloadProps) {
+  if (typeof data !== "string") return null;
   const kind = getFileDataKind(data, sourceType);
   if (kind === "id") return null;
   if (kind === "url" && !/^(https?:\/\/|blob:)/i.test(data)) return null;

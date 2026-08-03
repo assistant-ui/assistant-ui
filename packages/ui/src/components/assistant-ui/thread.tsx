@@ -400,7 +400,11 @@ const AssistantMessage: FC = () => {
               case "data":
                 return part.dataRendererUI;
               case "file":
-                return <File {...part} />;
+                return (
+                  <div data-slot="aui_assistant-message-file" className="py-1">
+                    <File {...part} />
+                  </div>
+                );
               case "indicator":
                 return (
                   <span
