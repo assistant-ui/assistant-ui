@@ -473,7 +473,10 @@ export class RemoteThreadListThreadListRuntimeCore
     if (this.mainThreadId !== undefined) {
       await task;
     } else {
-      task.then(() => this._notifySubscribers());
+      void task.then(
+        () => this._notifySubscribers(),
+        () => undefined,
+      );
     }
 
     if (generation !== this._switchGeneration) return;
