@@ -15,11 +15,16 @@ import { createBrowserThreadListAdapter } from "../lib/browser-thread-list-adapt
 
 export function RuntimeProvider({
   api = "/api/chat",
+  storagePrefix = "generative-ui-course:",
   children,
-}: Readonly<{ api?: string; children: React.ReactNode }>) {
+}: Readonly<{
+  api?: string;
+  storagePrefix?: string;
+  children: React.ReactNode;
+}>) {
   const adapter = useMemo(
-    () => createBrowserThreadListAdapter("generative-ui-course:"),
-    [],
+    () => createBrowserThreadListAdapter(storagePrefix),
+    [storagePrefix],
   );
   const transport = useMemo(() => new AssistantChatTransport({ api }), [api]);
   const runtime = useRemoteThreadListRuntime({

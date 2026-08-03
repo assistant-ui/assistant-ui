@@ -4,6 +4,7 @@ import type { ComponentType, ReactNode } from "react";
 
 type PreviewRuntimeProps = Readonly<{
   api?: string;
+  storagePrefix?: string;
   children: ReactNode;
 }>;
 

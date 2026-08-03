@@ -48,8 +48,12 @@ describe("Learn course registry", () => {
 
   it("rejects unregistered course and stage IDs", () => {
     expect(() => getLearnCourse("missing-course")).toThrow(LearnRegistryError);
+    expect(() => getLearnCourse("toString")).toThrow(LearnRegistryError);
     expect(() =>
       getLearnStage(DEFAULT_LEARN_COURSE_ID, "missing-stage"),
+    ).toThrow(LearnRegistryError);
+    expect(() =>
+      getLearnStage(DEFAULT_LEARN_COURSE_ID, "toString"),
     ).toThrow(LearnRegistryError);
   });
 });

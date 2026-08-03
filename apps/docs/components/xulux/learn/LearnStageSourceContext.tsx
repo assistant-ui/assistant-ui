@@ -88,8 +88,9 @@ export function LearnStageSourceProvider({
             controller.signal,
           )
         : Promise.resolve(EMPTY_FILES),
-    ])
+      ])
       .then(([nextCurrentFiles, nextPreviousFiles]) => {
+        if (controller.signal.aborted) return;
         const resolvedPreviousFiles = previousStep
           ? nextPreviousFiles
           : nextCurrentFiles;

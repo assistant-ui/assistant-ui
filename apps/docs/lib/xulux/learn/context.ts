@@ -5,8 +5,8 @@ import type { LearnContext } from "./types";
 export const learnContextSchema = z.object({
   courseId: z.string().min(1),
   status: z.enum(["not_started", "in_progress", "completed"]),
-  currentStepId: z.string().nullable(),
-  selectedStepId: z.string().nullable(),
+  currentStepId: z.string().min(1).nullable(),
+  selectedStepId: z.string().min(1).nullable(),
 });
 
 export function parseLearnContext(value: unknown): LearnContext | null {

@@ -19,11 +19,10 @@ export class LearnRegistryError extends Error {
 }
 
 export function getLearnCourse(courseId: string): LearnCourseDefinition {
-  const course = LEARN_COURSES[courseId];
-  if (!course) {
+  if (!Object.hasOwn(LEARN_COURSES, courseId)) {
     throw new LearnRegistryError(`Unregistered Learn course: ${courseId}`);
   }
-  return course;
+  return LEARN_COURSES[courseId]!;
 }
 
 export function getLearnStep(
@@ -43,13 +42,13 @@ export function getLearnStage(
   courseId: string,
   stageId: string,
 ): LearnStageDefinition {
-  const stage = getLearnCourse(courseId).stages[stageId];
-  if (!stage) {
+  const stages = getLearnCourse(courseId).stages;
+  if (!Object.hasOwn(stages, stageId)) {
     throw new LearnRegistryError(
       `Unregistered Learn stage: ${courseId}/${stageId}`,
     );
   }
-  return stage;
+  return stages[stageId]!;
 }
 
 export function getLearnStageForStep(

@@ -44,6 +44,7 @@ export default async function LearnStagePreviewPage({
     <div className="bg-background h-dvh overflow-hidden">
       <RuntimeProvider
         api={`/api/xulux/learn/preview/${stageId}/chat?sessionId=${previewSessionId}`}
+        storagePrefix={`generative-ui-course:${stageId}:`}
       >
         {preview}
       </RuntimeProvider>

@@ -130,6 +130,8 @@ export function XuluxShell({
   const analyticsCtx = useXuluxAnalytics();
   const isSmallScreen = useIsSmallScreen();
   const currentRemoteId = useAuiState((state) => state.threadListItem.remoteId);
+  const isThreadRunning = useAuiState((state) => state.thread.isRunning);
+  const threadMessages = useAuiState((state) => state.thread.messages);
   const storedThreads = useXuluxStoredThreads();
   const [viewMode, setViewMode] = useState<XuluxViewMode>("landing");
   const [selectedTemplate, setSelectedTemplate] =
@@ -149,6 +151,8 @@ export function XuluxShell({
   const previewTrackedRef = useRef<string | null>(null);
   const autoStartRef = useRef(false);
   const startInFlightRef = useRef(false);
+  const startRequestRunningRef = useRef(false);
+  const startProgressRef = useRef<LearnProgress | null>(null);
   const restoredLearnThreadRef = useRef<string | null>(null);
   const learnCourse = useMemo(() => getLearnCourse(courseId), [courseId]);
 
@@ -171,6 +175,25 @@ export function XuluxShell({
   useEffect(() => {
     previewTrackedRef.current = null;
   }, [sessionId]);
+
+  useEffect(() => {
+    if (!startInFlightRef.current) return;
+    if (isThreadRunning) {
+      startRequestRunningRef.current = true;
+      return;
+    }
+    if (!startRequestRunningRef.current) return;
+
+    startInFlightRef.current = false;
+    startRequestRunningRef.current = false;
+    const previousProgress = startProgressRef.current;
+    startProgressRef.current = null;
+    const hasAssistantMessage = threadMessages.some(
+      ({ role }) => role === "assistant",
+    );
+    if (!previousProgress || hasAssistantMessage) return;
+    onUpdateLearnProgress(previousProgress);
+  }, [isThreadRunning, onUpdateLearnProgress, threadMessages]);
 
   const handleStartChat = useCallback(
     (prompt: string, start: PromptStart = { source: "typed_prompt" }) => {
@@ -228,14 +251,21 @@ export function XuluxShell({
       }
 
       startInFlightRef.current = true;
-      onUpdateLearnProgress(transition.progress);
-      analytics.xulux.learnCourseStarted(
-        withXuluxContext(analyticsCtx, {
-          course_id: courseId,
-          source,
-        }),
-      );
-      handleStartChat(LEARN_START_MESSAGE);
+      startRequestRunningRef.current = false;
+      startProgressRef.current = learnProgress;
+      try {
+        handleStartChat(LEARN_START_MESSAGE);
+        onUpdateLearnProgress(transition.progress);
+        analytics.xulux.learnCourseStarted(
+          withXuluxContext(analyticsCtx, {
+            course_id: courseId,
+            source,
+          }),
+        );
+      } catch {
+        startInFlightRef.current = false;
+        startProgressRef.current = null;
+      }
     },
     [
       analyticsCtx,

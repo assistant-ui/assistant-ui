@@ -14,15 +14,14 @@ export function Notepad({
 }: Unstable_InteractableToolRenderProps<Note>) {
   const bodyRef = useRef<HTMLDivElement>(null);
   const [copied, setCopied] = useState(false);
+  const historical = version && !version.isLatest;
+  const note = historical ? version.state : state;
 
   useEffect(() => {
     const body = bodyRef.current;
     if (!body || document.activeElement === body) return;
-    if (body.innerText !== state.content) body.innerText = state.content;
-  }, [state.content]);
-
-  const historical = version && !version.isLatest;
-  const note = historical ? version.state : state;
+    if (body.innerText !== note.content) body.innerText = note.content;
+  }, [note.content]);
 
   return (
     <section className="my-3 overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--muted)]/40">

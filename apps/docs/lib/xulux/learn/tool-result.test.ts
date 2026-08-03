@@ -32,6 +32,12 @@ describe("Learn context", () => {
         currentStepId: "missing",
         selectedStepId: null,
       },
+      {
+        courseId: "build-generative-ui-assistant",
+        status: "in_progress",
+        currentStepId: "",
+        selectedStepId: null,
+      },
     ]) {
       expect(parseLearnContext(value)).toBeNull();
     }
@@ -75,5 +81,27 @@ describe("Learn course tool result", () => {
     expect(
       parseLearnCourseStepResult({ course: { status: "completed" } }),
     ).toBeNull();
+    const inProgressWithUndefinedFinalStage = parseLearnCourseStepResult({
+      course: { id: "build-generative-ui-assistant", status: "in_progress" },
+      step: {
+        id: "meet-the-project",
+        title: "Meet the project",
+        index: 1,
+        total: 8,
+        content: "Lesson",
+      },
+      stage: {
+        id: "S0",
+        previewPath: "/learn/preview/S0",
+        downloadUrl: "/download",
+        focusFiles: [],
+      },
+      changes: { files: [], additions: 0, deletions: 0 },
+      finalStage: undefined,
+    });
+    expect(inProgressWithUndefinedFinalStage).not.toBeNull();
+    expect(
+      Object.hasOwn(inProgressWithUndefinedFinalStage ?? {}, "finalStage"),
+    ).toBe(false);
   });
 });

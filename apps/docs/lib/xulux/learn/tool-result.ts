@@ -32,7 +32,6 @@ export const learnCourseStepResultSchema = z.union([
       additions: z.number().int().nonnegative(),
       deletions: z.number().int().nonnegative(),
     }),
-    finalStage: z.undefined().optional(),
   }),
   z.object({
     course: z.object({
