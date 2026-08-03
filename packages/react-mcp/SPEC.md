@@ -19,7 +19,7 @@ Both share one connection lifecycle, one persisted state surface, and one tool r
 
 ## Design principles
 
-- **One entry point.** `McpManagerResource` — mount via `AuiConfig({ mcp: McpManagerResource(...) })`. No provider wrapper, no imperative hooks.
+- **One entry point.** `McpManagerResource` — `AuiConfig({ mcp: McpManagerResource(...) })` builds the configuration; `<AuiProvider config={...}>` or `<AssistantRuntimeProvider config={...}>` mounts it. No dedicated MCP provider wrapper, no imperative hooks.
 - **Tap-first.** Connection lifecycle, tool lists, and tool registration are tap state. Components read via `useAuiState`; methods called via `aui.mcp().x()` in callbacks (never during render).
 - **One source of truth.** Persisted state goes through `MCPStorage` (a tap resource). `McpLocalStorage` is the default; swap by passing a different resource.
 - **Unstyled primitives.** `data-*` attributes for styling, no CSS, no business logic — matches `SpanPrimitive`.
@@ -67,7 +67,7 @@ After the v0.1 simplification, the package's runtime surface is:
 
 | Export | Purpose |
 | --- | --- |
-| `McpManagerResource` | Root tap resource — mount via `AuiConfig({ mcp: McpManagerResource({...}) })`. Auto-registers connected tools with `modelContext`. |
+| `McpManagerResource` | Root tap resource — built into a config via `AuiConfig({ mcp: McpManagerResource({...}) })`, mounted by `AuiProvider` or `AssistantRuntimeProvider`. Auto-registers connected tools with `modelContext`. |
 | `McpServerResource` | Per-server resource (advanced — used internally by `McpManagerResource`) |
 | `McpLocalStorage`, `McpMemoryStorage`, `McpCustomStorage` | Storage resource factories |
 | `defineConnector` | Identity-typed helper for `MCPConnector` objects |
@@ -428,6 +428,21 @@ const connectors = [
 export function Providers({ children }: { children: React.ReactNode }) {
   const config = AuiConfig({ mcp: McpManagerResource({ connectors }) });
   return <AuiProvider config={config}>{children}</AuiProvider>;
+}
+```
+
+In a chat app, pass the same config to `AssistantRuntimeProvider` instead — its scopes mount alongside the runtime scope:
+
+```tsx
+// app/providers.tsx — with a chat runtime
+export function Providers({ children }: { children: React.ReactNode }) {
+  const runtime = useChatRuntime();
+  const config = AuiConfig({ mcp: McpManagerResource({ connectors }) });
+  return (
+    <AssistantRuntimeProvider runtime={runtime} config={config}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
 }
 ```
 
