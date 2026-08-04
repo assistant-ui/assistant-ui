@@ -1,20 +1,36 @@
+import type { AssistantState } from "@assistant-ui/store";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   remove: vi.fn<() => Promise<void>>(),
+  kind: "custom" as "connector" | "custom",
 }));
 
-vi.mock("@assistant-ui/store", () => ({
+vi.mock("@assistant-ui/store", async (importOriginal) => ({
+  ...(await importOriginal()),
   useAui: () => ({ mcpServer: { remove: mocks.remove } }),
-  useAuiState: () => "custom",
-}));
-
-vi.mock("@radix-ui/react-primitive", () => ({
-  Primitive: { button: "button" },
+  useAuiState: function useAuiState<T>(selector: (state: AssistantState) => T) {
+    return selector({
+      mcpServer: { kind: mocks.kind },
+    } as AssistantState);
+  },
 }));
 
 const { McpServerPrimitiveRemoveButton } =
   await import("./McpServerRemoveButton");
+
+const captureUnhandledRejections = async (callback: () => void) => {
+  const reasons: unknown[] = [];
+  const listener = (reason: unknown) => reasons.push(reason);
+  process.on("unhandledRejection", listener);
+  try {
+    callback();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    return reasons;
+  } finally {
+    process.off("unhandledRejection", listener);
+  }
+};
 
 const renderButton = () =>
   (
@@ -33,23 +49,23 @@ const renderButton = () =>
 describe("McpServerPrimitiveRemoveButton", () => {
   beforeEach(() => {
     mocks.remove.mockReset();
+    mocks.kind = "custom";
   });
 
-  it("reports rejected remove actions", async () => {
-    const error = new Error("storage unavailable");
-    mocks.remove.mockRejectedValueOnce(error);
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => undefined);
+  it("does not render for connectors", () => {
+    mocks.kind = "connector";
 
-    renderButton().props.onClick({ defaultPrevented: false });
+    expect(renderButton()).toBeNull();
+  });
 
-    await vi.waitFor(() => {
-      expect(consoleError).toHaveBeenCalledWith(
-        "[assistant-ui/react-mcp] failed to remove MCP server:",
-        error,
-      );
+  it("handles rejected custom server remove actions", async () => {
+    mocks.remove.mockRejectedValueOnce(new Error("storage unavailable"));
+
+    const unhandledRejections = await captureUnhandledRejections(() => {
+      renderButton().props.onClick({ defaultPrevented: false });
     });
+
     expect(mocks.remove).toHaveBeenCalledOnce();
+    expect(unhandledRejections).toEqual([]);
   });
 });
