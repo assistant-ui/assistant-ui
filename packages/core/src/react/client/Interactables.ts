@@ -107,7 +107,7 @@ const useInteractablesResource = ({
     undefined,
   );
   const syncSeqRef = useRef(0);
-  const hasPendingLocalChangeRef = useRef(false);
+  const inFlightPersistenceRef = useRef(0);
   const flushResolversRef = useRef<Array<() => void>>([]);
   const dirtyIdsRef = useRef(new Set<string>());
 
@@ -144,7 +144,7 @@ const useInteractablesResource = ({
     const seq = ++syncSeqRef.current;
     const dirtyIds = new Set(dirtyIdsRef.current);
     dirtyIdsRef.current.clear();
-    hasPendingLocalChangeRef.current = true;
+    inFlightPersistenceRef.current += 1;
 
     // Snapshot before any await so unregistered definitions are still included.
     const payload = exportState();
@@ -165,7 +165,6 @@ const useInteractablesResource = ({
     try {
       await adapter.save(payload);
       if (syncSeqRef.current === seq) {
-        hasPendingLocalChangeRef.current = false;
         setStateAndRef((prev) => {
           const persistence = { ...prev.persistence };
           for (const id of dirtyIds) delete persistence[id];
@@ -174,7 +173,6 @@ const useInteractablesResource = ({
       }
     } catch (e) {
       if (syncSeqRef.current === seq) {
-        hasPendingLocalChangeRef.current = false;
         setStateAndRef((prev) => ({
           ...prev,
           persistence: {
@@ -186,9 +184,14 @@ const useInteractablesResource = ({
         }));
       }
     } finally {
-      if (dirtyIdsRef.current.size > 0 && adapterRef.current) {
+      inFlightPersistenceRef.current -= 1;
+      if (
+        inFlightPersistenceRef.current === 0 &&
+        dirtyIdsRef.current.size > 0 &&
+        adapterRef.current
+      ) {
         runPersistence();
-      } else {
+      } else if (inFlightPersistenceRef.current === 0) {
         for (const resolve of flushResolversRef.current) resolve();
         flushResolversRef.current = [];
       }
@@ -196,8 +199,10 @@ const useInteractablesResource = ({
   }, [exportState, setStateAndRef]);
 
   const flushIfPending = useCallback(() => {
-    if (adapterRef.current && debounceTimerRef.current !== undefined) {
-      clearTimeout(debounceTimerRef.current);
+    if (adapterRef.current && dirtyIdsRef.current.size > 0) {
+      if (debounceTimerRef.current !== undefined) {
+        clearTimeout(debounceTimerRef.current);
+      }
       debounceTimerRef.current = undefined;
       runPersistence();
     }
@@ -212,7 +217,7 @@ const useInteractablesResource = ({
       }
       debounceTimerRef.current = setTimeout(() => {
         debounceTimerRef.current = undefined;
-        if (!hasPendingLocalChangeRef.current) {
+        if (inFlightPersistenceRef.current === 0) {
           runPersistence();
         } else {
           debounceTimerRef.current = setTimeout(() => {
@@ -329,12 +334,12 @@ const useInteractablesResource = ({
       debounceTimerRef.current = undefined;
     }
     if (!adapterRef.current) return;
-    if (!hasPendingLocalChangeRef.current && dirtyIdsRef.current.size === 0)
+    if (inFlightPersistenceRef.current === 0 && dirtyIdsRef.current.size === 0)
       return;
     const p = new Promise<void>((resolve) => {
       flushResolversRef.current.push(resolve);
     });
-    if (!hasPendingLocalChangeRef.current) {
+    if (inFlightPersistenceRef.current === 0) {
       runPersistence();
     }
     return p;
