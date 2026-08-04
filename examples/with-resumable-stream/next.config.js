@@ -1,7 +1,5 @@
 import { withAui } from "@assistant-ui/next";
 /** @type {import('next').NextConfig} */
-const nextConfig = {
-  experimental: { useTypeScriptCli: false },
-};
+const nextConfig = {};
 
 export default withAui(nextConfig);

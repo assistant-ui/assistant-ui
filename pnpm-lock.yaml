@@ -209,10 +209,10 @@ importers:
         version: 1.6.0(@date-fns/tz@1.5.0)(@types/react@19.2.17)(date-fns@4.4.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@blaxel/core':
         specifier: ^0.3.8
-        version: 0.3.8(@cfworker/json-schema@4.1.1)(@hey-api/openapi-ts@0.99.0(@typescript/typescript6@6.0.2)(magicast@0.5.3))
+        version: 0.3.8(@cfworker/json-schema@4.1.1)(@hey-api/openapi-ts@0.99.0(magicast@0.5.3)(typescript@7.0.2))
       '@hookform/resolvers':
         specifier: ^5.4.2
-        version: 5.4.2(@sinclair/typebox@0.27.12)(@standard-schema/spec@1.1.0)(ajv@8.20.0)(react-hook-form@7.83.0(react@19.2.8))(valibot@1.4.2(@typescript/typescript6@6.0.2))(zod@4.4.3)
+        version: 5.4.2(@sinclair/typebox@0.27.12)(@standard-schema/spec@1.1.0)(ajv@8.20.0)(react-hook-form@7.83.0(react@19.2.8))(valibot@1.4.2(typescript@7.0.2))(zod@4.4.3)
       '@langchain/langgraph-sdk':
         specifier: ^1.9.28
         version: 1.9.28(@langchain/core@1.2.3(@opentelemetry/api@1.9.1)(@opentelemetry/sdk-trace-base@2.10.0(@opentelemetry/api@1.9.1))(openai@6.49.0(@aws-sdk/credential-provider-node@3.972.72)(@smithy/signature-v4@5.6.10)(ws@8.21.1)(zod@4.4.3))(ws@8.21.1))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -452,11 +452,8 @@ importers:
         specifier: ^1.4.0
         version: 1.4.0
       typescript:
-        specifier: npm:@typescript/typescript6@^6.0.2
-        version: '@typescript/typescript6@6.0.2'
-      typescript-7:
-        specifier: npm:typescript@^7.0.2
-        version: typescript@7.0.2
+        specifier: ^7.0.2
+        version: 7.0.2
       unist-util-visit:
         specifier: ^5.1.0
         version: 5.1.0
@@ -632,11 +629,8 @@ importers:
         specifier: ^4.3.3
         version: 4.3.3
       typescript:
-        specifier: npm:@typescript/typescript6@^6.0.2
-        version: '@typescript/typescript6@6.0.2'
-      typescript-7:
-        specifier: npm:typescript@^7.0.2
-        version: typescript@7.0.2
+        specifier: ^7.0.2
+        version: 7.0.2
 
   examples/with-a2a:
     dependencies:
@@ -702,11 +696,8 @@ importers:
         specifier: ^1.4.0
         version: 1.4.0
       typescript:
-        specifier: npm:@typescript/typescript6@^6.0.2
-        version: '@typescript/typescript6@6.0.2'
-      typescript-7:
-        specifier: npm:typescript@^7.0.2
-        version: typescript@7.0.2
+        specifier: ^7.0.2
+        version: 7.0.2
 
   examples/with-ag-ui:
     dependencies:
@@ -775,11 +766,8 @@ importers:
         specifier: ^1.4.0
         version: 1.4.0
       typescript:
-        specifier: npm:@typescript/typescript6@^6.0.2
-        version: '@typescript/typescript6@6.0.2'
-      typescript-7:
-        specifier: npm:typescript@^7.0.2
-        version: typescript@7.0.2
+        specifier: ^7.0.2
+        version: 7.0.2
 
   examples/with-ai-sdk-v7:
     dependencies:
@@ -854,11 +842,8 @@ importers:
         specifier: ^1.4.0
         version: 1.4.0
       typescript:
-        specifier: npm:@typescript/typescript6@^6.0.2
-        version: '@typescript/typescript6@6.0.2'
-      typescript-7:
-        specifier: npm:typescript@^7.0.2
-        version: typescript@7.0.2
+        specifier: ^7.0.2
+        version: 7.0.2
 
   examples/with-artifacts:
     dependencies:
@@ -933,11 +918,8 @@ importers:
         specifier: ^1.4.0
         version: 1.4.0
       typescript:
-        specifier: npm:@typescript/typescript6@^6.0.2
-        version: '@typescript/typescript6@6.0.2'
-      typescript-7:
-        specifier: npm:typescript@^7.0.2
-        version: typescript@7.0.2
+        specifier: ^7.0.2
+        version: 7.0.2
 
   examples/with-assistant-transport:
     dependencies:
@@ -1006,11 +988,8 @@ importers:
         specifier: ^1.4.0
         version: 1.4.0
       typescript:
-        specifier: npm:@typescript/typescript6@^6.0.2
-        version: '@typescript/typescript6@6.0.2'
-      typescript-7:
-        specifier: npm:typescript@^7.0.2
-        version: typescript@7.0.2
+        specifier: ^7.0.2
+        version: 7.0.2
 
   examples/with-browser-extension:
     dependencies:
@@ -1146,11 +1125,8 @@ importers:
         specifier: ^1.4.0
         version: 1.4.0
       typescript:
-        specifier: npm:@typescript/typescript6@^6.0.2
-        version: '@typescript/typescript6@6.0.2'
-      typescript-7:
-        specifier: npm:typescript@^7.0.2
-        version: typescript@7.0.2
+        specifier: ^7.0.2
+        version: 7.0.2
 
   examples/with-cloud:
     dependencies:
@@ -1222,11 +1198,8 @@ importers:
         specifier: ^1.4.0
         version: 1.4.0
       typescript:
-        specifier: npm:@typescript/typescript6@^6.0.2
-        version: '@typescript/typescript6@6.0.2'
-      typescript-7:
-        specifier: npm:typescript@^7.0.2
-        version: typescript@7.0.2
+        specifier: ^7.0.2
+        version: 7.0.2
 
   examples/with-cloud-standalone:
     dependencies:
@@ -1289,11 +1262,8 @@ importers:
         specifier: ^1.4.0
         version: 1.4.0
       typescript:
-        specifier: npm:@typescript/typescript6@^6.0.2
-        version: '@typescript/typescript6@6.0.2'
-      typescript-7:
-        specifier: npm:typescript@^7.0.2
-        version: typescript@7.0.2
+        specifier: ^7.0.2
+        version: 7.0.2
 
   examples/with-custom-thread-list:
     dependencies:
@@ -1371,11 +1341,8 @@ importers:
         specifier: ^1.4.0
         version: 1.4.0
       typescript:
-        specifier: npm:@typescript/typescript6@^6.0.2
-        version: '@typescript/typescript6@6.0.2'
-      typescript-7:
-        specifier: npm:typescript@^7.0.2
-        version: typescript@7.0.2
+        specifier: ^7.0.2
+        version: 7.0.2
 
   examples/with-elevenlabs-conversational:
     dependencies:
@@ -1459,11 +1426,8 @@ importers:
         specifier: ^1.4.0
         version: 1.4.0
       typescript:
-        specifier: npm:@typescript/typescript6@^6.0.2
-        version: '@typescript/typescript6@6.0.2'
-      typescript-7:
-        specifier: npm:typescript@^7.0.2
-        version: typescript@7.0.2
+        specifier: ^7.0.2
+        version: 7.0.2
 
   examples/with-elevenlabs-scribe:
     dependencies:
@@ -1547,11 +1511,8 @@ importers:
         specifier: ^1.4.0
         version: 1.4.0
       typescript:
-        specifier: npm:@typescript/typescript6@^6.0.2
-        version: '@typescript/typescript6@6.0.2'
-      typescript-7:
-        specifier: npm:typescript@^7.0.2
-        version: typescript@7.0.2
+        specifier: ^7.0.2
+        version: 7.0.2
 
   examples/with-eve:
     dependencies:
@@ -1620,11 +1581,8 @@ importers:
         specifier: ^1.4.0
         version: 1.4.0
       typescript:
-        specifier: npm:@typescript/typescript6@^6.0.2
-        version: '@typescript/typescript6@6.0.2'
-      typescript-7:
-        specifier: npm:typescript@^7.0.2
-        version: typescript@7.0.2
+        specifier: ^7.0.2
+        version: 7.0.2
 
   examples/with-expo:
     dependencies:
@@ -1802,11 +1760,8 @@ importers:
         specifier: ^1.4.0
         version: 1.4.0
       typescript:
-        specifier: npm:@typescript/typescript6@^6.0.2
-        version: '@typescript/typescript6@6.0.2'
-      typescript-7:
-        specifier: npm:typescript@^7.0.2
-        version: typescript@7.0.2
+        specifier: ^7.0.2
+        version: 7.0.2
 
   examples/with-ffmpeg:
     dependencies:
@@ -1887,11 +1842,8 @@ importers:
         specifier: ^1.4.0
         version: 1.4.0
       typescript:
-        specifier: npm:@typescript/typescript6@^6.0.2
-        version: '@typescript/typescript6@6.0.2'
-      typescript-7:
-        specifier: npm:typescript@^7.0.2
-        version: typescript@7.0.2
+        specifier: ^7.0.2
+        version: 7.0.2
 
   examples/with-generative-ui:
     dependencies:
@@ -1966,11 +1918,8 @@ importers:
         specifier: ^1.4.0
         version: 1.4.0
       typescript:
-        specifier: npm:@typescript/typescript6@^6.0.2
-        version: '@typescript/typescript6@6.0.2'
-      typescript-7:
-        specifier: npm:typescript@^7.0.2
-        version: typescript@7.0.2
+        specifier: ^7.0.2
+        version: 7.0.2
       vitest:
         specifier: ^4.1.10
         version: 4.1.10(@opentelemetry/api@1.9.1)(@types/node@26.1.1)(@vitest/coverage-v8@4.1.10)(@vitest/ui@4.1.10)(jsdom@29.1.1)(vite@8.1.5(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.1)(yaml@2.9.0))
@@ -2045,11 +1994,8 @@ importers:
         specifier: ^1.4.0
         version: 1.4.0
       typescript:
-        specifier: npm:@typescript/typescript6@^6.0.2
-        version: '@typescript/typescript6@6.0.2'
-      typescript-7:
-        specifier: npm:typescript@^7.0.2
-        version: typescript@7.0.2
+        specifier: ^7.0.2
+        version: 7.0.2
 
   examples/with-heat-graph:
     dependencies:
@@ -2091,11 +2037,8 @@ importers:
         specifier: ^4.3.3
         version: 4.3.3
       typescript:
-        specifier: npm:@typescript/typescript6@^6.0.2
-        version: '@typescript/typescript6@6.0.2'
-      typescript-7:
-        specifier: npm:typescript@^7.0.2
-        version: typescript@7.0.2
+        specifier: ^7.0.2
+        version: 7.0.2
 
   examples/with-image-generation:
     dependencies:
@@ -2161,11 +2104,8 @@ importers:
         specifier: ^1.4.0
         version: 1.4.0
       typescript:
-        specifier: npm:@typescript/typescript6@^6.0.2
-        version: '@typescript/typescript6@6.0.2'
-      typescript-7:
-        specifier: npm:typescript@^7.0.2
-        version: typescript@7.0.2
+        specifier: ^7.0.2
+        version: 7.0.2
 
   examples/with-interactables:
     dependencies:
@@ -2234,11 +2174,8 @@ importers:
         specifier: ^1.4.0
         version: 1.4.0
       typescript:
-        specifier: npm:@typescript/typescript6@^6.0.2
-        version: '@typescript/typescript6@6.0.2'
-      typescript-7:
-        specifier: npm:typescript@^7.0.2
-        version: typescript@7.0.2
+        specifier: ^7.0.2
+        version: 7.0.2
 
   examples/with-langchain:
     dependencies:
@@ -2310,11 +2247,8 @@ importers:
         specifier: ^1.4.0
         version: 1.4.0
       typescript:
-        specifier: npm:@typescript/typescript6@^6.0.2
-        version: '@typescript/typescript6@6.0.2'
-      typescript-7:
-        specifier: npm:typescript@^7.0.2
-        version: typescript@7.0.2
+        specifier: ^7.0.2
+        version: 7.0.2
 
   examples/with-langgraph:
     dependencies:
@@ -2386,11 +2320,8 @@ importers:
         specifier: ^1.4.0
         version: 1.4.0
       typescript:
-        specifier: npm:@typescript/typescript6@^6.0.2
-        version: '@typescript/typescript6@6.0.2'
-      typescript-7:
-        specifier: npm:typescript@^7.0.2
-        version: typescript@7.0.2
+        specifier: ^7.0.2
+        version: 7.0.2
 
   examples/with-livekit:
     dependencies:
@@ -2477,11 +2408,8 @@ importers:
         specifier: ^1.4.0
         version: 1.4.0
       typescript:
-        specifier: npm:@typescript/typescript6@^6.0.2
-        version: '@typescript/typescript6@6.0.2'
-      typescript-7:
-        specifier: npm:typescript@^7.0.2
-        version: typescript@7.0.2
+        specifier: ^7.0.2
+        version: 7.0.2
 
   examples/with-mcp:
     dependencies:
@@ -2595,11 +2523,8 @@ importers:
         specifier: ^1.4.0
         version: 1.4.0
       typescript:
-        specifier: npm:@typescript/typescript6@^6.0.2
-        version: '@typescript/typescript6@6.0.2'
-      typescript-7:
-        specifier: npm:typescript@^7.0.2
-        version: typescript@7.0.2
+        specifier: ^7.0.2
+        version: 7.0.2
 
   examples/with-opencode:
     dependencies:
@@ -2671,11 +2596,8 @@ importers:
         specifier: ^1.4.0
         version: 1.4.0
       typescript:
-        specifier: npm:@typescript/typescript6@^6.0.2
-        version: '@typescript/typescript6@6.0.2'
-      typescript-7:
-        specifier: npm:typescript@^7.0.2
-        version: typescript@7.0.2
+        specifier: ^7.0.2
+        version: 7.0.2
 
   examples/with-pi:
     dependencies:
@@ -2747,11 +2669,8 @@ importers:
         specifier: ^1.4.0
         version: 1.4.0
       typescript:
-        specifier: npm:@typescript/typescript6@^6.0.2
-        version: '@typescript/typescript6@6.0.2'
-      typescript-7:
-        specifier: npm:typescript@^7.0.2
-        version: typescript@7.0.2
+        specifier: ^7.0.2
+        version: 7.0.2
 
   examples/with-react-hook-form:
     dependencies:
@@ -2829,11 +2748,8 @@ importers:
         specifier: ^1.4.0
         version: 1.4.0
       typescript:
-        specifier: npm:@typescript/typescript6@^6.0.2
-        version: '@typescript/typescript6@6.0.2'
-      typescript-7:
-        specifier: npm:typescript@^7.0.2
-        version: typescript@7.0.2
+        specifier: ^7.0.2
+        version: 7.0.2
 
   examples/with-react-ink:
     dependencies:
@@ -2912,11 +2828,8 @@ importers:
         specifier: ^19.2.17
         version: 19.2.17
       typescript:
-        specifier: npm:@typescript/typescript6@^6.0.2
-        version: '@typescript/typescript6@6.0.2'
-      typescript-7:
-        specifier: npm:typescript@^7.0.2
-        version: typescript@7.0.2
+        specifier: ^7.0.2
+        version: 7.0.2
 
   examples/with-react-router:
     dependencies:
@@ -3088,11 +3001,8 @@ importers:
         specifier: ^1.4.0
         version: 1.4.0
       typescript:
-        specifier: npm:@typescript/typescript6@^6.0.2
-        version: '@typescript/typescript6@6.0.2'
-      typescript-7:
-        specifier: npm:typescript@^7.0.2
-        version: typescript@7.0.2
+        specifier: ^7.0.2
+        version: 7.0.2
 
   examples/with-store:
     dependencies:
@@ -3140,11 +3050,8 @@ importers:
         specifier: ^1.4.0
         version: 1.4.0
       typescript:
-        specifier: npm:@typescript/typescript6@^6.0.2
-        version: '@typescript/typescript6@6.0.2'
-      typescript-7:
-        specifier: npm:typescript@^7.0.2
-        version: typescript@7.0.2
+        specifier: ^7.0.2
+        version: 7.0.2
 
   examples/with-tanstack:
     dependencies:
@@ -3280,11 +3187,8 @@ importers:
         specifier: ^1.4.0
         version: 1.4.0
       typescript:
-        specifier: npm:@typescript/typescript6@^6.0.2
-        version: '@typescript/typescript6@6.0.2'
-      typescript-7:
-        specifier: npm:typescript@^7.0.2
-        version: typescript@7.0.2
+        specifier: ^7.0.2
+        version: 7.0.2
 
   examples/with-virtualized-thread:
     dependencies:
@@ -3350,11 +3254,8 @@ importers:
         specifier: ^1.4.0
         version: 1.4.0
       typescript:
-        specifier: npm:@typescript/typescript6@^6.0.2
-        version: '@typescript/typescript6@6.0.2'
-      typescript-7:
-        specifier: npm:typescript@^7.0.2
-        version: typescript@7.0.2
+        specifier: ^7.0.2
+        version: 7.0.2
 
   packages/agent-launcher:
     dependencies:
@@ -5050,11 +4951,8 @@ importers:
         specifier: ^4.3.3
         version: 4.3.3
       typescript:
-        specifier: npm:@typescript/typescript6@^6.0.2
-        version: '@typescript/typescript6@6.0.2'
-      typescript-7:
-        specifier: npm:typescript@^7.0.2
-        version: typescript@7.0.2
+        specifier: ^7.0.2
+        version: 7.0.2
 
   templates/cloud-clerk:
     dependencies:
@@ -5141,11 +5039,8 @@ importers:
         specifier: ^4.3.3
         version: 4.3.3
       typescript:
-        specifier: npm:@typescript/typescript6@^6.0.2
-        version: '@typescript/typescript6@6.0.2'
-      typescript-7:
-        specifier: npm:typescript@^7.0.2
-        version: typescript@7.0.2
+        specifier: ^7.0.2
+        version: 7.0.2
 
   templates/default:
     dependencies:
@@ -5226,11 +5121,8 @@ importers:
         specifier: ^4.3.3
         version: 4.3.3
       typescript:
-        specifier: npm:@typescript/typescript6@^6.0.2
-        version: '@typescript/typescript6@6.0.2'
-      typescript-7:
-        specifier: npm:typescript@^7.0.2
-        version: typescript@7.0.2
+        specifier: ^7.0.2
+        version: 7.0.2
 
   templates/eve:
     dependencies:
@@ -5305,11 +5197,8 @@ importers:
         specifier: ^1.4.0
         version: 1.4.0
       typescript:
-        specifier: npm:@typescript/typescript6@^6.0.2
-        version: '@typescript/typescript6@6.0.2'
-      typescript-7:
-        specifier: npm:typescript@^7.0.2
-        version: typescript@7.0.2
+        specifier: ^7.0.2
+        version: 7.0.2
 
   templates/langchain:
     dependencies:
@@ -5376,7 +5265,7 @@ importers:
         version: 1.2.3(@opentelemetry/api@1.9.1)(@opentelemetry/sdk-trace-base@2.10.0(@opentelemetry/api@1.9.1))(openai@6.49.0(@aws-sdk/credential-provider-node@3.972.72)(@smithy/signature-v4@5.6.10)(ws@8.21.1)(zod@4.4.3))(ws@8.21.1)
       '@langchain/langgraph-cli':
         specifier: ^1.4.3
-        version: 1.4.3(d04db738beef5cf70d19844a80a6b418)
+        version: 1.4.3(94b95f4182030aa6c89acfaa05f846f1)
       '@tailwindcss/postcss':
         specifier: ^4.3.3
         version: 4.3.3
@@ -5402,11 +5291,8 @@ importers:
         specifier: ^4.3.3
         version: 4.3.3
       typescript:
-        specifier: npm:@typescript/typescript6@^6.0.2
-        version: '@typescript/typescript6@6.0.2'
-      typescript-7:
-        specifier: npm:typescript@^7.0.2
-        version: typescript@7.0.2
+        specifier: ^7.0.2
+        version: 7.0.2
 
   templates/mcp:
     dependencies:
@@ -5490,11 +5376,8 @@ importers:
         specifier: ^4.3.3
         version: 4.3.3
       typescript:
-        specifier: npm:@typescript/typescript6@^6.0.2
-        version: '@typescript/typescript6@6.0.2'
-      typescript-7:
-        specifier: npm:typescript@^7.0.2
-        version: typescript@7.0.2
+        specifier: ^7.0.2
+        version: 7.0.2
 
   templates/minimal:
     dependencies:
@@ -5575,11 +5458,8 @@ importers:
         specifier: ^4.3.3
         version: 4.3.3
       typescript:
-        specifier: npm:@typescript/typescript6@^6.0.2
-        version: '@typescript/typescript6@6.0.2'
-      typescript-7:
-        specifier: npm:typescript@^7.0.2
-        version: typescript@7.0.2
+        specifier: ^7.0.2
+        version: 7.0.2
 
 packages:
 
@@ -19216,9 +19096,9 @@ snapshots:
 
   '@bcoe/v8-coverage@1.0.2': {}
 
-  '@blaxel/core@0.3.8(@cfworker/json-schema@4.1.1)(@hey-api/openapi-ts@0.99.0(@typescript/typescript6@6.0.2)(magicast@0.5.3))':
+  '@blaxel/core@0.3.8(@cfworker/json-schema@4.1.1)(@hey-api/openapi-ts@0.99.0(magicast@0.5.3)(typescript@7.0.2))':
     dependencies:
-      '@hey-api/client-fetch': 0.10.2(@hey-api/openapi-ts@0.99.0(@typescript/typescript6@6.0.2)(magicast@0.5.3))
+      '@hey-api/client-fetch': 0.10.2(@hey-api/openapi-ts@0.99.0(magicast@0.5.3)(typescript@7.0.2))
       '@modelcontextprotocol/sdk': 1.29.0(@cfworker/json-schema@4.1.1)(zod@3.25.76)
       archiver: 7.0.1
       axios: 1.18.1
@@ -20400,9 +20280,9 @@ snapshots:
       protobufjs: 7.6.5
       yargs: 17.7.3
 
-  '@hey-api/client-fetch@0.10.2(@hey-api/openapi-ts@0.99.0(@typescript/typescript6@6.0.2)(magicast@0.5.3))':
+  '@hey-api/client-fetch@0.10.2(@hey-api/openapi-ts@0.99.0(magicast@0.5.3)(typescript@7.0.2))':
     dependencies:
-      '@hey-api/openapi-ts': 0.99.0(@typescript/typescript6@6.0.2)(magicast@0.5.3)
+      '@hey-api/openapi-ts': 0.99.0(magicast@0.5.3)(typescript@7.0.2)
 
   '@hey-api/codegen-core@0.9.1(magicast@0.5.3)':
     dependencies:
@@ -20419,7 +20299,7 @@ snapshots:
       '@types/json-schema': 7.0.15
       js-yaml: 4.2.0
 
-  '@hey-api/openapi-ts@0.99.0(@typescript/typescript6@6.0.2)(magicast@0.5.3)':
+  '@hey-api/openapi-ts@0.99.0(magicast@0.5.3)(typescript@7.0.2)':
     dependencies:
       '@hey-api/codegen-core': 0.9.1(magicast@0.5.3)
       '@hey-api/json-schema-ref-parser': 1.4.4
@@ -20431,7 +20311,7 @@ snapshots:
       color-support: 1.1.3
       commander: 15.0.0
       get-tsconfig: 4.14.0
-      typescript: '@typescript/typescript6@6.0.2'
+      typescript: 7.0.2
     transitivePeerDependencies:
       - magicast
 
@@ -20470,17 +20350,6 @@ snapshots:
   '@hono/zod-validator@0.7.6(hono@4.12.32)(zod@4.4.3)':
     dependencies:
       hono: 4.12.32
-      zod: 4.4.3
-
-  '@hookform/resolvers@5.4.2(@sinclair/typebox@0.27.12)(@standard-schema/spec@1.1.0)(ajv@8.20.0)(react-hook-form@7.83.0(react@19.2.8))(valibot@1.4.2(@typescript/typescript6@6.0.2))(zod@4.4.3)':
-    dependencies:
-      '@standard-schema/utils': 0.3.0
-      react-hook-form: 7.83.0(react@19.2.8)
-    optionalDependencies:
-      '@sinclair/typebox': 0.27.12
-      '@standard-schema/spec': 1.1.0
-      ajv: 8.20.0
-      valibot: 1.4.2(@typescript/typescript6@6.0.2)
       zod: 4.4.3
 
   '@hookform/resolvers@5.4.2(@sinclair/typebox@0.27.12)(@standard-schema/spec@1.1.0)(ajv@8.20.0)(react-hook-form@7.83.0(react@19.2.8))(valibot@1.4.2(typescript@7.0.2))(zod@4.4.3)':
@@ -20742,7 +20611,7 @@ snapshots:
       - openai
       - ws
 
-  '@langchain/langgraph-api@1.4.3(d04db738beef5cf70d19844a80a6b418)':
+  '@langchain/langgraph-api@1.4.3(94b95f4182030aa6c89acfaa05f846f1)':
     dependencies:
       '@babel/code-frame': 7.29.7
       '@hono/node-server': 1.19.15(hono@4.12.32)
@@ -20754,7 +20623,7 @@ snapshots:
       '@langchain/langgraph-ui': 1.4.3
       '@langchain/protocol': 0.0.18
       '@types/json-schema': 7.0.15
-      '@typescript/vfs': 1.6.4(@typescript/typescript6@6.0.2)
+      '@typescript/vfs': 1.6.4(typescript@7.0.2)
       dedent: 1.7.2
       dotenv: 16.6.1
       exit-hook: 4.0.0
@@ -20765,7 +20634,7 @@ snapshots:
       stacktrace-parser: 0.1.11
       superjson: 2.2.6
       tsx: 4.23.1
-      typescript: '@typescript/typescript6@6.0.2'
+      typescript: 7.0.2
       winston: 3.19.0
       winston-console-format: 1.0.8
       zod: 4.4.3
@@ -20786,11 +20655,11 @@ snapshots:
     dependencies:
       '@langchain/core': 1.2.3(@opentelemetry/api@1.9.1)(@opentelemetry/sdk-trace-base@2.10.0(@opentelemetry/api@1.9.1))(openai@6.49.0(@aws-sdk/credential-provider-node@3.972.72)(@smithy/signature-v4@5.6.10)(ws@8.21.1)(zod@4.4.3))(ws@8.21.1)
 
-  '@langchain/langgraph-cli@1.4.3(d04db738beef5cf70d19844a80a6b418)':
+  '@langchain/langgraph-cli@1.4.3(94b95f4182030aa6c89acfaa05f846f1)':
     dependencies:
       '@babel/code-frame': 7.29.7
       '@commander-js/extra-typings': 13.1.0(commander@13.1.0)
-      '@langchain/langgraph-api': 1.4.3(d04db738beef5cf70d19844a80a6b418)
+      '@langchain/langgraph-api': 1.4.3(94b95f4182030aa6c89acfaa05f846f1)
       chokidar: 4.0.3
       commander: 13.1.0
       create-langgraph: 1.1.5
@@ -24485,10 +24354,10 @@ snapshots:
     dependencies:
       '@typescript/old': typescript@6.0.3
 
-  '@typescript/vfs@1.6.4(@typescript/typescript6@6.0.2)':
+  '@typescript/vfs@1.6.4(typescript@7.0.2)':
     dependencies:
       debug: 4.4.3
-      typescript: '@typescript/typescript6@6.0.2'
+      typescript: 7.0.2
     transitivePeerDependencies:
       - supports-color
 
