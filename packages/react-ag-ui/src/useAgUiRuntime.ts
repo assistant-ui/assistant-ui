@@ -74,7 +74,7 @@ export function useAgUiRuntime(
     autoCancelPendingToolCalls: options.autoCancelPendingToolCalls,
     ...(options.onError && { onError: options.onError }),
     ...(options.onCancel && { onCancel: options.onCancel }),
-    ...(historyAdapter && { history: historyAdapter }),
+    history: historyAdapter,
   });
 
   const [toolStatuses, setToolStatuses] = useState<
@@ -197,10 +197,11 @@ export function useAgUiRuntime(
     };
   }, [core, runtime]);
 
+  const hasHistoryAdapter = historyAdapter !== undefined;
   const historyAdapterKey = historyAdapter?.key;
   useEffect(() => {
     core.__internal_load();
-  }, [core, historyAdapterKey]);
+  }, [core, hasHistoryAdapter, historyAdapterKey]);
 
   return runtime;
 }

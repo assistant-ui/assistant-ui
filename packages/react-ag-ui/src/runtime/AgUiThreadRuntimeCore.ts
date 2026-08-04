@@ -70,14 +70,23 @@ type CoreOptions = {
   autoCancelPendingToolCalls?: boolean | undefined;
   onError?: (error: Error) => void;
   onCancel?: () => void;
-  history?: ThreadHistoryAdapter;
+  history?: ThreadHistoryAdapter | undefined;
   notifyUpdate: () => void;
 };
 
 const DEFAULT_HISTORY_ADAPTER_KEY = Symbol("history-adapter");
+const NO_HISTORY_ADAPTER_KEY = Symbol("no-history-adapter");
 type HistoryAdapterKey =
   | NonNullable<ThreadHistoryAdapter["key"]>
-  | typeof DEFAULT_HISTORY_ADAPTER_KEY;
+  | typeof DEFAULT_HISTORY_ADAPTER_KEY
+  | typeof NO_HISTORY_ADAPTER_KEY;
+
+const getHistoryAdapterKey = (
+  history: ThreadHistoryAdapter | undefined,
+): HistoryAdapterKey =>
+  history
+    ? (history.key ?? DEFAULT_HISTORY_ADAPTER_KEY)
+    : NO_HISTORY_ADAPTER_KEY;
 
 const FALLBACK_USER_STATUS = { type: "complete", reason: "unknown" } as const;
 
@@ -133,6 +142,14 @@ export class AgUiThreadRuntimeCore {
     this.autoCancelPendingToolCalls = options.autoCancelPendingToolCalls;
     this.onError = options.onError;
     this.onCancel = options.onCancel;
+    if (
+      !Object.is(
+        getHistoryAdapterKey(this.history),
+        getHistoryAdapterKey(options.history),
+      )
+    ) {
+      this.historyScopeGeneration += 1;
+    }
     this.history = options.history;
     this.installResumeShim();
   }
@@ -253,7 +270,7 @@ export class AgUiThreadRuntimeCore {
 
   __internal_load(): Promise<void> {
     const history = this.history;
-    const key = history?.key ?? DEFAULT_HISTORY_ADAPTER_KEY;
+    const key = getHistoryAdapterKey(history);
     const activeLoadRequest = this._loadRequest;
     if (activeLoadRequest && Object.is(activeLoadRequest.key, key)) {
       return activeLoadRequest.promise;
@@ -263,7 +280,6 @@ export class AgUiThreadRuntimeCore {
       this.lastHistoryAdapterKey !== undefined &&
       !Object.is(this.lastHistoryAdapterKey, key);
     if (replacingHistory) {
-      this.historyScopeGeneration += 1;
       void this.cancel();
       this.clearRepository();
       this.stateSnapshot = undefined;
@@ -945,6 +961,9 @@ export class AgUiThreadRuntimeCore {
     resume?: AgUiResumeEntry[],
     resumeStream?: ResumeStream,
   ): Promise<void> {
+    const historyScopeGeneration = this.historyScopeGeneration;
+    const isCurrentHistoryScope = () =>
+      historyScopeGeneration === this.historyScopeGeneration;
     const normalizedRunConfig = runConfig ?? {};
     this.lastRunConfig = normalizedRunConfig;
     const parent = parentId === null ? undefined : this.tryGetMessage(parentId);
@@ -987,6 +1006,7 @@ export class AgUiThreadRuntimeCore {
     if (shouldEagerlyInsertAssistant) ensureAssistant();
 
     const applyUpdate = (update: ChatModelRunResult) => {
+      if (!isCurrentHistoryScope()) return;
       const hasContent =
         Array.isArray(update.content) && update.content.length > 0;
       const resolved = this.updateAssistantMessage(
@@ -1003,6 +1023,7 @@ export class AgUiThreadRuntimeCore {
       logger: this.logger,
       emit: applyUpdate,
       onServerMessageId: (serverId) => {
+        if (!isCurrentHistoryScope()) return;
         const placeholder = ensureAssistant(true);
         if (placeholder === serverId) return;
         if (this.reassignAssistantId(placeholder, serverId)) {
@@ -1012,8 +1033,10 @@ export class AgUiThreadRuntimeCore {
         }
       },
     });
-    const dispatch = (event: AgUiEvent) =>
+    const dispatch = (event: AgUiEvent) => {
+      if (!isCurrentHistoryScope()) return;
       this.handleEvent(aggregator, event, assistantMessageId);
+    };
 
     const abortController = new AbortController();
     const abortSignal = abortController.signal;
@@ -1061,6 +1084,7 @@ export class AgUiThreadRuntimeCore {
           runId,
           logger: this.logger,
           onRunFailed: (error) => {
+            if (!isCurrentHistoryScope()) return;
             this.pendingError = error;
             this.onError?.(error);
           },
@@ -1077,7 +1101,7 @@ export class AgUiThreadRuntimeCore {
         });
       }
     } catch (error) {
-      if (!abortSignal.aborted) {
+      if (!abortSignal.aborted && isCurrentHistoryScope()) {
         const err = error instanceof Error ? error : new Error(String(error));
         dispatch({ type: "RUN_ERROR", message: err.message });
         this.onError?.(err);
@@ -1086,6 +1110,8 @@ export class AgUiThreadRuntimeCore {
     } finally {
       this.finishRun(abortController);
     }
+
+    if (!isCurrentHistoryScope()) return;
 
     if (this.pendingError) {
       const err = this.pendingError;
@@ -1255,9 +1281,8 @@ export class AgUiThreadRuntimeCore {
   }
 
   private finishRun(controller: AbortController | null) {
-    if (this.abortController === controller) {
-      this.abortController = null;
-    }
+    if (this.abortController !== controller) return;
+    this.abortController = null;
     this.setRunning(false);
   }
 

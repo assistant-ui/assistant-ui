@@ -2033,6 +2033,163 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(secondHistory.append).toHaveBeenCalledTimes(1);
   });
 
+  it("isolates an active run when keyed history changes", async () => {
+    let releaseFirstRun!: () => void;
+    const firstRun = new Promise<void>((resolve) => {
+      releaseFirstRun = resolve;
+    });
+    let releaseResume!: () => void;
+    const resumedRun = new Promise<void>((resolve) => {
+      releaseResume = resolve;
+    });
+    let markResumeStarted!: () => void;
+    const resumeStarted = new Promise<void>((resolve) => {
+      markResumeStarted = resolve;
+    });
+    const agent = {
+      runAgent: vi.fn(async (_input, subscriber) => {
+        subscriber.onTextMessageStartEvent?.({
+          event: {
+            type: "TEXT_MESSAGE_START",
+            messageId: "assistant-a",
+            role: "assistant",
+          },
+        });
+        subscriber.onTextMessageContentEvent?.({
+          event: {
+            type: "TEXT_MESSAGE_CONTENT",
+            messageId: "assistant-a",
+            delta: "workspace a",
+          },
+        });
+        await firstRun;
+        subscriber.onTextMessageContentEvent?.({
+          event: {
+            type: "TEXT_MESSAGE_CONTENT",
+            messageId: "assistant-a",
+            delta: " late",
+          },
+        });
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+    const firstHistory: ThreadHistoryAdapter = {
+      key: "workspace-a",
+      load: vi.fn().mockResolvedValue({ messages: [] }),
+      append: vi.fn().mockResolvedValue(undefined),
+    };
+    const secondHistory: ThreadHistoryAdapter = {
+      key: "workspace-b",
+      load: vi.fn().mockResolvedValue({
+        headId: "message-b",
+        messages: [
+          {
+            parentId: null,
+            message: {
+              id: "message-b",
+              role: "user",
+              content: [{ type: "text", text: "workspace b" }],
+              createdAt: new Date(),
+              metadata: { custom: {} },
+            },
+          },
+        ],
+        unstable_resume: true,
+      }),
+      resume: vi.fn(async function* () {
+        markResumeStarted();
+        await resumedRun;
+        yield {
+          content: [{ type: "text", text: "resumed workspace b" }],
+          status: { type: "complete", reason: "unknown" },
+        };
+      }),
+      append: vi.fn().mockResolvedValue(undefined),
+    };
+    const core = createCore(agent, { history: firstHistory });
+    await core.__internal_load();
+
+    const oldRun = core.append(createAppendMessage());
+    await vi.waitFor(() => expect(agent.runAgent).toHaveBeenCalledOnce());
+
+    core.updateOptions({
+      agent,
+      logger: noopLogger,
+      showThinking: true,
+      history: secondHistory,
+    });
+    const replacementLoad = core.__internal_load();
+    await resumeStarted;
+
+    expect(core.isRunning()).toBe(true);
+    expect(secondHistory.append).not.toHaveBeenCalled();
+
+    releaseFirstRun();
+    await oldRun;
+
+    expect(core.isRunning()).toBe(true);
+    expect(secondHistory.append).not.toHaveBeenCalled();
+    expect(
+      core.getMessages().some((message) => message.id === "assistant-a"),
+    ).toBe(false);
+
+    releaseResume();
+    await replacementLoad;
+
+    expect(core.isRunning()).toBe(false);
+    expect(secondHistory.append).toHaveBeenCalledTimes(1);
+    expect(core.getMessages().map((message) => message.id)).not.toContain(
+      "assistant-a",
+    );
+  });
+
+  it("ignores append failures from a previous history scope", async () => {
+    let rejectFirstAppend!: (error: Error) => void;
+    const firstAppend = new Promise<void>((_resolve, reject) => {
+      rejectFirstAppend = reject;
+    });
+    const loggerError = vi.fn();
+    const agent = { runAgent: vi.fn() } as unknown as HttpAgent;
+    const firstHistory: ThreadHistoryAdapter = {
+      key: "workspace-a",
+      load: vi.fn().mockResolvedValue({ messages: [] }),
+      append: vi.fn(() => firstAppend),
+    };
+    const secondHistory: ThreadHistoryAdapter = {
+      key: "workspace-b",
+      load: vi.fn(),
+      append: vi.fn().mockResolvedValue(undefined),
+    };
+    const core = createCore(agent, {
+      history: firstHistory,
+      logger: makeLogger({ error: loggerError }),
+    });
+    await core.__internal_load();
+    await core.append(createAppendMessage({ startRun: false }));
+    const sharedMessage = core.getMessages()[0]!;
+    vi.mocked(secondHistory.load).mockResolvedValue({
+      headId: sharedMessage.id,
+      messages: [{ parentId: null, message: sharedMessage }],
+    });
+
+    core.updateOptions({
+      agent,
+      logger: makeLogger({ error: loggerError }),
+      showThinking: true,
+      history: secondHistory,
+    });
+    await core.__internal_load();
+
+    rejectFirstAppend(new Error("workspace a unavailable"));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const recordedHistoryIds = (
+      core as unknown as { recordedHistoryIds: Set<string> }
+    ).recordedHistoryIds;
+    expect(recordedHistoryIds.has(sharedMessage.id)).toBe(true);
+    expect(loggerError).not.toHaveBeenCalled();
+  });
+
   it("handles missing history adapter gracefully", async () => {
     const agent = { runAgent: vi.fn() } as unknown as HttpAgent;
     const core = createCore(agent);
