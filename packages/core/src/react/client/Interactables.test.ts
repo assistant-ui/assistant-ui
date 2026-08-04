@@ -361,6 +361,37 @@ describe("Interactables persistence save", () => {
     expect(secondSave).not.toHaveBeenCalled();
   });
 
+  it("cancels an empty retry timer when replacing the adapter", async () => {
+    let resolveFirstSave!: () => void;
+    const firstSave = vi
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise<void>((resolve) => {
+            resolveFirstSave = resolve;
+          }),
+      )
+      .mockResolvedValue(undefined);
+    const secondSave = vi.fn();
+    root = mount({ persistence: { save: firstSave } });
+    await flushMicrotasks();
+    root.getValue().register(reg("n1"));
+
+    root.getValue().setState("n1", () => ({ v: 1 }));
+    await vi.advanceTimersByTimeAsync(500);
+    root.getValue().setState("n1", () => ({ v: 2 }));
+    await vi.advanceTimersByTimeAsync(500);
+
+    resolveFirstSave();
+    await flushMicrotasks();
+    expect(firstSave).toHaveBeenCalledTimes(2);
+
+    root.getValue().setPersistenceAdapter({ save: secondSave });
+    await vi.advanceTimersByTimeAsync(500);
+
+    expect(secondSave).not.toHaveBeenCalled();
+  });
+
   it("flushes queued changes through the declarative adapter on unmount", async () => {
     const save = vi.fn();
     root = mount({ persistence: { save } });

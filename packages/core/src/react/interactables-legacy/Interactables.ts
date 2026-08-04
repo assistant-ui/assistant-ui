@@ -191,11 +191,11 @@ const useInteractables = (): ClientOutput<"interactables"> => {
   }, [runPersistence]);
 
   const flushIfPending = useCallback(() => {
-    if (adapterRef.current && dirtyIdsRef.current.size > 0) {
-      if (debounceTimerRef.current !== undefined) {
-        clearTimeout(debounceTimerRef.current);
-      }
+    if (debounceTimerRef.current !== undefined) {
+      clearTimeout(debounceTimerRef.current);
       debounceTimerRef.current = undefined;
+    }
+    if (adapterRef.current && dirtyIdsRef.current.size > 0) {
       runPersistence();
     }
   }, [runPersistence]);
