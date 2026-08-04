@@ -38,7 +38,7 @@ const HAS_DIRECTIVE = { content: /["']use generative["']/ };
 export interface WithAuiOptions {
   /**
    * Globs scanned for the `"use generative"` directive (default: all TS/TSX).
-   * Narrow it (e.g. `["*.generative.tsx"]`) to limit what the scan considers.
+   * Narrow it (e.g. `["*.generative.tsx"]`) to limit what passes through the loader.
    */
   rules?: string[];
 }
@@ -65,26 +65,17 @@ export function withAui<T extends NextConfigLike>(
   options: WithAuiOptions = {},
 ): T {
   const globs = options.rules ?? ["*.ts", "*.tsx"];
-  // Merge the `"use generative"` loader into the user's rules: if a glob already
-  // has a `{ loaders }` rule, append ours rather than clobbering it (see DESIGN.md).
+  // Turbopack runs every rule matching a glob in order, so the `"use generative"`
+  // loader rides as its own entry after the user's: theirs keeps its loaders and
+  // its own condition, ours keeps a condition that would disable theirs.
   const rules: Record<string, unknown> = { ...nextConfig.turbopack?.rules };
   for (const glob of globs) {
     const existing = rules[glob];
-    const existingLoaders =
-      existing &&
-      typeof existing === "object" &&
-      Array.isArray((existing as { loaders?: unknown }).loaders)
-        ? (existing as { loaders: unknown[] }).loaders
-        : [];
-    const existingCondition = (existing as { condition?: unknown } | undefined)
-      ?.condition;
-    rules[glob] = {
-      ...(existing as object),
-      condition: existingCondition
-        ? { all: [existingCondition, HAS_DIRECTIVE] }
-        : HAS_DIRECTIVE,
-      loaders: [...existingLoaders, LOADER_USE],
-    };
+    const ours = { condition: HAS_DIRECTIVE, loaders: [LOADER_USE] };
+    rules[glob] =
+      existing === undefined
+        ? ours
+        : [...(Array.isArray(existing) ? existing : [existing]), ours];
   }
 
   const userWebpack = nextConfig.webpack;
