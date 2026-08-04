@@ -8,7 +8,7 @@ import {
 
 const isDev = process.env.NODE_ENV === "development";
 
-const apiCatalogDiscoveryPaths = ["/", "/docs/:path*", "/llms.txt", "/mcp"];
+const apiCatalogDiscoveryPaths = ["/(.*)"];
 
 const deployEnv = process.env.VERCEL_ENV ?? process.env.NODE_ENV;
 const faviconVariant =
