@@ -38,7 +38,7 @@ const HAS_DIRECTIVE = { content: /["']use generative["']/ };
 export interface WithAuiOptions {
   /**
    * Globs scanned for the `"use generative"` directive (default: all TS/TSX).
-   * Narrow it (e.g. `["*.generative.tsx"]`) to limit what passes through the loader.
+   * Narrow it (e.g. `["*.generative.tsx"]`) to limit what the scan considers.
    */
   rules?: string[];
 }
