@@ -86,6 +86,22 @@ describe("base sidebar RTL", () => {
     expect(physicalEdgeUtilities(rail)).toEqual([]);
   });
 
+  it("flips the rail transform and resize cursors under rtl", () => {
+    setViewportWidth(1024);
+    const { container } = renderSidebar("left");
+
+    const rail = container.querySelector('[data-slot="sidebar-rail"]')!;
+    expect(rail.className).toContain("-translate-x-1/2");
+    expect(rail.className).toContain("rtl:translate-x-1/2");
+    expect(rail.className).toContain("rtl:in-data-[side=left]:cursor-e-resize");
+    expect(rail.className).toContain(
+      "rtl:in-data-[side=right]:cursor-w-resize",
+    );
+    // the ported regression shaped itself as `ltr:-translate-x-1/2
+    // rtl:-translate-x-1/2`, a pair that never flips
+    expect([...rail.classList].filter((t) => t.startsWith("ltr:"))).toEqual([]);
+  });
+
   it.each(["left", "right"] as const)(
     "keeps the mobile sheet on the same logical edge as the desktop container for side=%s",
     async (side) => {
