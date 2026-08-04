@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import AsyncGenerator
+from typing import AsyncGenerator, Optional
 from assistant_stream.assistant_stream_chunk import AssistantStreamChunk
 
 
@@ -14,6 +14,13 @@ class StreamEncoder(ABC):
         Returns the MIME type of the stream.
         """
         pass
+
+    def get_keepalive_token(self) -> Optional[str]:
+        """
+        Returns the chunk emitted as a keepalive while the stream is idle,
+        or None if the format has no benign keepalive token.
+        """
+        return None
 
     @abstractmethod
     async def encode_stream(

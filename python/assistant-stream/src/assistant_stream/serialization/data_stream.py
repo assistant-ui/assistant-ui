@@ -6,6 +6,10 @@ from typing import AsyncGenerator, Any
 from assistant_stream.serialization.assistant_stream_response import (
     AssistantStreamResponse,
 )
+from assistant_stream.serialization.heartbeat import (
+    DATA_STREAM_KEEPALIVE_LINE,
+    HeartbeatOption,
+)
 from assistant_stream.serialization.stream_encoder import StreamEncoder
 from assistant_stream.state_proxy import StateProxy
 
@@ -85,6 +89,9 @@ class DataStreamEncoder(StreamEncoder):
     def get_media_type(self) -> str:
         return "text/plain"
 
+    def get_keepalive_token(self) -> str:
+        return DATA_STREAM_KEEPALIVE_LINE
+
     async def encode_stream(
         self, stream: AsyncGenerator[AssistantStreamChunk, None]
     ) -> AsyncGenerator[str, None]:
@@ -99,5 +106,6 @@ class DataStreamResponse(AssistantStreamResponse):
     def __init__(
         self,
         stream: AsyncGenerator[AssistantStreamChunk, None],
+        heartbeat: HeartbeatOption = False,
     ):
-        super().__init__(stream, DataStreamEncoder())
+        super().__init__(stream, DataStreamEncoder(), heartbeat=heartbeat)

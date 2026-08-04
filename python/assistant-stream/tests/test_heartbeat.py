@@ -11,11 +11,15 @@ from assistant_stream.serialization.assistant_transport import (
     AssistantTransportEncoder,
     AssistantTransportResponse,
 )
-from assistant_stream.serialization.data_stream import DataStreamEncoder
+from assistant_stream.serialization.data_stream import (
+    DataStreamEncoder,
+    DataStreamResponse,
+)
 from assistant_stream.serialization.heartbeat import (
+    DATA_STREAM_KEEPALIVE_LINE,
     DEFAULT_HEARTBEAT_INTERVAL,
     SSE_HEARTBEAT_LINE,
-    add_sse_heartbeat,
+    add_keepalive,
     resolve_heartbeat_interval,
 )
 
@@ -87,7 +91,7 @@ async def test_subclass_forwards_heartbeat_kwarg():
 
 
 @pytest.mark.anyio
-async def test_non_sse_response_unaffected():
+async def test_data_stream_emits_blank_line_keepalives_when_idle():
     async def stream():
         yield TextDeltaChunk(text_delta="hello")
         await asyncio.sleep(0.18)
@@ -96,7 +100,38 @@ async def test_non_sse_response_unaffected():
     response = AssistantStreamResponse(stream(), DataStreamEncoder(), heartbeat=0.05)
     lines = [line async for line in response.body_iterator]
 
-    assert SSE_HEARTBEAT_LINE not in lines
+    keepalives = [line for line in lines if line == DATA_STREAM_KEEPALIVE_LINE]
+    assert len(keepalives) >= 2
+    data_lines = [line for line in lines if line != DATA_STREAM_KEEPALIVE_LINE]
+    assert data_lines == ['0:"hello"\n', '0:"world"\n']
+    assert lines.index('0:"hello"\n') < lines.index(keepalives[0])
+    assert lines.index(keepalives[0]) < lines.index('0:"world"\n')
+
+
+@pytest.mark.anyio
+async def test_data_stream_response_defaults_to_no_keepalives():
+    async def stream():
+        yield TextDeltaChunk(text_delta="hello")
+        await asyncio.sleep(0.15)
+        yield TextDeltaChunk(text_delta="world")
+
+    response = DataStreamResponse(stream())
+    lines = [line async for line in response.body_iterator]
+
+    assert lines == ['0:"hello"\n', '0:"world"\n']
+
+
+@pytest.mark.anyio
+async def test_data_stream_response_heartbeat_opt_in():
+    async def stream():
+        yield TextDeltaChunk(text_delta="hello")
+        await asyncio.sleep(0.18)
+        yield TextDeltaChunk(text_delta="world")
+
+    response = DataStreamResponse(stream(), heartbeat=0.05)
+    lines = [line async for line in response.body_iterator]
+
+    assert DATA_STREAM_KEEPALIVE_LINE in lines
 
 
 @pytest.mark.anyio
@@ -115,7 +150,7 @@ async def test_real_chunk_resets_heartbeat_timer():
 
 
 @pytest.mark.anyio
-async def test_add_sse_heartbeat_cancels_pending_read_on_close():
+async def test_add_keepalive_cancels_pending_read_on_close():
     cancelled = asyncio.Event()
 
     async def stream():
@@ -126,7 +161,7 @@ async def test_add_sse_heartbeat_cancels_pending_read_on_close():
             cancelled.set()
             raise
 
-    gen = add_sse_heartbeat(stream(), 0.05)
+    gen = add_keepalive(stream(), 0.05, SSE_HEARTBEAT_LINE)
     assert await gen.__anext__() == "data: 1\n\n"
     assert await gen.__anext__() == SSE_HEARTBEAT_LINE
     await gen.aclose()
@@ -134,7 +169,7 @@ async def test_add_sse_heartbeat_cancels_pending_read_on_close():
 
 
 @pytest.mark.anyio
-async def test_add_sse_heartbeat_closes_upstream_when_no_read_pending():
+async def test_add_keepalive_closes_upstream_when_no_read_pending():
     closed = asyncio.Event()
 
     async def stream():
@@ -144,7 +179,7 @@ async def test_add_sse_heartbeat_closes_upstream_when_no_read_pending():
         finally:
             closed.set()
 
-    gen = add_sse_heartbeat(stream(), 10)
+    gen = add_keepalive(stream(), 10, SSE_HEARTBEAT_LINE)
     assert await gen.__anext__() == "data: 1\n\n"
     await gen.aclose()
     assert closed.is_set()
