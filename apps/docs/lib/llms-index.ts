@@ -54,7 +54,6 @@ export function buildLLMSIndex(
   lines.push(
     `- [Agent instructions](${BASE_URL}${AGENT_DISCOVERY_ROUTES.agents})`,
     `- [Site skill](${BASE_URL}${AGENT_DISCOVERY_ROUTES.skill})`,
-    `- [Agent manifest](${BASE_URL}${AGENT_DISCOVERY_ROUTES.manifest})`,
     `- [API catalog](${BASE_URL}${AGENT_DISCOVERY_ROUTES.apiCatalog})`,
     `- [Agent Skills index](${BASE_URL}${AGENT_DISCOVERY_ROUTES.skillsIndex})`,
     `- [Markdown sitemap](${BASE_URL}${AGENT_DISCOVERY_ROUTES.sitemap})`,

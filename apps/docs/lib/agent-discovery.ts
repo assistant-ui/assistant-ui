@@ -1,9 +1,11 @@
 import { createHash } from "node:crypto";
 import { BASE_URL } from "./constants";
-import { AGENT_DISCOVERY_ROUTES } from "./agent-discovery-routes";
+import {
+  AGENT_DISCOVERY_ROUTES,
+  API_CATALOG_PROFILE,
+} from "./agent-discovery-routes";
 
-const CACHE_CONTROL = "public, max-age=0, s-maxage=3600";
-const API_CATALOG_PROFILE = "https://www.rfc-editor.org/info/rfc9727";
+const CACHE_CONTROL = "no-cache, must-revalidate";
 const AGENT_SKILLS_SCHEMA =
   "https://schemas.agentskills.io/discovery/0.2.0/schema.json";
 
@@ -42,7 +44,6 @@ Use this skill when implementing, configuring, migrating, or troubleshooting ass
 
 - Agent instructions: ${absoluteUrl(AGENT_DISCOVERY_ROUTES.agents)}
 - Site skill: ${absoluteUrl(AGENT_DISCOVERY_ROUTES.skill)}
-- Agent manifest: ${absoluteUrl(AGENT_DISCOVERY_ROUTES.manifest)}
 - API catalog: ${absoluteUrl(AGENT_DISCOVERY_ROUTES.apiCatalog)}
 - Agent Skills index: ${absoluteUrl(AGENT_DISCOVERY_ROUTES.skillsIndex)}
 - Markdown sitemap: ${absoluteUrl(AGENT_DISCOVERY_ROUTES.sitemap)}
@@ -77,21 +78,12 @@ Use these instructions when reading assistant-ui documentation or implementing a
 
 - Agent instructions: ${absoluteUrl(AGENT_DISCOVERY_ROUTES.agents)}
 - Site skill: ${absoluteUrl(AGENT_DISCOVERY_ROUTES.skill)}
-- Agent manifest: ${absoluteUrl(AGENT_DISCOVERY_ROUTES.manifest)}
 - API catalog: ${absoluteUrl(AGENT_DISCOVERY_ROUTES.apiCatalog)}
 - Agent Skills index: ${absoluteUrl(AGENT_DISCOVERY_ROUTES.skillsIndex)}
 - Markdown sitemap: ${absoluteUrl(AGENT_DISCOVERY_ROUTES.sitemap)}
 - LLM index: ${absoluteUrl("/llms.txt")}
 - MCP: ${absoluteUrl("/mcp")}
 `;
-
-export const DISCOVERY_LINK_HEADER = [
-  `<${absoluteUrl(AGENT_DISCOVERY_ROUTES.apiCatalog)}>; rel="api-catalog"; type="application/linkset+json"; profile="${API_CATALOG_PROFILE}"`,
-  `<${absoluteUrl(AGENT_DISCOVERY_ROUTES.manifest)}>; rel="service-meta"; type="application/json"`,
-  `<${absoluteUrl(AGENT_DISCOVERY_ROUTES.skillsIndex)}>; rel="service-meta"; type="application/json"`,
-  `<${absoluteUrl(AGENT_DISCOVERY_ROUTES.agents)}>; rel="service-doc"; type="text/markdown"`,
-  `<${absoluteUrl(AGENT_DISCOVERY_ROUTES.skill)}>; rel="service-doc"; type="text/markdown"`,
-].join(", ");
 
 export function sha256(content: string) {
   return createHash("sha256").update(content).digest("hex");
@@ -109,48 +101,6 @@ export function buildAgentSkillsIndex() {
         digest: `sha256:${sha256(SITE_SKILL_DOCUMENT)}`,
       },
     ],
-  };
-}
-
-export function buildAgentManifest() {
-  return {
-    format: "assistant-ui-agent-manifest.v1",
-    version: "1",
-    name: "assistant-ui-docs",
-    description:
-      "Documentation and implementation guidance for assistant-ui AI interface components and runtimes.",
-    baseUrl: BASE_URL,
-    capabilities: {
-      markdownRoutes: true,
-      llms: true,
-      mcp: true,
-      search: true,
-      skills: true,
-      sitemap: true,
-      apiCatalog: true,
-    },
-    documentation: {
-      html: absoluteUrl("/docs"),
-      markdownRoot: absoluteUrl("/docs.md"),
-      markdownPagePattern: absoluteUrl("/docs/{path}.md"),
-      llms: absoluteUrl("/llms.txt"),
-      llmsFull: absoluteUrl("/llms-full.txt"),
-      sitemap: absoluteUrl(AGENT_DISCOVERY_ROUTES.sitemap),
-    },
-    discovery: {
-      agents: absoluteUrl(AGENT_DISCOVERY_ROUTES.agents),
-      skill: absoluteUrl(AGENT_DISCOVERY_ROUTES.skill),
-      manifest: absoluteUrl(AGENT_DISCOVERY_ROUTES.manifest),
-      apiCatalog: absoluteUrl(AGENT_DISCOVERY_ROUTES.apiCatalog),
-      agentSkillsIndex: absoluteUrl(AGENT_DISCOVERY_ROUTES.skillsIndex),
-      robots: absoluteUrl("/robots.txt"),
-    },
-    mcp: {
-      transport: "streamable-http",
-      endpoint: absoluteUrl("/mcp"),
-      wellKnownEndpoint: absoluteUrl("/.well-known/mcp"),
-      tools: ["list_pages", "get_navigation", "search_docs", "read_page"],
-    },
   };
 }
 
@@ -192,19 +142,9 @@ export function buildApiCatalog() {
   ];
   const serviceMetadata: ApiCatalogTarget[] = [
     {
-      href: absoluteUrl(AGENT_DISCOVERY_ROUTES.manifest),
-      type: "application/json",
-      title: "Agent discovery manifest",
-    },
-    {
       href: absoluteUrl(AGENT_DISCOVERY_ROUTES.skillsIndex),
       type: "application/json",
       title: "Agent Skills discovery index",
-    },
-    {
-      href: absoluteUrl("/robots.txt"),
-      type: "text/plain",
-      title: "Robots policy",
     },
   ];
   const mcpTarget: ApiCatalogTarget = {
@@ -217,16 +157,7 @@ export function buildApiCatalog() {
     linkset: [
       {
         anchor: catalogUrl,
-        "api-catalog": [
-          {
-            href: catalogUrl,
-            type: "application/linkset+json",
-            title: "API catalog",
-          },
-        ],
         item: [mcpTarget],
-        "service-doc": serviceDocs,
-        "service-meta": serviceMetadata,
       },
       {
         anchor: mcpTarget.href,
@@ -293,7 +224,6 @@ export function createDiscoveryResponse(
   options: {
     contentType: string;
     head?: boolean;
-    linkHeader?: string;
     digest?: string;
   },
 ) {
@@ -304,11 +234,9 @@ export function createDiscoveryResponse(
     headers: {
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Expose-Headers": "ETag, Link",
-      Allow: "GET, HEAD",
       "Cache-Control": CACHE_CONTROL,
       "Content-Type": options.contentType,
       ETag: `"sha256-${digest}"`,
-      Link: options.linkHeader ?? DISCOVERY_LINK_HEADER,
       "X-Robots-Tag": "noindex, follow",
     },
   });

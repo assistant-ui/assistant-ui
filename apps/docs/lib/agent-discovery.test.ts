@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   AGENTS_DOCUMENT,
   API_CATALOG_CONTENT_TYPE,
-  buildAgentManifest,
   buildAgentSkillsIndex,
   buildApiCatalog,
   buildMarkdownSitemap,
@@ -14,8 +13,19 @@ import {
 import {
   AGENT_DISCOVERY_REWRITES,
   AGENT_DISCOVERY_ROUTES,
+  API_CATALOG_LINK_HEADER,
 } from "./agent-discovery-routes";
 import { BASE_URL } from "./constants";
+
+const PUBLIC_DISCOVERY_PATHS = [
+  AGENT_DISCOVERY_ROUTES.agents,
+  AGENT_DISCOVERY_ROUTES.skill,
+  AGENT_DISCOVERY_ROUTES.apiCatalog,
+  AGENT_DISCOVERY_ROUTES.skillsIndex,
+  AGENT_DISCOVERY_ROUTES.sitemap,
+  "/llms.txt",
+  "/mcp",
+];
 
 describe("agent discovery", () => {
   it("publishes canonical aliases through rewrites", () => {
@@ -29,31 +39,25 @@ describe("agent discovery", () => {
         destination: "/skill.md",
       },
       {
-        source: "/.well-known/agent",
-        destination: "/.well-known/agent.json",
-      },
-      {
         source: "/.well-known/sitemap.md",
         destination: "/sitemap.md",
       },
     ]);
   });
 
-  it("cross-links the site skill and agent instructions", () => {
-    for (const path of [
-      AGENT_DISCOVERY_ROUTES.agents,
-      AGENT_DISCOVERY_ROUTES.skill,
-      AGENT_DISCOVERY_ROUTES.manifest,
-      AGENT_DISCOVERY_ROUTES.apiCatalog,
-      AGENT_DISCOVERY_ROUTES.skillsIndex,
-      AGENT_DISCOVERY_ROUTES.sitemap,
-      "/llms.txt",
-      "/mcp",
-    ]) {
+  it("publishes a global RFC 9727 API catalog relation", () => {
+    expect(API_CATALOG_LINK_HEADER).toBe(
+      `<${BASE_URL}${AGENT_DISCOVERY_ROUTES.apiCatalog}>; rel="api-catalog"; type="application/linkset+json"; profile="https://www.rfc-editor.org/info/rfc9727"`,
+    );
+  });
+
+  it.each(PUBLIC_DISCOVERY_PATHS)(
+    "cross-links %s from the site documents",
+    (path) => {
       expect(SITE_SKILL_DOCUMENT).toContain(`${BASE_URL}${path}`);
       expect(AGENTS_DOCUMENT).toContain(`${BASE_URL}${path}`);
-    }
-  });
+    },
+  );
 
   it("indexes the exact published skill document", () => {
     const index = buildAgentSkillsIndex();
@@ -70,49 +74,27 @@ describe("agent discovery", () => {
     });
   });
 
-  it("advertises only capabilities that the docs serve", () => {
-    const manifest = buildAgentManifest();
-
-    expect(manifest.baseUrl).toBe(BASE_URL);
-    expect(manifest.capabilities).toEqual({
-      markdownRoutes: true,
-      llms: true,
-      mcp: true,
-      search: true,
-      skills: true,
-      sitemap: true,
-      apiCatalog: true,
-    });
-    expect(manifest.mcp.endpoint).toBe(`${BASE_URL}/mcp`);
-    expect(manifest.mcp.tools).toEqual([
-      "list_pages",
-      "get_navigation",
-      "search_docs",
-      "read_page",
-    ]);
-  });
-
   it("builds a profiled API catalog around the MCP service", () => {
     const catalog = buildApiCatalog();
-    const root = catalog.linkset[0];
-
-    expect(root.anchor).toBe(`${BASE_URL}${AGENT_DISCOVERY_ROUTES.apiCatalog}`);
-    expect(root["api-catalog"]).toEqual([
-      {
-        href: `${BASE_URL}${AGENT_DISCOVERY_ROUTES.apiCatalog}`,
-        type: "application/linkset+json",
-        title: "API catalog",
-      },
-    ]);
-    expect(root.item).toContainEqual({
+    const mcpTarget = {
       href: `${BASE_URL}/mcp`,
       type: "application/json",
       title: "Documentation MCP endpoint",
+    };
+
+    expect(catalog.linkset[0]).toEqual({
+      anchor: `${BASE_URL}${AGENT_DISCOVERY_ROUTES.apiCatalog}`,
+      item: [mcpTarget],
     });
-    expect(root["service-meta"]).toContainEqual({
-      href: `${BASE_URL}${AGENT_DISCOVERY_ROUTES.manifest}`,
-      type: "application/json",
-      title: "Agent discovery manifest",
+    expect(catalog.linkset[1]).toMatchObject({
+      anchor: mcpTarget.href,
+      "service-meta": [
+        {
+          href: `${BASE_URL}${AGENT_DISCOVERY_ROUTES.skillsIndex}`,
+          type: "application/json",
+          title: "Agent Skills discovery index",
+        },
+      ],
     });
   });
 
@@ -155,10 +137,10 @@ describe("agent discovery", () => {
 
     expect(await getResponse.text()).toBe("# Discovery\n");
     expect(getResponse.headers.get("Cache-Control")).toBe(
-      "public, max-age=0, s-maxage=3600",
+      "no-cache, must-revalidate",
     );
-    expect(getResponse.headers.get("Link")).toContain('rel="api-catalog"');
     expect(getResponse.headers.get("Access-Control-Allow-Origin")).toBe("*");
+    expect(getResponse.headers.get("X-Robots-Tag")).toBe("noindex, follow");
     expect(await headResponse.text()).toBe("");
     expect(headResponse.headers.get("ETag")).toBe(
       getResponse.headers.get("ETag"),

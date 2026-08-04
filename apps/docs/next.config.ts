@@ -1,7 +1,10 @@
 import { createMDX } from "fumadocs-mdx/next";
 import { withAui } from "@assistant-ui/next";
 import type { NextConfig } from "next";
-import { AGENT_DISCOVERY_REWRITES } from "./lib/agent-discovery-routes";
+import {
+  AGENT_DISCOVERY_REWRITES,
+  API_CATALOG_LINK_HEADER,
+} from "./lib/agent-discovery-routes";
 
 const isDev = process.env.NODE_ENV === "development";
 
@@ -63,6 +66,10 @@ const config: NextConfig = {
         {
           key: "Content-Security-Policy",
           value: cspHeader.replace(/\n/g, ""),
+        },
+        {
+          key: "Link",
+          value: API_CATALOG_LINK_HEADER,
         },
       ],
     },
