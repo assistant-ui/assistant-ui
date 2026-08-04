@@ -50,6 +50,7 @@ const useInteractables = (): ClientOutput<"interactables"> => {
     undefined,
   );
   const syncSeqRef = useRef(0);
+  const latestSyncSeqByIdRef = useRef(new Map<string, number>());
   const inFlightPersistenceRef = useRef(0);
   const flushResolversRef = useRef<Array<() => void>>([]);
   const dirtyIdsRef = useRef(new Set<string>());
@@ -65,6 +66,7 @@ const useInteractables = (): ClientOutput<"interactables"> => {
     const seq = ++syncSeqRef.current;
     const dirtyIds = new Set(dirtyIdsRef.current);
     dirtyIdsRef.current.clear();
+    for (const id of dirtyIds) latestSyncSeqByIdRef.current.set(id, seq);
     inFlightPersistenceRef.current += 1;
 
     // Snapshot before any await so unregistered definitions are still included.
@@ -89,25 +91,29 @@ const useInteractables = (): ClientOutput<"interactables"> => {
 
     try {
       await adapter.save(payload);
-      if (syncSeqRef.current === seq) {
-        setStateAndRef((prev) => {
-          const persistence = { ...prev.persistence };
-          for (const id of dirtyIds) delete persistence[id];
-          return { ...prev, persistence };
-        });
-      }
+      setStateAndRef((prev) => {
+        let changed = false;
+        const persistence = { ...prev.persistence };
+        for (const id of dirtyIds) {
+          if (latestSyncSeqByIdRef.current.get(id) !== seq) continue;
+          latestSyncSeqByIdRef.current.delete(id);
+          delete persistence[id];
+          changed = true;
+        }
+        return changed ? { ...prev, persistence } : prev;
+      });
     } catch (e) {
-      if (syncSeqRef.current === seq) {
-        setStateAndRef((prev) => ({
-          ...prev,
-          persistence: {
-            ...prev.persistence,
-            ...Object.fromEntries(
-              [...dirtyIds].map((id) => [id, { isPending: false, error: e }]),
-            ),
-          },
-        }));
-      }
+      setStateAndRef((prev) => {
+        let changed = false;
+        const persistence = { ...prev.persistence };
+        for (const id of dirtyIds) {
+          if (latestSyncSeqByIdRef.current.get(id) !== seq) continue;
+          latestSyncSeqByIdRef.current.delete(id);
+          persistence[id] = { isPending: false, error: e };
+          changed = true;
+        }
+        return changed ? { ...prev, persistence } : prev;
+      });
     } finally {
       inFlightPersistenceRef.current -= 1;
       if (
@@ -115,6 +121,10 @@ const useInteractables = (): ClientOutput<"interactables"> => {
         dirtyIdsRef.current.size > 0 &&
         adapterRef.current
       ) {
+        if (debounceTimerRef.current !== undefined) {
+          clearTimeout(debounceTimerRef.current);
+          debounceTimerRef.current = undefined;
+        }
         runPersistence();
       } else if (inFlightPersistenceRef.current === 0) {
         for (const resolve of flushResolversRef.current) resolve();

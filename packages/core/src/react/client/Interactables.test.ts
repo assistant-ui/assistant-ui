@@ -389,7 +389,66 @@ describe("Interactables persistence save", () => {
     root.getValue().setPersistenceAdapter({ save: secondSave });
     await vi.advanceTimersByTimeAsync(500);
 
+    expect(firstSave).toHaveBeenCalledTimes(2);
     expect(secondSave).not.toHaveBeenCalled();
+  });
+
+  it("cancels the retry timer after starting the queued batch", async () => {
+    let resolveFirstSave!: () => void;
+    const save = vi
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise<void>((resolve) => {
+            resolveFirstSave = resolve;
+          }),
+      )
+      .mockResolvedValue(undefined);
+    root = mount({ persistence: { save } });
+    await flushMicrotasks();
+    root.getValue().register(reg("n1"));
+
+    root.getValue().setState("n1", () => ({ v: 1 }));
+    await vi.advanceTimersByTimeAsync(500);
+    root.getValue().setState("n1", () => ({ v: 2 }));
+    await vi.advanceTimersByTimeAsync(500);
+
+    resolveFirstSave();
+    await flushMicrotasks();
+    expect(save).toHaveBeenCalledTimes(2);
+
+    await vi.advanceTimersByTimeAsync(500);
+    expect(save).toHaveBeenCalledTimes(2);
+  });
+
+  it("settles overlapping persistence batches per interactable", async () => {
+    let resolveFirstSave!: () => void;
+    const firstSave = vi
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise<void>((resolve) => {
+            resolveFirstSave = resolve;
+          }),
+      )
+      .mockResolvedValue(undefined);
+    root = mount({ persistence: { save: firstSave } });
+    await flushMicrotasks();
+    root.getValue().register(reg("n1"));
+    root.getValue().register(reg("n2"));
+
+    root.getValue().setState("n1", () => ({ v: 1 }));
+    await vi.advanceTimersByTimeAsync(500);
+    root.getValue().setState("n2", () => ({ v: 2 }));
+    root.getValue().setPersistenceAdapter({ save: vi.fn() });
+    await flushMicrotasks();
+
+    expect(root.getValue().getState().persistence["n1"]?.isPending).toBe(true);
+    expect(root.getValue().getState().persistence["n2"]).toBeUndefined();
+
+    resolveFirstSave();
+    await flushMicrotasks();
+    expect(root.getValue().getState().persistence["n1"]).toBeUndefined();
   });
 
   it("flushes queued changes through the declarative adapter on unmount", async () => {
