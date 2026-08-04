@@ -343,4 +343,85 @@ describe("convertExternalMessages", () => {
       expect(result[0]!.role).toBe("user");
     });
   });
+
+  describe("metadata merging across joined messages", () => {
+    it("keeps the final assistant message's metadata after a tool call", () => {
+      const messages = [
+        {
+          id: "a1",
+          role: "assistant" as const,
+          content: [
+            {
+              type: "tool-call" as const,
+              toolCallId: "t1",
+              toolName: "search",
+              args: {},
+            },
+          ],
+        },
+        {
+          role: "tool" as const,
+          toolCallId: "t1",
+          toolName: "search",
+          result: { ok: true },
+        },
+        {
+          id: "a2",
+          role: "assistant" as const,
+          content: [{ type: "text" as const, text: "final answer" }],
+          metadata: {
+            unstable_annotations: [{ note: "final" }],
+            steps: [{ usage: { promptTokens: 1, completionTokens: 2 } }],
+          },
+        },
+      ];
+
+      const callback: useExternalMessageConverter.Callback<
+        (typeof messages)[number]
+      > = (msg) => msg as useExternalMessageConverter.Message;
+
+      const result = convertExternalMessages(messages, callback, false, {});
+
+      expect(result).toHaveLength(1);
+      const metadata = result[0]!.metadata as any;
+      expect(metadata.unstable_annotations).toEqual([{ note: "final" }]);
+      expect(metadata.steps).toEqual([
+        { usage: { promptTokens: 1, completionTokens: 2 } },
+      ]);
+    });
+
+    it("accumulates annotations and data from every joined assistant message", () => {
+      const messages = [
+        {
+          id: "a1",
+          role: "assistant" as const,
+          content: [{ type: "text" as const, text: "first" }],
+          metadata: {
+            unstable_annotations: [{ a: 1 }],
+            unstable_data: [{ d: 1 }],
+          },
+        },
+        {
+          id: "a2",
+          role: "assistant" as const,
+          content: [{ type: "text" as const, text: "second" }],
+          metadata: {
+            unstable_annotations: [{ a: 2 }],
+            unstable_data: [{ d: 2 }],
+          },
+        },
+      ];
+
+      const callback: useExternalMessageConverter.Callback<
+        (typeof messages)[number]
+      > = (msg) => msg as useExternalMessageConverter.Message;
+
+      const result = convertExternalMessages(messages, callback, false, {});
+
+      expect(result).toHaveLength(1);
+      const metadata = result[0]!.metadata as any;
+      expect(metadata.unstable_annotations).toEqual([{ a: 1 }, { a: 2 }]);
+      expect(metadata.unstable_data).toEqual([{ d: 1 }, { d: 2 }]);
+    });
+  });
 });
