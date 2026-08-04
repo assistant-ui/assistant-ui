@@ -2,6 +2,9 @@ import { cleanup, fireEvent, render, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   Sidebar,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
   SidebarProvider,
   SidebarRail,
   SidebarTrigger,
@@ -124,4 +127,30 @@ describe("radix sidebar RTL", () => {
       expect(physicalEdgeUtilities(sheet)).toEqual([]);
     },
   );
+});
+
+describe("radix sidebar menu buttons", () => {
+  it("uses direct color variables for outline shadows", () => {
+    setViewportWidth(1024);
+    const { getByRole } = render(
+      <SidebarProvider>
+        <Sidebar>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton variant="outline">Item</SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </Sidebar>
+      </SidebarProvider>,
+    );
+
+    const button = getByRole("button", { name: "Item" });
+    expect(button.className).toContain(
+      "shadow-[0_0_0_1px_var(--sidebar-border)]",
+    );
+    expect(button.className).toContain(
+      "hover:shadow-[0_0_0_1px_var(--sidebar-accent)]",
+    );
+    expect(button.className).not.toContain(["hsl(", "var(--sidebar-"].join(""));
+  });
 });
