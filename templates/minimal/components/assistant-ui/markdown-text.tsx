@@ -146,6 +146,7 @@ const defaultComponents = memoizeMarkdownComponents({
       return (
         <a
           href={href}
+          title={href}
           target="_blank"
           rel="noopener noreferrer"
           className={cn(
