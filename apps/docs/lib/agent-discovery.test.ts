@@ -78,7 +78,6 @@ describe("agent discovery", () => {
     const catalog = buildApiCatalog();
     const mcpTarget = {
       href: `${BASE_URL}/mcp`,
-      type: "application/json",
       title: "Documentation MCP endpoint",
     };
 
@@ -140,7 +139,8 @@ describe("agent discovery", () => {
       "no-cache, must-revalidate",
     );
     expect(getResponse.headers.get("Access-Control-Allow-Origin")).toBe("*");
-    expect(getResponse.headers.get("X-Robots-Tag")).toBe("noindex, follow");
+    expect(getResponse.headers.get("Link")).toBe(API_CATALOG_LINK_HEADER);
+    expect(getResponse.headers.get("X-Robots-Tag")).toBeNull();
     expect(await headResponse.text()).toBe("");
     expect(headResponse.headers.get("ETag")).toBe(
       getResponse.headers.get("ETag"),

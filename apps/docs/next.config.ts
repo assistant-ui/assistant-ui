@@ -8,6 +8,8 @@ import {
 
 const isDev = process.env.NODE_ENV === "development";
 
+const apiCatalogDiscoveryPaths = ["/", "/docs/:path*", "/llms.txt", "/mcp"];
+
 const deployEnv = process.env.VERCEL_ENV ?? process.env.NODE_ENV;
 const faviconVariant =
   deployEnv === "preview" || deployEnv === "development"
@@ -67,12 +69,12 @@ const config: NextConfig = {
           key: "Content-Security-Policy",
           value: cspHeader.replace(/\n/g, ""),
         },
-        {
-          key: "Link",
-          value: API_CATALOG_LINK_HEADER,
-        },
       ],
     },
+    ...apiCatalogDiscoveryPaths.map((source) => ({
+      source,
+      headers: [{ key: "Link", value: API_CATALOG_LINK_HEADER }],
+    })),
   ],
   redirects: async () => [
     {

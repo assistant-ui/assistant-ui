@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { BASE_URL } from "./constants";
 import {
   AGENT_DISCOVERY_ROUTES,
+  API_CATALOG_LINK_HEADER,
   API_CATALOG_PROFILE,
 } from "./agent-discovery-routes";
 
@@ -147,9 +148,8 @@ export function buildApiCatalog() {
       title: "Agent Skills discovery index",
     },
   ];
-  const mcpTarget: ApiCatalogTarget = {
+  const mcpTarget = {
     href: absoluteUrl("/mcp"),
-    type: "application/json",
     title: "Documentation MCP endpoint",
   };
 
@@ -237,7 +237,7 @@ export function createDiscoveryResponse(
       "Cache-Control": CACHE_CONTROL,
       "Content-Type": options.contentType,
       ETag: `"sha256-${digest}"`,
-      "X-Robots-Tag": "noindex, follow",
+      Link: API_CATALOG_LINK_HEADER,
     },
   });
 }
