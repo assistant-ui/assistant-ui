@@ -1,6 +1,10 @@
 import type { JSONSchema7 } from "json-schema";
 import type { StandardSchemaV1 } from "@standard-schema/spec";
-import type { ProviderOptions, Tool } from "./tool-types";
+import type {
+  ProviderOptions,
+  // oxlint-disable-next-line no-unused-vars -- referenced from JSDoc {@link} below
+  Tool,
+} from "./tool-types";
 
 /**
  * Type for a tool definition with JSON Schema parameters.
@@ -11,6 +15,23 @@ export type ToolJSONSchema = {
   providerOptions?: ProviderOptions;
 };
 
+/**
+ * The subset of a {@link Tool} that {@link toToolsJSONSchema} reads.
+ *
+ * Structural on purpose: every `Tool` instantiation (including `Tool<any, any>`
+ * and tools typed against another copy of assistant-stream) is assignable, so
+ * callers never need casts to upload their model context tools.
+ */
+export type ToolSchemaLike = {
+  type?: string | undefined;
+  description?: string | undefined;
+  parameters?: StandardSchemaV1 | JSONSchema7 | undefined;
+  disabled?: boolean | undefined;
+  execute?: ((...args: never[]) => unknown) | undefined;
+  providerOptions?: ProviderOptions | undefined;
+  unstable_backendDefault?: { parameters?: boolean | undefined } | undefined;
+};
+
 export type ToToolsJSONSchemaOptions = {
   /**
    * Filter to determine which tools to include.
@@ -18,7 +39,7 @@ export type ToToolsJSONSchemaOptions = {
    *
    * Tools with backend-default parameters are always excluded.
    */
-  filter?: (name: string, tool: Tool) => boolean;
+  filter?: (name: string, tool: ToolSchemaLike) => boolean;
 };
 
 function isStandardSchema(schema: unknown): schema is StandardSchemaV1 & {
@@ -131,7 +152,7 @@ export function toPartialJSONSchema(schema: JSONSchema7): JSONSchema7 {
   return result;
 }
 
-function defaultToolFilter(_name: string, tool: Tool): boolean {
+function defaultToolFilter(_name: string, tool: ToolSchemaLike): boolean {
   return (
     !tool.disabled &&
     tool.type !== "backend" &&
@@ -140,8 +161,10 @@ function defaultToolFilter(_name: string, tool: Tool): boolean {
 }
 
 function toolHasUploadableParameters(
-  tool: Tool,
-): tool is Tool & { parameters: NonNullable<Tool["parameters"]> } {
+  tool: ToolSchemaLike,
+): tool is ToolSchemaLike & {
+  parameters: NonNullable<ToolSchemaLike["parameters"]>;
+} {
   return (
     tool.parameters !== undefined && !tool.unstable_backendDefault?.parameters
   );
@@ -157,7 +180,7 @@ function toolHasUploadableParameters(
  * different orders.
  */
 export function toToolsJSONSchema(
-  tools: Record<string, Tool> | undefined,
+  tools: Record<string, ToolSchemaLike> | undefined,
   options: ToToolsJSONSchemaOptions = {},
 ): Record<string, ToolJSONSchema> {
   if (!tools) return {};
@@ -172,7 +195,9 @@ export function toToolsJSONSchema(
           entry,
         ): entry is [
           string,
-          Tool & { parameters: NonNullable<Tool["parameters"]> },
+          ToolSchemaLike & {
+            parameters: NonNullable<ToolSchemaLike["parameters"]>;
+          },
         ] => toolHasUploadableParameters(entry[1]),
       )
       .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))

@@ -56,6 +56,7 @@ export {
   toPartialJSONSchema,
   toToolsJSONSchema,
   type ToolJSONSchema,
+  type ToolSchemaLike,
   type ToToolsJSONSchemaOptions,
 } from "./core/tool/schema-utils";
 

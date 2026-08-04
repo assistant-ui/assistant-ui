@@ -425,6 +425,21 @@ describe("toToolsJSONSchema", () => {
     });
   });
 
+  describe("parameter type", () => {
+    it("accepts any Tool instantiation without casts", () => {
+      const tools: Record<string, Tool<any, any>> = {
+        myTool: {
+          type: "frontend",
+          parameters: { type: "object", properties: {} },
+          execute: async () => {},
+        },
+      };
+
+      const result = toToolsJSONSchema(tools);
+      expect(result).toHaveProperty("myTool");
+    });
+  });
+
   describe("output format", () => {
     it("includes description when present", () => {
       const tools: Record<string, Tool> = {
