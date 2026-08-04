@@ -4,6 +4,7 @@
 export {
   useAui,
   AuiProvider,
+  AuiConfig,
   useAuiState,
   useAuiEvent,
   AuiIf,
@@ -358,6 +359,7 @@ export type {
   ToolModelContentPart,
   MessageStatus,
   MessagePartStatus,
+  MessagePartStreamStatus,
   ToolCallMessagePartStatus,
   MessageTiming,
   ThreadUserMessagePart,

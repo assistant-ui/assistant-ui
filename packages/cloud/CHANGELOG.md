@@ -1,5 +1,16 @@
 # assistant-cloud
 
+## 0.1.38
+
+### Patch Changes
+
+- [#5555](https://github.com/assistant-ui/assistant-ui/pull/5555) [`6c062f1`](https://github.com/assistant-ui/assistant-ui/commit/6c062f1b2a7c362fa7eb1b4fecc59c748588cb1a) - fix: validate successful anonymous authentication responses before use ([@Kinfe123](https://github.com/Kinfe123))
+
+  Malformed successful responses now throw a `CloudResponseError` instead of persisting invalid refresh-token data or failing during JWT parsing.
+
+- Updated dependencies [[`78943a3`](https://github.com/assistant-ui/assistant-ui/commit/78943a37b1006bfbee42596f838850cd96ab4566)]:
+  - assistant-stream@0.3.33
+
 ## 0.1.37
 
 ### Patch Changes

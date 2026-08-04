@@ -1,5 +1,66 @@
 # @assistant-ui/react
 
+## 0.15.4
+
+### Patch Changes
+
+- [#5566](https://github.com/assistant-ui/assistant-ui/pull/5566) [`7528465`](https://github.com/assistant-ui/assistant-ui/commit/7528465d2b243f7163a64c112446d15327d87233) - fix: skip add-message commands with no supported parts in assistant transport runtime ([@Yonom](https://github.com/Yonom))
+
+- [#5565](https://github.com/assistant-ui/assistant-ui/pull/5565) [`78943a3`](https://github.com/assistant-ui/assistant-ui/commit/78943a37b1006bfbee42596f838850cd96ab4566) - feat: add opt-in `strict: false` mode that reconciles malformed stream input instead of throwing (decoders, state accumulator); assistant-transport resume runs always decode leniently ([@Yonom](https://github.com/Yonom))
+
+- Updated dependencies [[`7f7f8a2`](https://github.com/assistant-ui/assistant-ui/commit/7f7f8a24f87bd7eb745675fa2644a5cca2f69372), [`6c062f1`](https://github.com/assistant-ui/assistant-ui/commit/6c062f1b2a7c362fa7eb1b4fecc59c748588cb1a), [`78943a3`](https://github.com/assistant-ui/assistant-ui/commit/78943a37b1006bfbee42596f838850cd96ab4566)]:
+  - @assistant-ui/core@0.3.5
+  - assistant-cloud@0.1.38
+  - assistant-stream@0.3.33
+
+## 0.15.3
+
+### Patch Changes
+
+- [#5432](https://github.com/assistant-ui/assistant-ui/pull/5432) [`8ca9930`](https://github.com/assistant-ui/assistant-ui/commit/8ca9930ea70eb563a5b5169b45f3d7bccb816ef1) - fix: refresh MCP App resources when the host changes ([@Kinfe123](https://github.com/Kinfe123))
+
+  Custom `McpAppsHost` resources must now return a stable object identity (for
+  example, with `useMemo`); an unstable host keeps the widget in
+  `loadingFallback` and refetches on every re-render.
+
+- [#5447](https://github.com/assistant-ui/assistant-ui/pull/5447) [`8c99934`](https://github.com/assistant-ui/assistant-ui/commit/8c99934ca7fe9a8ffea0aa972e3579ff74e18553) - docs: deprecate Unstable_AudioMessagePart in favour of file parts ([@okisdev](https://github.com/okisdev))
+
+  Audio belongs on a `file` part with an `audio/*` mime type. `file` is a member of both the user and assistant unions and carries a filename, neither of which the audio part can express. The payload form a `file` part needs is still adapter specific; the message primitive docs enumerate it. The audio part and the `Unstable_Audio` slot stay honored everywhere they are accepted and will not gain fields.
+
+- [#5439](https://github.com/assistant-ui/assistant-ui/pull/5439) [`ece5a54`](https://github.com/assistant-ui/assistant-ui/commit/ece5a5422e8b45429e1681b7a845d68be2879834) - feat: sourceType opt-in on file message parts so attachment adapters can send url/id file references ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#5542](https://github.com/assistant-ui/assistant-ui/pull/5542) [`55b2824`](https://github.com/assistant-ui/assistant-ui/commit/55b282476bf3075beff391978a72a13968b6418a) - feat: expose `threadListItem.isRunning` so a thread list row can show its own run ([@okisdev](https://github.com/okisdev))
+
+  a thread list row had no supported way to tell whether its thread was running: `thread.isRunning` describes the open thread, and the item state carried no run state at all, so a run continuing on a thread the user had switched away from was invisible.
+
+  `threadListItem.isRunning` now reports it, and stays true for a background run. runtimes that keep background threads alive answer it through the new optional `ThreadListRuntimeCore.unstable_isThreadRunning`; the rest report the open thread's run state, which they already track.
+
+  `InMemoryThreadList` also renames threads for real instead of dropping the new title.
+
+- [#5537](https://github.com/assistant-ui/assistant-ui/pull/5537) [`c868710`](https://github.com/assistant-ui/assistant-ui/commit/c8687104b0407f424d55dd0a369d692fe7a4c708) - fix: keep a settled tool call distinguishable from an unfinished one, so a tool returning false, 0, "" or null no longer loses its result on the cloud round trip and no longer reads as never completed ([@okisdev](https://github.com/okisdev))
+
+- [#5522](https://github.com/assistant-ui/assistant-ui/pull/5522) [`f913c21`](https://github.com/assistant-ui/assistant-ui/commit/f913c2142708d8cd1f4ac63bd801e5b6defcb74e) - feat: add `threads.reloadMainThread()` to refetch the open thread's remote state in place ([@taoche](https://github.com/taoche))
+
+- [#5417](https://github.com/assistant-ui/assistant-ui/pull/5417) [`5bb2573`](https://github.com/assistant-ui/assistant-ui/commit/5bb25733674396d496046b7c5443366171d0e8cf) - fix: suggestion trigger with `send` no longer overwrites the composer draft while a run is in progress; on runtimes without queue support it now renders disabled mid-run, matching `ComposerPrimitive.Send` ([@ephraimduncan](https://github.com/ephraimduncan))
+
+- Updated dependencies [[`b19c2f5`](https://github.com/assistant-ui/assistant-ui/commit/b19c2f5efd37e1203502c76d92e0554b63020952), [`01140bd`](https://github.com/assistant-ui/assistant-ui/commit/01140bde14fbfa89af9bdd080bbf79b3a509b524), [`8c99934`](https://github.com/assistant-ui/assistant-ui/commit/8c99934ca7fe9a8ffea0aa972e3579ff74e18553), [`ece5a54`](https://github.com/assistant-ui/assistant-ui/commit/ece5a5422e8b45429e1681b7a845d68be2879834), [`2fdff87`](https://github.com/assistant-ui/assistant-ui/commit/2fdff878211979b1f24d746bf2f16d8b6254102d), [`90b3003`](https://github.com/assistant-ui/assistant-ui/commit/90b3003b943e083fa6cd81e30181bf5b88904361), [`4c313cf`](https://github.com/assistant-ui/assistant-ui/commit/4c313cfabe9802a7e59362c323ec926a24d089d4), [`55b2824`](https://github.com/assistant-ui/assistant-ui/commit/55b282476bf3075beff391978a72a13968b6418a), [`22b05a4`](https://github.com/assistant-ui/assistant-ui/commit/22b05a43ec921a6dd7015692a77a746656a61f5f), [`f913c21`](https://github.com/assistant-ui/assistant-ui/commit/f913c2142708d8cd1f4ac63bd801e5b6defcb74e), [`c868710`](https://github.com/assistant-ui/assistant-ui/commit/c8687104b0407f424d55dd0a369d692fe7a4c708), [`011e275`](https://github.com/assistant-ui/assistant-ui/commit/011e275c4df5cd85942b5fd545a74d9c7cf549a6), [`da32fe0`](https://github.com/assistant-ui/assistant-ui/commit/da32fe0b2f51c8a340935c5f4d2e31e747d39460), [`f913c21`](https://github.com/assistant-ui/assistant-ui/commit/f913c2142708d8cd1f4ac63bd801e5b6defcb74e), [`5bb2573`](https://github.com/assistant-ui/assistant-ui/commit/5bb25733674396d496046b7c5443366171d0e8cf), [`71231d3`](https://github.com/assistant-ui/assistant-ui/commit/71231d3ee52ef094c5b04b4d040714f9a409ecab), [`5ececc1`](https://github.com/assistant-ui/assistant-ui/commit/5ececc1df536e098f8ee252addd2e62be7d61a7a)]:
+  - @assistant-ui/core@0.3.4
+  - assistant-stream@0.3.32
+  - @assistant-ui/store@0.3.3
+  - safe-content-frame@0.0.26
+
+## 0.15.2
+
+### Patch Changes
+
+- [#5419](https://github.com/assistant-ui/assistant-ui/pull/5419) [`aa74b0d`](https://github.com/assistant-ui/assistant-ui/commit/aa74b0d7c5e334385fabbe48ed79e90b36f63029) - fix: enumerate the attachment content fields the aui/v0 encoder persists so per-part status stays out of the stored shape ([@okisdev](https://github.com/okisdev))
+
+- [#5403](https://github.com/assistant-ui/assistant-ui/pull/5403) [`6e5c450`](https://github.com/assistant-ui/assistant-ui/commit/6e5c450d71242acda30b41c8601b7edb6ed5c701) - refactor: share the part status derivation with core ([@okisdev](https://github.com/okisdev))
+
+- Updated dependencies [[`aa74b0d`](https://github.com/assistant-ui/assistant-ui/commit/aa74b0d7c5e334385fabbe48ed79e90b36f63029), [`6e5c450`](https://github.com/assistant-ui/assistant-ui/commit/6e5c450d71242acda30b41c8601b7edb6ed5c701), [`59ec21b`](https://github.com/assistant-ui/assistant-ui/commit/59ec21b5f610aaf7c0082508b3a6cbf950ffc1db), [`4fd698b`](https://github.com/assistant-ui/assistant-ui/commit/4fd698ba5a3b23ea57b667a02c6f784147f5c42d), [`b8daa96`](https://github.com/assistant-ui/assistant-ui/commit/b8daa967f4e5cb181c3e9ed065ab6949ee848fa4)]:
+  - @assistant-ui/core@0.3.3
+  - @assistant-ui/tap@0.9.9
+
 ## 0.15.1
 
 ### Patch Changes

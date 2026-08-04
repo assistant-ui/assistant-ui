@@ -5,7 +5,7 @@ import { useState } from "react";
 import { cleanup, render } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { resource } from "@assistant-ui/tap";
-import { AuiProvider } from "../utils/react-assistant-context";
+import { AuiProvider } from "../AuiProvider";
 import { useAui } from "../useAui";
 
 type AnyClient = Record<string, any>;
@@ -40,7 +40,7 @@ describe("AuiProvider value={null} isolation boundary", () => {
     );
 
     expect(() => aui.thread.getState()).toThrow(
-      'Scope "thread" is not available inside this isolation boundary (<AuiProvider value={null}>).',
+      'The current scope does not have a "thread" property.',
     );
   });
 

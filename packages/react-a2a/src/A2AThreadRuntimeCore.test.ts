@@ -987,6 +987,41 @@ describe("A2AThreadRuntimeCore", () => {
       // Second run should have completed
       expect(core.isRunning()).toBe(false);
     });
+
+    it("stays running when an aborted run settles after its replacement starts", async () => {
+      let resolveFirst!: () => void;
+      let resolveSecond!: () => void;
+      const firstPending = new Promise<void>((resolve) => {
+        resolveFirst = resolve;
+      });
+      const secondPending = new Promise<void>((resolve) => {
+        resolveSecond = resolve;
+      });
+      const streamMessage = vi.fn().mockImplementation(() => {
+        const pending =
+          streamMessage.mock.calls.length === 1 ? firstPending : secondPending;
+        return (async function* () {
+          await pending;
+        })();
+      });
+      const core = createCore({ streamMessage });
+
+      const first = core.append(createUserAppendMessage("First"));
+      await vi.waitFor(() => expect(streamMessage).toHaveBeenCalledTimes(1));
+
+      const second = core.append(createUserAppendMessage("Second"));
+      await vi.waitFor(() => expect(streamMessage).toHaveBeenCalledTimes(2));
+      expect(core.isRunning()).toBe(true);
+
+      resolveFirst();
+      await first;
+
+      expect(core.isRunning()).toBe(true);
+
+      resolveSecond();
+      await second;
+      expect(core.isRunning()).toBe(false);
+    });
   });
 
   // --- applyExternalMessages ---

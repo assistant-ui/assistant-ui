@@ -185,6 +185,9 @@ export class RemoteThreadListThreadListRuntimeCore
       options.runtimeHook,
       this,
     );
+    this._hookManager.__internal_subscribeRunningChanged(() =>
+      this._notifySubscribers(),
+    );
     this.useProvider = create(() => ({
       Provider: options.adapter.unstable_Provider ?? Fragment,
     }));
@@ -243,6 +246,34 @@ export class RemoteThreadListThreadListRuntimeCore
           : this.switchToThread(startThreadId);
       switchTask.catch(() => {});
     }
+  }
+
+  public async reloadMainThread(): Promise<void> {
+    const threadId = this._mainThreadId;
+    if (threadId === undefined) return;
+
+    // An unsent thread holds no remote state, so a refetch would only discard
+    // what the user has typed.
+    if (this.getItemById(threadId)?.status === "new") return;
+
+    const runtimeCore = this._hookManager.getThreadRuntimeCore(threadId);
+
+    try {
+      if (runtimeCore?.unstable_refetchThread) {
+        // Called on the core so class-method implementations keep `this`.
+        await runtimeCore.unstable_refetchThread();
+      } else {
+        await this._hookManager.__internal_restartThreadRuntime(threadId);
+      }
+    } catch (error) {
+      // delete and detach switch the main thread away before stopping the
+      // runtime, so a rejection once that has happened belongs to them.
+      if (threadId !== this._mainThreadId) return;
+      throw error;
+    }
+
+    if (threadId !== this._mainThreadId) return;
+    this._notifySubscribers();
   }
 
   public reload() {
@@ -319,6 +350,12 @@ export class RemoteThreadListThreadListRuntimeCore
         `Runtime for thread "${threadIdOrRemoteId}" not found while getting its runtime.`,
       );
     return result;
+  }
+
+  public unstable_isThreadRunning(threadIdOrRemoteId: string) {
+    const data = this.getItemById(threadIdOrRemoteId);
+    if (!data) return false;
+    return this._hookManager.__internal_isThreadRunning(data.id);
   }
 
   public getItemById(threadIdOrRemoteId: string) {
@@ -436,7 +473,10 @@ export class RemoteThreadListThreadListRuntimeCore
     if (this.mainThreadId !== undefined) {
       await task;
     } else {
-      task.then(() => this._notifySubscribers());
+      void task.then(
+        () => this._notifySubscribers(),
+        () => undefined,
+      );
     }
 
     if (generation !== this._switchGeneration) return;

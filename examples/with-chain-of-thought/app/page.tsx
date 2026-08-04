@@ -2,6 +2,7 @@
 
 import {
   AssistantRuntimeProvider,
+  AuiConfig,
   Tools,
   useAui,
   AuiProvider,
@@ -13,7 +14,8 @@ import { lastAssistantMessageIsCompleteWithApprovalResponses } from "ai";
 import toolkit from "./toolkit";
 
 function MyThreadWithSuggestions() {
-  const aui = useAui({
+  const aui = useAui();
+  const config = AuiConfig({
     suggestions: Suggestions([
       {
         title: "Calculate Fibonacci(20)",
@@ -30,7 +32,7 @@ function MyThreadWithSuggestions() {
     ]),
   });
   return (
-    <AuiProvider value={aui}>
+    <AuiProvider extends={aui} config={config}>
       <MyThread />
     </AuiProvider>
   );
@@ -40,12 +42,12 @@ export default function Home() {
   const runtime = useChatRuntime({
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
   });
-  const aui = useAui({
+  const config = AuiConfig({
     tools: Tools({ toolkit }),
   });
 
   return (
-    <AssistantRuntimeProvider aui={aui} runtime={runtime}>
+    <AssistantRuntimeProvider config={config} runtime={runtime}>
       <div className="h-full">
         <MyThreadWithSuggestions />
       </div>

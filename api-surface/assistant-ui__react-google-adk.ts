@@ -93,6 +93,7 @@ declare class AdkEventAccumulator {
   private authRequests;
   private escalated;
   private messageMetadataMap;
+  private aiMessageOrdinals;
   constructor(initialMessages?: AdkMessage[]);
   processEvent(rawEvent: AdkEvent): AdkMessage[];
   private processPart;
@@ -297,9 +298,9 @@ type AdkSessionAdapterOptions = {
 
 type AdkSessionAdapterResult = {
   adapter: RemoteThreadListAdapter;
-  load: (sessionId: string) => Promise<{
-    messages: AdkMessage[];
-  }>;
+  load: (sessionId: string, options?: {
+    signal?: AbortSignal | undefined;
+  }) => Promise<AdkThreadSnapshot>;
   artifacts: {
     list: (sessionId: string) => Promise<string[]>;
     load: (sessionId: string, artifactName: string, version?: number) => Promise<AdkArtifactData>;
@@ -360,6 +361,21 @@ type AdkStructuredEvent = {
   confirmations: Record<string, unknown>;
 } | {
   type: "finished";
+};
+
+type AdkThreadSnapshot = {
+  messages: AdkMessage[];
+  longRunningToolIds?: string[] | undefined;
+  toolConfirmations?: AdkToolConfirmation[] | undefined;
+  authRequests?: AdkAuthRequest[] | undefined;
+  escalated?: boolean | undefined;
+  messageMetadata?: Map<string, AdkMessageMetadata> | undefined;
+  stateDelta?: Record<string, unknown> | undefined;
+  artifactDelta?: Record<string, number> | undefined;
+  agentInfo?: {
+    name?: string | undefined;
+    branch?: string | undefined;
+  } | undefined;
 };
 
 type AdkToolCall = {
@@ -1053,6 +1069,7 @@ type ExternalStoreAdapterBase<T> = {
   onReload?: ((parentId: string | null, config: StartRunConfig) => Promise<void>) | undefined;
   onResume?: ((config: ResumeRunConfig) => Promise<void>) | undefined;
   onCancel?: (() => Promise<void>) | undefined;
+  onRefetchThread?: (() => Promise<void>) | undefined;
   onAddToolResult?: ((options: AddToolResultOptions) => Promise<void> | void) | undefined;
   onResumeToolCall?: ((options: {
     toolCallId: string;
@@ -1135,6 +1152,7 @@ type FileMessagePart = {
   readonly filename?: string;
   readonly data: string;
   readonly mimeType: string;
+  readonly sourceType?: "id" | "url";
   readonly parentId?: string;
 };
 
@@ -1371,6 +1389,15 @@ type MessagePartStatus = {
   readonly type: "incomplete";
   readonly reason: "cancelled" | "content-filter" | "error" | "length" | "other";
   readonly error?: unknown;
+};
+
+type MessagePartStreamStatus = {
+  readonly type: "running";
+} | {
+  readonly type: "complete";
+} | {
+  readonly type: "incomplete";
+  readonly reason: "cancelled" | "content-filter" | "error" | "length" | "other";
 };
 
 type MessageRole = ThreadMessage["role"];
@@ -1612,6 +1639,7 @@ type RealtimeVoiceAdapter = {
 type ReasoningMessagePart = {
   readonly type: "reasoning";
   readonly text: string;
+  readonly status?: MessagePartStreamStatus;
   readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };
@@ -1687,6 +1715,7 @@ type RuntimeCapabilities = {
   readonly switchBranchDuringRun: boolean;
   readonly edit: boolean;
   readonly reload: boolean;
+  readonly refetchThread: boolean;
   readonly delete: boolean;
   readonly cancel: boolean;
   readonly unstable_copy: boolean;
@@ -1782,6 +1811,7 @@ declare const TOOL_RESPONSE_SYMBOL: unique symbol;
 type TextMessagePart = {
   readonly type: "text";
   readonly text: string;
+  readonly status?: MessagePartStreamStatus;
   readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };
@@ -1874,6 +1904,7 @@ type ThreadListItemRuntimePath = {
 
 type ThreadListItemState = {
   readonly isMain: boolean;
+  readonly isRunning: boolean;
   readonly id: string;
   readonly remoteId: string | undefined;
   readonly externalId: string | undefined;
@@ -1900,6 +1931,7 @@ type ThreadListRuntime = {
   switchToNewThread(): Promise<void>;
   getLoadThreadsPromise(): Promise<void>;
   reload(): Promise<void>;
+  reloadMainThread(): Promise<void>;
   loadMore(): Promise<void>;
 };
 
@@ -1911,7 +1943,7 @@ type ThreadListState = {
   readonly isLoading: boolean;
   readonly isLoadingMore: boolean;
   readonly hasMore: boolean;
-  readonly threadItems: Readonly<Record<string, Omit<ThreadListItemState, "isMain" | "threadId">>>;
+  readonly threadItems: Readonly<Record<string, Omit<ThreadListItemState, "isMain" | "isRunning" | "threadId">>>;
 };
 
 type ThreadMessage = BaseThreadMessage & (ThreadSystemMessage | ThreadUserMessage | ThreadAssistantMessage);
@@ -2283,9 +2315,9 @@ type UseAdkRuntimeOptions = ExternalStoreSharedOptions & {
   autoCancelPendingToolCalls?: boolean | undefined;
   unstable_allowCancellation?: boolean | undefined;
   getCheckpointId?: (threadId: string, parentMessages: AdkMessage[]) => Promise<string | null>;
-  load?: (threadId: string) => Promise<{
-    messages: AdkMessage[];
-  }>;
+  load?: (threadId: string, options?: {
+    signal?: AbortSignal | undefined;
+  }) => Promise<AdkThreadSnapshot>;
   create?: () => Promise<{
     externalId: string;
   }>;
@@ -2330,7 +2362,7 @@ declare global {
 }
 
 declare namespace entry_root_exports {
-  export { AdkArtifactData, AdkAuthCredential, AdkAuthCredentialType, AdkAuthRequest, AdkEvent, AdkEventAccumulator, AdkEventActions, AdkEventPart, AdkEventType, AdkMessage, AdkMessageContentPart, AdkMessageMetadata, AdkRunConfig, AdkSendMessageConfig, AdkSessionAdapterOptions, AdkStreamCallback, AdkStructuredEvent, AdkToolCall, AdkToolConfirmation, CreateAdkStreamOptions, OnAdkAgentTransferCallback, OnAdkCustomEventCallback, OnAdkErrorCallback, UseAdkMessagesOptions, UseAdkRuntimeOptions, convertAdkMessage, createAdkSessionAdapter, createAdkStream, toAdkStructuredEvents, useAdkAgentInfo, useAdkAppState, useAdkArtifacts, useAdkAuthRequests, useAdkConfirmTool, useAdkEscalation, useAdkLongRunningToolIds, useAdkMessageMetadata, useAdkMessages, useAdkRuntime, useAdkSend, useAdkSessionState, useAdkSubmitAuth, useAdkSubmitInput, useAdkTempState, useAdkToolConfirmations, useAdkUserState };
+  export { AdkArtifactData, AdkAuthCredential, AdkAuthCredentialType, AdkAuthRequest, AdkEvent, AdkEventAccumulator, AdkEventActions, AdkEventPart, AdkEventType, AdkMessage, AdkMessageContentPart, AdkMessageMetadata, AdkRunConfig, AdkSendMessageConfig, AdkSessionAdapterOptions, AdkStreamCallback, AdkStructuredEvent, AdkThreadSnapshot, AdkToolCall, AdkToolConfirmation, CreateAdkStreamOptions, OnAdkAgentTransferCallback, OnAdkCustomEventCallback, OnAdkErrorCallback, UseAdkMessagesOptions, UseAdkRuntimeOptions, convertAdkMessage, createAdkSessionAdapter, createAdkStream, toAdkStructuredEvents, useAdkAgentInfo, useAdkAppState, useAdkArtifacts, useAdkAuthRequests, useAdkConfirmTool, useAdkEscalation, useAdkLongRunningToolIds, useAdkMessageMetadata, useAdkMessages, useAdkRuntime, useAdkSend, useAdkSessionState, useAdkSubmitAuth, useAdkSubmitInput, useAdkTempState, useAdkToolConfirmations, useAdkUserState };
 }
 
 declare namespace entry_server_exports {
@@ -2382,6 +2414,7 @@ declare const useAdkMessages: (_param2: UseAdkMessagesOptions) => {
   cancel: () => void;
   setMessages: (msgs: AdkMessage[]) => void;
   replaceMessages: (msgs: AdkMessage[]) => void;
+  applySnapshot: (snapshot: AdkThreadSnapshot) => void;
 };
 
 declare const useAdkRuntime: (_param3: UseAdkRuntimeOptions) => AssistantRuntime;

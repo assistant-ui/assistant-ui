@@ -93,6 +93,7 @@ export {
   useAuiState,
   useAuiEvent,
   AuiProvider,
+  AuiConfig,
   AuiIf,
   type AssistantClient,
   type AssistantState,

@@ -13,7 +13,7 @@ npm install @assistant-ui/react-o11y
 ```tsx
 "use client";
 
-import { AuiProvider, useAui } from "@assistant-ui/store";
+import { AuiProvider, AuiConfig } from "@assistant-ui/store";
 import { SpanPrimitive, SpanResource } from "@assistant-ui/react-o11y";
 
 const spans = [
@@ -22,9 +22,9 @@ const spans = [
 ];
 
 export function Waterfall() {
-  const aui = useAui({ span: SpanResource({ spans }) });
+  const config = AuiConfig({ span: SpanResource({ spans }) });
   return (
-    <AuiProvider value={aui}>
+    <AuiProvider extends={null} config={config}>
       <SpanPrimitive.Timeline>
         <SpanPrimitive.Children>
           {() => (

@@ -1,5 +1,62 @@
 # @assistant-ui/react-langgraph
 
+## 0.14.19
+
+### Patch Changes
+
+- [#5428](https://github.com/assistant-ui/assistant-ui/pull/5428) [`b7fb621`](https://github.com/assistant-ui/assistant-ui/commit/b7fb621400beed9e70c0b25f8198497c576b0fc1) - fix: report thread loading on the first render frame ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5543](https://github.com/assistant-ui/assistant-ui/pull/5543) [`571fbef`](https://github.com/assistant-ui/assistant-ui/commit/571fbefe85158f009a27de7cf374e56613a46675) - fix: `cancelRun` now settles a run whose stream hangs instead of yielding ([@okisdev](https://github.com/okisdev))
+
+  `sendMessage` consumed the caller's stream with `for await`, so a stream that ignores its `abortSignal` and then parks awaiting its own work left the loop waiting on `next()` with nothing to wake it. The run never settled, `isRunning` stayed on, and anything serialized behind it never started. [#5525](https://github.com/assistant-ui/assistant-ui/issues/5525) stopped such a stream from being applied after cancellation, but only once it yielded again.
+
+  The stream is now consumed through a wrapper that reports it as exhausted at cancellation, and finalizes it without waiting for a source that would not settle either. The await that opens the stream is raced against cancellation too, since a stream that parks before handing the iterable over stranded the run the same way.
+
+- [#5439](https://github.com/assistant-ui/assistant-ui/pull/5439) [`ece5a54`](https://github.com/assistant-ui/assistant-ui/commit/ece5a5422e8b45429e1681b7a845d68be2879834) - feat: sourceType opt-in on file message parts so attachment adapters can send url/id file references ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#5530](https://github.com/assistant-ui/assistant-ui/pull/5530) [`6393874`](https://github.com/assistant-ui/assistant-ui/commit/6393874740527dc74e3c58c8068b6283e3c4e7b8) - fix(react-langgraph): preserve sends racing thread load and cancellation ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#5503](https://github.com/assistant-ui/assistant-ui/pull/5503) [`130da9a`](https://github.com/assistant-ui/assistant-ui/commit/130da9a041f279b5e8a38e9d710f8b5f022b2c18) - fix: surface an audio response transcript instead of rendering a blank message ([@okisdev](https://github.com/okisdev))
+
+- [#5444](https://github.com/assistant-ui/assistant-ui/pull/5444) [`edb60a4`](https://github.com/assistant-ui/assistant-ui/commit/edb60a47ea6c84692e7d15f191f55109d505d734) - fix: carry audio through file message parts in both converter directions ([@okisdev](https://github.com/okisdev))
+
+  A `file` part with an audio media type now goes out as a LangChain `audio` block, so it reaches a provider's audio input instead of the document path. Inbound, an `audio` block now converts to a `file` part rather than `Unstable_AudioMessagePart`, which keeps the round trip stable, stops dropping audio on assistant messages, and stops dropping audio whose media type is neither mp3 nor wav. Code reading `Unstable_AudioMessagePart` from these converters should read `file` parts with an `audio/*` mime type instead.
+
+- [#5525](https://github.com/assistant-ui/assistant-ui/pull/5525) [`73ea858`](https://github.com/assistant-ui/assistant-ui/commit/73ea858144f35de54dd79b9d1ef15301fa52bcca) - fix: make `cancelRun` a hard stop. the abort signal is handed to the caller's `stream`, so a callback that does not check it kept feeding chunks into the thread after cancellation; the consume loop now stops on its own. ([@okisdev](https://github.com/okisdev))
+
+- [#5531](https://github.com/assistant-ui/assistant-ui/pull/5531) [`3f43946`](https://github.com/assistant-ui/assistant-ui/commit/3f43946bb83386603afe81feca55e1296781837f) - feat: register `onRefetchThread`, so `threads.reloadMainThread()` refetches in place instead of remounting the runtime hook. The load effect body moves into a shared `runLoad(purpose)` with one `AbortController` per in-flight load, and a refetch goes through the same load boundary the initial load already uses, so it merges into whatever a run has produced since rather than replacing it. A run in progress is left alone: it is neither cancelled nor reset, because the merge already decides what each side keeps. A refetch that arrives while the initial load is still in flight defers to it, a new run supersedes an in-flight refetch, and one still in flight at unmount is aborted. ([@okisdev](https://github.com/okisdev))
+
+- [#5504](https://github.com/assistant-ui/assistant-ui/pull/5504) [`f434ebd`](https://github.com/assistant-ui/assistant-ui/commit/f434ebd0ceb0f62845444b57d480d106501e196a) - fix: preserve file attachment filenames in LangChain blocks ([@Gujiassh](https://github.com/Gujiassh))
+
+  Add filenames at the top level of outbound file blocks so LangChain v0-to-v1 normalization keeps them available to provider translators. Keep the existing metadata field for consumers that read it.
+
+- Updated dependencies [[`b19c2f5`](https://github.com/assistant-ui/assistant-ui/commit/b19c2f5efd37e1203502c76d92e0554b63020952), [`01140bd`](https://github.com/assistant-ui/assistant-ui/commit/01140bde14fbfa89af9bdd080bbf79b3a509b524), [`8c99934`](https://github.com/assistant-ui/assistant-ui/commit/8c99934ca7fe9a8ffea0aa972e3579ff74e18553), [`ece5a54`](https://github.com/assistant-ui/assistant-ui/commit/ece5a5422e8b45429e1681b7a845d68be2879834), [`2fdff87`](https://github.com/assistant-ui/assistant-ui/commit/2fdff878211979b1f24d746bf2f16d8b6254102d), [`90b3003`](https://github.com/assistant-ui/assistant-ui/commit/90b3003b943e083fa6cd81e30181bf5b88904361), [`4c313cf`](https://github.com/assistant-ui/assistant-ui/commit/4c313cfabe9802a7e59362c323ec926a24d089d4), [`55b2824`](https://github.com/assistant-ui/assistant-ui/commit/55b282476bf3075beff391978a72a13968b6418a), [`22b05a4`](https://github.com/assistant-ui/assistant-ui/commit/22b05a43ec921a6dd7015692a77a746656a61f5f), [`f913c21`](https://github.com/assistant-ui/assistant-ui/commit/f913c2142708d8cd1f4ac63bd801e5b6defcb74e), [`c868710`](https://github.com/assistant-ui/assistant-ui/commit/c8687104b0407f424d55dd0a369d692fe7a4c708), [`011e275`](https://github.com/assistant-ui/assistant-ui/commit/011e275c4df5cd85942b5fd545a74d9c7cf549a6), [`da32fe0`](https://github.com/assistant-ui/assistant-ui/commit/da32fe0b2f51c8a340935c5f4d2e31e747d39460), [`f913c21`](https://github.com/assistant-ui/assistant-ui/commit/f913c2142708d8cd1f4ac63bd801e5b6defcb74e), [`5bb2573`](https://github.com/assistant-ui/assistant-ui/commit/5bb25733674396d496046b7c5443366171d0e8cf), [`5ececc1`](https://github.com/assistant-ui/assistant-ui/commit/5ececc1df536e098f8ee252addd2e62be7d61a7a)]:
+  - @assistant-ui/core@0.3.4
+  - assistant-stream@0.3.32
+  - @assistant-ui/store@0.3.3
+
+## 0.14.18
+
+### Patch Changes
+
+- [#5390](https://github.com/assistant-ui/assistant-ui/pull/5390) [`c0ec779`](https://github.com/assistant-ui/assistant-ui/commit/c0ec7797b92c51ea6748ee9e1103cebcb5223c68) - fix: route the values-path message reconcile through appendMessage ([@okisdev](https://github.com/okisdev))
+
+- Updated dependencies [[`aa74b0d`](https://github.com/assistant-ui/assistant-ui/commit/aa74b0d7c5e334385fabbe48ed79e90b36f63029), [`6e5c450`](https://github.com/assistant-ui/assistant-ui/commit/6e5c450d71242acda30b41c8601b7edb6ed5c701), [`59ec21b`](https://github.com/assistant-ui/assistant-ui/commit/59ec21b5f610aaf7c0082508b3a6cbf950ffc1db), [`4fd698b`](https://github.com/assistant-ui/assistant-ui/commit/4fd698ba5a3b23ea57b667a02c6f784147f5c42d)]:
+  - @assistant-ui/core@0.3.3
+
+## 0.14.17
+
+### Patch Changes
+
+- [#5329](https://github.com/assistant-ui/assistant-ui/pull/5329) [`f30b54c`](https://github.com/assistant-ui/assistant-ui/commit/f30b54c9856d50a18f738c4d485c02bcd039151c) - refactor: move createRuntimeExtras to the @assistant-ui/core/react entry and drop the internal re-export ([@okisdev](https://github.com/okisdev))
+
+- [#5223](https://github.com/assistant-ui/assistant-ui/pull/5223) [`faea45d`](https://github.com/assistant-ui/assistant-ui/commit/faea45dfc84de78c449f13073d88cf617dd90521) - fix: forward audio parts as base64 audio blocks and skip data parts instead of throwing ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- Updated dependencies [[`d2e7a4a`](https://github.com/assistant-ui/assistant-ui/commit/d2e7a4a1c71c214fd8c4363ec16e879d1122639e), [`ecd7c87`](https://github.com/assistant-ui/assistant-ui/commit/ecd7c879cace69d6371b3f673c52a80669377fc0), [`2daf2d5`](https://github.com/assistant-ui/assistant-ui/commit/2daf2d5dfcb77938f6deb63d048575540e1806a2), [`a5bdbed`](https://github.com/assistant-ui/assistant-ui/commit/a5bdbed993d8f14c919b692b40d51f5cd64467b9), [`fb993c3`](https://github.com/assistant-ui/assistant-ui/commit/fb993c34ca1623bac373137c5ab207dd79cb500c), [`3ae058c`](https://github.com/assistant-ui/assistant-ui/commit/3ae058c5d275e2444701da70a6513528439ecb3e), [`f30b54c`](https://github.com/assistant-ui/assistant-ui/commit/f30b54c9856d50a18f738c4d485c02bcd039151c), [`936c52c`](https://github.com/assistant-ui/assistant-ui/commit/936c52c4301b89242572d9890c870050f63cbe93), [`ee87dd9`](https://github.com/assistant-ui/assistant-ui/commit/ee87dd9fef1389165bbfe0019be2a6995b2cfb24), [`e41734c`](https://github.com/assistant-ui/assistant-ui/commit/e41734c102a192ab772703899d7980bb5c055d07), [`1c5266c`](https://github.com/assistant-ui/assistant-ui/commit/1c5266c1fb32bc71647fedc485372f6ffa25171f), [`cdcdbd0`](https://github.com/assistant-ui/assistant-ui/commit/cdcdbd0a9354483a72edbc01f51a850a1d6b5dc5), [`42dbc69`](https://github.com/assistant-ui/assistant-ui/commit/42dbc697642c0fa327728860f78a8ce5270bf32d), [`25f1e4f`](https://github.com/assistant-ui/assistant-ui/commit/25f1e4f9d33073216458d3c5a05e8d79845d4b3b), [`d16e62d`](https://github.com/assistant-ui/assistant-ui/commit/d16e62d25b5c1e7e2bc1504fb4a5e97c3c25b6e3), [`60d049e`](https://github.com/assistant-ui/assistant-ui/commit/60d049eeadf681f4235157c903543493c98cc258), [`8643393`](https://github.com/assistant-ui/assistant-ui/commit/8643393490ebe1aa86661f705bb9ac907bfb4eac), [`2eca438`](https://github.com/assistant-ui/assistant-ui/commit/2eca4386778618f555258855ee6612eb44d89bb2), [`23ee5db`](https://github.com/assistant-ui/assistant-ui/commit/23ee5dbb60e6ac7993b8ce4023fb63a5f7eea713)]:
+  - @assistant-ui/store@0.3.2
+  - @assistant-ui/core@0.3.2
+  - assistant-stream@0.3.31
+
 ## 0.14.16
 
 ### Patch Changes

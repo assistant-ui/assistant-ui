@@ -1,5 +1,55 @@
 # @assistant-ui/react-google-adk
 
+## 0.0.21
+
+### Patch Changes
+
+- [#5456](https://github.com/assistant-ui/assistant-ui/pull/5456) [`ee2189f`](https://github.com/assistant-ui/assistant-ui/commit/ee2189fe112570c1d1c18e8c93ad97e1a511819b) - fix: stop mangling file parts that carry an audio mime type ([@okisdev](https://github.com/okisdev))
+
+  Outbound, the `file` branch forwarded `data` verbatim into Gemini `inlineData.data`, which takes bare base64, while the `audio` branch stripped the data URL envelope first. A `file` part carrying a data URL therefore shipped `data:audio/wav;base64,...` as the payload. Both branches now strip it.
+
+  The `file` branch also now infers a url source from an unmarked `http(s)` payload, matching the four sibling converters; previously only an explicit `sourceType: "url"` took that leg, so a plain URL was sent as if it were base64.
+
+  Inbound, a user-role `file` part with no filename and a mime type of exactly `audio/mp3` or `audio/wav` was reclassified into the deprecated `Unstable_AudioMessagePart`, so a caller following the `file` plus `audio/*` convention got a different part type back than it sent. File parts now stay file parts, which also means an audio file part on an assistant message survives instead of being dropped.
+
+- [#5445](https://github.com/assistant-ui/assistant-ui/pull/5445) [`2fdff87`](https://github.com/assistant-ui/assistant-ui/commit/2fdff878211979b1f24d746bf2f16d8b6254102d) - feat: honor sourceType "url" in a2a, ag-ui, and adk file converters ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#5545](https://github.com/assistant-ui/assistant-ui/pull/5545) [`e466edc`](https://github.com/assistant-ui/assistant-ui/commit/e466edc142dff38e0aab1f86092a5102afb62ae6) - feat: `threads.reloadMainThread()` refetches an ADK session in place ([@okisdev](https://github.com/okisdev))
+
+  The ADK runtime never registered `onRefetchThread`, so `reloadMainThread()` fell back to remounting the runtime hook and discarded unsent composer input. It now refetches in place, matching `react-langgraph`: the runtime is reused, the draft survives, and messages stay rendered while the fresh session loads.
+
+  `load` gains a second argument carrying an abort signal, and returns the per-turn state the session events imply alongside the messages, so a refetch swaps the thread over in one commit instead of blanking a tool confirmation before the replacement arrives. Both are additive; a `load` that ignores the argument and returns only `{ messages }` behaves as before.
+
+  Where this diverges from `react-langgraph`, and why: a refetch that lands while a run is in flight, or after one has touched the thread, defers to the run rather than merging into it. Langgraph reconciles the two by message id, which relies on the server preserving the id the client sent. ADK assigns its own event ids, so an optimistic message cannot be correlated with the one the session stored for it, and a merge would duplicate it.
+
+- [#5544](https://github.com/assistant-ui/assistant-ui/pull/5544) [`5eac1d6`](https://github.com/assistant-ui/assistant-ui/commit/5eac1d6c762144d7e209b07482b118722a1be673) - fix: a message keeps its id when its event is replayed ([@okisdev](https://github.com/okisdev))
+
+  `AdkEventAccumulator` minted assistant and tool message ids with `uuidv4()` on every pass, so replaying a stored event through a fresh accumulator produced different ids each time. A session load does exactly that, which churned those ids on every load: React remounted the message subtrees, and `messageMetadataMap` entries (grounding, citation, usage) keyed on the old id were orphaned. Human messages already derived theirs from the event id.
+
+  Both now derive from the event that carries them, and keep the bare event id free for the human message that has always used it: a tool message by the index of its part, an assistant message by how many that event has already opened. An event with no id of its own still gets a generated one, since it has never been through the session and has nothing stable to derive from.
+
+  This is about replaying one stored event; a message the client sent optimistically still carries a different id from the one the session assigns it.
+
+- Updated dependencies [[`b19c2f5`](https://github.com/assistant-ui/assistant-ui/commit/b19c2f5efd37e1203502c76d92e0554b63020952), [`01140bd`](https://github.com/assistant-ui/assistant-ui/commit/01140bde14fbfa89af9bdd080bbf79b3a509b524), [`8c99934`](https://github.com/assistant-ui/assistant-ui/commit/8c99934ca7fe9a8ffea0aa972e3579ff74e18553), [`ece5a54`](https://github.com/assistant-ui/assistant-ui/commit/ece5a5422e8b45429e1681b7a845d68be2879834), [`2fdff87`](https://github.com/assistant-ui/assistant-ui/commit/2fdff878211979b1f24d746bf2f16d8b6254102d), [`90b3003`](https://github.com/assistant-ui/assistant-ui/commit/90b3003b943e083fa6cd81e30181bf5b88904361), [`4c313cf`](https://github.com/assistant-ui/assistant-ui/commit/4c313cfabe9802a7e59362c323ec926a24d089d4), [`55b2824`](https://github.com/assistant-ui/assistant-ui/commit/55b282476bf3075beff391978a72a13968b6418a), [`22b05a4`](https://github.com/assistant-ui/assistant-ui/commit/22b05a43ec921a6dd7015692a77a746656a61f5f), [`f913c21`](https://github.com/assistant-ui/assistant-ui/commit/f913c2142708d8cd1f4ac63bd801e5b6defcb74e), [`c868710`](https://github.com/assistant-ui/assistant-ui/commit/c8687104b0407f424d55dd0a369d692fe7a4c708), [`011e275`](https://github.com/assistant-ui/assistant-ui/commit/011e275c4df5cd85942b5fd545a74d9c7cf549a6), [`da32fe0`](https://github.com/assistant-ui/assistant-ui/commit/da32fe0b2f51c8a340935c5f4d2e31e747d39460), [`f913c21`](https://github.com/assistant-ui/assistant-ui/commit/f913c2142708d8cd1f4ac63bd801e5b6defcb74e), [`5bb2573`](https://github.com/assistant-ui/assistant-ui/commit/5bb25733674396d496046b7c5443366171d0e8cf), [`5ececc1`](https://github.com/assistant-ui/assistant-ui/commit/5ececc1df536e098f8ee252addd2e62be7d61a7a)]:
+  - @assistant-ui/core@0.3.4
+  - assistant-stream@0.3.32
+  - @assistant-ui/store@0.3.3
+
+## 0.0.20
+
+### Patch Changes
+
+- [#5329](https://github.com/assistant-ui/assistant-ui/pull/5329) [`f30b54c`](https://github.com/assistant-ui/assistant-ui/commit/f30b54c9856d50a18f738c4d485c02bcd039151c) - refactor: move createRuntimeExtras to the @assistant-ui/core/react entry and drop the internal re-export ([@okisdev](https://github.com/okisdev))
+
+- [#5315](https://github.com/assistant-ui/assistant-ui/pull/5315) [`676c751`](https://github.com/assistant-ui/assistant-ui/commit/676c75178c59bfd497e58b30b2fecabf66be7929) - fix: forward audio message parts and skip data parts instead of dropping or throwing ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#5374](https://github.com/assistant-ui/assistant-ui/pull/5374) [`d486ffc`](https://github.com/assistant-ui/assistant-ui/commit/d486ffcd1b054b3bdf6940809b76174aeb770144) - fix: cancel Google ADK streams when iteration stops early ([@Kinfe123](https://github.com/Kinfe123))
+
+- Updated dependencies [[`d2e7a4a`](https://github.com/assistant-ui/assistant-ui/commit/d2e7a4a1c71c214fd8c4363ec16e879d1122639e), [`ecd7c87`](https://github.com/assistant-ui/assistant-ui/commit/ecd7c879cace69d6371b3f673c52a80669377fc0), [`2daf2d5`](https://github.com/assistant-ui/assistant-ui/commit/2daf2d5dfcb77938f6deb63d048575540e1806a2), [`a5bdbed`](https://github.com/assistant-ui/assistant-ui/commit/a5bdbed993d8f14c919b692b40d51f5cd64467b9), [`fb993c3`](https://github.com/assistant-ui/assistant-ui/commit/fb993c34ca1623bac373137c5ab207dd79cb500c), [`3ae058c`](https://github.com/assistant-ui/assistant-ui/commit/3ae058c5d275e2444701da70a6513528439ecb3e), [`f30b54c`](https://github.com/assistant-ui/assistant-ui/commit/f30b54c9856d50a18f738c4d485c02bcd039151c), [`936c52c`](https://github.com/assistant-ui/assistant-ui/commit/936c52c4301b89242572d9890c870050f63cbe93), [`ee87dd9`](https://github.com/assistant-ui/assistant-ui/commit/ee87dd9fef1389165bbfe0019be2a6995b2cfb24), [`e41734c`](https://github.com/assistant-ui/assistant-ui/commit/e41734c102a192ab772703899d7980bb5c055d07), [`1c5266c`](https://github.com/assistant-ui/assistant-ui/commit/1c5266c1fb32bc71647fedc485372f6ffa25171f), [`cdcdbd0`](https://github.com/assistant-ui/assistant-ui/commit/cdcdbd0a9354483a72edbc01f51a850a1d6b5dc5), [`42dbc69`](https://github.com/assistant-ui/assistant-ui/commit/42dbc697642c0fa327728860f78a8ce5270bf32d), [`25f1e4f`](https://github.com/assistant-ui/assistant-ui/commit/25f1e4f9d33073216458d3c5a05e8d79845d4b3b), [`d16e62d`](https://github.com/assistant-ui/assistant-ui/commit/d16e62d25b5c1e7e2bc1504fb4a5e97c3c25b6e3), [`60d049e`](https://github.com/assistant-ui/assistant-ui/commit/60d049eeadf681f4235157c903543493c98cc258), [`8643393`](https://github.com/assistant-ui/assistant-ui/commit/8643393490ebe1aa86661f705bb9ac907bfb4eac), [`2eca438`](https://github.com/assistant-ui/assistant-ui/commit/2eca4386778618f555258855ee6612eb44d89bb2), [`23ee5db`](https://github.com/assistant-ui/assistant-ui/commit/23ee5dbb60e6ac7993b8ce4023fb63a5f7eea713)]:
+  - @assistant-ui/store@0.3.2
+  - @assistant-ui/core@0.3.2
+  - assistant-stream@0.3.31
+
 ## 0.0.19
 
 ### Patch Changes

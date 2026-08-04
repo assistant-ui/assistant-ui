@@ -207,6 +207,7 @@ Each handler enables a specific UI feature.
 | `onEdit` | Message edit button |
 | `onReload` | Regenerate button |
 | `onCancel` | Cancel button while generating |
+| `onRefetchThread` | `threads.reloadMainThread()` refetching the open thread in place |
 | `onAddToolResult` | Client-side tool result handoff |
 | `queue` | Queueing messages sent while a run is in progress |
 
@@ -786,6 +787,12 @@ useExternalStoreRuntime({
       name: "onCancel",
       type: "() => Promise<void>",
       description: "Handler for cancelling the current generation.",
+    },
+    {
+      name: "onRefetchThread",
+      type: "() => Promise<void>",
+      description:
+        "Handler for re-fetching this thread's state in place, driving threads.reloadMainThread(). Unrelated to onReload, which re-generates an assistant message.",
     },
     {
       name: "onAddToolResult",

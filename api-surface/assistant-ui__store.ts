@@ -42,6 +42,18 @@ type AssistantState = ScopeStates & {
   };
 };
 
+type AuiConfig = AuiConfig.Input & {
+  readonly [auiConfigBrand]: true;
+};
+
+declare namespace AuiConfig {
+  type Input = {
+    [K in ClientNames]?: ClientElement<K> | DerivedElement<K>;
+  };
+}
+
+declare const AuiConfig: (config: AuiConfig.Input) => AuiConfig;
+
 declare namespace AuiIf {
   type Props = PropsWithChildren<{
     condition: AuiIf.Condition;
@@ -53,11 +65,24 @@ declare const AuiIf: FC<AuiIf.Props>;
 
 declare const AuiProvider: {
   (props: {
-    value: AssistantClient;
+    config: AuiConfig;
+    ref?: React.Ref<AssistantClient>;
+    extends?: never;
+    value?: never;
     children: React.ReactNode;
   }): React.ReactElement;
   (props: {
-    value: null;
+    extends: AssistantClient | null;
+    config: AuiConfig;
+    ref?: React.Ref<AssistantClient>;
+    value?: never;
+    children: React.ReactNode;
+  }): React.ReactElement;
+  (props: {
+    value: AssistantClient | null;
+    extends?: never;
+    config?: never;
+    ref?: never;
     children: React.ReactNode;
   }): React.ReactElement;
 };
@@ -189,6 +214,8 @@ type WildcardPayload = {
 
 declare function attachTransformScopes(hook: Hook, transform: TransformScopesFn): void;
 
+declare const auiConfigBrand: unique symbol;
+
 declare const clientIdBrand: unique symbol;
 
 declare function forwardTransformScopes(target: Hook, source: Hook): void;
@@ -202,7 +229,7 @@ declare namespace getClientId {
 }
 
 declare namespace entry_root_exports {
-  export { AssistantClient, AssistantClientAccessor, AssistantEventCallback, AssistantEventName, AssistantEventPayload, AssistantEventScope, AssistantEventSelector, AssistantState, AuiIf, AuiProvider, ClientElement, ClientEvents, ClientMeta, ClientMethods, ClientNames, ClientOutput, ClientSchema, Derived, DerivedElement, RenderChildrenWithAccessor, ScopeRegistry, ScopesConfig, Unsubscribe, attachTransformScopes, forwardTransformScopes, getClientId, normalizeEventSelector, useAssistantClientRef, useAssistantEmit, useAui, useAuiEvent, useAuiState, useClientList, useClientLookup, useClientResource };
+  export { AssistantClient, AssistantClientAccessor, AssistantEventCallback, AssistantEventName, AssistantEventPayload, AssistantEventScope, AssistantEventSelector, AssistantState, AuiConfig, AuiIf, AuiProvider, ClientElement, ClientEvents, ClientMeta, ClientMethods, ClientNames, ClientOutput, ClientSchema, Derived, DerivedElement, RenderChildrenWithAccessor, ScopeRegistry, ScopesConfig, Unsubscribe, attachTransformScopes, forwardTransformScopes, getClientId, normalizeEventSelector, useAssistantClientRef, useAssistantEmit, useAui, useAuiEvent, useAuiState, useClientList, useClientLookup, useClientResource };
 }
 
 declare const normalizeEventSelector: <TEvent extends AssistantEventName>(selector: AssistantEventSelector<TEvent>) => {
@@ -218,9 +245,7 @@ declare const useAssistantClientRef: () => {
 declare const useAssistantEmit: () => <TEvent extends Exclude<AssistantEventName, "*">>(event: TEvent, payload: AssistantEventPayload[TEvent]) => void;
 
 declare namespace useAui {
-  type Props = {
-    [K in ClientNames]?: ClientElement<K> | DerivedElement<K>;
-  };
+  type Props = AuiConfig.Input;
 }
 
 declare function useAui(): AssistantClient;

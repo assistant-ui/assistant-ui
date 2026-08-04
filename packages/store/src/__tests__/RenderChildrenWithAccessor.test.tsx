@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import { act, render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { AuiProvider } from "../utils/react-assistant-context";
+import { AuiProvider } from "../AuiProvider";
 import { RenderChildrenWithAccessor } from "../RenderChildrenWithAccessor";
 
 afterEach(() => {

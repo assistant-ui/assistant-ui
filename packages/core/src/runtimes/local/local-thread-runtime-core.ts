@@ -53,6 +53,7 @@ export class LocalThreadRuntimeCore
     edit: true,
     delete: false,
     reload: true,
+    refetchThread: false,
     cancel: true,
     unstable_copy: true,
     speech: false,
@@ -680,7 +681,7 @@ export class LocalThreadRuntimeCore
       if (c.type !== "tool-call") return c;
       if (c.toolCallId !== toolCallId) return c;
       found = true;
-      if (!c.result) added = true;
+      if (c.result === undefined) added = true;
       return {
         ...c,
         result,

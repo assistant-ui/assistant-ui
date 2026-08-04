@@ -14,8 +14,10 @@ import type {
   OpenCodePermissionRequest,
   OpenCodePermissionResponse,
   OpenCodeQuestionRequest,
+  Part,
   QuestionAnswer,
   OpenCodeServerEvent,
+  OpenCodeStateEvent,
   OpenCodeThreadControllerLike,
   OpenCodeThreadState,
   OpenCodeUnhandledEvent,
@@ -26,24 +28,48 @@ import {
   STREAM_RECONNECTED_EVENT_TYPE,
   type OpenCodeEventSource,
 } from "./OpenCodeEventSource";
+import {
+  resolveFileMediaType,
+  resolveImageMediaType,
+  toMediaWireUrl,
+} from "@assistant-ui/core/internal";
 import { OPEN_CODE_REQUEST_OPTIONS } from "./openCodeRequestOptions";
-import { serializeUserParts } from "./serializeUserParts";
+import { serializeOpenCodeParts } from "./serializeUserParts";
+import { getOpenCodeTaskSessionId } from "./openCodeTaskSession";
 
 type OpenCodeEventSourceProvider = () => Pick<OpenCodeEventSource, "subscribe">;
+
+type ChildControllerEntry = {
+  controller: OpenCodeThreadController;
+  unsubscribe: (() => void) | null;
+};
 
 const createLocalId = (prefix: string) =>
   `${prefix}_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
 
 const getTextContent = (parts: readonly ThreadUserMessagePart[]) =>
-  serializeUserParts(parts).trim();
+  serializeOpenCodeParts(parts).trim();
+
+// The attachment carries a name and content type its parts do not, so they
+// ride along rather than being dropped at the flatten. Both the outbound
+// prompt and the pending copy read this, so their fingerprints agree.
+const flattenMessageParts = (message: AppendMessage) => [
+  ...message.content,
+  ...(message.attachments?.flatMap((attachment: any) =>
+    (attachment.content ?? []).map((part: any) => ({
+      ...part,
+      ...(attachment.name != null && {
+        filename: part.filename ?? attachment.name,
+      }),
+      ...(attachment.contentType != null && {
+        contentType: attachment.contentType,
+      }),
+    })),
+  ) ?? []),
+];
 
 const getPromptParts = (message: AppendMessage) => {
-  const content = [
-    ...message.content,
-    ...(message.attachments?.flatMap(
-      (attachment: any) => attachment.content ?? [],
-    ) ?? []),
-  ];
+  const content = flattenMessageParts(message);
 
   const promptParts: Array<Record<string, unknown>> = [];
   for (const part of content) {
@@ -53,16 +79,33 @@ const getPromptParts = (message: AppendMessage) => {
     }
 
     if (part.type === "image") {
-      promptParts.push({ type: "image", image: part.image });
+      // OpenCode has no image part: its input union is text, file, agent and
+      // subtask, so an `image` part never reached the model.
+      const mime = resolveImageMediaType(
+        part.image,
+        (part as { contentType?: string }).contentType,
+      );
+      promptParts.push({
+        type: "file",
+        ...(part.filename != null && { filename: part.filename }),
+        mime,
+        url: toMediaWireUrl(part.image, mime),
+      });
       continue;
     }
 
     if (part.type === "file") {
+      const fileMime = resolveFileMediaType(part.data, part.mimeType);
       promptParts.push({
         type: "file",
         filename: part.filename,
-        mime: part.mimeType,
-        url: part.data,
+        mime: fileMime,
+        // An `id` reference is an opaque handle this adapter cannot send, left
+        // unwrapped so it fails loudly rather than shipping a corrupt payload.
+        url:
+          part.sourceType === "id"
+            ? part.data
+            : toMediaWireUrl(part.data, fileMime),
       });
     }
   }
@@ -180,6 +223,13 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   private unsubscribeFromEvents: (() => void) | null = null;
   private loadPromise: Promise<void> | null = null;
   private reconnectSyncToken = 0;
+  private readonly childControllersById = new Map<
+    string,
+    ChildControllerEntry
+  >();
+  private readonly childSessionIdByPartId = new Map<string, string>();
+  private ancestorSessionIds: ReadonlySet<string>;
+  private isChildSession = false;
   private readonly stagedMessages = new Map<
     string,
     {
@@ -201,6 +251,170 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     this.sessionId = sessionId;
     this.state = createOpenCodeThreadState(sessionId);
     this.getEventSource = getEventSource;
+    this.ancestorSessionIds = new Set([sessionId]);
+  }
+
+  private notifyListeners() {
+    for (const listener of this.listeners) {
+      try {
+        listener();
+      } catch (error) {
+        console.error("[react-opencode] Listener threw an error", error);
+      }
+    }
+  }
+
+  private updateChildSnapshot(
+    sessionId: string,
+    childState: OpenCodeThreadState,
+  ) {
+    if (this.state.childSessionsById[sessionId] === childState) return;
+
+    this.state = {
+      ...this.state,
+      childSessionsById: {
+        ...this.state.childSessionsById,
+        [sessionId]: childState,
+      },
+    };
+    this.notifyListeners();
+  }
+
+  private attachChildController(
+    sessionId: string,
+    entry: ChildControllerEntry,
+  ) {
+    if (entry.unsubscribe) return;
+
+    entry.unsubscribe = entry.controller.subscribe(() => {
+      this.updateChildSnapshot(sessionId, entry.controller.getState());
+    });
+    this.updateChildSnapshot(sessionId, entry.controller.getState());
+    if (entry.controller.getState().loadState.type !== "ready") {
+      void entry.controller.load().catch(() => undefined);
+    }
+  }
+
+  private detachChildControllers() {
+    for (const entry of this.childControllersById.values()) {
+      entry.unsubscribe?.();
+      entry.unsubscribe = null;
+    }
+  }
+
+  private discard() {
+    this.loadPromise = null;
+    this.reconnectSyncToken += 1;
+    this.unsubscribeFromEvents?.();
+    this.unsubscribeFromEvents = null;
+    for (const entry of this.childControllersById.values()) {
+      entry.unsubscribe?.();
+      entry.controller.discard();
+    }
+    this.childControllersById.clear();
+    this.childSessionIdByPartId.clear();
+    this.listeners.clear();
+  }
+
+  private rebuildChildSessionIndex() {
+    this.childSessionIdByPartId.clear();
+    for (const message of Object.values(this.state.messagesById)) {
+      for (const part of message.parts) {
+        const sessionId = getOpenCodeTaskSessionId(part);
+        if (sessionId) {
+          this.childSessionIdByPartId.set(part.id, sessionId);
+        }
+      }
+    }
+    this.syncChildControllers();
+  }
+
+  private updateChildSessionIndex(part: Part) {
+    const previousSessionId = this.childSessionIdByPartId.get(part.id);
+    const sessionId = getOpenCodeTaskSessionId(part);
+    if (sessionId === previousSessionId) return;
+
+    if (sessionId) {
+      this.childSessionIdByPartId.set(part.id, sessionId);
+    } else {
+      this.childSessionIdByPartId.delete(part.id);
+    }
+    this.syncChildControllers();
+  }
+
+  private removeFromChildSessionIndex(partId: string) {
+    if (!this.childSessionIdByPartId.delete(partId)) return;
+    this.syncChildControllers();
+  }
+
+  private syncChildControllers() {
+    const sessionIds = new Set(this.childSessionIdByPartId.values());
+    for (const sessionId of this.ancestorSessionIds) {
+      sessionIds.delete(sessionId);
+    }
+
+    let childSessionsById = this.state.childSessionsById;
+    for (const [sessionId, entry] of this.childControllersById) {
+      if (sessionIds.has(sessionId)) continue;
+
+      entry.unsubscribe?.();
+      entry.controller.discard();
+      this.childControllersById.delete(sessionId);
+      const { [sessionId]: _removed, ...remaining } = childSessionsById;
+      childSessionsById = remaining;
+    }
+
+    const added: [string, ChildControllerEntry][] = [];
+    for (const sessionId of sessionIds) {
+      if (this.childControllersById.has(sessionId)) continue;
+
+      const controller = new OpenCodeThreadController(
+        this.client,
+        this.getEventSource,
+        sessionId,
+      );
+      controller.ancestorSessionIds = new Set([
+        ...this.ancestorSessionIds,
+        sessionId,
+      ]);
+      controller.isChildSession = true;
+      const entry: ChildControllerEntry = {
+        controller,
+        unsubscribe: null,
+      };
+      this.childControllersById.set(sessionId, entry);
+      childSessionsById = {
+        ...childSessionsById,
+        [sessionId]: controller.getState(),
+      };
+      added.push([sessionId, entry]);
+    }
+
+    if (childSessionsById !== this.state.childSessionsById) {
+      this.state = { ...this.state, childSessionsById };
+    }
+
+    for (const [sessionId, entry] of added) {
+      if (this.listeners.size === 0) break;
+      this.attachChildController(sessionId, entry);
+    }
+  }
+
+  private syncChildSessionIndex(event: OpenCodeStateEvent) {
+    switch (event.type) {
+      case "history.loaded":
+      case "message.removed":
+        this.rebuildChildSessionIndex();
+        break;
+      case "part.updated":
+        this.updateChildSessionIndex(event.part);
+        break;
+      case "part.removed":
+        this.removeFromChildSessionIndex(event.partId);
+        break;
+      default:
+        break;
+    }
   }
 
   private ensureEventSubscription() {
@@ -219,6 +433,8 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   private handleStreamReconnect() {
     this.refreshInBackground();
     const token = ++this.reconnectSyncToken;
+
+    if (this.isChildSession) return;
 
     void this.client.session
       .status(undefined, OPEN_CODE_REQUEST_OPTIONS)
@@ -267,6 +483,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   public dispose() {
     this.unsubscribeFromEvents?.();
     this.unsubscribeFromEvents = null;
+    this.detachChildControllers();
     this.listeners.clear();
   }
 
@@ -275,14 +492,21 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   };
 
   public subscribe = (listener: () => void) => {
+    const wasDetached = this.listeners.size === 0;
     this.listeners.add(listener);
     this.ensureEventSubscription();
+    if (wasDetached) {
+      for (const [sessionId, entry] of this.childControllersById) {
+        this.attachChildController(sessionId, entry);
+      }
+    }
 
     return () => {
       this.listeners.delete(listener);
       if (this.listeners.size === 0) {
         this.unsubscribeFromEvents?.();
         this.unsubscribeFromEvents = null;
+        this.detachChildControllers();
       }
     };
   };
@@ -332,12 +556,9 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   }
 
   private createPendingMessage(message: AppendMessage): PendingUserMessage {
-    const parts = [
-      ...message.content,
-      ...(message.attachments?.flatMap(
-        (attachment: any) => attachment.content ?? [],
-      ) ?? []),
-    ] as readonly ThreadUserMessagePart[];
+    const parts = flattenMessageParts(
+      message,
+    ) as readonly ThreadUserMessagePart[];
 
     return {
       clientId: createLocalId("local"),
@@ -745,8 +966,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     const nextState = reduceOpenCodeThreadState(this.state, event);
     if (nextState === this.state) return;
     this.state = nextState;
-    for (const listener of this.listeners) {
-      listener();
-    }
+    this.syncChildSessionIndex(event);
+    this.notifyListeners();
   }
 }

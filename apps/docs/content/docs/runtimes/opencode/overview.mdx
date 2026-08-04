@@ -28,6 +28,16 @@ If your backend is not OpenCode-based, see [picking a runtime](/docs/runtimes/pi
 - A running [OpenCode](https://opencode.ai/) server (defaults to `http://localhost:4096`).
 - React 18 or 19.
 
+## Sub-agent conversations
+
+OpenCode `task` tool calls expose their child session through tool metadata. The runtime loads those child sessions, keeps them synchronized from the same OpenCode event stream, and projects their transcripts into `ToolCallMessagePart.messages`. Parallel and recursively nested tasks are supported.
+
+Loading is eager, not keyed to what a renderer displays. Once a thread is subscribed, every `task` part in its transcript fetches its child session, and each child does the same for its own nested tasks, so a long session with many task calls fetches every sub-agent transcript whether or not any of them is expanded. Each child session is fetched once and then kept current from the event stream, so re-subscribing a thread does not refetch it.
+
+A `task` part carries `messages` only once its child session has loaded. While the child is still loading, the part projects as an ordinary tool call, so an empty `messages` array always means the sub-agent produced nothing rather than that its transcript is still in flight.
+
+Use assistant-ui's [`MessagePartPrimitive.Messages`](/docs/tools/multi-agent) inside a `task` tool renderer to display the child conversation. Nested conversations are read-only and inherit the parent thread's tool renderers.
+
 ## Install
 
 <InstallCommand npm={["@assistant-ui/react", "@assistant-ui/react-opencode", "@opencode-ai/sdk"]} />

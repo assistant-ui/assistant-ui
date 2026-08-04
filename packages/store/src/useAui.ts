@@ -10,24 +10,29 @@ import {
   withKey,
   type ResourceElement,
 } from "@assistant-ui/tap";
-import { useMemo, useEffect, useRef, useSyncExternalStore } from "react";
+import {
+  useMemo,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 
 import type {
   AssistantClient,
   AssistantClientAccessor,
   ClientNames,
-  ClientElement,
   ClientMethods,
 } from "./types/client";
-import { useDerived, type DerivedElement } from "./Derived";
+import { useDerived } from "./Derived";
 import {
   useAssistantContextValue,
+  useAssistantContextProvider,
   DefaultAssistantClient,
-  IsolatedAssistantClient,
   createRootAssistantClient,
-  createIsolatedRootAssistantClient,
-  AUI_USE_EFFECTS_SYMBOL,
+  setTapEffects,
 } from "./utils/react-assistant-context";
+import type { AuiConfig } from "./AuiConfig";
 import { getTransformScopes, type ScopesConfig } from "./attachTransformScopes";
 import {
   normalizeEventSelector,
@@ -35,30 +40,29 @@ import {
   type AssistantEventCallback,
   type AssistantEventSelector,
 } from "./types/events";
-import { NotificationManager } from "./utils/NotificationManager";
 import {
-  useAssistantTapContextProvider,
-  useBuildingClientProvider,
-  useBuildingClient,
-} from "./utils/tap-assistant-context";
+  useNotificationManager,
+  type NotificationManager,
+} from "./utils/NotificationManager";
+import { useAssistantTapContextProvider } from "./utils/tap-assistant-context";
 import { ClientResource } from "./useClientResource";
 import { useShallowStable } from "./utils/useShallowStable";
 import { createClientAccessor, getClientId } from "./utils/client-accessor";
 import { getClientIndex } from "./utils/tap-client-stack-context";
 
+const isDevelopment =
+  typeof process !== "undefined" &&
+  (process.env.NODE_ENV === "development" || process.env.NODE_ENV === "test");
+
 type ClientRef = { parent: AssistantClient; current: AssistantClient | null };
 
 type ScopeElement = ResourceElement<ClientMethods>;
-type ScopeEntry = { name: ClientNames; element: ScopeElement };
+type ScopeEntry = [name: ClientNames, element: ScopeElement];
 type ScopeMeta = {
   source: ClientNames | "root";
   query: Record<string, unknown>;
 };
-type ScopeResult = {
-  name: ClientNames;
-  accessor: AssistantClientAccessor<ClientNames>;
-  state: unknown;
-};
+type ScopeAccessor = AssistantClientAccessor<ClientNames>;
 
 const applyTransformScopes = (
   clients: useAui.Props,
@@ -95,18 +99,6 @@ const metaOf = (element: ScopeElement): ScopeMeta => {
   return { source: props.source, query: props.query ?? {} };
 };
 
-const toScopeEntries = (scopes: Record<string, ScopeElement>): ScopeEntry[] =>
-  (Object.entries(scopes) as [ClientNames, ScopeElement][]).map(
-    ([name, element]) => ({ name, element }),
-  );
-
-const createAccessor = <K extends ClientNames>(
-  name: K,
-  meta: ScopeMeta,
-  read: () => ClientMethods,
-): AssistantClientAccessor<K> =>
-  createClientAccessor<K>({ name, ...meta }, read);
-
 type ClientFields = {
   subscribe: AssistantClient["subscribe"];
   on: AssistantClient["on"];
@@ -116,13 +108,9 @@ const createClientObject = (
   parent: AssistantClient,
   fields: ClientFields,
 ): AssistantClient => {
-  // Swap the sentinel parents for root prototypes to change the error message
+  // Swap the sentinel parent for a root prototype to change the error message
   const proto =
-    parent === DefaultAssistantClient
-      ? createRootAssistantClient()
-      : parent === IsolatedAssistantClient
-        ? createIsolatedRootAssistantClient()
-        : parent;
+    parent === DefaultAssistantClient ? createRootAssistantClient() : parent;
 
   const client = Object.create(proto) as AssistantClient;
   Object.assign(client, fields);
@@ -153,7 +141,8 @@ const useClientFields = ({
         const { scope, event } = normalizeEventSelector(selector);
 
         if (scope !== "*") {
-          const source = this[scope as ClientNames].source;
+          // A hand-built parent may lack the scope entirely; forward to it
+          const source = this[scope as ClientNames]?.source;
           if (source === null) {
             throw new Error(
               `Scope "${scope}" is not available. Use { scope: "*", event: "${event}" } to listen globally.`,
@@ -177,7 +166,7 @@ const useClientFields = ({
         });
         if (
           scope !== "*" &&
-          clientRef.parent[scope as ClientNames].source === null
+          clientRef.parent[scope as ClientNames]?.source === null
         )
           return localUnsub;
 
@@ -198,11 +187,16 @@ const useScopeMeta = (element: ScopeElement): ScopeMeta => {
   return useShallowStable({ source, query: useShallowStable(query) });
 };
 
+// Kept separate from useScopeMount: the building-client mutation there makes
+// the React Compiler bail, which would leave the resource element unmemoized
 const useScopeValue = (element: ScopeElement, derived: boolean) =>
   useResource(derived ? element : ClientResource(element));
 
-const useScopeMount = ({ name, element }: ScopeEntry): ScopeResult => {
-  const client = useBuildingClient();
+const useScopeMount = (
+  name: ClientNames,
+  element: ScopeElement,
+): ScopeAccessor => {
+  const building = useAssistantContextValue();
 
   // A derived element resolves to an existing client; mount it directly
   const derived = isDerivedElement(element);
@@ -211,47 +205,39 @@ const useScopeMount = ({ name, element }: ScopeEntry): ScopeResult => {
   const methods = derived
     ? (value as ClientMethods)
     : (value as { methods: ClientMethods }).methods;
-  const state = derived
-    ? (value as { getState?: () => unknown }).getState?.()
-    : (value as { state: unknown }).state;
 
   const meta = useScopeMeta(element);
   const accessor = useMemo(
-    () => createAccessor(name, meta, () => methods),
+    () => createClientAccessor({ name, ...meta }, () => methods),
     [name, meta, methods],
   );
 
-  // Only fill vacant slots so a re-render never mutates an already-built client
-  if (!Object.hasOwn(client, name)) {
-    (client as Record<ClientNames, unknown>)[name] = accessor;
-  }
+  (building as Record<ClientNames, unknown>)[name] = accessor;
 
-  return useMemo(() => ({ name, accessor, state }), [name, accessor, state]);
+  return accessor;
 };
 
 const ScopeMount = resource(useScopeMount);
 
-const useScopeMounts = (entries: ScopeEntry[]): ScopeResult[] =>
-  useResources(entries.map((entry) => withKey(entry.name, ScopeMount(entry))));
+const useScopeMounts = (entries: ScopeEntry[]): ScopeAccessor[] =>
+  useResources(
+    entries.map(([name, element]) => withKey(name, ScopeMount(name, element))),
+  );
 
-const useCommittedClient = ({
-  building,
-  parent,
-  fields,
-  accessors,
-}: {
-  building: AssistantClient;
-  parent: AssistantClient;
-  fields: ClientFields;
-  accessors: readonly AssistantClientAccessor<ClientNames>[];
-}): AssistantClient => {
-  const deps = useShallowStable([parent, fields, accessors]);
+// Commits the freshly built client only when its identity-relevant inputs
+// changed: value-only updates keep the committed client's identity, a
+// structural change produces a new one
+const useCommittedClient = (
+  building: AssistantClient,
+  deps: readonly unknown[],
+): AssistantClient => {
+  const stableDeps = useShallowStable(deps);
   const cell = useMemo(
     () => ({}) as { deps?: unknown; client?: AssistantClient },
     [],
   );
-  if (cell.deps !== deps) {
-    cell.deps = deps;
+  if (cell.deps !== stableDeps) {
+    cell.deps = stableDeps;
     cell.client = building;
   }
   return cell.client!;
@@ -259,100 +245,187 @@ const useCommittedClient = ({
 
 const useAuiRoot = ({
   parent,
-  clients,
+  entries,
   clientRef,
   notifications,
 }: {
   parent: AssistantClient;
-  clients: useAui.Props;
+  entries: ScopeEntry[];
   clientRef: ClientRef;
   notifications: NotificationManager;
 }): { client: AssistantClient } => {
-  const entries = toScopeEntries(applyTransformScopes(clients, parent));
-
   const fields = useClientFields({ notifications, clientRef });
   const building = createClientObject(parent, fields);
 
-  const results = useAssistantTapContextProvider(
+  const accessors = useAssistantTapContextProvider(
     { clientRef, emit: notifications.emit },
     function WithTapContext() {
-      return useBuildingClientProvider(building, function WithBuildingClient() {
-        return useScopeMounts(entries);
-      });
+      return useAssistantContextProvider(
+        building,
+        function WithBuildingClient() {
+          return useScopeMounts(entries);
+        },
+      );
     },
   );
-
-  const accessors = useShallowStable(results.map((r) => r.accessor));
 
   // Fresh envelope per commit so value-only updates reach the store's
   // subscribers; the client inside keeps its identity
   return {
-    client: useCommittedClient({ building, parent, fields, accessors }),
+    client: useCommittedClient(building, [parent, ...accessors]),
   };
 };
 
-const useNotifications = () => useResource(NotificationManager());
-
-const useAssistantClient = ({
+const useHostedAssistantClient = ({
   parent,
-  clients,
+  entries,
 }: {
   parent: AssistantClient;
-  clients: useAui.Props;
-}): AssistantClient => {
-  const clientRef = useRef<ClientRef>({ parent, current: null }).current;
-  const notifications = useNotifications();
+  entries: ScopeEntry[];
+}): ScopedAuiClient => {
+  const { value: client, effects } = useTapHost(function AssistantClientHost() {
+    const clientRef = useRef<ClientRef>({ parent, current: null }).current;
+    const notifications = useNotificationManager();
 
-  const store = useTapRoot(function AuiRoot() {
-    return useAuiRoot({ parent, clients, clientRef, notifications });
+    const store = useTapRoot(function AuiRoot() {
+      return useAuiRoot({ parent, entries, clientRef, notifications });
+    });
+
+    const client = useSyncExternalStore(
+      store.subscribe,
+      () => store.getValue().client,
+      () => store.getValue().client,
+    );
+
+    // flushTapSync makes structural rebinds triggered by a notification land
+    // before the notification returns
+    useEffect(() => {
+      const notify = () => flushTapSync(notifications.notifySubscribers);
+      const unsubscribeStore = store.subscribe(notify);
+      const unsubscribeParent = parent.subscribe(notify);
+      return () => {
+        unsubscribeStore();
+        unsubscribeParent();
+      };
+      // oxlint-disable-next-line react-hooks/exhaustive-deps -- parent is a prop of the outer hook; the host re-renders with a fresh closure when it changes
+    }, [store, parent, notifications]);
+
+    useEffect(() => {
+      clientRef.parent = parent;
+      clientRef.current = client;
+    });
+
+    if (clientRef.current === null) {
+      clientRef.current = client;
+    }
+
+    return client;
   });
 
-  const client = useSyncExternalStore(
-    store.subscribe,
-    () => store.getValue().client,
-    () => store.getValue().client,
-  );
-
-  // flushTapSync makes structural rebinds triggered by a notification land
-  // before the notification returns
-  useEffect(
-    () => store.subscribe(() => flushTapSync(notifications.notifySubscribers)),
-    [store, notifications],
-  );
-  useEffect(
-    () => parent.subscribe(() => flushTapSync(notifications.notifySubscribers)),
-    [parent, notifications],
-  );
-
-  useEffect(() => {
-    clientRef.parent = parent;
-    clientRef.current = client;
-  });
-
-  if (clientRef.current === null) {
-    clientRef.current = client;
-  }
-
-  return client;
+  return { client, effects };
 };
 
-const useHostedAssistantClient = (props: {
-  parent: AssistantClient;
-  clients: useAui.Props;
-}): AssistantClient => {
-  const { value: client, effects } = useTapHost(function AssistantClientHost() {
-    return useAssistantClient(props);
+const useDerivedScopeMount = (
+  parent: AssistantClient,
+  building: AssistantClient,
+  name: ClientNames,
+  element: ScopeElement,
+): ScopeAccessor => {
+  // Resolved against the explicit parent (which may live in another React
+  // root), never the context client.
+  const { get } = element.args[0] as {
+    get: (client: AssistantClient) => ClientMethods;
+  };
+  const value = useSyncExternalStore(
+    parent.subscribe,
+    () => get(parent),
+    () => get(parent),
+  );
+
+  const meta = useScopeMeta(element);
+  const accessor = useMemo(
+    () => createClientAccessor({ name, ...meta }, () => value),
+    [name, meta, value],
+  );
+
+  (building as Record<ClientNames, unknown>)[name] = accessor;
+
+  return accessor;
+};
+
+// Derived-only hosts run without tap: each Derived scope is a plain React
+// hook call, so the scope count is fixed per call site (React throws on a
+// hook-count change). subscribe/on delegate wholesale to the parent, so
+// emissions and state updates flow through the parent's machinery.
+const useDerivedOnlyClient = (
+  parent: AssistantClient,
+  entries: ScopeEntry[],
+): AssistantClient => {
+  if (isDevelopment) {
+    // oxlint-disable-next-line react-hooks/rules-of-hooks -- isDevelopment is constant for the process lifetime
+    const [mountKeys] = useState(() => entries.map(([name]) => name).join(","));
+    const root = entries.find(([, element]) => !isDerivedElement(element));
+    if (root) {
+      throw new Error(
+        `Scope "${root[0]}" is a root scope but this useAui mounted derived-only; ` +
+          "remount with a new key to change scope kinds.",
+      );
+    }
+    const keys = entries.map(([name]) => name).join(",");
+    if (keys !== mountKeys) {
+      throw new Error(
+        `A derived-only config mounted scopes [${mountKeys}] but now has ` +
+          `[${keys}]; remount with a new key to change the scope set.`,
+      );
+    }
+  }
+
+  const building = createClientObject(parent, {
+    subscribe: parent.subscribe,
+    on: parent.on,
   });
 
-  (client as Record<symbol, unknown>)[AUI_USE_EFFECTS_SYMBOL] = effects;
+  const accessors = entries.map(([name, element]) =>
+    // oxlint-disable-next-line react-hooks/rules-of-hooks -- fixed per call site; React throws on a count change
+    useDerivedScopeMount(parent, building, name, element),
+  );
+  return useCommittedClient(building, [parent, ...accessors]);
+};
 
-  return client;
+type ScopedAuiClient = { client: AssistantClient; effects?: () => void };
+
+// Creates a client extending an explicit parent (which may live in another
+// React root) with the scopes in the config; context is never consulted.
+// `effects` (rooted mode only) commits the host — the provider mounts it
+// ahead of its children's effects; hosts also self-commit as a fallback.
+export const useConfiguredAui = (
+  parent: AssistantClient,
+  clients: AuiConfig.Input,
+): ScopedAuiClient => {
+  const entries = Object.entries(
+    applyTransformScopes(clients, parent),
+  ) as ScopeEntry[];
+
+  // The mode is frozen at mount. The host handles dynamic scope sets; the
+  // derived-only branch runs plain hooks, so its scope set is fixed at
+  // mount (dev-enforced below). Empty configs mount the host so they can
+  // grow scopes without remounting.
+  const [rooted] = useState(
+    () =>
+      entries.length === 0 ||
+      entries.some(([, element]) => !isDerivedElement(element)),
+  );
+
+  if (rooted) {
+    // oxlint-disable-next-line react-hooks/rules-of-hooks
+    return useHostedAssistantClient({ parent, entries });
+  }
+  // oxlint-disable-next-line react-hooks/rules-of-hooks
+  return { client: useDerivedOnlyClient(parent, entries) };
 };
 
 export namespace useAui {
-  export type Props = {
-    [K in ClientNames]?: ClientElement<K> | DerivedElement<K>;
-  };
+  export type Props = AuiConfig.Input;
 }
 
 /**
@@ -417,12 +490,20 @@ export function useAui(): AssistantClient;
  *
  * const role = useAuiState((s) => s.message.role);
  * ```
+ *
+ * @deprecated Build a config in the component body (`const aui = useAui();
+ * const config = AuiConfig({ ... })`) and render `<AuiProvider extends={aui}
+ * config={config}>` instead; it creates the client and provides it to the
+ * subtree in one step.
  */
 export function useAui(clients: useAui.Props): AssistantClient;
 export function useAui(clients?: useAui.Props): AssistantClient {
   const parent = useAssistantContextValue();
   if (clients) {
-    return useHostedAssistantClient({ parent, clients });
+    // oxlint-disable-next-line react-hooks/rules-of-hooks -- fixed per call site
+    const { client, effects } = useConfiguredAui(parent, clients);
+    if (effects) setTapEffects(client, effects);
+    return client;
   }
   return parent;
 }

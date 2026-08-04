@@ -161,6 +161,18 @@ describe("AttachmentPrimitive.Thumb", () => {
     expect(frame).toContain("image");
     expect(frame).not.toMatch(/\.\s*$/);
   });
+  it("renders custom children instead of the automatic label", () => {
+    setAttachmentState({
+      id: "a1",
+      type: "document",
+      name: "spec.pdf",
+      status: { type: "complete" },
+    });
+    const { lastFrame } = render(<AttachmentThumb>custom</AttachmentThumb>);
+    const frame = lastFrame() ?? "";
+    expect(frame).toContain("custom");
+    expect(frame).not.toContain(".pdf");
+  });
 });
 
 describe("AttachmentPrimitive.Status", () => {

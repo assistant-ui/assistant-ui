@@ -5,7 +5,7 @@ import { useState } from "react";
 import { act, cleanup, render, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { flushTapSync, resource } from "@assistant-ui/tap";
-import { AuiProvider } from "../utils/react-assistant-context";
+import { AuiProvider } from "../AuiProvider";
 import { useAui } from "../useAui";
 import { useAuiEvent } from "../useAuiEvent";
 import { useAuiState } from "../useAuiState";
