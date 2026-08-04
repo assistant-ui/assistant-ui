@@ -95,8 +95,8 @@ describe("radix sidebar RTL", () => {
     expect(rail.className).toContain(
       "rtl:in-data-[side=right]:cursor-w-resize",
     );
-    // the ported regression shaped itself as `ltr:-translate-x-1/2
-    // rtl:-translate-x-1/2`, a pair that never flips
+    // an `ltr:`/`rtl:` pair would state the same value in both directions,
+    // which reads as direction-aware while flipping nothing
     expect([...rail.classList].filter((t) => t.startsWith("ltr:"))).toEqual([]);
   });
 
