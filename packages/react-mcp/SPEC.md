@@ -445,7 +445,16 @@ In a chat app, pass the same config to `AssistantRuntimeProvider` instead — it
 import type { ReactNode } from "react";
 import { AssistantRuntimeProvider, AuiConfig } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
-import { McpManagerResource } from "@assistant-ui/react-mcp";
+import { McpManagerResource, defineConnector } from "@assistant-ui/react-mcp";
+
+const connectors = [
+  defineConnector({
+    id: "linear",
+    name: "Linear",
+    url: "https://mcp.linear.app",
+    auth: { type: "oauth", scopes: ["read"] },
+  }),
+];
 
 export function Providers({ children }: { children: ReactNode }) {
   const runtime = useChatRuntime();
