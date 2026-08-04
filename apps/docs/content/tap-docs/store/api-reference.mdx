@@ -63,7 +63,7 @@ const config = AuiConfig({ counter: CounterResource() });
 <AuiProvider extends={aui} config={config}>{children}</AuiProvider>
 ```
 
-Provides an `AssistantClient` to the React tree, created from a `config` built with `AuiConfig(...)`. Nested under a parent provider, `extends` is mandatory: `extends={aui}` extends the parent, `extends={null}` isolates. An empty config provides the `extends` client as-is. `ref` receives the resulting client after mount. Child components access the client via `useAui()`.
+Provides an `AssistantClient` to the React tree, created from a `config` built with `AuiConfig(...)`. Nested under a parent provider, `extends` is mandatory: `extends={aui}` extends the parent, `extends={null}` isolates. An empty config creates a client extending the `extends` client. `ref` receives the resulting client after mount. Child components access the client via `useAui()`.
 
 ### AuiIf
 
