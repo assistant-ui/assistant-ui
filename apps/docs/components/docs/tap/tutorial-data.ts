@@ -22,7 +22,7 @@ export const tapTutorialSteps: TapTutorialStep[] = [
     filename: "counter.jsx",
     language: "jsx",
     prose:
-      "Start with a Hook you'd write anyway: a count and the method that updates it.",
+      "Start with a Hook you'd write anyway: a count and the methods that update it.",
     code: `import { useState } from "react";
 
 ${useCounterFull}`,
@@ -74,19 +74,21 @@ function CounterButton() {
     cut: true,
     prose:
       "The exact same Counter, no React tree. createTapRoot hosts it; subscribe and call its methods directly.",
-    code: `import { createTapRoot, useResource } from "@assistant-ui/tap";
+    code: `import { createTapRoot, flushTapSync, useResource } from "@assistant-ui/tap";
 import { Counter } from "./counter";
 
 const root = createTapRoot(function CounterRoot() {
   return useResource(Counter());
 });
 
-root.subscribe(() => {
-  console.log(root.getValue().count);
+const unsubscribe = root.subscribe(() => {
+  console.log(root.getValue().count); // 1
 });
 
-root.getValue().increment();
+// !tooltip[/flushTapSync/] Applies the update synchronously so subscribers fire now.
+flushTapSync(() => root.getValue().increment());
 
+unsubscribe();
 root.unmount();`,
   },
 ];
