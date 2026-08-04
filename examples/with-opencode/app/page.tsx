@@ -1,6 +1,11 @@
 "use client";
 
-import { AssistantRuntimeProvider, Tools, useAui } from "@assistant-ui/react";
+import {
+  AssistantRuntimeProvider,
+  AuiConfig,
+  Tools,
+  useAui,
+} from "@assistant-ui/react";
 import {
   SidebarInset,
   SidebarProvider,
@@ -23,6 +28,12 @@ import { ToolGroup } from "@/components/tools/tool-group";
 import toolkit from "@/components/tools/toolkit";
 import { useEffect } from "react";
 
+const SetFallbackDataUI = () => {
+  const aui = useAui();
+  useEffect(() => aui.dataRenderers.setFallbackDataUI(OpenCodeDataPart), [aui]);
+  return null;
+};
+
 const THREAD_COMPONENTS: ThreadComponents = {
   ToolFallback: FallbackTool,
   ToolGroup,
@@ -35,14 +46,13 @@ export default function Home() {
       process.env.NEXT_PUBLIC_OPENCODE_BASE_URL ?? "http://localhost:4096",
   });
 
-  const aui = useAui({
+  const config = AuiConfig({
     tools: Tools({ toolkit }),
   });
 
-  useEffect(() => aui.dataRenderers.setFallbackDataUI(OpenCodeDataPart), [aui]);
-
   return (
-    <AssistantRuntimeProvider aui={aui} runtime={runtime}>
+    <AssistantRuntimeProvider config={config} runtime={runtime}>
+      <SetFallbackDataUI />
       <SidebarProvider>
         <div className="flex h-dvh w-full overflow-hidden pr-0.5">
           <ThreadListSidebar />

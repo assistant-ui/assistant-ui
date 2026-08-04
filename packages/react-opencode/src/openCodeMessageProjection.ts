@@ -6,15 +6,22 @@ import type {
   OpenCodeThreadState,
   Part,
   PendingUserMessage,
+  ThreadUserMessagePart,
 } from "./types";
 import {
   ExportedMessageRepository,
   type MessageTiming,
+  type ThreadMessage,
 } from "@assistant-ui/react";
+import {
+  resolveFileMediaType,
+  resolveImageMediaType,
+} from "@assistant-ui/core/internal";
 import {
   projectOpenCodePermissionApproval,
   projectResolvedOpenCodePermissionApproval,
 } from "./openCodePermissionApproval";
+import { getOpenCodeTaskSessionId } from "./openCodeTaskSession";
 
 type ProjectedContentPart = Exclude<
   OpenCodeProjectedThreadMessage["content"],
@@ -155,6 +162,24 @@ const getPermissionIndex = (state: OpenCodeThreadState): PermissionIndex => {
   return index;
 };
 
+const childMessagesCache = new WeakMap<
+  OpenCodeThreadState,
+  readonly ThreadMessage[]
+>();
+
+const getChildMessages = (
+  childState: OpenCodeThreadState,
+): readonly ThreadMessage[] => {
+  const cached = childMessagesCache.get(childState);
+  if (cached) return cached;
+
+  const messages = projectOpenCodeThreadRepository(childState).messages.map(
+    ({ message }) => message,
+  );
+  childMessagesCache.set(childState, messages);
+  return messages;
+};
+
 const getPendingPermissionForToolCall = (
   state: OpenCodeThreadState,
   toolCallId: string,
@@ -281,6 +306,14 @@ const projectAssistantContent = (
       case "tool": {
         const toolState = mapToolState(part.state);
         const toolCallId = part.callID ?? part.id ?? `tool-${index}`;
+        const childSessionId = getOpenCodeTaskSessionId(part);
+        const childState = childSessionId
+          ? state.childSessionsById[childSessionId]
+          : undefined;
+        const childMessages =
+          childState?.loadState.type === "ready"
+            ? getChildMessages(childState)
+            : undefined;
         const permission = getPendingPermissionForToolCall(state, toolCallId);
         const resolvedPermission = permission
           ? undefined
@@ -295,6 +328,7 @@ const projectAssistantContent = (
             ? { result: toolState.result }
             : {}),
           ...(toolState.isError ? { isError: true } : {}),
+          ...(childMessages !== undefined ? { messages: childMessages } : {}),
           ...(permission
             ? { approval: projectOpenCodePermissionApproval(permission) }
             : resolvedPermission
@@ -418,25 +452,72 @@ const projectAssistantContent = (
   return content;
 };
 
-const projectUserContent = (
+type ProjectedAttachment = NonNullable<
+  OpenCodeProjectedThreadMessage["attachments"]
+>[number];
+
+const splitUserParts = (
+  parts: readonly ThreadUserMessagePart[],
+): { content: ProjectedContentPart[]; attachments: ProjectedAttachment[] } => {
+  const content: ProjectedContentPart[] = [];
+  const attachments: ProjectedAttachment[] = [];
+  for (const part of parts) {
+    if (part.type !== "image" && part.type !== "file") {
+      content.push(part as ProjectedContentPart);
+      continue;
+    }
+    // The same ladders the outbound prompt uses, so the pending copy and the
+    // reconciled server copy agree on the attachment's type and content type.
+    const mediaType =
+      part.type === "image"
+        ? resolveImageMediaType(
+            part.image,
+            (part as { contentType?: string }).contentType,
+          )
+        : resolveFileMediaType(part.data, part.mimeType);
+    attachments.push({
+      id: attachments.length.toString(),
+      type: mediaType.startsWith("image/") ? "image" : "file",
+      name: part.filename ?? "file",
+      contentType: mediaType,
+      status: { type: "complete" },
+      content: [part],
+    });
+  }
+  return { content, attachments };
+};
+
+const projectUserFileAttachment = (
+  part: Extract<Part, { type: "file" }>,
+): ProjectedAttachment => {
+  const content = convertFilePart(part);
+  return {
+    id: part.id,
+    type: content.type === "image" ? "image" : "file",
+    name: part.filename ?? "file",
+    contentType: part.mime ?? "application/octet-stream",
+    status: { type: "complete" },
+    content: [content],
+  };
+};
+
+const projectUserMessage = (
   message: OpenCodeServerMessage,
-): ProjectedContentPart[] => {
+): { content: ProjectedContentPart[]; attachments: ProjectedAttachment[] } => {
   if (message.parts.length === 0) {
-    return (message.shadowParts ?? []) as ProjectedContentPart[];
+    return splitUserParts(message.shadowParts ?? []);
   }
 
-  return message.parts.flatMap((part) => {
-    switch (part.type) {
-      case "text":
-        return [
-          { type: "text" as const, text: part.text ?? "" },
-        ] satisfies ProjectedContentPart[];
-      case "file":
-        return [convertFilePart(part)] satisfies ProjectedContentPart[];
-      default:
-        return [] as ProjectedContentPart[];
+  const content: ProjectedContentPart[] = [];
+  const attachments: ProjectedAttachment[] = [];
+  for (const part of message.parts) {
+    if (part.type === "text") {
+      content.push({ type: "text", text: part.text ?? "" });
+    } else if (part.type === "file") {
+      attachments.push(projectUserFileAttachment(part));
     }
-  });
+  }
+  return { content, attachments };
 };
 
 const getMessageStatus = (
@@ -557,12 +638,13 @@ const projectServerMessage = (
   }
 
   if (message.info.role === "user") {
+    const { content, attachments } = projectUserMessage(message);
     return {
       id: message.info.id,
       role: "user",
       createdAt: new Date(message.info.time?.created ?? Date.now()),
-      content: projectUserContent(message),
-      attachments: [],
+      content,
+      attachments,
       metadata,
     };
   }
@@ -576,8 +658,7 @@ const projectPendingMessage = (
   id: `local:${pending.clientId}`,
   role: "user",
   createdAt: new Date(pending.createdAt),
-  content: pending.parts as OpenCodeProjectedThreadMessage["content"],
-  attachments: [],
+  ...splitUserParts(pending.parts),
   metadata: {
     custom: {
       opencode: {
@@ -594,10 +675,10 @@ const projectPendingMessage = (
   },
 });
 
-export const projectOpenCodeThreadMessages = (
+export function projectOpenCodeThreadMessages(
   state: OpenCodeThreadState,
   messageTiming: Record<string, MessageTiming> = {},
-): OpenCodeProjectedThreadMessage[] => {
+): OpenCodeProjectedThreadMessage[] {
   const mergedServerMessages = mergeServerMessages(
     state.messageOrder.flatMap((messageId: string) => {
       const message = state.messagesById[messageId];
@@ -620,13 +701,13 @@ export const projectOpenCodeThreadMessages = (
     .map((pending) => projectPendingMessage(pending));
 
   return mergeProjectedMessages(serverMessages, pendingMessages);
-};
+}
 
-export const projectOpenCodeThreadRepository = (
+export function projectOpenCodeThreadRepository(
   state: OpenCodeThreadState,
   messageTiming: Record<string, MessageTiming> = {},
-) => {
+) {
   return ExportedMessageRepository.fromArray(
     projectOpenCodeThreadMessages(state, messageTiming),
   );
-};
+}

@@ -79,6 +79,7 @@
   --color-foreground: var(--foreground);
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
+  --color-code-surface: var(--code-surface);
   --color-popover: var(--popover);
   --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
@@ -123,6 +124,9 @@
   --radius: 0.625rem;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
+  /* Content slabs (code blocks) carry a fill instead of a border, so the tint
+     has to stay slight. Resolved per theme: it lifts on dark, recedes on light. */
+  --code-surface: color-mix(in oklab, var(--foreground) 4%, var(--background));
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);

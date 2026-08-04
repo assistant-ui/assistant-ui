@@ -112,6 +112,7 @@ The returned `OpenCodeThreadState` includes:
 
 - `sessionId`, `session`, `sessionStatus`, `loadState`, `runState`
 - `messageOrder`, `messagesById`, `pendingUserMessages`
+- `childSessionsById` (OpenCode `task` child-session projections keyed by session ID)
 - `interactions.permissions` (pending + resolved), `interactions.questions` (pending + answered + rejected)
 - `unhandledEvents`, `sync` timestamps
 

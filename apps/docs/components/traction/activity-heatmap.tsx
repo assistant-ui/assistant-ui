@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { Rocket } from "lucide-react";
 import * as HeatGraph from "heat-graph";
 import type { ActivityPoint } from "@/lib/traction";
 
@@ -12,7 +13,8 @@ const COMMIT_COLORS = [
   "var(--color-chart-1)",
 ];
 
-const RELEASE_RING = "inset 0 0 0 1.5px var(--color-chart-2)";
+const RELEASE_DOT =
+  "radial-gradient(circle at 50% 50%, color-mix(in oklab, var(--color-foreground) 65%, transparent) 0 1.5px, transparent 1.5px)";
 
 const formatDate = (date: Date) =>
   date.toLocaleDateString("en-US", {
@@ -106,7 +108,9 @@ export function ActivityHeatmap({
               return (
                 <HeatGraph.Cell
                   className="rounded-[2px]"
-                  style={released ? { boxShadow: RELEASE_RING } : undefined}
+                  style={
+                    released ? { backgroundImage: RELEASE_DOT } : undefined
+                  }
                 />
               );
             }}
@@ -129,18 +133,9 @@ export function ActivityHeatmap({
             </HeatGraph.Legend>
             <span>More</span>
           </div>
-          <div className="flex items-center" style={{ gap: 6 }}>
-            <span
-              className="rounded-[2px]"
-              style={{
-                width: 10,
-                height: 10,
-                backgroundColor:
-                  "color-mix(in oklab, var(--color-muted-foreground) 14%, transparent)",
-                boxShadow: RELEASE_RING,
-              }}
-            />
-            <span>Released</span>
+          <div className="flex items-center" style={{ gap: 4 }}>
+            <Rocket style={{ width: 11, height: 11 }} />
+            <span>Shipped</span>
           </div>
         </div>
 
@@ -151,15 +146,13 @@ export function ActivityHeatmap({
               cell.count > 0
                 ? `${cell.count} ${cell.count === 1 ? "commit" : "commits"}`
                 : released
-                  ? "Released"
+                  ? "Shipped a release"
                   : "No commits";
             return (
               <>
                 <strong>{headline}</strong>
                 {released && cell.count > 0 ? (
-                  <span style={{ color: "var(--color-chart-2)" }}>
-                    {" · released"}
-                  </span>
+                  <span className="text-muted-foreground">{" · shipped"}</span>
                 ) : null}
                 {" — "}
                 {formatDate(cell.date)}

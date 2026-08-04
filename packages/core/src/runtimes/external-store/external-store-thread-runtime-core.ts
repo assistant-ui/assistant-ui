@@ -65,6 +65,7 @@ export class ExternalStoreThreadRuntimeCore
     edit: false,
     delete: false,
     reload: false,
+    refetchThread: false,
     cancel: false,
     unstable_copy: false,
     speech: false,
@@ -100,6 +101,12 @@ export class ExternalStoreThreadRuntimeCore
 
   public get adapters() {
     return this._store.adapters;
+  }
+
+  // A getter, not a method, so its presence tracks the adapter.
+  public get unstable_refetchThread(): (() => Promise<void>) | undefined {
+    if (!this._store.onRefetchThread) return undefined;
+    return () => this._store.onRefetchThread!();
   }
 
   public suggestions: readonly ThreadSuggestion[] = [];
@@ -156,6 +163,7 @@ export class ExternalStoreThreadRuntimeCore
         this._store.onDelete !== undefined ||
         this._store.setMessages !== undefined,
       reload: this._store.onReload !== undefined,
+      refetchThread: this._store.onRefetchThread !== undefined,
       cancel: this._store.onCancel !== undefined,
       speech: this._store.adapters?.speech !== undefined,
       dictation: this._store.adapters?.dictation !== undefined,

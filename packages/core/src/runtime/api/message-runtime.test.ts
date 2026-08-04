@@ -173,6 +173,31 @@ describe("toMessagePartStatus", () => {
     });
   });
 
+  it.each([
+    ["false", false],
+    ["zero", 0],
+    ["an empty string", ""],
+    ["null", null],
+  ])("treats %s tool results as complete", (_label, result) => {
+    const message = createAssistantMessage(
+      [
+        {
+          type: "tool-call",
+          toolCallId: "call-1",
+          toolName: "weather",
+          args: {},
+          argsText: "{}",
+          result,
+        },
+      ],
+      { type: "running" },
+    );
+
+    expect(toMessagePartStatus(message, 0, message.content[0]!)).toEqual({
+      type: "complete",
+    });
+  });
+
   it("normalizes supplied upstream statuses", () => {
     const upstreamComplete = {
       type: "text",

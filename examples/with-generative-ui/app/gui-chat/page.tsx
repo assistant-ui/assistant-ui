@@ -8,9 +8,9 @@ import {
 } from "@/components/assistant-ui/thread";
 import {
   AssistantRuntimeProvider,
+  AuiConfig,
   Suggestions,
   useAssistantInstructions,
-  useAui,
 } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
@@ -44,7 +44,7 @@ export default function GuiChatPage() {
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
   });
 
-  const aui = useAui({
+  const config = AuiConfig({
     suggestions: Suggestions([
       {
         title: "Welcome card",
@@ -62,7 +62,7 @@ export default function GuiChatPage() {
   });
 
   return (
-    <AssistantRuntimeProvider aui={aui} runtime={runtime}>
+    <AssistantRuntimeProvider config={config} runtime={runtime}>
       <GuiChatInstructions />
       <div className="flex h-full flex-col">
         <ExampleNav />

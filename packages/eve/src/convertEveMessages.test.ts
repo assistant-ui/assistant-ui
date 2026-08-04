@@ -280,19 +280,105 @@ describe("convertEveMessages", () => {
 });
 
 describe("getEveMessageContent", () => {
+  const baseAppendMessage = {
+    role: "user",
+    createdAt: new Date(),
+    parentId: null,
+    sourceId: null,
+    runConfig: undefined,
+    metadata: { custom: {} },
+    attachments: [],
+  } as const;
+
   it("returns plain text for text-only messages", () => {
     const message = {
-      role: "user",
-      createdAt: new Date(),
-      parentId: null,
-      sourceId: null,
-      runConfig: undefined,
+      ...baseAppendMessage,
       content: [{ type: "text", text: "Hello" }],
-      metadata: { custom: {} },
-      attachments: [],
     } satisfies AppendMessage;
 
     expect(getEveMessageContent(message)).toBe("Hello");
+  });
+
+  it("converts an audio part into a file part with the format-derived media type", () => {
+    const message = {
+      ...baseAppendMessage,
+      content: [{ type: "audio", audio: { data: "QUJD", format: "mp3" } }],
+    } as unknown as AppendMessage;
+
+    expect(getEveMessageContent(message)).toEqual([
+      {
+        type: "file",
+        data: "data:audio/mp3;base64,QUJD",
+        mediaType: "audio/mp3",
+      },
+    ]);
+  });
+
+  it("converts a wav audio part", () => {
+    const message = {
+      ...baseAppendMessage,
+      content: [{ type: "audio", audio: { data: "QUJD", format: "wav" } }],
+    } as unknown as AppendMessage;
+
+    expect(getEveMessageContent(message)).toEqual([
+      {
+        type: "file",
+        data: "data:audio/wav;base64,QUJD",
+        mediaType: "audio/wav",
+      },
+    ]);
+  });
+
+  it("rebuilds the audio data URL envelope from the typed format", () => {
+    const message = {
+      ...baseAppendMessage,
+      content: [
+        {
+          type: "audio",
+          audio: { data: "data:audio/mpeg;base64,QUJD", format: "mp3" },
+        },
+      ],
+    } as unknown as AppendMessage;
+
+    expect(getEveMessageContent(message)).toEqual([
+      {
+        type: "file",
+        data: "data:audio/mp3;base64,QUJD",
+        mediaType: "audio/mp3",
+      },
+    ]);
+  });
+
+  it("forwards an http audio source instead of wrapping it in a data URL", () => {
+    const message = {
+      ...baseAppendMessage,
+      content: [
+        {
+          type: "audio",
+          audio: { data: "https://cdn.example.com/memo.mp3", format: "mp3" },
+        },
+      ],
+    } as unknown as AppendMessage;
+
+    expect(getEveMessageContent(message)).toEqual([
+      {
+        type: "file",
+        data: "https://cdn.example.com/memo.mp3",
+        mediaType: "audio/mp3",
+      },
+    ]);
+  });
+
+  it("skips data parts while keeping surrounding text", () => {
+    const message = {
+      ...baseAppendMessage,
+      content: [
+        { type: "text", text: "hi" },
+        { type: "data", name: "chart", data: { x: 1 } },
+      ],
+    } as unknown as AppendMessage;
+
+    expect(getEveMessageContent(message)).toBe("hi");
   });
 });
 

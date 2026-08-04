@@ -95,6 +95,7 @@ export function contentPartsToA2AParts(
     data?: unknown;
     mimeType?: string | undefined;
     filename?: string | undefined;
+    sourceType?: "url" | "id" | undefined;
     audio?: { data: string; format: string } | undefined;
   }>,
   fallbackMimeType?: string,
@@ -123,7 +124,7 @@ export function contentPartsToA2AParts(
         case "file": {
           if (typeof part.data !== "string" || !part.data) return null;
           const declaredMimeType = part.mimeType || fallbackMimeType;
-          if (httpUrlPattern.test(part.data)) {
+          if (part.sourceType === "url" || httpUrlPattern.test(part.data)) {
             return {
               url: part.data,
               ...(declaredMimeType && { mediaType: declaredMimeType }),

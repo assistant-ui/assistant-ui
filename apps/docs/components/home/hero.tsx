@@ -23,7 +23,7 @@ export function Hero() {
 
         <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-3 text-[13px]">
           <a
-            href="https://github.com/assistant-ui/assistant-ui/blob/main/LICENSE"
+            href="https://github.com/assistant-ui/assistant-ui"
             target="_blank"
             rel="noopener noreferrer"
             className="hover:text-foreground transition-colors"

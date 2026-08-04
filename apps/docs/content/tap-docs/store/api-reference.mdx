@@ -13,19 +13,19 @@ function useAui(): AssistantClient;
 
 Returns the store from the nearest `AuiProvider`. The client is immutable: state updates keep its identity, while a structural change (a scope resolving to a different instance) produces a new client and re-renders consumers.
 
-### useAui(scopes)
+### AuiConfig
 
 ```ts
-function useAui(scopes: useAui.Props): AssistantClient;
-```
+function AuiConfig(config: AuiConfig.Input): AuiConfig;
 
-Takes the store from the nearest `AuiProvider` and extends it by filling the provided scopes. Returns a new `AssistantClient` that includes both the parent's scopes and the newly provided ones.
-
-```ts
-type useAui.Props = {
+type AuiConfig.Input = {
   [K in ClientNames]?: ClientElement<K> | DerivedElement<K>;
 };
 ```
+
+Builds the branded config object accepted by `AuiProvider`'s `config` prop. Raw object literals are a type error.
+
+The `useAui(scopes)` extension overload is deprecated; hoist `const aui = useAui()` and `const config = AuiConfig(scopes)` and use `<AuiProvider extends={aui} config={config}>` instead.
 
 ### useAuiState
 
@@ -53,10 +53,17 @@ Subscribes to events. The selector can be a string (`"scope.event"`) or an objec
 ### AuiProvider
 
 ```tsx
-<AuiProvider value={aui}>{children}</AuiProvider>
+const aui = useAui();
+const config = AuiConfig({ counter: CounterResource() });
+
+// Top-level root
+<AuiProvider config={config}>{children}</AuiProvider>
+
+// Nested: extend the parent (or extends={null} to isolate)
+<AuiProvider extends={aui} config={config}>{children}</AuiProvider>
 ```
 
-Provides an `AssistantClient` to the React tree. Child components can access it via `useAui()`.
+Provides an `AssistantClient` to the React tree, created from a `config` built with `AuiConfig(...)`. Nested under a parent provider, `extends` is mandatory: `extends={aui}` extends the parent, `extends={null}` isolates. An empty config creates a client extending the `extends` client. `ref` receives the resulting client after mount. Child components access the client via `useAui()`.
 
 ### AuiIf
 
@@ -124,7 +131,7 @@ function attachTransformScopes(
 ): void;
 ```
 
-Attaches a transform function to a resource hook — pass the hook function you gave to `resource()`, not the resource wrapper. When the resource is mounted via `useAui`, the transform runs and can add or modify sibling scopes by mutating `scopes`. Transforms are applied iteratively — new root scopes trigger their own transforms.
+Attaches a transform function to a resource hook — pass the hook function you gave to `resource()`, not the resource wrapper. When the resource is mounted via `AuiProvider`, the transform runs and can add or modify sibling scopes by mutating `scopes`. Transforms are applied iteratively — new root scopes trigger their own transforms.
 
 One transform per hook. Throws on duplicate.
 
@@ -147,7 +154,7 @@ type ScopesConfig = {
 };
 ```
 
-The scopes object passed to `useAui` and mutated by transforms.
+The scopes object passed to `AuiConfig` and mutated by transforms.
 
 ---
 

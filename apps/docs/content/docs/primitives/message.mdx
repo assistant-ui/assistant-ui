@@ -112,6 +112,37 @@ Runtime setup: primitives require runtime context. Wrap your UI in `AssistantRun
 For most new code, prefer `MessagePrimitive.Parts` with a `children` render function. When you need adjacent grouping, use `MessagePrimitive.GroupedParts`.
 </Callout>
 
+### Part Types
+
+A message part is one of three kinds, and which kind a new capability belongs to is decided by the list below rather than case by case.
+
+| Kind | Parts | Grows by |
+|------|-------|----------|
+| Modality | `text`, `image`, `file` | Never. `file` carries every non-image binary modality through its `mimeType`. |
+| Provider channel | `reasoning`, `source`, `tool-call`, `generative-ui` | Never. These mirror channels a model already emits. |
+| Extensibility | `data` | Freely, through `name`. This is the growth path for anything app-level. |
+
+`file` is the media carrier. Audio, video, PDFs and everything else are `{ type: "file", mimeType: "audio/mpeg" }` rather than part types of their own, so one renderer and one converter branch handle them all. The payload can be inline base64 or a URL; `sourceType` additionally allows an opaque storage id, which the LangChain-family runtimes honor and other adapters ignore.
+
+Anything that is not a modality the model consumes or a channel it emits is a `data` part, routed by `name`:
+
+```tsx
+<MessagePrimitive.Parts
+  components={{
+    data: {
+      by_name: { citation: MyCitation },
+      Fallback: MyDataFallback,
+    },
+  }}
+/>
+```
+
+<Callout type="warn">
+`Unstable_AudioMessagePart` and the `Unstable_Audio` slot are deprecated. The audio part cannot carry a filename, has no way to declare how its payload goes on the wire (no `sourceType`, so no storage id), and exists only on user messages, so a model that returns audio has no way to express it. Send audio as a `file` part with an `audio/*` mime type instead, and give it a filename.
+
+Adapter coverage for the file path is still uneven, so check your adapter's converter before relying on file parts. Known so far: `react-pi` and the assistant-transport runtime have no file part on their user-content surface at all, so one is dropped; `react-data-stream` carries the payload but not the filename. Existing audio parts keep working; they will not gain fields.
+</Callout>
+
 ### Tool Resolution
 
 Tool call parts resolve in this order:
@@ -149,7 +180,8 @@ Returning `null` still allows registered tool UIs and data renderer UIs to rende
 - `components.ChainOfThought` takes over all reasoning and tool-call rendering (mutually exclusive with `ToolGroup`, `ReasoningGroup`, `tools`, and `Reasoning`). This legacy path is deprecated; use `MessagePrimitive.GroupedParts` for grouped Chain of Thought in new code.
 - `data.by_name` and `data.Fallback` let you route custom data part types
 - `Quote` renders quoted message references from metadata
-- `Empty` and `Unstable_Audio` are available for edge and experimental rendering paths
+- `Empty` is available for edge rendering paths
+- `Unstable_Audio` is deprecated; render `audio/*` from the `File` slot instead
 
 ```tsx
 <MessagePrimitive.Parts

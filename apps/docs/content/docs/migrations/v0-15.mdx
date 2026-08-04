@@ -133,16 +133,96 @@ const aui = useAui(scopes, { parent });
 
 // After
 const Scoped = ({ children }) => {
-  const aui = useAui(scopes); // extends the AuiProvider parent
-  return <AuiProvider value={aui}>{children}</AuiProvider>;
+  const aui = useAui();
+  const config = AuiConfig(scopes);
+  return (
+    <AuiProvider extends={aui} config={config}>
+      {children}
+    </AuiProvider>
+  );
 };
 
-<AuiProvider value={parent}>
+const rootConfig = AuiConfig({});
+
+<AuiProvider extends={parent} config={rootConfig}>
   <Scoped />
 </AuiProvider>;
 ```
 
-Where `{ parent: null }` was used to detach from context, `<AuiProvider value={null}>` now provides an isolated empty root (experimental).
+Where `{ parent: null }` was used to detach from context, `<AuiProvider extends={null} config={config}>` where `const config = AuiConfig({})` now provides an isolated empty root.
+
+## `AuiProvider` Grammar
+
+`AuiProvider` takes a `config` built with `AuiConfig(...)` — raw object literals are a type error. At the top level, `config` alone creates the subtree's client. Nested under a parent provider, `extends` is mandatory: `extends={aui}` extends the parent, `extends={null}` isolates (dev-enforced). `ref` receives the resulting client after mount.
+
+```tsx
+const aui = useAui();
+const config = AuiConfig({ tools: Tools({ toolkit }) });
+
+// Top-level root
+<AuiProvider config={config}>
+
+// Nested: extend the parent
+<AuiProvider extends={aui} config={config}>
+
+// Nested: isolate from the parent
+<AuiProvider extends={null} config={config}>
+```
+
+`AuiConfig` is exported from `@assistant-ui/store` and re-exported from `@assistant-ui/react`, `@assistant-ui/react-native`, and `@assistant-ui/react-ink`.
+
+### `value` Prop Deprecated
+
+```tsx
+// Before
+<AuiProvider value={client}>
+<AuiProvider value={null}>
+
+// After
+const config = AuiConfig({});
+
+<AuiProvider extends={client} config={config}>
+<AuiProvider extends={null} config={config}>
+```
+
+The replacement exposes a client extending the given one, not the same instance — `useAui()` beneath it returns the new client, with scope access delegating to `client`. The deprecated `value={client}` form behaves the same way: it also exposes a derived client rather than the exact instance, and the given client must implement `subscribe`.
+
+### `useAui({ ... })` Extension Overload Deprecated
+
+```tsx
+// Before
+const aui = useAui({ tools: Tools({ toolkit }) });
+return <AuiProvider value={aui}>{children}</AuiProvider>;
+
+// After
+const aui = useAui();
+const config = AuiConfig({ tools: Tools({ toolkit }) });
+return (
+  <AuiProvider extends={aui} config={config}>
+    {children}
+  </AuiProvider>
+);
+```
+
+Where the extended client was passed to `<AssistantRuntimeProvider aui={aui}>`, use the new `config` prop instead — the scopes are provided alongside the runtime's threads scope:
+
+```tsx
+// Before
+const aui = useAui({ tools: Tools({ toolkit }) });
+return (
+  <AssistantRuntimeProvider aui={aui} runtime={runtime}>
+    {children}
+  </AssistantRuntimeProvider>
+);
+
+// After
+const config = AuiConfig({ tools: Tools({ toolkit }) });
+return (
+  <AssistantRuntimeProvider runtime={runtime} config={config}>
+    {children}
+  </AssistantRuntimeProvider>
+);
+```
 
 ## Still Deprecated (not removed)
 

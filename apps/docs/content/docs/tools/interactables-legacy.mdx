@@ -33,18 +33,20 @@ Common use cases:
 ### 1. Register the Interactables scope
 
 ```tsx
-import { useAui, Interactables, AssistantRuntimeProvider } from "@assistant-ui/react";
+import { AuiConfig, Interactables, AssistantRuntimeProvider } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 
 function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
   const runtime = useChatRuntime();
-
-  const aui = useAui({
+  const config = AuiConfig({
     interactables: Interactables(), // [!code ++]
   });
 
   return (
-    <AssistantRuntimeProvider aui={aui} runtime={runtime}>
+    <AssistantRuntimeProvider
+      runtime={runtime}
+      config={config}
+    >
       {children}
     </AssistantRuntimeProvider>
   );
@@ -54,7 +56,7 @@ function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
 <Callout type="idea">
   The legacy `interactables: Interactables()` scope and the new
   `unstable_interactables: unstable_Interactables()` scope are mutually
-  exclusive. Mount only one interactables API in a single `useAui` provider.
+  exclusive. Mount only one interactables API in a single provider config.
 </Callout>
 
 ### 2. Create an interactable
@@ -266,10 +268,10 @@ const [state, { setState, setSelected, isPending, error, flush }] = useInteracta
 
 ### `Interactables`
 
-The scope resource that manages all interactables. Register it via `useAui`:
+The scope resource that manages all interactables. Register it via your provider's `config`:
 
 ```tsx
-const aui = useAui({
+AuiConfig({
   interactables: Interactables(),
 });
 ```
@@ -291,10 +293,21 @@ By default, interactable state is in-memory and lost on page refresh. You can ad
 
 ```tsx
 import { useEffect } from "react";
-import { useAui, Interactables } from "@assistant-ui/react";
+import { AuiConfig, AuiProvider, Interactables, useAui } from "@assistant-ui/react";
 
 function MyRuntimeProvider({ children }) {
-  const aui = useAui({ interactables: Interactables() });
+  const aui = useAui();
+  const config = AuiConfig({ interactables: Interactables() });
+  return (
+    <AuiProvider extends={aui} config={config}>
+      <PersistenceSetup />
+      {children}
+    </AuiProvider>
+  );
+}
+
+function PersistenceSetup() {
+  const aui = useAui();
 
   useEffect(() => {
     // Set up persistence adapter
@@ -311,7 +324,7 @@ function MyRuntimeProvider({ children }) {
     }
   }, [aui]);
 
-  return /* ... */;
+  return null;
 }
 ```
 
@@ -346,7 +359,7 @@ aui.interactables.importState(snapshot);
 You can use `Interactables` alongside `Tools`:
 
 ```tsx
-const aui = useAui({
+AuiConfig({
   tools: Tools({ toolkit: myToolkit }),
   interactables: Interactables(),
 });

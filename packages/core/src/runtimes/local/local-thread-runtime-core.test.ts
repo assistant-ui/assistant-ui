@@ -958,6 +958,49 @@ describe("LocalThreadRuntimeCore tool approval persistence", () => {
     });
   });
 
+  it("does not persist an existing falsy tool result again", async () => {
+    const { history, updated } = createHistory();
+    const twoHumanTools: ChatModelRunResult = {
+      content: [
+        {
+          ...toolCallPart("send_email"),
+          toolCallId: "call-1",
+        },
+        {
+          ...toolCallPart("send_email"),
+          toolCallId: "call-2",
+        },
+      ],
+      status: { type: "requires-action", reason: "tool-calls" },
+    };
+    const thread = createThread(
+      {
+        async run() {
+          return twoHumanTools;
+        },
+      },
+      { history },
+    );
+
+    await thread.append(userMessage("send two emails"));
+    await flush();
+
+    const options = {
+      messageId: thread.messages.at(-1)!.id,
+      toolName: "send_email",
+      toolCallId: "call-1",
+      result: false,
+      isError: false,
+    };
+    thread.addToolResult(options);
+    await flush();
+    expect(updated).toHaveLength(1);
+
+    thread.addToolResult(options);
+    await flush();
+    expect(updated).toHaveLength(1);
+  });
+
   it("persists a multi-step run once instead of writing intermediate steps", async () => {
     const { history, appended, updated } = createHistory();
     const runs: ChatModelRunOptions[] = [];

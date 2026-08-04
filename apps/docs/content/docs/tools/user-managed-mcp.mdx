@@ -15,14 +15,14 @@ Both flow through one connection lifecycle, one persisted state surface, and one
 ## How it works
 
 ```
-useAui({ mcp: McpManagerResource({ connectors }) })
+AuiConfig({ mcp: McpManagerResource({ connectors }) })
         │
         ├─ Resource — connection lifecycle, server lookup, OAuth/bearer auth
         ├─ Auto-mounts the modelContext scope when no chat runtime provides one
         └─ Registers connected tools as frontend tools — your chat sees them automatically
 ```
 
-The manager is a single resource. Mount it with `useAui` like any other scope. OAuth (PKCE + RFC 7591 dynamic client registration), bearer, and "no auth" are first-class. Token refresh runs inside the MCP SDK on 401; this package mediates persistence and the redirect step.
+The manager is a single resource. Mount it with `AuiProvider` like any other scope. OAuth (PKCE + RFC 7591 dynamic client registration), bearer, and "no auth" are first-class. Token refresh runs inside the MCP SDK on 401; this package mediates persistence and the redirect step.
 
 ## Setup
 
@@ -38,12 +38,12 @@ The manager is a single resource. Mount it with `useAui` like any other scope. O
 
 ### Mount the manager
 
-Declare your connectors and provide the `mcp` scope on `useAui`. No provider wrapper, no imperative hooks:
+Declare your connectors and provide the `mcp` scope via `AuiProvider`. No imperative hooks:
 
 ```tsx title="app/providers.tsx"
 "use client";
 
-import { AuiProvider, useAui } from "@assistant-ui/react";
+import { AuiConfig, AuiProvider, useAui } from "@assistant-ui/react";
 import { McpManagerResource, defineConnector } from "@assistant-ui/react-mcp";
 
 const connectors = [
@@ -64,13 +64,18 @@ const connectors = [
 ];
 
 export function Providers({ children }: { children: React.ReactNode }) {
-  const aui = useAui({
+  const aui = useAui();
+  const config = AuiConfig({
     mcp: McpManagerResource({
       connectors,
       connectionTimeout: 15_000,
     }),
   });
-  return <AuiProvider value={aui}>{children}</AuiProvider>;
+  return (
+    <AuiProvider extends={aui} config={config}>
+      {children}
+    </AuiProvider>
+  );
 }
 ```
 
@@ -297,7 +302,7 @@ All persisted state — custom server records, OAuth tokens, PKCE verifiers, DCR
 ```tsx
 import { McpManagerResource, McpCustomStorage } from "@assistant-ui/react-mcp";
 
-const aui = useAui({
+AuiConfig({
   mcp: McpManagerResource({
     connectors,
     storage: McpCustomStorage({

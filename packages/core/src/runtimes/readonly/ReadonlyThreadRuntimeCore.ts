@@ -208,6 +208,7 @@ export class ReadonlyThreadRuntimeCore
     edit: false,
     delete: false,
     reload: false,
+    refetchThread: false,
     cancel: false,
     unstable_copy: false,
     speech: false,

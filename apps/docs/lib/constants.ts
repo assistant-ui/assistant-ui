@@ -30,6 +30,13 @@ export const PRODUCTS: Product[] = [
     external: false,
   },
   {
+    slug: "tw-glass",
+    label: "tw-glass",
+    href: "/tw-glass",
+    description: "Tailwind CSS glass refraction effects",
+    external: false,
+  },
+  {
     slug: "safe-content-frame",
     label: "Safe Content Frame",
     href: "/safe-content-frame",
@@ -103,8 +110,6 @@ export type NavItem =
 
 export const NAV_ITEMS: NavItem[] = [
   { type: "link", label: "Docs", href: "/docs" },
-  { type: "link", label: "Playground", href: "/playground" },
-  { type: "link", label: "Gallery", href: "/gallery" },
   {
     type: "mega",
     label: "Resources",
@@ -165,10 +170,10 @@ export const NAV_ITEMS: NavItem[] = [
         label: "Open source",
         items: [
           {
-            label: "GitHub",
-            href: "https://github.com/assistant-ui/assistant-ui",
-            description: "Star us on GitHub",
-            external: true,
+            label: "All projects",
+            href: "/oss",
+            description: "Everything we build in the open",
+            external: false,
           },
           {
             label: "Packages",
@@ -176,21 +181,34 @@ export const NAV_ITEMS: NavItem[] = [
             description: "Every distribution on npm",
             external: false,
           },
+        ],
+      },
+      {
+        label: "Community",
+        items: [
           {
-            label: "React Native",
-            href: "/native",
-            description: "Build mobile apps",
-            external: false,
+            label: "GitHub",
+            href: "https://github.com/assistant-ui/assistant-ui",
+            description: "Star us and open issues",
+            external: true,
           },
           {
-            label: "Ink",
-            href: "/ink",
-            description: "Build terminal UIs",
-            external: false,
+            label: "Discord",
+            href: "https://discord.gg/S9dwgCNEFs",
+            description: "Ask questions and share what you build",
+            external: true,
+          },
+          {
+            label: "X",
+            href: "https://x.com/assistantui",
+            description: "Follow along with releases",
+            external: true,
           },
         ],
       },
     ],
   },
+  { type: "link", label: "Playground", href: "/playground" },
+  { type: "link", label: "Gallery", href: "/gallery" },
   { type: "link", label: "Pricing", href: "/pricing" },
 ];

@@ -7,7 +7,11 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { Collapsible } from "radix-ui";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import {
   InnerLine,
   type AnnotationHandler,
@@ -36,9 +40,9 @@ const CollapseRoot = ({
   }, [collapsed, settled]);
 
   return (
-    <Collapsible.Root open={open} onOpenChange={setOpen}>
+    <Collapsible open={open} onOpenChange={setOpen}>
       {children}
-    </Collapsible.Root>
+    </Collapsible>
   );
 };
 
@@ -64,20 +68,22 @@ export const collapse: AnnotationHandler[] = [
     name: "CollapseTrigger",
     onlyIfAnnotated: true,
     AnnotatedLine: ({ annotation, ...props }) => (
-      <Collapsible.Trigger asChild>
-        <InnerLine
-          merge={props}
-          className="ch-collapse-trigger data-[state=closed]:after:text-fd-muted-foreground/60 cursor-pointer select-none data-[state=closed]:whitespace-nowrap data-[state=closed]:after:ml-2 data-[state=closed]:after:content-['⋯']"
-        />
-      </Collapsible.Trigger>
+      <CollapsibleTrigger
+        render={
+          <InnerLine
+            merge={props}
+            className="ch-collapse-trigger not-data-[panel-open]:after:text-fd-muted-foreground/60 cursor-pointer select-none not-data-[panel-open]:whitespace-nowrap not-data-[panel-open]:after:ml-2 not-data-[panel-open]:after:content-['⋯']"
+          />
+        }
+      />
     ),
   },
   {
     name: "CollapseContent",
     Block: ({ children }) => (
-      <Collapsible.Content className="ch-collapse-content">
+      <CollapsibleContent className="ch-collapse-content">
         {children}
-      </Collapsible.Content>
+      </CollapsibleContent>
     ),
   },
 ];

@@ -31,14 +31,14 @@ import { useXuluxTemplateContext } from "./XuluxTemplateContext";
 import { XuluxToolCall } from "./XuluxToolCall";
 import { XuluxUsageLimitBanner } from "./XuluxUsageLimitBanner";
 
-const XULUX_CONTEXT_WINDOW = 400_000;
-const XULUX_DEFAULT_MODEL_ID = "gpt-5.4-mini";
+const XULUX_CONTEXT_WINDOW = 1_050_000;
+const XULUX_DEFAULT_MODEL_ID = "gpt-5.6-luna";
 
 const XULUX_MODELS = [
   {
-    id: "gpt-5.4-mini",
-    name: "GPT-5.4 Mini",
-    modelName: "gpt-5.4-mini",
+    id: "gpt-5.6-luna",
+    name: "GPT-5.6 Luna",
+    modelName: "gpt-5.6-luna",
   },
 ] as const;
 

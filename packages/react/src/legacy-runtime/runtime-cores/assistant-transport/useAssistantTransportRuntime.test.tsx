@@ -112,6 +112,7 @@ const mountRuntime = (
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
 describe("useAssistantTransportRuntime", () => {
@@ -143,6 +144,36 @@ describe("useAssistantTransportRuntime", () => {
     await act(async () => {});
     expect(onError).not.toHaveBeenCalled();
     expect(fetchMock.requests).toHaveLength(1);
+  });
+
+  it("skips add-message commands with no supported parts", async () => {
+    const fetchMock = installFetch();
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const { aui, sendCommand } = mountRuntime();
+    await waitFor(() =>
+      expect(
+        (aui().thread.getState().extras as { sendCommand?: unknown })
+          ?.sendCommand,
+      ).toBeTypeOf("function"),
+    );
+
+    act(() =>
+      aui().thread.append({
+        role: "user",
+        content: [{ type: "audio", audio: { data: "", format: "mp3" } }],
+      }),
+    );
+
+    await act(async () => {});
+    expect(warn).toHaveBeenCalledWith(
+      "[assistant-ui] Skipped add-message command with no supported parts",
+    );
+    expect(fetchMock.requests).toHaveLength(0);
+
+    // The skipped message must not leak its parentId into later batches.
+    act(() => sendCommand(createMessageCommand("follow-up")));
+    await waitFor(() => expect(fetchMock.requests).toHaveLength(1));
+    expect(fetchMock.requests[0]!.body).not.toHaveProperty("parentId");
   });
 
   it("flushes commands enqueued during a resume run in a follow-up run", async () => {

@@ -189,6 +189,7 @@ export const EMPTY_THREAD_CORE: ThreadRuntimeCore = {
     edit: false,
     delete: false,
     reload: false,
+    refetchThread: false,
     cancel: false,
     unstable_copy: false,
     speech: false,
