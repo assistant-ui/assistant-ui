@@ -75,6 +75,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.useRealTimers();
   fs.rmSync(testDir, { recursive: true, force: true });
   for (const key of GITHUB_AUTH_ENV_KEYS) {
     const value = originalGitHubAuthEnv[key];
@@ -143,45 +144,121 @@ describe("resolveLatestReleaseRef", () => {
 
 describe("downloadProject", () => {
   it("passes ref in giget source when provided", async () => {
-    await downloadProject("templates/default", "/tmp/dest", "v1.0.0");
+    const destDir = path.join(testDir, "dest");
+    await downloadProject("templates/default", destDir, "v1.0.0");
 
     expect(downloadTemplate).toHaveBeenCalledWith(
       "gh:assistant-ui/assistant-ui/templates/default#v1.0.0",
-      expect.objectContaining({ dir: "/tmp/dest", force: true, silent: true }),
+      expect.objectContaining({
+        dir: expect.stringContaining(".assistant-ui-download-"),
+        force: true,
+        silent: true,
+      }),
     );
   });
 
   it("omits ref from giget source when not provided", async () => {
-    await downloadProject("examples/with-tanstack", "/tmp/dest");
+    const destDir = path.join(testDir, "dest");
+    await downloadProject("examples/with-tanstack", destDir);
 
     expect(downloadTemplate).toHaveBeenCalledWith(
       "gh:assistant-ui/assistant-ui/examples/with-tanstack",
-      expect.objectContaining({ dir: "/tmp/dest", force: true, silent: true }),
+      expect.objectContaining({
+        dir: expect.stringContaining(".assistant-ui-download-"),
+        force: true,
+        silent: true,
+      }),
     );
   });
 
   it("passes auth to giget when a GitHub token is configured", async () => {
     process.env.GH_TOKEN = "ghs_test-token";
 
-    await downloadProject("templates/default", "/tmp/dest", "v1.0.0");
+    const destDir = path.join(testDir, "dest");
+    await downloadProject("templates/default", destDir, "v1.0.0");
 
     expect(downloadTemplate).toHaveBeenCalledWith(
       "gh:assistant-ui/assistant-ui/templates/default#v1.0.0",
       expect.objectContaining({ auth: "ghs_test-token" }),
     );
   });
+
+  it("publishes a completed staged download", async () => {
+    const destDir = path.join(testDir, "dest");
+    (downloadTemplate as Mock).mockImplementationOnce(
+      async (_source, options: { dir: string }) => {
+        fs.writeFileSync(path.join(options.dir, "package.json"), "{}");
+        return {};
+      },
+    );
+
+    await downloadProject("templates/default", destDir);
+
+    expect(fs.readFileSync(path.join(destDir, "package.json"), "utf8")).toBe(
+      "{}",
+    );
+    expect(
+      fs
+        .readdirSync(testDir)
+        .filter((entry) => entry.startsWith(".assistant-ui-download-")),
+    ).toEqual([]);
+  });
+
+  it("does not publish a download that completes after the timeout", async () => {
+    vi.useFakeTimers();
+    const destDir = path.join(testDir, "dest");
+    let finishDownload!: () => void;
+    const downloadGate = new Promise<void>((resolve) => {
+      finishDownload = resolve;
+    });
+    let lateDownload!: Promise<unknown>;
+    (downloadTemplate as Mock).mockImplementationOnce(
+      (_source, options: { dir: string }) => {
+        lateDownload = (async () => {
+          await downloadGate;
+          fs.writeFileSync(path.join(options.dir, "package.json"), "{}");
+          return {};
+        })();
+        return lateDownload;
+      },
+    );
+
+    const result = downloadProject("templates/default", destDir);
+    const rejection = expect(result).rejects.toThrow("Download timed out");
+    await vi.advanceTimersByTimeAsync(30_000);
+    await rejection;
+
+    expect(fs.existsSync(destDir)).toBe(false);
+
+    finishDownload();
+    await lateDownload;
+
+    expect(fs.existsSync(destDir)).toBe(false);
+    await vi.waitFor(() => {
+      expect(
+        fs
+          .readdirSync(testDir)
+          .filter((entry) => entry.startsWith(".assistant-ui-download-")),
+      ).toEqual([]);
+    });
+  });
 });
 
 describe("scaffoldProject", () => {
   it("downloads from GitHub sources", async () => {
-    await scaffoldProject("templates/default", "/tmp/dest", {
+    const destDir = path.join(testDir, "dest");
+    await scaffoldProject("templates/default", destDir, {
       kind: "github",
       ref: "v1.0.0",
     });
 
     expect(downloadTemplate).toHaveBeenCalledWith(
       "gh:assistant-ui/assistant-ui/templates/default#v1.0.0",
-      expect.objectContaining({ dir: "/tmp/dest", force: true, silent: true }),
+      expect.objectContaining({
+        dir: expect.stringContaining(".assistant-ui-download-"),
+        force: true,
+        silent: true,
+      }),
     );
   });
 

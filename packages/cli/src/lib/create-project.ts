@@ -111,16 +111,40 @@ export async function downloadProject(
   // namespaces. Temporarily unsetting it targets the root cause.
   const origDebug = process.env.DEBUG;
   delete process.env.DEBUG;
+  const absoluteDestDir = path.resolve(destDir);
+  fs.mkdirSync(path.dirname(absoluteDestDir), { recursive: true });
+  const stagingDir = fs.mkdtempSync(
+    path.join(path.dirname(absoluteDestDir), ".assistant-ui-download-"),
+  );
+  const cleanupStagingDir = () => {
+    process.removeListener("exit", cleanupStagingDir);
+    try {
+      fs.rmSync(stagingDir, { recursive: true, force: true });
+    } catch (error) {
+      logger.warn(
+        `Could not remove temporary download directory ${stagingDir}: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  };
+  process.once("exit", cleanupStagingDir);
+
   try {
     const authToken = resolveGitHubAuthToken();
-    const downloadPromise = downloadTemplate(source, {
-      dir: destDir,
-      force: true,
-      silent: true,
-      ...(authToken ? { auth: authToken } : {}),
-    });
+    let downloadSettled = false;
+    const downloadPromise = Promise.resolve()
+      .then(() =>
+        downloadTemplate(source, {
+          dir: stagingDir,
+          force: true,
+          silent: true,
+          ...(authToken ? { auth: authToken } : {}),
+        }),
+      )
+      .finally(() => {
+        downloadSettled = true;
+      });
 
-    let timer: ReturnType<typeof setTimeout>;
+    let timer: ReturnType<typeof setTimeout> | undefined;
     const timeoutPromise = new Promise<never>((_, reject) => {
       timer = setTimeout(
         () =>
@@ -135,8 +159,17 @@ export async function downloadProject(
 
     try {
       await Promise.race([downloadPromise, timeoutPromise]);
+      fs.cpSync(stagingDir, absoluteDestDir, {
+        recursive: true,
+        force: true,
+      });
     } finally {
-      clearTimeout(timer!);
+      if (timer !== undefined) clearTimeout(timer);
+      if (downloadSettled) {
+        cleanupStagingDir();
+      } else {
+        void downloadPromise.then(cleanupStagingDir, cleanupStagingDir);
+      }
     }
   } finally {
     if (origDebug !== undefined) {
