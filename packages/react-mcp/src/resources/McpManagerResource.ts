@@ -49,6 +49,17 @@ const reportCustomStorageFailure = (
   );
 };
 
+const persistCustomServers = async (
+  storage: MCPStorage,
+  records: MCPCustomServerRecord[],
+) => {
+  try {
+    await storage.saveCustomServers(records);
+  } catch (error) {
+    reportCustomStorageFailure("save", error);
+  }
+};
+
 const useMcpManagerResource = (
   props: McpManagerResourceProps,
 ): ClientOutput<"mcp"> => {
@@ -67,8 +78,11 @@ const useMcpManagerResource = (
 
   const hydratedRef = useRef(false);
   const storageRef = useRef(storage);
-  storageRef.current = storage;
   const persistenceQueueRef = useRef(Promise.resolve());
+
+  useEffect(() => {
+    storageRef.current = storage;
+  }, [storage]);
 
   const hydrate = useEffectEvent(async (signal: { cancelled: boolean }) => {
     const markHydrated = () => {
@@ -108,16 +122,6 @@ const useMcpManagerResource = (
       signal.cancelled = true;
     };
   }, []);
-
-  const persistCustomServers = useEffectEvent(
-    async (targetStorage: MCPStorage, records: MCPCustomServerRecord[]) => {
-      try {
-        await targetStorage.saveCustomServers(records);
-      } catch (error) {
-        reportCustomStorageFailure("save", error);
-      }
-    },
-  );
 
   useEffect(() => {
     if (!hydratedRef.current) return;
