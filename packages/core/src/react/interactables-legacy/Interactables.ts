@@ -95,7 +95,11 @@ const useInteractables = (): ClientOutput<"interactables"> => {
         let changed = false;
         const persistence = { ...prev.persistence };
         for (const id of dirtyIds) {
-          if (latestSyncSeqByIdRef.current.get(id) !== seq) continue;
+          if (
+            latestSyncSeqByIdRef.current.get(id) !== seq ||
+            dirtyIdsRef.current.has(id)
+          )
+            continue;
           latestSyncSeqByIdRef.current.delete(id);
           delete persistence[id];
           changed = true;
@@ -107,7 +111,11 @@ const useInteractables = (): ClientOutput<"interactables"> => {
         let changed = false;
         const persistence = { ...prev.persistence };
         for (const id of dirtyIds) {
-          if (latestSyncSeqByIdRef.current.get(id) !== seq) continue;
+          if (
+            latestSyncSeqByIdRef.current.get(id) !== seq ||
+            dirtyIdsRef.current.has(id)
+          )
+            continue;
           latestSyncSeqByIdRef.current.delete(id);
           persistence[id] = { isPending: false, error: e };
           changed = true;

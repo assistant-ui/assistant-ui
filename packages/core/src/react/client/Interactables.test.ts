@@ -451,6 +451,37 @@ describe("Interactables persistence save", () => {
     expect(root.getValue().getState().persistence["n1"]).toBeUndefined();
   });
 
+  it("keeps an interactable pending while its newer edit is queued", async () => {
+    const saveResolvers: Array<() => void> = [];
+    const firstSave = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          saveResolvers.push(resolve);
+        }),
+    );
+    const secondSave = vi.fn();
+    root = mount({ persistence: { save: firstSave } });
+    await flushMicrotasks();
+    root.getValue().register(reg("n1"));
+    root.getValue().register(reg("n2"));
+
+    root.getValue().setState("n1", () => ({ v: 1 }));
+    await vi.advanceTimersByTimeAsync(500);
+    root.getValue().setState("n2", () => ({ v: 2 }));
+    root.getValue().setPersistenceAdapter({ save: secondSave });
+    root.getValue().setState("n1", () => ({ v: 3 }));
+
+    saveResolvers[0]!();
+    await flushMicrotasks();
+    expect(root.getValue().getState().persistence["n1"]?.isPending).toBe(true);
+    expect(secondSave).not.toHaveBeenCalled();
+
+    saveResolvers[1]!();
+    await flushMicrotasks();
+    expect(secondSave).toHaveBeenCalledTimes(1);
+    expect(root.getValue().getState().persistence["n1"]).toBeUndefined();
+  });
+
   it("flushes queued changes through the declarative adapter on unmount", async () => {
     const save = vi.fn();
     root = mount({ persistence: { save } });
