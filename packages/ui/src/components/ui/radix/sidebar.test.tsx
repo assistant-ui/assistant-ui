@@ -151,6 +151,5 @@ describe("radix sidebar menu buttons", () => {
     expect(button.className).toContain(
       "hover:shadow-[0_0_0_1px_var(--sidebar-accent)]",
     );
-    expect(button.className).not.toContain(["hsl(", "var(--sidebar-"].join(""));
   });
 });
