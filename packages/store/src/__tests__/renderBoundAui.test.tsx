@@ -42,11 +42,11 @@ const MessageProvider: FC<{ index: number; children: ReactNode }> = ({
   children,
 }) => {
   const aui = useAui({
-    message: Derived({
+    message: Derived<"message">({
       source: "thread",
       query: { index },
-      get: (aui: any) => aui.thread().item({ index }),
-    } as any),
+      get: (aui) => aui.thread().item({ index }),
+    }),
   } as unknown as useAui.Props);
   return <AuiProvider value={aui}>{children}</AuiProvider>;
 };

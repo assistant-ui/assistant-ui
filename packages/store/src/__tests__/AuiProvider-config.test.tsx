@@ -14,6 +14,35 @@ import { Derived } from "../Derived";
 
 type AnyClient = Record<string, any>;
 
+type ItemMethods = {
+  getState: () => { id: string; text: string };
+  setText: (t: string) => void;
+};
+
+declare module "../types/client" {
+  interface ScopeRegistry {
+    thread: {
+      methods: {
+        getState: () => { count: number };
+        item: (lookup: { index: number }) => ItemMethods;
+      };
+    };
+    message: {
+      methods: ItemMethods;
+      meta: { source: "thread"; query: { index: number } };
+    };
+    counter: {
+      methods: {
+        getState: () => { count: number };
+        setCount: (n: number) => void;
+      };
+    };
+    effect: {
+      methods: { getState: () => Record<string, never> };
+    };
+  }
+}
+
 const useItem = ({ id }: { id: string }) => {
   const [text, setText] = useState(`text-${id}`);
   return {
@@ -43,17 +72,16 @@ const Counter = resource(useCounter);
 
 const emptyConfig = AuiConfig({});
 
-const threadConfig = (ids: string[]) =>
-  ({ thread: Thread({ ids }) }) as unknown as AuiConfig;
+const threadConfig = (ids: string[]) => AuiConfig({ thread: Thread({ ids }) });
 
 const messageConfig = (index: number) =>
-  ({
-    message: Derived({
+  AuiConfig({
+    message: Derived<"message">({
       source: "thread",
       query: { index },
-      get: (aui: AnyClient) => aui.thread.item({ index }),
-    } as never),
-  }) as unknown as AuiConfig;
+      get: (aui) => aui.thread.item({ index }),
+    }),
+  });
 
 const Probe: FC<{ onRender: (aui: AnyClient) => void }> = ({ onRender }) => {
   onRender(useAui());
@@ -105,7 +133,7 @@ describe("AuiProvider config", () => {
     };
 
     render(
-      <AuiProvider config={{ counter: Counter() } as unknown as AuiConfig}>
+      <AuiProvider config={AuiConfig({ counter: Counter() })}>
         <Consumer />
       </AuiProvider>,
     );
@@ -135,7 +163,7 @@ describe("AuiProvider config", () => {
     };
 
     render(
-      <AuiProvider config={{ thread: EffectClient() } as unknown as AuiConfig}>
+      <AuiProvider config={AuiConfig({ effect: EffectClient() })}>
         <Consumer />
       </AuiProvider>,
     );
@@ -172,10 +200,7 @@ describe("AuiProvider config", () => {
     let aui!: AnyClient;
     render(
       <AuiProvider config={threadConfig(["a"])}>
-        <AuiProvider
-          extends={null}
-          config={{ counter: Counter() } as unknown as AuiConfig}
-        >
+        <AuiProvider extends={null} config={AuiConfig({ counter: Counter() })}>
           <Probe onRender={(c) => (aui = c)} />
         </AuiProvider>
       </AuiProvider>,
@@ -344,7 +369,7 @@ describe("AuiProvider config", () => {
     const Harness = ({ config }: { config: AuiConfig }) => (
       <AuiProvider config={threadConfig(["a", "b"])}>
         <Extend config={config}>
-          <Extend config={{ counter: Counter() } as unknown as AuiConfig}>
+          <Extend config={AuiConfig({ counter: Counter() })}>
             <MountSpy />
             <Probe onRender={(c) => clients.push(c)} />
           </Extend>
@@ -511,7 +536,7 @@ describe("AuiProvider config", () => {
   });
 
   it("AuiConfig returns its input for hoisting", () => {
-    const input = { thread: Thread({ ids: ["a"] }) } as never;
+    const input = { thread: Thread({ ids: ["a"] }) } satisfies AuiConfig.Input;
     expect(AuiConfig(input)).toBe(input);
   });
 
