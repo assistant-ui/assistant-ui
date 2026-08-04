@@ -24,6 +24,17 @@ describe("withAui", () => {
     }
   });
 
+  it("matches the directive more loosely than the compiler detects it", () => {
+    // The condition language cannot express a leading, syntactically valid
+    // directive. A module matched in error reaches the loader and comes back
+    // untouched; one missed would silently ship uncompiled.
+    const { content } = ourRule(rulesFor({})["*.ts"]).condition;
+
+    expect(content.test("'use generative';")).toBe(true);
+    expect(content.test('"use client";\n"use generative";')).toBe(true);
+    expect(content.test('// mentions "use generative" in prose')).toBe(true);
+  });
+
   it("honors custom globs", () => {
     expect(
       Object.keys(
