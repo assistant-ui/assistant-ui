@@ -440,6 +440,7 @@ In a chat app, pass the same config to `AssistantRuntimeProvider` instead — it
 
 ```tsx
 // app/providers.tsx — with a chat runtime
+"use client";
 import { AssistantRuntimeProvider, AuiConfig } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 import { McpManagerResource } from "@assistant-ui/react-mcp";

@@ -238,6 +238,35 @@ describe("AuiProvider config", () => {
     ).toThrow("AuiProvider: `extends` requires a `config`.");
   });
 
+  it("errors in dev when extends is explicitly undefined", () => {
+    renderExpectingError(
+      <AuiProvider extends={undefined} config={threadConfig(["a"])}>
+        {null}
+      </AuiProvider>,
+    ).toThrow(
+      "AuiProvider: `extends` must be a client or null, not undefined.",
+    );
+  });
+
+  it("errors in dev when a derived-only config changes its scope set", () => {
+    const Harness = ({ config }: { config: AuiConfig }) => (
+      <AuiProvider config={threadConfig(["a"])}>
+        <Extend config={config}>{null}</Extend>
+      </AuiProvider>
+    );
+
+    const view = render(<Harness config={messageConfig(0)} />);
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      expect(() => view.rerender(<Harness config={emptyConfig} />)).toThrow(
+        "A derived-only config mounted 1 scope(s) but now has 0; " +
+          "remount with a new key to change the scope set.",
+      );
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
   it("creates a client extending the extends parent for an empty config", () => {
     let parent!: AnyClient;
     let inner!: AnyClient;

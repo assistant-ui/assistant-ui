@@ -153,7 +153,7 @@ Where `{ parent: null }` was used to detach from context, `<AuiProvider extends=
 
 ## `AuiProvider` Grammar
 
-`AuiProvider` takes a `config` built with `AuiConfig(...)` — raw object literals are a type error. At the top level, `config` alone creates the subtree's client. Nested under a parent provider, `extends` is mandatory: `extends={aui}` extends the parent, `extends={null}` isolates (dev-enforced). An empty config provides the `extends` client as-is. `ref` receives the resulting client after mount.
+`AuiProvider` takes a `config` built with `AuiConfig(...)` — raw object literals are a type error. At the top level, `config` alone creates the subtree's client. Nested under a parent provider, `extends` is mandatory: `extends={aui}` extends the parent, `extends={null}` isolates (dev-enforced). `ref` receives the resulting client after mount.
 
 ```tsx
 const aui = useAui();
@@ -184,6 +184,8 @@ const config = AuiConfig({});
 <AuiProvider extends={client} config={config}>
 <AuiProvider extends={null} config={config}>
 ```
+
+The replacement exposes a client extending the given one, not the same instance — `useAui()` beneath it returns the new client, with scope access delegating to `client`.
 
 ### `useAui({ ... })` Extension Overload Deprecated
 

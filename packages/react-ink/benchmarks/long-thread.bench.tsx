@@ -14,7 +14,6 @@ import {
   AuiProvider,
   Derived,
   RenderChildrenWithAccessor,
-  useAui,
   useAuiState,
 } from "@assistant-ui/store";
 import { MessageByIndexProvider } from "@assistant-ui/core/react";
@@ -81,7 +80,7 @@ const BenchProvider: React.FC<{
     );
   }, [core]);
 
-  const aui = useAui({
+  const config = AuiConfig({
     thread: ThreadClient({ runtime: threadRuntime }),
     composer: Derived({
       source: "thread",
@@ -90,13 +89,7 @@ const BenchProvider: React.FC<{
     }),
   });
 
-  const config = AuiConfig({});
-
-  return (
-    <AuiProvider extends={aui} config={config}>
-      {children}
-    </AuiProvider>
-  );
+  return <AuiProvider config={config}>{children}</AuiProvider>;
 };
 
 /**

@@ -53,7 +53,10 @@ const ConfiguredAui = forwardRef<
  * provider, `extends` is mandatory: pass `extends={aui}` to extend the parent
  * client or `extends={null}` to isolate from it (enforced with a dev error).
  * Configs are identity-insensitive — a fresh object per render is safe.
- * `ref` receives the resulting client after mount.
+ * A config whose scopes are all {@link Derived} keeps its scope set fixed
+ * at mount (dev-enforced); configs with a root scope, and empty configs,
+ * may grow and shrink scopes across renders. `ref` receives the resulting
+ * client after mount.
  *
  * When mounting a runtime built with one of the runtime hooks, use
  * {@link AssistantRuntimeProvider} — it installs an `AuiProvider`
@@ -119,8 +122,9 @@ export const AuiProvider: {
      * empty root.
      *
      * @deprecated Pass an empty config built in the component body
-     * (`const config = AuiConfig({})`) with `extends={client}` to provide an
-     * existing client, or with `extends={null}` for an isolated empty root.
+     * (`const config = AuiConfig({})`) with `extends={client}` to expose a
+     * client extending the given one, or with `extends={null}` for an
+     * isolated empty root.
      */
     value: AssistantClient | null;
     extends?: never;

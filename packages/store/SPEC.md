@@ -31,8 +31,9 @@ type AssistantState = { [K]: ReturnType<ClientSchemas[K]["methods"]["getState"]>
 ### useAui
 ```typescript
 useAui(): AssistantClient;
+useAui(clients: AuiConfig.Input): AssistantClient; // deprecated: use <AuiProvider extends={aui} config>
 ```
-Returns the `AssistantClient` from context.
+Returns the `AssistantClient` from context. The deprecated overload extends it with additional scopes.
 
 ### useAuiState
 ```typescript
@@ -58,7 +59,7 @@ const config = AuiConfig({ ... });
 <AuiProvider extends={null} config={config}>{children}</AuiProvider>  // isolate from parent
 <AuiIf condition={(s) => boolean}>{children}</AuiIf>
 ```
-`config` must be built with `AuiConfig` (branded type) and is identity-insensitive. Under a parent provider, `extends` is mandatory (dev error otherwise); `extends` requires `config`; `extends={client}` with an empty config provides that client as-is. Config flow: splitClients → apply transformScopes → mount root clients → create derived accessors → merge with parent.
+`config` must be built with `AuiConfig` (branded type) and is identity-insensitive. Under a parent provider, `extends` is mandatory (dev error otherwise); `extends` requires `config`; `extends={client}` with an empty config creates a client extending `client`. Config flow: splitClients → apply transformScopes → mount root clients → create derived accessors → merge with parent.
 
 ### Derived
 ```typescript

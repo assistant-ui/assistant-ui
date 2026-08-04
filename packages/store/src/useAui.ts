@@ -350,12 +350,19 @@ const useDerivedOnlyClient = (
   parent: AssistantClient,
   entries: ScopeEntry[],
 ): AssistantClient => {
+  const [mountCount] = useState(entries.length);
   if (isDevelopment) {
     const root = entries.find(([, element]) => !isDerivedElement(element));
     if (root) {
       throw new Error(
         `Scope "${root[0]}" is a root scope but this useAui mounted derived-only; ` +
           "remount with a new key to change scope kinds.",
+      );
+    }
+    if (entries.length !== mountCount) {
+      throw new Error(
+        `A derived-only config mounted ${mountCount} scope(s) but now has ` +
+          `${entries.length}; remount with a new key to change the scope set.`,
       );
     }
   }
@@ -382,9 +389,10 @@ export const useScopedClient = (
     applyTransformScopes(clients, parent),
   ) as ScopeEntry[];
 
-  // The mode is frozen at mount; both branches handle dynamic scope sets of
-  // their own kind, only a scope-kind change requires a remount. Empty
-  // configs mount the host so they can grow scopes without remounting.
+  // The mode is frozen at mount. The host handles dynamic scope sets; the
+  // derived-only branch runs plain hooks, so its scope set is fixed at
+  // mount (dev-enforced below). Empty configs mount the host so they can
+  // grow scopes without remounting.
   const [rooted] = useState(
     () =>
       entries.length === 0 ||

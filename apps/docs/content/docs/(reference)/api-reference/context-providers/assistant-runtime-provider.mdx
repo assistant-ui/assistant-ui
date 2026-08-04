@@ -53,7 +53,10 @@ level, `config` alone creates this subtree's own client. Under a parent
 provider, `extends` is mandatory: pass `extends={aui}` to extend the parent
 client or `extends={null}` to isolate from it (enforced with a dev error).
 Configs are identity-insensitive — a fresh object per render is safe.
-`ref` receives the resulting client after mount.
+A config whose scopes are all Derived keeps its scope set fixed
+at mount (dev-enforced); configs with a root scope, and empty configs,
+may grow and shrink scopes across renders. `ref` receives the resulting
+client after mount.
 
 When mounting a runtime built with one of the runtime hooks, use
 [AssistantRuntimeProvider](/docs/api-reference/context-providers/assistant-runtime-provider#assistantruntimeprovider) — it installs an `AuiProvider`
