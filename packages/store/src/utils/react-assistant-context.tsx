@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect } from "react";
+import { createContext, useContext } from "react";
 import { useContextProvider } from "@assistant-ui/tap";
 import type { AssistantClient } from "../types/client";
 import { BaseProxyHandler, handleIntrospectionProp } from "./BaseProxyHandler";
@@ -87,24 +87,15 @@ export const getTapEffects = (client: AssistantClient): (() => void) => {
 };
 
 /**
- * Records a client's effects callback (its host's commit, chained after the
- * parent's); the provider exposing the client mounts it via UseTapEffects
- * ahead of its children's effects.
+ * Records the tap host's effects callback for clients created by the
+ * deprecated `useAui({...})` overload; the AuiProvider the client is passed
+ * to mounts the host's commit ahead of its children's effects.
  */
 export const setTapEffects = (
   client: AssistantClient,
   effects: () => void,
 ): void => {
   tapEffects.set(client, effects);
-};
-
-export const UseTapEffects = () => {
-  "use no memo";
-
-  const aui = useAssistantContextValue();
-  // oxlint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(getTapEffects(aui));
-  return null;
 };
 
 export const useAssistantContextValue = (): AssistantClient => {

@@ -1,5 +1,5 @@
 // hooks
-export { useAui, useConfiguredAui } from "./useAui";
+export { useAui } from "./useAui";
 export { useAuiState } from "./useAuiState";
 export { useAuiEvent } from "./useAuiEvent";
 export { RenderChildrenWithAccessor } from "./RenderChildrenWithAccessor";

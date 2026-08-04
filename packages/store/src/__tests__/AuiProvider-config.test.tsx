@@ -487,7 +487,7 @@ describe("AuiProvider config", () => {
     });
   });
 
-  it("value={client} still provides the client as-is (deprecated)", () => {
+  it("value={client} exposes a client extending it (deprecated)", () => {
     let portaled!: AnyClient;
     render(
       <AuiProvider config={threadConfig(["a"])}>
@@ -502,7 +502,7 @@ describe("AuiProvider config", () => {
       </AuiProvider>,
     );
 
-    expect(aui).toBe(portaled);
+    expect(aui).not.toBe(portaled);
     expect(aui.thread.getState()).toEqual({ count: 1 });
   });
 
@@ -517,8 +517,39 @@ describe("AuiProvider config", () => {
     );
 
     expect(() => aui.thread.getState()).toThrow(
-      "Wrap your component in an <AuiProvider> component.",
+      'The current scope does not have a "thread" property.',
     );
+  });
+
+  it("commits a deprecated useAui client's effects ahead of children's effects", () => {
+    const log: string[] = [];
+    const useEffectClient = () => {
+      useEffect(() => {
+        log.push("tap effect");
+      }, []);
+      return { getState: () => ({}) };
+    };
+    const EffectClient = resource(useEffectClient);
+
+    const Consumer = () => {
+      useEffect(() => {
+        log.push("consumer effect");
+      }, []);
+      return null;
+    };
+
+    const Legacy = ({ children }: { children: ReactNode }) => {
+      const client = useAui({ effect: EffectClient() });
+      return <AuiProvider value={client}>{children}</AuiProvider>;
+    };
+
+    render(
+      <Legacy>
+        <Consumer />
+      </Legacy>,
+    );
+
+    expect(log).toEqual(["tap effect", "consumer effect"]);
   });
 
   it("the deprecated useAui overload still works with value providers", () => {

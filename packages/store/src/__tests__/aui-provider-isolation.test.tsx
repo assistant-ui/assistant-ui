@@ -40,8 +40,7 @@ describe("AuiProvider value={null} isolation boundary", () => {
     );
 
     expect(() => aui.thread.getState()).toThrow(
-      "You are using a component or hook that requires an AuiProvider. " +
-        "Wrap your component in an <AuiProvider> component.",
+      'The current scope does not have a "thread" property.',
     );
   });
 
