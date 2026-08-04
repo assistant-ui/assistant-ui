@@ -197,9 +197,10 @@ export function useAgUiRuntime(
     };
   }, [core, runtime]);
 
+  const historyAdapterKey = historyAdapter?.key;
   useEffect(() => {
     core.__internal_load();
-  }, [core]);
+  }, [core, historyAdapterKey]);
 
   return runtime;
 }

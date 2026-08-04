@@ -1908,6 +1908,131 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(historyAdapter.load).toHaveBeenCalledTimes(1);
   });
 
+  it("reloads keyed history and ignores stale responses", async () => {
+    const agent = { runAgent: vi.fn() } as unknown as HttpAgent;
+    let resolveFirstLoad!: (repo: ExportedMessageRepository) => void;
+    let resolveSecondLoad!: (repo: ExportedMessageRepository) => void;
+    const firstHistory: ThreadHistoryAdapter = {
+      key: "workspace-a",
+      load: vi.fn(
+        () =>
+          new Promise((resolve) => {
+            resolveFirstLoad = resolve;
+          }),
+      ),
+      append: vi.fn().mockResolvedValue(undefined),
+    };
+    const secondHistory: ThreadHistoryAdapter = {
+      key: "workspace-b",
+      load: vi.fn(
+        () =>
+          new Promise((resolve) => {
+            resolveSecondLoad = resolve;
+          }),
+      ),
+      append: vi.fn().mockResolvedValue(undefined),
+    };
+    const core = createCore(agent, { history: firstHistory });
+    const firstRequest = core.__internal_load();
+    await vi.waitFor(() => expect(firstHistory.load).toHaveBeenCalledOnce());
+
+    core.applyExternalMessages([
+      {
+        id: "message-a",
+        role: "user",
+        content: [{ type: "text", text: "workspace a" }],
+        createdAt: new Date(),
+        metadata: { custom: {} },
+      },
+    ]);
+    core.loadExternalState({ workspace: "a" });
+    core.updateOptions({
+      agent,
+      logger: noopLogger,
+      showThinking: true,
+      history: secondHistory,
+    });
+    const secondRequest = core.__internal_load();
+    await vi.waitFor(() => expect(secondHistory.load).toHaveBeenCalledOnce());
+
+    expect(core.getMessages()).toEqual([]);
+    expect(core.getState()).toBeUndefined();
+    expect(core.isLoading).toBe(true);
+
+    resolveSecondLoad({
+      headId: "message-b",
+      messages: [
+        {
+          parentId: null,
+          message: {
+            id: "message-b",
+            role: "user",
+            content: [{ type: "text", text: "workspace b" }],
+            createdAt: new Date(),
+            metadata: { custom: {} },
+          },
+        },
+      ],
+      state: { workspace: "b" },
+    });
+    await secondRequest;
+
+    resolveFirstLoad({
+      headId: "message-a",
+      messages: [
+        {
+          parentId: null,
+          message: {
+            id: "message-a",
+            role: "user",
+            content: [{ type: "text", text: "workspace a" }],
+            createdAt: new Date(),
+            metadata: { custom: {} },
+          },
+        },
+      ],
+      state: { workspace: "a" },
+    });
+    await firstRequest;
+
+    expect(core.getMessages().map((message) => message.id)).toEqual([
+      "message-b",
+    ]);
+    expect(core.getState()).toEqual({ workspace: "b" });
+    expect(core.isLoading).toBe(false);
+  });
+
+  it("does not reload replacement history adapters with the same key", async () => {
+    const agent = { runAgent: vi.fn() } as unknown as HttpAgent;
+    const firstHistory: ThreadHistoryAdapter = {
+      key: "workspace-a",
+      load: vi.fn().mockResolvedValue({ messages: [] }),
+      append: vi.fn().mockResolvedValue(undefined),
+    };
+    const secondHistory: ThreadHistoryAdapter = {
+      key: "workspace-a",
+      load: vi.fn().mockResolvedValue({ messages: [] }),
+      append: vi.fn().mockResolvedValue(undefined),
+    };
+    const core = createCore(agent, { history: firstHistory });
+
+    const firstRequest = core.__internal_load();
+    await firstRequest;
+    core.updateOptions({
+      agent,
+      logger: noopLogger,
+      showThinking: true,
+      history: secondHistory,
+    });
+
+    expect(core.__internal_load()).toBe(firstRequest);
+    expect(secondHistory.load).not.toHaveBeenCalled();
+
+    await core.append(createAppendMessage({ startRun: false }));
+    expect(firstHistory.append).not.toHaveBeenCalled();
+    expect(secondHistory.append).toHaveBeenCalledTimes(1);
+  });
+
   it("handles missing history adapter gracefully", async () => {
     const agent = { runAgent: vi.fn() } as unknown as HttpAgent;
     const core = createCore(agent);
