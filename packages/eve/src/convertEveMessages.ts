@@ -1,5 +1,6 @@
 import {
   fromThreadMessageLike,
+  toAssistantError,
   type AppendMessage,
   type MessageStatus,
   type RespondToToolApprovalOptions,
@@ -29,6 +30,11 @@ const ASSISTANT_RUNNING_STATUS = {
   type: "running",
 } satisfies MessageStatus;
 
+const ASSISTANT_CANCELLED_STATUS = {
+  type: "incomplete",
+  reason: "cancelled",
+} satisfies MessageStatus;
+
 const USER_FALLBACK_STATUS = {
   type: "complete",
   reason: "unknown",
@@ -37,9 +43,15 @@ const USER_FALLBACK_STATUS = {
 export type ConvertEveMessagesOptions = {
   /**
    * Marks the last assistant message as running while Eve is submitting or
-   * streaming.
+   * streaming. When omitted, a message carrying Eve's `"streaming"` marker is
+   * treated as running; pass `false` to settle interrupted messages to a
+   * terminal status.
    */
   readonly isRunning?: boolean | undefined;
+  /**
+   * The Eve session error, mapped onto the assistant message it interrupted.
+   */
+  readonly error?: unknown;
   readonly getCreatedAt?: ((message: EveMessage) => Date) | undefined;
 };
 
@@ -81,11 +93,26 @@ const toMessageStatus = (
     return { type: "incomplete", reason: "error" };
   }
 
-  if (
-    message.metadata?.status === "streaming" ||
-    (options.isRunning === true && index === messages.length - 1)
-  ) {
+  const isLast = index === messages.length - 1;
+  if (isLast && options.isRunning === true) {
     return ASSISTANT_RUNNING_STATUS;
+  }
+
+  // Eve's default reducer never terminalizes the "streaming" marker on
+  // cancellation or turn/session failure, so liveness comes from isRunning and
+  // a leftover marker means the turn was interrupted.
+  if (message.metadata?.status === "streaming") {
+    if (options.isRunning === undefined) {
+      return ASSISTANT_RUNNING_STATUS;
+    }
+    if (isLast && options.error !== undefined) {
+      return {
+        type: "incomplete",
+        reason: "error",
+        error: toAssistantError(options.error),
+      };
+    }
+    return ASSISTANT_CANCELLED_STATUS;
   }
 
   return ASSISTANT_COMPLETE_STATUS;

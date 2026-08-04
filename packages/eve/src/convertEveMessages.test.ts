@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { EveMessageData } from "eve/react";
+import { defaultMessageReducer, type EveAgentReducerEvent } from "eve/client";
 import {
   convertEveMessages,
   getEveMessageContent,
@@ -257,6 +258,225 @@ describe("convertEveMessages", () => {
     const [message] = convertEveMessages(data);
 
     expect(message?.content).toEqual([{ type: "text", text: "Done" }]);
+  });
+
+  describe("assistant message status mapping", () => {
+    const withStatus = (
+      status: "streaming" | "complete" | "failed",
+    ): EveMessageData => ({
+      messages: [
+        {
+          id: "a1",
+          role: "assistant",
+          metadata: { status },
+          parts: [{ type: "text", text: "Hi" }],
+        },
+      ],
+    });
+
+    it("maps a running last message to running", () => {
+      const [message] = convertEveMessages(withStatus("streaming"), {
+        isRunning: true,
+      });
+
+      expect(message?.status).toEqual({ type: "running" });
+    });
+
+    it("keeps the legacy running mapping for a streaming marker when liveness is omitted", () => {
+      const [message] = convertEveMessages(withStatus("streaming"));
+
+      expect(message?.status).toEqual({ type: "running" });
+    });
+
+    it("maps a stale streaming marker to cancelled when no longer running", () => {
+      const [message] = convertEveMessages(withStatus("streaming"), {
+        isRunning: false,
+      });
+
+      expect(message?.status).toEqual({
+        type: "incomplete",
+        reason: "cancelled",
+      });
+    });
+
+    it("maps a stale streaming marker to error when the session error is set", () => {
+      const [message] = convertEveMessages(withStatus("streaming"), {
+        isRunning: false,
+        error: new Error("boom"),
+      });
+
+      expect(message?.status).toEqual({
+        type: "incomplete",
+        reason: "error",
+        error: { code: "unknown", message: "boom" },
+      });
+    });
+
+    it("maps a stuck streaming message to cancelled while a newer turn runs", () => {
+      const data = {
+        messages: [
+          {
+            id: "a1",
+            role: "assistant",
+            metadata: { status: "streaming" },
+            parts: [{ type: "text", text: "Interrupted" }],
+          },
+          {
+            id: "u2",
+            role: "user",
+            parts: [{ type: "text", text: "Try again" }],
+          },
+        ],
+      } satisfies EveMessageData;
+
+      const [assistant] = convertEveMessages(data, {
+        isRunning: true,
+        error: new Error("boom"),
+      });
+
+      expect(assistant?.status).toEqual({
+        type: "incomplete",
+        reason: "cancelled",
+      });
+    });
+
+    it("keeps a completed message complete even when the session error is set", () => {
+      const [message] = convertEveMessages(withStatus("complete"), {
+        isRunning: false,
+        error: new Error("boom"),
+      });
+
+      expect(message?.status).toEqual({ type: "complete", reason: "stop" });
+    });
+
+    it("maps an assistant failed marker to an error status", () => {
+      const [message] = convertEveMessages(withStatus("failed"), {
+        isRunning: false,
+      });
+
+      expect(message?.status).toEqual({ type: "incomplete", reason: "error" });
+    });
+
+    it("keeps requires-action for pending approvals when not running", () => {
+      const data = {
+        messages: [
+          {
+            id: "a1",
+            role: "assistant",
+            metadata: { status: "streaming" },
+            parts: [
+              {
+                type: "dynamic-tool",
+                state: "approval-requested",
+                toolCallId: "call_1",
+                toolName: "send_email",
+                input: {},
+                approval: { id: "req_1" },
+              },
+            ],
+          },
+        ],
+      } satisfies EveMessageData;
+
+      const [message] = convertEveMessages(data, { isRunning: false });
+
+      expect(message?.status).toEqual({
+        type: "requires-action",
+        reason: "tool-calls",
+      });
+    });
+
+    describe("contract with eve's default reducer", () => {
+      const replay = (events: readonly EveAgentReducerEvent[]) => {
+        const reducer = defaultMessageReducer();
+        return events.reduce(
+          (state, event) => reducer.reduce(state, event),
+          reducer.initial(),
+        );
+      };
+
+      const midStreamEvents: readonly EveAgentReducerEvent[] = [
+        {
+          type: "client.message.submitted",
+          data: { submissionId: "sub_1", message: "hi", createdAt: 0 },
+        },
+        {
+          type: "turn.started",
+          data: { turnId: "turn_1", sequence: 0 },
+        },
+        {
+          type: "step.started",
+          data: { turnId: "turn_1", stepIndex: 0, sequence: 1 },
+        },
+        {
+          type: "message.appended",
+          data: {
+            turnId: "turn_1",
+            stepIndex: 0,
+            sequence: 2,
+            messageDelta: "Let me th",
+            messageSoFar: "Let me th",
+          },
+        },
+      ];
+
+      it("a locally aborted turn keeps its streaming marker and converts to cancelled", () => {
+        const state = replay(midStreamEvents);
+
+        const assistant = state.messages.find((m) => m.role === "assistant");
+        expect(assistant?.metadata?.status).toBe("streaming");
+
+        const converted = convertEveMessages(state, { isRunning: false });
+        expect(converted.at(-1)?.status).toEqual({
+          type: "incomplete",
+          reason: "cancelled",
+        });
+      });
+
+      it("a failed session keeps its streaming marker and converts to error", () => {
+        const state = replay([
+          ...midStreamEvents,
+          {
+            type: "session.failed",
+            data: { sessionId: "session_1", code: "internal", message: "boom" },
+          },
+        ]);
+
+        const assistant = state.messages.find((m) => m.role === "assistant");
+        expect(assistant?.metadata?.status).toBe("streaming");
+
+        const converted = convertEveMessages(state, {
+          isRunning: false,
+          error: new Error("boom"),
+        });
+        expect(converted.at(-1)?.status).toEqual({
+          type: "incomplete",
+          reason: "error",
+          error: { code: "unknown", message: "boom" },
+        });
+      });
+
+      it("a failed turn converts to cancelled because the store surfaces no error for turn.failed", () => {
+        const state = replay([
+          ...midStreamEvents,
+          {
+            type: "turn.failed",
+            data: {
+              turnId: "turn_1",
+              sequence: 3,
+              code: "internal",
+              message: "boom",
+            },
+          },
+        ]);
+
+        const converted = convertEveMessages(state, { isRunning: false });
+        expect(converted.at(-1)?.status).toEqual({
+          type: "incomplete",
+          reason: "cancelled",
+        });
+      });
+    });
   });
 
   it("uses the supplied message creation time", () => {

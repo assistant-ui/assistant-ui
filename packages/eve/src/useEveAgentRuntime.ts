@@ -117,6 +117,7 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
 
     return convertEveMessages(agent.data, {
       isRunning,
+      error: agent.error,
       getCreatedAt: (message) => {
         const existing = createdAtByMessageId.get(message.id);
         if (existing) return existing;
@@ -126,7 +127,7 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
         return createdAt;
       },
     });
-  }, [agent.data, isRunning]);
+  }, [agent.data, agent.error, isRunning]);
 
   const messages = stagedMessages ?? convertedMessages;
   const messagesRef = useRef(messages);
