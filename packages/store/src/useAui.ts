@@ -361,8 +361,9 @@ const useDerivedOnlyClient = (
   parent: AssistantClient,
   entries: ScopeEntry[],
 ): AssistantClient => {
-  const [mountKeys] = useState(() => entries.map(([name]) => name).join(","));
   if (isDevelopment) {
+    // oxlint-disable-next-line react-hooks/rules-of-hooks -- isDevelopment is constant for the process lifetime
+    const [mountKeys] = useState(() => entries.map(([name]) => name).join(","));
     const root = entries.find(([, element]) => !isDerivedElement(element));
     if (root) {
       throw new Error(
