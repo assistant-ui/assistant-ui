@@ -155,6 +155,49 @@ describe("normalizePersistedAuthState", () => {
     });
   });
 
+  it("keeps valid OAuth discovery state", () => {
+    const discoveryState = {
+      authorizationServerUrl: "https://auth.example.com",
+      resourceMetadataUrl:
+        "https://mcp.example.com/.well-known/oauth-protected-resource",
+      authorizationServerMetadata: {
+        issuer: "https://auth.example.com",
+        authorization_endpoint: "https://auth.example.com/authorize",
+        token_endpoint: "https://auth.example.com/token",
+        response_types_supported: ["code"],
+      },
+      resourceMetadata: {
+        resource: "https://mcp.example.com",
+        authorization_servers: ["https://auth.example.com"],
+      },
+    };
+
+    expect(normalizePersistedAuthState({ discoveryState })).toEqual({
+      discoveryState,
+    });
+  });
+
+  it("drops malformed OAuth discovery state", () => {
+    expect(
+      normalizePersistedAuthState({
+        token: "bearer-token",
+        discoveryState: {
+          authorizationServerUrl: "not-a-url",
+        },
+      }),
+    ).toEqual({ token: "bearer-token" });
+
+    expect(
+      normalizePersistedAuthState({
+        token: "bearer-token",
+        discoveryState: {
+          authorizationServerUrl: "https://auth.example.com",
+          authorizationServerMetadata: { issuer: 123 },
+        },
+      }),
+    ).toEqual({ token: "bearer-token" });
+  });
+
   it("keeps valid fields when neighboring fields are malformed", () => {
     expect(
       normalizePersistedAuthState({

@@ -1,7 +1,10 @@
 import { resource } from "@assistant-ui/tap";
 import {
+  OAuthMetadataSchema,
   OAuthClientInformationFullSchema,
+  OAuthProtectedResourceMetadataSchema,
   OAuthTokensSchema,
+  OpenIdProviderDiscoveryMetadataSchema,
 } from "@modelcontextprotocol/core";
 import type { MCPAuthConfig, MCPCustomServerRecord } from "../../mcp-scope";
 import type { MCPPersistedAuthState } from "../../auth/types";
@@ -133,6 +136,58 @@ const normalizeClientInformation = (
   return result.success ? result.data : undefined;
 };
 
+const isAbsoluteUrl = (value: unknown): value is string => {
+  if (!isNonEmptyString(value)) return false;
+  try {
+    new URL(value);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+const normalizeDiscoveryState = (
+  value: unknown,
+): MCPPersistedAuthState["discoveryState"] | undefined => {
+  if (!isRecord(value) || !isAbsoluteUrl(value.authorizationServerUrl)) {
+    return undefined;
+  }
+
+  const state: NonNullable<MCPPersistedAuthState["discoveryState"]> = {
+    authorizationServerUrl: value.authorizationServerUrl,
+  };
+
+  if (value.resourceMetadataUrl !== undefined) {
+    if (!isAbsoluteUrl(value.resourceMetadataUrl)) return undefined;
+    state.resourceMetadataUrl = value.resourceMetadataUrl;
+  }
+
+  if (value.authorizationServerMetadata !== undefined) {
+    const oauth = OAuthMetadataSchema.safeParse(
+      value.authorizationServerMetadata,
+    );
+    if (oauth.success) {
+      state.authorizationServerMetadata = oauth.data;
+    } else {
+      const openId = OpenIdProviderDiscoveryMetadataSchema.safeParse(
+        value.authorizationServerMetadata,
+      );
+      if (!openId.success) return undefined;
+      state.authorizationServerMetadata = openId.data;
+    }
+  }
+
+  if (value.resourceMetadata !== undefined) {
+    const metadata = OAuthProtectedResourceMetadataSchema.safeParse(
+      value.resourceMetadata,
+    );
+    if (!metadata.success) return undefined;
+    state.resourceMetadata = metadata.data;
+  }
+
+  return state;
+};
+
 export const normalizePersistedAuthState = (
   value: unknown,
 ): MCPPersistedAuthState | null => {
@@ -149,6 +204,9 @@ export const normalizePersistedAuthState = (
 
   const clientInformation = normalizeClientInformation(value.clientInformation);
   if (clientInformation) state.clientInformation = clientInformation;
+
+  const discoveryState = normalizeDiscoveryState(value.discoveryState);
+  if (discoveryState) state.discoveryState = discoveryState;
 
   return Object.keys(state).length > 0 ? state : null;
 };
