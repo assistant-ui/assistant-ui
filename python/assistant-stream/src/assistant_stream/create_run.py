@@ -77,7 +77,7 @@ class RunController:
         self._state_manager.append_text(path, text_delta)
 
     def flush(self) -> None:
-        """Emit any buffered state operations to the stream now."""
+        """Emit buffered state operations ahead of any subsequent stream chunk."""
         self._state_manager.flush()
 
     async def add_tool_call(
