@@ -1,6 +1,8 @@
 import {
   fromThreadMessageLike,
   type AppendMessage,
+  type CompleteAttachment,
+  type FileMessagePart,
   type MessageStatus,
   type RespondToToolApprovalOptions,
   type ThreadAssistantMessagePart,
@@ -176,6 +178,19 @@ const convertDynamicToolPart = (
   }
 };
 
+const convertFilePart = (
+  part: Extract<EveMessagePart, { type: "file" }>,
+): FileMessagePart | null => {
+  if (part.url === undefined) return null;
+  return {
+    type: "file",
+    data: part.url,
+    mimeType: part.mediaType,
+    ...(part.filename && { filename: part.filename }),
+    ...(httpUrlPattern.test(part.url) && { sourceType: "url" as const }),
+  };
+};
+
 const convertAssistantPart = (
   part: EveMessagePart,
 ): ThreadAssistantMessagePart | null => {
@@ -190,6 +205,9 @@ const convertAssistantPart = (
     case "dynamic-tool":
       return convertDynamicToolPart(part);
 
+    case "file":
+      return convertFilePart(part);
+
     default:
       return null;
   }
@@ -202,6 +220,9 @@ const convertUserPart = (
     case "text":
       return { type: "text", text: part.text };
 
+    case "file":
+      return convertFilePart(part);
+
     default:
       return null;
   }
@@ -212,6 +233,35 @@ const toUserContent = (
 ): readonly ThreadUserMessagePart[] => {
   const content = parts.map(convertUserPart).filter((part) => part !== null);
   return content.length > 0 ? content : [{ type: "text", text: "" }];
+};
+
+const toUserAttachments = (
+  parts: readonly EveMessagePart[],
+): CompleteAttachment[] => {
+  const attachments: CompleteAttachment[] = [];
+  for (const part of parts) {
+    if (part.type !== "file") continue;
+    const file = convertFilePart(part);
+    if (file === null) continue;
+    const isImage = part.mediaType.startsWith("image/");
+    attachments.push({
+      id: String(attachments.length),
+      type: isImage ? "image" : "file",
+      name: part.filename ?? "file",
+      content: [
+        isImage
+          ? {
+              type: "image",
+              image: file.data,
+              ...(part.filename && { filename: part.filename }),
+            }
+          : file,
+      ],
+      contentType: part.mediaType,
+      status: { type: "complete" },
+    });
+  }
+  return attachments;
 };
 
 /**
@@ -238,7 +288,7 @@ export const convertEveMessage = (
           id: message.id,
           createdAt,
           content: toUserContent(message.parts),
-          attachments: [],
+          attachments: toUserAttachments(message.parts),
           metadata,
         }
       : {

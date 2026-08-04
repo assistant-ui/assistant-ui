@@ -195,7 +195,7 @@ describe("convertEveMessages", () => {
     expect(message?.metadata).not.toHaveProperty("isOptimistic");
   });
 
-  it("falls back to an empty text part for user messages without convertible parts", () => {
+  it("falls back to an empty text part for user messages with only url-less file parts", () => {
     const data = {
       messages: [
         {
@@ -209,9 +209,10 @@ describe("convertEveMessages", () => {
     const [message] = convertEveMessages(data);
 
     expect(message?.content).toEqual([{ type: "text", text: "" }]);
+    expect(message?.attachments).toEqual([]);
   });
 
-  it("drops non-convertible user parts without triggering the fallback", () => {
+  it("drops url-less user file parts without triggering the fallback", () => {
     const data = {
       messages: [
         {
@@ -228,6 +229,213 @@ describe("convertEveMessages", () => {
     const [message] = convertEveMessages(data);
 
     expect(message?.content).toEqual([{ type: "text", text: "Hello" }]);
+  });
+
+  it("converts a user file part into content and a file attachment", () => {
+    const data = {
+      messages: [
+        {
+          id: "u1",
+          role: "user",
+          parts: [
+            { type: "text", text: "See the report" },
+            {
+              type: "file",
+              url: "https://example.com/report.pdf",
+              mediaType: "application/pdf",
+              filename: "report.pdf",
+              size: 1024,
+            },
+          ],
+        },
+      ],
+    } satisfies EveMessageData;
+
+    const [message] = convertEveMessages(data);
+
+    expect(message?.content).toEqual([
+      { type: "text", text: "See the report" },
+      {
+        type: "file",
+        data: "https://example.com/report.pdf",
+        mimeType: "application/pdf",
+        filename: "report.pdf",
+        sourceType: "url",
+      },
+    ]);
+    expect(message?.attachments).toEqual([
+      {
+        id: "0",
+        type: "file",
+        name: "report.pdf",
+        content: [
+          {
+            type: "file",
+            data: "https://example.com/report.pdf",
+            mimeType: "application/pdf",
+            filename: "report.pdf",
+            sourceType: "url",
+          },
+        ],
+        contentType: "application/pdf",
+        status: { type: "complete" },
+      },
+    ]);
+  });
+
+  it("converts a user image file part into an image attachment", () => {
+    const data = {
+      messages: [
+        {
+          id: "u1",
+          role: "user",
+          parts: [
+            {
+              type: "file",
+              url: "https://example.com/photo.png",
+              mediaType: "image/png",
+              filename: "photo.png",
+            },
+          ],
+        },
+      ],
+    } satisfies EveMessageData;
+
+    const [message] = convertEveMessages(data);
+
+    expect(message?.content).toEqual([
+      {
+        type: "file",
+        data: "https://example.com/photo.png",
+        mimeType: "image/png",
+        filename: "photo.png",
+        sourceType: "url",
+      },
+    ]);
+    expect(message?.attachments).toEqual([
+      {
+        id: "0",
+        type: "image",
+        name: "photo.png",
+        content: [
+          {
+            type: "image",
+            image: "https://example.com/photo.png",
+            filename: "photo.png",
+          },
+        ],
+        contentType: "image/png",
+        status: { type: "complete" },
+      },
+    ]);
+  });
+
+  it("omits sourceType and falls back to a generic name for data url file parts", () => {
+    const data = {
+      messages: [
+        {
+          id: "u1",
+          role: "user",
+          parts: [
+            {
+              type: "file",
+              url: "data:application/pdf;base64,QUJD",
+              mediaType: "application/pdf",
+            },
+          ],
+        },
+      ],
+    } satisfies EveMessageData;
+
+    const [message] = convertEveMessages(data);
+
+    expect(message?.content).toEqual([
+      {
+        type: "file",
+        data: "data:application/pdf;base64,QUJD",
+        mimeType: "application/pdf",
+      },
+    ]);
+    expect(message?.attachments).toEqual([
+      {
+        id: "0",
+        type: "file",
+        name: "file",
+        content: [
+          {
+            type: "file",
+            data: "data:application/pdf;base64,QUJD",
+            mimeType: "application/pdf",
+          },
+        ],
+        contentType: "application/pdf",
+        status: { type: "complete" },
+      },
+    ]);
+  });
+
+  it("assigns sequential attachment ids across multiple file parts", () => {
+    const data = {
+      messages: [
+        {
+          id: "u1",
+          role: "user",
+          parts: [
+            {
+              type: "file",
+              url: "https://example.com/a.pdf",
+              mediaType: "application/pdf",
+            },
+            { type: "file", mediaType: "image/png" },
+            {
+              type: "file",
+              url: "https://example.com/b.png",
+              mediaType: "image/png",
+            },
+          ],
+        },
+      ],
+    } satisfies EveMessageData;
+
+    const [message] = convertEveMessages(data);
+
+    expect(message?.attachments?.map((a) => [a.id, a.type])).toEqual([
+      ["0", "file"],
+      ["1", "image"],
+    ]);
+  });
+
+  it("converts an assistant file part into a file content part", () => {
+    const data = {
+      messages: [
+        {
+          id: "a1",
+          role: "assistant",
+          parts: [
+            { type: "text", text: "Here you go" },
+            {
+              type: "file",
+              url: "https://example.com/result.csv",
+              mediaType: "text/csv",
+              filename: "result.csv",
+            },
+          ],
+        },
+      ],
+    } satisfies EveMessageData;
+
+    const [message] = convertEveMessages(data);
+
+    expect(message?.content).toEqual([
+      { type: "text", text: "Here you go" },
+      {
+        type: "file",
+        data: "https://example.com/result.csv",
+        mimeType: "text/csv",
+        filename: "result.csv",
+        sourceType: "url",
+      },
+    ]);
   });
 
   it("drops non-convertible part types instead of throwing", () => {
@@ -365,6 +573,66 @@ describe("getEveMessageContent", () => {
         type: "file",
         data: "https://cdn.example.com/memo.mp3",
         mediaType: "audio/mp3",
+      },
+    ]);
+  });
+
+  it("round-trips a sent file attachment through the eve echo shape", () => {
+    const message = {
+      ...baseAppendMessage,
+      content: [],
+      attachments: [
+        {
+          id: "1",
+          type: "file",
+          name: "report.pdf",
+          content: [
+            {
+              type: "file",
+              data: "https://example.com/report.pdf",
+              mimeType: "application/pdf",
+              filename: "report.pdf",
+            },
+          ],
+          status: { type: "complete" },
+        },
+      ],
+    } as unknown as AppendMessage;
+
+    expect(getEveMessageContent(message)).toEqual([
+      {
+        type: "file",
+        data: "https://example.com/report.pdf",
+        mediaType: "application/pdf",
+        filename: "report.pdf",
+      },
+    ]);
+
+    const [echoed] = convertEveMessages({
+      messages: [
+        {
+          id: "t1:user",
+          role: "user",
+          metadata: { status: "complete", turnId: "t1" },
+          parts: [
+            {
+              type: "file",
+              url: "https://example.com/report.pdf",
+              mediaType: "application/pdf",
+              filename: "report.pdf",
+            },
+          ],
+        },
+      ],
+    } satisfies EveMessageData);
+
+    expect(echoed?.content).toEqual([
+      {
+        type: "file",
+        data: "https://example.com/report.pdf",
+        mimeType: "application/pdf",
+        filename: "report.pdf",
+        sourceType: "url",
       },
     ]);
   });
