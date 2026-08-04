@@ -24,12 +24,13 @@ import type {
   ClientNames,
   ClientMethods,
 } from "./types/client";
-import { useDerived, type Derived } from "./Derived";
+import { useDerived } from "./Derived";
 import {
   useAssistantContextValue,
   useAssistantContextProvider,
   DefaultAssistantClient,
   createRootAssistantClient,
+  getTapEffects,
   setTapEffects,
 } from "./utils/react-assistant-context";
 import type { AuiConfig } from "./AuiConfig";
@@ -325,11 +326,21 @@ const useHostedAssistantClient = ({
 };
 
 const useDerivedScopeMount = (
+  parent: AssistantClient,
   building: AssistantClient,
   name: ClientNames,
   element: ScopeElement,
 ): ScopeAccessor => {
-  const value = useDerived(element.args[0] as Derived.Props<ClientNames>);
+  // Resolved against the explicit parent (which may live in another React
+  // root), never the context client.
+  const { get } = element.args[0] as {
+    get: (client: AssistantClient) => ClientMethods;
+  };
+  const value = useSyncExternalStore(
+    parent.subscribe,
+    () => get(parent),
+    () => get(parent),
+  );
 
   const meta = useScopeMeta(element);
   const accessor = useMemo(
@@ -375,14 +386,14 @@ const useDerivedOnlyClient = (
 
   const accessors = entries.map(([name, element]) =>
     // oxlint-disable-next-line react-hooks/rules-of-hooks -- fixed per call site; React throws on a count change
-    useDerivedScopeMount(building, name, element),
+    useDerivedScopeMount(parent, building, name, element),
   );
   return useCommittedClient(building, [parent, ...accessors]);
 };
 
 type ScopedAuiClient = { client: AssistantClient; effects?: () => void };
 
-export const useScopedClient = (
+const useScopedClient = (
   parent: AssistantClient,
   clients: AuiConfig.Input,
 ): ScopedAuiClient => {
@@ -406,6 +417,34 @@ export const useScopedClient = (
   }
   // oxlint-disable-next-line react-hooks/rules-of-hooks
   return { client: useDerivedOnlyClient(parent, entries) };
+};
+
+/**
+ * Creates an `AssistantClient` by extending an explicit `parent` with the
+ * scopes in `config` (built with {@link AuiConfig}). The parent is always
+ * the argument — context is never consulted — so the parent may come from
+ * another React root.
+ *
+ * Prefer `<AuiProvider extends={parent} config={config}>`, which creates
+ * the client and provides it to the subtree in one step; reach for this
+ * hook when the client itself is needed in the component body. Pair with
+ * an `AuiProvider` to expose it to descendants — the provider mounts the
+ * client's effects ahead of its children's.
+ */
+export const useConfiguredAui = (
+  parent: AssistantClient,
+  config: AuiConfig,
+): AssistantClient => {
+  const { client, effects } = useScopedClient(parent, config);
+
+  // Committing is idempotent per render, so chaining the parent's effects
+  // covers parents from foreign roots without double-commit concerns.
+  const parentEffects = getTapEffects(parent);
+  setTapEffects(client, () => {
+    parentEffects();
+    effects?.();
+  });
+  return client;
 };
 
 export namespace useAui {
@@ -484,9 +523,8 @@ export function useAui(clients: useAui.Props): AssistantClient;
 export function useAui(clients?: useAui.Props): AssistantClient {
   const parent = useAssistantContextValue();
   if (clients) {
-    const { client, effects } = useScopedClient(parent, clients);
-    if (effects) setTapEffects(client, effects);
-    return client;
+    // oxlint-disable-next-line react-hooks/rules-of-hooks -- fixed per call site
+    return useConfiguredAui(parent, clients as AuiConfig);
   }
   return parent;
 }

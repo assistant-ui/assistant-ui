@@ -1,7 +1,7 @@
 "use client";
 
 import type React from "react";
-import { forwardRef, useEffect, useImperativeHandle } from "react";
+import { forwardRef, useImperativeHandle } from "react";
 import type { AssistantClient } from "./types/client";
 import type { AuiConfig } from "./AuiConfig";
 import {
@@ -10,31 +10,22 @@ import {
   UseTapEffects,
   useAssistantContextValue,
 } from "./utils/react-assistant-context";
-import { useScopedClient } from "./useAui";
+import { useConfiguredAui } from "./useAui";
 
 const isDevelopment =
   typeof process !== "undefined" &&
   (process.env.NODE_ENV === "development" || process.env.NODE_ENV === "test");
 
-const MountTapEffects = ({ effects }: { effects: () => void }) => {
-  "use no memo";
-  // oxlint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(effects);
-  return null;
-};
-
 const ConfiguredAui = forwardRef<
   AssistantClient,
-  { config: AuiConfig; children: React.ReactNode }
->(function ConfiguredAui({ config, children }, ref) {
-  // The <MountTapEffects /> element must be created fresh each render
+  { parent: AssistantClient; config: AuiConfig; children: React.ReactNode }
+>(function ConfiguredAui({ parent, config, children }, ref) {
   "use no memo";
-  const parent = useAssistantContextValue();
-  const { client, effects } = useScopedClient(parent, config);
+  const client = useConfiguredAui(parent, config);
   useImperativeHandle(ref, () => client, [client]);
   return (
     <AssistantContext.Provider value={client}>
-      {effects && <MountTapEffects effects={effects} />}
+      <UseTapEffects />
       {children}
     </AssistantContext.Provider>
   );
@@ -142,7 +133,6 @@ export const AuiProvider: {
     children: React.ReactNode;
   }
 >(function AuiProvider(props, ref) {
-  // The <UseTapEffects /> element must be created fresh each render
   "use no memo";
   const { config, children } = props;
   const hasExtends = "extends" in props;
@@ -181,17 +171,20 @@ export const AuiProvider: {
   if (hasExtends) {
     const resolved = props.extends ?? DefaultAssistantClient;
     return (
-      <AssistantContext.Provider value={resolved}>
-        {resolved !== contextParent && <UseTapEffects />}
-        <ConfiguredAui config={config!} ref={ref}>
-          {children}
-        </ConfiguredAui>
-      </AssistantContext.Provider>
+      <ConfiguredAui parent={resolved} config={config!} ref={ref}>
+        {children}
+      </ConfiguredAui>
     );
   }
 
   const inner = config ? (
-    <ConfiguredAui config={config} ref={ref}>
+    <ConfiguredAui
+      parent={
+        hasValue ? (props.value ?? DefaultAssistantClient) : contextParent
+      }
+      config={config}
+      ref={ref}
+    >
       {children}
     </ConfiguredAui>
   ) : (

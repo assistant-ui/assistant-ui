@@ -82,14 +82,14 @@ export const AssistantContext = createContext<AssistantClient>(
 const NOOP_EFFECT = () => {};
 const tapEffects = new WeakMap<AssistantClient, () => void>();
 
-const getTapEffects = (client: AssistantClient): (() => void) => {
+export const getTapEffects = (client: AssistantClient): (() => void) => {
   return tapEffects.get(client) ?? NOOP_EFFECT;
 };
 
 /**
- * Records the tap host's effects callback for clients created by the
- * deprecated `useAui({...})` overload; the AuiProvider the client is passed
- * to mounts the host's commit ahead of its children's effects.
+ * Records a client's effects callback (its host's commit, chained after the
+ * parent's); the provider exposing the client mounts it via UseTapEffects
+ * ahead of its children's effects.
  */
 export const setTapEffects = (
   client: AssistantClient,
