@@ -185,7 +185,7 @@ const config = AuiConfig({});
 <AuiProvider extends={null} config={config}>
 ```
 
-The replacement exposes a client extending the given one, not the same instance — `useAui()` beneath it returns the new client, with scope access delegating to `client`.
+The replacement exposes a client extending the given one, not the same instance — `useAui()` beneath it returns the new client, with scope access delegating to `client`. The deprecated `value={client}` form behaves the same way: it also exposes a derived client rather than the exact instance, and the given client must implement `subscribe`.
 
 ### `useAui({ ... })` Extension Overload Deprecated
 
