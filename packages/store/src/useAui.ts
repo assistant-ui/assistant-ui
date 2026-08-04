@@ -350,7 +350,7 @@ const useDerivedOnlyClient = (
   parent: AssistantClient,
   entries: ScopeEntry[],
 ): AssistantClient => {
-  const [mountCount] = useState(entries.length);
+  const [mountKeys] = useState(() => entries.map(([name]) => name).join(","));
   if (isDevelopment) {
     const root = entries.find(([, element]) => !isDerivedElement(element));
     if (root) {
@@ -359,10 +359,11 @@ const useDerivedOnlyClient = (
           "remount with a new key to change scope kinds.",
       );
     }
-    if (entries.length !== mountCount) {
+    const keys = entries.map(([name]) => name).join(",");
+    if (keys !== mountKeys) {
       throw new Error(
-        `A derived-only config mounted ${mountCount} scope(s) but now has ` +
-          `${entries.length}; remount with a new key to change the scope set.`,
+        `A derived-only config mounted scopes [${mountKeys}] but now has ` +
+          `[${keys}]; remount with a new key to change the scope set.`,
       );
     }
   }

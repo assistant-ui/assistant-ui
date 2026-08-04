@@ -303,7 +303,7 @@ describe("AuiProvider config", () => {
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
     try {
       expect(() => view.rerender(<Harness config={emptyConfig} />)).toThrow(
-        "A derived-only config mounted 1 scope(s) but now has 0; " +
+        "A derived-only config mounted scopes [message] but now has []; " +
           "remount with a new key to change the scope set.",
       );
     } finally {
