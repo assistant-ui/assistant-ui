@@ -413,6 +413,7 @@ Errors surface as rejected promises on the manager/server methods. Tool failures
 ```tsx
 // app/providers.tsx
 "use client";
+import type { ReactNode } from "react";
 import { AuiProvider, AuiConfig, useAui } from "@assistant-ui/store";
 import { McpManagerResource, defineConnector } from "@assistant-ui/react-mcp";
 
@@ -425,7 +426,7 @@ const connectors = [
   }),
 ];
 
-export function Providers({ children }: { children: React.ReactNode }) {
+export function Providers({ children }: { children: ReactNode }) {
   const aui = useAui();
   const config = AuiConfig({ mcp: McpManagerResource({ connectors }) });
   return (
@@ -441,11 +442,12 @@ In a chat app, pass the same config to `AssistantRuntimeProvider` instead — it
 ```tsx
 // app/providers.tsx — with a chat runtime
 "use client";
+import type { ReactNode } from "react";
 import { AssistantRuntimeProvider, AuiConfig } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 import { McpManagerResource } from "@assistant-ui/react-mcp";
 
-export function Providers({ children }: { children: React.ReactNode }) {
+export function Providers({ children }: { children: ReactNode }) {
   const runtime = useChatRuntime();
   const config = AuiConfig({ mcp: McpManagerResource({ connectors }) });
   return (

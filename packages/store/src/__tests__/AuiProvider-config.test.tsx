@@ -240,12 +240,29 @@ describe("AuiProvider config", () => {
 
   it("errors in dev when extends is explicitly undefined", () => {
     renderExpectingError(
+      // @ts-expect-error extends must be a client or null
       <AuiProvider extends={undefined} config={threadConfig(["a"])}>
         {null}
       </AuiProvider>,
     ).toThrow(
       "AuiProvider: `extends` must be a client or null, not undefined.",
     );
+  });
+
+  it("errors in dev when value and config are both passed", () => {
+    renderExpectingError(
+      // @ts-expect-error value and config are mutually exclusive
+      <AuiProvider value={null} config={threadConfig(["a"])}>
+        {null}
+      </AuiProvider>,
+    ).toThrow("AuiProvider: pass either `value` or `config`, not both.");
+  });
+
+  it("errors in dev when neither value nor config is passed", () => {
+    renderExpectingError(
+      // @ts-expect-error a config is required
+      <AuiProvider>{null}</AuiProvider>,
+    ).toThrow("AuiProvider: a `config` is required.");
   });
 
   it("errors in dev when a derived-only config changes its scope set", () => {
