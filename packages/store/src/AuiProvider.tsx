@@ -40,23 +40,6 @@ const ConfiguredAui = forwardRef<
   );
 });
 
-const PassthroughAui = forwardRef<
-  AssistantClient,
-  { client: AssistantClient; children: React.ReactNode }
->(function PassthroughAui({ client, children }, ref) {
-  // The <UseTapEffects /> element must be created fresh each render
-  "use no memo";
-  useImperativeHandle(ref, () => client, [client]);
-  return (
-    <AssistantContext.Provider value={client}>
-      <UseTapEffects />
-      {children}
-    </AssistantContext.Provider>
-  );
-});
-
-const isEmptyConfig = (config: AuiConfig) => Object.keys(config).length === 0;
-
 /**
  * Supplies an `AssistantClient` to the React tree.
  *
@@ -69,9 +52,8 @@ const isEmptyConfig = (config: AuiConfig) => Object.keys(config).length === 0;
  * level, `config` alone creates this subtree's own client. Under a parent
  * provider, `extends` is mandatory: pass `extends={aui}` to extend the parent
  * client or `extends={null}` to isolate from it (enforced with a dev error).
- * An empty config passes the `extends` client through as-is. Configs are
- * identity-insensitive — a fresh object per render is safe. `ref` receives
- * the resulting client after mount.
+ * Configs are identity-insensitive — a fresh object per render is safe.
+ * `ref` receives the resulting client after mount.
  *
  * When mounting a runtime built with one of the runtime hooks, use
  * {@link AssistantRuntimeProvider} — it installs an `AuiProvider`
@@ -114,7 +96,7 @@ export const AuiProvider: {
   }): React.ReactElement;
   /**
    * Extends a parent client with the configured scopes, or isolates with
-   * `extends={null}`. An empty config provides the `extends` client as-is.
+   * `extends={null}`.
    */
   (props: {
     /**
@@ -193,15 +175,7 @@ export const AuiProvider: {
   }
 
   if (hasExtends) {
-    const parentClient = props.extends;
-    if (parentClient && isEmptyConfig(config!)) {
-      return (
-        <PassthroughAui client={parentClient} ref={ref}>
-          {children}
-        </PassthroughAui>
-      );
-    }
-    const resolved = parentClient ?? DefaultAssistantClient;
+    const resolved = props.extends ?? DefaultAssistantClient;
     return (
       <AssistantContext.Provider value={resolved}>
         {resolved !== contextParent && <UseTapEffects />}

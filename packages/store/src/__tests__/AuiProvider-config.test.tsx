@@ -238,17 +238,9 @@ describe("AuiProvider config", () => {
     ).toThrow("AuiProvider: `extends` requires a `config`.");
   });
 
-  it("passes the extends client through as-is for an empty config", () => {
+  it("creates a client extending the extends parent for an empty config", () => {
     let parent!: AnyClient;
     let inner!: AnyClient;
-    const effects: string[] = [];
-    const useEffectClient = () => {
-      useEffect(() => {
-        effects.push("tap effect");
-      });
-      return { getState: () => ({}) };
-    };
-    const EffectClient = resource(useEffectClient);
 
     const Portal: FC<{ children: ReactNode }> = ({ children }) => {
       parent = useAui();
@@ -260,30 +252,24 @@ describe("AuiProvider config", () => {
     };
 
     render(
-      <AuiProvider config={{ thread: EffectClient() } as unknown as AuiConfig}>
+      <AuiProvider config={threadConfig(["a"])}>
         <Portal>
           <Probe onRender={(c) => (inner = c)} />
         </Portal>
       </AuiProvider>,
     );
 
-    expect(inner).toBe(parent);
-    // only the outer provider's effects host ran; the portal mounted none
-    expect(effects).toEqual(["tap effect"]);
+    expect(inner).not.toBe(parent);
+    expect(inner.thread.getState()).toEqual({ count: 1 });
   });
 
-  it("exposes the pass-through client via ref", () => {
-    let parent!: AnyClient;
+  it("exposes the created client via ref for an empty config", () => {
     const ref = createRef<AnyClient>();
 
     const Portal = () => {
-      parent = useAui();
+      const aui = useAui();
       return (
-        <AuiProvider
-          extends={parent as never}
-          config={emptyConfig}
-          ref={ref as never}
-        >
+        <AuiProvider extends={aui} config={emptyConfig} ref={ref as never}>
           {null}
         </AuiProvider>
       );
@@ -295,7 +281,47 @@ describe("AuiProvider config", () => {
       </AuiProvider>,
     );
 
-    expect(ref.current).toBe(parent);
+    expect(ref.current).not.toBeNull();
+    expect(ref.current!.thread.getState()).toEqual({ count: 1 });
+  });
+
+  it("keeps the subtree and its clients alive across empty -> non-empty -> empty config flips", () => {
+    const clients: AnyClient[] = [];
+    let mounts = 0;
+    const MountSpy = () => {
+      useEffect(() => {
+        mounts++;
+      }, []);
+      return null;
+    };
+
+    const Harness = ({ config }: { config: AuiConfig }) => (
+      <AuiProvider config={threadConfig(["a", "b"])}>
+        <Extend config={config}>
+          <Extend config={{ counter: Counter() } as unknown as AuiConfig}>
+            <MountSpy />
+            <Probe onRender={(c) => clients.push(c)} />
+          </Extend>
+        </Extend>
+      </AuiProvider>
+    );
+
+    const view = render(<Harness config={emptyConfig} />);
+    act(() => {
+      flushTapSync(() => clients.at(-1)!.counter.setCount(5));
+    });
+    expect(clients.at(-1)!.counter.getState()).toEqual({ count: 5 });
+
+    view.rerender(<Harness config={messageConfig(1)} />);
+    expect(clients.at(-1)!.message.getState()).toEqual({
+      id: "b",
+      text: "text-b",
+    });
+    expect(clients.at(-1)!.counter.getState()).toEqual({ count: 5 });
+
+    view.rerender(<Harness config={emptyConfig} />);
+    expect(clients.at(-1)!.counter.getState()).toEqual({ count: 5 });
+    expect(mounts).toBe(1);
   });
 
   it("creates a distinct fresh root for extends={null} with an empty config", () => {

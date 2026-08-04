@@ -383,9 +383,12 @@ export const useScopedClient = (
   ) as ScopeEntry[];
 
   // The mode is frozen at mount; both branches handle dynamic scope sets of
-  // their own kind, only a scope-kind change requires a remount
-  const [rooted] = useState(() =>
-    entries.some(([, element]) => !isDerivedElement(element)),
+  // their own kind, only a scope-kind change requires a remount. Empty
+  // configs mount the host so they can grow scopes without remounting.
+  const [rooted] = useState(
+    () =>
+      entries.length === 0 ||
+      entries.some(([, element]) => !isDerivedElement(element)),
   );
 
   if (rooted) {
