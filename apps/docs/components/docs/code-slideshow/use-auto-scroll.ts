@@ -2,7 +2,6 @@
 
 import { useEffect, type RefObject } from "react";
 
-/** Scrolls the code container so changed lines are visible after a step change. */
 export function useAutoScrollToChanges(
   ref: RefObject<HTMLElement | null>,
   navKey: unknown,
