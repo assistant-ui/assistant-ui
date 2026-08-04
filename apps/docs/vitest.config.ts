@@ -10,6 +10,11 @@ export default {
   },
   resolve: {
     alias: {
+      "@/components/ui": resolve(
+        __dirname,
+        "../../packages/ui/src/components/ui/base",
+      ),
+      "@/lib/utils": resolve(__dirname, "../../packages/ui/src/lib/utils"),
       "@": resolve(__dirname),
     },
   },
