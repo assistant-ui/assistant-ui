@@ -208,3 +208,68 @@ describe("McpManagerResource storage failures", () => {
     }
   });
 });
+
+describe("McpManagerResource storage ordering", () => {
+  it("persists custom server updates in invocation order", async () => {
+    let resolveFirstSave: (() => void) | undefined;
+    const firstSave = new Promise<void>((resolve) => {
+      resolveFirstSave = resolve;
+    });
+    let blockNextSave = false;
+    const persistedSnapshots: string[][] = [];
+    const saveCustomServers = vi.fn(async (records: { name: string }[]) => {
+      persistedSnapshots.push(records.map((record) => record.name));
+      if (blockNextSave) {
+        blockNextSave = false;
+        await firstSave;
+      }
+    });
+    const root = mount(
+      [],
+      McpCustomStorage({
+        loadCustomServers: vi.fn(async () => []),
+        saveCustomServers,
+        loadAuthState: vi.fn(async () => null),
+        saveAuthState: vi.fn(async () => {}),
+        clearAuthState: vi.fn(async () => {}),
+      }),
+    );
+
+    try {
+      await vi.waitFor(() =>
+        expect(root.getValue().getState().isHydrated).toBe(true),
+      );
+      await vi.waitFor(() => expect(saveCustomServers).toHaveBeenCalled());
+      saveCustomServers.mockClear();
+      persistedSnapshots.length = 0;
+      blockNextSave = true;
+
+      await root.getValue().addCustomServer({
+        name: "Docs",
+        url: "https://example.com/docs/mcp",
+        auth: { type: "none" },
+      });
+      await vi.waitFor(() =>
+        expect(saveCustomServers).toHaveBeenCalledTimes(1),
+      );
+
+      await root.getValue().addCustomServer({
+        name: "Linear",
+        url: "https://example.com/linear/mcp",
+        auth: { type: "none" },
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(saveCustomServers).toHaveBeenCalledTimes(1);
+
+      resolveFirstSave?.();
+      await vi.waitFor(() =>
+        expect(saveCustomServers).toHaveBeenCalledTimes(2),
+      );
+      expect(persistedSnapshots).toEqual([["Docs"], ["Docs", "Linear"]]);
+    } finally {
+      resolveFirstSave?.();
+      root.unmount();
+    }
+  });
+});

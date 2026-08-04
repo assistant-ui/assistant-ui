@@ -10,7 +10,7 @@ import { ModelContext } from "@assistant-ui/core/store";
 import type { Tool } from "assistant-stream";
 import { McpServerResource } from "./McpServerResource";
 import { McpLocalStorage } from "./storage/McpLocalStorage";
-import type { MCPStorageElement } from "./storage/types";
+import type { MCPStorage, MCPStorageElement } from "./storage/types";
 import { assertUniqueServerIds } from "../utils/serverId";
 import type {
   MCPAuthConfig,
@@ -66,6 +66,7 @@ const useMcpManagerResource = (
   const [isHydrated, setIsHydrated] = useState(false);
 
   const hydratedRef = useRef(false);
+  const persistenceQueueRef = useRef(Promise.resolve());
 
   const hydrate = useEffectEvent(async (signal: { cancelled: boolean }) => {
     const markHydrated = () => {
@@ -107,10 +108,9 @@ const useMcpManagerResource = (
   }, []);
 
   const persistCustomServers = useEffectEvent(
-    async (records: MCPCustomServerRecord[]) => {
-      if (!hydratedRef.current) return;
+    async (targetStorage: MCPStorage, records: MCPCustomServerRecord[]) => {
       try {
-        await storage.saveCustomServers(records);
+        await targetStorage.saveCustomServers(records);
       } catch (error) {
         reportCustomStorageFailure("save", error);
       }
@@ -118,8 +118,11 @@ const useMcpManagerResource = (
   );
 
   useEffect(() => {
-    void persistCustomServers(customServers);
-  }, [customServers]);
+    if (!hydratedRef.current) return;
+    persistenceQueueRef.current = persistenceQueueRef.current.then(() =>
+      persistCustomServers(storage, customServers),
+    );
+  }, [customServers, storage]);
 
   const serverElements = useMemo(() => {
     assertUniqueServerIds([
