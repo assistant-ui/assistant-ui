@@ -61,6 +61,11 @@ const config: NextConfig = {
   transpilePackages: ["@assistant-ui/ui", "shiki"],
   serverExternalPackages: ["just-bash"],
   skipTrailingSlashRedirect: true,
+  ...(isDev && {
+    experimental: {
+      turbopackSourceMaps: false,
+    },
+  }),
   headers: async () => [
     {
       source: "/(.*)",
