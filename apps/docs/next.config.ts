@@ -1,6 +1,7 @@
 import { createMDX } from "fumadocs-mdx/next";
 import { withAui } from "@assistant-ui/next";
 import type { NextConfig } from "next";
+import { AGENT_DISCOVERY_REWRITES } from "./lib/agent-discovery-routes";
 
 const isDev = process.env.NODE_ENV === "development";
 
@@ -76,6 +77,7 @@ const config: NextConfig = {
   rewrites: async () => ({
     beforeFiles: [
       ...faviconRewrites,
+      ...AGENT_DISCOVERY_REWRITES,
       {
         source: "/mcp",
         destination: "/api/mcp",
