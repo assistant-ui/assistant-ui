@@ -103,7 +103,18 @@ export const createReplayBoundaryStream = async (
 
   return new ReadableStream<Uint8Array>({
     async pull(controller) {
-      const { done, value } = await reader.read();
+      let result: ReadableStreamReadResult<Uint8Array>;
+      try {
+        result = await reader.read();
+      } catch (error) {
+        if (!replayFinished) {
+          replayFinished = true;
+          setReplaying(false);
+        }
+        throw error;
+      }
+
+      const { done, value } = result;
 
       if (done) {
         await finishReplay();

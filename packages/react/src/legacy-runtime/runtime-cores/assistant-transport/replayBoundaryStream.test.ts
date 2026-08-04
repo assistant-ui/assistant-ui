@@ -290,6 +290,30 @@ describe("createReplayBoundaryStream", () => {
     expect(setReplaying).toHaveBeenLastCalledWith(false);
   });
 
+  it("clears replaying when the source stream errors before the boundary", async () => {
+    const { waitForRender, releaseNext } = createRenderWait();
+    const setReplaying = vi.fn();
+    const sourceError = new Error("connection lost");
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.error(sourceError);
+      },
+    });
+    const streamPromise = createReplayBoundaryStream(
+      new Response(body, { headers: { [REPLAY_CONTENT_LENGTH_HEADER]: "10" } }),
+      { setReplaying, waitForRender },
+    );
+
+    await releaseNext();
+    const stream = await streamPromise;
+    const reader = stream.getReader();
+
+    await expect(reader.read()).rejects.toBe(sourceError);
+    expect(setReplaying).toHaveBeenNthCalledWith(1, true);
+    expect(setReplaying).toHaveBeenNthCalledWith(2, false);
+    expect(setReplaying).toHaveBeenCalledTimes(2);
+  });
+
   it("clears replaying when the gated stream is cancelled", async () => {
     const { waitForRender, releaseNext } = createRenderWait();
     const setReplaying = vi.fn();
