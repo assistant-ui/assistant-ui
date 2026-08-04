@@ -27,6 +27,14 @@ function compilerCacheToken(): string {
 /** The loader plus the cache-busting token, in the `{ loader, options }` form both bundlers accept. */
 const LOADER_USE = { loader: LOADER, options: { v: compilerCacheToken() } };
 
+/**
+ * Restricts the rule to modules that carry the directive, matching the loader's
+ * own detection. A glob alone also matches modules Turbopack generates, such as
+ * the shim behind `new Worker(new URL(...))`, whose resource path is not on the
+ * project filesystem and fails the build when a loader reads its source back.
+ */
+const HAS_DIRECTIVE = { content: /["']use generative["']/ };
+
 export interface WithAuiOptions {
   /**
    * Globs scanned for the `"use generative"` directive (default: all TS/TSX).
@@ -68,8 +76,13 @@ export function withAui<T extends NextConfigLike>(
       Array.isArray((existing as { loaders?: unknown }).loaders)
         ? (existing as { loaders: unknown[] }).loaders
         : [];
+    const existingCondition = (existing as { condition?: unknown } | undefined)
+      ?.condition;
     rules[glob] = {
       ...(existing as object),
+      condition: existingCondition
+        ? { all: [existingCondition, HAS_DIRECTIVE] }
+        : HAS_DIRECTIVE,
       loaders: [...existingLoaders, LOADER_USE],
     };
   }
