@@ -136,11 +136,17 @@ const normalizeClientInformation = (
   return result.success ? result.data : undefined;
 };
 
-const isAbsoluteUrl = (value: unknown): value is string => {
+const isSecureNetworkUrl = (value: unknown): value is string => {
   if (!isNonEmptyString(value)) return false;
   try {
-    new URL(value);
-    return true;
+    const url = new URL(value);
+    return (
+      url.protocol === "https:" ||
+      (url.protocol === "http:" &&
+        (url.hostname === "localhost" ||
+          url.hostname === "127.0.0.1" ||
+          url.hostname === "[::1]"))
+    );
   } catch {
     return false;
   }
@@ -149,7 +155,7 @@ const isAbsoluteUrl = (value: unknown): value is string => {
 const normalizeDiscoveryState = (
   value: unknown,
 ): MCPPersistedAuthState["discoveryState"] | undefined => {
-  if (!isRecord(value) || !isAbsoluteUrl(value.authorizationServerUrl)) {
+  if (!isRecord(value) || !isSecureNetworkUrl(value.authorizationServerUrl)) {
     return undefined;
   }
 
@@ -158,7 +164,7 @@ const normalizeDiscoveryState = (
   };
 
   if (value.resourceMetadataUrl !== undefined) {
-    if (!isAbsoluteUrl(value.resourceMetadataUrl)) return undefined;
+    if (!isSecureNetworkUrl(value.resourceMetadataUrl)) return undefined;
     state.resourceMetadataUrl = value.resourceMetadataUrl;
   }
 

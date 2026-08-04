@@ -67,15 +67,20 @@ describe("createOAuthProvider discovery state", () => {
     await expect(provider.discoveryState?.()).resolves.toEqual(discoveryState);
   });
 
-  it("clears discovery state through the SDK invalidation scope", async () => {
-    const { storage, getState } = createStorage({
-      codeVerifier: "pkce-verifier",
-      discoveryState,
-    });
-    const provider = createProvider(storage);
+  it.each(["discovery", "all"] as const)(
+    "clears discovery state through the %s invalidation scope",
+    async (scope) => {
+      const { storage, getState } = createStorage({
+        codeVerifier: "pkce-verifier",
+        discoveryState,
+      });
+      const provider = createProvider(storage);
 
-    await provider.invalidateCredentials?.("discovery");
+      await provider.invalidateCredentials?.(scope);
 
-    expect(getState()).toEqual({ codeVerifier: "pkce-verifier" });
-  });
+      expect(getState()).toEqual(
+        scope === "all" ? {} : { codeVerifier: "pkce-verifier" },
+      );
+    },
+  );
 });
