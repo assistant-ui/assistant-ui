@@ -62,3 +62,14 @@ async def add_keepalive(
             if not task.cancelled():
                 task.exception()  # retrieve the outcome so asyncio does not log "Task exception was never retrieved"
         await stream.aclose()
+
+
+def add_sse_heartbeat(
+    stream: AsyncGenerator[str, None],
+    interval: float,
+) -> AsyncGenerator[str, None]:
+    """
+    Deprecated alias for `add_keepalive` with the SSE comment token,
+    kept for compatibility with assistant-stream <= 0.0.35.
+    """
+    return add_keepalive(stream, interval, SSE_HEARTBEAT_LINE)
