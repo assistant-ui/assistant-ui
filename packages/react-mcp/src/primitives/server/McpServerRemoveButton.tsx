@@ -26,7 +26,12 @@ export const McpServerPrimitiveRemoveButton = forwardRef<
       onClick={(e) => {
         props.onClick?.(e);
         if (e.defaultPrevented) return;
-        void aui.mcpServer.remove();
+        void aui.mcpServer.remove().catch((error) => {
+          console.error(
+            "[assistant-ui/react-mcp] failed to remove MCP server:",
+            error,
+          );
+        });
       }}
     />
   );
