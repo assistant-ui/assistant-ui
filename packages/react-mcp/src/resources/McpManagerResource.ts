@@ -66,6 +66,8 @@ const useMcpManagerResource = (
   const [isHydrated, setIsHydrated] = useState(false);
 
   const hydratedRef = useRef(false);
+  const storageRef = useRef(storage);
+  storageRef.current = storage;
   const persistenceQueueRef = useRef(Promise.resolve());
 
   const hydrate = useEffectEvent(async (signal: { cancelled: boolean }) => {
@@ -119,10 +121,11 @@ const useMcpManagerResource = (
 
   useEffect(() => {
     if (!hydratedRef.current) return;
+    const targetStorage = storageRef.current;
     persistenceQueueRef.current = persistenceQueueRef.current.then(() =>
-      persistCustomServers(storage, customServers),
+      persistCustomServers(targetStorage, customServers),
     );
-  }, [customServers, storage]);
+  }, [customServers]);
 
   const serverElements = useMemo(() => {
     assertUniqueServerIds([
