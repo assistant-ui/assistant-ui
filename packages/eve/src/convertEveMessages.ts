@@ -185,7 +185,7 @@ const convertFilePart = (
   return {
     type: "file",
     data: part.url,
-    mimeType: part.mediaType,
+    mimeType: part.mediaType ?? "unknown/unknown",
     ...(part.filename && { filename: part.filename }),
     ...(httpUrlPattern.test(part.url) && { sourceType: "url" as const }),
   };
@@ -243,7 +243,7 @@ const toUserAttachments = (
     if (part.type !== "file") continue;
     const file = convertFilePart(part);
     if (file === null) continue;
-    const isImage = part.mediaType.startsWith("image/");
+    const isImage = file.mimeType.startsWith("image/");
     attachments.push({
       id: String(attachments.length),
       type: isImage ? "image" : "file",
@@ -257,7 +257,7 @@ const toUserAttachments = (
             }
           : file,
       ],
-      contentType: part.mediaType,
+      contentType: file.mimeType,
       status: { type: "complete" },
     });
   }

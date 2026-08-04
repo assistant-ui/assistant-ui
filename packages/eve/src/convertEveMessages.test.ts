@@ -405,6 +405,46 @@ describe("convertEveMessages", () => {
     ]);
   });
 
+  it("defaults a file part with a missing mediaType to unknown/unknown", () => {
+    const data = {
+      messages: [
+        {
+          id: "u1",
+          role: "user",
+          parts: [{ type: "file", url: "https://example.com/blob" }],
+        },
+      ],
+    } as unknown as EveMessageData;
+
+    const [message] = convertEveMessages(data);
+
+    expect(message?.content).toEqual([
+      {
+        type: "file",
+        data: "https://example.com/blob",
+        mimeType: "unknown/unknown",
+        sourceType: "url",
+      },
+    ]);
+    expect(message?.attachments).toEqual([
+      {
+        id: "0",
+        type: "file",
+        name: "file",
+        content: [
+          {
+            type: "file",
+            data: "https://example.com/blob",
+            mimeType: "unknown/unknown",
+            sourceType: "url",
+          },
+        ],
+        contentType: "unknown/unknown",
+        status: { type: "complete" },
+      },
+    ]);
+  });
+
   it("converts an assistant file part into a file content part", () => {
     const data = {
       messages: [
