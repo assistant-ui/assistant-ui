@@ -767,6 +767,44 @@ describe("convertEveMessages", () => {
 
       expect(message?.status).toEqual({
         type: "requires-action",
+        reason: "interrupt",
+      });
+    });
+
+    it("reports tool-calls when an approval and an authorization are both pending", () => {
+      const data = {
+        messages: [
+          {
+            id: "a1",
+            role: "assistant",
+            metadata: { status: "streaming" },
+            parts: [
+              {
+                type: "dynamic-tool",
+                state: "approval-requested",
+                toolCallId: "call_1",
+                toolName: "send_email",
+                input: {},
+                approval: { id: "req_1" },
+              },
+              {
+                type: "authorization",
+                state: "required",
+                name: "github",
+                description: "Sign in to GitHub",
+                displayName: "GitHub",
+                stepIndex: 0,
+                turnId: "turn_1",
+              },
+            ],
+          },
+        ],
+      } satisfies EveMessageData;
+
+      const [message] = convertEveMessages(data, { isRunning: false });
+
+      expect(message?.status).toEqual({
+        type: "requires-action",
         reason: "tool-calls",
       });
     });
@@ -781,7 +819,6 @@ describe("convertEveMessages", () => {
             stepIndex: 0,
             sequence: 0,
             name: "github",
-            displayName: "GitHub",
             description: "Sign in to GitHub",
           },
         },
@@ -804,7 +841,7 @@ describe("convertEveMessages", () => {
         convertEveMessages(pendingData, { isRunning: false }).at(-1)?.status,
       ).toEqual({
         type: "requires-action",
-        reason: "tool-calls",
+        reason: "interrupt",
       });
 
       const data = events
@@ -892,7 +929,7 @@ describe("convertEveMessages", () => {
 
       expect(authorization?.status).toEqual({
         type: "requires-action",
-        reason: "tool-calls",
+        reason: "interrupt",
       });
     });
 
