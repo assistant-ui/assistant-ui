@@ -54,17 +54,12 @@ const captureUnhandledRejections = async (
   const onUnhandledRejection = (reason: unknown) => {
     rejections.push(reason);
   };
-  const priorListeners = process.listeners("unhandledRejection");
-  process.removeAllListeners("unhandledRejection");
   process.on("unhandledRejection", onUnhandledRejection);
   try {
     await run();
-    await new Promise((resolve) => setTimeout(resolve, 20));
+    await new Promise((resolve) => setImmediate(resolve));
   } finally {
     process.removeListener("unhandledRejection", onUnhandledRejection);
-    for (const listener of priorListeners) {
-      process.on("unhandledRejection", listener);
-    }
   }
   return rejections;
 };
@@ -548,6 +543,43 @@ describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
       });
 
       expect(execute).toHaveBeenCalledOnce();
+      expect(callbackCalls).toBe(1);
+      expect(rejections).toEqual([]);
+    });
+
+    it("handles rejected direct tool result callbacks", async () => {
+      const error = new Error("tool result failed");
+      const consoleError = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+      let callbackCalls = 0;
+      const core = new ExternalStoreThreadRuntimeCore(
+        contextProvider,
+        createBaseAdapter({
+          onAddToolResult: () => {
+            callbackCalls += 1;
+            return Promise.reject(error);
+          },
+        }),
+      );
+
+      const rejections = await captureUnhandledRejections(async () => {
+        core.addToolResult({
+          messageId: "m1",
+          toolName: "weatherSearch",
+          toolCallId: "tc1",
+          result: { forecast: "sunny" },
+          isError: false,
+        });
+
+        await vi.waitFor(() =>
+          expect(consoleError).toHaveBeenCalledWith(
+            "[ExternalStoreThreadRuntimeCore] onAddToolResult callback rejected",
+            error,
+          ),
+        );
+      });
+
       expect(callbackCalls).toBe(1);
       expect(rejections).toEqual([]);
     });
