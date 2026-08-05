@@ -26,6 +26,7 @@ import {
 } from "eve/react";
 import {
   convertEveMessages,
+  findEveInputRequest,
   getEveMessageContent,
   toEveInputResponse,
 } from "./convertEveMessages";
@@ -188,7 +189,14 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
       return Promise.resolve();
     },
     onRespondToToolApproval: async (response) => {
-      await agent.send({ inputResponses: [toEveInputResponse(response)] });
+      await agent.send({
+        inputResponses: [
+          toEveInputResponse(
+            response,
+            findEveInputRequest(agent.data, response.approvalId),
+          ),
+        ],
+      });
     },
   });
 };

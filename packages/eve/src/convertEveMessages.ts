@@ -5,6 +5,7 @@ import {
   type CompleteAttachment,
   type FileMessagePart,
   type MessageStatus,
+  type PartProviderMetadata,
   type RespondToToolApprovalOptions,
   type ThreadAssistantMessagePart,
   type ThreadMessage,
@@ -169,10 +170,19 @@ const toApproval = (
   };
 };
 
+const toToolProviderMetadata = (
+  part: EveDynamicToolPart,
+): PartProviderMetadata | undefined => {
+  const inputRequest = part.toolMetadata?.eve?.inputRequest;
+  if (!inputRequest) return undefined;
+  return { eve: { inputRequest } } as unknown as PartProviderMetadata;
+};
+
 const convertDynamicToolPart = (
   part: EveDynamicToolPart,
 ): ToolCallMessagePart => {
   const approval = toApproval(part);
+  const providerMetadata = toToolProviderMetadata(part);
   const toolCall: ToolCallMessagePart = {
     type: "tool-call",
     toolCallId: part.toolCallId,
@@ -180,6 +190,7 @@ const convertDynamicToolPart = (
     args: toJsonObject(part.input),
     argsText: stringifyArgs(part.input),
     ...(approval && { approval }),
+    ...(providerMetadata && { providerMetadata }),
   };
 
   switch (part.state) {
@@ -418,12 +429,69 @@ export const getEveMessageContent = (
 };
 
 /**
+ * Finds the pending input request answered by the given approval id, so the
+ * response mapping can honor the request's display mode.
+ */
+export const findEveInputRequest = (
+  data: EveMessageData,
+  approvalId: string,
+): EveMessageInputRequest | undefined => {
+  for (const message of data.messages) {
+    for (const part of message.parts) {
+      if (part.type === "dynamic-tool" && part.approval?.id === approvalId) {
+        return part.toolMetadata?.eve?.inputRequest;
+      }
+    }
+  }
+  return undefined;
+};
+
+/**
  * Converts an assistant-ui tool approval response into an Eve input response.
+ *
+ * Pass the originating input request (see {@link findEveInputRequest}) so
+ * free-form (`display: "text"`) requests are answered with the response's
+ * `reason` text instead of a fabricated `"approve"` / `"deny"` option id.
  */
 export const toEveInputResponse = (
   response: RespondToToolApprovalOptions,
-): InputResponse => ({
-  requestId: response.approvalId,
-  optionId: response.optionId ?? (response.approved ? "approve" : "deny"),
-  ...(response.reason && { text: response.reason }),
-});
+  inputRequest?: EveMessageInputRequest,
+): InputResponse => {
+  const requestId = response.approvalId;
+
+  if (response.optionId !== undefined) {
+    return {
+      requestId,
+      optionId: response.optionId,
+      ...(response.reason && { text: response.reason }),
+    };
+  }
+
+  if (inputRequest?.display === "text") {
+    if (!response.reason) {
+      throw new Error(
+        `Eve input request "${requestId}" expects a free-form text answer; respond with the answer as the reason`,
+      );
+    }
+    return { requestId, text: response.reason };
+  }
+
+  const optionId = response.approved ? "approve" : "deny";
+  const options = inputRequest?.options;
+  if (options?.length && !options.some((option) => option.id === optionId)) {
+    if (inputRequest?.allowFreeform && response.reason) {
+      return { requestId, text: response.reason };
+    }
+    throw new Error(
+      `Eve input request "${requestId}" has no "${optionId}" option; respond with one of: ${options
+        .map((option) => option.id)
+        .join(", ")}`,
+    );
+  }
+
+  return {
+    requestId,
+    optionId,
+    ...(response.reason && { text: response.reason }),
+  };
+};

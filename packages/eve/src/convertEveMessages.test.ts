@@ -3,6 +3,7 @@ import type { EveMessageData } from "eve/react";
 import { defaultMessageReducer, type EveAgentReducerEvent } from "eve/client";
 import {
   convertEveMessages,
+  findEveInputRequest,
   getEveMessageContent,
   toEveInputResponse,
 } from "./convertEveMessages";
@@ -105,6 +106,78 @@ describe("convertEveMessages", () => {
         },
       ],
     });
+  });
+
+  it("preserves the full HITL input request on providerMetadata.eve", () => {
+    const inputRequest = {
+      requestId: "req_1",
+      prompt: "What should the subject line be?",
+      display: "text",
+      allowFreeform: true,
+    } as const;
+    const data = {
+      messages: [
+        {
+          id: "a1",
+          role: "assistant",
+          parts: [
+            {
+              type: "dynamic-tool",
+              state: "approval-requested",
+              toolCallId: "call_1",
+              toolName: "send_email",
+              input: {},
+              approval: { id: "req_1" },
+              toolMetadata: {
+                eve: { kind: "tool-call", name: "send_email", inputRequest },
+              },
+            },
+          ],
+        },
+      ],
+    } satisfies EveMessageData;
+
+    const [message] = convertEveMessages(data);
+    const part = message!.content[0];
+
+    expect(part).toMatchObject({
+      type: "tool-call",
+      providerMetadata: { eve: { inputRequest } },
+    });
+  });
+
+  it("omits providerMetadata when the tool part carries no input request", () => {
+    const data = {
+      messages: [
+        {
+          id: "a1",
+          role: "assistant",
+          parts: [
+            {
+              type: "dynamic-tool",
+              state: "input-available",
+              toolCallId: "call_1",
+              toolName: "send_email",
+              input: {},
+            },
+            {
+              type: "dynamic-tool",
+              state: "approval-requested",
+              toolCallId: "call_2",
+              toolName: "send_email",
+              input: {},
+              approval: { id: "req_2" },
+              toolMetadata: { eve: { kind: "tool-call", name: "send_email" } },
+            },
+          ],
+        },
+      ],
+    } satisfies EveMessageData;
+
+    const [message] = convertEveMessages(data);
+
+    expect(message!.content[0]).not.toHaveProperty("providerMetadata");
+    expect(message!.content[1]).not.toHaveProperty("providerMetadata");
   });
 
   it("handles denied tool parts without an approval reason", () => {
@@ -952,5 +1025,157 @@ describe("toEveInputResponse", () => {
       optionId: "deny",
       text: "Not yet",
     });
+  });
+
+  it("keeps the confirmation mapping when the request carries approve/deny options", () => {
+    expect(
+      toEveInputResponse(
+        { approvalId: "req_1", approved: true },
+        {
+          requestId: "req_1",
+          prompt: "Send the email?",
+          display: "confirmation",
+          options: [
+            { id: "approve", label: "Approve" },
+            { id: "deny", label: "Deny" },
+          ],
+        },
+      ),
+    ).toEqual({ requestId: "req_1", optionId: "approve" });
+  });
+
+  it("maps a select response to the chosen option id", () => {
+    expect(
+      toEveInputResponse(
+        { approvalId: "req_1", approved: true, optionId: "staging" },
+        {
+          requestId: "req_1",
+          prompt: "Which environment?",
+          display: "select",
+          options: [
+            { id: "staging", label: "Staging" },
+            { id: "production", label: "Production" },
+          ],
+        },
+      ),
+    ).toEqual({ requestId: "req_1", optionId: "staging" });
+  });
+
+  it("answers a text-display request with the free-form text, not an option id", () => {
+    const response = toEveInputResponse(
+      { approvalId: "req_1", approved: true, reason: "Quarterly results" },
+      {
+        requestId: "req_1",
+        prompt: "What should the subject line be?",
+        display: "text",
+        allowFreeform: true,
+      },
+    );
+
+    expect(response).toEqual({ requestId: "req_1", text: "Quarterly results" });
+    expect(response).not.toHaveProperty("optionId");
+  });
+
+  it("throws instead of fabricating approve for a text-display request without an answer", () => {
+    expect(() =>
+      toEveInputResponse(
+        { approvalId: "req_1", approved: true },
+        {
+          requestId: "req_1",
+          prompt: "What should the subject line be?",
+          display: "text",
+        },
+      ),
+    ).toThrow(/free-form text answer/);
+  });
+
+  it("throws instead of fabricating approve for a select request without a chosen option", () => {
+    expect(() =>
+      toEveInputResponse(
+        { approvalId: "req_1", approved: true },
+        {
+          requestId: "req_1",
+          prompt: "Which environment?",
+          display: "select",
+          options: [
+            { id: "staging", label: "Staging" },
+            { id: "production", label: "Production" },
+          ],
+        },
+      ),
+    ).toThrow(/no "approve" option/);
+  });
+
+  it("falls back to free-form text for a select request that allows it", () => {
+    expect(
+      toEveInputResponse(
+        { approvalId: "req_1", approved: true, reason: "the eu region" },
+        {
+          requestId: "req_1",
+          prompt: "Which environment?",
+          display: "select",
+          allowFreeform: true,
+          options: [
+            { id: "staging", label: "Staging" },
+            { id: "production", label: "Production" },
+          ],
+        },
+      ),
+    ).toEqual({ requestId: "req_1", text: "the eu region" });
+  });
+});
+
+describe("findEveInputRequest", () => {
+  const data = {
+    messages: [
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          {
+            type: "dynamic-tool",
+            state: "approval-requested",
+            toolCallId: "call_1",
+            toolName: "ask_question",
+            input: {},
+            approval: { id: "req_1" },
+            toolMetadata: {
+              eve: {
+                kind: "tool-call",
+                name: "ask_question",
+                inputRequest: {
+                  requestId: "req_1",
+                  prompt: "What should the subject line be?",
+                  display: "text",
+                  allowFreeform: true,
+                },
+              },
+            },
+          },
+        ],
+      },
+    ],
+  } satisfies EveMessageData;
+
+  it("finds the input request by approval id", () => {
+    expect(findEveInputRequest(data, "req_1")).toMatchObject({
+      requestId: "req_1",
+      display: "text",
+    });
+  });
+
+  it("returns undefined for unknown approval ids", () => {
+    expect(findEveInputRequest(data, "req_404")).toBeUndefined();
+  });
+
+  it("round-trips a text-display request into a free-form eve input response", () => {
+    const inputRequest = findEveInputRequest(data, "req_1");
+
+    expect(
+      toEveInputResponse(
+        { approvalId: "req_1", approved: true, reason: "Weekly digest" },
+        inputRequest,
+      ),
+    ).toEqual({ requestId: "req_1", text: "Weekly digest" });
   });
 });
