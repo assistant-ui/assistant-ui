@@ -5,13 +5,15 @@ import {
   AssistantRuntimeProvider,
   useAui,
   AuiProvider,
+  AuiConfig,
   Suggestions,
 } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 import { ElevenLabsScribeAdapter } from "@/lib/elevenlabs-scribe-adapter";
 
 function ThreadWithSuggestions() {
-  const aui = useAui({
+  const aui = useAui();
+  const config = AuiConfig({
     suggestions: Suggestions([
       {
         title: "Try dictating a message",
@@ -26,7 +28,7 @@ function ThreadWithSuggestions() {
     ]),
   });
   return (
-    <AuiProvider value={aui}>
+    <AuiProvider extends={aui} config={config}>
       <Thread />
     </AuiProvider>
   );

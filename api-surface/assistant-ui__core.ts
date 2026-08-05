@@ -388,7 +388,8 @@ declare const AssistantProviderBase: FC<AssistantProviderBaseProps>;
 
 type AssistantProviderBaseProps = PropsWithChildren<{
   runtime: AssistantRuntime;
-  aui?: AssistantClient | null;
+  aui?: AssistantClient | null | undefined;
+  config?: AuiConfig | undefined;
 }>;
 
 type AssistantRuntime = {
@@ -417,6 +418,7 @@ declare class AssistantRuntimeImpl implements AssistantRuntime {
 declare const AssistantRuntimeProvider: import("react").MemoExoticComponent<(_param0: {
   runtime: AssistantRuntime;
   aui?: AssistantClient | null;
+  config?: AuiConfig;
   children: ReactNode;
 }) => import("react").JSX.Element>;
 
@@ -633,6 +635,18 @@ type AttachmentState = Attachment;
 type AttachmentState$1 = ThreadComposerAttachmentState | EditComposerAttachmentState | MessageAttachmentState;
 
 type AttachmentStatus = PendingAttachmentStatus | CompleteAttachmentStatus;
+
+type AuiConfig = AuiConfig.Input & {
+  readonly [auiConfigBrand]: true;
+};
+
+declare namespace AuiConfig {
+  type Input = {
+    [K in ClientNames]?: ClientElement<K> | DerivedElement<K>;
+  };
+}
+
+declare const AuiConfig: (config: AuiConfig.Input) => AuiConfig;
 
 type AuiToolOverride<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = Partial<Tool<TArgs, TResult>>;
 
@@ -5647,6 +5661,8 @@ type WithRender<T, TArgs extends Record<string, unknown>, TResult> = T extends {
   render?: ToolCallMessagePartComponent<TArgs, TResult> | undefined;
   renderText?: ToolCallText<TArgs, TResult> | undefined;
 };
+
+declare const auiConfigBrand: unique symbol;
 
 declare const baseRuntimeAdapterTransformScopes: (scopes: ScopesConfig, parent: AssistantClient) => void;
 

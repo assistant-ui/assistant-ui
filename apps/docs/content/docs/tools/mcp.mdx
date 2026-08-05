@@ -369,7 +369,7 @@ Register the toolkit once with `Tools({ toolkit })`. Renderer keys such as
 ```tsx title="app/components/RuntimeProvider.tsx"
 "use client";
 
-import { AssistantRuntimeProvider, Tools, useAui } from "@assistant-ui/react";
+import { AssistantRuntimeProvider, AuiConfig, Tools } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 import type { ReactNode } from "react";
 
@@ -377,10 +377,12 @@ import { toolkit } from "./GitHubIssueToolUI";
 
 export function MyRuntimeProvider({ children }: { children: ReactNode }) {
   const runtime = useChatRuntime();
-  const aui = useAui({ tools: Tools({ toolkit }) });
-
+  const config = AuiConfig({ tools: Tools({ toolkit }) });
   return (
-    <AssistantRuntimeProvider aui={aui} runtime={runtime}>
+    <AssistantRuntimeProvider
+      runtime={runtime}
+      config={config}
+    >
       {children}
     </AssistantRuntimeProvider>
   );

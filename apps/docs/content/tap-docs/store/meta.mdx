@@ -13,10 +13,12 @@ aui.thread.name; // "thread"
 
 ## Root scopes
 
-When you fill a scope directly via `useAui({ ... })`, it gets `source: "root"` and an empty `query`:
+When you fill a scope directly via a provider's `AuiConfig({ ... })`, it gets `source: "root"` and an empty `query`:
 
 ```tsx
-const aui = useAui({ thread: ThreadResource() });
+const config = AuiConfig({ thread: ThreadResource() });
+
+<AuiProvider config={config}>
 
 aui.thread.source; // "root"
 aui.thread.query; // {}
@@ -29,13 +31,16 @@ This is the default — the scope was provided directly, not derived from anothe
 When a scope is created via `Derived`, its `source` points to the parent scope it was derived from, and `query` carries the lookup parameters:
 
 ```tsx
-const aui = useAui({
+const aui = useAui();
+const config = AuiConfig({
   message: Derived({
     source: "thread",
     query: { index: 0 },
     get: (aui) => aui.thread.message({ index: 0 }),
   }),
 });
+
+<AuiProvider extends={aui} config={config}>
 
 aui.message.source; // "thread"
 aui.message.query; // { index: 0 }
@@ -81,6 +86,6 @@ if (aui.message.source != null) {
 
 | `source` | Meaning |
 | --- | --- |
-| `"root"` | Scope was filled directly via `useAui({ ... })` |
+| `"root"` | Scope was filled directly via `AuiConfig({ ... })` |
 | `"parentScope"` | Scope was derived from another scope via `Derived` |
 | `null` | Scope is not available in the current context |

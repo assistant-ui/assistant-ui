@@ -76,6 +76,10 @@ class RunController:
         """Append a text delta at a state path using an append-text operation."""
         self._state_manager.append_text(path, text_delta)
 
+    def flush(self) -> None:
+        """Emit buffered state operations ahead of any subsequent stream chunk."""
+        self._state_manager.flush()
+
     async def add_tool_call(
         self, tool_name: str, tool_call_id: str = None
     ) -> ToolCallController:

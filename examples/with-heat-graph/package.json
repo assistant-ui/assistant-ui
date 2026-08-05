@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "heat-graph": "workspace:*",
-    "next": "^16.2.11",
+    "next": "^16.3.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
   },
@@ -23,7 +23,6 @@
     "@types/react-dom": "^19.2.3",
     "postcss": "^8.5.23",
     "tailwindcss": "^4.3.3",
-    "typescript": "npm:@typescript/typescript6@^6.0.2",
-    "typescript-7": "npm:typescript@^7.0.2"
+    "typescript": "^7.0.2"
   }
 }

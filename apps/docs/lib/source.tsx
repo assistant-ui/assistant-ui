@@ -49,6 +49,7 @@ export const source = loader({
 export const tapDocs = loader({
   baseUrl: "/tap/docs",
   source: tapDocsCollection.toFumadocsSource(),
+  plugins: [lucideIconsPlugin()],
 });
 
 const TAP_DOCS_INDEX_SLUG = ["overview", "introduction"];

@@ -146,6 +146,44 @@ describe("assistant transport scheduling contracts", () => {
     expect(seen[0]).toEqual([createMessageCommand("m1")]);
   });
 
+  it("settles the run when onFinish throws", async () => {
+    const error = new Error("telemetry failed");
+    const onFinish = vi.fn<() => void>().mockImplementationOnce(() => {
+      throw error;
+    });
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    try {
+      const { result } = renderHook(() =>
+        useTransportSchedulingHarness({ onFinish }),
+      );
+
+      act(() => {
+        result.current.commandQueue.enqueue(createMessageCommand("m1"));
+      });
+
+      await waitFor(() => {
+        expect(result.current.runManager.isRunning).toBe(false);
+      });
+
+      act(() => {
+        result.current.commandQueue.enqueue(createMessageCommand("m2"));
+      });
+
+      await waitFor(() => {
+        expect(result.current.runBatchesRef.current).toHaveLength(2);
+      });
+      expect(consoleError).toHaveBeenCalledWith(
+        "[assistant-ui] Assistant transport onFinish callback threw an error",
+        error,
+      );
+    } finally {
+      consoleError.mockRestore();
+    }
+  });
+
   it("cancel returns combined in-flight and queued commands", async () => {
     const onCancel = vi.fn();
     const { result } = renderHook(() =>

@@ -2,10 +2,10 @@
 
 import {
   AssistantRuntimeProvider,
+  AuiConfig,
   McpAppRenderer,
   McpAppsRemoteHost,
   Tools,
-  useAui,
 } from "@assistant-ui/react";
 import {
   useChatRuntime,
@@ -37,7 +37,7 @@ export const Assistant = () => {
     }),
   });
 
-  const aui = useAui({
+  const config = AuiConfig({
     tools: Tools({
       mcpApp: McpAppRenderer({
         host: McpAppsRemoteHost({ url: "/api/mcp-apps" }),
@@ -47,7 +47,7 @@ export const Assistant = () => {
   });
 
   return (
-    <AssistantRuntimeProvider aui={aui} runtime={runtime}>
+    <AssistantRuntimeProvider config={config} runtime={runtime}>
       <SidebarProvider>
         <div className="flex h-dvh w-full pr-0.5">
           <ThreadListSidebar />

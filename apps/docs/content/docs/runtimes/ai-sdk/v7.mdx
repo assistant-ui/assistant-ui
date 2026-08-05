@@ -260,7 +260,7 @@ export async function POST(req: Request) {
 }
 ```
 
-Frontend tools are registered through `useAui` (see the [tools guide](/docs/tools/defining-tools)) and serialized for the backend via `frontendTools`.
+Frontend tools are registered through the provider's `config` (see the [tools guide](/docs/tools/defining-tools)) and serialized for the backend via `frontendTools`.
 
 ## Multi-step tool calls
 
@@ -368,9 +368,9 @@ Render the gate with a toolkit entry. The `approval` field carries the gate stat
 import { useChat } from "@ai-sdk/react";
 import {
   AssistantRuntimeProvider,
+  AuiConfig,
   defineToolkit,
   Tools,
-  useAui,
 } from "@assistant-ui/react";
 import { useAISDKRuntime } from "@assistant-ui/react-ai-sdk";
 import { lastAssistantMessageIsCompleteWithApprovalResponses } from "ai";
@@ -410,10 +410,9 @@ export default function Page() {
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
   });
   const runtime = useAISDKRuntime(chat);
-  const aui = useAui({ tools: Tools({ toolkit }) });
-
+  const config = AuiConfig({ tools: Tools({ toolkit }) });
   return (
-    <AssistantRuntimeProvider aui={aui} runtime={runtime}>
+    <AssistantRuntimeProvider runtime={runtime} config={config}>
       <Thread />
     </AssistantRuntimeProvider>
   );

@@ -9,10 +9,10 @@ These are **sibling scopes** — scopes that sit at the same level in the provid
 
 ## The problem
 
-When you pass multiple scopes to `useAui`, they're all created as siblings:
+When you pass multiple scopes in an `AuiConfig`, they're all created as siblings:
 
 ```tsx
-const aui = useAui({
+AuiConfig({
   thread: ThreadResource(),
   tools: ToolsResource(),
   modelContext: ModelContextResource(),

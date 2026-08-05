@@ -3,7 +3,7 @@
 [![npm version](https://img.shields.io/npm/v/@assistant-ui/store)](https://www.npmjs.com/package/@assistant-ui/store)
 [![GitHub stars](https://img.shields.io/github/stars/assistant-ui/assistant-ui)](https://github.com/assistant-ui/assistant-ui)
 
-Tap-based state container with React Context integration. Bridges `@assistant-ui/tap` resources into React via `useAui`, `useAuiState`, and `<AuiProvider>`.
+Tap-based state container with React Context integration. Bridges `@assistant-ui/tap` resources into React via `useAui`, `useAuiState`, `AuiConfig`, and `<AuiProvider>`.
 
 `store` powers the runtime layer of assistant-ui. Most users do not install it directly; reach for `@assistant-ui/react` instead.
 
@@ -22,6 +22,7 @@ import {
   useAui,
   useAuiState,
   AuiProvider,
+  AuiConfig,
   type ClientOutput,
 } from "@assistant-ui/store";
 
@@ -47,9 +48,9 @@ const useCounterClient = (): ClientOutput<"counter"> => {
 const CounterClient = resource(useCounterClient);
 
 function App() {
-  const aui = useAui({ counter: CounterClient() });
+  const config = AuiConfig({ counter: CounterClient() });
   return (
-    <AuiProvider value={aui}>
+    <AuiProvider config={config}>
       <Counter />
     </AuiProvider>
   );

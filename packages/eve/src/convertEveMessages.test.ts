@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { EveMessageData } from "eve/react";
+import { defaultMessageReducer, type EveAgentReducerEvent } from "eve/client";
 import {
   convertEveMessages,
   getEveMessageContent,
@@ -195,7 +196,7 @@ describe("convertEveMessages", () => {
     expect(message?.metadata).not.toHaveProperty("isOptimistic");
   });
 
-  it("falls back to an empty text part for user messages without convertible parts", () => {
+  it("falls back to an empty text part for user messages with only url-less file parts", () => {
     const data = {
       messages: [
         {
@@ -209,9 +210,10 @@ describe("convertEveMessages", () => {
     const [message] = convertEveMessages(data);
 
     expect(message?.content).toEqual([{ type: "text", text: "" }]);
+    expect(message?.attachments).toEqual([]);
   });
 
-  it("drops non-convertible user parts without triggering the fallback", () => {
+  it("drops url-less user file parts without triggering the fallback", () => {
     const data = {
       messages: [
         {
@@ -228,6 +230,253 @@ describe("convertEveMessages", () => {
     const [message] = convertEveMessages(data);
 
     expect(message?.content).toEqual([{ type: "text", text: "Hello" }]);
+  });
+
+  it("converts a user file part into content and a file attachment", () => {
+    const data = {
+      messages: [
+        {
+          id: "u1",
+          role: "user",
+          parts: [
+            { type: "text", text: "See the report" },
+            {
+              type: "file",
+              url: "https://example.com/report.pdf",
+              mediaType: "application/pdf",
+              filename: "report.pdf",
+              size: 1024,
+            },
+          ],
+        },
+      ],
+    } satisfies EveMessageData;
+
+    const [message] = convertEveMessages(data);
+
+    expect(message?.content).toEqual([
+      { type: "text", text: "See the report" },
+      {
+        type: "file",
+        data: "https://example.com/report.pdf",
+        mimeType: "application/pdf",
+        filename: "report.pdf",
+        sourceType: "url",
+      },
+    ]);
+    expect(message?.attachments).toEqual([
+      {
+        id: "0",
+        type: "file",
+        name: "report.pdf",
+        content: [
+          {
+            type: "file",
+            data: "https://example.com/report.pdf",
+            mimeType: "application/pdf",
+            filename: "report.pdf",
+            sourceType: "url",
+          },
+        ],
+        contentType: "application/pdf",
+        status: { type: "complete" },
+      },
+    ]);
+  });
+
+  it("converts a user image file part into an image attachment", () => {
+    const data = {
+      messages: [
+        {
+          id: "u1",
+          role: "user",
+          parts: [
+            {
+              type: "file",
+              url: "https://example.com/photo.png",
+              mediaType: "image/png",
+              filename: "photo.png",
+            },
+          ],
+        },
+      ],
+    } satisfies EveMessageData;
+
+    const [message] = convertEveMessages(data);
+
+    expect(message?.content).toEqual([
+      {
+        type: "file",
+        data: "https://example.com/photo.png",
+        mimeType: "image/png",
+        filename: "photo.png",
+        sourceType: "url",
+      },
+    ]);
+    expect(message?.attachments).toEqual([
+      {
+        id: "0",
+        type: "image",
+        name: "photo.png",
+        content: [
+          {
+            type: "image",
+            image: "https://example.com/photo.png",
+            filename: "photo.png",
+          },
+        ],
+        contentType: "image/png",
+        status: { type: "complete" },
+      },
+    ]);
+  });
+
+  it("omits sourceType and falls back to a generic name for data url file parts", () => {
+    const data = {
+      messages: [
+        {
+          id: "u1",
+          role: "user",
+          parts: [
+            {
+              type: "file",
+              url: "data:application/pdf;base64,QUJD",
+              mediaType: "application/pdf",
+            },
+          ],
+        },
+      ],
+    } satisfies EveMessageData;
+
+    const [message] = convertEveMessages(data);
+
+    expect(message?.content).toEqual([
+      {
+        type: "file",
+        data: "data:application/pdf;base64,QUJD",
+        mimeType: "application/pdf",
+      },
+    ]);
+    expect(message?.attachments).toEqual([
+      {
+        id: "0",
+        type: "file",
+        name: "file",
+        content: [
+          {
+            type: "file",
+            data: "data:application/pdf;base64,QUJD",
+            mimeType: "application/pdf",
+          },
+        ],
+        contentType: "application/pdf",
+        status: { type: "complete" },
+      },
+    ]);
+  });
+
+  it("assigns sequential attachment ids across multiple file parts", () => {
+    const data = {
+      messages: [
+        {
+          id: "u1",
+          role: "user",
+          parts: [
+            {
+              type: "file",
+              url: "https://example.com/a.pdf",
+              mediaType: "application/pdf",
+            },
+            { type: "file", mediaType: "image/png" },
+            {
+              type: "file",
+              url: "https://example.com/b.png",
+              mediaType: "image/png",
+            },
+          ],
+        },
+      ],
+    } satisfies EveMessageData;
+
+    const [message] = convertEveMessages(data);
+
+    expect(message?.attachments?.map((a) => [a.id, a.type])).toEqual([
+      ["0", "file"],
+      ["1", "image"],
+    ]);
+  });
+
+  it("defaults a file part with a missing mediaType to unknown/unknown", () => {
+    const data = {
+      messages: [
+        {
+          id: "u1",
+          role: "user",
+          parts: [{ type: "file", url: "https://example.com/blob" }],
+        },
+      ],
+    } as unknown as EveMessageData;
+
+    const [message] = convertEveMessages(data);
+
+    expect(message?.content).toEqual([
+      {
+        type: "file",
+        data: "https://example.com/blob",
+        mimeType: "unknown/unknown",
+        sourceType: "url",
+      },
+    ]);
+    expect(message?.attachments).toEqual([
+      {
+        id: "0",
+        type: "file",
+        name: "file",
+        content: [
+          {
+            type: "file",
+            data: "https://example.com/blob",
+            mimeType: "unknown/unknown",
+            sourceType: "url",
+          },
+        ],
+        contentType: "unknown/unknown",
+        status: { type: "complete" },
+      },
+    ]);
+  });
+
+  it("converts an assistant file part into a file content part", () => {
+    const data = {
+      messages: [
+        {
+          id: "a1",
+          role: "assistant",
+          parts: [
+            { type: "text", text: "Here you go" },
+            {
+              type: "file",
+              url: "https://example.com/result.csv",
+              mediaType: "text/csv",
+              filename: "result.csv",
+            },
+          ],
+        },
+      ],
+    } satisfies EveMessageData;
+
+    const [message] = convertEveMessages(data);
+
+    expect(message?.content).toEqual([
+      { type: "text", text: "Here you go" },
+      {
+        type: "file",
+        data: "https://example.com/result.csv",
+        mimeType: "text/csv",
+        filename: "result.csv",
+        sourceType: "url",
+      },
+    ]);
   });
 
   it("drops non-convertible part types instead of throwing", () => {
@@ -257,6 +506,254 @@ describe("convertEveMessages", () => {
     const [message] = convertEveMessages(data);
 
     expect(message?.content).toEqual([{ type: "text", text: "Done" }]);
+  });
+
+  describe("assistant message status mapping", () => {
+    const withStatus = (
+      status: "streaming" | "complete" | "failed",
+    ): EveMessageData => ({
+      messages: [
+        {
+          id: "a1",
+          role: "assistant",
+          metadata: { status },
+          parts: [{ type: "text", text: "Hi" }],
+        },
+      ],
+    });
+
+    it("maps a running last message to running", () => {
+      const [message] = convertEveMessages(withStatus("streaming"), {
+        isRunning: true,
+      });
+
+      expect(message?.status).toEqual({ type: "running" });
+    });
+
+    it("keeps the legacy running mapping for a streaming marker when liveness is omitted", () => {
+      const [message] = convertEveMessages(withStatus("streaming"));
+
+      expect(message?.status).toEqual({ type: "running" });
+    });
+
+    it("maps a stale streaming marker to cancelled when no longer running", () => {
+      const [message] = convertEveMessages(withStatus("streaming"), {
+        isRunning: false,
+      });
+
+      expect(message?.status).toEqual({
+        type: "incomplete",
+        reason: "cancelled",
+      });
+    });
+
+    it("maps a stale streaming marker to error when the session error is set", () => {
+      const [message] = convertEveMessages(withStatus("streaming"), {
+        isRunning: false,
+        error: new Error("boom"),
+      });
+
+      expect(message?.status).toEqual({
+        type: "incomplete",
+        reason: "error",
+        error: { code: "unknown", message: "boom" },
+      });
+    });
+
+    it("maps a stuck streaming message to cancelled while a newer turn runs", () => {
+      const data = {
+        messages: [
+          {
+            id: "a1",
+            role: "assistant",
+            metadata: { status: "streaming" },
+            parts: [{ type: "text", text: "Interrupted" }],
+          },
+          {
+            id: "u2",
+            role: "user",
+            parts: [{ type: "text", text: "Try again" }],
+          },
+        ],
+      } satisfies EveMessageData;
+
+      const [assistant] = convertEveMessages(data, {
+        isRunning: true,
+        error: new Error("boom"),
+      });
+
+      expect(assistant?.status).toEqual({
+        type: "incomplete",
+        reason: "cancelled",
+      });
+    });
+
+    it("keeps a completed message complete even when the session error is set", () => {
+      const [message] = convertEveMessages(withStatus("complete"), {
+        isRunning: false,
+        error: new Error("boom"),
+      });
+
+      expect(message?.status).toEqual({ type: "complete", reason: "stop" });
+    });
+
+    it("maps an assistant failed marker to an error status", () => {
+      const [message] = convertEveMessages(withStatus("failed"), {
+        isRunning: false,
+      });
+
+      expect(message?.status).toEqual({ type: "incomplete", reason: "error" });
+    });
+
+    it("keeps requires-action for pending approvals when not running", () => {
+      const data = {
+        messages: [
+          {
+            id: "a1",
+            role: "assistant",
+            metadata: { status: "streaming" },
+            parts: [
+              {
+                type: "dynamic-tool",
+                state: "approval-requested",
+                toolCallId: "call_1",
+                toolName: "send_email",
+                input: {},
+                approval: { id: "req_1" },
+              },
+            ],
+          },
+        ],
+      } satisfies EveMessageData;
+
+      const [message] = convertEveMessages(data, { isRunning: false });
+
+      expect(message?.status).toEqual({
+        type: "requires-action",
+        reason: "tool-calls",
+      });
+    });
+
+    describe("contract with eve's default reducer", () => {
+      const replay = (events: readonly EveAgentReducerEvent[]) => {
+        const reducer = defaultMessageReducer();
+        return events.reduce(
+          (state, event) => reducer.reduce(state, event),
+          reducer.initial(),
+        );
+      };
+
+      const midStreamEvents: readonly EveAgentReducerEvent[] = [
+        {
+          type: "client.message.submitted",
+          data: { submissionId: "sub_1", message: "hi", createdAt: 0 },
+        },
+        {
+          type: "turn.started",
+          data: { turnId: "turn_1", sequence: 0 },
+        },
+        {
+          type: "step.started",
+          data: { turnId: "turn_1", stepIndex: 0, sequence: 1 },
+        },
+        {
+          type: "message.appended",
+          data: {
+            turnId: "turn_1",
+            stepIndex: 0,
+            sequence: 2,
+            messageDelta: "Let me th",
+            messageSoFar: "Let me th",
+          },
+        },
+      ];
+
+      it("a locally aborted turn keeps its streaming marker and converts to cancelled", () => {
+        const state = replay(midStreamEvents);
+
+        const assistant = state.messages.find((m) => m.role === "assistant");
+        expect(assistant?.metadata?.status).toBe("streaming");
+
+        const converted = convertEveMessages(state, { isRunning: false });
+        expect(converted.at(-1)?.status).toEqual({
+          type: "incomplete",
+          reason: "cancelled",
+        });
+      });
+
+      it("a failed session keeps its streaming marker and converts to error", () => {
+        const state = replay([
+          ...midStreamEvents,
+          {
+            type: "session.failed",
+            data: { sessionId: "session_1", code: "internal", message: "boom" },
+          },
+        ]);
+
+        const assistant = state.messages.find((m) => m.role === "assistant");
+        expect(assistant?.metadata?.status).toBe("streaming");
+
+        const converted = convertEveMessages(state, {
+          isRunning: false,
+          error: new Error("boom"),
+        });
+        expect(converted.at(-1)?.status).toEqual({
+          type: "incomplete",
+          reason: "error",
+          error: { code: "unknown", message: "boom" },
+        });
+      });
+
+      it("a failed turn converts to cancelled because the store surfaces no error for turn.failed", () => {
+        const state = replay([
+          ...midStreamEvents,
+          {
+            type: "turn.failed",
+            data: {
+              turnId: "turn_1",
+              sequence: 3,
+              code: "internal",
+              message: "boom",
+            },
+          },
+        ]);
+
+        const converted = convertEveMessages(state, { isRunning: false });
+        expect(converted.at(-1)?.status).toEqual({
+          type: "incomplete",
+          reason: "cancelled",
+        });
+      });
+
+      it("a completed turn terminalizes the streaming marker and converts to complete", () => {
+        const state = replay([
+          ...midStreamEvents,
+          {
+            type: "message.completed",
+            data: {
+              turnId: "turn_1",
+              stepIndex: 0,
+              sequence: 3,
+              finishReason: "stop",
+              message: "Let me think",
+            },
+          },
+          {
+            type: "turn.completed",
+            data: { turnId: "turn_1", sequence: 4 },
+          },
+        ]);
+
+        const assistant = state.messages.find((m) => m.role === "assistant");
+        expect(assistant?.metadata?.status).toBe("complete");
+
+        const converted = convertEveMessages(state, { isRunning: false });
+        expect(converted.at(-1)?.status).toEqual({
+          type: "complete",
+          reason: "stop",
+        });
+      });
+    });
   });
 
   it("uses the supplied message creation time", () => {
@@ -365,6 +862,66 @@ describe("getEveMessageContent", () => {
         type: "file",
         data: "https://cdn.example.com/memo.mp3",
         mediaType: "audio/mp3",
+      },
+    ]);
+  });
+
+  it("round-trips a sent file attachment through the eve echo shape", () => {
+    const message = {
+      ...baseAppendMessage,
+      content: [],
+      attachments: [
+        {
+          id: "1",
+          type: "file",
+          name: "report.pdf",
+          content: [
+            {
+              type: "file",
+              data: "https://example.com/report.pdf",
+              mimeType: "application/pdf",
+              filename: "report.pdf",
+            },
+          ],
+          status: { type: "complete" },
+        },
+      ],
+    } as unknown as AppendMessage;
+
+    expect(getEveMessageContent(message)).toEqual([
+      {
+        type: "file",
+        data: "https://example.com/report.pdf",
+        mediaType: "application/pdf",
+        filename: "report.pdf",
+      },
+    ]);
+
+    const [echoed] = convertEveMessages({
+      messages: [
+        {
+          id: "t1:user",
+          role: "user",
+          metadata: { status: "complete", turnId: "t1" },
+          parts: [
+            {
+              type: "file",
+              url: "https://example.com/report.pdf",
+              mediaType: "application/pdf",
+              filename: "report.pdf",
+            },
+          ],
+        },
+      ],
+    } satisfies EveMessageData);
+
+    expect(echoed?.content).toEqual([
+      {
+        type: "file",
+        data: "https://example.com/report.pdf",
+        mimeType: "application/pdf",
+        filename: "report.pdf",
+        sourceType: "url",
       },
     ]);
   });

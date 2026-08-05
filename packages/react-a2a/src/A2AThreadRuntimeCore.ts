@@ -746,9 +746,8 @@ export class A2AThreadRuntimeCore {
   }
 
   private finishRun(controller: AbortController | null) {
-    if (this.abortController === controller) {
-      this.abortController = null;
-    }
+    if (this.abortController !== controller) return;
+    this.abortController = null;
     this.setRunning(false);
   }
 

@@ -1,3 +1,4 @@
+import asyncio
 from typing import Any
 
 import pytest
@@ -161,4 +162,23 @@ async def test_run_controller_append_state_text() -> None:
     assert operations == [
         {"type": "append-text", "path": ["user", "name"], "value": "Al"},
         {"type": "append-text", "path": ["user", "name"], "value": "ice"},
+    ]
+
+
+@pytest.mark.anyio
+async def test_run_controller_flush_emits_pending_ops() -> None:
+    """RunController.flush() should emit buffered state operations immediately."""
+    queue: asyncio.Queue = asyncio.Queue()
+    controller = RunController(queue, state_data={"user": {"name": ""}})
+
+    controller.state["user"]["name"] = "Alice"
+    assert queue.empty()
+
+    controller.flush()
+    await asyncio.sleep(0)
+
+    chunk = queue.get_nowait()
+    assert chunk.type == "update-state"
+    assert chunk.operations == [
+        {"type": "set", "path": ["user", "name"], "value": "Alice"}
     ]

@@ -150,6 +150,9 @@ const mount = (
     connectionTimeout?: number | undefined;
     cache?: { readonly defaultTtlMs?: number } | undefined;
     elicitation?: boolean | undefined;
+    kind?: "connector" | "custom" | undefined;
+    storage?: MCPStorage | undefined;
+    onRemove?: (() => Promise<void>) | undefined;
   },
   onMount?: (server: ClientOutput<"mcpServer">) => void,
 ) => {
@@ -160,11 +163,11 @@ const mount = (
     const server = useResource(
       McpServerResource({
         id: "docs",
-        kind: "connector",
+        kind: props?.kind ?? "connector",
         name: "Docs",
         url: "https://example.com/mcp",
         auth: props?.auth ?? { type: "none" },
-        storage: createStorage(),
+        storage: props?.storage ?? createStorage(),
         redirectUri: "https://example.com/callback",
         autoConnect: false,
         connectionTimeout,
@@ -172,7 +175,7 @@ const mount = (
         ...(props?.elicitation !== undefined
           ? { elicitation: props.elicitation }
           : {}),
-        onRemove: vi.fn(async () => {}),
+        onRemove: props?.onRemove ?? vi.fn(async () => {}),
       }),
     );
     useEffect(() => {
@@ -1194,6 +1197,37 @@ describe("McpServerResource tools listChanged", () => {
 
       const options = mocks.Client.mock.calls[0]?.[1];
       expect(options).not.toHaveProperty("defaultCacheTtlMs");
+    } finally {
+      root.unmount();
+    }
+  });
+});
+
+describe("McpServerResource removal", () => {
+  beforeEach(() => {
+    resetMocks();
+  });
+
+  it("exposes auth storage failures and preserves the server", async () => {
+    const error = new Error("storage unavailable");
+    const storage = createStorage();
+    vi.mocked(storage.clearAuthState).mockRejectedValueOnce(error);
+    const onRemove = vi.fn(async () => {});
+    const root = mount({ kind: "custom", storage, onRemove });
+
+    try {
+      await expect(root.getValue().remove()).rejects.toBe(error);
+      await waitForResourceUpdate(
+        () =>
+          root.getValue().getState().lastError?.message ===
+          "storage unavailable",
+      );
+
+      expect(root.getValue().getState()).toMatchObject({
+        connectionState: "disconnected",
+        lastError: { message: "storage unavailable" },
+      });
+      expect(onRemove).not.toHaveBeenCalled();
     } finally {
       root.unmount();
     }

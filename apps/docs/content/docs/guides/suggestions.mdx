@@ -15,13 +15,13 @@ The Suggestions API allows you to configure a list of suggested prompts that are
 Configure suggestions using the `Suggestions()` API in your runtime provider:
 
 ```tsx
-import { useAui, Tools, Suggestions } from "@assistant-ui/react";
+import { AuiConfig, Tools, Suggestions } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 
 function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
   const runtime = useChatRuntime();
 
-  const aui = useAui({
+  const config = AuiConfig({
     tools: Tools({ toolkit: myToolkit }),
     suggestions: Suggestions([
       "What can you help me with?",
@@ -31,7 +31,7 @@ function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
   });
 
   return (
-    <AssistantRuntimeProvider aui={aui} runtime={runtime}>
+    <AssistantRuntimeProvider runtime={runtime} config={config}>
       {children}
     </AssistantRuntimeProvider>
   );
@@ -45,7 +45,7 @@ Suggestions can be provided as either strings or objects with title, label, and 
 ### Simple Strings
 
 ```tsx
-const aui = useAui({
+AuiConfig({
   suggestions: Suggestions([
     "What's the weather today?",
     "Help me write an email",
@@ -59,7 +59,7 @@ const aui = useAui({
 For more detailed suggestions with separate display text and prompts:
 
 ```tsx
-const aui = useAui({
+AuiConfig({
   suggestions: Suggestions([
     {
       title: "Weather",
@@ -315,13 +315,13 @@ function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
     ];
   }, [user.isPremium]);
 
-  const aui = useAui({
+  const config = AuiConfig({
     tools: Tools({ toolkit: myToolkit }),
     suggestions: Suggestions(suggestions),
   });
 
   return (
-    <AssistantRuntimeProvider aui={aui} runtime={runtime}>
+    <AssistantRuntimeProvider runtime={runtime} config={config}>
       {children}
     </AssistantRuntimeProvider>
   );
@@ -352,10 +352,10 @@ If your codebase uses the inline `ThreadPrimitive.Suggestion` component (which r
 
 ### Runtime-driven form
 
-1. Configure suggestions in your runtime provider:
+1. Configure suggestions in your runtime provider's `config`:
 
 ```tsx
-const aui = useAui({
+AuiConfig({
   suggestions: Suggestions(["What's the weather?"]),
 });
 ```

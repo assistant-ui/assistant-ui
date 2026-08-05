@@ -115,21 +115,23 @@ The inner `"use client"` inside `execute` marks this as a **frontend** tool — 
 
 ### Register the toolkit
 
-Import the toolkit in your runtime provider and pass it to `useAui` via `Tools`:
+Import the toolkit in your runtime provider and pass it to `config` via `Tools`:
 
 ```tsx title="app/MyRuntimeProvider.tsx"
 "use client";
 
-import { AssistantRuntimeProvider, Tools, useAui } from "@assistant-ui/react";
+import { AssistantRuntimeProvider, AuiConfig, Tools } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 import toolkit from "./toolkit";
 
 export function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
   const runtime = useChatRuntime();
-  const aui = useAui({ tools: Tools({ toolkit }) });
-
+  const config = AuiConfig({ tools: Tools({ toolkit }) });
   return (
-    <AssistantRuntimeProvider aui={aui} runtime={runtime}>
+    <AssistantRuntimeProvider
+      runtime={runtime}
+      config={config}
+    >
       {children}
     </AssistantRuntimeProvider>
   );
@@ -368,7 +370,7 @@ export const toolkit = defineToolkit({
 });
 ```
 
-Register it exactly like a generative toolkit: `useAui({ tools: Tools({ toolkit }) })`. The key must match the tool name your backend or MCP server publishes. Render-only entries upload no schema and run no browser code — they only attach UI to matching tool-call message parts.
+Register it exactly like a generative toolkit: hoist `const config = AuiConfig({ tools: Tools({ toolkit }) })` in the component body and pass `config={config}`. The key must match the tool name your backend or MCP server publishes. Render-only entries upload no schema and run no browser code — they only attach UI to matching tool-call message parts.
 
 <Callout type="warn">
   This `{ type: "backend", render }` shape is **plain-toolkit only**. Inside a

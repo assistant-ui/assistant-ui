@@ -1,5 +1,11 @@
 # assistant-stream
 
+## 0.3.33
+
+### Patch Changes
+
+- [#5565](https://github.com/assistant-ui/assistant-ui/pull/5565) [`78943a3`](https://github.com/assistant-ui/assistant-ui/commit/78943a37b1006bfbee42596f838850cd96ab4566) - feat: add opt-in `strict: false` mode that reconciles malformed stream input instead of throwing (decoders, state accumulator); assistant-transport resume runs always decode leniently ([@Yonom](https://github.com/Yonom))
+
 ## 0.3.32
 
 ### Patch Changes

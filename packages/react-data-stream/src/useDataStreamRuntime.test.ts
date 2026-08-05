@@ -84,6 +84,19 @@ describe("useDataStreamRuntime request errors", () => {
     expect(onError).toHaveBeenCalledExactlyOnceWith(error);
   });
 
+  it("keeps response callback failures separate from request errors", async () => {
+    const error = new Error("response callback failed");
+    const onResponse = vi.fn().mockRejectedValue(error);
+    const onError = vi.fn();
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response()));
+
+    const adapter = createAdapter({ api: "/api/chat", onResponse, onError });
+
+    await expect(runOnce(adapter, createRunOptions())).rejects.toBe(error);
+    expect(onResponse).toHaveBeenCalledOnce();
+    expect(onError).not.toHaveBeenCalled();
+  });
+
   it("reports resolver failures that race with cancellation", async () => {
     const controller = new AbortController();
     const error = new Error("headers failed");
@@ -108,6 +121,37 @@ describe("useDataStreamRuntime request errors", () => {
     await expect(result).rejects.toBe(error);
     expect(onError).toHaveBeenCalledExactlyOnceWith(error);
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("reports cancellation while resolving request options", async () => {
+    const controller = new AbortController();
+    const abortError = new DOMException("Cancelled", "AbortError");
+    const onCancel = vi.fn();
+    const onError = vi.fn();
+    let resolveHeaders: ((headers: Headers) => void) | undefined;
+    const headers = new Promise<Headers>((resolve) => {
+      resolveHeaders = resolve;
+    });
+    const fetchMock = vi.fn((_input: RequestInfo | URL, init?: RequestInit) =>
+      Promise.reject(init?.signal?.reason),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const adapter = createAdapter({
+      api: "/api/chat",
+      headers: () => headers,
+      onCancel,
+      onError,
+    });
+    const result = runOnce(adapter, createRunOptions(controller.signal));
+
+    controller.abort(abortError);
+    resolveHeaders?.(new Headers());
+
+    await expect(result).rejects.toBe(abortError);
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(onCancel).toHaveBeenCalledOnce();
+    expect(onError).not.toHaveBeenCalled();
   });
 
   it("normalizes non-Error resolver failures for onError", async () => {

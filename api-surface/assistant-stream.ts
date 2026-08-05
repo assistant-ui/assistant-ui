@@ -57,6 +57,7 @@ declare class AssistantMessageAccumulator extends TransformStream<AssistantStrea
     initialMessage?: AssistantMessage;
     throttle?: boolean;
     onError?: (error: string) => void;
+    strict?: boolean | undefined;
   });
 }
 
@@ -213,11 +214,16 @@ type AssistantStreamEncoder = ReadableWritablePair<Uint8Array<ArrayBuffer>, Assi
   headers?: Headers;
 };
 
+type AssistantStreamOptions = {
+  strict?: boolean | undefined;
+};
+
 declare class AssistantTransformStream<I> extends TransformStream<I, AssistantStreamChunk> {
   constructor(transformer: AssistantTransformer<I>, writableStrategy?: QueuingStrategy<I>, readableStrategy?: QueuingStrategy<AssistantStreamChunk>);
 }
 
 type AssistantTransformer<I> = {
+  strict?: boolean | undefined;
   flush?: AssistantTransformerFlushCallback;
   start?: AssistantTransformerStartCallback;
   transform?: AssistantTransformerTransformCallback<I>;
@@ -230,7 +236,9 @@ type AssistantTransformerStartCallback = (controller: AssistantStreamController)
 type AssistantTransformerTransformCallback<I> = (chunk: I, controller: AssistantStreamController) => void | PromiseLike<void>;
 
 declare class AssistantTransportDecoder extends PipeableTransformStream<Uint8Array<ArrayBuffer>, AssistantStreamChunk> {
-  constructor();
+  constructor(options?: {
+    strict?: boolean | undefined;
+  });
 }
 
 declare class AssistantTransportEncoder extends PipeableTransformStream<AssistantStreamChunk, Uint8Array<ArrayBuffer>> implements AssistantStreamEncoder {
@@ -649,13 +657,17 @@ type DataPart = {
 };
 
 declare class DataStreamDecoder extends PipeableTransformStream<Uint8Array<ArrayBuffer>, AssistantStreamChunk> {
-  constructor();
+  constructor(options?: DataStreamOptions);
 }
 
 declare class DataStreamEncoder extends PipeableTransformStream<AssistantStreamChunk, Uint8Array<ArrayBuffer>> implements AssistantStreamEncoder {
   headers: Headers;
   constructor();
 }
+
+type DataStreamOptions = {
+  strict?: boolean | undefined;
+};
 
 type DeepPartial<T> = T extends readonly any[] ? readonly DeepPartial<T[number]>[] : T extends {
   [key: string]: any;
@@ -11926,9 +11938,9 @@ declare type WriteableStream = NetStream | PipelineWriteableStream;
 
 declare function asAsyncIterableStream<T>(source: ReadableStream<T>): AsyncIterableStream<T>;
 
-declare function createAssistantStream(callback: (controller: AssistantStreamController) => PromiseLike<void> | void): AssistantStream;
+declare function createAssistantStream(callback: (controller: AssistantStreamController) => PromiseLike<void> | void, options?: AssistantStreamOptions): AssistantStream;
 
-declare function createAssistantStreamController(): readonly [
+declare function createAssistantStreamController(options?: AssistantStreamOptions): readonly [
   AssistantStream,
   AssistantStreamController
 ];

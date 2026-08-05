@@ -14,7 +14,10 @@ from assistant_stream.assistant_stream_chunk import (
 from assistant_stream.serialization.assistant_stream_response import (
     AssistantStreamResponse,
 )
-from assistant_stream.serialization.heartbeat import HeartbeatOption
+from assistant_stream.serialization.heartbeat import (
+    SSE_HEARTBEAT_LINE,
+    HeartbeatOption,
+)
 from assistant_stream.serialization.stream_encoder import StreamEncoder
 from assistant_stream.state_proxy import StateProxy
 from typing import AsyncGenerator, Any
@@ -244,6 +247,9 @@ class AssistantTransportEncoder(StreamEncoder):
 
     def get_media_type(self) -> str:
         return "text/event-stream"
+
+    def get_keepalive_token(self) -> str:
+        return SSE_HEARTBEAT_LINE
 
     async def encode_stream(
         self, stream: AsyncGenerator[AssistantStreamChunk, None]

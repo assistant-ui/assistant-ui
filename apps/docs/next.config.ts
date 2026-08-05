@@ -1,8 +1,14 @@
 import { createMDX } from "fumadocs-mdx/next";
 import { withAui } from "@assistant-ui/next";
 import type { NextConfig } from "next";
+import {
+  AGENT_DISCOVERY_REWRITES,
+  API_CATALOG_LINK_HEADER,
+} from "./lib/agent-discovery-routes";
 
 const isDev = process.env.NODE_ENV === "development";
+
+const apiCatalogDiscoveryPaths = ["/(.*)"];
 
 const deployEnv = process.env.VERCEL_ENV ?? process.env.NODE_ENV;
 const faviconVariant =
@@ -61,6 +67,12 @@ const config: NextConfig = {
   transpilePackages: ["@assistant-ui/ui", "shiki"],
   serverExternalPackages: ["just-bash"],
   skipTrailingSlashRedirect: true,
+  outputFileTracingIncludes: {
+    "/elements/[slug]": [
+      "./components/elements/*.tsx",
+      "../../packages/ui/src/components/elements/*.tsx",
+    ],
+  },
   headers: async () => [
     {
       source: "/(.*)",
@@ -71,6 +83,10 @@ const config: NextConfig = {
         },
       ],
     },
+    ...apiCatalogDiscoveryPaths.map((source) => ({
+      source,
+      headers: [{ key: "Link", value: API_CATALOG_LINK_HEADER }],
+    })),
   ],
   redirects: async () => [
     {
@@ -78,10 +94,26 @@ const config: NextConfig = {
       destination: "/docs/runtimes/ai-sdk/v6-legacy",
       permanent: true,
     },
+    {
+      source: "/gallery",
+      destination: "/elements",
+      permanent: true,
+    },
+    {
+      source: "/gallery/components",
+      destination: "/elements/vocabulary",
+      permanent: true,
+    },
+    {
+      source: "/gallery/:slug",
+      destination: "/elements/generative-:slug",
+      permanent: true,
+    },
   ],
   rewrites: async () => ({
     beforeFiles: [
       ...faviconRewrites,
+      ...AGENT_DISCOVERY_REWRITES,
       {
         source: "/mcp",
         destination: "/api/mcp",

@@ -1,5 +1,18 @@
 # @assistant-ui/react
 
+## 0.15.4
+
+### Patch Changes
+
+- [#5566](https://github.com/assistant-ui/assistant-ui/pull/5566) [`7528465`](https://github.com/assistant-ui/assistant-ui/commit/7528465d2b243f7163a64c112446d15327d87233) - fix: skip add-message commands with no supported parts in assistant transport runtime ([@Yonom](https://github.com/Yonom))
+
+- [#5565](https://github.com/assistant-ui/assistant-ui/pull/5565) [`78943a3`](https://github.com/assistant-ui/assistant-ui/commit/78943a37b1006bfbee42596f838850cd96ab4566) - feat: add opt-in `strict: false` mode that reconciles malformed stream input instead of throwing (decoders, state accumulator); assistant-transport resume runs always decode leniently ([@Yonom](https://github.com/Yonom))
+
+- Updated dependencies [[`7f7f8a2`](https://github.com/assistant-ui/assistant-ui/commit/7f7f8a24f87bd7eb745675fa2644a5cca2f69372), [`6c062f1`](https://github.com/assistant-ui/assistant-ui/commit/6c062f1b2a7c362fa7eb1b4fecc59c748588cb1a), [`78943a3`](https://github.com/assistant-ui/assistant-ui/commit/78943a37b1006bfbee42596f838850cd96ab4566)]:
+  - @assistant-ui/core@0.3.5
+  - assistant-cloud@0.1.38
+  - assistant-stream@0.3.33
+
 ## 0.15.3
 
 ### Patch Changes

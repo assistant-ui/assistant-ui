@@ -443,7 +443,7 @@ If you build the `content` array fresh from the current chunk each iteration, to
 
 ## Tool calling
 
-`LocalRuntime` supports OpenAI-compatible function calling. Register tools through `useAui` so the runtime exposes them to your adapter via `context.tools`:
+`LocalRuntime` supports OpenAI-compatible function calling. Register tools through the provider's `config` so the runtime exposes them to your adapter via `context.tools`:
 
 ```tsx title="app/toolkit.tsx"
 "use generative";
@@ -468,15 +468,14 @@ export default defineToolkit({
 ```
 
 ```tsx title="app/MyRuntimeProvider.tsx"
-import { useAui, Tools } from "@assistant-ui/react";
+import { AuiConfig, Tools } from "@assistant-ui/react";
 import toolkit from "./toolkit";
 
 function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
   const runtime = useLocalRuntime(MyModelAdapter);
-  const aui = useAui({ tools: Tools({ toolkit }) });
-
+  const config = AuiConfig({ tools: Tools({ toolkit }) });
   return (
-    <AssistantRuntimeProvider aui={aui} runtime={runtime}>
+    <AssistantRuntimeProvider runtime={runtime} config={config}>
       {children}
     </AssistantRuntimeProvider>
   );

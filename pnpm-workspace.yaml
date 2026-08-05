@@ -17,6 +17,7 @@ verifyDepsBeforeRun: install
 minimumReleaseAge: 1440
 minimumReleaseAgeExclude:
   - '@assistant-ui/*'
+  - '@next/*'
   - '@typescript/typescript-*'
   - assistant-cloud
   - assistant-stream
@@ -24,6 +25,7 @@ minimumReleaseAgeExclude:
   - create-assistant-ui
   - eve
   - heat-graph
+  - next
   - safe-content-frame
   - tw-glass
   - tw-shimmer

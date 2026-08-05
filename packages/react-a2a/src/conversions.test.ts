@@ -30,26 +30,54 @@ describe("a2aPartToContent", () => {
     });
   });
 
-  it("converts non-image URL as text link", () => {
+  it("converts non-image URL to a url-sourced file part", () => {
     const part: A2APart = {
       url: "https://example.com/doc.pdf",
       mediaType: "application/pdf",
       filename: "doc.pdf",
     };
     expect(a2aPartToContent(part)).toEqual({
-      type: "text",
-      text: "[doc.pdf](https://example.com/doc.pdf)",
+      type: "file",
+      data: "https://example.com/doc.pdf",
+      mimeType: "application/pdf",
+      sourceType: "url",
+      filename: "doc.pdf",
     });
   });
 
-  it("converts URL without filename as plain text", () => {
+  it("converts URL without filename to a file part without filename", () => {
     const part: A2APart = {
       url: "https://example.com/doc.pdf",
       mediaType: "application/pdf",
     };
     expect(a2aPartToContent(part)).toEqual({
-      type: "text",
-      text: "https://example.com/doc.pdf",
+      type: "file",
+      data: "https://example.com/doc.pdf",
+      mimeType: "application/pdf",
+      sourceType: "url",
+    });
+  });
+
+  it("falls back to application/octet-stream for a URL without mediaType", () => {
+    const part: A2APart = { url: "https://example.com/download" };
+    expect(a2aPartToContent(part)).toEqual({
+      type: "file",
+      data: "https://example.com/download",
+      mimeType: "application/octet-stream",
+      sourceType: "url",
+    });
+  });
+
+  it("keeps the wire filename on an image URL part", () => {
+    const part: A2APart = {
+      url: "https://example.com/img.png",
+      mediaType: "image/png",
+      filename: "img.png",
+    };
+    expect(a2aPartToContent(part)).toEqual({
+      type: "image",
+      image: "https://example.com/img.png",
+      filename: "img.png",
     });
   });
 
@@ -64,26 +92,51 @@ describe("a2aPartToContent", () => {
     });
   });
 
-  it("converts raw non-image bytes as file reference", () => {
+  it("keeps the wire filename on raw image bytes", () => {
+    const part: A2APart = {
+      raw: "iVBORw0KGgo=",
+      mediaType: "image/png",
+      filename: "img.png",
+    };
+    expect(a2aPartToContent(part)).toEqual({
+      type: "image",
+      image: "data:image/png;base64,iVBORw0KGgo=",
+      filename: "img.png",
+    });
+  });
+
+  it("converts raw non-image bytes to a base64 file part", () => {
     const part: A2APart = {
       raw: "AAAA",
       mediaType: "application/pdf",
       filename: "report.pdf",
     };
     expect(a2aPartToContent(part)).toEqual({
-      type: "text",
-      text: "[File: report.pdf]",
+      type: "file",
+      data: "AAAA",
+      mimeType: "application/pdf",
+      filename: "report.pdf",
     });
   });
 
-  it("converts raw bytes without filename", () => {
+  it("converts raw audio bytes to a file part with the audio mime type", () => {
     const part: A2APart = {
-      raw: "AAAA",
-      mediaType: "application/octet-stream",
+      raw: "SGVsbG8=",
+      mediaType: "audio/mp3",
     };
     expect(a2aPartToContent(part)).toEqual({
-      type: "text",
-      text: "[File: download]",
+      type: "file",
+      data: "SGVsbG8=",
+      mimeType: "audio/mp3",
+    });
+  });
+
+  it("falls back to application/octet-stream for raw bytes without mediaType", () => {
+    const part: A2APart = { raw: "AAAA" };
+    expect(a2aPartToContent(part)).toEqual({
+      type: "file",
+      data: "AAAA",
+      mimeType: "application/octet-stream",
     });
   });
 
@@ -100,6 +153,60 @@ describe("a2aPartToContent", () => {
   it("returns empty text for empty part", () => {
     const part: A2APart = {};
     expect(a2aPartToContent(part)).toEqual({ type: "text", text: "" });
+  });
+});
+
+describe("inbound file part round trip", () => {
+  const restoreFilePart = (part: A2APart) => {
+    const restored = a2aPartToContent(part);
+    if (restored.type !== "file") throw new Error("expected a file part");
+    return restored;
+  };
+
+  it("reproduces a url wire part through the outbound converter", () => {
+    const part: A2APart = {
+      url: "https://example.com/doc.pdf",
+      mediaType: "application/pdf",
+      filename: "doc.pdf",
+    };
+    expect(contentPartsToA2AParts([restoreFilePart(part)])).toEqual([part]);
+  });
+
+  it("reproduces a raw wire part through the outbound converter", () => {
+    const part: A2APart = {
+      raw: "AAAA",
+      mediaType: "application/pdf",
+      filename: "report.pdf",
+    };
+    expect(contentPartsToA2AParts([restoreFilePart(part)])).toEqual([part]);
+  });
+
+  it("reproduces a raw image wire part through the outbound converter", () => {
+    const part: A2APart = {
+      raw: "iVBORw0KGgo=",
+      mediaType: "image/png",
+      filename: "img.png",
+    };
+    const restored = a2aPartToContent(part);
+    if (restored.type !== "image") throw new Error("expected an image part");
+    expect(contentPartsToA2AParts([restored])).toEqual([part]);
+  });
+
+  it("resends a url part without mediaType with the octet-stream fallback", () => {
+    const part: A2APart = { url: "https://example.com/download" };
+    expect(contentPartsToA2AParts([restoreFilePart(part)])).toEqual([
+      {
+        url: "https://example.com/download",
+        mediaType: "application/octet-stream",
+      },
+    ]);
+  });
+
+  it("resends a raw part without mediaType with the octet-stream fallback", () => {
+    const part: A2APart = { raw: "AAAA" };
+    expect(contentPartsToA2AParts([restoreFilePart(part)])).toEqual([
+      { raw: "AAAA", mediaType: "application/octet-stream" },
+    ]);
   });
 });
 

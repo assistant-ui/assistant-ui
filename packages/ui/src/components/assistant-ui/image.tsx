@@ -77,7 +77,7 @@ const downloadImagePart = (
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
-  if (objectUrl) URL.revokeObjectURL(objectUrl);
+  if (objectUrl) setTimeout(() => URL.revokeObjectURL(objectUrl), 40_000);
 };
 
 const copyImagePart = async (

@@ -666,10 +666,11 @@ Container `Box` for an attachment. Forwards all `Box` props.
 
 ### Thumb
 
-`Text` component displaying a short identifier for the attachment. Renders the file extension (`.pdf`, `.png`, …) when the name has one. Falls back to the attachment `type` (e.g. `image`, `document`) otherwise, and finally to `file`.
+`Text` component displaying a short identifier for the attachment. Renders the file extension (`.pdf`, `.png`, …) when the name has one. Falls back to the attachment `type` (e.g. `image`, `document`) otherwise, and finally to `file`. Passing `children` overrides the automatic label.
 
 | Prop | Type | Description |
 |------|------|-------------|
+| `children` | `ReactNode` | Overrides the automatic extension/type label |
 | `...rest` | `ComponentProps<typeof Text>` | Forwarded to the underlying Ink `Text` |
 
 ### Status

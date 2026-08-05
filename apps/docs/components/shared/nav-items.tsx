@@ -76,7 +76,7 @@ export function NavItemsRoot({ children }: { children: ReactNode }) {
           align="start"
           sideOffset={0}
           collisionAvoidance={{ side: "none", align: "none" }}
-          className="z-40 hidden w-[var(--anchor-width)] md:block"
+          className="z-[60] hidden w-[var(--anchor-width)] md:block"
         >
           <NavigationMenuPopup className="bg-background border-border/60 h-[var(--popup-height)] w-full overflow-hidden border-b transition-[height,opacity] duration-200 data-[ending-style]:opacity-0 data-[starting-style]:opacity-0 motion-reduce:transition-none">
             <NavigationMenuViewport />

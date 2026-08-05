@@ -224,7 +224,7 @@ function RefetchOnInterrupt({ status }: { status: string }) {
 }
 ```
 
-What the promise means depends on the path, and today it is always the remount one. There it resolves as soon as the replacement runtime attaches, which happens before that runtime's `load()` has started, so awaiting it does not mean the thread is fresh and a failed load cannot reach the caller. Only the in-place path settles with the refetch itself and rejects when it fails, which is why the example above still handles the rejection.
+What the promise means depends on the path. On the remount path, it resolves as soon as the replacement runtime attaches, which happens before that runtime's `load()` has started, so awaiting it does not mean the thread is fresh and a failed load cannot reach the caller. On the in-place path, it settles with the refetch itself and rejects when it fails, which is why the example above still handles the rejection.
 
 A thread that has not been sent yet is left alone because it holds no remote state.
 
@@ -234,7 +234,7 @@ How the refetch happens depends on the runtime, in one of three ways. When it de
 
 `useAuiState((s) => s.thread.capabilities.refetchThread)` reports which of those you would get, in place or not. It is not a signal for whether to offer a refresh at all: it is false on the remount path, where the call still does the work, and false again where the call does nothing.
 
-No adapter registers the capability yet, so today every runtime takes the remount path.
+Both the LangGraph and Google ADK adapters register the in-place refetch capability when their runtime hook receives a `load` function; without one they fall back to the remount path. Other remote adapters take the remount path unless they provide the capability themselves.
 
 For an external store runtime, declare it with `onRefetchThread`, which is unrelated to `onReload` (that one re-generates an assistant message):
 

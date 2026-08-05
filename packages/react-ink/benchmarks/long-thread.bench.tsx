@@ -10,10 +10,10 @@ import { useMemo, useState } from "react";
 import { Box, Text } from "ink";
 import { render } from "ink-testing-library";
 import {
+  AuiConfig,
   AuiProvider,
   Derived,
   RenderChildrenWithAccessor,
-  useAui,
   useAuiState,
 } from "@assistant-ui/store";
 import { MessageByIndexProvider } from "@assistant-ui/core/react";
@@ -80,7 +80,7 @@ const BenchProvider: React.FC<{
     );
   }, [core]);
 
-  const aui = useAui({
+  const config = AuiConfig({
     thread: ThreadClient({ runtime: threadRuntime }),
     composer: Derived({
       source: "thread",
@@ -89,7 +89,7 @@ const BenchProvider: React.FC<{
     }),
   });
 
-  return <AuiProvider value={aui}>{children}</AuiProvider>;
+  return <AuiProvider config={config}>{children}</AuiProvider>;
 };
 
 /**

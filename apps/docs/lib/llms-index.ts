@@ -1,4 +1,5 @@
 import { BASE_URL } from "./constants";
+import { AGENT_DISCOVERY_ROUTES } from "./agent-discovery-routes";
 
 type LLMIndexPage = {
   url: string;
@@ -46,6 +47,17 @@ export function buildLLMSIndex(
   );
   lines.push(
     "- Use the index below to choose a specific page. Remove the `.md` or `.mdx` suffix to open the human-readable docs page.",
+  );
+  lines.push("");
+  lines.push("## Agent Discovery");
+  lines.push("");
+  lines.push(
+    `- [Agent instructions](${BASE_URL}${AGENT_DISCOVERY_ROUTES.agents})`,
+    `- [Site skill](${BASE_URL}${AGENT_DISCOVERY_ROUTES.skill})`,
+    `- [API catalog](${BASE_URL}${AGENT_DISCOVERY_ROUTES.apiCatalog})`,
+    `- [Agent Skills index](${BASE_URL}${AGENT_DISCOVERY_ROUTES.skillsIndex})`,
+    `- [Markdown sitemap](${BASE_URL}${AGENT_DISCOVERY_ROUTES.sitemap})`,
+    `- [Documentation MCP endpoint](${BASE_URL}/mcp)`,
   );
   lines.push("");
   lines.push("## Table of Contents");
