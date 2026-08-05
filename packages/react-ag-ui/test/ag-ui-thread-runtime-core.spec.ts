@@ -2073,29 +2073,28 @@ describe("AGUIThreadRuntimeCore", () => {
         subscriber.onRunFinalized?.();
       }),
     } as unknown as HttpAgent;
-    const firstHistory: ThreadHistoryAdapter = {
+    const historyAdapter: ThreadHistoryAdapter = {
       key: "workspace-a",
-      load: vi.fn().mockResolvedValue({ messages: [] }),
-      append: vi.fn().mockResolvedValue(undefined),
-    };
-    const secondHistory: ThreadHistoryAdapter = {
-      key: "workspace-b",
-      load: vi.fn().mockResolvedValue({
-        headId: "message-b",
-        messages: [
-          {
-            parentId: null,
-            message: {
-              id: "message-b",
-              role: "user",
-              content: [{ type: "text", text: "workspace b" }],
-              createdAt: new Date(),
-              metadata: { custom: {} },
+      load: vi.fn(async () =>
+        historyAdapter.key === "workspace-a"
+          ? { messages: [] }
+          : {
+              headId: "message-b",
+              messages: [
+                {
+                  parentId: null,
+                  message: {
+                    id: "message-b",
+                    role: "user" as const,
+                    content: [{ type: "text" as const, text: "workspace b" }],
+                    createdAt: new Date(),
+                    metadata: { custom: {} },
+                  },
+                },
+              ],
+              unstable_resume: true,
             },
-          },
-        ],
-        unstable_resume: true,
-      }),
+      ),
       resume: vi.fn(async function* () {
         markResumeStarted();
         await resumedRun;
@@ -2106,29 +2105,31 @@ describe("AGUIThreadRuntimeCore", () => {
       }),
       append: vi.fn().mockResolvedValue(undefined),
     };
-    const core = createCore(agent, { history: firstHistory });
+    const core = createCore(agent, { history: historyAdapter });
     await core.__internal_load();
 
     const oldRun = core.append(createAppendMessage());
     await vi.waitFor(() => expect(agent.runAgent).toHaveBeenCalledOnce());
+    vi.mocked(historyAdapter.append).mockClear();
 
+    historyAdapter.key = "workspace-b";
     core.updateOptions({
       agent,
       logger: noopLogger,
       showThinking: true,
-      history: secondHistory,
+      history: historyAdapter,
     });
     const replacementLoad = core.__internal_load();
     await resumeStarted;
 
     expect(core.isRunning()).toBe(true);
-    expect(secondHistory.append).not.toHaveBeenCalled();
+    expect(historyAdapter.append).not.toHaveBeenCalled();
 
     releaseFirstRun();
     await oldRun;
 
     expect(core.isRunning()).toBe(true);
-    expect(secondHistory.append).not.toHaveBeenCalled();
+    expect(historyAdapter.append).not.toHaveBeenCalled();
     expect(
       core.getMessages().some((message) => message.id === "assistant-a"),
     ).toBe(false);
@@ -2137,7 +2138,7 @@ describe("AGUIThreadRuntimeCore", () => {
     await replacementLoad;
 
     expect(core.isRunning()).toBe(false);
-    expect(secondHistory.append).toHaveBeenCalledTimes(1);
+    expect(historyAdapter.append).toHaveBeenCalledTimes(1);
     expect(core.getMessages().map((message) => message.id)).not.toContain(
       "assistant-a",
     );

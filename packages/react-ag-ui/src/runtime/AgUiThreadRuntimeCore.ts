@@ -280,6 +280,7 @@ export class AgUiThreadRuntimeCore {
       this.lastHistoryAdapterKey !== undefined &&
       !Object.is(this.lastHistoryAdapterKey, key);
     if (replacingHistory) {
+      this.historyScopeGeneration += 1;
       void this.cancel();
       this.clearRepository();
       this.stateSnapshot = undefined;
