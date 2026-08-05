@@ -15,6 +15,8 @@ export type McpLocalStorageOptions = {
   storage?: Storage;
 };
 
+const DEFAULT_KEY_PREFIX = "aui-mcp";
+
 function resolveStorage(opts: McpLocalStorageOptions): Storage | null {
   if (opts.storage) return opts.storage;
   if (typeof globalThis !== "undefined" && "localStorage" in globalThis) {
@@ -154,7 +156,7 @@ export const normalizePersistedAuthState = (
 };
 
 const useMcpLocalStorage = (opts: McpLocalStorageOptions = {}): MCPStorage => {
-  const prefix = opts.keyPrefix ?? "aui-mcp";
+  const prefix = opts.keyPrefix ?? DEFAULT_KEY_PREFIX;
   const customServersKey = `${prefix}:custom-servers`;
   const authKey = (id: string) => `${prefix}:auth:${id}`;
   const storage = resolveStorage(opts);
@@ -208,4 +210,4 @@ const useMcpLocalStorage = (opts: McpLocalStorageOptions = {}): MCPStorage => {
 const McpLocalStorageResource = resource(useMcpLocalStorage);
 
 export const McpLocalStorage = (opts: McpLocalStorageOptions = {}) =>
-  withKey(opts.keyPrefix ?? "aui-mcp", McpLocalStorageResource(opts));
+  withKey(opts.keyPrefix ?? DEFAULT_KEY_PREFIX, McpLocalStorageResource(opts));

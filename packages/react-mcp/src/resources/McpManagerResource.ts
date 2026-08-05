@@ -55,6 +55,39 @@ type CustomServerState = {
   isHydrated: boolean;
 };
 
+type StorageScopeRegistry = WeakMap<
+  MCPStorageElement["hook"],
+  Map<
+    MCPStorageElement["key"],
+    Map<McpManagerResourceProps["storageScopeKey"], object>
+  >
+>;
+
+const getStorageScope = (
+  registry: StorageScopeRegistry,
+  storageElement: MCPStorageElement,
+  storageScopeKey: McpManagerResourceProps["storageScopeKey"],
+) => {
+  let scopesByElementKey = registry.get(storageElement.hook);
+  if (!scopesByElementKey) {
+    scopesByElementKey = new Map();
+    registry.set(storageElement.hook, scopesByElementKey);
+  }
+
+  let scopesByExplicitKey = scopesByElementKey.get(storageElement.key);
+  if (!scopesByExplicitKey) {
+    scopesByExplicitKey = new Map();
+    scopesByElementKey.set(storageElement.key, scopesByExplicitKey);
+  }
+
+  let storageScope = scopesByExplicitKey.get(storageScopeKey);
+  if (!storageScope) {
+    storageScope = {};
+    scopesByExplicitKey.set(storageScopeKey, storageScope);
+  }
+  return storageScope;
+};
+
 const storageScopeResourceKeys = new WeakMap<object, number>();
 let nextStorageScopeResourceKey = 0;
 
@@ -101,13 +134,11 @@ const useMcpManagerResource = (
   const storage = useResource(storageElement);
 
   // Tap resource identity excludes args because they may be recreated inline.
-  const storageScope = useMemo(
-    () => ({
-      hook: storageElement.hook,
-      key: storageElement.key,
-      storageScopeKey,
-    }),
-    [storageElement.hook, storageElement.key, storageScopeKey],
+  const storageScopeRegistryRef = useRef<StorageScopeRegistry>(new WeakMap());
+  const storageScope = getStorageScope(
+    storageScopeRegistryRef.current,
+    storageElement,
+    storageScopeKey,
   );
   const serverResourceKeyPrefix = `${getStorageScopeResourceKey(storageScope)}:`;
   const [customServerState, setCustomServerState] = useState<CustomServerState>(
