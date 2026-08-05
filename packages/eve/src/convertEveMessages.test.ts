@@ -48,7 +48,7 @@ describe("convertEveMessages", () => {
     });
   });
 
-  it("maps a streaming part state to a running part status", () => {
+  it("omits the part status when the part state is still streaming", () => {
     const data = {
       messages: [
         {
@@ -65,13 +65,9 @@ describe("convertEveMessages", () => {
 
     const messages = convertEveMessages(data, { isRunning: true });
 
-    expect(messages[0]!.content).toEqual([
-      expect.objectContaining({
-        type: "reasoning",
-        status: { type: "running" },
-      }),
-      expect.objectContaining({ type: "text", status: { type: "running" } }),
-    ]);
+    for (const part of messages[0]!.content) {
+      expect(part).not.toHaveProperty("status");
+    }
   });
 
   it("maps a done part state to a complete part status", () => {
@@ -764,17 +760,13 @@ describe("convertEveMessages", () => {
             expect.objectContaining({ type: "reasoning", state: "streaming" }),
           ]),
         );
-        expect(
-          convertEveMessages(reasoningState, { isRunning: true }).at(-1)
-            ?.content,
-        ).toEqual(
-          expect.arrayContaining([
-            expect.objectContaining({
-              type: "reasoning",
-              status: { type: "running" },
-            }),
-          ]),
-        );
+        const reasoningContent = convertEveMessages(reasoningState, {
+          isRunning: true,
+        }).at(-1)?.content;
+        expect(reasoningContent).toEqual([
+          expect.objectContaining({ type: "reasoning" }),
+        ]);
+        expect(reasoningContent?.[0]).not.toHaveProperty("status");
 
         const textState = replay([
           ...reasoningEvents,
@@ -807,20 +799,66 @@ describe("convertEveMessages", () => {
             expect.objectContaining({ type: "text", state: "streaming" }),
           ]),
         );
-        expect(
-          convertEveMessages(textState, { isRunning: true }).at(-1)?.content,
-        ).toEqual(
+        const textContent = convertEveMessages(textState, {
+          isRunning: true,
+        }).at(-1)?.content;
+        expect(textContent).toEqual([
+          expect.objectContaining({
+            type: "reasoning",
+            status: { type: "complete" },
+          }),
+          expect.objectContaining({ type: "text" }),
+        ]);
+        expect(textContent?.[1]).not.toHaveProperty("status");
+      });
+
+      it("leaves a reasoning part unsettled when a tool call follows it", () => {
+        const state = replay([
+          ...midStreamEvents.slice(0, 3),
+          {
+            type: "reasoning.appended",
+            data: {
+              turnId: "turn_1",
+              stepIndex: 0,
+              sequence: 2,
+              reasoningDelta: "Think",
+              reasoningSoFar: "Think",
+            },
+          },
+          {
+            type: "actions.requested",
+            data: {
+              turnId: "turn_1",
+              stepIndex: 0,
+              sequence: 3,
+              actions: [
+                {
+                  kind: "tool-call",
+                  callId: "call_1",
+                  toolName: "search",
+                  input: {},
+                },
+              ],
+            },
+          },
+        ] as readonly EveAgentReducerEvent[]);
+
+        const message = state.messages.find((m) => m.role === "assistant");
+        expect(message?.parts).toEqual(
           expect.arrayContaining([
-            expect.objectContaining({
-              type: "reasoning",
-              status: { type: "complete" },
-            }),
-            expect.objectContaining({
-              type: "text",
-              status: { type: "running" },
-            }),
+            expect.objectContaining({ type: "reasoning", state: "streaming" }),
+            expect.objectContaining({ type: "dynamic-tool" }),
           ]),
         );
+
+        const content = convertEveMessages(state, { isRunning: true }).at(
+          -1,
+        )?.content;
+        expect(content).toEqual([
+          expect.objectContaining({ type: "reasoning" }),
+          expect.objectContaining({ type: "tool-call" }),
+        ]);
+        expect(content?.[0]).not.toHaveProperty("status");
       });
 
       it("a locally aborted turn keeps its streaming marker and converts to cancelled", () => {
