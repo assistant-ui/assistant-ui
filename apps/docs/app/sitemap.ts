@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { source, getTapDocsPages, blog, examples, careers } from "@/lib/source";
+import { ELEMENTS } from "@/components/elements/registry";
 import { DEMOS } from "@/lib/demos";
 import { GALLERY_TEMPLATES } from "@/lib/gallery-templates";
 import { BASE_URL, PRODUCTS } from "@/lib/constants";
@@ -11,6 +12,11 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${BASE_URL}/careers`, changeFrequency: "weekly", priority: 0.7 },
     { url: `${BASE_URL}/pricing`, changeFrequency: "monthly", priority: 0.8 },
     { url: `${BASE_URL}/showcase`, changeFrequency: "weekly", priority: 0.7 },
+    {
+      url: `${BASE_URL}/elements`,
+      changeFrequency: "weekly",
+      priority: 0.7,
+    },
     { url: `${BASE_URL}/gallery`, changeFrequency: "weekly", priority: 0.7 },
     {
       url: `${BASE_URL}/gallery/components`,
@@ -68,6 +74,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.6,
     }));
 
+  const elementPages: MetadataRoute.Sitemap = ELEMENTS.map((element) => ({
+    url: `${BASE_URL}/elements/${element.slug}`,
+    changeFrequency: "weekly" as const,
+    priority: 0.6,
+  }));
+
   const demoPages: MetadataRoute.Sitemap = DEMOS.map((demo) => ({
     url: `${BASE_URL}/demos/${demo.slug}`,
     changeFrequency: "monthly" as const,
@@ -96,6 +108,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     ...tapDocsPages,
     ...blogPages,
     ...examplePages,
+    ...elementPages,
     ...demoPages,
     ...galleryPages,
     ...careerPages,

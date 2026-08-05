@@ -61,6 +61,12 @@ const config: NextConfig = {
   transpilePackages: ["@assistant-ui/ui", "shiki"],
   serverExternalPackages: ["just-bash"],
   skipTrailingSlashRedirect: true,
+  outputFileTracingIncludes: {
+    "/elements/[slug]": [
+      "./components/elements/*.tsx",
+      "../../packages/ui/src/components/elements/*.tsx",
+    ],
+  },
   headers: async () => [
     {
       source: "/(.*)",
