@@ -48,6 +48,79 @@ describe("convertEveMessages", () => {
     });
   });
 
+  it("maps a streaming part state to a running part status", () => {
+    const data = {
+      messages: [
+        {
+          id: "a1",
+          role: "assistant",
+          metadata: { status: "streaming" },
+          parts: [
+            { type: "reasoning", text: "Thinking", state: "streaming" },
+            { type: "text", text: "Hi", state: "streaming" },
+          ],
+        },
+      ],
+    } satisfies EveMessageData;
+
+    const messages = convertEveMessages(data, { isRunning: true });
+
+    expect(messages[0]!.content).toEqual([
+      expect.objectContaining({
+        type: "reasoning",
+        status: { type: "running" },
+      }),
+      expect.objectContaining({ type: "text", status: { type: "running" } }),
+    ]);
+  });
+
+  it("maps a done part state to a complete part status", () => {
+    const data = {
+      messages: [
+        {
+          id: "a1",
+          role: "assistant",
+          metadata: { status: "complete" },
+          parts: [
+            { type: "reasoning", text: "Thinking", state: "done" },
+            { type: "text", text: "Hi", state: "done" },
+          ],
+        },
+      ],
+    } satisfies EveMessageData;
+
+    const messages = convertEveMessages(data);
+
+    expect(messages[0]!.content).toEqual([
+      expect.objectContaining({
+        type: "reasoning",
+        status: { type: "complete" },
+      }),
+      expect.objectContaining({ type: "text", status: { type: "complete" } }),
+    ]);
+  });
+
+  it("omits the part status when the part state is absent", () => {
+    const data = {
+      messages: [
+        {
+          id: "a1",
+          role: "assistant",
+          parts: [
+            { type: "reasoning", text: "Thinking" },
+            { type: "text", text: "Hi" },
+          ],
+        },
+      ],
+    } satisfies EveMessageData;
+
+    const messages = convertEveMessages(data);
+
+    for (const part of messages[0]!.content) {
+      expect(part).not.toHaveProperty("status");
+    }
+  });
+
   it("converts dynamic tool parts with approval options", () => {
     const data = {
       messages: [

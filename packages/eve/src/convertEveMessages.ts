@@ -4,6 +4,7 @@ import {
   type AppendMessage,
   type CompleteAttachment,
   type FileMessagePart,
+  type MessagePartStreamStatus,
   type MessageStatus,
   type RespondToToolApprovalOptions,
   type ThreadAssistantMessagePart,
@@ -218,13 +219,27 @@ const convertFilePart = (
   };
 };
 
+const partStateToStatus = (
+  state: "done" | "streaming" | undefined,
+): MessagePartStreamStatus | undefined => {
+  if (state === "streaming") return { type: "running" };
+  if (state === "done") return { type: "complete" };
+  return undefined;
+};
+
 const convertAssistantPart = (
   part: EveMessagePart,
 ): ThreadAssistantMessagePart | null => {
   switch (part.type) {
     case "text":
-    case "reasoning":
-      return { type: part.type, text: part.text };
+    case "reasoning": {
+      const status = partStateToStatus(part.state);
+      return {
+        type: part.type,
+        text: part.text,
+        ...(status && { status }),
+      };
+    }
 
     case "step-start":
       return null;
