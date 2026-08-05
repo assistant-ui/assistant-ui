@@ -264,6 +264,281 @@ describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
       const lastCall = setMessages.mock.lastCall?.[0] as ThreadMessage[];
       expect(lastCall.map((m) => m.id)).not.toContain("server-msg");
     });
+
+    it("does not overwrite messages appended after cancel", async () => {
+      const initialMessages = [
+        createUserMessage("u1"),
+        createAssistantMessage("a1"),
+      ];
+      const appendedMessage = createUserMessage("u2", "Follow up");
+      const setMessages = vi.fn();
+      const onCancel = vi.fn();
+      let core!: ExternalStoreThreadRuntimeCore;
+      const onNew = vi.fn(async () => {
+        core.__internal_setAdapter(
+          createBaseAdapter({
+            messages: [...initialMessages, appendedMessage],
+            isRunning: true,
+            onCancel,
+            onNew,
+            setMessages,
+          }),
+        );
+      });
+      core = new ExternalStoreThreadRuntimeCore(
+        contextProvider,
+        createBaseAdapter({
+          messages: initialMessages,
+          isRunning: true,
+          onCancel,
+          onNew,
+          setMessages,
+        }),
+      );
+
+      core.cancelRun();
+      await core.append({
+        role: "user",
+        content: appendedMessage.content,
+        attachments: [],
+        createdAt: appendedMessage.createdAt,
+        parentId: "a1",
+        sourceId: null,
+        runConfig: undefined,
+        metadata: appendedMessage.metadata,
+      } as AppendMessage);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(setMessages).toHaveBeenCalledOnce();
+      expect(
+        (setMessages.mock.lastCall?.[0] as ThreadMessage[] | undefined)?.map(
+          (message) => message.id,
+        ),
+      ).toEqual(["u1", "a1", "u2"]);
+      expect(core.messages.map((message) => message.id)).toContain("u2");
+    });
+
+    it("resyncs messages when an append is only queued", async () => {
+      const setMessages = vi.fn();
+      const queue = {
+        items: [],
+        enqueue: vi.fn(),
+        steer: vi.fn(),
+        remove: vi.fn(),
+        clear: vi.fn(),
+      };
+      const core = new ExternalStoreThreadRuntimeCore(
+        contextProvider,
+        createBaseAdapter({
+          messages: [createUserMessage("u1"), createAssistantMessage("a1")],
+          isRunning: true,
+          onCancel: vi.fn(),
+          setMessages,
+          queue,
+        }),
+      );
+
+      core.cancelRun();
+      await core.append({
+        role: "user",
+        content: [{ type: "text", text: "Follow up" }],
+        attachments: [],
+        createdAt: new Date(),
+        parentId: "a1",
+        sourceId: null,
+        runConfig: undefined,
+        metadata: { custom: {} },
+      } as AppendMessage);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(queue.enqueue).toHaveBeenCalledOnce();
+      expect(setMessages).toHaveBeenCalledOnce();
+    });
+
+    it("does not treat a regenerated optimistic message as a new append", async () => {
+      const initialMessages = [createUserMessage("u1")];
+      const setMessages = vi.fn();
+      const onCancel = vi.fn();
+      const core = new ExternalStoreThreadRuntimeCore(
+        contextProvider,
+        createBaseAdapter({
+          messages: initialMessages,
+          isRunning: true,
+          onCancel,
+          setMessages,
+        }),
+      );
+
+      core.cancelRun();
+      core.__internal_setAdapter(
+        createBaseAdapter({
+          messages: [...initialMessages],
+          isRunning: true,
+          onCancel,
+          setMessages,
+        }),
+      );
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(setMessages).toHaveBeenCalledOnce();
+      expect(setMessages).toHaveBeenCalledWith([]);
+    });
+
+    it("preserves adapter-owned optimistic messages appended after cancel", async () => {
+      const initialMessages = [
+        createUserMessage("u1"),
+        createAssistantMessage("a1"),
+      ];
+      const optimisticMessage = {
+        ...createUserMessage("u2", "Follow up"),
+        metadata: { custom: {}, isOptimistic: true },
+      } as ThreadMessage;
+      const setMessages = vi.fn();
+      const onCancel = vi.fn();
+      const core = new ExternalStoreThreadRuntimeCore(
+        contextProvider,
+        createBaseAdapter({
+          messages: initialMessages,
+          isRunning: true,
+          onCancel,
+          setMessages,
+        }),
+      );
+
+      core.cancelRun();
+      core.__internal_setAdapter(
+        createBaseAdapter({
+          messages: [...initialMessages, optimisticMessage],
+          isRunning: true,
+          onCancel,
+          setMessages,
+        }),
+      );
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(setMessages).toHaveBeenCalledOnce();
+      expect(
+        (setMessages.mock.lastCall?.[0] as ThreadMessage[] | undefined)?.map(
+          (message) => message.id,
+        ),
+      ).toEqual(["u1", "a1", "u2"]);
+    });
+
+    it("resyncs when a pre-existing optimistic user message settles", async () => {
+      const initialMessages = [
+        createUserMessage("u1"),
+        createAssistantMessage("a1"),
+      ];
+      const optimisticMessage = {
+        ...createUserMessage("u2", "Pending"),
+        metadata: { custom: {}, isOptimistic: true },
+      } as ThreadMessage;
+      const settledMessage = {
+        ...optimisticMessage,
+        metadata: { custom: {}, isOptimistic: false },
+      } as ThreadMessage;
+      const setMessages = vi.fn();
+      const onCancel = vi.fn();
+      const core = new ExternalStoreThreadRuntimeCore(
+        contextProvider,
+        createBaseAdapter({
+          messages: [...initialMessages, optimisticMessage],
+          isRunning: true,
+          onCancel,
+          setMessages,
+        }),
+      );
+
+      core.cancelRun();
+      core.__internal_setAdapter(
+        createBaseAdapter({
+          messages: [...initialMessages, settledMessage],
+          isRunning: false,
+          onCancel,
+          setMessages,
+        }),
+      );
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(setMessages).toHaveBeenCalledOnce();
+      expect(
+        (setMessages.mock.lastCall?.[0] as ThreadMessage[] | undefined)?.map(
+          (message) => message.id,
+        ),
+      ).toEqual(["u1", "a1"]);
+    });
+
+    it("preserves new messages while removing the cancelled user message", async () => {
+      const initialMessages = [
+        createUserMessage("u1"),
+        createAssistantMessage("a1"),
+      ];
+      const cancelledMessage = createUserMessage("u2", "Cancelled");
+      const appendedMessage = createUserMessage("u3", "Replacement");
+      const setMessages = vi.fn();
+      const onCancel = vi.fn();
+      const core = new ExternalStoreThreadRuntimeCore(
+        contextProvider,
+        createBaseAdapter({
+          messages: [...initialMessages, cancelledMessage],
+          isRunning: true,
+          onCancel,
+          setMessages,
+        }),
+      );
+
+      core.cancelRun();
+      core.__internal_setAdapter(
+        createBaseAdapter({
+          messages: [...initialMessages, cancelledMessage, appendedMessage],
+          isRunning: true,
+          onCancel,
+          setMessages,
+        }),
+      );
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(setMessages).toHaveBeenCalledOnce();
+      expect(
+        (setMessages.mock.lastCall?.[0] as ThreadMessage[] | undefined)?.map(
+          (message) => message.id,
+        ),
+      ).toEqual(["u1", "a1", "u3"]);
+      expect(core.composer.text).toBe("Cancelled");
+    });
+
+    it("resyncs messages when an append fails", async () => {
+      const setMessages = vi.fn();
+      const core = new ExternalStoreThreadRuntimeCore(
+        contextProvider,
+        createBaseAdapter({
+          messages: [createUserMessage("u1"), createAssistantMessage("a1")],
+          isRunning: true,
+          onCancel: vi.fn(),
+          onNew: vi.fn(async () => {
+            throw new Error("send failed");
+          }),
+          setMessages,
+        }),
+      );
+
+      core.cancelRun();
+      await expect(
+        core.append({
+          role: "user",
+          content: [{ type: "text", text: "Follow up" }],
+          attachments: [],
+          createdAt: new Date(),
+          parentId: "a1",
+          sourceId: null,
+          runConfig: undefined,
+          metadata: { custom: {} },
+        } as AppendMessage),
+      ).rejects.toThrow("send failed");
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(setMessages).toHaveBeenCalledOnce();
+    });
   });
 
   describe("optimistic assistant message", () => {

@@ -116,6 +116,8 @@ export class ExternalStoreThreadRuntimeCore
 
   private _store!: ExternalStoreAdapter<any>;
 
+  private _optimisticMessageId: string | null = null;
+
   /**
    * Client-side tool-invocations pipeline. Constructed lazily on first
    * snapshot — only when `adapter.unstable_enableToolInvocations === true`.
@@ -299,20 +301,22 @@ export class ExternalStoreThreadRuntimeCore
     // Append an optimistic placeholder while running but before a trailing
     // assistant message exists. resetHead evicts off-branch optimistic messages
     // (prior placeholders, mid-run id-swap siblings); export() never persists them.
-    let optimisticId: string | null = null;
+    this._optimisticMessageId = null;
     if (hasUpcomingMessage(isRunning, messages)) {
-      optimisticId = generateId();
+      this._optimisticMessageId = generateId();
       this.repository.addOrUpdateMessage(
         messages.at(-1)?.id ?? null,
         fromThreadMessageLike(
           { role: "assistant", content: [], metadata: { isOptimistic: true } },
-          optimisticId,
+          this._optimisticMessageId,
           { type: "running" },
         ),
       );
     }
 
-    this.repository.resetHead(optimisticId ?? messages.at(-1)?.id ?? null);
+    this.repository.resetHead(
+      this._optimisticMessageId ?? messages.at(-1)?.id ?? null,
+    );
 
     this._messages = this.repository.getMessages();
 
@@ -579,6 +583,14 @@ export class ExternalStoreThreadRuntimeCore
     if (!this._store.onCancel)
       throw new Error("Runtime does not support cancelling runs.");
 
+    // export() covers off-branch messages but omits optimistic ones; getMessages()
+    // contributes optimistic messages from the current branch.
+    const messageIdsBeforeCancel = new Set([
+      ...this.repository.export().messages.map(({ message }) => message.id),
+      ...this.repository.getMessages().map((message) => message.id),
+    ]);
+    const removedMessageIds = new Set<string>();
+
     this._store.queue?.clear("cancel-run");
 
     // Abort any in-flight client-side tool executions. Fire-and-forget —
@@ -592,6 +604,7 @@ export class ExternalStoreThreadRuntimeCore
     // partially-streamed one is kept and re-supplied by the store on resync.
     const head = this.repository.getMessages().at(-1);
     if (head && head.metadata.isOptimistic && head.content.length === 0) {
+      removedMessageIds.add(head.id);
       this.repository.deleteMessage(head.id);
     }
 
@@ -601,6 +614,7 @@ export class ExternalStoreThreadRuntimeCore
       previousMessage?.role === "user" &&
       previousMessage.id === messages.at(-1)?.id // ensure the previous message is a leaf node
     ) {
+      removedMessageIds.add(previousMessage.id);
       this.repository.deleteMessage(previousMessage.id);
       if (!this.composer.text.trim()) {
         this.composer.setText(getThreadMessageText(previousMessage));
@@ -613,7 +627,21 @@ export class ExternalStoreThreadRuntimeCore
 
     // resync messages (for reloading, to restore the previous branch)
     setTimeout(() => {
-      this.updateMessages(messages);
+      const latestMessages = this.repository.getMessages();
+      const hasNewMessage = latestMessages.some(
+        (message) =>
+          message.id !== this._optimisticMessageId &&
+          !messageIdsBeforeCancel.has(message.id),
+      );
+      this.updateMessages(
+        hasNewMessage
+          ? latestMessages.filter(
+              (message) =>
+                message.id !== this._optimisticMessageId &&
+                !removedMessageIds.has(message.id),
+            )
+          : messages,
+      );
     }, 0);
   }
 
