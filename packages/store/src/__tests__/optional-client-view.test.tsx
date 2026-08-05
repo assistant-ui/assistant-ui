@@ -72,7 +72,7 @@ describe("optional client view", () => {
     expect(aui.optional.thread?.getState()).toBeUndefined();
     expect("optional" in aui).toBe(true);
     expect(Reflect.ownKeys(aui)).toContain("optional");
-    expect(Object.keys(aui)).toContain("optional");
+    expect(Object.keys(aui)).not.toContain("optional");
     expect(() => aui.thread.getState()).toThrow(
       "You are using a component or hook that requires an AuiProvider.",
     );

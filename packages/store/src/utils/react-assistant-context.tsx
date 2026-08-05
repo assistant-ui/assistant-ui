@@ -48,6 +48,16 @@ class EmptyAssistantClientProxyHandler
   has(_: unknown, prop: string | symbol): boolean {
     return prop === "subscribe" || prop === "on" || prop === "optional";
   }
+
+  // Built clients define `optional` non-enumerable; report it the same here
+  // so it is never an own enumerable key on any client flavor
+  override getOwnPropertyDescriptor(_: unknown, prop: string | symbol) {
+    const descriptor = super.getOwnPropertyDescriptor(_, prop);
+    if (descriptor && prop === "optional") {
+      return { ...descriptor, enumerable: false };
+    }
+    return descriptor;
+  }
 }
 
 const createEmptyAssistantClient = (
