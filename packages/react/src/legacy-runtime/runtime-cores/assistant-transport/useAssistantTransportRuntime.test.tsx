@@ -271,6 +271,172 @@ describe("useAssistantTransportRuntime", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
+  it("sends and commits a retained null state instead of falling back to local state", async () => {
+    const requests: RecordedRequest[] = [];
+    vi.stubGlobal(
+      "fetch",
+      async (url: RequestInfo | URL, init: RequestInit = {}) => {
+        requests.push({
+          url: String(url),
+          init,
+          body: JSON.parse(init.body as string),
+        });
+
+        if (String(url) === "https://example.com/resume-state") {
+          return Response.json({ runId: "run-1", state: null });
+        }
+
+        return new Response("", { status: 200 });
+      },
+    );
+    const { aui } = mountRuntime({
+      resumeApi: "https://example.com/resume",
+      resumeStateApi: "https://example.com/resume-state",
+    });
+    await waitFor(() =>
+      expect(
+        (aui().thread.getState().extras as { sendCommand?: unknown })
+          ?.sendCommand,
+      ).toBeTypeOf("function"),
+    );
+
+    act(() => {
+      aui().thread.importExternalState({ message: "Wrong" });
+    });
+    await act(async () => {
+      await aui().thread.resumeRun({ parentId: null });
+    });
+
+    expect(requests[1]!.body).toMatchObject({ runId: "run-1", state: null });
+    await waitFor(() =>
+      expect(
+        (aui().thread.getState().extras as { state: unknown }).state,
+      ).toBeNull(),
+    );
+  });
+
+  it("skips the resume without error when the state endpoint reports no active run", async () => {
+    const fetchMock = vi.fn(async () => new Response(null, { status: 204 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const onError = vi.fn();
+    const { aui } = mountRuntime({
+      resumeApi: "https://example.com/resume",
+      resumeStateApi: "https://example.com/resume-state",
+      onError,
+    });
+    await waitFor(() =>
+      expect(
+        (aui().thread.getState().extras as { sendCommand?: unknown })
+          ?.sendCommand,
+      ).toBeTypeOf("function"),
+    );
+
+    act(() => {
+      aui().thread.importExternalState({ message: "Kept" });
+    });
+    await act(async () => {
+      await aui().thread.resumeRun({ parentId: null });
+    });
+
+    await waitFor(() => expect(aui().thread.getState().isRunning).toBe(false));
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(onError).not.toHaveBeenCalled();
+    expect(
+      (aui().thread.getState().extras as { state: unknown }).state,
+    ).toEqual({ message: "Kept" });
+  });
+
+  it("keeps the retained snapshot over body overrides in the resume request", async () => {
+    const requests: RecordedRequest[] = [];
+    vi.stubGlobal(
+      "fetch",
+      async (url: RequestInfo | URL, init: RequestInit = {}) => {
+        requests.push({
+          url: String(url),
+          init,
+          body: JSON.parse(init.body as string),
+        });
+
+        if (String(url) === "https://example.com/resume-state") {
+          return Response.json({
+            runId: "run-1",
+            state: { message: "Hello" },
+          });
+        }
+
+        return new Response("", { status: 200 });
+      },
+    );
+    const { aui } = mountRuntime({
+      resumeApi: "https://example.com/resume",
+      resumeStateApi: "https://example.com/resume-state",
+      body: { state: { message: "Injected" }, runId: "bogus" },
+    });
+    await waitFor(() =>
+      expect(
+        (aui().thread.getState().extras as { sendCommand?: unknown })
+          ?.sendCommand,
+      ).toBeTypeOf("function"),
+    );
+
+    await act(async () => {
+      await aui().thread.resumeRun({ parentId: null });
+    });
+
+    expect(requests[1]!.body).toMatchObject({
+      runId: "run-1",
+      state: { message: "Hello" },
+    });
+  });
+
+  it("re-attaches runId when prepareSendCommandsRequest rebuilds the body", async () => {
+    const requests: RecordedRequest[] = [];
+    vi.stubGlobal(
+      "fetch",
+      async (url: RequestInfo | URL, init: RequestInit = {}) => {
+        requests.push({
+          url: String(url),
+          init,
+          body: JSON.parse(init.body as string),
+        });
+
+        if (String(url) === "https://example.com/resume-state") {
+          return Response.json({
+            runId: "run-1",
+            state: { message: "Hello" },
+          });
+        }
+
+        return new Response("", { status: 200 });
+      },
+    );
+    const { aui } = mountRuntime({
+      resumeApi: "https://example.com/resume",
+      resumeStateApi: "https://example.com/resume-state",
+      prepareSendCommandsRequest: (body) => ({
+        commands: body.commands,
+        state: body.state,
+        rebuilt: true,
+      }),
+    });
+    await waitFor(() =>
+      expect(
+        (aui().thread.getState().extras as { sendCommand?: unknown })
+          ?.sendCommand,
+      ).toBeTypeOf("function"),
+    );
+
+    await act(async () => {
+      await aui().thread.resumeRun({ parentId: null });
+    });
+
+    expect(requests[1]!.body).toMatchObject({
+      runId: "run-1",
+      state: { message: "Hello" },
+      rebuilt: true,
+    });
+  });
+
   it("keeps local state when the matching resume stream is rejected", async () => {
     const fetchMock = vi
       .fn()

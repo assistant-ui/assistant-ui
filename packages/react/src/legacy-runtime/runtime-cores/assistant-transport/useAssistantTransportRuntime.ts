@@ -72,7 +72,8 @@ const convertAppendMessageToCommand = (
 
 const readResumeState = async <T>(
   response: Response,
-): Promise<{ runId: string; state: T }> => {
+): Promise<{ runId: string; state: T } | null> => {
+  if (response.status === 204) return null;
   if (!response.ok) {
     throw new Error(
       `Resume state request failed with status ${response.status}: ${await response.text()}`,
@@ -181,7 +182,14 @@ const useAssistantTransportThreadRuntime = <T>(
           body: JSON.stringify({ threadId }),
           signal,
         });
-        resumeState = await readResumeState<T>(resumeStateResponse);
+        const retained = await readResumeState<T>(resumeStateResponse);
+        if (retained === null) {
+          if (commandQueue.state.queued.length > 0) {
+            runManager.schedule();
+          }
+          return;
+        }
+        resumeState = retained;
       }
 
       const bodyValue =
@@ -192,8 +200,7 @@ const useAssistantTransportThreadRuntime = <T>(
 
       let requestBody: Record<string, unknown> = {
         commands,
-        state: resumeState?.state ?? agentStateRef.current,
-        ...(resumeState !== undefined && { runId: resumeState.runId }),
+        state: agentStateRef.current,
         system: context.system,
         tools: context.tools ? toToolsJSONSchema(context.tools) : undefined,
         threadId,
@@ -207,12 +214,21 @@ const useAssistantTransportThreadRuntime = <T>(
         ...context.callSettings,
         ...context.config,
         ...(bodyValue ?? {}),
+        ...(resumeState !== undefined && {
+          state: resumeState.state,
+          runId: resumeState.runId,
+        }),
       };
 
       if (options.prepareSendCommandsRequest) {
-        requestBody = await options.prepareSendCommandsRequest(
-          requestBody as SendCommandsRequestBody,
-        );
+        requestBody = {
+          ...(await options.prepareSendCommandsRequest(
+            requestBody as SendCommandsRequestBody,
+          )),
+          // The server validates the resume against this ID; a prepare hook
+          // that rebuilds the body must not be able to silently drop it.
+          ...(resumeState !== undefined && { runId: resumeState.runId }),
+        };
       }
 
       const response = await fetch(

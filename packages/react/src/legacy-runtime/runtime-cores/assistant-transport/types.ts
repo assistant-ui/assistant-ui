@@ -110,7 +110,7 @@ export type AssistantTransportOptions<T> = {
   initialState: T;
   api: string;
   resumeApi?: string;
-  /** Endpoint that returns the initial state and run ID for a resume stream. */
+  /** Endpoint that returns the retained initial state and run ID for a resume stream. A 204 response means no run is active and the resume is skipped. */
   resumeStateApi?: string;
   protocol?: AssistantTransportProtocol;
   converter: AssistantTransportStateConverter<T>;
