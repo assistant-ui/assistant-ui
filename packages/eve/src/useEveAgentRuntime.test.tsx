@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { renderHook } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 const { mockUseEveAgent } = vi.hoisted(() => ({
@@ -122,7 +122,38 @@ describe("useEveAgentRuntime extras wiring", () => {
       error,
       events,
       session,
-      reset,
+      reset: expect.any(Function),
     });
+  });
+
+  it("clears adapter-owned staged messages when reset is invoked", async () => {
+    const agent = createAgent({
+      data: { messages: [] } satisfies EveMessageData,
+    });
+    mockUseEveAgent.mockReturnValue(agent as never);
+
+    const { result } = renderHook(() => useEveAgentRuntime());
+
+    act(() => {
+      result.current.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "draft" }],
+        startRun: false,
+      });
+    });
+
+    await waitFor(() => {
+      expect(result.current.thread.getState().messages).toHaveLength(1);
+    });
+
+    act(() => {
+      const extras = result.current.thread.getState().extras;
+      eveExtras.tryGet(extras)!.reset();
+    });
+
+    await waitFor(() => {
+      expect(result.current.thread.getState().messages).toHaveLength(0);
+    });
+    expect(agent.reset).toHaveBeenCalledTimes(1);
   });
 });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import {
   fromThreadMessageLike,
   generateId,
@@ -150,15 +150,22 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
     ]);
   };
 
+  const reset = useCallback(() => {
+    setStagedMessages(null);
+    stagedInputsRef.current.clear();
+    setToolStatuses({});
+    agent.reset();
+  }, [agent]);
+
   const extras = useMemo(
     () =>
       eveExtras.provide({
         error: agent.error,
         events: agent.events,
         session: agent.session,
-        reset: agent.reset,
+        reset,
       }),
-    [agent.error, agent.events, agent.session, agent.reset],
+    [agent.error, agent.events, agent.session, reset],
   );
 
   return useExternalStoreRuntime({
