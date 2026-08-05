@@ -20,6 +20,7 @@ type AnyRecord = Record<string | symbol, unknown>;
 export const createClientAccessor = <K extends ClientNames>(
   meta: AccessorMeta,
   read: () => ClientMethods,
+  readClientIdTarget: () => ClientMethods = read,
 ): AssistantClientAccessor<K> => {
   const proxy = new Proxy((() => {}) as unknown as AssistantClientAccessor<K>, {
     apply: () => {
@@ -30,7 +31,7 @@ export const createClientAccessor = <K extends ClientNames>(
       if (prop === "source") return meta.source;
       if (prop === "query") return meta.query;
       if (prop === "name") return meta.name;
-      if (prop === CLIENT_ID_SYMBOL) return getClientId(read());
+      if (prop === CLIENT_ID_SYMBOL) return getClientId(readClientIdTarget());
       return (read() as AnyRecord)[prop];
     },
     has: (_, prop) =>

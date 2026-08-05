@@ -3,10 +3,17 @@
 import { useRef, useState } from "react";
 import { act, cleanup, render } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
-import { flushTapSync, resource } from "@assistant-ui/tap";
+import {
+  flushTapSync,
+  resource,
+  withKey,
+  type ResourceElement,
+} from "@assistant-ui/tap";
 import { useAui } from "../useAui";
 import { Derived } from "../Derived";
 import type { AssistantClient } from "../types/client";
+import { useClientResource } from "../useClientResource";
+import { getClientId } from "../utils/client-accessor";
 
 type AnyClient = Record<string, any>;
 
@@ -24,6 +31,26 @@ const useThreadClient = () => {
 };
 
 const ThreadClient = resource(useThreadClient);
+
+type IdentityClientMethods = {
+  getState(): { id: string };
+};
+
+const useIdentityClient = ({ id }: { id: string }): IdentityClientMethods => ({
+  getState: () => ({ id }),
+});
+
+const IdentityClient = resource(useIdentityClient);
+
+const useAlternateIdentityClient = ({
+  id,
+}: {
+  id: string;
+}): IdentityClientMethods => ({
+  getState: () => ({ id }),
+});
+
+const AlternateIdentityClient = resource(useAlternateIdentityClient);
 
 const messageDerived = () =>
   Derived({
@@ -82,11 +109,86 @@ describe("accessor property API", () => {
     const aui = getAui();
     const thread = aui.thread;
     const message = aui.message;
+    const threadId = getClientId(thread);
+    const messageId = getClientId(message);
 
     act(() => bump());
 
     expect(getAui().thread).toBe(thread);
     expect(getAui().message).toBe(message);
+    expect(getClientId(getAui().thread)).toBe(threadId);
+    expect(getClientId(getAui().message)).toBe(messageId);
+  });
+
+  it("structural root replacement produces a new bound client identity", () => {
+    let aui!: AnyClient;
+    const clients = {
+      current: IdentityClient({ id: "a" }),
+      replacement: AlternateIdentityClient({ id: "b" }),
+    };
+    const Harness = ({ client }: { client: keyof typeof clients }) => {
+      aui = useAui({ thread: clients[client] });
+      return null;
+    };
+
+    const { rerender } = render(<Harness client="current" />);
+    const initialAccessor = aui.thread;
+    const initialClientId = getClientId(initialAccessor);
+
+    rerender(<Harness client="replacement" />);
+
+    expect(aui.thread).not.toBe(initialAccessor);
+    expect(getClientId(aui.thread)).not.toBe(initialClientId);
+  });
+
+  it("replaces useClientResource methods only for hook or key changes", () => {
+    let methods!: IdentityClientMethods;
+    const useNestedThreadClient = ({
+      element,
+    }: {
+      element: ResourceElement<IdentityClientMethods>;
+    }) => {
+      const client = useClientResource(element);
+      methods = client.methods;
+      return client.methods;
+    };
+    const NestedThreadClient = resource(useNestedThreadClient);
+    const Harness = ({
+      element,
+    }: {
+      element: ResourceElement<IdentityClientMethods>;
+    }) => {
+      useAui({
+        thread: NestedThreadClient({ element }),
+      });
+      return null;
+    };
+
+    const { rerender } = render(
+      <Harness element={withKey("current", IdentityClient({ id: "a" }))} />,
+    );
+    const initialMethods = methods;
+
+    rerender(
+      <Harness element={withKey("current", IdentityClient({ id: "b" }))} />,
+    );
+    expect(methods).toBe(initialMethods);
+    expect(methods.getState()).toEqual({ id: "b" });
+
+    rerender(
+      <Harness element={withKey("replacement", IdentityClient({ id: "c" }))} />,
+    );
+    expect(methods).not.toBe(initialMethods);
+    expect(methods.getState()).toEqual({ id: "c" });
+    const keyedMethods = methods;
+
+    rerender(
+      <Harness
+        element={withKey("replacement", AlternateIdentityClient({ id: "d" }))}
+      />,
+    );
+    expect(methods).not.toBe(keyedMethods);
+    expect(methods.getState()).toEqual({ id: "d" });
   });
 
   it("structural change produces a new bound accessor; root accessors stay", () => {

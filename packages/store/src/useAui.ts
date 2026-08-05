@@ -44,7 +44,11 @@ import {
   useNotificationManager,
   type NotificationManager,
 } from "./utils/NotificationManager";
-import { useAssistantTapContextProvider } from "./utils/tap-assistant-context";
+import {
+  useAssistantTapContextProvider,
+  type AssistantClientStoreRef,
+  type AssistantTapContextValue,
+} from "./utils/tap-assistant-context";
 import { ClientResource } from "./useClientResource";
 import { useShallowStable } from "./utils/useShallowStable";
 import { createClientAccessor, getClientId } from "./utils/client-accessor";
@@ -63,6 +67,11 @@ type ScopeMeta = {
   query: Record<string, unknown>;
 };
 type ScopeAccessor = AssistantClientAccessor<ClientNames>;
+type ScopeMountResult = {
+  accessor: ScopeAccessor;
+  renderedAccessor: ScopeAccessor;
+  commitRenderedAccessor: VoidFunction;
+};
 
 const applyTransformScopes = (
   clients: useAui.Props,
@@ -189,37 +198,51 @@ const useScopeMeta = (element: ScopeElement): ScopeMeta => {
 
 // Kept separate from useScopeMount: the building-client mutation there makes
 // the React Compiler bail, which would leave the resource element unmemoized
-const useScopeValue = (element: ScopeElement, derived: boolean) =>
-  useResource(derived ? element : ClientResource(element));
+const useScopeValue = (element: ScopeElement, derived: boolean) => {
+  const value = useResource(derived ? element : ClientResource(element));
+  if (derived) {
+    const methods = value as ClientMethods;
+    return { methods, renderedMethods: methods };
+  }
+  return value as { methods: ClientMethods; renderedMethods: ClientMethods };
+};
 
 const useScopeMount = (
   name: ClientNames,
   element: ScopeElement,
-): ScopeAccessor => {
+): ScopeMountResult => {
   const building = useAssistantContextValue();
 
   // A derived element resolves to an existing client; mount it directly
   const derived = isDerivedElement(element);
   const value = useScopeValue(element, derived);
 
-  const methods = derived
-    ? (value as ClientMethods)
-    : (value as { methods: ClientMethods }).methods;
-
   const meta = useScopeMeta(element);
   const accessor = useMemo(
-    () => createClientAccessor({ name, ...meta }, () => methods),
-    [name, meta, methods],
+    () => createClientAccessor({ name, ...meta }, () => value.methods),
+    [name, meta, value.methods, element.hook, element.key],
+  );
+  const renderedMethodsRef = { current: value.renderedMethods };
+  const renderedAccessor = createClientAccessor(
+    { name, ...meta },
+    () => renderedMethodsRef.current,
+    () => value.methods,
   );
 
   (building as Record<ClientNames, unknown>)[name] = accessor;
 
-  return accessor;
+  return {
+    accessor,
+    renderedAccessor,
+    commitRenderedAccessor: () => {
+      renderedMethodsRef.current = accessor as unknown as ClientMethods;
+    },
+  };
 };
 
 const ScopeMount = resource(useScopeMount);
 
-const useScopeMounts = (entries: ScopeEntry[]): ScopeAccessor[] =>
+const useScopeMounts = (entries: ScopeEntry[]): ScopeMountResult[] =>
   useResources(
     entries.map(([name, element]) => withKey(name, ScopeMount(name, element))),
   );
@@ -247,18 +270,25 @@ const useAuiRoot = ({
   parent,
   entries,
   clientRef,
+  clientStoreRef,
   notifications,
 }: {
   parent: AssistantClient;
   entries: ScopeEntry[];
   clientRef: ClientRef;
+  clientStoreRef: AssistantClientStoreRef;
   notifications: NotificationManager;
 }): { client: AssistantClient } => {
   const fields = useClientFields({ notifications, clientRef });
   const building = createClientObject(parent, fields);
+  // Tap commits resource effects before publishing, so effects need this
+  // render's client while the Store still exposes the previous commit.
+  const renderedClientRef: AssistantTapContextValue["renderedClientRef"] = {
+    current: null,
+  };
 
-  const accessors = useAssistantTapContextProvider(
-    { clientRef, emit: notifications.emit },
+  const scopes = useAssistantTapContextProvider(
+    { clientRef, clientStoreRef, renderedClientRef, emit: notifications.emit },
     function WithTapContext() {
       return useAssistantContextProvider(
         building,
@@ -269,11 +299,25 @@ const useAuiRoot = ({
     },
   );
 
+  // Scope setup needs render-time methods during this commit, so its child
+  // callbacks must register before these refs switch to committed accessors.
+  useEffect(() => {
+    for (const scope of scopes) scope.commitRenderedAccessor();
+  });
+
+  const client = useCommittedClient(building, [
+    parent,
+    ...scopes.map(({ accessor }) => accessor),
+  ]);
+  const effectClient = createClientObject(parent, fields);
+  for (let i = 0; i < entries.length; i++) {
+    (effectClient as Record<ClientNames, unknown>)[entries[i]![0]] =
+      scopes[i]!.renderedAccessor;
+  }
+  renderedClientRef.current = { client, effectClient };
   // Fresh envelope per commit so value-only updates reach the store's
   // subscribers; the client inside keeps its identity
-  return {
-    client: useCommittedClient(building, [parent, ...accessors]),
-  };
+  return { client };
 };
 
 const useHostedAssistantClient = ({
@@ -285,11 +329,19 @@ const useHostedAssistantClient = ({
 }): ScopedAuiClient => {
   const { value: client, effects } = useTapHost(function AssistantClientHost() {
     const clientRef = useRef<ClientRef>({ parent, current: null }).current;
+    const clientStoreRef = useRef<AssistantClientStoreRef["current"]>(null);
     const notifications = useNotificationManager();
 
     const store = useTapRoot(function AuiRoot() {
-      return useAuiRoot({ parent, entries, clientRef, notifications });
+      return useAuiRoot({
+        parent,
+        entries,
+        clientRef,
+        clientStoreRef,
+        notifications,
+      });
     });
+    clientStoreRef.current = store;
 
     const client = useSyncExternalStore(
       store.subscribe,
