@@ -125,6 +125,7 @@ export type OpenCodeThreadState = {
   runState: OpenCodeRunState;
   messageOrder: readonly string[];
   messagesById: Readonly<Record<string, OpenCodeServerMessage>>;
+  childSessionsById: Readonly<Record<string, OpenCodeThreadState>>;
   pendingUserMessages: Readonly<Record<string, PendingUserMessage>>;
   interactions: {
     permissions: {

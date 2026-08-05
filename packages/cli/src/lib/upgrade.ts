@@ -14,6 +14,7 @@ const bundle = [
   "v0-12/assistant-api-to-aui",
   "v0-12/event-names-to-camelcase",
   "v0-12/primitive-if-to-aui-if",
+  "v0-15/aui-accessor-calls-to-properties",
 ];
 
 const log = debug("codemod:upgrade");

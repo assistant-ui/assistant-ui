@@ -1,6 +1,6 @@
 import type { AssistantStream } from "../AssistantStream";
 import type { AssistantStreamChunk } from "../AssistantStreamChunk";
-import type { ToolResponseLike } from "../tool/ToolResponse";
+import { NO_RESULT, type ToolResponseLike } from "../tool/ToolResponse";
 import type { ReadonlyJSONValue } from "../../utils/json/json-value";
 import type { UnderlyingReadable } from "../utils/stream/UnderlyingReadable";
 import { createTextStream, type TextStreamController } from "./text";
@@ -8,6 +8,10 @@ import { createTextStream, type TextStreamController } from "./text";
 export type ToolCallStreamController = {
   argsText: TextStreamController;
 
+  /**
+   * Sets the tool response and settles the part. The part closes automatically
+   * and subsequent calls are ignored.
+   */
   setResponse(response: ToolResponseLike<ReadonlyJSONValue>): void;
   close(): void;
 };
@@ -68,13 +72,20 @@ class ToolCallStreamControllerImpl implements ToolCallStreamController {
   private _argsTextController!: TextStreamController;
 
   async setResponse(response: ToolResponseLike<ReadonlyJSONValue>) {
+    if (this._isClosed) return;
+
+    // Wire decoders hand this a raw payload, so an omitted result is
+    // materialized here rather than reaching the message part as a settled call
+    // indistinguishable from one that never finished.
+    const result = response.result;
+
     this._controller.enqueue({
       type: "result",
       path: [],
       ...(response.artifact !== undefined
         ? { artifact: response.artifact }
         : {}),
-      result: response.result,
+      result: result === undefined ? NO_RESULT : result,
       isError: response.isError ?? false,
       ...(response.modelContent !== undefined
         ? { modelContent: response.modelContent }
@@ -83,9 +94,7 @@ class ToolCallStreamControllerImpl implements ToolCallStreamController {
         ? { messages: response.messages }
         : {}),
     });
-    this._argsTextController.close();
-    await Promise.resolve(); // flush microtask queue
-    // TODO switch argsTextController to be something that doesn'#t require this
+    await this.close();
   }
 
   async close() {

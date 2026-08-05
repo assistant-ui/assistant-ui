@@ -25,6 +25,106 @@ describe("convertAdkMessage - human messages", () => {
       content: [{ type: "text", text: "Hello" }],
     });
   });
+
+  it("restores a file_url part as a file part stamped with sourceType url", () => {
+    const msg: AdkMessage = {
+      id: "m1",
+      type: "human",
+      content: [
+        {
+          type: "file_url",
+          url: "gs://bucket/report.pdf",
+          mimeType: "application/pdf",
+        },
+      ],
+    };
+    const result = convertAdkMessage(msg, {});
+    expect(result).toMatchObject({
+      role: "user",
+      content: [
+        {
+          type: "file",
+          data: "gs://bucket/report.pdf",
+          mimeType: "application/pdf",
+          sourceType: "url",
+        },
+      ],
+    });
+  });
+
+  it("falls back to application/octet-stream for file_url parts without mimeType", () => {
+    const msg: AdkMessage = {
+      id: "m1",
+      type: "human",
+      content: [{ type: "file_url", url: "gs://bucket/blob" }],
+    };
+    const result = convertAdkMessage(msg, {});
+    expect(result).toMatchObject({
+      role: "user",
+      content: [
+        {
+          type: "file",
+          data: "gs://bucket/blob",
+          mimeType: "application/octet-stream",
+          sourceType: "url",
+        },
+      ],
+    });
+  });
+
+  it("keeps an audio file part as a file part", () => {
+    for (const mimeType of ["audio/mp3", "audio/wav"]) {
+      const msg: AdkMessage = {
+        id: "m1",
+        type: "human",
+        content: [{ type: "file", mimeType, data: "QUJD" }],
+      };
+      expect(convertAdkMessage(msg, {})).toMatchObject({
+        role: "user",
+        content: [{ type: "file", data: "QUJD", mimeType }],
+      });
+    }
+  });
+
+  it("keeps attachment-derived audio file parts (with filename) as file parts", () => {
+    const msg: AdkMessage = {
+      id: "m1",
+      type: "human",
+      content: [
+        {
+          type: "file",
+          mimeType: "audio/wav",
+          data: "QUJD",
+          filename: "memo.wav",
+        },
+      ],
+    };
+    const result = convertAdkMessage(msg, {});
+    expect(result).toMatchObject({
+      role: "user",
+      content: [
+        {
+          type: "file",
+          mimeType: "audio/wav",
+          data: "QUJD",
+          filename: "memo.wav",
+        },
+      ],
+    });
+  });
+
+  it("keeps file parts with other audio mime types as file parts", () => {
+    const msg: AdkMessage = {
+      id: "m1",
+      type: "human",
+      content: [{ type: "file", mimeType: "audio/ogg", data: "QUJD" }],
+    };
+    const result = convertAdkMessage(msg, {});
+    expect(result).toMatchObject({
+      role: "user",
+      content: [{ type: "file", mimeType: "audio/ogg", data: "QUJD" }],
+    });
+  });
 });
 
 describe("convertAdkMessage - ai messages", () => {
@@ -75,6 +175,19 @@ describe("convertAdkMessage - ai messages", () => {
     const result = convertAdkMessage(msg, {});
     expect(result).toMatchObject({
       content: [{ type: "image", image: "https://example.com/img.png" }],
+    });
+  });
+
+  it("keeps audio/mp3 file parts as file parts on assistant messages", () => {
+    const msg: AdkMessage = {
+      id: "m1",
+      type: "ai",
+      content: [{ type: "file", mimeType: "audio/mp3", data: "QUJD" }],
+    };
+    const result = convertAdkMessage(msg, {});
+    expect(result).toMatchObject({
+      role: "assistant",
+      content: [{ type: "file", mimeType: "audio/mp3", data: "QUJD" }],
     });
   });
 

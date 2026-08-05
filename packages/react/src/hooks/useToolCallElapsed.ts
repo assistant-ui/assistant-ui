@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useAui, useAuiState } from "@assistant-ui/store";
+import { useAuiState } from "@assistant-ui/store";
 
 /**
  * Hook that returns the elapsed wall-clock time of the current tool call in
@@ -22,17 +22,14 @@ import { useAui, useAuiState } from "@assistant-ui/store";
  * ```
  */
 export const useToolCallElapsed = (): number | undefined => {
-  const aui = useAui();
-  const hasPart = aui.part.source !== null;
-  const timing = useAuiState((s) =>
-    hasPart && s.part.type === "tool-call" ? s.part.timing : undefined,
-  );
-  const partRunning = useAuiState(
-    (s) =>
-      hasPart &&
-      s.part.type === "tool-call" &&
-      s.part.status.type === "running",
-  );
+  const timing = useAuiState((s) => {
+    const part = s.optional.part;
+    return part?.type === "tool-call" ? part.timing : undefined;
+  });
+  const partRunning = useAuiState((s) => {
+    const part = s.optional.part;
+    return part?.type === "tool-call" && part.status.type === "running";
+  });
   const running =
     timing !== undefined && timing.completedAt === undefined && partRunning;
   const [now, setNow] = useState(() => Date.now());

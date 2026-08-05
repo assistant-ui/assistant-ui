@@ -1758,6 +1758,158 @@ describe("useLangGraphMessages", {}, () => {
     });
   });
 
+  it("removes the referenced message when an updates event carries a RemoveMessage", async () => {
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      {
+        event: "messages",
+        data: [
+          {
+            id: "ai-1",
+            content: "I will be pruned",
+            type: "AIMessageChunk",
+            tool_call_chunks: [],
+          },
+          { run_attempt: 1 },
+        ],
+      },
+      {
+        event: "updates",
+        data: {
+          messages: [
+            {
+              type: "remove",
+              id: "ai-1",
+              content: [],
+              additional_kwargs: {},
+              response_metadata: {},
+            },
+          ],
+        },
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+
+    await act(async () => {
+      await result.current.sendMessage([{ type: "human", content: "hi" }], {});
+    });
+
+    expect(result.current.messages).toHaveLength(1);
+    expect(result.current.messages[0]!.type).toEqual("human");
+    expect(
+      result.current.messages.find((m) => m.id === "ai-1"),
+    ).toBeUndefined();
+  });
+
+  it("removes the referenced message from a node-keyed updates event", async () => {
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      {
+        event: "messages",
+        data: [
+          {
+            id: "ai-1",
+            content: "I will be pruned",
+            type: "AIMessageChunk",
+            tool_call_chunks: [],
+          },
+          { run_attempt: 1 },
+        ],
+      },
+      {
+        event: "updates",
+        data: {
+          repair_history: {
+            messages: [
+              {
+                type: "remove",
+                id: "ai-1",
+                content: [],
+                additional_kwargs: {},
+                response_metadata: {},
+              },
+            ],
+          },
+        },
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+
+    await act(async () => {
+      await result.current.sendMessage([{ type: "human", content: "hi" }], {});
+    });
+
+    expect(result.current.messages).toHaveLength(1);
+    expect(result.current.messages[0]!.type).toEqual("human");
+    expect(
+      result.current.messages.find((m) => m.id === "ai-1"),
+    ).toBeUndefined();
+  });
+
+  it("clears all messages when an updates event carries the REMOVE_ALL_MESSAGES sentinel", async () => {
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      {
+        event: "messages",
+        data: [
+          {
+            id: "ai-1",
+            content: "long history to be summarized",
+            type: "AIMessageChunk",
+            tool_call_chunks: [],
+          },
+          { run_attempt: 1 },
+        ],
+      },
+      {
+        event: "updates",
+        data: {
+          summarize: {
+            messages: [
+              {
+                type: "remove",
+                id: "__remove_all__",
+                content: [],
+                additional_kwargs: {},
+                response_metadata: {},
+              },
+              {
+                type: "ai",
+                id: "sum-1",
+                content: "summary of the conversation",
+              },
+            ],
+          },
+        },
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+
+    await act(async () => {
+      await result.current.sendMessage([{ type: "human", content: "hi" }], {});
+    });
+
+    expect(result.current.messages.map((m) => m.id)).toEqual(["sum-1"]);
+  });
+
   it("syncs messages from values event when no tuple events", async () => {
     const mockStreamCallback = mockStreamCallbackFactory([
       metadataEvent,

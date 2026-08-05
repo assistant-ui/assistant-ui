@@ -6,6 +6,10 @@ import { SafeContentFrame } from "./index";
 class MockMessagePort {
   onmessage: ((event: MessageEvent) => void) | null = null;
   readonly close = vi.fn();
+
+  emit(data: unknown) {
+    this.onmessage?.({ data } as MessageEvent);
+  }
 }
 
 class MockMessageChannel {
@@ -95,5 +99,39 @@ describe("SafeContentFrame", () => {
     expect(container.childElementCount).toBe(0);
     expect(MockMessageChannel.instances[0]!.port1.close).toHaveBeenCalledOnce();
     expect(MockMessageChannel.instances[0]!.port2.close).toHaveBeenCalledOnce();
+  });
+
+  it("surfaces shim errors reported after the iframe loads", async () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const renderer = new SafeContentFrame("test", {
+      salt: "fixed",
+      useShadowDom: true,
+    });
+
+    const framePromise = renderer.renderHtml("<p>Hello</p>", container);
+    await vi.waitFor(() => {
+      expect(shadowRoot?.querySelector("iframe")).toBeTruthy();
+    });
+
+    const iframe = shadowRoot!.querySelector("iframe")!;
+    Object.defineProperty(iframe, "contentWindow", {
+      configurable: true,
+      value: { postMessage: vi.fn() },
+    });
+    iframe.dispatchEvent(new Event("load"));
+    const frame = await framePromise;
+
+    MockMessageChannel.instances[0]!.port1.emit({
+      type: "error",
+      message: "shim decode failed",
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    await expect(frame.fullyLoadedPromiseWithTimeout(10)).rejects.toThrow(
+      "shim decode failed",
+    );
+    expect(container.childElementCount).toBe(0);
+    expect(MockMessageChannel.instances[0]!.port1.close).toHaveBeenCalledOnce();
   });
 });

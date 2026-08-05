@@ -79,6 +79,16 @@ class DataStreamRuntimeAdapter implements ChatModelAdapter {
     unstable_parentId,
     unstable_getMessage,
   }: ChatModelRunOptions) {
+    const handleAbort = () => {
+      if (!abortSignal.reason?.detach) this.options.onCancel?.();
+    };
+
+    if (abortSignal.aborted) {
+      handleAbort();
+    } else {
+      abortSignal.addEventListener("abort", handleAbort, { once: true });
+    }
+
     let result: Response;
     try {
       const headersValue =
@@ -90,14 +100,6 @@ class DataStreamRuntimeAdapter implements ChatModelAdapter {
         typeof this.options.body === "function"
           ? await this.options.body()
           : this.options.body;
-
-      abortSignal.addEventListener(
-        "abort",
-        () => {
-          if (!abortSignal.reason?.detach) this.options.onCancel?.();
-        },
-        { once: true },
-      );
 
       const headers = new Headers(headersValue);
       headers.set("Content-Type", "application/json");
@@ -131,6 +133,7 @@ class DataStreamRuntimeAdapter implements ChatModelAdapter {
         signal: abortSignal,
       });
     } catch (error: unknown) {
+      abortSignal.removeEventListener("abort", handleAbort);
       if (!(error instanceof Error && error.name === "AbortError")) {
         this.options.onError?.(
           error instanceof Error ? error : new Error(String(error)),
@@ -139,7 +142,12 @@ class DataStreamRuntimeAdapter implements ChatModelAdapter {
       throw error;
     }
 
-    await this.options.onResponse?.(result);
+    try {
+      await this.options.onResponse?.(result);
+    } catch (error: unknown) {
+      abortSignal.removeEventListener("abort", handleAbort);
+      throw error;
+    }
 
     try {
       if (!result.ok) {
@@ -187,6 +195,8 @@ class DataStreamRuntimeAdapter implements ChatModelAdapter {
     } catch (error: unknown) {
       this.options.onError?.(error as Error);
       throw error;
+    } finally {
+      abortSignal.removeEventListener("abort", handleAbort);
     }
   }
 }

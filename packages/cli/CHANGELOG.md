@@ -1,5 +1,13 @@
 # assistant-ui
 
+## 0.0.108
+
+### Patch Changes
+
+- [#5272](https://github.com/assistant-ui/assistant-ui/pull/5272) [`edcd1b6`](https://github.com/assistant-ui/assistant-ui/commit/edcd1b6052d565d64cb10b37080df44c715b30bf) - fix: await asynchronous CLI command handlers ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5275](https://github.com/assistant-ui/assistant-ui/pull/5275) [`9a7e776`](https://github.com/assistant-ui/assistant-ui/commit/9a7e77603d59b5e091ee922e2e087f0101679321) - feat: `v0-15/aui-accessor-calls-to-properties` codemod — rewrites nullary `aui.x()` accessor calls to `aui.x` property access as part of `npx assistant-ui upgrade`. ([@Yonom](https://github.com/Yonom))
+
 ## 0.0.107
 
 ### Patch Changes

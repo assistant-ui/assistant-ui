@@ -69,11 +69,11 @@ export const ComposerInput = ({
       if (Platform.OS === "web") {
         // Keep the controlled value in sync mid-IME so react-dom does not reset the textarea to a stale value
         flushTapSync(() => {
-          aui.composer().setText(value);
+          aui.composer.setText(value);
         });
         return;
       }
-      aui.composer().setText(value);
+      aui.composer.setText(value);
     },
     [aui],
   );
@@ -100,7 +100,7 @@ export const ComposerInput = ({
       if (nativeEvent.isComposing || nativeEvent.keyCode === 229) return;
       if (nativeEvent.key === "Enter" && !nativeEvent.shiftKey) {
         (e as unknown as Event).preventDefault?.();
-        aui.composer().send();
+        aui.composer.send();
       }
     },
     [aui, submitMode, onKeyPressProp],

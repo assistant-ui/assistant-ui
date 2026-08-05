@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/store",
-  "version": "0.2.21",
+  "version": "0.3.3",
   "description": "Tap-based state management for @assistant-ui",
   "keywords": [
     "state-management",
@@ -29,10 +29,8 @@
   "scripts": {
     "build": "aui-build",
     "test": "vitest run",
+    "test:react-compiler": "vitest run --config vitest.react-compiler.config.ts",
     "test:watch": "vitest"
-  },
-  "dependencies": {
-    "use-effect-event": "^2.0.3"
   },
   "peerDependencies": {
     "@assistant-ui/tap": "^0.9.0",

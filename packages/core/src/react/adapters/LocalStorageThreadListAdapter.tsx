@@ -1,5 +1,12 @@
 import { type AssistantStream, createAssistantStream } from "assistant-stream";
-import { type FC, type PropsWithChildren, useMemo } from "react";
+import {
+  type FC,
+  type PropsWithChildren,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useAui } from "@assistant-ui/store";
 import type {
   RemoteThreadInitializeResponse,
@@ -276,20 +283,24 @@ export const parseStoredMessageRepository = (
 
 class AsyncStorageHistoryAdapter implements ThreadHistoryAdapter {
   private storage: AsyncStorageLike;
-  private aui: ReturnType<typeof useAui>;
+  private getAui: () => ReturnType<typeof useAui>;
   private prefix: string;
   private mutationQueue: KeyedMutationQueue;
 
   constructor(
     storage: AsyncStorageLike,
-    aui: ReturnType<typeof useAui>,
+    getAui: () => ReturnType<typeof useAui>,
     prefix: string,
     mutationQueue: KeyedMutationQueue,
   ) {
     this.storage = storage;
-    this.aui = aui;
+    this.getAui = getAui;
     this.prefix = prefix;
     this.mutationQueue = mutationQueue;
+  }
+
+  private get aui(): ReturnType<typeof useAui> {
+    return this.getAui();
   }
 
   private _messagesKey(remoteId: string) {
@@ -297,7 +308,7 @@ class AsyncStorageHistoryAdapter implements ThreadHistoryAdapter {
   }
 
   async load(): Promise<ExportedMessageRepository> {
-    const remoteId = this.aui.threadListItem().getState().remoteId;
+    const remoteId = this.aui.threadListItem.getState().remoteId;
     if (!remoteId) return { messages: [] };
 
     const raw = await this.storage.getItem(this._messagesKey(remoteId));
@@ -305,7 +316,7 @@ class AsyncStorageHistoryAdapter implements ThreadHistoryAdapter {
   }
 
   async append(item: ExportedMessageRepositoryItem): Promise<void> {
-    const { remoteId } = await this.aui.threadListItem().initialize();
+    const { remoteId } = await this.aui.threadListItem.initialize();
 
     const key = this._messagesKey(remoteId);
     await this.mutationQueue.run(key, async () => {
@@ -334,9 +345,19 @@ const createHistoryProvider = (
 ): FC<PropsWithChildren> => {
   const Provider: FC<PropsWithChildren> = ({ children }) => {
     const aui = useAui();
-    const history = useMemo(
-      () => new AsyncStorageHistoryAdapter(storage, aui, prefix, mutationQueue),
-      [aui],
+    // Not useEffectEvent: history adapter methods run during render (SSR load).
+    const auiRef = useRef(aui);
+    useEffect(() => {
+      auiRef.current = aui;
+    });
+    const [history] = useState(
+      () =>
+        new AsyncStorageHistoryAdapter(
+          storage,
+          () => auiRef.current,
+          prefix,
+          mutationQueue,
+        ),
     );
     const adapters = useMemo(() => ({ history }), [history]);
 

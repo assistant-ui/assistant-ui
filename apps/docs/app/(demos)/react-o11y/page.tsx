@@ -12,7 +12,7 @@ import {
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { CopyCommandButton } from "@/components/home/copy-command-button";
-import { Button, buttonVariants } from "@/components/ui/radix/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { WaterfallSample } from "@/components/docs/samples/o11y/waterfall";
 import {
   CollapseSample,
@@ -206,10 +206,11 @@ export default function ReactO11yPage() {
           Start building today
         </p>
         <div className="flex flex-wrap items-center justify-center gap-3">
-          <Button asChild>
-            <Link href="/docs/utilities/react-o11y">
-              Documentation <ArrowRight />
-            </Link>
+          <Button
+            nativeButton={false}
+            render={<Link href="/docs/utilities/react-o11y" />}
+          >
+            Documentation <ArrowRight />
           </Button>
           <Link
             href="https://github.com/assistant-ui/assistant-ui/tree/main/packages/react-o11y"

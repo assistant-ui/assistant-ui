@@ -1,66 +1,62 @@
-import type React from "react";
-import { createContext, useContext, useEffect } from "react";
-import type { AssistantClient, AssistantClientAccessor } from "../types/client";
-import {
-  createProxiedAssistantState,
-  PROXIED_ASSISTANT_STATE_SYMBOL,
-} from "./proxied-assistant-state";
+import { createContext, useContext } from "react";
+import { useContextProvider } from "@assistant-ui/tap";
+import type { AssistantClient } from "../types/client";
 import { BaseProxyHandler, handleIntrospectionProp } from "./BaseProxyHandler";
+import { createErrorClientAccessor } from "./client-accessor";
 
 const NO_OP_SUBSCRIBE = () => () => {};
 
-const createErrorClientField = (
-  message: string,
-): AssistantClientAccessor<never> => {
-  const fn = (() => {
-    throw new Error(message);
-  }) as AssistantClientAccessor<never>;
-  fn.source = null;
-  fn.query = null;
-  return fn;
-};
+const MISSING_PROVIDER_MESSAGE =
+  "You are using a component or hook that requires an AuiProvider. Wrap your component in an <AuiProvider> component.";
 
-class DefaultAssistantClientProxyHandler
+class EmptyAssistantClientProxyHandler
   extends BaseProxyHandler
   implements ProxyHandler<AssistantClient>
 {
+  readonly #displayName: string;
+  readonly #messageOf: (prop: string) => string;
+
+  constructor(displayName: string, messageOf: (prop: string) => string) {
+    super();
+    this.#displayName = displayName;
+    this.#messageOf = messageOf;
+  }
+
   get(_: unknown, prop: string | symbol) {
     if (prop === "subscribe") return NO_OP_SUBSCRIBE;
     if (prop === "on") return NO_OP_SUBSCRIBE;
-    if (prop === PROXIED_ASSISTANT_STATE_SYMBOL)
-      return DefaultAssistantClientProxiedAssistantState;
-    const introspection = handleIntrospectionProp(
-      prop,
-      "DefaultAssistantClient",
-    );
+    const introspection = handleIntrospectionProp(prop, this.#displayName);
     if (introspection !== false) return introspection;
-    return createErrorClientField(
-      "You are using a component or hook that requires an AuiProvider. Wrap your component in an <AuiProvider> component.",
+    return createErrorClientAccessor(
+      this.#messageOf(String(prop)),
+      String(prop),
     );
   }
 
   ownKeys(): ArrayLike<string | symbol> {
-    return ["subscribe", "on", PROXIED_ASSISTANT_STATE_SYMBOL];
+    return ["subscribe", "on"];
   }
 
   has(_: unknown, prop: string | symbol): boolean {
-    return (
-      prop === "subscribe" ||
-      prop === "on" ||
-      prop === PROXIED_ASSISTANT_STATE_SYMBOL
-    );
+    return prop === "subscribe" || prop === "on";
   }
 }
-/** Default context value - throws "wrap in AuiProvider" error */
-export const DefaultAssistantClient: AssistantClient =
+
+const createEmptyAssistantClient = (
+  displayName: string,
+  messageOf: (prop: string) => string,
+): AssistantClient =>
   new Proxy<AssistantClient>(
     {} as AssistantClient,
-    new DefaultAssistantClientProxyHandler(),
+    new EmptyAssistantClientProxyHandler(displayName, messageOf),
   );
 
-const DefaultAssistantClientProxiedAssistantState = createProxiedAssistantState(
-  DefaultAssistantClient,
-);
+/** Default context value - throws "wrap in AuiProvider" error */
+export const DefaultAssistantClient: AssistantClient =
+  createEmptyAssistantClient(
+    "DefaultAssistantClient",
+    () => MISSING_PROVIDER_MESSAGE,
+  );
 
 /** Root prototype for created clients - throws "scope not defined" error */
 export const createRootAssistantClient = (): AssistantClient =>
@@ -69,8 +65,9 @@ export const createRootAssistantClient = (): AssistantClient =>
       const introspection = handleIntrospectionProp(prop, "AssistantClient");
       if (introspection !== false) return introspection;
 
-      return createErrorClientField(
+      return createErrorClientAccessor(
         `The current scope does not have a "${String(prop)}" property.`,
+        String(prop),
       );
     },
   });
@@ -78,71 +75,36 @@ export const createRootAssistantClient = (): AssistantClient =>
 /**
  * React Context for the AssistantClient
  */
-const AssistantContext = createContext<AssistantClient>(DefaultAssistantClient);
-
-/**
- * Carries the tap host's effects callback on the client so AuiProvider can
- * mount the host's commit ahead of its children's effects.
- */
-export const AUI_USE_EFFECTS_SYMBOL = Symbol("assistant-ui.store.useEffects");
+export const AssistantContext = createContext<AssistantClient>(
+  DefaultAssistantClient,
+);
 
 const NOOP_EFFECT = () => {};
+const tapEffects = new WeakMap<AssistantClient, () => void>();
 
-const getTapEffects = (client: AssistantClient): (() => void) => {
-  return (
-    (client as Record<symbol, never>)[AUI_USE_EFFECTS_SYMBOL] ?? NOOP_EFFECT
-  );
+export const getTapEffects = (client: AssistantClient): (() => void) => {
+  return tapEffects.get(client) ?? NOOP_EFFECT;
 };
 
-const UseTapEffects = () => {
-  "use no memo";
-
-  const aui = useAssistantContextValue();
-  // oxlint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(getTapEffects(aui));
-  return null;
+/**
+ * Records the tap host's effects callback for clients created by the
+ * deprecated `useAui({...})` overload; the AuiProvider the client is passed
+ * to mounts the host's commit ahead of its children's effects.
+ */
+export const setTapEffects = (
+  client: AssistantClient,
+  effects: () => void,
+): void => {
+  tapEffects.set(client, effects);
 };
 
 export const useAssistantContextValue = (): AssistantClient => {
   return useContext(AssistantContext);
 };
 
-/**
- * Supplies an `AssistantClient` to the React tree.
- *
- * Place near the root of any subtree that uses {@link useAui} or the
- * primitives built on it. Components rendered outside an `AuiProvider`
- * receive a default client whose scope accessors throw on use, so
- * missing-provider mistakes surface at the point of use.
- *
- * When mounting a runtime built with one of the runtime hooks, use
- * {@link AssistantRuntimeProvider} — it installs an `AuiProvider`
- * internally — rather than wiring `AuiProvider` yourself.
- *
- * @example
- * ```tsx
- * function ScopedAssistant({ children, scopes }) {
- *   const aui = useAui(scopes);
- *
- *   return <AuiProvider value={aui}>{children}</AuiProvider>;
- * }
- * ```
- */
-export const AuiProvider = ({
-  value,
-  children,
-}: {
-  /** Assistant client to expose to descendants. */
-  value: AssistantClient;
-  /** Subtree that may read from the client. */
-  children: React.ReactNode;
-}): React.ReactElement => {
-  // The <UseTapEffects /> element must be created fresh each render
-  "use no memo";
-  return (
-    <AssistantContext.Provider value={value}>
-      <UseTapEffects />
-      {children}
-    </AssistantContext.Provider>
-  );
+export const useAssistantContextProvider = <T,>(
+  value: AssistantClient,
+  fn: () => T,
+): T => {
+  return useContextProvider(AssistantContext, value, fn);
 };

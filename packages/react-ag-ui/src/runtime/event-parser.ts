@@ -241,11 +241,18 @@ export const parseAgUiEvent = (
     case "ACTIVITY_SNAPSHOT": {
       const activityType = getString("activityType");
       if (!activityType || !isPlainObject(payload.content)) return null;
-      return {
-        type: "ACTIVITY_SNAPSHOT" as const,
-        activityType,
-        content: payload.content,
-      };
+      return withOptional(
+        {
+          type: "ACTIVITY_SNAPSHOT" as const,
+          activityType,
+          content: payload.content,
+        },
+        {
+          messageId: getString("messageId"),
+          replace:
+            typeof payload.replace === "boolean" ? payload.replace : undefined,
+        },
+      );
     }
     case "RAW":
       return withOptional(

@@ -1,35 +1,22 @@
-import { useMemo, type FC, type PropsWithChildren } from "react";
-import { useAui, AuiProvider, Derived } from "@assistant-ui/store";
-import type { PartMethods } from "../../store/scopes/part";
+import type { FC, PropsWithChildren } from "react";
+import { useAui, AuiConfig, AuiProvider, Derived } from "@assistant-ui/store";
 
 export const ChainOfThoughtPartByIndexProvider: FC<
   PropsWithChildren<{
     index: number;
   }>
 > = ({ index, children }) => {
-  const lastPartRef = useMemo(
-    () => ({ index, current: null as PartMethods | null }),
-    [index],
-  );
-  const aui = useAui({
+  const aui = useAui();
+  const config = AuiConfig({
     part: Derived({
       source: "chainOfThought",
       query: { type: "index", index },
-      get: (aui) => {
-        const chainOfThought = aui.chainOfThought();
-        if (
-          index >= chainOfThought.getState().parts.length &&
-          lastPartRef.current
-        ) {
-          return lastPartRef.current;
-        }
-
-        const part = chainOfThought.part({ index });
-        lastPartRef.current = part;
-        return part;
-      },
+      get: (aui) => aui.chainOfThought.part({ index }),
     }),
   });
-
-  return <AuiProvider value={aui}>{children}</AuiProvider>;
+  return (
+    <AuiProvider extends={aui} config={config}>
+      {children}
+    </AuiProvider>
+  );
 };

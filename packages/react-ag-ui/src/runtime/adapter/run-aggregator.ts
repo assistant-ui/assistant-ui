@@ -8,6 +8,12 @@ import {
   type ToolCallMessagePart,
   type ToolModelContentPart,
 } from "@assistant-ui/core";
+import {
+  applyA2uiOperations,
+  convertSurfaceToUISpec,
+  type A2uiState,
+  type A2uiSurfaceState,
+} from "@assistant-ui/react-generative-ui/a2ui";
 import { readMcpAppResourceUri } from "../mcp-tool-result";
 import type { AgUiEvent, AgUiInterrupt } from "../types";
 import type { Logger } from "../logger";
@@ -36,6 +42,8 @@ type ToolCallState = {
 };
 
 export const MCP_APPS_ACTIVITY_TYPE = "mcp-apps";
+
+export const A2UI_SURFACE_ACTIVITY_TYPE = "a2ui-surface";
 
 export const isPlainObject = (
   value: unknown,
@@ -72,6 +80,8 @@ export class RunAggregator {
   private activeReasoningKey: string | undefined;
   private reasoningPartCounter = 0;
   private readonly toolCalls = new Map<string, ToolCallState>();
+  private readonly a2uiBuckets = new Map<string, A2uiState>();
+  private readonly a2uiToolCallIds = new Set<string>();
   private lastResolvedToolCallId: string | undefined;
   private readonly partOrder: (
     | { kind: "text"; key: string }
@@ -104,6 +114,8 @@ export class RunAggregator {
         this.activeReasoningKey = undefined;
         this.reasoningPartCounter = 0;
         this.toolCalls.clear();
+        this.a2uiBuckets.clear();
+        this.a2uiToolCallIds.clear();
         this.lastResolvedToolCallId = undefined;
         this.partOrder.length = 0;
         this.textPartCounter = 0;
@@ -250,6 +262,10 @@ export class RunAggregator {
         break;
       }
       case "ACTIVITY_SNAPSHOT": {
+        if (event.activityType === A2UI_SURFACE_ACTIVITY_TYPE) {
+          this.handleA2uiActivitySnapshot(event);
+          break;
+        }
         if (event.activityType !== MCP_APPS_ACTIVITY_TYPE) break;
         const toolCallId = event.content.toolCallId;
         const entry =
@@ -302,6 +318,72 @@ export class RunAggregator {
       default: {
         this.logger.debug?.("[agui] aggregator ignored event", event);
       }
+    }
+  }
+
+  private handleA2uiActivitySnapshot(
+    event: Extract<AgUiEvent, { type: "ACTIVITY_SNAPSHOT" }>,
+  ): void {
+    const operations = event.content["a2ui_operations"];
+    if (!Array.isArray(operations)) return;
+
+    const messageId = event.messageId ?? "a2ui:anonymous";
+    if (event.replace === false && this.a2uiBuckets.has(messageId)) return;
+
+    const { state, warnings } = applyA2uiOperations(new Map(), operations);
+    for (const warning of warnings) {
+      this.logger.debug("[agui] a2ui operation warning", warning);
+    }
+    this.a2uiBuckets.delete(messageId);
+    this.a2uiBuckets.set(messageId, state);
+    this.synthesizeA2uiToolCalls();
+    this.emit();
+  }
+
+  private synthesizeA2uiToolCalls(): void {
+    const surfaces = new Map<string, A2uiSurfaceState>();
+
+    for (const bucket of this.a2uiBuckets.values()) {
+      for (const [surfaceId, surface] of bucket) {
+        surfaces.set(surfaceId, surface);
+      }
+    }
+
+    const activeToolCallIds = new Set<string>();
+    for (const [surfaceId, surface] of surfaces) {
+      const toolCallId = `a2ui:${surfaceId}`;
+      const { spec, warnings } = convertSurfaceToUISpec(surface);
+      for (const warning of warnings) {
+        this.logger.debug("[agui] a2ui surface conversion warning", warning);
+      }
+      if (!spec) continue;
+
+      activeToolCallIds.add(toolCallId);
+
+      const entry: ToolCallState = {
+        toolCallId,
+        toolCallName: "present",
+        argsText: JSON.stringify(spec),
+        parsedArgs: spec,
+        result: {},
+        isError: undefined,
+        snapshotResultApplied: false,
+      };
+      if (!this.toolCalls.has(toolCallId)) {
+        this.partOrder.push({ kind: "tool-call", toolCallId });
+      }
+      this.toolCalls.set(toolCallId, entry);
+      this.a2uiToolCallIds.add(toolCallId);
+    }
+
+    for (const toolCallId of this.a2uiToolCallIds) {
+      if (activeToolCallIds.has(toolCallId)) continue;
+      this.toolCalls.delete(toolCallId);
+      const partIndex = this.partOrder.findIndex(
+        (part) => part.kind === "tool-call" && part.toolCallId === toolCallId,
+      );
+      if (partIndex !== -1) this.partOrder.splice(partIndex, 1);
+      this.a2uiToolCallIds.delete(toolCallId);
     }
   }
 

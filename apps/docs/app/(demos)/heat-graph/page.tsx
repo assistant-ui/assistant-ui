@@ -11,7 +11,7 @@ import {
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { CopyCommandButton } from "@/components/home/copy-command-button";
-import { Button, buttonVariants } from "@/components/ui/radix/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { HeatGraphDemo } from "./heat-graph-demo";
 
 const ANALYTICS_PAGE = "heat-graph" as const;
@@ -130,10 +130,11 @@ export default function HeatGraphPage() {
           Start building today
         </p>
         <div className="flex flex-wrap items-center justify-center gap-3">
-          <Button asChild>
-            <Link href="/docs/utilities/heat-graph">
-              Documentation <ArrowRight />
-            </Link>
+          <Button
+            nativeButton={false}
+            render={<Link href="/docs/utilities/heat-graph" />}
+          >
+            Documentation <ArrowRight />
           </Button>
           <Link
             href="https://github.com/assistant-ui/assistant-ui/tree/main/packages/heat-graph"

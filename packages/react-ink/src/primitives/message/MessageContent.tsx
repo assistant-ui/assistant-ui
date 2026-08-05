@@ -84,16 +84,11 @@ const ToolUIDisplay = ({
   index: number;
 }) => {
   const aui = useAui();
-  const Render = useAuiState((s) => {
-    const renders = s.tools.tools[part.toolName];
-    if (Array.isArray(renders)) return renders[0];
-    return renders;
-  });
-
-  const partMethods = useMemo(
-    () => aui.message().part({ index }),
-    [aui, index],
+  const Render = useAuiState(
+    (s) => s.tools.toolUIs[part.toolName]?.[0]?.render,
   );
+
+  const partMethods = useMemo(() => aui.message.part({ index }), [aui, index]);
   const toolProps = {
     ...(part as ToolCallMessagePartProps),
     addResult: partMethods.addToolResult,

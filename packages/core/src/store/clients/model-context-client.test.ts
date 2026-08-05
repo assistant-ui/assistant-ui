@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 import { createTapRoot, useResource } from "@assistant-ui/tap";
 import type { Tool } from "assistant-stream";
 import { ModelContext } from "./model-context-client";
@@ -149,27 +149,35 @@ describe("mergeModelContexts", () => {
     });
   });
 
-  it("warns and keeps the latest registration for duplicate tools at the same priority", () => {
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    try {
-      const latest = {
-        ...toolFixture(),
-        description: "latest",
-      } as Tool<any, any>;
-      const merged = mergeModelContexts(
+  it("rejects duplicate tools at the same priority", () => {
+    expect(() =>
+      mergeModelContexts(
         new Set([
           provider({ tools: { duplicate: toolFixture() } }),
-          provider({ tools: { duplicate: latest } }),
+          provider({ tools: { duplicate: toolFixture() } }),
         ]),
-      );
+      ),
+    ).toThrow(/already exists/);
+  });
 
-      expect(warn).toHaveBeenCalledWith(
-        expect.stringContaining('Duplicate tool definition for "duplicate"'),
-      );
-      expect(merged.tools?.duplicate?.description).toBe("latest");
-    } finally {
-      warn.mockRestore();
-    }
+  it("silently replaces a same-priority tool when the later registration sets overwrite", () => {
+    const merged = mergeModelContexts(
+      new Set([
+        provider({ tools: { duplicate: toolFixture() } }),
+        provider({
+          tools: {
+            duplicate: {
+              ...toolFixture(),
+              description: "latest",
+              overwrite: true,
+            } as Tool<any, any>,
+          },
+        }),
+      ]),
+    );
+
+    expect(merged.tools?.duplicate?.description).toBe("latest");
+    expect(merged.tools?.duplicate?.overwrite).toBeUndefined();
   });
 
   it("preserves the highest priority when a lower-priority provider reuses the same tool object", () => {

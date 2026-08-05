@@ -1,4 +1,5 @@
 import "server-only";
+import { withTimeout } from "./with-timeout";
 
 const REPO = "assistant-ui/assistant-ui";
 const API_BASE = `https://api.github.com/repos/${REPO}`;
@@ -37,16 +38,19 @@ async function ghFetch(
   path: string,
   revalidate: number,
   init?: RequestInit & { headers?: Record<string, string> },
+  base: string = API_BASE,
 ): Promise<Response> {
   const { next: initNext, ...rest } = init ?? {};
   const cache = cacheInit(revalidate);
-  return fetch(`${API_BASE}${path}`, {
-    ...rest,
-    headers: ghHeaders(init?.headers),
-    ...("next" in cache
-      ? { next: { ...cache.next, ...(initNext ?? {}) } }
-      : cache),
-  });
+  return withTimeout(
+    fetch(`${base}${path}`, {
+      ...rest,
+      headers: ghHeaders(init?.headers),
+      ...("next" in cache
+        ? { next: { ...cache.next, ...(initNext ?? {}) } }
+        : cache),
+    }),
+  );
 }
 
 function parseLastPage(linkHeader: string | null): number | null {
@@ -64,11 +68,17 @@ export type RepoStats = {
 
 export async function getRepo(
   revalidate: number = REVALIDATE.WARM,
+  fullName: string = REPO,
 ): Promise<RepoStats | null> {
   try {
-    const res = await ghFetch("", revalidate);
+    const res = await ghFetch(
+      "",
+      revalidate,
+      undefined,
+      `https://api.github.com/repos/${fullName}`,
+    );
     if (!res.ok) return null;
-    const data = await res.json();
+    const data = await withTimeout(res.json());
     if (typeof data?.stargazers_count !== "number") return null;
     return {
       stars: data.stargazers_count,
@@ -103,7 +113,7 @@ export async function getReleases(
         revalidate,
       );
       if (!res.ok) break;
-      const batch = (await res.json()) as GitHubRelease[];
+      const batch = (await withTimeout(res.json())) as GitHubRelease[];
       if (batch.length === 0) break;
       all.push(...batch);
       if (batch.length < 100) break;
@@ -125,7 +135,7 @@ export async function getCommitActivityStats(
     const res = await ghFetch("/stats/commit_activity", revalidate);
     // 202 means GitHub is still computing; caller falls back to commit list.
     if (!res.ok || res.status === 202) return null;
-    const data = (await res.json()) as CommitActivityWeek[];
+    const data = (await withTimeout(res.json())) as CommitActivityWeek[];
     return Array.isArray(data) && data.length > 0 ? data : null;
   } catch {
     return null;
@@ -153,7 +163,7 @@ export async function getCommitsSince(
         revalidate,
       );
       if (!res.ok) break;
-      const batch = (await res.json()) as CommitListItem[];
+      const batch = (await withTimeout(res.json())) as CommitListItem[];
       if (batch.length === 0) break;
       all.push(...batch);
       if (batch.length < 100) break;
@@ -178,7 +188,7 @@ export async function getCommitStats(
     if (!res.ok) return { total: null, firstCommitDate: null };
     // With per_page=1 the last page number equals the total number of commits on the default branch (every author, bots included).
     const last = parseLastPage(res.headers.get("Link"));
-    const page1 = (await res.json()) as CommitListItem[];
+    const page1 = (await withTimeout(res.json())) as CommitListItem[];
     const total = last ?? (Array.isArray(page1) ? page1.length : null);
 
     if (last == null || last <= 1) {
@@ -189,7 +199,7 @@ export async function getCommitStats(
       revalidate,
     );
     if (!oldest.ok) return { total, firstCommitDate: null };
-    const data = (await oldest.json()) as CommitListItem[];
+    const data = (await withTimeout(oldest.json())) as CommitListItem[];
     return { total, firstCommitDate: commitDate(data[0]) };
   } catch {
     return { total: null, firstCommitDate: null };
@@ -221,7 +231,7 @@ export async function getCommitCoAuthors(
       MAX_COMMIT_PAGES,
     );
     const pages: CommitListItem[][] = [
-      (await first.json()) as CommitListItem[],
+      (await withTimeout(first.json())) as CommitListItem[],
     ];
 
     const rest: number[] = [];
@@ -229,11 +239,17 @@ export async function getCommitCoAuthors(
     for (let i = 0; i < rest.length; i += COMMIT_PAGE_CONCURRENCY) {
       const batch = await Promise.all(
         rest.slice(i, i + COMMIT_PAGE_CONCURRENCY).map(async (page) => {
-          const res = await ghFetch(
-            `/commits?per_page=100&page=${page}`,
-            revalidate,
-          );
-          return res.ok ? ((await res.json()) as CommitListItem[]) : [];
+          try {
+            const res = await ghFetch(
+              `/commits?per_page=100&page=${page}`,
+              revalidate,
+            );
+            return res.ok
+              ? ((await withTimeout(res.json())) as CommitListItem[])
+              : [];
+          } catch {
+            return [];
+          }
         }),
       );
       pages.push(...batch);
@@ -281,12 +297,14 @@ async function fetchGitHubUser(
   revalidate: number,
 ): Promise<GitHubUser | null> {
   try {
-    const res = await fetch(`https://api.github.com/${path}`, {
-      headers: ghHeaders(),
-      ...cacheInit(revalidate),
-    });
+    const res = await withTimeout(
+      fetch(`https://api.github.com/${path}`, {
+        headers: ghHeaders(),
+        ...cacheInit(revalidate),
+      }),
+    );
     if (!res.ok) return null;
-    const data = await res.json();
+    const data = await withTimeout(res.json());
     if (typeof data?.login !== "string") return null;
     return {
       login: data.login,
@@ -317,8 +335,8 @@ export async function getContributors(
   maxPages = 2,
   revalidate: number = REVALIDATE.COOL,
 ): Promise<GitHubContributor[] | null> {
+  const all: GitHubContributor[] = [];
   try {
-    const all: GitHubContributor[] = [];
     for (let page = 1; page <= maxPages; page++) {
       const res = await ghFetch(
         `/contributors?per_page=100&page=${page}`,
@@ -328,15 +346,15 @@ export async function getContributors(
         if (page === 1) return null;
         break;
       }
-      const batch = (await res.json()) as GitHubContributor[];
+      const batch = (await withTimeout(res.json())) as GitHubContributor[];
       if (batch.length === 0) break;
       all.push(...batch);
       if (batch.length < 100) break;
     }
-    return all;
   } catch {
-    return null;
+    if (all.length === 0) return null;
   }
+  return all;
 }
 
 export type StargazerEntry = { starred_at: string };
@@ -355,7 +373,7 @@ export async function getStargazersPage(
       { headers: { Accept: "application/vnd.github.star+json" } },
     );
     if (!res.ok) return { data: [], lastPage: null };
-    const data = (await res.json()) as StargazerEntry[];
+    const data = (await withTimeout(res.json())) as StargazerEntry[];
     return { data, lastPage: parseLastPage(res.headers.get("Link")) };
   } catch {
     return { data: [], lastPage: null };
@@ -369,12 +387,14 @@ export async function getDependents(
   packages: number;
 } | null> {
   try {
-    const res = await fetch(`${HTML_BASE}/network/dependents`, {
-      headers: { "User-Agent": "Mozilla/5.0 (assistant-ui-traction)" },
-      ...cacheInit(revalidate),
-    });
+    const res = await withTimeout(
+      fetch(`${HTML_BASE}/network/dependents`, {
+        headers: { "User-Agent": "Mozilla/5.0 (assistant-ui-traction)" },
+        ...cacheInit(revalidate),
+      }),
+    );
     if (!res.ok) return null;
-    const html = await res.text();
+    const html = await withTimeout(res.text());
     const reposMatch = html.match(/([\d,]+)\s+Repositories\b/);
     const packagesMatch = html.match(/([\d,]+)\s+Packages\b/);
     if (!reposMatch && !packagesMatch) return null;

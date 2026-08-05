@@ -1,4 +1,4 @@
-import { createRuntimeExtras } from "@assistant-ui/core/internal";
+import { createRuntimeExtras } from "@assistant-ui/core/react";
 import type { UseChatHelpers } from "@ai-sdk/react";
 import type { UIMessage } from "ai";
 

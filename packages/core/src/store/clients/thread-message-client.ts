@@ -11,19 +11,27 @@ import { useClientLookup } from "@assistant-ui/store";
 import type { MessageState } from "../scopes/message";
 import type { PartState } from "../scopes/part";
 import { NoOpComposerClient } from "./no-op-composer-client";
+import {
+  COMPLETE_STATUS,
+  normalizePartStatus,
+} from "../../utils/normalizePartStatus";
 import { getThreadMessageText } from "../../utils/text";
 
 const useThreadMessagePartClient = ({
   part,
+  isMessageRunning,
 }: {
   part: ThreadAssistantMessagePart | ThreadUserMessagePart;
+  isMessageRunning: boolean;
 }): ClientOutput<"part"> => {
   const state = useMemo<PartState>(() => {
     return {
       ...part,
-      status: { type: "complete" },
+      status: isMessageRunning
+        ? (normalizePartStatus(part) ?? COMPLETE_STATUS)
+        : COMPLETE_STATUS,
     };
-  }, [part]);
+  }, [part, isMessageRunning]);
 
   return {
     getState: () => state,
@@ -74,6 +82,8 @@ const useThreadMessageClient = ({
 }: ThreadMessageClientProps): ClientOutput<"message"> => {
   const [isCopiedState, setIsCopied] = useState(false);
   const [isHoveringState, setIsHovering] = useState(false);
+  const isMessageRunning =
+    message.role === "assistant" && message.status.type === "running";
 
   const parts = useClientLookup(
     message.content.map((part, idx) =>
@@ -81,8 +91,8 @@ const useThreadMessageClient = ({
         "toolCallId" in part && part.toolCallId != null
           ? `toolCallId-${part.toolCallId}`
           : `index-${idx}`,
-        ThreadMessagePartClient({ part }),
-        [part],
+        ThreadMessagePartClient({ part, isMessageRunning }),
+        [part, isMessageRunning],
       ),
     ),
   );

@@ -1,23 +1,16 @@
 export const MODELS = [
   // OpenAI
   {
-    name: "GPT-5.4 Nano",
-    value: "gpt-5.4-nano",
+    name: "GPT-5.6 Luna",
+    value: "gpt-5.6-luna",
     icon: "/icons/openai.svg",
     disabled: false,
-    contextWindow: 400_000,
-  },
-  {
-    name: "GPT-5.4 Mini",
-    value: "gpt-5.4-mini",
-    icon: "/icons/openai.svg",
-    disabled: false,
-    contextWindow: 400_000,
+    contextWindow: 1_050_000,
   },
   // Google
   {
     name: "Gemini 3.1 Flash Lite",
-    value: "google-ai-studio/gemini-3.1-flash-lite-preview",
+    value: "google-ai-studio/gemini-3.1-flash-lite",
     icon: "/icons/google.svg",
     disabled: false,
     contextWindow: 1_048_576,
@@ -30,25 +23,26 @@ export const MODELS = [
     disabled: false,
     contextWindow: 2_000_000,
   },
+  // DeepSeek
   {
-    name: "Grok 3 Mini",
-    value: "grok/grok-3-mini",
-    icon: "/icons/xai.svg",
+    name: "DeepSeek V4 Flash",
+    value: "deepseek/deepseek-v4-flash",
+    icon: "/icons/deepseek.svg",
     disabled: false,
-    contextWindow: 131_072,
+    contextWindow: 1_000_000,
   },
   // Groq
   {
-    name: "Llama 4 Scout 17B",
-    value: "groq/meta-llama/llama-4-scout-17b-16e-instruct",
-    icon: "/icons/meta.svg",
+    name: "GPT-OSS 20B",
+    value: "groq/openai/gpt-oss-20b",
+    icon: "/icons/openai.svg",
     disabled: false,
     contextWindow: 131_072,
   },
   {
-    name: "Qwen3 32B",
-    value: "groq/qwen/qwen3-32b",
-    icon: "/icons/groq.svg",
+    name: "GPT-OSS 120B",
+    value: "groq/openai/gpt-oss-120b",
+    icon: "/icons/openai.svg",
     disabled: false,
     contextWindow: 131_072,
   },

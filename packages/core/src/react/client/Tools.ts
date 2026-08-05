@@ -48,13 +48,6 @@ const useTools = ({
     (): ToolsState => ({
       toolUIs,
       mcpApp: mcpAppOutput,
-      // Deprecated component-only view, derived from `toolUIs`. Removed in v0.15.
-      tools: Object.fromEntries(
-        Object.entries(toolUIs).map(([name, regs]) => [
-          name,
-          regs.map((r) => r.render),
-        ]),
-      ),
     }),
     [toolUIs, mcpAppOutput],
   );

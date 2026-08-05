@@ -5,7 +5,7 @@ export const useThreadListNew = () => {
   const aui = useAui();
 
   const switchToNewThread = useCallback(() => {
-    aui.threads().switchToNewThread();
+    aui.threads.switchToNewThread();
   }, [aui]);
 
   return { switchToNewThread };

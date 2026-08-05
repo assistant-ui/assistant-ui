@@ -18,10 +18,12 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@assistant-ui/store", () => ({
   useAui: () => ({
-    threadListItem: Object.assign(
-      () => ({ getState: () => ({ remoteId: mocks.remoteId }) }),
-      { source: mocks.remoteId ? {} : undefined },
-    ),
+    threadListItem: {
+      get source() {
+        return mocks.remoteId ? "threads" : null;
+      },
+      getState: () => ({ remoteId: mocks.remoteId }),
+    },
   }),
 }));
 

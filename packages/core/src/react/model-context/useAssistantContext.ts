@@ -13,7 +13,7 @@ export const useAssistantContext = (config: AssistantContextConfig) => {
   useEffect(() => {
     if (disabled) return;
 
-    return aui.modelContext().register({
+    return aui.modelContext.register({
       getModelContext: () => ({
         system: getContextRef.current(),
       }),

@@ -85,6 +85,35 @@ class SourceChunk:
     parent_id: Optional[str] = None
 
 
+@dataclass
+class FileChunk:
+    data: str
+    mime_type: str
+    type: str = "file"
+    parent_id: Optional[str] = None
+
+
+@dataclass
+class AnnotationsChunk:
+    annotations: List[Any]
+    type: str = "annotations"
+
+
+@dataclass
+class StepStartChunk:
+    message_id: str
+    type: str = "step-start"
+
+
+@dataclass
+class StepFinishChunk:
+    finish_reason: str
+    input_tokens: int = 0
+    output_tokens: int = 0
+    is_continued: bool = False
+    type: str = "step-finish"
+
+
 # Define the union type for AssistantStreamChunk
 AssistantStreamChunk = Union[
     TextDeltaChunk,
@@ -96,4 +125,8 @@ AssistantStreamChunk = Union[
     ErrorChunk,
     UpdateStateChunk,
     SourceChunk,
+    FileChunk,
+    AnnotationsChunk,
+    StepStartChunk,
+    StepFinishChunk,
 ]

@@ -199,6 +199,9 @@ export const ComposerPrimitiveInput = forwardRef<
       // Only handle ESC if it originated from within this input
       if (!textareaRef.current?.contains(e.target as Node)) return;
 
+      // ignore IME composition events
+      if (e.isComposing) return;
+
       // Let registered plugins (mention, slash command, etc.) handle Escape first
       if (pluginRegistry) {
         for (const plugin of pluginRegistry.getPlugins()) {
@@ -208,7 +211,7 @@ export const ComposerPrimitiveInput = forwardRef<
 
       if (!cancelOnEscape) return;
 
-      const composer = aui.composer();
+      const composer = aui.composer;
       if (composer.getState().canCancel) {
         composer.cancel();
         e.preventDefault();
@@ -229,7 +232,7 @@ export const ComposerPrimitiveInput = forwardRef<
       }
 
       if (e.key === "Enter") {
-        const threadState = aui.thread().getState();
+        const threadState = aui.thread.getState();
         const hasQueue = threadState.capabilities.queue;
 
         // Steer hotkey: Cmd/Ctrl+Shift+Enter (respects submitMode="none" and canSend)
@@ -238,10 +241,10 @@ export const ComposerPrimitiveInput = forwardRef<
           (e.ctrlKey || e.metaKey) &&
           hasQueue &&
           declaredSubmitMode !== "none" &&
-          aui.composer().getState().canSend
+          aui.composer.getState().canSend
         ) {
           e.preventDefault();
-          aui.composer().send({ steer: true });
+          aui.composer.send({ steer: true });
           return;
         }
 
@@ -267,7 +270,7 @@ export const ComposerPrimitiveInput = forwardRef<
 
     const handlePaste = async (e: ClipboardEvent<HTMLTextAreaElement>) => {
       if (!addAttachmentOnPaste) return;
-      const threadCapabilities = aui.thread().getState().capabilities;
+      const threadCapabilities = aui.thread.getState().capabilities;
       const files = Array.from(e.clipboardData?.files || []);
 
       if (threadCapabilities.attachments && files.length > 0) {
@@ -275,7 +278,7 @@ export const ComposerPrimitiveInput = forwardRef<
         await Promise.all(
           files.map(async (file) => {
             try {
-              await aui.composer().addAttachment(file);
+              await aui.composer.addAttachment(file);
             } catch {
               // The composer runtime emits composer.attachmentAddError before rejecting.
             }
@@ -319,7 +322,7 @@ export const ComposerPrimitiveInput = forwardRef<
 
     useOnScrollToBottom(() => {
       if (
-        aui.composer().getState().type === "thread" &&
+        aui.composer.getState().type === "thread" &&
         unstable_focusOnScrollToBottom
       ) {
         focus();
@@ -328,7 +331,7 @@ export const ComposerPrimitiveInput = forwardRef<
 
     useEffect(() => {
       if (
-        aui.composer().getState().type !== "thread" ||
+        aui.composer.getState().type !== "thread" ||
         !unstable_focusOnRunStart
       )
         return undefined;
@@ -338,7 +341,7 @@ export const ComposerPrimitiveInput = forwardRef<
 
     useEffect(() => {
       if (
-        aui.composer().getState().type !== "thread" ||
+        aui.composer.getState().type !== "thread" ||
         !unstable_focusOnThreadSwitched
       )
         return undefined;
@@ -362,7 +365,7 @@ export const ComposerPrimitiveInput = forwardRef<
       onChange: composeEventHandlers(
         onChange,
         (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-          if (!aui.composer().getState().isEditing) return;
+          if (!aui.composer.getState().isEditing) return;
           const nativeIsComposing =
             (e.nativeEvent as { isComposing?: boolean }).isComposing === true;
           // recover stuck compositionRef when the browser drops compositionend
@@ -372,7 +375,7 @@ export const ComposerPrimitiveInput = forwardRef<
           const isComposing = nativeIsComposing || compositionRef.current;
           // keep controlled value in sync mid-IME so react does not reset the textarea to a stale value
           flushTapSync(() => {
-            aui.composer().setText(e.target.value);
+            aui.composer.setText(e.target.value);
           });
           if (isComposing) return;
           const pos = e.target.selectionStart ?? e.target.value.length;
@@ -396,10 +399,10 @@ export const ComposerPrimitiveInput = forwardRef<
           .onCompositionEnd,
         (e: React.CompositionEvent<HTMLTextAreaElement>) => {
           compositionRef.current = false;
-          if (!aui.composer().getState().isEditing) return;
+          if (!aui.composer.getState().isEditing) return;
           const target = e.target as HTMLTextAreaElement;
           flushTapSync(() => {
-            aui.composer().setText(target.value);
+            aui.composer.setText(target.value);
           });
           const pos = target.selectionStart ?? target.value.length;
           if (pluginRegistry) {

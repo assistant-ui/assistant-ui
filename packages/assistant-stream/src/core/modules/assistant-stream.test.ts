@@ -173,6 +173,55 @@ describe("createAssistantStream task settlement", () => {
   });
 });
 
+describe("addToolCallPart with an immediate response", () => {
+  it("completes the stream without an explicit tool close", async () => {
+    const chunks = await collectChunks(
+      createAssistantStream((controller) => {
+        controller.addToolCallPart({
+          toolName: "search",
+          response: { result: "done" },
+        });
+      }),
+    );
+
+    expect(chunks.map((c) => c.type)).toContain("result");
+    expect(chunks.at(-1)?.type).toBe("part-finish");
+  });
+
+  it("completes the stream when args accompany the response", async () => {
+    const chunks = await collectChunks(
+      createAssistantStream((controller) => {
+        controller.addToolCallPart({
+          toolName: "search",
+          args: { query: "x" },
+          response: { result: "done" },
+        });
+      }),
+    );
+
+    const deltas = chunks.filter((c) => c.type === "text-delta");
+    expect(deltas.map((c) => c.textDelta).join("")).toBe('{"query":"x"}');
+    expect(chunks.filter((c) => c.type === "result")).toHaveLength(1);
+    expect(chunks.at(-1)?.type).toBe("part-finish");
+  });
+
+  it("keeps working when the caller also closes explicitly", async () => {
+    const chunks = await collectChunks(
+      createAssistantStream((controller) => {
+        const tool = controller.addToolCallPart({
+          toolName: "search",
+          response: { result: "done" },
+        });
+        tool.close();
+      }),
+    );
+
+    expect(chunks.filter((c) => c.type === "result")).toHaveLength(1);
+    expect(chunks.filter((c) => c.type === "part-finish")).toHaveLength(1);
+    expect(chunks.at(-1)?.type).toBe("part-finish");
+  });
+});
+
 describe("AssistantStreamController withParentId", () => {
   it("attaches parentId to text parts across a data-stream round trip", async () => {
     const response = createAssistantStreamResponse((controller) => {

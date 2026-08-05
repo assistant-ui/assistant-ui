@@ -8,7 +8,7 @@ export const useActionBarFeedbackPositive = () => {
   );
 
   const submit = useCallback(() => {
-    aui.message().submitFeedback({ type: "positive" });
+    aui.message.submitFeedback({ type: "positive" });
   }, [aui]);
 
   return { submit, isSubmitted };
@@ -21,7 +21,7 @@ export const useActionBarFeedbackNegative = () => {
   );
 
   const submit = useCallback(() => {
-    aui.message().submitFeedback({ type: "negative" });
+    aui.message.submitFeedback({ type: "negative" });
   }, [aui]);
 
   return { submit, isSubmitted };

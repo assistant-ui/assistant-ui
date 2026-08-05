@@ -83,11 +83,10 @@ function HiringBanner({ onDismiss }: { onDismiss: () => void }) {
   );
 }
 
-export function Header() {
+export function Header({ stars }: { stars: number | null }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const [stars, setStars] = useState<number | null>(null);
   const pathname = usePathname();
   const { toggle } = useAssistantPanel();
   const [dismissed, setDismissed] = usePersistentBoolean(
@@ -108,17 +107,6 @@ export function Header() {
     // oxlint-disable-next-line react/exhaustive-deps
   }, [pathname]);
 
-  useEffect(() => {
-    fetch("/api/github/repo")
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (data && typeof data.stars === "number") {
-          setStars(data.stars);
-        }
-      })
-      .catch(console.error);
-  }, []);
-
   const isHome = pathname === "/";
   const showBanner = mounted && isHome && returningVisitor && !dismissed;
 
@@ -133,6 +121,7 @@ export function Header() {
             <NavItems
               items={NAV_ITEMS}
               className="hidden items-center md:flex"
+              contentClassName="mx-auto max-w-7xl"
             />
           </div>
 
@@ -237,11 +226,12 @@ export function Header() {
                 );
               }
 
-              const groups = item.groups;
-
               return (
                 <div key={item.label} className="flex flex-col">
-                  {groups.map((group) => (
+                  <span className="text-foreground py-3 text-lg">
+                    {item.label}
+                  </span>
+                  {item.groups.map((group) => (
                     <div key={group.label} className="flex flex-col">
                       <span className="text-muted-foreground py-3 text-sm">
                         {group.label}

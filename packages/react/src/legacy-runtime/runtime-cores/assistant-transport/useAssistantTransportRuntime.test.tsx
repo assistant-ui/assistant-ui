@@ -112,6 +112,7 @@ const mountRuntime = (
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
 describe("useAssistantTransportRuntime", () => {
@@ -121,7 +122,7 @@ describe("useAssistantTransportRuntime", () => {
     const { aui, sendCommand } = mountRuntime({ onError });
     await waitFor(() =>
       expect(
-        (aui().thread().getState().extras as { sendCommand?: unknown })
+        (aui().thread.getState().extras as { sendCommand?: unknown })
           ?.sendCommand,
       ).toBeTypeOf("function"),
     );
@@ -139,12 +140,40 @@ describe("useAssistantTransportRuntime", () => {
 
     act(() => fetchMock.servers[0]!.close());
 
-    await waitFor(() =>
-      expect(aui().thread().getState().isRunning).toBe(false),
-    );
+    await waitFor(() => expect(aui().thread.getState().isRunning).toBe(false));
     await act(async () => {});
     expect(onError).not.toHaveBeenCalled();
     expect(fetchMock.requests).toHaveLength(1);
+  });
+
+  it("skips add-message commands with no supported parts", async () => {
+    const fetchMock = installFetch();
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const { aui, sendCommand } = mountRuntime();
+    await waitFor(() =>
+      expect(
+        (aui().thread.getState().extras as { sendCommand?: unknown })
+          ?.sendCommand,
+      ).toBeTypeOf("function"),
+    );
+
+    act(() =>
+      aui().thread.append({
+        role: "user",
+        content: [{ type: "audio", audio: { data: "", format: "mp3" } }],
+      }),
+    );
+
+    await act(async () => {});
+    expect(warn).toHaveBeenCalledWith(
+      "[assistant-ui] Skipped add-message command with no supported parts",
+    );
+    expect(fetchMock.requests).toHaveLength(0);
+
+    // The skipped message must not leak its parentId into later batches.
+    act(() => sendCommand(createMessageCommand("follow-up")));
+    await waitFor(() => expect(fetchMock.requests).toHaveLength(1));
+    expect(fetchMock.requests[0]!.body).not.toHaveProperty("parentId");
   });
 
   it("flushes commands enqueued during a resume run in a follow-up run", async () => {
@@ -154,7 +183,7 @@ describe("useAssistantTransportRuntime", () => {
     });
     await waitFor(() =>
       expect(
-        (aui().thread().getState().extras as { sendCommand?: unknown })
+        (aui().thread.getState().extras as { sendCommand?: unknown })
           ?.sendCommand,
       ).toBeTypeOf("function"),
     );
@@ -165,7 +194,7 @@ describe("useAssistantTransportRuntime", () => {
     // Both land while the first run is active and coalesce into one follow-up.
     act(() => {
       sendCommand(createMessageCommand("b"));
-      aui().thread().resumeRun({ parentId: null });
+      aui().thread.resumeRun({ parentId: null });
     });
 
     act(() => fetchMock.servers[0]!.close());
@@ -182,8 +211,6 @@ describe("useAssistantTransportRuntime", () => {
     ]);
 
     act(() => fetchMock.servers[2]!.close());
-    await waitFor(() =>
-      expect(aui().thread().getState().isRunning).toBe(false),
-    );
+    await waitFor(() => expect(aui().thread.getState().isRunning).toBe(false));
   });
 });

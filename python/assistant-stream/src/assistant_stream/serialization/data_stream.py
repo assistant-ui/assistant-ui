@@ -6,6 +6,10 @@ from typing import AsyncGenerator, Any
 from assistant_stream.serialization.assistant_stream_response import (
     AssistantStreamResponse,
 )
+from assistant_stream.serialization.heartbeat import (
+    DATA_STREAM_KEEPALIVE_LINE,
+    HeartbeatOption,
+)
 from assistant_stream.serialization.stream_encoder import StreamEncoder
 from assistant_stream.state_proxy import StateProxy
 
@@ -64,9 +68,29 @@ class DataStreamEncoder(StreamEncoder):
             return f"h:{json.dumps(source_data, cls=StateProxyJSONEncoder)}\n"
         elif chunk.type == "update-state":
             return f"aui-state:{json.dumps(chunk.operations, cls=StateProxyJSONEncoder)}\n"
+        elif chunk.type == "annotations":
+            return f"8:{json.dumps(chunk.annotations, cls=StateProxyJSONEncoder)}\n"
+        elif chunk.type == "step-start":
+            return f"f:{json.dumps({'messageId': chunk.message_id}, cls=StateProxyJSONEncoder)}\n"
+        elif chunk.type == "step-finish":
+            payload = {
+                "finishReason": chunk.finish_reason,
+                "usage": {
+                    "inputTokens": chunk.input_tokens,
+                    "outputTokens": chunk.output_tokens,
+                },
+                "isContinued": chunk.is_continued,
+            }
+            return f"e:{json.dumps(payload, cls=StateProxyJSONEncoder)}\n"
+        elif chunk.type == "file":
+            file_data = {"data": chunk.data, "mimeType": chunk.mime_type}
+            return f"k:{json.dumps(file_data, cls=StateProxyJSONEncoder)}\n"
 
     def get_media_type(self) -> str:
         return "text/plain"
+
+    def get_keepalive_token(self) -> str:
+        return DATA_STREAM_KEEPALIVE_LINE
 
     async def encode_stream(
         self, stream: AsyncGenerator[AssistantStreamChunk, None]
@@ -82,5 +106,6 @@ class DataStreamResponse(AssistantStreamResponse):
     def __init__(
         self,
         stream: AsyncGenerator[AssistantStreamChunk, None],
+        heartbeat: HeartbeatOption = False,
     ):
-        super().__init__(stream, DataStreamEncoder())
+        super().__init__(stream, DataStreamEncoder(), heartbeat=heartbeat)

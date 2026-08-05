@@ -1,5 +1,59 @@
 # assistant-stream
 
+## 0.3.33
+
+### Patch Changes
+
+- [#5565](https://github.com/assistant-ui/assistant-ui/pull/5565) [`78943a3`](https://github.com/assistant-ui/assistant-ui/commit/78943a37b1006bfbee42596f838850cd96ab4566) - feat: add opt-in `strict: false` mode that reconciles malformed stream input instead of throwing (decoders, state accumulator); assistant-transport resume runs always decode leniently ([@Yonom](https://github.com/Yonom))
+
+## 0.3.32
+
+### Patch Changes
+
+- [#5521](https://github.com/assistant-ui/assistant-ui/pull/5521) [`01140bd`](https://github.com/assistant-ui/assistant-ui/commit/01140bde14fbfa89af9bdd080bbf79b3a509b524) - fix: prevent pending frontend tool output from enqueuing after stream cancellation ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5463](https://github.com/assistant-ui/assistant-ui/pull/5463) [`4c313cf`](https://github.com/assistant-ui/assistant-ui/commit/4c313cfabe9802a7e59362c323ec926a24d089d4) - fix: carry a file part's filename through to the model message ([@okisdev](https://github.com/okisdev))
+
+  `GenericFilePart` had no `filename` field, so a `FileMessagePart` or `ImageMessagePart` carrying one arrived at the provider anonymous even though `LanguageModelV2FilePart` accepts a filename. The field is now declared and forwarded by both `toGenericMessages` and the react-data-stream converter, and omitted entirely when the source part has none.
+
+- [#5537](https://github.com/assistant-ui/assistant-ui/pull/5537) [`c868710`](https://github.com/assistant-ui/assistant-ui/commit/c8687104b0407f424d55dd0a369d692fe7a4c708) - fix: keep a settled tool call distinguishable from an unfinished one, so a tool returning false, 0, "" or null no longer loses its result on the cloud round trip and no longer reads as never completed ([@okisdev](https://github.com/okisdev))
+
+- [#5535](https://github.com/assistant-ui/assistant-ui/pull/5535) [`5ececc1`](https://github.com/assistant-ui/assistant-ui/commit/5ececc1df536e098f8ee252addd2e62be7d61a7a) - fix: synthesize a result for tool calls that have none, so a thread holding a cancelled or abandoned tool call no longer breaks every later run ([@okisdev](https://github.com/okisdev))
+
+## 0.3.31
+
+### Patch Changes
+
+- [#5296](https://github.com/assistant-ui/assistant-ui/pull/5296) [`936c52c`](https://github.com/assistant-ui/assistant-ui/commit/936c52c4301b89242572d9890c870050f63cbe93) - fix: DataStreamDecoder drops tool-call args deltas for an already-closed args stream instead of crashing mid-decode when a text delta interleaves between a tool call's begin and its args ([@Solaris-star](https://github.com/Solaris-star))
+
+- [#5318](https://github.com/assistant-ui/assistant-ui/pull/5318) [`ee87dd9`](https://github.com/assistant-ui/assistant-ui/commit/ee87dd9fef1389165bbfe0019be2a6995b2cfb24) - fix: accept case-insensitive `data:` URL schemes and normalize parsed mime types to lowercase ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+## 0.3.30
+
+### Patch Changes
+
+- [#5284](https://github.com/assistant-ui/assistant-ui/pull/5284) [`a8cd1c9`](https://github.com/assistant-ui/assistant-ui/commit/a8cd1c9ff95bae0921cbd7f7930c05be6d6192a0) - fix: addToolCallPart({response}) settles the tool-call part so the stream closes ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+## 0.3.29
+
+### Patch Changes
+
+- [#5278](https://github.com/assistant-ui/assistant-ui/pull/5278) [`f78e579`](https://github.com/assistant-ui/assistant-ui/commit/f78e5794d8d9d2f1c815485cb39a56f1072ed795) - fix: PlainTextEncoder emits assistant text only. Reasoning and tool-call argument deltas no longer leak into the output, non-text chunks (result, annotations, data, update-state, tool-call-args-text-finish) are skipped instead of throwing mid-stream, and the incorrect x-vercel-ai-data-stream header is removed from the response headers. ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+## 0.3.28
+
+### Patch Changes
+
+- [#5236](https://github.com/assistant-ui/assistant-ui/pull/5236) [`f9c1b0f`](https://github.com/assistant-ui/assistant-ui/commit/f9c1b0fec5ac4cae09c1c9da77f901c0799140ad) - fix: DataStreamChunkDecoder skips blank framing lines and drops colon-less lines with a warning instead of throwing ([@Yonom](https://github.com/Yonom))
+
+- [#5206](https://github.com/assistant-ui/assistant-ui/pull/5206) [`235c17e`](https://github.com/assistant-ui/assistant-ui/commit/235c17e22acae8a643c583905f3bf90955651794) - fix: parse SSEDecoder and data-stream chunk frames with secure-json-parse, matching the transport and UIMessageStream decoders; a malformed or prototype-pollution frame is now dropped with a warning and the stream continues instead of erroring the whole stream ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#5208](https://github.com/assistant-ui/assistant-ui/pull/5208) [`a0ddc86`](https://github.com/assistant-ui/assistant-ui/commit/a0ddc862b0c506bd791238ebf800868e4836820a) - Adopt `erasableSyntaxOnly`; public enums are now `as const` objects. ([@Yonom](https://github.com/Yonom))
+
+- [#5263](https://github.com/assistant-ui/assistant-ui/pull/5263) [`06f5266`](https://github.com/assistant-ui/assistant-ui/commit/06f5266bf8d7d347020c113c089b199b182a0099) - Same-priority duplicate tool registrations throw again. The `Tool` type gains an optional `overwrite` flag (discouraged escape hatch) that lets a later registration silently replace a same-priority tool of the same name; the flag is stripped from the merged output. ([@Yonom](https://github.com/Yonom))
+
+- [#5200](https://github.com/assistant-ui/assistant-ui/pull/5200) [`d319637`](https://github.com/assistant-ui/assistant-ui/commit/d319637df1297b7aa589a77ff268467270a85386) - fix: parse UIMessageStream frames with secure-json-parse, matching the transport decoder ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
 ## 0.3.27
 
 ### Patch Changes

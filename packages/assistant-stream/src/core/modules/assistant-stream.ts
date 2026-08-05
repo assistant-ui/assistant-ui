@@ -89,8 +89,13 @@ export type AssistantStreamController = {
   withParentId(parentId: string): AssistantStreamController;
 };
 
+type AssistantStreamOptions = {
+  strict?: boolean | undefined;
+};
+
 // Shared state between controller instances
 type AssistantStreamControllerState = {
+  strict: boolean;
   merger: ReturnType<typeof createMergeStream>;
   append?:
     | {
@@ -107,8 +112,12 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
   private readonly _state: AssistantStreamControllerState;
   private _parentId?: string;
 
-  constructor(state?: AssistantStreamControllerState) {
+  constructor(
+    state?: AssistantStreamControllerState,
+    options: AssistantStreamOptions = {},
+  ) {
     this._state = state || {
+      strict: options.strict ?? true,
       merger: createMergeStream(),
       contentCounter: new Counter(),
     };
@@ -187,13 +196,17 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
   }
 
   addTextPart() {
-    const [stream, controller] = createTextStreamController();
+    const [stream, controller] = createTextStreamController({
+      strict: this._state.strict,
+    });
     this._addPart(this._withParentIdOption({ type: "text" }), stream);
     return controller;
   }
 
   addReasoningPart() {
-    const [stream, controller] = createTextStreamController();
+    const [stream, controller] = createTextStreamController({
+      strict: this._state.strict,
+    });
     this._addPart(this._withParentIdOption({ type: "reasoning" }), stream);
     return controller;
   }
@@ -300,8 +313,9 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
  */
 export function createAssistantStream(
   callback: (controller: AssistantStreamController) => PromiseLike<void> | void,
+  options: AssistantStreamOptions = {},
 ): AssistantStream {
-  const controller = new AssistantStreamControllerImpl();
+  const controller = new AssistantStreamControllerImpl(undefined, options);
 
   const runTask = async () => {
     try {
@@ -334,7 +348,9 @@ export function createAssistantStream(
  * Use this when the stream needs to be returned before all writers are known.
  * Closing the returned controller finishes the paired stream.
  */
-export function createAssistantStreamController() {
+export function createAssistantStreamController(
+  options: AssistantStreamOptions = {},
+) {
   const { resolve, promise } = promiseWithResolvers<void>();
   let controller!: AssistantStreamController;
   const stream = createAssistantStream((c) => {
@@ -345,7 +361,7 @@ export function createAssistantStreamController() {
     );
 
     return promise;
-  });
+  }, options);
   return [stream, controller] as const;
 }
 

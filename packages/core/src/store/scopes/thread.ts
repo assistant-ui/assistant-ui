@@ -108,7 +108,7 @@ export type ThreadMethods = {
    * @param initialMessages - Optional array of initial messages to populate the thread
    */
   reset(initialMessages?: readonly ThreadMessageLike[]): void;
-  importExternalState?(state: unknown): void;
+  importExternalState(state: unknown): void;
   message(selector: { id: string } | { index: number }): MessageMethods;
   /** @deprecated This API is still under active development and might change without notice. */
   stopSpeaking(): void;

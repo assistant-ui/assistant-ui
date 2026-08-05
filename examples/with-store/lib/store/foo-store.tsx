@@ -8,6 +8,7 @@ import {
   useAui,
   useAuiState,
   AuiProvider,
+  AuiConfig,
   useClientList,
   Derived,
   useAssistantEmit,
@@ -88,7 +89,8 @@ const FooProvider = ({
   index: number;
   children: ReactNode;
 }) => {
-  const aui = useAui({
+  const aui = useAui();
+  const config = AuiConfig({
     foo: Derived({
       source: "fooList",
       query: { index },
@@ -96,7 +98,11 @@ const FooProvider = ({
     }),
   });
 
-  return <AuiProvider value={aui}>{children}</AuiProvider>;
+  return (
+    <AuiProvider extends={aui} config={config}>
+      {children}
+    </AuiProvider>
+  );
 };
 
 export const FooList = ({

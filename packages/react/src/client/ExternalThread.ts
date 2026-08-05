@@ -38,9 +38,11 @@ import type { ReadonlyJSONValue } from "assistant-stream/utils";
 import type { QueueItemState } from "@assistant-ui/core/store";
 import type { ComposerSendOptions } from "@assistant-ui/core/store";
 import {
+  fileMatchesAccept,
   getThreadMessageText,
   isCreateAttachment,
   resolveToolApprovalResponse,
+  toMessagePartStatus,
 } from "@assistant-ui/core/internal";
 import { ModelContext, Suggestions } from "@assistant-ui/core/store";
 import { Tools, DataRenderers } from "@assistant-ui/core/react";
@@ -57,23 +59,13 @@ const COMPLETE_STATUS: MessagePartStatus = Object.freeze({
   type: "complete",
 });
 
-// Legacy runtime parity (toMessagePartStatus): a tool call without a result
-// carries its message's status; the last part of a streaming message streams.
 const derivePartStatus = (
   message: ExternalThreadMessage,
   partIndex: number,
   part: ThreadAssistantMessagePart | ThreadUserMessagePart,
 ): ToolCallMessagePartStatus => {
-  if (message.role !== "assistant" || !message.status) return COMPLETE_STATUS;
-
-  if (part.type === "tool-call") {
-    if (!part.result) return message.status as ToolCallMessagePartStatus;
-    return COMPLETE_STATUS;
-  }
-
-  const isLastPart = partIndex === Math.max(0, message.content.length - 1);
-  if (message.status.type === "requires-action") return COMPLETE_STATUS;
-  return isLastPart ? (message.status as MessagePartStatus) : COMPLETE_STATUS;
+  if (!message.status) return COMPLETE_STATUS;
+  return toMessagePartStatus(message, partIndex, part);
 };
 
 export type ExternalThreadProps = {
@@ -125,6 +117,7 @@ type MessageClientProps = {
     | undefined;
   onAddToolResult?: ((options: AddToolResultOptions) => void) | undefined;
   onResumeToolCall?: ((options: ResumeToolCallOptions) => void) | undefined;
+  attachmentAdapter?: AttachmentAdapter | undefined;
 };
 
 // Message Client - minimal implementation
@@ -139,6 +132,7 @@ const useMessageClient = ({
   onRespondToToolApproval,
   onAddToolResult,
   onResumeToolCall,
+  attachmentAdapter,
 }: MessageClientProps): ClientOutput<"message"> => {
   const [isCopied, setIsCopied] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
@@ -200,6 +194,7 @@ const useMessageClient = ({
       onSend: handleSendEdit,
       message,
       queue,
+      attachmentAdapter,
     }),
   );
 
@@ -303,17 +298,17 @@ const usePartResource = ({
   onResumeToolCall,
 }: PartResourceProps): ClientOutput<"part"> => {
   const state = useMemo(
-    () => ({
-      ...part,
-      status,
-    }),
+    () => ({ ...part, status: status as MessagePartStatus }),
     [part, status],
   );
 
   return {
     getState: () => state,
     addToolResult: (result) => {
-      if (!onAddToolResult) return;
+      if (!onAddToolResult)
+        throw new Error(
+          "Runtime does not support tool results (onAddToolResult is not set).",
+        );
       if (part.type !== "tool-call")
         throw new Error("Tried to add tool result on non-tool message part");
 
@@ -331,7 +326,10 @@ const usePartResource = ({
       });
     },
     resumeToolCall: (payload) => {
-      if (!onResumeToolCall) return;
+      if (!onResumeToolCall)
+        throw new Error(
+          "Runtime does not support resuming tool calls (onResumeToolCall is not set).",
+        );
       if (part.type !== "tool-call")
         throw new Error("Tried to resume tool call on non-tool message part");
 
@@ -505,6 +503,15 @@ const useComposerClientResource = ({
     ),
   );
 
+  const removePendingAttachments = async (removed: readonly Attachment[]) => {
+    if (!attachmentAdapter) return;
+    await Promise.all(
+      removed
+        .filter((a) => a.status.type !== "complete")
+        .map((a) => attachmentAdapter.remove(a)),
+    );
+  };
+
   const upsertAttachment = (attachment: Attachment) => {
     setAttachments((prev) => {
       const idx = prev.findIndex((a) => a.id === attachment.id);
@@ -567,6 +574,18 @@ const useComposerClientResource = ({
     setRole,
     setRunConfig,
     addAttachment: async (fileOrAttachment: File | CreateAttachment) => {
+      if (attachmentAdapter) {
+        const file = isCreateAttachment(fileOrAttachment)
+          ? {
+              name: fileOrAttachment.name,
+              type: fileOrAttachment.contentType ?? "",
+            }
+          : { name: fileOrAttachment.name, type: fileOrAttachment.type };
+        if (!fileMatchesAccept(file, attachmentAdapter.accept))
+          throw new Error(
+            `File type ${file.type || "unknown"} is not accepted. Accepted types: ${attachmentAdapter.accept}`,
+          );
+      }
       if (!isCreateAttachment(fileOrAttachment) && attachmentAdapter) {
         await drainAdapterAdd(
           attachmentAdapter.add({ file: fileOrAttachment }),
@@ -596,7 +615,9 @@ const useComposerClientResource = ({
       }
     },
     clearAttachments: async () => {
+      const removed = attachmentsRef.current;
       setAttachments([]);
+      await removePendingAttachments(removed);
     },
     attachment: (selector) => {
       if ("id" in selector) {
@@ -605,11 +626,13 @@ const useComposerClientResource = ({
       return attachmentClients.get(selector);
     },
     reset: async () => {
+      const removed = attachmentsRef.current;
       setText("");
       setRole("user");
       setRunConfig({});
       setAttachments([]);
       setQuote(undefined);
+      await removePendingAttachments(removed);
     },
     send: (opts?: ComposerSendOptions) => {
       const currentQuote = quoteRef.current;
@@ -653,13 +676,14 @@ const useComposerClientResource = ({
               : attachmentAdapter.send(attachment as PendingAttachment),
           ),
         ).then(dispatch, (error) => {
-          // Upload failed: restore the draft instead of dropping the message,
-          // unless the user already started composing a new one.
-          setText((prev) => (prev ? prev : currentText));
-          setQuote((prev) => prev ?? currentQuote);
-          setAttachments((prev) =>
-            prev.length > 0 ? prev : currentAttachments,
+          // Upload failed: merge the failed send back into the draft.
+          setText((prev) =>
+            currentText && prev
+              ? currentText + "\n" + prev
+              : currentText || prev,
           );
+          setQuote((prev) => prev ?? currentQuote);
+          setAttachments((prev) => [...currentAttachments, ...prev]);
           console.error("Failed to send attachments", error);
         });
       } else {
@@ -681,9 +705,26 @@ const useComposerClientResource = ({
 
 const ComposerClientResource = resource(useComposerClientResource);
 
+const dedupeMessagesById = (messages: readonly ExternalThreadMessage[]) => {
+  const seenIds = new Set<string>();
+  const deduped: ExternalThreadMessage[] = [];
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const message = messages[i]!;
+    if (seenIds.has(message.id)) {
+      console.warn(
+        `ExternalThread: duplicate message id "${message.id}" in the provided messages array; keeping the last occurrence.`,
+      );
+      continue;
+    }
+    seenIds.add(message.id);
+    deduped.push(message);
+  }
+  return deduped.length === messages.length ? messages : deduped.reverse();
+};
+
 // External Thread Client
 const useExternalThread = ({
-  messages,
+  messages: messagesProp,
   isRunning = false,
   isLoading = false,
   state: threadState,
@@ -703,6 +744,11 @@ const useExternalThread = ({
   branches,
   onRespondToToolApproval,
 }: ExternalThreadProps): ClientOutput<"thread"> => {
+  const messages = useMemo(
+    () => dedupeMessagesById(messagesProp),
+    [messagesProp],
+  );
+
   const handleReload = (messageId: string) => {
     const messageIndex = messages.findIndex((m) => m.id === messageId);
     if (messageIndex === -1) return;
@@ -724,6 +770,7 @@ const useExternalThread = ({
         onRespondToToolApproval,
         onAddToolResult,
         onResumeToolCall,
+        attachmentAdapter,
       };
       if (onEdit) props.onEdit = onEdit;
       return withKey(msg.id, MessageClient(props));
@@ -741,6 +788,20 @@ const useExternalThread = ({
     onNew?.({ ...message, parentId: messages.at(-1)?.id ?? null });
   };
 
+  const headId = messages.at(-1)?.id ?? null;
+  const composerQueue = useMemo(
+    (): ExternalThreadQueueAdapter | undefined =>
+      queue && {
+        ...queue,
+        enqueue: (message, options) =>
+          queue.enqueue(
+            { ...message, parentId: message.parentId ?? headId },
+            options,
+          ),
+      },
+    [queue, headId],
+  );
+
   const composerClient = useClientResource(
     ComposerClientResource({
       type: "thread",
@@ -749,7 +810,7 @@ const useExternalThread = ({
       isSendDisabled,
       onCancel: handleCancelRun,
       onSend: handleSendNew,
-      queue,
+      queue: composerQueue,
       attachmentAdapter,
     }),
   );
@@ -774,6 +835,7 @@ const useExternalThread = ({
         edit: hasEdit,
         delete: false,
         reload: hasReload,
+        refetchThread: false,
         cancel: isRunning,
         speech: false,
         attachments: hasAttachments,
@@ -846,11 +908,19 @@ const useExternalThread = ({
       onStartRun?.();
     },
     resumeRun: () => {
-      onResume?.();
+      if (!onResume)
+        throw new Error(
+          "Runtime does not support resuming runs (onResume is not set).",
+        );
+      onResume();
     },
     cancelRun: handleCancelRun,
     importExternalState: (state: unknown) => {
-      onLoadExternalState?.(state);
+      if (!onLoadExternalState)
+        throw new Error(
+          "Runtime does not support importing external states (onLoadExternalState is not set).",
+        );
+      onLoadExternalState(state);
     },
     getModelContext: () => ({ tools: {}, config: {} }),
     export: () => ({ messages: [] }),
@@ -878,10 +948,12 @@ attachTransformScopes(useExternalThread, (scopes, parent) => {
   if (!scopes.threads && parent.threads.source === null) {
     const threadElement = scopes.thread as ClientElement<"thread">;
     scopes.threads = SingleThreadList({ thread: threadElement });
+    // scopes mount in key order; re-declare thread after the threads source it resolves from
+    delete scopes.thread;
     scopes.thread = Derived({
       source: "threads",
       query: { type: "main" },
-      get: (aui) => aui.threads().thread("main"),
+      get: (aui) => aui.threads.thread("main"),
     });
   }
 
@@ -889,14 +961,14 @@ attachTransformScopes(useExternalThread, (scopes, parent) => {
     scopes.threadListItem = Derived({
       source: "threads",
       query: { type: "main" },
-      get: (aui) => aui.threads().item("main"),
+      get: (aui) => aui.threads.item("main"),
     });
   }
 
   scopes.composer ??= Derived({
     source: "thread",
     query: {},
-    get: (aui) => aui.thread().composer(),
+    get: (aui) => aui.thread.composer(),
   });
 
   if (!scopes.modelContext && parent.modelContext.source === null) {

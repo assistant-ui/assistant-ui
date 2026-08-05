@@ -42,10 +42,307 @@ const accordionKeyframesCss = {
   },
 };
 
+type ElementRegistryEntry = {
+  slug: string;
+  title: string;
+  description: string;
+  file: string;
+  dependencies?: string[];
+  usesCollapsible?: boolean;
+};
+
+const createElementRegistryItem = (
+  entry: ElementRegistryEntry,
+): RegistryItem => ({
+  name: `elements-${entry.slug}`,
+  type: "registry:component",
+  title: entry.title,
+  description: entry.description,
+  files: [
+    {
+      type: "registry:component",
+      path: `components/elements/${entry.file}`,
+      sourcePath: `../../packages/ui/src/components/elements/${entry.file}`,
+    },
+  ],
+  registryDependencies: [
+    "https://r.assistant-ui.com/elements-surfaces.json",
+    ...(entry.usesCollapsible ? ["collapsible"] : []),
+  ],
+  ...(entry.dependencies ? { dependencies: entry.dependencies } : {}),
+});
+
+const elementsRegistryItems: RegistryItem[] = [
+  {
+    name: "elements-surfaces",
+    type: "registry:component",
+    title: "Elements Surfaces",
+    description:
+      "Shared design language for the elements family: surface, ink, and motion class recipes plus the shimmer utility.",
+    files: [
+      {
+        type: "registry:lib",
+        path: "components/elements/surfaces.tsx",
+        sourcePath: "../../packages/ui/src/components/elements/surfaces.tsx",
+      },
+    ],
+    dependencies: ["tw-shimmer"],
+    css: {
+      '@import "tw-shimmer"': {},
+    },
+  },
+  createElementRegistryItem({
+    slug: "loading-state",
+    title: "Loading state",
+    description:
+      "A pixel matrix that keeps time while the model has nothing to show yet.",
+    file: "loading-state.tsx",
+  }),
+  createElementRegistryItem({
+    slug: "thinking-indicator",
+    title: "Thinking indicator",
+    description:
+      "A live status line that names what the agent is doing right now, with elapsed time.",
+    file: "thinking-indicator.tsx",
+  }),
+  createElementRegistryItem({
+    slug: "reasoning-panel",
+    title: "Reasoning panel",
+    description:
+      "A collapsible trace that streams reasoning steps along a timeline, then settles into a summary.",
+    file: "reasoning-panel.tsx",
+    dependencies: ["lucide-react"],
+    usesCollapsible: true,
+  }),
+  createElementRegistryItem({
+    slug: "streaming-text",
+    title: "Streaming text",
+    description:
+      "Tokens arrive softly: the newest words land in blue and settle into ink.",
+    file: "streaming-text.tsx",
+  }),
+  createElementRegistryItem({
+    slug: "typing-indicator",
+    title: "Typing indicator",
+    description:
+      "The classic three dots, tuned to read as presence rather than noise.",
+    file: "typing-indicator.tsx",
+  }),
+  createElementRegistryItem({
+    slug: "message-pair",
+    title: "Message pair",
+    description:
+      "A user bubble and a streaming assistant reply, with actions that appear on hover.",
+    file: "message-pair.tsx",
+    dependencies: ["lucide-react"],
+  }),
+  createElementRegistryItem({
+    slug: "message-branches",
+    title: "Message branches",
+    description:
+      "Navigate between regenerated versions of the same answer without losing your place.",
+    file: "message-branches.tsx",
+    dependencies: ["lucide-react"],
+  }),
+  createElementRegistryItem({
+    slug: "message-actions",
+    title: "Message actions",
+    description:
+      "Copy, rate, and regenerate. Each action confirms itself with a small state change.",
+    file: "message-actions.tsx",
+    dependencies: ["lucide-react"],
+  }),
+  createElementRegistryItem({
+    slug: "suggestions",
+    title: "Follow-up suggestions",
+    description:
+      "Prompt pills that stagger in after a reply and invite the next turn.",
+    file: "suggestions.tsx",
+  }),
+  createElementRegistryItem({
+    slug: "error-state",
+    title: "Error state",
+    description:
+      "A quiet failure banner with a retry path, not a modal in your face.",
+    file: "error-state.tsx",
+    dependencies: ["lucide-react"],
+  }),
+  createElementRegistryItem({
+    slug: "tool-call",
+    title: "Tool call",
+    description:
+      "One tool invocation with its request and result tucked behind a disclosure.",
+    file: "tool-call.tsx",
+    dependencies: ["lucide-react"],
+    usesCollapsible: true,
+  }),
+  createElementRegistryItem({
+    slug: "tool-timeline",
+    title: "Tool timeline",
+    description:
+      "A whole working session summarized as verbs, targets, and file stats.",
+    file: "tool-timeline.tsx",
+    dependencies: ["lucide-react"],
+    usesCollapsible: true,
+  }),
+  createElementRegistryItem({
+    slug: "terminal-block",
+    title: "Terminal block",
+    description:
+      "Command output that streams line by line and ends with an exit status.",
+    file: "terminal-block.tsx",
+    dependencies: ["lucide-react"],
+  }),
+  createElementRegistryItem({
+    slug: "code-diff",
+    title: "Code diff",
+    description:
+      "A unified diff with tinted additions and removals, sized for chat.",
+    file: "code-diff.tsx",
+  }),
+  createElementRegistryItem({
+    slug: "web-search",
+    title: "Web search",
+    description:
+      "A search query and its results landing one by one as the agent reads.",
+    file: "web-search.tsx",
+    dependencies: ["lucide-react"],
+  }),
+  createElementRegistryItem({
+    slug: "sources",
+    title: "Sources",
+    description:
+      "Citations collapsed into a pill, expanding into scannable source cards.",
+    file: "sources.tsx",
+    dependencies: ["lucide-react"],
+    usesCollapsible: true,
+  }),
+  createElementRegistryItem({
+    slug: "inline-citation",
+    title: "Inline citation",
+    description:
+      "Numbered references inside a sentence, each with a hover preview of its source.",
+    file: "inline-citation.tsx",
+    dependencies: ["@base-ui/react"],
+  }),
+  createElementRegistryItem({
+    slug: "image-generation",
+    title: "Image generation",
+    description:
+      "A dot grid holds the frame while the image resolves out of a blur.",
+    file: "image-generation.tsx",
+    dependencies: ["lucide-react"],
+  }),
+  createElementRegistryItem({
+    slug: "data-table",
+    title: "Data table",
+    description: "A small comparison table the model can answer with directly.",
+    file: "data-table.tsx",
+  }),
+  createElementRegistryItem({
+    slug: "number-ticker",
+    title: "Number ticker",
+    description: "Digits that roll into place as a count updates in real time.",
+    file: "number-ticker.tsx",
+  }),
+  createElementRegistryItem({
+    slug: "agent-plan",
+    title: "Agent plan",
+    description:
+      "A checklist the agent works through, with progress you can glance.",
+    file: "agent-plan.tsx",
+    dependencies: ["lucide-react"],
+  }),
+  createElementRegistryItem({
+    slug: "subagent-list",
+    title: "Subagent list",
+    description:
+      "Parallel workers with their own progress, models, and completions.",
+    file: "subagent-list.tsx",
+    dependencies: ["lucide-react"],
+  }),
+  createElementRegistryItem({
+    slug: "agent-status",
+    title: "Agent status",
+    description:
+      "One pill that always answers: what is it doing, and for how long.",
+    file: "agent-status.tsx",
+    dependencies: ["lucide-react"],
+  }),
+  createElementRegistryItem({
+    slug: "approval-card",
+    title: "Approval card",
+    description:
+      "Human in the loop: the agent asks before it runs anything with side effects.",
+    file: "approval-card.tsx",
+    dependencies: ["lucide-react"],
+  }),
+  createElementRegistryItem({
+    slug: "recommendation-card",
+    title: "Recommendation card",
+    description:
+      "The agent proposes a change with its confidence, and waits for a yes.",
+    file: "recommendation-card.tsx",
+    dependencies: ["lucide-react"],
+  }),
+  createElementRegistryItem({
+    slug: "artifact-card",
+    title: "Artifact card",
+    description:
+      "A generated document as a tangible object, written live and versioned.",
+    file: "artifact-card.tsx",
+    dependencies: ["lucide-react"],
+  }),
+  createElementRegistryItem({
+    slug: "composer",
+    title: "Composer",
+    description:
+      "The unified input: attachments, commands, mentions, models, voice, and context in one surface.",
+    file: "composer.tsx",
+    dependencies: ["lucide-react"],
+  }),
+  createElementRegistryItem({
+    slug: "chat-panel",
+    title: "Chat panel",
+    description:
+      "The whole family working together: a message, a pause, a streamed reply.",
+    file: "chat-panel.tsx",
+    dependencies: ["lucide-react"],
+  }),
+  createElementRegistryItem({
+    slug: "empty-state",
+    title: "Empty state",
+    description:
+      "The first screen: a greeting, three ways in, and the composer front and center.",
+    file: "empty-state.tsx",
+    dependencies: ["lucide-react"],
+  }),
+  createElementRegistryItem({
+    slug: "thread-list",
+    title: "Thread list",
+    description:
+      "Conversation history with unread marks and actions that wait for hover.",
+    file: "thread-list.tsx",
+    dependencies: ["lucide-react"],
+  }),
+  createElementRegistryItem({
+    slug: "scroll-anchor",
+    title: "Scroll anchor",
+    description:
+      "Streaming never steals your scroll position; a pill offers the way back down.",
+    file: "scroll-anchor.tsx",
+    dependencies: ["lucide-react"],
+  }),
+];
+
 export const registry: RegistryItem[] = [
+  ...elementsRegistryItems,
   {
     name: "shimmer-style",
     type: "registry:style",
+    title: "Shimmer Style",
+    description:
+      "Keyframes and theme variables for the streaming shimmer animation.",
     cssVars: {
       theme: {
         "--animate-shimmer":
@@ -66,6 +363,9 @@ export const registry: RegistryItem[] = [
   {
     name: "chat/b/ai-sdk-quick-start/json",
     type: "registry:page",
+    title: "AI SDK Quick Start",
+    description:
+      "Assistant page wired to the AI SDK chat route, with the thread component installed.",
     files: [
       {
         type: "registry:page",
@@ -87,6 +387,9 @@ export const registry: RegistryItem[] = [
   {
     name: "ai-sdk-backend",
     type: "registry:page",
+    title: "AI SDK Backend",
+    description:
+      "Next.js route handler that streams chat completions through the AI SDK.",
     files: [
       {
         type: "registry:page",
@@ -99,6 +402,9 @@ export const registry: RegistryItem[] = [
   {
     name: "ai-sdk-backend-resumable",
     type: "registry:page",
+    title: "AI SDK Resumable Backend",
+    description:
+      "AI SDK route handlers with resumable stream context, so a run survives a reload.",
     files: [
       {
         type: "registry:page",
@@ -130,8 +436,34 @@ export const registry: RegistryItem[] = [
     ],
   },
   {
+    name: "eve-chat",
+    type: "registry:item",
+    title: "Eve Chat",
+    description:
+      "Chat page for an Eve agent, rendering the session through an assistant-ui thread.",
+    files: [
+      {
+        type: "registry:file",
+        path: "app/page.tsx",
+        sourcePath: "templates/eve/app/page.tsx",
+        target: "app/page.tsx",
+      },
+    ],
+    dependencies: ["@assistant-ui/eve"],
+    bundledRegistryDependencies: ["https://r.assistant-ui.com/thread.json"],
+    docs: "Eve installs registry files without touching CSS, so add the reasoning and collapsible styles to app/globals.css, and replace the default auth policy in agent/channels/eve.ts before deploying: https://www.assistant-ui.com/docs/runtimes/eve/quickstart",
+    meta: {
+      eve: {
+        requires: ">=0.27.6",
+      },
+    },
+  },
+  {
     name: "thread",
     type: "registry:component",
+    title: "Thread",
+    description:
+      "Chat container with message list, composer, auto scroll, and accessibility built in.",
     files: [
       {
         type: "registry:component",
@@ -154,6 +486,9 @@ export const registry: RegistryItem[] = [
   {
     name: "voice",
     type: "registry:component",
+    title: "Voice",
+    description:
+      "Realtime voice session controls with connect, mute, and a status indicator.",
     files: [
       {
         type: "registry:component",
@@ -170,6 +505,9 @@ export const registry: RegistryItem[] = [
   {
     name: "markdown-text",
     type: "registry:component",
+    title: "Markdown Text",
+    description:
+      "Render assistant markdown with headings, lists, links, and code blocks.",
     files: [
       {
         type: "registry:component",
@@ -190,6 +528,9 @@ export const registry: RegistryItem[] = [
   {
     name: "reasoning",
     type: "registry:component",
+    title: "Reasoning",
+    description:
+      "Collapsible panel for assistant reasoning and thinking content.",
     files: [
       {
         type: "registry:component",
@@ -216,6 +557,9 @@ export const registry: RegistryItem[] = [
   {
     name: "message-timing",
     type: "registry:component",
+    title: "Message Timing",
+    description:
+      "Badge with streaming stats: time to first token, total time, and tokens per second.",
     files: [
       {
         type: "registry:component",
@@ -230,6 +574,9 @@ export const registry: RegistryItem[] = [
   {
     name: "context-display",
     type: "registry:component",
+    title: "Context Display",
+    description:
+      "Token usage against a model's context window as a ring, bar, or text, with a hover popover.",
     files: [
       {
         type: "registry:component",
@@ -244,6 +591,9 @@ export const registry: RegistryItem[] = [
   {
     name: "thread-list",
     type: "registry:component",
+    title: "Thread List",
+    description:
+      "Sidebar or dropdown for switching conversations, with search and active selection.",
     files: [
       {
         type: "registry:component",
@@ -263,6 +613,9 @@ export const registry: RegistryItem[] = [
   {
     name: "mcp-config",
     type: "registry:component",
+    title: "MCP Config Dialog",
+    description:
+      "Dialog listing MCP connectors and custom servers, with OAuth and bearer auth controls.",
     files: [
       {
         type: "registry:component",
@@ -288,6 +641,9 @@ export const registry: RegistryItem[] = [
   {
     name: "attachment",
     type: "registry:component",
+    title: "Attachment",
+    description:
+      "Attach files from the composer and view them inside messages.",
     files: [
       {
         type: "registry:component",
@@ -307,6 +663,9 @@ export const registry: RegistryItem[] = [
   {
     name: "follow-up-suggestions",
     type: "registry:component",
+    title: "Follow Up Suggestions",
+    description:
+      "Prompt chips rendered from runtime generated follow up suggestions.",
     files: [
       {
         type: "registry:component",
@@ -321,6 +680,9 @@ export const registry: RegistryItem[] = [
   {
     name: "tooltip-icon-button",
     type: "registry:component",
+    title: "Tooltip Icon Button",
+    description:
+      "Icon button with an accessible tooltip label, shared across the assistant UI components.",
     files: [
       {
         type: "registry:component",
@@ -335,6 +697,8 @@ export const registry: RegistryItem[] = [
   {
     name: "syntax-highlighter",
     type: "registry:component",
+    title: "Syntax Highlighter",
+    description: "Code block highlighting powered by react-syntax-highlighter.",
     files: [
       {
         type: "registry:component",
@@ -353,6 +717,8 @@ export const registry: RegistryItem[] = [
   {
     name: "assistant-modal",
     type: "registry:component",
+    title: "Assistant Modal",
+    description: "Floating chat bubble for support widgets and help desks.",
     files: [
       {
         type: "registry:component",
@@ -371,6 +737,9 @@ export const registry: RegistryItem[] = [
   {
     name: "assistant-sidebar",
     type: "registry:component",
+    title: "Assistant Sidebar",
+    description:
+      "Side panel chat for copilot experiences and inline assistance.",
     files: [
       {
         type: "registry:component",
@@ -388,6 +757,8 @@ export const registry: RegistryItem[] = [
   {
     name: "tool-fallback",
     type: "registry:component",
+    title: "Tool Fallback",
+    description: "Default renderer for tool calls that have no dedicated UI.",
     files: [
       {
         type: "registry:component",
@@ -406,6 +777,8 @@ export const registry: RegistryItem[] = [
   {
     name: "tool-group",
     type: "registry:component",
+    title: "Tool Group",
+    description: "Collapsible wrapper around consecutive tool calls.",
     files: [
       {
         type: "registry:component",
@@ -429,6 +802,8 @@ export const registry: RegistryItem[] = [
   {
     name: "shiki-highlighter",
     type: "registry:component",
+    title: "Shiki Highlighter",
+    description: "Code block highlighting powered by react-shiki.",
     files: [
       {
         type: "registry:component",
@@ -446,6 +821,9 @@ export const registry: RegistryItem[] = [
   {
     name: "mermaid-diagram",
     type: "registry:component",
+    title: "Mermaid Diagram",
+    description:
+      "Render Mermaid diagrams in messages, including while they stream.",
     files: [
       {
         type: "registry:component",
@@ -464,6 +842,8 @@ export const registry: RegistryItem[] = [
   {
     name: "diff-viewer",
     type: "registry:component",
+    title: "Diff Viewer",
+    description: "Render code diffs with highlighted additions and deletions.",
     files: [
       {
         type: "registry:component",
@@ -482,6 +862,8 @@ export const registry: RegistryItem[] = [
   {
     name: "threadlist-sidebar",
     type: "registry:component",
+    title: "Thread List Sidebar",
+    description: "Sidebar shell that hosts the thread list beside a thread.",
     files: [
       {
         type: "registry:component",
@@ -504,6 +886,9 @@ export const registry: RegistryItem[] = [
   {
     name: "quote",
     type: "registry:component",
+    title: "Quote",
+    description:
+      "Select and quote message text with a floating toolbar and a composer preview.",
     files: [
       {
         type: "registry:component",
@@ -517,6 +902,9 @@ export const registry: RegistryItem[] = [
   {
     name: "sources",
     type: "registry:component",
+    title: "Sources",
+    description:
+      "Display URL sources with favicon, title, and an external link.",
     files: [
       {
         type: "registry:component",
@@ -530,6 +918,9 @@ export const registry: RegistryItem[] = [
   {
     name: "image",
     type: "registry:component",
+    title: "Image",
+    description:
+      "Display image parts with preview, loading states, and a fullscreen dialog.",
     files: [
       {
         type: "registry:component",
@@ -547,6 +938,9 @@ export const registry: RegistryItem[] = [
   {
     name: "file",
     type: "registry:component",
+    title: "File",
+    description:
+      "Display file parts with icon, name, size, and a download button.",
     files: [
       {
         type: "registry:component",
@@ -563,6 +957,9 @@ export const registry: RegistryItem[] = [
   {
     name: "model-selector",
     type: "registry:component",
+    title: "Model Selector",
+    description:
+      "Model picker with reasoning effort levels, search, and runtime integration.",
     files: [
       {
         type: "registry:component",
@@ -583,6 +980,8 @@ export const registry: RegistryItem[] = [
   {
     name: "logos",
     type: "registry:component",
+    title: "Logos",
+    description: "Model provider logos as inline SVG components.",
     files: [
       {
         type: "registry:component",
@@ -596,6 +995,9 @@ export const registry: RegistryItem[] = [
   {
     name: "select",
     type: "registry:component",
+    title: "Select",
+    description:
+      "Dropdown select styled for the assistant UI, with composable sub components.",
     files: [
       {
         type: "registry:component",
@@ -611,6 +1013,8 @@ export const registry: RegistryItem[] = [
   {
     name: "direction",
     type: "registry:ui",
+    title: "Direction Provider",
+    description: "Direction provider and hook for right to left layouts.",
     files: [
       {
         type: "registry:ui",
@@ -625,6 +1029,8 @@ export const registry: RegistryItem[] = [
   {
     name: "badge",
     type: "registry:component",
+    title: "Badge",
+    description: "Small label for status, categories, and metadata.",
     files: [
       {
         type: "registry:component",
@@ -640,6 +1046,8 @@ export const registry: RegistryItem[] = [
   {
     name: "tabs",
     type: "registry:component",
+    title: "Tabs",
+    description: "Tabs for organizing content into switchable panels.",
     files: [
       {
         type: "registry:component",
@@ -655,6 +1063,8 @@ export const registry: RegistryItem[] = [
   {
     name: "accordion",
     type: "registry:component",
+    title: "Accordion",
+    description: "Stacked headings that reveal or hide content sections.",
     files: [
       {
         type: "registry:component",
@@ -672,6 +1082,8 @@ export const registry: RegistryItem[] = [
   {
     name: "dot-matrix",
     type: "registry:component",
+    title: "Dot Matrix",
+    description: "5x5 dot matrix indicator with state specific blink patterns.",
     files: [
       {
         type: "registry:component",
@@ -686,6 +1098,9 @@ export const registry: RegistryItem[] = [
   {
     name: "number-roll",
     type: "registry:component",
+    title: "Number Roll",
+    description:
+      "Animated number that rolls its digits odometer style when the value changes.",
     files: [
       {
         type: "registry:component",
@@ -700,6 +1115,8 @@ export const registry: RegistryItem[] = [
   {
     name: "heat-graph",
     type: "registry:component",
+    title: "Heat Graph",
+    description: "Activity heat map with month and weekday labels.",
     files: [
       {
         type: "registry:component",
@@ -714,6 +1131,9 @@ export const registry: RegistryItem[] = [
   {
     name: "composer-trigger-popover",
     type: "registry:component",
+    title: "Composer Trigger Popover",
+    description:
+      "Character triggered picker for @ mentions, / commands, and similar popovers.",
     files: [
       {
         type: "registry:component",
@@ -728,6 +1148,8 @@ export const registry: RegistryItem[] = [
   {
     name: "directive-text",
     type: "registry:component",
+    title: "Directive Text",
+    description: "Render mention directives as inline chips in user messages.",
     files: [
       {
         type: "registry:component",
@@ -742,12 +1164,16 @@ export const registry: RegistryItem[] = [
   {
     name: "generative-ui-style",
     type: "registry:style",
+    title: "Generative UI Style",
+    description: "Theme variables and vocabulary CSS for generative UI output.",
     cssVars: generativeUiThemeVars,
     css: generativeUiVocabularyCss,
   },
   {
     name: "generative-ui",
     type: "registry:component",
+    title: "Generative UI",
+    description: "Styled component library for rendering generative UI output.",
     files: [
       {
         type: "registry:component",

@@ -99,16 +99,13 @@ This is also more precise: the component only re-renders when the specific value
 
 ## Checking if a scope exists
 
-Accessing `s.counter` in a selector throws if the `counter` scope hasn't been provided. To conditionally read state from a scope that may not exist, use `useAui()` to check `source` first:
+Accessing `s.counter` in a selector throws if the `counter` scope hasn't been provided. To read state from a scope that may not exist, use `s.optional` — an unavailable scope resolves to `undefined` instead of throwing:
 
 ```tsx
-const aui = useAui();
-const count = useAuiState(
-  () => aui.counter.source !== null && aui.counter().getState().count,
-);
+const count = useAuiState((s) => s.optional.counter?.count);
 ```
 
-When `source` is `null`, the selector short-circuits and returns `false` instead of accessing the missing scope. When the scope is available, it resolves and reads the state normally.
+To branch on availability outside a selector, check the accessor's `source` via `useAui()` — it's `null` when the scope isn't available.
 
 ## AuiIf
 
@@ -127,7 +124,7 @@ It uses `useAuiState` internally, so it re-evaluates only when the selected valu
 Both `useAuiState` and `AuiIf` are built on two primitives available on the store:
 
 - `aui.subscribe(callback)`: calls `callback` whenever any scope's state changes
-- `aui.counter().getState()`: returns the current state snapshot
+- `aui.counter.getState()`: returns the current state snapshot
 
 Together, they form the standard `useSyncExternalStore` pattern. You can use them directly for non-React integrations or when you need imperative access:
 
@@ -135,10 +132,10 @@ Together, they form the standard `useSyncExternalStore` pattern. You can use the
 const aui = useAui();
 
 // imperative read
-const count = aui.counter().getState().count;
+const count = aui.counter.getState().count;
 
 // manual subscription
 const unsub = aui.subscribe(() => {
-  console.log("new count:", aui.counter().getState().count);
+  console.log("new count:", aui.counter.getState().count);
 });
 ```

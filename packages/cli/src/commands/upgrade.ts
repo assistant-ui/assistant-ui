@@ -48,9 +48,9 @@ export const upgradeCommand = addTransformOptions(
   new Command()
     .command("upgrade")
     .description("Upgrade ai package dependencies and apply codemods"),
-).action((options: TransformOptions) => {
+).action(async (options: TransformOptions) => {
   try {
-    upgrade(options);
+    await upgrade(options);
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : String(err);
     const errorStack = err instanceof Error ? err.stack : undefined;

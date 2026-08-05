@@ -59,22 +59,19 @@ export const CounterResource = resource(useCounterResource);
 
 ## Use it in React
 
-Use `useAui` to create a store, `AuiProvider` to provide it to the tree, and `useAuiState` to subscribe to state.
+Use `AuiProvider` to create a store and provide it to the tree, and `useAuiState` to subscribe to state.
 
 ```tsx title="app/CounterApp.tsx"
 "use client";
 
-import { useAui, AuiProvider } from "@assistant-ui/store";
+import { AuiConfig, AuiProvider } from "@assistant-ui/store";
 import { CounterResource } from "@/lib/store/counter-store";
 import { CounterDisplay } from "./CounterDisplay";
 
 export const CounterApp = () => {
-  const aui = useAui({
-    counter: CounterResource({ initialCount: 0 }),
-  });
-
+  const config = AuiConfig({ counter: CounterResource({ initialCount: 0 }) });
   return (
-    <AuiProvider value={aui}>
+    <AuiProvider config={config}>
       <CounterDisplay />
     </AuiProvider>
   );
@@ -93,7 +90,7 @@ export const CounterDisplay = () => {
   return (
     <div>
       <p>Count: {count}</p>
-      <button onClick={() => aui.counter().increment()}>+</button>
+      <button onClick={() => aui.counter.increment()}>+</button>
     </div>
   );
 };
@@ -101,7 +98,7 @@ export const CounterDisplay = () => {
 
 `useAuiState((s) => s.counter.count)` subscribes to just the `count` value, so the component only re-renders when it changes.
 
-`aui.counter()` returns the methods object, so `aui.counter().increment()` calls the `increment` method you defined in the resource.
+`aui.counter` exposes the scope's methods, so `aui.counter.increment()` calls the `increment` method you defined in the resource.
 
 ## Next steps
 

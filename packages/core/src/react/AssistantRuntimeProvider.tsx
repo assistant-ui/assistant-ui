@@ -1,5 +1,5 @@
 import { type ReactNode, memo } from "react";
-import type { AssistantClient } from "@assistant-ui/store";
+import type { AssistantClient, AuiConfig } from "@assistant-ui/store";
 import type { AssistantRuntime } from "../runtime/api/assistant-runtime";
 import { AssistantProviderBase } from "./AssistantProvider";
 
@@ -29,6 +29,7 @@ export const AssistantRuntimeProvider = memo(
   ({
     runtime,
     aui,
+    config,
     children,
   }: {
     /**
@@ -44,10 +45,19 @@ export const AssistantRuntimeProvider = memo(
      * @defaultValue null
      */
     aui?: AssistantClient | null;
+    /**
+     * Optional extra scopes provided alongside the runtime's `threads`
+     * scope; build with `AuiConfig`.
+     */
+    config?: AuiConfig;
     children: ReactNode;
   }) => {
     return (
-      <AssistantProviderBase runtime={runtime} aui={aui ?? null}>
+      <AssistantProviderBase
+        runtime={runtime}
+        aui={aui ?? null}
+        config={config}
+      >
         {children}
       </AssistantProviderBase>
     );

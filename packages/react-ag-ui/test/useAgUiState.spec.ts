@@ -56,7 +56,7 @@ describe("useAgUiSetState", () => {
     });
     againstState(extras);
     mockUseAui.mockReturnValue({
-      thread: () => ({ getState: () => ({ extras }) }),
+      thread: { getState: () => ({ extras }) },
     });
 
     useAgUiSetState<{ count: number }>()({ count: 5 });
@@ -75,7 +75,7 @@ describe("useAgUiSetState", () => {
     });
     againstState(extras);
     mockUseAui.mockReturnValue({
-      thread: () => ({ getState: () => ({ extras }) }),
+      thread: { getState: () => ({ extras }) },
     });
 
     const updater = (prev: { count: number } | undefined) => ({

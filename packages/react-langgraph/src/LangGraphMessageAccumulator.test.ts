@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 
+import { appendLangChainChunk } from "./appendLangChainChunk";
 import { LangGraphMessageAccumulator } from "./LangGraphMessageAccumulator";
-import type { LangChainMessage, UIMessage } from "./types";
+import type {
+  LangChainMessage,
+  LangChainMessageChunk,
+  UIMessage,
+} from "./types";
 
 const makeUIMessage = (
   id: string,
@@ -181,6 +186,84 @@ describe("LangGraphMessageAccumulator UI reducer", () => {
   });
 });
 
+describe("LangGraphMessageAccumulator remove messages", () => {
+  it("deletes the message with the matching id on type:remove", () => {
+    const acc = new LangGraphMessageAccumulator<LangChainMessage>();
+    acc.addMessages([
+      { id: "user-1", type: "human", content: "hi" },
+      { id: "ai-1", type: "ai", content: "to be pruned" },
+      { id: "ai-2", type: "ai", content: "kept" },
+    ]);
+
+    acc.addMessages([
+      { id: "ai-1", type: "remove" } as unknown as LangChainMessage,
+    ]);
+
+    expect(acc.getMessages().map((m) => m.id)).toEqual(["user-1", "ai-2"]);
+  });
+
+  it("is a no-op when the remove id is not present", () => {
+    const acc = new LangGraphMessageAccumulator<LangChainMessage>();
+    acc.addMessages([{ id: "ai-1", type: "ai", content: "kept" }]);
+
+    acc.addMessages([
+      { id: "missing", type: "remove" } as unknown as LangChainMessage,
+    ]);
+
+    expect(acc.getMessages().map((m) => m.id)).toEqual(["ai-1"]);
+  });
+
+  it("clears the metadata for the removed id", () => {
+    const acc = new LangGraphMessageAccumulator<LangChainMessage>();
+    acc.addMessageWithMetadata(
+      { id: "ai-1", type: "ai", content: "to be pruned" },
+      { langgraph_node: "agent" },
+    );
+
+    acc.addMessages([
+      { id: "ai-1", type: "remove" } as unknown as LangChainMessage,
+    ]);
+
+    expect(acc.getMessages().map((m) => m.id)).toEqual([]);
+    expect(acc.getMetadataMap().get("ai-1")).toBeUndefined();
+  });
+
+  it("honors type:remove via addMessageWithMetadata", () => {
+    const acc = new LangGraphMessageAccumulator<LangChainMessage>();
+    acc.addMessages([
+      { id: "ai-1", type: "ai", content: "pruned" },
+      { id: "ai-2", type: "ai", content: "kept" },
+    ]);
+
+    acc.addMessageWithMetadata(
+      { id: "ai-1", type: "remove" } as unknown as LangChainMessage,
+      { langgraph_node: "agent" },
+    );
+
+    expect(acc.getMessages().map((m) => m.id)).toEqual(["ai-2"]);
+    expect(acc.getMetadataMap().get("ai-1")).toBeUndefined();
+  });
+
+  it("clears all messages and metadata on the REMOVE_ALL_MESSAGES sentinel", () => {
+    const acc = new LangGraphMessageAccumulator<LangChainMessage>();
+    acc.addMessageWithMetadata(
+      { id: "ai-1", type: "ai", content: "old" },
+      { langgraph_node: "agent" },
+    );
+    acc.addMessages([{ id: "ai-2", type: "ai", content: "old too" }]);
+
+    acc.addMessages([
+      { id: "__remove_all__", type: "remove" } as unknown as LangChainMessage,
+    ]);
+
+    expect(acc.getMessages()).toEqual([]);
+    expect(acc.getMetadataMap().size).toBe(0);
+
+    acc.addMessages([{ id: "sum-1", type: "ai", content: "summary" }]);
+    expect(acc.getMessages().map((m) => m.id)).toEqual(["sum-1"]);
+  });
+});
+
 describe("LangGraphMessageAccumulator reconcileMessages", () => {
   it("updates message content from server snapshot", () => {
     const acc = new LangGraphMessageAccumulator<LangChainMessage>();
@@ -278,5 +361,132 @@ describe("LangGraphMessageAccumulator reconcileMessages", () => {
     const result = acc.reconcileMessages([]);
     expect(result).toHaveLength(1);
     expect(result[0]!.id).toBe("ai-1");
+  });
+});
+
+describe("LangGraphMessageAccumulator values-path appendMessage", () => {
+  const partialJson = '{"city":';
+
+  const streamedChunk = (): LangChainMessageChunk => ({
+    id: "ai-1",
+    type: "AIMessageChunk",
+    content: "",
+    tool_call_chunks: [
+      {
+        id: "call-1",
+        index: 0,
+        name: "weather",
+        args_json: partialJson,
+      },
+    ],
+  });
+
+  const fullAiMessage = (): Extract<LangChainMessage, { type: "ai" }> => ({
+    id: "ai-1",
+    type: "ai",
+    content: "",
+    tool_calls: [
+      {
+        id: "call-1",
+        index: 0,
+        name: "weather",
+        args: { city: "Tokyo" },
+      },
+    ],
+  });
+
+  const createAccumulator = () =>
+    new LangGraphMessageAccumulator<LangChainMessage>({
+      appendMessage: appendLangChainChunk,
+    });
+
+  it("carries streamed partial_json through replaceMessages", () => {
+    const acc = createAccumulator();
+    acc.addMessages([streamedChunk() as unknown as LangChainMessage]);
+
+    const result = acc.replaceMessages([fullAiMessage()]);
+
+    expect(result[0]).toMatchObject({
+      type: "ai",
+      tool_calls: [
+        {
+          args: { city: "Tokyo" },
+          partial_json: partialJson,
+        },
+      ],
+    });
+  });
+
+  it("carries streamed partial_json through reconcileMessages", () => {
+    const acc = createAccumulator();
+    acc.addMessages([streamedChunk() as unknown as LangChainMessage]);
+
+    const result = acc.reconcileMessages([fullAiMessage()]);
+
+    expect(result[0]).toMatchObject({
+      type: "ai",
+      tool_calls: [
+        {
+          args: { city: "Tokyo" },
+          partial_json: partialJson,
+        },
+      ],
+    });
+  });
+
+  it("drops ids absent from a replaceMessages snapshot", () => {
+    const acc = createAccumulator();
+    acc.addMessages([
+      { id: "ai-1", type: "ai", content: "first" },
+      { id: "ai-2", type: "ai", content: "second" },
+    ]);
+
+    const result = acc.replaceMessages([
+      { id: "ai-1", type: "ai", content: "replacement" },
+    ]);
+
+    expect(result).toEqual([
+      { id: "ai-1", type: "ai", content: "replacement" },
+    ]);
+  });
+
+  it("preserves accumulator-only messages through reconcileMessages", () => {
+    const acc = createAccumulator();
+    acc.addMessages([
+      { id: "ai-1", type: "ai", content: "first" },
+      { id: "ai-2", type: "ai", content: "accumulator only" },
+    ]);
+
+    const result = acc.reconcileMessages([
+      { id: "ai-1", type: "ai", content: "server" },
+    ]);
+
+    expect(result).toEqual([
+      { id: "ai-1", type: "ai", content: "server" },
+      { id: "ai-2", type: "ai", content: "accumulator only" },
+    ]);
+  });
+
+  it("passes new and non-ai messages through unchanged on both values paths", () => {
+    const aiMessage: LangChainMessage = {
+      id: "ai-1",
+      type: "ai",
+      content: "new",
+    };
+    const humanMessage: LangChainMessage = {
+      id: "human-1",
+      type: "human",
+      content: "hello",
+    };
+
+    const replaceAccumulator = createAccumulator();
+    expect(
+      replaceAccumulator.replaceMessages([aiMessage, humanMessage]),
+    ).toEqual([aiMessage, humanMessage]);
+
+    const reconcileAccumulator = createAccumulator();
+    expect(
+      reconcileAccumulator.reconcileMessages([aiMessage, humanMessage]),
+    ).toEqual([aiMessage, humanMessage]);
   });
 });

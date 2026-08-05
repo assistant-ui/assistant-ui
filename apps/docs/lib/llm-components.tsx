@@ -13,6 +13,7 @@ import { InstallCommandLLM } from "@/components/docs/fumadocs/install/install-co
 import { ParametersTableLLM } from "@/components/docs/parameters-table";
 import { PrimitivesTypeTableLLM } from "@/components/docs/primitives-type-table";
 import { FlowLLM } from "@/components/assistant-ui/flow";
+import { TapTutorialSlideshowLLM } from "@/components/docs/tap/tutorial-slideshow.llm";
 
 /**
  * The single substitution point mapping MDX components to their text variants
@@ -26,6 +27,13 @@ import { FlowLLM } from "@/components/assistant-ui/flow";
 const Heading =
   (Tag: "h1" | "h2" | "h3" | "h4" | "h5" | "h6") =>
   ({ children }: ComponentProps<"h1">) => <Tag>{children}</Tag>;
+
+import {
+  DemoShowcaseLLM,
+  QuickLinksLLM,
+  QuickstartLLM,
+  RuntimeGridLLM,
+} from "@/components/docs/landing/llm";
 
 export const LLM_COMPONENTS: MDXComponents = {
   ...getMDXComponents({}),
@@ -49,6 +57,10 @@ export const LLM_COMPONENTS: MDXComponents = {
   blockquote: ({ children }: ComponentProps<"blockquote">) => (
     <blockquote>{children}</blockquote>
   ),
+  Quickstart: QuickstartLLM,
+  DemoShowcase: DemoShowcaseLLM,
+  RuntimeGrid: RuntimeGridLLM,
+  QuickLinks: QuickLinksLLM,
   Callout: CalloutLLM,
   Tabs: TabsLLM,
   Tab: TabLLM,
@@ -62,4 +74,5 @@ export const LLM_COMPONENTS: MDXComponents = {
   ParametersTable: ParametersTableLLM,
   PrimitivesTypeTable: PrimitivesTypeTableLLM,
   Flow: FlowLLM,
+  TapTutorialSlideshow: TapTutorialSlideshowLLM,
 };

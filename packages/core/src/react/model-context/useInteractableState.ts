@@ -28,7 +28,7 @@ const useInteractableState = <TState>(
 
   const setState = useCallback(
     (updater: StateUpdater<TState>) => {
-      aui.unstable_interactables().setState(id, (prev) => {
+      aui.unstable_interactables.setState(id, (prev) => {
         if (typeof updater === "function") {
           return (updater as (prev: TState) => TState)(prev as TState);
         }
@@ -38,7 +38,7 @@ const useInteractableState = <TState>(
     [aui, id],
   );
 
-  const flush = useCallback(() => aui.unstable_interactables().flush(), [aui]);
+  const flush = useCallback(() => aui.unstable_interactables.flush(), [aui]);
 
   return [
     state,

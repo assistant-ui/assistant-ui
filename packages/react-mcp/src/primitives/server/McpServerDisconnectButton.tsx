@@ -28,7 +28,7 @@ export const McpServerPrimitiveDisconnectButton = forwardRef<
       onClick={(e) => {
         props.onClick?.(e);
         if (e.defaultPrevented) return;
-        void aui.mcpServer().disconnect();
+        void aui.mcpServer.disconnect();
       }}
     />
   );

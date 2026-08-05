@@ -43,6 +43,7 @@ The component that owns the state registers the toolkit, then renders a small nu
 
 ```tsx title="app/TaskBoard.tsx"
 import {
+  AuiConfig,
   AuiProvider,
   Tools,
   useAui,
@@ -54,10 +55,10 @@ import toolkit from "./task-board-toolkit";
 
 function TaskBoard() {
   const [tasks, setTasks] = useState<Task[]>([]);
-  const aui = useAui({ tools: Tools({ toolkit }) });
-
+  const aui = useAui();
+  const config = AuiConfig({ tools: Tools({ toolkit }) });
   return (
-    <AuiProvider value={aui}>
+    <AuiProvider extends={aui} config={config}>
       <TaskBoardToolOverrides setTasks={setTasks} />
       <TaskList tasks={tasks} />
     </AuiProvider>
@@ -102,7 +103,8 @@ The override supplies **only** the `execute`; the description, parameters, and `
 <Callout type="info">
   Keep the override keys stable after mount, and let only one mounted provider
   define a given tool name at a time. The null-returning overrides component
-  re-binds the executor whenever the setter changes, without re-running `useAui`.
+  re-binds the executor whenever the setter changes, without remounting the
+  provider.
 </Callout>
 
 ## When to reach for this vs. Interactables

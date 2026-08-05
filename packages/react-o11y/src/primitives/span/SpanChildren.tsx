@@ -58,9 +58,7 @@ const SpanPrimitiveChildrenInner: FC<{
     if (childrenLength === 0) return null;
     return Array.from({ length: childrenLength }, (_, index) => (
       <SpanByIndexProvider key={index} index={index}>
-        <RenderChildrenWithAccessor
-          getItemState={(aui) => aui.span().getState()}
-        >
+        <RenderChildrenWithAccessor getItemState={(aui) => aui.span.getState()}>
           {(getItem) =>
             children({
               get span() {

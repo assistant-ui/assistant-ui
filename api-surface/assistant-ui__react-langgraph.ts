@@ -694,6 +694,7 @@ type ExternalStoreAdapterBase<T> = {
   onReload?: ((parentId: string | null, config: StartRunConfig) => Promise<void>) | undefined;
   onResume?: ((config: ResumeRunConfig) => Promise<void>) | undefined;
   onCancel?: (() => Promise<void>) | undefined;
+  onRefetchThread?: (() => Promise<void>) | undefined;
   onAddToolResult?: ((options: AddToolResultOptions) => Promise<void> | void) | undefined;
   onResumeToolCall?: ((options: {
     toolCallId: string;
@@ -776,6 +777,7 @@ type FileMessagePart = {
   readonly filename?: string;
   readonly data: string;
   readonly mimeType: string;
+  readonly sourceType?: "id" | "url";
   readonly parentId?: string;
 };
 
@@ -948,6 +950,12 @@ type LangChainMessage = {
     reasoning?: MessageContentReasoning;
     tool_outputs?: MessageContentComputerCall[];
     metadata?: Record<string, unknown>;
+    audio?: {
+      id?: string;
+      data?: string;
+      expires_at?: number;
+      transcript?: string;
+    };
   };
 };
 
@@ -1007,6 +1015,8 @@ declare class LangGraphMessageAccumulator<TMessage extends {
   private appendMessage;
   constructor(_param0?: LangGraphStateAccumulatorConfig<TMessage>);
   private ensureMessageId;
+  private upsertMessage;
+  private applyRemove;
   addMessages(newMessages: TMessage[]): TMessage[];
   addMessageWithMetadata(message: TMessage, metadata: LangGraphTupleMetadata): TMessage[];
   getMessages(): TMessage[];
@@ -1118,6 +1128,13 @@ type MessageCommonProps = {
   readonly createdAt: Date;
 };
 
+type MessageContentAudio = {
+  type: "audio";
+  data: string;
+  mime_type: string;
+  source_type: "base64";
+};
+
 type MessageContentComputerCall = {
   type: "computer_call";
   call_id: string;
@@ -1216,6 +1233,15 @@ type MessagePartStatus = {
   readonly type: "incomplete";
   readonly reason: "cancelled" | "content-filter" | "error" | "length" | "other";
   readonly error?: unknown;
+};
+
+type MessagePartStreamStatus = {
+  readonly type: "running";
+} | {
+  readonly type: "complete";
+} | {
+  readonly type: "incomplete";
+  readonly reason: "cancelled" | "content-filter" | "error" | "length" | "other";
 };
 
 type MessageRole = ThreadMessage["role"];
@@ -1455,6 +1481,7 @@ type RealtimeVoiceAdapter = {
 type ReasoningMessagePart = {
   readonly type: "reasoning";
   readonly text: string;
+  readonly status?: MessagePartStreamStatus;
   readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };
@@ -1535,6 +1562,7 @@ type RuntimeCapabilities = {
   readonly switchBranchDuringRun: boolean;
   readonly edit: boolean;
   readonly reload: boolean;
+  readonly refetchThread: boolean;
   readonly delete: boolean;
   readonly cancel: boolean;
   readonly unstable_copy: boolean;
@@ -1632,6 +1660,7 @@ declare const TOOL_RESPONSE_SYMBOL: unique symbol;
 type TextMessagePart = {
   readonly type: "text";
   readonly text: string;
+  readonly status?: MessagePartStreamStatus;
   readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };
@@ -1724,6 +1753,7 @@ type ThreadListItemRuntimePath = {
 
 type ThreadListItemState = {
   readonly isMain: boolean;
+  readonly isRunning: boolean;
   readonly id: string;
   readonly remoteId: string | undefined;
   readonly externalId: string | undefined;
@@ -1750,6 +1780,7 @@ type ThreadListRuntime = {
   switchToNewThread(): Promise<void>;
   getLoadThreadsPromise(): Promise<void>;
   reload(): Promise<void>;
+  reloadMainThread(): Promise<void>;
   loadMore(): Promise<void>;
 };
 
@@ -1761,7 +1792,7 @@ type ThreadListState = {
   readonly isLoading: boolean;
   readonly isLoadingMore: boolean;
   readonly hasMore: boolean;
-  readonly threadItems: Readonly<Record<string, Omit<ThreadListItemState, "isMain" | "threadId">>>;
+  readonly threadItems: Readonly<Record<string, Omit<ThreadListItemState, "isMain" | "isRunning" | "threadId">>>;
 };
 
 type ThreadMessage = BaseThreadMessage & (ThreadSystemMessage | ThreadUserMessage | ThreadAssistantMessage);
@@ -1956,6 +1987,7 @@ type ToolApprovalResponse = {
 type ToolBase<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = {
   streamCall?: ToolStreamCallFunction<TArgs, TResult>;
   display?: ToolDisplay;
+  overwrite?: boolean;
 };
 
 interface ToolCallArgsReader<TArgs extends Record<string, unknown>> {
@@ -2182,7 +2214,7 @@ type UseLangGraphRuntimeOptions = ExternalStoreSharedOptions & {
 
 type UserMessageContent = string | UserMessageContentComplex[];
 
-type UserMessageContentComplex = MessageContentText | MessageContentImageUrl | MessageContentFile;
+type UserMessageContentComplex = MessageContentText | MessageContentImageUrl | MessageContentFile | MessageContentAudio;
 
 type VoiceSessionState = {
   readonly status: RealtimeVoiceAdapter.Status;
@@ -2271,9 +2303,16 @@ declare const useLangGraphMessages: <TMessage extends {
   setValues: import("react").Dispatch<import("react").SetStateAction<Record<string, unknown> | undefined>>;
   setMessages: (msgs: TMessage[]) => void;
   setUIMessages: (next: UIMessage[]) => void;
+  reconcileMessages: (serverMessages: TMessage[], messagesAtLoadStart: TMessage[], _param6?: {
+    snapshotIsComplete?: boolean;
+  }) => void;
+  reconcileUIMessages: (serverMessages: UIMessage[], messagesAtLoadStart: UIMessage[], _param7?: {
+    snapshotIsComplete?: boolean;
+  }) => void;
+  reconcileInterrupt: (serverInterrupt: LangGraphInterruptState | undefined, interruptAtLoadStart: LangGraphInterruptState | undefined) => void;
 };
 
-declare const useLangGraphRuntime: (_param6: UseLangGraphRuntimeOptions) => AssistantRuntime;
+declare const useLangGraphRuntime: (_param8: UseLangGraphRuntimeOptions) => AssistantRuntime;
 
 declare const useLangGraphSend: () => (messages: LangChainMessage[], config: LangGraphSendMessageConfig) => Promise<void>;
 

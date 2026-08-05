@@ -99,6 +99,8 @@ export class AgUiThreadRuntimeCore {
   private _isLoading = false;
   private _loadPromise: Promise<void> | undefined;
   private pendingResumeMessageId: string | null = null;
+  private pendingA2uiResume = false;
+  private pendingA2uiAction: Record<string, unknown> | undefined;
 
   constructor(options: CoreOptions) {
     this.agent = options.agent;
@@ -688,6 +690,31 @@ export class AgUiThreadRuntimeCore {
     this.maybeResumeAfterToolResults(options.messageId);
   }
 
+  sendA2uiAction(action: Record<string, unknown>): void {
+    this.assertNoPendingInterrupts();
+    this.maybeAutoCancelPendingToolCalls();
+    const parentId = this.repository.headId;
+    if (parentId === null) {
+      this.logger.debug(
+        "[agui] sendA2uiAction: no messages to resume, dropping action",
+      );
+      return;
+    }
+
+    const userAction = { ...action };
+    delete userAction.type;
+    if (!("timestamp" in userAction)) {
+      userAction.timestamp = new Date().toISOString();
+    }
+    this.pendingA2uiAction = userAction;
+
+    if (this.isRunningFlag) {
+      this.pendingA2uiResume = true;
+      return;
+    }
+    this.startResumeRun(parentId);
+  }
+
   // The continuation fires whether the frontend result lands before
   // RUN_FINISHED (the status flips to requires-action only later, while the
   // run is still draining) or after it.
@@ -739,6 +766,8 @@ export class AgUiThreadRuntimeCore {
   }
 
   applyExternalMessages(messages: readonly ThreadMessage[]): void {
+    this.pendingA2uiResume = false;
+    this.pendingA2uiAction = undefined;
     this.assistantHistoryParents.clear();
 
     if (messages.length === 0) {
@@ -892,20 +921,38 @@ export class AgUiThreadRuntimeCore {
     this.pendingError = null;
     const assistantParentId = parent ? parentId : this.repository.headId;
     let assistantMessageId: string | undefined;
-    const ensureAssistant = () => {
-      if (assistantMessageId) return assistantMessageId;
-      const created = this.insertAssistantPlaceholder(
-        assistantParentId ?? null,
-      );
+    // A snapshot the preserve gate declines still evicts the in-flight
+    // assistant; recreating under the cached id on the next content-bearing
+    // emit keeps both the stream and the message identity. Status-only emits
+    // and server-id collisions must not recreate.
+    let assistantCollided = false;
+    const ensureAssistant = (allowRecreate = false): string => {
+      const cached = assistantMessageId;
+      if (cached !== undefined && this.tryGetMessage(cached)) return cached;
+      if (cached !== undefined && (assistantCollided || !allowRecreate)) {
+        return cached;
+      }
+      const parentId =
+        cached === undefined &&
+        assistantParentId &&
+        this.hasMessage(assistantParentId)
+          ? assistantParentId
+          : this.repository.headId;
+      const created = this.insertAssistantPlaceholder(parentId, cached);
       assistantMessageId = created;
-      this.markPendingAssistantHistory(created, assistantParentId ?? null);
+      this.markPendingAssistantHistory(created, parentId);
       return created;
     };
 
     if (shouldEagerlyInsertAssistant) ensureAssistant();
 
     const applyUpdate = (update: ChatModelRunResult) => {
-      const resolved = this.updateAssistantMessage(ensureAssistant(), update);
+      const hasContent =
+        Array.isArray(update.content) && update.content.length > 0;
+      const resolved = this.updateAssistantMessage(
+        ensureAssistant(hasContent),
+        update,
+      );
       if (resolved !== assistantMessageId) {
         assistantMessageId = resolved;
       }
@@ -916,14 +963,17 @@ export class AgUiThreadRuntimeCore {
       logger: this.logger,
       emit: applyUpdate,
       onServerMessageId: (serverId) => {
-        const placeholder = ensureAssistant();
+        const placeholder = ensureAssistant(true);
         if (placeholder === serverId) return;
         if (this.reassignAssistantId(placeholder, serverId)) {
           assistantMessageId = serverId;
+        } else {
+          assistantCollided = true;
         }
       },
     });
-    const dispatch = (event: AgUiEvent) => this.handleEvent(aggregator, event);
+    const dispatch = (event: AgUiEvent) =>
+      this.handleEvent(aggregator, event, assistantMessageId);
 
     const abortController = new AbortController();
     const abortSignal = abortController.signal;
@@ -1001,6 +1051,8 @@ export class AgUiThreadRuntimeCore {
       const err = this.pendingError;
       this.pendingError = null;
       this.pendingResumeMessageId = null;
+      this.pendingA2uiResume = false;
+      this.pendingA2uiAction = undefined;
       throw err;
     }
 
@@ -1011,6 +1063,33 @@ export class AgUiThreadRuntimeCore {
       this.pendingResumeMessageId = null;
       if (!abortSignal.aborted) {
         this.startResumeRun(resumeMessageId);
+      } else {
+        this.pendingA2uiAction = undefined;
+      }
+    }
+
+    if (this.pendingA2uiResume) {
+      this.pendingA2uiResume = false;
+      if (!abortSignal.aborted && this.pendingA2uiAction !== undefined) {
+        if (this.getPendingInterrupts()) {
+          this.pendingA2uiAction = undefined;
+          this.logger.debug(
+            "[agui] sendA2uiAction: pending interrupts, dropping action",
+          );
+          return;
+        }
+        this.maybeAutoCancelPendingToolCalls();
+        const parentId = this.repository.headId;
+        if (parentId !== null) {
+          this.startResumeRun(parentId);
+        } else {
+          this.pendingA2uiAction = undefined;
+          this.logger.debug(
+            "[agui] sendA2uiAction: no messages to resume, dropping action",
+          );
+        }
+      } else {
+        this.pendingA2uiAction = undefined;
       }
     }
   }
@@ -1029,6 +1108,8 @@ export class AgUiThreadRuntimeCore {
       getAssistantMessageId: () => string | undefined;
     },
   ): Promise<void> {
+    this.pendingA2uiAction = undefined;
+    this.pendingA2uiResume = false;
     const assistantId = ctx.ensureAssistant();
     const currentId = () => ctx.getAssistantMessageId() ?? assistantId;
     const options: ChatModelRunOptions = {
@@ -1084,7 +1165,7 @@ export class AgUiThreadRuntimeCore {
       historyMessages ?? this.repository.getMessages(),
     );
     const context = this.runtime?.thread.getModelContext();
-    return {
+    const input = {
       threadId,
       runId,
       state: this.stateSnapshot ?? null,
@@ -1097,9 +1178,14 @@ export class AgUiThreadRuntimeCore {
         ...(context?.callSettings ?? {}),
         ...(context?.config ?? {}),
         ...(runConfig?.custom ? { runConfig: runConfig.custom } : {}),
+        ...(this.pendingA2uiAction
+          ? { a2uiAction: { userAction: this.pendingA2uiAction } }
+          : {}),
       },
       ...(resume !== undefined ? { resume } : {}),
     };
+    this.pendingA2uiAction = undefined;
+    return input;
   }
 
   private installResumeShim(): void {
@@ -1135,8 +1221,10 @@ export class AgUiThreadRuntimeCore {
     this.setRunning(false);
   }
 
-  private insertAssistantPlaceholder(parentId: string | null): string {
-    const id = generateOptimisticId();
+  private insertAssistantPlaceholder(
+    parentId: string | null,
+    id: string = generateOptimisticId(),
+  ): string {
     const assistant: ThreadAssistantMessage = {
       id,
       role: "assistant",
@@ -1148,7 +1236,7 @@ export class AgUiThreadRuntimeCore {
         unstable_annotations: [],
         unstable_data: [],
         steps: [],
-        isOptimistic: true,
+        isOptimistic: isOptimisticId(id),
         custom: {},
       },
     };
@@ -1307,7 +1395,11 @@ export class AgUiThreadRuntimeCore {
     };
   }
 
-  private handleEvent(aggregator: RunAggregator, event: AgUiEvent) {
+  private handleEvent(
+    aggregator: RunAggregator,
+    event: AgUiEvent,
+    activeAssistantId: string | undefined,
+  ) {
     switch (event.type) {
       case "STATE_SNAPSHOT": {
         this.stateSnapshot = event.snapshot as ReadonlyJSONValue;
@@ -1332,7 +1424,7 @@ export class AgUiThreadRuntimeCore {
         return;
       }
       case "MESSAGES_SNAPSHOT": {
-        this.importMessagesSnapshot(event.messages);
+        this.importMessagesSnapshot(event.messages, activeAssistantId);
         return;
       }
       case "TOOL_CALL_RESULT": {
@@ -1504,8 +1596,16 @@ export class AgUiThreadRuntimeCore {
     this.maybeCompleteAfterToolResults(messageId);
   }
 
-  private importMessagesSnapshot(rawMessages: readonly unknown[]) {
+  private importMessagesSnapshot(
+    rawMessages: readonly unknown[],
+    activeAssistantId: string | undefined,
+  ) {
     try {
+      const activeMessage = activeAssistantId
+        ? this.tryGetMessage(activeAssistantId)?.message
+        : undefined;
+      const activeAssistant =
+        activeMessage?.role === "assistant" ? activeMessage : undefined;
       const normalized = fromAgUiMessages(rawMessages, {
         showThinking: this.showThinking,
       });
@@ -1522,7 +1622,23 @@ export class AgUiThreadRuntimeCore {
           );
         }
       }
+      const snapshotHeadId = converted.at(-1)?.id ?? null;
+      const snapshotContainsActiveAssistant = converted.some(
+        (message) => message.id === activeAssistant?.id,
+      );
+      const preservesActiveAssistant =
+        activeAssistant !== undefined &&
+        !snapshotContainsActiveAssistant &&
+        (activeAssistant.metadata.isOptimistic !== true ||
+          converted.at(-1)?.role !== "assistant");
+      if (preservesActiveAssistant) {
+        converted.push(activeAssistant);
+      }
       this.applyExternalMessages(converted);
+      if (preservesActiveAssistant) {
+        this.recordedHistoryIds.delete(activeAssistant.id);
+        this.markPendingAssistantHistory(activeAssistant.id, snapshotHeadId);
+      }
     } catch (error) {
       this.logger.error?.("[agui] failed to import messages snapshot", error);
     }

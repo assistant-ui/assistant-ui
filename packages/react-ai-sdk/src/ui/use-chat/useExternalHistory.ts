@@ -70,7 +70,7 @@ export const useExternalHistory = <TMessage>(
 
   const aui = useAui();
   const optionalThreadListItem = useCallback(
-    () => (aui.threadListItem.source ? aui.threadListItem() : null),
+    () => (aui.threadListItem.source ? aui.threadListItem : null),
     [aui],
   );
 

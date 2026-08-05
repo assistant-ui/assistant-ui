@@ -4,6 +4,7 @@ import {
   defineToolkit,
   useAui,
   AuiProvider,
+  AuiConfig,
   Suggestions,
   Tools,
 } from "@assistant-ui/react";
@@ -52,7 +53,7 @@ function NewThreadButton() {
   return (
     <button
       type="button"
-      onClick={() => aui.threads().switchToNewThread()}
+      onClick={() => aui.threads.switchToNewThread()}
       className="bg-background hover:bg-accent absolute top-4 right-4 z-10 flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium shadow-sm transition-colors"
     >
       <PlusIcon className="size-4" />
@@ -62,7 +63,8 @@ function NewThreadButton() {
 }
 
 function ThreadWithSuggestions() {
-  const aui = useAui({
+  const aui = useAui();
+  const config = AuiConfig({
     suggestions: Suggestions([
       {
         title: "Run a web search",
@@ -77,19 +79,20 @@ function ThreadWithSuggestions() {
     ]),
   });
   return (
-    <AuiProvider value={aui}>
+    <AuiProvider extends={aui} config={config}>
       <Thread />
     </AuiProvider>
   );
 }
 
 export default function Home() {
-  const aui = useAui({
+  const aui = useAui();
+  const config = AuiConfig({
     tools: Tools({ toolkit }),
   });
 
   return (
-    <AuiProvider value={aui}>
+    <AuiProvider extends={aui} config={config}>
       <main className="relative h-dvh">
         <NewThreadButton />
         <ThreadWithSuggestions />

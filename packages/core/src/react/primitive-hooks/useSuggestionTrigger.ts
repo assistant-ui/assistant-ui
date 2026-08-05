@@ -13,28 +13,34 @@ export const useSuggestionTrigger = ({
   clearComposer = true,
 }: UseSuggestionTriggerOptions) => {
   const aui = useAui();
-  const disabled = useAuiState((s) => s.thread.isDisabled);
   const resolvedSend = send ?? false;
+  const disabled = useAuiState(
+    (s) =>
+      s.thread.isDisabled ||
+      (resolvedSend && s.thread.isRunning && !s.thread.capabilities.queue),
+  );
 
   const trigger = useCallback(() => {
-    const isRunning = aui.thread().getState().isRunning;
+    if (resolvedSend) {
+      const { isRunning, capabilities } = aui.thread.getState();
+      if (isRunning && !capabilities.queue) return;
 
-    if (resolvedSend && !isRunning) {
-      aui.thread().append({
+      aui.thread.append({
         content: [{ type: "text", text: prompt }],
-        runConfig: aui.composer().getState().runConfig,
+        runConfig: aui.composer.getState().runConfig,
       });
-      if (clearComposer) {
-        aui.composer().setText("");
+      // A queued send must not clear the draft the user is still composing.
+      if (clearComposer && !isRunning) {
+        aui.composer.setText("");
       }
     } else {
       if (clearComposer) {
-        aui.composer().setText(prompt);
+        aui.composer.setText(prompt);
       } else {
-        const currentText = aui.composer().getState().text;
-        aui
-          .composer()
-          .setText(currentText.trim() ? `${currentText} ${prompt}` : prompt);
+        const currentText = aui.composer.getState().text;
+        aui.composer.setText(
+          currentText.trim() ? `${currentText} ${prompt}` : prompt,
+        );
       }
     }
   }, [aui, resolvedSend, clearComposer, prompt]);

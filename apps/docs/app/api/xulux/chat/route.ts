@@ -66,7 +66,7 @@ function resolveXuluxModel(config: unknown) {
   }
 
   return {
-    model: modelName ? getModel(modelName) : getModel("gpt-5.4-mini"),
+    model: getModel(modelName),
     providerOptions: undefined,
   };
 }

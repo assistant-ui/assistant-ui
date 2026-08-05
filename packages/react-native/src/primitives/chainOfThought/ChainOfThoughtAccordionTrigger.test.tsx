@@ -10,9 +10,10 @@ const h = vi.hoisted(() => ({
 }));
 
 vi.mock("@assistant-ui/store", () => {
-  const aui = {
-    chainOfThought: () => ({ setCollapsed: h.setCollapsed }),
-  };
+  const chainOfThought = Object.assign(() => chainOfThought, {
+    setCollapsed: h.setCollapsed,
+  });
+  const aui = { chainOfThought };
   return {
     useAui: () => aui,
     useAuiState: <T,>(selector: (s: typeof h.state) => T) => selector(h.state),

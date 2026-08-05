@@ -18,7 +18,11 @@ interface DevToolsApiEntry {
  * from state extraction.
  */
 const readMethods = (scopeValue: unknown): string[] => {
-  if (!scopeValue || typeof scopeValue !== "object") return [];
+  if (
+    !scopeValue ||
+    (typeof scopeValue !== "object" && typeof scopeValue !== "function")
+  )
+    return [];
   try {
     return Object.keys(scopeValue).filter(
       (key) =>
@@ -126,7 +130,9 @@ export const projectApi = (apiId: number, entry: DevToolsApiEntry): ApiInfo => {
     try {
       const scopeValue = scope();
       if (scope.source === "root") {
-        state[name] = scopeValue?.getState?.() ?? scopeValue;
+        state[name] =
+          (scopeValue as { getState?: () => unknown })?.getState?.() ??
+          scopeValue;
       }
       methods = readMethods(scopeValue);
     } catch {

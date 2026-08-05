@@ -1,5 +1,4 @@
-import { useMemo } from "react";
-import { resource } from "@assistant-ui/tap";
+import { useState } from "react";
 import type { ClientStack } from "./tap-client-stack-context";
 import type {
   AssistantEventName,
@@ -26,8 +25,8 @@ export type NotificationManager = {
   notifySubscribers(): void;
 };
 
-const useNotificationManager = (): NotificationManager => {
-  return useMemo(() => {
+export const useNotificationManager = (): NotificationManager => {
+  return useState<NotificationManager>(() => {
     const listeners = new Map<string, Set<InternalCallback>>();
     const wildcardListeners = new Set<InternalCallback>();
     const subscribers = new Set<() => void>();
@@ -110,7 +109,5 @@ const useNotificationManager = (): NotificationManager => {
         }
       },
     };
-  }, []);
+  })[0];
 };
-
-export const NotificationManager = resource(useNotificationManager);

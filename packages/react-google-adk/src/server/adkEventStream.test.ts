@@ -73,4 +73,42 @@ describe("adkEventStream", () => {
     await readSSE(response);
     expect(onError).toHaveBeenCalledTimes(1);
   });
+
+  it.each([
+    [
+      "throws",
+      () => {
+        throw new Error("callback failed");
+      },
+    ],
+    [
+      "rejects",
+      async () => {
+        throw new Error("callback failed");
+      },
+    ],
+  ])(
+    "still emits the stream error when onError %s",
+    async (_behavior, onError) => {
+      const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      async function* throwingGen() {
+        throw new Error("stream failed");
+      }
+
+      try {
+        const response = adkEventStream(throwingGen() as any, { onError });
+        const text = await readSSE(response);
+        await vi.waitFor(() => expect(errorSpy).toHaveBeenCalledTimes(1));
+
+        const lines = text.split("\n\n").filter((l) => l.startsWith("data: "));
+        expect(lines).toHaveLength(1);
+        expect(JSON.parse(lines[0]!.slice(6))).toMatchObject({
+          errorCode: "STREAM_ERROR",
+          errorMessage: "stream failed",
+        });
+      } finally {
+        errorSpy.mockRestore();
+      }
+    },
+  );
 });

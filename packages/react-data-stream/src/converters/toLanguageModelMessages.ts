@@ -26,6 +26,7 @@ function convertUserContent(
       type: "file",
       data: part.data,
       mediaType: part.mediaType,
+      ...(part.filename && { filename: part.filename }),
     };
   });
 }

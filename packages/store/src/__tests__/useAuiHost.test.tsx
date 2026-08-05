@@ -5,7 +5,7 @@ import { useEffect, useLayoutEffect, useState } from "react";
 import { act, cleanup, render } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { flushTapSync, resource } from "@assistant-ui/tap";
-import { AuiProvider } from "../utils/react-assistant-context";
+import { AuiProvider } from "../AuiProvider";
 import { useAui } from "../useAui";
 import { useAuiState } from "../useAuiState";
 
@@ -83,6 +83,21 @@ describe("useAui tap host", () => {
     expect(log).toEqual(["tap effect"]);
   });
 
+  it("keeps tap effect metadata outside the client object", () => {
+    const TestClient = makeTestClient([]);
+    let aui!: ReturnType<typeof useAui>;
+
+    function Host() {
+      aui = useAui({
+        thread: TestClient(),
+      } as unknown as useAui.Props);
+      return null;
+    }
+
+    render(<Host />);
+    expect(Object.getOwnPropertySymbols(aui)).toEqual([]);
+  });
+
   it("updates flow through to useAuiState consumers", () => {
     const log: string[] = [];
     const TestClient = makeTestClient(log);
@@ -91,7 +106,7 @@ describe("useAui tap host", () => {
     let observed!: number;
     function Consumer() {
       const aui = useAui();
-      api = (aui as any).thread();
+      api = (aui as any).thread;
       observed = useAuiState((s) => (s as any).thread.count);
       return null;
     }

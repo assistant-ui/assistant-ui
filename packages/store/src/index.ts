@@ -6,7 +6,8 @@ export { RenderChildrenWithAccessor } from "./RenderChildrenWithAccessor";
 
 // components
 export { AuiIf } from "./AuiIf";
-export { AuiProvider } from "./utils/react-assistant-context";
+export { AuiProvider } from "./AuiProvider";
+export { AuiConfig } from "./AuiConfig";
 
 // resources
 export { Derived, type DerivedElement } from "./Derived";
@@ -21,6 +22,7 @@ export {
   useAssistantClientRef,
   useAssistantEmit,
 } from "./utils/tap-assistant-context";
+export { getClientId } from "./utils/client-accessor";
 export { useClientResource } from "./useClientResource";
 export { useClientLookup } from "./useClientLookup";
 export { useClientList } from "./useClientList";

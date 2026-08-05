@@ -63,7 +63,7 @@ export async function POST(req: Request) {
   const { messages }: { messages: UIMessage[] } = await req.json();
 
   const result = streamText({
-    model: openai("gpt-5.4-nano"),
+    model: openai("gpt-5.6-luna"),
     messages: await ai.convertToModelMessages(messages),
   });
 
@@ -84,7 +84,7 @@ Pass a `langsmith` provider option to tag traces with user, session, or run iden
 import { createLangSmithProviderOptions } from "langsmith/experimental/vercel";
 
 const result = streamText({
-  model: openai("gpt-5.4-nano"),
+  model: openai("gpt-5.6-luna"),
   messages: await ai.convertToModelMessages(messages),
   providerOptions: {
     langsmith: createLangSmithProviderOptions({
