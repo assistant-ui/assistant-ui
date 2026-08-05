@@ -22,9 +22,12 @@ export async function readElementSource(file: string): Promise<string> {
   throw new Error(`Element source not found: ${file}`);
 }
 
-export async function highlightElementSource(code: string): Promise<string> {
+export async function highlightElementSource(
+  code: string,
+  lang: "tsx" | "json" = "tsx",
+): Promise<string> {
   return codeToHtml(code, {
-    lang: "tsx",
+    lang,
     themes: { light: "github-light", dark: "github-dark" },
     defaultColor: "light-dark()",
   });

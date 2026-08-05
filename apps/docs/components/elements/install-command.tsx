@@ -6,17 +6,23 @@ import { mono } from "@/components/elements/surfaces";
 import { CopyButton } from "./copy-button";
 
 const MANAGERS = [
-  { key: "npm", runner: "npx" },
-  { key: "pnpm", runner: "pnpm dlx" },
-  { key: "yarn", runner: "yarn dlx" },
-  { key: "bun", runner: "bunx --bun" },
+  { key: "npm", runner: "npx", install: "npm install" },
+  { key: "pnpm", runner: "pnpm dlx", install: "pnpm add" },
+  { key: "yarn", runner: "yarn dlx", install: "yarn add" },
+  { key: "bun", runner: "bunx --bun", install: "bun add" },
 ] as const;
 
 type ManagerKey = (typeof MANAGERS)[number]["key"];
 
 const STORAGE_KEY = "aui-elements-pm";
 
-export function InstallCommand({ registryName }: { registryName: string }) {
+export function InstallCommand({
+  registryName,
+  npmPackage,
+}: {
+  registryName?: string;
+  npmPackage?: string;
+}) {
   const [manager, setManager] = useState<ManagerKey>("npm");
 
   useEffect(() => {
@@ -27,7 +33,9 @@ export function InstallCommand({ registryName }: { registryName: string }) {
   }, []);
 
   const active = MANAGERS.find((entry) => entry.key === manager)!;
-  const command = `${active.runner} shadcn@latest add "@assistant-ui/${registryName}"`;
+  const command = npmPackage
+    ? `${active.install} ${npmPackage}`
+    : `${active.runner} shadcn@latest add "@assistant-ui/${registryName}"`;
 
   return (
     <>

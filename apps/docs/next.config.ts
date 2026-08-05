@@ -88,6 +88,21 @@ const config: NextConfig = {
       destination: "/docs/runtimes/ai-sdk/v6-legacy",
       permanent: true,
     },
+    {
+      source: "/gallery",
+      destination: "/elements",
+      permanent: true,
+    },
+    {
+      source: "/gallery/components",
+      destination: "/elements/vocabulary",
+      permanent: true,
+    },
+    {
+      source: "/gallery/:slug",
+      destination: "/elements/generative-:slug",
+      permanent: true,
+    },
   ],
   rewrites: async () => ({
     beforeFiles: [

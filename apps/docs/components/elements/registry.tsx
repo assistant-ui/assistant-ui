@@ -43,6 +43,8 @@ import { ComposerContextDemo } from "./composer-context-demo";
 import { EmptyStateDemo } from "./empty-state-demo";
 import { ThreadListDemo } from "./thread-list-demo";
 import { ScrollAnchorDemo } from "./scroll-anchor-demo";
+import * as generativeDemos from "./generative-demos";
+import { GENERATIVE_ELEMENTS } from "@/lib/generative-elements";
 
 export interface ElementVariant {
   key: string;
@@ -54,10 +56,11 @@ export interface ElementEntry {
   slug: string;
   title: string;
   description: string;
-  file: string;
+  file?: string;
   installName?: string;
   wide?: boolean;
   replay?: boolean;
+  generative?: boolean;
   Component: ComponentType;
   variants?: ElementVariant[];
 }
@@ -67,6 +70,18 @@ export interface ElementSection {
   description: string;
   elements: ElementEntry[];
 }
+
+const generativeDemoFor = (templateSlug: string): ComponentType => {
+  const exportName = `Generative${templateSlug
+    .split("-")
+    .map((part) => part[0]!.toUpperCase() + part.slice(1))
+    .join("")}Demo`;
+  const component = (
+    generativeDemos as unknown as Record<string, ComponentType | undefined>
+  )[exportName];
+  if (!component) throw new Error(`Missing generative demo: ${exportName}`);
+  return component;
+};
 
 export const ELEMENT_SECTIONS: ElementSection[] = [
   {
@@ -469,6 +484,18 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         Component: ScrollAnchorDemo,
       },
     ],
+  },
+  {
+    label: "Generative",
+    description: "Widgets the model composes on its own at runtime.",
+    elements: GENERATIVE_ELEMENTS.map((entry) => ({
+      slug: entry.slug,
+      replay: false,
+      generative: true,
+      title: entry.template.title,
+      description: entry.template.description,
+      Component: generativeDemoFor(entry.templateSlug),
+    })),
   },
 ];
 

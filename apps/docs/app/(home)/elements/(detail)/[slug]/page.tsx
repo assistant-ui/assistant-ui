@@ -20,6 +20,13 @@ import {
   ELEMENTS,
   getElement,
 } from "@/components/elements/registry";
+import { getGenerativeElement } from "@/lib/generative-elements";
+
+const GENERATIVE_USAGE = `import { renderGenerativeUI } from "@assistant-ui/react-generative-ui";
+
+<div data-aui-theme="elements">
+  {renderGenerativeUI(spec, library, { status: "done" })}
+</div>`;
 
 export function generateStaticParams() {
   return ELEMENTS.map((element) => ({ slug: element.slug }));
@@ -66,7 +73,7 @@ function SectionHeading({
 function CodeSurface({ html }: { html: string }) {
   return (
     <div
-      className="bg-foreground/[0.025] dark:bg-foreground/[0.04] mt-4 overflow-hidden rounded-2xl [&_pre]:overflow-x-auto [&_pre]:bg-transparent! [&_pre]:p-5 [&_pre]:font-mono [&_pre]:text-[12.5px] [&_pre]:leading-[1.7] md:[&_pre]:p-6"
+      className="bg-foreground/[0.025] dark:bg-foreground/[0.04] mt-4 overflow-hidden rounded-2xl [&_.line]:px-0! [&_pre]:overflow-x-auto [&_pre]:bg-transparent! [&_pre]:p-5 [&_pre]:font-mono [&_pre]:text-[12.5px] [&_pre]:leading-[1.7] md:[&_pre]:p-6"
       dangerouslySetInnerHTML={{ __html: html }}
     />
   );
@@ -82,10 +89,24 @@ export default async function ElementPage({
   if (!element) notFound();
 
   const doc = ELEMENT_DOCS[slug];
+  const generativeEntry = element.generative
+    ? getGenerativeElement(slug)
+    : undefined;
   const registryName = `elements-${element.installName ?? element.slug}`;
-  const source = await readElementSource(element.file);
-  const highlightedSource = await highlightElementSource(source);
+  const source = element.file ? await readElementSource(element.file) : null;
+  const highlightedSource = source
+    ? await highlightElementSource(source)
+    : null;
   const highlightedUsage = doc ? await highlightElementSource(doc.usage) : null;
+  const specJson = generativeEntry
+    ? JSON.stringify(generativeEntry.template.tree, null, 2)
+    : null;
+  const highlightedSpec = specJson
+    ? await highlightElementSource(specJson, "json")
+    : null;
+  const highlightedGenerativeUsage = generativeEntry
+    ? await highlightElementSource(GENERATIVE_USAGE)
+    : null;
 
   const previous = ELEMENTS[element.index - 2];
   const next = ELEMENTS[element.index];
@@ -111,7 +132,13 @@ export default async function ElementPage({
           replay={element.replay !== false}
         />
       ) : (
-        <div className={cn(demoCanvasClass, "mt-8 h-[400px]")}>
+        <div
+          className={cn(
+            demoCanvasClass,
+            "mt-8",
+            element.generative ? "min-h-[400px] py-10" : "h-[400px]",
+          )}
+        >
           <DemoStage replay={element.replay !== false}>
             <element.Component />
           </DemoStage>
@@ -119,8 +146,38 @@ export default async function ElementPage({
       )}
 
       <section className="mt-12">
-        <InstallCommand registryName={registryName} />
+        {element.generative ? (
+          <InstallCommand npmPackage="@assistant-ui/react-generative-ui" />
+        ) : (
+          <InstallCommand registryName={registryName} />
+        )}
       </section>
+
+      {highlightedGenerativeUsage && (
+        <section className="mt-12">
+          <SectionHeading title="Usage" copyText={GENERATIVE_USAGE} />
+          <CodeSurface html={highlightedGenerativeUsage} />
+        </section>
+      )}
+
+      {generativeEntry && highlightedSpec && specJson && (
+        <section className="mt-12">
+          <SectionHeading
+            title="Spec"
+            meta={generativeEntry.template.category}
+            copyText={specJson}
+          />
+          <CodeSurface html={highlightedSpec} />
+          <p className="mt-4 text-[13px]">
+            <Link
+              href="/elements/vocabulary"
+              className="text-foreground/45 hover:text-foreground/90 transition-colors"
+            >
+              Component vocabulary →
+            </Link>
+          </p>
+        </section>
+      )}
 
       {doc && highlightedUsage && (
         <section className="mt-12">
@@ -185,10 +242,16 @@ export default async function ElementPage({
         </section>
       )}
 
-      <section className="mt-12">
-        <SectionHeading title="Source" meta={element.file} copyText={source} />
-        <CodeSurface html={highlightedSource} />
-      </section>
+      {element.file && source && highlightedSource && (
+        <section className="mt-12">
+          <SectionHeading
+            title="Source"
+            meta={element.file}
+            copyText={source}
+          />
+          <CodeSurface html={highlightedSource} />
+        </section>
+      )}
 
       <nav className="border-foreground/10 mt-16 flex items-center justify-between gap-4 border-t border-dashed pt-6">
         {previous ? (
