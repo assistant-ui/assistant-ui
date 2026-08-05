@@ -3,6 +3,7 @@ import {
   XULUX_SUGGESTION_GROUPS,
 } from "./xulux-suggestions";
 import { NAV_ITEMS } from "@/lib/constants";
+import { isAiPlaygroundEnabled } from "@/lib/feature-flags";
 
 describe("Xulux Learn suggestions", () => {
   it("does not encode course navigation as a prompt replay", () => {
@@ -20,7 +21,7 @@ describe("Xulux Learn suggestions", () => {
     });
   });
 
-  it("places the interactive course first in navigation", () => {
+  it("only exposes the interactive course when Learn is enabled", () => {
     const resources = NAV_ITEMS.find(
       (item) => item.type === "mega" && item.label === "Resources",
     );
@@ -28,11 +29,16 @@ describe("Xulux Learn suggestions", () => {
     if (resources?.type !== "mega") return;
 
     const learn = resources.groups.find((group) => group.label === "Learn");
-    expect(learn?.items[0]).toEqual({
+    const interactiveCourse = {
       label: "Interactive course",
       href: "/learn",
       description: "Build your first AI app, step by step",
       external: false,
-    });
+    };
+    if (isAiPlaygroundEnabled) {
+      expect(learn?.items[0]).toEqual(interactiveCourse);
+      return;
+    }
+    expect(learn?.items).not.toContainEqual(interactiveCourse);
   });
 });
