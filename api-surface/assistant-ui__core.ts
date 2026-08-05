@@ -1459,7 +1459,6 @@ declare class DefaultThreadComposerRuntimeCore extends BaseComposerRuntimeCore i
   protected getDictationAdapter(): DictationAdapter | undefined;
   private runtime;
   constructor(runtime: Omit<ThreadRuntimeCore, "composer"> & {
-    __internal_appendOptimisticAttachmentSend?: (message: AppendMessage, uploadAttachments: () => Promise<readonly CompleteAttachment[]>) => Promise<void>;
     adapters?: {
       attachments?: AttachmentAdapter | undefined;
       dictation?: DictationAdapter | undefined;
@@ -2249,6 +2248,7 @@ declare class LocalThreadRuntimeCore extends BaseThreadRuntimeCore implements Th
   private _pendingAttachmentSend;
   private _chainAttachmentSend;
   private _waitForAttachmentSendChain;
+  private _isAncestorOfHead;
   private _chainHistoryWrite;
   private _persistPausedMessage;
   readonly isDisabled = false;
@@ -2284,7 +2284,7 @@ declare class LocalThreadRuntimeCore extends BaseThreadRuntimeCore implements Th
   steerQueueItem(queueItemId: string): void;
   removeQueueItem(queueItemId: string): void;
   private _runAppend;
-  __internal_appendOptimisticAttachmentSend(message: AppendMessage, uploadAttachments: () => Promise<readonly CompleteAttachment[]>): Promise<void>;
+  private appendOptimisticAttachmentSend;
   deleteMessage(messageId: string): Promise<void>;
   resumeRun(_param4: ResumeRunConfig): Promise<void>;
   exportExternalState(): any;

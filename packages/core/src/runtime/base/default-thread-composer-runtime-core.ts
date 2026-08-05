@@ -12,6 +12,7 @@ import {
   type QueueItemState,
 } from "../../store/scopes/queue-item";
 import { BaseComposerRuntimeCore } from "./base-composer-runtime-core";
+import { getOptimisticAttachmentSend } from "../utils/optimistic-attachment-send";
 import { gateInteractableComposerMetadata } from "../../model-context/interactable-composer-metadata";
 
 export class DefaultThreadComposerRuntimeCore
@@ -48,10 +49,6 @@ export class DefaultThreadComposerRuntimeCore
   }
 
   private runtime: Omit<ThreadRuntimeCore, "composer"> & {
-    __internal_appendOptimisticAttachmentSend?: (
-      message: AppendMessage,
-      uploadAttachments: () => Promise<readonly CompleteAttachment[]>,
-    ) => Promise<void>;
     adapters?:
       | {
           attachments?: AttachmentAdapter | undefined;
@@ -62,10 +59,6 @@ export class DefaultThreadComposerRuntimeCore
 
   constructor(
     runtime: Omit<ThreadRuntimeCore, "composer"> & {
-      __internal_appendOptimisticAttachmentSend?: (
-        message: AppendMessage,
-        uploadAttachments: () => Promise<readonly CompleteAttachment[]>,
-      ) => Promise<void>;
       adapters?:
         | {
             attachments?: AttachmentAdapter | undefined;
@@ -105,7 +98,7 @@ export class DefaultThreadComposerRuntimeCore
     options: SendOptions | undefined,
   ) {
     if (role !== "user") return false;
-    if (!this.runtime.__internal_appendOptimisticAttachmentSend) return false;
+    if (!getOptimisticAttachmentSend(this.runtime)) return false;
     // A queued run reorders the message, so the placeholder could land at a
     // position the completed message never occupies.
     return !this.runtime.capabilities.queue || options?.startRun === false;
@@ -137,19 +130,14 @@ export class DefaultThreadComposerRuntimeCore
       return this.runtime.append(appendMessage);
     }
 
-    const appendOptimistic =
-      this.runtime.__internal_appendOptimisticAttachmentSend;
+    const appendOptimistic = getOptimisticAttachmentSend(this.runtime);
     if (!appendOptimistic) {
       return this.runtime.append({
         ...appendMessage,
         attachments: await uploadAttachments(),
       });
     }
-    return appendOptimistic.call(
-      this.runtime,
-      appendMessage,
-      uploadAttachments,
-    );
+    return appendOptimistic(appendMessage, uploadAttachments);
   }
 
   public async handleCancel() {

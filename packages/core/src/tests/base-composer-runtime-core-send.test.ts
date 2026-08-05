@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { DefaultThreadComposerRuntimeCore } from "../runtime/base/default-thread-composer-runtime-core";
+import { setOptimisticAttachmentSend } from "../runtime/utils/optimistic-attachment-send";
 import type { AttachmentAdapter } from "../adapters/attachment";
 import type { ThreadRuntimeCore } from "../runtime/interfaces/thread-runtime-core";
 import type {
@@ -49,12 +50,12 @@ const makeComposer = (
     messages: [],
     getModelContext: () => ({ unstable_composerMetadata: undefined }),
     adapters: adapter ? { attachments: adapter } : undefined,
-    ...(options.optimistic && {
-      __internal_appendOptimisticAttachmentSend: optimisticSend,
-    }),
   } as unknown as Omit<ThreadRuntimeCore, "composer"> & {
     adapters?: { attachments?: AttachmentAdapter };
   };
+  if (options.optimistic) {
+    setOptimisticAttachmentSend(runtime, optimisticSend);
+  }
   const composer = new DefaultThreadComposerRuntimeCore(runtime);
   return { composer, append, optimisticSend };
 };

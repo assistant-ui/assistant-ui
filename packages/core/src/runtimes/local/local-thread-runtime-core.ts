@@ -34,6 +34,7 @@ import {
   EMPTY_QUEUE_ITEMS,
   type QueueItemState,
 } from "../../store/scopes/queue-item";
+import { setOptimisticAttachmentSend } from "../../runtime/utils/optimistic-attachment-send";
 
 class AbortError extends Error {
   override name = "AbortError";
@@ -171,6 +172,9 @@ export class LocalThreadRuntimeCore
   ) {
     super(contextProvider);
     this.__internal_setOptions(options);
+    setOptimisticAttachmentSend(this, (message, uploadAttachments) =>
+      this.appendOptimisticAttachmentSend(message, uploadAttachments),
+    );
   }
 
   private _options!: LocalRuntimeOptionsBase;
@@ -373,7 +377,7 @@ export class LocalThreadRuntimeCore
     }
   }
 
-  public async __internal_appendOptimisticAttachmentSend(
+  private async appendOptimisticAttachmentSend(
     message: AppendMessage,
     uploadAttachments: () => Promise<readonly CompleteAttachment[]>,
   ): Promise<void> {

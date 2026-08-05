@@ -1849,7 +1849,6 @@ declare class DefaultThreadComposerRuntimeCore extends BaseComposerRuntimeCore i
   protected getDictationAdapter(): DictationAdapter | undefined;
   private runtime;
   constructor(runtime: Omit<ThreadRuntimeCore, "composer"> & {
-    __internal_appendOptimisticAttachmentSend?: (message: AppendMessage, uploadAttachments: () => Promise<readonly CompleteAttachment[]>) => Promise<void>;
     adapters?: {
       attachments?: AttachmentAdapter | undefined;
       dictation?: DictationAdapter | undefined;
