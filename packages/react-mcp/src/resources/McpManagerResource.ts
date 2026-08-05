@@ -55,37 +55,32 @@ type CustomServerState = {
   isHydrated: boolean;
 };
 
-type StorageScopeRegistry = WeakMap<
+type StoragePersistenceQueueRegistry = WeakMap<
   MCPStorageElement["hook"],
   Map<
     MCPStorageElement["key"],
-    Map<McpManagerResourceProps["storageScopeKey"], object>
+    Map<McpManagerResourceProps["storageScopeKey"], Promise<void>>
   >
 >;
 
-const getStorageScope = (
-  registry: StorageScopeRegistry,
-  storageElement: MCPStorageElement,
-  storageScopeKey: McpManagerResourceProps["storageScopeKey"],
+const getStoragePersistenceQueue = (
+  registry: StoragePersistenceQueueRegistry,
+  storageHook: MCPStorageElement["hook"],
+  storageElementKey: MCPStorageElement["key"],
 ) => {
-  let scopesByElementKey = registry.get(storageElement.hook);
-  if (!scopesByElementKey) {
-    scopesByElementKey = new Map();
-    registry.set(storageElement.hook, scopesByElementKey);
+  let queuesByElementKey = registry.get(storageHook);
+  if (!queuesByElementKey) {
+    queuesByElementKey = new Map();
+    registry.set(storageHook, queuesByElementKey);
   }
 
-  let scopesByExplicitKey = scopesByElementKey.get(storageElement.key);
-  if (!scopesByExplicitKey) {
-    scopesByExplicitKey = new Map();
-    scopesByElementKey.set(storageElement.key, scopesByExplicitKey);
+  let queuesByExplicitKey = queuesByElementKey.get(storageElementKey);
+  if (!queuesByExplicitKey) {
+    queuesByExplicitKey = new Map();
+    queuesByElementKey.set(storageElementKey, queuesByExplicitKey);
   }
 
-  let storageScope = scopesByExplicitKey.get(storageScopeKey);
-  if (!storageScope) {
-    storageScope = {};
-    scopesByExplicitKey.set(storageScopeKey, storageScope);
-  }
-  return storageScope;
+  return queuesByExplicitKey;
 };
 
 const storageScopeResourceKeys = new WeakMap<object, number>();
@@ -131,14 +126,18 @@ const useMcpManagerResource = (
   const storageScopeKey = props.storageScopeKey;
 
   const storageElement = props.storage ?? McpLocalStorage();
+  const storageHook = storageElement.hook;
+  const storageElementKey = storageElement.key;
   const storage = useResource(storageElement);
 
   // Tap resource identity excludes args because they may be recreated inline.
-  const storageScopeRegistryRef = useRef<StorageScopeRegistry>(new WeakMap());
-  const storageScope = getStorageScope(
-    storageScopeRegistryRef.current,
-    storageElement,
-    storageScopeKey,
+  const storageScope = useMemo(
+    () => ({
+      hook: storageHook,
+      key: storageElementKey,
+      storageScopeKey,
+    }),
+    [storageHook, storageElementKey, storageScopeKey],
   );
   const serverResourceKeyPrefix = `${getStorageScopeResourceKey(storageScope)}:`;
   const [customServerState, setCustomServerState] = useState<CustomServerState>(
@@ -155,7 +154,9 @@ const useMcpManagerResource = (
   const isHydrated = isCurrentStorage && customServerState.isHydrated;
 
   const storageRef = useRef(storage);
-  const persistenceQueuesRef = useRef(new WeakMap<object, Promise<void>>());
+  const persistenceQueuesRef = useRef<StoragePersistenceQueueRegistry>(
+    new WeakMap(),
+  );
 
   useEffect(() => {
     storageRef.current = storage;
@@ -231,12 +232,23 @@ const useMcpManagerResource = (
   useEffect(() => {
     if (!isHydrated) return;
     const targetStorage = storageRef.current;
-    const previous = persistenceQueuesRef.current.get(storageScope);
+    const queues = getStoragePersistenceQueue(
+      persistenceQueuesRef.current,
+      storageHook,
+      storageElementKey,
+    );
+    const previous = queues.get(storageScopeKey);
     const next = (previous ?? Promise.resolve()).then(() =>
       persistCustomServers(targetStorage, customServers),
     );
-    persistenceQueuesRef.current.set(storageScope, next);
-  }, [customServers, isHydrated, storageScope]);
+    queues.set(storageScopeKey, next);
+  }, [
+    customServers,
+    isHydrated,
+    storageElementKey,
+    storageHook,
+    storageScopeKey,
+  ]);
 
   const serverElements = useMemo(() => {
     assertUniqueServerIds([
