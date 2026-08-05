@@ -134,13 +134,14 @@ describe("McpManagerResource storage failures", () => {
     const consoleError = vi
       .spyOn(console, "error")
       .mockImplementation(() => {});
+    const saveCustomServers = vi.fn(async () => {});
     const root = mount(
       [],
       McpCustomStorage({
         loadCustomServers: vi.fn(async () => {
           throw error;
         }),
-        saveCustomServers: vi.fn(async () => {}),
+        saveCustomServers,
         loadAuthState: vi.fn(async () => null),
         saveAuthState: vi.fn(async () => {}),
         clearAuthState: vi.fn(async () => {}),
@@ -152,6 +153,7 @@ describe("McpManagerResource storage failures", () => {
         expect(root.getValue().getState().isHydrated).toBe(true),
       );
       expect(root.getValue().getState().customServers).toHaveLength(0);
+      expect(saveCustomServers).not.toHaveBeenCalled();
       expect(consoleError).toHaveBeenCalledWith(
         "[assistant-ui/react-mcp] failed to load custom servers:",
         error,

@@ -297,7 +297,7 @@ All persisted state — custom server records, OAuth tokens, PKCE verifiers, DCR
 
 - `McpLocalStorage()` — default. Stores under the `aui-mcp:` prefix in `window.localStorage`. Changing `keyPrefix` reloads the matching storage scope.
 - `McpMemoryStorage()` — in-process Map. Use for SSR/tests where localStorage is absent.
-- `McpCustomStorage({...})` — bring your own load/save. Use for app-controlled backends (e.g. POST to your API).
+- `McpCustomStorage({...})` — bring your own load/save. Use for app-controlled backends (e.g. POST to your API). If its account, tenant, or workspace can change, `storageScopeKey` is required because the manager cannot infer scope identity from the implementation.
 
 ```tsx
 import { AuiConfig } from "@assistant-ui/react";

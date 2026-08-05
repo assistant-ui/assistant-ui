@@ -53,6 +53,7 @@ type CustomServerState = {
   storageScope: object;
   records: MCPCustomServerRecord[];
   isHydrated: boolean;
+  persistenceRevision: number;
 };
 
 type StoragePersistenceQueueRegistry = WeakMap<
@@ -145,6 +146,7 @@ const useMcpManagerResource = (
       storageScope,
       records: [],
       isHydrated: false,
+      persistenceRevision: 0,
     }),
   );
   const isCurrentStorage = customServerState.storageScope === storageScope;
@@ -152,6 +154,9 @@ const useMcpManagerResource = (
     ? customServerState.records
     : NO_CUSTOM_SERVERS;
   const isHydrated = isCurrentStorage && customServerState.isHydrated;
+  const persistenceRevision = isCurrentStorage
+    ? customServerState.persistenceRevision
+    : 0;
 
   const storageRef = useRef(storage);
   const persistenceQueuesRef = useRef<StoragePersistenceQueueRegistry>(
@@ -178,6 +183,7 @@ const useMcpManagerResource = (
               ...prev.records.filter((record) => !persistedIds.has(record.id)),
             ],
             isHydrated: true,
+            persistenceRevision: prev.persistenceRevision + 1,
           };
         });
       };
@@ -207,6 +213,7 @@ const useMcpManagerResource = (
           storageScope,
           records: updater(prev.records),
           isHydrated: prev.isHydrated,
+          persistenceRevision: prev.persistenceRevision + 1,
         };
       });
     },
@@ -221,6 +228,7 @@ const useMcpManagerResource = (
         storageScope,
         records: [],
         isHydrated: false,
+        persistenceRevision: 0,
       };
     });
     void hydrate(signal, storageScope);
@@ -230,7 +238,7 @@ const useMcpManagerResource = (
   }, [storageScope]);
 
   useEffect(() => {
-    if (!isHydrated) return;
+    if (!isHydrated || persistenceRevision === 0) return;
     const targetStorage = storageRef.current;
     const queues = getStoragePersistenceQueue(
       persistenceQueuesRef.current,
@@ -245,6 +253,7 @@ const useMcpManagerResource = (
   }, [
     customServers,
     isHydrated,
+    persistenceRevision,
     storageElementKey,
     storageHook,
     storageScopeKey,
