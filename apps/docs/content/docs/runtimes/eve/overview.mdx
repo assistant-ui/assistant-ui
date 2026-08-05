@@ -57,25 +57,15 @@ available display fields such as `displayName`, `description`, `url`,
 `userCode`, `instructions`, and `expiresAt`. Completed parts may also include
 `outcome` and `reason`.
 
-Register a data UI to render the sign-in affordance in your app:
+The Eve template ships this renderer as `components/eve-authorization.tsx` and
+mounts it next to `<Thread />`. To add it to an existing app, register a data UI
+for the part and type it with the exported `EveAuthorizationData`:
 
 ```tsx title="authorization-ui.tsx"
+import type { EveAuthorizationData } from "@assistant-ui/eve";
 import { makeAssistantDataUI } from "@assistant-ui/react";
 
-type AuthorizationData = {
-  state: "required" | "completed";
-  name: string;
-  displayName?: string;
-  description?: string;
-  url?: string;
-  userCode?: string;
-  instructions?: string;
-  expiresAt?: string;
-  outcome?: "authorized" | "declined" | "failed" | "timed-out";
-  reason?: string;
-};
-
-export const AuthorizationUI = makeAssistantDataUI<AuthorizationData>({
+export const AuthorizationUI = makeAssistantDataUI<EveAuthorizationData>({
   name: "authorization",
   render: ({ data }) => (
     <div>
