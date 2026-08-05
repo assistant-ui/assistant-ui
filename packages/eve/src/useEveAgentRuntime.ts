@@ -41,12 +41,19 @@ const hasRunConfig = (
 ): runConfig is NonNullable<AppendMessage["runConfig"]> =>
   runConfig?.custom !== undefined && Object.keys(runConfig.custom).length > 0;
 
+/**
+ * Eve JSON-stringifies `clientContext` into a user-role context message the
+ * model reads, so only the `custom` bag crosses the wire: the assistant-ui
+ * `runConfig` envelope would surface a literal `"custom"` key in the prompt and
+ * in every eve-side handler that reads `clientContext` as its own namespace.
+ * Eve validates the object server-side and rejects non-JSON values with a 400.
+ */
 const toEveClientContext = (
   runConfig: AppendMessage["runConfig"],
 ): Pick<SendTurnPayload, "clientContext"> =>
   hasRunConfig(runConfig)
     ? {
-        clientContext: runConfig as NonNullable<
+        clientContext: runConfig.custom as NonNullable<
           SendTurnPayload["clientContext"]
         >,
       }

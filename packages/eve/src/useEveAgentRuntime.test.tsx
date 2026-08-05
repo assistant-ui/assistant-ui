@@ -109,7 +109,7 @@ describe("useEveAgentRuntime status forwarding", () => {
     await waitFor(() => {
       expect(agent.send).toHaveBeenCalledWith({
         message: "hello",
-        clientContext: { custom: { model: "gpt-5.4-nano" } },
+        clientContext: { model: "gpt-5.4-nano" },
       });
     });
   });
@@ -187,7 +187,7 @@ describe("useEveAgentRuntime status forwarding", () => {
     await waitFor(() => {
       expect(agent.send).toHaveBeenCalledWith({
         message: "hello",
-        clientContext: { custom: { model: "reload" } },
+        clientContext: { model: "reload" },
       });
     });
   });
@@ -221,7 +221,7 @@ describe("useEveAgentRuntime status forwarding", () => {
     await waitFor(() => {
       expect(agent.send).toHaveBeenCalledWith({
         message: "hello",
-        clientContext: { custom: { model: "staged" } },
+        clientContext: { model: "staged" },
       });
     });
   });
@@ -259,7 +259,7 @@ describe("useEveAgentRuntime status forwarding", () => {
     await waitFor(() => {
       expect(agent.send).toHaveBeenCalledWith({
         message: "hello",
-        clientContext: { custom: { model: "staged" } },
+        clientContext: { model: "staged" },
       });
     });
   });

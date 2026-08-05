@@ -49,10 +49,11 @@ export default function Home() {
 }
 ```
 
-Per-turn `runConfig` is forwarded to Eve as `clientContext`, preserving the
-`custom` envelope. For example, `runConfig: { custom: { model: "fast" } }`
-arrives as `clientContext: { custom: { model: "fast" } }` for that turn only.
-Empty custom objects are omitted.
+The `custom` bag of a per-turn `runConfig` is forwarded to Eve as
+`clientContext`. For example, `runConfig: { custom: { model: "fast" } }` arrives
+as `clientContext: { model: "fast" }` for that turn only. The assistant-ui
+`custom` envelope is unwrapped because Eve turns `clientContext` into a context
+message the model reads. An empty or absent `custom` bag is omitted.
 
 ## Requirements
 
