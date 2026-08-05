@@ -622,7 +622,8 @@ function CertificateDialog({
                   onChange={(e) => setConsent(e.target.checked)}
                   className="mt-0.5"
                 />
-                Email me occasional assistant-ui learning updates (optional).
+                I’m interested in future assistant-ui learning updates
+                (optional).
               </label>
               <div className="flex justify-end gap-2 pt-2">
                 <Button
