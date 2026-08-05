@@ -1,10 +1,13 @@
 import type { Metadata } from "next";
 import { createOgMetadata } from "@/lib/og";
 import { DemoCard } from "@/components/elements/demo-card";
+import { SectionRail } from "@/components/elements/section-rail";
 import {
   ELEMENT_COUNT,
   ELEMENT_SECTIONS,
 } from "@/components/elements/registry";
+
+const sectionId = (label: string) => label.toLowerCase().replace(/\s+/g, "-");
 
 const title = "Elements";
 const description = `${ELEMENT_COUNT} interface pieces for AI products: reasoning, tool calls, approvals, artifacts, and the composer itself. Every demo is live, every element ships its source.`;
@@ -20,6 +23,12 @@ export default function ElementsPage() {
 
   return (
     <main className="mx-auto w-full max-w-6xl px-4 pt-24 pb-32 md:pt-32">
+      <SectionRail
+        sections={ELEMENT_SECTIONS.map((section) => ({
+          id: sectionId(section.label),
+          label: section.label,
+        }))}
+      />
       <header className="max-w-xl">
         <p className="text-foreground/35 font-mono text-[11px] tracking-tight">
           Elements
@@ -38,7 +47,8 @@ export default function ElementsPage() {
         {ELEMENT_SECTIONS.map((section, sectionIndex) => (
           <section
             key={section.label}
-            className="border-foreground/10 border-t border-dashed pt-8"
+            id={sectionId(section.label)}
+            className="border-foreground/10 scroll-mt-24 border-t border-dashed pt-8"
           >
             <div className="flex items-baseline gap-3">
               <span className="text-foreground/30 font-mono text-[11px] tracking-tight tabular-nums">
