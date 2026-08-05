@@ -214,20 +214,20 @@ const useAssistantTransportThreadRuntime = <T>(
         ...context.callSettings,
         ...context.config,
         ...(bodyValue ?? {}),
-        // The server replays a resume from the snapshot it retained for this
-        // runId; the request deliberately carries no state.
-        ...(resumeState !== undefined && { runId: resumeState.runId }),
       };
 
       if (options.prepareSendCommandsRequest) {
-        requestBody = {
-          ...(await options.prepareSendCommandsRequest(
-            requestBody as SendCommandsRequestBody,
-          )),
-          // The server validates the resume against this ID; a prepare hook
-          // that rebuilds the body must not be able to silently drop it.
-          ...(resumeState !== undefined && { runId: resumeState.runId }),
-        };
+        requestBody = await options.prepareSendCommandsRequest(
+          requestBody as SendCommandsRequestBody,
+        );
+      }
+
+      if (resumeState !== undefined) {
+        // The server replays a resume from the snapshot it retained for this
+        // runId. Body overrides and prepare hooks can neither substitute a
+        // state nor drop the ID the server validates against.
+        delete requestBody["state"];
+        requestBody["runId"] = resumeState.runId;
       }
 
       const response = await fetch(

@@ -3783,7 +3783,7 @@ declare const SelectionToolbarPrimitiveRoot: import("react").ForwardRefExoticCom
 
 type SendCommandsRequestBody = {
   commands: QueuedCommand[];
-  state: unknown;
+  state?: unknown;
   runId?: string;
   system: string | undefined;
   tools: Record<string, unknown> | undefined;

@@ -383,9 +383,10 @@ describe("useAssistantTransportRuntime", () => {
     });
 
     expect(requests[1]!.body["runId"]).toBe("run-1");
+    expect(requests[1]!.body).not.toHaveProperty("state");
   });
 
-  it("re-attaches runId when prepareSendCommandsRequest rebuilds the body", async () => {
+  it("re-attaches runId and strips substituted state when prepareSendCommandsRequest rebuilds the body", async () => {
     const requests: RecordedRequest[] = [];
     vi.stubGlobal(
       "fetch",
@@ -411,7 +412,7 @@ describe("useAssistantTransportRuntime", () => {
       resumeStateApi: "https://example.com/resume-state",
       prepareSendCommandsRequest: (body) => ({
         commands: body.commands,
-        state: body.state,
+        state: { message: "Substituted" },
         rebuilt: true,
       }),
     });

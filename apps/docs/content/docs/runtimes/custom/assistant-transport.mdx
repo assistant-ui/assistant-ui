@@ -527,7 +527,7 @@ Before resuming, the runtime posts `{ threadId }` to `resumeStateApi`. The endpo
 { "runId": "8b3a...", "state": { "messages": [] } }
 ```
 
-The runtime replaces its local base with this snapshot and includes `runId` in the resume request; the request carries no `state`, since the server replays from the snapshot it retained. A sync server should reject the resume when that ID no longer identifies the same run, preventing replay operations from being applied to a drifted or replaced base state. When no run is active, the endpoint responds `204 No Content` and the runtime skips the resume without raising an error. On a resume, `runId` takes precedence over fields supplied through `body` and survives `prepareSendCommandsRequest`.
+The runtime replaces its local base with this snapshot and includes `runId` in the resume request; the request carries no `state`, since the server replays from the snapshot it retained. A sync server should reject the resume when that ID no longer identifies the same run, preventing replay operations from being applied to a drifted or replaced base state. When no run is active, the endpoint responds `204 No Content` and the runtime skips the resume without raising an error. On a resume, `runId` takes precedence over fields supplied through `body` and survives `prepareSendCommandsRequest`; any `state` either of them supplies is stripped.
 
 ```tsx
 import { useAui } from "@assistant-ui/react";

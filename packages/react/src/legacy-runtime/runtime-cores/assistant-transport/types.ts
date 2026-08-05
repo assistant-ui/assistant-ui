@@ -92,7 +92,8 @@ export type AssistantTransportProtocol = "data-stream" | "assistant-transport";
 
 export type SendCommandsRequestBody = {
   commands: QueuedCommand[];
-  state: unknown;
+  /** Absent on a resume with `resumeStateApi`; the server replays from its retained snapshot. */
+  state?: unknown;
   runId?: string;
   system: string | undefined;
   tools: Record<string, unknown> | undefined;
