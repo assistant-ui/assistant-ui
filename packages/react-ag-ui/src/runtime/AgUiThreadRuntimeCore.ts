@@ -115,6 +115,7 @@ export class AgUiThreadRuntimeCore {
   private _loadRequest:
     | {
         key: HistoryAdapterKey;
+        historyScopeGeneration: number;
         promise: Promise<void>;
       }
     | undefined;
@@ -272,7 +273,11 @@ export class AgUiThreadRuntimeCore {
     const history = this.history;
     const key = getHistoryAdapterKey(history);
     const activeLoadRequest = this._loadRequest;
-    if (activeLoadRequest && Object.is(activeLoadRequest.key, key)) {
+    if (
+      activeLoadRequest &&
+      Object.is(activeLoadRequest.key, key) &&
+      activeLoadRequest.historyScopeGeneration === this.historyScopeGeneration
+    ) {
       return activeLoadRequest.promise;
     }
 
@@ -293,12 +298,12 @@ export class AgUiThreadRuntimeCore {
 
     const request = {
       key,
+      historyScopeGeneration: this.historyScopeGeneration,
       promise: Promise.resolve(),
     };
-    const historyScopeGeneration = this.historyScopeGeneration;
     const isCurrentRequest = () =>
       this._loadRequest === request &&
-      historyScopeGeneration === this.historyScopeGeneration;
+      request.historyScopeGeneration === this.historyScopeGeneration;
     this._loadRequest = request;
     this.lastHistoryAdapterKey = key;
 

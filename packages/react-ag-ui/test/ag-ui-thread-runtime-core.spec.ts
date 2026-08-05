@@ -1908,6 +1908,51 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(historyAdapter.load).toHaveBeenCalledTimes(1);
   });
 
+  it("does not reuse a load invalidated by an intervening scope", async () => {
+    const agent = { runAgent: vi.fn() } as unknown as HttpAgent;
+    let resolveFirstLoad!: (repo: ExportedMessageRepository) => void;
+    const firstLoad = new Promise<ExportedMessageRepository>((resolve) => {
+      resolveFirstLoad = resolve;
+    });
+    const firstHistory: ThreadHistoryAdapter = {
+      key: "workspace-a",
+      load: vi
+        .fn()
+        .mockImplementationOnce(() => firstLoad)
+        .mockResolvedValue({ messages: [] }),
+      append: vi.fn().mockResolvedValue(undefined),
+    };
+    const secondHistory: ThreadHistoryAdapter = {
+      key: "workspace-b",
+      load: vi.fn().mockResolvedValue({ messages: [] }),
+      append: vi.fn().mockResolvedValue(undefined),
+    };
+    const core = createCore(agent, { history: firstHistory });
+    const staleRequest = core.__internal_load();
+    await vi.waitFor(() => expect(firstHistory.load).toHaveBeenCalledOnce());
+
+    core.updateOptions({
+      agent,
+      logger: noopLogger,
+      showThinking: true,
+      history: secondHistory,
+    });
+    core.updateOptions({
+      agent,
+      logger: noopLogger,
+      showThinking: true,
+      history: firstHistory,
+    });
+    const currentRequest = core.__internal_load();
+
+    expect(currentRequest).not.toBe(staleRequest);
+    await currentRequest;
+    expect(firstHistory.load).toHaveBeenCalledTimes(2);
+
+    resolveFirstLoad({ messages: [] });
+    await staleRequest;
+  });
+
   it("reloads keyed history and ignores stale responses", async () => {
     const agent = { runAgent: vi.fn() } as unknown as HttpAgent;
     let resolveFirstLoad!: (repo: ExportedMessageRepository) => void;
