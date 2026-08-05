@@ -212,6 +212,7 @@ const joinExternalMessages = (
             if (output.metadata.isOptimistic) {
               assistantMessage.metadata.isOptimistic = true;
             }
+            // TODO keep this in sync with ThreadMessageLike["metadata"] / fromThreadMessageLike
           }
 
           // Add content parts, merging reasoning parts with same parentId
