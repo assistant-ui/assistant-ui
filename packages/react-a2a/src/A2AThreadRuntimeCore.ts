@@ -60,9 +60,17 @@ const invokeRuntimeCallback = <TArgs extends unknown[]>(
   if (!callback) return;
 
   try {
-    void Promise.resolve(callback(...args)).catch((error) => {
-      reportCallbackError(name, error);
-    });
+    const result = callback(...args) as unknown;
+    if (
+      result !== null &&
+      (typeof result === "object" || typeof result === "function") &&
+      "then" in result &&
+      typeof result.then === "function"
+    ) {
+      void Promise.resolve(result).catch((error) => {
+        reportCallbackError(name, error);
+      });
+    }
   } catch (error) {
     reportCallbackError(name, error);
   }
