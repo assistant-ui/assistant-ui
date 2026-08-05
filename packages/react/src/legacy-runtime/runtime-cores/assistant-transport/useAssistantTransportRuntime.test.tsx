@@ -234,10 +234,8 @@ describe("useAssistantTransportRuntime", () => {
       "https://example.com/resume-state",
       "https://example.com/resume",
     ]);
-    expect(requests[1]!.body).toMatchObject({
-      runId: "run-1",
-      state: { message: "Hello" },
-    });
+    expect(requests[1]!.body).toMatchObject({ runId: "run-1" });
+    expect(requests[1]!.body).not.toHaveProperty("state");
   });
 
   it("rejects malformed resume state responses before replay", async () => {
@@ -271,7 +269,7 @@ describe("useAssistantTransportRuntime", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it("sends and commits a retained null state instead of falling back to local state", async () => {
+  it("commits a retained null state locally and omits state from the resume request", async () => {
     const requests: RecordedRequest[] = [];
     vi.stubGlobal(
       "fetch",
@@ -307,7 +305,8 @@ describe("useAssistantTransportRuntime", () => {
       await aui().thread.resumeRun({ parentId: null });
     });
 
-    expect(requests[1]!.body).toMatchObject({ runId: "run-1", state: null });
+    expect(requests[1]!.body).toMatchObject({ runId: "run-1" });
+    expect(requests[1]!.body).not.toHaveProperty("state");
     await waitFor(() =>
       expect(
         (aui().thread.getState().extras as { state: unknown }).state,
@@ -346,7 +345,7 @@ describe("useAssistantTransportRuntime", () => {
     ).toEqual({ message: "Kept" });
   });
 
-  it("keeps the retained snapshot over body overrides in the resume request", async () => {
+  it("keeps the retained runId over body overrides in the resume request", async () => {
     const requests: RecordedRequest[] = [];
     vi.stubGlobal(
       "fetch",
@@ -383,10 +382,7 @@ describe("useAssistantTransportRuntime", () => {
       await aui().thread.resumeRun({ parentId: null });
     });
 
-    expect(requests[1]!.body).toMatchObject({
-      runId: "run-1",
-      state: { message: "Hello" },
-    });
+    expect(requests[1]!.body["runId"]).toBe("run-1");
   });
 
   it("re-attaches runId when prepareSendCommandsRequest rebuilds the body", async () => {
@@ -430,11 +426,8 @@ describe("useAssistantTransportRuntime", () => {
       await aui().thread.resumeRun({ parentId: null });
     });
 
-    expect(requests[1]!.body).toMatchObject({
-      runId: "run-1",
-      state: { message: "Hello" },
-      rebuilt: true,
-    });
+    expect(requests[1]!.body).toMatchObject({ runId: "run-1", rebuilt: true });
+    expect(requests[1]!.body).not.toHaveProperty("state");
   });
 
   it("keeps local state when the matching resume stream is rejected", async () => {

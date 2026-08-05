@@ -200,7 +200,7 @@ const useAssistantTransportThreadRuntime = <T>(
 
       let requestBody: Record<string, unknown> = {
         commands,
-        state: agentStateRef.current,
+        ...(resumeState === undefined && { state: agentStateRef.current }),
         system: context.system,
         tools: context.tools ? toToolsJSONSchema(context.tools) : undefined,
         threadId,
@@ -214,10 +214,9 @@ const useAssistantTransportThreadRuntime = <T>(
         ...context.callSettings,
         ...context.config,
         ...(bodyValue ?? {}),
-        ...(resumeState !== undefined && {
-          state: resumeState.state,
-          runId: resumeState.runId,
-        }),
+        // The server replays a resume from the snapshot it retained for this
+        // runId; the request deliberately carries no state.
+        ...(resumeState !== undefined && { runId: resumeState.runId }),
       };
 
       if (options.prepareSendCommandsRequest) {
