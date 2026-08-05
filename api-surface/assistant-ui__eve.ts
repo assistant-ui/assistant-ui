@@ -2,7 +2,7 @@ import { StandardSchemaV1 } from "@standard-schema/spec";
 
 import { InputResponse, SendTurnPayload } from "eve/client";
 
-import { EveMessage, EveMessageData, UseEveAgentOptions } from "eve/react";
+import { EveAuthorizationOutcome, EveAuthorizationPart, EveMessage, EveMessageData, UseEveAgentOptions } from "eve/react";
 
 type AddToolResultOptions = {
   messageId: string;
@@ -315,6 +315,19 @@ type EditComposerState = BaseComposerState & {
   readonly type: "edit";
   readonly parentId: string | null;
   readonly sourceId: string | null;
+};
+
+type EveAuthorizationData = {
+  readonly state: EveAuthorizationPart["state"];
+  readonly name: string;
+  readonly displayName?: string;
+  readonly description?: string;
+  readonly url?: string;
+  readonly userCode?: string;
+  readonly instructions?: string;
+  readonly expiresAt?: string;
+  readonly outcome?: EveAuthorizationOutcome;
+  readonly reason?: string;
 };
 
 type ExportedMessageRepository = {
@@ -1485,7 +1498,7 @@ declare global {
 }
 
 declare namespace entry_root_exports {
-  export { ConvertEveMessagesOptions, UseEveAgentRuntimeOptions, convertEveMessage, convertEveMessages, getEveMessageContent, toEveInputResponse, useEveAgentRuntime };
+  export { ConvertEveMessagesOptions, EveAuthorizationData, UseEveAgentRuntimeOptions, convertEveMessage, convertEveMessages, getEveMessageContent, toEveInputResponse, useEveAgentRuntime };
 }
 
 declare const toEveInputResponse: (response: RespondToToolApprovalOptions) => InputResponse;
