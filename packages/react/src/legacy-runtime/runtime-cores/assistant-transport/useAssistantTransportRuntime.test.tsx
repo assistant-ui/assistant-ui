@@ -136,6 +136,7 @@ describe("useAssistantTransportRuntime", () => {
     expect(
       fetchMock.requests[0]!.body["commands"].map((c: any) => c.type),
     ).toEqual(["add-message", "add-message"]);
+    expect(fetchMock.requests[0]!.body["state"]).toEqual({});
 
     act(() => fetchMock.servers[0]!.close());
 
@@ -170,6 +171,7 @@ describe("useAssistantTransportRuntime", () => {
     await waitFor(() => expect(fetchMock.requests).toHaveLength(2));
     expect(fetchMock.requests[1]!.url).toBe("https://example.com/resume");
     expect(fetchMock.requests[1]!.body["commands"]).toEqual([]);
+    expect(fetchMock.requests[1]!.body).toHaveProperty("state");
 
     // "b" coalesced into the resume run and must not starve in the queue.
     act(() => fetchMock.servers[1]!.close());
