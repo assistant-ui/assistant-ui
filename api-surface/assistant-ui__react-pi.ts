@@ -487,7 +487,7 @@ type ExternalStoreMessageConverterAdapter<T> = {
   convertMessage: ExternalStoreMessageConverter<T>;
 };
 
-type ExternalStoreSharedOptions = Pick<ExternalStoreAdapter, "isDisabled" | "isSendDisabled" | "suggestions" | "unstable_capabilities">;
+type ExternalStoreSharedOptions = Pick<ExternalStoreAdapter, "isDisabled" | "isSendDisabled" | "queue" | "suggestions" | "unstable_capabilities">;
 
 type ExternalStoreThreadData<TState extends "archived" | "regular"> = {
   status: TState;
