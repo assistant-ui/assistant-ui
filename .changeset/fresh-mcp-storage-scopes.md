@@ -2,4 +2,4 @@
 "@assistant-ui/react-mcp": patch
 ---
 
-fix: reload custom MCP servers when keyed storage changes
+fix: reload custom MCP servers when local or custom storage scopes change

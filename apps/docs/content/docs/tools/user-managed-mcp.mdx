@@ -295,7 +295,7 @@ Client-side validation errors keep the elicitation pending so the user can corre
 
 All persisted state — custom server records, OAuth tokens, PKCE verifiers, DCR client info — goes through a single `MCPStorage` resource. Three built-ins:
 
-- `McpLocalStorage()` — default. Stores under the `aui-mcp:` prefix in `window.localStorage`.
+- `McpLocalStorage()` — default. Stores under the `aui-mcp:` prefix in `window.localStorage`. Changing `keyPrefix` reloads the matching storage scope.
 - `McpMemoryStorage()` — in-process Map. Use for SSR/tests where localStorage is absent.
 - `McpCustomStorage({...})` — bring your own load/save. Use for app-controlled backends (e.g. POST to your API).
 
@@ -305,6 +305,7 @@ import { McpManagerResource, McpCustomStorage } from "@assistant-ui/react-mcp";
 AuiConfig({
   mcp: McpManagerResource({
     connectors,
+    storageScopeKey: workspaceId,
     storage: McpCustomStorage({
       loadCustomServers: async () => fetch("/api/mcp/servers").then((r) => r.json()),
       saveCustomServers: async (records) =>
@@ -319,6 +320,8 @@ AuiConfig({
   }),
 });
 ```
+
+Set `storageScopeKey` when a custom storage backend changes with the current account, tenant, or workspace. Changing the key clears the previous scope's servers and loads the new scope before persistence resumes. `McpLocalStorage` derives this identity from `keyPrefix` automatically.
 
 <Callout type="warn">
 `McpLocalStorage` stores tokens in plain text and is XSS-exposed. For anything beyond local prototyping, use `McpCustomStorage` against an HTTP-only-cookie-backed endpoint, or wrap localStorage with your own encrypted serializer.

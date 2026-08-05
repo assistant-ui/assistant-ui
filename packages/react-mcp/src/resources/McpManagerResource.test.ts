@@ -1,9 +1,4 @@
-import {
-  createTapRoot,
-  resource,
-  useResource,
-  withKey,
-} from "@assistant-ui/tap";
+import { createTapRoot, resource, useResource } from "@assistant-ui/tap";
 import { describe, expect, it, vi } from "vitest";
 import { useState } from "react";
 import { defineConnector } from "../connector";
@@ -333,7 +328,7 @@ describe("McpManagerResource storage switching", () => {
     const loadStorageA = vi.fn(async () => [docsServer]);
     const saveStorageA = vi.fn(async () => {});
     const loadStorageB = vi.fn(async () => []);
-    const saveStorageB = vi.fn(async () => {});
+    const saveStorageB = vi.fn(async (_records: (typeof docsServer)[]) => {});
     const storageA = {
       loadCustomServers: loadStorageA,
       saveCustomServers: saveStorageA,
@@ -356,10 +351,8 @@ describe("McpManagerResource storage switching", () => {
       return useResource(
         McpManagerResource({
           connectors: [],
-          storage: withKey(
-            storageKey,
-            McpCustomStorage(storageKey === "a" ? storageA : storageB),
-          ),
+          storage: McpCustomStorage(storageKey === "a" ? storageA : storageB),
+          storageScopeKey: storageKey,
           autoConnect: false,
         }),
       );
@@ -380,6 +373,10 @@ describe("McpManagerResource storage switching", () => {
         expect(root.getValue().getState().isHydrated).toBe(true);
         expect(root.getValue().getState().customServers).toHaveLength(0);
       });
+      expect(saveStorageB).toHaveBeenCalled();
+      for (const [records] of saveStorageB.mock.calls) {
+        expect(records).toEqual([]);
+      }
       saveStorageB.mockClear();
 
       await root.getValue().addCustomServer({
@@ -431,10 +428,8 @@ describe("McpManagerResource storage switching", () => {
       return useResource(
         McpManagerResource({
           connectors: [],
-          storage: withKey(
-            storageKey,
-            McpCustomStorage(storageKey === "a" ? storageA : storageB),
-          ),
+          storage: McpCustomStorage(storageKey === "a" ? storageA : storageB),
+          storageScopeKey: storageKey,
           autoConnect: false,
         }),
       );
@@ -460,6 +455,85 @@ describe("McpManagerResource storage switching", () => {
       expect(root.getValue().getState().customServers).toHaveLength(0);
     } finally {
       resolveStorageA?.([]);
+      root.unmount();
+    }
+  });
+
+  it("ignores a removal that finishes after switching storage", async () => {
+    const docsServer = {
+      id: "docs",
+      name: "Docs",
+      url: "https://example.com/docs/mcp",
+      auth: { type: "none" as const },
+      createdAt: 1,
+    };
+    const linearServer = {
+      id: "linear",
+      name: "Linear",
+      url: "https://example.com/linear/mcp",
+      auth: { type: "none" as const },
+      createdAt: 2,
+    };
+    let resolveStorageAClear: (() => void) | undefined;
+    const storageAClear = new Promise<void>((resolve) => {
+      resolveStorageAClear = resolve;
+    });
+    const storageA = {
+      loadCustomServers: vi.fn(async () => [docsServer]),
+      saveCustomServers: vi.fn(async () => {}),
+      loadAuthState: vi.fn(async () => null),
+      saveAuthState: vi.fn(async () => {}),
+      clearAuthState: vi.fn(() => storageAClear),
+    };
+    const storageB = {
+      loadCustomServers: vi.fn(async () => [linearServer]),
+      saveCustomServers: vi.fn(async () => {}),
+      loadAuthState: vi.fn(async () => null),
+      saveAuthState: vi.fn(async () => {}),
+      clearAuthState: vi.fn(async () => {}),
+    };
+    let switchStorage = () => {};
+    const DynamicManager = resource(function useDynamicManager() {
+      const [storageKey, setStorageKey] = useState<"a" | "b">("a");
+      switchStorage = () => setStorageKey("b");
+
+      return useResource(
+        McpManagerResource({
+          connectors: [],
+          storage: McpCustomStorage(storageKey === "a" ? storageA : storageB),
+          storageScopeKey: storageKey,
+          autoConnect: false,
+        }),
+      );
+    });
+    const root = createTapRoot(function Root() {
+      return useResource(DynamicManager());
+    });
+
+    try {
+      await vi.waitFor(() =>
+        expect(root.getValue().getState().customServers[0]?.id).toBe("docs"),
+      );
+      const removal = root.getValue().removeServer("docs");
+      await vi.waitFor(() =>
+        expect(storageA.clearAuthState).toHaveBeenCalledWith("docs"),
+      );
+
+      switchStorage();
+
+      await vi.waitFor(() => {
+        expect(root.getValue().getState().isHydrated).toBe(true);
+        expect(root.getValue().getState().customServers[0]?.id).toBe("linear");
+      });
+      resolveStorageAClear?.();
+      await removal;
+
+      expect(root.getValue().getState().isHydrated).toBe(true);
+      expect(root.getValue().getState().customServers).toEqual([
+        expect.objectContaining({ id: "linear" }),
+      ]);
+    } finally {
+      resolveStorageAClear?.();
       root.unmount();
     }
   });

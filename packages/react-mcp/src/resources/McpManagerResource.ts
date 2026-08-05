@@ -35,6 +35,8 @@ export type McpManagerResourceProps = {
   autoConnect?: boolean | undefined;
   /** Optional timeout in milliseconds for connect/listTools calls. Disabled by default. */
   connectionTimeout?: number | undefined;
+  /** Changes when the custom storage account, tenant, or workspace changes. */
+  storageScopeKey?: string | number | undefined;
 };
 
 function defaultRedirectUri(): string {
@@ -81,14 +83,19 @@ const useMcpManagerResource = (
   const autoConnect = props.autoConnect ?? true;
   const redirectUri = props.oauthRedirectUri ?? defaultRedirectUri();
   const connectionTimeout = props.connectionTimeout;
+  const storageScopeKey = props.storageScopeKey;
 
   const storageElement = props.storage ?? McpLocalStorage();
   const storage = useResource(storageElement);
 
   // Tap resource identity excludes args because they may be recreated inline.
   const storageScope = useMemo(
-    () => ({ hook: storageElement.hook, key: storageElement.key }),
-    [storageElement.hook, storageElement.key],
+    () => ({
+      hook: storageElement.hook,
+      key: storageElement.key,
+      storageScopeKey,
+    }),
+    [storageElement.hook, storageElement.key, storageScopeKey],
   );
   const [customServerState, setCustomServerState] = useState<CustomServerState>(
     () => ({
@@ -150,14 +157,11 @@ const useMcpManagerResource = (
       updater: (records: MCPCustomServerRecord[]) => MCPCustomServerRecord[],
     ) => {
       setCustomServerState((prev) => {
-        const matchesStorage = prev.storageScope === storageScope;
-        const records = updater(
-          matchesStorage ? prev.records : NO_CUSTOM_SERVERS,
-        );
+        if (prev.storageScope !== storageScope) return prev;
         return {
           storageScope,
-          records,
-          isHydrated: matchesStorage && prev.isHydrated,
+          records: updater(prev.records),
+          isHydrated: prev.isHydrated,
         };
       });
     },

@@ -229,6 +229,7 @@ function App() {
       ],
       // optional:
       // storage: McpCustomStorage({ ... }),
+      // storageScopeKey: workspaceId,
       // autoConnect: false,
       // connectionTimeout: 10_000,
       // oauthRedirectUri: "https://app.example.com/mcp/callback",
@@ -241,6 +242,7 @@ function App() {
 Defaults baked in:
 
 - `storage` → `McpLocalStorage()`
+- `storageScopeKey` → identifies a custom storage account, tenant, or workspace so changing it rehydrates the matching servers. `McpLocalStorage` uses `keyPrefix` automatically.
 - `oauthRedirectUri` → `${window.location.origin}/mcp/callback`
 - `autoConnect` → `true`
 - `connectionTimeout` → optional timeout in milliseconds; disabled by default. Set it on the manager as a default or on a server entry to bound the MCP readiness flow (`connect()` plus `listTools()`).

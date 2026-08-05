@@ -1,4 +1,4 @@
-import { resource } from "@assistant-ui/tap";
+import { resource, withKey } from "@assistant-ui/tap";
 import {
   OAuthClientInformationFullSchema,
   OAuthTokensSchema,
@@ -205,4 +205,7 @@ const useMcpLocalStorage = (opts: McpLocalStorageOptions = {}): MCPStorage => {
   };
 };
 
-export const McpLocalStorage = resource(useMcpLocalStorage);
+const McpLocalStorageResource = resource(useMcpLocalStorage);
+
+export const McpLocalStorage = (opts: McpLocalStorageOptions = {}) =>
+  withKey(opts.keyPrefix ?? "aui-mcp", McpLocalStorageResource(opts));
