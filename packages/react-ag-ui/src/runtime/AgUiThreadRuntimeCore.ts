@@ -334,6 +334,7 @@ export class AgUiThreadRuntimeCore {
   async cancel(): Promise<void> {
     if (!this.abortController) return;
     this.abortController.abort();
+    this.agent.abortRun();
   }
 
   async resume(config: ResumeRunConfig): Promise<void> {
@@ -1021,6 +1022,7 @@ export class AgUiThreadRuntimeCore {
           runId,
           logger: this.logger,
           onRunFailed: (error) => {
+            if (abortSignal.aborted) return;
             this.pendingError = error;
             this.onError?.(error);
           },

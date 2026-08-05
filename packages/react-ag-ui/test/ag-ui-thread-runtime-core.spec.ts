@@ -9,7 +9,7 @@ import type {
   ThreadHistoryAdapter,
   ThreadMessage,
 } from "@assistant-ui/core";
-import type { HttpAgent } from "@ag-ui/client";
+import { HttpAgent } from "@ag-ui/client";
 import { AgUiThreadRuntimeCore } from "../src/runtime/AgUiThreadRuntimeCore";
 import { makeLogger, type Logger } from "../src/runtime/logger";
 
@@ -576,15 +576,18 @@ describe("AGUIThreadRuntimeCore", () => {
   });
 
   it("marks runs as cancelled when aborting", async () => {
+    let rejectRun!: (error: Error) => void;
     const agent = {
-      runAgent: vi.fn((_input, _subscriber, { signal }) => {
-        return new Promise((_, reject) => {
-          signal.addEventListener("abort", () => {
-            const err = new Error("aborted");
-            (err as any).name = "AbortError";
-            reject(err);
-          });
-        });
+      runAgent: vi.fn(
+        () =>
+          new Promise((_, reject) => {
+            rejectRun = reject;
+          }),
+      ),
+      abortRun: vi.fn(() => {
+        const err = new Error("aborted");
+        err.name = "AbortError";
+        rejectRun(err);
       }),
     } as unknown as HttpAgent;
 
@@ -600,6 +603,50 @@ describe("AGUIThreadRuntimeCore", () => {
       reason: "cancelled",
     });
     expect(onCancel).toHaveBeenCalledTimes(1);
+    expect(agent.abortRun).toHaveBeenCalledTimes(1);
+  });
+
+  it("aborts the HttpAgent request when cancelling", async () => {
+    let requestSignal: AbortSignal | undefined;
+    let resolveRequestStarted!: () => void;
+    const requestStarted = new Promise<void>((resolve) => {
+      resolveRequestStarted = resolve;
+    });
+    const agent = new HttpAgent({
+      url: "https://example.invalid",
+      fetch: async (_url, requestInit) => {
+        const signal = requestInit.signal;
+        if (!signal) throw new Error("missing request signal");
+        requestSignal = signal;
+        signal.addEventListener(
+          "abort",
+          () => {
+            const error = new Error("aborted");
+            error.name = "AbortError";
+            rejectRequest?.(error);
+          },
+          { once: true },
+        );
+        resolveRequestStarted();
+        return await new Promise<Response>((_, reject) => {
+          rejectRequest = reject;
+        });
+      },
+    });
+    let rejectRequest: ((error: Error) => void) | undefined;
+
+    const core = createCore(agent);
+    const promise = core.append(createAppendMessage());
+    await requestStarted;
+    await core.cancel();
+    await promise;
+
+    expect(requestSignal?.aborted).toBe(true);
+    const assistant = core.getMessages().at(-1) as ThreadAssistantMessage;
+    expect(assistant.status).toMatchObject({
+      type: "incomplete",
+      reason: "cancelled",
+    });
   });
 
   it("surfaces errors and rejects append", async () => {
@@ -1272,7 +1319,7 @@ describe("AGUIThreadRuntimeCore", () => {
     const runAgent = vi.fn(async (_input, subscriber) => {
       subscriber.onRunFinalized?.();
     });
-    const agent = { runAgent } as unknown as HttpAgent;
+    const agent = { runAgent, abortRun: vi.fn() } as unknown as HttpAgent;
     const onCancel = vi.fn();
     const core = createCore(agent, { onCancel });
     await core.append(createAppendMessage());
@@ -4811,6 +4858,7 @@ describe("AGUIThreadRuntimeCore", () => {
           });
         });
       }),
+      abortRun: vi.fn(),
     } as unknown as HttpAgent;
     const core = createCore(agent);
 
