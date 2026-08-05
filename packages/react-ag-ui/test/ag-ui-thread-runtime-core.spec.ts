@@ -1908,6 +1908,349 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(historyAdapter.load).toHaveBeenCalledTimes(1);
   });
 
+  it("does not reuse a load invalidated by an intervening scope", async () => {
+    const agent = { runAgent: vi.fn() } as unknown as HttpAgent;
+    let resolveFirstLoad!: (repo: ExportedMessageRepository) => void;
+    const firstLoad = new Promise<ExportedMessageRepository>((resolve) => {
+      resolveFirstLoad = resolve;
+    });
+    const firstHistory: ThreadHistoryAdapter = {
+      key: "workspace-a",
+      load: vi
+        .fn()
+        .mockImplementationOnce(() => firstLoad)
+        .mockResolvedValue({ messages: [] }),
+      append: vi.fn().mockResolvedValue(undefined),
+    };
+    const secondHistory: ThreadHistoryAdapter = {
+      key: "workspace-b",
+      load: vi.fn().mockResolvedValue({ messages: [] }),
+      append: vi.fn().mockResolvedValue(undefined),
+    };
+    const core = createCore(agent, { history: firstHistory });
+    const staleRequest = core.__internal_load();
+    await vi.waitFor(() => expect(firstHistory.load).toHaveBeenCalledOnce());
+
+    core.updateOptions({
+      agent,
+      logger: noopLogger,
+      showThinking: true,
+      history: secondHistory,
+    });
+    core.updateOptions({
+      agent,
+      logger: noopLogger,
+      showThinking: true,
+      history: firstHistory,
+    });
+    const currentRequest = core.__internal_load();
+
+    expect(currentRequest).not.toBe(staleRequest);
+    await currentRequest;
+    expect(firstHistory.load).toHaveBeenCalledTimes(2);
+
+    resolveFirstLoad({ messages: [] });
+    await staleRequest;
+  });
+
+  it("reloads keyed history and ignores stale responses", async () => {
+    const agent = { runAgent: vi.fn() } as unknown as HttpAgent;
+    let resolveFirstLoad!: (repo: ExportedMessageRepository) => void;
+    let resolveSecondLoad!: (repo: ExportedMessageRepository) => void;
+    const firstHistory: ThreadHistoryAdapter = {
+      key: "workspace-a",
+      load: vi.fn(
+        () =>
+          new Promise((resolve) => {
+            resolveFirstLoad = resolve;
+          }),
+      ),
+      resume: vi.fn(async function* () {
+        yield {
+          content: [{ type: "text", text: "stale resume" }],
+          status: { type: "complete", reason: "unknown" },
+        };
+      }),
+      append: vi.fn().mockResolvedValue(undefined),
+    };
+    const secondHistory: ThreadHistoryAdapter = {
+      key: "workspace-b",
+      load: vi.fn(
+        () =>
+          new Promise((resolve) => {
+            resolveSecondLoad = resolve;
+          }),
+      ),
+      append: vi.fn().mockResolvedValue(undefined),
+    };
+    const core = createCore(agent, { history: firstHistory });
+    const firstRequest = core.__internal_load();
+    await vi.waitFor(() => expect(firstHistory.load).toHaveBeenCalledOnce());
+
+    core.applyExternalMessages([
+      {
+        id: "current-message",
+        role: "user",
+        content: [{ type: "text", text: "current workspace" }],
+        createdAt: new Date(),
+        metadata: { custom: {} },
+      },
+    ]);
+    core.loadExternalState({ workspace: "current" });
+    core.updateOptions({
+      agent,
+      logger: noopLogger,
+      showThinking: true,
+      history: secondHistory,
+    });
+
+    resolveFirstLoad({
+      headId: "stale-message-a",
+      messages: [
+        {
+          parentId: null,
+          message: {
+            id: "stale-message-a",
+            role: "user",
+            content: [{ type: "text", text: "stale workspace a" }],
+            createdAt: new Date(),
+            metadata: { custom: {} },
+          },
+        },
+      ],
+      state: { workspace: "stale-a" },
+      unstable_resume: true,
+    });
+    await firstRequest;
+
+    expect(core.getMessages().map((message) => message.id)).toEqual([
+      "current-message",
+    ]);
+    expect(core.getState()).toEqual({ workspace: "current" });
+    expect(firstHistory.resume).not.toHaveBeenCalled();
+    expect(core.isLoading).toBe(true);
+
+    const secondRequest = core.__internal_load();
+    await vi.waitFor(() => expect(secondHistory.load).toHaveBeenCalledOnce());
+
+    expect(core.getMessages()).toEqual([]);
+    expect(core.getState()).toBeUndefined();
+    expect(core.isLoading).toBe(true);
+
+    resolveSecondLoad({
+      headId: "message-b",
+      messages: [
+        {
+          parentId: null,
+          message: {
+            id: "message-b",
+            role: "user",
+            content: [{ type: "text", text: "workspace b" }],
+            createdAt: new Date(),
+            metadata: { custom: {} },
+          },
+        },
+      ],
+      state: { workspace: "b" },
+    });
+    await secondRequest;
+
+    expect(core.getMessages().map((message) => message.id)).toEqual([
+      "message-b",
+    ]);
+    expect(core.getState()).toEqual({ workspace: "b" });
+    expect(core.isLoading).toBe(false);
+  });
+
+  it("does not reload replacement history adapters with the same key", async () => {
+    const agent = { runAgent: vi.fn() } as unknown as HttpAgent;
+    const firstHistory: ThreadHistoryAdapter = {
+      key: "workspace-a",
+      load: vi.fn().mockResolvedValue({ messages: [] }),
+      append: vi.fn().mockResolvedValue(undefined),
+    };
+    const secondHistory: ThreadHistoryAdapter = {
+      key: "workspace-a",
+      load: vi.fn().mockResolvedValue({ messages: [] }),
+      append: vi.fn().mockResolvedValue(undefined),
+    };
+    const core = createCore(agent, { history: firstHistory });
+
+    const firstRequest = core.__internal_load();
+    await firstRequest;
+    core.updateOptions({
+      agent,
+      logger: noopLogger,
+      showThinking: true,
+      history: secondHistory,
+    });
+
+    expect(core.__internal_load()).toBe(firstRequest);
+    expect(secondHistory.load).not.toHaveBeenCalled();
+
+    await core.append(createAppendMessage({ startRun: false }));
+    expect(firstHistory.append).not.toHaveBeenCalled();
+    expect(secondHistory.append).toHaveBeenCalledTimes(1);
+  });
+
+  it("isolates an active run when keyed history changes", async () => {
+    let releaseFirstRun!: () => void;
+    const firstRun = new Promise<void>((resolve) => {
+      releaseFirstRun = resolve;
+    });
+    let releaseResume!: () => void;
+    const resumedRun = new Promise<void>((resolve) => {
+      releaseResume = resolve;
+    });
+    let markResumeStarted!: () => void;
+    const resumeStarted = new Promise<void>((resolve) => {
+      markResumeStarted = resolve;
+    });
+    const agent = {
+      runAgent: vi.fn(async (_input, subscriber) => {
+        subscriber.onTextMessageStartEvent?.({
+          event: {
+            type: "TEXT_MESSAGE_START",
+            messageId: "assistant-a",
+            role: "assistant",
+          },
+        });
+        subscriber.onTextMessageContentEvent?.({
+          event: {
+            type: "TEXT_MESSAGE_CONTENT",
+            messageId: "assistant-a",
+            delta: "workspace a",
+          },
+        });
+        await firstRun;
+        subscriber.onTextMessageContentEvent?.({
+          event: {
+            type: "TEXT_MESSAGE_CONTENT",
+            messageId: "assistant-a",
+            delta: " late",
+          },
+        });
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+    const historyAdapter: ThreadHistoryAdapter = {
+      key: "workspace-a",
+      load: vi.fn(async () =>
+        historyAdapter.key === "workspace-a"
+          ? { messages: [] }
+          : {
+              headId: "message-b",
+              messages: [
+                {
+                  parentId: null,
+                  message: {
+                    id: "message-b",
+                    role: "user" as const,
+                    content: [{ type: "text" as const, text: "workspace b" }],
+                    createdAt: new Date(),
+                    metadata: { custom: {} },
+                  },
+                },
+              ],
+              unstable_resume: true,
+            },
+      ),
+      resume: vi.fn(async function* () {
+        markResumeStarted();
+        await resumedRun;
+        yield {
+          content: [{ type: "text", text: "resumed workspace b" }],
+          status: { type: "complete", reason: "unknown" },
+        };
+      }),
+      append: vi.fn().mockResolvedValue(undefined),
+    };
+    const core = createCore(agent, { history: historyAdapter });
+    await core.__internal_load();
+
+    const oldRun = core.append(createAppendMessage());
+    await vi.waitFor(() => expect(agent.runAgent).toHaveBeenCalledOnce());
+    vi.mocked(historyAdapter.append).mockClear();
+
+    historyAdapter.key = "workspace-b";
+    core.updateOptions({
+      agent,
+      logger: noopLogger,
+      showThinking: true,
+      history: historyAdapter,
+    });
+    const replacementLoad = core.__internal_load();
+    await resumeStarted;
+
+    expect(core.isRunning()).toBe(true);
+    expect(historyAdapter.append).not.toHaveBeenCalled();
+
+    releaseFirstRun();
+    await oldRun;
+
+    expect(core.isRunning()).toBe(true);
+    expect(historyAdapter.append).not.toHaveBeenCalled();
+    expect(
+      core.getMessages().some((message) => message.id === "assistant-a"),
+    ).toBe(false);
+
+    releaseResume();
+    await replacementLoad;
+
+    expect(core.isRunning()).toBe(false);
+    expect(historyAdapter.append).toHaveBeenCalledTimes(1);
+    expect(core.getMessages().map((message) => message.id)).not.toContain(
+      "assistant-a",
+    );
+  });
+
+  it("ignores append failures from a previous history scope", async () => {
+    let rejectFirstAppend!: (error: Error) => void;
+    const firstAppend = new Promise<void>((_resolve, reject) => {
+      rejectFirstAppend = reject;
+    });
+    const loggerError = vi.fn();
+    const agent = { runAgent: vi.fn() } as unknown as HttpAgent;
+    const firstHistory: ThreadHistoryAdapter = {
+      key: "workspace-a",
+      load: vi.fn().mockResolvedValue({ messages: [] }),
+      append: vi.fn(() => firstAppend),
+    };
+    const secondHistory: ThreadHistoryAdapter = {
+      key: "workspace-b",
+      load: vi.fn(),
+      append: vi.fn().mockResolvedValue(undefined),
+    };
+    const core = createCore(agent, {
+      history: firstHistory,
+      logger: makeLogger({ error: loggerError }),
+    });
+    await core.__internal_load();
+    await core.append(createAppendMessage({ startRun: false }));
+    const sharedMessage = core.getMessages()[0]!;
+    vi.mocked(secondHistory.load).mockResolvedValue({
+      headId: sharedMessage.id,
+      messages: [{ parentId: null, message: sharedMessage }],
+    });
+
+    core.updateOptions({
+      agent,
+      logger: makeLogger({ error: loggerError }),
+      showThinking: true,
+      history: secondHistory,
+    });
+    await core.__internal_load();
+
+    rejectFirstAppend(new Error("workspace a unavailable"));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const recordedHistoryIds = (
+      core as unknown as { recordedHistoryIds: Set<string> }
+    ).recordedHistoryIds;
+    expect(recordedHistoryIds.has(sharedMessage.id)).toBe(true);
+    expect(loggerError).not.toHaveBeenCalled();
+  });
+
   it("handles missing history adapter gracefully", async () => {
     const agent = { runAgent: vi.fn() } as unknown as HttpAgent;
     const core = createCore(agent);

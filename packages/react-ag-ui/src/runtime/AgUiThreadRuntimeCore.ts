@@ -70,9 +70,23 @@ type CoreOptions = {
   autoCancelPendingToolCalls?: boolean | undefined;
   onError?: (error: Error) => void;
   onCancel?: () => void;
-  history?: ThreadHistoryAdapter;
+  history?: ThreadHistoryAdapter | undefined;
   notifyUpdate: () => void;
 };
+
+const DEFAULT_HISTORY_ADAPTER_KEY = Symbol("history-adapter");
+const NO_HISTORY_ADAPTER_KEY = Symbol("no-history-adapter");
+type HistoryAdapterKey =
+  | NonNullable<ThreadHistoryAdapter["key"]>
+  | typeof DEFAULT_HISTORY_ADAPTER_KEY
+  | typeof NO_HISTORY_ADAPTER_KEY;
+
+const getHistoryAdapterKey = (
+  history: ThreadHistoryAdapter | undefined,
+): HistoryAdapterKey =>
+  history
+    ? (history.key ?? DEFAULT_HISTORY_ADAPTER_KEY)
+    : NO_HISTORY_ADAPTER_KEY;
 
 const FALLBACK_USER_STATUS = { type: "complete", reason: "unknown" } as const;
 
@@ -96,8 +110,16 @@ export class AgUiThreadRuntimeCore {
   private lastRunConfig: RunConfig | undefined;
   private readonly assistantHistoryParents = new Map<string, string | null>();
   private readonly recordedHistoryIds = new Set<string>();
+  private historyScopeGeneration = 0;
   private _isLoading = false;
-  private _loadPromise: Promise<void> | undefined;
+  private _loadRequest:
+    | {
+        key: HistoryAdapterKey;
+        historyScopeGeneration: number;
+        promise: Promise<void>;
+      }
+    | undefined;
+  private lastHistoryAdapterKey: HistoryAdapterKey | undefined;
   private pendingResumeMessageId: string | null = null;
   private pendingA2uiResume = false;
   private pendingA2uiAction: Record<string, unknown> | undefined;
@@ -121,6 +143,14 @@ export class AgUiThreadRuntimeCore {
     this.autoCancelPendingToolCalls = options.autoCancelPendingToolCalls;
     this.onError = options.onError;
     this.onCancel = options.onCancel;
+    if (
+      !Object.is(
+        getHistoryAdapterKey(this.history),
+        getHistoryAdapterKey(options.history),
+      )
+    ) {
+      this.historyScopeGeneration += 1;
+    }
     this.history = options.history;
     this.installResumeShim();
   }
@@ -240,15 +270,50 @@ export class AgUiThreadRuntimeCore {
   }
 
   __internal_load(): Promise<void> {
-    if (this._loadPromise) return this._loadPromise;
+    const history = this.history;
+    const key = getHistoryAdapterKey(history);
+    const activeLoadRequest = this._loadRequest;
+    if (
+      activeLoadRequest &&
+      Object.is(activeLoadRequest.key, key) &&
+      activeLoadRequest.historyScopeGeneration === this.historyScopeGeneration
+    ) {
+      return activeLoadRequest.promise;
+    }
 
-    const promise = this.history?.load() ?? Promise.resolve(null);
+    const replacingHistory =
+      this.lastHistoryAdapterKey !== undefined &&
+      !Object.is(this.lastHistoryAdapterKey, key);
+    if (replacingHistory) {
+      this.historyScopeGeneration += 1;
+      void this.cancel();
+      this.clearRepository();
+      this.stateSnapshot = undefined;
+      this.assistantHistoryParents.clear();
+      this.recordedHistoryIds.clear();
+      this.pendingResumeMessageId = null;
+      this.pendingA2uiResume = false;
+      this.pendingA2uiAction = undefined;
+    }
+
+    const request = {
+      key,
+      historyScopeGeneration: this.historyScopeGeneration,
+      promise: Promise.resolve(),
+    };
+    const isCurrentRequest = () =>
+      this._loadRequest === request &&
+      request.historyScopeGeneration === this.historyScopeGeneration;
+    this._loadRequest = request;
+    this.lastHistoryAdapterKey = key;
 
     this._isLoading = true;
+    this.notifyUpdate();
 
-    this._loadPromise = promise
+    request.promise = Promise.resolve()
+      .then(() => history?.load() ?? null)
       .then(async (repo) => {
-        if (!repo) return;
+        if (!isCurrentRequest() || !repo) return;
 
         this.applyExternalMessageRepository(repo);
 
@@ -258,7 +323,7 @@ export class AgUiThreadRuntimeCore {
 
         if (repo.unstable_resume) {
           const parentId = repo.headId ?? this.repository.headId;
-          const resumeStream = this.history?.resume?.bind(this.history);
+          const resumeStream = history?.resume?.bind(history);
           await this.startRun(
             parentId,
             this.lastRunConfig,
@@ -268,18 +333,19 @@ export class AgUiThreadRuntimeCore {
         }
       })
       .catch((error) => {
+        if (!isCurrentRequest()) return;
         this.logger.error?.("[agui] failed to load history", error);
         this.onError?.(
           error instanceof Error ? error : new Error(String(error)),
         );
       })
       .finally(() => {
+        if (!isCurrentRequest()) return;
         this._isLoading = false;
         this.notifyUpdate();
       });
 
-    this.notifyUpdate();
-    return this._loadPromise;
+    return request.promise;
   }
 
   async append(message: AppendMessage): Promise<void> {
@@ -905,6 +971,9 @@ export class AgUiThreadRuntimeCore {
     resume?: AgUiResumeEntry[],
     resumeStream?: ResumeStream,
   ): Promise<void> {
+    const historyScopeGeneration = this.historyScopeGeneration;
+    const isCurrentHistoryScope = () =>
+      historyScopeGeneration === this.historyScopeGeneration;
     const normalizedRunConfig = runConfig ?? {};
     this.lastRunConfig = normalizedRunConfig;
     const parent = parentId === null ? undefined : this.tryGetMessage(parentId);
@@ -947,6 +1016,7 @@ export class AgUiThreadRuntimeCore {
     if (shouldEagerlyInsertAssistant) ensureAssistant();
 
     const applyUpdate = (update: ChatModelRunResult) => {
+      if (!isCurrentHistoryScope()) return;
       const hasContent =
         Array.isArray(update.content) && update.content.length > 0;
       const resolved = this.updateAssistantMessage(
@@ -963,6 +1033,7 @@ export class AgUiThreadRuntimeCore {
       logger: this.logger,
       emit: applyUpdate,
       onServerMessageId: (serverId) => {
+        if (!isCurrentHistoryScope()) return;
         const placeholder = ensureAssistant(true);
         if (placeholder === serverId) return;
         if (this.reassignAssistantId(placeholder, serverId)) {
@@ -972,8 +1043,10 @@ export class AgUiThreadRuntimeCore {
         }
       },
     });
-    const dispatch = (event: AgUiEvent) =>
+    const dispatch = (event: AgUiEvent) => {
+      if (!isCurrentHistoryScope()) return;
       this.handleEvent(aggregator, event, assistantMessageId);
+    };
 
     const abortController = new AbortController();
     const abortSignal = abortController.signal;
@@ -1021,6 +1094,7 @@ export class AgUiThreadRuntimeCore {
           runId,
           logger: this.logger,
           onRunFailed: (error) => {
+            if (!isCurrentHistoryScope()) return;
             this.pendingError = error;
             this.onError?.(error);
           },
@@ -1037,7 +1111,7 @@ export class AgUiThreadRuntimeCore {
         });
       }
     } catch (error) {
-      if (!abortSignal.aborted) {
+      if (!abortSignal.aborted && isCurrentHistoryScope()) {
         const err = error instanceof Error ? error : new Error(String(error));
         dispatch({ type: "RUN_ERROR", message: err.message });
         this.onError?.(err);
@@ -1046,6 +1120,8 @@ export class AgUiThreadRuntimeCore {
     } finally {
       this.finishRun(abortController);
     }
+
+    if (!isCurrentHistoryScope()) return;
 
     if (this.pendingError) {
       const err = this.pendingError;
@@ -1215,9 +1291,8 @@ export class AgUiThreadRuntimeCore {
   }
 
   private finishRun(controller: AbortController | null) {
-    if (this.abortController === controller) {
-      this.abortController = null;
-    }
+    if (this.abortController !== controller) return;
+    this.abortController = null;
     this.setRunning(false);
   }
 
@@ -1685,9 +1760,12 @@ export class AgUiThreadRuntimeCore {
   }
 
   private appendHistoryItem(parentId: string | null, message: ThreadMessage) {
-    if (!this.history || this.recordedHistoryIds.has(message.id)) return;
+    const history = this.history;
+    if (!history || this.recordedHistoryIds.has(message.id)) return;
+    const historyScopeGeneration = this.historyScopeGeneration;
     this.recordedHistoryIds.add(message.id);
-    void this.history.append({ parentId, message }).catch((error) => {
+    void history.append({ parentId, message }).catch((error) => {
+      if (historyScopeGeneration !== this.historyScopeGeneration) return;
       this.recordedHistoryIds.delete(message.id);
       this.logger.error?.("[agui] failed to append history entry", error);
     });
