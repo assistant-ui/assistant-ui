@@ -364,6 +364,80 @@ describe("useEveAgentRuntime createdAt derivation", () => {
     expect(counter.reads).toBe(1);
   });
 
+  it("keeps the message list identity when new events carry no new turn", () => {
+    const events = [
+      {
+        type: "turn.started",
+        data: { sequence: 0, turnId: "turn-1" },
+        meta: { at: "2020-01-01T00:00:00.000Z" },
+      },
+    ];
+    mockUseEveAgent.mockReturnValue(
+      createAgent({ data: resumedData, events }) as never,
+    );
+
+    const { result, rerender } = renderHook(() => useEveAgentRuntime());
+    const before = result.current.thread.getState().messages;
+
+    mockUseEveAgent.mockReturnValue(
+      createAgent({
+        data: resumedData,
+        events: [
+          ...events,
+          {
+            type: "message.appended",
+            data: { messageSoFar: "hel", sequence: 1, turnId: "turn-1" },
+            meta: { at: "2020-01-01T00:00:01.000Z" },
+          },
+        ],
+      }) as never,
+    );
+    rerender();
+
+    expect(result.current.thread.getState().messages).toBe(before);
+  });
+
+  it("rescans when an earlier event is replaced but a later one is shared", () => {
+    const shared = {
+      type: "turn.started",
+      data: { sequence: 1, turnId: "turn-shared" },
+      meta: { at: "2020-06-01T00:00:00.000Z" },
+    };
+    const first = {
+      type: "turn.started",
+      data: { sequence: 0, turnId: "turn-1" },
+      meta: { at: "2020-01-01T00:00:00.000Z" },
+    };
+    mockUseEveAgent.mockReturnValue(
+      createAgent({ data: resumedData, events: [first, shared] }) as never,
+    );
+
+    const { result, rerender } = renderHook(() => useEveAgentRuntime());
+    expect(result.current.thread.getState().messages[0]!.createdAt).toEqual(
+      new Date("2020-01-01T00:00:00.000Z"),
+    );
+
+    mockUseEveAgent.mockReturnValue(
+      createAgent({
+        data: { ...resumedData },
+        events: [
+          { ...first, meta: { at: "2021-01-01T00:00:00.000Z" } },
+          shared,
+          {
+            type: "turn.started",
+            data: { sequence: 2, turnId: "turn-2" },
+            meta: { at: "2022-01-01T00:00:00.000Z" },
+          },
+        ],
+      }) as never,
+    );
+    rerender();
+
+    expect(result.current.thread.getState().messages[0]!.createdAt).toEqual(
+      new Date("2021-01-01T00:00:00.000Z"),
+    );
+  });
+
   it("falls back to first-observation time when events carry no meta.at", () => {
     const before = Date.now();
     mockUseEveAgent.mockReturnValue(

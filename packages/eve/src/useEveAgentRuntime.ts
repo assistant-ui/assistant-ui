@@ -38,28 +38,36 @@ const USER_STAGED_STATUS = {
 
 type TurnTimestampCache = {
   lastEvents: readonly HandleMessageStreamEvent[];
-  timestamps: Map<string, Date>;
+  timestamps: ReadonlyMap<string, Date>;
 };
+
+const EMPTY_TURN_TIMESTAMPS: ReadonlyMap<string, Date> = new Map();
 
 // Eve's store grows its event log via [...events, event], so a later snapshot
 // shares its prefix elements by reference and the cache can resume where it
 // left off. The reuse is validated, never trusted: the cache may hold state
 // from a discarded render, so every previously scanned element must still be
-// identical at the same index. Sampling only the boundary element would accept
-// a snapshot that replaced an earlier event while keeping a later one, and the
-// timestamp derived from the replaced event would survive unscanned. The
-// comparison is reference equality over an already-materialized array, so it
-// costs far less than re-deriving the timestamps it protects.
+// identical at the same index. A boundary-only check would accept a snapshot
+// that replaced an earlier event while keeping a later one, and the timestamp
+// derived from the replaced event would survive unscanned. The comparison is
+// reference equality over an already-materialized array, so it costs far less
+// than re-deriving the timestamps it protects.
+//
+// The map is copied on write and returned by identity, so a scan that learns
+// nothing new lets callers keep memoized work alive.
 const collectTurnTimestamps = (
   events: readonly HandleMessageStreamEvent[],
   cache: TurnTimestampCache,
 ): ReadonlyMap<string, Date> => {
+  if (events === cache.lastEvents) return cache.timestamps;
+
   const scanned = cache.lastEvents;
   const prefixIntact =
     events.length >= scanned.length &&
     scanned.every((event, index) => event === events[index]);
-  if (!prefixIntact) cache.timestamps = new Map();
 
+  let timestamps = prefixIntact ? cache.timestamps : EMPTY_TURN_TIMESTAMPS;
+  let draft: Map<string, Date> | undefined;
   for (let i = prefixIntact ? scanned.length : 0; i < events.length; i++) {
     const event = events[i]!;
     const at = event.meta?.at;
@@ -67,13 +75,17 @@ const collectTurnTimestamps = (
     if (!("data" in event)) continue;
     if (!("turnId" in event.data) || typeof event.data.turnId !== "string")
       continue;
-    if (cache.timestamps.has(event.data.turnId)) continue;
+    if (timestamps.has(event.data.turnId)) continue;
     const date = new Date(at);
-    if (!Number.isNaN(date.getTime()))
-      cache.timestamps.set(event.data.turnId, date);
+    if (Number.isNaN(date.getTime())) continue;
+    draft ??= new Map(timestamps);
+    draft.set(event.data.turnId, date);
+    timestamps = draft;
   }
+
   cache.lastEvents = events;
-  return cache.timestamps;
+  cache.timestamps = timestamps;
+  return timestamps;
 };
 
 const truncateThreadMessages = (
@@ -134,7 +146,7 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
   const createdAtByMessageIdRef = useRef(new Map<string, Date>());
   const turnTimestampCacheRef = useRef<TurnTimestampCache>({
     lastEvents: [],
-    timestamps: new Map(),
+    timestamps: EMPTY_TURN_TIMESTAMPS,
   });
   const stagedInputsRef = useRef(
     new Map<
@@ -151,6 +163,15 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
     agent.status === "streaming" ||
     hasExecutingTools;
 
+  // Most events leave the turn timestamps untouched, and the message list memo
+  // below reallocates every ThreadMessage when it recomputes. Keeping the scan
+  // in its own memo confines that cost to the events that actually change a
+  // timestamp.
+  const turnTimestamps = useMemo(
+    () => collectTurnTimestamps(agent.events, turnTimestampCacheRef.current),
+    [agent.events],
+  );
+
   const convertedMessages = useMemo(() => {
     const createdAtByMessageId = createdAtByMessageIdRef.current;
     const messageIds = new Set(
@@ -159,11 +180,6 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
     for (const messageId of createdAtByMessageId.keys()) {
       if (!messageIds.has(messageId)) createdAtByMessageId.delete(messageId);
     }
-
-    const turnTimestamps = collectTurnTimestamps(
-      agent.events,
-      turnTimestampCacheRef.current,
-    );
 
     // Durable timestamps are ground truth and are never adjusted. Fallback
     // wall-clock stamps can run ahead of durable ones (a server clock behind
@@ -209,7 +225,7 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
       error: agent.error,
       getCreatedAt: (message) => assignedById.get(message.id) ?? new Date(),
     });
-  }, [agent.data, agent.error, agent.events, isRunning]);
+  }, [agent.data, agent.error, isRunning, turnTimestamps]);
 
   const messages = stagedMessages ?? convertedMessages;
   const messagesRef = useRef(messages);
