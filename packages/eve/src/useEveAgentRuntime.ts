@@ -189,19 +189,22 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
       agent.stop();
       return Promise.resolve();
     },
-    onRespondToToolApproval: async (response) => {
+    onRespondToToolApproval: (response) => {
       const inputRequest = findEveInputRequest(agent.data, response.approvalId);
       let inputResponse: InputResponse;
       try {
         inputResponse = toEveInputResponse(response, inputRequest);
       } catch (error) {
-        console.error(
-          `Eve input request${inputRequest ? ` "${inputRequest.prompt}"` : ""} was not submitted because the approval response cannot be mapped honestly. Answer it via respondToApproval with the answer text as the reason (see providerMetadata.eve.inputRequest on the tool part).`,
-          error,
+        // Eve leaves an unanswered request pending, so an unmappable response
+        // must stay answerable. Throwing before the first await surfaces the
+        // failure synchronously to the caller that rendered the controls,
+        // which is the only signal the void `respondToApproval` seam carries.
+        throw new Error(
+          `Eve input request${inputRequest ? ` "${inputRequest.prompt}"` : ""} was not submitted: ${error instanceof Error ? error.message : String(error)}. Answer it via respondToApproval with the answer text as the reason (see providerMetadata.eve.inputRequest on the tool part).`,
+          { cause: error },
         );
-        return;
       }
-      await agent.send({ inputResponses: [inputResponse] });
+      return agent.send({ inputResponses: [inputResponse] });
     },
   });
 };

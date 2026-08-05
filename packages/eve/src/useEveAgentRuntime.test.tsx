@@ -152,32 +152,27 @@ describe("useEveAgentRuntime tool approval responses", () => {
       .getMessagePartByToolCallId("call_1")
       .respondToToolApproval(response);
 
-  it("does not submit or reject when a free-form request is answered without text", async () => {
+  it("throws synchronously without submitting when a free-form request is answered without text", async () => {
     const rejections: unknown[] = [];
     const onUnhandledRejection = (reason: unknown) => rejections.push(reason);
     processEvents.on("unhandledRejection", onUnhandledRejection);
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
     const agent = createAgent({ data: textRequestData });
     mockUseEveAgent.mockReturnValue(agent as never);
 
     try {
       const { result } = renderHook(() => useEveAgentRuntime());
-      respondToTextRequest(result, { approved: true });
+
+      expect(() => respondToTextRequest(result, { approved: true })).toThrow(
+        /What should the subject line be\?/,
+      );
 
       await flushMicrotasks();
       await flushMicrotasks();
 
       expect(agent.send).not.toHaveBeenCalled();
-      expect(consoleError).toHaveBeenCalledWith(
-        expect.stringContaining("What should the subject line be?"),
-        expect.any(Error),
-      );
       expect(rejections).toEqual([]);
     } finally {
       processEvents.off("unhandledRejection", onUnhandledRejection);
-      consoleError.mockRestore();
     }
   });
 
