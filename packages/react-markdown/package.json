@@ -22,6 +22,10 @@
     "./styles/dot.css": {
       "style": "./styles/dot.css",
       "default": "./styles/dot.css"
+    },
+    "./styles/typeset.css": {
+      "style": "./styles/typeset.css",
+      "default": "./styles/typeset.css"
     }
   },
   "main": "./dist/index.js",
