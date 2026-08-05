@@ -327,42 +327,41 @@ describe("useEveAgentRuntime createdAt derivation", () => {
     );
   });
 
-  it("scans only newly appended events across re-renders", () => {
-    const makeEvent = (sequence: number) => ({
-      type: "turn.started",
-      data: { sequence, turnId: `turn-${sequence}` },
-      meta: { at: new Date(1700000000000 + sequence * 1000).toISOString() },
-    });
+  it("re-derives timestamps only for newly appended events", () => {
     const counter = { reads: 0 };
-    const countIndexReads = <T,>(events: readonly T[]) =>
-      new Proxy(events, {
-        get(target, prop, receiver) {
-          if (typeof prop === "string" && /^\d+$/.test(prop)) counter.reads++;
-          return Reflect.get(target, prop, receiver);
+    const makeEvent = (sequence: number) =>
+      new Proxy(
+        {
+          type: "turn.started",
+          data: { sequence, turnId: `turn-${sequence}` },
+          meta: { at: new Date(1700000000000 + sequence * 1000).toISOString() },
         },
-      });
+        {
+          get(target, prop, receiver) {
+            if (prop === "meta") counter.reads++;
+            return Reflect.get(target, prop, receiver);
+          },
+        },
+      );
 
     const initialEvents = Array.from({ length: 50 }, (_, i) => makeEvent(i));
     mockUseEveAgent.mockReturnValue(
-      createAgent({
-        data: resumedData,
-        events: countIndexReads(initialEvents),
-      }) as never,
+      createAgent({ data: resumedData, events: initialEvents }) as never,
     );
 
     const { rerender } = renderHook(() => useEveAgentRuntime());
-    const readsAfterFirstRender = counter.reads;
-    expect(readsAfterFirstRender).toBeGreaterThanOrEqual(50);
+    expect(counter.reads).toBeGreaterThanOrEqual(50);
 
+    counter.reads = 0;
     mockUseEveAgent.mockReturnValue(
       createAgent({
         data: resumedData,
-        events: countIndexReads([...initialEvents, makeEvent(50)]),
+        events: [...initialEvents, makeEvent(50)],
       }) as never,
     );
     rerender();
 
-    expect(counter.reads - readsAfterFirstRender).toBeLessThanOrEqual(3);
+    expect(counter.reads).toBe(1);
   });
 
   it("falls back to first-observation time when events carry no meta.at", () => {

@@ -38,29 +38,29 @@ const USER_STAGED_STATUS = {
 
 type TurnTimestampCache = {
   lastEvents: readonly HandleMessageStreamEvent[];
-  lastLength: number;
   timestamps: Map<string, Date>;
 };
 
 // Eve's store grows its event log via [...events, event], so a later snapshot
 // shares its prefix elements by reference and the cache can resume where it
 // left off. The reuse is validated, never trusted: the cache may hold state
-// from a discarded render, so the incremental path requires the last
-// previously scanned element to be identical — a reset() that regrew past the
-// cached length fails that check and triggers a full rescan.
+// from a discarded render, so every previously scanned element must still be
+// identical at the same index. Sampling only the boundary element would accept
+// a snapshot that replaced an earlier event while keeping a later one, and the
+// timestamp derived from the replaced event would survive unscanned. The
+// comparison is reference equality over an already-materialized array, so it
+// costs far less than re-deriving the timestamps it protects.
 const collectTurnTimestamps = (
   events: readonly HandleMessageStreamEvent[],
   cache: TurnTimestampCache,
 ): ReadonlyMap<string, Date> => {
+  const scanned = cache.lastEvents;
   const prefixIntact =
-    events.length >= cache.lastLength &&
-    (cache.lastLength === 0 ||
-      events[cache.lastLength - 1] === cache.lastEvents[cache.lastLength - 1]);
-  if (!prefixIntact) {
-    cache.lastLength = 0;
-    cache.timestamps = new Map();
-  }
-  for (let i = cache.lastLength; i < events.length; i++) {
+    events.length >= scanned.length &&
+    scanned.every((event, index) => event === events[index]);
+  if (!prefixIntact) cache.timestamps = new Map();
+
+  for (let i = prefixIntact ? scanned.length : 0; i < events.length; i++) {
     const event = events[i]!;
     const at = event.meta?.at;
     if (at === undefined) continue;
@@ -73,7 +73,6 @@ const collectTurnTimestamps = (
       cache.timestamps.set(event.data.turnId, date);
   }
   cache.lastEvents = events;
-  cache.lastLength = events.length;
   return cache.timestamps;
 };
 
@@ -135,7 +134,6 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
   const createdAtByMessageIdRef = useRef(new Map<string, Date>());
   const turnTimestampCacheRef = useRef<TurnTimestampCache>({
     lastEvents: [],
-    lastLength: 0,
     timestamps: new Map(),
   });
   const stagedInputsRef = useRef(
