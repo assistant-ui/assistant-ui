@@ -327,6 +327,177 @@ describe("LocalThreadRuntimeCore optimistic attachment sends", () => {
     });
   });
 
+  it("re-parents a message whose upload completes after a regenerate and answers it", async () => {
+    let resolveSend!: () => void;
+    const runs: ChatModelRunOptions[] = [];
+    const appended: ExportedMessageRepositoryItem[] = [];
+    const thread = createThread(
+      {
+        async run(options) {
+          runs.push(options);
+          return { content: [{ type: "text", text: "ok" }] };
+        },
+      },
+      {
+        attachments: createAttachmentAdapter(
+          (attachment) =>
+            new Promise<CompleteAttachment>((resolve) => {
+              resolveSend = () =>
+                resolve({
+                  ...attachment,
+                  status: { type: "complete" },
+                  content: [{ type: "text", text: "uploaded" }],
+                });
+            }),
+        ),
+        history: {
+          async load() {
+            return { messages: [] };
+          },
+          async append(item: ExportedMessageRepositoryItem) {
+            appended.push(item);
+          },
+        },
+      },
+    );
+
+    thread.composer.setText("first");
+    await thread.composer.send();
+    await flush();
+    expect(thread.messages.map((m) => m.role)).toEqual(["user", "assistant"]);
+    const firstUserId = thread.messages[0]!.id;
+
+    thread.composer.setText("with attachment");
+    await thread.composer.addAttachment(textFile());
+    const sendPromise = thread.composer.send();
+    await flush();
+    expect(thread.messages).toHaveLength(3);
+
+    await thread.startRun({
+      parentId: firstUserId,
+      sourceId: null,
+      runConfig: {},
+    });
+    await flush();
+    expect(thread.messages.map((m) => m.role)).toEqual(["user", "assistant"]);
+    const regeneratedAssistantId = thread.messages[1]!.id;
+
+    resolveSend();
+    await sendPromise;
+    await flush();
+
+    expect(thread.messages.map((m) => m.role)).toEqual([
+      "user",
+      "assistant",
+      "user",
+      "assistant",
+    ]);
+    expect(thread.messages[1]?.id).toBe(regeneratedAssistantId);
+    expect(thread.messages[2]?.content).toEqual([
+      { type: "text", text: "with attachment" },
+    ]);
+    expect(thread.messages[2]?.attachments?.[0]?.status).toEqual({
+      type: "complete",
+    });
+    expect(runs).toHaveLength(3);
+    expect(runs[2]!.messages.at(-1)?.content).toEqual([
+      { type: "text", text: "with attachment" },
+    ]);
+
+    const persisted = appended.find(
+      (i) => i.message.id === thread.messages[2]?.id,
+    );
+    expect(persisted?.parentId).toBe(regeneratedAssistantId);
+  });
+
+  it("re-parents a message whose upload completes after a branch switch and answers it", async () => {
+    let resolveSend!: () => void;
+    const runs: ChatModelRunOptions[] = [];
+    const appended: ExportedMessageRepositoryItem[] = [];
+    const thread = createThread(
+      {
+        async run(options) {
+          runs.push(options);
+          return { content: [{ type: "text", text: "ok" }] };
+        },
+      },
+      {
+        attachments: createAttachmentAdapter(
+          (attachment) =>
+            new Promise<CompleteAttachment>((resolve) => {
+              resolveSend = () =>
+                resolve({
+                  ...attachment,
+                  status: { type: "complete" },
+                  content: [{ type: "text", text: "uploaded" }],
+                });
+            }),
+        ),
+        history: {
+          async load() {
+            return { messages: [] };
+          },
+          async append(item: ExportedMessageRepositoryItem) {
+            appended.push(item);
+          },
+        },
+      },
+    );
+
+    thread.composer.setText("first");
+    await thread.composer.send();
+    await flush();
+    const firstUserId = thread.messages[0]!.id;
+    const firstAssistantId = thread.messages[1]!.id;
+
+    await thread.append(userMessage("edited"));
+    await flush();
+    expect(thread.messages.map((m) => m.role)).toEqual(["user", "assistant"]);
+    expect(thread.messages[0]?.content).toEqual([
+      { type: "text", text: "edited" },
+    ]);
+
+    thread.composer.setText("with attachment");
+    await thread.composer.addAttachment(textFile());
+    const sendPromise = thread.composer.send();
+    await flush();
+    expect(thread.messages).toHaveLength(3);
+
+    thread.switchToBranch(firstUserId);
+    await flush();
+    expect(thread.messages.map((m) => m.id)).toEqual([
+      firstUserId,
+      firstAssistantId,
+    ]);
+
+    resolveSend();
+    await sendPromise;
+    await flush();
+
+    expect(thread.messages.map((m) => m.role)).toEqual([
+      "user",
+      "assistant",
+      "user",
+      "assistant",
+    ]);
+    expect(thread.messages[0]?.id).toBe(firstUserId);
+    expect(thread.messages[2]?.content).toEqual([
+      { type: "text", text: "with attachment" },
+    ]);
+    expect(thread.messages[2]?.attachments?.[0]?.status).toEqual({
+      type: "complete",
+    });
+    expect(runs).toHaveLength(3);
+    expect(runs[2]!.messages.at(-1)?.content).toEqual([
+      { type: "text", text: "with attachment" },
+    ]);
+
+    const persisted = appended.find(
+      (i) => i.message.id === thread.messages[2]?.id,
+    );
+    expect(persisted?.parentId).toBe(firstAssistantId);
+  });
+
   it("answers a completed message when a later optimistic upload fails", async () => {
     let resolveFirstSend!: () => void;
     let rejectSecondSend!: (error: Error) => void;

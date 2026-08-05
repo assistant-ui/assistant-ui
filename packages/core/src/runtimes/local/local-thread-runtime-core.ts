@@ -99,6 +99,17 @@ export class LocalThreadRuntimeCore
     }
   }
 
+  private _isAncestorOfHead(messageId: string): boolean {
+    for (
+      let currentId = this.repository.headId;
+      currentId !== null;
+      currentId = this.repository.getMessage(currentId).parentId
+    ) {
+      if (currentId === messageId) return true;
+    }
+    return false;
+  }
+
   // Writes for one message id must land in issue order; an earlier paused
   // snapshot arriving after the terminal write would resurrect the pause.
   private _chainHistoryWrite(
@@ -415,6 +426,12 @@ export class LocalThreadRuntimeCore
       } catch {
         return;
       }
+      // A head moved off this message's branch mid-upload (regenerate, branch
+      // switch) re-parents the completed message under the current tail, so it
+      // lands and persists where a post-upload append would have.
+      if (!this._isAncestorOfHead(optimisticMessage.id)) {
+        parentId = this.repository.headId;
+      }
       const completedMessage = {
         ...optimisticMessage,
         attachments,
@@ -436,9 +453,19 @@ export class LocalThreadRuntimeCore
 
     await this._waitForAttachmentSendChain();
 
-    // A message sent during the upload already sits below this one and owns the
-    // run; a run parented here would branch the thread and hide it.
-    if (this.repository.headId !== optimisticMessage.id) return;
+    if (this.repository.headId !== optimisticMessage.id) {
+      // A message sent during the upload already sits below this one and owns
+      // the run; a run parented here would branch the thread and hide it.
+      if (this._isAncestorOfHead(optimisticMessage.id)) return;
+      try {
+        this.repository.getMessage(optimisticMessage.id);
+      } catch {
+        return;
+      }
+      this.repository.switchToBranch(optimisticMessage.id);
+      this._notifySubscribers();
+      if (this.repository.headId !== optimisticMessage.id) return;
+    }
 
     const startRun = message.startRun ?? true;
     if (startRun) {
