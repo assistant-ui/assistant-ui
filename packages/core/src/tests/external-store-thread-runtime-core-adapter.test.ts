@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
   ExternalStoreThreadRuntimeCore,
   hasUpcomingMessage,
@@ -52,6 +52,10 @@ describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
 
   beforeEach(() => {
     contextProvider = createContextProvider();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it("hasUpcomingMessage is true only while running without an assistant tail", () => {
@@ -456,6 +460,61 @@ describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
         () => new ExternalStoreThreadRuntimeCore(contextProvider, adapter),
       ).toThrow(
         "ExternalStoreAdapter must provide either 'messages' or 'messageRepository'",
+      );
+    });
+  });
+
+  describe("tool callbacks", () => {
+    it("handles rejected onAddToolResult callbacks", async () => {
+      const error = new Error("tool result failed");
+      const consoleError = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+      const core = new ExternalStoreThreadRuntimeCore(
+        contextProvider,
+        createBaseAdapter({
+          onAddToolResult: vi.fn().mockRejectedValue(error),
+        }),
+      );
+
+      core.addToolResult({
+        messageId: "m1",
+        toolName: "tool",
+        toolCallId: "tc1",
+        result: {},
+        isError: false,
+      });
+
+      await vi.waitFor(() =>
+        expect(consoleError).toHaveBeenCalledWith(
+          "[ExternalStoreThreadRuntimeCore] onAddToolResult callback rejected",
+          error,
+        ),
+      );
+    });
+
+    it("handles rejected onRespondToToolApproval callbacks", async () => {
+      const error = new Error("approval failed");
+      const consoleError = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+      const core = new ExternalStoreThreadRuntimeCore(
+        contextProvider,
+        createBaseAdapter({
+          onRespondToToolApproval: vi.fn().mockRejectedValue(error),
+        }),
+      );
+
+      core.respondToToolApproval({
+        approvalId: "approval-1",
+        approved: true,
+      });
+
+      await vi.waitFor(() =>
+        expect(consoleError).toHaveBeenCalledWith(
+          "[ExternalStoreThreadRuntimeCore] onRespondToToolApproval callback rejected",
+          error,
+        ),
       );
     });
   });

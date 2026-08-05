@@ -39,6 +39,19 @@ import { EMPTY_QUEUE_ITEMS } from "../../store/scopes/queue-item";
 
 const EMPTY_ARRAY: readonly ThreadSuggestion[] = Object.freeze([]);
 
+const observeAdapterCallback = (
+  name: "onAddToolResult" | "onRespondToToolApproval",
+  result: Promise<void> | void,
+) => {
+  if (!result) return;
+  void result.catch((error) => {
+    console.error(
+      `[ExternalStoreThreadRuntimeCore] ${name} callback rejected`,
+      error,
+    );
+  });
+};
+
 const shallowEqual = (a: object, b: object): boolean => {
   const aKeys = Object.keys(a);
   if (aKeys.length !== Object.keys(b).length) return false;
@@ -354,19 +367,22 @@ export class ExternalStoreThreadRuntimeCore
                 // rolled back). Drop the result.
                 return;
               }
-              this._store.onAddToolResult?.({
-                messageId,
-                toolCallId: command.toolCallId,
-                toolName: command.toolName,
-                result: command.result,
-                isError: command.isError,
-                ...(command.artifact !== undefined && {
-                  artifact: command.artifact,
+              observeAdapterCallback(
+                "onAddToolResult",
+                this._store.onAddToolResult?.({
+                  messageId,
+                  toolCallId: command.toolCallId,
+                  toolName: command.toolName,
+                  result: command.result,
+                  isError: command.isError,
+                  ...(command.artifact !== undefined && {
+                    artifact: command.artifact,
+                  }),
+                  ...(command.modelContent !== undefined && {
+                    modelContent: command.modelContent,
+                  }),
                 }),
-                ...(command.modelContent !== undefined && {
-                  modelContent: command.modelContent,
-                }),
-              });
+              );
             } catch (err) {
               console.error(
                 "[ExternalStoreThreadRuntimeCore] onAddToolResult dispatch failed",
@@ -620,7 +636,10 @@ export class ExternalStoreThreadRuntimeCore
   public addToolResult(options: AddToolResultOptions) {
     if (!this._store.onAddToolResult)
       throw new Error("Runtime does not support tool results.");
-    this._store.onAddToolResult?.(options);
+    observeAdapterCallback(
+      "onAddToolResult",
+      this._store.onAddToolResult(options),
+    );
   }
 
   public resumeToolCall(options: ResumeToolCallOptions) {
@@ -646,7 +665,10 @@ export class ExternalStoreThreadRuntimeCore
   public respondToToolApproval(options: RespondToToolApprovalOptions) {
     if (!this._store.onRespondToToolApproval)
       throw new Error("Runtime does not support tool approvals.");
-    this._store.onRespondToToolApproval(options);
+    observeAdapterCallback(
+      "onRespondToToolApproval",
+      this._store.onRespondToToolApproval(options),
+    );
   }
 
   public override reset(initialMessages?: readonly ThreadMessageLike[]) {
