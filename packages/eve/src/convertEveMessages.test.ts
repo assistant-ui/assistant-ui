@@ -774,6 +774,88 @@ describe("convertEveMessages", () => {
         },
       ];
 
+      it("projects reducer-owned reasoning and text part states", () => {
+        const reasoningEvents: readonly EveAgentReducerEvent[] = [
+          ...midStreamEvents.slice(0, 3),
+          {
+            type: "reasoning.appended",
+            data: {
+              turnId: "turn_1",
+              stepIndex: 0,
+              sequence: 2,
+              reasoningDelta: "Think",
+              reasoningSoFar: "Think",
+            },
+          },
+        ];
+        const reasoningState = replay(reasoningEvents);
+        const reasoningMessage = reasoningState.messages.find(
+          (message) => message.role === "assistant",
+        );
+        expect(reasoningMessage?.parts).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({ type: "reasoning", state: "streaming" }),
+          ]),
+        );
+        expect(
+          convertEveMessages(reasoningState, { isRunning: true }).at(-1)
+            ?.content,
+        ).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              type: "reasoning",
+              status: { type: "running" },
+            }),
+          ]),
+        );
+
+        const textState = replay([
+          ...reasoningEvents,
+          {
+            type: "reasoning.completed",
+            data: {
+              turnId: "turn_1",
+              stepIndex: 0,
+              sequence: 3,
+              reasoning: "Think",
+            },
+          },
+          {
+            type: "message.appended",
+            data: {
+              turnId: "turn_1",
+              stepIndex: 0,
+              sequence: 4,
+              messageDelta: "Answer",
+              messageSoFar: "Answer",
+            },
+          },
+        ]);
+        const textMessage = textState.messages.find(
+          (message) => message.role === "assistant",
+        );
+        expect(textMessage?.parts).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({ type: "reasoning", state: "done" }),
+            expect.objectContaining({ type: "text", state: "streaming" }),
+          ]),
+        );
+        expect(
+          convertEveMessages(textState, { isRunning: true }).at(-1)?.content,
+        ).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              type: "reasoning",
+              status: { type: "complete" },
+            }),
+            expect.objectContaining({
+              type: "text",
+              status: { type: "running" },
+            }),
+          ]),
+        );
+      });
+
       it("a locally aborted turn keeps its streaming marker and converts to cancelled", () => {
         const state = replay(midStreamEvents);
 
@@ -852,12 +934,25 @@ describe("convertEveMessages", () => {
 
         const assistant = state.messages.find((m) => m.role === "assistant");
         expect(assistant?.metadata?.status).toBe("complete");
+        expect(assistant?.parts).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({ type: "text", state: "done" }),
+          ]),
+        );
 
         const converted = convertEveMessages(state, { isRunning: false });
         expect(converted.at(-1)?.status).toEqual({
           type: "complete",
           reason: "stop",
         });
+        expect(converted.at(-1)?.content).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              type: "text",
+              status: { type: "complete" },
+            }),
+          ]),
+        );
       });
     });
   });
