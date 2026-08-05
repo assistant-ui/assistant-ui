@@ -24,6 +24,7 @@ import {
   type EveMessageData,
   type UseEveAgentOptions,
 } from "eve/react";
+import type { HandleMessageStreamEvent } from "eve/client";
 import {
   convertEveMessages,
   getEveMessageContent,
@@ -34,6 +35,47 @@ const USER_STAGED_STATUS = {
   type: "complete",
   reason: "unknown",
 } as const;
+
+type TurnTimestampCache = {
+  lastEvents: readonly HandleMessageStreamEvent[];
+  lastLength: number;
+  timestamps: Map<string, Date>;
+};
+
+// Eve's store grows its event log via [...events, event], so a later snapshot
+// shares its prefix elements by reference and the cache can resume where it
+// left off. The reuse is validated, never trusted: the cache may hold state
+// from a discarded render, so the incremental path requires the last
+// previously scanned element to be identical — a reset() that regrew past the
+// cached length fails that check and triggers a full rescan.
+const collectTurnTimestamps = (
+  events: readonly HandleMessageStreamEvent[],
+  cache: TurnTimestampCache,
+): ReadonlyMap<string, Date> => {
+  const prefixIntact =
+    events.length >= cache.lastLength &&
+    (cache.lastLength === 0 ||
+      events[cache.lastLength - 1] === cache.lastEvents[cache.lastLength - 1]);
+  if (!prefixIntact) {
+    cache.lastLength = 0;
+    cache.timestamps = new Map();
+  }
+  for (let i = cache.lastLength; i < events.length; i++) {
+    const event = events[i]!;
+    const at = event.meta?.at;
+    if (at === undefined) continue;
+    if (!("data" in event)) continue;
+    if (!("turnId" in event.data) || typeof event.data.turnId !== "string")
+      continue;
+    if (cache.timestamps.has(event.data.turnId)) continue;
+    const date = new Date(at);
+    if (!Number.isNaN(date.getTime()))
+      cache.timestamps.set(event.data.turnId, date);
+  }
+  cache.lastEvents = events;
+  cache.lastLength = events.length;
+  return cache.timestamps;
+};
 
 const truncateThreadMessages = (
   messages: readonly ThreadMessage[],
@@ -91,6 +133,11 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
     null,
   );
   const createdAtByMessageIdRef = useRef(new Map<string, Date>());
+  const turnTimestampCacheRef = useRef<TurnTimestampCache>({
+    lastEvents: [],
+    lastLength: 0,
+    timestamps: new Map(),
+  });
   const stagedInputsRef = useRef(
     new Map<
       string,
@@ -115,19 +162,56 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
       if (!messageIds.has(messageId)) createdAtByMessageId.delete(messageId);
     }
 
+    const turnTimestamps = collectTurnTimestamps(
+      agent.events,
+      turnTimestampCacheRef.current,
+    );
+
+    // Durable timestamps are ground truth and are never adjusted. Fallback
+    // wall-clock stamps can run ahead of durable ones (a server clock behind
+    // the client's), so each fallback is bounded between its neighboring
+    // assigned/durable timestamps to keep message order and thread timestamps
+    // consistent.
+    const eveMessages = agent.data.messages;
+    const durableByIndex = eveMessages.map((message) => {
+      const turnId = message.metadata?.turnId;
+      return turnId !== undefined ? turnTimestamps.get(turnId) : undefined;
+    });
+    const nextDurableMsByIndex: (number | undefined)[] = [];
+    let nextDurableMs: number | undefined;
+    for (let i = eveMessages.length - 1; i >= 0; i--) {
+      nextDurableMsByIndex[i] = nextDurableMs;
+      const durable = durableByIndex[i];
+      if (durable !== undefined) nextDurableMs = durable.getTime();
+    }
+
+    const assignedById = new Map<string, Date>();
+    let previousAssignedMs: number | undefined;
+    eveMessages.forEach((message, index) => {
+      let assigned = durableByIndex[index];
+      if (assigned === undefined) {
+        let fallback = createdAtByMessageId.get(message.id);
+        if (fallback === undefined) {
+          fallback = new Date();
+          createdAtByMessageId.set(message.id, fallback);
+        }
+        let ms = fallback.getTime();
+        if (previousAssignedMs !== undefined && ms < previousAssignedMs)
+          ms = previousAssignedMs;
+        const nextMs = nextDurableMsByIndex[index];
+        if (nextMs !== undefined && ms > nextMs) ms = nextMs;
+        assigned = ms === fallback.getTime() ? fallback : new Date(ms);
+      }
+      previousAssignedMs = assigned.getTime();
+      assignedById.set(message.id, assigned);
+    });
+
     return convertEveMessages(agent.data, {
       isRunning,
       error: agent.error,
-      getCreatedAt: (message) => {
-        const existing = createdAtByMessageId.get(message.id);
-        if (existing) return existing;
-
-        const createdAt = new Date();
-        createdAtByMessageId.set(message.id, createdAt);
-        return createdAt;
-      },
+      getCreatedAt: (message) => assignedById.get(message.id) ?? new Date(),
     });
-  }, [agent.data, agent.error, isRunning]);
+  }, [agent.data, agent.error, agent.events, isRunning]);
 
   const messages = stagedMessages ?? convertedMessages;
   const messagesRef = useRef(messages);

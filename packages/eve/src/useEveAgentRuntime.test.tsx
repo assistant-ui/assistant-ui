@@ -102,3 +102,239 @@ describe("useEveAgentRuntime status forwarding", () => {
     });
   });
 });
+
+describe("useEveAgentRuntime createdAt derivation", () => {
+  const resumedData: EveMessageData = {
+    messages: [
+      {
+        id: "turn-1:user",
+        role: "user",
+        metadata: { status: "complete", turnId: "turn-1" },
+        parts: [{ type: "text", text: "hi" }],
+      },
+      {
+        id: "turn-1:assistant",
+        role: "assistant",
+        metadata: { status: "complete", turnId: "turn-1" },
+        parts: [{ type: "text", text: "hello", state: "done" }],
+      },
+    ],
+  };
+
+  it("derives createdAt from the earliest event timestamp of the message's turn", () => {
+    mockUseEveAgent.mockReturnValue(
+      createAgent({
+        data: resumedData,
+        events: [
+          {
+            type: "turn.started",
+            data: { sequence: 0, turnId: "turn-1" },
+            meta: { at: "2026-01-02T03:04:05.000Z" },
+          },
+          {
+            type: "message.received",
+            data: { message: "hi", sequence: 1, turnId: "turn-1" },
+            meta: { at: "2026-01-02T03:04:06.000Z" },
+          },
+        ],
+      }) as never,
+    );
+
+    const { result } = renderHook(() => useEveAgentRuntime());
+
+    const messages = result.current.thread.getState().messages;
+    expect(messages[0]?.createdAt).toEqual(
+      new Date("2026-01-02T03:04:05.000Z"),
+    );
+    expect(messages[1]?.createdAt).toEqual(
+      new Date("2026-01-02T03:04:05.000Z"),
+    );
+  });
+
+  it("stamps a live-streamed message with the current time when no event carries its turn", () => {
+    const before = Date.now();
+    mockUseEveAgent.mockReturnValue(
+      createAgent({ status: "streaming", events: [] }) as never,
+    );
+
+    const { result } = renderHook(() => useEveAgentRuntime());
+
+    const createdAt = result.current.thread
+      .getState()
+      .messages.at(-1)?.createdAt;
+    expect(createdAt).toBeInstanceOf(Date);
+    expect(createdAt!.getTime()).toBeGreaterThanOrEqual(before);
+    expect(createdAt!.getTime()).toBeLessThanOrEqual(Date.now());
+  });
+
+  it("keeps durable timestamps untouched and bounds a runaway fallback between its durable neighbors", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2099-01-01T00:00:00.000Z"));
+    try {
+      mockUseEveAgent.mockReturnValue(
+        createAgent({
+          data: {
+            messages: [
+              {
+                id: "turn-0:user",
+                role: "user",
+                metadata: { status: "complete", turnId: "turn-0" },
+                parts: [{ type: "text", text: "first" }],
+              },
+              {
+                id: "turn-1:user",
+                role: "user",
+                metadata: { status: "complete", turnId: "turn-1" },
+                parts: [{ type: "text", text: "second" }],
+              },
+              {
+                id: "turn-2:user",
+                role: "user",
+                metadata: { status: "complete", turnId: "turn-2" },
+                parts: [{ type: "text", text: "third" }],
+              },
+            ],
+          } satisfies EveMessageData,
+          events: [
+            {
+              type: "message.received",
+              data: { message: "second", sequence: 0, turnId: "turn-1" },
+              meta: { at: "2020-01-01T00:00:00.000Z" },
+            },
+            {
+              type: "message.received",
+              data: { message: "third", sequence: 1, turnId: "turn-2" },
+              meta: { at: "2025-01-01T00:00:00.000Z" },
+            },
+          ],
+        }) as never,
+      );
+
+      const { result } = renderHook(() => useEveAgentRuntime());
+
+      const messages = result.current.thread.getState().messages;
+      expect(messages[0]!.createdAt).toEqual(
+        new Date("2020-01-01T00:00:00.000Z"),
+      );
+      expect(messages[1]!.createdAt).toEqual(
+        new Date("2020-01-01T00:00:00.000Z"),
+      );
+      expect(messages[2]!.createdAt).toEqual(
+        new Date("2025-01-01T00:00:00.000Z"),
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("rescans from scratch when the event log is not a prefix extension of the cached one", () => {
+    const sessionAEvents = Array.from({ length: 3 }, (_, i) => ({
+      type: "turn.started",
+      data: { sequence: i, turnId: `a-${i}` },
+      meta: { at: new Date(1600000000000 + i * 1000).toISOString() },
+    }));
+    mockUseEveAgent.mockReturnValue(
+      createAgent({
+        data: {
+          messages: [
+            {
+              id: "a-0:user",
+              role: "user",
+              metadata: { status: "complete", turnId: "a-0" },
+              parts: [{ type: "text", text: "session a" }],
+            },
+          ],
+        } satisfies EveMessageData,
+        events: sessionAEvents,
+      }) as never,
+    );
+
+    const { result, rerender } = renderHook(() => useEveAgentRuntime());
+    expect(result.current.thread.getState().messages[0]!.createdAt).toEqual(
+      new Date(1600000000000),
+    );
+
+    const sessionBEvents = Array.from({ length: 5 }, (_, i) => ({
+      type: "turn.started",
+      data: { sequence: i, turnId: `b-${i}` },
+      meta: { at: new Date(1700000000000 + i * 1000).toISOString() },
+    }));
+    mockUseEveAgent.mockReturnValue(
+      createAgent({
+        data: {
+          messages: [
+            {
+              id: "b-0:user",
+              role: "user",
+              metadata: { status: "complete", turnId: "b-0" },
+              parts: [{ type: "text", text: "session b" }],
+            },
+          ],
+        } satisfies EveMessageData,
+        events: sessionBEvents,
+      }) as never,
+    );
+    rerender();
+
+    expect(result.current.thread.getState().messages[0]!.createdAt).toEqual(
+      new Date(1700000000000),
+    );
+  });
+
+  it("scans only newly appended events across re-renders", () => {
+    const makeEvent = (sequence: number) => ({
+      type: "turn.started",
+      data: { sequence, turnId: `turn-${sequence}` },
+      meta: { at: new Date(1700000000000 + sequence * 1000).toISOString() },
+    });
+    const counter = { reads: 0 };
+    const countIndexReads = <T,>(events: readonly T[]) =>
+      new Proxy(events, {
+        get(target, prop, receiver) {
+          if (typeof prop === "string" && /^\d+$/.test(prop)) counter.reads++;
+          return Reflect.get(target, prop, receiver);
+        },
+      });
+
+    const initialEvents = Array.from({ length: 50 }, (_, i) => makeEvent(i));
+    mockUseEveAgent.mockReturnValue(
+      createAgent({
+        data: resumedData,
+        events: countIndexReads(initialEvents),
+      }) as never,
+    );
+
+    const { rerender } = renderHook(() => useEveAgentRuntime());
+    const readsAfterFirstRender = counter.reads;
+    expect(readsAfterFirstRender).toBeGreaterThanOrEqual(50);
+
+    mockUseEveAgent.mockReturnValue(
+      createAgent({
+        data: resumedData,
+        events: countIndexReads([...initialEvents, makeEvent(50)]),
+      }) as never,
+    );
+    rerender();
+
+    expect(counter.reads - readsAfterFirstRender).toBeLessThanOrEqual(3);
+  });
+
+  it("falls back to first-observation time when events carry no meta.at", () => {
+    const before = Date.now();
+    mockUseEveAgent.mockReturnValue(
+      createAgent({
+        data: resumedData,
+        events: [
+          { type: "turn.started", data: { sequence: 0, turnId: "turn-1" } },
+        ],
+      }) as never,
+    );
+
+    const { result } = renderHook(() => useEveAgentRuntime());
+
+    const createdAt = result.current.thread.getState().messages[0]?.createdAt;
+    expect(createdAt).toBeInstanceOf(Date);
+    expect(createdAt!.getTime()).toBeGreaterThanOrEqual(before);
+    expect(createdAt!.getTime()).toBeLessThanOrEqual(Date.now());
+  });
+});
