@@ -70,9 +70,6 @@ export class CloudMessagePersistence {
         // Only delete if we're still the active task (avoids clobbering a retry)
         if (mapping.get(messageId) === task) {
           mapping.delete(messageId);
-          if (mapping.size === 0 && this.idMapping.get(threadId) === mapping) {
-            this.idMapping.delete(threadId);
-          }
         }
         throw err;
       });
