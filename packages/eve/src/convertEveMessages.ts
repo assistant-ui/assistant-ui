@@ -16,6 +16,7 @@ import {
 } from "@assistant-ui/core";
 import { httpUrlPattern, parseDataUrl } from "@assistant-ui/core/internal";
 import type {
+  EveAuthorizationOutcome,
   EveAuthorizationPart,
   EveDynamicToolPart,
   EveMessage,
@@ -96,8 +97,14 @@ const toMessageStatus = (
       (part) => part.type === "authorization" && part.state === "required",
     );
 
-  if (hasPendingApproval || hasPendingAuthorization) {
+  if (hasPendingApproval) {
     return { type: "requires-action", reason: "tool-calls" };
+  }
+
+  // A connector authorization is answered outside the thread, so the turn is
+  // held on external input rather than on a tool call awaiting a result.
+  if (hasPendingAuthorization) {
+    return { type: "requires-action", reason: "interrupt" };
   }
 
   if (message.metadata?.status === "failed") {
@@ -213,9 +220,27 @@ const convertDynamicToolPart = (
   }
 };
 
+/**
+ * Payload of the `authorization` data part the Eve runtime emits for a
+ * connector authorization challenge. `state` discriminates a pending challenge
+ * from a settled one; every other field is present only when Eve projected it.
+ */
+export type EveAuthorizationData = {
+  readonly state: EveAuthorizationPart["state"];
+  readonly name: string;
+  readonly displayName?: string;
+  readonly description?: string;
+  readonly url?: string;
+  readonly userCode?: string;
+  readonly instructions?: string;
+  readonly expiresAt?: string;
+  readonly outcome?: EveAuthorizationOutcome;
+  readonly reason?: string;
+};
+
 const convertAuthorizationPart = (
   part: EveAuthorizationPart,
-): DataMessagePart => ({
+): DataMessagePart<EveAuthorizationData> => ({
   type: "data",
   name: "authorization",
   data: {
