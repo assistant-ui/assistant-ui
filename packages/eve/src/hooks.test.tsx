@@ -75,6 +75,16 @@ describe("useEveEvents", () => {
   it("falls back to an empty array outside an Eve runtime", () => {
     expect(renderHook(() => useEveEvents()).result.current).toEqual([]);
   });
+
+  it("returns a frozen fallback that consumers cannot mutate", () => {
+    const first = renderHook(() => useEveEvents()).result.current;
+    const second = renderHook(() => useEveEvents()).result.current;
+
+    expect(first).toBe(second);
+    expect(Object.isFrozen(first)).toBe(true);
+    expect(() => (first as unknown[]).push({})).toThrow();
+    expect(renderHook(() => useEveEvents()).result.current).toEqual([]);
+  });
 });
 
 describe("useEveReset", () => {

@@ -4,7 +4,7 @@ import { useAui } from "@assistant-ui/store";
 import { eveExtras } from "./eveExtras";
 import type { EveRuntimeExtras } from "./eveExtras";
 
-const EMPTY_EVENTS: EveRuntimeExtras["events"] = [];
+const EMPTY_EVENTS: EveRuntimeExtras["events"] = Object.freeze([]);
 
 /** Read the last Eve session error from the runtime extras. */
 export const useEveError = () => eveExtras.use((e) => e.error, undefined);
