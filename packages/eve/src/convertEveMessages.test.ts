@@ -476,6 +476,35 @@ describe("convertEveMessages", () => {
           reason: "cancelled",
         });
       });
+
+      it("a completed turn terminalizes the streaming marker and converts to complete", () => {
+        const state = replay([
+          ...midStreamEvents,
+          {
+            type: "message.completed",
+            data: {
+              turnId: "turn_1",
+              stepIndex: 0,
+              sequence: 3,
+              finishReason: "stop",
+              message: "Let me think",
+            },
+          },
+          {
+            type: "turn.completed",
+            data: { turnId: "turn_1", sequence: 4 },
+          },
+        ]);
+
+        const assistant = state.messages.find((m) => m.role === "assistant");
+        expect(assistant?.metadata?.status).toBe("complete");
+
+        const converted = convertEveMessages(state, { isRunning: false });
+        expect(converted.at(-1)?.status).toEqual({
+          type: "complete",
+          reason: "stop",
+        });
+      });
     });
   });
 
