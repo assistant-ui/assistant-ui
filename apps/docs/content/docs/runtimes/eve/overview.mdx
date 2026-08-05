@@ -49,6 +49,47 @@ export default function Home() {
 }
 ```
 
+## Connector authorization
+
+When Eve pauses for connector authorization, the runtime emits an assistant
+data part named `authorization`. Its data includes `state`, `name`, and the
+available display fields such as `displayName`, `description`, `url`,
+`userCode`, `instructions`, and `expiresAt`. Completed parts may also include
+`outcome` and `reason`.
+
+Register a data UI to render the sign-in affordance in your app:
+
+```tsx title="authorization-ui.tsx"
+import { makeAssistantDataUI } from "@assistant-ui/react";
+
+type AuthorizationData = {
+  state: "required" | "completed";
+  name: string;
+  displayName?: string;
+  description?: string;
+  url?: string;
+  userCode?: string;
+  instructions?: string;
+  expiresAt?: string;
+  outcome?: "authorized" | "declined" | "failed" | "timed-out";
+  reason?: string;
+};
+
+export const AuthorizationUI = makeAssistantDataUI<AuthorizationData>({
+  name: "authorization",
+  render: ({ data }) => (
+    <div>
+      <p>{data.instructions ?? `Sign in to ${data.displayName ?? data.name}`}</p>
+      {data.userCode && <code>{data.userCode}</code>}
+      {data.url && <a href={data.url}>Continue to sign in</a>}
+    </div>
+  ),
+});
+```
+
+Mount `<AuthorizationUI />` inside the `AssistantRuntimeProvider` tree. The
+standard thread intentionally leaves unmatched data parts unrendered.
+
 ## Requirements
 
 - Node.js 24 or higher.

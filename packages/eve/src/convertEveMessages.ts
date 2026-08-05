@@ -89,7 +89,11 @@ const toMessageStatus = (
       part.type === "dynamic-tool" && part.state === "approval-requested",
   );
   const hasPendingAuthorization = message.parts.some(
-    (part) => part.type === "authorization" && part.state === "required",
+    (part) =>
+      part.type === "authorization" &&
+      part.state === "required" &&
+      message.metadata?.status === "streaming" &&
+      options.error === undefined,
   );
 
   if (hasPendingApproval || hasPendingAuthorization) {

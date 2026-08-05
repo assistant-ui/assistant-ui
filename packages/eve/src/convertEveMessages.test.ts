@@ -771,6 +771,76 @@ describe("convertEveMessages", () => {
       });
     });
 
+    it("settles a cancelled turn with a pending authorization", () => {
+      const reducer = defaultMessageReducer();
+      const events: readonly EveAgentReducerEvent[] = [
+        {
+          type: "authorization.required",
+          data: {
+            turnId: "turn_1",
+            stepIndex: 0,
+            sequence: 0,
+            name: "github",
+            displayName: "GitHub",
+            description: "Sign in to GitHub",
+          },
+        },
+        {
+          type: "turn.cancelled",
+          data: { turnId: "turn_1", sequence: 1 },
+        },
+      ];
+      const data = events.reduce(
+        (state, event) => reducer.reduce(state, event),
+        reducer.initial(),
+      );
+
+      const [message] = convertEveMessages(data, { isRunning: false });
+
+      expect(message?.status).toEqual({
+        type: "complete",
+        reason: "stop",
+      });
+    });
+
+    it("reports a failed turn with a pending authorization", () => {
+      const data = {
+        messages: [
+          {
+            id: "a1",
+            role: "assistant",
+            metadata: { status: "streaming" },
+            parts: [
+              {
+                type: "authorization",
+                state: "required",
+                name: "github",
+                description: "Sign in to GitHub",
+                displayName: "GitHub",
+                stepIndex: 0,
+                turnId: "turn_1",
+              },
+            ],
+          },
+        ],
+      } satisfies EveMessageData;
+
+      const error = new Error("authorization failed");
+      const [message] = convertEveMessages(data, {
+        isRunning: false,
+        error,
+      });
+
+      expect(message?.status).toEqual({
+        type: "incomplete",
+        reason: "error",
+        error: {
+          code: "unknown",
+          message: "authorization failed",
+        },
+      });
+    });
+
     it("does not hold requires-action for a completed authorization", () => {
       const data = {
         messages: [
