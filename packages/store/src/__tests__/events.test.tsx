@@ -140,6 +140,33 @@ describe("scope-filtered on", () => {
     );
   });
 
+  it("on forwards to a hand-built parent when the scope is absent from the chain", () => {
+    const parentUnsub = vi.fn();
+    const parentOn = vi.fn(() => parentUnsub);
+    const handBuilt = {
+      subscribe: () => () => {},
+      on: parentOn,
+    };
+
+    let child!: AnyClient;
+    const Child = () => {
+      child = useAui({ thread: ThreadClient() } as unknown as useAui.Props);
+      return null;
+    };
+    render(
+      <AuiProvider value={handBuilt as never}>
+        <Child />
+      </AuiProvider>,
+    );
+
+    const cb = vi.fn();
+    const unsub = child.on("composer.pinged", cb);
+    expect(parentOn).toHaveBeenCalledExactlyOnceWith("composer.pinged", cb);
+
+    unsub();
+    expect(parentUnsub).toHaveBeenCalledOnce();
+  });
+
   it("listeners bind to the instance resolved at subscription time", async () => {
     const { getAui } = setup();
     const boundToM0 = vi.fn();

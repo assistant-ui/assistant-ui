@@ -22,8 +22,8 @@ declare module "@assistant-ui/store" {
 type ClientOutput<K> = ClientSchemas[K]["methods"] & ClientMethods;
 type ClientMethods = { [key: string]: (...args: any[]) => any };
 type AssistantClientAccessor<K> = (() => Methods<K>) & ({ source; query } | { source: "root"; query: {} } | { source: null; query: null });
-type AssistantClient = { [K]: AssistantClientAccessor<K>; subscribe(cb): Unsubscribe; on(selector, cb): Unsubscribe };
-type AssistantState = { [K]: ReturnType<ClientSchemas[K]["methods"]["getState"]> };
+type AssistantClient = { [K]: AssistantClientAccessor<K>; optional: { [K]: AssistantClientAccessor<K> | undefined }; subscribe(cb): Unsubscribe; on(selector, cb): Unsubscribe };
+type AssistantState = { [K]: ReturnType<ClientSchemas[K]["methods"]["getState"]>; optional: { [K]: ReturnType<ClientSchemas[K]["methods"]["getState"]> | undefined } };
 ```
 
 ## API

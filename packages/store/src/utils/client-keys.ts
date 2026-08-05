@@ -26,3 +26,11 @@ export const clientScopeKeys = (client: AssistantClient): string[] => {
 export const isScopeAvailable = (
   accessor: { source: string | null } | undefined,
 ): boolean => accessor?.source != null;
+
+// Scope resolution is tri-state: available (string source), present but
+// unavailable (error accessor, null source), absent (no accessor, e.g. a
+// hand-built parent chain). isScopeAvailable collapses the last two; on()
+// must keep them apart because an absent scope forwards to the parent
+export const isScopePresentButUnavailable = (
+  accessor: { source: string | null } | undefined,
+): boolean => accessor?.source === null;
