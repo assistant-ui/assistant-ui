@@ -2,6 +2,8 @@ import { AbstractAgent } from "@ag-ui/client";
 
 import { StandardSchemaV1 } from "@standard-schema/spec";
 
+import "react";
+
 type AddToolResultOptions = {
   messageId: string;
   toolName: string;
@@ -477,6 +479,7 @@ type FileMessagePart = {
 
 type FromAgUiMessagesOptions = {
   showThinking?: boolean;
+  foldReasoning?: boolean;
 };
 
 type FrontendTool<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = ToolBase<TArgs, TResult> & {
@@ -1562,6 +1565,7 @@ type UseAgUiRuntimeOptions = ExternalStoreSharedOptions & {
   agent: AbstractAgent;
   logger?: Partial<Logger>;
   showThinking?: boolean;
+  foldReasoning?: boolean | undefined;
   autoCancelPendingToolCalls?: boolean | undefined;
   onError?: (e: Error) => void;
   onCancel?: () => void;

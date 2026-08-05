@@ -3,6 +3,7 @@
 import type { InputContent } from "@ag-ui/client";
 import type {
   ThreadMessageLike as CoreThreadMessageLike,
+  ThreadAssistantMessagePart,
   ToolCallMessagePartMcpMetadata,
   ToolModelContentPart,
 } from "@assistant-ui/core";
@@ -580,12 +581,101 @@ function attachA2uiSurfaces(
   return { ...message, content: [...preserved, ...a2uiParts] };
 }
 
+function assistantParts(
+  message: CoreThreadMessageLike,
+): readonly ThreadAssistantMessagePart[] {
+  if (typeof message.content === "string") {
+    return message.content.length > 0
+      ? [{ type: "text", text: message.content }]
+      : [];
+  }
+  return message.content as readonly ThreadAssistantMessagePart[];
+}
+
+function hasReasoningPart(message: CoreThreadMessageLike): boolean {
+  return (
+    message.role === "assistant" &&
+    Array.isArray(message.content) &&
+    message.content.some((part) => isObject(part) && part.type === "reasoning")
+  );
+}
+
+function mergeAssistantSegment(
+  segment: readonly CoreThreadMessageLike[],
+): CoreThreadMessageLike[] {
+  if (!segment.some(hasReasoningPart)) return [...segment];
+
+  const assistants = segment.filter(
+    (message): message is CoreThreadMessageLike & { role: "assistant" } =>
+      message.role === "assistant",
+  );
+  const anchor = assistants.find((message) => !hasReasoningPart(message));
+  if (!anchor) return [...segment];
+
+  const metadata = assistants.reduce<CoreThreadMessageLike["metadata"]>(
+    (current, message) => {
+      if (!message.metadata) return current;
+      return {
+        ...current,
+        ...message.metadata,
+        ...(message.metadata.custom
+          ? {
+              custom: {
+                ...current?.custom,
+                ...message.metadata.custom,
+              },
+            }
+          : {}),
+      };
+    },
+    undefined,
+  );
+
+  return [
+    {
+      ...anchor,
+      content: assistants.flatMap(assistantParts),
+      ...(metadata ? { metadata } : {}),
+    },
+  ];
+}
+
+function foldReasoningMessages(
+  messages: readonly CoreThreadMessageLike[],
+): CoreThreadMessageLike[] {
+  const folded: CoreThreadMessageLike[] = [];
+  let assistantSegment: CoreThreadMessageLike[] = [];
+
+  const flush = () => {
+    if (assistantSegment.length === 0) return;
+    folded.push(...mergeAssistantSegment(assistantSegment));
+    assistantSegment = [];
+  };
+
+  for (const message of messages) {
+    if (message.role === "user" || message.role === "system") {
+      flush();
+      folded.push(message);
+    } else {
+      assistantSegment.push(message);
+    }
+  }
+  flush();
+  return folded;
+}
+
 export type FromAgUiMessagesOptions = {
   /**
    * Whether to convert `reasoning` messages into visible reasoning parts.
    * Matches the `showThinking` option of `useAgUiRuntime`. Defaults to `true`.
    */
   showThinking?: boolean;
+  /**
+   * Whether to fold reasoning records into the surrounding assistant-side
+   * snapshot messages. Snapshot messages have no run identifier, so folding
+   * is bounded by user and system messages. Defaults to `false`.
+   */
+  foldReasoning?: boolean;
 };
 
 export function fromAgUiMessages(
@@ -593,6 +683,7 @@ export function fromAgUiMessages(
   options?: FromAgUiMessagesOptions,
 ): CoreThreadMessageLike[] {
   const showThinking = options?.showThinking ?? true;
+  const foldReasoning = options?.foldReasoning ?? false;
   const converted: CoreThreadMessageLike[] = [];
   const a2uiBuckets = new Map<string, A2uiState>();
   const a2uiBucketOwnerIndices = new Map<string, number>();
@@ -768,8 +859,10 @@ export function fromAgUiMessages(
     }
   }
 
-  for (let i = 0; i < converted.length; i++) {
-    const message = converted[i]!;
+  const result = foldReasoning ? foldReasoningMessages(converted) : converted;
+
+  for (let i = 0; i < result.length; i++) {
+    const message = result[i]!;
     if (message.role !== "assistant") continue;
 
     const hasInterrupt =
@@ -784,7 +877,7 @@ export function fromAgUiMessages(
       );
 
     if (hasInterrupt || hasPendingToolCall) {
-      converted[i] = {
+      result[i] = {
         ...message,
         status: getAutoStatus(
           false,
@@ -797,7 +890,7 @@ export function fromAgUiMessages(
     }
   }
 
-  return converted;
+  return result;
 }
 
 function convertAssistantMessage(

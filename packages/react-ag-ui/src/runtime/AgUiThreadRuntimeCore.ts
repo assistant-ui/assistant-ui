@@ -67,6 +67,7 @@ type CoreOptions = {
   agent: AbstractAgent;
   logger: Logger;
   showThinking: boolean;
+  foldReasoning: boolean;
   autoCancelPendingToolCalls?: boolean | undefined;
   onError?: (error: Error) => void;
   onCancel?: () => void;
@@ -80,6 +81,7 @@ export class AgUiThreadRuntimeCore {
   private agent: AbstractAgent;
   private logger: Logger;
   private showThinking: boolean;
+  private foldReasoning: boolean;
   private autoCancelPendingToolCalls: boolean | undefined;
   private onError: ((error: Error) => void) | undefined;
   private onCancel: (() => void) | undefined;
@@ -106,6 +108,7 @@ export class AgUiThreadRuntimeCore {
     this.agent = options.agent;
     this.logger = options.logger;
     this.showThinking = options.showThinking;
+    this.foldReasoning = options.foldReasoning;
     this.autoCancelPendingToolCalls = options.autoCancelPendingToolCalls;
     this.onError = options.onError;
     this.onCancel = options.onCancel;
@@ -118,6 +121,7 @@ export class AgUiThreadRuntimeCore {
     this.agent = options.agent;
     this.logger = options.logger;
     this.showThinking = options.showThinking;
+    this.foldReasoning = options.foldReasoning;
     this.autoCancelPendingToolCalls = options.autoCancelPendingToolCalls;
     this.onError = options.onError;
     this.onCancel = options.onCancel;
@@ -1608,6 +1612,7 @@ export class AgUiThreadRuntimeCore {
         activeMessage?.role === "assistant" ? activeMessage : undefined;
       const normalized = fromAgUiMessages(rawMessages, {
         showThinking: this.showThinking,
+        foldReasoning: this.foldReasoning,
       });
       const converted: ThreadMessage[] = [];
       for (const message of normalized) {

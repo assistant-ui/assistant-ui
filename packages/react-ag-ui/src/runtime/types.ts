@@ -61,6 +61,12 @@ export type UseAgUiRuntimeOptions = ExternalStoreSharedOptions & {
   logger?: Partial<Logger>;
   showThinking?: boolean;
   /**
+   * Fold reasoning snapshot messages into the surrounding assistant message.
+   * Snapshot messages have no run identifier, so folding is bounded by user
+   * and system messages. Defaults to `false`.
+   */
+  foldReasoning?: boolean | undefined;
+  /**
    * When the user sends, edits, or reloads a message while client-side tool
    * calls are still pending, automatically cancel the unresolved tool calls
    * with an error result so the agent's tool-call accounting stays

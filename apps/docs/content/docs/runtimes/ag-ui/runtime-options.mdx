@@ -14,6 +14,7 @@ Reference for the runtime's API surface. Start with [quickstart](/docs/runtimes/
 | `agent` | `HttpAgent` | An AG-UI client agent (from `@ag-ui/client`). Required. |
 | `logger` | `Partial<Logger>` | Optional logger overrides. The runtime logs event-parser warnings and run lifecycle events. |
 | `showThinking` | `boolean` | Whether to render `THINKING_*` and `REASONING_*` events as visible reasoning. Defaults to `true`. |
+| `foldReasoning` | `boolean` | Fold reasoning records from `MESSAGES_SNAPSHOT` events into the surrounding assistant-side messages. Snapshot messages have no run identifier, so folding is bounded by user and system messages. Defaults to `false`. |
 | `autoCancelPendingToolCalls` | `boolean` | Cancel unresolved client-side tool calls automatically when the user sends, edits, or reloads a message. Defaults to `true`. See [below](#auto-cancelling-pending-tool-calls). |
 | `onError` | `(e: Error) => void` | Error callback fired on `RUN_ERROR` events and protocol errors. |
 | `onCancel` | `() => void` | Cancellation callback fired when the user cancels a run. |
@@ -65,7 +66,12 @@ messages are gone on the next page load.
 `fromAgUiMessages` accepts an optional second argument: pass
 `{ showThinking: false }` to match a runtime configured with
 `showThinking: false`, so imported reasoning messages are dropped at conversion
-time, the same way a live run never stores them.
+time, the same way a live run never stores them. Pass `foldReasoning: true` when
+the persisted snapshot represents one turn as reasoning, tool, and assistant
+records and the thread should render them as one assistant message. Because the
+AG-UI snapshot schema has no run identifier, folding stops at user and system
+messages; leave it disabled when adjacent assistant records must remain
+separate.
 
 `fromAgUiMessages` reconstructs the text, reasoning, and tool calls of each message. Multimodal user input (`image`, `audio`, `video`, and `document` parts, as well as legacy `binary` parts) is restored as attachments on the user message, so a backend that persists multimodal messages shows them again on reload and re-sends them on the next run. Legacy `binary` parts that only reference a file id are not restored.
 

@@ -37,12 +37,14 @@ const createCore = (
     history?: ThreadHistoryAdapter;
     logger?: Logger;
     autoCancelPendingToolCalls?: boolean;
+    foldReasoning?: boolean;
   } = {},
 ) =>
   new AgUiThreadRuntimeCore({
     agent,
     logger: hooks.logger ?? noopLogger,
     showThinking: true,
+    foldReasoning: hooks.foldReasoning ?? false,
     autoCancelPendingToolCalls: hooks.autoCancelPendingToolCalls,
     ...(hooks.onError ? { onError: hooks.onError } : {}),
     ...(hooks.onCancel ? { onCancel: hooks.onCancel } : {}),
@@ -267,6 +269,69 @@ describe("AGUIThreadRuntimeCore", () => {
       toolCallId: "call-1",
       toolName: "get_weather",
       result: { temperature: "22C" },
+    });
+  });
+
+  it("folds reasoning snapshot records into one assistant turn when enabled", async () => {
+    const agent = {
+      runAgent: vi.fn(async (_input, subscriber) => {
+        subscriber.onMessagesSnapshotEvent?.({
+          event: {
+            type: "MESSAGES_SNAPSHOT",
+            messages: [
+              { id: "user-1", role: "user", content: "hi" },
+              { id: "reasoning-1", role: "reasoning", content: "plan" },
+              {
+                id: "assistant-1",
+                role: "assistant",
+                content: "",
+                toolCalls: [
+                  {
+                    id: "call-1",
+                    type: "function",
+                    function: { name: "lookup", arguments: "{}" },
+                  },
+                ],
+              },
+              {
+                id: "tool-1",
+                role: "tool",
+                toolCallId: "call-1",
+                content: "42",
+              },
+              { id: "reasoning-2", role: "reasoning", content: "interpret" },
+              {
+                id: "assistant-2",
+                role: "assistant",
+                content: "The answer is 42.",
+              },
+            ],
+          },
+        });
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+
+    const core = createCore(agent, { foldReasoning: true });
+    await core.append(createAppendMessage());
+
+    expect(core.getMessages()).toHaveLength(2);
+    const assistant = core.getMessages()[1] as ThreadAssistantMessage;
+    expect(assistant).toMatchObject({ id: "assistant-1", role: "assistant" });
+    expect(assistant.content.map((part) => part.type)).toEqual([
+      "reasoning",
+      "tool-call",
+      "reasoning",
+      "text",
+    ]);
+    expect(assistant.content[1]).toMatchObject({
+      type: "tool-call",
+      toolCallId: "call-1",
+      result: 42,
+    });
+    expect(assistant.content[3]).toMatchObject({
+      type: "text",
+      text: "The answer is 42.",
     });
   });
 

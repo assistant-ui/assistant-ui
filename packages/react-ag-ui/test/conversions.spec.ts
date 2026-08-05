@@ -472,6 +472,53 @@ describe("adapter conversions", () => {
     ]);
   });
 
+  it("folds reasoning and assistant-side snapshot messages when enabled", () => {
+    const result = fromAgUiMessages(
+      [
+        { id: "u-1", role: "user", content: "hi" },
+        { id: "r-1", role: "reasoning", content: "plan" },
+        {
+          id: "a-1",
+          role: "assistant",
+          content: "",
+          toolCalls: [
+            {
+              id: "call-1",
+              type: "function",
+              function: { name: "lookup", arguments: '{"q":"x"}' },
+            },
+          ],
+        },
+        {
+          id: "tool-1",
+          role: "tool",
+          toolCallId: "call-1",
+          content: '{"value":42}',
+        },
+        { id: "r-2", role: "reasoning", content: "interpret" },
+        { id: "a-2", role: "assistant", content: "The answer is 42." },
+      ] as any,
+      { foldReasoning: true },
+    );
+
+    expect(result.map((m) => m.role)).toEqual(["user", "assistant"]);
+    expect(result[1]).toMatchObject({ id: "a-1", role: "assistant" });
+    expect((result[1] as any).content).toEqual([
+      { type: "reasoning", text: "plan" },
+      {
+        type: "tool-call",
+        toolCallId: "call-1",
+        toolName: "lookup",
+        args: { q: "x" },
+        argsText: '{"q":"x"}',
+        result: { value: 42 },
+        unstable_toolMessageId: "tool-1",
+      },
+      { type: "reasoning", text: "interpret" },
+      { type: "text", text: "The answer is 42." },
+    ]);
+  });
+
   it("skips empty reasoning messages", () => {
     const result = fromAgUiMessages([
       { id: "r-1", role: "reasoning", content: "" },
@@ -487,7 +534,7 @@ describe("adapter conversions", () => {
         { id: "r-1", role: "reasoning", content: "thinking" },
         { id: "a-1", role: "assistant", content: "done" },
       ] as any,
-      { showThinking: false },
+      { showThinking: false, foldReasoning: true },
     );
 
     expect(result.map((m) => m.role)).toEqual(["user", "assistant"]);
