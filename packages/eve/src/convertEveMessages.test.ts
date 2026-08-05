@@ -487,6 +487,26 @@ describe("convertEveMessages", () => {
           role: "assistant",
           parts: [
             { type: "step-start" },
+            { type: "future-part", payload: {} },
+            { type: "file", mediaType: "application/pdf" },
+            { type: "text", text: "Done" },
+          ],
+        },
+      ],
+    } as unknown as EveMessageData;
+
+    const [message] = convertEveMessages(data);
+
+    expect(message?.content).toEqual([{ type: "text", text: "Done" }]);
+  });
+
+  it("converts an authorization part into a data content part", () => {
+    const data = {
+      messages: [
+        {
+          id: "a1",
+          role: "assistant",
+          parts: [
             {
               type: "authorization",
               state: "required",
@@ -495,9 +515,14 @@ describe("convertEveMessages", () => {
               displayName: "GitHub",
               stepIndex: 0,
               turnId: "turn_1",
+              authorization: {
+                displayName: "GitHub",
+                instructions: "Enter the code on the device page",
+                url: "https://github.com/login/device",
+                userCode: "ABCD-1234",
+                expiresAt: "2026-01-01T00:00:00Z",
+              },
             },
-            { type: "file", mediaType: "application/pdf" },
-            { type: "text", text: "Done" },
           ],
         },
       ],
@@ -505,7 +530,89 @@ describe("convertEveMessages", () => {
 
     const [message] = convertEveMessages(data);
 
-    expect(message?.content).toEqual([{ type: "text", text: "Done" }]);
+    expect(message?.content).toEqual([
+      {
+        type: "data",
+        name: "authorization",
+        data: {
+          state: "required",
+          name: "github",
+          displayName: "GitHub",
+          description: "Sign in to GitHub",
+          url: "https://github.com/login/device",
+          userCode: "ABCD-1234",
+          instructions: "Enter the code on the device page",
+          expiresAt: "2026-01-01T00:00:00Z",
+        },
+      },
+    ]);
+  });
+
+  it("converts an authorization part with missing optional fields", () => {
+    const data = {
+      messages: [
+        {
+          id: "a1",
+          role: "assistant",
+          parts: [
+            {
+              type: "authorization",
+              state: "required",
+              name: "github",
+            },
+          ],
+        },
+      ],
+    } as unknown as EveMessageData;
+
+    const [message] = convertEveMessages(data);
+
+    expect(message?.content).toEqual([
+      {
+        type: "data",
+        name: "authorization",
+        data: { state: "required", name: "github" },
+      },
+    ]);
+  });
+
+  it("carries the outcome of a completed authorization part", () => {
+    const data = {
+      messages: [
+        {
+          id: "a1",
+          role: "assistant",
+          parts: [
+            {
+              type: "authorization",
+              state: "completed",
+              name: "github",
+              description: "Sign in to GitHub",
+              displayName: "GitHub",
+              stepIndex: 0,
+              turnId: "turn_1",
+              outcome: "authorized",
+            },
+          ],
+        },
+      ],
+    } satisfies EveMessageData;
+
+    const [message] = convertEveMessages(data);
+
+    expect(message?.content).toEqual([
+      {
+        type: "data",
+        name: "authorization",
+        data: {
+          state: "completed",
+          name: "github",
+          displayName: "GitHub",
+          description: "Sign in to GitHub",
+          outcome: "authorized",
+        },
+      },
+    ]);
   });
 
   describe("assistant message status mapping", () => {
@@ -632,6 +739,65 @@ describe("convertEveMessages", () => {
         type: "requires-action",
         reason: "tool-calls",
       });
+    });
+
+    it("maps an auth-suspended message to requires-action instead of cancelled", () => {
+      const data = {
+        messages: [
+          {
+            id: "a1",
+            role: "assistant",
+            metadata: { status: "streaming" },
+            parts: [
+              {
+                type: "authorization",
+                state: "required",
+                name: "github",
+                description: "Sign in to GitHub",
+                displayName: "GitHub",
+                stepIndex: 0,
+                turnId: "turn_1",
+              },
+            ],
+          },
+        ],
+      } satisfies EveMessageData;
+
+      const [message] = convertEveMessages(data, { isRunning: false });
+
+      expect(message?.status).toEqual({
+        type: "requires-action",
+        reason: "tool-calls",
+      });
+    });
+
+    it("does not hold requires-action for a completed authorization", () => {
+      const data = {
+        messages: [
+          {
+            id: "a1",
+            role: "assistant",
+            metadata: { status: "complete" },
+            parts: [
+              {
+                type: "authorization",
+                state: "completed",
+                name: "github",
+                description: "Sign in to GitHub",
+                displayName: "GitHub",
+                stepIndex: 0,
+                turnId: "turn_1",
+                outcome: "authorized",
+              },
+              { type: "text", text: "Done" },
+            ],
+          },
+        ],
+      } satisfies EveMessageData;
+
+      const [message] = convertEveMessages(data, { isRunning: false });
+
+      expect(message?.status).toEqual({ type: "complete", reason: "stop" });
     });
 
     describe("contract with eve's default reducer", () => {

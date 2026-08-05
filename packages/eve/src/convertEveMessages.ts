@@ -3,6 +3,7 @@ import {
   toAssistantError,
   type AppendMessage,
   type CompleteAttachment,
+  type DataMessagePart,
   type FileMessagePart,
   type MessageStatus,
   type RespondToToolApprovalOptions,
@@ -15,6 +16,7 @@ import {
 } from "@assistant-ui/core";
 import { httpUrlPattern, parseDataUrl } from "@assistant-ui/core/internal";
 import type {
+  EveAuthorizationPart,
   EveDynamicToolPart,
   EveMessage,
   EveMessageData,
@@ -86,8 +88,11 @@ const toMessageStatus = (
     (part) =>
       part.type === "dynamic-tool" && part.state === "approval-requested",
   );
+  const hasPendingAuthorization = message.parts.some(
+    (part) => part.type === "authorization" && part.state === "required",
+  );
 
-  if (hasPendingApproval) {
+  if (hasPendingApproval || hasPendingAuthorization) {
     return { type: "requires-action", reason: "tool-calls" };
   }
 
@@ -205,6 +210,33 @@ const convertDynamicToolPart = (
   }
 };
 
+const convertAuthorizationPart = (
+  part: EveAuthorizationPart,
+): DataMessagePart => ({
+  type: "data",
+  name: "authorization",
+  data: {
+    state: part.state,
+    name: part.name,
+    ...(part.displayName !== undefined && { displayName: part.displayName }),
+    ...(part.description !== undefined && { description: part.description }),
+    ...(part.authorization?.url !== undefined && {
+      url: part.authorization.url,
+    }),
+    ...(part.authorization?.userCode !== undefined && {
+      userCode: part.authorization.userCode,
+    }),
+    ...(part.authorization?.instructions !== undefined && {
+      instructions: part.authorization.instructions,
+    }),
+    ...(part.authorization?.expiresAt !== undefined && {
+      expiresAt: part.authorization.expiresAt,
+    }),
+    ...(part.outcome !== undefined && { outcome: part.outcome }),
+    ...(part.reason !== undefined && { reason: part.reason }),
+  },
+});
+
 const convertFilePart = (
   part: Extract<EveMessagePart, { type: "file" }>,
 ): FileMessagePart | null => {
@@ -231,6 +263,9 @@ const convertAssistantPart = (
 
     case "dynamic-tool":
       return convertDynamicToolPart(part);
+
+    case "authorization":
+      return convertAuthorizationPart(part);
 
     case "file":
       return convertFilePart(part);
