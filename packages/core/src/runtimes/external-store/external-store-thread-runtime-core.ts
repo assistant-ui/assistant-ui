@@ -40,7 +40,7 @@ import { EMPTY_QUEUE_ITEMS } from "../../store/scopes/queue-item";
 const EMPTY_ARRAY: readonly ThreadSuggestion[] = Object.freeze([]);
 
 const observeAdapterCallback = (
-  name: "onAddToolResult" | "onRespondToToolApproval",
+  name: "onAddToolResult" | "onRespondToToolApproval" | "onCancel",
   result: Promise<void> | void,
 ) => {
   if (!result) return;
@@ -602,7 +602,7 @@ export class ExternalStoreThreadRuntimeCore
     // cancel on it.
     void this._toolInvocations?.abort();
 
-    this._store.onCancel();
+    observeAdapterCallback("onCancel", this._store.onCancel());
 
     // Drop an empty optimistic head (placeholder or pre-stream message); a
     // partially-streamed one is kept and re-supplied by the store on resync.

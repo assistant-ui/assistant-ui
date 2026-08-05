@@ -47,6 +47,28 @@ const createBaseAdapter = (
   ...overrides,
 });
 
+const captureUnhandledRejections = async (
+  run: () => Promise<void>,
+): Promise<unknown[]> => {
+  const rejections: unknown[] = [];
+  const onUnhandledRejection = (reason: unknown) => {
+    rejections.push(reason);
+  };
+  const priorListeners = process.listeners("unhandledRejection");
+  process.removeAllListeners("unhandledRejection");
+  process.on("unhandledRejection", onUnhandledRejection);
+  try {
+    await run();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  } finally {
+    process.removeListener("unhandledRejection", onUnhandledRejection);
+    for (const listener of priorListeners) {
+      process.on("unhandledRejection", listener);
+    }
+  }
+  return rejections;
+};
+
 describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
   let contextProvider: ModelContextProvider;
 
@@ -465,32 +487,69 @@ describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
   });
 
   describe("tool callbacks", () => {
-    it("handles rejected onAddToolResult callbacks", async () => {
+    it("handles rejected automatic tool result callbacks", async () => {
       const error = new Error("tool result failed");
       const consoleError = vi
         .spyOn(console, "error")
         .mockImplementation(() => {});
+      const execute = vi.fn(async () => ({ forecast: "sunny" }));
+      let callbackCalls = 0;
+      const onAddToolResult = () => {
+        callbackCalls += 1;
+        return Promise.reject(error);
+      };
       const core = new ExternalStoreThreadRuntimeCore(
-        contextProvider,
+        {
+          getModelContext: () => ({
+            tools: {
+              weatherSearch: {
+                parameters: { type: "object", properties: {} },
+                execute,
+              },
+            },
+          }),
+        },
         createBaseAdapter({
-          onAddToolResult: vi.fn().mockRejectedValue(error),
+          unstable_enableToolInvocations: true,
+          onAddToolResult,
         }),
       );
 
-      core.addToolResult({
-        messageId: "m1",
-        toolName: "tool",
-        toolCallId: "tc1",
-        result: {},
-        isError: false,
+      const rejections = await captureUnhandledRejections(async () => {
+        core.__internal_setAdapter(
+          createBaseAdapter({
+            unstable_enableToolInvocations: true,
+            isRunning: true,
+            messages: [
+              {
+                ...createAssistantMessage("a1"),
+                status: { type: "requires-action", reason: "tool-calls" },
+                content: [
+                  {
+                    type: "tool-call",
+                    toolCallId: "tc1",
+                    toolName: "weatherSearch",
+                    args: { city: "London" },
+                    argsText: '{"city":"London"}',
+                  },
+                ],
+              },
+            ],
+            onAddToolResult,
+          }),
+        );
+
+        await vi.waitFor(() =>
+          expect(consoleError).toHaveBeenCalledWith(
+            "[ExternalStoreThreadRuntimeCore] onAddToolResult callback rejected",
+            error,
+          ),
+        );
       });
 
-      await vi.waitFor(() =>
-        expect(consoleError).toHaveBeenCalledWith(
-          "[ExternalStoreThreadRuntimeCore] onAddToolResult callback rejected",
-          error,
-        ),
-      );
+      expect(execute).toHaveBeenCalledOnce();
+      expect(callbackCalls).toBe(1);
+      expect(rejections).toEqual([]);
     });
 
     it("handles rejected onRespondToToolApproval callbacks", async () => {
@@ -498,24 +557,64 @@ describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
       const consoleError = vi
         .spyOn(console, "error")
         .mockImplementation(() => {});
+      let callbackCalls = 0;
       const core = new ExternalStoreThreadRuntimeCore(
         contextProvider,
         createBaseAdapter({
-          onRespondToToolApproval: vi.fn().mockRejectedValue(error),
+          onRespondToToolApproval: () => {
+            callbackCalls += 1;
+            return Promise.reject(error);
+          },
         }),
       );
 
-      core.respondToToolApproval({
-        approvalId: "approval-1",
-        approved: true,
+      const rejections = await captureUnhandledRejections(async () => {
+        core.respondToToolApproval({
+          approvalId: "approval-1",
+          approved: true,
+        });
+
+        await vi.waitFor(() =>
+          expect(consoleError).toHaveBeenCalledWith(
+            "[ExternalStoreThreadRuntimeCore] onRespondToToolApproval callback rejected",
+            error,
+          ),
+        );
       });
 
-      await vi.waitFor(() =>
-        expect(consoleError).toHaveBeenCalledWith(
-          "[ExternalStoreThreadRuntimeCore] onRespondToToolApproval callback rejected",
-          error,
-        ),
+      expect(callbackCalls).toBe(1);
+      expect(rejections).toEqual([]);
+    });
+
+    it("handles rejected onCancel callbacks", async () => {
+      const error = new Error("cancel failed");
+      const consoleError = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+      let callbackCalls = 0;
+      const core = new ExternalStoreThreadRuntimeCore(
+        contextProvider,
+        createBaseAdapter({
+          onCancel: () => {
+            callbackCalls += 1;
+            return Promise.reject(error);
+          },
+        }),
       );
+
+      const rejections = await captureUnhandledRejections(async () => {
+        core.cancelRun();
+
+        await vi.waitFor(() =>
+          expect(consoleError).toHaveBeenCalledWith(
+            "[ExternalStoreThreadRuntimeCore] onCancel callback rejected",
+            error,
+          ),
+        );
+      });
+
+      expect(callbackCalls).toBe(1);
+      expect(rejections).toEqual([]);
     });
   });
 
