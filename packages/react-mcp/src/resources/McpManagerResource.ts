@@ -1,4 +1,11 @@
-import { useState, useEffect, useMemo, useEffectEvent, useRef } from "react";
+import {
+  useState,
+  useEffect,
+  useMemo,
+  useEffectEvent,
+  useRef,
+  useCallback,
+} from "react";
 import { useResource, resource, withKey } from "@assistant-ui/tap";
 import {
   useClientLookup,
@@ -38,6 +45,13 @@ function defaultRedirectUri(): string {
 // Stable empty fallback so an absent `connectors` prop doesn't produce a fresh
 // array each render (which would invalidate the serverElements memo below).
 const NO_CONNECTORS: MCPConnector[] = [];
+const NO_CUSTOM_SERVERS: MCPCustomServerRecord[] = [];
+
+type CustomServerState = {
+  storageScope: object;
+  records: MCPCustomServerRecord[];
+  isHydrated: boolean;
+};
 
 const reportCustomStorageFailure = (
   operation: "load" | "save",
@@ -71,12 +85,24 @@ const useMcpManagerResource = (
   const storageElement = props.storage ?? McpLocalStorage();
   const storage = useResource(storageElement);
 
-  const [customServers, setCustomServers] = useState<MCPCustomServerRecord[]>(
-    [],
+  // Tap resource identity excludes args because they may be recreated inline.
+  const storageScope = useMemo(
+    () => ({ hook: storageElement.hook, key: storageElement.key }),
+    [storageElement.hook, storageElement.key],
   );
-  const [isHydrated, setIsHydrated] = useState(false);
+  const [customServerState, setCustomServerState] = useState<CustomServerState>(
+    () => ({
+      storageScope,
+      records: [],
+      isHydrated: false,
+    }),
+  );
+  const isCurrentStorage = customServerState.storageScope === storageScope;
+  const customServers = isCurrentStorage
+    ? customServerState.records
+    : NO_CUSTOM_SERVERS;
+  const isHydrated = isCurrentStorage && customServerState.isHydrated;
 
-  const hydratedRef = useRef(false);
   const storageRef = useRef(storage);
   const persistenceQueueRef = useRef(Promise.resolve());
 
@@ -84,52 +110,83 @@ const useMcpManagerResource = (
     storageRef.current = storage;
   }, [storage]);
 
-  const hydrate = useEffectEvent(async (signal: { cancelled: boolean }) => {
-    const markHydrated = () => {
-      if (!signal.cancelled) {
-        hydratedRef.current = true;
-        setIsHydrated(true);
-      }
-    };
+  const hydrate = useEffectEvent(
+    async (signal: { cancelled: boolean }, targetScope: object) => {
+      const finishHydration = (records?: MCPCustomServerRecord[]) => {
+        if (signal.cancelled) return;
+        setCustomServerState((prev) => {
+          if (prev.storageScope !== targetScope) return prev;
+          if (!records) return { ...prev, isHydrated: true };
 
-    let records: Awaited<ReturnType<typeof storage.loadCustomServers>>;
-    try {
-      records = await storage.loadCustomServers();
-    } catch (error) {
-      if (!signal.cancelled) {
-        reportCustomStorageFailure("load", error);
-      }
-      markHydrated();
-      return;
-    }
+          const persistedIds = new Set(records.map((record) => record.id));
+          return {
+            storageScope: targetScope,
+            records: [
+              ...records,
+              ...prev.records.filter((record) => !persistedIds.has(record.id)),
+            ],
+            isHydrated: true,
+          };
+        });
+      };
 
-    if (signal.cancelled) return;
-    // Merge rather than replace so any addCustomServer calls that
-    // happened before hydration resolved aren't silently overwritten.
-    // Persisted order wins; pre-hydration locals append.
-    setCustomServers((prev) => {
-      if (prev.length === 0) return records;
-      const persistedIds = new Set(records.map((r) => r.id));
-      return [...records, ...prev.filter((r) => !persistedIds.has(r.id))];
-    });
-    markHydrated();
-  });
+      let records: Awaited<ReturnType<typeof storage.loadCustomServers>>;
+      try {
+        records = await storage.loadCustomServers();
+      } catch (error) {
+        if (!signal.cancelled) {
+          reportCustomStorageFailure("load", error);
+        }
+        finishHydration();
+        return;
+      }
+
+      finishHydration(records);
+    },
+  );
+
+  const updateCustomServers = useCallback(
+    (
+      updater: (records: MCPCustomServerRecord[]) => MCPCustomServerRecord[],
+    ) => {
+      setCustomServerState((prev) => {
+        const matchesStorage = prev.storageScope === storageScope;
+        const records = updater(
+          matchesStorage ? prev.records : NO_CUSTOM_SERVERS,
+        );
+        return {
+          storageScope,
+          records,
+          isHydrated: matchesStorage && prev.isHydrated,
+        };
+      });
+    },
+    [storageScope],
+  );
 
   useEffect(() => {
     const signal = { cancelled: false };
-    void hydrate(signal);
+    setCustomServerState((prev) => {
+      if (prev.storageScope === storageScope && !prev.isHydrated) return prev;
+      return {
+        storageScope,
+        records: [],
+        isHydrated: false,
+      };
+    });
+    void hydrate(signal, storageScope);
     return () => {
       signal.cancelled = true;
     };
-  }, []);
+  }, [storageScope]);
 
   useEffect(() => {
-    if (!hydratedRef.current) return;
+    if (!isHydrated) return;
     const targetStorage = storageRef.current;
     persistenceQueueRef.current = persistenceQueueRef.current.then(() =>
       persistCustomServers(targetStorage, customServers),
     );
-  }, [customServers]);
+  }, [customServers, isHydrated, storageScope]);
 
   const serverElements = useMemo(() => {
     assertUniqueServerIds([
@@ -179,7 +236,9 @@ const useMcpManagerResource = (
             ? { elicitation: s.elicitation }
             : {}),
           onRemove: async () => {
-            setCustomServers((prev) => prev.filter((x) => x.id !== s.id));
+            updateCustomServers((prev) =>
+              prev.filter((record) => record.id !== s.id),
+            );
           },
         }),
       ),
@@ -192,6 +251,7 @@ const useMcpManagerResource = (
     redirectUri,
     autoConnect,
     connectionTimeout,
+    updateCustomServers,
   ]);
 
   const lookup = useClientLookup(serverElements);
@@ -282,7 +342,7 @@ const useMcpManagerResource = (
         ...(elicitation !== undefined ? { elicitation } : {}),
         createdAt: Date.now(),
       };
-      setCustomServers((prev) => [...prev, record]);
+      updateCustomServers((prev) => [...prev, record]);
       return record.id;
     },
     removeServer: async (id) => {
@@ -301,7 +361,9 @@ const useMcpManagerResource = (
         await lookup.get({ key: id }).remove();
       } catch {
         await storage.clearAuthState(id);
-        setCustomServers((prev) => prev.filter((s) => s.id !== id));
+        updateCustomServers((prev) =>
+          prev.filter((record) => record.id !== id),
+        );
       }
     },
   };
