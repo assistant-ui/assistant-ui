@@ -219,6 +219,34 @@ describe("createResumableStreamContext", () => {
     expect(cancelSettled).toBe(true);
   });
 
+  it("cancels a parked in-memory store reader", async () => {
+    const store = createInMemoryResumableStreamStore();
+    await store.acquire("a");
+    const read = store.read.bind(store);
+    let markReadStarted!: () => void;
+    const readStarted = new Promise<void>((resolve) => {
+      markReadStarted = resolve;
+    });
+    vi.spyOn(store, "read").mockImplementation(async function* (...args) {
+      markReadStarted();
+      yield* read(...args);
+    });
+    const ctx = createResumableStreamContext({ store });
+
+    const stream = await ctx.run("a", () => {
+      throw new Error("consumer must not create a producer stream");
+    });
+    const reader = stream.getReader();
+    const readPromise = reader.read();
+    await readStarted;
+
+    await expect(reader.cancel()).resolves.toBeUndefined();
+    await expect(readPromise).resolves.toEqual({
+      done: true,
+      value: undefined,
+    });
+  });
+
   it("propagates producer errors to consumers", async () => {
     const ctx = createResumableStreamContext({
       store: createInMemoryResumableStreamStore(),
