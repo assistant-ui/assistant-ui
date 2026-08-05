@@ -2,7 +2,7 @@
 
 import { renderHook } from "@testing-library/react";
 import { CloudMessagePersistence, type AssistantCloud } from "assistant-cloud";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { useAssistantCloudThreadHistoryAdapter } from "./AssistantCloudThreadHistoryAdapter";
 import { ExportedMessageRepository } from "../../../runtime/utils/message-repository";
 
@@ -37,6 +37,10 @@ const makeCloud = () =>
       },
     },
   }) as unknown as AssistantCloud;
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe("useAssistantCloudThreadHistoryAdapter", () => {
   it("refreshes formatted persistence when the Cloud client changes", async () => {
