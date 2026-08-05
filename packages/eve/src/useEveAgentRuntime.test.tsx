@@ -134,6 +134,27 @@ describe("useEveAgentRuntime status forwarding", () => {
     });
   });
 
+  it("omits clientContext when runConfig.custom is empty", async () => {
+    const agent = createAgent({
+      data: { messages: [] } satisfies EveMessageData,
+    });
+    mockUseEveAgent.mockReturnValue(agent as never);
+
+    const { result } = renderHook(() => useEveAgentRuntime());
+
+    act(() => {
+      result.current.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "hello" }],
+        runConfig: { custom: {} },
+      });
+    });
+
+    await waitFor(() => {
+      expect(agent.send).toHaveBeenCalledWith({ message: "hello" });
+    });
+  });
+
   it("prefers the reload-time runConfig over the staged one", async () => {
     const agent = createAgent({
       data: { messages: [] } satisfies EveMessageData,

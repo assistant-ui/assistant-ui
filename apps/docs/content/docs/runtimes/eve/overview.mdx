@@ -49,6 +49,11 @@ export default function Home() {
 }
 ```
 
+Per-turn `runConfig` is forwarded to Eve as `clientContext`, preserving the
+`custom` envelope. For example, `runConfig: { custom: { model: "fast" } }`
+arrives as `clientContext: { custom: { model: "fast" } }` for that turn only.
+Empty custom objects are omitted.
+
 ## Requirements
 
 - Node.js 24 or higher.

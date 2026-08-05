@@ -39,7 +39,7 @@ const USER_STAGED_STATUS = {
 const hasRunConfig = (
   runConfig: AppendMessage["runConfig"],
 ): runConfig is NonNullable<AppendMessage["runConfig"]> =>
-  runConfig !== undefined && Object.keys(runConfig).length > 0;
+  runConfig?.custom !== undefined && Object.keys(runConfig.custom).length > 0;
 
 const toEveClientContext = (
   runConfig: AppendMessage["runConfig"],
