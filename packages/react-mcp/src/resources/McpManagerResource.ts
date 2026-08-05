@@ -49,8 +49,14 @@ function defaultRedirectUri(): string {
 const NO_CONNECTORS: MCPConnector[] = [];
 const NO_CUSTOM_SERVERS: MCPCustomServerRecord[] = [];
 
+type StorageScope = {
+  hook: MCPStorageElement["hook"];
+  key: MCPStorageElement["key"];
+  storageScopeKey: McpManagerResourceProps["storageScopeKey"];
+};
+
 type CustomServerState = {
-  storageScope: object;
+  storageScope: StorageScope;
   records: MCPCustomServerRecord[];
   isHydrated: boolean;
   persistenceRevision: number;
@@ -168,7 +174,15 @@ const useMcpManagerResource = (
   }, [storage]);
 
   const hydrate = useEffectEvent(
-    async (signal: { cancelled: boolean }, targetScope: object) => {
+    async (
+      signal: { cancelled: boolean },
+      targetScope: StorageScope,
+      targetStorage: MCPStorage,
+      queueRegistry: StoragePersistenceQueueRegistry,
+      targetStorageHook: MCPStorageElement["hook"],
+      targetStorageElementKey: MCPStorageElement["key"],
+      targetStorageScopeKey: McpManagerResourceProps["storageScopeKey"],
+    ) => {
       const finishHydration = (records?: MCPCustomServerRecord[]) => {
         if (signal.cancelled) return;
         setCustomServerState((prev) => {
@@ -176,21 +190,29 @@ const useMcpManagerResource = (
           if (!records) return { ...prev, isHydrated: true };
 
           const persistedIds = new Set(records.map((record) => record.id));
+          const unpersistedRecords = prev.records.filter(
+            (record) => !persistedIds.has(record.id),
+          );
           return {
             storageScope: targetScope,
-            records: [
-              ...records,
-              ...prev.records.filter((record) => !persistedIds.has(record.id)),
-            ],
+            records: [...records, ...unpersistedRecords],
             isHydrated: true,
-            persistenceRevision: prev.persistenceRevision + 1,
+            persistenceRevision:
+              unpersistedRecords.length > 0 ? prev.persistenceRevision : 0,
           };
         });
       };
 
-      let records: Awaited<ReturnType<typeof storage.loadCustomServers>>;
+      const pendingPersistence = queueRegistry
+        .get(targetStorageHook)
+        ?.get(targetStorageElementKey)
+        ?.get(targetStorageScopeKey);
+      if (pendingPersistence) await pendingPersistence;
+      if (signal.cancelled) return;
+
+      let records: Awaited<ReturnType<typeof targetStorage.loadCustomServers>>;
       try {
-        records = await storage.loadCustomServers();
+        records = await targetStorage.loadCustomServers();
       } catch (error) {
         if (!signal.cancelled) {
           reportCustomStorageFailure("load", error);
@@ -231,7 +253,15 @@ const useMcpManagerResource = (
         persistenceRevision: 0,
       };
     });
-    void hydrate(signal, storageScope);
+    void hydrate(
+      signal,
+      storageScope,
+      storageRef.current,
+      persistenceQueuesRef.current,
+      storageScope.hook,
+      storageScope.key,
+      storageScope.storageScopeKey,
+    );
     return () => {
       signal.cancelled = true;
     };
@@ -240,8 +270,9 @@ const useMcpManagerResource = (
   useEffect(() => {
     if (!isHydrated || persistenceRevision === 0) return;
     const targetStorage = storageRef.current;
+    const queueRegistry = persistenceQueuesRef.current;
     const queues = getStoragePersistenceQueue(
-      persistenceQueuesRef.current,
+      queueRegistry,
       storageHook,
       storageElementKey,
     );
@@ -250,6 +281,14 @@ const useMcpManagerResource = (
       persistCustomServers(targetStorage, customServers),
     );
     queues.set(storageScopeKey, next);
+    void next.then(() => {
+      if (queues.get(storageScopeKey) !== next) return;
+      queues.delete(storageScopeKey);
+
+      const queuesByElementKey = queueRegistry.get(storageHook);
+      if (queues.size === 0) queuesByElementKey?.delete(storageElementKey);
+      if (queuesByElementKey?.size === 0) queueRegistry.delete(storageHook);
+    });
   }, [
     customServers,
     isHydrated,

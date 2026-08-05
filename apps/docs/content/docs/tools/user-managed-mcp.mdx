@@ -318,8 +318,13 @@ export function createMcpConfig(
       connectors,
       storageScopeKey: workspaceId,
       storage: McpCustomStorage({
-        loadCustomServers: async () =>
-          fetch(`${apiBase}/servers`).then((r) => r.json()),
+        loadCustomServers: async () => {
+          const response = await fetch(`${apiBase}/servers`);
+          if (!response.ok) {
+            throw new Error(`Failed to load MCP servers: ${response.status}`);
+          }
+          return response.json();
+        },
         saveCustomServers: async (records) =>
           fetch(`${apiBase}/servers`, {
             method: "PUT",
