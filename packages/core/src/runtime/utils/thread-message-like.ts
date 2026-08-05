@@ -17,10 +17,7 @@ import type {
   GenerativeUIMessagePart,
   Unstable_AudioMessagePart,
 } from "../../types/message";
-import type {
-  CompleteAttachment,
-  PendingAttachment,
-} from "../../types/attachment";
+import type { CompleteAttachment } from "../../types/attachment";
 import type {
   MessageTiming,
   PartProviderMetadata,
@@ -81,19 +78,9 @@ export type ThreadMessageLike = {
   readonly createdAt?: Date | undefined;
   readonly status?: MessageStatus | undefined;
   readonly attachments?:
-    | readonly (
-        | (Omit<PendingAttachment, "content"> & {
-            readonly content?:
-              | readonly (ThreadUserMessagePart | DataPrefixedPart)[]
-              | undefined;
-          })
-        | (Omit<CompleteAttachment, "content"> & {
-            readonly content: readonly (
-              | ThreadUserMessagePart
-              | DataPrefixedPart
-            )[];
-          })
-      )[]
+    | readonly (Omit<CompleteAttachment, "content"> & {
+        readonly content: readonly (ThreadUserMessagePart | DataPrefixedPart)[];
+      })[]
     | undefined;
   readonly metadata?:
     | {
@@ -267,18 +254,30 @@ export const fromThreadMessageLike = (
             }
           }
         }),
-        attachments: (attachments ?? []).map((att) => ({
-          ...att,
-          ...(att.content !== undefined && {
-            content: att.content.map((part): ThreadUserMessagePart => {
+        // The optimistic send path passes attachments whose upload has not
+        // settled yet; those carry no content until the upload completes.
+        attachments: (attachments ?? []).map((att): CompleteAttachment => {
+          const { content, ...rest } = att as Omit<
+            CompleteAttachment,
+            "content"
+          > & {
+            readonly content?: readonly (
+              | ThreadUserMessagePart
+              | DataPrefixedPart
+            )[];
+          };
+          if (content === undefined) return rest as CompleteAttachment;
+          return {
+            ...rest,
+            content: content.map((part): ThreadUserMessagePart => {
               const converted = convertDataPrefixedPart(
                 part.type,
                 (part as DataPrefixedPart).data,
               );
               return converted ?? (part as ThreadUserMessagePart);
             }),
-          }),
-        })) as unknown as ThreadUserMessage["attachments"],
+          };
+        }),
         metadata: {
           custom: metadata?.custom ?? {},
           ...(metadata?.isOptimistic && { isOptimistic: true }),

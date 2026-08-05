@@ -4532,11 +4532,9 @@ type ThreadMessageLike = {
   readonly id?: string | undefined;
   readonly createdAt?: Date | undefined;
   readonly status?: MessageStatus | undefined;
-  readonly attachments?: readonly ((Omit<PendingAttachment, "content"> & {
-    readonly content?: readonly (ThreadUserMessagePart | DataPrefixedPart)[] | undefined;
-  }) | (Omit<CompleteAttachment, "content"> & {
+  readonly attachments?: readonly (Omit<CompleteAttachment, "content"> & {
     readonly content: readonly (ThreadUserMessagePart | DataPrefixedPart)[];
-  }))[] | undefined;
+  })[] | undefined;
   readonly metadata?: {
     readonly unstable_state?: ReadonlyJSONValue;
     readonly unstable_annotations?: readonly ReadonlyJSONValue[] | undefined;

@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { fromThreadMessageLike } from "../runtime/utils/thread-message-like";
+import {
+  fromThreadMessageLike,
+  type ThreadMessageLike,
+} from "../runtime/utils/thread-message-like";
 
 const fallbackId = "test-id";
 const fallbackStatus = {
@@ -111,7 +114,7 @@ describe("fromThreadMessageLike", () => {
               file: new File(["content"], "workflow.json"),
               content: [{ type: "data-workflow", data: { id: "wf-1" } }],
             },
-          ],
+          ] as unknown as ThreadMessageLike["attachments"],
         },
         fallbackId,
         fallbackStatus,
