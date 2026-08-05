@@ -53,11 +53,13 @@ const getEveMessageContent: (message: AppendMessage) => NonNullable<SendTurnPayl
 Converts an assistant-ui tool approval response into an Eve input response.
 
 Pass the originating input request (see [findEveInputRequest](/docs/api-reference/integrations/eve#findeveinputrequest)) so the
-mapping never emits an option id the request does not carry: a literal
-option match always wins, then free-form requests (`display: "text"`,
-`allowFreeform`, or no options at all) are answered with the response's
-`reason` text, and a response that cannot be mapped honestly throws instead
-of fabricating an `"approve"` / `"deny"` decision.
+mapping never emits an option id the request does not carry. A literal
+option match always wins; a `display: "confirmation"` request is only ever
+answered with one of its own `"approve"` / `"deny"` options; free-form
+requests (`display: "text"`, `allowFreeform`, or no options at all) are
+answered with the response's `reason` text, and only when the response is
+not a refusal. A response that cannot be mapped honestly throws instead of
+fabricating a decision or downgrading a refusal to an answer.
 
 ```ts
 const toEveInputResponse: (response: RespondToToolApprovalOptions, inputRequest?: EveMessageInputRequest) => InputResponse;

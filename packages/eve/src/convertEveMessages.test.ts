@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { EveMessageData } from "eve/react";
+import type { EveMessageData, EveMessageInputRequest } from "eve/react";
 import { defaultMessageReducer, type EveAgentReducerEvent } from "eve/client";
 import {
   convertEveMessages,
@@ -1230,6 +1230,50 @@ describe("toEveInputResponse", () => {
         { requestId: "req_1", prompt: "When should this ship?" },
       ),
     ).toThrow(/no literal "deny" option/);
+  });
+
+  it("never answers an optionless confirmation as free-form text", () => {
+    const inputRequest = {
+      requestId: "req_1",
+      prompt: "Send the email?",
+      display: "confirmation",
+    } satisfies EveMessageInputRequest;
+
+    expect(() =>
+      toEveInputResponse({ approvalId: "req_1", approved: true }, inputRequest),
+    ).toThrow(/confirmation but carries no "approve" option/);
+
+    expect(() =>
+      toEveInputResponse(
+        { approvalId: "req_1", approved: false, reason: "not now" },
+        inputRequest,
+      ),
+    ).toThrow(/confirmation but carries no "deny" option/);
+
+    expect(() =>
+      toEveInputResponse(
+        { approvalId: "req_1", approved: true, reason: "go ahead" },
+        inputRequest,
+      ),
+    ).toThrow(/confirmation but carries no "approve" option/);
+  });
+
+  it("answers a confirmation that allows freeform with its own option", () => {
+    expect(
+      toEveInputResponse(
+        { approvalId: "req_1", approved: true, reason: "go ahead" },
+        {
+          requestId: "req_1",
+          prompt: "Send the email?",
+          display: "confirmation",
+          allowFreeform: true,
+          options: [
+            { id: "approve", label: "Send" },
+            { id: "deny", label: "Cancel" },
+          ],
+        },
+      ),
+    ).toEqual({ requestId: "req_1", optionId: "approve", text: "go ahead" });
   });
 
   it("falls back to free-form text for a select request that allows it", () => {

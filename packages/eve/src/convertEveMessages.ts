@@ -471,11 +471,13 @@ export const findEveInputRequest = (
  * Converts an assistant-ui tool approval response into an Eve input response.
  *
  * Pass the originating input request (see {@link findEveInputRequest}) so the
- * mapping never emits an option id the request does not carry: a literal
- * option match always wins, then free-form requests (`display: "text"`,
- * `allowFreeform`, or no options at all) are answered with the response's
- * `reason` text, and a response that cannot be mapped honestly throws instead
- * of fabricating an `"approve"` / `"deny"` decision.
+ * mapping never emits an option id the request does not carry. A literal
+ * option match always wins; a `display: "confirmation"` request is only ever
+ * answered with one of its own `"approve"` / `"deny"` options; free-form
+ * requests (`display: "text"`, `allowFreeform`, or no options at all) are
+ * answered with the response's `reason` text, and only when the response is
+ * not a refusal. A response that cannot be mapped honestly throws instead of
+ * fabricating a decision or downgrading a refusal to an answer.
  */
 export const toEveInputResponse = (
   response: RespondToToolApprovalOptions,
@@ -509,9 +511,18 @@ export const toEveInputResponse = (
     return { requestId, optionId: fallbackOptionId, ...(text && { text }) };
   }
 
+  // Eve recognises an approval by its literal two-option `approve`/`deny`
+  // shape, so a confirmation without those options can carry no decision and
+  // must never be downgraded to a free-form answer.
+  if (inputRequest.display === "confirmation") {
+    throw new Error(
+      `Eve input request "${requestId}" is a confirmation but carries no "${fallbackOptionId}" option; eve only recognises a confirmation with literal "approve" and "deny" options`,
+    );
+  }
+
   if (response.approved === false) {
     throw new Error(
-      `Eve input request "${requestId}" has no literal "deny" option for this response`,
+      `Eve input request "${requestId}" has no literal "deny" option for this response; a request eve does not model as an approval can only be answered or left unanswered`,
     );
   }
 
@@ -519,11 +530,10 @@ export const toEveInputResponse = (
     inputRequest.display === "text" ||
     inputRequest.allowFreeform === true ||
     !options?.length;
-  if (acceptsText && text) {
-    return { requestId, text };
-  }
-
   if (acceptsText) {
+    if (text) {
+      return { requestId, text };
+    }
     throw new Error(
       `Eve input request "${requestId}" expects a free-form text answer; respond with the answer as the reason`,
     );
