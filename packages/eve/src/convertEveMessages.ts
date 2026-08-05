@@ -509,6 +509,12 @@ export const toEveInputResponse = (
     return { requestId, optionId: fallbackOptionId, ...(text && { text }) };
   }
 
+  if (response.approved === false) {
+    throw new Error(
+      `Eve input request "${requestId}" has no literal "deny" option for this response`,
+    );
+  }
+
   const acceptsText =
     inputRequest.display === "text" ||
     inputRequest.allowFreeform === true ||

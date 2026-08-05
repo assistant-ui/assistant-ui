@@ -1222,10 +1222,14 @@ describe("toEveInputResponse", () => {
 
     expect(() =>
       toEveInputResponse(
-        { approvalId: "req_1", approved: false },
+        {
+          approvalId: "req_1",
+          approved: false,
+          reason: "not this one",
+        },
         { requestId: "req_1", prompt: "When should this ship?" },
       ),
-    ).toThrow(/free-form text answer/);
+    ).toThrow(/no literal "deny" option/);
   });
 
   it("falls back to free-form text for a select request that allows it", () => {
