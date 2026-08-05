@@ -196,7 +196,7 @@ export type AssistantState = ScopeStates & {
  *
  * An unavailable scope's accessor has `source: null` and throws when any
  * other property is read or the accessor is called. The accessor itself is
- * always truthy — check availability via `aui.thread.source != null`.
+ * always truthy — check availability via `aui.optional.thread`.
  */
 export type AssistantClientAccessor<K extends ClientNames> =
   ClientSchemas[K]["methods"] & {
@@ -210,10 +210,17 @@ export type AssistantClientAccessor<K extends ClientNames> =
 
 /**
  * The assistant client type with all registered clients.
+ *
+ * `optional` exposes the same scopes, but an unavailable scope resolves to
+ * `undefined` instead of a throwing accessor:
+ * `aui.optional.thread?.cancelRun()`.
  */
 export type AssistantClient = {
   [K in ClientNames]: AssistantClientAccessor<K>;
 } & {
+  readonly optional: {
+    readonly [K in ClientNames]: AssistantClientAccessor<K> | undefined;
+  };
   subscribe(listener: () => void): Unsubscribe;
   on<TEvent extends AssistantEventName>(
     selector: AssistantEventSelector<TEvent>,

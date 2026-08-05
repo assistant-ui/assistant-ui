@@ -17,6 +17,9 @@ type AncestorsOf<K extends ClientNames, Seen extends ClientNames = never> = K ex
 type AssistantClient = {
   [K in ClientNames]: AssistantClientAccessor<K>;
 } & {
+  readonly optional: {
+    readonly [K in ClientNames]: AssistantClientAccessor<K> | undefined;
+  };
   subscribe(listener: () => void): Unsubscribe;
   on<TEvent extends AssistantEventName>(selector: AssistantEventSelector<TEvent>, callback: AssistantEventCallback<TEvent>): Unsubscribe;
 };

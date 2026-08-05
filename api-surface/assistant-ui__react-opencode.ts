@@ -35,6 +35,9 @@ type AsNumber<K> = K extends `${infer N extends number}` ? N | K : never;
 type AssistantClient = {
   [K in ClientNames]: AssistantClientAccessor<K>;
 } & {
+  readonly optional: {
+    readonly [K in ClientNames]: AssistantClientAccessor<K> | undefined;
+  };
   subscribe(listener: () => void): Unsubscribe$1;
   on<TEvent extends AssistantEventName>(selector: AssistantEventSelector<TEvent>, callback: AssistantEventCallback<TEvent>): Unsubscribe$1;
 };

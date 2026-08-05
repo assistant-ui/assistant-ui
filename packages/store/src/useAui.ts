@@ -48,6 +48,7 @@ import { useAssistantTapContextProvider } from "./utils/tap-assistant-context";
 import { ClientResource } from "./useClientResource";
 import { useShallowStable } from "./utils/useShallowStable";
 import { createClientAccessor, getClientId } from "./utils/client-accessor";
+import { createOptionalClientView } from "./utils/optional-client-view";
 import { getClientIndex } from "./utils/tap-client-stack-context";
 
 const isDevelopment =
@@ -114,6 +115,12 @@ const createClientObject = (
 
   const client = Object.create(proto) as AssistantClient;
   Object.assign(client, fields);
+  let optional: AssistantClient["optional"] | undefined;
+  Object.defineProperty(client, "optional", {
+    get: () => (optional ??= createOptionalClientView(client)),
+    enumerable: false,
+    configurable: true,
+  });
   return client;
 };
 
