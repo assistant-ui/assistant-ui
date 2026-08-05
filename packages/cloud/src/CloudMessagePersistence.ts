@@ -13,13 +13,24 @@ import type { AssistantCloud } from "./AssistantCloud";
  * to get its remote ID before creating B.
  */
 export class CloudMessagePersistence {
-  private idMapping: Record<string, string | Promise<string>> = {};
+  private idMapping = new Map<string, Map<string, string | Promise<string>>>();
   private getCloud: () => AssistantCloud;
 
   constructor(cloud: AssistantCloud);
   constructor(getCloud: () => AssistantCloud);
   constructor(cloud: AssistantCloud | (() => AssistantCloud)) {
     this.getCloud = typeof cloud === "function" ? cloud : () => cloud;
+  }
+
+  private getThreadMapping(
+    threadId: string,
+  ): Map<string, string | Promise<string>> {
+    let mapping = this.idMapping.get(threadId);
+    if (!mapping) {
+      mapping = new Map();
+      this.idMapping.set(threadId, mapping);
+    }
+    return mapping;
   }
 
   /**
@@ -39,9 +50,10 @@ export class CloudMessagePersistence {
     content: ReadonlyJSONObject,
   ): Promise<void> {
     const cloud = this.getCloud();
+    const mapping = this.getThreadMapping(threadId);
     // Resolve parent's remote ID if it exists (may be a promise if concurrent)
     const resolvedParentId = parentId
-      ? ((await this.idMapping[parentId]) ?? parentId)
+      ? ((await mapping.get(parentId)) ?? parentId)
       : null;
 
     const task = cloud.threads.messages
@@ -51,19 +63,22 @@ export class CloudMessagePersistence {
         content,
       })
       .then(({ message_id }) => {
-        this.idMapping[messageId] = message_id;
+        mapping.set(messageId, message_id);
         return message_id;
       })
       .catch((err) => {
         // Only delete if we're still the active task (avoids clobbering a retry)
-        if (this.idMapping[messageId] === task) {
-          delete this.idMapping[messageId];
+        if (mapping.get(messageId) === task) {
+          mapping.delete(messageId);
+          if (mapping.size === 0) {
+            this.idMapping.delete(threadId);
+          }
         }
         throw err;
       });
 
     // Store the promise immediately so concurrent appends can await it
-    this.idMapping[messageId] = task;
+    mapping.set(messageId, task);
     return task.then(() => {});
   }
 
@@ -77,7 +92,7 @@ export class CloudMessagePersistence {
     content: ReadonlyJSONObject,
   ): Promise<void> {
     const cloud = this.getCloud();
-    const remoteId = await this.getRemoteId(messageId);
+    const remoteId = await this.getRemoteId(threadId, messageId);
     if (!remoteId) {
       console.warn(
         `Skipping update for message ${messageId}: no remote id is mapped.`,
@@ -89,17 +104,45 @@ export class CloudMessagePersistence {
 
   /**
    * Check if a message has been persisted (or is currently being persisted).
+   * Pass a thread ID to disambiguate local IDs reused across threads.
    */
-  isPersisted(messageId: string): boolean {
-    return messageId in this.idMapping;
+  isPersisted(messageId: string): boolean;
+  isPersisted(threadId: string, messageId: string): boolean;
+  isPersisted(threadIdOrMessageId: string, messageId?: string): boolean {
+    if (messageId !== undefined) {
+      return this.idMapping.get(threadIdOrMessageId)?.has(messageId) ?? false;
+    }
+
+    for (const mapping of this.idMapping.values()) {
+      if (mapping.has(threadIdOrMessageId)) return true;
+    }
+    return false;
   }
 
   /**
    * Get the remote ID for a local message ID (resolved).
+   * Pass a thread ID to disambiguate local IDs reused across threads.
    * Returns undefined if not persisted.
    */
-  async getRemoteId(messageId: string): Promise<string | undefined> {
-    const entry = this.idMapping[messageId];
+  async getRemoteId(messageId: string): Promise<string | undefined>;
+  async getRemoteId(
+    threadId: string,
+    messageId: string,
+  ): Promise<string | undefined>;
+  async getRemoteId(
+    threadIdOrMessageId: string,
+    messageId?: string,
+  ): Promise<string | undefined> {
+    let entry: string | Promise<string> | undefined;
+    if (messageId !== undefined) {
+      entry = this.idMapping.get(threadIdOrMessageId)?.get(messageId);
+    } else {
+      for (const mapping of this.idMapping.values()) {
+        entry = mapping.get(threadIdOrMessageId);
+        if (entry) break;
+      }
+    }
+
     if (!entry) return undefined;
     return entry;
   }
@@ -121,16 +164,21 @@ export class CloudMessagePersistence {
       format ? { format } : undefined,
     );
     // Populate ID mapping so isPersisted() recognizes loaded messages
+    const mapping = this.getThreadMapping(threadId);
     for (const m of messages) {
-      this.idMapping[m.id] = m.id;
+      mapping.set(m.id, m.id);
     }
     return messages;
   }
 
   /**
-   * Reset the ID mapping (call when switching threads).
+   * Reset one thread's ID mapping, or all mappings when no thread is provided.
    */
-  reset() {
-    this.idMapping = {};
+  reset(threadId?: string) {
+    if (threadId !== undefined) {
+      this.idMapping.delete(threadId);
+    } else {
+      this.idMapping.clear();
+    }
   }
 }

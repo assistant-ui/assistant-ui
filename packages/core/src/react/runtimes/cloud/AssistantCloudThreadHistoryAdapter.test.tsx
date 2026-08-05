@@ -1,15 +1,17 @@
 // @vitest-environment jsdom
 
 import { renderHook } from "@testing-library/react";
-import type { AssistantCloud } from "assistant-cloud";
+import { CloudMessagePersistence, type AssistantCloud } from "assistant-cloud";
 import { describe, expect, it, vi } from "vitest";
 import { useAssistantCloudThreadHistoryAdapter } from "./AssistantCloudThreadHistoryAdapter";
+import { ExportedMessageRepository } from "../../../runtime/utils/message-repository";
 
 const mocks = vi.hoisted(() => {
   const makeClient = (remoteId: string) =>
     ({
       threadListItem: {
         getState: () => ({ remoteId }),
+        initialize: vi.fn().mockResolvedValue({ remoteId }),
       },
     }) as unknown as import("@assistant-ui/store").AssistantClient;
 
@@ -26,9 +28,12 @@ vi.mock("@assistant-ui/store", async (importOriginal) => ({
 
 const makeCloud = () =>
   ({
+    telemetry: { enabled: false },
     threads: {
       messages: {
+        create: vi.fn().mockResolvedValue({ message_id: "remote-message-1" }),
         list: vi.fn().mockResolvedValue({ messages: [] }),
+        update: vi.fn().mockResolvedValue(undefined),
       },
     },
   }) as unknown as AssistantCloud;
@@ -90,5 +95,30 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
     expect(cloud.threads.messages.list).toHaveBeenCalledWith("thread-2", {
       format: "aui/v0",
     });
+  });
+
+  it("checks persisted messages within the current remote thread", async () => {
+    mocks.aui = mocks.makeClient("thread-1");
+    const cloud = makeCloud();
+    const cloudRef = { current: cloud };
+    const isPersisted = vi.spyOn(
+      CloudMessagePersistence.prototype,
+      "isPersisted",
+    );
+    const { result } = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter(cloudRef),
+    );
+    const [item] = ExportedMessageRepository.fromArray([
+      {
+        id: "local-message-1",
+        role: "user",
+        content: [{ type: "text", text: "hello" }],
+      },
+    ]).messages;
+
+    await result.current.append(item!);
+    await result.current.update(item!);
+
+    expect(isPersisted).toHaveBeenCalledWith("thread-1", "local-message-1");
   });
 });

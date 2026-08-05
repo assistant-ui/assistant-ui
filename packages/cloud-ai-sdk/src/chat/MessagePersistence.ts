@@ -79,7 +79,7 @@ export class MessagePersistence {
 
     const appendTasks = messages.map((msg, idx) => {
       if (roles && !roles.includes(msg.role)) return null;
-      if (formatted.isPersisted(msg.id)) return null;
+      if (formatted.isPersisted(threadId, msg.id)) return null;
 
       const parentId = idx > 0 ? messages[idx - 1]!.id : null;
 

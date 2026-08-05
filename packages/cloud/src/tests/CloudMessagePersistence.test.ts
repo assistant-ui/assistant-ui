@@ -148,6 +148,39 @@ describe("CloudMessagePersistence", () => {
     );
   });
 
+  it("keeps mappings for duplicate local message IDs scoped to their thread", async () => {
+    vi.mocked(cloud.threads.messages.create)
+      .mockResolvedValueOnce({ message_id: "remote-a" })
+      .mockResolvedValueOnce({ message_id: "remote-b" });
+    vi.mocked(cloud.threads.messages.update).mockResolvedValue(undefined);
+
+    await persistence.append("thread-a", "local-1", null, "aui/v0", {
+      text: "thread a",
+    });
+    await persistence.append("thread-b", "local-1", null, "aui/v0", {
+      text: "thread b",
+    });
+
+    expect(persistence.isPersisted("thread-a", "local-1")).toBe(true);
+    expect(persistence.isPersisted("thread-b", "local-1")).toBe(true);
+    expect(await persistence.getRemoteId("thread-a", "local-1")).toBe(
+      "remote-a",
+    );
+    expect(await persistence.getRemoteId("thread-b", "local-1")).toBe(
+      "remote-b",
+    );
+
+    await persistence.update("thread-a", "local-1", "aui/v0", {
+      text: "updated",
+    });
+
+    expect(cloud.threads.messages.update).toHaveBeenCalledWith(
+      "thread-a",
+      "remote-a",
+      { content: { text: "updated" } },
+    );
+  });
+
   it("warns and skips update when no remote id is mapped", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
 
