@@ -1,6 +1,6 @@
 import { StandardSchemaV1 } from "@standard-schema/spec";
 
-import { SendTurnPayload } from "eve/client";
+import { InputResponse, SendTurnPayload } from "eve/client";
 
 import { EveMessage, EveMessageData, UseEveAgentOptions } from "eve/react";
 
@@ -1484,8 +1484,10 @@ declare global {
 }
 
 declare namespace entry_root_exports {
-  export { ConvertEveMessagesOptions, UseEveAgentRuntimeOptions, convertEveMessage, convertEveMessages, getEveMessageContent, useEveAgentRuntime };
+  export { ConvertEveMessagesOptions, UseEveAgentRuntimeOptions, convertEveMessage, convertEveMessages, getEveMessageContent, toEveInputResponse, useEveAgentRuntime };
 }
+
+declare const toEveInputResponse: (response: RespondToToolApprovalOptions) => InputResponse;
 
 declare const useEveAgentRuntime: (options?: UseEveAgentRuntimeOptions) => AssistantRuntime;
 
