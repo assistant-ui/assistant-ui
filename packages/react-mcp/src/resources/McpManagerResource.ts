@@ -35,7 +35,12 @@ export type McpManagerResourceProps = {
   autoConnect?: boolean | undefined;
   /** Optional timeout in milliseconds for connect/listTools calls. Disabled by default. */
   connectionTimeout?: number | undefined;
-  /** Changes when the custom storage account, tenant, or workspace changes. */
+  /**
+   * Identifies the custom storage account, tenant, or workspace. Required when
+   * a `McpCustomStorage` implementation can switch scopes; without it, the
+   * manager cannot distinguish them. `McpLocalStorage` derives this identity
+   * from `keyPrefix`.
+   */
   storageScopeKey?: string | number | undefined;
 };
 
