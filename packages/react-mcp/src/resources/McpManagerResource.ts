@@ -184,9 +184,6 @@ const useMcpManagerResource = (
       targetScope: StorageScope,
       targetStorage: MCPStorage,
       queueRegistry: StoragePersistenceQueueRegistry,
-      targetStorageHook: MCPStorageElement["hook"],
-      targetStorageElementKey: MCPStorageElement["key"],
-      targetStorageScopeKey: McpManagerResourceProps["storageScopeKey"],
     ) => {
       const finishHydration = (records?: MCPCustomServerRecord[]) => {
         if (signal.cancelled) return;
@@ -209,9 +206,9 @@ const useMcpManagerResource = (
       };
 
       const pendingPersistence = queueRegistry
-        .get(targetStorageHook)
-        ?.get(targetStorageElementKey)
-        ?.get(targetStorageScopeKey);
+        .get(targetScope.hook)
+        ?.get(targetScope.key)
+        ?.get(targetScope.storageScopeKey);
       if (pendingPersistence) await pendingPersistence;
       if (signal.cancelled) return;
 
@@ -263,9 +260,6 @@ const useMcpManagerResource = (
       storageScope,
       storageRef.current,
       persistenceQueuesRef.current,
-      storageScope.hook,
-      storageScope.key,
-      storageScope.storageScopeKey,
     );
     return () => {
       signal.cancelled = true;
