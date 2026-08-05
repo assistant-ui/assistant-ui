@@ -46,6 +46,28 @@ const FALLBACK_USER_STATUS = {
   reason: "unknown",
 } as const;
 
+type A2ARuntimeCallbackName = "onError" | "onCancel" | "onArtifactComplete";
+
+const reportCallbackError = (name: A2ARuntimeCallbackName, error: unknown) => {
+  console.error(`[react-a2a] ${name} callback threw an error`, error);
+};
+
+const invokeRuntimeCallback = <TArgs extends unknown[]>(
+  name: A2ARuntimeCallbackName,
+  callback: ((...args: TArgs) => void) | undefined,
+  ...args: TArgs
+) => {
+  if (!callback) return;
+
+  try {
+    void Promise.resolve(callback(...args)).catch((error) => {
+      reportCallbackError(name, error);
+    });
+  } catch (error) {
+    reportCallbackError(name, error);
+  }
+};
+
 export class A2AThreadRuntimeCore {
   private client: A2AClient;
   private contextId: string | undefined;
@@ -216,7 +238,9 @@ export class A2AThreadRuntimeCore {
         }
       })
       .catch((error) => {
-        this.onError?.(
+        invokeRuntimeCallback(
+          "onError",
+          this.onError,
           error instanceof Error ? error : new Error(String(error)),
         );
       })
@@ -444,7 +468,7 @@ export class A2AThreadRuntimeCore {
           reason: "cancelled",
         });
         this.finishRun(abortController);
-        this.onCancel?.();
+        invokeRuntimeCallback("onCancel", this.onCancel);
       },
       { once: true },
     );
@@ -468,7 +492,7 @@ export class A2AThreadRuntimeCore {
           type: "incomplete",
           reason: "error",
         });
-        this.onError?.(err);
+        invokeRuntimeCallback("onError", this.onError, err);
         this.pendingError = this.pendingError ?? err;
       }
     } finally {
@@ -615,7 +639,11 @@ export class A2AThreadRuntimeCore {
     }
 
     if (lastChunk) {
-      this.onArtifactComplete?.(updated);
+      invokeRuntimeCallback(
+        "onArtifactComplete",
+        this.onArtifactComplete,
+        updated,
+      );
     }
 
     this.notifyUpdate();
