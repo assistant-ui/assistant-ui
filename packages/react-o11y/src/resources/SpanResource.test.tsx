@@ -22,7 +22,11 @@ const SpanFixture = ({ spans }: { spans: SpanData[] }) => {
     <AuiProvider value={aui}>
       <SpanPrimitive.Children>
         {({ span }) => (
-          <span data-span-id={span.id} data-span-depth={span.depth} />
+          <span
+            data-span-id={span.id}
+            data-parent-span-id={span.parentSpanId ?? "root"}
+            data-span-depth={span.depth}
+          />
         )}
       </SpanPrimitive.Children>
     </AuiProvider>
@@ -39,8 +43,12 @@ describe("SpanResource", () => {
       createSpan("child", "root"),
     ]);
 
-    expect(html).toContain('data-span-id="root" data-span-depth="0"');
-    expect(html).toContain('data-span-id="child" data-span-depth="1"');
+    expect(html).toContain(
+      'data-span-id="root" data-parent-span-id="root" data-span-depth="0"',
+    );
+    expect(html).toContain(
+      'data-span-id="child" data-parent-span-id="root" data-span-depth="1"',
+    );
   });
 
   it("renders cyclic parent hierarchies without recursing indefinitely", () => {
@@ -50,8 +58,35 @@ describe("SpanResource", () => {
     ]);
 
     expect(html.match(/data-span-id=/g)).toHaveLength(2);
-    expect(html).toContain('data-span-id="first" data-span-depth="0"');
-    expect(html).toContain('data-span-id="second" data-span-depth="1"');
+    expect(html).toContain(
+      'data-span-id="first" data-parent-span-id="root" data-span-depth="0"',
+    );
+    expect(html).toContain(
+      'data-span-id="second" data-parent-span-id="first" data-span-depth="1"',
+    );
+  });
+
+  it("renders every span when a parent chain enters a longer cycle", () => {
+    const html = renderSpans([
+      createSpan("branch", "first"),
+      createSpan("first", "second"),
+      createSpan("second", "third"),
+      createSpan("third", "first"),
+    ]);
+
+    expect(html.match(/data-span-id=/g)).toHaveLength(4);
+    expect(html).toContain(
+      'data-span-id="first" data-parent-span-id="root" data-span-depth="0"',
+    );
+    expect(html).toContain(
+      'data-span-id="third" data-parent-span-id="first" data-span-depth="1"',
+    );
+    expect(html).toContain(
+      'data-span-id="second" data-parent-span-id="third" data-span-depth="2"',
+    );
+    expect(html).toContain(
+      'data-span-id="branch" data-parent-span-id="first" data-span-depth="1"',
+    );
   });
 
   it("renders self-parented and orphaned spans as roots", () => {
@@ -61,7 +96,11 @@ describe("SpanResource", () => {
     ]);
 
     expect(html.match(/data-span-id=/g)).toHaveLength(2);
-    expect(html).toContain('data-span-id="self" data-span-depth="0"');
-    expect(html).toContain('data-span-id="orphan" data-span-depth="0"');
+    expect(html).toContain(
+      'data-span-id="self" data-parent-span-id="root" data-span-depth="0"',
+    );
+    expect(html).toContain(
+      'data-span-id="orphan" data-parent-span-id="root" data-span-depth="0"',
+    );
   });
 });

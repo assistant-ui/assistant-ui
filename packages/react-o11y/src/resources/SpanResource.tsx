@@ -115,7 +115,13 @@ function enrichSpans(rawSpans: SpanData[]): {
   for (const span of rawSpans) {
     const depth = calculateDepth(span.id, parents, depthCache);
     const hasChildren = (childrenCount.get(span.id) ?? 0) > 0;
-    allSpans.set(span.id, { ...span, depth, hasChildren, isCollapsed: false });
+    allSpans.set(span.id, {
+      ...span,
+      parentSpanId: parents.get(span.id) ?? null,
+      depth,
+      hasChildren,
+      isCollapsed: false,
+    });
 
     if (span.startedAt < min) min = span.startedAt;
     const end = span.endedAt ?? Date.now();
