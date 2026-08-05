@@ -1,6 +1,5 @@
 ---
 "assistant-cloud": patch
-"@assistant-ui/cloud-ai-sdk": patch
 "@assistant-ui/core": patch
 ---
 
