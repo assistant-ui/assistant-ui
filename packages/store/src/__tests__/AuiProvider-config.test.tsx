@@ -568,6 +568,47 @@ describe("AuiProvider config", () => {
     expect(aui.thread.getState()).toEqual({ count: 1 });
   });
 
+  it("keeps controlled inputs in sync within the dispatching event", () => {
+    const Input: FC = () => {
+      const aui = useAui() as AnyClient;
+      const count = useAuiState((s: AnyClient) => s.counter.count);
+      return (
+        <input
+          value={String(count)}
+          onChange={(e) =>
+            flushTapSync(() => aui.counter.setCount(Number(e.target.value)))
+          }
+        />
+      );
+    };
+    const { container } = render(
+      <AuiProvider config={AuiConfig({ counter: Counter() })}>
+        <Input />
+      </AuiProvider>,
+    );
+    const input = container.querySelector("input")!;
+    expect(input.value).toBe("0");
+
+    // React restores controlled inputs to the rendered value at the end of
+    // each discrete event; a store write not visible in that flush would
+    // revert the keystroke, so dispatch a real event outside act to verify
+    const g = globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean | undefined };
+    const prevActEnv = g.IS_REACT_ACT_ENVIRONMENT;
+    g.IS_REACT_ACT_ENVIRONMENT = false;
+    try {
+      Object.getOwnPropertyDescriptor(
+        HTMLInputElement.prototype,
+        "value",
+      )!.set!.call(input, "5");
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      expect(input.value).toBe("5");
+    } finally {
+      g.IS_REACT_ACT_ENVIRONMENT = prevActEnv;
+    }
+    act(() => {});
+    expect(input.value).toBe("5");
+  });
+
   it("AuiConfig returns its input for hoisting", () => {
     const input = { thread: Thread({ ids: ["a"] }) } satisfies AuiConfig.Input;
     expect(AuiConfig(input)).toBe(input);

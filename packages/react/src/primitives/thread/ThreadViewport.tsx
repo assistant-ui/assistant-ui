@@ -10,7 +10,7 @@ import {
   useLayoutEffect,
   useMemo,
 } from "react";
-import { useAui, useAuiEvent, useAuiState } from "@assistant-ui/store";
+import { useAuiState } from "@assistant-ui/store";
 import { useManagedRef } from "../../utils/hooks/useManagedRef";
 import { useThreadViewportAutoScroll } from "./useThreadViewportAutoScroll";
 import { ThreadPrimitiveViewportProvider } from "../../context/providers/ThreadViewportProvider";
@@ -144,22 +144,6 @@ const useTopAnchorTurn = (enabled: boolean) => {
 
     state.setTopAnchorTurn(activeTurn);
   }, [activeTurn, threadViewportStore]);
-
-  const aui = useAui();
-  // Events are delivered deferred, so a replayed initialize can land after a
-  // new run already recorded its turn; only clear turns that went stale
-  const clearStaleTopAnchorTurn = useCallback(() => {
-    const state = threadViewportStore.getState();
-    if (
-      isTopAnchorTurnValid(state.topAnchorTurn, aui.thread.getState().messages)
-    ) {
-      return;
-    }
-    state.setTopAnchorTurn(null);
-  }, [aui, threadViewportStore]);
-
-  useAuiEvent("thread.initialize", clearStaleTopAnchorTurn);
-  useAuiEvent("threadListItem.switchedTo", clearStaleTopAnchorTurn);
 };
 
 const ThreadPrimitiveViewportScrollable = forwardRef<
