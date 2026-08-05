@@ -1920,6 +1920,12 @@ describe("AGUIThreadRuntimeCore", () => {
             resolveFirstLoad = resolve;
           }),
       ),
+      resume: vi.fn(async function* () {
+        yield {
+          content: [{ type: "text", text: "stale resume" }],
+          status: { type: "complete", reason: "unknown" },
+        };
+      }),
       append: vi.fn().mockResolvedValue(undefined),
     };
     const secondHistory: ThreadHistoryAdapter = {
@@ -1938,20 +1944,47 @@ describe("AGUIThreadRuntimeCore", () => {
 
     core.applyExternalMessages([
       {
-        id: "message-a",
+        id: "current-message",
         role: "user",
-        content: [{ type: "text", text: "workspace a" }],
+        content: [{ type: "text", text: "current workspace" }],
         createdAt: new Date(),
         metadata: { custom: {} },
       },
     ]);
-    core.loadExternalState({ workspace: "a" });
+    core.loadExternalState({ workspace: "current" });
     core.updateOptions({
       agent,
       logger: noopLogger,
       showThinking: true,
       history: secondHistory,
     });
+
+    resolveFirstLoad({
+      headId: "stale-message-a",
+      messages: [
+        {
+          parentId: null,
+          message: {
+            id: "stale-message-a",
+            role: "user",
+            content: [{ type: "text", text: "stale workspace a" }],
+            createdAt: new Date(),
+            metadata: { custom: {} },
+          },
+        },
+      ],
+      state: { workspace: "stale-a" },
+      unstable_resume: true,
+    });
+    await firstRequest;
+
+    expect(core.getMessages().map((message) => message.id)).toEqual([
+      "current-message",
+    ]);
+    expect(core.getState()).toEqual({ workspace: "current" });
+    expect(firstHistory.resume).not.toHaveBeenCalled();
+    expect(core.isLoading).toBe(true);
+
     const secondRequest = core.__internal_load();
     await vi.waitFor(() => expect(secondHistory.load).toHaveBeenCalledOnce());
 
@@ -1976,24 +2009,6 @@ describe("AGUIThreadRuntimeCore", () => {
       state: { workspace: "b" },
     });
     await secondRequest;
-
-    resolveFirstLoad({
-      headId: "message-a",
-      messages: [
-        {
-          parentId: null,
-          message: {
-            id: "message-a",
-            role: "user",
-            content: [{ type: "text", text: "workspace a" }],
-            createdAt: new Date(),
-            metadata: { custom: {} },
-          },
-        },
-      ],
-      state: { workspace: "a" },
-    });
-    await firstRequest;
 
     expect(core.getMessages().map((message) => message.id)).toEqual([
       "message-b",

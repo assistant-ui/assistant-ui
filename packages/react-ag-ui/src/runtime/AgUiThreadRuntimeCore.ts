@@ -295,6 +295,10 @@ export class AgUiThreadRuntimeCore {
       key,
       promise: Promise.resolve(),
     };
+    const historyScopeGeneration = this.historyScopeGeneration;
+    const isCurrentRequest = () =>
+      this._loadRequest === request &&
+      historyScopeGeneration === this.historyScopeGeneration;
     this._loadRequest = request;
     this.lastHistoryAdapterKey = key;
 
@@ -304,7 +308,7 @@ export class AgUiThreadRuntimeCore {
     request.promise = Promise.resolve()
       .then(() => history?.load() ?? null)
       .then(async (repo) => {
-        if (this._loadRequest !== request || !repo) return;
+        if (!isCurrentRequest() || !repo) return;
 
         this.applyExternalMessageRepository(repo);
 
@@ -324,14 +328,14 @@ export class AgUiThreadRuntimeCore {
         }
       })
       .catch((error) => {
-        if (this._loadRequest !== request) return;
+        if (!isCurrentRequest()) return;
         this.logger.error?.("[agui] failed to load history", error);
         this.onError?.(
           error instanceof Error ? error : new Error(String(error)),
         );
       })
       .finally(() => {
-        if (this._loadRequest !== request) return;
+        if (!isCurrentRequest()) return;
         this._isLoading = false;
         this.notifyUpdate();
       });
