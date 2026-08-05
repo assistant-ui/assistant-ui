@@ -109,6 +109,7 @@ export const StreamdownTextPrimitive = forwardRef<
       parseIncompleteMarkdown,
       allowedTags,
       remarkRehypeOptions,
+      rehypePlugins: userRehypePlugins,
       security,
       BlockComponent,
       parseMarkdownIntoBlocksFn,
@@ -183,10 +184,13 @@ export const StreamdownTextPrimitive = forwardRef<
       return classes || undefined;
     }, [containerClassName, containerProps?.className]);
 
-    const rehypePlugins = useMemo(
-      () => (security ? buildSecurityRehypePlugins(security) : undefined),
-      [security],
-    );
+    const rehypePlugins = useMemo(() => {
+      if (!security) return userRehypePlugins;
+      return [
+        ...buildSecurityRehypePlugins(security),
+        ...(userRehypePlugins ?? []),
+      ];
+    }, [security, userRehypePlugins]);
 
     const optionalProps = {
       ...(className && { className }),

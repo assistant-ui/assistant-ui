@@ -4,6 +4,7 @@ import { TextMessagePartProvider } from "@assistant-ui/react";
 import { StreamdownTextPrimitive } from "../primitives/StreamdownText";
 import type {
   StreamdownTextComponents,
+  StreamdownProps,
   SyntaxHighlighterProps,
   CodeHeaderProps,
 } from "../types";
@@ -111,6 +112,94 @@ describe("StreamdownTextPrimitive", () => {
     expect(
       container.querySelector("[data-status]")?.getAttribute("data-status"),
     ).toBe("complete");
+  });
+
+  describe("security and user rehypePlugins", () => {
+    type HastNode = {
+      tagName?: string;
+      properties?: Record<string, unknown>;
+      children?: HastNode[];
+    };
+
+    const stampAnchors = () => (tree: HastNode) => {
+      const walk = (node: HastNode) => {
+        if (node.tagName === "a") {
+          node.properties = { ...node.properties, dataUserPlugin: "true" };
+        }
+        node.children?.forEach(walk);
+      };
+      walk(tree);
+    };
+    const userRehypePlugins = [stampAnchors] as unknown as NonNullable<
+      StreamdownProps["rehypePlugins"]
+    >;
+
+    const markdown =
+      "[good](https://trusted.example.com/page) and [evil](https://evil.example.com)";
+    const security = {
+      allowedLinkPrefixes: ["https://trusted.example.com"],
+      defaultOrigin: "https://trusted.example.com",
+      blockedLinkClass: "blocked-link",
+    };
+
+    it("applies both the hardening pipeline and user rehypePlugins", async () => {
+      const { container } = render(
+        <TextMessagePartProvider text={markdown} isRunning={false}>
+          <StreamdownTextPrimitive
+            security={security}
+            rehypePlugins={userRehypePlugins}
+            linkSafety={{ enabled: false }}
+          />
+        </TextMessagePartProvider>,
+      );
+
+      expect(await screen.findByText(/\[blocked\]/)).toBeTruthy();
+      expect(
+        container.querySelector('a[href^="https://evil.example.com"]'),
+      ).toBeNull();
+
+      const goodAnchor = container.querySelector(
+        'a[href="https://trusted.example.com/page"]',
+      );
+      expect(goodAnchor).not.toBeNull();
+      expect(goodAnchor!.getAttribute("data-user-plugin")).toBe("true");
+    });
+
+    it("hardens URLs when only security is set", async () => {
+      const { container } = render(
+        <TextMessagePartProvider text={markdown} isRunning={false}>
+          <StreamdownTextPrimitive
+            security={security}
+            linkSafety={{ enabled: false }}
+          />
+        </TextMessagePartProvider>,
+      );
+
+      expect(await screen.findByText(/\[blocked\]/)).toBeTruthy();
+      expect(
+        container.querySelector('a[href^="https://evil.example.com"]'),
+      ).toBeNull();
+      expect(
+        container.querySelector('a[href="https://trusted.example.com/page"]'),
+      ).not.toBeNull();
+    });
+
+    it("passes user rehypePlugins through when security is not set", async () => {
+      const { container } = render(
+        <TextMessagePartProvider text={markdown} isRunning={false}>
+          <StreamdownTextPrimitive
+            rehypePlugins={userRehypePlugins}
+            linkSafety={{ enabled: false }}
+          />
+        </TextMessagePartProvider>,
+      );
+
+      const evilAnchor = container.querySelector(
+        'a[href^="https://evil.example.com"]',
+      );
+      expect(evilAnchor).not.toBeNull();
+      expect(evilAnchor!.getAttribute("data-user-plugin")).toBe("true");
+    });
   });
 
   describe("code adapter with custom components", () => {

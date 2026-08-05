@@ -404,6 +404,8 @@ export type StreamdownTextPrimitiveProps = Omit<
   /**
    * Security configuration for URL/image validation.
    * Overrides streamdown's default (allow-all) policy via rehype-harden.
+   * When `rehypePlugins` is also provided, those plugins run after this
+   * hardening pipeline.
    *
    * @example
    * // Restrict links to trusted domains only
