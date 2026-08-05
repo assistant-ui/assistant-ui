@@ -29,6 +29,7 @@ import {
   getEveMessageContent,
   toEveInputResponse,
 } from "./convertEveMessages";
+import { eveExtras } from "./eveExtras";
 
 const USER_STAGED_STATUS = {
   type: "complete",
@@ -149,10 +150,22 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
     ]);
   };
 
+  const extras = useMemo(
+    () =>
+      eveExtras.provide({
+        error: agent.error,
+        events: agent.events,
+        session: agent.session,
+        reset: agent.reset,
+      }),
+    [agent.error, agent.events, agent.session, agent.reset],
+  );
+
   return useExternalStoreRuntime({
     ...pickExternalStoreSharedOptions(options),
     messages,
     isRunning,
+    extras,
     unstable_enableToolInvocations: true,
     setToolStatuses,
     adapters: {

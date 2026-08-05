@@ -14,6 +14,7 @@ vi.mock("eve/react", async (importOriginal) => ({
 
 import type { EveMessageData } from "eve/react";
 import { useEveAgentRuntime } from "./useEveAgentRuntime";
+import { eveExtras } from "./eveExtras";
 
 const stuckStreamingData: EveMessageData = {
   messages: [
@@ -99,6 +100,29 @@ describe("useEveAgentRuntime status forwarding", () => {
 
     expect(result.current.thread.getState().messages.at(-1)?.status).toEqual({
       type: "running",
+    });
+  });
+});
+
+describe("useEveAgentRuntime extras wiring", () => {
+  it("provides error, events, session, and reset through the runtime extras", () => {
+    const error = new Error("boom");
+    const events = [{ type: "session.started" }];
+    const session = { sessionId: "s1" };
+    const reset = vi.fn();
+    mockUseEveAgent.mockReturnValue(
+      createAgent({ status: "error", error, events, session, reset }) as never,
+    );
+
+    const { result } = renderHook(() => useEveAgentRuntime());
+
+    const extras = result.current.thread.getState().extras;
+    expect(eveExtras.is(extras)).toBe(true);
+    expect(eveExtras.tryGet(extras)).toMatchObject({
+      error,
+      events,
+      session,
+      reset,
     });
   });
 });

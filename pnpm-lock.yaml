@@ -3503,6 +3503,9 @@ importers:
       '@assistant-ui/core':
         specifier: ^0.3.4
         version: link:../core
+      '@assistant-ui/store':
+        specifier: ^0.3.3
+        version: link:../store
     devDependencies:
       '@assistant-ui/x-buildutils':
         specifier: workspace:*

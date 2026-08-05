@@ -2,7 +2,7 @@ import { StandardSchemaV1 } from "@standard-schema/spec";
 
 import { InputResponse, SendTurnPayload } from "eve/client";
 
-import { EveMessage, EveMessageData, UseEveAgentOptions } from "eve/react";
+import { EveMessage, EveMessageData, UseEveAgentHelpers, UseEveAgentOptions } from "eve/react";
 
 type AddToolResultOptions = {
   messageId: string;
@@ -316,6 +316,8 @@ type EditComposerState = BaseComposerState & {
   readonly parentId: string | null;
   readonly sourceId: string | null;
 };
+
+type EveRuntimeExtras = Pick<UseEveAgentHelpers<EveMessageData>, "error" | "events" | "reset" | "session">;
 
 type ExportedMessageRepository = {
   headId?: string | null;
@@ -1485,11 +1487,19 @@ declare global {
 }
 
 declare namespace entry_root_exports {
-  export { ConvertEveMessagesOptions, UseEveAgentRuntimeOptions, convertEveMessage, convertEveMessages, getEveMessageContent, toEveInputResponse, useEveAgentRuntime };
+  export { ConvertEveMessagesOptions, EveRuntimeExtras, UseEveAgentRuntimeOptions, convertEveMessage, convertEveMessages, getEveMessageContent, toEveInputResponse, useEveAgentRuntime, useEveError, useEveEvents, useEveReset, useEveSession };
 }
 
 declare const toEveInputResponse: (response: RespondToToolApprovalOptions) => InputResponse;
 
 declare const useEveAgentRuntime: (options?: UseEveAgentRuntimeOptions) => AssistantRuntime;
+
+declare const useEveError: () => Error | undefined;
+
+declare const useEveEvents: () => readonly import("eve/client").HandleMessageStreamEvent[];
+
+declare const useEveReset: () => () => void;
+
+declare const useEveSession: () => import("eve/client").SessionState | undefined;
 
 export { entry_root_exports as entry_root };
