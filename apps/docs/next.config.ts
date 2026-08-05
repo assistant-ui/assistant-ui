@@ -61,6 +61,12 @@ const config: NextConfig = {
   transpilePackages: ["@assistant-ui/ui", "shiki"],
   serverExternalPackages: ["just-bash"],
   skipTrailingSlashRedirect: true,
+  outputFileTracingIncludes: {
+    "/elements/[slug]": [
+      "./components/elements/*.tsx",
+      "../../packages/ui/src/components/elements/*.tsx",
+    ],
+  },
   headers: async () => [
     {
       source: "/(.*)",
@@ -80,6 +86,21 @@ const config: NextConfig = {
     {
       source: "/docs/runtimes/ai-sdk/v6",
       destination: "/docs/runtimes/ai-sdk/v6-legacy",
+      permanent: true,
+    },
+    {
+      source: "/gallery",
+      destination: "/elements",
+      permanent: true,
+    },
+    {
+      source: "/gallery/components",
+      destination: "/elements/vocabulary",
+      permanent: true,
+    },
+    {
+      source: "/gallery/:slug",
+      destination: "/elements/generative-:slug",
       permanent: true,
     },
   ],

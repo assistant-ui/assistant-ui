@@ -1,6 +1,9 @@
 import {
   fromThreadMessageLike,
+  toAssistantError,
   type AppendMessage,
+  type CompleteAttachment,
+  type FileMessagePart,
   type MessageStatus,
   type RespondToToolApprovalOptions,
   type ThreadAssistantMessagePart,
@@ -29,6 +32,11 @@ const ASSISTANT_RUNNING_STATUS = {
   type: "running",
 } satisfies MessageStatus;
 
+const ASSISTANT_CANCELLED_STATUS = {
+  type: "incomplete",
+  reason: "cancelled",
+} satisfies MessageStatus;
+
 const USER_FALLBACK_STATUS = {
   type: "complete",
   reason: "unknown",
@@ -37,9 +45,15 @@ const USER_FALLBACK_STATUS = {
 export type ConvertEveMessagesOptions = {
   /**
    * Marks the last assistant message as running while Eve is submitting or
-   * streaming.
+   * streaming. When omitted, a message carrying Eve's `"streaming"` marker is
+   * treated as running; pass `false` to settle interrupted messages to a
+   * terminal status.
    */
   readonly isRunning?: boolean | undefined;
+  /**
+   * The Eve session error, mapped onto the assistant message it interrupted.
+   */
+  readonly error?: unknown;
   readonly getCreatedAt?: ((message: EveMessage) => Date) | undefined;
 };
 
@@ -81,11 +95,26 @@ const toMessageStatus = (
     return { type: "incomplete", reason: "error" };
   }
 
-  if (
-    message.metadata?.status === "streaming" ||
-    (options.isRunning === true && index === messages.length - 1)
-  ) {
+  const isLast = index === messages.length - 1;
+  if (isLast && options.isRunning === true) {
     return ASSISTANT_RUNNING_STATUS;
+  }
+
+  // Eve's default reducer never terminalizes the "streaming" marker on
+  // cancellation or turn/session failure, so liveness comes from isRunning and
+  // a leftover marker means the turn was interrupted.
+  if (message.metadata?.status === "streaming") {
+    if (options.isRunning === undefined) {
+      return ASSISTANT_RUNNING_STATUS;
+    }
+    if (isLast && options.error !== undefined) {
+      return {
+        type: "incomplete",
+        reason: "error",
+        error: toAssistantError(options.error),
+      };
+    }
+    return ASSISTANT_CANCELLED_STATUS;
   }
 
   return ASSISTANT_COMPLETE_STATUS;
@@ -176,6 +205,19 @@ const convertDynamicToolPart = (
   }
 };
 
+const convertFilePart = (
+  part: Extract<EveMessagePart, { type: "file" }>,
+): FileMessagePart | null => {
+  if (part.url === undefined) return null;
+  return {
+    type: "file",
+    data: part.url,
+    mimeType: part.mediaType ?? "unknown/unknown",
+    ...(part.filename && { filename: part.filename }),
+    ...(httpUrlPattern.test(part.url) && { sourceType: "url" as const }),
+  };
+};
+
 const convertAssistantPart = (
   part: EveMessagePart,
 ): ThreadAssistantMessagePart | null => {
@@ -190,6 +232,9 @@ const convertAssistantPart = (
     case "dynamic-tool":
       return convertDynamicToolPart(part);
 
+    case "file":
+      return convertFilePart(part);
+
     default:
       return null;
   }
@@ -202,6 +247,9 @@ const convertUserPart = (
     case "text":
       return { type: "text", text: part.text };
 
+    case "file":
+      return convertFilePart(part);
+
     default:
       return null;
   }
@@ -212,6 +260,35 @@ const toUserContent = (
 ): readonly ThreadUserMessagePart[] => {
   const content = parts.map(convertUserPart).filter((part) => part !== null);
   return content.length > 0 ? content : [{ type: "text", text: "" }];
+};
+
+const toUserAttachments = (
+  parts: readonly EveMessagePart[],
+): CompleteAttachment[] => {
+  const attachments: CompleteAttachment[] = [];
+  for (const part of parts) {
+    if (part.type !== "file") continue;
+    const file = convertFilePart(part);
+    if (file === null) continue;
+    const isImage = file.mimeType.startsWith("image/");
+    attachments.push({
+      id: String(attachments.length),
+      type: isImage ? "image" : "file",
+      name: part.filename ?? "file",
+      content: [
+        isImage
+          ? {
+              type: "image",
+              image: file.data,
+              ...(part.filename && { filename: part.filename }),
+            }
+          : file,
+      ],
+      contentType: file.mimeType,
+      status: { type: "complete" },
+    });
+  }
+  return attachments;
 };
 
 /**
@@ -238,7 +315,7 @@ export const convertEveMessage = (
           id: message.id,
           createdAt,
           content: toUserContent(message.parts),
-          attachments: [],
+          attachments: toUserAttachments(message.parts),
           metadata,
         }
       : {

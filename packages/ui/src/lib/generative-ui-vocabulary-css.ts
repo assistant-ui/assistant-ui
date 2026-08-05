@@ -556,6 +556,8 @@ export const generativeUiVocabularyCss: CssRuleset = {
   '[data-aui="markdown"] ul, [data-aui="markdown"] ol': {
     "padding-left": "1.25rem",
   },
+  '[data-aui="markdown"] ol': { "list-style-type": "decimal" },
+  '[data-aui="markdown"] ul': { "list-style-type": "disc" },
   '[data-aui="markdown"] li': { margin: "0.25rem 0" },
   '[data-aui="markdown"] h1, [data-aui="markdown"] h2, [data-aui="markdown"] h3':
     {
@@ -620,6 +622,217 @@ export const generativeUiThemeVars = {
   },
 } as const;
 
+const T = '[data-aui-theme="elements"]';
+const TD = `.dark ${T}`;
+const inkFill = (pct: number) =>
+  `color-mix(in oklab, var(--foreground) ${pct}%, transparent)`;
+const elementsHairline = inkFill(6);
+const elementsMonoStack =
+  'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace';
+
+/** Light/dark values for the elements theme's own tokens, scoped to the themed subtree. */
+export const generativeUiElementsThemeVars = {
+  light: {
+    "--aui-live": "oklch(0.623 0.214 259.815)",
+  },
+  dark: {
+    "--aui-live": "oklch(0.707 0.165 254.624)",
+  },
+} as const;
+
+/**
+ * The elements theme for the vocabulary: the borderless paper/field/ink language from the elements family, applied to any subtree carrying `data-aui-theme="elements"`. Layered after {@link generativeUiVocabularyCss}; the base rules keep layout and typography, this layer replaces surfaces, borders, radii, and color.
+ */
+export const generativeUiElementsThemeCss: CssRuleset = {
+  [`${T} [data-aui="card"]`]: {
+    border: "none",
+    "border-radius": "20px",
+    "background-color": "var(--background)",
+    "box-shadow":
+      "0 1px 2px rgba(0,0,0,0.04), 0 12px 32px -16px rgba(0,0,0,0.12)",
+  },
+  [`${TD} [data-aui="card"]`]: {
+    "background-color": "var(--popover)",
+    "box-shadow": "none",
+  },
+  [`${T} [data-aui="card-footer"]`]: {
+    "border-top": "none",
+    "padding-top": "0.25rem",
+  },
+
+  [`${T} [data-aui="select"], ${T} [data-aui="input"], ${T} [data-aui="datepicker"]`]:
+    {
+      border: "none",
+      "border-radius": "12px",
+      "background-color": inkFill(4),
+      "caret-color": "var(--aui-live)",
+      transition: "background-color 0.15s ease",
+    },
+  [`${TD} [data-aui="select"], ${TD} [data-aui="input"], ${TD} [data-aui="datepicker"]`]:
+    {
+      "background-color": inkFill(6),
+    },
+  [`${T} [data-aui="select"]:focus-visible, ${T} [data-aui="input"]:focus-visible, ${T} [data-aui="datepicker"]:focus-visible`]:
+    {
+      outline: "none",
+      "background-color": inkFill(7),
+    },
+  [`${TD} [data-aui="select"]:focus-visible, ${TD} [data-aui="input"]:focus-visible, ${TD} [data-aui="datepicker"]:focus-visible`]:
+    {
+      "background-color": inkFill(9),
+    },
+  [`${T} [data-aui="input"]::placeholder`]: {
+    color: inkFill(35),
+  },
+
+  [`${T} [data-aui="button"], ${T} [data-aui="card-confirm"], ${T} [data-aui="card-cancel"]`]:
+    {
+      border: "none",
+      "border-radius": "9999px",
+      transition:
+        "background-color 0.15s ease, color 0.15s ease, opacity 0.15s ease, transform 0.15s cubic-bezier(0.23, 1, 0.32, 1)",
+    },
+  [`${T} [data-aui="button"]:active, ${T} [data-aui="card-confirm"]:active, ${T} [data-aui="card-cancel"]:active`]:
+    {
+      transform: "scale(0.96)",
+    },
+  [`${T} [data-aui="button"]:focus-visible, ${T} [data-aui="card-confirm"]:focus-visible, ${T} [data-aui="card-cancel"]:focus-visible`]:
+    {
+      outline: `2px solid ${inkFill(20)}`,
+      "outline-offset": "2px",
+    },
+  [`${T} [data-aui="button"][data-aui-style="primary"], ${T} [data-aui="card-confirm"]`]:
+    {
+      "background-color": "var(--foreground)",
+      color: "var(--background)",
+    },
+  [`${T} [data-aui="button"][data-aui-style="primary"]:hover, ${T} [data-aui="card-confirm"]:hover`]:
+    {
+      "background-color": "var(--foreground)",
+      opacity: "0.9",
+    },
+  [`${T} [data-aui="button"][data-aui-style="secondary"], ${T} [data-aui="button"][data-aui-style="outline"], ${T} [data-aui="button"]:not([data-aui-style])`]:
+    {
+      "background-color": inkFill(4),
+      color: "var(--foreground)",
+      "border-color": "transparent",
+    },
+  [`${T} [data-aui="button"][data-aui-style="secondary"]:hover, ${T} [data-aui="button"][data-aui-style="outline"]:hover, ${T} [data-aui="button"]:not([data-aui-style]):hover`]:
+    {
+      "background-color": inkFill(7),
+      color: "var(--foreground)",
+    },
+  [`${TD} [data-aui="button"][data-aui-style="secondary"], ${TD} [data-aui="button"][data-aui-style="outline"], ${TD} [data-aui="button"]:not([data-aui-style])`]:
+    {
+      "background-color": inkFill(6),
+    },
+  [`${T} [data-aui="button"][data-aui-style="ghost"], ${T} [data-aui="card-cancel"]`]:
+    {
+      "background-color": "transparent",
+      color: inkFill(55),
+    },
+  [`${T} [data-aui="button"][data-aui-style="ghost"]:hover, ${T} [data-aui="card-cancel"]:hover`]:
+    {
+      "background-color": inkFill(6),
+      color: inkFill(90),
+    },
+
+  [`${T} [data-aui="checkbox"] input, ${T} [data-aui="radiogroup-option"] input`]:
+    {
+      "accent-color": "var(--foreground)",
+    },
+
+  [`${T} [data-aui="alert"]`]: {
+    border: "none",
+    "border-radius": "14px",
+  },
+  [`${T} [data-aui="alert-title"]`]: {
+    "font-size": "0.875rem",
+    "font-weight": "500",
+  },
+  [`${T} [data-aui="alert-desc"]`]: {
+    "font-size": "0.8125rem",
+  },
+
+  [`${T} [data-aui="divider"]`]: {
+    "border-top-color": elementsHairline,
+  },
+  [`${T} [data-aui="listview-item"] + [data-aui="listview-item"]`]: {
+    "border-top-color": elementsHairline,
+  },
+  [`${T} [data-aui="listview-item-trigger"]`]: {
+    "border-radius": "10px",
+  },
+  [`${T} [data-aui="listview-item-trigger"]:hover`]: {
+    "background-color": inkFill(4),
+  },
+
+  [`${T} [data-aui="table-col"]`]: {
+    "font-family": elementsMonoStack,
+    "font-size": "0.6875rem",
+    "letter-spacing": "-0.01em",
+    "text-transform": "none",
+    color: inkFill(35),
+    "border-bottom-color": elementsHairline,
+  },
+  [`${T} [data-aui="table"] tbody tr:not(:last-child) td`]: {
+    "border-bottom-color": elementsHairline,
+  },
+
+  [`${T} [data-aui="fact-label"]`]: {
+    "font-family": elementsMonoStack,
+    "letter-spacing": "-0.01em",
+    "text-transform": "none",
+    color: inkFill(35),
+  },
+
+  [`${T} [data-aui="badge"]`]: {
+    "align-self": "center",
+    "background-color": inkFill(6),
+    color: inkFill(70),
+  },
+  [`${T} [data-aui="badge"][data-aui-variant="info"]`]: {
+    "background-color": "color-mix(in oklab, var(--aui-live) 12%, transparent)",
+    color: "var(--aui-live)",
+  },
+
+  [`${T} [data-aui="chart"]`]: {
+    color: inkFill(70),
+  },
+  [`${T} [data-aui="chart"] polygon`]: {
+    "fill-opacity": "0.12",
+  },
+  [`${T} [data-aui="chart-series"][data-aui-series="0"], ${T} [data-aui="chart-legend-item"][data-aui-series="0"]`]:
+    { color: inkFill(80) },
+  [`${T} [data-aui="chart-series"][data-aui-series="1"], ${T} [data-aui="chart-legend-item"][data-aui-series="1"]`]:
+    { color: "var(--aui-live)" },
+  [`${T} [data-aui="chart-series"][data-aui-series="2"], ${T} [data-aui="chart-legend-item"][data-aui-series="2"]`]:
+    { color: inkFill(45) },
+  [`${T} [data-aui="chart-series"][data-aui-series="3"], ${T} [data-aui="chart-legend-item"][data-aui-series="3"]`]:
+    { color: "var(--aui-success)" },
+  [`${T} [data-aui="chart-series"][data-aui-series="4"], ${T} [data-aui="chart-legend-item"][data-aui-series="4"]`]:
+    { color: inkFill(30) },
+  [`${T} [data-aui="chart-legend-swatch"]`]: {
+    "border-radius": "9999px",
+  },
+
+  [`${T} [data-aui="image"]`]: {
+    "border-radius": "12px",
+    outline: "1px solid oklch(0 0 0 / 0.08)",
+    "outline-offset": "-1px",
+  },
+  [`${TD} [data-aui="image"]`]: {
+    outline: "1px solid oklch(1 0 0 / 0.1)",
+  },
+
+  [`${T} [data-aui="markdown"] a`]: {
+    color: "var(--aui-live)",
+  },
+  [`${T} [data-aui="markdown"] code, ${T} [data-aui="markdown"] pre`]: {
+    "background-color": inkFill(5),
+  },
+};
+
 export function isDeclarationBlock(
   rule: CssDeclarationBlock | CssMediaBlock,
 ): rule is CssDeclarationBlock {
@@ -643,9 +856,8 @@ function indent(text: string): string {
     .join("\n");
 }
 
-/** Serializes {@link generativeUiVocabularyCss} to plain CSS text, for a host that injects it directly (e.g. a `<style>` tag) instead of going through the shadcn registry's `css` pipeline. */
-export function generativeUiCssText(): string {
-  return Object.entries(generativeUiVocabularyCss)
+function serializeRuleset(ruleset: CssRuleset): string {
+  return Object.entries(ruleset)
     .map(([selector, rule]) =>
       isDeclarationBlock(rule)
         ? formatDeclarationBlock(selector, rule)
@@ -658,4 +870,14 @@ export function generativeUiCssText(): string {
           )}\n}`,
     )
     .join("\n\n");
+}
+
+/** Serializes {@link generativeUiVocabularyCss} to plain CSS text, for a host that injects it directly (e.g. a `<style>` tag) instead of going through the shadcn registry's `css` pipeline. */
+export function generativeUiCssText(): string {
+  return serializeRuleset(generativeUiVocabularyCss);
+}
+
+/** Serializes {@link generativeUiElementsThemeCss}; inject after {@link generativeUiCssText} so the theme layer wins ties. */
+export function generativeUiElementsThemeCssText(): string {
+  return serializeRuleset(generativeUiElementsThemeCss);
 }

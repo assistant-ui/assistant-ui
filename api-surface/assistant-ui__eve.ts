@@ -212,6 +212,7 @@ type ComposerState = ThreadComposerState | EditComposerState;
 
 type ConvertEveMessagesOptions = {
   readonly isRunning?: boolean | undefined;
+  readonly error?: unknown;
   readonly getCreatedAt?: ((message: EveMessage) => Date) | undefined;
 };
 

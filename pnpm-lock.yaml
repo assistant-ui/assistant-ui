@@ -3507,15 +3507,27 @@ importers:
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../x-buildutils
+      '@testing-library/dom':
+        specifier: ^10.4.1
+        version: 10.4.1
+      '@testing-library/react':
+        specifier: ^16.3.2
+        version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@types/react':
         specifier: ^19.2.17
         version: 19.2.17
       eve:
         specifier: ^0.27.6
         version: 0.27.6(@azure/identity@4.13.1)(@opentelemetry/api@1.9.1)(@upstash/redis@1.38.0)(ai@7.0.37(zod@4.4.3))(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.1)(ioredis@5.11.1)(jiti@2.7.0)(just-bash@3.1.0)(lru-cache@11.5.2)(mysql2@3.20.0(@types/node@26.1.1))(sqlite3@5.1.7)(vite@8.1.5(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.1)(yaml@2.9.0))
+      jsdom:
+        specifier: ^29.1.1
+        version: 29.1.1
       react:
         specifier: ^19.2.8
         version: 19.2.8
+      react-dom:
+        specifier: ^19.2.8
+        version: 19.2.8(react@19.2.8)
       vitest:
         specifier: ^4.1.10
         version: 4.1.10(@opentelemetry/api@1.9.1)(@types/node@26.1.1)(@vitest/coverage-v8@4.1.10)(@vitest/ui@4.1.10)(jsdom@29.1.1)(vite@8.1.5(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.1)(yaml@2.9.0))
