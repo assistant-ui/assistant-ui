@@ -79,9 +79,15 @@ export const AuthorizationUI = makeAssistantDataUI<AuthorizationData>({
   name: "authorization",
   render: ({ data }) => (
     <div>
-      <p>{data.instructions ?? `Sign in to ${data.displayName ?? data.name}`}</p>
-      {data.userCode && <code>{data.userCode}</code>}
-      {data.url && <a href={data.url}>Continue to sign in</a>}
+      {data.state === "required" ? (
+        <>
+          <p>{data.instructions ?? `Sign in to ${data.displayName ?? data.name}`}</p>
+          {data.userCode && <code>{data.userCode}</code>}
+          {data.url && <a href={data.url}>Continue to sign in</a>}
+        </>
+      ) : (
+        <p>{data.outcome ?? "Authorization completed"}</p>
+      )}
     </div>
   ),
 });

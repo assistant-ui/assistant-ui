@@ -857,6 +857,45 @@ describe("convertEveMessages", () => {
       });
     });
 
+    it("keeps an earlier authorization pending when a later turn fails", () => {
+      const data = {
+        messages: [
+          {
+            id: "a1",
+            role: "assistant",
+            metadata: { status: "streaming" },
+            parts: [
+              {
+                type: "authorization",
+                state: "required",
+                name: "github",
+                description: "Sign in to GitHub",
+                displayName: "GitHub",
+                stepIndex: 0,
+                turnId: "turn_1",
+              },
+            ],
+          },
+          {
+            id: "a2",
+            role: "assistant",
+            metadata: { status: "streaming" },
+            parts: [{ type: "text", text: "Later turn" }],
+          },
+        ],
+      } satisfies EveMessageData;
+
+      const [authorization] = convertEveMessages(data, {
+        isRunning: false,
+        error: new Error("later turn failed"),
+      });
+
+      expect(authorization?.status).toEqual({
+        type: "requires-action",
+        reason: "tool-calls",
+      });
+    });
+
     it("does not hold requires-action for a completed authorization", () => {
       const data = {
         messages: [

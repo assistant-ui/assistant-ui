@@ -84,13 +84,14 @@ const toMessageStatus = (
 ): MessageStatus => {
   if (message.role !== "assistant") return USER_FALLBACK_STATUS;
 
+  const isLast = index === messages.length - 1;
   const hasPendingApproval = message.parts.some(
     (part) =>
       part.type === "dynamic-tool" && part.state === "approval-requested",
   );
   const hasPendingAuthorization =
     message.metadata?.status === "streaming" &&
-    options.error === undefined &&
+    (!isLast || options.error === undefined) &&
     message.parts.some(
       (part) => part.type === "authorization" && part.state === "required",
     );
@@ -103,7 +104,6 @@ const toMessageStatus = (
     return { type: "incomplete", reason: "error" };
   }
 
-  const isLast = index === messages.length - 1;
   if (isLast && options.isRunning === true) {
     return ASSISTANT_RUNNING_STATUS;
   }
