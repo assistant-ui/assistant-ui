@@ -3,7 +3,7 @@
 import { useMessagePartText, useSmooth } from "@assistant-ui/react";
 import { harden } from "rehype-harden";
 import rehypeRaw from "rehype-raw";
-import rehypeSanitize from "rehype-sanitize";
+import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import { Streamdown, type StreamdownProps } from "streamdown";
 import {
   type ComponentRef,
@@ -14,19 +14,51 @@ import {
 import { useAdaptedComponents } from "../adapters/components-adapter";
 import { DEFAULT_SHIKI_THEME, mergePlugins } from "../defaults";
 import { tailBoundedRemend } from "../remend";
-import type { SecurityConfig, StreamdownTextPrimitiveProps } from "../types";
+import type {
+  AllowedTags,
+  SecurityConfig,
+  StreamdownTextPrimitiveProps,
+} from "../types";
 
 type StreamdownTextPrimitiveElement = ComponentRef<"div">;
 
-/**
- * Builds rehypePlugins array with security configuration.
- */
+const streamdownSanitizeSchema = {
+  ...defaultSchema,
+  protocols: {
+    ...defaultSchema.protocols,
+    href: [...(defaultSchema.protocols?.href ?? []), "tel"],
+  },
+  attributes: {
+    ...defaultSchema.attributes,
+    code: [...(defaultSchema.attributes?.code ?? []), "metastring"],
+  },
+};
+
+function buildSecuritySanitizeSchema(allowedTags: AllowedTags | undefined) {
+  if (!allowedTags || Object.keys(allowedTags).length === 0) {
+    return streamdownSanitizeSchema;
+  }
+
+  return {
+    ...streamdownSanitizeSchema,
+    tagNames: [
+      ...(streamdownSanitizeSchema.tagNames ?? []),
+      ...Object.keys(allowedTags),
+    ],
+    attributes: {
+      ...streamdownSanitizeSchema.attributes,
+      ...allowedTags,
+    },
+  };
+}
+
 function buildSecurityRehypePlugins(
   security: SecurityConfig,
+  allowedTags: AllowedTags | undefined,
 ): NonNullable<StreamdownProps["rehypePlugins"]> {
   return [
     rehypeRaw,
-    [rehypeSanitize, {}],
+    [rehypeSanitize, buildSecuritySanitizeSchema(allowedTags)],
     [
       harden,
       {
@@ -187,10 +219,10 @@ export const StreamdownTextPrimitive = forwardRef<
     const rehypePlugins = useMemo(() => {
       if (!security) return userRehypePlugins;
       return [
-        ...buildSecurityRehypePlugins(security),
+        ...buildSecurityRehypePlugins(security, allowedTags),
         ...(userRehypePlugins ?? []),
       ];
-    }, [security, userRehypePlugins]);
+    }, [allowedTags, security, userRehypePlugins]);
 
     const optionalProps = {
       ...(className && { className }),

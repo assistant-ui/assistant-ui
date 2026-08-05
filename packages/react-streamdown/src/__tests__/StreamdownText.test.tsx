@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import { TextMessagePartProvider } from "@assistant-ui/react";
+import type { ReactNode } from "react";
 import { StreamdownTextPrimitive } from "../primitives/StreamdownText";
 import type {
   StreamdownTextComponents,
@@ -200,6 +201,73 @@ describe("StreamdownTextPrimitive", () => {
       expect(evilAnchor).not.toBeNull();
       expect(evilAnchor!.getAttribute("data-user-plugin")).toBe("true");
     });
+  });
+
+  it("preserves Streamdown's sanitize extensions with security", () => {
+    const Link = vi.fn(
+      ({
+        children,
+        node,
+      }: {
+        children?: ReactNode;
+        node?: { properties?: { href?: unknown } };
+      }) => (
+        <a data-testid="link" href={node?.properties?.href as string}>
+          {children}
+        </a>
+      ),
+    );
+    const Code = vi.fn(
+      ({
+        children,
+        node,
+      }: {
+        children?: ReactNode;
+        node?: { properties?: { metastring?: unknown } };
+      }) => (
+        <code
+          data-testid="code"
+          data-meta={node?.properties?.metastring as string}
+        >
+          {children}
+        </code>
+      ),
+    );
+
+    render(
+      <TextMessagePartProvider
+        text={
+          '<a href="tel:123">call</a>\n\n```ts {1} title="demo"\nconst x = 1\n```'
+        }
+        isRunning={false}
+      >
+        <StreamdownTextPrimitive
+          mode="static"
+          linkSafety={{ enabled: false }}
+          security={{ allowedProtocols: ["tel:"] }}
+          components={{ a: Link, code: Code } as StreamdownTextComponents}
+        />
+      </TextMessagePartProvider>,
+    );
+
+    expect(screen.getByTestId("link").getAttribute("href")).toBe("tel:123");
+    expect(screen.getByTestId("code").getAttribute("data-meta")).toBe(
+      '{1} title="demo"',
+    );
+  });
+
+  it("applies allowedTags when security is enabled", () => {
+    const { container } = render(
+      <TextMessagePartProvider text="<mark>keep</mark>" isRunning={false}>
+        <StreamdownTextPrimitive
+          mode="static"
+          allowedTags={{ mark: [] }}
+          security={{}}
+        />
+      </TextMessagePartProvider>,
+    );
+
+    expect(container.querySelector("mark")?.textContent).toBe("keep");
   });
 
   describe("code adapter with custom components", () => {
