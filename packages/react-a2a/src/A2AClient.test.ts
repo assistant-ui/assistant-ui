@@ -1312,9 +1312,34 @@ describe("A2AClient", () => {
       expect((evt.event.status.message as any)?.content).toBeUndefined();
     });
 
-    it("skips malformed SSE events", async () => {
+    it("skips malformed and unrecognized SSE events", async () => {
+      const first = JSON.stringify({
+        status_update: {
+          task_id: "t1",
+          context_id: "ctx-1",
+          status: { state: "TASK_STATE_WORKING" },
+        },
+      });
+      const second = JSON.stringify({
+        status_update: {
+          task_id: "t1",
+          context_id: "ctx-1",
+          status: { state: "TASK_STATE_COMPLETED" },
+        },
+      });
+
       fetchMock.mockResolvedValue(
-        mockSSEResponse(["data: {invalid json}", "", ""]),
+        mockSSEResponse([
+          `data: ${first}`,
+          "",
+          "data: {invalid json}",
+          "",
+          "data: {}",
+          "",
+          `data: ${second}`,
+          "",
+          "",
+        ]),
       );
 
       const events: A2AStreamEvent[] = [];
@@ -1322,7 +1347,11 @@ describe("A2AClient", () => {
         events.push(event);
       }
 
-      expect(events).toHaveLength(0);
+      expect(events).toHaveLength(2);
+      expect(events.map((event) => event.type)).toEqual([
+        "statusUpdate",
+        "statusUpdate",
+      ]);
     });
   });
 
