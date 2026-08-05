@@ -1,7 +1,18 @@
 /*
  * shadcn/typeset
- * https://ui.shadcn.com/docs/typeset.
+ * https://ui.shadcn.com/docs/typeset
+ *
+ * Copyright (c) 2023 shadcn
+ * MIT License: https://github.com/shadcn-ui/ui/blob/main/LICENSE.md
+ * Source: shadcn-ui/ui@607e8a97 apps/v4/app/(app)/(typeset)/typeset.css
+ *
+ * Local change: the layer statement below pins the Tailwind layer order.
+ * Cascade layers order by first appearance, so without the pin a bundler
+ * that emits this sheet before the Tailwind sheet would register
+ * "components" first and Tailwind preflight (base) would win over typeset.
  */
+
+@layer theme, base, components, utilities;
 
 @layer components {
   .typeset {

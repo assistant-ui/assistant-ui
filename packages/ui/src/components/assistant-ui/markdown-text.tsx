@@ -19,7 +19,11 @@ const MarkdownTextImpl = () => {
   return (
     <MarkdownTextPrimitive
       remarkPlugins={[remarkGfm]}
-      className="aui-md typeset [--typeset-flow:1em] [--typeset-leading:1.6]"
+      // text-(length:--typeset-size) removes the small-screen size increase
+      // from typeset.css, so chat messages match the surrounding UI at every
+      // width. The font-mono fallback covers apps whose CSS never emits the
+      // --font-mono theme variable.
+      className="aui-md typeset text-(length:--typeset-size) [--typeset-flow:1em] [--typeset-font-mono:var(--font-mono,ui-monospace,monospace)] [--typeset-leading:1.6]"
       components={defaultComponents}
       defer
     />
@@ -80,9 +84,15 @@ const useCopyToClipboard = ({
 };
 
 const defaultComponents = memoizeMarkdownComponents({
+  // The margin and radius resets only apply under a code header; the
+  // header-less rehype path (non-string children) keeps typeset's default
+  // pre spacing and corners.
   pre: ({ className, ...props }) => (
     <pre
-      className={cn("aui-md-pre mt-0 rounded-t-none", className)}
+      className={cn(
+        "aui-md-pre [.aui-code-header-root+&]:mt-0 [.aui-code-header-root+&]:rounded-t-none",
+        className,
+      )}
       {...props}
     />
   ),

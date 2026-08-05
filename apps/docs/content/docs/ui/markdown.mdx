@@ -63,13 +63,13 @@ To tune the rhythm, change the `--typeset-*` variables on the `className` of `Ma
 ```tsx title="/components/assistant-ui/markdown-text.tsx"
 <MarkdownTextPrimitive
   remarkPlugins={[remarkGfm]}
-  className="aui-md typeset [--typeset-flow:1em] [--typeset-leading:1.6]"
+  className="aui-md typeset text-(length:--typeset-size) [--typeset-flow:1em] [--typeset-leading:1.6]"
   components={defaultComponents}
   defer
 />
 ```
 
-- `--typeset-size` sets the base text size. The default `1em` follows the surrounding layout.
+- `--typeset-size` sets the base text size. The default `1em` follows the surrounding layout. The `text-(length:--typeset-size)` utility pins this size at every width, which removes the small-screen size increase from typeset.
 - `--typeset-leading` sets the space between lines.
 - `--typeset-flow` sets the space between blocks.
 
