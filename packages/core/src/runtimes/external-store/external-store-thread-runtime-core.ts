@@ -43,8 +43,7 @@ const observeAdapterCallback = (
   name: "onAddToolResult" | "onRespondToToolApproval" | "onCancel",
   result: Promise<void> | void,
 ) => {
-  if (!result) return;
-  void result.catch((error) => {
+  void Promise.resolve(result).catch((error) => {
     console.error(
       `[ExternalStoreThreadRuntimeCore] ${name} callback rejected`,
       error,
