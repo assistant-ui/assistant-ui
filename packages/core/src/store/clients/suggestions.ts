@@ -7,7 +7,7 @@ import type { SuggestionState } from "../scopes/suggestion";
 
 export type SuggestionConfig =
   | string
-  | { title: string; label: string; prompt: string };
+  | { title?: string; label?: string; prompt: string };
 
 const useSuggestionClient = (
   state: SuggestionState,
@@ -32,8 +32,8 @@ const useSuggestionsResource = (
         };
       }
       return {
-        title: s.title,
-        label: s.label,
+        title: s.title ?? s.prompt,
+        label: s.label ?? "",
         prompt: s.prompt,
       };
     });

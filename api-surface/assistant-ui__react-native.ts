@@ -2745,8 +2745,8 @@ type SuggestionByIndexProviderProps = PropsWithChildren<{
 }>;
 
 type SuggestionConfig = string | {
-  title: string;
-  label: string;
+  title?: string;
+  label?: string;
   prompt: string;
 };
 
@@ -3541,6 +3541,8 @@ type ThreadStep = {
 declare const ThreadSuggestion: (_param42: ThreadSuggestionProps) => import("react").JSX.Element;
 
 type ThreadSuggestion$1 = {
+  title?: string;
+  label?: string;
   prompt: string;
 };
 

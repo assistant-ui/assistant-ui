@@ -685,6 +685,30 @@ describe("LocalThreadRuntimeCore suggestions", () => {
     await new Promise((r) => setTimeout(r, 0));
     expect(thread.suggestions).toEqual([{ prompt: "follow up" }]);
   });
+
+  it("exposes adapter-provided title and label on thread suggestions", async () => {
+    const generate = vi
+      .fn()
+      .mockResolvedValue([
+        { title: "Weather", label: "in SF", prompt: "What's the weather?" },
+      ]);
+
+    const thread = createThread(
+      {
+        async run() {
+          return { content: [{ type: "text", text: "hello" }] };
+        },
+      },
+      { suggestion: { generate } },
+    );
+
+    await thread.append(userMessage("hi"));
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(thread.suggestions).toEqual([
+      { title: "Weather", label: "in SF", prompt: "What's the weather?" },
+    ]);
+  });
 });
 
 describe("LocalThreadRuntimeCore tool approval persistence", () => {
