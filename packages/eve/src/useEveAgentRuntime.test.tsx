@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { renderHook } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 const { mockUseEveAgent } = vi.hoisted(() => ({
@@ -87,6 +87,159 @@ describe("useEveAgentRuntime status forwarding", () => {
       type: "incomplete",
       reason: "error",
       error: { code: "unknown", message: "boom" },
+    });
+  });
+
+  it("forwards runConfig to eve as one-turn client context when sending", async () => {
+    const agent = createAgent({
+      data: { messages: [] } satisfies EveMessageData,
+    });
+    mockUseEveAgent.mockReturnValue(agent as never);
+
+    const { result } = renderHook(() => useEveAgentRuntime());
+
+    act(() => {
+      result.current.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "hello" }],
+        runConfig: { custom: { model: "gpt-5.4-nano" } },
+      });
+    });
+
+    await waitFor(() => {
+      expect(agent.send).toHaveBeenCalledWith({
+        message: "hello",
+        clientContext: { custom: { model: "gpt-5.4-nano" } },
+      });
+    });
+  });
+
+  it("omits clientContext when no runConfig is provided", async () => {
+    const agent = createAgent({
+      data: { messages: [] } satisfies EveMessageData,
+    });
+    mockUseEveAgent.mockReturnValue(agent as never);
+
+    const { result } = renderHook(() => useEveAgentRuntime());
+
+    act(() => {
+      result.current.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "hello" }],
+      });
+    });
+
+    await waitFor(() => {
+      expect(agent.send).toHaveBeenCalledWith({ message: "hello" });
+    });
+  });
+
+  it("prefers the reload-time runConfig over the staged one", async () => {
+    const agent = createAgent({
+      data: { messages: [] } satisfies EveMessageData,
+    });
+    mockUseEveAgent.mockReturnValue(agent as never);
+
+    const { result } = renderHook(() => useEveAgentRuntime());
+
+    act(() => {
+      result.current.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "hello" }],
+        startRun: false,
+        runConfig: { custom: { model: "staged" } },
+      });
+    });
+
+    await waitFor(() => {
+      expect(result.current.thread.getState().messages.length).toBe(1);
+    });
+    const stagedId = result.current.thread.getState().messages[0]!.id;
+
+    act(() => {
+      result.current.thread.startRun({
+        parentId: stagedId,
+        runConfig: { custom: { model: "reload" } },
+      });
+    });
+
+    await waitFor(() => {
+      expect(agent.send).toHaveBeenCalledWith({
+        message: "hello",
+        clientContext: { custom: { model: "reload" } },
+      });
+    });
+  });
+
+  it("falls back to the staged runConfig when reload passes none", async () => {
+    const agent = createAgent({
+      data: { messages: [] } satisfies EveMessageData,
+    });
+    mockUseEveAgent.mockReturnValue(agent as never);
+
+    const { result } = renderHook(() => useEveAgentRuntime());
+
+    act(() => {
+      result.current.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "hello" }],
+        startRun: false,
+        runConfig: { custom: { model: "staged" } },
+      });
+    });
+
+    await waitFor(() => {
+      expect(result.current.thread.getState().messages.length).toBe(1);
+    });
+    const stagedId = result.current.thread.getState().messages[0]!.id;
+
+    act(() => {
+      result.current.thread.startRun({ parentId: stagedId });
+    });
+
+    await waitFor(() => {
+      expect(agent.send).toHaveBeenCalledWith({
+        message: "hello",
+        clientContext: { custom: { model: "staged" } },
+      });
+    });
+  });
+
+  // Known limitation: core normalizes an omitted reload runConfig to {}
+  // (toStartRunConfig in core/src/runtime/api/thread-runtime.ts), so an
+  // explicit empty reload config is indistinguishable from an omitted one at
+  // the adapter and cannot clear the staged context.
+  it("cannot clear the staged runConfig with an explicit empty reload config", async () => {
+    const agent = createAgent({
+      data: { messages: [] } satisfies EveMessageData,
+    });
+    mockUseEveAgent.mockReturnValue(agent as never);
+
+    const { result } = renderHook(() => useEveAgentRuntime());
+
+    act(() => {
+      result.current.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "hello" }],
+        startRun: false,
+        runConfig: { custom: { model: "staged" } },
+      });
+    });
+
+    await waitFor(() => {
+      expect(result.current.thread.getState().messages.length).toBe(1);
+    });
+    const stagedId = result.current.thread.getState().messages[0]!.id;
+
+    act(() => {
+      result.current.thread.startRun({ parentId: stagedId, runConfig: {} });
+    });
+
+    await waitFor(() => {
+      expect(agent.send).toHaveBeenCalledWith({
+        message: "hello",
+        clientContext: { custom: { model: "staged" } },
+      });
     });
   });
 

@@ -24,6 +24,7 @@ import {
   type EveMessageData,
   type UseEveAgentOptions,
 } from "eve/react";
+import type { SendTurnPayload } from "eve/client";
 import {
   convertEveMessages,
   getEveMessageContent,
@@ -34,6 +35,22 @@ const USER_STAGED_STATUS = {
   type: "complete",
   reason: "unknown",
 } as const;
+
+const hasRunConfig = (
+  runConfig: AppendMessage["runConfig"],
+): runConfig is NonNullable<AppendMessage["runConfig"]> =>
+  runConfig !== undefined && Object.keys(runConfig).length > 0;
+
+const toEveClientContext = (
+  runConfig: AppendMessage["runConfig"],
+): Pick<SendTurnPayload, "clientContext"> =>
+  hasRunConfig(runConfig)
+    ? {
+        clientContext: runConfig as NonNullable<
+          SendTurnPayload["clientContext"]
+        >,
+      }
+    : {};
 
 const truncateThreadMessages = (
   messages: readonly ThreadMessage[],
@@ -167,11 +184,14 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
         stageUserMessage(message);
         return;
       }
-      await agent.send({ message: getEveMessageContent(message) });
+      await agent.send({
+        message: getEveMessageContent(message),
+        ...toEveClientContext(message.runConfig),
+      });
     },
     ...(stagedMessages
       ? {
-          onReload: async (parentId: string | null) => {
+          onReload: async (parentId: string | null, config) => {
             const staged = parentId
               ? stagedInputsRef.current.get(parentId)
               : null;
@@ -179,7 +199,14 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
               throw new Error("Runtime does not support reloading messages.");
             stagedInputsRef.current.delete(parentId!);
             setStagedMessages(null);
-            await agent.send({ message: getEveMessageContent(staged.message) });
+            await agent.send({
+              message: getEveMessageContent(staged.message),
+              ...toEveClientContext(
+                hasRunConfig(config.runConfig)
+                  ? config.runConfig
+                  : staged.runConfig,
+              ),
+            });
           },
         }
       : {}),
