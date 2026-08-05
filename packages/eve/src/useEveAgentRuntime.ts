@@ -24,6 +24,7 @@ import {
   type EveMessageData,
   type UseEveAgentOptions,
 } from "eve/react";
+import type { InputResponse } from "eve/client";
 import {
   convertEveMessages,
   findEveInputRequest,
@@ -189,14 +190,18 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
       return Promise.resolve();
     },
     onRespondToToolApproval: async (response) => {
-      await agent.send({
-        inputResponses: [
-          toEveInputResponse(
-            response,
-            findEveInputRequest(agent.data, response.approvalId),
-          ),
-        ],
-      });
+      const inputRequest = findEveInputRequest(agent.data, response.approvalId);
+      let inputResponse: InputResponse;
+      try {
+        inputResponse = toEveInputResponse(response, inputRequest);
+      } catch (error) {
+        console.error(
+          `Eve input request${inputRequest ? ` "${inputRequest.prompt}"` : ""} was not submitted because the approval response cannot be mapped honestly. Answer it via respondToApproval with the answer text as the reason (see providerMetadata.eve.inputRequest on the tool part).`,
+          error,
+        );
+        return;
+      }
+      await agent.send({ inputResponses: [inputResponse] });
     },
   });
 };

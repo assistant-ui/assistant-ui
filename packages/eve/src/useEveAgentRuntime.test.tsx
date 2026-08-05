@@ -102,3 +102,99 @@ describe("useEveAgentRuntime status forwarding", () => {
     });
   });
 });
+
+describe("useEveAgentRuntime tool approval responses", () => {
+  const textRequestData: EveMessageData = {
+    messages: [
+      { id: "u1", role: "user", parts: [{ type: "text", text: "hi" }] },
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          {
+            type: "dynamic-tool",
+            state: "approval-requested",
+            toolCallId: "call_1",
+            toolName: "ask_question",
+            input: {},
+            approval: { id: "req_1" },
+            toolMetadata: {
+              eve: {
+                kind: "tool-call",
+                name: "ask_question",
+                inputRequest: {
+                  requestId: "req_1",
+                  prompt: "What should the subject line be?",
+                  display: "text",
+                },
+              },
+            },
+          },
+        ],
+      },
+    ],
+  };
+
+  const flushMicrotasks = () =>
+    new Promise((resolve) => setTimeout(resolve, 0));
+
+  const processEvents = process as unknown as {
+    on(event: "unhandledRejection", listener: (reason: unknown) => void): void;
+    off(event: "unhandledRejection", listener: (reason: unknown) => void): void;
+  };
+
+  const respondToTextRequest = (
+    result: { current: ReturnType<typeof useEveAgentRuntime> },
+    response: { approved: boolean; reason?: string },
+  ) =>
+    result.current.thread
+      .getMessageById("a1")
+      .getMessagePartByToolCallId("call_1")
+      .respondToToolApproval(response);
+
+  it("does not submit or reject when a free-form request is answered without text", async () => {
+    const rejections: unknown[] = [];
+    const onUnhandledRejection = (reason: unknown) => rejections.push(reason);
+    processEvents.on("unhandledRejection", onUnhandledRejection);
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const agent = createAgent({ data: textRequestData });
+    mockUseEveAgent.mockReturnValue(agent as never);
+
+    try {
+      const { result } = renderHook(() => useEveAgentRuntime());
+      respondToTextRequest(result, { approved: true });
+
+      await flushMicrotasks();
+      await flushMicrotasks();
+
+      expect(agent.send).not.toHaveBeenCalled();
+      expect(consoleError).toHaveBeenCalledWith(
+        expect.stringContaining("What should the subject line be?"),
+        expect.any(Error),
+      );
+      expect(rejections).toEqual([]);
+    } finally {
+      processEvents.off("unhandledRejection", onUnhandledRejection);
+      consoleError.mockRestore();
+    }
+  });
+
+  it("submits a free-form answer as text without an option id", async () => {
+    const agent = createAgent({ data: textRequestData });
+    mockUseEveAgent.mockReturnValue(agent as never);
+
+    const { result } = renderHook(() => useEveAgentRuntime());
+    respondToTextRequest(result, {
+      approved: true,
+      reason: "Quarterly results",
+    });
+
+    await flushMicrotasks();
+
+    expect(agent.send).toHaveBeenCalledWith({
+      inputResponses: [{ requestId: "req_1", text: "Quarterly results" }],
+    });
+  });
+});

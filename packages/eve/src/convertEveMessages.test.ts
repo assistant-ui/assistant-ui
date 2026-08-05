@@ -111,9 +111,13 @@ describe("convertEveMessages", () => {
   it("preserves the full HITL input request on providerMetadata.eve", () => {
     const inputRequest = {
       requestId: "req_1",
-      prompt: "What should the subject line be?",
-      display: "text",
+      prompt: "Which environment?",
+      display: "select",
       allowFreeform: true,
+      options: [
+        { id: "staging", label: "Staging", description: "Safe" },
+        { id: "production", label: "Production", style: "danger" },
+      ],
     } as const;
     const data = {
       messages: [
@@ -140,9 +144,63 @@ describe("convertEveMessages", () => {
     const [message] = convertEveMessages(data);
     const part = message!.content[0];
 
-    expect(part).toMatchObject({
-      type: "tool-call",
-      providerMetadata: { eve: { inputRequest } },
+    expect(part).toMatchObject({ type: "tool-call" });
+    expect((part as { providerMetadata?: unknown }).providerMetadata).toEqual({
+      eve: {
+        inputRequest: {
+          requestId: "req_1",
+          prompt: "Which environment?",
+          display: "select",
+          allowFreeform: true,
+          options: [
+            { id: "staging", label: "Staging", description: "Safe" },
+            { id: "production", label: "Production", style: "danger" },
+          ],
+        },
+      },
+    });
+  });
+
+  it("omits undefined input-request fields from the provider metadata projection", () => {
+    const data = {
+      messages: [
+        {
+          id: "a1",
+          role: "assistant",
+          parts: [
+            {
+              type: "dynamic-tool",
+              state: "approval-requested",
+              toolCallId: "call_1",
+              toolName: "ask_question",
+              input: {},
+              approval: { id: "req_1" },
+              toolMetadata: {
+                eve: {
+                  kind: "tool-call",
+                  name: "ask_question",
+                  inputRequest: {
+                    requestId: "req_1",
+                    prompt: "What should the subject line be?",
+                  },
+                },
+              },
+            },
+          ],
+        },
+      ],
+    } satisfies EveMessageData;
+
+    const [message] = convertEveMessages(data);
+    const part = message!.content[0];
+
+    expect((part as { providerMetadata?: unknown }).providerMetadata).toEqual({
+      eve: {
+        inputRequest: {
+          requestId: "req_1",
+          prompt: "What should the subject line be?",
+        },
+      },
     });
   });
 
@@ -1103,7 +1161,44 @@ describe("toEveInputResponse", () => {
           ],
         },
       ),
-    ).toThrow(/no "approve" option/);
+    ).toThrow(/no matching option/);
+  });
+
+  it("answers an allowFreeform request without options with text, not a fabricated option id", () => {
+    const response = toEveInputResponse(
+      {
+        approvalId: "req_1",
+        approved: true,
+        reason: "prefer the blue variant",
+      },
+      {
+        requestId: "req_1",
+        prompt: "Any preference?",
+        allowFreeform: true,
+      },
+    );
+
+    expect(response).toEqual({
+      requestId: "req_1",
+      text: "prefer the blue variant",
+    });
+    expect(response).not.toHaveProperty("optionId");
+  });
+
+  it("answers an optionless request with text even without display or allowFreeform", () => {
+    expect(
+      toEveInputResponse(
+        { approvalId: "req_1", approved: true, reason: "Next Tuesday" },
+        { requestId: "req_1", prompt: "When should this ship?" },
+      ),
+    ).toEqual({ requestId: "req_1", text: "Next Tuesday" });
+
+    expect(() =>
+      toEveInputResponse(
+        { approvalId: "req_1", approved: false },
+        { requestId: "req_1", prompt: "When should this ship?" },
+      ),
+    ).toThrow(/free-form text answer/);
   });
 
   it("falls back to free-form text for a select request that allows it", () => {

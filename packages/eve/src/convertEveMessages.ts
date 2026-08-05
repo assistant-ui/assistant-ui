@@ -170,12 +170,33 @@ const toApproval = (
   };
 };
 
+const toJsonSafeInputRequest = (
+  inputRequest: EveMessageInputRequest,
+): PartProviderMetadata[string] => ({
+  requestId: inputRequest.requestId,
+  prompt: inputRequest.prompt,
+  ...(inputRequest.display !== undefined && { display: inputRequest.display }),
+  ...(inputRequest.allowFreeform !== undefined && {
+    allowFreeform: inputRequest.allowFreeform,
+  }),
+  ...(inputRequest.options && {
+    options: inputRequest.options.map((option) => ({
+      id: option.id,
+      label: option.label,
+      ...(option.description !== undefined && {
+        description: option.description,
+      }),
+      ...(option.style !== undefined && { style: option.style }),
+    })),
+  }),
+});
+
 const toToolProviderMetadata = (
   part: EveDynamicToolPart,
 ): PartProviderMetadata | undefined => {
   const inputRequest = part.toolMetadata?.eve?.inputRequest;
   if (!inputRequest) return undefined;
-  return { eve: { inputRequest } } as unknown as PartProviderMetadata;
+  return { eve: { inputRequest: toJsonSafeInputRequest(inputRequest) } };
 };
 
 const convertDynamicToolPart = (
@@ -449,49 +470,62 @@ export const findEveInputRequest = (
 /**
  * Converts an assistant-ui tool approval response into an Eve input response.
  *
- * Pass the originating input request (see {@link findEveInputRequest}) so
- * free-form (`display: "text"`) requests are answered with the response's
- * `reason` text instead of a fabricated `"approve"` / `"deny"` option id.
+ * Pass the originating input request (see {@link findEveInputRequest}) so the
+ * mapping never emits an option id the request does not carry: free-form
+ * requests (`display: "text"`, `allowFreeform`, or no options at all) are
+ * answered with the response's `reason` text, and a response that cannot be
+ * mapped honestly throws instead of fabricating an `"approve"` / `"deny"`
+ * decision.
  */
 export const toEveInputResponse = (
   response: RespondToToolApprovalOptions,
   inputRequest?: EveMessageInputRequest,
 ): InputResponse => {
   const requestId = response.approvalId;
+  const options = inputRequest?.options;
+  const text = response.reason;
 
-  if (response.optionId !== undefined) {
+  if (
+    response.optionId !== undefined &&
+    (!inputRequest || options?.some((o) => o.id === response.optionId))
+  ) {
     return {
       requestId,
       optionId: response.optionId,
-      ...(response.reason && { text: response.reason }),
+      ...(text && { text }),
     };
   }
 
-  if (inputRequest?.display === "text") {
-    if (!response.reason) {
-      throw new Error(
-        `Eve input request "${requestId}" expects a free-form text answer; respond with the answer as the reason`,
-      );
-    }
-    return { requestId, text: response.reason };
+  if (!inputRequest) {
+    return {
+      requestId,
+      optionId: response.approved ? "approve" : "deny",
+      ...(text && { text }),
+    };
   }
 
-  const optionId = response.approved ? "approve" : "deny";
-  const options = inputRequest?.options;
-  if (options?.length && !options.some((option) => option.id === optionId)) {
-    if (inputRequest?.allowFreeform && response.reason) {
-      return { requestId, text: response.reason };
+  const isFreeform = inputRequest.display === "text";
+  if (!isFreeform) {
+    const fallbackOptionId = response.approved ? "approve" : "deny";
+    if (options?.some((option) => option.id === fallbackOptionId)) {
+      return { requestId, optionId: fallbackOptionId, ...(text && { text }) };
     }
+  }
+
+  const acceptsText =
+    isFreeform || inputRequest.allowFreeform === true || !options?.length;
+  if (acceptsText && text) {
+    return { requestId, text };
+  }
+
+  if (acceptsText) {
     throw new Error(
-      `Eve input request "${requestId}" has no "${optionId}" option; respond with one of: ${options
-        .map((option) => option.id)
-        .join(", ")}`,
+      `Eve input request "${requestId}" expects a free-form text answer; respond with the answer as the reason`,
     );
   }
-
-  return {
-    requestId,
-    optionId,
-    ...(response.reason && { text: response.reason }),
-  };
+  throw new Error(
+    `Eve input request "${requestId}" has no matching option for this response; respond with one of: ${options!
+      .map((option) => option.id)
+      .join(", ")}`,
+  );
 };
