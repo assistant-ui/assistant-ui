@@ -74,39 +74,6 @@ describe("convertEveMessages", () => {
     ]);
   });
 
-  it("settles streaming part state when the message is no longer running", () => {
-    const data = {
-      messages: [
-        {
-          id: "a1",
-          role: "assistant",
-          metadata: { status: "streaming" },
-          parts: [
-            { type: "reasoning", text: "Thinking", state: "streaming" },
-            { type: "text", text: "Partial answer", state: "streaming" },
-          ],
-        },
-      ],
-    } satisfies EveMessageData;
-
-    const [message] = convertEveMessages(data, { isRunning: false });
-
-    expect(message?.status).toEqual({
-      type: "incomplete",
-      reason: "cancelled",
-    });
-    expect(message?.content).toEqual([
-      expect.objectContaining({
-        type: "reasoning",
-        status: { type: "complete" },
-      }),
-      expect.objectContaining({
-        type: "text",
-        status: { type: "complete" },
-      }),
-    ]);
-  });
-
   it("maps a done part state to a complete part status", () => {
     const data = {
       messages: [

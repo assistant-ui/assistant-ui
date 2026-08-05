@@ -221,24 +221,19 @@ const convertFilePart = (
 
 const partStateToStatus = (
   state: "done" | "streaming" | undefined,
-  messageStatus: MessageStatus,
 ): MessagePartStreamStatus | undefined => {
-  if (state === "streaming")
-    return {
-      type: messageStatus.type === "running" ? "running" : "complete",
-    };
+  if (state === "streaming") return { type: "running" };
   if (state === "done") return { type: "complete" };
   return undefined;
 };
 
 const convertAssistantPart = (
   part: EveMessagePart,
-  messageStatus: MessageStatus,
 ): ThreadAssistantMessagePart | null => {
   switch (part.type) {
     case "text":
     case "reasoning": {
-      const status = partStateToStatus(part.state, messageStatus);
+      const status = partStateToStatus(part.state);
       return {
         type: part.type,
         text: part.text,
@@ -321,7 +316,6 @@ export const convertEveMessage = (
   options: ConvertEveMessagesOptions = {},
 ): ThreadMessage => {
   const createdAt = options.getCreatedAt?.(message) ?? new Date();
-  const status = toMessageStatus(message, index, messages, options);
   const metadata = {
     ...(message.metadata?.optimistic && { isOptimistic: true }),
     custom: {
@@ -344,12 +338,16 @@ export const convertEveMessage = (
           id: message.id,
           createdAt,
           content: message.parts
-            .map((part) => convertAssistantPart(part, status))
+            .map(convertAssistantPart)
             .filter((part) => part !== null),
           metadata,
         };
 
-  return fromThreadMessageLike(like, message.id, status);
+  return fromThreadMessageLike(
+    like,
+    message.id,
+    toMessageStatus(message, index, messages, options),
+  );
 };
 
 /**
