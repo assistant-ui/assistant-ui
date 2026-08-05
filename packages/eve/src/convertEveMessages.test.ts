@@ -790,10 +790,26 @@ describe("convertEveMessages", () => {
           data: { turnId: "turn_1", sequence: 1 },
         },
       ];
-      const data = events.reduce(
-        (state, event) => reducer.reduce(state, event),
-        reducer.initial(),
+      const pendingData = events
+        .slice(0, 1)
+        .reduce(
+          (state, event) => reducer.reduce(state, event),
+          reducer.initial(),
+        );
+      const pendingAssistant = pendingData.messages.find(
+        (message) => message.role === "assistant",
       );
+      expect(pendingAssistant?.metadata?.status).toBe("streaming");
+      expect(
+        convertEveMessages(pendingData, { isRunning: false }).at(-1)?.status,
+      ).toEqual({
+        type: "requires-action",
+        reason: "tool-calls",
+      });
+
+      const data = events
+        .slice(1)
+        .reduce((state, event) => reducer.reduce(state, event), pendingData);
 
       const [message] = convertEveMessages(data, { isRunning: false });
 

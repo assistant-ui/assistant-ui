@@ -88,13 +88,12 @@ const toMessageStatus = (
     (part) =>
       part.type === "dynamic-tool" && part.state === "approval-requested",
   );
-  const hasPendingAuthorization = message.parts.some(
-    (part) =>
-      part.type === "authorization" &&
-      part.state === "required" &&
-      message.metadata?.status === "streaming" &&
-      options.error === undefined,
-  );
+  const hasPendingAuthorization =
+    message.metadata?.status === "streaming" &&
+    options.error === undefined &&
+    message.parts.some(
+      (part) => part.type === "authorization" && part.state === "required",
+    );
 
   if (hasPendingApproval || hasPendingAuthorization) {
     return { type: "requires-action", reason: "tool-calls" };
