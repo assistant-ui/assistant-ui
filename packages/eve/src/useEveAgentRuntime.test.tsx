@@ -227,6 +227,52 @@ describe("useEveAgentRuntime createdAt derivation", () => {
     }
   });
 
+  it("raises a fallback timestamp to the previous durable timestamp", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2010-01-01T00:00:00.000Z"));
+    try {
+      mockUseEveAgent.mockReturnValue(
+        createAgent({
+          data: {
+            messages: [
+              {
+                id: "turn-0:user",
+                role: "user",
+                metadata: { status: "complete", turnId: "turn-0" },
+                parts: [{ type: "text", text: "first" }],
+              },
+              {
+                id: "turn-1:user",
+                role: "user",
+                metadata: { status: "complete", turnId: "turn-1" },
+                parts: [{ type: "text", text: "second" }],
+              },
+            ],
+          } satisfies EveMessageData,
+          events: [
+            {
+              type: "message.received",
+              data: { message: "first", sequence: 0, turnId: "turn-0" },
+              meta: { at: "2020-01-01T00:00:00.000Z" },
+            },
+          ],
+        }) as never,
+      );
+
+      const { result } = renderHook(() => useEveAgentRuntime());
+
+      const messages = result.current.thread.getState().messages;
+      expect(messages[0]!.createdAt).toEqual(
+        new Date("2020-01-01T00:00:00.000Z"),
+      );
+      expect(messages[1]!.createdAt).toEqual(
+        new Date("2020-01-01T00:00:00.000Z"),
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("rescans from scratch when the event log is not a prefix extension of the cached one", () => {
     const sessionAEvents = Array.from({ length: 3 }, (_, i) => ({
       type: "turn.started",
