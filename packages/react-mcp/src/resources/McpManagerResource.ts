@@ -55,6 +55,18 @@ type CustomServerState = {
   isHydrated: boolean;
 };
 
+const storageScopeResourceKeys = new WeakMap<object, number>();
+let nextStorageScopeResourceKey = 0;
+
+const getStorageScopeResourceKey = (storageScope: object) => {
+  const existing = storageScopeResourceKeys.get(storageScope);
+  if (existing !== undefined) return existing;
+
+  const key = nextStorageScopeResourceKey++;
+  storageScopeResourceKeys.set(storageScope, key);
+  return key;
+};
+
 const reportCustomStorageFailure = (
   operation: "load" | "save",
   error: unknown,
@@ -97,6 +109,7 @@ const useMcpManagerResource = (
     }),
     [storageElement.hook, storageElement.key, storageScopeKey],
   );
+  const serverResourceKeyPrefix = `${getStorageScopeResourceKey(storageScope)}:`;
   const [customServerState, setCustomServerState] = useState<CustomServerState>(
     () => ({
       storageScope,
@@ -111,7 +124,7 @@ const useMcpManagerResource = (
   const isHydrated = isCurrentStorage && customServerState.isHydrated;
 
   const storageRef = useRef(storage);
-  const persistenceQueueRef = useRef(Promise.resolve());
+  const persistenceQueuesRef = useRef(new WeakMap<object, Promise<void>>());
 
   useEffect(() => {
     storageRef.current = storage;
@@ -187,9 +200,11 @@ const useMcpManagerResource = (
   useEffect(() => {
     if (!isHydrated) return;
     const targetStorage = storageRef.current;
-    persistenceQueueRef.current = persistenceQueueRef.current.then(() =>
+    const previous = persistenceQueuesRef.current.get(storageScope);
+    const next = (previous ?? Promise.resolve()).then(() =>
       persistCustomServers(targetStorage, customServers),
     );
+    persistenceQueuesRef.current.set(storageScope, next);
   }, [customServers, isHydrated, storageScope]);
 
   const serverElements = useMemo(() => {
@@ -200,7 +215,7 @@ const useMcpManagerResource = (
 
     const connectorElements = connectors.map((c) =>
       withKey(
-        c.id,
+        `${serverResourceKeyPrefix}${c.id}`,
         McpServerResource({
           id: c.id,
           kind: "connector",
@@ -224,7 +239,7 @@ const useMcpManagerResource = (
     );
     const customElements = customServers.map((s) =>
       withKey(
-        s.id,
+        `${serverResourceKeyPrefix}${s.id}`,
         McpServerResource({
           id: s.id,
           kind: "custom",
@@ -255,10 +270,16 @@ const useMcpManagerResource = (
     redirectUri,
     autoConnect,
     connectionTimeout,
+    serverResourceKeyPrefix,
     updateCustomServers,
   ]);
 
   const lookup = useClientLookup(serverElements);
+
+  const getServerById = useCallback(
+    (id: string) => lookup.get({ key: `${serverResourceKeyPrefix}${id}` }),
+    [lookup, serverResourceKeyPrefix],
+  );
 
   const state = useMemo<MCPManagerState>(() => {
     const all = lookup.state;
@@ -289,12 +310,12 @@ const useMcpManagerResource = (
             : {}),
           parameters: tool.inputSchema as never,
           execute: (args) =>
-            lookup.get({ key: server.id }).callTool(tool.name, args as unknown),
+            getServerById(server.id).callTool(tool.name, args as unknown),
         };
       }
     }
     return out;
-  }, [state, lookup]);
+  }, [state, getServerById]);
 
   const clientRef = useAssistantClientRef();
 
@@ -314,13 +335,13 @@ const useMcpManagerResource = (
         `McpManagerResource: no ${kind} at index ${index} (length ${list.length})`,
       );
     }
-    return lookup.get({ key: entry.id });
+    return getServerById(entry.id);
   };
 
   return {
     getState: () => state,
     server: (query) => {
-      if ("id" in query) return lookup.get({ key: query.id });
+      if ("id" in query) return getServerById(query.id);
       return serverByKind(query.kind, query.index);
     },
     connector: ({ index }) => serverByKind("connector", index),
@@ -362,7 +383,7 @@ const useMcpManagerResource = (
       // place. Fallback to manual cleanup if the lookup is empty
       // (server already gone).
       try {
-        await lookup.get({ key: id }).remove();
+        await getServerById(id).remove();
       } catch {
         await storage.clearAuthState(id);
         updateCustomServers((prev) =>

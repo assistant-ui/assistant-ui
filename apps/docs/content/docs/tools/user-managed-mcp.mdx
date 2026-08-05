@@ -300,28 +300,49 @@ All persisted state — custom server records, OAuth tokens, PKCE verifiers, DCR
 - `McpCustomStorage({...})` — bring your own load/save. Use for app-controlled backends (e.g. POST to your API).
 
 ```tsx
-import { McpManagerResource, McpCustomStorage } from "@assistant-ui/react-mcp";
+import { AuiConfig } from "@assistant-ui/react";
+import {
+  McpManagerResource,
+  McpCustomStorage,
+  type MCPConnector,
+} from "@assistant-ui/react-mcp";
 
-AuiConfig({
-  mcp: McpManagerResource({
-    connectors,
-    storageScopeKey: workspaceId,
-    storage: McpCustomStorage({
-      loadCustomServers: async () => fetch("/api/mcp/servers").then((r) => r.json()),
-      saveCustomServers: async (records) =>
-        fetch("/api/mcp/servers", { method: "PUT", body: JSON.stringify(records) }),
-      loadAuthState: async (id) =>
-        fetch(`/api/mcp/auth/${id}`).then((r) => (r.ok ? r.json() : null)),
-      saveAuthState: async (id, state) =>
-        fetch(`/api/mcp/auth/${id}`, { method: "PUT", body: JSON.stringify(state) }),
-      clearAuthState: async (id) =>
-        fetch(`/api/mcp/auth/${id}`, { method: "DELETE" }),
+export function createMcpConfig(
+  workspaceId: string,
+  connectors: MCPConnector[],
+) {
+  const apiBase = `/api/workspaces/${encodeURIComponent(workspaceId)}/mcp`;
+
+  return AuiConfig({
+    mcp: McpManagerResource({
+      connectors,
+      storageScopeKey: workspaceId,
+      storage: McpCustomStorage({
+        loadCustomServers: async () =>
+          fetch(`${apiBase}/servers`).then((r) => r.json()),
+        saveCustomServers: async (records) =>
+          fetch(`${apiBase}/servers`, {
+            method: "PUT",
+            body: JSON.stringify(records),
+          }),
+        loadAuthState: async (id) =>
+          fetch(`${apiBase}/auth/${id}`).then((r) =>
+            r.ok ? r.json() : null,
+          ),
+        saveAuthState: async (id, state) =>
+          fetch(`${apiBase}/auth/${id}`, {
+            method: "PUT",
+            body: JSON.stringify(state),
+          }),
+        clearAuthState: async (id) =>
+          fetch(`${apiBase}/auth/${id}`, { method: "DELETE" }),
+      }),
     }),
-  }),
-});
+  });
+}
 ```
 
-Set `storageScopeKey` when a custom storage backend changes with the current account, tenant, or workspace. Changing the key clears the previous scope's servers and loads the new scope before persistence resumes. `McpLocalStorage` derives this identity from `keyPrefix` automatically.
+Read `workspaceId` from your authenticated session or router and use it for both the API partition and `storageScopeKey`. Changing the key closes the previous scope's connections, clears its servers, and loads the new scope before persistence resumes. `McpLocalStorage` derives this identity from `keyPrefix` automatically.
 
 <Callout type="warn">
 `McpLocalStorage` stores tokens in plain text and is XSS-exposed. For anything beyond local prototyping, use `McpCustomStorage` against an HTTP-only-cookie-backed endpoint, or wrap localStorage with your own encrypted serializer.

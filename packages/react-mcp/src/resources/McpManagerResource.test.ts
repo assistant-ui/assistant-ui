@@ -394,6 +394,157 @@ describe("McpManagerResource storage switching", () => {
     }
   });
 
+  it("reconnects connectors with auth from the new storage scope", async () => {
+    mocks.Client.mockClear();
+    mocks.StreamableHTTPClientTransport.mockClear();
+    const storageA = {
+      loadCustomServers: vi.fn(async () => []),
+      saveCustomServers: vi.fn(async () => {}),
+      loadAuthState: vi.fn(async () => ({ token: "token-a" })),
+      saveAuthState: vi.fn(async () => {}),
+      clearAuthState: vi.fn(async () => {}),
+    };
+    const storageB = {
+      loadCustomServers: vi.fn(async () => []),
+      saveCustomServers: vi.fn(async () => {}),
+      loadAuthState: vi.fn(async () => ({ token: "token-b" })),
+      saveAuthState: vi.fn(async () => {}),
+      clearAuthState: vi.fn(async () => {}),
+    };
+    let switchStorage = () => {};
+    const DynamicManager = resource(function useDynamicManager() {
+      const [storageKey, setStorageKey] = useState<"a" | "b">("a");
+      switchStorage = () => setStorageKey("b");
+
+      return useResource(
+        McpManagerResource({
+          connectors: [
+            defineConnector({
+              id: "docs",
+              name: "Docs",
+              url: "https://example.com/docs/mcp",
+              auth: { type: "bearer" },
+            }),
+          ],
+          storage: McpCustomStorage(storageKey === "a" ? storageA : storageB),
+          storageScopeKey: storageKey,
+        }),
+      );
+    });
+    const root = createTapRoot(function Root() {
+      return useResource(DynamicManager());
+    });
+
+    try {
+      await vi.waitFor(() =>
+        expect(
+          root.getValue().connector({ index: 0 }).getState().connectionState,
+        ).toBe("connected"),
+      );
+      const firstTransport =
+        mocks.StreamableHTTPClientTransport.mock.results[0]?.value;
+
+      switchStorage();
+
+      await vi.waitFor(() =>
+        expect(storageB.loadAuthState).toHaveBeenCalledWith("docs"),
+      );
+      await vi.waitFor(() =>
+        expect(firstTransport.close).toHaveBeenCalledOnce(),
+      );
+      await vi.waitFor(() =>
+        expect(mocks.StreamableHTTPClientTransport).toHaveBeenCalledTimes(2),
+      );
+      await vi.waitFor(() =>
+        expect(
+          root.getValue().connector({ index: 0 }).getState().connectionState,
+        ).toBe("connected"),
+      );
+      expect(
+        mocks.StreamableHTTPClientTransport.mock.calls[1]?.[1],
+      ).toMatchObject({
+        requestInit: {
+          headers: { Authorization: "Bearer token-b" },
+        },
+      });
+    } finally {
+      root.unmount();
+    }
+  });
+
+  it("persists a new storage scope without waiting for the previous scope", async () => {
+    let resolveStorageASave: (() => void) | undefined;
+    const pendingStorageASave = new Promise<void>((resolve) => {
+      resolveStorageASave = resolve;
+    });
+    let blockStorageASave = false;
+    const storageA = {
+      loadCustomServers: vi.fn(async () => []),
+      saveCustomServers: vi.fn(async () => {
+        if (blockStorageASave) await pendingStorageASave;
+      }),
+      loadAuthState: vi.fn(async () => null),
+      saveAuthState: vi.fn(async () => {}),
+      clearAuthState: vi.fn(async () => {}),
+    };
+    const storageB = {
+      loadCustomServers: vi.fn(async () => []),
+      saveCustomServers: vi.fn(async () => {}),
+      loadAuthState: vi.fn(async () => null),
+      saveAuthState: vi.fn(async () => {}),
+      clearAuthState: vi.fn(async () => {}),
+    };
+    let switchStorage = () => {};
+    const DynamicManager = resource(function useDynamicManager() {
+      const [storageKey, setStorageKey] = useState<"a" | "b">("a");
+      switchStorage = () => setStorageKey("b");
+
+      return useResource(
+        McpManagerResource({
+          connectors: [],
+          storage: McpCustomStorage(storageKey === "a" ? storageA : storageB),
+          storageScopeKey: storageKey,
+          autoConnect: false,
+        }),
+      );
+    });
+    const root = createTapRoot(function Root() {
+      return useResource(DynamicManager());
+    });
+
+    try {
+      await vi.waitFor(() =>
+        expect(root.getValue().getState().isHydrated).toBe(true),
+      );
+      await vi.waitFor(() =>
+        expect(storageA.saveCustomServers).toHaveBeenCalled(),
+      );
+      storageA.saveCustomServers.mockClear();
+      blockStorageASave = true;
+
+      await root.getValue().addCustomServer({
+        name: "Docs",
+        url: "https://example.com/docs/mcp",
+        auth: { type: "none" },
+      });
+      await vi.waitFor(() =>
+        expect(storageA.saveCustomServers).toHaveBeenCalledOnce(),
+      );
+
+      switchStorage();
+
+      await vi.waitFor(() =>
+        expect(storageB.saveCustomServers).toHaveBeenCalled(),
+      );
+      for (const [records] of storageB.saveCustomServers.mock.calls) {
+        expect(records).toEqual([]);
+      }
+    } finally {
+      resolveStorageASave?.();
+      root.unmount();
+    }
+  });
+
   it("ignores a previous storage load that resolves after switching", async () => {
     const docsServer = {
       id: "docs",
