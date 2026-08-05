@@ -15,6 +15,7 @@
     "generative-ui",
     "interactables",
     "a2ui",
+    "render-targets",
     "interactables-legacy",
     "---MCP---",
     "mcp",
