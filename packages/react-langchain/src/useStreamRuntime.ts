@@ -125,6 +125,8 @@ const useStreamThreadRuntime = (
   const externalId = useAuiState((s) => s.threadListItem.externalId) as
     | string
     | null;
+  // Object.assign preserves the discriminated transport union; object spread
+  // collapses its arms and no longer satisfies UseStreamOptions.
   const stream = useStream(
     Object.assign({}, options, { threadId: externalId }),
   );
