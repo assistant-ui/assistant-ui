@@ -423,5 +423,67 @@ describe("convertExternalMessages", () => {
       expect(metadata.unstable_annotations).toEqual([{ a: 1 }, { a: 2 }]);
       expect(metadata.unstable_data).toEqual([{ d: 1 }, { d: 2 }]);
     });
+
+    it("keeps the last joined output's timing, dropping earlier timing", () => {
+      const messages = [
+        {
+          id: "a1",
+          role: "assistant" as const,
+          content: [{ type: "text" as const, text: "first" }],
+          metadata: {
+            timing: { streamStartTime: 1 },
+          },
+        },
+        {
+          id: "a2",
+          role: "assistant" as const,
+          content: [{ type: "text" as const, text: "second" }],
+          metadata: {
+            timing: { streamStartTime: 2 },
+          },
+        },
+      ];
+
+      const callback: useExternalMessageConverter.Callback<
+        (typeof messages)[number]
+      > = (msg) => msg as useExternalMessageConverter.Message;
+
+      const result = convertExternalMessages(messages, callback, false, {});
+
+      expect(result).toHaveLength(1);
+      const metadata = result[0]!.metadata as any;
+      expect(metadata.timing).toEqual({ streamStartTime: 2 });
+    });
+
+    it("merges custom across joined outputs, with later keys overwriting earlier ones", () => {
+      const messages = [
+        {
+          id: "a1",
+          role: "assistant" as const,
+          content: [{ type: "text" as const, text: "first" }],
+          metadata: {
+            custom: { author: "agent-a", branch: "main" },
+          },
+        },
+        {
+          id: "a2",
+          role: "assistant" as const,
+          content: [{ type: "text" as const, text: "second" }],
+          metadata: {
+            custom: { author: "agent-b" },
+          },
+        },
+      ];
+
+      const callback: useExternalMessageConverter.Callback<
+        (typeof messages)[number]
+      > = (msg) => msg as useExternalMessageConverter.Message;
+
+      const result = convertExternalMessages(messages, callback, false, {});
+
+      expect(result).toHaveLength(1);
+      const metadata = result[0]!.metadata as any;
+      expect(metadata.custom).toEqual({ author: "agent-b", branch: "main" });
+    });
   });
 });
