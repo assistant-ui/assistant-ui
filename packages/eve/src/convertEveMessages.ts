@@ -471,11 +471,11 @@ export const findEveInputRequest = (
  * Converts an assistant-ui tool approval response into an Eve input response.
  *
  * Pass the originating input request (see {@link findEveInputRequest}) so the
- * mapping never emits an option id the request does not carry: free-form
- * requests (`display: "text"`, `allowFreeform`, or no options at all) are
- * answered with the response's `reason` text, and a response that cannot be
- * mapped honestly throws instead of fabricating an `"approve"` / `"deny"`
- * decision.
+ * mapping never emits an option id the request does not carry: a literal
+ * option match always wins, then free-form requests (`display: "text"`,
+ * `allowFreeform`, or no options at all) are answered with the response's
+ * `reason` text, and a response that cannot be mapped honestly throws instead
+ * of fabricating an `"approve"` / `"deny"` decision.
  */
 export const toEveInputResponse = (
   response: RespondToToolApprovalOptions,
@@ -504,16 +504,15 @@ export const toEveInputResponse = (
     };
   }
 
-  const isFreeform = inputRequest.display === "text";
-  if (!isFreeform) {
-    const fallbackOptionId = response.approved ? "approve" : "deny";
-    if (options?.some((option) => option.id === fallbackOptionId)) {
-      return { requestId, optionId: fallbackOptionId, ...(text && { text }) };
-    }
+  const fallbackOptionId = response.approved ? "approve" : "deny";
+  if (options?.some((option) => option.id === fallbackOptionId)) {
+    return { requestId, optionId: fallbackOptionId, ...(text && { text }) };
   }
 
   const acceptsText =
-    isFreeform || inputRequest.allowFreeform === true || !options?.length;
+    inputRequest.display === "text" ||
+    inputRequest.allowFreeform === true ||
+    !options?.length;
   if (acceptsText && text) {
     return { requestId, text };
   }

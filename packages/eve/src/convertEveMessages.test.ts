@@ -1164,6 +1164,33 @@ describe("toEveInputResponse", () => {
     ).toThrow(/no matching option/);
   });
 
+  it("prefers a literal approve option over the free-form path on a text-display request", () => {
+    const inputRequest = {
+      requestId: "req_1",
+      prompt: "What should the subject line be?",
+      display: "text",
+      options: [
+        { id: "approve", label: "Approve" },
+        { id: "deny", label: "Deny" },
+      ],
+    } as const;
+
+    expect(
+      toEveInputResponse({ approvalId: "req_1", approved: true }, inputRequest),
+    ).toEqual({ requestId: "req_1", optionId: "approve" });
+
+    expect(
+      toEveInputResponse(
+        { approvalId: "req_1", approved: true, reason: "Quarterly results" },
+        inputRequest,
+      ),
+    ).toEqual({
+      requestId: "req_1",
+      optionId: "approve",
+      text: "Quarterly results",
+    });
+  });
+
   it("answers an allowFreeform request without options with text, not a fabricated option id", () => {
     const response = toEveInputResponse(
       {
