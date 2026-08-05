@@ -226,8 +226,8 @@ const useAssistantTransportThreadRuntime = <T>(
         // The server replays a resume from the snapshot it retained for this
         // runId. Body overrides and prepare hooks can neither substitute a
         // state nor drop the ID the server validates against.
+        requestBody = { ...requestBody, runId: resumeState.runId };
         delete requestBody["state"];
-        requestBody["runId"] = resumeState.runId;
       }
 
       const response = await fetch(

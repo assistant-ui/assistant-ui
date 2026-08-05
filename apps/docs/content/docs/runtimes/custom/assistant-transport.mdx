@@ -517,6 +517,14 @@ const runtime = useAssistantTransportRuntime({
   // ...
   api: "http://localhost:8010/assistant",
   resumeApi: "http://localhost:8010/resume",
+});
+```
+
+Setting `resumeStateApi` additionally hydrates resumed runs from the server-retained starting state. It requires a sync server that serves the initial-state route; do not configure it against a server without one, since a failing preflight fails the resume closed:
+
+```tsx
+const runtime = useAssistantTransportRuntime({
+  // ...
   resumeStateApi: "http://localhost:8010/initial-state",
 });
 ```
