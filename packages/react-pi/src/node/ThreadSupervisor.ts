@@ -508,23 +508,19 @@ export class PiThreadSupervisor {
     if (input.attachments?.length) options.images = input.attachments;
 
     let settlePreflight: (error?: unknown) => void = () => {};
-    let preflightState: "pending" | "accepted" | "rejected" = "pending";
+    let preflightSettled = false;
     const accepted = new Promise<void>((resolve, reject) => {
       settlePreflight = (error) => {
-        if (preflightState !== "pending") return;
-        if (error) {
-          preflightState = "rejected";
-          reject(error);
-        } else {
-          preflightState = "accepted";
-          resolve();
-        }
+        if (preflightSettled) return;
+        preflightSettled = true;
+        if (error) reject(error);
+        else resolve();
       };
     });
 
     options.preflightResult = (success) => {
+      // Pi follows a failed preflight by rejecting prompt() with the real error.
       if (success) settlePreflight();
-      else settlePreflight(new Error("Pi rejected the prompt before running"));
     };
 
     void record.session
@@ -535,7 +531,7 @@ export class PiThreadSupervisor {
       })
       .catch((err: unknown) => {
         record.lastError = errorText(err);
-        if (preflightState === "accepted") {
+        if (preflightSettled) {
           this.emit(record, { type: "error", error: record.lastError });
         } else {
           settlePreflight(err);

@@ -232,7 +232,8 @@ describe("PiThreadSupervisor", () => {
 
   it("emits an immediate prompt rejection once", async () => {
     const error = new Error("prompt failed");
-    const session = createLiveSession(async () => {
+    const session = createLiveSession(async (_content, options) => {
+      options?.preflightResult?.(false);
       throw error;
     });
     sdk.create.mockReturnValue({});
