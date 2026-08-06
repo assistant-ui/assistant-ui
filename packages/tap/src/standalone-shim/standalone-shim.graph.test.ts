@@ -3,9 +3,14 @@ import { dirname, join, relative, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const SRC_DIR = resolve(__dirname, "..");
+const DIST_DIR = resolve(SRC_DIR, "../dist");
 const ENTRY_FILES = [
   resolve(__dirname, "index.ts"),
   resolve(__dirname, "compiler-runtime.ts"),
+];
+const DIST_ENTRY_FILES = [
+  resolve(DIST_DIR, "standalone-shim/index.js"),
+  resolve(DIST_DIR, "standalone-shim/compiler-runtime.js"),
 ];
 const REACT_SHIM_DIR = resolve(SRC_DIR, "react-shim");
 const ALLOWED_REACT_HOOK_NAMES = [
@@ -79,31 +84,6 @@ const resolveRelativeModule = (importer: string, specifier: string) => {
   return resolved;
 };
 
-const getRuntimeImportNames = (clause: string | null): string[] => {
-  if (clause === null) return ["*"];
-
-  const trimmed = clause.trim();
-  if (trimmed === "*" || trimmed.startsWith("* as ")) return ["*"];
-
-  const namedStart = trimmed.indexOf("{");
-  const names: string[] = [];
-
-  if (namedStart !== 0) {
-    names.push("default");
-  }
-
-  if (namedStart === -1) return names;
-
-  const named = trimmed.slice(namedStart + 1, trimmed.lastIndexOf("}"));
-  for (const part of named.split(",")) {
-    const name = part.trim();
-    if (!name || name.startsWith("type ")) continue;
-    names.push(name.split(/\s+as\s+/)[0]!);
-  }
-
-  return names;
-};
-
 const walkImportGraph = () => {
   const graph = new Map<string, ModuleReference[]>();
   const pending = [...ENTRY_FILES];
@@ -125,7 +105,7 @@ const walkImportGraph = () => {
 };
 
 describe("@assistant-ui/tap/standalone-shim import graph", () => {
-  it("stays within the standalone-compatible React surface", () => {
+  it("keeps runtime react imports and the react-shim out of the source graph", () => {
     const graph = walkImportGraph();
     const reactShimModules = [...graph.keys()]
       .filter(
@@ -139,23 +119,25 @@ describe("@assistant-ui/tap/standalone-shim import graph", () => {
     const violations: string[] = [];
     for (const [file, references] of graph) {
       for (const reference of references) {
-        if (reference.specifier !== "react" || reference.typeOnly) continue;
-
-        const unsupported = getRuntimeImportNames(reference.clause).filter(
-          (name) =>
-            !ALLOWED_REACT_HOOK_NAMES.includes(
-              name as (typeof ALLOWED_REACT_HOOK_NAMES)[number],
-            ),
-        );
-        if (unsupported.length > 0) {
-          violations.push(
-            `${relative(SRC_DIR, file)}: ${unsupported.join(", ")}`,
-          );
+        if (reference.typeOnly) continue;
+        if (
+          reference.specifier !== "react" &&
+          !reference.specifier.startsWith("react/")
+        ) {
+          continue;
         }
+        violations.push(
+          `${relative(SRC_DIR, file)} imports "${reference.specifier}"`,
+        );
       }
     }
 
-    expect(violations).toEqual([]);
+    expect(
+      violations,
+      `aui-build rewrites every emitted bare react import to the react-shim, which imports real react. ` +
+        `A runtime react import anywhere in the shim's graph therefore breaks the published react-free entry:\n` +
+        violations.map((v) => `  - ${v}`).join("\n"),
+    ).toEqual([]);
 
     const indexSource = readFileSync(ENTRY_FILES[0]!, "utf8");
     const exportedSurface = [
@@ -181,4 +163,43 @@ describe("@assistant-ui/tap/standalone-shim import graph", () => {
       expect(reactImports, relative(SRC_DIR, entry)).toEqual([]);
     }
   });
+
+  it.skipIf(!existsSync(DIST_ENTRY_FILES[0]!))(
+    "keeps the built dist graph free of react and the react-shim",
+    () => {
+      const visited = new Set<string>();
+      const pending = [...DIST_ENTRY_FILES];
+      const violations: string[] = [];
+
+      while (pending.length > 0) {
+        const file = pending.pop()!;
+        if (visited.has(file)) continue;
+        visited.add(file);
+
+        const source = readFileSync(file, "utf8");
+        for (const match of source.matchAll(
+          /(?:from\s+|import\s+)["']([^"']+)["']/g,
+        )) {
+          const specifier = match[1]!;
+          if (
+            specifier === "react" ||
+            specifier.startsWith("react/") ||
+            specifier.includes("react-shim")
+          ) {
+            violations.push(`${relative(DIST_DIR, file)} -> ${specifier}`);
+            continue;
+          }
+          if (specifier.startsWith(".")) {
+            pending.push(resolve(dirname(file), specifier));
+          }
+        }
+      }
+
+      expect(
+        violations,
+        `The published standalone entries must resolve without react installed. aui-build rewrites bare react imports to the react-shim, so any react usage in a module reachable from the standalone shim reintroduces the dependency:\n` +
+          violations.map((v) => `  - ${v}`).join("\n"),
+      ).toEqual([]);
+    },
+  );
 });
