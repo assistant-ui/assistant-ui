@@ -997,7 +997,11 @@ interface Options extends ReadableOptions {
 declare const PARTIAL_JSON_OBJECT_META_SYMBOL: unique symbol;
 
 type PartInit = {
-  readonly type: "reasoning" | "text";
+  readonly type: "text";
+  readonly parentId?: string;
+} | {
+  readonly type: "reasoning";
+  readonly unstable_summary?: string;
   readonly parentId?: string;
 } | {
   readonly type: "tool-call";
@@ -1106,6 +1110,7 @@ type ReasoningPart = {
   type: "reasoning";
   text: string;
   status: TextStatus;
+  unstable_summary?: string;
   parentId?: string;
 };
 
