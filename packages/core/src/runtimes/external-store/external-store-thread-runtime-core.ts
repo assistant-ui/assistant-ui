@@ -28,6 +28,7 @@ import type {
   ThreadRuntimeCore,
 } from "../../runtime/interfaces/thread-runtime-core";
 import type { QueuePlacement } from "../../runtime/queue/external-thread-queue-adapter";
+import { queueItemToAppendMessage } from "../../runtime/queue/queue-item-message";
 import { BaseThreadRuntimeCore } from "../../runtime/base/base-thread-runtime-core";
 import type { ModelContextProvider } from "../../model-context/types";
 import {
@@ -471,9 +472,9 @@ export class ExternalStoreThreadRuntimeCore
     // Buffering does not start a run, so the tool-abort below must wait until
     // the queue flushes. By then the prior run (and its tools) has settled.
     if (!isEdit && this._store.queue) {
-      this._store.queue.enqueue(message, {
-        lane: message.steer ? "steer" : "queue",
-      });
+      if (message.steer ?? this._store.isRunning ?? false)
+        this._store.queue.steer(message);
+      else this._store.queue.enqueue(message);
       return;
     }
 
@@ -526,11 +527,21 @@ export class ExternalStoreThreadRuntimeCore
     return this._store?.queue?.steerItems ?? EMPTY_QUEUE_ITEMS;
   }
 
-  public moveQueueItem(
-    queueItemId: string,
-    options: { lane?: "queue" | "steer" } & QueuePlacement,
-  ) {
-    this._store?.queue?.move(queueItemId, options);
+  public steerQueueItem(queueItemId: string) {
+    const queue = this._store?.queue;
+    if (!queue) return;
+    const item = [...queue.steerItems, ...queue.items].find(
+      (i) => i.id === queueItemId,
+    );
+    if (!item) throw new Error(`Unknown queue item "${queueItemId}".`);
+    queue.remove(queueItemId);
+    queue.steer(
+      queueItemToAppendMessage(item, this.messages.at(-1)?.id ?? null),
+    );
+  }
+
+  public moveQueueItem(queueItemId: string, placement: QueuePlacement) {
+    this._store?.queue?.move(queueItemId, placement);
   }
 
   public removeQueueItem(queueItemId: string) {

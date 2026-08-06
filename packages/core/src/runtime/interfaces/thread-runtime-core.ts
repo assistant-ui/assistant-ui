@@ -179,10 +179,8 @@ export type ThreadRuntimeCore = Readonly<{
 
   getQueueItems?: () => readonly QueueItemState[];
   getSteerQueueItems?: () => readonly QueueItemState[];
-  moveQueueItem?: (
-    queueItemId: string,
-    options: { lane?: "queue" | "steer" } & QueuePlacement,
-  ) => void;
+  steerQueueItem?: (queueItemId: string) => void;
+  moveQueueItem?: (queueItemId: string, placement: QueuePlacement) => void;
   removeQueueItem?: (queueItemId: string) => void;
 
   speech: SpeechState | undefined;

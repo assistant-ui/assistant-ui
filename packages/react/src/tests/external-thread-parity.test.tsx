@@ -246,6 +246,7 @@ describe("ExternalThread composer", () => {
 
   it("stamps the thread head as parentId on queue-adapter sends", async () => {
     const enqueue = vi.fn();
+    const steer = vi.fn();
     const { aui } = renderThread({
       messages: [
         {
@@ -262,6 +263,7 @@ describe("ExternalThread composer", () => {
         items: [],
         steerItems: [],
         enqueue,
+        steer,
         move: vi.fn(),
         edit: vi.fn(),
         remove: vi.fn(),
@@ -271,8 +273,10 @@ describe("ExternalThread composer", () => {
     aui().thread.composer().setText("queued");
     aui().thread.composer().send();
 
-    await waitFor(() => expect(enqueue).toHaveBeenCalledTimes(1));
-    expect(enqueue.mock.calls[0]![0].parentId).toBe("u1");
+    // mid-run sends default to the steer lane
+    await waitFor(() => expect(steer).toHaveBeenCalledTimes(1));
+    expect(steer.mock.calls[0]![0].parentId).toBe("u1");
+    expect(enqueue).not.toHaveBeenCalled();
   });
 
   it("still refuses to send an empty composer synchronously after a send", async () => {

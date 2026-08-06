@@ -12,9 +12,9 @@ export const EMPTY_QUEUE_ITEMS: readonly QueueItemState[] = Object.freeze([]);
 
 export type QueueItemMethods = {
   getState(): QueueItemState;
-  /** @deprecated Use `move({ lane: "steer" })` instead. Removal after 2026-11-05. */
+  /** @deprecated Remove the item and re-send it with `send({ steer: true })` instead. Removal after 2026-11-05. */
   steer(): void;
-  move(options: { lane?: "queue" | "steer" } & QueuePlacement): void;
+  move(placement: QueuePlacement): void;
   remove(): void;
 };
 

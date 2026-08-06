@@ -445,6 +445,11 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
     () => queueController?.adapter.items ?? EMPTY_QUEUE_ITEMS,
     () => EMPTY_QUEUE_ITEMS,
   );
+  useSyncExternalStore(
+    queueController?.subscribe ?? subscribeNoop,
+    () => queueController?.adapter.steerItems ?? EMPTY_QUEUE_ITEMS,
+    () => EMPTY_QUEUE_ITEMS,
+  );
 
   // Gate on effectiveIsRunning, not isRunning, so a queued message does not
   // start while a client tool from the just-finished run is still executing.

@@ -83,10 +83,8 @@ export type ComposerRuntimeCore = Readonly<{
   cancel: () => void;
 
   queue: readonly QueueItemState[];
-  moveQueueItem: (
-    queueItemId: string,
-    options: { lane?: "queue" | "steer" } & QueuePlacement,
-  ) => void;
+  steerQueueItem: (queueItemId: string) => void;
+  moveQueueItem: (queueItemId: string, placement: QueuePlacement) => void;
   removeQueueItem: (queueItemId: string) => void;
 
   dictation: DictationState | undefined;

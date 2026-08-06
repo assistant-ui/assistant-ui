@@ -201,14 +201,11 @@ export type ComposerRuntime = {
    */
   cancel(): void;
 
-  /** @deprecated Use `moveQueueItem(queueItemId, { lane: "steer" })` instead. Removal after 2026-11-05. */
+  /** @deprecated Remove the item and re-send it with `send({ steer: true })` instead. Removal after 2026-11-05. */
   steerQueueItem(queueItemId: string): void;
 
-  /** Move a queued message between lanes or within a lane. */
-  moveQueueItem(
-    queueItemId: string,
-    options: { lane?: "queue" | "steer" } & QueuePlacement,
-  ): void;
+  /** Reorder a queued message within its lane. */
+  moveQueueItem(queueItemId: string, placement: QueuePlacement): void;
 
   /** Remove a queued message. */
   removeQueueItem(queueItemId: string): void;
@@ -330,16 +327,15 @@ export abstract class ComposerRuntimeImpl implements ComposerRuntime {
   }
 
   public steerQueueItem(queueItemId: string) {
-    this.moveQueueItem(queueItemId, { lane: "steer" });
-  }
-
-  public moveQueueItem(
-    queueItemId: string,
-    options: { lane?: "queue" | "steer" } & QueuePlacement,
-  ) {
     const core = this._core.getState();
     if (!core) throw new Error("Composer is not available");
-    core.moveQueueItem(queueItemId, options);
+    core.steerQueueItem(queueItemId);
+  }
+
+  public moveQueueItem(queueItemId: string, placement: QueuePlacement) {
+    const core = this._core.getState();
+    if (!core) throw new Error("Composer is not available");
+    core.moveQueueItem(queueItemId, placement);
   }
 
   public removeQueueItem(queueItemId: string) {

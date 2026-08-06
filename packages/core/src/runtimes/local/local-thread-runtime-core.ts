@@ -29,6 +29,7 @@ import {
   type MessageQueueController,
 } from "../../runtime/queue/message-queue";
 import type { QueuePlacement } from "../../runtime/queue/external-thread-queue-adapter";
+import { queueItemToAppendMessage } from "../../runtime/queue/queue-item-message";
 import {
   EMPTY_QUEUE_ITEMS,
   type QueueItemState,
@@ -207,7 +208,11 @@ export class LocalThreadRuntimeCore
           // release the queue when the dispatch settles, even if it rejects
           // before reaching startRun's finally, so a failure can't deadlock it
           this._queueRunInFlight = true;
-          void this._runAppend(message)
+          // the tail may have moved since the message was enqueued
+          void this._runAppend({
+            ...message,
+            parentId: this.messages.at(-1)?.id ?? null,
+          })
             .finally(() => {
               this._queueRunInFlight = false;
               this._queue?.notifyIdle();
@@ -271,9 +276,9 @@ export class LocalThreadRuntimeCore
     const isTail = message.parentId === (this.messages.at(-1)?.id ?? null);
     const willRun = message.startRun ?? message.role === "user";
     if (this._queue && willRun && isTail) {
-      this._queue.adapter.enqueue(message, {
-        lane: message.steer ? "steer" : "queue",
-      });
+      if (message.steer ?? this._queueRunInFlight)
+        this._queue.adapter.steer(message);
+      else this._queue.adapter.enqueue(message);
       return;
     }
     if (
@@ -295,11 +300,21 @@ export class LocalThreadRuntimeCore
     return this._queue?.adapter.steerItems ?? EMPTY_QUEUE_ITEMS;
   }
 
-  public moveQueueItem(
-    queueItemId: string,
-    options: { lane?: "queue" | "steer" } & QueuePlacement,
-  ): void {
-    this._queue?.adapter.move(queueItemId, options);
+  public steerQueueItem(queueItemId: string): void {
+    if (!this._queue) return;
+    const { adapter } = this._queue;
+    const item = [...adapter.steerItems, ...adapter.items].find(
+      (i) => i.id === queueItemId,
+    );
+    if (!item) throw new Error(`Unknown queue item "${queueItemId}".`);
+    adapter.remove(queueItemId);
+    adapter.steer(
+      queueItemToAppendMessage(item, this.messages.at(-1)?.id ?? null),
+    );
+  }
+
+  public moveQueueItem(queueItemId: string, placement: QueuePlacement): void {
+    this._queue?.adapter.move(queueItemId, placement);
   }
 
   public removeQueueItem(queueItemId: string): void {

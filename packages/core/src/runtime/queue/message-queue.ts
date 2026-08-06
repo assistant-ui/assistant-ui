@@ -126,54 +126,53 @@ export const createMessageQueue = (
     driver.run(message, { steer: true });
   };
 
-  const enqueue = (message: AppendMessage, { lane }: { lane: Lane }) => {
+  const push = (lane: Lane, message: AppendMessage) => {
     paused = false;
-    if (lane === "steer" && running && driver.cancel) {
-      interrupt(message);
-      return;
-    }
     const id = generateId();
     messages.set(id, message);
     setLanes({ ...lanes, [lane]: [...lanes[lane], toItem(id, message)] });
     advance();
   };
 
-  const move = (
-    queueItemId: string,
-    options: { lane?: Lane } & QueuePlacement,
-  ) => {
-    const fromLane = laneOf(queueItemId);
-    if (!fromLane) throw new Error(`Unknown queue item "${queueItemId}".`);
-    const toLane = options.lane ?? fromLane;
+  const enqueue = (message: AppendMessage) => {
+    push("queue", message);
+  };
 
-    const item = lanes[fromLane].find((i) => i.id === queueItemId)!;
-    const dest = (toLane === fromLane ? lanes[fromLane] : lanes[toLane]).filter(
-      (i) => i.id !== queueItemId,
-    );
+  const steer = (message: AppendMessage) => {
+    if (running && driver.cancel) {
+      interrupt(message);
+      return;
+    }
+    push("steer", message);
+  };
+
+  const move = (queueItemId: string, placement: QueuePlacement) => {
+    const lane = laneOf(queueItemId);
+    if (!lane) throw new Error(`Unknown queue item "${queueItemId}".`);
+
+    const item = lanes[lane].find((i) => i.id === queueItemId)!;
+    const dest = lanes[lane].filter((i) => i.id !== queueItemId);
 
     const anchorIndex = (anchor: string) => {
       if (anchor === queueItemId)
         throw new Error(`Queue item "${queueItemId}" cannot anchor itself.`);
       const index = dest.findIndex((i) => i.id === anchor);
       if (index === -1)
-        throw new Error(`Unknown anchor "${anchor}" in lane "${toLane}".`);
+        throw new Error(`Unknown anchor "${anchor}" in lane "${lane}".`);
       return index;
     };
 
-    const { insertAfter, insertBefore } = options;
+    const { insertAfter, insertBefore } = placement;
     let index: number;
     if (insertAfter === undefined && insertBefore === undefined) {
-      index =
-        toLane === fromLane
-          ? lanes[fromLane].findIndex((i) => i.id === queueItemId)
-          : dest.length;
+      index = lanes[lane].findIndex((i) => i.id === queueItemId);
     } else if (insertAfter !== undefined && insertBefore !== undefined) {
       const after = insertAfter === null ? -1 : anchorIndex(insertAfter);
       const before =
         insertBefore === null ? dest.length : anchorIndex(insertBefore);
       if (before !== after + 1)
         throw new Error(
-          `insertAfter "${insertAfter}" and insertBefore "${insertBefore}" are not adjacent in lane "${toLane}".`,
+          `insertAfter "${insertAfter}" and insertBefore "${insertBefore}" are not adjacent in lane "${lane}".`,
         );
       index = after + 1;
     } else if (insertAfter !== undefined) {
@@ -182,33 +181,10 @@ export const createMessageQueue = (
       index = insertBefore === null ? dest.length : anchorIndex(insertBefore!);
     }
 
-    // placement and immediate dispatch cannot coexist: an anchored move into
-    // the steer lane places without interrupting; only an unanchored one
-    // cancels the live run and dispatches
-    if (
-      insertAfter === undefined &&
-      insertBefore === undefined &&
-      toLane === "steer" &&
-      fromLane !== "steer" &&
-      running &&
-      driver.cancel
-    ) {
-      const message = messages.get(queueItemId)!;
-      messages.delete(queueItemId);
-      setLanes({
-        queue: lanes.queue.filter((i) => i.id !== queueItemId),
-        steer: lanes.steer,
-      });
-      interrupt(message);
-      return;
-    }
-
-    const nextDest = [...dest.slice(0, index), item, ...dest.slice(index)];
-    const next = { ...lanes, [toLane]: nextDest };
-    if (toLane !== fromLane)
-      next[fromLane] = lanes[fromLane].filter((i) => i.id !== queueItemId);
-    setLanes(next);
-    advance();
+    setLanes({
+      ...lanes,
+      [lane]: [...dest.slice(0, index), item, ...dest.slice(index)],
+    });
   };
 
   const edit = (queueItemId: string, message: AppendMessage) => {
@@ -235,6 +211,7 @@ export const createMessageQueue = (
     items: lanes.queue,
     steerItems: lanes.steer,
     enqueue,
+    steer,
     move,
     edit,
     remove,

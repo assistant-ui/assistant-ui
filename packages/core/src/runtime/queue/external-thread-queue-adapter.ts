@@ -13,14 +13,12 @@ export type QueuePlacement = {
 export type ExternalThreadQueueAdapter = {
   items: readonly QueueItemState[];
   steerItems: readonly QueueItemState[];
-  enqueue: (
-    message: AppendMessage,
-    options: { lane: "queue" | "steer" },
-  ) => void;
-  move: (
-    queueItemId: string,
-    options: { lane?: "queue" | "steer" } & QueuePlacement,
-  ) => void;
+  /** Send a message into the queue lane, processed in order. */
+  enqueue: (message: AppendMessage) => void;
+  /** Send a message into the steer lane, processed next. */
+  steer: (message: AppendMessage) => void;
+  /** Reorder a queued message within its lane. */
+  move: (queueItemId: string, placement: QueuePlacement) => void;
   edit: (queueItemId: string, message: AppendMessage) => void;
   remove: (queueItemId: string) => void;
 };

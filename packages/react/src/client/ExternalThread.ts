@@ -393,18 +393,31 @@ type ComposerClientResourceProps = {
   attachmentAdapter?: AttachmentAdapter | undefined;
 };
 
+const queueItemToAppendMessage = (item: QueueItemState): AppendMessage => ({
+  role: "user",
+  content: item.parts,
+  attachments: [],
+  createdAt: new Date(),
+  parentId: null,
+  sourceId: null,
+  runConfig: {},
+  metadata: { custom: {} },
+});
+
 const useQueueItemClient = ({
   item,
+  onSteer,
   onMove,
   onRemove,
 }: {
   item: QueueItemState;
-  onMove: (options: { lane?: "queue" | "steer" } & QueuePlacement) => void;
+  onSteer: () => void;
+  onMove: (placement: QueuePlacement) => void;
   onRemove: () => void;
 }): ClientOutput<"queueItem"> => {
   return {
     getState: () => item,
-    steer: () => onMove({ lane: "steer" }),
+    steer: onSteer,
     move: onMove,
     remove: onRemove,
   };
@@ -540,7 +553,11 @@ const useComposerClientResource = ({
         item.id,
         QueueItemClient({
           item,
-          onMove: (options) => queue?.move(item.id, options),
+          onSteer: () => {
+            queue?.remove(item.id);
+            queue?.steer(queueItemToAppendMessage(item));
+          },
+          onMove: (placement) => queue?.move(item.id, placement),
           onRemove: () => queue?.remove(item.id),
         }),
       ),
@@ -673,9 +690,8 @@ const useComposerClientResource = ({
           },
         };
         if (queue) {
-          queue.enqueue(composedMessage, {
-            lane: opts?.steer ? "steer" : "queue",
-          });
+          if (opts?.steer ?? canCancel) queue.steer(composedMessage);
+          else queue.enqueue(composedMessage);
         } else {
           onSend?.(composedMessage);
         }
@@ -807,11 +823,10 @@ const useExternalThread = ({
     (): ExternalThreadQueueAdapter | undefined =>
       queue && {
         ...queue,
-        enqueue: (message, options) =>
-          queue.enqueue(
-            { ...message, parentId: message.parentId ?? headId },
-            options,
-          ),
+        enqueue: (message) =>
+          queue.enqueue({ ...message, parentId: message.parentId ?? headId }),
+        steer: (message) =>
+          queue.steer({ ...message, parentId: message.parentId ?? headId }),
       },
     [queue, headId],
   );
@@ -912,7 +927,7 @@ const useExternalThread = ({
               startRun: message.startRun,
             };
       if (queue) {
-        queue.enqueue(appendMessage, { lane: "queue" });
+        queue.enqueue(appendMessage);
       } else {
         onNew?.(appendMessage);
       }

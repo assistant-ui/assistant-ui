@@ -22,11 +22,11 @@ describe("createMessageQueue", () => {
     const run = vi.fn();
     const { adapter, notifyIdle } = createMessageQueue({ run });
 
-    adapter.enqueue(msg("first"), { lane: "queue" });
+    adapter.enqueue(msg("first"));
     expect(run).toHaveBeenCalledTimes(1);
     expect(adapter.items).toHaveLength(0);
 
-    adapter.enqueue(msg("second"), { lane: "queue" });
+    adapter.enqueue(msg("second"));
     expect(run).toHaveBeenCalledTimes(1);
     expect(prompts(adapter.items)).toEqual(["second"]);
 
@@ -42,9 +42,9 @@ describe("createMessageQueue", () => {
     );
     const { adapter, notifyIdle } = createMessageQueue({ run });
 
-    adapter.enqueue(msg("a"), { lane: "queue" }); // runs now
-    adapter.enqueue(msg("b"), { lane: "queue" });
-    adapter.enqueue(msg("c"), { lane: "queue" });
+    adapter.enqueue(msg("a")); // runs now
+    adapter.enqueue(msg("b"));
+    adapter.enqueue(msg("c"));
     expect(prompts(adapter.items)).toEqual(["b", "c"]);
 
     notifyIdle();
@@ -58,10 +58,8 @@ describe("createMessageQueue", () => {
     const attachments = [{ id: "x" }] as never;
     const runConfig = { custom: { k: 1 } };
 
-    adapter.enqueue(msg("busy"), { lane: "queue" });
-    adapter.enqueue(msg("queued", { attachments, runConfig }), {
-      lane: "queue",
-    });
+    adapter.enqueue(msg("busy"));
+    adapter.enqueue(msg("queued", { attachments, runConfig }));
     notifyIdle();
 
     expect(run).toHaveBeenLastCalledWith(
@@ -75,7 +73,7 @@ describe("createMessageQueue", () => {
     const { adapter, notifyBusy } = createMessageQueue({ run });
     notifyBusy();
 
-    adapter.enqueue(msg("hello"), { lane: "queue" });
+    adapter.enqueue(msg("hello"));
     expect(adapter.items[0]!.parts).toEqual([{ type: "text", text: "hello" }]);
     expect(adapter.items[0]!.prompt).toBe("hello");
   });
@@ -108,7 +106,6 @@ describe("createMessageQueue", () => {
           },
         ],
       }),
-      { lane: "queue" },
     );
 
     expect(adapter.items[0]!.parts).toEqual([
@@ -130,9 +127,9 @@ describe("createMessageQueue", () => {
     const run = vi.fn();
     const { adapter, notifyIdle } = createMessageQueue({ run });
 
-    adapter.enqueue(msg("a"), { lane: "queue" }); // runs now
-    adapter.enqueue(msg("b"), { lane: "queue" });
-    adapter.enqueue(msg("c"), { lane: "queue" });
+    adapter.enqueue(msg("a")); // runs now
+    adapter.enqueue(msg("b"));
+    adapter.enqueue(msg("c"));
 
     adapter.remove(adapter.items[0]!.id); // remove "b"
     expect(prompts(adapter.items)).toEqual(["c"]);
@@ -149,8 +146,8 @@ describe("createMessageQueue", () => {
     const { adapter, notifyBusy } = createMessageQueue({ run });
     notifyBusy();
 
-    adapter.enqueue(msg("a"), { lane: "queue" });
-    adapter.enqueue(msg("b"), { lane: "queue" });
+    adapter.enqueue(msg("a"));
+    adapter.enqueue(msg("b"));
     const id = adapter.items[0]!.id;
 
     adapter.edit(id, msg("a2"));
@@ -165,14 +162,14 @@ describe("createMessageQueue", () => {
     );
   });
 
-  it("steer-lane enqueue interrupts via cancel and suppresses the cancelled run's idle", () => {
+  it("steer interrupts via cancel and suppresses the cancelled run's idle", () => {
     const run = vi.fn();
     const cancel = vi.fn();
     const { adapter, notifyIdle } = createMessageQueue({ run, cancel });
 
-    adapter.enqueue(msg("a"), { lane: "queue" }); // running
-    adapter.enqueue(msg("b"), { lane: "queue" }); // queued
-    adapter.enqueue(msg("steer-me"), { lane: "steer" });
+    adapter.enqueue(msg("a")); // running
+    adapter.enqueue(msg("b")); // queued
+    adapter.steer(msg("steer-me"));
 
     expect(cancel).toHaveBeenCalledTimes(1);
     expect(run).toHaveBeenLastCalledWith(
@@ -195,13 +192,13 @@ describe("createMessageQueue", () => {
     );
   });
 
-  it("steer-lane enqueue without cancel dispatches next, before the queue lane", () => {
+  it("steer without cancel dispatches next, before the queue lane", () => {
     const run = vi.fn();
     const { adapter, notifyIdle } = createMessageQueue({ run }); // no cancel
 
-    adapter.enqueue(msg("a"), { lane: "queue" }); // running
-    adapter.enqueue(msg("b"), { lane: "queue" });
-    adapter.enqueue(msg("urgent"), { lane: "steer" });
+    adapter.enqueue(msg("a")); // running
+    adapter.enqueue(msg("b"));
+    adapter.steer(msg("urgent"));
 
     expect(prompts(adapter.steerItems)).toEqual(["urgent"]);
     expect(prompts(adapter.items)).toEqual(["b"]);
@@ -221,9 +218,9 @@ describe("createMessageQueue", () => {
     const { adapter, notifyBusy, notifyIdle } = createMessageQueue({ run });
 
     notifyBusy();
-    adapter.enqueue(msg("q1"), { lane: "queue" });
-    adapter.enqueue(msg("s1"), { lane: "steer" });
-    adapter.enqueue(msg("s2"), { lane: "steer" });
+    adapter.enqueue(msg("q1"));
+    adapter.steer(msg("s1"));
+    adapter.steer(msg("s2"));
 
     notifyIdle();
     notifyIdle();
@@ -236,10 +233,10 @@ describe("createMessageQueue", () => {
       const run = vi.fn();
       const queue = createMessageQueue({ run });
       queue.notifyBusy();
-      queue.adapter.enqueue(msg("a"), { lane: "queue" });
-      queue.adapter.enqueue(msg("b"), { lane: "queue" });
-      queue.adapter.enqueue(msg("c"), { lane: "queue" });
-      queue.adapter.enqueue(msg("s"), { lane: "steer" });
+      queue.adapter.enqueue(msg("a"));
+      queue.adapter.enqueue(msg("b"));
+      queue.adapter.enqueue(msg("c"));
+      queue.adapter.steer(msg("s"));
       const id = (prompt: string) =>
         [...queue.adapter.steerItems, ...queue.adapter.items].find(
           (i) => i.prompt === prompt,
@@ -253,18 +250,12 @@ describe("createMessageQueue", () => {
       expect(prompts(adapter.items)).toEqual(["a", "b", "c"]);
     });
 
-    it("moves to the destination lane tail on lane change without placement", () => {
+    it("reorders within the steer lane", () => {
       const { adapter, id } = setup();
-      adapter.move(id("s"), { lane: "queue" });
-      expect(prompts(adapter.steerItems)).toEqual([]);
-      expect(prompts(adapter.items)).toEqual(["a", "b", "c", "s"]);
-    });
-
-    it("moves into the steer lane without interrupting when no cancel is available", () => {
-      const { adapter, id } = setup();
-      adapter.move(id("b"), { lane: "steer" });
-      expect(prompts(adapter.steerItems)).toEqual(["s", "b"]);
-      expect(prompts(adapter.items)).toEqual(["a", "c"]);
+      adapter.steer(msg("s2"));
+      adapter.move(id("s2"), { insertBefore: id("s") });
+      expect(prompts(adapter.steerItems)).toEqual(["s2", "s"]);
+      expect(prompts(adapter.items)).toEqual(["a", "b", "c"]);
     });
 
     it("insertAfter: null moves to the front of the lane", () => {
@@ -327,76 +318,24 @@ describe("createMessageQueue", () => {
 
     it("throws when the anchor lives in a different lane", () => {
       const { adapter, id } = setup();
-      expect(() =>
-        adapter.move(id("s"), { lane: "queue", insertAfter: id("s") }),
-      ).toThrow("cannot anchor itself");
       expect(() => adapter.move(id("a"), { insertAfter: id("s") })).toThrow(
         "Unknown anchor",
       );
     });
 
-    it("interrupts via cancel when moving into the steer lane mid-run", () => {
-      const run = vi.fn();
-      const cancel = vi.fn();
-      const { adapter, notifyIdle } = createMessageQueue({ run, cancel });
-
-      adapter.enqueue(msg("a"), { lane: "queue" }); // running
-      adapter.enqueue(msg("b"), { lane: "queue" });
-      adapter.enqueue(msg("c"), { lane: "queue" });
-
-      adapter.move(adapter.items[1]!.id, { lane: "steer" }); // "c"
-      expect(cancel).toHaveBeenCalledTimes(1);
-      expect(run).toHaveBeenLastCalledWith(
-        expect.objectContaining({ content: [{ type: "text", text: "c" }] }),
-        { steer: true },
-      );
-      expect(prompts(adapter.items)).toEqual(["b"]);
-
-      // cancelled run's settle is swallowed
-      notifyIdle();
-      expect(run).toHaveBeenCalledTimes(2);
-    });
-
-    it("validates anchors mid-run instead of interrupting past them", () => {
+    it("never interrupts, even mid-run with a cancel-capable driver", () => {
       const run = vi.fn();
       const cancel = vi.fn();
       const { adapter } = createMessageQueue({ run, cancel });
 
-      adapter.enqueue(msg("a"), { lane: "queue" }); // running
-      adapter.enqueue(msg("b"), { lane: "queue" });
-      const bId = adapter.items[0]!.id;
+      adapter.enqueue(msg("a")); // running
+      adapter.enqueue(msg("b"));
+      adapter.enqueue(msg("c"));
 
-      expect(() =>
-        adapter.move(bId, { lane: "steer", insertAfter: "nope" }),
-      ).toThrow('Unknown anchor "nope"');
-      expect(() =>
-        adapter.move(bId, { lane: "steer", insertAfter: bId }),
-      ).toThrow("cannot anchor itself");
+      adapter.move(adapter.items[1]!.id, { insertAfter: null }); // "c"
       expect(cancel).not.toHaveBeenCalled();
       expect(run).toHaveBeenCalledTimes(1);
-    });
-
-    it("places an anchored move into the steer lane mid-run without interrupting", () => {
-      const run = vi.fn();
-      const cancel = vi.fn();
-      const { adapter, notifyIdle } = createMessageQueue({ run, cancel });
-
-      adapter.enqueue(msg("a"), { lane: "queue" }); // running
-      adapter.enqueue(msg("b"), { lane: "queue" });
-      adapter.enqueue(msg("c"), { lane: "queue" });
-
-      adapter.move(adapter.items[1]!.id, { lane: "steer", insertAfter: null }); // "c"
-      expect(cancel).not.toHaveBeenCalled();
-      expect(run).toHaveBeenCalledTimes(1);
-      expect(prompts(adapter.steerItems)).toEqual(["c"]);
-      expect(prompts(adapter.items)).toEqual(["b"]);
-
-      // the placed item dispatches first once the live run settles
-      notifyIdle();
-      expect(run).toHaveBeenLastCalledWith(
-        expect.objectContaining({ content: [{ type: "text", text: "c" }] }),
-        { steer: false },
-      );
+      expect(prompts(adapter.items)).toEqual(["c", "b"]);
     });
   });
 
@@ -406,9 +345,9 @@ describe("createMessageQueue", () => {
       run,
     });
 
-    adapter.enqueue(msg("a"), { lane: "queue" }); // running
-    adapter.enqueue(msg("b"), { lane: "queue" });
-    adapter.enqueue(msg("c"), { lane: "queue" });
+    adapter.enqueue(msg("a")); // running
+    adapter.enqueue(msg("b"));
+    adapter.enqueue(msg("c"));
 
     notifyCancelled();
     notifyIdle(); // the cancelled run settles
@@ -416,7 +355,7 @@ describe("createMessageQueue", () => {
     expect(prompts(adapter.items)).toEqual(["b", "c"]);
 
     // the next explicit send re-arms draining, head first
-    adapter.enqueue(msg("d"), { lane: "queue" });
+    adapter.enqueue(msg("d"));
     expect(run).toHaveBeenLastCalledWith(
       expect.objectContaining({ content: [{ type: "text", text: "b" }] }),
       { steer: false },
@@ -429,8 +368,8 @@ describe("createMessageQueue", () => {
     const { adapter, notifyBusy, clear } = createMessageQueue({ run });
 
     notifyBusy();
-    adapter.enqueue(msg("a"), { lane: "queue" });
-    adapter.enqueue(msg("s"), { lane: "steer" });
+    adapter.enqueue(msg("a"));
+    adapter.steer(msg("s"));
     clear();
 
     expect(adapter.items).toHaveLength(0);
@@ -442,13 +381,13 @@ describe("createMessageQueue", () => {
     const run = vi.fn();
     const { adapter, notifyIdle, clear } = createMessageQueue({ run });
 
-    adapter.enqueue(msg("a"), { lane: "queue" }); // running
-    adapter.enqueue(msg("b"), { lane: "queue" });
+    adapter.enqueue(msg("a")); // running
+    adapter.enqueue(msg("b"));
     clear();
     notifyIdle();
     expect(run).toHaveBeenCalledTimes(1);
 
-    adapter.enqueue(msg("c"), { lane: "queue" });
+    adapter.enqueue(msg("c"));
     expect(run).toHaveBeenLastCalledWith(
       expect.objectContaining({ content: [{ type: "text", text: "c" }] }),
       { steer: false },
@@ -461,7 +400,7 @@ describe("createMessageQueue", () => {
     const cb = vi.fn();
     subscribe(cb);
 
-    adapter.enqueue(msg("a"), { lane: "queue" }); // runs (1 setLanes push + 1 pop)
+    adapter.enqueue(msg("a")); // runs (1 setLanes push + 1 pop)
     expect(cb).toHaveBeenCalled();
   });
 
@@ -470,7 +409,7 @@ describe("createMessageQueue", () => {
     const { adapter, notifyBusy, notifyIdle } = createMessageQueue({ run });
 
     notifyBusy(); // e.g. a regenerate started without going through the queue
-    adapter.enqueue(msg("a"), { lane: "queue" });
+    adapter.enqueue(msg("a"));
     expect(run).not.toHaveBeenCalled();
     expect(prompts(adapter.items)).toEqual(["a"]);
 

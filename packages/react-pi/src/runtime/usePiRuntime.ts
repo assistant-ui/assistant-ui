@@ -247,12 +247,14 @@ const usePiThreadStore = (
         prompt: content,
         parts: [{ type: "text" as const, text: content }],
       })),
-      enqueue: (message, { lane }) => {
+      enqueue: (message) => {
         void controller
-          .sendMessage(
-            message,
-            lane === "steer" ? { streamingBehavior: "steer" } : undefined,
-          )
+          .sendMessage(message)
+          .catch((error: unknown) => onError?.(error));
+      },
+      steer: (message) => {
+        void controller
+          .sendMessage(message, { streamingBehavior: "steer" })
           .catch((error: unknown) => onError?.(error));
       },
       // Pi owns the queue server-side and exposes no per-item move, edit, or

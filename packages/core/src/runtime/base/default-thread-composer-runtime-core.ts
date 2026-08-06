@@ -51,11 +51,15 @@ export class DefaultThreadComposerRuntimeCore
     return flat;
   }
 
+  public override steerQueueItem(queueItemId: string): void {
+    this.runtime.steerQueueItem?.(queueItemId);
+  }
+
   public override moveQueueItem(
     queueItemId: string,
-    options: { lane?: "queue" | "steer" } & QueuePlacement,
+    placement: QueuePlacement,
   ): void {
-    this.runtime.moveQueueItem?.(queueItemId, options);
+    this.runtime.moveQueueItem?.(queueItemId, placement);
   }
 
   public override removeQueueItem(queueItemId: string): void {

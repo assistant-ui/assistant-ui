@@ -122,6 +122,43 @@ describe("local runtime message queue", () => {
     ).toEqual(["b"]);
   });
 
+  it("defaults a mid-run send to steer, ahead of an explicitly queued item", async () => {
+    const { adapter, releases, getRunCount } = createCountingAdapter();
+    const aui = renderWithRuntime(adapter, true);
+
+    await send(aui, "first");
+    expect(getRunCount()).toBe(1);
+
+    await act(async () => {
+      aui.thread.composer().setText("behind");
+      aui.thread.composer().send({ steer: false });
+      await flush();
+    });
+    await send(aui, "next");
+    expect(
+      aui.thread
+        .composer()
+        .getState()
+        .queue.map((q) => q.prompt),
+    ).toEqual(["next", "behind"]);
+
+    await act(async () => {
+      releases[0]!();
+      await flush();
+      await flush();
+    });
+    expect(getRunCount()).toBe(2);
+    expect(userTexts(aui)).toEqual(["first", "next"]);
+
+    await act(async () => {
+      releases[1]!();
+      await flush();
+      await flush();
+    });
+    expect(getRunCount()).toBe(3);
+    expect(userTexts(aui)).toEqual(["first", "next", "behind"]);
+  });
+
   it("queueItem(index).remove() drops a queued message", async () => {
     const { adapter } = createCountingAdapter();
     const aui = renderWithRuntime(adapter, true);

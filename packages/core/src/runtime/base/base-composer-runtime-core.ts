@@ -302,9 +302,10 @@ export abstract class BaseComposerRuntimeCore
     return EMPTY_QUEUE_ITEMS;
   }
 
+  public steerQueueItem(_queueItemId: string): void {}
   public moveQueueItem(
     _queueItemId: string,
-    _options: { lane?: "queue" | "steer" } & QueuePlacement,
+    _placement: QueuePlacement,
   ): void {}
   public removeQueueItem(_queueItemId: string): void {}
 

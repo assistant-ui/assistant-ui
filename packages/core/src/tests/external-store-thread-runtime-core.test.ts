@@ -834,6 +834,7 @@ describe("ExternalStoreThreadRuntimeCore - message queue", () => {
     items: [] as never[],
     steerItems: [] as never[],
     enqueue: vi.fn(),
+    steer: vi.fn(),
     move: vi.fn(),
     edit: vi.fn(),
     remove: vi.fn(),
@@ -878,8 +879,48 @@ describe("ExternalStoreThreadRuntimeCore - message queue", () => {
     await runtime.append(appendMessage({ steer: true }));
 
     expect(onNew).not.toHaveBeenCalled();
+    expect(queue.enqueue).not.toHaveBeenCalled();
+    expect(queue.steer).toHaveBeenCalledTimes(1);
+  });
+
+  it("defaults a mid-run send to steer and an idle send to enqueue", async () => {
+    const queue = makeQueue();
+    const running = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({ queue, onNew: vi.fn(), isRunning: true }),
+    );
+    await running.append(
+      appendMessage({ parentId: running.messages.at(-1)?.id ?? null }),
+    );
+    expect(queue.steer).toHaveBeenCalledTimes(1);
+    expect(queue.enqueue).not.toHaveBeenCalled();
+
+    const idleQueue = makeQueue();
+    const idle = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({ queue: idleQueue, onNew: vi.fn(), isRunning: false }),
+    );
+    await idle.append(
+      appendMessage({ parentId: idle.messages.at(-1)?.id ?? null }),
+    );
+    expect(idleQueue.enqueue).toHaveBeenCalledTimes(1);
+    expect(idleQueue.steer).not.toHaveBeenCalled();
+  });
+
+  it("queues behind pending items when steer is explicitly false mid-run", async () => {
+    const queue = makeQueue();
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({ queue, onNew: vi.fn(), isRunning: true }),
+    );
+    await runtime.append(
+      appendMessage({
+        steer: false,
+        parentId: runtime.messages.at(-1)?.id ?? null,
+      }),
+    );
     expect(queue.enqueue).toHaveBeenCalledTimes(1);
-    expect(queue.enqueue.mock.calls[0]![1]).toEqual({ lane: "steer" });
+    expect(queue.steer).not.toHaveBeenCalled();
   });
 
   it("does not abort in-flight tools when buffering a queued send", async () => {
@@ -948,9 +989,32 @@ describe("ExternalStoreThreadRuntimeCore - message queue", () => {
 
     expect(runtime.getQueueItems()).toBe(items);
     expect(runtime.getSteerQueueItems()).toBe(steerItems);
-    runtime.moveQueueItem("q1", { lane: "steer" });
+    runtime.moveQueueItem("q1", { insertAfter: null });
     runtime.removeQueueItem("q1");
-    expect(queue.move).toHaveBeenCalledWith("q1", { lane: "steer" });
+    expect(queue.move).toHaveBeenCalledWith("q1", { insertAfter: null });
     expect(queue.remove).toHaveBeenCalledWith("q1");
+  });
+
+  it("decomposes steerQueueItem into remove + steer", () => {
+    const queue = makeQueue();
+    queue.items = [
+      { id: "q1", prompt: "queued", parts: [{ type: "text", text: "queued" }] },
+    ] as never;
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({ queue }),
+    );
+
+    runtime.steerQueueItem("q1");
+    expect(queue.remove).toHaveBeenCalledWith("q1");
+    expect(queue.steer).toHaveBeenCalledTimes(1);
+    expect(queue.steer.mock.calls[0]![0]).toMatchObject({
+      role: "user",
+      content: [{ type: "text", text: "queued" }],
+    });
+
+    expect(() => runtime.steerQueueItem("nope")).toThrow(
+      'Unknown queue item "nope"',
+    );
   });
 });
