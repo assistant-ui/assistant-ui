@@ -24,12 +24,18 @@ import {
   type EveMessageData,
   type UseEveAgentOptions,
 } from "eve/react";
-import type { SendTurnPayload } from "eve/client";
+import type { PrepareSend } from "eve/client";
 import {
   convertEveMessages,
   getEveMessageContent,
   toEveInputResponse,
 } from "./convertEveMessages";
+
+// Reached through PrepareSend rather than importing SendTurnPayload directly:
+// that name is public at the pinned 0.27.6 but @internal and unexported on
+// 0.30, which the caret range already admits, so a fresh resolve would break
+// the typecheck. PrepareSend survives the reshape.
+type EveSendTurnPayload = Parameters<PrepareSend>[0];
 
 const USER_STAGED_STATUS = {
   type: "complete",
@@ -53,11 +59,11 @@ const hasRunConfig = (
  */
 const toEveClientContext = (
   runConfig: AppendMessage["runConfig"],
-): Pick<SendTurnPayload, "clientContext"> =>
+): Pick<EveSendTurnPayload, "clientContext"> =>
   hasRunConfig(runConfig)
     ? {
         clientContext: runConfig.custom as NonNullable<
-          SendTurnPayload["clientContext"]
+          EveSendTurnPayload["clientContext"]
         >,
       }
     : {};
