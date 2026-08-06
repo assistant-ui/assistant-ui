@@ -1,9 +1,40 @@
 # `@assistant-ui/mcp-docs-server`
 
-Model Context Protocol (MCP) server that gives AI assistants direct access to assistant-ui's documentation and example projects. Exposes `assistantUIDocs` (retrieve documentation by path), `assistantUIExamples` (access complete example projects), and `assistantUISearch` (keyword search across the bundled docs), and serves the same docs and examples as readable MCP **resources** (`aui-docs:///{path}`, `aui-example:///{name}`).
+Model Context Protocol (MCP) server that gives AI assistants direct access to assistant-ui's documentation, example projects, and the interactive **Build a Generative UI Assistant** course. Exposes `assistantUIDocs`, `assistantUIExamples`, `assistantUISearch`, `assistantUICourse`, and `assistantUICourseCertificate`, and serves docs/examples as readable MCP **resources** (`aui-docs:///{path}`, `aui-example:///{name}`).
 
 > [!NOTE]
 > Detailed installation, troubleshooting, and advanced usage at [assistant-ui.com/docs/llm#mcp](https://www.assistant-ui.com/docs/llm#mcp).
+
+## Course tools
+
+The package ships a fixed eight-step course, **Build a Generative UI Assistant**, under `course/build-generative-ui-assistant/`.
+
+### `assistantUICourse`
+
+Call with no arguments for the course overview and lesson list. Call with
+`{ "step": N }` where `N` is `1`–`8` to load that lesson (full Markdown, focus
+files, docs/example hints, and the teaching wrapper).
+
+Do not pass `courseId`. There is a single fixed course.
+
+### `assistantUICourseCertificate`
+
+After the final lesson, ask the learner for a name, then call
+`{ "name": "..." }`. The tool writes a PNG under the user cache directory and
+returns the absolute file path.
+
+```text
+Linux:   ~/.cache/assistant-ui/course/certificates/
+macOS:   ~/Library/Caches/assistant-ui/course/certificates/
+Windows: %LOCALAPPDATA%\\assistant-ui\\course\\certificates\\
+```
+
+### Typical agent flow
+
+1. `assistantUICourse` → overview
+2. `assistantUICourse` with `{ "step": 1 }` … `{ "step": 8 }`
+3. Use `assistantUIDocs` / `assistantUIExamples` when a lesson asks for them
+4. On step 8, ask for a name → `assistantUICourseCertificate`
 
 ## Installation
 

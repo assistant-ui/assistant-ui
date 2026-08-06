@@ -28,6 +28,7 @@
     "dist",
     "src",
     ".docs",
+    "course",
     "README.md"
   ],
   "sideEffects": false,
@@ -42,14 +43,16 @@
   "dependencies": {
     "@modelcontextprotocol/server": "^2.0.0",
     "gray-matter": "^4.0.3",
-    "zod": "^4.4.3"
+    "zod": "^4.4.3",
+    "pngjs": "^7.0.0"
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
     "@modelcontextprotocol/core": "^2.0.0",
     "@types/node": "^26.2.0",
     "tsx": "^4.23.12",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.10",
+    "@types/pngjs": "^6.0.5"
   },
   "publishConfig": {
     "access": "public",

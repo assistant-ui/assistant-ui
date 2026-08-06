@@ -104,7 +104,7 @@ describe("MCP Protocol Integration", () => {
     });
     const result = await client.request<ToolListResult>(request);
 
-    expect(result.tools).toHaveLength(6);
+    expect(result.tools).toHaveLength(8);
 
     for (const expected of [
       {
@@ -121,6 +121,16 @@ describe("MCP Protocol Integration", () => {
         name: "assistantUISearch",
         title: "Search assistant-ui Documentation",
         annotations: { readOnlyHint: true, openWorldHint: false },
+      },
+      {
+        name: "assistantUICourse",
+        title: "assistant-ui Course",
+        annotations: { readOnlyHint: true, openWorldHint: false },
+      },
+      {
+        name: "assistantUICourseCertificate",
+        title: "assistant-ui Course Certificate",
+        annotations: { readOnlyHint: false, openWorldHint: false },
       },
       {
         name: "assistantUITemplates",
