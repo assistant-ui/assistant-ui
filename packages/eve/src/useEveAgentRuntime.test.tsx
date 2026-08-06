@@ -911,4 +911,52 @@ describe("useEveAgentRuntime concurrent sends", () => {
 
     expect(onFinish).toHaveBeenCalledWith({ status: "ready" });
   });
+
+  it("orders a send issued mid-promotion after the in-flight staged draft", async () => {
+    let resolveFirstSend!: () => void;
+    const send = vi
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise<void>((resolve) => {
+            resolveFirstSend = resolve;
+          }),
+      )
+      .mockResolvedValue(undefined);
+    const agent = createAgent({ data: settledData, send });
+    mockUseEveAgent.mockReturnValue(agent as never);
+    const { result } = renderHook(() => useEveAgentRuntime());
+
+    await stageMessage(result.current, "first staged");
+    await stageMessage(result.current, "second staged");
+
+    const secondStagedId = result.current.thread.getState().messages[3]!.id;
+    act(() => {
+      void result.current.thread.startRun({
+        parentId: secondStagedId,
+        sourceId: null,
+        runConfig: {},
+      });
+    });
+    await waitFor(() => expect(send).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      result.current.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "interleaved" }],
+      });
+    });
+    expect(send).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      resolveFirstSend();
+    });
+    await waitFor(() => expect(send).toHaveBeenCalledTimes(3));
+
+    expect(send.mock.calls.map(([payload]) => payload)).toEqual([
+      { message: "first staged" },
+      { message: "interleaved" },
+      { message: "second staged" },
+    ]);
+  });
 });
