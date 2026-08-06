@@ -42,7 +42,7 @@ produces that vocabulary component when a surface is ingested.
 | `Divider` | Yes | Yes (`divider`) | Degrades *(silent)*: becomes `separator` on the next sibling; a trailing divider is dropped | `Divider` |
 | `Spacer` | Yes | — | Degrades *(silent)*: becomes `spacing` on the next sibling; a trailing spacer is dropped | — |
 | `Card` | Yes | Yes when it holds only hero image, body, subtext, and actions; otherwise degrades *(warns)* to inline blocks | Yes (`Container` + footer `ActionSet`) | `Card` |
-| `Carousel` | Yes | Yes (`carousel` of cards; non-card children dropped and overflowing cards clamped to title + body, both with warnings) | Degrades: root-level via `toTeamsAttachments` (up to 10 attachments) *(silent)*; nested renders as sequential cards *(warns)* | — |
+| `Carousel` | Yes | Yes (`carousel` of cards; non-card children dropped and overflowing cards clamped to title + body, both with warnings) | Degrades: root-level via `toTeamsAttachments` maps the first 10 `Card` children to attachments *(silent)*; cards past 10 are dropped with a `clamped` warning *(warns)*; non-card children are dropped *(silent, unless the type is unknown)*; nested renders as sequential cards *(warns)* | — |
 | `Row` | Yes | Degrades *(silent)*: context row when all children are `Badge`/`Caption`, otherwise flattened vertically | Yes (`ColumnSet`; warns past 3 columns) | `Row` |
 | `Col` | Yes | Degrades *(silent)*: flattened into the block sequence | Yes (`Container`) | `Column` |
 | `Box` | Yes | Degrades *(silent)*: flattened into the block sequence | Yes (`Container`) | — |
