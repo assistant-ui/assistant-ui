@@ -60,9 +60,12 @@ This channel is ephemeral page or client context, not run configuration: Eve
 serializes it into a `Client context: {...}` message the model reads, so it
 cannot select a model or otherwise change how the turn executes.
 
-Every value in the bag must be JSON-serializable, because it is serialized onto
-the wire and Eve rejects a non-serializable object with a 400. A `Date` or a
-`BigInt` that other runtimes would ignore fails the send here.
+Every value in the bag must be JSON-serializable, because the turn body is
+serialized before it is sent. A `BigInt` or a circular value throws and fails
+the send; a `Date` becomes its ISO string and a function or `undefined` is
+dropped, so the model reads something different from what you passed. Other
+runtimes ignore `runConfig` values they cannot use, so a bag that was harmless
+elsewhere can behave differently here.
 
 ## Connector authorization
 
