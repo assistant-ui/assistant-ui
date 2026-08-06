@@ -49,6 +49,18 @@ export default function Home() {
 }
 ```
 
+The `custom` bag of a per-turn `runConfig` is forwarded to Eve as
+`clientContext`, so `runConfig: { custom: { page: "/pricing" } }` arrives as
+`clientContext: { page: "/pricing" }`. An empty or absent bag is omitted, and
+every value must be JSON-serializable.
+
+Eve turns that object into a model context message, which is why the
+assistant-ui `custom` envelope is unwrapped: the envelope would put a literal
+`custom` key in the prompt. It is page or client context rather than run
+configuration, and it cannot select a model or change how the turn executes.
+Keep secrets, credentials, and personal data out of it, since the model reads
+it as message text.
+
 ## Connector authorization
 
 When Eve pauses for connector authorization, the runtime emits an assistant

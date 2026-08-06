@@ -326,7 +326,10 @@ export type { ExternalStoreSharedOptions } from "./runtimes/external-store/exter
 export { pickExternalStoreSharedOptions } from "./runtimes/external-store/external-store-shared-options";
 
 // Message queue
-export type { ExternalThreadQueueAdapter } from "./runtime/queue/external-thread-queue-adapter";
+export type {
+  ExternalThreadQueueAdapter,
+  QueuePlacement,
+} from "./runtime/queue/external-thread-queue-adapter";
 export type { ExternalThreadBranchAdapter } from "./runtime/branch/external-thread-branch-adapter";
 export {
   createMessageQueue,

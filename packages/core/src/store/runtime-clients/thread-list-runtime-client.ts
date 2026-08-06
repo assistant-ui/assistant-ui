@@ -1,10 +1,7 @@
 import { useMemo } from "react";
 import { useResource, withKey, resource } from "@assistant-ui/tap";
-import {
-  type ClientOutput,
-  useClientLookup,
-  useClientResource,
-} from "@assistant-ui/store";
+import type { ClientOutput } from "@assistant-ui/store";
+import { useClientLookup, useClientResource } from "@assistant-ui/store/client";
 import type { ThreadListRuntime } from "../../runtime/api/thread-list-runtime";
 import type { AssistantRuntime } from "../../runtime/api/assistant-runtime";
 import { useSubscribable } from "./useSubscribable";

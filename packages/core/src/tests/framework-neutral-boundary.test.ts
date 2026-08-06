@@ -1,6 +1,6 @@
 /// <reference types="node" />
 import { describe, expect, it } from "vitest";
-import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 
 const SRC_DIR = resolve(__dirname, "..");
@@ -108,19 +108,6 @@ function walkFrom(entry: string): { forbidden: string[]; jsxFiles: string[] } {
   return { forbidden, jsxFiles };
 }
 
-function findFiles(dir: string, ext: string[]): string[] {
-  const results: string[] = [];
-  for (const entry of readdirSync(dir)) {
-    const full = join(dir, entry);
-    if (statSync(full).isDirectory()) {
-      results.push(...findFiles(full, ext));
-    } else if (ext.some((e) => full.endsWith(e))) {
-      results.push(full);
-    }
-  }
-  return results;
-}
-
 function nonTypeImportNames(clause: string): string[] {
   const names: string[] = [];
   const trimmed = clause.trim();
@@ -183,15 +170,60 @@ describe("framework neutral boundary", () => {
     ).toEqual([]);
   });
 
-  it("src/store may only pull react names the tap shim dispatches", () => {
-    const storeDir = resolve(SRC_DIR, "store");
-    const files = findFiles(storeDir, [".ts"]).filter(
-      (f) => !f.includes(".test."),
-    );
+  it("the store entry graphs stay hostable inside a tap root", () => {
     const violations: string[] = [];
+    const jsxFiles: string[] = [];
+    const visited = new Set<string>();
+    const pending = [
+      resolve(SRC_DIR, "store/index.ts"),
+      resolve(SRC_DIR, "store/internal.ts"),
+    ];
 
-    for (const file of files) {
+    // Walks the runtime graph only: type-only imports are erased at build, so
+    // they neither carry runtime dependencies nor get traversed. This is also
+    // why type imports may keep using the @assistant-ui/store barrel: the
+    // augmentations target that specifier, and splitting types across entries
+    // would fork the ScopeRegistry seen by src-mapped consumers.
+    const RUNTIME_IMPORT_RE =
+      /(?:^|\n)\s*(?:import|export)\s+(?!type\b)(?:(?:\{[^}]*\}|\*\s+as\s+\w+|\*|\w+(?:\s*,\s*(?:\{[^}]*\}|\*\s+as\s+\w+))?)\s+from\s+)?["']([^"']+)["']/g;
+
+    const collectRuntimeImports = (content: string): string[] => {
+      const specs: string[] = [];
+      for (const re of [RUNTIME_IMPORT_RE, DYNAMIC_IMPORT_RE]) {
+        re.lastIndex = 0;
+        let match: RegExpExecArray | null;
+        while ((match = re.exec(content)) !== null) {
+          specs.push(match[1]!);
+        }
+      }
+      return specs;
+    };
+
+    while (pending.length > 0) {
+      const file = pending.pop()!;
+      if (visited.has(file)) continue;
+      visited.add(file);
+      if (file.endsWith(".tsx")) jsxFiles.push(relative(SRC_DIR, file));
+
       const content = readFileSync(file, "utf-8");
+
+      for (const spec of collectRuntimeImports(content)) {
+        if (spec === "react/jsx-runtime") {
+          violations.push(
+            `${relative(SRC_DIR, file)} imports "react/jsx-runtime"`,
+          );
+        }
+        if (spec === "@assistant-ui/store") {
+          violations.push(
+            `${relative(SRC_DIR, file)} value-imports the "@assistant-ui/store" barrel; use "@assistant-ui/store/client"`,
+          );
+        }
+        const resolved = resolveRelative(file, spec);
+        if (resolved && !visited.has(resolved)) {
+          pending.push(resolved);
+        }
+      }
+
       FROM_REACT_RE.lastIndex = 0;
       let match: RegExpExecArray | null;
       while ((match = FROM_REACT_RE.exec(content)) !== null) {
@@ -210,12 +242,16 @@ describe("framework neutral boundary", () => {
 
     expect(
       violations,
-      `src/store may only use react names the tap shim dispatches ` +
-        `(useState, useReducer, useRef, useMemo, useCallback, useEffect, useLayoutEffect, ` +
-        `useInsertionEffect, useEffectEvent, useSyncExternalStore, useDebugValue, use, ` +
-        `useContext, createContext).\n` +
+      `The store entry graphs run inside tap roots on every framework, so they may ` +
+        `only use react names the tap shim dispatches, never react/jsx-runtime, and ` +
+        `never the @assistant-ui/store barrel (whose module scope requires React).\n` +
         `Violations:\n` +
         violations.map((f) => `  - ${f}`).join("\n"),
+    ).toEqual([]);
+    expect(
+      jsxFiles,
+      `The JSX transform injects react/jsx-runtime at build time, so the store entry graphs must not contain .tsx files:\n` +
+        jsxFiles.map((f) => `  - ${f}`).join("\n"),
     ).toEqual([]);
   });
 });

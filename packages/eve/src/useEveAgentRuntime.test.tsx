@@ -90,6 +90,180 @@ describe("useEveAgentRuntime status forwarding", () => {
     });
   });
 
+  it("forwards runConfig to eve as one-turn client context when sending", async () => {
+    const agent = createAgent({
+      data: { messages: [] } satisfies EveMessageData,
+    });
+    mockUseEveAgent.mockReturnValue(agent as never);
+
+    const { result } = renderHook(() => useEveAgentRuntime());
+
+    act(() => {
+      result.current.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "hello" }],
+        runConfig: { custom: { page: "/pricing" } },
+      });
+    });
+
+    await waitFor(() => {
+      expect(agent.send).toHaveBeenCalledWith({
+        message: "hello",
+        clientContext: { page: "/pricing" },
+      });
+    });
+  });
+
+  it("omits clientContext when no runConfig is provided", async () => {
+    const agent = createAgent({
+      data: { messages: [] } satisfies EveMessageData,
+    });
+    mockUseEveAgent.mockReturnValue(agent as never);
+
+    const { result } = renderHook(() => useEveAgentRuntime());
+
+    act(() => {
+      result.current.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "hello" }],
+      });
+    });
+
+    await waitFor(() => {
+      expect(agent.send).toHaveBeenCalledWith({ message: "hello" });
+    });
+  });
+
+  it("omits clientContext when runConfig.custom is empty", async () => {
+    const agent = createAgent({
+      data: { messages: [] } satisfies EveMessageData,
+    });
+    mockUseEveAgent.mockReturnValue(agent as never);
+
+    const { result } = renderHook(() => useEveAgentRuntime());
+
+    act(() => {
+      result.current.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "hello" }],
+        runConfig: { custom: {} },
+      });
+    });
+
+    await waitFor(() => {
+      expect(agent.send).toHaveBeenCalledWith({ message: "hello" });
+    });
+  });
+
+  it("prefers the reload-time runConfig over the staged one", async () => {
+    const agent = createAgent({
+      data: { messages: [] } satisfies EveMessageData,
+    });
+    mockUseEveAgent.mockReturnValue(agent as never);
+
+    const { result } = renderHook(() => useEveAgentRuntime());
+
+    act(() => {
+      result.current.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "hello" }],
+        startRun: false,
+        runConfig: { custom: { page: "/staged" } },
+      });
+    });
+
+    await waitFor(() => {
+      expect(result.current.thread.getState().messages.length).toBe(1);
+    });
+    const stagedId = result.current.thread.getState().messages[0]!.id;
+
+    act(() => {
+      result.current.thread.startRun({
+        parentId: stagedId,
+        runConfig: { custom: { page: "/reload" } },
+      });
+    });
+
+    await waitFor(() => {
+      expect(agent.send).toHaveBeenCalledWith({
+        message: "hello",
+        clientContext: { page: "/reload" },
+      });
+    });
+  });
+
+  it("falls back to the staged runConfig when reload passes none", async () => {
+    const agent = createAgent({
+      data: { messages: [] } satisfies EveMessageData,
+    });
+    mockUseEveAgent.mockReturnValue(agent as never);
+
+    const { result } = renderHook(() => useEveAgentRuntime());
+
+    act(() => {
+      result.current.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "hello" }],
+        startRun: false,
+        runConfig: { custom: { page: "/staged" } },
+      });
+    });
+
+    await waitFor(() => {
+      expect(result.current.thread.getState().messages.length).toBe(1);
+    });
+    const stagedId = result.current.thread.getState().messages[0]!.id;
+
+    act(() => {
+      result.current.thread.startRun({ parentId: stagedId });
+    });
+
+    await waitFor(() => {
+      expect(agent.send).toHaveBeenCalledWith({
+        message: "hello",
+        clientContext: { page: "/staged" },
+      });
+    });
+  });
+
+  // Known limitation: core normalizes an omitted reload runConfig to {}
+  // (toStartRunConfig in core/src/runtime/api/thread-runtime.ts), so an
+  // explicit empty reload config is indistinguishable from an omitted one at
+  // the adapter and cannot clear the staged context.
+  it("cannot clear the staged runConfig with an explicit empty reload config", async () => {
+    const agent = createAgent({
+      data: { messages: [] } satisfies EveMessageData,
+    });
+    mockUseEveAgent.mockReturnValue(agent as never);
+
+    const { result } = renderHook(() => useEveAgentRuntime());
+
+    act(() => {
+      result.current.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "hello" }],
+        startRun: false,
+        runConfig: { custom: { page: "/staged" } },
+      });
+    });
+
+    await waitFor(() => {
+      expect(result.current.thread.getState().messages.length).toBe(1);
+    });
+    const stagedId = result.current.thread.getState().messages[0]!.id;
+
+    act(() => {
+      result.current.thread.startRun({ parentId: stagedId, runConfig: {} });
+    });
+
+    await waitFor(() => {
+      expect(agent.send).toHaveBeenCalledWith({
+        message: "hello",
+        clientContext: { page: "/staged" },
+      });
+    });
+  });
+
   it("keeps the last assistant message running while streaming", () => {
     mockUseEveAgent.mockReturnValue(
       createAgent({ status: "streaming" }) as never,
@@ -281,6 +455,46 @@ describe("useEveAgentRuntime staged messages", () => {
     expect(send).toHaveBeenNthCalledWith(3, { message: "second staged" });
     await waitFor(() => {
       expect(getText(result.current)).toEqual(["earlier", "earlier answer"]);
+    });
+  });
+
+  it("applies the reload runConfig only to the message being reloaded", async () => {
+    const agent = createAgent({ data: settledData });
+    mockUseEveAgent.mockReturnValue(agent as never);
+    const { result } = renderHook(() => useEveAgentRuntime());
+
+    const stageWithConfig = async (text: string, page: string) => {
+      await act(async () => {
+        result.current.thread.append({
+          role: "user",
+          content: [{ type: "text", text }],
+          startRun: false,
+          runConfig: { custom: { page } },
+        });
+      });
+    };
+
+    await stageWithConfig("first staged", "/first");
+    await stageWithConfig("second staged", "/second");
+
+    const secondStagedId = result.current.thread.getState().messages[3]!.id;
+    await act(async () => {
+      await result.current.thread.startRun({
+        parentId: secondStagedId,
+        sourceId: null,
+        runConfig: { custom: { page: "/reloaded" } },
+      });
+    });
+
+    // the earlier draft keeps the context it was staged with; only the
+    // reloaded message takes the reload-time config
+    expect(agent.send).toHaveBeenNthCalledWith(1, {
+      message: "first staged",
+      clientContext: { page: "/first" },
+    });
+    expect(agent.send).toHaveBeenNthCalledWith(2, {
+      message: "second staged",
+      clientContext: { page: "/reloaded" },
     });
   });
 

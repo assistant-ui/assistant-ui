@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { resource, withKey } from "@assistant-ui/tap";
 import type { ClientOutput } from "@assistant-ui/store";
-import { useClientLookup } from "@assistant-ui/store";
+import { useClientLookup } from "@assistant-ui/store/client";
 import type { SuggestionsState } from "../scopes/suggestions";
 import type { SuggestionState } from "../scopes/suggestion";
 

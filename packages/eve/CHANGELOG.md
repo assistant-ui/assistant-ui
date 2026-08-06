@@ -1,5 +1,22 @@
 # @assistant-ui/eve
 
+## 0.0.8
+
+### Patch Changes
+
+- [#5625](https://github.com/assistant-ui/assistant-ui/pull/5625) [`453e694`](https://github.com/assistant-ui/assistant-ui/commit/453e69447aa748d4b8b89731f7b0b4cbc659f2a6) - fix: render connector authorization parts and map auth-suspended turns to requires-action ([@samdickson22](https://github.com/samdickson22))
+
+- [#5608](https://github.com/assistant-ui/assistant-ui/pull/5608) [`7e59aa7`](https://github.com/assistant-ui/assistant-ui/commit/7e59aa78076e2cf18b6be860ca61454adca6748f) - feat: export toEveInputResponse from the package barrel for custom approval flows ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#5584](https://github.com/assistant-ui/assistant-ui/pull/5584) [`8e5fbf3`](https://github.com/assistant-ui/assistant-ui/commit/8e5fbf3a69ad08c7691c8ebced831098dc11cbc9) - fix: convert inbound eve file parts instead of dropping them ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#5652](https://github.com/assistant-ui/assistant-ui/pull/5652) [`e90abb1`](https://github.com/assistant-ui/assistant-ui/commit/e90abb1608749e1bb900dce695e2b4a764e14bd7) - fix: reconcile staged messages with live session updates and promote staged prefixes on reload ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#5580](https://github.com/assistant-ui/assistant-ui/pull/5580) [`adbd641`](https://github.com/assistant-ui/assistant-ui/commit/adbd64163657e2f24a2cc948f9799ee037f3d4d8) - fix: map cancelled and failed turns to terminal message statuses instead of a permanent running state ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- Updated dependencies [[`dcacd9b`](https://github.com/assistant-ui/assistant-ui/commit/dcacd9bc45117f9beca698006fd67616d2c1ca61), [`d8a59ad`](https://github.com/assistant-ui/assistant-ui/commit/d8a59ad5d75f220e76e689d4191855c244ddc20a), [`e70da91`](https://github.com/assistant-ui/assistant-ui/commit/e70da91866a5ac880472fbcf23039909270f7623), [`aac3a8c`](https://github.com/assistant-ui/assistant-ui/commit/aac3a8cb8824472f694226a4c53829a0a693072e), [`34cec64`](https://github.com/assistant-ui/assistant-ui/commit/34cec64fcfbdef0e101d731f5518e9075d989e2f)]:
+  - @assistant-ui/core@0.3.6
+
 ## 0.0.7
 
 ### Patch Changes

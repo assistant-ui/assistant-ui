@@ -25,6 +25,7 @@ import {
   type UseEveAgentOptions,
   type UseEveAgentStatus,
 } from "eve/react";
+import type { SendTurnPayload } from "eve/client";
 import {
   convertEveMessages,
   getEveMessageContent,
@@ -39,6 +40,28 @@ const USER_STAGED_STATUS = {
 const sendCancelledError = new Error(
   "eve send was dropped because the run was cancelled.",
 );
+
+const hasRunConfig = (
+  runConfig: AppendMessage["runConfig"],
+): runConfig is NonNullable<AppendMessage["runConfig"]> =>
+  runConfig?.custom !== undefined && Object.keys(runConfig.custom).length > 0;
+
+/**
+ * Only the `custom` bag crosses the wire. Eve reads `clientContext` as its own
+ * namespace and serializes it into a model-visible context message, so sending
+ * the assistant-ui envelope would surface a literal `"custom"` key in the
+ * prompt and to every eve-side handler.
+ */
+const toEveClientContext = (
+  runConfig: AppendMessage["runConfig"],
+): Pick<SendTurnPayload, "clientContext"> =>
+  hasRunConfig(runConfig)
+    ? {
+        clientContext: runConfig.custom as NonNullable<
+          SendTurnPayload["clientContext"]
+        >,
+      }
+    : {};
 
 export type UseEveAgentRuntimeOptions = Omit<
   UseEveAgentOptions<EveMessageData>,
@@ -221,14 +244,17 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
         return;
       }
       try {
-        await enqueueSend({ message: getEveMessageContent(message) });
+        await enqueueSend({
+          message: getEveMessageContent(message),
+          ...toEveClientContext(message.runConfig),
+        });
       } catch (error) {
         if (error !== sendCancelledError) throw error;
       }
     },
     ...(stagedMessages
       ? {
-          onReload: async (parentId: string | null) => {
+          onReload: async (parentId: string | null, config) => {
             const stagedRun = getStagedRun(parentId);
             if (!stagedRun)
               throw new Error("Runtime does not support reloading messages.");
@@ -244,9 +270,17 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
               setStagedMessages(
                 stagedInputsRef.current.size > 0 ? nextMessages : null,
               );
+              // The reload config belongs to the message being reloaded; the
+              // drafts promoted ahead of it keep the config they were staged
+              // with, or reloading the tail would rewrite their context too.
+              const runConfig =
+                stagedMessage.id === parentId && hasRunConfig(config.runConfig)
+                  ? config.runConfig
+                  : input.runConfig;
               try {
                 await enqueueSend({
                   message: getEveMessageContent(input.message),
+                  ...toEveClientContext(runConfig),
                 });
               } catch (error) {
                 stagedInputsRef.current.set(stagedMessage.id, input);
