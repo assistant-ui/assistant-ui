@@ -327,6 +327,54 @@ describe("useEveAgentRuntime createdAt derivation", () => {
     );
   });
 
+  it("keeps a durable timestamp for a message the replaced event log no longer covers", () => {
+    const messages = [
+      {
+        id: "turn-1:user",
+        role: "user" as const,
+        metadata: { status: "complete" as const, turnId: "turn-1" },
+        parts: [{ type: "text" as const, text: "old" }],
+      },
+    ];
+    mockUseEveAgent.mockReturnValue(
+      createAgent({
+        data: { messages } satisfies EveMessageData,
+        events: [
+          {
+            type: "turn.started",
+            data: { sequence: 0, turnId: "turn-1" },
+            meta: { at: "2020-01-01T00:00:00.000Z" },
+          },
+        ],
+      }) as never,
+    );
+
+    const { result, rerender } = renderHook(() => useEveAgentRuntime());
+    expect(result.current.thread.getState().messages[0]!.createdAt).toEqual(
+      new Date("2020-01-01T00:00:00.000Z"),
+    );
+
+    // The log is replaced by a window that no longer reaches turn-1, while the
+    // message stays in the thread.
+    mockUseEveAgent.mockReturnValue(
+      createAgent({
+        data: { messages: [...messages] } satisfies EveMessageData,
+        events: [
+          {
+            type: "turn.started",
+            data: { sequence: 9, turnId: "turn-9" },
+            meta: { at: "2026-01-01T00:00:00.000Z" },
+          },
+        ],
+      }) as never,
+    );
+    rerender();
+
+    expect(result.current.thread.getState().messages[0]!.createdAt).toEqual(
+      new Date("2020-01-01T00:00:00.000Z"),
+    );
+  });
+
   it("re-derives timestamps only for newly appended events", () => {
     const counter = { reads: 0 };
     const makeEvent = (sequence: number) =>

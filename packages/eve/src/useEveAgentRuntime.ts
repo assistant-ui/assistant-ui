@@ -43,6 +43,8 @@ type TurnTimestampCache = {
 
 const EMPTY_TURN_TIMESTAMPS: ReadonlyMap<string, Date> = new Map();
 
+type AssignedCreatedAt = { at: Date; durable: boolean };
+
 // Eve's store grows its event log via [...events, event], so a later snapshot
 // shares its prefix elements by reference and the cache can resume where it
 // left off. The reuse is validated, never trusted: the cache may hold state
@@ -143,7 +145,7 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
   const [stagedMessages, setStagedMessages] = useState<ThreadMessage[] | null>(
     null,
   );
-  const createdAtByMessageIdRef = useRef(new Map<string, Date>());
+  const createdAtByMessageIdRef = useRef(new Map<string, AssignedCreatedAt>());
   const turnTimestampCacheRef = useRef<TurnTimestampCache>({
     lastEvents: [],
     timestamps: EMPTY_TURN_TIMESTAMPS,
@@ -186,10 +188,23 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
     // the client's), so each fallback is bounded between its neighboring
     // assigned/durable timestamps to keep message order and thread timestamps
     // consistent.
+    //
+    // A durable timestamp already observed for a still-present message outlives
+    // the event that carried it: the event log can be replaced by one that no
+    // longer reaches back to that turn (a resumed or compacted session), and
+    // re-deriving from the new log alone would drop the message to a fresh
+    // wall-clock stamp and render an old message as "just now".
     const eveMessages = agent.data.messages;
     const durableByIndex = eveMessages.map((message) => {
       const turnId = message.metadata?.turnId;
-      return turnId !== undefined ? turnTimestamps.get(turnId) : undefined;
+      const derived =
+        turnId !== undefined ? turnTimestamps.get(turnId) : undefined;
+      if (derived !== undefined) {
+        createdAtByMessageId.set(message.id, { at: derived, durable: true });
+        return derived;
+      }
+      const remembered = createdAtByMessageId.get(message.id);
+      return remembered?.durable === true ? remembered.at : undefined;
     });
     const nextDurableMsByIndex: (number | undefined)[] = [];
     let nextDurableMs: number | undefined;
@@ -204,10 +219,13 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
     eveMessages.forEach((message, index) => {
       let assigned = durableByIndex[index];
       if (assigned === undefined) {
-        let fallback = createdAtByMessageId.get(message.id);
+        let fallback = createdAtByMessageId.get(message.id)?.at;
         if (fallback === undefined) {
           fallback = new Date();
-          createdAtByMessageId.set(message.id, fallback);
+          createdAtByMessageId.set(message.id, {
+            at: fallback,
+            durable: false,
+          });
         }
         let ms = fallback.getTime();
         if (previousAssignedMs !== undefined && ms < previousAssignedMs)
