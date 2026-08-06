@@ -36,12 +36,6 @@ import type { PiClient, PiSendMessageInput, PiThreadMetadata } from "../types";
 import { piExtras } from "./piExtras";
 import type { PiRuntimeExtrasInternal, PiRuntimeOptions } from "./runtimeTypes";
 
-const unsupportedQueueOp = () => {
-  throw new Error(
-    "Pi's server-side queue does not support per-item operations.",
-  );
-};
-
 const EMPTY_THREAD_STATE = createPiThreadState("__pending__");
 const EMPTY_PROJECTED_MESSAGES: readonly ThreadMessageLike[] = [];
 const EMPTY_MESSAGE_REPOSITORY = ExportedMessageRepository.fromArray([]);
@@ -264,11 +258,12 @@ const usePiThreadStore = (
           .sendMessage(message, { streamingBehavior: "steer" })
           .catch((error: unknown) => onError?.(error));
       },
-      // the server-side queue exposes no per-item operations; fail fast
-      // instead of pretending the action succeeded
-      move: unsupportedQueueOp,
-      edit: unsupportedQueueOp,
-      remove: unsupportedQueueOp,
+      // the server-side queue exposes no per-item operations; shared queue
+      // UI cannot feature-detect these, so they deliberately no-op rather
+      // than crash an unguarded click path
+      move: () => {},
+      edit: () => {},
+      remove: () => {},
     }),
     [controller, state.queue, onError],
   );
