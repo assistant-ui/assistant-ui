@@ -135,22 +135,6 @@ export const createMessageQueue = (
     if (!fromLane) throw new Error(`Unknown queue item "${queueItemId}".`);
     const toLane = options.lane ?? fromLane;
 
-    if (
-      toLane === "steer" &&
-      fromLane !== "steer" &&
-      running &&
-      driver.cancel
-    ) {
-      const message = messages.get(queueItemId)!;
-      messages.delete(queueItemId);
-      setLanes({
-        queue: lanes.queue.filter((item) => item.id !== queueItemId),
-        steer: lanes.steer,
-      });
-      interrupt(message);
-      return;
-    }
-
     const item = lanes[fromLane].find((i) => i.id === queueItemId)!;
     const dest = (toLane === fromLane ? lanes[fromLane] : lanes[toLane]).filter(
       (i) => i.id !== queueItemId,
@@ -185,6 +169,27 @@ export const createMessageQueue = (
       index = insertAfter === null ? 0 : anchorIndex(insertAfter) + 1;
     } else {
       index = insertBefore === null ? dest.length : anchorIndex(insertBefore!);
+    }
+
+    // placement and immediate dispatch cannot coexist: an anchored move into
+    // the steer lane places without interrupting; only an unanchored one
+    // cancels the live run and dispatches
+    if (
+      insertAfter === undefined &&
+      insertBefore === undefined &&
+      toLane === "steer" &&
+      fromLane !== "steer" &&
+      running &&
+      driver.cancel
+    ) {
+      const message = messages.get(queueItemId)!;
+      messages.delete(queueItemId);
+      setLanes({
+        queue: lanes.queue.filter((i) => i.id !== queueItemId),
+        steer: lanes.steer,
+      });
+      interrupt(message);
+      return;
     }
 
     const nextDest = [...dest.slice(0, index), item, ...dest.slice(index)];

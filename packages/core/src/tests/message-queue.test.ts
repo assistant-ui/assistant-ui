@@ -356,6 +356,48 @@ describe("createMessageQueue", () => {
       notifyIdle();
       expect(run).toHaveBeenCalledTimes(2);
     });
+
+    it("validates anchors mid-run instead of interrupting past them", () => {
+      const run = vi.fn();
+      const cancel = vi.fn();
+      const { adapter } = createMessageQueue({ run, cancel });
+
+      adapter.enqueue(msg("a"), { lane: "queue" }); // running
+      adapter.enqueue(msg("b"), { lane: "queue" });
+      const bId = adapter.items[0]!.id;
+
+      expect(() =>
+        adapter.move(bId, { lane: "steer", insertAfter: "nope" }),
+      ).toThrow('Unknown anchor "nope"');
+      expect(() =>
+        adapter.move(bId, { lane: "steer", insertAfter: bId }),
+      ).toThrow("cannot anchor itself");
+      expect(cancel).not.toHaveBeenCalled();
+      expect(run).toHaveBeenCalledTimes(1);
+    });
+
+    it("places an anchored move into the steer lane mid-run without interrupting", () => {
+      const run = vi.fn();
+      const cancel = vi.fn();
+      const { adapter, notifyIdle } = createMessageQueue({ run, cancel });
+
+      adapter.enqueue(msg("a"), { lane: "queue" }); // running
+      adapter.enqueue(msg("b"), { lane: "queue" });
+      adapter.enqueue(msg("c"), { lane: "queue" });
+
+      adapter.move(adapter.items[1]!.id, { lane: "steer", insertAfter: null }); // "c"
+      expect(cancel).not.toHaveBeenCalled();
+      expect(run).toHaveBeenCalledTimes(1);
+      expect(prompts(adapter.steerItems)).toEqual(["c"]);
+      expect(prompts(adapter.items)).toEqual(["b"]);
+
+      // the placed item dispatches first once the live run settles
+      notifyIdle();
+      expect(run).toHaveBeenLastCalledWith(
+        expect.objectContaining({ content: [{ type: "text", text: "c" }] }),
+        { steer: false },
+      );
+    });
   });
 
   it("notifies subscribers on item changes", () => {
