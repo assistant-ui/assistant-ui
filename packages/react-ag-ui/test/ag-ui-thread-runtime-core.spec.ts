@@ -606,6 +606,37 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(agent.abortRun).toHaveBeenCalledTimes(1);
   });
 
+  it("aborts the agent run before the local abort fires onCancel", async () => {
+    const order: string[] = [];
+    let rejectRun!: (error: Error) => void;
+    const agent = {
+      runAgent: vi.fn(
+        () =>
+          new Promise((_, reject) => {
+            rejectRun = reject;
+          }),
+      ),
+      abortRun: vi.fn(() => {
+        order.push("abortRun");
+        const err = new Error("aborted");
+        err.name = "AbortError";
+        rejectRun(err);
+      }),
+    } as unknown as HttpAgent;
+    // onCancel runs from the local abort listener; starting a run there would
+    // replace the agent's controller, so abortRun has to have happened already
+    const onCancel = vi.fn(() => {
+      order.push("onCancel");
+    });
+
+    const core = createCore(agent, { onCancel });
+    const promise = core.append(createAppendMessage());
+    await core.cancel();
+    await promise;
+
+    expect(order).toEqual(["abortRun", "onCancel"]);
+  });
+
   it("aborts the HttpAgent request when cancelling", async () => {
     let requestSignal: AbortSignal | undefined;
     let resolveRequestStarted!: () => void;
