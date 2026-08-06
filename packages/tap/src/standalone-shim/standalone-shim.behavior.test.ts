@@ -52,6 +52,20 @@ describe("@assistant-ui/tap/standalone-shim behavior", () => {
 
   it("throws outside a tap resource fiber", () => {
     expect(() => shim.useState(0)).toThrow("standalone-shim");
+    expect(() => shim.default.useState(0)).toThrow("standalone-shim");
+  });
+
+  it("serves namespace-style default imports inside a resource", () => {
+    const Ns = resource(function NsResource() {
+      const [value] = shim.default.useState(7);
+      return value;
+    });
+    const root = createTapRoot(function Root() {
+      return useResource(Ns());
+    });
+
+    expect(root.getValue()).toBe(7);
+    root.unmount();
   });
 
   it("provides compiler memo caches only inside a tap resource fiber", () => {

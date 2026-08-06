@@ -75,6 +75,21 @@ export const use = (usable: any) =>
 export const useContext = (context: any) =>
   inTap() ? useTap(context) : throwOutsideTap("useContext");
 
-const StandaloneRuntime = Object.freeze({});
+const StandaloneRuntime = Object.freeze({
+  useState,
+  useReducer,
+  useRef,
+  useMemo,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useInsertionEffect,
+  useEffectEvent,
+  useSyncExternalStore,
+  useDebugValue,
+  createContext,
+  use,
+  useContext,
+});
 
 export default StandaloneRuntime;
