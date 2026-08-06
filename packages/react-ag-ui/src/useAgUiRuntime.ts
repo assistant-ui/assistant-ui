@@ -106,7 +106,13 @@ export function useAgUiRuntime(
   if (options.unstable_enableMessageQueue && !queueRef.current) {
     queueRef.current = createMessageQueue({
       run: (message) => {
-        void core.append(message);
+        // The queue drops the item before dispatching and stays busy until an
+        // idle edge, so a rejected append (a pending interrupt, for one) has to
+        // release it here or every later send buffers forever.
+        void core.append(message).catch((e: unknown) => {
+          queueRef.current?.notifyIdle();
+          logger.error?.("queued message failed to send", e);
+        });
       },
     });
   } else if (!options.unstable_enableMessageQueue && queueRef.current) {
@@ -117,8 +123,10 @@ export function useAgUiRuntime(
     ? queueRef.current
     : null;
 
-  // Re-render when queued items change so composer.queue re-syncs.
-  useSyncExternalStore(
+  // Feeds the store memo below: the runtime core skips an adapter whose
+  // identity is unchanged, so queue items have to move the store reference or
+  // subscribers never see composer.queue change.
+  const queueItems = useSyncExternalStore(
     queueController?.subscribe ?? subscribeNoop,
     () => queueController?.adapter.items ?? EMPTY_QUEUE_ITEMS,
     () => EMPTY_QUEUE_ITEMS,
@@ -226,7 +234,15 @@ export function useAgUiRuntime(
     },
     // _version is intentionally included to trigger re-computation when core state changes via notifyUpdate
     // toolInvocations intentionally excluded: abort/resume use refs internally and work with stale captures
-    [adapterAdapters, core, _version, isRunning, queueController, shared],
+    [
+      adapterAdapters,
+      core,
+      _version,
+      isRunning,
+      queueController,
+      queueItems,
+      shared,
+    ],
   );
 
   const baseRuntime = useExternalStoreRuntime(store);
