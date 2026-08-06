@@ -318,8 +318,6 @@ type EditComposerState = BaseComposerState & {
   readonly sourceId: string | null;
 };
 
-type EveRuntimeExtras = Pick<UseEveAgentHelpers<EveMessageData>, "error" | "events" | "reset" | "session">;
-
 type EveAuthorizationData = {
   readonly state: EveAuthorizationPart["state"];
   readonly name: string;
@@ -332,6 +330,8 @@ type EveAuthorizationData = {
   readonly outcome?: EveAuthorizationOutcome;
   readonly reason?: string;
 };
+
+type EveRuntimeExtras = Pick<UseEveAgentHelpers<EveMessageData>, "error" | "events" | "reset" | "session">;
 
 type ExportedMessageRepository = {
   headId?: string | null;
