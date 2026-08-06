@@ -52,7 +52,7 @@
     "build": "aui-build",
     "prepublishOnly": "pnpm turbo build",
     "test": "vitest run",
-    "test:standalone": "vitest run --config vitest.standalone.config.ts",
+    "test:standalone": "vitest run --project standalone",
     "test:watch": "vitest"
   },
   "peerDependencies": {
