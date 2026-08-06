@@ -1,5 +1,13 @@
 # @assistant-ui/core
 
+## 0.3.7
+
+### Patch Changes
+
+- [#5668](https://github.com/assistant-ui/assistant-ui/pull/5668) [`bd4c0ad`](https://github.com/assistant-ui/assistant-ui/commit/bd4c0ad3d41a65d0a2caea921f82c6502011615a) - feat: expose RuntimeAdapter from the framework-neutral store entry so runtimes mount into createAssistantClient without React ([@okisdev](https://github.com/okisdev))
+
+- [#5675](https://github.com/assistant-ui/assistant-ui/pull/5675) [`4aa1b1d`](https://github.com/assistant-ui/assistant-ui/commit/4aa1b1d1b9368f4812b55a33d6f09bb3dcd71949) - feat: expose framework-neutral seams on the ./store entry (useExternalMessageConverter, convertExternalMessages, useStreamingTiming, createRuntimeExtrasBrand, defineToolkit, defineMcpToolkit) and add unstable_createRuntimeExtrasFromBrand so bindings can share one runtime extras brand across packages ([@okisdev](https://github.com/okisdev))
+
 ## 0.3.6
 
 ### Patch Changes

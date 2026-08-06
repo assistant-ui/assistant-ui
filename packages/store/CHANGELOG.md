@@ -1,5 +1,11 @@
 # @assistant-ui/store
 
+## 0.3.5
+
+### Patch Changes
+
+- [#5668](https://github.com/assistant-ui/assistant-ui/pull/5668) [`bd4c0ad`](https://github.com/assistant-ui/assistant-ui/commit/bd4c0ad3d41a65d0a2caea921f82c6502011615a) - feat: expose the scope-author surface (attachTransformScopes, useAssistantClientRef, useClientLookup, and the client schema types) from the client entry, and seed the client ref during the standalone root render ([@okisdev](https://github.com/okisdev))
+
 ## 0.3.4
 
 ### Patch Changes

@@ -1,5 +1,15 @@
 # @assistant-ui/react-mcp
 
+## 0.1.5
+
+### Patch Changes
+
+- [#5662](https://github.com/assistant-ui/assistant-ui/pull/5662) [`9f20853`](https://github.com/assistant-ui/assistant-ui/commit/9f20853a0821229e6562f1d812bbb1358c7638e4) - fix: isolate OAuth lifecycle callback failures from authentication state ([@Kinfe123](https://github.com/Kinfe123))
+
+- Updated dependencies [[`bd4c0ad`](https://github.com/assistant-ui/assistant-ui/commit/bd4c0ad3d41a65d0a2caea921f82c6502011615a), [`4aa1b1d`](https://github.com/assistant-ui/assistant-ui/commit/4aa1b1d1b9368f4812b55a33d6f09bb3dcd71949), [`bd4c0ad`](https://github.com/assistant-ui/assistant-ui/commit/bd4c0ad3d41a65d0a2caea921f82c6502011615a)]:
+  - @assistant-ui/core@0.3.7
+  - @assistant-ui/store@0.3.5
+
 ## 0.1.4
 
 ### Patch Changes

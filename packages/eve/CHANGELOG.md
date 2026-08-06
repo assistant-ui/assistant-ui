@@ -1,5 +1,14 @@
 # @assistant-ui/eve
 
+## 0.0.9
+
+### Patch Changes
+
+- [#5629](https://github.com/assistant-ui/assistant-ui/pull/5629) [`843b0a6`](https://github.com/assistant-ui/assistant-ui/commit/843b0a685d19816b4a160aaafe7c5e4eb2d93273) - fix: forward runConfig to eve as client context (an explicit empty reload config cannot clear a staged one — core normalizes omitted and empty runConfig to the same value) ([@samdickson22](https://github.com/samdickson22))
+
+- Updated dependencies [[`bd4c0ad`](https://github.com/assistant-ui/assistant-ui/commit/bd4c0ad3d41a65d0a2caea921f82c6502011615a), [`4aa1b1d`](https://github.com/assistant-ui/assistant-ui/commit/4aa1b1d1b9368f4812b55a33d6f09bb3dcd71949)]:
+  - @assistant-ui/core@0.3.7
+
 ## 0.0.8
 
 ### Patch Changes

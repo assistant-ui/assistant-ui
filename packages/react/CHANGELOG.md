@@ -1,5 +1,17 @@
 # @assistant-ui/react
 
+## 0.15.6
+
+### Patch Changes
+
+- [#5664](https://github.com/assistant-ui/assistant-ui/pull/5664) [`3b0d778`](https://github.com/assistant-ui/assistant-ui/commit/3b0d7789b912c5bde44f0fd102124d759cca5312) - fix: gate ComposerPrimitive.AttachmentDropzone on file drags and the attachments capability ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#5666](https://github.com/assistant-ui/assistant-ui/pull/5666) [`366da2b`](https://github.com/assistant-ui/assistant-ui/commit/366da2bb6463e819cc1806afd06b77e594d19c37) - fix(react): route only thread-composer sends into the queue adapter ([@Yonom](https://github.com/Yonom))
+
+- Updated dependencies [[`bd4c0ad`](https://github.com/assistant-ui/assistant-ui/commit/bd4c0ad3d41a65d0a2caea921f82c6502011615a), [`4aa1b1d`](https://github.com/assistant-ui/assistant-ui/commit/4aa1b1d1b9368f4812b55a33d6f09bb3dcd71949), [`bd4c0ad`](https://github.com/assistant-ui/assistant-ui/commit/bd4c0ad3d41a65d0a2caea921f82c6502011615a)]:
+  - @assistant-ui/core@0.3.7
+  - @assistant-ui/store@0.3.5
+
 ## 0.15.5
 
 ### Patch Changes

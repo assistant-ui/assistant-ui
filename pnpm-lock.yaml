@@ -3529,7 +3529,7 @@ importers:
   packages/eve:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.6
+        specifier: ^0.3.7
         version: link:../core
     devDependencies:
       '@assistant-ui/x-buildutils':
@@ -3675,10 +3675,10 @@ importers:
   packages/react:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.6
+        specifier: ^0.3.7
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.3.4
+        specifier: ^0.3.5
         version: link:../store
       '@assistant-ui/tap':
         specifier: ^0.9.10
@@ -4006,10 +4006,10 @@ importers:
   packages/react-google-adk:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.6
+        specifier: ^0.3.7
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.3.4
+        specifier: ^0.3.5
         version: link:../store
       '@google/adk':
         specifier: '>=0.5.0'
@@ -4141,10 +4141,10 @@ importers:
   packages/react-ink-markdown:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.6
+        specifier: ^0.3.7
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.3.4
+        specifier: ^0.3.5
         version: link:../store
       markdansi:
         specifier: ^0.3.2
@@ -4470,10 +4470,10 @@ importers:
   packages/react-opencode:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.6
+        specifier: ^0.3.7
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.3.4
+        specifier: ^0.3.5
         version: link:../store
       '@opencode-ai/sdk':
         specifier: ^1.18.5
@@ -4510,10 +4510,10 @@ importers:
   packages/react-pi:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.6
+        specifier: ^0.3.7
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.3.4
+        specifier: ^0.3.5
         version: link:../store
     devDependencies:
       '@assistant-ui/react':
@@ -4868,7 +4868,7 @@ importers:
   packages/vue:
     dependencies:
       '@assistant-ui/store':
-        specifier: ^0.3.4
+        specifier: ^0.3.5
         version: link:../store
       '@assistant-ui/tap':
         specifier: ^0.9.10
