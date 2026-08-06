@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   fromThreadMessageLike,
   generateId,
@@ -34,16 +34,6 @@ const USER_STAGED_STATUS = {
   type: "complete",
   reason: "unknown",
 } as const;
-
-const truncateThreadMessages = (
-  messages: readonly ThreadMessage[],
-  parentId: string | null,
-) => {
-  if (parentId === null) return [];
-  const parentIndex = messages.findIndex((message) => message.id === parentId);
-  if (parentIndex === -1) return [];
-  return messages.slice(0, parentIndex + 1);
-};
 
 export type UseEveAgentRuntimeOptions = Omit<
   UseEveAgentOptions<EveMessageData>,
@@ -133,6 +123,29 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
   const messagesRef = useRef(messages);
   messagesRef.current = messages;
 
+  useEffect(() => {
+    if (stagedInputsRef.current.size === 0) return;
+    const baseIds = new Set(convertedMessages.map((message) => message.id));
+    const remaining = messagesRef.current.filter(
+      (message) =>
+        stagedInputsRef.current.has(message.id) && !baseIds.has(message.id),
+    );
+    setStagedMessages(
+      remaining.length > 0 ? [...convertedMessages, ...remaining] : null,
+    );
+  }, [convertedMessages]);
+
+  const getStagedRun = (parentId: string | null) => {
+    if (!parentId || !stagedInputsRef.current.has(parentId)) return null;
+    const staged: { id: string; message: AppendMessage }[] = [];
+    for (const message of messagesRef.current) {
+      const entry = stagedInputsRef.current.get(message.id);
+      if (entry) staged.push({ id: message.id, message: entry.message });
+      if (message.id === parentId) break;
+    }
+    return staged;
+  };
+
   const stageUserMessage = (message: AppendMessage) => {
     const threadMessage = fromThreadMessageLike(
       message,
@@ -143,10 +156,9 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
       message,
       runConfig: message.runConfig,
     });
-    setStagedMessages([
-      ...truncateThreadMessages(messagesRef.current, message.parentId),
-      threadMessage,
-    ]);
+    const nextMessages = [...messagesRef.current, threadMessage];
+    messagesRef.current = nextMessages;
+    setStagedMessages(nextMessages);
   };
 
   return useExternalStoreRuntime({
@@ -172,14 +184,22 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
     ...(stagedMessages
       ? {
           onReload: async (parentId: string | null) => {
-            const staged = parentId
-              ? stagedInputsRef.current.get(parentId)
-              : null;
-            if (!staged)
+            const stagedRun = getStagedRun(parentId);
+            if (!stagedRun)
               throw new Error("Runtime does not support reloading messages.");
-            stagedInputsRef.current.delete(parentId!);
-            setStagedMessages(null);
-            await agent.send({ message: getEveMessageContent(staged.message) });
+            for (const entry of stagedRun) {
+              stagedInputsRef.current.delete(entry.id);
+              const nextMessages = messagesRef.current.filter(
+                (message) => message.id !== entry.id,
+              );
+              messagesRef.current = nextMessages;
+              setStagedMessages(
+                stagedInputsRef.current.size > 0 ? nextMessages : null,
+              );
+              await agent.send({
+                message: getEveMessageContent(entry.message),
+              });
+            }
           },
         }
       : {}),
