@@ -25,9 +25,12 @@ export default defineConfig({
 <script setup lang="ts">
 import { AuiProvider, AuiConfig } from "@assistant-ui/vue";
 import Composer from "./Composer.vue";
-import { ThreadScope } from "./scopes";
+import { ComposerScope, ThreadScope } from "./scopes";
 
-const config = AuiConfig({ thread: ThreadScope() });
+const config = AuiConfig({
+  thread: ThreadScope(),
+  composer: ComposerScope(),
+});
 </script>
 
 <template>
