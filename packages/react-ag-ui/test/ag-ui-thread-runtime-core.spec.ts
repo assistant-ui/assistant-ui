@@ -637,6 +637,42 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(order).toEqual(["abortRun", "onCancel"]);
   });
 
+  it("cancels through the agent that started the run after a swap", async () => {
+    let rejectRun!: (error: Error) => void;
+    const original = {
+      runAgent: vi.fn(
+        () =>
+          new Promise((_, reject) => {
+            rejectRun = reject;
+          }),
+      ),
+      abortRun: vi.fn(() => {
+        const err = new Error("aborted");
+        err.name = "AbortError";
+        rejectRun(err);
+      }),
+    } as unknown as HttpAgent;
+    const replacement = {
+      runAgent: vi.fn(),
+      abortRun: vi.fn(),
+    } as unknown as HttpAgent;
+
+    const core = createCore(original);
+    const promise = core.append(createAppendMessage());
+
+    // a re-render swapping the agent prop mid-run must not redirect the abort
+    core.updateOptions({
+      agent: replacement,
+      logger: noopLogger,
+      showThinking: true,
+    });
+    await core.cancel();
+    await promise;
+
+    expect(original.abortRun).toHaveBeenCalledTimes(1);
+    expect(replacement.abortRun).not.toHaveBeenCalled();
+  });
+
   it("aborts the HttpAgent request when cancelling", async () => {
     let requestSignal: AbortSignal | undefined;
     let resolveRequestStarted!: () => void;
