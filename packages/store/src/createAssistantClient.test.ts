@@ -58,6 +58,40 @@ const createTestClient = (
   > & { getClient(): AnyClient };
 
 describe("createAssistantClient", () => {
+  it("re-reads a config source, updating args in place and reconciling scopes", () => {
+    let config: Record<string, unknown> = {
+      message: MessageClient({ id: "m0" }),
+    };
+    const listeners = new Set<() => void>();
+    const notify = () => listeners.forEach((listener) => listener());
+    const handle = createAssistantClient({
+      getConfig: () => config as never,
+      subscribe: (listener) => {
+        listeners.add(listener);
+        return () => listeners.delete(listener);
+      },
+    });
+
+    const aui = handle.getClient() as AnyClient;
+    flushTapSync(() => aui.message.setText("draft"));
+    expect(aui.message.getState()).toEqual({ id: "m0", text: "draft" });
+
+    config = { message: MessageClient({ id: "m1" }), thread: ThreadClient() };
+    flushTapSync(notify);
+
+    const extended = handle.getClient() as AnyClient;
+    expect(extended.message.getState()).toEqual({ id: "m1", text: "draft" });
+    expect(extended.thread.getState()).toEqual({ selected: 0 });
+
+    config = {};
+    flushTapSync(notify);
+    expect(() =>
+      (handle.getClient() as AnyClient).message.getState(),
+    ).toThrow();
+
+    handle.destroy();
+  });
+
   it("hosts scopes without any React renderer", () => {
     const handle = createTestClient({ thread: ThreadClient() });
     const aui = handle.getClient();
