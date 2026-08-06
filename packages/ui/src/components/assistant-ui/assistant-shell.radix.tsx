@@ -223,7 +223,8 @@ export const AssistantShellSidebar: FC<AssistantShellSidebarProps> = ({
           ref={fade.ref}
           data-overflowing={fade.overflowing ? "" : undefined}
           className={cn(
-            "relative flex-1 overflow-y-auto transition-[width] duration-200",
+            // overflow-x-hidden: group labels are wider than the collapsed rail and would otherwise raise a horizontal overlay scrollbar above the footer.
+            "relative flex-1 overflow-x-hidden overflow-y-auto transition-[width] duration-200",
             collapsed ? "w-12" : "w-65",
             SCROLL_FADE_CLASS,
           )}
