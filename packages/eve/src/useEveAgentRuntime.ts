@@ -47,6 +47,9 @@ const hasRunConfig = (
  * `runConfig` envelope would surface a literal `"custom"` key in the prompt and
  * in every eve-side handler that reads `clientContext` as its own namespace.
  * Eve validates the object server-side and rejects non-JSON values with a 400.
+ * The cast is the boundary between core's `Record<string, unknown>` and Eve's
+ * JSON-only channel: a value that cannot be serialized fails the send rather
+ * than being dropped, which the Eve runtime docs state.
  */
 const toEveClientContext = (
   runConfig: AppendMessage["runConfig"],

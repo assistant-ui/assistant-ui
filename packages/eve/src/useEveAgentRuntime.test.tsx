@@ -102,14 +102,14 @@ describe("useEveAgentRuntime status forwarding", () => {
       result.current.thread.append({
         role: "user",
         content: [{ type: "text", text: "hello" }],
-        runConfig: { custom: { model: "gpt-5.4-nano" } },
+        runConfig: { custom: { page: "/pricing" } },
       });
     });
 
     await waitFor(() => {
       expect(agent.send).toHaveBeenCalledWith({
         message: "hello",
-        clientContext: { model: "gpt-5.4-nano" },
+        clientContext: { page: "/pricing" },
       });
     });
   });
@@ -168,7 +168,7 @@ describe("useEveAgentRuntime status forwarding", () => {
         role: "user",
         content: [{ type: "text", text: "hello" }],
         startRun: false,
-        runConfig: { custom: { model: "staged" } },
+        runConfig: { custom: { page: "/staged" } },
       });
     });
 
@@ -180,14 +180,14 @@ describe("useEveAgentRuntime status forwarding", () => {
     act(() => {
       result.current.thread.startRun({
         parentId: stagedId,
-        runConfig: { custom: { model: "reload" } },
+        runConfig: { custom: { page: "/reload" } },
       });
     });
 
     await waitFor(() => {
       expect(agent.send).toHaveBeenCalledWith({
         message: "hello",
-        clientContext: { model: "reload" },
+        clientContext: { page: "/reload" },
       });
     });
   });
@@ -205,7 +205,7 @@ describe("useEveAgentRuntime status forwarding", () => {
         role: "user",
         content: [{ type: "text", text: "hello" }],
         startRun: false,
-        runConfig: { custom: { model: "staged" } },
+        runConfig: { custom: { page: "/staged" } },
       });
     });
 
@@ -221,7 +221,7 @@ describe("useEveAgentRuntime status forwarding", () => {
     await waitFor(() => {
       expect(agent.send).toHaveBeenCalledWith({
         message: "hello",
-        clientContext: { model: "staged" },
+        clientContext: { page: "/staged" },
       });
     });
   });
@@ -243,7 +243,7 @@ describe("useEveAgentRuntime status forwarding", () => {
         role: "user",
         content: [{ type: "text", text: "hello" }],
         startRun: false,
-        runConfig: { custom: { model: "staged" } },
+        runConfig: { custom: { page: "/staged" } },
       });
     });
 
@@ -259,7 +259,7 @@ describe("useEveAgentRuntime status forwarding", () => {
     await waitFor(() => {
       expect(agent.send).toHaveBeenCalledWith({
         message: "hello",
-        clientContext: { model: "staged" },
+        clientContext: { page: "/staged" },
       });
     });
   });

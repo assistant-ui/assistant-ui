@@ -60,6 +60,10 @@ This channel is ephemeral page or client context, not run configuration: Eve
 serializes it into a `Client context: {...}` message the model reads, so it
 cannot select a model or otherwise change how the turn executes.
 
+Every value in the bag must be JSON-serializable, because it is serialized onto
+the wire and Eve rejects a non-serializable object with a 400. A `Date` or a
+`BigInt` that other runtimes would ignore fails the send here.
+
 ## Connector authorization
 
 When Eve pauses for connector authorization, the runtime emits an assistant
