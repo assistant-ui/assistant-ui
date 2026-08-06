@@ -29,13 +29,12 @@ const SHOWCASE_ITEMS: ShowcaseItem[] = [
   {
     title: "Claude Managed Agents",
     image: "/screenshot/claude-managed-agents.png",
-    tag: "Agent Runtime",
+    tag: "Developer Tools",
     secondaryTag: "OSS",
     link: "https://github.com/anthropics/claude-quickstarts/tree/main/managed-agents/assistant-ui",
     repositoryLink:
       "https://github.com/anthropics/claude-quickstarts/tree/main/managed-agents/assistant-ui",
-    description:
-      "Anthropic's official Managed Agents quickstart with persistent sessions, approvals, files, and custom tool UIs.",
+    description: "Managed agent sessions rendered with assistant-ui.",
   },
   {
     title: "Chat LangChain",
