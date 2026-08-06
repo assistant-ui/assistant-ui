@@ -2,6 +2,10 @@
 
 import { useAuiState } from "@assistant-ui/store";
 import type { AssistantClient } from "@assistant-ui/store";
+import {
+  createRuntimeExtrasBrand,
+  type RuntimeExtrasBrand,
+} from "../../runtime/utils/runtime-extras-brand";
 
 /** @deprecated Internal API for external-store adapter authors. Not part of the public API; may change or be removed without notice. */
 export type RuntimeExtras<T extends object> = {
@@ -17,33 +21,10 @@ export type RuntimeExtras<T extends object> = {
 };
 
 /** @deprecated Internal API for external-store adapter authors. Not part of the public API; may change or be removed without notice. */
-export const createRuntimeExtras = <T extends object>(
-  runtimeName: string,
+export const unstable_createRuntimeExtrasFromBrand = <T extends object>(
+  brand: RuntimeExtrasBrand<T>,
 ): RuntimeExtras<T> => {
-  const brand = Symbol(`${runtimeName} extras`);
-
-  const is = (extras: unknown): extras is T =>
-    typeof extras === "object" && extras !== null && brand in extras;
-
-  const assert = (extras: unknown): T => {
-    if (!is(extras))
-      throw new Error(
-        `The current thread is not backed by the ${runtimeName} runtime.`,
-      );
-    return extras;
-  };
-
-  const provide = (value: T): T => {
-    Object.defineProperty(value, brand, {
-      value: true,
-      enumerable: false,
-      configurable: true,
-    });
-    return value;
-  };
-
-  const tryGet = (extras: unknown): T | undefined =>
-    is(extras) ? extras : undefined;
+  const { provide, is, tryGet, assert } = brand;
 
   const get = (client: AssistantClient): T =>
     assert(client.thread.getState().extras);
@@ -66,3 +47,11 @@ export const createRuntimeExtras = <T extends object>(
 
   return { provide, is, tryGet, get, use: use as RuntimeExtras<T>["use"] };
 };
+
+/** @deprecated Internal API for external-store adapter authors. Not part of the public API; may change or be removed without notice. */
+export const createRuntimeExtras = <T extends object>(
+  runtimeName: string,
+): RuntimeExtras<T> =>
+  unstable_createRuntimeExtrasFromBrand(
+    createRuntimeExtrasBrand<T>(runtimeName),
+  );
