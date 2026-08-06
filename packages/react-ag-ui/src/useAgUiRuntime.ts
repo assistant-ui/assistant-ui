@@ -103,23 +103,27 @@ export function useAgUiRuntime(
   // The driver sends through the agent core rather than the runtime, because
   // the runtime's append routes every tail append back into this queue.
   const queueRef = useRef<MessageQueueController | null>(null);
-  // Counts observed run starts. A dispatch whose count never moves produced no
-  // run of its own, so no falling edge is coming to release the queue.
-  const runStartsRef = useRef(0);
+  // Counts rendered busy edges, whether a run start or an interrupt arriving.
+  // A dispatch whose count never moves was never observed as busy, so no
+  // falling edge is coming to release the queue.
+  const busyEdgesRef = useRef(0);
   if (options.unstable_enableMessageQueue && !queueRef.current) {
     queueRef.current = createMessageQueue({
       run: (message) => {
         const controller = queueRef.current;
-        const startsAtDispatch = runStartsRef.current;
+        const edgesAtDispatch = busyEdgesRef.current;
         // The queue drops the item before dispatching and stays busy until an
-        // idle edge. An append that starts a run is released by that run's
-        // falling edge, and releasing again here would advance the queue twice;
-        // one that never runs (a pre-run rejection, or startRun false) has to be
-        // released here or every later send buffers forever.
+        // idle edge. An append observed as busy is released by that falling
+        // edge, and releasing again here would advance the queue twice; one
+        // that never runs (a pre-run rejection, or startRun false) has to be
+        // released here or every later send buffers forever. An interrupt is
+        // rechecked because a run that resolves without yielding to React
+        // reaches here before the effect below has seen either edge.
         const releaseIfNoRun = () => {
           if (
             queueRef.current !== controller ||
-            runStartsRef.current !== startsAtDispatch
+            busyEdgesRef.current !== edgesAtDispatch ||
+            core.getPendingInterrupts() !== null
           )
             return;
           controller?.notifyIdle();
@@ -154,7 +158,7 @@ export function useAgUiRuntime(
   const queueBusy = isRunning || core.getPendingInterrupts() !== null;
   useEffect(() => {
     if (queueBusy) {
-      runStartsRef.current++;
+      busyEdgesRef.current++;
       queueController?.notifyBusy();
     } else {
       queueController?.notifyIdle();

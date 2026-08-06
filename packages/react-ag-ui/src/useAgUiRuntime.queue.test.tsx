@@ -136,6 +136,68 @@ describe("useAgUiRuntime unstable_enableMessageQueue", () => {
     );
   });
 
+  it("advances one item at a time when a queued dispatch fails", async () => {
+    const gate = (() => {
+      let release!: () => void;
+      const promise = new Promise<void>((r) => {
+        release = r;
+      });
+      return { promise, release: () => release() };
+    })();
+    // every run is held, so a second concurrent dispatch is observable as a
+    // call count rather than being hidden by sequential draining
+    const held: Array<() => void> = [];
+    const runAgent = vi.fn(async () => {
+      if (runAgent.mock.calls.length === 1) {
+        await gate.promise;
+        throw new Error("boom");
+      }
+      await new Promise<void>((resolve) => held.push(resolve));
+    });
+    const agent = { runAgent } as unknown as HttpAgent;
+
+    const { result } = renderHook(() =>
+      useAgUiRuntime({
+        agent,
+        unstable_enableMessageQueue: true,
+        onError: () => {},
+      }),
+    );
+    mount(result.current);
+
+    const send = async (text: string) => {
+      await act(async () => {
+        await result.current.thread.append({
+          role: "user",
+          content: [{ type: "text", text }],
+          parentId:
+            result.current.thread.getState().messages.at(-1)?.id ?? null,
+        });
+      });
+    };
+
+    await send("first");
+    await waitFor(() => expect(runAgent).toHaveBeenCalledTimes(1));
+
+    // two behind the gated run, so a double release would drain both
+    await send("second");
+    await send("third");
+    await waitFor(() =>
+      expect(screen.getByTestId("queued").textContent).toBe("second,third"),
+    );
+
+    await act(async () => {
+      gate.release();
+    });
+
+    // exactly one item advances; a double release would have drained both
+    await waitFor(() => expect(runAgent).toHaveBeenCalledTimes(2));
+    await waitFor(() =>
+      expect(screen.getByTestId("queued").textContent).toBe("third"),
+    );
+    expect(runAgent).toHaveBeenCalledTimes(2);
+  });
+
   it("holds a queued message when the run settles on an interrupt", async () => {
     const gate = (() => {
       let release!: () => void;
