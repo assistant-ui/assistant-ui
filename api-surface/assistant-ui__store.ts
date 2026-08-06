@@ -230,7 +230,7 @@ declare const auiConfigBrand: unique symbol;
 declare const clientIdBrand: unique symbol;
 
 declare namespace entry_client_exports {
-  export { AssistantClient, AssistantClientHandle, AssistantClientSource, AssistantEventCallback, AssistantEventName, AssistantEventPayload, AssistantEventSelector, AssistantState, AuiConfig, DefaultAssistantClient, Derived, DerivedElement, Unsubscribe, createAssistantClient, getProxiedAssistantState, normalizeEventSelector, useAssistantEmit, useClientResource };
+  export { AssistantClient, AssistantClientAccessor, AssistantClientHandle, AssistantClientSource, AssistantEventCallback, AssistantEventName, AssistantEventPayload, AssistantEventSelector, AssistantState, AuiConfig, ClientElement, ClientEvents, ClientMeta, ClientMethods, ClientNames, ClientOutput, ClientSchema, DefaultAssistantClient, Derived, DerivedElement, InferClientState, ScopeRegistry, ScopesConfig, Unsubscribe, attachTransformScopes, createAssistantClient, getProxiedAssistantState, normalizeEventSelector, useAssistantClientRef, useAssistantEmit, useClientLookup, useClientResource };
 }
 
 declare const createAssistantClient: (config: AuiConfig.Input, options?: {

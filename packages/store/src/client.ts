@@ -10,8 +10,16 @@ export {
 
 export { DefaultAssistantClient } from "./utils/react-assistant-context";
 export { getProxiedAssistantState } from "./utils/proxied-assistant-state";
-export { useAssistantEmit } from "./utils/tap-assistant-context";
+export {
+  useAssistantClientRef,
+  useAssistantEmit,
+} from "./utils/tap-assistant-context";
 export { useClientResource } from "./useClientResource";
+export { useClientLookup } from "./useClientLookup";
+export {
+  attachTransformScopes,
+  type ScopesConfig,
+} from "./attachTransformScopes";
 
 export { AuiConfig } from "./AuiConfig";
 export { Derived, type DerivedElement } from "./Derived";
@@ -26,6 +34,16 @@ export {
 
 export type {
   AssistantClient,
+  AssistantClientAccessor,
   AssistantState,
+  ClientElement,
+  ClientEvents,
+  ClientMeta,
+  ClientMethods,
+  ClientNames,
+  ClientOutput,
+  ClientSchema,
+  InferClientState,
+  ScopeRegistry,
   Unsubscribe,
 } from "./types/client";
