@@ -672,7 +672,8 @@ const useComposerClientResource = ({
             custom: { ...(currentQuote ? { quote: currentQuote } : {}) },
           },
         };
-        if (queue) {
+        // edit sends carry a sourceId contract; only thread sends queue
+        if (queue && type === "thread") {
           if (opts?.steer ?? canCancel) queue.steer(composedMessage);
           else queue.enqueue(composedMessage);
         } else {
