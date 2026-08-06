@@ -1340,6 +1340,84 @@ describe("convertEveMessages", () => {
         expect(content?.[0]).not.toHaveProperty("status");
       });
 
+      it("keeps a later step's live text part unsettled after an earlier step completed", () => {
+        const state = replay([
+          ...midStreamEvents.slice(0, 3),
+          {
+            type: "message.appended",
+            data: {
+              turnId: "turn_1",
+              stepIndex: 0,
+              sequence: 2,
+              messageDelta: "First",
+              messageSoFar: "First",
+            },
+          },
+          {
+            type: "message.completed",
+            data: {
+              turnId: "turn_1",
+              stepIndex: 0,
+              sequence: 3,
+              finishReason: "tool-calls",
+              message: "First",
+            },
+          },
+          {
+            type: "step.completed",
+            data: {
+              turnId: "turn_1",
+              stepIndex: 0,
+              sequence: 4,
+              finishReason: "tool-calls",
+            },
+          },
+          {
+            type: "step.started",
+            data: { turnId: "turn_1", stepIndex: 1, sequence: 5 },
+          },
+          {
+            type: "message.appended",
+            data: {
+              turnId: "turn_1",
+              stepIndex: 1,
+              sequence: 6,
+              messageDelta: "Sec",
+              messageSoFar: "Sec",
+            },
+          },
+        ]);
+
+        const assistant = state.messages.find((m) => m.role === "assistant");
+        expect(assistant?.parts).toEqual([
+          expect.objectContaining({ type: "step-start" }),
+          expect.objectContaining({
+            type: "text",
+            text: "First",
+            state: "done",
+          }),
+          expect.objectContaining({ type: "step-start" }),
+          expect.objectContaining({
+            type: "text",
+            text: "Sec",
+            state: "streaming",
+          }),
+        ]);
+
+        const content = convertEveMessages(state, { isRunning: true }).at(
+          -1,
+        )?.content;
+        expect(content).toEqual([
+          expect.objectContaining({
+            type: "text",
+            text: "First",
+            status: { type: "complete" },
+          }),
+          expect.objectContaining({ type: "text", text: "Sec" }),
+        ]);
+        expect(content?.[1]).not.toHaveProperty("status");
+      });
+
       it("a locally aborted turn keeps its streaming marker and converts to cancelled", () => {
         const state = replay(midStreamEvents);
 
