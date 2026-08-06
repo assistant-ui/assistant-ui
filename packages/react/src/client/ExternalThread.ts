@@ -845,7 +845,6 @@ const useExternalThread = ({
       isDisabled: false,
       isLoading,
       isRunning,
-      status: isRunning ? ("running" as const) : ("ready" as const),
       capabilities: {
         edit: hasEdit,
         delete: false,
@@ -930,13 +929,6 @@ const useExternalThread = ({
       onResume();
     },
     cancelRun: handleCancelRun,
-    resume: () => {
-      if (!onResume)
-        throw new Error(
-          "Runtime does not support resuming runs (onResume is not set).",
-        );
-      onResume();
-    },
     importExternalState: (state: unknown) => {
       if (!onLoadExternalState)
         throw new Error(

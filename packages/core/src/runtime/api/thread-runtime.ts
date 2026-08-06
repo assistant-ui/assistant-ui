@@ -154,19 +154,9 @@ export type ThreadState = {
   readonly isLoading: boolean;
 
   /**
-   * Whether the thread is running. Derived from `status === "running"`.
+   * Whether the thread is running. A thread is considered running when there is an active stream connection to the backend.
    */
   readonly isRunning: boolean;
-
-  /**
-   * The run status of the thread.
-   */
-  readonly status: "ready" | "running" | "input-required" | "error" | "stopped";
-
-  /**
-   * The error of the last run, if any.
-   */
-  readonly error?: { readonly message: string };
 
   /**
    * The capabilities of the thread, such as whether the thread supports editing, branch switching, etc.
@@ -217,27 +207,17 @@ export const getThreadRuntimeCoreIsRunning = (
   );
 };
 
-const getThreadRuntimeCoreStatus = (
-  runtime: ThreadRuntimeCore,
-): ThreadState["status"] => {
-  if (runtime.status !== undefined) return runtime.status;
-  return getThreadRuntimeCoreIsRunning(runtime) ? "running" : "ready";
-};
-
 export const getThreadState = (
   runtime: ThreadRuntimeCore,
   threadListItemState: ThreadListItemState,
 ): ThreadState => {
-  const status = getThreadRuntimeCoreStatus(runtime);
   return Object.freeze({
     threadId: threadListItemState.id,
     metadata: threadListItemState,
     capabilities: runtime.capabilities,
     isDisabled: runtime.isDisabled,
     isLoading: runtime.isLoading,
-    isRunning: status === "running",
-    status,
-    ...(runtime.error !== undefined && { error: runtime.error }),
+    isRunning: getThreadRuntimeCoreIsRunning(runtime),
     messages: runtime.messages,
     state: runtime.state,
     suggestions: runtime.suggestions,
@@ -313,12 +293,6 @@ export type ThreadRuntime = {
 
   subscribe(callback: () => void): Unsubscribe;
   cancelRun(): void;
-
-  /**
-   * Resume the thread's paused run. Only supported by runtimes that expose a
-   * resume capability.
-   */
-  resume(): void;
   getModelContext(): ModelContext;
 
   export(): ExportedMessageRepository;
@@ -417,7 +391,6 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
     this.exportExternalState = this.exportExternalState.bind(this);
     this.startRun = this.startRun.bind(this);
     this.cancelRun = this.cancelRun.bind(this);
-    this.resume = this.resume.bind(this);
     this.stopSpeaking = this.stopSpeaking.bind(this);
     this.connectVoice = this.connectVoice.bind(this);
     this.disconnectVoice = this.disconnectVoice.bind(this);
@@ -480,12 +453,6 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
 
   public cancelRun() {
     this._threadBinding.getState().cancelRun();
-  }
-
-  public resume() {
-    const core = this._threadBinding.getState();
-    if (!core.resume) throw new Error("Runtime does not support resume.");
-    core.resume();
   }
 
   public stopSpeaking() {

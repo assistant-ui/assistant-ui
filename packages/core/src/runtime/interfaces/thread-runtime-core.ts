@@ -185,8 +185,6 @@ export type ThreadRuntimeCore = Readonly<{
   ) => void;
   removeQueueItem?: (queueItemId: string) => void;
 
-  resume?: () => void;
-
   speech: SpeechState | undefined;
   voice: VoiceSessionState | undefined;
 
@@ -206,12 +204,6 @@ export type ThreadRuntimeCore = Readonly<{
    * `ExternalStoreAdapter.isRunning`.
    */
   isRunning?: boolean | undefined;
-  /**
-   * Optional explicit run status. When provided, takes precedence over the
-   * `isRunning` boolean; `isRunning` is then derived as `status === "running"`.
-   */
-  status?: "ready" | "running" | "input-required" | "error" | "stopped";
-  error?: { readonly message: string } | undefined;
   messages: readonly ThreadMessage[];
   state: ReadonlyJSONValue;
   suggestions: readonly ThreadSuggestion[];
