@@ -4153,6 +4153,7 @@ type ThreadData$1 = {
 };
 
 type ThreadHistoryAdapter = {
+  key?: PropertyKey | undefined;
   load(): Promise<ExportedMessageRepository & {
     state?: ReadonlyJSONValue;
     unstable_resume?: boolean;

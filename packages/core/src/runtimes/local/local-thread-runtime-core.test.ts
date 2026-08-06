@@ -9,6 +9,12 @@ import type { AppendMessage } from "../../types/message";
 import type { LocalRuntimeOptionsBase } from "./local-runtime-options";
 import type { ExportedMessageRepositoryItem } from "../../runtime/utils/message-repository";
 
+type LoadedHistory = Awaited<
+  ReturnType<
+    NonNullable<LocalRuntimeOptionsBase["adapters"]["history"]>["load"]
+  >
+>;
+
 const flush = () => new Promise((resolve) => setTimeout(resolve, 10));
 
 afterEach(() => {
@@ -21,6 +27,7 @@ const createThread = (
     suggestion?: LocalRuntimeOptionsBase["adapters"]["suggestion"];
     history?: LocalRuntimeOptionsBase["adapters"]["history"];
     maxSteps?: number;
+    enableQueue?: boolean;
   },
 ) => {
   const core = new LocalRuntimeCore(
@@ -36,6 +43,9 @@ const createThread = (
       },
       unstable_humanToolNames: ["send_email"],
       ...(options?.maxSteps !== undefined && { maxSteps: options.maxSteps }),
+      ...(options?.enableQueue !== undefined && {
+        unstable_enableMessageQueue: options.enableQueue,
+      }),
     },
     undefined,
   );
@@ -73,6 +83,39 @@ const toolCallResult = (
   status: { type: "requires-action", reason: "tool-calls" },
 });
 
+const storedUserMessage = (id: string, text: string) => ({
+  id,
+  role: "user" as const,
+  content: [{ type: "text" as const, text }],
+  attachments: [],
+  metadata: { custom: {} },
+  createdAt: new Date(),
+});
+
+const storedApprovalMessage = (
+  id: string,
+  approvalIds: readonly string[],
+): ExportedMessageRepositoryItem => ({
+  parentId: null,
+  message: {
+    id,
+    role: "assistant",
+    content: approvalIds.map((approvalId, index) => ({
+      ...toolCallPart("send_email", { id: approvalId }),
+      toolCallId: `call-${index}`,
+    })),
+    status: { type: "requires-action", reason: "tool-calls" },
+    createdAt: new Date(),
+    metadata: {
+      unstable_state: null,
+      unstable_annotations: [],
+      unstable_data: [],
+      steps: [],
+      custom: {},
+    },
+  },
+});
+
 const createApprovalThread = (firstResult: ChatModelRunResult) => {
   const runs: ChatModelRunOptions[] = [];
   const thread = createThread({
@@ -84,6 +127,313 @@ const createApprovalThread = (firstResult: ChatModelRunResult) => {
   });
   return { thread, runs };
 };
+
+describe("LocalThreadRuntimeCore history scopes", () => {
+  it("reloads keyed history and ignores stale responses", async () => {
+    let resolveFirstLoad!: (repo: LoadedHistory) => void;
+    const firstLoad = vi.fn(
+      () =>
+        new Promise<LoadedHistory>((resolve) => {
+          resolveFirstLoad = resolve;
+        }),
+    );
+    const secondLoad = vi.fn().mockResolvedValue({
+      headId: "message-b",
+      messages: [
+        {
+          parentId: null,
+          message: storedUserMessage("message-b", "workspace b"),
+        },
+      ],
+    });
+    const chatModel: ChatModelAdapter = {
+      run: async () => ({ content: [] }),
+    };
+    const firstHistory = {
+      key: "workspace-a",
+      load: firstLoad,
+      append: vi.fn().mockResolvedValue(undefined),
+    };
+    const secondHistory = {
+      key: "workspace-b",
+      load: secondLoad,
+      append: vi.fn().mockResolvedValue(undefined),
+    };
+    const thread = createThread(chatModel, { history: firstHistory });
+
+    const firstRequest = thread.__internal_load();
+    thread.__internal_setOptions({
+      adapters: { chatModel, history: secondHistory },
+    });
+    await thread.__internal_load();
+
+    expect(thread.messages.map((message) => message.id)).toEqual(["message-b"]);
+
+    resolveFirstLoad({
+      headId: "message-a",
+      messages: [
+        {
+          parentId: null,
+          message: storedUserMessage("message-a", "workspace a"),
+        },
+      ],
+    });
+    await firstRequest;
+
+    expect(thread.messages.map((message) => message.id)).toEqual(["message-b"]);
+    expect(thread.isLoading).toBe(false);
+  });
+
+  it("does not reload replacement adapters with the same key", async () => {
+    const chatModel: ChatModelAdapter = {
+      run: async () => ({ content: [] }),
+    };
+    const firstLoad = vi.fn().mockResolvedValue({ messages: [] });
+    const secondLoad = vi.fn().mockResolvedValue({ messages: [] });
+    const thread = createThread(chatModel, {
+      history: {
+        key: "workspace-a",
+        load: firstLoad,
+        append: vi.fn().mockResolvedValue(undefined),
+      },
+    });
+
+    await thread.__internal_load();
+    thread.__internal_setOptions({
+      adapters: {
+        chatModel,
+        history: {
+          key: "workspace-a",
+          load: secondLoad,
+          append: vi.fn().mockResolvedValue(undefined),
+        },
+      },
+    });
+    await thread.__internal_load();
+
+    expect(firstLoad).toHaveBeenCalledOnce();
+    expect(secondLoad).not.toHaveBeenCalled();
+  });
+
+  it("clears keyless history when the first explicit key reloads", async () => {
+    const chatModel: ChatModelAdapter = {
+      run: async () => ({ content: [] }),
+    };
+    const repo = {
+      headId: "message-a",
+      messages: [
+        {
+          parentId: null,
+          message: storedUserMessage("message-a", "workspace a"),
+        },
+      ],
+    };
+    let resolveKeyedLoad!: (repo: LoadedHistory) => void;
+    const thread = createThread(chatModel, {
+      history: {
+        load: vi.fn().mockResolvedValue(repo),
+        append: vi.fn().mockResolvedValue(undefined),
+      },
+    });
+
+    await thread.__internal_load();
+    thread.__internal_setOptions({
+      adapters: {
+        chatModel,
+        history: {
+          key: "workspace-a",
+          load: vi.fn(
+            () =>
+              new Promise<LoadedHistory>((resolve) => {
+                resolveKeyedLoad = resolve;
+              }),
+          ),
+          append: vi.fn().mockResolvedValue(undefined),
+        },
+      },
+    });
+    const keyedRequest = thread.__internal_load();
+    await Promise.resolve();
+
+    expect(thread.messages).toEqual([]);
+
+    resolveKeyedLoad(repo);
+    await keyedRequest;
+
+    expect(thread.messages.map((message) => message.id)).toEqual(["message-a"]);
+  });
+
+  it("does not serialize same-id writes across history keys", async () => {
+    let releaseFirstUpdate!: () => void;
+    const firstUpdateGate = new Promise<void>((resolve) => {
+      releaseFirstUpdate = resolve;
+    });
+    let markFirstUpdateStarted!: () => void;
+    const firstUpdateStarted = new Promise<void>((resolve) => {
+      markFirstUpdateStarted = resolve;
+    });
+    const firstUpdate = vi.fn(async () => {
+      markFirstUpdateStarted();
+      await firstUpdateGate;
+    });
+    const secondUpdate = vi.fn().mockResolvedValue(undefined);
+    const chatModel: ChatModelAdapter = {
+      run: async () => ({ content: [] }),
+    };
+    const firstHistory = {
+      key: "workspace-a",
+      load: vi.fn().mockResolvedValue({
+        headId: "shared-message",
+        messages: [storedApprovalMessage("shared-message", ["a1", "a2"])],
+      }),
+      append: vi.fn().mockResolvedValue(undefined),
+      update: firstUpdate,
+    };
+    const secondHistory = {
+      key: "workspace-b",
+      load: vi.fn().mockResolvedValue({
+        headId: "shared-message",
+        messages: [storedApprovalMessage("shared-message", ["b1", "b2"])],
+      }),
+      append: vi.fn().mockResolvedValue(undefined),
+      update: secondUpdate,
+    };
+    const thread = createThread(chatModel, { history: firstHistory });
+
+    await thread.__internal_load();
+    thread.respondToToolApproval({ approvalId: "a1", approved: true });
+    await firstUpdateStarted;
+
+    thread.__internal_setOptions({
+      adapters: { chatModel, history: secondHistory },
+    });
+    await thread.__internal_load();
+    thread.respondToToolApproval({ approvalId: "b1", approved: true });
+
+    await vi.waitFor(() => expect(secondUpdate).toHaveBeenCalledOnce());
+    releaseFirstUpdate();
+    await flush();
+  });
+
+  it("discards an active run when the history key changes", async () => {
+    let resolveRun!: (result: ChatModelRunResult) => void;
+    let runSignal!: AbortSignal;
+    let markRunStarted!: () => void;
+    const runStarted = new Promise<void>((resolve) => {
+      markRunStarted = resolve;
+    });
+    const run = vi.fn(
+      (options: ChatModelRunOptions) =>
+        new Promise<ChatModelRunResult>((resolve) => {
+          runSignal = options.abortSignal;
+          resolveRun = resolve;
+          markRunStarted();
+        }),
+    );
+    const chatModel = { run };
+    const firstHistory = {
+      key: "workspace-a",
+      load: vi.fn().mockResolvedValue({ messages: [] }),
+      append: vi.fn().mockResolvedValue(undefined),
+    };
+    const secondAppend = vi.fn().mockResolvedValue(undefined);
+    const secondHistory = {
+      key: "workspace-b",
+      load: vi.fn().mockResolvedValue({
+        headId: "message-b",
+        messages: [
+          {
+            parentId: null,
+            message: storedUserMessage("message-b", "workspace b"),
+          },
+        ],
+      }),
+      append: secondAppend,
+    };
+    const thread = createThread(chatModel, { history: firstHistory });
+
+    await thread.__internal_load();
+    const appendPromise = thread.append(userMessage("workspace a"));
+    await runStarted;
+
+    thread.__internal_setOptions({
+      adapters: { chatModel, history: secondHistory },
+    });
+    await thread.__internal_load();
+
+    expect(runSignal.aborted).toBe(true);
+    resolveRun({ content: [{ type: "text", text: "stale response" }] });
+    await appendPromise;
+
+    expect(thread.messages.map((message) => message.id)).toEqual(["message-b"]);
+    expect(secondAppend).not.toHaveBeenCalled();
+  });
+
+  it("clears queued messages when the history key changes", async () => {
+    let resolveRun!: (result: ChatModelRunResult) => void;
+    let markRunStarted!: () => void;
+    const runStarted = new Promise<void>((resolve) => {
+      markRunStarted = resolve;
+    });
+    const run = vi.fn(
+      () =>
+        new Promise<ChatModelRunResult>((resolve) => {
+          resolveRun = resolve;
+          markRunStarted();
+        }),
+    );
+    const chatModel = { run };
+    const firstHistory = {
+      key: "workspace-a",
+      load: vi.fn().mockResolvedValue({ messages: [] }),
+      append: vi.fn().mockResolvedValue(undefined),
+    };
+    const secondAppend = vi.fn().mockResolvedValue(undefined);
+    const secondHistory = {
+      key: "workspace-b",
+      load: vi.fn().mockResolvedValue({
+        headId: "message-b",
+        messages: [
+          {
+            parentId: null,
+            message: storedUserMessage("message-b", "workspace b"),
+          },
+        ],
+      }),
+      append: secondAppend,
+    };
+    const thread = createThread(chatModel, {
+      history: firstHistory,
+      enableQueue: true,
+    });
+
+    await thread.__internal_load();
+    await thread.append(userMessage("first workspace-a message"));
+    await runStarted;
+    await thread.append({
+      ...userMessage("queued workspace-a message"),
+      parentId: thread.messages.at(-1)!.id,
+    });
+    expect(thread.getQueueItems()).toHaveLength(1);
+
+    thread.__internal_setOptions({
+      adapters: {
+        chatModel,
+        history: secondHistory,
+      },
+      unstable_enableMessageQueue: true,
+    });
+    await thread.__internal_load();
+
+    expect(thread.getQueueItems()).toEqual([]);
+    resolveRun({ content: [{ type: "text", text: "stale response" }] });
+    await flush();
+
+    expect(run).toHaveBeenCalledOnce();
+    expect(thread.messages.map((message) => message.id)).toEqual(["message-b"]);
+    expect(secondAppend).not.toHaveBeenCalled();
+  });
+});
 
 describe("LocalThreadRuntimeCore events", () => {
   it("isolates runEnd listener errors", async () => {

@@ -2876,6 +2876,7 @@ type ThreadEmptyProps = {
 };
 
 type ThreadHistoryAdapter = {
+  key?: PropertyKey | undefined;
   load(): Promise<ExportedMessageRepository & {
     state?: ReadonlyJSONValue;
     unstable_resume?: boolean;

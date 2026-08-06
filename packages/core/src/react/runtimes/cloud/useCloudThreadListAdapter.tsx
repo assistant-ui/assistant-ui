@@ -5,13 +5,16 @@ import {
   type PropsWithChildren,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
+  useState,
+  useSyncExternalStore,
 } from "react";
 import { AssistantCloud } from "assistant-cloud";
 import type { RemoteThreadListAdapter } from "../../../runtimes/remote-thread-list/types";
 import { InMemoryThreadListAdapter } from "../../../runtimes/remote-thread-list/adapter/in-memory";
-import { useAssistantCloudThreadHistoryAdapter } from "./AssistantCloudThreadHistoryAdapter";
+import { useAssistantCloudThreadHistoryAdapterForCloud } from "./AssistantCloudThreadHistoryAdapter";
 import { RuntimeAdapterProvider } from "../RuntimeAdapterProvider";
 import { CloudFileAttachmentAdapter } from "./CloudFileAttachmentAdapter";
 import { isRecord } from "../../../utils/json/is-json";
@@ -36,23 +39,51 @@ const baseUrl =
 const autoCloud = baseUrl
   ? new AssistantCloud({ baseUrl, anonymous: true })
   : undefined;
+const useIsomorphicLayoutEffect =
+  typeof window === "undefined" ? useEffect : useLayoutEffect;
+
+const createCloudStore = (initialCloud: AssistantCloud | undefined) => {
+  let cloud = initialCloud;
+  const listeners = new Set<() => void>();
+
+  return {
+    getSnapshot: () => cloud,
+    subscribe: (listener: () => void) => {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+    setCloud: (nextCloud: AssistantCloud | undefined) => {
+      if (Object.is(cloud, nextCloud)) return;
+      cloud = nextCloud;
+      for (const listener of listeners) listener();
+    },
+  };
+};
 
 export const useCloudThreadListAdapter = (
   adapter: CloudThreadListAdapterOptions,
 ): RemoteThreadListAdapter => {
   const adapterRef = useRef(adapter);
-  useEffect(() => {
+  const [cloudStore] = useState(() => createCloudStore(adapter.cloud));
+
+  useIsomorphicLayoutEffect(() => {
     adapterRef.current = adapter;
-  }, [adapter]);
+    cloudStore.setCloud(adapter.cloud);
+  }, [adapter, cloudStore]);
 
   const unstable_Provider = useCallback<FC<PropsWithChildren>>(
     function Provider({ children }) {
-      const history = useAssistantCloudThreadHistoryAdapter({
-        get current() {
-          return adapterRef.current.cloud ?? autoCloud!;
-        },
-      });
-      const cloudInstance = adapterRef.current.cloud ?? autoCloud!;
+      const configuredCloud = useSyncExternalStore(
+        cloudStore.subscribe,
+        cloudStore.getSnapshot,
+        cloudStore.getSnapshot,
+      );
+
+      const cloudInstance = configuredCloud ?? autoCloud!;
+      const history =
+        useAssistantCloudThreadHistoryAdapterForCloud(cloudInstance);
       const attachments = useMemo(
         () => new CloudFileAttachmentAdapter(cloudInstance),
         [cloudInstance],
@@ -72,7 +103,7 @@ export const useCloudThreadListAdapter = (
         </RuntimeAdapterProvider>
       );
     },
-    [],
+    [cloudStore],
   );
 
   const cloud = adapter.cloud ?? autoCloud;

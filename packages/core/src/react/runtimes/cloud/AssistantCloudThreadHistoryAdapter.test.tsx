@@ -21,6 +21,7 @@ const mocks = vi.hoisted(() => {
 
 vi.mock("@assistant-ui/store", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@assistant-ui/store")>()),
+  getClientId: (client: object) => client,
   useAui: () => mocks.aui,
 }));
 
@@ -34,6 +35,34 @@ const makeCloud = () =>
   }) as unknown as AssistantCloud;
 
 describe("useAssistantCloudThreadHistoryAdapter", () => {
+  it("uses the default history scope while the Cloud ref is empty", async () => {
+    const cloudRef = { current: undefined };
+    const { result } = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter(
+        cloudRef as unknown as { current: AssistantCloud },
+      ),
+    );
+
+    expect(result.current.key).toBeUndefined();
+    await expect(result.current.load()).resolves.toEqual({ messages: [] });
+    await expect(
+      result.current
+        .withFormat<{ id: string }, Record<string, unknown>>({
+          format: "test",
+          encode: ({ message }) => message,
+          decode: ({ parent_id, content }) => ({
+            parentId: parent_id,
+            message: content as { id: string },
+          }),
+          getId: (message) => message.id,
+        })
+        .append({ parentId: null, message: { id: "message-1" } }),
+    ).resolves.toBeUndefined();
+
+    cloudRef.current = makeCloud();
+    expect(typeof result.current.key).toBe("symbol");
+  });
+
   it("refreshes formatted persistence when the Cloud client changes", async () => {
     mocks.aui = mocks.makeClient("thread-1");
     const firstCloud = makeCloud();
@@ -42,6 +71,8 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
     const { result } = renderHook(() =>
       useAssistantCloudThreadHistoryAdapter(cloudRef),
     );
+    const firstKey = result.current.key;
+    expect(typeof firstKey).toBe("symbol");
     const formatted = result.current.withFormat<
       { id: string },
       Record<string, unknown>
@@ -61,6 +92,7 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
     expect(firstCloud.threads.messages.list).toHaveBeenCalledTimes(2);
 
     cloudRef.current = secondCloud;
+    expect(result.current.key).not.toBe(firstKey);
     await formatted.load();
 
     expect(firstCloud.threads.messages.list).toHaveBeenCalledTimes(2);

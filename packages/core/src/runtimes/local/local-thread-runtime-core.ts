@@ -1,4 +1,5 @@
 import { fromThreadMessageLike } from "../../runtime/utils/thread-message-like";
+import type { ThreadHistoryAdapter } from "../../adapters/thread-history";
 import { generateId } from "../../utils/id";
 import type {
   ChatModelAdapter,
@@ -43,6 +44,11 @@ class AbortError extends Error {
   }
 }
 
+const DEFAULT_HISTORY_ADAPTER_KEY = Symbol("history-adapter");
+type HistoryAdapterKey =
+  | NonNullable<ThreadHistoryAdapter["key"]>
+  | typeof DEFAULT_HISTORY_ADAPTER_KEY;
+
 export class LocalThreadRuntimeCore
   extends BaseThreadRuntimeCore
   implements ThreadRuntimeCore
@@ -69,26 +75,36 @@ export class LocalThreadRuntimeCore
   private _queue: MessageQueueController | null = null;
   private _queueRunInFlight = false;
 
-  private _historyWrites = new Map<string, Promise<void>>();
+  private _historyScopeGeneration = 0;
+  private _historyWrites = new Map<
+    HistoryAdapterKey,
+    Map<string, Promise<void>>
+  >();
 
   // Writes for one message id must land in issue order; an earlier paused
   // snapshot arriving after the terminal write would resurrect the pause.
   private _chainHistoryWrite(
+    key: HistoryAdapterKey,
     id: string,
     write: () => Promise<void>,
   ): Promise<void> {
-    const next = (this._historyWrites.get(id) ?? Promise.resolve()).then(
-      write,
-      write,
-    );
+    let writes = this._historyWrites.get(key);
+    if (!writes) {
+      writes = new Map();
+      this._historyWrites.set(key, writes);
+    }
+    const next = (writes.get(id) ?? Promise.resolve()).then(write, write);
     const stored = next.then(
       () => {},
       () => {},
     );
-    this._historyWrites.set(id, stored);
+    writes.set(id, stored);
     void stored.then(() => {
-      if (this._historyWrites.get(id) === stored) {
-        this._historyWrites.delete(id);
+      if (writes.get(id) === stored) {
+        writes.delete(id);
+        if (writes.size === 0) {
+          this._historyWrites.delete(key);
+        }
       }
     });
     return next;
@@ -103,9 +119,12 @@ export class LocalThreadRuntimeCore
     if (message.status?.type !== "requires-action") return;
     const history = this._options.adapters.history;
     if (!history?.update) return;
+    const key = history.key ?? DEFAULT_HISTORY_ADAPTER_KEY;
     const update = history.update.bind(history);
     const item = { parentId, message, runConfig: this._lastRunConfig };
-    this._chainHistoryWrite(message.id, () => update(item)).catch(() => {});
+    this._chainHistoryWrite(key, message.id, () => update(item)).catch(
+      () => {},
+    );
   }
 
   public readonly isDisabled = false;
@@ -227,27 +246,52 @@ export class LocalThreadRuntimeCore
     if (hasUpdates) this._notifySubscribers();
   }
 
-  private _loadPromise: Promise<void> | undefined;
-  public __internal_load() {
-    if (this._loadPromise) return this._loadPromise;
+  private _loadRequest:
+    | {
+        key: HistoryAdapterKey;
+        promise: Promise<void>;
+      }
+    | undefined;
+  private _lastHistoryAdapterKey: HistoryAdapterKey | undefined;
 
-    const promise = this.adapters.history?.load() ?? Promise.resolve(null);
+  public __internal_load() {
+    const history = this.adapters.history;
+    const key = history?.key ?? DEFAULT_HISTORY_ADAPTER_KEY;
+    const activeLoadRequest = this._loadRequest;
+    if (activeLoadRequest && Object.is(activeLoadRequest.key, key)) {
+      return activeLoadRequest.promise;
+    }
+
+    const replacingHistory =
+      this._lastHistoryAdapterKey !== undefined &&
+      !Object.is(this._lastHistoryAdapterKey, key);
+    if (replacingHistory) {
+      this._historyScopeGeneration += 1;
+      this.cancelRun();
+      this.repository.import({ headId: null, messages: [] });
+    }
+
+    const request = {
+      key,
+      promise: Promise.resolve(),
+    };
+    this._loadRequest = request;
+    this._lastHistoryAdapterKey = key;
 
     this._isLoading = true;
     this._notifySubscribers();
 
-    this._loadPromise = promise
+    request.promise = Promise.resolve()
+      .then(() => history?.load() ?? null)
       .then((repo) => {
-        if (!repo) return;
+        if (this._loadRequest !== request || !repo) return;
         this.repository.import(repo);
         if (repo.messages.length > 0) {
           this.ensureInitialized();
         }
         this._notifySubscribers();
 
-        const resume = this.adapters.history?.resume?.bind(
-          this.adapters.history,
-        );
+        const resume = history?.resume?.bind(history);
         if (repo.unstable_resume && resume) {
           this.startRun(
             {
@@ -260,11 +304,12 @@ export class LocalThreadRuntimeCore
         }
       })
       .finally(() => {
+        if (this._loadRequest !== request) return;
         this._isLoading = false;
         this._notifySubscribers();
       });
 
-    return this._loadPromise;
+    return request.promise;
   }
 
   public async append(message: AppendMessage): Promise<void> {
@@ -293,12 +338,14 @@ export class LocalThreadRuntimeCore
   }
 
   private async _runAppend(message: AppendMessage): Promise<void> {
+    const historyScopeGeneration = this._historyScopeGeneration;
     this.ensureInitialized();
 
     const initPromise = this._getInitializePromise?.();
     if (initPromise) {
       await initPromise;
     }
+    if (historyScopeGeneration !== this._historyScopeGeneration) return;
 
     const newMessage = fromThreadMessageLike(message, generateId(), {
       type: "complete",
@@ -389,6 +436,7 @@ export class LocalThreadRuntimeCore
     runConfig: RunConfig | undefined,
     runCallback?: ChatModelAdapter["run"],
   ): Promise<void> {
+    const historyScopeGeneration = this._historyScopeGeneration;
     this._notifyEventSubscribers("runStart", {});
 
     // A run entered on a requires-action message resumes a pause an
@@ -411,8 +459,10 @@ export class LocalThreadRuntimeCore
           message,
           runConfig,
           alreadyPersisted,
+          historyScopeGeneration,
           runCallback,
         );
+        if (historyScopeGeneration !== this._historyScopeGeneration) return;
         runCallback = undefined;
       } while (shouldContinue(message, this._options.unstable_humanToolNames));
     } finally {
@@ -423,6 +473,8 @@ export class LocalThreadRuntimeCore
         queueMicrotask(() => this._queue?.notifyIdle());
       }
     }
+
+    if (historyScopeGeneration !== this._historyScopeGeneration) return;
 
     if (
       this.adapters.suggestion &&
@@ -454,9 +506,12 @@ export class LocalThreadRuntimeCore
     message: ThreadAssistantMessage,
     runConfig: RunConfig | undefined,
     alreadyPersisted: boolean,
+    historyScopeGeneration: number,
     runCallback?: ChatModelAdapter["run"],
   ) {
     const messages = parentId ? this.repository.getMessages(parentId) : [];
+    const history = this._options.adapters.history;
+    const historyKey = history?.key ?? DEFAULT_HISTORY_ADAPTER_KEY;
 
     // abort existing run
     this.abortController?.abort();
@@ -469,6 +524,8 @@ export class LocalThreadRuntimeCore
     const initialSteps = message.metadata?.steps;
     const initialCustom = message.metadata?.custom;
     const updateMessage = (m: Partial<ChatModelRunResult>) => {
+      if (historyScopeGeneration !== this._historyScopeGeneration) return;
+
       const newSteps = m.metadata?.steps;
       const steps = newSteps
         ? [...(initialSteps ?? []), ...newSteps]
@@ -615,7 +672,6 @@ export class LocalThreadRuntimeCore
         this.abortController = null;
       }
 
-      const history = this._options.adapters.history;
       const item = {
         parentId,
         message,
@@ -630,13 +686,18 @@ export class LocalThreadRuntimeCore
 
       // Pauses are written only for adapters that can rewrite the entry later;
       // an append-only adapter would strand a half-finished run in history.
-      if (isTerminal || (isPausing && history?.update)) {
+      if (
+        historyScopeGeneration === this._historyScopeGeneration &&
+        (isTerminal || (isPausing && history?.update))
+      ) {
         const write =
           alreadyPersisted && history?.update
             ? history.update.bind(history)
             : history?.append.bind(history);
         if (write) {
-          await this._chainHistoryWrite(message.id, () => write(item));
+          await this._chainHistoryWrite(historyKey, message.id, () =>
+            write(item),
+          );
         }
       }
     }

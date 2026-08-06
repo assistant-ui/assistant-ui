@@ -589,6 +589,10 @@ export const threadListAdapter: RemoteThreadListAdapter = {
 
 The top-level `load`/`append` on the history adapter are required by the type but unused by `useChatRuntime`. The AI SDK code path always goes through `withFormat`.
 
+If one mounted runtime can switch between accounts or workspaces, set the adapter's optional `key` to that persistence scope. Keep it stable for the same scope and change it when the backing history changes; `useLocalRuntime` and the AI SDK runtimes then clear the previous scope, reload the new history, and ignore stale load responses. Adapters without a key retain the existing load-once behavior. React A2A and AG-UI runtimes currently require a remount when the backing history scope changes.
+
+`undefined` is a distinct keyless scope. If the account or workspace ID is loaded asynchronously, wait to provide the history adapter or mount the runtime until the key is known; changing from `undefined` to a concrete key clears and reloads the thread.
+
 </Step>
 <Step>
 

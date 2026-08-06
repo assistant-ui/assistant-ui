@@ -96,4 +96,34 @@ describe("useLocalRuntime", () => {
     expect(history.load).toHaveBeenCalledTimes(1);
     expect(consoleError).toHaveBeenCalledTimes(1);
   });
+
+  it("reloads history when the adapter key changes", async () => {
+    const firstLoad = vi.fn().mockResolvedValue({ messages: [] });
+    const secondLoad = vi.fn().mockResolvedValue({ messages: [] });
+    const firstHistory = {
+      key: "workspace-a",
+      load: firstLoad,
+      append: vi.fn().mockResolvedValue(undefined),
+    };
+    const secondHistory = {
+      key: "workspace-b",
+      load: secondLoad,
+      append: vi.fn().mockResolvedValue(undefined),
+    };
+
+    const App = ({ history }: { history: typeof firstHistory }) => {
+      const runtime = useLocalRuntime(chatModel, { adapters: { history } });
+      return (
+        <AssistantRuntimeProvider runtime={runtime}>
+          <div />
+        </AssistantRuntimeProvider>
+      );
+    };
+
+    const { rerender } = render(<App history={firstHistory} />);
+    await waitFor(() => expect(firstLoad).toHaveBeenCalledOnce());
+
+    rerender(<App history={secondHistory} />);
+    await waitFor(() => expect(secondLoad).toHaveBeenCalledOnce());
+  });
 });

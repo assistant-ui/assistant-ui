@@ -1,4 +1,4 @@
-import { type RefObject, useEffect, useRef, useState } from "react";
+import { type RefObject, useEffect, useMemo, useRef, useState } from "react";
 import type {
   GenericThreadHistoryAdapter,
   ThreadHistoryAdapter,
@@ -17,8 +17,19 @@ import { type AssistantClient, getClientId, useAui } from "@assistant-ui/store";
 
 const globalPersistence = new WeakMap<
   getClientId.ClientId,
-  CloudMessagePersistence
+  WeakMap<AssistantCloud, CloudMessagePersistence>
 >();
+const cloudHistoryKeys = new WeakMap<AssistantCloud, symbol>();
+
+const getCloudHistoryKey = (cloud: AssistantCloud | null | undefined) => {
+  if (!cloud) return undefined;
+  let key = cloudHistoryKeys.get(cloud);
+  if (!key) {
+    key = Symbol("assistant-cloud-history");
+    cloudHistoryKeys.set(cloud, key);
+  }
+  return key;
+};
 
 class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
   private cloudRef: RefObject<AssistantCloud>;
@@ -32,36 +43,50 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     this.getAui = getAui;
   }
 
+  public get key() {
+    return getCloudHistoryKey(this.cloudRef.current);
+  }
+
   private get aui(): AssistantClient {
     return this.getAui();
   }
 
   private get _persistence(): CloudMessagePersistence {
     const key = getClientId(this.aui.threadListItem);
-    if (!globalPersistence.has(key)) {
-      globalPersistence.set(
-        key,
-        new CloudMessagePersistence(() => this.cloudRef.current),
-      );
+    const cloud = this.cloudRef.current;
+    if (!cloud) {
+      throw new Error("Assistant Cloud is not configured.");
     }
-    return globalPersistence.get(key)!;
+    let cloudPersistence = globalPersistence.get(key);
+    if (!cloudPersistence) {
+      cloudPersistence = new WeakMap();
+      globalPersistence.set(key, cloudPersistence);
+    }
+    let persistence = cloudPersistence.get(cloud);
+    if (!persistence) {
+      persistence = new CloudMessagePersistence(cloud);
+      cloudPersistence.set(cloud, persistence);
+    }
+    return persistence;
   }
 
   withFormat<TMessage, TStorageFormat extends Record<string, unknown>>(
     formatAdapter: MessageFormatAdapter<TMessage, TStorageFormat>,
   ): GenericThreadHistoryAdapter<TMessage> {
     const adapter = this;
-    const formatted = createFormattedPersistence(
-      this._persistence,
-      formatAdapter,
-    );
+    const getFormatted = () =>
+      createFormattedPersistence(adapter._persistence, formatAdapter);
     return {
       // Note: callers must also call reportTelemetry() for run tracking
       async append(item: MessageFormatItem<TMessage>) {
+        if (!adapter.cloudRef.current) return;
+        const formatted = getFormatted();
         const { remoteId } = await adapter.aui.threadListItem.initialize();
         await formatted.append(remoteId, item);
       },
       async update(item: MessageFormatItem<TMessage>, localMessageId: string) {
+        if (!adapter.cloudRef.current) return;
+        const formatted = getFormatted();
         const remoteId = adapter.aui.threadListItem.getState().remoteId;
         if (!remoteId) return;
         await formatted.update?.(remoteId, item, localMessageId);
@@ -78,6 +103,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
           stepTimestamps?: StepTimestamp[];
         },
       ) {
+        if (!adapter.cloudRef.current) return;
         const encodedRunMessages = items.map((item) =>
           formatAdapter.encode(item),
         );
@@ -88,40 +114,39 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
         );
       },
       async load(): Promise<MessageFormatRepository<TMessage>> {
+        if (!adapter.cloudRef.current) return { messages: [] };
         const remoteId = adapter.aui.threadListItem.getState().remoteId;
         if (!remoteId) return { messages: [] };
-        return formatted.load(remoteId);
+        return getFormatted().load(remoteId);
       },
     };
   }
 
   async append({ parentId, message }: ExportedMessageRepositoryItem) {
+    if (!this.cloudRef.current) return;
+    const persistence = this._persistence;
     const { remoteId } = await this.aui.threadListItem.initialize();
     const encoded = auiV0Encode(message);
-    await this._persistence.append(
-      remoteId,
-      message.id,
-      parentId,
-      "aui/v0",
-      encoded,
-    );
+    await persistence.append(remoteId, message.id, parentId, "aui/v0", encoded);
 
-    if (this.cloudRef.current.telemetry.enabled) {
+    if (this.cloudRef.current?.telemetry.enabled) {
       this._maybeReportRun(remoteId, "aui/v0", encoded);
     }
   }
 
   async update(item: ExportedMessageRepositoryItem) {
-    if (!this._persistence.isPersisted(item.message.id)) {
+    if (!this.cloudRef.current) return;
+    const persistence = this._persistence;
+    if (!persistence.isPersisted(item.message.id)) {
       return this.append(item);
     }
     const { message } = item;
     const remoteId = this.aui.threadListItem.getState().remoteId;
     if (!remoteId) return;
     const encoded = auiV0Encode(message);
-    await this._persistence.update(remoteId, message.id, "aui/v0", encoded);
+    await persistence.update(remoteId, message.id, "aui/v0", encoded);
 
-    if (this.cloudRef.current.telemetry.enabled) {
+    if (this.cloudRef.current?.telemetry.enabled) {
       this._maybeReportRun(remoteId, "aui/v0", encoded);
     }
   }
@@ -133,6 +158,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
   }
 
   async load() {
+    if (!this.cloudRef.current) return { messages: [] };
     const remoteId = this.aui.threadListItem.getState().remoteId;
     if (!remoteId) return { messages: [] };
     const messages = await this._persistence.load(remoteId, "aui/v0");
@@ -154,7 +180,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
       stepTimestamps?: StepTimestamp[];
     },
   ) {
-    if (!this.cloudRef.current.telemetry.enabled) return;
+    if (!this.cloudRef.current?.telemetry.enabled) return;
 
     const remoteId = this.aui.threadListItem.getState().remoteId;
     if (!remoteId) return;
@@ -183,10 +209,12 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     durationMs?: number,
     stepTimestamps?: StepTimestamp[],
   ) {
+    const cloud = this.cloudRef.current;
+    if (!cloud) return;
     const mergedSteps = mergeStepTimestamps(data.steps, stepTimestamps);
     // Keep in sync with assistant-cloud createRunSchema
     // (apps/aui-cloud-api/src/endpoints/runs/create.ts).
-    const initial: Parameters<typeof this.cloudRef.current.runs.report>[0] = {
+    const initial: Parameters<typeof cloud.runs.report>[0] = {
       thread_id: remoteId,
       status: data.status,
       ...(data.totalSteps != null
@@ -214,11 +242,11 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
       ...(data.modelId ? { model_id: data.modelId } : undefined),
     };
 
-    const { beforeReport } = this.cloudRef.current.telemetry;
+    const { beforeReport } = cloud.telemetry;
     const report = beforeReport ? beforeReport(initial) : initial;
     if (!report) return;
 
-    this.cloudRef.current.runs.report(report).catch(() => {});
+    cloud.runs.report(report).catch(() => {});
   }
 }
 
@@ -815,15 +843,34 @@ function aggregateAiSdkV6RunSteps<T>(stepMessages: T[]): TelemetryData | null {
 export function useAssistantCloudThreadHistoryAdapter(
   cloudRef: RefObject<AssistantCloud>,
 ): ThreadHistoryAdapter {
-  const aui = useAui();
-  // Not useEffectEvent: history adapter methods run during render (SSR load).
-  const auiRef = useRef(aui);
-  useEffect(() => {
-    auiRef.current = aui;
-  });
+  const auiRef = useCurrentAuiRef();
   const [adapter] = useState(
     () =>
       new AssistantCloudThreadHistoryAdapter(cloudRef, () => auiRef.current),
   );
   return adapter;
 }
+
+export function useAssistantCloudThreadHistoryAdapterForCloud(
+  cloud: AssistantCloud,
+): ThreadHistoryAdapter {
+  const auiRef = useCurrentAuiRef();
+  return useMemo(
+    () =>
+      new AssistantCloudThreadHistoryAdapter(
+        { current: cloud },
+        () => auiRef.current,
+      ),
+    [auiRef, cloud],
+  );
+}
+
+const useCurrentAuiRef = () => {
+  const aui = useAui();
+  // Not useEffectEvent: history adapter methods run during render (SSR load).
+  const auiRef = useRef(aui);
+  useEffect(() => {
+    auiRef.current = aui;
+  });
+  return auiRef;
+};
