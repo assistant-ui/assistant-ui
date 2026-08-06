@@ -576,6 +576,38 @@ describe("convertEveMessages", () => {
     ]);
   });
 
+  it("drops an authorization url that is not an http(s) address", () => {
+    const data = {
+      messages: [
+        {
+          id: "a1",
+          role: "assistant",
+          parts: [
+            {
+              type: "authorization",
+              state: "required",
+              name: "github",
+              authorization: {
+                url: "javascript:alert(1)",
+                userCode: "ABCD-1234",
+              },
+            },
+          ],
+        },
+      ],
+    } as unknown as EveMessageData;
+
+    const [message] = convertEveMessages(data);
+
+    expect(message?.content).toEqual([
+      {
+        type: "data",
+        name: "authorization",
+        data: { state: "required", name: "github", userCode: "ABCD-1234" },
+      },
+    ]);
+  });
+
   it("carries the outcome of a completed authorization part", () => {
     const data = {
       messages: [
@@ -995,6 +1027,46 @@ describe("convertEveMessages", () => {
           },
         },
       ];
+
+      it("carries the challenge Eve projects onto an authorization part", () => {
+        const state = replay([
+          ...midStreamEvents,
+          {
+            type: "authorization.required",
+            data: {
+              turnId: "turn_1",
+              stepIndex: 0,
+              sequence: 3,
+              name: "github",
+              description: "Authorization required for github",
+              authorization: {
+                displayName: "GitHub",
+                instructions: "Enter the code on the device page",
+                url: "https://github.com/login/device",
+                userCode: "ABCD-1234",
+                expiresAt: "2026-01-01T00:00:00Z",
+              },
+            },
+          },
+        ]);
+
+        const converted = convertEveMessages(state, { isRunning: false });
+
+        expect(converted.at(-1)?.content).toContainEqual({
+          type: "data",
+          name: "authorization",
+          data: {
+            state: "required",
+            name: "github",
+            displayName: "GitHub",
+            description: "Authorization required for GitHub",
+            url: "https://github.com/login/device",
+            userCode: "ABCD-1234",
+            instructions: "Enter the code on the device page",
+            expiresAt: "2026-01-01T00:00:00Z",
+          },
+        });
+      });
 
       it("a locally aborted turn keeps its streaming marker and converts to cancelled", () => {
         const state = replay(midStreamEvents);

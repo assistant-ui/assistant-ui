@@ -224,6 +224,8 @@ const convertDynamicToolPart = (
  * Payload of the `authorization` data part the Eve runtime emits for a
  * connector authorization challenge. `state` discriminates a pending challenge
  * from a settled one; every other field is present only when Eve projected it.
+ * `url` is projected only when the connector supplied an `http(s)` address, so
+ * a renderer can link to it without checking the scheme itself.
  */
 export type EveAuthorizationData = {
   readonly state: EveAuthorizationPart["state"];
@@ -248,9 +250,10 @@ const convertAuthorizationPart = (
     name: part.name,
     ...(part.displayName !== undefined && { displayName: part.displayName }),
     ...(part.description !== undefined && { description: part.description }),
-    ...(part.authorization?.url !== undefined && {
-      url: part.authorization.url,
-    }),
+    ...(part.authorization?.url !== undefined &&
+      httpUrlPattern.test(part.authorization.url) && {
+        url: part.authorization.url,
+      }),
     ...(part.authorization?.userCode !== undefined && {
       userCode: part.authorization.userCode,
     }),
