@@ -2470,7 +2470,7 @@ type RemoteThreadListAdapter = {
   initialize(threadId: string): Promise<RemoteThreadInitializeResponse>;
   generateTitle(remoteId: string, unstable_messages: readonly ThreadMessage[]): Promise<AssistantStream>;
   fetch(threadId: string): Promise<RemoteThreadMetadata>;
-  unstable_Provider?: ComponentType<PropsWithChildren> | undefined;
+  unstable_Provider?: RemoteThreadListProviderComponent | undefined;
 };
 
 type RemoteThreadListOptions = {
@@ -2484,6 +2484,12 @@ type RemoteThreadListOptions = {
 
 type RemoteThreadListPageOptions = {
   after?: string | undefined;
+};
+
+type RemoteThreadListProviderComponent = ((props: RemoteThreadListProviderProps) => unknown) | (new (props: RemoteThreadListProviderProps) => unknown);
+
+type RemoteThreadListProviderProps = {
+  children?: any;
 };
 
 type RemoteThreadListResponse = {
