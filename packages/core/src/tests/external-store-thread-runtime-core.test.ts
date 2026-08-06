@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import { ExternalStoreThreadRuntimeCore } from "../runtimes/external-store/external-store-thread-runtime-core";
 import type { ExternalStoreAdapter } from "../runtimes/external-store/external-store-adapter";
+import { pickExternalStoreSharedOptions } from "../runtimes/external-store/external-store-shared-options";
+import type { ExternalThreadQueueAdapter } from "../runtime/queue/external-thread-queue-adapter";
 import type { ModelContextProvider } from "../model-context/types";
 import type { ThreadMessageLike } from "../runtime/utils/thread-message-like";
 import type { AppendMessage } from "../types/message";
@@ -71,6 +73,24 @@ describe("ExternalStoreThreadRuntimeCore - state reference stability", () => {
       }
 
       expect(runtime.capabilities).toBe(initialCaps);
+    });
+
+    // The queue capability is what a wrapper's consumer actually observes, and
+    // it is only reachable if the shared option boundary preserves the adapter.
+    it("should enable the queue capability through the shared option boundary", () => {
+      const queue = {} as ExternalThreadQueueAdapter;
+
+      const withQueue = new ExternalStoreThreadRuntimeCore(
+        mockContextProvider,
+        makeStore(pickExternalStoreSharedOptions({ queue })),
+      );
+      const withoutQueue = new ExternalStoreThreadRuntimeCore(
+        mockContextProvider,
+        makeStore(pickExternalStoreSharedOptions({})),
+      );
+
+      expect(withQueue.capabilities.queue).toBe(true);
+      expect(withoutQueue.capabilities.queue).toBe(false);
     });
   });
 

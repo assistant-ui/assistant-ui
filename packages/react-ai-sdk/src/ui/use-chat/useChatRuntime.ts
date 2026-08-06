@@ -113,6 +113,7 @@ const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     isSendDisabled: _isSendDisabled,
     unstable_capabilities: _unstable_capabilities,
     suggestions: _suggestions,
+    queue: _queue,
     onResume,
     onResumeToolCall,
     onResumeError,

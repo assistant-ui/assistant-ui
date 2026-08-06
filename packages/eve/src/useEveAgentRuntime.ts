@@ -75,6 +75,7 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
     isSendDisabled: _isSendDisabled,
     suggestions: _suggestions,
     unstable_capabilities: _unstable_capabilities,
+    queue: _queue,
     ...agentOptions
   } = options;
   true satisfies keyof typeof agentOptions &
