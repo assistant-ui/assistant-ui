@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { resource } from "@assistant-ui/tap";
+import type {} from "@assistant-ui/store";
 
 export type DemoMessage = {
   id: number;

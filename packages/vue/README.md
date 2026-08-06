@@ -21,8 +21,24 @@ export default defineConfig({
 ## Usage
 
 ```vue
+<!-- Root.vue -->
 <script setup lang="ts">
-import { AuiProvider, AuiConfig, useAui, useAuiState } from "@assistant-ui/vue";
+import { AuiProvider, AuiConfig } from "@assistant-ui/vue";
+import Composer from "./Composer.vue";
+import { ThreadScope } from "./scopes";
+
+const config = AuiConfig({ thread: ThreadScope() });
+</script>
+
+<template>
+  <AuiProvider :config="config"><Composer /></AuiProvider>
+</template>
+```
+
+```vue
+<!-- Composer.vue -->
+<script setup lang="ts">
+import { useAui, useAuiState } from "@assistant-ui/vue";
 
 const aui = useAui();
 const isRunning = useAuiState((s) => s.thread.isRunning);
