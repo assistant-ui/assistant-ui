@@ -98,11 +98,14 @@ export {
 export { defineToolkit } from "../react/model-context/define-toolkit";
 export {
   defineMcpToolkit,
+  type McpToolkitDefinition,
+  type McpToolkitEntry,
   type McpToolkitToolConfig,
 } from "../react/model-context/define-mcp-toolkit";
 export type {
   Toolkit,
   ToolkitDefinition,
+  ToolkitDefinitionEntry,
 } from "../react/model-context/toolbox";
 
 // clients

@@ -1,6 +1,5 @@
 /** @deprecated Internal API for external-store adapter authors. Not part of the public API; may change or be removed without notice. */
 export type RuntimeExtrasBrand<T extends object> = {
-  runtimeName: string;
   provide: (value: T) => T;
   is: (extras: unknown) => extras is T;
   tryGet: (extras: unknown) => T | undefined;
@@ -44,5 +43,5 @@ export const createRuntimeExtrasBrand = <T extends object>(
   const tryGet = (extras: unknown): T | undefined =>
     is(extras) ? extras : undefined;
 
-  return { runtimeName, provide, is, tryGet, assert };
+  return { provide, is, tryGet, assert };
 };
