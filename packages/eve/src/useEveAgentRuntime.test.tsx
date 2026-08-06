@@ -463,26 +463,26 @@ describe("useEveAgentRuntime staged messages", () => {
     mockUseEveAgent.mockReturnValue(agent as never);
     const { result } = renderHook(() => useEveAgentRuntime());
 
-    const stageWithConfig = async (text: string, model: string) => {
+    const stageWithConfig = async (text: string, page: string) => {
       await act(async () => {
         result.current.thread.append({
           role: "user",
           content: [{ type: "text", text }],
           startRun: false,
-          runConfig: { custom: { model } },
+          runConfig: { custom: { page } },
         });
       });
     };
 
-    await stageWithConfig("first staged", "staged-first");
-    await stageWithConfig("second staged", "staged-second");
+    await stageWithConfig("first staged", "/first");
+    await stageWithConfig("second staged", "/second");
 
     const secondStagedId = result.current.thread.getState().messages[3]!.id;
     await act(async () => {
       await result.current.thread.startRun({
         parentId: secondStagedId,
         sourceId: null,
-        runConfig: { custom: { model: "reload" } },
+        runConfig: { custom: { page: "/reloaded" } },
       });
     });
 
@@ -490,11 +490,11 @@ describe("useEveAgentRuntime staged messages", () => {
     // reloaded message takes the reload-time config
     expect(agent.send).toHaveBeenNthCalledWith(1, {
       message: "first staged",
-      clientContext: { model: "staged-first" },
+      clientContext: { page: "/first" },
     });
     expect(agent.send).toHaveBeenNthCalledWith(2, {
       message: "second staged",
-      clientContext: { model: "reload" },
+      clientContext: { page: "/reloaded" },
     });
   });
 
