@@ -338,6 +338,40 @@ describe("local runtime message queue", () => {
     ).toEqual(["Y"]);
   });
 
+  it("drains sends after a regenerate started inside the cancellation window", async () => {
+    const { adapter, releases, getRunCount } = createCountingAdapter();
+    const aui = renderWithRuntime(adapter, true, {
+      unstable_queueClearOnCancel: false,
+    });
+
+    await send(aui, "first");
+    await act(async () => {
+      releases[0]!();
+      await flush();
+    });
+
+    // regenerate, then cancel and regenerate again before the settle lands
+    await act(async () => {
+      aui.thread.message({ index: 1 }).reload();
+      await flush();
+    });
+    await act(async () => {
+      aui.thread.cancelRun();
+      aui.thread.message({ index: 1 }).reload();
+      await flush();
+    });
+    expect(getRunCount()).toBe(3);
+
+    await act(async () => {
+      releases[2]!();
+      await flush();
+    });
+
+    // the cancelled settle must not eat the replacement's; sends still drain
+    await send(aui, "Z");
+    expect(getRunCount()).toBe(4);
+  });
+
   it("keeps a second regenerate alive when the first one's settle arrives", async () => {
     const { adapter, releases, getRunCount } = createCountingAdapter();
     const aui = renderWithRuntime(adapter, true);

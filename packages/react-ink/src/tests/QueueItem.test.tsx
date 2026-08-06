@@ -72,15 +72,16 @@ afterEach(() => {
 });
 
 describe("QueueItemPrimitive.Text", () => {
-  it("renders text parts from queueItem state", () => {
+  it("renders only text parts from queueItem state", () => {
     mockQueueItemParts([
       { type: "text", text: "hello world" },
-      { type: "file" },
+      { type: "file", text: "not-a-text-part" },
     ]);
 
     const { lastFrame } = render(<QueueItemText />);
 
     expect(lastFrame()).toContain("hello world");
+    expect(lastFrame()).not.toContain("not-a-text-part");
   });
 
   it("renders children when provided", () => {

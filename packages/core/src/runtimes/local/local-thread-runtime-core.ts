@@ -69,6 +69,8 @@ export class LocalThreadRuntimeCore
 
   private _queue: MessageQueueController | null = null;
   private _queueRunInFlight = false;
+  private _activeRun: { cancelled: boolean } | null = null;
+  private _runGeneration = 0;
 
   private _historyWrites = new Map<string, Promise<void>>();
 
@@ -207,6 +209,7 @@ export class LocalThreadRuntimeCore
           // release the queue when the dispatch settles, even if it rejects
           // before reaching startRun's finally, so a failure can't deadlock it
           this._queueRunInFlight = true;
+          const generation = this._runGeneration;
           // the tail may have moved since the message was enqueued
           void this._runAppend({
             ...message,
@@ -214,10 +217,9 @@ export class LocalThreadRuntimeCore
           })
             .finally(() => {
               this._queueRunInFlight = false;
-              // a direct run (edit, regenerate) that superseded this dispatch
-              // owns the next settle; reporting idle here would advance the
-              // queue and abort that run mid-flight
-              if (this.abortController === null) this._queue?.notifyIdle();
+              // a dispatch that failed before starting a run settles here;
+              // runs that did start release from _runLoop
+              if (this._runGeneration === generation) this._queue?.notifyIdle();
             })
             .catch(() => {});
         },
@@ -415,6 +417,10 @@ export class LocalThreadRuntimeCore
       message.status?.type === "requires-action" &&
       this._options.adapters.history?.update !== undefined;
 
+    const run = { cancelled: false };
+    this._activeRun = run;
+    this._runGeneration++;
+
     try {
       // mark busy for runs not started through the queue (regenerate, resume)
       this._queue?.notifyBusy();
@@ -435,10 +441,12 @@ export class LocalThreadRuntimeCore
       } while (shouldContinue(message, this._options.unstable_humanToolNames));
     } finally {
       this._notifyEventSubscribers("runEnd", {});
-      // queue-driven runs release from the driver settle handler; a direct
-      // run (regenerate, resume) releases here — unless it was superseded,
-      // in which case the superseding run owns the next settle
-      if (!this._queueRunInFlight && this.abortController === null) {
+      // the settle belongs to this run only while it is still the active run
+      // or was cancelled (the engine expects a cancelled run's settle); a run
+      // superseded by a newer one stays silent
+      const active = this._activeRun === run;
+      if (active) this._activeRun = null;
+      if (active || run.cancelled) {
         queueMicrotask(() => this._queue?.notifyIdle());
       }
     }
@@ -674,9 +682,12 @@ export class LocalThreadRuntimeCore
 
   public cancelRun() {
     if (this._queue) {
-      if (this._options.unstable_queueClearOnCancel ?? true)
+      if (this._options.unstable_queueClearOnCancel ?? true) {
         this._queue.clear();
-      else this._queue.notifyCancelled();
+      } else {
+        this._queue.notifyCancelled();
+        if (this._activeRun) this._activeRun.cancelled = true;
+      }
     }
     const error = new AbortError(false);
     this.abortController?.abort(error);
