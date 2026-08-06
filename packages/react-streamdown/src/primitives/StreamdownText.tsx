@@ -3,8 +3,14 @@
 import { useMessagePartText, useSmooth } from "@assistant-ui/react";
 import { harden } from "rehype-harden";
 import rehypeRaw from "rehype-raw";
-import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
-import { Streamdown, type StreamdownProps } from "streamdown";
+import rehypeSanitize, {
+  type Options as SanitizeSchema,
+} from "rehype-sanitize";
+import {
+  Streamdown,
+  defaultRehypePlugins,
+  type StreamdownProps,
+} from "streamdown";
 import {
   type ComponentRef,
   forwardRef,
@@ -22,19 +28,17 @@ import type {
 
 type StreamdownTextPrimitiveElement = ComponentRef<"div">;
 
-const streamdownSanitizeSchema = {
-  ...defaultSchema,
-  protocols: {
-    ...defaultSchema.protocols,
-    href: [...(defaultSchema.protocols?.href ?? []), "tel"],
-  },
-  attributes: {
-    ...defaultSchema.attributes,
-    code: [...(defaultSchema.attributes?.code ?? []), "metastring"],
-  },
-};
+// Streamdown extends the default sanitize schema without exporting it, so it is
+// read back off its own plugin set; a copy would fall behind on a bump. An
+// unrecognized shape falls through to rehype-sanitize's stricter default.
+const sanitizeEntry: unknown = defaultRehypePlugins["sanitize"];
+const streamdownSanitizeSchema = (
+  Array.isArray(sanitizeEntry) ? sanitizeEntry[1] : undefined
+) as SanitizeSchema | undefined;
 
-function buildSecuritySanitizeSchema(allowedTags: AllowedTags | undefined) {
+function buildSecuritySanitizeSchema(
+  allowedTags: AllowedTags | undefined,
+): SanitizeSchema | undefined {
   if (!allowedTags || Object.keys(allowedTags).length === 0) {
     return streamdownSanitizeSchema;
   }
@@ -42,11 +46,11 @@ function buildSecuritySanitizeSchema(allowedTags: AllowedTags | undefined) {
   return {
     ...streamdownSanitizeSchema,
     tagNames: [
-      ...(streamdownSanitizeSchema.tagNames ?? []),
+      ...(streamdownSanitizeSchema?.tagNames ?? []),
       ...Object.keys(allowedTags),
     ],
     attributes: {
-      ...streamdownSanitizeSchema.attributes,
+      ...streamdownSanitizeSchema?.attributes,
       ...allowedTags,
     },
   };

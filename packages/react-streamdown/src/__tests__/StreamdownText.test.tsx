@@ -2,6 +2,7 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import { TextMessagePartProvider } from "@assistant-ui/react";
 import type { ReactNode } from "react";
+import { defaultRehypePlugins } from "streamdown";
 import { StreamdownTextPrimitive } from "../primitives/StreamdownText";
 import type {
   StreamdownTextComponents,
@@ -201,6 +202,14 @@ describe("StreamdownTextPrimitive", () => {
       expect(evilAnchor).not.toBeNull();
       expect(evilAnchor!.getAttribute("data-user-plugin")).toBe("true");
     });
+  });
+
+  it("reads Streamdown's sanitize schema off its default plugin set", () => {
+    const entry = defaultRehypePlugins["sanitize"];
+    expect(Array.isArray(entry)).toBe(true);
+
+    const [, schema] = entry as [unknown, { protocols?: { href?: string[] } }];
+    expect(schema.protocols?.href).toContain("tel");
   });
 
   it("preserves Streamdown's sanitize extensions with security", () => {
