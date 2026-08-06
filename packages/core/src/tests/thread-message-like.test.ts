@@ -147,6 +147,31 @@ describe("fromThreadMessageLike", () => {
       expect(result.content).toEqual([{ type: "reasoning", text: "hi" }]);
     });
 
+    it("keeps a reasoning part with a summary and no text", () => {
+      const result = fromThreadMessageLike(
+        {
+          role: "assistant",
+          content: [
+            {
+              type: "reasoning",
+              text: "",
+              unstable_summary: "Searching the codebase",
+            },
+          ],
+        },
+        fallbackId,
+        fallbackStatus,
+      );
+
+      expect(result.content).toEqual([
+        {
+          type: "reasoning",
+          text: "",
+          unstable_summary: "Searching the codebase",
+        },
+      ]);
+    });
+
     it("drops an assistant image part whose image is undefined", () => {
       const result = fromThreadMessageLike(
         {

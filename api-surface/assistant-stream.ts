@@ -202,6 +202,7 @@ type AssistantStreamController = {
   appendFile(options: FilePart): void;
   appendData(options: DataPart): void;
   addTextPart(): TextStreamController;
+  addReasoningPart(options?: ReasoningPartInit): TextStreamController;
   addToolCallPart(options: string): ToolCallStreamController;
   addToolCallPart(options: ToolCallPartInit): ToolCallStreamController;
   enqueue(chunk: AssistantStreamChunk): void;
@@ -1112,6 +1113,10 @@ type ReasoningPart = {
   status: TextStatus;
   unstable_summary?: string;
   parentId?: string;
+};
+
+type ReasoningPartInit = {
+  unstable_summary?: string;
 };
 
 declare type ReconnectOnError = (err: Error) => boolean | 1 | 2;

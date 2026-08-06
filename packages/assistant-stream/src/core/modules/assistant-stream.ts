@@ -29,6 +29,10 @@ type ToolCallPartInit = {
   response?: ToolResponseLike<ReadonlyJSONValue>;
 };
 
+type ReasoningPartInit = {
+  unstable_summary?: string;
+};
+
 /**
  * Imperative writer for constructing an {@link AssistantStream}.
  *
@@ -55,6 +59,12 @@ export type AssistantStreamController = {
    * part first.
    */
   addTextPart(): TextStreamController;
+  /**
+   * Opens a reasoning part and returns its writer.
+   *
+   * Use the options object to provide an app-authored summary for the part.
+   */
+  addReasoningPart(options?: ReasoningPartInit): TextStreamController;
   /**
    * Opens a tool-call part by tool name and returns its writer.
    *
@@ -203,11 +213,14 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
     return controller;
   }
 
-  addReasoningPart() {
+  addReasoningPart(options?: ReasoningPartInit) {
     const [stream, controller] = createTextStreamController({
       strict: this._state.strict,
     });
-    this._addPart(this._withParentIdOption({ type: "reasoning" }), stream);
+    this._addPart(
+      this._withParentIdOption({ type: "reasoning", ...options }),
+      stream,
+    );
     return controller;
   }
 
