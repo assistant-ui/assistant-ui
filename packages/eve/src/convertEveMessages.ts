@@ -225,7 +225,10 @@ const convertDynamicToolPart = (
  * connector authorization challenge. `state` discriminates a pending challenge
  * from a settled one; every other field is present only when Eve projected it.
  * `url` is projected only when the connector supplied an `http(s)` address, so
- * a renderer can link to it without checking the scheme itself.
+ * a renderer can link to it without checking the scheme itself. Eve's
+ * `turnId` and `stepIndex` part identity is omitted: a renderer receives the
+ * one part it renders, in Eve's own step order, so display never has to
+ * re-identify a challenge among several.
  */
 export type EveAuthorizationData = {
   readonly state: EveAuthorizationPart["state"];
