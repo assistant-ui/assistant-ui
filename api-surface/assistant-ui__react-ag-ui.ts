@@ -1563,6 +1563,7 @@ type UseAgUiRuntimeOptions = ExternalStoreSharedOptions & {
   logger?: Partial<Logger>;
   showThinking?: boolean;
   autoCancelPendingToolCalls?: boolean | undefined;
+  unstable_enableMessageQueue?: boolean | undefined;
   onError?: (e: Error) => void;
   onCancel?: () => void;
   adapters?: UseAgUiRuntimeAdapters;
