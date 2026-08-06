@@ -508,13 +508,17 @@ export class PiThreadSupervisor {
     if (input.attachments?.length) options.images = input.attachments;
 
     let settlePreflight: (error?: unknown) => void = () => {};
-    let preflightSettled = false;
+    let preflightState: "pending" | "accepted" | "rejected" = "pending";
     const accepted = new Promise<void>((resolve, reject) => {
       settlePreflight = (error) => {
-        if (preflightSettled) return;
-        preflightSettled = true;
-        if (error) reject(error);
-        else resolve();
+        if (preflightState !== "pending") return;
+        if (error) {
+          preflightState = "rejected";
+          reject(error);
+        } else {
+          preflightState = "accepted";
+          resolve();
+        }
       };
     });
 
@@ -531,8 +535,11 @@ export class PiThreadSupervisor {
       })
       .catch((err: unknown) => {
         record.lastError = errorText(err);
-        this.emit(record, { type: "error", error: record.lastError });
-        settlePreflight(err);
+        if (preflightState === "accepted") {
+          this.emit(record, { type: "error", error: record.lastError });
+        } else {
+          settlePreflight(err);
+        }
       });
 
     try {
