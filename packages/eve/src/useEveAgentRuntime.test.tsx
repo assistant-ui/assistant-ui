@@ -319,14 +319,34 @@ describe("useEveAgentRuntime tool approval responses", () => {
 
   const respondToTextRequest = (
     result: { current: ReturnType<typeof useEveAgentRuntime> },
-    response: { approved: boolean; reason?: string },
+    response: { approved: boolean; reason?: string; optionId?: string },
   ) =>
     result.current.thread
       .getMessageById("a1")
       .getMessagePartByToolCallId("call_1")
       .respondToToolApproval(response);
 
-  it("throws synchronously without submitting when a free-form request is answered without text", async () => {
+  it.each([
+    ["allowed", { approved: true }],
+    ["denied", { approved: false }],
+  ])(
+    "submits an unanswered free-form request as an empty answer when %s through the default controls",
+    async (_label, response) => {
+      const agent = createAgent({ data: textRequestData });
+      mockUseEveAgent.mockReturnValue(agent as never);
+
+      const { result } = renderHook(() => useEveAgentRuntime());
+      respondToTextRequest(result, response);
+
+      await flushMicrotasks();
+
+      expect(agent.send).toHaveBeenCalledWith({
+        inputResponses: [{ requestId: "req_1" }],
+      });
+    },
+  );
+
+  it("rejects an option the request does not carry before it reaches eve", async () => {
     const rejections: unknown[] = [];
     const onUnhandledRejection = (reason: unknown) => rejections.push(reason);
     processEvents.on("unhandledRejection", onUnhandledRejection);
@@ -336,9 +356,9 @@ describe("useEveAgentRuntime tool approval responses", () => {
     try {
       const { result } = renderHook(() => useEveAgentRuntime());
 
-      expect(() => respondToTextRequest(result, { approved: true })).toThrow(
-        /What should the subject line be\?/,
-      );
+      expect(() =>
+        respondToTextRequest(result, { approved: true, optionId: "sandbox" }),
+      ).toThrow(/no option with id "sandbox"/);
 
       await flushMicrotasks();
       await flushMicrotasks();

@@ -544,12 +544,17 @@ export const findEveInputRequest = (
  *
  * Pass the originating input request (see {@link findEveInputRequest}) so the
  * mapping never emits an option id the request does not carry. A literal
- * option match always wins; a `display: "confirmation"` request is only ever
- * answered with one of its own `"approve"` / `"deny"` options; free-form
- * requests (`display: "text"`, `allowFreeform`, or no options at all) are
- * answered with the response's `reason` text, and only when the response is
- * not a refusal. A response that cannot be mapped honestly throws instead of
- * fabricating a decision or downgrading a refusal to an answer.
+ * option match always wins, then the `"approve"` / `"deny"` option the
+ * response's boolean decision names, then the response's `reason` text when
+ * the request takes a free-form answer (`display: "text"`, `allowFreeform`,
+ * or no options at all, and never `display: "confirmation"`) and the response
+ * is not a refusal.
+ *
+ * A response that names none of those answers the request with neither an
+ * option nor text, which is how eve records that the user moved on without
+ * answering. Only a supplied `optionId` the request does not carry throws,
+ * because substituting another decision for it would discard the choice the
+ * caller made.
  */
 export const toEveInputResponse = (
   response: RespondToToolApprovalOptions,
@@ -559,15 +564,21 @@ export const toEveInputResponse = (
   const options = inputRequest?.options;
   const text = response.reason;
 
-  if (
-    response.optionId !== undefined &&
-    (!inputRequest || options?.some((o) => o.id === response.optionId))
-  ) {
-    return {
-      requestId,
-      optionId: response.optionId,
-      ...(text && { text }),
-    };
+  if (response.optionId !== undefined) {
+    if (!inputRequest || options?.some((o) => o.id === response.optionId)) {
+      return {
+        requestId,
+        optionId: response.optionId,
+        ...(text && { text }),
+      };
+    }
+    throw new Error(
+      `Eve input request "${requestId}" has no option with id "${response.optionId}"; respond with one of: ${
+        options?.length
+          ? options.map((option) => option.id).join(", ")
+          : "(the request carries no options)"
+      }`,
+    );
   }
 
   if (!inputRequest) {
@@ -584,35 +595,17 @@ export const toEveInputResponse = (
   }
 
   // Eve recognises an approval by its literal two-option `approve`/`deny`
-  // shape, so a confirmation without those options can carry no decision and
-  // must never be downgraded to a free-form answer.
-  if (inputRequest.display === "confirmation") {
-    throw new Error(
-      `Eve input request "${requestId}" is a confirmation but carries no "${fallbackOptionId}" option; eve only recognises a confirmation with literal "approve" and "deny" options`,
-    );
-  }
-
-  if (response.approved === false) {
-    throw new Error(
-      `Eve input request "${requestId}" has no literal "deny" option for this response; a request eve does not model as an approval can only be answered or left unanswered`,
-    );
-  }
-
+  // shape, so past this point the request is a question and the boolean
+  // carries no decision eve would act on: an approval can never be fabricated
+  // here, and a refusal is only ever a refusal to answer.
   const acceptsText =
-    inputRequest.display === "text" ||
-    inputRequest.allowFreeform === true ||
-    !options?.length;
-  if (acceptsText) {
-    if (text) {
-      return { requestId, text };
-    }
-    throw new Error(
-      `Eve input request "${requestId}" expects a free-form text answer; respond with the answer as the reason`,
-    );
+    inputRequest.display !== "confirmation" &&
+    (inputRequest.display === "text" ||
+      inputRequest.allowFreeform === true ||
+      !options?.length);
+  if (acceptsText && text && response.approved !== false) {
+    return { requestId, text };
   }
-  throw new Error(
-    `Eve input request "${requestId}" has no matching option for this response; respond with one of: ${options!
-      .map((option) => option.id)
-      .join(", ")}`,
-  );
+
+  return { requestId };
 };

@@ -1613,8 +1613,8 @@ describe("toEveInputResponse", () => {
     expect(response).not.toHaveProperty("optionId");
   });
 
-  it("throws instead of fabricating approve for a text-display request without an answer", () => {
-    expect(() =>
+  it("never fabricates approve for a text-display request without an answer", () => {
+    expect(
       toEveInputResponse(
         { approvalId: "req_1", approved: true },
         {
@@ -1623,11 +1623,11 @@ describe("toEveInputResponse", () => {
           display: "text",
         },
       ),
-    ).toThrow(/free-form text answer/);
+    ).toEqual({ requestId: "req_1" });
   });
 
-  it("throws instead of fabricating approve for a select request without a chosen option", () => {
-    expect(() =>
+  it("never fabricates approve for a select request without a chosen option", () => {
+    expect(
       toEveInputResponse(
         { approvalId: "req_1", approved: true },
         {
@@ -1640,7 +1640,52 @@ describe("toEveInputResponse", () => {
           ],
         },
       ),
-    ).toThrow(/no matching option/);
+    ).toEqual({ requestId: "req_1" });
+  });
+
+  it("throws when the response names an option the request does not carry", () => {
+    const inputRequest = {
+      requestId: "req_1",
+      prompt: "Which environment?",
+      display: "select",
+      options: [
+        { id: "staging", label: "Staging" },
+        { id: "production", label: "Production" },
+      ],
+    } satisfies EveMessageInputRequest;
+
+    expect(() =>
+      toEveInputResponse(
+        { approvalId: "req_1", approved: false, optionId: "sandbox" },
+        inputRequest,
+      ),
+    ).toThrow(/no option with id "sandbox".*staging, production/s);
+
+    expect(() =>
+      toEveInputResponse(
+        { approvalId: "req_1", approved: true, optionId: "sandbox" },
+        { ...inputRequest, options: [{ id: "deny", label: "Deny" }] },
+      ),
+    ).toThrow(/no option with id "sandbox"/);
+  });
+
+  it("keeps a stale option id out of a request that carries a literal deny", () => {
+    const inputRequest = {
+      requestId: "req_1",
+      prompt: "Send the email?",
+      display: "confirmation",
+      options: [
+        { id: "approve", label: "Send" },
+        { id: "deny", label: "Cancel" },
+      ],
+    } satisfies EveMessageInputRequest;
+
+    expect(() =>
+      toEveInputResponse(
+        { approvalId: "req_1", approved: false, optionId: "schedule-later" },
+        inputRequest,
+      ),
+    ).toThrow(/no option with id "schedule-later"/);
   });
 
   it("prefers a literal approve option over the free-form path on a text-display request", () => {
@@ -1699,7 +1744,7 @@ describe("toEveInputResponse", () => {
       ),
     ).toEqual({ requestId: "req_1", text: "Next Tuesday" });
 
-    expect(() =>
+    expect(
       toEveInputResponse(
         {
           approvalId: "req_1",
@@ -1708,7 +1753,7 @@ describe("toEveInputResponse", () => {
         },
         { requestId: "req_1", prompt: "When should this ship?" },
       ),
-    ).toThrow(/no literal "deny" option/);
+    ).toEqual({ requestId: "req_1" });
   });
 
   it("never answers an optionless confirmation as free-form text", () => {
@@ -1718,23 +1763,15 @@ describe("toEveInputResponse", () => {
       display: "confirmation",
     } satisfies EveMessageInputRequest;
 
-    expect(() =>
-      toEveInputResponse({ approvalId: "req_1", approved: true }, inputRequest),
-    ).toThrow(/confirmation but carries no "approve" option/);
-
-    expect(() =>
-      toEveInputResponse(
-        { approvalId: "req_1", approved: false, reason: "not now" },
-        inputRequest,
-      ),
-    ).toThrow(/confirmation but carries no "deny" option/);
-
-    expect(() =>
-      toEveInputResponse(
-        { approvalId: "req_1", approved: true, reason: "go ahead" },
-        inputRequest,
-      ),
-    ).toThrow(/confirmation but carries no "approve" option/);
+    for (const response of [
+      { approvalId: "req_1", approved: true },
+      { approvalId: "req_1", approved: false, reason: "not now" },
+      { approvalId: "req_1", approved: true, reason: "go ahead" },
+    ]) {
+      expect(toEveInputResponse(response, inputRequest)).toEqual({
+        requestId: "req_1",
+      });
+    }
   });
 
   it("answers a confirmation that allows freeform with its own option", () => {

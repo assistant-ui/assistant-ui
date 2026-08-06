@@ -54,12 +54,17 @@ Converts an assistant-ui tool approval response into an Eve input response.
 
 Pass the originating input request (see [findEveInputRequest](/docs/api-reference/integrations/eve#findeveinputrequest)) so the
 mapping never emits an option id the request does not carry. A literal
-option match always wins; a `display: "confirmation"` request is only ever
-answered with one of its own `"approve"` / `"deny"` options; free-form
-requests (`display: "text"`, `allowFreeform`, or no options at all) are
-answered with the response's `reason` text, and only when the response is
-not a refusal. A response that cannot be mapped honestly throws instead of
-fabricating a decision or downgrading a refusal to an answer.
+option match always wins, then the `"approve"` / `"deny"` option the
+response's boolean decision names, then the response's `reason` text when
+the request takes a free-form answer (`display: "text"`, `allowFreeform`,
+or no options at all, and never `display: "confirmation"`) and the response
+is not a refusal.
+
+A response that names none of those answers the request with neither an
+option nor text, which is how eve records that the user moved on without
+answering. Only a supplied `optionId` the request does not carry throws,
+because substituting another decision for it would discard the choice the
+caller made.
 
 ```ts
 const toEveInputResponse: (response: RespondToToolApprovalOptions, inputRequest?: EveMessageInputRequest) => InputResponse;
