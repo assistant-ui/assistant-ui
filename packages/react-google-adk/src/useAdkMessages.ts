@@ -32,7 +32,7 @@ const reportCallbackError = (name: AdkRuntimeCallbackName, error: unknown) => {
   console.error(`[react-google-adk] ${name} callback threw an error`, error);
 };
 
-export const invokeAdkRuntimeCallback = <TArgs extends unknown[]>(
+const invokeAdkRuntimeCallback = <TArgs extends unknown[]>(
   name: AdkRuntimeCallbackName,
   callback: ((...args: TArgs) => void | Promise<void>) | undefined,
   ...args: TArgs

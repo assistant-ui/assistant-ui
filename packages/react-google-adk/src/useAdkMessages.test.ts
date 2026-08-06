@@ -14,7 +14,6 @@ vi.mock("@assistant-ui/store", async (importOriginal) => ({
 }));
 
 import {
-  invokeAdkRuntimeCallback,
   messageToEvent,
   useAdkMessages,
   type UseAdkMessagesOptions,
@@ -84,26 +83,46 @@ describe("ADK runtime callbacks", () => {
     },
   );
 
-  it.each(["onAgentTransfer", "onCustomEvent", "onError"] as const)(
-    "handles rejected %s promises",
-    async (callbackName) => {
-      const callbackError = new Error("async telemetry failed");
-      const consoleError = vi
-        .spyOn(console, "error")
-        .mockImplementation(() => {});
+  it("continues streaming when onCustomEvent rejects", async () => {
+    const callbackError = new Error("async telemetry failed");
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const stream: AdkStreamCallback = async function* () {
+      yield { id: "custom", customMetadata: { progress: 1 } };
+      yield {
+        id: "answer",
+        author: "agent",
+        content: { role: "model", parts: [{ text: "done" }] },
+      };
+    };
+    const { result } = renderHook(() =>
+      useAdkMessages({
+        stream,
+        eventHandlers: {
+          onCustomEvent: () => Promise.reject(callbackError),
+        },
+      }),
+    );
 
-      invokeAdkRuntimeCallback(callbackName, () =>
-        Promise.reject(callbackError),
+    await act(async () => {
+      await result.current.sendMessage(
+        [{ id: "user", type: "human", content: "hello" }],
+        {},
       );
+    });
 
-      await vi.waitFor(() => {
-        expect(consoleError).toHaveBeenCalledWith(
-          `[react-google-adk] ${callbackName} callback threw an error`,
-          callbackError,
-        );
-      });
-    },
-  );
+    expect(result.current.messages.at(-1)).toMatchObject({
+      type: "ai",
+      content: [{ type: "text", text: "done" }],
+    });
+    await vi.waitFor(() => {
+      expect(consoleError).toHaveBeenCalledWith(
+        "[react-google-adk] onCustomEvent callback threw an error",
+        callbackError,
+      );
+    });
+  });
 });
 
 describe("messageToEvent (contentToParts)", () => {
