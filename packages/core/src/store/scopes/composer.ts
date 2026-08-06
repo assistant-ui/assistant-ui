@@ -14,8 +14,9 @@ import type { QueueItemState, QueueItemMethods } from "./queue-item";
 export type ComposerSendOptions = SendOptions & {
   /**
    * Whether to steer (process this message next, interrupting the current run
-   * when the runtime supports it). Defaults to true while a run is in flight
-   * and false when idle. Pass false to queue behind the pending messages.
+   * when the runtime supports it). Defaults to true while a queued run is in
+   * flight and false when idle. Pass false to queue behind the pending
+   * messages.
    */
   steer?: boolean;
 };
