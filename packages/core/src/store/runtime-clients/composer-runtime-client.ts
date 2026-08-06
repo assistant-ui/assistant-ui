@@ -12,6 +12,7 @@ import type {
 } from "../../runtime/api/composer-runtime";
 import type { ComposerState } from "../scopes/composer";
 import type { QueueItemState } from "../scopes/queue-item";
+import type { QueuePlacement } from "../../runtime/queue/external-thread-queue-adapter";
 import { AttachmentRuntimeClient } from "./attachment-runtime-client";
 import { useSubscribable } from "./useSubscribable";
 
@@ -40,16 +41,17 @@ const ComposerAttachmentClientByIndex = resource(
 
 const useQueueItemClient = ({
   item,
-  onSteer,
+  onMove,
   onRemove,
 }: {
   item: QueueItemState;
-  onSteer: () => void;
+  onMove: (placement: QueuePlacement) => void;
   onRemove: () => void;
 }): ClientOutput<"queueItem"> => {
   return {
     getState: () => item,
-    steer: onSteer,
+    steer: () => onMove({ lane: "steer", insertAfter: null }),
+    move: onMove,
     remove: onRemove,
   };
 };
@@ -121,7 +123,7 @@ const useComposerClient = ({
         item.id,
         QueueItemClient({
           item,
-          onSteer: () => runtime.steerQueueItem(item.id),
+          onMove: (placement) => runtime.moveQueueItem(item.id, placement),
           onRemove: () => runtime.removeQueueItem(item.id),
         }),
       ),
@@ -171,7 +173,13 @@ const useComposerClient = ({
         return attachments.get(selector);
       }
     },
-    queueItem: (selector) => queueItems.get(selector),
+    queueItem: (selector) => {
+      if ("id" in selector) {
+        return queueItems.get({ key: selector.id });
+      } else {
+        return queueItems.get(selector);
+      }
+    },
     __internal_getRuntime: () => runtime,
   };
 };

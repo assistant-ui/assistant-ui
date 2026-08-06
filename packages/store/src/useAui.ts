@@ -54,17 +54,20 @@ const isDevelopment =
   typeof process !== "undefined" &&
   (process.env.NODE_ENV === "development" || process.env.NODE_ENV === "test");
 
-type ClientRef = { parent: AssistantClient; current: AssistantClient | null };
+export type ClientRef = {
+  parent: AssistantClient;
+  current: AssistantClient | null;
+};
 
 type ScopeElement = ResourceElement<ClientMethods>;
-type ScopeEntry = [name: ClientNames, element: ScopeElement];
+export type ScopeEntry = [name: ClientNames, element: ScopeElement];
 type ScopeMeta = {
   source: ClientNames | "root";
   query: Record<string, unknown>;
 };
 type ScopeAccessor = AssistantClientAccessor<ClientNames>;
 
-const applyTransformScopes = (
+export const applyTransformScopes = (
   clients: useAui.Props,
   parent: AssistantClient,
 ): Record<string, ScopeElement> => {
@@ -243,7 +246,7 @@ const useCommittedClient = (
   return cell.client!;
 };
 
-const useAuiRoot = ({
+export const useAuiRoot = ({
   parent,
   entries,
   clientRef,

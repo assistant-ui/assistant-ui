@@ -396,7 +396,9 @@ const runtime = useExternalStoreRuntime({
 
 By default, sending while the thread is running is disabled. Provide a `queue` adapter to buffer a message sent during a run and process it once the run settles. The pending message is exposed on `composer.queue` and renders through [`ComposerPrimitive.Queue`](/docs/api-reference/primitives/composer).
 
-The `createMessageQueue` helper owns the FIFO ordering and the in-flight guard. Supply a driver that runs a message, pass its `adapter` to the runtime, and tell the queue when a run starts (`notifyBusy()`, so concurrent sends buffer) and ends (`notifyIdle()`).
+The `createMessageQueue` helper owns the two-lane ordering and the in-flight guard: `steerItems` drain before `items`, and within each lane items drain in order. Supply a driver that runs a message, pass its `adapter` to the runtime, and tell the queue when a run starts (`notifyBusy()`, so concurrent sends buffer) and ends (`notifyIdle()`).
+
+A hand-rolled adapter must implement the same contract: `items` and `steerItems` expose the lanes (each item carries a required `parts` projection of its content), `enqueue`/`steer` add to a lane, and `move(queueItemId, placement)` repositions with fail-fast anchors — unknown ids or anchors throw rather than being coerced. Individual items are addressable through `composer.queueItem({ id })` (or by index).
 
 ```tsx
 import { useEffect, useRef, useState } from "react";
@@ -417,6 +419,26 @@ useEffect(() => {
   if (wasRunning.current && !isRunning) queue.notifyIdle();
   wasRunning.current = isRunning;
 }, [isRunning, queue]);
+```
+
+Queue policy on cancel, edit, and reload is host-owned. Call `queue.notifyCancelled()` in your `onCancel` handler before aborting so the cancelled run's settle pauses draining instead of dispatching the next item (the next send or run start resumes it), or call `queue.clear()` to drop the pending items. Call `queue.clear()` in your `onEdit` and `onReload` handlers so stale items do not drain onto the new branch.
+
+```tsx
+const runtime = useExternalStoreRuntime({
+  // ...
+  onCancel: async () => {
+    queue.notifyCancelled(); // or queue.clear() to drop pending items
+    await cancelRun();
+  },
+  onEdit: async (message) => {
+    queue.clear();
+    // ...
+  },
+  onReload: async (parentId) => {
+    queue.clear();
+    // ...
+  },
+});
 ```
 
 ## Multi-thread

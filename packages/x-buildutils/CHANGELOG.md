@@ -1,5 +1,11 @@
 # @assistant-ui/x-buildutils
 
+## 0.0.21
+
+### Patch Changes
+
+- [#5660](https://github.com/assistant-ui/assistant-ui/pull/5660) [`aa302ee`](https://github.com/assistant-ui/assistant-ui/commit/aa302eeaacd399f58b74b64eb3a1e17d9ea97e03) - fix: only run the react compiler on tap-dependent packages that declare a react peer, so non-React framework bridges do not gain memo caches that run outside any render the compiler understands ([@okisdev](https://github.com/okisdev))
+
 ## 0.0.20
 
 ### Patch Changes
