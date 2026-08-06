@@ -1068,6 +1068,85 @@ describe("convertEveMessages", () => {
         });
       });
 
+      it("releases the hold when Eve settles the authorization part in place", () => {
+        const state = replay([
+          ...midStreamEvents,
+          {
+            type: "authorization.required",
+            data: {
+              turnId: "turn_1",
+              stepIndex: 0,
+              sequence: 3,
+              name: "github",
+              description: "Authorization required for github",
+            },
+          },
+          {
+            type: "authorization.completed",
+            data: {
+              turnId: "turn_1",
+              stepIndex: 0,
+              sequence: 4,
+              name: "github",
+              outcome: "authorized",
+            },
+          },
+        ]);
+
+        const assistant = state.messages.find((m) => m.role === "assistant");
+        const authorizationParts = assistant?.parts.filter(
+          (part) => part.type === "authorization",
+        );
+        expect(authorizationParts).toHaveLength(1);
+        expect(authorizationParts?.[0]).toMatchObject({ state: "completed" });
+
+        // Eve leaves the streaming marker set, so the released turn falls back
+        // to the stale-marker mapping rather than to a terminal status.
+        expect(
+          convertEveMessages(state, { isRunning: false }).at(-1)?.status,
+        ).toEqual({ type: "incomplete", reason: "cancelled" });
+      });
+
+      it("keeps the hold while another connector is still required", () => {
+        const state = replay([
+          ...midStreamEvents,
+          {
+            type: "authorization.required",
+            data: {
+              turnId: "turn_1",
+              stepIndex: 0,
+              sequence: 3,
+              name: "github",
+              description: "Authorization required for github",
+            },
+          },
+          {
+            type: "authorization.required",
+            data: {
+              turnId: "turn_1",
+              stepIndex: 0,
+              sequence: 4,
+              name: "slack",
+              description: "Authorization required for slack",
+            },
+          },
+          {
+            type: "authorization.completed",
+            data: {
+              turnId: "turn_1",
+              stepIndex: 0,
+              sequence: 5,
+              name: "github",
+              outcome: "authorized",
+            },
+          },
+        ]);
+
+        expect(
+          convertEveMessages(state, { isRunning: false }).at(-1)?.status,
+        ).toEqual({ type: "requires-action", reason: "interrupt" });
+      });
+
       it("a locally aborted turn keeps its streaming marker and converts to cancelled", () => {
         const state = replay(midStreamEvents);
 

@@ -55,7 +55,9 @@ When Eve pauses for connector authorization, the runtime emits an assistant
 data part named `authorization`. Its data includes `state`, `name`, and the
 available display fields such as `displayName`, `description`, `url`,
 `userCode`, `instructions`, and `expiresAt`. Completed parts may also include
-`outcome` and `reason`.
+`outcome` and `reason`. `url` is present only when the connector supplied an
+`http(s)` address; the adapter drops other schemes so a renderer can link to it
+directly.
 
 The Eve template ships this renderer as `components/eve-authorization.tsx` and
 mounts it next to `<Thread />`. To add it to an existing app, register a data UI

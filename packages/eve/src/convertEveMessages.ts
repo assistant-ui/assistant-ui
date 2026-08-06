@@ -90,6 +90,8 @@ const toMessageStatus = (
     (part) =>
       part.type === "dynamic-tool" && part.state === "approval-requested",
   );
+  // Scoped to the stale-marker case so a terminalized or errored turn keeps its
+  // own status; the hold only claims the fall-through that reads as cancelled.
   const hasPendingAuthorization =
     message.metadata?.status === "streaming" &&
     (!isLast || options.error === undefined) &&
@@ -224,8 +226,9 @@ const convertDynamicToolPart = (
  * Payload of the `authorization` data part the Eve runtime emits for a
  * connector authorization challenge. `state` discriminates a pending challenge
  * from a settled one; every other field is present only when Eve projected it.
- * `url` is projected only when the connector supplied an `http(s)` address, so
- * a renderer can link to it without checking the scheme itself. Eve's
+ * This converter drops a `url` whose scheme is not `http(s)`, so a renderer can
+ * link to it without checking the scheme itself; Eve itself passes through
+ * whatever the connector supplied. Eve's
  * `turnId` and `stepIndex` part identity is omitted: a renderer receives the
  * one part it renders, in Eve's own step order, so display never has to
  * re-identify a challenge among several.
