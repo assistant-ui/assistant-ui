@@ -32,9 +32,17 @@ export type ThreadState = {
    */
   readonly isLoading: boolean;
   /**
-   * Whether the thread is running. A thread is considered running when there is an active stream connection to the backend.
+   * Whether the thread is running. Derived from `status === "running"`.
    */
   readonly isRunning: boolean;
+  /**
+   * The run status of the thread.
+   */
+  readonly status: "ready" | "running" | "input-required" | "error" | "stopped";
+  /**
+   * The error of the last run, if any.
+   */
+  readonly error?: { readonly message: string };
   /**
    * The capabilities of the thread, such as whether the thread supports editing, branch switching, etc.
    */
@@ -100,6 +108,11 @@ export type ThreadMethods = {
    */
   resumeRun(config: CreateResumeRunConfig): void;
   cancelRun(): void;
+  /**
+   * Resume the thread's paused run. Only supported by runtimes that expose a
+   * resume capability.
+   */
+  resume(): void;
   getModelContext(): ModelContext;
   export(): ExportedMessageRepository;
   import(repository: ExportedMessageRepository): void;

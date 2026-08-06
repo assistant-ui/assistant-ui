@@ -260,10 +260,11 @@ describe("ExternalThread composer", () => {
       isRunning: true,
       queue: {
         items: [],
+        steerItems: [],
         enqueue,
-        steer: vi.fn(),
+        move: vi.fn(),
+        edit: vi.fn(),
         remove: vi.fn(),
-        clear: vi.fn(),
       },
     });
 

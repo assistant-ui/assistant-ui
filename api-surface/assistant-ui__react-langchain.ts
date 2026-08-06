@@ -504,6 +504,9 @@ type ComposerRuntime = {
   send(options?: SendOptions): void;
   cancel(): void;
   steerQueueItem(queueItemId: string): void;
+  moveQueueItem(queueItemId: string, options: {
+    lane?: "queue" | "steer";
+  } & QueuePlacement): void;
   removeQueueItem(queueItemId: string): void;
   subscribe(callback: () => void): Unsubscribe;
   getAttachmentByIndex(idx: number): AttachmentRuntime;
@@ -736,12 +739,15 @@ type ExternalStoreThreadListAdapter = {
 
 type ExternalThreadQueueAdapter = {
   items: readonly QueueItemState[];
+  steerItems: readonly QueueItemState[];
   enqueue: (message: AppendMessage, options: {
-    steer: boolean;
+    lane: "queue" | "steer";
   }) => void;
-  steer: (queueItemId: string) => void;
+  move: (queueItemId: string, options: {
+    lane?: "queue" | "steer";
+  } & QueuePlacement) => void;
+  edit: (queueItemId: string, message: AppendMessage) => void;
   remove: (queueItemId: string) => void;
-  clear: (reason: "cancel-run" | "edit" | "reload") => void;
 };
 
 type FeedbackAdapter = {
@@ -1269,6 +1275,12 @@ type ProviderTool<TArgs extends Record<string, unknown> = Record<string, unknown
 type QueueItemState = {
   readonly id: string;
   readonly prompt: string;
+  readonly parts: readonly (FileMessagePart | TextMessagePart)[];
+};
+
+type QueuePlacement = {
+  readonly insertAfter?: string | null;
+  readonly insertBefore?: string | null;
 };
 
 type QuoteInfo = {
@@ -1695,6 +1707,7 @@ type ThreadRuntime = {
   importExternalState(state: any): void;
   subscribe(callback: () => void): Unsubscribe;
   cancelRun(): void;
+  resume(): void;
   getModelContext(): ModelContext;
   export(): ExportedMessageRepository;
   import(repository: ExportedMessageRepository): void;
@@ -1738,6 +1751,10 @@ type ThreadState = {
   readonly isDisabled: boolean;
   readonly isLoading: boolean;
   readonly isRunning: boolean;
+  readonly status: "error" | "input-required" | "ready" | "running" | "stopped";
+  readonly error?: {
+    readonly message: string;
+  };
   readonly capabilities: RuntimeCapabilities;
   readonly messages: readonly ThreadMessage[];
   readonly state: ReadonlyJSONValue;

@@ -88,9 +88,9 @@ export type ComposerMethods = {
   setQuote(quote: QuoteInfo | undefined): void;
 
   /**
-   * Access a queue item by index.
+   * Access a queue item by index or id.
    */
-  queueItem(selector: { index: number }): QueueItemMethods;
+  queueItem(selector: { index: number } | { id: string }): QueueItemMethods;
 
   __internal_getRuntime?(): ComposerRuntime;
 };

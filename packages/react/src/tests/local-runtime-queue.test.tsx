@@ -132,7 +132,7 @@ describe("local runtime message queue", () => {
     expect(queue[0]!.prompt).toBe("b");
   });
 
-  it("clears the queue when the run is cancelled, without flushing", async () => {
+  it("keeps queued items across a cancelled run and dispatches the next one", async () => {
     const { adapter, getRunCount } = createCountingAdapter();
     const aui = renderWithRuntime(adapter, true);
 
@@ -147,12 +147,17 @@ describe("local runtime message queue", () => {
       await flush();
     });
 
-    expect(aui.thread.composer().getState().queue).toEqual([]);
-    // cancelling must not start the next queued message
-    expect(getRunCount()).toBe(1);
+    // the cancelled run's settle advances the surviving queue
+    expect(getRunCount()).toBe(2);
+    expect(
+      aui.thread
+        .composer()
+        .getState()
+        .queue.map((q) => q.prompt),
+    ).toEqual(["b"]);
   });
 
-  it("applies an edit instead of queuing it, dropping pending items", async () => {
+  it("applies an edit instead of queuing it, keeping pending items flowing", async () => {
     const { adapter, releases } = createCountingAdapter();
     const aui = renderWithRuntime(adapter, true);
 
@@ -176,7 +181,8 @@ describe("local runtime message queue", () => {
       await flush();
     });
 
-    // the edit is applied (branches the thread) and the stale queue is cleared
+    // the edit is applied (branches the thread); the surviving queue drains
+    // once the aborted run settles
     expect(aui.thread.composer().getState().queue).toEqual([]);
   });
 

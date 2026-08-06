@@ -731,7 +731,9 @@ declare abstract class BaseComposerRuntimeCore extends BaseSubscribable implemen
   send(options?: SendOptions): Promise<void>;
   cancel(): void;
   get queue(): readonly QueueItemState[];
-  steerQueueItem(_queueItemId: string): void;
+  moveQueueItem(_queueItemId: string, _options: {
+    lane?: "queue" | "steer";
+  } & QueuePlacement): void;
   removeQueueItem(_queueItemId: string): void;
   protected abstract handleSend(message: Omit<AppendMessage, "parentId" | "sourceId">, options?: SendOptions): void | Promise<void>;
   protected abstract handleCancel(): void;
@@ -1165,6 +1167,8 @@ type ComposerMethods = {
   setQuote(quote: QuoteInfo | undefined): void;
   queueItem(selector: {
     index: number;
+  } | {
+    id: string;
   }): QueueItemMethods;
   __internal_getRuntime?(): ComposerRuntime;
 };
@@ -1225,6 +1229,9 @@ type ComposerRuntime = {
   send(options?: SendOptions): void;
   cancel(): void;
   steerQueueItem(queueItemId: string): void;
+  moveQueueItem(queueItemId: string, options: {
+    lane?: "queue" | "steer";
+  } & QueuePlacement): void;
   removeQueueItem(queueItemId: string): void;
   subscribe(callback: () => void): Unsubscribe$1;
   getAttachmentByIndex(idx: number): AttachmentRuntime;
@@ -1256,7 +1263,9 @@ type ComposerRuntimeCore = Readonly<{
   send: (options?: SendOptions) => void;
   cancel: () => void;
   queue: readonly QueueItemState[];
-  steerQueueItem: (queueItemId: string) => void;
+  moveQueueItem: (queueItemId: string, options: {
+    lane?: "queue" | "steer";
+  } & QueuePlacement) => void;
   removeQueueItem: (queueItemId: string) => void;
   dictation: DictationState | undefined;
   startDictation: () => void;
@@ -1292,6 +1301,9 @@ declare abstract class ComposerRuntimeImpl implements ComposerRuntime {
   send(options?: SendOptions): void;
   cancel(): void;
   steerQueueItem(queueItemId: string): void;
+  moveQueueItem(queueItemId: string, options: {
+    lane?: "queue" | "steer";
+  } & QueuePlacement): void;
   removeQueueItem(queueItemId: string): void;
   setRole(role: MessageRole): void;
   startDictation(): void;
@@ -1467,8 +1479,11 @@ declare class DefaultThreadComposerRuntimeCore extends BaseComposerRuntimeCore i
   private _canCancel;
   get canCancel(): boolean;
   get canSend(): boolean;
+  private _queueCache;
   get queue(): readonly QueueItemState[];
-  steerQueueItem(queueItemId: string): void;
+  moveQueueItem(queueItemId: string, options: {
+    lane?: "queue" | "steer";
+  } & QueuePlacement): void;
   removeQueueItem(queueItemId: string): void;
   protected getAttachmentAdapter(): AttachmentAdapter | undefined;
   protected getDictationAdapter(): DictationAdapter | undefined;
@@ -1810,7 +1825,10 @@ declare class ExternalStoreThreadRuntimeCore extends BaseThreadRuntimeCore imple
   append(message: AppendMessage): Promise<void>;
   deleteMessage(messageId: string): Promise<void>;
   getQueueItems(): readonly QueueItemState[];
-  steerQueueItem(queueItemId: string): void;
+  getSteerQueueItems(): readonly QueueItemState[];
+  moveQueueItem(queueItemId: string, options: {
+    lane?: "queue" | "steer";
+  } & QueuePlacement): void;
   removeQueueItem(queueItemId: string): void;
   startRun(config: StartRunConfig): Promise<void>;
   resumeRun(config: ResumeRunConfig): Promise<void>;
@@ -1832,12 +1850,15 @@ type ExternalThreadBranchAdapter = {
 
 type ExternalThreadQueueAdapter = {
   items: readonly QueueItemState[];
+  steerItems: readonly QueueItemState[];
   enqueue: (message: AppendMessage, options: {
-    steer: boolean;
+    lane: "queue" | "steer";
   }) => void;
-  steer: (queueItemId: string) => void;
+  move: (queueItemId: string, options: {
+    lane?: "queue" | "steer";
+  } & QueuePlacement) => void;
+  edit: (queueItemId: string, message: AppendMessage) => void;
   remove: (queueItemId: string) => void;
-  clear: (reason: "cancel-run" | "edit" | "reload") => void;
 };
 
 declare const FRAME_MESSAGE_CHANNEL = "assistant-ui-frame";
@@ -2296,7 +2317,10 @@ declare class LocalThreadRuntimeCore extends BaseThreadRuntimeCore implements Th
   __internal_load(): Promise<void>;
   append(message: AppendMessage): Promise<void>;
   getQueueItems(): readonly QueueItemState[];
-  steerQueueItem(queueItemId: string): void;
+  getSteerQueueItems(): readonly QueueItemState[];
+  moveQueueItem(queueItemId: string, options: {
+    lane?: "queue" | "steer";
+  } & QueuePlacement): void;
   removeQueueItem(queueItemId: string): void;
   private _runAppend;
   deleteMessage(messageId: string): Promise<void>;
@@ -3154,19 +3178,32 @@ type QueueItemClientSchema = {
 type QueueItemMeta = {
   source: "composer";
   query: {
+    type: "index";
     index: number;
+  } | {
+    type: "id";
+    id: string;
   };
 };
 
 type QueueItemMethods = {
   getState(): QueueItemState;
   steer(): void;
+  move(options: {
+    lane?: "queue" | "steer";
+  } & QueuePlacement): void;
   remove(): void;
 };
 
 type QueueItemState = {
   readonly id: string;
   readonly prompt: string;
+  readonly parts: readonly (FileMessagePart | TextMessagePart)[];
+};
+
+type QueuePlacement = {
+  readonly insertAfter?: string | null;
+  readonly insertBefore?: string | null;
 };
 
 type QuoteInfo = {
@@ -3245,7 +3282,7 @@ declare class ReadonlyThreadRuntimeCore extends BaseSubscribable implements Thre
     send(): never;
     cancel(): void;
     queue: never[];
-    steerQueueItem(): void;
+    moveQueueItem(): void;
     removeQueueItem(): void;
     dictation: undefined;
     startDictation(): never;
@@ -3430,8 +3467,12 @@ declare class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     getEditComposer: (messageId: string) => EditComposerRuntimeCore | undefined;
     beginEdit: (messageId: string) => void;
     getQueueItems?: () => readonly QueueItemState[];
-    steerQueueItem?: (queueItemId: string) => void;
+    getSteerQueueItems?: () => readonly QueueItemState[];
+    moveQueueItem?: (queueItemId: string, options: {
+      lane?: "queue" | "steer";
+    } & QueuePlacement) => void;
     removeQueueItem?: (queueItemId: string) => void;
+    resume?: () => void;
     speech: SpeechState | undefined;
     voice: VoiceSessionState | undefined;
     capabilities: Readonly<RuntimeCapabilities>;
@@ -3439,6 +3480,10 @@ declare class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     isSendDisabled: boolean;
     isLoading: boolean;
     isRunning?: boolean | undefined;
+    status?: "error" | "input-required" | "ready" | "running" | "stopped";
+    error?: {
+      readonly message: string;
+    } | undefined;
     messages: readonly ThreadMessage[];
     state: ReadonlyJSONValue;
     suggestions: readonly ThreadSuggestion[];
@@ -3482,8 +3527,12 @@ declare class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     getEditComposer: (messageId: string) => EditComposerRuntimeCore | undefined;
     beginEdit: (messageId: string) => void;
     getQueueItems?: () => readonly QueueItemState[];
-    steerQueueItem?: (queueItemId: string) => void;
+    getSteerQueueItems?: () => readonly QueueItemState[];
+    moveQueueItem?: (queueItemId: string, options: {
+      lane?: "queue" | "steer";
+    } & QueuePlacement) => void;
     removeQueueItem?: (queueItemId: string) => void;
+    resume?: () => void;
     speech: SpeechState | undefined;
     voice: VoiceSessionState | undefined;
     capabilities: Readonly<RuntimeCapabilities>;
@@ -3491,6 +3540,10 @@ declare class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     isSendDisabled: boolean;
     isLoading: boolean;
     isRunning?: boolean | undefined;
+    status?: "error" | "input-required" | "ready" | "running" | "stopped";
+    error?: {
+      readonly message: string;
+    } | undefined;
     messages: readonly ThreadMessage[];
     state: ReadonlyJSONValue;
     suggestions: readonly ThreadSuggestion[];
@@ -3534,8 +3587,12 @@ declare class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     getEditComposer: (messageId: string) => EditComposerRuntimeCore | undefined;
     beginEdit: (messageId: string) => void;
     getQueueItems?: () => readonly QueueItemState[];
-    steerQueueItem?: (queueItemId: string) => void;
+    getSteerQueueItems?: () => readonly QueueItemState[];
+    moveQueueItem?: (queueItemId: string, options: {
+      lane?: "queue" | "steer";
+    } & QueuePlacement) => void;
     removeQueueItem?: (queueItemId: string) => void;
+    resume?: () => void;
     speech: SpeechState | undefined;
     voice: VoiceSessionState | undefined;
     capabilities: Readonly<RuntimeCapabilities>;
@@ -3543,6 +3600,10 @@ declare class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     isSendDisabled: boolean;
     isLoading: boolean;
     isRunning?: boolean | undefined;
+    status?: "error" | "input-required" | "ready" | "running" | "stopped";
+    error?: {
+      readonly message: string;
+    } | undefined;
     messages: readonly ThreadMessage[];
     state: ReadonlyJSONValue;
     suggestions: readonly ThreadSuggestion[];
@@ -3650,8 +3711,12 @@ declare class RemoteThreadListThreadListRuntimeCore extends BaseSubscribable imp
     getEditComposer: (messageId: string) => EditComposerRuntimeCore | undefined;
     beginEdit: (messageId: string) => void;
     getQueueItems?: () => readonly QueueItemState[];
-    steerQueueItem?: (queueItemId: string) => void;
+    getSteerQueueItems?: () => readonly QueueItemState[];
+    moveQueueItem?: (queueItemId: string, options: {
+      lane?: "queue" | "steer";
+    } & QueuePlacement) => void;
     removeQueueItem?: (queueItemId: string) => void;
+    resume?: () => void;
     speech: SpeechState | undefined;
     voice: VoiceSessionState | undefined;
     capabilities: Readonly<RuntimeCapabilities>;
@@ -3659,6 +3724,10 @@ declare class RemoteThreadListThreadListRuntimeCore extends BaseSubscribable imp
     isSendDisabled: boolean;
     isLoading: boolean;
     isRunning?: boolean | undefined;
+    status?: "error" | "input-required" | "ready" | "running" | "stopped";
+    error?: {
+      readonly message: string;
+    } | undefined;
     messages: readonly ThreadMessage[];
     state: ReadonlyJSONValue;
     suggestions: readonly ThreadSuggestion[];
@@ -3702,8 +3771,12 @@ declare class RemoteThreadListThreadListRuntimeCore extends BaseSubscribable imp
     getEditComposer: (messageId: string) => EditComposerRuntimeCore | undefined;
     beginEdit: (messageId: string) => void;
     getQueueItems?: () => readonly QueueItemState[];
-    steerQueueItem?: (queueItemId: string) => void;
+    getSteerQueueItems?: () => readonly QueueItemState[];
+    moveQueueItem?: (queueItemId: string, options: {
+      lane?: "queue" | "steer";
+    } & QueuePlacement) => void;
     removeQueueItem?: (queueItemId: string) => void;
+    resume?: () => void;
     speech: SpeechState | undefined;
     voice: VoiceSessionState | undefined;
     capabilities: Readonly<RuntimeCapabilities>;
@@ -3711,6 +3784,10 @@ declare class RemoteThreadListThreadListRuntimeCore extends BaseSubscribable imp
     isSendDisabled: boolean;
     isLoading: boolean;
     isRunning?: boolean | undefined;
+    status?: "error" | "input-required" | "ready" | "running" | "stopped";
+    error?: {
+      readonly message: string;
+    } | undefined;
     messages: readonly ThreadMessage[];
     state: ReadonlyJSONValue;
     suggestions: readonly ThreadSuggestion[];
@@ -4659,6 +4736,7 @@ type ThreadMethods = {
   startRun(config: CreateStartRunConfig): void;
   resumeRun(config: CreateResumeRunConfig): void;
   cancelRun(): void;
+  resume(): void;
   getModelContext(): ModelContext$1;
   export(): ExportedMessageRepository;
   import(repository: ExportedMessageRepository): void;
@@ -4750,6 +4828,7 @@ type ThreadRuntime = {
   importExternalState(state: any): void;
   subscribe(callback: () => void): Unsubscribe$1;
   cancelRun(): void;
+  resume(): void;
   getModelContext(): ModelContext$1;
   export(): ExportedMessageRepository;
   import(repository: ExportedMessageRepository): void;
@@ -4794,8 +4873,12 @@ type ThreadRuntimeCore = Readonly<{
   getEditComposer: (messageId: string) => EditComposerRuntimeCore | undefined;
   beginEdit: (messageId: string) => void;
   getQueueItems?: () => readonly QueueItemState[];
-  steerQueueItem?: (queueItemId: string) => void;
+  getSteerQueueItems?: () => readonly QueueItemState[];
+  moveQueueItem?: (queueItemId: string, options: {
+    lane?: "queue" | "steer";
+  } & QueuePlacement) => void;
   removeQueueItem?: (queueItemId: string) => void;
+  resume?: () => void;
   speech: SpeechState | undefined;
   voice: VoiceSessionState | undefined;
   capabilities: Readonly<RuntimeCapabilities>;
@@ -4803,6 +4886,10 @@ type ThreadRuntimeCore = Readonly<{
   isSendDisabled: boolean;
   isLoading: boolean;
   isRunning?: boolean | undefined;
+  status?: "error" | "input-required" | "ready" | "running" | "stopped";
+  error?: {
+    readonly message: string;
+  } | undefined;
   messages: readonly ThreadMessage[];
   state: ReadonlyJSONValue;
   suggestions: readonly ThreadSuggestion[];
@@ -4884,7 +4971,9 @@ declare class ThreadRuntimeImpl implements ThreadRuntime {
         send: (options?: SendOptions) => void;
         cancel: () => void;
         queue: readonly QueueItemState[];
-        steerQueueItem: (queueItemId: string) => void;
+        moveQueueItem: (queueItemId: string, options: {
+          lane?: "queue" | "steer";
+        } & QueuePlacement) => void;
         removeQueueItem: (queueItemId: string) => void;
         dictation: DictationState | undefined;
         startDictation: () => void;
@@ -4895,8 +4984,12 @@ declare class ThreadRuntimeImpl implements ThreadRuntime {
       getEditComposer: (messageId: string) => EditComposerRuntimeCore | undefined;
       beginEdit: (messageId: string) => void;
       getQueueItems?: () => readonly QueueItemState[];
-      steerQueueItem?: (queueItemId: string) => void;
+      getSteerQueueItems?: () => readonly QueueItemState[];
+      moveQueueItem?: (queueItemId: string, options: {
+        lane?: "queue" | "steer";
+      } & QueuePlacement) => void;
       removeQueueItem?: (queueItemId: string) => void;
+      resume?: () => void;
       speech: SpeechState | undefined;
       voice: VoiceSessionState | undefined;
       capabilities: Readonly<RuntimeCapabilities>;
@@ -4904,6 +4997,10 @@ declare class ThreadRuntimeImpl implements ThreadRuntime {
       isSendDisabled: boolean;
       isLoading: boolean;
       isRunning?: boolean | undefined;
+      status?: "error" | "input-required" | "ready" | "running" | "stopped";
+      error?: {
+        readonly message: string;
+      } | undefined;
       messages: readonly ThreadMessage[];
       state: ReadonlyJSONValue;
       suggestions: readonly ThreadSuggestion[];
@@ -4938,6 +5035,7 @@ declare class ThreadRuntimeImpl implements ThreadRuntime {
   exportExternalState(): any;
   importExternalState(state: any): void;
   cancelRun(): void;
+  resume(): void;
   stopSpeaking(): void;
   connectVoice(): void;
   disconnectVoice(): void;
@@ -4971,6 +5069,10 @@ type ThreadState = {
   readonly isDisabled: boolean;
   readonly isLoading: boolean;
   readonly isRunning: boolean;
+  readonly status: "error" | "input-required" | "ready" | "running" | "stopped";
+  readonly error?: {
+    readonly message: string;
+  };
   readonly capabilities: RuntimeCapabilities;
   readonly messages: readonly ThreadMessage[];
   readonly state: ReadonlyJSONValue;
@@ -4985,6 +5087,10 @@ type ThreadState$1 = {
   readonly isDisabled: boolean;
   readonly isLoading: boolean;
   readonly isRunning: boolean;
+  readonly status: "error" | "input-required" | "ready" | "running" | "stopped";
+  readonly error?: {
+    readonly message: string;
+  };
   readonly capabilities: RuntimeCapabilities;
   readonly messages: readonly MessageState[];
   readonly state: ReadonlyJSONValue;
@@ -5793,7 +5899,7 @@ declare namespace entry_react_exports {
 }
 
 declare namespace entry_root_exports {
-  export { AddToolResultOptions, AppendMessage, AssistantContextConfig, AssistantError, AssistantErrorCode, AssistantFrameHost, AssistantFrameProvider, AssistantInstructionsConfig, AssistantRuntime, AssistantRuntimeCore, AssistantToolProps$1 as AssistantToolProps, Attachment, AttachmentAdapter, AttachmentAddErrorEvent, AttachmentAddErrorReason, AttachmentRuntime, AttachmentRuntimePath, AttachmentState$1 as AttachmentState, AttachmentStatus, ChatModelAdapter, ChatModelRunOptions, ChatModelRunResult, ChatModelRunUpdate, CompleteAttachment, CompleteAttachmentStatus, ComposerRuntime, ComposerRuntimeCore, ComposerRuntimeEventCallback, ComposerRuntimeEventPayload, ComposerRuntimeEventType, ComposerRuntimePath, ComposerState$1 as ComposerState, CompositeAttachmentAdapter, CoreChatModelRunResult, CreateAppendMessage, CreateAttachment, CreateResumeRunConfig, CreateStartRunConfig, CreateSuggestionAdapterOptions, DataMessagePart, DictationAdapter, DictationState, EditComposerRuntime, EditComposerRuntimeCore, EditComposerState, ErrorDisplay, ErrorSeverity, ExportedMessageRepository, ExportedMessageRepositoryItem, ExternalStoreAdapter, ExternalStoreBranchChange, ExternalStoreMessageConverter, ExternalStoreSharedOptions, ExternalStoreThreadData, ExternalStoreThreadListAdapter, ExternalThreadBranchAdapter, ExternalThreadQueueAdapter, FRAME_MESSAGE_CHANNEL, FeedbackAdapter, FileMessagePart, FrameMessage, FrameMessageType, GenerativeUIMessagePart, GenerativeUINode, GenerativeUISpec, GenericThreadHistoryAdapter, ImageMessagePart, InMemoryThreadListAdapter, LanguageModelConfig, LanguageModelV1CallSettings, LocalRuntimeOptionsBase, MCP_APP_URI_SCHEME, McpAppMetadata, MessageFormatAdapter, MessageFormatItem, MessageFormatRepository, MessagePartRuntime, MessagePartRuntimePath, MessagePartState, MessagePartStatus, MessagePartStreamStatus, MessageQueueController, MessageQueueDriver, MessageRole, MessageRuntime, MessageRuntimePath, MessageState$1 as MessageState, MessageStatus, MessageStorageEntry, MessageTiming, ModelContext$1 as ModelContext, ModelContextProvider, ModelContextRegistry, ModelContextRegistryInstructionHandle, ModelContextRegistryProviderHandle, ModelContextRegistryToolHandle, PartProviderMetadata, PendingAttachment, PendingAttachmentStatus, QuoteInfo, RealtimeVoiceAdapter, ReasoningMessagePart, RemoteThreadInitializeResponse, RemoteThreadListAdapter, RemoteThreadListOptions, RemoteThreadListPageOptions, RemoteThreadListResponse, RemoteThreadMetadata, RespondToToolApprovalOptions, ResumeRunConfig, ResumeToolCallOptions, RunConfig, RuntimeCapabilities, SendOptions, SerializedModelContext, SerializedTool, SimpleImageAttachmentAdapter, SimpleTextAttachmentAdapter, SourceMessagePart, SourceProviderMetadata, SpeechState, SpeechSynthesisAdapter, StartRunConfig, StreamingTimingAccessors, StreamingTimingOptions, StreamingTimingState, SubmitFeedbackOptions, SubmittedFeedback, SuggestionAdapter, SuggestionAdapterGenerateOptions, TextMessagePart, ThreadAssistantMessage, ThreadAssistantMessagePart, ThreadComposerRuntime, ThreadComposerRuntimeCore, ThreadComposerState, ThreadHistoryAdapter, ThreadListItemCoreState, ThreadListItemEventCallback, ThreadListItemEventPayload, ThreadListItemEventType, ThreadListItemRuntime, ThreadListItemRuntimePath, ThreadListItemState$1 as ThreadListItemState, ThreadListItemStatus, ThreadListRuntime, ThreadListRuntimeCore, ThreadListState, ThreadMessage, ThreadMessageLike, ThreadRuntime, ThreadRuntimeCore, ThreadRuntimeEventCallback, ThreadRuntimeEventPayload, ThreadRuntimeEventType, ThreadRuntimePath, ThreadState, ThreadStep, ThreadSuggestion, ThreadSystemMessage, ThreadUserMessage, ThreadUserMessagePart, ToolApprovalOption, ToolApprovalOptionKind, ToolApprovalResponse, ToolCallMessagePart, ToolCallMessagePartMcpMetadata, ToolCallMessagePartStatus, ToolCallTiming, ToolExecutionStatus, ToolModelContentPart, Unstable_AudioMessagePart, Unstable_DirectiveFormatter, Unstable_DirectiveSegment, Unstable_InteractableSnapshotEntry, Unstable_InteractableVersion, Unstable_TriggerAdapter, Unstable_TriggerCategory, Unstable_TriggerItem, Unsubscribe$1 as Unsubscribe, VoiceSessionControls, VoiceSessionHelpers, VoiceSessionState, WebSpeechDictationAdapter, WebSpeechSynthesisAdapter, bindExternalStoreMessage, createMessageQueue, createRequestHeaders, createSuggestionAdapter, createVoiceSession, fromThreadMessageLike, generateId, getExternalStoreMessages, isAssistantError, isMcpAppUri, mergeModelContexts, pickExternalStoreSharedOptions, stepStreamingTiming, toAssistantError, tool, unstable_defaultDirectiveFormatter, unstable_formatInteractableSnapshot, unstable_getInteractableSnapshots, unstable_getInteractableVersions };
+  export { AddToolResultOptions, AppendMessage, AssistantContextConfig, AssistantError, AssistantErrorCode, AssistantFrameHost, AssistantFrameProvider, AssistantInstructionsConfig, AssistantRuntime, AssistantRuntimeCore, AssistantToolProps$1 as AssistantToolProps, Attachment, AttachmentAdapter, AttachmentAddErrorEvent, AttachmentAddErrorReason, AttachmentRuntime, AttachmentRuntimePath, AttachmentState$1 as AttachmentState, AttachmentStatus, ChatModelAdapter, ChatModelRunOptions, ChatModelRunResult, ChatModelRunUpdate, CompleteAttachment, CompleteAttachmentStatus, ComposerRuntime, ComposerRuntimeCore, ComposerRuntimeEventCallback, ComposerRuntimeEventPayload, ComposerRuntimeEventType, ComposerRuntimePath, ComposerState$1 as ComposerState, CompositeAttachmentAdapter, CoreChatModelRunResult, CreateAppendMessage, CreateAttachment, CreateResumeRunConfig, CreateStartRunConfig, CreateSuggestionAdapterOptions, DataMessagePart, DictationAdapter, DictationState, EditComposerRuntime, EditComposerRuntimeCore, EditComposerState, ErrorDisplay, ErrorSeverity, ExportedMessageRepository, ExportedMessageRepositoryItem, ExternalStoreAdapter, ExternalStoreBranchChange, ExternalStoreMessageConverter, ExternalStoreSharedOptions, ExternalStoreThreadData, ExternalStoreThreadListAdapter, ExternalThreadBranchAdapter, ExternalThreadQueueAdapter, FRAME_MESSAGE_CHANNEL, FeedbackAdapter, FileMessagePart, FrameMessage, FrameMessageType, GenerativeUIMessagePart, GenerativeUINode, GenerativeUISpec, GenericThreadHistoryAdapter, ImageMessagePart, InMemoryThreadListAdapter, LanguageModelConfig, LanguageModelV1CallSettings, LocalRuntimeOptionsBase, MCP_APP_URI_SCHEME, McpAppMetadata, MessageFormatAdapter, MessageFormatItem, MessageFormatRepository, MessagePartRuntime, MessagePartRuntimePath, MessagePartState, MessagePartStatus, MessagePartStreamStatus, MessageQueueController, MessageQueueDriver, MessageRole, MessageRuntime, MessageRuntimePath, MessageState$1 as MessageState, MessageStatus, MessageStorageEntry, MessageTiming, ModelContext$1 as ModelContext, ModelContextProvider, ModelContextRegistry, ModelContextRegistryInstructionHandle, ModelContextRegistryProviderHandle, ModelContextRegistryToolHandle, PartProviderMetadata, PendingAttachment, PendingAttachmentStatus, QueuePlacement, QuoteInfo, RealtimeVoiceAdapter, ReasoningMessagePart, RemoteThreadInitializeResponse, RemoteThreadListAdapter, RemoteThreadListOptions, RemoteThreadListPageOptions, RemoteThreadListResponse, RemoteThreadMetadata, RespondToToolApprovalOptions, ResumeRunConfig, ResumeToolCallOptions, RunConfig, RuntimeCapabilities, SendOptions, SerializedModelContext, SerializedTool, SimpleImageAttachmentAdapter, SimpleTextAttachmentAdapter, SourceMessagePart, SourceProviderMetadata, SpeechState, SpeechSynthesisAdapter, StartRunConfig, StreamingTimingAccessors, StreamingTimingOptions, StreamingTimingState, SubmitFeedbackOptions, SubmittedFeedback, SuggestionAdapter, SuggestionAdapterGenerateOptions, TextMessagePart, ThreadAssistantMessage, ThreadAssistantMessagePart, ThreadComposerRuntime, ThreadComposerRuntimeCore, ThreadComposerState, ThreadHistoryAdapter, ThreadListItemCoreState, ThreadListItemEventCallback, ThreadListItemEventPayload, ThreadListItemEventType, ThreadListItemRuntime, ThreadListItemRuntimePath, ThreadListItemState$1 as ThreadListItemState, ThreadListItemStatus, ThreadListRuntime, ThreadListRuntimeCore, ThreadListState, ThreadMessage, ThreadMessageLike, ThreadRuntime, ThreadRuntimeCore, ThreadRuntimeEventCallback, ThreadRuntimeEventPayload, ThreadRuntimeEventType, ThreadRuntimePath, ThreadState, ThreadStep, ThreadSuggestion, ThreadSystemMessage, ThreadUserMessage, ThreadUserMessagePart, ToolApprovalOption, ToolApprovalOptionKind, ToolApprovalResponse, ToolCallMessagePart, ToolCallMessagePartMcpMetadata, ToolCallMessagePartStatus, ToolCallTiming, ToolExecutionStatus, ToolModelContentPart, Unstable_AudioMessagePart, Unstable_DirectiveFormatter, Unstable_DirectiveSegment, Unstable_InteractableSnapshotEntry, Unstable_InteractableVersion, Unstable_TriggerAdapter, Unstable_TriggerCategory, Unstable_TriggerItem, Unsubscribe$1 as Unsubscribe, VoiceSessionControls, VoiceSessionHelpers, VoiceSessionState, WebSpeechDictationAdapter, WebSpeechSynthesisAdapter, bindExternalStoreMessage, createMessageQueue, createRequestHeaders, createSuggestionAdapter, createVoiceSession, fromThreadMessageLike, generateId, getExternalStoreMessages, isAssistantError, isMcpAppUri, mergeModelContexts, pickExternalStoreSharedOptions, stepStreamingTiming, toAssistantError, tool, unstable_defaultDirectiveFormatter, unstable_formatInteractableSnapshot, unstable_getInteractableSnapshots, unstable_getInteractableVersions };
 }
 
 declare namespace entry_store_exports {

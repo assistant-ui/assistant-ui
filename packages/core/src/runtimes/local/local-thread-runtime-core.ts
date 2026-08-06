@@ -28,6 +28,7 @@ import {
   createMessageQueue,
   type MessageQueueController,
 } from "../../runtime/queue/message-queue";
+import type { QueuePlacement } from "../../runtime/queue/external-thread-queue-adapter";
 import {
   EMPTY_QUEUE_ITEMS,
   type QueueItemState,
@@ -216,7 +217,6 @@ export class LocalThreadRuntimeCore
       });
       this._queue.subscribe(() => this._notifySubscribers());
     } else if (!canQueue && this._queue) {
-      this._queue.adapter.clear("cancel-run");
       this._queue = null;
     }
     if (this.capabilities.queue !== canQueue) {
@@ -271,10 +271,11 @@ export class LocalThreadRuntimeCore
     const isTail = message.parentId === (this.messages.at(-1)?.id ?? null);
     const willRun = message.startRun ?? message.role === "user";
     if (this._queue && willRun && isTail) {
-      this._queue.adapter.enqueue(message, { steer: message.steer ?? false });
+      this._queue.adapter.enqueue(message, {
+        lane: message.steer ? "steer" : "queue",
+      });
       return;
     }
-    if (this._queue && !isTail) this._queue.adapter.clear("edit");
     return this._runAppend(message);
   }
 
@@ -284,8 +285,15 @@ export class LocalThreadRuntimeCore
     return this._queue?.adapter.items ?? EMPTY_QUEUE_ITEMS;
   }
 
-  public steerQueueItem(queueItemId: string): void {
-    this._queue?.adapter.steer(queueItemId);
+  public getSteerQueueItems(): readonly QueueItemState[] {
+    return this._queue?.adapter.steerItems ?? EMPTY_QUEUE_ITEMS;
+  }
+
+  public moveQueueItem(
+    queueItemId: string,
+    options: { lane?: "queue" | "steer" } & QueuePlacement,
+  ): void {
+    this._queue?.adapter.move(queueItemId, options);
   }
 
   public removeQueueItem(queueItemId: string): void {
@@ -644,7 +652,8 @@ export class LocalThreadRuntimeCore
   }
 
   public detach() {
-    this._queue?.adapter.clear("cancel-run");
+    // drop the queue so pending items cannot dispatch on a detached thread
+    this._queue = null;
     const error = new AbortError(true);
     this.abortController?.abort(error);
     this.abortController = null;
@@ -653,7 +662,6 @@ export class LocalThreadRuntimeCore
   }
 
   public cancelRun() {
-    this._queue?.adapter.clear("cancel-run");
     const error = new AbortError(false);
     this.abortController?.abort(error);
     this.abortController = null;

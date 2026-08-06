@@ -429,7 +429,6 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
       },
     });
   } else if (!unstable_enableMessageQueue && queueRef.current) {
-    queueRef.current.adapter.clear("cancel-run");
     queueRef.current = null;
   }
   const queueController = unstable_enableMessageQueue ? queueRef.current : null;

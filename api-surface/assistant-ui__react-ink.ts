@@ -715,7 +715,9 @@ declare abstract class BaseComposerRuntimeCore extends BaseSubscribable implemen
   send(options?: SendOptions): Promise<void>;
   cancel(): void;
   get queue(): readonly QueueItemState[];
-  steerQueueItem(_queueItemId: string): void;
+  moveQueueItem(_queueItemId: string, _options: {
+    lane?: "queue" | "steer";
+  } & QueuePlacement): void;
   removeQueueItem(_queueItemId: string): void;
   protected abstract handleSend(message: Omit<AppendMessage, "parentId" | "sourceId">, options?: SendOptions): void | Promise<void>;
   protected abstract handleCancel(): void;
@@ -1128,6 +1130,9 @@ type ComposerRuntime = {
   send(options?: SendOptions): void;
   cancel(): void;
   steerQueueItem(queueItemId: string): void;
+  moveQueueItem(queueItemId: string, options: {
+    lane?: "queue" | "steer";
+  } & QueuePlacement): void;
   removeQueueItem(queueItemId: string): void;
   subscribe(callback: () => void): Unsubscribe$1;
   getAttachmentByIndex(idx: number): AttachmentRuntime;
@@ -1159,7 +1164,9 @@ type ComposerRuntimeCore = Readonly<{
   send: (options?: SendOptions) => void;
   cancel: () => void;
   queue: readonly QueueItemState[];
-  steerQueueItem: (queueItemId: string) => void;
+  moveQueueItem: (queueItemId: string, options: {
+    lane?: "queue" | "steer";
+  } & QueuePlacement) => void;
   removeQueueItem: (queueItemId: string) => void;
   dictation: DictationState | undefined;
   startDictation: () => void;
@@ -1195,6 +1202,9 @@ declare abstract class ComposerRuntimeImpl implements ComposerRuntime {
   send(options?: SendOptions): void;
   cancel(): void;
   steerQueueItem(queueItemId: string): void;
+  moveQueueItem(queueItemId: string, options: {
+    lane?: "queue" | "steer";
+  } & QueuePlacement): void;
   removeQueueItem(queueItemId: string): void;
   setRole(role: MessageRole): void;
   startDictation(): void;
@@ -1320,8 +1330,11 @@ declare class DefaultThreadComposerRuntimeCore extends BaseComposerRuntimeCore i
   private _canCancel;
   get canCancel(): boolean;
   get canSend(): boolean;
+  private _queueCache;
   get queue(): readonly QueueItemState[];
-  steerQueueItem(queueItemId: string): void;
+  moveQueueItem(queueItemId: string, options: {
+    lane?: "queue" | "steer";
+  } & QueuePlacement): void;
   removeQueueItem(queueItemId: string): void;
   protected getAttachmentAdapter(): AttachmentAdapter | undefined;
   protected getDictationAdapter(): DictationAdapter | undefined;
@@ -2754,6 +2767,7 @@ type QueueItemRemoveProps = Omit<PressableProps, "onPress"> & {
 type QueueItemState = {
   readonly id: string;
   readonly prompt: string;
+  readonly parts: readonly (FileMessagePart | TextMessagePart)[];
 };
 
 declare const QueueItemSteer: (_param45: QueueItemSteerProps) => import("react").JSX.Element;
@@ -2765,6 +2779,11 @@ type QueueItemSteerProps = Omit<PressableProps, "onPress"> & {
 declare const QueueItemText: (_param46: QueueItemTextProps) => import("react").JSX.Element;
 
 type QueueItemTextProps = ComponentProps<typeof Text>;
+
+type QueuePlacement = {
+  readonly insertAfter?: string | null;
+  readonly insertBefore?: string | null;
+};
 
 type QuoteInfo = {
   readonly text: string;
@@ -3774,6 +3793,7 @@ type ThreadRuntime = {
   importExternalState(state: any): void;
   subscribe(callback: () => void): Unsubscribe$1;
   cancelRun(): void;
+  resume(): void;
   getModelContext(): ModelContext$1;
   export(): ExportedMessageRepository;
   import(repository: ExportedMessageRepository): void;
@@ -3818,8 +3838,12 @@ type ThreadRuntimeCore = Readonly<{
   getEditComposer: (messageId: string) => EditComposerRuntimeCore | undefined;
   beginEdit: (messageId: string) => void;
   getQueueItems?: () => readonly QueueItemState[];
-  steerQueueItem?: (queueItemId: string) => void;
+  getSteerQueueItems?: () => readonly QueueItemState[];
+  moveQueueItem?: (queueItemId: string, options: {
+    lane?: "queue" | "steer";
+  } & QueuePlacement) => void;
   removeQueueItem?: (queueItemId: string) => void;
+  resume?: () => void;
   speech: SpeechState | undefined;
   voice: VoiceSessionState | undefined;
   capabilities: Readonly<RuntimeCapabilities>;
@@ -3827,6 +3851,10 @@ type ThreadRuntimeCore = Readonly<{
   isSendDisabled: boolean;
   isLoading: boolean;
   isRunning?: boolean | undefined;
+  status?: "error" | "input-required" | "ready" | "running" | "stopped";
+  error?: {
+    readonly message: string;
+  } | undefined;
   messages: readonly ThreadMessage[];
   state: ReadonlyJSONValue;
   suggestions: readonly ThreadSuggestion$1[];
@@ -3908,7 +3936,9 @@ declare class ThreadRuntimeImpl implements ThreadRuntime {
         send: (options?: SendOptions) => void;
         cancel: () => void;
         queue: readonly QueueItemState[];
-        steerQueueItem: (queueItemId: string) => void;
+        moveQueueItem: (queueItemId: string, options: {
+          lane?: "queue" | "steer";
+        } & QueuePlacement) => void;
         removeQueueItem: (queueItemId: string) => void;
         dictation: DictationState | undefined;
         startDictation: () => void;
@@ -3919,8 +3949,12 @@ declare class ThreadRuntimeImpl implements ThreadRuntime {
       getEditComposer: (messageId: string) => EditComposerRuntimeCore | undefined;
       beginEdit: (messageId: string) => void;
       getQueueItems?: () => readonly QueueItemState[];
-      steerQueueItem?: (queueItemId: string) => void;
+      getSteerQueueItems?: () => readonly QueueItemState[];
+      moveQueueItem?: (queueItemId: string, options: {
+        lane?: "queue" | "steer";
+      } & QueuePlacement) => void;
       removeQueueItem?: (queueItemId: string) => void;
+      resume?: () => void;
       speech: SpeechState | undefined;
       voice: VoiceSessionState | undefined;
       capabilities: Readonly<RuntimeCapabilities>;
@@ -3928,6 +3962,10 @@ declare class ThreadRuntimeImpl implements ThreadRuntime {
       isSendDisabled: boolean;
       isLoading: boolean;
       isRunning?: boolean | undefined;
+      status?: "error" | "input-required" | "ready" | "running" | "stopped";
+      error?: {
+        readonly message: string;
+      } | undefined;
       messages: readonly ThreadMessage[];
       state: ReadonlyJSONValue;
       suggestions: readonly ThreadSuggestion$1[];
@@ -3962,6 +4000,7 @@ declare class ThreadRuntimeImpl implements ThreadRuntime {
   exportExternalState(): any;
   importExternalState(state: any): void;
   cancelRun(): void;
+  resume(): void;
   stopSpeaking(): void;
   connectVoice(): void;
   disconnectVoice(): void;
@@ -3995,6 +4034,10 @@ type ThreadState = {
   readonly isDisabled: boolean;
   readonly isLoading: boolean;
   readonly isRunning: boolean;
+  readonly status: "error" | "input-required" | "ready" | "running" | "stopped";
+  readonly error?: {
+    readonly message: string;
+  };
   readonly capabilities: RuntimeCapabilities;
   readonly messages: readonly ThreadMessage[];
   readonly state: ReadonlyJSONValue;
@@ -4009,6 +4052,10 @@ type ThreadState$1 = {
   readonly isDisabled: boolean;
   readonly isLoading: boolean;
   readonly isRunning: boolean;
+  readonly status: "error" | "input-required" | "ready" | "running" | "stopped";
+  readonly error?: {
+    readonly message: string;
+  };
   readonly capabilities: RuntimeCapabilities;
   readonly messages: readonly MessageState[];
   readonly state: ReadonlyJSONValue;

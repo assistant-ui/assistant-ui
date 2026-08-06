@@ -32,6 +32,7 @@ import type {
   ToolCallMessagePartStatus,
   ExternalThreadQueueAdapter,
   ExternalThreadBranchAdapter,
+  QueuePlacement,
 } from "@assistant-ui/core";
 import { ToolResponse } from "assistant-stream";
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
@@ -175,7 +176,6 @@ const useMessageClient = ({
   };
 
   const handleSendEdit = (msg: AppendMessage) => {
-    queue?.clear("edit");
     onEdit?.({
       ...msg,
       parentId,
@@ -395,16 +395,17 @@ type ComposerClientResourceProps = {
 
 const useQueueItemClient = ({
   item,
-  onSteer,
+  onMove,
   onRemove,
 }: {
   item: QueueItemState;
-  onSteer: () => void;
+  onMove: (options: { lane?: "queue" | "steer" } & QueuePlacement) => void;
   onRemove: () => void;
 }): ClientOutput<"queueItem"> => {
   return {
     getState: () => item,
-    steer: onSteer,
+    steer: () => onMove({ lane: "steer" }),
+    move: onMove,
     remove: onRemove,
   };
 };
@@ -522,14 +523,24 @@ const useComposerClientResource = ({
     });
   };
 
-  const queueItems = queue?.items ?? EMPTY_QUEUE_ITEMS;
+  const steerItems = queue?.steerItems ?? EMPTY_QUEUE_ITEMS;
+  const laneItems = queue?.items ?? EMPTY_QUEUE_ITEMS;
+  const queueItems = useMemo(
+    () =>
+      steerItems.length === 0
+        ? laneItems
+        : laneItems.length === 0
+          ? steerItems
+          : [...steerItems, ...laneItems],
+    [steerItems, laneItems],
+  );
   const queueItemClients = useClientLookup(
     queueItems.map((item) =>
       withKey(
         item.id,
         QueueItemClient({
           item,
-          onSteer: () => queue?.steer(item.id),
+          onMove: (options) => queue?.move(item.id, options),
           onRemove: () => queue?.remove(item.id),
         }),
       ),
@@ -662,7 +673,9 @@ const useComposerClientResource = ({
           },
         };
         if (queue) {
-          queue.enqueue(composedMessage, { steer: opts?.steer ?? false });
+          queue.enqueue(composedMessage, {
+            lane: opts?.steer ? "steer" : "queue",
+          });
         } else {
           onSend?.(composedMessage);
         }
@@ -697,7 +710,10 @@ const useComposerClientResource = ({
     startDictation: () => {},
     stopDictation: () => {},
     setQuote,
-    queueItem: (selector: { index: number }) => {
+    queueItem: (selector: { index: number } | { id: string }) => {
+      if ("id" in selector) {
+        return queueItemClients.get({ key: selector.id });
+      }
       return queueItemClients.get(selector);
     },
   };
@@ -754,7 +770,6 @@ const useExternalThread = ({
     if (messageIndex === -1) return;
 
     const parentId = messageIndex > 0 ? messages[messageIndex - 1]!.id : null;
-    queue?.clear("reload");
     onReload?.(parentId);
   };
 
@@ -778,7 +793,6 @@ const useExternalThread = ({
   );
 
   const handleCancelRun = () => {
-    queue?.clear("cancel-run");
     onCancel?.();
   };
 
@@ -831,6 +845,7 @@ const useExternalThread = ({
       isDisabled: false,
       isLoading,
       isRunning,
+      status: isRunning ? ("running" as const) : ("ready" as const),
       capabilities: {
         edit: hasEdit,
         delete: false,
@@ -898,7 +913,7 @@ const useExternalThread = ({
               startRun: message.startRun,
             };
       if (queue) {
-        queue.enqueue(appendMessage, { steer: false });
+        queue.enqueue(appendMessage, { lane: "queue" });
       } else {
         onNew?.(appendMessage);
       }
@@ -915,6 +930,13 @@ const useExternalThread = ({
       onResume();
     },
     cancelRun: handleCancelRun,
+    resume: () => {
+      if (!onResume)
+        throw new Error(
+          "Runtime does not support resuming runs (onResume is not set).",
+        );
+      onResume();
+    },
     importExternalState: (state: unknown) => {
       if (!onLoadExternalState)
         throw new Error(

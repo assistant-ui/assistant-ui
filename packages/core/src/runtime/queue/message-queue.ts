@@ -1,15 +1,22 @@
-import type { AppendMessage } from "../../types/message";
+import type {
+  AppendMessage,
+  FileMessagePart,
+  TextMessagePart,
+} from "../../types/message";
 import {
   EMPTY_QUEUE_ITEMS,
   type QueueItemState,
 } from "../../store/scopes/queue-item";
 import { generateId } from "../../utils/id";
 import { getThreadMessageText } from "../../utils/text";
-import type { ExternalThreadQueueAdapter } from "./external-thread-queue-adapter";
+import type {
+  ExternalThreadQueueAdapter,
+  QueuePlacement,
+} from "./external-thread-queue-adapter";
 
 export type MessageQueueDriver = {
   run: (message: AppendMessage, options: { steer: boolean }) => void;
-  /** When omitted, `steer` degrades to "process next" instead of interrupting. */
+  /** When omitted, steering degrades to "process next" instead of interrupting. */
   cancel?: (() => void) | undefined;
 };
 
@@ -22,10 +29,43 @@ export type MessageQueueController = {
   subscribe: (callback: () => void) => () => void;
 };
 
+type Lane = "queue" | "steer";
+
+const getQueueItemParts = (
+  message: AppendMessage,
+): readonly (FileMessagePart | TextMessagePart)[] => {
+  const source = [
+    ...message.content,
+    ...(message.attachments ?? []).flatMap(
+      (attachment) => attachment.content ?? [],
+    ),
+  ];
+  const files: FileMessagePart[] = [];
+  const texts: TextMessagePart[] = [];
+  for (const part of source) {
+    if (part.type === "file") {
+      files.push(part);
+    } else if (part.type === "image") {
+      files.push({
+        type: "file",
+        data: part.image,
+        mimeType: "image/*",
+        ...(part.filename !== undefined && { filename: part.filename }),
+      });
+    } else if (part.type === "text") {
+      texts.push(part);
+    }
+  }
+  return [...files, ...texts];
+};
+
 export const createMessageQueue = (
   driver: MessageQueueDriver,
 ): MessageQueueController => {
-  let items: readonly QueueItemState[] = EMPTY_QUEUE_ITEMS;
+  let lanes: Record<Lane, readonly QueueItemState[]> = {
+    queue: EMPTY_QUEUE_ITEMS,
+    steer: EMPTY_QUEUE_ITEMS,
+  };
   const messages = new Map<string, AppendMessage>();
   const subscribers = new Set<() => void>();
 
@@ -37,72 +77,151 @@ export const createMessageQueue = (
     for (const callback of subscribers) callback();
   };
 
-  const setItems = (next: readonly QueueItemState[]) => {
-    items = next;
-    adapter.items = next;
+  const setLanes = (next: Record<Lane, readonly QueueItemState[]>) => {
+    lanes = next;
+    adapter.items = next.queue;
+    adapter.steerItems = next.steer;
     notify();
   };
 
+  const toItem = (id: string, message: AppendMessage): QueueItemState => ({
+    id,
+    prompt: getThreadMessageText(message),
+    parts: getQueueItemParts(message),
+  });
+
+  const laneOf = (queueItemId: string): Lane | undefined => {
+    if (lanes.steer.some((item) => item.id === queueItemId)) return "steer";
+    if (lanes.queue.some((item) => item.id === queueItemId)) return "queue";
+    return undefined;
+  };
+
   const advance = () => {
-    if (running || items.length === 0) return;
-    const head = items[0]!;
+    if (running) return;
+    const lane: Lane = lanes.steer.length > 0 ? "steer" : "queue";
+    const head = lanes[lane][0];
+    if (!head) return;
     const message = messages.get(head.id);
     messages.delete(head.id);
-    setItems(items.slice(1));
+    setLanes({ ...lanes, [lane]: lanes[lane].slice(1) });
     if (!message) return;
     running = true;
     driver.run(message, { steer: false });
   };
 
-  const enqueue = (message: AppendMessage, { steer }: { steer: boolean }) => {
-    const id = generateId();
-    const prompt = getThreadMessageText(message);
-    messages.set(id, message);
-    setItems([...items, { id, prompt }]);
-    if (steer) {
-      steerItem(id);
-    } else {
-      advance();
-    }
+  const interrupt = (message: AppendMessage) => {
+    suppressIdle++;
+    driver.cancel!();
+    running = true;
+    driver.run(message, { steer: true });
   };
 
-  const steerItem = (queueItemId: string) => {
-    if (!messages.has(queueItemId)) return;
+  const enqueue = (message: AppendMessage, { lane }: { lane: Lane }) => {
+    if (lane === "steer" && running && driver.cancel) {
+      interrupt(message);
+      return;
+    }
+    const id = generateId();
+    messages.set(id, message);
+    setLanes({ ...lanes, [lane]: [...lanes[lane], toItem(id, message)] });
+    advance();
+  };
 
-    if (driver.cancel && running) {
+  const move = (
+    queueItemId: string,
+    options: { lane?: Lane } & QueuePlacement,
+  ) => {
+    const fromLane = laneOf(queueItemId);
+    if (!fromLane) throw new Error(`Unknown queue item "${queueItemId}".`);
+    const toLane = options.lane ?? fromLane;
+
+    if (
+      toLane === "steer" &&
+      fromLane !== "steer" &&
+      running &&
+      driver.cancel
+    ) {
       const message = messages.get(queueItemId)!;
       messages.delete(queueItemId);
-      setItems(items.filter((item) => item.id !== queueItemId));
-      suppressIdle++;
-      driver.cancel();
-      running = true;
-      driver.run(message, { steer: true });
+      setLanes({
+        queue: lanes.queue.filter((item) => item.id !== queueItemId),
+        steer: lanes.steer,
+      });
+      interrupt(message);
       return;
     }
 
-    const target = items.find((item) => item.id === queueItemId);
-    if (!target) return;
-    setItems([target, ...items.filter((item) => item.id !== queueItemId)]);
+    const item = lanes[fromLane].find((i) => i.id === queueItemId)!;
+    const dest = (toLane === fromLane ? lanes[fromLane] : lanes[toLane]).filter(
+      (i) => i.id !== queueItemId,
+    );
+
+    const anchorIndex = (anchor: string) => {
+      if (anchor === queueItemId)
+        throw new Error(`Queue item "${queueItemId}" cannot anchor itself.`);
+      const index = dest.findIndex((i) => i.id === anchor);
+      if (index === -1)
+        throw new Error(`Unknown anchor "${anchor}" in lane "${toLane}".`);
+      return index;
+    };
+
+    const { insertAfter, insertBefore } = options;
+    let index: number;
+    if (insertAfter === undefined && insertBefore === undefined) {
+      index =
+        toLane === fromLane
+          ? lanes[fromLane].findIndex((i) => i.id === queueItemId)
+          : dest.length;
+    } else if (insertAfter !== undefined && insertBefore !== undefined) {
+      const after = insertAfter === null ? -1 : anchorIndex(insertAfter);
+      const before =
+        insertBefore === null ? dest.length : anchorIndex(insertBefore);
+      if (before !== after + 1)
+        throw new Error(
+          `insertAfter "${insertAfter}" and insertBefore "${insertBefore}" are not adjacent in lane "${toLane}".`,
+        );
+      index = after + 1;
+    } else if (insertAfter !== undefined) {
+      index = insertAfter === null ? 0 : anchorIndex(insertAfter) + 1;
+    } else {
+      index = insertBefore === null ? dest.length : anchorIndex(insertBefore!);
+    }
+
+    const nextDest = [...dest.slice(0, index), item, ...dest.slice(index)];
+    const next = { ...lanes, [toLane]: nextDest };
+    if (toLane !== fromLane)
+      next[fromLane] = lanes[fromLane].filter((i) => i.id !== queueItemId);
+    setLanes(next);
     advance();
+  };
+
+  const edit = (queueItemId: string, message: AppendMessage) => {
+    const lane = laneOf(queueItemId);
+    if (!lane) throw new Error(`Unknown queue item "${queueItemId}".`);
+    messages.set(queueItemId, message);
+    setLanes({
+      ...lanes,
+      [lane]: lanes[lane].map((item) =>
+        item.id === queueItemId ? toItem(queueItemId, message) : item,
+      ),
+    });
   };
 
   const remove = (queueItemId: string) => {
     if (!messages.delete(queueItemId)) return;
-    setItems(items.filter((item) => item.id !== queueItemId));
-  };
-
-  const clear = () => {
-    if (items.length === 0) return;
-    messages.clear();
-    setItems(EMPTY_QUEUE_ITEMS);
+    setLanes({
+      queue: lanes.queue.filter((item) => item.id !== queueItemId),
+      steer: lanes.steer.filter((item) => item.id !== queueItemId),
+    });
   };
 
   const adapter: ExternalThreadQueueAdapter = {
-    items,
+    items: lanes.queue,
+    steerItems: lanes.steer,
     enqueue,
-    steer: steerItem,
+    move,
+    edit,
     remove,
-    clear,
   };
 
   return {
