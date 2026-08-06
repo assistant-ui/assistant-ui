@@ -9,6 +9,7 @@ const FORBIDDEN_MODULES = new Set([
   "react",
   "react/jsx-runtime",
   "@assistant-ui/store",
+  "@assistant-ui/tap",
 ]);
 
 const STORE_ALLOWED_REACT_NAMES = new Set([
@@ -75,7 +76,7 @@ function collectImports(content: string): string[] {
   return specs;
 }
 
-function walkFrom(entry: string): string[] {
+function walkFrom(entry: string): { forbidden: string[]; jsxFiles: string[] } {
   const visited = new Set<string>();
   const queue = [entry];
   const forbidden: string[] = [];
@@ -100,7 +101,11 @@ function walkFrom(entry: string): string[] {
     }
   }
 
-  return forbidden;
+  const jsxFiles = [...visited]
+    .filter((file) => file.endsWith(".tsx"))
+    .map((file) => relative(SRC_DIR, file));
+
+  return { forbidden, jsxFiles };
 }
 
 function findFiles(dir: string, ext: string[]): string[] {
@@ -149,22 +154,32 @@ function nonTypeImportNames(clause: string): string[] {
 }
 
 describe("framework neutral boundary", () => {
-  it("the default entry graph must not import react, react/jsx-runtime, or @assistant-ui/store", () => {
-    const forbidden = walkFrom(resolve(SRC_DIR, "index.ts"));
+  it("the default entry graph must not import react, react/jsx-runtime, @assistant-ui/tap, or @assistant-ui/store", () => {
+    const { forbidden, jsxFiles } = walkFrom(resolve(SRC_DIR, "index.ts"));
     expect(
       forbidden,
-      `The default entry must stay loadable without react or @assistant-ui/store installed.\n` +
+      `The default entry must stay loadable without react, @assistant-ui/tap, or @assistant-ui/store installed.\n` +
         `These modules in the src/index.ts graph import a forbidden package:\n` +
         forbidden.map((f) => `  - ${f}`).join("\n"),
     ).toEqual([]);
+    expect(
+      jsxFiles,
+      `The JSX transform injects react/jsx-runtime at build time, so the default entry graph must not contain .tsx files:\n` +
+        jsxFiles.map((f) => `  - ${f}`).join("\n"),
+    ).toEqual([]);
   });
 
-  it("the internal entry graph must not import react, react/jsx-runtime, or @assistant-ui/store", () => {
-    const forbidden = walkFrom(resolve(SRC_DIR, "internal.ts"));
+  it("the internal entry graph must not import react, react/jsx-runtime, @assistant-ui/tap, or @assistant-ui/store", () => {
+    const { forbidden, jsxFiles } = walkFrom(resolve(SRC_DIR, "internal.ts"));
     expect(
       forbidden,
-      "The internal entry must stay loadable without react, react/jsx-runtime, or @assistant-ui/store installed.\nViolations:\n" +
+      "The internal entry must stay loadable without react, react/jsx-runtime, @assistant-ui/tap, or @assistant-ui/store installed.\nViolations:\n" +
         forbidden.map((f) => `  - ${f}`).join("\n"),
+    ).toEqual([]);
+    expect(
+      jsxFiles,
+      `The JSX transform injects react/jsx-runtime at build time, so the internal entry graph must not contain .tsx files:\n` +
+        jsxFiles.map((f) => `  - ${f}`).join("\n"),
     ).toEqual([]);
   });
 
