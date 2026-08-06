@@ -8,7 +8,7 @@ const reportCallbackError = (name: McpOAuthCallbackName, error: unknown) => {
   console.error(`[react-mcp] ${name} callback threw an error`, error);
 };
 
-export const invokeMcpOAuthCallback = <TArgs extends unknown[]>(
+const invokeMcpOAuthCallback = <TArgs extends unknown[]>(
   name: McpOAuthCallbackName,
   callback: ((...args: TArgs) => void) | undefined,
   ...args: TArgs
