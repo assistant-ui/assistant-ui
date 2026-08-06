@@ -1,6 +1,110 @@
-import { describe, expect, it } from "vitest";
-import { messageToEvent } from "./useAdkMessages";
-import type { AdkMessage } from "./types";
+import { act, renderHook } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+const mocks = vi.hoisted(() => ({
+  initialize: vi.fn(async () => ({
+    remoteId: "thread-1",
+    externalId: undefined,
+  })),
+}));
+
+vi.mock("@assistant-ui/store", async (importOriginal) => ({
+  ...(await importOriginal()),
+  useAui: () => ({ threadListItem: { initialize: mocks.initialize } }),
+}));
+
+import {
+  invokeAdkRuntimeCallback,
+  messageToEvent,
+  useAdkMessages,
+  type UseAdkMessagesOptions,
+} from "./useAdkMessages";
+import type { AdkEvent, AdkMessage, AdkStreamCallback } from "./types";
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+describe("ADK runtime callbacks", () => {
+  it.each(["onAgentTransfer", "onCustomEvent", "onError"] as const)(
+    "continues streaming when %s throws",
+    async (callbackName) => {
+      const callbackError = new Error("telemetry failed");
+      const consoleError = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+      const callback = vi.fn(() => {
+        throw callbackError;
+      });
+      const eventByCallback: Record<typeof callbackName, AdkEvent> = {
+        onAgentTransfer: {
+          id: "transfer",
+          actions: { transferToAgent: "researcher" },
+        },
+        onCustomEvent: {
+          id: "custom",
+          customMetadata: { progress: 1 },
+        },
+        onError: {
+          id: "error",
+          author: "agent",
+          errorMessage: "recoverable error",
+        },
+      };
+      const stream: AdkStreamCallback = async function* () {
+        yield eventByCallback[callbackName];
+        yield {
+          id: "answer",
+          author: "agent",
+          content: { role: "model", parts: [{ text: "done" }] },
+        };
+      };
+      const eventHandlers = {
+        [callbackName]: callback,
+      } as UseAdkMessagesOptions["eventHandlers"];
+      const { result } = renderHook(() =>
+        useAdkMessages({ stream, eventHandlers }),
+      );
+
+      await act(async () => {
+        await result.current.sendMessage(
+          [{ id: "user", type: "human", content: "hello" }],
+          {},
+        );
+      });
+
+      expect(result.current.messages.at(-1)).toMatchObject({
+        type: "ai",
+        content: [{ type: "text", text: "done" }],
+      });
+      expect(consoleError).toHaveBeenCalledWith(
+        `[react-google-adk] ${callbackName} callback threw an error`,
+        callbackError,
+      );
+    },
+  );
+
+  it.each(["onAgentTransfer", "onCustomEvent", "onError"] as const)(
+    "handles rejected %s promises",
+    async (callbackName) => {
+      const callbackError = new Error("async telemetry failed");
+      const consoleError = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+
+      invokeAdkRuntimeCallback(callbackName, () =>
+        Promise.reject(callbackError),
+      );
+
+      await vi.waitFor(() => {
+        expect(consoleError).toHaveBeenCalledWith(
+          `[react-google-adk] ${callbackName} callback threw an error`,
+          callbackError,
+        );
+      });
+    },
+  );
+});
 
 describe("messageToEvent (contentToParts)", () => {
   it("serializes a file content part as inlineData", () => {
