@@ -51,9 +51,11 @@ type AssignedCreatedAt = { at: Date; durable: boolean };
 // from a discarded render, so every previously scanned element must still be
 // identical at the same index. A boundary-only check would accept a snapshot
 // that replaced an earlier event while keeping a later one, and the timestamp
-// derived from the replaced event would survive unscanned. The comparison is
-// reference equality over an already-materialized array, so it costs far less
-// than re-deriving the timestamps it protects.
+// derived from the replaced event would survive unscanned. Validating the whole
+// prefix costs one reference comparison per already-scanned element on every
+// snapshot, and that price is deliberate: it is a pointer comparison over an
+// already-materialized array, below the noise floor of the per-snapshot message
+// rebuild it feeds, and no cheaper check preserves the invariant.
 //
 // The map is copied on write and returned by identity, so a scan that learns
 // nothing new lets callers keep memoized work alive.
@@ -199,7 +201,12 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
     // wall-clock stamps can run ahead of durable ones (a server clock behind
     // the client's), so each fallback is bounded between its neighboring
     // assigned/durable timestamps to keep message order and thread timestamps
-    // consistent.
+    // consistent. The bounds are the tightest ones the thread order proves, so
+    // a fallback with no durable predecessor renders at its successor's durable
+    // stamp: an upper bound the message is no newer than, not a claim about
+    // when it was sent. Leaving it unbounded means core's plain `new Date()`,
+    // which renders resumed history as "just now" and orders it after the
+    // durable message that follows it.
     //
     // A durable timestamp already observed for a still-present message outlives
     // the event that carried it: the event log can be replaced by one that no

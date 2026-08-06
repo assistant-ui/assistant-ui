@@ -745,6 +745,60 @@ describe("useEveAgentRuntime createdAt derivation", () => {
     }
   });
 
+  // A truncated event window leaves the leading message without durable
+  // evidence. Its displayed date is the tightest upper bound the thread order
+  // proves — it is no newer than the next durable message — rather than the
+  // wall clock, which would render resumed history as "just now" and sort it
+  // after the durable message that follows it.
+  it("bounds a leading fallback to the next durable timestamp", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2099-01-01T00:00:00.000Z"));
+    try {
+      mockUseEveAgent.mockReturnValue(
+        createAgent({
+          data: {
+            messages: [
+              {
+                id: "turn-0:user",
+                role: "user",
+                metadata: { status: "complete", turnId: "turn-0" },
+                parts: [{ type: "text", text: "outside the window" }],
+              },
+              {
+                id: "turn-1:user",
+                role: "user",
+                metadata: { status: "complete", turnId: "turn-1" },
+                parts: [{ type: "text", text: "inside the window" }],
+              },
+            ],
+          } satisfies EveMessageData,
+          events: [
+            {
+              type: "turn.started",
+              data: { sequence: 0, turnId: "turn-1" },
+              meta: { at: "2020-01-01T00:00:00.000Z" },
+            },
+          ],
+        }) as never,
+      );
+
+      const { result } = renderHook(() => useEveAgentRuntime());
+
+      const messages = result.current.thread.getState().messages;
+      expect(messages[0]!.createdAt).toEqual(
+        new Date("2020-01-01T00:00:00.000Z"),
+      );
+      expect(messages[1]!.createdAt).toEqual(
+        new Date("2020-01-01T00:00:00.000Z"),
+      );
+      expect(messages[0]!.createdAt.getTime()).toBeLessThanOrEqual(
+        messages[1]!.createdAt.getTime(),
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("raises a fallback timestamp to the previous durable timestamp", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2010-01-01T00:00:00.000Z"));
@@ -963,6 +1017,9 @@ describe("useEveAgentRuntime createdAt derivation", () => {
     expect(result.current.thread.getState().messages).toBe(before);
   });
 
+  // The case a boundary-only prefix check would miss: the shared tail element
+  // still matches the cached scan, so only comparing the whole prefix reveals
+  // that an earlier event was replaced and its timestamp must be re-derived.
   it("rescans when an earlier event is replaced but a later one is shared", () => {
     const shared = {
       type: "turn.started",
