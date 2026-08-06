@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { resource } from "@assistant-ui/tap";
+import type { ClientOutput } from "@assistant-ui/store";
 import {
-  useAssistantClientRef,
-  type ClientOutput,
   attachTransformScopes,
+  useAssistantClientRef,
 } from "@assistant-ui/store/client";
 import type {
   Unstable_InteractablesState,

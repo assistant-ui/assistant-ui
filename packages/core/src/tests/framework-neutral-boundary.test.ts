@@ -179,6 +179,26 @@ describe("framework neutral boundary", () => {
       resolve(SRC_DIR, "store/internal.ts"),
     ];
 
+    // Walks the runtime graph only: type-only imports are erased at build, so
+    // they neither carry runtime dependencies nor get traversed. This is also
+    // why type imports may keep using the @assistant-ui/store barrel: the
+    // augmentations target that specifier, and splitting types across entries
+    // would fork the ScopeRegistry seen by src-mapped consumers.
+    const RUNTIME_IMPORT_RE =
+      /(?:^|\n)\s*(?:import|export)\s+(?!type\b)(?:(?:\{[^}]*\}|\*\s+as\s+\w+|\*|\w+(?:\s*,\s*(?:\{[^}]*\}|\*\s+as\s+\w+))?)\s+from\s+)?["']([^"']+)["']/g;
+
+    const collectRuntimeImports = (content: string): string[] => {
+      const specs: string[] = [];
+      for (const re of [RUNTIME_IMPORT_RE, DYNAMIC_IMPORT_RE]) {
+        re.lastIndex = 0;
+        let match: RegExpExecArray | null;
+        while ((match = re.exec(content)) !== null) {
+          specs.push(match[1]!);
+        }
+      }
+      return specs;
+    };
+
     while (pending.length > 0) {
       const file = pending.pop()!;
       if (visited.has(file)) continue;
@@ -187,7 +207,7 @@ describe("framework neutral boundary", () => {
 
       const content = readFileSync(file, "utf-8");
 
-      for (const spec of collectImports(content)) {
+      for (const spec of collectRuntimeImports(content)) {
         if (spec === "react/jsx-runtime") {
           violations.push(
             `${relative(SRC_DIR, file)} imports "react/jsx-runtime"`,
@@ -195,7 +215,7 @@ describe("framework neutral boundary", () => {
         }
         if (spec === "@assistant-ui/store") {
           violations.push(
-            `${relative(SRC_DIR, file)} imports the "@assistant-ui/store" barrel; use "@assistant-ui/store/client"`,
+            `${relative(SRC_DIR, file)} value-imports the "@assistant-ui/store" barrel; use "@assistant-ui/store/client"`,
           );
         }
         const resolved = resolveRelative(file, spec);

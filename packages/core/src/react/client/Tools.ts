@@ -5,10 +5,10 @@ import {
   withKey,
   type ResourceElement,
 } from "@assistant-ui/tap";
+import type { ClientOutput } from "@assistant-ui/store";
 import {
-  useAssistantClientRef,
-  type ClientOutput,
   attachTransformScopes,
+  useAssistantClientRef,
 } from "@assistant-ui/store/client";
 import type { McpAppResourceOutput, ToolsState } from "../types/scopes/tools";
 import type { Tool } from "assistant-stream";
