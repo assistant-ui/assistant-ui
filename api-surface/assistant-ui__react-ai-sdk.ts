@@ -1281,6 +1281,7 @@ type QueueItemState = {
 };
 
 type QueuePlacement = {
+  readonly lane?: "queue" | "steer";
   readonly insertAfter?: string | null;
   readonly insertBefore?: string | null;
 };

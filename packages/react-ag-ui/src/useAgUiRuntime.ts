@@ -135,7 +135,7 @@ export function useAgUiRuntime(
       },
     });
   } else if (!options.unstable_enableMessageQueue && queueRef.current) {
-    queueRef.current.adapter.clear("cancel-run");
+    queueRef.current.clear();
     queueRef.current = null;
   }
   const queueController = options.unstable_enableMessageQueue
@@ -148,6 +148,11 @@ export function useAgUiRuntime(
   const queueItems = useSyncExternalStore(
     queueController?.subscribe ?? subscribeNoop,
     () => queueController?.adapter.items ?? EMPTY_QUEUE_ITEMS,
+    () => EMPTY_QUEUE_ITEMS,
+  );
+  const steerQueueItems = useSyncExternalStore(
+    queueController?.subscribe ?? subscribeNoop,
+    () => queueController?.adapter.steerItems ?? EMPTY_QUEUE_ITEMS,
     () => EMPTY_QUEUE_ITEMS,
   );
 
@@ -264,6 +269,7 @@ export function useAgUiRuntime(
       isRunning,
       queueController,
       queueItems,
+      steerQueueItems,
       shared,
     ],
   );
