@@ -1,5 +1,12 @@
 # @assistant-ui/react
 
+## 0.15.8
+
+### Patch Changes
+
+- Republish of 0.15.6 (registry staged-version conflicts blocked 0.15.6 and 0.15.7; contents identical).
+
+
 ## 0.15.6
 
 ### Patch Changes

@@ -1,5 +1,12 @@
 # @assistant-ui/react-o11y
 
+## 0.0.36
+
+### Patch Changes
+
+- Fix broken 0.0.35 publish that shipped unresolved workspace: dependency ranges.
+
+
 ## 0.0.35
 
 ### Patch Changes

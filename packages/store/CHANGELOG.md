@@ -1,5 +1,12 @@
 # @assistant-ui/store
 
+## 0.3.6
+
+### Patch Changes
+
+- Republish of 0.3.5 (registry staged-version conflict blocked the original publish; contents identical).
+
+
 ## 0.3.5
 
 ### Patch Changes

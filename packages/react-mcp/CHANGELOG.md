@@ -1,5 +1,12 @@
 # @assistant-ui/react-mcp
 
+## 0.1.6
+
+### Patch Changes
+
+- Fix broken 0.1.5 publish that shipped unresolved workspace: dependency ranges.
+
+
 ## 0.1.5
 
 ### Patch Changes
