@@ -4,7 +4,7 @@ import {
   type ClientOutput,
   useClientLookup,
   useClientResource,
-} from "@assistant-ui/store";
+} from "@assistant-ui/store/client";
 import type { MessageRuntime } from "../../runtime/api/message-runtime";
 import { useSubscribable } from "./useSubscribable";
 import { liveRef } from "./liveRef";

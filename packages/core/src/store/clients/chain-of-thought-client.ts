@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { resource } from "@assistant-ui/tap";
-import type { ClientOutput } from "@assistant-ui/store";
+import type { ClientOutput } from "@assistant-ui/store/client";
 import type {
   ChainOfThoughtState,
   ChainOfThoughtPart,

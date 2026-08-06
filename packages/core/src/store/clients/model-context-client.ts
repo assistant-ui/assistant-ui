@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { resource } from "@assistant-ui/tap";
-import type { ClientOutput } from "@assistant-ui/store";
+import type { ClientOutput } from "@assistant-ui/store/client";
 import { CompositeContextProvider } from "../../utils/composite-context-provider";
 import type { ModelContextState } from "../scopes/model-context";
 

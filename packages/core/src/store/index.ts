@@ -1,4 +1,5 @@
 /// <reference path="./scope-registration.ts" />
+/// <reference path="../react/types/store-augmentation.ts" />
 
 // scopes
 export type {
@@ -76,6 +77,9 @@ export type {
   ChainOfThoughtClientSchema,
   ChainOfThoughtPart,
 } from "./scopes/chain-of-thought";
+
+// runtime wiring
+export { RuntimeAdapter } from "../react/RuntimeAdapter";
 
 // clients
 export { NoOpComposerClient } from "./clients/no-op-composer-client";

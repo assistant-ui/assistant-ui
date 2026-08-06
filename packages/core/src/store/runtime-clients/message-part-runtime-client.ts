@@ -1,5 +1,5 @@
 import { resource } from "@assistant-ui/tap";
-import type { ClientOutput } from "@assistant-ui/store";
+import type { ClientOutput } from "@assistant-ui/store/client";
 import type { MessagePartRuntime } from "../../runtime/api/message-part-runtime";
 import { useSubscribable } from "./useSubscribable";
 

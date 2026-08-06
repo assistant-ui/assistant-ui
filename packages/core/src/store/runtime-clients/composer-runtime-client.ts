@@ -5,7 +5,7 @@ import {
   type ClientOutput,
   useAssistantEmit,
   useClientLookup,
-} from "@assistant-ui/store";
+} from "@assistant-ui/store/client";
 import type {
   ComposerRuntime,
   EditComposerRuntime,

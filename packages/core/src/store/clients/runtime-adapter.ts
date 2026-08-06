@@ -2,7 +2,7 @@ import {
   Derived,
   type ScopesConfig,
   type AssistantClient,
-} from "@assistant-ui/store";
+} from "@assistant-ui/store/client";
 import { ModelContext } from "./model-context-client";
 import { Suggestions } from "./suggestions";
 

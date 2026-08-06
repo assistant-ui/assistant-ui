@@ -9,7 +9,7 @@ import {
   useAssistantEmit,
   useClientLookup,
   useClientResource,
-} from "@assistant-ui/store";
+} from "@assistant-ui/store/client";
 import { ComposerClient } from "./composer-runtime-client";
 import { MessageClient } from "./message-runtime-client";
 import { useSubscribable } from "./useSubscribable";

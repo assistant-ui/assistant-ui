@@ -4,7 +4,7 @@ import {
   type ClientOutput,
   useClientLookup,
   useClientResource,
-} from "@assistant-ui/store";
+} from "@assistant-ui/store/client";
 import type { ThreadListRuntime } from "../../runtime/api/thread-list-runtime";
 import type { AssistantRuntime } from "../../runtime/api/assistant-runtime";
 import { useSubscribable } from "./useSubscribable";

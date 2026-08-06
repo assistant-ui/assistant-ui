@@ -9,7 +9,7 @@ import {
   useAssistantClientRef,
   type ClientOutput,
   attachTransformScopes,
-} from "@assistant-ui/store";
+} from "@assistant-ui/store/client";
 import type { McpAppResourceOutput, ToolsState } from "../types/scopes/tools";
 import type { Tool } from "assistant-stream";
 import {

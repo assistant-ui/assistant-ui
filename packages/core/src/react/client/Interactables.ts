@@ -4,7 +4,7 @@ import {
   useAssistantClientRef,
   type ClientOutput,
   attachTransformScopes,
-} from "@assistant-ui/store";
+} from "@assistant-ui/store/client";
 import type {
   Unstable_InteractablesState,
   Unstable_InteractableRegistration,
