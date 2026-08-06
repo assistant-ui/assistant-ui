@@ -55,6 +55,7 @@ const runToCompletion = async (
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
   vi.clearAllMocks();
 });
 
@@ -133,6 +134,42 @@ describe("useDataStreamRuntime request errors", () => {
     expect(onResponse).toHaveBeenCalledOnce();
     expect(onError).not.toHaveBeenCalled();
   });
+
+  it.each(["throws", "rejects"] as const)(
+    "preserves stream failures when onError %s",
+    async (failureMode) => {
+      const streamError = new Error("stream failed");
+      const callbackError = new Error("error callback failed");
+      const consoleError = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+      const body = new ReadableStream({
+        start(controller) {
+          controller.error(streamError);
+        },
+      });
+      vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(body)));
+
+      const adapter = createAdapter({
+        api: "/api/chat",
+        protocol: "ui-message-stream",
+        onError: () => {
+          if (failureMode === "throws") throw callbackError;
+          return Promise.reject(callbackError);
+        },
+      });
+
+      await expect(runToCompletion(adapter, createRunOptions())).rejects.toBe(
+        streamError,
+      );
+      await vi.waitFor(() => {
+        expect(consoleError).toHaveBeenCalledWith(
+          "[react-data-stream] onError callback threw an error",
+          callbackError,
+        );
+      });
+    },
+  );
 
   it("reports resolver failures that race with cancellation", async () => {
     const controller = new AbortController();
