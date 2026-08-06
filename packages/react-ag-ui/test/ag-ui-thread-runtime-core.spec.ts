@@ -4843,22 +4843,23 @@ describe("AGUIThreadRuntimeCore", () => {
 
   it("clears deferred A2UI actions when the active run is cancelled", async () => {
     const runInputs: any[] = [];
+    let rejectRun!: (error: Error) => void;
     const agent = {
-      runAgent: vi.fn((input, subscriber, { signal }) => {
+      runAgent: vi.fn((input, subscriber) => {
         runInputs.push(input);
         if (runInputs.length > 1) {
           subscriber.onRunFinalized?.();
           return Promise.resolve();
         }
         return new Promise((_, reject) => {
-          signal.addEventListener("abort", () => {
-            const error = new Error("aborted");
-            error.name = "AbortError";
-            reject(error);
-          });
+          rejectRun = reject;
         });
       }),
-      abortRun: vi.fn(),
+      abortRun: vi.fn(() => {
+        const error = new Error("aborted");
+        error.name = "AbortError";
+        rejectRun(error);
+      }),
     } as unknown as HttpAgent;
     const core = createCore(agent);
 

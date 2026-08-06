@@ -1034,6 +1034,9 @@ export class AgUiThreadRuntimeCore {
         } catch {
           // ignore
         }
+        // HttpAgent ignores this third argument and is cancelled through
+        // agent.abortRun(); it stays for subclasses that inherit the base
+        // no-op abortRun and have no other cancellation hook.
         await (this.agent as any).runAgent(input, subscriber, {
           signal: abortSignal,
         });
