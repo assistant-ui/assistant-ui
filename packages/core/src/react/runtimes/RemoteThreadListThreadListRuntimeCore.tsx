@@ -14,13 +14,28 @@ import {
   normalizeCursor,
   updateStatusReducer,
 } from "../../runtimes/remote-thread-list/remote-thread-state";
-import type { RemoteThreadListOptions } from "../../runtimes/remote-thread-list/types";
+import type {
+  RemoteThreadListOptions,
+  RemoteThreadListProviderComponent,
+} from "../../runtimes/remote-thread-list/types";
 import { RemoteThreadListHookInstanceManager } from "./RemoteThreadListHookInstanceManager";
-import { type FC, Fragment, useEffect, useId } from "react";
+import {
+  type ComponentType,
+  type FC,
+  Fragment,
+  type PropsWithChildren,
+  useEffect,
+  useId,
+} from "react";
 import { create } from "zustand";
 import { AssistantMessageStream } from "assistant-stream";
 import type { ModelContextProvider } from "../../model-context/types";
 import { RuntimeAdapterProvider } from "./RuntimeAdapterProvider";
+
+const asProviderComponent = (
+  provider: RemoteThreadListProviderComponent | undefined,
+): ComponentType<PropsWithChildren> =>
+  (provider ?? Fragment) as ComponentType<PropsWithChildren>;
 
 const threadNotFoundError = (threadIdOrRemoteId: string, action: string) =>
   new Error(`Thread "${threadIdOrRemoteId}" not found while ${action}.`);
@@ -189,7 +204,7 @@ export class RemoteThreadListThreadListRuntimeCore
       this._notifySubscribers(),
     );
     this.useProvider = create(() => ({
-      Provider: options.adapter.unstable_Provider ?? Fragment,
+      Provider: asProviderComponent(options.adapter.unstable_Provider),
     }));
     this.__internal_setOptions(options);
     this.switchToNewThread();
@@ -210,7 +225,7 @@ export class RemoteThreadListThreadListRuntimeCore
 
     this._options = options;
 
-    const Provider = options.adapter.unstable_Provider ?? Fragment;
+    const Provider = asProviderComponent(options.adapter.unstable_Provider);
     if (Provider !== this.useProvider.getState().Provider) {
       this.useProvider.setState({ Provider }, true);
     }

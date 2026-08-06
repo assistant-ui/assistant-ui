@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/tap",
-  "version": "0.9.9",
+  "version": "0.9.10",
   "description": "Reactive state management inspired by React hooks",
   "keywords": [
     "state-management",
@@ -24,6 +24,14 @@
     "./react-shim/compiler-runtime": {
       "types": null,
       "default": "./dist/react-shim/compiler-runtime.js"
+    },
+    "./standalone-shim": {
+      "types": null,
+      "default": "./dist/standalone-shim/index.js"
+    },
+    "./standalone-shim/compiler-runtime": {
+      "types": null,
+      "default": "./dist/standalone-shim/compiler-runtime.js"
     }
   },
   "main": "./dist/index.js",
@@ -32,8 +40,11 @@
     "dist",
     "!dist/react-shim/**/*.d.ts",
     "!dist/react-shim/**/*.d.ts.map",
+    "!dist/standalone-shim/**/*.d.ts",
+    "!dist/standalone-shim/**/*.d.ts.map",
     "src",
     "react-shim",
+    "standalone-shim",
     "README.md"
   ],
   "sideEffects": false,
@@ -41,6 +52,7 @@
     "build": "aui-build",
     "prepublishOnly": "pnpm turbo build",
     "test": "vitest run",
+    "test:standalone": "vitest run --project standalone",
     "test:watch": "vitest"
   },
   "peerDependencies": {
@@ -49,6 +61,9 @@
   },
   "peerDependenciesMeta": {
     "@types/react": {
+      "optional": true
+    },
+    "react": {
       "optional": true
     }
   },

@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import {
   AssistantCloud,
   AssistantRuntimeProvider,
@@ -23,6 +30,17 @@ import {
   type XuluxLimitBlock,
 } from "./chat/XuluxUsageLimitBanner";
 import type { XuluxActivePreviewContext } from "./runtime/types";
+import {
+  createInitialLearnProgress,
+  readLearnProgress,
+  writeLearnProgress,
+} from "@/lib/xulux/learn/progress";
+import { DEFAULT_LEARN_COURSE_ID } from "@/lib/xulux/learn/registry";
+import type { LearnProgress } from "@/lib/xulux/learn/types";
+import { toLearnContext } from "@/lib/xulux/learn/context";
+import type { LearnAutoStartSource } from "@/lib/xulux/learn/types";
+
+export type XuluxMode = "playground" | "learn";
 
 export type SelectedTemplateContext = Pick<
   XuluxTemplate,
@@ -39,8 +57,22 @@ export type SelectedTemplateContext = Pick<
   | "docsUrl"
 >;
 
-export function XuluxApp() {
+export function XuluxApp({
+  mode = "playground",
+  courseId = DEFAULT_LEARN_COURSE_ID,
+  autoStart = false,
+  autoStartSource = "suggestion",
+}: {
+  mode?: XuluxMode;
+  courseId?: string;
+  autoStart?: boolean;
+  autoStartSource?: LearnAutoStartSource;
+}) {
   const [sessionId, setSessionId] = useState(() => crypto.randomUUID());
+  const [learnProgress, setLearnProgress] = useState<LearnProgress>(() =>
+    createInitialLearnProgress(courseId),
+  );
+  const [learnReady, setLearnReady] = useState(mode !== "learn");
   const [selectedTemplateContext, setSelectedTemplateContext] =
     useState<SelectedTemplateContext | null>(null);
   const [activePreviewContext, setActivePreviewContext] =
@@ -51,14 +83,36 @@ export function XuluxApp() {
     setActivePreviewContext(null);
   };
 
+  useEffect(() => {
+    if (mode !== "learn") return;
+    const stored = readLearnProgress(window.localStorage, courseId);
+    setLearnProgress(stored);
+    if (stored.threadId) setSessionId(stored.threadId);
+    setLearnReady(true);
+  }, [courseId, mode]);
+
+  const updateLearnProgress = useCallback((progress: LearnProgress) => {
+    setLearnProgress(progress);
+    writeLearnProgress(window.localStorage, progress);
+  }, []);
+
   return (
     <XuluxRuntimeProvider
+      mode={mode}
       sessionId={sessionId}
       selectedTemplateContext={selectedTemplateContext}
       activePreviewContext={activePreviewContext}
+      learnProgress={mode === "learn" ? learnProgress : null}
     >
       <AssistantPanelProvider>
         <XuluxShell
+          mode={mode}
+          courseId={courseId}
+          autoStart={autoStart}
+          autoStartSource={autoStartSource}
+          learnProgress={learnProgress}
+          learnReady={learnReady}
+          onUpdateLearnProgress={updateLearnProgress}
           sessionId={sessionId}
           onSetSessionId={setSessionId}
           onSetSelectedTemplateContext={setSelectedTemplateContext}
@@ -71,14 +125,18 @@ export function XuluxApp() {
 }
 
 function XuluxRuntimeProvider({
+  mode,
   sessionId,
   selectedTemplateContext,
   activePreviewContext,
+  learnProgress,
   children,
 }: {
+  mode: XuluxMode;
   sessionId: string;
   selectedTemplateContext: SelectedTemplateContext | null;
   activePreviewContext: XuluxActivePreviewContext | null;
+  learnProgress: LearnProgress | null;
   children: ReactNode;
 }) {
   const cloudBaseUrl =
@@ -91,9 +149,11 @@ function XuluxRuntimeProvider({
 
   return (
     <XuluxRuntimeProviderInner
+      mode={mode}
       sessionId={sessionId}
       selectedTemplateContext={selectedTemplateContext}
       activePreviewContext={activePreviewContext}
+      learnProgress={learnProgress}
       cloudBaseUrl={cloudBaseUrl}
     >
       {children}
@@ -118,15 +178,19 @@ function XuluxMissingCloudConfig() {
 }
 
 function XuluxRuntimeProviderInner({
+  mode,
   sessionId,
   selectedTemplateContext,
   activePreviewContext,
+  learnProgress,
   cloudBaseUrl,
   children,
 }: {
+  mode: XuluxMode;
   sessionId: string;
   selectedTemplateContext: SelectedTemplateContext | null;
   activePreviewContext: XuluxActivePreviewContext | null;
+  learnProgress: LearnProgress | null;
   cloudBaseUrl: string;
   children: ReactNode;
 }) {
@@ -136,6 +200,8 @@ function XuluxRuntimeProviderInner({
   selectedTemplateContextRef.current = selectedTemplateContext;
   const activePreviewContextRef = useRef(activePreviewContext);
   activePreviewContextRef.current = activePreviewContext;
+  const learnProgressRef = useRef(learnProgress);
+  learnProgressRef.current = learnProgress;
   const [limitBlock, setLimitBlock] = useState<XuluxLimitBlock | null>(null);
 
   useEffect(() => {
@@ -172,7 +238,7 @@ function XuluxRuntimeProviderInner({
   const transport = useMemo(() => {
     const chatFetch = createXuluxChatFetch();
     return new AssistantChatTransport({
-      api: "/api/xulux/chat",
+      api: mode === "learn" ? "/api/xulux/learn/chat" : "/api/xulux/chat",
       body: {
         get sessionId() {
           return sessionIdRef.current;
@@ -182,6 +248,10 @@ function XuluxRuntimeProviderInner({
         },
         get activePreviewContext() {
           return activePreviewContextRef.current;
+        },
+        get learnContext() {
+          const progress = learnProgressRef.current;
+          return progress ? toLearnContext(progress) : undefined;
         },
       },
       fetch: async (input, init) => {
@@ -197,7 +267,7 @@ function XuluxRuntimeProviderInner({
         return res;
       },
     });
-  }, []);
+  }, [mode]);
 
   const runtime = useRemoteThreadListRuntime({
     adapter,

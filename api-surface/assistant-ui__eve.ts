@@ -2,7 +2,7 @@ import { StandardSchemaV1 } from "@standard-schema/spec";
 
 import { InputResponse, SendTurnPayload } from "eve/client";
 
-import { EveMessage, EveMessageData, UseEveAgentHelpers, UseEveAgentOptions } from "eve/react";
+import { EveAuthorizationOutcome, EveAuthorizationPart, EveMessage, EveMessageData, UseEveAgentHelpers, UseEveAgentOptions } from "eve/react";
 
 type AddToolResultOptions = {
   messageId: string;
@@ -183,6 +183,7 @@ type ComposerRuntime = {
   send(options?: SendOptions): void;
   cancel(): void;
   steerQueueItem(queueItemId: string): void;
+  moveQueueItem(queueItemId: string, placement: QueuePlacement): void;
   removeQueueItem(queueItemId: string): void;
   subscribe(callback: () => void): Unsubscribe;
   getAttachmentByIndex(idx: number): AttachmentRuntime;
@@ -319,6 +320,19 @@ type EditComposerState = BaseComposerState & {
 
 type EveRuntimeExtras = Pick<UseEveAgentHelpers<EveMessageData>, "error" | "events" | "reset" | "session">;
 
+type EveAuthorizationData = {
+  readonly state: EveAuthorizationPart["state"];
+  readonly name: string;
+  readonly displayName?: string;
+  readonly description?: string;
+  readonly url?: string;
+  readonly userCode?: string;
+  readonly instructions?: string;
+  readonly expiresAt?: string;
+  readonly outcome?: EveAuthorizationOutcome;
+  readonly reason?: string;
+};
+
 type ExportedMessageRepository = {
   headId?: string | null;
   messages: Array<{
@@ -423,12 +437,12 @@ type ExternalStoreThreadListAdapter = {
 
 type ExternalThreadQueueAdapter = {
   items: readonly QueueItemState[];
-  enqueue: (message: AppendMessage, options: {
-    steer: boolean;
-  }) => void;
-  steer: (queueItemId: string) => void;
+  steerItems: readonly QueueItemState[];
+  enqueue: (message: AppendMessage) => void;
+  steer: (message: AppendMessage) => void;
+  move: (queueItemId: string, placement: QueuePlacement) => void;
+  edit: (queueItemId: string, message: AppendMessage) => void;
   remove: (queueItemId: string) => void;
-  clear: (reason: "cancel-run" | "edit" | "reload") => void;
 };
 
 type FeedbackAdapter = {
@@ -801,6 +815,13 @@ type ProviderTool<TArgs extends Record<string, unknown> = Record<string, unknown
 type QueueItemState = {
   readonly id: string;
   readonly prompt: string;
+  readonly parts: readonly (FileMessagePart | TextMessagePart)[];
+};
+
+type QueuePlacement = {
+  readonly lane?: "queue" | "steer";
+  readonly insertAfter?: string | null;
+  readonly insertBefore?: string | null;
 };
 
 type QuoteInfo = {
@@ -1487,7 +1508,7 @@ declare global {
 }
 
 declare namespace entry_root_exports {
-  export { ConvertEveMessagesOptions, EveRuntimeExtras, UseEveAgentRuntimeOptions, convertEveMessage, convertEveMessages, getEveMessageContent, toEveInputResponse, useEveAgentRuntime, useEveError, useEveEvents, useEveReset, useEveSession };
+  export { ConvertEveMessagesOptions, EveAuthorizationData, EveRuntimeExtras, UseEveAgentRuntimeOptions, convertEveMessage, convertEveMessages, getEveMessageContent, toEveInputResponse, useEveAgentRuntime, useEveError, useEveEvents, useEveReset, useEveSession };
 }
 
 declare const toEveInputResponse: (response: RespondToToolApprovalOptions) => InputResponse;

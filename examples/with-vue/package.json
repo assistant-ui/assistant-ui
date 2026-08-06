@@ -1,0 +1,23 @@
+{
+  "name": "with-vue",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite dev --port 3000",
+    "build": "vite build",
+    "serve": "vite preview"
+  },
+  "dependencies": {
+    "@assistant-ui/store": "workspace:*",
+    "@assistant-ui/tap": "workspace:*",
+    "@assistant-ui/vue": "workspace:*",
+    "vue": "^3.5.41"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.17",
+    "@vitejs/plugin-vue": "^6.0.8",
+    "typescript": "^7.0.2",
+    "vite": "^8.1.5"
+  }
+}

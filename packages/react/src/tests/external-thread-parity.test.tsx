@@ -246,6 +246,7 @@ describe("ExternalThread composer", () => {
 
   it("stamps the thread head as parentId on queue-adapter sends", async () => {
     const enqueue = vi.fn();
+    const steer = vi.fn();
     const { aui } = renderThread({
       messages: [
         {
@@ -260,18 +261,65 @@ describe("ExternalThread composer", () => {
       isRunning: true,
       queue: {
         items: [],
+        steerItems: [],
         enqueue,
-        steer: vi.fn(),
+        steer,
+        move: vi.fn(),
+        edit: vi.fn(),
         remove: vi.fn(),
-        clear: vi.fn(),
       },
     });
 
     aui().thread.composer().setText("queued");
     aui().thread.composer().send();
 
-    await waitFor(() => expect(enqueue).toHaveBeenCalledTimes(1));
-    expect(enqueue.mock.calls[0]![0].parentId).toBe("u1");
+    // mid-run sends default to the steer lane
+    await waitFor(() => expect(steer).toHaveBeenCalledTimes(1));
+    expect(steer.mock.calls[0]![0].parentId).toBe("u1");
+    expect(enqueue).not.toHaveBeenCalled();
+  });
+
+  it("routes edit-composer sends to onEdit with sourceId, bypassing the queue", async () => {
+    const onEdit = vi.fn();
+    const enqueue = vi.fn();
+    const steer = vi.fn();
+    const { aui } = renderThread({
+      messages: [
+        {
+          id: "u1",
+          role: "user",
+          content: [{ type: "text", text: "hi" }],
+          createdAt: new Date(0),
+          attachments: [],
+          metadata: { custom: {} },
+        } as unknown as ExternalThreadMessage,
+      ],
+      isRunning: false,
+      onEdit,
+      queue: {
+        items: [],
+        steerItems: [],
+        enqueue,
+        steer,
+        move: vi.fn(),
+        edit: vi.fn(),
+        remove: vi.fn(),
+      },
+    });
+
+    const composer = () => aui().thread.message({ id: "u1" }).composer();
+    composer().beginEdit();
+    await waitFor(() => expect(composer().getState().isEditing).toBe(true));
+    composer().setText("edited");
+    composer().send();
+
+    await waitFor(() => expect(onEdit).toHaveBeenCalledTimes(1));
+    expect(onEdit.mock.calls[0]![0]).toMatchObject({
+      sourceId: "u1",
+      content: [{ type: "text", text: "edited" }],
+    });
+    expect(enqueue).not.toHaveBeenCalled();
+    expect(steer).not.toHaveBeenCalled();
   });
 
   it("still refuses to send an empty composer synchronously after a send", async () => {
