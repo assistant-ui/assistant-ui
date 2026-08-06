@@ -137,10 +137,13 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
 
   const getStagedRun = (parentId: string | null) => {
     if (!parentId || !stagedInputsRef.current.has(parentId)) return null;
-    const staged: { id: string; message: AppendMessage }[] = [];
+    const staged: {
+      message: ThreadMessage;
+      input: { message: AppendMessage; runConfig: AppendMessage["runConfig"] };
+    }[] = [];
     for (const message of messagesRef.current) {
-      const entry = stagedInputsRef.current.get(message.id);
-      if (entry) staged.push({ id: message.id, message: entry.message });
+      const input = stagedInputsRef.current.get(message.id);
+      if (input) staged.push({ message, input });
       if (message.id === parentId) break;
     }
     return staged;
@@ -187,18 +190,26 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
             const stagedRun = getStagedRun(parentId);
             if (!stagedRun)
               throw new Error("Runtime does not support reloading messages.");
-            for (const entry of stagedRun) {
-              stagedInputsRef.current.delete(entry.id);
-              const nextMessages = messagesRef.current.filter(
-                (message) => message.id !== entry.id,
+            for (const { message: stagedMessage, input } of stagedRun) {
+              const previousMessages = messagesRef.current;
+              stagedInputsRef.current.delete(stagedMessage.id);
+              const nextMessages = previousMessages.filter(
+                (message) => message.id !== stagedMessage.id,
               );
               messagesRef.current = nextMessages;
               setStagedMessages(
                 stagedInputsRef.current.size > 0 ? nextMessages : null,
               );
-              await agent.send({
-                message: getEveMessageContent(entry.message),
-              });
+              try {
+                await agent.send({
+                  message: getEveMessageContent(input.message),
+                });
+              } catch (error) {
+                stagedInputsRef.current.set(stagedMessage.id, input);
+                messagesRef.current = previousMessages;
+                setStagedMessages(previousMessages);
+                throw error;
+              }
             }
           },
         }

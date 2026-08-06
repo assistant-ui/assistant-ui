@@ -233,12 +233,13 @@ describe("useEveAgentRuntime staged messages", () => {
     expect(agent.send).not.toHaveBeenCalled();
   });
 
-  it("keeps the unsent staged suffix when a promoted send rejects", async () => {
+  it("restores staged drafts when a promoted send rejects and promotes them all on retry", async () => {
     const send = vi
       .fn()
       .mockRejectedValueOnce(
         new Error("eve session is already processing a turn."),
-      );
+      )
+      .mockResolvedValue(undefined);
     const agent = createAgent({ data: settledData, send });
     mockUseEveAgent.mockReturnValue(agent as never);
     const { result } = renderHook(() => useEveAgentRuntime());
@@ -262,8 +263,24 @@ describe("useEveAgentRuntime staged messages", () => {
       expect(getText(result.current)).toEqual([
         "earlier",
         "earlier answer",
+        "first staged",
         "second staged",
       ]);
+    });
+
+    await act(async () => {
+      await result.current.thread.startRun({
+        parentId: secondStagedId,
+        sourceId: null,
+        runConfig: {},
+      });
+    });
+
+    expect(send).toHaveBeenCalledTimes(3);
+    expect(send).toHaveBeenNthCalledWith(2, { message: "first staged" });
+    expect(send).toHaveBeenNthCalledWith(3, { message: "second staged" });
+    await waitFor(() => {
+      expect(getText(result.current)).toEqual(["earlier", "earlier answer"]);
     });
   });
 
