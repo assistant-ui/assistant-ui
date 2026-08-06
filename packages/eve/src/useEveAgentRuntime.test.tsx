@@ -818,7 +818,7 @@ describe("useEveAgentRuntime concurrent sends", () => {
     expect(send).toHaveBeenNthCalledWith(2, { message: "second" });
   });
 
-  it("drops a queued send when the run is cancelled before it dispatches", async () => {
+  it("restages a queued user send when the run is cancelled before it dispatches", async () => {
     let resolveFirstSend!: () => void;
     const send = vi
       .fn()
@@ -856,6 +856,104 @@ describe("useEveAgentRuntime concurrent sends", () => {
       resolveFirstSend();
     });
     expect(send).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      expect(getText(result.current)).toEqual([
+        "earlier",
+        "earlier answer",
+        "queued",
+      ]);
+    });
+  });
+
+  it("promotes a restaged send on reload without duplicating the dispatched one", async () => {
+    let resolveFirstSend!: () => void;
+    const send = vi
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise<void>((resolve) => {
+            resolveFirstSend = resolve;
+          }),
+      )
+      .mockResolvedValue(undefined);
+    const agent = createAgent({ data: settledData, send });
+    mockUseEveAgent.mockReturnValue(agent as never);
+    const { result } = renderHook(() => useEveAgentRuntime());
+
+    await act(async () => {
+      result.current.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "first" }],
+      });
+    });
+    await waitFor(() => expect(send).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      result.current.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "queued" }],
+      });
+    });
+    act(() => {
+      result.current.thread.cancelRun();
+    });
+    await act(async () => {
+      resolveFirstSend();
+    });
+    await waitFor(() => expect(getText(result.current)).toHaveLength(3));
+
+    const restagedId = result.current.thread.getState().messages[2]!.id;
+    await act(async () => {
+      await result.current.thread.startRun({
+        parentId: restagedId,
+        sourceId: null,
+        runConfig: {},
+      });
+    });
+
+    expect(send).toHaveBeenCalledTimes(2);
+    expect(send).toHaveBeenNthCalledWith(2, { message: "queued" });
+  });
+
+  it("discards a queued tool approval when the run is cancelled before it dispatches", async () => {
+    let resolveFirstSend!: () => void;
+    const send = vi
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise<void>((resolve) => {
+            resolveFirstSend = resolve;
+          }),
+      )
+      .mockResolvedValue(undefined);
+    const agent = createAgent({ data: approvalData, send });
+    mockUseEveAgent.mockReturnValue(agent as never);
+    const { result } = renderHook(() => useEveAgentRuntime());
+    const before = getText(result.current);
+
+    await act(async () => {
+      result.current.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "go" }],
+      });
+    });
+    await waitFor(() => expect(send).toHaveBeenCalledTimes(1));
+
+    act(() => {
+      result.current.thread
+        .getMessageByIndex(1)
+        .getMessagePartByToolCallId("call_1")
+        .respondToToolApproval({ optionId: "approve" });
+    });
+    act(() => {
+      result.current.thread.cancelRun();
+    });
+    await act(async () => {
+      resolveFirstSend();
+    });
+
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(getText(result.current)).toEqual(before);
   });
 
   it("drops a queued send when the hook unmounts before it dispatches", async () => {

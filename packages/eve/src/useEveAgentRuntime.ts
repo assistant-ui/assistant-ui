@@ -250,6 +250,10 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
         });
       } catch (error) {
         if (error !== sendCancelledError) throw error;
+        // The sentinel is only thrown before the payload reaches the agent, and
+        // the composer cleared its draft at dispatch time, so staging is the
+        // only place the authored message still exists.
+        stageUserMessage(message);
       }
     },
     ...(stagedMessages
