@@ -242,10 +242,16 @@ export function useAgUiRuntime(
         unstable_enableToolInvocations: true,
         setToolStatuses,
         onNew: (message: AppendMessage) => core.append(message),
-        onEdit: (message: AppendMessage) => core.edit(message),
-        onReload: (parentId: string | null, config: { runConfig?: any }) =>
-          core.reload(parentId, config),
+        onEdit: (message: AppendMessage) => {
+          queueController?.clear();
+          return core.edit(message);
+        },
+        onReload: (parentId: string | null, config: { runConfig?: any }) => {
+          queueController?.clear();
+          return core.reload(parentId, config);
+        },
         onCancel: async () => {
+          queueController?.clear();
           core.cancel();
         },
         onAddToolResult: (options) => core.addToolResult(options),

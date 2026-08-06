@@ -201,7 +201,7 @@ export type ComposerRuntime = {
    */
   cancel(): void;
 
-  /** @deprecated Use `moveQueueItem(queueItemId, { lane: "steer" })` instead. Removal after 2026-11-05. */
+  /** @deprecated Use `moveQueueItem(queueItemId, { lane: "steer", insertAfter: null })` instead. Removal after 2026-11-05. */
   steerQueueItem(queueItemId: string): void;
 
   /** Move a queued message between lanes or within a lane. */
@@ -327,7 +327,7 @@ export abstract class ComposerRuntimeImpl implements ComposerRuntime {
   }
 
   public steerQueueItem(queueItemId: string) {
-    this.moveQueueItem(queueItemId, { lane: "steer" });
+    this.moveQueueItem(queueItemId, { lane: "steer", insertAfter: null });
   }
 
   public moveQueueItem(queueItemId: string, placement: QueuePlacement) {

@@ -18,7 +18,12 @@ export type ExternalThreadQueueAdapter = {
   enqueue: (message: AppendMessage) => void;
   /** Send a message into the steer lane, processed next. */
   steer: (message: AppendMessage) => void;
-  /** Move a queued message between lanes or within a lane. */
+  /**
+   * Move a queued message between lanes or within a lane. An unanchored move
+   * into the steer lane mid-run interrupts — cancels the live run and
+   * dispatches the item — when the runtime supports cancellation; a move with
+   * `insertAfter`/`insertBefore` only places the item and never interrupts.
+   */
   move: (queueItemId: string, placement: QueuePlacement) => void;
   edit: (queueItemId: string, message: AppendMessage) => void;
   remove: (queueItemId: string) => void;

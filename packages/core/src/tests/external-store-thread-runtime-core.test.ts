@@ -868,7 +868,7 @@ describe("ExternalStoreThreadRuntimeCore - message queue", () => {
     expect(withoutQueue.capabilities.queue).toBe(false);
   });
 
-  it("routes a tail append through queue.enqueue instead of onNew", async () => {
+  it("routes a tail append through the queue adapter instead of onNew", async () => {
     const queue = makeQueue();
     const onNew = vi.fn();
     const runtime = new ExternalStoreThreadRuntimeCore(

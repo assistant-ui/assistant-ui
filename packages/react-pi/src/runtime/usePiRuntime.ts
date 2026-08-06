@@ -234,7 +234,8 @@ const usePiThreadStore = (
   // adapter forwards every send straight to the controller instead of
   // buffering client-side. Exposing it flips on `capabilities.queue`, which is
   // what lets the composer keep accepting input while a run is streaming
-  // (plain Enter → follow-up, Cmd/Ctrl+Shift+Enter → steer).
+  // (mid-run sends steer by default; `send({ steer: false })` queues a
+  // follow-up).
   const queue = useMemo<ExternalThreadQueueAdapter>(
     () => ({
       items: state.queue.followUp.map((content, index) => ({
@@ -287,7 +288,10 @@ const usePiThreadStore = (
       },
       onCancel: async () => {
         try {
-          await Promise.all([controller.clearQueue(), controller.cancel()]);
+          // clear before cancelling so the server cannot promote a queued
+          // prompt into a new run in between
+          await controller.clearQueue();
+          await controller.cancel();
         } catch (error) {
           onError?.(error);
           throw error;

@@ -29,7 +29,8 @@ export type MessageQueueController = {
   /**
    * Pauses queue advance for a user-initiated cancel, so the cancelled run's
    * settle keeps the pending items instead of dispatching the next one; the
-   * next explicit send re-arms draining. Call before aborting the run.
+   * next explicit send or run start re-arms draining. Call before aborting
+   * the run.
    */
   notifyCancelled: () => void;
   /** Empties both lanes without dispatching. */
@@ -48,23 +49,20 @@ const getQueueItemParts = (
       (attachment) => attachment.content ?? [],
     ),
   ];
-  const files: FileMessagePart[] = [];
-  const texts: TextMessagePart[] = [];
+  const parts: (FileMessagePart | TextMessagePart)[] = [];
   for (const part of source) {
-    if (part.type === "file") {
-      files.push(part);
+    if (part.type === "file" || part.type === "text") {
+      parts.push(part);
     } else if (part.type === "image") {
-      files.push({
+      parts.push({
         type: "file",
         data: part.image,
         mimeType: "image/*",
         ...(part.filename !== undefined && { filename: part.filename }),
       });
-    } else if (part.type === "text") {
-      texts.push(part);
     }
   }
-  return [...files, ...texts];
+  return parts;
 };
 
 export const createMessageQueue = (
@@ -249,6 +247,7 @@ export const createMessageQueue = (
   return {
     adapter,
     notifyBusy: () => {
+      paused = false;
       running = true;
     },
     notifyIdle: () => {

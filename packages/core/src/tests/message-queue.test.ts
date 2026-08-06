@@ -78,7 +78,7 @@ describe("createMessageQueue", () => {
     expect(adapter.items[0]!.prompt).toBe("hello");
   });
 
-  it("projects files first, converting image parts to file parts", () => {
+  it("projects parts in source order, converting image parts to file parts", () => {
     const run = vi.fn();
     const { adapter, notifyBusy } = createMessageQueue({ run });
     notifyBusy();
@@ -109,6 +109,7 @@ describe("createMessageQueue", () => {
     );
 
     expect(adapter.items[0]!.parts).toEqual([
+      { type: "text", text: "caption" },
       {
         type: "file",
         data: "https://example.com/cat.png",
@@ -119,7 +120,6 @@ describe("createMessageQueue", () => {
         data: "data:application/pdf;base64,QQ==",
         mimeType: "application/pdf",
       },
-      { type: "text", text: "caption" },
     ]);
   });
 
@@ -427,6 +427,27 @@ describe("createMessageQueue", () => {
       { steer: false },
     );
     expect(prompts(adapter.items)).toEqual(["c", "d"]);
+  });
+
+  it("a run started after a cancel re-arms draining", () => {
+    const run = vi.fn();
+    const { adapter, notifyBusy, notifyIdle, notifyCancelled } =
+      createMessageQueue({ run });
+
+    adapter.enqueue(msg("a")); // running
+    adapter.enqueue(msg("b"));
+
+    notifyCancelled();
+    notifyIdle(); // the cancelled run settles
+    expect(run).toHaveBeenCalledTimes(1);
+
+    notifyBusy(); // regenerate
+    notifyIdle();
+    expect(run).toHaveBeenCalledTimes(2);
+    expect(run).toHaveBeenLastCalledWith(
+      expect.objectContaining({ content: [{ type: "text", text: "b" }] }),
+      { steer: false },
+    );
   });
 
   it("clear empties both lanes without dispatching", () => {

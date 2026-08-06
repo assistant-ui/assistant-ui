@@ -404,7 +404,7 @@ const useQueueItemClient = ({
 }): ClientOutput<"queueItem"> => {
   return {
     getState: () => item,
-    steer: () => onMove({ lane: "steer" }),
+    steer: () => onMove({ lane: "steer", insertAfter: null }),
     move: onMove,
     remove: onRemove,
   };

@@ -657,6 +657,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
           toolResultBufferRef.current.clear();
           pendingResumeRef.current = null;
           runQueue.drop();
+          queueRef.current?.clear();
           const truncated = truncateLangChainMessages(
             threadMessagesRef.current,
             msg.parentId,
@@ -694,6 +695,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
     ...(getCheckpointId || hasStagedMessages
       ? {
           onReload: async (parentId, config) => {
+            queueRef.current?.clear();
             const stagedRun = getStagedRun(parentId);
             if (stagedRun) {
               for (const message of stagedRun.messages) {

@@ -4,6 +4,7 @@
 "@assistant-ui/react-ink": patch
 "@assistant-ui/react-pi": patch
 "@assistant-ui/react-langgraph": patch
+"@assistant-ui/react-ag-ui": patch
 ---
 
-feat: two-lane, placement-aware message queue with parts-projected queue items, thread run status surface, and `aui.thread.resume()`
+feat: two-lane, placement-aware message queue with steer-by-default mid-run sends
