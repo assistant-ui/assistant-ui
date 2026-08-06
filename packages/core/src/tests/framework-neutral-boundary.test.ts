@@ -33,6 +33,10 @@ const IMPORT_RE =
 
 const SIDE_EFFECT_IMPORT_RE = /import\s+["']([^"']+)["']/g;
 
+const EXPORT_STAR_RE = /export\s+\*\s+from\s+["']([^"']+)["']/g;
+
+const DYNAMIC_IMPORT_RE = /\b(?:import|require)\s*\(\s*["']([^"']+)["']\s*\)/g;
+
 const FROM_REACT_RE =
   /(?:import|export)\s+(?:type\s+)?([\s\S]*?)\s+from\s+["']react["']/g;
 
@@ -56,7 +60,12 @@ function resolveRelative(fromFile: string, spec: string): string | null {
 
 function collectImports(content: string): string[] {
   const specs: string[] = [];
-  for (const re of [IMPORT_RE, SIDE_EFFECT_IMPORT_RE]) {
+  for (const re of [
+    IMPORT_RE,
+    SIDE_EFFECT_IMPORT_RE,
+    EXPORT_STAR_RE,
+    DYNAMIC_IMPORT_RE,
+  ]) {
     re.lastIndex = 0;
     let match: RegExpExecArray | null;
     while ((match = re.exec(content)) !== null) {

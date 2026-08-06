@@ -2,12 +2,13 @@ import type { ThreadMessage } from "../../types/message";
 import type { AssistantRuntime } from "../../runtime/api/assistant-runtime";
 import type { AssistantStream } from "assistant-stream";
 
-// oxlint-disable-next-line typescript/no-explicit-any -- structural stand-in for ComponentType without depending on react types
+/* oxlint-disable typescript/no-explicit-any -- structural stand-in for ComponentType without depending on react types */
 type RemoteThreadListProviderProps = { children?: any };
 
 export type RemoteThreadListProviderComponent =
-  | ((props: RemoteThreadListProviderProps) => unknown)
-  | (new (props: RemoteThreadListProviderProps) => unknown);
+  | ((props: RemoteThreadListProviderProps) => any)
+  | (new (props: RemoteThreadListProviderProps) => any);
+/* oxlint-enable typescript/no-explicit-any */
 
 export type RemoteThreadInitializeResponse = {
   remoteId: string;

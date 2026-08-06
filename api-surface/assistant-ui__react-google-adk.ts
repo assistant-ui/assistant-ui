@@ -1668,7 +1668,7 @@ type RemoteThreadListPageOptions = {
   after?: string | undefined;
 };
 
-type RemoteThreadListProviderComponent = ((props: RemoteThreadListProviderProps) => unknown) | (new (props: RemoteThreadListProviderProps) => unknown);
+type RemoteThreadListProviderComponent = ((props: RemoteThreadListProviderProps) => any) | (new (props: RemoteThreadListProviderProps) => any);
 
 type RemoteThreadListProviderProps = {
   children?: any;
