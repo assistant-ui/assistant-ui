@@ -436,8 +436,9 @@ export class LocalThreadRuntimeCore
     } finally {
       this._notifyEventSubscribers("runEnd", {});
       // queue-driven runs release from the driver settle handler; a direct
-      // run (regenerate, resume) releases here
-      if (!this._queueRunInFlight) {
+      // run (regenerate, resume) releases here — unless it was superseded,
+      // in which case the superseding run owns the next settle
+      if (!this._queueRunInFlight && this.abortController === null) {
         queueMicrotask(() => this._queue?.notifyIdle());
       }
     }

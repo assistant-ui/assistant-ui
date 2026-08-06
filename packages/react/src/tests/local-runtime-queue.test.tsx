@@ -338,6 +338,38 @@ describe("local runtime message queue", () => {
     ).toEqual(["Y"]);
   });
 
+  it("keeps a second regenerate alive when the first one's settle arrives", async () => {
+    const { adapter, releases, getRunCount } = createCountingAdapter();
+    const aui = renderWithRuntime(adapter, true);
+
+    await send(aui, "first");
+    await act(async () => {
+      releases[0]!();
+      await flush();
+    });
+
+    await act(async () => {
+      aui.thread.message({ index: 1 }).reload();
+      await flush();
+    });
+    await send(aui, "Y");
+
+    // the second regenerate aborts the first; its settle must not dispatch
+    await act(async () => {
+      aui.thread.message({ index: 1 }).reload();
+      await flush();
+    });
+    expect(getRunCount()).toBe(3);
+    expect(aui.thread.composer().getState().queue).toHaveLength(1);
+
+    await act(async () => {
+      releases[2]!();
+      await flush();
+    });
+    expect(getRunCount()).toBe(4);
+    expect(aui.thread.composer().getState().queue).toEqual([]);
+  });
+
   it("advances exactly once after a failed run, without deadlocking", async () => {
     const releases: Array<() => void> = [];
     let runCount = 0;
