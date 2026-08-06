@@ -24,6 +24,39 @@ import { asAsyncIterableStream } from "assistant-stream/utils";
 
 type HeadersValue = Record<string, string> | Headers;
 
+type DataStreamRuntimeCallbackName = "onFinish" | "onError" | "onCancel";
+
+const reportCallbackError = (
+  name: DataStreamRuntimeCallbackName,
+  error: unknown,
+) => {
+  console.error(`[react-data-stream] ${name} callback threw an error`, error);
+};
+
+const invokeRuntimeCallback = <TArgs extends unknown[]>(
+  name: DataStreamRuntimeCallbackName,
+  callback: ((...args: TArgs) => void) | undefined,
+  ...args: TArgs
+) => {
+  if (!callback) return;
+
+  try {
+    const result = callback(...args) as unknown;
+    if (
+      result !== null &&
+      (typeof result === "object" || typeof result === "function") &&
+      "then" in result &&
+      typeof result.then === "function"
+    ) {
+      void Promise.resolve(result).catch((error) => {
+        reportCallbackError(name, error);
+      });
+    }
+  } catch (error) {
+    reportCallbackError(name, error);
+  }
+};
+
 export type { DataStreamProtocol } from "./protocol";
 
 let didWarnProtocolFallback = false;
@@ -80,7 +113,9 @@ class DataStreamRuntimeAdapter implements ChatModelAdapter {
     unstable_getMessage,
   }: ChatModelRunOptions) {
     const handleAbort = () => {
-      if (!abortSignal.reason?.detach) this.options.onCancel?.();
+      if (!abortSignal.reason?.detach) {
+        invokeRuntimeCallback("onCancel", this.options.onCancel);
+      }
     };
 
     if (abortSignal.aborted) {
@@ -135,7 +170,9 @@ class DataStreamRuntimeAdapter implements ChatModelAdapter {
     } catch (error: unknown) {
       abortSignal.removeEventListener("abort", handleAbort);
       if (!(error instanceof Error && error.name === "AbortError")) {
-        this.options.onError?.(
+        invokeRuntimeCallback(
+          "onError",
+          this.options.onError,
           error instanceof Error ? error : new Error(String(error)),
         );
       }
@@ -191,9 +228,13 @@ class DataStreamRuntimeAdapter implements ChatModelAdapter {
 
       yield* asAsyncIterableStream(stream);
 
-      this.options.onFinish?.(unstable_getMessage());
+      invokeRuntimeCallback(
+        "onFinish",
+        this.options.onFinish,
+        unstable_getMessage(),
+      );
     } catch (error: unknown) {
-      this.options.onError?.(error as Error);
+      invokeRuntimeCallback("onError", this.options.onError, error as Error);
       throw error;
     } finally {
       abortSignal.removeEventListener("abort", handleAbort);

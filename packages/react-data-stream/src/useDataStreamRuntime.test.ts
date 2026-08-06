@@ -46,6 +46,13 @@ const createAdapter = (options: UseDataStreamRuntimeOptions) => {
 const runOnce = (adapter: ChatModelAdapter, options: ChatModelRunOptions) =>
   (adapter.run(options) as AsyncGenerator).next();
 
+const runToCompletion = async (
+  adapter: ChatModelAdapter,
+  options: ChatModelRunOptions,
+) => {
+  for await (const _ of adapter.run(options)) void _;
+};
+
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.clearAllMocks();
@@ -83,6 +90,36 @@ describe("useDataStreamRuntime request errors", () => {
     await expect(runOnce(adapter, createRunOptions())).rejects.toBe(error);
     expect(onError).toHaveBeenCalledExactlyOnceWith(error);
   });
+
+  it.each(["throws", "rejects"] as const)(
+    "preserves request failures when onError %s",
+    async (failureMode) => {
+      const requestError = new TypeError("Failed to fetch");
+      const callbackError = new Error("error callback failed");
+      const consoleError = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+      vi.stubGlobal("fetch", vi.fn().mockRejectedValue(requestError));
+
+      const adapter = createAdapter({
+        api: "/api/chat",
+        onError: () => {
+          if (failureMode === "throws") throw callbackError;
+          return Promise.reject(callbackError);
+        },
+      });
+
+      await expect(runOnce(adapter, createRunOptions())).rejects.toBe(
+        requestError,
+      );
+      await vi.waitFor(() => {
+        expect(consoleError).toHaveBeenCalledWith(
+          "[react-data-stream] onError callback threw an error",
+          callbackError,
+        );
+      });
+    },
+  );
 
   it("keeps response callback failures separate from request errors", async () => {
     const error = new Error("response callback failed");
@@ -204,6 +241,86 @@ describe("useDataStreamRuntime request errors", () => {
     expect(onCancel).toHaveBeenCalledOnce();
     expect(onError).not.toHaveBeenCalled();
   });
+
+  it.each(["throws", "rejects"] as const)(
+    "keeps cancellation settled when onCancel %s",
+    async (failureMode) => {
+      const controller = new AbortController();
+      const abortError = new DOMException("Cancelled", "AbortError");
+      const callbackError = new Error("cancel callback failed");
+      const consoleError = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+      vi.stubGlobal(
+        "fetch",
+        vi.fn((_input: RequestInfo | URL, init?: RequestInit) => {
+          return new Promise<Response>((_resolve, reject) => {
+            init?.signal?.addEventListener(
+              "abort",
+              () => reject(init.signal?.reason),
+              { once: true },
+            );
+          });
+        }),
+      );
+      const adapter = createAdapter({
+        api: "/api/chat",
+        onCancel: () => {
+          if (failureMode === "throws") throw callbackError;
+          return Promise.reject(callbackError);
+        },
+      });
+      const result = runOnce(adapter, createRunOptions(controller.signal));
+
+      controller.abort(abortError);
+
+      await expect(result).rejects.toBe(abortError);
+      await vi.waitFor(() => {
+        expect(consoleError).toHaveBeenCalledWith(
+          "[react-data-stream] onCancel callback threw an error",
+          callbackError,
+        );
+      });
+    },
+  );
+});
+
+describe("useDataStreamRuntime lifecycle callbacks", () => {
+  it.each(["throws", "rejects"] as const)(
+    "keeps successful responses successful when onFinish %s",
+    async (failureMode) => {
+      const callbackError = new Error("finish callback failed");
+      const onError = vi.fn();
+      const consoleError = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue(new Response("data: [DONE]\n\n")),
+      );
+      const adapter = createAdapter({
+        api: "/api/chat",
+        protocol: "ui-message-stream",
+        onFinish: () => {
+          if (failureMode === "throws") throw callbackError;
+          return Promise.reject(callbackError);
+        },
+        onError,
+      });
+
+      await expect(
+        runToCompletion(adapter, createRunOptions()),
+      ).resolves.toBeUndefined();
+
+      expect(onError).not.toHaveBeenCalled();
+      await vi.waitFor(() => {
+        expect(consoleError).toHaveBeenCalledWith(
+          "[react-data-stream] onFinish callback threw an error",
+          callbackError,
+        );
+      });
+    },
+  );
 });
 
 const createAssistantMessage = (
