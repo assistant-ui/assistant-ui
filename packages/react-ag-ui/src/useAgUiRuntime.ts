@@ -1,12 +1,23 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import {
   useExternalStoreRuntime,
   useExternalStoreSharedOptions,
   useRuntimeAdapters,
 } from "@assistant-ui/core/react";
-import type { ToolExecutionStatus } from "@assistant-ui/core";
+import { createMessageQueue } from "@assistant-ui/core";
+import type {
+  MessageQueueController,
+  ToolExecutionStatus,
+} from "@assistant-ui/core";
 import type {
   AssistantRuntime,
   AppendMessage,
@@ -22,8 +33,11 @@ import type {
 } from "./runtime/types";
 import { AgUiThreadRuntimeCore } from "./runtime/AgUiThreadRuntimeCore";
 import { agUiExtras } from "./agUiExtras";
+import type { QueueItemState } from "@assistant-ui/core/store";
 
 const EMPTY_INTERRUPTS: readonly AgUiInterrupt[] = [];
+const EMPTY_QUEUE_ITEMS: readonly QueueItemState[] = Object.freeze([]);
+const subscribeNoop = () => () => {};
 
 export type AgUiAssistantRuntime = AssistantRuntime & {
   /**
@@ -84,6 +98,41 @@ export function useAgUiRuntime(
   const hasExecutingTools = Object.values(toolStatuses).some(
     (s) => s?.type === "executing",
   );
+  const isRunning = core.isRunning() || hasExecutingTools;
+
+  // The driver sends through the agent core rather than the runtime, because
+  // the runtime's append routes every tail append back into this queue.
+  const queueRef = useRef<MessageQueueController | null>(null);
+  if (options.unstable_enableMessageQueue && !queueRef.current) {
+    queueRef.current = createMessageQueue({
+      run: (message) => {
+        void core.append(message);
+      },
+    });
+  } else if (!options.unstable_enableMessageQueue && queueRef.current) {
+    queueRef.current.adapter.clear("cancel-run");
+    queueRef.current = null;
+  }
+  const queueController = options.unstable_enableMessageQueue
+    ? queueRef.current
+    : null;
+
+  // Re-render when queued items change so composer.queue re-syncs.
+  useSyncExternalStore(
+    queueController?.subscribe ?? subscribeNoop,
+    () => queueController?.adapter.items ?? EMPTY_QUEUE_ITEMS,
+    () => EMPTY_QUEUE_ITEMS,
+  );
+
+  // Gate on the same value the store reports as isRunning, so a queued message
+  // does not flush while client-side tools are still executing.
+  useEffect(() => {
+    if (isRunning) {
+      queueController?.notifyBusy();
+    } else {
+      queueController?.notifyIdle();
+    }
+  }, [isRunning, queueController]);
 
   const threadList = useMemo(() => {
     if (!threadListAdapter) return undefined;
@@ -143,7 +192,7 @@ export function useAgUiRuntime(
         isLoading: core.isLoading,
         messageRepository: core.getMessageRepository(),
         state: core.getState(),
-        isRunning: core.isRunning() || hasExecutingTools,
+        isRunning,
         extras: agUiExtras.provide({
           interrupts:
             core.getPendingInterrupts()?.interrupts ?? EMPTY_INTERRUPTS,
@@ -172,11 +221,12 @@ export function useAgUiRuntime(
         onLoadExternalState: (state: ReadonlyJSONValue) =>
           core.loadExternalState(state),
         adapters: adapterAdapters,
+        ...(queueController && { queue: queueController.adapter }),
       } satisfies ExternalStoreAdapter<ThreadMessage>;
     },
     // _version is intentionally included to trigger re-computation when core state changes via notifyUpdate
     // toolInvocations intentionally excluded: abort/resume use refs internally and work with stale captures
-    [adapterAdapters, core, _version, hasExecutingTools, shared],
+    [adapterAdapters, core, _version, isRunning, queueController, shared],
   );
 
   const baseRuntime = useExternalStoreRuntime(store);
