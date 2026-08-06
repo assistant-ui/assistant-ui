@@ -9,7 +9,8 @@ export const QueueItemText = ({
   ...textProps
 }: QueueItemTextProps) => {
   const text = useAuiState((s) =>
-    s.queueItem.parts
+    // hosts on the pre-parts adapter shape may omit the field at runtime
+    (s.queueItem.parts ?? [])
       .filter((part) => part.type === "text")
       .map((part) => part.text)
       .join("\n\n"),

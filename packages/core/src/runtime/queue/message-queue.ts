@@ -43,10 +43,12 @@ type Lane = "queue" | "steer";
 const getQueueItemParts = (
   message: AppendMessage,
 ): readonly (FileMessagePart | TextMessagePart)[] => {
+  // attachment-derived text is the file body, not user-authored prose;
+  // project only the file/image content of attachments
   const source = [
     ...message.content,
-    ...(message.attachments ?? []).flatMap(
-      (attachment) => attachment.content ?? [],
+    ...(message.attachments ?? []).flatMap((attachment) =>
+      (attachment.content ?? []).filter((part) => part.type !== "text"),
     ),
   ];
   const parts: (FileMessagePart | TextMessagePart)[] = [];
@@ -120,7 +122,9 @@ export const createMessageQueue = (
 
   const interrupt = (message: AppendMessage) => {
     paused = false;
-    suppressIdle += cancelSettles + 1;
+    // the interrupted run settles exactly once, whether or not it was
+    // already cancel-notified
+    suppressIdle += Math.max(cancelSettles, 1);
     cancelSettles = 0;
     driver.cancel!();
     running = true;
@@ -262,18 +266,14 @@ export const createMessageQueue = (
         suppressIdle--;
         return;
       }
-      if (cancelSettles > 0) {
-        cancelSettles--;
-        running = false;
-        return;
-      }
+      if (cancelSettles > 0) cancelSettles--;
       running = false;
       advance();
     },
     notifyCancelled: () => {
-      if (running) {
+      if (running && cancelSettles === 0) {
         paused = true;
-        cancelSettles++;
+        cancelSettles = 1;
       }
     },
     clear: () => {

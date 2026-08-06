@@ -78,6 +78,36 @@ describe("createMessageQueue", () => {
     expect(adapter.items[0]!.prompt).toBe("hello");
   });
 
+  it("excludes attachment-derived text parts from the projection", () => {
+    const run = vi.fn();
+    const { adapter, notifyBusy } = createMessageQueue({ run });
+    notifyBusy();
+
+    adapter.enqueue(
+      msg("caption", {
+        attachments: [
+          {
+            id: "att1",
+            type: "document",
+            name: "notes.md",
+            contentType: "text/markdown",
+            status: { type: "complete" },
+            content: [
+              {
+                type: "text",
+                text: "<attachment>entire file body</attachment>",
+              },
+            ],
+          },
+        ],
+      }),
+    );
+
+    expect(adapter.items[0]!.parts).toEqual([
+      { type: "text", text: "caption" },
+    ]);
+  });
+
   it("projects parts in source order, converting image parts to file parts", () => {
     const run = vi.fn();
     const { adapter, notifyBusy } = createMessageQueue({ run });
@@ -464,6 +494,75 @@ describe("createMessageQueue", () => {
     expect(run).toHaveBeenCalledTimes(1); // nothing dispatches mid-run
 
     notifyIdle(); // the replacement run settles
+    expect(run).toHaveBeenCalledTimes(2);
+    expect(run).toHaveBeenLastCalledWith(
+      expect.objectContaining({ content: [{ type: "text", text: "b" }] }),
+      { steer: false },
+    );
+  });
+
+  it("a send during the cancellation window drains once the cancelled run settles", () => {
+    const run = vi.fn();
+    const { adapter, notifyIdle, notifyCancelled } = createMessageQueue({
+      run,
+    });
+
+    adapter.enqueue(msg("a")); // running
+    adapter.enqueue(msg("b"));
+
+    notifyCancelled();
+    adapter.enqueue(msg("c")); // re-arms before the cancelled run settles
+    expect(run).toHaveBeenCalledTimes(1);
+
+    notifyIdle(); // the cancelled run settles
+    expect(run).toHaveBeenCalledTimes(2);
+    expect(run).toHaveBeenLastCalledWith(
+      expect.objectContaining({ content: [{ type: "text", text: "b" }] }),
+      { steer: false },
+    );
+  });
+
+  it("steering during the cancellation window swallows only the cancelled settle", () => {
+    const run = vi.fn();
+    const cancel = vi.fn();
+    const { adapter, notifyIdle, notifyCancelled } = createMessageQueue({
+      run,
+      cancel,
+    });
+
+    adapter.enqueue(msg("a")); // running
+    adapter.enqueue(msg("b"));
+
+    notifyCancelled();
+    adapter.steer(msg("s")); // interrupts before the cancelled run settles
+    expect(run).toHaveBeenCalledTimes(2);
+
+    notifyIdle(); // the cancelled run's settle is swallowed
+    expect(run).toHaveBeenCalledTimes(2);
+
+    notifyIdle(); // the steered run settles and draining resumes
+    expect(run).toHaveBeenCalledTimes(3);
+    expect(run).toHaveBeenLastCalledWith(
+      expect.objectContaining({ content: [{ type: "text", text: "b" }] }),
+      { steer: false },
+    );
+  });
+
+  it("a repeated cancel counts a single settle", () => {
+    const run = vi.fn();
+    const { adapter, notifyIdle, notifyCancelled } = createMessageQueue({
+      run,
+    });
+
+    adapter.enqueue(msg("a")); // running
+    adapter.enqueue(msg("b"));
+
+    notifyCancelled();
+    notifyCancelled();
+    notifyIdle(); // the cancelled run settles
+    expect(run).toHaveBeenCalledTimes(1);
+
+    adapter.enqueue(msg("c"));
     expect(run).toHaveBeenCalledTimes(2);
     expect(run).toHaveBeenLastCalledWith(
       expect.objectContaining({ content: [{ type: "text", text: "b" }] }),
