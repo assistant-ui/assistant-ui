@@ -1,6 +1,7 @@
 "use client";
 
 import { ModelSelector } from "@/components/assistant-ui/model-selector";
+import { Button } from "@/components/ui/button";
 import { AssistantComposer } from "@/components/docs/assistant/composer";
 import { AssistantActionBar } from "@/components/docs/assistant/assistant-action-bar";
 import { XuluxMarkdownText } from "./XuluxMarkdownText";
@@ -24,11 +25,12 @@ import {
   useAui,
   useAuiState,
 } from "@assistant-ui/react";
+import { BookOpen } from "lucide-react";
 import Image from "next/image";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { XuluxPoweredBy } from "../XuluxPoweredBy";
 import { useXuluxTemplateContext } from "./XuluxTemplateContext";
-import { XuluxToolCall } from "./XuluxToolCall";
+import { LearnCourseResultFooter, XuluxToolCall } from "./XuluxToolCall";
 import { XuluxUsageLimitBanner } from "./XuluxUsageLimitBanner";
 
 const XULUX_CONTEXT_WINDOW = 1_050_000;
@@ -46,8 +48,14 @@ type XuluxModelId = (typeof XULUX_MODELS)[number]["id"];
 
 export function XuluxThread({
   onNewThread,
+  learn,
 }: {
-  onNewThread: () => void;
+  onNewThread?: () => void;
+  learn?: {
+    started: boolean;
+    onStartCourse: () => void;
+    startDisabled?: boolean;
+  };
 }): ReactNode {
   const template = useXuluxTemplateContext();
   const welcome = useMemo(() => getXuluxThreadWelcome(template), [template]);
@@ -57,7 +65,17 @@ export function XuluxThread({
       <XuluxPendingMessageHandler />
       <ThreadPrimitive.Viewport className="flex flex-1 scrollbar-none flex-col overflow-y-auto overscroll-contain px-3 pt-3">
         <AuiIf condition={(s) => s.thread.isEmpty}>
-          <XuluxWelcome welcome={welcome} templateTitle={template?.title} />
+          {learn ? (
+            <XuluxLearnWelcome
+              started={learn.started}
+              onStartCourse={learn.onStartCourse}
+              {...(learn.startDisabled !== undefined
+                ? { startDisabled: learn.startDisabled }
+                : {})}
+            />
+          ) : (
+            <XuluxWelcome welcome={welcome} templateTitle={template?.title} />
+          )}
         </AuiIf>
 
         <div className="px-1.5" data-slot="thread-messages">
@@ -73,13 +91,18 @@ export function XuluxThread({
 
         <ThreadPrimitive.ViewportFooter className="bg-background sticky bottom-0 mt-auto flex flex-col overflow-visible rounded-t-xl">
           <XuluxComposer
-            onNewThread={onNewThread}
-            placeholder={welcome.composerPlaceholder}
+            {...(onNewThread ? { onNewThread } : {})}
+            placeholder={
+              learn
+                ? "Ask a question about the course..."
+                : welcome.composerPlaceholder
+            }
           />
         </ThreadPrimitive.ViewportFooter>
       </ThreadPrimitive.Viewport>
       <AssistantFooter
-        onNewThread={onNewThread}
+        {...(onNewThread ? { onNewThread } : {})}
+        showNewThread={!learn}
         contextWindow={XULUX_CONTEXT_WINDOW}
         centerContent={<XuluxPoweredBy className="min-w-0 truncate px-1" />}
       />
@@ -109,7 +132,7 @@ function XuluxComposer({
   onNewThread,
   placeholder,
 }: {
-  onNewThread: () => void;
+  onNewThread?: () => void;
   placeholder: string;
 }): ReactNode {
   const aui = useAui();
@@ -117,7 +140,7 @@ function XuluxComposer({
 
   return (
     <div>
-      <XuluxUsageLimitBanner onNewThread={onNewThread} />
+      <XuluxUsageLimitBanner {...(onNewThread ? { onNewThread } : {})} />
       <AssistantComposer
         placeholder={placeholder}
         modelSelector={<XuluxModelSelector />}
@@ -132,6 +155,42 @@ function XuluxComposer({
           );
         }}
       />
+    </div>
+  );
+}
+
+function XuluxLearnWelcome({
+  started,
+  onStartCourse,
+  startDisabled,
+}: {
+  started: boolean;
+  onStartCourse: () => void;
+  startDisabled?: boolean;
+}): ReactNode {
+  return (
+    <div className="flex flex-1 flex-col items-center justify-center p-6 text-center">
+      <span className="text-primary bg-background mb-3 flex size-9 items-center justify-center rounded-lg border">
+        <BookOpen className="size-4" />
+      </span>
+      <h2 className="text-base font-semibold tracking-tight">
+        {started ? "Your course is ready" : "Learn by building"}
+      </h2>
+      <p className="text-muted-foreground mt-1 max-w-sm text-sm">
+        {started
+          ? "Continue in this thread and your course progress will stay connected."
+          : "Follow a guided assistant-ui course while keeping the normal chat available for questions."}
+      </p>
+      {!started ? (
+        <Button
+          type="button"
+          className="mt-5"
+          onClick={onStartCourse}
+          disabled={startDisabled}
+        >
+          Start course
+        </Button>
+      ) : null}
     </div>
   );
 }
@@ -215,6 +274,7 @@ function XuluxAssistantMessage(): ReactNode {
             return null;
           }}
         </MessagePrimitive.Parts>
+        <LearnCourseResultFooter />
 
         <AuiIf
           condition={(s) =>

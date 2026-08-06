@@ -42,7 +42,7 @@ describe("assistantUIDocs", () => {
     expect(result.found).toBe(true);
     expect(result.type).toBe("file");
     expect(result.content).toBeDefined();
-    expect(result.content).toContain("assistant-ui");
+    expect(result.content).toContain("title: Documentation");
   });
 
   it("should handle non-existent paths", async () => {
@@ -88,7 +88,7 @@ describe("assistantUIDocs", () => {
 
     expect(result.content).toBeDefined();
     expect(result.content).toContain("title:");
-    expect(result.content).toContain("assistant-ui");
+    expect(result.content).toContain("description:");
   });
 
   it("includes title and excerpt on a file response", async () => {

@@ -13,8 +13,10 @@ import type { QueueItemState, QueueItemMethods } from "./queue-item";
 
 export type ComposerSendOptions = SendOptions & {
   /**
-   * Whether to steer (interrupt the current run and process this message immediately).
-   * When false (default), the message is queued and processed in order.
+   * Whether to steer (process this message next, interrupting the current run
+   * when the runtime supports it). Defaults to true while a queued run is in
+   * flight and false when idle. Pass false to queue behind the pending
+   * messages.
    */
   steer?: boolean;
 };
@@ -88,9 +90,9 @@ export type ComposerMethods = {
   setQuote(quote: QuoteInfo | undefined): void;
 
   /**
-   * Access a queue item by index.
+   * Access a queue item by index or id.
    */
-  queueItem(selector: { index: number }): QueueItemMethods;
+  queueItem(selector: { index: number } | { id: string }): QueueItemMethods;
 
   __internal_getRuntime?(): ComposerRuntime;
 };

@@ -76,6 +76,36 @@ type CoreOptions = {
 
 const FALLBACK_USER_STATUS = { type: "complete", reason: "unknown" } as const;
 
+type AgUiRuntimeCallbackName = "onError" | "onCancel";
+
+const reportCallbackError = (name: AgUiRuntimeCallbackName, error: unknown) => {
+  console.error(`[react-ag-ui] ${name} callback threw an error`, error);
+};
+
+const invokeRuntimeCallback = <TArgs extends unknown[]>(
+  name: AgUiRuntimeCallbackName,
+  callback: ((...args: TArgs) => void) | undefined,
+  ...args: TArgs
+) => {
+  if (!callback) return;
+
+  try {
+    const result = callback(...args) as unknown;
+    if (
+      result !== null &&
+      (typeof result === "object" || typeof result === "function") &&
+      "then" in result &&
+      typeof result.then === "function"
+    ) {
+      void Promise.resolve(result).catch((error) => {
+        reportCallbackError(name, error);
+      });
+    }
+  } catch (error) {
+    reportCallbackError(name, error);
+  }
+};
+
 export class AgUiThreadRuntimeCore {
   private agent: AbstractAgent;
   private logger: Logger;
@@ -90,6 +120,9 @@ export class AgUiThreadRuntimeCore {
   private exportedRepository: ExportedMessageRepository | undefined;
   private isRunningFlag = false;
   private abortController: AbortController | null = null;
+  // The agent that started the active run. updateOptions can swap this.agent
+  // mid-run, and cancelling has to reach the agent holding the live request.
+  private activeRunAgent: AbstractAgent | null = null;
   private stateSnapshot: ReadonlyJSONValue | undefined;
   private pendingError: Error | null = null;
   private history: ThreadHistoryAdapter | undefined;
@@ -269,7 +302,9 @@ export class AgUiThreadRuntimeCore {
       })
       .catch((error) => {
         this.logger.error?.("[agui] failed to load history", error);
-        this.onError?.(
+        invokeRuntimeCallback(
+          "onError",
+          this.onError,
           error instanceof Error ? error : new Error(String(error)),
         );
       })
@@ -333,7 +368,16 @@ export class AgUiThreadRuntimeCore {
 
   async cancel(): Promise<void> {
     if (!this.abortController) return;
-    this.abortController.abort();
+    // Before the local abort, whose listener runs onCancel synchronously: a
+    // callback that starts another run replaces the agent's controller, and
+    // aborting afterwards would kill that replacement and leave this run live.
+    // The local abort is unconditional because abortRun is a user subclass's
+    // code, and a throw there would otherwise strand the thread as running.
+    try {
+      (this.activeRunAgent ?? this.agent).abortRun();
+    } finally {
+      this.abortController.abort();
+    }
   }
 
   async resume(config: ResumeRunConfig): Promise<void> {
@@ -354,7 +398,7 @@ export class AgUiThreadRuntimeCore {
         "[agui] unstable_resume requires a ThreadHistoryAdapter with a resume() method; skipping resume after thread switch",
       );
       this.logger.error?.(error.message);
-      this.onError?.(error);
+      invokeRuntimeCallback("onError", this.onError, error);
       return;
     }
     const parentId = messages.at(-1)?.id ?? null;
@@ -761,7 +805,11 @@ export class AgUiThreadRuntimeCore {
 
   private startResumeRun(messageId: string): void {
     void this.startRun(messageId, this.lastRunConfig).catch((error) => {
-      this.onError?.(error instanceof Error ? error : new Error(String(error)));
+      invokeRuntimeCallback(
+        "onError",
+        this.onError,
+        error instanceof Error ? error : new Error(String(error)),
+      );
     });
   }
 
@@ -978,6 +1026,8 @@ export class AgUiThreadRuntimeCore {
     const abortController = new AbortController();
     const abortSignal = abortController.signal;
     this.abortController = abortController;
+    const runAgentInstance = this.agent;
+    this.activeRunAgent = runAgentInstance;
 
     let cancelRun = () => dispatch({ type: "RUN_CANCELLED" });
     abortSignal.addEventListener(
@@ -985,7 +1035,7 @@ export class AgUiThreadRuntimeCore {
       () => {
         cancelRun();
         this.finishRun(abortController);
-        this.onCancel?.();
+        invokeRuntimeCallback("onCancel", this.onCancel);
       },
       { once: true },
     );
@@ -1021,18 +1071,22 @@ export class AgUiThreadRuntimeCore {
           runId,
           logger: this.logger,
           onRunFailed: (error) => {
+            if (abortSignal.aborted) return;
             this.pendingError = error;
-            this.onError?.(error);
+            invokeRuntimeCallback("onError", this.onError, error);
           },
         });
         try {
-          (this.agent as any).messages = input.messages;
-          (this.agent as any).threadId = input.threadId;
-          (this.agent as any).state = input.state ?? null;
+          (runAgentInstance as any).messages = input.messages;
+          (runAgentInstance as any).threadId = input.threadId;
+          (runAgentInstance as any).state = input.state ?? null;
         } catch {
           // ignore
         }
-        await (this.agent as any).runAgent(input, subscriber, {
+        // HttpAgent ignores this third argument and is cancelled through
+        // agent.abortRun(); it stays for subclasses that inherit the base
+        // no-op abortRun and have no other cancellation hook.
+        await (runAgentInstance as any).runAgent(input, subscriber, {
           signal: abortSignal,
         });
       }
@@ -1040,7 +1094,7 @@ export class AgUiThreadRuntimeCore {
       if (!abortSignal.aborted) {
         const err = error instanceof Error ? error : new Error(String(error));
         dispatch({ type: "RUN_ERROR", message: err.message });
-        this.onError?.(err);
+        invokeRuntimeCallback("onError", this.onError, err);
         this.pendingError = this.pendingError ?? err;
       }
     } finally {
@@ -1142,7 +1196,7 @@ export class AgUiThreadRuntimeCore {
       ctx.applyUpdate({
         status: { type: "incomplete", reason: "error", error: err.message },
       });
-      this.onError?.(err);
+      invokeRuntimeCallback("onError", this.onError, err);
       this.pendingError = this.pendingError ?? err;
       return;
     }
@@ -1217,6 +1271,7 @@ export class AgUiThreadRuntimeCore {
   private finishRun(controller: AbortController | null) {
     if (this.abortController === controller) {
       this.abortController = null;
+      this.activeRunAgent = null;
     }
     this.setRunning(false);
   }

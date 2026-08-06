@@ -1,5 +1,26 @@
 # @assistant-ui/react-google-adk
 
+## 0.0.23
+
+### Patch Changes
+
+- [#5663](https://github.com/assistant-ui/assistant-ui/pull/5663) [`1c71617`](https://github.com/assistant-ui/assistant-ui/commit/1c7161724fe20a4e833cc5a3396f92dcfc549dd0) - fix: isolate runtime event callback failures from ADK streams ([@Kinfe123](https://github.com/Kinfe123))
+
+- Updated dependencies [[`bd4c0ad`](https://github.com/assistant-ui/assistant-ui/commit/bd4c0ad3d41a65d0a2caea921f82c6502011615a), [`4aa1b1d`](https://github.com/assistant-ui/assistant-ui/commit/4aa1b1d1b9368f4812b55a33d6f09bb3dcd71949), [`bd4c0ad`](https://github.com/assistant-ui/assistant-ui/commit/bd4c0ad3d41a65d0a2caea921f82c6502011615a)]:
+  - @assistant-ui/core@0.3.7
+  - @assistant-ui/store@0.3.5
+
+## 0.0.22
+
+### Patch Changes
+
+- [#5598](https://github.com/assistant-ui/assistant-ui/pull/5598) [`91b3a66`](https://github.com/assistant-ui/assistant-ui/commit/91b3a6689890e2a564c15305c6925fa73d14fbc8) - fix: keep ADK stream error events reliable when error callbacks fail ([@Kinfe123](https://github.com/Kinfe123))
+
+- Updated dependencies [[`dcacd9b`](https://github.com/assistant-ui/assistant-ui/commit/dcacd9bc45117f9beca698006fd67616d2c1ca61), [`d52928d`](https://github.com/assistant-ui/assistant-ui/commit/d52928db2c83a3ba6f25bf8c6b21934571dd4622), [`d8a59ad`](https://github.com/assistant-ui/assistant-ui/commit/d8a59ad5d75f220e76e689d4191855c244ddc20a), [`e70da91`](https://github.com/assistant-ui/assistant-ui/commit/e70da91866a5ac880472fbcf23039909270f7623), [`aac3a8c`](https://github.com/assistant-ui/assistant-ui/commit/aac3a8cb8824472f694226a4c53829a0a693072e), [`aa302ee`](https://github.com/assistant-ui/assistant-ui/commit/aa302eeaacd399f58b74b64eb3a1e17d9ea97e03), [`aa302ee`](https://github.com/assistant-ui/assistant-ui/commit/aa302eeaacd399f58b74b64eb3a1e17d9ea97e03), [`34cec64`](https://github.com/assistant-ui/assistant-ui/commit/34cec64fcfbdef0e101d731f5518e9075d989e2f)]:
+  - @assistant-ui/store@0.3.4
+  - @assistant-ui/core@0.3.6
+  - assistant-stream@0.3.34
+
 ## 0.0.21
 
 ### Patch Changes
