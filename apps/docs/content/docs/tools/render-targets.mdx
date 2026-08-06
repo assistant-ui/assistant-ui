@@ -41,8 +41,8 @@ produces that vocabulary component when a surface is ingested.
 | `Icon` | Yes | — | — | — |
 | `Divider` | Yes | Yes (`divider`) | Degrades *(silent)*: becomes `separator` on the next sibling; a trailing divider is dropped | `Divider` |
 | `Spacer` | Yes | — | Degrades *(silent)*: becomes `spacing` on the next sibling; a trailing spacer is dropped | — |
-| `Card` | Yes | Yes when it holds only hero image, body, subtext, and actions; otherwise degrades *(warns)* to inline blocks | Yes (`Container` + footer `ActionSet`) | `Card` |
-| `Carousel` | Yes | Yes (`carousel` of cards; non-card children dropped and overflowing cards clamped to title + body, both with warnings) | Degrades: root-level via `toTeamsAttachments` maps the first 10 `Card` children to attachments *(silent)*; cards past 10 are dropped with a `clamped` warning *(warns)*; non-card children are dropped *(silent, unless the type is unknown)*; nested renders as sequential cards *(warns)* | — |
+| `Card` | Yes | Yes when its children are only a hero image, body, and subtext — `title` and the confirm/cancel actions come from props and stay native; any other child degrades *(warns)* the whole card to inline blocks | Yes (`Container` + footer `ActionSet`) | `Card` |
+| `Carousel` | Yes | Yes (`carousel` of cards), with three separate losses, all *(warns)*: non-card children dropped, cards past 10 dropped, and a card whose shape does not fit clamped to title + body; if no card survives, the carousel itself is dropped | Degrades: root-level via `toTeamsAttachments` maps the first 10 `Card` children to attachments *(silent)*; cards past 10 are dropped with a `clamped` warning *(warns)*; non-card children are dropped *(silent, unless the type is unknown)*; nested renders as sequential cards *(warns)* | — |
 | `Row` | Yes | Degrades *(silent)*: context row when all children are `Badge`/`Caption`, otherwise flattened vertically | Yes (`ColumnSet`; warns past 3 columns) | `Row` |
 | `Col` | Yes | Degrades *(silent)*: flattened into the block sequence | Yes (`Container`) | `Column` |
 | `Box` | Yes | Degrades *(silent)*: flattened into the block sequence | Yes (`Container`) | — |
@@ -50,18 +50,21 @@ produces that vocabulary component when a surface is ingested.
 | `Select` | Yes | Yes (`static_select`, options capped) | Yes (`Input.ChoiceSet` compact; on-change action becomes a companion submit) | — |
 | `RadioGroup` | Yes | Yes (`radio_buttons`, options capped) | Yes (`Input.ChoiceSet` expanded; companion submit) | — |
 | `Checkbox` | Yes | Yes (`checkboxes`) | Yes (`Input.Toggle`; companion submit) | `CheckBox` |
-| `Input` | Yes | Yes (`input` + `plain_text_input`) | Yes (`Input.Text`; companion submit) | `TextField` |
+| `Input` | Yes | Yes (`input` + `plain_text_input`; no `dispatch_action`, so it does not fire on change) | Yes (`Input.Text`; companion submit) | `TextField` |
 | `DatePicker` | Yes | Yes (`datepicker`; non-`YYYY-MM-DD` values dropped) | Yes (`Input.Date`; companion submit) | — |
 | `Form` | Yes | Yes (children + submit `actions` block) | Yes (inputs + submit `ActionSet`) | — |
 | `Alert` | Yes | Degrades on messages *(warns)*: Slack only has a native alert block in modals, so messages get fallback context + section blocks | Yes (toned `Container`) | — |
-| `Table` | Yes | Yes (`data_table`; rows, columns, and a character budget clamped) | Yes (`Table`; rows and columns capped) | — |
+| `Table` | Yes | Yes (`data_table`); rows and columns are capped, and rows are clamped to a payload-wide character budget — a table whose header row alone overruns the budget left by earlier tables is dropped outright, both *(warns)* | Yes (`Table`; rows and columns capped) | — |
 | `ListView` | Yes | Degrades *(silent)*: items flatten to text `section`s with dividers; an item action becomes an "Open" button | Yes (`Container` per item with `selectAction`) | template-expanded children |
 | `ListViewItem` | Yes | Degrades *(silent)*: children flatten to collected text | Yes (`Container`) | template item |
 | `Chart` | Yes | Note: "Chart omitted on Slack." | Note: "Chart omitted on Teams." | — |
 
 27 vocabulary components × 4 targets. Slack caps and budgets (block counts,
 option counts, text lengths, the table character budget) clamp with a warning
-rather than emit an invalid payload. Teams caps likewise clamp with a warning,
+rather than emit an invalid payload. The 10,000-character `data_table` budget
+is the one shared resource: every table in a single conversion draws from it in
+order, so an early wide table can clamp the rows of a later one, or leave too
+little room for its header row and drop it entirely. Teams caps likewise clamp with a warning,
 with one exception: the payload size check against Teams' 100 KB bot message
 limit only measures — a card over the 80,000-byte soft threshold gets a
 `clamped` warning but is returned unchanged, so enforcing the limit is up to
@@ -74,7 +77,12 @@ for the wiring and webhook decoding (`decodeBlockAction`, `decodeSubmitData`,
 
 - **Web** dispatches `$action` payloads directly through the action registry.
 - **Slack** round-trips actions through `block_actions` webhooks; decode each
-  entry with `decodeBlockAction`. Inputs dispatch on change.
+  entry with `decodeBlockAction`. Only the controls that land in an `actions`
+  block (`Button`, `Select`, `RadioGroup`, `Checkbox`, `DatePicker`, and a
+  `Form`'s submit button) dispatch on interaction. `Input` is the exception: it
+  becomes an `input` block with no `dispatch_action`, so a typed value never
+  arrives as a `block_actions` entry and `decodeBlockAction` never sees it —
+  read it from the payload's `state.values` next to the action that submitted.
 - **Teams** inputs cannot dispatch on change: an input carrying an `$action`
   gets a companion Submit action appended (reported as a `fallback` warning),
   and all values arrive together in the submit payload for `decodeSubmitData`.
@@ -97,5 +105,8 @@ page.
   `Row`, `Column`, `Card`, `Divider`, `Button`, `TextField`, `CheckBox`, plus
   template expansion into `ListView`); other A2UI components are skipped with
   a warning, and there is no outbound assistant-ui → A2UI converter.
+- **Slack `Input` values** have no decoder in the package: the converter emits
+  no `dispatch_action`, and `decodeBlockAction` reads action entries only, so
+  pulling typed values out of `state.values` is left to your webhook handler.
 - **Slack layout** is single-column: `Row`, `Col`, and `Box` flatten because
   Block Kit has no general column construct.
