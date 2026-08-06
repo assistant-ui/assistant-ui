@@ -34,7 +34,14 @@ const userTexts = (aui: ReturnType<typeof useAui>) =>
       m.content.map((p) => (p.type === "text" ? p.text : "")).join(""),
     );
 
-const renderWithRuntime = (adapter: ChatModelAdapter, enableQueue: boolean) => {
+const renderWithRuntime = (
+  adapter: ChatModelAdapter,
+  enableQueue: boolean,
+  options?: {
+    unstable_queueClearOnRewind?: boolean;
+    unstable_queueClearOnCancel?: boolean;
+  },
+) => {
   const captured: { aui?: ReturnType<typeof useAui> } = {};
   const Capture: FC = () => {
     captured.aui = useAui();
@@ -43,6 +50,7 @@ const renderWithRuntime = (adapter: ChatModelAdapter, enableQueue: boolean) => {
   const App: FC = () => {
     const runtime = useLocalRuntime(adapter, {
       unstable_enableMessageQueue: enableQueue,
+      ...options,
     });
     return (
       <AssistantRuntimeProvider runtime={runtime}>
@@ -132,7 +140,7 @@ describe("local runtime message queue", () => {
     expect(queue[0]!.prompt).toBe("b");
   });
 
-  it("keeps queued items across a cancelled run and dispatches the next one", async () => {
+  it("clears queued items when the user cancels the run", async () => {
     const { adapter, getRunCount } = createCountingAdapter();
     const aui = renderWithRuntime(adapter, true);
 
@@ -147,18 +155,50 @@ describe("local runtime message queue", () => {
       await flush();
     });
 
-    // the cancelled run's settle advances the surviving queue
+    // Stop means stop: nothing pending, nothing dispatched
+    expect(getRunCount()).toBe(1);
+    expect(aui.thread.composer().getState().queue).toEqual([]);
+  });
+
+  it("keeps queued items on cancel when unstable_queueClearOnCancel is false", async () => {
+    const { adapter, getRunCount } = createCountingAdapter();
+    const aui = renderWithRuntime(adapter, true, {
+      unstable_queueClearOnCancel: false,
+    });
+
+    await send(aui, "first");
+    await send(aui, "a");
+    await send(aui, "b");
+    expect(aui.thread.composer().getState().queue).toHaveLength(2);
+
+    await act(async () => {
+      aui.thread.cancelRun();
+      await flush();
+      await flush();
+    });
+
+    // cancel pauses the queue: items survive, nothing auto-dispatches
+    expect(getRunCount()).toBe(1);
+    expect(
+      aui.thread
+        .composer()
+        .getState()
+        .queue.map((q) => q.prompt),
+    ).toEqual(["a", "b"]);
+
+    // the next explicit send drains the head
+    await send(aui, "c");
     expect(getRunCount()).toBe(2);
     expect(
       aui.thread
         .composer()
         .getState()
         .queue.map((q) => q.prompt),
-    ).toEqual(["b"]);
+    ).toEqual(["b", "c"]);
   });
 
-  it("applies an edit instead of queuing it, keeping pending items flowing", async () => {
-    const { adapter, releases } = createCountingAdapter();
+  it("applies an edit instead of queuing it and clears the pending items", async () => {
+    const { adapter, releases, getRunCount } = createCountingAdapter();
     const aui = renderWithRuntime(adapter, true);
 
     await send(aui, "first");
@@ -179,10 +219,40 @@ describe("local runtime message queue", () => {
       message.composer().setText("edited");
       message.composer().send();
       await flush();
+      await flush();
     });
 
-    // the edit is applied (branches the thread); the surviving queue drains
-    // once the aborted run settles
+    // the edit is applied (branches the thread); the rewind clears the queue,
+    // so nothing pending dispatches against the new branch
+    expect(aui.thread.composer().getState().queue).toEqual([]);
+    expect(getRunCount()).toBe(3); // first, second, edit — not "queued"
+  });
+
+  it("keeps the queue across an edit when unstable_queueClearOnRewind is false", async () => {
+    const { adapter, releases } = createCountingAdapter();
+    const aui = renderWithRuntime(adapter, true, {
+      unstable_queueClearOnRewind: false,
+    });
+
+    await send(aui, "first");
+    await act(async () => {
+      releases[0]!();
+      await flush();
+    });
+
+    await send(aui, "second");
+    await send(aui, "queued");
+    expect(aui.thread.composer().getState().queue).toHaveLength(1);
+
+    await act(async () => {
+      const message = aui.thread.message({ index: 0 });
+      message.composer().beginEdit();
+      message.composer().setText("edited");
+      message.composer().send();
+      await flush();
+    });
+
+    // the surviving queue drains once the aborted run settles
     expect(aui.thread.composer().getState().queue).toEqual([]);
   });
 

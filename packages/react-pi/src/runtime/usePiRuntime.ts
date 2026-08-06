@@ -255,13 +255,11 @@ const usePiThreadStore = (
           )
           .catch((error: unknown) => onError?.(error));
       },
-      // Pi owns the queue server-side and exposes no per-item move or remove,
-      // so these degrade to no-ops (steer() routes through move); the items
-      // above stay an honest mirror of the server queue.
+      // Pi owns the queue server-side and exposes no per-item move, edit, or
+      // remove, so these degrade to no-ops; the items above stay an honest
+      // mirror of the server queue.
       move: () => {},
-      edit: () => {
-        throw new Error("Pi owns the queue server-side; edit is unsupported.");
-      },
+      edit: () => {},
       remove: () => {},
     }),
     [controller, state.queue, onError],

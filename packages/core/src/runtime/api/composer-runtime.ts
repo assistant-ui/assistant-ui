@@ -201,7 +201,7 @@ export type ComposerRuntime = {
    */
   cancel(): void;
 
-  /** Sugar for `moveQueueItem(queueItemId, { lane: "steer" })`. */
+  /** @deprecated Use `moveQueueItem(queueItemId, { lane: "steer" })` instead. Removal after 2026-11-05. */
   steerQueueItem(queueItemId: string): void;
 
   /** Move a queued message between lanes or within a lane. */

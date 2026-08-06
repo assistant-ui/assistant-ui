@@ -400,6 +400,61 @@ describe("createMessageQueue", () => {
     });
   });
 
+  it("notifyCancelled keeps items and pauses advance until the next send", () => {
+    const run = vi.fn();
+    const { adapter, notifyIdle, notifyCancelled } = createMessageQueue({
+      run,
+    });
+
+    adapter.enqueue(msg("a"), { lane: "queue" }); // running
+    adapter.enqueue(msg("b"), { lane: "queue" });
+    adapter.enqueue(msg("c"), { lane: "queue" });
+
+    notifyCancelled();
+    notifyIdle(); // the cancelled run settles
+    expect(run).toHaveBeenCalledTimes(1);
+    expect(prompts(adapter.items)).toEqual(["b", "c"]);
+
+    // the next explicit send re-arms draining, head first
+    adapter.enqueue(msg("d"), { lane: "queue" });
+    expect(run).toHaveBeenLastCalledWith(
+      expect.objectContaining({ content: [{ type: "text", text: "b" }] }),
+      { steer: false },
+    );
+    expect(prompts(adapter.items)).toEqual(["c", "d"]);
+  });
+
+  it("clear empties both lanes without dispatching", () => {
+    const run = vi.fn();
+    const { adapter, notifyBusy, clear } = createMessageQueue({ run });
+
+    notifyBusy();
+    adapter.enqueue(msg("a"), { lane: "queue" });
+    adapter.enqueue(msg("s"), { lane: "steer" });
+    clear();
+
+    expect(adapter.items).toHaveLength(0);
+    expect(adapter.steerItems).toHaveLength(0);
+    expect(run).not.toHaveBeenCalled();
+  });
+
+  it("dispatches sends normally after clear", () => {
+    const run = vi.fn();
+    const { adapter, notifyIdle, clear } = createMessageQueue({ run });
+
+    adapter.enqueue(msg("a"), { lane: "queue" }); // running
+    adapter.enqueue(msg("b"), { lane: "queue" });
+    clear();
+    notifyIdle();
+    expect(run).toHaveBeenCalledTimes(1);
+
+    adapter.enqueue(msg("c"), { lane: "queue" });
+    expect(run).toHaveBeenLastCalledWith(
+      expect.objectContaining({ content: [{ type: "text", text: "c" }] }),
+      { steer: false },
+    );
+  });
+
   it("notifies subscribers on item changes", () => {
     const run = vi.fn();
     const { adapter, subscribe } = createMessageQueue({ run });

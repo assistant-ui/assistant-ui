@@ -276,6 +276,12 @@ export class LocalThreadRuntimeCore
       });
       return;
     }
+    if (
+      this._queue &&
+      !isTail &&
+      (this._options.unstable_queueClearOnRewind ?? true)
+    )
+      this._queue.clear();
     return this._runAppend(message);
   }
 
@@ -662,6 +668,11 @@ export class LocalThreadRuntimeCore
   }
 
   public cancelRun() {
+    if (this._queue) {
+      if (this._options.unstable_queueClearOnCancel ?? true)
+        this._queue.clear();
+      else this._queue.notifyCancelled();
+    }
     const error = new AbortError(false);
     this.abortController?.abort(error);
     this.abortController = null;

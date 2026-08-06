@@ -26,6 +26,14 @@ export type MessageQueueController = {
   notifyBusy: () => void;
   /** Advances to the next pending message; call on the run's falling edge. */
   notifyIdle: () => void;
+  /**
+   * Pauses queue advance for a user-initiated cancel, so the cancelled run's
+   * settle keeps the pending items instead of dispatching the next one; the
+   * next explicit send re-arms draining. Call before aborting the run.
+   */
+  notifyCancelled: () => void;
+  /** Empties both lanes without dispatching. */
+  clear: () => void;
   subscribe: (callback: () => void) => () => void;
 };
 
@@ -70,6 +78,7 @@ export const createMessageQueue = (
   const subscribers = new Set<() => void>();
 
   let running = false;
+  let paused = false;
   // swallow the cancelled run's settle when steering so it does not double-advance
   let suppressIdle = 0;
 
@@ -97,7 +106,7 @@ export const createMessageQueue = (
   };
 
   const advance = () => {
-    if (running) return;
+    if (running || paused) return;
     const lane: Lane = lanes.steer.length > 0 ? "steer" : "queue";
     const head = lanes[lane][0];
     if (!head) return;
@@ -110,6 +119,7 @@ export const createMessageQueue = (
   };
 
   const interrupt = (message: AppendMessage) => {
+    paused = false;
     suppressIdle++;
     driver.cancel!();
     running = true;
@@ -117,6 +127,7 @@ export const createMessageQueue = (
   };
 
   const enqueue = (message: AppendMessage, { lane }: { lane: Lane }) => {
+    paused = false;
     if (lane === "steer" && running && driver.cancel) {
       interrupt(message);
       return;
@@ -241,6 +252,13 @@ export const createMessageQueue = (
       }
       running = false;
       advance();
+    },
+    notifyCancelled: () => {
+      if (running) paused = true;
+    },
+    clear: () => {
+      messages.clear();
+      setLanes({ queue: EMPTY_QUEUE_ITEMS, steer: EMPTY_QUEUE_ITEMS });
     },
     subscribe: (callback) => {
       subscribers.add(callback);

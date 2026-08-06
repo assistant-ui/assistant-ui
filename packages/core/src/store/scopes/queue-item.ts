@@ -12,7 +12,7 @@ export const EMPTY_QUEUE_ITEMS: readonly QueueItemState[] = Object.freeze([]);
 
 export type QueueItemMethods = {
   getState(): QueueItemState;
-  /** Sugar for `move({ lane: "steer" })`. */
+  /** @deprecated Use `move({ lane: "steer" })` instead. Removal after 2026-11-05. */
   steer(): void;
   move(options: { lane?: "queue" | "steer" } & QueuePlacement): void;
   remove(): void;
