@@ -1,6 +1,6 @@
 "use client";
 
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { ExportedMessageRepository } from "@assistant-ui/core";
 import type {
   AppendMessage,
@@ -59,6 +59,10 @@ const assistantText = (message: ThreadMessage | undefined): string => {
   }
   return "";
 };
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe("AGUIThreadRuntimeCore", () => {
   it("streams assistant output into thread messages", async () => {
