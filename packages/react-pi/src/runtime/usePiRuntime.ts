@@ -257,9 +257,7 @@ const usePiThreadStore = (
           .sendMessage(message, { streamingBehavior: "steer" })
           .catch((error: unknown) => onError?.(error));
       },
-      // Pi owns the queue server-side and exposes no per-item move, edit, or
-      // remove, so these degrade to no-ops; the items above stay an honest
-      // mirror of the server queue.
+      // the server-side queue exposes no per-item operations
       move: () => {},
       edit: () => {},
       remove: () => {},
@@ -289,8 +287,6 @@ const usePiThreadStore = (
       },
       onCancel: async () => {
         try {
-          // Queue policy is host-owned: Stop also drops the server-side queue,
-          // matching the default clear-on-cancel policy.
           await Promise.all([controller.clearQueue(), controller.cancel()]);
         } catch (error) {
           onError?.(error);

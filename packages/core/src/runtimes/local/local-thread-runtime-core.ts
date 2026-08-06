@@ -29,7 +29,6 @@ import {
   type MessageQueueController,
 } from "../../runtime/queue/message-queue";
 import type { QueuePlacement } from "../../runtime/queue/external-thread-queue-adapter";
-import { queueItemToAppendMessage } from "../../runtime/queue/queue-item-message";
 import {
   EMPTY_QUEUE_ITEMS,
   type QueueItemState,
@@ -298,19 +297,6 @@ export class LocalThreadRuntimeCore
 
   public getSteerQueueItems(): readonly QueueItemState[] {
     return this._queue?.adapter.steerItems ?? EMPTY_QUEUE_ITEMS;
-  }
-
-  public steerQueueItem(queueItemId: string): void {
-    if (!this._queue) return;
-    const { adapter } = this._queue;
-    const item = [...adapter.steerItems, ...adapter.items].find(
-      (i) => i.id === queueItemId,
-    );
-    if (!item) throw new Error(`Unknown queue item "${queueItemId}".`);
-    adapter.remove(queueItemId);
-    adapter.steer(
-      queueItemToAppendMessage(item, this.messages.at(-1)?.id ?? null),
-    );
   }
 
   public moveQueueItem(queueItemId: string, placement: QueuePlacement): void {

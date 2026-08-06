@@ -83,7 +83,6 @@ export type ComposerRuntimeCore = Readonly<{
   cancel: () => void;
 
   queue: readonly QueueItemState[];
-  steerQueueItem: (queueItemId: string) => void;
   moveQueueItem: (queueItemId: string, placement: QueuePlacement) => void;
   removeQueueItem: (queueItemId: string) => void;
 

@@ -41,18 +41,16 @@ const ComposerAttachmentClientByIndex = resource(
 
 const useQueueItemClient = ({
   item,
-  onSteer,
   onMove,
   onRemove,
 }: {
   item: QueueItemState;
-  onSteer: () => void;
   onMove: (placement: QueuePlacement) => void;
   onRemove: () => void;
 }): ClientOutput<"queueItem"> => {
   return {
     getState: () => item,
-    steer: onSteer,
+    steer: () => onMove({ lane: "steer" }),
     move: onMove,
     remove: onRemove,
   };
@@ -125,7 +123,6 @@ const useComposerClient = ({
         item.id,
         QueueItemClient({
           item,
-          onSteer: () => runtime.steerQueueItem(item.id),
           onMove: (placement) => runtime.moveQueueItem(item.id, placement),
           onRemove: () => runtime.removeQueueItem(item.id),
         }),

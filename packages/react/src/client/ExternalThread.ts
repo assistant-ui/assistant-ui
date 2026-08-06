@@ -393,31 +393,18 @@ type ComposerClientResourceProps = {
   attachmentAdapter?: AttachmentAdapter | undefined;
 };
 
-const queueItemToAppendMessage = (item: QueueItemState): AppendMessage => ({
-  role: "user",
-  content: item.parts,
-  attachments: [],
-  createdAt: new Date(),
-  parentId: null,
-  sourceId: null,
-  runConfig: {},
-  metadata: { custom: {} },
-});
-
 const useQueueItemClient = ({
   item,
-  onSteer,
   onMove,
   onRemove,
 }: {
   item: QueueItemState;
-  onSteer: () => void;
   onMove: (placement: QueuePlacement) => void;
   onRemove: () => void;
 }): ClientOutput<"queueItem"> => {
   return {
     getState: () => item,
-    steer: onSteer,
+    steer: () => onMove({ lane: "steer" }),
     move: onMove,
     remove: onRemove,
   };
@@ -553,10 +540,6 @@ const useComposerClientResource = ({
         item.id,
         QueueItemClient({
           item,
-          onSteer: () => {
-            queue?.remove(item.id);
-            queue?.steer(queueItemToAppendMessage(item));
-          },
           onMove: (placement) => queue?.move(item.id, placement),
           onRemove: () => queue?.remove(item.id),
         }),

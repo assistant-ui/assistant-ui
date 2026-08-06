@@ -51,10 +51,6 @@ export class DefaultThreadComposerRuntimeCore
     return flat;
   }
 
-  public override steerQueueItem(queueItemId: string): void {
-    this.runtime.steerQueueItem?.(queueItemId);
-  }
-
   public override moveQueueItem(
     queueItemId: string,
     placement: QueuePlacement,

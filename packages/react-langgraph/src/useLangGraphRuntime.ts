@@ -227,8 +227,6 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
   const pendingResumeRef = useRef<
     (LangChainMessage & { type: "tool" })[] | null
   >(null);
-  // Declared ahead of cancelActiveRun; initialized further down once the
-  // driver's dependencies exist.
   const queueRef = useRef<MessageQueueController | null>(null);
   // The purpose rides along because only a refetch may be superseded by a
   // send: aborting an initial load would strand its history and loading flag.
@@ -305,8 +303,6 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
   const cancelActiveRun = useCallback(() => {
     pendingResumeRef.current = null;
     runQueue.drop();
-    // Queue policy is host-owned: cancelling drops the pending queue, matching
-    // the behavior runtimes previously applied via the queue adapter.
     queueRef.current?.clear();
     cancel();
   }, [runQueue, cancel]);

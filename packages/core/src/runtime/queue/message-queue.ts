@@ -147,32 +147,38 @@ export const createMessageQueue = (
   };
 
   const move = (queueItemId: string, placement: QueuePlacement) => {
-    const lane = laneOf(queueItemId);
-    if (!lane) throw new Error(`Unknown queue item "${queueItemId}".`);
+    const fromLane = laneOf(queueItemId);
+    if (!fromLane) throw new Error(`Unknown queue item "${queueItemId}".`);
+    const toLane = placement.lane ?? fromLane;
 
-    const item = lanes[lane].find((i) => i.id === queueItemId)!;
-    const dest = lanes[lane].filter((i) => i.id !== queueItemId);
+    const item = lanes[fromLane].find((i) => i.id === queueItemId)!;
+    const dest = (toLane === fromLane ? lanes[fromLane] : lanes[toLane]).filter(
+      (i) => i.id !== queueItemId,
+    );
 
     const anchorIndex = (anchor: string) => {
       if (anchor === queueItemId)
         throw new Error(`Queue item "${queueItemId}" cannot anchor itself.`);
       const index = dest.findIndex((i) => i.id === anchor);
       if (index === -1)
-        throw new Error(`Unknown anchor "${anchor}" in lane "${lane}".`);
+        throw new Error(`Unknown anchor "${anchor}" in lane "${toLane}".`);
       return index;
     };
 
     const { insertAfter, insertBefore } = placement;
     let index: number;
     if (insertAfter === undefined && insertBefore === undefined) {
-      index = lanes[lane].findIndex((i) => i.id === queueItemId);
+      index =
+        toLane === fromLane
+          ? lanes[fromLane].findIndex((i) => i.id === queueItemId)
+          : dest.length;
     } else if (insertAfter !== undefined && insertBefore !== undefined) {
       const after = insertAfter === null ? -1 : anchorIndex(insertAfter);
       const before =
         insertBefore === null ? dest.length : anchorIndex(insertBefore);
       if (before !== after + 1)
         throw new Error(
-          `insertAfter "${insertAfter}" and insertBefore "${insertBefore}" are not adjacent in lane "${lane}".`,
+          `insertAfter "${insertAfter}" and insertBefore "${insertBefore}" are not adjacent in lane "${toLane}".`,
         );
       index = after + 1;
     } else if (insertAfter !== undefined) {
@@ -181,10 +187,33 @@ export const createMessageQueue = (
       index = insertBefore === null ? dest.length : anchorIndex(insertBefore!);
     }
 
-    setLanes({
-      ...lanes,
-      [lane]: [...dest.slice(0, index), item, ...dest.slice(index)],
-    });
+    // placement and immediate dispatch cannot coexist: an anchored move into
+    // the steer lane places without interrupting; only an unanchored one
+    // cancels the live run and dispatches
+    if (
+      insertAfter === undefined &&
+      insertBefore === undefined &&
+      toLane === "steer" &&
+      fromLane !== "steer" &&
+      running &&
+      driver.cancel
+    ) {
+      const message = messages.get(queueItemId)!;
+      messages.delete(queueItemId);
+      setLanes({
+        queue: lanes.queue.filter((i) => i.id !== queueItemId),
+        steer: lanes.steer,
+      });
+      interrupt(message);
+      return;
+    }
+
+    const nextDest = [...dest.slice(0, index), item, ...dest.slice(index)];
+    const next = { ...lanes, [toLane]: nextDest };
+    if (toLane !== fromLane)
+      next[fromLane] = lanes[fromLane].filter((i) => i.id !== queueItemId);
+    setLanes(next);
+    advance();
   };
 
   const edit = (queueItemId: string, message: AppendMessage) => {

@@ -989,32 +989,9 @@ describe("ExternalStoreThreadRuntimeCore - message queue", () => {
 
     expect(runtime.getQueueItems()).toBe(items);
     expect(runtime.getSteerQueueItems()).toBe(steerItems);
-    runtime.moveQueueItem("q1", { insertAfter: null });
+    runtime.moveQueueItem("q1", { lane: "steer" });
     runtime.removeQueueItem("q1");
-    expect(queue.move).toHaveBeenCalledWith("q1", { insertAfter: null });
+    expect(queue.move).toHaveBeenCalledWith("q1", { lane: "steer" });
     expect(queue.remove).toHaveBeenCalledWith("q1");
-  });
-
-  it("decomposes steerQueueItem into remove + steer", () => {
-    const queue = makeQueue();
-    queue.items = [
-      { id: "q1", prompt: "queued", parts: [{ type: "text", text: "queued" }] },
-    ] as never;
-    const runtime = new ExternalStoreThreadRuntimeCore(
-      mockContextProvider,
-      makeStore({ queue }),
-    );
-
-    runtime.steerQueueItem("q1");
-    expect(queue.remove).toHaveBeenCalledWith("q1");
-    expect(queue.steer).toHaveBeenCalledTimes(1);
-    expect(queue.steer.mock.calls[0]![0]).toMatchObject({
-      role: "user",
-      content: [{ type: "text", text: "queued" }],
-    });
-
-    expect(() => runtime.steerQueueItem("nope")).toThrow(
-      'Unknown queue item "nope"',
-    );
   });
 });

@@ -250,6 +250,20 @@ describe("createMessageQueue", () => {
       expect(prompts(adapter.items)).toEqual(["a", "b", "c"]);
     });
 
+    it("moves to the destination lane tail on lane change without placement", () => {
+      const { adapter, id } = setup();
+      adapter.move(id("s"), { lane: "queue" });
+      expect(prompts(adapter.steerItems)).toEqual([]);
+      expect(prompts(adapter.items)).toEqual(["a", "b", "c", "s"]);
+    });
+
+    it("moves into the steer lane without interrupting when no cancel is available", () => {
+      const { adapter, id } = setup();
+      adapter.move(id("b"), { lane: "steer" });
+      expect(prompts(adapter.steerItems)).toEqual(["s", "b"]);
+      expect(prompts(adapter.items)).toEqual(["a", "c"]);
+    });
+
     it("reorders within the steer lane", () => {
       const { adapter, id } = setup();
       adapter.steer(msg("s2"));
@@ -318,24 +332,76 @@ describe("createMessageQueue", () => {
 
     it("throws when the anchor lives in a different lane", () => {
       const { adapter, id } = setup();
+      expect(() =>
+        adapter.move(id("s"), { lane: "queue", insertAfter: id("s") }),
+      ).toThrow("cannot anchor itself");
       expect(() => adapter.move(id("a"), { insertAfter: id("s") })).toThrow(
         "Unknown anchor",
       );
     });
 
-    it("never interrupts, even mid-run with a cancel-capable driver", () => {
+    it("interrupts via cancel when moving into the steer lane mid-run", () => {
+      const run = vi.fn();
+      const cancel = vi.fn();
+      const { adapter, notifyIdle } = createMessageQueue({ run, cancel });
+
+      adapter.enqueue(msg("a")); // running
+      adapter.enqueue(msg("b"));
+      adapter.enqueue(msg("c"));
+
+      adapter.move(adapter.items[1]!.id, { lane: "steer" }); // "c"
+      expect(cancel).toHaveBeenCalledTimes(1);
+      expect(run).toHaveBeenLastCalledWith(
+        expect.objectContaining({ content: [{ type: "text", text: "c" }] }),
+        { steer: true },
+      );
+      expect(prompts(adapter.items)).toEqual(["b"]);
+
+      // cancelled run's settle is swallowed
+      notifyIdle();
+      expect(run).toHaveBeenCalledTimes(2);
+    });
+
+    it("validates anchors mid-run instead of interrupting past them", () => {
       const run = vi.fn();
       const cancel = vi.fn();
       const { adapter } = createMessageQueue({ run, cancel });
 
       adapter.enqueue(msg("a")); // running
       adapter.enqueue(msg("b"));
-      adapter.enqueue(msg("c"));
+      const bId = adapter.items[0]!.id;
 
-      adapter.move(adapter.items[1]!.id, { insertAfter: null }); // "c"
+      expect(() =>
+        adapter.move(bId, { lane: "steer", insertAfter: "nope" }),
+      ).toThrow('Unknown anchor "nope"');
+      expect(() =>
+        adapter.move(bId, { lane: "steer", insertAfter: bId }),
+      ).toThrow("cannot anchor itself");
       expect(cancel).not.toHaveBeenCalled();
       expect(run).toHaveBeenCalledTimes(1);
-      expect(prompts(adapter.items)).toEqual(["c", "b"]);
+    });
+
+    it("places an anchored move into the steer lane mid-run without interrupting", () => {
+      const run = vi.fn();
+      const cancel = vi.fn();
+      const { adapter, notifyIdle } = createMessageQueue({ run, cancel });
+
+      adapter.enqueue(msg("a")); // running
+      adapter.enqueue(msg("b"));
+      adapter.enqueue(msg("c"));
+
+      adapter.move(adapter.items[1]!.id, { lane: "steer", insertAfter: null }); // "c"
+      expect(cancel).not.toHaveBeenCalled();
+      expect(run).toHaveBeenCalledTimes(1);
+      expect(prompts(adapter.steerItems)).toEqual(["c"]);
+      expect(prompts(adapter.items)).toEqual(["b"]);
+
+      // the placed item dispatches first once the live run settles
+      notifyIdle();
+      expect(run).toHaveBeenLastCalledWith(
+        expect.objectContaining({ content: [{ type: "text", text: "c" }] }),
+        { steer: false },
+      );
     });
   });
 

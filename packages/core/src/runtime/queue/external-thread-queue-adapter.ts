@@ -2,6 +2,7 @@ import type { AppendMessage } from "../../types/message";
 import type { QueueItemState } from "../../store/scopes/queue-item";
 
 export type QueuePlacement = {
+  readonly lane?: "queue" | "steer";
   readonly insertAfter?: string | null;
   readonly insertBefore?: string | null;
 };
@@ -17,7 +18,7 @@ export type ExternalThreadQueueAdapter = {
   enqueue: (message: AppendMessage) => void;
   /** Send a message into the steer lane, processed next. */
   steer: (message: AppendMessage) => void;
-  /** Reorder a queued message within its lane. */
+  /** Move a queued message between lanes or within a lane. */
   move: (queueItemId: string, placement: QueuePlacement) => void;
   edit: (queueItemId: string, message: AppendMessage) => void;
   remove: (queueItemId: string) => void;

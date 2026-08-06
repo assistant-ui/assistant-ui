@@ -28,7 +28,6 @@ import type {
   ThreadRuntimeCore,
 } from "../../runtime/interfaces/thread-runtime-core";
 import type { QueuePlacement } from "../../runtime/queue/external-thread-queue-adapter";
-import { queueItemToAppendMessage } from "../../runtime/queue/queue-item-message";
 import { BaseThreadRuntimeCore } from "../../runtime/base/base-thread-runtime-core";
 import type { ModelContextProvider } from "../../model-context/types";
 import {
@@ -525,19 +524,6 @@ export class ExternalStoreThreadRuntimeCore
 
   public getSteerQueueItems() {
     return this._store?.queue?.steerItems ?? EMPTY_QUEUE_ITEMS;
-  }
-
-  public steerQueueItem(queueItemId: string) {
-    const queue = this._store?.queue;
-    if (!queue) return;
-    const item = [...queue.steerItems, ...queue.items].find(
-      (i) => i.id === queueItemId,
-    );
-    if (!item) throw new Error(`Unknown queue item "${queueItemId}".`);
-    queue.remove(queueItemId);
-    queue.steer(
-      queueItemToAppendMessage(item, this.messages.at(-1)?.id ?? null),
-    );
   }
 
   public moveQueueItem(queueItemId: string, placement: QueuePlacement) {
