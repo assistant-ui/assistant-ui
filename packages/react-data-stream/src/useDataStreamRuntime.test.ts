@@ -358,6 +358,47 @@ describe("useDataStreamRuntime lifecycle callbacks", () => {
       });
     },
   );
+
+  it.each(["throws", "rejects"] as const)(
+    "keeps streams healthy when onData %s",
+    async (failureMode) => {
+      const callbackError = new Error("data callback failed");
+      const onError = vi.fn();
+      const consoleError = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+      const events = [
+        { type: "start", messageId: "assistant" },
+        { type: "data-weather", data: { temperature: 72 } },
+        { type: "finish", finishReason: "stop" },
+      ];
+      const body = `${events
+        .map((event) => `data: ${JSON.stringify(event)}\n\n`)
+        .join("")}data: [DONE]\n\n`;
+      vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(body)));
+      const adapter = createAdapter({
+        api: "/api/chat",
+        protocol: "ui-message-stream",
+        onData: () => {
+          if (failureMode === "throws") throw callbackError;
+          return Promise.reject(callbackError);
+        },
+        onError,
+      });
+
+      await expect(
+        runToCompletion(adapter, createRunOptions()),
+      ).resolves.toBeUndefined();
+
+      expect(onError).not.toHaveBeenCalled();
+      await vi.waitFor(() => {
+        expect(consoleError).toHaveBeenCalledWith(
+          "[react-data-stream] onData callback threw an error",
+          callbackError,
+        );
+      });
+    },
+  );
 });
 
 const createAssistantMessage = (

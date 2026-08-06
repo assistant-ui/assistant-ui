@@ -24,7 +24,11 @@ import { asAsyncIterableStream } from "assistant-stream/utils";
 
 type HeadersValue = Record<string, string> | Headers;
 
-type DataStreamRuntimeCallbackName = "onFinish" | "onError" | "onCancel";
+type DataStreamRuntimeCallbackName =
+  | "onFinish"
+  | "onError"
+  | "onCancel"
+  | "onData";
 
 const reportCallbackError = (
   name: DataStreamRuntimeCallbackName,
@@ -211,7 +215,17 @@ class DataStreamRuntimeAdapter implements ChatModelAdapter {
       const decoder =
         protocol === "ui-message-stream"
           ? new UIMessageStreamDecoder(
-              this.options.onData ? { onData: this.options.onData } : {},
+              this.options.onData
+                ? {
+                    onData: (data) => {
+                      invokeRuntimeCallback(
+                        "onData",
+                        this.options.onData,
+                        data,
+                      );
+                    },
+                  }
+                : {},
             )
           : new DataStreamDecoder();
 
