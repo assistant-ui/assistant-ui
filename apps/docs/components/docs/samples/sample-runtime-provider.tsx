@@ -5,6 +5,7 @@ import {
   AssistantRuntimeProvider,
   useLocalRuntime,
   type ChatModelAdapter,
+  type LocalRuntimeOptions,
   type ThreadMessageLike,
 } from "@assistant-ui/react";
 
@@ -25,12 +26,17 @@ const defaultMessages: ThreadMessageLike[] = [
 
 export function SampleRuntimeProvider({
   messages = defaultMessages,
+  adapters,
   children,
 }: {
   messages?: ThreadMessageLike[];
+  adapters?: LocalRuntimeOptions["adapters"];
   children: ReactNode;
 }) {
-  const runtime = useLocalRuntime(noOpAdapter, { initialMessages: messages });
+  const runtime = useLocalRuntime(noOpAdapter, {
+    initialMessages: messages,
+    adapters,
+  });
   return (
     <AssistantRuntimeProvider runtime={runtime}>
       {children}
