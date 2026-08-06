@@ -1,5 +1,22 @@
 # @assistant-ui/react-a2a
 
+## 0.2.27
+
+### Patch Changes
+
+- [#5547](https://github.com/assistant-ui/assistant-ui/pull/5547) [`b3fcd4f`](https://github.com/assistant-ui/assistant-ui/commit/b3fcd4f5d51e804e291844d05e65243b7380ba2b) - fix: restore inbound file and audio parts as file message parts instead of text placeholders ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#5551](https://github.com/assistant-ui/assistant-ui/pull/5551) [`0b81109`](https://github.com/assistant-ui/assistant-ui/commit/0b81109b02ae5fe39d8c4984c0fdae4ab0e1ef78) - fix: keep the wire filename on inbound image parts ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#5570](https://github.com/assistant-ui/assistant-ui/pull/5570) [`7e5f2fd`](https://github.com/assistant-ui/assistant-ui/commit/7e5f2fd7154df8b206984f82e135c2c278fd1224) - fix: preserve replacement run state when an aborted run settles late ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5634](https://github.com/assistant-ui/assistant-ui/pull/5634) [`8bfd4ca`](https://github.com/assistant-ui/assistant-ui/commit/8bfd4ca8833586af90dda61b3d9e3cafc895ce97) - fix: isolate runtime callback failures from A2A stream processing ([@Kinfe123](https://github.com/Kinfe123))
+
+- Updated dependencies [[`dcacd9b`](https://github.com/assistant-ui/assistant-ui/commit/dcacd9bc45117f9beca698006fd67616d2c1ca61), [`d52928d`](https://github.com/assistant-ui/assistant-ui/commit/d52928db2c83a3ba6f25bf8c6b21934571dd4622), [`d8a59ad`](https://github.com/assistant-ui/assistant-ui/commit/d8a59ad5d75f220e76e689d4191855c244ddc20a), [`e70da91`](https://github.com/assistant-ui/assistant-ui/commit/e70da91866a5ac880472fbcf23039909270f7623), [`aac3a8c`](https://github.com/assistant-ui/assistant-ui/commit/aac3a8cb8824472f694226a4c53829a0a693072e), [`aa302ee`](https://github.com/assistant-ui/assistant-ui/commit/aa302eeaacd399f58b74b64eb3a1e17d9ea97e03), [`aa302ee`](https://github.com/assistant-ui/assistant-ui/commit/aa302eeaacd399f58b74b64eb3a1e17d9ea97e03), [`34cec64`](https://github.com/assistant-ui/assistant-ui/commit/34cec64fcfbdef0e101d731f5518e9075d989e2f)]:
+  - @assistant-ui/store@0.3.4
+  - @assistant-ui/core@0.3.6
+  - assistant-stream@0.3.34
+
 ## 0.2.26
 
 ### Patch Changes

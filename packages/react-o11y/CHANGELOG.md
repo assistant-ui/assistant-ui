@@ -1,5 +1,17 @@
 # @assistant-ui/react-o11y
 
+## 0.0.34
+
+### Patch Changes
+
+- [#5430](https://github.com/assistant-ui/assistant-ui/pull/5430) [`dcacd9b`](https://github.com/assistant-ui/assistant-ui/commit/dcacd9bc45117f9beca698006fd67616d2c1ca61) - feat: AuiProvider extends/config grammar. `config={AuiConfig({...})}` alone creates a top-level root client; nested providers must pass `extends` — a client to extend, or `null` to isolate (dev-enforced). An empty config creates a client extending the `extends` client; `ref` exposes the resulting client. The `config` prop only accepts configs built with `AuiConfig(...)` (branded type). AssistantRuntimeProvider gains an optional `config` prop whose scopes are provided alongside the runtime scope. The `useAui({...})` extension overload and the AuiProvider `value` prop are deprecated; `value={client}` now exposes a client extending the given one (same scopes, new identity) rather than the exact instance. `useAui({})` with an empty scope object now mounts a rooted host (so the scope set can grow across renders) instead of a passthrough derived-only client. `useAuiState` state enumeration (`Object.keys`/spread) now includes scopes inherited from parent clients, matching `in`-operator behavior. Clients derived from a hand-built parent (a plain object with `subscribe`/`on`) forward scoped `on(...)` listeners to the parent's `on` instead of throwing for scopes the parent does not expose. ([@Yonom](https://github.com/Yonom))
+
+- [#5605](https://github.com/assistant-ui/assistant-ui/pull/5605) [`afb59f2`](https://github.com/assistant-ui/assistant-ui/commit/afb59f2bf33bdc03f8495de820e469ed53adb16e) - fix: prevent cyclic span parent links from crashing observability trees ([@Kinfe123](https://github.com/Kinfe123))
+
+- Updated dependencies [[`dcacd9b`](https://github.com/assistant-ui/assistant-ui/commit/dcacd9bc45117f9beca698006fd67616d2c1ca61), [`aa302ee`](https://github.com/assistant-ui/assistant-ui/commit/aa302eeaacd399f58b74b64eb3a1e17d9ea97e03), [`aa302ee`](https://github.com/assistant-ui/assistant-ui/commit/aa302eeaacd399f58b74b64eb3a1e17d9ea97e03), [`71cf74e`](https://github.com/assistant-ui/assistant-ui/commit/71cf74eaa7fb3bcf1cc7af346637b51f99e3fc33)]:
+  - @assistant-ui/store@0.3.4
+  - @assistant-ui/tap@0.9.10
+
 ## 0.0.33
 
 ### Patch Changes

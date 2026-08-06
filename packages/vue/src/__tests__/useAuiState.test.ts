@@ -67,8 +67,11 @@ describe("useAuiState", () => {
     });
 
     aui.thread.setSelected(1);
-    await new Promise((resolve) => setTimeout(resolve));
-    expect(selected.value).toBe(1);
+    // The tap scheduler flushes on a MessageChannel macrotask whose ordering
+    // against timers is unspecified; poll instead of racing a single timer
+    await vi.waitFor(() => {
+      expect(selected.value).toBe(1);
+    });
 
     unmount();
   });
