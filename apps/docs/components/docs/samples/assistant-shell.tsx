@@ -8,8 +8,8 @@ import {
   AssistantShellRoot,
   AssistantShellSidebar,
 } from "@/components/assistant-ui/assistant-shell";
-import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,10 +19,12 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { SampleFrame } from "@/components/docs/samples/sample-frame";
 import {
+  ChartColumnIcon,
   ChevronsUpDownIcon,
   LogOutIcon,
   SettingsIcon,
   Share2Icon,
+  SparklesIcon,
 } from "lucide-react";
 
 const AccountMenu = () => {
@@ -44,6 +46,12 @@ const AccountMenu = () => {
       />
       <DropdownMenuContent side="top" align="start" className="w-56">
         <DropdownMenuItem>
+          <SparklesIcon /> Upgrade plan
+        </DropdownMenuItem>
+        <DropdownMenuItem>
+          <ChartColumnIcon /> Usage
+        </DropdownMenuItem>
+        <DropdownMenuItem>
           <SettingsIcon /> Settings
         </DropdownMenuItem>
         <DropdownMenuSeparator />
@@ -64,9 +72,9 @@ export function AssistantShellSample() {
         <AssistantShellSidebar footer={footer} />
         <AssistantShellMain>
           <AssistantShellHeader sidebarFooter={footer}>
-            <TooltipIconButton tooltip="Share">
-              <Share2Icon />
-            </TooltipIconButton>
+            <Button variant="ghost">
+              <Share2Icon /> Share
+            </Button>
           </AssistantShellHeader>
           <main className="flex-1 overflow-hidden">
             <Thread />
