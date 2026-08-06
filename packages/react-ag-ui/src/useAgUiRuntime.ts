@@ -103,15 +103,30 @@ export function useAgUiRuntime(
   // The driver sends through the agent core rather than the runtime, because
   // the runtime's append routes every tail append back into this queue.
   const queueRef = useRef<MessageQueueController | null>(null);
+  // Counts observed run starts. A dispatch whose count never moves produced no
+  // run of its own, so no falling edge is coming to release the queue.
+  const runStartsRef = useRef(0);
   if (options.unstable_enableMessageQueue && !queueRef.current) {
     queueRef.current = createMessageQueue({
       run: (message) => {
+        const controller = queueRef.current;
+        const startsAtDispatch = runStartsRef.current;
         // The queue drops the item before dispatching and stays busy until an
-        // idle edge, so a rejected append (a pending interrupt, for one) has to
-        // release it here or every later send buffers forever.
-        void core.append(message).catch((e: unknown) => {
-          queueRef.current?.notifyIdle();
-          logger.error?.("queued message failed to send", e);
+        // idle edge. An append that starts a run is released by that run's
+        // falling edge, and releasing again here would advance the queue twice;
+        // one that never runs (a pre-run rejection, or startRun false) has to be
+        // released here or every later send buffers forever.
+        const releaseIfNoRun = () => {
+          if (
+            queueRef.current !== controller ||
+            runStartsRef.current !== startsAtDispatch
+          )
+            return;
+          controller?.notifyIdle();
+        };
+        void core.append(message).then(releaseIfNoRun, (e: unknown) => {
+          releaseIfNoRun();
+          logger.error?.("[agui] queued message failed to send", e);
         });
       },
     });
@@ -136,6 +151,7 @@ export function useAgUiRuntime(
   // does not flush while client-side tools are still executing.
   useEffect(() => {
     if (isRunning) {
+      runStartsRef.current++;
       queueController?.notifyBusy();
     } else {
       queueController?.notifyIdle();
