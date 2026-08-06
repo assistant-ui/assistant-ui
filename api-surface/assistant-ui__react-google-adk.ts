@@ -884,9 +884,7 @@ type ComposerRuntime = {
   send(options?: SendOptions): void;
   cancel(): void;
   steerQueueItem(queueItemId: string): void;
-  moveQueueItem(queueItemId: string, options: {
-    lane?: "queue" | "steer";
-  } & QueuePlacement): void;
+  moveQueueItem(queueItemId: string, placement: QueuePlacement): void;
   removeQueueItem(queueItemId: string): void;
   subscribe(callback: () => void): Unsubscribe;
   getAttachmentByIndex(idx: number): AttachmentRuntime;
@@ -1134,12 +1132,9 @@ type ExternalStoreThreadListAdapter = {
 type ExternalThreadQueueAdapter = {
   items: readonly QueueItemState[];
   steerItems: readonly QueueItemState[];
-  enqueue: (message: AppendMessage, options: {
-    lane: "queue" | "steer";
-  }) => void;
-  move: (queueItemId: string, options: {
-    lane?: "queue" | "steer";
-  } & QueuePlacement) => void;
+  enqueue: (message: AppendMessage) => void;
+  steer: (message: AppendMessage) => void;
+  move: (queueItemId: string, placement: QueuePlacement) => void;
   edit: (queueItemId: string, message: AppendMessage) => void;
   remove: (queueItemId: string) => void;
 };

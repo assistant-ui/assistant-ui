@@ -707,9 +707,8 @@ declare abstract class BaseComposerRuntimeCore extends BaseSubscribable implemen
   send(options?: SendOptions): Promise<void>;
   cancel(): void;
   get queue(): readonly QueueItemState[];
-  moveQueueItem(_queueItemId: string, _options: {
-    lane?: "queue" | "steer";
-  } & QueuePlacement): void;
+  steerQueueItem(_queueItemId: string): void;
+  moveQueueItem(_queueItemId: string, _placement: QueuePlacement): void;
   removeQueueItem(_queueItemId: string): void;
   protected abstract handleSend(message: Omit<AppendMessage, "parentId" | "sourceId">, options?: SendOptions): void | Promise<void>;
   protected abstract handleCancel(): void;
@@ -1047,9 +1046,7 @@ type ComposerRuntime = {
   send(options?: SendOptions): void;
   cancel(): void;
   steerQueueItem(queueItemId: string): void;
-  moveQueueItem(queueItemId: string, options: {
-    lane?: "queue" | "steer";
-  } & QueuePlacement): void;
+  moveQueueItem(queueItemId: string, placement: QueuePlacement): void;
   removeQueueItem(queueItemId: string): void;
   subscribe(callback: () => void): Unsubscribe$1;
   getAttachmentByIndex(idx: number): AttachmentRuntime;
@@ -1081,9 +1078,8 @@ type ComposerRuntimeCore = Readonly<{
   send: (options?: SendOptions) => void;
   cancel: () => void;
   queue: readonly QueueItemState[];
-  moveQueueItem: (queueItemId: string, options: {
-    lane?: "queue" | "steer";
-  } & QueuePlacement) => void;
+  steerQueueItem: (queueItemId: string) => void;
+  moveQueueItem: (queueItemId: string, placement: QueuePlacement) => void;
   removeQueueItem: (queueItemId: string) => void;
   dictation: DictationState | undefined;
   startDictation: () => void;
@@ -1119,9 +1115,7 @@ declare abstract class ComposerRuntimeImpl implements ComposerRuntime {
   send(options?: SendOptions): void;
   cancel(): void;
   steerQueueItem(queueItemId: string): void;
-  moveQueueItem(queueItemId: string, options: {
-    lane?: "queue" | "steer";
-  } & QueuePlacement): void;
+  moveQueueItem(queueItemId: string, placement: QueuePlacement): void;
   removeQueueItem(queueItemId: string): void;
   setRole(role: MessageRole): void;
   startDictation(): void;
@@ -1243,9 +1237,8 @@ declare class DefaultThreadComposerRuntimeCore extends BaseComposerRuntimeCore i
   get canSend(): boolean;
   private _queueCache;
   get queue(): readonly QueueItemState[];
-  moveQueueItem(queueItemId: string, options: {
-    lane?: "queue" | "steer";
-  } & QueuePlacement): void;
+  steerQueueItem(queueItemId: string): void;
+  moveQueueItem(queueItemId: string, placement: QueuePlacement): void;
   removeQueueItem(queueItemId: string): void;
   protected getAttachmentAdapter(): AttachmentAdapter | undefined;
   protected getDictationAdapter(): DictationAdapter | undefined;
@@ -3351,9 +3344,8 @@ type ThreadRuntimeCore = Readonly<{
   beginEdit: (messageId: string) => void;
   getQueueItems?: () => readonly QueueItemState[];
   getSteerQueueItems?: () => readonly QueueItemState[];
-  moveQueueItem?: (queueItemId: string, options: {
-    lane?: "queue" | "steer";
-  } & QueuePlacement) => void;
+  steerQueueItem?: (queueItemId: string) => void;
+  moveQueueItem?: (queueItemId: string, placement: QueuePlacement) => void;
   removeQueueItem?: (queueItemId: string) => void;
   speech: SpeechState | undefined;
   voice: VoiceSessionState | undefined;
@@ -3443,9 +3435,8 @@ declare class ThreadRuntimeImpl implements ThreadRuntime {
         send: (options?: SendOptions) => void;
         cancel: () => void;
         queue: readonly QueueItemState[];
-        moveQueueItem: (queueItemId: string, options: {
-          lane?: "queue" | "steer";
-        } & QueuePlacement) => void;
+        steerQueueItem: (queueItemId: string) => void;
+        moveQueueItem: (queueItemId: string, placement: QueuePlacement) => void;
         removeQueueItem: (queueItemId: string) => void;
         dictation: DictationState | undefined;
         startDictation: () => void;
@@ -3457,9 +3448,8 @@ declare class ThreadRuntimeImpl implements ThreadRuntime {
       beginEdit: (messageId: string) => void;
       getQueueItems?: () => readonly QueueItemState[];
       getSteerQueueItems?: () => readonly QueueItemState[];
-      moveQueueItem?: (queueItemId: string, options: {
-        lane?: "queue" | "steer";
-      } & QueuePlacement) => void;
+      steerQueueItem?: (queueItemId: string) => void;
+      moveQueueItem?: (queueItemId: string, placement: QueuePlacement) => void;
       removeQueueItem?: (queueItemId: string) => void;
       speech: SpeechState | undefined;
       voice: VoiceSessionState | undefined;
