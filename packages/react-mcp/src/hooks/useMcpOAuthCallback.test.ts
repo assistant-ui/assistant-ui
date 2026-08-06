@@ -35,7 +35,7 @@ afterEach(() => {
 
 describe("useMcpOAuthCallback", () => {
   it.each(["throws", "rejects"] as const)(
-    "keeps successful authentication done when onComplete $mode",
+    "keeps successful authentication done when onComplete %s",
     async (mode) => {
       const callbackError = new Error("telemetry failed");
       const consoleError = vi
@@ -67,7 +67,7 @@ describe("useMcpOAuthCallback", () => {
   );
 
   it.each(["throws", "rejects"] as const)(
-    "preserves authentication errors when onError $mode",
+    "preserves authentication errors when onError %s",
     async (mode) => {
       const authError = new Error("invalid_grant");
       const callbackError = new Error("telemetry failed");
