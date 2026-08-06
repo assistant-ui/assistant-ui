@@ -287,7 +287,9 @@ const usePiThreadStore = (
       },
       onCancel: async () => {
         try {
-          await controller.cancel();
+          // Queue policy is host-owned: Stop also drops the server-side queue,
+          // matching the default clear-on-cancel policy.
+          await Promise.all([controller.clearQueue(), controller.cancel()]);
         } catch (error) {
           onError?.(error);
           throw error;
