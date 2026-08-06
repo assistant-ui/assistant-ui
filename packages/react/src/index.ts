@@ -168,7 +168,10 @@ export type { LocalRuntimeOptions } from "./legacy-runtime/runtime-cores/local/L
 // --- remote-thread-list ---
 export { useRemoteThreadListRuntime } from "./legacy-runtime/runtime-cores/remote-thread-list/useRemoteThreadListRuntime";
 export { useCloudThreadListAdapter } from "./legacy-runtime/runtime-cores/remote-thread-list/adapter/cloud";
-export type { RemoteThreadListAdapter } from "@assistant-ui/core";
+export type {
+  RemoteThreadListAdapter,
+  RemoteThreadListProviderComponent,
+} from "@assistant-ui/core";
 export { InMemoryThreadListAdapter } from "@assistant-ui/core";
 
 // Re-export from @assistant-ui/core (runtime-cores root)

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { A2AThreadRuntimeCore } from "./A2AThreadRuntimeCore";
 import type { A2AClient } from "./A2AClient";
 import type { A2AMessage, A2AStreamEvent, A2ATask } from "./types";
@@ -133,6 +133,10 @@ describe("A2AThreadRuntimeCore", () => {
 
   beforeEach(() => {
     notifyUpdate = vi.fn();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   function createCore(
@@ -700,6 +704,53 @@ describe("A2AThreadRuntimeCore", () => {
       expect(onArtifactComplete.mock.calls[0]![0].artifactId).toBe("a1");
     });
 
+    it.each(["throws", "rejects"] as const)(
+      "continues streaming when onArtifactComplete %s",
+      async (failureMode) => {
+        const callbackError = new Error("artifact callback failed");
+        const consoleError = vi
+          .spyOn(console, "error")
+          .mockImplementation(() => {});
+        const onError = vi.fn();
+        const core = createCore(
+          {
+            streamMessage: vi.fn().mockImplementation(async function* () {
+              yield artifactUpdateEvent("a1", [{ text: "code" }], {
+                lastChunk: true,
+              });
+              yield statusUpdateEvent("completed", "Done");
+            }),
+          },
+          {
+            onArtifactComplete: () => {
+              if (failureMode === "throws") throw callbackError;
+              return Promise.reject(callbackError);
+            },
+            onError,
+          },
+        );
+
+        await expect(
+          core.append(createUserAppendMessage("Go")),
+        ).resolves.toBeUndefined();
+
+        expect(onError).not.toHaveBeenCalled();
+        expect(core.getMessages()[1]!.content).toEqual([
+          { type: "text", text: "Done" },
+        ]);
+        expect(core.getMessages()[1]!.status).toEqual({
+          type: "complete",
+          reason: "stop",
+        });
+        await vi.waitFor(() => {
+          expect(consoleError).toHaveBeenCalledWith(
+            "[react-a2a] onArtifactComplete callback threw an error",
+            callbackError,
+          );
+        });
+      },
+    );
+
     it("resets artifacts on new run", async () => {
       let runCount = 0;
 
@@ -890,6 +941,61 @@ describe("A2AThreadRuntimeCore", () => {
 
       expect(cancelTask).not.toHaveBeenCalled();
     });
+
+    it.each(["throws", "rejects"] as const)(
+      "isolates onCancel callbacks that %s",
+      async (failureMode) => {
+        const callbackError = new Error("cancel callback failed");
+        const consoleError = vi
+          .spyOn(console, "error")
+          .mockImplementation(() => {});
+        let signalStreamStarted!: () => void;
+        const streamStarted = new Promise<void>((resolve) => {
+          signalStreamStarted = resolve;
+        });
+        const core = createCore(
+          {
+            streamMessage: vi.fn().mockImplementation(async function* (
+              _message,
+              _configuration,
+              _metadata,
+              signal: AbortSignal,
+            ) {
+              signalStreamStarted();
+              await new Promise<void>((resolve) => {
+                if (signal.aborted) resolve();
+                else
+                  signal.addEventListener("abort", () => resolve(), {
+                    once: true,
+                  });
+              });
+            }),
+          },
+          {
+            onCancel: () => {
+              if (failureMode === "throws") throw callbackError;
+              return Promise.reject(callbackError);
+            },
+          },
+        );
+
+        const appendPromise = core.append(createUserAppendMessage("Go"));
+        await streamStarted;
+        await expect(core.cancel()).resolves.toBeUndefined();
+        await expect(appendPromise).resolves.toBeUndefined();
+
+        expect(core.getMessages()[1]!.status).toEqual({
+          type: "incomplete",
+          reason: "cancelled",
+        });
+        await vi.waitFor(() => {
+          expect(consoleError).toHaveBeenCalledWith(
+            "[react-a2a] onCancel callback threw an error",
+            callbackError,
+          );
+        });
+      },
+    );
   });
 
   // --- Error handling ---
@@ -926,6 +1032,50 @@ describe("A2AThreadRuntimeCore", () => {
         reason: "error",
       });
     });
+
+    it.each(["throws", "rejects"] as const)(
+      "preserves the stream error when onError %s",
+      async (failureMode) => {
+        const streamError = new Error("Network error");
+        const callbackError = new Error("error callback failed");
+        const consoleError = vi
+          .spyOn(console, "error")
+          .mockImplementation(() => {});
+        const core = createCore(
+          {
+            streamMessage: vi.fn().mockImplementation(() => ({
+              async next() {
+                throw streamError;
+              },
+              [Symbol.asyncIterator]() {
+                return this;
+              },
+            })),
+          },
+          {
+            onError: () => {
+              if (failureMode === "throws") throw callbackError;
+              return Promise.reject(callbackError);
+            },
+          },
+        );
+
+        await expect(core.append(createUserAppendMessage("Go"))).rejects.toBe(
+          streamError,
+        );
+
+        expect(core.getMessages()[1]!.status).toEqual({
+          type: "incomplete",
+          reason: "error",
+        });
+        await vi.waitFor(() => {
+          expect(consoleError).toHaveBeenCalledWith(
+            "[react-a2a] onError callback threw an error",
+            callbackError,
+          );
+        });
+      },
+    );
 
     it("marks complete when stream ends without terminal status", async () => {
       const core = createCore({
