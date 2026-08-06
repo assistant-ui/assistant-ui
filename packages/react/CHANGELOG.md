@@ -1,5 +1,41 @@
 # @assistant-ui/react
 
+## 0.15.5
+
+### Patch Changes
+
+- [#5476](https://github.com/assistant-ui/assistant-ui/pull/5476) [`02b9dc1`](https://github.com/assistant-ui/assistant-ui/commit/02b9dc10df3132db534399367a8340b4c1b28d50) - fix: allow callers to override the default type="button" on action button primitives ([@ephraimduncan](https://github.com/ephraimduncan))
+
+- [#5564](https://github.com/assistant-ui/assistant-ui/pull/5564) [`31a427a`](https://github.com/assistant-ui/assistant-ui/commit/31a427a6b8d1faba6f046919c97b02729ec9c502) - fix: hydrate assistant transport resumes from their retained initial state ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5415](https://github.com/assistant-ui/assistant-ui/pull/5415) [`271d85d`](https://github.com/assistant-ui/assistant-ui/commit/271d85d2fc8a0428dc5bd826497f8d0e37b39451) - fix: AttachmentPrimitive.Thumb now renders custom children and supports asChild instead of always overriding them with the automatic label ([@ephraimduncan](https://github.com/ephraimduncan))
+
+- [#5421](https://github.com/assistant-ui/assistant-ui/pull/5421) [`e7a696c`](https://github.com/assistant-ui/assistant-ui/commit/e7a696c981feed1b6e655a6cdb01742ecb3cd6e3) - fix: AttachmentPrimitive.Thumb no longer renders a bare "." for extension-less filenames; falls back to the attachment type ([@ephraimduncan](https://github.com/ephraimduncan))
+
+- [#5430](https://github.com/assistant-ui/assistant-ui/pull/5430) [`dcacd9b`](https://github.com/assistant-ui/assistant-ui/commit/dcacd9bc45117f9beca698006fd67616d2c1ca61) - feat: AuiProvider extends/config grammar. `config={AuiConfig({...})}` alone creates a top-level root client; nested providers must pass `extends` — a client to extend, or `null` to isolate (dev-enforced). An empty config creates a client extending the `extends` client; `ref` exposes the resulting client. The `config` prop only accepts configs built with `AuiConfig(...)` (branded type). AssistantRuntimeProvider gains an optional `config` prop whose scopes are provided alongside the runtime scope. The `useAui({...})` extension overload and the AuiProvider `value` prop are deprecated; `value={client}` now exposes a client extending the given one (same scopes, new identity) rather than the exact instance. `useAui({})` with an empty scope object now mounts a rooted host (so the scope set can grow across renders) instead of a passthrough derived-only client. `useAuiState` state enumeration (`Object.keys`/spread) now includes scopes inherited from parent clients, matching `in`-operator behavior. Clients derived from a hand-built parent (a plain object with `subscribe`/`on`) forward scoped `on(...)` listeners to the parent's `on` instead of throwing for scopes the parent does not expose. ([@Yonom](https://github.com/Yonom))
+
+- [#5416](https://github.com/assistant-ui/assistant-ui/pull/5416) [`c5b88f1`](https://github.com/assistant-ui/assistant-ui/commit/c5b88f1647578c2dd6b891924ae0248581e727af) - fix: ignore Escape during IME composition in ComposerPrimitiveInput so dismissing a composition candidate no longer cancels the composer ([@ephraimduncan](https://github.com/ephraimduncan))
+
+- [#5420](https://github.com/assistant-ui/assistant-ui/pull/5420) [`129d0c1`](https://github.com/assistant-ui/assistant-ui/commit/129d0c1203f193e82be61bfaf980f96f85365976) - fix: defer blob URL revocation in ActionBarPrimitive.ExportMarkdown so the download fetch can start before the URL is revoked ([@ephraimduncan](https://github.com/ephraimduncan))
+
+- [#5585](https://github.com/assistant-ui/assistant-ui/pull/5585) [`1160d8b`](https://github.com/assistant-ui/assistant-ui/commit/1160d8b273c635c52c3e9800bad0a733bb2db7ec) - fix: settle assistant transport runs when finish callbacks fail ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5418](https://github.com/assistant-ui/assistant-ui/pull/5418) [`cc85bf4`](https://github.com/assistant-ui/assistant-ui/commit/cc85bf4943a85905def4ad6b720780eab37aaa40) - fix: compose SelectionToolbarRoot onMouseDown with composeEventHandlers so user handlers run before preventDefault ([@ephraimduncan](https://github.com/ephraimduncan))
+
+- [#5650](https://github.com/assistant-ui/assistant-ui/pull/5650) [`34cec64`](https://github.com/assistant-ui/assistant-ui/commit/34cec64fcfbdef0e101d731f5518e9075d989e2f) - feat: two-lane, placement-aware message queue with steer-by-default mid-run sends ([@Yonom](https://github.com/Yonom))
+
+  `ExternalThreadQueueAdapter` is reshaped: `enqueue(message, { steer })` splits into
+  `enqueue(message)` / `steer(message)`, `steer(queueItemId)` becomes
+  `move(queueItemId, { lane: "steer", insertAfter: null })`, `clear(reason)` is dropped
+  (queue clear policy is now host-owned), and `steerItems` / `move` / `edit` and
+  `QueueItemState.parts` are required.
+
+- Updated dependencies [[`dcacd9b`](https://github.com/assistant-ui/assistant-ui/commit/dcacd9bc45117f9beca698006fd67616d2c1ca61), [`d52928d`](https://github.com/assistant-ui/assistant-ui/commit/d52928db2c83a3ba6f25bf8c6b21934571dd4622), [`d8a59ad`](https://github.com/assistant-ui/assistant-ui/commit/d8a59ad5d75f220e76e689d4191855c244ddc20a), [`e70da91`](https://github.com/assistant-ui/assistant-ui/commit/e70da91866a5ac880472fbcf23039909270f7623), [`aac3a8c`](https://github.com/assistant-ui/assistant-ui/commit/aac3a8cb8824472f694226a4c53829a0a693072e), [`aa302ee`](https://github.com/assistant-ui/assistant-ui/commit/aa302eeaacd399f58b74b64eb3a1e17d9ea97e03), [`aa302ee`](https://github.com/assistant-ui/assistant-ui/commit/aa302eeaacd399f58b74b64eb3a1e17d9ea97e03), [`71cf74e`](https://github.com/assistant-ui/assistant-ui/commit/71cf74eaa7fb3bcf1cc7af346637b51f99e3fc33), [`34cec64`](https://github.com/assistant-ui/assistant-ui/commit/34cec64fcfbdef0e101d731f5518e9075d989e2f)]:
+  - @assistant-ui/store@0.3.4
+  - @assistant-ui/core@0.3.6
+  - assistant-stream@0.3.34
+  - @assistant-ui/tap@0.9.10
+
 ## 0.15.4
 
 ### Patch Changes
