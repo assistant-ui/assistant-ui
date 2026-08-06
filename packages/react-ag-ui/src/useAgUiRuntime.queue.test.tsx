@@ -136,6 +136,79 @@ describe("useAgUiRuntime unstable_enableMessageQueue", () => {
     );
   });
 
+  it("holds a queued message when the run settles on an interrupt", async () => {
+    const gate = (() => {
+      let release!: () => void;
+      const promise = new Promise<void>((r) => {
+        release = r;
+      });
+      return { promise, release: () => release() };
+    })();
+    const runAgent = vi.fn(
+      async (
+        _input: unknown,
+        subscriber: {
+          onRunFinishedEvent?: (e: unknown) => void;
+          onRunFinalized?: () => void;
+        },
+      ) => {
+        if (runAgent.mock.calls.length === 1) {
+          await gate.promise;
+          subscriber.onRunFinishedEvent?.({
+            event: {
+              type: "RUN_FINISHED",
+              runId: "run",
+              outcome: {
+                type: "interrupt",
+                interrupts: [{ id: "int-1", reason: "tool_call" }],
+              },
+            },
+          });
+        }
+        subscriber.onRunFinalized?.();
+      },
+    );
+    const agent = { runAgent } as unknown as HttpAgent;
+
+    const { result } = renderHook(() =>
+      useAgUiRuntime({ agent, unstable_enableMessageQueue: true }),
+    );
+    mount(result.current);
+
+    await act(async () => {
+      await result.current.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "first" }],
+      });
+    });
+    await waitFor(() => expect(runAgent).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      await result.current.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "second" }],
+        parentId: result.current.thread.getState().messages.at(-1)?.id ?? null,
+      });
+    });
+    await waitFor(() =>
+      expect(screen.getByTestId("queued").textContent).toBe("second"),
+    );
+
+    await act(async () => {
+      gate.release();
+    });
+
+    // append refuses a new run until the interrupt is answered, so the queued
+    // message must stay visible rather than being dropped into that refusal
+    await waitFor(() =>
+      expect(
+        result.current.thread.getState().messages.at(-1)?.status?.type,
+      ).toBe("requires-action"),
+    );
+    expect(runAgent).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId("queued").textContent).toBe("second");
+  });
+
   it("does not wedge on an append that starts no run", async () => {
     const { agent, runAgent } = gatedAgent();
 

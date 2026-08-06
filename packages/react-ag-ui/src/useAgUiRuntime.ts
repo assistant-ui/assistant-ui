@@ -147,16 +147,19 @@ export function useAgUiRuntime(
     () => EMPTY_QUEUE_ITEMS,
   );
 
-  // Gate on the same value the store reports as isRunning, so a queued message
-  // does not flush while client-side tools are still executing.
+  // Holds the queue while client-side tools are still executing, and while an
+  // interrupt is unanswered: `append` refuses a new run until it is resolved,
+  // and the queue drops an item before dispatching it, so draining into that
+  // refusal would lose the message instead of keeping it visible.
+  const queueBusy = isRunning || core.getPendingInterrupts() !== null;
   useEffect(() => {
-    if (isRunning) {
+    if (queueBusy) {
       runStartsRef.current++;
       queueController?.notifyBusy();
     } else {
       queueController?.notifyIdle();
     }
-  }, [isRunning, queueController]);
+  }, [queueBusy, queueController]);
 
   const threadList = useMemo(() => {
     if (!threadListAdapter) return undefined;
