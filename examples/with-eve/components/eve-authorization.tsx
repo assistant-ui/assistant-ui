@@ -9,9 +9,14 @@ export const EveAuthorization = makeAssistantDataUI<EveAuthorizationData>({
     const label = data.displayName ?? data.name;
 
     if (data.state !== "required") {
+      // Eve inherits `description` from the pending part, so a settled
+      // authorization still reads as a sign-in prompt.
+      const suffix = data.reason ? ` (${data.reason})` : "";
       return (
         <div className="text-muted-foreground my-2 text-sm">
-          {data.description ?? `${label} authorization ${data.outcome}.`}
+          {data.outcome === "authorized"
+            ? `${label} connected.`
+            : `${label} authorization ${data.outcome ?? "completed"}${suffix}.`}
         </div>
       );
     }
