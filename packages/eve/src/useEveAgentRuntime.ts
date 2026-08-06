@@ -42,14 +42,10 @@ const hasRunConfig = (
   runConfig?.custom !== undefined && Object.keys(runConfig.custom).length > 0;
 
 /**
- * Eve JSON-stringifies `clientContext` into a user-role context message the
- * model reads, so only the `custom` bag crosses the wire: the assistant-ui
- * `runConfig` envelope would surface a literal `"custom"` key in the prompt and
- * in every eve-side handler that reads `clientContext` as its own namespace.
- * The cast is the boundary between core's `Record<string, unknown>` and Eve's
- * JSON-only channel. Eve serializes the turn body before sending, so a value
- * that cannot be serialized throws there rather than reaching Eve's own
- * validation; the Eve runtime docs state the requirement.
+ * Only the `custom` bag crosses the wire. Eve reads `clientContext` as its own
+ * namespace and serializes it into a model-visible context message, so sending
+ * the assistant-ui envelope would surface a literal `"custom"` key in the
+ * prompt and to every eve-side handler.
  */
 const toEveClientContext = (
   runConfig: AppendMessage["runConfig"],

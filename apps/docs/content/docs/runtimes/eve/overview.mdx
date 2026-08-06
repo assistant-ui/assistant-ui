@@ -50,26 +50,16 @@ export default function Home() {
 ```
 
 The `custom` bag of a per-turn `runConfig` is forwarded to Eve as
-`clientContext`. For example, `runConfig: { custom: { page: "/pricing" } }`
-arrives as `clientContext: { page: "/pricing" }` for that turn only. The
-assistant-ui `custom` envelope is unwrapped because Eve turns `clientContext`
-into a context message the model reads. An empty or absent `custom` bag is
-omitted.
+`clientContext`, so `runConfig: { custom: { page: "/pricing" } }` arrives as
+`clientContext: { page: "/pricing" }`. An empty or absent bag is omitted, and
+every value must be JSON-serializable.
 
-This channel is ephemeral page or client context, not run configuration. Eve
-JSON-serializes the object into one user-role model context message, so it
-cannot select a model or otherwise change how the turn executes, and Eve does
-not persist it to durable session history.
-
-Whatever you put in the bag is therefore read by the model as message text.
-Keep secrets, credentials, and personal data out of it.
-
-Every value in the bag must be JSON-serializable, because the turn body is
-serialized before it is sent. A `BigInt` or a circular value throws and fails
-the send; a `Date` becomes its ISO string and a function or `undefined` is
-dropped, so the model reads something different from what you passed. Other
-runtimes ignore `runConfig` values they cannot use, so a bag that was harmless
-elsewhere can behave differently here.
+Eve turns that object into a model context message, which is why the
+assistant-ui `custom` envelope is unwrapped: the envelope would put a literal
+`custom` key in the prompt. It is page or client context rather than run
+configuration, and it cannot select a model or change how the turn executes.
+Keep secrets, credentials, and personal data out of it, since the model reads
+it as message text.
 
 ## Connector authorization
 
