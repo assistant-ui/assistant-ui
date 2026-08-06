@@ -35,7 +35,12 @@ export const createClientFacade = (
   new Proxy({} as AssistantClient, {
     get: (_target, prop) => Reflect.get(source.getClient(), prop),
     has: (_target, prop) => prop in source.getClient(),
-    ownKeys: () => Reflect.ownKeys(source.getClient()),
+    ownKeys: () => {
+      const client = source.getClient();
+      const keys = new Set<string | symbol>(Reflect.ownKeys(client));
+      for (const key in client) keys.add(key);
+      return [...keys];
+    },
     getOwnPropertyDescriptor: (_target, prop) => {
       const client = source.getClient();
       if (!(prop in client)) return undefined;

@@ -3,7 +3,6 @@ import {
   inject,
   onScopeDispose,
   provide,
-  watch,
   type PropType,
   type SlotsType,
 } from "vue";
@@ -12,10 +11,6 @@ import {
   type AuiConfig,
 } from "@assistant-ui/store/client";
 import { auiInjectionKey, createClientFacade } from "./context";
-
-const isDevelopment =
-  typeof process !== "undefined" &&
-  (process.env.NODE_ENV === "development" || process.env.NODE_ENV === "test");
 
 /**
  * Creates an `AssistantClient` from the given config and provides it to the
@@ -52,17 +47,6 @@ export const AuiProvider = defineComponent({
       source,
       aui: createClientFacade(source),
     });
-
-    if (isDevelopment) {
-      watch(
-        () => props.config,
-        () => {
-          console.warn(
-            "[assistant-ui] AuiProvider does not support swapping `config` after mount; remount the provider with a `key` to change the scope set.",
-          );
-        },
-      );
-    }
 
     return () => slots.default?.();
   },
