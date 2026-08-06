@@ -4,6 +4,7 @@ import { useMessagePartText, useSmooth } from "@assistant-ui/react";
 import { harden } from "rehype-harden";
 import rehypeRaw from "rehype-raw";
 import rehypeSanitize, {
+  defaultSchema,
   type Options as SanitizeSchema,
 } from "rehype-sanitize";
 import {
@@ -30,15 +31,16 @@ type StreamdownTextPrimitiveElement = ComponentRef<"div">;
 
 // Streamdown extends the default sanitize schema without exporting it, so it is
 // read back off its own plugin set; a copy would fall behind on a bump. An
-// unrecognized shape falls through to rehype-sanitize's stricter default.
+// unrecognized shape falls back to that default, which hast-util-sanitize
+// shallow-merges, so a partial schema here would strip every unlisted tag.
 const sanitizeEntry: unknown = defaultRehypePlugins["sanitize"];
 const streamdownSanitizeSchema = (
-  Array.isArray(sanitizeEntry) ? sanitizeEntry[1] : undefined
-) as SanitizeSchema | undefined;
+  Array.isArray(sanitizeEntry) ? sanitizeEntry[1] : defaultSchema
+) as SanitizeSchema;
 
 function buildSecuritySanitizeSchema(
   allowedTags: AllowedTags | undefined,
-): SanitizeSchema | undefined {
+): SanitizeSchema {
   if (!allowedTags || Object.keys(allowedTags).length === 0) {
     return streamdownSanitizeSchema;
   }
@@ -46,11 +48,11 @@ function buildSecuritySanitizeSchema(
   return {
     ...streamdownSanitizeSchema,
     tagNames: [
-      ...(streamdownSanitizeSchema?.tagNames ?? []),
+      ...(streamdownSanitizeSchema.tagNames ?? []),
       ...Object.keys(allowedTags),
     ],
     attributes: {
-      ...streamdownSanitizeSchema?.attributes,
+      ...streamdownSanitizeSchema.attributes,
       ...allowedTags,
     },
   };
