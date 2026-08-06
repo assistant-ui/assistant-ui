@@ -290,8 +290,11 @@ const usePiThreadStore = (
         try {
           // clear before cancelling so the server cannot promote a queued
           // prompt into a new run in between
-          await controller.clearQueue();
-          await controller.cancel();
+          try {
+            await controller.clearQueue();
+          } finally {
+            await controller.cancel();
+          }
         } catch (error) {
           onError?.(error);
           throw error;

@@ -450,6 +450,27 @@ describe("createMessageQueue", () => {
     );
   });
 
+  it("swallows the cancelled run's settle when a replacement run starts first", () => {
+    const run = vi.fn();
+    const { adapter, notifyBusy, notifyIdle, notifyCancelled } =
+      createMessageQueue({ run });
+
+    adapter.enqueue(msg("a")); // running
+    adapter.enqueue(msg("b"));
+
+    notifyCancelled();
+    notifyBusy(); // a regenerate starts before the cancelled run settles
+    notifyIdle(); // the cancelled run's late settle
+    expect(run).toHaveBeenCalledTimes(1); // nothing dispatches mid-run
+
+    notifyIdle(); // the replacement run settles
+    expect(run).toHaveBeenCalledTimes(2);
+    expect(run).toHaveBeenLastCalledWith(
+      expect.objectContaining({ content: [{ type: "text", text: "b" }] }),
+      { steer: false },
+    );
+  });
+
   it("clear empties both lanes without dispatching", () => {
     const run = vi.fn();
     const { adapter, notifyBusy, clear } = createMessageQueue({ run });

@@ -79,6 +79,8 @@ export const createMessageQueue = (
   let paused = false;
   // swallow the cancelled run's settle when steering so it does not double-advance
   let suppressIdle = 0;
+  // settles from cancelled runs that must drop `running` without advancing
+  let cancelSettles = 0;
 
   const notify = () => {
     for (const callback of subscribers) callback();
@@ -118,7 +120,8 @@ export const createMessageQueue = (
 
   const interrupt = (message: AppendMessage) => {
     paused = false;
-    suppressIdle++;
+    suppressIdle += cancelSettles + 1;
+    cancelSettles = 0;
     driver.cancel!();
     running = true;
     driver.run(message, { steer: true });
@@ -248,6 +251,10 @@ export const createMessageQueue = (
     adapter,
     notifyBusy: () => {
       paused = false;
+      // a cancelled run's settle that is still outstanding belongs to a run
+      // this new one replaces; swallow it entirely
+      suppressIdle += cancelSettles;
+      cancelSettles = 0;
       running = true;
     },
     notifyIdle: () => {
@@ -255,11 +262,19 @@ export const createMessageQueue = (
         suppressIdle--;
         return;
       }
+      if (cancelSettles > 0) {
+        cancelSettles--;
+        running = false;
+        return;
+      }
       running = false;
       advance();
     },
     notifyCancelled: () => {
-      if (running) paused = true;
+      if (running) {
+        paused = true;
+        cancelSettles++;
+      }
     },
     clear: () => {
       messages.clear();
