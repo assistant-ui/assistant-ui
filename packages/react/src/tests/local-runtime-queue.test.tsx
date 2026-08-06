@@ -266,7 +266,7 @@ describe("local runtime message queue", () => {
   });
 
   it("keeps the queue across an edit when unstable_queueClearOnRewind is false", async () => {
-    const { adapter, releases } = createCountingAdapter();
+    const { adapter, releases, getRunCount } = createCountingAdapter();
     const aui = renderWithRuntime(adapter, true, {
       unstable_queueClearOnRewind: false,
     });
@@ -289,8 +289,19 @@ describe("local runtime message queue", () => {
       await flush();
     });
 
-    // the surviving queue drains once the aborted run settles
+    // the edit's rerun survives; the queued item waits for it to settle
+    expect(getRunCount()).toBe(3);
+    expect(aui.thread.composer().getState().queue).toHaveLength(1);
+
+    await act(async () => {
+      releases[2]!();
+      await flush();
+    });
+
+    // the surviving queue drains after the edit's run completes
+    expect(getRunCount()).toBe(4);
     expect(aui.thread.composer().getState().queue).toEqual([]);
+    expect(userTexts(aui)).toEqual(["edited", "queued"]);
   });
 
   it("buffers a send during a regenerate instead of interrupting it", async () => {

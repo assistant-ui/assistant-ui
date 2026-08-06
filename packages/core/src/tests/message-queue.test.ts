@@ -550,19 +550,20 @@ describe("createMessageQueue", () => {
 
   it("a repeated cancel counts a single settle", () => {
     const run = vi.fn();
-    const { adapter, notifyIdle, notifyCancelled } = createMessageQueue({
-      run,
-    });
+    const { adapter, notifyBusy, notifyIdle, notifyCancelled } =
+      createMessageQueue({ run });
 
     adapter.enqueue(msg("a")); // running
     adapter.enqueue(msg("b"));
 
     notifyCancelled();
     notifyCancelled();
-    notifyIdle(); // the cancelled run settles
+    notifyBusy(); // a replacement run starts inside the cancellation window
+
+    notifyIdle(); // the cancelled run's settle is swallowed exactly once
     expect(run).toHaveBeenCalledTimes(1);
 
-    adapter.enqueue(msg("c"));
+    notifyIdle(); // the replacement run settles and draining resumes
     expect(run).toHaveBeenCalledTimes(2);
     expect(run).toHaveBeenLastCalledWith(
       expect.objectContaining({ content: [{ type: "text", text: "b" }] }),

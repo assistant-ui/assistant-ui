@@ -214,7 +214,10 @@ export class LocalThreadRuntimeCore
           })
             .finally(() => {
               this._queueRunInFlight = false;
-              this._queue?.notifyIdle();
+              // a direct run (edit, regenerate) that superseded this dispatch
+              // owns the next settle; reporting idle here would advance the
+              // queue and abort that run mid-flight
+              if (this.abortController === null) this._queue?.notifyIdle();
             })
             .catch(() => {});
         },
