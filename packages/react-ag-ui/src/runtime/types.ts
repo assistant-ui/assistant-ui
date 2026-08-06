@@ -71,6 +71,13 @@ export type UseAgUiRuntimeOptions = ExternalStoreSharedOptions & {
    * Defaults to `true`.
    */
   autoCancelPendingToolCalls?: boolean | undefined;
+  /**
+   * Buffer a message sent while a run is in flight and send it once the run
+   * settles, exposing it on `composer.queue` for `ComposerPrimitive.Queue`.
+   * The runtime owns the queue lifecycle because flushing needs the agent's
+   * send path and the run's own busy and idle edges.
+   */
+  unstable_enableMessageQueue?: boolean | undefined;
   onError?: (e: Error) => void;
   onCancel?: () => void;
   adapters?: UseAgUiRuntimeAdapters;

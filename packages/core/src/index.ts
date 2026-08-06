@@ -341,6 +341,7 @@ export {
 export type {
   RemoteThreadListAdapter,
   RemoteThreadListOptions,
+  RemoteThreadListProviderComponent,
   RemoteThreadInitializeResponse,
   RemoteThreadMetadata,
   RemoteThreadListResponse,

@@ -2,8 +2,6 @@ import { AssembledToolCall, SubagentDiscoverySnapshot, SubagentDiscoverySnapshot
 
 import { StandardSchemaV1 } from "@standard-schema/spec";
 
-import { ComponentType, PropsWithChildren } from "react";
-
 type AddToolResultOptions = {
   messageId: string;
   toolName: string;
@@ -1351,11 +1349,17 @@ type RemoteThreadListAdapter = {
   initialize(threadId: string): Promise<RemoteThreadInitializeResponse>;
   generateTitle(remoteId: string, unstable_messages: readonly ThreadMessage[]): Promise<AssistantStream>;
   fetch(threadId: string): Promise<RemoteThreadMetadata>;
-  unstable_Provider?: ComponentType<PropsWithChildren> | undefined;
+  unstable_Provider?: RemoteThreadListProviderComponent | undefined;
 };
 
 type RemoteThreadListPageOptions = {
   after?: string | undefined;
+};
+
+type RemoteThreadListProviderComponent = ((props: RemoteThreadListProviderProps) => any) | (new (props: RemoteThreadListProviderProps) => any);
+
+type RemoteThreadListProviderProps = {
+  children?: any;
 };
 
 type RemoteThreadListResponse = {
