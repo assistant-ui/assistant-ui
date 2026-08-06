@@ -11,8 +11,8 @@ export const useEveError = () => eveExtras.use((e) => e.error, undefined);
 
 /**
  * Read the current Eve session cursor from the runtime extras. Persist it to
- * resume the session later via `initialSession`. `undefined` outside an Eve
- * runtime.
+ * resume the session later via `initialSession`. `undefined` when no session
+ * exists yet or outside an Eve runtime.
  */
 export const useEveSession = () => eveExtras.use((e) => e.session, undefined);
 
@@ -25,7 +25,8 @@ export const useEveEvents = () =>
 
 /**
  * Returns a function that resets the Eve session: aborts any in-flight turn,
- * recreates the owned session, and clears events and projected data.
+ * recreates the owned session, and clears events and projected data. Pending
+ * staged messages and tool execution state are discarded.
  */
 export const useEveReset = () => {
   const aui = useAui();
