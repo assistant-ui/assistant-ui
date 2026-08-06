@@ -13,7 +13,7 @@ import type {
   Unstable_InteractablesConfig,
 } from "../types/scopes/interactables";
 import { toJSONSchema, toPartialJSONSchema } from "assistant-stream";
-import { ModelContext } from "../../store";
+import { ModelContext } from "../../store/clients/model-context-client";
 import {
   buildInteractableModelContext,
   type PartialJSONSchema,

@@ -18,7 +18,7 @@ import {
   type Toolkit,
 } from "../model-context/toolbox";
 import type { ToolCallMessagePartComponent } from "../types/MessagePartComponentTypes";
-import { ModelContext } from "../../store";
+import { ModelContext } from "../../store/clients/model-context-client";
 
 export type { McpAppResourceOutput };
 
