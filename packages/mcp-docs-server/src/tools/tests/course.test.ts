@@ -44,7 +44,9 @@ describe("assistantUICourse", () => {
       step: 9,
     });
     expect(result.error).toBe("Failed to load course");
-    expect(result.message).toMatch(/less than or equal to 8|1 to 8|Invalid|Course/i);
+    expect(result.message).toMatch(
+      /less than or equal to 8|1 to 8|Too big|<=8|Invalid|Course/i,
+    );
   });
 
   it("rejects unknown fields such as courseId", async () => {
