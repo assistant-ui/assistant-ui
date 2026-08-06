@@ -858,6 +858,8 @@ type LocalRuntimeOptionsBase = {
   };
   unstable_humanToolNames?: string[] | undefined;
   unstable_enableMessageQueue?: boolean | undefined;
+  unstable_queueClearOnRewind?: boolean | undefined;
+  unstable_queueClearOnCancel?: boolean | undefined;
 };
 
 type MakeRequestOptions = {
@@ -1537,7 +1539,6 @@ type ThreadRuntime = {
   importExternalState(state: any): void;
   subscribe(callback: () => void): Unsubscribe;
   cancelRun(): void;
-  resume(): void;
   getModelContext(): ModelContext;
   export(): ExportedMessageRepository;
   import(repository: ExportedMessageRepository): void;
@@ -1581,10 +1582,6 @@ type ThreadState = {
   readonly isDisabled: boolean;
   readonly isLoading: boolean;
   readonly isRunning: boolean;
-  readonly status: "error" | "input-required" | "ready" | "running" | "stopped";
-  readonly error?: {
-    readonly message: string;
-  };
   readonly capabilities: RuntimeCapabilities;
   readonly messages: readonly ThreadMessage[];
   readonly state: ReadonlyJSONValue;

@@ -1906,6 +1906,8 @@ type LocalRuntimeOptionsBase = {
   };
   unstable_humanToolNames?: string[] | undefined;
   unstable_enableMessageQueue?: boolean | undefined;
+  unstable_queueClearOnRewind?: boolean | undefined;
+  unstable_queueClearOnCancel?: boolean | undefined;
 };
 
 type MakeRequestOptions = {
@@ -3793,7 +3795,6 @@ type ThreadRuntime = {
   importExternalState(state: any): void;
   subscribe(callback: () => void): Unsubscribe$1;
   cancelRun(): void;
-  resume(): void;
   getModelContext(): ModelContext$1;
   export(): ExportedMessageRepository;
   import(repository: ExportedMessageRepository): void;
@@ -3843,7 +3844,6 @@ type ThreadRuntimeCore = Readonly<{
     lane?: "queue" | "steer";
   } & QueuePlacement) => void;
   removeQueueItem?: (queueItemId: string) => void;
-  resume?: () => void;
   speech: SpeechState | undefined;
   voice: VoiceSessionState | undefined;
   capabilities: Readonly<RuntimeCapabilities>;
@@ -3851,10 +3851,6 @@ type ThreadRuntimeCore = Readonly<{
   isSendDisabled: boolean;
   isLoading: boolean;
   isRunning?: boolean | undefined;
-  status?: "error" | "input-required" | "ready" | "running" | "stopped";
-  error?: {
-    readonly message: string;
-  } | undefined;
   messages: readonly ThreadMessage[];
   state: ReadonlyJSONValue;
   suggestions: readonly ThreadSuggestion$1[];
@@ -3954,7 +3950,6 @@ declare class ThreadRuntimeImpl implements ThreadRuntime {
         lane?: "queue" | "steer";
       } & QueuePlacement) => void;
       removeQueueItem?: (queueItemId: string) => void;
-      resume?: () => void;
       speech: SpeechState | undefined;
       voice: VoiceSessionState | undefined;
       capabilities: Readonly<RuntimeCapabilities>;
@@ -3962,10 +3957,6 @@ declare class ThreadRuntimeImpl implements ThreadRuntime {
       isSendDisabled: boolean;
       isLoading: boolean;
       isRunning?: boolean | undefined;
-      status?: "error" | "input-required" | "ready" | "running" | "stopped";
-      error?: {
-        readonly message: string;
-      } | undefined;
       messages: readonly ThreadMessage[];
       state: ReadonlyJSONValue;
       suggestions: readonly ThreadSuggestion$1[];
@@ -4000,7 +3991,6 @@ declare class ThreadRuntimeImpl implements ThreadRuntime {
   exportExternalState(): any;
   importExternalState(state: any): void;
   cancelRun(): void;
-  resume(): void;
   stopSpeaking(): void;
   connectVoice(): void;
   disconnectVoice(): void;
@@ -4034,10 +4024,6 @@ type ThreadState = {
   readonly isDisabled: boolean;
   readonly isLoading: boolean;
   readonly isRunning: boolean;
-  readonly status: "error" | "input-required" | "ready" | "running" | "stopped";
-  readonly error?: {
-    readonly message: string;
-  };
   readonly capabilities: RuntimeCapabilities;
   readonly messages: readonly ThreadMessage[];
   readonly state: ReadonlyJSONValue;
@@ -4052,10 +4038,6 @@ type ThreadState$1 = {
   readonly isDisabled: boolean;
   readonly isLoading: boolean;
   readonly isRunning: boolean;
-  readonly status: "error" | "input-required" | "ready" | "running" | "stopped";
-  readonly error?: {
-    readonly message: string;
-  };
   readonly capabilities: RuntimeCapabilities;
   readonly messages: readonly MessageState[];
   readonly state: ReadonlyJSONValue;

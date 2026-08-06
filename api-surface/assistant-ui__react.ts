@@ -2526,6 +2526,8 @@ type LocalRuntimeOptionsBase = {
   };
   unstable_humanToolNames?: string[] | undefined;
   unstable_enableMessageQueue?: boolean | undefined;
+  unstable_queueClearOnRewind?: boolean | undefined;
+  unstable_queueClearOnCancel?: boolean | undefined;
 };
 
 declare const MCP_APP_MIME_TYPE: "text/html;profile=mcp-app";
@@ -3033,6 +3035,8 @@ type MessageQueueController = {
   readonly adapter: ExternalThreadQueueAdapter;
   notifyBusy: () => void;
   notifyIdle: () => void;
+  notifyCancelled: () => void;
+  clear: () => void;
   subscribe: (callback: () => void) => () => void;
 };
 
@@ -4798,7 +4802,6 @@ type ThreadRuntime = {
   importExternalState(state: any): void;
   subscribe(callback: () => void): Unsubscribe;
   cancelRun(): void;
-  resume(): void;
   getModelContext(): ModelContext$1;
   export(): ExportedMessageRepository;
   import(repository: ExportedMessageRepository): void;
@@ -4848,7 +4851,6 @@ type ThreadRuntimeCore = Readonly<{
     lane?: "queue" | "steer";
   } & QueuePlacement) => void;
   removeQueueItem?: (queueItemId: string) => void;
-  resume?: () => void;
   speech: SpeechState | undefined;
   voice: VoiceSessionState | undefined;
   capabilities: Readonly<RuntimeCapabilities>;
@@ -4856,10 +4858,6 @@ type ThreadRuntimeCore = Readonly<{
   isSendDisabled: boolean;
   isLoading: boolean;
   isRunning?: boolean | undefined;
-  status?: "error" | "input-required" | "ready" | "running" | "stopped";
-  error?: {
-    readonly message: string;
-  } | undefined;
   messages: readonly ThreadMessage[];
   state: ReadonlyJSONValue;
   suggestions: readonly ThreadSuggestion[];
@@ -4959,7 +4957,6 @@ declare class ThreadRuntimeImpl implements ThreadRuntime {
         lane?: "queue" | "steer";
       } & QueuePlacement) => void;
       removeQueueItem?: (queueItemId: string) => void;
-      resume?: () => void;
       speech: SpeechState | undefined;
       voice: VoiceSessionState | undefined;
       capabilities: Readonly<RuntimeCapabilities>;
@@ -4967,10 +4964,6 @@ declare class ThreadRuntimeImpl implements ThreadRuntime {
       isSendDisabled: boolean;
       isLoading: boolean;
       isRunning?: boolean | undefined;
-      status?: "error" | "input-required" | "ready" | "running" | "stopped";
-      error?: {
-        readonly message: string;
-      } | undefined;
       messages: readonly ThreadMessage[];
       state: ReadonlyJSONValue;
       suggestions: readonly ThreadSuggestion[];
@@ -5005,7 +4998,6 @@ declare class ThreadRuntimeImpl implements ThreadRuntime {
   exportExternalState(): any;
   importExternalState(state: any): void;
   cancelRun(): void;
-  resume(): void;
   stopSpeaking(): void;
   connectVoice(): void;
   disconnectVoice(): void;
@@ -5039,10 +5031,6 @@ type ThreadState = {
   readonly isDisabled: boolean;
   readonly isLoading: boolean;
   readonly isRunning: boolean;
-  readonly status: "error" | "input-required" | "ready" | "running" | "stopped";
-  readonly error?: {
-    readonly message: string;
-  };
   readonly capabilities: RuntimeCapabilities;
   readonly messages: readonly ThreadMessage[];
   readonly state: ReadonlyJSONValue;
@@ -6005,8 +5993,10 @@ declare const splitLocalRuntimeOptions: <T extends LocalRuntimeOptions>(options:
     }, "chatModel"> | undefined;
     unstable_humanToolNames: string[] | undefined;
     unstable_enableMessageQueue: boolean | undefined;
+    unstable_queueClearOnRewind: boolean | undefined;
+    unstable_queueClearOnCancel: boolean | undefined;
   };
-  otherOptions: Omit<T, "adapters" | "cloud" | "initialMessages" | "maxSteps" | "unstable_enableMessageQueue" | "unstable_humanToolNames">;
+  otherOptions: Omit<T, "adapters" | "cloud" | "initialMessages" | "maxSteps" | "unstable_enableMessageQueue" | "unstable_humanToolNames" | "unstable_queueClearOnCancel" | "unstable_queueClearOnRewind">;
 };
 
 declare function stubTool(): never;
