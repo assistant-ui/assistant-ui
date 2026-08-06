@@ -1,4 +1,5 @@
 export { AuiProvider } from "./AuiProvider";
+export { AuiIf } from "./AuiIf";
 export { useAui } from "./useAui";
 export { useAuiState } from "./useAuiState";
 export { useAuiEvent } from "./useAuiEvent";
@@ -10,6 +11,7 @@ export {
   type AssistantClient,
   type AssistantClientHandle,
   type AssistantClientSource,
+  type AssistantConfigSource,
   type AssistantState,
   type AssistantEventCallback,
   type AssistantEventName,
