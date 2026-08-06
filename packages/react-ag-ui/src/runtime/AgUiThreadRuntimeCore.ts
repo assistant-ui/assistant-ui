@@ -339,8 +339,13 @@ export class AgUiThreadRuntimeCore {
     // Before the local abort, whose listener runs onCancel synchronously: a
     // callback that starts another run replaces the agent's controller, and
     // aborting afterwards would kill that replacement and leave this run live.
-    (this.activeRunAgent ?? this.agent).abortRun();
-    this.abortController.abort();
+    // The local abort is unconditional because abortRun is a user subclass's
+    // code, and a throw there would otherwise strand the thread as running.
+    try {
+      (this.activeRunAgent ?? this.agent).abortRun();
+    } finally {
+      this.abortController.abort();
+    }
   }
 
   async resume(config: ResumeRunConfig): Promise<void> {

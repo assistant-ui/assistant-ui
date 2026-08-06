@@ -623,18 +623,74 @@ describe("AGUIThreadRuntimeCore", () => {
         rejectRun(err);
       }),
     } as unknown as HttpAgent;
-    // onCancel runs from the local abort listener; starting a run there would
-    // replace the agent's controller, so abortRun has to have happened already
+    // onCancel runs from the local abort listener and starts a replacement run,
+    // which takes over the agent's controller: abortRun has to have already
+    // happened, or it would cancel the replacement and leave this run live
+    let core!: AgUiThreadRuntimeCore;
     const onCancel = vi.fn(() => {
       order.push("onCancel");
+      void core.append(createAppendMessage());
     });
 
-    const core = createCore(agent, { onCancel });
+    core = createCore(agent, { onCancel });
     const promise = core.append(createAppendMessage());
     await core.cancel();
     await promise;
 
     expect(order).toEqual(["abortRun", "onCancel"]);
+    expect(agent.abortRun).toHaveBeenCalledTimes(1);
+  });
+
+  it("still cancels locally when a subclass abortRun throws", async () => {
+    const agent = {
+      runAgent: vi.fn(() => new Promise(() => {})),
+      abortRun: vi.fn(() => {
+        throw new Error("subclass abortRun blew up");
+      }),
+    } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    void core.append(createAppendMessage());
+    await expect(core.cancel()).rejects.toThrow("subclass abortRun blew up");
+
+    // the throw must not strand the thread as running
+    expect(core.isRunning()).toBe(false);
+    const assistant = core.getMessages().at(-1) as ThreadAssistantMessage;
+    expect(assistant.status).toMatchObject({
+      type: "incomplete",
+      reason: "cancelled",
+    });
+  });
+
+  it("still cancels a subclass that reads the run signal and inherits the base no-op abortRun", async () => {
+    let runSignal: AbortSignal | undefined;
+    const agent = {
+      runAgent: vi.fn((_input, _subscriber, { signal }) => {
+        runSignal = signal;
+        return new Promise((_, reject) => {
+          signal.addEventListener("abort", () => {
+            const error = new Error("aborted");
+            error.name = "AbortError";
+            reject(error);
+          });
+        });
+      }),
+      // AbstractAgent.abortRun() is empty upstream, so the signal is the only
+      // cancellation hook such a subclass has
+      abortRun: vi.fn(),
+    } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    const promise = core.append(createAppendMessage());
+    await core.cancel();
+    await promise;
+
+    expect(runSignal?.aborted).toBe(true);
+    const assistant = core.getMessages().at(-1) as ThreadAssistantMessage;
+    expect(assistant.status).toMatchObject({
+      type: "incomplete",
+      reason: "cancelled",
+    });
   });
 
   it("cancels through the agent that started the run after a swap", async () => {
