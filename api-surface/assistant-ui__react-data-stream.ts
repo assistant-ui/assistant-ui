@@ -496,6 +496,7 @@ type ComposerRuntime = {
   send(options?: SendOptions): void;
   cancel(): void;
   steerQueueItem(queueItemId: string): void;
+  moveQueueItem(queueItemId: string, placement: QueuePlacement): void;
   removeQueueItem(queueItemId: string): void;
   subscribe(callback: () => void): Unsubscribe;
   getAttachmentByIndex(idx: number): AttachmentRuntime;
@@ -855,6 +856,8 @@ type LocalRuntimeOptionsBase = {
   };
   unstable_humanToolNames?: string[] | undefined;
   unstable_enableMessageQueue?: boolean | undefined;
+  unstable_queueClearOnRewind?: boolean | undefined;
+  unstable_queueClearOnCancel?: boolean | undefined;
 };
 
 type MakeRequestOptions = {
@@ -1139,6 +1142,13 @@ type ProviderTool<TArgs extends Record<string, unknown> = Record<string, unknown
 type QueueItemState = {
   readonly id: string;
   readonly prompt: string;
+  readonly parts: readonly (FileMessagePart | TextMessagePart)[];
+};
+
+type QueuePlacement = {
+  readonly lane?: "queue" | "steer";
+  readonly insertAfter?: string | null;
+  readonly insertBefore?: string | null;
 };
 
 type QuoteInfo = {

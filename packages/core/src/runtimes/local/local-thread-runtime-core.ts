@@ -28,6 +28,7 @@ import {
   createMessageQueue,
   type MessageQueueController,
 } from "../../runtime/queue/message-queue";
+import type { QueuePlacement } from "../../runtime/queue/external-thread-queue-adapter";
 import {
   EMPTY_QUEUE_ITEMS,
   type QueueItemState,
@@ -68,6 +69,8 @@ export class LocalThreadRuntimeCore
 
   private _queue: MessageQueueController | null = null;
   private _queueRunInFlight = false;
+  private _activeRun: { cancelled: boolean } | null = null;
+  private _runGeneration = 0;
 
   private _historyWrites = new Map<string, Promise<void>>();
 
@@ -206,17 +209,23 @@ export class LocalThreadRuntimeCore
           // release the queue when the dispatch settles, even if it rejects
           // before reaching startRun's finally, so a failure can't deadlock it
           this._queueRunInFlight = true;
-          void this._runAppend(message)
+          const generation = this._runGeneration;
+          // the tail may have moved since the message was enqueued
+          void this._runAppend({
+            ...message,
+            parentId: this.messages.at(-1)?.id ?? null,
+          })
             .finally(() => {
               this._queueRunInFlight = false;
-              this._queue?.notifyIdle();
+              // a dispatch that failed before starting a run settles here;
+              // runs that did start release from _runLoop
+              if (this._runGeneration === generation) this._queue?.notifyIdle();
             })
             .catch(() => {});
         },
       });
       this._queue.subscribe(() => this._notifySubscribers());
     } else if (!canQueue && this._queue) {
-      this._queue.adapter.clear("cancel-run");
       this._queue = null;
     }
     if (this.capabilities.queue !== canQueue) {
@@ -271,10 +280,17 @@ export class LocalThreadRuntimeCore
     const isTail = message.parentId === (this.messages.at(-1)?.id ?? null);
     const willRun = message.startRun ?? message.role === "user";
     if (this._queue && willRun && isTail) {
-      this._queue.adapter.enqueue(message, { steer: message.steer ?? false });
+      if (message.steer ?? this._queueRunInFlight)
+        this._queue.adapter.steer(message);
+      else this._queue.adapter.enqueue(message);
       return;
     }
-    if (this._queue && !isTail) this._queue.adapter.clear("edit");
+    if (
+      this._queue &&
+      !isTail &&
+      (this._options.unstable_queueClearOnRewind ?? true)
+    )
+      this._queue.clear();
     return this._runAppend(message);
   }
 
@@ -284,8 +300,12 @@ export class LocalThreadRuntimeCore
     return this._queue?.adapter.items ?? EMPTY_QUEUE_ITEMS;
   }
 
-  public steerQueueItem(queueItemId: string): void {
-    this._queue?.adapter.steer(queueItemId);
+  public getSteerQueueItems(): readonly QueueItemState[] {
+    return this._queue?.adapter.steerItems ?? EMPTY_QUEUE_ITEMS;
+  }
+
+  public moveQueueItem(queueItemId: string, placement: QueuePlacement): void {
+    this._queue?.adapter.move(queueItemId, placement);
   }
 
   public removeQueueItem(queueItemId: string): void {
@@ -397,6 +417,10 @@ export class LocalThreadRuntimeCore
       message.status?.type === "requires-action" &&
       this._options.adapters.history?.update !== undefined;
 
+    const run = { cancelled: false };
+    this._activeRun = run;
+    this._runGeneration++;
+
     try {
       // mark busy for runs not started through the queue (regenerate, resume)
       this._queue?.notifyBusy();
@@ -417,9 +441,12 @@ export class LocalThreadRuntimeCore
       } while (shouldContinue(message, this._options.unstable_humanToolNames));
     } finally {
       this._notifyEventSubscribers("runEnd", {});
-      // queue-driven runs release from the driver settle handler; a direct
-      // run (regenerate, resume) releases here
-      if (!this._queueRunInFlight) {
+      // the settle belongs to this run only while it is still the active run
+      // or was cancelled (the engine expects a cancelled run's settle); a run
+      // superseded by a newer one stays silent
+      const active = this._activeRun === run;
+      if (active) this._activeRun = null;
+      if (active || run.cancelled) {
         queueMicrotask(() => this._queue?.notifyIdle());
       }
     }
@@ -644,7 +671,8 @@ export class LocalThreadRuntimeCore
   }
 
   public detach() {
-    this._queue?.adapter.clear("cancel-run");
+    // drop the queue so pending items cannot dispatch on a detached thread
+    this._queue = null;
     const error = new AbortError(true);
     this.abortController?.abort(error);
     this.abortController = null;
@@ -653,7 +681,14 @@ export class LocalThreadRuntimeCore
   }
 
   public cancelRun() {
-    this._queue?.adapter.clear("cancel-run");
+    if (this._queue) {
+      if (this._options.unstable_queueClearOnCancel ?? true) {
+        this._queue.clear();
+      } else {
+        this._queue.notifyCancelled();
+        if (this._activeRun) this._activeRun.cancelled = true;
+      }
+    }
     const error = new AbortError(false);
     this.abortController?.abort(error);
     this.abortController = null;

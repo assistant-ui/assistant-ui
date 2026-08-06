@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   fromThreadMessageLike,
   generateId,
@@ -24,6 +24,7 @@ import {
   type EveMessageData,
   type UseEveAgentOptions,
 } from "eve/react";
+import type { SendTurnPayload } from "eve/client";
 import {
   convertEveMessages,
   getEveMessageContent,
@@ -35,15 +36,27 @@ const USER_STAGED_STATUS = {
   reason: "unknown",
 } as const;
 
-const truncateThreadMessages = (
-  messages: readonly ThreadMessage[],
-  parentId: string | null,
-) => {
-  if (parentId === null) return [];
-  const parentIndex = messages.findIndex((message) => message.id === parentId);
-  if (parentIndex === -1) return [];
-  return messages.slice(0, parentIndex + 1);
-};
+const hasRunConfig = (
+  runConfig: AppendMessage["runConfig"],
+): runConfig is NonNullable<AppendMessage["runConfig"]> =>
+  runConfig?.custom !== undefined && Object.keys(runConfig.custom).length > 0;
+
+/**
+ * Only the `custom` bag crosses the wire. Eve reads `clientContext` as its own
+ * namespace and serializes it into a model-visible context message, so sending
+ * the assistant-ui envelope would surface a literal `"custom"` key in the
+ * prompt and to every eve-side handler.
+ */
+const toEveClientContext = (
+  runConfig: AppendMessage["runConfig"],
+): Pick<SendTurnPayload, "clientContext"> =>
+  hasRunConfig(runConfig)
+    ? {
+        clientContext: runConfig.custom as NonNullable<
+          SendTurnPayload["clientContext"]
+        >,
+      }
+    : {};
 
 export type UseEveAgentRuntimeOptions = Omit<
   UseEveAgentOptions<EveMessageData>,
@@ -133,6 +146,32 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
   const messagesRef = useRef(messages);
   messagesRef.current = messages;
 
+  useEffect(() => {
+    if (stagedInputsRef.current.size === 0) return;
+    const baseIds = new Set(convertedMessages.map((message) => message.id));
+    const remaining = messagesRef.current.filter(
+      (message) =>
+        stagedInputsRef.current.has(message.id) && !baseIds.has(message.id),
+    );
+    setStagedMessages(
+      remaining.length > 0 ? [...convertedMessages, ...remaining] : null,
+    );
+  }, [convertedMessages]);
+
+  const getStagedRun = (parentId: string | null) => {
+    if (!parentId || !stagedInputsRef.current.has(parentId)) return null;
+    const staged: {
+      message: ThreadMessage;
+      input: { message: AppendMessage; runConfig: AppendMessage["runConfig"] };
+    }[] = [];
+    for (const message of messagesRef.current) {
+      const input = stagedInputsRef.current.get(message.id);
+      if (input) staged.push({ message, input });
+      if (message.id === parentId) break;
+    }
+    return staged;
+  };
+
   const stageUserMessage = (message: AppendMessage) => {
     const threadMessage = fromThreadMessageLike(
       message,
@@ -143,10 +182,9 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
       message,
       runConfig: message.runConfig,
     });
-    setStagedMessages([
-      ...truncateThreadMessages(messagesRef.current, message.parentId),
-      threadMessage,
-    ]);
+    const nextMessages = [...messagesRef.current, threadMessage];
+    messagesRef.current = nextMessages;
+    setStagedMessages(nextMessages);
   };
 
   return useExternalStoreRuntime({
@@ -167,19 +205,46 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
         stageUserMessage(message);
         return;
       }
-      await agent.send({ message: getEveMessageContent(message) });
+      await agent.send({
+        message: getEveMessageContent(message),
+        ...toEveClientContext(message.runConfig),
+      });
     },
     ...(stagedMessages
       ? {
-          onReload: async (parentId: string | null) => {
-            const staged = parentId
-              ? stagedInputsRef.current.get(parentId)
-              : null;
-            if (!staged)
+          onReload: async (parentId: string | null, config) => {
+            const stagedRun = getStagedRun(parentId);
+            if (!stagedRun)
               throw new Error("Runtime does not support reloading messages.");
-            stagedInputsRef.current.delete(parentId!);
-            setStagedMessages(null);
-            await agent.send({ message: getEveMessageContent(staged.message) });
+            for (const { message: stagedMessage, input } of stagedRun) {
+              const previousMessages = messagesRef.current;
+              stagedInputsRef.current.delete(stagedMessage.id);
+              const nextMessages = previousMessages.filter(
+                (message) => message.id !== stagedMessage.id,
+              );
+              messagesRef.current = nextMessages;
+              setStagedMessages(
+                stagedInputsRef.current.size > 0 ? nextMessages : null,
+              );
+              // The reload config belongs to the message being reloaded; the
+              // drafts promoted ahead of it keep the config they were staged
+              // with, or reloading the tail would rewrite their context too.
+              const runConfig =
+                stagedMessage.id === parentId && hasRunConfig(config.runConfig)
+                  ? config.runConfig
+                  : input.runConfig;
+              try {
+                await agent.send({
+                  message: getEveMessageContent(input.message),
+                  ...toEveClientContext(runConfig),
+                });
+              } catch (error) {
+                stagedInputsRef.current.set(stagedMessage.id, input);
+                messagesRef.current = previousMessages;
+                setStagedMessages(previousMessages);
+                throw error;
+              }
+            }
           },
         }
       : {}),

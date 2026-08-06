@@ -53,11 +53,11 @@
   "dependencies": {
     "@ai-sdk/mcp": "^2.0.16",
     "@ai-sdk/react": "^4.0.40",
-    "@assistant-ui/core": "^0.3.4",
-    "@assistant-ui/store": "^0.3.3",
+    "@assistant-ui/core": "^0.3.6",
+    "@assistant-ui/store": "^0.3.4",
     "ai": "^7.0.37",
     "assistant-cloud": "*",
-    "assistant-stream": "^0.3.32"
+    "assistant-stream": "^0.3.34"
   },
   "peerDependencies": {
     "@types/react": "*",

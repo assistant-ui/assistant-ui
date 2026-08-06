@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { resource } from "@assistant-ui/tap";
+import type { ClientOutput } from "@assistant-ui/store";
 import {
-  useAssistantClientRef,
-  type ClientOutput,
   attachTransformScopes,
-} from "@assistant-ui/store";
+  useAssistantClientRef,
+} from "@assistant-ui/store/client";
 import type {
   Unstable_InteractablesState,
   Unstable_InteractableRegistration,
@@ -13,7 +13,7 @@ import type {
   Unstable_InteractablesConfig,
 } from "../types/scopes/interactables";
 import { toJSONSchema, toPartialJSONSchema } from "assistant-stream";
-import { ModelContext } from "../../store";
+import { ModelContext } from "../../store/clients/model-context-client";
 import {
   buildInteractableModelContext,
   type PartialJSONSchema,

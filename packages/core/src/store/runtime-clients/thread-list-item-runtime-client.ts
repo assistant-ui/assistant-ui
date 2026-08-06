@@ -1,7 +1,8 @@
 import type { Unsubscribe } from "../../types/unsubscribe";
 import { useEffect, useMemo } from "react";
 import { resource } from "@assistant-ui/tap";
-import { type ClientOutput, useAssistantEmit } from "@assistant-ui/store";
+import type { ClientOutput } from "@assistant-ui/store";
+import { useAssistantEmit } from "@assistant-ui/store/client";
 import type {
   ThreadListItemEventType,
   ThreadListItemRuntime,

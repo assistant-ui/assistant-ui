@@ -8,7 +8,7 @@ import {
 import {
   attachTransformScopes,
   useAssistantClientRef,
-} from "@assistant-ui/store";
+} from "@assistant-ui/store/client";
 import { DataRenderers } from "./client/DataRenderers";
 import { Tools } from "./client/Tools";
 

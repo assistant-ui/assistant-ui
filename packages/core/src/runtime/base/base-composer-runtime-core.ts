@@ -24,6 +24,7 @@ import type {
   SendOptions,
 } from "../interfaces/composer-runtime-core";
 import type { DictationAdapter } from "../../adapters/speech";
+import type { QueuePlacement } from "../queue/external-thread-queue-adapter";
 import {
   EMPTY_QUEUE_ITEMS,
   type QueueItemState,
@@ -301,7 +302,10 @@ export abstract class BaseComposerRuntimeCore
     return EMPTY_QUEUE_ITEMS;
   }
 
-  public steerQueueItem(_queueItemId: string): void {}
+  public moveQueueItem(
+    _queueItemId: string,
+    _placement: QueuePlacement,
+  ): void {}
   public removeQueueItem(_queueItemId: string): void {}
 
   protected abstract handleSend(

@@ -713,7 +713,7 @@ Primitives for rendering individual queued composer items. Use inside a `Compose
 
 ### Text
 
-Renders the queue item's prompt with Ink `<Text>`. Pass `children` to override the displayed value.
+Renders the queue item's text with Ink `<Text>`. Pass `children` to override the displayed value.
 
 ```tsx
 <QueueItemPrimitive.Text color="gray" />
@@ -721,7 +721,7 @@ Renders the queue item's prompt with Ink `<Text>`. Pass `children` to override t
 
 | Prop | Type | Description |
 |------|------|-------------|
-| `children` | `ReactNode` | Override content; defaults to `s.queueItem.prompt` |
+| `children` | `ReactNode` | Override content; defaults to the text parts of `s.queueItem.parts` |
 | `...rest` | `TextProps` | Standard Ink Text props |
 
 ### Remove
