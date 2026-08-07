@@ -30,7 +30,10 @@ export const ComposerPrimitiveInput = defineComponent({
     const text = useAuiState((s) =>
       s.composer.isEditing ? s.composer.text : "",
     );
-    const threadDisabled = useAuiState((s) => s.thread.isDisabled);
+    const threadDisabled = useAuiState(
+      (s) =>
+        s.thread.isDisabled || s.composer.dictation?.inputDisabled === true,
+    );
     const { disabled, send } = useComposerSendState();
 
     const onInput = (event: Event) => {
