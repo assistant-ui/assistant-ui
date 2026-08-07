@@ -131,6 +131,39 @@ describe("PiThreadSupervisor", () => {
     expect(session.setThinkingLevel).toHaveBeenCalledTimes(2);
   });
 
+  it("isolates errors from the initial snapshot listener", async () => {
+    const session = {
+      sessionId: "t1",
+      sessionFile: SESSION.path,
+      sessionName: undefined,
+      state: { pendingToolCalls: new Set<string>() },
+      messages: [],
+      model: undefined,
+      thinkingLevel: "off",
+      isStreaming: false,
+      isCompacting: false,
+      isRetrying: false,
+      subscribe: vi.fn(() => () => {}),
+      bindExtensions: vi.fn(async () => {}),
+      getContextUsage: vi.fn(),
+      getSteeringMessages: vi.fn(() => []),
+      getFollowUpMessages: vi.fn(() => []),
+    };
+    sdk.createAgentSession.mockResolvedValue({ session });
+    const supervisor = new PiThreadSupervisor({ workspacePath: "/ws" });
+    const listener = vi.fn((event) => {
+      if (event.type === "snapshot") {
+        throw new Error("snapshot listener failed");
+      }
+    });
+
+    const unsubscribe = supervisor.subscribe("t1", listener);
+
+    await vi.waitFor(() => expect(listener).toHaveBeenCalledTimes(1));
+    expect(listener.mock.calls[0]?.[0].type).toBe("snapshot");
+    unsubscribe();
+  });
+
   it("deletes a cold thread and forgets its cached catalog info", async () => {
     const supervisor = new PiThreadSupervisor({ workspacePath: "/ws" });
     await supervisor.getThread("t1"); // primes the per-thread catalog cache

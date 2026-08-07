@@ -20,7 +20,12 @@ import type {
   ToolCallMessagePart,
 } from "@assistant-ui/core";
 import { MessageRepository } from "@assistant-ui/core/internal";
-import type { AbstractAgent } from "@ag-ui/client";
+import type {
+  AbstractAgent,
+  AgentSubscriber,
+  RunAgentParameters,
+  RunAgentResult,
+} from "@ag-ui/client";
 import jsonpatch, { type Operation } from "fast-json-patch";
 import type { Logger } from "./logger";
 import { readMcpAppResourceUri } from "./mcp-tool-result";
@@ -40,6 +45,15 @@ import {
   toAgUiTools,
 } from "./adapter/conversions";
 import { createAgUiSubscriber } from "./adapter/subscriber";
+
+// AbstractAgent.runAgent declares two parameters. HttpAgent ignores a third and
+// is cancelled through agent.abortRun(); the run options stay for subclasses
+// that inherit the base no-op abortRun and have no other cancellation hook.
+type RunAgentWithRunOptions = (
+  parameters: RunAgentParameters,
+  subscriber: AgentSubscriber,
+  options: { signal: AbortSignal },
+) => Promise<RunAgentResult>;
 
 const optimisticPrefix = "__optimistic__";
 const generateOptimisticId = () => `${optimisticPrefix}${generateId()}`;
@@ -1083,12 +1097,9 @@ export class AgUiThreadRuntimeCore {
         } catch {
           // ignore
         }
-        // HttpAgent ignores this third argument and is cancelled through
-        // agent.abortRun(); it stays for subclasses that inherit the base
-        // no-op abortRun and have no other cancellation hook.
-        await (runAgentInstance as any).runAgent(input, subscriber, {
-          signal: abortSignal,
-        });
+        const runAgent: RunAgentWithRunOptions =
+          runAgentInstance.runAgent.bind(runAgentInstance);
+        await runAgent(input, subscriber, { signal: abortSignal });
       }
     } catch (error) {
       if (!abortSignal.aborted) {

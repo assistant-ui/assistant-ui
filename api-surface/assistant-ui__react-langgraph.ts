@@ -1353,7 +1353,11 @@ type OnUpdatesEventCallback = (updates: unknown) => void | Promise<void>;
 type OnValuesEventCallback = (values: unknown) => void | Promise<void>;
 
 type PartInit = {
-  readonly type: "reasoning" | "text";
+  readonly type: "text";
+  readonly parentId?: string;
+} | {
+  readonly type: "reasoning";
+  readonly unstable_summary?: string;
   readonly parentId?: string;
 } | {
   readonly type: "tool-call";
@@ -1490,6 +1494,7 @@ type ReasoningMessagePart = {
   readonly type: "reasoning";
   readonly text: string;
   readonly status?: MessagePartStreamStatus;
+  readonly unstable_summary?: string;
   readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };

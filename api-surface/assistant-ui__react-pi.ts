@@ -1573,6 +1573,7 @@ declare class PiThreadSupervisor {
   private onSessionEvent;
   private emitContextUsage;
   private emit;
+  private notifyListener;
   private liveStatusFor;
   private runStatus;
   private readinessOf;
@@ -1740,6 +1741,7 @@ type ReasoningMessagePart = {
   readonly type: "reasoning";
   readonly text: string;
   readonly status?: MessagePartStreamStatus;
+  readonly unstable_summary?: string;
   readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };
