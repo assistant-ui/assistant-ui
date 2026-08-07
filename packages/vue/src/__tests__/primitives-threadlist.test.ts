@@ -261,11 +261,11 @@ describe("thread list primitives", () => {
       await nextTick();
       expect(el.querySelectorAll("button.item")).toHaveLength(2);
     });
-    expect(el.querySelector<HTMLButtonElement>("button.new")!.disabled).toBe(
-      true,
-    );
+    const newButton = el.querySelector<HTMLButtonElement>("button.new")!;
+    expect(newButton.disabled).toBe(true);
 
-    el.querySelector<HTMLButtonElement>("button.new")!.click();
+    newButton.disabled = false;
+    newButton.click();
     el.querySelectorAll<HTMLButtonElement>("button.item")[1]!.click();
     await nextTick();
     await Promise.resolve();
