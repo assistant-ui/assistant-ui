@@ -203,6 +203,7 @@ type AssistantStreamController = {
   appendData(options: DataPart): void;
   addTextPart(): TextStreamController;
   addReasoningPart(options?: ReasoningPartInit): TextStreamController;
+  addReasoningPart(options?: ReasoningPartInit): TextStreamController;
   addToolCallPart(options: string): ToolCallStreamController;
   addToolCallPart(options: ToolCallPartInit): ToolCallStreamController;
   enqueue(chunk: AssistantStreamChunk): void;
