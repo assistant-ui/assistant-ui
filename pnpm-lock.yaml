@@ -3271,9 +3271,9 @@ importers:
       '@assistant-ui/vue':
         specifier: workspace:*
         version: link:../../packages/vue
-      lucide-vue-next:
-        specifier: ^1.0.0
-        version: 1.0.0(vue@3.5.41(typescript@7.0.2))
+      '@lucide/vue':
+        specifier: ^1.26.0
+        version: 1.28.0(vue@3.5.41(typescript@7.0.2))
       vue:
         specifier: ^3.5.41
         version: 3.5.41(typescript@7.0.2)
@@ -7759,6 +7759,11 @@ packages:
 
   '@livekit/protocol@1.50.4':
     resolution: {integrity: sha512-L1uggNQAqyY21smQY8AllyOYbcv9Me9TaxwuLytL1R8ck9nbYPmQLNwEDi3pOFGAMa5F8I2nUi2Jc59W5awxlA==}
+
+  '@lucide/vue@1.28.0':
+    resolution: {integrity: sha512-cO89UyNM/0i2Srdi04nFWeEOQkqzDZlM2ehtWyBhcMpRTJDKpMZPCGAVlmVBgBgr5HaeL5L6FsU8RHsOdwXtKw==}
+    peerDependencies:
+      vue: '>=3.0.1'
 
   '@lukeed/ms@2.0.2':
     resolution: {integrity: sha512-9I2Zn6+NJLfaGoz9jN3lpwDgAYvfGeNYdbAIjJOqzs4Tpc+VU3Jqq4IofSUBKajiDS8k9fZIg18/z13mpk1bsA==}
@@ -14575,12 +14580,6 @@ packages:
     peerDependencies:
       react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
 
-  lucide-vue-next@1.0.0:
-    resolution: {integrity: sha512-V6SPvx1IHTj/UY+FrIYWV5faISsPSb8BnWSFDxAtezWKvWc9ZZ40PDrdu1/Qb5vg4lHWr1hs1BAMGVGm6V1Xdg==}
-    deprecated: Package deprecated. Please use @lucide/vue instead.
-    peerDependencies:
-      vue: '>=3.0.1'
-
   lz-string@1.5.0:
     resolution: {integrity: sha512-h5bgJWpxJNswbU7qCrV0tIKQCaS3blPDrqKWx+QxzuzL1zGUzij9XCWLrSLsJPu5t+eWA/ycetzYAO5IOMcWAQ==}
     hasBin: true
@@ -21181,6 +21180,10 @@ snapshots:
   '@livekit/protocol@1.50.4':
     dependencies:
       '@bufbuild/protobuf': 1.10.1
+
+  '@lucide/vue@1.28.0(vue@3.5.41(typescript@7.0.2))':
+    dependencies:
+      vue: 3.5.41(typescript@7.0.2)
 
   '@lukeed/ms@2.0.2': {}
 
@@ -28662,10 +28665,6 @@ snapshots:
   lucide-react@1.26.0(react@19.2.8):
     dependencies:
       react: 19.2.8
-
-  lucide-vue-next@1.0.0(vue@3.5.41(typescript@7.0.2)):
-    dependencies:
-      vue: 3.5.41(typescript@7.0.2)
 
   lz-string@1.5.0: {}
 

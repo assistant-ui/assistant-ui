@@ -24,26 +24,31 @@ export const observeContentResize = (
   el: HTMLElement,
   callback: () => void,
 ): (() => void) => {
-  if (typeof ResizeObserver === "undefined") return () => {};
-  const resizeObserver = new ResizeObserver(() => callback());
-  const mutationObserver = new MutationObserver((mutations) => {
-    // Style-only attribute mutations feed back from code paths that write
-    // styles in response to viewport changes.
-    const relevant = mutations.some(
-      (mutation) =>
-        mutation.type !== "attributes" || mutation.attributeName !== "style",
-    );
-    if (relevant) callback();
-  });
-  resizeObserver.observe(el);
-  mutationObserver.observe(el, {
-    childList: true,
-    subtree: true,
-    attributes: true,
-    characterData: true,
-  });
+  const disposers: (() => void)[] = [];
+  if (typeof ResizeObserver !== "undefined") {
+    const resizeObserver = new ResizeObserver(() => callback());
+    resizeObserver.observe(el);
+    disposers.push(() => resizeObserver.disconnect());
+  }
+  if (typeof MutationObserver !== "undefined") {
+    const mutationObserver = new MutationObserver((mutations) => {
+      // Style-only attribute mutations feed back from code paths that write
+      // styles in response to viewport changes.
+      const relevant = mutations.some(
+        (mutation) =>
+          mutation.type !== "attributes" || mutation.attributeName !== "style",
+      );
+      if (relevant) callback();
+    });
+    mutationObserver.observe(el, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      characterData: true,
+    });
+    disposers.push(() => mutationObserver.disconnect());
+  }
   return () => {
-    resizeObserver.disconnect();
-    mutationObserver.disconnect();
+    for (const dispose of disposers) dispose();
   };
 };

@@ -3,7 +3,9 @@ import { MessagePrimitiveParts, useAuiState } from "@assistant-ui/vue";
 import type {} from "@assistant-ui/core/store";
 
 const role = useAuiState((s) => s.message.role);
-const empty = useAuiState((s) => s.message.content.length === 0);
+const pulsing = useAuiState(
+  (s) => s.message.content.length === 0 && s.thread.isRunning,
+);
 </script>
 
 <template>
@@ -20,6 +22,6 @@ const empty = useAuiState((s) => s.message.content.length === 0);
     class="text-foreground px-2 leading-relaxed wrap-break-word"
   >
     <MessagePrimitiveParts />
-    <span v-if="empty" class="animate-pulse">…</span>
+    <span v-if="pulsing" class="animate-pulse">…</span>
   </li>
 </template>

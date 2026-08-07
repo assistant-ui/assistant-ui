@@ -1,4 +1,8 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 import { createApp, defineComponent, h, nextTick, type Component } from "vue";
 import { flushTapSync } from "@assistant-ui/tap";
 import { AuiConfig } from "@assistant-ui/store/client";
@@ -155,7 +159,6 @@ describe("MessagePrimitiveParts dev warning", () => {
     );
 
     unmount();
-    warn.mockRestore();
   });
 });
 
@@ -223,6 +226,86 @@ describe("ThreadPrimitiveViewport", () => {
       append({ role: "user", content: [{ type: "text", text: "hi" }] }),
     );
     await nextTick();
+
+    unmount();
+  });
+
+  it("follows content growth while pinned and stops after a user scrolls up", async () => {
+    const { runtime, append } = createTestRuntime();
+    const View = defineComponent({
+      setup: () => () =>
+        h(
+          ThreadPrimitiveViewport,
+          { class: "viewport" },
+          {
+            default: () =>
+              h(ThreadPrimitiveMessages, null, {
+                default: () => h("p", "row"),
+              }),
+          },
+        ),
+    });
+    const { el, unmount } = mountChat(runtime, View);
+
+    const div = el.querySelector<HTMLElement>("div.viewport")!;
+    let scrollHeight = 500;
+    let scrollTop = 0;
+    Object.defineProperty(div, "scrollHeight", {
+      get: () => scrollHeight,
+      configurable: true,
+    });
+    Object.defineProperty(div, "clientHeight", {
+      get: () => 100,
+      configurable: true,
+    });
+    Object.defineProperty(div, "scrollTop", {
+      get: () => scrollTop,
+      set: (value: number) => {
+        scrollTop = value;
+      },
+      configurable: true,
+    });
+    const scrollTo = vi.fn(({ top }: { top: number }) => {
+      scrollTop = Math.max(0, Math.min(top, scrollHeight - 100));
+    });
+    Object.defineProperty(div, "scrollTo", {
+      value: scrollTo,
+      configurable: true,
+    });
+
+    flushTapSync(() =>
+      append({ role: "user", content: [{ type: "text", text: "one" }] }),
+    );
+    await vi.waitFor(async () => {
+      await nextTick();
+      expect(scrollTo).toHaveBeenCalled();
+    });
+    div.dispatchEvent(new Event("scroll"));
+    const callsWhilePinned = scrollTo.mock.calls.length;
+
+    scrollHeight = 600;
+    flushTapSync(() =>
+      append({ role: "assistant", content: [{ type: "text", text: "two" }] }),
+    );
+    await vi.waitFor(async () => {
+      await nextTick();
+      expect(scrollTo.mock.calls.length).toBeGreaterThan(callsWhilePinned);
+    });
+    div.dispatchEvent(new Event("scroll"));
+    await new Promise((resolve) => setTimeout(resolve, 30));
+
+    div.dispatchEvent(new Event("pointerdown"));
+    scrollTop = 50;
+    div.dispatchEvent(new Event("scroll"));
+    const callsAfterUnpin = scrollTo.mock.calls.length;
+
+    scrollHeight = 700;
+    flushTapSync(() =>
+      append({ role: "user", content: [{ type: "text", text: "three" }] }),
+    );
+    await nextTick();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(scrollTo.mock.calls.length).toBe(callsAfterUnpin);
 
     unmount();
   });

@@ -8,7 +8,7 @@ import {
   ThreadPrimitiveViewport,
 } from "@assistant-ui/vue";
 import type {} from "@assistant-ui/core/store";
-import { ArrowUpIcon, SquareIcon } from "lucide-vue-next";
+import { ArrowUpIcon, SquareIcon } from "@lucide/vue";
 import Message from "./Message.vue";
 </script>
 

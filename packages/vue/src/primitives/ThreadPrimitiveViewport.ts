@@ -21,7 +21,9 @@ import {
  * A scrollable container that keeps the thread pinned to the bottom: content
  * growth scrolls back down while the user sits at the bottom, a run start
  * scrolls down, and scrolling up unpins until the user returns to the bottom.
- * Set `autoScroll` to false to keep only the explicit run-start scroll.
+ * Setting `autoScroll` to false disables only the follow-on-content-growth
+ * behavior; the first-messages and run-start scrolls remain, matching the
+ * React hook's independent option defaults.
  */
 export const ThreadPrimitiveViewport = defineComponent({
   name: "ThreadPrimitiveViewport",
@@ -52,8 +54,7 @@ export const ThreadPrimitiveViewport = defineComponent({
     const scheduleScrollToBottom = (behavior: ScrollBehavior) => {
       intent = behavior;
       // The immediate watch below runs synchronously during SSR, where no
-      // frame scheduler exists; the planted intent still scrolls on the first
-      // client-side content resize.
+      // frame scheduler exists.
       if (typeof requestAnimationFrame === "undefined") return;
       if (frame !== null) cancelAnimationFrame(frame);
       frame = requestAnimationFrame(() => {
@@ -114,6 +115,10 @@ export const ThreadPrimitiveViewport = defineComponent({
     // growth.
     const onPointerdown = () => {
       intent = null;
+      if (frame !== null) {
+        cancelAnimationFrame(frame);
+        frame = null;
+      }
     };
 
     let disconnect: (() => void) | undefined;
