@@ -3,6 +3,7 @@ import {
   h,
   onMounted,
   onScopeDispose,
+  provide,
   shallowRef,
   watch,
   type SlotsType,
@@ -16,6 +17,7 @@ import {
   observeContentResize,
   viewportOverflows,
 } from "./viewportScroll";
+import { viewportInjectionKey } from "./viewportContext";
 
 /**
  * A scrollable container that keeps the thread pinned to the bottom: content
@@ -23,10 +25,10 @@ import {
  * scrolls down, and scrolling up unpins until the user returns to the bottom.
  * The four options mirror the React hook and are independent: `autoScroll`
  * covers follow-on-content-growth, and the other three gate the
- * first-messages, run-start, and thread-switch scrolls. The React viewport's
- * top-anchor system and its imperative scroll-to-bottom channel (the one
- * `ThreadPrimitive.ScrollToBottom` drives) live in the React viewport store
- * and are not ported yet.
+ * first-messages, run-start, and thread-switch scrolls. Provides the
+ * scroll-to-bottom channel that {@link ThreadPrimitiveScrollToBottom} drives;
+ * the React viewport's top-anchor system stays in the React viewport store
+ * and is not ported.
  */
 export const ThreadPrimitiveViewport = defineComponent({
   name: "ThreadPrimitiveViewport",
@@ -52,7 +54,7 @@ export const ThreadPrimitiveViewport = defineComponent({
   setup(props, { slots }) {
     const divRef = shallowRef<HTMLElement | null>(null);
     let intent: ScrollBehavior | null = null;
-    let isAtBottom = true;
+    const isAtBottom = shallowRef(true);
     let lastScrollTop = 0;
     let lastScrollHeight = 0;
     let lastObservedScrollHeight = 0;
@@ -97,7 +99,7 @@ export const ThreadPrimitiveViewport = defineComponent({
         ) {
           intent = null;
         }
-        if (newIsAtBottom || intent === null) isAtBottom = newIsAtBottom;
+        if (newIsAtBottom || intent === null) isAtBottom.value = newIsAtBottom;
       }
 
       lastScrollTop = div.scrollTop;
@@ -119,7 +121,7 @@ export const ThreadPrimitiveViewport = defineComponent({
 
       if (intent) {
         scrollToBottom(intent);
-      } else if (props.autoScroll && isAtBottom) {
+      } else if (props.autoScroll && isAtBottom.value) {
         scrollToBottom("instant");
       }
       handleScroll();
@@ -173,6 +175,12 @@ export const ThreadPrimitiveViewport = defineComponent({
     useAuiEvent("threadListItem.switchedTo", () => {
       if (!props.scrollToBottomOnThreadSwitch) return;
       scheduleScrollToBottom("instant");
+    });
+
+    provide(viewportInjectionKey, {
+      isAtBottom,
+      scrollToBottom: (behavior: ScrollBehavior = "auto") =>
+        scrollToBottom(behavior),
     });
 
     return () =>

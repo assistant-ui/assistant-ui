@@ -8,6 +8,7 @@ export { MessageByIndexProvider } from "./primitives/MessageByIndexProvider";
 export { PartByIndexProvider } from "./primitives/PartByIndexProvider";
 export { ThreadPrimitiveMessages } from "./primitives/ThreadPrimitiveMessages";
 export { ThreadPrimitiveViewport } from "./primitives/ThreadPrimitiveViewport";
+export { ThreadPrimitiveScrollToBottom } from "./primitives/ThreadPrimitiveScrollToBottom";
 export { MessagePrimitiveParts } from "./primitives/MessagePrimitiveParts";
 export { ComposerPrimitiveInput } from "./primitives/ComposerPrimitiveInput";
 export { ComposerPrimitiveSend } from "./primitives/ComposerPrimitiveSend";

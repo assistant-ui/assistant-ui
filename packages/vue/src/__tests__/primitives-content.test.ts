@@ -20,6 +20,7 @@ import { AuiProvider } from "../AuiProvider";
 import { useAuiState } from "../useAuiState";
 import { ThreadPrimitiveMessages } from "../primitives/ThreadPrimitiveMessages";
 import { ThreadPrimitiveViewport } from "../primitives/ThreadPrimitiveViewport";
+import { ThreadPrimitiveScrollToBottom } from "../primitives/ThreadPrimitiveScrollToBottom";
 import {
   MessagePrimitiveParts,
   clearPartWarningsForTesting,
@@ -468,6 +469,97 @@ describe("ThreadPrimitiveViewport", () => {
     expect(disabledScrollTo).not.toHaveBeenCalled();
 
     mountedDisabled.unmount();
+  });
+
+  it("enables scroll-to-bottom only while scrolled up and scrolls on click", async () => {
+    const { runtime, append } = createTestRuntime();
+    const View = defineComponent({
+      setup: () => () =>
+        h(
+          ThreadPrimitiveViewport,
+          { class: "viewport" },
+          {
+            default: () => [
+              h(ThreadPrimitiveMessages, null, {
+                default: () => h("p", "row"),
+              }),
+              h(
+                ThreadPrimitiveScrollToBottom,
+                { class: "jump" },
+                { default: () => "Jump" },
+              ),
+            ],
+          },
+        ),
+    });
+    const { el, unmount } = mountChat(runtime, View);
+
+    const div = el.querySelector<HTMLElement>("div.viewport")!;
+    let scrollTop = 400;
+    Object.defineProperty(div, "scrollHeight", {
+      get: () => 500,
+      configurable: true,
+    });
+    Object.defineProperty(div, "clientHeight", {
+      get: () => 100,
+      configurable: true,
+    });
+    Object.defineProperty(div, "scrollTop", {
+      get: () => scrollTop,
+      set: (value: number) => {
+        scrollTop = value;
+      },
+      configurable: true,
+    });
+    const scrollTo = vi.fn(({ top }: { top: number }) => {
+      scrollTop = Math.max(0, Math.min(top, 400));
+    });
+    Object.defineProperty(div, "scrollTo", {
+      value: scrollTo,
+      configurable: true,
+    });
+
+    div.dispatchEvent(new Event("scroll"));
+    const button = el.querySelector<HTMLButtonElement>("button.jump")!;
+    expect(button.disabled).toBe(true);
+
+    scrollTop = 50;
+    div.dispatchEvent(new Event("scroll"));
+    await vi.waitFor(async () => {
+      await nextTick();
+      expect(el.querySelector<HTMLButtonElement>("button.jump")!.disabled).toBe(
+        false,
+      );
+    });
+
+    el.querySelector<HTMLButtonElement>("button.jump")!.click();
+    expect(scrollTo).toHaveBeenCalledWith({ top: 500, behavior: "auto" });
+    div.dispatchEvent(new Event("scroll"));
+    await vi.waitFor(async () => {
+      await nextTick();
+      expect(el.querySelector<HTMLButtonElement>("button.jump")!.disabled).toBe(
+        true,
+      );
+    });
+
+    unmount();
+  });
+
+  it("renders scroll-to-bottom disabled outside a viewport", () => {
+    const { runtime } = createTestRuntime();
+    const View = defineComponent({
+      setup: () => () =>
+        h(
+          ThreadPrimitiveScrollToBottom,
+          { class: "jump" },
+          { default: () => "Jump" },
+        ),
+    });
+    const { el, unmount } = mountChat(runtime, View);
+    expect(el.querySelector<HTMLButtonElement>("button.jump")!.disabled).toBe(
+      true,
+    );
+    unmount();
   });
 
   it("computes bottom pinning from viewport metrics", () => {
