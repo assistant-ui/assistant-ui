@@ -145,7 +145,10 @@ export const ThreadListItemPrimitiveTrigger = defineComponent({
   },
 });
 
-/** Renders the current thread-list item's title, or `fallback` when empty. */
+/**
+ * Renders the current thread-list item's title. When the title is empty,
+ * renders the default slot, or the `fallback` string.
+ */
 export const ThreadListItemPrimitiveTitle = defineComponent({
   name: "ThreadListItemPrimitiveTitle",
   props: {
@@ -154,8 +157,9 @@ export const ThreadListItemPrimitiveTitle = defineComponent({
       default: "",
     },
   },
-  setup(props) {
+  slots: Object as SlotsType<{ default?: () => unknown }>,
+  setup(props, { slots }) {
     const title = useAuiState((s) => s.threadListItem.title);
-    return () => title.value || props.fallback;
+    return () => title.value || slots.default?.() || props.fallback;
   },
 });

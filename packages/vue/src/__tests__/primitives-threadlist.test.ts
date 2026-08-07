@@ -61,6 +61,9 @@ const createMultiThreadRuntime = () => {
           id: thread.id,
           title: thread.title,
         })),
+        archivedThreads: [
+          { status: "archived" as const, id: "ta", title: "Archived one" },
+        ],
         onSwitchToThread,
         onSwitchToNewThread,
       },
@@ -193,6 +196,122 @@ describe("thread list primitives", () => {
     expect(
       el.querySelectorAll<HTMLButtonElement>("button.item")[2]!.textContent,
     ).toBe("New Chat");
+
+    unmount();
+  });
+
+  it("renders archived items separately with archived", async () => {
+    const { runtime } = createMultiThreadRuntime();
+    const View = defineComponent({
+      setup: () => () => [
+        h(SidebarView),
+        h(
+          ThreadListPrimitiveItems,
+          { archived: true },
+          {
+            default: () =>
+              h(
+                ThreadListItemPrimitiveTrigger,
+                { class: "arch" },
+                { default: () => h(ThreadListItemPrimitiveTitle) },
+              ),
+          },
+        ),
+      ],
+    });
+    const { el, unmount } = mountView(runtime, View);
+
+    await vi.waitFor(async () => {
+      await nextTick();
+      expect(el.querySelectorAll("button.arch")).toHaveLength(1);
+    });
+    expect(el.querySelectorAll("button.item")).toHaveLength(2);
+    expect(el.querySelector("button.arch")!.textContent).toBe("Archived one");
+
+    unmount();
+  });
+
+  it("ignores clicks while disabled or default-prevented", async () => {
+    const { runtime, onSwitchToThread, onSwitchToNewThread } =
+      createMultiThreadRuntime();
+    const View = defineComponent({
+      setup: () => () => [
+        h(
+          ThreadListPrimitiveNew,
+          { class: "new", disabled: true },
+          { default: () => "New" },
+        ),
+        h(ThreadListPrimitiveItems, null, {
+          default: () =>
+            h(ThreadListItemPrimitiveTrigger, {
+              class: "item",
+              onClick: (event: MouseEvent) => event.preventDefault(),
+            }),
+        }),
+      ],
+    });
+    const { el, unmount } = mountView(runtime, View);
+
+    await vi.waitFor(async () => {
+      await nextTick();
+      expect(el.querySelectorAll("button.item")).toHaveLength(2);
+    });
+    expect(el.querySelector<HTMLButtonElement>("button.new")!.disabled).toBe(
+      true,
+    );
+
+    el.querySelector<HTMLButtonElement>("button.new")!.click();
+    el.querySelectorAll<HTMLButtonElement>("button.item")[1]!.click();
+    await nextTick();
+    await Promise.resolve();
+    expect(onSwitchToNewThread).not.toHaveBeenCalled();
+    expect(onSwitchToThread).not.toHaveBeenCalled();
+
+    unmount();
+  });
+
+  it("renders the default slot as the title fallback", async () => {
+    const { runtime } = createMultiThreadRuntime();
+    const View = defineComponent({
+      setup: () => () => [
+        h(ThreadListPrimitiveNew, { class: "new" }, { default: () => "New" }),
+        h(ThreadListPrimitiveItems, null, {
+          default: () =>
+            h(
+              ThreadListItemPrimitiveTrigger,
+              { class: "item" },
+              {
+                default: () =>
+                  h(
+                    ThreadListItemPrimitiveTitle,
+                    { fallback: "unused" },
+                    { default: () => h("em", "Untitled") },
+                  ),
+              },
+            ),
+        }),
+      ],
+    });
+    const { el, unmount } = mountView(runtime, View);
+
+    await vi.waitFor(async () => {
+      await nextTick();
+      expect(el.querySelectorAll("button.item")).toHaveLength(2);
+    });
+    expect(
+      el.querySelectorAll<HTMLButtonElement>("button.item")[0]!.textContent,
+    ).toBe("First thread");
+
+    el.querySelector<HTMLButtonElement>("button.new")!.click();
+    await vi.waitFor(async () => {
+      await nextTick();
+      expect(el.querySelectorAll("button.item")).toHaveLength(3);
+    });
+    expect(
+      el
+        .querySelectorAll<HTMLButtonElement>("button.item")[2]!
+        .querySelector("em")!.textContent,
+    ).toBe("Untitled");
 
     unmount();
   });
