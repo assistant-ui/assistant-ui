@@ -66,13 +66,15 @@ export const createEchoRuntime = () => {
       ];
       reply(text);
     },
-    onReload: async () => {
-      const lastUser = [...messages]
+    onReload: async (parentId) => {
+      const parentIndex = parentId
+        ? messages.findIndex((entry) => entry.id === parentId) + 1
+        : 0;
+      const sliced = messages.slice(0, parentIndex);
+      const lastUser = [...sliced]
         .reverse()
         .find((entry) => entry.role === "user");
-      messages = messages.filter(
-        (entry) => !(entry.role === "assistant" && entry === messages.at(-1)),
-      );
+      messages = sliced;
       reply(`${lastUser?.text ?? ""} (again)`);
     },
     onCancel: async () => {

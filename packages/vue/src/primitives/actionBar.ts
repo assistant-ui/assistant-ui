@@ -72,8 +72,12 @@ export const ActionBarPrimitiveReload = defineComponent({
   },
 });
 
-const defaultCopyToClipboard = (text: string) =>
-  navigator.clipboard.writeText(text);
+const defaultCopyToClipboard = (text: string) => {
+  if (typeof navigator === "undefined" || !navigator.clipboard) {
+    return Promise.reject(new Error("Clipboard API is not available."));
+  }
+  return navigator.clipboard.writeText(text);
+};
 
 /**
  * A button that copies the current message (or, while editing, the edit

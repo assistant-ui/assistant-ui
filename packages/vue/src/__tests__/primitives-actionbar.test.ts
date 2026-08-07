@@ -335,6 +335,32 @@ describe("edit flow and branches", () => {
     unmount();
   });
 
+  it("stays inert when the clipboard API is unavailable", async () => {
+    const { runtime, seed } = createEditableRuntime();
+    const { el, unmount } = mountChat(runtime);
+
+    flushTapSync(() =>
+      seed([
+        { id: "u1", role: "user", text: "hello" },
+        { id: "a1", role: "assistant", text: "Echo: hello" },
+      ]),
+    );
+    await vi.waitFor(async () => {
+      await nextTick();
+      expect(el.querySelectorAll("li.msg")).toHaveLength(2);
+    });
+
+    expect(() =>
+      q<HTMLButtonElement>(assistantItem(el), "button.copy").click(),
+    ).not.toThrow();
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    expect(
+      q(assistantItem(el), "button.copy").hasAttribute("data-copied"),
+    ).toBe(false);
+
+    unmount();
+  });
+
   it("copies message text and flags data-copied for the configured window", async () => {
     const writeText = vi.fn(() => Promise.resolve());
     Object.defineProperty(navigator, "clipboard", {
