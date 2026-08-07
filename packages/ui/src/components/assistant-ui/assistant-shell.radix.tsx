@@ -197,7 +197,7 @@ export const AssistantShellSidebar: FC<AssistantShellSidebarProps> = ({
             data-slot="aui_shell-sidebar-new"
             className={cn(
               "shrink-0 transition-[padding] duration-200",
-              collapsed ? "px-2 pt-1 pb-2" : "p-3",
+              collapsed ? "px-2 pt-1 pb-2" : "px-3 pt-2 pb-1.5",
             )}
           >
             <TooltipProvider>
