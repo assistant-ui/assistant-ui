@@ -211,7 +211,9 @@ const useMessageClient = ({
 
   const state = useMemo(() => {
     const messageWithFeedback: ExternalThreadMessage =
-      submittedFeedback && message.role === "assistant"
+      submittedFeedback &&
+      message.role === "assistant" &&
+      !message.metadata.submittedFeedback
         ? { ...message, metadata: { ...message.metadata, submittedFeedback } }
         : message;
     return {

@@ -56,24 +56,30 @@ const renderThreadWithProps = (props: Partial<ExternalThreadProps>) => {
     );
   };
 
-  render(<App props={props} />);
-  return () => captured.aui!;
+  const view = render(<App props={props} />);
+  return {
+    aui: () => captured.aui!,
+    rerender: (nextProps: Partial<ExternalThreadProps>) =>
+      view.rerender(<App props={nextProps} />),
+  };
 };
 
 describe("ExternalThread feedback", () => {
   it("reports the feedback capability based on adapter presence", () => {
-    const withoutAdapter = renderThreadWithProps({});
+    const { aui: withoutAdapter } = renderThreadWithProps({});
     expect(withoutAdapter().thread.getState().capabilities.feedback).toBe(
       false,
     );
 
     const { adapter } = createFakeAdapter();
-    const withAdapter = renderThreadWithProps({ feedbackAdapter: adapter });
+    const { aui: withAdapter } = renderThreadWithProps({
+      feedbackAdapter: adapter,
+    });
     expect(withAdapter().thread.getState().capabilities.feedback).toBe(true);
   });
 
   it("throws on submitFeedback when no adapter is configured", () => {
-    const aui = renderThreadWithProps({});
+    const { aui } = renderThreadWithProps({});
     expect(() =>
       aui().thread.message({ id: "a1" }).submitFeedback({ type: "positive" }),
     ).toThrow("Feedback adapter not configured");
@@ -81,7 +87,7 @@ describe("ExternalThread feedback", () => {
 
   it("submits feedback to the adapter and marks the assistant message", async () => {
     const { adapter, submit } = createFakeAdapter();
-    const aui = renderThreadWithProps({ feedbackAdapter: adapter });
+    const { aui } = renderThreadWithProps({ feedbackAdapter: adapter });
 
     await act(async () => {
       aui().thread.message({ id: "a1" }).submitFeedback({ type: "positive" });
@@ -115,9 +121,41 @@ describe("ExternalThread feedback", () => {
     });
   });
 
+  it("prefers owner-supplied submittedFeedback over the local overlay", async () => {
+    const { adapter } = createFakeAdapter();
+    const { aui, rerender } = renderThreadWithProps({
+      feedbackAdapter: adapter,
+    });
+
+    await act(async () => {
+      aui().thread.message({ id: "a1" }).submitFeedback({ type: "positive" });
+    });
+    await waitFor(() => {
+      expect(
+        aui().thread.message({ id: "a1" }).getState().metadata
+          .submittedFeedback,
+      ).toEqual({ type: "positive" });
+    });
+
+    const ownerMessages = [
+      MESSAGES[0]!,
+      {
+        ...MESSAGES[1]!,
+        metadata: { custom: {}, submittedFeedback: { type: "negative" } },
+      },
+    ] as unknown as readonly ExternalThreadMessage[];
+    await act(async () => {
+      rerender({ feedbackAdapter: adapter, messages: ownerMessages });
+    });
+
+    expect(
+      aui().thread.message({ id: "a1" }).getState().metadata.submittedFeedback,
+    ).toEqual({ type: "negative" });
+  });
+
   it("submits user message feedback without marking the message", async () => {
     const { adapter, submit } = createFakeAdapter();
-    const aui = renderThreadWithProps({ feedbackAdapter: adapter });
+    const { aui } = renderThreadWithProps({ feedbackAdapter: adapter });
 
     await act(async () => {
       aui().thread.message({ id: "u1" }).submitFeedback({ type: "negative" });
