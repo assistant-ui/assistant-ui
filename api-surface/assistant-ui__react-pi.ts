@@ -1572,6 +1572,7 @@ declare class PiThreadSupervisor {
   private onSessionEvent;
   private emitContextUsage;
   private emit;
+  private notifyListener;
   private liveStatusFor;
   private runStatus;
   private readinessOf;
