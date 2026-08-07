@@ -248,10 +248,7 @@ const useMessageClient = ({
       onReload?.();
     },
     speak: onSpeak,
-    stopSpeaking: () => {
-      if (!speech) throw new Error("Message is not being spoken");
-      onStopSpeaking();
-    },
+    stopSpeaking: onStopSpeaking,
     submitFeedback: () => {},
     switchToBranch: ({ position, branchId }) => {
       if (!branches) return;
@@ -734,6 +731,53 @@ const useComposerClientResource = ({
 
 const ComposerClientResource = resource(useComposerClientResource);
 
+const createSpeechController = (
+  notify: (speech: SpeechState | undefined) => void,
+) => {
+  let session: { messageId: string; stop: () => void } | undefined;
+
+  return {
+    speak: (
+      adapter: SpeechSynthesisAdapter,
+      message: ExternalThreadMessage,
+    ) => {
+      session?.stop();
+
+      const utterance = adapter.speak(getThreadMessageText(message));
+      const unsub = utterance.subscribe(() => {
+        if (utterance.status.type === "ended") {
+          session = undefined;
+          notify(undefined);
+        } else {
+          notify({ messageId: message.id, status: utterance.status });
+        }
+      });
+
+      notify({ messageId: message.id, status: utterance.status });
+
+      session = {
+        messageId: message.id,
+        stop: () => {
+          utterance.cancel();
+          unsub();
+          session = undefined;
+          notify(undefined);
+        },
+      };
+    },
+    stop: () => {
+      if (!session) throw new Error("No message is being spoken");
+      session.stop();
+    },
+    stopMessage: (messageId: string) => {
+      if (session?.messageId !== messageId)
+        throw new Error("Message is not being spoken");
+      session.stop();
+    },
+    dispose: () => session?.stop(),
+  };
+};
+
 const dedupeMessagesById = (messages: readonly ExternalThreadMessage[]) => {
   const seenIds = new Set<string>();
   const deduped: ExternalThreadMessage[] = [];
@@ -780,37 +824,14 @@ const useExternalThread = ({
   );
 
   const [speech, setSpeech] = useState<SpeechState | undefined>(undefined);
-  const stopSpeakingRef = useRef<(() => void) | undefined>(undefined);
+  const [speechController] = useState(() => createSpeechController(setSpeech));
 
-  const handleSpeak = useEffectEvent((message: ExternalThreadMessage) => {
+  useEffect(() => () => speechController.dispose(), [speechController]);
+
+  const handleSpeak = (message: ExternalThreadMessage) => {
     if (!speechAdapter) throw new Error("Speech adapter not configured");
-
-    stopSpeakingRef.current?.();
-
-    const utterance = speechAdapter.speak(getThreadMessageText(message));
-    const unsub = utterance.subscribe(() => {
-      if (utterance.status.type === "ended") {
-        stopSpeakingRef.current = undefined;
-        setSpeech(undefined);
-      } else {
-        setSpeech({ messageId: message.id, status: utterance.status });
-      }
-    });
-
-    setSpeech({ messageId: message.id, status: utterance.status });
-
-    stopSpeakingRef.current = () => {
-      utterance.cancel();
-      unsub();
-      setSpeech(undefined);
-      stopSpeakingRef.current = undefined;
-    };
-  });
-
-  const handleStopSpeaking = useEffectEvent(() => {
-    if (!stopSpeakingRef.current) throw new Error("No message is being spoken");
-    stopSpeakingRef.current();
-  });
+    speechController.speak(speechAdapter, message);
+  };
 
   const handleReload = (messageId: string) => {
     const messageIndex = messages.findIndex((m) => m.id === messageId);
@@ -835,7 +856,7 @@ const useExternalThread = ({
         attachmentAdapter,
         speech: speech?.messageId === msg.id ? speech : undefined,
         onSpeak: () => handleSpeak(msg),
-        onStopSpeaking: handleStopSpeaking,
+        onStopSpeaking: () => speechController.stopMessage(msg.id),
       };
       if (onEdit) props.onEdit = onEdit;
       return withKey(msg.id, MessageClient(props));
@@ -998,7 +1019,7 @@ const useExternalThread = ({
       }
       return messageClients.get(selector);
     },
-    stopSpeaking: handleStopSpeaking,
+    stopSpeaking: speechController.stop,
     connectVoice: () => {},
     disconnectVoice: () => {},
     getVoiceVolume: () => 0,

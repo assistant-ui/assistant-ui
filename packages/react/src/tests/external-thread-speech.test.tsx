@@ -200,23 +200,23 @@ describe("ExternalThread speech", () => {
   });
 
   it("message stopSpeaking throws unless that message is being spoken", async () => {
-    const { adapter } = createFakeAdapter();
+    const { adapter, utterances } = createFakeAdapter();
     const aui = renderThreadWithProps({ speechAdapter: adapter });
 
-    await act(async () => {
-      aui().thread.message({ id: "a1" }).speak();
-    });
-    await waitFor(() => {
-      expect(aui().thread.getState().speech).toBeDefined();
-    });
-
-    expect(() => aui().thread.message({ id: "u1" }).stopSpeaking()).toThrow(
+    expect(() => aui().thread.message({ id: "a1" }).stopSpeaking()).toThrow(
       "Message is not being spoken",
     );
 
+    // speak and stopSpeaking in the same tick, before any re-render
     await act(async () => {
+      aui().thread.message({ id: "a1" }).speak();
+      expect(() => aui().thread.message({ id: "u1" }).stopSpeaking()).toThrow(
+        "Message is not being spoken",
+      );
       aui().thread.message({ id: "a1" }).stopSpeaking();
     });
+
+    expect(utterances[0]!.cancel).toHaveBeenCalledTimes(1);
     await waitFor(() => {
       expect(aui().thread.getState().speech).toBeUndefined();
     });
