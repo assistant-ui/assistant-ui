@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
 import { createApp, defineComponent, h, nextTick, type Component } from "vue";
-import { flushTapSync } from "@assistant-ui/tap";
 import { AuiConfig } from "@assistant-ui/store/client";
 import { RuntimeAdapter } from "@assistant-ui/core/store";
 import type { ExternalStoreAdapter } from "@assistant-ui/core";
@@ -141,9 +140,28 @@ describe("thread list primitives", () => {
       expect(el.querySelectorAll("button.item")).toHaveLength(2);
     });
 
+    expect(
+      el
+        .querySelectorAll<HTMLButtonElement>("button.item")[0]!
+        .getAttribute("data-active"),
+    ).toBe("true");
+    expect(
+      el
+        .querySelectorAll<HTMLButtonElement>("button.item")[1]!
+        .hasAttribute("data-active"),
+    ).toBe(false);
+
     el.querySelectorAll<HTMLButtonElement>("button.item")[1]!.click();
     await vi.waitFor(() => {
       expect(onSwitchToThread).toHaveBeenCalledWith("t2");
+    });
+    await vi.waitFor(async () => {
+      await nextTick();
+      expect(
+        el
+          .querySelectorAll<HTMLButtonElement>("button.item")[1]!
+          .getAttribute("aria-current"),
+      ).toBe("true");
     });
     await vi.waitFor(() => {
       expect(runtime.thread.getState().messages[0]!.content[0]).toMatchObject({

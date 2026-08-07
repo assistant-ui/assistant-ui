@@ -172,8 +172,10 @@ export const ThreadPrimitiveViewport = defineComponent({
       scheduleScrollToBottom("auto");
     });
 
-    // The switchedTo relay emits from the thread-list lookup instance inside
-    // the threads scope, which the default listener scope does not cover.
+    // A non-star subscription matches the emitting client against the
+    // listener's scope binding at delivery time; on a switch the event is
+    // emitted by the newly main item client before the derived threadListItem
+    // binding re-resolves to it, so only a star scope observes the emission.
     useAuiEvent({ scope: "*", event: "threadListItem.switchedTo" }, () => {
       if (!props.scrollToBottomOnThreadSwitch) return;
       scheduleScrollToBottom("instant");

@@ -79,13 +79,19 @@ export const ThreadListPrimitiveItems = defineComponent({
   },
 });
 
-/** A button that switches to a new thread. */
+/**
+ * A button that switches to a new thread. Carries `data-active` and
+ * `aria-current` while the new thread is the main one.
+ */
 export const ThreadListPrimitiveNew = defineComponent({
   name: "ThreadListPrimitiveNew",
   inheritAttrs: false,
   slots: Object as SlotsType<{ default?: () => unknown }>,
   setup(_, { attrs, slots }) {
     const aui = useAui();
+    const active = useAuiState(
+      (s) => s.threads.newThreadId === s.threads.mainThreadId,
+    );
     const onClick = (event: MouseEvent) => {
       if (event.defaultPrevented || isAttrDisabled(attrs)) return;
       aui.threads.switchToNewThread();
@@ -96,6 +102,10 @@ export const ThreadListPrimitiveNew = defineComponent({
         mergeProps(attrs, {
           type: "button",
           disabled: isAttrDisabled(attrs),
+          ...(active.value && {
+            "data-active": "true",
+            "aria-current": "true",
+          }),
           onClick,
         }),
         slots.default?.(),
@@ -103,13 +113,17 @@ export const ThreadListPrimitiveNew = defineComponent({
   },
 });
 
-/** A button that switches to the current thread-list item's thread. */
+/**
+ * A button that switches to the current thread-list item's thread. Carries
+ * `data-active` and `aria-current` while that thread is the main one.
+ */
 export const ThreadListItemPrimitiveTrigger = defineComponent({
   name: "ThreadListItemPrimitiveTrigger",
   inheritAttrs: false,
   slots: Object as SlotsType<{ default?: () => unknown }>,
   setup(_, { attrs, slots }) {
     const aui = useAui();
+    const active = useAuiState((s) => s.threadListItem.isMain);
     const onClick = (event: MouseEvent) => {
       if (event.defaultPrevented || isAttrDisabled(attrs)) return;
       aui.threadListItem.switchTo();
@@ -120,6 +134,10 @@ export const ThreadListItemPrimitiveTrigger = defineComponent({
         mergeProps(attrs, {
           type: "button",
           disabled: isAttrDisabled(attrs),
+          ...(active.value && {
+            "data-active": "true",
+            "aria-current": "true",
+          }),
           onClick,
         }),
         slots.default?.(),
