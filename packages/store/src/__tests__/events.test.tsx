@@ -313,6 +313,27 @@ describe("microtask delivery (live-set semantics)", () => {
     expect(cb).not.toHaveBeenCalled();
   });
 
+  it("a wildcard listener keeps an emission alive for a scoped listener added before the flush", async () => {
+    const { getAui } = setup();
+    const aui = getAui();
+    const wildcard = vi.fn();
+    aui.on("*", wildcard);
+
+    // whether an emission survives is decided at emit time and asks only
+    // whether anything was listening, so a wildcard listener carries it to a
+    // scoped listener that subscribes before the flush
+    aui.thread.ping("x");
+    const late = vi.fn();
+    aui.on("thread.pinged", late);
+    await flushEvents();
+
+    expect(wildcard).toHaveBeenCalledExactlyOnceWith({
+      event: "thread.pinged",
+      payload: { value: "x" },
+    });
+    expect(late).toHaveBeenCalledExactlyOnceWith({ value: "x" });
+  });
+
   it("listeners added between emit and flush are invoked", async () => {
     const { getAui } = setup();
     const aui = getAui();
