@@ -746,6 +746,7 @@ const createSpeechController = (
       const utterance = adapter.speak(getThreadMessageText(message));
       const unsub = utterance.subscribe(() => {
         if (utterance.status.type === "ended") {
+          unsub();
           session = undefined;
           notify(undefined);
         } else {
@@ -826,7 +827,10 @@ const useExternalThread = ({
   const [speech, setSpeech] = useState<SpeechState | undefined>(undefined);
   const [speechController] = useState(() => createSpeechController(setSpeech));
 
-  useEffect(() => () => speechController.dispose(), [speechController]);
+  useEffect(
+    () => () => speechController.dispose(),
+    [speechAdapter, speechController],
+  );
 
   const handleSpeak = (message: ExternalThreadMessage) => {
     if (!speechAdapter) throw new Error("Speech adapter not configured");

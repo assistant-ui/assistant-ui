@@ -69,7 +69,7 @@ const renderThreadWithProps = (props: Partial<ExternalThreadProps>) => {
     captured.aui = useAui();
     return null;
   };
-  const App: FC = () => {
+  const App: FC<{ props: Partial<ExternalThreadProps> }> = ({ props }) => {
     const aui = useAui({
       thread: ExternalThread({
         messages: MESSAGES,
@@ -84,8 +84,12 @@ const renderThreadWithProps = (props: Partial<ExternalThreadProps>) => {
     );
   };
 
-  render(<App />);
-  return () => captured.aui!;
+  const view = render(<App props={props} />);
+  const aui = () => captured.aui!;
+  aui.rerender = (nextProps: Partial<ExternalThreadProps>) =>
+    view.rerender(<App props={nextProps} />);
+  aui.unmount = () => view.unmount();
+  return aui;
 };
 
 describe("ExternalThread speech", () => {
@@ -169,7 +173,6 @@ describe("ExternalThread speech", () => {
       });
     });
 
-    // the superseded utterance no longer affects thread state
     await act(async () => {
       utterances[0]!.emit({ type: "ended", reason: "cancelled" });
     });
@@ -220,6 +223,72 @@ describe("ExternalThread speech", () => {
     await waitFor(() => {
       expect(aui().thread.getState().speech).toBeUndefined();
     });
+  });
+
+  it("cancels the utterance when the adapter is removed", async () => {
+    const { adapter, utterances } = createFakeAdapter();
+    const aui = renderThreadWithProps({ speechAdapter: adapter });
+
+    await act(async () => {
+      aui().thread.message({ id: "a1" }).speak();
+    });
+    await act(async () => {
+      aui.rerender({});
+    });
+
+    expect(utterances[0]!.cancel).toHaveBeenCalledTimes(1);
+    expect(aui().thread.getState().capabilities.speech).toBe(false);
+    await waitFor(() => {
+      expect(aui().thread.getState().speech).toBeUndefined();
+    });
+
+    await act(async () => {
+      utterances[0]!.emit({ type: "running" });
+    });
+    expect(aui().thread.getState().speech).toBeUndefined();
+  });
+
+  it("cancels the utterance when the adapter is replaced", async () => {
+    const first = createFakeAdapter();
+    const second = createFakeAdapter();
+    const aui = renderThreadWithProps({ speechAdapter: first.adapter });
+
+    await act(async () => {
+      aui().thread.message({ id: "a1" }).speak();
+    });
+    await act(async () => {
+      aui.rerender({ speechAdapter: second.adapter });
+    });
+
+    expect(first.utterances[0]!.cancel).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      expect(aui().thread.getState().speech).toBeUndefined();
+    });
+
+    await act(async () => {
+      aui().thread.message({ id: "u1" }).speak();
+    });
+    expect(second.utterances[0]!.text).toBe("hi");
+    await waitFor(() => {
+      expect(aui().thread.getState().speech).toEqual({
+        messageId: "u1",
+        status: { type: "starting" },
+      });
+    });
+  });
+
+  it("cancels the utterance on unmount", async () => {
+    const { adapter, utterances } = createFakeAdapter();
+    const aui = renderThreadWithProps({ speechAdapter: adapter });
+
+    await act(async () => {
+      aui().thread.message({ id: "a1" }).speak();
+    });
+    await act(async () => {
+      aui.unmount();
+    });
+
+    expect(utterances[0]!.cancel).toHaveBeenCalledTimes(1);
   });
 
   afterEach(() => {
