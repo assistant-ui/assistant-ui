@@ -49,7 +49,7 @@ const AccountMenu = () => {
       <DropdownMenuContent
         side="top"
         align="start"
-        className="ring-foreground/5 min-w-56 p-1.5 shadow-lg"
+        className="ring-border dark:ring-muted min-w-56 p-1.5 shadow-lg"
       >
         <DropdownMenuItem className={menuItemClass}>
           <SparklesIcon /> Upgrade plan
