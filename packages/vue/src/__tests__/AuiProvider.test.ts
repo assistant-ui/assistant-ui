@@ -203,6 +203,24 @@ describe("AuiProvider", () => {
       expect(getAui().message.getState()).toEqual({ id: "m1", text: "draft" });
     });
 
+    config.value = AuiConfig({
+      message: MessageClient({ id: "m1" }),
+      thread: ThreadClient(),
+    } as never);
+    await nextTick();
+    await vi.waitFor(() => {
+      expect(getAui().thread.getState()).toEqual({ selected: 0 });
+    });
+    expect(getAui().message.getState()).toEqual({ id: "m1", text: "draft" });
+
+    config.value = AuiConfig({ message: MessageClient({ id: "m1" }) } as never);
+    await nextTick();
+    await vi.waitFor(() => {
+      expect(() => getAui().thread.getState()).toThrow(
+        'The current scope does not have a "thread" property.',
+      );
+    });
+
     unmount();
   });
 

@@ -14,9 +14,23 @@ import {
 } from "@assistant-ui/store/client";
 import { auiInjectionKey, createClientFacade } from "./context";
 
-const isDevelopment =
-  typeof process !== "undefined" &&
-  (process.env.NODE_ENV === "development" || process.env.NODE_ENV === "test");
+// Vite replaces the import.meta.env and process.env.NODE_ENV literals per
+// host; the try blocks cover hosts where neither binding exists.
+const isDevelopment = (() => {
+  try {
+    const env = (import.meta as { env?: { DEV?: boolean } }).env;
+    if (typeof env?.DEV === "boolean") return env.DEV;
+  } catch {
+    /* empty */
+  }
+  try {
+    return (
+      process.env.NODE_ENV === "development" || process.env.NODE_ENV === "test"
+    );
+  } catch {
+    return false;
+  }
+})();
 
 /**
  * Creates an `AssistantClient` from the given config and provides it to the
@@ -58,12 +72,13 @@ export const AuiProvider = defineComponent({
       }
     }
 
-    const parent =
-      !hasExtends || props.extends === null
+    const parent = !hasExtends
+      ? injected?.source
+      : props.extends === null
         ? undefined
         : injected && props.extends === injected.aui
           ? injected.source
-          : props.extends!;
+          : props.extends;
 
     const handle = createAssistantClient(
       {
