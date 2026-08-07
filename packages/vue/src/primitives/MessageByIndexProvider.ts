@@ -1,4 +1,4 @@
-import { computed, defineComponent, h, type SlotsType } from "vue";
+import { computed, defineComponent, h, nextTick, type SlotsType } from "vue";
 import { AuiConfig, Derived } from "@assistant-ui/store/client";
 import type { ComposerMethods, MessageMethods } from "@assistant-ui/core/store";
 import { AuiProvider } from "../AuiProvider";
@@ -19,13 +19,25 @@ export const MessageByIndexProvider = defineComponent({
   slots: Object as SlotsType<{ default?: () => unknown }>,
   setup(props, { slots }) {
     const aui = useAui();
+    // When the collection shrinks, this scope re-resolves before Vue unmounts
+    // it; serve the last valid clients for that window only. A stale serve
+    // drops the caches after Vue's flush, so a provider still mounted out of
+    // bounds reverts to throwing on its next resolution, while a normal
+    // shrink has unmounted it by then.
     const config = computed(() => {
       const index = props.index;
-      // When the collection shrinks, this scope re-resolves before Vue
-      // unmounts it; serve the last valid clients for that window. A
-      // never-valid index falls through and still throws.
       let lastMessage: MessageMethods | undefined;
       let lastComposer: ComposerMethods | undefined;
+      let recheckScheduled = false;
+      const scheduleRecheck = () => {
+        if (recheckScheduled) return;
+        recheckScheduled = true;
+        void nextTick(() => {
+          recheckScheduled = false;
+          lastMessage = undefined;
+          lastComposer = undefined;
+        });
+      };
       return AuiConfig({
         message: Derived({
           source: "thread",
@@ -33,6 +45,8 @@ export const MessageByIndexProvider = defineComponent({
           get: (aui) => {
             if (index < aui.thread.getState().messages.length) {
               lastMessage = aui.thread.message({ index });
+            } else if (lastMessage) {
+              scheduleRecheck();
             }
             return lastMessage ?? aui.thread.message({ index });
           },
@@ -43,6 +57,8 @@ export const MessageByIndexProvider = defineComponent({
           get: (aui) => {
             if (index < aui.thread.getState().messages.length) {
               lastComposer = aui.thread.message({ index }).composer();
+            } else if (lastComposer) {
+              scheduleRecheck();
             }
             return lastComposer ?? aui.thread.message({ index }).composer();
           },

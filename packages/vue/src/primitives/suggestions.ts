@@ -1,4 +1,11 @@
-import { computed, defineComponent, h, mergeProps, type SlotsType } from "vue";
+import {
+  computed,
+  defineComponent,
+  h,
+  mergeProps,
+  nextTick,
+  type SlotsType,
+} from "vue";
 import { AuiConfig, Derived } from "@assistant-ui/store/client";
 import { flushTapSync } from "@assistant-ui/tap";
 import type { SuggestionMethods } from "@assistant-ui/core/store";
@@ -22,12 +29,23 @@ export const SuggestionByIndexProvider = defineComponent({
   slots: Object as SlotsType<{ default?: () => unknown }>,
   setup(props, { slots }) {
     const aui = useAui();
+    // When the collection shrinks, this scope re-resolves before Vue unmounts
+    // it; serve the last valid client for that window only. A stale serve
+    // drops the cache after Vue's flush, so a provider still mounted out of
+    // bounds reverts to throwing on its next resolution, while a normal
+    // shrink has unmounted it by then.
     const config = computed(() => {
       const index = props.index;
-      // When the collection shrinks, this scope re-resolves before Vue
-      // unmounts it; serve the last valid client for that window. A
-      // never-valid index falls through and still throws.
       let lastSuggestion: SuggestionMethods | undefined;
+      let recheckScheduled = false;
+      const scheduleRecheck = () => {
+        if (recheckScheduled) return;
+        recheckScheduled = true;
+        void nextTick(() => {
+          recheckScheduled = false;
+          lastSuggestion = undefined;
+        });
+      };
       return AuiConfig({
         suggestion: Derived({
           source: "suggestions",
@@ -35,6 +53,8 @@ export const SuggestionByIndexProvider = defineComponent({
           get: (aui) => {
             if (index < aui.suggestions.getState().suggestions.length) {
               lastSuggestion = aui.suggestions.suggestion({ index });
+            } else if (lastSuggestion) {
+              scheduleRecheck();
             }
             return lastSuggestion ?? aui.suggestions.suggestion({ index });
           },

@@ -1,4 +1,11 @@
-import { computed, defineComponent, h, mergeProps, type SlotsType } from "vue";
+import {
+  computed,
+  defineComponent,
+  h,
+  mergeProps,
+  nextTick,
+  type SlotsType,
+} from "vue";
 import { AuiConfig, Derived } from "@assistant-ui/store/client";
 import type { ThreadListItemMethods } from "@assistant-ui/core/store";
 import { AuiProvider } from "../AuiProvider";
@@ -25,13 +32,24 @@ export const ThreadListItemByIndexProvider = defineComponent({
   slots: Object as SlotsType<{ default?: () => unknown }>,
   setup(props, { slots }) {
     const aui = useAui();
+    // When the collection shrinks, this scope re-resolves before Vue unmounts
+    // it; serve the last valid client for that window only. A stale serve
+    // drops the cache after Vue's flush, so a provider still mounted out of
+    // bounds reverts to throwing on its next resolution, while a normal
+    // shrink has unmounted it by then.
     const config = computed(() => {
       const index = props.index;
       const archived = props.archived;
-      // When the collection shrinks, this scope re-resolves before Vue
-      // unmounts it; serve the last valid client for that window. A
-      // never-valid index falls through and still throws.
       let lastItem: ThreadListItemMethods | undefined;
+      let recheckScheduled = false;
+      const scheduleRecheck = () => {
+        if (recheckScheduled) return;
+        recheckScheduled = true;
+        void nextTick(() => {
+          recheckScheduled = false;
+          lastItem = undefined;
+        });
+      };
       return AuiConfig({
         threadListItem: Derived({
           source: "threads",
@@ -45,6 +63,8 @@ export const ThreadListItemByIndexProvider = defineComponent({
             const ids = archived ? state.archivedThreadIds : state.threadIds;
             if (index < ids.length) {
               lastItem = aui.threads.item({ index, archived });
+            } else if (lastItem) {
+              scheduleRecheck();
             }
             return lastItem ?? aui.threads.item({ index, archived });
           },

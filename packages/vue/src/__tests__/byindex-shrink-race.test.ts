@@ -179,6 +179,85 @@ describe("by-index scope shrink races", () => {
     unmount();
   });
 
+  it("a provider still out of bounds after the flush reverts to throwing", async () => {
+    const { runtime, seed } = createShrinkRuntime();
+
+    const PartTypeReader = defineComponent({
+      setup() {
+        const type = useAuiState((s) => s.part.type);
+        return () => h("span", { class: "part-type" }, type.value);
+      },
+    });
+    const PinnedPartView = defineComponent({
+      setup() {
+        const role = useAuiState((s) => s.message.role);
+        return () =>
+          h("li", { class: "msg", "data-role": role.value }, [
+            h(
+              PartByIndexProvider,
+              { index: 0 },
+              { default: () => h(PartTypeReader) },
+            ),
+          ]);
+      },
+    });
+
+    const app = createApp(
+      defineComponent({
+        setup: () => () =>
+          h(
+            AuiProvider,
+            { config: AuiConfig({ threads: RuntimeAdapter(runtime) }) },
+            {
+              default: () =>
+                h(ThreadPrimitiveMessages, null, {
+                  default: () => h(PinnedPartView),
+                }),
+            },
+          ),
+      }),
+    );
+    const el = document.createElement("div");
+    app.mount(el);
+
+    flushTapSync(() =>
+      seed([
+        { id: "u1", role: "user", text: "hi" },
+        { id: "a1", role: "assistant", text: "hello" },
+      ]),
+    );
+    await vi.waitFor(async () => {
+      await nextTick();
+      expect(el.querySelectorAll("span.part-type")).toHaveLength(2);
+    });
+
+    const errorSpy = vi.spyOn(console, "error");
+    flushTapSync(() =>
+      seed([
+        { id: "u1", role: "user", text: "hi" },
+        { id: "a1", role: "assistant", text: "" },
+      ]),
+    );
+    await vi.waitFor(async () => {
+      await nextTick();
+      expect(lookupErrors(errorSpy)).toEqual([]);
+    });
+
+    flushTapSync(() =>
+      seed([
+        { id: "u1", role: "user", text: "hi" },
+        { id: "a1", role: "assistant", text: "" },
+      ]),
+    );
+    await vi.waitFor(async () => {
+      await nextTick();
+      expect(lookupErrors(errorSpy).length).toBeGreaterThan(0);
+    });
+
+    errorSpy.mockRestore();
+    app.unmount();
+  });
+
   it("a never-valid part index still throws when read", () => {
     const { runtime, seed } = createShrinkRuntime();
     seed([
