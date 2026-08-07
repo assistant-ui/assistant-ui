@@ -148,14 +148,13 @@ export const ThreadPrimitiveViewport = defineComponent({
     const hasMessages = useAuiState((s) => s.thread.messages.length > 0);
     let initialized = false;
     watch(
-      hasMessages,
-      (has) => {
-        if (!props.scrollToBottomOnInitialize) return;
+      [hasMessages, () => props.scrollToBottomOnInitialize],
+      ([has, enabled]) => {
         if (!has) {
           initialized = false;
           return;
         }
-        if (initialized) return;
+        if (!enabled || initialized) return;
         initialized = true;
         if (intent !== null) return;
         scheduleScrollToBottom("instant");

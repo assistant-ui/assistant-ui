@@ -6,6 +6,8 @@ import { PartByIndexProvider } from "./PartByIndexProvider";
 
 const warnedTypes = new Set<string>();
 
+export const clearPartWarningsForTesting = () => warnedTypes.clear();
+
 /**
  * Renders the current message's content parts in order, each scoped through
  * {@link PartByIndexProvider}. A slot named after the part type (`text`,

@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 afterEach(() => {
   vi.restoreAllMocks();
+  clearPartWarningsForTesting();
 });
 import { createApp, defineComponent, h, nextTick, type Component } from "vue";
 import { flushTapSync } from "@assistant-ui/tap";
@@ -19,7 +20,10 @@ import { AuiProvider } from "../AuiProvider";
 import { useAuiState } from "../useAuiState";
 import { ThreadPrimitiveMessages } from "../primitives/ThreadPrimitiveMessages";
 import { ThreadPrimitiveViewport } from "../primitives/ThreadPrimitiveViewport";
-import { MessagePrimitiveParts } from "../primitives/MessagePrimitiveParts";
+import {
+  MessagePrimitiveParts,
+  clearPartWarningsForTesting,
+} from "../primitives/MessagePrimitiveParts";
 import {
   BranchPickerPrimitiveCount,
   BranchPickerPrimitiveNext,
