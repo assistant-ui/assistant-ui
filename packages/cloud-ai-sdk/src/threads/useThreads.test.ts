@@ -211,6 +211,29 @@ describe("useThreads", () => {
     expect(result.current.threadId).toBeNull();
   });
 
+  it("clears stale threads when the cloud changes", async () => {
+    const cloudA = createCloud("thread-a");
+    const cloudB = createCloud("thread-b");
+    cloudB.threads.list.mockRejectedValue(new Error("workspace unavailable"));
+
+    const { result, rerender } = renderHook(
+      ({ cloud }) => useThreads({ cloud: cloud as never }),
+      { initialProps: { cloud: cloudA } },
+    );
+
+    await waitFor(() => {
+      expect(result.current.threads[0]?.id).toBe("thread-a");
+    });
+
+    rerender({ cloud: cloudB });
+
+    expect(result.current.threads).toEqual([]);
+    await waitFor(() => {
+      expect(result.current.error?.message).toBe("workspace unavailable");
+    });
+    expect(result.current.threads).toEqual([]);
+  });
+
   it("ignores a refresh that resolves after the cloud changes", async () => {
     const cloudA = createCloud("thread-a");
     const cloudB = createCloud("thread-b");

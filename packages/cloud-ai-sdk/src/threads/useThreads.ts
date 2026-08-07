@@ -58,7 +58,9 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
 
   const activeScopeRef = useRef<typeof scope | null>(scope);
   useLayoutEffect(() => {
-    activeScopeRef.current = scope.cloud === cloud ? scope : null;
+    const isActiveScope = scope.cloud === cloud;
+    activeScopeRef.current = isActiveScope ? scope : null;
+    if (!isActiveScope) setThreads([]);
   }, [cloud, scope]);
   const isCurrentCloud = useCallback(
     () => scope.cloud === cloud && activeScopeRef.current === scope,
