@@ -15,8 +15,8 @@ export type PartInit =
     }
   | {
       readonly type: "reasoning";
-      readonly parentId?: string;
       readonly unstable_summary?: string;
+      readonly parentId?: string;
     }
   | {
       readonly type: "tool-call";

@@ -223,6 +223,27 @@ describe("addToolCallPart with an immediate response", () => {
 });
 
 describe("AssistantStreamController withParentId", () => {
+  it("preserves a reasoning summary from addReasoningPart", async () => {
+    const stream = createAssistantStream((controller) => {
+      const part = controller.addReasoningPart({
+        unstable_summary: "Planning",
+      });
+      part.append("thinking");
+      part.close();
+    });
+
+    const chunks = await collectChunks(stream);
+
+    expect(chunks).toContainEqual({
+      type: "part-start",
+      path: [],
+      part: {
+        type: "reasoning",
+        unstable_summary: "Planning",
+      },
+    });
+  });
+
   it("attaches parentId to text parts across a data-stream round trip", async () => {
     const response = createAssistantStreamResponse((controller) => {
       controller.appendText("intro");

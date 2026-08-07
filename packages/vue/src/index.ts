@@ -5,10 +5,19 @@ export { useAuiState } from "./useAuiState";
 export { useAuiEvent } from "./useAuiEvent";
 
 export { MessageByIndexProvider } from "./primitives/MessageByIndexProvider";
+export { PartByIndexProvider } from "./primitives/PartByIndexProvider";
 export { ThreadPrimitiveMessages } from "./primitives/ThreadPrimitiveMessages";
+export { ThreadPrimitiveViewport } from "./primitives/ThreadPrimitiveViewport";
+export { MessagePrimitiveParts } from "./primitives/MessagePrimitiveParts";
 export { ComposerPrimitiveInput } from "./primitives/ComposerPrimitiveInput";
 export { ComposerPrimitiveSend } from "./primitives/ComposerPrimitiveSend";
 export { ComposerPrimitiveCancel } from "./primitives/ComposerPrimitiveCancel";
+export {
+  BranchPickerPrimitivePrevious,
+  BranchPickerPrimitiveNext,
+  BranchPickerPrimitiveNumber,
+  BranchPickerPrimitiveCount,
+} from "./primitives/branchPicker";
 
 export {
   AuiConfig,

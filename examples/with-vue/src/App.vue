@@ -5,39 +5,59 @@ import {
   ComposerPrimitiveInput,
   ComposerPrimitiveSend,
   ThreadPrimitiveMessages,
+  ThreadPrimitiveViewport,
 } from "@assistant-ui/vue";
 import type {} from "@assistant-ui/core/store";
+import { ArrowUpIcon, SquareIcon } from "@lucide/vue";
 import Message from "./Message.vue";
 </script>
 
 <template>
-  <main class="mx-auto mt-12 max-w-lg px-4 font-sans">
-    <h1 class="mb-4 text-xl font-semibold">assistant-ui × Vue</h1>
-    <ol class="flex min-h-48 flex-col gap-2">
-      <ThreadPrimitiveMessages>
-        <Message />
-      </ThreadPrimitiveMessages>
-    </ol>
-    <div class="mt-4 flex gap-2">
-      <ComposerPrimitiveInput
-        class="flex-1 resize-none rounded-xl border border-neutral-300 px-3 py-2 outline-none"
-        placeholder="Say something"
-        rows="1"
-      />
-      <AuiIf :condition="(s) => !s.thread.isRunning">
-        <ComposerPrimitiveSend
-          class="rounded-xl bg-neutral-900 px-4 py-2 text-white disabled:opacity-50"
-        >
-          Send
-        </ComposerPrimitiveSend>
-      </AuiIf>
-      <AuiIf :condition="(s) => s.thread.isRunning">
-        <ComposerPrimitiveCancel
-          class="rounded-xl bg-neutral-200 px-4 py-2 text-neutral-900 disabled:opacity-50"
-        >
-          Stop
-        </ComposerPrimitiveCancel>
-      </AuiIf>
+  <div class="bg-background flex h-full flex-col">
+    <ThreadPrimitiveViewport
+      class="relative flex flex-1 flex-col overflow-x-auto overflow-y-scroll scroll-smooth"
+    >
+      <div class="mx-auto flex w-full max-w-2xl flex-1 flex-col px-4 pt-12">
+        <AuiIf :condition="(s) => s.thread.messages.length === 0">
+          <div class="flex flex-1 flex-col items-center justify-center pb-24">
+            <h1 class="text-2xl font-semibold">How can I help you today?</h1>
+          </div>
+        </AuiIf>
+        <ol class="mb-14 flex flex-col gap-y-6 empty:hidden">
+          <ThreadPrimitiveMessages>
+            <Message />
+          </ThreadPrimitiveMessages>
+        </ol>
+      </div>
+    </ThreadPrimitiveViewport>
+    <div class="mx-auto w-full max-w-2xl px-4 pb-4">
+      <div
+        class="border-border/60 focus-within:border-border flex w-full flex-col gap-2 rounded-2xl border p-2.5 shadow-[0_4px_16px_-8px_rgba(0,0,0,0.08),0_1px_2px_rgba(0,0,0,0.04)] transition-[border-color,box-shadow] focus-within:shadow-[0_6px_24px_-8px_rgba(0,0,0,0.12),0_1px_2px_rgba(0,0,0,0.05)]"
+      >
+        <ComposerPrimitiveInput
+          class="caret-primary placeholder:text-muted-foreground/80 max-h-32 min-h-10 w-full resize-none bg-transparent px-2.5 py-1 text-base outline-none"
+          placeholder="Send a message..."
+          rows="1"
+        />
+        <div class="flex items-center justify-end">
+          <AuiIf :condition="(s) => !s.thread.isRunning">
+            <ComposerPrimitiveSend
+              class="bg-primary text-primary-foreground flex size-7 items-center justify-center rounded-full transition-opacity disabled:opacity-50"
+              aria-label="Send"
+            >
+              <ArrowUpIcon class="size-4.5" />
+            </ComposerPrimitiveSend>
+          </AuiIf>
+          <AuiIf :condition="(s) => s.thread.isRunning">
+            <ComposerPrimitiveCancel
+              class="bg-primary text-primary-foreground flex size-7 items-center justify-center rounded-full"
+              aria-label="Stop"
+            >
+              <SquareIcon class="size-3.5 fill-current" />
+            </ComposerPrimitiveCancel>
+          </AuiIf>
+        </div>
+      </div>
     </div>
-  </main>
+  </div>
 </template>

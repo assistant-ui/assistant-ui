@@ -202,9 +202,7 @@ type AssistantStreamController = {
   appendFile(options: FilePart): void;
   appendData(options: DataPart): void;
   addTextPart(): TextStreamController;
-  addReasoningPart(options?: {
-    unstable_summary?: string;
-  }): TextStreamController;
+  addReasoningPart(options?: ReasoningPartInit): TextStreamController;
   addToolCallPart(options: string): ToolCallStreamController;
   addToolCallPart(options: ToolCallPartInit): ToolCallStreamController;
   enqueue(chunk: AssistantStreamChunk): void;
@@ -1004,8 +1002,8 @@ type PartInit = {
   readonly parentId?: string;
 } | {
   readonly type: "reasoning";
-  readonly parentId?: string;
   readonly unstable_summary?: string;
+  readonly parentId?: string;
 } | {
   readonly type: "tool-call";
   readonly toolCallId: string;
@@ -1113,7 +1111,11 @@ type ReasoningPart = {
   type: "reasoning";
   text: string;
   status: TextStatus;
+  unstable_summary?: string;
   parentId?: string;
+};
+
+type ReasoningPartInit = {
   unstable_summary?: string;
 };
 

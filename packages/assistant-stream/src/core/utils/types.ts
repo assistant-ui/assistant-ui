@@ -32,8 +32,8 @@ export type ReasoningPart = {
   type: "reasoning";
   text: string;
   status: TextStatus;
-  parentId?: string;
   unstable_summary?: string;
+  parentId?: string;
 };
 
 type ToolCallStatus =
