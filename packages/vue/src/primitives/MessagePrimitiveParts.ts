@@ -28,7 +28,9 @@ export const MessagePrimitiveParts = defineComponent({
         return () => {
           if (type.value === "text") {
             const slot = slots.text;
-            return slot ? slot() : text.value;
+            return slot
+              ? slot()
+              : h("p", { style: { whiteSpace: "pre-line" } }, text.value);
           }
           const slot = slots[type.value] ?? slots.default;
           if (slot) return slot();
