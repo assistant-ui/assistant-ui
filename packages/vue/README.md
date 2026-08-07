@@ -61,6 +61,9 @@ Headless components for runtime-backed threads, mirroring the React primitives. 
 - `ThreadPrimitiveMessages` renders its default slot once per thread message, each instance scoped through `MessageByIndexProvider` (descendants read `s.message` and the message's edit composer as `s.composer`).
 - `ComposerPrimitiveInput` is a textarea bound to the composer text; Enter submits, Shift+Enter inserts a newline, IME composition is ignored.
 - `ComposerPrimitiveSend` and `ComposerPrimitiveCancel` are buttons wired to the composer with the same disabled semantics as the React primitives.
+- `ThreadPrimitiveViewport` is a scroll container that keeps the thread pinned to the bottom while the user is at the bottom, scrolls down on run start, and unpins when the user scrolls up.
+- `MessagePrimitiveParts` renders the current message's content parts, each scoped through `PartByIndexProvider`; a slot named after the part type overrides its rendering, and text parts render their text by default.
+- `BranchPickerPrimitivePrevious`/`Next`/`Number`/`Count` navigate and display message branches.
 - `AuiIf` renders its slot while a state selector returns true.
 
 ```vue
