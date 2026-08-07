@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "postinstall": "nuxt prepare",
     "dev": "nuxt dev --port 3000",
     "build": "nuxt build",
     "preview": "nuxt preview"

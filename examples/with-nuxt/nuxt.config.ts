@@ -10,6 +10,8 @@ export default defineNuxtConfig({
       // @assistant-ui/tap. Aliasing react to the tap standalone shim lets this
       // app run without React installed.
       alias: {
+        "react/compiler-runtime":
+          "@assistant-ui/tap/standalone-shim/compiler-runtime",
         react: "@assistant-ui/tap/standalone-shim",
       },
     },

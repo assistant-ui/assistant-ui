@@ -13,5 +13,8 @@ export default defineEventHandler(async (event) => {
     system,
   });
 
-  return result.toUIMessageStreamResponse();
+  return result.toUIMessageStreamResponse({
+    onError: (error) =>
+      error instanceof Error ? error.message : String(error),
+  });
 });

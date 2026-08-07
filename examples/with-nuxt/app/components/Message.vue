@@ -30,6 +30,22 @@ const pulsing = useAuiState(
 );
 const editing = useAuiState((s) => s.composer.isEditing);
 const copied = useAuiState((s) => s.message.isCopied);
+const error = useAuiState((s) => {
+  const message = s.message;
+  if (
+    message.role !== "assistant" ||
+    message.status.type !== "incomplete" ||
+    message.status.reason !== "error"
+  ) {
+    return null;
+  }
+  const value = message.status.error;
+  if (typeof value === "string") return value;
+  if (value && typeof value === "object" && "message" in value) {
+    return String(value.message);
+  }
+  return "An error occurred.";
+});
 </script>
 
 <template>
@@ -70,6 +86,7 @@ const copied = useAuiState((s) => s.message.isCopied);
     >
       <MessagePrimitiveParts />
       <span v-if="pulsing" class="animate-pulse">…</span>
+      <span v-if="error" class="text-destructive text-sm">{{ error }}</span>
     </div>
     <div
       class="text-muted-foreground flex items-center gap-1 px-2 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100"
