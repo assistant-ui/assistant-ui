@@ -15,12 +15,13 @@ export const useSyncExternalStore = <T>(
   const [, forceUpdate] = useState(0);
 
   const onStoreChange = useEffectEvent(() => {
-    // mirrors React's checkIfSnapshotChanged: a throwing snapshot keeps the committed value
-    // TODO: ideally notify our parent (host) to rerender, mirroring React's force-re-render
+    // mirrors React's checkIfSnapshotChanged: a throwing snapshot counts as
+    // changed and forces a re-render, so the render-time read surfaces the
+    // error instead of silently keeping the committed value
     try {
       if (Object.is(value, getSnapshot())) return;
     } catch {
-      return;
+      // fall through to forceUpdate
     }
     forceUpdate((c) => c + 1);
   });
