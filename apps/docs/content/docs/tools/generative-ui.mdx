@@ -298,6 +298,10 @@ A few conversion caveats worth knowing:
   overflows its budget falls back to plain blocks rather than the card
   layout.
 - `Chart` has no Slack Block Kit mapping and is replaced by a note block.
+- Every `Table` in one conversion draws from a single 10,000-character
+  `data_table` budget, in document order. An early wide table can clamp a later
+  table's rows, or leave too little room for its header row — in which case that
+  table is dropped entirely, with a `dropped` warning.
 - The Block Kit Builder deep link format
   (`https://app.slack.com/block-kit-builder/#<payload>`) is an observed
   convention, not an officially documented API.
@@ -307,3 +311,7 @@ A few conversion caveats worth knowing:
 The same tree converts to an Adaptive Card with `toAdaptiveCard` from `@assistant-ui/react-generative-ui/teams`: pure, React-free, pinned to Adaptive Cards 1.5 (the Teams desktop ceiling; mobile clients cap at 1.2), and total in the same way as the Slack converter, so unknown components degrade with warnings instead of failing. Interactive components encode their `$action` inside the submit payload's reserved `aui` key, and `decodeSubmitData` splits a bot's incoming `activity.value` back into the `$action` shape with the card's input values under `$input`. A root `Carousel` is an activity-level construct on Teams, so `toTeamsAttachments` returns up to ten card attachments with `attachmentLayout: "carousel"` instead of one card.
 
 Caveats mirror the platform: Teams ignores positive and destructive action styling, TextBlock markdown is a subset (no headings, tables, or images), `Divider` and `Spacer` become `separator` and `spacing` properties on the following element, and `Chart` has no Teams mapping and is replaced by a note.
+
+One Teams limit is advisory rather than enforced. Every other cap clamps its input, but the payload size check only measures: a card over the 80,000-byte soft threshold produces a `clamped` warning naming Teams' 100 KB bot message limit and is then returned unchanged, so trimming the tree to fit is up to you.
+
+For a component-by-component view of how this vocabulary lands on each target, see [Render targets](/docs/tools/render-targets).
