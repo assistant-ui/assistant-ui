@@ -128,7 +128,8 @@ const useGeneratedSuggestions = (
   messagesRef.current = messages;
   const adapterRef = useRef(suggestionAdapter);
   adapterRef.current = suggestionAdapter;
-  const hasAdapter = suggestionAdapter != null;
+  const generate = suggestionAdapter?.generate;
+  const previousGenerateRef = useRef(generate);
 
   useEffect(() => {
     const clearSuggestions = () => {
@@ -136,6 +137,10 @@ const useGeneratedSuggestions = (
       controllerRef.current = null;
       setSuggestions((prev) => (prev.length === 0 ? prev : EMPTY_SUGGESTIONS));
     };
+
+    const generateChanged = previousGenerateRef.current !== generate;
+    previousGenerateRef.current = generate;
+    if (generateChanged) clearSuggestions();
 
     const adapter = adapterRef.current;
     if (!adapter) {
@@ -152,7 +157,7 @@ const useGeneratedSuggestions = (
       return;
     }
 
-    if (!wasRunningRef.current) return;
+    if (!wasRunningRef.current && !generateChanged) return;
     wasRunningRef.current = false;
 
     const currentMessages = messagesRef.current;
@@ -177,7 +182,7 @@ const useGeneratedSuggestions = (
         });
       } catch {}
     })();
-  }, [hasAdapter, isRunning]);
+  }, [generate, isRunning]);
 
   useEffect(() => {
     return () => {

@@ -878,6 +878,67 @@ describe("useAISDKRuntime", () => {
     expect(result.current.thread.getState().suggestions).toEqual([]);
   });
 
+  it("refreshes suggestions when the suggestion adapter changes", async () => {
+    let resolveFirstGenerate!: (value: readonly { prompt: string }[]) => void;
+    const firstGenerate = vi.fn().mockImplementation(
+      () =>
+        new Promise<readonly { prompt: string }[]>((resolve) => {
+          resolveFirstGenerate = resolve;
+        }),
+    );
+    const secondGenerate = vi
+      .fn()
+      .mockResolvedValue([{ prompt: "from second adapter" }]);
+    const chat = createChatHelpers([
+      { id: "u1", role: "user", parts: [{ type: "text", text: "hi" }] },
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [{ type: "text", text: "hello" }],
+      },
+    ]);
+
+    const { result, rerender } = renderHook(
+      ({ status, generate }) => {
+        chat.status = status;
+        return useAISDKRuntime(chat, {
+          adapters: { suggestion: { generate } },
+        });
+      },
+      {
+        initialProps: {
+          status: "submitted" as string,
+          generate: firstGenerate,
+        },
+      },
+    );
+
+    rerender({ status: "ready", generate: firstGenerate });
+
+    await waitFor(() => {
+      expect(firstGenerate).toHaveBeenCalledTimes(1);
+    });
+    const firstSignal = firstGenerate.mock.calls[0]![0].signal as AbortSignal;
+
+    rerender({ status: "ready", generate: secondGenerate });
+
+    expect(firstSignal.aborted).toBe(true);
+    await waitFor(() => {
+      expect(secondGenerate).toHaveBeenCalledTimes(1);
+      expect(result.current.thread.getState().suggestions).toEqual([
+        { prompt: "from second adapter" },
+      ]);
+    });
+
+    resolveFirstGenerate([{ prompt: "stale" }]);
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    });
+    expect(result.current.thread.getState().suggestions).toEqual([
+      { prompt: "from second adapter" },
+    ]);
+  });
+
   it("merges consecutive assistant messages into one turn by default", async () => {
     const chat = createChatHelpers([
       { id: "u1", role: "user", parts: [{ type: "text", text: "hi" }] },
