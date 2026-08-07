@@ -88,7 +88,7 @@ const [StackCollection, useStackCollection] =
   CollectionPrimitive.createCollection<HTMLButtonElement>("ThreadWelcomeStack");
 
 const pillClass =
-  "text-foreground hover:bg-muted border-border/60 inline-flex h-auto items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm font-normal whitespace-nowrap transition-colors [&_svg]:size-4";
+  "text-foreground hover:bg-muted border-border/60 inline-flex h-auto items-center gap-1.5 rounded-lg border px-3.5 py-1.5 text-sm font-normal whitespace-nowrap transition-colors [&_svg]:size-4";
 
 const welcomeSuggestionRowVariants = cva(
   "group/aui-row text-foreground/80 hover:text-foreground data-[highlighted]:bg-muted/70 data-[highlighted]:text-foreground relative flex w-full items-center gap-2.5 rounded-lg px-3 text-left text-sm [&_svg]:size-4",
@@ -109,6 +109,21 @@ const welcomeSuggestionRowVariants = cva(
     },
   },
 );
+
+const ActionGlyph: FC<{
+  indicator: "none" | "send" | "enter" | undefined;
+}> = ({ indicator }) => {
+  if (indicator !== "send" && indicator !== "enter") return null;
+  const Icon = indicator === "send" ? SendHorizontalIcon : CornerDownLeftIcon;
+  return (
+    <Icon
+      className={cn(
+        "text-muted-foreground ml-auto size-4 opacity-50",
+        indicator === "send" && "rtl:rotate-180",
+      )}
+    />
+  );
+};
 
 type WelcomeSuggestionsContextValue = {
   entries: readonly SuggestionEntry[];
@@ -371,11 +386,21 @@ export type WelcomeSuggestionsPickerItemProps = Omit<
   VariantProps<typeof welcomeSuggestionRowVariants> & {
     prompt: string;
     label?: ReactNode;
+    indicator?: "none" | "send" | "enter";
   };
 
 export const WelcomeSuggestionsPickerItem: FC<
   WelcomeSuggestionsPickerItemProps
-> = ({ prompt, label, children, density, separators, className, ...props }) => {
+> = ({
+  prompt,
+  label,
+  children,
+  indicator,
+  density,
+  separators,
+  className,
+  ...props
+}) => {
   const id = useId();
   const { currentId, setCurrentId, close, send } = useWelcomeSuggestions();
   const highlighted = currentId === id;
@@ -398,6 +423,7 @@ export const WelcomeSuggestionsPickerItem: FC<
         {...props}
       >
         {children ?? label}
+        <ActionGlyph indicator={indicator} />
       </ThreadPrimitive.Suggestion>
     </PickerCollection.ItemSlot>
   );
@@ -405,11 +431,17 @@ export const WelcomeSuggestionsPickerItem: FC<
 
 // Mounted by surfaces whose open group is composer-driven (Picker, Stack's
 // sub-level). The composer keeps focus while the group is open; this plugin
-// routes its keydowns to panel navigation. Tab returns false so the native
-// focus move proceeds (the previewed prompt stays: Tab reads as
-// accept-without-send). Surfaces with their own keyboard home (the Stack's
-// top-level listbox) pass onEscape to also take focus back on cancel.
-const useComposerCoupling = (onEscape?: () => void) => {
+// routes its keydowns to panel navigation. Escape cancels (the open-time
+// draft comes back) and Tab accepts (the previewed prompt stays); each hands
+// focus back to the surface's top level via onEscape/onTab — a native Tab
+// move would land on the composer's neighbors, not the suggestions.
+const useComposerCoupling = ({
+  onEscape,
+  onTab,
+}: {
+  onEscape?: () => void;
+  onTab?: () => void;
+} = {}) => {
   const registry = unstable_useComposerInputPluginRegistry();
   const { group, moveHighlight, selectCurrent, close, currentId, popoverId } =
     useWelcomeSuggestions();
@@ -444,6 +476,11 @@ const useComposerCoupling = (onEscape?: () => void) => {
           return true;
         }
         if (e.key === "Tab") {
+          if (onTab) {
+            onTab();
+            e.preventDefault();
+            return true;
+          }
           close();
           return false;
         }
@@ -451,7 +488,7 @@ const useComposerCoupling = (onEscape?: () => void) => {
       },
       setCursorPosition() {},
     });
-  }, [registry, group, moveHighlight, selectCurrent, close, onEscape]);
+  }, [registry, group, moveHighlight, selectCurrent, close, onEscape, onTab]);
 
   useEffect(() => {
     if (!registry || !group) return undefined;
@@ -470,25 +507,45 @@ const useComposerCoupling = (onEscape?: () => void) => {
 export type WelcomeSuggestionsPickerProps = VariantProps<
   typeof welcomeSuggestionRowVariants
 > & {
+  indicator?: "none" | "send" | "enter";
   children?: ReactNode;
 };
 
 export const WelcomeSuggestionsPicker: FC<WelcomeSuggestionsPickerProps> = ({
+  indicator,
   density,
   separators,
   children,
 }) => {
   const {
+    entries,
     group,
     close,
+    send,
     moveHighlight,
     selectCurrent,
     currentId,
     popoverId,
     hasRegistry,
   } = useWelcomeSuggestions();
-  useComposerCoupling();
+  // send={false} makes activation insert into the composer rather than send,
+  // so the automatic send glyph would lie there.
+  const resolvedIndicator = indicator ?? (send ? "send" : "none");
+  const getPills = usePillCollection(undefined);
   const listboxRef = useRef<HTMLDivElement>(null);
+
+  // Tab hands focus back to the pill that opened the group. The pills row is
+  // invisible until the close commits, so the focus move waits a frame.
+  const returnToPills = useCallback(() => {
+    const idx = group ? entries.indexOf(group) : -1;
+    close();
+    if (idx === -1) return;
+    requestAnimationFrame(() => {
+      getPills()[idx]?.ref.current?.focus();
+    });
+  }, [group, entries, close, getPills]);
+
+  useComposerCoupling({ onTab: returnToPills });
 
   // Without a registry the composer cannot drive the panel, so the panel
   // focuses itself and handles navigation keys locally.
@@ -508,7 +565,8 @@ export const WelcomeSuggestionsPicker: FC<WelcomeSuggestionsPickerProps> = ({
       selectCurrent();
       e.preventDefault();
     } else if (e.key === "Tab") {
-      close();
+      returnToPills();
+      e.preventDefault();
     }
   };
 
@@ -569,6 +627,7 @@ export const WelcomeSuggestionsPicker: FC<WelcomeSuggestionsPickerProps> = ({
                   key={idx}
                   prompt={promptOf(item)}
                   label={item.label}
+                  indicator={resolvedIndicator}
                   density={density}
                   separators={separators}
                 />
@@ -587,18 +646,20 @@ export const WelcomeSuggestionsPicker: FC<WelcomeSuggestionsPickerProps> = ({
 // Both levels are the same listbox: one persistent container holds DOM focus
 // (the composer holds it while a group is open) and a single highlighted row
 // tracks pointer and arrows alike, so hover and keyboard can never light two
-// rows, and Escape can hand focus back for arrow nav to continue. The
+// rows, and Escape or Tab can hand focus back for arrow nav to continue. The
 // DismissableLayer wraps only the sub-level's children, not the container:
 // remounting the container on close would drop the restored focus.
 export type WelcomeSuggestionsStackProps = VariantProps<
   typeof welcomeSuggestionRowVariants
 > & {
-  indicator?: "none" | "chevron" | "send" | "enter";
+  indicator?: "none" | "send" | "enter";
+  chevron?: boolean;
   className?: string;
 };
 
 export const WelcomeSuggestionsStack: FC<WelcomeSuggestionsStackProps> = ({
   indicator,
+  chevron = true,
   density,
   separators,
   className,
@@ -617,26 +678,34 @@ export const WelcomeSuggestionsStack: FC<WelcomeSuggestionsStackProps> = ({
   } = useWelcomeSuggestions();
   // send={false} makes activation insert into the composer rather than send,
   // so the automatic send glyph would lie there.
-  const resolvedIndicator =
-    indicator ?? (entries.some(isGroup) ? "chevron" : send ? "send" : "none");
+  const resolvedIndicator = indicator ?? (send ? "send" : "none");
   const direction = Direction.useDirection();
   const getStackRows = useStackCollection(undefined);
   const listRef = useRef<HTMLDivElement>(null);
   const [topIdx, setTopIdx] = useState<number | null>(null);
   const rowId = (idx: number) => `${popoverId}t${idx}`;
 
-  // Escape is cancel-and-return: the group's own row comes back highlighted
-  // with the listbox focused, so the arrows keep working after backing out.
-  const cancelClose = useCallback(() => {
-    if (group) {
-      const idx = entries.indexOf(group);
-      if (idx !== -1) setTopIdx(idx);
-      listRef.current?.focus({ preventScroll: true });
-    }
-    close({ restoreDraft: true });
-  }, [group, entries, close]);
+  // Escape is cancel-and-return, Tab is accept-and-return: either way the
+  // group's own row comes back highlighted with the listbox focused, so the
+  // arrows keep working after backing out; only Escape restores the draft.
+  const returnToTop = useCallback(
+    (options?: { restoreDraft?: boolean }) => {
+      if (group) {
+        const idx = entries.indexOf(group);
+        if (idx !== -1) setTopIdx(idx);
+        listRef.current?.focus({ preventScroll: true });
+      }
+      close(options);
+    },
+    [group, entries, close],
+  );
+  const cancelClose = useCallback(
+    () => returnToTop({ restoreDraft: true }),
+    [returnToTop],
+  );
+  const acceptClose = useCallback(() => returnToTop(), [returnToTop]);
 
-  useComposerCoupling(cancelClose);
+  useComposerCoupling({ onEscape: cancelClose, onTab: acceptClose });
 
   useEffect(() => {
     if (group) setTopIdx(null);
@@ -659,7 +728,8 @@ export const WelcomeSuggestionsStack: FC<WelcomeSuggestionsStackProps> = ({
         selectCurrent();
         e.preventDefault();
       } else if (e.key === "Tab") {
-        close();
+        acceptClose();
+        e.preventDefault();
       }
       return;
     }
@@ -735,6 +805,7 @@ export const WelcomeSuggestionsStack: FC<WelcomeSuggestionsStackProps> = ({
       }}
       data-slot="aui_thread-welcome-stack"
       data-indicator={resolvedIndicator}
+      data-chevron={chevron}
       data-density={density}
       data-separators={separators}
       className={cn("-mt-1 flex w-full flex-col outline-none", className)}
@@ -768,6 +839,7 @@ export const WelcomeSuggestionsStack: FC<WelcomeSuggestionsStackProps> = ({
                   key={idx}
                   prompt={promptOf(item)}
                   label={item.label}
+                  indicator={resolvedIndicator}
                   density={density}
                   separators={separators}
                 />
@@ -795,7 +867,7 @@ export const WelcomeSuggestionsStack: FC<WelcomeSuggestionsStackProps> = ({
                   >
                     {entry.icon}
                     {entry.label}
-                    {resolvedIndicator === "chevron" && (
+                    {chevron && (
                       <ChevronRightIcon className="text-muted-foreground ml-auto size-4 opacity-50 rtl:rotate-180" />
                     )}
                   </button>
@@ -810,12 +882,7 @@ export const WelcomeSuggestionsStack: FC<WelcomeSuggestionsStackProps> = ({
                     })}
                   >
                     {entry.label}
-                    {resolvedIndicator === "send" && (
-                      <SendHorizontalIcon className="text-muted-foreground ml-auto size-4 opacity-0 transition-opacity group-data-[highlighted]/aui-row:opacity-50 rtl:rotate-180" />
-                    )}
-                    {resolvedIndicator === "enter" && (
-                      <CornerDownLeftIcon className="text-muted-foreground ml-auto size-4 opacity-0 transition-opacity group-data-[highlighted]/aui-row:opacity-50" />
-                    )}
+                    <ActionGlyph indicator={resolvedIndicator} />
                   </ThreadPrimitive.Suggestion>
                 )}
               </StackCollection.ItemSlot>

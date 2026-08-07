@@ -92,6 +92,13 @@ const SUGGESTIONS: SuggestionEntry[] = [
   },
 ];
 
+const FLAT_SUGGESTIONS: SuggestionEntry[] = [
+  { label: "Summarize the key tradeoffs between REST and GraphQL" },
+  { label: "Draft a friendly reminder for tomorrow's design review" },
+  { label: "Explain the difference between debounce and throttle" },
+  { label: "Suggest a memorable name for an open-source charting library" },
+];
+
 const Hint = ({
   children,
   className,
@@ -119,7 +126,7 @@ const Hint = ({
       <path d="M21.5 25.5 C 12 24.5, 6.5 17, 5.5 5.5" />
       <path d="m1.5 10.5 4-6.5 5 5" />
     </svg>
-    <span className="translate-y-2.5 -rotate-2 [font-family:'Segoe_Print','Bradley_Hand','Comic_Sans_MS',cursive] text-[13px]">
+    <span className="translate-y-2.5 -rotate-2 [font-family:'Segoe_Print','Bradley_Hand','Comic_Sans_MS',cursive] text-[17px]">
       {children}
     </span>
   </div>
@@ -172,14 +179,21 @@ const VariantColumn = ({
   label,
   hint,
   hintClassName,
+  className,
   children,
 }: {
   label: string;
-  hint: ReactNode;
+  hint?: ReactNode;
   hintClassName?: string;
+  className?: string;
   children: ReactNode;
 }) => (
-  <div className="flex min-w-0 flex-col gap-2">
+  <div
+    className={cn(
+      "mx-auto flex w-full max-w-[540px] min-w-0 flex-col gap-2",
+      className,
+    )}
+  >
     <span className="text-muted-foreground/70 px-1 text-xs font-medium">
       {label}
     </span>
@@ -188,7 +202,7 @@ const VariantColumn = ({
         <SampleComposer />
         <div className="min-h-56 [&:has([data-open])_[data-hint]]:hidden">
           {children}
-          <Hint className={hintClassName}>{hint}</Hint>
+          {hint && <Hint className={hintClassName}>{hint}</Hint>}
         </div>
       </div>
     </SampleRuntimeProvider>
@@ -199,12 +213,13 @@ export const WelcomeSuggestionsSample = () => {
   const [compact, setCompact] = useState(false);
   const [separators, setSeparators] = useState(true);
   const [chevron, setChevron] = useState(true);
+  const [glyph, setGlyph] = useState<"none" | "send" | "enter">("send");
   const density = compact ? "compact" : "comfortable";
 
   return (
     <SampleFrame className="bg-muted/40 h-auto p-6">
       <div className="mx-auto flex w-full max-w-4xl flex-col gap-3">
-        <div className="flex justify-end gap-1">
+        <div className="flex flex-wrap justify-end gap-1">
           <ToggleChip active={compact} onClick={() => setCompact((v) => !v)}>
             compact
           </ToggleChip>
@@ -214,33 +229,55 @@ export const WelcomeSuggestionsSample = () => {
           >
             separators
           </ToggleChip>
+          <div className="bg-border/60 mx-1 w-px self-stretch" />
           <ToggleChip active={chevron} onClick={() => setChevron((v) => !v)}>
             chevron
           </ToggleChip>
+          {(["send", "enter"] as const).map((value) => (
+            <ToggleChip
+              key={value}
+              active={glyph === value}
+              onClick={() => setGlyph((g) => (g === value ? "none" : value))}
+            >
+              {value}
+            </ToggleChip>
+          ))}
         </div>
-        <div className="grid gap-8 md:grid-cols-2">
+        <div className="grid gap-8 lg:grid-cols-2">
           <VariantColumn
             label="Stacked (default)"
-            hint={<>Tab to the list, ↑ ↓ move, → opens</>}
+            hint={<>Tab to focus the list, ↑ ↓ move, → opens</>}
           >
             <WelcomeSuggestionsRoot suggestions={SUGGESTIONS}>
               <WelcomeSuggestionsStack
                 density={density}
                 separators={separators}
-                indicator={chevron ? "chevron" : "none"}
+                indicator={glyph}
+                chevron={chevron}
               />
             </WelcomeSuggestionsRoot>
           </VariantColumn>
           <VariantColumn
             label="Pills + picker"
             hint={<>click a pill, or Tab to one; ← → move, ↓ opens</>}
-            hintClassName="translate-x-5"
+            hintClassName="ml-[50%] -mr-[190px] -translate-x-[190px]"
+            className="max-lg:order-last"
           >
             <WelcomeSuggestionsRoot suggestions={SUGGESTIONS}>
               <WelcomeSuggestionsPills />
               <WelcomeSuggestionsPicker
                 density={density}
                 separators={separators}
+                indicator={glyph}
+              />
+            </WelcomeSuggestionsRoot>
+          </VariantColumn>
+          <VariantColumn label="Flat entries" className="lg:col-span-2">
+            <WelcomeSuggestionsRoot suggestions={FLAT_SUGGESTIONS}>
+              <WelcomeSuggestionsStack
+                density={density}
+                separators={separators}
+                indicator={glyph}
               />
             </WelcomeSuggestionsRoot>
           </VariantColumn>

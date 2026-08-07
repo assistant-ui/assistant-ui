@@ -143,7 +143,7 @@ In either layout, the composer keeps focus and drives the panel:
 | <kbd>↑</kbd> / <kbd>↓</kbd> | Move the highlight and live-preview the prompt in the composer                                                     |
 | <kbd>Enter</kbd>            | Select the highlighted item (plain composer submit when nothing is highlighted)                                    |
 | <kbd>Esc</kbd>              | Close the group and restore the pre-open draft; the stack re-highlights the group's row so arrow keys keep working |
-| <kbd>Tab</kbd>              | Close the group and move focus on; the previewed prompt stays in the composer                                      |
+| <kbd>Tab</kbd>              | Close the group and return focus to the suggestions (the stack's list or the group's pill); the previewed prompt stays in the composer |
 | Characters                  | Type into the composer; the group closes                                                                           |
 
 Previewing writes over the composer, but a draft is never silently lost: <kbd>Esc</kbd> cancels and puts the pre-open draft back, while <kbd>Tab</kbd> and selection accept what the picker wrote.
@@ -159,21 +159,23 @@ Previewing writes over the composer, but a draft is never silently lost: <kbd>Es
 
 - `density`: `"comfortable"` (default) or `"compact"` for tighter rows.
 - `separators`: default `true`; hairline dividers between rows, hidden around the highlighted row.
-- `indicator`: `"chevron"` adds a trailing chevron to group rows; `"send"` reveals a trailing send glyph on the highlighted flat row (both flip in RTL); `"enter"` is an opt-in alternative to `"send"` that shows the ↵ Return-key glyph instead. Defaults to `"chevron"` when the list has groups, `"send"` when every entry is flat and sending is on, and `"none"` otherwise.
+- `indicator`: the trailing glyph on action rows — flat rows and the open group's items — either `"send"` (the default while sending; flips in RTL), `"enter"` for a ↵ Return-key glyph, or `"none"` (the default with `send={false}`).
+- `chevron`: default `true`; the trailing chevron on group rows (flips in RTL), independent of `indicator`.
 - `className`: merged onto the listbox container.
 
 **`WelcomeSuggestionsPicker`**
 
 - `density`, `separators`: same as the stack, applied to the panel rows.
+- `indicator`: the glyph revealed on the highlighted row — `"send"` (the default while sending), `"enter"`, or `"none"` (the default with `send={false}`).
 - `children`: custom rows; defaults to one `WelcomeSuggestionsPickerItem` per item of the open group.
 
 **`WelcomeSuggestionsPickerItem`**
 
-- `prompt` (required) and `label`, plus `density`, `separators`, and any button props.
+- `prompt` (required) and `label`, plus `indicator`, `density`, `separators`, and any button props.
 
 ## Styling
 
-Rows default to comfortable density with separators; the indicator defaults to chevrons when groups are present and to the send glyph on all-flat lists — try the toggles in the demo above. The sub-level rows inherit `density` and `separators` from the stack, and the stack mirrors the resolved `indicator` (plus any explicitly set `density` or `separators`) as `data-*` attributes on `[data-slot="aui_thread-welcome-stack"]` for CSS overrides.
+Rows default to comfortable density with separators; group rows get a trailing chevron and action rows a send glyph — try the toggles in the demo above. The sub-level rows inherit `density`, `separators`, and the action glyph from the stack, and the stack mirrors the resolved `indicator` and `chevron` (plus any explicitly set `density` or `separators`) as `data-*` attributes on `[data-slot="aui_thread-welcome-stack"]` for CSS overrides.
 
 ```tsx
 <WelcomeSuggestionsRoot suggestions={WELCOME_SUGGESTIONS}>
