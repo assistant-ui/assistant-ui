@@ -47,7 +47,8 @@ export const ComposerPrimitiveInput = defineComponent({
     const onKeydown = (event: KeyboardEvent) => {
       if (event.defaultPrevented || !props.submitOnEnter) return;
       if (event.key !== "Enter" || event.shiftKey || event.isComposing) return;
-      if (disabled.value) return;
+      if (disabled.value || threadDisabled.value || isAttrDisabled(attrs))
+        return;
       event.preventDefault();
       send();
     };
