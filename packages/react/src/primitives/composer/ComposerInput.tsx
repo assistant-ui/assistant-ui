@@ -22,7 +22,7 @@ import TextareaAutosize, {
 import { useEscapeKeydown } from "@radix-ui/react-use-escape-keydown";
 import { useOnScrollToBottom } from "../../utils/hooks/useOnScrollToBottom";
 import { useMediaQuery } from "../../utils/hooks/useMediaQuery";
-import { useAui } from "@assistant-ui/store";
+import { useAui, useAuiEvent } from "@assistant-ui/store";
 import { flushTapSync } from "@assistant-ui/tap";
 import { useComposerInputPluginRegistryOptional } from "./ComposerInputPluginContext";
 import { useComposerCompactContextOptional } from "./ComposerCompactContext";
@@ -339,15 +339,13 @@ export const ComposerPrimitiveInput = forwardRef<
       return aui.on("thread.runStart", focus);
     }, [unstable_focusOnRunStart, focus, aui]);
 
-    useEffect(() => {
+    useAuiEvent("threadListItem.switchedTo", () => {
       if (
-        aui.composer.getState().type !== "thread" ||
-        !unstable_focusOnThreadSwitched
+        aui.composer.getState().type === "thread" &&
+        unstable_focusOnThreadSwitched
       )
-        return undefined;
-
-      return aui.on("threadListItem.switchedTo", focus);
-    }, [unstable_focusOnThreadSwitched, focus, aui]);
+        focus();
+    });
 
     useEffect(() => {
       if (value === "") compactContext?.setMultiline(false);

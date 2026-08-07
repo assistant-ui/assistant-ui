@@ -57,6 +57,7 @@ vi.mock("@assistant-ui/store", () => {
   }) => T;
   return {
     useAui: () => aui,
+    useAuiEvent: () => {},
     useAuiState: <T,>(selector: Selector<T>) =>
       selector({ composer: composerState, thread: threadState }),
   };

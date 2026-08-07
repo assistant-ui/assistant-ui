@@ -49,6 +49,7 @@ import { ClientResource } from "./useClientResource";
 import { useShallowStable } from "./utils/useShallowStable";
 import { createClientAccessor, getClientId } from "./utils/client-accessor";
 import { getClientIndex } from "./utils/tap-client-stack-context";
+import { resolveDynamicEventScope } from "./utils/dynamic-event-scope";
 
 const isDevelopment =
   typeof process !== "undefined" &&
@@ -57,7 +58,13 @@ const isDevelopment =
 export type ClientRef = {
   parent: AssistantClient;
   current: AssistantClient | null;
+  latest: AssistantClient | null;
 };
+
+const clientRefs = new WeakMap<AssistantClient, ClientRef>();
+
+export const getClientRef = (client: AssistantClient): ClientRef | undefined =>
+  clientRefs.get(client);
 
 type ScopeElement = ResourceElement<ClientMethods>;
 export type ScopeEntry = [name: ClientNames, element: ScopeElement];
@@ -159,9 +166,14 @@ const useClientFields = ({
             return;
           }
 
-          const scopeClient = getClientId(
-            this[scope as ClientNames],
-          ) as unknown as ClientMethods;
+          const scopeClient =
+            resolveDynamicEventScope(
+              callback as unknown as (payload: unknown) => void,
+              this,
+            ) ??
+            (getClientId(
+              this[scope as ClientNames],
+            ) as unknown as ClientMethods);
           const index = getClientIndex(scopeClient);
           if (scopeClient === clientStack[index]) {
             callback(payload);
@@ -274,9 +286,9 @@ export const useAuiRoot = ({
 
   // Fresh envelope per commit so value-only updates reach the store's
   // subscribers; the client inside keeps its identity
-  return {
-    client: useCommittedClient(building, [parent, ...accessors]),
-  };
+  const client = useCommittedClient(building, [parent, ...accessors]);
+  clientRef.latest = client;
+  return { client };
 };
 
 const useHostedAssistantClient = ({
@@ -287,7 +299,11 @@ const useHostedAssistantClient = ({
   entries: ScopeEntry[];
 }): ScopedAuiClient => {
   const { value: client, effects } = useTapHost(function AssistantClientHost() {
-    const clientRef = useRef<ClientRef>({ parent, current: null }).current;
+    const clientRef = useRef<ClientRef>({
+      parent,
+      current: null,
+      latest: null,
+    }).current;
     const notifications = useNotificationManager();
 
     const store = useTapRoot(function AuiRoot() {
@@ -303,7 +319,11 @@ const useHostedAssistantClient = ({
     // flushTapSync makes structural rebinds triggered by a notification land
     // before the notification returns
     useEffect(() => {
-      const notify = () => flushTapSync(notifications.notifySubscribers);
+      const notify = () => {
+        clientRef.parent = parent;
+        clientRef.current = store.getValue().client;
+        flushTapSync(notifications.notifySubscribers);
+      };
       const unsubscribeStore = store.subscribe(notify);
       const unsubscribeParent = parent.subscribe(notify);
       return () => {
@@ -322,6 +342,7 @@ const useHostedAssistantClient = ({
       clientRef.current = client;
     }
 
+    clientRefs.set(client, clientRef);
     return client;
   });
 
@@ -392,7 +413,17 @@ const useDerivedOnlyClient = (
     // oxlint-disable-next-line react-hooks/rules-of-hooks -- fixed per call site; React throws on a count change
     useDerivedScopeMount(parent, building, name, element),
   );
-  return useCommittedClient(building, [parent, ...accessors]);
+  const client = useCommittedClient(building, [parent, ...accessors]);
+  const clientRef = useRef<ClientRef>({
+    parent,
+    current: null,
+    latest: null,
+  }).current;
+  clientRef.parent = parent;
+  clientRef.latest = client;
+  if (clientRef.current === null) clientRef.current = client;
+  clientRefs.set(client, clientRef);
+  return client;
 };
 
 type ScopedAuiClient = { client: AssistantClient; effects?: () => void };

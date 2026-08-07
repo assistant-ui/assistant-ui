@@ -11,6 +11,9 @@ const fixture = {
 const setText = vi.fn();
 
 vi.mock("@assistant-ui/store", () => ({
+  useAuiEvent: (_selector: string, callback: () => void) => {
+    fixture.switchedToHandlers.push(callback);
+  },
   useAui: () => ({
     composer: {
       getState: () => ({ type: fixture.composerType }),

@@ -111,6 +111,7 @@ export const createAssistantClient = (
   const clientRef: ClientRef = {
     parent: parentSource.getClient(),
     current: null,
+    latest: null,
   };
   const notifications = createNotificationManager();
 

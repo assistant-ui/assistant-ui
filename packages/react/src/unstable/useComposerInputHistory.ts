@@ -2,13 +2,12 @@
 
 import {
   useCallback,
-  useEffect,
   useMemo,
   useRef,
   type KeyboardEvent,
   type KeyboardEventHandler,
 } from "react";
-import { useAui } from "@assistant-ui/store";
+import { useAui, useAuiEvent } from "@assistant-ui/store";
 import { flushTapSync } from "@assistant-ui/tap";
 import type { ThreadMessage } from "@assistant-ui/core";
 import { getThreadMessageText } from "@assistant-ui/core/internal";
@@ -69,13 +68,11 @@ export function unstable_useComposerInputHistory(): Unstable_ComposerInputHistor
   const popoverCtx = useTriggerPopoverRootContextOptional();
   const browseRef = useRef<BrowseState | null>(null);
 
-  useEffect(() => {
-    if (aui.composer.getState().type !== "thread") return undefined;
-
-    return aui.on("threadListItem.switchedTo", () => {
+  useAuiEvent("threadListItem.switchedTo", () => {
+    if (aui.composer.getState().type === "thread") {
       browseRef.current = null;
-    });
-  }, [aui]);
+    }
+  });
 
   const onKeyDown = useCallback(
     (e: KeyboardEvent<HTMLTextAreaElement>) => {

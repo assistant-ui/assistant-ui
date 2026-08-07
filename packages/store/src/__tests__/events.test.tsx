@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import type { ReactNode } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { act, cleanup, render, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { flushTapSync, resource } from "@assistant-ui/tap";
@@ -43,6 +43,21 @@ const useThreadClient = () => {
   };
 };
 const ThreadClient = resource(useThreadClient);
+
+const useSwitchingThreadClient = () => {
+  const [selected, setSelected] = useState(0);
+  const m0 = useClientResource(MessageClient({ id: "m0" }));
+  const m1 = useClientResource(MessageClient({ id: "m1" }));
+  useEffect(() => {
+    if (selected === 1) m1.methods.ping("during-swap");
+  }, [selected, m1]);
+  return {
+    getState: () => ({ selected }),
+    setSelected,
+    message: ({ index }: { index: number }) => [m0, m1][index]!.methods,
+  };
+};
+const SwitchingThreadClient = resource(useSwitchingThreadClient);
 
 const messageDerived = () =>
   Derived({
@@ -329,6 +344,46 @@ describe("microtask delivery (live-set semantics)", () => {
 });
 
 describe("Derived scopes", () => {
+  it("useAuiEvent matches the current derived binding after a structural swap", async () => {
+    let aui!: AnyClient;
+    const defaultScope = vi.fn();
+    const starScope = vi.fn();
+    const Harness = () => {
+      aui = useAui({
+        thread: SwitchingThreadClient(),
+        message: messageDerived(),
+      } as unknown as useAui.Props);
+      return (
+        <AuiProvider value={aui as never}>
+          <Consumer />
+        </AuiProvider>
+      );
+    };
+    const Consumer = () => {
+      useAuiEvent("message.pinged" as never, defaultScope as never);
+      useAuiEvent(
+        { scope: "*", event: "message.pinged" } as never,
+        starScope as never,
+      );
+      return null;
+    };
+    render(<Harness />);
+    await flushEvents();
+    defaultScope.mockClear();
+    starScope.mockClear();
+    flushTapSync(() => aui.thread.setSelected(1));
+    await flushEvents();
+
+    expect(starScope).toHaveBeenCalledWith({
+      id: "m1",
+      value: "during-swap",
+    });
+    expect(defaultScope).toHaveBeenCalledWith({
+      id: "m1",
+      value: "during-swap",
+    });
+  });
+
   it("useAuiEvent tracks the derived selection across structural swaps", async () => {
     let aui!: AnyClient;
     const cb = vi.fn();

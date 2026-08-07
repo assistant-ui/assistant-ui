@@ -1,11 +1,14 @@
-import { useEffect, useEffectEvent } from "react";
-import { useAui } from "./useAui";
+import { useEffect, useEffectEvent, useRef } from "react";
+import { getClientRef, useAui } from "./useAui";
 import type {
   AssistantEventName,
   AssistantEventCallback,
   AssistantEventSelector,
 } from "./types/events";
+import type { AssistantClient, ClientMethods } from "./types/client";
 import { normalizeEventSelector } from "./types/events";
+import { bindDynamicEventScope } from "./utils/dynamic-event-scope";
+import { getClientId } from "./utils/client-accessor";
 
 /**
  * Subscribes to an assistant event for the lifetime of the component.
@@ -54,7 +57,21 @@ export const useAuiEvent = <TEvent extends AssistantEventName>(
 ) => {
   const aui = useAui();
   const callbackRef = useEffectEvent(callback);
-
   const { scope, event } = normalizeEventSelector(selector);
-  useEffect(() => aui.on({ scope, event }, callbackRef), [aui, scope, event]);
+  const scopeResolverRef = useRef<(client: AssistantClient) => ClientMethods>(
+    (client) => getClientId(client[scope as keyof AssistantClient]) as never,
+  );
+  scopeResolverRef.current = (client) => {
+    const clientRef = getClientRef(client);
+    const current = clientRef?.latest ?? clientRef?.current ?? client;
+    return getClientId(current[scope as keyof AssistantClient]) as never;
+  };
+
+  useEffect(() => {
+    const listener = bindDynamicEventScope(
+      (payload: unknown) => callbackRef(payload as never),
+      (client) => scopeResolverRef.current(client),
+    );
+    return aui.on({ scope, event }, listener as never);
+  }, [aui, scope, event]);
 };
