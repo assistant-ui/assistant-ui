@@ -23,7 +23,10 @@ import {
  * scrolls down, and scrolling up unpins until the user returns to the bottom.
  * The four options mirror the React hook and are independent: `autoScroll`
  * covers follow-on-content-growth, and the other three gate the
- * first-messages, run-start, and thread-switch scrolls.
+ * first-messages, run-start, and thread-switch scrolls. The React viewport's
+ * top-anchor system and its imperative scroll-to-bottom channel (the one
+ * `ThreadPrimitive.ScrollToBottom` drives) live in the React viewport store
+ * and are not ported yet.
  */
 export const ThreadPrimitiveViewport = defineComponent({
   name: "ThreadPrimitiveViewport",

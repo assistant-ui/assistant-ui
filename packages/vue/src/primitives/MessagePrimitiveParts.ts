@@ -19,7 +19,7 @@ export const MessagePrimitiveParts = defineComponent({
   name: "MessagePrimitiveParts",
   slots: Object as SlotsType<Record<string, (() => unknown) | undefined>>,
   setup(_, { slots }) {
-    const count = useAuiState((s) => s.message.content.length);
+    const count = useAuiState((s) => s.message.parts.length);
     const PartView = defineComponent({
       name: "MessagePartView",
       setup() {
