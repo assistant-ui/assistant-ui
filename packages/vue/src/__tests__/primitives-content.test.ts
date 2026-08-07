@@ -121,6 +121,44 @@ describe("MessagePrimitiveParts", () => {
   });
 });
 
+describe("MessagePrimitiveParts dev warning", () => {
+  it("warns once in dev for a part type without a slot", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const { runtime, append } = createTestRuntime();
+    const View = defineComponent({
+      setup: () => () =>
+        h(ThreadPrimitiveMessages, null, {
+          default: () => h(MessagePrimitiveParts),
+        }),
+    });
+    const { unmount } = mountChat(runtime, View);
+
+    flushTapSync(() =>
+      append({
+        role: "assistant",
+        content: [
+          {
+            type: "tool-call",
+            toolCallId: "call-1",
+            toolName: "search",
+            args: {},
+          },
+        ],
+      }),
+    );
+    await vi.waitFor(async () => {
+      await nextTick();
+      expect(warn).toHaveBeenCalledTimes(1);
+    });
+    expect(warn.mock.calls[0]![0]).toContain(
+      'no slot for part type "tool-call"',
+    );
+
+    unmount();
+    warn.mockRestore();
+  });
+});
+
 describe("BranchPickerPrimitive", () => {
   it("disables both directions and renders 1/1 on a single branch", async () => {
     const { runtime, append } = createTestRuntime();

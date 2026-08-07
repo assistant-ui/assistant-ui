@@ -51,6 +51,10 @@ export const ThreadPrimitiveViewport = defineComponent({
 
     const scheduleScrollToBottom = (behavior: ScrollBehavior) => {
       intent = behavior;
+      // The immediate watch below runs synchronously during SSR, where no
+      // frame scheduler exists; the planted intent still scrolls on the first
+      // client-side content resize.
+      if (typeof requestAnimationFrame === "undefined") return;
       if (frame !== null) cancelAnimationFrame(frame);
       frame = requestAnimationFrame(() => {
         frame = null;

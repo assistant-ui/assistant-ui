@@ -1,5 +1,6 @@
 import { defineComponent, h, type SlotsType } from "vue";
 import type {} from "@assistant-ui/core/store";
+import { isDevelopment } from "../isDevelopment";
 import { useAuiState } from "../useAuiState";
 import { PartByIndexProvider } from "./PartByIndexProvider";
 
@@ -15,6 +16,7 @@ export const MessagePrimitiveParts = defineComponent({
   slots: Object as SlotsType<Record<string, (() => unknown) | undefined>>,
   setup(_, { slots }) {
     const count = useAuiState((s) => s.message.content.length);
+    const warned = new Set<string>();
     const PartView = defineComponent({
       name: "MessagePartView",
       setup() {
@@ -25,7 +27,14 @@ export const MessagePrimitiveParts = defineComponent({
         return () => {
           const slot = slots[type.value] ?? slots.default;
           if (slot) return slot();
-          return type.value === "text" ? text.value : null;
+          if (type.value === "text") return text.value;
+          if (isDevelopment && !warned.has(type.value)) {
+            warned.add(type.value);
+            console.warn(
+              `MessagePrimitiveParts: no slot for part type "${type.value}"; the part renders nothing. Add a #${type.value} or #default slot.`,
+            );
+          }
+          return null;
         };
       },
     });
