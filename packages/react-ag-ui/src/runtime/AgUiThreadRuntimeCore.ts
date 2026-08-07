@@ -1097,9 +1097,8 @@ export class AgUiThreadRuntimeCore {
         } catch {
           // ignore
         }
-        const runAgent = runAgentInstance.runAgent.bind(
-          runAgentInstance,
-        ) as RunAgentWithRunOptions;
+        const runAgent: RunAgentWithRunOptions =
+          runAgentInstance.runAgent.bind(runAgentInstance);
         await runAgent(input, subscriber, { signal: abortSignal });
       }
     } catch (error) {

@@ -1,5 +1,5 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
-import type { RunAgentParameters } from "@ag-ui/client";
+import { ToolSchema, type RunAgentParameters } from "@ag-ui/client";
 import { toAgUiTools } from "./conversions";
 
 describe("toAgUiTools", () => {
@@ -17,6 +17,14 @@ describe("toAgUiTools", () => {
       },
       { name: "undescribed", description: "", parameters: { type: "object" } },
     ]);
+  });
+
+  it("serializes a description-less tool that upstream still accepts", () => {
+    const [tool] = toAgUiTools({ undescribed: { parameters: {} } });
+
+    expect(ToolSchema.safeParse(JSON.parse(JSON.stringify(tool))).success).toBe(
+      true,
+    );
   });
 
   it("produces tools the upstream run parameters accept", () => {
