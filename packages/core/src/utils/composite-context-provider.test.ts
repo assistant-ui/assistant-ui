@@ -1,0 +1,118 @@
+import { describe, expect, it, vi } from "vitest";
+import { CompositeContextProvider } from "./composite-context-provider";
+
+describe("CompositeContextProvider", () => {
+  it("isolates subscriber errors while registering providers", () => {
+    const composite = new CompositeContextProvider();
+    const error = new Error("subscriber failed");
+    const laterSubscriber = vi.fn();
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    composite.subscribe(() => {
+      throw error;
+    });
+    composite.subscribe(laterSubscriber);
+
+    try {
+      const unregister = composite.registerModelContextProvider({
+        getModelContext: () => ({ system: "provider instructions" }),
+      });
+
+      expect(composite.getModelContext().system).toBe("provider instructions");
+      expect(laterSubscriber).toHaveBeenCalledTimes(1);
+      expect(consoleError).toHaveBeenCalledWith(
+        "[assistant-ui] Model context provider listener threw an error",
+        error,
+      );
+
+      expect(() => unregister()).toThrow(error);
+
+      expect(composite.getModelContext().system).toBeUndefined();
+      expect(laterSubscriber).toHaveBeenCalledTimes(2);
+    } finally {
+      consoleError.mockRestore();
+    }
+  });
+
+  it("rolls back providers that fail to subscribe", () => {
+    const composite = new CompositeContextProvider();
+    const error = new Error("subscription failed");
+    const observedSystems: Array<string | undefined> = [];
+
+    composite.subscribe(() => {
+      observedSystems.push(composite.getModelContext().system);
+    });
+
+    expect(() =>
+      composite.registerModelContextProvider({
+        getModelContext: () => ({ system: "provider instructions" }),
+        subscribe: (callback) => {
+          callback();
+          throw error;
+        },
+      }),
+    ).toThrow(error);
+
+    expect(composite.getModelContext().system).toBeUndefined();
+    expect(observedSystems).toEqual(["provider instructions", undefined]);
+  });
+
+  it("preserves an earlier registration when a duplicate fails to subscribe", () => {
+    const composite = new CompositeContextProvider();
+    const error = new Error("subscription failed");
+    let subscriptionCount = 0;
+    const provider = {
+      getModelContext: () => ({ system: "provider instructions" }),
+      subscribe: () => {
+        subscriptionCount++;
+        if (subscriptionCount === 2) throw error;
+        return () => {};
+      },
+    };
+
+    const unregister = composite.registerModelContextProvider(provider);
+
+    expect(() => composite.registerModelContextProvider(provider)).toThrow(
+      error,
+    );
+    expect(composite.getModelContext().system).toBe("provider instructions");
+
+    unregister();
+    expect(composite.getModelContext().system).toBeUndefined();
+  });
+
+  it("rethrows subscriber errors from provider updates after notifying everyone", () => {
+    const composite = new CompositeContextProvider();
+    const error = new Error("subscriber failed");
+    const laterSubscriber = vi.fn();
+    let publishUpdate = () => {};
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    composite.subscribe(() => {
+      throw error;
+    });
+    composite.subscribe(laterSubscriber);
+
+    try {
+      composite.registerModelContextProvider({
+        getModelContext: () => ({ system: "provider instructions" }),
+        subscribe: (callback) => {
+          publishUpdate = callback;
+          callback();
+          return () => {};
+        },
+      });
+
+      expect(consoleError).toHaveBeenCalledTimes(2);
+      expect(laterSubscriber).toHaveBeenCalledTimes(2);
+      expect(() => publishUpdate()).toThrow(error);
+      expect(laterSubscriber).toHaveBeenCalledTimes(3);
+    } finally {
+      consoleError.mockRestore();
+    }
+  });
+});

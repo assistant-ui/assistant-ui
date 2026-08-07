@@ -1255,6 +1255,7 @@ declare class CompositeContextProvider implements ModelContextProvider {
   registerModelContextProvider(provider: ModelContextProvider): () => void;
   private _subscribers;
   notifySubscribers(): void;
+  private notifyRegistrationSubscribers;
   subscribe(callback: () => void): () => void;
 }
 
@@ -2532,6 +2533,7 @@ declare class ModelContextRegistry implements ModelContextProvider {
   getModelContext(): ModelContext$1;
   subscribe(callback: () => void): Unsubscribe$1;
   private notifySubscribers;
+  private notifyRegistrationSubscribers;
   addTool<TArgs extends Record<string, unknown>, TResult>(tool: AssistantToolProps$1<TArgs, TResult>): ModelContextRegistryToolHandle<TArgs, TResult>;
   addInstruction(config: string | AssistantInstructionsConfig): ModelContextRegistryInstructionHandle;
   addProvider(provider: ModelContextProvider): ModelContextRegistryProviderHandle;
