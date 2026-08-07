@@ -84,6 +84,18 @@ const flushScheduled = () => {
   }
 };
 
+// A scheduled flush runs with an empty stack above it, so an escaping error is
+// an uncaught error in the browser and an uncaughtException (process exit) in
+// Node, SSR and react-ink. flushTapSync still rethrows, because its caller is
+// there to absorb it.
+const flushFromTask = () => {
+  try {
+    flushScheduled();
+  } catch (error) {
+    console.error(error);
+  }
+};
+
 // Use MessageChannel to schedule flushes as macrotasks (like React's scheduler).
 // This allows more state updates to batch into a single re-render.
 // The channel is created on first use and its port is ref'd only while a flush
@@ -100,7 +112,7 @@ const scheduleMacrotask = (() => {
         const channel = new MessageChannel();
         channel.port1.onmessage = () => {
           port1?.unref?.();
-          flushScheduled();
+          flushFromTask();
         };
         port1 = channel.port1;
         port2 = channel.port2;
@@ -110,7 +122,7 @@ const scheduleMacrotask = (() => {
     };
   }
   // Fallback for environments without MessageChannel
-  return () => setTimeout(flushScheduled, 0);
+  return () => setTimeout(flushFromTask, 0);
 })();
 
 export const flushTapSync = <T>(callback: () => T): T => {
