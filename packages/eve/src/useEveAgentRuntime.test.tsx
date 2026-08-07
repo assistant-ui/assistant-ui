@@ -602,6 +602,88 @@ describe("useEveAgentRuntime staged messages", () => {
     });
   });
 
+  it("stops promoting once a promoted turn parks with an error status", async () => {
+    let capturedOptions: {
+      onFinish?: (snapshot: { status: string }) => void;
+    } = {};
+    const send = vi.fn().mockImplementation(async () => {
+      capturedOptions.onFinish?.({ status: "error" });
+    });
+    const agent = createAgent({ data: settledData, send });
+    mockUseEveAgent.mockImplementation((options) => {
+      capturedOptions = options as typeof capturedOptions;
+      return agent as never;
+    });
+    const { result } = renderHook(() => useEveAgentRuntime());
+
+    await stageMessage(result.current, "first staged");
+    await stageMessage(result.current, "second staged");
+
+    const secondStagedId = result.current.thread.getState().messages[3]!.id;
+    await act(async () => {
+      await result.current.thread.startRun({
+        parentId: secondStagedId,
+        sourceId: null,
+        runConfig: {},
+      });
+    });
+
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(send).toHaveBeenCalledWith({ message: "first staged" });
+    await waitFor(() => {
+      expect(getText(result.current)).toEqual([
+        "earlier",
+        "earlier answer",
+        "second staged",
+      ]);
+    });
+  });
+
+  it("stops promoting when the run is cancelled mid-prefix", async () => {
+    let resolveFirstSend!: () => void;
+    const send = vi
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise<void>((resolve) => {
+            resolveFirstSend = resolve;
+          }),
+      )
+      .mockResolvedValue(undefined);
+    const agent = createAgent({ data: settledData, send });
+    mockUseEveAgent.mockReturnValue(agent as never);
+    const { result } = renderHook(() => useEveAgentRuntime());
+
+    await stageMessage(result.current, "first staged");
+    await stageMessage(result.current, "second staged");
+
+    const secondStagedId = result.current.thread.getState().messages[3]!.id;
+    act(() => {
+      void result.current.thread.startRun({
+        parentId: secondStagedId,
+        sourceId: null,
+        runConfig: {},
+      });
+    });
+    await waitFor(() => expect(send).toHaveBeenCalledTimes(1));
+
+    act(() => {
+      result.current.thread.cancelRun();
+    });
+    await act(async () => {
+      resolveFirstSend();
+    });
+
+    expect(send).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      expect(getText(result.current)).toEqual([
+        "earlier",
+        "earlier answer",
+        "second staged",
+      ]);
+    });
+  });
+
   it("still rejects reloading a non-staged message", async () => {
     const agent = createAgent({ data: settledData });
     mockUseEveAgent.mockReturnValue(agent as never);
@@ -673,5 +755,263 @@ describe("useEveAgentRuntime extras wiring", () => {
       expect(result.current.thread.getState().messages).toHaveLength(0);
     });
     expect(agent.reset).toHaveBeenCalledTimes(1);
+  });
+});
+
+const approvalData: EveMessageData = {
+  messages: [
+    { id: "u1", role: "user", parts: [{ type: "text", text: "send it" }] },
+    {
+      id: "a1",
+      role: "assistant",
+      parts: [
+        {
+          type: "dynamic-tool",
+          state: "approval-requested",
+          toolCallId: "call_1",
+          toolName: "send_email",
+          input: { to: "dev@example.com" },
+          approval: { id: "req_1" },
+          toolMetadata: {
+            eve: {
+              kind: "tool-call",
+              name: "send_email",
+              inputRequest: {
+                requestId: "req_1",
+                prompt: "Send the email?",
+                display: "confirmation",
+                options: [
+                  { id: "approve", label: "Approve" },
+                  { id: "deny", label: "Deny" },
+                ],
+              },
+            },
+          },
+        },
+      ],
+    },
+  ],
+};
+
+describe("useEveAgentRuntime concurrent sends", () => {
+  it("defers an approval clicked while a turn is in flight until the turn parks", async () => {
+    let resolveFirstSend!: () => void;
+    const send = vi
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise<void>((resolve) => {
+            resolveFirstSend = resolve;
+          }),
+      )
+      .mockResolvedValue(undefined);
+    const agent = createAgent({ data: approvalData, send });
+    mockUseEveAgent.mockReturnValue(agent as never);
+    const { result } = renderHook(() => useEveAgentRuntime());
+
+    await act(async () => {
+      result.current.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "go" }],
+      });
+    });
+    await waitFor(() => expect(send).toHaveBeenCalledTimes(1));
+
+    act(() => {
+      result.current.thread
+        .getMessageByIndex(1)
+        .getMessagePartByToolCallId("call_1")
+        .respondToToolApproval({ optionId: "approve" });
+    });
+    expect(send).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      resolveFirstSend();
+    });
+    await waitFor(() => expect(send).toHaveBeenCalledTimes(2));
+    expect(send).toHaveBeenNthCalledWith(2, {
+      inputResponses: [{ requestId: "req_1", optionId: "approve" }],
+    });
+  });
+
+  it("queues a send issued while a turn is in flight and preserves order", async () => {
+    let resolveFirstSend!: () => void;
+    const send = vi
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise<void>((resolve) => {
+            resolveFirstSend = resolve;
+          }),
+      )
+      .mockResolvedValue(undefined);
+    const agent = createAgent({ data: settledData, send });
+    mockUseEveAgent.mockReturnValue(agent as never);
+    const { result } = renderHook(() => useEveAgentRuntime());
+
+    await act(async () => {
+      result.current.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "first" }],
+      });
+    });
+    await waitFor(() => expect(send).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      result.current.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "second" }],
+      });
+    });
+    expect(send).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      resolveFirstSend();
+    });
+    await waitFor(() => expect(send).toHaveBeenCalledTimes(2));
+    expect(send).toHaveBeenNthCalledWith(1, { message: "first" });
+    expect(send).toHaveBeenNthCalledWith(2, { message: "second" });
+  });
+
+  it("drops a queued send when the run is cancelled before it dispatches", async () => {
+    let resolveFirstSend!: () => void;
+    const send = vi
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise<void>((resolve) => {
+            resolveFirstSend = resolve;
+          }),
+      )
+      .mockResolvedValue(undefined);
+    const agent = createAgent({ data: settledData, send });
+    mockUseEveAgent.mockReturnValue(agent as never);
+    const { result } = renderHook(() => useEveAgentRuntime());
+
+    await act(async () => {
+      result.current.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "first" }],
+      });
+    });
+    await waitFor(() => expect(send).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      result.current.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "queued" }],
+      });
+    });
+    act(() => {
+      result.current.thread.cancelRun();
+    });
+    expect(agent.stop).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      resolveFirstSend();
+    });
+    expect(send).toHaveBeenCalledTimes(1);
+  });
+
+  it("drops a queued send when the hook unmounts before it dispatches", async () => {
+    let resolveFirstSend!: () => void;
+    const send = vi
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise<void>((resolve) => {
+            resolveFirstSend = resolve;
+          }),
+      )
+      .mockResolvedValue(undefined);
+    const agent = createAgent({ data: settledData, send });
+    mockUseEveAgent.mockReturnValue(agent as never);
+    const { result, unmount } = renderHook(() => useEveAgentRuntime());
+
+    await act(async () => {
+      result.current.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "first" }],
+      });
+    });
+    await waitFor(() => expect(send).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      result.current.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "queued" }],
+      });
+    });
+    unmount();
+
+    resolveFirstSend();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(send).toHaveBeenCalledTimes(1);
+  });
+
+  it("forwards onFinish snapshots to the caller's onFinish", () => {
+    let capturedOptions: {
+      onFinish?: (snapshot: { status: string }) => void;
+    } = {};
+    const agent = createAgent({ data: settledData });
+    mockUseEveAgent.mockImplementation((options) => {
+      capturedOptions = options as typeof capturedOptions;
+      return agent as never;
+    });
+    const onFinish = vi.fn();
+    renderHook(() => useEveAgentRuntime({ onFinish }));
+
+    capturedOptions.onFinish?.({ status: "ready" });
+
+    expect(onFinish).toHaveBeenCalledWith({ status: "ready" });
+  });
+
+  it("orders a send issued mid-promotion after the in-flight staged draft", async () => {
+    let resolveFirstSend!: () => void;
+    const send = vi
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise<void>((resolve) => {
+            resolveFirstSend = resolve;
+          }),
+      )
+      .mockResolvedValue(undefined);
+    const agent = createAgent({ data: settledData, send });
+    mockUseEveAgent.mockReturnValue(agent as never);
+    const { result } = renderHook(() => useEveAgentRuntime());
+
+    await stageMessage(result.current, "first staged");
+    await stageMessage(result.current, "second staged");
+
+    const secondStagedId = result.current.thread.getState().messages[3]!.id;
+    act(() => {
+      void result.current.thread.startRun({
+        parentId: secondStagedId,
+        sourceId: null,
+        runConfig: {},
+      });
+    });
+    await waitFor(() => expect(send).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      result.current.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "interleaved" }],
+      });
+    });
+    expect(send).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      resolveFirstSend();
+    });
+    await waitFor(() => expect(send).toHaveBeenCalledTimes(3));
+
+    expect(send.mock.calls.map(([payload]) => payload)).toEqual([
+      { message: "first staged" },
+      { message: "interleaved" },
+      { message: "second staged" },
+    ]);
   });
 });

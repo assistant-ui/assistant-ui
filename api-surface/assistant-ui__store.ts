@@ -30,6 +30,11 @@ type AssistantClientSource = {
   subscribe(listener: () => void): Unsubscribe;
 };
 
+type AssistantConfigSource = {
+  getConfig(): AuiConfig.Input;
+  subscribe(listener: () => void): Unsubscribe;
+};
+
 type AssistantEventCallback<TEvent extends AssistantEventName> = (payload: AssistantEventPayload[TEvent]) => void;
 
 type AssistantEventName = keyof AssistantEventPayload;
@@ -230,10 +235,10 @@ declare const auiConfigBrand: unique symbol;
 declare const clientIdBrand: unique symbol;
 
 declare namespace entry_client_exports {
-  export { AssistantClient, AssistantClientAccessor, AssistantClientHandle, AssistantClientSource, AssistantEventCallback, AssistantEventName, AssistantEventPayload, AssistantEventSelector, AssistantState, AuiConfig, ClientElement, ClientEvents, ClientMeta, ClientMethods, ClientNames, ClientOutput, ClientSchema, DefaultAssistantClient, Derived, DerivedElement, InferClientState, ScopeRegistry, ScopesConfig, Unsubscribe, attachTransformScopes, createAssistantClient, getProxiedAssistantState, normalizeEventSelector, useAssistantClientRef, useAssistantEmit, useClientLookup, useClientResource };
+  export { AssistantClient, AssistantClientAccessor, AssistantClientHandle, AssistantClientSource, AssistantConfigSource, AssistantEventCallback, AssistantEventName, AssistantEventPayload, AssistantEventSelector, AssistantState, AuiConfig, ClientElement, ClientEvents, ClientMeta, ClientMethods, ClientNames, ClientOutput, ClientSchema, DefaultAssistantClient, Derived, DerivedElement, InferClientState, ScopeRegistry, ScopesConfig, Unsubscribe, attachTransformScopes, createAssistantClient, getProxiedAssistantState, normalizeEventSelector, useAssistantClientRef, useAssistantEmit, useClientLookup, useClientResource };
 }
 
-declare const createAssistantClient: (config: AuiConfig.Input, options?: {
+declare const createAssistantClient: (config: AuiConfig.Input | AssistantConfigSource, options?: {
   parent?: AssistantClient | AssistantClientSource | undefined;
 }) => AssistantClientHandle;
 

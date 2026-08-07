@@ -1741,6 +1741,7 @@ type ReasoningMessagePart = {
   readonly type: "reasoning";
   readonly text: string;
   readonly status?: MessagePartStreamStatus;
+  readonly unstable_summary?: string;
   readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };
