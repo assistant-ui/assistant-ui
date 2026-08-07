@@ -14,7 +14,6 @@ import {
 import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 import { Thread } from "@/components/assistant-ui/thread";
 import { AssistantShell } from "@/components/assistant-ui/assistant-shell";
-import { MessagesSquare } from "lucide-react";
 
 export const Assistant = () => {
   const runtime = useChatRuntime({
@@ -35,10 +34,7 @@ export const Assistant = () => {
 
   return (
     <AssistantRuntimeProvider config={config} runtime={runtime}>
-      <AssistantShell
-        logo={<MessagesSquare className="size-5" />}
-        title="assistant-ui"
-      >
+      <AssistantShell>
         <Thread />
       </AssistantShell>
     </AssistantRuntimeProvider>

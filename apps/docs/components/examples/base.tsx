@@ -14,7 +14,12 @@ import {
   ToolGroupRoot,
   ToolGroupTrigger,
 } from "@/components/assistant-ui/tool-group";
-import { CloneThreadShell } from "./clone-thread-shell";
+import {
+  AssistantShellHeader,
+  AssistantShellMain,
+  AssistantShellRoot,
+  AssistantShellSidebar,
+} from "@/components/assistant-ui/assistant-shell";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import {
   Reasoning,
@@ -66,10 +71,8 @@ import {
   HelpCircleIcon,
   LanguagesIcon,
   LightbulbIcon,
-  MenuIcon,
   MicIcon,
   MoreHorizontalIcon,
-  PanelLeftIcon,
   PencilIcon,
   PencilLineIcon,
   RefreshCwIcon,
@@ -112,60 +115,6 @@ const ModelPicker: FC = () => {
       size="sm"
       className="h-7 rounded-full"
     />
-  );
-};
-
-const ThreadTitle: FC = () => {
-  const title = useAuiState(
-    (s) =>
-      s.threads.threadItems.find((t) => t.id === s.threads.mainThreadId)?.title,
-  );
-
-  return (
-    <span className="min-w-0 truncate text-sm font-medium">
-      {title ?? "New Chat"}
-    </span>
-  );
-};
-
-const Header: FC<{
-  sidebarCollapsed: boolean;
-  onToggleSidebar: () => void;
-  onOpenMobileSidebar: () => void;
-}> = ({ sidebarCollapsed, onToggleSidebar, onOpenMobileSidebar }) => {
-  return (
-    <header className="flex h-12 shrink-0 items-center gap-2 px-4">
-      <Button
-        variant="ghost"
-        size="icon"
-        className="size-8 shrink-0 md:hidden"
-        onClick={onOpenMobileSidebar}
-      >
-        <MenuIcon className="size-4" />
-        <span className="sr-only">Toggle menu</span>
-      </Button>
-      <TooltipIconButton
-        variant="ghost"
-        size="icon"
-        tooltip={sidebarCollapsed ? "Show sidebar" : "Hide sidebar"}
-        side="bottom"
-        onClick={onToggleSidebar}
-        className="hidden size-8 md:flex"
-      >
-        <PanelLeftIcon className="size-4" />
-      </TooltipIconButton>
-      <ThreadTitle />
-      <TooltipIconButton
-        variant="ghost"
-        size="icon"
-        tooltip="Share"
-        side="bottom"
-        disabled
-        className="ml-auto size-8"
-      >
-        <ShareIcon className="size-4" />
-      </TooltipIconButton>
-    </header>
   );
 };
 
@@ -866,33 +815,24 @@ const BranchPicker: FC<BranchPickerPrimitive.Root.Props> = ({
 };
 
 export const Base: FC = () => {
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
-
   return (
-    <CloneThreadShell
-      railClassName="border-r-0"
-      collapsed={sidebarCollapsed}
-      onCollapsedChange={setSidebarCollapsed}
-      mobileSidebarOpen={mobileSidebarOpen}
-      onMobileSidebarOpenChange={setMobileSidebarOpen}
-      headerContent={<Logo />}
-      sheetTitle={<Logo />}
-      showSearch={false}
-      wrapNewThreadTooltip
-    >
-      <div className="bg-sidebar dark:bg-muted/30 flex h-full flex-col overflow-hidden p-2 md:pl-0">
-        <div className="bg-background flex flex-1 flex-col overflow-hidden rounded-lg">
-          <Header
-            sidebarCollapsed={sidebarCollapsed}
-            onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}
-            onOpenMobileSidebar={() => setMobileSidebarOpen(true)}
-          />
-          <main className="flex-1 overflow-hidden">
-            <Thread />
-          </main>
-        </div>
-      </div>
-    </CloneThreadShell>
+    <AssistantShellRoot className="h-full">
+      <AssistantShellSidebar logo={logo} title="assistant-ui" />
+      <AssistantShellMain>
+        <AssistantShellHeader logo={logo} title="assistant-ui">
+          <TooltipIconButton
+            tooltip="Share"
+            side="bottom"
+            disabled
+            className="size-8"
+          >
+            <ShareIcon className="size-4" />
+          </TooltipIconButton>
+        </AssistantShellHeader>
+        <main className="flex-1 overflow-hidden">
+          <Thread />
+        </main>
+      </AssistantShellMain>
+    </AssistantShellRoot>
   );
 };

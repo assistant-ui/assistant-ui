@@ -17,7 +17,6 @@ import { FallbackTool } from "@/components/tools/opencode-tools";
 import { ReasoningGroup } from "@/components/tools/reasoning-ghost";
 import { ToolGroup } from "@/components/tools/tool-group";
 import toolkit from "@/components/tools/toolkit";
-import { MessagesSquare } from "lucide-react";
 import { useEffect } from "react";
 
 const SetFallbackDataUI = () => {
@@ -45,10 +44,7 @@ export default function Home() {
   return (
     <AssistantRuntimeProvider config={config} runtime={runtime}>
       <SetFallbackDataUI />
-      <AssistantShell
-        logo={<MessagesSquare className="size-5" />}
-        title="OpenCode"
-      >
+      <AssistantShell title="OpenCode">
         <Thread components={THREAD_COMPONENTS} />
       </AssistantShell>
     </AssistantRuntimeProvider>
