@@ -8,11 +8,12 @@ import {
   SuggestionPrimitiveTitle,
   SuggestionPrimitiveTrigger,
   ThreadPrimitiveMessages,
+  ThreadPrimitiveScrollToBottom,
   ThreadPrimitiveSuggestions,
   ThreadPrimitiveViewport,
 } from "@assistant-ui/vue";
 import type {} from "@assistant-ui/core/store";
-import { ArrowUpIcon, SquareIcon } from "@lucide/vue";
+import { ArrowDownIcon, ArrowUpIcon, SquareIcon } from "@lucide/vue";
 import Message from "./Message.vue";
 </script>
 
@@ -42,11 +43,17 @@ import Message from "./Message.vue";
             </div>
           </div>
         </AuiIf>
-        <ol class="mb-14 flex flex-col gap-y-6 empty:hidden">
+        <ol class="mb-4 flex flex-col gap-y-6 empty:hidden">
           <ThreadPrimitiveMessages>
             <Message />
           </ThreadPrimitiveMessages>
         </ol>
+        <ThreadPrimitiveScrollToBottom
+          class="border-border/60 bg-background sticky bottom-2 z-10 mx-auto rounded-full border p-2 shadow-sm transition-opacity disabled:invisible"
+          aria-label="Scroll to bottom"
+        >
+          <ArrowDownIcon class="size-4" />
+        </ThreadPrimitiveScrollToBottom>
       </div>
     </ThreadPrimitiveViewport>
     <div class="mx-auto w-full max-w-2xl px-4 pb-4">
