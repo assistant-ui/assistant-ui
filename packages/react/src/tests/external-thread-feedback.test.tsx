@@ -56,12 +56,8 @@ const renderThreadWithProps = (props: Partial<ExternalThreadProps>) => {
     );
   };
 
-  const view = render(<App props={props} />);
-  const aui = () => captured.aui!;
-  aui.rerender = (nextProps: Partial<ExternalThreadProps>) =>
-    view.rerender(<App props={nextProps} />);
-  aui.unmount = () => view.unmount();
-  return aui;
+  render(<App props={props} />);
+  return () => captured.aui!;
 };
 
 describe("ExternalThread feedback", () => {
