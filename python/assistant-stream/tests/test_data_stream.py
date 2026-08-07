@@ -2,6 +2,7 @@ import json
 import logging
 
 import pytest
+from assistant_stream import create_run, RunController
 
 from assistant_stream.assistant_stream_chunk import (
     AnnotationsChunk,
@@ -293,3 +294,34 @@ async def test_data_stream_encoder_carries_an_explicitly_empty_summary():
     lines = [line async for line in encoder.encode_stream(stream())]
 
     assert lines == ['aui-reasoning-part-start:{"unstable_summary": ""}\n']
+
+
+@pytest.mark.anyio
+async def test_run_controller_add_reasoning_part_emits_the_summary():
+    """The public helper is the only supported way to open a summarized
+    reasoning part, so it is pinned rather than the chunk it builds."""
+
+    async def run_callback(controller: RunController):
+        controller.add_reasoning_part("Planning")
+        controller.append_reasoning("thinking")
+
+    encoder = DataStreamEncoder()
+    lines = [line async for line in encoder.encode_stream(create_run(run_callback))]
+
+    assert lines == [
+        'aui-reasoning-part-start:{"unstable_summary": "Planning"}\n',
+        'g:"thinking"\n',
+    ]
+
+
+@pytest.mark.anyio
+async def test_run_controller_add_reasoning_part_carries_the_parent():
+    async def run_callback(controller: RunController):
+        controller.with_parent_id("p1").add_reasoning_part("Planning")
+
+    encoder = DataStreamEncoder()
+    lines = [line async for line in encoder.encode_stream(create_run(run_callback))]
+
+    assert lines == [
+        'aui-reasoning-part-start:{"unstable_summary": "Planning", "parentId": "p1"}\n'
+    ]

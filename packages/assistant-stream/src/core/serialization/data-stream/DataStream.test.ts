@@ -265,6 +265,37 @@ describe("reasoning summaries on the data stream", () => {
     ]);
   });
 
+  it("leaves an ordinary empty reasoning delta on the wire", async () => {
+    // only the synthetic summary-part open suppresses an empty delta; a caller
+    // that never touches the field keeps the frame it always emitted
+    const [input, assistantController] = createAssistantStreamController();
+    const output: string[] = [];
+    const completion = input
+      .pipeThrough(new DataStreamEncoder())
+      .pipeThrough(new TextDecoderStream())
+      .pipeTo(
+        new WritableStream({
+          write(chunk) {
+            output.push(chunk);
+          },
+        }),
+      );
+
+    assistantController.appendReasoning("");
+    assistantController.close();
+    await completion;
+
+    expect(output.join("").trimEnd().split("\n")).toEqual(['g:""']);
+  });
+
+  it("decodes a summary-only frame without a synthetic text delta", async () => {
+    const chunks = await decodeLines([
+      'aui-reasoning-part-start:{"unstable_summary":"Planning"}',
+    ]);
+
+    expect(chunks.filter((chunk) => chunk.type === "text-delta")).toEqual([]);
+  });
+
   it("survives a decode and re-encode unchanged", async () => {
     // a relay that decodes and re-encodes must not inject frames the producer
     // never sent

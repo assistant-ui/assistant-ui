@@ -212,12 +212,11 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
         controller: this.addReasoningPart(options),
       };
     }
-    // An empty delta carries nothing, and appending one would put a chunk on
-    // the stream that no producer emitted; opening a part with a summary and
-    // no text goes through here.
-    if (textDelta.length > 0) {
-      this._state.append.controller.append(textDelta);
-    }
+    // Opening a part from an init with no text is how a summary-only part is
+    // created, and appending there would put a chunk on the stream that no
+    // producer emitted. An empty delta from an ordinary caller still appends.
+    if (options !== undefined && textDelta.length === 0) return;
+    this._state.append.controller.append(textDelta);
   }
 
   addTextPart() {
