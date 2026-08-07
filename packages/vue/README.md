@@ -64,6 +64,15 @@ Headless components for runtime-backed threads, mirroring the React primitives. 
 - `AuiIf` renders its slot while a state selector returns true.
 
 ```vue
+<script setup lang="ts">
+import {
+  ComposerPrimitiveInput,
+  ComposerPrimitiveSend,
+  ThreadPrimitiveMessages,
+} from "@assistant-ui/vue";
+import ChatMessage from "./ChatMessage.vue";
+</script>
+
 <template>
   <ol>
     <ThreadPrimitiveMessages>
@@ -74,5 +83,7 @@ Headless components for runtime-backed threads, mirroring the React primitives. 
   <ComposerPrimitiveSend>Send</ComposerPrimitiveSend>
 </template>
 ```
+
+`examples/with-vue/src/Root.vue` shows the RuntimeAdapter mount this composes with.
 
 See `examples/with-vue` in the repository for a complete Vite setup.

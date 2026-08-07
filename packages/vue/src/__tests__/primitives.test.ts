@@ -19,22 +19,37 @@ type DemoMessage = { role: "user" | "assistant"; text: string };
 
 const createTestRuntime = () => {
   let messages: DemoMessage[] = [];
+  let isRunning = false;
+  let isDisabled = false;
   const onNew = vi.fn(async () => {});
+  const onCancel = vi.fn(async () => {});
   const makeAdapter = (): ExternalStoreAdapter<DemoMessage> => ({
     messages,
+    isRunning,
+    isDisabled,
     convertMessage: (message) => ({
       role: message.role,
       content: [{ type: "text", text: message.text }],
     }),
     onNew,
+    onCancel,
   });
   const core = new ExternalStoreRuntimeCore(makeAdapter());
   const runtime = new AssistantRuntimeImpl(core);
+  const sync = () => core.setAdapter(makeAdapter());
   const append = (message: DemoMessage) => {
     messages = [...messages, message];
-    core.setAdapter(makeAdapter());
+    sync();
   };
-  return { runtime, append, onNew };
+  const setRunning = (value: boolean) => {
+    isRunning = value;
+    sync();
+  };
+  const setDisabled = (value: boolean) => {
+    isDisabled = value;
+    sync();
+  };
+  return { runtime, append, setRunning, setDisabled, onNew, onCancel };
 };
 
 const MessageProbe = defineComponent({
@@ -101,7 +116,7 @@ describe("vue primitives", () => {
 
     const textarea = el.querySelector("textarea")!;
     textarea.value = "hello";
-    flushTapSync(() => textarea.dispatchEvent(new Event("input")));
+    textarea.dispatchEvent(new Event("input"));
 
     textarea.dispatchEvent(
       new KeyboardEvent("keydown", { key: "Enter", cancelable: true }),
@@ -116,7 +131,7 @@ describe("vue primitives", () => {
     unmount();
   });
 
-  it("keeps Shift+Enter as a newline", async () => {
+  it("keeps Shift+Enter and IME composition as newlines", async () => {
     const { runtime, onNew } = createTestRuntime();
     const View = defineComponent({
       setup: () => () => h(ComposerPrimitiveInput),
@@ -125,17 +140,91 @@ describe("vue primitives", () => {
 
     const textarea = el.querySelector("textarea")!;
     textarea.value = "hello";
-    flushTapSync(() => textarea.dispatchEvent(new Event("input")));
-    textarea.dispatchEvent(
-      new KeyboardEvent("keydown", {
-        key: "Enter",
-        shiftKey: true,
-        cancelable: true,
-      }),
-    );
+    textarea.dispatchEvent(new Event("input"));
 
-    await new Promise((resolve) => setTimeout(resolve));
+    const shiftEnter = new KeyboardEvent("keydown", {
+      key: "Enter",
+      shiftKey: true,
+      cancelable: true,
+    });
+    expect(textarea.dispatchEvent(shiftEnter)).toBe(true);
+
+    const composingEnter = new KeyboardEvent("keydown", {
+      key: "Enter",
+      isComposing: true,
+      cancelable: true,
+    });
+    expect(textarea.dispatchEvent(composingEnter)).toBe(true);
+
+    await vi.waitFor(() => {
+      expect(runtime.thread.composer.getState().text).toBe("hello");
+    });
     expect(onNew).not.toHaveBeenCalled();
+
+    unmount();
+  });
+
+  it("does not submit on Enter when submitOnEnter is false", async () => {
+    const { runtime, onNew } = createTestRuntime();
+    const View = defineComponent({
+      setup: () => () => h(ComposerPrimitiveInput, { submitOnEnter: false }),
+    });
+    const { el, unmount } = mountChat(runtime, View);
+
+    const textarea = el.querySelector("textarea")!;
+    textarea.value = "hello";
+    textarea.dispatchEvent(new Event("input"));
+    const enter = new KeyboardEvent("keydown", {
+      key: "Enter",
+      cancelable: true,
+    });
+    expect(textarea.dispatchEvent(enter)).toBe(true);
+
+    await vi.waitFor(() => {
+      expect(runtime.thread.composer.getState().text).toBe("hello");
+    });
+    expect(onNew).not.toHaveBeenCalled();
+
+    unmount();
+  });
+
+  it("disables the input while the thread is disabled", async () => {
+    const { runtime, setDisabled } = createTestRuntime();
+    const View = defineComponent({
+      setup: () => () => h(ComposerPrimitiveInput),
+    });
+    const { el, unmount } = mountChat(runtime, View);
+
+    expect(el.querySelector("textarea")!.disabled).toBe(false);
+
+    flushTapSync(() => setDisabled(true));
+    await vi.waitFor(async () => {
+      await nextTick();
+      expect(el.querySelector("textarea")!.disabled).toBe(true);
+    });
+
+    unmount();
+  });
+
+  it("cancels a running turn through the cancel button", async () => {
+    const { runtime, setRunning, onCancel } = createTestRuntime();
+    const View = defineComponent({
+      setup: () => () =>
+        h(ComposerPrimitiveCancel, null, { default: () => "Stop" }),
+    });
+    const { el, unmount } = mountChat(runtime, View);
+
+    flushTapSync(() => setRunning(true));
+    const button = el.querySelector("button")!;
+    await vi.waitFor(async () => {
+      await nextTick();
+      expect(button.disabled).toBe(false);
+    });
+
+    button.click();
+    await vi.waitFor(() => {
+      expect(onCancel).toHaveBeenCalledTimes(1);
+    });
 
     unmount();
   });
@@ -199,8 +288,17 @@ describe("vue primitives", () => {
     unmount();
   });
 
-  it("disables cancel while nothing is cancellable", () => {
-    const { runtime } = createTestRuntime();
+  it("disables cancel while the runtime cannot cancel", () => {
+    const runtime = new AssistantRuntimeImpl(
+      new ExternalStoreRuntimeCore({
+        messages: [] as DemoMessage[],
+        convertMessage: (message: DemoMessage) => ({
+          role: message.role,
+          content: [{ type: "text", text: message.text }],
+        }),
+        onNew: async () => {},
+      }),
+    );
     const View = defineComponent({
       setup: () => () =>
         h(ComposerPrimitiveCancel, null, { default: () => "Stop" }),

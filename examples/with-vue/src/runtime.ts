@@ -38,6 +38,9 @@ export const createEchoRuntime = () => {
     },
     onCancel: async () => {
       clearTimeout(replyTimer);
+      if (isRunning && messages.at(-1)?.role === "user") {
+        messages = messages.slice(0, -1);
+      }
       isRunning = false;
       sync();
     },
