@@ -75,6 +75,35 @@ const installFetch = () => {
   return { requests, servers };
 };
 
+const installPendingFetch = () => {
+  const requests: RecordedRequest[] = [];
+  const pending: {
+    resolve: (response: Response) => void;
+    reject: (reason: unknown) => void;
+  }[] = [];
+
+  vi.stubGlobal("fetch", (url: RequestInfo | URL, init: RequestInit = {}) => {
+    requests.push({
+      url: String(url),
+      init,
+      body: JSON.parse(init.body as string),
+    });
+
+    return new Promise<Response>((resolve, reject) => {
+      pending.push({ resolve, reject });
+      init.signal?.addEventListener(
+        "abort",
+        () => reject(init.signal?.reason),
+        {
+          once: true,
+        },
+      );
+    });
+  });
+
+  return { requests, pending };
+};
+
 const mountRuntime = (
   options?: Partial<AssistantTransportOptions<unknown>>,
 ) => {
@@ -215,6 +244,56 @@ describe("useAssistantTransportRuntime", () => {
     act(() => fetchMock.servers[2]!.close());
     await waitFor(() => expect(aui().thread.getState().isRunning).toBe(false));
   });
+
+  it.each(["error", "cancellation"] as const)(
+    "does not apply a dropped resume after run %s",
+    async (settlement) => {
+      const fetchMock = installPendingFetch();
+      const onError = vi.fn();
+      const { aui, sendCommand } = mountRuntime({
+        resumeApi: "https://example.com/resume",
+        onError,
+      });
+      await waitFor(() =>
+        expect(
+          (aui().thread.getState().extras as { sendCommand?: unknown })
+            ?.sendCommand,
+        ).toBeTypeOf("function"),
+      );
+
+      act(() => sendCommand(createMessageCommand("a")));
+      await waitFor(() => expect(fetchMock.requests).toHaveLength(1));
+
+      await act(async () => {
+        await aui().thread.resumeRun({ parentId: null });
+      });
+      if (settlement === "cancellation") {
+        act(() => aui().thread.cancelRun());
+      } else {
+        await act(async () => {
+          fetchMock.pending[0]!.reject(new Error("request failed"));
+        });
+      }
+      await waitFor(() =>
+        expect(aui().thread.getState().isRunning).toBe(false),
+      );
+
+      act(() => sendCommand(createMessageCommand("b")));
+      await waitFor(() => expect(fetchMock.requests).toHaveLength(2));
+      expect(fetchMock.requests[1]!.url).toBe("https://example.com/api");
+      expect(fetchMock.requests[1]!.body["commands"]).toEqual([
+        createMessageCommand("b"),
+      ]);
+
+      await act(async () => {
+        fetchMock.pending[1]!.resolve(new Response("", { status: 200 }));
+      });
+      await waitFor(() =>
+        expect(aui().thread.getState().isRunning).toBe(false),
+      );
+      expect(onError).toHaveBeenCalledTimes(settlement === "error" ? 1 : 0);
+    },
+  );
 
   it("applies resumed operations to the retained initial state", async () => {
     const requests: RecordedRequest[] = [];
