@@ -21,14 +21,26 @@ import {
  * A scrollable container that keeps the thread pinned to the bottom: content
  * growth scrolls back down while the user sits at the bottom, a run start
  * scrolls down, and scrolling up unpins until the user returns to the bottom.
- * Setting `autoScroll` to false disables only the follow-on-content-growth
- * behavior; the first-messages and run-start scrolls remain, matching the
- * React hook's independent option defaults.
+ * The four options mirror the React hook and are independent: `autoScroll`
+ * covers follow-on-content-growth, and the other three gate the
+ * first-messages, run-start, and thread-switch scrolls.
  */
 export const ThreadPrimitiveViewport = defineComponent({
   name: "ThreadPrimitiveViewport",
   props: {
     autoScroll: {
+      type: Boolean,
+      default: true,
+    },
+    scrollToBottomOnInitialize: {
+      type: Boolean,
+      default: true,
+    },
+    scrollToBottomOnRunStart: {
+      type: Boolean,
+      default: true,
+    },
+    scrollToBottomOnThreadSwitch: {
       type: Boolean,
       default: true,
     },
@@ -138,6 +150,7 @@ export const ThreadPrimitiveViewport = defineComponent({
     watch(
       hasMessages,
       (has) => {
+        if (!props.scrollToBottomOnInitialize) return;
         if (!has) {
           initialized = false;
           return;
@@ -151,10 +164,12 @@ export const ThreadPrimitiveViewport = defineComponent({
     );
 
     useAuiEvent("thread.runStart", () => {
+      if (!props.scrollToBottomOnRunStart) return;
       scheduleScrollToBottom("auto");
     });
 
     useAuiEvent("threadListItem.switchedTo", () => {
+      if (!props.scrollToBottomOnThreadSwitch) return;
       scheduleScrollToBottom("instant");
     });
 

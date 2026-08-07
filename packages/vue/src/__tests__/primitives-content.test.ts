@@ -349,6 +349,53 @@ describe("ThreadPrimitiveViewport", () => {
     unmount();
   });
 
+  it("stays put when every scroll option is disabled", async () => {
+    const { runtime, append } = createTestRuntime();
+    const View = defineComponent({
+      setup: () => () =>
+        h(
+          ThreadPrimitiveViewport,
+          {
+            class: "viewport",
+            autoScroll: false,
+            scrollToBottomOnInitialize: false,
+            scrollToBottomOnRunStart: false,
+          },
+          {
+            default: () =>
+              h(ThreadPrimitiveMessages, null, {
+                default: () => h("p", "row"),
+              }),
+          },
+        ),
+    });
+    const { el, unmount } = mountChat(runtime, View);
+
+    const div = el.querySelector<HTMLElement>("div.viewport")!;
+    Object.defineProperty(div, "scrollHeight", {
+      get: () => 500,
+      configurable: true,
+    });
+    Object.defineProperty(div, "clientHeight", {
+      get: () => 100,
+      configurable: true,
+    });
+    const scrollTo = vi.fn();
+    Object.defineProperty(div, "scrollTo", {
+      value: scrollTo,
+      configurable: true,
+    });
+
+    flushTapSync(() =>
+      append({ role: "user", content: [{ type: "text", text: "one" }] }),
+    );
+    await nextTick();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(scrollTo).not.toHaveBeenCalled();
+
+    unmount();
+  });
+
   it("computes bottom pinning from viewport metrics", () => {
     expect(
       isViewportAtBottom({
