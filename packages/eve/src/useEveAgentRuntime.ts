@@ -25,7 +25,6 @@ import {
   type UseEveAgentOptions,
   type UseEveAgentStatus,
 } from "eve/react";
-import type { SendTurnPayload } from "eve/client";
 import {
   convertEveMessages,
   getEveMessageContent,
@@ -46,6 +45,23 @@ const hasRunConfig = (
 ): runConfig is NonNullable<AppendMessage["runConfig"]> =>
   runConfig?.custom !== undefined && Object.keys(runConfig.custom).length > 0;
 
+type EveJsonValue =
+  | string
+  | number
+  | boolean
+  | null
+  | readonly EveJsonValue[]
+  | { readonly [key: string]: EveJsonValue };
+
+/**
+ * Structural equivalent of eve's `JsonObject`. Eve renames its send payload
+ * type at the peer range's ceiling (`SendTurnPayload` is public through 0.30
+ * but internal from 0.31), so the helper declares the shape it forwards and
+ * leaves assignability to the send call site, checked against the installed
+ * version.
+ */
+type EveClientContext = { readonly [key: string]: EveJsonValue };
+
 /**
  * Only the `custom` bag crosses the wire. Eve reads `clientContext` as its own
  * namespace and serializes it into a model-visible context message, so sending
@@ -54,13 +70,9 @@ const hasRunConfig = (
  */
 const toEveClientContext = (
   runConfig: AppendMessage["runConfig"],
-): Pick<SendTurnPayload, "clientContext"> =>
+): { readonly clientContext?: EveClientContext } =>
   hasRunConfig(runConfig)
-    ? {
-        clientContext: runConfig.custom as NonNullable<
-          SendTurnPayload["clientContext"]
-        >,
-      }
+    ? { clientContext: runConfig.custom as EveClientContext }
     : {};
 
 export type UseEveAgentRuntimeOptions = Omit<

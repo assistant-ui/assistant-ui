@@ -723,6 +723,7 @@ const approvalData: EveMessageData = {
               name: "send_email",
               inputRequest: {
                 requestId: "req_1",
+                kind: "tool-approval",
                 prompt: "Send the email?",
                 display: "confirmation",
                 options: [

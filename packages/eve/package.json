@@ -37,7 +37,7 @@
   },
   "peerDependencies": {
     "@types/react": "*",
-    "eve": ">=0.27.6",
+    "eve": ">=0.27.6 <0.31.0",
     "react": "^18 || ^19"
   },
   "peerDependenciesMeta": {
