@@ -1,10 +1,12 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import {
   AssistantRuntimeProvider,
+  useAui,
   useLocalRuntime,
   type ChatModelAdapter,
+  type CreateAttachment,
   type LocalRuntimeOptions,
   type ThreadMessageLike,
 } from "@assistant-ui/react";
@@ -24,13 +26,33 @@ const defaultMessages: ThreadMessageLike[] = [
   },
 ];
 
+function useSeedAttachments(attachments: CreateAttachment[]) {
+  const aui = useAui();
+  const initialAttachments = useRef(attachments).current;
+  useEffect(() => {
+    for (const attachment of initialAttachments) {
+      aui.composer.addAttachment(attachment).catch(console.error);
+    }
+    return () => {
+      aui.composer.clearAttachments().catch(console.error);
+    };
+  }, [aui, initialAttachments]);
+}
+
+function SeedAttachments({ attachments }: { attachments: CreateAttachment[] }) {
+  useSeedAttachments(attachments);
+  return null;
+}
+
 export function SampleRuntimeProvider({
   messages = defaultMessages,
   adapters,
+  initialAttachments,
   children,
 }: {
   messages?: ThreadMessageLike[];
   adapters?: LocalRuntimeOptions["adapters"];
+  initialAttachments?: CreateAttachment[];
   children: ReactNode;
 }) {
   const runtime = useLocalRuntime(noOpAdapter, {
@@ -39,6 +61,9 @@ export function SampleRuntimeProvider({
   });
   return (
     <AssistantRuntimeProvider runtime={runtime}>
+      {initialAttachments && (
+        <SeedAttachments attachments={initialAttachments} />
+      )}
       {children}
     </AssistantRuntimeProvider>
   );
