@@ -3,13 +3,14 @@ import {
   defineComponent,
   h,
   mergeProps,
-  nextTick,
+  onScopeDispose,
   type SlotsType,
 } from "vue";
 import { AuiConfig, Derived } from "@assistant-ui/store/client";
 import type { ThreadListItemMethods } from "@assistant-ui/core/store";
 import { AuiProvider } from "../AuiProvider";
 import { isAttrDisabled } from "./attrDisabled";
+import { createLastValidCache } from "./lastValidCache";
 import { useAui } from "../useAui";
 import { useAuiState } from "../useAuiState";
 
@@ -32,24 +33,30 @@ export const ThreadListItemByIndexProvider = defineComponent({
   slots: Object as SlotsType<{ default?: () => unknown }>,
   setup(props, { slots }) {
     const aui = useAui();
-    // When the collection shrinks, this scope re-resolves before Vue unmounts
-    // it; serve the last valid client for that window only. A stale serve
-    // drops the cache after Vue's flush, so a provider still mounted out of
-    // bounds reverts to throwing on its next resolution, while a normal
-    // shrink has unmounted it by then.
+    let disposed = false;
+    onScopeDispose(() => {
+      disposed = true;
+    });
     const config = computed(() => {
       const index = props.index;
       const archived = props.archived;
-      let lastItem: ThreadListItemMethods | undefined;
-      let recheckScheduled = false;
-      const scheduleRecheck = () => {
-        if (recheckScheduled) return;
-        recheckScheduled = true;
-        void nextTick(() => {
-          recheckScheduled = false;
-          lastItem = undefined;
-        });
-      };
+      const idsOf = (state: {
+        archivedThreadIds: readonly string[];
+        threadIds: readonly string[];
+      }) => (archived ? state.archivedThreadIds : state.threadIds);
+      const cache = createLastValidCache<ThreadListItemMethods>(() => {
+        if (disposed || index !== props.index || archived !== props.archived) {
+          return;
+        }
+        try {
+          if (index < idsOf(aui.threads.getState()).length) return;
+        } catch {
+          // the parent scope itself is unavailable; report either way
+        }
+        console.error(
+          `ThreadListItemByIndexProvider: index ${index} is still out of bounds after the update settled; the scope throws on its next resolution.`,
+        );
+      });
       return AuiConfig({
         threadListItem: Derived({
           source: "threads",
@@ -58,16 +65,10 @@ export const ThreadListItemByIndexProvider = defineComponent({
             index,
             archived,
           },
-          get: (aui) => {
-            const state = aui.threads.getState();
-            const ids = archived ? state.archivedThreadIds : state.threadIds;
-            if (index < ids.length) {
-              lastItem = aui.threads.item({ index, archived });
-            } else if (lastItem) {
-              scheduleRecheck();
-            }
-            return lastItem ?? aui.threads.item({ index, archived });
-          },
+          get: (aui) =>
+            cache.resolve(index < idsOf(aui.threads.getState()).length, () =>
+              aui.threads.item({ index, archived }),
+            ),
         }),
       });
     });

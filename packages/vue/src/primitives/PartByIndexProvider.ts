@@ -1,8 +1,15 @@
-import { computed, defineComponent, h, nextTick, type SlotsType } from "vue";
+import {
+  computed,
+  defineComponent,
+  h,
+  onScopeDispose,
+  type SlotsType,
+} from "vue";
 import { AuiConfig, Derived } from "@assistant-ui/store/client";
 import type { PartMethods } from "@assistant-ui/core/store";
 import { AuiProvider } from "../AuiProvider";
 import { useAui } from "../useAui";
+import { createLastValidCache } from "./lastValidCache";
 
 /**
  * Scopes the subtree to the message part at `index`: descendants read the
@@ -19,35 +26,31 @@ export const PartByIndexProvider = defineComponent({
   slots: Object as SlotsType<{ default?: () => unknown }>,
   setup(props, { slots }) {
     const aui = useAui();
-    // When the collection shrinks, this scope re-resolves before Vue unmounts
-    // it; serve the last valid client for that window only. A stale serve
-    // drops the cache after Vue's flush, so a provider still mounted out of
-    // bounds reverts to throwing on its next resolution, while a normal
-    // shrink has unmounted it by then.
+    let disposed = false;
+    onScopeDispose(() => {
+      disposed = true;
+    });
     const config = computed(() => {
       const index = props.index;
-      let lastPart: PartMethods | undefined;
-      let recheckScheduled = false;
-      const scheduleRecheck = () => {
-        if (recheckScheduled) return;
-        recheckScheduled = true;
-        void nextTick(() => {
-          recheckScheduled = false;
-          lastPart = undefined;
-        });
-      };
+      const cache = createLastValidCache<PartMethods>(() => {
+        if (disposed || index !== props.index) return;
+        try {
+          if (index < aui.message.getState().parts.length) return;
+        } catch {
+          // the parent scope itself is unavailable; report either way
+        }
+        console.error(
+          `PartByIndexProvider: index ${index} is still out of bounds after the update settled; the scope throws on its next resolution.`,
+        );
+      });
       return AuiConfig({
         part: Derived({
           source: "message",
           query: { type: "index", index },
-          get: (aui) => {
-            if (index < aui.message.getState().parts.length) {
-              lastPart = aui.message.part({ index });
-            } else if (lastPart) {
-              scheduleRecheck();
-            }
-            return lastPart ?? aui.message.part({ index });
-          },
+          get: (aui) =>
+            cache.resolve(index < aui.message.getState().parts.length, () =>
+              aui.message.part({ index }),
+            ),
         }),
       });
     });

@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createApp, defineComponent, h, nextTick } from "vue";
 import { flushTapSync } from "@assistant-ui/tap";
 import { AuiConfig } from "@assistant-ui/store/client";
@@ -101,6 +101,10 @@ const lookupErrors = (spy: ReturnType<typeof vi.spyOn>) =>
   );
 
 describe("by-index scope shrink races", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it("reload replacing the assistant message with empty content logs no lookup error", async () => {
     const { runtime, seed } = createShrinkRuntime();
     const { el, unmount } = mountChat(runtime);
@@ -140,7 +144,6 @@ describe("by-index scope shrink races", () => {
     });
     expect(lookupErrors(errorSpy)).toEqual([]);
 
-    errorSpy.mockRestore();
     unmount();
   });
 
@@ -175,7 +178,6 @@ describe("by-index scope shrink races", () => {
 
     expect(lookupErrors(errorSpy)).toEqual([]);
 
-    errorSpy.mockRestore();
     unmount();
   });
 
@@ -238,24 +240,69 @@ describe("by-index scope shrink races", () => {
         { id: "a1", role: "assistant", text: "" },
       ]),
     );
+    expect(lookupErrors(errorSpy)).toEqual([]);
+
     await vi.waitFor(async () => {
       await nextTick();
-      expect(lookupErrors(errorSpy)).toEqual([]);
+      expect(
+        errorSpy.mock.calls.filter((args) =>
+          args.some((arg) =>
+            String(arg).includes(
+              "PartByIndexProvider: index 0 is still out of bounds",
+            ),
+          ),
+        ).length,
+      ).toBeGreaterThan(0);
     });
+
+    app.unmount();
+  });
+
+  it("a shrink followed by a same-tick recovery keeps the refreshed cache", async () => {
+    const { runtime, seed } = createShrinkRuntime();
+    const { el, unmount } = mountChat(runtime);
 
     flushTapSync(() =>
       seed([
         { id: "u1", role: "user", text: "hi" },
-        { id: "a1", role: "assistant", text: "" },
+        { id: "a1", role: "assistant", text: "hello" },
       ]),
     );
     await vi.waitFor(async () => {
       await nextTick();
-      expect(lookupErrors(errorSpy).length).toBeGreaterThan(0);
+      expect(el.textContent).toContain("hello");
     });
 
-    errorSpy.mockRestore();
-    app.unmount();
+    const errorSpy = vi.spyOn(console, "error");
+    flushTapSync(() => {
+      seed([
+        { id: "u1", role: "user", text: "hi" },
+        { id: "a1", role: "assistant", text: "" },
+      ]);
+      seed([
+        { id: "u1", role: "user", text: "hi" },
+        { id: "a1", role: "assistant", text: "restored" },
+      ]);
+    });
+    await vi.waitFor(async () => {
+      await nextTick();
+      expect(el.textContent).toContain("restored");
+    });
+    expect(errorSpy.mock.calls).toEqual([]);
+
+    flushTapSync(() =>
+      seed([
+        { id: "u1", role: "user", text: "hi" },
+        { id: "a2", role: "assistant", text: "again" },
+      ]),
+    );
+    await vi.waitFor(async () => {
+      await nextTick();
+      expect(el.textContent).toContain("again");
+    });
+    expect(errorSpy.mock.calls).toEqual([]);
+
+    unmount();
   });
 
   it("a never-valid part index still throws when read", () => {

@@ -3,7 +3,7 @@ import {
   defineComponent,
   h,
   mergeProps,
-  nextTick,
+  onScopeDispose,
   type SlotsType,
 } from "vue";
 import { AuiConfig, Derived } from "@assistant-ui/store/client";
@@ -11,6 +11,7 @@ import { flushTapSync } from "@assistant-ui/tap";
 import type { SuggestionMethods } from "@assistant-ui/core/store";
 import { AuiProvider } from "../AuiProvider";
 import { isAttrDisabled } from "./attrDisabled";
+import { createLastValidCache } from "./lastValidCache";
 import { useAui } from "../useAui";
 import { useAuiState } from "../useAuiState";
 
@@ -29,35 +30,32 @@ export const SuggestionByIndexProvider = defineComponent({
   slots: Object as SlotsType<{ default?: () => unknown }>,
   setup(props, { slots }) {
     const aui = useAui();
-    // When the collection shrinks, this scope re-resolves before Vue unmounts
-    // it; serve the last valid client for that window only. A stale serve
-    // drops the cache after Vue's flush, so a provider still mounted out of
-    // bounds reverts to throwing on its next resolution, while a normal
-    // shrink has unmounted it by then.
+    let disposed = false;
+    onScopeDispose(() => {
+      disposed = true;
+    });
     const config = computed(() => {
       const index = props.index;
-      let lastSuggestion: SuggestionMethods | undefined;
-      let recheckScheduled = false;
-      const scheduleRecheck = () => {
-        if (recheckScheduled) return;
-        recheckScheduled = true;
-        void nextTick(() => {
-          recheckScheduled = false;
-          lastSuggestion = undefined;
-        });
-      };
+      const cache = createLastValidCache<SuggestionMethods>(() => {
+        if (disposed || index !== props.index) return;
+        try {
+          if (index < aui.suggestions.getState().suggestions.length) return;
+        } catch {
+          // the parent scope itself is unavailable; report either way
+        }
+        console.error(
+          `SuggestionByIndexProvider: index ${index} is still out of bounds after the update settled; the scope throws on its next resolution.`,
+        );
+      });
       return AuiConfig({
         suggestion: Derived({
           source: "suggestions",
           query: { index },
-          get: (aui) => {
-            if (index < aui.suggestions.getState().suggestions.length) {
-              lastSuggestion = aui.suggestions.suggestion({ index });
-            } else if (lastSuggestion) {
-              scheduleRecheck();
-            }
-            return lastSuggestion ?? aui.suggestions.suggestion({ index });
-          },
+          get: (aui) =>
+            cache.resolve(
+              index < aui.suggestions.getState().suggestions.length,
+              () => aui.suggestions.suggestion({ index }),
+            ),
         }),
       });
     });
