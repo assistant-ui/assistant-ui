@@ -232,7 +232,8 @@ export const AssistantShellSidebar: FC<AssistantShellSidebarProps> = ({
             className={cn(
               // Elevation stands in for a top scroll fade: once the list is scrolled, the shadow marks content passing under the pinned row.
               "relative z-10 shrink-0 pb-2 transition-[padding,box-shadow] duration-200",
-              "data-elevated:shadow-[0_8px_10px_-8px_rgb(0_0_0/0.2)] dark:data-elevated:shadow-[0_8px_10px_-8px_rgb(0_0_0/0.6)]",
+              // No negative spread: the aside's overflow-hidden clips the side bleed, and contracting the shadow would visibly narrow it below the row width.
+              "data-elevated:shadow-[0_2px_4px_rgb(0_0_0/0.04),0_4px_8px_rgb(0_0_0/0.04)] dark:data-elevated:shadow-[0_2px_4px_rgb(0_0_0/0.2),0_4px_8px_rgb(0_0_0/0.15)]",
               collapsed ? "px-2 pt-1" : "px-3 pt-3",
             )}
           >
