@@ -68,7 +68,7 @@ const useScrollFade = () => {
     };
   }, [container]);
 
-  return { ref: setContainer, overflowing };
+  return { ref: setContainer, container, overflowing };
 };
 
 type AssistantShellContextValue = {
@@ -184,6 +184,11 @@ export const AssistantShellSidebar: FC<AssistantShellSidebarProps> = ({
   const { collapsed } = useAssistantShell();
   const fade = useScrollFade();
 
+  // The hidden thread items keep their height when collapsed, so the rail must stay pinned to the top or New Thread can sit scrolled out of view.
+  useEffect(() => {
+    if (collapsed) fade.container?.scrollTo({ top: 0 });
+  }, [collapsed, fade.container]);
+
   return (
     <div data-slot="aui_shell-sidebar-wrapper" className="hidden md:block">
       <aside
@@ -221,11 +226,11 @@ export const AssistantShellSidebar: FC<AssistantShellSidebarProps> = ({
         <div
           data-slot="aui_shell-sidebar-scroll"
           ref={fade.ref}
-          data-overflowing={fade.overflowing ? "" : undefined}
+          data-overflowing={fade.overflowing && !collapsed ? "" : undefined}
           className={cn(
             // overflow-x-hidden: group labels are wider than the collapsed rail and would otherwise raise a horizontal overlay scrollbar above the footer.
-            "relative flex-1 overflow-x-hidden overflow-y-auto transition-[width] duration-200",
-            collapsed ? "w-12" : "w-65",
+            "relative flex-1 overflow-x-hidden transition-[width] duration-200",
+            collapsed ? "w-12 overflow-y-hidden" : "w-65 overflow-y-auto",
             SCROLL_FADE_CLASS,
           )}
         >

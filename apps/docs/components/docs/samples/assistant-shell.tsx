@@ -27,6 +27,8 @@ import {
   SparklesIcon,
 } from "lucide-react";
 
+const menuItemClass = "gap-2 px-2 py-1.5";
+
 const AccountMenu = () => {
   return (
     <DropdownMenu>
@@ -35,7 +37,7 @@ const AccountMenu = () => {
           <AssistantShellFooterItem
             icon={
               <Avatar>
-                <AvatarFallback>AJ</AvatarFallback>
+                <AvatarFallback className="bg-linear-to-br from-sky-400 to-indigo-500" />
               </Avatar>
             }
             label="Alex Johnson"
@@ -44,18 +46,18 @@ const AccountMenu = () => {
           />
         }
       />
-      <DropdownMenuContent side="top" align="start" className="w-56">
-        <DropdownMenuItem>
+      <DropdownMenuContent side="top" align="start" className="min-w-56 p-1.5">
+        <DropdownMenuItem className={menuItemClass}>
           <SparklesIcon /> Upgrade plan
         </DropdownMenuItem>
-        <DropdownMenuItem>
+        <DropdownMenuItem className={menuItemClass}>
           <ChartColumnIcon /> Usage
         </DropdownMenuItem>
-        <DropdownMenuItem>
+        <DropdownMenuItem className={menuItemClass}>
           <SettingsIcon /> Settings
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem>
+        <DropdownMenuItem className={menuItemClass}>
           <LogOutIcon /> Sign out
         </DropdownMenuItem>
       </DropdownMenuContent>
