@@ -248,7 +248,7 @@ describe("ExternalThread speech", () => {
     expect(aui().thread.getState().speech).toBeUndefined();
   });
 
-  it("cancels the utterance when the adapter is replaced", async () => {
+  it("keeps the utterance alive when the adapter identity changes", async () => {
     const first = createFakeAdapter();
     const second = createFakeAdapter();
     const aui = renderThreadWithProps({ speechAdapter: first.adapter });
@@ -260,14 +260,16 @@ describe("ExternalThread speech", () => {
       aui.rerender({ speechAdapter: second.adapter });
     });
 
-    expect(first.utterances[0]!.cancel).toHaveBeenCalledTimes(1);
-    await waitFor(() => {
-      expect(aui().thread.getState().speech).toBeUndefined();
+    expect(first.utterances[0]!.cancel).not.toHaveBeenCalled();
+    expect(aui().thread.getState().speech).toEqual({
+      messageId: "a1",
+      status: { type: "starting" },
     });
 
     await act(async () => {
       aui().thread.message({ id: "u1" }).speak();
     });
+    expect(first.utterances[0]!.cancel).toHaveBeenCalledTimes(1);
     expect(second.utterances[0]!.text).toBe("hi");
     await waitFor(() => {
       expect(aui().thread.getState().speech).toEqual({
@@ -275,6 +277,30 @@ describe("ExternalThread speech", () => {
         status: { type: "starting" },
       });
     });
+  });
+
+  it("handles utterances that end synchronously on subscribe", async () => {
+    const cancel = vi.fn();
+    const adapter: SpeechSynthesisAdapter = {
+      speak: () => ({
+        status: { type: "ended", reason: "finished" },
+        cancel,
+        subscribe: (callback) => {
+          callback();
+          return () => {};
+        },
+      }),
+    };
+    const aui = renderThreadWithProps({ speechAdapter: adapter });
+
+    await act(async () => {
+      aui().thread.message({ id: "a1" }).speak();
+    });
+
+    expect(aui().thread.getState().speech).toBeUndefined();
+    expect(() => aui().thread.stopSpeaking()).toThrow(
+      "No message is being spoken",
+    );
   });
 
   it("cancels the utterance on unmount", async () => {

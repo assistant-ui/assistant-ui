@@ -734,19 +734,25 @@ const ComposerClientResource = resource(useComposerClientResource);
 const createSpeechController = (
   notify: (speech: SpeechState | undefined) => void,
 ) => {
-  let session: { messageId: string; stop: () => void } | undefined;
+  let session: { messageId: string; cancel: () => void } | undefined;
+
+  const clear = () => {
+    session?.cancel();
+    session = undefined;
+  };
 
   return {
     speak: (
       adapter: SpeechSynthesisAdapter,
       message: ExternalThreadMessage,
     ) => {
-      session?.stop();
+      clear();
 
       const utterance = adapter.speak(getThreadMessageText(message));
-      const unsub = utterance.subscribe(() => {
+      let unsub: (() => void) | undefined;
+      unsub = utterance.subscribe(() => {
         if (utterance.status.type === "ended") {
-          unsub();
+          unsub?.();
           session = undefined;
           notify(undefined);
         } else {
@@ -754,28 +760,37 @@ const createSpeechController = (
         }
       });
 
-      notify({ messageId: message.id, status: utterance.status });
+      if (utterance.status.type === "ended") {
+        unsub();
+        notify(undefined);
+        return;
+      }
 
       session = {
         messageId: message.id,
-        stop: () => {
+        cancel: () => {
           utterance.cancel();
-          unsub();
-          session = undefined;
-          notify(undefined);
+          unsub!();
         },
       };
+      notify({ messageId: message.id, status: utterance.status });
     },
     stop: () => {
       if (!session) throw new Error("No message is being spoken");
-      session.stop();
+      clear();
+      notify(undefined);
     },
     stopMessage: (messageId: string) => {
       if (session?.messageId !== messageId)
         throw new Error("Message is not being spoken");
-      session.stop();
+      clear();
+      notify(undefined);
     },
-    dispose: () => session?.stop(),
+    dispose: () => {
+      if (!session) return;
+      clear();
+      notify(undefined);
+    },
   };
 };
 
@@ -827,10 +842,12 @@ const useExternalThread = ({
   const [speech, setSpeech] = useState<SpeechState | undefined>(undefined);
   const [speechController] = useState(() => createSpeechController(setSpeech));
 
-  useEffect(
-    () => () => speechController.dispose(),
-    [speechAdapter, speechController],
-  );
+  const hasSpeechAdapter = !!speechAdapter;
+  useEffect(() => {
+    if (!hasSpeechAdapter) speechController.dispose();
+  }, [hasSpeechAdapter, speechController]);
+
+  useEffect(() => () => speechController.dispose(), [speechController]);
 
   const handleSpeak = (message: ExternalThreadMessage) => {
     if (!speechAdapter) throw new Error("Speech adapter not configured");
