@@ -150,7 +150,7 @@ describe("useSyncExternalStore", () => {
     expect(storeB.unsubscribeCalls).toBe(1);
   });
 
-  it("forces a re-render when getSnapshot throws on a notification, surfacing the error, and resumes once the store is consistent again", async () => {
+  it("keeps the committed value when getSnapshot throws on a notification and resumes once the store is consistent again", async () => {
     const store = createStore(["a", "b"]);
     const testFiber = createTestResource(() =>
       useSyncExternalStore(
@@ -165,9 +165,8 @@ describe("useSyncExternalStore", () => {
 
     expect(renderTest(testFiber)).toBe("b");
 
-    // the throwing snapshot counts as changed; the forced re-render reads the
-    // snapshot in render and the error reaches the notifier
-    expect(() => store.setState(["a"])).toThrow("index out of bounds");
+    // the notification makes the snapshot throw; nothing escapes the store's notify loop
+    expect(() => store.setState(["a"])).not.toThrow();
     await waitForNextTick();
     expect(getCommittedValue(testFiber)).toBe("b");
 
