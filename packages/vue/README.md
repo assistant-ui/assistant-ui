@@ -54,4 +54,25 @@ const isRunning = useAuiState((s) => s.thread.isRunning);
 
 `useAui` returns a stable client whose scope accessors always resolve to the provider's current client. `useAuiState` returns a computed ref that updates when the selected slice changes by `Object.is`. `useAuiEvent` subscribes to assistant events for the lifetime of the current effect scope.
 
+## Primitives
+
+Headless components for runtime-backed threads, mirroring the React primitives. Mount a runtime with `RuntimeAdapter` from `@assistant-ui/core/store` and compose:
+
+- `ThreadPrimitiveMessages` renders its default slot once per thread message, each instance scoped through `MessageByIndexProvider` (descendants read `s.message` and the message's edit composer as `s.composer`).
+- `ComposerPrimitiveInput` is a textarea bound to the composer text; Enter submits, Shift+Enter inserts a newline, IME composition is ignored.
+- `ComposerPrimitiveSend` and `ComposerPrimitiveCancel` are buttons wired to the composer with the same disabled semantics as the React primitives.
+- `AuiIf` renders its slot while a state selector returns true.
+
+```vue
+<template>
+  <ol>
+    <ThreadPrimitiveMessages>
+      <ChatMessage />
+    </ThreadPrimitiveMessages>
+  </ol>
+  <ComposerPrimitiveInput placeholder="Say something" />
+  <ComposerPrimitiveSend>Send</ComposerPrimitiveSend>
+</template>
+```
+
 See `examples/with-vue` in the repository for a complete Vite setup.
