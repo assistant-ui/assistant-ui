@@ -42,36 +42,9 @@ const defaultLogo = <MessagesSquareIcon strokeWidth={3} className="size-5" />;
 const COLLAPSED_COOKIE = "assistant-shell-collapsed";
 
 // The fade is a mask rather than an overlay so it stays background-agnostic across the light bg-sidebar and dark bg-muted/30 shell backdrops.
+// Each fade zone equals the scroll container's padding on that edge (pt-3 / pb-6), so at rest and at either scroll end only padding sits in the fade and no row is dimmed — overflow indication without any measurement.
 const SCROLL_FADE_CLASS =
-  "data-overflowing:[mask-image:linear-gradient(to_bottom,black_calc(100%-2rem),transparent)]";
-
-const useScrollFade = () => {
-  const [container, setContainer] = useState<HTMLDivElement | null>(null);
-  const [overflowing, setOverflowing] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
-
-  useEffect(() => {
-    if (!container) return;
-    const update = () => {
-      setOverflowing(
-        container.scrollHeight - container.scrollTop - container.clientHeight >
-          1,
-      );
-      setScrolled(container.scrollTop > 0);
-    };
-    update();
-    container.addEventListener("scroll", update, { passive: true });
-    const observer = new ResizeObserver(update);
-    observer.observe(container);
-    for (const child of container.children) observer.observe(child);
-    return () => {
-      container.removeEventListener("scroll", update);
-      observer.disconnect();
-    };
-  }, [container]);
-
-  return { ref: setContainer, container, overflowing, scrolled };
-};
+  "[mask-image:linear-gradient(to_bottom,transparent,black_0.75rem,black_calc(100%-1.5rem),transparent)]";
 
 type AssistantShellContextValue = {
   collapsed: boolean;
@@ -184,12 +157,6 @@ export const AssistantShellSidebar: FC<AssistantShellSidebarProps> = ({
   footer,
 }) => {
   const { collapsed } = useAssistantShell();
-  const fade = useScrollFade();
-
-  // The hidden thread items keep their height when collapsed, so the rail must stay pinned to the top or New Thread can sit scrolled out of view.
-  useEffect(() => {
-    if (collapsed) fade.container?.scrollTo({ top: 0 });
-  }, [collapsed, fade.container]);
 
   return (
     <div data-slot="aui_shell-sidebar-wrapper" className="hidden md:block">
@@ -228,13 +195,9 @@ export const AssistantShellSidebar: FC<AssistantShellSidebarProps> = ({
         <ThreadListRoot className="min-h-0 flex-1 overflow-hidden">
           <div
             data-slot="aui_shell-sidebar-new"
-            data-elevated={fade.scrolled && !collapsed ? "" : undefined}
             className={cn(
-              // Elevation stands in for a top scroll fade: once the list is scrolled, the shadow marks content passing under the pinned row.
-              "relative z-10 shrink-0 pb-2 transition-[padding,box-shadow] duration-200",
-              // No negative spread: the aside's overflow-hidden clips the side bleed, and contracting the shadow would visibly narrow it below the row width.
-              "data-elevated:shadow-[0_2px_4px_rgb(0_0_0/0.04),0_4px_8px_rgb(0_0_0/0.04)] dark:data-elevated:shadow-[0_2px_4px_rgb(0_0_0/0.2),0_4px_8px_rgb(0_0_0/0.15)]",
-              collapsed ? "px-2 pt-1" : "px-3 pt-3",
+              "shrink-0 transition-[padding] duration-200",
+              collapsed ? "px-2 pt-1 pb-2" : "p-3",
             )}
           >
             <TooltipProvider>
@@ -262,15 +225,11 @@ export const AssistantShellSidebar: FC<AssistantShellSidebarProps> = ({
           </div>
           <div
             data-slot="aui_shell-sidebar-scroll"
-            ref={fade.ref}
-            data-overflowing={fade.overflowing && !collapsed ? "" : undefined}
             className={cn(
               // overflow-x-hidden: group labels are wider than the collapsed rail and would otherwise raise a horizontal overlay scrollbar above the footer.
-              // The scrollbar is hidden because classic or app-styled scrollbars reserve width from the right edge and knock the rows off-center; the bottom fade and pinned-row shadow signal overflow instead.
-              "relative flex-1 overflow-x-hidden transition-[padding] duration-200 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
-              collapsed
-                ? "overflow-y-hidden px-2"
-                : "overflow-y-auto px-3 pb-3",
+              // The scrollbar is hidden because classic or app-styled scrollbars reserve width from the right edge and knock the rows off-center; the edge fades signal overflow instead.
+              "relative flex-1 overflow-x-hidden pt-3 pb-6 transition-[padding] duration-200 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+              collapsed ? "overflow-y-hidden px-2" : "overflow-y-auto px-3",
               SCROLL_FADE_CLASS,
             )}
           >
@@ -291,7 +250,7 @@ export const AssistantShellSidebar: FC<AssistantShellSidebarProps> = ({
             data-slot="aui_shell-sidebar-footer"
             className={cn(
               "shrink-0 pt-1 transition-[padding] duration-200",
-              collapsed ? "px-2" : "px-3",
+              collapsed ? "px-1" : "px-3",
             )}
           >
             {footer}
@@ -393,7 +352,6 @@ export type AssistantShellMobileSidebarProps = {
 export const AssistantShellMobileSidebar: FC<
   AssistantShellMobileSidebarProps
 > = ({ logo = defaultLogo, title = "assistant-ui", footer }) => {
-  const fade = useScrollFade();
   const context = useAssistantShell();
 
   // The mobile drawer is always full width, so footer items inside it must not inherit the desktop collapsed state.
@@ -430,10 +388,8 @@ export const AssistantShellMobileSidebar: FC<
         </div>
         <div
           data-slot="aui_shell-mobile-content"
-          ref={fade.ref}
-          data-overflowing={fade.overflowing ? "" : undefined}
           className={cn(
-            "relative flex-1 overflow-y-auto p-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+            "relative flex-1 overflow-y-auto px-3 pt-3 pb-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
             SCROLL_FADE_CLASS,
           )}
         >
@@ -501,9 +457,9 @@ export const AssistantShellFooterItem: FC<AssistantShellFooterItemProps> = ({
             className={cn(
               // border-none frees the full 32px rail width for the icon, which the Button's 1px transparent border would otherwise clip.
               "overflow-hidden border-none transition-all duration-200",
-              // The zero-width label stack keeps its natural height, so the collapsed button must pin h-8 or its hover surface outgrows the avatar.
+              // The zero-width label stack keeps its natural height, so the collapsed button must pin an explicit size; size-10 leaves 4px of hover surface around the centered size-8 avatar.
               collapsed
-                ? "size-8 gap-0 p-0"
+                ? "size-10 gap-0 p-0"
                 : "h-auto w-full justify-start gap-2 p-2",
               className,
             )}
