@@ -40,9 +40,7 @@ class DataStreamEncoder(StreamEncoder):
             # Reasoning otherwise reaches the wire only through its deltas,
             # which cannot carry a summary and emit nothing at all for a part
             # that never appends text.
-            value: dict[str, Any] = {}
-            if chunk.unstable_summary is not None:
-                value["unstable_summary"] = chunk.unstable_summary
+            value: dict[str, Any] = {"unstable_summary": chunk.unstable_summary}
             if chunk.parent_id is not None:
                 value["parentId"] = chunk.parent_id
             return f"aui-reasoning-part-start:{json.dumps(value, cls=StateProxyJSONEncoder)}\n"

@@ -265,6 +265,37 @@ describe("reasoning summaries on the data stream", () => {
     ]);
   });
 
+  it("survives a decode and re-encode unchanged", async () => {
+    // a relay that decodes and re-encodes must not inject frames the producer
+    // never sent
+    const lines = [
+      'aui-reasoning-part-start:{"unstable_summary":"Planning"}',
+      'g:"thinking"',
+    ];
+
+    const bytes = new ReadableStream<Uint8Array>({
+      start(controller) {
+        const encoder = new TextEncoder();
+        for (const line of lines) controller.enqueue(encoder.encode(line + "\n"));
+        controller.close();
+      },
+    });
+    const output: string[] = [];
+    await bytes
+      .pipeThrough(new DataStreamDecoder())
+      .pipeThrough(new DataStreamEncoder())
+      .pipeThrough(new TextDecoderStream())
+      .pipeTo(
+        new WritableStream({
+          write(chunk) {
+            output.push(chunk);
+          },
+        }),
+      );
+
+    expect(output.join("").trimEnd().split("\n")).toEqual(lines);
+  });
+
   it("carries an explicitly empty summary", async () => {
     // transport preserves the value; only the display normalizer drops a part
     // with nothing to render
