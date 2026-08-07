@@ -160,6 +160,7 @@ export const ThreadListItemPrimitiveTitle = defineComponent({
   slots: Object as SlotsType<{ default?: () => unknown }>,
   setup(props, { slots }) {
     const title = useAuiState((s) => s.threadListItem.title);
-    return () => title.value || slots.default?.() || props.fallback;
+    return () =>
+      title.value || (slots.default ? slots.default() : props.fallback);
   },
 });

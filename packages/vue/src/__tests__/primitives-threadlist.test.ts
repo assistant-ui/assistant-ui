@@ -275,6 +275,36 @@ describe("thread list primitives", () => {
     unmount();
   });
 
+  it("ignores item trigger clicks while disabled", async () => {
+    const { runtime, onSwitchToThread } = createMultiThreadRuntime();
+    const View = defineComponent({
+      setup: () => () =>
+        h(ThreadListPrimitiveItems, null, {
+          default: () =>
+            h(ThreadListItemPrimitiveTrigger, {
+              class: "item",
+              disabled: true,
+            }),
+        }),
+    });
+    const { el, unmount } = mountView(runtime, View);
+
+    await vi.waitFor(async () => {
+      await nextTick();
+      expect(el.querySelectorAll("button.item")).toHaveLength(2);
+    });
+
+    const trigger = el.querySelectorAll<HTMLButtonElement>("button.item")[1]!;
+    expect(trigger.disabled).toBe(true);
+    trigger.disabled = false;
+    trigger.click();
+    await nextTick();
+    await Promise.resolve();
+    expect(onSwitchToThread).not.toHaveBeenCalled();
+
+    unmount();
+  });
+
   it("renders the default slot as the title fallback", async () => {
     const { runtime } = createMultiThreadRuntime();
     const View = defineComponent({
