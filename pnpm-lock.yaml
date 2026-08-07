@@ -3259,6 +3259,9 @@ importers:
 
   examples/with-vue:
     dependencies:
+      '@assistant-ui/core':
+        specifier: workspace:*
+        version: link:../../packages/core
       '@assistant-ui/store':
         specifier: workspace:*
         version: link:../../packages/store
@@ -3272,12 +3275,18 @@ importers:
         specifier: ^3.5.41
         version: 3.5.41(typescript@7.0.2)
     devDependencies:
+      '@tailwindcss/vite':
+        specifier: ^4.3.3
+        version: 4.3.3(vite@8.1.5(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.1)(yaml@2.9.0))
       '@types/react':
         specifier: ^19.2.17
         version: 19.2.17
       '@vitejs/plugin-vue':
         specifier: ^6.0.8
         version: 6.0.8(vite@8.1.5(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.1)(yaml@2.9.0))(vue@3.5.41(typescript@7.0.2))
+      tailwindcss:
+        specifier: ^4.3.3
+        version: 4.3.3
       typescript:
         specifier: ^7.0.2
         version: 7.0.2
@@ -4867,6 +4876,9 @@ importers:
 
   packages/vue:
     dependencies:
+      '@assistant-ui/core':
+        specifier: ^0.3.7
+        version: link:../core
       '@assistant-ui/store':
         specifier: ^0.3.5
         version: link:../store

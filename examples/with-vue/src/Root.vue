@@ -1,12 +1,10 @@
 <script setup lang="ts">
 import { AuiConfig, AuiProvider } from "@assistant-ui/vue";
+import { RuntimeAdapter } from "@assistant-ui/core/store";
 import App from "./App.vue";
-import { ComposerScope, ThreadScope } from "./scopes";
+import { createEchoRuntime } from "./runtime";
 
-const config = AuiConfig({
-  thread: ThreadScope(),
-  composer: ComposerScope(),
-});
+const config = AuiConfig({ threads: RuntimeAdapter(createEchoRuntime()) });
 </script>
 
 <template>
