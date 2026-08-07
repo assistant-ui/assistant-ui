@@ -169,6 +169,36 @@ describe("vue primitives", () => {
     unmount();
   });
 
+  it("stays inert for a message edit composer that is not editing", async () => {
+    const { runtime, append, onNew } = createTestRuntime();
+    const View = defineComponent({
+      setup: () => () =>
+        h(ThreadPrimitiveMessages, null, {
+          default: () => h(ComposerPrimitiveInput),
+        }),
+    });
+    const { el, unmount } = mountChat(runtime, View);
+
+    flushTapSync(() => append({ role: "user", text: "hi" }));
+    await vi.waitFor(async () => {
+      await nextTick();
+      expect(el.querySelector("textarea")).not.toBeNull();
+    });
+
+    const textarea = el.querySelector("textarea")!;
+    expect(textarea.value).toBe("");
+    textarea.value = "typing";
+    textarea.dispatchEvent(new Event("input"));
+    textarea.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Enter", cancelable: true }),
+    );
+
+    await new Promise((resolve) => setTimeout(resolve));
+    expect(onNew).not.toHaveBeenCalled();
+
+    unmount();
+  });
+
   it("disables cancel while nothing is cancellable", () => {
     const { runtime } = createTestRuntime();
     const View = defineComponent({
