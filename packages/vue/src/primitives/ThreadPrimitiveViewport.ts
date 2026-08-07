@@ -153,6 +153,10 @@ export const ThreadPrimitiveViewport = defineComponent({
       scheduleScrollToBottom("auto");
     });
 
+    useAuiEvent("threadListItem.switchedTo", () => {
+      scheduleScrollToBottom("instant");
+    });
+
     return () =>
       h(
         "div",
