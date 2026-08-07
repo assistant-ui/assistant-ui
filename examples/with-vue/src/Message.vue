@@ -1,21 +1,25 @@
 <script setup lang="ts">
-import { useAuiState } from "@assistant-ui/vue";
+import { MessagePrimitiveParts, useAuiState } from "@assistant-ui/vue";
 import type {} from "@assistant-ui/core/store";
 
 const role = useAuiState((s) => s.message.role);
-const text = useAuiState((s) => {
-  const part = s.message.content[0];
-  return (part?.type === "text" && part.text) || "…";
-});
+const empty = useAuiState((s) => s.message.content.length === 0);
 </script>
 
 <template>
+  <li v-if="role === 'user'" data-role="user" class="flex justify-end px-2">
+    <div
+      class="bg-muted text-foreground max-w-[80%] rounded-xl px-4 py-2 wrap-break-word"
+    >
+      <MessagePrimitiveParts />
+    </div>
+  </li>
   <li
-    :data-role="role"
-    class="rounded-xl px-3 py-2"
-    :class="role === 'user' ? 'self-end bg-blue-50' : 'bg-neutral-100'"
+    v-else
+    data-role="assistant"
+    class="text-foreground px-2 leading-relaxed wrap-break-word"
   >
-    <span class="block text-xs text-neutral-400">{{ role }}</span>
-    <span>{{ text }}</span>
+    <MessagePrimitiveParts />
+    <span v-if="empty" class="animate-pulse">…</span>
   </li>
 </template>

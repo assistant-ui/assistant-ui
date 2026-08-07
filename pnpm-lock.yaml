@@ -3271,6 +3271,9 @@ importers:
       '@assistant-ui/vue':
         specifier: workspace:*
         version: link:../../packages/vue
+      lucide-vue-next:
+        specifier: ^1.0.0
+        version: 1.0.0(vue@3.5.41(typescript@7.0.2))
       vue:
         specifier: ^3.5.41
         version: 3.5.41(typescript@7.0.2)
@@ -14571,6 +14574,12 @@ packages:
     resolution: {integrity: sha512-raglYVR2+VkMfJL158krjVmE+rV5ST2lzA/KQm1FRSjMHT4MnWaegHxoVEpmc2So3nOEhp9oGejJwAPX8MoAjg==}
     peerDependencies:
       react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
+
+  lucide-vue-next@1.0.0:
+    resolution: {integrity: sha512-V6SPvx1IHTj/UY+FrIYWV5faISsPSb8BnWSFDxAtezWKvWc9ZZ40PDrdu1/Qb5vg4lHWr1hs1BAMGVGm6V1Xdg==}
+    deprecated: Package deprecated. Please use @lucide/vue instead.
+    peerDependencies:
+      vue: '>=3.0.1'
 
   lz-string@1.5.0:
     resolution: {integrity: sha512-h5bgJWpxJNswbU7qCrV0tIKQCaS3blPDrqKWx+QxzuzL1zGUzij9XCWLrSLsJPu5t+eWA/ycetzYAO5IOMcWAQ==}
@@ -28653,6 +28662,10 @@ snapshots:
   lucide-react@1.26.0(react@19.2.8):
     dependencies:
       react: 19.2.8
+
+  lucide-vue-next@1.0.0(vue@3.5.41(typescript@7.0.2)):
+    dependencies:
+      vue: 3.5.41(typescript@7.0.2)
 
   lz-string@1.5.0: {}
 
