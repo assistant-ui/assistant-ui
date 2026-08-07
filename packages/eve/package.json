@@ -33,7 +33,8 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@assistant-ui/core": "^0.3.7"
+    "@assistant-ui/core": "^0.3.7",
+    "@assistant-ui/store": "^0.3.3"
   },
   "peerDependencies": {
     "@types/react": "*",

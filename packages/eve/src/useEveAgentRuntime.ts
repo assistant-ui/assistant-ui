@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   fromThreadMessageLike,
   generateId,
@@ -31,6 +31,7 @@ import {
   getEveMessageContent,
   toEveInputResponse,
 } from "./convertEveMessages";
+import { eveExtras } from "./eveExtras";
 
 const USER_STAGED_STATUS = {
   type: "complete",
@@ -225,10 +226,29 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
     setStagedMessages(nextMessages);
   };
 
+  const reset = useCallback(() => {
+    setStagedMessages(null);
+    stagedInputsRef.current.clear();
+    setToolStatuses({});
+    agent.reset();
+  }, [agent]);
+
+  const extras = useMemo(
+    () =>
+      eveExtras.provide({
+        error: agent.error,
+        events: agent.events,
+        session: agent.session,
+        reset,
+      }),
+    [agent.error, agent.events, agent.session, reset],
+  );
+
   return useExternalStoreRuntime({
     ...pickExternalStoreSharedOptions(options),
     messages,
     isRunning,
+    extras,
     unstable_enableToolInvocations: true,
     setToolStatuses,
     adapters: {

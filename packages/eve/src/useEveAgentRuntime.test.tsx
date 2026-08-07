@@ -14,6 +14,7 @@ vi.mock("eve/react", async (importOriginal) => ({
 
 import type { EveMessageData } from "eve/react";
 import { useEveAgentRuntime } from "./useEveAgentRuntime";
+import { eveExtras } from "./eveExtras";
 
 const stuckStreamingData: EveMessageData = {
   messages: [
@@ -284,6 +285,25 @@ const settledData: EveMessageData = {
       id: "a1",
       role: "assistant",
       parts: [{ type: "text", text: "earlier answer" }],
+    },
+  ],
+};
+
+const executingToolData: EveMessageData = {
+  messages: [
+    { id: "u1", role: "user", parts: [{ type: "text", text: "run it" }] },
+    {
+      id: "a1",
+      role: "assistant",
+      parts: [
+        {
+          type: "dynamic-tool",
+          state: "input-available",
+          toolCallId: "call_slow",
+          toolName: "slow_tool",
+          input: {},
+        },
+      ],
     },
   ],
 };
@@ -700,6 +720,130 @@ describe("useEveAgentRuntime staged messages", () => {
       ),
     ).rejects.toThrow("Runtime does not support reloading messages.");
     expect(agent.send).not.toHaveBeenCalled();
+  });
+});
+
+describe("useEveAgentRuntime extras wiring", () => {
+  it("provides error, events, session, and reset through the runtime extras", () => {
+    const error = new Error("boom");
+    const events = [{ type: "session.started" }];
+    const session = { sessionId: "s1" };
+    const reset = vi.fn();
+    mockUseEveAgent.mockReturnValue(
+      createAgent({ status: "error", error, events, session, reset }) as never,
+    );
+
+    const { result } = renderHook(() => useEveAgentRuntime());
+
+    const extras = result.current.thread.getState().extras;
+    expect(eveExtras.is(extras)).toBe(true);
+    expect(eveExtras.tryGet(extras)).toMatchObject({
+      error,
+      events,
+      session,
+      reset: expect.any(Function),
+    });
+  });
+
+  it("clears adapter-owned staged messages when reset is invoked", async () => {
+    const agent = createAgent({
+      data: { messages: [] } satisfies EveMessageData,
+    });
+    mockUseEveAgent.mockReturnValue(agent as never);
+
+    const { result } = renderHook(() => useEveAgentRuntime());
+
+    act(() => {
+      result.current.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "draft" }],
+        startRun: false,
+      });
+    });
+
+    await waitFor(() => {
+      expect(result.current.thread.getState().messages).toHaveLength(1);
+    });
+
+    act(() => {
+      const extras = result.current.thread.getState().extras;
+      eveExtras.tryGet(extras)!.reset();
+    });
+
+    await waitFor(() => {
+      expect(result.current.thread.getState().messages).toHaveLength(0);
+    });
+    expect(agent.reset).toHaveBeenCalledTimes(1);
+  });
+
+  it("discards staged inputs when reset is invoked", async () => {
+    const agent = createAgent({ data: settledData });
+    mockUseEveAgent.mockReturnValue(agent as never);
+    const { result } = renderHook(() => useEveAgentRuntime());
+
+    await stageMessage(result.current, "discarded draft");
+    const discardedId = result.current.thread.getState().messages[2]!.id;
+
+    act(() => {
+      eveExtras.tryGet(result.current.thread.getState().extras)!.reset();
+    });
+    await waitFor(() => {
+      expect(getText(result.current)).toEqual(["earlier", "earlier answer"]);
+    });
+
+    // `onReload` is only wired while staged messages exist, so a fresh draft
+    // is needed to reach the staged-run lookup that reads `stagedInputsRef`.
+    await stageMessage(result.current, "fresh draft");
+
+    await expect(
+      Promise.resolve(
+        result.current.thread.startRun({
+          parentId: discardedId,
+          sourceId: null,
+          runConfig: {},
+        }),
+      ),
+    ).rejects.toThrow("Runtime does not support reloading messages.");
+    expect(agent.send).not.toHaveBeenCalled();
+  });
+
+  it("clears executing tool state when reset is invoked", async () => {
+    const agent = createAgent({ data: settledData });
+    mockUseEveAgent.mockReturnValue(agent as never);
+    const { result, rerender } = renderHook(() => useEveAgentRuntime());
+
+    act(() => {
+      result.current.registerModelContextProvider({
+        getModelContext: () => ({
+          tools: {
+            slow_tool: {
+              parameters: { type: "object", properties: {} },
+              execute: () => new Promise<never>(() => {}),
+            },
+          },
+        }),
+      });
+    });
+
+    // The tracker treats its first snapshot as historical, so the tool call
+    // has to arrive on a later one to actually execute.
+    mockUseEveAgent.mockReturnValue(
+      createAgent({ data: executingToolData, reset: agent.reset }) as never,
+    );
+    rerender();
+
+    await waitFor(() => {
+      expect(result.current.thread.getState().isRunning).toBe(true);
+    });
+
+    act(() => {
+      eveExtras.tryGet(result.current.thread.getState().extras)!.reset();
+    });
+
+    await waitFor(() => {
+      expect(result.current.thread.getState().isRunning).toBe(false);
+    });
+    expect(agent.reset).toHaveBeenCalledTimes(1);
   });
 });
 
