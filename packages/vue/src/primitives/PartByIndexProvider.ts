@@ -1,6 +1,6 @@
 import { computed, defineComponent, h, type SlotsType } from "vue";
 import { AuiConfig, Derived } from "@assistant-ui/store/client";
-import type {} from "@assistant-ui/core/store";
+import type { PartMethods } from "@assistant-ui/core/store";
 import { AuiProvider } from "../AuiProvider";
 import { useAui } from "../useAui";
 
@@ -19,15 +19,25 @@ export const PartByIndexProvider = defineComponent({
   slots: Object as SlotsType<{ default?: () => unknown }>,
   setup(props, { slots }) {
     const aui = useAui();
-    const config = computed(() =>
-      AuiConfig({
+    const config = computed(() => {
+      const index = props.index;
+      // When the collection shrinks, this scope re-resolves before Vue
+      // unmounts it; serve the last valid client for that window. A
+      // never-valid index falls through and still throws.
+      let lastPart: PartMethods | undefined;
+      return AuiConfig({
         part: Derived({
           source: "message",
-          query: { type: "index", index: props.index },
-          get: (aui) => aui.message.part({ index: props.index }),
+          query: { type: "index", index },
+          get: (aui) => {
+            if (index < aui.message.getState().parts.length) {
+              lastPart = aui.message.part({ index });
+            }
+            return lastPart ?? aui.message.part({ index });
+          },
         }),
-      }),
-    );
+      });
+    });
     return () =>
       h(
         AuiProvider,

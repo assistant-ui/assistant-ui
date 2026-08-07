@@ -1,7 +1,7 @@
 import { computed, defineComponent, h, mergeProps, type SlotsType } from "vue";
 import { AuiConfig, Derived } from "@assistant-ui/store/client";
 import { flushTapSync } from "@assistant-ui/tap";
-import type {} from "@assistant-ui/core/store";
+import type { SuggestionMethods } from "@assistant-ui/core/store";
 import { AuiProvider } from "../AuiProvider";
 import { isAttrDisabled } from "./attrDisabled";
 import { useAui } from "../useAui";
@@ -22,15 +22,25 @@ export const SuggestionByIndexProvider = defineComponent({
   slots: Object as SlotsType<{ default?: () => unknown }>,
   setup(props, { slots }) {
     const aui = useAui();
-    const config = computed(() =>
-      AuiConfig({
+    const config = computed(() => {
+      const index = props.index;
+      // When the collection shrinks, this scope re-resolves before Vue
+      // unmounts it; serve the last valid client for that window. A
+      // never-valid index falls through and still throws.
+      let lastSuggestion: SuggestionMethods | undefined;
+      return AuiConfig({
         suggestion: Derived({
           source: "suggestions",
-          query: { index: props.index },
-          get: (aui) => aui.suggestions.suggestion({ index: props.index }),
+          query: { index },
+          get: (aui) => {
+            if (index < aui.suggestions.getState().suggestions.length) {
+              lastSuggestion = aui.suggestions.suggestion({ index });
+            }
+            return lastSuggestion ?? aui.suggestions.suggestion({ index });
+          },
         }),
-      }),
-    );
+      });
+    });
     return () =>
       h(
         AuiProvider,

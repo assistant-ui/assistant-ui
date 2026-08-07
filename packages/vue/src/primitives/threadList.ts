@@ -1,6 +1,6 @@
 import { computed, defineComponent, h, mergeProps, type SlotsType } from "vue";
 import { AuiConfig, Derived } from "@assistant-ui/store/client";
-import type {} from "@assistant-ui/core/store";
+import type { ThreadListItemMethods } from "@assistant-ui/core/store";
 import { AuiProvider } from "../AuiProvider";
 import { isAttrDisabled } from "./attrDisabled";
 import { useAui } from "../useAui";
@@ -25,20 +25,32 @@ export const ThreadListItemByIndexProvider = defineComponent({
   slots: Object as SlotsType<{ default?: () => unknown }>,
   setup(props, { slots }) {
     const aui = useAui();
-    const config = computed(() =>
-      AuiConfig({
+    const config = computed(() => {
+      const index = props.index;
+      const archived = props.archived;
+      // When the collection shrinks, this scope re-resolves before Vue
+      // unmounts it; serve the last valid client for that window. A
+      // never-valid index falls through and still throws.
+      let lastItem: ThreadListItemMethods | undefined;
+      return AuiConfig({
         threadListItem: Derived({
           source: "threads",
           query: {
             type: "index",
-            index: props.index,
-            archived: props.archived,
+            index,
+            archived,
           },
-          get: (aui) =>
-            aui.threads.item({ index: props.index, archived: props.archived }),
+          get: (aui) => {
+            const state = aui.threads.getState();
+            const ids = archived ? state.archivedThreadIds : state.threadIds;
+            if (index < ids.length) {
+              lastItem = aui.threads.item({ index, archived });
+            }
+            return lastItem ?? aui.threads.item({ index, archived });
+          },
         }),
-      }),
-    );
+      });
+    });
     return () =>
       h(
         AuiProvider,
