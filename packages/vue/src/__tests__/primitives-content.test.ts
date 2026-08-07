@@ -545,7 +545,8 @@ describe("ThreadPrimitiveViewport", () => {
     unmount();
   });
 
-  it("renders scroll-to-bottom disabled outside a viewport", () => {
+  it("renders scroll-to-bottom disabled outside a viewport and warns in dev", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const { runtime } = createTestRuntime();
     const View = defineComponent({
       setup: () => () =>
@@ -559,6 +560,8 @@ describe("ThreadPrimitiveViewport", () => {
     expect(el.querySelector<HTMLButtonElement>("button.jump")!.disabled).toBe(
       true,
     );
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn.mock.calls[0]![0]).toContain("no surrounding");
     unmount();
   });
 

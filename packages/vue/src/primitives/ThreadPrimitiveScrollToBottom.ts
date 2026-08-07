@@ -6,8 +6,11 @@ import {
   type PropType,
   type SlotsType,
 } from "vue";
+import { isDevelopment } from "../isDevelopment";
 import { isAttrDisabled } from "./attrDisabled";
 import { viewportInjectionKey } from "./viewportContext";
+
+let warnedOutsideViewport = false;
 
 /**
  * A button that scrolls the surrounding {@link ThreadPrimitiveViewport} to
@@ -26,6 +29,12 @@ export const ThreadPrimitiveScrollToBottom = defineComponent({
   slots: Object as SlotsType<{ default?: () => unknown }>,
   setup(props, { attrs, slots }) {
     const viewport = inject(viewportInjectionKey, null);
+    if (isDevelopment && !viewport && !warnedOutsideViewport) {
+      warnedOutsideViewport = true;
+      console.warn(
+        "ThreadPrimitiveScrollToBottom: no surrounding ThreadPrimitiveViewport provides the scroll channel; the button stays disabled. Place it inside the viewport.",
+      );
+    }
     const onClick = (event: MouseEvent) => {
       if (
         event.defaultPrevented ||
