@@ -48,6 +48,7 @@ const SCROLL_FADE_CLASS =
 const useScrollFade = () => {
   const [container, setContainer] = useState<HTMLDivElement | null>(null);
   const [overflowing, setOverflowing] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
     if (!container) return;
@@ -56,6 +57,7 @@ const useScrollFade = () => {
         container.scrollHeight - container.scrollTop - container.clientHeight >
           1,
       );
+      setScrolled(container.scrollTop > 0);
     };
     update();
     container.addEventListener("scroll", update, { passive: true });
@@ -68,7 +70,7 @@ const useScrollFade = () => {
     };
   }, [container]);
 
-  return { ref: setContainer, container, overflowing };
+  return { ref: setContainer, container, overflowing, scrolled };
 };
 
 type AssistantShellContextValue = {
@@ -226,8 +228,11 @@ export const AssistantShellSidebar: FC<AssistantShellSidebarProps> = ({
         <ThreadListRoot className="min-h-0 flex-1 overflow-hidden">
           <div
             data-slot="aui_shell-sidebar-new"
+            data-elevated={fade.scrolled && !collapsed ? "" : undefined}
             className={cn(
-              "shrink-0 transition-[padding] duration-200",
+              // Elevation stands in for a top scroll fade: once the list is scrolled, the shadow marks content passing under the pinned row.
+              "relative z-10 shrink-0 pb-2 transition-[padding,box-shadow] duration-200",
+              "data-elevated:shadow-[0_8px_10px_-8px_rgb(0_0_0/0.2)] dark:data-elevated:shadow-[0_8px_10px_-8px_rgb(0_0_0/0.6)]",
               collapsed ? "px-2 pt-1" : "px-3 pt-3",
             )}
           >
@@ -260,7 +265,8 @@ export const AssistantShellSidebar: FC<AssistantShellSidebarProps> = ({
             data-overflowing={fade.overflowing && !collapsed ? "" : undefined}
             className={cn(
               // overflow-x-hidden: group labels are wider than the collapsed rail and would otherwise raise a horizontal overlay scrollbar above the footer.
-              "relative flex-1 overflow-x-hidden transition-[padding] duration-200",
+              // The scrollbar is hidden because classic or app-styled scrollbars reserve width from the right edge and knock the rows off-center; the bottom fade and pinned-row shadow signal overflow instead.
+              "relative flex-1 overflow-x-hidden transition-[padding] duration-200 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
               collapsed
                 ? "overflow-y-hidden px-2"
                 : "overflow-y-auto px-3 pb-3",
@@ -426,7 +432,7 @@ export const AssistantShellMobileSidebar: FC<
           ref={fade.ref}
           data-overflowing={fade.overflowing ? "" : undefined}
           className={cn(
-            "relative flex-1 overflow-y-auto p-3",
+            "relative flex-1 overflow-y-auto p-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
             SCROLL_FADE_CLASS,
           )}
         >
