@@ -313,11 +313,33 @@ export const WelcomeSuggestionsPills: FC = () => {
   const { entries, group, openGroup, send } = useWelcomeSuggestions();
   const direction = Direction.useDirection();
   const getPills = usePillCollection(undefined);
+  const registry = unstable_useComposerInputPluginRegistry();
+  const composerEmpty = useAuiState((s) => s.composer.text.length === 0);
+
+  // ArrowDown in an empty composer jumps focus to the first pill, so the row
+  // is reachable without tabbing; Escape on a pill hands focus back.
+  useEffect(() => {
+    if (!registry || group || !composerEmpty) return undefined;
+    return registry.register({
+      handleKeyDown(e) {
+        if (e.key !== "ArrowDown") return false;
+        getPills()[0]?.ref.current?.focus();
+        e.preventDefault();
+        return true;
+      },
+      setCursorPosition() {},
+    });
+  }, [registry, group, composerEmpty, getPills]);
 
   const onPillKeyDown = (
     e: ReactKeyboardEvent<HTMLButtonElement>,
     entry: SuggestionEntry,
   ) => {
+    if (e.key === "Escape" && registry) {
+      registry.requestFocus();
+      e.preventDefault();
+      return;
+    }
     if (e.key === "ArrowDown") {
       if (isGroup(entry)) {
         openGroup(entry);
@@ -681,23 +703,46 @@ export const WelcomeSuggestionsStack: FC<WelcomeSuggestionsStackProps> = ({
   const resolvedIndicator = indicator ?? (send ? "send" : "none");
   const direction = Direction.useDirection();
   const getStackRows = useStackCollection(undefined);
+  const aui = useAui();
+  const registry = unstable_useComposerInputPluginRegistry();
+  const composerEmpty = useAuiState((s) => s.composer.text.length === 0);
   const listRef = useRef<HTMLDivElement>(null);
   const [topIdx, setTopIdx] = useState<number | null>(null);
-  const rowId = (idx: number) => `${popoverId}t${idx}`;
+  // Composer-driven top-level navigation: the composer keeps DOM focus while
+  // the arrows move a virtual highlight, so typing at any point resumes
+  // composing without a refocus.
+  const [composerNav, setComposerNav] = useState(false);
+  const topIdxRef = useRef(topIdx);
+  topIdxRef.current = topIdx;
+  const rowId = useCallback(
+    (idx: number) => `${popoverId}t${idx}`,
+    [popoverId],
+  );
+
+  const exitComposerNav = useCallback(() => {
+    setComposerNav(false);
+    setTopIdx(null);
+  }, []);
 
   // Escape is cancel-and-return, Tab is accept-and-return: either way the
-  // group's own row comes back highlighted with the listbox focused, so the
-  // arrows keep working after backing out; only Escape restores the draft.
+  // group's own row comes back highlighted so the arrows keep working; only
+  // Escape restores the draft. When the closed composer is empty the return
+  // is virtual — the composer keeps focus and keeps driving the arrows —
+  // otherwise the listbox takes DOM focus.
   const returnToTop = useCallback(
     (options?: { restoreDraft?: boolean }) => {
-      if (group) {
-        const idx = entries.indexOf(group);
-        if (idx !== -1) setTopIdx(idx);
+      const idx = group ? entries.indexOf(group) : -1;
+      close(options);
+      if (idx === -1) return;
+      setTopIdx(idx);
+      if (registry && aui.composer().getState().text === "") {
+        setComposerNav(true);
+        registry.requestFocus();
+      } else {
         listRef.current?.focus({ preventScroll: true });
       }
-      close(options);
     },
-    [group, entries, close],
+    [group, entries, close, registry, aui],
   );
   const cancelClose = useCallback(
     () => returnToTop({ restoreDraft: true }),
@@ -708,12 +753,105 @@ export const WelcomeSuggestionsStack: FC<WelcomeSuggestionsStackProps> = ({
   useComposerCoupling({ onEscape: cancelClose, onTab: acceptClose });
 
   useEffect(() => {
-    if (group) setTopIdx(null);
+    if (group) {
+      setComposerNav(false);
+      setTopIdx(null);
+    }
   }, [group]);
 
   useEffect(() => {
     if (group && !hasRegistry) listRef.current?.focus();
   }, [group, hasRegistry]);
+
+  useEffect(() => {
+    if (composerNav && !composerEmpty) exitComposerNav();
+  }, [composerNav, composerEmpty, exitComposerNav]);
+
+  // The highlight would otherwise outlive the composer's focus: any pointer
+  // press outside the list ends composer-driven navigation.
+  useEffect(() => {
+    if (!composerNav) return undefined;
+    const onPointerDown = (e: PointerEvent) => {
+      const target = e.target as Element | null;
+      if (target && listRef.current?.contains(target)) return;
+      exitComposerNav();
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, [composerNav, exitComposerNav]);
+
+  // ArrowDown in an empty composer enters top-level navigation. Unlike the
+  // DOM-focused listbox this highlight is spatially anchored to the composer,
+  // so the top edge exits back to it instead of wrapping.
+  useEffect(() => {
+    if (!registry || group || !composerEmpty) return undefined;
+    const openKey = direction === "rtl" ? "ArrowLeft" : "ArrowRight";
+    return registry.register({
+      handleKeyDown(e) {
+        if (e.key === "ArrowDown") {
+          setComposerNav(true);
+          setTopIdx((idx) =>
+            idx === null ? 0 : Math.min(idx + 1, entries.length - 1),
+          );
+          e.preventDefault();
+          return true;
+        }
+        const idx = topIdxRef.current;
+        if (idx === null) return false;
+        if (e.key === "ArrowUp") {
+          if (idx === 0) exitComposerNav();
+          else {
+            setComposerNav(true);
+            setTopIdx(idx - 1);
+          }
+          e.preventDefault();
+          return true;
+        }
+        if (e.key === "Escape") {
+          exitComposerNav();
+          e.preventDefault();
+          return true;
+        }
+        if (e.key === "Tab") {
+          exitComposerNav();
+          return false;
+        }
+        const entry = entries[idx];
+        if (!entry) return false;
+        if (e.key === "Enter") {
+          if (isGroup(entry)) openGroup(entry);
+          else getStackRows()[idx]?.ref.current?.click();
+          e.preventDefault();
+          return true;
+        }
+        if (e.key === openKey && isGroup(entry)) {
+          openGroup(entry);
+          e.preventDefault();
+          return true;
+        }
+        return false;
+      },
+      setCursorPosition() {},
+    });
+  }, [
+    registry,
+    group,
+    composerEmpty,
+    direction,
+    entries,
+    openGroup,
+    exitComposerNav,
+    getStackRows,
+  ]);
+
+  useEffect(() => {
+    if (!registry || !composerNav || topIdx === null) return undefined;
+    registry.setActiveDescendant("welcome-suggestions-top", {
+      popoverId,
+      highlightedItemId: rowId(topIdx),
+    });
+    return () => registry.setActiveDescendant("welcome-suggestions-top", null);
+  }, [registry, composerNav, topIdx, popoverId, rowId]);
 
   const onKeyDown = (e: ReactKeyboardEvent<HTMLDivElement>) => {
     if (group) {
@@ -794,13 +932,20 @@ export const WelcomeSuggestionsStack: FC<WelcomeSuggestionsStackProps> = ({
       tabIndex={group ? -1 : 0}
       onKeyDown={onKeyDown}
       onFocus={() => {
-        if (!group) setTopIdx((idx) => idx ?? 0);
+        if (!group) {
+          setComposerNav(false);
+          setTopIdx((idx) => idx ?? 0);
+        }
       }}
       onBlur={(e) => {
         if (!e.currentTarget.contains(e.relatedTarget)) setTopIdx(null);
       }}
       onMouseLeave={() => {
-        if (!group && document.activeElement !== listRef.current)
+        if (
+          !group &&
+          !composerNav &&
+          document.activeElement !== listRef.current
+        )
           setTopIdx(null);
       }}
       data-slot="aui_thread-welcome-stack"
