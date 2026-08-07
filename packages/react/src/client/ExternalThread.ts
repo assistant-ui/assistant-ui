@@ -210,11 +210,12 @@ const useMessageClient = ({
   const branchCount = branchIndex === -1 ? 1 : branchIds.length;
 
   const state = useMemo(() => {
+    const messageWithFeedback: ExternalThreadMessage =
+      submittedFeedback && message.role === "assistant"
+        ? { ...message, metadata: { ...message.metadata, submittedFeedback } }
+        : message;
     return {
-      ...message,
-      ...(submittedFeedback && {
-        metadata: { ...message.metadata, submittedFeedback },
-      }),
+      ...messageWithFeedback,
       attachments: message.attachments ?? [],
       parentId,
       isLast: false, // Will be set by thread
