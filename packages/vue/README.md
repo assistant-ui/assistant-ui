@@ -92,4 +92,4 @@ import ChatMessage from "./ChatMessage.vue";
 
 `examples/with-vue/src/Root.vue` shows the RuntimeAdapter mount this composes with.
 
-See `examples/with-vue` in the repository for a complete Vite setup.
+See `examples/with-vue` in the repository for a complete Vite setup, or `examples/with-nuxt` for a Nuxt app that streams real responses from a Nitro server route.
