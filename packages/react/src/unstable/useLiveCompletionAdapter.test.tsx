@@ -129,6 +129,33 @@ describe("unstable_useLiveCompletionAdapter", () => {
     expect(result.current.adapter.search!("ab")).toEqual([item("ab")]);
   });
 
+  it("allows a failed query to be retried", async () => {
+    const fetcher = vi
+      .fn<(query: string) => Promise<readonly Unstable_TriggerItem[]>>()
+      .mockRejectedValueOnce(new Error("temporarily unavailable"))
+      .mockRejectedValueOnce(new Error("still unavailable"))
+      .mockResolvedValueOnce([item("alice")]);
+    const { result } = renderHook(() =>
+      unstable_useLiveCompletionAdapter({ fetcher, debounceMs: 0 }),
+    );
+
+    for (const attempt of [1, 2]) {
+      await act(async () => {
+        result.current.adapter.search!("alice");
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      expect(fetcher).toHaveBeenCalledTimes(attempt);
+      expect(result.current.isLoading).toBe(false);
+    }
+
+    await act(async () => {
+      result.current.adapter.search!("alice");
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(fetcher).toHaveBeenCalledTimes(3);
+    expect(result.current.adapter.search!("alice")).toEqual([item("alice")]);
+  });
+
   it("drops an in-flight fetch when the query returns to a cached value", async () => {
     const resolvers: Record<
       string,

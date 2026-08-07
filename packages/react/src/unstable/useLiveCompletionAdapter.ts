@@ -57,7 +57,8 @@ export function unstable_useLiveCompletionAdapter(
   const [state, setState] = useState<{
     query: string;
     items: readonly Unstable_TriggerItem[];
-  }>({ query: NO_QUERY, items: [] });
+    failed: boolean;
+  }>({ query: NO_QUERY, items: [], failed: false });
   const [isLoading, setIsLoading] = useState(false);
 
   const fetcherRef = useRef(fetcher);
@@ -66,6 +67,7 @@ export function unstable_useLiveCompletionAdapter(
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const tokenRef = useRef(0);
   const pendingQueryRef = useRef<string | null>(null);
+  const retryableQueryRef = useRef<string | null>(null);
 
   const cancelTimer = useCallback(() => {
     if (timerRef.current !== null) {
@@ -78,6 +80,9 @@ export function unstable_useLiveCompletionAdapter(
     (query: string) => {
       if (!enabled) return;
       if (pendingQueryRef.current === query) return;
+      if (retryableQueryRef.current === query) {
+        retryableQueryRef.current = null;
+      }
       pendingQueryRef.current = query;
       cancelTimer();
       const token = ++tokenRef.current;
@@ -87,12 +92,13 @@ export function unstable_useLiveCompletionAdapter(
         fetcherRef.current(query).then(
           (items) => {
             if (token !== tokenRef.current) return;
-            setState({ query, items });
+            setState({ query, items, failed: false });
             setIsLoading(false);
           },
           () => {
             if (token !== tokenRef.current) return;
-            setState({ query, items: [] });
+            pendingQueryRef.current = null;
+            setState({ query, items: [], failed: true });
             setIsLoading(false);
           },
         );
@@ -112,11 +118,15 @@ export function unstable_useLiveCompletionAdapter(
     if (enabled) return;
     invalidatePending();
     setState((s) =>
-      s.query === NO_QUERY ? s : { query: NO_QUERY, items: [] },
+      s.query === NO_QUERY ? s : { query: NO_QUERY, items: [], failed: false },
     );
   }, [enabled, invalidatePending]);
 
   useEffect(() => cancelTimer, [cancelTimer]);
+
+  useEffect(() => {
+    retryableQueryRef.current = state.failed ? state.query : null;
+  }, [state]);
 
   const adapter = useMemo<Unstable_TriggerAdapter>(
     () => ({
@@ -125,7 +135,7 @@ export function unstable_useLiveCompletionAdapter(
       search: (query: string) => {
         // search() runs inside the popover's render; defer state updates with
         // queueMicrotask so they are not dispatched while another component renders.
-        if (query !== state.query) {
+        if (query !== state.query || retryableQueryRef.current === query) {
           queueMicrotask(() => scheduleFetch(query));
         } else if (
           pendingQueryRef.current !== null &&
