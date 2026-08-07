@@ -246,7 +246,9 @@ export const WelcomeSuggestionsSample = () => {
         <div className="grid gap-8 lg:grid-cols-2">
           <VariantColumn
             label="Stacked (default)"
-            hint={<>Tab to focus the list, ↑ ↓ move, → opens</>}
+            hint={
+              <>↓ in the empty composer enters the list, ↑ ↓ move, → opens</>
+            }
           >
             <WelcomeSuggestionsRoot suggestions={SUGGESTIONS}>
               <WelcomeSuggestionsStack
@@ -259,7 +261,9 @@ export const WelcomeSuggestionsSample = () => {
           </VariantColumn>
           <VariantColumn
             label="Pills + picker"
-            hint={<>click a pill, or Tab to one; ← → move, ↓ opens</>}
+            hint={
+              <>click a pill or press ↓ in the composer; ← → move, ↓ opens</>
+            }
             hintClassName="ml-[50%] -mr-[190px] -translate-x-[190px]"
             className="max-lg:order-last"
           >

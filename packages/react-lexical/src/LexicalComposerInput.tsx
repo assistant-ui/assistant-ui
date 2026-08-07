@@ -22,6 +22,8 @@ import {
   $isTextNode,
   COMMAND_PRIORITY_HIGH,
   KEY_ARROW_DOWN_COMMAND,
+  KEY_ARROW_LEFT_COMMAND,
+  KEY_ARROW_RIGHT_COMMAND,
   KEY_ARROW_UP_COMMAND,
   KEY_BACKSPACE_COMMAND,
   KEY_ENTER_COMMAND,
@@ -146,6 +148,27 @@ function KeyboardPlugin({
 
       editor.registerCommand(
         KEY_ARROW_UP_COMMAND,
+        (event) => {
+          if (event && delegateToPlugins(event)) return true;
+          return false;
+        },
+        COMMAND_PRIORITY_HIGH,
+      ),
+
+      // The textarea input delegates every key; horizontal arrows must reach
+      // plugins here too (welcome suggestions open a group with ArrowRight,
+      // ArrowLeft in RTL).
+      editor.registerCommand(
+        KEY_ARROW_RIGHT_COMMAND,
+        (event) => {
+          if (event && delegateToPlugins(event)) return true;
+          return false;
+        },
+        COMMAND_PRIORITY_HIGH,
+      ),
+
+      editor.registerCommand(
+        KEY_ARROW_LEFT_COMMAND,
         (event) => {
           if (event && delegateToPlugins(event)) return true;
           return false;
