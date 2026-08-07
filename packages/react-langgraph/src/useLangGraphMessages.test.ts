@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, onTestFinished, vi } from "vitest";
 import { act, renderHook, waitFor } from "@testing-library/react";
 
 import { useLangGraphMessages } from "./useLangGraphMessages";
@@ -3642,6 +3642,80 @@ describe("useLangGraphMessages", {}, () => {
         langgraph_node: "tools",
         namespace: "tools:tc-1",
       });
+    });
+  });
+
+  it("continues processing after an event callback throws", async () => {
+    const callbackError = new Error("values callback failed");
+    const onCustomEvent = vi.fn();
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    onTestFinished(() => consoleError.mockRestore());
+    const mockStreamCallback = mockStreamCallbackFactory([
+      { event: "values", data: { messages: [] } },
+      { event: "after-values", data: { ok: true } },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+        eventHandlers: {
+          onValues: () => {
+            throw callbackError;
+          },
+          onCustomEvent,
+        },
+      }),
+    );
+
+    await act(() =>
+      result.current.sendMessage([{ type: "human", content: "hi" }], {}),
+    );
+
+    expect(onCustomEvent).toHaveBeenCalledWith("after-values", { ok: true });
+    expect(consoleError).toHaveBeenCalledWith(
+      "[react-langgraph] onValues callback threw an error",
+      callbackError,
+    );
+  });
+
+  it("handles rejected event callback promises", async () => {
+    const callbackError = new Error("custom callback failed");
+    const onMetadata = vi.fn();
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    onTestFinished(() => consoleError.mockRestore());
+    const mockStreamCallback = mockStreamCallbackFactory([
+      { event: "custom-event", data: { value: 1 } },
+      { event: "metadata", data: { run_id: "run-1" } },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+        eventHandlers: {
+          onCustomEvent: async () => {
+            throw callbackError;
+          },
+          onMetadata,
+        },
+      }),
+    );
+
+    await act(() =>
+      result.current.sendMessage([{ type: "human", content: "hi" }], {}),
+    );
+
+    expect(onMetadata).toHaveBeenCalledWith({ run_id: "run-1" });
+    await waitFor(() => {
+      expect(consoleError).toHaveBeenCalledWith(
+        "[react-langgraph] onCustomEvent callback threw an error",
+        callbackError,
+      );
     });
   });
 });

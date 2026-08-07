@@ -503,11 +503,11 @@ figure.shiki {
 }
 
 /* PreviewCode component - remove nested SampleFrame styling */
-.preview-code-preview > .not-prose {
+.preview-code-preview > div > .not-prose {
   margin: 0 !important;
 }
 
-.preview-code-preview > .not-prose > div {
+.preview-code-preview > div > .not-prose > div {
   border: none !important;
   border-radius: 0 !important;
   height: auto !important;

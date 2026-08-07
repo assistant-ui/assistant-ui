@@ -27,6 +27,7 @@ import type {
   RuntimeCapabilities,
   ThreadRuntimeCore,
 } from "../../runtime/interfaces/thread-runtime-core";
+import type { QueuePlacement } from "../../runtime/queue/external-thread-queue-adapter";
 import { BaseThreadRuntimeCore } from "../../runtime/base/base-thread-runtime-core";
 import type { ModelContextProvider } from "../../model-context/types";
 import {
@@ -470,7 +471,9 @@ export class ExternalStoreThreadRuntimeCore
     // Buffering does not start a run, so the tool-abort below must wait until
     // the queue flushes. By then the prior run (and its tools) has settled.
     if (!isEdit && this._store.queue) {
-      this._store.queue.enqueue(message, { steer: message.steer ?? false });
+      if (message.steer ?? this._store.isRunning ?? false)
+        this._store.queue.steer(message);
+      else this._store.queue.enqueue(message);
       return;
     }
 
@@ -487,7 +490,6 @@ export class ExternalStoreThreadRuntimeCore
     if (isEdit) {
       if (!this._store.onEdit)
         throw new Error("Runtime does not support editing messages.");
-      this._store.queue?.clear("edit");
       await this._store.onEdit(message);
     } else {
       await this._store.onNew(message);
@@ -520,8 +522,12 @@ export class ExternalStoreThreadRuntimeCore
     return this._store?.queue?.items ?? EMPTY_QUEUE_ITEMS;
   }
 
-  public steerQueueItem(queueItemId: string) {
-    this._store?.queue?.steer(queueItemId);
+  public getSteerQueueItems() {
+    return this._store?.queue?.steerItems ?? EMPTY_QUEUE_ITEMS;
+  }
+
+  public moveQueueItem(queueItemId: string, placement: QueuePlacement) {
+    this._store?.queue?.move(queueItemId, placement);
   }
 
   public removeQueueItem(queueItemId: string) {
@@ -531,8 +537,6 @@ export class ExternalStoreThreadRuntimeCore
   public async startRun(config: StartRunConfig): Promise<void> {
     if (!this._store.onReload)
       throw new Error("Runtime does not support reloading messages.");
-
-    this._store.queue?.clear("reload");
 
     // Auto-abort in-flight client-side tool executions when a run reloads;
     // any results that land afterward would target a turn that no longer
@@ -578,8 +582,6 @@ export class ExternalStoreThreadRuntimeCore
   public cancelRun(): void {
     if (!this._store.onCancel)
       throw new Error("Runtime does not support cancelling runs.");
-
-    this._store.queue?.clear("cancel-run");
 
     // Abort any in-flight client-side tool executions. Fire-and-forget —
     // the abort resolves once executions settle, but we don't gate the

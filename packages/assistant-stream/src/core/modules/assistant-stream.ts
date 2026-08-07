@@ -29,6 +29,10 @@ type ToolCallPartInit = {
   response?: ToolResponseLike<ReadonlyJSONValue>;
 };
 
+type ReasoningPartInit = {
+  unstable_summary?: string;
+};
+
 /**
  * Imperative writer for constructing an {@link AssistantStream}.
  *
@@ -39,8 +43,12 @@ type ToolCallPartInit = {
 export type AssistantStreamController = {
   /** Appends text to the current text part, opening one if needed. */
   appendText(textDelta: string): void;
-  /** Appends reasoning text to the current reasoning part, opening one if needed. */
-  appendReasoning(reasoningDelta: string): void;
+  /**
+   * Appends reasoning text to the current reasoning part, opening one if
+   * needed. Supplying options opens a new part and applies them to it, so a
+   * summary always lands on a part of its own.
+   */
+  appendReasoning(reasoningDelta: string, options?: ReasoningPartInit): void;
   /** Appends a source citation part to the stream. */
   appendSource(options: SourcePart): void;
   /** Appends a file part to the stream. */
@@ -55,6 +63,15 @@ export type AssistantStreamController = {
    * part first.
    */
   addTextPart(): TextStreamController;
+  /**
+   * Opens a reasoning part and returns its writer.
+   *
+   * Use the options object to provide an app-authored summary for the part.
+   * A summary makes the data stream emit a reasoning part-start frame, which
+   * decoders older than that frame reject, so a stream only requires a current
+   * client once it uses the field.
+   */
+  addReasoningPart(options?: ReasoningPartInit): TextStreamController;
   /**
    * Opens a tool-call part by tool name and returns its writer.
    *
@@ -181,17 +198,24 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
     this._state.append.controller.append(textDelta);
   }
 
-  appendReasoning(textDelta: string) {
+  appendReasoning(textDelta: string, options?: ReasoningPartInit) {
+    // An init describes a part, so supplying one opens a part rather than
+    // extending whichever one happens to be open.
     if (
+      options !== undefined ||
       this._state.append?.kind !== "reasoning" ||
       this._state.append.parentId !== this._parentId
     ) {
       this._state.append = {
         kind: "reasoning",
         parentId: this._parentId,
-        controller: this.addReasoningPart(),
+        controller: this.addReasoningPart(options),
       };
     }
+    // Opening a part from an init with no text is how a summary-only part is
+    // created, and appending there would put a chunk on the stream that no
+    // producer emitted. An empty delta from an ordinary caller still appends.
+    if (options !== undefined && textDelta.length === 0) return;
     this._state.append.controller.append(textDelta);
   }
 
@@ -203,11 +227,14 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
     return controller;
   }
 
-  addReasoningPart() {
+  addReasoningPart(options?: ReasoningPartInit) {
     const [stream, controller] = createTextStreamController({
       strict: this._state.strict,
     });
-    this._addPart(this._withParentIdOption({ type: "reasoning" }), stream);
+    this._addPart(
+      this._withParentIdOption({ type: "reasoning", ...options }),
+      stream,
+    );
     return controller;
   }
 

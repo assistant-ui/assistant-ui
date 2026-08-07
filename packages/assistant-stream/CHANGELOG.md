@@ -1,5 +1,11 @@
 # assistant-stream
 
+## 0.3.34
+
+### Patch Changes
+
+- [#5609](https://github.com/assistant-ui/assistant-ui/pull/5609) [`d52928d`](https://github.com/assistant-ui/assistant-ui/commit/d52928db2c83a3ba6f25bf8c6b21934571dd4622) - fix: await resumable reader cleanup during cancellation ([@Kinfe123](https://github.com/Kinfe123))
+
 ## 0.3.33
 
 ### Patch Changes

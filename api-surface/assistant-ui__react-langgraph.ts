@@ -2,7 +2,7 @@ import { Client, StreamMode } from "@langchain/langgraph-sdk";
 
 import { StandardSchemaV1 } from "@standard-schema/spec";
 
-import { ComponentType, PropsWithChildren } from "react";
+import { ComponentType } from "react";
 
 type AddToolResultOptions = {
   messageId: string;
@@ -508,6 +508,7 @@ type ComposerRuntime = {
   send(options?: SendOptions): void;
   cancel(): void;
   steerQueueItem(queueItemId: string): void;
+  moveQueueItem(queueItemId: string, placement: QueuePlacement): void;
   removeQueueItem(queueItemId: string): void;
   subscribe(callback: () => void): Unsubscribe;
   getAttachmentByIndex(idx: number): AttachmentRuntime;
@@ -755,12 +756,12 @@ type ExternalStoreThreadListAdapter = {
 
 type ExternalThreadQueueAdapter = {
   items: readonly QueueItemState[];
-  enqueue: (message: AppendMessage, options: {
-    steer: boolean;
-  }) => void;
-  steer: (queueItemId: string) => void;
+  steerItems: readonly QueueItemState[];
+  enqueue: (message: AppendMessage) => void;
+  steer: (message: AppendMessage) => void;
+  move: (queueItemId: string, placement: QueuePlacement) => void;
+  edit: (queueItemId: string, message: AppendMessage) => void;
   remove: (queueItemId: string) => void;
-  clear: (reason: "cancel-run" | "edit" | "reload") => void;
 };
 
 type FeedbackAdapter = {
@@ -1352,7 +1353,11 @@ type OnUpdatesEventCallback = (updates: unknown) => void | Promise<void>;
 type OnValuesEventCallback = (values: unknown) => void | Promise<void>;
 
 type PartInit = {
-  readonly type: "reasoning" | "text";
+  readonly type: "text";
+  readonly parentId?: string;
+} | {
+  readonly type: "reasoning";
+  readonly unstable_summary?: string;
   readonly parentId?: string;
 } | {
   readonly type: "tool-call";
@@ -1430,6 +1435,13 @@ type ProviderTool<TArgs extends Record<string, unknown> = Record<string, unknown
 type QueueItemState = {
   readonly id: string;
   readonly prompt: string;
+  readonly parts: readonly (FileMessagePart | TextMessagePart)[];
+};
+
+type QueuePlacement = {
+  readonly lane?: "queue" | "steer";
+  readonly insertAfter?: string | null;
+  readonly insertBefore?: string | null;
 };
 
 type QuoteInfo = {
@@ -1482,6 +1494,7 @@ type ReasoningMessagePart = {
   readonly type: "reasoning";
   readonly text: string;
   readonly status?: MessagePartStreamStatus;
+  readonly unstable_summary?: string;
   readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };
@@ -1505,11 +1518,17 @@ type RemoteThreadListAdapter = {
   initialize(threadId: string): Promise<RemoteThreadInitializeResponse>;
   generateTitle(remoteId: string, unstable_messages: readonly ThreadMessage[]): Promise<AssistantStream>;
   fetch(threadId: string): Promise<RemoteThreadMetadata>;
-  unstable_Provider?: ComponentType<PropsWithChildren> | undefined;
+  unstable_Provider?: RemoteThreadListProviderComponent | undefined;
 };
 
 type RemoteThreadListPageOptions = {
   after?: string | undefined;
+};
+
+type RemoteThreadListProviderComponent = ((props: RemoteThreadListProviderProps) => any) | (new (props: RemoteThreadListProviderProps) => any);
+
+type RemoteThreadListProviderProps = {
+  children?: any;
 };
 
 type RemoteThreadListResponse = {

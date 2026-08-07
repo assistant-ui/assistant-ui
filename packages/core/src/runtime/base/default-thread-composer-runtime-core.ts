@@ -6,6 +6,7 @@ import type {
   ThreadComposerRuntimeCore,
 } from "../interfaces/composer-runtime-core";
 import type { ThreadRuntimeCore } from "../interfaces/thread-runtime-core";
+import type { QueuePlacement } from "../queue/external-thread-queue-adapter";
 import {
   EMPTY_QUEUE_ITEMS,
   type QueueItemState,
@@ -26,12 +27,35 @@ export class DefaultThreadComposerRuntimeCore
     return !this.isEmpty && !this.runtime.isSendDisabled && !this._isSending;
   }
 
+  private _queueCache:
+    | {
+        steer: readonly QueueItemState[];
+        queue: readonly QueueItemState[];
+        flat: readonly QueueItemState[];
+      }
+    | undefined;
+
   public override get queue(): readonly QueueItemState[] {
-    return this.runtime.getQueueItems?.() ?? EMPTY_QUEUE_ITEMS;
+    const steer = this.runtime.getSteerQueueItems?.() ?? EMPTY_QUEUE_ITEMS;
+    const queue = this.runtime.getQueueItems?.() ?? EMPTY_QUEUE_ITEMS;
+    const cache = this._queueCache;
+    if (cache && cache.steer === steer && cache.queue === queue)
+      return cache.flat;
+    const flat =
+      steer.length === 0
+        ? queue
+        : queue.length === 0
+          ? steer
+          : [...steer, ...queue];
+    this._queueCache = { steer, queue, flat };
+    return flat;
   }
 
-  public override steerQueueItem(queueItemId: string): void {
-    this.runtime.steerQueueItem?.(queueItemId);
+  public override moveQueueItem(
+    queueItemId: string,
+    placement: QueuePlacement,
+  ): void {
+    this.runtime.moveQueueItem?.(queueItemId, placement);
   }
 
   public override removeQueueItem(queueItemId: string): void {
