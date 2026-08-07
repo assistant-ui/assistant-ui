@@ -18,6 +18,11 @@ export {
   BranchPickerPrimitiveNumber,
   BranchPickerPrimitiveCount,
 } from "./primitives/branchPicker";
+export {
+  ActionBarPrimitiveEdit,
+  ActionBarPrimitiveReload,
+  ActionBarPrimitiveCopy,
+} from "./primitives/actionBar";
 
 export {
   AuiConfig,
