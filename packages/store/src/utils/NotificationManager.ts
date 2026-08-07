@@ -52,11 +52,14 @@ export const createNotificationManager = (): NotificationManager => {
     },
 
     emit(event, payload, clientStack) {
-      const eventListeners = listeners.get(event);
-      if (!eventListeners && wildcardListeners.size === 0) return;
+      if (!listeners.has(event) && wildcardListeners.size === 0) return;
 
       queueMicrotask(() => {
         const errors = [];
+        // Re-read at flush time: a listener that unsubscribed and resubscribed
+        // since the emit (a React consumer re-binding after a structural swap)
+        // lands in a fresh set, and still belongs to this emission
+        const eventListeners = listeners.get(event);
         if (eventListeners) {
           for (const cb of eventListeners) {
             try {

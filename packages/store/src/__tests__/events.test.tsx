@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import type { ReactNode } from "react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { act, cleanup, render, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { flushTapSync, resource } from "@assistant-ui/tap";
@@ -12,6 +12,8 @@ import { useAuiState } from "../useAuiState";
 import { Derived } from "../Derived";
 import { useAssistantEmit } from "../utils/tap-assistant-context";
 import { useClientResource } from "../useClientResource";
+import { createAssistantClient } from "../createAssistantClient";
+import { onWithBinding } from "../utils/event-binding";
 
 type AnyClient = Record<string, any>;
 
@@ -43,6 +45,49 @@ const useThreadClient = () => {
   };
 };
 const ThreadClient = resource(useThreadClient);
+
+// Mirrors a thread list item: the client emits when it observes that it became
+// the selected one, from inside the flush that performs the selection swap
+const useSwitchingMessageClient = ({
+  id,
+  isSelected,
+}: {
+  id: string;
+  isSelected: boolean;
+}) => {
+  const emit = useAssistantEmit();
+  const wasSelected = useRef(isSelected);
+  useEffect(() => {
+    if (wasSelected.current === isSelected) return;
+    wasSelected.current = isSelected;
+    if (isSelected) emit("message.switchedTo" as never, { id } as never);
+    else
+      emit("message.pinged" as never, { id, value: "switched-away" } as never);
+  }, [id, isSelected, emit]);
+  return {
+    getState: () => ({ id, text: "" }),
+    ping: (value: string) =>
+      emit("message.pinged" as never, { id, value } as never),
+  };
+};
+const SwitchingMessageClient = resource(useSwitchingMessageClient);
+
+const useSwitchingThreadClient = () => {
+  const [selected, setSelected] = useState(0);
+  const m0 = useClientResource(
+    SwitchingMessageClient({ id: "m0", isSelected: selected === 0 }),
+  );
+  const m1 = useClientResource(
+    SwitchingMessageClient({ id: "m1", isSelected: selected === 1 }),
+  );
+  const messages = [m0, m1];
+  return {
+    getState: () => ({ selected }),
+    setSelected,
+    message: ({ index }: { index: number }) => messages[index]!.methods,
+  };
+};
+const SwitchingThreadClient = resource(useSwitchingThreadClient);
 
 const messageDerived = () =>
   Derived({
@@ -363,6 +408,104 @@ describe("Derived scopes", () => {
       id: "m1",
       value: "after-swap",
     });
+  });
+
+  const setupSwitching = () => {
+    let aui!: AnyClient;
+    const listeners = {
+      switchedTo: vi.fn(),
+      switchedToStar: vi.fn(),
+      pinged: vi.fn(),
+      pingedStar: vi.fn(),
+    };
+    const Consumer = () => {
+      useAuiEvent("message.switchedTo" as never, listeners.switchedTo as never);
+      useAuiEvent(
+        { scope: "*", event: "message.switchedTo" } as never,
+        listeners.switchedToStar as never,
+      );
+      useAuiEvent("message.pinged" as never, listeners.pinged as never);
+      useAuiEvent(
+        { scope: "*", event: "message.pinged" } as never,
+        listeners.pingedStar as never,
+      );
+      return null;
+    };
+    const Harness = () => {
+      aui = useAui({
+        thread: SwitchingThreadClient(),
+        message: messageDerived(),
+      } as unknown as useAui.Props);
+      return (
+        <AuiProvider value={aui as never}>
+          <Consumer />
+        </AuiProvider>
+      );
+    };
+    render(<Harness />);
+    return { getAui: () => aui, listeners };
+  };
+
+  it("a default-scope listener receives an event emitted by the swap itself", async () => {
+    const { getAui, listeners } = setupSwitching();
+
+    act(() => flushTapSync(() => getAui().thread.setSelected(1)));
+    await flushEvents();
+
+    expect(listeners.switchedTo).toHaveBeenCalledExactlyOnceWith({ id: "m1" });
+    expect(listeners.switchedToStar).toHaveBeenCalledExactlyOnceWith({
+      id: "m1",
+    });
+
+    // the deselected item emits in the same flush; it is no longer the derived
+    // selection, so only the wildcard listener hears it
+    expect(listeners.pingedStar).toHaveBeenCalledExactlyOnceWith({
+      id: "m0",
+      value: "switched-away",
+    });
+    expect(listeners.pinged).not.toHaveBeenCalled();
+  });
+
+  it("the swap's event reaches a default-scope listener before React re-renders", async () => {
+    const { getAui, listeners } = setupSwitching();
+
+    // outside act: the emission is delivered while the subscriber still holds
+    // the pre-swap client, the window the derived binding has to cover
+    flushTapSync(() => getAui().thread.setSelected(1));
+    await Promise.resolve();
+
+    expect(listeners.switchedTo).toHaveBeenCalledExactlyOnceWith({ id: "m1" });
+    expect(listeners.pinged).not.toHaveBeenCalled();
+
+    await flushEvents();
+  });
+
+  it("a live-bound listener resolves its scope at delivery time, a snapshot one at subscription time", async () => {
+    // No React commit is involved here, so nothing re-subscribes between the
+    // emit and its delivery: the binding mode alone decides the outcome
+    const handle = createAssistantClient({
+      thread: SwitchingThreadClient(),
+      message: messageDerived(),
+    } as never);
+    const client = () => handle.getClient() as AnyClient;
+
+    const live = vi.fn();
+    const snapshot = vi.fn();
+    onWithBinding(
+      client() as never,
+      { scope: "message", event: "message.switchedTo" } as never,
+      live as never,
+      "live",
+    );
+    client().on("message.switchedTo" as never, snapshot as never);
+
+    flushTapSync(() => client().thread.setSelected(1));
+    await Promise.resolve();
+
+    expect(live).toHaveBeenCalledExactlyOnceWith({ id: "m1" });
+    expect(snapshot).not.toHaveBeenCalled();
+
+    handle.destroy();
   });
 
   it("state subscriptions flow through a derived scope", () => {

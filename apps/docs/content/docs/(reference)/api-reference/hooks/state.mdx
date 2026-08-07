@@ -54,6 +54,11 @@ scope or event name changes. The `callback` is wrapped in an effect-event
 shim, so the latest closure is invoked on each emission — you do not
 need to memoize it.
 
+A scoped subscription is filtered against the scope's binding at delivery
+time, so it follows a derived scope through a structural swap — including
+for an event the swap itself emits, such as `threadListItem.switchedTo` on
+a thread switch.
+
 {/* api-example:useAuiEvent:start */}
 ```tsx
 import { useAuiEvent } from "@assistant-ui/react";
