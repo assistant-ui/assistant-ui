@@ -144,8 +144,7 @@ async def test_data_stream_encoder_defaults_empty_tool_args() -> None:
 
     assert encoded == [
         'b:{"toolCallId": "t1", "toolName": "now"}\n',
-        'c:{"toolCallId": "t1", "argsTextDelta": "{}"}\n',
-        'c:{"toolCallId": "t1", "argsTextDelta": "", "isFinal": true}\n',
+        'c:{"toolCallId": "t1", "argsTextDelta": "{}", "isFinal": true}\n',
     ]
 
 
@@ -178,7 +177,6 @@ async def test_data_stream_encoder_finishes_args_before_boundaries(
 
     assert encoded == [
         'b:{"toolCallId": "t1", "toolName": "search"}\n',
-        'c:{"toolCallId": "t1", "argsTextDelta": "{}"}\n',
-        'c:{"toolCallId": "t1", "argsTextDelta": "", "isFinal": true}\n',
+        'c:{"toolCallId": "t1", "argsTextDelta": "{}", "isFinal": true}\n',
         encoded_boundary,
     ]

@@ -44,7 +44,7 @@ class DataStreamEncoder(StreamEncoder):
         elif chunk.type == "tool-call-delta":
             return f'c:{json.dumps({ "toolCallId": chunk.tool_call_id, "argsTextDelta": chunk.args_text_delta }, cls=StateProxyJSONEncoder)}\n'
         elif chunk.type == "tool-call-args-text-finish":
-            return f'c:{json.dumps({ "toolCallId": chunk.tool_call_id, "argsTextDelta": "", "isFinal": True }, cls=StateProxyJSONEncoder)}\n'
+            return f'c:{json.dumps({ "toolCallId": chunk.tool_call_id, "argsTextDelta": chunk.args_text_delta, "isFinal": True }, cls=StateProxyJSONEncoder)}\n'
         elif chunk.type == "tool-result":
             res = {"toolCallId": chunk.tool_call_id, "result": chunk.result}
             if chunk.artifact is not None:
@@ -105,18 +105,15 @@ class DataStreamEncoder(StreamEncoder):
                 return []
 
             frames: list[str] = []
-            if not has_args_text:
-                fallback = self.encode_chunk(
-                    ToolCallDeltaChunk(
-                        tool_call_id=tool_call_id,
-                        args_text_delta="{}",
-                    )
-                )
-                if fallback is not None:
-                    frames.append(fallback)
-
+            # A decoder that predates `isFinal` appends this delta and settles
+            # on what it has, and it skips its own empty-object default once
+            # any delta has arrived. The frame therefore has to carry the
+            # default itself rather than leave it to the decoder.
             finish = self.encode_chunk(
-                ToolCallArgsTextFinishChunk(tool_call_id=tool_call_id)
+                ToolCallArgsTextFinishChunk(
+                    tool_call_id=tool_call_id,
+                    args_text_delta="" if has_args_text else "{}",
+                )
             )
             if finish is not None:
                 frames.append(finish)

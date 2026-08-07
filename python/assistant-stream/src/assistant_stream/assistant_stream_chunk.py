@@ -35,6 +35,7 @@ class ToolCallDeltaChunk:
 @dataclass
 class ToolCallArgsTextFinishChunk:
     tool_call_id: str
+    args_text_delta: str = ""
     type: str = "tool-call-args-text-finish"
 
 

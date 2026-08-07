@@ -37,17 +37,15 @@ export class DataStreamEncoder
         const hasArgsText = openToolCallArgs.get(toolCallId);
         if (hasArgsText === undefined) return;
         openToolCallArgs.delete(toolCallId);
-        if (!hasArgsText) {
-          controller.enqueue({
-            type: DataStreamStreamChunkType.ToolCallArgsTextDelta,
-            value: { toolCallId, argsTextDelta: "{}" },
-          });
-        }
         controller.enqueue({
           type: DataStreamStreamChunkType.ToolCallArgsTextDelta,
           value: {
             toolCallId,
-            argsTextDelta: "",
+            // A decoder that predates `isFinal` appends this delta and settles
+            // on what it has, and it skips its own empty-object default once
+            // any delta has arrived. The frame therefore has to carry the
+            // default itself rather than leave it to the decoder.
+            argsTextDelta: hasArgsText ? "" : "{}",
             isFinal: true,
           },
         });

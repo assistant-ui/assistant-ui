@@ -169,17 +169,18 @@ describe("DataStreamEncoder streamed tool-call args", () => {
         chunk,
       ]);
 
-      expect(lines.at(-3)).toBe('c:{"toolCallId":"t1","argsTextDelta":"{}"}');
       expect(lines.at(-2)).toBe(
-        'c:{"toolCallId":"t1","argsTextDelta":"","isFinal":true}',
+        'c:{"toolCallId":"t1","argsTextDelta":"{}","isFinal":true}',
       );
       expect(lines.at(-1)?.startsWith(encodedPrefix)).toBe(true);
-      expect(
-        lines
-          .filter((line) => line.startsWith("c:"))
-          .map((line) => JSON.parse(line.slice(2)).argsTextDelta)
-          .join(""),
-      ).toBe("{}");
+      // A decoder without `isFinal` support appends every delta and settles on
+      // the concatenation, so it has to read as valid JSON on its own.
+      const legacyArgsText = lines
+        .filter((line) => line.startsWith("c:"))
+        .map((line) => JSON.parse(line.slice(2)).argsTextDelta)
+        .join("");
+      expect(legacyArgsText).toBe("{}");
+      expect(JSON.parse(legacyArgsText)).toEqual({});
     }
   });
 });
