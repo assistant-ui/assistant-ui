@@ -9,7 +9,7 @@ import { AuiConfig, Derived } from "@assistant-ui/store/client";
 import type { PartMethods } from "@assistant-ui/core/store";
 import { AuiProvider } from "../AuiProvider";
 import { useAui } from "../useAui";
-import { createLastValidCache } from "./lastValidCache";
+import { createLastValidCache, createStaleReporter } from "./lastValidCache";
 
 /**
  * Scopes the subtree to the message part at `index`: descendants read the
@@ -32,17 +32,14 @@ export const PartByIndexProvider = defineComponent({
     });
     const config = computed(() => {
       const index = props.index;
-      const cache = createLastValidCache<PartMethods>(() => {
-        if (disposed || index !== props.index) return;
-        try {
-          if (index < aui.message.getState().parts.length) return;
-        } catch {
-          // the parent scope itself is unavailable; report either way
-        }
-        console.error(
-          `PartByIndexProvider: index ${index} is still out of bounds after the update settled; the scope throws on its next resolution.`,
-        );
-      });
+      const cache = createLastValidCache<PartMethods>(
+        createStaleReporter({
+          name: "PartByIndexProvider",
+          index,
+          isCurrent: () => !disposed && index === props.index,
+          isValid: () => index < aui.message.getState().parts.length,
+        }),
+      );
       return AuiConfig({
         part: Derived({
           source: "message",

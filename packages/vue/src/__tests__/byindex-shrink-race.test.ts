@@ -100,6 +100,57 @@ const lookupErrors = (spy: ReturnType<typeof vi.spyOn>) =>
     args.some((arg) => String(arg).includes("useClientLookup")),
   );
 
+const staleReports = (spy: ReturnType<typeof vi.spyOn>) =>
+  spy.mock.calls.filter((args) =>
+    args.some((arg) =>
+      String(arg).includes(
+        "PartByIndexProvider: index 0 is still out of bounds",
+      ),
+    ),
+  );
+
+const PartTypeReader = defineComponent({
+  setup() {
+    const type = useAuiState((s) => s.part.type);
+    return () => h("span", { class: "part-type" }, type.value);
+  },
+});
+
+const PinnedPartView = defineComponent({
+  setup() {
+    const role = useAuiState((s) => s.message.role);
+    return () =>
+      h("li", { class: "msg", "data-role": role.value }, [
+        h(
+          PartByIndexProvider,
+          { index: 0 },
+          { default: () => h(PartTypeReader) },
+        ),
+      ]);
+  },
+});
+
+const mountPinnedPart = (runtime: AssistantRuntimeImpl) => {
+  const app = createApp(
+    defineComponent({
+      setup: () => () =>
+        h(
+          AuiProvider,
+          { config: AuiConfig({ threads: RuntimeAdapter(runtime) }) },
+          {
+            default: () =>
+              h(ThreadPrimitiveMessages, null, {
+                default: () => h(PinnedPartView),
+              }),
+          },
+        ),
+    }),
+  );
+  const el = document.createElement("div");
+  app.mount(el);
+  return { el, app };
+};
+
 describe("by-index scope shrink races", () => {
   afterEach(() => {
     vi.restoreAllMocks();
@@ -183,44 +234,7 @@ describe("by-index scope shrink races", () => {
 
   it("a provider still out of bounds after the flush reverts to throwing", async () => {
     const { runtime, seed } = createShrinkRuntime();
-
-    const PartTypeReader = defineComponent({
-      setup() {
-        const type = useAuiState((s) => s.part.type);
-        return () => h("span", { class: "part-type" }, type.value);
-      },
-    });
-    const PinnedPartView = defineComponent({
-      setup() {
-        const role = useAuiState((s) => s.message.role);
-        return () =>
-          h("li", { class: "msg", "data-role": role.value }, [
-            h(
-              PartByIndexProvider,
-              { index: 0 },
-              { default: () => h(PartTypeReader) },
-            ),
-          ]);
-      },
-    });
-
-    const app = createApp(
-      defineComponent({
-        setup: () => () =>
-          h(
-            AuiProvider,
-            { config: AuiConfig({ threads: RuntimeAdapter(runtime) }) },
-            {
-              default: () =>
-                h(ThreadPrimitiveMessages, null, {
-                  default: () => h(PinnedPartView),
-                }),
-            },
-          ),
-      }),
-    );
-    const el = document.createElement("div");
-    app.mount(el);
+    const { el, app } = mountPinnedPart(runtime);
 
     flushTapSync(() =>
       seed([
@@ -244,23 +258,15 @@ describe("by-index scope shrink races", () => {
 
     await vi.waitFor(async () => {
       await nextTick();
-      expect(
-        errorSpy.mock.calls.filter((args) =>
-          args.some((arg) =>
-            String(arg).includes(
-              "PartByIndexProvider: index 0 is still out of bounds",
-            ),
-          ),
-        ).length,
-      ).toBeGreaterThan(0);
+      expect(staleReports(errorSpy).length).toBeGreaterThan(0);
     });
 
     app.unmount();
   });
 
-  it("a shrink followed by a same-tick recovery keeps the refreshed cache", async () => {
+  it("a same-tick recovery keeps the refreshed cache and a later shrink still expires", async () => {
     const { runtime, seed } = createShrinkRuntime();
-    const { el, unmount } = mountChat(runtime);
+    const { el, app } = mountPinnedPart(runtime);
 
     flushTapSync(() =>
       seed([
@@ -270,39 +276,99 @@ describe("by-index scope shrink races", () => {
     );
     await vi.waitFor(async () => {
       await nextTick();
-      expect(el.textContent).toContain("hello");
+      expect(el.querySelectorAll("span.part-type")).toHaveLength(2);
     });
 
     const errorSpy = vi.spyOn(console, "error");
-    flushTapSync(() => {
-      seed([
-        { id: "u1", role: "user", text: "hi" },
-        { id: "a1", role: "assistant", text: "" },
-      ]);
-      seed([
-        { id: "u1", role: "user", text: "hi" },
-        { id: "a1", role: "assistant", text: "restored" },
-      ]);
-    });
-    await vi.waitFor(async () => {
-      await nextTick();
-      expect(el.textContent).toContain("restored");
-    });
-    expect(errorSpy.mock.calls).toEqual([]);
-
     flushTapSync(() =>
       seed([
         { id: "u1", role: "user", text: "hi" },
-        { id: "a2", role: "assistant", text: "again" },
+        { id: "a1", role: "assistant", text: "" },
+      ]),
+    );
+    flushTapSync(() =>
+      seed([
+        { id: "u1", role: "user", text: "hi" },
+        { id: "a1", role: "assistant", text: "restored" },
+      ]),
+    );
+    flushTapSync(() =>
+      seed([
+        { id: "u1", role: "user", text: "hi" },
+        { id: "a1", role: "assistant", text: "" },
+      ]),
+    );
+
+    await vi.waitFor(async () => {
+      await nextTick();
+      expect(staleReports(errorSpy).length).toBeGreaterThan(0);
+    });
+    expect(lookupErrors(errorSpy)).toEqual([]);
+
+    const reportsBeforeRecovery = staleReports(errorSpy).length;
+    flushTapSync(() =>
+      seed([
+        { id: "u1", role: "user", text: "hi" },
+        { id: "a1", role: "assistant", text: "again" },
       ]),
     );
     await vi.waitFor(async () => {
       await nextTick();
-      expect(el.textContent).toContain("again");
+      expect(el.querySelectorAll("span.part-type")).toHaveLength(2);
     });
-    expect(errorSpy.mock.calls).toEqual([]);
+    expect(staleReports(errorSpy).length).toBe(reportsBeforeRecovery);
+    expect(lookupErrors(errorSpy)).toEqual([]);
 
-    unmount();
+    app.unmount();
+  });
+
+  it("a recovered cache survives the expiry and still guards a later shrink", async () => {
+    const { runtime, seed } = createShrinkRuntime();
+    const { el, app } = mountPinnedPart(runtime);
+
+    flushTapSync(() =>
+      seed([
+        { id: "u1", role: "user", text: "hi" },
+        { id: "a1", role: "assistant", text: "hello" },
+      ]),
+    );
+    await vi.waitFor(async () => {
+      await nextTick();
+      expect(el.querySelectorAll("span.part-type")).toHaveLength(2);
+    });
+
+    const errorSpy = vi.spyOn(console, "error");
+    flushTapSync(() =>
+      seed([
+        { id: "u1", role: "user", text: "hi" },
+        { id: "a1", role: "assistant", text: "" },
+      ]),
+    );
+    flushTapSync(() =>
+      seed([
+        { id: "u1", role: "user", text: "hi" },
+        { id: "a1", role: "assistant", text: "restored" },
+      ]),
+    );
+    await vi.waitFor(async () => {
+      await nextTick();
+      expect(el.querySelectorAll("span.part-type")).toHaveLength(2);
+    });
+    expect(staleReports(errorSpy)).toEqual([]);
+
+    flushTapSync(() =>
+      seed([
+        { id: "u1", role: "user", text: "hi" },
+        { id: "a1", role: "assistant", text: "" },
+      ]),
+    );
+    await vi.waitFor(async () => {
+      await nextTick();
+      expect(staleReports(errorSpy).length).toBeGreaterThan(0);
+    });
+    expect(lookupErrors(errorSpy)).toEqual([]);
+
+    app.unmount();
   });
 
   it("a never-valid part index still throws when read", () => {

@@ -10,7 +10,7 @@ import { AuiConfig, Derived } from "@assistant-ui/store/client";
 import type { ThreadListItemMethods } from "@assistant-ui/core/store";
 import { AuiProvider } from "../AuiProvider";
 import { isAttrDisabled } from "./attrDisabled";
-import { createLastValidCache } from "./lastValidCache";
+import { createLastValidCache, createStaleReporter } from "./lastValidCache";
 import { useAui } from "../useAui";
 import { useAuiState } from "../useAuiState";
 
@@ -44,19 +44,15 @@ export const ThreadListItemByIndexProvider = defineComponent({
         archivedThreadIds: readonly string[];
         threadIds: readonly string[];
       }) => (archived ? state.archivedThreadIds : state.threadIds);
-      const cache = createLastValidCache<ThreadListItemMethods>(() => {
-        if (disposed || index !== props.index || archived !== props.archived) {
-          return;
-        }
-        try {
-          if (index < idsOf(aui.threads.getState()).length) return;
-        } catch {
-          // the parent scope itself is unavailable; report either way
-        }
-        console.error(
-          `ThreadListItemByIndexProvider: index ${index} is still out of bounds after the update settled; the scope throws on its next resolution.`,
-        );
-      });
+      const cache = createLastValidCache<ThreadListItemMethods>(
+        createStaleReporter({
+          name: "ThreadListItemByIndexProvider",
+          index,
+          isCurrent: () =>
+            !disposed && index === props.index && archived === props.archived,
+          isValid: () => index < idsOf(aui.threads.getState()).length,
+        }),
+      );
       return AuiConfig({
         threadListItem: Derived({
           source: "threads",

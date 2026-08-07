@@ -11,7 +11,7 @@ import { flushTapSync } from "@assistant-ui/tap";
 import type { SuggestionMethods } from "@assistant-ui/core/store";
 import { AuiProvider } from "../AuiProvider";
 import { isAttrDisabled } from "./attrDisabled";
-import { createLastValidCache } from "./lastValidCache";
+import { createLastValidCache, createStaleReporter } from "./lastValidCache";
 import { useAui } from "../useAui";
 import { useAuiState } from "../useAuiState";
 
@@ -36,17 +36,14 @@ export const SuggestionByIndexProvider = defineComponent({
     });
     const config = computed(() => {
       const index = props.index;
-      const cache = createLastValidCache<SuggestionMethods>(() => {
-        if (disposed || index !== props.index) return;
-        try {
-          if (index < aui.suggestions.getState().suggestions.length) return;
-        } catch {
-          // the parent scope itself is unavailable; report either way
-        }
-        console.error(
-          `SuggestionByIndexProvider: index ${index} is still out of bounds after the update settled; the scope throws on its next resolution.`,
-        );
-      });
+      const cache = createLastValidCache<SuggestionMethods>(
+        createStaleReporter({
+          name: "SuggestionByIndexProvider",
+          index,
+          isCurrent: () => !disposed && index === props.index,
+          isValid: () => index < aui.suggestions.getState().suggestions.length,
+        }),
+      );
       return AuiConfig({
         suggestion: Derived({
           source: "suggestions",
