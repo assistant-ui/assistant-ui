@@ -123,6 +123,45 @@ describe("MessagePrimitiveParts", () => {
 
     unmount();
   });
+
+  it("keeps text rendering when only a default slot is provided", async () => {
+    const { runtime, append } = createTestRuntime();
+    const View = defineComponent({
+      setup: () => () =>
+        h("li", null, [
+          h(ThreadPrimitiveMessages, null, {
+            default: () =>
+              h(MessagePrimitiveParts, null, {
+                default: () => h("span", { class: "fallback" }, "[tool]"),
+              }),
+          }),
+        ]),
+    });
+    const { el, unmount } = mountChat(runtime, View);
+
+    flushTapSync(() =>
+      append({
+        role: "assistant",
+        content: [
+          { type: "text", text: "hello" },
+          {
+            type: "tool-call",
+            toolCallId: "call-1",
+            toolName: "search",
+            args: {},
+          },
+        ],
+      }),
+    );
+
+    await vi.waitFor(async () => {
+      await nextTick();
+      expect(el.querySelector("span.fallback")).not.toBeNull();
+    });
+    expect(el.querySelector("li")!.textContent).toBe("hello[tool]");
+
+    unmount();
+  });
 });
 
 describe("MessagePrimitiveParts dev warning", () => {

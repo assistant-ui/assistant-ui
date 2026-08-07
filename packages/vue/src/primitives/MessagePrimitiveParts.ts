@@ -4,19 +4,20 @@ import { isDevelopment } from "../isDevelopment";
 import { useAuiState } from "../useAuiState";
 import { PartByIndexProvider } from "./PartByIndexProvider";
 
+const warnedTypes = new Set<string>();
+
 /**
  * Renders the current message's content parts in order, each scoped through
  * {@link PartByIndexProvider}. A slot named after the part type (`text`,
  * `reasoning`, `tool-call`, ...) renders that part; the `default` slot is the
- * fallback for types without a named slot. Text parts without any slot render
- * their text.
+ * fallback for types without a named slot, except text, which always renders
+ * its text unless a `text` slot overrides it.
  */
 export const MessagePrimitiveParts = defineComponent({
   name: "MessagePrimitiveParts",
   slots: Object as SlotsType<Record<string, (() => unknown) | undefined>>,
   setup(_, { slots }) {
     const count = useAuiState((s) => s.message.content.length);
-    const warned = new Set<string>();
     const PartView = defineComponent({
       name: "MessagePartView",
       setup() {
@@ -25,11 +26,14 @@ export const MessagePrimitiveParts = defineComponent({
           s.part.type === "text" ? s.part.text : "",
         );
         return () => {
+          if (type.value === "text") {
+            const slot = slots.text;
+            return slot ? slot() : text.value;
+          }
           const slot = slots[type.value] ?? slots.default;
           if (slot) return slot();
-          if (type.value === "text") return text.value;
-          if (isDevelopment && !warned.has(type.value)) {
-            warned.add(type.value);
+          if (isDevelopment && !warnedTypes.has(type.value)) {
+            warnedTypes.add(type.value);
             console.warn(
               `MessagePrimitiveParts: no slot for part type "${type.value}"; the part renders nothing. Add a #${type.value} or #default slot.`,
             );

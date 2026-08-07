@@ -112,7 +112,8 @@ export const ThreadPrimitiveViewport = defineComponent({
 
     // A pointer gesture invalidates pending bottom-scroll intent; otherwise an
     // intent kept alive by a non-overflowing thread hijacks the next content
-    // growth.
+    // growth. Unlike the React hook, an already scheduled frame is cancelled
+    // too, so the gesture also wins the race against a just-planted intent.
     const onPointerdown = () => {
       intent = null;
       if (frame !== null) {
