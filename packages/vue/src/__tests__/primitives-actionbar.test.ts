@@ -28,6 +28,8 @@ import {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  // vi.restoreAllMocks does not undo hand-installed property descriptors.
+  Reflect.deleteProperty(navigator, "clipboard");
 });
 
 type DemoMessage = { id: string; role: "user" | "assistant"; text: string };
@@ -392,6 +394,10 @@ describe("edit flow and branches", () => {
   });
 
   it("stays inert when the clipboard API is unavailable", async () => {
+    Object.defineProperty(navigator, "clipboard", {
+      value: undefined,
+      configurable: true,
+    });
     const { runtime, seed } = createEditableRuntime();
     const { el, unmount } = mountChat(runtime);
 

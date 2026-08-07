@@ -67,9 +67,12 @@ export const createEchoRuntime = () => {
       reply(text);
     },
     onReload: async (parentId) => {
-      const parentIndex = parentId
-        ? messages.findIndex((entry) => entry.id === parentId) + 1
-        : 0;
+      let parentIndex = 0;
+      if (parentId) {
+        const index = messages.findIndex((entry) => entry.id === parentId);
+        if (index === -1) return;
+        parentIndex = index + 1;
+      }
       const sliced = messages.slice(0, parentIndex);
       const lastUser = [...sliced]
         .reverse()
