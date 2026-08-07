@@ -172,7 +172,9 @@ export const ThreadPrimitiveViewport = defineComponent({
       scheduleScrollToBottom("auto");
     });
 
-    useAuiEvent("threadListItem.switchedTo", () => {
+    // The switchedTo relay emits from the thread-list lookup instance inside
+    // the threads scope, which the default listener scope does not cover.
+    useAuiEvent({ scope: "*", event: "threadListItem.switchedTo" }, () => {
       if (!props.scrollToBottomOnThreadSwitch) return;
       scheduleScrollToBottom("instant");
     });

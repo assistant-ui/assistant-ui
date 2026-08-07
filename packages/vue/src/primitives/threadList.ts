@@ -1,0 +1,143 @@
+import { computed, defineComponent, h, mergeProps, type SlotsType } from "vue";
+import { AuiConfig, Derived } from "@assistant-ui/store/client";
+import type {} from "@assistant-ui/core/store";
+import { AuiProvider } from "../AuiProvider";
+import { isAttrDisabled } from "./attrDisabled";
+import { useAui } from "../useAui";
+import { useAuiState } from "../useAuiState";
+
+/**
+ * Scopes the subtree to the thread-list item at `index`: descendants read it
+ * through `s.threadListItem`.
+ */
+export const ThreadListItemByIndexProvider = defineComponent({
+  name: "ThreadListItemByIndexProvider",
+  props: {
+    index: {
+      type: Number,
+      required: true,
+    },
+    archived: {
+      type: Boolean,
+      default: false,
+    },
+  },
+  slots: Object as SlotsType<{ default?: () => unknown }>,
+  setup(props, { slots }) {
+    const aui = useAui();
+    const config = computed(() =>
+      AuiConfig({
+        threadListItem: Derived({
+          source: "threads",
+          query: {
+            type: "index",
+            index: props.index,
+            archived: props.archived,
+          },
+          get: (aui) =>
+            aui.threads.item({ index: props.index, archived: props.archived }),
+        }),
+      }),
+    );
+    return () =>
+      h(
+        AuiProvider,
+        { config: config.value, extends: aui },
+        { default: () => slots.default?.() },
+      );
+  },
+});
+
+/**
+ * Renders the default slot once per thread in the list (or per archived
+ * thread with `archived`), each instance scoped through
+ * {@link ThreadListItemByIndexProvider}.
+ */
+export const ThreadListPrimitiveItems = defineComponent({
+  name: "ThreadListPrimitiveItems",
+  props: {
+    archived: {
+      type: Boolean,
+      default: false,
+    },
+  },
+  slots: Object as SlotsType<{ default?: () => unknown }>,
+  setup(props, { slots }) {
+    const count = useAuiState((s) =>
+      props.archived
+        ? s.threads.archivedThreadIds.length
+        : s.threads.threadIds.length,
+    );
+    return () =>
+      Array.from({ length: count.value }, (_, index) =>
+        h(
+          ThreadListItemByIndexProvider,
+          { index, archived: props.archived, key: index },
+          { default: () => slots.default?.() },
+        ),
+      );
+  },
+});
+
+/** A button that switches to a new thread. */
+export const ThreadListPrimitiveNew = defineComponent({
+  name: "ThreadListPrimitiveNew",
+  inheritAttrs: false,
+  slots: Object as SlotsType<{ default?: () => unknown }>,
+  setup(_, { attrs, slots }) {
+    const aui = useAui();
+    const onClick = (event: MouseEvent) => {
+      if (event.defaultPrevented || isAttrDisabled(attrs)) return;
+      aui.threads.switchToNewThread();
+    };
+    return () =>
+      h(
+        "button",
+        mergeProps(attrs, {
+          type: "button",
+          disabled: isAttrDisabled(attrs),
+          onClick,
+        }),
+        slots.default?.(),
+      );
+  },
+});
+
+/** A button that switches to the current thread-list item's thread. */
+export const ThreadListItemPrimitiveTrigger = defineComponent({
+  name: "ThreadListItemPrimitiveTrigger",
+  inheritAttrs: false,
+  slots: Object as SlotsType<{ default?: () => unknown }>,
+  setup(_, { attrs, slots }) {
+    const aui = useAui();
+    const onClick = (event: MouseEvent) => {
+      if (event.defaultPrevented || isAttrDisabled(attrs)) return;
+      aui.threadListItem.switchTo();
+    };
+    return () =>
+      h(
+        "button",
+        mergeProps(attrs, {
+          type: "button",
+          disabled: isAttrDisabled(attrs),
+          onClick,
+        }),
+        slots.default?.(),
+      );
+  },
+});
+
+/** Renders the current thread-list item's title, or `fallback` when empty. */
+export const ThreadListItemPrimitiveTitle = defineComponent({
+  name: "ThreadListItemPrimitiveTitle",
+  props: {
+    fallback: {
+      type: String,
+      default: "",
+    },
+  },
+  setup(props) {
+    const title = useAuiState((s) => s.threadListItem.title);
+    return () => title.value || props.fallback;
+  },
+});

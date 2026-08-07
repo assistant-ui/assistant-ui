@@ -31,6 +31,13 @@ export {
   SuggestionPrimitiveTitle,
   SuggestionPrimitiveDescription,
 } from "./primitives/suggestions";
+export {
+  ThreadListItemByIndexProvider,
+  ThreadListPrimitiveItems,
+  ThreadListPrimitiveNew,
+  ThreadListItemPrimitiveTrigger,
+  ThreadListItemPrimitiveTitle,
+} from "./primitives/threadList";
 
 export {
   AuiConfig,

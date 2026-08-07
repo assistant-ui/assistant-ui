@@ -66,6 +66,7 @@ Headless components for runtime-backed threads, mirroring the React primitives. 
 - `BranchPickerPrimitivePrevious`/`Next`/`Number`/`Count` navigate and display message branches.
 - `ActionBarPrimitiveEdit`, `ActionBarPrimitiveReload`, and `ActionBarPrimitiveCopy` cover the widget-free message actions; inside a message scope the composer primitives double as the edit UI (`beginEdit` seeds the edit composer, `ComposerPrimitiveSend` saves into a new branch, `ComposerPrimitiveCancel` discards).
 - `ThreadPrimitiveSuggestions` renders the default slot once per configured suggestion (`Suggestions([...])` from `@assistant-ui/core/store` in the provider config), scoped through `SuggestionByIndexProvider`; `SuggestionPrimitiveTrigger` sends the prompt (`send`) or inserts it into the composer, and `SuggestionPrimitiveTitle`/`Description` render its text.
+- `ThreadListPrimitiveItems` renders the default slot once per thread (scoped through `ThreadListItemByIndexProvider`), with `ThreadListPrimitiveNew`, `ThreadListItemPrimitiveTrigger`, and `ThreadListItemPrimitiveTitle` covering the sidebar basics; the runtime supplies the list through the external-store `adapters.threadList`.
 - `AuiIf` renders its slot while a state selector returns true.
 
 ```vue

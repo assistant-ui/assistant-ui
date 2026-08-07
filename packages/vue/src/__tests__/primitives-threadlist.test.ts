@@ -1,0 +1,229 @@
+import { describe, expect, it, vi } from "vitest";
+import { createApp, defineComponent, h, nextTick, type Component } from "vue";
+import { flushTapSync } from "@assistant-ui/tap";
+import { AuiConfig } from "@assistant-ui/store/client";
+import { RuntimeAdapter } from "@assistant-ui/core/store";
+import type { ExternalStoreAdapter } from "@assistant-ui/core";
+import {
+  AssistantRuntimeImpl,
+  ExternalStoreRuntimeCore,
+} from "@assistant-ui/core/internal";
+import { AuiProvider } from "../AuiProvider";
+import { ThreadPrimitiveMessages } from "../primitives/ThreadPrimitiveMessages";
+import { ThreadPrimitiveViewport } from "../primitives/ThreadPrimitiveViewport";
+import {
+  ThreadListItemPrimitiveTitle,
+  ThreadListItemPrimitiveTrigger,
+  ThreadListPrimitiveItems,
+  ThreadListPrimitiveNew,
+} from "../primitives/threadList";
+
+type DemoMessage = { id: string; role: "user" | "assistant"; text: string };
+type DemoThread = { id: string; title: string; messages: DemoMessage[] };
+
+const createMultiThreadRuntime = () => {
+  let threads: DemoThread[] = [
+    {
+      id: "t1",
+      title: "First thread",
+      messages: [{ id: "m1", role: "user", text: "hello from one" }],
+    },
+    {
+      id: "t2",
+      title: "Second thread",
+      messages: [{ id: "m2", role: "user", text: "hello from two" }],
+    },
+  ];
+  let currentId = "t1";
+  let nextThread = 3;
+  const onSwitchToThread = vi.fn((threadId: string) => {
+    currentId = threadId;
+    sync();
+  });
+  const onSwitchToNewThread = vi.fn(() => {
+    const id = `t${nextThread++}`;
+    threads = [...threads, { id, title: "", messages: [] }];
+    currentId = id;
+    sync();
+  });
+  const makeAdapter = (): ExternalStoreAdapter<DemoMessage> => ({
+    messages: threads.find((thread) => thread.id === currentId)!.messages,
+    convertMessage: (message) => ({
+      id: message.id,
+      role: message.role,
+      content: [{ type: "text", text: message.text }],
+    }),
+    onNew: async () => {},
+    adapters: {
+      threadList: {
+        threadId: currentId,
+        threads: threads.map((thread) => ({
+          status: "regular" as const,
+          id: thread.id,
+          title: thread.title,
+        })),
+        onSwitchToThread,
+        onSwitchToNewThread,
+      },
+    },
+  });
+  const core = new ExternalStoreRuntimeCore(makeAdapter());
+  const runtime = new AssistantRuntimeImpl(core);
+  const sync = () => core.setAdapter(makeAdapter());
+  return { runtime, onSwitchToThread, onSwitchToNewThread };
+};
+
+const SidebarView = defineComponent({
+  setup: () => () => [
+    h(ThreadListPrimitiveNew, { class: "new" }, { default: () => "New" }),
+    h(ThreadListPrimitiveItems, null, {
+      default: () =>
+        h(
+          ThreadListItemPrimitiveTrigger,
+          { class: "item" },
+          {
+            default: () =>
+              h(ThreadListItemPrimitiveTitle, { fallback: "New Chat" }),
+          },
+        ),
+    }),
+  ],
+});
+
+const mountView = (runtime: AssistantRuntimeImpl, view: Component) => {
+  const app = createApp(
+    defineComponent({
+      setup: () => () =>
+        h(
+          AuiProvider,
+          { config: AuiConfig({ threads: RuntimeAdapter(runtime) }) },
+          { default: () => h(view) },
+        ),
+    }),
+  );
+  const el = document.createElement("div");
+  app.mount(el);
+  return { el, unmount: () => app.unmount() };
+};
+
+describe("thread list primitives", () => {
+  it("renders one scoped item per thread with titles", async () => {
+    const { runtime } = createMultiThreadRuntime();
+    const { el, unmount } = mountView(runtime, SidebarView);
+
+    await vi.waitFor(async () => {
+      await nextTick();
+      expect(el.querySelectorAll("button.item")).toHaveLength(2);
+    });
+    expect(
+      [...el.querySelectorAll("button.item")].map((item) => item.textContent),
+    ).toEqual(["First thread", "Second thread"]);
+
+    unmount();
+  });
+
+  it("switches threads through the item trigger and swaps the thread state", async () => {
+    const { runtime, onSwitchToThread } = createMultiThreadRuntime();
+    const View = defineComponent({
+      setup: () => () => [
+        h(SidebarView),
+        h("ol", null, [
+          h(ThreadPrimitiveMessages, null, {
+            default: () => h("li", "row"),
+          }),
+        ]),
+      ],
+    });
+    const { el, unmount } = mountView(runtime, View);
+
+    await vi.waitFor(async () => {
+      await nextTick();
+      expect(el.querySelectorAll("button.item")).toHaveLength(2);
+    });
+
+    el.querySelectorAll<HTMLButtonElement>("button.item")[1]!.click();
+    await vi.waitFor(() => {
+      expect(onSwitchToThread).toHaveBeenCalledWith("t2");
+    });
+    await vi.waitFor(() => {
+      expect(runtime.thread.getState().messages[0]!.content[0]).toMatchObject({
+        type: "text",
+        text: "hello from two",
+      });
+    });
+
+    unmount();
+  });
+
+  it("starts a new thread through the new button", async () => {
+    const { runtime, onSwitchToNewThread } = createMultiThreadRuntime();
+    const { el, unmount } = mountView(runtime, SidebarView);
+
+    await vi.waitFor(async () => {
+      await nextTick();
+      expect(el.querySelectorAll("button.item")).toHaveLength(2);
+    });
+
+    el.querySelector<HTMLButtonElement>("button.new")!.click();
+    await vi.waitFor(() => {
+      expect(onSwitchToNewThread).toHaveBeenCalledTimes(1);
+    });
+    await vi.waitFor(async () => {
+      await nextTick();
+      expect(el.querySelectorAll("button.item")).toHaveLength(3);
+    });
+    expect(
+      el.querySelectorAll<HTMLButtonElement>("button.item")[2]!.textContent,
+    ).toBe("New Chat");
+
+    unmount();
+  });
+
+  it("scrolls the viewport to the bottom on thread switch", async () => {
+    const { runtime } = createMultiThreadRuntime();
+    const View = defineComponent({
+      setup: () => () => [
+        h(SidebarView),
+        h(
+          ThreadPrimitiveViewport,
+          { class: "viewport", scrollToBottomOnInitialize: false },
+          {
+            default: () =>
+              h(ThreadPrimitiveMessages, null, {
+                default: () => h("p", "row"),
+              }),
+          },
+        ),
+      ],
+    });
+    const { el, unmount } = mountView(runtime, View);
+
+    const div = el.querySelector<HTMLElement>("div.viewport")!;
+    Object.defineProperty(div, "scrollHeight", {
+      get: () => 500,
+      configurable: true,
+    });
+    Object.defineProperty(div, "clientHeight", {
+      get: () => 100,
+      configurable: true,
+    });
+    const scrollTo = vi.fn();
+    Object.defineProperty(div, "scrollTo", {
+      value: scrollTo,
+      configurable: true,
+    });
+
+    await vi.waitFor(async () => {
+      await nextTick();
+      expect(el.querySelectorAll("button.item")).toHaveLength(2);
+    });
+    expect(scrollTo).not.toHaveBeenCalled();
+
+    el.querySelectorAll<HTMLButtonElement>("button.item")[1]!.click();
+    await vi.waitFor(() => {
+      expect(scrollTo).toHaveBeenCalled();
+    });
+
+    unmount();
+  });
+});
