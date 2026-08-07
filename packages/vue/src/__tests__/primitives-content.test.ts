@@ -472,7 +472,7 @@ describe("ThreadPrimitiveViewport", () => {
   });
 
   it("enables scroll-to-bottom only while scrolled up and scrolls on click", async () => {
-    const { runtime, append } = createTestRuntime();
+    const { runtime } = createTestRuntime();
     const View = defineComponent({
       setup: () => () =>
         h(
