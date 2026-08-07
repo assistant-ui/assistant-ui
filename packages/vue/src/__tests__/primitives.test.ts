@@ -278,10 +278,40 @@ describe("vue primitives", () => {
     expect(textarea.value).toBe("");
     textarea.value = "typing";
     textarea.dispatchEvent(new Event("input"));
-    textarea.dispatchEvent(
-      new KeyboardEvent("keydown", { key: "Enter", cancelable: true }),
-    );
 
+    expect(textarea.value).toBe("");
+    await new Promise((resolve) => setTimeout(resolve));
+    expect(onNew).not.toHaveBeenCalled();
+
+    unmount();
+  });
+
+  it("keeps a caller-disabled send button disabled and inert", async () => {
+    const { runtime, onNew } = createTestRuntime();
+    const View = defineComponent({
+      setup: () => () => [
+        h(ComposerPrimitiveInput),
+        h(
+          ComposerPrimitiveSend,
+          { disabled: true },
+          {
+            default: () => "Send",
+          },
+        ),
+      ],
+    });
+    const { el, unmount } = mountChat(runtime, View);
+
+    const textarea = el.querySelector("textarea")!;
+    textarea.value = "hello";
+    flushTapSync(() => textarea.dispatchEvent(new Event("input")));
+
+    const button = el.querySelector("button")!;
+    await nextTick();
+    expect(button.disabled).toBe(true);
+
+    button.disabled = false;
+    button.click();
     await new Promise((resolve) => setTimeout(resolve));
     expect(onNew).not.toHaveBeenCalled();
 

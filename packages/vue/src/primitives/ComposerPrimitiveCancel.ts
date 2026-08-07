@@ -1,5 +1,6 @@
 import { defineComponent, h, mergeProps, type SlotsType } from "vue";
 import type {} from "@assistant-ui/core/store";
+import { isAttrDisabled } from "./attrDisabled";
 import { useAui } from "../useAui";
 import { useAuiState } from "../useAuiState";
 
@@ -16,7 +17,8 @@ export const ComposerPrimitiveCancel = defineComponent({
     const aui = useAui();
     const disabled = useAuiState((s) => !s.composer.canCancel);
     const onClick = (event: MouseEvent) => {
-      if (event.defaultPrevented || disabled.value) return;
+      if (event.defaultPrevented || disabled.value || isAttrDisabled(attrs))
+        return;
       aui.composer.cancel();
     };
     return () =>
@@ -24,7 +26,7 @@ export const ComposerPrimitiveCancel = defineComponent({
         "button",
         mergeProps(attrs, {
           type: "button",
-          disabled: disabled.value,
+          disabled: disabled.value || isAttrDisabled(attrs),
           onClick,
         }),
         slots.default?.(),

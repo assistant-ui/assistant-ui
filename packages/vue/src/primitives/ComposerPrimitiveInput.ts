@@ -1,6 +1,7 @@
 import { defineComponent, h, mergeProps, type SlotsType } from "vue";
 import { flushTapSync } from "@assistant-ui/tap";
 import type {} from "@assistant-ui/core/store";
+import { isAttrDisabled } from "./attrDisabled";
 import { useAui } from "../useAui";
 import { useAuiState } from "../useAuiState";
 import { useComposerSendState } from "./useComposerSendState";
@@ -53,7 +54,7 @@ export const ComposerPrimitiveInput = defineComponent({
         "textarea",
         mergeProps(attrs, {
           value: text.value,
-          disabled: threadDisabled.value,
+          disabled: threadDisabled.value || isAttrDisabled(attrs),
           onInput,
           onKeydown,
         }),

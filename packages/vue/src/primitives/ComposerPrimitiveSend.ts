@@ -1,4 +1,5 @@
 import { defineComponent, h, mergeProps, type SlotsType } from "vue";
+import { isAttrDisabled } from "./attrDisabled";
 import { useComposerSendState } from "./useComposerSendState";
 
 /**
@@ -14,7 +15,8 @@ export const ComposerPrimitiveSend = defineComponent({
   setup(_, { attrs, slots }) {
     const { disabled, send } = useComposerSendState();
     const onClick = (event: MouseEvent) => {
-      if (event.defaultPrevented || disabled.value) return;
+      if (event.defaultPrevented || disabled.value || isAttrDisabled(attrs))
+        return;
       send();
     };
     return () =>
@@ -22,7 +24,7 @@ export const ComposerPrimitiveSend = defineComponent({
         "button",
         mergeProps(attrs, {
           type: "button",
-          disabled: disabled.value,
+          disabled: disabled.value || isAttrDisabled(attrs),
           onClick,
         }),
         slots.default?.(),
