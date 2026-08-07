@@ -42,7 +42,10 @@ export const createEchoRuntime = () => {
         messages = messages.slice(0, -1);
       }
       isRunning = false;
-      sync();
+      // cancelRun restores the trailing user message into the composer
+      // synchronously after onCancel returns; an eager sync would delete it
+      // before that restore reads it.
+      queueMicrotask(sync);
     },
   });
 
