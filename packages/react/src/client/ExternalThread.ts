@@ -737,8 +737,10 @@ const createSpeechController = (
   let session: { messageId: string; cancel: () => void } | undefined;
 
   const clear = () => {
-    session?.cancel();
+    if (!session) return;
+    session.cancel();
     session = undefined;
+    notify(undefined);
   };
 
   return {
@@ -769,8 +771,8 @@ const createSpeechController = (
       session = {
         messageId: message.id,
         cancel: () => {
-          utterance.cancel();
           unsub!();
+          utterance.cancel();
         },
       };
       notify({ messageId: message.id, status: utterance.status });
@@ -778,19 +780,13 @@ const createSpeechController = (
     stop: () => {
       if (!session) throw new Error("No message is being spoken");
       clear();
-      notify(undefined);
     },
     stopMessage: (messageId: string) => {
       if (session?.messageId !== messageId)
         throw new Error("Message is not being spoken");
       clear();
-      notify(undefined);
     },
-    dispose: () => {
-      if (!session) return;
-      clear();
-      notify(undefined);
-    },
+    dispose: clear,
   };
 };
 
@@ -839,10 +835,13 @@ const useExternalThread = ({
     [messagesProp],
   );
 
-  const [speech, setSpeech] = useState<SpeechState | undefined>(undefined);
+  const [speechState, setSpeech] = useState<SpeechState | undefined>(
+    undefined,
+  );
   const [speechController] = useState(() => createSpeechController(setSpeech));
 
   const hasSpeechAdapter = !!speechAdapter;
+  const speech = hasSpeechAdapter ? speechState : undefined;
   useEffect(() => {
     if (!hasSpeechAdapter) speechController.dispose();
   }, [hasSpeechAdapter, speechController]);

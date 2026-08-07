@@ -40,7 +40,12 @@ const createFakeAdapter = () => {
   const adapter: SpeechSynthesisAdapter = {
     speak: (text) => {
       const subscribers = new Set<() => void>();
-      const cancel = vi.fn();
+      // mirror WebSpeechSynthesisAdapter: cancel transitions to ended and notifies synchronously
+      const cancel = vi.fn(() => {
+        if (utterance.status.type === "ended") return;
+        utterance.status = { type: "ended", reason: "cancelled" };
+        for (const subscriber of subscribers) subscriber();
+      });
       const utterance: SpeechSynthesisAdapter.Utterance = {
         status: { type: "starting" },
         cancel,
