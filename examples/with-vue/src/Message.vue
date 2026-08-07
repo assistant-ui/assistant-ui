@@ -72,7 +72,7 @@ const copied = useAuiState((s) => s.message.isCopied);
       <span v-if="pulsing" class="animate-pulse">…</span>
     </div>
     <div
-      class="text-muted-foreground flex items-center gap-1 px-2 opacity-0 transition-opacity group-hover:opacity-100"
+      class="text-muted-foreground flex items-center gap-1 px-2 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100"
     >
       <ActionBarPrimitiveEdit
         v-if="role === 'user'"

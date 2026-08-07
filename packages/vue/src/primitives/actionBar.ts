@@ -128,17 +128,25 @@ export const ActionBarPrimitiveCopy = defineComponent({
         ? composerText.value
         : aui.message.getCopyText();
       if (!value) return;
+      // A by-index scope follows whatever message occupies the slot, so late
+      // completions and timers re-check the copied message's id before
+      // touching state.
+      const copiedMessageId = aui.message.getState().id;
+      const stillCopiedMessage = () =>
+        !disposed && aui.message.getState().id === copiedMessageId;
       // The rejection handler swallows clipboard write failures (permission
       // denied, API unavailable) so they don't surface as unhandled promise
       // rejections.
       Promise.resolve(defaultCopyToClipboard(value)).then(
         () => {
-          if (disposed) return;
+          if (!stillCopiedMessage()) return;
           if (copiedTimer !== undefined) clearTimeout(copiedTimer);
           flushTapSync(() => aui.message.setIsCopied(true));
           copiedTimer = setTimeout(() => {
             copiedTimer = undefined;
-            if (!disposed) flushTapSync(() => aui.message.setIsCopied(false));
+            if (stillCopiedMessage()) {
+              flushTapSync(() => aui.message.setIsCopied(false));
+            }
           }, props.copiedDuration);
         },
         () => {},

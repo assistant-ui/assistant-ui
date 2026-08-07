@@ -335,6 +335,62 @@ describe("edit flow and branches", () => {
     unmount();
   });
 
+  it("drops a late copy completion after the branch under the index changes", async () => {
+    let resolveWrite!: () => void;
+    const writeText = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveWrite = resolve;
+        }),
+    );
+    Object.defineProperty(navigator, "clipboard", {
+      value: { writeText },
+      configurable: true,
+    });
+
+    const { runtime, seed } = createEditableRuntime();
+    const { el, unmount } = mountChat(runtime);
+
+    flushTapSync(() =>
+      seed([
+        { id: "u1", role: "user", text: "hello" },
+        { id: "a1", role: "assistant", text: "Echo: hello" },
+      ]),
+    );
+    await vi.waitFor(async () => {
+      await nextTick();
+      expect(el.querySelectorAll("li.msg")).toHaveLength(2);
+    });
+
+    const user = userItem(el);
+    q(user, "button.copy").click();
+    expect(writeText).toHaveBeenCalledWith("hello");
+
+    q(user, "button.edit").click();
+    await vi.waitFor(async () => {
+      await nextTick();
+      expect(q<HTMLTextAreaElement>(user, "textarea.editor").value).toBe(
+        "hello",
+      );
+    });
+    const editor = q<HTMLTextAreaElement>(user, "textarea.editor");
+    editor.value = "goodbye";
+    flushTapSync(() => editor.dispatchEvent(new Event("input")));
+    q(user, "button.send").click();
+    await vi.waitFor(async () => {
+      await nextTick();
+      expect(q(userItem(el), "span.text").textContent).toBe("goodbye");
+    });
+
+    resolveWrite();
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    expect(q(userItem(el), "button.copy").hasAttribute("data-copied")).toBe(
+      false,
+    );
+
+    unmount();
+  });
+
   it("stays inert when the clipboard API is unavailable", async () => {
     const { runtime, seed } = createEditableRuntime();
     const { el, unmount } = mountChat(runtime);
