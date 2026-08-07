@@ -10,6 +10,7 @@ from assistant_stream.assistant_stream_chunk import (
     StepFinishChunk,
     StepStartChunk,
     TextDeltaChunk,
+    ToolCallArgsTextFinishChunk,
     ToolCallBeginChunk,
     ToolCallDeltaChunk,
     ToolResultChunk,
@@ -679,4 +680,39 @@ async def test_assistant_transport_encoder_run_controller_emit_paths():
             "usage": {"inputTokens": 12, "outputTokens": 34},
             "isContinued": False,
         },
+    ]
+
+
+@pytest.mark.anyio
+async def test_assistant_transport_encoder_explicit_args_finish_settles_the_part():
+    """An explicit args-text-finish settles the tool part where it arrives
+    rather than at stream close, so later content is framed after a completed
+    call. A repeat finish for the same id is a no-op."""
+    encoder = AssistantTransportEncoder()
+
+    async def stream():
+        yield ToolCallBeginChunk(tool_call_id="t1", tool_name="ask_human")
+        yield ToolCallDeltaChunk(tool_call_id="t1", args_text_delta='{"q": "ok?"}')
+        yield ToolCallArgsTextFinishChunk(tool_call_id="t1")
+        yield ToolCallArgsTextFinishChunk(tool_call_id="t1")
+        yield TextDeltaChunk(text_delta="after")
+
+    collected = [
+        json.loads(line[6:-2])
+        async for line in encoder.encode_stream(stream())
+        if line != "data: [DONE]\n\n"
+    ]
+
+    assert collected == [
+        {
+            "type": "part-start",
+            "part": {"type": "tool-call", "toolCallId": "t1", "toolName": "ask_human"},
+            "path": [],
+        },
+        {"type": "text-delta", "textDelta": '{"q": "ok?"}', "path": [0]},
+        {"type": "tool-call-args-text-finish", "path": [0]},
+        {"type": "part-finish", "path": [0]},
+        {"type": "part-start", "part": {"type": "text"}, "path": []},
+        {"type": "text-delta", "textDelta": "after", "path": [1]},
+        {"type": "part-finish", "path": [1]},
     ]
