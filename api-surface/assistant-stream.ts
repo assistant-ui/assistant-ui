@@ -202,6 +202,9 @@ type AssistantStreamController = {
   appendFile(options: FilePart): void;
   appendData(options: DataPart): void;
   addTextPart(): TextStreamController;
+  addReasoningPart(options?: {
+    unstable_summary?: string;
+  }): TextStreamController;
   addToolCallPart(options: string): ToolCallStreamController;
   addToolCallPart(options: ToolCallPartInit): ToolCallStreamController;
   enqueue(chunk: AssistantStreamChunk): void;
@@ -997,8 +1000,12 @@ interface Options extends ReadableOptions {
 declare const PARTIAL_JSON_OBJECT_META_SYMBOL: unique symbol;
 
 type PartInit = {
-  readonly type: "reasoning" | "text";
+  readonly type: "text";
   readonly parentId?: string;
+} | {
+  readonly type: "reasoning";
+  readonly parentId?: string;
+  readonly unstable_summary?: string;
 } | {
   readonly type: "tool-call";
   readonly toolCallId: string;
@@ -1107,6 +1114,7 @@ type ReasoningPart = {
   text: string;
   status: TextStatus;
   parentId?: string;
+  unstable_summary?: string;
 };
 
 declare type ReconnectOnError = (err: Error) => boolean | 1 | 2;

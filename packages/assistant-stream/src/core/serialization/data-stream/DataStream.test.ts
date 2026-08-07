@@ -185,6 +185,74 @@ describe("DataStreamEncoder streamed tool-call args", () => {
   });
 });
 
+describe("reasoning part starts", () => {
+  it("encodes reasoning metadata before its deltas", async () => {
+    const lines = await encodeChunks([
+      {
+        type: "part-start",
+        path: [],
+        part: {
+          type: "reasoning",
+          unstable_summary: "Planning",
+        },
+      },
+      { type: "text-delta", path: [0], textDelta: "thinking" },
+      { type: "part-finish", path: [0] },
+    ]);
+
+    expect(lines).toEqual([
+      'aui-reasoning-part-start:{"unstable_summary":"Planning"}',
+      'g:"thinking"',
+    ]);
+  });
+
+  it("preserves summary-only reasoning parts through decoding", async () => {
+    const chunks = await decodeLines([
+      'aui-reasoning-part-start:{"unstable_summary":"Planning"}',
+    ]);
+
+    expect(
+      chunks.find(
+        (chunk) =>
+          chunk.type === "part-start" && chunk.part.type === "reasoning",
+      ),
+    ).toMatchObject({
+      part: { type: "reasoning", unstable_summary: "Planning" },
+    });
+    expect(chunks.some((chunk) => chunk.type === "text-delta")).toBe(false);
+  });
+
+  it("keeps a reasoning delta in the explicit part", async () => {
+    const chunks = await decodeLines([
+      'aui-reasoning-part-start:{"parentId":"group","unstable_summary":"Planning"}',
+      'aui-reasoning-delta:{"parentId":"group","reasoningDelta":"thinking"}',
+    ]);
+
+    expect(
+      chunks.filter(
+        (chunk) =>
+          chunk.type === "part-start" && chunk.part.type === "reasoning",
+      ),
+    ).toHaveLength(1);
+    expect(chunks.find((chunk) => chunk.type === "text-delta")).toMatchObject({
+      path: [0],
+      textDelta: "thinking",
+    });
+    expect(
+      chunks.find(
+        (chunk) =>
+          chunk.type === "part-start" && chunk.part.type === "reasoning",
+      ),
+    ).toMatchObject({
+      path: [],
+      part: {
+        parentId: "group",
+        unstable_summary: "Planning",
+      },
+    });
+  });
+});
+
 describe("DataStreamDecoder interleaved tool-call args", () => {
   it("preserves args interleaved with text until the final args frame", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});

@@ -33,6 +33,7 @@ export type ReasoningPart = {
   text: string;
   status: TextStatus;
   parentId?: string;
+  unstable_summary?: string;
 };
 
 type ToolCallStatus =

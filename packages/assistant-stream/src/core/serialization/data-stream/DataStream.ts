@@ -13,6 +13,7 @@ import {
   AssistantMetaTransformStream,
 } from "../../utils/stream/AssistantMetaTransformStream";
 import type { AssistantStreamEncoder } from "../../AssistantStream";
+import type { TextStreamController } from "../../modules/text";
 
 type DataStreamOptions = {
   strict?: boolean | undefined;
@@ -73,6 +74,13 @@ export class DataStreamEncoder
                   value,
                 });
                 openToolCallArgs.set(part.toolCallId, false);
+              }
+              if (part.type === "reasoning") {
+                const { type, ...value } = part;
+                controller.enqueue({
+                  type: DataStreamStreamChunkType.AuiReasoningPartStart,
+                  value,
+                });
               }
               if (part.type === "source") {
                 const { type, ...value } = part;
@@ -262,6 +270,10 @@ export class DataStreamDecoder extends PipeableTransformStream<
     const strict = options.strict ?? true;
     super((readable) => {
       const toolCallControllers = new Map<string, ToolCallStreamController>();
+      const reasoningControllers = new Map<
+        string | undefined,
+        TextStreamController
+      >();
       const closedToolCallArgs = new Set<string>();
       const warnedDroppedArgs = new Set<string>();
       const loggedDrops = new Set<string>();
@@ -277,34 +289,77 @@ export class DataStreamDecoder extends PipeableTransformStream<
           closedToolCallArgs.add(toolCallId);
         }
       };
+      const closeReasoning = (parentId?: string) => {
+        reasoningControllers.get(parentId)?.close();
+        reasoningControllers.delete(parentId);
+      };
+      const closeAllReasoning = () => {
+        for (const reasoningController of reasoningControllers.values()) {
+          reasoningController.close();
+        }
+        reasoningControllers.clear();
+      };
       const transform = new AssistantTransformStream<DataStreamChunk>({
         strict,
         transform(chunk, controller) {
           const { type, value } = chunk;
 
           switch (type) {
+            case DataStreamStreamChunkType.AuiReasoningPartStart: {
+              const { parentId, unstable_summary } = value;
+              closeReasoning(parentId);
+              const ctrl = parentId
+                ? controller.withParentId(parentId)
+                : controller;
+              reasoningControllers.set(
+                parentId,
+                ctrl.addReasoningPart(
+                  unstable_summary === undefined
+                    ? undefined
+                    : { unstable_summary },
+                ),
+              );
+              break;
+            }
+
             case DataStreamStreamChunkType.ReasoningDelta:
-              controller.appendReasoning(value);
+              {
+                const reasoningController = reasoningControllers.get(undefined);
+                if (reasoningController) reasoningController.append(value);
+                else controller.appendReasoning(value);
+              }
               break;
 
             case DataStreamStreamChunkType.TextDelta:
+              closeReasoning();
               controller.appendText(value);
               break;
 
             case DataStreamStreamChunkType.AuiTextDelta:
+              closeReasoning(value.parentId);
               controller
                 .withParentId(value.parentId)
                 .appendText(value.textDelta);
               break;
 
             case DataStreamStreamChunkType.AuiReasoningDelta:
-              controller
-                .withParentId(value.parentId)
-                .appendReasoning(value.reasoningDelta);
+              {
+                const reasoningController = reasoningControllers.get(
+                  value.parentId,
+                );
+                if (reasoningController) {
+                  reasoningController.append(value.reasoningDelta);
+                } else {
+                  controller
+                    .withParentId(value.parentId)
+                    .appendReasoning(value.reasoningDelta);
+                }
+              }
               break;
 
             case DataStreamStreamChunkType.StartToolCall: {
               const { toolCallId, toolName, parentId } = value;
+              closeReasoning(parentId);
               const ctrl = parentId
                 ? controller.withParentId(parentId)
                 : controller;
@@ -404,6 +459,7 @@ export class DataStreamDecoder extends PipeableTransformStream<
             }
 
             case DataStreamStreamChunkType.FinishMessage:
+              closeAllReasoning();
               closeOpenToolCallArgs();
               controller.enqueue({
                 type: "message-finish",
@@ -421,6 +477,7 @@ export class DataStreamDecoder extends PipeableTransformStream<
               break;
 
             case DataStreamStreamChunkType.FinishStep:
+              closeAllReasoning();
               closeOpenToolCallArgs();
               controller.enqueue({
                 type: "step-finish",
@@ -446,6 +503,7 @@ export class DataStreamDecoder extends PipeableTransformStream<
 
             case DataStreamStreamChunkType.Source: {
               const { parentId, ...sourceData } = value;
+              closeReasoning(parentId);
               const ctrl = parentId
                 ? controller.withParentId(parentId)
                 : controller;
@@ -457,6 +515,7 @@ export class DataStreamDecoder extends PipeableTransformStream<
             }
 
             case DataStreamStreamChunkType.Error:
+              closeAllReasoning();
               closeOpenToolCallArgs();
               controller.enqueue({
                 type: "error",
@@ -466,6 +525,7 @@ export class DataStreamDecoder extends PipeableTransformStream<
               break;
 
             case DataStreamStreamChunkType.File:
+              closeReasoning();
               controller.appendFile({
                 type: "file",
                 ...value,
@@ -473,6 +533,7 @@ export class DataStreamDecoder extends PipeableTransformStream<
               break;
 
             case DataStreamStreamChunkType.AuiDataPart:
+              closeReasoning(value.parentId);
               controller.appendData({
                 type: "data",
                 ...value,
@@ -504,6 +565,7 @@ export class DataStreamDecoder extends PipeableTransformStream<
           }
         },
         flush() {
+          closeAllReasoning();
           closeOpenToolCallArgs();
           toolCallControllers.forEach((controller) => controller.close());
           toolCallControllers.clear();

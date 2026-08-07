@@ -6,6 +6,7 @@ from assistant_stream.assistant_stream_chunk import (
     ErrorChunk,
     FileChunk,
     ReasoningDeltaChunk,
+    ReasoningPartStartChunk,
     SourceChunk,
     StepFinishChunk,
     StepStartChunk,
@@ -101,6 +102,31 @@ async def test_assistant_transport_encoder_reasoning():
 
     assert collected_chunks == [
         {"type": "part-start", "part": {"type": "reasoning"}, "path": []},
+        {"type": "text-delta", "textDelta": "Thinking...", "path": [0]},
+        {"type": "part-finish", "path": [0]},
+    ]
+
+
+@pytest.mark.anyio
+async def test_assistant_transport_encoder_reasoning_summary():
+    encoder = AssistantTransportEncoder()
+
+    async def stream():
+        yield ReasoningPartStartChunk(unstable_summary="Planning")
+        yield ReasoningDeltaChunk(reasoning_delta="Thinking...")
+
+    collected_chunks = [
+        json.loads(line[6:-2])
+        async for line in encoder.encode_stream(stream())
+        if line != "data: [DONE]\n\n"
+    ]
+
+    assert collected_chunks == [
+        {
+            "type": "part-start",
+            "part": {"type": "reasoning", "unstable_summary": "Planning"},
+            "path": [],
+        },
         {"type": "text-delta", "textDelta": "Thinking...", "path": [0]},
         {"type": "part-finish", "path": [0]},
     ]

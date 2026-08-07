@@ -270,6 +270,44 @@ describe("AssistantStreamController withParentId", () => {
     expect(grouped?.parentId).toBe("group-1");
   });
 
+  it("preserves a reasoning summary through the canonical response path", async () => {
+    const response = createAssistantStreamResponse((controller) => {
+      const reasoning = controller.addReasoningPart({
+        unstable_summary: "Planning",
+      });
+      reasoning.append("thinking");
+      reasoning.close();
+    });
+
+    const message = await accumulate(response);
+    const reasoningParts = message.parts.filter(
+      (part) => part.type === "reasoning",
+    );
+
+    expect(reasoningParts).toHaveLength(1);
+    expect(reasoningParts[0]).toMatchObject({
+      text: "thinking",
+      unstable_summary: "Planning",
+    });
+  });
+
+  it("preserves a summary-only reasoning part through the canonical response path", async () => {
+    const response = createAssistantStreamResponse((controller) => {
+      const summaryOnly = controller.addReasoningPart({
+        unstable_summary: "Summary-only",
+      });
+      summaryOnly.close();
+    });
+
+    const message = await accumulate(response);
+    expect(message.parts).toContainEqual(
+      expect.objectContaining({
+        text: "",
+        unstable_summary: "Summary-only",
+      }),
+    );
+  });
+
   it("opens a new text part when withParentId switches between ids", async () => {
     const response = createAssistantStreamResponse((controller) => {
       controller.withParentId("group-1").appendText("first");

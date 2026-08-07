@@ -18,6 +18,13 @@ class ReasoningDeltaChunk:
 
 
 @dataclass
+class ReasoningPartStartChunk:
+    unstable_summary: Optional[str] = None
+    type: str = "reasoning-part-start"
+    parent_id: Optional[str] = None
+
+
+@dataclass
 class ToolCallBeginChunk:
     tool_call_id: str
     tool_name: str
@@ -125,6 +132,7 @@ class StepFinishChunk:
 AssistantStreamChunk = Union[
     TextDeltaChunk,
     ReasoningDeltaChunk,
+    ReasoningPartStartChunk,
     ToolCallBeginChunk,
     ToolCallDeltaChunk,
     ToolCallArgsTextFinishChunk,

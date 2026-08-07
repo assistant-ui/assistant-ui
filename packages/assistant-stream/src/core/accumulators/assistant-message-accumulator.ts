@@ -85,6 +85,10 @@ const handlePartStart = (
       text: "",
       status: { type: "running" },
       ...(partInit.parentId && { parentId: partInit.parentId }),
+      ...(partInit.type === "reasoning" &&
+        partInit.unstable_summary !== undefined && {
+          unstable_summary: partInit.unstable_summary,
+        }),
     };
     return {
       ...message,

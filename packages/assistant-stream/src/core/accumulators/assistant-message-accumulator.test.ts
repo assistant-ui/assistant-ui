@@ -30,6 +30,25 @@ const collectStream = async (
 };
 
 describe("AssistantMessageAccumulator timing", () => {
+  it("preserves reasoning metadata for an empty part", async () => {
+    const messages = await collectStream([
+      {
+        type: "part-start",
+        path: [],
+        part: { type: "reasoning", unstable_summary: "Planning" },
+      },
+      { type: "part-finish", path: [0] },
+    ]);
+
+    expect(messages.at(-1)?.parts).toContainEqual(
+      expect.objectContaining({
+        type: "reasoning",
+        text: "",
+        unstable_summary: "Planning",
+      }),
+    );
+  });
+
   it("should include timing on message-finish", async () => {
     const chunks: AssistantStreamChunk[] = [
       { type: "step-start", path: [], messageId: "msg-1" },

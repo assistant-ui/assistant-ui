@@ -2,6 +2,7 @@ from assistant_stream.assistant_stream_chunk import (
     AssistantStreamChunk,
     ToolCallArgsTextFinishChunk,
     ToolCallDeltaChunk,
+    ReasoningPartStartChunk,
 )
 import json
 import logging
@@ -39,6 +40,13 @@ class DataStreamEncoder(StreamEncoder):
                 return f"aui-reasoning-delta:{json.dumps({'reasoningDelta': chunk.reasoning_delta, 'parentId': chunk.parent_id}, cls=StateProxyJSONEncoder)}\n"
             else:
                 return f"g:{json.dumps(chunk.reasoning_delta, cls=StateProxyJSONEncoder)}\n"
+        elif chunk.type == "reasoning-part-start":
+            data = {}
+            if chunk.parent_id:
+                data["parentId"] = chunk.parent_id
+            if chunk.unstable_summary is not None:
+                data["unstable_summary"] = chunk.unstable_summary
+            return f"aui-reasoning-part-start:{json.dumps(data, cls=StateProxyJSONEncoder)}\n"
         elif chunk.type == "tool-call-begin":
             data = {"toolCallId": chunk.tool_call_id, "toolName": chunk.tool_name}
             if hasattr(chunk, 'parent_id') and chunk.parent_id:

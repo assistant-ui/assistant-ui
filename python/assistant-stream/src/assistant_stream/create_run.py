@@ -5,6 +5,7 @@ from assistant_stream.assistant_stream_chunk import (
     AssistantStreamChunk,
     TextDeltaChunk,
     ReasoningDeltaChunk,
+    ReasoningPartStartChunk,
     ToolResultChunk,
     DataChunk,
     ErrorChunk,
@@ -68,6 +69,14 @@ class RunController:
     def append_reasoning(self, reasoning_delta: str) -> None:
         """Append a reasoning delta to the stream."""
         chunk = ReasoningDeltaChunk(reasoning_delta=reasoning_delta, parent_id=self._parent_id)
+        self._flush_and_put_chunk(chunk)
+
+    def add_reasoning_part(self, unstable_summary: str | None = None) -> None:
+        """Open a reasoning part, optionally carrying a display summary."""
+        chunk = ReasoningPartStartChunk(
+            unstable_summary=unstable_summary,
+            parent_id=self._parent_id,
+        )
         self._flush_and_put_chunk(chunk)
 
     def append_state_text(

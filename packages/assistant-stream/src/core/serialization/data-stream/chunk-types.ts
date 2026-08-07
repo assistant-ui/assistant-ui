@@ -46,6 +46,7 @@ export const DataStreamStreamChunkType = {
   AuiUpdateStateOperations: "aui-state",
   AuiTextDelta: "aui-text-delta",
   AuiReasoningDelta: "aui-reasoning-delta",
+  AuiReasoningPartStart: "aui-reasoning-part-start",
   AuiDataPart: "aui-data",
 } as const;
 export type DataStreamStreamChunkType =
@@ -111,6 +112,10 @@ type DataStreamStreamChunkValue = {
   [DataStreamStreamChunkType.AuiReasoningDelta]: {
     reasoningDelta: string;
     parentId: string;
+  };
+  [DataStreamStreamChunkType.AuiReasoningPartStart]: {
+    parentId?: string;
+    unstable_summary?: string;
   };
   [DataStreamStreamChunkType.AuiDataPart]: {
     name: string;

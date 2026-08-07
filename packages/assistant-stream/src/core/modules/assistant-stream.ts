@@ -55,6 +55,10 @@ export type AssistantStreamController = {
    * part first.
    */
   addTextPart(): TextStreamController;
+  /** Opens a reasoning part and returns its writer. */
+  addReasoningPart(options?: {
+    unstable_summary?: string;
+  }): TextStreamController;
   /**
    * Opens a tool-call part by tool name and returns its writer.
    *
@@ -203,11 +207,19 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
     return controller;
   }
 
-  addReasoningPart() {
+  addReasoningPart(options: { unstable_summary?: string } = {}) {
     const [stream, controller] = createTextStreamController({
       strict: this._state.strict,
     });
-    this._addPart(this._withParentIdOption({ type: "reasoning" }), stream);
+    this._addPart(
+      this._withParentIdOption({
+        type: "reasoning",
+        ...(options.unstable_summary !== undefined && {
+          unstable_summary: options.unstable_summary,
+        }),
+      }),
+      stream,
+    );
     return controller;
   }
 

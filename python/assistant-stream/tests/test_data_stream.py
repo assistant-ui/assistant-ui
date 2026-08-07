@@ -7,6 +7,8 @@ from assistant_stream.assistant_stream_chunk import (
     AnnotationsChunk,
     ErrorChunk,
     FileChunk,
+    ReasoningDeltaChunk,
+    ReasoningPartStartChunk,
     StepFinishChunk,
     StepStartChunk,
     TextDeltaChunk,
@@ -86,6 +88,43 @@ def test_data_stream_encoder_file_frame_has_no_parent_id_field() -> None:
     )
 
     assert encoded == 'k:{"data": "x", "mimeType": "text/plain"}\n'
+
+
+def test_data_stream_encoder_reasoning_part_start_frame() -> None:
+    encoder = DataStreamEncoder()
+
+    assert encoder.encode_chunk(
+        ReasoningPartStartChunk(
+            unstable_summary="Planning",
+            parent_id="group",
+        )
+    ) == 'aui-reasoning-part-start:{"parentId": "group", "unstable_summary": "Planning"}\n'
+
+
+@pytest.mark.anyio
+async def test_data_stream_encoder_reasoning_part_start_without_text() -> None:
+    async def stream():
+        yield ReasoningPartStartChunk(unstable_summary="Planning")
+
+    encoded = [frame async for frame in DataStreamEncoder().encode_stream(stream())]
+
+    assert encoded == [
+        'aui-reasoning-part-start:{"unstable_summary": "Planning"}\n',
+    ]
+
+
+@pytest.mark.anyio
+async def test_data_stream_encoder_reasoning_part_start_with_text() -> None:
+    async def stream():
+        yield ReasoningPartStartChunk(unstable_summary="Planning")
+        yield ReasoningDeltaChunk(reasoning_delta="thinking")
+
+    encoded = [frame async for frame in DataStreamEncoder().encode_stream(stream())]
+
+    assert encoded == [
+        'aui-reasoning-part-start:{"unstable_summary": "Planning"}\n',
+        'g:"thinking"\n',
+    ]
 
 
 @pytest.mark.anyio
