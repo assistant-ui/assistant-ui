@@ -223,21 +223,12 @@ export const AssistantShellSidebar: FC<AssistantShellSidebarProps> = ({
             </span>
           )}
         </div>
-        <div
-          data-slot="aui_shell-sidebar-scroll"
-          ref={fade.ref}
-          data-overflowing={fade.overflowing && !collapsed ? "" : undefined}
-          className={cn(
-            // overflow-x-hidden: group labels are wider than the collapsed rail and would otherwise raise a horizontal overlay scrollbar above the footer.
-            "relative flex-1 overflow-x-hidden transition-[width] duration-200",
-            collapsed ? "w-12 overflow-y-hidden" : "w-65 overflow-y-auto",
-            SCROLL_FADE_CLASS,
-          )}
-        >
-          <ThreadListRoot
+        <ThreadListRoot className="min-h-0 flex-1 overflow-hidden">
+          <div
+            data-slot="aui_shell-sidebar-new"
             className={cn(
-              "transition-[padding] duration-200",
-              collapsed ? "px-2 pt-1" : "p-3",
+              "shrink-0 transition-[padding] duration-200",
+              collapsed ? "px-2 pt-1" : "px-3 pt-3",
             )}
           >
             <TooltipProvider>
@@ -268,6 +259,20 @@ export const AssistantShellSidebar: FC<AssistantShellSidebarProps> = ({
                 )}
               </Tooltip>
             </TooltipProvider>
+          </div>
+          <div
+            data-slot="aui_shell-sidebar-scroll"
+            ref={fade.ref}
+            data-overflowing={fade.overflowing && !collapsed ? "" : undefined}
+            className={cn(
+              // overflow-x-hidden: group labels are wider than the collapsed rail and would otherwise raise a horizontal overlay scrollbar above the footer.
+              "relative flex-1 overflow-x-hidden transition-[padding] duration-200",
+              collapsed
+                ? "overflow-y-hidden px-2"
+                : "overflow-y-auto px-3 pb-3",
+              SCROLL_FADE_CLASS,
+            )}
+          >
             <ThreadListItems
               aria-hidden={collapsed}
               inert={collapsed}
@@ -278,8 +283,8 @@ export const AssistantShellSidebar: FC<AssistantShellSidebarProps> = ({
                   : "translate-x-0 opacity-100",
               )}
             />
-          </ThreadListRoot>
-        </div>
+          </div>
+        </ThreadListRoot>
         {footer != null && (
           <div
             data-slot="aui_shell-sidebar-footer"
@@ -497,8 +502,11 @@ export const AssistantShellFooterItem: FC<AssistantShellFooterItemProps> = ({
               {...props}
               className={cn(
                 // border-none frees the full 32px rail width for the icon, which the Button's 1px transparent border would otherwise clip.
-                "h-auto overflow-hidden border-none transition-all duration-200",
-                collapsed ? "w-8 gap-0 p-0" : "w-full justify-start gap-2 p-2",
+                "overflow-hidden border-none transition-all duration-200",
+                // The zero-width label stack keeps its natural height, so the collapsed button must pin h-8 or its hover surface outgrows the avatar.
+                collapsed
+                  ? "size-8 gap-0 p-0"
+                  : "h-auto w-full justify-start gap-2 p-2",
                 className,
               )}
             >
