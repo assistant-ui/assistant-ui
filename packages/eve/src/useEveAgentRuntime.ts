@@ -46,17 +46,12 @@ const EMPTY_TURN_TIMESTAMPS: ReadonlyMap<string, Date> = new Map();
 
 type AssignedCreatedAt = { at: Date; durable: boolean };
 
-// Eve's store grows its event log via [...events, event], so a later snapshot
-// shares its prefix elements by reference and the cache can resume where it
-// left off. The reuse is validated, never trusted: the cache may hold state
-// from a discarded render, so every previously scanned element must still be
-// identical at the same index. A boundary-only check would accept a snapshot
-// that replaced an earlier event while keeping a later one, and the timestamp
-// derived from the replaced event would survive unscanned. Validating the whole
-// prefix costs one reference comparison per already-scanned element on every
-// snapshot, and that price is deliberate: it is a pointer comparison over an
-// already-materialized array, below the noise floor of the per-snapshot message
-// rebuild it feeds, and no cheaper check preserves the invariant.
+// Eve grows its event log via [...events, event], so a later snapshot shares
+// its prefix by reference and the scan can resume where it left off. The reuse
+// is validated rather than trusted, because the cache may hold state from a
+// discarded render. The whole prefix is compared: a boundary-only check accepts
+// a snapshot that replaced an earlier event while keeping a later one, and the
+// timestamp derived from the replaced event would survive unscanned.
 //
 // The map is copied on write and returned by identity, so a scan that learns
 // nothing new lets callers keep memoized work alive.
