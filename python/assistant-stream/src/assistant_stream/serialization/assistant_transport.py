@@ -124,6 +124,14 @@ class _Canonicalizer:
                 f"tool-call-delta for {chunk.tool_call_id}",
             )
             return []
+        if chunk.tool_call_id in self._settled_tools:
+            # The path outlives settlement so a deferred result can address the
+            # part; arguments cannot still be appended to it.
+            self._warn_once(
+                "settled-tool-call-id",
+                f"tool-call-delta for {chunk.tool_call_id}",
+            )
+            return []
         self._tool_has_args.add(chunk.tool_call_id)
         return [
             {"type": "text-delta", "textDelta": chunk.args_text_delta, "path": path}
@@ -160,7 +168,18 @@ class _Canonicalizer:
         if path is None or chunk.tool_call_id in self._settled_tools:
             return []
         self._settled_tools.add(chunk.tool_call_id)
-        return self._close_tool_part(chunk.tool_call_id, path)
+        frames: list[dict[str, Any]] = []
+        if chunk.args_text_delta:
+            self._tool_has_args.add(chunk.tool_call_id)
+            frames.append(
+                {
+                    "type": "text-delta",
+                    "textDelta": chunk.args_text_delta,
+                    "path": path,
+                }
+            )
+        frames.extend(self._close_tool_part(chunk.tool_call_id, path))
+        return frames
 
     def _close_tool_part(
         self, tool_call_id: str, path: list[int]

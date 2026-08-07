@@ -746,3 +746,56 @@ async def test_assistant_transport_encoder_result_after_args_finish_keeps_the_pa
     ]
     # The part settled once, at the args finish; the result does not repeat it.
     assert [c["type"] for c in collected].count("part-finish") == 1
+
+
+@pytest.mark.anyio
+async def test_assistant_transport_encoder_carries_trailing_args_on_the_finish_chunk():
+    """Trailing arguments delivered on the finish chunk reach the wire and
+    satisfy the empty-object default, matching the data-stream encoder for the
+    same chunk sequence."""
+    encoder = AssistantTransportEncoder()
+
+    async def stream():
+        yield ToolCallBeginChunk(tool_call_id="t1", tool_name="search")
+        yield ToolCallArgsTextFinishChunk(
+            tool_call_id="t1", args_text_delta='{"q": 1}'
+        )
+
+    collected = [
+        json.loads(line[6:-2])
+        async for line in encoder.encode_stream(stream())
+        if line != "data: [DONE]\n\n"
+    ]
+
+    assert collected == [
+        {
+            "type": "part-start",
+            "part": {"type": "tool-call", "toolCallId": "t1", "toolName": "search"},
+            "path": [],
+        },
+        {"type": "text-delta", "textDelta": '{"q": 1}', "path": [0]},
+        {"type": "tool-call-args-text-finish", "path": [0]},
+        {"type": "part-finish", "path": [0]},
+    ]
+
+
+@pytest.mark.anyio
+async def test_assistant_transport_encoder_rejects_args_after_the_part_settled():
+    """The path outlives settlement so a deferred result can address the part,
+    which must not let late arguments append to an already finished part."""
+    encoder = AssistantTransportEncoder()
+
+    async def stream():
+        yield ToolCallBeginChunk(tool_call_id="t1", tool_name="search")
+        yield ToolCallDeltaChunk(tool_call_id="t1", args_text_delta='{"q": 1}')
+        yield ToolCallArgsTextFinishChunk(tool_call_id="t1")
+        yield ToolCallDeltaChunk(tool_call_id="t1", args_text_delta=' ignored')
+
+    collected = [
+        json.loads(line[6:-2])
+        async for line in encoder.encode_stream(stream())
+        if line != "data: [DONE]\n\n"
+    ]
+
+    deltas = [c["textDelta"] for c in collected if c["type"] == "text-delta"]
+    assert deltas == ['{"q": 1}']
