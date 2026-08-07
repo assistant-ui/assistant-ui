@@ -782,7 +782,7 @@ const useExternalThread = ({
   const [speech, setSpeech] = useState<SpeechState | undefined>(undefined);
   const stopSpeakingRef = useRef<(() => void) | undefined>(undefined);
 
-  const handleSpeak = (message: ExternalThreadMessage) => {
+  const handleSpeak = useEffectEvent((message: ExternalThreadMessage) => {
     if (!speechAdapter) throw new Error("Speech adapter not configured");
 
     stopSpeakingRef.current?.();
@@ -805,12 +805,12 @@ const useExternalThread = ({
       setSpeech(undefined);
       stopSpeakingRef.current = undefined;
     };
-  };
+  });
 
-  const handleStopSpeaking = () => {
+  const handleStopSpeaking = useEffectEvent(() => {
     if (!stopSpeakingRef.current) throw new Error("No message is being spoken");
     stopSpeakingRef.current();
-  };
+  });
 
   const handleReload = (messageId: string) => {
     const messageIndex = messages.findIndex((m) => m.id === messageId);
