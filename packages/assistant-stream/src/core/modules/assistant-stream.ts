@@ -63,6 +63,9 @@ export type AssistantStreamController = {
    * Opens a reasoning part and returns its writer.
    *
    * Use the options object to provide an app-authored summary for the part.
+   * Only the assistant transport encoder carries the summary; the data stream
+   * wire has no reasoning part-start chunk, so it drops the summary and emits
+   * nothing at all for a part that never appends text.
    */
   addReasoningPart(options?: ReasoningPartInit): TextStreamController;
   /**

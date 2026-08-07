@@ -172,6 +172,22 @@ describe("fromThreadMessageLike", () => {
       ]);
     });
 
+    it("keeps a reasoning part whose summary is an empty string", () => {
+      // the accumulator and both auiV0 encoders gate on `!== undefined`, so an
+      // empty summary is a value the other layers preserve.
+      const message = fromThreadMessageLike(
+        {
+          role: "assistant",
+          content: [{ type: "reasoning", text: "", unstable_summary: "" }],
+        },
+        "m1",
+        { type: "complete", reason: "unknown" },
+      );
+
+      expect(message.content).toEqual([
+        { type: "reasoning", text: "", unstable_summary: "" },
+      ]);
+    });
     it("drops an assistant image part whose image is undefined", () => {
       const result = fromThreadMessageLike(
         {
