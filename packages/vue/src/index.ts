@@ -23,6 +23,13 @@ export {
   ActionBarPrimitiveReload,
   ActionBarPrimitiveCopy,
 } from "./primitives/actionBar";
+export {
+  SuggestionByIndexProvider,
+  ThreadPrimitiveSuggestions,
+  SuggestionPrimitiveTrigger,
+  SuggestionPrimitiveTitle,
+  SuggestionPrimitiveDescription,
+} from "./primitives/suggestions";
 
 export {
   AuiConfig,
