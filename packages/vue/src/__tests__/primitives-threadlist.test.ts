@@ -166,6 +166,11 @@ describe("thread list primitives", () => {
           .getAttribute("aria-current"),
       ).toBe("true");
     });
+    expect(
+      el
+        .querySelectorAll<HTMLButtonElement>("button.item")[0]!
+        .hasAttribute("data-active"),
+    ).toBe(false);
     await vi.waitFor(() => {
       expect(runtime.thread.getState().messages[0]!.content[0]).toMatchObject({
         type: "text",
