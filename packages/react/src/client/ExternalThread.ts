@@ -33,6 +33,7 @@ import type {
   ExternalThreadQueueAdapter,
   ExternalThreadBranchAdapter,
   QueuePlacement,
+  FeedbackAdapter,
 } from "@assistant-ui/core";
 import { ToolResponse } from "assistant-stream";
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
@@ -97,6 +98,7 @@ export type ExternalThreadProps = {
   onResumeToolCall?: ((options: ResumeToolCallOptions) => void) | undefined;
   onLoadExternalState?: ((state: unknown) => void) | undefined;
   attachmentAdapter?: AttachmentAdapter | undefined;
+  feedbackAdapter?: FeedbackAdapter | undefined;
   /** Queue adapter for runtimes that support message queuing and steering. */
   queue?: ExternalThreadQueueAdapter;
   /** Branch adapter for runtimes that track sibling variants of messages. */
@@ -119,6 +121,8 @@ type MessageClientProps = {
   onAddToolResult?: ((options: AddToolResultOptions) => void) | undefined;
   onResumeToolCall?: ((options: ResumeToolCallOptions) => void) | undefined;
   attachmentAdapter?: AttachmentAdapter | undefined;
+  submittedFeedback: { type: "positive" | "negative" } | undefined;
+  onSubmitFeedback: (feedback: { type: "positive" | "negative" }) => void;
 };
 
 // Message Client - minimal implementation
@@ -134,6 +138,8 @@ const useMessageClient = ({
   onAddToolResult,
   onResumeToolCall,
   attachmentAdapter,
+  submittedFeedback,
+  onSubmitFeedback,
 }: MessageClientProps): ClientOutput<"message"> => {
   const [isCopied, setIsCopied] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
@@ -206,6 +212,9 @@ const useMessageClient = ({
   const state = useMemo(() => {
     return {
       ...message,
+      ...(submittedFeedback && {
+        metadata: { ...message.metadata, submittedFeedback },
+      }),
       attachments: message.attachments ?? [],
       parentId,
       isLast: false, // Will be set by thread
@@ -228,6 +237,7 @@ const useMessageClient = ({
     partClients.state,
     branchNumber,
     branchCount,
+    submittedFeedback,
   ]);
 
   return {
@@ -239,7 +249,7 @@ const useMessageClient = ({
     },
     speak: () => {},
     stopSpeaking: () => {},
-    submitFeedback: () => {},
+    submitFeedback: onSubmitFeedback,
     switchToBranch: ({ position, branchId }) => {
       if (!branches) return;
       const target =
@@ -756,6 +766,7 @@ const useExternalThread = ({
   onResumeToolCall,
   onLoadExternalState,
   attachmentAdapter,
+  feedbackAdapter,
   queue,
   branches,
   onRespondToToolApproval,
@@ -764,6 +775,22 @@ const useExternalThread = ({
     () => dedupeMessagesById(messagesProp),
     [messagesProp],
   );
+
+  const [submittedFeedback, setSubmittedFeedback] = useState<
+    Record<string, { type: "positive" | "negative" }>
+  >({});
+
+  const handleSubmitFeedback = (
+    message: ExternalThreadMessage,
+    { type }: { type: "positive" | "negative" },
+  ) => {
+    if (!feedbackAdapter) throw new Error("Feedback adapter not configured");
+    feedbackAdapter.submit({ message, type });
+
+    if (message.role === "assistant") {
+      setSubmittedFeedback((prev) => ({ ...prev, [message.id]: { type } }));
+    }
+  };
 
   const handleReload = (messageId: string) => {
     const messageIndex = messages.findIndex((m) => m.id === messageId);
@@ -786,6 +813,8 @@ const useExternalThread = ({
         onAddToolResult,
         onResumeToolCall,
         attachmentAdapter,
+        submittedFeedback: submittedFeedback[msg.id],
+        onSubmitFeedback: (feedback) => handleSubmitFeedback(msg, feedback),
       };
       if (onEdit) props.onEdit = onEdit;
       return withKey(msg.id, MessageClient(props));
@@ -833,6 +862,7 @@ const useExternalThread = ({
   const hasEdit = !!onEdit;
   const hasReload = !!onReload;
   const hasAttachments = !!attachmentAdapter;
+  const hasFeedback = !!feedbackAdapter;
   const state = useMemo(() => {
     const messageStates = messageClients.state.map((s, idx, arr) => ({
       ...s,
@@ -852,7 +882,7 @@ const useExternalThread = ({
         cancel: isRunning,
         speech: false,
         attachments: hasAttachments,
-        feedback: false,
+        feedback: hasFeedback,
         voice: false,
         switchToBranch: hasBranches,
         switchBranchDuringRun: false,
@@ -879,6 +909,7 @@ const useExternalThread = ({
     hasEdit,
     hasReload,
     hasAttachments,
+    hasFeedback,
     messageClients.state,
     composerClient.state,
   ]);
