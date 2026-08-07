@@ -4,6 +4,7 @@ from assistant_stream.assistant_stream_chunk import (
     ToolCallDeltaChunk,
 )
 import json
+import logging
 from typing import AsyncGenerator, Any
 from assistant_stream.serialization.assistant_stream_response import (
     AssistantStreamResponse,
@@ -14,6 +15,8 @@ from assistant_stream.serialization.heartbeat import (
 )
 from assistant_stream.serialization.stream_encoder import StreamEncoder
 from assistant_stream.state_proxy import StateProxy
+
+logger = logging.getLogger(__name__)
 
 
 class StateProxyJSONEncoder(json.JSONEncoder):
@@ -98,6 +101,14 @@ class DataStreamEncoder(StreamEncoder):
         self, stream: AsyncGenerator[AssistantStreamChunk, None]
     ) -> AsyncGenerator[str, None]:
         open_tool_call_args: dict[str, bool] = {}
+        settled_tool_call_args: set[str] = set()
+        warned_reasons: set[str] = set()
+
+        def warn_once(reason: str, detail: str) -> None:
+            if reason in warned_reasons:
+                return
+            warned_reasons.add(reason)
+            logger.warning("Dropped data-stream chunk (%s): %s", reason, detail)
 
         def finish_tool_call_args(
             tool_call_id: str, args_text_delta: str = ""
@@ -105,6 +116,7 @@ class DataStreamEncoder(StreamEncoder):
             has_args_text = open_tool_call_args.pop(tool_call_id, None)
             if has_args_text is None:
                 return []
+            settled_tool_call_args.add(tool_call_id)
             if not args_text_delta and not has_args_text:
                 args_text_delta = "{}"
 
@@ -134,11 +146,19 @@ class DataStreamEncoder(StreamEncoder):
                 for finish in finish_open_tool_call_args():
                     yield finish
             if chunk.type == "tool-call-begin":
+                settled_tool_call_args.discard(chunk.tool_call_id)
                 open_tool_call_args[chunk.tool_call_id] = False
             elif chunk.type == "tool-result":
+                settled_tool_call_args.add(chunk.tool_call_id)
                 open_tool_call_args.pop(chunk.tool_call_id, None)
             elif chunk.type == "tool-call-delta":
                 if chunk.tool_call_id not in open_tool_call_args:
+                    warn_once(
+                        "settled-tool-call-id"
+                        if chunk.tool_call_id in settled_tool_call_args
+                        else "unknown-tool-call-id",
+                        f"tool-call-delta for {chunk.tool_call_id}",
+                    )
                     continue
                 open_tool_call_args[chunk.tool_call_id] = True
             elif chunk.type == "tool-call-args-text-finish":

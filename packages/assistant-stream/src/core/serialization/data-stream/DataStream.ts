@@ -30,6 +30,13 @@ export class DataStreamEncoder
   constructor() {
     super((readable) => {
       const openToolCallArgs = new Map<string, boolean>();
+      const settledToolCallArgs = new Set<string>();
+      const warnedReasons = new Set<string>();
+      const warnOnce = (reason: string, detail: string) => {
+        if (warnedReasons.has(reason)) return;
+        warnedReasons.add(reason);
+        console.warn(`Dropped data-stream chunk (${reason}): ${detail}`);
+      };
       const finishToolCallArgs = (
         controller: TransformStreamDefaultController<DataStreamChunk>,
         toolCallId: string,
@@ -37,6 +44,7 @@ export class DataStreamEncoder
         const hasArgsText = openToolCallArgs.get(toolCallId);
         if (hasArgsText === undefined) return;
         openToolCallArgs.delete(toolCallId);
+        settledToolCallArgs.add(toolCallId);
         controller.enqueue({
           type: DataStreamStreamChunkType.ToolCallArgsTextDelta,
           value: {
@@ -72,6 +80,7 @@ export class DataStreamEncoder
                   type: DataStreamStreamChunkType.StartToolCall,
                   value,
                 });
+                settledToolCallArgs.delete(part.toolCallId);
                 openToolCallArgs.set(part.toolCallId, false);
               }
               if (part.type === "source") {
@@ -128,7 +137,15 @@ export class DataStreamEncoder
                   break;
                 }
                 case "tool-call": {
-                  if (!openToolCallArgs.has(part.toolCallId)) break;
+                  if (!openToolCallArgs.has(part.toolCallId)) {
+                    warnOnce(
+                      settledToolCallArgs.has(part.toolCallId)
+                        ? "settled-tool-call-id"
+                        : "unknown-tool-call-id",
+                      `tool-call-delta for ${part.toolCallId}`,
+                    );
+                    break;
+                  }
                   openToolCallArgs.set(part.toolCallId, true);
                   controller.enqueue({
                     type: DataStreamStreamChunkType.ToolCallArgsTextDelta,
@@ -154,6 +171,7 @@ export class DataStreamEncoder
                   `Result chunk on non-tool-call part not supported: ${part.type}`,
                 );
               }
+              settledToolCallArgs.add(part.toolCallId);
               openToolCallArgs.delete(part.toolCallId);
               controller.enqueue({
                 type: DataStreamStreamChunkType.ToolCallResult,

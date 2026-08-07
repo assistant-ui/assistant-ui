@@ -1,4 +1,5 @@
 import json
+import logging
 
 import pytest
 
@@ -117,6 +118,32 @@ async def test_data_stream_encoder_keeps_results_before_args_finish() -> None:
     assert encoded == [
         'b:{"toolCallId": "t1", "toolName": "ping"}\n',
         'a:{"toolCallId": "t1", "result": "pong"}\n',
+    ]
+
+
+@pytest.mark.anyio
+async def test_data_stream_encoder_warns_once_for_dropped_tool_call_deltas(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    caplog.set_level(logging.WARNING, logger="assistant_stream.serialization.data_stream")
+
+    async def stream():
+        yield ToolCallDeltaChunk(tool_call_id="missing", args_text_delta="x")
+        yield ToolCallDeltaChunk(tool_call_id="missing", args_text_delta="y")
+        yield ToolCallBeginChunk(tool_call_id="t1", tool_name="search")
+        yield ToolResultChunk(tool_call_id="t1", result="ok")
+        yield ToolCallDeltaChunk(tool_call_id="t1", args_text_delta="late")
+        yield ToolCallDeltaChunk(tool_call_id="t1", args_text_delta="later")
+
+    encoded = [frame async for frame in DataStreamEncoder().encode_stream(stream())]
+
+    assert encoded == [
+        'b:{"toolCallId": "t1", "toolName": "search"}\n',
+        'a:{"toolCallId": "t1", "result": "ok"}\n',
+    ]
+    assert [record.getMessage() for record in caplog.records] == [
+        "Dropped data-stream chunk (unknown-tool-call-id): tool-call-delta for missing",
+        "Dropped data-stream chunk (settled-tool-call-id): tool-call-delta for t1",
     ]
 
 

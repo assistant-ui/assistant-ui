@@ -68,6 +68,37 @@ describe("DataStreamEncoder streamed tool-call args", () => {
     ]);
   });
 
+  it("warns once when args arrive after a tool result", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const lines = await encodeChunks([
+        {
+          type: "part-start",
+          path: [],
+          part: {
+            type: "tool-call",
+            toolCallId: "t1",
+            toolName: "search",
+          },
+        },
+        { type: "result", path: [0], result: "ok", isError: false },
+        { type: "text-delta", path: [0], textDelta: "late" },
+        { type: "text-delta", path: [0], textDelta: "later" },
+      ]);
+
+      expect(lines).toEqual([
+        'b:{"toolCallId":"t1","toolName":"search"}',
+        'a:{"toolCallId":"t1","result":"ok"}',
+      ]);
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(warn).toHaveBeenCalledWith(
+        "Dropped data-stream chunk (settled-tool-call-id): tool-call-delta for t1",
+      );
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
   it("keeps backend results authoritative for tool execution", async () => {
     const execute = vi.fn(async () => "frontend result");
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
@@ -119,7 +150,10 @@ describe("DataStreamEncoder streamed tool-call args", () => {
           (chunk) => chunk.type === "text-delta" && chunk.textDelta === "{}",
         ),
       ).toBe(true);
-      expect(warn).not.toHaveBeenCalled();
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(warn).toHaveBeenCalledWith(
+        "Dropped data-stream chunk (settled-tool-call-id): tool-call-delta for t1",
+      );
     } finally {
       warn.mockRestore();
     }
