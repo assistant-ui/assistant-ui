@@ -193,7 +193,7 @@ const ThreadListItemGroups: FC<{ searchQuery?: string }> = ({
     <Fragment key={group.label}>
       <div
         data-slot="aui_thread-list-group-label"
-        className="text-muted-foreground px-2.5 pt-3 pb-1 text-xs font-medium"
+        className="text-muted-foreground px-2.5 pt-3 pb-1 text-xs font-medium first:pt-0"
       >
         {group.label}
       </div>
