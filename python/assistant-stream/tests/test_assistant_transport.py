@@ -6,6 +6,7 @@ from assistant_stream.assistant_stream_chunk import (
     ErrorChunk,
     FileChunk,
     ReasoningDeltaChunk,
+    ReasoningPartStartChunk,
     SourceChunk,
     StepFinishChunk,
     StepStartChunk,
@@ -799,3 +800,30 @@ async def test_assistant_transport_encoder_rejects_args_after_the_part_settled()
 
     deltas = [c["textDelta"] for c in collected if c["type"] == "text-delta"]
     assert deltas == ['{"q": 1}']
+
+
+@pytest.mark.anyio
+async def test_assistant_transport_encoder_reasoning_summary_opens_one_part():
+    """The summary opens the reasoning part and the deltas that follow extend
+    it, rather than opening a second part beside it."""
+    encoder = AssistantTransportEncoder()
+
+    async def stream():
+        yield ReasoningPartStartChunk(unstable_summary="Planning")
+        yield ReasoningDeltaChunk(reasoning_delta="thinking", parent_id=None)
+
+    collected = [
+        json.loads(line[6:-2])
+        async for line in encoder.encode_stream(stream())
+        if line != "data: [DONE]\n\n"
+    ]
+
+    assert collected == [
+        {
+            "type": "part-start",
+            "part": {"type": "reasoning", "unstable_summary": "Planning"},
+            "path": [],
+        },
+        {"type": "text-delta", "textDelta": "thinking", "path": [0]},
+        {"type": "part-finish", "path": [0]},
+    ]

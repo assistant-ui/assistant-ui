@@ -185,6 +185,92 @@ describe("DataStreamEncoder streamed tool-call args", () => {
   });
 });
 
+describe("reasoning summaries on the data stream", () => {
+  const reasoningPart = (summary?: string, text?: string) => {
+    const chunks: AssistantStreamChunk[] = [
+      {
+        type: "part-start",
+        path: [],
+        part: {
+          type: "reasoning",
+          ...(summary !== undefined ? { unstable_summary: summary } : {}),
+        },
+      },
+    ];
+    if (text !== undefined) {
+      chunks.push({ type: "text-delta", path: [0], textDelta: text });
+    }
+    return chunks;
+  };
+
+  it("carries the summary and keeps the text on one part", async () => {
+    const lines = await encodeChunks(reasoningPart("Planning", "thinking"));
+
+    expect(lines).toEqual([
+      'aui-reasoning-part-start:{"unstable_summary":"Planning"}',
+      'g:"thinking"',
+    ]);
+
+    const chunks = await decodeLines(lines);
+    // one part-start, so the delta extends the part the summary opened
+    expect(chunks.filter((chunk) => chunk.type === "part-start")).toHaveLength(
+      1,
+    );
+    expect(
+      chunks.find((chunk) => chunk.type === "part-start")?.part,
+    ).toMatchObject({ type: "reasoning", unstable_summary: "Planning" });
+  });
+
+  it("gives a summary-only reasoning part a presence on the wire", async () => {
+    const lines = await encodeChunks(reasoningPart("Planning"));
+
+    expect(lines).toEqual([
+      'aui-reasoning-part-start:{"unstable_summary":"Planning"}',
+    ]);
+
+    const chunks = await decodeLines(lines);
+    expect(
+      chunks.find((chunk) => chunk.type === "part-start")?.part,
+    ).toMatchObject({ type: "reasoning", unstable_summary: "Planning" });
+  });
+
+  it("leaves a reasoning part without a summary byte-identical", async () => {
+    expect(await encodeChunks(reasoningPart(undefined, "thinking"))).toEqual([
+      'g:"thinking"',
+    ]);
+    expect(
+      (await encodeChunks(reasoningPart(undefined))).filter(
+        (line) => line.length > 0,
+      ),
+    ).toEqual([]);
+  });
+
+  it("routes a parented summary to the same parent as its deltas", async () => {
+    const lines = await encodeChunks([
+      {
+        type: "part-start",
+        path: [],
+        part: {
+          type: "reasoning",
+          parentId: "p1",
+          unstable_summary: "Planning",
+        },
+      },
+      { type: "text-delta", path: [0], textDelta: "thinking" },
+    ]);
+
+    expect(lines).toEqual([
+      'aui-reasoning-part-start:{"unstable_summary":"Planning","parentId":"p1"}',
+      'aui-reasoning-delta:{"reasoningDelta":"thinking","parentId":"p1"}',
+    ]);
+
+    const chunks = await decodeLines(lines);
+    expect(chunks.filter((chunk) => chunk.type === "part-start")).toHaveLength(
+      1,
+    );
+  });
+});
+
 describe("DataStreamDecoder interleaved tool-call args", () => {
   it("preserves args interleaved with text until the final args frame", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});

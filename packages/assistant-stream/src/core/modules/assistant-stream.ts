@@ -43,8 +43,12 @@ type ReasoningPartInit = {
 export type AssistantStreamController = {
   /** Appends text to the current text part, opening one if needed. */
   appendText(textDelta: string): void;
-  /** Appends reasoning text to the current reasoning part, opening one if needed. */
-  appendReasoning(reasoningDelta: string): void;
+  /**
+   * Appends reasoning text to the current reasoning part, opening one if
+   * needed. The options are used only when a part is opened, so a summary
+   * supplied alongside the first delta lands on that part.
+   */
+  appendReasoning(reasoningDelta: string, options?: ReasoningPartInit): void;
   /** Appends a source citation part to the stream. */
   appendSource(options: SourcePart): void;
   /** Appends a file part to the stream. */
@@ -63,9 +67,9 @@ export type AssistantStreamController = {
    * Opens a reasoning part and returns its writer.
    *
    * Use the options object to provide an app-authored summary for the part.
-   * Only the assistant transport encoder carries the summary; the data stream
-   * wire has no reasoning part-start chunk, so it drops the summary and emits
-   * nothing at all for a part that never appends text.
+   * A summary makes the data stream emit a reasoning part-start frame, which
+   * decoders older than that frame reject, so a stream only requires a current
+   * client once it uses the field.
    */
   addReasoningPart(options?: ReasoningPartInit): TextStreamController;
   /**
@@ -194,7 +198,7 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
     this._state.append.controller.append(textDelta);
   }
 
-  appendReasoning(textDelta: string) {
+  appendReasoning(textDelta: string, options?: ReasoningPartInit) {
     if (
       this._state.append?.kind !== "reasoning" ||
       this._state.append.parentId !== this._parentId
@@ -202,7 +206,7 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
       this._state.append = {
         kind: "reasoning",
         parentId: this._parentId,
-        controller: this.addReasoningPart(),
+        controller: this.addReasoningPart(options),
       };
     }
     this._state.append.controller.append(textDelta);

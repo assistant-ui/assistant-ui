@@ -10,6 +10,8 @@ from assistant_stream.assistant_stream_chunk import (
     StepFinishChunk,
     StepStartChunk,
     TextDeltaChunk,
+    ReasoningDeltaChunk,
+    ReasoningPartStartChunk,
     ToolCallArgsTextFinishChunk,
     ToolCallBeginChunk,
     ToolCallDeltaChunk,
@@ -232,3 +234,35 @@ async def test_data_stream_encoder_carries_trailing_args_on_the_final_chunk():
         json.loads(line[2:])["argsTextDelta"] for line in lines if line.startswith("c:")
     )
     assert json.loads(args_text) == {"q": 1}
+
+
+@pytest.mark.anyio
+async def test_data_stream_encoder_emits_a_reasoning_part_start_for_a_summary():
+    """A summary cannot ride on a reasoning delta, and a part that never
+    appends text emits nothing at all without this frame."""
+    encoder = DataStreamEncoder()
+
+    async def stream():
+        yield ReasoningPartStartChunk(unstable_summary="Planning")
+        yield ReasoningDeltaChunk(reasoning_delta="thinking", parent_id=None)
+
+    lines = [line async for line in encoder.encode_stream(stream())]
+
+    assert lines == [
+        'aui-reasoning-part-start:{"unstable_summary": "Planning"}\n',
+        'g:"thinking"\n',
+    ]
+
+
+@pytest.mark.anyio
+async def test_data_stream_encoder_carries_the_parent_on_a_reasoning_part_start():
+    encoder = DataStreamEncoder()
+
+    async def stream():
+        yield ReasoningPartStartChunk(unstable_summary="Planning", parent_id="p1")
+
+    lines = [line async for line in encoder.encode_stream(stream())]
+
+    assert lines == [
+        'aui-reasoning-part-start:{"unstable_summary": "Planning", "parentId": "p1"}\n'
+    ]

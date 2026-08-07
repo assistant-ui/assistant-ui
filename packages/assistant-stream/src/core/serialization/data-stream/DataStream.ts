@@ -88,6 +88,22 @@ export class DataStreamEncoder
                   value,
                 });
               }
+              // Reasoning otherwise reaches the wire only through its text
+              // deltas, which cannot carry a summary and emit nothing at all
+              // for a part that never appends text. The frame is emitted only
+              // when there is a summary to carry, so a stream that does not
+              // use the field is unchanged.
+              if (part.type === "reasoning" && part.unstable_summary) {
+                controller.enqueue({
+                  type: DataStreamStreamChunkType.AuiReasoningPartStart,
+                  value: {
+                    unstable_summary: part.unstable_summary,
+                    ...(part.parentId !== undefined
+                      ? { parentId: part.parentId }
+                      : {}),
+                  },
+                });
+              }
               break;
             }
             case "text-delta": {
@@ -296,6 +312,21 @@ export class DataStreamDecoder extends PipeableTransformStream<
                 .withParentId(value.parentId)
                 .appendText(value.textDelta);
               break;
+
+            case DataStreamStreamChunkType.AuiReasoningPartStart: {
+              const target = value.parentId
+                ? controller.withParentId(value.parentId)
+                : controller;
+              // Opening through appendReasoning registers the part as the
+              // current reasoning append target, so the deltas that follow
+              // extend it instead of opening a second part.
+              target.appendReasoning("", {
+                ...(value.unstable_summary !== undefined
+                  ? { unstable_summary: value.unstable_summary }
+                  : {}),
+              });
+              break;
+            }
 
             case DataStreamStreamChunkType.AuiReasoningDelta:
               controller

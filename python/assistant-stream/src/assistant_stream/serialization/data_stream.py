@@ -34,6 +34,16 @@ class DataStreamEncoder(StreamEncoder):
                 return f"aui-text-delta:{json.dumps({'textDelta': chunk.text_delta, 'parentId': chunk.parent_id}, cls=StateProxyJSONEncoder)}\n"
             else:
                 return f"0:{json.dumps(chunk.text_delta, cls=StateProxyJSONEncoder)}\n"
+        elif chunk.type == "reasoning-part-start":
+            # Reasoning otherwise reaches the wire only through its deltas,
+            # which cannot carry a summary and emit nothing at all for a part
+            # that never appends text.
+            value: dict[str, Any] = {}
+            if chunk.unstable_summary is not None:
+                value["unstable_summary"] = chunk.unstable_summary
+            if chunk.parent_id is not None:
+                value["parentId"] = chunk.parent_id
+            return f"aui-reasoning-part-start:{json.dumps(value, cls=StateProxyJSONEncoder)}\n"
         elif chunk.type == "reasoning-delta":
             if hasattr(chunk, 'parent_id') and chunk.parent_id:
                 return f"aui-reasoning-delta:{json.dumps({'reasoningDelta': chunk.reasoning_delta, 'parentId': chunk.parent_id}, cls=StateProxyJSONEncoder)}\n"

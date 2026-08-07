@@ -3,6 +3,7 @@ from assistant_stream.assistant_stream_chunk import (
     AssistantStreamChunk,
     FileChunk,
     ReasoningDeltaChunk,
+    ReasoningPartStartChunk,
     SourceChunk,
     StepFinishChunk,
     StepStartChunk,
@@ -73,6 +74,22 @@ class _Canonicalizer:
         path = self._append_part[1]
         self._append_part = None
         return [{"type": "part-finish", "path": path}]
+
+    def _start_reasoning_part(
+        self, chunk: ReasoningPartStartChunk
+    ) -> list[dict[str, Any]]:
+        # Registered as the append target so the deltas that follow extend this
+        # part instead of opening a second one.
+        frames = self._close_append_part()
+        path = self._next_path()
+        part: dict[str, Any] = {"type": "reasoning"}
+        if chunk.unstable_summary is not None:
+            part["unstable_summary"] = chunk.unstable_summary
+        if chunk.parent_id is not None:
+            part["parentId"] = chunk.parent_id
+        frames.append({"type": "part-start", "part": part, "path": []})
+        self._append_part = ("reasoning", path, chunk.parent_id)
+        return frames
 
     def _append_delta(
         self, chunk: TextDeltaChunk | ReasoningDeltaChunk, text: str, kind: str
@@ -227,6 +244,8 @@ class _Canonicalizer:
         match chunk.type:
             case "text-delta":
                 return self._append_delta(chunk, chunk.text_delta, "text")
+            case "reasoning-part-start":
+                return self._start_reasoning_part(chunk)
             case "reasoning-delta":
                 return self._append_delta(chunk, chunk.reasoning_delta, "reasoning")
             case "tool-call-begin":
