@@ -147,6 +147,49 @@ describe("fromThreadMessageLike", () => {
       expect(result.content).toEqual([{ type: "reasoning", text: "hi" }]);
     });
 
+    it("keeps a reasoning part with a summary and no text", () => {
+      const result = fromThreadMessageLike(
+        {
+          role: "assistant",
+          content: [
+            {
+              type: "reasoning",
+              text: "",
+              unstable_summary: "Searching the codebase",
+            },
+          ],
+        },
+        fallbackId,
+        fallbackStatus,
+      );
+
+      expect(result.content).toEqual([
+        {
+          type: "reasoning",
+          text: "",
+          unstable_summary: "Searching the codebase",
+        },
+      ]);
+    });
+
+    it("drops a reasoning part with neither text nor a summary to show", () => {
+      // the transport layers round-trip an empty summary faithfully; this is
+      // the display normalizer, so it drops a part with nothing to render for
+      // the same reason it drops whitespace-only text.
+      const message = fromThreadMessageLike(
+        {
+          role: "assistant",
+          content: [
+            { type: "reasoning", text: "", unstable_summary: "" },
+            { type: "reasoning", text: "  ", unstable_summary: "   " },
+          ],
+        },
+        "m1",
+        { type: "complete", reason: "unknown" },
+      );
+
+      expect(message.content).toEqual([]);
+    });
     it("drops an assistant image part whose image is undefined", () => {
       const result = fromThreadMessageLike(
         {

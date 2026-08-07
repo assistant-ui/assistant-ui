@@ -22,7 +22,7 @@ const useMessageClient = ({ id }: { id: string }) => {
       emit("message.pinged" as never, { id, value } as never),
   };
 };
-const MessageClient = resource(useMessageClient);
+export const MessageClient = resource(useMessageClient);
 
 const useThreadClient = () => {
   const [selected, setSelected] = useState(0);

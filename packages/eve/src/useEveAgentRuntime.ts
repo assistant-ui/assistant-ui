@@ -23,6 +23,7 @@ import {
   useEveAgent,
   type EveMessageData,
   type UseEveAgentOptions,
+  type UseEveAgentStatus,
 } from "eve/react";
 import type { InputResponse, SendTurnPayload } from "eve/client";
 import {
@@ -36,6 +37,10 @@ const USER_STAGED_STATUS = {
   type: "complete",
   reason: "unknown",
 } as const;
+
+const sendCancelledError = new Error(
+  "eve send was dropped because the run was cancelled.",
+);
 
 const hasRunConfig = (
   runConfig: AppendMessage["runConfig"],
@@ -96,7 +101,15 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
     ? true
     : never;
 
-  const agent = useEveAgent(agentOptions);
+  const { onFinish } = agentOptions;
+  const lastFinishStatusRef = useRef<UseEveAgentStatus | null>(null);
+  const agent = useEveAgent({
+    ...agentOptions,
+    onFinish: (snapshot) => {
+      lastFinishStatusRef.current = snapshot.status;
+      onFinish?.(snapshot);
+    },
+  });
   const runtimeAdapters = useRuntimeAdapters();
   const [toolStatuses, setToolStatuses] = useState<
     Record<string, ToolExecutionStatus>
@@ -146,6 +159,31 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
   const messages = stagedMessages ?? convertedMessages;
   const messagesRef = useRef(messages);
   messagesRef.current = messages;
+
+  // Upstream `EveAgentStore.send` rejects while a turn is in flight and only
+  // resolves once the turn's stream parks, so a pending chain link is exactly
+  // an active turn; chaining every send serializes them without watching
+  // status.
+  const sendChainRef = useRef<Promise<void>>(Promise.resolve());
+  const sendEpochRef = useRef(0);
+
+  const enqueueSend = (payload: Parameters<typeof agent.send>[0]) => {
+    const epoch = sendEpochRef.current;
+    const next = sendChainRef.current.then(() => {
+      if (epoch !== sendEpochRef.current) throw sendCancelledError;
+      return agent.send(payload);
+    });
+    sendChainRef.current = next.catch(() => {});
+    return next;
+  };
+
+  // The store outlives the component (useEveAgent holds it in a ref with no
+  // cleanup), so queued sends must not fire server turns after unmount.
+  useEffect(() => {
+    return () => {
+      sendEpochRef.current += 1;
+    };
+  }, []);
 
   useEffect(() => {
     if (stagedInputsRef.current.size === 0) return;
@@ -206,10 +244,14 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
         stageUserMessage(message);
         return;
       }
-      await agent.send({
-        message: getEveMessageContent(message),
-        ...toEveClientContext(message.runConfig),
-      });
+      try {
+        await enqueueSend({
+          message: getEveMessageContent(message),
+          ...toEveClientContext(message.runConfig),
+        });
+      } catch (error) {
+        if (error !== sendCancelledError) throw error;
+      }
     },
     ...(stagedMessages
       ? {
@@ -217,7 +259,9 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
             const stagedRun = getStagedRun(parentId);
             if (!stagedRun)
               throw new Error("Runtime does not support reloading messages.");
+            const epoch = sendEpochRef.current;
             for (const { message: stagedMessage, input } of stagedRun) {
+              if (epoch !== sendEpochRef.current) return;
               const previousMessages = messagesRef.current;
               stagedInputsRef.current.delete(stagedMessage.id);
               const nextMessages = previousMessages.filter(
@@ -235,7 +279,7 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
                   ? config.runConfig
                   : input.runConfig;
               try {
-                await agent.send({
+                await enqueueSend({
                   message: getEveMessageContent(input.message),
                   ...toEveClientContext(runConfig),
                 });
@@ -243,13 +287,16 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
                 stagedInputsRef.current.set(stagedMessage.id, input);
                 messagesRef.current = previousMessages;
                 setStagedMessages(previousMessages);
+                if (error === sendCancelledError) return;
                 throw error;
               }
+              if (lastFinishStatusRef.current === "error") return;
             }
           },
         }
       : {}),
     onCancel: () => {
+      sendEpochRef.current += 1;
       agent.stop();
       return Promise.resolve();
     },
@@ -268,7 +315,9 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
           { cause: error },
         );
       }
-      return agent.send({ inputResponses: [inputResponse] });
+      return enqueueSend({ inputResponses: [inputResponse] }).catch((error) => {
+        if (error !== sendCancelledError) throw error;
+      });
     },
   });
 };

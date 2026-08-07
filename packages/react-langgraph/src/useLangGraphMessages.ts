@@ -25,6 +25,41 @@ import { normalizeLangGraphTupleMessage } from "./normalizeLangGraphTupleMessage
 
 const DEFAULT_UI_STATE_KEY = "ui";
 
+type LangGraphEventCallbackName =
+  | "onMessageChunk"
+  | "onValues"
+  | "onUpdates"
+  | "onSubgraphValues"
+  | "onSubgraphUpdates"
+  | "onMetadata"
+  | "onInfo"
+  | "onError"
+  | "onSubgraphError"
+  | "onCustomEvent";
+
+const reportCallbackError = (
+  name: LangGraphEventCallbackName,
+  error: unknown,
+) => {
+  console.error(`[react-langgraph] ${name} callback threw an error`, error);
+};
+
+const invokeEventCallback = <TArgs extends unknown[]>(
+  name: LangGraphEventCallbackName,
+  callback: ((...args: TArgs) => void | Promise<void>) | undefined,
+  ...args: TArgs
+) => {
+  if (!callback) return;
+
+  try {
+    void Promise.resolve(callback(...args)).catch((error) => {
+      reportCallbackError(name, error);
+    });
+  } catch (error) {
+    reportCallbackError(name, error);
+  }
+};
+
 const parseEventType = (
   event: string,
 ): { type: string; namespace: string | undefined } => {
@@ -284,9 +319,14 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
               break;
             case LangGraphKnownEventTypes.Updates: {
               if (eventNamespace) {
-                onSubgraphUpdates?.(eventNamespace, chunk.data);
+                invokeEventCallback(
+                  "onSubgraphUpdates",
+                  onSubgraphUpdates,
+                  eventNamespace,
+                  chunk.data,
+                );
               } else {
-                onUpdates?.(chunk.data);
+                invokeEventCallback("onUpdates", onUpdates, chunk.data);
               }
               const extracted = extractMessagesFromUpdates<TMessage>(
                 chunk.data,
@@ -303,11 +343,16 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
             }
             case LangGraphKnownEventTypes.Values:
               if (eventNamespace) {
-                onSubgraphValues?.(eventNamespace, chunk.data);
+                invokeEventCallback(
+                  "onSubgraphValues",
+                  onSubgraphValues,
+                  eventNamespace,
+                  chunk.data,
+                );
                 break;
               }
               setValues(chunk.data as Record<string, unknown>);
-              onValues?.(chunk.data);
+              invokeEventCallback("onValues", onValues, chunk.data);
               if (Array.isArray(chunk.data?.messages)) {
                 lastValuesMessages = chunk.data.messages;
                 if (hasTupleMessageEvents) {
@@ -359,7 +404,9 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
                   : undefined;
 
               if (normalizedTupleMessage.kind === "chunk") {
-                onMessageChunk?.(
+                invokeEventCallback(
+                  "onMessageChunk",
+                  onMessageChunk,
                   normalizedTupleMessage.message,
                   tupleMetadataWithNamespace ?? {},
                 );
@@ -379,13 +426,13 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
               break;
             }
             case LangGraphKnownEventTypes.Metadata:
-              onMetadata?.(chunk.data);
+              invokeEventCallback("onMetadata", onMetadata, chunk.data);
               break;
             case LangGraphKnownEventTypes.Info:
-              onInfo?.(chunk.data);
+              invokeEventCallback("onInfo", onInfo, chunk.data);
               break;
             case LangGraphKnownEventTypes.Error: {
-              onError?.(chunk.data);
+              invokeEventCallback("onError", onError, chunk.data);
               // namespaced errors come from subgraphs, which the parent may recover from
               if (!eventNamespace) {
                 const messages = accumulator.getMessages();
@@ -405,7 +452,12 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
                   setMessagesImmediate(accumulator.addMessages([errorMessage]));
                 }
               } else {
-                onSubgraphError?.(eventNamespace, chunk.data);
+                invokeEventCallback(
+                  "onSubgraphError",
+                  onSubgraphError,
+                  eventNamespace,
+                  chunk.data,
+                );
               }
               break;
             }
@@ -416,7 +468,12 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
                 break;
               }
               if (onCustomEvent) {
-                onCustomEvent(eventType, chunk.data);
+                invokeEventCallback(
+                  "onCustomEvent",
+                  onCustomEvent,
+                  eventType,
+                  chunk.data,
+                );
               } else {
                 console.warn(
                   "Unhandled event received:",
