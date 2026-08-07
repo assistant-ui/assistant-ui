@@ -188,7 +188,8 @@ describe("useSyncExternalStore", () => {
       ),
     );
 
-    // rendered directly: a fiber that throws on its first render never mounts
+    // rendered directly rather than through renderTest: a fiber that throws on
+    // its first render never mounts, so the harness cannot unmount it in cleanup
     expect(() => renderResourceFiber(testFiber, [])).toThrow(
       "index out of bounds",
     );
