@@ -49,7 +49,7 @@ import Message from "./Message.vue";
           </ThreadPrimitiveMessages>
         </ol>
         <ThreadPrimitiveScrollToBottom
-          class="border-border/60 bg-background sticky bottom-2 z-10 mx-auto rounded-full border p-2 shadow-sm transition-opacity disabled:invisible"
+          class="border-border/60 bg-background sticky bottom-2 z-10 mx-auto rounded-full border p-2 shadow-sm transition-opacity disabled:pointer-events-none disabled:opacity-0"
           aria-label="Scroll to bottom"
         >
           <ArrowDownIcon class="size-4" />

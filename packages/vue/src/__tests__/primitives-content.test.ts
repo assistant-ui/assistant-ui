@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 afterEach(() => {
   vi.restoreAllMocks();
   clearPartWarningsForTesting();
+  clearScrollToBottomWarningForTesting();
 });
 import { createApp, defineComponent, h, nextTick, type Component } from "vue";
 import { flushTapSync } from "@assistant-ui/tap";
@@ -20,7 +21,10 @@ import { AuiProvider } from "../AuiProvider";
 import { useAuiState } from "../useAuiState";
 import { ThreadPrimitiveMessages } from "../primitives/ThreadPrimitiveMessages";
 import { ThreadPrimitiveViewport } from "../primitives/ThreadPrimitiveViewport";
-import { ThreadPrimitiveScrollToBottom } from "../primitives/ThreadPrimitiveScrollToBottom";
+import {
+  ThreadPrimitiveScrollToBottom,
+  clearScrollToBottomWarningForTesting,
+} from "../primitives/ThreadPrimitiveScrollToBottom";
 import {
   MessagePrimitiveParts,
   clearPartWarningsForTesting,
