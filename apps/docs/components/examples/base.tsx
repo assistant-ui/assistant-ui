@@ -86,18 +86,13 @@ import { ModelSelector } from "@/components/assistant-ui/model-selector";
 import { docsModelOptions } from "@/components/docs/assistant/docs-model-options";
 import { DEFAULT_MODEL_ID } from "@/constants/model";
 
-const Logo: FC = () => {
-  return (
-    <div className="flex items-center gap-2 px-2 text-sm font-medium">
-      <Image
-        src={icon}
-        alt="logo"
-        className="size-5 shrink-0 dark:hue-rotate-180 dark:invert"
-      />
-      <span className="text-foreground/90 truncate">assistant-ui</span>
-    </div>
-  );
-};
+const logo = (
+  <Image
+    src={icon}
+    alt="logo"
+    className="size-5 dark:hue-rotate-180 dark:invert"
+  />
+);
 
 const models = docsModelOptions();
 
