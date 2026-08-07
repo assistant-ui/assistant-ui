@@ -164,7 +164,7 @@ export const fromThreadMessageLike = (
                 return part;
 
               case "reasoning":
-                if (!part.text?.trim() && part.unstable_summary === undefined)
+                if (!part.text?.trim() && !part.unstable_summary?.trim())
                   return null;
                 return part;
 

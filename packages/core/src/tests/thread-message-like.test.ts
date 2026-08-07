@@ -172,21 +172,23 @@ describe("fromThreadMessageLike", () => {
       ]);
     });
 
-    it("keeps a reasoning part whose summary is an empty string", () => {
-      // the accumulator and both auiV0 encoders gate on `!== undefined`, so an
-      // empty summary is a value the other layers preserve.
+    it("drops a reasoning part with neither text nor a summary to show", () => {
+      // the transport layers round-trip an empty summary faithfully; this is
+      // the display normalizer, so it drops a part with nothing to render for
+      // the same reason it drops whitespace-only text.
       const message = fromThreadMessageLike(
         {
           role: "assistant",
-          content: [{ type: "reasoning", text: "", unstable_summary: "" }],
+          content: [
+            { type: "reasoning", text: "", unstable_summary: "" },
+            { type: "reasoning", text: "  ", unstable_summary: "   " },
+          ],
         },
         "m1",
         { type: "complete", reason: "unknown" },
       );
 
-      expect(message.content).toEqual([
-        { type: "reasoning", text: "", unstable_summary: "" },
-      ]);
+      expect(message.content).toEqual([]);
     });
     it("drops an assistant image part whose image is undefined", () => {
       const result = fromThreadMessageLike(
