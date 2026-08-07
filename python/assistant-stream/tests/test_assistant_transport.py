@@ -716,3 +716,33 @@ async def test_assistant_transport_encoder_explicit_args_finish_settles_the_part
         {"type": "text-delta", "textDelta": "after", "path": [1]},
         {"type": "part-finish", "path": [1]},
     ]
+
+
+@pytest.mark.anyio
+async def test_assistant_transport_encoder_result_after_args_finish_keeps_the_part_path():
+    """The two-phase human-in-the-loop shape: args settle first, the human
+    answers later. The result must still address the tool part, because the
+    accumulator only resolves a path of length one and drops anything emitted
+    at the message root."""
+    encoder = AssistantTransportEncoder()
+
+    async def stream():
+        yield ToolCallBeginChunk(tool_call_id="t1", tool_name="ask_human")
+        yield ToolCallDeltaChunk(tool_call_id="t1", args_text_delta='{"q": "ok?"}')
+        yield ToolCallArgsTextFinishChunk(tool_call_id="t1")
+        yield ToolResultChunk(
+            tool_call_id="t1", result="yes", artifact=None, is_error=False
+        )
+
+    collected = [
+        json.loads(line[6:-2])
+        async for line in encoder.encode_stream(stream())
+        if line != "data: [DONE]\n\n"
+    ]
+
+    results = [c for c in collected if c["type"] == "result"]
+    assert results == [
+        {"type": "result", "result": "yes", "isError": False, "path": [0]}
+    ]
+    # The part settled once, at the args finish; the result does not repeat it.
+    assert [c["type"] for c in collected].count("part-finish") == 1

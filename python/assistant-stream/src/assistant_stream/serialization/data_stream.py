@@ -99,10 +99,14 @@ class DataStreamEncoder(StreamEncoder):
     ) -> AsyncGenerator[str, None]:
         open_tool_call_args: dict[str, bool] = {}
 
-        def finish_tool_call_args(tool_call_id: str) -> list[str]:
+        def finish_tool_call_args(
+            tool_call_id: str, args_text_delta: str = ""
+        ) -> list[str]:
             has_args_text = open_tool_call_args.pop(tool_call_id, None)
             if has_args_text is None:
                 return []
+            if not args_text_delta and not has_args_text:
+                args_text_delta = "{}"
 
             frames: list[str] = []
             # A decoder that predates `isFinal` appends this delta and settles
@@ -112,7 +116,7 @@ class DataStreamEncoder(StreamEncoder):
             finish = self.encode_chunk(
                 ToolCallArgsTextFinishChunk(
                     tool_call_id=tool_call_id,
-                    args_text_delta="" if has_args_text else "{}",
+                    args_text_delta=args_text_delta,
                 )
             )
             if finish is not None:
@@ -138,7 +142,9 @@ class DataStreamEncoder(StreamEncoder):
                     continue
                 open_tool_call_args[chunk.tool_call_id] = True
             elif chunk.type == "tool-call-args-text-finish":
-                frames = finish_tool_call_args(chunk.tool_call_id)
+                frames = finish_tool_call_args(
+                    chunk.tool_call_id, chunk.args_text_delta
+                )
                 if not frames:
                     continue
                 for frame in frames:

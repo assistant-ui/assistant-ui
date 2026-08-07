@@ -180,3 +180,28 @@ async def test_data_stream_encoder_finishes_args_before_boundaries(
         'c:{"toolCallId": "t1", "argsTextDelta": "{}", "isFinal": true}\n',
         encoded_boundary,
     ]
+
+
+@pytest.mark.anyio
+async def test_data_stream_encoder_carries_trailing_args_on_the_final_chunk():
+    """A producer may deliver the last of its arguments on the finish chunk
+    itself; that text has to reach the wire rather than be replaced by the
+    encoder's own marker."""
+    encoder = DataStreamEncoder()
+
+    async def stream():
+        yield ToolCallBeginChunk(tool_call_id="t1", tool_name="search")
+        yield ToolCallDeltaChunk(tool_call_id="t1", args_text_delta='{"q": ')
+        yield ToolCallArgsTextFinishChunk(tool_call_id="t1", args_text_delta="1}")
+
+    lines = [line async for line in encoder.encode_stream(stream())]
+
+    assert lines == [
+        'b:{"toolCallId": "t1", "toolName": "search"}\n',
+        'c:{"toolCallId": "t1", "argsTextDelta": "{\\"q\\": "}\n',
+        'c:{"toolCallId": "t1", "argsTextDelta": "1}", "isFinal": true}\n',
+    ]
+    args_text = "".join(
+        json.loads(line[2:])["argsTextDelta"] for line in lines if line.startswith("c:")
+    )
+    assert json.loads(args_text) == {"q": 1}
