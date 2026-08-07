@@ -4,7 +4,11 @@ import {
   ComposerPrimitiveCancel,
   ComposerPrimitiveInput,
   ComposerPrimitiveSend,
+  SuggestionPrimitiveDescription,
+  SuggestionPrimitiveTitle,
+  SuggestionPrimitiveTrigger,
   ThreadPrimitiveMessages,
+  ThreadPrimitiveSuggestions,
   ThreadPrimitiveViewport,
 } from "@assistant-ui/vue";
 import type {} from "@assistant-ui/core/store";
@@ -19,8 +23,23 @@ import Message from "./Message.vue";
     >
       <div class="mx-auto flex w-full max-w-2xl flex-1 flex-col px-4 pt-12">
         <AuiIf :condition="(s) => s.thread.messages.length === 0">
-          <div class="flex flex-1 flex-col items-center justify-center pb-24">
+          <div
+            class="flex flex-1 flex-col items-center justify-center gap-6 pb-24"
+          >
             <h1 class="text-2xl font-semibold">How can I help you today?</h1>
+            <div class="flex flex-wrap items-center justify-center gap-2 px-4">
+              <ThreadPrimitiveSuggestions>
+                <SuggestionPrimitiveTrigger
+                  send
+                  class="text-foreground hover:bg-muted border-border/60 flex h-auto flex-col items-start gap-0.5 rounded-2xl border px-3.5 py-2 text-sm transition-colors"
+                >
+                  <span class="font-medium"><SuggestionPrimitiveTitle /></span>
+                  <span class="text-muted-foreground text-xs">
+                    <SuggestionPrimitiveDescription />
+                  </span>
+                </SuggestionPrimitiveTrigger>
+              </ThreadPrimitiveSuggestions>
+            </div>
           </div>
         </AuiIf>
         <ol class="mb-14 flex flex-col gap-y-6 empty:hidden">
