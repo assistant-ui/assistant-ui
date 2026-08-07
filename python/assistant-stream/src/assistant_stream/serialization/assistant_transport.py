@@ -80,11 +80,14 @@ class _Canonicalizer:
     ) -> list[dict[str, Any]]:
         # Registered as the append target so the deltas that follow extend this
         # part instead of opening a second one.
+        if chunk.unstable_summary is None:
+            return []
         frames = self._close_append_part()
         path = self._next_path()
-        part: dict[str, Any] = {"type": "reasoning"}
-        if chunk.unstable_summary is not None:
-            part["unstable_summary"] = chunk.unstable_summary
+        part: dict[str, Any] = {
+            "type": "reasoning",
+            "unstable_summary": chunk.unstable_summary,
+        }
         if chunk.parent_id is not None:
             part["parentId"] = chunk.parent_id
         frames.append({"type": "part-start", "part": part, "path": []})

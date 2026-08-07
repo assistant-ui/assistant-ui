@@ -45,8 +45,8 @@ export type AssistantStreamController = {
   appendText(textDelta: string): void;
   /**
    * Appends reasoning text to the current reasoning part, opening one if
-   * needed. The options are used only when a part is opened, so a summary
-   * supplied alongside the first delta lands on that part.
+   * needed. Supplying options opens a new part and applies them to it, so a
+   * summary always lands on a part of its own.
    */
   appendReasoning(reasoningDelta: string, options?: ReasoningPartInit): void;
   /** Appends a source citation part to the stream. */
@@ -199,7 +199,10 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
   }
 
   appendReasoning(textDelta: string, options?: ReasoningPartInit) {
+    // An init describes a part, so supplying one opens a part rather than
+    // extending whichever one happens to be open.
     if (
+      options !== undefined ||
       this._state.append?.kind !== "reasoning" ||
       this._state.append.parentId !== this._parentId
     ) {

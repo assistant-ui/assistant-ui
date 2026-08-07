@@ -266,3 +266,30 @@ async def test_data_stream_encoder_carries_the_parent_on_a_reasoning_part_start(
     assert lines == [
         'aui-reasoning-part-start:{"unstable_summary": "Planning", "parentId": "p1"}\n'
     ]
+
+
+@pytest.mark.anyio
+async def test_data_stream_encoder_suppresses_a_reasoning_start_without_a_summary():
+    """A start with nothing to carry must not change the wire, matching the
+    TypeScript encoder."""
+    encoder = DataStreamEncoder()
+
+    async def stream():
+        yield ReasoningPartStartChunk()
+        yield ReasoningDeltaChunk(reasoning_delta="thinking", parent_id=None)
+
+    lines = [line async for line in encoder.encode_stream(stream())]
+
+    assert lines == ['g:"thinking"\n']
+
+
+@pytest.mark.anyio
+async def test_data_stream_encoder_carries_an_explicitly_empty_summary():
+    encoder = DataStreamEncoder()
+
+    async def stream():
+        yield ReasoningPartStartChunk(unstable_summary="")
+
+    lines = [line async for line in encoder.encode_stream(stream())]
+
+    assert lines == ['aui-reasoning-part-start:{"unstable_summary": ""}\n']

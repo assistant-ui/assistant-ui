@@ -35,6 +35,8 @@ class DataStreamEncoder(StreamEncoder):
             else:
                 return f"0:{json.dumps(chunk.text_delta, cls=StateProxyJSONEncoder)}\n"
         elif chunk.type == "reasoning-part-start":
+            if chunk.unstable_summary is None:
+                return None
             # Reasoning otherwise reaches the wire only through its deltas,
             # which cannot carry a summary and emit nothing at all for a part
             # that never appends text.

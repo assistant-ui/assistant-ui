@@ -245,6 +245,34 @@ describe("reasoning summaries on the data stream", () => {
     ).toEqual([]);
   });
 
+  it("gives each summarized reasoning step a part of its own", async () => {
+    const chunks = await decodeLines([
+      'aui-reasoning-part-start:{"unstable_summary":"First"}',
+      'g:"one"',
+      'aui-reasoning-part-start:{"unstable_summary":"Second"}',
+      'g:"two"',
+    ]);
+
+    // a summary describes a step, so a second one must not be folded into the
+    // part the first opened
+    expect(
+      chunks
+        .filter((chunk) => chunk.type === "part-start")
+        .map((chunk) => chunk.part),
+    ).toEqual([
+      { type: "reasoning", unstable_summary: "First" },
+      { type: "reasoning", unstable_summary: "Second" },
+    ]);
+  });
+
+  it("carries an explicitly empty summary", async () => {
+    // transport preserves the value; only the display normalizer drops a part
+    // with nothing to render
+    expect(await encodeChunks(reasoningPart(""))).toEqual([
+      'aui-reasoning-part-start:{"unstable_summary":""}',
+    ]);
+  });
+
   it("routes a parented summary to the same parent as its deltas", async () => {
     const lines = await encodeChunks([
       {

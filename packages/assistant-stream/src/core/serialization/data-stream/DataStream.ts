@@ -93,7 +93,10 @@ export class DataStreamEncoder
               // for a part that never appends text. The frame is emitted only
               // when there is a summary to carry, so a stream that does not
               // use the field is unchanged.
-              if (part.type === "reasoning" && part.unstable_summary) {
+              if (
+                part.type === "reasoning" &&
+                part.unstable_summary !== undefined
+              ) {
                 controller.enqueue({
                   type: DataStreamStreamChunkType.AuiReasoningPartStart,
                   value: {
