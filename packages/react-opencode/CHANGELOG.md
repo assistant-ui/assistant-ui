@@ -1,5 +1,51 @@
 # @assistant-ui/react-opencode
 
+## 0.2.17
+
+### Patch Changes
+
+- [#5431](https://github.com/assistant-ui/assistant-ui/pull/5431) [`6a0f087`](https://github.com/assistant-ui/assistant-ui/commit/6a0f087f1bda517fcee379c4a13cf2d204af2286) - fix: avoid repeated child session scans during streaming ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5492](https://github.com/assistant-ui/assistant-ui/pull/5492) [`5003325`](https://github.com/assistant-ui/assistant-ui/commit/500332583ce6ff740e11b928a1000c37c126c393) - feat: add OpenCodeAttachmentAdapter, converting browser files into attachments that preserve OpenCode's native file semantics ([@okisdev](https://github.com/okisdev))
+
+- [#5490](https://github.com/assistant-ui/assistant-ui/pull/5490) [`e60694f`](https://github.com/assistant-ui/assistant-ui/commit/e60694feedbf75d9ff0eabbde554325527401d8c) - fix: project user file parts as message attachments instead of inline content, for server, pending, and shadow copies alike ([@okisdev](https://github.com/okisdev))
+
+- [#5459](https://github.com/assistant-ui/assistant-ui/pull/5459) [`22b05a4`](https://github.com/assistant-ui/assistant-ui/commit/22b05a43ec921a6dd7015692a77a746656a61f5f) - fix: wrap a file part payload that is not a parsable url ([@okisdev](https://github.com/okisdev))
+
+  `getPromptParts` put `FileMessagePart.data` straight into the OpenCode file part's `url`. OpenCode forwards that into an AI SDK file part (`sst/opencode`, `session/message-v2.ts`), whose `url` reaches an unguarded `new URL()`, so a payload that is raw base64 rather than a data URL or an http source failed there. A non-parsable payload is now wrapped in a `data:<mime>;base64,` envelope; data URLs and http sources are forwarded untouched, and a `sourceType: "id"` reference is left alone so it fails loudly instead of shipping a corrupt payload.
+
+  The predicate behind that decision moves to `isParsableUrl` in `@assistant-ui/core/internal`, next to the `httpUrlPattern` and `parseDataUrl` it belongs with, and react-ai-sdk now imports it instead of keeping its own copy. No behavior change there.
+
+- [#5468](https://github.com/assistant-ui/assistant-ui/pull/5468) [`3a7d091`](https://github.com/assistant-ui/assistant-ui/commit/3a7d0912a04234eb5440a53e52e6a59ffb0fc6b9) - fix: send image parts as file parts so they reach the model ([@okisdev](https://github.com/okisdev))
+
+  `getPromptParts` emitted `{ type: "image", image }`, a part type OpenCode does not define: its input union is text, file, agent and subtask, and upstream's converter has no image branch, so an `ImageMessagePart` never reached the model. Images now go out as `FilePartInput`, with the media type read from the attachment's `contentType`, then a data URL envelope, then `image/png` as the floor, matching the ladder react-ai-sdk uses for the same input. An inline payload is re-enveloped with the resolved media type rather than forwarded, because the AI SDK lets a data URL's own type win over the declared one; the same now applies to file parts, whose declared `mimeType` was previously overridden by a mismatched envelope, and an empty `mimeType` floors to `application/octet-stream` rather than producing a malformed `data:;base64,` url.
+
+  The attachment's own `name` and `contentType` now ride onto its flattened parts instead of being dropped, so an image attachment keeps its filename and its real media type. Both the outbound prompt and the pending optimistic copy share one flatten, so their reconciliation fingerprints agree; previously a named image attachment produced a pending `contentText` of the raw base64 payload.
+
+- [#5491](https://github.com/assistant-ui/assistant-ui/pull/5491) [`9231e07`](https://github.com/assistant-ui/assistant-ui/commit/9231e07b97629c15a359ce8c7cd86d824a4d1c5e) - fix: stop fingerprinting audio and data parts the outbound path never sends, so their pending copies reconcile with the server echo ([@okisdev](https://github.com/okisdev))
+
+- [#5480](https://github.com/assistant-ui/assistant-ui/pull/5480) [`63f81ba`](https://github.com/assistant-ui/assistant-ui/commit/63f81ba9a435ee93954f590962c208aeb1ee5c77) - fix: reconcile pending file messages after OpenCode normalizes their wire URLs ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5520](https://github.com/assistant-ui/assistant-ui/pull/5520) [`ff12cf2`](https://github.com/assistant-ui/assistant-ui/commit/ff12cf2d3626c8b0451648bcc2598b2c42fea70e) - fix: isolate thread controller subscriber errors ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5479](https://github.com/assistant-ui/assistant-ui/pull/5479) [`011e275`](https://github.com/assistant-ui/assistant-ui/commit/011e275c4df5cd85942b5fd545a74d9c7cf549a6) - fix: read an image's media type from its leading bytes in both adapters ([@okisdev](https://github.com/okisdev))
+
+  `detectImageMediaType` and `dataUrlMediaType` join `parseDataUrl` and `isParsableUrl` in `@assistant-ui/core/internal`. An `ImageMessagePart` carries no media type, so an adapter that must declare one on the wire now reads it from the payload rather than assuming a format. It never throws, whatever a caller put on the part.
+
+  react-ai-sdk and react-opencode run the same ladder rung for rung: the attachment's `contentType`, then a data URL's declared type when that is itself an image type (read whether or not the payload is base64, so an SVG data URL keeps its type), then the leading bytes, then `image/png`. Previously react-opencode had no byte rung at all, and react-ai-sdk's was skipped for any `data:` payload, so a JPEG inside a generic `application/octet-stream` envelope resolved to png on both.
+
+  Resolving the label alone was not enough, because a data URL's own media type wins over the declared one downstream. Both adapters now rebuild the envelope when it disagrees with the resolved type and forward it untouched when it agrees. That applies to file parts too, where a `mimeType: "application/pdf"` part carrying an `application/octet-stream` envelope was announced as pdf and delivered as octet-stream. File parts also gain the same three rungs, so an empty `mimeType` falls to the envelope and then to `application/octet-stream` rather than producing a malformed `data:;base64,` url; `vercelAttachmentAdapter` emits exactly that shape for a file the OS cannot type.
+
+- [#5485](https://github.com/assistant-ui/assistant-ui/pull/5485) [`da32fe0`](https://github.com/assistant-ui/assistant-ui/commit/da32fe0b2f51c8a340935c5f4d2e31e747d39460) - refactor: share the media type ladder and wire url between adapters ([@okisdev](https://github.com/okisdev))
+
+  `resolveImageMediaType`, `resolveFileMediaType` and `toMediaWireUrl` join the data URL helpers in `@assistant-ui/core/internal`. react-ai-sdk and react-opencode had arrived at identical ladders and an identical wire url builder by construction rather than by sharing code, and they had already drifted apart twice while getting there. Both now call the shared functions and keep only their own part-shape plumbing.
+
+  No behavior change: both adapters' existing suites pass untouched.
+
+- Updated dependencies [[`b19c2f5`](https://github.com/assistant-ui/assistant-ui/commit/b19c2f5efd37e1203502c76d92e0554b63020952), [`8c99934`](https://github.com/assistant-ui/assistant-ui/commit/8c99934ca7fe9a8ffea0aa972e3579ff74e18553), [`ece5a54`](https://github.com/assistant-ui/assistant-ui/commit/ece5a5422e8b45429e1681b7a845d68be2879834), [`2fdff87`](https://github.com/assistant-ui/assistant-ui/commit/2fdff878211979b1f24d746bf2f16d8b6254102d), [`90b3003`](https://github.com/assistant-ui/assistant-ui/commit/90b3003b943e083fa6cd81e30181bf5b88904361), [`55b2824`](https://github.com/assistant-ui/assistant-ui/commit/55b282476bf3075beff391978a72a13968b6418a), [`22b05a4`](https://github.com/assistant-ui/assistant-ui/commit/22b05a43ec921a6dd7015692a77a746656a61f5f), [`f913c21`](https://github.com/assistant-ui/assistant-ui/commit/f913c2142708d8cd1f4ac63bd801e5b6defcb74e), [`c868710`](https://github.com/assistant-ui/assistant-ui/commit/c8687104b0407f424d55dd0a369d692fe7a4c708), [`011e275`](https://github.com/assistant-ui/assistant-ui/commit/011e275c4df5cd85942b5fd545a74d9c7cf549a6), [`da32fe0`](https://github.com/assistant-ui/assistant-ui/commit/da32fe0b2f51c8a340935c5f4d2e31e747d39460), [`f913c21`](https://github.com/assistant-ui/assistant-ui/commit/f913c2142708d8cd1f4ac63bd801e5b6defcb74e), [`5bb2573`](https://github.com/assistant-ui/assistant-ui/commit/5bb25733674396d496046b7c5443366171d0e8cf)]:
+  - @assistant-ui/core@0.3.4
+  - @assistant-ui/store@0.3.3
+
 ## 0.2.16
 
 ### Patch Changes

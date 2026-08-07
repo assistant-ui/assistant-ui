@@ -5,6 +5,7 @@ import { Thread } from "@/components/assistant-ui/thread";
 import {
   AssistantRuntimeProvider,
   AuiProvider,
+  AuiConfig,
   unstable_Interactables,
   Suggestions,
   useAui,
@@ -260,7 +261,8 @@ const persistenceAdapter = {
 };
 
 function InteractablesExample() {
-  const aui = useAui({
+  const aui = useAui();
+  const config = AuiConfig({
     unstable_interactables: unstable_Interactables({
       persistence: persistenceAdapter,
     }),
@@ -285,7 +287,7 @@ function InteractablesExample() {
   });
 
   return (
-    <AuiProvider value={aui}>
+    <AuiProvider extends={aui} config={config}>
       <main className="flex h-full min-h-0">
         <div className="min-w-0 flex-1">
           <Thread />

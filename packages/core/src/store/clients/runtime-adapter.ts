@@ -1,8 +1,5 @@
-import {
-  Derived,
-  type ScopesConfig,
-  type AssistantClient,
-} from "@assistant-ui/store";
+import type { AssistantClient, ScopesConfig } from "@assistant-ui/store";
+import { Derived } from "@assistant-ui/store/client";
 import { ModelContext } from "./model-context-client";
 import { Suggestions } from "./suggestions";
 

@@ -4,6 +4,8 @@
  * various LLM provider formats (AI SDK, LangChain, etc.).
  */
 
+import { NO_RESULT } from "../tool/ToolResponse";
+
 export type GenericTextPart = {
   type: "text";
   text: string;
@@ -67,8 +69,15 @@ type MessagePartLike = {
   toolCallId?: string;
   toolName?: string;
   args?: Record<string, unknown>;
+  state?: string;
   result?: unknown;
   isError?: boolean;
+  approval?: {
+    approved?: boolean;
+    resolution?: string;
+    [key: string]: unknown;
+  };
+  interrupt?: unknown;
 };
 
 type AttachmentLike = {
@@ -123,6 +132,14 @@ type ToolCallAccumulator = {
   toolResults: GenericToolResultPart[];
 };
 
+function isAwaitingHost(part: MessagePartLike): boolean {
+  if (part.interrupt != null) return true;
+  if (part.approval == null) return false;
+  return (
+    part.approval.approved !== false && part.approval.resolution === undefined
+  );
+}
+
 function processToolCall(
   part: MessagePartLike,
   accumulator: ToolCallAccumulator,
@@ -136,20 +153,26 @@ function processToolCall(
     args: part.args ?? {},
   });
 
-  if (part.result !== undefined) {
-    const toolResult: GenericToolResultPart = {
-      type: "tool-result",
-      toolCallId: part.toolCallId,
-      toolName: part.toolName,
-      result: part.result,
-    };
-    if (part.isError) {
-      toolResult.isError = true;
-    }
-    accumulator.toolResults.push(toolResult);
-    return true;
+  const settled = part.state === "result" || part.result !== undefined;
+  // The in-flight message is converted on every roundtrip, so a call still awaiting a decision or an execution is live rather than failed.
+  if (!settled && isAwaitingHost(part)) return false;
+
+  // Providers reject an assistant tool call that no tool result answers.
+  const toolResult: GenericToolResultPart = {
+    type: "tool-result",
+    toolCallId: part.toolCallId,
+    toolName: part.toolName,
+    result: !settled
+      ? { error: "Tool call was not completed" }
+      : part.result === undefined
+        ? NO_RESULT
+        : part.result,
+  };
+  if (!settled || part.isError) {
+    toolResult.isError = true;
   }
-  return false;
+  accumulator.toolResults.push(toolResult);
+  return true;
 }
 
 function flushAccumulator(

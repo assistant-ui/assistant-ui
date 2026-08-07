@@ -1,5 +1,6 @@
 import { parsePartialJsonObject } from "assistant-stream/utils";
 import { generateId } from "../../utils/id";
+import { parseDataUrl } from "../../utils/data-url";
 import type {
   ReasoningMessagePart,
   SourceMessagePart,
@@ -130,10 +131,7 @@ export const fromThreadMessageLike = (
     ...rest
   }: ImageMessagePart): ImageMessagePart | null => {
     if (typeof image !== "string") return null;
-    const dataUri = image.match(
-      /^data:image\/(png|jpeg|jpg|gif|webp|svg\+xml);base64,(.*)$/i,
-    );
-    if (dataUri) {
+    if (parseDataUrl(image)?.mimeType.startsWith("image/")) {
       return { ...rest, image };
     }
     if (/^(https:\/\/|blob:)/i.test(image)) {

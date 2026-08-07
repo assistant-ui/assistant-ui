@@ -1,5 +1,109 @@
 # @assistant-ui/react
 
+## 0.15.8
+
+### Patch Changes
+
+- Republish of 0.15.6 (registry staged-version conflicts blocked 0.15.6 and 0.15.7; contents identical).
+
+
+## 0.15.6
+
+### Patch Changes
+
+- [#5664](https://github.com/assistant-ui/assistant-ui/pull/5664) [`3b0d778`](https://github.com/assistant-ui/assistant-ui/commit/3b0d7789b912c5bde44f0fd102124d759cca5312) - fix: gate ComposerPrimitive.AttachmentDropzone on file drags and the attachments capability ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#5666](https://github.com/assistant-ui/assistant-ui/pull/5666) [`366da2b`](https://github.com/assistant-ui/assistant-ui/commit/366da2bb6463e819cc1806afd06b77e594d19c37) - fix(react): route only thread-composer sends into the queue adapter ([@Yonom](https://github.com/Yonom))
+
+- Updated dependencies [[`bd4c0ad`](https://github.com/assistant-ui/assistant-ui/commit/bd4c0ad3d41a65d0a2caea921f82c6502011615a), [`4aa1b1d`](https://github.com/assistant-ui/assistant-ui/commit/4aa1b1d1b9368f4812b55a33d6f09bb3dcd71949), [`bd4c0ad`](https://github.com/assistant-ui/assistant-ui/commit/bd4c0ad3d41a65d0a2caea921f82c6502011615a)]:
+  - @assistant-ui/core@0.3.7
+  - @assistant-ui/store@0.3.5
+
+## 0.15.5
+
+### Patch Changes
+
+- [#5476](https://github.com/assistant-ui/assistant-ui/pull/5476) [`02b9dc1`](https://github.com/assistant-ui/assistant-ui/commit/02b9dc10df3132db534399367a8340b4c1b28d50) - fix: allow callers to override the default type="button" on action button primitives ([@ephraimduncan](https://github.com/ephraimduncan))
+
+- [#5564](https://github.com/assistant-ui/assistant-ui/pull/5564) [`31a427a`](https://github.com/assistant-ui/assistant-ui/commit/31a427a6b8d1faba6f046919c97b02729ec9c502) - fix: hydrate assistant transport resumes from their retained initial state ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5415](https://github.com/assistant-ui/assistant-ui/pull/5415) [`271d85d`](https://github.com/assistant-ui/assistant-ui/commit/271d85d2fc8a0428dc5bd826497f8d0e37b39451) - fix: AttachmentPrimitive.Thumb now renders custom children and supports asChild instead of always overriding them with the automatic label ([@ephraimduncan](https://github.com/ephraimduncan))
+
+- [#5421](https://github.com/assistant-ui/assistant-ui/pull/5421) [`e7a696c`](https://github.com/assistant-ui/assistant-ui/commit/e7a696c981feed1b6e655a6cdb01742ecb3cd6e3) - fix: AttachmentPrimitive.Thumb no longer renders a bare "." for extension-less filenames; falls back to the attachment type ([@ephraimduncan](https://github.com/ephraimduncan))
+
+- [#5430](https://github.com/assistant-ui/assistant-ui/pull/5430) [`dcacd9b`](https://github.com/assistant-ui/assistant-ui/commit/dcacd9bc45117f9beca698006fd67616d2c1ca61) - feat: AuiProvider extends/config grammar. `config={AuiConfig({...})}` alone creates a top-level root client; nested providers must pass `extends` — a client to extend, or `null` to isolate (dev-enforced). An empty config creates a client extending the `extends` client; `ref` exposes the resulting client. The `config` prop only accepts configs built with `AuiConfig(...)` (branded type). AssistantRuntimeProvider gains an optional `config` prop whose scopes are provided alongside the runtime scope. The `useAui({...})` extension overload and the AuiProvider `value` prop are deprecated; `value={client}` now exposes a client extending the given one (same scopes, new identity) rather than the exact instance. `useAui({})` with an empty scope object now mounts a rooted host (so the scope set can grow across renders) instead of a passthrough derived-only client. `useAuiState` state enumeration (`Object.keys`/spread) now includes scopes inherited from parent clients, matching `in`-operator behavior. Clients derived from a hand-built parent (a plain object with `subscribe`/`on`) forward scoped `on(...)` listeners to the parent's `on` instead of throwing for scopes the parent does not expose. ([@Yonom](https://github.com/Yonom))
+
+- [#5416](https://github.com/assistant-ui/assistant-ui/pull/5416) [`c5b88f1`](https://github.com/assistant-ui/assistant-ui/commit/c5b88f1647578c2dd6b891924ae0248581e727af) - fix: ignore Escape during IME composition in ComposerPrimitiveInput so dismissing a composition candidate no longer cancels the composer ([@ephraimduncan](https://github.com/ephraimduncan))
+
+- [#5420](https://github.com/assistant-ui/assistant-ui/pull/5420) [`129d0c1`](https://github.com/assistant-ui/assistant-ui/commit/129d0c1203f193e82be61bfaf980f96f85365976) - fix: defer blob URL revocation in ActionBarPrimitive.ExportMarkdown so the download fetch can start before the URL is revoked ([@ephraimduncan](https://github.com/ephraimduncan))
+
+- [#5585](https://github.com/assistant-ui/assistant-ui/pull/5585) [`1160d8b`](https://github.com/assistant-ui/assistant-ui/commit/1160d8b273c635c52c3e9800bad0a733bb2db7ec) - fix: settle assistant transport runs when finish callbacks fail ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5418](https://github.com/assistant-ui/assistant-ui/pull/5418) [`cc85bf4`](https://github.com/assistant-ui/assistant-ui/commit/cc85bf4943a85905def4ad6b720780eab37aaa40) - fix: compose SelectionToolbarRoot onMouseDown with composeEventHandlers so user handlers run before preventDefault ([@ephraimduncan](https://github.com/ephraimduncan))
+
+- [#5650](https://github.com/assistant-ui/assistant-ui/pull/5650) [`34cec64`](https://github.com/assistant-ui/assistant-ui/commit/34cec64fcfbdef0e101d731f5518e9075d989e2f) - feat: two-lane, placement-aware message queue with steer-by-default mid-run sends ([@Yonom](https://github.com/Yonom))
+
+  `ExternalThreadQueueAdapter` is reshaped: `enqueue(message, { steer })` splits into
+  `enqueue(message)` / `steer(message)`, `steer(queueItemId)` becomes
+  `move(queueItemId, { lane: "steer", insertAfter: null })`, `clear(reason)` is dropped
+  (queue clear policy is now host-owned), and `steerItems` / `move` / `edit` and
+  `QueueItemState.parts` are required.
+
+- Updated dependencies [[`dcacd9b`](https://github.com/assistant-ui/assistant-ui/commit/dcacd9bc45117f9beca698006fd67616d2c1ca61), [`d52928d`](https://github.com/assistant-ui/assistant-ui/commit/d52928db2c83a3ba6f25bf8c6b21934571dd4622), [`d8a59ad`](https://github.com/assistant-ui/assistant-ui/commit/d8a59ad5d75f220e76e689d4191855c244ddc20a), [`e70da91`](https://github.com/assistant-ui/assistant-ui/commit/e70da91866a5ac880472fbcf23039909270f7623), [`aac3a8c`](https://github.com/assistant-ui/assistant-ui/commit/aac3a8cb8824472f694226a4c53829a0a693072e), [`aa302ee`](https://github.com/assistant-ui/assistant-ui/commit/aa302eeaacd399f58b74b64eb3a1e17d9ea97e03), [`aa302ee`](https://github.com/assistant-ui/assistant-ui/commit/aa302eeaacd399f58b74b64eb3a1e17d9ea97e03), [`71cf74e`](https://github.com/assistant-ui/assistant-ui/commit/71cf74eaa7fb3bcf1cc7af346637b51f99e3fc33), [`34cec64`](https://github.com/assistant-ui/assistant-ui/commit/34cec64fcfbdef0e101d731f5518e9075d989e2f)]:
+  - @assistant-ui/store@0.3.4
+  - @assistant-ui/core@0.3.6
+  - assistant-stream@0.3.34
+  - @assistant-ui/tap@0.9.10
+
+## 0.15.4
+
+### Patch Changes
+
+- [#5566](https://github.com/assistant-ui/assistant-ui/pull/5566) [`7528465`](https://github.com/assistant-ui/assistant-ui/commit/7528465d2b243f7163a64c112446d15327d87233) - fix: skip add-message commands with no supported parts in assistant transport runtime ([@Yonom](https://github.com/Yonom))
+
+- [#5565](https://github.com/assistant-ui/assistant-ui/pull/5565) [`78943a3`](https://github.com/assistant-ui/assistant-ui/commit/78943a37b1006bfbee42596f838850cd96ab4566) - feat: add opt-in `strict: false` mode that reconciles malformed stream input instead of throwing (decoders, state accumulator); assistant-transport resume runs always decode leniently ([@Yonom](https://github.com/Yonom))
+
+- Updated dependencies [[`7f7f8a2`](https://github.com/assistant-ui/assistant-ui/commit/7f7f8a24f87bd7eb745675fa2644a5cca2f69372), [`6c062f1`](https://github.com/assistant-ui/assistant-ui/commit/6c062f1b2a7c362fa7eb1b4fecc59c748588cb1a), [`78943a3`](https://github.com/assistant-ui/assistant-ui/commit/78943a37b1006bfbee42596f838850cd96ab4566)]:
+  - @assistant-ui/core@0.3.5
+  - assistant-cloud@0.1.38
+  - assistant-stream@0.3.33
+
+## 0.15.3
+
+### Patch Changes
+
+- [#5432](https://github.com/assistant-ui/assistant-ui/pull/5432) [`8ca9930`](https://github.com/assistant-ui/assistant-ui/commit/8ca9930ea70eb563a5b5169b45f3d7bccb816ef1) - fix: refresh MCP App resources when the host changes ([@Kinfe123](https://github.com/Kinfe123))
+
+  Custom `McpAppsHost` resources must now return a stable object identity (for
+  example, with `useMemo`); an unstable host keeps the widget in
+  `loadingFallback` and refetches on every re-render.
+
+- [#5447](https://github.com/assistant-ui/assistant-ui/pull/5447) [`8c99934`](https://github.com/assistant-ui/assistant-ui/commit/8c99934ca7fe9a8ffea0aa972e3579ff74e18553) - docs: deprecate Unstable_AudioMessagePart in favour of file parts ([@okisdev](https://github.com/okisdev))
+
+  Audio belongs on a `file` part with an `audio/*` mime type. `file` is a member of both the user and assistant unions and carries a filename, neither of which the audio part can express. The payload form a `file` part needs is still adapter specific; the message primitive docs enumerate it. The audio part and the `Unstable_Audio` slot stay honored everywhere they are accepted and will not gain fields.
+
+- [#5439](https://github.com/assistant-ui/assistant-ui/pull/5439) [`ece5a54`](https://github.com/assistant-ui/assistant-ui/commit/ece5a5422e8b45429e1681b7a845d68be2879834) - feat: sourceType opt-in on file message parts so attachment adapters can send url/id file references ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#5542](https://github.com/assistant-ui/assistant-ui/pull/5542) [`55b2824`](https://github.com/assistant-ui/assistant-ui/commit/55b282476bf3075beff391978a72a13968b6418a) - feat: expose `threadListItem.isRunning` so a thread list row can show its own run ([@okisdev](https://github.com/okisdev))
+
+  a thread list row had no supported way to tell whether its thread was running: `thread.isRunning` describes the open thread, and the item state carried no run state at all, so a run continuing on a thread the user had switched away from was invisible.
+
+  `threadListItem.isRunning` now reports it, and stays true for a background run. runtimes that keep background threads alive answer it through the new optional `ThreadListRuntimeCore.unstable_isThreadRunning`; the rest report the open thread's run state, which they already track.
+
+  `InMemoryThreadList` also renames threads for real instead of dropping the new title.
+
+- [#5537](https://github.com/assistant-ui/assistant-ui/pull/5537) [`c868710`](https://github.com/assistant-ui/assistant-ui/commit/c8687104b0407f424d55dd0a369d692fe7a4c708) - fix: keep a settled tool call distinguishable from an unfinished one, so a tool returning false, 0, "" or null no longer loses its result on the cloud round trip and no longer reads as never completed ([@okisdev](https://github.com/okisdev))
+
+- [#5522](https://github.com/assistant-ui/assistant-ui/pull/5522) [`f913c21`](https://github.com/assistant-ui/assistant-ui/commit/f913c2142708d8cd1f4ac63bd801e5b6defcb74e) - feat: add `threads.reloadMainThread()` to refetch the open thread's remote state in place ([@taoche](https://github.com/taoche))
+
+- [#5417](https://github.com/assistant-ui/assistant-ui/pull/5417) [`5bb2573`](https://github.com/assistant-ui/assistant-ui/commit/5bb25733674396d496046b7c5443366171d0e8cf) - fix: suggestion trigger with `send` no longer overwrites the composer draft while a run is in progress; on runtimes without queue support it now renders disabled mid-run, matching `ComposerPrimitive.Send` ([@ephraimduncan](https://github.com/ephraimduncan))
+
+- Updated dependencies [[`b19c2f5`](https://github.com/assistant-ui/assistant-ui/commit/b19c2f5efd37e1203502c76d92e0554b63020952), [`01140bd`](https://github.com/assistant-ui/assistant-ui/commit/01140bde14fbfa89af9bdd080bbf79b3a509b524), [`8c99934`](https://github.com/assistant-ui/assistant-ui/commit/8c99934ca7fe9a8ffea0aa972e3579ff74e18553), [`ece5a54`](https://github.com/assistant-ui/assistant-ui/commit/ece5a5422e8b45429e1681b7a845d68be2879834), [`2fdff87`](https://github.com/assistant-ui/assistant-ui/commit/2fdff878211979b1f24d746bf2f16d8b6254102d), [`90b3003`](https://github.com/assistant-ui/assistant-ui/commit/90b3003b943e083fa6cd81e30181bf5b88904361), [`4c313cf`](https://github.com/assistant-ui/assistant-ui/commit/4c313cfabe9802a7e59362c323ec926a24d089d4), [`55b2824`](https://github.com/assistant-ui/assistant-ui/commit/55b282476bf3075beff391978a72a13968b6418a), [`22b05a4`](https://github.com/assistant-ui/assistant-ui/commit/22b05a43ec921a6dd7015692a77a746656a61f5f), [`f913c21`](https://github.com/assistant-ui/assistant-ui/commit/f913c2142708d8cd1f4ac63bd801e5b6defcb74e), [`c868710`](https://github.com/assistant-ui/assistant-ui/commit/c8687104b0407f424d55dd0a369d692fe7a4c708), [`011e275`](https://github.com/assistant-ui/assistant-ui/commit/011e275c4df5cd85942b5fd545a74d9c7cf549a6), [`da32fe0`](https://github.com/assistant-ui/assistant-ui/commit/da32fe0b2f51c8a340935c5f4d2e31e747d39460), [`f913c21`](https://github.com/assistant-ui/assistant-ui/commit/f913c2142708d8cd1f4ac63bd801e5b6defcb74e), [`5bb2573`](https://github.com/assistant-ui/assistant-ui/commit/5bb25733674396d496046b7c5443366171d0e8cf), [`71231d3`](https://github.com/assistant-ui/assistant-ui/commit/71231d3ee52ef094c5b04b4d040714f9a409ecab), [`5ececc1`](https://github.com/assistant-ui/assistant-ui/commit/5ececc1df536e098f8ee252addd2e62be7d61a7a)]:
+  - @assistant-ui/core@0.3.4
+  - assistant-stream@0.3.32
+  - @assistant-ui/store@0.3.3
+  - safe-content-frame@0.0.26
+
 ## 0.15.2
 
 ### Patch Changes

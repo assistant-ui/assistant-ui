@@ -163,7 +163,7 @@ export class ReadonlyThreadRuntimeCore
     },
 
     queue: [] as never[],
-    steerQueueItem() {},
+    moveQueueItem() {},
     removeQueueItem() {},
 
     dictation: undefined,

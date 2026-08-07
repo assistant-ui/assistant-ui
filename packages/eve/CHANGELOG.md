@@ -1,5 +1,40 @@
 # @assistant-ui/eve
 
+## 0.0.9
+
+### Patch Changes
+
+- [#5629](https://github.com/assistant-ui/assistant-ui/pull/5629) [`843b0a6`](https://github.com/assistant-ui/assistant-ui/commit/843b0a685d19816b4a160aaafe7c5e4eb2d93273) - fix: forward runConfig to eve as client context (an explicit empty reload config cannot clear a staged one — core normalizes omitted and empty runConfig to the same value) ([@samdickson22](https://github.com/samdickson22))
+
+- Updated dependencies [[`bd4c0ad`](https://github.com/assistant-ui/assistant-ui/commit/bd4c0ad3d41a65d0a2caea921f82c6502011615a), [`4aa1b1d`](https://github.com/assistant-ui/assistant-ui/commit/4aa1b1d1b9368f4812b55a33d6f09bb3dcd71949)]:
+  - @assistant-ui/core@0.3.7
+
+## 0.0.8
+
+### Patch Changes
+
+- [#5625](https://github.com/assistant-ui/assistant-ui/pull/5625) [`453e694`](https://github.com/assistant-ui/assistant-ui/commit/453e69447aa748d4b8b89731f7b0b4cbc659f2a6) - fix: render connector authorization parts and map auth-suspended turns to requires-action ([@samdickson22](https://github.com/samdickson22))
+
+- [#5608](https://github.com/assistant-ui/assistant-ui/pull/5608) [`7e59aa7`](https://github.com/assistant-ui/assistant-ui/commit/7e59aa78076e2cf18b6be860ca61454adca6748f) - feat: export toEveInputResponse from the package barrel for custom approval flows ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#5584](https://github.com/assistant-ui/assistant-ui/pull/5584) [`8e5fbf3`](https://github.com/assistant-ui/assistant-ui/commit/8e5fbf3a69ad08c7691c8ebced831098dc11cbc9) - fix: convert inbound eve file parts instead of dropping them ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#5652](https://github.com/assistant-ui/assistant-ui/pull/5652) [`e90abb1`](https://github.com/assistant-ui/assistant-ui/commit/e90abb1608749e1bb900dce695e2b4a764e14bd7) - fix: reconcile staged messages with live session updates and promote staged prefixes on reload ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#5580](https://github.com/assistant-ui/assistant-ui/pull/5580) [`adbd641`](https://github.com/assistant-ui/assistant-ui/commit/adbd64163657e2f24a2cc948f9799ee037f3d4d8) - fix: map cancelled and failed turns to terminal message statuses instead of a permanent running state ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- Updated dependencies [[`dcacd9b`](https://github.com/assistant-ui/assistant-ui/commit/dcacd9bc45117f9beca698006fd67616d2c1ca61), [`d8a59ad`](https://github.com/assistant-ui/assistant-ui/commit/d8a59ad5d75f220e76e689d4191855c244ddc20a), [`e70da91`](https://github.com/assistant-ui/assistant-ui/commit/e70da91866a5ac880472fbcf23039909270f7623), [`aac3a8c`](https://github.com/assistant-ui/assistant-ui/commit/aac3a8cb8824472f694226a4c53829a0a693072e), [`34cec64`](https://github.com/assistant-ui/assistant-ui/commit/34cec64fcfbdef0e101d731f5518e9075d989e2f)]:
+  - @assistant-ui/core@0.3.6
+
+## 0.0.7
+
+### Patch Changes
+
+- [#5441](https://github.com/assistant-ui/assistant-ui/pull/5441) [`c7ff5aa`](https://github.com/assistant-ui/assistant-ui/commit/c7ff5aa7ed482b15fb1131c756d6cc191e4f48d0) - fix(eve): forward audio message parts as file parts and skip data parts instead of throwing ([@okisdev](https://github.com/okisdev))
+
+- Updated dependencies [[`b19c2f5`](https://github.com/assistant-ui/assistant-ui/commit/b19c2f5efd37e1203502c76d92e0554b63020952), [`8c99934`](https://github.com/assistant-ui/assistant-ui/commit/8c99934ca7fe9a8ffea0aa972e3579ff74e18553), [`ece5a54`](https://github.com/assistant-ui/assistant-ui/commit/ece5a5422e8b45429e1681b7a845d68be2879834), [`2fdff87`](https://github.com/assistant-ui/assistant-ui/commit/2fdff878211979b1f24d746bf2f16d8b6254102d), [`55b2824`](https://github.com/assistant-ui/assistant-ui/commit/55b282476bf3075beff391978a72a13968b6418a), [`22b05a4`](https://github.com/assistant-ui/assistant-ui/commit/22b05a43ec921a6dd7015692a77a746656a61f5f), [`f913c21`](https://github.com/assistant-ui/assistant-ui/commit/f913c2142708d8cd1f4ac63bd801e5b6defcb74e), [`c868710`](https://github.com/assistant-ui/assistant-ui/commit/c8687104b0407f424d55dd0a369d692fe7a4c708), [`011e275`](https://github.com/assistant-ui/assistant-ui/commit/011e275c4df5cd85942b5fd545a74d9c7cf549a6), [`da32fe0`](https://github.com/assistant-ui/assistant-ui/commit/da32fe0b2f51c8a340935c5f4d2e31e747d39460), [`f913c21`](https://github.com/assistant-ui/assistant-ui/commit/f913c2142708d8cd1f4ac63bd801e5b6defcb74e), [`5bb2573`](https://github.com/assistant-ui/assistant-ui/commit/5bb25733674396d496046b7c5443366171d0e8cf)]:
+  - @assistant-ui/core@0.3.4
+
 ## 0.0.6
 
 ### Patch Changes

@@ -16,6 +16,13 @@ Command Scheduling
   - If no run is in progress: start a run immediately and flush commands to the server.
 - A follow-up run that finds an empty queue is a no-op: no request is sent and no error is surfaced.
 - A resume run sends no commands; commands enqueued while it is pending or active are flushed in a follow-up run after it settles.
+
+Resume State
+
+- With `resumeStateApi` configured, a resume first posts `{ threadId }` there; the endpoint returns `{ runId, state }`, the state that started the active run.
+- The resume request carries `runId` and no `state`: the server replays from the snapshot it retained for that run, so neither `body` overrides nor a `prepareSendCommandsRequest` rebuild can substitute a different base. `runId` takes precedence over `body` fields and is re-attached after `prepareSendCommandsRequest` so a rebuilt body cannot drop it. The local base is replaced by the snapshot only after the resume stream responds OK, so a rejected resume keeps the local state.
+- A 204 response means no active run: the resume is skipped without error, and queued commands are flushed in a follow-up run.
+- A malformed snapshot response fails the resume before the replay request is sent.
 - Runs execute on a `queueMicrotask`, so multiple synchronous enqueues coalesce into a single request: the first run's flush takes all of them, and the coalesced follow-up run no-ops.
 
 Command Queue

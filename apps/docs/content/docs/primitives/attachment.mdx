@@ -53,7 +53,7 @@ import { AttachmentPrimitive, ComposerPrimitive } from "@assistant-ui/react";
 </ComposerPrimitive.Root>
 ```
 
-`Root` renders a `<div>`, `unstable_Thumb` renders a `<div>` showing the file extension with a leading dot (e.g., `.pdf`), `Name` renders plain text, and `Remove` renders a `<button>`.
+`Root` renders a `<div>`, `unstable_Thumb` renders a `<div>` showing the file extension with a leading dot (e.g., `.pdf`), or the attachment type (e.g., `image`) when the filename has no extension (including leading-dot names like `.env`), `Name` renders plain text, and `Remove` renders a `<button>`. If you pass `children` to `unstable_Thumb`, they override that text.
 
 <Callout type="info">
 Runtime setup: primitives require runtime context. Wrap your UI in `AssistantRuntimeProvider` with a runtime (for example `useLocalRuntime(...)`). See [Pick a Runtime](/docs/runtimes/pick-a-runtime).
@@ -124,7 +124,7 @@ Container for a single attachment item. Renders a `<div>` element unless `asChil
 
 ### unstable_Thumb
 
-Thumbnail slot for attachment previews. Renders a `<div>` element unless `asChild` is set.
+Thumbnail slot for attachment previews. Renders a `<div>` element unless `asChild` is set. By default it shows the file extension with a leading dot (e.g., `.pdf`); if you pass `children`, they override the automatic text.
 
 ```tsx
 <AttachmentPrimitive.unstable_Thumb className="flex size-10 items-center justify-center rounded bg-muted text-xs" />

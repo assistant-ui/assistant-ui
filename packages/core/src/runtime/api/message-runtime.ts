@@ -44,7 +44,7 @@ export const toMessagePartStatus = (
   if (message.role !== "assistant") return COMPLETE_STATUS;
 
   if (part.type === "tool-call") {
-    if (!part.result) {
+    if (part.result === undefined) {
       return message.status as ToolCallMessagePartStatus;
     } else {
       return COMPLETE_STATUS;

@@ -31,7 +31,10 @@ export type ThreadListState = {
   readonly isLoadingMore: boolean;
   readonly hasMore: boolean;
   readonly threadItems: Readonly<
-    Record<string, Omit<ThreadListItemState, "isMain" | "threadId">>
+    Record<
+      string,
+      Omit<ThreadListItemState, "isMain" | "threadId" | "isRunning">
+    >
   >;
 };
 
@@ -103,6 +106,7 @@ const getThreadListItemState = (
     lastMessageAt: threadData.lastMessageAt,
     custom: threadData.custom,
     isMain: threadData.id === threadList.mainThreadId,
+    isRunning: threadList.unstable_isThreadRunning?.(threadData.id) ?? false,
   };
 };
 

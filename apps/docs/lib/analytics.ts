@@ -1,3 +1,5 @@
+import type { LearnCourseStartSource } from "@/lib/xulux/learn/types";
+
 declare global {
   interface Window {
     posthog?: {
@@ -281,6 +283,54 @@ export const analytics = {
   },
 
   xulux: {
+    learnPageViewed: (props: {
+      session_id: string;
+      thread_id?: string;
+      pathname?: string;
+      course_id: string;
+      status: "not_started" | "in_progress" | "completed";
+    }) => trackEvent("learn_page_viewed", props),
+
+    learnCourseStarted: (props: {
+      session_id: string;
+      thread_id?: string;
+      pathname?: string;
+      course_id: string;
+      source: LearnCourseStartSource;
+    }) => trackEvent("learn_course_started", props),
+
+    learnStepAdvanced: (props: {
+      session_id: string;
+      thread_id?: string;
+      pathname?: string;
+      course_id: string;
+      step_id: string;
+      step_index: number;
+    }) => trackEvent("learn_step_advanced", props),
+
+    learnCourseCompleted: (props: {
+      session_id: string;
+      thread_id?: string;
+      pathname?: string;
+      course_id: string;
+    }) => trackEvent("learn_course_completed", props),
+
+    learnCourseDownloaded: (props: {
+      session_id: string;
+      thread_id?: string;
+      pathname?: string;
+      course_id: string;
+      stage_id: string;
+    }) => trackEvent("learn_course_downloaded", props),
+
+    learnCertificateSubmitted: (props: {
+      session_id: string;
+      thread_id?: string;
+      pathname?: string;
+      course_id: string;
+      consent: boolean;
+    }) => trackEvent("learn_certificate_submitted", props),
+
     playgroundViewed: (props: {
       session_id: string;
       thread_id?: string;

@@ -14,6 +14,10 @@ import {
 } from "../../utils/stream/AssistantMetaTransformStream";
 import type { AssistantStreamEncoder } from "../../AssistantStream";
 
+type DataStreamOptions = {
+  strict?: boolean | undefined;
+};
+
 export class DataStreamEncoder
   extends PipeableTransformStream<AssistantStreamChunk, Uint8Array<ArrayBuffer>>
   implements AssistantStreamEncoder
@@ -256,11 +260,18 @@ export class DataStreamDecoder extends PipeableTransformStream<
   Uint8Array<ArrayBuffer>,
   AssistantStreamChunk
 > {
-  constructor() {
+  constructor(options: DataStreamOptions = {}) {
+    const strict = options.strict ?? true;
     super((readable) => {
       const toolCallControllers = new Map<string, ToolCallStreamController>();
       const closedToolCallArgs = new Set<string>();
       const warnedDroppedArgs = new Set<string>();
+      const loggedDrops = new Set<string>();
+      const logDropped = (key: string, message: string) => {
+        if (loggedDrops.has(key) || loggedDrops.size >= 20) return;
+        loggedDrops.add(key);
+        console.error(message);
+      };
       const closeOpenToolCallArgs = () => {
         for (const [toolCallId, toolCallController] of toolCallControllers) {
           if (closedToolCallArgs.has(toolCallId)) continue;
@@ -269,6 +280,7 @@ export class DataStreamDecoder extends PipeableTransformStream<
         }
       };
       const transform = new AssistantTransformStream<DataStreamChunk>({
+        strict,
         transform(chunk, controller) {
           const { type, value } = chunk;
 
@@ -299,10 +311,17 @@ export class DataStreamDecoder extends PipeableTransformStream<
                 ? controller.withParentId(parentId)
                 : controller;
 
-              if (toolCallControllers.has(toolCallId))
-                throw new Error(
-                  `Encountered duplicate tool call id: ${toolCallId}`,
+              if (toolCallControllers.has(toolCallId)) {
+                if (strict)
+                  throw new Error(
+                    `Encountered duplicate tool call id: ${toolCallId}`,
+                  );
+                logDropped(
+                  `duplicate:${toolCallId}`,
+                  `Dropped duplicate tool call start: ${toolCallId}`,
                 );
+                break;
+              }
 
               const toolCallController = ctrl.addToolCallPart({
                 toolCallId,
@@ -324,10 +343,17 @@ export class DataStreamDecoder extends PipeableTransformStream<
                 break;
               }
               const toolCallController = toolCallControllers.get(toolCallId);
-              if (!toolCallController)
-                throw new Error(
-                  `Encountered tool call with unknown id: ${toolCallId}`,
+              if (!toolCallController) {
+                if (strict)
+                  throw new Error(
+                    `Encountered tool call with unknown id: ${toolCallId}`,
+                  );
+                logDropped(
+                  `args:${toolCallId}`,
+                  `Dropped args delta for unknown tool call: ${toolCallId}`,
                 );
+                break;
+              }
               if (argsTextDelta.length > 0) {
                 toolCallController.argsText.append(argsTextDelta);
               }
@@ -341,10 +367,17 @@ export class DataStreamDecoder extends PipeableTransformStream<
             case DataStreamStreamChunkType.ToolCallResult: {
               const { toolCallId, artifact, result, isError } = value;
               const toolCallController = toolCallControllers.get(toolCallId);
-              if (!toolCallController)
-                throw new Error(
-                  `Encountered tool call result with unknown id: ${toolCallId}`,
+              if (!toolCallController) {
+                if (strict)
+                  throw new Error(
+                    `Encountered tool call result with unknown id: ${toolCallId}`,
+                  );
+                logDropped(
+                  `result:${toolCallId}`,
+                  `Dropped result for unknown tool call: ${toolCallId}`,
                 );
+                break;
+              }
               toolCallController.setResponse({
                 artifact,
                 result,
@@ -463,7 +496,12 @@ export class DataStreamDecoder extends PipeableTransformStream<
 
             default: {
               const exhaustiveCheck: never = type;
-              throw new Error(`unsupported chunk type: ${exhaustiveCheck}`);
+              if (strict)
+                throw new Error(`unsupported chunk type: ${exhaustiveCheck}`);
+              logDropped(
+                `type:${exhaustiveCheck as string}`,
+                `Dropped unsupported chunk type: ${exhaustiveCheck as string}`,
+              );
             }
           }
         },

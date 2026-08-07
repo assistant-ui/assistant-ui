@@ -428,8 +428,8 @@ const handleErrorChunk = (
 const handleUpdateState = (
   message: AssistantMessage,
   chunk: AssistantStreamChunk & { type: "update-state" },
+  acc: GorpStreamAccumulator,
 ): AssistantMessage => {
-  const acc = new GorpStreamAccumulator(message.metadata.unstable_state);
   acc.append(chunk.operations);
 
   return {
@@ -485,12 +485,15 @@ export class AssistantMessageAccumulator extends TransformStream<
     initialMessage,
     throttle,
     onError,
+    strict = true,
   }: {
     initialMessage?: AssistantMessage;
     throttle?: boolean;
     onError?: (error: string) => void;
+    strict?: boolean | undefined;
   } = {}) {
     let message = initialMessage ?? createInitialMessage();
+    let stateAccumulator: GorpStreamAccumulator | undefined;
     const tracker = new TimingTracker();
     const warnedKeys = new Set<string>();
     const warnOnce: WarnOnce = (key, warning) => {
@@ -560,7 +563,11 @@ export class AssistantMessageAccumulator extends TransformStream<
             onError?.(chunk.error);
             break;
           case "update-state":
-            message = handleUpdateState(message, chunk);
+            stateAccumulator ??= new GorpStreamAccumulator(
+              message.metadata.unstable_state,
+              { strict },
+            );
+            message = handleUpdateState(message, chunk, stateAccumulator);
             break;
           default: {
             const unhandledType: never = type;

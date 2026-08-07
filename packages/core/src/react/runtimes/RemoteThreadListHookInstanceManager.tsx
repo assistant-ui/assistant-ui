@@ -18,8 +18,12 @@ import { ThreadListItemRuntimeProvider } from "../providers/ThreadListItemRuntim
 import type { ThreadRuntimeCore } from "../../runtime/interfaces/thread-runtime-core";
 import type { ThreadListRuntimeCore } from "../../runtime/interfaces/thread-list-runtime-core";
 import type { AssistantRuntime } from "../../runtime/api/assistant-runtime";
+import type { Unsubscribe } from "../../types/unsubscribe";
 import { BaseSubscribable } from "../../subscribable/subscribable";
-import type { ThreadRuntimeImpl } from "../../runtime/api/thread-runtime";
+import {
+  getThreadRuntimeCoreIsRunning,
+  type ThreadRuntimeImpl,
+} from "../../runtime/api/thread-runtime";
 import { ThreadListRuntimeImpl } from "../../runtime/api/thread-list-runtime";
 
 type RemoteThreadListHook = () => AssistantRuntime;
@@ -31,6 +35,8 @@ type RemoteThreadListHookInstance = {
   publishedGeneration?: number | undefined;
   // Part of the binder's React key, so only a bump remounts the hook.
   generation: number;
+  isRunning: boolean;
+  unsubscribeRunning?: Unsubscribe | undefined;
 };
 
 const ProviderRenderDetector: FC<{
@@ -85,7 +91,10 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
 
   public startThreadRuntime(threadId: string) {
     if (!this.instances.has(threadId)) {
-      this.instances.set(threadId, { generation: this.nextGeneration++ });
+      this.instances.set(threadId, {
+        generation: this.nextGeneration++,
+        isRunning: false,
+      });
       this.useAliveThreadsKeysChanged.setState({}, true);
     }
 
@@ -109,7 +118,75 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     return instance.runtime;
   }
 
+  public __internal_isThreadRunning(threadId: string) {
+    return this.instances.get(threadId)?.isRunning ?? false;
+  }
+
+  private runningSubscribers = new Set<() => void>();
+
+  /**
+   * Fires when any thread crosses the running boundary. Separate from the
+   * general subscription so a run does not push the thread list through the
+   * channel that resolves pending runtime attachments.
+   */
+  public __internal_subscribeRunningChanged(callback: () => void): Unsubscribe {
+    this.runningSubscribers.add(callback);
+    return () => this.runningSubscribers.delete(callback);
+  }
+
+  private _publishThreadRuntime(
+    threadId: string,
+    runtime: ThreadRuntimeCore,
+    generation: number,
+  ) {
+    const instance = this.instances.get(threadId);
+    if (!instance)
+      throw new Error(
+        `Thread "${threadId}" runtime binding not found. This is a bug in assistant-ui.`,
+      );
+
+    // An outgoing binder outlives its generation until React commits the key
+    // change, and must not publish over the incoming one.
+    if (instance.generation !== generation) return;
+
+    const previousRuntime = instance.runtime;
+    instance.runtime = runtime;
+    instance.publishedGeneration = generation;
+    if (previousRuntime !== runtime) {
+      this._trackRunning(instance);
+    }
+    this._notifySubscribers();
+  }
+
+  // Run state changes far more often than the thread list does, so the list is
+  // only notified when a thread crosses the running boundary.
+  private _trackRunning(instance: RemoteThreadListHookInstance) {
+    instance.unsubscribeRunning?.();
+
+    const runtime = instance.runtime;
+    if (!runtime) {
+      instance.unsubscribeRunning = undefined;
+      this._setRunning(instance, false);
+      return;
+    }
+
+    this._setRunning(instance, getThreadRuntimeCoreIsRunning(runtime));
+    instance.unsubscribeRunning = runtime.subscribe(() => {
+      this._setRunning(instance, getThreadRuntimeCoreIsRunning(runtime));
+    });
+  }
+
+  private _setRunning(
+    instance: RemoteThreadListHookInstance,
+    isRunning: boolean,
+  ) {
+    if (instance.isRunning === isRunning) return;
+    instance.isRunning = isRunning;
+    for (const callback of this.runningSubscribers) callback();
+  }
+
   public stopThreadRuntime(threadId: string) {
+    this.instances.get(threadId)?.unsubscribeRunning?.();
     this.instances.delete(threadId);
     this.useAliveThreadsKeysChanged.setState({}, true);
     this._notifySubscribers();
@@ -134,19 +211,11 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
       .__internal_threadBinding;
 
     const updateRuntime = useCallback(() => {
-      const aliveThread = this.instances.get(threadId);
-      if (!aliveThread)
-        throw new Error(
-          `Thread "${threadId}" runtime binding not found. This is a bug in assistant-ui.`,
-        );
-
-      // An outgoing binder outlives its generation until React commits the key
-      // change, and must not publish over the incoming one.
-      if (aliveThread.generation !== generation) return;
-
-      aliveThread.runtime = threadBinding.getState();
-      aliveThread.publishedGeneration = generation;
-      this._notifySubscribers();
+      this._publishThreadRuntime(
+        threadId,
+        threadBinding.getState(),
+        generation,
+      );
     }, [threadId, generation, threadBinding]);
 
     const isMounted = useRef(false);

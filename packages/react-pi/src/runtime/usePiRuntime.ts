@@ -234,37 +234,36 @@ const usePiThreadStore = (
   // adapter forwards every send straight to the controller instead of
   // buffering client-side. Exposing it flips on `capabilities.queue`, which is
   // what lets the composer keep accepting input while a run is streaming
-  // (plain Enter → follow-up, Cmd/Ctrl+Shift+Enter → steer).
+  // (mid-run sends steer by default; `send({ steer: false })` queues a
+  // follow-up).
   const queue = useMemo<ExternalThreadQueueAdapter>(
     () => ({
-      items: [
-        ...state.queue.steering.map((content, index) => ({
-          id: piQueueItemId("steer", index),
-          prompt: content,
-        })),
-        ...state.queue.followUp.map((content, index) => ({
-          id: piQueueItemId("followUp", index),
-          prompt: content,
-        })),
-      ],
-      enqueue: (message, { steer }) => {
+      items: state.queue.followUp.map((content, index) => ({
+        id: piQueueItemId("followUp", index),
+        prompt: content,
+        parts: [{ type: "text" as const, text: content }],
+      })),
+      steerItems: state.queue.steering.map((content, index) => ({
+        id: piQueueItemId("steer", index),
+        prompt: content,
+        parts: [{ type: "text" as const, text: content }],
+      })),
+      enqueue: (message) => {
         void controller
-          .sendMessage(
-            message,
-            steer ? { streamingBehavior: "steer" } : undefined,
-          )
+          .sendMessage(message)
           .catch((error: unknown) => onError?.(error));
       },
-      // Pi owns the queue server-side and exposes no per-item promote or
-      // remove, so these two degrade to no-ops; the items above stay an
-      // honest mirror of the server queue. Clearing all is supported.
-      steer: () => {},
-      remove: () => {},
-      clear: () => {
-        void controller.clearQueue().catch((error: unknown) => {
-          onError?.(error);
-        });
+      steer: (message) => {
+        void controller
+          .sendMessage(message, { streamingBehavior: "steer" })
+          .catch((error: unknown) => onError?.(error));
       },
+      // the server-side queue exposes no per-item operations; shared queue
+      // UI cannot feature-detect these, so they deliberately no-op rather
+      // than crash an unguarded click path
+      move: () => {},
+      edit: () => {},
+      remove: () => {},
     }),
     [controller, state.queue, onError],
   );
@@ -291,7 +290,13 @@ const usePiThreadStore = (
       },
       onCancel: async () => {
         try {
-          await controller.cancel();
+          // clear before cancelling so the server cannot promote a queued
+          // prompt into a new run in between
+          try {
+            await controller.clearQueue();
+          } finally {
+            await controller.cancel();
+          }
         } catch (error) {
           onError?.(error);
           throw error;

@@ -29,14 +29,24 @@ type ThreadData = {
 // ThreadListItem Client
 const useThreadListItemClient = (props: {
   data: ThreadData;
+  isRunning: boolean;
   onSwitchTo: () => void;
+  onRename: (title: string) => void;
   onUpdateCustom: (custom: Record<string, unknown> | undefined) => void;
   onArchive: () => void;
   onUnarchive: () => void;
   onDelete: () => void;
 }): ClientOutput<"threadListItem"> => {
-  const { data, onSwitchTo, onUpdateCustom, onArchive, onUnarchive, onDelete } =
-    props;
+  const {
+    data,
+    isRunning,
+    onSwitchTo,
+    onRename,
+    onUpdateCustom,
+    onArchive,
+    onUnarchive,
+    onDelete,
+  } = props;
   const state = useMemo(
     () => ({
       id: data.id,
@@ -45,14 +55,15 @@ const useThreadListItemClient = (props: {
       title: data.title,
       status: data.status,
       custom: data.custom,
+      isRunning,
     }),
-    [data.id, data.title, data.status, data.custom],
+    [data.id, data.title, data.status, data.custom, isRunning],
   );
 
   return {
     getState: () => state,
     switchTo: onSwitchTo,
-    rename: () => {},
+    rename: onRename,
     updateCustom: onUpdateCustom,
     archive: onArchive,
     unarchive: onUnarchive,
@@ -83,6 +94,12 @@ const useInMemoryThreadList = (
   const handleSwitchToThread = (threadId: string) => {
     setMainThreadId(threadId);
     onSwitchToThread?.(threadId);
+  };
+
+  const handleRename = (threadId: string, title: string) => {
+    setThreads((prev) =>
+      prev.map((t) => (t.id === threadId ? { ...t, title } : t)),
+    );
   };
 
   const handleArchive = (threadId: string) => {
@@ -128,13 +145,18 @@ const useInMemoryThreadList = (
     onSwitchToNewThread?.();
   };
 
+  // Only the main thread is mounted, so it is the only thread that can run.
+  const mainThreadClient = useClientResource(threadFactory(mainThreadId));
+
   const threadListItems = useClientLookup(
     threads.map((t) =>
       withKey(
         t.id,
         ThreadListItemClient({
           data: t,
+          isRunning: t.id === mainThreadId && mainThreadClient.state.isRunning,
           onSwitchTo: () => handleSwitchToThread(t.id),
+          onRename: (title) => handleRename(t.id, title),
           onUpdateCustom: (custom) => handleUpdateCustom(t.id, custom),
           onArchive: () => handleArchive(t.id),
           onUnarchive: () => handleUnarchive(t.id),
@@ -143,9 +165,6 @@ const useInMemoryThreadList = (
       ),
     ),
   );
-
-  // Create the main thread
-  const mainThreadClient = useClientResource(threadFactory(mainThreadId));
 
   const state = useMemo(() => {
     const regularThreads = threads.filter((t) => t.status === "regular");

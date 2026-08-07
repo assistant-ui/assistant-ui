@@ -1,6 +1,7 @@
 "use client";
 
 import { Primitive } from "../../utils/Primitive";
+import { composeEventHandlers } from "@radix-ui/primitive";
 import {
   type ComponentPropsWithoutRef,
   type ComponentRef,
@@ -117,11 +118,10 @@ export const SelectionToolbarPrimitiveRoot = forwardRef<
         {...props}
         ref={forwardedRef}
         style={positionStyle}
-        onMouseDown={(e) => {
+        onMouseDown={composeEventHandlers(onMouseDown, (e) => {
           // Prevent mousedown from clearing the text selection
           e.preventDefault();
-          onMouseDown?.(e);
-        }}
+        })}
       />
     </SelectionToolbarContext.Provider>,
     document.body,

@@ -174,6 +174,72 @@ describe("fromThreadMessageLike", () => {
         { type: "image", image: "DATA:IMAGE/PNG;base64,AAAA" },
       ]);
     });
+
+    it.each([
+      "data:image/avif;base64,AAAA",
+      "data:image/bmp;base64,AAAA",
+      "data:image/heic;base64,AAAA",
+      "data:image/heif;base64,AAAA",
+      "data:image/tiff;base64,AAAA",
+    ])("keeps an image part with a %s data URL", (image) => {
+      const result = fromThreadMessageLike(
+        { role: "assistant", content: [{ type: "image", image }] },
+        fallbackId,
+        fallbackStatus,
+      );
+
+      expect(result.content).toEqual([{ type: "image", image }]);
+    });
+
+    it("keeps an image part with a parameterized data URL", () => {
+      const image = "data:image/png;charset=utf-8;base64,AAAA";
+      const result = fromThreadMessageLike(
+        { role: "assistant", content: [{ type: "image", image }] },
+        fallbackId,
+        fallbackStatus,
+      );
+
+      expect(result.content).toEqual([{ type: "image", image }]);
+    });
+
+    it("drops an image part with a non-image data URL", () => {
+      const result = fromThreadMessageLike(
+        {
+          role: "assistant",
+          content: [{ type: "image", image: "data:text/plain;base64,AAAA" }],
+        },
+        fallbackId,
+        fallbackStatus,
+      );
+
+      expect(result.content).toEqual([]);
+    });
+
+    it("drops an image part with a non-base64 data URL", () => {
+      const result = fromThreadMessageLike(
+        {
+          role: "assistant",
+          content: [{ type: "image", image: "data:image/png,rawpayload" }],
+        },
+        fallbackId,
+        fallbackStatus,
+      );
+
+      expect(result.content).toEqual([]);
+    });
+
+    it("drops an image part with a non-URL string", () => {
+      const result = fromThreadMessageLike(
+        {
+          role: "assistant",
+          content: [{ type: "image", image: "not-an-image" }],
+        },
+        fallbackId,
+        fallbackStatus,
+      );
+
+      expect(result.content).toEqual([]);
+    });
   });
 
   describe("providerMetadata passthrough", () => {

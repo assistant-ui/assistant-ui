@@ -14,13 +14,28 @@ import {
   normalizeCursor,
   updateStatusReducer,
 } from "../../runtimes/remote-thread-list/remote-thread-state";
-import type { RemoteThreadListOptions } from "../../runtimes/remote-thread-list/types";
+import type {
+  RemoteThreadListOptions,
+  RemoteThreadListProviderComponent,
+} from "../../runtimes/remote-thread-list/types";
 import { RemoteThreadListHookInstanceManager } from "./RemoteThreadListHookInstanceManager";
-import { type FC, Fragment, useEffect, useId } from "react";
+import {
+  type ComponentType,
+  type FC,
+  Fragment,
+  type PropsWithChildren,
+  useEffect,
+  useId,
+} from "react";
 import { create } from "zustand";
 import { AssistantMessageStream } from "assistant-stream";
 import type { ModelContextProvider } from "../../model-context/types";
 import { RuntimeAdapterProvider } from "./RuntimeAdapterProvider";
+
+const asProviderComponent = (
+  provider: RemoteThreadListProviderComponent | undefined,
+): ComponentType<PropsWithChildren> =>
+  (provider ?? Fragment) as ComponentType<PropsWithChildren>;
 
 const threadNotFoundError = (threadIdOrRemoteId: string, action: string) =>
   new Error(`Thread "${threadIdOrRemoteId}" not found while ${action}.`);
@@ -185,8 +200,11 @@ export class RemoteThreadListThreadListRuntimeCore
       options.runtimeHook,
       this,
     );
+    this._hookManager.__internal_subscribeRunningChanged(() =>
+      this._notifySubscribers(),
+    );
     this.useProvider = create(() => ({
-      Provider: options.adapter.unstable_Provider ?? Fragment,
+      Provider: asProviderComponent(options.adapter.unstable_Provider),
     }));
     this.__internal_setOptions(options);
     this.switchToNewThread();
@@ -207,7 +225,7 @@ export class RemoteThreadListThreadListRuntimeCore
 
     this._options = options;
 
-    const Provider = options.adapter.unstable_Provider ?? Fragment;
+    const Provider = asProviderComponent(options.adapter.unstable_Provider);
     if (Provider !== this.useProvider.getState().Provider) {
       this.useProvider.setState({ Provider }, true);
     }
@@ -349,6 +367,12 @@ export class RemoteThreadListThreadListRuntimeCore
     return result;
   }
 
+  public unstable_isThreadRunning(threadIdOrRemoteId: string) {
+    const data = this.getItemById(threadIdOrRemoteId);
+    if (!data) return false;
+    return this._hookManager.__internal_isThreadRunning(data.id);
+  }
+
   public getItemById(threadIdOrRemoteId: string) {
     return getThreadData(this._state.value, threadIdOrRemoteId);
   }
@@ -464,7 +488,10 @@ export class RemoteThreadListThreadListRuntimeCore
     if (this.mainThreadId !== undefined) {
       await task;
     } else {
-      task.then(() => this._notifySubscribers());
+      void task.then(
+        () => this._notifySubscribers(),
+        () => undefined,
+      );
     }
 
     if (generation !== this._switchGeneration) return;

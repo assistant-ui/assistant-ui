@@ -1,10 +1,7 @@
 import { useMemo } from "react";
 import { useResource, withKey, resource } from "@assistant-ui/tap";
-import {
-  type ClientOutput,
-  useClientLookup,
-  useClientResource,
-} from "@assistant-ui/store";
+import type { ClientOutput } from "@assistant-ui/store";
+import { useClientLookup, useClientResource } from "@assistant-ui/store/client";
 import type { ThreadListRuntime } from "../../runtime/api/thread-list-runtime";
 import type { AssistantRuntime } from "../../runtime/api/assistant-runtime";
 import { useSubscribable } from "./useSubscribable";
@@ -15,9 +12,11 @@ import type { ThreadsState } from "../scopes/threads";
 const useThreadListItemClientById = ({
   runtime,
   id,
+  mainThreadIsRunning,
 }: {
   runtime: ThreadListRuntime;
   id: string;
+  mainThreadIsRunning: boolean;
 }) => {
   const threadListItemRuntime = useMemo(
     () => runtime.getItemById(id),
@@ -26,6 +25,7 @@ const useThreadListItemClientById = ({
   return useResource(
     ThreadListItemClient({
       runtime: threadListItemRuntime,
+      mainThreadIsRunning,
     }),
   );
 };
@@ -48,7 +48,15 @@ const useThreadListClient = ({
   );
   const threadItems = useClientLookup(
     Object.keys(runtimeState.threadItems).map((id) =>
-      withKey(id, ThreadListItemClientById({ runtime, id }), [runtime, id]),
+      withKey(
+        id,
+        ThreadListItemClientById({
+          runtime,
+          id,
+          mainThreadIsRunning: main.state.isRunning,
+        }),
+        [runtime, id, main.state.isRunning],
+      ),
     ),
   );
 

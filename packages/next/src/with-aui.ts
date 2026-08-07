@@ -27,6 +27,14 @@ function compilerCacheToken(): string {
 /** The loader plus the cache-busting token, in the `{ loader, options }` form both bundlers accept. */
 const LOADER_USE = { loader: LOADER, options: { v: compilerCacheToken() } };
 
+/**
+ * Restricts the rule to modules that carry the directive, matching the loader's
+ * own detection. A glob alone also matches modules Turbopack generates, such as
+ * the shim behind `new Worker(new URL(...))`, whose resource path is not on the
+ * project filesystem and fails the build when a loader reads its source back.
+ */
+const HAS_DIRECTIVE = { content: /["']use generative["']/ };
+
 export interface WithAuiOptions {
   /**
    * Globs scanned for the `"use generative"` directive (default: all TS/TSX).
@@ -57,21 +65,17 @@ export function withAui<T extends NextConfigLike>(
   options: WithAuiOptions = {},
 ): T {
   const globs = options.rules ?? ["*.ts", "*.tsx"];
-  // Merge the `"use generative"` loader into the user's rules: if a glob already
-  // has a `{ loaders }` rule, append ours rather than clobbering it (see DESIGN.md).
+  // Turbopack runs every rule matching a glob in order, so the `"use generative"`
+  // loader rides as its own entry after the user's: theirs keeps its loaders and
+  // its own condition, ours keeps a condition that would disable theirs.
   const rules: Record<string, unknown> = { ...nextConfig.turbopack?.rules };
   for (const glob of globs) {
     const existing = rules[glob];
-    const existingLoaders =
-      existing &&
-      typeof existing === "object" &&
-      Array.isArray((existing as { loaders?: unknown }).loaders)
-        ? (existing as { loaders: unknown[] }).loaders
-        : [];
-    rules[glob] = {
-      ...(existing as object),
-      loaders: [...existingLoaders, LOADER_USE],
-    };
+    const ours = { condition: HAS_DIRECTIVE, loaders: [LOADER_USE] };
+    rules[glob] =
+      existing === undefined
+        ? ours
+        : [...(Array.isArray(existing) ? existing : [existing]), ours];
   }
 
   const userWebpack = nextConfig.webpack;

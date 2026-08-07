@@ -9,7 +9,11 @@ import {
 const RESOLVED_PROMISE = Promise.resolve();
 const THREAD_ID = "default";
 
-const useSingleThreadListItem = (): ClientOutput<"threadListItem"> => {
+const useSingleThreadListItem = ({
+  isRunning,
+}: {
+  isRunning: boolean;
+}): ClientOutput<"threadListItem"> => {
   const [custom, setCustom] = useState<Record<string, unknown> | undefined>();
 
   return {
@@ -20,6 +24,7 @@ const useSingleThreadListItem = (): ClientOutput<"threadListItem"> => {
       title: undefined,
       status: "regular",
       custom,
+      isRunning,
     }),
     switchTo: () => {},
     rename: () => {},
@@ -47,8 +52,10 @@ type SingleThreadListProps = {
 const useSingleThreadList = ({
   thread,
 }: SingleThreadListProps): ClientOutput<"threads"> => {
-  const itemClient = useClientResource(SingleThreadListItem());
   const threadClient = useClientResource(thread);
+  const itemClient = useClientResource(
+    SingleThreadListItem({ isRunning: threadClient.state.isRunning }),
+  );
 
   const state = useMemo(
     () => ({

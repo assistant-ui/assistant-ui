@@ -73,20 +73,18 @@ export default defineToolkit({
 
 import {
   AssistantRuntimeProvider,
+  AuiConfig,
   Tools,
-  useAui,
 } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 import toolkit from "./toolkit";
 
 export function App() {
   const runtime = useChatRuntime();
-  const aui = useAui({
-    tools: Tools({ toolkit }),
-  });
+  const config = AuiConfig({ tools: Tools({ toolkit }) });
 
   return (
-    <AssistantRuntimeProvider aui={aui} runtime={runtime}>
+    <AssistantRuntimeProvider runtime={runtime} config={config}>
       <Thread />
     </AssistantRuntimeProvider>
   );
@@ -100,7 +98,7 @@ export function App() {
 1. Create a `Toolkit` object.
 2. Move each `toolName` into the toolkit key.
 3. Move `description`, `parameters`, `execute`, `providerOptions`, `render`, `renderText`, and `display` onto the toolkit entry.
-4. Register the toolkit once with `useAui({ tools: Tools({ toolkit }) })`.
+4. Register the toolkit once with `config={config}` on your runtime provider, where `const config = AuiConfig({ tools: Tools({ toolkit }) })`.
 5. Remove `<Tool />`, `<ToolUI />`, `useAssistantTool(...)`, and `useAssistantToolUI(...)` registrations.
 
 ## UI-Only Tool Renderers
@@ -126,7 +124,7 @@ export default defineToolkit({
 });
 ```
 
-Register it like any toolkit: `useAui({ tools: Tools({ toolkit }) })`.
+Register it like any toolkit: `config={config}` where `const config = AuiConfig({ tools: Tools({ toolkit }) })`.
 Render-only entries upload no schema and run no browser code — they only attach
 UI for matching tool-call message parts. For MCP server catalogs, spread
 `defineMcpToolkit({ ... })` in the same generative toolkit.
@@ -163,20 +161,24 @@ export default defineToolkit({
 ```
 
 ```tsx title="TaskBoard.tsx"
-import { AuiProvider, Tools, useAui, useAuiToolOverrides } from "@assistant-ui/react";
+import {
+  AuiConfig,
+  AuiProvider,
+  Tools,
+  useAui,
+  useAuiToolOverrides,
+} from "@assistant-ui/react";
 import { useState, type Dispatch, type SetStateAction } from "react";
 import type { Task } from "./task-board-toolkit";
 import toolkit from "./task-board-toolkit";
 
 function TaskBoard() {
   const [tasks, setTasks] = useState<Task[]>([]);
-
-  const aui = useAui({
-    tools: Tools({ toolkit }),
-  });
+  const aui = useAui();
+  const config = AuiConfig({ tools: Tools({ toolkit }) });
 
   return (
-    <AuiProvider value={aui}>
+    <AuiProvider extends={aui} config={config}>
       <TaskBoardToolOverrides setTasks={setTasks} />
       <TaskList tasks={tasks} />
     </AuiProvider>

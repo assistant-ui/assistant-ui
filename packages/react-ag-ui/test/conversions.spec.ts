@@ -561,17 +561,17 @@ describe("adapter conversions", () => {
       expect.arrayContaining([
         {
           name: "jsonTool",
-          description: undefined,
+          description: "",
           parameters: { type: "object" },
         },
         {
           name: "schemaTool",
-          description: undefined,
+          description: "",
           parameters: { type: "string" },
         },
         {
           name: "plain",
-          description: undefined,
+          description: "",
           parameters: { type: "boolean" },
         },
       ]),

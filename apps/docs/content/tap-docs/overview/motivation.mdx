@@ -12,7 +12,7 @@ A resource element carries an implementation together with its configuration.
 Because it is a value, it can be passed, swapped, and nested before it runs.
 
 ```ts
-const aui = useAui({
+AuiConfig({
   cloud: AssistantCloud({ apiKey: "..." }),
   threads: CloudThreadList({
     thread: () => AISDKThread({ transport: /* ... */ }),
