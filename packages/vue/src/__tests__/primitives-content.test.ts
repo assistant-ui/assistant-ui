@@ -43,8 +43,10 @@ type DemoMessage = {
 
 const createTestRuntime = () => {
   let messages: DemoMessage[] = [];
+  let isRunning = false;
   const makeAdapter = (): ExternalStoreAdapter<DemoMessage> => ({
     messages,
+    isRunning,
     convertMessage: (message) => ({
       role: message.role,
       content: message.content,
@@ -57,7 +59,28 @@ const createTestRuntime = () => {
     messages = [...messages, message];
     core.setAdapter(makeAdapter());
   };
-  return { runtime, append };
+  const setRunning = (value: boolean) => {
+    isRunning = value;
+    core.setAdapter(makeAdapter());
+  };
+  return { runtime, append, setRunning };
+};
+
+const mockViewportGeometry = (div: HTMLElement) => {
+  Object.defineProperty(div, "scrollHeight", {
+    get: () => 500,
+    configurable: true,
+  });
+  Object.defineProperty(div, "clientHeight", {
+    get: () => 100,
+    configurable: true,
+  });
+  const scrollTo = vi.fn();
+  Object.defineProperty(div, "scrollTo", {
+    value: scrollTo,
+    configurable: true,
+  });
+  return scrollTo;
 };
 
 const mountChat = (runtime: AssistantRuntimeImpl, view: Component) => {
@@ -398,6 +421,53 @@ describe("ThreadPrimitiveViewport", () => {
     expect(scrollTo).not.toHaveBeenCalled();
 
     unmount();
+  });
+
+  it("scrolls on run start and stays put when that option is disabled", async () => {
+    const active = createTestRuntime();
+    const ActiveView = defineComponent({
+      setup: () => () =>
+        h(
+          ThreadPrimitiveViewport,
+          { class: "viewport" },
+          { default: () => h("p", "row") },
+        ),
+    });
+    const mountedActive = mountChat(active.runtime, ActiveView);
+    const activeScrollTo = mockViewportGeometry(
+      mountedActive.el.querySelector<HTMLElement>("div.viewport")!,
+    );
+
+    flushTapSync(() => active.setRunning(true));
+    await vi.waitFor(() => {
+      expect(activeScrollTo).toHaveBeenCalled();
+    });
+    mountedActive.unmount();
+
+    const disabled = createTestRuntime();
+    const DisabledView = defineComponent({
+      setup: () => () =>
+        h(
+          ThreadPrimitiveViewport,
+          {
+            class: "viewport",
+            autoScroll: false,
+            scrollToBottomOnInitialize: false,
+            scrollToBottomOnRunStart: false,
+          },
+          { default: () => h("p", "row") },
+        ),
+    });
+    const mountedDisabled = mountChat(disabled.runtime, DisabledView);
+    const disabledScrollTo = mockViewportGeometry(
+      mountedDisabled.el.querySelector<HTMLElement>("div.viewport")!,
+    );
+
+    flushTapSync(() => disabled.setRunning(true));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(disabledScrollTo).not.toHaveBeenCalled();
+
+    mountedDisabled.unmount();
   });
 
   it("computes bottom pinning from viewport metrics", () => {
