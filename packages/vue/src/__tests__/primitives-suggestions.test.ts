@@ -170,6 +170,68 @@ describe("suggestions primitives", () => {
     mounted.unmount();
   });
 
+  it("queues a send during a run without clearing the draft and forwards runConfig", async () => {
+    let isRunning = false;
+    const onNew = vi.fn(async () => {});
+    const steer = vi.fn();
+    const makeAdapter = (): ExternalStoreAdapter<DemoMessage> => ({
+      messages: [],
+      isRunning,
+      convertMessage: (message) => ({
+        id: message.id,
+        role: message.role,
+        content: [{ type: "text", text: message.text }],
+      }),
+      onNew,
+      queue: {
+        items: [],
+        steerItems: [],
+        enqueue: () => {},
+        steer,
+        move: () => {},
+        edit: () => {},
+        remove: () => {},
+      },
+    });
+    const core = new ExternalStoreRuntimeCore(makeAdapter());
+    const runtime = new AssistantRuntimeImpl(core);
+    const setRunning = (value: boolean) => {
+      isRunning = value;
+      core.setAdapter(makeAdapter());
+    };
+
+    const { el, unmount } = mountSuggestions(runtime, { send: true });
+    await vi.waitFor(async () => {
+      await nextTick();
+      expect(el.querySelectorAll("button.chip")).toHaveLength(2);
+    });
+
+    flushTapSync(() => {
+      runtime.thread.composer.setRunConfig({ custom: { mode: "echo" } });
+      runtime.thread.composer.setText("half-typed draft");
+      setRunning(true);
+    });
+    await vi.waitFor(async () => {
+      await nextTick();
+      expect(
+        el.querySelectorAll<HTMLButtonElement>("button.chip")[0]!.disabled,
+      ).toBe(false);
+    });
+
+    el.querySelectorAll<HTMLButtonElement>("button.chip")[0]!.click();
+    await vi.waitFor(() => {
+      expect(steer).toHaveBeenCalledTimes(1);
+    });
+    expect(steer.mock.calls[0]![0]).toMatchObject({
+      content: [{ type: "text", text: "Hello there!" }],
+      runConfig: { custom: { mode: "echo" } },
+    });
+    expect(onNew).not.toHaveBeenCalled();
+    expect(runtime.thread.composer.getState().text).toBe("half-typed draft");
+
+    unmount();
+  });
+
   it("disables sending chips while a run is in flight", async () => {
     const { runtime, setRunning } = createSuggestingRuntime();
     const { el, unmount } = mountSuggestions(runtime, { send: true });
