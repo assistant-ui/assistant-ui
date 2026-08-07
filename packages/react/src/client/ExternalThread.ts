@@ -835,9 +835,7 @@ const useExternalThread = ({
     [messagesProp],
   );
 
-  const [speechState, setSpeech] = useState<SpeechState | undefined>(
-    undefined,
-  );
+  const [speechState, setSpeech] = useState<SpeechState | undefined>(undefined);
   const [speechController] = useState(() => createSpeechController(setSpeech));
 
   const hasSpeechAdapter = !!speechAdapter;
