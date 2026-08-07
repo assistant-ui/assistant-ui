@@ -1,5 +1,15 @@
 # @assistant-ui/react-google-adk
 
+## 0.0.23
+
+### Patch Changes
+
+- [#5663](https://github.com/assistant-ui/assistant-ui/pull/5663) [`1c71617`](https://github.com/assistant-ui/assistant-ui/commit/1c7161724fe20a4e833cc5a3396f92dcfc549dd0) - fix: isolate runtime event callback failures from ADK streams ([@Kinfe123](https://github.com/Kinfe123))
+
+- Updated dependencies [[`bd4c0ad`](https://github.com/assistant-ui/assistant-ui/commit/bd4c0ad3d41a65d0a2caea921f82c6502011615a), [`4aa1b1d`](https://github.com/assistant-ui/assistant-ui/commit/4aa1b1d1b9368f4812b55a33d6f09bb3dcd71949), [`bd4c0ad`](https://github.com/assistant-ui/assistant-ui/commit/bd4c0ad3d41a65d0a2caea921f82c6502011615a)]:
+  - @assistant-ui/core@0.3.7
+  - @assistant-ui/store@0.3.5
+
 ## 0.0.22
 
 ### Patch Changes

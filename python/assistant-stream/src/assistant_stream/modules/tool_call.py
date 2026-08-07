@@ -3,6 +3,7 @@ from typing import Any, AsyncGenerator
 from assistant_stream.assistant_stream_chunk import (
     AssistantStreamChunk,
     ToolCallBeginChunk,
+    ToolCallArgsTextFinishChunk,
     ToolCallDeltaChunk,
     ToolResultChunk,
 )
@@ -23,6 +24,7 @@ class ToolCallController:
         self.tool_call_id = tool_call_id
         self.queue = queue
         self.loop = asyncio.get_running_loop()
+        self._closed = False
 
         begin_chunk = ToolCallBeginChunk(
             tool_call_id=self.tool_call_id,
@@ -70,6 +72,13 @@ class ToolCallController:
 
     def close(self) -> None:
         """Close the stream."""
+        if self._closed:
+            return
+        self._closed = True
+        self.loop.call_soon_threadsafe(
+            self.queue.put_nowait,
+            ToolCallArgsTextFinishChunk(tool_call_id=self.tool_call_id),
+        )
         self.loop.call_soon_threadsafe(self.queue.put_nowait, None)
 
 

@@ -30,6 +30,35 @@ export type AssistantClientHandle = AssistantClientSource & {
   destroy(): void;
 };
 
+/**
+ * A live view onto a config whose entries may change over time.
+ *
+ * `getConfig` returns the current config; `subscribe` fires after every
+ * change. The root re-reads the config on each notification: a scope that
+ * keeps its key keeps its state while its element args update, and added or
+ * removed keys mount and unmount their scopes.
+ */
+export type AssistantConfigSource = {
+  getConfig(): AuiConfig.Input;
+  subscribe(listener: () => void): Unsubscribe;
+};
+
+// A config maps scope names to resource elements; only a source carries a
+// getConfig function
+const isConfigSource = (
+  config: AuiConfig.Input | AssistantConfigSource,
+): config is AssistantConfigSource =>
+  typeof (config as AssistantConfigSource).getConfig === "function";
+
+const NO_OP_SUBSCRIBE = () => () => {};
+
+const toConfigSource = (
+  config: AuiConfig.Input | AssistantConfigSource,
+): AssistantConfigSource =>
+  isConfigSource(config)
+    ? config
+    : { getConfig: () => config, subscribe: NO_OP_SUBSCRIBE };
+
 // A client (including the sentinel proxies, whose property reads all resolve)
 // always carries `on`; a source or handle never does, so its absence is the
 // discriminator
@@ -63,11 +92,13 @@ const toClientSource = (
  * keeps the child bound to the parent's current client across the parent's
  * structural changes without remounting the child's scopes.
  *
- * The config is captured at creation; create a new handle to change the scope
- * set.
+ * The config may be a plain value, captured at creation, or an
+ * {@link AssistantConfigSource} that is re-read in the root render whenever it
+ * notifies, so a binding can deliver config changes (updated element args,
+ * added or removed scopes) without remounting the surviving scopes.
  */
 export const createAssistantClient = (
-  config: AuiConfig.Input,
+  config: AuiConfig.Input | AssistantConfigSource,
   options?: {
     parent?: AssistantClient | AssistantClientSource | undefined;
   },
@@ -75,6 +106,7 @@ export const createAssistantClient = (
   const parentSource = toClientSource(
     options?.parent ?? DefaultAssistantClient,
   );
+  const configSource = toConfigSource(config);
 
   const clientRef: ClientRef = {
     parent: parentSource.getClient(),
@@ -88,8 +120,13 @@ export const createAssistantClient = (
       parentSource.getClient,
       parentSource.getClient,
     );
+    const currentConfig = useSyncExternalStore(
+      configSource.subscribe,
+      configSource.getConfig,
+      configSource.getConfig,
+    );
     const entries = Object.entries(
-      applyTransformScopes(config, parent),
+      applyTransformScopes(currentConfig, parent),
     ) as ScopeEntry[];
     const result = useAuiRoot({ parent, entries, clientRef, notifications });
     // Seeded during render, before the commit runs mount effects that read it

@@ -1,6 +1,6 @@
 "use client";
 
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { ExportedMessageRepository } from "@assistant-ui/core";
 import type {
   AppendMessage,
@@ -59,6 +59,10 @@ const assistantText = (message: ThreadMessage | undefined): string => {
   }
   return "";
 };
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe("AGUIThreadRuntimeCore", () => {
   it("streams assistant output into thread messages", async () => {
@@ -606,6 +610,51 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(agent.abortRun).toHaveBeenCalledTimes(1);
   });
 
+  it.each(["throws", "rejects"] as const)(
+    "keeps cancellation settled when onCancel %s",
+    async (failureMode) => {
+      const callbackError = new Error("cancel callback failed");
+      const consoleError = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+      let rejectRun!: (error: Error) => void;
+      const agent = {
+        runAgent: vi.fn(
+          () =>
+            new Promise((_, reject) => {
+              rejectRun = reject;
+            }),
+        ),
+        abortRun: vi.fn(() => {
+          const error = new Error("aborted");
+          error.name = "AbortError";
+          rejectRun(error);
+        }),
+      } as unknown as HttpAgent;
+      const core = createCore(agent, {
+        onCancel: () => {
+          if (failureMode === "throws") throw callbackError;
+          return Promise.reject(callbackError);
+        },
+      });
+
+      const appendPromise = core.append(createAppendMessage());
+      await expect(core.cancel()).resolves.toBeUndefined();
+      await expect(appendPromise).resolves.toBeUndefined();
+
+      expect(core.getMessages().at(-1)?.status).toMatchObject({
+        type: "incomplete",
+        reason: "cancelled",
+      });
+      await vi.waitFor(() => {
+        expect(consoleError).toHaveBeenCalledWith(
+          "[react-ag-ui] onCancel callback threw an error",
+          callbackError,
+        );
+      });
+    },
+  );
+
   it("aborts the agent run before the local abort fires onCancel", async () => {
     const order: string[] = [];
     let rejectRun!: (error: Error) => void;
@@ -791,6 +840,40 @@ describe("AGUIThreadRuntimeCore", () => {
     });
     expect(onError).toHaveBeenCalledTimes(1);
   });
+
+  it.each(["throws", "rejects"] as const)(
+    "preserves the run error when onError %s",
+    async (failureMode) => {
+      const runError = new Error("run failed");
+      const callbackError = new Error("error callback failed");
+      const consoleError = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+      const agent = {
+        runAgent: vi.fn().mockRejectedValue(runError),
+      } as unknown as HttpAgent;
+      const core = createCore(agent, {
+        onError: () => {
+          if (failureMode === "throws") throw callbackError;
+          return Promise.reject(callbackError);
+        },
+      });
+
+      await expect(core.append(createAppendMessage())).rejects.toBe(runError);
+
+      expect(core.getMessages().at(-1)?.status).toMatchObject({
+        type: "incomplete",
+        reason: "error",
+        error: "run failed",
+      });
+      await vi.waitFor(() => {
+        expect(consoleError).toHaveBeenCalledWith(
+          "[react-ag-ui] onError callback threw an error",
+          callbackError,
+        );
+      });
+    },
+  );
 
   it("updates tool call result entries", () => {
     const agent = {
@@ -2134,6 +2217,31 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(onError).toHaveBeenCalledWith(expect.any(Error));
     expect(onError.mock.calls[0][0].message).toBe("load failed");
     expect(core.isLoading).toBe(false);
+  });
+
+  it("settles history loading when onError throws", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const callbackError = new Error("error callback failed");
+    const historyAdapter: ThreadHistoryAdapter = {
+      load: vi.fn().mockRejectedValue(new Error("load failed")),
+      append: vi.fn(),
+    };
+    const core = createCore({ runAgent: vi.fn() } as unknown as HttpAgent, {
+      history: historyAdapter,
+      onError: () => {
+        throw callbackError;
+      },
+    });
+
+    await expect(core.__internal_load()).resolves.toBeUndefined();
+
+    expect(core.isLoading).toBe(false);
+    expect(consoleError).toHaveBeenCalledWith(
+      "[react-ag-ui] onError callback threw an error",
+      callbackError,
+    );
   });
 
   it("resets isLoading to false when history.load() throws", async () => {

@@ -1,6 +1,6 @@
 "use client";
 
-import type { InputContent } from "@ag-ui/client";
+import type { InputContent, RunAgentParameters } from "@ag-ui/client";
 import type {
   ThreadMessageLike as CoreThreadMessageLike,
   ToolCallMessagePartMcpMetadata,
@@ -915,11 +915,7 @@ export function toAgUiMessages(
   return converted;
 }
 
-type AgUiTool = {
-  name: string;
-  description: string | undefined;
-  parameters: unknown;
-};
+type AgUiTool = NonNullable<RunAgentParameters["tools"]>[number];
 
 export function toAgUiTools(
   tools: Record<string, Tool> | undefined,
@@ -929,7 +925,7 @@ export function toAgUiTools(
   const toolsSchema = toToolsJSONSchema(tools);
   return Object.entries(toolsSchema).map(([name, tool]) => ({
     name,
-    description: tool.description,
+    description: tool.description ?? "",
     parameters: tool.parameters,
   }));
 }
