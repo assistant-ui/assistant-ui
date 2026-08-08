@@ -162,7 +162,7 @@ type WelcomeSuggestionsContextValue = {
   close: () => void;
   setGhost: (text: string | null) => void;
   moveHighlight: (delta: 1 | -1) => void;
-  highlightItem: (id: string) => void;
+  highlightItem: (id: string, preview?: boolean) => void;
   highlightAtTop: () => boolean;
   selectCurrent: () => void;
   currentId: string | null;
@@ -261,13 +261,15 @@ const useWelcomeSuggestionsState = ({
       ?.click();
   }, [popoverId]);
 
-  // Hover and arrows share this path so the ghost preview always shows the
-  // highlighted item's prompt.
+  // Only deliberate keyboard navigation previews: a wrapping ghost resizes
+  // the composer, and hover-driven previews loop when the list shifts under
+  // a stationary cursor. Hover still moves the highlight.
   const highlightItem = useCallback(
-    (id: string) => {
+    (id: string, preview = true) => {
       if (currentIdRef.current === id) return;
       currentIdRef.current = id;
       setCurrentId(id);
+      if (!preview) return setGhost(null);
       const prompt = pickerPrompts.get(id);
       if (prompt !== undefined) setGhost(prompt);
     },
@@ -521,7 +523,7 @@ export const WelcomeSuggestionsPickerItem: FC<
       aria-selected={highlighted}
       data-highlighted={highlighted || undefined}
       onClick={() => close()}
-      onMouseMove={() => highlightItem(id)}
+      onMouseMove={() => highlightItem(id, false)}
       className={cn(
         welcomeSuggestionRowVariants({ density, separators }),
         className,
@@ -1035,8 +1037,9 @@ export const WelcomeSuggestionsStack: FC<WelcomeSuggestionsStackProps> = ({
 
   // Rows never take DOM focus (mousedown is prevented, tabIndex -1): the
   // container is the only tab stop and the highlight is the only indicator.
-  // While composer navigation is active, hover moves the same highlight the
-  // arrows use, so the ghost preview follows it.
+  // Hover moves the highlight but never previews (a wrapping ghost would
+  // resize the composer and shift the list under the cursor); it clears any
+  // keyboard ghost so the preview can't go stale on another row.
   const rowProps = (idx: number) => ({
     id: rowId(idx),
     "data-slot": "aui_thread-welcome-stack-row",
@@ -1049,7 +1052,7 @@ export const WelcomeSuggestionsStack: FC<WelcomeSuggestionsStackProps> = ({
       if (topIdxRef.current === idx) return;
       topIdxRef.current = idx;
       setTopIdx(idx);
-      if (composerNavRef.current) previewRow(idx);
+      if (composerNavRef.current) setGhost(null);
     },
   });
 
