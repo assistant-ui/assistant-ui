@@ -140,7 +140,7 @@ export const Assistant = () => {
 };
 ```
 
-The slot accepts any `ReactNode` — a plain settings link or an upgrade banner works just as well. In a [custom composition](#custom-composition), the same slot is `AssistantShellSidebar`'s `footer` prop.
+The slot accepts any `ReactNode`; a plain settings link or an upgrade banner works just as well. In a [custom composition](#custom-composition), the same prop lives on `AssistantShellRoot`.
 
 ## Collapse and persistence
 
@@ -182,7 +182,7 @@ import { Thread } from "@/components/assistant-ui/thread";
 
 export const Assistant = () => {
   return (
-    <AssistantShellRoot>
+    <AssistantShellRoot logo={<MyLogo />} title="My App">
       {/* desktop sidebar: logo, title, new thread, thread list, footer */}
       <AssistantShellSidebar />
       {/* rounded main surface beside the sidebar */}
@@ -198,9 +198,9 @@ export const Assistant = () => {
 };
 ```
 
-`AssistantShellRoot` owns the collapse state, so every part works the same inside a custom arrangement.
+`AssistantShellRoot` owns the collapse state and the shared chrome (`logo`, `title`, `sidebarFooter`), so every part works the same inside a custom arrangement: the sidebar, header, and mobile drawer all read them from context.
 
-For a fully custom header, skip `AssistantShellHeader` and build your own from the same atoms it uses — `AssistantShellSidebarToggle`, `AssistantShellThreadTitle`, and `AssistantShellMobileSidebar`:
+For a fully custom header, skip `AssistantShellHeader` and build your own from the same atoms it uses: `AssistantShellSidebarToggle`, `AssistantShellThreadTitle`, and `AssistantShellMobileSidebar`:
 
 ```tsx
 <AssistantShellMain>
@@ -220,10 +220,32 @@ For a fully custom header, skip `AssistantShellHeader` and build your own from t
 
 ### AssistantShell
 
-The all-in-one shell. Renders the parts below with your content in the main area.
+The all-in-one shell. Renders the parts below with your content in the main area. Accepts all [`AssistantShellRoot`](#assistantshellroot) props plus:
 
 <ParametersTable
   type="AssistantShellProps"
+  parameters={[
+    {
+      name: "headerActions",
+      type: "ReactNode",
+      description:
+        "App controls rendered right-aligned in the header, such as an account menu, share button, or model picker. Empty by default.",
+    },
+    {
+      name: "children",
+      type: "ReactNode",
+      required: true,
+      description: "Main content, typically a Thread.",
+    },
+  ]}
+/>
+
+### AssistantShellRoot
+
+Layout container that owns the collapse state and the shared chrome, provided to every part through the `useAssistantShell` context.
+
+<ParametersTable
+  type="AssistantShellRootProps"
   parameters={[
     {
       name: "logo",
@@ -238,39 +260,11 @@ The all-in-one shell. Renders the parts below with your content in the main area
       description: "App title shown next to the logo. Pass null to render none.",
     },
     {
-      name: "headerActions",
-      type: "ReactNode",
-      description:
-        "App controls rendered right-aligned in the header, such as an account menu, share button, or model picker. Empty by default.",
-    },
-    {
       name: "sidebarFooter",
       type: "ReactNode",
       description:
         "Content rendered at the bottom of the sidebar and the mobile drawer, typically an account menu built with AssistantShellFooterItem. Empty by default.",
     },
-    {
-      name: "defaultCollapsed",
-      type: "boolean",
-      default: "false",
-      description: "Initial collapsed state of the sidebar.",
-    },
-    {
-      name: "children",
-      type: "ReactNode",
-      required: true,
-      description: "Main content, typically a Thread.",
-    },
-  ]}
-/>
-
-### AssistantShellRoot
-
-Layout container that owns the collapse state and provides the `useAssistantShell` context.
-
-<ParametersTable
-  type="AssistantShellRootProps"
-  parameters={[
     {
       name: "defaultCollapsed",
       type: "boolean",
@@ -295,31 +289,7 @@ This component renders a `<div>` element and accepts all `div` props.
 
 ### AssistantShellSidebar
 
-The desktop sidebar, hidden below the `md` breakpoint. Renders the logo, title, a New Thread button, and the thread list; collapses to an icon rail.
-
-<ParametersTable
-  type="AssistantShellSidebarProps"
-  parameters={[
-    {
-      name: "logo",
-      type: "ReactNode",
-      description:
-        "Logo shown in the sidebar header. Defaults to the assistant-ui logo; pass null to render none.",
-    },
-    {
-      name: "title",
-      type: "ReactNode",
-      default: '"assistant-ui"',
-      description: "Title shown next to the logo. Pass null to render none.",
-    },
-    {
-      name: "footer",
-      type: "ReactNode",
-      description:
-        "Content rendered at the bottom of the sidebar, below the thread list. Empty by default. Same slot as AssistantShell's sidebarFooter.",
-    },
-  ]}
-/>
+The desktop sidebar, hidden below the `md` breakpoint. Renders the logo, title, a New Thread button, the thread list, and the sidebar footer; collapses to an icon rail. Takes no props; the chrome comes from `AssistantShellRoot`.
 
 ### AssistantShellMain
 
@@ -351,24 +321,6 @@ The top bar: mobile drawer trigger, sidebar toggle, and active thread title.
   type="AssistantShellHeaderProps"
   parameters={[
     {
-      name: "logo",
-      type: "ReactNode",
-      description:
-        "Forwarded to the mobile drawer. Defaults to the assistant-ui logo; pass null to render none.",
-    },
-    {
-      name: "title",
-      type: "ReactNode",
-      default: '"assistant-ui"',
-      description: "Forwarded to the mobile drawer. Pass null to render none.",
-    },
-    {
-      name: "sidebarFooter",
-      type: "ReactNode",
-      description:
-        "Forwarded to the mobile drawer's footer. Empty by default.",
-    },
-    {
       name: "className",
       type: "string",
       description: "CSS class name.",
@@ -390,31 +342,7 @@ The collapse toggle button rendered in the header, hidden below the `md` breakpo
 
 ### AssistantShellMobileSidebar
 
-The mobile drawer: a menu button that opens the thread list in a Sheet from the left. Rendered automatically by `AssistantShellHeader`; use it directly only in custom headers.
-
-<ParametersTable
-  type="AssistantShellMobileSidebarProps"
-  parameters={[
-    {
-      name: "logo",
-      type: "ReactNode",
-      description:
-        "Logo shown in the drawer header. Defaults to the assistant-ui logo; pass null to render none.",
-    },
-    {
-      name: "title",
-      type: "ReactNode",
-      default: '"assistant-ui"',
-      description: "Title shown next to the logo. Pass null to render none.",
-    },
-    {
-      name: "footer",
-      type: "ReactNode",
-      description:
-        "Content rendered at the bottom of the drawer. Footer items inside it always render expanded. Empty by default.",
-    },
-  ]}
-/>
+The mobile drawer: a menu button that opens the thread list in a Sheet from the left, with the logo and title at the top and the sidebar footer at the bottom. Footer items inside the drawer always render expanded. Rendered automatically by `AssistantShellHeader`; use it directly only in custom headers. Takes no props; the chrome comes from `AssistantShellRoot`.
 
 ### AssistantShellThreadTitle
 
@@ -471,6 +399,21 @@ Context hook for building custom controls inside the shell. Throws when used out
       type: "() => void",
       description: "Toggles the collapsed state.",
     },
+    {
+      name: "logo",
+      type: "ReactNode",
+      description: "The logo passed to AssistantShellRoot, or the default.",
+    },
+    {
+      name: "title",
+      type: "ReactNode",
+      description: "The title passed to AssistantShellRoot, or the default.",
+    },
+    {
+      name: "sidebarFooter",
+      type: "ReactNode",
+      description: "The sidebar footer content passed to AssistantShellRoot.",
+    },
   ]}
 />
 
@@ -481,7 +424,6 @@ Every element carries a `data-slot="aui_shell-*"` attribute for CSS targeting wi
 | Slot                        | Element                                |
 | --------------------------- | -------------------------------------- |
 | `aui_shell-root`            | Outer layout container                 |
-| `aui_shell-sidebar-wrapper` | Desktop-only wrapper around the sidebar |
 | `aui_shell-sidebar`         | Desktop sidebar                        |
 | `aui_shell-sidebar-header`  | Logo and title row in the sidebar      |
 | `aui_shell-logo`            | Logo container                         |

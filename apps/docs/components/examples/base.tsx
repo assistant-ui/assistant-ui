@@ -14,12 +14,7 @@ import {
   ToolGroupRoot,
   ToolGroupTrigger,
 } from "@/components/assistant-ui/tool-group";
-import {
-  AssistantShellHeader,
-  AssistantShellMain,
-  AssistantShellRoot,
-  AssistantShellSidebar,
-} from "@/components/assistant-ui/assistant-shell";
+import { AssistantShell } from "@/components/assistant-ui/assistant-shell";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import {
   Reasoning,
@@ -816,23 +811,21 @@ const BranchPicker: FC<BranchPickerPrimitive.Root.Props> = ({
 
 export const Base: FC = () => {
   return (
-    <AssistantShellRoot className="h-full">
-      <AssistantShellSidebar logo={logo} title="assistant-ui" />
-      <AssistantShellMain>
-        <AssistantShellHeader logo={logo} title="assistant-ui">
-          <TooltipIconButton
-            tooltip="Share"
-            side="bottom"
-            disabled
-            className="size-8"
-          >
-            <ShareIcon className="size-4" />
-          </TooltipIconButton>
-        </AssistantShellHeader>
-        <main className="flex-1 overflow-hidden">
-          <Thread />
-        </main>
-      </AssistantShellMain>
-    </AssistantShellRoot>
+    <AssistantShell
+      className="h-full"
+      logo={logo}
+      headerActions={
+        <TooltipIconButton
+          tooltip="Share"
+          side="bottom"
+          disabled
+          className="size-8"
+        >
+          <ShareIcon className="size-4" />
+        </TooltipIconButton>
+      }
+    >
+      <Thread />
+    </AssistantShell>
   );
 };

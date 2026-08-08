@@ -42,13 +42,17 @@ const defaultLogo = <MessagesSquareIcon strokeWidth={3} className="size-5" />;
 const COLLAPSED_COOKIE = "assistant-shell-collapsed";
 
 // The fade is a mask rather than an overlay so it stays background-agnostic across the light bg-sidebar and dark bg-muted/30 shell backdrops.
-// Each fade zone equals the scroll container's padding on that edge (pt-3 / pb-6), so at rest and at either scroll end only padding sits in the fade and no row is dimmed — overflow indication without any measurement.
-const SCROLL_FADE_CLASS =
-  "[mask-image:linear-gradient(to_bottom,transparent,black_0.75rem,black_calc(100%-1.5rem),transparent)]";
+// Each fade zone equals the scroll container's padding on that edge (pt-3 / pb-6), so at rest and at either scroll end only padding sits in the fade and no row is dimmed: overflow indication without any measurement.
+// The scrollbar is hidden because classic or app-styled scrollbars reserve width from the right edge and knock the rows off-center; the edge fades signal overflow instead.
+const SCROLL_AREA_CLASS =
+  "relative flex-1 pt-3 pb-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [mask-image:linear-gradient(to_bottom,transparent,black_0.75rem,black_calc(100%-1.5rem),transparent)]";
 
 type AssistantShellContextValue = {
   collapsed: boolean;
   toggle: () => void;
+  logo: ReactNode;
+  title: ReactNode;
+  sidebarFooter: ReactNode;
 };
 
 const AssistantShellContext = createContext<AssistantShellContextValue | null>(
@@ -62,34 +66,20 @@ export const useAssistantShell = (): AssistantShellContextValue => {
   return context;
 };
 
-export type AssistantShellProps = {
-  logo?: ReactNode;
-  title?: ReactNode;
+export type AssistantShellProps = AssistantShellRootProps & {
   headerActions?: ReactNode;
-  sidebarFooter?: ReactNode;
-  defaultCollapsed?: boolean;
-  children: ReactNode;
 };
 
 export const AssistantShell: FC<AssistantShellProps> = ({
-  logo,
-  title,
   headerActions,
-  sidebarFooter,
-  defaultCollapsed,
   children,
+  ...rootProps
 }) => {
   return (
-    <AssistantShellRoot defaultCollapsed={defaultCollapsed}>
-      <AssistantShellSidebar logo={logo} title={title} footer={sidebarFooter} />
+    <AssistantShellRoot {...rootProps}>
+      <AssistantShellSidebar />
       <AssistantShellMain>
-        <AssistantShellHeader
-          logo={logo}
-          title={title}
-          sidebarFooter={sidebarFooter}
-        >
-          {headerActions}
-        </AssistantShellHeader>
+        <AssistantShellHeader>{headerActions}</AssistantShellHeader>
         <main data-slot="aui_shell-content" className="flex-1 overflow-hidden">
           {children}
         </main>
@@ -98,11 +88,20 @@ export const AssistantShell: FC<AssistantShellProps> = ({
   );
 };
 
-export type AssistantShellRootProps = ComponentPropsWithoutRef<"div"> & {
+export type AssistantShellRootProps = Omit<
+  ComponentPropsWithoutRef<"div">,
+  "title"
+> & {
+  logo?: ReactNode;
+  title?: ReactNode;
+  sidebarFooter?: ReactNode;
   defaultCollapsed?: boolean | undefined;
 };
 
 export const AssistantShellRoot: FC<AssistantShellRootProps> = ({
+  logo = defaultLogo,
+  title = "assistant-ui",
+  sidebarFooter,
   defaultCollapsed,
   className,
   children,
@@ -127,7 +126,10 @@ export const AssistantShellRoot: FC<AssistantShellRootProps> = ({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [toggle]);
 
-  const context = useMemo(() => ({ collapsed, toggle }), [collapsed, toggle]);
+  const context = useMemo(
+    () => ({ collapsed, toggle, logo, title, sidebarFooter }),
+    [collapsed, toggle, logo, title, sidebarFooter],
+  );
 
   return (
     <AssistantShellContext.Provider value={context}>
@@ -145,120 +147,104 @@ export const AssistantShellRoot: FC<AssistantShellRootProps> = ({
   );
 };
 
-export type AssistantShellSidebarProps = {
-  logo?: ReactNode;
-  title?: ReactNode;
-  footer?: ReactNode;
-};
-
-export const AssistantShellSidebar: FC<AssistantShellSidebarProps> = ({
-  logo = defaultLogo,
-  title = "assistant-ui",
-  footer,
-}) => {
-  const { collapsed } = useAssistantShell();
+export const AssistantShellSidebar: FC = () => {
+  const { collapsed, logo, title, sidebarFooter } = useAssistantShell();
 
   return (
-    <div data-slot="aui_shell-sidebar-wrapper" className="hidden md:block">
-      <aside
-        data-slot="aui_shell-sidebar"
+    <aside
+      data-slot="aui_shell-sidebar"
+      className={cn(
+        "hidden flex-col overflow-hidden pb-2 transition-[width] duration-200 md:flex",
+        collapsed ? "w-12" : "w-65",
+      )}
+    >
+      <div
+        data-slot="aui_shell-sidebar-header"
         className={cn(
-          "flex h-full flex-col overflow-hidden pb-2 transition-all duration-200",
-          collapsed ? "w-12" : "w-65",
+          "mt-2 flex h-12 shrink-0 items-center transition-[padding] duration-200",
+          collapsed ? "px-3.5" : "px-6",
         )}
       >
+        <div data-slot="aui_shell-logo" className="flex shrink-0 items-center">
+          {logo}
+        </div>
+        {title != null && (
+          <span
+            data-slot="aui_shell-sidebar-title"
+            className={cn(
+              "text-foreground/90 ml-2 text-sm font-medium whitespace-nowrap transition-opacity duration-200",
+              collapsed && "opacity-0",
+            )}
+          >
+            {title}
+          </span>
+        )}
+      </div>
+      <ThreadListRoot className="min-h-0 flex-1 overflow-hidden">
         <div
-          data-slot="aui_shell-sidebar-header"
+          data-slot="aui_shell-sidebar-new"
           className={cn(
-            "mt-2 flex h-12 shrink-0 items-center transition-[padding] duration-200",
-            collapsed ? "px-3.5" : "px-6",
+            "shrink-0 transition-[padding] duration-200",
+            collapsed ? "px-2 pt-1 pb-2" : "px-3 pt-2 pb-1.5",
           )}
         >
-          <div
-            data-slot="aui_shell-logo"
-            className="flex shrink-0 items-center"
-          >
-            {logo}
-          </div>
-          {title != null && (
-            <span
-              data-slot="aui_shell-sidebar-title"
-              className={cn(
-                "text-foreground/90 ml-2 text-sm font-medium whitespace-nowrap transition-opacity duration-200",
-                collapsed && "opacity-0",
+          <TooltipProvider>
+            <Tooltip>
+              {/* DOM no-op (Radix Slot lets the child's identical data-slot win); present for registry slot parity with the base flavor. */}
+              <TooltipTrigger asChild data-slot="aui_thread-list-new">
+                <ThreadListNew
+                  className={cn(
+                    "overflow-hidden transition-all duration-200",
+                    collapsed
+                      ? "w-8 gap-0 px-2 has-[>svg]:px-2"
+                      : "w-full gap-2 px-2.5 has-[>svg]:px-2.5",
+                  )}
+                  labelClassName={cn(
+                    "overflow-hidden transition-all duration-200",
+                    collapsed ? "max-w-0 opacity-0" : "max-w-24 opacity-100",
+                  )}
+                />
+              </TooltipTrigger>
+              {collapsed && (
+                <TooltipContent side="right">New Thread</TooltipContent>
               )}
-            >
-              {title}
-            </span>
-          )}
+            </Tooltip>
+          </TooltipProvider>
         </div>
-        <ThreadListRoot className="min-h-0 flex-1 overflow-hidden">
-          <div
-            data-slot="aui_shell-sidebar-new"
+        <div
+          data-slot="aui_shell-sidebar-scroll"
+          className={cn(
+            // overflow-x-hidden: group labels are wider than the collapsed rail and would otherwise raise a horizontal overlay scrollbar above the footer.
+            "overflow-x-hidden transition-[padding] duration-200",
+            collapsed ? "overflow-y-hidden px-2" : "overflow-y-auto px-3",
+            SCROLL_AREA_CLASS,
+          )}
+        >
+          <ThreadListItems
+            aria-hidden={collapsed}
+            inert={collapsed}
             className={cn(
-              "shrink-0 transition-[padding] duration-200",
-              collapsed ? "px-2 pt-1 pb-2" : "px-3 pt-2 pb-1.5",
+              "transition-[opacity,transform] duration-150",
+              collapsed
+                ? "pointer-events-none opacity-0 delay-50"
+                : "translate-x-0 opacity-100",
             )}
-          >
-            <TooltipProvider>
-              <Tooltip>
-                {/* DOM no-op (Radix Slot lets the child's identical data-slot win); present for registry slot parity with the base flavor. */}
-                <TooltipTrigger asChild data-slot="aui_thread-list-new">
-                  <ThreadListNew
-                    className={cn(
-                      "overflow-hidden transition-all duration-200",
-                      collapsed
-                        ? "w-8 gap-0 px-2 has-[>svg]:px-2"
-                        : "w-full gap-2 px-2.5 has-[>svg]:px-2.5",
-                    )}
-                    labelClassName={cn(
-                      "overflow-hidden transition-all duration-200",
-                      collapsed ? "max-w-0 opacity-0" : "max-w-24 opacity-100",
-                    )}
-                  />
-                </TooltipTrigger>
-                {collapsed && (
-                  <TooltipContent side="right">New Thread</TooltipContent>
-                )}
-              </Tooltip>
-            </TooltipProvider>
-          </div>
-          <div
-            data-slot="aui_shell-sidebar-scroll"
-            className={cn(
-              // overflow-x-hidden: group labels are wider than the collapsed rail and would otherwise raise a horizontal overlay scrollbar above the footer.
-              // The scrollbar is hidden because classic or app-styled scrollbars reserve width from the right edge and knock the rows off-center; the edge fades signal overflow instead.
-              "relative flex-1 overflow-x-hidden pt-3 pb-6 transition-[padding] duration-200 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
-              collapsed ? "overflow-y-hidden px-2" : "overflow-y-auto px-3",
-              SCROLL_FADE_CLASS,
-            )}
-          >
-            <ThreadListItems
-              aria-hidden={collapsed}
-              inert={collapsed}
-              className={cn(
-                "transition-[opacity,transform] duration-150",
-                collapsed
-                  ? "pointer-events-none opacity-0 delay-50"
-                  : "translate-x-0 opacity-100",
-              )}
-            />
-          </div>
-        </ThreadListRoot>
-        {footer != null && (
-          <div
-            data-slot="aui_shell-sidebar-footer"
-            className={cn(
-              // px-0.5 centers the w-11 footer trigger in the w-12 rail.
-              "shrink-0 pt-1 transition-[padding] duration-200",
-              collapsed ? "px-0.5" : "px-3",
-            )}
-          >
-            {footer}
-          </div>
-        )}
-      </aside>
-    </div>
+          />
+        </div>
+      </ThreadListRoot>
+      {sidebarFooter != null && (
+        <div
+          data-slot="aui_shell-sidebar-footer"
+          className={cn(
+            // px-0.5 centers the w-11 footer trigger in the w-12 rail.
+            "shrink-0 pt-1 transition-[padding] duration-200",
+            collapsed ? "px-0.5" : "px-3",
+          )}
+        >
+          {sidebarFooter}
+        </div>
+      )}
+    </aside>
   );
 };
 
@@ -302,19 +288,7 @@ export const AssistantShellSidebarToggle: FC = () => {
   );
 };
 
-export type AssistantShellHeaderProps = Omit<
-  ComponentPropsWithoutRef<"header">,
-  "title"
-> & {
-  logo?: ReactNode;
-  title?: ReactNode;
-  sidebarFooter?: ReactNode;
-};
-
-export const AssistantShellHeader: FC<AssistantShellHeaderProps> = ({
-  logo = defaultLogo,
-  title = "assistant-ui",
-  sidebarFooter,
+export const AssistantShellHeader: FC<ComponentPropsWithoutRef<"header">> = ({
   className,
   children,
   ...props
@@ -325,11 +299,7 @@ export const AssistantShellHeader: FC<AssistantShellHeaderProps> = ({
       className={cn("flex h-12 shrink-0 items-center gap-2 px-4", className)}
       {...props}
     >
-      <AssistantShellMobileSidebar
-        logo={logo}
-        title={title}
-        footer={sidebarFooter}
-      />
+      <AssistantShellMobileSidebar />
       <AssistantShellSidebarToggle />
       <AssistantShellThreadTitle />
       {children != null && (
@@ -344,16 +314,9 @@ export const AssistantShellHeader: FC<AssistantShellHeaderProps> = ({
   );
 };
 
-export type AssistantShellMobileSidebarProps = {
-  logo?: ReactNode;
-  title?: ReactNode;
-  footer?: ReactNode;
-};
-
-export const AssistantShellMobileSidebar: FC<
-  AssistantShellMobileSidebarProps
-> = ({ logo = defaultLogo, title = "assistant-ui", footer }) => {
+export const AssistantShellMobileSidebar: FC = () => {
   const context = useAssistantShell();
+  const { logo, title, sidebarFooter } = context;
 
   // The mobile drawer is always full width, so footer items inside it must not inherit the desktop collapsed state.
   const expandedContext = useMemo(
@@ -389,20 +352,17 @@ export const AssistantShellMobileSidebar: FC<
         </div>
         <div
           data-slot="aui_shell-mobile-content"
-          className={cn(
-            "relative flex-1 overflow-y-auto px-3 pt-3 pb-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
-            SCROLL_FADE_CLASS,
-          )}
+          className={cn("overflow-y-auto px-3", SCROLL_AREA_CLASS)}
         >
           <ThreadList />
         </div>
-        {footer != null && (
+        {sidebarFooter != null && (
           <AssistantShellContext.Provider value={expandedContext}>
             <div
               data-slot="aui_shell-mobile-footer"
               className="shrink-0 p-3 pt-1"
             >
-              {footer}
+              {sidebarFooter}
             </div>
           </AssistantShellContext.Provider>
         )}

@@ -2,11 +2,8 @@
 
 import { Thread } from "@/components/assistant-ui/thread";
 import {
+  AssistantShell,
   AssistantShellFooterItem,
-  AssistantShellHeader,
-  AssistantShellMain,
-  AssistantShellRoot,
-  AssistantShellSidebar,
 } from "@/components/assistant-ui/assistant-shell";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -70,23 +67,19 @@ const AccountMenu = () => {
 };
 
 export function AssistantShellSample() {
-  const footer = <AccountMenu />;
-
   return (
     <SampleFrame className="h-100 overflow-hidden md:h-150">
-      <AssistantShellRoot className="h-full">
-        <AssistantShellSidebar footer={footer} />
-        <AssistantShellMain>
-          <AssistantShellHeader sidebarFooter={footer}>
-            <Button variant="ghost">
-              <Share2Icon /> Share
-            </Button>
-          </AssistantShellHeader>
-          <main className="flex-1 overflow-hidden">
-            <Thread />
-          </main>
-        </AssistantShellMain>
-      </AssistantShellRoot>
+      <AssistantShell
+        className="h-full"
+        sidebarFooter={<AccountMenu />}
+        headerActions={
+          <Button variant="ghost">
+            <Share2Icon /> Share
+          </Button>
+        }
+      >
+        <Thread />
+      </AssistantShell>
     </SampleFrame>
   );
 }
