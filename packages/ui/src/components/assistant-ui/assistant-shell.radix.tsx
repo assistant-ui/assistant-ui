@@ -205,6 +205,7 @@ export const AssistantShellSidebar: FC = () => {
                   )}
                 />
               </TooltipTrigger>
+              {/* Conditional content is safe in Radix (close fires on trigger leave without a mounted popup); the base flavor must disable the root instead. */}
               {collapsed && (
                 <TooltipContent side="right">New Thread</TooltipContent>
               )}
@@ -236,9 +237,9 @@ export const AssistantShellSidebar: FC = () => {
         <div
           data-slot="aui_shell-sidebar-footer"
           className={cn(
-            // px-0.5 centers the w-11 footer trigger in the w-12 rail.
+            // px-1.5 centers the w-9 footer trigger in the w-12 rail.
             "shrink-0 pt-1 transition-[padding] duration-200",
-            collapsed ? "px-0.5" : "px-3",
+            collapsed ? "px-1.5" : "px-3",
           )}
         >
           {sidebarFooter}
@@ -416,15 +417,18 @@ export const AssistantShellFooterItem: FC<AssistantShellFooterItemProps> = ({
             data-slot="aui_shell-footer-item"
             {...props}
             className={cn(
-              // Only width changes between states; keeping the rest of the geometry fixed is what makes the icon travel a straight horizontal line.
-              "h-11 justify-start gap-2 overflow-hidden border-none px-1.5 transition-all duration-200",
-              collapsed ? "w-11" : "w-full",
+              "justify-start gap-2 overflow-hidden border-none transition-all duration-200",
+              collapsed ? "size-9 px-1" : "h-11 w-full px-1.5",
               className,
             )}
           >
+            {/* Consumer avatars carry a fixed size-8, so they track the icon well (size-full) and shrink with its width/height transition when collapsing. */}
             <span
               data-slot="aui_shell-footer-item-icon"
-              className="flex size-8 shrink-0 items-center justify-center"
+              className={cn(
+                "flex shrink-0 items-center justify-center transition-[width,height] duration-200 **:data-[slot=avatar]:size-full",
+                collapsed ? "size-7" : "size-8",
+              )}
             >
               {icon}
             </span>
@@ -457,6 +461,7 @@ export const AssistantShellFooterItem: FC<AssistantShellFooterItemProps> = ({
             )}
           </Button>
         </TooltipTrigger>
+        {/* Conditional content is safe in Radix (close fires on trigger leave without a mounted popup); the base flavor must disable the root instead. */}
         {collapsed && <TooltipContent side="right">{label}</TooltipContent>}
       </Tooltip>
     </TooltipProvider>

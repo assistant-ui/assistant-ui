@@ -189,7 +189,8 @@ export const AssistantShellSidebar: FC = () => {
           )}
         >
           <TooltipProvider>
-            <Tooltip>
+            {/* Disabled while expanded rather than unmounting the content: hover would still open the root invisibly, and Base UI's safe-polygon close needs a mounted popup, so the tooltip would reappear stuck open on the next collapse. */}
+            <Tooltip disabled={!collapsed}>
               {/* Base UI merges trigger props over the render element's, so the trigger must re-declare the button's data-slot or it is replaced by "tooltip-trigger". */}
               <TooltipTrigger
                 data-slot="aui_thread-list-new"
@@ -209,9 +210,7 @@ export const AssistantShellSidebar: FC = () => {
                   />
                 }
               />
-              {collapsed && (
-                <TooltipContent side="right">New Thread</TooltipContent>
-              )}
+              <TooltipContent side="right">New Thread</TooltipContent>
             </Tooltip>
           </TooltipProvider>
         </div>
@@ -240,9 +239,9 @@ export const AssistantShellSidebar: FC = () => {
         <div
           data-slot="aui_shell-sidebar-footer"
           className={cn(
-            // px-0.5 centers the w-11 footer trigger in the w-12 rail.
+            // px-1.5 centers the w-9 footer trigger in the w-12 rail.
             "shrink-0 pt-1 transition-[padding] duration-200",
-            collapsed ? "px-0.5" : "px-3",
+            collapsed ? "px-1.5" : "px-3",
           )}
         >
           {sidebarFooter}
@@ -408,30 +407,37 @@ export const AssistantShellFooterItem: FC<AssistantShellFooterItemProps> = ({
   description,
   trailing,
   className,
+  id,
   ...props
 }) => {
   const { collapsed } = useAssistantShell();
 
   return (
     <TooltipProvider>
-      <Tooltip>
+      {/* Disabled while expanded rather than unmounting the content: hover would still open the root invisibly, and Base UI's safe-polygon close needs a mounted popup, so the tooltip would reappear stuck open on the next collapse. */}
+      <Tooltip disabled={!collapsed}>
         {/* Base UI merges trigger props over the render element's, so the trigger must re-declare the button's data-slot or it is replaced by "tooltip-trigger". */}
+        {/* When composed inside a menu trigger (e.g. DropdownMenuTrigger render={<AssistantShellFooterItem/>}), the menu's id wins the merge onto the shared button. Base UI resolves a popup's active trigger from the DOM id, so the tooltip must register under that same id or it closes itself the moment hover opens it. */}
         <TooltipTrigger
+          id={id}
           data-slot="aui_shell-footer-item"
           render={
             <Button
               variant="ghost"
               {...props}
               className={cn(
-                // Only width changes between states; keeping the rest of the geometry fixed is what makes the icon travel a straight horizontal line.
-                "h-11 justify-start gap-2 overflow-hidden border-none px-1.5 transition-all duration-200",
-                collapsed ? "w-11" : "w-full",
+                "justify-start gap-2 overflow-hidden border-none transition-all duration-200",
+                collapsed ? "size-9 px-1" : "h-11 w-full px-1.5",
                 className,
               )}
             >
+              {/* Consumer avatars carry a fixed size-8, so they track the icon well (size-full) and shrink with its width/height transition when collapsing. */}
               <span
                 data-slot="aui_shell-footer-item-icon"
-                className="flex size-8 shrink-0 items-center justify-center"
+                className={cn(
+                  "flex shrink-0 items-center justify-center transition-[width,height] duration-200 **:data-[slot=avatar]:size-full",
+                  collapsed ? "size-7" : "size-8",
+                )}
               >
                 {icon}
               </span>
@@ -465,7 +471,7 @@ export const AssistantShellFooterItem: FC<AssistantShellFooterItemProps> = ({
             </Button>
           }
         />
-        {collapsed && <TooltipContent side="right">{label}</TooltipContent>}
+        <TooltipContent side="right">{label}</TooltipContent>
       </Tooltip>
     </TooltipProvider>
   );
