@@ -6,7 +6,7 @@ platforms: ["react"]
 
 import { AssistantShellSample } from "@/components/docs/samples/assistant-shell";
 
-A complete app shell for chat applications: a collapsible sidebar with the thread list, a header with a sidebar toggle and the active thread title, and your chat content in the main area. On mobile, the sidebar becomes a slide-out drawer.
+`AssistantShell` is the app frame around your chat: a collapsible [thread list](/docs/ui/thread-list) sidebar, a header with the active thread's title, and your `Thread` in the main area. Below the `md` breakpoint the sidebar becomes a slide-out drawer with the same content. Four slots cover the usual customization without recomposition: [`logo` and `title`](#branding) brand the sidebar, [`headerActions`](#header-actions) fills the right side of the header, and [`sidebarFooter`](#sidebar-footer) the bottom of the sidebar. Collapse state [persists across reloads](#collapse-and-persistence), and every part is exported for [custom arrangements](#custom-composition).
 
 <AssistantShellSample />
 
@@ -44,6 +44,61 @@ export const Assistant = () => {
   </Step>
 </Steps>
 
+## Anatomy
+
+The whole API at a glance. `AssistantShell` is `AssistantShellRoot` plus the standard arrangement of parts. Both forms take the same slots; the drop-in adds `headerActions` as a prop, which in the expanded form is simply `AssistantShellHeader`'s children:
+
+```tsx
+import {
+  AssistantShell,
+  AssistantShellHeader,
+  AssistantShellMain,
+  AssistantShellRoot,
+  AssistantShellSidebar,
+} from "@/components/assistant-ui/assistant-shell";
+
+// Drop-in: the full shell, every slot filled
+<AssistantShell
+  logo={<MyLogo />} // sidebar + drawer brand mark; null for none
+  title="My App" // next to the logo; null for none
+  headerActions={<ShareButton />} // right-aligned header slot
+  sidebarFooter={<AccountMenu />} // bottom of the sidebar and drawer
+  defaultCollapsed={false} // initial sidebar state (persisted to a cookie)
+>
+  <Thread />
+</AssistantShell>;
+
+// The same shell, expanded into its parts. AssistantShell renders exactly this.
+<AssistantShellRoot logo={<MyLogo />} title="My App" sidebarFooter={<AccountMenu />}>
+  <AssistantShellSidebar /> {/* logo/title, New Thread, thread list, footer */}
+  <AssistantShellMain> {/* rounded surface beside the sidebar */}
+    <AssistantShellHeader> {/* drawer trigger, collapse toggle, thread title */}
+      <ShareButton /> {/* children = the headerActions slot */}
+    </AssistantShellHeader>
+    <main className="flex-1 overflow-hidden">
+      <Thread />
+    </main>
+  </AssistantShellMain>
+</AssistantShellRoot>;
+```
+
+Every building block is exported:
+
+| Export                                                      | Description                                                                                            |
+| ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| [`AssistantShell`](#assistantshell)                         | Drop-in default: `Root` plus the arrangement above                                                     |
+| [`AssistantShellRoot`](#assistantshellroot)                 | Context provider owning the collapse state and the shared chrome (`logo`, `title`, `sidebarFooter`)    |
+| [`AssistantShellSidebar`](#assistantshellsidebar)           | Desktop sidebar: brand row, pinned New Thread button, scrolling thread list, footer                    |
+| [`AssistantShellMain`](#assistantshellmain)                 | Rounded main surface beside the sidebar                                                                |
+| [`AssistantShellHeader`](#assistantshellheader)             | Top bar: drawer trigger, collapse toggle, thread title; children render right-aligned                  |
+| [`AssistantShellSidebarToggle`](#assistantshellsidebartoggle) | The collapse toggle button, for custom headers                                                       |
+| [`AssistantShellThreadTitle`](#assistantshellthreadtitle)   | The active thread's title, for custom headers                                                          |
+| [`AssistantShellMobileSidebar`](#assistantshellmobilesidebar) | The drawer trigger and Sheet, for custom headers                                                     |
+| [`AssistantShellFooterItem`](#assistantshellfooteritem)     | Footer button that adapts to the collapse state, typically an account menu trigger                     |
+| [`useAssistantShell`](#useassistantshell)                   | Hook for custom parts: reads the collapse state and chrome, drives the toggle                          |
+
+Each slot is unpacked in the sections below.
+
 ## Branding
 
 The sidebar and the mobile drawer show a logo and title, defaulting to the assistant-ui mark and wordmark. Pass `logo` and `title` to brand the shell, or `null` to render either without a replacement:
@@ -56,7 +111,7 @@ The sidebar and the mobile drawer show a logo and title, defaulting to the assis
 
 ## Header actions
 
-The right side of the header is an empty slot reserved for your app's own controls: an account menu, a share button, a settings toggle, a model picker. Nothing renders there by default. Fill it with `headerActions`, which accepts any `ReactNode` and lays multiple children out in a right-aligned row:
+The right side of the header is an empty slot reserved for your app's own controls: an account menu, a share button, a settings toggle, a model picker. Fill it with `headerActions`, which accepts any `ReactNode` and lays multiple children out in a right-aligned row:
 
 ```tsx title="/app/assistant.tsx"
 import { AssistantShell } from "@/components/assistant-ui/assistant-shell";
@@ -90,7 +145,7 @@ export const Assistant = () => {
 
 The bottom of the sidebar is a second empty slot, the conventional home for an account menu. Fill it with `sidebarFooter`; the same content also renders at the bottom of the mobile drawer.
 
-For the common case — an avatar button that collapses to just the avatar in the icon rail — pair the slot with `AssistantShellFooterItem`. It renders an icon, a label, and an optional description and trailing element, hides everything but the icon when the sidebar collapses (with the label as a tooltip), and works as a menu trigger:
+For the common case, an avatar button that shrinks to just the avatar in the icon rail, pair the slot with `AssistantShellFooterItem`. It renders an icon, a label, and an optional description and trailing element; when the sidebar collapses it hides everything but the icon and shows the label as a tooltip. It composes directly as a menu trigger:
 
 ```tsx title="/app/assistant.tsx"
 import {
@@ -140,7 +195,7 @@ export const Assistant = () => {
 };
 ```
 
-The slot accepts any `ReactNode`; a plain settings link or an upgrade banner works just as well. In a [custom composition](#custom-composition), the same prop lives on `AssistantShellRoot`.
+The slot accepts any `ReactNode`; a plain settings link or an upgrade banner works just as well. Inside the mobile drawer, footer items always render expanded. In a [custom composition](#custom-composition), the same prop lives on `AssistantShellRoot`.
 
 ## Collapse and persistence
 
@@ -169,26 +224,31 @@ Without this, the sidebar renders expanded on the server and snaps to the persis
 
 ## Custom composition
 
-`AssistantShell` is a thin arrangement of exported parts. Compose them directly when you need a custom header, extra sidebar content, or a different main layout:
+`AssistantShell` is a thin arrangement of the parts shown in the [anatomy](#anatomy); compose them directly when you need a custom header, extra sidebar content, or a different main layout. `AssistantShellRoot` owns the collapse state and the shared chrome (`logo`, `title`, `sidebarFooter`), so every part works the same inside a custom arrangement: the sidebar, header, and mobile drawer all read them from context.
+
+For a fully custom header, skip `AssistantShellHeader` and build your own from the same atoms it uses: `AssistantShellMobileSidebar`, `AssistantShellSidebarToggle`, and `AssistantShellThreadTitle`:
 
 ```tsx title="/app/assistant.tsx"
 import {
-  AssistantShellHeader,
   AssistantShellMain,
+  AssistantShellMobileSidebar,
   AssistantShellRoot,
   AssistantShellSidebar,
+  AssistantShellSidebarToggle,
 } from "@/components/assistant-ui/assistant-shell";
 import { Thread } from "@/components/assistant-ui/thread";
 
 export const Assistant = () => {
   return (
     <AssistantShellRoot logo={<MyLogo />} title="My App">
-      {/* desktop sidebar: logo, title, new thread, thread list, footer */}
       <AssistantShellSidebar />
-      {/* rounded main surface beside the sidebar */}
       <AssistantShellMain>
-        {/* mobile drawer trigger, sidebar toggle, thread title, actions */}
-        <AssistantShellHeader>{/* header actions */}</AssistantShellHeader>
+        <header className="flex h-12 shrink-0 items-center gap-2 px-4">
+          <AssistantShellMobileSidebar />
+          <AssistantShellSidebarToggle />
+          <ModelPicker />
+          <ShareButton className="ml-auto" />
+        </header>
         <main className="flex-1 overflow-hidden">
           <Thread />
         </main>
@@ -196,24 +256,6 @@ export const Assistant = () => {
     </AssistantShellRoot>
   );
 };
-```
-
-`AssistantShellRoot` owns the collapse state and the shared chrome (`logo`, `title`, `sidebarFooter`), so every part works the same inside a custom arrangement: the sidebar, header, and mobile drawer all read them from context.
-
-For a fully custom header, skip `AssistantShellHeader` and build your own from the same atoms it uses: `AssistantShellSidebarToggle`, `AssistantShellThreadTitle`, and `AssistantShellMobileSidebar`:
-
-```tsx
-<AssistantShellMain>
-  <header className="flex h-12 shrink-0 items-center gap-2 px-4">
-    <AssistantShellMobileSidebar />
-    <AssistantShellSidebarToggle />
-    <ModelPicker />
-    <ShareButton className="ml-auto" />
-  </header>
-  <main className="flex-1 overflow-hidden">
-    <Thread />
-  </main>
-</AssistantShellMain>
 ```
 
 ## API Reference
@@ -384,38 +426,21 @@ A sidebar footer button that adapts to the collapse state: expanded it shows the
 
 ### useAssistantShell
 
-Context hook for building custom controls inside the shell. Throws when used outside `AssistantShellRoot`. Returns the shell context:
+`AssistantShellRoot` keeps the shell's shared state (the collapse flag and the chrome slots) in a React context, and every shipped part reads from it. You never need this hook to use those parts. You need it when you build your own: a collapse control somewhere else in the page, sidebar content that hides in the icon rail, a custom drawer that still honors the chrome:
 
-<ParametersTable
-  type="AssistantShellContextValue"
-  parameters={[
-    {
-      name: "collapsed",
-      type: "boolean",
-      description: "Whether the sidebar is collapsed.",
-    },
-    {
-      name: "toggle",
-      type: "() => void",
-      description: "Toggles the collapsed state.",
-    },
-    {
-      name: "logo",
-      type: "ReactNode",
-      description: "The logo passed to AssistantShellRoot, or the default.",
-    },
-    {
-      name: "title",
-      type: "ReactNode",
-      description: "The title passed to AssistantShellRoot, or the default.",
-    },
-    {
-      name: "sidebarFooter",
-      type: "ReactNode",
-      description: "The sidebar footer content passed to AssistantShellRoot.",
-    },
-  ]}
-/>
+```tsx
+const { collapsed, toggle, logo, title, sidebarFooter } = useAssistantShell();
+```
+
+| Field           | Meaning                                                    |
+| --------------- | ---------------------------------------------------------- |
+| `collapsed`     | Whether the desktop sidebar is collapsed to the icon rail  |
+| `toggle()`      | Toggle the collapsed state                                 |
+| `logo`          | The logo passed to `AssistantShellRoot`, or the default    |
+| `title`         | The title passed to `AssistantShellRoot`, or the default   |
+| `sidebarFooter` | The sidebar footer content passed to `AssistantShellRoot`  |
+
+Typical uses: a collapse button outside the header (`toggle`), hiding secondary sidebar content in the rail (`collapsed`), or re-rendering the chrome in a custom drawer (`logo`, `title`, `sidebarFooter`). Any component calling it must be inside `AssistantShellRoot`; it throws otherwise.
 
 ## Styling
 

@@ -7,7 +7,10 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { AssistantShellRoot, AssistantShellFooterItem } from "./assistant-shell";
+import {
+  AssistantShellRoot,
+  AssistantShellFooterItem,
+} from "./assistant-shell";
 
 const tooltip = () =>
   document.querySelector<HTMLElement>('[data-slot="tooltip-content"]');
