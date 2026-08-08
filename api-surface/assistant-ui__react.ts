@@ -1268,8 +1268,9 @@ type ClientSchemas = keyof ScopeRegistry extends never ? {
 
 declare class CloudFileAttachmentAdapter implements AttachmentAdapter {
   accept: string;
-  private cloud;
+  private getCloud;
   constructor(cloud: AssistantCloud);
+  constructor(getCloud: () => AssistantCloud);
   private uploadedUrls;
   add(_param0: {
     file: File;
