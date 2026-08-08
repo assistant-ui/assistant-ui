@@ -60,7 +60,7 @@ describe("React-hosted reducer replay below the committed version", () => {
     let api!: { chunks: readonly string[]; push: (c: string) => void };
 
     function App() {
-      const value = useResource(Stream({}));
+      const value = useResource(Stream());
       api = value;
       return <div>{value.chunks.join(",")}</div>;
     }
