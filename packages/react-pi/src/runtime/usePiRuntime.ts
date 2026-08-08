@@ -35,7 +35,6 @@ import { createPiThreadState, type PiThreadState } from "./threadState";
 import type { PiClient, PiSendMessageInput, PiThreadMetadata } from "../types";
 import { piExtras } from "./piExtras";
 import type { PiRuntimeExtrasInternal, PiRuntimeOptions } from "./runtimeTypes";
-import { invokePiErrorCallback } from "./invokePiErrorCallback";
 
 const EMPTY_THREAD_STATE = createPiThreadState("__pending__");
 const EMPTY_PROJECTED_MESSAGES: readonly ThreadMessageLike[] = [];
@@ -97,6 +96,22 @@ export const NOOP_CONTROLLER: PiThreadControllerLike = {
 
 const NOOP_ON_NEW = () =>
   Promise.reject(new Error("Pi thread is still initializing"));
+
+const reportPiCallbackError = (callbackError: unknown) => {
+  console.error("[react-pi] onError callback threw an error", callbackError);
+};
+
+const invokePiErrorCallback = (
+  onError: PiRuntimeOptions["onError"],
+  error: unknown,
+) => {
+  if (!onError) return;
+  try {
+    void Promise.resolve(onError(error)).catch(reportPiCallbackError);
+  } catch (callbackError) {
+    reportPiCallbackError(callbackError);
+  }
+};
 
 const buildExtras = (
   controller: PiThreadControllerLike,

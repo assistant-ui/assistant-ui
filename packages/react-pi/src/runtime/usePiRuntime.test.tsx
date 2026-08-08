@@ -81,39 +81,54 @@ afterEach(() => {
 });
 
 describe("usePiRuntime error callbacks", () => {
-  it("preserves the controller error when onError throws", async () => {
-    mocks.state = createPiThreadState("t1");
-    mocks.repository = ExportedMessageRepository.fromArray([]);
-    const controllerError = new Error("send failed");
-    const callbackError = new Error("telemetry failed");
-    mocks.controller.sendMessage.mockRejectedValueOnce(controllerError);
-    const onError = vi.fn(() => {
-      throw callbackError;
-    });
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
+  it.each(["throws", "rejects"] as const)(
+    "preserves the controller error when onError %s",
+    async (failureMode) => {
+      mocks.state = createPiThreadState("t1");
+      mocks.repository = ExportedMessageRepository.fromArray([]);
+      const controllerError = new Error("send failed");
+      const callbackError = new Error("telemetry failed");
+      mocks.controller.sendMessage.mockRejectedValueOnce(controllerError);
+      const onError = vi.fn(
+        failureMode === "throws"
+          ? () => {
+              throw callbackError;
+            }
+          : async () => {
+              throw callbackError;
+            },
+      );
+      const consoleError = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
 
-    const App = () => {
-      usePiRuntime({ client: {} as PiClient, onError, initialThreadId: "t1" });
-      return null;
-    };
+      const App = () => {
+        usePiRuntime({
+          client: {} as PiClient,
+          onError,
+          initialThreadId: "t1",
+        });
+        return null;
+      };
 
-    root = createRoot(document.createElement("div"));
-    await act(async () => root!.render(createElement(App)));
+      root = createRoot(document.createElement("div"));
+      await act(async () => root!.render(createElement(App)));
 
-    const adapter = mocks.adapters.at(-1)!;
-    const message: AppendMessage = {
-      role: "user",
-      content: [{ type: "text", text: "hello" }],
-    };
+      const adapter = mocks.adapters.at(-1)!;
+      const message: AppendMessage = {
+        role: "user",
+        content: [{ type: "text", text: "hello" }],
+      };
 
-    await expect(adapter.onNew(message)).rejects.toBe(controllerError);
-    expect(onError).toHaveBeenCalledWith(controllerError);
-    expect(consoleError).toHaveBeenCalledWith(
-      "[react-pi] onError callback threw an error",
-      callbackError,
-    );
-    consoleError.mockRestore();
-  });
+      await expect(adapter.onNew(message)).rejects.toBe(controllerError);
+      expect(onError).toHaveBeenCalledWith(controllerError);
+      await vi.waitFor(() =>
+        expect(consoleError).toHaveBeenCalledWith(
+          "[react-pi] onError callback threw an error",
+          callbackError,
+        ),
+      );
+      consoleError.mockRestore();
+    },
+  );
 });
