@@ -165,6 +165,7 @@ type WelcomeSuggestionsContextValue = {
   highlightItem: (id: string, preview?: boolean) => void;
   highlightAtTop: () => boolean;
   selectCurrent: () => void;
+  acceptCurrent: () => boolean;
   currentId: string | null;
   setCurrentId: (id: string | null) => void;
   send: boolean;
@@ -193,6 +194,7 @@ const useWelcomeSuggestionsState = ({
   send: boolean;
 }) => {
   const registry = unstable_useComposerInputPluginRegistry();
+  const aui = useAui();
   const staticSuggestions = useAuiState((s) => s.suggestions.suggestions);
   const composerText = useAuiState((s) => s.composer.text);
   const pickerPrompts = usePickerPrompts();
@@ -261,6 +263,17 @@ const useWelcomeSuggestionsState = ({
       ?.click();
   }, [popoverId]);
 
+  // ArrowRight accepts the highlighted ghost preview as an editable draft;
+  // an existing draft is never clobbered.
+  const acceptCurrent = useCallback(() => {
+    const prompt = currentIdRef.current
+      ? pickerPrompts.get(currentIdRef.current)
+      : undefined;
+    if (prompt === undefined || aui.composer().getState().text) return false;
+    aui.composer().setText(prompt);
+    return true;
+  }, [aui, pickerPrompts]);
+
   // Only deliberate keyboard navigation previews: a wrapping ghost resizes
   // the composer, and hover-driven previews loop when the list shifts under
   // a stationary cursor. Hover still moves the highlight.
@@ -321,6 +334,7 @@ const useWelcomeSuggestionsState = ({
       highlightItem,
       highlightAtTop,
       selectCurrent,
+      acceptCurrent,
       currentId,
       setCurrentId,
       send,
@@ -337,6 +351,7 @@ const useWelcomeSuggestionsState = ({
       highlightItem,
       highlightAtTop,
       selectCurrent,
+      acceptCurrent,
       currentId,
       send,
       popoverId,
@@ -599,11 +614,13 @@ const useComposerCoupling = ({
   onExitUp?: () => void;
 }) => {
   const registry = unstable_useComposerInputPluginRegistry();
+  const direction = useDirection();
   const {
     group,
     moveHighlight,
     highlightAtTop,
     selectCurrent,
+    acceptCurrent,
     close,
     currentId,
     popoverId,
@@ -611,6 +628,7 @@ const useComposerCoupling = ({
   } = useWelcomeSuggestions();
   const currentIdRef = useRef(currentId);
   currentIdRef.current = currentId;
+  const acceptKey = direction === "rtl" ? "ArrowLeft" : "ArrowRight";
 
   useEffect(() => {
     if (!group || !registry) return undefined;
@@ -618,6 +636,11 @@ const useComposerCoupling = ({
       handleKeyDown(e) {
         if (e.key === "ArrowDown") {
           moveHighlight(1);
+          e.preventDefault();
+          return true;
+        }
+        if (e.key === acceptKey && currentIdRef.current) {
+          if (!acceptCurrent()) return false;
           e.preventDefault();
           return true;
         }
@@ -659,6 +682,8 @@ const useComposerCoupling = ({
     moveHighlight,
     highlightAtTop,
     selectCurrent,
+    acceptCurrent,
+    acceptKey,
     close,
     onEscape,
     onTab,
@@ -687,7 +712,9 @@ const useComposerCoupling = ({
     if (e.key === "ArrowDown") moveHighlight(1);
     else if (e.key === "ArrowUp") moveHighlight(-1);
     else if (e.key === "Enter") selectCurrent();
-    else if (e.key === "Tab") onTab?.();
+    else if (e.key === acceptKey) {
+      if (!acceptCurrent()) return;
+    } else if (e.key === "Tab") onTab?.();
     else return;
     e.preventDefault();
   };
@@ -818,6 +845,7 @@ export const WelcomeSuggestionsStack: FC<WelcomeSuggestionsStackProps> = ({
   } = useWelcomeSuggestions();
   const direction = useDirection();
   const registry = unstable_useComposerInputPluginRegistry();
+  const aui = useAui();
   const composerText = useAuiState((s) => s.composer.text);
   const { setCursorPosition, caretAtEnd } = useCaretAtEnd();
   const listRef = useRef<HTMLDivElement>(null);
@@ -854,6 +882,19 @@ export const WelcomeSuggestionsStack: FC<WelcomeSuggestionsStackProps> = ({
       setGhost(isGroup(entry) ? null : promptOf(entry));
     },
     [entries, setGhost],
+  );
+
+  // ArrowRight accepts a flat row's ghost preview as an editable draft; an
+  // existing draft is never clobbered. Group rows open instead.
+  const acceptRow = useCallback(
+    (idx: number) => {
+      const entry = entries[idx];
+      if (!entry || isGroup(entry)) return false;
+      if (aui.composer().getState().text) return false;
+      aui.composer().setText(promptOf(entry));
+      return true;
+    },
+    [entries, aui],
   );
 
   const clickRow = useCallback(
@@ -964,8 +1005,9 @@ export const WelcomeSuggestionsStack: FC<WelcomeSuggestionsStackProps> = ({
           e.preventDefault();
           return true;
         }
-        if (e.key === openKey && isGroup(entry)) {
-          openGroup(entry);
+        if (e.key === openKey) {
+          if (isGroup(entry)) openGroup(entry);
+          else if (!acceptRow(idx)) return false;
           e.preventDefault();
           return true;
         }
@@ -982,6 +1024,7 @@ export const WelcomeSuggestionsStack: FC<WelcomeSuggestionsStackProps> = ({
     exitComposerNav,
     enterComposerNav,
     previewRow,
+    acceptRow,
     clickRow,
     caretAtEnd,
     setCursorPosition,
@@ -1001,23 +1044,30 @@ export const WelcomeSuggestionsStack: FC<WelcomeSuggestionsStackProps> = ({
     onEscape: returnToTop,
   });
 
+  // Tab focus and composer-driven navigation are the same mode with a
+  // different focus holder: identical clamped movement, identical previews,
+  // and ArrowUp off the top hands focus (back) to the composer.
   const onKeyDown = (e: ReactKeyboardEvent<HTMLDivElement>) => {
     if (group) return fallbackKeyDown(e);
     if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      const idx = topIdxRef.current;
+      if (e.key === "ArrowUp" && (idx === null || idx === 0) && registry) {
+        registry.requestFocus();
+        e.preventDefault();
+        return;
+      }
       const last = entries.length - 1;
-      setTopIdx((idx) =>
+      const next =
         idx === null
           ? e.key === "ArrowDown"
             ? 0
             : last
           : e.key === "ArrowDown"
-            ? idx >= last
-              ? 0
-              : idx + 1
-            : idx <= 0
-              ? last
-              : idx - 1,
-      );
+            ? Math.min(idx + 1, last)
+            : Math.max(idx - 1, 0);
+      topIdxRef.current = next;
+      setTopIdx(next);
+      previewRow(next);
       e.preventDefault();
       return;
     }
@@ -1031,6 +1081,9 @@ export const WelcomeSuggestionsStack: FC<WelcomeSuggestionsStackProps> = ({
       e.preventDefault();
     } else if (e.key === "Enter") {
       clickRow(topIdx);
+      e.preventDefault();
+    } else if (acceptRow(topIdx)) {
+      registry?.requestFocus();
       e.preventDefault();
     }
   };
@@ -1073,12 +1126,15 @@ export const WelcomeSuggestionsStack: FC<WelcomeSuggestionsStackProps> = ({
       onKeyDown={onKeyDown}
       onFocus={() => {
         if (group) return;
-        const idx = topIdxRef.current;
+        const idx = topIdxRef.current ?? 0;
         exitComposerNav();
-        setTopIdx(idx ?? 0);
+        setTopIdx(idx);
+        previewRow(idx);
       }}
       onBlur={(e) => {
-        if (!e.currentTarget.contains(e.relatedTarget)) setTopIdx(null);
+        if (e.currentTarget.contains(e.relatedTarget)) return;
+        setTopIdx(null);
+        setGhost(null);
       }}
       onMouseLeave={() => {
         if (

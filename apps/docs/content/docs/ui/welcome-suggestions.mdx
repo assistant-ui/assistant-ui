@@ -240,12 +240,12 @@ Each pill is its own tab stop:
 
 ### Stacked list
 
-The list is a single tab stop with one highlight shared by hover and the arrow keys. <Kbd>↓</Kbd> first navigates the composer text; once the caret has no text left to traverse, the next <Kbd>↓</Kbd> enters the list; the composer keeps focus the whole time, so typing at any point just resumes composing. Top-level rows stay passive and never intercept typing:
+The list is a single tab stop with one highlight shared by hover and the arrow keys, and both ways in behave identically: whether the list itself is tabbed to or the composer drives the arrows, movement clamps the same way, rows preview the same way, and <Kbd>↑</Kbd> off the top lands in the composer. <Kbd>↓</Kbd> first navigates the composer text; once the caret has no text left to traverse, the next <Kbd>↓</Kbd> enters the list; the composer keeps focus the whole time, so typing at any point just resumes composing. Top-level rows stay passive and never intercept typing:
 
 | Key                             | Action                                                                                                                                                                                     |
 | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | <Kbd>↓</Kbd> / <Kbd>↑</Kbd>     | Move the highlight, ghost-previewing flat rows in the composer's placeholder; <Kbd>↓</Kbd> at the end of the composer text enters the list, and <Kbd>↑</Kbd> on the first row exits back into the composer |
-| <Kbd>→</Kbd> / <Kbd>Enter</Kbd> | Open the highlighted group (<Kbd>Enter</Kbd> on a flat row sends it)                                                                                                                       |
+| <Kbd>→</Kbd> / <Kbd>Enter</Kbd> | Open the highlighted group; on a flat row, <Kbd>→</Kbd> accepts the previewed prompt into the composer for editing and <Kbd>Enter</Kbd> sends it                                           |
 | <Kbd>Esc</Kbd>                  | Clear the highlight and the preview                                                                                                                                                        |
 
 Horizontal arrow keys flip in right-to-left locales, in both layouts.
@@ -257,6 +257,7 @@ In either layout, the composer keeps focus and drives the panel:
 | Key                         | Action                                                                                                                                                       |
 | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | <Kbd>↑</Kbd> / <Kbd>↓</Kbd> | Move the highlight (wrapping) and ghost-preview the prompt in the composer's placeholder; in the pills picker, <Kbd>↑</Kbd> on the top item exits to its pill |
+| <Kbd>→</Kbd>                | Accept the previewed prompt into the composer for editing                                                                                                    |
 | <Kbd>Enter</Kbd>            | Select the highlighted item (plain composer submit when nothing is highlighted)                                                                              |
 | <Kbd>Esc</Kbd>              | Close the group; the stacked layout re-highlights the group's row and the composer keeps driving the arrows                                                           |
 | <Kbd>Tab</Kbd>              | Close the group and return to the suggestions (the stacked layout's list or the group's pill)                                                                         |
@@ -264,7 +265,7 @@ In either layout, the composer keeps focus and drives the panel:
 
 ### Ghost previews
 
-A preview is ghost text in the composer's native placeholder, never the draft: only arrow-key navigation previews (hover moves the highlight without touching the composer, so the layout never shifts under the cursor), it only shows while the composer is empty, and it inherits the placeholder styling of any composer with no extra setup. Typing, sending, and every way out of a panel leave the draft exactly as it was; only selecting an item commits, through the regular suggestion action.
+A preview is ghost text in the composer's native placeholder, never the draft: only arrow-key navigation previews (hover moves the highlight without touching the composer, so the layout never shifts under the cursor), it only shows while the composer is empty, and it inherits the placeholder styling of any composer with no extra setup. Typing, sending, and every way out of a panel leave the draft exactly as it was; selecting an item commits through the regular suggestion action, and <Kbd>→</Kbd> (<Kbd>←</Kbd> in RTL) accepts the preview as an editable draft, like accepting shell or editor ghost text.
 
 ### Dismissal
 
