@@ -54,6 +54,27 @@ const AssistantMessage: FC = () => {
 
 </Steps>
 
+## Styling
+
+The component styles rendered markdown with [shadcn/typeset](https://ui.shadcn.com/docs/typeset). The stylesheet comes from `@assistant-ui/react-markdown/styles/typeset.css`, which the component imports directly.
+
+To tune the rhythm, change the `--typeset-*` variables on the `className` of `MarkdownTextPrimitive`:
+
+```tsx title="/components/assistant-ui/markdown-text.tsx"
+<MarkdownTextPrimitive
+  remarkPlugins={[remarkGfm]}
+  className="aui-md typeset text-(length:--typeset-size) [--typeset-flow:1em] [--typeset-leading:1.6]"
+  components={defaultComponents}
+  defer
+/>
+```
+
+- `--typeset-size` sets the base text size. The default `1em` follows the surrounding layout. The `text-(length:--typeset-size)` utility pins this size at every width, which removes the small-screen size increase from typeset.
+- `--typeset-leading` sets the space between lines.
+- `--typeset-flow` sets the space between blocks.
+
+Tailwind utilities on an element win without `!important`, because typeset uses `:where()` selectors in the `components` layer.
+
 ## Syntax highlighting
 
 Syntax Highlighting is not included by default, see [Syntax Highlighting](/docs/ui/syntax-highlighting) to learn how to add it.
