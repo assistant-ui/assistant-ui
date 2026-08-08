@@ -139,7 +139,7 @@ const SampleComposer = () => (
   >
     <ComposerPrimitive.Input
       placeholder="Ask anything..."
-      className="[&[aria-activedescendant]]:text-muted-foreground field-sizing-content min-h-10 w-full resize-none bg-transparent px-5 pt-4 pb-3 text-sm leading-relaxed focus:outline-none"
+      className="field-sizing-content min-h-10 w-full resize-none bg-transparent px-5 pt-4 pb-3 text-sm leading-relaxed focus:outline-none"
       rows={1}
     />
     <div className="flex items-center justify-end px-3 pb-3">

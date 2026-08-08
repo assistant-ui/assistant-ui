@@ -119,9 +119,9 @@ The list is a single tab stop with one highlight shared by hover and the arrow k
 
 | Key                             | Action                                                               |
 | ------------------------------- | -------------------------------------------------------------------- |
-| <kbd>↓</kbd> / <kbd>↑</kbd>     | Move the highlight, ghost-previewing flat rows in the composer; <kbd>↓</kbd> at the end of the composer text enters the list, and <kbd>↑</kbd> on the first row exits back into the composer, restoring the draft |
+| <kbd>↓</kbd> / <kbd>↑</kbd>     | Move the highlight, ghost-previewing flat rows in the composer's placeholder; <kbd>↓</kbd> at the end of the composer text enters the list, and <kbd>↑</kbd> on the first row exits back into the composer |
 | <kbd>→</kbd> / <kbd>Enter</kbd> | Open the highlighted group (<kbd>Enter</kbd> on a flat row sends it)  |
-| <kbd>Esc</kbd>                  | Clear the highlight and restore the draft                             |
+| <kbd>Esc</kbd>                  | Clear the highlight and the preview                                   |
 
 ### Pill row
 
@@ -142,15 +142,13 @@ In either layout, the composer keeps focus and drives the panel:
 
 | Key                         | Action                                                                                                            |
 | --------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| <kbd>↑</kbd> / <kbd>↓</kbd> | Move the highlight (wrapping) and live-preview the prompt in the composer; in the pills picker, <kbd>↑</kbd> on the top item exits to its pill |
+| <kbd>↑</kbd> / <kbd>↓</kbd> | Move the highlight (wrapping) and ghost-preview the prompt in the composer's placeholder; in the pills picker, <kbd>↑</kbd> on the top item exits to its pill |
 | <kbd>Enter</kbd>            | Select the highlighted item (plain composer submit when nothing is highlighted)                                    |
-| <kbd>Esc</kbd>              | Close the group and restore the pre-open draft; the stack re-highlights the group's row and the composer keeps driving the arrows |
-| <kbd>Tab</kbd>              | Close the group and return to the suggestions (the stack's list or the group's pill), restoring the draft          |
+| <kbd>Esc</kbd>              | Close the group; the stack re-highlights the group's row and the composer keeps driving the arrows                 |
+| <kbd>Tab</kbd>              | Close the group and return to the suggestions (the stack's list or the group's pill)                               |
 | Characters                  | Type into the composer; the group closes and the typed text stays                                                  |
 
-A preview is ghost text, never the draft: hovering an item previews it just like the arrows do, and every way out of the panel — <kbd>Esc</kbd>, <kbd>Tab</kbd>, the close button, clicking outside — puts the pre-open draft back. Only selecting an item commits, through the regular suggestion action, so `send` and `clearComposer` always act on the real draft.
-
-While an item is highlighted, the composer input carries `aria-activedescendant`; the default composer styles previews as muted ghost text with `[&[aria-activedescendant]]:text-muted-foreground` on the input — copy that selector into a custom composer to match.
+A preview is ghost text in the composer's native placeholder, never the draft: hovering an item previews it just like the arrows do, it only shows while the composer is empty, and it inherits the placeholder styling of any composer with no extra setup. Typing, sending, and every way out of a panel leave the draft exactly as it was; only selecting an item commits, through the regular suggestion action.
 
 ## Props
 
