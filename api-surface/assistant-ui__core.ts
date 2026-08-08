@@ -1445,8 +1445,6 @@ declare class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
   get canSend(): boolean;
   protected getAttachmentAdapter(): AttachmentAdapter | undefined;
   protected getDictationAdapter(): DictationAdapter | undefined;
-  private _previousText;
-  private _previousAttachments;
   private _nonTextPassthrough;
   private _parentId;
   private _sourceId;

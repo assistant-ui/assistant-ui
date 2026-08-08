@@ -1,7 +1,7 @@
 import type { AppendMessage, ThreadMessage } from "../../types/message";
 import type { CompleteAttachment } from "../../types/attachment";
 import { getThreadMessageText } from "../../utils/text";
-import { attachmentsEqual, liftNonTextParts } from "../../adapters/attachment";
+import { liftNonTextParts } from "../../adapters/attachment";
 import type { AttachmentAdapter } from "../../adapters/attachment";
 import type { DictationAdapter } from "../../adapters/speech";
 import type { SendOptions } from "../interfaces/composer-runtime-core";
@@ -26,8 +26,6 @@ export class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
     return this.runtime.adapters?.dictation;
   }
 
-  private _previousText;
-  private _previousAttachments: readonly CompleteAttachment[];
   private _nonTextPassthrough: readonly ThreadMessage["content"][number][];
   private _parentId: string | null;
   private _sourceId: string | null;
@@ -58,24 +56,24 @@ export class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
     this.endEditCallback = endEditCallback;
     this._parentId = parentId;
     this._sourceId = message.id;
-    this._previousText = getThreadMessageText(message);
-    this.setText(this._previousText);
+    this.setText(getThreadMessageText(message));
 
     this.setRole(message.role);
 
+    let attachments: readonly CompleteAttachment[];
     if (message.role === "user") {
-      this._previousAttachments = [
+      attachments = [
         ...(message.attachments ?? []),
         ...liftNonTextParts(message.content),
       ];
       this._nonTextPassthrough = [];
     } else {
-      this._previousAttachments = message.attachments ?? [];
+      attachments = message.attachments ?? [];
       this._nonTextPassthrough = message.content.filter(
         (p) => p.type !== "text",
       );
     }
-    this.setAttachments(this._previousAttachments);
+    this.setAttachments(attachments);
 
     this.setRunConfig({ ...runtime.composer.runConfig });
   }
@@ -92,49 +90,33 @@ export class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
     message: Omit<AppendMessage, "parentId" | "sourceId">,
     options?: SendOptions,
   ) {
-    let appendTask: void | Promise<void> = undefined;
-    const text = getThreadMessageText(message as AppendMessage);
-    const attachmentsChanged = !attachmentsEqual(
-      message.attachments ?? [],
-      this._previousAttachments,
+    const content =
+      this._nonTextPassthrough.length > 0
+        ? ([
+            ...message.content,
+            ...this._nonTextPassthrough,
+          ] as AppendMessage["content"])
+        : message.content;
+    // Gate live state against the new branch's prefix (messages up to the
+    // parent): an unchanged interactable re-stamps the prior baseline, an
+    // interactable edited since the original message stamps its newest state.
+    const messages = this.runtime.messages;
+    const parentIndex =
+      this._parentId === null
+        ? -1
+        : messages.findIndex((m) => m.id === this._parentId);
+    const composerMetadata = gateInteractableComposerMetadata(
+      this.runtime.getModelContext().unstable_composerMetadata,
+      messages.slice(0, parentIndex + 1),
     );
-
-    if (
-      text !== this._previousText ||
-      attachmentsChanged ||
-      options?.startRun
-    ) {
-      const content =
-        this._nonTextPassthrough.length > 0
-          ? ([
-              ...message.content,
-              ...this._nonTextPassthrough,
-            ] as AppendMessage["content"])
-          : message.content;
-      // Gate live state against the new branch's prefix (messages up to the
-      // parent): an unchanged interactable re-stamps the prior baseline, an
-      // interactable edited since the original message stamps its newest state.
-      const messages = this.runtime.messages;
-      const parentIndex =
-        this._parentId === null
-          ? -1
-          : messages.findIndex((m) => m.id === this._parentId);
-      const composerMetadata = gateInteractableComposerMetadata(
-        this.runtime.getModelContext().unstable_composerMetadata,
-        messages.slice(0, parentIndex + 1),
-      );
-      const enriched = this.enrichWithComposerMetadata(
-        message,
-        composerMetadata,
-      );
-      appendTask = this.runtime.append({
-        ...enriched,
-        content,
-        parentId: this._parentId,
-        sourceId: this._sourceId,
-        startRun: options?.startRun,
-      });
-    }
+    const enriched = this.enrichWithComposerMetadata(message, composerMetadata);
+    const appendTask = this.runtime.append({
+      ...enriched,
+      content,
+      parentId: this._parentId,
+      sourceId: this._sourceId,
+      startRun: options?.startRun,
+    });
 
     this.handleCancel();
     return appendTask;
