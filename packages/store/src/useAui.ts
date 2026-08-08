@@ -45,6 +45,7 @@ import {
   type NotificationManager,
 } from "./utils/NotificationManager";
 import { useAssistantTapContextProvider } from "./utils/tap-assistant-context";
+import { onWithBinding, type EventBinding } from "./utils/event-binding";
 import { ClientResource } from "./useClientResource";
 import { useShallowStable } from "./utils/useShallowStable";
 import { createClientAccessor, getClientId } from "./utils/client-accessor";
@@ -134,6 +135,7 @@ const useClientFields = ({
         this: AssistantClient,
         selector: AssistantEventSelector<TEvent>,
         callback: AssistantEventCallback<TEvent>,
+        binding: EventBinding = "snapshot",
       ) {
         if (!this) {
           throw new Error(
@@ -159,8 +161,13 @@ const useClientFields = ({
             return;
           }
 
+          // A live listener reads the scope off the client the host has
+          // rendered, which already carries the post-swap binding when the
+          // emission came from inside the swap
+          const boundClient =
+            binding === "live" ? (clientRef.current ?? this) : this;
           const scopeClient = getClientId(
-            this[scope as ClientNames],
+            boundClient[scope as ClientNames],
           ) as unknown as ClientMethods;
           const index = getClientIndex(scopeClient);
           if (scopeClient === clientStack[index]) {
@@ -173,7 +180,12 @@ const useClientFields = ({
         )
           return localUnsub;
 
-        const parentUnsub = clientRef.parent.on(selector, callback);
+        const parentUnsub = onWithBinding(
+          clientRef.parent,
+          selector,
+          callback,
+          binding,
+        );
 
         return () => {
           localUnsub();
@@ -272,11 +284,16 @@ export const useAuiRoot = ({
     },
   );
 
+  const client = useCommittedClient(building, [parent, ...accessors]);
+
+  // Owned by the render, not by a commit effect: a live-bound listener resolves
+  // its scope through this ref during the flush that rebinds a derived scope,
+  // which is before React re-renders the subscriber
+  clientRef.current = client;
+
   // Fresh envelope per commit so value-only updates reach the store's
   // subscribers; the client inside keeps its identity
-  return {
-    client: useCommittedClient(building, [parent, ...accessors]),
-  };
+  return { client };
 };
 
 const useHostedAssistantClient = ({
@@ -315,12 +332,7 @@ const useHostedAssistantClient = ({
 
     useEffect(() => {
       clientRef.parent = parent;
-      clientRef.current = client;
     });
-
-    if (clientRef.current === null) {
-      clientRef.current = client;
-    }
 
     return client;
   });

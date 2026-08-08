@@ -128,12 +128,7 @@ export const createAssistantClient = (
     const entries = Object.entries(
       applyTransformScopes(currentConfig, parent),
     ) as ScopeEntry[];
-    const result = useAuiRoot({ parent, entries, clientRef, notifications });
-    // Seeded during render, before the commit runs mount effects that read it
-    if (clientRef.current === null) {
-      clientRef.current = result.client;
-    }
-    return result;
+    return useAuiRoot({ parent, entries, clientRef, notifications });
   });
   clientRef.current = root.getValue().client;
 

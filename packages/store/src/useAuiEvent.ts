@@ -6,6 +6,7 @@ import type {
   AssistantEventSelector,
 } from "./types/events";
 import { normalizeEventSelector } from "./types/events";
+import { onWithBinding } from "./utils/event-binding";
 
 /**
  * Subscribes to an assistant event for the lifetime of the component.
@@ -14,6 +15,11 @@ import { normalizeEventSelector } from "./types/events";
  * scope or event name changes. The `callback` is wrapped in an effect-event
  * shim, so the latest closure is invoked on each emission — you do not
  * need to memoize it.
+ *
+ * A scoped subscription is filtered against the scope's binding at delivery
+ * time, so it follows a derived scope through a structural swap — including
+ * for an event the swap itself emits, such as `threadListItem.switchedTo` on
+ * a thread switch.
  *
  * @param selector - Either a dotted event name like
  *   `"thread.modelContextUpdate"` or an object `{ scope, event }`. Use
@@ -56,5 +62,8 @@ export const useAuiEvent = <TEvent extends AssistantEventName>(
   const callbackRef = useEffectEvent(callback);
 
   const { scope, event } = normalizeEventSelector(selector);
-  useEffect(() => aui.on({ scope, event }, callbackRef), [aui, scope, event]);
+  useEffect(
+    () => onWithBinding(aui, { scope, event }, callbackRef, "live"),
+    [aui, scope, event],
+  );
 };
