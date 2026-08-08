@@ -10,7 +10,7 @@
     "@ag-ui/client": "^0.0.57",
     "@ai-sdk/provider": "^4.0.6",
     "@ai-sdk/react": "^4.0.59",
-    "@earendil-works/pi-coding-agent": "^0.82.0",
+    "@earendil-works/pi-coding-agent": "^0.84.1",
     "@langchain/langgraph-sdk": "^1.9.28",
     "@langchain/react": "^1.0.29",
     "@modelcontextprotocol/client": "^2.0.0",

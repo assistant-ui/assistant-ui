@@ -72,7 +72,7 @@
   "devDependencies": {
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@earendil-works/pi-coding-agent": "^0.82.0",
+    "@earendil-works/pi-coding-agent": "^0.84.1",
     "@types/node": "^26.1.2",
     "@types/react": "^19.2.18",
     "react": "^19.2.8",
