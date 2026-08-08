@@ -24,9 +24,30 @@ describe("invokePiErrorCallback", () => {
     await expect(run()).rejects.toBe(operationError);
     expect(onError).toHaveBeenCalledWith(operationError);
     expect(consoleError).toHaveBeenCalledWith(
-      "[assistant-ui/react-pi] onError callback threw an error",
+      "[react-pi] onError callback threw an error",
       callbackError,
     );
+    consoleError.mockRestore();
+  });
+
+  it("reports rejected async callbacks", async () => {
+    const operationError = new Error("send failed");
+    const callbackError = new Error("telemetry failed");
+    const onError = vi.fn(async () => {
+      throw callbackError;
+    });
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    invokePiErrorCallback(onError, operationError);
+    await vi.waitFor(() =>
+      expect(consoleError).toHaveBeenCalledWith(
+        "[react-pi] onError callback threw an error",
+        callbackError,
+      ),
+    );
+    expect(onError).toHaveBeenCalledWith(operationError);
     consoleError.mockRestore();
   });
 });

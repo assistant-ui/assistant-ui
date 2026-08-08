@@ -1,15 +1,17 @@
 import type { PiRuntimeOptions } from "./runtimeTypes";
 
+const reportPiCallbackError = (callbackError: unknown) => {
+  console.error("[react-pi] onError callback threw an error", callbackError);
+};
+
 export const invokePiErrorCallback = (
   onError: PiRuntimeOptions["onError"],
   error: unknown,
 ) => {
+  if (!onError) return;
   try {
-    onError?.(error);
+    void Promise.resolve(onError(error)).catch(reportPiCallbackError);
   } catch (callbackError) {
-    console.error(
-      "[assistant-ui/react-pi] onError callback threw an error",
-      callbackError,
-    );
+    reportPiCallbackError(callbackError);
   }
 };
