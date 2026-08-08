@@ -35,8 +35,7 @@
     },
     "lint": {},
     "test": {
-      "dependsOn": ["^build"],
-      "env": ["REDIS_*"]
+      "dependsOn": ["^build"]
     },
     "test:react-compiler": {
       "dependsOn": ["build"]
