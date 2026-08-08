@@ -249,8 +249,9 @@ export const AssistantShellSidebar: FC<AssistantShellSidebarProps> = ({
           <div
             data-slot="aui_shell-sidebar-footer"
             className={cn(
+              // px-0.5 centers the w-11 footer trigger in the w-12 rail.
               "shrink-0 pt-1 transition-[padding] duration-200",
-              collapsed ? "px-1" : "px-3",
+              collapsed ? "px-0.5" : "px-3",
             )}
           >
             {footer}
@@ -455,12 +456,9 @@ export const AssistantShellFooterItem: FC<AssistantShellFooterItemProps> = ({
             data-slot="aui_shell-footer-item"
             {...props}
             className={cn(
-              // border-none frees the full 32px rail width for the icon, which the Button's 1px transparent border would otherwise clip.
-              "overflow-hidden border-none transition-all duration-200",
-              // The zero-width label stack keeps its natural height, so the collapsed button must pin an explicit size; size-10 leaves 4px of hover surface around the centered size-8 avatar.
-              collapsed
-                ? "size-10 gap-0 p-0"
-                : "h-auto w-full justify-start gap-2 p-2",
+              // Only width changes between states; keeping the rest of the geometry fixed is what makes the icon travel a straight horizontal line.
+              "h-11 justify-start gap-2 overflow-hidden border-none px-1.5 transition-all duration-200",
+              collapsed ? "w-11" : "w-full",
               className,
             )}
           >
@@ -473,8 +471,8 @@ export const AssistantShellFooterItem: FC<AssistantShellFooterItemProps> = ({
             <span
               data-slot="aui_shell-footer-item-text"
               className={cn(
-                "flex min-w-0 flex-col items-start overflow-hidden text-left transition-all duration-200",
-                collapsed ? "max-w-0 opacity-0" : "flex-1 opacity-100",
+                "flex min-w-0 flex-1 flex-col items-start overflow-hidden text-left transition-opacity duration-200",
+                collapsed ? "opacity-0" : "opacity-100",
               )}
             >
               <span className="w-full truncate text-sm font-medium">
@@ -491,7 +489,7 @@ export const AssistantShellFooterItem: FC<AssistantShellFooterItemProps> = ({
                 data-slot="aui_shell-footer-item-trailing"
                 className={cn(
                   "text-muted-foreground shrink-0 transition-opacity duration-200",
-                  collapsed && "w-0 opacity-0",
+                  collapsed && "opacity-0",
                 )}
               >
                 {trailing}
