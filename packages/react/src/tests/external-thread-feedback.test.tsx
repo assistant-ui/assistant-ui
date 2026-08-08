@@ -153,6 +153,38 @@ describe("ExternalThread feedback", () => {
     ).toEqual({ type: "negative" });
   });
 
+  it("re-rates an owner-marked message locally, then honors an owner clear", async () => {
+    const { adapter } = createFakeAdapter();
+    const ratedMessages = [
+      MESSAGES[0]!,
+      {
+        ...MESSAGES[1]!,
+        metadata: { custom: {}, submittedFeedback: { type: "positive" } },
+      },
+    ] as unknown as readonly ExternalThreadMessage[];
+    const { aui, rerender } = renderThreadWithProps({
+      feedbackAdapter: adapter,
+      messages: ratedMessages,
+    });
+
+    await act(async () => {
+      aui().thread.message({ id: "a1" }).submitFeedback({ type: "negative" });
+    });
+    await waitFor(() => {
+      expect(
+        aui().thread.message({ id: "a1" }).getState().metadata
+          .submittedFeedback,
+      ).toEqual({ type: "negative" });
+    });
+
+    await act(async () => {
+      rerender({ feedbackAdapter: adapter, messages: MESSAGES });
+    });
+    expect(
+      aui().thread.message({ id: "a1" }).getState().metadata.submittedFeedback,
+    ).toBeUndefined();
+  });
+
   it("submits user message feedback without marking the message", async () => {
     const { adapter, submit } = createFakeAdapter();
     const { aui } = renderThreadWithProps({ feedbackAdapter: adapter });

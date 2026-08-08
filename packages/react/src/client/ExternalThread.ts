@@ -211,9 +211,7 @@ const useMessageClient = ({
 
   const state = useMemo(() => {
     const messageWithFeedback: ExternalThreadMessage =
-      submittedFeedback &&
-      message.role === "assistant" &&
-      !message.metadata.submittedFeedback
+      submittedFeedback && message.role === "assistant"
         ? { ...message, metadata: { ...message.metadata, submittedFeedback } }
         : message;
     return {
@@ -779,9 +777,36 @@ const useExternalThread = ({
     [messagesProp],
   );
 
+  // Local entries are optimistic: they apply only while the message's
+  // external submittedFeedback still equals the value seen at click time.
   const [submittedFeedback, setSubmittedFeedback] = useState<
-    Record<string, { type: "positive" | "negative" }>
+    Record<
+      string,
+      {
+        type: "positive" | "negative";
+        external: "positive" | "negative" | undefined;
+      }
+    >
   >({});
+
+  const feedbackFor = (msg: ExternalThreadMessage) => {
+    const entry = submittedFeedback[msg.id];
+    return entry && msg.metadata.submittedFeedback?.type === entry.external
+      ? { type: entry.type }
+      : undefined;
+  };
+
+  useEffect(() => {
+    setSubmittedFeedback((prev) => {
+      const live = Object.entries(prev).filter(([id, entry]) => {
+        const msg = messages.find((m) => m.id === id);
+        return !!msg && msg.metadata.submittedFeedback?.type === entry.external;
+      });
+      return live.length === Object.keys(prev).length
+        ? prev
+        : Object.fromEntries(live);
+    });
+  }, [messages]);
 
   const handleSubmitFeedback = (
     message: ExternalThreadMessage,
@@ -791,7 +816,13 @@ const useExternalThread = ({
     feedbackAdapter.submit({ message, type });
 
     if (message.role === "assistant") {
-      setSubmittedFeedback((prev) => ({ ...prev, [message.id]: { type } }));
+      setSubmittedFeedback((prev) => ({
+        ...prev,
+        [message.id]: {
+          type,
+          external: message.metadata.submittedFeedback?.type,
+        },
+      }));
     }
   };
 
@@ -816,7 +847,7 @@ const useExternalThread = ({
         onAddToolResult,
         onResumeToolCall,
         attachmentAdapter,
-        submittedFeedback: submittedFeedback[msg.id],
+        submittedFeedback: feedbackFor(msg),
         onSubmitFeedback: (feedback) => handleSubmitFeedback(msg, feedback),
       };
       if (onEdit) props.onEdit = onEdit;
