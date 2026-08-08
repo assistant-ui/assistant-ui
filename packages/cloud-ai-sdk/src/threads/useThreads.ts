@@ -175,14 +175,21 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
       return await withAction(
         async (commit) => {
           await cloud.threads.delete(id);
-          commit(() => setThreads((prev) => prev.filter((t) => t.id !== id)));
+          commit(() => {
+            setThreads((prev) => prev.filter((t) => t.id !== id));
+            setSelection((current) =>
+              current.scope === scope && current.threadId === id
+                ? { scope, threadId: null }
+                : current,
+            );
+          });
           return true;
         },
         false,
         isCurrentCloud,
       );
     },
-    [cloud, isCurrentCloud, withAction],
+    [cloud, isCurrentCloud, scope, withAction],
   );
 
   const rename = useCallback(
