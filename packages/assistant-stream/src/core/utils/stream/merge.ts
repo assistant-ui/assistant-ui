@@ -14,11 +14,15 @@ export const createMergeStream = () => {
   let controller: ReadableStreamDefaultController<AssistantStreamChunk>;
   let currentPull: ReturnType<typeof promiseWithResolvers<void>> | undefined;
 
-  const cancelAllReaders = () => {
-    list.forEach((item) => {
-      void item.reader.cancel().catch(() => undefined);
-    });
-    list.length = 0;
+  const cancelAllReaders = async () => {
+    const readers = list.splice(0).map((item) => item.reader);
+    await Promise.all(
+      readers.map(async (reader) => {
+        try {
+          await reader.cancel();
+        } catch {}
+      }),
+    );
   };
 
   const handlePull = (item: MergeStreamItem) => {
@@ -51,7 +55,7 @@ export const createMergeStream = () => {
 
           errored = true;
           console.error(e);
-          cancelAllReaders();
+          void cancelAllReaders();
 
           controller.error(e);
 
@@ -73,11 +77,12 @@ export const createMergeStream = () => {
 
       return currentPull.promise;
     },
-    cancel() {
+    async cancel() {
       cancelled = true;
-      cancelAllReaders();
+      const cleanup = cancelAllReaders();
       currentPull?.resolve();
       currentPull = undefined;
+      await cleanup;
     },
   });
 
