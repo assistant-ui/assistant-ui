@@ -5,6 +5,7 @@ import base from "./vitest.config";
 export default mergeConfig(
   base,
   defineConfig({
+    test: { env: { IOREDIS_PEER_MAJOR: "5" } },
     resolve: {
       alias: [
         {
