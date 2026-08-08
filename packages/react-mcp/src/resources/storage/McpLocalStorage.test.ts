@@ -199,6 +199,15 @@ const loadStorage = (storage: Storage) =>
     );
   }).getValue();
 
+describe("McpLocalStorage resource identity", () => {
+  it("uses the storage prefix as its resource key", () => {
+    expect(McpLocalStorage().key).toBe("aui-mcp");
+    expect(McpLocalStorage({ keyPrefix: "workspace-b" }).key).toBe(
+      "workspace-b",
+    );
+  });
+});
+
 describe("McpLocalStorage custom servers", () => {
   it("strips malformed connection timeouts when loading", async () => {
     const storage = createStorage();

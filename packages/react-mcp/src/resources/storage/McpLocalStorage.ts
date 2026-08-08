@@ -1,4 +1,4 @@
-import { resource } from "@assistant-ui/tap";
+import { resource, withKey } from "@assistant-ui/tap";
 import {
   OAuthClientInformationFullSchema,
   OAuthTokensSchema,
@@ -14,6 +14,8 @@ export type McpLocalStorageOptions = {
   /** Override the underlying Storage. Defaults to globalThis.localStorage. */
   storage?: Storage;
 };
+
+const DEFAULT_KEY_PREFIX = "aui-mcp";
 
 function resolveStorage(opts: McpLocalStorageOptions): Storage | null {
   if (opts.storage) return opts.storage;
@@ -154,7 +156,7 @@ export const normalizePersistedAuthState = (
 };
 
 const useMcpLocalStorage = (opts: McpLocalStorageOptions = {}): MCPStorage => {
-  const prefix = opts.keyPrefix ?? "aui-mcp";
+  const prefix = opts.keyPrefix ?? DEFAULT_KEY_PREFIX;
   const customServersKey = `${prefix}:custom-servers`;
   const authKey = (id: string) => `${prefix}:auth:${id}`;
   const storage = resolveStorage(opts);
@@ -205,4 +207,7 @@ const useMcpLocalStorage = (opts: McpLocalStorageOptions = {}): MCPStorage => {
   };
 };
 
-export const McpLocalStorage = resource(useMcpLocalStorage);
+const McpLocalStorageResource = resource(useMcpLocalStorage);
+
+export const McpLocalStorage = (opts: McpLocalStorageOptions = {}) =>
+  withKey(opts.keyPrefix ?? DEFAULT_KEY_PREFIX, McpLocalStorageResource(opts));

@@ -367,9 +367,7 @@ declare const McpElicitationPrimitiveRoot: import("react").ForwardRefExoticCompo
   asChild?: boolean;
 }, "ref"> & import("react").RefAttributes<HTMLDivElement>>;
 
-declare const McpLocalStorage: Resource<MCPStorage, [
-  opts?: McpLocalStorageOptions | undefined
-]>;
+declare const McpLocalStorage: (opts?: McpLocalStorageOptions) => ResourceElement<MCPStorage>;
 
 type McpLocalStorageOptions = {
   keyPrefix?: string;
@@ -424,6 +422,7 @@ type McpManagerResourceProps = {
   oauthRedirectUri?: string | undefined;
   autoConnect?: boolean | undefined;
   connectionTimeout?: number | undefined;
+  storageScopeKey?: string | number | undefined;
 };
 
 declare const McpMemoryStorage: Resource<MCPStorage, [
