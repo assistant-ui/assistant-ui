@@ -88,8 +88,12 @@ export class AssistantCloudThreads {
   public async list(
     query?: AssistantCloudThreadsListQuery,
   ): Promise<AssistantCloudThreadsListResponse> {
+    const requestQuery =
+      query?.is_archived === undefined
+        ? query
+        : { ...query, is_archived: String(query.is_archived) };
     const response = readCloudRecord(
-      await this.cloud.makeRequest("/threads", { query }),
+      await this.cloud.makeRequest("/threads", { query: requestQuery }),
       "thread list response",
     );
     const threads = readCloudArray(response.threads, "threads");

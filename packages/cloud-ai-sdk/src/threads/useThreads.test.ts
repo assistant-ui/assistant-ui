@@ -134,6 +134,79 @@ describe("useThreads", () => {
     });
   });
 
+  it("loads active and archived threads when requested", async () => {
+    const active = createThreadListResponse("Active", "active").threads[0]!;
+    const archived = {
+      ...createThreadListResponse("Archived", "archived").threads[0]!,
+      is_archived: true,
+      last_message_at: new Date("2026-02-01T00:00:00.000Z"),
+    };
+    const list = vi.fn(async (query?: { is_archived?: boolean }) => ({
+      threads: query?.is_archived ? [archived] : [active],
+    }));
+    const cloud = {
+      threads: {
+        list,
+        get: vi.fn(),
+        create: vi.fn(),
+        delete: vi.fn(),
+        update: vi.fn(),
+      },
+    } as never;
+    const { result } = renderHook(() =>
+      useThreads({ cloud, includeArchived: true, enabled: false }),
+    );
+
+    await act(async () => {
+      await result.current.refresh();
+    });
+
+    expect(list).toHaveBeenNthCalledWith(1, { is_archived: false });
+    expect(list).toHaveBeenNthCalledWith(2, { is_archived: true });
+    expect(result.current.threads).toMatchObject([
+      { id: "archived", status: "archived" },
+      { id: "active", status: "regular" },
+    ]);
+  });
+
+  it("keeps the previous complete list when an archived refresh fails", async () => {
+    const active = createThreadListResponse("Active", "active").threads[0]!;
+    const archived = {
+      ...createThreadListResponse("Archived", "archived").threads[0]!,
+      is_archived: true,
+    };
+    const list = vi
+      .fn()
+      .mockResolvedValueOnce({ threads: [active] })
+      .mockResolvedValueOnce({ threads: [archived] })
+      .mockResolvedValueOnce({ threads: [{ ...active, title: "Updated" }] })
+      .mockRejectedValueOnce(new Error("archived refresh failed"));
+    const cloud = {
+      threads: {
+        list,
+        get: vi.fn(),
+        create: vi.fn(),
+        delete: vi.fn(),
+        update: vi.fn(),
+      },
+    } as never;
+    const { result } = renderHook(() =>
+      useThreads({ cloud, includeArchived: true, enabled: false }),
+    );
+
+    await act(async () => {
+      expect(await result.current.refresh()).toBe(true);
+    });
+    const completeThreads = result.current.threads;
+
+    await act(async () => {
+      expect(await result.current.refresh()).toBe(false);
+    });
+
+    expect(result.current.error?.message).toBe("archived refresh failed");
+    expect(result.current.threads).toBe(completeThreads);
+  });
+
   it("keeps the latest refresh when requests resolve out of order", async () => {
     const first = createDeferred<ReturnType<typeof createThreadListResponse>>();
     const second =
