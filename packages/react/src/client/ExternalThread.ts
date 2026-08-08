@@ -124,7 +124,7 @@ type MessageClientProps = {
   onAddToolResult?: ((options: AddToolResultOptions) => void) | undefined;
   onResumeToolCall?: ((options: ResumeToolCallOptions) => void) | undefined;
   attachmentAdapter?: AttachmentAdapter | undefined;
-  submittedFeedback: { type: "positive" | "negative" } | undefined;
+  submittedFeedback: "positive" | "negative" | undefined;
   onSubmitFeedback: (feedback: { type: "positive" | "negative" }) => void;
   speech: SpeechState | undefined;
   onSpeak: () => void;
@@ -221,7 +221,13 @@ const useMessageClient = ({
   const state = useMemo(() => {
     const messageWithFeedback: ExternalThreadMessage =
       submittedFeedback && message.role === "assistant"
-        ? { ...message, metadata: { ...message.metadata, submittedFeedback } }
+        ? {
+            ...message,
+            metadata: {
+              ...message.metadata,
+              submittedFeedback: { type: submittedFeedback },
+            },
+          }
         : message;
     return {
       ...messageWithFeedback,
@@ -862,7 +868,7 @@ const useExternalThread = ({
   const feedbackFor = (msg: ExternalThreadMessage) => {
     const entry = submittedFeedback[msg.id];
     return entry && msg.metadata.submittedFeedback?.type === entry.external
-      ? { type: entry.type }
+      ? entry.type
       : undefined;
   };
 
