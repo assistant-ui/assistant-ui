@@ -159,7 +159,8 @@ describe("useOpenCodeRuntime", () => {
 
     const adapter = mocks.adapters.find(
       (candidate): candidate is RuntimeAdapter =>
-        typeof (candidate as RuntimeAdapter).onNew === "function",
+        typeof (candidate as ApprovalAdapter).onRespondToToolApproval ===
+        "function",
     );
 
     await expect(adapter!.onNew!({ role: "user", content: [] })).rejects.toBe(

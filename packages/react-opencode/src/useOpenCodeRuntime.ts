@@ -110,14 +110,13 @@ const reportErrorCallbackFailure = (error: unknown) => {
 };
 
 const invokeErrorCallback = (
-  callback: ((error: unknown) => void) | undefined,
+  callback: ((error: unknown) => void | Promise<void>) | undefined,
   error: unknown,
 ) => {
   if (!callback) return;
 
   try {
-    const result = callback(error) as unknown;
-    void Promise.resolve(result).catch(reportErrorCallbackFailure);
+    void Promise.resolve(callback(error)).catch(reportErrorCallbackFailure);
   } catch (callbackError) {
     reportErrorCallbackFailure(callbackError);
   }
