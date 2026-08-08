@@ -250,7 +250,7 @@ export const WelcomeSuggestionsSample = () => {
         <div className="grid gap-8 lg:grid-cols-2">
           <VariantColumn
             label="Pills + picker (default for groups)"
-            hint={<>press ↓ or click a pill, then ← → move, ↓ opens</>}
+            hint={<>↓ or click opens, ↑ ↓ preview, → edits</>}
             hintClassName="ml-[50%] -mr-[190px] -translate-x-[190px]"
           >
             <WelcomeSuggestionsRoot suggestions={SUGGESTIONS}>
@@ -264,7 +264,7 @@ export const WelcomeSuggestionsSample = () => {
           </VariantColumn>
           <VariantColumn
             label="Stacked"
-            hint={<>press ↓ or click a row, then ↑ ↓ move, → opens</>}
+            hint={<>↓ enters, ↑ ↓ preview, → opens or edits</>}
             className="max-lg:order-last"
           >
             <WelcomeSuggestionsRoot suggestions={SUGGESTIONS}>
