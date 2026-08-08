@@ -7,12 +7,7 @@ import {
   useAuiState,
 } from "@assistant-ui/react";
 import { cva, type VariantProps } from "class-variance-authority";
-import {
-  ChevronRightIcon,
-  CornerDownLeftIcon,
-  SendHorizontalIcon,
-  XIcon,
-} from "lucide-react";
+import { ChevronRightIcon, CornerDownLeftIcon, XIcon } from "lucide-react";
 import {
   createContext,
   useCallback,
@@ -141,19 +136,18 @@ const welcomeSuggestionRowVariants = cva(
   },
 );
 
-const ActionGlyph: FC<{
-  indicator: "none" | "send" | "enter" | undefined;
-}> = ({ indicator }) => {
-  if (indicator !== "send" && indicator !== "enter") return null;
-  const Icon = indicator === "send" ? SendHorizontalIcon : CornerDownLeftIcon;
-  return (
-    <Icon
-      className={cn(
-        "text-muted-foreground ml-auto size-4 opacity-50",
-        indicator === "send" && "rtl:rotate-180",
-      )}
-    />
-  );
+export type IconReveal = "always" | "hover" | "off";
+
+// The trailing row icons — swap these to customize.
+const GroupIcon = ChevronRightIcon;
+const ItemIcon = CornerDownLeftIcon;
+
+const trailingClass = {
+  always: "text-muted-foreground ml-auto size-4 opacity-50",
+  // The row highlight tracks hover and arrow keys alike, so hover-reveal
+  // follows keyboard navigation too.
+  hover:
+    "text-muted-foreground ml-auto size-4 opacity-0 group-data-[highlighted]/aui-row:opacity-50",
 };
 
 type WelcomeSuggestionsContextValue = {
@@ -479,7 +473,7 @@ export type WelcomeSuggestionsPickerItemProps = Omit<
   VariantProps<typeof welcomeSuggestionRowVariants> & {
     prompt: string;
     label?: ReactNode;
-    indicator?: "none" | "send" | "enter";
+    itemIcon?: IconReveal | undefined;
   };
 
 export const WelcomeSuggestionsPickerItem: FC<
@@ -488,7 +482,7 @@ export const WelcomeSuggestionsPickerItem: FC<
   prompt,
   label,
   children,
-  indicator,
+  itemIcon,
   density,
   separators,
   className,
@@ -516,7 +510,9 @@ export const WelcomeSuggestionsPickerItem: FC<
         {...props}
       >
         {children ?? label}
-        <ActionGlyph indicator={indicator} />
+        {itemIcon !== "off" && (
+          <ItemIcon className={trailingClass[itemIcon ?? "always"]} />
+        )}
       </ThreadPrimitive.Suggestion>
     </PickerCollection.ItemSlot>
   );
@@ -622,12 +618,12 @@ const useComposerCoupling = ({
 export type WelcomeSuggestionsPickerProps = VariantProps<
   typeof welcomeSuggestionRowVariants
 > & {
-  indicator?: "none" | "send" | "enter";
+  itemIcon?: IconReveal | undefined;
   children?: ReactNode;
 };
 
 export const WelcomeSuggestionsPicker: FC<WelcomeSuggestionsPickerProps> = ({
-  indicator,
+  itemIcon,
   density,
   separators,
   children,
@@ -636,16 +632,12 @@ export const WelcomeSuggestionsPicker: FC<WelcomeSuggestionsPickerProps> = ({
     entries,
     group,
     close,
-    send,
     moveHighlight,
     selectCurrent,
     currentId,
     popoverId,
     hasRegistry,
   } = useWelcomeSuggestions();
-  // send={false} makes activation insert into the composer rather than send,
-  // so the automatic send glyph would lie there.
-  const resolvedIndicator = indicator ?? (send ? "send" : "none");
   const getPills = usePillCollection(undefined);
   const listboxRef = useRef<HTMLDivElement>(null);
 
@@ -743,7 +735,7 @@ export const WelcomeSuggestionsPicker: FC<WelcomeSuggestionsPickerProps> = ({
                   key={idx}
                   prompt={promptOf(item)}
                   label={item.label}
-                  indicator={resolvedIndicator}
+                  itemIcon={itemIcon}
                   density={density}
                   separators={separators}
                 />
@@ -768,14 +760,14 @@ export const WelcomeSuggestionsPicker: FC<WelcomeSuggestionsPickerProps> = ({
 export type WelcomeSuggestionsStackProps = VariantProps<
   typeof welcomeSuggestionRowVariants
 > & {
-  indicator?: "none" | "send" | "enter";
-  chevron?: boolean;
+  groupIcon?: IconReveal | undefined;
+  itemIcon?: IconReveal | undefined;
   className?: string;
 };
 
 export const WelcomeSuggestionsStack: FC<WelcomeSuggestionsStackProps> = ({
-  indicator,
-  chevron = true,
+  groupIcon,
+  itemIcon,
   density,
   separators,
   className,
@@ -793,9 +785,6 @@ export const WelcomeSuggestionsStack: FC<WelcomeSuggestionsStackProps> = ({
     popoverId,
     hasRegistry,
   } = useWelcomeSuggestions();
-  // send={false} makes activation insert into the composer rather than send,
-  // so the automatic send glyph would lie there.
-  const resolvedIndicator = indicator ?? (send ? "send" : "none");
   const direction = Direction.useDirection();
   const getStackRows = useStackCollection(undefined);
   const registry = unstable_useComposerInputPluginRegistry();
@@ -1072,10 +1061,6 @@ export const WelcomeSuggestionsStack: FC<WelcomeSuggestionsStackProps> = ({
           setTopIdx(null);
       }}
       data-slot="aui_thread-welcome-stack"
-      data-indicator={resolvedIndicator}
-      data-chevron={chevron}
-      data-density={density}
-      data-separators={separators}
       className={cn("-mt-1 flex w-full flex-col outline-none", className)}
     >
       {group ? (
@@ -1107,7 +1092,7 @@ export const WelcomeSuggestionsStack: FC<WelcomeSuggestionsStackProps> = ({
                   key={idx}
                   prompt={promptOf(item)}
                   label={item.label}
-                  indicator={resolvedIndicator}
+                  itemIcon={itemIcon}
                   density={density}
                   separators={separators}
                 />
@@ -1135,8 +1120,13 @@ export const WelcomeSuggestionsStack: FC<WelcomeSuggestionsStackProps> = ({
                   >
                     {entry.icon}
                     {entry.label}
-                    {chevron && (
-                      <ChevronRightIcon className="text-muted-foreground ml-auto size-4 opacity-50 rtl:rotate-180" />
+                    {groupIcon !== "off" && (
+                      <GroupIcon
+                        className={cn(
+                          trailingClass[groupIcon ?? "always"],
+                          "rtl:rotate-180",
+                        )}
+                      />
                     )}
                   </button>
                 ) : (
@@ -1151,7 +1141,11 @@ export const WelcomeSuggestionsStack: FC<WelcomeSuggestionsStackProps> = ({
                     onClick={() => exitComposerNav()}
                   >
                     {entry.label}
-                    <ActionGlyph indicator={resolvedIndicator} />
+                    {itemIcon !== "off" && (
+                      <ItemIcon
+                        className={trailingClass[itemIcon ?? "always"]}
+                      />
+                    )}
                   </ThreadPrimitive.Suggestion>
                 )}
               </StackCollection.ItemSlot>

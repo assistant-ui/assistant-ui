@@ -14,6 +14,7 @@ import {
   WelcomeSuggestionsPills,
   WelcomeSuggestionsRoot,
   WelcomeSuggestionsStack,
+  type IconReveal,
   type SuggestionEntry,
 } from "@/components/assistant-ui/welcome-suggestions";
 import { SampleFrame } from "@/components/docs/samples/sample-frame";
@@ -209,11 +210,14 @@ const VariantColumn = ({
   </div>
 );
 
+const cycleReveal = (value: IconReveal): IconReveal =>
+  value === "always" ? "hover" : value === "hover" ? "off" : "always";
+
 export const WelcomeSuggestionsSample = () => {
   const [compact, setCompact] = useState(false);
   const [separators, setSeparators] = useState(true);
-  const [chevron, setChevron] = useState(true);
-  const [glyph, setGlyph] = useState<"none" | "send" | "enter">("send");
+  const [groupIcon, setGroupIcon] = useState<IconReveal>("always");
+  const [itemIcon, setItemIcon] = useState<IconReveal>("always");
   const density = compact ? "compact" : "comfortable";
 
   return (
@@ -230,18 +234,18 @@ export const WelcomeSuggestionsSample = () => {
             separators
           </ToggleChip>
           <div className="bg-border/60 mx-1 w-px self-stretch" />
-          <ToggleChip active={chevron} onClick={() => setChevron((v) => !v)}>
-            chevron
+          <ToggleChip
+            active={groupIcon !== "off"}
+            onClick={() => setGroupIcon(cycleReveal)}
+          >
+            group icon: {groupIcon}
           </ToggleChip>
-          {(["send", "enter"] as const).map((value) => (
-            <ToggleChip
-              key={value}
-              active={glyph === value}
-              onClick={() => setGlyph((g) => (g === value ? "none" : value))}
-            >
-              {value}
-            </ToggleChip>
-          ))}
+          <ToggleChip
+            active={itemIcon !== "off"}
+            onClick={() => setItemIcon(cycleReveal)}
+          >
+            item icon: {itemIcon}
+          </ToggleChip>
         </div>
         <div className="grid gap-8 lg:grid-cols-2">
           <VariantColumn
@@ -254,7 +258,7 @@ export const WelcomeSuggestionsSample = () => {
               <WelcomeSuggestionsPicker
                 density={density}
                 separators={separators}
-                indicator={glyph}
+                itemIcon={itemIcon}
               />
             </WelcomeSuggestionsRoot>
           </VariantColumn>
@@ -267,8 +271,8 @@ export const WelcomeSuggestionsSample = () => {
               <WelcomeSuggestionsStack
                 density={density}
                 separators={separators}
-                indicator={glyph}
-                chevron={chevron}
+                groupIcon={groupIcon}
+                itemIcon={itemIcon}
               />
             </WelcomeSuggestionsRoot>
           </VariantColumn>
@@ -280,7 +284,7 @@ export const WelcomeSuggestionsSample = () => {
               <WelcomeSuggestionsStack
                 density={density}
                 separators={separators}
-                indicator={glyph}
+                itemIcon={itemIcon}
               />
             </WelcomeSuggestionsRoot>
           </VariantColumn>

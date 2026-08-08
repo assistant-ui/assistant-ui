@@ -163,23 +163,23 @@ A preview is ghost text in the composer's native placeholder, never the draft: h
 
 - `density`: `"comfortable"` (default) or `"compact"` for tighter rows.
 - `separators`: default `true`; hairline dividers between rows, hidden around the highlighted row.
-- `indicator`: the trailing glyph on action rows — flat rows and the open group's items — either `"send"` (the default while sending; flips in RTL), `"enter"` for a ↵ Return-key glyph, or `"none"` (the default with `send={false}`).
-- `chevron`: default `true`; the trailing chevron on group rows (flips in RTL), independent of `indicator`.
+- `groupIcon`: visibility of the trailing chevron on group rows — `"always"` (default), `"hover"` to reveal it on the highlighted row, or `"off"`.
+- `itemIcon`: visibility of the trailing ↵ enter icon on action rows — flat rows and the open group's items — same three values.
 - `className`: merged onto the listbox container.
 
 **`WelcomeSuggestionsPicker`**
 
 - `density`, `separators`: same as the stack, applied to the panel rows.
-- `indicator`: the glyph revealed on the highlighted row — `"send"` (the default while sending), `"enter"`, or `"none"` (the default with `send={false}`).
+- `itemIcon`: visibility of the trailing ↵ enter icon on the panel rows — `"always"` (default), `"hover"`, or `"off"`.
 - `children`: custom rows; defaults to one `WelcomeSuggestionsPickerItem` per item of the open group.
 
 **`WelcomeSuggestionsPickerItem`**
 
-- `prompt` (required) and `label`, plus `indicator`, `density`, `separators`, and any button props.
+- `prompt` (required) and `label`, plus `itemIcon`, `density`, `separators`, and any button props.
 
 ## Styling
 
-Rows default to comfortable density with separators; group rows get a trailing chevron and action rows a send glyph — try the toggles in the demo above. The sub-level rows inherit `density`, `separators`, and the action glyph from the stack, and the stack mirrors the resolved `indicator` and `chevron` (plus any explicitly set `density` or `separators`) as `data-*` attributes on `[data-slot="aui_thread-welcome-stack"]` for CSS overrides.
+Rows default to comfortable density with separators; group rows carry a trailing chevron and action rows a ↵ enter icon (both flip in RTL). `groupIcon` and `itemIcon` independently show each icon always, only on the highlighted row (`"hover"` — the highlight follows hover and the arrow keys alike), or not at all — try the toggles in the demo above. The sub-level rows inherit `density`, `separators`, and `itemIcon` from the stack. To change the icons themselves, swap the `GroupIcon` / `ItemIcon` constants at the top of your copy of the file.
 
 ```tsx
 <WelcomeSuggestionsRoot suggestions={WELCOME_SUGGESTIONS}>
