@@ -245,8 +245,23 @@ export const WelcomeSuggestionsSample = () => {
         </div>
         <div className="grid gap-8 lg:grid-cols-2">
           <VariantColumn
-            label="Stacked (default)"
+            label="Pills + picker (default for groups)"
+            hint={<>press ↓ or click a pill, then ← → move, ↓ opens</>}
+            hintClassName="ml-[50%] -mr-[190px] -translate-x-[190px]"
+          >
+            <WelcomeSuggestionsRoot suggestions={SUGGESTIONS}>
+              <WelcomeSuggestionsPills />
+              <WelcomeSuggestionsPicker
+                density={density}
+                separators={separators}
+                indicator={glyph}
+              />
+            </WelcomeSuggestionsRoot>
+          </VariantColumn>
+          <VariantColumn
+            label="Stacked"
             hint={<>press ↓ or click a row, then ↑ ↓ move, → opens</>}
+            className="max-lg:order-last"
           >
             <WelcomeSuggestionsRoot suggestions={SUGGESTIONS}>
               <WelcomeSuggestionsStack
@@ -258,21 +273,9 @@ export const WelcomeSuggestionsSample = () => {
             </WelcomeSuggestionsRoot>
           </VariantColumn>
           <VariantColumn
-            label="Pills + picker"
-            hint={<>press ↓ or click a pill, then ← → move, ↓ opens</>}
-            hintClassName="ml-[50%] -mr-[190px] -translate-x-[190px]"
-            className="max-lg:order-last"
+            label="Flat entries (default: stacked)"
+            className="lg:col-span-2"
           >
-            <WelcomeSuggestionsRoot suggestions={SUGGESTIONS}>
-              <WelcomeSuggestionsPills />
-              <WelcomeSuggestionsPicker
-                density={density}
-                separators={separators}
-                indicator={glyph}
-              />
-            </WelcomeSuggestionsRoot>
-          </VariantColumn>
-          <VariantColumn label="Flat entries" className="lg:col-span-2">
             <WelcomeSuggestionsRoot suggestions={FLAT_SUGGESTIONS}>
               <WelcomeSuggestionsStack
                 density={density}

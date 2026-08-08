@@ -1189,11 +1189,24 @@ export const WelcomeSuggestionsStack: FC<WelcomeSuggestionsStackProps> = ({
   );
 };
 
+// Grouped entries default to the pill row with its picker panel; an all-flat
+// list reads better as the stacked list.
+const AutoLayout: FC = () => {
+  const { entries } = useWelcomeSuggestions();
+  if (!entries.some(isGroup)) return <WelcomeSuggestionsStack />;
+  return (
+    <>
+      <WelcomeSuggestionsPills />
+      <WelcomeSuggestionsPicker />
+    </>
+  );
+};
+
 export const ThreadWelcomeSuggestions: FC<{
   suggestions?: readonly SuggestionEntry[] | undefined;
   send?: boolean | undefined;
 }> = ({ suggestions, send }) => (
   <WelcomeSuggestionsRoot suggestions={suggestions} send={send}>
-    <WelcomeSuggestionsStack />
+    <AutoLayout />
   </WelcomeSuggestionsRoot>
 );

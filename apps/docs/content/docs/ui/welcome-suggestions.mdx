@@ -1,6 +1,6 @@
 ---
 title: Welcome Suggestions
-description: Grouped starter prompts for the welcome screen, as a stacked list or a pill row.
+description: Grouped starter prompts for the welcome screen, as a pill row with a picker or a stacked list.
 platforms: ["react"]
 ---
 
@@ -8,7 +8,7 @@ import { WelcomeSuggestionsSample } from "@/components/docs/samples/welcome-sugg
 
 <WelcomeSuggestionsSample />
 
-`ThreadWelcomeSuggestions` renders starter prompts next to the composer of a new thread. Flat entries send their prompt on click; a group opens its items in place, navigated from the composer with a live prompt preview. Two layouts ship: a stacked vertical list (the default, ChatGPT-style) and a [pill row with a picker panel](#pills--picker). Either drops in next to any composer without wrapper elements or thread layout changes.
+`ThreadWelcomeSuggestions` renders starter prompts next to the composer of a new thread. Flat entries send their prompt on click; a group opens its items in place, navigated from the composer with a live prompt preview. Two layouts ship: a [pill row with a picker panel](#pills--picker) and a [stacked vertical list](#stacked) (ChatGPT-style). By default the layout follows the entries — the pill row when any group is present, the stack when every entry is flat. Either drops in next to any composer without wrapper elements or thread layout changes.
 
 <Callout type="info">
   For runtime-generated prompts that appear after an assistant response, use
@@ -84,23 +84,13 @@ Wrap it in `AuiIf` so the suggestions leave once the conversation starts:
 
 ## Layouts
 
-Both layouts compose the same `WelcomeSuggestionsRoot` and render the same entries; only the presentation differs. `ThreadWelcomeSuggestions` is shorthand for the stacked one.
+Both layouts compose the same `WelcomeSuggestionsRoot` and render the same entries; only the presentation differs. `ThreadWelcomeSuggestions` picks one by shape: the pill row when any group is present, the stacked list when every entry is flat. Compose the pieces yourself to pin a layout.
 
 Flat items send their prompt on click in either layout. Groups drill in: the stack shows the group's items where the list was, while the pill row opens a picker panel above it. Mixing the two kinds is fine, and with only flat entries no second level ever opens — the stack is a plain list of prompts and the pill row behaves like a classic suggestion chip row.
 
-### Stacked (default)
-
-A vertical list. Opening a group drills into its items in place.
-
-```tsx
-<WelcomeSuggestionsRoot suggestions={WELCOME_SUGGESTIONS}>
-  <WelcomeSuggestionsStack />
-</WelcomeSuggestionsRoot>
-```
-
 ### Pills + picker
 
-A horizontal pill row; opening a group replaces the row with a picker panel until it is dismissed.
+A horizontal pill row; opening a group replaces the row with a picker panel until it is dismissed. The default for entries with groups.
 
 ```tsx
 <WelcomeSuggestionsRoot suggestions={WELCOME_SUGGESTIONS}>
@@ -109,19 +99,19 @@ A horizontal pill row; opening a group replaces the row with a picker panel unti
 </WelcomeSuggestionsRoot>
 ```
 
+### Stacked
+
+A vertical list. Opening a group drills into its items in place. The default when every entry is flat.
+
+```tsx
+<WelcomeSuggestionsRoot suggestions={WELCOME_SUGGESTIONS}>
+  <WelcomeSuggestionsStack />
+</WelcomeSuggestionsRoot>
+```
+
 ## Keyboard & behavior
 
 Selecting a suggestion goes through `ThreadPrimitive.Suggestion`: by default it sends the prompt immediately; with `send={false}` on the root it places the prompt in the composer for editing. Clicking an item and pressing <kbd>Enter</kbd> on the highlighted item are the same action.
-
-### Stacked list
-
-The list is a single tab stop with one highlight shared by hover and the arrow keys. <kbd>↓</kbd> first navigates the composer text; once the caret has no text left to traverse, the next <kbd>↓</kbd> enters the list — the composer keeps focus the whole time, so typing at any point just resumes composing. Top-level rows stay passive and never intercept typing:
-
-| Key                             | Action                                                               |
-| ------------------------------- | -------------------------------------------------------------------- |
-| <kbd>↓</kbd> / <kbd>↑</kbd>     | Move the highlight, ghost-previewing flat rows in the composer's placeholder; <kbd>↓</kbd> at the end of the composer text enters the list, and <kbd>↑</kbd> on the first row exits back into the composer |
-| <kbd>→</kbd> / <kbd>Enter</kbd> | Open the highlighted group (<kbd>Enter</kbd> on a flat row sends it)  |
-| <kbd>Esc</kbd>                  | Clear the highlight and the preview                                   |
 
 ### Pill row
 
@@ -133,6 +123,16 @@ Each pill is its own tab stop:
 | <kbd>↓</kbd>                | Open the focused group pill; at the end of the composer text, focus the first pill |
 | <kbd>Enter</kbd>            | Activate the pill (opens a group, sends a flat one)                      |
 | <kbd>↑</kbd> / <kbd>Esc</kbd> | Return focus to the composer                                           |
+
+### Stacked list
+
+The list is a single tab stop with one highlight shared by hover and the arrow keys. <kbd>↓</kbd> first navigates the composer text; once the caret has no text left to traverse, the next <kbd>↓</kbd> enters the list — the composer keeps focus the whole time, so typing at any point just resumes composing. Top-level rows stay passive and never intercept typing:
+
+| Key                             | Action                                                               |
+| ------------------------------- | -------------------------------------------------------------------- |
+| <kbd>↓</kbd> / <kbd>↑</kbd>     | Move the highlight, ghost-previewing flat rows in the composer's placeholder; <kbd>↓</kbd> at the end of the composer text enters the list, and <kbd>↑</kbd> on the first row exits back into the composer |
+| <kbd>→</kbd> / <kbd>Enter</kbd> | Open the highlighted group (<kbd>Enter</kbd> on a flat row sends it)  |
+| <kbd>Esc</kbd>                  | Clear the highlight and the preview                                   |
 
 Horizontal arrow keys flip in right-to-left locales, in both layouts.
 
@@ -156,6 +156,8 @@ A preview is ghost text in the composer's native placeholder, never the draft: h
 
 - `suggestions`: the entries to render; falls back to the static `Suggestions(...)` scope when omitted.
 - `send`: default `true`. Whether selecting an item sends the prompt immediately or only places it in the composer.
+
+`ThreadWelcomeSuggestions` renders the pill row + picker when any entry is a group, otherwise the stacked list; `WelcomeSuggestionsRoot` renders whichever layout you compose as children.
 
 **`WelcomeSuggestionsStack`**
 
