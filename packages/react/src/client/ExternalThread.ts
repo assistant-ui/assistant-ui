@@ -715,7 +715,8 @@ const useComposerClientResource = ({
     },
     beginEdit: () => {
       onBeginEdit?.();
-      if (isEditingRef.current) return;
+      if (type === "thread") return;
+      if (isEditingRef.current) throw new Error("Edit already in progress");
       setIsEditing(true);
       updateFromMessage();
     },

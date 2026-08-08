@@ -131,7 +131,7 @@ const useInMemoryThreadList = (
     setThreads((prev) => prev.filter((t) => t.id !== threadId));
     setMainThreadId((prev) =>
       prev === threadId
-        ? (threads.find((t) => t.id !== threadId)?.id ?? "main")
+        ? threads.find((t) => t.id !== threadId)?.id || "main"
         : prev,
     );
   };
