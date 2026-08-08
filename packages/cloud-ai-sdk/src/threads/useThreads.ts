@@ -113,6 +113,8 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
     try {
       return await withAction(
         async (commit) => {
+          // Keep includeArchived refreshes atomic; withAction preserves the
+          // previous complete list and exposes either request's failure.
           const responses = includeArchived
             ? await Promise.all([
                 cloud.threads.list({ is_archived: false }),
