@@ -1,11 +1,18 @@
 # @assistant-ui/store
 
+## 0.3.7
+
+### Patch Changes
+
+- [#5677](https://github.com/assistant-ui/assistant-ui/pull/5677) [`4e99deb`](https://github.com/assistant-ui/assistant-ui/commit/4e99deb80dc3401480f80c7bef31acbf86a71573) - feat: createAssistantClient accepts an AssistantConfigSource, re-read in the root render so bindings can deliver config changes (updated element args, added or removed scopes) without remounting surviving scopes ([@okisdev](https://github.com/okisdev))
+
+- [#5707](https://github.com/assistant-ui/assistant-ui/pull/5707) [`2af514c`](https://github.com/assistant-ui/assistant-ui/commit/2af514cabbf6d7d52cb0fd20ef8d1e842294ebb3) - fix: answer Vue reactivity introspection probes (`__v_raw`, `__v_isRef`, `__v_isReactive`, `__v_isReadonly`, `__v_isShallow`, `__v_skip`) on client proxies with undefined instead of an error accessor, so Vue's toRaw/isRef checks and its dev warning formatter no longer throw when a client crosses a Vue boundary ([@okisdev](https://github.com/okisdev))
+
 ## 0.3.6
 
 ### Patch Changes
 
 - Republish of 0.3.5 (registry staged-version conflict blocked the original publish; contents identical).
-
 
 ## 0.3.5
 

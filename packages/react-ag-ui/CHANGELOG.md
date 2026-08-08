@@ -1,5 +1,18 @@
 # @assistant-ui/react-ag-ui
 
+## 0.0.52
+
+### Patch Changes
+
+- [#5684](https://github.com/assistant-ui/assistant-ui/pull/5684) [`20bda3c`](https://github.com/assistant-ui/assistant-ui/commit/20bda3c29c879b4ae5ac385a7bed491467634a79) - fix: send `description: ""` for a tool registered without one, so `RunAgentInput` stays valid against the AG-UI schema. previously the key was dropped from the payload entirely and validating servers rejected the run. also types the `runAgent` call site against the upstream parameters. ([@samdickson22](https://github.com/samdickson22))
+
+- [#5670](https://github.com/assistant-ui/assistant-ui/pull/5670) [`a87c192`](https://github.com/assistant-ui/assistant-ui/commit/a87c1922027dbb5698736d7541b01b06e0d41689) - fix: isolate runtime lifecycle callback failures ([@Kinfe123](https://github.com/Kinfe123))
+
+- Updated dependencies [[`456b056`](https://github.com/assistant-ui/assistant-ui/commit/456b056b2859994bf49ed5cc4cf031f0601e2174), [`99d09c8`](https://github.com/assistant-ui/assistant-ui/commit/99d09c828c04bfca35d091e73f29c6d6643dfb01), [`a88751d`](https://github.com/assistant-ui/assistant-ui/commit/a88751d71edfd2516f266ce8889081749fba4e5a), [`79253f2`](https://github.com/assistant-ui/assistant-ui/commit/79253f2a5e0a637c8907ba30859f308ff6dcd1c4), [`4e99deb`](https://github.com/assistant-ui/assistant-ui/commit/4e99deb80dc3401480f80c7bef31acbf86a71573), [`2af514c`](https://github.com/assistant-ui/assistant-ui/commit/2af514cabbf6d7d52cb0fd20ef8d1e842294ebb3)]:
+  - assistant-stream@0.3.35
+  - @assistant-ui/core@0.3.8
+  - @assistant-ui/store@0.3.7
+
 ## 0.0.51
 
 ### Patch Changes

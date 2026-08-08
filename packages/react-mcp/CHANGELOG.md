@@ -1,11 +1,19 @@
 # @assistant-ui/react-mcp
 
+## 0.1.7
+
+### Patch Changes
+
+- Updated dependencies [[`456b056`](https://github.com/assistant-ui/assistant-ui/commit/456b056b2859994bf49ed5cc4cf031f0601e2174), [`99d09c8`](https://github.com/assistant-ui/assistant-ui/commit/99d09c828c04bfca35d091e73f29c6d6643dfb01), [`a88751d`](https://github.com/assistant-ui/assistant-ui/commit/a88751d71edfd2516f266ce8889081749fba4e5a), [`79253f2`](https://github.com/assistant-ui/assistant-ui/commit/79253f2a5e0a637c8907ba30859f308ff6dcd1c4), [`4e99deb`](https://github.com/assistant-ui/assistant-ui/commit/4e99deb80dc3401480f80c7bef31acbf86a71573), [`2af514c`](https://github.com/assistant-ui/assistant-ui/commit/2af514cabbf6d7d52cb0fd20ef8d1e842294ebb3)]:
+  - assistant-stream@0.3.35
+  - @assistant-ui/core@0.3.8
+  - @assistant-ui/store@0.3.7
+
 ## 0.1.6
 
 ### Patch Changes
 
 - Fix broken 0.1.5 publish that shipped unresolved workspace: dependency ranges.
-
 
 ## 0.1.5
 

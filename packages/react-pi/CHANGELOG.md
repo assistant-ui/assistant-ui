@@ -1,5 +1,15 @@
 # @assistant-ui/react-pi
 
+## 0.0.14
+
+### Patch Changes
+
+- [#5682](https://github.com/assistant-ui/assistant-ui/pull/5682) [`7e2de5d`](https://github.com/assistant-ui/assistant-ui/commit/7e2de5d5e724fd5987511a3fe04f1a4e38212b91) - fix: isolate initial subscription callback errors ([@Kinfe123](https://github.com/Kinfe123))
+
+- Updated dependencies [[`99d09c8`](https://github.com/assistant-ui/assistant-ui/commit/99d09c828c04bfca35d091e73f29c6d6643dfb01), [`79253f2`](https://github.com/assistant-ui/assistant-ui/commit/79253f2a5e0a637c8907ba30859f308ff6dcd1c4), [`4e99deb`](https://github.com/assistant-ui/assistant-ui/commit/4e99deb80dc3401480f80c7bef31acbf86a71573), [`2af514c`](https://github.com/assistant-ui/assistant-ui/commit/2af514cabbf6d7d52cb0fd20ef8d1e842294ebb3)]:
+  - @assistant-ui/core@0.3.8
+  - @assistant-ui/store@0.3.7
+
 ## 0.0.13
 
 ### Patch Changes

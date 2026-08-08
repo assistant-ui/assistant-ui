@@ -1,5 +1,15 @@
 # assistant-stream
 
+## 0.3.35
+
+### Patch Changes
+
+- [#5534](https://github.com/assistant-ui/assistant-ui/pull/5534) [`456b056`](https://github.com/assistant-ui/assistant-ui/commit/456b056b2859994bf49ed5cc4cf031f0601e2174) - fix: preserve streamed tool arguments when other content is interleaved ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5700](https://github.com/assistant-ui/assistant-ui/pull/5700) [`a88751d`](https://github.com/assistant-ui/assistant-ui/commit/a88751d71edfd2516f266ce8889081749fba4e5a) - fix: carry a reasoning summary on the data stream. a reasoning part opened with `unstable_summary` previously lost it on that wire, and a summary-only part produced no frames at all, so it never reached the client. the encoder now emits a reasoning part-start frame when there is a summary to carry; a stream that does not use the field is unchanged, and one that does requires a decoder that understands the frame. ([@okisdev](https://github.com/okisdev))
+
+- [#5639](https://github.com/assistant-ui/assistant-ui/pull/5639) [`79253f2`](https://github.com/assistant-ui/assistant-ui/commit/79253f2a5e0a637c8907ba30859f308ff6dcd1c4) - feat: preserve app-authored reasoning summaries on message parts ([@rupic-app](https://github.com/apps/rupic-app))
+
 ## 0.3.34
 
 ### Patch Changes

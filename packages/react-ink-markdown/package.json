@@ -38,8 +38,8 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@assistant-ui/core": "^0.3.7",
-    "@assistant-ui/store": "^0.3.5",
+    "@assistant-ui/core": "^0.3.8",
+    "@assistant-ui/store": "^0.3.7",
     "markdansi": "^0.3.2"
   },
   "peerDependencies": {

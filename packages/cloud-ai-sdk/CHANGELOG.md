@@ -1,5 +1,11 @@
 # @assistant-ui/cloud-ai-sdk
 
+## 0.1.30
+
+### Patch Changes
+
+- [#5714](https://github.com/assistant-ui/assistant-ui/pull/5714) [`5a32f13`](https://github.com/assistant-ui/assistant-ui/commit/5a32f136f508127b2d5ba4a97570039ff676e6bf) - fix: clear the selected Cloud thread after deleting it ([@Kinfe123](https://github.com/Kinfe123))
+
 ## 0.1.29
 
 ### Patch Changes

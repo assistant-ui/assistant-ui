@@ -1,5 +1,14 @@
 # @assistant-ui/eve
 
+## 0.0.10
+
+### Patch Changes
+
+- [#5658](https://github.com/assistant-ui/assistant-ui/pull/5658) [`8480023`](https://github.com/assistant-ui/assistant-ui/commit/8480023f8b1949baf5f16e449ab0ca4a25c087f5) - fix: serialize eve sends so approvals and sends during an active turn no longer crash or drop messages. Cancelling a run or unmounting the runtime drops sends still queued behind the active turn. ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- Updated dependencies [[`99d09c8`](https://github.com/assistant-ui/assistant-ui/commit/99d09c828c04bfca35d091e73f29c6d6643dfb01), [`79253f2`](https://github.com/assistant-ui/assistant-ui/commit/79253f2a5e0a637c8907ba30859f308ff6dcd1c4)]:
+  - @assistant-ui/core@0.3.8
+
 ## 0.0.9
 
 ### Patch Changes

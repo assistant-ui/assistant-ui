@@ -1,11 +1,31 @@
 # @assistant-ui/react
 
+## 0.15.9
+
+### Patch Changes
+
+- [#5717](https://github.com/assistant-ui/assistant-ui/pull/5717) [`99d09c8`](https://github.com/assistant-ui/assistant-ui/commit/99d09c828c04bfca35d091e73f29c6d6643dfb01) - Edit composer send always emits: an unchanged edit re-sends the message on a new branch instead of silently closing the composer. ([@Yonom](https://github.com/Yonom))
+
+- [#5713](https://github.com/assistant-ui/assistant-ui/pull/5713) [`f105884`](https://github.com/assistant-ui/assistant-ui/commit/f105884c3bde7c9c9e34c1b61d6ddc6411a053fe) - feat: feedback adapter support in ExternalThread ([@Yonom](https://github.com/Yonom))
+
+- [#5712](https://github.com/assistant-ui/assistant-ui/pull/5712) [`44f6a94`](https://github.com/assistant-ui/assistant-ui/commit/44f6a94530aa38277de6f1d74550faf0a32d402d) - feat: speech synthesis adapter support in ExternalThread ([@Yonom](https://github.com/Yonom))
+
+- [#5702](https://github.com/assistant-ui/assistant-ui/pull/5702) [`7d0265e`](https://github.com/assistant-ui/assistant-ui/commit/7d0265eb8f1753234a3d59a1f5517ea296c7c245) - fix: allow failed live completion searches to be retried ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5639](https://github.com/assistant-ui/assistant-ui/pull/5639) [`79253f2`](https://github.com/assistant-ui/assistant-ui/commit/79253f2a5e0a637c8907ba30859f308ff6dcd1c4) - feat: preserve app-authored reasoning summaries on message parts ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#5701](https://github.com/assistant-ui/assistant-ui/pull/5701) [`ca49427`](https://github.com/assistant-ui/assistant-ui/commit/ca49427aa14d7d50afa3c0c2e88371881de59cb2) - fix: clear dropped assistant transport resume requests ([@Kinfe123](https://github.com/Kinfe123))
+
+- Updated dependencies [[`456b056`](https://github.com/assistant-ui/assistant-ui/commit/456b056b2859994bf49ed5cc4cf031f0601e2174), [`99d09c8`](https://github.com/assistant-ui/assistant-ui/commit/99d09c828c04bfca35d091e73f29c6d6643dfb01), [`a88751d`](https://github.com/assistant-ui/assistant-ui/commit/a88751d71edfd2516f266ce8889081749fba4e5a), [`79253f2`](https://github.com/assistant-ui/assistant-ui/commit/79253f2a5e0a637c8907ba30859f308ff6dcd1c4), [`4e99deb`](https://github.com/assistant-ui/assistant-ui/commit/4e99deb80dc3401480f80c7bef31acbf86a71573), [`2af514c`](https://github.com/assistant-ui/assistant-ui/commit/2af514cabbf6d7d52cb0fd20ef8d1e842294ebb3)]:
+  - assistant-stream@0.3.35
+  - @assistant-ui/core@0.3.8
+  - @assistant-ui/store@0.3.7
+
 ## 0.15.8
 
 ### Patch Changes
 
 - Republish of 0.15.6 (registry staged-version conflicts blocked 0.15.6 and 0.15.7; contents identical).
-
 
 ## 0.15.6
 

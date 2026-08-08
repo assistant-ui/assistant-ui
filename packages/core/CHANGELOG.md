@@ -1,5 +1,16 @@
 # @assistant-ui/core
 
+## 0.3.8
+
+### Patch Changes
+
+- [#5717](https://github.com/assistant-ui/assistant-ui/pull/5717) [`99d09c8`](https://github.com/assistant-ui/assistant-ui/commit/99d09c828c04bfca35d091e73f29c6d6643dfb01) - Edit composer send always emits: an unchanged edit re-sends the message on a new branch instead of silently closing the composer. ([@Yonom](https://github.com/Yonom))
+
+- [#5639](https://github.com/assistant-ui/assistant-ui/pull/5639) [`79253f2`](https://github.com/assistant-ui/assistant-ui/commit/79253f2a5e0a637c8907ba30859f308ff6dcd1c4) - feat: preserve app-authored reasoning summaries on message parts ([@rupic-app](https://github.com/apps/rupic-app))
+
+- Updated dependencies [[`456b056`](https://github.com/assistant-ui/assistant-ui/commit/456b056b2859994bf49ed5cc4cf031f0601e2174), [`a88751d`](https://github.com/assistant-ui/assistant-ui/commit/a88751d71edfd2516f266ce8889081749fba4e5a), [`79253f2`](https://github.com/assistant-ui/assistant-ui/commit/79253f2a5e0a637c8907ba30859f308ff6dcd1c4)]:
+  - assistant-stream@0.3.35
+
 ## 0.3.7
 
 ### Patch Changes
