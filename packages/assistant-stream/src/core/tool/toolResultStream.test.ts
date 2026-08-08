@@ -939,14 +939,16 @@ describe("unstable_runPendingTools", () => {
 
   describe("execution lifecycle callbacks", () => {
     it.each([
-      ["onExecutionStart", "throws"],
-      ["onExecutionStart", "rejects"],
-      ["onExecutionEnd", "throws"],
-      ["onExecutionEnd", "rejects"],
+      ["onExecutionStart", "throws", "succeeds"],
+      ["onExecutionStart", "rejects", "succeeds"],
+      ["onExecutionEnd", "throws", "succeeds"],
+      ["onExecutionEnd", "rejects", "succeeds"],
+      ["onExecutionEnd", "throws", "fails"],
     ] as const)(
-      "preserves tool results when %s %s",
-      async (callbackName, behavior) => {
+      "preserves tool settlement when %s %s and the tool %s",
+      async (callbackName, behavior, toolOutcome) => {
         const callbackError = new Error(`${callbackName} ${behavior}`);
+        const toolError = new Error("tool failed");
         const error = vi.spyOn(console, "error").mockImplementation(() => {});
         const lifecycleCallback =
           behavior === "throws"
@@ -976,36 +978,44 @@ describe("unstable_runPendingTools", () => {
         });
         const outputChunks: AssistantStreamChunk[] = [];
 
-        await inputStream
-          .pipeThrough(
-            unstable_toolResultStream(
-              {
-                succeed: {
-                  parameters: { type: "object", properties: {} },
-                  execute: async () => "done",
-                },
-              },
-              new AbortController().signal,
-              async () => {},
-              callbackName === "onExecutionStart"
-                ? { onExecutionStart: lifecycleCallback }
-                : { onExecutionEnd: lifecycleCallback },
-            ),
-          )
-          .pipeTo(
-            new WritableStream<AssistantStreamChunk>({
-              write(chunk) {
-                outputChunks.push(chunk);
-              },
-            }),
-          );
+        const unhandledRejections = await captureUnhandledRejections(
+          async () => {
+            await inputStream
+              .pipeThrough(
+                unstable_toolResultStream(
+                  {
+                    succeed: {
+                      parameters: { type: "object", properties: {} },
+                      execute: async () => {
+                        if (toolOutcome === "fails") throw toolError;
+                        return "done";
+                      },
+                    },
+                  },
+                  new AbortController().signal,
+                  async () => {},
+                  callbackName === "onExecutionStart"
+                    ? { onExecutionStart: lifecycleCallback }
+                    : { onExecutionEnd: lifecycleCallback },
+                ),
+              )
+              .pipeTo(
+                new WritableStream<AssistantStreamChunk>({
+                  write(chunk) {
+                    outputChunks.push(chunk);
+                  },
+                }),
+              );
+          },
+        );
 
+        expect(unhandledRejections).toEqual([]);
         expect(lifecycleCallback).toHaveBeenCalledOnce();
         expect(outputChunks.find((chunk) => chunk.type === "result")).toEqual(
           expect.objectContaining({
             type: "result",
-            result: "done",
-            isError: false,
+            result: toolOutcome === "fails" ? String(toolError) : "done",
+            isError: toolOutcome === "fails",
           }),
         );
         expect(error).toHaveBeenCalledWith(
