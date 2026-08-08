@@ -135,6 +135,58 @@ Pass `present({ display: "standalone" })` to render the component on its own
 surface instead of inline. See the
 [`"use generative"` docs](https://www.assistant-ui.com/docs) for the build setup.
 
+## Beyond the web: Slack, Teams, and A2UI
+
+The same tree renders on more surfaces than React. Three subpath exports carry
+the converters; the Slack and Teams ones are pure and React-free, so they run
+in server actions, queue workers, and webhook handlers. See the
+[render targets capability matrix](https://www.assistant-ui.com/docs/tools/render-targets)
+for what each surface supports and how unsupported content degrades.
+
+### `@assistant-ui/react-generative-ui/slack`
+
+Converts a tree to Slack Block Kit JSON (`toSlackBlocks`), decodes
+`block_actions` webhooks back into `$action` payloads (`decodeBlockAction`),
+and maps Block Kit back into vocabulary nodes (`fromSlackBlocks`).
+
+```ts
+import { toSlackBlocks } from "@assistant-ui/react-generative-ui/slack";
+
+const { blocks, warnings } = toSlackBlocks({
+  $type: "Card",
+  title: "Order #48213",
+  children: [{ $type: "Text", value: "Shipped, arriving Thursday." }],
+});
+```
+
+### `@assistant-ui/react-generative-ui/teams`
+
+Converts a tree to a Microsoft Teams Adaptive Card (`toAdaptiveCard`) or
+bot-framework attachments with root-carousel support (`toTeamsAttachments`),
+and decodes an incoming `activity.value` (`decodeSubmitData`).
+
+```ts
+import { toAdaptiveCard } from "@assistant-ui/react-generative-ui/teams";
+
+const { card, warnings } = toAdaptiveCard({
+  $type: "Card",
+  title: "Order #48213",
+  children: [{ $type: "Text", value: "Shipped, arriving Thursday." }],
+});
+```
+
+### `@assistant-ui/react-generative-ui/a2ui`
+
+The inbound direction: applies [A2UI](https://a2ui.org/) surface operations
+(`applyA2uiOperations`) and converts a surface into a vocabulary tree
+(`convertSurfaceToUISpec`) that renders through the same `present` path.
+
+```ts
+import { convertSurfaceToUISpec } from "@assistant-ui/react-generative-ui/a2ui";
+
+const { spec, warnings } = convertSurfaceToUISpec(surface);
+```
+
 ## License
 
 MIT
