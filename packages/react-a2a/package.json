@@ -35,6 +35,7 @@
   },
   "dependencies": {
     "@assistant-ui/core": "^0.3.10",
+    "@assistant-ui/store": "^0.3.8",
     "assistant-stream": "^0.3.36"
   },
   "peerDependencies": {

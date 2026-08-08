@@ -3826,6 +3826,9 @@ importers:
       '@assistant-ui/core':
         specifier: ^0.3.10
         version: link:../core
+      '@assistant-ui/store':
+        specifier: ^0.3.8
+        version: link:../store
       assistant-stream:
         specifier: ^0.3.36
         version: link:../assistant-stream
@@ -4558,6 +4561,9 @@ importers:
       '@assistant-ui/core':
         specifier: ^0.3.10
         version: link:../core
+      '@assistant-ui/store':
+        specifier: ^0.3.8
+        version: link:../store
     devDependencies:
       '@assistant-ui/react':
         specifier: workspace:*
