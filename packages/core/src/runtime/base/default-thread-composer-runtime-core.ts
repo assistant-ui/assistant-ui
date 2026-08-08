@@ -1,4 +1,5 @@
-import type { AppendMessage } from "../../types/message";
+import type { AppendMessage, MessageRole } from "../../types/message";
+import type { CompleteAttachment } from "../../types/attachment";
 import type { AttachmentAdapter } from "../../adapters/attachment";
 import type { DictationAdapter } from "../../adapters/speech";
 import type {
@@ -12,6 +13,7 @@ import {
   type QueueItemState,
 } from "../../store/scopes/queue-item";
 import { BaseComposerRuntimeCore } from "./base-composer-runtime-core";
+import { getOptimisticAttachmentSend } from "../utils/optimistic-attachment-send";
 import { gateInteractableComposerMetadata } from "../../model-context/interactable-composer-metadata";
 
 export class DefaultThreadComposerRuntimeCore
@@ -115,9 +117,21 @@ export class DefaultThreadComposerRuntimeCore
     });
   }
 
+  protected override supportsOptimisticAttachmentSend(
+    role: MessageRole,
+    options: SendOptions | undefined,
+  ) {
+    if (role !== "user") return false;
+    if (!getOptimisticAttachmentSend(this.runtime)) return false;
+    // A queued run reorders the message, so the placeholder could land at a
+    // position the completed message never occupies.
+    return !this.runtime.capabilities.queue || options?.startRun === false;
+  }
+
   public async handleSend(
     message: Omit<AppendMessage, "parentId" | "sourceId">,
     options?: SendOptions,
+    uploadAttachments?: () => Promise<readonly CompleteAttachment[]>,
   ) {
     // Merge provider-contributed metadata onto the outgoing user message
     // (same metadata.custom append path quotes ride). The interactables gate
@@ -128,13 +142,26 @@ export class DefaultThreadComposerRuntimeCore
     );
     const enriched = this.enrichWithComposerMetadata(message, composerMetadata);
 
-    return this.runtime.append({
+    const appendMessage: AppendMessage = {
       ...(enriched as AppendMessage),
       parentId: this.runtime.messages.at(-1)?.id ?? null,
       sourceId: null,
       startRun: options?.startRun,
       steer: options?.steer,
-    });
+    };
+
+    if (!uploadAttachments) {
+      return this.runtime.append(appendMessage);
+    }
+
+    const appendOptimistic = getOptimisticAttachmentSend(this.runtime);
+    if (!appendOptimistic) {
+      return this.runtime.append({
+        ...appendMessage,
+        attachments: await uploadAttachments(),
+      });
+    }
+    return appendOptimistic(appendMessage, uploadAttachments);
   }
 
   public async handleCancel() {

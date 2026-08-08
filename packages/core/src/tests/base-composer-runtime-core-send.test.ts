@@ -1,8 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { DefaultThreadComposerRuntimeCore } from "../runtime/base/default-thread-composer-runtime-core";
+import { setOptimisticAttachmentSend } from "../runtime/utils/optimistic-attachment-send";
 import type { AttachmentAdapter } from "../adapters/attachment";
 import type { ThreadRuntimeCore } from "../runtime/interfaces/thread-runtime-core";
-import type { PendingAttachment } from "../types/attachment";
+import type {
+  CompleteAttachment,
+  PendingAttachment,
+} from "../types/attachment";
+import type { AppendMessage } from "../types/message";
 
 const makeAdapter = (
   overrides: Partial<AttachmentAdapter> = {},
@@ -21,20 +26,38 @@ const makeAdapter = (
   ...overrides,
 });
 
-const makeComposer = (adapter?: AttachmentAdapter, append = vi.fn()) => {
+const makeComposer = (
+  adapter?: AttachmentAdapter,
+  append = vi.fn(),
+  options: { optimistic?: boolean; queue?: boolean } = {},
+) => {
+  const optimisticSend = vi.fn(
+    (
+      message: AppendMessage,
+      uploadAttachments: () => Promise<readonly CompleteAttachment[]>,
+    ) => {
+      append(message);
+      return uploadAttachments().then((attachments) => {
+        append({ ...message, attachments });
+      });
+    },
+  );
   const runtime = {
     append,
     cancelRun: vi.fn(),
     subscribe: vi.fn(() => () => {}),
-    capabilities: { cancel: false },
+    capabilities: { cancel: false, queue: options.queue ?? false },
     messages: [],
     getModelContext: () => ({ unstable_composerMetadata: undefined }),
     adapters: adapter ? { attachments: adapter } : undefined,
   } as unknown as Omit<ThreadRuntimeCore, "composer"> & {
     adapters?: { attachments?: AttachmentAdapter };
   };
+  if (options.optimistic) {
+    setOptimisticAttachmentSend(runtime, optimisticSend);
+  }
   const composer = new DefaultThreadComposerRuntimeCore(runtime);
-  return { composer, append };
+  return { composer, append, optimisticSend };
 };
 
 const textFile = () => new File(["content"], "f.txt", { type: "text/plain" });
@@ -476,6 +499,35 @@ describe("BaseComposerRuntimeCore.send restore-on-failure", () => {
     await sendTask;
   });
 
+  it("keeps the draft in the composer and defers append when the runtime cannot append optimistically", async () => {
+    let resolveSend!: () => void;
+    const adapter = makeAdapter({
+      send: (a) =>
+        new Promise<CompleteAttachment>((resolve) => {
+          resolveSend = () =>
+            resolve({ ...a, status: { type: "complete" }, content: [] });
+        }),
+    });
+    const { composer, append } = makeComposer(adapter);
+
+    composer.setText("hello");
+    await composer.addAttachment(textFile());
+
+    const sendPromise = composer.send();
+
+    expect(composer.text).toBe("");
+    expect(composer.attachments).toHaveLength(1);
+    expect(append).not.toHaveBeenCalled();
+
+    resolveSend();
+    await sendPromise;
+
+    expect(composer.attachments).toHaveLength(0);
+    expect(append).toHaveBeenCalledTimes(1);
+    const message = append.mock.calls[0]![0];
+    expect(message.attachments[0].status).toEqual({ type: "complete" });
+  });
+
   it("does not leak a rejected append task as an unhandled rejection", async () => {
     // A vi.fn mock attaches settled-result handlers to returned promises,
     // marking the rejection as handled; a plain function keeps it unobserved.
@@ -568,6 +620,122 @@ describe("BaseComposerRuntimeCore send event listener isolation", () => {
         '[assistant-ui] Composer runtime "send" listener threw an error',
         listenerError,
       );
+    });
+  });
+});
+
+describe("BaseComposerRuntimeCore.send optimistic dispatch", () => {
+  it("dispatches the message with pending attachments synchronously and clears the composer", async () => {
+    let resolveSend!: () => void;
+    const adapter = makeAdapter({
+      send: (a) =>
+        new Promise<CompleteAttachment>((resolve) => {
+          resolveSend = () =>
+            resolve({ ...a, status: { type: "complete" }, content: [] });
+        }),
+    });
+    const { composer, append, optimisticSend } = makeComposer(
+      adapter,
+      vi.fn(),
+      { optimistic: true },
+    );
+
+    composer.setText("hello");
+    await composer.addAttachment(textFile());
+    const originalAttachments = composer.attachments;
+
+    const sendPromise = composer.send();
+
+    expect(composer.text).toBe("");
+    expect(composer.attachments).toHaveLength(0);
+    expect(optimisticSend).toHaveBeenCalledTimes(1);
+    expect(append).toHaveBeenCalledTimes(1);
+    expect(append.mock.calls[0]![0].content).toEqual([
+      { type: "text", text: "hello" },
+    ]);
+    expect(append.mock.calls[0]![0].attachments).toEqual(originalAttachments);
+    expect(append.mock.calls[0]![0].attachments[0].status).toEqual({
+      type: "requires-action",
+      reason: "composer-send",
+    });
+
+    resolveSend();
+    await sendPromise;
+
+    expect(append).toHaveBeenCalledTimes(2);
+    expect(append.mock.calls[1]![0].attachments[0].status).toEqual({
+      type: "complete",
+    });
+  });
+
+  it("restores the draft when an optimistic upload fails", async () => {
+    let rejectSend!: (e: Error) => void;
+    let added = 0;
+    const adapter = makeAdapter({
+      add: async ({ file }: { file: File }): Promise<PendingAttachment> => ({
+        id: `att-${++added}`,
+        type: "image",
+        name: file.name,
+        contentType: file.type,
+        file,
+        status: { type: "requires-action", reason: "composer-send" },
+      }),
+      send: () =>
+        new Promise((_resolve, reject) => {
+          rejectSend = reject;
+        }),
+    });
+    const { composer, optimisticSend } = makeComposer(adapter, vi.fn(), {
+      optimistic: true,
+    });
+
+    composer.setText("hello");
+    await composer.addAttachment(textFile());
+    const originalAttachments = composer.attachments;
+
+    const sendPromise = composer.send();
+    composer.setText("next draft");
+    await composer.addAttachment(textFile());
+    rejectSend(new Error("upload failed"));
+
+    await expect(sendPromise).rejects.toThrow("upload failed");
+
+    expect(optimisticSend).toHaveBeenCalledTimes(1);
+    expect(composer.text).toBe("next draft");
+    expect(composer.attachments.map((a) => a.id)).toEqual(["att-1", "att-2"]);
+    expect(composer.attachments[0]).toBe(originalAttachments[0]);
+  });
+
+  it("skips the optimistic path when the queue capability is enabled", async () => {
+    let resolveSend!: () => void;
+    const adapter = makeAdapter({
+      send: (a) =>
+        new Promise<CompleteAttachment>((resolve) => {
+          resolveSend = () =>
+            resolve({ ...a, status: { type: "complete" }, content: [] });
+        }),
+    });
+    const { composer, append, optimisticSend } = makeComposer(
+      adapter,
+      vi.fn(),
+      { optimistic: true, queue: true },
+    );
+
+    composer.setText("hello");
+    await composer.addAttachment(textFile());
+
+    const sendPromise = composer.send();
+
+    expect(optimisticSend).not.toHaveBeenCalled();
+    expect(append).not.toHaveBeenCalled();
+
+    resolveSend();
+    await sendPromise;
+
+    expect(optimisticSend).not.toHaveBeenCalled();
+    expect(append).toHaveBeenCalledTimes(1);
+    expect(append.mock.calls[0]![0].attachments[0].status).toEqual({
+      type: "complete",
     });
   });
 });

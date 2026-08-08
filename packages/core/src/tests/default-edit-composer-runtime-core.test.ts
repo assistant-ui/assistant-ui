@@ -132,6 +132,63 @@ describe("DefaultEditComposerRuntimeCore", () => {
   });
 
   describe("send behavior", () => {
+    it("appends only after a pending attachment upload resolves", async () => {
+      let resolveSend!: () => void;
+      const adapter = {
+        accept: "*",
+        add: async ({ file }: { file: File }) => ({
+          id: "att-new",
+          type: "document" as const,
+          name: file.name,
+          contentType: file.type,
+          file,
+          status: { type: "requires-action", reason: "composer-send" } as const,
+        }),
+        remove: async () => {},
+        send: (a: { id: string }) =>
+          new Promise<CompleteAttachment>((resolve) => {
+            resolveSend = () =>
+              resolve({
+                ...(a as CompleteAttachment),
+                status: { type: "complete" },
+                content: [],
+              });
+          }),
+      };
+      const append = vi.fn();
+      const runtime = {
+        append,
+        composer: { runConfig: {} },
+        messages: [],
+        getModelContext: () => ({}),
+        adapters: { attachments: adapter },
+      } as unknown as ThreadRuntimeCore & {
+        adapters?: { attachments?: typeof adapter };
+      };
+      const endEdit = vi.fn();
+      const composer = new DefaultEditComposerRuntimeCore(runtime, endEdit, {
+        parentId: null,
+        message: makeUserMessage(),
+      });
+
+      await composer.addAttachment(
+        new File(["x"], "f.txt", { type: "text/plain" }),
+      );
+
+      const sendPromise = composer.send();
+
+      expect(append).not.toHaveBeenCalled();
+      expect(endEdit).not.toHaveBeenCalled();
+
+      resolveSend();
+      await sendPromise;
+
+      expect(append).toHaveBeenCalledTimes(1);
+      const appended = append.mock.calls[0]![0] as AppendMessage;
+      expect(appended.attachments?.[0]?.status).toEqual({ type: "complete" });
+      expect(endEdit).toHaveBeenCalledTimes(1);
+    });
+
     it("does not call append when nothing changed", async () => {
       const { runtime, append } = makeRuntime();
       const composer = new DefaultEditComposerRuntimeCore(runtime, () => {}, {

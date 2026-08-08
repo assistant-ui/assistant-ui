@@ -20,7 +20,9 @@ import { BaseThreadRuntimeCore } from "../../runtime/base/base-thread-runtime-co
 import type {
   AppendMessage,
   ThreadAssistantMessage,
+  ThreadMessage,
 } from "../../types/message";
+import type { Attachment, CompleteAttachment } from "../../types/attachment";
 import type { RunConfig } from "../../types/message";
 import { toAssistantError } from "../../types/error";
 import type { ModelContextProvider } from "../../model-context/types";
@@ -33,6 +35,7 @@ import {
   EMPTY_QUEUE_ITEMS,
   type QueueItemState,
 } from "../../store/scopes/queue-item";
+import { setOptimisticAttachmentSend } from "../../runtime/utils/optimistic-attachment-send";
 
 class AbortError extends Error {
   override name = "AbortError";
@@ -73,6 +76,44 @@ export class LocalThreadRuntimeCore
   private _runGeneration = 0;
 
   private _historyWrites = new Map<string, Promise<void>>();
+
+  private _pendingAttachmentSend: Promise<void> | null = null;
+
+  // An optimistic attachment send holds the thread tail until its upload
+  // settles: a message sent meanwhile is appended immediately but must not
+  // persist or run ahead of the parent it was appended under.
+  private _chainAttachmentSend(work: () => Promise<void>): Promise<void> {
+    const previous = this._pendingAttachmentSend ?? Promise.resolve();
+    const next = previous.then(work, work);
+    const stored = next.then(
+      () => {},
+      () => {},
+    );
+    this._pendingAttachmentSend = stored;
+    void stored.then(() => {
+      if (this._pendingAttachmentSend === stored) {
+        this._pendingAttachmentSend = null;
+      }
+    });
+    return next;
+  }
+
+  private async _waitForAttachmentSendChain(): Promise<void> {
+    while (this._pendingAttachmentSend) {
+      await this._pendingAttachmentSend;
+    }
+  }
+
+  private _isAncestorOfHead(messageId: string): boolean {
+    for (
+      let currentId = this.repository.headId;
+      currentId !== null;
+      currentId = this.repository.getMessage(currentId).parentId
+    ) {
+      if (currentId === messageId) return true;
+    }
+    return false;
+  }
 
   // Writes for one message id must land in issue order; an earlier paused
   // snapshot arriving after the terminal write would resurrect the pause.
@@ -135,6 +176,9 @@ export class LocalThreadRuntimeCore
   ) {
     super(contextProvider);
     this.__internal_setOptions(options);
+    setOptimisticAttachmentSend(this, (message, uploadAttachments) =>
+      this.appendOptimisticAttachmentSend(message, uploadAttachments),
+    );
   }
 
   private _options!: LocalRuntimeOptionsBase;
@@ -325,8 +369,18 @@ export class LocalThreadRuntimeCore
       reason: "unknown",
     });
     this.repository.addOrUpdateMessage(message.parentId, newMessage);
+
+    const pendingAttachmentSend = this._pendingAttachmentSend;
+    if (pendingAttachmentSend) {
+      this._notifySubscribers();
+      await pendingAttachmentSend;
+    }
+
+    // A rolled back optimistic parent relinks its children, so the persisted
+    // parent is the one the repository ended up with, not the requested one.
+    const parentId = this.repository.getMessage(newMessage.id).parentId;
     this._options.adapters.history?.append({
-      parentId: message.parentId,
+      parentId,
       message: newMessage,
       ...(message.runConfig !== undefined && { runConfig: message.runConfig }),
     });
@@ -340,6 +394,113 @@ export class LocalThreadRuntimeCore
       });
     } else {
       this.repository.resetHead(newMessage.id);
+      this._notifySubscribers();
+    }
+  }
+
+  private async appendOptimisticAttachmentSend(
+    message: AppendMessage,
+    uploadAttachments: () => Promise<readonly CompleteAttachment[]>,
+  ): Promise<void> {
+    if (message.role !== "user")
+      throw new Error("Attachments are only supported for user messages.");
+
+    this.ensureInitialized();
+    const initPromise = this._getInitializePromise?.();
+
+    const appendedMessage = fromThreadMessageLike(message, generateId(), {
+      type: "complete",
+      reason: "unknown",
+    });
+    const optimisticMessage = {
+      ...appendedMessage,
+      attachments: (
+        (appendedMessage.attachments ?? []) as readonly Attachment[]
+      ).map((attachment) =>
+        attachment.status.type === "complete"
+          ? attachment
+          : {
+              ...attachment,
+              status: {
+                type: "running" as const,
+                reason: "uploading" as const,
+                progress: 0,
+              },
+            },
+      ),
+    } as ThreadMessage;
+    this.repository.addOrUpdateMessage(message.parentId, optimisticMessage);
+    this._notifySubscribers();
+
+    await this._chainAttachmentSend(async () => {
+      let attachments: readonly CompleteAttachment[];
+      try {
+        if (initPromise) await initPromise;
+        attachments = await uploadAttachments();
+      } catch (e) {
+        this.repository.deleteMessage(optimisticMessage.id);
+        this._notifySubscribers();
+        throw e;
+      }
+
+      // A message removed mid-upload ends this send's deferred work; the
+      // chain must still resolve so a queued send behind it proceeds.
+      let parentId: string | null;
+      try {
+        parentId = this.repository.getMessage(optimisticMessage.id).parentId;
+      } catch {
+        return;
+      }
+      // A head moved off this message's branch mid-upload (regenerate, branch
+      // switch) re-parents the completed message under the current tail, so it
+      // lands and persists where a post-upload append would have.
+      if (!this._isAncestorOfHead(optimisticMessage.id)) {
+        parentId = this.repository.headId;
+      }
+      const completedMessage = {
+        ...optimisticMessage,
+        attachments,
+      } as ThreadMessage;
+      this.repository.addOrUpdateMessage(parentId, completedMessage);
+      this._notifySubscribers();
+      // The append stays awaited so a send queued behind this one persists
+      // after it, but its failure must not abort the run decision below.
+      try {
+        await this._options.adapters.history?.append({
+          parentId,
+          message: completedMessage,
+          ...(message.runConfig !== undefined && {
+            runConfig: message.runConfig,
+          }),
+        });
+      } catch {}
+    });
+
+    await this._waitForAttachmentSendChain();
+
+    if (this.repository.headId !== optimisticMessage.id) {
+      // A message sent during the upload already sits below this one and owns
+      // the run; a run parented here would branch the thread and hide it.
+      if (this._isAncestorOfHead(optimisticMessage.id)) return;
+      try {
+        this.repository.getMessage(optimisticMessage.id);
+      } catch {
+        return;
+      }
+      this.repository.switchToBranch(optimisticMessage.id);
+      this._notifySubscribers();
+      if (this.repository.headId !== optimisticMessage.id) return;
+    }
+
+    const startRun = message.startRun ?? true;
+    if (startRun) {
+      await this.startRun({
+        parentId: optimisticMessage.id,
+        sourceId: message.sourceId,
+        runConfig: message.runConfig ?? {},
+      });
+    } else {
+      this.repository.resetHead(optimisticMessage.id);
       this._notifySubscribers();
     }
   }

@@ -713,11 +713,13 @@ declare abstract class BaseComposerRuntimeCore extends BaseSubscribable implemen
   reset(): Promise<void>;
   clearAttachments(): Promise<void>;
   send(options?: SendOptions): Promise<void>;
+  protected supportsOptimisticAttachmentSend(_role: MessageRole, _options: SendOptions | undefined): boolean;
+  private _sendOptimistic;
   cancel(): void;
   get queue(): readonly QueueItemState[];
   moveQueueItem(_queueItemId: string, _placement: QueuePlacement): void;
   removeQueueItem(_queueItemId: string): void;
-  protected abstract handleSend(message: Omit<AppendMessage, "parentId" | "sourceId">, options?: SendOptions): void | Promise<void>;
+  protected abstract handleSend(message: Omit<AppendMessage, "parentId" | "sourceId">, options?: SendOptions, uploadAttachments?: () => Promise<readonly CompleteAttachment[]>): void | Promise<void>;
   protected abstract handleCancel(): void;
   addAttachment(fileOrAttachment: File | CreateAttachment): Promise<void>;
   private _safeEmitAttachmentAddError;
@@ -1336,7 +1338,8 @@ declare class DefaultThreadComposerRuntimeCore extends BaseComposerRuntimeCore i
     } | undefined;
   });
   connect(): Unsubscribe$1;
-  handleSend(message: Omit<AppendMessage, "parentId" | "sourceId">, options?: SendOptions): Promise<void>;
+  protected supportsOptimisticAttachmentSend(role: MessageRole, options: SendOptions | undefined): boolean;
+  handleSend(message: Omit<AppendMessage, "parentId" | "sourceId">, options?: SendOptions, uploadAttachments?: () => Promise<readonly CompleteAttachment[]>): Promise<void>;
   handleCancel(): Promise<void>;
 }
 
