@@ -41,15 +41,32 @@ const sendCancelledError = new Error(
   "eve send was dropped because the run was cancelled.",
 );
 
+type EveLifecycleCallbackName =
+  | "onError"
+  | "onEvent"
+  | "onFinish"
+  | "onSessionChange";
+
+const reportEveLifecycleCallbackError = (
+  name: EveLifecycleCallbackName,
+  error: unknown,
+) => {
+  console.error(`[assistant-ui/eve] ${name} callback threw an error`, error);
+};
+
 const invokeEveLifecycleCallback = <T>(
-  name: string,
-  callback: ((value: T) => void) | undefined,
+  name: EveLifecycleCallbackName,
+  callback: ((value: T) => unknown) | undefined,
   value: T,
 ) => {
+  if (!callback) return;
+
   try {
-    callback?.(value);
+    void Promise.resolve(callback(value)).catch((error) => {
+      reportEveLifecycleCallbackError(name, error);
+    });
   } catch (error) {
-    console.error(`[assistant-ui/eve] ${name} callback threw an error`, error);
+    reportEveLifecycleCallbackError(name, error);
   }
 };
 
