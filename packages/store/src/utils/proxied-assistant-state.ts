@@ -2,20 +2,11 @@
 import { getClientState } from "../useClientResource";
 import type { AssistantClient, AssistantState } from "../types/client";
 import { BaseProxyHandler, handleIntrospectionProp } from "./BaseProxyHandler";
-
-const isIgnoredKey = (key: string | symbol): key is "on" | "subscribe" => {
-  return key === "on" || key === "subscribe" || typeof key === "symbol";
-};
-
-// Derived clients hold inherited scopes on the prototype chain, so
-// enumeration must use for..in rather than Object.keys
-const clientScopeKeys = (client: AssistantClient): string[] => {
-  const keys: string[] = [];
-  for (const key in client) {
-    if (!isIgnoredKey(key)) keys.push(key);
-  }
-  return keys;
-};
+import {
+  clientScopeKeys,
+  isIgnoredClientKey,
+  isScopeAvailable,
+} from "./client-keys";
 
 /**
  * Proxied state that lazily accesses scope states
@@ -36,8 +27,8 @@ const createProxiedAssistantState = (
       );
       if (introspection !== false) return introspection;
       const scope = prop as keyof AssistantClient;
-      if (isIgnoredKey(scope)) return undefined;
-      if (client[scope].source === null) return undefined;
+      if (isIgnoredClientKey(scope)) return undefined;
+      if (!isScopeAvailable(client[scope])) return undefined;
       return getClientState(client[scope]());
     }
 
@@ -46,7 +37,7 @@ const createProxiedAssistantState = (
     }
 
     has(_: unknown, prop: string | symbol): boolean {
-      return !isIgnoredKey(prop) && prop in client;
+      return !isIgnoredClientKey(prop) && prop in client;
     }
   }
 
@@ -64,7 +55,7 @@ const createProxiedAssistantState = (
         ));
       }
       const scope = prop as keyof AssistantClient;
-      if (isIgnoredKey(scope)) return undefined;
+      if (isIgnoredClientKey(scope)) return undefined;
       return getClientState(client[scope]());
     }
 
@@ -73,7 +64,9 @@ const createProxiedAssistantState = (
     }
 
     has(_: unknown, prop: string | symbol): boolean {
-      return prop === "optional" || (!isIgnoredKey(prop) && prop in client);
+      return (
+        prop === "optional" || (!isIgnoredClientKey(prop) && prop in client)
+      );
     }
   }
 

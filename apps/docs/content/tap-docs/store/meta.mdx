@@ -74,10 +74,13 @@ aui.message.name; // "message"
 aui.message.getState(); // throws
 ```
 
-The accessor itself is always truthy, so `if (aui.message)` does not tell you anything. Check availability with:
+The accessor itself is always truthy, so `if (aui.message)` does not tell you anything. Check availability through `aui.optional`, which resolves an unavailable scope to `undefined` instead of a throwing accessor:
 
 ```tsx
-if (aui.message.source != null) {
+aui.optional.message; // undefined — no message scope in context
+aui.optional.message?.getState(); // safe: undefined when unavailable
+
+if (aui.optional.message) {
   // scope is available
 }
 ```

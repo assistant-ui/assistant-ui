@@ -3,6 +3,7 @@ import { useContextProvider } from "@assistant-ui/tap";
 import type { AssistantClient } from "../types/client";
 import { BaseProxyHandler, handleIntrospectionProp } from "./BaseProxyHandler";
 import { createErrorClientAccessor } from "./client-accessor";
+import { createOptionalClientView } from "./optional-client-view";
 
 const NO_OP_SUBSCRIBE = () => () => {};
 
@@ -15,16 +16,23 @@ class EmptyAssistantClientProxyHandler
 {
   readonly #displayName: string;
   readonly #messageOf: (prop: string) => string;
+  readonly #getOptional: () => AssistantClient["optional"];
 
-  constructor(displayName: string, messageOf: (prop: string) => string) {
+  constructor(
+    displayName: string,
+    messageOf: (prop: string) => string,
+    getOptional: () => AssistantClient["optional"],
+  ) {
     super();
     this.#displayName = displayName;
     this.#messageOf = messageOf;
+    this.#getOptional = getOptional;
   }
 
   get(_: unknown, prop: string | symbol) {
     if (prop === "subscribe") return NO_OP_SUBSCRIBE;
     if (prop === "on") return NO_OP_SUBSCRIBE;
+    if (prop === "optional") return this.#getOptional();
     const introspection = handleIntrospectionProp(prop, this.#displayName);
     if (introspection !== false) return introspection;
     return createErrorClientAccessor(
@@ -34,22 +42,39 @@ class EmptyAssistantClientProxyHandler
   }
 
   ownKeys(): ArrayLike<string | symbol> {
-    return ["subscribe", "on"];
+    return ["subscribe", "on", "optional"];
   }
 
   has(_: unknown, prop: string | symbol): boolean {
-    return prop === "subscribe" || prop === "on";
+    return prop === "subscribe" || prop === "on" || prop === "optional";
+  }
+
+  // Built clients define `optional` non-enumerable; report it the same here
+  // so it is never an own enumerable key on any client flavor
+  override getOwnPropertyDescriptor(_: unknown, prop: string | symbol) {
+    const descriptor = super.getOwnPropertyDescriptor(_, prop);
+    if (descriptor && prop === "optional") {
+      return { ...descriptor, enumerable: false };
+    }
+    return descriptor;
   }
 }
 
 const createEmptyAssistantClient = (
   displayName: string,
   messageOf: (prop: string) => string,
-): AssistantClient =>
-  new Proxy<AssistantClient>(
+): AssistantClient => {
+  let optional: AssistantClient["optional"] | undefined;
+  const client: AssistantClient = new Proxy<AssistantClient>(
     {} as AssistantClient,
-    new EmptyAssistantClientProxyHandler(displayName, messageOf),
+    new EmptyAssistantClientProxyHandler(
+      displayName,
+      messageOf,
+      () => (optional ??= createOptionalClientView(client)),
+    ),
   );
+  return client;
+};
 
 /** Default context value - throws "wrap in AuiProvider" error */
 export const DefaultAssistantClient: AssistantClient =

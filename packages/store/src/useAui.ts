@@ -48,6 +48,8 @@ import { useAssistantTapContextProvider } from "./utils/tap-assistant-context";
 import { ClientResource } from "./useClientResource";
 import { useShallowStable } from "./utils/useShallowStable";
 import { createClientAccessor, getClientId } from "./utils/client-accessor";
+import { isScopePresentButUnavailable } from "./utils/client-keys";
+import { createOptionalClientView } from "./utils/optional-client-view";
 import { getClientIndex } from "./utils/tap-client-stack-context";
 
 const isDevelopment =
@@ -117,6 +119,12 @@ const createClientObject = (
 
   const client = Object.create(proto) as AssistantClient;
   Object.assign(client, fields);
+  let optional: AssistantClient["optional"] | undefined;
+  Object.defineProperty(client, "optional", {
+    get: () => (optional ??= createOptionalClientView(client)),
+    enumerable: false,
+    configurable: true,
+  });
   return client;
 };
 
@@ -145,8 +153,7 @@ const useClientFields = ({
 
         if (scope !== "*") {
           // A hand-built parent may lack the scope entirely; forward to it
-          const source = this[scope as ClientNames]?.source;
-          if (source === null) {
+          if (isScopePresentButUnavailable(this[scope as ClientNames])) {
             throw new Error(
               `Scope "${scope}" is not available. Use { scope: "*", event: "${event}" } to listen globally.`,
             );
@@ -169,7 +176,7 @@ const useClientFields = ({
         });
         if (
           scope !== "*" &&
-          clientRef.parent[scope as ClientNames]?.source === null
+          isScopePresentButUnavailable(clientRef.parent[scope as ClientNames])
         )
           return localUnsub;
 

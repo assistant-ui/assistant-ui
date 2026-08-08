@@ -105,7 +105,7 @@ Accessing `s.counter` in a selector throws if the `counter` scope hasn't been pr
 const count = useAuiState((s) => s.optional.counter?.count);
 ```
 
-To branch on availability outside a selector, check the accessor's `source` via `useAui()` — it's `null` when the scope isn't available.
+To branch on availability outside a selector, use `useAui().optional.<scope>` — it's `undefined` when the scope isn't available.
 
 ## AuiIf
 
