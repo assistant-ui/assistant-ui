@@ -36,6 +36,10 @@ function toCloudThread(t: {
 
 export function useThreads(options: UseThreadsOptions): UseThreadsResult {
   const { cloud, includeArchived = false, enabled = true } = options;
+  const includeArchivedRef = useRef(includeArchived);
+  useLayoutEffect(() => {
+    includeArchivedRef.current = includeArchived;
+  }, [includeArchived]);
 
   const [threads, setThreads] = useState<CloudThread[]>([]);
   const [isLoading, setIsLoading] = useState(enabled);
@@ -218,15 +222,16 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
           await cloud.threads.update(id, { is_archived: true });
 
           commit(() => {
+            const shouldIncludeArchived = includeArchivedRef.current;
             setThreads((prev) => {
-              if (includeArchived) {
+              if (shouldIncludeArchived) {
                 return prev.map((t) =>
                   t.id === id ? { ...t, status: "archived" } : t,
                 );
               }
               return prev.filter((t) => t.id !== id);
             });
-            if (!includeArchived) {
+            if (!shouldIncludeArchived) {
               setSelection((current) =>
                 current.scope === scope && current.threadId === id
                   ? { scope, threadId: null }
@@ -241,7 +246,7 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
         isCurrentCloud,
       );
     },
-    [cloud, includeArchived, isCurrentCloud, scope, withAction],
+    [cloud, isCurrentCloud, scope, withAction],
   );
 
   const unarchive = useCallback(
