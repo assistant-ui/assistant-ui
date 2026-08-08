@@ -165,6 +165,22 @@ describe("consumeSuggestionResult", () => {
     expect(updates).toEqual([[{ prompt: "one" }], [{ prompt: "two" }]]);
   });
 
+  it("passes suggestions with title and label through unchanged", async () => {
+    const controller = new AbortController();
+    const onUpdate = vi.fn();
+    const suggestions: readonly ThreadSuggestion[] = [
+      { title: "Weather", label: "in SF", prompt: "What's the weather?" },
+      { prompt: "Summarize this" },
+    ];
+
+    await consumeSuggestionResult(Promise.resolve(suggestions), {
+      signal: controller.signal,
+      onUpdate,
+    });
+
+    expect(onUpdate).toHaveBeenCalledWith(suggestions);
+  });
+
   it("drops the promise result when aborted before resolve", async () => {
     const controller = new AbortController();
     const onUpdate = vi.fn();

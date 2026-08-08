@@ -4027,8 +4027,8 @@ type SuggestionByIndexProviderProps = PropsWithChildren<{
 }>;
 
 type SuggestionConfig = string | {
-  title: string;
-  label: string;
+  title?: string;
+  label?: string;
   prompt: string;
 };
 
@@ -5042,6 +5042,8 @@ type ThreadStep = {
 };
 
 type ThreadSuggestion = {
+  title?: string;
+  label?: string;
   prompt: string;
 };
 

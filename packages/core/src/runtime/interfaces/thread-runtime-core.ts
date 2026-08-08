@@ -72,6 +72,11 @@ export type SubmitFeedbackOptions = {
 };
 
 export type ThreadSuggestion = {
+  /** Display heading for the suggestion. Falls back to the prompt when absent. */
+  title?: string;
+  /** Secondary display text shown alongside the title. */
+  label?: string;
+  /** The message text sent when the suggestion is selected. */
   prompt: string;
 };
 
