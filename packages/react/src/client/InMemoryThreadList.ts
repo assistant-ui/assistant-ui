@@ -190,7 +190,9 @@ const useInMemoryThreadList = (
     switchToNewThread: handleSwitchToNewThread,
     getLoadThreadsPromise: () => RESOLVED_PROMISE,
     reload: () => RESOLVED_PROMISE,
-    reloadMainThread: () => RESOLVED_PROMISE,
+    reloadMainThread: async () => {
+      await mainThreadClient.methods.unstable_refetchThread?.();
+    },
     loadMore: () => RESOLVED_PROMISE,
     item: (selector) => {
       if (selector === "main") {

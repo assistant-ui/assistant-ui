@@ -2190,6 +2190,7 @@ type ExternalThreadProps = {
   onNew?: (message: AppendMessage) => void;
   onEdit?: (message: AppendMessage) => void;
   onReload?: (parentId: string | null) => void;
+  onRefetchThread?: (() => Promise<void>) | undefined;
   onStartRun?: () => void;
   onCancel?: () => void;
   onResume?: (() => void) | undefined;
