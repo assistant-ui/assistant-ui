@@ -232,6 +232,20 @@ jobs:
     name: Test Changed Packages
     runs-on: blacksmith-8vcpu-ubuntu-2404
     timeout-minutes: 5
+    # assistant-stream's resumable store advertises a peer union over ioredis 5
+    # and 6 and node-redis; both legs need a live server or their suites skip.
+    services:
+      redis:
+        image: redis:8-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      REDIS_URL: redis://127.0.0.1:6379
     # Note: No dependency on 'build' job - Turbo handles test->build dependencies internally via dependsOn
     steps:
       - name: Checkout code repository
