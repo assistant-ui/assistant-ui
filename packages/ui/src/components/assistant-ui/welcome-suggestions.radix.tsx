@@ -139,7 +139,7 @@ const welcomeSuggestionRowVariants = cva(
 
 export type IconReveal = "always" | "hover" | "off";
 
-// The trailing row icons — swap these to customize.
+// The trailing row icons; swap these to customize.
 const GroupIcon = ChevronRightIcon;
 const ItemIcon = CornerDownLeftIcon;
 
