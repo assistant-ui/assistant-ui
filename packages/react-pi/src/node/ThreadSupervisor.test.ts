@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { SessionInfo } from "@earendil-works/pi-coding-agent";
+import type {
+  AgentSession,
+  SessionInfo,
+} from "@earendil-works/pi-coding-agent";
 import { PiThreadSupervisor } from "./ThreadSupervisor";
 
 const sdk = vi.hoisted(() => ({
@@ -66,6 +69,42 @@ const createReadonlySessionManager = () => {
     })),
     getBranch: vi.fn(() => branch),
   };
+};
+
+const createLiveSession = (prompt: AgentSession["prompt"]) =>
+  ({
+    sessionId: "t1",
+    sessionFile: SESSION.path,
+    state: { pendingToolCalls: new Set<string>() },
+    messages: [],
+    sessionName: undefined,
+    model: undefined,
+    thinkingLevel: "off",
+    isStreaming: false,
+    isCompacting: false,
+    isRetrying: false,
+    bindExtensions: vi.fn(async () => {}),
+    subscribe: vi.fn(() => () => {}),
+    prompt,
+    getSteeringMessages: vi.fn(() => []),
+    getFollowUpMessages: vi.fn(() => []),
+    getContextUsage: vi.fn(() => undefined),
+    dispose: vi.fn(),
+  }) as unknown as AgentSession;
+
+const subscribeToErrors = async (
+  supervisor: PiThreadSupervisor,
+): Promise<string[]> => {
+  const errors: string[] = [];
+  supervisor.subscribe(
+    "t1",
+    (event) => {
+      if (event.type === "error") errors.push(event.error);
+    },
+    { includeSnapshot: false },
+  );
+  await Promise.resolve();
+  return errors;
 };
 
 describe("PiThreadSupervisor", () => {
@@ -222,5 +261,46 @@ describe("PiThreadSupervisor", () => {
         supportsThinking: false,
       },
     ]);
+  });
+
+  it("emits an immediate prompt rejection once", async () => {
+    const error = new Error("prompt failed");
+    const session = createLiveSession(async (_content, options) => {
+      options?.preflightResult?.(false);
+      throw error;
+    });
+    sdk.create.mockReturnValue({});
+    sdk.createAgentSession.mockResolvedValue({ session });
+    const supervisor = new PiThreadSupervisor({ workspacePath: "/ws" });
+    await supervisor.createThread();
+    const errors = await subscribeToErrors(supervisor);
+
+    await expect(
+      supervisor.sendMessage("t1", { content: "hello" }),
+    ).rejects.toBe(error);
+
+    expect(errors).toEqual(["prompt failed"]);
+  });
+
+  it("still emits a prompt rejection after preflight acceptance", async () => {
+    let rejectPrompt!: (error: Error) => void;
+    const session = createLiveSession((_content, options) => {
+      options?.preflightResult?.(true);
+      return new Promise<void>((_resolve, reject) => {
+        rejectPrompt = reject;
+      });
+    });
+    sdk.create.mockReturnValue({});
+    sdk.createAgentSession.mockResolvedValue({ session });
+    const supervisor = new PiThreadSupervisor({ workspacePath: "/ws" });
+    await supervisor.createThread();
+    const errors = await subscribeToErrors(supervisor);
+
+    await supervisor.sendMessage("t1", { content: "hello" });
+    rejectPrompt(new Error("run failed"));
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(errors).toEqual(["run failed"]);
   });
 });
