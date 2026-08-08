@@ -160,7 +160,7 @@ export function useResources<E extends ResourceElement<any>>(
     return () => {
       for (const key of fibers.keys()) {
         const fiber = fibers.get(key)!.fiber;
-        unmountResourceFiber(fiber);
+        if (fiber.isMounted) unmountResourceFiber(fiber);
       }
     };
   }, [fibers]);
@@ -179,7 +179,7 @@ export function useResources<E extends ResourceElement<any>>(
         // Bailed this render: nothing to commit, keep committed deps/value.
       } else {
         if (next.remount) {
-          unmountResourceFiber(state.fiber);
+          if (state.fiber.isMounted) unmountResourceFiber(state.fiber);
           state.fiber = next.remount;
         }
         commitResourceFiber(state.fiber);
