@@ -7,14 +7,17 @@ import { useThreads } from "./useThreads";
 type Deferred<T> = {
   promise: Promise<T>;
   resolve: (value: T) => void;
+  reject: (reason?: unknown) => void;
 };
 
 function createDeferred<T>(): Deferred<T> {
   let resolve!: (value: T) => void;
-  const promise = new Promise<T>((res) => {
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
     resolve = res;
+    reject = rej;
   });
-  return { promise, resolve };
+  return { promise, resolve, reject };
 }
 
 function createThreadListResponse(title: string, id = "thread-1") {
@@ -209,6 +212,45 @@ describe("useThreads", () => {
       expect(result.current.threads[0]?.id).toBe("thread-a");
     });
     expect(result.current.threadId).toBeNull();
+  });
+
+  it("resets scoped thread state when the cloud changes", async () => {
+    const cloudA = createCloud("thread-a");
+    const cloudB = createCloud("thread-b");
+    const cloudBList =
+      createDeferred<ReturnType<typeof createThreadListResponse>>();
+    cloudB.threads.list.mockReturnValue(cloudBList.promise);
+
+    const { result, rerender } = renderHook(
+      ({ cloud }) => useThreads({ cloud: cloud as never }),
+      { initialProps: { cloud: cloudA } },
+    );
+
+    await waitFor(() => {
+      expect(result.current.threads[0]?.id).toBe("thread-a");
+    });
+    cloudA.threads.list.mockRejectedValueOnce(
+      new Error("previous workspace unavailable"),
+    );
+    await act(async () => {
+      expect(await result.current.refresh()).toBe(false);
+    });
+    expect(result.current.error?.message).toBe(
+      "previous workspace unavailable",
+    );
+
+    rerender({ cloud: cloudB });
+
+    expect(result.current.threads).toEqual([]);
+    expect(result.current.error).toBeNull();
+    expect(result.current.isLoading).toBe(true);
+
+    cloudBList.reject(new Error("workspace unavailable"));
+    await waitFor(() => {
+      expect(result.current.error?.message).toBe("workspace unavailable");
+    });
+    expect(result.current.threads).toEqual([]);
+    expect(result.current.isLoading).toBe(false);
   });
 
   it("ignores a refresh that resolves after the cloud changes", async () => {
