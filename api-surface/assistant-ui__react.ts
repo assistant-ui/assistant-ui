@@ -2198,6 +2198,7 @@ type ExternalThreadProps = {
   onLoadExternalState?: ((state: unknown) => void) | undefined;
   attachmentAdapter?: AttachmentAdapter | undefined;
   feedbackAdapter?: FeedbackAdapter | undefined;
+  speechAdapter?: SpeechSynthesisAdapter | undefined;
   queue?: ExternalThreadQueueAdapter;
   branches?: ExternalThreadBranchAdapter;
   onRespondToToolApproval?: (options: RespondToToolApprovalOptions) => void;

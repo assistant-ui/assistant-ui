@@ -34,6 +34,8 @@ import type {
   ExternalThreadBranchAdapter,
   QueuePlacement,
   FeedbackAdapter,
+  SpeechState,
+  SpeechSynthesisAdapter,
 } from "@assistant-ui/core";
 import { ToolResponse } from "assistant-stream";
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
@@ -99,6 +101,7 @@ export type ExternalThreadProps = {
   onLoadExternalState?: ((state: unknown) => void) | undefined;
   attachmentAdapter?: AttachmentAdapter | undefined;
   feedbackAdapter?: FeedbackAdapter | undefined;
+  speechAdapter?: SpeechSynthesisAdapter | undefined;
   /** Queue adapter for runtimes that support message queuing and steering. */
   queue?: ExternalThreadQueueAdapter;
   /** Branch adapter for runtimes that track sibling variants of messages. */
@@ -123,6 +126,9 @@ type MessageClientProps = {
   attachmentAdapter?: AttachmentAdapter | undefined;
   submittedFeedback: { type: "positive" | "negative" } | undefined;
   onSubmitFeedback: (feedback: { type: "positive" | "negative" }) => void;
+  speech: SpeechState | undefined;
+  onSpeak: () => void;
+  onStopSpeaking: () => void;
 };
 
 // Message Client - minimal implementation
@@ -140,6 +146,9 @@ const useMessageClient = ({
   attachmentAdapter,
   submittedFeedback,
   onSubmitFeedback,
+  speech,
+  onSpeak,
+  onStopSpeaking,
 }: MessageClientProps): ClientOutput<"message"> => {
   const [isCopied, setIsCopied] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
@@ -221,7 +230,7 @@ const useMessageClient = ({
       isLast: false, // Will be set by thread
       branchNumber,
       branchCount,
-      speech: undefined,
+      speech,
       parts: partClients.state,
       isCopied,
       isHovering,
@@ -239,6 +248,7 @@ const useMessageClient = ({
     branchNumber,
     branchCount,
     submittedFeedback,
+    speech,
   ]);
 
   return {
@@ -248,8 +258,8 @@ const useMessageClient = ({
     reload: () => {
       onReload?.();
     },
-    speak: () => {},
-    stopSpeaking: () => {},
+    speak: onSpeak,
+    stopSpeaking: onStopSpeaking,
     submitFeedback: onSubmitFeedback,
     switchToBranch: ({ position, branchId }) => {
       if (!branches) return;
@@ -732,6 +742,65 @@ const useComposerClientResource = ({
 
 const ComposerClientResource = resource(useComposerClientResource);
 
+const createSpeechController = (
+  notify: (speech: SpeechState | undefined) => void,
+) => {
+  let session: { messageId: string; cancel: () => void } | undefined;
+
+  const clear = () => {
+    if (!session) return;
+    session.cancel();
+    session = undefined;
+    notify(undefined);
+  };
+
+  return {
+    speak: (
+      adapter: SpeechSynthesisAdapter,
+      message: ExternalThreadMessage,
+    ) => {
+      clear();
+
+      const utterance = adapter.speak(getThreadMessageText(message));
+      let unsub: (() => void) | undefined;
+      unsub = utterance.subscribe(() => {
+        if (utterance.status.type === "ended") {
+          unsub?.();
+          session = undefined;
+          notify(undefined);
+        } else {
+          notify({ messageId: message.id, status: utterance.status });
+        }
+      });
+
+      if (utterance.status.type === "ended") {
+        unsub();
+        notify(undefined);
+        return;
+      }
+
+      session = {
+        messageId: message.id,
+        cancel: () => {
+          unsub!();
+          utterance.cancel();
+        },
+      };
+      notify({ messageId: message.id, status: utterance.status });
+    },
+    stop: () => {
+      if (!session) throw new Error("No message is being spoken");
+      clear();
+    },
+    stopMessage: (messageId: string) => {
+      if (session?.messageId !== messageId)
+        throw new Error("Message is not being spoken");
+      clear();
+    },
+    dispose: clear,
+  };
+};
+
 const dedupeMessagesById = (messages: readonly ExternalThreadMessage[]) => {
   const seenIds = new Set<string>();
   const deduped: ExternalThreadMessage[] = [];
@@ -768,6 +837,7 @@ const useExternalThread = ({
   onLoadExternalState,
   attachmentAdapter,
   feedbackAdapter,
+  speechAdapter,
   queue,
   branches,
   onRespondToToolApproval,
@@ -826,6 +896,22 @@ const useExternalThread = ({
     }
   };
 
+  const [speechState, setSpeech] = useState<SpeechState | undefined>(undefined);
+  const [speechController] = useState(() => createSpeechController(setSpeech));
+
+  const hasSpeechAdapter = !!speechAdapter;
+  const speech = hasSpeechAdapter ? speechState : undefined;
+  useEffect(() => {
+    if (!hasSpeechAdapter) speechController.dispose();
+  }, [hasSpeechAdapter, speechController]);
+
+  useEffect(() => () => speechController.dispose(), [speechController]);
+
+  const handleSpeak = (message: ExternalThreadMessage) => {
+    if (!speechAdapter) throw new Error("Speech adapter not configured");
+    speechController.speak(speechAdapter, message);
+  };
+
   const handleReload = (messageId: string) => {
     const messageIndex = messages.findIndex((m) => m.id === messageId);
     if (messageIndex === -1) return;
@@ -849,6 +935,9 @@ const useExternalThread = ({
         attachmentAdapter,
         submittedFeedback: feedbackFor(msg),
         onSubmitFeedback: (feedback) => handleSubmitFeedback(msg, feedback),
+        speech: speech?.messageId === msg.id ? speech : undefined,
+        onSpeak: () => handleSpeak(msg),
+        onStopSpeaking: () => speechController.stopMessage(msg.id),
       };
       if (onEdit) props.onEdit = onEdit;
       return withKey(msg.id, MessageClient(props));
@@ -897,6 +986,7 @@ const useExternalThread = ({
   const hasReload = !!onReload;
   const hasAttachments = !!attachmentAdapter;
   const hasFeedback = !!feedbackAdapter;
+  const hasSpeech = !!speechAdapter;
   const state = useMemo(() => {
     const messageStates = messageClients.state.map((s, idx, arr) => ({
       ...s,
@@ -914,7 +1004,7 @@ const useExternalThread = ({
         reload: hasReload,
         refetchThread: false,
         cancel: isRunning,
-        speech: false,
+        speech: hasSpeech,
         attachments: hasAttachments,
         feedback: hasFeedback,
         voice: false,
@@ -928,7 +1018,7 @@ const useExternalThread = ({
       state: threadState ?? {},
       suggestions: [],
       extras,
-      speech: undefined,
+      speech,
       voice: undefined,
       composer: composerClient.state,
     };
@@ -944,6 +1034,8 @@ const useExternalThread = ({
     hasReload,
     hasAttachments,
     hasFeedback,
+    hasSpeech,
+    speech,
     messageClients.state,
     composerClient.state,
   ]);
@@ -1010,7 +1102,7 @@ const useExternalThread = ({
       }
       return messageClients.get(selector);
     },
-    stopSpeaking: () => {},
+    stopSpeaking: speechController.stop,
     connectVoice: () => {},
     disconnectVoice: () => {},
     getVoiceVolume: () => 0,
