@@ -612,6 +612,34 @@ describe("createMessageQueue", () => {
     expect(cb).toHaveBeenCalled();
   });
 
+  it("isolates subscriber errors while enqueueing", () => {
+    const run = vi.fn();
+    const { adapter, subscribe } = createMessageQueue({ run });
+    const error = new Error("subscriber failed");
+    const laterSubscriber = vi.fn();
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    subscribe(() => {
+      throw error;
+    });
+    subscribe(laterSubscriber);
+
+    try {
+      expect(() => adapter.enqueue(msg("a"), { steer: false })).not.toThrow();
+      expect(run).toHaveBeenCalledTimes(1);
+      expect(adapter.items).toHaveLength(0);
+      expect(laterSubscriber).toHaveBeenCalledTimes(2);
+      expect(consoleError).toHaveBeenCalledWith(
+        "[assistant-ui] Message queue listener threw an error",
+        error,
+      );
+    } finally {
+      consoleError.mockRestore();
+    }
+  });
+
   it("buffers when a run started outside the queue is marked busy", () => {
     const run = vi.fn();
     const { adapter, notifyBusy, notifyIdle } = createMessageQueue({ run });
