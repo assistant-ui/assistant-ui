@@ -37,7 +37,7 @@ export const createFormattedPersistence = <TMessage, TStorageFormat>(
       content: ReadonlyJSONObject,
     ) => Promise<void>;
     load: (threadId: string, format?: string) => Promise<any[]>;
-    isPersisted: (messageId: string) => boolean;
+    isPersisted: (threadIdOrMessageId: string, messageId?: string) => boolean;
     update?: (
       threadId: string,
       messageId: string,
@@ -92,5 +92,8 @@ export const createFormattedPersistence = <TMessage, TStorageFormat>(
         .reverse(),
     };
   },
-  isPersisted: (messageId: string) => persistence.isPersisted(messageId),
+  isPersisted: (threadIdOrMessageId: string, messageId?: string) =>
+    messageId === undefined
+      ? persistence.isPersisted(threadIdOrMessageId)
+      : persistence.isPersisted(threadIdOrMessageId, messageId),
 });

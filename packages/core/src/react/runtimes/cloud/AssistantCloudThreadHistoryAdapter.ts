@@ -112,12 +112,11 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
   }
 
   async update(item: ExportedMessageRepositoryItem) {
-    if (!this._persistence.isPersisted(item.message.id)) {
-      return this.append(item);
-    }
     const { message } = item;
     const remoteId = this.aui.threadListItem.getState().remoteId;
-    if (!remoteId) return;
+    if (!remoteId || !this._persistence.isPersisted(remoteId, message.id)) {
+      return this.append(item);
+    }
     const encoded = auiV0Encode(message);
     await this._persistence.update(remoteId, message.id, "aui/v0", encoded);
 

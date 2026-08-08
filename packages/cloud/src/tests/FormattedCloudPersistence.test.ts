@@ -106,6 +106,9 @@ describe("createFormattedPersistence", () => {
     persistence.isPersisted.mockReturnValue(true);
     const formatted = createFormattedPersistence(persistence, adapter);
 
+    expect(formatted.isPersisted("thread-1", "msg-1")).toBe(true);
+    expect(persistence.isPersisted).toHaveBeenCalledWith("thread-1", "msg-1");
+
     expect(formatted.isPersisted("msg-1")).toBe(true);
     expect(persistence.isPersisted).toHaveBeenCalledWith("msg-1");
   });

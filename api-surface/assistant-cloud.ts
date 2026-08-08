@@ -318,12 +318,15 @@ declare class CloudMessagePersistence {
   private getCloud;
   constructor(cloud: AssistantCloud);
   constructor(getCloud: () => AssistantCloud);
+  private getThreadMapping;
   append(threadId: string, messageId: string, parentId: string | null, format: string, content: ReadonlyJSONObject): Promise<void>;
   update(threadId: string, messageId: string, _format: string, content: ReadonlyJSONObject): Promise<void>;
   isPersisted(messageId: string): boolean;
+  isPersisted(threadId: string, messageId: string): boolean;
   getRemoteId(messageId: string): Promise<string | undefined>;
+  getRemoteId(threadId: string, messageId: string): Promise<string | undefined>;
   load(threadId: string, format?: string): Promise<CloudMessage[]>;
-  reset(): void;
+  reset(threadId?: string): void;
 }
 
 declare class CloudResponseError extends Error {
@@ -492,7 +495,7 @@ type ToolModelContentPart = {
 declare const createFormattedPersistence: <TMessage, TStorageFormat>(persistence: {
   append: (threadId: string, messageId: string, parentId: string | null, format: string, content: ReadonlyJSONObject) => Promise<void>;
   load: (threadId: string, format?: string) => Promise<any[]>;
-  isPersisted: (messageId: string) => boolean;
+  isPersisted: (threadIdOrMessageId: string, messageId?: string) => boolean;
   update?: (threadId: string, messageId: string, format: string, content: ReadonlyJSONObject) => Promise<void>;
 }, adapter: MessageFormatAdapter<TMessage, TStorageFormat>) => {
   append: (threadId: string, item: {
@@ -509,7 +512,7 @@ declare const createFormattedPersistence: <TMessage, TStorageFormat>(persistence
       message: TMessage;
     }[];
   }>;
-  isPersisted: (messageId: string) => boolean;
+  isPersisted: (threadIdOrMessageId: string, messageId?: string) => boolean;
 };
 
 declare function createSamplingCollector(): {
