@@ -932,4 +932,76 @@ describe("unstable_runPendingTools", () => {
       expect(called).toBe(false);
     });
   });
+
+  describe("execution lifecycle callbacks", () => {
+    it.each(["onExecutionStart", "onExecutionEnd"] as const)(
+      "preserves tool results when %s throws",
+      async (callbackName) => {
+        const callbackError = new Error(`${callbackName} failed`);
+        const error = vi.spyOn(console, "error").mockImplementation(() => {});
+        const lifecycleCallback = vi.fn(() => {
+          throw callbackError;
+        });
+        const inputChunks: AssistantStreamChunk[] = [
+          {
+            type: "part-start",
+            path: [],
+            part: {
+              type: "tool-call",
+              toolCallId: "tc-lifecycle",
+              toolName: "succeed",
+            },
+          },
+          { type: "text-delta", path: [0], textDelta: "{}" },
+          { type: "tool-call-args-text-finish", path: [0] },
+          { type: "part-finish", path: [0] },
+        ];
+        const inputStream = new ReadableStream<AssistantStreamChunk>({
+          start(controller) {
+            for (const chunk of inputChunks) controller.enqueue(chunk);
+            controller.close();
+          },
+        });
+        const outputChunks: AssistantStreamChunk[] = [];
+
+        await inputStream
+          .pipeThrough(
+            unstable_toolResultStream(
+              {
+                succeed: {
+                  parameters: { type: "object", properties: {} },
+                  execute: async () => "done",
+                },
+              },
+              new AbortController().signal,
+              async () => {},
+              callbackName === "onExecutionStart"
+                ? { onExecutionStart: lifecycleCallback }
+                : { onExecutionEnd: lifecycleCallback },
+            ),
+          )
+          .pipeTo(
+            new WritableStream<AssistantStreamChunk>({
+              write(chunk) {
+                outputChunks.push(chunk);
+              },
+            }),
+          );
+
+        expect(lifecycleCallback).toHaveBeenCalledOnce();
+        expect(outputChunks.find((chunk) => chunk.type === "result")).toEqual(
+          expect.objectContaining({
+            type: "result",
+            result: "done",
+            isError: false,
+          }),
+        );
+        expect(error).toHaveBeenCalledWith(
+          `[assistant-stream] ${callbackName} callback threw an error`,
+          callbackError,
+        );
+        error.mockRestore();
+      },
+    );
+  });
 });
