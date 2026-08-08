@@ -24,7 +24,7 @@ import type {
   EveMessageInputRequest,
   EveMessagePart,
 } from "eve/react";
-import type { InputResponse, SendTurnPayload } from "eve/client";
+import type { InputResponse } from "eve/client";
 
 const ASSISTANT_COMPLETE_STATUS = {
   type: "complete",
@@ -419,12 +419,31 @@ export const convertEveMessages = (
   );
 
 /**
+ * Structural subset of the message content Eve's `send` API accepts. Eve
+ * renames its send payload type at the peer range's ceiling (`SendTurnPayload`
+ * is public through 0.30 but internal from 0.31, where `SendTurnOptions`
+ * replaces it), so the helpers declare the shapes they produce and leave
+ * assignability to the send call site, checked against the installed version.
+ */
+export type EveMessageContent =
+  | string
+  | (
+      | { readonly type: "text"; readonly text: string }
+      | {
+          readonly type: "file";
+          readonly data: string;
+          readonly mediaType: string;
+          readonly filename?: string;
+        }
+    )[];
+
+/**
  * Converts an assistant-ui append message into the message payload accepted by
  * Eve's `send` API.
  */
 export const getEveMessageContent = (
   message: AppendMessage,
-): NonNullable<SendTurnPayload["message"]> => {
+): EveMessageContent => {
   const content = [
     ...message.content,
     ...(message.attachments?.flatMap((attachment) => attachment.content) ?? []),

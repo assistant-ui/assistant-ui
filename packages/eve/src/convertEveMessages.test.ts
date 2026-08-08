@@ -8,6 +8,11 @@ import {
 } from "./convertEveMessages";
 import type { AppendMessage } from "@assistant-ui/core";
 
+const eventMeta = (sequence: number) => ({
+  at: "2026-01-01T00:00:00.000Z",
+  id: `evt_${sequence}`,
+});
+
 describe("convertEveMessages", () => {
   it("converts text and reasoning parts", () => {
     const data = {
@@ -68,6 +73,7 @@ describe("convertEveMessages", () => {
                   name: "send_email",
                   inputRequest: {
                     requestId: "req_1",
+                    kind: "tool-approval",
                     prompt: "Send the email?",
                     display: "confirmation",
                     options: [
@@ -846,6 +852,7 @@ describe("convertEveMessages", () => {
       const events: readonly EveAgentReducerEvent[] = [
         {
           type: "authorization.required",
+          meta: eventMeta(0),
           data: {
             turnId: "turn_1",
             stepIndex: 0,
@@ -856,6 +863,7 @@ describe("convertEveMessages", () => {
         },
         {
           type: "turn.cancelled",
+          meta: eventMeta(1),
           data: { turnId: "turn_1", sequence: 1 },
         },
       ];
@@ -1010,14 +1018,17 @@ describe("convertEveMessages", () => {
         },
         {
           type: "turn.started",
+          meta: eventMeta(0),
           data: { turnId: "turn_1", sequence: 0 },
         },
         {
           type: "step.started",
+          meta: eventMeta(1),
           data: { turnId: "turn_1", stepIndex: 0, sequence: 1 },
         },
         {
           type: "message.appended",
+          meta: eventMeta(2),
           data: {
             turnId: "turn_1",
             stepIndex: 0,
@@ -1033,6 +1044,7 @@ describe("convertEveMessages", () => {
           ...midStreamEvents,
           {
             type: "authorization.required",
+            meta: eventMeta(3),
             data: {
               turnId: "turn_1",
               stepIndex: 0,
@@ -1073,6 +1085,7 @@ describe("convertEveMessages", () => {
           ...midStreamEvents,
           {
             type: "authorization.required",
+            meta: eventMeta(3),
             data: {
               turnId: "turn_1",
               stepIndex: 0,
@@ -1083,6 +1096,7 @@ describe("convertEveMessages", () => {
           },
           {
             type: "authorization.completed",
+            meta: eventMeta(4),
             data: {
               turnId: "turn_1",
               stepIndex: 0,
@@ -1112,6 +1126,7 @@ describe("convertEveMessages", () => {
           ...midStreamEvents,
           {
             type: "authorization.required",
+            meta: eventMeta(3),
             data: {
               turnId: "turn_1",
               stepIndex: 0,
@@ -1122,6 +1137,7 @@ describe("convertEveMessages", () => {
           },
           {
             type: "authorization.required",
+            meta: eventMeta(4),
             data: {
               turnId: "turn_1",
               stepIndex: 0,
@@ -1132,6 +1148,7 @@ describe("convertEveMessages", () => {
           },
           {
             type: "authorization.completed",
+            meta: eventMeta(5),
             data: {
               turnId: "turn_1",
               stepIndex: 0,
@@ -1165,6 +1182,7 @@ describe("convertEveMessages", () => {
           ...midStreamEvents,
           {
             type: "session.failed",
+            meta: eventMeta(3),
             data: { sessionId: "session_1", code: "internal", message: "boom" },
           },
         ]);
@@ -1188,6 +1206,7 @@ describe("convertEveMessages", () => {
           ...midStreamEvents,
           {
             type: "turn.failed",
+            meta: eventMeta(3),
             data: {
               turnId: "turn_1",
               sequence: 3,
@@ -1209,6 +1228,7 @@ describe("convertEveMessages", () => {
           ...midStreamEvents,
           {
             type: "message.completed",
+            meta: eventMeta(3),
             data: {
               turnId: "turn_1",
               stepIndex: 0,
@@ -1219,6 +1239,7 @@ describe("convertEveMessages", () => {
           },
           {
             type: "turn.completed",
+            meta: eventMeta(4),
             data: { turnId: "turn_1", sequence: 4 },
           },
         ]);

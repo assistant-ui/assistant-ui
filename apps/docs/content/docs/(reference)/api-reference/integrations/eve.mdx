@@ -36,7 +36,7 @@ Converts an assistant-ui append message into the message payload accepted by
 Eve's `send` API.
 
 ```ts
-const getEveMessageContent: (message: AppendMessage) => NonNullable<SendTurnPayload["message"]>;
+const getEveMessageContent: (message: AppendMessage) => EveMessageContent;
 ```
 
 ### toEveInputResponse
