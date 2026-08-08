@@ -71,6 +71,10 @@ import { ExportedMessageRepository } from "@assistant-ui/react";
 import { createPiThreadState } from "./threadState";
 import { usePiRuntime } from "./usePiRuntime";
 
+(
+  globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
+).IS_REACT_ACT_ENVIRONMENT = true;
+
 let root: Root | undefined;
 
 afterEach(() => {
@@ -78,6 +82,7 @@ afterEach(() => {
   root = undefined;
   mocks.adapters.length = 0;
   vi.clearAllMocks();
+  vi.restoreAllMocks();
 });
 
 describe("usePiRuntime error callbacks", () => {
@@ -128,7 +133,6 @@ describe("usePiRuntime error callbacks", () => {
           callbackError,
         ),
       );
-      consoleError.mockRestore();
     },
   );
 });
