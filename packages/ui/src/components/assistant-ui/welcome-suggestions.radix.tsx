@@ -22,6 +22,7 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent as ReactMouseEvent,
   type ReactNode,
+  type RefObject,
 } from "react";
 import { Direction } from "radix-ui";
 import {
@@ -441,7 +442,7 @@ export const WelcomeSuggestionsPills: FC = () => {
               {isGroup(entry) ? (
                 <button
                   type="button"
-                  className={cn(pillClass)}
+                  className={pillClass}
                   onClick={() => openGroup(entry)}
                   onKeyDown={(e) => onPillKeyDown(e, entry)}
                 >
@@ -452,7 +453,7 @@ export const WelcomeSuggestionsPills: FC = () => {
                 <ThreadPrimitive.Suggestion
                   prompt={promptOf(entry)}
                   send={send}
-                  className={cn(pillClass)}
+                  className={pillClass}
                   onKeyDown={(e) => onPillKeyDown(e, entry)}
                 >
                   {entry.label}
@@ -526,15 +527,21 @@ export const WelcomeSuggestionsPickerItem: FC<
 // without selecting, so both put the open-time draft back; each hands focus
 // back to the surface's top level via its callback — a native Tab move would
 // land on the composer's neighbors, not the suggestions.
+//
+// Without a registry the composer cannot drive the panel: the hook then
+// focuses the surface's listbox and returns a keydown handler that routes
+// the same keys locally.
 const useComposerCoupling = ({
+  listboxRef,
   onEscape,
   onTab,
   onExitUp,
 }: {
+  listboxRef: RefObject<HTMLDivElement | null>;
   onEscape?: () => void;
   onTab?: () => void;
   onExitUp?: () => void;
-} = {}) => {
+}) => {
   const registry = unstable_useComposerInputPluginRegistry();
   const {
     group,
@@ -544,6 +551,7 @@ const useComposerCoupling = ({
     close,
     currentId,
     popoverId,
+    hasRegistry,
   } = useWelcomeSuggestions();
   const currentIdRef = useRef(currentId);
   currentIdRef.current = currentId;
@@ -613,6 +621,22 @@ const useComposerCoupling = ({
       highlightedItemId: currentId ?? undefined,
     });
   }, [registry, group, popoverId, currentId]);
+
+  useEffect(() => {
+    if (group && !hasRegistry) listboxRef.current?.focus();
+  }, [group, hasRegistry, listboxRef]);
+
+  const fallbackKeyDown = (e: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (hasRegistry) return;
+    if (e.key === "ArrowDown") moveHighlight(1);
+    else if (e.key === "ArrowUp") moveHighlight(-1);
+    else if (e.key === "Enter") selectCurrent();
+    else if (e.key === "Tab") onTab?.();
+    else return;
+    e.preventDefault();
+  };
+
+  return fallbackKeyDown;
 };
 
 export type WelcomeSuggestionsPickerProps = VariantProps<
@@ -628,16 +652,8 @@ export const WelcomeSuggestionsPicker: FC<WelcomeSuggestionsPickerProps> = ({
   separators,
   children,
 }) => {
-  const {
-    entries,
-    group,
-    close,
-    moveHighlight,
-    selectCurrent,
-    currentId,
-    popoverId,
-    hasRegistry,
-  } = useWelcomeSuggestions();
+  const { entries, group, close, currentId, popoverId } =
+    useWelcomeSuggestions();
   const getPills = usePillCollection(undefined);
   const listboxRef = useRef<HTMLDivElement>(null);
 
@@ -653,30 +669,11 @@ export const WelcomeSuggestionsPicker: FC<WelcomeSuggestionsPickerProps> = ({
     });
   }, [group, entries, close, getPills]);
 
-  useComposerCoupling({ onTab: returnToPills, onExitUp: returnToPills });
-
-  // Without a registry the composer cannot drive the panel, so the panel
-  // focuses itself and handles navigation keys locally.
-  useEffect(() => {
-    if (group && !hasRegistry) listboxRef.current?.focus();
-  }, [group, hasRegistry]);
-
-  const onFallbackKeyDown = (e: ReactKeyboardEvent<HTMLDivElement>) => {
-    if (hasRegistry) return;
-    if (e.key === "ArrowDown") {
-      moveHighlight(1);
-      e.preventDefault();
-    } else if (e.key === "ArrowUp") {
-      moveHighlight(-1);
-      e.preventDefault();
-    } else if (e.key === "Enter") {
-      selectCurrent();
-      e.preventDefault();
-    } else if (e.key === "Tab") {
-      returnToPills();
-      e.preventDefault();
-    }
-  };
+  const fallbackKeyDown = useComposerCoupling({
+    listboxRef,
+    onTab: returnToPills,
+    onExitUp: returnToPills,
+  });
 
   if (!group) return null;
   return (
@@ -726,7 +723,7 @@ export const WelcomeSuggestionsPicker: FC<WelcomeSuggestionsPickerProps> = ({
             aria-label={group.label}
             aria-activedescendant={currentId ?? undefined}
             tabIndex={-1}
-            onKeyDown={onFallbackKeyDown}
+            onKeyDown={fallbackKeyDown}
             className="flex flex-col outline-none"
           >
             {children ??
@@ -779,11 +776,8 @@ export const WelcomeSuggestionsStack: FC<WelcomeSuggestionsStackProps> = ({
     close,
     setGhost,
     send,
-    moveHighlight,
-    selectCurrent,
     currentId,
     popoverId,
-    hasRegistry,
   } = useWelcomeSuggestions();
   const direction = Direction.useDirection();
   const getStackRows = useStackCollection(undefined);
@@ -826,6 +820,11 @@ export const WelcomeSuggestionsStack: FC<WelcomeSuggestionsStackProps> = ({
     [entries, setGhost],
   );
 
+  const clickRow = useCallback(
+    (idx: number) => getStackRows()[idx]?.ref.current?.click(),
+    [getStackRows],
+  );
+
   // Escape and Tab both leave the sub-level without selecting; the group's
   // own row comes back highlighted so the arrows keep working. With a
   // registry the return is virtual — the composer keeps focus and keeps
@@ -843,15 +842,15 @@ export const WelcomeSuggestionsStack: FC<WelcomeSuggestionsStackProps> = ({
     }
   }, [group, entries, close, registry, enterComposerNav]);
 
-  useComposerCoupling({ onEscape: returnToTop, onTab: returnToTop });
+  const fallbackKeyDown = useComposerCoupling({
+    listboxRef: listRef,
+    onEscape: returnToTop,
+    onTab: returnToTop,
+  });
 
   useEffect(() => {
     if (group) exitComposerNav();
   }, [group, exitComposerNav]);
-
-  useEffect(() => {
-    if (group && !hasRegistry) listRef.current?.focus();
-  }, [group, hasRegistry]);
 
   // Navigation never touches the draft, so any composer edit is the user's:
   // hand the arrows back. Gated on a ref so the check runs only when the
@@ -922,7 +921,7 @@ export const WelcomeSuggestionsStack: FC<WelcomeSuggestionsStackProps> = ({
         if (!entry) return false;
         if (e.key === "Enter") {
           if (isGroup(entry)) openGroup(entry);
-          else getStackRows()[idx]?.ref.current?.click();
+          else clickRow(idx);
           e.preventDefault();
           return true;
         }
@@ -944,9 +943,9 @@ export const WelcomeSuggestionsStack: FC<WelcomeSuggestionsStackProps> = ({
     exitComposerNav,
     enterComposerNav,
     previewRow,
+    clickRow,
     caretAtEnd,
     setCursorPosition,
-    getStackRows,
   ]);
 
   useEffect(() => {
@@ -959,23 +958,7 @@ export const WelcomeSuggestionsStack: FC<WelcomeSuggestionsStackProps> = ({
   }, [registry, composerNav, topIdx, popoverId, rowId]);
 
   const onKeyDown = (e: ReactKeyboardEvent<HTMLDivElement>) => {
-    if (group) {
-      if (hasRegistry) return;
-      if (e.key === "ArrowDown") {
-        moveHighlight(1);
-        e.preventDefault();
-      } else if (e.key === "ArrowUp") {
-        moveHighlight(-1);
-        e.preventDefault();
-      } else if (e.key === "Enter") {
-        selectCurrent();
-        e.preventDefault();
-      } else if (e.key === "Tab") {
-        returnToTop();
-        e.preventDefault();
-      }
-      return;
-    }
+    if (group) return fallbackKeyDown(e);
     if (e.key === "ArrowDown" || e.key === "ArrowUp") {
       const last = entries.length - 1;
       setTopIdx((idx) =>
@@ -1003,7 +986,7 @@ export const WelcomeSuggestionsStack: FC<WelcomeSuggestionsStackProps> = ({
       openGroup(entry);
       e.preventDefault();
     } else if (e.key === "Enter") {
-      getStackRows()[topIdx]?.ref.current?.click();
+      clickRow(topIdx);
       e.preventDefault();
     }
   };

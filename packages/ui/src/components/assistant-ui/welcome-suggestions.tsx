@@ -22,6 +22,7 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent as ReactMouseEvent,
   type ReactNode,
+  type RefObject,
 } from "react";
 import { useDirection } from "@base-ui/react/direction-provider";
 import { cn } from "@/lib/utils";
@@ -451,7 +452,7 @@ export const WelcomeSuggestionsPills: FC = () => {
               key={idx}
               id={pillId(popoverId, idx)}
               type="button"
-              className={cn(pillClass)}
+              className={pillClass}
               onClick={() => openGroup(entry)}
               onKeyDown={(e) => onPillKeyDown(e, entry)}
             >
@@ -464,7 +465,7 @@ export const WelcomeSuggestionsPills: FC = () => {
               id={pillId(popoverId, idx)}
               prompt={promptOf(entry)}
               send={send}
-              className={cn(pillClass)}
+              className={pillClass}
               onKeyDown={(e) => onPillKeyDown(e, entry)}
             >
               {entry.label}
@@ -503,8 +504,8 @@ export const WelcomeSuggestionsPickerItem: FC<
   const prompts = usePickerPrompts();
   const highlighted = currentId === id;
 
-  // Keyboard navigation previews the highlighted option's prompt in the
-  // composer; options are found in the DOM, so the prompt needs a registry.
+  // Options are found in the DOM, which carries no prompt text, so each
+  // item publishes its prompt by id for the highlight preview.
   useEffect(() => {
     prompts.set(id, prompt);
     return () => void prompts.delete(id);
@@ -535,6 +536,43 @@ export const WelcomeSuggestionsPickerItem: FC<
   );
 };
 
+// Escape and outside pointer-downs dismiss an open panel, except inside a
+// composer surface: the composer keeps focus and drives the panel while
+// open. Both mirror Radix's DismissableLayer: a defaultPrevented
+// pointerdown lets outside controls act on the panel without dismissing
+// it, and Escape is consumed in the capture phase so enclosing handlers
+// see it as already handled.
+const useDismissOutside = (
+  ref: RefObject<HTMLElement | null>,
+  active: boolean,
+  {
+    onDismiss,
+    onEscape = onDismiss,
+  }: { onDismiss: () => void; onEscape?: (() => void) | undefined },
+) => {
+  useEffect(() => {
+    if (!active) return undefined;
+    const onPointerDown = (e: PointerEvent) => {
+      if (e.defaultPrevented) return;
+      const target = e.target as Element | null;
+      if (!target || ref.current?.contains(target)) return;
+      if (target.closest('[data-slot*="composer"]')) return;
+      onDismiss();
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== "Escape" || e.defaultPrevented) return;
+      e.preventDefault();
+      onEscape();
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown, true);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown, true);
+    };
+  }, [ref, active, onDismiss, onEscape]);
+};
+
 // Mounted by surfaces whose open group is composer-driven (Picker, Stack's
 // sub-level). The composer keeps focus while the group is open; this plugin
 // routes its keydowns to panel navigation. The arrows wrap; a surface may
@@ -543,15 +581,21 @@ export const WelcomeSuggestionsPickerItem: FC<
 // without selecting, so both put the open-time draft back; each hands focus
 // back to the surface's top level via its callback — a native Tab move would
 // land on the composer's neighbors, not the suggestions.
+//
+// Without a registry the composer cannot drive the panel: the hook then
+// focuses the surface's listbox and returns a keydown handler that routes
+// the same keys locally.
 const useComposerCoupling = ({
+  listboxRef,
   onEscape,
   onTab,
   onExitUp,
 }: {
+  listboxRef: RefObject<HTMLDivElement | null>;
   onEscape?: () => void;
   onTab?: () => void;
   onExitUp?: () => void;
-} = {}) => {
+}) => {
   const registry = unstable_useComposerInputPluginRegistry();
   const {
     group,
@@ -561,6 +605,7 @@ const useComposerCoupling = ({
     close,
     currentId,
     popoverId,
+    hasRegistry,
   } = useWelcomeSuggestions();
   const currentIdRef = useRef(currentId);
   currentIdRef.current = currentId;
@@ -630,6 +675,22 @@ const useComposerCoupling = ({
       highlightedItemId: currentId ?? undefined,
     });
   }, [registry, group, popoverId, currentId]);
+
+  useEffect(() => {
+    if (group && !hasRegistry) listboxRef.current?.focus();
+  }, [group, hasRegistry, listboxRef]);
+
+  const fallbackKeyDown = (e: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (hasRegistry) return;
+    if (e.key === "ArrowDown") moveHighlight(1);
+    else if (e.key === "ArrowUp") moveHighlight(-1);
+    else if (e.key === "Enter") selectCurrent();
+    else if (e.key === "Tab") onTab?.();
+    else return;
+    e.preventDefault();
+  };
+
+  return fallbackKeyDown;
 };
 
 export type WelcomeSuggestionsPickerProps = VariantProps<
@@ -645,16 +706,8 @@ export const WelcomeSuggestionsPicker: FC<WelcomeSuggestionsPickerProps> = ({
   separators,
   children,
 }) => {
-  const {
-    entries,
-    group,
-    close,
-    moveHighlight,
-    selectCurrent,
-    currentId,
-    popoverId,
-    hasRegistry,
-  } = useWelcomeSuggestions();
+  const { entries, group, close, currentId, popoverId } =
+    useWelcomeSuggestions();
   const panelRef = useRef<HTMLDivElement>(null);
   const listboxRef = useRef<HTMLDivElement>(null);
 
@@ -670,58 +723,13 @@ export const WelcomeSuggestionsPicker: FC<WelcomeSuggestionsPickerProps> = ({
     });
   }, [group, entries, close, popoverId]);
 
-  useComposerCoupling({ onTab: returnToPills, onExitUp: returnToPills });
+  const fallbackKeyDown = useComposerCoupling({
+    listboxRef,
+    onTab: returnToPills,
+    onExitUp: returnToPills,
+  });
 
-  // Without a registry the composer cannot drive the panel, so the panel
-  // focuses itself and handles navigation keys locally.
-  useEffect(() => {
-    if (group && !hasRegistry) listboxRef.current?.focus();
-  }, [group, hasRegistry]);
-
-  // Escape and outside pointer-downs dismiss the panel, except inside a
-  // composer surface: the composer keeps focus and drives it while open.
-  // Like DismissableLayer, a defaultPrevented pointerdown is an opt-out, so
-  // outside controls can act on the open panel without dismissing it.
-  useEffect(() => {
-    if (!group) return undefined;
-    const onPointerDown = (e: PointerEvent) => {
-      if (e.defaultPrevented) return;
-      const target = e.target as Element | null;
-      if (!target || panelRef.current?.contains(target)) return;
-      if (target.closest('[data-slot*="composer"]')) return;
-      close();
-    };
-    // Capture phase with preventDefault, like Radix's DismissableLayer:
-    // enclosing Escape handlers check defaultPrevented to yield to us.
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key !== "Escape" || e.defaultPrevented) return;
-      e.preventDefault();
-      close();
-    };
-    document.addEventListener("pointerdown", onPointerDown);
-    document.addEventListener("keydown", onKeyDown, true);
-    return () => {
-      document.removeEventListener("pointerdown", onPointerDown);
-      document.removeEventListener("keydown", onKeyDown, true);
-    };
-  }, [group, close]);
-
-  const onFallbackKeyDown = (e: ReactKeyboardEvent<HTMLDivElement>) => {
-    if (hasRegistry) return;
-    if (e.key === "ArrowDown") {
-      moveHighlight(1);
-      e.preventDefault();
-    } else if (e.key === "ArrowUp") {
-      moveHighlight(-1);
-      e.preventDefault();
-    } else if (e.key === "Enter") {
-      selectCurrent();
-      e.preventDefault();
-    } else if (e.key === "Tab") {
-      returnToPills();
-      e.preventDefault();
-    }
-  };
+  useDismissOutside(panelRef, group !== undefined, { onDismiss: close });
 
   if (!group) return null;
   return (
@@ -754,7 +762,7 @@ export const WelcomeSuggestionsPicker: FC<WelcomeSuggestionsPickerProps> = ({
         aria-label={group.label}
         aria-activedescendant={currentId ?? undefined}
         tabIndex={-1}
-        onKeyDown={onFallbackKeyDown}
+        onKeyDown={fallbackKeyDown}
         className="flex flex-col outline-none"
       >
         {children ??
@@ -803,11 +811,8 @@ export const WelcomeSuggestionsStack: FC<WelcomeSuggestionsStackProps> = ({
     close,
     setGhost,
     send,
-    moveHighlight,
-    selectCurrent,
     currentId,
     popoverId,
-    hasRegistry,
   } = useWelcomeSuggestions();
   const direction = useDirection();
   const registry = unstable_useComposerInputPluginRegistry();
@@ -849,6 +854,14 @@ export const WelcomeSuggestionsStack: FC<WelcomeSuggestionsStackProps> = ({
     [entries, setGhost],
   );
 
+  const clickRow = useCallback(
+    (idx: number) =>
+      listRef.current
+        ?.querySelectorAll<HTMLButtonElement>('[role="option"]')
+        [idx]?.click(),
+    [],
+  );
+
   // Escape and Tab both leave the sub-level without selecting; the group's
   // own row comes back highlighted so the arrows keep working. With a
   // registry the return is virtual — the composer keeps focus and keeps
@@ -866,15 +879,15 @@ export const WelcomeSuggestionsStack: FC<WelcomeSuggestionsStackProps> = ({
     }
   }, [group, entries, close, registry, enterComposerNav]);
 
-  useComposerCoupling({ onEscape: returnToTop, onTab: returnToTop });
+  const fallbackKeyDown = useComposerCoupling({
+    listboxRef: listRef,
+    onEscape: returnToTop,
+    onTab: returnToTop,
+  });
 
   useEffect(() => {
     if (group) exitComposerNav();
   }, [group, exitComposerNav]);
-
-  useEffect(() => {
-    if (group && !hasRegistry) listRef.current?.focus();
-  }, [group, hasRegistry]);
 
   // Navigation never touches the draft, so any composer edit is the user's:
   // hand the arrows back. Gated on a ref so the check runs only when the
@@ -945,10 +958,7 @@ export const WelcomeSuggestionsStack: FC<WelcomeSuggestionsStackProps> = ({
         if (!entry) return false;
         if (e.key === "Enter") {
           if (isGroup(entry)) openGroup(entry);
-          else
-            listRef.current
-              ?.querySelectorAll<HTMLButtonElement>('[role="option"]')
-              [idx]?.click();
+          else clickRow(idx);
           e.preventDefault();
           return true;
         }
@@ -970,6 +980,7 @@ export const WelcomeSuggestionsStack: FC<WelcomeSuggestionsStackProps> = ({
     exitComposerNav,
     enterComposerNav,
     previewRow,
+    clickRow,
     caretAtEnd,
     setCursorPosition,
   ]);
@@ -983,52 +994,13 @@ export const WelcomeSuggestionsStack: FC<WelcomeSuggestionsStackProps> = ({
     return () => registry.setActiveDescendant("welcome-suggestions-top", null);
   }, [registry, composerNav, topIdx, popoverId, rowId]);
 
-  // Escape and outside pointer-downs return to the top level, except inside
-  // a composer surface: the composer keeps focus and drives the sub-level.
-  // Like DismissableLayer, a defaultPrevented pointerdown is an opt-out, so
-  // outside controls can act on the open sub-level without dismissing it.
-  useEffect(() => {
-    if (!group) return undefined;
-    const onPointerDown = (e: PointerEvent) => {
-      if (e.defaultPrevented) return;
-      const target = e.target as Element | null;
-      if (!target || listRef.current?.contains(target)) return;
-      if (target.closest('[data-slot*="composer"]')) return;
-      close();
-    };
-    // Capture phase with preventDefault, like Radix's DismissableLayer:
-    // enclosing Escape handlers check defaultPrevented to yield to us.
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key !== "Escape" || e.defaultPrevented) return;
-      e.preventDefault();
-      returnToTop();
-    };
-    document.addEventListener("pointerdown", onPointerDown);
-    document.addEventListener("keydown", onKeyDown, true);
-    return () => {
-      document.removeEventListener("pointerdown", onPointerDown);
-      document.removeEventListener("keydown", onKeyDown, true);
-    };
-  }, [group, close, returnToTop]);
+  useDismissOutside(listRef, group !== undefined, {
+    onDismiss: close,
+    onEscape: returnToTop,
+  });
 
   const onKeyDown = (e: ReactKeyboardEvent<HTMLDivElement>) => {
-    if (group) {
-      if (hasRegistry) return;
-      if (e.key === "ArrowDown") {
-        moveHighlight(1);
-        e.preventDefault();
-      } else if (e.key === "ArrowUp") {
-        moveHighlight(-1);
-        e.preventDefault();
-      } else if (e.key === "Enter") {
-        selectCurrent();
-        e.preventDefault();
-      } else if (e.key === "Tab") {
-        returnToTop();
-        e.preventDefault();
-      }
-      return;
-    }
+    if (group) return fallbackKeyDown(e);
     if (e.key === "ArrowDown" || e.key === "ArrowUp") {
       const last = entries.length - 1;
       setTopIdx((idx) =>
@@ -1056,9 +1028,7 @@ export const WelcomeSuggestionsStack: FC<WelcomeSuggestionsStackProps> = ({
       openGroup(entry);
       e.preventDefault();
     } else if (e.key === "Enter") {
-      listRef.current
-        ?.querySelectorAll<HTMLButtonElement>('[role="option"]')
-        [topIdx]?.click();
+      clickRow(topIdx);
       e.preventDefault();
     }
   };
