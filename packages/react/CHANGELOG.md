@@ -1,5 +1,21 @@
 # @assistant-ui/react
 
+## 0.15.11
+
+### Patch Changes
+
+- [#5723](https://github.com/assistant-ui/assistant-ui/pull/5723) [`94dc3e5`](https://github.com/assistant-ui/assistant-ui/commit/94dc3e509fa2b4fae1a14c88ec34b910c8d95af8) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+- [#5722](https://github.com/assistant-ui/assistant-ui/pull/5722) [`7faf0fb`](https://github.com/assistant-ui/assistant-ui/commit/7faf0fb1fbc3e36f14ba4822446f95bf730c452b) - fix: ExternalThread edit composer reads editing state live, so a same-tick beginEdit + setText + send dispatches the edit; send before beginEdit and double beginEdit now throw (legacy runtime parity) ([@Yonom](https://github.com/Yonom))
+
+- Updated dependencies [[`94dc3e5`](https://github.com/assistant-ui/assistant-ui/commit/94dc3e509fa2b4fae1a14c88ec34b910c8d95af8), [`ab57969`](https://github.com/assistant-ui/assistant-ui/commit/ab5796932c97bc5bade19022e2ac8762949d2967)]:
+  - assistant-stream@0.3.36
+  - assistant-cloud@0.1.39
+  - @assistant-ui/core@0.3.10
+  - safe-content-frame@0.0.27
+  - @assistant-ui/store@0.3.8
+  - @assistant-ui/tap@0.9.11
+
 ## 0.15.10
 
 ### Patch Changes

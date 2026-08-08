@@ -1,5 +1,13 @@
 # @assistant-ui/react-lexical
 
+## 0.2.8
+
+### Patch Changes
+
+- [#5723](https://github.com/assistant-ui/assistant-ui/pull/5723) [`94dc3e5`](https://github.com/assistant-ui/assistant-ui/commit/94dc3e509fa2b4fae1a14c88ec34b910c8d95af8) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+- [#5725](https://github.com/assistant-ui/assistant-ui/pull/5725) [`15f9bd9`](https://github.com/assistant-ui/assistant-ui/commit/15f9bd9faed088edbe8889930de44c2f35cc120d) - feat: support lexical 0.49 ([@okisdev](https://github.com/okisdev))
+
 ## 0.2.7
 
 ### Patch Changes

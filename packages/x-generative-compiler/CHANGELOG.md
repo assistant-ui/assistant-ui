@@ -1,5 +1,11 @@
 # @assistant-ui/x-generative-compiler
 
+## 0.0.12
+
+### Patch Changes
+
+- [#5723](https://github.com/assistant-ui/assistant-ui/pull/5723) [`94dc3e5`](https://github.com/assistant-ui/assistant-ui/commit/94dc3e509fa2b4fae1a14c88ec34b910c8d95af8) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
 ## 0.0.11
 
 ### Patch Changes
