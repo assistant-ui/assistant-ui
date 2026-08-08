@@ -98,9 +98,7 @@ declare class AssistantMessageStream {
   constructor(readable: ReadableStream<AssistantMessage>);
   static fromAssistantStream(stream: AssistantStream): AssistantMessageStream;
   unstable_result(): Promise<AssistantMessage>;
-  [Symbol.asyncIterator](): {
-    next(): Promise<IteratorResult<AssistantMessage, undefined>>;
-  };
+  [Symbol.asyncIterator](): AsyncIterator<AssistantMessage, any, any>;
   tee(): [
     AssistantMessageStream,
     AssistantMessageStream

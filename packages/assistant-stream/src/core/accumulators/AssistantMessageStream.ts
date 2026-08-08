@@ -1,5 +1,6 @@
 import type { AssistantStream } from "../AssistantStream";
 import type { AssistantMessage } from "../utils/types";
+import { asAsyncIterableStream } from "../../utils/AsyncIterableStream";
 import { AssistantMessageAccumulator } from "./assistant-message-accumulator";
 
 export class AssistantMessageStream {
@@ -40,13 +41,7 @@ export class AssistantMessageStream {
   }
 
   [Symbol.asyncIterator]() {
-    const reader = this.readable.getReader();
-    return {
-      async next(): Promise<IteratorResult<AssistantMessage, undefined>> {
-        const { done, value } = await reader.read();
-        return done ? { done: true, value: undefined } : { done: false, value };
-      },
-    };
+    return asAsyncIterableStream(this.readable)[Symbol.asyncIterator]();
   }
 
   tee(): [AssistantMessageStream, AssistantMessageStream] {
