@@ -177,7 +177,8 @@ const useMessageClient = ({
   };
 
   const handleSendEdit = (msg: AppendMessage) => {
-    onEdit?.({
+    if (!onEdit) throw new Error("Runtime does not support editing.");
+    onEdit({
       ...msg,
       parentId,
       sourceId: message.id,
