@@ -1,6 +1,7 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { useSyncExternalStore } from "../../react-hooks/useSyncExternalStore";
 import { useCallback } from "../../react-hooks/useCallback";
+import { renderResourceFiber } from "../../core/ResourceFiber";
 import {
   createTestResource,
   renderTest,
@@ -150,7 +151,7 @@ describe("useSyncExternalStore", () => {
     expect(storeB.unsubscribeCalls).toBe(1);
   });
 
-  it("keeps the committed value when getSnapshot throws on a notification and resumes once the store is consistent again", async () => {
+  it("treats a getSnapshot that throws on a notification as changed and surfaces the error from the re-render", async () => {
     const store = createStore(["a", "b"]);
     const testFiber = createTestResource(() =>
       useSyncExternalStore(
@@ -165,13 +166,32 @@ describe("useSyncExternalStore", () => {
 
     expect(renderTest(testFiber)).toBe("b");
 
-    // the notification makes the snapshot throw; nothing escapes the store's notify loop
-    expect(() => store.setState(["a"])).not.toThrow();
-    await waitForNextTick();
-    expect(getCommittedValue(testFiber)).toBe("b");
+    // this harness re-renders inline, so the forced re-render's render-time
+    // read surfaces here; under a scheduled host it surfaces from the flush
+    expect(() => store.setState(["a"])).toThrow("index out of bounds");
 
     store.setState(["a", "c"]);
     await waitForNextTick();
     expect(getCommittedValue(testFiber)).toBe("c");
+  });
+
+  it("surfaces a getSnapshot that throws on the first render", () => {
+    const store = createStore(["a"]);
+    const testFiber = createTestResource(() =>
+      useSyncExternalStore(
+        useCallback((cb) => store.subscribe(cb), []),
+        useCallback(() => {
+          const items = store.getState();
+          if (items.length < 2) throw new Error("index out of bounds");
+          return items[1];
+        }, []),
+      ),
+    );
+
+    // rendered directly rather than through renderTest: a fiber that throws on
+    // its first render never mounts, so the harness cannot unmount it in cleanup
+    expect(() => renderResourceFiber(testFiber, [])).toThrow(
+      "index out of bounds",
+    );
   });
 });

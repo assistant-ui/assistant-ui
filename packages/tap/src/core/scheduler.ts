@@ -58,8 +58,8 @@ const scheduleFlush = () => {
   scheduleMacrotask();
 };
 
-const flushScheduled = () => {
-  // save/restore: flushTapSync re-enters flushScheduled with its own flushState
+const drainScheduled = (): unknown[] => {
+  // save/restore: flushTapSync re-enters the drain with its own flushState
   const prevDrainRuns = activeDrainRuns;
   activeDrainRuns = new Map();
   try {
@@ -76,12 +76,25 @@ const flushScheduled = () => {
       }
     }
 
-    throwAggregated(errors, "Errors occurred during flushSync");
+    return errors;
   } finally {
     activeDrainRuns = prevDrainRuns;
     flushState.schedulers.clear();
     flushState.isScheduled = false;
   }
+};
+
+const flushScheduled = () => {
+  throwAggregated(drainScheduled(), "Errors occurred during flushSync");
+};
+
+// A scheduled flush runs with an empty stack above it, so an escaping error is
+// an uncaught error in the browser and an uncaughtException (process exit) in
+// Node, SSR and react-ink. Reporting the drained errors directly also keeps
+// each one to a single line, which routing them through throwAggregated would
+// not. flushTapSync still rethrows, because its caller is there to absorb it.
+const flushFromTask = () => {
+  for (const error of drainScheduled()) console.error(error);
 };
 
 // Use MessageChannel to schedule flushes as macrotasks (like React's scheduler).
@@ -100,7 +113,7 @@ const scheduleMacrotask = (() => {
         const channel = new MessageChannel();
         channel.port1.onmessage = () => {
           port1?.unref?.();
-          flushScheduled();
+          flushFromTask();
         };
         port1 = channel.port1;
         port2 = channel.port2;
@@ -110,7 +123,7 @@ const scheduleMacrotask = (() => {
     };
   }
   // Fallback for environments without MessageChannel
-  return () => setTimeout(flushScheduled, 0);
+  return () => setTimeout(flushFromTask, 0);
 })();
 
 export const flushTapSync = <T>(callback: () => T): T => {
