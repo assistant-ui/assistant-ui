@@ -46,17 +46,17 @@ describe("useLocalRuntime", () => {
     const { rerender } = render(<App cloud={firstCloud} label="first" />);
 
     await waitFor(() => {
-      expect(firstCloud.threads.list).toHaveBeenCalledOnce();
+      expect(firstCloud.threads.list).toHaveBeenCalledTimes(2);
     });
 
     rerender(<App cloud={firstCloud} label="second" />);
-    expect(firstCloud.threads.list).toHaveBeenCalledOnce();
+    expect(firstCloud.threads.list).toHaveBeenCalledTimes(2);
 
     rerender(<App cloud={secondCloud} label="third" />);
     await waitFor(() => {
-      expect(secondCloud.threads.list).toHaveBeenCalledOnce();
+      expect(secondCloud.threads.list).toHaveBeenCalledTimes(2);
     });
-    expect(firstCloud.threads.list).toHaveBeenCalledOnce();
+    expect(firstCloud.threads.list).toHaveBeenCalledTimes(2);
   });
 
   it("handles rejected history loads", async () => {

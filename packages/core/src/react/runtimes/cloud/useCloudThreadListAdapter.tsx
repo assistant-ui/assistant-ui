@@ -89,7 +89,11 @@ export const useCloudThreadListAdapter = (
 
     return {
       list: async () => {
-        const { threads } = await cloud.threads.list();
+        const responses = await Promise.all([
+          cloud.threads.list(),
+          cloud.threads.list({ is_archived: true }),
+        ]);
+        const threads = responses.flatMap((response) => response.threads);
         return {
           threads: threads.map((t) => ({
             status: t.is_archived ? "archived" : "regular",
