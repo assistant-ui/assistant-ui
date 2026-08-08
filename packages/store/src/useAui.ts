@@ -290,6 +290,51 @@ const useHostedAssistantClient = ({
     const clientRef = useRef<ClientRef>({ parent, current: null }).current;
     const notifications = useNotificationManager();
 
+    const { client } = useAuiRoot({
+      parent,
+      entries,
+      clientRef,
+      notifications,
+    });
+
+    useEffect(
+      () => parent.subscribe(notifications.notifySubscribers),
+      // oxlint-disable-next-line react-hooks/exhaustive-deps -- parent is a prop of the outer hook; the host re-renders with a fresh closure when it changes
+      [parent, notifications],
+    );
+
+    useEffect(() => {
+      clientRef.parent = parent;
+      clientRef.current = client;
+    });
+
+    // Every commit publishes a fresh envelope, so value-only updates reach
+    // subscribers here while the client inside keeps its identity
+    useEffect(() => notifications.notifySubscribers());
+
+    if (clientRef.current === null) {
+      clientRef.current = client;
+    }
+
+    return client;
+  });
+
+  return { client, effects };
+};
+
+// Host for the deprecated useAui({...}) overload: the client tree runs under
+// a self-scheduled tap root instead of riding React's scheduler
+const useTapRootAssistantClient = ({
+  parent,
+  entries,
+}: {
+  parent: AssistantClient;
+  entries: ScopeEntry[];
+}): ScopedAuiClient => {
+  const { value: client, effects } = useTapHost(function AssistantClientHost() {
+    const clientRef = useRef<ClientRef>({ parent, current: null }).current;
+    const notifications = useNotificationManager();
+
     const store = useTapRoot(function AuiRoot() {
       return useAuiRoot({ parent, entries, clientRef, notifications });
     });
@@ -397,14 +442,10 @@ const useDerivedOnlyClient = (
 
 type ScopedAuiClient = { client: AssistantClient; effects?: () => void };
 
-// Creates a client extending an explicit parent (which may live in another
-// React root) with the scopes in the config; context is never consulted.
-// `effects` (rooted mode only) commits the host — the provider mounts it
-// ahead of its children's effects; hosts also self-commit as a fallback.
-export const useConfiguredAui = (
+const useScopeEntries = (
   parent: AssistantClient,
   clients: AuiConfig.Input,
-): ScopedAuiClient => {
+): { entries: ScopeEntry[]; rooted: boolean } => {
   const entries = Object.entries(
     applyTransformScopes(clients, parent),
   ) as ScopeEntry[];
@@ -419,9 +460,36 @@ export const useConfiguredAui = (
       entries.some(([, element]) => !isDerivedElement(element)),
   );
 
+  return { entries, rooted };
+};
+
+// Creates a client extending an explicit parent (which may live in another
+// React root) with the scopes in the config; context is never consulted.
+// `effects` (rooted mode only) commits the host — the provider mounts it
+// ahead of its children's effects; hosts also self-commit as a fallback.
+export const useConfiguredAui = (
+  parent: AssistantClient,
+  clients: AuiConfig.Input,
+): ScopedAuiClient => {
+  const { entries, rooted } = useScopeEntries(parent, clients);
+
   if (rooted) {
     // oxlint-disable-next-line react-hooks/rules-of-hooks
     return useHostedAssistantClient({ parent, entries });
+  }
+  // oxlint-disable-next-line react-hooks/rules-of-hooks
+  return { client: useDerivedOnlyClient(parent, entries) };
+};
+
+const useLegacyConfiguredAui = (
+  parent: AssistantClient,
+  clients: AuiConfig.Input,
+): ScopedAuiClient => {
+  const { entries, rooted } = useScopeEntries(parent, clients);
+
+  if (rooted) {
+    // oxlint-disable-next-line react-hooks/rules-of-hooks
+    return useTapRootAssistantClient({ parent, entries });
   }
   // oxlint-disable-next-line react-hooks/rules-of-hooks
   return { client: useDerivedOnlyClient(parent, entries) };
@@ -504,7 +572,7 @@ export function useAui(clients?: useAui.Props): AssistantClient {
   const parent = useAssistantContextValue();
   if (clients) {
     // oxlint-disable-next-line react-hooks/rules-of-hooks -- fixed per call site
-    const { client, effects } = useConfiguredAui(parent, clients);
+    const { client, effects } = useLegacyConfiguredAui(parent, clients);
     if (effects) setTapEffects(client, effects);
     return client;
   }
