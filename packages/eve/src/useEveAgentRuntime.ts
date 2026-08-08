@@ -25,9 +25,10 @@ import {
   type UseEveAgentOptions,
   type UseEveAgentStatus,
 } from "eve/react";
-import type { SendTurnPayload } from "eve/client";
+import type { InputResponse, SendTurnPayload } from "eve/client";
 import {
   convertEveMessages,
+  findEveInputRequest,
   getEveMessageContent,
   toEveInputResponse,
 } from "./convertEveMessages";
@@ -299,12 +300,24 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
       agent.stop();
       return Promise.resolve();
     },
-    onRespondToToolApproval: async (response) => {
+    onRespondToToolApproval: (response) => {
+      const inputRequest = findEveInputRequest(agent.data, response.approvalId);
+      let inputResponse: InputResponse;
       try {
-        await enqueueSend({ inputResponses: [toEveInputResponse(response)] });
+        inputResponse = toEveInputResponse(response, inputRequest);
       } catch (error) {
-        if (error !== sendCancelledError) throw error;
+        // Eve leaves an unanswered request pending, so an unmappable response
+        // must stay answerable. Throwing before the first await surfaces the
+        // failure synchronously to the caller that rendered the controls,
+        // which is the only signal the void `respondToApproval` seam carries.
+        throw new Error(
+          `Eve input request${inputRequest ? ` "${inputRequest.prompt}"` : ""} was not submitted: ${error instanceof Error ? error.message : String(error)}. Respond with an option the request carries, or with the answer text as the reason (see providerMetadata.eve.inputRequest on the tool part).`,
+          { cause: error },
+        );
       }
+      return enqueueSend({ inputResponses: [inputResponse] }).catch((error) => {
+        if (error !== sendCancelledError) throw error;
+      });
     },
   });
 };

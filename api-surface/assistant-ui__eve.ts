@@ -2,7 +2,7 @@ import { StandardSchemaV1 } from "@standard-schema/spec";
 
 import { InputResponse, SendTurnPayload } from "eve/client";
 
-import { EveAuthorizationOutcome, EveAuthorizationPart, EveMessage, EveMessageData, UseEveAgentOptions } from "eve/react";
+import { EveAuthorizationOutcome, EveAuthorizationPart, EveMessage, EveMessageData, EveMessageInputRequest, UseEveAgentOptions } from "eve/react";
 
 type AddToolResultOptions = {
   messageId: string;
@@ -1497,6 +1497,8 @@ declare const convertEveMessage: (message: EveMessage, index: number, messages: 
 
 declare const convertEveMessages: (data: EveMessageData, options?: ConvertEveMessagesOptions) => ThreadMessage[];
 
+declare const findEveInputRequest: (data: EveMessageData, approvalId: string) => EveMessageInputRequest | undefined;
+
 declare const getEveMessageContent: (message: AppendMessage) => NonNullable<SendTurnPayload["message"]>;
 
 declare global {
@@ -1507,10 +1509,10 @@ declare global {
 }
 
 declare namespace entry_root_exports {
-  export { ConvertEveMessagesOptions, EveAuthorizationData, UseEveAgentRuntimeOptions, convertEveMessage, convertEveMessages, getEveMessageContent, toEveInputResponse, useEveAgentRuntime };
+  export { ConvertEveMessagesOptions, EveAuthorizationData, UseEveAgentRuntimeOptions, convertEveMessage, convertEveMessages, findEveInputRequest, getEveMessageContent, toEveInputResponse, useEveAgentRuntime };
 }
 
-declare const toEveInputResponse: (response: RespondToToolApprovalOptions) => InputResponse;
+declare const toEveInputResponse: (response: RespondToToolApprovalOptions, inputRequest?: EveMessageInputRequest) => InputResponse;
 
 declare const useEveAgentRuntime: (options?: UseEveAgentRuntimeOptions) => AssistantRuntime;
 
