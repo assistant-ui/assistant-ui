@@ -139,7 +139,7 @@ const SampleComposer = () => (
   >
     <ComposerPrimitive.Input
       placeholder="Ask anything..."
-      className="field-sizing-content min-h-10 w-full resize-none bg-transparent px-5 pt-4 pb-3 text-sm leading-relaxed focus:outline-none"
+      className="[&[aria-activedescendant]]:text-muted-foreground field-sizing-content min-h-10 w-full resize-none bg-transparent px-5 pt-4 pb-3 text-sm leading-relaxed focus:outline-none"
       rows={1}
     />
     <div className="flex items-center justify-end px-3 pb-3">
@@ -246,9 +246,7 @@ export const WelcomeSuggestionsSample = () => {
         <div className="grid gap-8 lg:grid-cols-2">
           <VariantColumn
             label="Stacked (default)"
-            hint={
-              <>↓ in the empty composer enters the list, ↑ ↓ move, → opens</>
-            }
+            hint={<>press ↓ or click a row, then ↑ ↓ move, → opens</>}
           >
             <WelcomeSuggestionsRoot suggestions={SUGGESTIONS}>
               <WelcomeSuggestionsStack
@@ -261,9 +259,7 @@ export const WelcomeSuggestionsSample = () => {
           </VariantColumn>
           <VariantColumn
             label="Pills + picker"
-            hint={
-              <>click a pill or press ↓ in the composer; ← → move, ↓ opens</>
-            }
+            hint={<>press ↓ or click a pill, then ← → move, ↓ opens</>}
             hintClassName="ml-[50%] -mr-[190px] -translate-x-[190px]"
             className="max-lg:order-last"
           >

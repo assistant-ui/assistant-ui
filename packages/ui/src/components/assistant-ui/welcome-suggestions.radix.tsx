@@ -87,6 +87,23 @@ const [PillCollection, usePillCollection] =
 const [StackCollection, useStackCollection] =
   CollectionPrimitive.createCollection<HTMLButtonElement>("ThreadWelcomeStack");
 
+// ArrowDown hands navigation to the suggestions only once it has no text
+// travel left: the caret sits at the end of the composer text. Lexical's
+// reported offset can overshoot the synced text around empty leading lines,
+// so the comparison is lenient.
+const useCaretAtEnd = () => {
+  const aui = useAui();
+  const posRef = useRef(0);
+  const setCursorPosition = useCallback((pos: number) => {
+    posRef.current = pos;
+  }, []);
+  const caretAtEnd = useCallback(
+    () => posRef.current >= aui.composer().getState().text.length,
+    [aui],
+  );
+  return { setCursorPosition, caretAtEnd };
+};
+
 const pillClass =
   "text-foreground hover:bg-muted border-border/60 inline-flex h-auto items-center gap-1.5 rounded-lg border px-3.5 py-1.5 text-sm font-normal whitespace-nowrap transition-colors [&_svg]:size-4";
 
@@ -128,9 +145,11 @@ const ActionGlyph: FC<{
 type WelcomeSuggestionsContextValue = {
   entries: readonly SuggestionEntry[];
   group: SuggestionGroup | undefined;
-  openGroup: (group: SuggestionGroup) => void;
-  close: (options?: { restoreDraft?: boolean }) => void;
+  openGroup: (group: SuggestionGroup, knownDraft?: string) => void;
+  close: (options?: { keepText?: boolean }) => string;
   moveHighlight: (delta: 1 | -1) => void;
+  highlightItem: (id: string) => void;
+  highlightAtTop: () => boolean;
   selectCurrent: () => void;
   currentId: string | null;
   setCurrentId: (id: string | null) => void;
@@ -182,23 +201,32 @@ const useWelcomeSuggestionsState = ({
     (e): e is SuggestionGroup => isGroup(e) && e.label === openLabel,
   );
 
-  // Escape is cancel: it puts back the draft captured at open time. Tab and
-  // selection keep whatever the picker wrote.
+  // A preview is ghost text: closing puts back the draft captured at open
+  // time, and only selection commits — its trigger runs after this restore,
+  // so send/clearComposer act on the real draft, never on a preview. The
+  // draft is returned because the store lags writes by a flush: a caller
+  // that keeps navigating must adopt it without re-reading stale state.
   const close = useCallback(
-    (options?: { restoreDraft?: boolean }) => {
+    (options?: { keepText?: boolean }) => {
       setOpenLabel(null);
       setCurrentId(null);
-      if (options?.restoreDraft) aui.composer().setText(draftRef.current);
+      if (!options?.keepText) {
+        expectedTextRef.current = draftRef.current;
+        aui.composer().setText(draftRef.current);
+      }
+      return draftRef.current;
     },
     [aui],
   );
 
+  // knownDraft: the store lags writes by a flush, so a caller that just
+  // restored the draft passes it instead of re-reading stale state.
   const openGroup = useCallback(
-    (g: SuggestionGroup) => {
+    (g: SuggestionGroup, knownDraft?: string) => {
       setOpenLabel(g.label);
       setCurrentId(null);
       currentIdRef.current = null;
-      draftRef.current = aui.composer().getState().text;
+      draftRef.current = knownDraft ?? aui.composer().getState().text;
       expectedTextRef.current = draftRef.current;
       registry?.requestFocus();
     },
@@ -211,6 +239,22 @@ const useWelcomeSuggestionsState = ({
     const current = getItems().find((item) => item.id === currentIdRef.current);
     current?.ref.current?.click();
   }, [getItems]);
+
+  // Hover and arrows share this path so the ghost preview always shows the
+  // highlighted item's prompt. Overwriting is safe while open: typing closes
+  // the panel, so the composer only holds the draft or a previous preview.
+  const highlightItem = useCallback(
+    (id: string) => {
+      if (currentIdRef.current === id) return;
+      currentIdRef.current = id;
+      setCurrentId(id);
+      const prompt = getItems().find((item) => item.id === id)?.prompt;
+      if (prompt === undefined) return;
+      expectedTextRef.current = prompt;
+      aui.composer().setText(prompt);
+    },
+    [aui, getItems],
+  );
 
   const moveHighlight = useCallback(
     (delta: 1 | -1) => {
@@ -225,21 +269,22 @@ const useWelcomeSuggestionsState = ({
           : index <= 0
             ? items.length - 1
             : index - 1;
-      const next = items[nextIndex]!;
-      currentIdRef.current = next.id;
-      setCurrentId(next.id);
-      // Overwriting is safe while open: typing closes the panel, so the
-      // composer only holds the open-time draft or a previous preview.
-      expectedTextRef.current = next.prompt;
-      aui.composer().setText(next.prompt);
+      highlightItem(items[nextIndex]!.id);
     },
-    [aui, getItems],
+    [getItems, highlightItem],
   );
 
+  const highlightAtTop = useCallback(() => {
+    const items = getItems();
+    return items.findIndex((item) => item.id === currentIdRef.current) <= 0;
+  }, [getItems]);
+
   // Any composer text the picker did not write itself means the user is
-  // typing (or a selection cleaned the preview up): hand control back.
+  // typing (or a selection cleaned the preview up): hand control back and
+  // keep that text — it is theirs, not a preview.
   useEffect(() => {
-    if (group && composerText !== expectedTextRef.current) close();
+    if (group && composerText !== expectedTextRef.current)
+      close({ keepText: true });
   }, [group, composerText, close]);
 
   return useMemo<WelcomeSuggestionsContextValue>(
@@ -249,6 +294,8 @@ const useWelcomeSuggestionsState = ({
       openGroup,
       close,
       moveHighlight,
+      highlightItem,
+      highlightAtTop,
       selectCurrent,
       currentId,
       setCurrentId,
@@ -262,6 +309,8 @@ const useWelcomeSuggestionsState = ({
       openGroup,
       close,
       moveHighlight,
+      highlightItem,
+      highlightAtTop,
       selectCurrent,
       currentId,
       send,
@@ -314,28 +363,29 @@ export const WelcomeSuggestionsPills: FC = () => {
   const direction = Direction.useDirection();
   const getPills = usePillCollection(undefined);
   const registry = unstable_useComposerInputPluginRegistry();
-  const composerEmpty = useAuiState((s) => s.composer.text.length === 0);
+  const { setCursorPosition, caretAtEnd } = useCaretAtEnd();
 
-  // ArrowDown in an empty composer jumps focus to the first pill, so the row
-  // is reachable without tabbing; Escape on a pill hands focus back.
+  // ArrowDown at the end of the composer text jumps focus to the first pill,
+  // so the row is reachable without tabbing; ArrowUp or Escape on a pill
+  // hands focus back.
   useEffect(() => {
-    if (!registry || group || !composerEmpty) return undefined;
+    if (!registry) return undefined;
     return registry.register({
       handleKeyDown(e) {
-        if (e.key !== "ArrowDown") return false;
+        if (group || e.key !== "ArrowDown" || !caretAtEnd()) return false;
         getPills()[0]?.ref.current?.focus();
         e.preventDefault();
         return true;
       },
-      setCursorPosition() {},
+      setCursorPosition,
     });
-  }, [registry, group, composerEmpty, getPills]);
+  }, [registry, group, caretAtEnd, setCursorPosition, getPills]);
 
   const onPillKeyDown = (
     e: ReactKeyboardEvent<HTMLButtonElement>,
     entry: SuggestionEntry,
   ) => {
-    if (e.key === "Escape" && registry) {
+    if ((e.key === "Escape" || e.key === "ArrowUp") && registry) {
       registry.requestFocus();
       e.preventDefault();
       return;
@@ -424,7 +474,7 @@ export const WelcomeSuggestionsPickerItem: FC<
   ...props
 }) => {
   const id = useId();
-  const { currentId, setCurrentId, close, send } = useWelcomeSuggestions();
+  const { currentId, highlightItem, close, send } = useWelcomeSuggestions();
   const highlighted = currentId === id;
   return (
     <PickerCollection.ItemSlot scope={undefined} id={id} prompt={prompt}>
@@ -437,7 +487,7 @@ export const WelcomeSuggestionsPickerItem: FC<
         aria-selected={highlighted}
         data-highlighted={highlighted || undefined}
         onClick={() => close()}
-        onMouseMove={() => setCurrentId(id)}
+        onMouseMove={() => highlightItem(id)}
         className={cn(
           welcomeSuggestionRowVariants({ density, separators }),
           className,
@@ -453,20 +503,31 @@ export const WelcomeSuggestionsPickerItem: FC<
 
 // Mounted by surfaces whose open group is composer-driven (Picker, Stack's
 // sub-level). The composer keeps focus while the group is open; this plugin
-// routes its keydowns to panel navigation. Escape cancels (the open-time
-// draft comes back) and Tab accepts (the previewed prompt stays); each hands
-// focus back to the surface's top level via onEscape/onTab — a native Tab
-// move would land on the composer's neighbors, not the suggestions.
+// routes its keydowns to panel navigation. The arrows wrap; a surface may
+// opt in to onExitUp to make ArrowUp on the top item climb out one level
+// instead (the pills picker exits to its pill). Escape and Tab both leave
+// without selecting, so both put the open-time draft back; each hands focus
+// back to the surface's top level via its callback — a native Tab move would
+// land on the composer's neighbors, not the suggestions.
 const useComposerCoupling = ({
   onEscape,
   onTab,
+  onExitUp,
 }: {
   onEscape?: () => void;
   onTab?: () => void;
+  onExitUp?: () => void;
 } = {}) => {
   const registry = unstable_useComposerInputPluginRegistry();
-  const { group, moveHighlight, selectCurrent, close, currentId, popoverId } =
-    useWelcomeSuggestions();
+  const {
+    group,
+    moveHighlight,
+    highlightAtTop,
+    selectCurrent,
+    close,
+    currentId,
+    popoverId,
+  } = useWelcomeSuggestions();
   const currentIdRef = useRef(currentId);
   currentIdRef.current = currentId;
 
@@ -480,7 +541,8 @@ const useComposerCoupling = ({
           return true;
         }
         if (e.key === "ArrowUp") {
-          moveHighlight(-1);
+          if (onExitUp && highlightAtTop()) onExitUp();
+          else moveHighlight(-1);
           e.preventDefault();
           return true;
         }
@@ -494,7 +556,7 @@ const useComposerCoupling = ({
           // handlers (dialogs, fullscreen panels) see it as already handled.
           e.preventDefault();
           if (onEscape) onEscape();
-          else close({ restoreDraft: true });
+          else close();
           return true;
         }
         if (e.key === "Tab") {
@@ -510,7 +572,17 @@ const useComposerCoupling = ({
       },
       setCursorPosition() {},
     });
-  }, [registry, group, moveHighlight, selectCurrent, close, onEscape, onTab]);
+  }, [
+    registry,
+    group,
+    moveHighlight,
+    highlightAtTop,
+    selectCurrent,
+    close,
+    onEscape,
+    onTab,
+    onExitUp,
+  ]);
 
   useEffect(() => {
     if (!registry || !group) return undefined;
@@ -556,8 +628,9 @@ export const WelcomeSuggestionsPicker: FC<WelcomeSuggestionsPickerProps> = ({
   const getPills = usePillCollection(undefined);
   const listboxRef = useRef<HTMLDivElement>(null);
 
-  // Tab hands focus back to the pill that opened the group. The pills row is
-  // invisible until the close commits, so the focus move waits a frame.
+  // Tab and ArrowUp-at-the-top hand focus back to the pill that opened the
+  // group. The pills row is invisible until the close commits, so the focus
+  // move waits a frame.
   const returnToPills = useCallback(() => {
     const idx = group ? entries.indexOf(group) : -1;
     close();
@@ -567,7 +640,7 @@ export const WelcomeSuggestionsPicker: FC<WelcomeSuggestionsPickerProps> = ({
     });
   }, [group, entries, close, getPills]);
 
-  useComposerCoupling({ onTab: returnToPills });
+  useComposerCoupling({ onTab: returnToPills, onExitUp: returnToPills });
 
   // Without a registry the composer cannot drive the panel, so the panel
   // focuses itself and handles navigation keys locally.
@@ -596,7 +669,7 @@ export const WelcomeSuggestionsPicker: FC<WelcomeSuggestionsPickerProps> = ({
   return (
     <DismissableLayerPrimitive.Root
       asChild
-      onEscapeKeyDown={() => close({ restoreDraft: true })}
+      onEscapeKeyDown={() => close()}
       onFocusOutside={(e) => e.preventDefault()}
       onPointerDownOutside={(e) => {
         // A defaultPrevented pointerdown is an opt-out, so outside controls
@@ -626,7 +699,7 @@ export const WelcomeSuggestionsPicker: FC<WelcomeSuggestionsPickerProps> = ({
           <button
             type="button"
             aria-label="Close suggestions"
-            onClick={() => close({ restoreDraft: true })}
+            onClick={() => close()}
             className="hover:text-foreground rounded-md p-0.5 transition-colors"
           >
             <XIcon className="size-3.5" />
@@ -705,115 +778,167 @@ export const WelcomeSuggestionsStack: FC<WelcomeSuggestionsStackProps> = ({
   const getStackRows = useStackCollection(undefined);
   const aui = useAui();
   const registry = unstable_useComposerInputPluginRegistry();
-  const composerEmpty = useAuiState((s) => s.composer.text.length === 0);
+  const composerText = useAuiState((s) => s.composer.text);
+  const { setCursorPosition, caretAtEnd } = useCaretAtEnd();
   const listRef = useRef<HTMLDivElement>(null);
   const [topIdx, setTopIdx] = useState<number | null>(null);
   // Composer-driven top-level navigation: the composer keeps DOM focus while
   // the arrows move a virtual highlight, so typing at any point resumes
   // composing without a refocus.
   const [composerNav, setComposerNav] = useState(false);
+  const composerNavRef = useRef(false);
+  const draftRef = useRef("");
+  const expectedTextRef = useRef("");
   const topIdxRef = useRef(topIdx);
   topIdxRef.current = topIdx;
+
+  // knownText: the store lags writes by a flush, so a caller that just
+  // restored the draft passes it instead of re-reading stale state.
+  const enterComposerNav = useCallback(
+    (knownText?: string) => {
+      if (!composerNavRef.current) {
+        draftRef.current = knownText ?? aui.composer().getState().text;
+        expectedTextRef.current = draftRef.current;
+      }
+      composerNavRef.current = true;
+      setComposerNav(true);
+    },
+    [aui],
+  );
   const rowId = useCallback(
     (idx: number) => `${popoverId}t${idx}`,
     [popoverId],
   );
 
   const exitComposerNav = useCallback(() => {
+    composerNavRef.current = false;
     setComposerNav(false);
     setTopIdx(null);
   }, []);
 
-  // Escape is cancel-and-return, Tab is accept-and-return: either way the
-  // group's own row comes back highlighted so the arrows keep working; only
-  // Escape restores the draft. When the closed composer is empty the return
-  // is virtual — the composer keeps focus and keeps driving the arrows —
-  // otherwise the listbox takes DOM focus.
-  const returnToTop = useCallback(
-    (options?: { restoreDraft?: boolean }) => {
-      const idx = group ? entries.indexOf(group) : -1;
-      close(options);
-      if (idx === -1) return;
-      setTopIdx(idx);
-      if (registry && aui.composer().getState().text === "") {
-        setComposerNav(true);
-        registry.requestFocus();
-      } else {
-        listRef.current?.focus({ preventScroll: true });
-      }
+  // Keyboard browsing ghost-previews a flat row's prompt in the composer; a
+  // group row puts the entry-time draft back. expectedTextRef marks the
+  // write as navigation's own so the typing detector stays quiet.
+  const previewRow = useCallback(
+    (idx: number) => {
+      const entry = entries[idx];
+      if (!entry) return;
+      const text = isGroup(entry) ? draftRef.current : promptOf(entry);
+      expectedTextRef.current = text;
+      aui.composer().setText(text);
     },
-    [group, entries, close, registry, aui],
+    [entries, aui],
   );
-  const cancelClose = useCallback(
-    () => returnToTop({ restoreDraft: true }),
-    [returnToTop],
-  );
-  const acceptClose = useCallback(() => returnToTop(), [returnToTop]);
 
-  useComposerCoupling({ onEscape: cancelClose, onTab: acceptClose });
+  // Returns the restored draft (when navigation was active) so callers can
+  // hand it to openGroup without re-reading the still-flushing store.
+  const cancelComposerNav = useCallback(() => {
+    if (!composerNavRef.current) {
+      exitComposerNav();
+      return undefined;
+    }
+    const draft = draftRef.current;
+    expectedTextRef.current = draft;
+    aui.composer().setText(draft);
+    exitComposerNav();
+    return draft;
+  }, [aui, exitComposerNav]);
+
+  // Escape and Tab both leave the sub-level without selecting, so both put
+  // the draft back; the group's own row comes back highlighted so the arrows
+  // keep working. With a registry the return is virtual — the composer keeps
+  // focus and keeps driving the arrows — otherwise the listbox takes DOM
+  // focus.
+  const returnToTop = useCallback(() => {
+    const idx = group ? entries.indexOf(group) : -1;
+    const draft = close();
+    if (idx === -1) return;
+    setTopIdx(idx);
+    if (registry) {
+      enterComposerNav(draft);
+      registry.requestFocus();
+    } else {
+      listRef.current?.focus({ preventScroll: true });
+    }
+  }, [group, entries, close, registry, enterComposerNav]);
+
+  useComposerCoupling({ onEscape: returnToTop, onTab: returnToTop });
 
   useEffect(() => {
-    if (group) {
-      setComposerNav(false);
-      setTopIdx(null);
-    }
-  }, [group]);
+    if (group) exitComposerNav();
+  }, [group, exitComposerNav]);
 
   useEffect(() => {
     if (group && !hasRegistry) listRef.current?.focus();
   }, [group, hasRegistry]);
 
+  // Composer-driven navigation only owns the arrows while the composer holds
+  // text it wrote itself: any other edit means the user is composing again.
+  // The check runs only when the rendered text changes: the store flushes a
+  // macrotask after setText, so a check on the composerNav flip would compare
+  // the pre-preview snapshot and abort navigation immediately.
   useEffect(() => {
-    if (composerNav && !composerEmpty) exitComposerNav();
-  }, [composerNav, composerEmpty, exitComposerNav]);
+    if (composerNavRef.current && composerText !== expectedTextRef.current)
+      exitComposerNav();
+  }, [composerText, exitComposerNav]);
 
   // The highlight would otherwise outlive the composer's focus: any pointer
-  // press outside the list ends composer-driven navigation.
+  // press outside the list ends composer-driven navigation. The press is not
+  // a selection, so the ghost preview gives way to the draft — a press on a
+  // row stays live and its click handler commits instead.
   useEffect(() => {
     if (!composerNav) return undefined;
     const onPointerDown = (e: PointerEvent) => {
       const target = e.target as Element | null;
       if (target && listRef.current?.contains(target)) return;
-      exitComposerNav();
+      cancelComposerNav();
     };
     document.addEventListener("pointerdown", onPointerDown);
     return () => document.removeEventListener("pointerdown", onPointerDown);
-  }, [composerNav, exitComposerNav]);
+  }, [composerNav, cancelComposerNav]);
 
-  // ArrowDown in an empty composer enters top-level navigation. Unlike the
-  // DOM-focused listbox this highlight is spatially anchored to the composer,
-  // so the top edge exits back to it instead of wrapping.
+  // ArrowDown at the end of the composer text enters top-level navigation.
+  // The highlight is spatially anchored to the composer, so the bottom edge
+  // clamps and the top edge exits back into the composer instead of wrapping.
   useEffect(() => {
-    if (!registry || group || !composerEmpty) return undefined;
+    if (!registry) return undefined;
     const openKey = direction === "rtl" ? "ArrowLeft" : "ArrowRight";
     return registry.register({
       handleKeyDown(e) {
+        if (group) return false;
         if (e.key === "ArrowDown") {
-          setComposerNav(true);
-          setTopIdx((idx) =>
-            idx === null ? 0 : Math.min(idx + 1, entries.length - 1),
-          );
+          if (topIdxRef.current === null && !caretAtEnd()) return false;
+          enterComposerNav();
+          const next =
+            topIdxRef.current === null
+              ? 0
+              : Math.min(topIdxRef.current + 1, entries.length - 1);
+          topIdxRef.current = next;
+          setTopIdx(next);
+          previewRow(next);
           e.preventDefault();
           return true;
         }
         const idx = topIdxRef.current;
         if (idx === null) return false;
         if (e.key === "ArrowUp") {
-          if (idx === 0) exitComposerNav();
+          if (idx === 0) cancelComposerNav();
           else {
-            setComposerNav(true);
+            enterComposerNav();
+            topIdxRef.current = idx - 1;
             setTopIdx(idx - 1);
+            previewRow(idx - 1);
           }
           e.preventDefault();
           return true;
         }
         if (e.key === "Escape") {
-          exitComposerNav();
+          cancelComposerNav();
           e.preventDefault();
           return true;
         }
         if (e.key === "Tab") {
-          exitComposerNav();
+          cancelComposerNav();
           return false;
         }
         const entry = entries[idx];
@@ -831,16 +956,20 @@ export const WelcomeSuggestionsStack: FC<WelcomeSuggestionsStackProps> = ({
         }
         return false;
       },
-      setCursorPosition() {},
+      setCursorPosition,
     });
   }, [
     registry,
     group,
-    composerEmpty,
     direction,
     entries,
     openGroup,
     exitComposerNav,
+    enterComposerNav,
+    cancelComposerNav,
+    previewRow,
+    caretAtEnd,
+    setCursorPosition,
     getStackRows,
   ]);
 
@@ -866,7 +995,7 @@ export const WelcomeSuggestionsStack: FC<WelcomeSuggestionsStackProps> = ({
         selectCurrent();
         e.preventDefault();
       } else if (e.key === "Tab") {
-        acceptClose();
+        returnToTop();
         e.preventDefault();
       }
       return;
@@ -905,6 +1034,8 @@ export const WelcomeSuggestionsStack: FC<WelcomeSuggestionsStackProps> = ({
 
   // Rows never take DOM focus (mousedown is prevented, tabIndex -1): the
   // container is the only tab stop and the highlight is the only indicator.
+  // While composer navigation is active, hover moves the same highlight the
+  // arrows use, so the ghost preview follows it.
   const rowProps = (idx: number) => ({
     id: rowId(idx),
     "data-slot": "aui_thread-welcome-stack-row",
@@ -913,7 +1044,12 @@ export const WelcomeSuggestionsStack: FC<WelcomeSuggestionsStackProps> = ({
     "data-highlighted": topIdx === idx || undefined,
     tabIndex: -1,
     onMouseDown: (e: ReactMouseEvent) => e.preventDefault(),
-    onMouseMove: () => setTopIdx(idx),
+    onMouseMove: () => {
+      if (topIdxRef.current === idx) return;
+      topIdxRef.current = idx;
+      setTopIdx(idx);
+      if (composerNavRef.current) previewRow(idx);
+    },
   });
 
   return (
@@ -932,10 +1068,10 @@ export const WelcomeSuggestionsStack: FC<WelcomeSuggestionsStackProps> = ({
       tabIndex={group ? -1 : 0}
       onKeyDown={onKeyDown}
       onFocus={() => {
-        if (!group) {
-          setComposerNav(false);
-          setTopIdx((idx) => idx ?? 0);
-        }
+        if (group) return;
+        const idx = topIdxRef.current;
+        cancelComposerNav();
+        setTopIdx(idx ?? 0);
       }}
       onBlur={(e) => {
         if (!e.currentTarget.contains(e.relatedTarget)) setTopIdx(null);
@@ -958,7 +1094,7 @@ export const WelcomeSuggestionsStack: FC<WelcomeSuggestionsStackProps> = ({
       {group ? (
         <DismissableLayerPrimitive.Root
           asChild
-          onEscapeKeyDown={() => cancelClose()}
+          onEscapeKeyDown={() => returnToTop()}
           onFocusOutside={(e) => e.preventDefault()}
           onPointerDownOutside={(e) => {
             // A defaultPrevented pointerdown is an opt-out, so outside
@@ -1008,7 +1144,11 @@ export const WelcomeSuggestionsStack: FC<WelcomeSuggestionsStackProps> = ({
                       density,
                       separators,
                     })}
-                    onClick={() => openGroup(entry)}
+                    onClick={() => {
+                      // openGroup must capture the real draft, not a lingering
+                      // ghost preview, so the restored value is handed through.
+                      openGroup(entry, cancelComposerNav());
+                    }}
                   >
                     {entry.icon}
                     {entry.label}
@@ -1025,6 +1165,9 @@ export const WelcomeSuggestionsStack: FC<WelcomeSuggestionsStackProps> = ({
                       density,
                       separators,
                     })}
+                    // Runs before the suggestion trigger: send/clearComposer
+                    // must act on the draft, not on the ghost preview.
+                    onClick={() => cancelComposerNav()}
                   >
                     {entry.label}
                     <ActionGlyph indicator={resolvedIndicator} />
