@@ -26,7 +26,7 @@ import { WelcomeSuggestionsSample } from "@/components/docs/samples/welcome-sugg
 
 This adds a `/components/assistant-ui/welcome-suggestions.tsx` file to your project.
 
-The default [Thread](/docs/ui/thread) already renders its own inline welcome pills from the static `Suggestions(...)` scope. When you adopt this component, remove that block (`ThreadSuggestions` in your `thread.tsx`) so the two don't render side by side.
+The default [Thread](/docs/ui/thread) renders `ThreadWelcomeSuggestions` next to its composer out of the box, so a fresh install needs no wiring. If your `thread.tsx` predates this and still has inline `ThreadSuggestions` pills, remove them so the two don't render side by side.
 
   </Step>
   <Step>
