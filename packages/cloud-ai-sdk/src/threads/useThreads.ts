@@ -113,10 +113,23 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
     try {
       return await withAction(
         async (commit) => {
-          const response = await cloud.threads.list(
-            includeArchived ? undefined : { is_archived: false },
+          const responses = includeArchived
+            ? await Promise.all([
+                cloud.threads.list({ is_archived: false }),
+                cloud.threads.list({ is_archived: true }),
+              ])
+            : [await cloud.threads.list({ is_archived: false })];
+          const nextThreads = responses.flatMap((response) =>
+            response.threads.map(toCloudThread),
           );
-          commit(() => setThreads(() => response.threads.map(toCloudThread)));
+          if (includeArchived) {
+            nextThreads.sort((a, b) => {
+              const timeDifference =
+                b.lastMessageAt.getTime() - a.lastMessageAt.getTime();
+              return timeDifference || b.id.localeCompare(a.id);
+            });
+          }
+          commit(() => setThreads(nextThreads));
           return true;
         },
         false,
