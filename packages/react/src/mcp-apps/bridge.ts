@@ -123,6 +123,23 @@ export function createMcpAppBridge(
     });
   };
 
+  const reportErrorCallbackFailure = (error: unknown) => {
+    console.error(
+      "[assistant-ui] MCP App onError callback threw an error",
+      error,
+    );
+  };
+
+  const reportError = (error: Error) => {
+    try {
+      void Promise.resolve(handlers.onError?.(error)).catch(
+        reportErrorCallbackFailure,
+      );
+    } catch (callbackError) {
+      reportErrorCallbackFailure(callbackError);
+    }
+  };
+
   const handleRequest = async (req: McpAppJsonRpcRequest) => {
     try {
       const params = req.params;
@@ -376,7 +393,7 @@ export function createMcpAppBridge(
       }
     } catch (err) {
       const error = err instanceof Error ? err : new Error(String(err));
-      handlers.onError?.(error);
+      reportError(error);
       errorResponse(req.id, JSONRPC_ERROR.internalError, error.message);
     }
   };
