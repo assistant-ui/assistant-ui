@@ -322,6 +322,35 @@ describe("ExternalThread composer", () => {
     expect(steer).not.toHaveBeenCalled();
   });
 
+  it("throws on beginEdit when the runtime has no edit handler", () => {
+    const { aui } = renderThread({
+      messages: [
+        {
+          id: "u1",
+          role: "user",
+          content: [{ type: "text", text: "hi" }],
+          createdAt: new Date(0),
+          attachments: [],
+          metadata: { custom: {} },
+        } as unknown as ExternalThreadMessage,
+      ],
+      isRunning: false,
+      queue: {
+        items: [],
+        steerItems: [],
+        enqueue: vi.fn(),
+        steer: vi.fn(),
+        move: vi.fn(),
+        edit: vi.fn(),
+        remove: vi.fn(),
+      },
+    });
+
+    expect(() =>
+      aui().thread.message({ id: "u1" }).composer().beginEdit(),
+    ).toThrow("Runtime does not support editing.");
+  });
+
   it("still refuses to send an empty composer synchronously after a send", async () => {
     const onNew = vi.fn();
     const { aui } = renderThread({ messages: [], isRunning: false, onNew });

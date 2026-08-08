@@ -883,6 +883,42 @@ describe("ExternalStoreThreadRuntimeCore - message queue", () => {
     expect(queue.steer).toHaveBeenCalledTimes(1);
   });
 
+  it("routes an edit send to onEdit even when anchored at the head", async () => {
+    const queue = makeQueue();
+    const onNew = vi.fn();
+    const onEdit = vi.fn();
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({ queue, onNew, onEdit }),
+    );
+
+    await runtime.append(appendMessage({ sourceId: "u1" }));
+
+    expect(onEdit).toHaveBeenCalledTimes(1);
+    expect(onEdit.mock.calls[0]![0]).toMatchObject({
+      sourceId: "u1",
+      parentId: null,
+    });
+    expect(onNew).not.toHaveBeenCalled();
+    expect(queue.enqueue).not.toHaveBeenCalled();
+    expect(queue.steer).not.toHaveBeenCalled();
+  });
+
+  it("throws the edit capability error for an edit send instead of queueing it", async () => {
+    const queue = makeQueue();
+    const onNew = vi.fn();
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({ queue, onNew }),
+    );
+
+    await expect(
+      runtime.append(appendMessage({ sourceId: "u1" })),
+    ).rejects.toThrow("Runtime does not support editing messages.");
+    expect(onNew).not.toHaveBeenCalled();
+    expect(queue.enqueue).not.toHaveBeenCalled();
+  });
+
   it("defaults a mid-run send to steer and an idle send to enqueue", async () => {
     const queue = makeQueue();
     const running = new ExternalStoreThreadRuntimeCore(

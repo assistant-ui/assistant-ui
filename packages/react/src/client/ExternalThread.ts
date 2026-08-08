@@ -168,6 +168,7 @@ const useMessageClient = ({
   );
 
   const handleBeginEdit = () => {
+    if (!onEdit) throw new Error("Runtime does not support editing.");
     setIsEditing(true);
   };
 
