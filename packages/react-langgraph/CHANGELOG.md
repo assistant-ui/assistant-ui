@@ -1,5 +1,15 @@
 # @assistant-ui/react-langgraph
 
+## 0.14.23
+
+### Patch Changes
+
+- [#5730](https://github.com/assistant-ui/assistant-ui/pull/5730) [`6c9560d`](https://github.com/assistant-ui/assistant-ui/commit/6c9560d145d8cd4699002ad305005e8b83a94342) - chore: drop dependencies that are never imported ([@okisdev](https://github.com/okisdev))
+
+- Updated dependencies [[`dc7b77d`](https://github.com/assistant-ui/assistant-ui/commit/dc7b77dca65ad8d0384e8aec268a4141dc8bd0da), [`0ae51a8`](https://github.com/assistant-ui/assistant-ui/commit/0ae51a8e8c4c49c4b8810b9c64845eeeded8b9bc), [`d1b7097`](https://github.com/assistant-ui/assistant-ui/commit/d1b7097ca86e84698fcfaabd1b310e30612dd32c)]:
+  - @assistant-ui/core@0.3.11
+  - assistant-stream@0.3.37
+
 ## 0.14.22
 
 ### Patch Changes

@@ -1,5 +1,16 @@
 # @assistant-ui/core
 
+## 0.3.11
+
+### Patch Changes
+
+- [#5733](https://github.com/assistant-ui/assistant-ui/pull/5733) [`dc7b77d`](https://github.com/assistant-ui/assistant-ui/commit/dc7b77dca65ad8d0384e8aec268a4141dc8bd0da) - Republish: 0.3.10 was left staged on npm by a failed publish and cannot be re-pushed. ([@Yonom](https://github.com/Yonom))
+
+- [#5718](https://github.com/assistant-ui/assistant-ui/pull/5718) [`d1b7097`](https://github.com/assistant-ui/assistant-ui/commit/d1b7097ca86e84698fcfaabd1b310e30612dd32c) - fix: expose additional Cloud thread pages through the thread list runtime ([@Kinfe123](https://github.com/Kinfe123))
+
+- Updated dependencies [[`0ae51a8`](https://github.com/assistant-ui/assistant-ui/commit/0ae51a8e8c4c49c4b8810b9c64845eeeded8b9bc)]:
+  - assistant-stream@0.3.37
+
 ## 0.3.10
 
 ### Patch Changes

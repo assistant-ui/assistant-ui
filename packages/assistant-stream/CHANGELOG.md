@@ -1,5 +1,11 @@
 # assistant-stream
 
+## 0.3.37
+
+### Patch Changes
+
+- [#5729](https://github.com/assistant-ui/assistant-ui/pull/5729) [`0ae51a8`](https://github.com/assistant-ui/assistant-ui/commit/0ae51a8e8c4c49c4b8810b9c64845eeeded8b9bc) - feat: support ioredis 6 alongside 5 in the resumable stream store ([@okisdev](https://github.com/okisdev))
+
 ## 0.3.36
 
 ### Patch Changes
