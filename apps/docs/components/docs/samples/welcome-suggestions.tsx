@@ -103,12 +103,14 @@ const FLAT_SUGGESTIONS: SuggestionEntry[] = [
 const Hint = ({
   children,
   className,
+  sub,
 }: {
   children: ReactNode;
   className?: string | undefined;
+  sub?: boolean;
 }) => (
   <div
-    data-hint
+    {...(sub ? { "data-subhint": "" } : { "data-hint": "" })}
     className={cn(
       "text-muted-foreground/60 pointer-events-none mt-2 flex items-start gap-1.5 pl-5 select-none",
       className,
@@ -180,12 +182,16 @@ const VariantColumn = ({
   label,
   hint,
   hintClassName,
+  subHint,
+  subHintClassName,
   className,
   children,
 }: {
   label: string;
   hint?: ReactNode;
   hintClassName?: string;
+  subHint?: ReactNode;
+  subHintClassName?: string;
   className?: string;
   children: ReactNode;
 }) => (
@@ -201,9 +207,14 @@ const VariantColumn = ({
     <SampleRuntimeProvider messages={[]}>
       <div className="flex w-full flex-col gap-3">
         <SampleComposer />
-        <div className="min-h-56 [&:has([data-open])_[data-hint]]:hidden">
+        <div className="min-h-56 [&_[data-subhint]]:hidden [&:has([data-open])_[data-hint]]:hidden [&:has([data-open])_[data-subhint]]:flex">
           {children}
           {hint && <Hint className={hintClassName}>{hint}</Hint>}
+          {subHint && (
+            <Hint sub className={subHintClassName}>
+              {subHint}
+            </Hint>
+          )}
         </div>
       </div>
     </SampleRuntimeProvider>
@@ -250,8 +261,10 @@ export const WelcomeSuggestionsSample = () => {
         <div className="grid gap-8 lg:grid-cols-2">
           <VariantColumn
             label="Pills + picker (default for groups)"
-            hint={<>press ↓ or click a pill, then ← → move, ↓ opens, → edits</>}
+            hint={<>press ↓ or click, ← → move, ↓ to open</>}
+            subHint={<>→ to edit in composer, tab / esc to exit</>}
             hintClassName="ml-[50%] -mr-[190px] -translate-x-[190px]"
+            className="[&_[data-open]>[aria-hidden]]:hidden [&_[data-slot$=welcome-picker]]:static [&_[data-slot$=welcome-picker]]:mx-[2.5%]"
           >
             <WelcomeSuggestionsRoot suggestions={SUGGESTIONS}>
               <WelcomeSuggestionsPills />
@@ -264,7 +277,8 @@ export const WelcomeSuggestionsSample = () => {
           </VariantColumn>
           <VariantColumn
             label="Stacked"
-            hint={<>press ↓ or click a row, then ↑ ↓ move, → opens or edits</>}
+            hint={<>press ↓ or click, ↑ ↓ move, → to open</>}
+            subHint={<>→ to edit in composer, tab / esc to exit</>}
             className="max-lg:order-last"
           >
             <WelcomeSuggestionsRoot suggestions={SUGGESTIONS}>
