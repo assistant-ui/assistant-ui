@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   toolResultStream as unstable_toolResultStream,
   unstable_runPendingTools,
@@ -31,6 +31,10 @@ const captureUnhandledRejections = async (
     process.off("unhandledRejection", listener);
   }
 };
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe("unstable_runPendingTools", () => {
   it("settles a tool that returns no value with a concrete result", async () => {
@@ -934,14 +938,22 @@ describe("unstable_runPendingTools", () => {
   });
 
   describe("execution lifecycle callbacks", () => {
-    it.each(["onExecutionStart", "onExecutionEnd"] as const)(
-      "preserves tool results when %s throws",
-      async (callbackName) => {
-        const callbackError = new Error(`${callbackName} failed`);
+    it.each([
+      ["onExecutionStart", "throws"],
+      ["onExecutionStart", "rejects"],
+      ["onExecutionEnd", "throws"],
+      ["onExecutionEnd", "rejects"],
+    ] as const)(
+      "preserves tool results when %s %s",
+      async (callbackName, behavior) => {
+        const callbackError = new Error(`${callbackName} ${behavior}`);
         const error = vi.spyOn(console, "error").mockImplementation(() => {});
-        const lifecycleCallback = vi.fn(() => {
-          throw callbackError;
-        });
+        const lifecycleCallback =
+          behavior === "throws"
+            ? vi.fn(() => {
+                throw callbackError;
+              })
+            : vi.fn(() => Promise.reject(callbackError));
         const inputChunks: AssistantStreamChunk[] = [
           {
             type: "part-start",
@@ -1000,7 +1012,6 @@ describe("unstable_runPendingTools", () => {
           `[assistant-stream] ${callbackName} callback threw an error`,
           callbackError,
         );
-        error.mockRestore();
       },
     );
   });

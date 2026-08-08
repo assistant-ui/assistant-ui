@@ -48,7 +48,13 @@ const invokeExecutionCallback = (
   toolName: string,
 ) => {
   try {
-    callback?.(toolCallId, toolName);
+    const result = callback?.(toolCallId, toolName) as unknown;
+    void Promise.resolve(result).catch((error) => {
+      console.error(
+        `[assistant-stream] ${name} callback threw an error`,
+        error,
+      );
+    });
   } catch (error) {
     console.error(`[assistant-stream] ${name} callback threw an error`, error);
   }
