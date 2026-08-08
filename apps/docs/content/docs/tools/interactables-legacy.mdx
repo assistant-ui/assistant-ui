@@ -328,6 +328,8 @@ function PersistenceSetup() {
 }
 ```
 
+Replacing or removing an adapter flushes queued changes through the outgoing adapter before the new persistence context is attached.
+
 ### Sync Status
 
 When a persistence adapter is set, `useInteractableState` exposes sync metadata:
