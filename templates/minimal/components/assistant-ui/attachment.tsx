@@ -126,7 +126,7 @@ const AttachmentThumb: FC = () => {
       <AvatarImage
         src={src}
         alt="Attachment preview"
-        className="aui-attachment-tile-image object-cover"
+        className="aui-attachment-tile-image rounded-none object-cover"
       />
       <AvatarFallback>
         <FileText className="aui-attachment-tile-fallback-icon text-muted-foreground/80 size-6 stroke-[1.5]" />
