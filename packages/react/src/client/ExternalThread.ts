@@ -1,11 +1,4 @@
-import {
-  useState,
-  useMemo,
-  useEffect,
-  useEffectEvent,
-  useCallback,
-  useRef,
-} from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { resource, withKey } from "@assistant-ui/tap";
 import {
   type ClientElement,
@@ -152,7 +145,6 @@ const useMessageClient = ({
 }: MessageClientProps): ClientOutput<"message"> => {
   const [isCopied, setIsCopied] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
 
   const partClients = useClientLookup(
     message.content.map((part, idx) =>
@@ -184,11 +176,6 @@ const useMessageClient = ({
 
   const handleBeginEdit = () => {
     if (!onEdit) throw new Error("Runtime does not support editing.");
-    setIsEditing(true);
-  };
-
-  const handleCancelEdit = () => {
-    setIsEditing(false);
   };
 
   const handleSendEdit = (msg: AppendMessage) => {
@@ -198,15 +185,12 @@ const useMessageClient = ({
       parentId,
       sourceId: message.id,
     });
-    setIsEditing(false);
   };
 
   const composerClient = useClientResource(
     ComposerClientResource({
       type: "edit",
-      isEditing,
       canCancel: true,
-      onCancel: handleCancelEdit,
       onBeginEdit: handleBeginEdit,
       onSend: handleSendEdit,
       message,
@@ -411,10 +395,9 @@ const AttachmentResource = resource(useAttachmentResource);
 
 type ComposerClientResourceProps = {
   type: "thread" | "edit";
-  isEditing: boolean;
   canCancel: boolean;
   isSendDisabled?: boolean;
-  onCancel: () => void;
+  onCancel?: () => void;
   onBeginEdit?: () => void;
   onSend?: (message: AppendMessage) => void;
   message?: ExternalThreadMessage;
@@ -471,7 +454,6 @@ const useLiveState = <T>(initial: T) => {
 // Composer Client - minimal implementation
 const useComposerClientResource = ({
   type,
-  isEditing,
   canCancel,
   isSendDisabled = false,
   onCancel,
@@ -481,6 +463,9 @@ const useComposerClientResource = ({
   queue,
   attachmentAdapter,
 }: ComposerClientResourceProps): ClientOutput<"composer"> => {
+  const [isEditing, setIsEditing, isEditingRef] = useLiveState(
+    type === "thread",
+  );
   const [text, setText, textRef] = useLiveState("");
   const [role, setRole, roleRef] = useLiveState<
     "user" | "assistant" | "system"
@@ -495,26 +480,16 @@ const useComposerClientResource = ({
     { readonly text: string; readonly messageId: string } | undefined
   >(undefined);
 
-  // Update composer values when editing begins
-  const updateFromMessage = useEffectEvent(() => {
-    if (message) {
-      // Extract text from message content (text parts only)
-      const textParts = message.content.filter((part) => part.type === "text");
-      const messageText = textParts
-        .map((part) => ("text" in part ? part.text : ""))
-        .join("\n\n");
-
-      setText(messageText);
-      setRole(message.role);
-      setAttachments(message.attachments ?? []);
-    }
-  });
-
-  useEffect(() => {
-    if (isEditing) {
-      updateFromMessage();
-    }
-  }, [isEditing]);
+  const updateFromMessage = () => {
+    if (!message) return;
+    const messageText = message.content
+      .filter((part) => part.type === "text")
+      .map((part) => part.text)
+      .join("\n\n");
+    setText(messageText);
+    setRole(message.role);
+    setAttachments(message.attachments ?? []);
+  };
 
   const attachmentClients = useClientLookup(
     attachments.map((attachment) =>
@@ -679,7 +654,8 @@ const useComposerClientResource = ({
       const currentText = textRef.current;
       const currentAttachments = attachmentsRef.current;
       const isEmpty = !currentText.trim() && !currentAttachments.length;
-      if (!isEditing || isEmpty || isSendDisabled) return;
+      if (!isEditingRef.current) throw new Error("Composer is not available");
+      if (isEmpty || isSendDisabled) return;
 
       setText("");
       setAttachments([]);
@@ -708,6 +684,7 @@ const useComposerClientResource = ({
         } else {
           onSend?.(composedMessage);
         }
+        if (type === "edit") setIsEditing(false);
       };
 
       if (attachmentAdapter && currentAttachments.length > 0) {
@@ -732,9 +709,15 @@ const useComposerClientResource = ({
         dispatch(currentAttachments);
       }
     },
-    cancel: onCancel,
+    cancel: () => {
+      onCancel?.();
+      if (type === "edit") setIsEditing(false);
+    },
     beginEdit: () => {
       onBeginEdit?.();
+      if (isEditingRef.current) return;
+      setIsEditing(true);
+      updateFromMessage();
     },
     startDictation: () => {},
     stopDictation: () => {},
@@ -978,7 +961,6 @@ const useExternalThread = ({
   const composerClient = useClientResource(
     ComposerClientResource({
       type: "thread",
-      isEditing: true,
       canCancel: isRunning,
       isSendDisabled,
       onCancel: handleCancelRun,

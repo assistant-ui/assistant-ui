@@ -129,10 +129,11 @@ const useInMemoryThreadList = (
 
   const handleDelete = (threadId: string) => {
     setThreads((prev) => prev.filter((t) => t.id !== threadId));
-    if (mainThreadId === threadId) {
-      const remaining = threads.filter((t) => t.id !== threadId);
-      setMainThreadId(remaining[0]?.id || "main");
-    }
+    setMainThreadId((prev) =>
+      prev === threadId
+        ? (threads.find((t) => t.id !== threadId)?.id ?? "main")
+        : prev,
+    );
   };
 
   const handleSwitchToNewThread = () => {
