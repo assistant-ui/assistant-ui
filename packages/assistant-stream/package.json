@@ -47,8 +47,9 @@
   "sideEffects": false,
   "scripts": {
     "build": "aui-build",
-    "test": "vitest run",
-    "test:watch": "vitest"
+    "test": "vitest run && pnpm run test:types:peer-v5",
+    "test:watch": "vitest",
+    "test:types:peer-v5": "tsc --noEmit --project tsconfig.peer-v5.json"
   },
   "dependencies": {
     "@standard-schema/spec": "^1.1.0",
@@ -56,7 +57,7 @@
     "secure-json-parse": "^4.1.0"
   },
   "peerDependencies": {
-    "ioredis": "^5.10.1",
+    "ioredis": "^5.10.1 || ^6.0.0",
     "redis": "^5.12.1"
   },
   "peerDependenciesMeta": {
@@ -70,7 +71,8 @@
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/json-schema": "^7.0.15",
-    "ioredis": "^5.11.1",
+    "ioredis": "^6.0.0",
+    "ioredis-v5": "npm:ioredis@^5.11.1",
     "redis": "^6.2.0",
     "vitest": "^4.1.10"
   },
