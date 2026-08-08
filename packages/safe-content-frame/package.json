@@ -39,8 +39,8 @@
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
-    "jsdom": "^29.1.1",
-    "vite": "^8.1.5",
+    "jsdom": "^30.0.1",
+    "vite": "^8.2.1",
     "vitest": "^4.1.10"
   },
   "publishConfig": {

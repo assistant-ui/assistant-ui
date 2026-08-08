@@ -28,13 +28,13 @@
     "@tsconfig/strictest": "^2.0.8",
     "babel-plugin-react-compiler": "^1.0.0",
     "jiti": "^2.7.0",
-    "rolldown": "^1.2.0",
+    "rolldown": "^1.2.3",
     "tsdown": "^0.22.14",
     "typescript": "npm:@typescript/typescript6@^6.0.2"
   },
   "devDependencies": {
     "@types/babel__core": "^7.20.5",
-    "@types/node": "^26.1.1"
+    "@types/node": "^26.1.2"
   },
   "homepage": "https://www.assistant-ui.com/",
   "repository": {
