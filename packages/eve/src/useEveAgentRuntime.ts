@@ -41,6 +41,18 @@ const sendCancelledError = new Error(
   "eve send was dropped because the run was cancelled.",
 );
 
+const invokeEveLifecycleCallback = <T>(
+  name: string,
+  callback: ((value: T) => void) | undefined,
+  value: T,
+) => {
+  try {
+    callback?.(value);
+  } catch (error) {
+    console.error(`[assistant-ui/eve] ${name} callback threw an error`, error);
+  }
+};
+
 const hasRunConfig = (
   runConfig: AppendMessage["runConfig"],
 ): runConfig is NonNullable<AppendMessage["runConfig"]> =>
@@ -100,14 +112,36 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
     ? true
     : never;
 
-  const { onFinish } = agentOptions;
+  const { onError, onEvent, onFinish, onSessionChange } = agentOptions;
   const lastFinishStatusRef = useRef<UseEveAgentStatus | null>(null);
   const agent = useEveAgent({
     ...agentOptions,
+    ...(onError
+      ? {
+          onError: (error) =>
+            invokeEveLifecycleCallback("onError", onError, error),
+        }
+      : {}),
+    ...(onEvent
+      ? {
+          onEvent: (event) =>
+            invokeEveLifecycleCallback("onEvent", onEvent, event),
+        }
+      : {}),
     onFinish: (snapshot) => {
       lastFinishStatusRef.current = snapshot.status;
-      onFinish?.(snapshot);
+      invokeEveLifecycleCallback("onFinish", onFinish, snapshot);
     },
+    ...(onSessionChange
+      ? {
+          onSessionChange: (session) =>
+            invokeEveLifecycleCallback(
+              "onSessionChange",
+              onSessionChange,
+              session,
+            ),
+        }
+      : {}),
   });
   const runtimeAdapters = useRuntimeAdapters();
   const [toolStatuses, setToolStatuses] = useState<
