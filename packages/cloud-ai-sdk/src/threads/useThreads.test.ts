@@ -305,6 +305,54 @@ describe("useThreads", () => {
     expect(result.current.threadId).toBeNull();
   });
 
+  it("clears the selected thread after archiving hides it", async () => {
+    const cloud = createCloud("thread-1");
+    cloud.threads.update.mockResolvedValueOnce(undefined);
+
+    const { result } = renderHook(() =>
+      useThreads({ cloud: cloud as never, enabled: false }),
+    );
+
+    act(() => {
+      result.current.selectThread("thread-1");
+    });
+
+    await act(async () => {
+      await result.current.archive("thread-1");
+    });
+
+    expect(result.current.threadId).toBeNull();
+  });
+
+  it("preserves a newer selection when an archive finishes", async () => {
+    const cloud = createCloud("thread-1");
+    const archive = createDeferred<void>();
+    cloud.threads.update.mockReturnValueOnce(archive.promise);
+
+    const { result } = renderHook(() =>
+      useThreads({ cloud: cloud as never, enabled: false }),
+    );
+
+    act(() => {
+      result.current.selectThread("thread-1");
+    });
+
+    let archivePromise!: Promise<boolean>;
+    act(() => {
+      archivePromise = result.current.archive("thread-1");
+    });
+    act(() => {
+      result.current.selectThread("thread-2");
+    });
+
+    await act(async () => {
+      archive.resolve();
+      await archivePromise;
+    });
+
+    expect(result.current.threadId).toBe("thread-2");
+  });
+
   it("preserves a newer selection when a deletion finishes", async () => {
     const cloud = createCloud("thread-1");
     const deletion = createDeferred<void>();

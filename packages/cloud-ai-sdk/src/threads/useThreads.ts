@@ -217,7 +217,7 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
         async (commit) => {
           await cloud.threads.update(id, { is_archived: true });
 
-          commit(() =>
+          commit(() => {
             setThreads((prev) => {
               if (includeArchived) {
                 return prev.map((t) =>
@@ -225,8 +225,15 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
                 );
               }
               return prev.filter((t) => t.id !== id);
-            }),
-          );
+            });
+            if (!includeArchived) {
+              setSelection((current) =>
+                current.scope === scope && current.threadId === id
+                  ? { scope, threadId: null }
+                  : current,
+              );
+            }
+          });
 
           return true;
         },
@@ -234,7 +241,7 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
         isCurrentCloud,
       );
     },
-    [cloud, includeArchived, isCurrentCloud, withAction],
+    [cloud, includeArchived, isCurrentCloud, scope, withAction],
   );
 
   const unarchive = useCallback(
