@@ -2,8 +2,6 @@ import { fileURLToPath } from "node:url";
 import { defineConfig, mergeConfig } from "vitest/config";
 import base from "./vitest.config";
 
-// Runs the same suite against the ioredis 5 leg of the peer union, so both
-// advertised majors get runtime coverage rather than only a type check.
 export default mergeConfig(
   base,
   defineConfig({
