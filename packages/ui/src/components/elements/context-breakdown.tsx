@@ -21,7 +21,8 @@ export function ContextBreakdown({
   className?: string;
 }) {
   const used = segments.reduce((sum, segment) => sum + segment.tokens, 0);
-  const pressure = used / limit;
+  const pressure = limit === 0 ? 0 : used / limit;
+  const share = (tokens: number) => (limit === 0 ? 0 : (tokens / limit) * 100);
 
   return (
     <div
@@ -54,7 +55,7 @@ export function ContextBreakdown({
               "h-full transition-[width] duration-500 ease-out motion-reduce:transition-none",
               segment.tint,
             )}
-            style={{ width: `${(segment.tokens / limit) * 100}%` }}
+            style={{ width: `${share(segment.tokens)}%` }}
           />
         ))}
       </div>

@@ -27,7 +27,11 @@ export function ConversationSearch({
   onStep?: (delta: number) => void;
   className?: string;
 }) {
-  const active = hits[activeIndex];
+  const index =
+    hits.length === 0
+      ? -1
+      : Math.min(Math.max(activeIndex, 0), hits.length - 1);
+  const active = index === -1 ? undefined : hits[index];
 
   return (
     <div className={cn("flex w-full max-w-sm gap-2", className)}>
@@ -49,7 +53,7 @@ export function ConversationSearch({
           <span
             className={cn(mono, "text-foreground/30 shrink-0 tabular-nums")}
           >
-            {hits.length === 0 ? "0" : `${activeIndex + 1}/${hits.length}`}
+            {hits.length === 0 ? "0" : `${index + 1}/${hits.length}`}
           </span>
           <button
             type="button"
@@ -92,7 +96,7 @@ export function ConversationSearch({
             aria-hidden
             className={cn(
               "absolute inset-x-0 h-1 rounded-full transition-colors duration-200",
-              i === activeIndex ? "bg-amber-500" : "bg-amber-500/35",
+              i === index ? "bg-amber-500" : "bg-amber-500/35",
             )}
             style={{ top: `${hit.position}%` }}
           />

@@ -11,6 +11,7 @@ export function LauncherBubble({
   prompts,
   onToggle,
   onPick,
+  onStart,
   className,
 }: {
   open: boolean;
@@ -19,6 +20,7 @@ export function LauncherBubble({
   prompts: readonly string[];
   onToggle?: () => void;
   onPick?: (prompt: string) => void;
+  onStart?: () => void;
   className?: string;
 }) {
   return (
@@ -60,6 +62,7 @@ export function LauncherBubble({
 
           <button
             type="button"
+            onClick={onStart}
             className={cn(
               inkButton,
               "flex h-8 items-center justify-center rounded-full text-xs font-medium",

@@ -59,7 +59,7 @@ export function CommandPalette({
         </span>
       </div>
 
-      <div className="border-foreground/[0.07] flex flex-col border-t p-1.5">
+      <div className="border-foreground/[0.07] flex max-h-72 flex-col overflow-y-auto border-t p-1.5">
         {groups.map((group) => (
           <div key={group} className="flex flex-col">
             <span className={cn(mono, "text-foreground/25 px-2 pt-2 pb-1")}>

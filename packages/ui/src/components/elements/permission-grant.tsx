@@ -4,7 +4,7 @@ import { KeyRoundIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { field, inkButton, mono, paper } from "./surfaces";
 
-export type GrantScope = "once" | "session" | "always" | "denied";
+export type GrantScope = "session" | "always" | "denied";
 
 export function PermissionGrant({
   capability,

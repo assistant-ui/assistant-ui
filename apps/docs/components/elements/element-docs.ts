@@ -3630,7 +3630,7 @@ const models: ComposerModel[] = [
             type: "number",
             required: true,
             description:
-              "Window size. The header turns amber once the segments pass 85 percent of it.",
+              "Window size. The header turns amber once the segments pass 85 percent of it. A zero limit is treated as zero pressure rather than dividing by it.",
           },
           {
             name: "className",
@@ -4131,7 +4131,7 @@ const models: ComposerModel[] = [
           },
           {
             name: "scope",
-            type: '"pending" | "once" | "session" | "always" | "denied"',
+            type: '"pending" | "session" | "always" | "denied"',
             required: true,
             description:
               "pending shows the choices; anything else shows the settled outcome.",
@@ -5286,7 +5286,8 @@ const models: ComposerModel[] = [
             name: "activeId",
             type: "string",
             required: true,
-            description: "Which row is highlighted, for keyboard navigation.",
+            description:
+              "Which row is highlighted. The element only styles it; wire your own arrow-key and Enter handling and drive this prop from it.",
           },
           {
             name: "onQueryChange",
@@ -5409,7 +5410,7 @@ const models: ComposerModel[] = [
             type: "number",
             required: true,
             description:
-              "Which hit is current, in both the counter and the rail.",
+              "Which hit is current, in both the counter and the rail. Clamped to the current hit set, so narrowing the results cannot strand it out of range.",
           },
           {
             name: "onQueryChange",
@@ -5570,6 +5571,12 @@ const models: ComposerModel[] = [
             name: "onPick",
             type: "(prompt: string) => void",
             description: "Called when a starter prompt is chosen.",
+          },
+          {
+            name: "onStart",
+            type: "() => void",
+            description:
+              "Called from the Start a conversation action, for opening an empty thread.",
           },
           {
             name: "className",
