@@ -4,6 +4,11 @@ import { ExternalLinkIcon, RotateCwIcon, ShieldCheckIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { field, ghostButton, mono, paper } from "./surfaces";
 
+/**
+ * Chrome around a preview: a URL bar, reload, and open-in-new. It renders
+ * `children` as given and enforces no isolation of its own, so the caller is
+ * responsible for passing an already-sandboxed frame.
+ */
 export function WebPreview({
   origin,
   loading,

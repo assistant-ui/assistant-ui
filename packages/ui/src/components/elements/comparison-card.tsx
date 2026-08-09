@@ -67,12 +67,13 @@ export function ComparisonCard({
               <div className="flex flex-col gap-1">
                 {traitLabels.map((label, i) => {
                   const trait = option.traits[i];
+                  const absent = !trait;
                   return (
                     <span
                       key={label}
                       className="flex items-center gap-1.5 text-xs"
                     >
-                      {trait === false ? (
+                      {absent ? (
                         <MinusIcon className="text-foreground/20 size-3 shrink-0" />
                       ) : (
                         <CheckIcon className="size-3 shrink-0 text-emerald-500" />
@@ -80,12 +81,10 @@ export function ComparisonCard({
                       <span
                         className={cn(
                           "min-w-0 truncate",
-                          trait === false
-                            ? "text-foreground/30"
-                            : "text-foreground/65",
+                          absent ? "text-foreground/30" : "text-foreground/65",
                         )}
                       >
-                        {trait === false ? label : trait}
+                        {absent ? label : trait}
                       </span>
                     </span>
                   );

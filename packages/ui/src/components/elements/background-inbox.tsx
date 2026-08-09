@@ -24,6 +24,7 @@ export function BackgroundInbox({
   className?: string;
 }) {
   const ready = runs.filter((run) => run.state === "ready").length;
+  const running = runs.filter((run) => run.state === "running").length;
 
   return (
     <div
@@ -44,7 +45,7 @@ export function BackgroundInbox({
               : "text-foreground/35",
           )}
         >
-          {ready > 0 ? `${ready} ready` : `${runs.length} in flight`}
+          {ready > 0 ? `${ready} ready` : `${running} in flight`}
         </span>
       </div>
 

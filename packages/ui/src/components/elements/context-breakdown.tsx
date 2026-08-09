@@ -3,6 +3,8 @@
 import { cn } from "@/lib/utils";
 import { mono, paper } from "./surfaces";
 
+const fmt = (n: number) => n.toLocaleString("en-US");
+
 export interface ContextSegment {
   label: string;
   tokens: number;
@@ -40,7 +42,7 @@ export function ContextBreakdown({
               : "text-foreground/35",
           )}
         >
-          {used.toLocaleString()} / {limit.toLocaleString()}
+          {fmt(used)} / {fmt(limit)}
         </span>
       </div>
 
@@ -70,7 +72,7 @@ export function ContextBreakdown({
             <span
               className={cn(mono, "text-foreground/35 shrink-0 tabular-nums")}
             >
-              {segment.tokens.toLocaleString()}
+              {fmt(segment.tokens)}
             </span>
           </div>
         ))}
@@ -85,7 +87,7 @@ export function ContextBreakdown({
           <span
             className={cn(mono, "text-foreground/25 shrink-0 tabular-nums")}
           >
-            {Math.max(0, limit - used).toLocaleString()}
+            {fmt(Math.max(0, limit - used))}
           </span>
         </div>
       </div>

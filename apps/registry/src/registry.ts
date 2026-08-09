@@ -499,7 +499,7 @@ const elementsRegistryItems: RegistryItem[] = [
     slug: "web-preview",
     title: "Web preview",
     description:
-      "Model-written HTML rendered on a separate origin, so its scripts can't reach your page.",
+      "Chrome for a sandboxed preview: a URL bar, reload, and open-in-new around a frame you isolate.",
     file: "web-preview.tsx",
     dependencies: ["lucide-react"],
   }),

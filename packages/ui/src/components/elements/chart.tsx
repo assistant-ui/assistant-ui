@@ -45,7 +45,8 @@ export function Chart({
     ? `M ${PAD},${H - PAD} ${coords.map((c) => `L ${c.x},${c.y}`).join(" ")} L ${last.x},${H - PAD} Z`
     : "";
   const lastIndex = shown.length - 1;
-  const rising = delta !== undefined && !delta.trimStart().startsWith("−");
+  const falling = delta !== undefined && /^\s*[-−–]/.test(delta);
+  const rising = delta !== undefined && !falling;
 
   return (
     <div

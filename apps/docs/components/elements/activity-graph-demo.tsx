@@ -27,7 +27,7 @@ export function ActivityGraphDemo() {
       start={START}
       end={END}
       title="Agent runs"
-      total={`${TOTAL.toLocaleString()} in 6 months`}
+      total={`${TOTAL.toLocaleString("en-US")} in 6 months`}
     />
   );
 }

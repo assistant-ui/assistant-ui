@@ -30,7 +30,7 @@ export function ScoreBreakdownDemo() {
   return (
     <ScoreBreakdown
       verdict="approve"
-      total={4.2}
+      total={4.1}
       outOf={5}
       criteria={CRITERIA}
       visibleCount={Math.min(phase + 1, CRITERIA.length)}

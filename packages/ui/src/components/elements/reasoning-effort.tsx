@@ -3,6 +3,8 @@
 import { cn } from "@/lib/utils";
 import { field, mono } from "./surfaces";
 
+const fmt = (n: number) => n.toLocaleString("en-US");
+
 export interface EffortLevel {
   key: string;
   label: string;
@@ -31,7 +33,7 @@ export function ReasoningEffort({
       <div className="flex items-baseline justify-between">
         <span className="text-[13.5px] font-medium">Thinking</span>
         <span className={cn(mono, "text-foreground/35 tabular-nums")}>
-          {spent.toLocaleString()} / {budget.toLocaleString()}
+          {fmt(spent)} / {fmt(budget)}
         </span>
       </div>
 

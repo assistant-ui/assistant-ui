@@ -2143,6 +2143,26 @@ const models: ComposerModel[] = [
         component: "MessageAttachmentItem",
         rows: [
           {
+            name: "id",
+            type: "string",
+            required: true,
+            description:
+              "Stable identity for the list key and for the callbacks that report a selection.",
+          },
+          {
+            name: "name",
+            type: "string",
+            required: true,
+            description: "File name as shown.",
+          },
+          {
+            name: "size",
+            type: "string",
+            required: true,
+            description:
+              "Pre-formatted size. The element never converts bytes.",
+          },
+          {
             name: "kind",
             type: '"image" | "document" | "file"',
             required: true,
@@ -3251,7 +3271,7 @@ const models: ComposerModel[] = [
             type: "string",
             required: true,
             description:
-              "Host the content is served from. Show the sandbox origin, not your own, so the isolation is legible.",
+              "Host the content is served from. Show the sandbox origin, not your own, so the isolation is legible. Displaying it does not create the isolation; the frame you pass as children must already be sandboxed.",
           },
           {
             name: "loading",
@@ -3428,6 +3448,20 @@ const models: ComposerModel[] = [
       {
         component: "FlowNode",
         rows: [
+          {
+            name: "id",
+            type: "string",
+            required: true,
+            description:
+              "Stable identity for the list key and for the callbacks that report a selection.",
+          },
+          {
+            name: "label",
+            type: "string",
+            required: true,
+            description:
+              "Text inside the node, rendered in mono and not wrapped.",
+          },
           {
             name: "column",
             type: "number",
@@ -4434,6 +4468,20 @@ const models: ComposerModel[] = [
       {
         component: "MapPin",
         rows: [
+          {
+            name: "id",
+            type: "string",
+            required: true,
+            description:
+              "Stable identity for the list key and for the callbacks that report a selection.",
+          },
+          {
+            name: "label",
+            type: "string",
+            required: true,
+            description:
+              "Place name, shown on the pin and in the list below it.",
+          },
           {
             name: "x",
             type: "number",
