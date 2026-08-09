@@ -70,7 +70,7 @@ export function ComparisonCard({
                   const absent = !trait;
                   return (
                     <span
-                      key={label}
+                      key={`${i}-${label}`}
                       className="flex items-center gap-1.5 text-xs"
                     >
                       {absent ? (
