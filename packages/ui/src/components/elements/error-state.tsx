@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 
 export interface ErrorStateProps extends Omit<
   ComponentProps<"div">,
-  "children"
+  "children" | "role"
 > {
   title: string;
   detail: string;

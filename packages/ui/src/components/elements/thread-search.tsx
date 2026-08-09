@@ -51,7 +51,9 @@ export function ThreadSearch({
   const move = (delta: number) => {
     if (ordered.length === 0) return;
     const at = ordered.findIndex((thread) => thread.id === activeId);
-    const next = ordered[(at + delta + ordered.length) % ordered.length];
+    // activeId can be filtered out by the query; start from the edge the key implies
+    const from = at === -1 ? (delta > 0 ? -1 : 0) : at;
+    const next = ordered[(from + delta + ordered.length) % ordered.length];
     if (next) onSelect?.(next.id);
   };
 

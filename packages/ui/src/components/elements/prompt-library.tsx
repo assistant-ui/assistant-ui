@@ -46,7 +46,9 @@ export function PromptLibrary({
   const move = (delta: number) => {
     if (matches.length === 0) return;
     const at = matches.findIndex((prompt) => prompt.id === selectedId);
-    const next = matches[(at + delta + matches.length) % matches.length];
+    // selectedId can be filtered out by the query; start from the edge the key implies
+    const from = at === -1 ? (delta > 0 ? -1 : 0) : at;
+    const next = matches[(from + delta + matches.length) % matches.length];
     if (next) onSelect?.(next.id);
   };
 

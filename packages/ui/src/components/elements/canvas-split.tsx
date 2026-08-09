@@ -47,7 +47,7 @@ export function CanvasSplitMessage({
       className={cn(
         "fade-in animate-in fill-mode-both text-[13px] leading-relaxed duration-300",
         speaker === "user"
-          ? cn(field, "text-foreground/80 ml-auto rounded-2xl px-3 py-2")
+          ? cn(field, "text-foreground/80 ms-auto rounded-2xl px-3 py-2")
           : "text-foreground/60",
         className,
       )}
