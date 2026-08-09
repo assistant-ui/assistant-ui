@@ -179,7 +179,10 @@ export function ComposerDemo() {
                     setVoice("recording");
                     return;
                   }
+                  // already settling: a third click must not stack a second timer
+                  if (voice === "transcribing") return;
                   setVoice("transcribing");
+                  clearTimeout(settle.current);
                   settle.current = setTimeout(() => {
                     setVoice("idle");
                     setValue((v) => (v ? `${v} ${TRANSCRIPT}` : TRANSCRIPT));
