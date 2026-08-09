@@ -2561,6 +2561,26 @@ const models: ComposerModel[] = [
         component: "TraceSpan",
         rows: [
           {
+            name: "id",
+            type: "string",
+            required: true,
+            description: "Stable identity for the row key.",
+          },
+          {
+            name: "name",
+            type: "string",
+            required: true,
+            description:
+              "Span label in the left rail; truncates rather than wraps.",
+          },
+          {
+            name: "depth",
+            type: "number",
+            required: true,
+            description:
+              "Nesting level. Indents the label; the bar position comes from startMs, not from this.",
+          },
+          {
             name: "startMs",
             type: "number",
             required: true,

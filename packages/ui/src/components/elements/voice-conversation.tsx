@@ -1,6 +1,6 @@
 "use client";
 
-import { MicOffIcon, PhoneOffIcon } from "lucide-react";
+import { MicIcon, MicOffIcon, PhoneOffIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ghostButton, mono, paper } from "./surfaces";
 
@@ -158,7 +158,11 @@ export function VoiceConversation({
             muted && "bg-foreground/[0.08] text-foreground/90",
           )}
         >
-          <MicOffIcon className="size-4" />
+          {muted ? (
+            <MicOffIcon className="size-4" />
+          ) : (
+            <MicIcon className="size-4" />
+          )}
         </button>
         <button
           type="button"
