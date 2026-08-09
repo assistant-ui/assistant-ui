@@ -343,4 +343,34 @@ describe("convertExternalMessages", () => {
       expect(result[0]!.role).toBe("user");
     });
   });
+
+  describe("invalid converter output", () => {
+    it("throws a descriptive error when the callback returns undefined", () => {
+      const messages = [{ id: "m1", type: "remove" }];
+      const callback = (() =>
+        undefined) as unknown as useExternalMessageConverter.Callback<
+        (typeof messages)[number]
+      >;
+
+      expect(() =>
+        convertExternalMessages(messages, callback, false, {}),
+      ).toThrowError(
+        /returned an invalid message \(undefined\) for input \{"id":"m1","type":"remove"\}/,
+      );
+    });
+
+    it("throws a descriptive error when the callback returns an array containing undefined", () => {
+      const messages = [{ id: "m1", role: "user" as const, content: "hi" }];
+      const callback = ((msg: (typeof messages)[number]) => [
+        msg,
+        undefined,
+      ]) as unknown as useExternalMessageConverter.Callback<
+        (typeof messages)[number]
+      >;
+
+      expect(() =>
+        convertExternalMessages(messages, callback, false, {}),
+      ).toThrowError(/returned an invalid message \(undefined\)/);
+    });
+  });
 });

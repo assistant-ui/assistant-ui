@@ -76,6 +76,30 @@ type CallbackResult<T> = {
   outputs: useExternalMessageConverter.Message[];
 };
 
+const stringifyForError = (value: unknown) => {
+  try {
+    return JSON.stringify(value) ?? String(value);
+  } catch {
+    return String(value);
+  }
+};
+
+const toCallbackOutputs = (
+  output:
+    | useExternalMessageConverter.Message
+    | useExternalMessageConverter.Message[],
+  input: unknown,
+): useExternalMessageConverter.Message[] => {
+  const outputs = Array.isArray(output) ? output : [output];
+  for (const o of outputs) {
+    if (typeof o !== "object" || o === null || typeof o.role !== "string")
+      throw new Error(
+        `useExternalMessageConverter: the converter callback returned an invalid message (${stringifyForError(o)}) for input ${stringifyForError(input)}. Return an empty array to skip a message.`,
+      );
+  }
+  return outputs;
+};
+
 type CallbackCacheEntry<T> = CallbackResult<T> & {
   metadata: useExternalMessageConverter.Metadata;
   callback: useExternalMessageConverter.Callback<T>;
@@ -354,7 +378,7 @@ export const convertExternalMessages = <T extends WeakKey>(
   const callbackResults: CallbackResult<T>[] = [];
   for (const message of messages) {
     const output = callback(message, metadata);
-    const outputs = Array.isArray(output) ? output : [output];
+    const outputs = toCallbackOutputs(output, message);
     const result = { input: message, outputs };
     callbackResults.push(result);
   }
@@ -444,7 +468,7 @@ export const useExternalMessageConverter = <T extends WeakKey>({
         result.callback !== state.callback
       ) {
         const output = state.callback(message, state.metadata);
-        const outputs = Array.isArray(output) ? output : [output];
+        const outputs = toCallbackOutputs(output, message);
         result = {
           input: message,
           outputs,
