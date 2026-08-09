@@ -14,12 +14,12 @@ import { useStoryPhases } from "./use-demo";
 const MESSAGES = [
   {
     id: "u1",
-    role: "user" as const,
+    speaker: "user" as const,
     text: "Draft the migration note for 0.14",
   },
   {
     id: "a1",
-    role: "assistant" as const,
+    speaker: "assistant" as const,
     text: "Opened it in the canvas — editing now.",
   },
 ];
@@ -47,7 +47,7 @@ export function CanvasSplitDemo() {
     <CanvasSplit>
       <CanvasSplitThread>
         {MESSAGES.map((message) => (
-          <CanvasSplitMessage key={message.id} role={message.role}>
+          <CanvasSplitMessage key={message.id} speaker={message.speaker}>
             {message.text}
           </CanvasSplitMessage>
         ))}

@@ -74,7 +74,7 @@ export function EmptyStateComposer({
   className,
   style,
   ...props
-}: Omit<ComponentProps<"div">, "children"> & {
+}: Omit<ComponentProps<"div">, "children" | "placeholder"> & {
   placeholder: string;
   onSend?: () => void;
 }) {

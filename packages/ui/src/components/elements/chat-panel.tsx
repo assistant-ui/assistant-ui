@@ -98,7 +98,7 @@ export function ChatPanelComposer({
   onSend,
   className,
   ...props
-}: Omit<ComponentProps<"div">, "children"> & {
+}: Omit<ComponentProps<"div">, "children" | "placeholder"> & {
   placeholder: string;
   onSend?: () => void;
 }) {

@@ -36,17 +36,17 @@ export function CanvasSplitThread({
 }
 
 export function CanvasSplitMessage({
-  role,
+  speaker,
   className,
   ...props
-}: ComponentProps<"div"> & { role: "user" | "assistant" }) {
+}: ComponentProps<"div"> & { speaker: "user" | "assistant" }) {
   return (
     <div
       data-slot="canvas-split-message"
-      data-role={role}
+      data-speaker={speaker}
       className={cn(
         "fade-in animate-in fill-mode-both text-[13px] leading-relaxed duration-300",
-        role === "user"
+        speaker === "user"
           ? cn(field, "text-foreground/80 ml-auto rounded-2xl px-3 py-2")
           : "text-foreground/60",
         className,

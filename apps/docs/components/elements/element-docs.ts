@@ -2459,7 +2459,7 @@ const matches = useMentionMatches(value, people);
 
 <CanvasSplit>
   <CanvasSplitThread>
-    <CanvasSplitMessage role="user">Draft the note</CanvasSplitMessage>
+    <CanvasSplitMessage speaker="user">Draft the note</CanvasSplitMessage>
   </CanvasSplitThread>
   <CanvasSplitDocument>
     <CanvasSplitHeader title="note.md" version={3} saved onCopy={copy} />
@@ -2484,11 +2484,11 @@ const matches = useMentionMatches(value, people);
         component: "CanvasSplitMessage",
         rows: [
           {
-            name: "role",
+            name: "speaker",
             type: '"user" | "assistant"',
             required: true,
             description:
-              "User turns sit right in a bubble, assistant turns run flush left. Also emitted as data-role for styling from outside.",
+              "User turns sit right in a bubble, assistant turns run flush left. Emitted as data-speaker for styling from outside; it is deliberately not called role, so the ARIA attribute stays yours to set.",
           },
         ],
       },
