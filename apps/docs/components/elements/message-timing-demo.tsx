@@ -10,7 +10,7 @@ const PHASES = [2600, 0] as const;
 
 export function MessageTimingDemo() {
   const { phase, running } = useStoryPhases(PHASES);
-  const streaming = phase === 0;
+  const streaming = running && phase === 0;
   const tenths = useElapsed(running && streaming);
 
   const stats: TimingStat[] = streaming

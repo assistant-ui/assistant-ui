@@ -70,9 +70,11 @@ export function WebPreview({
 
       <div className="border-foreground/[0.07] relative min-h-[9rem] border-t">
         <div
+          aria-hidden={loading}
+          inert={loading}
           className={cn(
             "transition-opacity duration-300 motion-reduce:transition-none",
-            loading && "opacity-0",
+            loading && "pointer-events-none opacity-0",
           )}
         >
           {children}
