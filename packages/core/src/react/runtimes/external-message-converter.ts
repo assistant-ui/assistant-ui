@@ -77,11 +77,14 @@ type CallbackResult<T> = {
 };
 
 const stringifyForError = (value: unknown) => {
+  let text;
   try {
-    return JSON.stringify(value) ?? String(value);
+    text = value instanceof Error ? String(value) : JSON.stringify(value);
   } catch {
-    return String(value);
+    /* circular */
   }
+  text ??= String(value);
+  return text.length > 200 ? `${text.slice(0, 200)}…` : text;
 };
 
 const toCallbackOutputs = (
@@ -95,15 +98,12 @@ const toCallbackOutputs = (
     const valid =
       typeof o === "object" &&
       o !== null &&
-      (o.role === "tool"
-        ? typeof o.toolCallId === "string"
-        : (o.role === "assistant" ||
-            o.role === "user" ||
-            o.role === "system") &&
-          (typeof o.content === "string" || Array.isArray(o.content)));
+      (o.role === "tool" ||
+        ((o.role === "assistant" || o.role === "user" || o.role === "system") &&
+          (typeof o.content === "string" || Array.isArray(o.content))));
     if (!valid)
       throw new Error(
-        `useExternalMessageConverter: the converter callback returned an invalid message (${stringifyForError(o)}) for input ${stringifyForError(input)}. Return an empty array to skip a message.`,
+        `External message converter: the converter callback returned an invalid message (${stringifyForError(o)}) for input ${stringifyForError(input)}. Return an empty array to skip a message.`,
       );
   }
   return outputs;
