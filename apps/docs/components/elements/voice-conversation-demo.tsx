@@ -29,11 +29,12 @@ const PHASES = [1200, 2600, 1600, 3200, 0] as const;
 const VISIBLE = [0, 0, 1, 1, 2] as const;
 
 export function VoiceConversationDemo() {
-  const { phase } = useStoryPhases(PHASES);
+  const { phase, running } = useStoryPhases(PHASES);
   const mode = MODES[Math.min(phase, MODES.length - 1)]!;
   const [amplitude, setAmplitude] = useState(0.2);
 
   useEffect(() => {
+    if (!running) return;
     if (mode !== "listening" && mode !== "speaking") {
       setAmplitude(0.15);
       return;
@@ -44,7 +45,7 @@ export function VoiceConversationDemo() {
       setAmplitude(0.35 + Math.abs(Math.sin(tick * 0.7)) * 0.6);
     }, 110);
     return () => clearInterval(id);
-  }, [mode]);
+  }, [mode, running]);
 
   return (
     <VoiceConversation
