@@ -1432,6 +1432,37 @@ const matches = useSlashMatches(value, commands);
           },
         ],
       },
+      {
+        component: "ComposerMenu",
+        rows: [
+          {
+            name: "open",
+            type: "boolean",
+            required: true,
+            description:
+              "Whether the menu is showing. It stays mounted and animates, so the transition runs both ways.",
+          },
+          {
+            name: "align",
+            type: '"start" | "end"',
+            defaultValue: '"start"',
+            description:
+              "Which edge the menu hangs from, matching the control that opened it.",
+          },
+        ],
+      },
+      {
+        component: "ComposerMenuItem",
+        rows: [
+          {
+            name: "active",
+            type: "boolean",
+            defaultValue: "false",
+            description:
+              "Marks the row Enter would take. Command and person items wrap this and set it for you.",
+          },
+        ],
+      },
     ],
   },
   "composer-mentions": {
@@ -1523,6 +1554,24 @@ const matches = useMentionMatches(value, people);
           },
         ],
       },
+      {
+        component: "ComposerModelTrigger",
+        rows: [
+          {
+            name: "model",
+            type: "string",
+            required: true,
+            description: "Name of the active model, shown on the trigger.",
+          },
+          {
+            name: "open",
+            type: "boolean",
+            required: true,
+            description:
+              "Whether the menu it controls is showing; also reported as aria-expanded.",
+          },
+        ],
+      },
     ],
   },
   "composer-voice": {
@@ -1550,6 +1599,18 @@ const matches = useMentionMatches(value, people);
             required: true,
             description:
               "Elapsed capture time. Also drives the waveform, so the bars move with the clock.",
+          },
+        ],
+      },
+      {
+        component: "ComposerVoiceButton",
+        rows: [
+          {
+            name: "active",
+            type: "boolean",
+            required: true,
+            description:
+              "Capturing or transcribing. Swaps the mic for a stop square and fills the button.",
           },
         ],
       },
