@@ -17,7 +17,7 @@ export function PermissionGrant({
   ...props
 }: Omit<
   ComponentProps<"div">,
-  "capability" | "requester" | "reach" | "scope" | "onGrant"
+  "children" | "capability" | "requester" | "reach" | "scope" | "onGrant"
 > & {
   capability: string;
   requester: string;

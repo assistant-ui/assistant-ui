@@ -39,6 +39,7 @@ export function VoiceConversation({
   ...props
 }: Omit<
   ComponentProps<"div">,
+  | "children"
   | "mode"
   | "amplitude"
   | "transcript"

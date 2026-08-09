@@ -21,7 +21,13 @@ export function JobProgress({
   ...props
 }: Omit<
   ComponentProps<"div">,
-  "title" | "stages" | "stageIndex" | "stageProgress" | "eta" | "onCancel"
+  | "children"
+  | "title"
+  | "stages"
+  | "stageIndex"
+  | "stageProgress"
+  | "eta"
+  | "onCancel"
 > & {
   title: string;
   stages: readonly JobStage[];

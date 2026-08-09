@@ -51,7 +51,10 @@ export function ComposerSlashDemo() {
             value={value}
             placeholder="Ask anything"
             onChange={(event) => setValue(event.target.value)}
-            onSubmit={() => setValue("")}
+            onSubmit={() => {
+              const command = matches[0];
+              setValue(command ? `/${command.name} ` : "");
+            }}
           />
           <ComposerToolbar>
             <ComposerActions>

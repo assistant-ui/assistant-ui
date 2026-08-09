@@ -42,7 +42,7 @@ export function McpServerPanel({
   ...props
 }: Omit<
   ComponentProps<"div">,
-  "servers" | "expandedId" | "onToggle" | "onAuthorize"
+  "children" | "servers" | "expandedId" | "onToggle" | "onAuthorize"
 > & {
   servers: readonly McpServer[];
   expandedId?: string;

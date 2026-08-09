@@ -20,7 +20,12 @@ export function SubagentList({
   ...props
 }: Omit<
   ComponentProps<"div">,
-  "agents" | "completedCount" | "progress" | "showSummary" | "summaryAgent"
+  | "children"
+  | "agents"
+  | "completedCount"
+  | "progress"
+  | "showSummary"
+  | "summaryAgent"
 > & {
   agents: readonly SubagentItem[];
   completedCount: number;

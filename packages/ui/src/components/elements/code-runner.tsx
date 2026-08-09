@@ -18,7 +18,7 @@ export function CodeRunner({
   ...props
 }: Omit<
   ComponentProps<"div">,
-  "language" | "code" | "state" | "output" | "durationMs" | "onRun"
+  "children" | "language" | "code" | "state" | "output" | "durationMs" | "onRun"
 > & {
   language: string;
   code: string;

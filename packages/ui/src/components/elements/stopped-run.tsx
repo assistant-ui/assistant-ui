@@ -14,7 +14,7 @@ export function StoppedRun({
   ...props
 }: Omit<
   ComponentProps<"div">,
-  "words" | "reason" | "onContinue" | "onDiscard"
+  "children" | "words" | "reason" | "onContinue" | "onDiscard"
 > & {
   words: readonly string[];
   reason: string;

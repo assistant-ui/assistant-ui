@@ -24,6 +24,7 @@ export function AgentCard({
   ...props
 }: Omit<
   ComponentProps<"div">,
+  | "children"
   | "name"
   | "description"
   | "provider"

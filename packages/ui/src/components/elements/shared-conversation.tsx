@@ -21,7 +21,7 @@ export function SharedConversation({
   ...props
 }: Omit<
   ComponentProps<"div">,
-  "title" | "sharedBy" | "sharedAt" | "turns" | "onContinue"
+  "children" | "title" | "sharedBy" | "sharedAt" | "turns" | "onContinue"
 > & {
   title: string;
   sharedBy: string;

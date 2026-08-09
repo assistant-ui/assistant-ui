@@ -17,6 +17,7 @@ export function FeedbackDialog({
   ...props
 }: Omit<
   ComponentProps<"div">,
+  | "children"
   | "reasons"
   | "selected"
   | "note"

@@ -32,7 +32,10 @@ export function ConfidenceMarker({
   onHover,
   className,
   ...props
-}: Omit<ComponentProps<"div">, "claims" | "hoveredId" | "onHover"> & {
+}: Omit<
+  ComponentProps<"div">,
+  "children" | "claims" | "hoveredId" | "onHover"
+> & {
   claims: readonly ConfidenceClaim[];
   hoveredId: string;
   onHover?: (id: string) => void;

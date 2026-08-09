@@ -19,7 +19,7 @@ export function MessageAttachments({
   onOpen,
   className,
   ...props
-}: Omit<ComponentProps<"div">, "attachments" | "onOpen"> & {
+}: Omit<ComponentProps<"div">, "children" | "attachments" | "onOpen"> & {
   attachments: readonly MessageAttachmentItem[];
   onOpen?: (id: string) => void;
 }) {

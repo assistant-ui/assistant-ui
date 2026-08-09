@@ -18,7 +18,7 @@ export function MemoryChips({
   onForget,
   className,
   ...props
-}: Omit<ComponentProps<"div">, "chips" | "onForget"> & {
+}: Omit<ComponentProps<"div">, "children" | "chips" | "onForget"> & {
   chips: readonly MemoryChip[];
   onForget?: (id: string) => void;
 }) {

@@ -18,7 +18,10 @@ export function CheckpointHistory({
   onRestore,
   className,
   ...props
-}: Omit<ComponentProps<"div">, "checkpoints" | "currentId" | "onRestore"> & {
+}: Omit<
+  ComponentProps<"div">,
+  "children" | "checkpoints" | "currentId" | "onRestore"
+> & {
   checkpoints: readonly Checkpoint[];
   currentId: string;
   onRestore?: (id: string) => void;

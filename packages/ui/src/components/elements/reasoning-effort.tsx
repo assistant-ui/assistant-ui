@@ -21,7 +21,7 @@ export function ReasoningEffort({
   ...props
 }: Omit<
   ComponentProps<"div">,
-  "levels" | "selectedKey" | "spent" | "onSelect"
+  "children" | "levels" | "selectedKey" | "spent" | "onSelect"
 > & {
   levels: readonly EffortLevel[];
   selectedKey: string;

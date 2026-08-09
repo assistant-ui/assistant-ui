@@ -14,7 +14,7 @@ export function MessageTiming({
   streaming,
   className,
   ...props
-}: Omit<ComponentProps<"div">, "stats" | "streaming"> & {
+}: Omit<ComponentProps<"div">, "children" | "stats" | "streaming"> & {
   stats: readonly TimingStat[];
   streaming?: boolean;
 }) {

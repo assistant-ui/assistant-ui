@@ -19,7 +19,7 @@ export function Timeline({
   visibleCount,
   className,
   ...props
-}: Omit<ComponentProps<"div">, "events" | "visibleCount"> & {
+}: Omit<ComponentProps<"div">, "children" | "events" | "visibleCount"> & {
   events: readonly TimelineEvent[];
   visibleCount: number;
 }) {

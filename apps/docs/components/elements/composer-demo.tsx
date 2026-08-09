@@ -129,7 +129,19 @@ export function ComposerDemo() {
               value={value}
               placeholder="Ask anything"
               onChange={(event) => setValue(event.target.value)}
-              onSubmit={() => setValue("")}
+              onSubmit={() => {
+                const command = slashMatches[0];
+                if (command) {
+                  setValue(`/${command.name} `);
+                  return;
+                }
+                const person = mentionMatches[0];
+                if (person) {
+                  setValue(applyMention(value, person.name));
+                  return;
+                }
+                setValue("");
+              }}
             />
           )}
           <ComposerToolbar>

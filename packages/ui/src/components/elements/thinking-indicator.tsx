@@ -9,7 +9,7 @@ export function ThinkingIndicator({
   elapsed,
   className,
   ...props
-}: Omit<ComponentProps<"div">, "label" | "elapsed"> & {
+}: Omit<ComponentProps<"div">, "children" | "label" | "elapsed"> & {
   label: string;
   elapsed?: string;
 }) {

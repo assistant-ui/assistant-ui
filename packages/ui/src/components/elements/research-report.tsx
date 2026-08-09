@@ -21,7 +21,10 @@ export function ResearchReport({
   sourcesRead,
   className,
   ...props
-}: Omit<ComponentProps<"div">, "title" | "sections" | "sourcesRead"> & {
+}: Omit<
+  ComponentProps<"div">,
+  "children" | "title" | "sections" | "sourcesRead"
+> & {
   title: string;
   sections: readonly ReportSection[];
   sourcesRead: number;

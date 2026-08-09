@@ -14,7 +14,10 @@ export function StreamingText({
   streaming,
   className,
   ...props
-}: Omit<ComponentProps<"p">, "segments" | "count" | "streaming"> & {
+}: Omit<
+  ComponentProps<"p">,
+  "children" | "segments" | "count" | "streaming"
+> & {
   segments: Segment[];
   count: number;
   streaming: boolean;

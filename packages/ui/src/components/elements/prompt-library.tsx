@@ -23,7 +23,13 @@ export function PromptLibrary({
   ...props
 }: Omit<
   ComponentProps<"div">,
-  "prompts" | "query" | "selectedId" | "onQueryChange" | "onSelect" | "onInsert"
+  | "children"
+  | "prompts"
+  | "query"
+  | "selectedId"
+  | "onQueryChange"
+  | "onSelect"
+  | "onInsert"
 > & {
   prompts: readonly SavedPrompt[];
   query: string;

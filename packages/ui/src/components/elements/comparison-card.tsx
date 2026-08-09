@@ -21,7 +21,7 @@ export function ComparisonCard({
   ...props
 }: Omit<
   ComponentProps<"div">,
-  "traitLabels" | "options" | "recommendedId" | "reason"
+  "children" | "traitLabels" | "options" | "recommendedId" | "reason"
 > & {
   traitLabels: readonly string[];
   options: readonly ComparisonOption[];

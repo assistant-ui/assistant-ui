@@ -20,7 +20,10 @@ export function ModelPicker({
   onSelect,
   className,
   ...props
-}: Omit<ComponentProps<"div">, "models" | "selectedId" | "onSelect"> & {
+}: Omit<
+  ComponentProps<"div">,
+  "children" | "models" | "selectedId" | "onSelect"
+> & {
   models: readonly PickableModel[];
   selectedId: string;
   onSelect?: (id: string) => void;

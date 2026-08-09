@@ -26,7 +26,7 @@ export function NumberTicker({
   label,
   className,
   ...props
-}: Omit<ComponentProps<"div">, "value" | "label"> & {
+}: Omit<ComponentProps<"div">, "children" | "value" | "label"> & {
   value: number;
   label: string;
 }) {

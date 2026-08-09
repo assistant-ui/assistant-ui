@@ -14,7 +14,7 @@ export function DraftRestore({
   ...props
 }: Omit<
   ComponentProps<"div">,
-  "draft" | "savedAt" | "onRestore" | "onDiscard"
+  "children" | "draft" | "savedAt" | "onRestore" | "onDiscard"
 > & {
   draft: string;
   savedAt: string;

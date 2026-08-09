@@ -10,38 +10,47 @@ export function TypingIndicator({
   variant = "bubble",
   className,
   ...props
-}: Omit<ComponentProps<"div">, "variant"> & {
+}: Omit<ComponentProps<"div">, "children" | "variant"> & {
   variant?: "bubble" | "bare";
 }) {
-  const dots = (
-    <div
-      role="status"
-      aria-label="Assistant is typing"
-      className={cn("flex gap-1", variant === "bare" && className)}
-    >
-      {DOT_DELAYS.map((delay) => (
-        <span
-          key={delay}
-          aria-hidden
-          className="bg-foreground/40 size-1.5 animate-bounce rounded-full motion-reduce:animate-none"
-          style={{ animationDelay: delay, animationDuration: "1.1s" }}
-        />
-      ))}
-    </div>
-  );
+  const dots = DOT_DELAYS.map((delay) => (
+    <span
+      key={delay}
+      aria-hidden
+      className="bg-foreground/40 size-1.5 animate-bounce rounded-full motion-reduce:animate-none"
+      style={{ animationDelay: delay, animationDuration: "1.1s" }}
+    />
+  ));
 
   if (variant === "bare") {
-    return dots;
+    return (
+      <div
+        data-slot="typing-indicator"
+        data-variant="bare"
+        role="status"
+        aria-label="Assistant is typing"
+        className={cn("flex gap-1", className)}
+        {...props}
+      >
+        {dots}
+      </div>
+    );
   }
 
   return (
     <div
       data-slot="typing-indicator"
+      data-variant="bubble"
       className={cn(paper, "w-fit rounded-full px-4 py-3.5", className)}
-
       {...props}
     >
-      {dots}
+      <div
+        role="status"
+        aria-label="Assistant is typing"
+        className="flex gap-1"
+      >
+        {dots}
+      </div>
     </div>
   );
 }

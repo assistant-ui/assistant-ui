@@ -21,7 +21,7 @@ export function RegenerateMenu({
   ...props
 }: Omit<
   ComponentProps<"div">,
-  "options" | "open" | "currentId" | "onOpenChange" | "onPick"
+  "children" | "options" | "open" | "currentId" | "onOpenChange" | "onPick"
 > & {
   options: readonly RegenerateOption[];
   open: boolean;

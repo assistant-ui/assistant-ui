@@ -18,7 +18,7 @@ export function AgentStatus({
   elapsed,
   className,
   ...props
-}: Omit<ComponentProps<"div">, "state" | "label" | "elapsed"> & {
+}: Omit<ComponentProps<"div">, "children" | "state" | "label" | "elapsed"> & {
   state: AgentState;
   label: string;
   elapsed?: string;

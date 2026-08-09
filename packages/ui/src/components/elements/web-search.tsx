@@ -20,7 +20,7 @@ export function WebSearch({
   ...props
 }: Omit<
   ComponentProps<"div">,
-  "query" | "results" | "visibleResults" | "searching" | "cycle"
+  "children" | "query" | "results" | "visibleResults" | "searching" | "cycle"
 > & {
   query: string;
   results: readonly WebSearchResult[];

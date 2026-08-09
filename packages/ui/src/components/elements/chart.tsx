@@ -28,7 +28,13 @@ export function Chart({
   ...props
 }: Omit<
   ComponentProps<"div">,
-  "label" | "value" | "delta" | "points" | "visibleCount" | "variant"
+  | "children"
+  | "label"
+  | "value"
+  | "delta"
+  | "points"
+  | "visibleCount"
+  | "variant"
 > & {
   label: string;
   value: string;

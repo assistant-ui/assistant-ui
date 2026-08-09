@@ -10,7 +10,7 @@ export function AgentPlan({
   activeIndex,
   className,
   ...props
-}: Omit<ComponentProps<"div">, "steps" | "activeIndex"> & {
+}: Omit<ComponentProps<"div">, "children" | "steps" | "activeIndex"> & {
   steps: readonly string[];
   activeIndex: number;
 }) {

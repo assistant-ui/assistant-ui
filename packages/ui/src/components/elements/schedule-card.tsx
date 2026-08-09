@@ -22,7 +22,13 @@ export function ScheduleCard({
   ...props
 }: Omit<
   ComponentProps<"div">,
-  "name" | "cadence" | "nextRun" | "enabled" | "history" | "onToggle"
+  | "children"
+  | "name"
+  | "cadence"
+  | "nextRun"
+  | "enabled"
+  | "history"
+  | "onToggle"
 > & {
   name: string;
   cadence: string;

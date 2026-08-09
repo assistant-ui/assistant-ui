@@ -27,7 +27,10 @@ export function TraceWaterfall({
   visibleCount,
   className,
   ...props
-}: Omit<ComponentProps<"div">, "spans" | "totalMs" | "visibleCount"> & {
+}: Omit<
+  ComponentProps<"div">,
+  "children" | "spans" | "totalMs" | "visibleCount"
+> & {
   spans: readonly TraceSpan[];
   totalMs: number;
   visibleCount: number;

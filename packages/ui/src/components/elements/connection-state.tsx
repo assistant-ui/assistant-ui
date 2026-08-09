@@ -16,7 +16,7 @@ export function ConnectionState({
   ...props
 }: Omit<
   ComponentProps<"div">,
-  "phase" | "attempt" | "resumedTokens" | "onRetry"
+  "children" | "phase" | "attempt" | "resumedTokens" | "onRetry"
 > & {
   phase: ConnectionPhase;
   attempt?: number;

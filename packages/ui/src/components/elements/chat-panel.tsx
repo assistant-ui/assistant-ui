@@ -71,7 +71,7 @@ export function ChatPanelAssistantMessage({
 export function ChatPanelTyping({
   className,
   ...props
-}: ComponentProps<"div">) {
+}: Omit<ComponentProps<"div">, "children">) {
   return (
     <div
       data-slot="chat-panel-typing"

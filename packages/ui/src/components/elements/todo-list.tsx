@@ -18,7 +18,7 @@ export function TodoList({
   revision,
   className,
   ...props
-}: Omit<ComponentProps<"div">, "items" | "revision"> & {
+}: Omit<ComponentProps<"div">, "children" | "items" | "revision"> & {
   items: readonly TodoItem[];
   revision?: number;
 }) {

@@ -23,6 +23,7 @@ export function CommandPalette({
   ...props
 }: Omit<
   ComponentProps<"div">,
+  | "children"
   | "commands"
   | "query"
   | "activeId"

@@ -26,7 +26,7 @@ export function SpeakerIdentity({
   turns,
   className,
   ...props
-}: Omit<ComponentProps<"div">, "turns"> & {
+}: Omit<ComponentProps<"div">, "children" | "turns"> & {
   turns: readonly SpeakerTurn[];
 }) {
   return (

@@ -18,6 +18,7 @@ export function ToolError({
   ...props
 }: Omit<
   ComponentProps<"div">,
+  | "children"
   | "name"
   | "target"
   | "message"

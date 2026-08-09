@@ -22,7 +22,7 @@ export function RetrievalChunks({
   ...props
 }: Omit<
   ComponentProps<"div">,
-  "query" | "chunks" | "visibleCount" | "searching"
+  "children" | "query" | "chunks" | "visibleCount" | "searching"
 > & {
   query: string;
   chunks: readonly RetrievalChunk[];

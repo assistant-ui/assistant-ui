@@ -16,7 +16,10 @@ export function MessageQueue({
   onCancel,
   className,
   ...props
-}: Omit<ComponentProps<"div">, "running" | "queued" | "onCancel"> & {
+}: Omit<
+  ComponentProps<"div">,
+  "children" | "running" | "queued" | "onCancel"
+> & {
   running: string;
   queued: readonly QueuedMessage[];
   onCancel?: (id: string) => void;

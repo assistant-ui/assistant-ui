@@ -21,7 +21,7 @@ export function ScoreBreakdown({
   ...props
 }: Omit<
   ComponentProps<"div">,
-  "verdict" | "total" | "outOf" | "criteria" | "visibleCount"
+  "children" | "verdict" | "total" | "outOf" | "criteria" | "visibleCount"
 > & {
   verdict: string;
   total: number;

@@ -23,7 +23,7 @@ export function ConversationSearch({
   ...props
 }: Omit<
   ComponentProps<"div">,
-  "query" | "hits" | "activeIndex" | "onQueryChange" | "onStep"
+  "children" | "query" | "hits" | "activeIndex" | "onQueryChange" | "onStep"
 > & {
   query: string;
   hits: readonly SearchHit[];

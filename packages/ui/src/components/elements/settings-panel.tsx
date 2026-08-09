@@ -25,6 +25,7 @@ export function SettingsPanel({
   ...props
 }: Omit<
   ComponentProps<"div">,
+  | "children"
   | "model"
   | "models"
   | "systemPrompt"

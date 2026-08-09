@@ -23,7 +23,7 @@ export function FileTree({
   ...props
 }: Omit<
   ComponentProps<"div">,
-  "nodes" | "visibleCount" | "totalAdditions" | "totalDeletions"
+  "children" | "nodes" | "visibleCount" | "totalAdditions" | "totalDeletions"
 > & {
   nodes: readonly FileTreeNode[];
   visibleCount: number;

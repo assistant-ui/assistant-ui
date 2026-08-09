@@ -12,7 +12,10 @@ export function ArtifactCard({
   words = 0,
   className,
   ...props
-}: Omit<ComponentProps<"div">, "title" | "meta" | "generating" | "words"> & {
+}: Omit<
+  ComponentProps<"div">,
+  "children" | "title" | "meta" | "generating" | "words"
+> & {
   title: string;
   meta: string;
   generating?: boolean;

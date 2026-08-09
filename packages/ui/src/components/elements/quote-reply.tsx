@@ -29,6 +29,7 @@ export function QuoteReply({
   ...props
 }: Omit<
   ComponentProps<"div">,
+  | "children"
   | "before"
   | "selection"
   | "after"

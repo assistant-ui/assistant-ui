@@ -27,7 +27,7 @@ export function CodeDiff({
   ...props
 }: Omit<
   ComponentProps<"div">,
-  "filename" | "additions" | "deletions" | "lines" | "cycle"
+  "children" | "filename" | "additions" | "deletions" | "lines" | "cycle"
 > & {
   filename: string;
   additions: number;

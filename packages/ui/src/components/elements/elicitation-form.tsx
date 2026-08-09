@@ -27,7 +27,13 @@ export function ElicitationForm({
   ...props
 }: Omit<
   ComponentProps<"div">,
-  "server" | "message" | "fields" | "state" | "onAccept" | "onDecline"
+  | "children"
+  | "server"
+  | "message"
+  | "fields"
+  | "state"
+  | "onAccept"
+  | "onDecline"
 > & {
   server: string;
   message: string;

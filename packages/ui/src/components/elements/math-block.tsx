@@ -15,7 +15,10 @@ export function MathBlock({
   visibleSteps,
   className,
   ...props
-}: Omit<ComponentProps<"div">, "label" | "steps" | "visibleSteps"> & {
+}: Omit<
+  ComponentProps<"div">,
+  "children" | "label" | "steps" | "visibleSteps"
+> & {
   label?: string;
   steps: readonly MathStep[];
   visibleSteps: number;

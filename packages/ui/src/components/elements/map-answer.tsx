@@ -19,7 +19,10 @@ export function MapAnswer({
   onSelect,
   className,
   ...props
-}: Omit<ComponentProps<"div">, "pins" | "activeId" | "route" | "onSelect"> & {
+}: Omit<
+  ComponentProps<"div">,
+  "children" | "pins" | "activeId" | "route" | "onSelect"
+> & {
   pins: readonly MapPin[];
   activeId: string;
   route?: boolean;

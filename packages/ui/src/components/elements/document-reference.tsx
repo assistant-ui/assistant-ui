@@ -20,7 +20,7 @@ export function DocumentReference({
   ...props
 }: Omit<
   ComponentProps<"div">,
-  "title" | "pages" | "anchors" | "activePage" | "onJump"
+  "children" | "title" | "pages" | "anchors" | "activePage" | "onJump"
 > & {
   title: string;
   pages: number;

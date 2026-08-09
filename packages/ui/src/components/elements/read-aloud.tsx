@@ -18,6 +18,7 @@ export function ReadAloud({
   ...props
 }: Omit<
   ComponentProps<"div">,
+  | "children"
   | "words"
   | "spokenIndex"
   | "playing"

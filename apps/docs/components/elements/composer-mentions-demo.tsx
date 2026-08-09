@@ -46,7 +46,10 @@ export function ComposerMentionsDemo() {
             value={value}
             placeholder="Ask anything"
             onChange={(event) => setValue(event.target.value)}
-            onSubmit={() => setValue("")}
+            onSubmit={() => {
+              const person = matches[0];
+              setValue(person ? applyMention(value, person.name) : "");
+            }}
           />
           <ComposerToolbar>
             <ComposerActions>

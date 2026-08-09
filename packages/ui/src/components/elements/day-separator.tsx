@@ -16,7 +16,7 @@ export function DaySeparator({
   messages,
   className,
   ...props
-}: Omit<ComponentProps<"div">, "messages"> & {
+}: Omit<ComponentProps<"div">, "children" | "messages"> & {
   messages: readonly DatedMessage[];
 }) {
   let lastDay = "";

@@ -20,7 +20,7 @@ export function BackgroundInbox({
   onCollect,
   className,
   ...props
-}: Omit<ComponentProps<"div">, "runs" | "onCollect"> & {
+}: Omit<ComponentProps<"div">, "children" | "runs" | "onCollect"> & {
   runs: readonly BackgroundRun[];
   onCollect?: (id: string) => void;
 }) {

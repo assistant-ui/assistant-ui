@@ -412,7 +412,7 @@ export function ComposerActions({
 export function ComposerAttachButton({
   className,
   ...props
-}: ComponentProps<"button">) {
+}: Omit<ComponentProps<"button">, "children">) {
   return (
     <button
       type="button"

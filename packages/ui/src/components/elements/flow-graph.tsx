@@ -30,7 +30,10 @@ export function FlowGraph({
   visibleCount,
   className,
   ...props
-}: Omit<ComponentProps<"div">, "nodes" | "edges" | "visibleCount"> & {
+}: Omit<
+  ComponentProps<"div">,
+  "children" | "nodes" | "edges" | "visibleCount"
+> & {
   nodes: readonly FlowNode[];
   edges: readonly FlowEdge[];
   visibleCount: number;

@@ -19,7 +19,7 @@ export function ThreadList({
   ...props
 }: Omit<
   ComponentProps<"div">,
-  "threads" | "activeIndex" | "onActiveIndexChange"
+  "children" | "threads" | "activeIndex" | "onActiveIndexChange"
 > & {
   threads: readonly ThreadItem[];
   activeIndex: number;

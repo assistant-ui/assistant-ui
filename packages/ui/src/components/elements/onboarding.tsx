@@ -17,7 +17,10 @@ export function Onboarding({
   onSkip,
   className,
   ...props
-}: Omit<ComponentProps<"div">, "steps" | "index" | "onNext" | "onSkip"> & {
+}: Omit<
+  ComponentProps<"div">,
+  "children" | "steps" | "index" | "onNext" | "onSkip"
+> & {
   steps: readonly OnboardingStep[];
   index: number;
   onNext?: () => void;

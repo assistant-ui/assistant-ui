@@ -12,7 +12,7 @@ export function ImageGeneration({
   generating,
   className,
   ...props
-}: Omit<ComponentProps<"div">, "prompt" | "generating"> & {
+}: Omit<ComponentProps<"div">, "children" | "prompt" | "generating"> & {
   prompt: string;
   generating: boolean;
 }) {

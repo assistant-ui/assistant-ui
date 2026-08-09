@@ -22,7 +22,10 @@ export function ToolGroup({
   onOpenChange,
   className,
   ...props
-}: Omit<ComponentProps<"div">, "label" | "tools" | "open" | "onOpenChange"> & {
+}: Omit<
+  ComponentProps<"div">,
+  "children" | "label" | "tools" | "open" | "onOpenChange"
+> & {
   label: string;
   tools: readonly GroupedTool[];
   open: boolean;

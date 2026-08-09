@@ -17,7 +17,14 @@ export function LauncherBubble({
   ...props
 }: Omit<
   ComponentProps<"div">,
-  "open" | "unread" | "greeting" | "prompts" | "onToggle" | "onPick" | "onStart"
+  | "children"
+  | "open"
+  | "unread"
+  | "greeting"
+  | "prompts"
+  | "onToggle"
+  | "onPick"
+  | "onStart"
 > & {
   open: boolean;
   unread: number;

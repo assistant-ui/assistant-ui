@@ -23,7 +23,7 @@ export function ThreadSearch({
   ...props
 }: Omit<
   ComponentProps<"div">,
-  "threads" | "query" | "activeId" | "onQueryChange" | "onSelect"
+  "children" | "threads" | "query" | "activeId" | "onQueryChange" | "onSelect"
 > & {
   threads: readonly SearchableThread[];
   query: string;

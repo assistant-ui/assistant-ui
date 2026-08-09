@@ -21,7 +21,10 @@ export function ActivityGraph({
   total,
   className,
   ...props
-}: Omit<ComponentProps<"div">, "data" | "start" | "end" | "title" | "total"> & {
+}: Omit<
+  ComponentProps<"div">,
+  "children" | "data" | "start" | "end" | "title" | "total"
+> & {
   data: readonly HeatGraph.DataPoint[];
   start: string | Date;
   end: string | Date;

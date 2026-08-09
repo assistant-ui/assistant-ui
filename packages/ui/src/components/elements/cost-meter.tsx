@@ -18,7 +18,10 @@ export function CostMeter({
   lines,
   className,
   ...props
-}: Omit<ComponentProps<"div">, "runCost" | "sessionCost" | "lines"> & {
+}: Omit<
+  ComponentProps<"div">,
+  "children" | "runCost" | "sessionCost" | "lines"
+> & {
   runCost: string;
   sessionCost: string;
   lines: readonly CostLine[];

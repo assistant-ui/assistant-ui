@@ -15,7 +15,7 @@ export function GuardrailNotice({
   ...props
 }: Omit<
   ComponentProps<"div">,
-  "title" | "explanation" | "policy" | "alternatives" | "onPick"
+  "children" | "title" | "explanation" | "policy" | "alternatives" | "onPick"
 > & {
   title: string;
   explanation: string;

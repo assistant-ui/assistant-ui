@@ -19,7 +19,7 @@ export function SpecSheet({
   ...props
 }: Omit<
   ComponentProps<"div">,
-  "title" | "subtitle" | "rows" | "visibleCount"
+  "children" | "title" | "subtitle" | "rows" | "visibleCount"
 > & {
   title: string;
   subtitle?: string;

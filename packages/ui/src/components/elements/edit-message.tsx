@@ -17,6 +17,7 @@ export function EditMessage({
   ...props
 }: Omit<
   ComponentProps<"div">,
+  | "children"
   | "value"
   | "discardedReplies"
   | "editing"

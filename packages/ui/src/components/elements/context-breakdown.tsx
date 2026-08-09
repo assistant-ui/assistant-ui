@@ -17,7 +17,7 @@ export function ContextBreakdown({
   limit,
   className,
   ...props
-}: Omit<ComponentProps<"div">, "segments" | "limit"> & {
+}: Omit<ComponentProps<"div">, "children" | "segments" | "limit"> & {
   segments: readonly ContextSegment[];
   limit: number;
 }) {

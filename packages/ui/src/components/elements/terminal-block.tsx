@@ -15,7 +15,7 @@ export function TerminalBlock({
   ...props
 }: Omit<
   ComponentProps<"div">,
-  "command" | "lines" | "visibleCount" | "done" | "variant"
+  "children" | "command" | "lines" | "visibleCount" | "done" | "variant"
 > & {
   command: string;
   lines: readonly string[];

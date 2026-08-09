@@ -27,7 +27,7 @@ export function ReviewableDiff({
   ...props
 }: Omit<
   ComponentProps<"div">,
-  "filename" | "hunks" | "onKeep" | "onDiscard" | "onApply"
+  "children" | "filename" | "hunks" | "onKeep" | "onDiscard" | "onApply"
 > & {
   filename: string;
   hunks: readonly DiffHunk[];

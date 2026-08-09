@@ -15,7 +15,13 @@ export function QuotaBanner({
   ...props
 }: Omit<
   ComponentProps<"div">,
-  "used" | "limit" | "unit" | "resetsIn" | "upgradeLabel" | "onUpgrade"
+  | "children"
+  | "used"
+  | "limit"
+  | "unit"
+  | "resetsIn"
+  | "upgradeLabel"
+  | "onUpgrade"
 > & {
   used: number;
   limit: number;

@@ -20,6 +20,7 @@ export function MobileComposer({
   ...props
 }: Omit<
   ComponentProps<"div">,
+  | "children"
   | "value"
   | "keyboardOpen"
   | "running"

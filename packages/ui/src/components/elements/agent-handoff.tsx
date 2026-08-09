@@ -15,7 +15,7 @@ export function AgentHandoff({
   ...props
 }: Omit<
   ComponentProps<"div">,
-  "from" | "to" | "reason" | "carried" | "settled"
+  "children" | "from" | "to" | "reason" | "carried" | "settled"
 > & {
   from: string;
   to: string;

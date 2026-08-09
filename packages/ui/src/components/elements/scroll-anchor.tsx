@@ -25,7 +25,10 @@ export function ScrollAnchor({
   onSettled,
   className,
   ...props
-}: Omit<ComponentProps<"div">, "messages" | "paused" | "onSettled"> & {
+}: Omit<
+  ComponentProps<"div">,
+  "children" | "messages" | "paused" | "onSettled"
+> & {
   messages: ScrollAnchorMessage[];
   paused?: boolean;
   onSettled?: () => void;

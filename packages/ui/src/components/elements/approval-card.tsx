@@ -19,6 +19,7 @@ export function ApprovalCard({
   ...props
 }: Omit<
   ComponentProps<"div">,
+  | "children"
   | "state"
   | "command"
   | "title"
