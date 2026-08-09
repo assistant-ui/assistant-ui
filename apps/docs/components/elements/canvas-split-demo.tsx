@@ -2,42 +2,75 @@
 
 import {
   CanvasSplit,
-  type CanvasMessage,
+  CanvasSplitBody,
+  CanvasSplitDocument,
+  CanvasSplitHeader,
+  CanvasSplitLine,
+  CanvasSplitMessage,
+  CanvasSplitThread,
 } from "@/components/elements/canvas-split";
 import { useStoryPhases } from "./use-demo";
 
-const MESSAGES: readonly CanvasMessage[] = [
-  { id: "u1", role: "user", text: "Draft the migration note for 0.14" },
+const MESSAGES = [
+  {
+    id: "u1",
+    role: "user" as const,
+    text: "Draft the migration note for 0.14",
+  },
   {
     id: "a1",
-    role: "assistant",
+    role: "assistant" as const,
     text: "Opened it in the canvas — editing now.",
   },
 ];
 
-const LINES: readonly string[] = [
-  "# Migrating to 0.14",
-  "The composer now owns its draft, so `useState` in the parent is no longer read.",
-  "Replace the local draft with `useDraft(threadId)` and drop the hydrate effect.",
-  "Threads that switch mid-edit keep their own draft instead of inheriting the last one.",
+const LINES: readonly { text: string; heading?: boolean }[] = [
+  { text: "Migrating to 0.14", heading: true },
+  {
+    text: "The composer now owns its draft, so `useState` in the parent is no longer read.",
+  },
+  {
+    text: "Replace the local draft with `useDraft(threadId)` and drop the hydrate effect.",
+  },
+  {
+    text: "Threads that switch mid-edit keep their own draft instead of inheriting the last one.",
+  },
 ];
 
 const PHASES = [900, 900, 900, 900, 0] as const;
 
 export function CanvasSplitDemo() {
   const { phase } = useStoryPhases(PHASES);
-  const visibleLines = Math.min(phase, LINES.length);
+  const visible = Math.min(phase, LINES.length);
 
   return (
-    <CanvasSplit
-      messages={MESSAGES}
-      title="migration-0.14.md"
-      version={3}
-      lines={LINES}
-      visibleLines={visibleLines}
-      saved={visibleLines >= LINES.length}
-      onCopy={() => undefined}
-      onClose={() => undefined}
-    />
+    <CanvasSplit>
+      <CanvasSplitThread>
+        {MESSAGES.map((message) => (
+          <CanvasSplitMessage key={message.id} role={message.role}>
+            {message.text}
+          </CanvasSplitMessage>
+        ))}
+      </CanvasSplitThread>
+      <CanvasSplitDocument>
+        <CanvasSplitHeader
+          title="migration-0.14.md"
+          version={3}
+          saved={visible >= LINES.length}
+          onCopy={() => undefined}
+          onClose={() => undefined}
+        />
+        <CanvasSplitBody writing={visible < LINES.length}>
+          {LINES.slice(0, visible).map((line) => (
+            <CanvasSplitLine
+              key={line.text}
+              {...(line.heading ? { heading: true } : {})}
+            >
+              {line.text}
+            </CanvasSplitLine>
+          ))}
+        </CanvasSplitBody>
+      </CanvasSplitDocument>
+    </CanvasSplit>
   );
 }
