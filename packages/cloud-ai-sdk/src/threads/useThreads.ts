@@ -63,7 +63,7 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
     if (!isActiveScope) {
       setThreads([]);
       setError(null);
-      if (enabled) setIsLoading(true);
+      setIsLoading(enabled);
     }
   }, [cloud, enabled, scope]);
   const isCurrentCloud = useCallback(

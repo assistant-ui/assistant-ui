@@ -253,6 +253,34 @@ describe("useThreads", () => {
     expect(result.current.isLoading).toBe(false);
   });
 
+  it("clears loading when a cloud change disables refreshes", async () => {
+    const cloudA = createCloud("thread-a");
+    const cloudB = createCloud("thread-b");
+    const cloudAList =
+      createDeferred<ReturnType<typeof createThreadListResponse>>();
+    cloudA.threads.list.mockReturnValue(cloudAList.promise);
+
+    const { result, rerender } = renderHook(
+      ({ cloud, enabled }) => useThreads({ cloud: cloud as never, enabled }),
+      { initialProps: { cloud: cloudA, enabled: true } },
+    );
+
+    expect(result.current.isLoading).toBe(true);
+
+    rerender({ cloud: cloudB, enabled: false });
+
+    expect(result.current.threads).toEqual([]);
+    expect(result.current.isLoading).toBe(false);
+    expect(cloudB.threads.list).not.toHaveBeenCalled();
+
+    await act(async () => {
+      cloudAList.resolve(createThreadListResponse("Stale A", "thread-a"));
+      await cloudAList.promise;
+    });
+    expect(result.current.threads).toEqual([]);
+    expect(result.current.isLoading).toBe(false);
+  });
+
   it("ignores a refresh that resolves after the cloud changes", async () => {
     const cloudA = createCloud("thread-a");
     const cloudB = createCloud("thread-b");
