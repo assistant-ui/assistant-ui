@@ -4847,7 +4847,8 @@ const models: ComposerModel[] = [
             name: "outOf",
             type: "number",
             required: true,
-            description: "Maximum possible.",
+            description:
+              "Maximum possible, for the headline and for every criterion bar.",
           },
           {
             name: "criteria",
@@ -4876,7 +4877,8 @@ const models: ComposerModel[] = [
             name: "score",
             type: "number",
             required: true,
-            description: "Score for this criterion, on a 0 to 5 scale.",
+            description:
+              "Score for this criterion, on the same scale as outOf. Its bar is drawn against outOf, so the two cannot drift apart.",
           },
           {
             name: "weight",
