@@ -943,7 +943,8 @@ type LangChainMessage = {
 } | {
   id: string;
   type: "remove";
-  content?: string;
+  content: string | [
+  ];
   additional_kwargs?: Record<string, unknown>;
 } | {
   id?: string;

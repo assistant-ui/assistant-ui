@@ -372,5 +372,46 @@ describe("convertExternalMessages", () => {
         convertExternalMessages(messages, callback, false, {}),
       ).toThrowError(/returned an invalid message \(undefined\)/);
     });
+
+    it("throws a descriptive error when the callback returns an unsupported role", () => {
+      const messages = [{ id: "m1", role: "user" as const, content: "hi" }];
+      const callback = (() => ({
+        role: "other",
+        content: "hi",
+      })) as unknown as useExternalMessageConverter.Callback<
+        (typeof messages)[number]
+      >;
+
+      expect(() =>
+        convertExternalMessages(messages, callback, false, {}),
+      ).toThrowError(/returned an invalid message \(\{"role":"other"/);
+    });
+
+    it("throws a descriptive error when the callback returns a message without content", () => {
+      const messages = [{ id: "m1", role: "user" as const, content: "hi" }];
+      const callback = (() => ({
+        role: "user",
+      })) as unknown as useExternalMessageConverter.Callback<
+        (typeof messages)[number]
+      >;
+
+      expect(() =>
+        convertExternalMessages(messages, callback, false, {}),
+      ).toThrowError(/returned an invalid message \(\{"role":"user"\}\)/);
+    });
+
+    it("throws a descriptive error when the callback returns a tool message without toolCallId", () => {
+      const messages = [{ id: "m1", role: "user" as const, content: "hi" }];
+      const callback = (() => ({
+        role: "tool",
+        result: "ok",
+      })) as unknown as useExternalMessageConverter.Callback<
+        (typeof messages)[number]
+      >;
+
+      expect(() =>
+        convertExternalMessages(messages, callback, false, {}),
+      ).toThrowError(/returned an invalid message \(\{"role":"tool"/);
+    });
   });
 });

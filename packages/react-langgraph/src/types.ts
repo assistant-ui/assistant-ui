@@ -168,7 +168,7 @@ export type LangChainMessage =
       /** RemoveMessage: a deletion instruction targeting `id`, carrying no renderable content. */
       id: string;
       type: "remove";
-      content?: string;
+      content: string | [];
       additional_kwargs?: Record<string, unknown>;
     }
   | {

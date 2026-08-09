@@ -92,7 +92,16 @@ const toCallbackOutputs = (
 ): useExternalMessageConverter.Message[] => {
   const outputs = Array.isArray(output) ? output : [output];
   for (const o of outputs) {
-    if (typeof o !== "object" || o === null || typeof o.role !== "string")
+    const valid =
+      typeof o === "object" &&
+      o !== null &&
+      (o.role === "tool"
+        ? typeof o.toolCallId === "string"
+        : (o.role === "assistant" ||
+            o.role === "user" ||
+            o.role === "system") &&
+          (typeof o.content === "string" || Array.isArray(o.content)));
+    if (!valid)
       throw new Error(
         `useExternalMessageConverter: the converter callback returned an invalid message (${stringifyForError(o)}) for input ${stringifyForError(input)}. Return an empty array to skip a message.`,
       );
