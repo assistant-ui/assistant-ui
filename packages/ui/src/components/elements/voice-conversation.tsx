@@ -19,6 +19,13 @@ const CAPTION: Record<VoiceMode, string> = {
   speaking: "Speaking",
 };
 
+const HINT: Record<VoiceMode, string> = {
+  connecting: "Opening the mic",
+  listening: "Listening for you",
+  thinking: "Working on it",
+  speaking: "Playing the reply",
+};
+
 export function VoiceConversation({
   mode,
   amplitude,
@@ -102,11 +109,7 @@ export function VoiceConversation({
       <div className="flex flex-col items-center gap-1">
         <span className="text-[13.5px] font-medium">{CAPTION[mode]}</span>
         <span className={cn(mono, "text-foreground/35")}>
-          {muted
-            ? "Mic off"
-            : canInterrupt
-              ? "Tap to interrupt"
-              : "Listening for you"}
+          {muted ? "Mic off" : canInterrupt ? "Tap to interrupt" : HINT[mode]}
         </span>
       </div>
 

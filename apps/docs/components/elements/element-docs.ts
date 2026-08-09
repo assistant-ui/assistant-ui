@@ -3266,7 +3266,7 @@ const models: ComposerModel[] = [
     usage: `import { WebPreview } from "@/components/elements/web-preview";
 
 <WebPreview origin="scf.auiusercontent.com" loading={false} onReload={reload}>
-  <iframe title="Preview" src={sandboxUrl} />
+  <iframe title="Preview" src={sandboxUrl} sandbox="allow-scripts" />
 </WebPreview>`,
     props: [
       {
