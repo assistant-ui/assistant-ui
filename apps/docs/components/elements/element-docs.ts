@@ -1313,513 +1313,262 @@ import { ToolTimeline } from "@/components/elements/tool-timeline";
     ],
   },
   composer: {
-    usage: `import { Composer } from "@/components/elements/composer";
+    usage: `import {
+  Composer,
+  ComposerActions,
+  ComposerAttachButton,
+  ComposerBar,
+  ComposerInput,
+  ComposerSend,
+  ComposerToolbar,
+} from "@/components/elements/composer";
 
-<Composer
-  value={value}
-  onValueChange={setValue}
-  onSend={send}
-  attachments={[{ name: "notes.md", meta: "12 KB", state: "done" }]}
-  commands={[{ name: "review", description: "Review the diff", icon: SearchIcon }]}
-  people={[{ name: "Mara", role: "human" }]}
-  models={[{ name: "Fable 5", meta: "1M ctx" }]}
-  model={model}
-  onModelChange={setModel}
-  usage={{ system: 12, tools: 8, messages: 54, total: 200 }}
-/>`,
+<Composer>
+  <ComposerBar>
+    <ComposerInput value={value} placeholder="Ask anything" onChange={onChange} onSubmit={send} />
+    <ComposerToolbar>
+      <ComposerActions><ComposerAttachButton onClick={pick} /></ComposerActions>
+      <ComposerActions><ComposerSend streaming={false} idle={!value} onClick={send} /></ComposerActions>
+    </ComposerToolbar>
+  </ComposerBar>
+</Composer>`,
     props: [
       {
         component: "Composer",
         rows: [
           {
-            name: "value",
-            type: "string",
-            required: true,
-            description: "Current draft text in the input field.",
+            name: "children",
+            type: "React.ReactNode",
+            description:
+              "The positioning shell. Every facet below is a sibling export you compose in, so a composer with no attachments never carries the attachment code.",
           },
+        ],
+      },
+      {
+        component: "ComposerInput",
+        rows: [
           {
-            name: "onValueChange",
-            type: "(value: string) => void",
-            required: true,
-            description: "Called as the user types.",
-          },
-          {
-            name: "onSend",
+            name: "onSubmit",
             type: "() => void",
-            description: "Called on Enter or the send button.",
+            description:
+              "Called on Enter, guarded against IME composition so accepting a candidate does not send.",
           },
           {
-            name: "onStop",
-            type: "() => void",
-            description: "Called by the stop button while streaming.",
+            name: "...props",
+            type: 'React.ComponentProps<"input">',
+            description: "value, onChange, placeholder and the rest are yours.",
           },
-          {
-            name: "placeholder",
-            type: "string",
-            defaultValue: '"Ask anything"',
-            description: "Placeholder shown when the value is empty.",
-          },
+        ],
+      },
+      {
+        component: "ComposerSend",
+        rows: [
           {
             name: "streaming",
             type: "boolean",
-            defaultValue: "false",
-            description:
-              "When true the send control cross-fades into a stop button.",
+            required: true,
+            description: "Swaps the arrow for a stop square.",
           },
           {
-            name: "attachments",
-            type: "ComposerAttachment[]",
-            description:
-              "Staged files rendered as tiles above the field, with per-file progress.",
-          },
-          {
-            name: "onRemoveAttachment",
-            type: "(name: string) => void",
-            description:
-              "Enables a remove control on attachments that finished uploading.",
-          },
-          {
-            name: "dragActive",
+            name: "idle",
             type: "boolean",
-            defaultValue: "false",
-            description: "Tints the surface while a file hovers over it.",
+            required: true,
+            description:
+              "Whether the input is empty. Dims the button when there is nothing to send.",
           },
+        ],
+      },
+      {
+        component: "useSlashMatches",
+        rows: [
           {
-            name: "commands",
+            name: "(value, commands)",
             type: "ComposerCommand[]",
             description:
-              "Enables the slash menu: it floats above the input while the value starts with /.",
+              "Commands whose name starts with the slash query, or an empty array when the value is not a command. Pair it with ComposerMenu and ComposerCommandItem.",
           },
+        ],
+      },
+      {
+        component: "useMentionMatches",
+        rows: [
           {
-            name: "onCommand",
-            type: "(command: ComposerCommand) => void",
-            description: "Called when a slash command is picked.",
-          },
-          {
-            name: "people",
+            name: "(value, people)",
             type: "ComposerPerson[]",
             description:
-              "Enables the mention menu: it opens while the value ends in an @ token.",
-          },
-          {
-            name: "onMention",
-            type: "(person: ComposerPerson) => void",
-            description:
-              "Called when a person is picked; the token is replaced with their name.",
-          },
-          {
-            name: "models",
-            type: "ComposerModel[]",
-            description: "Enables the model picker in the composer rail.",
-          },
-          {
-            name: "model",
-            type: "string",
-            description: "Name of the active model shown on the rail control.",
-          },
-          {
-            name: "onModelChange",
-            type: "(name: string) => void",
-            description: "Called when a model is picked from the menu.",
-          },
-          {
-            name: "defaultModelMenuOpen",
-            type: "boolean",
-            defaultValue: "false",
-            description: "Opens the model menu on mount.",
-          },
-          {
-            name: "usage",
-            type: "ComposerUsage",
-            description:
-              "Shows a context ring next to the send button; hovering it reveals the breakdown.",
-          },
-          {
-            name: "recording",
-            type: "boolean",
-            defaultValue: "false",
-            description:
-              "Replaces the input with a live waveform and elapsed timer.",
-          },
-          {
-            name: "transcribing",
-            type: "boolean",
-            defaultValue: "false",
-            description: "Shows the transcribing state after recording stops.",
-          },
-          {
-            name: "recordingSeconds",
-            type: "number",
-            defaultValue: "0",
-            description: "Elapsed seconds shown next to the waveform.",
-          },
-          {
-            name: "onVoiceStart",
-            type: "() => void",
-            description:
-              "Shows the mic button in the rail and is called when it is pressed.",
-          },
-          {
-            name: "onVoiceStop",
-            type: "() => void",
-            description: "Called by the stop control while voice is active.",
-          },
-          {
-            name: "className",
-            type: "string",
-            description: "Extra classes merged onto the root.",
+              "People matching a trailing @mention. applyMention(value, name) writes the choice back into the value.",
           },
         ],
       },
     ],
   },
   "composer-slash-commands": {
-    usage: `import { Composer, type ComposerCommand } from "@/components/elements/composer";
+    usage: `import { ComposerMenu, ComposerCommandItem, useSlashMatches } from "@/components/elements/composer";
 
-const commands: ComposerCommand[] = [
-  { name: "review", description: "Review the current diff", icon: SearchIcon },
-  { name: "explain", description: "Explain the selection", icon: BookOpenIcon },
-];
+const matches = useSlashMatches(value, commands);
 
-<Composer
-  value={value}
-  onValueChange={setValue}
-  commands={commands}
-  onCommand={(command) => run(command.name)}
-/>`,
+<ComposerMenu open={matches.length > 0}>
+  {matches.map((command, i) => (
+    <ComposerCommandItem key={command.name} command={command} active={i === 0} onClick={() => pick(command)} />
+  ))}
+</ComposerMenu>`,
     props: [
       {
-        component: "Composer",
+        component: "ComposerCommandItem",
         rows: [
           {
-            name: "commands",
-            type: "ComposerCommand[]",
+            name: "command",
+            type: "ComposerCommand",
             required: true,
             description:
-              "Available commands. The menu floats above the input while the value starts with / and filters on the text after it.",
+              "The command to render: its name, description, and icon.",
           },
           {
-            name: "onCommand",
-            type: "(command: ComposerCommand) => void",
+            name: "active",
+            type: "boolean",
+            required: true,
             description:
-              "Called when a command is picked; the input clears afterwards.",
-          },
-        ],
-      },
-      {
-        component: "ComposerCommand",
-        rows: [
-          {
-            name: "name",
-            type: "string",
-            required: true,
-            description: "Command name matched against the typed filter.",
-          },
-          {
-            name: "description",
-            type: "string",
-            required: true,
-            description: "One-line explanation shown next to the name.",
-          },
-          {
-            name: "icon",
-            type: "LucideIcon",
-            required: true,
-            description: "Icon rendered at the start of the row.",
+              "Marks the row that Enter would take. Only the active row shows the return key hint.",
           },
         ],
       },
     ],
   },
   "composer-mentions": {
-    usage: `import { Composer, type ComposerPerson } from "@/components/elements/composer";
+    usage: `import { ComposerMenu, ComposerPersonItem, applyMention, useMentionMatches } from "@/components/elements/composer";
 
-const people: ComposerPerson[] = [
-  { name: "Mara", role: "human" },
-  { name: "Max", role: "agent" },
-];
+const matches = useMentionMatches(value, people);
 
-<Composer
-  value={value}
-  onValueChange={setValue}
-  people={people}
-  onMention={(person) => notify(person.name)}
-/>`,
+<ComposerMenu open={matches.length > 0}>
+  {matches.map((person, i) => (
+    <ComposerPersonItem key={person.name} person={person} active={i === 0} onClick={() => onChange(applyMention(value, person.name))} />
+  ))}
+</ComposerMenu>`,
     props: [
       {
-        component: "Composer",
+        component: "ComposerPersonItem",
         rows: [
           {
-            name: "people",
-            type: "ComposerPerson[]",
+            name: "person",
+            type: "ComposerPerson",
             required: true,
-            description:
-              "People and agents available to mention. The menu opens while the value ends in an @ token.",
+            description: "Who to render, with their agent or human role.",
           },
           {
-            name: "onMention",
-            type: "(person: ComposerPerson) => void",
-            description:
-              "Called when a person is picked; the @ token is replaced with their name.",
-          },
-        ],
-      },
-      {
-        component: "ComposerPerson",
-        rows: [
-          {
-            name: "name",
-            type: "string",
+            name: "active",
+            type: "boolean",
             required: true,
-            description: "Display name matched against the typed filter.",
-          },
-          {
-            name: "role",
-            type: '"agent" | "human"',
-            required: true,
-            description: "Role tag shown at the end of the row.",
+            description: "Marks the row Enter would take.",
           },
         ],
       },
     ],
   },
   "composer-attachments": {
-    usage: `import { Composer } from "@/components/elements/composer";
+    usage: `import { ComposerAttachments, ComposerAttachmentChip } from "@/components/elements/composer";
 
-<Composer
-  value={value}
-  onValueChange={setValue}
-  attachments={[
-    { name: "design-review.pdf", meta: "2.4 MB", state: "done", kind: "text" },
-    { name: "screens.zip", meta: "Uploading", state: "uploading", progress: 60, kind: "archive" },
-  ]}
-  onRemoveAttachment={(name) => remove(name)}
-/>`,
+<ComposerAttachments>
+  {files.map((file) => (
+    <ComposerAttachmentChip key={file.name} attachment={file} onRemove={drop} />
+  ))}
+</ComposerAttachments>`,
     props: [
       {
-        component: "Composer",
+        component: "ComposerAttachmentChip",
         rows: [
           {
-            name: "attachments",
-            type: "ComposerAttachment[]",
+            name: "attachment",
+            type: "ComposerAttachment",
             required: true,
-            description: "Files staged above the input field.",
+            description:
+              "One staged file. Its state drives the chip: a progress bar while uploading, a remove control once done, red meta on error.",
           },
           {
-            name: "onRemoveAttachment",
+            name: "onRemove",
             type: "(name: string) => void",
             description:
-              "Enables a remove control on attachments that finished uploading.",
-          },
-          {
-            name: "dragActive",
-            type: "boolean",
-            defaultValue: "false",
-            description: "Tints the surface while a file hovers over it.",
-          },
-        ],
-      },
-      {
-        component: "ComposerAttachment",
-        rows: [
-          {
-            name: "name",
-            type: "string",
-            required: true,
-            description: "File name shown on the tile.",
-          },
-          {
-            name: "meta",
-            type: "string",
-            required: true,
-            description: "Secondary line: size, status, or an error message.",
-          },
-          {
-            name: "state",
-            type: '"uploading" | "done" | "error"',
-            required: true,
-            description: "Drives the progress bar, check, or error styling.",
-          },
-          {
-            name: "progress",
-            type: "number",
-            description: "Upload percentage for the bottom progress line.",
-          },
-          {
-            name: "kind",
-            type: '"image" | "text" | "archive"',
-            defaultValue: '"text"',
-            description: "Picks the file icon.",
+              "Called to drop a finished attachment. Omitted, the chip shows a check instead of a remove control.",
           },
         ],
       },
     ],
   },
   "composer-model-picker": {
-    usage: `import { Composer, type ComposerModel } from "@/components/elements/composer";
+    usage: `import { ComposerMenu, ComposerModelItem, ComposerModelTrigger } from "@/components/elements/composer";
 
-const models: ComposerModel[] = [
-  { name: "Fable 5", meta: "1M ctx" },
-  { name: "Haiku 4.5", meta: "200k ctx" },
-];
-
-<Composer
-  value={value}
-  onValueChange={setValue}
-  models={models}
-  model={model}
-  onModelChange={setModel}
-/>`,
+<div className="relative">
+  <ComposerMenu open={open}>
+    {models.map((entry) => (
+      <ComposerModelItem key={entry.name} entry={entry} selected={entry.name === model} onClick={() => choose(entry.name)} />
+    ))}
+  </ComposerMenu>
+  <ComposerModelTrigger model={model} open={open} onClick={toggle} />
+</div>`,
     props: [
       {
-        component: "Composer",
+        component: "ComposerModelItem",
         rows: [
           {
-            name: "models",
-            type: "ComposerModel[]",
+            name: "entry",
+            type: "ComposerModel",
             required: true,
             description:
-              "Available models listed in the menu above the rail control.",
+              "The model and its short meta line, usually the context window.",
           },
           {
-            name: "model",
-            type: "string",
-            required: true,
-            description:
-              "Active model name; shown on the rail control and checked in the menu.",
-          },
-          {
-            name: "onModelChange",
-            type: "(name: string) => void",
-            description:
-              "Called when a model is picked; the menu closes afterwards.",
-          },
-          {
-            name: "defaultModelMenuOpen",
+            name: "selected",
             type: "boolean",
-            defaultValue: "false",
-            description: "Opens the model menu on mount.",
-          },
-        ],
-      },
-      {
-        component: "ComposerModel",
-        rows: [
-          {
-            name: "name",
-            type: "string",
             required: true,
-            description: "Model name shown in the row.",
-          },
-          {
-            name: "meta",
-            type: "string",
-            required: true,
-            description: "Context size or speed note at the end of the row.",
+            description: "Marks the active model with a check.",
           },
         ],
       },
     ],
   },
   "composer-voice": {
-    usage: `import { Composer } from "@/components/elements/composer";
+    usage: `import { ComposerVoice, ComposerVoiceButton } from "@/components/elements/composer";
 
-<Composer
-  value={value}
-  onValueChange={setValue}
-  recording={recording}
-  transcribing={transcribing}
-  recordingSeconds={seconds}
-  onVoiceStart={startRecording}
-  onVoiceStop={stopRecording}
-/>`,
+{active
+  ? <ComposerVoice recording={recording} seconds={seconds} />
+  : <ComposerInput value={value} onChange={onChange} />}
+
+<ComposerVoiceButton active={active} onClick={toggle} />`,
     props: [
       {
-        component: "Composer",
+        component: "ComposerVoice",
         rows: [
           {
             name: "recording",
             type: "boolean",
-            defaultValue: "false",
+            required: true,
             description:
-              "Replaces the input with a live waveform and elapsed timer.",
+              "Live capture. False renders the transcribing state instead, with a settled waveform.",
           },
           {
-            name: "transcribing",
-            type: "boolean",
-            defaultValue: "false",
-            description:
-              "Holds the waveform in a settling state after recording stops.",
-          },
-          {
-            name: "recordingSeconds",
+            name: "seconds",
             type: "number",
-            defaultValue: "0",
+            required: true,
             description:
-              "Elapsed seconds shown next to the waveform; also animates the bars.",
-          },
-          {
-            name: "onVoiceStart",
-            type: "() => void",
-            description:
-              "Shows the mic button in the rail and is called when it is pressed.",
-          },
-          {
-            name: "onVoiceStop",
-            type: "() => void",
-            description: "Called by the stop control while voice is active.",
+              "Elapsed capture time. Also drives the waveform, so the bars move with the clock.",
           },
         ],
       },
     ],
   },
   "composer-context": {
-    usage: `import { Composer } from "@/components/elements/composer";
+    usage: `import { ComposerContext } from "@/components/elements/composer";
 
-<Composer
-  value={value}
-  onValueChange={setValue}
-  usage={{ system: 24, tools: 12, messages: 142, total: 200 }}
-/>`,
+<ComposerContext usage={{ system: 12, tools: 8, messages: 54, total: 200 }} />`,
     props: [
       {
-        component: "Composer",
+        component: "ComposerContext",
         rows: [
           {
             name: "usage",
             type: "ComposerUsage",
             required: true,
             description:
-              "Renders a ring next to the send button. The numbers stay hidden until hover, which reveals the segmented breakdown; everything turns red past 85% of the window.",
-          },
-        ],
-      },
-      {
-        component: "ComposerUsage",
-        rows: [
-          {
-            name: "system",
-            type: "number",
-            required: true,
-            description: "Tokens held by the system prompt, in thousands.",
-          },
-          {
-            name: "tools",
-            type: "number",
-            required: true,
-            description: "Tokens held by tool definitions, in thousands.",
-          },
-          {
-            name: "messages",
-            type: "number",
-            required: true,
-            description: "Tokens held by the conversation, in thousands.",
-          },
-          {
-            name: "total",
-            type: "number",
-            required: true,
-            description: "Context window size, in thousands.",
+              "System, tools, and message tokens against the total. The ring fills from their sum and turns red past 85 percent; a zero total is treated as zero rather than dividing by it.",
           },
         ],
       },
@@ -1827,95 +1576,143 @@ const models: ComposerModel[] = [
   },
 
   "chat-panel": {
-    usage: `import { ChatPanel } from "@/components/elements/chat-panel";
+    usage: `import {
+  ChatPanel,
+  ChatPanelComposer,
+  ChatPanelMessages,
+  ChatPanelTyping,
+  ChatPanelUserMessage,
+} from "@/components/elements/chat-panel";
 
-<ChatPanel
-  userMessage="What is a runtime?"
-  reply="A runtime owns thread state and tools."
-  showUserMessage
-  typing={false}
-  visibleWords={6}
-  streaming
-/>`,
+<ChatPanel>
+  <ChatPanelMessages>
+    <ChatPanelUserMessage>Why did my draft disappear?</ChatPanelUserMessage>
+    <ChatPanelTyping />
+  </ChatPanelMessages>
+  <ChatPanelComposer placeholder="Message" onSend={send} />
+</ChatPanel>`,
     props: [
       {
         component: "ChatPanel",
         rows: [
           {
-            name: "userMessage",
+            name: "children",
+            type: "React.ReactNode",
+            description:
+              "The panel is a shell: a scrolling message area and a composer bar. What goes in either one is yours, so a real thread renders as many turns as it has.",
+          },
+          {
+            name: "...props",
+            type: 'React.ComponentProps<"div">',
+            description: "Spread onto the root, as on every part below.",
+          },
+        ],
+      },
+      {
+        component: "ChatPanelMessages",
+        rows: [
+          {
+            name: "children",
+            type: "React.ReactNode",
+            description:
+              "Turns, oldest first. The area is bottom-aligned and scrolls, so the newest turn stays in view.",
+          },
+        ],
+      },
+      {
+        component: "ChatPanelAssistantMessage",
+        rows: [
+          {
+            name: "children",
+            type: "React.ReactNode",
+            description:
+              "A settled assistant turn. For a streaming one, drop the streaming-text element in here instead; it renders its own paragraph.",
+          },
+        ],
+      },
+      {
+        component: "ChatPanelComposer",
+        rows: [
+          {
+            name: "placeholder",
             type: "string",
             required: true,
-            description: "User bubble text shown when showUserMessage is true.",
+            description: "Resting text in the input bar.",
           },
           {
-            name: "reply",
-            type: "string",
-            required: true,
+            name: "onSend",
+            type: "() => void",
             description:
-              "Full assistant reply that is sliced into streaming words.",
-          },
-          {
-            name: "showUserMessage",
-            type: "boolean",
-            required: true,
-            description: "Whether the user bubble is visible yet.",
-          },
-          {
-            name: "typing",
-            type: "boolean",
-            required: true,
-            description:
-              "When true a typing row is shown before the reply starts.",
-          },
-          {
-            name: "visibleWords",
-            type: "number",
-            required: true,
-            description: "How many words of the reply are currently visible.",
-          },
-          {
-            name: "streaming",
-            type: "boolean",
-            required: true,
-            description:
-              "When true the newest reply words tint as they arrive.",
-          },
-          {
-            name: "className",
-            type: "string",
-            description: "Extra classes merged onto the root.",
+              "Called from the send control. Omit it and the control renders disabled.",
           },
         ],
       },
     ],
   },
   "empty-state": {
-    usage: `import { EmptyState } from "@/components/elements/empty-state";
+    usage: `import {
+  EmptyState,
+  EmptyStateComposer,
+  EmptyStateGreeting,
+  EmptyStateSuggestion,
+  EmptyStateSuggestions,
+} from "@/components/elements/empty-state";
 
-<EmptyState
-  greeting="What are we working on?"
-  suggestions={["Draft an RFC", "Debug a test"]}
-/>`,
+<EmptyState>
+  <EmptyStateGreeting>What are we building?</EmptyStateGreeting>
+  <EmptyStateSuggestions>
+    {items.map((item, i) => (
+      <EmptyStateSuggestion key={item} index={i} onClick={() => send(item)}>
+        {item}
+      </EmptyStateSuggestion>
+    ))}
+  </EmptyStateSuggestions>
+  <EmptyStateComposer placeholder="Ask anything" onSend={send} />
+</EmptyState>`,
     props: [
       {
         component: "EmptyState",
         rows: [
           {
-            name: "greeting",
-            type: "string",
-            required: true,
-            description: "Centered headline shown above the suggestion chips.",
+            name: "children",
+            type: "React.ReactNode",
+            description:
+              "A centered column. Compose the greeting, the suggestions, and your own composer, or leave any of them out.",
+          },
+        ],
+      },
+      {
+        component: "EmptyStateSuggestion",
+        rows: [
+          {
+            name: "index",
+            type: "number",
+            defaultValue: "0",
+            description:
+              "Position in the row. Staggers the entrance so the pills arrive in order.",
           },
           {
-            name: "suggestions",
-            type: "readonly string[]",
+            name: "...props",
+            type: 'React.ComponentProps<"button">',
+            description:
+              "Spread onto the button, so onClick and the rest are yours.",
+          },
+        ],
+      },
+      {
+        component: "EmptyStateComposer",
+        rows: [
+          {
+            name: "placeholder",
+            type: "string",
             required: true,
-            description: "Starter chips that offer ways into the first turn.",
+            description: "Resting text in the input bar.",
           },
           {
-            name: "className",
-            type: "string",
-            description: "Extra classes merged onto the root.",
+            name: "onSend",
+            type: "() => void",
+            description:
+              "Called from the send control. Omit it and the control renders disabled.",
           },
         ],
       },
@@ -2650,32 +2447,59 @@ const models: ComposerModel[] = [
     ],
   },
   "canvas-split": {
-    usage: `import { CanvasSplit } from "@/components/elements/canvas-split";
+    usage: `import {
+  CanvasSplit,
+  CanvasSplitBody,
+  CanvasSplitDocument,
+  CanvasSplitHeader,
+  CanvasSplitLine,
+  CanvasSplitMessage,
+  CanvasSplitThread,
+} from "@/components/elements/canvas-split";
 
-<CanvasSplit
-  messages={messages}
-  title="migration-0.14.md"
-  version={3}
-  lines={lines}
-  visibleLines={lines.length}
-  saved
-/>`,
+<CanvasSplit>
+  <CanvasSplitThread>
+    <CanvasSplitMessage role="user">Draft the note</CanvasSplitMessage>
+  </CanvasSplitThread>
+  <CanvasSplitDocument>
+    <CanvasSplitHeader title="note.md" version={3} saved onCopy={copy} />
+    <CanvasSplitBody writing>
+      <CanvasSplitLine heading>Migrating to 0.14</CanvasSplitLine>
+    </CanvasSplitBody>
+  </CanvasSplitDocument>
+</CanvasSplit>`,
     props: [
       {
         component: "CanvasSplit",
         rows: [
           {
-            name: "messages",
-            type: "CanvasMessage[]",
+            name: "children",
+            type: "React.ReactNode",
+            description:
+              "Two panes: the thread rail and the document. Both are slots, so the document side can hold an editor rather than the text lines shown here.",
+          },
+        ],
+      },
+      {
+        component: "CanvasSplitMessage",
+        rows: [
+          {
+            name: "role",
+            type: '"user" | "assistant"',
             required: true,
             description:
-              "The thread, compressed into the side rail while the document holds the room.",
+              "User turns sit right in a bubble, assistant turns run flush left. Also emitted as data-role for styling from outside.",
           },
+        ],
+      },
+      {
+        component: "CanvasSplitHeader",
+        rows: [
           {
             name: "title",
             type: "string",
             required: true,
-            description: "Document name in the canvas header.",
+            description: "Document name.",
           },
           {
             name: "version",
@@ -2684,40 +2508,44 @@ const models: ComposerModel[] = [
             description: "Which revision is on screen.",
           },
           {
-            name: "lines",
-            type: "string[]",
-            required: true,
-            description:
-              "Document body, one paragraph per entry. A leading # marks a heading.",
-          },
-          {
-            name: "visibleLines",
-            type: "number",
-            required: true,
-            description:
-              "How much has been written. A caret trails the last line until this reaches the end.",
-          },
-          {
             name: "saved",
             type: "boolean",
             required: true,
-            description: "Swaps the header status between editing and saved.",
+            description: "Swaps the status between editing and saved.",
           },
           {
             name: "onCopy",
             type: "() => void",
             description:
-              "Called from the copy action. Omit it and the control renders disabled rather than promising a copy it cannot make.",
+              "Called from the copy action. Omit it and the control renders disabled.",
           },
           {
             name: "onClose",
             type: "() => void",
             description: "Called when the canvas is dismissed.",
           },
+        ],
+      },
+      {
+        component: "CanvasSplitBody",
+        rows: [
           {
-            name: "className",
-            type: "string",
-            description: "Extra classes merged onto the root.",
+            name: "writing",
+            type: "boolean",
+            defaultValue: "false",
+            description:
+              "Trails a caret after the last line while the document is still being written.",
+          },
+        ],
+      },
+      {
+        component: "CanvasSplitLine",
+        rows: [
+          {
+            name: "heading",
+            type: "boolean",
+            defaultValue: "false",
+            description: "Renders the line as a heading rather than body text.",
           },
         ],
       },
@@ -5617,12 +5445,18 @@ const models: ComposerModel[] = [
             type: "string",
             required: true,
             description:
-              "Which row is highlighted. The element only styles it; wire your own arrow-key and Enter handling and drive this prop from it.",
+              "Which row is highlighted. Arrow keys move it and Enter runs it, both handled by the element; it reports the move through onActiveChange.",
           },
           {
             name: "onQueryChange",
             type: "(query: string) => void",
             description: "Called as the filter is typed.",
+          },
+          {
+            name: "onActiveChange",
+            type: "(id: string) => void",
+            description:
+              "Called as the arrow keys walk the list. The element owns the key handling and reports where it landed, so activeId stays yours to hold.",
           },
           {
             name: "onRun",
