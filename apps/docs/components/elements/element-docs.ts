@@ -4461,8 +4461,14 @@ const models: ComposerModel[] = [
           {
             name: "route",
             type: "boolean",
-            required: true,
-            description: "false",
+            defaultValue: "false",
+            description: "Draws a dashed path through the pins in order.",
+          },
+          {
+            name: "onSelect",
+            type: "(id: string) => void",
+            description:
+              "Called when a pin or its list row is chosen. Both surfaces report the same id.",
           },
           {
             name: "className",

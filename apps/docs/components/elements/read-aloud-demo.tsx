@@ -22,8 +22,8 @@ export function ReadAloudDemo() {
     return () => clearInterval(id);
   }, [playing, rate]);
 
-  const totalTenths = Math.round((WORDS.length * 260) / rate / 100);
-  const elapsedTenths = Math.round((spokenIndex * 260) / rate / 100);
+  const totalSeconds = Math.round((WORDS.length * 260) / rate / 1000);
+  const elapsedSeconds = Math.round((spokenIndex * 260) / rate / 1000);
 
   return (
     <ReadAloud
@@ -31,8 +31,8 @@ export function ReadAloudDemo() {
       spokenIndex={spokenIndex}
       playing={playing}
       rate={rate}
-      elapsed={`0:${String(elapsedTenths).padStart(2, "0")}`}
-      duration={`0:${String(totalTenths).padStart(2, "0")}`}
+      elapsed={`0:${String(elapsedSeconds).padStart(2, "0")}`}
+      duration={`0:${String(totalSeconds).padStart(2, "0")}`}
       onToggle={() => setPlaying((current) => !current)}
       onRateChange={() => setRateIndex((i) => (i + 1) % RATES.length)}
     />

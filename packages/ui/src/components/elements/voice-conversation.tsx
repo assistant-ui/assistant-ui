@@ -40,6 +40,7 @@ export function VoiceConversation({
 }) {
   const level = Math.max(0, Math.min(1, amplitude));
   const active = mode === "listening" || mode === "speaking";
+  const canInterrupt = mode === "speaking" && onInterrupt !== undefined;
 
   return (
     <div
@@ -52,7 +53,7 @@ export function VoiceConversation({
       <button
         type="button"
         onClick={onInterrupt}
-        disabled={mode !== "speaking"}
+        disabled={!canInterrupt}
         aria-label="Interrupt the assistant"
         className="focus-visible:ring-foreground/20 relative flex size-24 items-center justify-center rounded-full outline-none focus-visible:ring-2 disabled:cursor-default"
       >
@@ -103,7 +104,7 @@ export function VoiceConversation({
         <span className={cn(mono, "text-foreground/35")}>
           {muted
             ? "Mic off"
-            : mode === "speaking"
+            : canInterrupt
               ? "Tap to interrupt"
               : "Listening for you"}
         </span>
