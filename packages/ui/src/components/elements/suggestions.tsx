@@ -4,7 +4,10 @@ import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
 import { paper } from "./surfaces";
 
-export interface SuggestionsProps extends ComponentProps<"div"> {
+export interface SuggestionsProps extends Omit<
+  ComponentProps<"div">,
+  "children"
+> {
   suggestions: readonly string[];
   selectedSuggestion: string | null;
   cycle: number;

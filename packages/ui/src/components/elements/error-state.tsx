@@ -4,7 +4,10 @@ import type { ComponentProps } from "react";
 import { CircleAlertIcon, RefreshCwIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export interface ErrorStateProps extends ComponentProps<"div"> {
+export interface ErrorStateProps extends Omit<
+  ComponentProps<"div">,
+  "children"
+> {
   title: string;
   detail: string;
   retrying: boolean;

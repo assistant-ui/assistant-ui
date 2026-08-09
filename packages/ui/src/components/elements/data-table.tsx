@@ -10,7 +10,10 @@ export interface ModelUsage {
   cost: string;
 }
 
-export interface DataTableProps extends ComponentProps<"div"> {
+export interface DataTableProps extends Omit<
+  ComponentProps<"div">,
+  "children"
+> {
   rows: readonly ModelUsage[];
   cycle: number;
 }

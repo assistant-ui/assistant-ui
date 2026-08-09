@@ -65,7 +65,10 @@ function Citation({ index, source, open, onOpenChange }: CitationProps) {
   );
 }
 
-export interface InlineCitationProps extends ComponentProps<"p"> {
+export interface InlineCitationProps extends Omit<
+  ComponentProps<"p">,
+  "children"
+> {
   sources: Source[];
   openIndex: number | null;
   onOpenIndexChange: (index: number | null) => void;

@@ -5,7 +5,10 @@ import { CopyIcon, RefreshCwIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ghostButton, paper } from "./surfaces";
 
-export interface MessagePairProps extends ComponentProps<"div"> {
+export interface MessagePairProps extends Omit<
+  ComponentProps<"div">,
+  "children"
+> {
   userMessage: string;
   words: readonly string[];
   visibleWords: number;

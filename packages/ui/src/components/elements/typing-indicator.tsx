@@ -10,7 +10,10 @@ export function TypingIndicator({
   variant = "bubble",
   className,
   ...props
-}: Omit<ComponentProps<"div">, "children" | "variant"> & {
+}: Omit<
+  ComponentProps<"div">,
+  "children" | "variant" | "role" | "aria-label"
+> & {
   variant?: "bubble" | "bare";
 }) {
   const dots = DOT_DELAYS.map((delay) => (

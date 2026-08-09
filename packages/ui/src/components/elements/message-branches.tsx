@@ -5,7 +5,10 @@ import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ghostButton, mono } from "./surfaces";
 
-export interface MessageBranchesProps extends ComponentProps<"div"> {
+export interface MessageBranchesProps extends Omit<
+  ComponentProps<"div">,
+  "children"
+> {
   variants: readonly string[];
   index: number;
   onIndexChange: (index: number) => void;

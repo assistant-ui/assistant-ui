@@ -14,7 +14,10 @@ import { ghostButton, iconSwap, iconSwapIn, iconSwapOut } from "./surfaces";
 
 export type Reaction = "up" | "down" | null;
 
-export interface MessageActionsProps extends ComponentProps<"div"> {
+export interface MessageActionsProps extends Omit<
+  ComponentProps<"div">,
+  "children"
+> {
   copied: boolean;
   reaction: Reaction;
   regenerating: boolean;

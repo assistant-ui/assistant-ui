@@ -5,7 +5,10 @@ import { cn } from "@/lib/utils";
 
 export type GenerationLoaderVariant = "dots" | "squares" | "rounded";
 
-export interface GenerationLoaderProps extends ComponentProps<"div"> {
+export interface GenerationLoaderProps extends Omit<
+  ComponentProps<"div">,
+  "children"
+> {
   label: string;
   tick: number;
   variant?: GenerationLoaderVariant;
