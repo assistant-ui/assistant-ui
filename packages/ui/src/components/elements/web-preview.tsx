@@ -1,0 +1,92 @@
+"use client";
+
+import { ExternalLinkIcon, RotateCwIcon, ShieldCheckIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { field, ghostButton, mono, paper } from "./surfaces";
+
+export function WebPreview({
+  origin,
+  loading,
+  children,
+  onReload,
+  onOpenExternal,
+  className,
+}: {
+  origin: string;
+  loading: boolean;
+  children: React.ReactNode;
+  onReload?: () => void;
+  onOpenExternal?: () => void;
+  className?: string;
+}) {
+  return (
+    <div
+      className={cn(
+        paper,
+        "flex w-full max-w-md flex-col overflow-hidden rounded-2xl",
+        className,
+      )}
+    >
+      <div className="flex items-center gap-1.5 px-2.5 py-2">
+        <button
+          type="button"
+          aria-label="Reload the preview"
+          onClick={onReload}
+          className={cn(ghostButton, "size-7 shrink-0")}
+        >
+          <RotateCwIcon
+            className={cn(
+              "size-3.5",
+              loading && "animate-spin motion-reduce:animate-none",
+            )}
+          />
+        </button>
+
+        <span
+          className={cn(
+            field,
+            "flex min-w-0 flex-1 items-center gap-1.5 rounded-full px-2.5 py-1",
+          )}
+        >
+          <ShieldCheckIcon className="size-3 shrink-0 text-emerald-600 dark:text-emerald-400" />
+          <span className={cn(mono, "text-foreground/45 min-w-0 truncate")}>
+            {origin}
+          </span>
+        </span>
+
+        <button
+          type="button"
+          aria-label="Open the preview in a new tab"
+          onClick={onOpenExternal}
+          className={cn(ghostButton, "size-7 shrink-0")}
+        >
+          <ExternalLinkIcon className="size-3.5" />
+        </button>
+      </div>
+
+      <div className="border-foreground/[0.07] relative min-h-[9rem] border-t">
+        <div
+          className={cn(
+            "transition-opacity duration-300 motion-reduce:transition-none",
+            loading && "opacity-0",
+          )}
+        >
+          {children}
+        </div>
+        {loading && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <span className="text-foreground/40 relative inline-block text-xs leading-none">
+              <span>Sandboxing</span>
+              <span
+                aria-hidden
+                className="shimmer pointer-events-none absolute inset-0 motion-reduce:animate-none"
+              >
+                Sandboxing
+              </span>
+            </span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

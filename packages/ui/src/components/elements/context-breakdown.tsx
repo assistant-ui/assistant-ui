@@ -1,0 +1,94 @@
+"use client";
+
+import { cn } from "@/lib/utils";
+import { mono, paper } from "./surfaces";
+
+export interface ContextSegment {
+  label: string;
+  tokens: number;
+  tint: string;
+}
+
+export function ContextBreakdown({
+  segments,
+  limit,
+  className,
+}: {
+  segments: readonly ContextSegment[];
+  limit: number;
+  className?: string;
+}) {
+  const used = segments.reduce((sum, segment) => sum + segment.tokens, 0);
+  const pressure = used / limit;
+
+  return (
+    <div
+      className={cn(
+        paper,
+        "flex w-full max-w-sm flex-col gap-3 rounded-2xl p-4",
+        className,
+      )}
+    >
+      <div className="flex items-baseline justify-between">
+        <span className="text-[13.5px] font-medium">Context</span>
+        <span
+          className={cn(
+            mono,
+            "tabular-nums",
+            pressure > 0.85
+              ? "text-amber-600 dark:text-amber-400"
+              : "text-foreground/35",
+          )}
+        >
+          {used.toLocaleString()} / {limit.toLocaleString()}
+        </span>
+      </div>
+
+      <div className="bg-foreground/[0.06] flex h-2 w-full overflow-hidden rounded-full">
+        {segments.map((segment) => (
+          <span
+            key={segment.label}
+            className={cn(
+              "h-full transition-[width] duration-500 ease-out motion-reduce:transition-none",
+              segment.tint,
+            )}
+            style={{ width: `${(segment.tokens / limit) * 100}%` }}
+          />
+        ))}
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        {segments.map((segment) => (
+          <div key={segment.label} className="flex items-center gap-2">
+            <span
+              aria-hidden
+              className={cn("size-2 shrink-0 rounded-full", segment.tint)}
+            />
+            <span className="text-foreground/70 min-w-0 flex-1 truncate text-[13px]">
+              {segment.label}
+            </span>
+            <span
+              className={cn(mono, "text-foreground/35 shrink-0 tabular-nums")}
+            >
+              {segment.tokens.toLocaleString()}
+            </span>
+          </div>
+        ))}
+        <div className="flex items-center gap-2">
+          <span
+            aria-hidden
+            className="bg-foreground/[0.08] size-2 shrink-0 rounded-full"
+          />
+          <span className="text-foreground/35 min-w-0 flex-1 truncate text-[13px]">
+            Headroom
+          </span>
+          <span
+            className={cn(mono, "text-foreground/25 shrink-0 tabular-nums")}
+          >
+            {Math.max(0, limit - used).toLocaleString()}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
