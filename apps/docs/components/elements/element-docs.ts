@@ -2238,6 +2238,13 @@ const models: ComposerModel[] = [
         component: "DiffHunk",
         rows: [
           {
+            name: "id",
+            type: "string",
+            required: true,
+            description:
+              "Stable identity, reported back by onKeep and onDiscard.",
+          },
+          {
             name: "range",
             type: "string",
             required: true,
@@ -2371,6 +2378,25 @@ const models: ComposerModel[] = [
         component: "ElicitationField",
         rows: [
           {
+            name: "name",
+            type: "string",
+            required: true,
+            description: "Field name sent back to the server.",
+          },
+          {
+            name: "label",
+            type: "string",
+            required: true,
+            description: "Label shown above the control.",
+          },
+          {
+            name: "value",
+            type: "string",
+            required: true,
+            description:
+              "Current value, already resolved to what should be displayed.",
+          },
+          {
             name: "kind",
             type: '"text" | "choice" | "toggle"',
             required: true,
@@ -2441,6 +2467,25 @@ const models: ComposerModel[] = [
       {
         component: "RetrievalChunk",
         rows: [
+          {
+            name: "id",
+            type: "string",
+            required: true,
+            description: "Stable identity for the list key.",
+          },
+          {
+            name: "source",
+            type: "string",
+            required: true,
+            description:
+              "Where the passage came from: a file, a document, a record.",
+          },
+          {
+            name: "text",
+            type: "string",
+            required: true,
+            description: "The passage itself, clamped to two lines.",
+          },
           {
             name: "locator",
             type: "string",
@@ -2859,6 +2904,19 @@ const models: ComposerModel[] = [
       {
         component: "McpServer",
         rows: [
+          {
+            name: "id",
+            type: "string",
+            required: true,
+            description:
+              "Stable identity, reported back by onToggle and onAuthorize.",
+          },
+          {
+            name: "name",
+            type: "string",
+            required: true,
+            description: "Server name as configured.",
+          },
           {
             name: "transport",
             type: "string",
@@ -3616,6 +3674,18 @@ const models: ComposerModel[] = [
         component: "GroupedTool",
         rows: [
           {
+            name: "id",
+            type: "string",
+            required: true,
+            description: "Stable identity for the row key.",
+          },
+          {
+            name: "name",
+            type: "string",
+            required: true,
+            description: "Tool name, rendered in mono.",
+          },
+          {
             name: "target",
             type: "string",
             required: true,
@@ -3669,6 +3739,13 @@ const models: ComposerModel[] = [
         component: "ContextSegment",
         rows: [
           {
+            name: "label",
+            type: "string",
+            required: true,
+            description:
+              "What this slice of the window is, shown in the legend.",
+          },
+          {
             name: "tokens",
             type: "number",
             required: true,
@@ -3721,6 +3798,19 @@ const models: ComposerModel[] = [
       {
         component: "PickableModel",
         rows: [
+          {
+            name: "id",
+            type: "string",
+            required: true,
+            description:
+              "Stable identity, compared against selectedId and reported by onSelect.",
+          },
+          {
+            name: "name",
+            type: "string",
+            required: true,
+            description: "Display name of the model.",
+          },
           {
             name: "family",
             type: "string",
@@ -3877,6 +3967,25 @@ const models: ComposerModel[] = [
         component: "DatedMessage",
         rows: [
           {
+            name: "id",
+            type: "string",
+            required: true,
+            description: "Stable identity for the row key.",
+          },
+          {
+            name: "role",
+            type: '"user" | "assistant"',
+            required: true,
+            description:
+              "Who sent it. User turns sit right in a bubble, assistant turns run flush left.",
+          },
+          {
+            name: "text",
+            type: "string",
+            required: true,
+            description: "Message body.",
+          },
+          {
             name: "day",
             type: "string",
             required: true,
@@ -3917,6 +4026,18 @@ const models: ComposerModel[] = [
       {
         component: "SpeakerTurn",
         rows: [
+          {
+            name: "id",
+            type: "string",
+            required: true,
+            description: "Stable identity for the row key.",
+          },
+          {
+            name: "text",
+            type: "string",
+            required: true,
+            description: "What this speaker said.",
+          },
           {
             name: "kind",
             type: '"user" | "agent" | "subagent" | "tool"',
@@ -4030,6 +4151,19 @@ const models: ComposerModel[] = [
       {
         component: "ConfidenceClaim",
         rows: [
+          {
+            name: "id",
+            type: "string",
+            required: true,
+            description: "Stable identity, compared against hoveredId.",
+          },
+          {
+            name: "text",
+            type: "string",
+            required: true,
+            description:
+              "The claim, rendered inline with its confidence underline.",
+          },
           {
             name: "confidence",
             type: '"grounded" | "inferred" | "uncertain"',
@@ -4224,6 +4358,24 @@ const models: ComposerModel[] = [
         component: "ComputerStep",
         rows: [
           {
+            name: "id",
+            type: "string",
+            required: true,
+            description: "Stable identity for the step key.",
+          },
+          {
+            name: "action",
+            type: "string",
+            required: true,
+            description: "Verb the agent performed: click, type, scroll.",
+          },
+          {
+            name: "target",
+            type: "string",
+            required: true,
+            description: "What it acted on.",
+          },
+          {
             name: "x",
             type: "number",
             required: true,
@@ -4386,6 +4538,18 @@ const models: ComposerModel[] = [
         component: "MemoryChip",
         rows: [
           {
+            name: "id",
+            type: "string",
+            required: true,
+            description: "Stable identity, reported back by onForget.",
+          },
+          {
+            name: "text",
+            type: "string",
+            required: true,
+            description: "The remembered fact, in the assistant's words.",
+          },
+          {
             name: "change",
             type: '"added" | "updated" | "existing"',
             required: true,
@@ -4433,6 +4597,18 @@ const models: ComposerModel[] = [
       {
         component: "ReportSection",
         rows: [
+          {
+            name: "id",
+            type: "string",
+            required: true,
+            description: "Stable identity for the row key.",
+          },
+          {
+            name: "heading",
+            type: "string",
+            required: true,
+            description: "Section title, shown before any prose exists.",
+          },
           {
             name: "state",
             type: '"pending" | "writing" | "done"',
@@ -4631,6 +4807,19 @@ const models: ComposerModel[] = [
         component: "SpecRow",
         rows: [
           {
+            name: "label",
+            type: "string",
+            required: true,
+            description: "Field name, rendered in mono on the left.",
+          },
+          {
+            name: "value",
+            type: "string",
+            required: true,
+            description:
+              "Pre-formatted value. The element never formats numbers itself.",
+          },
+          {
             name: "emphasis",
             type: "boolean",
             defaultValue: "false",
@@ -4693,6 +4882,24 @@ const models: ComposerModel[] = [
         component: "ComparisonOption",
         rows: [
           {
+            name: "id",
+            type: "string",
+            required: true,
+            description: "Stable identity, compared against recommendedId.",
+          },
+          {
+            name: "name",
+            type: "string",
+            required: true,
+            description: "Option name.",
+          },
+          {
+            name: "headline",
+            type: "string",
+            required: true,
+            description: "One-line summary under the name.",
+          },
+          {
             name: "traits",
             type: "(string | false)[]",
             required: true,
@@ -4734,6 +4941,18 @@ const models: ComposerModel[] = [
       {
         component: "TimelineEvent",
         rows: [
+          {
+            name: "id",
+            type: "string",
+            required: true,
+            description: "Stable identity for the row key.",
+          },
+          {
+            name: "title",
+            type: "string",
+            required: true,
+            description: "What happened.",
+          },
           {
             name: "when",
             type: '"past" | "now" | "future"',
@@ -4941,6 +5160,25 @@ const models: ComposerModel[] = [
         component: "CostLine",
         rows: [
           {
+            name: "model",
+            type: "string",
+            required: true,
+            description: "Model this line accounts for.",
+          },
+          {
+            name: "inputTokens",
+            type: "number",
+            required: true,
+            description:
+              "Input tokens consumed. The element divides by 1000 for display.",
+          },
+          {
+            name: "outputTokens",
+            type: "number",
+            required: true,
+            description: "Output tokens produced.",
+          },
+          {
             name: "share",
             type: "number",
             required: true,
@@ -5091,6 +5329,18 @@ const models: ComposerModel[] = [
         component: "BackgroundRun",
         rows: [
           {
+            name: "id",
+            type: "string",
+            required: true,
+            description: "Stable identity, reported back by onCollect.",
+          },
+          {
+            name: "title",
+            type: "string",
+            required: true,
+            description: "What the detached run is doing.",
+          },
+          {
             name: "state",
             type: '"running" | "ready" | "failed"',
             required: true,
@@ -5148,6 +5398,19 @@ const models: ComposerModel[] = [
       {
         component: "Checkpoint",
         rows: [
+          {
+            name: "id",
+            type: "string",
+            required: true,
+            description:
+              "Stable identity, compared against currentId and reported by onRestore.",
+          },
+          {
+            name: "label",
+            type: "string",
+            required: true,
+            description: "What the checkpoint captured.",
+          },
           {
             name: "files",
             type: "number",
@@ -5286,6 +5549,26 @@ const models: ComposerModel[] = [
         component: "SavedPrompt",
         rows: [
           {
+            name: "id",
+            type: "string",
+            required: true,
+            description: "Stable identity, compared against selectedId.",
+          },
+          {
+            name: "name",
+            type: "string",
+            required: true,
+            description:
+              "Prompt name, and the only field the search filters on.",
+          },
+          {
+            name: "body",
+            type: "string",
+            required: true,
+            description:
+              "The prompt text, shown in the preview below the list.",
+          },
+          {
             name: "variables",
             type: "string[]",
             required: true,
@@ -5350,6 +5633,19 @@ const models: ComposerModel[] = [
       {
         component: "PaletteCommand",
         rows: [
+          {
+            name: "id",
+            type: "string",
+            required: true,
+            description:
+              "Stable identity, compared against activeId and reported by onRun.",
+          },
+          {
+            name: "label",
+            type: "string",
+            required: true,
+            description: "Command text, and the field the query filters on.",
+          },
           {
             name: "group",
             type: "string",
@@ -5475,6 +5771,24 @@ const models: ComposerModel[] = [
         component: "SearchHit",
         rows: [
           {
+            name: "id",
+            type: "string",
+            required: true,
+            description: "Stable identity for the rail mark.",
+          },
+          {
+            name: "before",
+            type: "string",
+            required: true,
+            description: "Text preceding the match, for the preview.",
+          },
+          {
+            name: "after",
+            type: "string",
+            required: true,
+            description: "Text following the match.",
+          },
+          {
             name: "position",
             type: "number",
             required: true,
@@ -5545,6 +5859,25 @@ const models: ComposerModel[] = [
       {
         component: "SearchableThread",
         rows: [
+          {
+            name: "id",
+            type: "string",
+            required: true,
+            description: "Stable identity, compared against activeId.",
+          },
+          {
+            name: "title",
+            type: "string",
+            required: true,
+            description:
+              "Thread title. Filtering matches this and preview together.",
+          },
+          {
+            name: "preview",
+            type: "string",
+            required: true,
+            description: "Second line under the title.",
+          },
           {
             name: "group",
             type: "string",
@@ -5747,6 +6080,18 @@ const models: ComposerModel[] = [
       {
         component: "OnboardingStep",
         rows: [
+          {
+            name: "title",
+            type: "string",
+            required: true,
+            description: "Step heading.",
+          },
+          {
+            name: "body",
+            type: "string",
+            required: true,
+            description: "What this step teaches, in a sentence or two.",
+          },
           {
             name: "example",
             type: "string",
