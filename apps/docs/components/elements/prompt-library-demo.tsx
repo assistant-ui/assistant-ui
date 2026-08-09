@@ -38,6 +38,7 @@ export function PromptLibraryDemo() {
       selectedId={selectedId}
       onQueryChange={setQuery}
       onSelect={setSelectedId}
+      onInsert={setSelectedId}
     />
   );
 }

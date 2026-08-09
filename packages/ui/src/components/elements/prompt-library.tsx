@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { BookmarkIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { field, mono, paper } from "./surfaces";
@@ -19,27 +20,54 @@ export function PromptLibrary({
   onSelect,
   onInsert,
   className,
-}: {
+  ...props
+}: Omit<
+  ComponentProps<"div">,
+  "prompts" | "query" | "selectedId" | "onQueryChange" | "onSelect" | "onInsert"
+> & {
   prompts: readonly SavedPrompt[];
   query: string;
   selectedId: string;
   onQueryChange?: (query: string) => void;
   onSelect?: (id: string) => void;
   onInsert?: (id: string) => void;
-  className?: string;
 }) {
   const matches = prompts.filter((prompt) =>
     prompt.name.toLowerCase().includes(query.toLowerCase()),
   );
   const selected = matches.find((prompt) => prompt.id === selectedId);
 
+  const move = (delta: number) => {
+    if (matches.length === 0) return;
+    const at = matches.findIndex((prompt) => prompt.id === selectedId);
+    const next = matches[(at + delta + matches.length) % matches.length];
+    if (next) onSelect?.(next.id);
+  };
+
+  const onKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.nativeEvent.isComposing) return;
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      move(1);
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault();
+      move(-1);
+    } else if (event.key === "Enter" && selected) {
+      event.preventDefault();
+      onInsert?.(selected.id);
+    }
+  };
+
   return (
     <div
+      data-slot="prompt-library"
       className={cn(
         paper,
         "flex w-full max-w-sm flex-col gap-2 rounded-2xl p-3",
         className,
       )}
+
+      {...props}
     >
       <div
         className={cn(
@@ -51,6 +79,7 @@ export function PromptLibrary({
         <input
           value={query}
           onChange={(event) => onQueryChange?.(event.target.value)}
+          onKeyDown={onKeyDown}
           placeholder="Search prompts"
           aria-label="Search saved prompts"
           className="text-foreground/85 placeholder:text-foreground/30 min-w-0 flex-1 bg-transparent text-[13px] outline-none"
@@ -64,6 +93,11 @@ export function PromptLibrary({
             type="button"
             onClick={() => onSelect?.(prompt.id)}
             onDoubleClick={() => onInsert?.(prompt.id)}
+            onKeyDown={(event) => {
+              if (event.key !== "Enter") return;
+              event.preventDefault();
+              onInsert?.(prompt.id);
+            }}
             className={cn(
               "flex items-center gap-2 rounded-xl px-2 py-1.5 text-start transition-colors",
               prompt.id === selectedId

@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { SearchIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { field, floating, mono } from "./surfaces";
@@ -16,34 +17,74 @@ export function CommandPalette({
   query,
   activeId,
   onQueryChange,
+  onActiveChange,
   onRun,
   className,
-}: {
+  ...props
+}: Omit<
+  ComponentProps<"div">,
+  | "commands"
+  | "query"
+  | "activeId"
+  | "onQueryChange"
+  | "onActiveChange"
+  | "onRun"
+> & {
   commands: readonly PaletteCommand[];
   query: string;
   activeId: string;
   onQueryChange?: (query: string) => void;
+  onActiveChange?: (id: string) => void;
   onRun?: (id: string) => void;
-  className?: string;
 }) {
   const matches = commands.filter((command) =>
     command.label.toLowerCase().includes(query.toLowerCase()),
   );
   const groups = [...new Set(matches.map((command) => command.group))];
+  // display order, which is grouped and so differs from the filter order
+  const ordered = groups.flatMap((group) =>
+    matches.filter((command) => command.group === group),
+  );
+
+  const move = (delta: number) => {
+    if (ordered.length === 0) return;
+    const at = ordered.findIndex((command) => command.id === activeId);
+    const next = ordered[(at + delta + ordered.length) % ordered.length];
+    if (next) onActiveChange?.(next.id);
+  };
+
+  const onKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.nativeEvent.isComposing) return;
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      move(1);
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault();
+      move(-1);
+    } else if (event.key === "Enter") {
+      event.preventDefault();
+      const active = ordered.find((command) => command.id === activeId);
+      if (active) onRun?.(active.id);
+    }
+  };
 
   return (
     <div
+      data-slot="command-palette"
       className={cn(
         floating,
         "flex w-full max-w-sm flex-col overflow-hidden rounded-[20px]",
         className,
       )}
+
+      {...props}
     >
       <div className="flex items-center gap-2.5 px-3.5 py-3">
         <SearchIcon className="text-foreground/30 size-3.5 shrink-0" />
         <input
           value={query}
           onChange={(event) => onQueryChange?.(event.target.value)}
+          onKeyDown={onKeyDown}
           placeholder="Type a command"
           aria-label="Type a command"
           className="text-foreground/85 placeholder:text-foreground/30 min-w-0 flex-1 bg-transparent text-[13.5px] outline-none"

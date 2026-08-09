@@ -29,6 +29,7 @@ export function CommandPaletteDemo() {
       query={query}
       activeId={activeId}
       onQueryChange={setQuery}
+      onActiveChange={setActiveId}
       onRun={setActiveId}
     />
   );

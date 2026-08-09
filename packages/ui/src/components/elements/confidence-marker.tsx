@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
 import { floating, mono } from "./surfaces";
 
@@ -29,24 +30,35 @@ export function ConfidenceMarker({
   hoveredId,
   onHover,
   className,
-}: {
+  ...props
+}: Omit<ComponentProps<"div">, "claims" | "hoveredId" | "onHover"> & {
   claims: readonly ConfidenceClaim[];
   hoveredId: string;
   onHover?: (id: string) => void;
-  className?: string;
 }) {
   const hovered = claims.find((claim) => claim.id === hoveredId);
 
   return (
-    <div className={cn("flex w-full max-w-sm flex-col gap-2.5", className)}>
+    <div
+      data-slot="confidence-marker"
+      className={cn("flex w-full max-w-sm flex-col gap-2.5", className)}
+
+      {...props}
+    >
       <p className="text-[13.5px] leading-relaxed">
         {claims.map((claim) => (
-          <span
+          <button
             key={claim.id}
+            type="button"
+            aria-describedby={
+              hoveredId === claim.id ? "confidence-basis" : undefined
+            }
             onMouseEnter={() => onHover?.(claim.id)}
             onMouseLeave={() => onHover?.("")}
+            onFocus={() => onHover?.(claim.id)}
+            onBlur={() => onHover?.("")}
             className={cn(
-              "underline decoration-2 underline-offset-[3px] transition-colors",
+              "focus-visible:ring-foreground/20 cursor-help rounded text-start underline decoration-2 underline-offset-[3px] transition-colors outline-none focus-visible:ring-2",
               UNDERLINE[claim.confidence],
               hoveredId === claim.id
                 ? "text-foreground/95"
@@ -54,13 +66,15 @@ export function ConfidenceMarker({
             )}
           >
             {claim.text}{" "}
-          </span>
+          </button>
         ))}
       </p>
 
       <div className="flex h-9 items-start">
         {hovered && (
           <span
+            id="confidence-basis"
+            role="status"
             className={cn(
               floating,
               mono,

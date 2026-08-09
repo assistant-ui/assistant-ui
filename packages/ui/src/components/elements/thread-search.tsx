@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { PinIcon, SearchIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { field, mono, paper } from "./surfaces";
@@ -19,13 +20,16 @@ export function ThreadSearch({
   onQueryChange,
   onSelect,
   className,
-}: {
+  ...props
+}: Omit<
+  ComponentProps<"div">,
+  "threads" | "query" | "activeId" | "onQueryChange" | "onSelect"
+> & {
   threads: readonly SearchableThread[];
   query: string;
   activeId: string;
   onQueryChange?: (query: string) => void;
   onSelect?: (id: string) => void;
-  className?: string;
 }) {
   const matches = threads.filter((thread) =>
     `${thread.title} ${thread.preview}`
@@ -36,6 +40,31 @@ export function ThreadSearch({
   const groups = [
     ...new Set(matches.filter((t) => !t.pinned).map((t) => t.group)),
   ];
+
+  const ordered = [
+    ...pinned,
+    ...groups.flatMap((group) =>
+      matches.filter((thread) => !thread.pinned && thread.group === group),
+    ),
+  ];
+
+  const move = (delta: number) => {
+    if (ordered.length === 0) return;
+    const at = ordered.findIndex((thread) => thread.id === activeId);
+    const next = ordered[(at + delta + ordered.length) % ordered.length];
+    if (next) onSelect?.(next.id);
+  };
+
+  const onKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.nativeEvent.isComposing) return;
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      move(1);
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault();
+      move(-1);
+    }
+  };
 
   const row = (thread: SearchableThread) => (
     <button
@@ -65,11 +94,14 @@ export function ThreadSearch({
 
   return (
     <div
+      data-slot="thread-search"
       className={cn(
         paper,
         "flex w-full max-w-sm flex-col gap-1.5 rounded-2xl p-3",
         className,
       )}
+
+      {...props}
     >
       <div
         className={cn(
@@ -81,6 +113,7 @@ export function ThreadSearch({
         <input
           value={query}
           onChange={(event) => onQueryChange?.(event.target.value)}
+          onKeyDown={onKeyDown}
           placeholder="Search threads"
           aria-label="Search threads"
           className="text-foreground/85 placeholder:text-foreground/30 min-w-0 flex-1 bg-transparent text-[13px] outline-none"
