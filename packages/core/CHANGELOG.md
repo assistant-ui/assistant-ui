@@ -1,5 +1,11 @@
 # @assistant-ui/core
 
+## 0.3.12
+
+### Patch Changes
+
+- [#5745](https://github.com/assistant-ui/assistant-ui/pull/5745) [`1df4327`](https://github.com/assistant-ui/assistant-ui/commit/1df4327dc915103bb1b64e01ee8d888c08de9f59) - refactor: move ExternalThread, SingleThreadList, and the Assistant augmentation namespace into @assistant-ui/core ([@Yonom](https://github.com/Yonom))
+
 ## 0.3.11
 
 ### Patch Changes

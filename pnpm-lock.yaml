@@ -3736,7 +3736,7 @@ importers:
   packages/react:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.11
+        specifier: ^0.3.12
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.3.8
@@ -4196,7 +4196,7 @@ importers:
   packages/react-ink-markdown:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.11
+        specifier: ^0.3.12
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.3.8
@@ -4522,7 +4522,7 @@ importers:
   packages/react-opencode:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.11
+        specifier: ^0.3.12
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.3.8
@@ -4562,7 +4562,7 @@ importers:
   packages/react-pi:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.11
+        specifier: ^0.3.12
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.3.8
@@ -4920,7 +4920,7 @@ importers:
   packages/vue:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.11
+        specifier: ^0.3.12
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.3.8
