@@ -1,5 +1,11 @@
 # @assistant-ui/cloud-ai-sdk
 
+## 0.1.32
+
+### Patch Changes
+
+- [#5719](https://github.com/assistant-ui/assistant-ui/pull/5719) [`a44f537`](https://github.com/assistant-ui/assistant-ui/commit/a44f53750bf77bf5ad18755b6183ce4d6cf4ba34) - fix: clear a selected Cloud thread when archiving removes it from the list ([@Kinfe123](https://github.com/Kinfe123))
+
 ## 0.1.31
 
 ### Patch Changes

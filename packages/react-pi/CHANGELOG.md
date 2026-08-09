@@ -1,5 +1,14 @@
 # @assistant-ui/react-pi
 
+## 0.0.16
+
+### Patch Changes
+
+- [#5737](https://github.com/assistant-ui/assistant-ui/pull/5737) [`5c8bcf7`](https://github.com/assistant-ui/assistant-ui/commit/5c8bcf7833e3fab7447ddb8befa927d40a796596) - fix: isolate runtime error callback failures ([@Kinfe123](https://github.com/Kinfe123))
+
+- Updated dependencies [[`f551562`](https://github.com/assistant-ui/assistant-ui/commit/f551562162f43b2bbeb2bb46d39b68243ca1d35a), [`dc7b77d`](https://github.com/assistant-ui/assistant-ui/commit/dc7b77dca65ad8d0384e8aec268a4141dc8bd0da), [`d1b7097`](https://github.com/assistant-ui/assistant-ui/commit/d1b7097ca86e84698fcfaabd1b310e30612dd32c)]:
+  - @assistant-ui/core@0.3.11
+
 ## 0.0.15
 
 ### Patch Changes

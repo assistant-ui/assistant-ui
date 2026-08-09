@@ -1,5 +1,11 @@
 # @assistant-ui/react-lexical
 
+## 0.2.9
+
+### Patch Changes
+
+- [#5739](https://github.com/assistant-ui/assistant-ui/pull/5739) [`913df42`](https://github.com/assistant-ui/assistant-ui/commit/913df42f58d03e103a4468214111327dcb8c1de9) - fix: clear stale composer text when switching to a thread with an empty draft ([@Kinfe123](https://github.com/Kinfe123))
+
 ## 0.2.8
 
 ### Patch Changes

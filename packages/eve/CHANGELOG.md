@@ -1,5 +1,14 @@
 # @assistant-ui/eve
 
+## 0.0.12
+
+### Patch Changes
+
+- [#5736](https://github.com/assistant-ui/assistant-ui/pull/5736) [`988f739`](https://github.com/assistant-ui/assistant-ui/commit/988f7399a1be23f0f63b9851141ace855562e865) - fix: isolate observe-only Eve lifecycle callbacks ([@Kinfe123](https://github.com/Kinfe123))
+
+- Updated dependencies [[`f551562`](https://github.com/assistant-ui/assistant-ui/commit/f551562162f43b2bbeb2bb46d39b68243ca1d35a), [`dc7b77d`](https://github.com/assistant-ui/assistant-ui/commit/dc7b77dca65ad8d0384e8aec268a4141dc8bd0da), [`d1b7097`](https://github.com/assistant-ui/assistant-ui/commit/d1b7097ca86e84698fcfaabd1b310e30612dd32c)]:
+  - @assistant-ui/core@0.3.11
+
 ## 0.0.11
 
 ### Patch Changes
