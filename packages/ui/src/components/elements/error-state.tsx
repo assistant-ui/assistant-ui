@@ -22,12 +22,15 @@ export function ErrorState({
   if (retrying) {
     return (
       <div
+        data-slot="error-state"
         key="retrying"
         role="status"
         className={cn(
           "fade-in animate-in flex w-full max-w-sm items-center gap-2.5 text-sm duration-300 motion-reduce:animate-none",
           className,
         )}
+
+        {...props}
       >
         <RefreshCwIcon className="text-foreground/45 size-3.5 shrink-0 animate-spin motion-reduce:animate-none" />
         <span className="text-foreground/55 relative inline-block">

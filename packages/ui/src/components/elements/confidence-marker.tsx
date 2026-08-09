@@ -1,5 +1,6 @@
 "use client";
 
+import { useId } from "react";
 import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
 import { floating, mono } from "./surfaces";
@@ -36,6 +37,7 @@ export function ConfidenceMarker({
   hoveredId: string;
   onHover?: (id: string) => void;
 }) {
+  const basisId = useId();
   const hovered = claims.find((claim) => claim.id === hoveredId);
 
   return (
@@ -50,9 +52,7 @@ export function ConfidenceMarker({
           <button
             key={claim.id}
             type="button"
-            aria-describedby={
-              hoveredId === claim.id ? "confidence-basis" : undefined
-            }
+            aria-describedby={hoveredId === claim.id ? basisId : undefined}
             onMouseEnter={() => onHover?.(claim.id)}
             onMouseLeave={() => onHover?.("")}
             onFocus={() => onHover?.(claim.id)}
@@ -73,7 +73,7 @@ export function ConfidenceMarker({
       <div className="flex h-9 items-start">
         {hovered && (
           <span
-            id="confidence-basis"
+            id={basisId}
             role="status"
             className={cn(
               floating,

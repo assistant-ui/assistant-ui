@@ -36,11 +36,14 @@ export function FeedbackDialog({
   if (sent) {
     return (
       <div
+        data-slot="feedback-dialog"
         className={cn(
           paper,
           "fade-in animate-in flex w-full max-w-sm items-center gap-2.5 rounded-[20px] p-4 text-[13.5px] duration-300",
           className,
         )}
+
+        {...props}
       >
         <CheckIcon className="size-4 shrink-0 text-emerald-500" />
         Thanks. That helps us tune the model.

@@ -308,6 +308,7 @@ export function ComposerAttachmentChip({
 
 export function ComposerInput({
   onSubmit,
+  onKeyDown,
   className,
   ...props
 }: Omit<ComponentProps<"input">, "onSubmit"> & { onSubmit?: () => void }) {
@@ -315,6 +316,8 @@ export function ComposerInput({
     <input
       data-slot="composer-input"
       onKeyDown={(event) => {
+        onKeyDown?.(event);
+        if (event.defaultPrevented) return;
         if (event.key !== "Enter" || event.nativeEvent.isComposing) return;
         onSubmit?.();
       }}

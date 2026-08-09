@@ -35,7 +35,11 @@ export function EditMessage({
 }) {
   if (!editing) {
     return (
-      <div className={cn("flex w-full max-w-sm justify-end", className)}>
+      <div
+        data-slot="edit-message"
+        className={cn("flex w-full max-w-sm justify-end", className)}
+        {...props}
+      >
         <button
           type="button"
           onClick={onStartEdit}
