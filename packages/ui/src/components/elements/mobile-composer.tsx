@@ -9,6 +9,8 @@ export function MobileComposer({
   keyboardOpen,
   running,
   actions,
+  onAction,
+  onAttach,
   onValueChange,
   onSend,
   onStop,
@@ -19,6 +21,8 @@ export function MobileComposer({
   keyboardOpen: boolean;
   running: boolean;
   actions: readonly string[];
+  onAction?: (action: string) => void;
+  onAttach?: () => void;
   onValueChange?: (value: string) => void;
   onSend?: () => void;
   onStop?: () => void;
@@ -39,7 +43,10 @@ export function MobileComposer({
             <button
               key={action}
               type="button"
+              onClick={() => onAction?.(action)}
+              disabled={!onAction}
               className={cn(
+                "disabled:pointer-events-none",
                 field,
                 "text-foreground/60 shrink-0 rounded-full px-3 py-1.5 text-xs whitespace-nowrap",
               )}
@@ -54,7 +61,13 @@ export function MobileComposer({
         <button
           type="button"
           aria-label="Add an attachment"
-          className={cn(ghostButton, field, "size-9 shrink-0")}
+          onClick={onAttach}
+          disabled={!onAttach}
+          className={cn(
+            ghostButton,
+            field,
+            "size-9 shrink-0 disabled:pointer-events-none disabled:opacity-30",
+          )}
         >
           <PlusIcon className="size-4" />
         </button>

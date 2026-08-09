@@ -2704,6 +2704,12 @@ const models: ComposerModel[] = [
             description: "Swaps the header status between editing and saved.",
           },
           {
+            name: "onCopy",
+            type: "() => void",
+            description:
+              "Called from the copy action. Omit it and the control renders disabled rather than promising a copy it cannot make.",
+          },
+          {
             name: "onClose",
             type: "() => void",
             description: "Called when the canvas is dismissed.",
@@ -3537,7 +3543,7 @@ const models: ComposerModel[] = [
             type: "string",
             required: true,
             description:
-              "Stable identity for the list key and for the callbacks that report a selection.",
+              "Stable identity for the row key, and how edges name their endpoints. FlowGraph exposes no callbacks, so nothing else reports it.",
           },
           {
             name: "label",
@@ -6145,6 +6151,18 @@ const models: ComposerModel[] = [
             required: true,
             description:
               "Quick actions above the field, scrolled horizontally.",
+          },
+          {
+            name: "onAttach",
+            type: "() => void",
+            description:
+              "Called from the attachment control. Omit it and the control renders disabled.",
+          },
+          {
+            name: "onAction",
+            type: "(action: string) => void",
+            description:
+              "Called when a quick action is tapped. Omit it and the chips render disabled, since actions is required and the row would otherwise be inert.",
           },
           {
             name: "onValueChange",

@@ -16,6 +16,8 @@ export function MobileComposerDemo() {
       running={false}
       actions={ACTIONS}
       onValueChange={setValue}
+      onAction={(action) => setValue(action)}
+      onAttach={() => undefined}
       onFocus={() => setKeyboardOpen(true)}
       onSend={() => {
         setValue("");

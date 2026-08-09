@@ -17,6 +17,7 @@ export function CanvasSplit({
   lines,
   visibleLines,
   saved,
+  onCopy,
   onClose,
   className,
 }: {
@@ -26,6 +27,7 @@ export function CanvasSplit({
   lines: readonly string[];
   visibleLines: number;
   saved: boolean;
+  onCopy?: () => void;
   onClose?: () => void;
   className?: string;
 }) {
@@ -83,7 +85,12 @@ export function CanvasSplit({
           <button
             type="button"
             aria-label={`Copy ${title}`}
-            className={cn(ghostButton, "size-7 shrink-0")}
+            onClick={onCopy}
+            disabled={!onCopy}
+            className={cn(
+              ghostButton,
+              "size-7 shrink-0 disabled:pointer-events-none disabled:opacity-30",
+            )}
           >
             <CopyIcon className="size-3.5" />
           </button>

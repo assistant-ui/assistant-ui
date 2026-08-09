@@ -36,6 +36,8 @@ export function CanvasSplitDemo() {
       lines={LINES}
       visibleLines={visibleLines}
       saved={visibleLines >= LINES.length}
+      onCopy={() => undefined}
+      onClose={() => undefined}
     />
   );
 }
