@@ -5,7 +5,7 @@ import type { FC } from "react";
 import { describe, it, expect } from "vitest";
 import { useAui, AuiProvider } from "@assistant-ui/store";
 import { InMemoryThreadList } from "../client/InMemoryThreadList";
-import { ExternalThread } from "@assistant-ui/core/store";
+import { ExternalThread } from "../index";
 
 const renderThreads = () => {
   const captured: { aui?: ReturnType<typeof useAui> } = {};
