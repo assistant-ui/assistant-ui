@@ -43,7 +43,7 @@ import type { ComposerSendOptions } from "../scopes/composer";
 import { fileMatchesAccept } from "../../adapters/attachment";
 import { getThreadMessageText } from "../../utils/text";
 import { resolveToolApprovalResponse } from "../../runtime/utils/resolveToolApprovalResponse";
-import { toMessagePartStatus } from "../../runtime/api/message-runtime";
+import { toMessagePartStatus } from "../../utils/normalizePartStatus";
 import { ModelContext } from "./model-context-client";
 import { Suggestions } from "./suggestions";
 import { Tools } from "../../react/client/Tools";
