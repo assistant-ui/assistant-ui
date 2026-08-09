@@ -1,49 +1,54 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { resource, withKey } from "@assistant-ui/tap";
+import type { ClientElement, ClientOutput } from "@assistant-ui/store";
 import {
-  type ClientElement,
-  type ClientOutput,
   useClientLookup,
   attachTransformScopes,
   useClientResource,
   Derived,
-} from "@assistant-ui/store";
+} from "@assistant-ui/store/client";
 
 import type {
-  AddToolResultOptions,
   AppendMessage,
-  Attachment,
-  AttachmentAdapter,
-  CreateAttachment,
-  PendingAttachment,
-  RespondToToolApprovalOptions,
-  ResumeToolCallOptions,
   MessagePartStatus,
   ThreadAssistantMessagePart,
   ThreadUserMessagePart,
   ThreadMessage,
   ToolCallMessagePartStatus,
-  ExternalThreadQueueAdapter,
-  ExternalThreadBranchAdapter,
-  QueuePlacement,
-  FeedbackAdapter,
+} from "../../types/message";
+import type {
+  Attachment,
+  CreateAttachment,
+  PendingAttachment,
+} from "../../types/attachment";
+import { isCreateAttachment } from "../../types/attachment";
+import type {
+  AddToolResultOptions,
+  RespondToToolApprovalOptions,
+  ResumeToolCallOptions,
   SpeechState,
-  SpeechSynthesisAdapter,
-} from "@assistant-ui/core";
+} from "../../runtime/interfaces/thread-runtime-core";
+import type {
+  ExternalThreadQueueAdapter,
+  QueuePlacement,
+} from "../../runtime/queue/external-thread-queue-adapter";
+import type { ExternalThreadBranchAdapter } from "../../runtime/branch/external-thread-branch-adapter";
+import type { AttachmentAdapter } from "../../adapters/attachment";
+import type { FeedbackAdapter } from "../../adapters/feedback";
+import type { SpeechSynthesisAdapter } from "../../adapters/speech";
 import { ToolResponse } from "assistant-stream";
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
-import type { QueueItemState } from "@assistant-ui/core/store";
-import type { ComposerSendOptions } from "@assistant-ui/core/store";
-import {
-  fileMatchesAccept,
-  getThreadMessageText,
-  isCreateAttachment,
-  resolveToolApprovalResponse,
-  toMessagePartStatus,
-} from "@assistant-ui/core/internal";
-import { ModelContext, Suggestions } from "@assistant-ui/core/store";
-import { Tools, DataRenderers } from "@assistant-ui/core/react";
-import { SingleThreadList } from "./SingleThreadList";
+import type { QueueItemState } from "../scopes/queue-item";
+import type { ComposerSendOptions } from "../scopes/composer";
+import { fileMatchesAccept } from "../../adapters/attachment";
+import { getThreadMessageText } from "../../utils/text";
+import { resolveToolApprovalResponse } from "../../runtime/utils/resolveToolApprovalResponse";
+import { toMessagePartStatus } from "../../runtime/api/message-runtime";
+import { ModelContext } from "./model-context-client";
+import { Suggestions } from "./suggestions";
+import { Tools } from "../../react/client/Tools";
+import { DataRenderers } from "../../react/client/DataRenderers";
+import { SingleThreadList } from "./single-thread-list";
 
 const EMPTY_QUEUE_ITEMS: readonly QueueItemState[] = [];
 const EMPTY_BRANCH_IDS: readonly string[] = [];

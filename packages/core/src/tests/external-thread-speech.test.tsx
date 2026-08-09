@@ -4,12 +4,12 @@ import { act, render, waitFor } from "@testing-library/react";
 import type { FC } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AuiProvider, useAui } from "@assistant-ui/store";
-import type { SpeechSynthesisAdapter } from "@assistant-ui/core";
+import type { SpeechSynthesisAdapter } from "../index";
 import type {
   ExternalThreadMessage,
   ExternalThreadProps,
-} from "../client/ExternalThread";
-import { ExternalThread } from "../client/ExternalThread";
+} from "../store/clients/external-thread";
+import { ExternalThread } from "../store/clients/external-thread";
 
 const MESSAGES = [
   {

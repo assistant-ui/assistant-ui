@@ -4,14 +4,11 @@ import { render } from "@testing-library/react";
 import type { FC } from "react";
 import { describe, it, expect, vi } from "vitest";
 import { useAui, AuiProvider } from "@assistant-ui/store";
-import type {
-  ExternalThreadBranchAdapter,
-  ThreadMessage,
-} from "@assistant-ui/core";
+import type { ExternalThreadBranchAdapter, ThreadMessage } from "../index";
 import {
   ExternalThread,
   type ExternalThreadProps,
-} from "../client/ExternalThread";
+} from "../store/clients/external-thread";
 
 const message = (id: string, role: "user" | "assistant"): ThreadMessage =>
   ({

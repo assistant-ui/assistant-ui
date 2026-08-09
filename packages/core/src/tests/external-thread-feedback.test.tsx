@@ -4,12 +4,12 @@ import { act, render, waitFor } from "@testing-library/react";
 import type { FC } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { AuiProvider, useAui } from "@assistant-ui/store";
-import type { FeedbackAdapter } from "@assistant-ui/core";
+import type { FeedbackAdapter } from "../index";
 import type {
   ExternalThreadMessage,
   ExternalThreadProps,
-} from "../client/ExternalThread";
-import { ExternalThread } from "../client/ExternalThread";
+} from "../store/clients/external-thread";
+import { ExternalThread } from "../store/clients/external-thread";
 
 const MESSAGES = [
   {

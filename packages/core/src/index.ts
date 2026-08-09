@@ -64,6 +64,12 @@ export type {
 
 export type { Unsubscribe } from "./types/unsubscribe";
 
+export type {
+  Assistant,
+  UserCommands,
+  UserExternalState,
+} from "./types/augmentations";
+
 export type { QuoteInfo } from "./types/quote";
 
 export type {

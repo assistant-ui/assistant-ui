@@ -7,8 +7,8 @@ import { AuiProvider, useAui } from "@assistant-ui/store";
 import type {
   ExternalThreadMessage,
   ExternalThreadProps,
-} from "../client/ExternalThread";
-import { ExternalThread } from "../client/ExternalThread";
+} from "../store/clients/external-thread";
+import { ExternalThread } from "../store/clients/external-thread";
 
 const renderThreadWithProps = (props: Partial<ExternalThreadProps>) => {
   const captured: { aui?: ReturnType<typeof useAui> } = {};

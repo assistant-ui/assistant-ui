@@ -425,12 +425,12 @@ export {
   ExternalThread,
   type ExternalThreadProps,
   type ExternalThreadMessage,
-} from "./client/ExternalThread";
+} from "@assistant-ui/core/store";
 export {
   InMemoryThreadList,
   type InMemoryThreadListProps,
 } from "./client/InMemoryThreadList";
-export { SingleThreadList } from "./client/SingleThreadList";
+export { SingleThreadList } from "@assistant-ui/core/store";
 
 export * as INTERNAL from "./internal";
 
