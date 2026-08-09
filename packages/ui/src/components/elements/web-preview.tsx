@@ -1,6 +1,6 @@
 "use client";
 
-import { ExternalLinkIcon, RotateCwIcon, ShieldCheckIcon } from "lucide-react";
+import { ExternalLinkIcon, RotateCwIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { field, ghostButton, mono, paper } from "./surfaces";
 
@@ -53,7 +53,6 @@ export function WebPreview({
             "flex min-w-0 flex-1 items-center gap-1.5 rounded-full px-2.5 py-1",
           )}
         >
-          <ShieldCheckIcon className="size-3 shrink-0 text-emerald-600 dark:text-emerald-400" />
           <span className={cn(mono, "text-foreground/45 min-w-0 truncate")}>
             {origin}
           </span>
@@ -81,12 +80,12 @@ export function WebPreview({
         {loading && (
           <div className="absolute inset-0 flex items-center justify-center">
             <span className="text-foreground/40 relative inline-block text-xs leading-none">
-              <span>Sandboxing</span>
+              <span>Loading preview</span>
               <span
                 aria-hidden
                 className="shimmer pointer-events-none absolute inset-0 motion-reduce:animate-none"
               >
-                Sandboxing
+                Loading preview
               </span>
             </span>
           </div>

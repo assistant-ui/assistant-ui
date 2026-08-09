@@ -2698,6 +2698,12 @@ const models: ComposerModel[] = [
             description: "Called when the mic is muted or unmuted.",
           },
           {
+            name: "onInterrupt",
+            type: "() => void",
+            description:
+              "Called when the orb is pressed while the assistant is speaking. The orb is inert in every other mode, so the caption only offers the interrupt when one is possible.",
+          },
+          {
             name: "onEnd",
             type: "() => void",
             description: "Called when the call is ended.",
@@ -5749,7 +5755,8 @@ const models: ComposerModel[] = [
             name: "running",
             type: "boolean",
             required: true,
-            description: "Swaps send for stop.",
+            description:
+              "Swaps send for stop, and suppresses Return-to-send while a run is in flight.",
           },
           {
             name: "actions",

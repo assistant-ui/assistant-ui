@@ -25,6 +25,7 @@ export function VoiceConversation({
   transcript,
   muted,
   onToggleMute,
+  onInterrupt,
   onEnd,
   className,
 }: {
@@ -33,6 +34,7 @@ export function VoiceConversation({
   transcript: readonly VoiceTurn[];
   muted?: boolean;
   onToggleMute?: () => void;
+  onInterrupt?: () => void;
   onEnd?: () => void;
   className?: string;
 }) {
@@ -47,7 +49,13 @@ export function VoiceConversation({
         className,
       )}
     >
-      <div className="relative flex size-24 items-center justify-center">
+      <button
+        type="button"
+        onClick={onInterrupt}
+        disabled={mode !== "speaking"}
+        aria-label="Interrupt the assistant"
+        className="focus-visible:ring-foreground/20 relative flex size-24 items-center justify-center rounded-full outline-none focus-visible:ring-2 disabled:cursor-default"
+      >
         <span
           aria-hidden
           className={cn(
@@ -88,12 +96,16 @@ export function VoiceConversation({
           )}
           style={{ transform: `scale(${active ? 0.9 + level * 0.2 : 0.85})` }}
         />
-      </div>
+      </button>
 
       <div className="flex flex-col items-center gap-1">
         <span className="text-[13.5px] font-medium">{CAPTION[mode]}</span>
         <span className={cn(mono, "text-foreground/35")}>
-          {muted ? "Mic off" : "Tap to interrupt"}
+          {muted
+            ? "Mic off"
+            : mode === "speaking"
+              ? "Tap to interrupt"
+              : "Listening for you"}
         </span>
       </div>
 

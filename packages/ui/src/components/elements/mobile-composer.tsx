@@ -69,6 +69,11 @@ export function MobileComposer({
             value={value}
             onChange={(event) => onValueChange?.(event.target.value)}
             onFocus={onFocus}
+            onKeyDown={(event) => {
+              if (event.key !== "Enter" || event.shiftKey) return;
+              event.preventDefault();
+              if (!running && value !== "") onSend?.();
+            }}
             placeholder="Message"
             aria-label="Message"
             className="text-foreground/85 placeholder:text-foreground/30 min-w-0 flex-1 bg-transparent text-[16px] outline-none"

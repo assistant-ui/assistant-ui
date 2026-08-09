@@ -37,7 +37,7 @@ export function CanvasSplit({
         className,
       )}
     >
-      <div className="border-foreground/[0.07] flex flex-col gap-3 border-b p-4 md:w-[15rem] md:shrink-0 md:border-r md:border-b-0">
+      <div className="border-foreground/[0.07] flex flex-col gap-3 border-b p-4 md:w-[15rem] md:shrink-0 md:overflow-y-auto md:border-r md:border-b-0">
         {messages.map((message) => (
           <div
             key={message.id}
@@ -97,7 +97,7 @@ export function CanvasSplit({
           </button>
         </div>
 
-        <div className="flex min-h-[9rem] flex-1 flex-col gap-1.5 overflow-hidden p-4">
+        <div className="flex min-h-[9rem] flex-1 flex-col gap-1.5 overflow-y-auto p-4">
           {lines.slice(0, visibleLines).map((line, i) => (
             <p
               key={`${i}-${line}`}

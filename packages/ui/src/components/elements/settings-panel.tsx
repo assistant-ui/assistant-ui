@@ -81,7 +81,7 @@ export function SettingsPanel({
         <span className="flex items-baseline justify-between">
           <span className={cn(mono, "text-foreground/30")}>temperature</span>
           <span className={cn(mono, "text-foreground/55 tabular-nums")}>
-            {temperature.toFixed(1)}
+            {Math.min(2, Math.max(0, temperature)).toFixed(1)}
           </span>
         </span>
         <input
@@ -89,7 +89,7 @@ export function SettingsPanel({
           min={0}
           max={2}
           step={0.1}
-          value={temperature}
+          value={Math.min(2, Math.max(0, temperature))}
           aria-label="Temperature"
           onChange={(event) =>
             onTemperatureChange?.(Number(event.target.value))

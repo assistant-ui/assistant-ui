@@ -45,9 +45,9 @@ export function DocumentReference({
       </div>
 
       <div className="flex flex-col gap-1.5">
-        {anchors.map((anchor) => (
+        {anchors.map((anchor, i) => (
           <button
-            key={anchor.page}
+            key={`${anchor.page}-${i}`}
             type="button"
             onClick={() => onJump?.(anchor.page)}
             className={cn(
