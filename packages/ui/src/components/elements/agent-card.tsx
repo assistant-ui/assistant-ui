@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { BotIcon, CheckIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { field, inkButton, mono, paper } from "./surfaces";
@@ -20,7 +21,19 @@ export function AgentCard({
   connected,
   onConnect,
   className,
-}: {
+  ...props
+}: Omit<
+  ComponentProps<"div">,
+  | "name"
+  | "description"
+  | "provider"
+  | "version"
+  | "model"
+  | "endpoint"
+  | "skills"
+  | "connected"
+  | "onConnect"
+> & {
   name: string;
   description: string;
   provider: string;
@@ -30,15 +43,17 @@ export function AgentCard({
   skills: readonly AgentSkill[];
   connected: boolean;
   onConnect?: () => void;
-  className?: string;
 }) {
   return (
     <div
+      data-slot="agent-card"
       className={cn(
         paper,
         "flex w-full max-w-sm flex-col gap-3.5 rounded-[20px] p-4",
         className,
       )}
+
+      {...props}
     >
       <div className="flex items-start gap-3">
         <span className="bg-foreground/[0.05] text-foreground/45 flex size-9 shrink-0 items-center justify-center rounded-xl">

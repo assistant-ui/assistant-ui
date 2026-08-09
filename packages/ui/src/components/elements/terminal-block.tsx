@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { CheckIcon, Loader2Icon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { mono, paper } from "./surfaces";
@@ -11,18 +12,22 @@ export function TerminalBlock({
   done,
   variant = "paper",
   className,
-}: {
+  ...props
+}: Omit<
+  ComponentProps<"div">,
+  "command" | "lines" | "visibleCount" | "done" | "variant"
+> & {
   command: string;
   lines: readonly string[];
   visibleCount: number;
   done: boolean;
   variant?: "paper" | "ink";
-  className?: string;
 }) {
   const ink = variant === "ink";
 
   return (
     <div
+      data-slot="terminal-block"
       className={cn(
         ink
           ? "bg-foreground dark:bg-popover shadow-[0_12px_32px_-16px_rgba(0,0,0,0.35)] dark:shadow-none"
@@ -30,6 +35,8 @@ export function TerminalBlock({
         "w-full max-w-md overflow-hidden rounded-2xl font-mono text-xs",
         className,
       )}
+
+      {...props}
     >
       <div className="flex items-center justify-between px-4 pt-3 pb-1.5">
         <span

@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { ChevronRightIcon, PlugIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { field, mono, paper } from "./surfaces";
@@ -38,12 +39,15 @@ export function McpServerPanel({
   onToggle,
   onAuthorize,
   className,
-}: {
+  ...props
+}: Omit<
+  ComponentProps<"div">,
+  "servers" | "expandedId" | "onToggle" | "onAuthorize"
+> & {
   servers: readonly McpServer[];
   expandedId?: string;
   onToggle?: (id: string) => void;
   onAuthorize?: (id: string) => void;
-  className?: string;
 }) {
   const connected = servers.filter(
     (server) => server.status === "connected",
@@ -51,11 +55,14 @@ export function McpServerPanel({
 
   return (
     <div
+      data-slot="mcp-server-panel"
       className={cn(
         paper,
         "flex w-full max-w-sm flex-col gap-1 rounded-2xl p-3",
         className,
       )}
+
+      {...props}
     >
       <div className="flex items-baseline justify-between px-1 pb-1">
         <span className="text-[13.5px] font-medium">Servers</span>

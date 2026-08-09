@@ -46,6 +46,7 @@ export function ToolTimeline({
 }: ToolTimelineProps) {
   return (
     <Collapsible
+      data-slot="tool-timeline"
       open={open}
       onOpenChange={onOpenChange}
       className={cn("w-full max-w-sm", className)}

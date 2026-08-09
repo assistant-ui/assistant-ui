@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { AlertCircleIcon, Loader2Icon, RotateCwIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { field, mono, paper } from "./surfaces";
@@ -14,7 +15,18 @@ export function ToolError({
   onRetry,
   onSkip,
   className,
-}: {
+  ...props
+}: Omit<
+  ComponentProps<"div">,
+  | "name"
+  | "target"
+  | "message"
+  | "attempt"
+  | "maxAttempts"
+  | "retrying"
+  | "onRetry"
+  | "onSkip"
+> & {
   name: string;
   target: string;
   message: string;
@@ -23,15 +35,17 @@ export function ToolError({
   retrying: boolean;
   onRetry?: () => void;
   onSkip?: () => void;
-  className?: string;
 }) {
   return (
     <div
+      data-slot="tool-error"
       className={cn(
         paper,
         "flex w-full max-w-sm flex-col gap-3 rounded-2xl p-3.5",
         className,
       )}
+
+      {...props}
     >
       <div className="flex items-center gap-2.5">
         <AlertCircleIcon className="size-3.5 shrink-0 text-red-500" />

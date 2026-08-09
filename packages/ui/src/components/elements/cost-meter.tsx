@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
 import { mono, paper } from "./surfaces";
 
@@ -16,19 +17,22 @@ export function CostMeter({
   sessionCost,
   lines,
   className,
-}: {
+  ...props
+}: Omit<ComponentProps<"div">, "runCost" | "sessionCost" | "lines"> & {
   runCost: string;
   sessionCost: string;
   lines: readonly CostLine[];
-  className?: string;
 }) {
   return (
     <div
+      data-slot="cost-meter"
       className={cn(
         paper,
         "flex w-full max-w-sm flex-col gap-3 rounded-2xl p-4",
         className,
       )}
+
+      {...props}
     >
       <div className="flex items-baseline gap-2">
         <span className="text-2xl font-medium tracking-tight tabular-nums">

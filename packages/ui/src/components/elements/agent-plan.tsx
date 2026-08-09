@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { CheckIcon, Loader2Icon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { mono } from "./surfaces";
@@ -8,10 +9,10 @@ export function AgentPlan({
   steps,
   activeIndex,
   className,
-}: {
+  ...props
+}: Omit<ComponentProps<"div">, "steps" | "activeIndex"> & {
   steps: readonly string[];
   activeIndex: number;
-  className?: string;
 }) {
   const total = steps.length;
   const allDone = activeIndex >= total;
@@ -19,7 +20,12 @@ export function AgentPlan({
   const progress = total === 0 ? 0 : (completed / total) * 100;
 
   return (
-    <div className={cn("flex w-full max-w-sm flex-col gap-3", className)}>
+    <div
+      data-slot="agent-plan"
+      className={cn("flex w-full max-w-sm flex-col gap-3", className)}
+
+      {...props}
+    >
       <div className="flex items-center justify-between">
         <span className="text-[13.5px] font-medium">Plan</span>
         <span className={cn(mono, "text-foreground/35 tabular-nums")}>

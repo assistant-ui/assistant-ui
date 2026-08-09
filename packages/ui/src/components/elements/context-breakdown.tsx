@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
 import { mono, paper } from "./surfaces";
 
@@ -15,10 +16,10 @@ export function ContextBreakdown({
   segments,
   limit,
   className,
-}: {
+  ...props
+}: Omit<ComponentProps<"div">, "segments" | "limit"> & {
   segments: readonly ContextSegment[];
   limit: number;
-  className?: string;
 }) {
   const used = segments.reduce((sum, segment) => sum + segment.tokens, 0);
   const pressure = limit === 0 ? 0 : used / limit;
@@ -26,11 +27,14 @@ export function ContextBreakdown({
 
   return (
     <div
+      data-slot="context-breakdown"
       className={cn(
         paper,
         "flex w-full max-w-sm flex-col gap-3 rounded-2xl p-4",
         className,
       )}
+
+      {...props}
     >
       <div className="flex items-baseline justify-between">
         <span className="text-[13.5px] font-medium">Context</span>

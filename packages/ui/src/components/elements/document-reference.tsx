@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { FileTextIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { field, mono, paper } from "./surfaces";
@@ -16,21 +17,27 @@ export function DocumentReference({
   activePage,
   onJump,
   className,
-}: {
+  ...props
+}: Omit<
+  ComponentProps<"div">,
+  "title" | "pages" | "anchors" | "activePage" | "onJump"
+> & {
   title: string;
   pages: number;
   anchors: readonly DocumentAnchor[];
   activePage: number;
   onJump?: (page: number) => void;
-  className?: string;
 }) {
   return (
     <div
+      data-slot="document-reference"
       className={cn(
         paper,
         "flex w-full max-w-sm flex-col gap-3 rounded-2xl p-3.5",
         className,
       )}
+
+      {...props}
     >
       <div className="flex items-center gap-2.5">
         <span className="bg-foreground/[0.05] text-foreground/45 flex size-8 shrink-0 items-center justify-center rounded-lg">

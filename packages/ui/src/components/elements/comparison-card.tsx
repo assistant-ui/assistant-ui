@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { CheckIcon, MinusIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { field, mono, paper } from "./surfaces";
@@ -17,20 +18,26 @@ export function ComparisonCard({
   recommendedId,
   reason,
   className,
-}: {
+  ...props
+}: Omit<
+  ComponentProps<"div">,
+  "traitLabels" | "options" | "recommendedId" | "reason"
+> & {
   traitLabels: readonly string[];
   options: readonly ComparisonOption[];
   recommendedId: string;
   reason: string;
-  className?: string;
 }) {
   return (
     <div
+      data-slot="comparison-card"
       className={cn(
         paper,
         "flex w-full max-w-md flex-col gap-3 rounded-2xl p-4",
         className,
       )}
+
+      {...props}
     >
       <div className="flex gap-2">
         {options.map((option) => {

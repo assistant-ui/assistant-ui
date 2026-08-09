@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { BrainIcon, XIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { field, ghostButton, mono } from "./surfaces";
@@ -16,15 +17,20 @@ export function MemoryChips({
   chips,
   onForget,
   className,
-}: {
+  ...props
+}: Omit<ComponentProps<"div">, "chips" | "onForget"> & {
   chips: readonly MemoryChip[];
   onForget?: (id: string) => void;
-  className?: string;
 }) {
   const fresh = chips.filter((chip) => chip.change !== "existing").length;
 
   return (
-    <div className={cn("flex w-full max-w-sm flex-col gap-2", className)}>
+    <div
+      data-slot="memory-chips"
+      className={cn("flex w-full max-w-sm flex-col gap-2", className)}
+
+      {...props}
+    >
       <div className="flex items-center gap-1.5">
         <BrainIcon className="text-foreground/30 size-3.5" />
         <span className={cn(mono, "text-foreground/35")}>

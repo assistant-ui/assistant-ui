@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { CheckIcon, ChevronRightIcon, Loader2Icon, XIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { mono, paper } from "./surfaces";
@@ -20,23 +21,26 @@ export function ToolGroup({
   open,
   onOpenChange,
   className,
-}: {
+  ...props
+}: Omit<ComponentProps<"div">, "label" | "tools" | "open" | "onOpenChange"> & {
   label: string;
   tools: readonly GroupedTool[];
   open: boolean;
   onOpenChange?: (open: boolean) => void;
-  className?: string;
 }) {
   const running = tools.filter((tool) => tool.state === "running").length;
   const failed = tools.filter((tool) => tool.state === "failed").length;
 
   return (
     <div
+      data-slot="tool-group"
       className={cn(
         paper,
         "flex w-full max-w-sm flex-col overflow-hidden rounded-2xl",
         className,
       )}
+
+      {...props}
     >
       <button
         type="button"

@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { CheckIcon, CloudOffIcon, Loader2Icon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { mono, paper } from "./surfaces";
@@ -12,22 +13,28 @@ export function ConnectionState({
   resumedTokens,
   onRetry,
   className,
-}: {
+  ...props
+}: Omit<
+  ComponentProps<"div">,
+  "phase" | "attempt" | "resumedTokens" | "onRetry"
+> & {
   phase: ConnectionPhase;
   attempt?: number;
   resumedTokens?: number;
   onRetry?: () => void;
-  className?: string;
 }) {
   if (phase === "online") return null;
 
   return (
     <div
+      data-slot="connection-state"
       className={cn(
         paper,
         "fade-in slide-in-from-top-1 animate-in flex w-full max-w-sm items-center gap-2.5 rounded-2xl px-3.5 py-2.5 duration-300",
         className,
       )}
+
+      {...props}
     >
       {phase === "dropped" && (
         <>

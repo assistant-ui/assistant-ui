@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { CheckIcon, Loader2Icon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { mono, paper } from "./surfaces";
@@ -19,21 +20,24 @@ export function ResearchReport({
   sections,
   sourcesRead,
   className,
-}: {
+  ...props
+}: Omit<ComponentProps<"div">, "title" | "sections" | "sourcesRead"> & {
   title: string;
   sections: readonly ReportSection[];
   sourcesRead: number;
-  className?: string;
 }) {
   const done = sections.filter((section) => section.state === "done").length;
 
   return (
     <div
+      data-slot="research-report"
       className={cn(
         paper,
         "flex w-full max-w-sm flex-col gap-3 rounded-2xl p-4",
         className,
       )}
+
+      {...props}
     >
       <div className="flex flex-col gap-1">
         <span className="text-[13.5px] font-medium">{title}</span>

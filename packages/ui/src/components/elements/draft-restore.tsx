@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { PencilLineIcon, XIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ghostButton, mono, paper } from "./surfaces";
@@ -10,20 +11,26 @@ export function DraftRestore({
   onRestore,
   onDiscard,
   className,
-}: {
+  ...props
+}: Omit<
+  ComponentProps<"div">,
+  "draft" | "savedAt" | "onRestore" | "onDiscard"
+> & {
   draft: string;
   savedAt: string;
   onRestore?: () => void;
   onDiscard?: () => void;
-  className?: string;
 }) {
   return (
     <div
+      data-slot="draft-restore"
       className={cn(
         paper,
         "fade-in slide-in-from-bottom-1 animate-in flex w-full max-w-sm items-center gap-2.5 rounded-2xl py-2 pr-2 pl-3.5 duration-300",
         className,
       )}
+
+      {...props}
     >
       <PencilLineIcon className="text-foreground/30 size-3.5 shrink-0" />
       <div className="flex min-w-0 flex-1 flex-col">

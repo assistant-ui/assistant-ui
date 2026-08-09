@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { MousePointer2Icon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { field, mono, paper } from "./surfaces";
@@ -18,23 +19,26 @@ export function ComputerUse({
   activeIndex,
   children,
   className,
-}: {
+  ...props
+}: Omit<ComponentProps<"div">, "url" | "steps" | "activeIndex" | "children"> & {
   url: string;
   steps: readonly ComputerStep[];
   activeIndex: number;
   children: React.ReactNode;
-  className?: string;
 }) {
   const active = steps[Math.min(activeIndex, steps.length - 1)];
   const trail = steps.slice(Math.max(0, activeIndex - 2), activeIndex + 1);
 
   return (
     <div
+      data-slot="computer-use"
       className={cn(
         paper,
         "flex w-full max-w-md flex-col overflow-hidden rounded-2xl",
         className,
       )}
+
+      {...props}
     >
       <div className="flex items-center gap-2 px-3 py-2">
         <span className="flex shrink-0 gap-1">

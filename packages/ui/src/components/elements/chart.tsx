@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
 import { mono, paper } from "./surfaces";
 
@@ -24,14 +25,17 @@ export function Chart({
   visibleCount,
   variant = "area",
   className,
-}: {
+  ...props
+}: Omit<
+  ComponentProps<"div">,
+  "label" | "value" | "delta" | "points" | "visibleCount" | "variant"
+> & {
   label: string;
   value: string;
   delta?: string;
   points: readonly number[];
   visibleCount: number;
   variant?: ChartVariant;
-  className?: string;
 }) {
   const shown = points.slice(0, Math.max(1, visibleCount));
   const y = scale(points);
@@ -50,11 +54,14 @@ export function Chart({
 
   return (
     <div
+      data-slot="chart"
       className={cn(
         paper,
         "flex w-full max-w-sm flex-col gap-3 rounded-2xl p-4",
         className,
       )}
+
+      {...props}
     >
       <div className="flex items-baseline justify-between">
         <span className={cn(mono, "text-foreground/35")}>{label}</span>

@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { LinkIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { inkButton, mono, paper } from "./surfaces";
@@ -17,21 +18,27 @@ export function SharedConversation({
   turns,
   onContinue,
   className,
-}: {
+  ...props
+}: Omit<
+  ComponentProps<"div">,
+  "title" | "sharedBy" | "sharedAt" | "turns" | "onContinue"
+> & {
   title: string;
   sharedBy: string;
   sharedAt: string;
   turns: readonly SharedTurn[];
   onContinue?: () => void;
-  className?: string;
 }) {
   return (
     <div
+      data-slot="shared-conversation"
       className={cn(
         paper,
         "flex w-full max-w-sm flex-col overflow-hidden rounded-2xl",
         className,
       )}
+
+      {...props}
     >
       <div className="flex items-center gap-2.5 px-4 pt-3.5 pb-3">
         <LinkIcon className="text-foreground/30 size-3.5 shrink-0" />

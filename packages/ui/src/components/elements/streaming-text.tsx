@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { type ComponentProps, useMemo } from "react";
 import { cn } from "@/lib/utils";
 
 export interface Segment {
@@ -13,11 +13,11 @@ export function StreamingText({
   count,
   streaming,
   className,
-}: {
+  ...props
+}: Omit<ComponentProps<"p">, "segments" | "count" | "streaming"> & {
   segments: Segment[];
   count: number;
   streaming: boolean;
-  className?: string;
 }) {
   const words = useMemo(
     () =>
@@ -31,10 +31,13 @@ export function StreamingText({
 
   return (
     <p
+      data-slot="streaming-text"
       className={cn(
         "min-h-[8.5rem] max-w-sm text-sm leading-relaxed text-pretty",
         className,
       )}
+
+      {...props}
     >
       {words.slice(0, count).map(({ word, mono: isMono }, i) => {
         const fresh = streaming && count - 1 - i < 2;

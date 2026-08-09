@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
 import { mono } from "./surfaces";
 
@@ -14,14 +15,19 @@ export interface DatedMessage {
 export function DaySeparator({
   messages,
   className,
-}: {
+  ...props
+}: Omit<ComponentProps<"div">, "messages"> & {
   messages: readonly DatedMessage[];
-  className?: string;
 }) {
   let lastDay = "";
 
   return (
-    <div className={cn("flex w-full max-w-sm flex-col gap-2", className)}>
+    <div
+      data-slot="day-separator"
+      className={cn("flex w-full max-w-sm flex-col gap-2", className)}
+
+      {...props}
+    >
       {messages.map((message) => {
         const newDay = message.day !== lastDay;
         lastDay = message.day;

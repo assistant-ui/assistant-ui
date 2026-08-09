@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import * as HeatGraph from "heat-graph";
 import { cn } from "@/lib/utils";
 import { mono, paper } from "./surfaces";
@@ -19,21 +20,24 @@ export function ActivityGraph({
   title,
   total,
   className,
-}: {
+  ...props
+}: Omit<ComponentProps<"div">, "data" | "start" | "end" | "title" | "total"> & {
   data: readonly HeatGraph.DataPoint[];
   start: string | Date;
   end: string | Date;
   title: string;
   total: string;
-  className?: string;
 }) {
   return (
     <div
+      data-slot="activity-graph"
       className={cn(
         paper,
         "flex w-full max-w-sm flex-col gap-3 rounded-2xl p-4",
         className,
       )}
+
+      {...props}
     >
       <div className="flex items-baseline justify-between">
         <span className="text-[13.5px] font-medium">{title}</span>

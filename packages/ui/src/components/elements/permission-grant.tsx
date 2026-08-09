@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { KeyRoundIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { field, inkButton, mono, paper } from "./surfaces";
@@ -13,21 +14,27 @@ export function PermissionGrant({
   scope,
   onGrant,
   className,
-}: {
+  ...props
+}: Omit<
+  ComponentProps<"div">,
+  "capability" | "requester" | "reach" | "scope" | "onGrant"
+> & {
   capability: string;
   requester: string;
   reach: readonly string[];
   scope: GrantScope | "pending";
   onGrant?: (scope: GrantScope) => void;
-  className?: string;
 }) {
   return (
     <div
+      data-slot="permission-grant"
       className={cn(
         paper,
         "flex w-full max-w-sm flex-col gap-3.5 rounded-[20px] p-4",
         className,
       )}
+
+      {...props}
     >
       <div className="flex items-center gap-2.5">
         <span className="bg-foreground/[0.05] text-foreground/45 flex size-7 shrink-0 items-center justify-center rounded-lg">

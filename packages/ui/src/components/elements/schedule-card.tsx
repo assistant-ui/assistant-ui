@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { CheckIcon, ClockIcon, XIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { field, mono, paper } from "./surfaces";
@@ -18,22 +19,28 @@ export function ScheduleCard({
   history,
   onToggle,
   className,
-}: {
+  ...props
+}: Omit<
+  ComponentProps<"div">,
+  "name" | "cadence" | "nextRun" | "enabled" | "history" | "onToggle"
+> & {
   name: string;
   cadence: string;
   nextRun: string;
   enabled: boolean;
   history: readonly ScheduleRun[];
   onToggle?: () => void;
-  className?: string;
 }) {
   return (
     <div
+      data-slot="schedule-card"
       className={cn(
         paper,
         "flex w-full max-w-sm flex-col gap-3 rounded-2xl p-4",
         className,
       )}
+
+      {...props}
     >
       <div className="flex items-center gap-2.5">
         <span className="bg-foreground/[0.05] text-foreground/45 flex size-7 shrink-0 items-center justify-center rounded-lg">

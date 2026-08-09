@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { SearchIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { field, mono } from "./surfaces";
@@ -16,16 +17,24 @@ export function WebSearch({
   searching,
   cycle,
   className,
-}: {
+  ...props
+}: Omit<
+  ComponentProps<"div">,
+  "query" | "results" | "visibleResults" | "searching" | "cycle"
+> & {
   query: string;
   results: readonly WebSearchResult[];
   visibleResults: number;
   searching: boolean;
   cycle: number;
-  className?: string;
 }) {
   return (
-    <div className={cn("flex w-full max-w-sm flex-col gap-2.5", className)}>
+    <div
+      data-slot="web-search"
+      className={cn("flex w-full max-w-sm flex-col gap-2.5", className)}
+
+      {...props}
+    >
       <span
         className={cn(
           field,

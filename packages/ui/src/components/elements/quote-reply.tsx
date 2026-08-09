@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { PencilLineIcon, QuoteIcon, SparklesIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { floating, mono } from "./surfaces";
@@ -25,7 +26,17 @@ export function QuoteReply({
   quoted,
   onAction,
   className,
-}: {
+  ...props
+}: Omit<
+  ComponentProps<"div">,
+  | "before"
+  | "selection"
+  | "after"
+  | "actions"
+  | "toolbarVisible"
+  | "quoted"
+  | "onAction"
+> & {
   before: string;
   selection: string;
   after: string;
@@ -33,10 +44,14 @@ export function QuoteReply({
   toolbarVisible: boolean;
   quoted?: string;
   onAction?: (key: string) => void;
-  className?: string;
 }) {
   return (
-    <div className={cn("flex w-full max-w-sm flex-col gap-2.5", className)}>
+    <div
+      data-slot="quote-reply"
+      className={cn("flex w-full max-w-sm flex-col gap-2.5", className)}
+
+      {...props}
+    >
       <p className="relative text-[13.5px] leading-relaxed">
         <span className="text-foreground/70">{before}</span>
         <span className="text-foreground/95 rounded bg-blue-500/18 px-0.5 dark:bg-blue-400/25">

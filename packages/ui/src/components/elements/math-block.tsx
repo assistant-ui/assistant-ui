@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
 import { mono, paper } from "./surfaces";
 
@@ -13,19 +14,22 @@ export function MathBlock({
   steps,
   visibleSteps,
   className,
-}: {
+  ...props
+}: Omit<ComponentProps<"div">, "label" | "steps" | "visibleSteps"> & {
   label?: string;
   steps: readonly MathStep[];
   visibleSteps: number;
-  className?: string;
 }) {
   return (
     <div
+      data-slot="math-block"
       className={cn(
         paper,
         "flex w-full max-w-sm flex-col gap-2.5 rounded-2xl p-4",
         className,
       )}
+
+      {...props}
     >
       {label && <span className={cn(mono, "text-foreground/30")}>{label}</span>}
 
@@ -56,7 +60,10 @@ export function Frac({
   under: React.ReactNode;
 }) {
   return (
-    <span className="inline-flex flex-col items-center align-middle text-[0.85em] leading-tight">
+    <span
+      data-slot="frac"
+      className="inline-flex flex-col items-center align-middle text-[0.85em] leading-tight"
+    >
       <span className="px-1">{over}</span>
       <span className="border-foreground/40 w-full border-t px-1">{under}</span>
     </span>

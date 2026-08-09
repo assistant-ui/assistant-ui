@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { BotIcon, UserIcon, WrenchIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { mono } from "./surfaces";
@@ -24,12 +25,17 @@ const TONE: Record<SpeakerKind, string> = {
 export function SpeakerIdentity({
   turns,
   className,
-}: {
+  ...props
+}: Omit<ComponentProps<"div">, "turns"> & {
   turns: readonly SpeakerTurn[];
-  className?: string;
 }) {
   return (
-    <div className={cn("flex w-full max-w-sm flex-col gap-3.5", className)}>
+    <div
+      data-slot="speaker-identity"
+      className={cn("flex w-full max-w-sm flex-col gap-3.5", className)}
+
+      {...props}
+    >
       {turns.map((turn) => (
         <div key={turn.id} className="flex gap-2.5">
           <span

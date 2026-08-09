@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { MicIcon, MicOffIcon, PhoneOffIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ghostButton, mono, paper } from "./surfaces";
@@ -35,7 +36,17 @@ export function VoiceConversation({
   onInterrupt,
   onEnd,
   className,
-}: {
+  ...props
+}: Omit<
+  ComponentProps<"div">,
+  | "mode"
+  | "amplitude"
+  | "transcript"
+  | "muted"
+  | "onToggleMute"
+  | "onInterrupt"
+  | "onEnd"
+> & {
   mode: VoiceMode;
   amplitude: number;
   transcript: readonly VoiceTurn[];
@@ -43,7 +54,6 @@ export function VoiceConversation({
   onToggleMute?: () => void;
   onInterrupt?: () => void;
   onEnd?: () => void;
-  className?: string;
 }) {
   const level = Math.max(0, Math.min(1, amplitude));
   const active = mode === "listening" || mode === "speaking";
@@ -51,11 +61,14 @@ export function VoiceConversation({
 
   return (
     <div
+      data-slot="voice-conversation"
       className={cn(
         paper,
         "flex w-full max-w-xs flex-col items-center gap-4 rounded-[28px] px-5 py-5",
         className,
       )}
+
+      {...props}
     >
       <button
         type="button"

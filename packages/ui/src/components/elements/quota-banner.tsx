@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
 import { inkButton, mono, paper } from "./surfaces";
 
@@ -11,14 +12,17 @@ export function QuotaBanner({
   upgradeLabel,
   onUpgrade,
   className,
-}: {
+  ...props
+}: Omit<
+  ComponentProps<"div">,
+  "used" | "limit" | "unit" | "resetsIn" | "upgradeLabel" | "onUpgrade"
+> & {
   used: number;
   limit: number;
   unit: string;
   resetsIn: string;
   upgradeLabel: string;
   onUpgrade?: () => void;
-  className?: string;
 }) {
   const left = Math.max(0, limit - used);
   const ratio = limit === 0 ? 0 : used / limit;
@@ -26,11 +30,14 @@ export function QuotaBanner({
 
   return (
     <div
+      data-slot="quota-banner"
       className={cn(
         paper,
         "flex w-full max-w-sm flex-col gap-2.5 rounded-2xl p-3.5",
         className,
       )}
+
+      {...props}
     >
       <div className="flex items-baseline gap-2">
         <span

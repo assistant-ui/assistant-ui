@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { DatabaseIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { field, mono, paper } from "./surfaces";
@@ -18,15 +19,23 @@ export function RetrievalChunks({
   visibleCount,
   searching,
   className,
-}: {
+  ...props
+}: Omit<
+  ComponentProps<"div">,
+  "query" | "chunks" | "visibleCount" | "searching"
+> & {
   query: string;
   chunks: readonly RetrievalChunk[];
   visibleCount: number;
   searching: boolean;
-  className?: string;
 }) {
   return (
-    <div className={cn("flex w-full max-w-sm flex-col gap-2.5", className)}>
+    <div
+      data-slot="retrieval-chunks"
+      className={cn("flex w-full max-w-sm flex-col gap-2.5", className)}
+
+      {...props}
+    >
       <span
         className={cn(
           field,

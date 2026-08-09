@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
 import { mono, paper } from "./surfaces";
 
@@ -28,11 +29,11 @@ export function FlowGraph({
   edges,
   visibleCount,
   className,
-}: {
+  ...props
+}: Omit<ComponentProps<"div">, "nodes" | "edges" | "visibleCount"> & {
   nodes: readonly FlowNode[];
   edges: readonly FlowEdge[];
   visibleCount: number;
-  className?: string;
 }) {
   const shown = nodes.slice(0, visibleCount);
   const shownIds = new Set(shown.map((node) => node.id));
@@ -48,11 +49,14 @@ export function FlowGraph({
 
   return (
     <div
+      data-slot="flow-graph"
       className={cn(
         paper,
         "w-full max-w-md overflow-x-auto rounded-2xl p-4",
         className,
       )}
+
+      {...props}
     >
       <div className="relative" style={{ width, height, minWidth: width }}>
         <svg

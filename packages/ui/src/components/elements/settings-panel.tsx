@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
 import { field, mono, paper } from "./surfaces";
 
@@ -21,7 +22,19 @@ export function SettingsPanel({
   onTemperatureChange,
   onToggle,
   className,
-}: {
+  ...props
+}: Omit<
+  ComponentProps<"div">,
+  | "model"
+  | "models"
+  | "systemPrompt"
+  | "temperature"
+  | "toggles"
+  | "onModelChange"
+  | "onSystemPromptChange"
+  | "onTemperatureChange"
+  | "onToggle"
+> & {
   model: string;
   models: readonly string[];
   systemPrompt: string;
@@ -31,15 +44,17 @@ export function SettingsPanel({
   onSystemPromptChange?: (prompt: string) => void;
   onTemperatureChange?: (temperature: number) => void;
   onToggle?: (key: string) => void;
-  className?: string;
 }) {
   return (
     <div
+      data-slot="settings-panel"
       className={cn(
         paper,
         "flex w-full max-w-sm flex-col gap-4 rounded-[20px] p-4",
         className,
       )}
+
+      {...props}
     >
       <div className="flex flex-col gap-1.5">
         <span className={cn(mono, "text-foreground/30")}>model</span>

@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { ArrowRightIcon, BotIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { field, mono } from "./surfaces";
@@ -11,16 +12,24 @@ export function AgentHandoff({
   carried,
   settled,
   className,
-}: {
+  ...props
+}: Omit<
+  ComponentProps<"div">,
+  "from" | "to" | "reason" | "carried" | "settled"
+> & {
   from: string;
   to: string;
   reason: string;
   carried: readonly string[];
   settled: boolean;
-  className?: string;
 }) {
   return (
-    <div className={cn("flex w-full max-w-sm flex-col gap-2", className)}>
+    <div
+      data-slot="agent-handoff"
+      className={cn("flex w-full max-w-sm flex-col gap-2", className)}
+
+      {...props}
+    >
       <div className="flex items-center gap-2">
         <span
           className={cn(

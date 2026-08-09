@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { ShieldIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { mono, paper } from "./surfaces";
@@ -11,21 +12,27 @@ export function GuardrailNotice({
   alternatives,
   onPick,
   className,
-}: {
+  ...props
+}: Omit<
+  ComponentProps<"div">,
+  "title" | "explanation" | "policy" | "alternatives" | "onPick"
+> & {
   title: string;
   explanation: string;
   policy: string;
   alternatives: readonly string[];
   onPick?: (alternative: string) => void;
-  className?: string;
 }) {
   return (
     <div
+      data-slot="guardrail-notice"
       className={cn(
         paper,
         "flex w-full max-w-sm flex-col gap-3 rounded-[20px] p-4",
         className,
       )}
+
+      {...props}
     >
       <div className="flex items-center gap-2.5">
         <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-amber-500/12 text-amber-600 dark:text-amber-400">

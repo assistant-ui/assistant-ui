@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
 import { field, mono, paper } from "./surfaces";
 
@@ -17,22 +18,25 @@ export function MapAnswer({
   route,
   onSelect,
   className,
-}: {
+  ...props
+}: Omit<ComponentProps<"div">, "pins" | "activeId" | "route" | "onSelect"> & {
   pins: readonly MapPin[];
   activeId: string;
   route?: boolean;
   onSelect?: (id: string) => void;
-  className?: string;
 }) {
   const path = pins.map((pin) => `${pin.x},${pin.y}`).join(" ");
 
   return (
     <div
+      data-slot="map-answer"
       className={cn(
         paper,
         "flex w-full max-w-sm flex-col overflow-hidden rounded-2xl",
         className,
       )}
+
+      {...props}
     >
       <div className={cn(field, "relative h-40")}>
         <svg

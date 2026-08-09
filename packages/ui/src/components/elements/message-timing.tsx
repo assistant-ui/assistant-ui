@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
 import { mono } from "./surfaces";
 
@@ -12,17 +13,20 @@ export function MessageTiming({
   stats,
   streaming,
   className,
-}: {
+  ...props
+}: Omit<ComponentProps<"div">, "stats" | "streaming"> & {
   stats: readonly TimingStat[];
   streaming?: boolean;
-  className?: string;
 }) {
   return (
     <div
+      data-slot="message-timing"
       className={cn(
         "fade-in animate-in flex w-full max-w-sm flex-wrap items-center gap-x-3 gap-y-1 duration-500",
         className,
       )}
+
+      {...props}
     >
       {stats.map((stat) => (
         <span key={stat.label} className="flex items-baseline gap-1">

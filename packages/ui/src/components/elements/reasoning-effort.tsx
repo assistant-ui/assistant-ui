@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
 import { field, mono } from "./surfaces";
 
@@ -17,19 +18,27 @@ export function ReasoningEffort({
   spent,
   onSelect,
   className,
-}: {
+  ...props
+}: Omit<
+  ComponentProps<"div">,
+  "levels" | "selectedKey" | "spent" | "onSelect"
+> & {
   levels: readonly EffortLevel[];
   selectedKey: string;
   spent: number;
   onSelect?: (key: string) => void;
-  className?: string;
 }) {
   const selected = levels.find((level) => level.key === selectedKey);
   const budget = selected?.budget ?? 0;
   const used = budget === 0 ? 0 : Math.min(100, (spent / budget) * 100);
 
   return (
-    <div className={cn("flex w-full max-w-sm flex-col gap-2.5", className)}>
+    <div
+      data-slot="reasoning-effort"
+      className={cn("flex w-full max-w-sm flex-col gap-2.5", className)}
+
+      {...props}
+    >
       <div className="flex items-baseline justify-between">
         <span className="text-[13.5px] font-medium">Thinking</span>
         <span className={cn(mono, "text-foreground/35 tabular-nums")}>

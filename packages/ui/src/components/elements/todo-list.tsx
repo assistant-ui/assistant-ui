@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { CheckIcon, Loader2Icon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { mono } from "./surfaces";
@@ -16,15 +17,20 @@ export function TodoList({
   items,
   revision,
   className,
-}: {
+  ...props
+}: Omit<ComponentProps<"div">, "items" | "revision"> & {
   items: readonly TodoItem[];
   revision?: number;
-  className?: string;
 }) {
   const done = items.filter((item) => item.status === "done").length;
 
   return (
-    <div className={cn("flex w-full max-w-sm flex-col gap-3", className)}>
+    <div
+      data-slot="todo-list"
+      className={cn("flex w-full max-w-sm flex-col gap-3", className)}
+
+      {...props}
+    >
       <div className="flex items-baseline justify-between">
         <span className="text-[13.5px] font-medium">Todos</span>
         <span className={cn(mono, "text-foreground/35 tabular-nums")}>

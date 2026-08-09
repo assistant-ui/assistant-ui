@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { CheckIcon, Loader2Icon, XIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ghostButton, mono, paper } from "./surfaces";
@@ -17,14 +18,17 @@ export function JobProgress({
   eta,
   onCancel,
   className,
-}: {
+  ...props
+}: Omit<
+  ComponentProps<"div">,
+  "title" | "stages" | "stageIndex" | "stageProgress" | "eta" | "onCancel"
+> & {
   title: string;
   stages: readonly JobStage[];
   stageIndex: number;
   stageProgress: number;
   eta: string;
   onCancel?: () => void;
-  className?: string;
 }) {
   const totalWeight = stages.reduce((sum, stage) => sum + stage.weight, 0) || 1;
   const completed = stages
@@ -39,11 +43,14 @@ export function JobProgress({
 
   return (
     <div
+      data-slot="job-progress"
       className={cn(
         paper,
         "flex w-full max-w-sm flex-col gap-3 rounded-2xl p-4",
         className,
       )}
+
+      {...props}
     >
       <div className="flex items-center gap-2.5">
         {finished ? (

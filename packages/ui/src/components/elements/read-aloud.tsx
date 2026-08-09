@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { PauseIcon, PlayIcon, Volume2Icon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { field, ghostButton, mono, paper } from "./surfaces";
@@ -14,7 +15,18 @@ export function ReadAloud({
   onToggle,
   onRateChange,
   className,
-}: {
+  ...props
+}: Omit<
+  ComponentProps<"div">,
+  | "words"
+  | "spokenIndex"
+  | "playing"
+  | "rate"
+  | "elapsed"
+  | "duration"
+  | "onToggle"
+  | "onRateChange"
+> & {
   words: readonly string[];
   spokenIndex: number;
   playing: boolean;
@@ -23,18 +35,20 @@ export function ReadAloud({
   duration: string;
   onToggle?: () => void;
   onRateChange?: () => void;
-  className?: string;
 }) {
   const progress =
     words.length === 0 ? 0 : Math.min(100, (spokenIndex / words.length) * 100);
 
   return (
     <div
+      data-slot="read-aloud"
       className={cn(
         paper,
         "flex w-full max-w-sm flex-col gap-3 rounded-2xl p-3.5",
         className,
       )}
+
+      {...props}
     >
       <p className="text-[13.5px] leading-relaxed">
         {words.map((word, i) => (

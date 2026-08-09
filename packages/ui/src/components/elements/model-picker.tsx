@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { CheckIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { field, mono, paper } from "./surfaces";
@@ -18,21 +19,24 @@ export function ModelPicker({
   selectedId,
   onSelect,
   className,
-}: {
+  ...props
+}: Omit<ComponentProps<"div">, "models" | "selectedId" | "onSelect"> & {
   models: readonly PickableModel[];
   selectedId: string;
   onSelect?: (id: string) => void;
-  className?: string;
 }) {
   const families = [...new Set(models.map((model) => model.family))];
 
   return (
     <div
+      data-slot="model-picker"
       className={cn(
         paper,
         "flex w-full max-w-sm flex-col gap-1 rounded-2xl p-2",
         className,
       )}
+
+      {...props}
     >
       {families.map((family) => (
         <div key={family} className="flex flex-col">

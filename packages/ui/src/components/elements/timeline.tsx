@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
 import { mono, paper } from "./surfaces";
 
@@ -17,18 +18,21 @@ export function Timeline({
   events,
   visibleCount,
   className,
-}: {
+  ...props
+}: Omit<ComponentProps<"div">, "events" | "visibleCount"> & {
   events: readonly TimelineEvent[];
   visibleCount: number;
-  className?: string;
 }) {
   return (
     <div
+      data-slot="timeline"
       className={cn(
         paper,
         "flex w-full max-w-sm flex-col rounded-2xl p-4",
         className,
       )}
+
+      {...props}
     >
       {events.slice(0, visibleCount).map((event, i, shown) => (
         <div

@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { Loader2Icon, PlayIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ghostButton, mono, paper } from "./surfaces";
@@ -14,22 +15,28 @@ export function CodeRunner({
   durationMs,
   onRun,
   className,
-}: {
+  ...props
+}: Omit<
+  ComponentProps<"div">,
+  "language" | "code" | "state" | "output" | "durationMs" | "onRun"
+> & {
   language: string;
   code: string;
   state: RunState;
   output: readonly string[];
   durationMs?: number;
   onRun?: () => void;
-  className?: string;
 }) {
   return (
     <div
+      data-slot="code-runner"
       className={cn(
         paper,
         "flex w-full max-w-md flex-col overflow-hidden rounded-2xl",
         className,
       )}
+
+      {...props}
     >
       <div className="flex items-center gap-2 px-3.5 py-2">
         <span className={cn(mono, "text-foreground/35 min-w-0 flex-1")}>

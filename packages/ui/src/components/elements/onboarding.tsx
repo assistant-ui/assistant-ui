@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
 import { field, inkButton, mono, paper } from "./surfaces";
 
@@ -15,12 +16,12 @@ export function Onboarding({
   onNext,
   onSkip,
   className,
-}: {
+  ...props
+}: Omit<ComponentProps<"div">, "steps" | "index" | "onNext" | "onSkip"> & {
   steps: readonly OnboardingStep[];
   index: number;
   onNext?: () => void;
   onSkip?: () => void;
-  className?: string;
 }) {
   const step = steps[Math.min(index, steps.length - 1)];
   if (!step) return null;
@@ -28,11 +29,14 @@ export function Onboarding({
 
   return (
     <div
+      data-slot="onboarding"
       className={cn(
         paper,
         "flex w-full max-w-sm flex-col gap-4 rounded-[20px] p-5",
         className,
       )}
+
+      {...props}
     >
       <div
         key={index}

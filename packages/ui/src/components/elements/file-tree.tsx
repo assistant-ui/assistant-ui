@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { ChevronDownIcon, FileIcon, FolderIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { mono, paper } from "./surfaces";
@@ -19,22 +20,28 @@ export function FileTree({
   totalAdditions,
   totalDeletions,
   className,
-}: {
+  ...props
+}: Omit<
+  ComponentProps<"div">,
+  "nodes" | "visibleCount" | "totalAdditions" | "totalDeletions"
+> & {
   nodes: readonly FileTreeNode[];
   visibleCount: number;
   totalAdditions: number;
   totalDeletions: number;
-  className?: string;
 }) {
   const files = nodes.filter((node) => node.kind === "file").length;
 
   return (
     <div
+      data-slot="file-tree"
       className={cn(
         paper,
         "flex w-full max-w-sm flex-col gap-2 rounded-2xl p-3.5",
         className,
       )}
+
+      {...props}
     >
       <div className="flex items-baseline justify-between px-1">
         <span className="text-[13.5px] font-medium">{files} files changed</span>

@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { MessageCircleIcon, XIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { field, floating, inkButton, mono } from "./surfaces";
@@ -13,7 +14,11 @@ export function LauncherBubble({
   onPick,
   onStart,
   className,
-}: {
+  ...props
+}: Omit<
+  ComponentProps<"div">,
+  "open" | "unread" | "greeting" | "prompts" | "onToggle" | "onPick" | "onStart"
+> & {
   open: boolean;
   unread: number;
   greeting: string;
@@ -21,14 +26,16 @@ export function LauncherBubble({
   onToggle?: () => void;
   onPick?: (prompt: string) => void;
   onStart?: () => void;
-  className?: string;
 }) {
   return (
     <div
+      data-slot="launcher-bubble"
       className={cn(
         "flex w-full max-w-[19rem] flex-col items-end gap-2.5",
         className,
       )}
+
+      {...props}
     >
       {open && (
         <div

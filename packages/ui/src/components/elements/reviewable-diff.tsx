@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { CheckIcon, XIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { inkButton, mono, paper } from "./surfaces";
@@ -23,24 +24,30 @@ export function ReviewableDiff({
   onDiscard,
   onApply,
   className,
-}: {
+  ...props
+}: Omit<
+  ComponentProps<"div">,
+  "filename" | "hunks" | "onKeep" | "onDiscard" | "onApply"
+> & {
   filename: string;
   hunks: readonly DiffHunk[];
   onKeep?: (id: string) => void;
   onDiscard?: (id: string) => void;
   onApply?: () => void;
-  className?: string;
 }) {
   const kept = hunks.filter((hunk) => hunk.decision === "kept").length;
   const pending = hunks.filter((hunk) => hunk.decision === "pending").length;
 
   return (
     <div
+      data-slot="reviewable-diff"
       className={cn(
         paper,
         "flex w-full max-w-md flex-col overflow-hidden rounded-2xl",
         className,
       )}
+
+      {...props}
     >
       <div className="flex items-center justify-between px-4 pt-3 pb-2">
         <span className="font-mono text-xs">{filename}</span>

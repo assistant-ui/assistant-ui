@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { ArrowUpIcon, XIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { field, ghostButton, mono, paper } from "./surfaces";
@@ -14,14 +15,19 @@ export function MessageQueue({
   queued,
   onCancel,
   className,
-}: {
+  ...props
+}: Omit<ComponentProps<"div">, "running" | "queued" | "onCancel"> & {
   running: string;
   queued: readonly QueuedMessage[];
   onCancel?: (id: string) => void;
-  className?: string;
 }) {
   return (
-    <div className={cn("flex w-full max-w-sm flex-col gap-2", className)}>
+    <div
+      data-slot="message-queue"
+      className={cn("flex w-full max-w-sm flex-col gap-2", className)}
+
+      {...props}
+    >
       <div className={cn(paper, "flex items-center gap-2.5 rounded-2xl p-3")}>
         <span className="relative flex size-2 shrink-0">
           <span className="absolute inline-flex size-full animate-ping rounded-full bg-blue-500/60 motion-reduce:hidden" />

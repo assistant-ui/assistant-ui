@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { MaximizeIcon, MinusIcon, PlusIcon, RotateCcwIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ghostButton, mono, paper } from "./surfaces";
@@ -13,7 +14,17 @@ export function Diagram({
   onReset,
   onExpand,
   className,
-}: {
+  ...props
+}: Omit<
+  ComponentProps<"div">,
+  | "title"
+  | "zoom"
+  | "children"
+  | "onZoomIn"
+  | "onZoomOut"
+  | "onReset"
+  | "onExpand"
+> & {
   title: string;
   zoom: number;
   children: React.ReactNode;
@@ -21,15 +32,17 @@ export function Diagram({
   onZoomOut?: () => void;
   onReset?: () => void;
   onExpand?: () => void;
-  className?: string;
 }) {
   return (
     <div
+      data-slot="diagram"
       className={cn(
         paper,
         "flex w-full max-w-md flex-col overflow-hidden rounded-2xl",
         className,
       )}
+
+      {...props}
     >
       <div className="flex items-center gap-1 px-3 py-2">
         <span className="min-w-0 flex-1 truncate text-[13px] font-medium">

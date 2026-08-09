@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
 import { mono, paper } from "./surfaces";
 
@@ -17,23 +18,29 @@ export function ScoreBreakdown({
   criteria,
   visibleCount,
   className,
-}: {
+  ...props
+}: Omit<
+  ComponentProps<"div">,
+  "verdict" | "total" | "outOf" | "criteria" | "visibleCount"
+> & {
   verdict: string;
   total: number;
   outOf: number;
   criteria: readonly ScoreCriterion[];
   visibleCount: number;
-  className?: string;
 }) {
   const ratio = outOf === 0 ? 0 : total / outOf;
 
   return (
     <div
+      data-slot="score-breakdown"
       className={cn(
         paper,
         "flex w-full max-w-sm flex-col gap-3 rounded-2xl p-4",
         className,
       )}
+
+      {...props}
     >
       <div className="flex items-baseline gap-2">
         <span className="text-2xl font-medium tracking-tight tabular-nums">

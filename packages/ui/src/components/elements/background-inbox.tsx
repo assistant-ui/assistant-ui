@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { CheckIcon, Loader2Icon, XIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { mono, paper } from "./surfaces";
@@ -18,21 +19,24 @@ export function BackgroundInbox({
   runs,
   onCollect,
   className,
-}: {
+  ...props
+}: Omit<ComponentProps<"div">, "runs" | "onCollect"> & {
   runs: readonly BackgroundRun[];
   onCollect?: (id: string) => void;
-  className?: string;
 }) {
   const ready = runs.filter((run) => run.state === "ready").length;
   const running = runs.filter((run) => run.state === "running").length;
 
   return (
     <div
+      data-slot="background-inbox"
       className={cn(
         paper,
         "flex w-full max-w-sm flex-col gap-1 rounded-2xl p-3",
         className,
       )}
+
+      {...props}
     >
       <div className="flex items-baseline justify-between px-1 pb-1">
         <span className="text-[13.5px] font-medium">Running elsewhere</span>

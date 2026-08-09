@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { ChevronDownIcon, ChevronUpIcon, SearchIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { field, ghostButton, mono, paper } from "./surfaces";
@@ -19,13 +20,16 @@ export function ConversationSearch({
   onQueryChange,
   onStep,
   className,
-}: {
+  ...props
+}: Omit<
+  ComponentProps<"div">,
+  "query" | "hits" | "activeIndex" | "onQueryChange" | "onStep"
+> & {
   query: string;
   hits: readonly SearchHit[];
   activeIndex: number;
   onQueryChange?: (query: string) => void;
   onStep?: (delta: number) => void;
-  className?: string;
 }) {
   const index =
     hits.length === 0
@@ -34,7 +38,12 @@ export function ConversationSearch({
   const active = index === -1 ? undefined : hits[index];
 
   return (
-    <div className={cn("flex w-full max-w-sm gap-2", className)}>
+    <div
+      data-slot="conversation-search"
+      className={cn("flex w-full max-w-sm gap-2", className)}
+
+      {...props}
+    >
       <div className="flex min-w-0 flex-1 flex-col gap-2">
         <div
           className={cn(

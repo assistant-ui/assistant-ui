@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { RefreshCwIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { floating, ghostButton, mono } from "./surfaces";
@@ -17,16 +18,24 @@ export function RegenerateMenu({
   onOpenChange,
   onPick,
   className,
-}: {
+  ...props
+}: Omit<
+  ComponentProps<"div">,
+  "options" | "open" | "currentId" | "onOpenChange" | "onPick"
+> & {
   options: readonly RegenerateOption[];
   open: boolean;
   currentId: string;
   onOpenChange?: (open: boolean) => void;
   onPick?: (id: string) => void;
-  className?: string;
 }) {
   return (
-    <div className={cn("flex w-full max-w-sm flex-col gap-2", className)}>
+    <div
+      data-slot="regenerate-menu"
+      className={cn("flex w-full max-w-sm flex-col gap-2", className)}
+
+      {...props}
+    >
       <button
         type="button"
         aria-expanded={open}

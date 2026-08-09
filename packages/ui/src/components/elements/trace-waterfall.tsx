@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
 import { mono, paper } from "./surfaces";
 
@@ -25,21 +26,24 @@ export function TraceWaterfall({
   totalMs,
   visibleCount,
   className,
-}: {
+  ...props
+}: Omit<ComponentProps<"div">, "spans" | "totalMs" | "visibleCount"> & {
   spans: readonly TraceSpan[];
   totalMs: number;
   visibleCount: number;
-  className?: string;
 }) {
   const span = totalMs || 1;
 
   return (
     <div
+      data-slot="trace-waterfall"
       className={cn(
         paper,
         "flex w-full max-w-md flex-col gap-2 rounded-2xl p-4",
         className,
       )}
+
+      {...props}
     >
       <div className="flex items-baseline justify-between">
         <span className="text-[13.5px] font-medium">Trace</span>

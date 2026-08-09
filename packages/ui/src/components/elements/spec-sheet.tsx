@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
 import { mono, paper } from "./surfaces";
 
@@ -15,20 +16,26 @@ export function SpecSheet({
   rows,
   visibleCount,
   className,
-}: {
+  ...props
+}: Omit<
+  ComponentProps<"div">,
+  "title" | "subtitle" | "rows" | "visibleCount"
+> & {
   title: string;
   subtitle?: string;
   rows: readonly SpecRow[];
   visibleCount: number;
-  className?: string;
 }) {
   return (
     <div
+      data-slot="spec-sheet"
       className={cn(
         paper,
         "flex w-full max-w-sm flex-col gap-3 rounded-2xl p-4",
         className,
       )}
+
+      {...props}
     >
       <div className="flex flex-col gap-0.5">
         <span className="text-[13.5px] font-medium">{title}</span>

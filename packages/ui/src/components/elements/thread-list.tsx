@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { PencilIcon, Trash2Icon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { field, mono } from "./surfaces";
@@ -15,15 +16,21 @@ export function ThreadList({
   activeIndex,
   onActiveIndexChange,
   className,
-}: {
+  ...props
+}: Omit<
+  ComponentProps<"div">,
+  "threads" | "activeIndex" | "onActiveIndexChange"
+> & {
   threads: readonly ThreadItem[];
   activeIndex: number;
   onActiveIndexChange?: (index: number) => void;
-  className?: string;
 }) {
   return (
     <div
+      data-slot="thread-list"
       className={cn("flex w-full max-w-[240px] flex-col gap-0.5", className)}
+
+      {...props}
     >
       <div className={cn(mono, "text-foreground/35 px-3 pb-1.5")}>Today</div>
       {threads.map((thread, i) => {

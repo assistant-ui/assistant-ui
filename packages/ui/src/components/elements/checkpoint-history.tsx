@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { RotateCcwIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { mono, paper } from "./surfaces";
@@ -16,11 +17,11 @@ export function CheckpointHistory({
   currentId,
   onRestore,
   className,
-}: {
+  ...props
+}: Omit<ComponentProps<"div">, "checkpoints" | "currentId" | "onRestore"> & {
   checkpoints: readonly Checkpoint[];
   currentId: string;
   onRestore?: (id: string) => void;
-  className?: string;
 }) {
   const currentIndex = checkpoints.findIndex(
     (checkpoint) => checkpoint.id === currentId,
@@ -28,11 +29,14 @@ export function CheckpointHistory({
 
   return (
     <div
+      data-slot="checkpoint-history"
       className={cn(
         paper,
         "flex w-full max-w-sm flex-col gap-1 rounded-2xl p-3",
         className,
       )}
+
+      {...props}
     >
       <span className="px-1.5 pb-1 text-[13.5px] font-medium">Checkpoints</span>
 

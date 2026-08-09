@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import {
   CheckIcon,
   CopyIcon,
@@ -13,7 +14,7 @@ import { ghostButton, iconSwap, iconSwapIn, iconSwapOut } from "./surfaces";
 
 export type Reaction = "up" | "down" | null;
 
-export interface MessageActionsProps {
+export interface MessageActionsProps extends ComponentProps<"div"> {
   copied: boolean;
   reaction: Reaction;
   regenerating: boolean;
@@ -21,7 +22,6 @@ export interface MessageActionsProps {
   onReactionChange: (reaction: Reaction) => void;
   onRegenerate: () => void;
   onMore: () => void;
-  className?: string;
 }
 
 export function MessageActions({
@@ -33,11 +33,17 @@ export function MessageActions({
   onRegenerate,
   onMore,
   className,
+  ...props
 }: MessageActionsProps) {
   const buttonClassName = cn(ghostButton, "size-7");
 
   return (
-    <div className={cn("flex items-center gap-1", className)}>
+    <div
+      data-slot="message-actions"
+      className={cn("flex items-center gap-1", className)}
+
+      {...props}
+    >
       <button
         type="button"
         aria-label={copied ? "Copied response" : "Copy response"}

@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { ExternalLinkIcon, RotateCwIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { field, ghostButton, mono, paper } from "./surfaces";
@@ -16,21 +17,27 @@ export function WebPreview({
   onReload,
   onOpenExternal,
   className,
-}: {
+  ...props
+}: Omit<
+  ComponentProps<"div">,
+  "origin" | "loading" | "children" | "onReload" | "onOpenExternal"
+> & {
   origin: string;
   loading: boolean;
   children: React.ReactNode;
   onReload?: () => void;
   onOpenExternal?: () => void;
-  className?: string;
 }) {
   return (
     <div
+      data-slot="web-preview"
       className={cn(
         paper,
         "flex w-full max-w-md flex-col overflow-hidden rounded-2xl",
         className,
       )}
+
+      {...props}
     >
       <div className="flex items-center gap-1.5 px-2.5 py-2">
         <button

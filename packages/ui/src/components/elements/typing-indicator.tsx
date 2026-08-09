@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
 import { paper } from "./surfaces";
 
@@ -8,9 +9,9 @@ const DOT_DELAYS = ["-0.32s", "-0.16s", "0s"];
 export function TypingIndicator({
   variant = "bubble",
   className,
-}: {
+  ...props
+}: Omit<ComponentProps<"div">, "variant"> & {
   variant?: "bubble" | "bare";
-  className?: string;
 }) {
   const dots = (
     <div
@@ -34,7 +35,12 @@ export function TypingIndicator({
   }
 
   return (
-    <div className={cn(paper, "w-fit rounded-full px-4 py-3.5", className)}>
+    <div
+      data-slot="typing-indicator"
+      className={cn(paper, "w-fit rounded-full px-4 py-3.5", className)}
+
+      {...props}
+    >
       {dots}
     </div>
   );

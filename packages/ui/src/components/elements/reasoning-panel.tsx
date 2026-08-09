@@ -37,6 +37,7 @@ export function ReasoningPanel({
 }: ReasoningPanelProps) {
   return (
     <Collapsible
+      data-slot="reasoning-panel"
       open={open}
       onOpenChange={onOpenChange}
       className={cn("w-full max-w-sm", className)}

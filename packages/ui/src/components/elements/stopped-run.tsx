@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { ArrowRightIcon, SquareIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { field, mono } from "./surfaces";
@@ -10,15 +11,23 @@ export function StoppedRun({
   onContinue,
   onDiscard,
   className,
-}: {
+  ...props
+}: Omit<
+  ComponentProps<"div">,
+  "words" | "reason" | "onContinue" | "onDiscard"
+> & {
   words: readonly string[];
   reason: string;
   onContinue?: () => void;
   onDiscard?: () => void;
-  className?: string;
 }) {
   return (
-    <div className={cn("flex w-full max-w-sm flex-col gap-3", className)}>
+    <div
+      data-slot="stopped-run"
+      className={cn("flex w-full max-w-sm flex-col gap-3", className)}
+
+      {...props}
+    >
       <p className="text-foreground/80 text-[13.5px] leading-relaxed">
         {words.join(" ")}
         <span

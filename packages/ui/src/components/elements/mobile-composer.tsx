@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { ArrowUpIcon, MicIcon, PlusIcon, SquareIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { field, ghostButton, inkButton, mono } from "./surfaces";
@@ -16,7 +17,20 @@ export function MobileComposer({
   onStop,
   onFocus,
   className,
-}: {
+  ...props
+}: Omit<
+  ComponentProps<"div">,
+  | "value"
+  | "keyboardOpen"
+  | "running"
+  | "actions"
+  | "onAction"
+  | "onAttach"
+  | "onValueChange"
+  | "onSend"
+  | "onStop"
+  | "onFocus"
+> & {
   value: string;
   keyboardOpen: boolean;
   running: boolean;
@@ -27,15 +41,17 @@ export function MobileComposer({
   onSend?: () => void;
   onStop?: () => void;
   onFocus?: () => void;
-  className?: string;
 }) {
   return (
     <div
+      data-slot="mobile-composer"
       className={cn(
         "bg-background border-foreground/[0.07] flex w-full max-w-[19rem] flex-col gap-2.5 rounded-t-[20px] border-t px-3 pt-3 shadow-[0_-8px_24px_-16px_rgba(0,0,0,0.25)]",
         keyboardOpen ? "pb-3" : "pb-6",
         className,
       )}
+
+      {...props}
     >
       {!keyboardOpen && (
         <div className="fade-in animate-in -mx-3 flex gap-1.5 overflow-x-auto px-3 pb-0.5 duration-200">

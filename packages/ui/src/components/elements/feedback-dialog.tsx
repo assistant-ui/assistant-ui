@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { CheckIcon, ThumbsDownIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { field, inkButton, mono, paper } from "./surfaces";
@@ -13,7 +14,17 @@ export function FeedbackDialog({
   onNoteChange,
   onSubmit,
   className,
-}: {
+  ...props
+}: Omit<
+  ComponentProps<"div">,
+  | "reasons"
+  | "selected"
+  | "note"
+  | "sent"
+  | "onToggleReason"
+  | "onNoteChange"
+  | "onSubmit"
+> & {
   reasons: readonly string[];
   selected: readonly string[];
   note: string;
@@ -21,7 +32,6 @@ export function FeedbackDialog({
   onToggleReason?: (reason: string) => void;
   onNoteChange?: (note: string) => void;
   onSubmit?: () => void;
-  className?: string;
 }) {
   if (sent) {
     return (
@@ -40,11 +50,14 @@ export function FeedbackDialog({
 
   return (
     <div
+      data-slot="feedback-dialog"
       className={cn(
         paper,
         "flex w-full max-w-sm flex-col gap-3 rounded-[20px] p-4",
         className,
       )}
+
+      {...props}
     >
       <div className="flex items-center gap-2.5">
         <span className="bg-foreground/[0.05] text-foreground/45 flex size-7 shrink-0 items-center justify-center rounded-lg">

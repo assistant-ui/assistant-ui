@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { FileTextIcon, ImageIcon, PaperclipIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { field, mono, paper } from "./surfaces";
@@ -17,13 +18,18 @@ export function MessageAttachments({
   attachments,
   onOpen,
   className,
-}: {
+  ...props
+}: Omit<ComponentProps<"div">, "attachments" | "onOpen"> & {
   attachments: readonly MessageAttachmentItem[];
   onOpen?: (id: string) => void;
-  className?: string;
 }) {
   return (
-    <div className={cn("flex w-full max-w-sm flex-col gap-1.5", className)}>
+    <div
+      data-slot="message-attachments"
+      className={cn("flex w-full max-w-sm flex-col gap-1.5", className)}
+
+      {...props}
+    >
       {attachments.map((item) =>
         item.kind === "image" ? (
           <button
