@@ -105,7 +105,7 @@ export function McpServerPanel({
                   <span className={cn(mono, "text-foreground/30")}>
                     · {LABEL[server.status]}
                   </span>
-                  {server.status === "needs-auth" && (
+                  {server.status === "needs-auth" && onAuthorize && (
                     <button
                       type="button"
                       onClick={() => onAuthorize?.(server.id)}

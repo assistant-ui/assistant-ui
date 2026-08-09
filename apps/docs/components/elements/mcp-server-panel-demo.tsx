@@ -32,12 +32,18 @@ const SERVERS: readonly McpServer[] = [
 
 export function McpServerPanelDemo() {
   const [expandedId, setExpandedId] = useState("github");
+  const [authorized, setAuthorized] = useState(false);
 
   return (
     <McpServerPanel
-      servers={SERVERS}
+      servers={SERVERS.map((server) =>
+        authorized && server.id === "linear"
+          ? { ...server, status: "connected" as const }
+          : server,
+      )}
       expandedId={expandedId}
       onToggle={(id) => setExpandedId((current) => (current === id ? "" : id))}
+      onAuthorize={() => setAuthorized(true)}
     />
   );
 }

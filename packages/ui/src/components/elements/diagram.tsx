@@ -66,7 +66,11 @@ export function Diagram({
           type="button"
           aria-label="Open full screen"
           onClick={onExpand}
-          className={cn(ghostButton, "size-7 shrink-0")}
+          disabled={!onExpand}
+          className={cn(
+            ghostButton,
+            "size-7 shrink-0 disabled:pointer-events-none disabled:opacity-30",
+          )}
         >
           <MaximizeIcon className="size-3.5" />
         </button>

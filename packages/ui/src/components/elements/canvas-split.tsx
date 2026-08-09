@@ -91,7 +91,11 @@ export function CanvasSplit({
             type="button"
             aria-label="Close the canvas"
             onClick={onClose}
-            className={cn(ghostButton, "size-7 shrink-0")}
+            disabled={!onClose}
+            className={cn(
+              ghostButton,
+              "size-7 shrink-0 disabled:pointer-events-none disabled:opacity-30",
+            )}
           >
             <XIcon className="size-3.5" />
           </button>

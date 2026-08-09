@@ -4633,8 +4633,9 @@ const models: ComposerModel[] = [
           {
             name: "emphasis",
             type: "boolean",
-            required: true,
-            description: "false",
+            defaultValue: "false",
+            description:
+              "Renders the value in full ink. Use it for the one row that answers the question.",
           },
         ],
       },
@@ -4873,6 +4874,12 @@ const models: ComposerModel[] = [
       {
         component: "ScoreCriterion",
         rows: [
+          {
+            name: "label",
+            type: "string",
+            required: true,
+            description: "What is being scored. Truncates rather than wraps.",
+          },
           {
             name: "score",
             type: "number",
@@ -5548,8 +5555,9 @@ const models: ComposerModel[] = [
           {
             name: "pinned",
             type: "boolean",
-            required: true,
-            description: "false",
+            defaultValue: "false",
+            description:
+              "Lifts the thread out of its date group into its own pinned section.",
           },
         ],
       },

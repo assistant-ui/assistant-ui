@@ -25,6 +25,7 @@ export function ToolErrorDemo() {
       maxAttempts={3}
       retrying={retrying}
       onRetry={() => setRetrying(true)}
+      onSkip={() => setAttempt(1)}
     />
   );
 }

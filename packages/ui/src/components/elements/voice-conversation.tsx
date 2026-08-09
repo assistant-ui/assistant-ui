@@ -152,9 +152,10 @@ export function VoiceConversation({
           }
           aria-pressed={muted}
           onClick={onToggleMute}
+          disabled={!onToggleMute}
           className={cn(
             ghostButton,
-            "size-10",
+            "size-10 disabled:pointer-events-none disabled:opacity-30",
             muted && "bg-foreground/[0.08] text-foreground/90",
           )}
         >
@@ -168,7 +169,8 @@ export function VoiceConversation({
           type="button"
           aria-label="End the call"
           onClick={onEnd}
-          className="flex size-10 items-center justify-center rounded-full bg-red-500/90 text-white transition-[opacity,scale] duration-150 hover:opacity-90 active:scale-[0.96] motion-reduce:transition-none"
+          disabled={!onEnd}
+          className="flex size-10 items-center justify-center rounded-full bg-red-500/90 text-white transition-[opacity,scale] duration-150 hover:opacity-90 active:scale-[0.96] disabled:pointer-events-none disabled:opacity-30 motion-reduce:transition-none"
         >
           <PhoneOffIcon className="size-4" />
         </button>

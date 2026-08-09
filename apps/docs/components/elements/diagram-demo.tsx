@@ -20,6 +20,7 @@ export function DiagramDemo() {
       onZoomIn={() => setZoom((z) => Math.min(1.6, z + 0.2))}
       onZoomOut={() => setZoom((z) => Math.max(0.6, z - 0.2))}
       onReset={() => setZoom(1)}
+      onExpand={() => setZoom(1.6)}
     >
       <svg viewBox="0 0 292 116" className="h-[116px] w-[292px]">
         <path

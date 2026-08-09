@@ -32,6 +32,7 @@ export function VoiceConversationDemo() {
   const { phase, running } = useStoryPhases(PHASES);
   const mode = MODES[Math.min(phase, MODES.length - 1)]!;
   const [amplitude, setAmplitude] = useState(0.2);
+  const [muted, setMuted] = useState(false);
 
   useEffect(() => {
     if (!running) return;
@@ -52,6 +53,9 @@ export function VoiceConversationDemo() {
       mode={mode}
       amplitude={amplitude}
       transcript={TRANSCRIPT.slice(0, VISIBLE[Math.min(phase, 4)])}
+      muted={muted}
+      onToggleMute={() => setMuted((current) => !current)}
+      onEnd={() => setMuted(false)}
     />
   );
 }
