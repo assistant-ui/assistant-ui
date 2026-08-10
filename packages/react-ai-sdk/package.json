@@ -51,13 +51,13 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@ai-sdk/mcp": "^2.0.27",
-    "@ai-sdk/react": "^4.0.59",
-    "@assistant-ui/core": "^0.3.10",
+    "@ai-sdk/mcp": "^2.0.29",
+    "@ai-sdk/react": "^4.0.61",
+    "@assistant-ui/core": "^0.3.12",
     "@assistant-ui/store": "^0.3.8",
-    "ai": "^7.0.56",
+    "ai": "^7.0.58",
     "assistant-cloud": "*",
-    "assistant-stream": "^0.3.36"
+    "assistant-stream": "^0.3.37"
   },
   "peerDependencies": {
     "@types/react": "*",

@@ -34,7 +34,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@assistant-ui/core": "^0.3.10",
+    "@assistant-ui/core": "^0.3.12",
     "@assistant-ui/store": "^0.3.8",
     "zod": "^4.4.3"
   },
@@ -55,7 +55,7 @@
     "@types/react-dom": "^19.2.4",
     "jsdom": "^30.0.1",
     "react": "^19.2.8",
-    "react-hook-form": "^7.84.0",
+    "react-hook-form": "^7.85.0",
     "vitest": "^4.1.10"
   },
   "publishConfig": {

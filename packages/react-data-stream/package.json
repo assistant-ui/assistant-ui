@@ -33,10 +33,10 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@ai-sdk/provider": "^4.0.6",
-    "@assistant-ui/core": "^0.3.10",
+    "@ai-sdk/provider": "^4.0.7",
+    "@assistant-ui/core": "^0.3.12",
     "assistant-cloud": "*",
-    "assistant-stream": "^0.3.36"
+    "assistant-stream": "^0.3.37"
   },
   "peerDependencies": {
     "@types/react": "*",

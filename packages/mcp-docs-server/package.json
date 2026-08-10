@@ -47,8 +47,8 @@
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
     "@modelcontextprotocol/core": "^2.0.0",
-    "@types/node": "^26.1.2",
-    "tsx": "^4.23.10",
+    "@types/node": "^26.2.0",
+    "tsx": "^4.23.11",
     "vitest": "^4.1.10"
   },
   "publishConfig": {

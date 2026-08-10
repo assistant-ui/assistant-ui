@@ -34,7 +34,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@assistant-ui/core": "^0.3.11",
+    "@assistant-ui/core": "^0.3.12",
     "@assistant-ui/store": "^0.3.8",
     "assistant-cloud": "*",
     "assistant-stream": "^0.3.37",
@@ -58,7 +58,7 @@
     "@langchain/langgraph-sdk": "^1.9.28",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/react": "^16.3.2",
-    "@types/node": "^26.1.2",
+    "@types/node": "^26.2.0",
     "@types/react": "^19.2.18",
     "jsdom": "^30.0.1",
     "react": "^19.2.8",

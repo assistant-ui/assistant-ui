@@ -17,7 +17,7 @@
     "clsx": "^2.1.1",
     "eventsource-parser": "^3.1.0",
     "isbot": "^5.2.1",
-    "lucide-react": "^1.29.0",
+    "lucide-react": "^1.31.0",
     "openai": "^7.4.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
@@ -28,7 +28,7 @@
   "devDependencies": {
     "@react-router/dev": "^8.3.0",
     "@tailwindcss/vite": "^4.3.3",
-    "@types/node": "^26.1.2",
+    "@types/node": "^26.2.0",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
     "tailwindcss": "^4.3.3",

@@ -34,10 +34,10 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@assistant-ui/core": "^0.3.10",
+    "@assistant-ui/core": "^0.3.12",
     "@assistant-ui/store": "^0.3.8",
     "assistant-cloud": "*",
-    "assistant-stream": "^0.3.36"
+    "assistant-stream": "^0.3.37"
   },
   "peerDependencies": {
     "@langchain/react": "^1.0.2",

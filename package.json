@@ -35,7 +35,7 @@
     "oxfmt": "^0.62.0",
     "oxlint": "^1.77.0",
     "pkg-pr-new": "^0.0.87",
-    "turbo": "^2.10.8",
+    "turbo": "^2.10.9",
     "typescript": "^7.0.2"
   },
   "packageManager": "pnpm@11.10.0",
