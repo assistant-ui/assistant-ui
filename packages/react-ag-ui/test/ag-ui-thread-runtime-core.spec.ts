@@ -5399,7 +5399,7 @@ describe("AGUIThreadRuntimeCore", () => {
       "user",
     ]);
     expect(runInputs[1].messages[1]).toMatchObject({
-      id: `${assistantId}:reasoning-0`,
+      id: "r-1",
       role: "reasoning",
       content: "weighing options",
     });

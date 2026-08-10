@@ -100,11 +100,14 @@ const getString = (record: Record<string, unknown>, key: string) => {
 const getToolCallId = (record: Record<string, unknown>) =>
   getString(record, "toolCallId") ?? getString(record, "tool_call_id");
 
-const readAgUiEncryptedValue = (providerMetadata: unknown) => {
-  if (!isObject(providerMetadata)) return undefined;
+const readAgUiReasoningMeta = (providerMetadata: unknown) => {
+  if (!isObject(providerMetadata)) return {};
   const namespaced = providerMetadata[AG_UI_METADATA_NAMESPACE];
-  if (!isObject(namespaced)) return undefined;
-  return getString(namespaced, "encryptedValue");
+  if (!isObject(namespaced)) return {};
+  return {
+    encryptedValue: getString(namespaced, "encryptedValue"),
+    reasoningId: getString(namespaced, "reasoningId"),
+  };
 };
 
 function parseJSONText(value: string): unknown {
@@ -855,12 +858,17 @@ function convertAssistantMessage(
     if (!isObject(part) || part.type !== "reasoning") continue;
     const text = getString(part, "text") ?? "";
     if (text.trim().length === 0) continue;
-    const encryptedValue = readAgUiEncryptedValue(part.providerMetadata);
+    const { encryptedValue, reasoningId } = readAgUiReasoningMeta(
+      part.providerMetadata,
+    );
     converted.push({
+      // The wire id is what a signature was issued against, so it wins over a
+      // synthesized one whenever the run carried it.
       id:
-        shellIsDropped && reasoningIndex === 0
+        reasoningId ??
+        (shellIsDropped && reasoningIndex === 0
           ? message.id
-          : `${message.id}:reasoning-${reasoningIndex}`,
+          : `${message.id}:reasoning-${reasoningIndex}`),
       role: "reasoning",
       content: text,
       ...(encryptedValue !== undefined ? { encryptedValue } : {}),

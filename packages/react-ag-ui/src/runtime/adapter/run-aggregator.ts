@@ -78,6 +78,7 @@ export class RunAggregator {
   private activeTextMessageId: string | undefined;
   private readonly reasoningParts = new Map<string, string>(); // key → buffer
   private readonly reasoningSignatures = new Map<string, string>(); // key → encryptedValue
+  private readonly reasoningMessageIds = new Map<string, string>(); // key → wire id
   private activeReasoningKey: string | undefined;
   private reasoningPartCounter = 0;
   private readonly toolCalls = new Map<string, ToolCallState>();
@@ -113,6 +114,7 @@ export class RunAggregator {
         this.clearTextParts();
         this.reasoningParts.clear();
         this.reasoningSignatures.clear();
+        this.reasoningMessageIds.clear();
         this.activeReasoningKey = undefined;
         this.reasoningPartCounter = 0;
         this.toolCalls.clear();
@@ -598,15 +600,16 @@ export class RunAggregator {
           const buffer = this.reasoningParts.get(part.key) ?? "";
           if (buffer.length > 0 || this.activeReasoningKey === part.key) {
             const encryptedValue = this.reasoningSignatures.get(part.key);
+            const reasoningId = this.reasoningMessageIds.get(part.key);
+            const meta = {
+              ...(reasoningId !== undefined ? { reasoningId } : {}),
+              ...(encryptedValue !== undefined ? { encryptedValue } : {}),
+            };
             snapshot.push({
               type: "reasoning",
               text: buffer,
-              ...(encryptedValue !== undefined
-                ? {
-                    providerMetadata: {
-                      [AG_UI_METADATA_NAMESPACE]: { encryptedValue },
-                    },
-                  }
+              ...(Object.keys(meta).length > 0
+                ? { providerMetadata: { [AG_UI_METADATA_NAMESPACE]: meta } }
                 : {}),
             } as const);
           }
@@ -723,6 +726,7 @@ export class RunAggregator {
     // should be a new part, not appended to any pre-reasoning text.
     this.activeTextMessageId = undefined;
     const key = messageId ?? `__auto-reasoning-${++this.reasoningPartCounter}`;
+    if (messageId !== undefined) this.reasoningMessageIds.set(key, messageId);
     if (!this.reasoningParts.has(key)) {
       this.reasoningParts.set(key, "");
       this.partOrder.push({ kind: "reasoning", key });

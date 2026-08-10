@@ -176,9 +176,10 @@ export const parseAgUiEvent = (
       const encryptedValue = getString("encryptedValue");
       const subtype = getString("subtype");
       if (!entityId || !encryptedValue) return null;
+      if (subtype !== "message" && subtype !== "tool-call") return null;
       return {
         type: "REASONING_ENCRYPTED_VALUE" as const,
-        subtype: subtype === "tool-call" ? "tool-call" : "message",
+        subtype,
         entityId,
         encryptedValue,
       };
