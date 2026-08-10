@@ -202,6 +202,8 @@ const useInMemoryThreadList = (
   const handleDelete = (threadId: string) => {
     const fallbackId = `thread-${generateId()}`;
     setThreadList((prev) => {
+      if (!prev.threads.some((thread) => thread.id === threadId)) return prev;
+
       const nextThreads = prev.threads.filter((t) => t.id !== threadId);
       return replaceChangedMainThread(
         nextThreads,
