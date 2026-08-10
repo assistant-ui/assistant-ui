@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, type ComponentProps } from "react";
+import { useEffect, useId, type ComponentProps } from "react";
 import { SearchIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { field, floating, mono } from "./surfaces";
@@ -58,6 +58,14 @@ export function CommandPalette({
     if (next) onActiveChange?.(next.id);
   };
 
+  // aria-activedescendant moves the highlight without moving focus, and only
+  // focus scrolls; the list is short enough to walk the active row out of view.
+  useEffect(() => {
+    document
+      .getElementById(optionId(activeId))
+      ?.scrollIntoView({ block: "nearest" });
+  }, [activeId, listId]);
+
   const onKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
     if (event.nativeEvent.isComposing) return;
     if (event.key === "ArrowDown") {
@@ -93,7 +101,7 @@ export function CommandPalette({
           placeholder="Type a command"
           aria-label="Type a command"
           role="combobox"
-          aria-expanded
+          aria-expanded={ordered.length > 0}
           aria-controls={listId}
           aria-autocomplete="list"
           aria-activedescendant={
@@ -143,6 +151,7 @@ export function CommandPalette({
                   role="option"
                   tabIndex={-1}
                   aria-selected={command.id === activeId}
+                  onMouseDown={(event) => event.preventDefault()}
                   onClick={() => onRun?.(command.id)}
                   className={cn(
                     "flex items-center gap-2 rounded-xl px-2 py-1.5 text-start transition-colors",
@@ -172,12 +181,14 @@ export function CommandPalette({
               ))}
           </div>
         ))}
-        {matches.length === 0 && (
-          <span className="text-foreground/30 px-2 py-4 text-center text-xs break-words">
+      </div>
+      {matches.length === 0 && (
+        <div className="border-foreground/[0.07] border-t p-1.5">
+          <span className="text-foreground/30 block px-2 py-4 text-center text-xs break-words">
             No command matches “{query}”
           </span>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

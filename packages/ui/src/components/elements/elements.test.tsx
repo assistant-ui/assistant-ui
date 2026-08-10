@@ -504,19 +504,38 @@ const inlinePercentages = (markup: string) =>
       })),
   );
 
-/** The name a screen reader would announce for a control. */
+/**
+ * The name a screen reader would announce for a control. Text inside an
+ * `aria-hidden` subtree does not contribute to it, so reading `textContent`
+ * would report a name for a control that announces nothing, which is the same
+ * false confidence this sweep exists to remove.
+ */
+const visibleText = (element: Element): string =>
+  [...element.childNodes]
+    .map((node) => {
+      if (node.nodeType === Node.TEXT_NODE) return node.textContent ?? "";
+      if (!(node instanceof Element)) return "";
+      if (node.getAttribute("aria-hidden") === "true") return "";
+      return visibleText(node);
+    })
+    .join("")
+    .trim();
+
 const accessibleName = (element: HTMLElement) => {
   const labelled = element.getAttribute("aria-labelledby");
   if (labelled) {
     return labelled
       .split(/\s+/)
-      .map((id) => document.getElementById(id)?.textContent ?? "")
+      .map((id) => {
+        const target = document.getElementById(id);
+        return target ? visibleText(target) : "";
+      })
       .join(" ")
       .trim();
   }
   return (
     element.getAttribute("aria-label")?.trim() ||
-    element.textContent?.trim() ||
+    visibleText(element) ||
     element.getAttribute("title")?.trim() ||
     ""
   );
@@ -528,6 +547,7 @@ beforeAll(() => {
     unobserve() {}
     disconnect() {}
   };
+  Element.prototype.scrollIntoView ??= () => {};
 });
 
 afterEach(cleanup);
@@ -632,6 +652,66 @@ describe("state that is carried by more than colour", () => {
       "true",
       null,
     ]);
+  });
+
+  it("keeps feedback's live region mounted before it has anything to say", () => {
+    const props = {
+      reasons: ["Wrong"],
+      selected: [],
+      note: "",
+      onToggleReason: () => {},
+    };
+    const { container, rerender } = render(
+      <FeedbackDialog {...props} sent={false} />,
+    );
+    const before = container.querySelector('[role="status"]');
+
+    expect(before, "no region to announce into").not.toBeNull();
+    expect(before!.textContent?.trim()).toBe("");
+
+    rerender(<FeedbackDialog {...props} sent />);
+    const after = container.querySelector('[role="status"]');
+
+    expect(after, "the region was replaced rather than updated").toBe(before);
+    expect(after!.textContent).toContain("Thanks");
+  });
+
+  it("marks only one document anchor current when a page repeats", () => {
+    const { container } = render(
+      <DocumentReference
+        title="Spec"
+        pages={4}
+        anchors={[
+          { page: 2, quote: "first" },
+          { page: 2, quote: "second" },
+        ]}
+        activePage={2}
+      />,
+    );
+
+    expect(container.querySelectorAll('[aria-current="true"]')).toHaveLength(1);
+  });
+
+  it("closes the palette's combobox and frees its message when nothing matches", () => {
+    const { container } = render(
+      <CommandPalette
+        commands={[{ id: "a", label: "New thread", group: "Thread", keys: [] }]}
+        query="zzz"
+        activeId="a"
+      />,
+    );
+    const listbox = container.querySelector('[role="listbox"]')!;
+
+    expect(
+      container
+        .querySelector('[role="combobox"]')!
+        .getAttribute("aria-expanded"),
+    ).toBe("false");
+    expect(
+      listbox.textContent,
+      "a listbox owns only options, so a bare message inside it is suppressed",
+    ).not.toContain("No command matches");
+    expect(container.textContent).toContain("No command matches");
   });
 
   // A matching query, unlike the sweep's fixture, so there are options to point at.

@@ -28,6 +28,11 @@ export function DocumentReference({
   activePage: number;
   onJump?: (page: number) => void;
 }) {
+  // several anchors can cite one page, and only one of them is the current item
+  const currentIndex = anchors.findIndex(
+    (anchor) => anchor.page === activePage,
+  );
+
   return (
     <div
       data-slot="document-reference"
@@ -56,7 +61,7 @@ export function DocumentReference({
           <button
             key={`${anchor.page}-${i}`}
             type="button"
-            aria-current={anchor.page === activePage || undefined}
+            aria-current={i === currentIndex || undefined}
             onClick={() => onJump?.(anchor.page)}
             className={cn(
               "flex flex-col gap-1 rounded-xl px-2.5 py-2 text-start transition-colors",

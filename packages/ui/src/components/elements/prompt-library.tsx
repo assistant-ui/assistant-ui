@@ -93,7 +93,7 @@ export function PromptLibrary({
           placeholder="Search prompts"
           aria-label="Search saved prompts"
           role="combobox"
-          aria-expanded
+          aria-expanded={matches.length > 0}
           aria-controls={listId}
           aria-autocomplete="list"
           aria-activedescendant={selected ? optionId(selected.id) : undefined}
@@ -115,6 +115,7 @@ export function PromptLibrary({
             role="option"
             tabIndex={-1}
             aria-selected={prompt.id === selectedId}
+            onMouseDown={(event) => event.preventDefault()}
             onClick={() => onSelect?.(prompt.id)}
             onDoubleClick={() => onInsert?.(prompt.id)}
             className={cn(
@@ -134,12 +135,12 @@ export function PromptLibrary({
             )}
           </button>
         ))}
-        {matches.length === 0 && (
-          <span className="text-foreground/30 px-2 py-3 text-center text-xs break-words">
-            Nothing matches “{query}”
-          </span>
-        )}
       </div>
+      {matches.length === 0 && (
+        <span className="text-foreground/30 block px-2 py-3 text-center text-xs break-words">
+          Nothing matches “{query}”
+        </span>
+      )}
 
       {selected && (
         <div
