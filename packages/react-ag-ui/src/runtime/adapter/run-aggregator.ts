@@ -77,8 +77,8 @@ export class RunAggregator {
   >();
   private activeTextMessageId: string | undefined;
   private readonly reasoningParts = new Map<string, string>(); // key → buffer
-  private readonly reasoningSignatures = new Map<string, string>(); // key → encryptedValue
-  private readonly reasoningMessageIds = new Map<string, string>(); // key → wire id
+  private readonly reasoningSignatures = new Map<string, string>();
+  private readonly reasoningMessageIds = new Map<string, string>();
   private activeReasoningKey: string | undefined;
   private reasoningPartCounter = 0;
   private readonly toolCalls = new Map<string, ToolCallState>();
@@ -204,16 +204,19 @@ export class RunAggregator {
       case "REASONING_MESSAGE_START":
         this.handleReasoningStart(
           "messageId" in event ? event.messageId : undefined,
+          event.type === "REASONING_MESSAGE_START",
         );
         break;
       case "REASONING_ENCRYPTED_VALUE":
         if (event.subtype === "message") {
-          // The legacy THINKING_* aliases carry no messageId, so their slot is
-          // keyed anonymously and entityId matches nothing; the block being
-          // streamed is the one the signature belongs to.
+          // entityId names any message, not necessarily a reasoning one, so an
+          // unmatched id may only claim a block that has no id to contradict it.
+          const active = this.activeReasoningKey;
           const key = this.reasoningParts.has(event.entityId)
             ? event.entityId
-            : this.activeReasoningKey;
+            : active !== undefined && !this.reasoningMessageIds.has(active)
+              ? active
+              : undefined;
           if (key !== undefined) {
             this.reasoningSignatures.set(key, event.encryptedValue);
             this.emit();
@@ -229,6 +232,7 @@ export class RunAggregator {
         this.handleReasoningContent(
           event.delta,
           "messageId" in event ? event.messageId : undefined,
+          true,
         );
         this.totalChunks++;
         this.recordFirstToken();
@@ -728,13 +732,15 @@ export class RunAggregator {
     };
   }
 
-  private handleReasoningStart(messageId?: string): void {
+  private handleReasoningStart(messageId?: string, isMessageId = false): void {
     if (!this.showThinking) return;
     // A reasoning block acts as a boundary: anonymous text arriving after it
     // should be a new part, not appended to any pre-reasoning text.
     this.activeTextMessageId = undefined;
     const key = messageId ?? `__auto-reasoning-${++this.reasoningPartCounter}`;
-    if (messageId !== undefined) this.reasoningMessageIds.set(key, messageId);
+    if (messageId !== undefined && isMessageId) {
+      this.reasoningMessageIds.set(key, messageId);
+    }
     if (!this.reasoningParts.has(key)) {
       this.reasoningParts.set(key, "");
       this.partOrder.push({ kind: "reasoning", key });
@@ -743,11 +749,15 @@ export class RunAggregator {
     this.emit();
   }
 
-  private handleReasoningContent(delta: string, messageId?: string): void {
+  private handleReasoningContent(
+    delta: string,
+    messageId?: string,
+    isMessageId = false,
+  ): void {
     if (!this.showThinking || !delta) return;
     if (!this.activeReasoningKey) {
       // Content arrived without a preceding START — create the slot lazily.
-      this.handleReasoningStart(messageId);
+      this.handleReasoningStart(messageId, isMessageId);
     }
     const key = this.activeReasoningKey;
     if (!key) return;

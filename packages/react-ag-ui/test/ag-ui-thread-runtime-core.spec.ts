@@ -5448,6 +5448,48 @@ describe("AGUIThreadRuntimeCore", () => {
     });
   });
 
+  it("ignores a signature whose entityId names something other than the open reasoning block", async () => {
+    const runInputs: any[] = [];
+    const runAgent = vi.fn(async (input, subscriber) => {
+      runInputs.push(JSON.parse(JSON.stringify(input)));
+      if (runInputs.length === 1) {
+        subscriber.onReasoningMessageStartEvent?.({
+          event: { type: "REASONING_MESSAGE_START", messageId: "r-1" },
+        });
+        subscriber.onReasoningMessageContentEvent?.({
+          event: {
+            type: "REASONING_MESSAGE_CONTENT",
+            messageId: "r-1",
+            delta: "weighing options",
+          },
+        });
+        subscriber.onReasoningEncryptedValueEvent?.({
+          event: {
+            type: "REASONING_ENCRYPTED_VALUE",
+            subtype: "message",
+            entityId: "some-other-message",
+            encryptedValue: "not-for-this-block",
+          },
+        });
+        subscriber.onTextMessageContentEvent?.({
+          event: { type: "TEXT_MESSAGE_CONTENT", delta: "done" },
+        });
+      }
+      subscriber.onRunFinalized?.();
+    });
+    const core = createCore({ runAgent } as unknown as HttpAgent);
+
+    await core.append(createAppendMessage());
+    const assistant = core.getMessages().at(-1) as ThreadAssistantMessage;
+    await core.append(createAppendMessage({ parentId: assistant.id }));
+
+    expect(runInputs[1].messages[1]).toMatchObject({
+      id: "r-1",
+      role: "reasoning",
+    });
+    expect(runInputs[1].messages[1]).not.toHaveProperty("encryptedValue");
+  });
+
   it("carries a live reasoning signature into the next run input", async () => {
     const runInputs: any[] = [];
     const runAgent = vi.fn(async (input, subscriber) => {
