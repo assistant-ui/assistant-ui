@@ -208,8 +208,16 @@ export class RunAggregator {
         break;
       case "REASONING_ENCRYPTED_VALUE":
         if (event.subtype === "message") {
-          this.reasoningSignatures.set(event.entityId, event.encryptedValue);
-          this.emit();
+          // The legacy THINKING_* aliases carry no messageId, so their slot is
+          // keyed anonymously and entityId matches nothing; the block being
+          // streamed is the one the signature belongs to.
+          const key = this.reasoningParts.has(event.entityId)
+            ? event.entityId
+            : this.activeReasoningKey;
+          if (key !== undefined) {
+            this.reasoningSignatures.set(key, event.encryptedValue);
+            this.emit();
+          }
         }
         break;
       case "THINKING_TEXT_MESSAGE_CONTENT":

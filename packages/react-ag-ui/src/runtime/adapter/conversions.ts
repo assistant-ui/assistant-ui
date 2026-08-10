@@ -864,11 +864,11 @@ function convertAssistantMessage(
     converted.push({
       // The wire id is what a signature was issued against, so it wins over a
       // synthesized one whenever the run carried it.
-      id:
-        reasoningId ??
-        (shellIsDropped && reasoningIndex === 0
+      id: reasoningId?.trim()
+        ? reasoningId
+        : shellIsDropped && reasoningIndex === 0
           ? message.id
-          : `${message.id}:reasoning-${reasoningIndex}`),
+          : `${message.id}:reasoning-${reasoningIndex}`,
       role: "reasoning",
       content: text,
       ...(encryptedValue !== undefined ? { encryptedValue } : {}),
