@@ -57,11 +57,14 @@ describe("JSONGenerativeUI — client build", () => {
     );
   });
 
-  it("offers a copy control with an accessible name, contributing no text", () => {
+  it("offers a copy control that is named but holds no text of its own", () => {
     const html = renderTool(ui.present(), { $type: "Button", label: "ok" });
     expect(html).toContain('data-aui="root-copy"');
     expect(html).toContain('aria-label="Copy"');
-    expect(html.replace(/<[^>]*>/g, "")).toBe("ok");
+    // Only a glyph between the button's tags, so the control never lands in
+    // the text it copies back out of the surface.
+    expect(html).toMatch(/data-aui="root-copy"[^>]*>\s*<svg\b/);
+    expect(html).toContain("</svg></button>");
   });
 
   it("prompt_user is a human tool that renders the tree (no execute)", () => {
