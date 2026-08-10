@@ -1,6 +1,14 @@
-// Generated from @openuidev/react-ui@0.13.4 openuiChatLibrary.prompt.
+export const OPENUI_DEMO_PREAMBLE =
+  "This is the embedded OpenUI documentation demo. Render every requested interface by calling present_openui or prompt_openui. Use present_openui for display-only responses and prompt_openui when the user must submit a choice or form. Set the ui argument to valid OpenUI Lang without markdown fences. Never return OpenUI Lang as assistant text.";
+
+export const OPENUI_DEMO_ADDITIONAL_INSTRUCTIONS = [
+  "- When using present_openui, omit FollowUpBlock and actions that call @ToAssistant or @OpenUrl.",
+  "- When using prompt_openui, include exactly one terminal @ToAssistant action that submits the form or choice.",
+] as const;
+
+// The React UI package cannot be evaluated in the Next.js route bundle, so this checked snapshot keeps it out of the server path.
 export const OPENUI_DEMO_INSTRUCTIONS = [
-  "This is the embedded OpenUI documentation demo. Render every requested interface by calling present_openui or prompt_openui. Use present_openui for display-only responses and prompt_openui when the user must submit a choice or form. Set the ui argument to valid OpenUI Lang without markdown fences. Never return OpenUI Lang as assistant text.",
+  OPENUI_DEMO_PREAMBLE,
   "",
   "## Syntax Rules",
   "",
@@ -223,6 +231,5 @@ export const OPENUI_DEMO_INSTRUCTIONS = [
   "- For forms, define one FormControl reference per field so controls can stream progressively.",
   "- For forms, always provide the second Form argument with Buttons(...) actions: Form(name, buttons, fields).",
   "- Never nest Form inside Form.",
-  "- When using present_openui, omit FollowUpBlock and actions that call @ToAssistant or @OpenUrl.",
-  "- When using prompt_openui, include exactly one terminal @ToAssistant action that submits the form or choice.",
+  ...OPENUI_DEMO_ADDITIONAL_INSTRUCTIONS,
 ].join("\n");

@@ -1,8 +1,13 @@
 import { getModel } from "@/lib/ai/provider";
 import { OPENUI_DEMO_INSTRUCTIONS } from "@/lib/openui-demo";
+import {
+  openuiToolDescriptions,
+  openuiToolParameters,
+} from "@/lib/openui-tools";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { validateGeneralChatInput } from "@/lib/validate-input";
 import { frontendTools, type FrontendTools } from "@assistant-ui/react-ai-sdk";
+import { toJSONSchema } from "assistant-stream";
 import {
   convertToModelMessages,
   pruneMessages,
@@ -12,26 +17,15 @@ import {
 
 export const maxDuration = 30;
 
-const parameters: FrontendTools[string]["parameters"] = {
-  type: "object",
-  properties: {
-    ui: {
-      type: "string",
-      description: "A complete OpenUI Lang program with Card as its root",
-    },
-  },
-  required: ["ui"],
-  additionalProperties: false,
-};
+const parameters = toJSONSchema(openuiToolParameters);
 
 const openuiTools = {
   present_openui: {
-    description: "Render a display-only interface from an OpenUI Lang program.",
+    description: openuiToolDescriptions.present,
     parameters,
   },
   prompt_openui: {
-    description:
-      "Render an interactive OpenUI Lang form or choice and wait for the user to submit it.",
+    description: openuiToolDescriptions.prompt,
     parameters,
   },
 } satisfies FrontendTools;

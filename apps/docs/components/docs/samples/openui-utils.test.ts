@@ -1,9 +1,17 @@
 import { BuiltinActionType, Renderer } from "@openuidev/react-lang";
-import { ThemeProvider } from "@openuidev/react-ui";
-import { openuiChatLibrary } from "@openuidev/react-ui/genui-lib";
+import {
+  openuiChatLibrary,
+  openuiChatPromptOptions,
+  ThemeProvider,
+} from "@openuidev/react-ui";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
+import {
+  OPENUI_DEMO_ADDITIONAL_INSTRUCTIONS,
+  OPENUI_DEMO_INSTRUCTIONS,
+  OPENUI_DEMO_PREAMBLE,
+} from "@/lib/openui-demo";
 import { shouldContinueAfterOpenUIPrompt } from "./openui-utils";
 
 const FORM = `root = Card([title, form])
@@ -14,6 +22,21 @@ emailField = FormControl("Email", Input("email", "you@example.com", "email", { r
 btns = Buttons([Button("Submit", Action([@ToAssistant("Submit")]), "primary")])`;
 
 describe("OpenUI docs integration", () => {
+  it("keeps the server prompt in sync with the installed component library", () => {
+    const generated = [
+      openuiChatLibrary.prompt({
+        ...openuiChatPromptOptions,
+        preamble: OPENUI_DEMO_PREAMBLE,
+      }),
+      ...OPENUI_DEMO_ADDITIONAL_INSTRUCTIONS,
+    ]
+      .join("\n")
+      .replaceAll("\u2014", "-")
+      .replaceAll("\u2013", "-");
+
+    expect(OPENUI_DEMO_INSTRUCTIONS).toBe(generated);
+  });
+
   it("renders with the docs app dependency graph", () => {
     const markup = renderToStaticMarkup(
       createElement(

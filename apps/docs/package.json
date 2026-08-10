@@ -112,6 +112,7 @@
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
     "@types/react-syntax-highlighter": "^15.5.13",
+    "jsdom": "^30.0.1",
     "postcss": "^8.5.26",
     "react-grab": "^0.1.50",
     "tailwindcss": "^4.3.3",

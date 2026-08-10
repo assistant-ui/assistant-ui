@@ -41,6 +41,10 @@ pnpm add @openuidev/react-lang @openuidev/react-ui @openuidev/react-headless zus
 These OpenUI packages currently declare `zustand@^4.5.5` as a peer. Check the
 installed peer ranges before using a different Zustand major.
 
+The embedded docs app already uses Zustand 5, so it carries an allowance for
+these exact OpenUI versions backed by a mounted interaction test. Applications
+should follow OpenUI's published peer range until that range is widened.
+
 Import the OpenUI component styles once in your application stylesheet:
 
 ```css title="app/globals.css"
@@ -99,12 +103,17 @@ export const OpenUIPrompt: ToolCallMessagePartComponent<
       return;
 
     completed.current = true;
-    addResult({
-      type: event.type,
-      message: event.humanFriendlyMessage,
-      params: event.params,
-      ...(event.formState && { formState: event.formState }),
-    });
+    try {
+      addResult({
+        type: event.type,
+        message: event.humanFriendlyMessage,
+        params: event.params,
+        ...(event.formState && { formState: event.formState }),
+      });
+    } catch (error) {
+      completed.current = false;
+      throw error;
+    }
   };
 
   return (
@@ -270,4 +279,7 @@ stream, unresolved forward references are expected; wait until
 `status.type !== "running"` before showing a terminal fallback or sending an
 error to an automated correction loop.
 
-The live demo at the top of this page uses this same integration end to end.
+The live demo at the top exercises the same renderer, tool lifecycles,
+form-state replay, and continuation policy. Its dedicated docs route registers
+only these two tools and uses a checked snapshot of the generated OpenUI prompt
+to keep the React UI package out of the server bundle.
