@@ -693,17 +693,26 @@ describe("adapter conversions", () => {
     ]);
   });
 
-  it("drops an encrypted-only record when showThinking is false", () => {
+  it("keeps an encrypted-only record when showThinking is false", () => {
+    // showThinking hides reasoning from the UI; the opaque payload is transport
+    // state the provider needs and is never rendered either way.
     const imported = fromAgUiMessages(
       [
         { id: "r-1", role: "reasoning", content: "", encryptedValue: "opaque" },
+        {
+          id: "r-2",
+          role: "reasoning",
+          content: "visible",
+          encryptedValue: "x",
+        },
         { id: "a-1", role: "assistant", content: "done" },
       ] as any,
       { showThinking: false },
     );
 
-    expect(toAgUiMessages(imported as any).map((m) => m.role)).toEqual([
-      "assistant",
+    expect(toAgUiMessages(imported as any)).toEqual([
+      { id: "r-1", role: "reasoning", content: "", encryptedValue: "opaque" },
+      { id: "a-1", role: "assistant", content: "done" },
     ]);
   });
 

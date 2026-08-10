@@ -813,12 +813,12 @@ export function fromAgUiMessages(
     }
 
     if (role === "reasoning") {
-      // Gate on showThinking so a cold reload matches the live run: the
-      // aggregator never stores reasoning parts when showThinking is false.
-      if (!showThinking) continue;
       const text = extractText(rawMessage.content);
       const encryptedValue = getString(rawMessage, "encryptedValue");
       if (text.trim().length === 0) {
+        // showThinking hides reasoning; this record is never rendered anyway,
+        // and dropping it would deny the provider the payload it needs to
+        // accept the next run.
         const opaqueId = getString(rawMessage, "id");
         if (opaqueId?.trim() && encryptedValue?.trim()) {
           opaqueReasoning.push({
@@ -829,6 +829,9 @@ export function fromAgUiMessages(
         }
         continue;
       }
+      // Gate visible reasoning on showThinking so a cold reload matches the
+      // live run: the aggregator never stores reasoning parts when it is off.
+      if (!showThinking) continue;
       converted.push({
         id: getString(rawMessage, "id") ?? generateId(),
         role: "assistant",
