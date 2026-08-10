@@ -519,7 +519,7 @@ describe("adapter conversions", () => {
     expect(result).toHaveLength(0);
   });
 
-  it("does not re-emit an imported reasoning message as an empty assistant message", () => {
+  it("re-emits an imported reasoning message as a reasoning record, not an empty assistant message", () => {
     const imported = fromAgUiMessages([
       { id: "u-1", role: "user", content: "hi" },
       { id: "r-1", role: "reasoning", content: "thinking" },
@@ -528,14 +528,103 @@ describe("adapter conversions", () => {
 
     const roundTripped = toAgUiMessages(imported);
 
-    expect(roundTripped.map((m) => m.role)).toEqual(["user", "assistant"]);
+    expect(roundTripped.map((m) => m.role)).toEqual([
+      "user",
+      "reasoning",
+      "assistant",
+    ]);
     expect(
       roundTripped.filter((m) => m.role === "assistant" && m.content === ""),
     ).toHaveLength(0);
     expect(roundTripped[1]).toMatchObject({
+      id: "r-1",
+      role: "reasoning",
+      content: "thinking",
+    });
+    expect(roundTripped[2]).toMatchObject({
       role: "assistant",
       content: "done",
     });
+  });
+
+  it("preserves encryptedValue across a reasoning round trip", () => {
+    const source = [
+      { id: "u-1", role: "user", content: "hi" },
+      {
+        id: "r-1",
+        role: "reasoning",
+        content: "thinking",
+        encryptedValue: "signed-blob",
+      },
+      { id: "a-1", role: "assistant", content: "done" },
+    ];
+
+    const imported = fromAgUiMessages(source as any);
+
+    expect((imported[1] as any).content[0]).toMatchObject({
+      type: "reasoning",
+      text: "thinking",
+      providerMetadata: { agui: { encryptedValue: "signed-blob" } },
+    });
+    expect(toAgUiMessages(imported)[1]).toMatchObject({
+      id: "r-1",
+      role: "reasoning",
+      content: "thinking",
+      encryptedValue: "signed-blob",
+    });
+  });
+
+  it("omits encryptedValue when the source reasoning message carried none", () => {
+    const imported = fromAgUiMessages([
+      { id: "r-1", role: "reasoning", content: "thinking" },
+    ] as any);
+
+    expect((imported[0] as any).content[0]).not.toHaveProperty(
+      "providerMetadata",
+    );
+    expect(toAgUiMessages(imported)[0]).not.toHaveProperty("encryptedValue");
+  });
+
+  it("emits reasoning ahead of the assistant record for a live-shaped message", () => {
+    const converted = toAgUiMessages([
+      {
+        id: "a-1",
+        role: "assistant",
+        content: [
+          { type: "reasoning", text: "thinking" },
+          { type: "text", text: "done" },
+        ],
+      },
+    ] as any);
+
+    expect(converted).toEqual([
+      { id: "a-1:reasoning-0", role: "reasoning", content: "thinking" },
+      { id: "a-1", role: "assistant", content: "done" },
+    ]);
+  });
+
+  it("keeps ids stable across repeated snapshot round trips", () => {
+    const first = toAgUiMessages(
+      fromAgUiMessages([
+        { id: "r-1", role: "reasoning", content: "thinking" },
+        { id: "a-1", role: "assistant", content: "done" },
+      ] as any),
+    );
+    const second = toAgUiMessages(fromAgUiMessages(first as any));
+
+    expect(second).toEqual(first);
+  });
+
+  it("drops reasoning on export when showThinking dropped it on import", () => {
+    const imported = fromAgUiMessages(
+      [
+        { id: "r-1", role: "reasoning", content: "thinking" },
+        { id: "a-1", role: "assistant", content: "done" },
+      ] as any,
+      { showThinking: false },
+    );
+
+    expect(toAgUiMessages(imported).map((m) => m.role)).toEqual(["assistant"]);
   });
 
   it("filters disabled/back-end tools", () => {

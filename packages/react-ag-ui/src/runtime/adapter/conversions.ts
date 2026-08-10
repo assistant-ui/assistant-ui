@@ -61,6 +61,7 @@ export type AgUiMessage =
       content: string | InputContent[];
       name?: string;
       toolCalls?: AgUiToolCall[];
+      encryptedValue?: string;
     }
   | {
       id: string;
@@ -93,6 +94,13 @@ const getString = (record: Record<string, unknown>, key: string) => {
 
 const getToolCallId = (record: Record<string, unknown>) =>
   getString(record, "toolCallId") ?? getString(record, "tool_call_id");
+
+const readAgUiEncryptedValue = (providerMetadata: unknown) => {
+  if (!isObject(providerMetadata)) return undefined;
+  const namespaced = providerMetadata[AG_UI_METADATA_NAMESPACE];
+  if (!isObject(namespaced)) return undefined;
+  return getString(namespaced, "encryptedValue");
+};
 
 function parseJSONText(value: string): unknown {
   if (!value) return value;
@@ -755,10 +763,23 @@ export function fromAgUiMessages(
       if (!showThinking) continue;
       const text = extractText(rawMessage.content);
       if (text.trim().length === 0) continue;
+      const encryptedValue = getString(rawMessage, "encryptedValue");
       converted.push({
         id: getString(rawMessage, "id") ?? generateId(),
         role: "assistant",
-        content: [{ type: "reasoning", text }],
+        content: [
+          {
+            type: "reasoning",
+            text,
+            ...(encryptedValue !== undefined
+              ? {
+                  providerMetadata: {
+                    [AG_UI_METADATA_NAMESPACE]: { encryptedValue },
+                  },
+                }
+              : {}),
+          },
+        ],
       });
       continue;
     }
@@ -821,9 +842,31 @@ function convertAssistantMessage(
     part,
   }));
 
+  // Reasoning has no home on an AG-UI assistant record, so it leaves as the
+  // standalone `reasoning` record it arrived as. Emitting it ahead of the
+  // assistant record is the shape fromAgUiMessages reads back, which keeps the
+  // pair stable across repeated snapshot round trips.
+  const shellIsDropped = content.length === 0 && toolCalls.length === 0;
+  let reasoningIndex = 0;
+  for (const part of contentArray) {
+    if (!isObject(part) || part.type !== "reasoning") continue;
+    const text = getString(part, "text") ?? "";
+    if (text.trim().length === 0) continue;
+    const encryptedValue = readAgUiEncryptedValue(part.providerMetadata);
+    converted.push({
+      id: shellIsDropped
+        ? message.id
+        : `${message.id}:reasoning-${reasoningIndex}`,
+      role: "reasoning",
+      content: text,
+      ...(encryptedValue !== undefined ? { encryptedValue } : {}),
+    });
+    reasoningIndex++;
+  }
+
   // Drop assistant messages with no text or tool calls (e.g. an imported
   // reasoning-only entry) so they are not re-sent as a blank assistant turn.
-  if (content.length === 0 && toolCalls.length === 0) {
+  if (shellIsDropped) {
     return;
   }
 
