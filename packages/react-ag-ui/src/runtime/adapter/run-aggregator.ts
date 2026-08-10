@@ -79,6 +79,7 @@ export class RunAggregator {
   private readonly reasoningParts = new Map<string, string>(); // key → buffer
   private readonly reasoningSignatures = new Map<string, string>();
   private readonly reasoningMessageIds = new Map<string, string>();
+  private readonly anonymousReasoningKeys = new Set<string>();
   private activeReasoningKey: string | undefined;
   private reasoningPartCounter = 0;
   private readonly toolCalls = new Map<string, ToolCallState>();
@@ -115,6 +116,7 @@ export class RunAggregator {
         this.reasoningParts.clear();
         this.reasoningSignatures.clear();
         this.reasoningMessageIds.clear();
+        this.anonymousReasoningKeys.clear();
         this.activeReasoningKey = undefined;
         this.reasoningPartCounter = 0;
         this.toolCalls.clear();
@@ -214,7 +216,7 @@ export class RunAggregator {
           const active = this.activeReasoningKey;
           const key = this.reasoningParts.has(event.entityId)
             ? event.entityId
-            : active !== undefined && !this.reasoningMessageIds.has(active)
+            : active !== undefined && this.anonymousReasoningKeys.has(active)
               ? active
               : undefined;
           if (key !== undefined) {
@@ -738,7 +740,12 @@ export class RunAggregator {
     // should be a new part, not appended to any pre-reasoning text.
     this.activeTextMessageId = undefined;
     const key = messageId ?? `__auto-reasoning-${++this.reasoningPartCounter}`;
-    if (messageId !== undefined && isMessageId) {
+    // Two different questions: which id may be replayed as a ReasoningMessage.id
+    // (only the message-scoped aliases carry one), and which block an unmatched
+    // signature may claim (any block opened without an id at all).
+    if (messageId === undefined) {
+      this.anonymousReasoningKeys.add(key);
+    } else if (isMessageId) {
       this.reasoningMessageIds.set(key, messageId);
     }
     if (!this.reasoningParts.has(key)) {

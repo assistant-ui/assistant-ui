@@ -5490,6 +5490,44 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(runInputs[1].messages[1]).not.toHaveProperty("encryptedValue");
   });
 
+  it("ignores a mismatched signature for a block opened by REASONING_START with an id", async () => {
+    const runInputs: any[] = [];
+    const runAgent = vi.fn(async (input, subscriber) => {
+      runInputs.push(JSON.parse(JSON.stringify(input)));
+      if (runInputs.length === 1) {
+        subscriber.onReasoningStartEvent?.({
+          event: { type: "REASONING_START", messageId: "p-1" },
+        });
+        subscriber.onThinkingTextMessageContentEvent?.({
+          event: { type: "THINKING_TEXT_MESSAGE_CONTENT", delta: "pondering" },
+        });
+        subscriber.onReasoningEncryptedValueEvent?.({
+          event: {
+            type: "REASONING_ENCRYPTED_VALUE",
+            subtype: "message",
+            entityId: "some-other-message",
+            encryptedValue: "not-for-this-block",
+          },
+        });
+        subscriber.onTextMessageContentEvent?.({
+          event: { type: "TEXT_MESSAGE_CONTENT", delta: "done" },
+        });
+      }
+      subscriber.onRunFinalized?.();
+    });
+    const core = createCore({ runAgent } as unknown as HttpAgent);
+
+    await core.append(createAppendMessage());
+    const assistant = core.getMessages().at(-1) as ThreadAssistantMessage;
+    await core.append(createAppendMessage({ parentId: assistant.id }));
+
+    const reasoning = runInputs[1].messages.find(
+      (message: any) => message.role === "reasoning",
+    );
+    expect(reasoning).toMatchObject({ content: "pondering" });
+    expect(reasoning).not.toHaveProperty("encryptedValue");
+  });
+
   it("carries a live reasoning signature into the next run input", async () => {
     const runInputs: any[] = [];
     const runAgent = vi.fn(async (input, subscriber) => {
