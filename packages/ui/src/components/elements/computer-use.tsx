@@ -4,7 +4,7 @@ import type { ComponentProps } from "react";
 import { MousePointer2Icon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { field, mono, paper } from "./surfaces";
-import { at, progressOf } from "./range";
+import { at, indexIn } from "./range";
 
 export interface ComputerStep {
   id: string;
@@ -27,7 +27,7 @@ export function ComputerUse({
   activeIndex: number;
   children: React.ReactNode;
 }) {
-  const index = progressOf(activeIndex, Math.max(0, steps.length - 1));
+  const index = indexIn(steps, activeIndex);
   const active = at(steps, index);
   const trail = steps.slice(Math.max(0, index - 2), index + 1);
 
@@ -101,7 +101,7 @@ export function ComputerUse({
           <span
             className={cn(mono, "text-foreground/30 shrink-0 tabular-nums")}
           >
-            {Math.min(index + 1, steps.length)}/{steps.length}
+            {index + 1}/{steps.length}
           </span>
         </div>
       )}

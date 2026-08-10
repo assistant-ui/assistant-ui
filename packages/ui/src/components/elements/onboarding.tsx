@@ -3,7 +3,7 @@
 import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
 import { field, inkButton, mono, paper } from "./surfaces";
-import { progressOf } from "./range";
+import { indexIn } from "./range";
 
 export interface OnboardingStep {
   title: string;
@@ -27,7 +27,7 @@ export function Onboarding({
   onNext?: () => void;
   onSkip?: () => void;
 }) {
-  const current = progressOf(index, Math.max(0, steps.length - 1));
+  const current = indexIn(steps, index);
   const step = steps[current];
   if (!step) return null;
   const last = current >= steps.length - 1;

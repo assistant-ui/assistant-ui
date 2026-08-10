@@ -68,7 +68,6 @@ const createElementRegistryItem = (
   ],
   registryDependencies: [
     "https://r.assistant-ui.com/elements-surfaces.json",
-    "https://r.assistant-ui.com/elements-range.json",
     ...(entry.usesElements ?? []).map(
       (slug) => `https://r.assistant-ui.com/elements-${slug}.json`,
     ),
@@ -132,6 +131,7 @@ const elementsRegistryItems: RegistryItem[] = [
     file: "reasoning-panel.tsx",
     dependencies: ["lucide-react"],
     usesCollapsible: true,
+    usesElements: ["range"],
   }),
   createElementRegistryItem({
     slug: "streaming-text",
@@ -139,6 +139,7 @@ const elementsRegistryItems: RegistryItem[] = [
     description:
       "Tokens arrive softly: the newest words land in blue and settle into ink.",
     file: "streaming-text.tsx",
+    usesElements: ["range"],
   }),
   createElementRegistryItem({
     slug: "typing-indicator",
@@ -154,6 +155,7 @@ const elementsRegistryItems: RegistryItem[] = [
       "A user bubble and a streaming assistant reply, with actions that appear on hover.",
     file: "message-pair.tsx",
     dependencies: ["lucide-react"],
+    usesElements: ["range"],
   }),
   createElementRegistryItem({
     slug: "message-branches",
@@ -203,6 +205,7 @@ const elementsRegistryItems: RegistryItem[] = [
     file: "tool-timeline.tsx",
     dependencies: ["lucide-react"],
     usesCollapsible: true,
+    usesElements: ["range"],
   }),
   createElementRegistryItem({
     slug: "terminal-block",
@@ -211,6 +214,7 @@ const elementsRegistryItems: RegistryItem[] = [
       "Command output that streams line by line and ends with an exit status.",
     file: "terminal-block.tsx",
     dependencies: ["lucide-react"],
+    usesElements: ["range"],
   }),
   createElementRegistryItem({
     slug: "code-diff",
@@ -226,6 +230,7 @@ const elementsRegistryItems: RegistryItem[] = [
       "A search query and its results landing one by one as the agent reads.",
     file: "web-search.tsx",
     dependencies: ["lucide-react"],
+    usesElements: ["range"],
   }),
   createElementRegistryItem({
     slug: "sources",
@@ -271,6 +276,7 @@ const elementsRegistryItems: RegistryItem[] = [
       "A checklist the agent works through, with progress you can glance.",
     file: "agent-plan.tsx",
     dependencies: ["lucide-react"],
+    usesElements: ["range"],
   }),
   createElementRegistryItem({
     slug: "subagent-list",
@@ -279,6 +285,7 @@ const elementsRegistryItems: RegistryItem[] = [
       "Parallel workers with their own progress, models, and completions.",
     file: "subagent-list.tsx",
     dependencies: ["lucide-react"],
+    usesElements: ["range"],
   }),
   createElementRegistryItem({
     slug: "agent-status",
@@ -319,6 +326,7 @@ const elementsRegistryItems: RegistryItem[] = [
       "The unified input: attachments, commands, mentions, models, voice, and context in one surface.",
     file: "composer.tsx",
     dependencies: ["lucide-react"],
+    usesElements: ["range"],
   }),
   createElementRegistryItem({
     slug: "chat-panel",
@@ -392,6 +400,7 @@ const elementsRegistryItems: RegistryItem[] = [
       "Everything a run touched, as a tree, with the churn spelled out per file.",
     file: "file-tree.tsx",
     dependencies: ["lucide-react"],
+    usesElements: ["range"],
   }),
   createElementRegistryItem({
     slug: "elicitation-form",
@@ -408,6 +417,7 @@ const elementsRegistryItems: RegistryItem[] = [
       "The passages a retrieval answer stands on, scored, before the answer itself arrives.",
     file: "retrieval-chunks.tsx",
     dependencies: ["lucide-react"],
+    usesElements: ["range"],
   }),
   createElementRegistryItem({
     slug: "chart",
@@ -415,6 +425,7 @@ const elementsRegistryItems: RegistryItem[] = [
     description:
       "Area, line, and bars, with points landing one at a time as the series streams in.",
     file: "chart.tsx",
+    usesElements: ["range"],
   }),
   createElementRegistryItem({
     slug: "trace-waterfall",
@@ -422,6 +433,7 @@ const elementsRegistryItems: RegistryItem[] = [
     description:
       "Every span in a run on one time axis, nested, so you can see where it actually went.",
     file: "trace-waterfall.tsx",
+    usesElements: ["range"],
   }),
   createElementRegistryItem({
     slug: "canvas-split",
@@ -438,6 +450,7 @@ const elementsRegistryItems: RegistryItem[] = [
       "A live call: the orb tracks your voice, the caption names the turn, the transcript follows.",
     file: "voice-conversation.tsx",
     dependencies: ["lucide-react"],
+    usesElements: ["range"],
   }),
   createElementRegistryItem({
     slug: "read-aloud",
@@ -446,6 +459,7 @@ const elementsRegistryItems: RegistryItem[] = [
       "An answer played back, the spoken word lit as it goes, speed under your thumb.",
     file: "read-aloud.tsx",
     dependencies: ["lucide-react"],
+    usesElements: ["range"],
   }),
   createElementRegistryItem({
     slug: "mcp-server-panel",
@@ -540,6 +554,7 @@ const elementsRegistryItems: RegistryItem[] = [
     description:
       "Work as a graph rather than a list: branches that fan out and rejoin.",
     file: "flow-graph.tsx",
+    usesElements: ["range"],
   }),
   createElementRegistryItem({
     slug: "activity-graph",
@@ -563,6 +578,7 @@ const elementsRegistryItems: RegistryItem[] = [
     description:
       "Where the window actually went: prompt, tools, files, conversation, and what's left.",
     file: "context-breakdown.tsx",
+    usesElements: ["range"],
   }),
   createElementRegistryItem({
     slug: "model-picker",
@@ -578,6 +594,7 @@ const elementsRegistryItems: RegistryItem[] = [
     description:
       "How hard to think, and how much of that budget the run actually spent.",
     file: "reasoning-effort.tsx",
+    usesElements: ["range"],
   }),
   createElementRegistryItem({
     slug: "guardrail-notice",
@@ -639,6 +656,7 @@ const elementsRegistryItems: RegistryItem[] = [
       "The screen the agent is driving, with a cursor trail and what it is doing right now.",
     file: "computer-use.tsx",
     dependencies: ["lucide-react"],
+    usesElements: ["range"],
   }),
   createElementRegistryItem({
     slug: "code-runner",
@@ -685,6 +703,7 @@ const elementsRegistryItems: RegistryItem[] = [
     description:
       "Rendered expressions with the working shown, one step at a time.",
     file: "math-block.tsx",
+    usesElements: ["range"],
   }),
   createElementRegistryItem({
     slug: "spec-sheet",
@@ -692,6 +711,7 @@ const elementsRegistryItems: RegistryItem[] = [
     description:
       "The most common structured answer after a table: one object, labeled.",
     file: "spec-sheet.tsx",
+    usesElements: ["range"],
   }),
   createElementRegistryItem({
     slug: "comparison-card",
@@ -707,6 +727,7 @@ const elementsRegistryItems: RegistryItem[] = [
     description:
       "Events on a time axis, with what already happened and what is still coming.",
     file: "timeline.tsx",
+    usesElements: ["range"],
   }),
   createElementRegistryItem({
     slug: "job-progress",
@@ -715,6 +736,7 @@ const elementsRegistryItems: RegistryItem[] = [
       "Work measured in minutes: weighted stages, an ETA, and a way out.",
     file: "job-progress.tsx",
     dependencies: ["lucide-react"],
+    usesElements: ["range"],
   }),
   createElementRegistryItem({
     slug: "score-breakdown",
@@ -722,6 +744,7 @@ const elementsRegistryItems: RegistryItem[] = [
     description:
       "A verdict with its arithmetic shown: criteria, weights, and what pulled it down.",
     file: "score-breakdown.tsx",
+    usesElements: ["range"],
   }),
   createElementRegistryItem({
     slug: "cost-meter",
@@ -729,6 +752,7 @@ const elementsRegistryItems: RegistryItem[] = [
     description:
       "What the run spent, split by model, against the session total.",
     file: "cost-meter.tsx",
+    usesElements: ["range"],
   }),
   createElementRegistryItem({
     slug: "quota-banner",
@@ -736,6 +760,7 @@ const elementsRegistryItems: RegistryItem[] = [
     description:
       "How much is left, when it comes back, and the way to get more.",
     file: "quota-banner.tsx",
+    usesElements: ["range"],
   }),
   createElementRegistryItem({
     slug: "agent-handoff",
@@ -822,6 +847,7 @@ const elementsRegistryItems: RegistryItem[] = [
     description:
       "Model, system prompt, temperature, and what the assistant is allowed to do.",
     file: "settings-panel.tsx",
+    usesElements: ["range"],
   }),
   createElementRegistryItem({
     slug: "onboarding",
@@ -829,6 +855,7 @@ const elementsRegistryItems: RegistryItem[] = [
     description:
       "First run: three moves that teach what this assistant is actually for.",
     file: "onboarding.tsx",
+    usesElements: ["range"],
   }),
   createElementRegistryItem({
     slug: "mobile-composer",

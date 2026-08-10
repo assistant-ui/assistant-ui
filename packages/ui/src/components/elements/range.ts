@@ -8,7 +8,11 @@
  * the array instead of returning nothing.
  */
 
-/** Constrains a value to `min…max`, mapping NaN to `min`. */
+/**
+ * Constrains a value to `min…max`, mapping NaN to `min`. An empty collection
+ * inverts the bounds at some call sites, and `max` wins there: `clamp(v, 1, 0)`
+ * is `0`, which is what lets a floor of one item still yield none.
+ */
 export function clamp(value: number, min: number, max: number) {
   if (Number.isNaN(value)) return min;
   return Math.min(max, Math.max(min, value));
@@ -19,10 +23,15 @@ export function take<T>(items: readonly T[], count: number) {
   return items.slice(0, Math.floor(clamp(count, 0, items.length)));
 }
 
+/** The position `index` names in `items`, for an `index` out of range. */
+export function indexIn<T>(items: readonly T[], index: number) {
+  return Math.floor(clamp(index, 0, Math.max(0, items.length - 1)));
+}
+
 /** The item at `index`, for an `index` that may be out of range. */
 export function at<T>(items: readonly T[], index: number) {
   if (items.length === 0) return undefined;
-  return items[Math.floor(clamp(index, 0, items.length - 1))];
+  return items[indexIn(items, index)];
 }
 
 /** `value` as a share of `total`, as a percentage in `0…100`. */
@@ -33,5 +42,6 @@ export function pct(value: number, total: number) {
 
 /** A count of completed items out of `total`, in `0…total`. */
 export function progressOf(index: number, total: number) {
+  if (!(total > 0)) return 0;
   return Math.floor(clamp(index, 0, total));
 }

@@ -239,13 +239,16 @@ export default async function ElementPage({
               </div>
             </div>
           ))}
-          <p className="text-foreground/40 mt-3 text-[13px] leading-relaxed">
-            Counts and positions are normalized at the boundary, so a value from
-            outside its range reads as the nearest end rather than reaching the
-            DOM: a negative count shows nothing, one past the end shows
-            everything, and a share stays within 0 to 100 percent. A prop that
-            names a selection is the exception, and means nothing is selected.
-          </p>
+          {source?.includes('from "./range"') && (
+            <p className="text-foreground/40 mt-3 text-[13px] leading-relaxed">
+              This element normalizes its counts and shares at the boundary, so
+              a value from outside its range reads as the nearest end rather
+              than reaching the DOM: a negative count shows nothing, one past
+              the end shows everything, and a share stays within 0 to 100
+              percent. A prop that names a selection is the exception, and means
+              nothing is selected.
+            </p>
+          )}
         </section>
       )}
 

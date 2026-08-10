@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { at, clamp, pct, progressOf, take } from "./range";
+import { at, clamp, indexIn, pct, progressOf, take } from "./range";
 
 describe("clamp", () => {
   it("passes an in-range value through", () => {
@@ -69,6 +69,22 @@ describe("at", () => {
   });
 });
 
+describe("indexIn", () => {
+  const items = ["a", "b", "c"];
+
+  it("names the nearest position for an index out of range", () => {
+    expect(indexIn(items, 1)).toBe(1);
+    expect(indexIn(items, -5)).toBe(0);
+    expect(indexIn(items, 99)).toBe(2);
+    expect(indexIn(items, 1.5)).toBe(1);
+    expect(indexIn(items, Number.NaN)).toBe(0);
+  });
+
+  it("is 0 for an empty list rather than -1", () => {
+    expect(indexIn([], 3)).toBe(0);
+  });
+});
+
 describe("pct", () => {
   it("computes a share", () => {
     expect(pct(1, 4)).toBe(25);
@@ -92,5 +108,10 @@ describe("progressOf", () => {
     expect(progressOf(-2, 5)).toBe(0);
     expect(progressOf(9, 5)).toBe(5);
     expect(progressOf(Number.NaN, 5)).toBe(0);
+  });
+
+  it("is 0 for a non-positive total, matching pct", () => {
+    expect(progressOf(3, 0)).toBe(0);
+    expect(progressOf(3, -2)).toBe(0);
   });
 });

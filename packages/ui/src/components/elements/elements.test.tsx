@@ -445,11 +445,15 @@ const CASES: Record<string, Case> = {
  * purpose. `thread-list`'s activeIndex, `document-reference`'s activePage, and
  * `read-aloud`'s spokenIndex all mean "nothing is selected yet" out of range,
  * and clamping them would silently select the first row instead.
+ *
+ * `code-diff` is absent for a different reason: its only numeric prop that it
+ * does not print is `cycle`, which feeds a React key, so its markup is byte
+ * identical at every value and the assertion would hold without exercising
+ * anything.
  */
 const COUNT_SHAPED = new Set([
   "agent-plan",
   "chart",
-  "code-diff",
   "computer-use",
   "cost-meter",
   "file-tree",
