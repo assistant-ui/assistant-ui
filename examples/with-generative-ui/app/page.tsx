@@ -28,25 +28,25 @@ export default function Home() {
         title: "Sales dashboard",
         label: "for last quarter",
         prompt:
-          "Show me a sales dashboard for Q2 2026: revenue, orders, and conversion rate, with monthly revenue broken out.",
+          "Show me a Q2 2026 sales dashboard. Revenue was $412k in April, $488k in May and $551k in June, on 1,284 orders, at a 3.4% conversion rate.",
       },
       {
         title: "Product analytics",
         label: "activation and retention",
         prompt:
-          "How did activation and retention trend over the last six weeks? Include the weekly numbers.",
+          "How did we trend over the last six weeks? Activation went 41%, 44%, 43%, 48%, 52%, 55%, and week-4 retention went 22%, 24%, 23%, 27%, 29%, 31%.",
       },
       {
         title: "Support overview",
         label: "tickets and response time",
         prompt:
-          "Give me a support overview: open tickets by priority, median first response time, and how the priorities compare.",
+          "Give me a support overview. Open tickets: 12 urgent, 38 high, 91 normal, 24 low. Median first response is 47 minutes, down from 62 last week.",
       },
       {
         title: "Channel performance",
         label: "compare acquisition sources",
         prompt:
-          "Compare our acquisition channels on spend, conversions, and cost per acquisition.",
+          "Compare our acquisition channels. Search: $18k spend, 420 conversions. Social: $11k, 260. Email: $3k, 190. Referral: $6k, 150.",
       },
     ]),
   });
