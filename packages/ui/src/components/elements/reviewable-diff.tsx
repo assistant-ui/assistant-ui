@@ -3,7 +3,7 @@
 import type { ComponentProps } from "react";
 import { CheckIcon, XIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { codeRow, codeScroll, inkButton, mono, paper } from "./surfaces";
+import { codeScroll, codeSurface, inkButton, mono, paper } from "./surfaces";
 import type { DiffLine } from "./code-diff";
 
 export type HunkDecision = "pending" | "kept" | "discarded";
@@ -107,25 +107,26 @@ export function ReviewableDiff({
               </span>
             </div>
             <div className={cn(codeScroll, "pb-1.5 font-mono text-xs")}>
-              {hunk.lines.map((line, i) => (
-                <div
-                  key={`${hunk.id}-${i}`}
-                  className={cn(
-                    codeRow,
-                    "flex px-4 py-0.5 leading-relaxed whitespace-pre",
-                    line.kind === "context" && "text-foreground/40",
-                    line.kind === "added" &&
-                      "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
-                    line.kind === "removed" &&
-                      "bg-red-500/10 text-red-700 dark:text-red-300",
-                  )}
-                >
-                  <span className="w-4 shrink-0 select-none">
-                    {GUTTER[line.kind]}
-                  </span>
-                  <span>{line.text}</span>
-                </div>
-              ))}
+              <div className={codeSurface}>
+                {hunk.lines.map((line, i) => (
+                  <div
+                    key={`${hunk.id}-${i}`}
+                    className={cn(
+                      "flex px-4 py-0.5 leading-relaxed whitespace-pre",
+                      line.kind === "context" && "text-foreground/40",
+                      line.kind === "added" &&
+                        "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+                      line.kind === "removed" &&
+                        "bg-red-500/10 text-red-700 dark:text-red-300",
+                    )}
+                  >
+                    <span className="w-4 shrink-0 select-none">
+                      {GUTTER[line.kind]}
+                    </span>
+                    <span>{line.text}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         ))}

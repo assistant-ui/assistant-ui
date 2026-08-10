@@ -2,7 +2,7 @@
 
 import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
-import { codeRow, codeScroll, mono, paper } from "./surfaces";
+import { codeScroll, codeSurface, mono, paper } from "./surfaces";
 
 export type DiffKind = "context" | "added" | "removed";
 
@@ -56,26 +56,27 @@ export function CodeDiff({
         </span>
       </div>
       <div className={codeScroll}>
-        {lines.map((line, i) => (
-          <div
-            key={`${cycle}-${i}-${line.text}`}
-            className={cn(
-              codeRow,
-              "fade-in animate-in fill-mode-both flex px-4 py-0.5 leading-relaxed whitespace-pre duration-300",
-              line.kind === "context" && "text-foreground/45",
-              line.kind === "added" &&
-                "bg-emerald-500/10 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300",
-              line.kind === "removed" &&
-                "bg-red-500/10 text-red-700 dark:text-red-300",
-            )}
-            style={{ animationDelay: `${i * 60}ms` }}
-          >
-            <span className="w-4 shrink-0 select-none">
-              {GUTTER[line.kind]}
-            </span>
-            <span>{line.text}</span>
-          </div>
-        ))}
+        <div className={codeSurface}>
+          {lines.map((line, i) => (
+            <div
+              key={`${cycle}-${i}-${line.text}`}
+              className={cn(
+                "fade-in animate-in fill-mode-both flex px-4 py-0.5 leading-relaxed whitespace-pre duration-300",
+                line.kind === "context" && "text-foreground/45",
+                line.kind === "added" &&
+                  "bg-emerald-500/10 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300",
+                line.kind === "removed" &&
+                  "bg-red-500/10 text-red-700 dark:text-red-300",
+              )}
+              style={{ animationDelay: `${i * 60}ms` }}
+            >
+              <span className="w-4 shrink-0 select-none">
+                {GUTTER[line.kind]}
+              </span>
+              <span>{line.text}</span>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
