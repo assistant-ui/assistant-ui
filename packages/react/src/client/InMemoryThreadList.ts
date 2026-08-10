@@ -1,4 +1,4 @@
-import { useEffect, useEffectEvent, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { resource, withKey, type ResourceElement } from "@assistant-ui/tap";
 import {
   type ClientOutput,
@@ -125,20 +125,15 @@ const useInMemoryThreadList = (
       threads: [{ id: "main", title: "Main Thread", status: "regular" }],
       pendingSwitchId: null,
     }));
-  const flushPendingSwitch = useEffectEvent((threadId: string) => {
-    if (pendingSwitchId !== threadId) return;
+  useEffect(() => {
+    if (pendingSwitchId === null) return;
     setThreadList((prev) =>
-      prev.pendingSwitchId === threadId
+      prev.pendingSwitchId === pendingSwitchId
         ? { ...prev, pendingSwitchId: null }
         : prev,
     );
-    onSwitchToThread?.(threadId);
-  });
-
-  useEffect(() => {
-    if (pendingSwitchId === null) return;
-    flushPendingSwitch(pendingSwitchId);
-  }, [pendingSwitchId]);
+    onSwitchToThread?.(pendingSwitchId);
+  }, [pendingSwitchId, onSwitchToThread]);
 
   const handleSwitchToThread = (threadId: string) => {
     setThreadList((prev) => ({

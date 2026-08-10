@@ -176,6 +176,27 @@ describe("InMemoryThreadList", () => {
     });
   });
 
+  it("reports a replacement when the last thread is deleted", async () => {
+    const onSwitchToThread = vi.fn();
+    const onSwitchToNewThread = vi.fn();
+    const { aui } = renderThreads({
+      onSwitchToThread,
+      onSwitchToNewThread,
+    });
+
+    act(() => aui().threads.item({ id: "main" }).delete());
+
+    await waitFor(() => {
+      const state = aui().threads.getState();
+      expect(state.threadIds).toHaveLength(1);
+      expect(state.threadIds).not.toContain("main");
+      expect(state.mainThreadId).toBe(state.threadIds[0]);
+      expect(onSwitchToThread).toHaveBeenCalledOnce();
+      expect(onSwitchToThread).toHaveBeenCalledWith(state.mainThreadId);
+      expect(onSwitchToNewThread).not.toHaveBeenCalled();
+    });
+  });
+
   it("falls back to a live thread when the switch target is deleted in the same tick", async () => {
     const onSwitchToThread = vi.fn();
     const { aui } = renderThreads({ onSwitchToThread });
