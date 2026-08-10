@@ -9,6 +9,7 @@ import type {
   ExternalThreadProps,
 } from "../store/clients/external-thread";
 import { ExternalThread } from "../store/clients/external-thread";
+import type { PendingAttachment } from "../types/attachment";
 
 const renderThreadWithProps = (props: Partial<ExternalThreadProps>) => {
   const captured: { aui?: ReturnType<typeof useAui> } = {};
@@ -259,6 +260,53 @@ describe("ExternalThread attachments", () => {
       expect(remove).toHaveBeenCalledWith(
         expect.objectContaining({ id: "att-1" }),
       );
+      expect(aui().thread.composer().getState().attachments).toHaveLength(0);
+    },
+  );
+
+  it.each([
+    [
+      "clearAttachments",
+      (c: { clearAttachments(): Promise<void> }) => c.clearAttachments(),
+    ],
+    ["reset", (c: { reset(): Promise<void> }) => c.reset()],
+  ] as const)(
+    "does not restore an attachment that resolves after %s",
+    async (_name, invoke) => {
+      let resolveAdd!: (attachment: PendingAttachment) => void;
+      const add = vi.fn(
+        () =>
+          new Promise<PendingAttachment>((resolve) => {
+            resolveAdd = resolve;
+          }),
+      );
+      const aui = renderThreadWithProps({
+        attachmentAdapter: {
+          accept: "*",
+          add,
+          send: async () => ({}) as never,
+          remove: async () => {},
+        },
+      });
+      const file = new File(["data"], "notes.txt", { type: "text/plain" });
+
+      let addPromise!: Promise<void>;
+      act(() => {
+        addPromise = aui().thread.composer().addAttachment(file);
+      });
+      await act(() => invoke(aui().thread.composer()));
+      await act(async () => {
+        resolveAdd({
+          id: "att-1",
+          type: "file",
+          name: file.name,
+          contentType: file.type,
+          file,
+          status: { type: "requires-action", reason: "composer-send" },
+        });
+        await addPromise;
+      });
+
       expect(aui().thread.composer().getState().attachments).toHaveLength(0);
     },
   );
