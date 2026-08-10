@@ -2,7 +2,7 @@
 
 import { render, waitFor } from "@testing-library/react";
 import type { FC } from "react";
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { useAui, AuiProvider } from "@assistant-ui/store";
 import { InMemoryThreadList } from "../client/InMemoryThreadList";
 import { ExternalThread } from "../index";
@@ -29,7 +29,7 @@ const renderThreads = () => {
   return { aui: () => captured.aui! };
 };
 
-describe("InMemoryThreadList delete", () => {
+describe("InMemoryThreadList", () => {
   it("falls back to a live thread when the switch target is deleted in the same tick", async () => {
     const { aui } = renderThreads();
 
@@ -51,5 +51,25 @@ describe("InMemoryThreadList delete", () => {
       expect(state.mainThreadId).toBe("main");
       expect(state.threadIds).not.toContain(newId);
     });
+  });
+
+  it("creates unique IDs for threads created in the same millisecond", async () => {
+    const now = vi.spyOn(Date, "now").mockReturnValue(1_000);
+    const { aui } = renderThreads();
+
+    try {
+      aui().threads.switchToNewThread();
+      aui().threads.switchToNewThread();
+
+      await waitFor(() => {
+        const generatedIds = aui()
+          .threads.getState()
+          .threadIds.filter((id) => id !== "main");
+        expect(generatedIds).toHaveLength(2);
+        expect(new Set(generatedIds)).toHaveLength(2);
+      });
+    } finally {
+      now.mockRestore();
+    }
   });
 });

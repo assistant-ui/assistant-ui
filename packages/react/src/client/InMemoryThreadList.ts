@@ -7,6 +7,7 @@ import {
   attachTransformScopes,
   useClientResource,
 } from "@assistant-ui/store";
+import { generateId } from "@assistant-ui/core";
 
 import { ModelContext, Suggestions } from "@assistant-ui/core/store";
 import { Tools, DataRenderers } from "@assistant-ui/core/react";
@@ -137,7 +138,7 @@ const useInMemoryThreadList = (
   };
 
   const handleSwitchToNewThread = () => {
-    const newId = `thread-${Date.now()}`;
+    const newId = `thread-${generateId()}`;
     setThreads((prev) => [
       ...prev,
       { id: newId, title: "New Thread", status: "regular" },
