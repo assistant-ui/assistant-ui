@@ -842,10 +842,8 @@ function convertAssistantMessage(
     part,
   }));
 
-  // Reasoning has no home on an AG-UI assistant record, so it leaves as the
-  // standalone `reasoning` record it arrived as. Emitting it ahead of the
-  // assistant record is the shape fromAgUiMessages reads back, which keeps the
-  // pair stable across repeated snapshot round trips.
+  // An AG-UI assistant record has no reasoning field, so reasoning leaves as
+  // the standalone record it arrived as, ahead of the assistant it belongs to.
   const shellIsDropped = content.length === 0 && toolCalls.length === 0;
   let reasoningIndex = 0;
   for (const part of contentArray) {
