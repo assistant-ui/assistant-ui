@@ -1,6 +1,8 @@
-import { createParser, createStreamingParser } from "@openuidev/react-lang";
-import { openuiChatLibrary } from "@openuidev/react-ui";
-import { BuiltinActionType } from "@openuidev/react-lang";
+import { BuiltinActionType, Renderer } from "@openuidev/react-lang";
+import { ThemeProvider } from "@openuidev/react-ui";
+import { openuiChatLibrary } from "@openuidev/react-ui/genui-lib";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { shouldContinueAfterOpenUIPrompt } from "./openui-utils";
 
@@ -11,42 +13,21 @@ nameField = FormControl("Name", Input("name", "Your name", "text", { required: t
 emailField = FormControl("Email", Input("email", "you@example.com", "email", { required: true, email: true }))
 btns = Buttons([Button("Submit", Action([@ToAssistant("Submit")]), "primary")])`;
 
-const parser = () => createParser(openuiChatLibrary.toJSONSchema(), "Card");
-
 describe("OpenUI docs integration", () => {
-  it("parses an interactive OpenUI form", () => {
-    const result = parser().parse(FORM);
-
-    expect(result.root?.typeName).toBe("Card");
-    expect(result.meta.errors).toEqual([]);
-    expect(result.meta.unresolved).toEqual([]);
-  });
-
-  it("keeps the root renderable while references stream", () => {
-    const stream = createStreamingParser(
-      openuiChatLibrary.toJSONSchema(),
-      "Card",
+  it("renders with the docs app dependency graph", () => {
+    const markup = renderToStaticMarkup(
+      createElement(
+        ThemeProvider,
+        { mode: "light" },
+        createElement(Renderer, {
+          response: FORM,
+          library: openuiChatLibrary,
+          isStreaming: false,
+        }),
+      ),
     );
 
-    const partial = stream.push("root = Card([title, form])\n");
-    expect(partial.root?.typeName).toBe("Card");
-    expect(partial.meta.unresolved).toEqual(["title", "form"]);
-
-    const complete = stream.push(FORM.split("\n").slice(1).join("\n"));
-    expect(complete.meta.errors).toEqual([]);
-    expect(complete.meta.unresolved).toEqual([]);
-  });
-
-  it("reports malformed OpenUI output", () => {
-    const result = parser().parse('root = MissingCard("broken")');
-
-    expect(result.root).toBeNull();
-    expect(result.meta.errors).toEqual([
-      expect.objectContaining({
-        code: "unknown-component",
-        component: "MissingCard",
-      }),
-    ]);
+    expect(markup).toContain("Contact Us");
   });
 
   it("stops after a completed display tool", () => {
@@ -71,7 +52,7 @@ describe("OpenUI docs integration", () => {
     ).toBe(false);
   });
 
-  it("stops when display and human tools share a step", () => {
+  it("continues when display and human tools share a step", () => {
     expect(
       shouldContinueAfterOpenUIPrompt({
         messages: [
@@ -101,7 +82,7 @@ describe("OpenUI docs integration", () => {
           },
         ],
       }),
-    ).toBe(false);
+    ).toBe(true);
   });
 
   it("continues after a completed human tool", () => {

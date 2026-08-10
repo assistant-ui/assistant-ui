@@ -1,5 +1,7 @@
 "use client";
 
+import "@openuidev/react-ui/layered/styles/index.css";
+
 import { Thread } from "@/components/assistant-ui/thread";
 import { SampleFrame } from "@/components/docs/samples/sample-frame";
 import {
@@ -10,7 +12,6 @@ import {
   Tools,
   defineToolkit,
   type ToolCallMessagePartComponent,
-  useAssistantInstructions,
   useAui,
 } from "@assistant-ui/react";
 import {
@@ -23,12 +24,8 @@ import {
   type ActionEvent,
   type OpenUIError,
 } from "@openuidev/react-lang";
-import {
-  ThemeProvider,
-  openuiChatLibrary,
-  openuiChatPromptOptions,
-  useSystemThemeMode,
-} from "@openuidev/react-ui";
+import { ThemeProvider, useSystemThemeMode } from "@openuidev/react-ui";
+import { openuiChatLibrary } from "@openuidev/react-ui/genui-lib";
 import { useMemo, useRef, useState, type ReactNode } from "react";
 import { z } from "zod";
 import { shouldContinueAfterOpenUIPrompt } from "./openui-utils";
@@ -157,29 +154,9 @@ const toolkit = defineToolkit({
   },
 });
 
-const instructions = openuiChatLibrary.prompt({
-  ...openuiChatPromptOptions,
-  additionalRules: [
-    ...(openuiChatPromptOptions.additionalRules ?? []),
-    "When using present_openui, omit FollowUpBlock and actions that call @ToAssistant or @OpenUrl.",
-    "When using prompt_openui, include exactly one terminal @ToAssistant action that submits the form or choice.",
-  ],
-  preamble: [
-    "This is the embedded OpenUI documentation demo.",
-    "Render every requested interface by calling present_openui or prompt_openui.",
-    "Use present_openui for display-only responses and prompt_openui when the user must submit a choice or form.",
-    "Set the ui argument to valid OpenUI Lang without markdown fences. Never return OpenUI Lang as assistant text.",
-  ].join(" "),
-});
-
-function OpenUIInstructions() {
-  useAssistantInstructions(instructions);
-  return null;
-}
-
 function OpenUIRuntimeProvider({ children }: { children: ReactNode }) {
   const transport = useMemo(
-    () => new AssistantChatTransport({ api: "/api/doc/chat" }),
+    () => new AssistantChatTransport({ api: "/api/openui/chat" }),
     [],
   );
   const runtime = useChatRuntime({
@@ -206,7 +183,6 @@ function OpenUIRuntimeProvider({ children }: { children: ReactNode }) {
 
   return (
     <AssistantRuntimeProvider aui={aui} runtime={runtime}>
-      <OpenUIInstructions />
       {children}
     </AssistantRuntimeProvider>
   );

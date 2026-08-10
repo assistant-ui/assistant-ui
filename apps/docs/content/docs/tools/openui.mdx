@@ -35,13 +35,15 @@ returns its action and form state to the model.
 ## Install
 
 ```bash
-pnpm add @openuidev/react-lang @openuidev/react-ui @openuidev/react-headless zustand
+pnpm add @openuidev/react-lang @openuidev/react-ui @openuidev/react-headless zustand@^4.5.5
 ```
+
+These OpenUI packages currently declare `zustand@^4.5.5` as a peer. Check the
+installed peer ranges before using a different Zustand major.
 
 Import the OpenUI component styles once in your application stylesheet:
 
 ```css title="app/globals.css"
-@import "@openuidev/react-ui/components.css";
 @import "@openuidev/react-ui/layered/styles/index.css";
 ```
 
@@ -241,12 +243,8 @@ const shouldContinueAfterOpenUIPrompt = ({
     .filter(isToolUIPart);
 
   return (
-    toolParts.length > 0 &&
-    toolParts.every(
-      (part) =>
-        part.state === "output-available" &&
-        getToolName(part) === "prompt_openui",
-    )
+    toolParts.every((part) => part.state === "output-available") &&
+    toolParts.some((part) => getToolName(part) === "prompt_openui")
   );
 };
 

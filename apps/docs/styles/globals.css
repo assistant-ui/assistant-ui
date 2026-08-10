@@ -5,8 +5,6 @@
 @import "tw-shimmer";
 @import "fumadocs-ui/css/shadcn.css";
 @import "fumadocs-ui/css/preset.css";
-@import "@openuidev/react-ui/components.css";
-@import "@openuidev/react-ui/layered/styles/index.css";
 
 @import "./fumadocs.css";
 @import "./animate.css";

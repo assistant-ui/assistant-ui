@@ -30,11 +30,7 @@ export const shouldContinueAfterOpenUIPrompt = ({
     .filter(isToolUIPart);
 
   return (
-    toolParts.length > 0 &&
-    toolParts.every(
-      (part) =>
-        part.state === "output-available" &&
-        getToolName(part) === "prompt_openui",
-    )
+    toolParts.every((part) => part.state === "output-available") &&
+    toolParts.some((part) => getToolName(part) === "prompt_openui")
   );
 };
