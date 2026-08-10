@@ -649,6 +649,53 @@ describe("Derived scopes", () => {
     }
   });
 
+  it("publishes a committed hosted selection before layout-effect events flush", () => {
+    let aui!: AnyClient;
+    const cb = vi.fn();
+    const queued: VoidFunction[] = [];
+    const DrainLayoutMicrotasks = ({ children }: { children: ReactNode }) => {
+      useLayoutEffect(() => {
+        for (const task of queued.splice(0)) task();
+      });
+      return children;
+    };
+    const Listener = ({ index }: { index: number }) => {
+      useAuiEvent("message.pinged" as never, cb as never);
+      useLayoutEffect(() => {
+        aui.thread.message({ index }).ping("layout");
+      }, [index]);
+      return null;
+    };
+    const Harness = ({ index }: { index: number }) => {
+      aui = useAui({ thread: ThreadClient() } as unknown as useAui.Props);
+      return (
+        <AuiProvider value={aui as never}>
+          <DrainLayoutMicrotasks>
+            <HostedDerivedMessageProvider index={index}>
+              <Listener index={index} />
+            </HostedDerivedMessageProvider>
+          </DrainLayoutMicrotasks>
+        </AuiProvider>
+      );
+    };
+    const queueSpy = vi
+      .spyOn(globalThis, "queueMicrotask")
+      .mockImplementation((task) => queued.push(task));
+    try {
+      const view = render(<Harness index={0} />);
+      cb.mockClear();
+
+      view.rerender(<Harness index={1} />);
+
+      expect(cb).toHaveBeenCalledExactlyOnceWith({
+        id: "m1",
+        value: "layout",
+      });
+    } finally {
+      queueSpy.mockRestore();
+    }
+  });
+
   it("keeps a hosted subscriber's binding through a derived parent", async () => {
     let root!: AnyClient;
     let child!: AnyClient;

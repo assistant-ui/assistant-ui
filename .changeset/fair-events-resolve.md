@@ -2,4 +2,4 @@
 "@assistant-ui/store": patch
 ---
 
-fix: resolve scoped event listeners against derived provider bindings
+fix: keep hosted and derived scoped listeners bound to their current provider while forwarding registrations through every notification ancestor

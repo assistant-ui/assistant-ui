@@ -13,6 +13,7 @@ import {
 import {
   useMemo,
   useEffect,
+  useInsertionEffect,
   useRef,
   useState,
   useSyncExternalStore,
@@ -49,7 +50,6 @@ import { ClientResource } from "./useClientResource";
 import { useShallowStable } from "./utils/useShallowStable";
 import { createClientAccessor, getClientId } from "./utils/client-accessor";
 import { getClientIndex } from "./utils/tap-client-stack-context";
-import { useIsomorphicLayoutEffect } from "./utils/useIsomorphicLayoutEffect";
 
 const isDevelopment =
   typeof process !== "undefined" &&
@@ -121,7 +121,7 @@ const getCurrentEventClient = (client: AssistantClient): AssistantClient =>
 const getEventScopeOwner = (
   client: AssistantClient,
   scope: ClientNames,
-): AssistantClient => {
+): AssistantClient | null => {
   let candidate: object | null = client;
   while (candidate && candidate !== Object.prototype) {
     if (Object.prototype.hasOwnProperty.call(candidate, scope)) {
@@ -129,7 +129,7 @@ const getEventScopeOwner = (
     }
     candidate = Object.getPrototypeOf(candidate) as object | null;
   }
-  return client;
+  return null;
 };
 
 const getEventScopeBinding = (
@@ -138,11 +138,12 @@ const getEventScopeBinding = (
 ): AssistantClientAccessor<ClientNames> | undefined => {
   const currentSubscriber = getCurrentEventClient(subscriber);
   const owner = getEventScopeOwner(currentSubscriber, scope);
+  if (!owner) return undefined;
   const ownerRef = eventClientRefs.get(owner);
   const currentOwner = ownerRef?.current ?? owner;
-  return currentOwner[scope] as
-    | AssistantClientAccessor<ClientNames>
-    | undefined;
+  return Object.prototype.hasOwnProperty.call(currentOwner, scope)
+    ? (currentOwner[scope] as AssistantClientAccessor<ClientNames>)
+    : undefined;
 };
 
 const createClientObject = (
@@ -186,9 +187,9 @@ const useClientFields = ({
             : getEventScopeBinding(this, scope as ClientNames);
 
         if (scope !== "*") {
-          // A hand-built parent may lack the scope entirely; forward to it
-          const source = initialBinding?.source;
-          if (source === null) {
+          // A hand-built parent may lack the scope entirely rather than expose
+          // the generated unavailable-scope accessor.
+          if (!initialBinding || initialBinding.source === null) {
             throw new Error(
               `Scope "${scope}" is not available. Use { scope: "*", event: "${event}" } to listen globally.`,
             );
@@ -340,12 +341,20 @@ const useHostedAssistantClient = ({
   parent: AssistantClient;
   entries: ScopeEntry[];
 }): ScopedAuiClient => {
+  const clientRef = useRef<ClientRef>({ parent, current: null }).current;
+  let renderedClient: AssistantClient | undefined;
   const { value: client, effects } = useTapHost(function AssistantClientHost() {
-    const clientRef = useRef<ClientRef>({ parent, current: null }).current;
     const notifications = useNotificationManager();
 
     const store = useTapRoot(function AuiRoot() {
-      return useAuiRoot({ parent, entries, clientRef, notifications });
+      const result = useAuiRoot({
+        parent,
+        entries,
+        clientRef,
+        notifications,
+      });
+      renderedClient = result.client;
+      return result;
     });
 
     const client = useSyncExternalStore(
@@ -372,16 +381,20 @@ const useHostedAssistantClient = ({
       // oxlint-disable-next-line react-hooks/exhaustive-deps -- parent is a prop of the outer hook; the host re-renders with a fresh closure when it changes
     }, [store, parent, notifications]);
 
-    useEffect(() => {
-      clientRef.parent = parent;
-      clientRef.current = client;
-    });
-
     if (clientRef.current === null) {
       clientRef.current = client;
     }
 
     return client;
+  });
+
+  // Keep this React hook outside the tap host: hooks inside a resource use
+  // tap's effect lifecycle. `store` publishes through that lifecycle, so use
+  // the client rendered in this React pass and publish it in React's commit
+  // phase. The closure prevents an interrupted pass from becoming visible.
+  useInsertionEffect(() => {
+    clientRef.parent = parent;
+    clientRef.current = renderedClient ?? client;
   });
 
   return { client, effects };
@@ -454,10 +467,11 @@ const useDerivedOnlyClient = (
   const client = useCommittedClient(building, [parent, ...accessors]);
   const clientRef = useRef<AssistantClient | null>(null);
 
-  // Publish structural rebinds in the layout phase so notification microtasks
-  // emitted by descendant layout effects resolve against the committed facade.
-  // Render-phase publication would leak an interrupted render instead.
-  useIsomorphicLayoutEffect(() => {
+  // Publish structural rebinds in the commit phase so notification microtasks
+  // emitted by descendant layout effects resolve against the committed facade
+  // in DOM and custom renderers. Render-phase publication would leak an
+  // interrupted render instead; insertion effects are skipped by SSR.
+  useInsertionEffect(() => {
     clientRef.current = client;
   }, [client]);
   if (clientRef.current === null) {

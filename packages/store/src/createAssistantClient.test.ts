@@ -267,6 +267,29 @@ describe("createAssistantClient", () => {
     handle.destroy();
   });
 
+  it.each([
+    "constructor",
+    "toString",
+    "valueOf",
+    "hasOwnProperty",
+    "__proto__",
+  ])(
+    "rejects an unavailable scope named %s through a plain parent",
+    (scope) => {
+      const parent = {
+        subscribe: () => () => {},
+        on: () => () => {},
+      } as unknown as AssistantClient;
+      const handle = createTestClient({ thread: ThreadClient() }, { parent });
+
+      expect(() =>
+        handle.getClient().on(`${scope}.pinged` as never, vi.fn()),
+      ).toThrow(`Scope "${scope}" is not available`);
+
+      handle.destroy();
+    },
+  );
+
   it("extends a parent handle and re-binds across the parent's structural changes", () => {
     const parent = createTestClient({ thread: ThreadClient() });
     const child = createTestClient(

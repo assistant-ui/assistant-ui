@@ -46,6 +46,11 @@ const createHandBuiltClient = () => {
   const eventEntries: EventEntry[] = [];
 
   const client = {
+    thread: {
+      source: "root" as const,
+      query: {},
+      name: "thread" as const,
+    },
     subscribe: (listener: Listener) => {
       listeners.add(listener);
       return () => listeners.delete(listener);
