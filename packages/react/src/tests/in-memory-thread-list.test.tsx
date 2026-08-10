@@ -83,6 +83,27 @@ describe("InMemoryThreadList", () => {
     });
   });
 
+  it("preserves an archived selection when it is archived again", async () => {
+    const onSwitchToThread = vi.fn();
+    const { aui } = renderThreads({ onSwitchToThread });
+
+    aui().threads.item({ id: "main" }).archive();
+    await waitFor(() =>
+      expect(aui().threads.getState().mainThreadId).not.toBe("main"),
+    );
+
+    aui().threads.switchToThread("main");
+    await waitFor(() =>
+      expect(aui().threads.getState().mainThreadId).toBe("main"),
+    );
+    onSwitchToThread.mockClear();
+
+    act(() => aui().threads.item({ id: "main" }).archive());
+
+    expect(aui().threads.getState().mainThreadId).toBe("main");
+    expect(onSwitchToThread).not.toHaveBeenCalled();
+  });
+
   it("keeps the selection valid across batched deletions", async () => {
     const { aui } = renderThreads();
 

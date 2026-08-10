@@ -159,8 +159,11 @@ const useInMemoryThreadList = (
 
   const handleArchive = (threadId: string) => {
     const fallbackId = `thread-${generateId()}`;
-    setThreadList((prev) =>
-      replaceChangedMainThread(
+    setThreadList((prev) => {
+      const thread = prev.threads.find((item) => item.id === threadId);
+      if (thread?.status !== "regular") return prev;
+
+      return replaceChangedMainThread(
         prev.threads.map((t) =>
           t.id === threadId ? { ...t, status: "archived" as const } : t,
         ),
@@ -168,8 +171,8 @@ const useInMemoryThreadList = (
         prev.pendingSwitchId,
         threadId,
         fallbackId,
-      ),
-    );
+      );
+    });
   };
 
   const handleUnarchive = (threadId: string) => {
