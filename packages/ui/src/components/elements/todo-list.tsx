@@ -61,7 +61,7 @@ export function TodoList({
             </span>
             <span
               className={cn(
-                "leading-5",
+                "leading-5 break-words",
                 item.status === "done" &&
                   "text-foreground/35 line-through decoration-[1.5px]",
                 item.status === "active" && "text-foreground/90",

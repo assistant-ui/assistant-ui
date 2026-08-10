@@ -92,7 +92,7 @@ export function ScoreBreakdown({
               />
             </span>
             {criterion.note && (
-              <span className="text-foreground/40 text-xs leading-relaxed">
+              <span className="text-foreground/40 text-xs leading-relaxed break-words">
                 {criterion.note}
               </span>
             )}

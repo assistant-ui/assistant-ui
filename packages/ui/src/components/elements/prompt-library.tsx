@@ -124,7 +124,7 @@ export function PromptLibrary({
           </button>
         ))}
         {matches.length === 0 && (
-          <span className="text-foreground/30 px-2 py-3 text-center text-xs">
+          <span className="text-foreground/30 px-2 py-3 text-center text-xs break-words">
             Nothing matches “{query}”
           </span>
         )}
@@ -137,7 +137,7 @@ export function PromptLibrary({
             "fade-in animate-in flex flex-col gap-2 rounded-xl p-2.5 duration-200",
           )}
         >
-          <p className="text-foreground/65 text-xs leading-relaxed">
+          <p className="text-foreground/65 text-xs leading-relaxed break-words">
             {selected.body}
           </p>
           {selected.variables.length > 0 && (

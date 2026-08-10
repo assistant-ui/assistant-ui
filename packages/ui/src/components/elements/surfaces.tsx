@@ -44,6 +44,16 @@ export const live = "text-blue-500 dark:text-blue-400";
 
 export const mono = "font-mono text-[11px] tracking-tight";
 
+/**
+ * Scroll region for content that keeps its own whitespace. `whitespace-pre` in
+ * a bounded box clips a long line with no way to reach it, so the rows scroll
+ * instead; each row is `codeRow` so its background spans the scrolled width
+ * rather than stopping at the visible edge.
+ */
+export const codeScroll = "overflow-x-auto";
+
+export const codeRow = "w-max min-w-full";
+
 export function SwapLabel({
   active,
   children,

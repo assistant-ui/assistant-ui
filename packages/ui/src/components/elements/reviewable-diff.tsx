@@ -3,7 +3,7 @@
 import type { ComponentProps } from "react";
 import { CheckIcon, XIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { inkButton, mono, paper } from "./surfaces";
+import { codeRow, codeScroll, inkButton, mono, paper } from "./surfaces";
 import type { DiffLine } from "./code-diff";
 
 export type HunkDecision = "pending" | "kept" | "discarded";
@@ -106,11 +106,12 @@ export function ReviewableDiff({
                 )}
               </span>
             </div>
-            <div className="pb-1.5 font-mono text-xs">
+            <div className={cn(codeScroll, "pb-1.5 font-mono text-xs")}>
               {hunk.lines.map((line, i) => (
                 <div
                   key={`${hunk.id}-${i}`}
                   className={cn(
+                    codeRow,
                     "flex px-4 py-0.5 leading-relaxed whitespace-pre",
                     line.kind === "context" && "text-foreground/40",
                     line.kind === "added" &&

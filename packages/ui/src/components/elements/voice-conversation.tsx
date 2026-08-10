@@ -147,7 +147,7 @@ export function VoiceConversation({
             </span>
             <span
               className={cn(
-                "min-w-0 flex-1",
+                "min-w-0 flex-1 break-words",
                 turn.role === "user"
                   ? "text-foreground/50"
                   : "text-foreground/80",

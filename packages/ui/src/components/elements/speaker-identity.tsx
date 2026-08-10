@@ -63,7 +63,7 @@ export function SpeakerIdentity({
                 </span>
               )}
             </span>
-            <span className="text-foreground/65 text-[13.5px] leading-relaxed">
+            <span className="text-foreground/65 text-[13.5px] leading-relaxed break-words">
               {turn.text}
             </span>
           </div>

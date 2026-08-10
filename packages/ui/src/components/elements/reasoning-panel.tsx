@@ -89,7 +89,7 @@ export function ReasoningPanel({
                   <p className="text-foreground/90 text-[13.5px] font-medium">
                     {step.title}
                   </p>
-                  <p className="text-foreground/50 mt-0.5 text-[13px] leading-relaxed">
+                  <p className="text-foreground/50 mt-0.5 text-[13px] leading-relaxed break-words">
                     {step.body}
                   </p>
                 </span>

@@ -2,7 +2,7 @@
 
 import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
-import { mono, paper } from "./surfaces";
+import { codeRow, codeScroll, mono, paper } from "./surfaces";
 
 export type DiffKind = "context" | "added" | "removed";
 
@@ -55,11 +55,12 @@ export function CodeDiff({
           <span className="text-red-600 dark:text-red-400">−{deletions}</span>
         </span>
       </div>
-      <div>
+      <div className={codeScroll}>
         {lines.map((line, i) => (
           <div
             key={`${cycle}-${i}-${line.text}`}
             className={cn(
+              codeRow,
               "fade-in animate-in fill-mode-both flex px-4 py-0.5 leading-relaxed whitespace-pre duration-300",
               line.kind === "context" && "text-foreground/45",
               line.kind === "added" &&

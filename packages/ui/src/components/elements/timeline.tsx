@@ -38,7 +38,7 @@ export function Timeline({
       {take(events, visibleCount).map((event, i, shown) => (
         <div
           key={event.id}
-          className="fade-in slide-in-from-left-1 animate-in fill-mode-both grid grid-cols-[3.5rem_1rem_1fr] gap-x-2 duration-300"
+          className="fade-in slide-in-from-left-1 animate-in fill-mode-both grid grid-cols-[3.5rem_1rem_minmax(0,1fr)] gap-x-2 duration-300"
         >
           <span
             className={cn(
@@ -83,7 +83,7 @@ export function Timeline({
           >
             <span
               className={cn(
-                "text-[13px]",
+                "text-[13px] break-words",
                 event.when === "future"
                   ? "text-foreground/40"
                   : "text-foreground/90",
@@ -93,7 +93,7 @@ export function Timeline({
               {event.title}
             </span>
             {event.detail && (
-              <span className="text-foreground/45 text-xs leading-relaxed">
+              <span className="text-foreground/45 text-xs leading-relaxed break-words">
                 {event.detail}
               </span>
             )}

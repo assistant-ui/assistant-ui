@@ -3,7 +3,7 @@
 import type { ComponentProps } from "react";
 import { Loader2Icon, PlayIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { ghostButton, mono, paper } from "./surfaces";
+import { codeRow, codeScroll, ghostButton, mono, paper } from "./surfaces";
 
 export type RunState = "idle" | "running" | "ok" | "error";
 
@@ -74,20 +74,23 @@ export function CodeRunner({
       {state !== "idle" && (
         <div className="border-foreground/[0.07] fade-in animate-in flex flex-col border-t px-3.5 py-2.5 duration-300">
           <span className={cn(mono, "text-foreground/30 pb-1")}>output</span>
-          {output.map((line, i) => (
-            <span
-              key={`${i}-${line}`}
-              className={cn(
-                "fade-in animate-in fill-mode-both font-mono text-xs leading-relaxed whitespace-pre",
-                state === "error"
-                  ? "text-red-600 dark:text-red-400"
-                  : "text-foreground/70",
-              )}
-              style={{ animationDelay: `${i * 80}ms` }}
-            >
-              {line}
-            </span>
-          ))}
+          <div className={cn(codeScroll, "flex flex-col")}>
+            {output.map((line, i) => (
+              <span
+                key={`${i}-${line}`}
+                className={cn(
+                  codeRow,
+                  "fade-in animate-in fill-mode-both font-mono text-xs leading-relaxed whitespace-pre",
+                  state === "error"
+                    ? "text-red-600 dark:text-red-400"
+                    : "text-foreground/70",
+                )}
+                style={{ animationDelay: `${i * 80}ms` }}
+              >
+                {line}
+              </span>
+            ))}
+          </div>
           {state === "running" && (
             <span
               aria-hidden

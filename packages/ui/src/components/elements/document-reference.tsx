@@ -67,7 +67,7 @@ export function DocumentReference({
             <span className={cn(mono, "text-foreground/30")}>
               p. {anchor.page}
             </span>
-            <span className="text-foreground/65 border-foreground/15 border-s-2 ps-2 text-xs leading-relaxed">
+            <span className="text-foreground/65 border-foreground/15 border-s-2 ps-2 text-xs leading-relaxed break-words">
               {anchor.quote}
             </span>
           </button>

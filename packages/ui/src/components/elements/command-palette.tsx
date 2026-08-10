@@ -145,7 +145,7 @@ export function CommandPalette({
           </div>
         ))}
         {matches.length === 0 && (
-          <span className="text-foreground/30 px-2 py-4 text-center text-xs">
+          <span className="text-foreground/30 px-2 py-4 text-center text-xs break-words">
             No command matches “{query}”
           </span>
         )}

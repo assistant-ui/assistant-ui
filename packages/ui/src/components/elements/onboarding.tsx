@@ -53,7 +53,7 @@ export function Onboarding({
         <span className="text-[15px] font-medium tracking-tight">
           {step.title}
         </span>
-        <p className="text-foreground/55 text-[13px] leading-relaxed">
+        <p className="text-foreground/55 text-[13px] leading-relaxed break-words">
           {step.body}
         </p>
         <span
