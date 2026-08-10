@@ -4212,10 +4212,16 @@ declare const Suggestions: Resource<ClientOutput<"suggestions">, [
 
 type SuggestionsClientSchema = {
   methods: SuggestionsMethods;
+  meta: SuggestionsMeta;
 };
 
 type SuggestionsComponentConfig = {
   Suggestion: ComponentType;
+};
+
+type SuggestionsMeta = {
+  source: "thread";
+  query: Record<string, never>;
 };
 
 type SuggestionsMethods = {
@@ -4747,6 +4753,7 @@ type ThreadMeta = {
 type ThreadMethods = {
   getState(): ThreadState$1;
   composer(): ComposerMethods;
+  suggestions(): SuggestionsMethods;
   append(message: CreateAppendMessage): void;
   deleteMessage(messageId: string): void | Promise<void>;
   startRun(config: CreateStartRunConfig): void;
