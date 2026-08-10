@@ -253,6 +253,36 @@ describe("InMemoryThreadList", () => {
     });
   });
 
+  it("does not report a relocation superseded by a newer switch", async () => {
+    const onSwitchToThread = vi.fn();
+    const { aui } = renderThreads({ onSwitchToThread });
+
+    aui().threads.switchToNewThread();
+    aui().threads.switchToNewThread();
+    await waitFor(() =>
+      expect(aui().threads.getState().threadIds).toHaveLength(3),
+    );
+    const [, relocationId, latestId] = aui().threads.getState().threadIds;
+
+    aui().threads.switchToThread("main");
+    await waitFor(() =>
+      expect(aui().threads.getState().mainThreadId).toBe("main"),
+    );
+    onSwitchToThread.mockClear();
+
+    act(() => {
+      aui().threads.item({ id: "main" }).archive();
+      aui().threads.switchToThread(latestId!);
+    });
+
+    await waitFor(() => {
+      expect(aui().threads.getState().mainThreadId).toBe(latestId);
+      expect(onSwitchToThread).toHaveBeenCalledOnce();
+      expect(onSwitchToThread).toHaveBeenCalledWith(latestId);
+      expect(onSwitchToThread).not.toHaveBeenCalledWith(relocationId);
+    });
+  });
+
   it("creates unique IDs for threads created in the same millisecond", async () => {
     const now = vi.spyOn(Date, "now").mockReturnValue(1_000);
 

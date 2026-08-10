@@ -126,7 +126,6 @@ const useInMemoryThreadList = (
       pendingSwitchId: null,
     }));
   const flushPendingSwitch = useEffectEvent((threadId: string) => {
-    if (pendingSwitchId !== threadId) return;
     setThreadList((prev) =>
       prev.pendingSwitchId === threadId
         ? { ...prev, pendingSwitchId: null }
