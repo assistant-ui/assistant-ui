@@ -309,7 +309,7 @@ Props are a separate question. Each component's zod schema validates what the mo
 
 ## Beyond the browser
 
-The tree is plain JSON, so it is not tied to the browser. Three React-free subpaths let a server action, queue worker, or webhook handler consume it without pulling React:
+The tree is plain JSON, so it is not tied to the browser. Four React-free subpaths let a server action, queue worker, or webhook handler consume it without pulling React:
 
 - `@assistant-ui/react-generative-ui/ir` holds the tree types, normalization, and token enums.
 - `@assistant-ui/react-generative-ui/slack` converts the tree into Block Kit and decodes `block_actions` back into `$action`. See [Generative UI on Slack](/docs/tools/generative-ui-slack).
