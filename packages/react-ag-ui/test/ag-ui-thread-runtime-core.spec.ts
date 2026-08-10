@@ -5528,6 +5528,54 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(reasoning).not.toHaveProperty("encryptedValue");
   });
 
+  it("replays an encrypted-only reasoning record from a snapshot into the next run input", async () => {
+    const runInputs: any[] = [];
+    const runAgent = vi.fn(async (input, subscriber) => {
+      runInputs.push(JSON.parse(JSON.stringify(input)));
+      if (runInputs.length === 1) {
+        subscriber.onMessagesSnapshotEvent?.({
+          event: {
+            type: "MESSAGES_SNAPSHOT",
+            messages: [
+              { id: "u-1", role: "user", content: "hi" },
+              {
+                id: "r-1",
+                role: "reasoning",
+                content: "",
+                encryptedValue: "opaque",
+              },
+              { id: "a-1", role: "assistant", content: "done" },
+            ],
+          },
+        });
+      }
+      subscriber.onRunFinalized?.();
+    });
+    const core = createCore({ runAgent } as unknown as HttpAgent);
+
+    await core.append(createAppendMessage());
+    // it is transport state, so it must not surface as a message in the thread
+    expect(core.getMessages().map((m) => m.role)).toEqual([
+      "user",
+      "assistant",
+    ]);
+
+    const last = core.getMessages().at(-1)!;
+    await core.append(createAppendMessage({ parentId: last.id }));
+
+    expect(runInputs[1].messages.map((m: any) => m.id)).toEqual([
+      "u-1",
+      "r-1",
+      "a-1",
+      runInputs[1].messages[3].id,
+    ]);
+    expect(runInputs[1].messages[1]).toMatchObject({
+      role: "reasoning",
+      content: "",
+      encryptedValue: "opaque",
+    });
+  });
+
   it("carries a live reasoning signature into the next run input", async () => {
     const runInputs: any[] = [];
     const runAgent = vi.fn(async (input, subscriber) => {
