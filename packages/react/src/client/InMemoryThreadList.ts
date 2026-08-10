@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useEffect, useEffectEvent, useMemo, useState } from "react";
 import { resource, withKey, type ResourceElement } from "@assistant-ui/tap";
 import {
   type ClientOutput,
@@ -30,21 +30,28 @@ type ThreadData = {
 type ThreadListData = {
   mainThreadId: string;
   threads: readonly ThreadData[];
+  pendingSwitchId: string | null;
 };
 
 const replaceChangedMainThread = (
   threads: readonly ThreadData[],
   mainThreadId: string,
+  pendingSwitchId: string | null,
   changedThreadId: string,
   fallbackId: string,
 ): ThreadListData => {
-  if (mainThreadId !== changedThreadId) return { mainThreadId, threads };
+  if (mainThreadId !== changedThreadId) {
+    return { mainThreadId, threads, pendingSwitchId };
+  }
 
   const fallback = threads.find((thread) => thread.status === "regular");
-  if (fallback) return { mainThreadId: fallback.id, threads };
+  if (fallback) {
+    return { mainThreadId: fallback.id, threads, pendingSwitchId: fallback.id };
+  }
 
   return {
     mainThreadId: fallbackId,
+    pendingSwitchId: fallbackId,
     threads: [
       ...threads,
       { id: fallbackId, title: "New Thread", status: "regular" },
@@ -112,15 +119,32 @@ const useInMemoryThreadList = (
     onSwitchToNewThread,
   } = props;
 
-  const [{ mainThreadId, threads }, setThreadList] = useState<ThreadListData>(
-    () => ({
+  const [{ mainThreadId, threads, pendingSwitchId }, setThreadList] =
+    useState<ThreadListData>(() => ({
       mainThreadId: "main",
       threads: [{ id: "main", title: "Main Thread", status: "regular" }],
-    }),
-  );
+      pendingSwitchId: null,
+    }));
+  const notifySwitchToThread = useEffectEvent((threadId: string) => {
+    onSwitchToThread?.(threadId);
+  });
+
+  useEffect(() => {
+    if (pendingSwitchId === null) return;
+    setThreadList((prev) =>
+      prev.pendingSwitchId === pendingSwitchId
+        ? { ...prev, pendingSwitchId: null }
+        : prev,
+    );
+    notifySwitchToThread(pendingSwitchId);
+  }, [pendingSwitchId]);
 
   const handleSwitchToThread = (threadId: string) => {
-    setThreadList((prev) => ({ ...prev, mainThreadId: threadId }));
+    setThreadList((prev) => ({
+      ...prev,
+      mainThreadId: threadId,
+      pendingSwitchId: null,
+    }));
     onSwitchToThread?.(threadId);
   };
 
@@ -141,6 +165,7 @@ const useInMemoryThreadList = (
           t.id === threadId ? { ...t, status: "archived" as const } : t,
         ),
         prev.mainThreadId,
+        prev.pendingSwitchId,
         threadId,
         fallbackId,
       ),
@@ -174,6 +199,7 @@ const useInMemoryThreadList = (
       replaceChangedMainThread(
         prev.threads.filter((t) => t.id !== threadId),
         prev.mainThreadId,
+        prev.pendingSwitchId,
         threadId,
         fallbackId,
       ),
@@ -184,6 +210,7 @@ const useInMemoryThreadList = (
     const newId = `thread-${generateId()}`;
     setThreadList((prev) => ({
       mainThreadId: newId,
+      pendingSwitchId: null,
       threads: [
         ...prev.threads,
         { id: newId, title: "New Thread", status: "regular" },

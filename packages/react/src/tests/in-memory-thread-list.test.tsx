@@ -7,7 +7,12 @@ import { useAui, AuiProvider } from "@assistant-ui/store";
 import { InMemoryThreadList } from "../client/InMemoryThreadList";
 import { ExternalThread } from "../index";
 
-const renderThreads = () => {
+const renderThreads = (
+  callbacks: {
+    onSwitchToThread?: (threadId: string) => void;
+    onSwitchToNewThread?: () => void;
+  } = {},
+) => {
   const captured: { aui?: ReturnType<typeof useAui> } = {};
   const Capture: FC = () => {
     captured.aui = useAui();
@@ -17,6 +22,7 @@ const renderThreads = () => {
     const aui = useAui({
       threads: InMemoryThreadList({
         thread: () => ExternalThread({ messages: [] }),
+        ...callbacks,
       }),
     });
     return (
@@ -31,7 +37,8 @@ const renderThreads = () => {
 
 describe("InMemoryThreadList", () => {
   it("selects an existing regular thread when the selected thread is archived", async () => {
-    const { aui } = renderThreads();
+    const onSwitchToThread = vi.fn();
+    const { aui } = renderThreads({ onSwitchToThread });
 
     aui().threads.switchToNewThread();
     await waitFor(() =>
@@ -39,14 +46,17 @@ describe("InMemoryThreadList", () => {
     );
     const siblingId = aui().threads.getState().mainThreadId;
     aui().threads.switchToThread("main");
+    onSwitchToThread.mockClear();
 
-    aui().threads.item({ id: "main" }).archive();
+    act(() => aui().threads.item({ id: "main" }).archive());
 
     await waitFor(() => {
       const state = aui().threads.getState();
       expect(state.mainThreadId).toBe(siblingId);
       expect(state.threadIds).toContain(siblingId);
       expect(state.archivedThreadIds).toEqual(["main"]);
+      expect(onSwitchToThread).toHaveBeenCalledOnce();
+      expect(onSwitchToThread).toHaveBeenCalledWith(siblingId);
     });
   });
 
@@ -102,7 +112,8 @@ describe("InMemoryThreadList", () => {
   });
 
   it("falls back to a live thread when the switch target is deleted in the same tick", async () => {
-    const { aui } = renderThreads();
+    const onSwitchToThread = vi.fn();
+    const { aui } = renderThreads({ onSwitchToThread });
 
     aui().threads.switchToNewThread();
     await waitFor(() =>
@@ -113,14 +124,19 @@ describe("InMemoryThreadList", () => {
     await waitFor(() =>
       expect(aui().threads.getState().mainThreadId).toBe("main"),
     );
+    onSwitchToThread.mockClear();
 
-    aui().threads.switchToThread(newId);
-    aui().threads.item({ id: newId }).delete();
+    act(() => {
+      aui().threads.switchToThread(newId);
+      aui().threads.item({ id: newId }).delete();
+    });
 
     await waitFor(() => {
       const state = aui().threads.getState();
       expect(state.mainThreadId).toBe("main");
       expect(state.threadIds).not.toContain(newId);
+      expect(onSwitchToThread).toHaveBeenCalledTimes(2);
+      expect(onSwitchToThread).toHaveBeenLastCalledWith("main");
     });
   });
 
