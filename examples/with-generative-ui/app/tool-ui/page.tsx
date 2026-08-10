@@ -10,7 +10,7 @@ import {
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 import { ExampleNav } from "@/components/example-nav";
-import toolkit from "./toolkit";
+import toolkit from "../toolkit";
 
 export default function Home() {
   const runtime = useChatRuntime({
@@ -21,28 +21,26 @@ export default function Home() {
     tools: Tools({ toolkit }),
     suggestions: Suggestions([
       {
-        title: "Sales dashboard",
-        label: "for last quarter",
+        title: "Show a bar chart",
+        label: "of quarterly revenue",
         prompt:
-          "Show me a sales dashboard for Q2 2026: revenue, orders, and conversion rate, with monthly revenue broken out.",
+          "Create a bar chart showing quarterly revenue: Q1 $45k, Q2 $52k, Q3 $61k, Q4 $58k",
       },
       {
-        title: "Product analytics",
-        label: "activation and retention",
-        prompt:
-          "How did activation and retention trend over the last six weeks? Include the weekly numbers.",
+        title: "Pick a date",
+        label: "for a meeting",
+        prompt: "I need to schedule a meeting. Ask me to pick a date.",
       },
       {
-        title: "Support overview",
-        label: "tickets and response time",
+        title: "Collect my contact info",
+        label: "name, email, phone",
         prompt:
-          "Give me a support overview: open tickets by priority, median first response time, and how the priorities compare.",
+          "I want to sign up for the newsletter. Ask for my name, email, and phone number.",
       },
       {
-        title: "Channel performance",
-        label: "compare acquisition sources",
-        prompt:
-          "Compare our acquisition channels on spend, conversions, and cost per acquisition.",
+        title: "Show me on the map",
+        label: "the Eiffel Tower",
+        prompt: "Show me the Eiffel Tower on a map",
       },
     ]),
   });
