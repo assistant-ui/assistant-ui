@@ -42,6 +42,7 @@
     "zustand": "^5.0.14"
   },
   "devDependencies": {
+    "@babel/core": "^7.29.7",
     "@types/node": "^26.2.0",
     "@types/react": "^19.2.18",
     "@types/react-syntax-highlighter": "^15.5.13",
