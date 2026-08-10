@@ -140,22 +140,22 @@ describe("scope-filtered on", () => {
     );
   });
 
-  it("listeners bind to the instance resolved at subscription time", async () => {
+  it("scoped listeners follow the scope's binding at delivery time", async () => {
     const { getAui } = setup();
-    const boundToM0 = vi.fn();
-    getAui().on("message.pinged", boundToM0);
+    const early = vi.fn();
+    getAui().on("message.pinged", early);
 
     act(() => flushTapSync(() => getAui().thread.setSelected(1)));
 
-    const boundToM1 = vi.fn();
-    getAui().on("message.pinged", boundToM1);
+    const late = vi.fn();
+    getAui().on("message.pinged", late);
 
     getAui().thread.message({ index: 0 }).ping("a");
     getAui().thread.message({ index: 1 }).ping("b");
     await flushEvents();
 
-    expect(boundToM0).toHaveBeenCalledExactlyOnceWith({ id: "m0", value: "a" });
-    expect(boundToM1).toHaveBeenCalledExactlyOnceWith({ id: "m1", value: "b" });
+    expect(early).toHaveBeenCalledExactlyOnceWith({ id: "m1", value: "b" });
+    expect(late).toHaveBeenCalledExactlyOnceWith({ id: "m1", value: "b" });
   });
 
   it("unsubscribe stops delivery", async () => {
@@ -281,6 +281,22 @@ describe("microtask delivery (live-set semantics)", () => {
 
     expect(first).toHaveBeenCalledExactlyOnceWith({ value: "x" });
     expect(late).toHaveBeenCalledExactlyOnceWith({ value: "x" });
+  });
+
+  it("a listener that unsubscribes and resubscribes between emit and flush is invoked", async () => {
+    const { getAui } = setup();
+    const aui = getAui();
+    const removed = vi.fn();
+    const unsub = aui.on("thread.pinged", removed);
+
+    aui.thread.ping("x");
+    unsub();
+    const resubscribed = vi.fn();
+    aui.on("thread.pinged", resubscribed);
+    await flushEvents();
+
+    expect(removed).not.toHaveBeenCalled();
+    expect(resubscribed).toHaveBeenCalledExactlyOnceWith({ value: "x" });
   });
 
   it("listeners removed between emit and flush are skipped", async () => {
