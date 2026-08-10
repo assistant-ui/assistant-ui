@@ -311,6 +311,56 @@ describe("ExternalThread attachments", () => {
     },
   );
 
+  it("stops attachment generator updates after removal", async () => {
+    let resumeAdd!: () => void;
+    const drainedAfterRemoval = vi.fn();
+    const file = new File(["data"], "notes.txt", { type: "text/plain" });
+    const pendingAttachment: PendingAttachment = {
+      id: "att-1",
+      type: "file",
+      name: file.name,
+      contentType: file.type,
+      file,
+      status: { type: "requires-action", reason: "composer-send" },
+    };
+    const add = vi.fn(async function* () {
+      yield pendingAttachment;
+      await new Promise<void>((resolve) => {
+        resumeAdd = resolve;
+      });
+      yield {
+        ...pendingAttachment,
+        status: { type: "running", reason: "uploading", progress: 1 },
+      } satisfies PendingAttachment;
+      drainedAfterRemoval();
+    });
+    const aui = renderThreadWithProps({
+      attachmentAdapter: {
+        accept: "*",
+        add,
+        send: async () => ({}) as never,
+        remove: async () => {},
+      },
+    });
+    const composer = () => aui().thread.composer();
+
+    let addPromise!: Promise<void>;
+    act(() => {
+      addPromise = composer().addAttachment(file);
+    });
+    await waitFor(() =>
+      expect(composer().getState().attachments).toHaveLength(1),
+    );
+    await act(() => composer().attachment({ id: "att-1" }).remove());
+    await act(async () => {
+      resumeAdd();
+      await addPromise;
+    });
+
+    expect(composer().getState().attachments).toHaveLength(0);
+    expect(drainedAfterRemoval).not.toHaveBeenCalled();
+  });
+
   it("routes edit-composer attachments through the adapter", async () => {
     const add = vi.fn(async ({ file }: { file: File }) => ({
       id: "att-edit",
