@@ -9,7 +9,7 @@ The main route of `examples/with-generative-ui` demonstrates **generative UI**: 
 
 - **Default vocabulary** — cards, facts, rows, tables, and charts come from `defaultGenerativeUILibrary`, so the app registers one tool and writes no renderers
 - **A custom component** — `DashboardHeader` is added through `defineGenerativeComponents`, showing how to extend the vocabulary with your own React component
-- **Styled output** — the vocabulary stylesheet is mounted from `@assistant-ui/ui`, so the emitted HTML picks up the app's theme variables
+- **Styled output** — the vocabulary stylesheet is mounted from `@assistant-ui/ui` through the monorepo's tsconfig alias, the way every in-repo example consumes that package; in your own app the same CSS arrives through `shadcn add generative-ui`
 - **Dashboard prompts** — the suggestions describe data, not layout, and let the model decide the composition
 
 ### Routes in the same example app
@@ -29,7 +29,7 @@ See the [Generative UI guide](/docs/tools/generative-ui) for the full setup, and
 
 One toolkit entry exposes the whole vocabulary. `display: "standalone"` renders the result on its own surface rather than inside the chain-of-thought trace:
 
-```tsx title="app/toolkit.tsx"
+```tsx title="app/present-toolkit.tsx"
 "use generative";
 
 const generative = new JSONGenerativeUI({
@@ -52,9 +52,10 @@ const generative = new JSONGenerativeUI({
 
 export default defineToolkit({
   present: generative.present({ display: "standalone" }),
-  // ...the Tool UI entries used by /tool-ui
 });
 ```
+
+The two demos keep separate toolkits and separate routes. If `/` also carried the Tool UI entries, `generate_chart` would compete with `present` for every prompt that mentions a chart, and the demo would render a Recharts widget instead of a composed dashboard.
 
 Because `present` resolves in the browser, the provider passes `sendAutomaticallyWhen` so the run continues once the UI has rendered:
 

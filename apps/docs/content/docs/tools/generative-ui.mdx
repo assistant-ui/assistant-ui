@@ -35,7 +35,7 @@ The vocabulary renders as unstyled semantic HTML with `data-aui` attributes. Add
 
 <InstallCommand shadcn={["generative-ui"]} />
 
-This installs `components/assistant-ui/generative-ui.tsx` and merges the vocabulary stylesheet and theme variables into your CSS.
+This merges the vocabulary stylesheet and theme variables into your CSS, which is what the rest of this page assumes, and lands `components/assistant-ui/generative-ui.tsx`. That file exports `styledGenerativeUILibrary`, whose only difference from the default vocabulary is a real markdown renderer; [Styling](#styling) wires it in.
 
 </Step>
 
@@ -206,6 +206,7 @@ import {
   defaultGenerativeUILibrary,
   defineGenerativeComponents,
 } from "@assistant-ui/react-generative-ui";
+import { WeatherCard } from "@/components/weather-card";
 
 const generative = new JSONGenerativeUI({
   library: {
@@ -276,7 +277,29 @@ To restyle a single component instead, target its attribute:
 }
 ```
 
-Overriding a component's markup rather than its appearance is a library-level change: spread `defaultGenerativeUILibrary` and replace that one entry through `defineGenerativeComponents`.
+Overriding a component's markup rather than its appearance is a library-level change: spread `defaultGenerativeUILibrary` and replace that one entry through `defineGenerativeComponents`. The default `Markdown` renders its source as plain text, which is why the registry item ships a replacement. Wiring it is the same override:
+
+```tsx title="app/toolkit.tsx"
+import { styledGenerativeUILibrary } from "@/components/assistant-ui/generative-ui";
+
+const markdown = defaultGenerativeUILibrary.Markdown!;
+
+const generative = new JSONGenerativeUI({
+  library: {
+    ...defaultGenerativeUILibrary,
+    ...defineGenerativeComponents({
+      Markdown: {
+        properties: markdown.properties,
+        streamProperties: markdown.streamProperties,
+        description: "A markdown string, rendered with GitHub-flavored markdown.",
+        render: styledGenerativeUILibrary.Markdown!.render,
+      },
+    }),
+  },
+});
+```
+
+`styledGenerativeUILibrary` is a `"use client"` module, so this inline `render` is the only place a `"use generative"` file may name it. Passing it directly as `library` works only in a file without the directive.
 
 ## Security
 

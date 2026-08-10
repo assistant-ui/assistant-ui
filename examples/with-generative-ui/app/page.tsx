@@ -7,13 +7,17 @@ import {
   Suggestions,
   Tools,
 } from "@assistant-ui/react";
-import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+import {
+  AssistantChatTransport,
+  useChatRuntime,
+} from "@assistant-ui/react-ai-sdk";
 import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 import { ExampleNav } from "@/components/example-nav";
-import toolkit from "./toolkit";
+import toolkit from "./present-toolkit";
 
 export default function Home() {
   const runtime = useChatRuntime({
+    transport: new AssistantChatTransport({ api: "/api/present" }),
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
   });
 
