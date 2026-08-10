@@ -71,6 +71,39 @@ describe("OpenUI docs integration", () => {
     ).toBe(false);
   });
 
+  it("stops when display and human tools share a step", () => {
+    expect(
+      shouldContinueAfterOpenUIPrompt({
+        messages: [
+          {
+            id: "assistant",
+            role: "assistant",
+            parts: [
+              {
+                type: "tool-present_openui",
+                toolCallId: "present",
+                state: "output-available",
+                input: { ui: "root = Card([])" },
+                output: { displayed: true },
+              },
+              {
+                type: "tool-prompt_openui",
+                toolCallId: "prompt",
+                state: "output-available",
+                input: { ui: "root = Card([])" },
+                output: {
+                  type: BuiltinActionType.ContinueConversation,
+                  message: "Submit",
+                  params: {},
+                },
+              },
+            ],
+          },
+        ],
+      }),
+    ).toBe(false);
+  });
+
   it("continues after a completed human tool", () => {
     expect(
       shouldContinueAfterOpenUIPrompt({
