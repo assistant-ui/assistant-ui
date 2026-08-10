@@ -55,9 +55,9 @@ describe("InMemoryThreadList", () => {
 
   it("creates unique IDs for threads created in the same millisecond", async () => {
     const now = vi.spyOn(Date, "now").mockReturnValue(1_000);
-    const { aui } = renderThreads();
 
     try {
+      const { aui } = renderThreads();
       aui().threads.switchToNewThread();
       aui().threads.switchToNewThread();
 
@@ -66,7 +66,7 @@ describe("InMemoryThreadList", () => {
           .threads.getState()
           .threadIds.filter((id) => id !== "main");
         expect(generatedIds).toHaveLength(2);
-        expect(new Set(generatedIds)).toHaveLength(2);
+        expect(new Set(generatedIds).size).toBe(2);
       });
     } finally {
       now.mockRestore();
