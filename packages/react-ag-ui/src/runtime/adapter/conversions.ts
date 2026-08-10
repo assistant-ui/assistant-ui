@@ -528,7 +528,7 @@ function readOpaqueReasoning(metadata: unknown): AgUiOpaqueReasoning[] {
     if (!isObject(entry)) return [];
     const id = getString(entry, "id");
     const encryptedValue = getString(entry, "encryptedValue");
-    if (!id || !encryptedValue) return [];
+    if (!id?.trim() || !encryptedValue?.trim()) return [];
     return [
       { id, encryptedValue, ...(entry.after === true ? { after: true } : {}) },
     ];
