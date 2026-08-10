@@ -227,6 +227,42 @@ describe("openPiEventStream", () => {
     ]);
   });
 
+  it("cancels a failed response body before reconnecting", async () => {
+    let calls = 0;
+    const cancelBody = vi.fn();
+    const fetchImpl = (async () => {
+      calls += 1;
+      if (calls === 1) {
+        return new Response(
+          new ReadableStream<Uint8Array>({ start() {}, cancel: cancelBody }),
+          { status: 503 },
+        );
+      }
+      expect(cancelBody).toHaveBeenCalledOnce();
+      return sseResponse([
+        sseFrame({ type: "agent_start", threadId: "t1", seq: 1 }),
+      ]);
+    }) as unknown as typeof fetch;
+
+    const errors: unknown[] = [];
+    await new Promise<void>((resolve) => {
+      const close = openPiEventStream({
+        url: "/events",
+        fetchImpl,
+        reconnectDelay: () => Promise.resolve(),
+        onError: (error) => errors.push(error),
+        onEvent: () => {
+          close();
+          resolve();
+        },
+      });
+    });
+
+    expect(calls).toBe(2);
+    expect(cancelBody).toHaveBeenCalledOnce();
+    expect(errors).toEqual([new Error("Pi event stream failed: HTTP 503")]);
+  });
+
   it("uses the controlled fetch stream even when native EventSource exists", async () => {
     const EventSource = vi.fn();
     const fetchImpl = vi.fn(async () =>

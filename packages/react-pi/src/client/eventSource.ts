@@ -190,6 +190,7 @@ export const openPiEventStream = (
           headers: { Accept: "text/event-stream", ...headers },
         });
         if (!response.ok || !response.body) {
+          void response.body?.cancel().catch(() => undefined);
           throw new Error(`Pi event stream failed: HTTP ${response.status}`);
         }
         validateEventStreamContentType(response);
