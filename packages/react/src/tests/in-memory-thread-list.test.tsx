@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { render, waitFor } from "@testing-library/react";
+import { act, render, waitFor } from "@testing-library/react";
 import type { FC } from "react";
 import { describe, it, expect, vi } from "vitest";
 import { useAui, AuiProvider } from "@assistant-ui/store";
@@ -30,6 +30,47 @@ const renderThreads = () => {
 };
 
 describe("InMemoryThreadList", () => {
+  it("moves away from a selected thread when it is archived", async () => {
+    const { aui } = renderThreads();
+
+    aui().threads.item({ id: "main" }).archive();
+
+    await waitFor(() => {
+      const state = aui().threads.getState();
+      expect(state.mainThreadId).not.toBe("main");
+      expect(state.threadIds).toContain(state.mainThreadId);
+      expect(state.archivedThreadIds).toEqual(["main"]);
+    });
+  });
+
+  it("keeps the selection valid across batched deletions", async () => {
+    const { aui } = renderThreads();
+
+    aui().threads.switchToNewThread();
+    aui().threads.switchToNewThread();
+    await waitFor(() =>
+      expect(aui().threads.getState().threadIds).toHaveLength(3),
+    );
+    const [, firstGeneratedId, lastGeneratedId] =
+      aui().threads.getState().threadIds;
+
+    aui().threads.switchToThread("main");
+    await waitFor(() =>
+      expect(aui().threads.getState().mainThreadId).toBe("main"),
+    );
+
+    act(() => {
+      aui().threads.item({ id: "main" }).delete();
+      aui().threads.item({ id: firstGeneratedId! }).delete();
+    });
+
+    await waitFor(() => {
+      const state = aui().threads.getState();
+      expect(state.threadIds).toEqual([lastGeneratedId]);
+      expect(state.mainThreadId).toBe(lastGeneratedId);
+    });
+  });
+
   it("falls back to a live thread when the switch target is deleted in the same tick", async () => {
     const { aui } = renderThreads();
 

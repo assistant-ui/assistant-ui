@@ -27,6 +27,35 @@ type ThreadData = {
   custom?: Record<string, unknown> | undefined;
 };
 
+type ThreadListData = {
+  mainThreadId: string;
+  threads: readonly ThreadData[];
+};
+
+const ensureRegularMainThread = (
+  threads: readonly ThreadData[],
+  mainThreadId: string,
+  fallbackId: string,
+): ThreadListData => {
+  const fallback = threads.find((thread) => thread.status === "regular");
+  if (
+    threads.some(
+      (thread) => thread.id === mainThreadId && thread.status === "regular",
+    )
+  ) {
+    return { mainThreadId, threads };
+  }
+  if (fallback) return { mainThreadId: fallback.id, threads };
+
+  return {
+    mainThreadId: fallbackId,
+    threads: [
+      ...threads,
+      { id: fallbackId, title: "New Thread", status: "regular" },
+    ],
+  };
+};
+
 // ThreadListItem Client
 const useThreadListItemClient = (props: {
   data: ThreadData;
@@ -87,63 +116,81 @@ const useInMemoryThreadList = (
     onSwitchToNewThread,
   } = props;
 
-  const [mainThreadId, setMainThreadId] = useState("main");
-  const [threads, setThreads] = useState<readonly ThreadData[]>(() => [
-    { id: "main", title: "Main Thread", status: "regular" },
-  ]);
+  const [{ mainThreadId, threads }, setThreadList] = useState<ThreadListData>(
+    () => ({
+      mainThreadId: "main",
+      threads: [{ id: "main", title: "Main Thread", status: "regular" }],
+    }),
+  );
 
   const handleSwitchToThread = (threadId: string) => {
-    setMainThreadId(threadId);
+    setThreadList((prev) => ({ ...prev, mainThreadId: threadId }));
     onSwitchToThread?.(threadId);
   };
 
   const handleRename = (threadId: string, title: string) => {
-    setThreads((prev) =>
-      prev.map((t) => (t.id === threadId ? { ...t, title } : t)),
-    );
+    setThreadList((prev) => ({
+      ...prev,
+      threads: prev.threads.map((t) =>
+        t.id === threadId ? { ...t, title } : t,
+      ),
+    }));
   };
 
   const handleArchive = (threadId: string) => {
-    setThreads((prev) =>
-      prev.map((t) =>
-        t.id === threadId ? { ...t, status: "archived" as const } : t,
+    const fallbackId = `thread-${generateId()}`;
+    setThreadList((prev) =>
+      ensureRegularMainThread(
+        prev.threads.map((t) =>
+          t.id === threadId ? { ...t, status: "archived" as const } : t,
+        ),
+        prev.mainThreadId,
+        fallbackId,
       ),
     );
   };
 
   const handleUnarchive = (threadId: string) => {
-    setThreads((prev) =>
-      prev.map((t) =>
+    setThreadList((prev) => ({
+      ...prev,
+      threads: prev.threads.map((t) =>
         t.id === threadId ? { ...t, status: "regular" as const } : t,
       ),
-    );
+    }));
   };
 
   const handleUpdateCustom = (
     threadId: string,
     custom: Record<string, unknown> | undefined,
   ) => {
-    setThreads((prev) =>
-      prev.map((t) => (t.id === threadId ? { ...t, custom } : t)),
-    );
+    setThreadList((prev) => ({
+      ...prev,
+      threads: prev.threads.map((t) =>
+        t.id === threadId ? { ...t, custom } : t,
+      ),
+    }));
   };
 
   const handleDelete = (threadId: string) => {
-    setThreads((prev) => prev.filter((t) => t.id !== threadId));
-    setMainThreadId((prev) =>
-      prev === threadId
-        ? threads.find((t) => t.id !== threadId)?.id || "main"
-        : prev,
+    const fallbackId = `thread-${generateId()}`;
+    setThreadList((prev) =>
+      ensureRegularMainThread(
+        prev.threads.filter((t) => t.id !== threadId),
+        prev.mainThreadId,
+        fallbackId,
+      ),
     );
   };
 
   const handleSwitchToNewThread = () => {
     const newId = `thread-${generateId()}`;
-    setThreads((prev) => [
-      ...prev,
-      { id: newId, title: "New Thread", status: "regular" },
-    ]);
-    setMainThreadId(newId);
+    setThreadList((prev) => ({
+      mainThreadId: newId,
+      threads: [
+        ...prev.threads,
+        { id: newId, title: "New Thread", status: "regular" },
+      ],
+    }));
     onSwitchToNewThread?.();
   };
 
