@@ -137,6 +137,34 @@ describe("useThreads", () => {
     });
   });
 
+  it("settles loading when automatic fetching becomes disabled", async () => {
+    const deferred =
+      createDeferred<ReturnType<typeof createThreadListResponse>>();
+    const list = vi.fn().mockReturnValue(deferred.promise);
+    const cloud = {
+      threads: {
+        list,
+        get: vi.fn(),
+        create: vi.fn(),
+        delete: vi.fn(),
+        update: vi.fn(),
+      },
+    } as never;
+
+    const { result, rerender } = renderHook(
+      ({ enabled }) => useThreads({ cloud, enabled }),
+      { initialProps: { enabled: true } },
+    );
+
+    expect(result.current.isLoading).toBe(true);
+    expect(list).toHaveBeenCalledOnce();
+
+    rerender({ enabled: false });
+
+    expect(result.current.isLoading).toBe(false);
+    expect(list).toHaveBeenCalledOnce();
+  });
+
   it("keeps the latest refresh when requests resolve out of order", async () => {
     const first = createDeferred<ReturnType<typeof createThreadListResponse>>();
     const second =

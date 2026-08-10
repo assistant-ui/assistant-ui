@@ -73,7 +73,7 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
 
   if (enabled !== previousEnabled) {
     setPreviousEnabled(enabled);
-    if (enabled) setIsLoading(true);
+    setIsLoading(enabled);
   }
 
   const mountedRef = useRef(true);
