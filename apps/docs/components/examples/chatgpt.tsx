@@ -15,7 +15,7 @@ import {
 } from "@assistant-ui/react";
 import { useEffect, useState, type FC } from "react";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
-import { useShallow } from "zustand/shallow";
+import { useShallow } from "zustand/react/shallow";
 import {
   ArrowUpIcon,
   AudioLines,

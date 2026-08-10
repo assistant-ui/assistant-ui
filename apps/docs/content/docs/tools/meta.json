@@ -13,6 +13,7 @@
     "---Rendering tool calls---",
     "tool-ui",
     "generative-ui",
+    "openui",
     "interactables",
     "a2ui",
     "interactables-legacy",

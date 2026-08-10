@@ -32,7 +32,7 @@ import {
   XIcon,
 } from "lucide-react";
 import { type FC, useEffect, useState } from "react";
-import { useShallow } from "zustand/shallow";
+import { useShallow } from "zustand/react/shallow";
 import {
   DropdownMenu,
   DropdownMenuContent,

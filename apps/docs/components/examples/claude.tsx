@@ -29,7 +29,7 @@ import {
   XIcon,
 } from "lucide-react";
 import { useEffect, useState, type FC } from "react";
-import { useShallow } from "zustand/shallow";
+import { useShallow } from "zustand/react/shallow";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import { CloneThreadShell } from "./clone-thread-shell";
 import {

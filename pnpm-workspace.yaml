@@ -35,6 +35,7 @@ allowBuilds:
   '@clerk/shared': false
   '@google/genai': false
   '@mongodb-js/zstd': false
+  '@openuidev/lang-core': false
   '@parcel/watcher': false
   '@tailwindcss/oxide': false
   core-js: false

@@ -36,6 +36,9 @@
     "@hookform/resolvers": "^5.7.1",
     "@langchain/langgraph-sdk": "^1.9.28",
     "@modelcontextprotocol/server": "^2.0.0",
+    "@openuidev/react-headless": "0.9.5",
+    "@openuidev/react-lang": "0.2.10",
+    "@openuidev/react-ui": "0.13.4",
     "@posthog/ai": "^8.6.8",
     "@shikijs/transformers": "^4.4.2",
     "@upstash/ratelimit": "^2.0.8",
@@ -98,7 +101,7 @@
     "unified": "^11.0.5",
     "vaul": "^1.1.2",
     "zod": "^4.4.3",
-    "zustand": "^5.0.14"
+    "zustand": "^4.5.5"
   },
   "devDependencies": {
     "@assistant-ui/shadcn-registry": "workspace:*",

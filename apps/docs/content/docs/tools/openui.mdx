@@ -1,0 +1,269 @@
+---
+title: OpenUI
+description: Render streaming OpenUI Lang interfaces inside assistant-ui with Tool UI, without a dedicated integration package.
+platforms: ["react"]
+---
+
+import { OpenUISample } from "@/components/docs/samples/openui";
+
+[OpenUI Lang](https://www.openui.com/docs/openui-lang) is a compact,
+streaming-first language for model-generated interfaces. You can render it
+inside assistant-ui using the existing Tool UI lifecycle: assistant-ui owns the
+conversation, tool calls, persistence, and human-in-the-loop flow, while
+OpenUI's `Renderer` parses and renders the `ui` tool argument.
+
+<OpenUISample />
+
+## Overview
+
+This integration is app-local. It does not require an OpenUI-specific
+assistant-ui package, runtime, or message-part type.
+
+## Choose a tool lifecycle
+
+Use separate tools for display and input because they complete differently:
+
+| Tool | assistant-ui type | Use it for | Completion |
+| --- | --- | --- | --- |
+| `present_openui` | `frontend` | Tables, cards, charts, and display-only responses | Resolves immediately after the UI argument finishes streaming |
+| `prompt_openui` | `human` | Forms and choices that must pause the agent | Remains pending until an OpenUI action calls `addResult(...)` |
+
+OpenUI actions such as `@Set` and `@Reset` stay inside the renderer. A
+`@ToAssistant(...)` action from `prompt_openui` completes the human tool and
+returns its action and form state to the model.
+
+## Install
+
+```bash
+pnpm add @openuidev/react-lang @openuidev/react-ui @openuidev/react-headless zustand
+```
+
+Import the OpenUI component styles once in your application stylesheet:
+
+```css title="app/globals.css"
+@import "@openuidev/react-ui/components.css";
+@import "@openuidev/react-ui/layered/styles/index.css";
+```
+
+## Create the renderers
+
+Both tool UIs pass the progressively decoded `ui` string to `Renderer`.
+Correctable parser errors can occur while arguments are incomplete, so only
+show an error fallback after streaming finishes.
+
+```tsx title="components/openui-tool-ui.tsx"
+"use client";
+
+import type { ToolCallMessagePartComponent } from "@assistant-ui/react";
+import {
+  BuiltinActionType,
+  Renderer,
+  type ActionEvent,
+} from "@openuidev/react-lang";
+import { openuiChatLibrary } from "@openuidev/react-ui";
+import { useRef, useState } from "react";
+
+type Args = { ui: string };
+type ActionResult = {
+  type: string;
+  message: string;
+  params: Record<string, unknown>;
+  formState?: Record<string, unknown>;
+};
+
+export const OpenUIPresent: ToolCallMessagePartComponent<Args> = ({
+  args,
+  status,
+}) => (
+  <Renderer
+    response={args.ui ?? ""}
+    library={openuiChatLibrary}
+    isStreaming={status.type === "running"}
+  />
+);
+
+export const OpenUIPrompt: ToolCallMessagePartComponent<
+  Args,
+  ActionResult
+> = ({ args, status, result, addResult }) => {
+  const completed = useRef(result !== undefined);
+  const [errors, setErrors] = useState<string[]>([]);
+  const onAction = (event: ActionEvent) => {
+    if (
+      result !== undefined ||
+      completed.current ||
+      event.type !== BuiltinActionType.ContinueConversation
+    )
+      return;
+
+    completed.current = true;
+    addResult({
+      type: event.type,
+      message: event.humanFriendlyMessage,
+      params: event.params,
+      ...(event.formState && { formState: event.formState }),
+    });
+  };
+
+  return (
+    <>
+      <Renderer
+        response={args.ui ?? ""}
+        library={openuiChatLibrary}
+        isStreaming={status.type === "running"}
+        onAction={onAction}
+        onError={(next) => setErrors(next.map((error) => error.message))}
+        {...(result?.formState && { initialState: result.formState })}
+      />
+      {status.type !== "running" && errors.length > 0 && (
+        <div role="alert">OpenUI could not render this response.</div>
+      )}
+    </>
+  );
+};
+```
+
+Call `addResult(...)` only for terminal conversation actions. OpenUI handles
+local state actions internally, and a non-terminal action must not accidentally
+resume the assistant.
+
+## Register the toolkit
+
+```tsx title="app/openui-toolkit.tsx"
+"use client";
+
+import { defineToolkit } from "@assistant-ui/react";
+import { z } from "zod";
+import { OpenUIPresent, OpenUIPrompt } from "@/components/openui-tool-ui";
+
+const parameters = z.object({
+  ui: z.string().describe("A complete OpenUI Lang program with Card as root"),
+});
+
+export const openuiToolkit = defineToolkit({
+  present_openui: {
+    type: "frontend",
+    display: "standalone",
+    description: "Render a display-only OpenUI Lang interface.",
+    parameters,
+    execute: async () => ({ displayed: true as const }),
+    render: OpenUIPresent,
+  },
+  prompt_openui: {
+    type: "human",
+    display: "standalone",
+    description: "Render an OpenUI form or choice and wait for the user.",
+    parameters,
+    render: OpenUIPrompt,
+  },
+});
+```
+
+Register it with the same [`Tools({ toolkit })`](/docs/tools/tool-ui) resource
+used for any other Tool UI:
+
+```tsx
+const config = AuiConfig({
+  tools: Tools({ toolkit: openuiToolkit }),
+});
+
+<AssistantRuntimeProvider runtime={runtime} config={config}>
+  <Thread />
+</AssistantRuntimeProvider>;
+```
+
+With `useChatRuntime`, the default assistant transport forwards these frontend
+and human tool declarations to the backend.
+
+## Add the OpenUI instructions
+
+The model needs the prompt generated from the same component library used by
+the renderer. Override the preamble so the model places OpenUI Lang in a tool
+argument rather than returning it as assistant text.
+
+```tsx
+import { useAssistantInstructions } from "@assistant-ui/react";
+import {
+  openuiChatLibrary,
+  openuiChatPromptOptions,
+} from "@openuidev/react-ui";
+
+const instructions = openuiChatLibrary.prompt({
+  ...openuiChatPromptOptions,
+  preamble: [
+    "Call present_openui for display UI or prompt_openui for user input.",
+    "Put valid OpenUI Lang in the ui argument without markdown fences.",
+    "Make the tool call the entire response.",
+    "Never repeat or quote OpenUI Lang as assistant text.",
+  ].join(" "),
+});
+
+function OpenUIInstructions() {
+  useAssistantInstructions(instructions);
+  return null;
+}
+```
+
+## Continue only after human input
+
+A completed `present_openui` call is already the final display response. Do not
+automatically submit its result back to the model, or the next model turn can
+duplicate the OpenUI Lang as assistant text. Restrict automatic continuation
+to a completed `prompt_openui` call:
+
+```tsx
+import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+import {
+  getToolName,
+  isToolUIPart,
+  lastAssistantMessageIsCompleteWithToolCalls,
+  type UIMessage,
+} from "ai";
+
+const shouldContinueAfterOpenUIPrompt = ({
+  messages,
+}: {
+  messages: UIMessage[];
+}) => {
+  if (!lastAssistantMessageIsCompleteWithToolCalls({ messages })) return false;
+
+  const message = messages.at(-1);
+  if (!message || message.role !== "assistant") return false;
+
+  const lastStepStartIndex = message.parts.reduce(
+    (lastIndex, part, index) =>
+      part.type === "step-start" ? index : lastIndex,
+    -1,
+  );
+
+  return message.parts
+    .slice(lastStepStartIndex + 1)
+    .some(
+      (part) =>
+        isToolUIPart(part) && getToolName(part) === "prompt_openui",
+    );
+};
+
+const runtime = useChatRuntime({
+  sendAutomaticallyWhen: shouldContinueAfterOpenUIPrompt,
+});
+```
+
+## State and replay
+
+The submitted tool result can store OpenUI's opaque `formState`. Passing that
+state back as `initialState` restores the completed form when assistant-ui
+replays persisted messages.
+
+This does not persist an unfinished form across a page reload. To support that,
+save `onStateUpdate` through your application's message metadata or storage
+adapter and hydrate it independently of the tool result.
+
+## Error handling
+
+`Renderer.onError` reports structured parser and runtime errors. During a
+stream, unresolved forward references are expected; wait until
+`status.type !== "running"` before showing a terminal fallback or sending an
+error to an automated correction loop.
+
+The live demo at the top of this page uses this same integration end to end.
