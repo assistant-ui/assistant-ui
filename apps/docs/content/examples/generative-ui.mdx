@@ -8,7 +8,7 @@ description: Live demo of the present tool, where the model composes a dashboard
 The main route of `examples/with-generative-ui` demonstrates **generative UI**: the model composes an interface at runtime by calling the `present` tool, choosing components from a vocabulary the app ships. Nothing in the app binds a component to a specific tool call.
 
 - **Default vocabulary** — cards, facts, rows, tables, and charts come from `defaultGenerativeUILibrary`, so the app registers one tool and writes no renderers
-- **A custom component** — `DashboardHeader` is added through `defineGenerativeComponents`, showing how to extend the vocabulary with your own React component
+- **A custom component** — `DashboardHeader` is added through `defineGenerativeComponents`, showing how to extend the vocabulary with your own React component, and `Markdown` is swapped for the registry item's real renderer
 - **Styled output** — the vocabulary stylesheet is mounted from `@assistant-ui/ui` through the monorepo's tsconfig alias, the way every in-repo example consumes that package; in your own app the same CSS arrives through `shadcn add generative-ui`
 - **Dashboard prompts** — the suggestions describe data, not layout, and let the model decide the composition
 
@@ -32,10 +32,19 @@ One toolkit entry exposes the whole vocabulary. `display: "standalone"` renders 
 ```tsx title="app/present-toolkit.tsx"
 "use generative";
 
+const markdown = defaultGenerativeUILibrary.Markdown!;
+
 const generative = new JSONGenerativeUI({
   library: {
     ...defaultGenerativeUILibrary,
     ...defineGenerativeComponents({
+      Markdown: {
+        properties: markdown.properties,
+        streamProperties: markdown.streamProperties,
+        description:
+          "A markdown string, rendered with GitHub-flavored markdown.",
+        render: styledGenerativeUILibrary.Markdown!.render,
+      },
       DashboardHeader: {
         description:
           "A heading for a dashboard, with an optional description and reporting period.",
