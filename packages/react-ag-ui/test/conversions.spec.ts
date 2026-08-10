@@ -759,6 +759,17 @@ describe("adapter conversions", () => {
     ]);
   });
 
+  it("drops an encrypted-only record that has no message to anchor to", () => {
+    // The record rides on a neighbouring message, so a snapshot that is only
+    // reasoning has no carrier; the run input it would ride in is empty too.
+    const imported = fromAgUiMessages([
+      { id: "r-1", role: "reasoning", content: "", encryptedValue: "opaque" },
+    ] as any);
+
+    expect(imported).toEqual([]);
+    expect(toAgUiMessages(imported as any)).toEqual([]);
+  });
+
   it("keeps ids stable across repeated snapshot round trips", () => {
     const first = toAgUiMessages(
       fromAgUiMessages([
