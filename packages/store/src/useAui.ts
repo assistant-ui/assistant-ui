@@ -13,7 +13,6 @@ import {
 import {
   useMemo,
   useEffect,
-  useLayoutEffect,
   useRef,
   useState,
   useSyncExternalStore,
@@ -50,6 +49,7 @@ import { ClientResource } from "./useClientResource";
 import { useShallowStable } from "./utils/useShallowStable";
 import { createClientAccessor, getClientId } from "./utils/client-accessor";
 import { getClientIndex } from "./utils/tap-client-stack-context";
+import { useIsomorphicLayoutEffect } from "./utils/useIsomorphicLayoutEffect";
 
 const isDevelopment =
   typeof process !== "undefined" &&
@@ -113,19 +113,36 @@ type EventClientRef = { current: AssistantClient | null };
 // Every client generation points at the ref for its facade. This lets event
 // filtering follow structural rebinds after they commit.
 const eventClientRefs = new WeakMap<AssistantClient, EventClientRef>();
+const generatedEventHandlers = new WeakSet<AssistantClient["on"]>();
+
+const getCurrentEventClient = (client: AssistantClient): AssistantClient =>
+  eventClientRefs.get(client)?.current ?? client;
 
 const getEventScopeOwner = (
   client: AssistantClient,
   scope: ClientNames,
 ): AssistantClient => {
   let candidate: object | null = client;
-  while (candidate) {
+  while (candidate && candidate !== Object.prototype) {
     if (Object.prototype.hasOwnProperty.call(candidate, scope)) {
       return candidate as AssistantClient;
     }
     candidate = Object.getPrototypeOf(candidate) as object | null;
   }
   return client;
+};
+
+const getEventScopeBinding = (
+  subscriber: AssistantClient,
+  scope: ClientNames,
+): AssistantClientAccessor<ClientNames> | undefined => {
+  const currentSubscriber = getCurrentEventClient(subscriber);
+  const owner = getEventScopeOwner(currentSubscriber, scope);
+  const ownerRef = eventClientRefs.get(owner);
+  const currentOwner = ownerRef?.current ?? owner;
+  return currentOwner[scope] as
+    | AssistantClientAccessor<ClientNames>
+    | undefined;
 };
 
 const createClientObject = (
@@ -148,8 +165,8 @@ const useClientFields = ({
   notifications: NotificationManager;
   clientRef: ClientRef;
 }): ClientFields => {
-  return useMemo(
-    () => ({
+  return useMemo(() => {
+    const fields: ClientFields = {
       subscribe: notifications.subscribe,
       on: function <TEvent extends AssistantEventName>(
         this: AssistantClient,
@@ -163,14 +180,14 @@ const useClientFields = ({
         }
 
         const { scope, event } = normalizeEventSelector(selector);
-        const scopeOwner =
-          scope === "*" ? this : getEventScopeOwner(this, scope as ClientNames);
-        const subscriberRef = eventClientRefs.get(scopeOwner);
-        const subscriber = subscriberRef?.current ?? scopeOwner;
+        const initialBinding =
+          scope === "*"
+            ? undefined
+            : getEventScopeBinding(this, scope as ClientNames);
 
         if (scope !== "*") {
           // A hand-built parent may lack the scope entirely; forward to it
-          const source = subscriber[scope as ClientNames]?.source;
+          const source = initialBinding?.source;
           if (source === null) {
             throw new Error(
               `Scope "${scope}" is not available. Use { scope: "*", event: "${event}" } to listen globally.`,
@@ -184,12 +201,10 @@ const useClientFields = ({
             return;
           }
 
-          // Resolve every notification frame against the facade that owns the
-          // subscribed scope. An inherited scope follows its owning ancestor,
-          // while a descendant that rebinds the same name remains authoritative.
-          const boundScope = (subscriberRef?.current ?? scopeOwner)[
-            scope as ClientNames
-          ] as AssistantClientAccessor<ClientNames> | undefined;
+          // Recompute ownership from the subscribing facade's current
+          // generation. An inherited scope follows its owning ancestor, while
+          // a descendant that adds or rebinds the same name becomes authoritative.
+          const boundScope = getEventScopeBinding(this, scope as ClientNames);
           // A scope removed by a structural change since subscription cannot
           // match; resolving its identity would throw
           if (!boundScope || boundScope.source === null) return;
@@ -201,15 +216,11 @@ const useClientFields = ({
             callback(payload);
           }
         });
-        if (
-          scope !== "*" &&
-          clientRef.parent[scope as ClientNames]?.source === null &&
-          (!subscriberRef || subscriberRef === clientRef)
-        )
-          return localUnsub;
-
-        const parentUnsub = clientRef.parent.on.call(
-          this,
+        const parent = clientRef.parent;
+        const parentOn = parent.on;
+        const receiver = generatedEventHandlers.has(parentOn) ? this : parent;
+        const parentUnsub = parentOn.call(
+          receiver,
           selector as never,
           callback as never,
         );
@@ -219,9 +230,10 @@ const useClientFields = ({
           parentUnsub();
         };
       },
-    }),
-    [notifications, clientRef],
-  );
+    };
+    generatedEventHandlers.add(fields.on);
+    return fields;
+  }, [notifications, clientRef]);
 };
 
 const useScopeMeta = (element: ScopeElement): ScopeMeta => {
@@ -311,10 +323,13 @@ export const useAuiRoot = ({
     },
   );
 
+  const client = useCommittedClient(building, [parent, ...accessors]);
+  eventClientRefs.set(client, clientRef);
+
   // Fresh envelope per commit so value-only updates reach the store's
   // subscribers; the client inside keeps its identity
   return {
-    client: useCommittedClient(building, [parent, ...accessors]),
+    client,
   };
 };
 
@@ -365,7 +380,6 @@ const useHostedAssistantClient = ({
     if (clientRef.current === null) {
       clientRef.current = client;
     }
-    eventClientRefs.set(client, clientRef);
 
     return client;
   });
@@ -443,9 +457,9 @@ const useDerivedOnlyClient = (
   // Publish structural rebinds in the layout phase so notification microtasks
   // emitted by descendant layout effects resolve against the committed facade.
   // Render-phase publication would leak an interrupted render instead.
-  useLayoutEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     clientRef.current = client;
-  }, [client, clientRef]);
+  }, [client]);
   if (clientRef.current === null) {
     clientRef.current = client;
   }

@@ -482,6 +482,36 @@ describe("Derived scopes", () => {
     expect(cb).toHaveBeenCalledExactlyOnceWith({ id: "m1", value: "child" });
   });
 
+  it("forwards hosted derived events through a parent that lacks the scope", async () => {
+    let root!: AnyClient;
+    let child!: AnyClient;
+    const Listener = () => {
+      child = useAui();
+      return null;
+    };
+    const Harness = () => {
+      root = useAui({ thread: ThreadClient() } as unknown as useAui.Props);
+      return (
+        <AuiProvider value={root as never}>
+          <HostedDerivedMessageProvider index={1}>
+            <Listener />
+          </HostedDerivedMessageProvider>
+        </AuiProvider>
+      );
+    };
+    render(<Harness />);
+    const cb = vi.fn();
+    child.on("message.pinged", cb);
+
+    root.thread.message({ index: 1 }).ping("ancestor-derived");
+    await flushEvents();
+
+    expect(cb).toHaveBeenCalledExactlyOnceWith({
+      id: "m1",
+      value: "ancestor-derived",
+    });
+  });
+
   it("tracks a derived-only selection across structural swaps", async () => {
     let aui!: AnyClient;
     const cb = vi.fn();
