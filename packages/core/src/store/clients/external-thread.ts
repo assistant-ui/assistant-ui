@@ -417,6 +417,48 @@ type AttachmentAddOperation = {
   attachmentIds: Set<string>;
 };
 
+class AttachmentAddOperations {
+  private readonly operations = new Set<AttachmentAddOperation>();
+
+  start() {
+    const operation: AttachmentAddOperation = {
+      cancelled: false,
+      attachmentIds: new Set(),
+    };
+    this.operations.add(operation);
+    return operation;
+  }
+
+  accept(operation: AttachmentAddOperation, attachmentId: string) {
+    if (operation.cancelled) return false;
+    operation.attachmentIds.add(attachmentId);
+    return true;
+  }
+
+  finish(operation: AttachmentAddOperation) {
+    this.operations.delete(operation);
+  }
+
+  isCancelled(operation: AttachmentAddOperation) {
+    return operation.cancelled;
+  }
+
+  cancel(attachmentId: string) {
+    for (const operation of [...this.operations]) {
+      if (!operation.attachmentIds.has(attachmentId)) continue;
+      operation.cancelled = true;
+      this.operations.delete(operation);
+    }
+  }
+
+  cancelAll() {
+    for (const operation of this.operations) {
+      operation.cancelled = true;
+    }
+    this.operations.clear();
+  }
+}
+
 const useQueueItemClient = ({
   item,
   onMove,
@@ -491,22 +533,10 @@ const useComposerClientResource = ({
   const [quote, setQuote, quoteRef] = useLiveState<
     { readonly text: string; readonly messageId: string } | undefined
   >(undefined);
-  const attachmentAddOperationsRef = useRef(new Set<AttachmentAddOperation>());
-
-  const cancelAttachmentAdd = useCallback((attachmentId: string) => {
-    for (const operation of [...attachmentAddOperationsRef.current]) {
-      if (!operation.attachmentIds.has(attachmentId)) continue;
-      operation.cancelled = true;
-      attachmentAddOperationsRef.current.delete(operation);
-    }
-  }, []);
-
-  const cancelAllAttachmentAdds = useCallback(() => {
-    for (const operation of attachmentAddOperationsRef.current) {
-      operation.cancelled = true;
-    }
-    attachmentAddOperationsRef.current.clear();
-  }, []);
+  const attachmentAddOperations = useMemo(
+    () => new AttachmentAddOperations(),
+    [],
+  );
 
   const updateFromMessage = () => {
     if (!message) return;
@@ -526,7 +556,7 @@ const useComposerClientResource = ({
         AttachmentResource({
           attachment,
           onRemove: async () => {
-            cancelAttachmentAdd(attachment.id);
+            attachmentAddOperations.cancel(attachment.id);
             await attachmentAdapter?.remove(attachment);
             setAttachments((prev) =>
               prev.filter((a) => a.id !== attachment.id),
@@ -631,26 +661,21 @@ const useComposerClientResource = ({
           );
       }
       if (!isCreateAttachment(fileOrAttachment) && attachmentAdapter) {
-        const operation: AttachmentAddOperation = {
-          cancelled: false,
-          attachmentIds: new Set(),
-        };
-        const operations = attachmentAddOperationsRef.current;
-        operations.add(operation);
+        const operation = attachmentAddOperations.start();
         try {
           await drainAdapterAdd(
             attachmentAdapter.add({ file: fileOrAttachment }),
             (attachment) => {
-              if (operation.cancelled) return false;
-              operation.attachmentIds.add(attachment.id);
+              if (!attachmentAddOperations.accept(operation, attachment.id))
+                return false;
               upsertAttachment(attachment);
               return true;
             },
           );
+          attachmentAddOperations.finish(operation);
         } catch (error) {
-          if (!operation.cancelled) throw error;
-        } finally {
-          operations.delete(operation);
+          attachmentAddOperations.finish(operation);
+          if (!attachmentAddOperations.isCancelled(operation)) throw error;
         }
       } else if (!isCreateAttachment(fileOrAttachment)) {
         const newAttachment: Attachment = {
@@ -676,7 +701,7 @@ const useComposerClientResource = ({
       }
     },
     clearAttachments: async () => {
-      cancelAllAttachmentAdds();
+      attachmentAddOperations.cancelAll();
       const removed = attachmentsRef.current;
       setAttachments([]);
       await removePendingAttachments(removed);
@@ -688,7 +713,7 @@ const useComposerClientResource = ({
       return attachmentClients.get(selector);
     },
     reset: async () => {
-      cancelAllAttachmentAdds();
+      attachmentAddOperations.cancelAll();
       const removed = attachmentsRef.current;
       setText("");
       setRole("user");
