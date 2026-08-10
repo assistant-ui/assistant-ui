@@ -38,14 +38,13 @@ const replaceChangedMainThread = (
   mainThreadId: string,
   pendingSwitchId: string | null,
   changedThreadId: string,
+  fallback: ThreadData | undefined,
   fallbackId: string,
 ): ThreadListData => {
   if (mainThreadId !== changedThreadId) {
     return { mainThreadId, threads, pendingSwitchId };
   }
 
-  // Local mutations reuse a live sibling instead of creating an empty thread.
-  const fallback = threads.find((thread) => thread.status === "regular");
   if (fallback) {
     return { mainThreadId: fallback.id, threads, pendingSwitchId: fallback.id };
   }
@@ -165,13 +164,15 @@ const useInMemoryThreadList = (
       const thread = prev.threads.find((item) => item.id === threadId);
       if (thread?.status !== "regular") return prev;
 
+      const nextThreads = prev.threads.map((t) =>
+        t.id === threadId ? { ...t, status: "archived" as const } : t,
+      );
       return replaceChangedMainThread(
-        prev.threads.map((t) =>
-          t.id === threadId ? { ...t, status: "archived" as const } : t,
-        ),
+        nextThreads,
         prev.mainThreadId,
         prev.pendingSwitchId,
         threadId,
+        nextThreads.find((item) => item.status === "regular"),
         fallbackId,
       );
     });
@@ -200,15 +201,17 @@ const useInMemoryThreadList = (
 
   const handleDelete = (threadId: string) => {
     const fallbackId = `thread-${generateId()}`;
-    setThreadList((prev) =>
-      replaceChangedMainThread(
-        prev.threads.filter((t) => t.id !== threadId),
+    setThreadList((prev) => {
+      const nextThreads = prev.threads.filter((t) => t.id !== threadId);
+      return replaceChangedMainThread(
+        nextThreads,
         prev.mainThreadId,
         prev.pendingSwitchId,
         threadId,
+        nextThreads[0],
         fallbackId,
-      ),
-    );
+      );
+    });
   };
 
   const handleSwitchToNewThread = () => {

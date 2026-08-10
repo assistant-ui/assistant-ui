@@ -60,6 +60,27 @@ describe("InMemoryThreadList", () => {
     });
   });
 
+  it("reports a replacement when the last regular thread is archived", async () => {
+    const onSwitchToThread = vi.fn();
+    const onSwitchToNewThread = vi.fn();
+    const { aui } = renderThreads({
+      onSwitchToThread,
+      onSwitchToNewThread,
+    });
+
+    act(() => aui().threads.item({ id: "main" }).archive());
+
+    await waitFor(() => {
+      const state = aui().threads.getState();
+      expect(state.threadIds).toHaveLength(1);
+      expect(state.mainThreadId).toBe(state.threadIds[0]);
+      expect(state.archivedThreadIds).toEqual(["main"]);
+      expect(onSwitchToThread).toHaveBeenCalledOnce();
+      expect(onSwitchToThread).toHaveBeenCalledWith(state.mainThreadId);
+      expect(onSwitchToNewThread).not.toHaveBeenCalled();
+    });
+  });
+
   it("preserves an archived selection after an unrelated deletion", async () => {
     const { aui } = renderThreads();
 
@@ -129,6 +150,29 @@ describe("InMemoryThreadList", () => {
       const state = aui().threads.getState();
       expect(state.threadIds).toEqual([lastGeneratedId]);
       expect(state.mainThreadId).toBe(lastGeneratedId);
+    });
+  });
+
+  it("preserves the archived sibling fallback when the selected thread is deleted", async () => {
+    const onSwitchToThread = vi.fn();
+    const { aui } = renderThreads({ onSwitchToThread });
+
+    aui().threads.item({ id: "main" }).archive();
+    await waitFor(() =>
+      expect(aui().threads.getState().mainThreadId).not.toBe("main"),
+    );
+    const regularId = aui().threads.getState().mainThreadId;
+    onSwitchToThread.mockClear();
+
+    act(() => aui().threads.item({ id: regularId }).delete());
+
+    await waitFor(() => {
+      const state = aui().threads.getState();
+      expect(state.mainThreadId).toBe("main");
+      expect(state.threadIds).toEqual([]);
+      expect(state.archivedThreadIds).toEqual(["main"]);
+      expect(onSwitchToThread).toHaveBeenCalledOnce();
+      expect(onSwitchToThread).toHaveBeenCalledWith("main");
     });
   });
 
