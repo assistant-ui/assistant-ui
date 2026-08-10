@@ -17,7 +17,7 @@ export function getModel(modelId?: string) {
     );
   }
 
-  return id === "gpt-5.6-luna" ? openai.responses(id) : openai.chat(id);
+  return openai.chat(id);
 }
 
 type AppModel = ReturnType<typeof getModel>;
