@@ -6,6 +6,7 @@ import { act, cleanup, render, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { flushTapSync, resource } from "@assistant-ui/tap";
 import { AuiProvider } from "../AuiProvider";
+import { AuiConfig } from "../AuiConfig";
 import { useAui } from "../useAui";
 import { useAuiEvent } from "../useAuiEvent";
 import { useAuiState } from "../useAuiState";
@@ -63,6 +64,28 @@ const setup = (children?: ReactNode) => {
   };
   render(<Harness />);
   return { getAui: () => aui };
+};
+
+const DerivedMessageProvider = ({
+  index,
+  children,
+}: {
+  index: number;
+  children: ReactNode;
+}) => {
+  const parent = useAui();
+  const config = AuiConfig({
+    message: Derived({
+      source: "thread",
+      query: { index },
+      get: (aui: AnyClient) => aui.thread.message({ index }),
+    } as never),
+  } as never);
+  return (
+    <AuiProvider extends={parent} config={config}>
+      {children}
+    </AuiProvider>
+  );
 };
 
 afterEach(() => {
@@ -366,6 +389,61 @@ describe("microtask delivery (live-set semantics)", () => {
 });
 
 describe("Derived scopes", () => {
+  it("uses a derived-only provider's scope for event filtering", async () => {
+    let child!: AnyClient;
+    const hookListener = vi.fn();
+    const directListener = vi.fn();
+    const Listener = () => {
+      child = useAui();
+      useAuiEvent("message.pinged" as never, hookListener as never);
+      return null;
+    };
+    const { getAui } = setup(
+      <DerivedMessageProvider index={1}>
+        <Listener />
+      </DerivedMessageProvider>,
+    );
+    child.on("message.pinged", directListener);
+
+    getAui().thread.message({ index: 0 }).ping("parent");
+    getAui().thread.message({ index: 1 }).ping("child");
+    await flushEvents();
+
+    expect(hookListener).toHaveBeenCalledExactlyOnceWith({
+      id: "m1",
+      value: "child",
+    });
+    expect(directListener).toHaveBeenCalledExactlyOnceWith({
+      id: "m1",
+      value: "child",
+    });
+  });
+
+  it("filters a derived-only scope that is absent from the parent", async () => {
+    let aui!: AnyClient;
+    const cb = vi.fn();
+    const Listener = () => {
+      useAuiEvent("message.pinged" as never, cb as never);
+      return null;
+    };
+    const Harness = () => {
+      aui = useAui({ thread: ThreadClient() } as unknown as useAui.Props);
+      return (
+        <AuiProvider value={aui as never}>
+          <DerivedMessageProvider index={1}>
+            <Listener />
+          </DerivedMessageProvider>
+        </AuiProvider>
+      );
+    };
+    render(<Harness />);
+
+    aui.thread.message({ index: 1 }).ping("child");
+    await flushEvents();
+
+    expect(cb).toHaveBeenCalledExactlyOnceWith({ id: "m1", value: "child" });
+  });
+
   it("useAuiEvent tracks the derived selection across structural swaps", async () => {
     let aui!: AnyClient;
     const cb = vi.fn();

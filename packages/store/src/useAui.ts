@@ -107,6 +107,16 @@ type ClientFields = {
   on: AssistantClient["on"];
 };
 
+type DerivedClientRef = { current: AssistantClient | null };
+
+const derivedClientRefs = new WeakMap<AssistantClient, DerivedClientRef>();
+
+const getUnboundOn = (client: AssistantClient): AssistantClient["on"] => {
+  // Client proxies expose raw methods through descriptors; direct reads are receiver-bound.
+  const descriptor = Object.getOwnPropertyDescriptor(client, "on");
+  return (descriptor?.value as AssistantClient["on"] | undefined) ?? client.on;
+};
+
 const createClientObject = (
   parent: AssistantClient,
   fields: ClientFields,
@@ -142,10 +152,13 @@ const useClientFields = ({
         }
 
         const { scope, event } = normalizeEventSelector(selector);
+        const derivedClientRef = derivedClientRefs.get(this);
 
         if (scope !== "*") {
           // A hand-built parent may lack the scope entirely; forward to it
-          const source = this[scope as ClientNames]?.source;
+          const source = (derivedClientRef?.current ?? this)[
+            scope as ClientNames
+          ]?.source;
           if (source === null) {
             throw new Error(
               `Scope "${scope}" is not available. Use { scope: "*", event: "${event}" } to listen globally.`,
@@ -162,9 +175,11 @@ const useClientFields = ({
           // Resolved against the host's current client: a structural swap
           // replaces the client identity, and a listener subscribed on an
           // earlier generation still follows the scope's present binding
-          const boundScope = (clientRef.current ?? this)[
-            scope as ClientNames
-          ] as AssistantClientAccessor<ClientNames> | undefined;
+          const boundScope = (derivedClientRef?.current ??
+            clientRef.current ??
+            this)[scope as ClientNames] as
+            | AssistantClientAccessor<ClientNames>
+            | undefined;
           // A scope removed by a structural change since subscription cannot
           // match; resolving its identity would throw
           if (!boundScope || boundScope.source === null) return;
@@ -178,11 +193,18 @@ const useClientFields = ({
         });
         if (
           scope !== "*" &&
-          clientRef.parent[scope as ClientNames]?.source === null
+          clientRef.parent[scope as ClientNames]?.source === null &&
+          !derivedClientRef
         )
           return localUnsub;
 
-        const parentUnsub = clientRef.parent.on(selector, callback);
+        const parentUnsub = derivedClientRef
+          ? getUnboundOn(clientRef.parent).call(
+              this,
+              selector as never,
+              callback as never,
+            )
+          : clientRef.parent.on(selector, callback);
 
         return () => {
           localUnsub();
@@ -372,8 +394,8 @@ const useDerivedScopeMount = (
 
 // Derived-only hosts run without tap: each Derived scope is a plain React
 // hook call, so the scope count is fixed per call site (React throws on a
-// hook-count change). subscribe/on delegate wholesale to the parent, so
-// emissions and state updates flow through the parent's machinery.
+// hook-count change). State and event transport stay with the parent, while
+// scoped event resolution stays bound to this derived facade.
 const useDerivedOnlyClient = (
   parent: AssistantClient,
   entries: ScopeEntry[],
@@ -397,16 +419,35 @@ const useDerivedOnlyClient = (
     }
   }
 
+  const on = useMemo<AssistantClient["on"]>(
+    () =>
+      function <TEvent extends AssistantEventName>(
+        this: AssistantClient,
+        selector: AssistantEventSelector<TEvent>,
+        callback: AssistantEventCallback<TEvent>,
+      ) {
+        return getUnboundOn(parent).call(
+          this,
+          selector as never,
+          callback as never,
+        );
+      },
+    [parent],
+  );
   const building = createClientObject(parent, {
     subscribe: parent.subscribe,
-    on: parent.on,
+    on,
   });
 
   const accessors = entries.map(([name, element]) =>
     // oxlint-disable-next-line react-hooks/rules-of-hooks -- fixed per call site; React throws on a count change
     useDerivedScopeMount(parent, building, name, element),
   );
-  return useCommittedClient(building, [parent, ...accessors]);
+  const client = useCommittedClient(building, [parent, ...accessors]);
+  const clientRef = useRef<DerivedClientRef>({ current: null }).current;
+  clientRef.current = client;
+  derivedClientRefs.set(client, clientRef);
+  return client;
 };
 
 type ScopedAuiClient = { client: AssistantClient; effects?: () => void };
