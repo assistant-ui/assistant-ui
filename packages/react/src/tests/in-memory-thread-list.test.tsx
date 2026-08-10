@@ -53,3 +53,16 @@ describe("InMemoryThreadList delete", () => {
     });
   });
 });
+
+describe("InMemoryThreadList suggestions", () => {
+  it("derives the suggestions scope from the main thread", async () => {
+    const { aui } = renderThreads();
+
+    await waitFor(() => {
+      expect(aui().suggestions.getState()).toEqual({ suggestions: [] });
+    });
+    expect(aui().suggestions.getState()).toBe(
+      aui().thread.suggestions().getState(),
+    );
+  });
+});

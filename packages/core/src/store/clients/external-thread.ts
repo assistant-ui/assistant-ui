@@ -1156,7 +1156,7 @@ attachTransformScopes(useExternalThread, (scopes, parent) => {
     scopes.suggestions = Derived({
       source: "thread",
       query: {},
-      get: (aui) => aui.threads.thread("main").suggestions(),
+      get: (aui) => aui.thread.suggestions(),
     });
   }
 });

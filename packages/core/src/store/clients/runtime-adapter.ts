@@ -29,7 +29,7 @@ export const baseRuntimeAdapterTransformScopes = (
     scopes.suggestions = Derived({
       source: "thread",
       query: {},
-      get: (aui) => aui.threads.thread("main").suggestions(),
+      get: (aui) => aui.thread.suggestions(),
     });
   }
 };
