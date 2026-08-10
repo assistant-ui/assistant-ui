@@ -57,19 +57,12 @@ describe("JSONGenerativeUI — client build", () => {
     );
   });
 
-  it("renders nothing until the stream produces a node", () => {
-    expect(renderTool(ui.present(), undefined)).toBe("");
-    expect(renderTool(ui.present(), [])).toBe("");
-  });
-
-  it("offers a copy control that is named but holds no text of its own", () => {
-    const html = renderTool(ui.present(), { $type: "Button", label: "ok" });
-    expect(html).toContain('data-aui="root-copy"');
-    expect(html).toContain('aria-label="Copy"');
-    // Only a glyph between the button's tags, so the control never lands in
-    // the text it copies back out of the surface.
-    expect(html).toMatch(/data-aui="root-copy"[^>]*>\s*<svg\b/);
-    expect(html).toContain("</svg></button>");
+  it("leaves the surface childless until the stream produces a node", () => {
+    // `:empty` is what hides it, so the contract is that it has no children.
+    expect(renderTool(ui.present(), undefined)).toBe(
+      '<div data-aui="root"></div>',
+    );
+    expect(renderTool(ui.present(), [])).toBe('<div data-aui="root"></div>');
   });
 
   it("prompt_user is a human tool that renders the tree (no execute)", () => {

@@ -96,6 +96,9 @@ export const layoutVocabulary = {
           data-aui="card"
           data-aui-padding={padding}
           data-aui-background={background}
+          data-aui-surface={
+            background !== undefined || footer !== null ? "" : undefined
+          }
           style={
             background !== undefined
               ? { background, color: "white" }

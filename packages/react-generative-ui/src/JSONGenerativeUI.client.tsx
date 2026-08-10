@@ -10,7 +10,6 @@ import {
   type PromptUserTool,
 } from "./JSONGenerativeUI.shared";
 import { type ActionRegistry } from "./actionRegistry";
-import { GenerativeUIRoot } from "./GenerativeUIRoot";
 import { renderGenerativeUI } from "./renderGenerativeUI";
 import type { GenerativeUILibrary, GenerativeUIStatus } from "./types";
 
@@ -44,22 +43,25 @@ export class JSONGenerativeUI {
     this.actions = options.actions;
   }
 
+  /**
+   * The surface a `present` call paints into. It owns the vertical rhythm
+   * between top-level blocks, which the host's message container does not
+   * provide, and stays out of the way while it has nothing to show.
+   */
   private readonly render = ({
     args,
     status,
   }: {
     args: unknown;
     status: { type: string };
-  }): ReactNode => {
-    const tree = renderGenerativeUI(args, this.library, {
-      status: uiStatus(status),
-      ...(this.actions ? { dispatch: this.actions.dispatch } : {}),
-    });
-    // The surface carries its own margins, so mounting it before the first
-    // node arrives would hold open a blank gap for the length of the stream.
-    if (tree == null || (Array.isArray(tree) && tree.length === 0)) return null;
-    return <GenerativeUIRoot>{tree}</GenerativeUIRoot>;
-  };
+  }): ReactNode => (
+    <div data-aui="root">
+      {renderGenerativeUI(args, this.library, {
+        status: uiStatus(status),
+        ...(this.actions ? { dispatch: this.actions.dispatch } : {}),
+      })}
+    </div>
+  );
 
   present(options?: PresentToolOptions): PresentTool {
     return {
