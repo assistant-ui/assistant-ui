@@ -3,6 +3,7 @@
 import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
 import { mono, paper } from "./surfaces";
+import { pct } from "./range";
 
 export interface CostLine {
   model: string;
@@ -59,7 +60,7 @@ export function CostMeter({
                   ? "bg-blue-500/55 dark:bg-blue-400/55"
                   : "bg-foreground/25",
             )}
-            style={{ width: `${line.share * 100}%` }}
+            style={{ width: `${pct(line.share, 1)}%` }}
           />
         ))}
       </div>

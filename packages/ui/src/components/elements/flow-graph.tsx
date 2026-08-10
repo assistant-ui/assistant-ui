@@ -3,6 +3,7 @@
 import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
 import { mono, paper } from "./surfaces";
+import { take } from "./range";
 
 export type FlowNodeState = "done" | "active" | "pending";
 
@@ -38,10 +39,10 @@ export function FlowGraph({
   edges: readonly FlowEdge[];
   visibleCount: number;
 }) {
-  const shown = nodes.slice(0, visibleCount);
+  const shown = take(nodes, visibleCount);
   const shownIds = new Set(shown.map((node) => node.id));
-  const columns = Math.max(...nodes.map((node) => node.column)) + 1;
-  const rows = Math.max(...nodes.map((node) => node.row)) + 1;
+  const columns = Math.max(0, ...nodes.map((node) => node.column)) + 1;
+  const rows = Math.max(0, ...nodes.map((node) => node.row)) + 1;
   const width = (columns - 1) * COL_W + NODE_W;
   const height = (rows - 1) * ROW_H + NODE_H;
 

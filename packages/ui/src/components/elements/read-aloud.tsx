@@ -4,6 +4,7 @@ import type { ComponentProps } from "react";
 import { PauseIcon, PlayIcon, Volume2Icon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { field, ghostButton, mono, paper } from "./surfaces";
+import { pct } from "./range";
 
 export function ReadAloud({
   words,
@@ -37,8 +38,7 @@ export function ReadAloud({
   onToggle?: () => void;
   onRateChange?: () => void;
 }) {
-  const progress =
-    words.length === 0 ? 0 : Math.min(100, (spokenIndex / words.length) * 100);
+  const progress = pct(spokenIndex, words.length);
 
   return (
     <div

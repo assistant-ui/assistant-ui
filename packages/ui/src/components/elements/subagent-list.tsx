@@ -4,6 +4,7 @@ import type { ComponentProps } from "react";
 import { CheckIcon, Loader2Icon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { mono, paper } from "./surfaces";
+import { pct } from "./range";
 
 export interface SubagentItem {
   name: string;
@@ -74,7 +75,7 @@ export function SubagentList({
                   "block h-full rounded-full transition-[width] duration-700",
                   done ? "bg-emerald-500/70" : "bg-foreground/60",
                 )}
-                style={{ width: `${width}%` }}
+                style={{ width: `${pct(width, 100)}%` }}
               />
             </span>
           </div>

@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 import { collapsePanel, SwapLabel } from "./surfaces";
+import { take } from "./range";
 
 export interface TimelineStep {
   verb: string;
@@ -71,9 +72,9 @@ export function ToolTimeline({
       </CollapsibleTrigger>
       <CollapsibleContent className={cn(collapsePanel, "outline-none")}>
         <div className="flex flex-col gap-2.5 ps-4 pt-2.5">
-          {steps.slice(0, visibleSteps).map((step, index) => {
+          {take(steps, visibleSteps).map((step, index, shown) => {
             const Icon = step.icon;
-            const active = streaming && index === visibleSteps - 1;
+            const active = streaming && index === shown.length - 1;
 
             return (
               <div

@@ -3,6 +3,7 @@
 import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
 import { mono, paper } from "./surfaces";
+import { take } from "./range";
 
 export interface MathStep {
   expression: React.ReactNode;
@@ -36,7 +37,7 @@ export function MathBlock({
     >
       {label && <span className={cn(mono, "text-foreground/30")}>{label}</span>}
 
-      {steps.slice(0, visibleSteps).map((step, i) => (
+      {take(steps, visibleSteps).map((step, i) => (
         <div
           key={i}
           className="fade-in slide-in-from-bottom-1 animate-in fill-mode-both flex flex-col gap-1 duration-300"

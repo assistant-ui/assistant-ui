@@ -3,6 +3,7 @@
 import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
 import { field, mono } from "./surfaces";
+import { pct } from "./range";
 
 const fmt = (n: number) => n.toLocaleString("en-US");
 
@@ -30,7 +31,7 @@ export function ReasoningEffort({
 }) {
   const selected = levels.find((level) => level.key === selectedKey);
   const budget = selected?.budget ?? 0;
-  const used = budget === 0 ? 0 : Math.min(100, (spent / budget) * 100);
+  const used = pct(spent, budget);
 
   return (
     <div

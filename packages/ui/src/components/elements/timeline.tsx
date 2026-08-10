@@ -3,6 +3,7 @@
 import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
 import { mono, paper } from "./surfaces";
+import { take } from "./range";
 
 export type TimelineWhen = "past" | "now" | "future";
 
@@ -34,7 +35,7 @@ export function Timeline({
 
       {...props}
     >
-      {events.slice(0, visibleCount).map((event, i, shown) => (
+      {take(events, visibleCount).map((event, i, shown) => (
         <div
           key={event.id}
           className="fade-in slide-in-from-left-1 animate-in fill-mode-both grid grid-cols-[3.5rem_1rem_1fr] gap-x-2 duration-300"

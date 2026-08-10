@@ -4,6 +4,7 @@ import type { ComponentProps } from "react";
 import { MicIcon, MicOffIcon, PhoneOffIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ghostButton, mono, paper } from "./surfaces";
+import { clamp } from "./range";
 
 export type VoiceMode = "connecting" | "listening" | "thinking" | "speaking";
 
@@ -56,7 +57,7 @@ export function VoiceConversation({
   onInterrupt?: () => void;
   onEnd?: () => void;
 }) {
-  const level = Math.max(0, Math.min(1, amplitude));
+  const level = clamp(amplitude, 0, 1);
   const active = mode === "listening" || mode === "speaking";
   const canInterrupt = mode === "speaking" && onInterrupt !== undefined;
 

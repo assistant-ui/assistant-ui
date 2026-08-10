@@ -3,6 +3,7 @@
 import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
 import { field, mono, paper } from "./surfaces";
+import { clamp } from "./range";
 
 export interface SettingToggle {
   key: string;
@@ -97,7 +98,7 @@ export function SettingsPanel({
         <span className="flex items-baseline justify-between">
           <span className={cn(mono, "text-foreground/30")}>temperature</span>
           <span className={cn(mono, "text-foreground/55 tabular-nums")}>
-            {Math.min(2, Math.max(0, temperature)).toFixed(1)}
+            {clamp(temperature, 0, 2).toFixed(1)}
           </span>
         </span>
         <input
@@ -105,7 +106,7 @@ export function SettingsPanel({
           min={0}
           max={2}
           step={0.1}
-          value={Math.min(2, Math.max(0, temperature))}
+          value={clamp(temperature, 0, 2)}
           aria-label="Temperature"
           onChange={(event) =>
             onTemperatureChange?.(Number(event.target.value))

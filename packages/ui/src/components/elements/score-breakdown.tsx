@@ -3,6 +3,7 @@
 import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
 import { mono, paper } from "./surfaces";
+import { pct, take } from "./range";
 
 export interface ScoreCriterion {
   label: string;
@@ -64,7 +65,7 @@ export function ScoreBreakdown({
       </div>
 
       <div className="flex flex-col gap-2">
-        {criteria.slice(0, visibleCount).map((criterion) => (
+        {take(criteria, visibleCount).map((criterion) => (
           <div
             key={criterion.label}
             className="fade-in slide-in-from-bottom-1 animate-in fill-mode-both flex flex-col gap-1 duration-300"
@@ -86,7 +87,7 @@ export function ScoreBreakdown({
               <span
                 className="block h-full rounded-full bg-blue-500 transition-[width] duration-500 motion-reduce:transition-none dark:bg-blue-400"
                 style={{
-                  width: `${Math.min(100, outOf === 0 ? 0 : (criterion.score / outOf) * 100)}%`,
+                  width: `${pct(criterion.score, outOf)}%`,
                 }}
               />
             </span>

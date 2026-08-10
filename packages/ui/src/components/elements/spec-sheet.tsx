@@ -3,6 +3,7 @@
 import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
 import { mono, paper } from "./surfaces";
+import { take } from "./range";
 
 export interface SpecRow {
   label: string;
@@ -45,7 +46,7 @@ export function SpecSheet({
       </div>
 
       <div className="flex flex-col">
-        {rows.slice(0, visibleCount).map((row) => (
+        {take(rows, visibleCount).map((row) => (
           <div
             key={row.label}
             className="border-foreground/[0.06] fade-in animate-in fill-mode-both flex items-baseline gap-3 border-t py-1.5 duration-300 first:border-t-0 first:pt-0"

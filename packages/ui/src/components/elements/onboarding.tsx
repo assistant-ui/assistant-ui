@@ -3,6 +3,7 @@
 import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
 import { field, inkButton, mono, paper } from "./surfaces";
+import { progressOf } from "./range";
 
 export interface OnboardingStep {
   title: string;
@@ -26,9 +27,10 @@ export function Onboarding({
   onNext?: () => void;
   onSkip?: () => void;
 }) {
-  const step = steps[Math.min(index, steps.length - 1)];
+  const current = progressOf(index, Math.max(0, steps.length - 1));
+  const step = steps[current];
   if (!step) return null;
-  const last = index >= steps.length - 1;
+  const last = current >= steps.length - 1;
 
   return (
     <div
@@ -42,11 +44,11 @@ export function Onboarding({
       {...props}
     >
       <div
-        key={index}
+        key={current}
         className="fade-in animate-in flex flex-col gap-2 duration-300"
       >
         <span className={cn(mono, "text-foreground/30 tabular-nums")}>
-          {index + 1} of {steps.length}
+          {current + 1} of {steps.length}
         </span>
         <span className="text-[15px] font-medium tracking-tight">
           {step.title}
@@ -72,7 +74,7 @@ export function Onboarding({
               aria-hidden
               className={cn(
                 "h-1 rounded-full transition-all duration-300 motion-reduce:transition-none",
-                i === index ? "bg-foreground/60 w-4" : "bg-foreground/15 w-1",
+                i === current ? "bg-foreground/60 w-4" : "bg-foreground/15 w-1",
               )}
             />
           ))}

@@ -1,0 +1,37 @@
+/**
+ * Range normalization for the numeric props the elements take.
+ *
+ * Elements are driven by a caller's state, so a prop can arrive negative, past
+ * the end of its collection, or NaN. Left raw, those reach the DOM: a negative
+ * percentage is an invalid CSS width that the browser drops, leaving a bar at
+ * its natural full width, and a negative slice length counts from the end of
+ * the array instead of returning nothing.
+ */
+
+/** Constrains a value to `min…max`, mapping NaN to `min`. */
+export function clamp(value: number, min: number, max: number) {
+  if (Number.isNaN(value)) return min;
+  return Math.min(max, Math.max(min, value));
+}
+
+/** The first `count` items, for a `count` that may be out of range. */
+export function take<T>(items: readonly T[], count: number) {
+  return items.slice(0, Math.floor(clamp(count, 0, items.length)));
+}
+
+/** The item at `index`, for an `index` that may be out of range. */
+export function at<T>(items: readonly T[], index: number) {
+  if (items.length === 0) return undefined;
+  return items[Math.floor(clamp(index, 0, items.length - 1))];
+}
+
+/** `value` as a share of `total`, as a percentage in `0…100`. */
+export function pct(value: number, total: number) {
+  if (!(total > 0)) return 0;
+  return clamp((value / total) * 100, 0, 100);
+}
+
+/** A count of completed items out of `total`, in `0…total`. */
+export function progressOf(index: number, total: number) {
+  return Math.floor(clamp(index, 0, total));
+}

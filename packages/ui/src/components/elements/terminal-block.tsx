@@ -4,6 +4,7 @@ import type { ComponentProps } from "react";
 import { CheckIcon, Loader2Icon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { mono, paper } from "./surfaces";
+import { take } from "./range";
 
 export function TerminalBlock({
   command,
@@ -81,7 +82,7 @@ export function TerminalBlock({
             : "text-foreground/50",
         )}
       >
-        {lines.slice(0, visibleCount).map((line, i) => {
+        {take(lines, visibleCount).map((line, i) => {
           const isLast = i === lines.length - 1;
           return (
             <div

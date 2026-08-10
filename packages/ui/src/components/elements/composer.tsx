@@ -27,6 +27,7 @@ import {
   mono,
   paper,
 } from "./surfaces";
+import { clamp, pct } from "./range";
 
 export interface ComposerAttachment {
   name: string;
@@ -299,7 +300,7 @@ export function ComposerAttachmentChip({
         <span
           aria-hidden
           className="absolute inset-x-0 bottom-0 h-0.5 bg-blue-500/70 transition-[width] duration-300 dark:bg-blue-400/70"
-          style={{ width: `${attachment.progress ?? 0}%` }}
+          style={{ width: `${pct(attachment.progress ?? 0, 100)}%` }}
         />
       )}
     </div>
@@ -531,9 +532,7 @@ export function ComposerContext({
                 "h-full transition-[width] duration-700 motion-reduce:transition-none",
                 segment.className,
               )}
-              style={{
-                width: `${usage.total === 0 ? 0 : (segment.value / usage.total) * 100}%`,
-              }}
+              style={{ width: `${pct(segment.value, usage.total)}%` }}
             />
           ))}
         </div>
@@ -589,7 +588,7 @@ export function ComposerContext({
             strokeLinecap="round"
             className="stroke-current transition-[stroke-dashoffset] duration-700 motion-reduce:transition-none"
             strokeDasharray={circumference}
-            strokeDashoffset={circumference * (1 - Math.min(fraction, 1))}
+            strokeDashoffset={circumference * (1 - clamp(fraction, 0, 1))}
           />
         </svg>
       </button>

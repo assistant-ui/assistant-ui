@@ -68,6 +68,7 @@ const createElementRegistryItem = (
   ],
   registryDependencies: [
     "https://r.assistant-ui.com/elements-surfaces.json",
+    "https://r.assistant-ui.com/elements-range.json",
     ...(entry.usesElements ?? []).map(
       (slug) => `https://r.assistant-ui.com/elements-${slug}.json`,
     ),
@@ -94,6 +95,20 @@ const elementsRegistryItems: RegistryItem[] = [
     css: {
       '@import "tw-shimmer"': {},
     },
+  },
+  {
+    name: "elements-range",
+    type: "registry:component",
+    title: "Elements Range",
+    description:
+      "Range normalization for the elements family: clamping a caller's counts, indexes, and shares to what the element can render.",
+    files: [
+      {
+        type: "registry:lib",
+        path: "components/elements/range.ts",
+        sourcePath: "../../packages/ui/src/components/elements/range.ts",
+      },
+    ],
   },
   createElementRegistryItem({
     slug: "loading-state",

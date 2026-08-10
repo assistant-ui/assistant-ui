@@ -4,6 +4,7 @@ import type { ComponentProps } from "react";
 import { CheckIcon, Loader2Icon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { mono } from "./surfaces";
+import { pct, progressOf } from "./range";
 
 export function AgentPlan({
   steps,
@@ -15,9 +16,9 @@ export function AgentPlan({
   activeIndex: number;
 }) {
   const total = steps.length;
-  const allDone = activeIndex >= total;
-  const completed = allDone ? total : activeIndex;
-  const progress = total === 0 ? 0 : (completed / total) * 100;
+  const completed = progressOf(activeIndex, total);
+  const allDone = completed >= total;
+  const progress = pct(completed, total);
 
   return (
     <div
@@ -40,8 +41,8 @@ export function AgentPlan({
       </div>
       <ul className="flex flex-col gap-2.5">
         {steps.map((step, i) => {
-          const done = allDone || i < activeIndex;
-          const active = !allDone && i === activeIndex;
+          const done = allDone || i < completed;
+          const active = !allDone && i === completed;
           return (
             <li key={step} className="flex items-center gap-2.5 text-[13.5px]">
               <span className="flex size-4 shrink-0 items-center justify-center">

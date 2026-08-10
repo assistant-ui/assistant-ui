@@ -4,6 +4,7 @@ import type { ComponentProps } from "react";
 import { ChevronDownIcon, FileIcon, FolderIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { mono, paper } from "./surfaces";
+import { take } from "./range";
 
 export interface FileTreeNode {
   path: string;
@@ -56,7 +57,7 @@ export function FileTree({
       </div>
 
       <div className="flex flex-col">
-        {nodes.slice(0, visibleCount).map((node) => (
+        {take(nodes, visibleCount).map((node) => (
           <div
             key={node.path}
             className="fade-in slide-in-from-left-1 animate-in fill-mode-both hover:bg-foreground/[0.03] flex items-center gap-2 rounded-lg px-1 py-1 text-[13px] transition-colors duration-300"

@@ -1022,7 +1022,7 @@ import { ToolTimeline } from "@/components/elements/tool-timeline";
             type: "number",
             required: true,
             description:
-              "Index of the step currently running. Values past the end mark every step done.",
+              "Index of the step currently running. Values past the end mark every step done, and values before the start mark none.",
           },
           {
             name: "className",
@@ -1805,7 +1805,8 @@ const matches = useMentionMatches(value, people);
             name: "activeIndex",
             type: "number",
             required: true,
-            description: "Index of the currently selected thread.",
+            description:
+              "Index of the currently selected thread. An index outside the list selects nothing.",
           },
           {
             name: "onActiveIndexChange",
@@ -2706,7 +2707,7 @@ const matches = useMentionMatches(value, people);
             type: "number",
             required: true,
             description:
-              "Index of the word being spoken. Everything before it dims, everything after stays waiting.",
+              "Index of the word being spoken. Everything before it dims, everything after stays waiting, and an index outside the text speaks none of it.",
           },
           {
             name: "playing",
@@ -4385,7 +4386,8 @@ const matches = useMentionMatches(value, people);
             name: "activePage",
             type: "number",
             required: true,
-            description: "Which anchor is highlighted.",
+            description:
+              "Which anchor is highlighted. A page with no anchor highlights nothing.",
           },
           {
             name: "onJump",
@@ -4902,7 +4904,7 @@ const matches = useMentionMatches(value, people);
             type: "number",
             required: true,
             description:
-              "Which stage is running. Passing stages.length marks the job finished.",
+              "Which stage is running. Passing stages.length marks the job finished, and the bar never runs past its track.",
           },
           {
             name: "stageProgress",

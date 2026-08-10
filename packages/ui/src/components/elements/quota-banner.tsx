@@ -3,6 +3,7 @@
 import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
 import { inkButton, mono, paper } from "./surfaces";
+import { pct } from "./range";
 
 export function QuotaBanner({
   used,
@@ -65,7 +66,7 @@ export function QuotaBanner({
             "block h-full rounded-full transition-[width] duration-500 motion-reduce:transition-none",
             tight ? "bg-amber-500" : "bg-foreground/40",
           )}
-          style={{ width: `${Math.min(100, ratio * 100)}%` }}
+          style={{ width: `${pct(used, limit)}%` }}
         />
       </span>
 

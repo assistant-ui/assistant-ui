@@ -4,6 +4,7 @@ import type { ComponentProps } from "react";
 import { CheckIcon, Loader2Icon, XIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ghostButton, mono, paper } from "./surfaces";
+import { clamp, pct, progressOf, take } from "./range";
 
 export interface JobStage {
   name: string;
@@ -36,16 +37,19 @@ export function JobProgress({
   eta: string;
   onCancel?: () => void;
 }) {
-  const totalWeight = stages.reduce((sum, stage) => sum + stage.weight, 0) || 1;
-  const completed = stages
-    .slice(0, stageIndex)
-    .reduce((sum, stage) => sum + stage.weight, 0);
-  const current = stages[stageIndex];
-  const overall =
-    ((completed + (current ? current.weight * stageProgress : 0)) /
-      totalWeight) *
-    100;
-  const finished = stageIndex >= stages.length;
+  const stage = progressOf(stageIndex, stages.length);
+  const progress = clamp(stageProgress, 0, 1);
+  const totalWeight = stages.reduce((sum, item) => sum + item.weight, 0) || 1;
+  const completed = take(stages, stage).reduce(
+    (sum, item) => sum + item.weight,
+    0,
+  );
+  const current = stages[stage];
+  const overall = pct(
+    completed + (current ? current.weight * progress : 0),
+    totalWeight,
+  );
+  const finished = stage >= stages.length;
 
   return (
     <div
@@ -88,24 +92,24 @@ export function JobProgress({
             "block h-full rounded-full transition-[width] duration-500 ease-out motion-reduce:transition-none",
             finished ? "bg-emerald-500" : "bg-blue-500 dark:bg-blue-400",
           )}
-          style={{ width: `${Math.min(100, overall)}%` }}
+          style={{ width: `${overall}%` }}
         />
       </span>
 
       <div className="flex flex-wrap gap-x-3 gap-y-1">
-        {stages.map((stage, i) => (
+        {stages.map((item, i) => (
           <span
-            key={stage.name}
+            key={item.name}
             className={cn(
               mono,
-              i < stageIndex
+              i < stage
                 ? "text-foreground/35"
-                : i === stageIndex
+                : i === stage
                   ? "text-foreground/90"
                   : "text-foreground/20",
             )}
           >
-            {stage.name}
+            {item.name}
           </span>
         ))}
       </div>

@@ -3,6 +3,7 @@
 import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
 import { mono, paper } from "./surfaces";
+import { pct, take } from "./range";
 
 export type SpanStatus = "running" | "completed" | "failed";
 
@@ -56,9 +57,9 @@ export function TraceWaterfall({
       </div>
 
       <div className="flex flex-col gap-1">
-        {spans.slice(0, visibleCount).map((item) => {
-          const left = (item.startMs / span) * 100;
-          const width = Math.max(1.5, (item.durationMs / span) * 100);
+        {take(spans, visibleCount).map((item) => {
+          const left = pct(item.startMs, span);
+          const width = Math.max(1.5, pct(item.durationMs, span));
           return (
             <div
               key={item.id}

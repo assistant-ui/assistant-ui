@@ -3,6 +3,7 @@
 import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
 import { mono, paper } from "./surfaces";
+import { pct } from "./range";
 
 const fmt = (n: number) => n.toLocaleString("en-US");
 
@@ -23,7 +24,7 @@ export function ContextBreakdown({
 }) {
   const used = segments.reduce((sum, segment) => sum + segment.tokens, 0);
   const pressure = limit === 0 ? 0 : used / limit;
-  const share = (tokens: number) => (limit === 0 ? 0 : (tokens / limit) * 100);
+  const share = (tokens: number) => pct(tokens, limit);
 
   return (
     <div

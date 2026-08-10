@@ -3,6 +3,7 @@
 import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
 import { mono, paper } from "./surfaces";
+import { clamp, take } from "./range";
 
 export type ChartVariant = "area" | "line" | "bars";
 
@@ -43,7 +44,7 @@ export function Chart({
   visibleCount: number;
   variant?: ChartVariant;
 }) {
-  const shown = points.slice(0, Math.max(1, visibleCount));
+  const shown = take(points, clamp(visibleCount, 1, points.length));
   const y = scale(points);
   const step = points.length > 1 ? (W - PAD * 2) / (points.length - 1) : 0;
   const x = (i: number) => PAD + i * step;

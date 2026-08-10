@@ -4,6 +4,7 @@ import type { ComponentProps } from "react";
 import { DatabaseIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { field, mono, paper } from "./surfaces";
+import { pct, take } from "./range";
 
 export interface RetrievalChunk {
   id: string;
@@ -65,7 +66,7 @@ export function RetrievalChunks({
       </div>
 
       <div className="flex min-h-[7rem] flex-col gap-1.5">
-        {chunks.slice(0, visibleCount).map((chunk) => (
+        {take(chunks, visibleCount).map((chunk) => (
           <div
             key={chunk.id}
             className={cn(
@@ -98,7 +99,7 @@ export function RetrievalChunks({
             <span className="bg-foreground/[0.06] h-[2px] w-full overflow-hidden rounded-full">
               <span
                 className="block h-full rounded-full bg-blue-500/70 transition-[width] duration-500 dark:bg-blue-400/70"
-                style={{ width: `${chunk.score * 100}%` }}
+                style={{ width: `${pct(chunk.score, 1)}%` }}
               />
             </span>
           </div>
