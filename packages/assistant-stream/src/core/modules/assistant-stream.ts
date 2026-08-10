@@ -167,6 +167,12 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
       AssistantStreamChunk
     >,
   ) {
+    if (stream.locked) {
+      throw new TypeError(
+        "Cannot merge a stream that is already locked to a reader.",
+      );
+    }
+
     const pipeTask = stream
       .pipeTo(transformer.writable)
       .catch(async (error) => {

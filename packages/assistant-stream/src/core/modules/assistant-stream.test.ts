@@ -236,22 +236,27 @@ describe("createAssistantStream task settlement", () => {
     }
   });
 
-  it("surfaces an error when merging a locked stream", async () => {
+  it("emits an error chunk when merging a locked stream", async () => {
     const source = new ReadableStream();
     const sourceReader = source.getReader();
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
 
     try {
-      const stream = createAssistantStream((controller) => {
-        controller.merge(source);
-      });
+      const chunks = await collectChunks(
+        createAssistantStream((controller) => {
+          controller.merge(source);
+        }),
+      );
 
-      await expect(collectChunks(stream)).rejects.toBeInstanceOf(TypeError);
+      expect(chunks).toEqual([
+        {
+          type: "error",
+          path: [],
+          error:
+            "TypeError: Cannot merge a stream that is already locked to a reader.",
+        },
+      ]);
     } finally {
       sourceReader.releaseLock();
-      consoleError.mockRestore();
     }
   });
 });
