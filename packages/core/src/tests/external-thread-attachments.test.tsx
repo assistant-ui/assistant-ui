@@ -361,6 +361,66 @@ describe("ExternalThread attachments", () => {
     expect(drainedAfterRemoval).not.toHaveBeenCalled();
   });
 
+  it("does not restore attachment generator updates after send", async () => {
+    let resumeAdd!: () => void;
+    const drainedAfterSend = vi.fn();
+    const onNew = vi.fn();
+    const file = new File(["data"], "notes.txt", { type: "text/plain" });
+    const pendingAttachment: PendingAttachment = {
+      id: "att-1",
+      type: "file",
+      name: file.name,
+      contentType: file.type,
+      file,
+      status: { type: "requires-action", reason: "composer-send" },
+    };
+    const add = vi.fn(async function* () {
+      yield pendingAttachment;
+      await new Promise<void>((resolve) => {
+        resumeAdd = resolve;
+      });
+      yield {
+        ...pendingAttachment,
+        status: { type: "running", reason: "uploading", progress: 1 },
+      } satisfies PendingAttachment;
+      drainedAfterSend();
+    });
+    const aui = renderThreadWithProps({
+      attachmentAdapter: {
+        accept: "*",
+        add,
+        send: async (attachment) => ({
+          ...attachment,
+          status: { type: "complete" },
+          content: [],
+        }),
+        remove: async () => {},
+      },
+      onNew,
+    });
+    const composer = () => aui().thread.composer();
+
+    let addPromise!: Promise<void>;
+    act(() => {
+      addPromise = composer().addAttachment(file);
+    });
+    await waitFor(() =>
+      expect(composer().getState().attachments).toHaveLength(1),
+    );
+    act(() => {
+      composer().setText("hello");
+      composer().send();
+    });
+    await waitFor(() => expect(onNew).toHaveBeenCalledTimes(1));
+    await act(async () => {
+      resumeAdd();
+      await addPromise;
+    });
+
+    expect(composer().getState().attachments).toHaveLength(0);
+    expect(drainedAfterSend).not.toHaveBeenCalled();
+  });
+
   it("routes edit-composer attachments through the adapter", async () => {
     const add = vi.fn(async ({ file }: { file: File }) => ({
       id: "att-edit",

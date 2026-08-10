@@ -730,6 +730,7 @@ const useComposerClientResource = ({
       if (!isEditingRef.current) throw new Error("Composer is not available");
       if (isEmpty || isSendDisabled) return;
 
+      attachmentAddOperations.cancelAll();
       setText("");
       setAttachments([]);
       setQuote(undefined);
