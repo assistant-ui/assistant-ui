@@ -91,6 +91,30 @@ describe("createAssistantStream task settlement", () => {
     expect(unhandledRejections).toEqual([]);
   });
 
+  it("waits for merged source cleanup during cancellation", async () => {
+    let finishCleanup = () => {};
+    const cleanup = new Promise<void>((resolve) => {
+      finishCleanup = resolve;
+    });
+    const cancelSource = vi.fn(() => cleanup);
+    const stream = createAssistantStream((controller) => {
+      controller.merge(new ReadableStream({ cancel: cancelSource }));
+      return new Promise(() => {});
+    });
+
+    let cancelSettled = false;
+    const cancel = stream.cancel().then(() => {
+      cancelSettled = true;
+    });
+
+    await vi.waitFor(() => expect(cancelSource).toHaveBeenCalledOnce());
+    expect(cancelSettled).toBe(false);
+
+    finishCleanup();
+    await expect(cancel).resolves.toBeUndefined();
+    expect(cancelSettled).toBe(true);
+  });
+
   it("reports callback failures after the controller is explicitly closed", async () => {
     const error = new Error("cleanup failed");
     const consoleError = vi
@@ -167,6 +191,55 @@ describe("createAssistantStream task settlement", () => {
 
       expect(unhandledRejections).toEqual([]);
       expect(consoleError).toHaveBeenCalledWith(streamError);
+    } finally {
+      consoleError.mockRestore();
+    }
+  });
+
+  it("waits for sibling cleanup before surfacing a merged stream error", async () => {
+    let finishCleanup = () => {};
+    const cleanup = new Promise<void>((resolve) => {
+      finishCleanup = resolve;
+    });
+    const cancelSource = vi.fn(() => cleanup);
+    const streamError = new Error("merged stream failed");
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    try {
+      const stream = createAssistantStream((controller) => {
+        controller.merge(
+          new ReadableStream({
+            start(streamController) {
+              streamController.error(streamError);
+            },
+          }),
+        );
+        controller.merge(new ReadableStream({ cancel: cancelSource }));
+        return new Promise(() => {});
+      });
+      let readSettled = false;
+      const readResult = stream
+        .getReader()
+        .read()
+        .then(
+          (value) => {
+            readSettled = true;
+            return { value };
+          },
+          (error: unknown) => {
+            readSettled = true;
+            return { error };
+          },
+        );
+
+      await vi.waitFor(() => expect(cancelSource).toHaveBeenCalledOnce());
+      expect(readSettled).toBe(false);
+
+      finishCleanup();
+      await expect(readResult).resolves.toEqual({ error: streamError });
+      expect(readSettled).toBe(true);
     } finally {
       consoleError.mockRestore();
     }

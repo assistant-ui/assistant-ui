@@ -3,6 +3,7 @@ import { promiseWithResolvers } from "../../../utils/promiseWithResolvers";
 
 type MergeStreamItem = {
   reader: ReadableStreamDefaultReader<AssistantStreamChunk>;
+  pipeTask?: Promise<unknown> | undefined;
   promise?: Promise<unknown> | undefined;
 };
 
@@ -13,16 +14,16 @@ export const createMergeStream = () => {
   let errored = false;
   let controller: ReadableStreamDefaultController<AssistantStreamChunk>;
   let currentPull: ReturnType<typeof promiseWithResolvers<void>> | undefined;
+  let cleanupPromise: Promise<void> | undefined;
 
-  const cancelAllReaders = async () => {
-    const readers = list.splice(0).map((item) => item.reader);
-    await Promise.all(
-      readers.map(async (reader) => {
-        try {
-          await reader.cancel();
-        } catch {}
+  const cancelAllReaders = () => {
+    cleanupPromise ??= Promise.all(
+      list.splice(0).map(async (item) => {
+        await item.reader.cancel().catch(() => undefined);
+        await item.pipeTask;
       }),
-    );
+    ).then(() => undefined);
+    return cleanupPromise;
   };
 
   const handlePull = (item: MergeStreamItem) => {
@@ -50,12 +51,13 @@ export const createMergeStream = () => {
           currentPull?.resolve();
           currentPull = undefined;
         })
-        .catch((e) => {
+        .catch(async (e) => {
           if (cancelled || errored) return;
 
           errored = true;
           console.error(e);
-          void cancelAllReaders();
+          await cancelAllReaders();
+          if (cancelled) return;
 
           controller.error(e);
 
@@ -102,18 +104,27 @@ export const createMergeStream = () => {
       sealed = true;
       if (list.length === 0) controller.close();
     },
-    addStream(stream: ReadableStream<AssistantStreamChunk>) {
+    addStream(
+      stream: ReadableStream<AssistantStreamChunk>,
+      pipeTask?: Promise<unknown>,
+    ) {
+      const handledPipeTask = pipeTask?.catch(() => undefined);
       if (cancelled || errored) {
-        void stream.cancel().catch(() => undefined);
+        void stream
+          .cancel()
+          .catch(() => undefined)
+          .then(() => handledPipeTask);
         return;
       }
 
-      if (sealed)
+      if (sealed) {
+        void stream.cancel().catch(() => undefined);
         throw new Error(
           "Cannot add streams after the run callback has settled.",
         );
+      }
 
-      const item = { reader: stream.getReader() };
+      const item = { reader: stream.getReader(), pipeTask: handledPipeTask };
       list.push(item);
       handlePull(item);
     },

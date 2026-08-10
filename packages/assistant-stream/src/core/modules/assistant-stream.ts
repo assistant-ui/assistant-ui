@@ -160,6 +160,17 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
     this._state.closeSubscriber = callback;
   }
 
+  private _addTransformedStream(
+    stream: AssistantStream,
+    transformer: ReadableWritablePair<
+      AssistantStreamChunk,
+      AssistantStreamChunk
+    >,
+  ) {
+    const pipeTask = stream.pipeTo(transformer.writable);
+    this._state.merger.addStream(transformer.readable, pipeTask);
+  }
+
   private _addPart(part: PartInit, stream: AssistantStream) {
     if (this._state.append) {
       this._state.append.controller.close();
@@ -171,16 +182,16 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
       part,
       path: [],
     });
-    this._state.merger.addStream(
-      stream.pipeThrough(
-        new PathAppendEncoder(this._state.contentCounter.value),
-      ),
+    this._addTransformedStream(
+      stream,
+      new PathAppendEncoder(this._state.contentCounter.value),
     );
   }
 
   merge(stream: AssistantStream) {
-    this._state.merger.addStream(
-      stream.pipeThrough(new PathMergeEncoder(this._state.contentCounter)),
+    this._addTransformedStream(
+      stream,
+      new PathMergeEncoder(this._state.contentCounter),
     );
   }
 
