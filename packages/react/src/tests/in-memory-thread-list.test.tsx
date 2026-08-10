@@ -125,6 +125,33 @@ describe("InMemoryThreadList", () => {
     expect(onSwitchToThread).not.toHaveBeenCalled();
   });
 
+  it("preserves an archived selection when another thread is archived", async () => {
+    const onSwitchToThread = vi.fn();
+    const { aui } = renderThreads({ onSwitchToThread });
+
+    aui().threads.item({ id: "main" }).archive();
+    await waitFor(() =>
+      expect(aui().threads.getState().mainThreadId).not.toBe("main"),
+    );
+    const regularId = aui().threads.getState().mainThreadId;
+
+    aui().threads.switchToThread("main");
+    await waitFor(() =>
+      expect(aui().threads.getState().mainThreadId).toBe("main"),
+    );
+    onSwitchToThread.mockClear();
+
+    act(() => aui().threads.item({ id: regularId }).archive());
+
+    await waitFor(() => {
+      const state = aui().threads.getState();
+      expect(state.mainThreadId).toBe("main");
+      expect(state.threadIds).toEqual([]);
+      expect(state.archivedThreadIds).toEqual(["main", regularId]);
+      expect(onSwitchToThread).not.toHaveBeenCalled();
+    });
+  });
+
   it("keeps the selection valid across batched deletions", async () => {
     const { aui } = renderThreads();
 
