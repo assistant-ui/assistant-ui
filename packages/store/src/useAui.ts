@@ -110,10 +110,23 @@ type ClientFields = {
 
 type EventClientRef = { current: AssistantClient | null };
 
-// Every client generation points at the ref for its subscribing facade. This
-// lets inherited `on` implementations keep the original receiver while still
-// following structural rebinds after they commit.
+// Every client generation points at the ref for its facade. This lets event
+// filtering follow structural rebinds after they commit.
 const eventClientRefs = new WeakMap<AssistantClient, EventClientRef>();
+
+const getEventScopeOwner = (
+  client: AssistantClient,
+  scope: ClientNames,
+): AssistantClient => {
+  let candidate: object | null = client;
+  while (candidate) {
+    if (Object.prototype.hasOwnProperty.call(candidate, scope)) {
+      return candidate as AssistantClient;
+    }
+    candidate = Object.getPrototypeOf(candidate) as object | null;
+  }
+  return client;
+};
 
 const createClientObject = (
   parent: AssistantClient,
@@ -150,8 +163,10 @@ const useClientFields = ({
         }
 
         const { scope, event } = normalizeEventSelector(selector);
-        const subscriberRef = eventClientRefs.get(this);
-        const subscriber = subscriberRef?.current ?? this;
+        const scopeOwner =
+          scope === "*" ? this : getEventScopeOwner(this, scope as ClientNames);
+        const subscriberRef = eventClientRefs.get(scopeOwner);
+        const subscriber = subscriberRef?.current ?? scopeOwner;
 
         if (scope !== "*") {
           // A hand-built parent may lack the scope entirely; forward to it
@@ -169,10 +184,10 @@ const useClientFields = ({
             return;
           }
 
-          // Resolve every notification frame against the client on which the
-          // listener originated. Its ref follows committed structural swaps,
-          // including when `on` is inherited through derived-only parents.
-          const boundScope = (subscriberRef?.current ?? this)[
+          // Resolve every notification frame against the facade that owns the
+          // subscribed scope. An inherited scope follows its owning ancestor,
+          // while a descendant that rebinds the same name remains authoritative.
+          const boundScope = (subscriberRef?.current ?? scopeOwner)[
             scope as ClientNames
           ] as AssistantClientAccessor<ClientNames> | undefined;
           // A scope removed by a structural change since subscription cannot
