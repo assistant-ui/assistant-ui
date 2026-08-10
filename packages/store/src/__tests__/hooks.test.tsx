@@ -46,11 +46,6 @@ const createHandBuiltClient = () => {
   const eventEntries: EventEntry[] = [];
 
   const client = {
-    thread: {
-      source: "root" as const,
-      query: {},
-      name: "thread" as const,
-    },
     subscribe: (listener: Listener) => {
       listeners.add(listener);
       return () => listeners.delete(listener);
@@ -122,7 +117,7 @@ describe("store hooks", () => {
     expect(result.current).toBe("object");
   });
 
-  it("useAuiEvent subscribes with normalized selector and invokes latest callback", () => {
+  it("useAuiEvent forwards through hand-built clients without scope accessors", () => {
     const testClient = createHandBuiltClient();
     const wrapper = ({ children }: { children: ReactNode }) => (
       <AuiProvider value={testClient.client as never}>{children}</AuiProvider>

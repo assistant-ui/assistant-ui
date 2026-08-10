@@ -72,9 +72,12 @@ describe("store event ordering in Ink", () => {
     let aui!: AnyClient;
     const cb = vi.fn();
     const queued: VoidFunction[] = [];
+    let drainedTasks = 0;
     const DrainLayoutMicrotasks = ({ children }: { children: ReactNode }) => {
       useLayoutEffect(() => {
-        for (const task of queued.splice(0)) task();
+        const tasks = queued.splice(0);
+        drainedTasks += tasks.length;
+        for (const task of tasks) task();
       });
       return children;
     };
@@ -109,9 +112,11 @@ describe("store event ordering in Ink", () => {
     try {
       const view = render(<Harness index={0} />);
       cb.mockClear();
+      drainedTasks = 0;
 
       view.rerender(<Harness index={1} />);
 
+      expect(drainedTasks).toBeGreaterThan(0);
       expect(cb).toHaveBeenCalledExactlyOnceWith({
         id: "m1",
         value: "layout",

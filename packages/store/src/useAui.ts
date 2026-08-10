@@ -189,7 +189,12 @@ const useClientFields = ({
         if (scope !== "*") {
           // A hand-built parent may lack the scope entirely rather than expose
           // the generated unavailable-scope accessor.
-          if (!initialBinding || initialBinding.source === null) {
+          if (
+            initialBinding?.source === null ||
+            (initialBinding === undefined &&
+              (clientRef.parent === DefaultAssistantClient ||
+                Object.prototype.hasOwnProperty.call(Object.prototype, scope)))
+          ) {
             throw new Error(
               `Scope "${scope}" is not available. Use { scope: "*", event: "${event}" } to listen globally.`,
             );
