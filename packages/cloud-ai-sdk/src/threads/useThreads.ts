@@ -121,8 +121,13 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
                 cloud.threads.list({ is_archived: true }),
               ])
             : [await cloud.threads.list({ is_archived: false })];
-          const nextThreads = responses.flatMap((response) =>
-            response.threads.map(toCloudThread),
+          const nextThreads = Array.from(
+            new Map(
+              responses
+                .flatMap((response) => response.threads)
+                .map((thread) => [thread.id, thread] as const),
+            ).values(),
+            toCloudThread,
           );
           if (includeArchived) {
             nextThreads.sort((a, b) => {

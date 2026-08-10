@@ -169,6 +169,39 @@ describe("useThreads", () => {
     ]);
   });
 
+  it("deduplicates threads returned by both archive filters", async () => {
+    const active = createThreadListResponse("Active", "shared").threads[0]!;
+    const archived = {
+      ...active,
+      title: "Archived",
+      is_archived: true,
+    };
+    const list = vi.fn(async (query?: { is_archived?: boolean }) => ({
+      threads: query?.is_archived ? [archived] : [active],
+    }));
+    const cloud = {
+      threads: {
+        list,
+        get: vi.fn(),
+        create: vi.fn(),
+        delete: vi.fn(),
+        update: vi.fn(),
+      },
+    } as never;
+    const { result } = renderHook(() =>
+      useThreads({ cloud, includeArchived: true, enabled: false }),
+    );
+
+    await act(async () => {
+      await result.current.refresh();
+    });
+
+    expect(result.current.threads).toHaveLength(1);
+    expect(result.current.threads).toMatchObject([
+      { id: "shared", title: "Archived", status: "archived" },
+    ]);
+  });
+
   it("keeps the previous complete list when an archived refresh fails", async () => {
     const active = createThreadListResponse("Active", "active").threads[0]!;
     const archived = {
