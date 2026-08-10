@@ -1,6 +1,6 @@
 "use client";
 
-import type { ComponentProps } from "react";
+import { useId, type ComponentProps } from "react";
 import { BookmarkIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { field, mono, paper } from "./surfaces";
@@ -38,6 +38,8 @@ export function PromptLibrary({
   onSelect?: (id: string) => void;
   onInsert?: (id: string) => void;
 }) {
+  const listId = useId();
+  const optionId = (id: string) => `${listId}-${id}`;
   const matches = prompts.filter((prompt) =>
     prompt.name.toLowerCase().includes(query.toLowerCase()),
   );
@@ -90,22 +92,31 @@ export function PromptLibrary({
           onKeyDown={onKeyDown}
           placeholder="Search prompts"
           aria-label="Search saved prompts"
+          role="combobox"
+          aria-expanded
+          aria-controls={listId}
+          aria-autocomplete="list"
+          aria-activedescendant={selected ? optionId(selected.id) : undefined}
           className="text-foreground/85 placeholder:text-foreground/30 min-w-0 flex-1 bg-transparent text-[13px] outline-none"
         />
       </div>
 
-      <div className="flex flex-col">
+      <div
+        id={listId}
+        role="listbox"
+        aria-label="Saved prompts"
+        className="flex flex-col"
+      >
         {matches.map((prompt) => (
           <button
             key={prompt.id}
+            id={optionId(prompt.id)}
             type="button"
+            role="option"
+            tabIndex={-1}
+            aria-selected={prompt.id === selectedId}
             onClick={() => onSelect?.(prompt.id)}
             onDoubleClick={() => onInsert?.(prompt.id)}
-            onKeyDown={(event) => {
-              if (event.key !== "Enter") return;
-              event.preventDefault();
-              onInsert?.(prompt.id);
-            }}
             className={cn(
               "flex items-center gap-2 rounded-xl px-2 py-1.5 text-start transition-colors",
               prompt.id === selectedId

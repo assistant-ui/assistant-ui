@@ -38,6 +38,7 @@ export function FeedbackDialog({
     return (
       <div
         data-slot="feedback-dialog"
+        role="status"
         className={cn(
           paper,
           "fade-in animate-in flex w-full max-w-sm items-center gap-2.5 rounded-[20px] p-4 text-[13.5px] duration-300",
@@ -98,6 +99,7 @@ export function FeedbackDialog({
         onChange={(event) => onNoteChange?.(event.target.value)}
         rows={2}
         placeholder="Anything else?"
+        aria-label="What went wrong?"
         className={cn(
           field,
           "text-foreground/80 placeholder:text-foreground/30 focus-visible:ring-foreground/20 resize-none rounded-xl px-3 py-2 text-xs outline-none focus-visible:ring-2",

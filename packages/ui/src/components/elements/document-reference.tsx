@@ -56,6 +56,7 @@ export function DocumentReference({
           <button
             key={`${anchor.page}-${i}`}
             type="button"
+            aria-current={anchor.page === activePage || undefined}
             onClick={() => onJump?.(anchor.page)}
             className={cn(
               "flex flex-col gap-1 rounded-xl px-2.5 py-2 text-start transition-colors",

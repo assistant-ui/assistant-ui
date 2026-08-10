@@ -1,7 +1,8 @@
+import { cleanup, render } from "@testing-library/react";
 import { TerminalIcon } from "lucide-react";
 import type { ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import { AgentPlan } from "./agent-plan";
 import { Chart } from "./chart";
@@ -503,6 +504,34 @@ const inlinePercentages = (markup: string) =>
       })),
   );
 
+/** The name a screen reader would announce for a control. */
+const accessibleName = (element: HTMLElement) => {
+  const labelled = element.getAttribute("aria-labelledby");
+  if (labelled) {
+    return labelled
+      .split(/\s+/)
+      .map((id) => document.getElementById(id)?.textContent ?? "")
+      .join(" ")
+      .trim();
+  }
+  return (
+    element.getAttribute("aria-label")?.trim() ||
+    element.textContent?.trim() ||
+    element.getAttribute("title")?.trim() ||
+    ""
+  );
+};
+
+beforeAll(() => {
+  globalThis.ResizeObserver ??= class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  };
+});
+
+afterEach(cleanup);
+
 describe.each(Object.entries(CASES))("%s", (name, make) => {
   it.each(HOSTILE)("survives a %s numeric prop", (_label, n, items) => {
     const markup = renderToStaticMarkup(make(n, items));
@@ -537,6 +566,115 @@ describe.each(Object.entries(CASES))("%s", (name, make) => {
         renderToStaticMarkup(make(Number.NaN, items)),
         "NaN did not read as the start",
       ).toBe(renderToStaticMarkup(make(0, items)));
+    },
+  );
+
+  it("gives every control an accessible name", () => {
+    const { container } = render(make(2, 3));
+    const controls = container.querySelectorAll<HTMLElement>(
+      'button, [role="button"], [role="option"], a[href], input, textarea',
+    );
+
+    for (const control of controls) {
+      expect(
+        accessibleName(control),
+        `${name} has a control with no accessible name: ${control.outerHTML.slice(0, 120)}`,
+      ).not.toBe("");
+    }
+  });
+});
+
+/**
+ * State a sweep cannot see. A control whose accessible name is merely non-empty
+ * still passes the sweep above while the part carried by colour, position, or
+ * size goes unannounced, so each of those is pinned to the element that owns it.
+ */
+describe("state that is carried by more than colour", () => {
+  it("names an mcp server's status in its collapsed row", () => {
+    const { container } = render(
+      CASES["mcp-server-panel"]!(0, 1) as ReactElement,
+    );
+    const row = container.querySelector<HTMLElement>("button")!;
+
+    expect(accessibleName(row)).toContain("connected");
+  });
+
+  it("marks the current map pin and gives it a 24px target", () => {
+    const { container } = render(CASES["map-answer"]!(0, 2) as ReactElement);
+    const pins = [...container.querySelectorAll<HTMLElement>("[aria-label]")];
+
+    expect(pins.map((pin) => pin.getAttribute("aria-current"))).toEqual([
+      "true",
+      null,
+    ]);
+    for (const pin of pins) {
+      expect(pin.className, "a pin target below 24px").toContain("size-6");
+    }
+  });
+
+  it("marks the current thread and names an unread one", () => {
+    const { container } = render(CASES["thread-list"]!(1, 3) as ReactElement);
+    const rows = [...container.querySelectorAll<HTMLElement>("button")];
+
+    expect(rows[1]?.getAttribute("aria-current")).toBe("true");
+    expect(rows[0]?.getAttribute("aria-current")).toBeNull();
+    expect(accessibleName(rows[0]!)).toContain("unread");
+  });
+
+  it("marks the current document anchor", () => {
+    const { container } = render(
+      CASES["document-reference"]!(1, 3) as ReactElement,
+    );
+    const anchors = [...container.querySelectorAll<HTMLElement>("button")];
+
+    expect(anchors.map((a) => a.getAttribute("aria-current"))).toEqual([
+      null,
+      "true",
+      null,
+    ]);
+  });
+
+  // A matching query, unlike the sweep's fixture, so there are options to point at.
+  it.each([
+    [
+      "command-palette",
+      <CommandPalette
+        key="command-palette"
+        commands={[
+          { id: "a", label: "New thread", group: "Thread", keys: ["⌘N"] },
+          { id: "b", label: "Stop the run", group: "Thread", keys: ["⌘."] },
+        ]}
+        query=""
+        activeId="b"
+      />,
+    ],
+    [
+      "prompt-library",
+      <PromptLibrary
+        key="prompt-library"
+        prompts={[
+          { id: "a", name: "Summarize", body: "…", variables: [] },
+          { id: "b", name: "Translate", body: "…", variables: [] },
+        ]}
+        query=""
+        selectedId="b"
+      />,
+    ],
+  ] as [string, ReactElement][])(
+    "points %s's combobox at the highlighted option",
+    (_name, element) => {
+      const { container } = render(element);
+      const input = container.querySelector<HTMLElement>('[role="combobox"]')!;
+      const active = container.querySelector<HTMLElement>(
+        '[role="option"][aria-selected="true"]',
+      )!;
+
+      expect(active.id).not.toBe("");
+      expect(input.getAttribute("aria-activedescendant")).toBe(active.id);
+      expect(
+        container.querySelector('[role="listbox"]')!.id,
+        "the listbox the combobox names",
+      ).toBe(input.getAttribute("aria-controls"));
     },
   );
 });

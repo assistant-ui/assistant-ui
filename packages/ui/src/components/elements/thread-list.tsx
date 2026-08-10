@@ -39,6 +39,7 @@ export function ThreadList({
           <button
             key={thread.title}
             type="button"
+            aria-current={active || undefined}
             onClick={() => onActiveIndexChange?.(i)}
             className={cn(
               "group flex w-full items-center justify-between gap-2 rounded-xl px-3 py-2 text-start text-[13.5px] transition-colors",
@@ -53,10 +54,13 @@ export function ThreadList({
               )}
             >
               {thread.unread && !active && (
-                <span
-                  aria-hidden
-                  className="size-1.5 rounded-full bg-blue-500 dark:bg-blue-400"
-                />
+                <>
+                  <span
+                    aria-hidden
+                    className="size-1.5 rounded-full bg-blue-500 dark:bg-blue-400"
+                  />
+                  <span className="sr-only">unread</span>
+                </>
               )}
               {thread.time}
             </span>

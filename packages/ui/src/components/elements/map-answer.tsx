@@ -87,8 +87,9 @@ export function MapAnswer({
             key={pin.id}
             type="button"
             aria-label={pin.label}
+            aria-current={pin.id === activeId || undefined}
             onClick={() => onSelect?.(pin.id)}
-            className="absolute -translate-x-1/2 -translate-y-1/2"
+            className="focus-visible:ring-foreground/30 absolute flex size-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full outline-none focus-visible:ring-2"
             style={{ left: `${pin.x}%`, top: `${pin.y}%` }}
           >
             <span
@@ -108,6 +109,7 @@ export function MapAnswer({
           <button
             key={pin.id}
             type="button"
+            aria-current={pin.id === activeId || undefined}
             onClick={() => onSelect?.(pin.id)}
             className={cn(
               "border-foreground/[0.06] flex items-baseline gap-2 border-t px-3.5 py-2 text-start transition-colors",

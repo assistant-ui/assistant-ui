@@ -1,6 +1,6 @@
 "use client";
 
-import type { ComponentProps } from "react";
+import { useId, type ComponentProps } from "react";
 import { SearchIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { field, floating, mono } from "./surfaces";
@@ -38,6 +38,8 @@ export function CommandPalette({
   onActiveChange?: (id: string) => void;
   onRun?: (id: string) => void;
 }) {
+  const listId = useId();
+  const optionId = (id: string) => `${listId}-${id}`;
   const matches = commands.filter((command) =>
     command.label.toLowerCase().includes(query.toLowerCase()),
   );
@@ -90,6 +92,15 @@ export function CommandPalette({
           onKeyDown={onKeyDown}
           placeholder="Type a command"
           aria-label="Type a command"
+          role="combobox"
+          aria-expanded
+          aria-controls={listId}
+          aria-autocomplete="list"
+          aria-activedescendant={
+            ordered.some((command) => command.id === activeId)
+              ? optionId(activeId)
+              : undefined
+          }
           className="text-foreground/85 placeholder:text-foreground/30 min-w-0 flex-1 bg-transparent text-[13.5px] outline-none"
         />
         <span
@@ -103,10 +114,23 @@ export function CommandPalette({
         </span>
       </div>
 
-      <div className="border-foreground/[0.07] flex max-h-72 flex-col overflow-y-auto border-t p-1.5">
+      <div
+        id={listId}
+        role="listbox"
+        aria-label="Commands"
+        className="border-foreground/[0.07] flex max-h-72 flex-col overflow-y-auto border-t p-1.5"
+      >
         {groups.map((group) => (
-          <div key={group} className="flex flex-col">
-            <span className={cn(mono, "text-foreground/25 px-2 pt-2 pb-1")}>
+          <div
+            key={group}
+            role="group"
+            aria-label={group}
+            className="flex flex-col"
+          >
+            <span
+              aria-hidden
+              className={cn(mono, "text-foreground/25 px-2 pt-2 pb-1")}
+            >
               {group}
             </span>
             {matches
@@ -114,7 +138,11 @@ export function CommandPalette({
               .map((command) => (
                 <button
                   key={command.id}
+                  id={optionId(command.id)}
                   type="button"
+                  role="option"
+                  tabIndex={-1}
+                  aria-selected={command.id === activeId}
                   onClick={() => onRun?.(command.id)}
                   className={cn(
                     "flex items-center gap-2 rounded-xl px-2 py-1.5 text-start transition-colors",

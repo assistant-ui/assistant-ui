@@ -101,6 +101,7 @@ export function McpServerPanel({
                   DOT[server.status],
                 )}
               />
+              <span className="sr-only">{LABEL[server.status]}</span>
             </button>
 
             {expanded && (
