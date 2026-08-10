@@ -43,7 +43,25 @@ describe("JSONGenerativeUI — client build", () => {
 
   it("present renders the model's tree against the library", () => {
     const html = renderTool(ui.present(), { $type: "Card", title: "Hi" });
-    expect(html).toBe('<section data-title="Hi"></section>');
+    expect(html).toContain('<section data-title="Hi"></section>');
+  });
+
+  it("wraps the tree so top-level siblings are spaced by the surface", () => {
+    const html = renderTool(ui.present(), [
+      { $type: "Card", title: "One" },
+      { $type: "Card", title: "Two" },
+    ]);
+    expect(html.match(/data-aui="root"/g)).toHaveLength(1);
+    expect(html.indexOf('data-title="One"')).toBeLessThan(
+      html.indexOf('data-title="Two"'),
+    );
+  });
+
+  it("offers a copy control with an accessible name, contributing no text", () => {
+    const html = renderTool(ui.present(), { $type: "Button", label: "ok" });
+    expect(html).toContain('data-aui="root-copy"');
+    expect(html).toContain('aria-label="Copy"');
+    expect(html.replace(/<[^>]*>/g, "")).toBe("ok");
   });
 
   it("prompt_user is a human tool that renders the tree (no execute)", () => {
@@ -52,7 +70,7 @@ describe("JSONGenerativeUI — client build", () => {
     expect(tool.unstable_backendDefault).toEqual({ parameters: true });
     expect((tool as any).execute).toBeUndefined();
     const html = renderTool(tool, { $type: "Button", label: "ok" });
-    expect(html).toBe("<button>ok</button>");
+    expect(html).toContain("<button>ok</button>");
   });
 });
 

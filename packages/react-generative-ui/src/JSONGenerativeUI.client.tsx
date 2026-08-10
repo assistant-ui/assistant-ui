@@ -10,6 +10,7 @@ import {
   type PromptUserTool,
 } from "./JSONGenerativeUI.shared";
 import { type ActionRegistry } from "./actionRegistry";
+import { GenerativeUIRoot } from "./GenerativeUIRoot";
 import { renderGenerativeUI } from "./renderGenerativeUI";
 import type { GenerativeUILibrary, GenerativeUIStatus } from "./types";
 
@@ -49,11 +50,14 @@ export class JSONGenerativeUI {
   }: {
     args: unknown;
     status: { type: string };
-  }): ReactNode =>
-    renderGenerativeUI(args, this.library, {
-      status: uiStatus(status),
-      ...(this.actions ? { dispatch: this.actions.dispatch } : {}),
-    });
+  }): ReactNode => (
+    <GenerativeUIRoot>
+      {renderGenerativeUI(args, this.library, {
+        status: uiStatus(status),
+        ...(this.actions ? { dispatch: this.actions.dispatch } : {}),
+      })}
+    </GenerativeUIRoot>
+  );
 
   present(options?: PresentToolOptions): PresentTool {
     return {

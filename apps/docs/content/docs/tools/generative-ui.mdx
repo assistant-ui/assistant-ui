@@ -269,11 +269,14 @@ Without a registry, the tree still renders and model-emitted actions degrade to 
 
 The vocabulary renders semantic HTML tagged with `data-aui` and `data-aui-*` attributes and ships no styles of its own, so it inherits nothing and collides with nothing. The `generative-ui` registry item above installs the shipped stylesheet, which is written entirely against your existing theme variables: change `--radius` or `--primary` in your own CSS and the rendered widgets follow.
 
-To restyle a single component instead, target its attribute:
+A `Card` renders as a plain section by default, so several in a row read as one answer rather than a stack of boxes. It takes on a framed surface only where one is warranted: when the model sets a `background`, when `confirm` or `cancel` add a footer whose buttons need a delimited target, or when it is a carousel slot.
+
+To restyle a single component, target its attribute:
 
 ```css
-[data-aui="card"] {
-  border-radius: 1.25rem;
+[data-aui="fact-value"] {
+  font-variant-numeric: tabular-nums;
+  font-size: 1.125rem;
 }
 ```
 

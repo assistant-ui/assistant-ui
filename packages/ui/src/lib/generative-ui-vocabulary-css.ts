@@ -9,6 +9,29 @@ type CssRuleset = Record<string, CssDeclarationBlock | CssMediaBlock>;
 export const auiHairlineBorder =
   "color-mix(in oklab, var(--border) 60%, transparent)";
 
+/**
+ * A card earns its frame from its content rather than by existing: a tinted
+ * background, a footer whose buttons need a delimited target, or a carousel
+ * slot that has to read as one item. Plain sections stay weightless so a
+ * composition of several reads as one message instead of a stack of slabs.
+ */
+export const auiCardSurfaceSelectors = [
+  '[data-aui="card"][data-aui-background]',
+  '[data-aui="card"]:has(> [data-aui="card-footer"])',
+  '[data-aui="carousel"] [data-aui="card"]',
+] as const;
+
+const cardSurface = (scope?: string) =>
+  auiCardSurfaceSelectors.map((s) => (scope ? `${scope} ${s}` : s)).join(", ");
+
+/**
+ * The complement of {@link auiCardSurfaceSelectors}. Padding is a property of a
+ * surface, so a section that never draws one drops it even when the model asked
+ * for it; the request was for the inside of a box that is not being drawn.
+ */
+const auiCardPlain =
+  '[data-aui="card"]:not([data-aui-background]):not(:has(> [data-aui="card-footer"])):not([data-aui="carousel"] *)';
+
 // Density knobs, host-overridable via CSS custom properties: --aui-control-height, --aui-control-font-size, --aui-button-padding-x, --aui-field-padding-x.
 export const generativeUiVocabularyCss: CssRuleset = {
   "[data-aui]": {
@@ -219,10 +242,54 @@ export const generativeUiVocabularyCss: CssRuleset = {
     gap: "0.25rem",
   },
 
+  // The surface spaces itself: several `present` calls land as adjacent blocks
+  // in a host container this stylesheet does not own, and in a block context
+  // these margins collapse into a single gap between neighbours.
+  '[data-aui="root"]': {
+    position: "relative",
+    display: "flex",
+    "flex-direction": "column",
+    gap: "0.875rem",
+    "margin-block": "0.875rem",
+  },
+  '[data-aui="root-copy"]': {
+    position: "absolute",
+    // Lifted into the surface's own margin so it never lands on the first
+    // block's top-right corner, where a title's badge or action usually sits.
+    top: "-0.5rem",
+    right: "-0.25rem",
+    display: "inline-flex",
+    "align-items": "center",
+    "justify-content": "center",
+    width: "1.75rem",
+    height: "1.75rem",
+    padding: "0",
+    border: "none",
+    "border-radius": "calc(var(--radius) - 2px)",
+    // A solid chip rather than a bare glyph: the affordance floats over
+    // whatever the first block put in this corner, so it has to stay legible
+    // against content it does not control.
+    "background-color": "var(--background)",
+    "box-shadow": `0 0 0 1px ${auiHairlineBorder}, 0 1px 3px color-mix(in oklab, var(--foreground) 10%, transparent)`,
+    color: "color-mix(in oklab, var(--foreground) 55%, transparent)",
+    cursor: "pointer",
+    opacity: "0",
+    transition: "opacity 120ms ease, color 120ms ease",
+  },
+  '[data-aui="root"]:hover [data-aui="root-copy"], [data-aui="root"]:focus-within [data-aui="root-copy"]':
+    { opacity: "1" },
+  '[data-aui="root-copy"]:hover': {
+    "background-color": "var(--accent)",
+    color: "var(--accent-foreground)",
+  },
+  '[data-aui="root-copy"][data-aui-copied]': { color: "var(--foreground)" },
   '[data-aui="card"]': {
     display: "flex",
     "flex-direction": "column",
     gap: "0.875rem",
+  },
+  [auiCardPlain]: { padding: "0" },
+  [cardSurface()]: {
     "background-color": "var(--card)",
     color: "var(--card-foreground)",
     border: `1px solid ${auiHairlineBorder}`,
@@ -468,6 +535,7 @@ export const generativeUiVocabularyCss: CssRuleset = {
   },
   "@media (prefers-reduced-motion: reduce)": {
     '[data-aui="carousel"]': { "scroll-behavior": "auto" },
+    '[data-aui="root-copy"]': { transition: "none" },
   },
 
   '[data-aui="listview"]': {
@@ -644,14 +712,14 @@ export const generativeUiElementsThemeVars = {
  * The elements theme for the vocabulary: the borderless paper/field/ink language from the elements family, applied to any subtree carrying `data-aui-theme="elements"`. Layered after {@link generativeUiVocabularyCss}; the base rules keep layout and typography, this layer replaces surfaces, borders, radii, and color.
  */
 export const generativeUiElementsThemeCss: CssRuleset = {
-  [`${T} [data-aui="card"]`]: {
+  [cardSurface(T)]: {
     border: "none",
     "border-radius": "20px",
     "background-color": "var(--background)",
     "box-shadow":
       "0 1px 2px rgba(0,0,0,0.04), 0 12px 32px -16px rgba(0,0,0,0.12)",
   },
-  [`${TD} [data-aui="card"]`]: {
+  [cardSurface(TD)]: {
     "background-color": "var(--popover)",
     "box-shadow": "none",
   },

@@ -24,7 +24,7 @@ const cardFooterButtonSchema = z.object({
 export const layoutVocabulary = {
   Card: {
     description:
-      "A bordered container grouping related content. Optionally titled. Set `asForm` to collect named child control values on submit, and `confirm`/`cancel` to add a footer with action buttons.",
+      "A titled section of related content, the default way to break a response into parts. It renders as plain content, so several in a row read as one answer rather than a stack of boxes; it takes on a framed surface only when `background` is set or `confirm`/`cancel` add a footer. Set `asForm` to collect named child control values on submit.",
     properties: z.object({
       title: z.string().optional().describe("Optional card title."),
       padding: z
