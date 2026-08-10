@@ -50,14 +50,16 @@ export class JSONGenerativeUI {
   }: {
     args: unknown;
     status: { type: string };
-  }): ReactNode => (
-    <GenerativeUIRoot>
-      {renderGenerativeUI(args, this.library, {
-        status: uiStatus(status),
-        ...(this.actions ? { dispatch: this.actions.dispatch } : {}),
-      })}
-    </GenerativeUIRoot>
-  );
+  }): ReactNode => {
+    const tree = renderGenerativeUI(args, this.library, {
+      status: uiStatus(status),
+      ...(this.actions ? { dispatch: this.actions.dispatch } : {}),
+    });
+    // The surface carries its own margins, so mounting it before the first
+    // node arrives would hold open a blank gap for the length of the stream.
+    if (tree == null || (Array.isArray(tree) && tree.length === 0)) return null;
+    return <GenerativeUIRoot>{tree}</GenerativeUIRoot>;
+  };
 
   present(options?: PresentToolOptions): PresentTool {
     return {

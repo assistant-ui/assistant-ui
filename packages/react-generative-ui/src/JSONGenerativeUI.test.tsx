@@ -57,6 +57,11 @@ describe("JSONGenerativeUI — client build", () => {
     );
   });
 
+  it("renders nothing until the stream produces a node", () => {
+    expect(renderTool(ui.present(), undefined)).toBe("");
+    expect(renderTool(ui.present(), [])).toBe("");
+  });
+
   it("offers a copy control that is named but holds no text of its own", () => {
     const html = renderTool(ui.present(), { $type: "Button", label: "ok" });
     expect(html).toContain('data-aui="root-copy"');

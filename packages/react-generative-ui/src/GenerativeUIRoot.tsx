@@ -51,11 +51,19 @@ export function GenerativeUIRoot({ children }: { children: ReactNode }) {
   const copy = useCallback(() => {
     const text = ref.current?.innerText?.trim();
     if (!text || !navigator.clipboard) return;
-    void navigator.clipboard.writeText(text).then(() => {
-      setCopied(true);
-      clearTimeout(timeout.current);
-      timeout.current = setTimeout(() => setCopied(false), COPIED_FEEDBACK_MS);
-    });
+    // A denied clipboard permission rejects; the control simply stays as it
+    // was rather than reporting a copy that did not happen.
+    void navigator.clipboard.writeText(text).then(
+      () => {
+        setCopied(true);
+        clearTimeout(timeout.current);
+        timeout.current = setTimeout(
+          () => setCopied(false),
+          COPIED_FEEDBACK_MS,
+        );
+      },
+      () => {},
+    );
   }, []);
 
   return (
