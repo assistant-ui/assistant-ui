@@ -110,7 +110,7 @@ A node's `$action` is carried inside the submit payload's reserved `aui` key, so
 }
 ```
 
-Unlike Slack, the payload is not serialized to a string and carries no size cap of its own, so it always survives the round trip.
+Unlike Slack, the payload is not serialized to a string and carries no size cap of its own, so the converter never drops or truncates it the way an oversized Slack button value is dropped. Size is checked once, against the whole card, and that check only warns; whether an oversized card is then accepted is Teams' call, not the converter's.
 
 ### Inbound
 
