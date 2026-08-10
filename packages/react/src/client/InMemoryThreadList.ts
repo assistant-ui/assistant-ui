@@ -8,7 +8,7 @@ import {
   useClientResource,
 } from "@assistant-ui/store";
 
-import { ModelContext, Suggestions } from "@assistant-ui/core/store";
+import { ModelContext } from "@assistant-ui/core/store";
 import { Tools, DataRenderers } from "@assistant-ui/core/react";
 
 const RESOLVED_PROMISE = Promise.resolve();
@@ -236,6 +236,10 @@ attachTransformScopes(useInMemoryThreadList, (scopes, parent) => {
     scopes.dataRenderers = DataRenderers();
   }
   if (!scopes.suggestions && parent.suggestions.source === null) {
-    scopes.suggestions = Suggestions();
+    scopes.suggestions = Derived({
+      source: "thread",
+      query: {},
+      get: (aui) => aui.threads.thread("main").suggestions(),
+    });
   }
 });

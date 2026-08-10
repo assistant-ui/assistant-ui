@@ -27,6 +27,7 @@ import type {
   RespondToToolApprovalOptions,
   ResumeToolCallOptions,
   SpeechState,
+  ThreadSuggestion,
 } from "../../runtime/interfaces/thread-runtime-core";
 import type {
   ExternalThreadQueueAdapter,
@@ -45,13 +46,14 @@ import { getThreadMessageText } from "../../utils/text";
 import { resolveToolApprovalResponse } from "../../runtime/utils/resolveToolApprovalResponse";
 import { toMessagePartStatus } from "../../utils/normalizePartStatus";
 import { ModelContext } from "./model-context-client";
-import { Suggestions } from "./suggestions";
+import { ThreadSuggestions } from "./suggestions";
 import { Tools } from "../../react/client/Tools";
 import { DataRenderers } from "../../react/client/DataRenderers";
 import { SingleThreadList } from "./single-thread-list";
 
 const EMPTY_QUEUE_ITEMS: readonly QueueItemState[] = [];
 const EMPTY_BRANCH_IDS: readonly string[] = [];
+const EMPTY_SUGGESTIONS: readonly ThreadSuggestion[] = [];
 
 export type ExternalThreadMessage = ThreadMessage & {
   id: string;
@@ -975,6 +977,9 @@ const useExternalThread = ({
       attachmentAdapter,
     }),
   );
+  const suggestionsClient = useClientResource(
+    ThreadSuggestions(EMPTY_SUGGESTIONS),
+  );
 
   const hasQueue = !!queue;
   const hasBranches = !!branches;
@@ -1012,7 +1017,7 @@ const useExternalThread = ({
       },
       messages: messageStates,
       state: threadState ?? {},
-      suggestions: [],
+      suggestions: EMPTY_SUGGESTIONS,
       extras,
       speech,
       voice: undefined,
@@ -1039,6 +1044,7 @@ const useExternalThread = ({
   return {
     getState: () => state,
     composer: () => composerClient.methods,
+    suggestions: () => suggestionsClient.methods,
     append: (message) => {
       const appendMessage: AppendMessage =
         typeof message === "string"
@@ -1147,6 +1153,10 @@ attachTransformScopes(useExternalThread, (scopes, parent) => {
     scopes.dataRenderers = DataRenderers();
   }
   if (!scopes.suggestions && parent.suggestions.source === null) {
-    scopes.suggestions = Suggestions();
+    scopes.suggestions = Derived({
+      source: "thread",
+      query: {},
+      get: (aui) => aui.threads.thread("main").suggestions(),
+    });
   }
 });
