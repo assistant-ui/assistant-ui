@@ -2,6 +2,7 @@
 
 import { act, render, waitFor } from "@testing-library/react";
 import type { FC } from "react";
+import { flushSync } from "react-dom";
 import { describe, it, expect, vi } from "vitest";
 import { useAui, AuiProvider } from "@assistant-ui/store";
 import { InMemoryThreadList } from "../client/InMemoryThreadList";
@@ -262,7 +263,7 @@ describe("InMemoryThreadList", () => {
     await waitFor(() =>
       expect(aui().threads.getState().threadIds).toHaveLength(3),
     );
-    const [, relocationId, latestId] = aui().threads.getState().threadIds;
+    const [, , latestId] = aui().threads.getState().threadIds;
 
     aui().threads.switchToThread("main");
     await waitFor(() =>
@@ -277,9 +278,33 @@ describe("InMemoryThreadList", () => {
 
     await waitFor(() => {
       expect(aui().threads.getState().mainThreadId).toBe(latestId);
-      expect(onSwitchToThread).toHaveBeenCalledOnce();
-      expect(onSwitchToThread).toHaveBeenCalledWith(latestId);
-      expect(onSwitchToThread).not.toHaveBeenCalledWith(relocationId);
+      expect(onSwitchToThread.mock.calls).toEqual([[latestId]]);
+    });
+  });
+
+  it("does not report a relocation superseded before its effect flushes", async () => {
+    const onSwitchToThread = vi.fn();
+    const { aui } = renderThreads({ onSwitchToThread });
+
+    aui().threads.switchToNewThread();
+    aui().threads.switchToNewThread();
+    await waitFor(() =>
+      expect(aui().threads.getState().threadIds).toHaveLength(3),
+    );
+    const [, , latestId] = aui().threads.getState().threadIds;
+
+    aui().threads.switchToThread("main");
+    await waitFor(() =>
+      expect(aui().threads.getState().mainThreadId).toBe("main"),
+    );
+    onSwitchToThread.mockClear();
+
+    flushSync(() => aui().threads.item({ id: "main" }).archive());
+    aui().threads.switchToThread(latestId!);
+
+    await waitFor(() => {
+      expect(aui().threads.getState().mainThreadId).toBe(latestId);
+      expect(onSwitchToThread.mock.calls).toEqual([[latestId]]);
     });
   });
 
