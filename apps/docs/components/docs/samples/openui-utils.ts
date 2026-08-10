@@ -28,6 +28,9 @@ export const shouldContinueAfterOpenUIPrompt = ({
   return message.parts
     .slice(lastStepStartIndex + 1)
     .some(
-      (part) => isToolUIPart(part) && getToolName(part) === "prompt_openui",
+      (part) =>
+        isToolUIPart(part) &&
+        part.state === "output-available" &&
+        getToolName(part) === "prompt_openui",
     );
 };
