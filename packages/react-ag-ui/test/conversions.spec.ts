@@ -705,13 +705,17 @@ describe("adapter conversions", () => {
           content: "visible",
           encryptedValue: "x",
         },
+        { id: "r-3", role: "reasoning", content: "unsigned" },
         { id: "a-1", role: "assistant", content: "done" },
       ] as any,
       { showThinking: false },
     );
 
+    // r-2 loses the text the option hides but keeps its signature; r-3 has no
+    // payload to keep and goes away with its text.
     expect(toAgUiMessages(imported as any)).toEqual([
       { id: "r-1", role: "reasoning", content: "", encryptedValue: "opaque" },
+      { id: "r-2", role: "reasoning", content: "", encryptedValue: "x" },
       { id: "a-1", role: "assistant", content: "done" },
     ]);
   });

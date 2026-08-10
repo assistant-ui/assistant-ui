@@ -831,7 +831,19 @@ export function fromAgUiMessages(
       }
       // Gate visible reasoning on showThinking so a cold reload matches the
       // live run: the aggregator never stores reasoning parts when it is off.
-      if (!showThinking) continue;
+      // A signature on a hidden record is still transport state, so it is kept
+      // opaque rather than discarded with the text.
+      if (!showThinking) {
+        const hiddenId = getString(rawMessage, "id");
+        if (hiddenId?.trim() && encryptedValue?.trim()) {
+          opaqueReasoning.push({
+            id: hiddenId,
+            encryptedValue,
+            anchor: converted.length,
+          });
+        }
+        continue;
+      }
       converted.push({
         id: getString(rawMessage, "id") ?? generateId(),
         role: "assistant",
