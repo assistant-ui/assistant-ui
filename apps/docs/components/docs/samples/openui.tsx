@@ -4,6 +4,8 @@ import { Thread } from "@/components/assistant-ui/thread";
 import { SampleFrame } from "@/components/docs/samples/sample-frame";
 import {
   AssistantRuntimeProvider,
+  AuiConfig,
+  AuiProvider,
   Suggestions,
   Tools,
   defineToolkit,
@@ -15,7 +17,6 @@ import {
   AssistantChatTransport,
   useChatRuntime,
 } from "@assistant-ui/react-ai-sdk";
-import { AuiProvider } from "@assistant-ui/store";
 import {
   BuiltinActionType,
   Renderer,
@@ -226,7 +227,7 @@ function OpenUIWelcome() {
 export function OpenUISample() {
   return (
     <SampleFrame className="bg-muted/40 overflow-hidden">
-      <AuiProvider value={null}>
+      <AuiProvider extends={null} config={AuiConfig({})}>
         <OpenUIThemeProvider>
           <OpenUIRuntimeProvider>
             <Thread components={{ Welcome: OpenUIWelcome }} />

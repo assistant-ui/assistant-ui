@@ -10,6 +10,11 @@ preferWorkspacePackages: true
 publicHoistPattern:
   - '@types/*'
 
+peerDependencyRules:
+  allowedVersions:
+    '@openuidev/react-headless@0.9.5>zustand': '^5.0.14'
+    '@openuidev/react-ui@0.13.4>zustand': '^5.0.14'
+
 strictDepBuilds: true
 
 verifyDepsBeforeRun: install

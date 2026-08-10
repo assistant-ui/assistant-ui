@@ -240,7 +240,9 @@ const shouldContinueAfterOpenUIPrompt = ({
     .slice(lastStepStartIndex + 1)
     .some(
       (part) =>
-        isToolUIPart(part) && getToolName(part) === "prompt_openui",
+        isToolUIPart(part) &&
+        part.state === "output-available" &&
+        getToolName(part) === "prompt_openui",
     );
 };
 
