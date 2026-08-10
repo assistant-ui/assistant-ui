@@ -224,7 +224,7 @@ const generative = new JSONGenerativeUI({
 });
 ```
 
-Pass `streamProperties` alongside `properties` to receive partially-filled props while the model is still writing them; the component then also receives an injected `$status` of `"streaming"` or `"done"`.
+Set `streamProperties: true` alongside `properties` to receive partially-filled props while the model is still writing them. `render` then sees `Partial<P>` and an injected `$status` of `"streaming"`, and the full props once it turns `"done"`. Components opt out by default and render only once their props are complete.
 
 <Callout type="warn">
 Inside a `"use generative"` module, a `"use client"` module may be referenced **only** as the `render` value of an inline `defineGenerativeComponents` literal. The compiler drops `render` and the imports only it uses from the server build; referencing such a module from `properties`, `description`, a spread, or a top-level constant leaks a client reference into the server graph and breaks schema generation. `defaultGenerativeUILibrary` is safe on both builds.
