@@ -1,4 +1,4 @@
-import { useEffect, useEffectEvent, useMemo, useState } from "react";
+import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 import { resource, withKey, type ResourceElement } from "@assistant-ui/tap";
 import {
   type ClientOutput,
@@ -44,6 +44,7 @@ const replaceChangedMainThread = (
     return { mainThreadId, threads, pendingSwitchId };
   }
 
+  // Local mutations reuse a live sibling instead of creating an empty thread.
   const fallback = threads.find((thread) => thread.status === "regular");
   if (fallback) {
     return { mainThreadId: fallback.id, threads, pendingSwitchId: fallback.id };
@@ -128,9 +129,17 @@ const useInMemoryThreadList = (
   const notifySwitchToThread = useEffectEvent((threadId: string) => {
     onSwitchToThread?.(threadId);
   });
+  const pendingSwitchIdRef = useRef(pendingSwitchId);
+  pendingSwitchIdRef.current = pendingSwitchId;
 
   useEffect(() => {
-    if (pendingSwitchId === null) return;
+    if (
+      pendingSwitchId === null ||
+      pendingSwitchIdRef.current !== pendingSwitchId
+    ) {
+      return;
+    }
+    pendingSwitchIdRef.current = null;
     setThreadList((prev) =>
       prev.pendingSwitchId === pendingSwitchId
         ? { ...prev, pendingSwitchId: null }
@@ -140,6 +149,7 @@ const useInMemoryThreadList = (
   }, [pendingSwitchId]);
 
   const handleSwitchToThread = (threadId: string) => {
+    pendingSwitchIdRef.current = null;
     setThreadList((prev) => ({
       ...prev,
       mainThreadId: threadId,
@@ -211,6 +221,7 @@ const useInMemoryThreadList = (
 
   const handleSwitchToNewThread = () => {
     const newId = `thread-${generateId()}`;
+    pendingSwitchIdRef.current = null;
     setThreadList((prev) => ({
       mainThreadId: newId,
       pendingSwitchId: null,
