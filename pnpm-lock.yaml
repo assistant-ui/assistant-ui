@@ -2893,7 +2893,7 @@ importers:
         version: 8.3.0(@typescript/typescript6@6.0.2)(react-router@8.3.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8))
       '@react-router/serve':
         specifier: ^8.3.0
-        version: 8.3.0(@typescript/typescript6@6.0.2)(react-router@8.3.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8))
+        version: 8.3.0(@typescript/typescript6@6.0.2)(react-router@8.3.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(supports-color@10.2.2)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -2930,7 +2930,7 @@ importers:
     devDependencies:
       '@react-router/dev':
         specifier: ^8.3.0
-        version: 8.3.0(@react-router/serve@8.3.0(@typescript/typescript6@6.0.2)(react-router@8.3.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8)))(@typescript/typescript6@6.0.2)(react-router@8.3.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(tsx@4.23.11)(yaml@2.9.0))
+        version: 8.3.0(@react-router/serve@8.3.0(@typescript/typescript6@6.0.2)(react-router@8.3.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(supports-color@10.2.2))(@typescript/typescript6@6.0.2)(react-router@8.3.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(tsx@4.23.11)(yaml@2.9.0))
       '@tailwindcss/vite':
         specifier: ^4.3.3
         version: 4.3.3(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(tsx@4.23.11)(yaml@2.9.0))
@@ -3489,8 +3489,8 @@ importers:
         specifier: ^4.0.61
         version: 4.0.61(react@19.2.8)(zod@4.4.3)
       '@ai-sdk/react-v3':
-        specifier: npm:@ai-sdk/react@^4.0.61
-        version: '@ai-sdk/react@4.0.61(react@19.2.8)(zod@4.4.3)'
+        specifier: npm:@ai-sdk/react@^3.0.211
+        version: '@ai-sdk/react@3.0.248(react@19.2.8)(zod@4.4.3)'
       '@assistant-ui/react-ai-sdk':
         specifier: workspace:*
         version: link:../react-ai-sdk
@@ -3513,8 +3513,8 @@ importers:
         specifier: ^7.0.58
         version: 7.0.58(zod@4.4.3)
       ai-v6:
-        specifier: npm:ai@^7.0.58
-        version: ai@7.0.58(zod@4.4.3)
+        specifier: npm:ai@^6.0.209
+        version: ai@6.0.246(zod@4.4.3)
       assistant-stream:
         specifier: ^0.3.37
         version: link:../assistant-stream
@@ -5643,6 +5643,12 @@ packages:
   '@ag-ui/proto@0.0.57':
     resolution: {integrity: sha512-pPENOZt0P6ibH8sCTgq05wLYXi5t3P9B5r/1bWYehXjUxtyOdnukSlWM++SsCIwUXsQdm/b3aBgGjEeTF7RenA==}
 
+  '@ai-sdk/gateway@3.0.166':
+    resolution: {integrity: sha512-DHmHmu7yvTgMRLbB28+oe0/L645HckluwibD4WiL0aSdWUkZ9nl51BMMEuD1ed90arRlmhP/l4iszdH1c9JzFg==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
+
   '@ai-sdk/gateway@4.0.46':
     resolution: {integrity: sha512-LIAO6kAG8fpXQb9L0iwPk1FIbXftvqnyC56v5NEAzeWTeL8fUsy/Hx86VPBTWEDFdwbVprjWifJOAqS6AOj3mA==}
     engines: {node: '>=22'}
@@ -5661,15 +5667,31 @@ packages:
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
 
+  '@ai-sdk/provider-utils@4.0.42':
+    resolution: {integrity: sha512-Q07lZsq4ir+xwAGVfSbY2WNGLrbfWINFaL2I/vTBFrkuXeP7VZh+UtQgLOKZS6Z/6flNFW22jDYdbINvwTV/PA==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
+
   '@ai-sdk/provider-utils@5.0.25':
     resolution: {integrity: sha512-xscPPHCSjCHWrdhai25sbHCJeKNLW/3D1uSpUZa4cEtTKXA8OnPQ3+Rfu1SmM5Ea/Mf8Dfn3cllw9zeMzo/zFA==}
     engines: {node: '>=22'}
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
 
+  '@ai-sdk/provider@3.0.14':
+    resolution: {integrity: sha512-5X1k57JBJ4H7H1QjX7CnJYAB1I19r/trVZTMcSms7/kLNZ8RaU4Nt2agcwZzv82Hfx6Q7/TOLU7agAKeFfc8cA==}
+    engines: {node: '>=18'}
+
   '@ai-sdk/provider@4.0.7':
     resolution: {integrity: sha512-6or44XprPzKbr8zkmzosowSE0pxkvJcoojBL+mCZvPUt3kvXp3XSNqeVun9golb1acEfSo6yaEBRT18h2VU+1Q==}
     engines: {node: '>=22'}
+
+  '@ai-sdk/react@3.0.248':
+    resolution: {integrity: sha512-YXVEag2t0IgjCW7Z9pJKOjE0kVt1EZV7NvGH1sW72+2S1C4JlCnxP/YfNKNmp9ecz0h09QsiD5W2b/JNL33TYA==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      react: ^18 || ~19.0.1 || ~19.1.2 || ^19.2.1
 
   '@ai-sdk/react@4.0.61':
     resolution: {integrity: sha512-iY59f4092oD3Px2xL5qCmfG5gC0ySHCw5d2Hzq5ReCvig/DIgwUQ6SZG49XIgc8Yg7leTQ4y41CXXY8nQ1eWrA==}
@@ -7008,6 +7030,10 @@ packages:
   '@expo/xcpretty@4.4.4':
     resolution: {integrity: sha512-4aQzz9vgxcNXFfo/iyNgDDYfsU5XGKKxWxZopw0cVotHiW+U8IJbIxMaxsINs6bHhtkG3StKNPcOrn3eBuxKPw==}
     hasBin: true
+
+  '@fastify/busboy@2.1.1':
+    resolution: {integrity: sha512-vBZP4NlzfOlerQTnba4aqZoMhE/a9HY7HRqoOPaETQcSQuWEIyZMHGfVu6w9wGtGK5fED5qRs2DteVCjOH60sA==}
+    engines: {node: '>=14'}
 
   '@ffmpeg/ffmpeg@0.12.15':
     resolution: {integrity: sha512-1C8Obr4GsN3xw+/1Ww6PFM84wSQAGsdoTuTWPOj2OizsRDLT4CXTaVjPhkw6ARyDus1B9X/L2LiXHqYYsGnRFw==}
@@ -11592,6 +11618,12 @@ packages:
   aggregate-error@3.1.0:
     resolution: {integrity: sha512-4I7Td01quW/RpocfNayFdFVk1qSuoh0E7JrbRJ16nH01HhKFQ88INq9Sd+nd72zqRySlr9BmDA8xlEJ6vJMrYA==}
     engines: {node: '>=8'}
+
+  ai@6.0.246:
+    resolution: {integrity: sha512-3sFlNjA2+Oo1q1DDzy9KZKr3EjO3nzBVI4zpXPnp2/6uDDW83btpD0qpxMpMImVp/DfTzkBo+XCTxRolSHKRQA==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
 
   ai@7.0.58:
     resolution: {integrity: sha512-GfgO90CQQ0yYuoxJAUOeQ6tviyYw1BUIDygSZ1q3Ce6kSc93tYmB5eltKY/NxC0YOouAax7JvDqVnYxvIAr04Q==}
@@ -18511,6 +18543,10 @@ packages:
   undici-types@8.3.0:
     resolution: {integrity: sha512-j375ScV60dom+YkPFIfTLcOiPxkN/buHz5GobjLhixFuANaNs3C9l4GmrWqejgXWJ7BbJcFYpTEUkS1Ge8bpZQ==}
 
+  undici@5.29.0:
+    resolution: {integrity: sha512-raqeBD6NQK4SkWhQzeYKd1KmIG6dllBOTt55Rmkt4HtI9mwdWtJljnrXjAFUBLTSN67HWrOIZ3EPF4kjUw80Bg==}
+    engines: {node: '>=14.0'}
+
   undici@7.29.0:
     resolution: {integrity: sha512-IDxfleLmmbSskfWSUATiN1nfn2rDuvnMOqb5CWR92iIfojA0Ud+ulOAAEQ57LPr9rWmsreUyf5lwyao+7GNNVw==}
     engines: {node: '>=20.18.1'}
@@ -19498,6 +19534,13 @@ snapshots:
       '@bufbuild/protobuf': 2.13.0
       '@protobuf-ts/protoc': 2.11.1
 
+  '@ai-sdk/gateway@3.0.166(zod@4.4.3)':
+    dependencies:
+      '@ai-sdk/provider': 3.0.14
+      '@ai-sdk/provider-utils': 4.0.42(zod@4.4.3)
+      '@vercel/oidc': 3.2.0
+      zod: 4.4.3
+
   '@ai-sdk/gateway@4.0.46(zod@4.4.3)':
     dependencies:
       '@ai-sdk/provider': 4.0.7
@@ -19518,6 +19561,14 @@ snapshots:
       '@ai-sdk/provider-utils': 5.0.25(zod@4.4.3)
       zod: 4.4.3
 
+  '@ai-sdk/provider-utils@4.0.42(zod@4.4.3)':
+    dependencies:
+      '@ai-sdk/provider': 3.0.14
+      '@standard-schema/spec': 1.1.0
+      eventsource-parser: 3.1.0
+      undici: 5.29.0
+      zod: 4.4.3
+
   '@ai-sdk/provider-utils@5.0.25(zod@4.4.3)':
     dependencies:
       '@ai-sdk/provider': 4.0.7
@@ -19527,9 +19578,23 @@ snapshots:
       undici: 7.29.0
       zod: 4.4.3
 
+  '@ai-sdk/provider@3.0.14':
+    dependencies:
+      json-schema: 0.4.0
+
   '@ai-sdk/provider@4.0.7':
     dependencies:
       json-schema: 0.4.0
+
+  '@ai-sdk/react@3.0.248(react@19.2.8)(zod@4.4.3)':
+    dependencies:
+      '@ai-sdk/provider-utils': 4.0.42(zod@4.4.3)
+      ai: 6.0.246(zod@4.4.3)
+      react: 19.2.8
+      swr: 2.5.0(react@19.2.8)
+      throttleit: 2.1.0
+    transitivePeerDependencies:
+      - zod
 
   '@ai-sdk/react@4.0.61(react@19.2.3)(zod@4.4.3)':
     dependencies:
@@ -21793,6 +21858,8 @@ snapshots:
       '@babel/code-frame': 7.29.7
       chalk: 4.1.2
       js-yaml: 4.3.1
+
+  '@fastify/busboy@2.1.1': {}
 
   '@ffmpeg/ffmpeg@0.12.15':
     dependencies:
@@ -25177,7 +25244,7 @@ snapshots:
     dependencies:
       nanoid: 3.3.18
 
-  '@react-router/dev@8.3.0(@react-router/serve@8.3.0(@typescript/typescript6@6.0.2)(react-router@8.3.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8)))(@typescript/typescript6@6.0.2)(react-router@8.3.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(tsx@4.23.11)(yaml@2.9.0))':
+  '@react-router/dev@8.3.0(@react-router/serve@8.3.0(@typescript/typescript6@6.0.2)(react-router@8.3.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(supports-color@10.2.2))(@typescript/typescript6@6.0.2)(react-router@8.3.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(tsx@4.23.11)(yaml@2.9.0))':
     dependencies:
       '@babel/core': 7.29.7
       '@babel/generator': 7.29.8
@@ -25208,7 +25275,7 @@ snapshots:
       valibot: 1.4.2(@typescript/typescript6@6.0.2)
       vite: 8.2.1(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(tsx@4.23.11)(yaml@2.9.0)
     optionalDependencies:
-      '@react-router/serve': 8.3.0(@typescript/typescript6@6.0.2)(react-router@8.3.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8))
+      '@react-router/serve': 8.3.0(@typescript/typescript6@6.0.2)(react-router@8.3.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(supports-color@10.2.2)
       typescript: '@typescript/typescript6@6.0.2'
     transitivePeerDependencies:
       - babel-plugin-macros
@@ -25229,14 +25296,14 @@ snapshots:
     optionalDependencies:
       typescript: '@typescript/typescript6@6.0.2'
 
-  '@react-router/serve@8.3.0(@typescript/typescript6@6.0.2)(react-router@8.3.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8))':
+  '@react-router/serve@8.3.0(@typescript/typescript6@6.0.2)(react-router@8.3.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(supports-color@10.2.2)':
     dependencies:
       '@react-router/express': 8.3.0(@typescript/typescript6@6.0.2)(express@5.2.1)(react-router@8.3.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8))
       '@react-router/node': 8.3.0(@typescript/typescript6@6.0.2)(react-router@8.3.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8))
       '@remix-run/node-fetch-server': 0.13.3
       compression: 1.8.1
       express: 5.2.1
-      morgan: 1.11.0
+      morgan: 1.11.0(supports-color@10.2.2)
       react-router: 8.3.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       source-map-support: 0.5.21
     transitivePeerDependencies:
@@ -27016,6 +27083,14 @@ snapshots:
       clean-stack: 2.2.0
       indent-string: 4.0.0
     optional: true
+
+  ai@6.0.246(zod@4.4.3):
+    dependencies:
+      '@ai-sdk/gateway': 3.0.166(zod@4.4.3)
+      '@ai-sdk/provider': 3.0.14
+      '@ai-sdk/provider-utils': 4.0.42(zod@4.4.3)
+      '@opentelemetry/api': 1.9.0
+      zod: 4.4.3
 
   ai@7.0.58(zod@4.4.3):
     dependencies:
@@ -32015,7 +32090,7 @@ snapshots:
 
   modern-tar@0.7.7: {}
 
-  morgan@1.11.0:
+  morgan@1.11.0(supports-color@10.2.2):
     dependencies:
       basic-auth: 2.0.1
       debug: 2.6.9(supports-color@10.2.2)
@@ -35422,6 +35497,10 @@ snapshots:
   undici-types@7.18.2: {}
 
   undici-types@8.3.0: {}
+
+  undici@5.29.0:
+    dependencies:
+      '@fastify/busboy': 2.1.1
 
   undici@7.29.0: {}
 
