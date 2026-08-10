@@ -9,7 +9,10 @@ import type {
   ExternalThreadProps,
 } from "../store/clients/external-thread";
 import { ExternalThread } from "../store/clients/external-thread";
-import type { PendingAttachment } from "../types/attachment";
+import type {
+  CompleteAttachment,
+  PendingAttachment,
+} from "../types/attachment";
 
 const renderThreadWithProps = (props: Partial<ExternalThreadProps>) => {
   const captured: { aui?: ReturnType<typeof useAui> } = {};
@@ -214,6 +217,59 @@ describe("ExternalThread attachments", () => {
       "Failed to send attachments",
       expect.any(Error),
     );
+  });
+
+  it("preserves composer state while attachments are prepared for send", async () => {
+    let resolveSend!: (attachment: CompleteAttachment) => void;
+    const onNew = vi.fn();
+    const file = new File(["data"], "notes.txt", { type: "text/plain" });
+    const adapter = {
+      accept: "*",
+      add: async () => ({
+        id: "att-1",
+        type: "file" as const,
+        name: file.name,
+        contentType: file.type,
+        file,
+        status: {
+          type: "requires-action" as const,
+          reason: "composer-send" as const,
+        },
+      }),
+      send: () =>
+        new Promise<CompleteAttachment>((resolve) => {
+          resolveSend = resolve;
+        }),
+      remove: async () => {},
+    };
+    const aui = renderThreadWithProps({ attachmentAdapter: adapter, onNew });
+    const composer = () => aui().thread.composer();
+
+    await act(() => composer().addAttachment(file));
+    act(() => {
+      composer().setText("first message");
+      composer().setRole("assistant");
+      composer().setRunConfig({ model: "model-a" });
+      composer().send();
+      composer().setRole("system");
+      composer().setRunConfig({ model: "model-b" });
+    });
+    await act(async () => {
+      resolveSend({
+        id: "att-1",
+        type: "file",
+        name: file.name,
+        contentType: file.type,
+        status: { type: "complete" },
+        content: [],
+      });
+    });
+
+    await waitFor(() => expect(onNew).toHaveBeenCalledTimes(1));
+    expect(onNew.mock.calls[0]![0]).toMatchObject({
+      role: "assistant",
+      runConfig: { model: "model-a" },
+    });
   });
 
   it.each([

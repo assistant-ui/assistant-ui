@@ -725,6 +725,8 @@ const useComposerClientResource = ({
     send: (opts?: ComposerSendOptions) => {
       const currentQuote = quoteRef.current;
       const currentText = textRef.current;
+      const currentRole = roleRef.current;
+      const currentRunConfig = runConfigRef.current;
       const currentAttachments = attachmentsRef.current;
       const isEmpty = !currentText.trim() && !currentAttachments.length;
       if (!isEditingRef.current) throw new Error("Composer is not available");
@@ -737,7 +739,7 @@ const useComposerClientResource = ({
 
       const dispatch = (sendAttachments: readonly Attachment[]) => {
         const composedMessage: AppendMessage = {
-          role: roleRef.current,
+          role: currentRole,
           content: currentText
             ? [{ type: "text" as const, text: currentText }]
             : [],
@@ -745,7 +747,7 @@ const useComposerClientResource = ({
           createdAt: new Date(),
           parentId: null,
           sourceId: null,
-          runConfig: runConfigRef.current,
+          runConfig: currentRunConfig,
           startRun: opts?.startRun,
           metadata: {
             custom: { ...(currentQuote ? { quote: currentQuote } : {}) },
