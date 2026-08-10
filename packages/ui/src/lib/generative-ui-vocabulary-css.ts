@@ -250,17 +250,22 @@ export const generativeUiVocabularyCss: CssRuleset = {
   // surface would otherwise hold its margins open for the length of the stream.
   '[data-aui="root"]:empty': { display: "none" },
 
+  // Padding rides a custom property rather than the surface rule, so the
+  // `data-aui-padding` tokens below still win on source order; a selector
+  // specific enough to name a surface would otherwise outrank them and make
+  // the model's own value inert.
   '[data-aui="card"]': {
     display: "flex",
     "flex-direction": "column",
     gap: "0.875rem",
+    padding: "var(--aui-card-padding, 0)",
   },
   [cardSurface()]: {
+    "--aui-card-padding": "1.25rem",
     "background-color": "var(--card)",
     color: "var(--card-foreground)",
     border: `1px solid ${auiHairlineBorder}`,
     "border-radius": "var(--radius)",
-    padding: "1.25rem",
     "box-shadow":
       "0 1px 2px color-mix(in oklab, var(--foreground) 8%, transparent)",
   },
