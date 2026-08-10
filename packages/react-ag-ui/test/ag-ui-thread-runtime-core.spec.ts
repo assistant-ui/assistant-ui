@@ -5576,7 +5576,7 @@ describe("AGUIThreadRuntimeCore", () => {
     });
   });
 
-  it("keeps opaque reasoning when the aggregator writes interrupts to the same namespace", async () => {
+  it("keeps opaque reasoning through a run that ends in an interrupt", async () => {
     const runInputs: any[] = [];
     const runAgent = vi.fn(async (input, subscriber) => {
       runInputs.push(JSON.parse(JSON.stringify(input)));
