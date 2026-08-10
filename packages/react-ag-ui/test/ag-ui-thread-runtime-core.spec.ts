@@ -5409,4 +5409,54 @@ describe("AGUIThreadRuntimeCore", () => {
       content: "done",
     });
   });
+
+  it("carries a live reasoning signature into the next run input", async () => {
+    const runInputs: any[] = [];
+    const runAgent = vi.fn(async (input, subscriber) => {
+      runInputs.push(JSON.parse(JSON.stringify(input)));
+      if (runInputs.length === 1) {
+        subscriber.onReasoningMessageStartEvent?.({
+          event: { type: "REASONING_MESSAGE_START", messageId: "r-1" },
+        });
+        subscriber.onReasoningMessageContentEvent?.({
+          event: {
+            type: "REASONING_MESSAGE_CONTENT",
+            messageId: "r-1",
+            delta: "weighing options",
+          },
+        });
+        subscriber.onReasoningEncryptedValueEvent?.({
+          event: {
+            type: "REASONING_ENCRYPTED_VALUE",
+            subtype: "message",
+            entityId: "r-1",
+            encryptedValue: "signed-blob",
+          },
+        });
+        subscriber.onReasoningMessageEndEvent?.({
+          event: { type: "REASONING_MESSAGE_END", messageId: "r-1" },
+        });
+        subscriber.onTextMessageContentEvent?.({
+          event: { type: "TEXT_MESSAGE_CONTENT", delta: "done" },
+        });
+      }
+      subscriber.onRunFinalized?.();
+    });
+    const core = createCore({ runAgent } as unknown as HttpAgent);
+
+    await core.append(createAppendMessage());
+    const assistant = core.getMessages().at(-1) as ThreadAssistantMessage;
+    expect(assistant.content[0]).toMatchObject({
+      type: "reasoning",
+      providerMetadata: { agui: { encryptedValue: "signed-blob" } },
+    });
+
+    await core.append(createAppendMessage({ parentId: assistant.id }));
+
+    expect(runInputs[1].messages[1]).toMatchObject({
+      role: "reasoning",
+      content: "weighing options",
+      encryptedValue: "signed-blob",
+    });
+  });
 });

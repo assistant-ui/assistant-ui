@@ -22,6 +22,7 @@ type Subscriber = {
   onReasoningMessageStartEvent?: (payload: { event: unknown }) => void;
   onReasoningMessageContentEvent?: (payload: { event: unknown }) => void;
   onReasoningMessageEndEvent?: (payload: { event: unknown }) => void;
+  onReasoningEncryptedValueEvent?: (payload: { event: unknown }) => void;
   onToolCallStartEvent?: (payload: { event: unknown }) => void;
   onToolCallArgsEvent?: (payload: { event: unknown }) => void;
   onToolCallEndEvent?: (payload: { event: unknown }) => void;
@@ -124,6 +125,8 @@ export const createAgUiSubscriber = (
       dispatchIfValid(event, "REASONING_MESSAGE_CONTENT"),
     onReasoningMessageEndEvent: ({ event }) =>
       dispatchIfValid(event, "REASONING_MESSAGE_END"),
+    onReasoningEncryptedValueEvent: ({ event }) =>
+      dispatchIfValid(event, "REASONING_ENCRYPTED_VALUE"),
     onToolCallStartEvent: ({ event }) =>
       dispatchIfValid(event, "TOOL_CALL_START"),
     onToolCallArgsEvent: ({ event }) =>

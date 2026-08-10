@@ -77,6 +77,7 @@ export class RunAggregator {
   >();
   private activeTextMessageId: string | undefined;
   private readonly reasoningParts = new Map<string, string>(); // key → buffer
+  private readonly reasoningSignatures = new Map<string, string>(); // key → encryptedValue
   private activeReasoningKey: string | undefined;
   private reasoningPartCounter = 0;
   private readonly toolCalls = new Map<string, ToolCallState>();
@@ -111,6 +112,7 @@ export class RunAggregator {
       case "RUN_STARTED": {
         this.clearTextParts();
         this.reasoningParts.clear();
+        this.reasoningSignatures.clear();
         this.activeReasoningKey = undefined;
         this.reasoningPartCounter = 0;
         this.toolCalls.clear();
@@ -201,6 +203,12 @@ export class RunAggregator {
         this.handleReasoningStart(
           "messageId" in event ? event.messageId : undefined,
         );
+        break;
+      case "REASONING_ENCRYPTED_VALUE":
+        if (event.subtype === "message") {
+          this.reasoningSignatures.set(event.entityId, event.encryptedValue);
+          this.emit();
+        }
         break;
       case "THINKING_TEXT_MESSAGE_CONTENT":
         this.handleReasoningContent(event.delta);
@@ -589,7 +597,18 @@ export class RunAggregator {
         if (this.showThinking) {
           const buffer = this.reasoningParts.get(part.key) ?? "";
           if (buffer.length > 0 || this.activeReasoningKey === part.key) {
-            snapshot.push({ type: "reasoning", text: buffer } as const);
+            const encryptedValue = this.reasoningSignatures.get(part.key);
+            snapshot.push({
+              type: "reasoning",
+              text: buffer,
+              ...(encryptedValue !== undefined
+                ? {
+                    providerMetadata: {
+                      [AG_UI_METADATA_NAMESPACE]: { encryptedValue },
+                    },
+                  }
+                : {}),
+            } as const);
           }
         }
         continue;

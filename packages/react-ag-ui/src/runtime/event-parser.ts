@@ -171,6 +171,18 @@ export const parseAgUiEvent = (
         { type: "REASONING_MESSAGE_END" as const },
         { messageId: getString("messageId") },
       );
+    case "REASONING_ENCRYPTED_VALUE": {
+      const entityId = getString("entityId");
+      const encryptedValue = getString("encryptedValue");
+      const subtype = getString("subtype");
+      if (!entityId || !encryptedValue) return null;
+      return {
+        type: "REASONING_ENCRYPTED_VALUE" as const,
+        subtype: subtype === "tool-call" ? "tool-call" : "message",
+        entityId,
+        encryptedValue,
+      };
+    }
     case "REASONING_END":
       return withOptional(
         { type: "REASONING_END" as const },
