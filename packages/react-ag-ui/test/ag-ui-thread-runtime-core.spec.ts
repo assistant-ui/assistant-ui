@@ -5576,6 +5576,54 @@ describe("AGUIThreadRuntimeCore", () => {
     });
   });
 
+  it("keeps opaque reasoning and interrupts on one assistant through the metadata merge", async () => {
+    let core: AgUiThreadRuntimeCore;
+    const runAgent = vi.fn(async (input, subscriber) => {
+      subscriber.onTextMessageContentEvent?.({
+        event: { type: "TEXT_MESSAGE_CONTENT", delta: "seed" },
+      });
+      // Reusing the run's own assistant id makes the snapshot land on the
+      // message the interrupt update then merges into.
+      const activeId = core.getMessages().at(-1)!.id;
+      subscriber.onMessagesSnapshotEvent?.({
+        event: {
+          type: "MESSAGES_SNAPSHOT",
+          messages: [
+            { id: "u-1", role: "user", content: "hi" },
+            {
+              id: "r-1",
+              role: "reasoning",
+              content: "",
+              encryptedValue: "opaque",
+            },
+            { id: activeId, role: "assistant", content: "done" },
+          ],
+        },
+      });
+      subscriber.onRunFinishedEvent?.({
+        event: {
+          type: "RUN_FINISHED",
+          runId: input.runId,
+          outcome: {
+            type: "interrupt",
+            interrupts: [{ id: "int-1", reason: "tool_call", message: "ok?" }],
+          },
+        },
+      });
+      subscriber.onRunFinalized?.();
+    });
+    core = createCore({ runAgent } as unknown as HttpAgent);
+
+    await core.append(createAppendMessage());
+
+    const assistant = core.getMessages().at(-1) as ThreadAssistantMessage;
+    const agui = assistant.metadata.custom.agui as any;
+    expect(agui.interrupts).toHaveLength(1);
+    expect(agui.opaqueReasoning).toEqual([
+      { id: "r-1", encryptedValue: "opaque" },
+    ]);
+  });
+
   it("keeps opaque reasoning through a run that ends in an interrupt", async () => {
     const runInputs: any[] = [];
     const runAgent = vi.fn(async (input, subscriber) => {
