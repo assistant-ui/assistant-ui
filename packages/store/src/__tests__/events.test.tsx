@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import type { ReactNode } from "react";
-import { useState } from "react";
+import { startTransition, Suspense, useState } from "react";
 import { act, cleanup, render, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { flushTapSync, resource } from "@assistant-ui/tap";
@@ -44,6 +44,10 @@ const useThreadClient = () => {
   };
 };
 const ThreadClient = resource(useThreadClient);
+
+const ComposerClient = resource(() => ({
+  getState: () => ({}),
+}));
 
 const messageDerived = () =>
   Derived({
@@ -189,7 +193,7 @@ describe("scope-filtered on", () => {
           ? { thread: ThreadClient(), message: messageDerived() }
           : { thread: ThreadClient() }) as unknown as useAui.Props,
       );
-      return <AuiProvider value={aui as never} />;
+      return <AuiProvider value={aui as never}>{null}</AuiProvider>;
     };
     const view = render(<Harness hasMessage />);
     const cb = vi.fn();
@@ -419,20 +423,31 @@ describe("Derived scopes", () => {
     });
   });
 
-  it("filters a derived-only scope that is absent from the parent", async () => {
+  it("forwards derived-only events through a parent that lacks the scope", async () => {
     let aui!: AnyClient;
     const cb = vi.fn();
     const Listener = () => {
       useAuiEvent("message.pinged" as never, cb as never);
       return null;
     };
+    const MiddleProvider = ({ children }: { children: ReactNode }) => {
+      const parent = useAui();
+      const config = AuiConfig({ composer: ComposerClient() } as never);
+      return (
+        <AuiProvider extends={parent} config={config}>
+          {children}
+        </AuiProvider>
+      );
+    };
     const Harness = () => {
       aui = useAui({ thread: ThreadClient() } as unknown as useAui.Props);
       return (
         <AuiProvider value={aui as never}>
-          <DerivedMessageProvider index={1}>
-            <Listener />
-          </DerivedMessageProvider>
+          <MiddleProvider>
+            <DerivedMessageProvider index={1}>
+              <Listener />
+            </DerivedMessageProvider>
+          </MiddleProvider>
         </AuiProvider>
       );
     };
@@ -442,6 +457,94 @@ describe("Derived scopes", () => {
     await flushEvents();
 
     expect(cb).toHaveBeenCalledExactlyOnceWith({ id: "m1", value: "child" });
+  });
+
+  it("tracks a derived-only selection across structural swaps", async () => {
+    let aui!: AnyClient;
+    const cb = vi.fn();
+    const Listener = () => {
+      useAuiEvent("message.pinged" as never, cb as never);
+      return null;
+    };
+    const Harness = ({ index }: { index: number }) => {
+      aui = useAui({ thread: ThreadClient() } as unknown as useAui.Props);
+      return (
+        <AuiProvider value={aui as never}>
+          <DerivedMessageProvider index={index}>
+            <Listener />
+          </DerivedMessageProvider>
+        </AuiProvider>
+      );
+    };
+    const view = render(<Harness index={0} />);
+
+    aui.thread.message({ index: 1 }).ping("before-swap");
+    await flushEvents();
+    expect(cb).not.toHaveBeenCalled();
+
+    view.rerender(<Harness index={1} />);
+    aui.thread.message({ index: 0 }).ping("previous");
+    aui.thread.message({ index: 1 }).ping("current");
+    await flushEvents();
+
+    expect(cb).toHaveBeenCalledExactlyOnceWith({
+      id: "m1",
+      value: "current",
+    });
+  });
+
+  it("keeps the committed derived selection during a suspended transition", async () => {
+    let aui!: AnyClient;
+    let startSuspendedSwap!: () => void;
+    let suspendedRenders = 0;
+    const cb = vi.fn();
+    const never = new Promise<never>(() => {});
+    const Listener = () => {
+      useAuiEvent("message.pinged" as never, cb as never);
+      return null;
+    };
+    const SuspendOnSwap = ({ suspend }: { suspend: boolean }) => {
+      if (suspend) {
+        suspendedRenders++;
+        throw never;
+      }
+      return null;
+    };
+    const Harness = () => {
+      const [index, setIndex] = useState(0);
+      const [suspend, setSuspend] = useState(false);
+      startSuspendedSwap = () => {
+        setIndex(1);
+        setSuspend(true);
+      };
+      const client = useAui({
+        thread: ThreadClient(),
+      } as unknown as useAui.Props);
+      aui ||= client;
+      return (
+        <AuiProvider value={client as never}>
+          <Suspense fallback={null}>
+            <DerivedMessageProvider index={index}>
+              <Listener />
+              <SuspendOnSwap suspend={suspend} />
+            </DerivedMessageProvider>
+          </Suspense>
+        </AuiProvider>
+      );
+    };
+    render(<Harness />);
+
+    act(() => startTransition(startSuspendedSwap));
+    expect(suspendedRenders).toBeGreaterThan(0);
+
+    aui.thread.message({ index: 1 }).ping("speculative");
+    aui.thread.message({ index: 0 }).ping("committed");
+    await flushEvents();
+
+    expect(cb).toHaveBeenCalledExactlyOnceWith({
+      id: "m0",
+      value: "committed",
+    });
   });
 
   it("useAuiEvent tracks the derived selection across structural swaps", async () => {

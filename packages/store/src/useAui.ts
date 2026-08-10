@@ -111,12 +111,6 @@ type DerivedClientRef = { current: AssistantClient | null };
 
 const derivedClientRefs = new WeakMap<AssistantClient, DerivedClientRef>();
 
-const getUnboundOn = (client: AssistantClient): AssistantClient["on"] => {
-  // Client proxies expose raw methods through descriptors; direct reads are receiver-bound.
-  const descriptor = Object.getOwnPropertyDescriptor(client, "on");
-  return (descriptor?.value as AssistantClient["on"] | undefined) ?? client.on;
-};
-
 const createClientObject = (
   parent: AssistantClient,
   fields: ClientFields,
@@ -199,11 +193,7 @@ const useClientFields = ({
           return localUnsub;
 
         const parentUnsub = derivedClientRef
-          ? getUnboundOn(clientRef.parent).call(
-              this,
-              selector as never,
-              callback as never,
-            )
+          ? clientRef.parent.on.call(this, selector as never, callback as never)
           : clientRef.parent.on(selector, callback);
 
         return () => {
@@ -394,8 +384,8 @@ const useDerivedScopeMount = (
 
 // Derived-only hosts run without tap: each Derived scope is a plain React
 // hook call, so the scope count is fixed per call site (React throws on a
-// hook-count change). State and event transport stay with the parent, while
-// scoped event resolution stays bound to this derived facade.
+// hook-count change). subscribe/on stay inherited from the parent, while the
+// registry below keeps scoped event filtering bound to this derived facade.
 const useDerivedOnlyClient = (
   parent: AssistantClient,
   entries: ScopeEntry[],
@@ -419,24 +409,9 @@ const useDerivedOnlyClient = (
     }
   }
 
-  const on = useMemo<AssistantClient["on"]>(
-    () =>
-      function <TEvent extends AssistantEventName>(
-        this: AssistantClient,
-        selector: AssistantEventSelector<TEvent>,
-        callback: AssistantEventCallback<TEvent>,
-      ) {
-        return getUnboundOn(parent).call(
-          this,
-          selector as never,
-          callback as never,
-        );
-      },
-    [parent],
-  );
   const building = createClientObject(parent, {
     subscribe: parent.subscribe,
-    on,
+    on: parent.on,
   });
 
   const accessors = entries.map(([name, element]) =>
@@ -444,8 +419,18 @@ const useDerivedOnlyClient = (
     useDerivedScopeMount(parent, building, name, element),
   );
   const client = useCommittedClient(building, [parent, ...accessors]);
-  const clientRef = useRef<DerivedClientRef>({ current: null }).current;
-  clientRef.current = client;
+  const clientRef = useRef<AssistantClient | null>(null);
+
+  // Publish structural rebinds in the commit phase so an interrupted render
+  // cannot expose a speculative facade to listeners. Derived-only clients do
+  // not share the hosted client's flushTapSync commit window, so events before
+  // this effect observe the previous committed binding.
+  useEffect(() => {
+    clientRef.current = client;
+  });
+  if (clientRef.current === null) {
+    clientRef.current = client;
+  }
   derivedClientRefs.set(client, clientRef);
   return client;
 };
