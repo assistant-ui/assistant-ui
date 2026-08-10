@@ -48,7 +48,10 @@ import { useAssistantTapContextProvider } from "./utils/tap-assistant-context";
 import { ClientResource } from "./useClientResource";
 import { useShallowStable } from "./utils/useShallowStable";
 import { createClientAccessor, getClientId } from "./utils/client-accessor";
-import { getClientIndex } from "./utils/tap-client-stack-context";
+import {
+  getClientIndex,
+  type ClientStack,
+} from "./utils/tap-client-stack-context";
 
 const isDevelopment =
   typeof process !== "undefined" &&
@@ -107,6 +110,20 @@ type ClientFields = {
   on: AssistantClient["on"];
 };
 
+type InternalEventCallback = (
+  payload: unknown,
+  clientStack: ClientStack,
+) => void;
+type ClientEventTransport = (
+  event: AssistantEventName,
+  callback: InternalEventCallback,
+) => () => void;
+
+const clientEventTransports = new WeakMap<
+  AssistantClient,
+  ClientEventTransport
+>();
+
 const createClientObject = (
   parent: AssistantClient,
   fields: ClientFields,
@@ -126,8 +143,22 @@ const useClientFields = ({
 }: {
   notifications: NotificationManager;
   clientRef: ClientRef;
-}): ClientFields => {
-  return useMemo(
+}): { fields: ClientFields; transport: ClientEventTransport } => {
+  const transport = useMemo<ClientEventTransport>(
+    () => (event, callback) => {
+      const localUnsub = notifications.on(event, callback);
+      const parentTransport = clientEventTransports.get(clientRef.parent);
+      const parentUnsub = parentTransport?.(event, callback);
+
+      return () => {
+        localUnsub();
+        parentUnsub?.();
+      };
+    },
+    [notifications, clientRef],
+  );
+
+  const fields = useMemo<ClientFields>(
     () => ({
       subscribe: notifications.subscribe,
       on: function <TEvent extends AssistantEventName>(
@@ -144,7 +175,6 @@ const useClientFields = ({
         const { scope, event } = normalizeEventSelector(selector);
 
         if (scope !== "*") {
-          // A hand-built parent may lack the scope entirely; forward to it
           const source = this[scope as ClientNames]?.source;
           if (source === null) {
             throw new Error(
@@ -153,9 +183,9 @@ const useClientFields = ({
           }
         }
 
-        const localUnsub = notifications.on(event, (payload, clientStack) => {
+        const localUnsub = transport(event, (payload, clientStack) => {
           if (scope === "*") {
-            callback(payload);
+            callback(payload as never);
             return;
           }
 
@@ -164,25 +194,25 @@ const useClientFields = ({
           ) as unknown as ClientMethods;
           const index = getClientIndex(scopeClient);
           if (scopeClient === clientStack[index]) {
-            callback(payload);
+            callback(payload as never);
           }
         });
-        if (
-          scope !== "*" &&
-          clientRef.parent[scope as ClientNames]?.source === null
-        )
-          return localUnsub;
 
-        const parentUnsub = clientRef.parent.on(selector, callback);
+        if (!clientEventTransports.has(clientRef.parent)) {
+          const parentUnsub = clientRef.parent.on(selector, callback);
+          return () => {
+            localUnsub();
+            parentUnsub();
+          };
+        }
 
-        return () => {
-          localUnsub();
-          parentUnsub();
-        };
+        return localUnsub;
       },
     }),
-    [notifications, clientRef],
+    [notifications, clientRef, transport],
   );
+
+  return { fields, transport };
 };
 
 const useScopeMeta = (element: ScopeElement): ScopeMeta => {
@@ -257,7 +287,7 @@ export const useAuiRoot = ({
   clientRef: ClientRef;
   notifications: NotificationManager;
 }): { client: AssistantClient } => {
-  const fields = useClientFields({ notifications, clientRef });
+  const { fields, transport } = useClientFields({ notifications, clientRef });
   const building = createClientObject(parent, fields);
 
   const accessors = useAssistantTapContextProvider(
@@ -274,9 +304,9 @@ export const useAuiRoot = ({
 
   // Fresh envelope per commit so value-only updates reach the store's
   // subscribers; the client inside keeps its identity
-  return {
-    client: useCommittedClient(building, [parent, ...accessors]),
-  };
+  const client = useCommittedClient(building, [parent, ...accessors]);
+  clientEventTransports.set(client, transport);
+  return { client };
 };
 
 const useHostedAssistantClient = ({
@@ -358,8 +388,8 @@ const useDerivedScopeMount = (
 
 // Derived-only hosts run without tap: each Derived scope is a plain React
 // hook call, so the scope count is fixed per call site (React throws on a
-// hook-count change). subscribe/on delegate wholesale to the parent, so
-// emissions and state updates flow through the parent's machinery.
+// hook-count change). Events still use the parent's transport, but scope
+// matching belongs to the committed derived-only client.
 const useDerivedOnlyClient = (
   parent: AssistantClient,
   entries: ScopeEntry[],
@@ -383,16 +413,66 @@ const useDerivedOnlyClient = (
     }
   }
 
+  const clientRef = useRef<ClientRef>({ parent, current: null }).current;
+  clientRef.parent = parent;
+
+  const on = useMemo<AssistantClient["on"]>(
+    () =>
+      function <TEvent extends AssistantEventName>(
+        selector: AssistantEventSelector<TEvent>,
+        callback: AssistantEventCallback<TEvent>,
+      ) {
+        const { scope, event } = normalizeEventSelector(selector);
+        const client = clientRef.current;
+
+        if (scope !== "*") {
+          const source = client?.[scope as ClientNames]?.source;
+          if (source === null) {
+            throw new Error(
+              `Scope "${scope}" is not available. Use { scope: "*", event: "${event}" } to listen globally.`,
+            );
+          }
+        }
+
+        const parentTransport = clientEventTransports.get(parent);
+        if (!parentTransport) return parent.on(selector, callback);
+
+        return parentTransport(event, (payload, clientStack) => {
+          if (scope === "*") {
+            callback(payload as never);
+            return;
+          }
+
+          const current = clientRef.current;
+          if (!current) return;
+          const scopeClient = getClientId(
+            current[scope as ClientNames],
+          ) as unknown as ClientMethods;
+          const index = getClientIndex(scopeClient);
+          if (scopeClient === clientStack[index]) {
+            callback(payload as never);
+          }
+        });
+      },
+    [clientRef, parent],
+  );
+
   const building = createClientObject(parent, {
     subscribe: parent.subscribe,
-    on: parent.on,
+    on,
   });
 
   const accessors = entries.map(([name, element]) =>
     // oxlint-disable-next-line react-hooks/rules-of-hooks -- fixed per call site; React throws on a count change
     useDerivedScopeMount(parent, building, name, element),
   );
-  return useCommittedClient(building, [parent, ...accessors]);
+  const client = useCommittedClient(building, [parent, ...accessors]);
+  clientRef.current = client;
+  clientEventTransports.set(client, (event, callback) => {
+    const parentTransport = clientEventTransports.get(parent);
+    return parentTransport?.(event, callback) ?? (() => {});
+  });
+  return client;
 };
 
 type ScopedAuiClient = { client: AssistantClient; effects?: () => void };
