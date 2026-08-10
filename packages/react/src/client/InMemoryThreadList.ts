@@ -1,4 +1,4 @@
-import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useMemo, useState } from "react";
 import { resource, withKey, type ResourceElement } from "@assistant-ui/tap";
 import {
   type ClientOutput,
@@ -126,30 +126,22 @@ const useInMemoryThreadList = (
       threads: [{ id: "main", title: "Main Thread", status: "regular" }],
       pendingSwitchId: null,
     }));
-  const notifySwitchToThread = useEffectEvent((threadId: string) => {
-    onSwitchToThread?.(threadId);
-  });
-  const pendingSwitchIdRef = useRef(pendingSwitchId);
-  pendingSwitchIdRef.current = pendingSwitchId;
-
-  useEffect(() => {
-    if (
-      pendingSwitchId === null ||
-      pendingSwitchIdRef.current !== pendingSwitchId
-    ) {
-      return;
-    }
-    pendingSwitchIdRef.current = null;
+  const flushPendingSwitch = useEffectEvent((threadId: string) => {
+    if (pendingSwitchId !== threadId) return;
     setThreadList((prev) =>
-      prev.pendingSwitchId === pendingSwitchId
+      prev.pendingSwitchId === threadId
         ? { ...prev, pendingSwitchId: null }
         : prev,
     );
-    notifySwitchToThread(pendingSwitchId);
+    onSwitchToThread?.(threadId);
+  });
+
+  useEffect(() => {
+    if (pendingSwitchId === null) return;
+    flushPendingSwitch(pendingSwitchId);
   }, [pendingSwitchId]);
 
   const handleSwitchToThread = (threadId: string) => {
-    pendingSwitchIdRef.current = null;
     setThreadList((prev) => ({
       ...prev,
       mainThreadId: threadId,
@@ -221,7 +213,6 @@ const useInMemoryThreadList = (
 
   const handleSwitchToNewThread = () => {
     const newId = `thread-${generateId()}`;
-    pendingSwitchIdRef.current = null;
     setThreadList((prev) => ({
       mainThreadId: newId,
       pendingSwitchId: null,
