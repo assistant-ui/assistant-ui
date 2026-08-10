@@ -1,6 +1,5 @@
 ---
 "@assistant-ui/agent-launcher": patch
-"assistant-stream": patch
 "assistant-ui": patch
 "@assistant-ui/cloud-ai-sdk": patch
 "assistant-cloud": patch
