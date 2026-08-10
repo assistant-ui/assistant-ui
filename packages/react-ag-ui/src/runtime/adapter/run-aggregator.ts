@@ -20,8 +20,15 @@ import type { Logger } from "../logger";
 
 export const AG_UI_METADATA_NAMESPACE = "agui";
 
+export type AgUiOpaqueReasoning = {
+  id: string;
+  encryptedValue: string;
+  after?: boolean;
+};
+
 export type AgUiCustomMetadata = {
   interrupts?: AgUiInterrupt[];
+  opaqueReasoning?: AgUiOpaqueReasoning[];
 };
 
 type Emit = (update: ChatModelRunResult) => void;
