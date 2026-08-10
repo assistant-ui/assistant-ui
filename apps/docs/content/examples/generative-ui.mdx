@@ -57,10 +57,11 @@ export default defineToolkit({
 
 The two demos keep separate toolkits and separate routes. If `/` also carried the Tool UI entries, `generate_chart` would compete with `present` for every prompt that mentions a chart, and the demo would render a Recharts widget instead of a composed dashboard.
 
-Because `present` resolves in the browser, the provider passes `sendAutomaticallyWhen` so the run continues once the UI has rendered:
+Because `present` resolves in the browser, the provider passes `sendAutomaticallyWhen` so the run continues once the UI has rendered. The transport points this route at its own endpoint, which is what keeps the two demos' tool sets apart:
 
 ```tsx title="app/page.tsx"
 const runtime = useChatRuntime({
+  transport: new AssistantChatTransport({ api: "/api/present" }),
   sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
 });
 ```
