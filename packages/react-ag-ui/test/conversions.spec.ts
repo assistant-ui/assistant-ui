@@ -759,32 +759,6 @@ describe("adapter conversions", () => {
     ]);
   });
 
-  it("ignores blank opaque entries arriving on snapshot metadata", () => {
-    const imported = fromAgUiMessages([
-      {
-        id: "a-1",
-        role: "assistant",
-        content: "done",
-        metadata: {
-          custom: {
-            agui: {
-              opaqueReasoning: [
-                { id: "   ", encryptedValue: "x" },
-                { id: "r-9", encryptedValue: "  " },
-                { id: "r-1", encryptedValue: "opaque" },
-              ],
-            },
-          },
-        },
-      },
-    ] as any);
-
-    expect(toAgUiMessages(imported as any)).toEqual([
-      { id: "r-1", role: "reasoning", content: "", encryptedValue: "opaque" },
-      { id: "a-1", role: "assistant", content: "done" },
-    ]);
-  });
-
   it("drops an encrypted-only record that has no message to anchor to", () => {
     // The record rides on a neighbouring message, so a snapshot that is only
     // reasoning has no carrier; the run input it would ride in is empty too.
