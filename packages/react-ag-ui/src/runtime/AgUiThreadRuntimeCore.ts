@@ -120,6 +120,26 @@ const invokeRuntimeCallback = <TArgs extends unknown[]>(
   }
 };
 
+// The aggregator only ever sends the interrupts it owns, so a shallow spread at
+// the custom level would drop sibling agui state such as opaqueReasoning.
+const mergeAgUiNamespace = (
+  current: Record<string, unknown> | undefined,
+  incoming: Record<string, unknown>,
+) => {
+  const merged = { ...current, ...incoming };
+  const currentNs = current?.[AG_UI_METADATA_NAMESPACE];
+  const incomingNs = incoming[AG_UI_METADATA_NAMESPACE];
+  if (
+    typeof currentNs === "object" &&
+    currentNs !== null &&
+    typeof incomingNs === "object" &&
+    incomingNs !== null
+  ) {
+    merged[AG_UI_METADATA_NAMESPACE] = { ...currentNs, ...incomingNs };
+  }
+  return merged;
+};
+
 export class AgUiThreadRuntimeCore {
   private agent: AbstractAgent;
   private logger: Logger;
@@ -1456,7 +1476,7 @@ export class AgUiThreadRuntimeCore {
       ...(current.isOptimistic ? { isOptimistic: true } : {}),
       ...(incoming.timing ? { timing: incoming.timing } : {}),
       custom: incoming.custom
-        ? { ...current.custom, ...incoming.custom }
+        ? mergeAgUiNamespace(current.custom, incoming.custom)
         : current.custom,
     };
   }

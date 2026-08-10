@@ -5576,6 +5576,54 @@ describe("AGUIThreadRuntimeCore", () => {
     });
   });
 
+  it("keeps opaque reasoning when the aggregator writes interrupts to the same namespace", async () => {
+    const runInputs: any[] = [];
+    const runAgent = vi.fn(async (input, subscriber) => {
+      runInputs.push(JSON.parse(JSON.stringify(input)));
+      if (runInputs.length === 1) {
+        subscriber.onMessagesSnapshotEvent?.({
+          event: {
+            type: "MESSAGES_SNAPSHOT",
+            messages: [
+              { id: "u-1", role: "user", content: "hi" },
+              {
+                id: "r-1",
+                role: "reasoning",
+                content: "",
+                encryptedValue: "opaque",
+              },
+              { id: "a-1", role: "assistant", content: "done" },
+            ],
+          },
+        });
+        subscriber.onRunFinishedEvent?.({
+          event: {
+            type: "RUN_FINISHED",
+            runId: input.runId,
+            outcome: {
+              type: "interrupt",
+              interrupts: [
+                { id: "int-1", reason: "tool_call", message: "approve?" },
+              ],
+            },
+          },
+        });
+      }
+      subscriber.onRunFinalized?.();
+    });
+    const core = createCore({ runAgent } as unknown as HttpAgent);
+
+    await core.append(createAppendMessage());
+    const last = core.getMessages().at(-1)!;
+    await core.append(createAppendMessage({ parentId: last.id }));
+
+    expect(
+      runInputs[1].messages.filter((m: any) => m.role === "reasoning"),
+    ).toEqual([
+      { id: "r-1", role: "reasoning", content: "", encryptedValue: "opaque" },
+    ]);
+  });
+
   it("carries a live reasoning signature into the next run input", async () => {
     const runInputs: any[] = [];
     const runAgent = vi.fn(async (input, subscriber) => {

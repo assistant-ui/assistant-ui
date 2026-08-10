@@ -820,7 +820,7 @@ export function fromAgUiMessages(
       const encryptedValue = getString(rawMessage, "encryptedValue");
       if (text.trim().length === 0) {
         const opaqueId = getString(rawMessage, "id");
-        if (opaqueId && encryptedValue) {
+        if (opaqueId?.trim() && encryptedValue?.trim()) {
           opaqueReasoning.push({
             id: opaqueId,
             encryptedValue,

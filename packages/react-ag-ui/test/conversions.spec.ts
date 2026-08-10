@@ -707,6 +707,45 @@ describe("adapter conversions", () => {
     ]);
   });
 
+  it("ignores an encrypted-only record with a blank id or blank payload", () => {
+    const imported = fromAgUiMessages([
+      { id: "   ", role: "reasoning", content: "", encryptedValue: "opaque" },
+      { id: "r-2", role: "reasoning", content: "", encryptedValue: "   " },
+      { id: "a-1", role: "assistant", content: "done" },
+    ] as any);
+
+    expect(toAgUiMessages(imported as any).map((m) => m.role)).toEqual([
+      "assistant",
+    ]);
+  });
+
+  it("places an encrypted-only record after a folded tool result", () => {
+    // Import folds a matched tool result into the assistant message, so the
+    // boundary it sat on is gone by export; it follows the whole expansion.
+    const imported = fromAgUiMessages([
+      {
+        id: "a-1",
+        role: "assistant",
+        content: "",
+        toolCalls: [
+          {
+            id: "call-1",
+            type: "function",
+            function: { name: "lookup", arguments: "{}" },
+          },
+        ],
+      },
+      { id: "r-1", role: "reasoning", content: "", encryptedValue: "opaque" },
+      { id: "t-1", role: "tool", content: "ok", toolCallId: "call-1" },
+    ] as any);
+
+    expect(toAgUiMessages(imported as any).map((m: any) => m.role)).toEqual([
+      "assistant",
+      "tool",
+      "reasoning",
+    ]);
+  });
+
   it("keeps ids stable across repeated snapshot round trips", () => {
     const first = toAgUiMessages(
       fromAgUiMessages([
