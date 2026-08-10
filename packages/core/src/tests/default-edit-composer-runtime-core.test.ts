@@ -132,7 +132,7 @@ describe("DefaultEditComposerRuntimeCore", () => {
   });
 
   describe("send behavior", () => {
-    it("does not call append when nothing changed", async () => {
+    it("calls append even when nothing changed, branching with the same message", async () => {
       const { runtime, append } = makeRuntime();
       const composer = new DefaultEditComposerRuntimeCore(runtime, () => {}, {
         parentId: "p1",
@@ -141,7 +141,11 @@ describe("DefaultEditComposerRuntimeCore", () => {
         }),
       });
       await composer.send();
-      expect(append).not.toHaveBeenCalled();
+      expect(append).toHaveBeenCalledTimes(1);
+      const appended = append.mock.calls[0]![0] as AppendMessage;
+      expect(appended.content).toEqual([{ type: "text", text: "same" }]);
+      expect(appended.parentId).toBe("p1");
+      expect(appended.sourceId).toBe("msg-1");
     });
 
     it("calls append when text changes", async () => {

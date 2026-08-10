@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 const { mockUseEveAgent } = vi.hoisted(() => ({
   mockUseEveAgent: vi.fn(),
@@ -39,7 +39,60 @@ const createAgent = (overrides: Record<string, unknown>) => ({
   ...overrides,
 });
 
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
 describe("useEveAgentRuntime status forwarding", () => {
+  it.each(
+    (["onError", "onEvent", "onFinish", "onSessionChange"] as const).flatMap(
+      (callbackName) =>
+        (["throws", "rejects"] as const).map(
+          (failureMode) => [callbackName, failureMode] as const,
+        ),
+    ),
+  )(
+    "isolates %s callback errors when it %s",
+    async (callbackName, failureMode) => {
+      const callbackError = new Error(`${callbackName} failed`);
+      const callback = vi.fn(() => {
+        if (failureMode === "throws") throw callbackError;
+        return Promise.reject(callbackError);
+      });
+      const agent = createAgent({ data: { messages: [] } });
+      let capturedOptions: Record<
+        string,
+        ((value: unknown) => void) | undefined
+      > = {};
+      mockUseEveAgent.mockImplementation((options) => {
+        capturedOptions = options as typeof capturedOptions;
+        return agent as never;
+      });
+      const consoleError = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+
+      renderHook(() =>
+        useEveAgentRuntime({ [callbackName]: callback } as never),
+      );
+
+      const value =
+        callbackName === "onFinish"
+          ? { status: "ready" }
+          : callbackName === "onError"
+            ? new Error("run failed")
+            : {};
+      expect(() => capturedOptions[callbackName]?.(value)).not.toThrow();
+      expect(callback).toHaveBeenCalledWith(value);
+      await waitFor(() => {
+        expect(consoleError).toHaveBeenCalledWith(
+          `[assistant-ui/eve] ${callbackName} callback threw an error`,
+          callbackError,
+        );
+      });
+    },
+  );
+
   it("maps the session error onto the interrupted assistant message", () => {
     mockUseEveAgent.mockReturnValue(
       createAgent({ status: "error", error: new Error("boom") }) as never,

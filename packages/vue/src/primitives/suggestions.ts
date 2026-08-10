@@ -1,9 +1,17 @@
-import { computed, defineComponent, h, mergeProps, type SlotsType } from "vue";
+import {
+  computed,
+  defineComponent,
+  h,
+  mergeProps,
+  onScopeDispose,
+  type SlotsType,
+} from "vue";
 import { AuiConfig, Derived } from "@assistant-ui/store/client";
 import { flushTapSync } from "@assistant-ui/tap";
-import type {} from "@assistant-ui/core/store";
+import type { SuggestionMethods } from "@assistant-ui/core/store";
 import { AuiProvider } from "../AuiProvider";
 import { isAttrDisabled } from "./attrDisabled";
+import { createLastValidCache, createStaleReporter } from "./lastValidCache";
 import { useAui } from "../useAui";
 import { useAuiState } from "../useAuiState";
 
@@ -22,15 +30,32 @@ export const SuggestionByIndexProvider = defineComponent({
   slots: Object as SlotsType<{ default?: () => unknown }>,
   setup(props, { slots }) {
     const aui = useAui();
-    const config = computed(() =>
-      AuiConfig({
+    let disposed = false;
+    onScopeDispose(() => {
+      disposed = true;
+    });
+    const config = computed(() => {
+      const index = props.index;
+      const cache = createLastValidCache<SuggestionMethods>(
+        createStaleReporter({
+          name: "SuggestionByIndexProvider",
+          index,
+          isCurrent: () => !disposed && index === props.index,
+          isValid: () => index < aui.suggestions.getState().suggestions.length,
+        }),
+      );
+      return AuiConfig({
         suggestion: Derived({
           source: "suggestions",
-          query: { index: props.index },
-          get: (aui) => aui.suggestions.suggestion({ index: props.index }),
+          query: { index },
+          get: (aui) =>
+            cache.resolve(
+              index < aui.suggestions.getState().suggestions.length,
+              () => aui.suggestions.suggestion({ index }),
+            ),
         }),
-      }),
-    );
+      });
+    });
     return () =>
       h(
         AuiProvider,

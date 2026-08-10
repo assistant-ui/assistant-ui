@@ -34,6 +34,7 @@ export function ToolCall({
 }: ToolCallProps) {
   return (
     <Collapsible
+      data-slot="tool-call"
       open={open}
       onOpenChange={onOpenChange}
       className={cn("w-full max-w-sm", className)}

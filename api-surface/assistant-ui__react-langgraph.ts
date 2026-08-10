@@ -941,6 +941,12 @@ type LangChainMessage = {
   artifact?: any;
   status: "error" | "success";
 } | {
+  id: string;
+  type: "remove";
+  content: string | [
+  ];
+  additional_kwargs?: Record<string, unknown>;
+} | {
   id?: string;
   type: "ai";
   content: AssistantMessageContent;

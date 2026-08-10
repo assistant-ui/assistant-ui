@@ -1,0 +1,156 @@
+---
+title: Generative UI on Microsoft Teams
+description: Convert a generative UI tree into an Adaptive Card, send it from a bot, and decode the Action.Submit payload Teams sends back into your action handlers.
+platforms: ["react"]
+---
+
+The `$type` tree your assistant renders in the browser is plain JSON, so it does not have to stay in the browser. `@assistant-ui/react-generative-ui/teams` converts the same tree into an [Adaptive Card](https://adaptivecards.io/explorer/) and decodes the submit payload a Teams bot receives back.
+
+The subpath is React-free, so a server action, queue worker, or bot handler imports it without pulling React into the bundle.
+
+## Sending a card
+
+```ts
+import { toAdaptiveCard } from "@assistant-ui/react-generative-ui/teams";
+
+const { card, warnings } = toAdaptiveCard({
+  $type: "Card",
+  title: "Order #48213",
+  children: [{ $type: "Text", value: "Shipped, arriving Thursday." }],
+});
+
+await context.sendActivity({
+  attachments: [
+    {
+      contentType: "application/vnd.microsoft.card.adaptive",
+      content: card,
+    },
+  ],
+});
+```
+
+`toAdaptiveCard(node)` returns `{ card, warnings }` and never throws; an input it cannot convert comes back as an empty card plus one warning. `toTeamsAttachments(node)` wraps the same conversion in the [attachment envelope](https://learn.microsoft.com/en-us/microsoftteams/platform/task-modules-and-cards/cards/cards-reference) for you, which is the form you want for a carousel.
+
+Cards are stamped at Adaptive Cards schema **1.5**, the version [Teams supports on desktop](https://learn.microsoft.com/en-us/microsoftteams/platform/task-modules-and-cards/cards/cards-reference). Teams mobile clients cap at 1.2, so a card using 1.5-only elements (notably `Table`) may not render there.
+
+## Warnings
+
+Conversion is total. Every downgrade is reported rather than thrown:
+
+```ts
+type TeamsConversionWarning = {
+  code: "clamped" | "dropped" | "fallback";
+  component: string; // the IR component name, or "Root" for whole-payload issues
+  detail: string;
+};
+```
+
+`clamped` means content was truncated or capped, `dropped` means a node produced no output, and `fallback` means the node rendered through a simpler construct. Teams uses `clamped` for two advisory cases where nothing is actually removed: a `Row` beyond three columns, and buttons past the sixth being moved to secondary mode.
+
+## Component mapping
+
+| Component | Adaptive Card output | Fidelity |
+|---|---|---|
+| `Header` | `TextBlock` with heading style | Faithful |
+| `Text` | `TextBlock` | Six text sizes collapse to four, four weights to bold or not, and every non-default color to `isSubtle` |
+| `Markdown` | `TextBlock`, passed through verbatim | Teams renders [a markdown subset](https://learn.microsoft.com/en-us/microsoftteams/platform/task-modules-and-cards/cards/cards-format); headings, tables, images, and blockquotes render literally |
+| `Caption`, `Badge` | Small subtle `TextBlock` | The two become identical output |
+| `Image` | `Image` | A numeric `size` is dropped with a warning; `round` is dropped silently |
+| `Fact` | `FactSet` | Consecutive facts merge into one set |
+| `Table` | Native `Table` with the first row as headers | Requires schema 1.5, so it will not render on Teams mobile |
+| `Card` | `Container`, with the title as a leading heading | Footer buttons become an `ActionSet` beside the container, not inside it |
+| `Alert` | `Container` with a semantic style (`accent`, `good`, `warning`, `attention`) | Title and description become two text blocks |
+| `Carousel` | Multiple attachments through `toTeamsAttachments` | See [Carousels](#carousels) |
+| `ListView` | One `Container` per item, separated after the first | |
+| `ListViewItem` | `Container`, with a select action when it carries an action | |
+| `Button` | `Action.Submit` inside an `ActionSet` | Consecutive buttons merge into one set; `buttonStyle` is dropped, since Teams [ignores action styling](https://learn.microsoft.com/en-us/microsoftteams/platform/task-modules-and-cards/cards/cards-reference) |
+| `Select` | `Input.ChoiceSet`, compact | |
+| `RadioGroup` | `Input.ChoiceSet`, expanded | |
+| `Checkbox` | `Input.Toggle` | Its value is the string `"true"` or `"false"` |
+| `Input` | `Input.Text` | |
+| `DatePicker` | `Input.Date` | `value`, `min`, and `max` are kept only in `YYYY-MM-DD` form, otherwise dropped silently |
+| `Form` | Children inline, then a "Submit" `ActionSet` | Adaptive Cards has no form container; inputs on the card submit together |
+| `Row` | `ColumnSet` with one auto-width column per child | Beyond three columns you get a warning, but all columns are kept |
+| `Col`, `Box` | `Container` | The two become indistinguishable |
+| `Divider` | Nothing; sets `separator` on the next sibling | See [Layout differences](#layout-differences) |
+| `Spacer` | Nothing; sets `spacing` on the next sibling | See [Layout differences](#layout-differences) |
+| `Chart` | Replaced by a subtle note | Always warns |
+| `Icon` | Dropped | Silently |
+
+## Layout differences
+
+Two vocabulary components behave differently here than anywhere else, because Adaptive Cards models separation as a property of an element rather than as an element:
+
+- A `Divider` emits nothing and sets `separator: true` on the next element that does emit.
+- A `Spacer` emits nothing and sets `spacing: "large"` on the next element that does emit.
+
+A component that emits nothing, such as an `Icon`, does not consume a pending mark; it carries through to the next real element. A `Divider` or `Spacer` with nothing after it disappears entirely, without a warning. The practical consequence is that a trailing separator you would see on Slack is simply absent on Teams.
+
+Two consolidations also apply, both run-based rather than global: consecutive `Fact` siblings merge into one `FactSet`, and consecutive `Button` siblings merge into one `ActionSet`. A different component between them breaks the run and starts a new set.
+
+## Inputs
+
+Adaptive Cards merges every input's current value into one submit object keyed by the input's `id`, which has two consequences worth knowing.
+
+**Ids come from `name`.** Each control's `id` is its `name` prop, falling back to a per-type default. Two controls that share a name on the same card would collide, so the converter renames the later one and warns. The key `aui` is reserved for the action envelope; a control named `aui` is renamed too.
+
+**There is no change event.** Adaptive Cards has no way to dispatch when a control's value changes, so a standalone control carrying `$action` gets a companion "Submit" `ActionSet` appended, plus a `fallback` warning. Five such controls produce five separate submit buttons. The idiomatic shape is to put `$action` on a `Form` or a `Card` footer and leave the controls actionless, which yields one submit for the whole card.
+
+## Actions
+
+### Outbound
+
+A node's `$action` is carried inside the submit payload's reserved `aui` key, so it never collides with input values:
+
+```json
+{
+  "type": "Action.Submit",
+  "title": "Approve",
+  "data": { "aui": { "type": "approve_order", "payload": { "orderId": "48213" } } }
+}
+```
+
+Unlike Slack, the payload is not serialized to a string and carries no size cap of its own, so the converter never drops or truncates it the way an oversized Slack button value is dropped. Size is checked once, against the whole card, and that check only warns; whether an oversized card is then accepted is Teams' call, not the converter's.
+
+### Inbound
+
+A bot receives the merged submit object as `activity.value`. `decodeSubmitData` splits it back into the action your tree dispatched, with the card's input values under `$input`:
+
+```ts
+import { decodeSubmitData } from "@assistant-ui/react-generative-ui/teams";
+
+const action = decodeSubmitData(context.activity.value);
+// { type: "approve_order", orderId: "48213", $input: { quantity: "2" } }
+```
+
+`$input` here is an **object keyed by input id**, which differs from Slack, where a single control's `$input` is a bare value. It is omitted when the card had no inputs. The function returns `undefined` for a payload without a well-formed `aui` envelope and never throws; `type` always comes from the envelope, and a `$input` key smuggled into the payload is stripped.
+
+The converter emits `Action.Submit`. Teams also offers [`Action.Execute`](https://learn.microsoft.com/en-us/adaptive-cards/authoring-cards/universal-action-model) from schema 1.4, which lets a bot return a replacement card in the invoke response; reaching for that means constructing the action yourself.
+
+## Carousels
+
+A carousel is an activity-level construct on Teams rather than a card-level one, so it only works through `toTeamsAttachments`:
+
+```ts
+const { attachments, attachmentLayout } = toTeamsAttachments(tree);
+
+await context.sendActivity({ attachments, attachmentLayout });
+```
+
+With a `Carousel` at the root you get one attachment per card child and `attachmentLayout: "carousel"`, capped at ten cards. Anywhere other than the root, a carousel falls back to its cards rendered in sequence, with a `fallback` warning. Input ids are scoped per card, so two attachments may safely reuse the same name.
+
+## Limits
+
+| Budget | Value | Behavior when exceeded |
+|---|---|---|
+| Carousel attachments | 10 | Truncated |
+| Table | 100 rows, 20 columns | Truncated |
+| Choice options | 100 | Truncated |
+| Primary actions | 6 | Later actions move to secondary mode; none are dropped |
+| Payload size | 80,000 serialized bytes, set below Teams' 100 KB bot message limit | Warned, never truncated, so you decide whether to split |
+
+Traversal is bounded as well: 200 children per level, 5,000 nodes per call, and a depth ceiling of 64, each reported as a `Root` warning. These bounds exist because the tree arrives from a model.
+
+## Reference
+
+The generated per-export reference, including every type in the subpath, is at [Microsoft Teams](/docs/api-reference/generative-ui/teams). For the Slack equivalent of this page, see [Generative UI on Slack](/docs/tools/generative-ui-slack).

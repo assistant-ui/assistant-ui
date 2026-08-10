@@ -1,5 +1,32 @@
 # @assistant-ui/eve
 
+## 0.0.12
+
+### Patch Changes
+
+- [#5736](https://github.com/assistant-ui/assistant-ui/pull/5736) [`988f739`](https://github.com/assistant-ui/assistant-ui/commit/988f7399a1be23f0f63b9851141ace855562e865) - fix: isolate observe-only Eve lifecycle callbacks ([@Kinfe123](https://github.com/Kinfe123))
+
+- Updated dependencies [[`f551562`](https://github.com/assistant-ui/assistant-ui/commit/f551562162f43b2bbeb2bb46d39b68243ca1d35a), [`dc7b77d`](https://github.com/assistant-ui/assistant-ui/commit/dc7b77dca65ad8d0384e8aec268a4141dc8bd0da), [`d1b7097`](https://github.com/assistant-ui/assistant-ui/commit/d1b7097ca86e84698fcfaabd1b310e30612dd32c)]:
+  - @assistant-ui/core@0.3.11
+
+## 0.0.11
+
+### Patch Changes
+
+- [#5723](https://github.com/assistant-ui/assistant-ui/pull/5723) [`94dc3e5`](https://github.com/assistant-ui/assistant-ui/commit/94dc3e509fa2b4fae1a14c88ec34b910c8d95af8) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+- Updated dependencies [[`94dc3e5`](https://github.com/assistant-ui/assistant-ui/commit/94dc3e509fa2b4fae1a14c88ec34b910c8d95af8), [`ab57969`](https://github.com/assistant-ui/assistant-ui/commit/ab5796932c97bc5bade19022e2ac8762949d2967)]:
+  - @assistant-ui/core@0.3.10
+
+## 0.0.10
+
+### Patch Changes
+
+- [#5658](https://github.com/assistant-ui/assistant-ui/pull/5658) [`8480023`](https://github.com/assistant-ui/assistant-ui/commit/8480023f8b1949baf5f16e449ab0ca4a25c087f5) - fix: serialize eve sends so approvals and sends during an active turn no longer crash or drop messages. Cancelling a run or unmounting the runtime drops sends still queued behind the active turn. ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- Updated dependencies [[`99d09c8`](https://github.com/assistant-ui/assistant-ui/commit/99d09c828c04bfca35d091e73f29c6d6643dfb01), [`79253f2`](https://github.com/assistant-ui/assistant-ui/commit/79253f2a5e0a637c8907ba30859f308ff6dcd1c4)]:
+  - @assistant-ui/core@0.3.8
+
 ## 0.0.9
 
 ### Patch Changes

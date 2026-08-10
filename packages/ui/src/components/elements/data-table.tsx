@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
 import { mono, paper } from "./surfaces";
 
@@ -9,20 +10,30 @@ export interface ModelUsage {
   cost: string;
 }
 
-export interface DataTableProps {
+export interface DataTableProps extends Omit<
+  ComponentProps<"div">,
+  "children"
+> {
   rows: readonly ModelUsage[];
   cycle: number;
-  className?: string;
 }
 
-export function DataTable({ rows, cycle, className }: DataTableProps) {
+export function DataTable({
+  rows,
+  cycle,
+  className,
+  ...props
+}: DataTableProps) {
   return (
     <div
+      data-slot="data-table"
       className={cn(
         paper,
         "w-full max-w-sm overflow-hidden rounded-2xl text-[13px]",
         className,
       )}
+
+      {...props}
     >
       <div className="flex items-center px-4 pt-3 pb-2">
         <span className={cn(mono, "text-foreground/35 flex-1")}>Model</span>

@@ -1,8 +1,15 @@
-import { computed, defineComponent, h, type SlotsType } from "vue";
+import {
+  computed,
+  defineComponent,
+  h,
+  onScopeDispose,
+  type SlotsType,
+} from "vue";
 import { AuiConfig, Derived } from "@assistant-ui/store/client";
-import type {} from "@assistant-ui/core/store";
+import type { PartMethods } from "@assistant-ui/core/store";
 import { AuiProvider } from "../AuiProvider";
 import { useAui } from "../useAui";
+import { createLastValidCache, createStaleReporter } from "./lastValidCache";
 
 /**
  * Scopes the subtree to the message part at `index`: descendants read the
@@ -19,15 +26,31 @@ export const PartByIndexProvider = defineComponent({
   slots: Object as SlotsType<{ default?: () => unknown }>,
   setup(props, { slots }) {
     const aui = useAui();
-    const config = computed(() =>
-      AuiConfig({
+    let disposed = false;
+    onScopeDispose(() => {
+      disposed = true;
+    });
+    const config = computed(() => {
+      const index = props.index;
+      const cache = createLastValidCache<PartMethods>(
+        createStaleReporter({
+          name: "PartByIndexProvider",
+          index,
+          isCurrent: () => !disposed && index === props.index,
+          isValid: () => index < aui.message.getState().parts.length,
+        }),
+      );
+      return AuiConfig({
         part: Derived({
           source: "message",
-          query: { type: "index", index: props.index },
-          get: (aui) => aui.message.part({ index: props.index }),
+          query: { type: "index", index },
+          get: (aui) =>
+            cache.resolve(index < aui.message.getState().parts.length, () =>
+              aui.message.part({ index }),
+            ),
         }),
-      }),
-    );
+      });
+    });
     return () =>
       h(
         AuiProvider,

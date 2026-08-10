@@ -138,7 +138,7 @@ The primitives available for rendering suggestions are `ThreadPrimitive.Suggesti
 
 ## Runtime driven suggestions
 
-The static `Suggestions(...)` API covers welcome screens. For follow up prompts that depend on the conversation, a tool result, or your backend, push suggestions through the runtime itself. They land on `thread.suggestions` rather than the static `suggestions` scope, so they render through a different component.
+The static `Suggestions(...)` API covers welcome screens. For follow up prompts that depend on the conversation, a tool result, or your backend, push suggestions through the runtime itself. They land on `thread.suggestions`, and when no static `Suggestions(...)` configuration is set, the `suggestions` scope derives from them, so `ThreadPrimitive.Suggestions` renders them as well.
 
 ### Local runtime: `SuggestionAdapter`
 
@@ -263,7 +263,7 @@ The local runtime clears its suggestions when a new run starts. External store r
 
 ### Rendering runtime suggestions
 
-Static suggestions go through `ThreadPrimitive.Suggestions`; runtime suggestions go through `thread.suggestions`. The shadcn registry ships `ThreadFollowupSuggestions` for the common single line pill layout. For a custom layout, read the array yourself:
+Runtime suggestions land on `thread.suggestions`, and `ThreadPrimitive.Suggestions` picks them up unless a static `Suggestions(...)` configuration overrides the scope. The shadcn registry ships `ThreadFollowupSuggestions` for the common single line pill layout. For a custom layout, read the array yourself:
 
 ```tsx
 import { useAuiState, ThreadPrimitive, AuiIf } from "@assistant-ui/react";

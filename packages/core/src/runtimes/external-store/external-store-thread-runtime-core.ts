@@ -466,7 +466,11 @@ export class ExternalStoreThreadRuntimeCore
   }
 
   public async append(message: AppendMessage): Promise<void> {
-    const isEdit = message.parentId !== (this.messages.at(-1)?.id ?? null);
+    // sourceId marks an edit send; the parent may coincide with the head
+    // after a resync (e.g. cancelRun dropped the edited message).
+    const isEdit =
+      message.sourceId != null ||
+      message.parentId !== (this.messages.at(-1)?.id ?? null);
 
     // Buffering does not start a run, so the tool-abort below must wait until
     // the queue flushes. By then the prior run (and its tools) has settled.

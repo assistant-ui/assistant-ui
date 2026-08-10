@@ -52,11 +52,14 @@ export const createNotificationManager = (): NotificationManager => {
     },
 
     emit(event, payload, clientStack) {
-      const eventListeners = listeners.get(event);
-      if (!eventListeners && wildcardListeners.size === 0) return;
+      if (!listeners.has(event) && wildcardListeners.size === 0) return;
 
       queueMicrotask(() => {
         const errors = [];
+        // Resolved at flush time: a consumer that unsubscribed and resubscribed
+        // since the emit lands in a fresh set, and the live-set contract says
+        // the in-flight emission still reaches it
+        const eventListeners = listeners.get(event);
         if (eventListeners) {
           for (const cb of eventListeners) {
             try {

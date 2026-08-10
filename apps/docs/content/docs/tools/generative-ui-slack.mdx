@@ -1,0 +1,169 @@
+---
+title: Generative UI on Slack
+description: Convert a generative UI tree into Slack Block Kit, post it, and decode the block_actions payload Slack sends back into your action handlers.
+platforms: ["react"]
+---
+
+The `$type` tree your assistant renders in the browser is plain JSON, so it does not have to stay in the browser. `@assistant-ui/react-generative-ui/slack` converts the same tree into [Block Kit](https://docs.slack.dev/reference/block-kit/blocks) JSON, decodes the interactions Slack posts back, and parses Block Kit payloads into the tree.
+
+The subpath is React-free, so a server action, queue worker, or webhook handler imports it without pulling React into the bundle.
+
+## Posting a tree
+
+```ts
+import { WebClient } from "@slack/web-api";
+import { toSlackBlocks } from "@assistant-ui/react-generative-ui/slack";
+
+const slack = new WebClient(process.env.SLACK_BOT_TOKEN);
+
+const { blocks, warnings } = toSlackBlocks({
+  $type: "Card",
+  title: "Order #48213",
+  children: [{ $type: "Text", value: "Shipped, arriving Thursday." }],
+});
+
+await slack.chat.postMessage({ channel: "#orders", blocks });
+```
+
+`toSlackBlocks(node, options?)` returns `{ blocks, warnings }` and never throws: an input it cannot convert at all comes back as empty `blocks` plus one warning rather than an exception. Pass `{ surface: "modal" }` to target a modal instead of a message; the surface changes the block budget and unlocks the native `alert` block.
+
+## Warnings
+
+Conversion is total. Every downgrade is reported rather than thrown, so one unsupported node never costs you the whole message:
+
+```ts
+type SlackConversionWarning = {
+  code: "clamped" | "dropped" | "fallback";
+  component: string; // the IR component name, or "Root" for whole-payload issues
+  detail: string;
+};
+```
+
+`clamped` means content was truncated to fit a Slack limit, `dropped` means a node produced no output, and `fallback` means the node rendered through a simpler construct than its ideal one. Warnings arrive in traversal order and are not deduplicated. Logging them in development is the fastest way to see why a composition looks different on Slack than in the browser.
+
+## Component mapping
+
+| Component | Slack output | Fidelity |
+|---|---|---|
+| `Header` | `header` block | Faithful |
+| `Text` | `section` block with `mrkdwn` text | Faithful |
+| `Markdown` | `markdown` block | Downgrades to a `section` once the payload's markdown budget is spent |
+| `Caption`, `Badge` | `context` block with one element | The two become identical output and cannot be told apart coming back |
+| `Image` | `image` block | Only `src` and `alt` survive; `size` and `round` are dropped silently |
+| `Divider` | `divider` block | Faithful |
+| `Fact` | Merged into one `section`'s `fields`, as `*label*` then value | Consecutive facts merge; every 10 fields start a new section |
+| `Table` | `data_table` block, first row as header | Cells become `raw_number` or `raw_text`; rows are padded to a uniform width |
+| `Card` | Native `card` block, or a header plus inline blocks | See [Cards](#cards) |
+| `Carousel` | `carousel` block of `card` elements | Non-card children are dropped; cards that cannot map cleanly degrade to title and body |
+| `Alert` | Native `alert` block on a modal; a `context` plus `section` pair on a message | Slack supports `alert` [only in modals](https://docs.slack.dev/reference/block-kit/blocks/alert-block) |
+| `ListView` | One `section` per item, with `divider` blocks between them | Item children collapse into concatenated text |
+| `ListViewItem` | `section`, plus an "Open" button accessory when it carries an action | |
+| `Button` | `button` element inside an `actions` block | `primary` and `danger` styles survive; other styles are dropped |
+| `Select` | `static_select` element | |
+| `RadioGroup` | `radio_buttons` element | |
+| `Checkbox` | `checkboxes` element with a single option | |
+| `DatePicker` | `datepicker` element | `min` and `max` are dropped; a non-`YYYY-MM-DD` value is dropped with a warning |
+| `Input` | Its own `input` block | Not grouped into an `actions` block |
+| `Form` | Children inline, then a "Submit" button | Slack has no form container |
+| `Row` | One `context` block when every child is a `Badge` or `Caption`, otherwise flattened | Horizontal layout is lost in the flattened case |
+| `Col`, `Box` | Flattened into the sibling block stream | Slack has no nesting container |
+| `Chart` | Replaced by a note block | Always warns |
+| `Spacer`, `Icon` | Dropped | Silently, since neither has a Slack equivalent |
+
+An unknown component and a bare string child are both handled: the unknown one is dropped with a warning, and the string becomes a `section`.
+
+### Cards
+
+`Card` takes the native `card` block only when its children fit that block's fixed fields, because Slack's `card` carries `hero_image`, `title`, `body`, `subtext`, and up to three action buttons rather than nesting arbitrary blocks. The converter fills those from the first `Image`, the first `Text` or `Markdown`, and the first `Caption`.
+
+Anything else in the card, including a second image, a `Fact`, or a loose `Button`, makes the card fall back to a header plus the children rendered inline plus an actions block, and reports a `fallback` warning. A card carrying none of an image, title, body, or actions is dropped outright.
+
+Inside a `Carousel` the fallback is unavailable, so an over-full card degrades to title and body text instead.
+
+## Limits
+
+The converter clamps to Slack's published budgets rather than letting the API reject the payload. The ones you are most likely to hit:
+
+| Budget | Value | Behavior when exceeded |
+|---|---|---|
+| Blocks per message | 50 (100 in a modal) | Extra blocks are dropped and a note block reports the count |
+| Section text | 3,000 characters | Truncated |
+| Section fields | 10 per section, 2,000 characters each | Chunked into further sections; text truncated |
+| Actions elements | 25 per block | Chunked into further actions blocks |
+| Select options | 100 | Truncated |
+| Radio options | 10 | Truncated |
+| Button label | 75 characters | Truncated |
+| Button action payload | 2,000 characters | Dropped entirely, not truncated, so a partial payload never round-trips |
+| Card title | 150 characters, body and subtext 200 | Truncated |
+| Carousel cards | 10 | Truncated; a carousel with no renderable card is dropped |
+| Table | 100 data rows, 20 columns, 10,000 characters across all tables in one payload | Rows truncated; a table whose header alone busts the budget is dropped |
+| Markdown | 12,000 characters across the payload | Every markdown block from that point on becomes a `section` |
+
+Traversal itself is bounded too: 200 children per level, 5,000 nodes per call, and a depth ceiling, each reported as a `Root` warning. These bounds exist because the tree arrives from a model.
+
+<Callout type="warn">
+The table budgets above are the converter's. Slack has since raised the platform ceiling for [`data_table`](https://docs.slack.dev/reference/block-kit/blocks/data-table-block) to 200 data rows plus a header and 20,000 characters, so trees larger than the converter's limit are clamped even though Slack would now accept them.
+</Callout>
+
+## Actions
+
+### Outbound
+
+A node's `$action` is split across two Block Kit fields. `$action.type` becomes the element's `action_id`, and the remaining keys are JSON-serialized into the element's `value`.
+
+```json
+{
+  "$type": "Button",
+  "label": "Approve",
+  "$action": { "type": "approve_order", "orderId": "48213" }
+}
+```
+
+becomes a button with `action_id: "approve_order"` and `value: "{\"orderId\":\"48213\"}"`.
+
+<Callout type="warn">
+Only buttons carry `value`. `Select`, `Input`, `DatePicker`, `Checkbox`, and `RadioGroup` emit `action_id` alone, so any extra keys on their `$action` are dropped. Keep those controls' actions to a bare `type`, or put the payload on a button that submits alongside them.
+</Callout>
+
+### Inbound
+
+Slack posts interactions to your request URL as a [`block_actions` payload](https://docs.slack.dev/reference/interaction-payloads/block_actions-payload). `decodeBlockAction` takes one entry from its `actions` array and rebuilds the action your tree dispatched, with the user's runtime selection under `$input`:
+
+```ts
+import { decodeBlockAction } from "@assistant-ui/react-generative-ui/slack";
+
+const action = decodeBlockAction(payload.actions[0]);
+// { type: "approve_order", orderId: "48213", $input: "…" }
+```
+
+It returns `undefined` for anything without a usable `action_id`, and never throws. `type` always comes from `action_id`, so a payload key named `type` cannot override it, and a `$input` key smuggled into the serialized payload is always stripped.
+
+What lands in `$input` depends on the element:
+
+| Element | `$input` |
+|---|---|
+| `static_select`, `radio_buttons` | The selected option's value, as a string |
+| `datepicker` | The selected date, as `YYYY-MM-DD` |
+| `checkboxes` | An array of selected values, empty when nothing is checked |
+| `plain_text_input` | The typed text |
+| `button` | The raw `value` string, when it is not a serialized object |
+
+### Reading a tree back
+
+`fromSlackBlocks` is the inverse direction, mapping a Block Kit payload into vocabulary nodes and returning `{ nodes, warnings }`. It accepts a bare array or a `{ blocks }` wrapper.
+
+The round trip is faithful on the plain building blocks (text, images, facts, controls, tables, simple cards) and documented-lossy elsewhere: context elements all return as `Caption`, so the `Badge` distinction is gone, button styles beyond `primary` and `danger` are dropped, an alert's title and description come back merged into the description, and card layouts flatten to the fields the `card` block carries. Card footers are re-derived from button style, with the primary-styled button becoming `confirm`; when style cannot decide it, position does, and that emits a `fallback` warning.
+
+## Before interactions work
+
+Converting and posting a tree needs only a bot token with `chat:write`. Making its buttons do anything additionally needs, on the Slack app side:
+
+- **Interactivity enabled with a request URL**, under Interactivity & Shortcuts. Slack posts every `block_actions` payload there.
+- **An acknowledgement within 3 seconds.** Return HTTP 200 first and do the work afterwards; the payload's `response_url` accepts up to five follow-up posts within 30 minutes if you need to update or replace the message.
+- **[Request signature verification](https://docs.slack.dev/authentication/verifying-requests-from-slack)** on that endpoint, using your signing secret.
+
+Receiving the webhook, verifying it, and routing the decoded action to your handler stay your application's responsibility. The converter only speaks JSON in and JSON out.
+
+## Reference
+
+The generated per-export reference, including every type in the subpath, is at [Slack Block Kit](/docs/api-reference/generative-ui/slack). For the Teams equivalent of this page, see [Generative UI on Microsoft Teams](/docs/tools/generative-ui-teams).

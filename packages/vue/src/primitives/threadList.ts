@@ -1,8 +1,16 @@
-import { computed, defineComponent, h, mergeProps, type SlotsType } from "vue";
+import {
+  computed,
+  defineComponent,
+  h,
+  mergeProps,
+  onScopeDispose,
+  type SlotsType,
+} from "vue";
 import { AuiConfig, Derived } from "@assistant-ui/store/client";
-import type {} from "@assistant-ui/core/store";
+import type { ThreadListItemMethods } from "@assistant-ui/core/store";
 import { AuiProvider } from "../AuiProvider";
 import { isAttrDisabled } from "./attrDisabled";
+import { createLastValidCache, createStaleReporter } from "./lastValidCache";
 import { useAui } from "../useAui";
 import { useAuiState } from "../useAuiState";
 
@@ -25,20 +33,41 @@ export const ThreadListItemByIndexProvider = defineComponent({
   slots: Object as SlotsType<{ default?: () => unknown }>,
   setup(props, { slots }) {
     const aui = useAui();
-    const config = computed(() =>
-      AuiConfig({
+    let disposed = false;
+    onScopeDispose(() => {
+      disposed = true;
+    });
+    const config = computed(() => {
+      const index = props.index;
+      const archived = props.archived;
+      const idsOf = (state: {
+        archivedThreadIds: readonly string[];
+        threadIds: readonly string[];
+      }) => (archived ? state.archivedThreadIds : state.threadIds);
+      const cache = createLastValidCache<ThreadListItemMethods>(
+        createStaleReporter({
+          name: "ThreadListItemByIndexProvider",
+          index,
+          isCurrent: () =>
+            !disposed && index === props.index && archived === props.archived,
+          isValid: () => index < idsOf(aui.threads.getState()).length,
+        }),
+      );
+      return AuiConfig({
         threadListItem: Derived({
           source: "threads",
           query: {
             type: "index",
-            index: props.index,
-            archived: props.archived,
+            index,
+            archived,
           },
           get: (aui) =>
-            aui.threads.item({ index: props.index, archived: props.archived }),
+            cache.resolve(index < idsOf(aui.threads.getState()).length, () =>
+              aui.threads.item({ index, archived }),
+            ),
         }),
-      }),
-    );
+      });
+    });
     return () =>
       h(
         AuiProvider,
