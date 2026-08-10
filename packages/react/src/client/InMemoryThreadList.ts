@@ -16,7 +16,13 @@ const RESOLVED_PROMISE = Promise.resolve();
 
 export type InMemoryThreadListProps = {
   thread: (threadId: string) => ResourceElement<ClientOutput<"thread">>;
+  /**
+   * Called whenever the selected thread changes, including automatic
+   * relocations after archiving or deleting the selected thread. Replacement
+   * threads created during relocation report their generated ID here.
+   */
   onSwitchToThread?: (threadId: string) => void;
+  /** Called only for an explicit `switchToNewThread()` action. */
   onSwitchToNewThread?: () => void;
 };
 
@@ -238,6 +244,7 @@ const useInMemoryThreadList = (
         prev.mainThreadId,
         prev.pendingSwitch,
         threadId,
+        // Deletion may select an archived sibling to retain that conversation.
         nextThreads[0],
         fallbackId,
         currentSwitchVersion,
