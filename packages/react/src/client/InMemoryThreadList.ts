@@ -32,20 +32,13 @@ type ThreadListData = {
   threads: readonly ThreadData[];
 };
 
-const ensureRegularMainThread = (
+const replaceChangedMainThread = (
   threads: readonly ThreadData[],
   mainThreadId: string,
+  changedThreadId: string,
   fallbackId: string,
 ): ThreadListData => {
-  const fallback = threads.find((thread) => thread.status === "regular");
-  if (
-    threads.some(
-      (thread) => thread.id === mainThreadId && thread.status === "regular",
-    )
-  ) {
-    return { mainThreadId, threads };
-  }
-  if (fallback) return { mainThreadId: fallback.id, threads };
+  if (mainThreadId !== changedThreadId) return { mainThreadId, threads };
 
   return {
     mainThreadId: fallbackId,
@@ -140,11 +133,12 @@ const useInMemoryThreadList = (
   const handleArchive = (threadId: string) => {
     const fallbackId = `thread-${generateId()}`;
     setThreadList((prev) =>
-      ensureRegularMainThread(
+      replaceChangedMainThread(
         prev.threads.map((t) =>
           t.id === threadId ? { ...t, status: "archived" as const } : t,
         ),
         prev.mainThreadId,
+        threadId,
         fallbackId,
       ),
     );
@@ -174,9 +168,10 @@ const useInMemoryThreadList = (
   const handleDelete = (threadId: string) => {
     const fallbackId = `thread-${generateId()}`;
     setThreadList((prev) =>
-      ensureRegularMainThread(
+      replaceChangedMainThread(
         prev.threads.filter((t) => t.id !== threadId),
         prev.mainThreadId,
+        threadId,
         fallbackId,
       ),
     );

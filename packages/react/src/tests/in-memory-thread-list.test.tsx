@@ -30,16 +30,48 @@ const renderThreads = () => {
 };
 
 describe("InMemoryThreadList", () => {
-  it("moves away from a selected thread when it is archived", async () => {
+  it("creates a new selection when the selected thread is archived", async () => {
     const { aui } = renderThreads();
+
+    aui().threads.switchToNewThread();
+    await waitFor(() =>
+      expect(aui().threads.getState().mainThreadId).not.toBe("main"),
+    );
+    const siblingId = aui().threads.getState().mainThreadId;
+    aui().threads.switchToThread("main");
 
     aui().threads.item({ id: "main" }).archive();
 
     await waitFor(() => {
       const state = aui().threads.getState();
       expect(state.mainThreadId).not.toBe("main");
+      expect(state.mainThreadId).not.toBe(siblingId);
       expect(state.threadIds).toContain(state.mainThreadId);
+      expect(state.threadIds).toContain(siblingId);
       expect(state.archivedThreadIds).toEqual(["main"]);
+    });
+  });
+
+  it("preserves an archived selection after an unrelated deletion", async () => {
+    const { aui } = renderThreads();
+
+    aui().threads.item({ id: "main" }).archive();
+    await waitFor(() =>
+      expect(aui().threads.getState().mainThreadId).not.toBe("main"),
+    );
+    const regularId = aui().threads.getState().mainThreadId;
+
+    aui().threads.switchToThread("main");
+    await waitFor(() =>
+      expect(aui().threads.getState().mainThreadId).toBe("main"),
+    );
+    aui().threads.item({ id: regularId }).delete();
+
+    await waitFor(() => {
+      const state = aui().threads.getState();
+      expect(state.mainThreadId).toBe("main");
+      expect(state.archivedThreadIds).toEqual(["main"]);
+      expect(state.threadIds).not.toContain(regularId);
     });
   });
 
@@ -66,12 +98,14 @@ describe("InMemoryThreadList", () => {
 
     await waitFor(() => {
       const state = aui().threads.getState();
-      expect(state.threadIds).toEqual([lastGeneratedId]);
-      expect(state.mainThreadId).toBe(lastGeneratedId);
+      expect(state.threadIds).toContain(lastGeneratedId);
+      expect(state.threadIds).toContain(state.mainThreadId);
+      expect(state.threadIds).not.toContain("main");
+      expect(state.threadIds).not.toContain(firstGeneratedId);
     });
   });
 
-  it("falls back to a live thread when the switch target is deleted in the same tick", async () => {
+  it("creates a live replacement when the switch target is deleted in the same tick", async () => {
     const { aui } = renderThreads();
 
     aui().threads.switchToNewThread();
@@ -89,7 +123,8 @@ describe("InMemoryThreadList", () => {
 
     await waitFor(() => {
       const state = aui().threads.getState();
-      expect(state.mainThreadId).toBe("main");
+      expect(state.mainThreadId).not.toBe("main");
+      expect(state.threadIds).toContain(state.mainThreadId);
       expect(state.threadIds).not.toContain(newId);
     });
   });
