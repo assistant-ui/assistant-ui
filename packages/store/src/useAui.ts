@@ -13,6 +13,7 @@ import {
 import {
   useMemo,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   useSyncExternalStore,
@@ -107,9 +108,12 @@ type ClientFields = {
   on: AssistantClient["on"];
 };
 
-type DerivedClientRef = { current: AssistantClient | null };
+type EventClientRef = { current: AssistantClient | null };
 
-const derivedClientRefs = new WeakMap<AssistantClient, DerivedClientRef>();
+// Every client generation points at the ref for its subscribing facade. This
+// lets inherited `on` implementations keep the original receiver while still
+// following structural rebinds after they commit.
+const eventClientRefs = new WeakMap<AssistantClient, EventClientRef>();
 
 const createClientObject = (
   parent: AssistantClient,
@@ -146,13 +150,12 @@ const useClientFields = ({
         }
 
         const { scope, event } = normalizeEventSelector(selector);
-        const derivedClientRef = derivedClientRefs.get(this);
+        const subscriberRef = eventClientRefs.get(this);
+        const subscriber = subscriberRef?.current ?? this;
 
         if (scope !== "*") {
           // A hand-built parent may lack the scope entirely; forward to it
-          const source = (derivedClientRef?.current ?? this)[
-            scope as ClientNames
-          ]?.source;
+          const source = subscriber[scope as ClientNames]?.source;
           if (source === null) {
             throw new Error(
               `Scope "${scope}" is not available. Use { scope: "*", event: "${event}" } to listen globally.`,
@@ -166,14 +169,12 @@ const useClientFields = ({
             return;
           }
 
-          // Resolved against the host's current client: a structural swap
-          // replaces the client identity, and a listener subscribed on an
-          // earlier generation still follows the scope's present binding
-          const boundScope = (derivedClientRef?.current ??
-            clientRef.current ??
-            this)[scope as ClientNames] as
-            | AssistantClientAccessor<ClientNames>
-            | undefined;
+          // Resolve every notification frame against the client on which the
+          // listener originated. Its ref follows committed structural swaps,
+          // including when `on` is inherited through derived-only parents.
+          const boundScope = (subscriberRef?.current ?? this)[
+            scope as ClientNames
+          ] as AssistantClientAccessor<ClientNames> | undefined;
           // A scope removed by a structural change since subscription cannot
           // match; resolving its identity would throw
           if (!boundScope || boundScope.source === null) return;
@@ -188,13 +189,15 @@ const useClientFields = ({
         if (
           scope !== "*" &&
           clientRef.parent[scope as ClientNames]?.source === null &&
-          !derivedClientRef
+          (!subscriberRef || subscriberRef === clientRef)
         )
           return localUnsub;
 
-        const parentUnsub = derivedClientRef
-          ? clientRef.parent.on.call(this, selector as never, callback as never)
-          : clientRef.parent.on(selector, callback);
+        const parentUnsub = clientRef.parent.on.call(
+          this,
+          selector as never,
+          callback as never,
+        );
 
         return () => {
           localUnsub();
@@ -347,6 +350,7 @@ const useHostedAssistantClient = ({
     if (clientRef.current === null) {
       clientRef.current = client;
     }
+    eventClientRefs.set(client, clientRef);
 
     return client;
   });
@@ -421,17 +425,16 @@ const useDerivedOnlyClient = (
   const client = useCommittedClient(building, [parent, ...accessors]);
   const clientRef = useRef<AssistantClient | null>(null);
 
-  // Publish structural rebinds in the commit phase so an interrupted render
-  // cannot expose a speculative facade to listeners. Derived-only clients do
-  // not share the hosted client's flushTapSync commit window, so events before
-  // this effect observe the previous committed binding.
-  useEffect(() => {
+  // Publish structural rebinds in the layout phase so notification microtasks
+  // emitted by descendant layout effects resolve against the committed facade.
+  // Render-phase publication would leak an interrupted render instead.
+  useLayoutEffect(() => {
     clientRef.current = client;
-  });
+  }, [client, clientRef]);
   if (clientRef.current === null) {
     clientRef.current = client;
   }
-  derivedClientRefs.set(client, clientRef);
+  eventClientRefs.set(client, clientRef);
   return client;
 };
 
