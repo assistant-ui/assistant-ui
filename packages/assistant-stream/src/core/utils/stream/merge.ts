@@ -52,19 +52,17 @@ export const createMergeStream = () => {
           currentPull?.resolve();
           currentPull = undefined;
         })
-        .catch(async (e) => {
+        .catch((e) => {
           if (cancelled || errored) return;
 
           errored = true;
           console.error(e);
-          const cleanup = cancelAllReaders();
+          void cancelAllReaders();
 
           controller.error(e);
 
           currentPull?.reject(e);
           currentPull = undefined;
-
-          await cleanup;
         });
     }
   };

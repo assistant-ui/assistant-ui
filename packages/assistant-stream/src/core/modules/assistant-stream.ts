@@ -167,7 +167,12 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
       AssistantStreamChunk
     >,
   ) {
-    const pipeTask = stream.pipeTo(transformer.writable);
+    const pipeTask = stream
+      .pipeTo(transformer.writable)
+      .catch(async (error) => {
+        await transformer.writable.abort(error).catch(() => undefined);
+        throw error;
+      });
     this._state.merger.addStream(transformer.readable, pipeTask);
   }
 

@@ -235,6 +235,25 @@ describe("createAssistantStream task settlement", () => {
       consoleError.mockRestore();
     }
   });
+
+  it("surfaces an error when merging a locked stream", async () => {
+    const source = new ReadableStream();
+    const sourceReader = source.getReader();
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    try {
+      const stream = createAssistantStream((controller) => {
+        controller.merge(source);
+      });
+
+      await expect(collectChunks(stream)).rejects.toBeInstanceOf(TypeError);
+    } finally {
+      sourceReader.releaseLock();
+      consoleError.mockRestore();
+    }
+  });
 });
 
 describe("addToolCallPart with an immediate response", () => {
