@@ -158,6 +158,27 @@ describe("scope-filtered on", () => {
     expect(late).toHaveBeenCalledExactlyOnceWith({ id: "m1", value: "b" });
   });
 
+  it("an in-flight scoped emission is dropped when the scope is removed before delivery", async () => {
+    let aui!: AnyClient;
+    const Harness = ({ hasMessage }: { hasMessage: boolean }) => {
+      aui = useAui(
+        (hasMessage
+          ? { thread: ThreadClient(), message: messageDerived() }
+          : { thread: ThreadClient() }) as unknown as useAui.Props,
+      );
+      return <AuiProvider value={aui as never} />;
+    };
+    const view = render(<Harness hasMessage />);
+    const cb = vi.fn();
+    aui.on("message.pinged", cb);
+
+    aui.thread.message({ index: 0 }).ping("x");
+    view.rerender(<Harness hasMessage={false} />);
+    await flushEvents();
+
+    expect(cb).not.toHaveBeenCalled();
+  });
+
   it("unsubscribe stops delivery", async () => {
     const { getAui } = setup();
     const aui = getAui();

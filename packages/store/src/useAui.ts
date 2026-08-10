@@ -162,8 +162,14 @@ const useClientFields = ({
           // Resolved against the host's current client: a structural swap
           // replaces the client identity, and a listener subscribed on an
           // earlier generation still follows the scope's present binding
+          const boundScope = (clientRef.current ?? this)[
+            scope as ClientNames
+          ] as AssistantClientAccessor<ClientNames> | undefined;
+          // A scope removed by a structural change since subscription cannot
+          // match; resolving its identity would throw
+          if (!boundScope || boundScope.source === null) return;
           const scopeClient = getClientId(
-            (clientRef.current ?? this)[scope as ClientNames],
+            boundScope,
           ) as unknown as ClientMethods;
           const index = getClientIndex(scopeClient);
           if (scopeClient === clientStack[index]) {
