@@ -239,7 +239,8 @@ export default async function ElementPage({
               </div>
             </div>
           ))}
-          {source?.includes('from "./range"') && (
+          {/* Keyed off the element's own import, so the note cannot outlive it. */}
+          {source && /from ["']\.\/range["']/.test(source) && (
             <p className="text-foreground/40 mt-3 text-[13px] leading-relaxed">
               This element normalizes its counts and shares at the boundary, so
               a value from outside its range reads as the nearest end rather

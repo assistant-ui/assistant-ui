@@ -9,9 +9,10 @@
  */
 
 /**
- * Constrains a value to `min…max`, mapping NaN to `min`. An empty collection
- * inverts the bounds at some call sites, and `max` wins there: `clamp(v, 1, 0)`
- * is `0`, which is what lets a floor of one item still yield none.
+ * Constrains a value to `min…max`. NaN is decided first and maps to `min`.
+ * For any other value, an empty collection can invert the bounds and `max`
+ * wins there: `clamp(3, 1, 0)` is `0`, which is what lets a floor of one item
+ * still yield none.
  */
 export function clamp(value: number, min: number, max: number) {
   if (Number.isNaN(value)) return min;

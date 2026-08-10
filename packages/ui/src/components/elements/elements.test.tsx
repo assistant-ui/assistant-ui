@@ -290,7 +290,7 @@ const CASES: Record<string, Case> = {
         id: `c${i}`,
         source: `s${i}`,
         locator: "p1",
-        score: n,
+        score: 0.5,
         text: "t",
       }))}
       visibleCount={n}
@@ -311,11 +311,11 @@ const CASES: Record<string, Case> = {
   "score-breakdown": (n, items) => (
     <ScoreBreakdown
       verdict="Good"
-      total={n}
-      outOf={n}
+      total={7}
+      outOf={10}
       criteria={list(items, (i) => ({
         label: `c${i}`,
-        score: n,
+        score: 7,
         weight: 1,
         note: "n".repeat(300),
       }))}
@@ -405,11 +405,11 @@ const CASES: Record<string, Case> = {
         id: `s${i}`,
         name: `n${i}`,
         depth: 0,
-        startMs: n,
-        durationMs: n,
+        startMs: 10,
+        durationMs: 20,
         status: "completed" as const,
       }))}
-      totalMs={n}
+      totalMs={100}
       visibleCount={n}
     />
   ),
@@ -463,12 +463,15 @@ const COUNT_SHAPED = new Set([
   "message-pair",
   "onboarding",
   "reasoning-panel",
+  "retrieval-chunks",
+  "score-breakdown",
   "settings-panel",
   "spec-sheet",
   "streaming-text",
   "terminal-block",
   "timeline",
   "tool-timeline",
+  "trace-waterfall",
   "voice-conversation",
   "web-search",
 ]);

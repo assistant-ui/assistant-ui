@@ -16,8 +16,13 @@ describe("clamp", () => {
     expect(clamp(Number.NEGATIVE_INFINITY, 0, 10)).toBe(0);
   });
 
-  it("maps NaN to the lower bound", () => {
+  it("maps NaN to the lower bound, ahead of the inverted-bounds rule", () => {
     expect(clamp(Number.NaN, 2, 10)).toBe(2);
+    expect(clamp(Number.NaN, 1, 0)).toBe(1);
+  });
+
+  it("lets max win when an empty collection inverts the bounds", () => {
+    expect(clamp(3, 1, 0)).toBe(0);
   });
 });
 
