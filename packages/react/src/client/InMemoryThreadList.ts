@@ -40,6 +40,9 @@ const replaceChangedMainThread = (
 ): ThreadListData => {
   if (mainThreadId !== changedThreadId) return { mainThreadId, threads };
 
+  const fallback = threads.find((thread) => thread.status === "regular");
+  if (fallback) return { mainThreadId: fallback.id, threads };
+
   return {
     mainThreadId: fallbackId,
     threads: [

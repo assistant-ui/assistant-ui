@@ -30,7 +30,7 @@ const renderThreads = () => {
 };
 
 describe("InMemoryThreadList", () => {
-  it("creates a new selection when the selected thread is archived", async () => {
+  it("selects an existing regular thread when the selected thread is archived", async () => {
     const { aui } = renderThreads();
 
     aui().threads.switchToNewThread();
@@ -44,9 +44,7 @@ describe("InMemoryThreadList", () => {
 
     await waitFor(() => {
       const state = aui().threads.getState();
-      expect(state.mainThreadId).not.toBe("main");
-      expect(state.mainThreadId).not.toBe(siblingId);
-      expect(state.threadIds).toContain(state.mainThreadId);
+      expect(state.mainThreadId).toBe(siblingId);
       expect(state.threadIds).toContain(siblingId);
       expect(state.archivedThreadIds).toEqual(["main"]);
     });
@@ -98,14 +96,12 @@ describe("InMemoryThreadList", () => {
 
     await waitFor(() => {
       const state = aui().threads.getState();
-      expect(state.threadIds).toContain(lastGeneratedId);
-      expect(state.threadIds).toContain(state.mainThreadId);
-      expect(state.threadIds).not.toContain("main");
-      expect(state.threadIds).not.toContain(firstGeneratedId);
+      expect(state.threadIds).toEqual([lastGeneratedId]);
+      expect(state.mainThreadId).toBe(lastGeneratedId);
     });
   });
 
-  it("creates a live replacement when the switch target is deleted in the same tick", async () => {
+  it("falls back to a live thread when the switch target is deleted in the same tick", async () => {
     const { aui } = renderThreads();
 
     aui().threads.switchToNewThread();
@@ -123,8 +119,7 @@ describe("InMemoryThreadList", () => {
 
     await waitFor(() => {
       const state = aui().threads.getState();
-      expect(state.mainThreadId).not.toBe("main");
-      expect(state.threadIds).toContain(state.mainThreadId);
+      expect(state.mainThreadId).toBe("main");
       expect(state.threadIds).not.toContain(newId);
     });
   });
