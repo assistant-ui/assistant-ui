@@ -196,7 +196,7 @@ describe("createAssistantStream task settlement", () => {
     }
   });
 
-  it("waits for sibling cleanup before surfacing a merged stream error", async () => {
+  it("surfaces a merged stream error while sibling cleanup continues", async () => {
     let finishCleanup = () => {};
     const cleanup = new Promise<void>((resolve) => {
       finishCleanup = resolve;
@@ -219,28 +219,19 @@ describe("createAssistantStream task settlement", () => {
         controller.merge(new ReadableStream({ cancel: cancelSource }));
         return new Promise(() => {});
       });
-      let readSettled = false;
       const readResult = stream
         .getReader()
         .read()
         .then(
-          (value) => {
-            readSettled = true;
-            return { value };
-          },
-          (error: unknown) => {
-            readSettled = true;
-            return { error };
-          },
+          (value) => ({ value }),
+          (error: unknown) => ({ error }),
         );
 
       await vi.waitFor(() => expect(cancelSource).toHaveBeenCalledOnce());
-      expect(readSettled).toBe(false);
-
-      finishCleanup();
       await expect(readResult).resolves.toEqual({ error: streamError });
-      expect(readSettled).toBe(true);
     } finally {
+      finishCleanup();
+      await cleanup;
       consoleError.mockRestore();
     }
   });

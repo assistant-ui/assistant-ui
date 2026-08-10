@@ -17,6 +17,7 @@ export const createMergeStream = () => {
   let cleanupPromise: Promise<void> | undefined;
 
   const cancelAllReaders = () => {
+    // Repeated cancellation must wait for cleanup already in progress.
     cleanupPromise ??= Promise.all(
       list.splice(0).map(async (item) => {
         await item.reader.cancel().catch(() => undefined);
@@ -56,13 +57,14 @@ export const createMergeStream = () => {
 
           errored = true;
           console.error(e);
-          await cancelAllReaders();
-          if (cancelled) return;
+          const cleanup = cancelAllReaders();
 
           controller.error(e);
 
           currentPull?.reject(e);
           currentPull = undefined;
+
+          await cleanup;
         });
     }
   };
@@ -110,10 +112,7 @@ export const createMergeStream = () => {
     ) {
       const handledPipeTask = pipeTask?.catch(() => undefined);
       if (cancelled || errored) {
-        void stream
-          .cancel()
-          .catch(() => undefined)
-          .then(() => handledPipeTask);
+        void stream.cancel().catch(() => undefined);
         return;
       }
 
