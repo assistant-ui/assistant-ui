@@ -61,6 +61,11 @@ export type AgUiMessage =
       content: string | InputContent[];
       name?: string;
       toolCalls?: AgUiToolCall[];
+    }
+  | {
+      id: string;
+      role: "reasoning";
+      content: string;
       encryptedValue?: string;
     }
   | {
@@ -852,9 +857,10 @@ function convertAssistantMessage(
     if (text.trim().length === 0) continue;
     const encryptedValue = readAgUiEncryptedValue(part.providerMetadata);
     converted.push({
-      id: shellIsDropped
-        ? message.id
-        : `${message.id}:reasoning-${reasoningIndex}`,
+      id:
+        shellIsDropped && reasoningIndex === 0
+          ? message.id
+          : `${message.id}:reasoning-${reasoningIndex}`,
       role: "reasoning",
       content: text,
       ...(encryptedValue !== undefined ? { encryptedValue } : {}),

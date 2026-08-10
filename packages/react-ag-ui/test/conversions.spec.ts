@@ -603,6 +603,25 @@ describe("adapter conversions", () => {
     ]);
   });
 
+  it("gives each reasoning part a distinct id when a dropped shell holds several", () => {
+    const converted = toAgUiMessages([
+      {
+        id: "a-1",
+        role: "assistant",
+        content: [
+          { type: "reasoning", text: "first" },
+          { type: "reasoning", text: "second" },
+        ],
+      },
+    ] as any);
+
+    expect(converted).toEqual([
+      { id: "a-1", role: "reasoning", content: "first" },
+      { id: "a-1:reasoning-1", role: "reasoning", content: "second" },
+    ]);
+    expect(new Set(converted.map((m) => m.id)).size).toBe(converted.length);
+  });
+
   it("keeps ids stable across repeated snapshot round trips", () => {
     const first = toAgUiMessages(
       fromAgUiMessages([
