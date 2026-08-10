@@ -6,6 +6,8 @@ DEFAULT_HEARTBEAT_INTERVAL = 15.0
 
 SSE_HEARTBEAT_LINE = ": heartbeat\n\n"
 
+DATA_STREAM_KEEPALIVE_LINE = "\n"
+
 HeartbeatOption = Union[float, int, bool, None]
 
 
@@ -28,12 +30,13 @@ def resolve_heartbeat_interval(
     return interval
 
 
-async def add_sse_heartbeat(
+async def add_keepalive(
     stream: AsyncGenerator[str, None],
     interval: float,
+    token: str,
 ) -> AsyncGenerator[str, None]:
     """
-    Yield SSE comment heartbeats whenever the encoded stream is idle for
+    Yield `token` as a keepalive whenever the encoded stream is idle for
     `interval` seconds. Any real chunk resets the timer.
     """
     task: Optional[asyncio.Task] = None
@@ -43,7 +46,7 @@ async def add_sse_heartbeat(
                 task = asyncio.create_task(stream.__anext__())
             done, _ = await asyncio.wait({task}, timeout=interval)
             if not done:
-                yield SSE_HEARTBEAT_LINE
+                yield token
                 continue
             try:
                 item = task.result()
@@ -59,3 +62,14 @@ async def add_sse_heartbeat(
             if not task.cancelled():
                 task.exception()  # retrieve the outcome so asyncio does not log "Task exception was never retrieved"
         await stream.aclose()
+
+
+def add_sse_heartbeat(
+    stream: AsyncGenerator[str, None],
+    interval: float,
+) -> AsyncGenerator[str, None]:
+    """
+    Deprecated alias for `add_keepalive` with the SSE comment token,
+    kept for compatibility with assistant-stream <= 0.0.35.
+    """
+    return add_keepalive(stream, interval, SSE_HEARTBEAT_LINE)

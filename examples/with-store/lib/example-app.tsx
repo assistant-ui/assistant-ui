@@ -4,6 +4,7 @@ import { useState } from "react";
 import {
   useAui,
   AuiProvider,
+  AuiConfig,
   useAuiState,
   useAuiEvent,
 } from "@assistant-ui/store";
@@ -152,13 +153,13 @@ const EventLog = () => {
  * Note: The fooList scope is also registered in foo-scope.ts as a default,
  * but we're explicitly passing it here for clarity in the example.
  */
-export const ExampleApp = () => {
-  const aui = useAui({
-    fooList: FooListResource({ initialValues: true }),
-  });
+const config = AuiConfig({
+  fooList: FooListResource({ initialValues: true }),
+});
 
+export const ExampleApp = () => {
   return (
-    <AuiProvider value={aui}>
+    <AuiProvider config={config}>
       <div className="space-y-6">
         <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
           <div className="flex items-center justify-between">

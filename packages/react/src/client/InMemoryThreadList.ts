@@ -8,7 +8,7 @@ import {
   useClientResource,
 } from "@assistant-ui/store";
 
-import { ModelContext, Suggestions } from "@assistant-ui/core/store";
+import { ModelContext } from "@assistant-ui/core/store";
 import { Tools, DataRenderers } from "@assistant-ui/core/react";
 
 const RESOLVED_PROMISE = Promise.resolve();
@@ -129,10 +129,11 @@ const useInMemoryThreadList = (
 
   const handleDelete = (threadId: string) => {
     setThreads((prev) => prev.filter((t) => t.id !== threadId));
-    if (mainThreadId === threadId) {
-      const remaining = threads.filter((t) => t.id !== threadId);
-      setMainThreadId(remaining[0]?.id || "main");
-    }
+    setMainThreadId((prev) =>
+      prev === threadId
+        ? threads.find((t) => t.id !== threadId)?.id || "main"
+        : prev,
+    );
   };
 
   const handleSwitchToNewThread = () => {
@@ -235,6 +236,10 @@ attachTransformScopes(useInMemoryThreadList, (scopes, parent) => {
     scopes.dataRenderers = DataRenderers();
   }
   if (!scopes.suggestions && parent.suggestions.source === null) {
-    scopes.suggestions = Suggestions();
+    scopes.suggestions = Derived({
+      source: "thread",
+      query: {},
+      get: (aui) => aui.thread.suggestions(),
+    });
   }
 });

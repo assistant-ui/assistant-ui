@@ -1,5 +1,88 @@
 # @assistant-ui/react-mcp
 
+## 0.1.11
+
+### Patch Changes
+
+- Updated dependencies [[`1df4327`](https://github.com/assistant-ui/assistant-ui/commit/1df4327dc915103bb1b64e01ee8d888c08de9f59)]:
+  - @assistant-ui/core@0.3.12
+
+## 0.1.10
+
+### Patch Changes
+
+- Updated dependencies [[`f551562`](https://github.com/assistant-ui/assistant-ui/commit/f551562162f43b2bbeb2bb46d39b68243ca1d35a), [`dc7b77d`](https://github.com/assistant-ui/assistant-ui/commit/dc7b77dca65ad8d0384e8aec268a4141dc8bd0da), [`0ae51a8`](https://github.com/assistant-ui/assistant-ui/commit/0ae51a8e8c4c49c4b8810b9c64845eeeded8b9bc), [`d1b7097`](https://github.com/assistant-ui/assistant-ui/commit/d1b7097ca86e84698fcfaabd1b310e30612dd32c), [`e319574`](https://github.com/assistant-ui/assistant-ui/commit/e319574df10df2dbf2d57fc2bcf7cb92d3c6a2e6)]:
+  - @assistant-ui/core@0.3.11
+  - assistant-stream@0.3.37
+
+## 0.1.9
+
+### Patch Changes
+
+- [#5723](https://github.com/assistant-ui/assistant-ui/pull/5723) [`94dc3e5`](https://github.com/assistant-ui/assistant-ui/commit/94dc3e509fa2b4fae1a14c88ec34b910c8d95af8) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+- Updated dependencies [[`94dc3e5`](https://github.com/assistant-ui/assistant-ui/commit/94dc3e509fa2b4fae1a14c88ec34b910c8d95af8), [`ab57969`](https://github.com/assistant-ui/assistant-ui/commit/ab5796932c97bc5bade19022e2ac8762949d2967)]:
+  - assistant-stream@0.3.36
+  - @assistant-ui/core@0.3.10
+  - @assistant-ui/store@0.3.8
+  - @assistant-ui/tap@0.9.11
+
+## 0.1.8
+
+### Patch Changes
+
+- Updated dependencies [[`ab9e765`](https://github.com/assistant-ui/assistant-ui/commit/ab9e765a2d70e30572c4a72c26526df490334b1e)]:
+  - @assistant-ui/core@0.3.9
+
+## 0.1.7
+
+### Patch Changes
+
+- Updated dependencies [[`456b056`](https://github.com/assistant-ui/assistant-ui/commit/456b056b2859994bf49ed5cc4cf031f0601e2174), [`99d09c8`](https://github.com/assistant-ui/assistant-ui/commit/99d09c828c04bfca35d091e73f29c6d6643dfb01), [`a88751d`](https://github.com/assistant-ui/assistant-ui/commit/a88751d71edfd2516f266ce8889081749fba4e5a), [`79253f2`](https://github.com/assistant-ui/assistant-ui/commit/79253f2a5e0a637c8907ba30859f308ff6dcd1c4), [`4e99deb`](https://github.com/assistant-ui/assistant-ui/commit/4e99deb80dc3401480f80c7bef31acbf86a71573), [`2af514c`](https://github.com/assistant-ui/assistant-ui/commit/2af514cabbf6d7d52cb0fd20ef8d1e842294ebb3)]:
+  - assistant-stream@0.3.35
+  - @assistant-ui/core@0.3.8
+  - @assistant-ui/store@0.3.7
+
+## 0.1.6
+
+### Patch Changes
+
+- Fix broken 0.1.5 publish that shipped unresolved workspace: dependency ranges.
+
+## 0.1.5
+
+### Patch Changes
+
+- [#5662](https://github.com/assistant-ui/assistant-ui/pull/5662) [`9f20853`](https://github.com/assistant-ui/assistant-ui/commit/9f20853a0821229e6562f1d812bbb1358c7638e4) - fix: isolate OAuth lifecycle callback failures from authentication state ([@Kinfe123](https://github.com/Kinfe123))
+
+- Updated dependencies [[`bd4c0ad`](https://github.com/assistant-ui/assistant-ui/commit/bd4c0ad3d41a65d0a2caea921f82c6502011615a), [`4aa1b1d`](https://github.com/assistant-ui/assistant-ui/commit/4aa1b1d1b9368f4812b55a33d6f09bb3dcd71949), [`bd4c0ad`](https://github.com/assistant-ui/assistant-ui/commit/bd4c0ad3d41a65d0a2caea921f82c6502011615a)]:
+  - @assistant-ui/core@0.3.7
+  - @assistant-ui/store@0.3.5
+
+## 0.1.4
+
+### Patch Changes
+
+- [#5430](https://github.com/assistant-ui/assistant-ui/pull/5430) [`dcacd9b`](https://github.com/assistant-ui/assistant-ui/commit/dcacd9bc45117f9beca698006fd67616d2c1ca61) - feat: AuiProvider extends/config grammar. `config={AuiConfig({...})}` alone creates a top-level root client; nested providers must pass `extends` — a client to extend, or `null` to isolate (dev-enforced). An empty config creates a client extending the `extends` client; `ref` exposes the resulting client. The `config` prop only accepts configs built with `AuiConfig(...)` (branded type). AssistantRuntimeProvider gains an optional `config` prop whose scopes are provided alongside the runtime scope. The `useAui({...})` extension overload and the AuiProvider `value` prop are deprecated; `value={client}` now exposes a client extending the given one (same scopes, new identity) rather than the exact instance. `useAui({})` with an empty scope object now mounts a rooted host (so the scope set can grow across renders) instead of a passthrough derived-only client. `useAuiState` state enumeration (`Object.keys`/spread) now includes scopes inherited from parent clients, matching `in`-operator behavior. Clients derived from a hand-built parent (a plain object with `subscribe`/`on`) forward scoped `on(...)` listeners to the parent's `on` instead of throwing for scopes the parent does not expose. ([@Yonom](https://github.com/Yonom))
+
+- [#5587](https://github.com/assistant-ui/assistant-ui/pull/5587) [`09b92c3`](https://github.com/assistant-ui/assistant-ui/commit/09b92c3f2cb625460576218e4f3421a7ab88ee08) - fix: handle rejected MCP server removal actions ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5591](https://github.com/assistant-ui/assistant-ui/pull/5591) [`4dccebc`](https://github.com/assistant-ui/assistant-ui/commit/4dccebc92335a6245f2c9d22e60800afdf6c6221) - fix: serialize custom server persistence updates ([@Kinfe123](https://github.com/Kinfe123))
+
+- Updated dependencies [[`dcacd9b`](https://github.com/assistant-ui/assistant-ui/commit/dcacd9bc45117f9beca698006fd67616d2c1ca61), [`d52928d`](https://github.com/assistant-ui/assistant-ui/commit/d52928db2c83a3ba6f25bf8c6b21934571dd4622), [`d8a59ad`](https://github.com/assistant-ui/assistant-ui/commit/d8a59ad5d75f220e76e689d4191855c244ddc20a), [`e70da91`](https://github.com/assistant-ui/assistant-ui/commit/e70da91866a5ac880472fbcf23039909270f7623), [`aac3a8c`](https://github.com/assistant-ui/assistant-ui/commit/aac3a8cb8824472f694226a4c53829a0a693072e), [`aa302ee`](https://github.com/assistant-ui/assistant-ui/commit/aa302eeaacd399f58b74b64eb3a1e17d9ea97e03), [`aa302ee`](https://github.com/assistant-ui/assistant-ui/commit/aa302eeaacd399f58b74b64eb3a1e17d9ea97e03), [`71cf74e`](https://github.com/assistant-ui/assistant-ui/commit/71cf74eaa7fb3bcf1cc7af346637b51f99e3fc33), [`34cec64`](https://github.com/assistant-ui/assistant-ui/commit/34cec64fcfbdef0e101d731f5518e9075d989e2f)]:
+  - @assistant-ui/store@0.3.4
+  - @assistant-ui/core@0.3.6
+  - assistant-stream@0.3.34
+  - @assistant-ui/tap@0.9.10
+
+## 0.1.3
+
+### Patch Changes
+
+- Updated dependencies [[`7f7f8a2`](https://github.com/assistant-ui/assistant-ui/commit/7f7f8a24f87bd7eb745675fa2644a5cca2f69372), [`78943a3`](https://github.com/assistant-ui/assistant-ui/commit/78943a37b1006bfbee42596f838850cd96ab4566)]:
+  - @assistant-ui/core@0.3.5
+  - assistant-stream@0.3.33
+
 ## 0.1.2
 
 ### Patch Changes

@@ -5,11 +5,11 @@ import {
   withKey,
   type ResourceElement,
 } from "@assistant-ui/tap";
+import type { ClientOutput } from "@assistant-ui/store";
 import {
-  useAssistantClientRef,
-  type ClientOutput,
   attachTransformScopes,
-} from "@assistant-ui/store";
+  useAssistantClientRef,
+} from "@assistant-ui/store/client";
 import type { McpAppResourceOutput, ToolsState } from "../types/scopes/tools";
 import type { Tool } from "assistant-stream";
 import {
@@ -18,7 +18,7 @@ import {
   type Toolkit,
 } from "../model-context/toolbox";
 import type { ToolCallMessagePartComponent } from "../types/MessagePartComponentTypes";
-import { ModelContext } from "../../store";
+import { ModelContext } from "../../store/clients/model-context-client";
 
 export type { McpAppResourceOutput };
 

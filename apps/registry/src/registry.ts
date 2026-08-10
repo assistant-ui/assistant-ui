@@ -42,7 +42,833 @@ const accordionKeyframesCss = {
   },
 };
 
+type ElementRegistryEntry = {
+  slug: string;
+  title: string;
+  description: string;
+  file: string;
+  dependencies?: string[];
+  usesCollapsible?: boolean;
+  usesElements?: string[];
+};
+
+const createElementRegistryItem = (
+  entry: ElementRegistryEntry,
+): RegistryItem => ({
+  name: `elements-${entry.slug}`,
+  type: "registry:component",
+  title: entry.title,
+  description: entry.description,
+  files: [
+    {
+      type: "registry:component",
+      path: `components/elements/${entry.file}`,
+      sourcePath: `../../packages/ui/src/components/elements/${entry.file}`,
+    },
+  ],
+  registryDependencies: [
+    "https://r.assistant-ui.com/elements-surfaces.json",
+    ...(entry.usesElements ?? []).map(
+      (slug) => `https://r.assistant-ui.com/elements-${slug}.json`,
+    ),
+    ...(entry.usesCollapsible ? ["collapsible"] : []),
+  ],
+  ...(entry.dependencies ? { dependencies: entry.dependencies } : {}),
+});
+
+const elementsRegistryItems: RegistryItem[] = [
+  {
+    name: "elements-surfaces",
+    type: "registry:component",
+    title: "Elements Surfaces",
+    description:
+      "Shared design language for the elements family: surface, ink, and motion class recipes plus the shimmer utility.",
+    files: [
+      {
+        type: "registry:lib",
+        path: "components/elements/surfaces.tsx",
+        sourcePath: "../../packages/ui/src/components/elements/surfaces.tsx",
+      },
+    ],
+    dependencies: ["tw-shimmer"],
+    css: {
+      '@import "tw-shimmer"': {},
+    },
+  },
+  {
+    name: "elements-range",
+    type: "registry:component",
+    title: "Elements Range",
+    description:
+      "Range normalization for the elements family: clamping a caller's counts, indexes, and shares to what the element can render.",
+    files: [
+      {
+        type: "registry:lib",
+        path: "components/elements/range.ts",
+        sourcePath: "../../packages/ui/src/components/elements/range.ts",
+      },
+    ],
+  },
+  createElementRegistryItem({
+    slug: "loading-state",
+    title: "Loading state",
+    description:
+      "A pixel matrix that keeps time while the model has nothing to show yet.",
+    file: "loading-state.tsx",
+  }),
+  createElementRegistryItem({
+    slug: "thinking-indicator",
+    title: "Thinking indicator",
+    description:
+      "A live status line that names what the agent is doing right now, with elapsed time.",
+    file: "thinking-indicator.tsx",
+  }),
+  createElementRegistryItem({
+    slug: "reasoning-panel",
+    title: "Reasoning panel",
+    description:
+      "A collapsible trace that streams reasoning steps along a timeline, then settles into a summary.",
+    file: "reasoning-panel.tsx",
+    dependencies: ["lucide-react"],
+    usesCollapsible: true,
+    usesElements: ["range"],
+  }),
+  createElementRegistryItem({
+    slug: "streaming-text",
+    title: "Streaming text",
+    description:
+      "Tokens arrive softly: the newest words land in blue and settle into ink.",
+    file: "streaming-text.tsx",
+    usesElements: ["range"],
+  }),
+  createElementRegistryItem({
+    slug: "typing-indicator",
+    title: "Typing indicator",
+    description:
+      "The classic three dots, tuned to read as presence rather than noise.",
+    file: "typing-indicator.tsx",
+  }),
+  createElementRegistryItem({
+    slug: "message-pair",
+    title: "Message pair",
+    description:
+      "A user bubble and a streaming assistant reply, with actions that appear on hover.",
+    file: "message-pair.tsx",
+    dependencies: ["lucide-react"],
+    usesElements: ["range"],
+  }),
+  createElementRegistryItem({
+    slug: "message-branches",
+    title: "Message branches",
+    description:
+      "Navigate between regenerated versions of the same answer without losing your place.",
+    file: "message-branches.tsx",
+    dependencies: ["lucide-react"],
+  }),
+  createElementRegistryItem({
+    slug: "message-actions",
+    title: "Message actions",
+    description:
+      "Copy, rate, and regenerate. Each action confirms itself with a small state change.",
+    file: "message-actions.tsx",
+    dependencies: ["lucide-react"],
+  }),
+  createElementRegistryItem({
+    slug: "suggestions",
+    title: "Follow-up suggestions",
+    description:
+      "Prompt pills that stagger in after a reply and invite the next turn.",
+    file: "suggestions.tsx",
+  }),
+  createElementRegistryItem({
+    slug: "error-state",
+    title: "Error state",
+    description:
+      "A quiet failure banner with a retry path, not a modal in your face.",
+    file: "error-state.tsx",
+    dependencies: ["lucide-react"],
+  }),
+  createElementRegistryItem({
+    slug: "tool-call",
+    title: "Tool call",
+    description:
+      "One tool invocation with its request and result tucked behind a disclosure.",
+    file: "tool-call.tsx",
+    dependencies: ["lucide-react"],
+    usesCollapsible: true,
+  }),
+  createElementRegistryItem({
+    slug: "tool-timeline",
+    title: "Tool timeline",
+    description:
+      "A whole working session summarized as verbs, targets, and file stats.",
+    file: "tool-timeline.tsx",
+    dependencies: ["lucide-react"],
+    usesCollapsible: true,
+    usesElements: ["range"],
+  }),
+  createElementRegistryItem({
+    slug: "terminal-block",
+    title: "Terminal block",
+    description:
+      "Command output that streams line by line and ends with an exit status.",
+    file: "terminal-block.tsx",
+    dependencies: ["lucide-react"],
+    usesElements: ["range"],
+  }),
+  createElementRegistryItem({
+    slug: "code-diff",
+    title: "Code diff",
+    description:
+      "A unified diff with tinted additions and removals, sized for chat.",
+    file: "code-diff.tsx",
+  }),
+  createElementRegistryItem({
+    slug: "web-search",
+    title: "Web search",
+    description:
+      "A search query and its results landing one by one as the agent reads.",
+    file: "web-search.tsx",
+    dependencies: ["lucide-react"],
+    usesElements: ["range"],
+  }),
+  createElementRegistryItem({
+    slug: "sources",
+    title: "Sources",
+    description:
+      "Citations collapsed into a pill, expanding into scannable source cards.",
+    file: "sources.tsx",
+    dependencies: ["lucide-react"],
+    usesCollapsible: true,
+  }),
+  createElementRegistryItem({
+    slug: "inline-citation",
+    title: "Inline citation",
+    description:
+      "Numbered references inside a sentence, each with a hover preview of its source.",
+    file: "inline-citation.tsx",
+    dependencies: ["@base-ui/react"],
+  }),
+  createElementRegistryItem({
+    slug: "image-generation",
+    title: "Image generation",
+    description:
+      "A dot grid holds the frame while the image resolves out of a blur.",
+    file: "image-generation.tsx",
+    dependencies: ["lucide-react"],
+  }),
+  createElementRegistryItem({
+    slug: "data-table",
+    title: "Data table",
+    description: "A small comparison table the model can answer with directly.",
+    file: "data-table.tsx",
+  }),
+  createElementRegistryItem({
+    slug: "number-ticker",
+    title: "Number ticker",
+    description: "Digits that roll into place as a count updates in real time.",
+    file: "number-ticker.tsx",
+  }),
+  createElementRegistryItem({
+    slug: "agent-plan",
+    title: "Agent plan",
+    description:
+      "A checklist the agent works through, with progress you can glance.",
+    file: "agent-plan.tsx",
+    dependencies: ["lucide-react"],
+    usesElements: ["range"],
+  }),
+  createElementRegistryItem({
+    slug: "subagent-list",
+    title: "Subagent list",
+    description:
+      "Parallel workers with their own progress, models, and completions.",
+    file: "subagent-list.tsx",
+    dependencies: ["lucide-react"],
+    usesElements: ["range"],
+  }),
+  createElementRegistryItem({
+    slug: "agent-status",
+    title: "Agent status",
+    description:
+      "One pill that always answers: what is it doing, and for how long.",
+    file: "agent-status.tsx",
+    dependencies: ["lucide-react"],
+  }),
+  createElementRegistryItem({
+    slug: "approval-card",
+    title: "Approval card",
+    description:
+      "Human in the loop: the agent asks before it runs anything with side effects.",
+    file: "approval-card.tsx",
+    dependencies: ["lucide-react"],
+  }),
+  createElementRegistryItem({
+    slug: "recommendation-card",
+    title: "Recommendation card",
+    description:
+      "The agent proposes a change with its confidence, and waits for a yes.",
+    file: "recommendation-card.tsx",
+    dependencies: ["lucide-react"],
+  }),
+  createElementRegistryItem({
+    slug: "artifact-card",
+    title: "Artifact card",
+    description:
+      "A generated document as a tangible object, written live and versioned.",
+    file: "artifact-card.tsx",
+    dependencies: ["lucide-react"],
+  }),
+  createElementRegistryItem({
+    slug: "composer",
+    title: "Composer",
+    description:
+      "The unified input: attachments, commands, mentions, models, voice, and context in one surface.",
+    file: "composer.tsx",
+    dependencies: ["lucide-react"],
+    usesElements: ["range"],
+  }),
+  createElementRegistryItem({
+    slug: "chat-panel",
+    title: "Chat panel",
+    description:
+      "The whole family working together: a message, a pause, a streamed reply.",
+    file: "chat-panel.tsx",
+    dependencies: ["lucide-react"],
+  }),
+  createElementRegistryItem({
+    slug: "empty-state",
+    title: "Empty state",
+    description:
+      "The first screen: a greeting, three ways in, and the composer front and center.",
+    file: "empty-state.tsx",
+    dependencies: ["lucide-react"],
+  }),
+  createElementRegistryItem({
+    slug: "thread-list",
+    title: "Thread list",
+    description:
+      "Conversation history with unread marks and actions that wait for hover.",
+    file: "thread-list.tsx",
+    dependencies: ["lucide-react"],
+  }),
+  createElementRegistryItem({
+    slug: "scroll-anchor",
+    title: "Scroll anchor",
+    description:
+      "Streaming never steals your scroll position; a pill offers the way back down.",
+    file: "scroll-anchor.tsx",
+    dependencies: ["lucide-react"],
+  }),
+  createElementRegistryItem({
+    slug: "todo-list",
+    title: "Todo list",
+    description:
+      "The agent's own working list, rewritten mid-run as it discovers what else is needed.",
+    file: "todo-list.tsx",
+    dependencies: ["lucide-react"],
+  }),
+  createElementRegistryItem({
+    slug: "message-queue",
+    title: "Message queue",
+    description:
+      "Turns you typed while a run was in flight, stacked and cancelable until it finishes.",
+    file: "message-queue.tsx",
+    dependencies: ["lucide-react"],
+  }),
+  createElementRegistryItem({
+    slug: "message-attachment",
+    title: "Attachments in a message",
+    description:
+      "Files as received rather than staged: an image to open, a document with its page count.",
+    file: "message-attachment.tsx",
+    dependencies: ["lucide-react"],
+  }),
+  createElementRegistryItem({
+    slug: "reviewable-diff",
+    title: "Reviewable diff",
+    description:
+      "The same diff, but each hunk is a decision: keep it, discard it, apply what survived.",
+    file: "reviewable-diff.tsx",
+    dependencies: ["lucide-react"],
+    usesElements: ["code-diff"],
+  }),
+  createElementRegistryItem({
+    slug: "file-tree",
+    title: "File tree",
+    description:
+      "Everything a run touched, as a tree, with the churn spelled out per file.",
+    file: "file-tree.tsx",
+    dependencies: ["lucide-react"],
+    usesElements: ["range"],
+  }),
+  createElementRegistryItem({
+    slug: "elicitation-form",
+    title: "Elicitation form",
+    description:
+      "A server pausing mid-tool-call to ask you for the fields it still needs.",
+    file: "elicitation-form.tsx",
+    dependencies: ["lucide-react"],
+  }),
+  createElementRegistryItem({
+    slug: "retrieval-chunks",
+    title: "Retrieval chunks",
+    description:
+      "The passages a retrieval answer stands on, scored, before the answer itself arrives.",
+    file: "retrieval-chunks.tsx",
+    dependencies: ["lucide-react"],
+    usesElements: ["range"],
+  }),
+  createElementRegistryItem({
+    slug: "chart",
+    title: "Chart",
+    description:
+      "Area, line, and bars, with points landing one at a time as the series streams in.",
+    file: "chart.tsx",
+    usesElements: ["range"],
+  }),
+  createElementRegistryItem({
+    slug: "trace-waterfall",
+    title: "Trace waterfall",
+    description:
+      "Every span in a run on one time axis, nested, so you can see where it actually went.",
+    file: "trace-waterfall.tsx",
+    usesElements: ["range"],
+  }),
+  createElementRegistryItem({
+    slug: "canvas-split",
+    title: "Canvas",
+    description:
+      "The thread steps aside and the document takes the room, still being written as you read.",
+    file: "canvas-split.tsx",
+    dependencies: ["lucide-react"],
+  }),
+  createElementRegistryItem({
+    slug: "voice-conversation",
+    title: "Voice conversation",
+    description:
+      "A live call: the orb tracks your voice, the caption names the turn, the transcript follows.",
+    file: "voice-conversation.tsx",
+    dependencies: ["lucide-react"],
+    usesElements: ["range"],
+  }),
+  createElementRegistryItem({
+    slug: "read-aloud",
+    title: "Read aloud",
+    description:
+      "An answer played back, the spoken word lit as it goes, speed under your thumb.",
+    file: "read-aloud.tsx",
+    dependencies: ["lucide-react"],
+    usesElements: ["range"],
+  }),
+  createElementRegistryItem({
+    slug: "mcp-server-panel",
+    title: "Server panel",
+    description:
+      "Which servers are connected, what each one brought, and which is still waiting on you.",
+    file: "mcp-server-panel.tsx",
+    dependencies: ["lucide-react"],
+  }),
+  createElementRegistryItem({
+    slug: "feedback-dialog",
+    title: "Feedback dialog",
+    description:
+      "A thumbs-down that asks why, so the signal arrives with a reason attached.",
+    file: "feedback-dialog.tsx",
+    dependencies: ["lucide-react"],
+  }),
+  createElementRegistryItem({
+    slug: "quote-reply",
+    title: "Quote reply",
+    description:
+      "Select a phrase in an answer and a toolbar offers to quote, explain, or rewrite it.",
+    file: "quote-reply.tsx",
+    dependencies: ["lucide-react"],
+  }),
+  createElementRegistryItem({
+    slug: "edit-message",
+    title: "Edit a sent message",
+    description:
+      "Rewrite a turn in place, told up front how many replies the edit throws away.",
+    file: "edit-message.tsx",
+    dependencies: ["lucide-react"],
+  }),
+  createElementRegistryItem({
+    slug: "stopped-run",
+    title: "Stopped run",
+    description:
+      "You pressed stop. The half-written answer stays, and continuing is one tap away.",
+    file: "stopped-run.tsx",
+    dependencies: ["lucide-react"],
+  }),
+  createElementRegistryItem({
+    slug: "message-timing",
+    title: "Timing footer",
+    description:
+      "What the turn cost: time to first token, throughput, tokens, money.",
+    file: "message-timing.tsx",
+  }),
+  createElementRegistryItem({
+    slug: "connection-state",
+    title: "Connection state",
+    description:
+      "The socket drops, the run keeps going on the server, and the stream is picked back up.",
+    file: "connection-state.tsx",
+    dependencies: ["lucide-react"],
+  }),
+  createElementRegistryItem({
+    slug: "agent-card",
+    title: "Agent card",
+    description:
+      "Who you are about to talk to: its skills, its model, and the endpoint behind it.",
+    file: "agent-card.tsx",
+    dependencies: ["lucide-react"],
+  }),
+  createElementRegistryItem({
+    slug: "web-preview",
+    title: "Web preview",
+    description:
+      "Chrome for a sandboxed preview: a URL bar, reload, and open-in-new around a frame you isolate.",
+    file: "web-preview.tsx",
+    dependencies: ["lucide-react"],
+  }),
+  createElementRegistryItem({
+    slug: "draft-restore",
+    title: "Draft restore",
+    description:
+      "Come back to a thread and the sentence you never sent is still waiting.",
+    file: "draft-restore.tsx",
+    dependencies: ["lucide-react"],
+  }),
+  createElementRegistryItem({
+    slug: "diagram",
+    title: "Diagram",
+    description:
+      "A drawn answer with zoom, reset, and a full-bleed view; you hand it the rendered graphic.",
+    file: "diagram.tsx",
+    dependencies: ["lucide-react"],
+  }),
+  createElementRegistryItem({
+    slug: "flow-graph",
+    title: "Flow graph",
+    description:
+      "Work as a graph rather than a list: branches that fan out and rejoin.",
+    file: "flow-graph.tsx",
+    usesElements: ["range"],
+  }),
+  createElementRegistryItem({
+    slug: "activity-graph",
+    title: "Activity graph",
+    description:
+      "A half-year of runs as a calendar of cells, dense where the work was.",
+    file: "activity-graph.tsx",
+    dependencies: ["heat-graph"],
+  }),
+  createElementRegistryItem({
+    slug: "tool-group",
+    title: "Parallel tools",
+    description:
+      "Calls that went out together, collapsed to one row until you want the detail.",
+    file: "tool-group.tsx",
+    dependencies: ["lucide-react"],
+  }),
+  createElementRegistryItem({
+    slug: "context-breakdown",
+    title: "Context breakdown",
+    description:
+      "Where the window actually went: prompt, tools, files, conversation, and what's left.",
+    file: "context-breakdown.tsx",
+    usesElements: ["range"],
+  }),
+  createElementRegistryItem({
+    slug: "model-picker",
+    title: "Model picker",
+    description:
+      "The full list rather than the rail: grouped by family, priced, with what each one can do.",
+    file: "model-picker.tsx",
+    dependencies: ["lucide-react"],
+  }),
+  createElementRegistryItem({
+    slug: "reasoning-effort",
+    title: "Reasoning effort",
+    description:
+      "How hard to think, and how much of that budget the run actually spent.",
+    file: "reasoning-effort.tsx",
+    usesElements: ["range"],
+  }),
+  createElementRegistryItem({
+    slug: "guardrail-notice",
+    title: "Guardrail notice",
+    description:
+      "A refusal in its own shape, with the nearest thing it can do instead.",
+    file: "guardrail-notice.tsx",
+    dependencies: ["lucide-react"],
+  }),
+  createElementRegistryItem({
+    slug: "day-separator",
+    title: "Timestamps",
+    description: "Chronology in a long thread: days marked, times on hover.",
+    file: "day-separator.tsx",
+  }),
+  createElementRegistryItem({
+    slug: "speaker-identity",
+    title: "Speaker identity",
+    description:
+      "Who is talking, once a thread holds more than a user and one model.",
+    file: "speaker-identity.tsx",
+    dependencies: ["lucide-react"],
+  }),
+  createElementRegistryItem({
+    slug: "regenerate-menu",
+    title: "Regenerate with",
+    description:
+      "Fork the same turn to a different model instead of rolling the same dice.",
+    file: "regenerate-menu.tsx",
+    dependencies: ["lucide-react"],
+  }),
+  createElementRegistryItem({
+    slug: "confidence-marker",
+    title: "Confidence",
+    description:
+      "Which claims came from a source, which were inferred, and which are guesses.",
+    file: "confidence-marker.tsx",
+  }),
+  createElementRegistryItem({
+    slug: "tool-error",
+    title: "Tool failure",
+    description:
+      "One call failed. The error, the attempt count, and a retry that doesn't restart the turn.",
+    file: "tool-error.tsx",
+    dependencies: ["lucide-react"],
+  }),
+  createElementRegistryItem({
+    slug: "permission-grant",
+    title: "Permission grant",
+    description:
+      "Granting a capability rather than approving one action, with the reach spelled out.",
+    file: "permission-grant.tsx",
+    dependencies: ["lucide-react"],
+  }),
+  createElementRegistryItem({
+    slug: "computer-use",
+    title: "Computer use",
+    description:
+      "The screen the agent is driving, with a cursor trail and what it is doing right now.",
+    file: "computer-use.tsx",
+    dependencies: ["lucide-react"],
+    usesElements: ["range"],
+  }),
+  createElementRegistryItem({
+    slug: "code-runner",
+    title: "Code runner",
+    description:
+      "A snippet with a run button, and the output it produced attached below it.",
+    file: "code-runner.tsx",
+    dependencies: ["lucide-react"],
+  }),
+  createElementRegistryItem({
+    slug: "document-reference",
+    title: "Document reference",
+    description:
+      "A document the answer leans on, with the quoted passage and the page to jump to.",
+    file: "document-reference.tsx",
+    dependencies: ["lucide-react"],
+  }),
+  createElementRegistryItem({
+    slug: "memory-chips",
+    title: "Memory",
+    description:
+      "What it now remembers about you, written during the turn and removable.",
+    file: "memory-chips.tsx",
+    dependencies: ["lucide-react"],
+  }),
+  createElementRegistryItem({
+    slug: "research-report",
+    title: "Research report",
+    description:
+      "An outline that fills in section by section, each carrying the sources behind it.",
+    file: "research-report.tsx",
+    dependencies: ["lucide-react"],
+  }),
+  createElementRegistryItem({
+    slug: "map-answer",
+    title: "Map",
+    description:
+      "A location answer: pins, a route between them, and the list they came from.",
+    file: "map-answer.tsx",
+  }),
+  createElementRegistryItem({
+    slug: "math-block",
+    title: "Math",
+    description:
+      "Rendered expressions with the working shown, one step at a time.",
+    file: "math-block.tsx",
+    usesElements: ["range"],
+  }),
+  createElementRegistryItem({
+    slug: "spec-sheet",
+    title: "Spec sheet",
+    description:
+      "The most common structured answer after a table: one object, labeled.",
+    file: "spec-sheet.tsx",
+    usesElements: ["range"],
+  }),
+  createElementRegistryItem({
+    slug: "comparison-card",
+    title: "Comparison",
+    description:
+      "Two options weighed side by side, with the pick named and argued.",
+    file: "comparison-card.tsx",
+    dependencies: ["lucide-react"],
+  }),
+  createElementRegistryItem({
+    slug: "timeline",
+    title: "Timeline",
+    description:
+      "Events on a time axis, with what already happened and what is still coming.",
+    file: "timeline.tsx",
+    usesElements: ["range"],
+  }),
+  createElementRegistryItem({
+    slug: "job-progress",
+    title: "Long job",
+    description:
+      "Work measured in minutes: weighted stages, an ETA, and a way out.",
+    file: "job-progress.tsx",
+    dependencies: ["lucide-react"],
+    usesElements: ["range"],
+  }),
+  createElementRegistryItem({
+    slug: "score-breakdown",
+    title: "Score breakdown",
+    description:
+      "A verdict with its arithmetic shown: criteria, weights, and what pulled it down.",
+    file: "score-breakdown.tsx",
+    usesElements: ["range"],
+  }),
+  createElementRegistryItem({
+    slug: "cost-meter",
+    title: "Cost meter",
+    description:
+      "What the run spent, split by model, against the session total.",
+    file: "cost-meter.tsx",
+    usesElements: ["range"],
+  }),
+  createElementRegistryItem({
+    slug: "quota-banner",
+    title: "Quota",
+    description:
+      "How much is left, when it comes back, and the way to get more.",
+    file: "quota-banner.tsx",
+    usesElements: ["range"],
+  }),
+  createElementRegistryItem({
+    slug: "agent-handoff",
+    title: "Handoff",
+    description:
+      "Control passing between agents, with the reason and what came along.",
+    file: "agent-handoff.tsx",
+    dependencies: ["lucide-react"],
+  }),
+  createElementRegistryItem({
+    slug: "background-inbox",
+    title: "Background runs",
+    description:
+      "Work still going somewhere else, and the results waiting to be collected.",
+    file: "background-inbox.tsx",
+    dependencies: ["lucide-react"],
+  }),
+  createElementRegistryItem({
+    slug: "checkpoint-history",
+    title: "Checkpoints",
+    description:
+      "Points you can fall back to, with what each one would give back.",
+    file: "checkpoint-history.tsx",
+    dependencies: ["lucide-react"],
+  }),
+  createElementRegistryItem({
+    slug: "schedule-card",
+    title: "Schedule",
+    description:
+      "A run that repeats on its own, with its cadence and how it has been doing.",
+    file: "schedule-card.tsx",
+    dependencies: ["lucide-react"],
+  }),
+  createElementRegistryItem({
+    slug: "prompt-library",
+    title: "Prompt library",
+    description:
+      "Prompts you saved, searchable, with their variables shown before you insert one.",
+    file: "prompt-library.tsx",
+    dependencies: ["lucide-react"],
+  }),
+  createElementRegistryItem({
+    slug: "command-palette",
+    title: "Command palette",
+    description:
+      "Everything the app can do, one keystroke away and grouped by where it acts.",
+    file: "command-palette.tsx",
+    dependencies: ["lucide-react"],
+  }),
+  createElementRegistryItem({
+    slug: "shared-conversation",
+    title: "Shared conversation",
+    description:
+      "A read-only transcript someone sent you, with a way to pick it up yourself.",
+    file: "shared-conversation.tsx",
+    dependencies: ["lucide-react"],
+  }),
+  createElementRegistryItem({
+    slug: "conversation-search",
+    title: "Search in conversation",
+    description:
+      "Find inside a long thread, with every hit marked down the scrollbar.",
+    file: "conversation-search.tsx",
+    dependencies: ["lucide-react"],
+  }),
+  createElementRegistryItem({
+    slug: "thread-search",
+    title: "Thread search",
+    description:
+      "History you can actually get back into: pinned first, then grouped by when.",
+    file: "thread-search.tsx",
+    dependencies: ["lucide-react"],
+  }),
+  createElementRegistryItem({
+    slug: "launcher-bubble",
+    title: "Launcher",
+    description: "The floating entry point, and the panel it opens into.",
+    file: "launcher-bubble.tsx",
+    dependencies: ["lucide-react"],
+  }),
+  createElementRegistryItem({
+    slug: "settings-panel",
+    title: "Settings",
+    description:
+      "Model, system prompt, temperature, and what the assistant is allowed to do.",
+    file: "settings-panel.tsx",
+    usesElements: ["range"],
+  }),
+  createElementRegistryItem({
+    slug: "onboarding",
+    title: "Onboarding",
+    description:
+      "First run: three moves that teach what this assistant is actually for.",
+    file: "onboarding.tsx",
+    usesElements: ["range"],
+  }),
+  createElementRegistryItem({
+    slug: "mobile-composer",
+    title: "Mobile composer",
+    description:
+      "The bottom sheet: keyboard-aware, quick actions above, thumb-sized targets.",
+    file: "mobile-composer.tsx",
+    dependencies: ["lucide-react"],
+  }),
+];
+
 export const registry: RegistryItem[] = [
+  ...elementsRegistryItems,
   {
     name: "shimmer-style",
     type: "registry:style",

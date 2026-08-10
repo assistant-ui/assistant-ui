@@ -2,7 +2,9 @@ import type {
   MessagePartStatus,
   MessagePartStreamStatus,
   ThreadAssistantMessagePart,
+  ThreadMessage,
   ThreadUserMessagePart,
+  ToolCallMessagePartStatus,
 } from "../types/message";
 
 export const COMPLETE_STATUS: MessagePartStatus = Object.freeze({
@@ -52,4 +54,29 @@ export const normalizePartStatus = (
       : "other";
 
   return INCOMPLETE_STATUSES[normalizedReason];
+};
+
+export const toMessagePartStatus = (
+  message: ThreadMessage,
+  partIndex: number,
+  part: ThreadUserMessagePart | ThreadAssistantMessagePart,
+): ToolCallMessagePartStatus => {
+  if (message.role !== "assistant") return COMPLETE_STATUS;
+
+  if (part.type === "tool-call") {
+    if (part.result === undefined) {
+      return message.status as ToolCallMessagePartStatus;
+    } else {
+      return COMPLETE_STATUS;
+    }
+  }
+
+  if (message.status.type === "running") {
+    const status = normalizePartStatus(part);
+    if (status) return status;
+  }
+
+  const isLastPart = partIndex === Math.max(0, message.content.length - 1);
+  if (message.status.type === "requires-action") return COMPLETE_STATUS;
+  return isLastPart ? (message.status as MessagePartStatus) : COMPLETE_STATUS;
 };

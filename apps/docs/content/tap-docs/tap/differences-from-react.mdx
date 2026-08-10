@@ -52,7 +52,16 @@ breaks this chain by creating a new root with its own scheduler. Everything
 below it re-renders independently, and the parent does not re-render when that
 root updates.
 
-## `useLayoutEffect` collapses onto `useEffect`
+## `useLayoutEffect` and `useInsertionEffect` collapse onto `useEffect`
 
-tap has a single effect primitive. `useLayoutEffect` is accepted (so React code
-ports cleanly) but behaves like `useEffect` inside a resource.
+tap has a single effect primitive. `useLayoutEffect` and `useInsertionEffect`
+are accepted (so React code ports cleanly) but behave like `useEffect` inside a
+resource.
+
+## A throwing snapshot keeps the committed value
+
+In React, when a store notifies `useSyncExternalStore` and `getSnapshot`
+throws, React re-renders and the error surfaces during that render. In tap, the
+resource keeps its last committed value and skips the re-render; the throw is
+swallowed for that notification only, and the next notification whose snapshot
+succeeds and differs re-renders as usual. This may change in a future release.

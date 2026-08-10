@@ -64,6 +64,12 @@ export type {
 
 export type { Unsubscribe } from "./types/unsubscribe";
 
+export type {
+  Assistant,
+  UserCommands,
+  UserExternalState,
+} from "./types/augmentations";
+
 export type { QuoteInfo } from "./types/quote";
 
 export type {
@@ -326,7 +332,10 @@ export type { ExternalStoreSharedOptions } from "./runtimes/external-store/exter
 export { pickExternalStoreSharedOptions } from "./runtimes/external-store/external-store-shared-options";
 
 // Message queue
-export type { ExternalThreadQueueAdapter } from "./runtime/queue/external-thread-queue-adapter";
+export type {
+  ExternalThreadQueueAdapter,
+  QueuePlacement,
+} from "./runtime/queue/external-thread-queue-adapter";
 export type { ExternalThreadBranchAdapter } from "./runtime/branch/external-thread-branch-adapter";
 export {
   createMessageQueue,
@@ -338,6 +347,7 @@ export {
 export type {
   RemoteThreadListAdapter,
   RemoteThreadListOptions,
+  RemoteThreadListProviderComponent,
   RemoteThreadInitializeResponse,
   RemoteThreadMetadata,
   RemoteThreadListResponse,

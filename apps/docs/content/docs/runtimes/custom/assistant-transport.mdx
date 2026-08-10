@@ -300,6 +300,7 @@ aui-state:[{"type":"set","path":["status"],"value":"completed"}]
   initialState: T,
   api: string,
   resumeApi?: string,
+  resumeStateApi?: string,
   protocol?: "data-stream" | "assistant-transport",
   converter: (state: T, connectionMetadata: ConnectionMetadata) => AssistantTransportState,
   headers?: Record<string, string> | Headers | (() => Promise<Record<string, string> | Headers>),
@@ -518,6 +519,23 @@ const runtime = useAssistantTransportRuntime({
   resumeApi: "http://localhost:8010/resume",
 });
 ```
+
+Setting `resumeStateApi` additionally hydrates resumed runs from the server-retained starting state. It requires a sync server that serves the initial-state route; do not configure it against a server without one, since a failing preflight fails the resume closed:
+
+```tsx
+const runtime = useAssistantTransportRuntime({
+  // ...
+  resumeStateApi: "http://localhost:8010/initial-state",
+});
+```
+
+Before resuming, the runtime posts `{ threadId }` to `resumeStateApi`. The endpoint must return the state that started the active run together with its identity:
+
+```json
+{ "runId": "8b3a...", "state": { "messages": [] } }
+```
+
+The runtime replaces its local base with this snapshot and includes `runId` in the resume request; the request carries no `state`, since the server replays from the snapshot it retained. A sync server should reject the resume when that ID no longer identifies the same run, preventing replay operations from being applied to a drifted or replaced base state. When no run is active, the endpoint responds `204 No Content` and the runtime skips the resume without raising an error. On a resume, `runId` takes precedence over fields supplied through `body` and survives `prepareSendCommandsRequest`; any `state` either of them supplies is stripped.
 
 ```tsx
 import { useAui } from "@assistant-ui/react";

@@ -100,6 +100,7 @@ import { useAssistantForm } from "@assistant-ui/react-hook-form";
 import {
   useAssistantInstructions,
   useAui,
+  AuiConfig,
   AuiProvider,
   Suggestions,
 } from "@assistant-ui/react";
@@ -146,7 +147,8 @@ export default function Home() {
     },
   });
 
-  const aui = useAui({
+  const aui = useAui();
+  const config = AuiConfig({
     suggestions: Suggestions([
       {
         title: "Fill out the form",
@@ -163,7 +165,7 @@ export default function Home() {
   });
 
   return (
-    <AuiProvider value={aui}>
+    <AuiProvider extends={aui} config={config}>
       <ResizablePanelGroup orientation="horizontal">
         <ResizablePanel defaultSize={60} minSize={40} style={panelStyle}>
           <div className="h-full overflow-y-auto bg-muted/30">
@@ -202,7 +204,7 @@ export default function Home() {
 2. The backend receives these tool definitions via `frontendTools()` and passes them to the model
 3. When the AI calls `set_form_field`, the form field is updated directly via React Hook Form
 4. Custom `render` components display a visual indicator in the chat while the tool executes
-5. `useAui` with `Suggestions` adds pre-built prompt suggestions to the assistant UI
+5. `AuiProvider` with a `Suggestions` config adds pre-built prompt suggestions to the assistant UI
 
 ## Source
 

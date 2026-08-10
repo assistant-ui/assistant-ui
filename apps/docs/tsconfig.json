@@ -16,12 +16,17 @@
       "@/components/assistant-ui/*": [
         "../../packages/ui/src/components/assistant-ui/*"
       ],
+      "@/components/elements/*": [
+        "../../packages/ui/src/components/elements/*",
+        "./components/elements/*"
+      ],
       "@/*": ["./*"],
       "@assistant-ui/ui/*": ["../../packages/ui/src/*"],
       "fumadocs-mdx:collections/*": ["./.source/*"],
       "@assistant-ui/react-generative-ui/*": [
         "../../packages/react-generative-ui/src/*"
       ],
+      "@assistant-ui/store/client": ["../../packages/store/src/client"],
       "@assistant-ui/*": ["../../packages/*/src"],
       "@assistant-ui/core/*": ["../../packages/core/src/*"],
       "@assistant-ui/react/*": ["../../packages/react/src/*"],

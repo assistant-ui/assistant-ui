@@ -1,5 +1,5 @@
 import type { FC, PropsWithChildren } from "react";
-import { useAui, AuiProvider, Derived } from "@assistant-ui/store";
+import { useAui, AuiConfig, AuiProvider, Derived } from "@assistant-ui/store";
 
 export const SpanByIndexProvider: FC<PropsWithChildren<{ index: number }>> = ({
   index,
@@ -7,13 +7,16 @@ export const SpanByIndexProvider: FC<PropsWithChildren<{ index: number }>> = ({
 }) => {
   const parentAui = useAui();
 
-  const aui = useAui({
+  const config = AuiConfig({
     span: Derived({
       source: "span",
       query: { index },
       get: () => parentAui.span.child({ index }),
     }),
   });
-
-  return <AuiProvider value={aui}>{children}</AuiProvider>;
+  return (
+    <AuiProvider extends={parentAui} config={config}>
+      {children}
+    </AuiProvider>
+  );
 };

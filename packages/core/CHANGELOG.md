@@ -1,5 +1,92 @@
 # @assistant-ui/core
 
+## 0.3.12
+
+### Patch Changes
+
+- [#5745](https://github.com/assistant-ui/assistant-ui/pull/5745) [`1df4327`](https://github.com/assistant-ui/assistant-ui/commit/1df4327dc915103bb1b64e01ee8d888c08de9f59) - refactor: move ExternalThread, SingleThreadList, and the Assistant augmentation namespace into @assistant-ui/core ([@Yonom](https://github.com/Yonom))
+
+## 0.3.11
+
+### Patch Changes
+
+- [#5742](https://github.com/assistant-ui/assistant-ui/pull/5742) [`f551562`](https://github.com/assistant-ui/assistant-ui/commit/f551562162f43b2bbeb2bb46d39b68243ca1d35a) - fix: name the offending input when an external message converter returns an invalid message ([@Yonom](https://github.com/Yonom))
+
+- [#5733](https://github.com/assistant-ui/assistant-ui/pull/5733) [`dc7b77d`](https://github.com/assistant-ui/assistant-ui/commit/dc7b77dca65ad8d0384e8aec268a4141dc8bd0da) - Republish: 0.3.10 was left staged on npm by a failed publish and cannot be re-pushed. ([@Yonom](https://github.com/Yonom))
+
+- [#5718](https://github.com/assistant-ui/assistant-ui/pull/5718) [`d1b7097`](https://github.com/assistant-ui/assistant-ui/commit/d1b7097ca86e84698fcfaabd1b310e30612dd32c) - fix: expose additional Cloud thread pages through the thread list runtime ([@Kinfe123](https://github.com/Kinfe123))
+
+- Updated dependencies [[`0ae51a8`](https://github.com/assistant-ui/assistant-ui/commit/0ae51a8e8c4c49c4b8810b9c64845eeeded8b9bc), [`e319574`](https://github.com/assistant-ui/assistant-ui/commit/e319574df10df2dbf2d57fc2bcf7cb92d3c6a2e6)]:
+  - assistant-stream@0.3.37
+
+## 0.3.10
+
+### Patch Changes
+
+- [#5723](https://github.com/assistant-ui/assistant-ui/pull/5723) [`94dc3e5`](https://github.com/assistant-ui/assistant-ui/commit/94dc3e509fa2b4fae1a14c88ec34b910c8d95af8) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+- [#5726](https://github.com/assistant-ui/assistant-ui/pull/5726) [`ab57969`](https://github.com/assistant-ui/assistant-ui/commit/ab5796932c97bc5bade19022e2ac8762949d2967) - chore: reformat with oxfmt 0.62 ([@okisdev](https://github.com/okisdev))
+
+- Updated dependencies [[`94dc3e5`](https://github.com/assistant-ui/assistant-ui/commit/94dc3e509fa2b4fae1a14c88ec34b910c8d95af8)]:
+  - assistant-stream@0.3.36
+
+## 0.3.9
+
+### Patch Changes
+
+- [#5720](https://github.com/assistant-ui/assistant-ui/pull/5720) [`ab9e765`](https://github.com/assistant-ui/assistant-ui/commit/ab9e765a2d70e30572c4a72c26526df490334b1e) - fix: route sourceId-carrying edit sends to onEdit instead of the queue adapter, and fail fast on beginEdit without an edit handler ([@Yonom](https://github.com/Yonom))
+
+## 0.3.8
+
+### Patch Changes
+
+- [#5717](https://github.com/assistant-ui/assistant-ui/pull/5717) [`99d09c8`](https://github.com/assistant-ui/assistant-ui/commit/99d09c828c04bfca35d091e73f29c6d6643dfb01) - Edit composer send always emits: an unchanged edit re-sends the message on a new branch instead of silently closing the composer. ([@Yonom](https://github.com/Yonom))
+
+- [#5639](https://github.com/assistant-ui/assistant-ui/pull/5639) [`79253f2`](https://github.com/assistant-ui/assistant-ui/commit/79253f2a5e0a637c8907ba30859f308ff6dcd1c4) - feat: preserve app-authored reasoning summaries on message parts ([@rupic-app](https://github.com/apps/rupic-app))
+
+- Updated dependencies [[`456b056`](https://github.com/assistant-ui/assistant-ui/commit/456b056b2859994bf49ed5cc4cf031f0601e2174), [`a88751d`](https://github.com/assistant-ui/assistant-ui/commit/a88751d71edfd2516f266ce8889081749fba4e5a), [`79253f2`](https://github.com/assistant-ui/assistant-ui/commit/79253f2a5e0a637c8907ba30859f308ff6dcd1c4)]:
+  - assistant-stream@0.3.35
+
+## 0.3.7
+
+### Patch Changes
+
+- [#5668](https://github.com/assistant-ui/assistant-ui/pull/5668) [`bd4c0ad`](https://github.com/assistant-ui/assistant-ui/commit/bd4c0ad3d41a65d0a2caea921f82c6502011615a) - feat: expose RuntimeAdapter from the framework-neutral store entry so runtimes mount into createAssistantClient without React ([@okisdev](https://github.com/okisdev))
+
+- [#5675](https://github.com/assistant-ui/assistant-ui/pull/5675) [`4aa1b1d`](https://github.com/assistant-ui/assistant-ui/commit/4aa1b1d1b9368f4812b55a33d6f09bb3dcd71949) - feat: expose framework-neutral seams on the ./store entry (useExternalMessageConverter, convertExternalMessages, useStreamingTiming, createRuntimeExtrasBrand, defineToolkit, defineMcpToolkit) and add unstable_createRuntimeExtrasFromBrand so bindings can share one runtime extras brand across packages ([@okisdev](https://github.com/okisdev))
+
+## 0.3.6
+
+### Patch Changes
+
+- [#5430](https://github.com/assistant-ui/assistant-ui/pull/5430) [`dcacd9b`](https://github.com/assistant-ui/assistant-ui/commit/dcacd9bc45117f9beca698006fd67616d2c1ca61) - feat: AuiProvider extends/config grammar. `config={AuiConfig({...})}` alone creates a top-level root client; nested providers must pass `extends` — a client to extend, or `null` to isolate (dev-enforced). An empty config creates a client extending the `extends` client; `ref` exposes the resulting client. The `config` prop only accepts configs built with `AuiConfig(...)` (branded type). AssistantRuntimeProvider gains an optional `config` prop whose scopes are provided alongside the runtime scope. The `useAui({...})` extension overload and the AuiProvider `value` prop are deprecated; `value={client}` now exposes a client extending the given one (same scopes, new identity) rather than the exact instance. `useAui({})` with an empty scope object now mounts a rooted host (so the scope set can grow across renders) instead of a passthrough derived-only client. `useAuiState` state enumeration (`Object.keys`/spread) now includes scopes inherited from parent clients, matching `in`-operator behavior. Clients derived from a hand-built parent (a plain object with `subscribe`/`on`) forward scoped `on(...)` listeners to the parent's `on` instead of throwing for scopes the parent does not expose. ([@Yonom](https://github.com/Yonom))
+
+- [#5569](https://github.com/assistant-ui/assistant-ui/pull/5569) [`d8a59ad`](https://github.com/assistant-ui/assistant-ui/commit/d8a59ad5d75f220e76e689d4191855c244ddc20a) - fix: preserve falsy tool results ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5653](https://github.com/assistant-ui/assistant-ui/pull/5653) [`e70da91`](https://github.com/assistant-ui/assistant-ui/commit/e70da91866a5ac880472fbcf23039909270f7623) - fix: drop the react type dependency from the core default entry and pin the framework neutral boundary with a contract test ([@okisdev](https://github.com/okisdev))
+
+- [#5484](https://github.com/assistant-ui/assistant-ui/pull/5484) [`aac3a8c`](https://github.com/assistant-ui/assistant-ui/commit/aac3a8cb8824472f694226a4c53829a0a693072e) - fix: accept all valid image data URLs in sanitizeImageContent instead of a hardcoded format list ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#5650](https://github.com/assistant-ui/assistant-ui/pull/5650) [`34cec64`](https://github.com/assistant-ui/assistant-ui/commit/34cec64fcfbdef0e101d731f5518e9075d989e2f) - feat: two-lane, placement-aware message queue with steer-by-default mid-run sends ([@Yonom](https://github.com/Yonom))
+
+  `ExternalThreadQueueAdapter` is reshaped: `enqueue(message, { steer })` splits into
+  `enqueue(message)` / `steer(message)`, `steer(queueItemId)` becomes
+  `move(queueItemId, { lane: "steer", insertAfter: null })`, `clear(reason)` is dropped
+  (queue clear policy is now host-owned), and `steerItems` / `move` / `edit` and
+  `QueueItemState.parts` are required.
+
+- Updated dependencies [[`d52928d`](https://github.com/assistant-ui/assistant-ui/commit/d52928db2c83a3ba6f25bf8c6b21934571dd4622)]:
+  - assistant-stream@0.3.34
+
+## 0.3.5
+
+### Patch Changes
+
+- [#5552](https://github.com/assistant-ui/assistant-ui/pull/5552) [`7f7f8a2`](https://github.com/assistant-ui/assistant-ui/commit/7f7f8a24f87bd7eb745675fa2644a5cca2f69372) - fix: handle stopped initial thread runtime starts ([@Kinfe123](https://github.com/Kinfe123))
+
+- Updated dependencies [[`78943a3`](https://github.com/assistant-ui/assistant-ui/commit/78943a37b1006bfbee42596f838850cd96ab4566)]:
+  - assistant-stream@0.3.33
+
 ## 0.3.4
 
 ### Patch Changes

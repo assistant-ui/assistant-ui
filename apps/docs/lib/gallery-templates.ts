@@ -361,11 +361,10 @@ const flightTracker: GalleryTemplate = {
   slug: "flight-tracker",
   title: "Flight tracker",
   description:
-    "A gradient flight card with a Box progress bar showing how far along the route the flight is.",
+    "A flight card with a live route progress bar between origin and destination.",
   category: "Travel",
   tree: {
     $type: "Card",
-    background: "linear-gradient(135deg, #1d4ed8, #3b82f6)",
     children: [
       {
         $type: "Row",
@@ -393,7 +392,7 @@ const flightTracker: GalleryTemplate = {
             $type: "Text",
             $key: "arrow",
             value: "",
-            color: "white-70",
+            color: "secondary",
             children: { $type: "Icon", name: "plane", size: "md" },
           },
           {
@@ -411,13 +410,13 @@ const flightTracker: GalleryTemplate = {
         width: "100%",
         height: 6,
         radius: "full",
-        background: "rgba(255, 255, 255, 0.25)",
+        background: "color-mix(in oklab, var(--foreground) 8%, transparent)",
         children: {
           $type: "Box",
           width: "62%",
           height: 6,
           radius: "full",
-          background: "white",
+          background: "var(--aui-live, #3b82f6)",
         },
       },
       {
@@ -494,7 +493,8 @@ const createEvent: GalleryTemplate = {
                 width: 3,
                 height: 32,
                 radius: "full",
-                background: "var(--chart-1)",
+                background:
+                  "color-mix(in oklab, var(--foreground) 80%, transparent)",
               },
               {
                 $type: "Col",
@@ -526,7 +526,8 @@ const createEvent: GalleryTemplate = {
                 width: 3,
                 height: 32,
                 radius: "full",
-                background: "var(--chart-2)",
+                background:
+                  "color-mix(in oklab, var(--foreground) 45%, transparent)",
               },
               {
                 $type: "Col",
@@ -567,7 +568,8 @@ const createEvent: GalleryTemplate = {
                 width: 3,
                 height: 32,
                 radius: "full",
-                background: "var(--chart-4)",
+                background:
+                  "color-mix(in oklab, var(--foreground) 25%, transparent)",
               },
               {
                 $type: "Col",
@@ -1460,11 +1462,10 @@ const weatherCurrent: GalleryTemplate = {
   slug: "weather-current",
   title: "Current weather",
   description:
-    "A warm-gradient weather card with a large temperature reading and conditions.",
+    "A glanceable weather card with a large temperature reading and conditions.",
   category: "Data",
   tree: {
     $type: "Card",
-    background: "linear-gradient(135deg, #f97316, #facc15)",
     children: [
       {
         $type: "Row",
@@ -1476,7 +1477,7 @@ const weatherCurrent: GalleryTemplate = {
             $type: "Text",
             $key: "city",
             value: "Austin, TX",
-            color: "white-70",
+            color: "secondary",
           },
           { $type: "Icon", $key: "icon", name: "sun", size: "lg" },
         ],
@@ -1492,7 +1493,7 @@ const weatherCurrent: GalleryTemplate = {
         $type: "Text",
         $key: "description",
         value: "Sunny, feels like 98°F",
-        color: "white-70",
+        color: "secondary",
       },
     ],
   },
