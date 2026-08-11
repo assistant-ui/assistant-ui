@@ -1149,7 +1149,7 @@ describe("toSlackBlocks", () => {
         },
       ]);
       expect(warnings).toContainEqual({
-        code: "clamped",
+        code: "fallback",
         component: "Card",
         detail: "A card inside a carousel was degraded to title and body.",
       });

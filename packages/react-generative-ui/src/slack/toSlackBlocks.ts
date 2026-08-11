@@ -600,7 +600,7 @@ const degradeCard = (
   const bodyText = bodyChunks.join("\n").slice(0, CARD_BODY_CAP);
   warn(
     context,
-    "clamped",
+    "fallback",
     "Card",
     "A card inside a carousel was degraded to title and body.",
   );
