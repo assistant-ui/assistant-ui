@@ -68,6 +68,7 @@ type OAuthPersistenceState = {
   cached: OAuthCache | null;
   cachePromise: Promise<OAuthCache> | null;
   persistenceQueue: Promise<void>;
+  invalidated: boolean;
 };
 
 const persistenceStates = new WeakMap<
@@ -91,6 +92,7 @@ const getPersistenceState = (
       cached: null,
       cachePromise: null,
       persistenceQueue: Promise.resolve(),
+      invalidated: false,
     };
     storageStates.set(serverId, state);
   }
@@ -108,6 +110,8 @@ export const clearOAuthProviderAuthState = async (
     return;
   }
 
+  state.invalidated = true;
+  await state.cachePromise?.catch(() => {});
   const task = state.persistenceQueue.then(() =>
     storage.clearAuthState(serverId),
   );
@@ -179,6 +183,7 @@ export function createOAuthProvider(
 
   const persist = () => {
     const task = persistenceState.persistenceQueue.then(async () => {
+      if (persistenceState.invalidated) return;
       const c = persistenceState.cached;
       if (!c) return;
       const next: Parameters<typeof storage.saveAuthState>[1] = {};

@@ -197,4 +197,27 @@ describe("createOAuthProvider persistence", () => {
     const replacementProvider = createProvider(storage);
     await expect(replacementProvider.tokens()).resolves.toBeUndefined();
   });
+
+  it("prevents a save awaiting hydration from writing after clear", async () => {
+    const { storage, getState } = createStorage();
+    let resolveLoad!: (value: MCPPersistedAuthState | null) => void;
+    storage.loadAuthState = () =>
+      new Promise((resolve) => {
+        resolveLoad = resolve;
+      });
+    const saveAuthState = vi.spyOn(storage, "saveAuthState");
+    const provider = createProvider(storage);
+
+    const tokenSave = provider.saveTokens({
+      access_token: "access-token",
+      token_type: "bearer",
+    });
+    const clear = clearOAuthProviderAuthState(storage, "docs");
+
+    resolveLoad(null);
+    await Promise.all([tokenSave, clear]);
+
+    expect(saveAuthState).not.toHaveBeenCalled();
+    expect(getState()).toBeNull();
+  });
 });
