@@ -52,7 +52,7 @@ export class CloudMessagePersistence {
     const cloud = this.getCloud();
     const mapping = this.getThreadMapping(threadId);
     const existing = mapping.get(messageId);
-    if (existing !== undefined) {
+    if (existing instanceof Promise) {
       await existing;
       return;
     }
