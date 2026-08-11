@@ -1091,6 +1091,60 @@ describe("AdkEventAccumulator - user message handling", () => {
     });
   });
 
+  it("creates a tool message for a user-authored function response", () => {
+    const acc = new AdkEventAccumulator();
+    const msgs = acc.processEvent(
+      makeEvent({
+        author: "user",
+        content: {
+          role: "user",
+          parts: [
+            {
+              functionResponse: {
+                id: "tc-1",
+                name: "adk_request_confirmation",
+                response: { confirmed: true },
+              },
+            },
+          ],
+        },
+      }),
+    );
+    expect(msgs).toHaveLength(1);
+    expect(msgs[0]).toMatchObject({
+      type: "tool",
+      tool_call_id: "tc-1",
+      name: "adk_request_confirmation",
+      content: JSON.stringify({ confirmed: true }),
+      status: "success",
+    });
+  });
+
+  it("orders function responses from one user event before its text", () => {
+    const acc = new AdkEventAccumulator();
+    const msgs = acc.processEvent(
+      makeEvent({
+        author: "user",
+        content: {
+          role: "user",
+          parts: [
+            { text: "go ahead" },
+            {
+              functionResponse: {
+                id: "tc-1",
+                name: "adk_request_confirmation",
+                response: { confirmed: true },
+              },
+            },
+          ],
+        },
+      }),
+    );
+    expect(msgs).toHaveLength(2);
+    expect(msgs[0]).toMatchObject({ type: "tool", tool_call_id: "tc-1" });
+    expect(msgs[1]).toMatchObject({ type: "human", content: "go ahead" });
+  });
+
   it("creates separate human and AI messages for a user/agent turn", () => {
     const acc = new AdkEventAccumulator();
     acc.processEvent(
