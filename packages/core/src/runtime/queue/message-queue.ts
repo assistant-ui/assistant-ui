@@ -242,6 +242,13 @@ export const createMessageQueue = (
     });
   };
 
+  const notifyCancelled = () => {
+    if (running && cancelSettles === 0) {
+      paused = true;
+      cancelSettles = 1;
+    }
+  };
+
   const adapter: ExternalThreadQueueAdapter = {
     items: lanes.queue,
     steerItems: lanes.steer,
@@ -253,6 +260,7 @@ export const createMessageQueue = (
     __internal_setDispatchTransform: (transform) => {
       dispatchTransform = transform;
     },
+    __internal_notifyCancelled: notifyCancelled,
   };
 
   return {
@@ -274,12 +282,7 @@ export const createMessageQueue = (
       running = false;
       advance();
     },
-    notifyCancelled: () => {
-      if (running && cancelSettles === 0) {
-        paused = true;
-        cancelSettles = 1;
-      }
-    },
+    notifyCancelled,
     clear: () => {
       messages.clear();
       setLanes({ queue: EMPTY_QUEUE_ITEMS, steer: EMPTY_QUEUE_ITEMS });

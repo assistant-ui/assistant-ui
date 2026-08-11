@@ -619,6 +619,11 @@ export class ExternalStoreThreadRuntimeCore
     // cancel on it.
     void this._toolInvocations?.abort();
 
+    // Before the run is aborted, so the settle it produces keeps the pending
+    // items instead of dispatching the next one at the moment the user
+    // stopped.
+    this._store.queue?.__internal_notifyCancelled?.();
+
     this._store.onCancel();
 
     // Drop an empty optimistic head (placeholder or pre-stream message); a

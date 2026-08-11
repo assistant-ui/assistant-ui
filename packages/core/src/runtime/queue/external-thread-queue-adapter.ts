@@ -37,4 +37,11 @@ export type ExternalThreadQueueAdapter = {
   __internal_setDispatchTransform?:
     | ((transform: (message: AppendMessage) => AppendMessage) => void)
     | undefined;
+  /**
+   * Called by the owning runtime when the user cancels the run, before the run
+   * is aborted. Pauses the queue so the cancelled run's settle keeps the
+   * pending items instead of dispatching the next one; the next send re-arms
+   * draining. A hand-rolled adapter that omits it drains on cancel.
+   */
+  __internal_notifyCancelled?: (() => void) | undefined;
 };

@@ -1891,6 +1891,7 @@ type ExternalThreadQueueAdapter = {
   edit: (queueItemId: string, message: AppendMessage) => void;
   remove: (queueItemId: string) => void;
   __internal_setDispatchTransform?: ((transform: (message: AppendMessage) => AppendMessage) => void) | undefined;
+  __internal_notifyCancelled?: (() => void) | undefined;
 };
 
 declare const FRAME_MESSAGE_CHANNEL = "assistant-ui-frame";
