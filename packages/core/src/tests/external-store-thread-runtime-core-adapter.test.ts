@@ -237,6 +237,60 @@ describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
       expect(lastCall.map((m) => m.id)).toContain("server-msg");
     });
 
+    it("does not revert a store update that lands before the resync flushes", async () => {
+      const optimisticAssistant = {
+        ...createAssistantMessage("server-msg", "partial answer"),
+        status: { type: "running" as const },
+        metadata: {
+          unstable_state: null,
+          unstable_annotations: [],
+          unstable_data: [],
+          steps: [],
+          custom: {},
+          isOptimistic: true,
+        },
+      } as ThreadMessage;
+      const setMessages = vi.fn();
+      const adapter = createBaseAdapter({
+        messages: [createUserMessage("u1"), optimisticAssistant],
+        isRunning: true,
+        onCancel: vi.fn(),
+        setMessages,
+      });
+      const core = new ExternalStoreThreadRuntimeCore(contextProvider, adapter);
+
+      core.cancelRun();
+
+      // The store settles the cancelled turn and re-supplies it, in the same
+      // tick as the cancel — the normal shape for a server-driven store.
+      core.__internal_setAdapter(
+        createBaseAdapter({
+          messages: [
+            createUserMessage("u1"),
+            createAssistantMessage("server-msg", "partial answer — stopped"),
+          ],
+          isRunning: false,
+          onCancel: vi.fn(),
+          setMessages,
+        }),
+      );
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      // The deferred resync must not stamp the pre-cancel snapshot back over
+      // the settled turn.
+      const lastCall = setMessages.mock.lastCall?.[0] as
+        | ThreadMessage[]
+        | undefined;
+      if (lastCall) {
+        const settled = lastCall.find((m) => m.id === "server-msg");
+        expect(getThreadMessageText(settled!)).toBe("partial answer — stopped");
+      }
+      expect(getThreadMessageText(core.messages.at(-1)!)).toBe(
+        "partial answer — stopped",
+      );
+    });
+
     it("evicts an empty optimistic head on cancel", async () => {
       const optimisticAssistant = {
         ...createAssistantMessage("server-msg", ""),

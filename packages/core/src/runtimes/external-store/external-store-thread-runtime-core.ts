@@ -633,7 +633,7 @@ export class ExternalStoreThreadRuntimeCore
       this.repository.deleteMessage(head.id);
     }
 
-    let messages = this.repository.getMessages();
+    const messages = this.repository.getMessages();
     const previousMessage = messages[messages.length - 1];
     const trailingUserLeaf =
       this._store.setMessages !== undefined &&
@@ -656,14 +656,23 @@ export class ExternalStoreThreadRuntimeCore
       })
     ) {
       this.repository.deleteMessage(trailingUserLeaf.id);
-      messages = this.repository.getMessages();
     } else {
       this._notifySubscribers();
     }
 
     // resync messages (for reloading, to restore the previous branch)
+    //
+    // Read the repository at flush time rather than writing the snapshot
+    // captured above. The write lands a macrotask later, and the store can
+    // legitimately move in that gap — a server-driven store that settles the
+    // cancelled turn and re-supplies its content does so in the same tick as
+    // the cancel. Writing the captured array then stamps a pre-cancel snapshot
+    // over that newer state, and it comes back only on reload. The repository
+    // already reflects whatever arrived in the meantime, so re-reading resyncs
+    // the current truth while still committing a kept optimistic message when
+    // nothing else arrived.
     setTimeout(() => {
-      this.updateMessages(messages);
+      this.updateMessages(this.repository.getMessages());
     }, 0);
   }
 
