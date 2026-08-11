@@ -212,18 +212,22 @@ const assertEventScope = <TEvent extends AssistantEventName>(
   }
 };
 
-const createEventForwarder = (parent: AssistantClient): AssistantClient["on"] =>
-  function <TEvent extends AssistantEventName>(
+const createEventForwarder = (
+  parent: AssistantClient,
+): AssistantClient["on"] => {
+  const parentOn = parent.on;
+  const generatedParent = getOwnEventClientInternals(parent)?.on === parentOn;
+  return function <TEvent extends AssistantEventName>(
     this: AssistantClient,
     selector: AssistantEventSelector<TEvent>,
     callback: AssistantEventCallback<TEvent>,
   ) {
     assertEventReceiver(this);
     assertEventScope(this, selector);
-    // Preserve the receiver used when the derived-only branch borrowed the
-    // parent's method, while giving the wrapper its own committed-client hop.
-    return parent.on.call(this, selector as never, callback as never);
+    const parentReceiver = generatedParent ? this : parent;
+    return parentOn.call(parentReceiver, selector as never, callback as never);
   };
+};
 
 const useClientFields = ({
   notifications,
@@ -269,6 +273,21 @@ const useClientFields = ({
         const parentOn = parent.on;
         const generatedParent =
           getOwnEventClientInternals(parent)?.on === parentOn;
+        const currentHost = clientRef.current;
+        const boundScope =
+          scope === "*"
+            ? undefined
+            : getEventScopeBinding(this, scope as ClientNames);
+        // A root scope emits through this host's notification manager, so
+        // forwarding the same registration to generated ancestors is useless.
+        if (
+          boundScope?.source === "root" &&
+          currentHost &&
+          Object.prototype.hasOwnProperty.call(currentHost, scope) &&
+          currentHost[scope as ClientNames] === boundScope
+        ) {
+          return localUnsub;
+        }
         // A custom parent owns its selector contract. Generated chains keep
         // forwarding because the transport that emits the event may live at a
         // higher ancestor even when that ancestor lacks the subscriber scope.
@@ -280,18 +299,12 @@ const useClientFields = ({
           return localUnsub;
         }
 
-        let parentUnsub: () => void;
-        try {
-          const parentReceiver = generatedParent ? this : parent;
-          parentUnsub = parentOn.call(
-            parentReceiver,
-            selector as never,
-            callback as never,
-          );
-        } catch (error) {
-          localUnsub();
-          throw error;
-        }
+        const parentReceiver = generatedParent ? this : parent;
+        const parentUnsub = parentOn.call(
+          parentReceiver,
+          selector as never,
+          callback as never,
+        );
 
         return () => {
           localUnsub();

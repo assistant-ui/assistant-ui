@@ -207,6 +207,32 @@ describe("createAssistantClient", () => {
     emptyParentHandle.destroy();
   });
 
+  it("preserves a custom parent's receiver for derived-only forwarding", () => {
+    const source = createTestClient({ thread: ThreadClient() });
+    let receiver: AssistantClient | undefined;
+    const parentOn = vi.fn(function (this: AssistantClient) {
+      receiver = this;
+      return () => {};
+    });
+    const parent = {
+      subscribe: source.getClient().subscribe,
+      on: parentOn,
+      thread: source.getClient().thread,
+    } as unknown as AssistantClient;
+    const child = createTestClient({ message: messageDerived() }, { parent });
+
+    const unsubscribe = child
+      .getClient()
+      .on("message.pinged" as never, vi.fn());
+
+    expect(parentOn).toHaveBeenCalledOnce();
+    expect(receiver).toBe(parent);
+
+    unsubscribe();
+    child.destroy();
+    source.destroy();
+  });
+
   it("extends a parent handle and re-binds across the parent's structural changes", () => {
     const parent = createTestClient({ thread: ThreadClient() });
     const child = createTestClient(
