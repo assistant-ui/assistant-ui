@@ -50,6 +50,7 @@ import { ClientResource } from "./useClientResource";
 import { useShallowStable } from "./utils/useShallowStable";
 import { createClientAccessor, getClientId } from "./utils/client-accessor";
 import { getClientIndex } from "./utils/tap-client-stack-context";
+import { EVENT_CLIENT_INTERNALS } from "./utils/event-client-internals";
 
 const isDevelopment =
   typeof process !== "undefined" &&
@@ -109,14 +110,24 @@ type ClientFields = {
 };
 
 type EventClientRef = { current: AssistantClient | null };
+type EventClientInternals = {
+  ref: EventClientRef;
+  on: AssistantClient["on"];
+};
 
-// Every client generation points at the ref for its facade. This lets event
-// filtering follow structural rebinds after they commit.
-const eventClientRefs = new WeakMap<AssistantClient, EventClientRef>();
-const generatedEventHandlers = new WeakSet<AssistantClient["on"]>();
+// A stable, non-enumerable key keeps generated clients interoperable when
+// version skew loads multiple copies of @assistant-ui/store into one app.
+const getOwnEventClientInternals = (
+  client: AssistantClient,
+): EventClientInternals | undefined =>
+  Object.prototype.hasOwnProperty.call(client, EVENT_CLIENT_INTERNALS)
+    ? ((client as unknown as Record<string, unknown>)[
+        EVENT_CLIENT_INTERNALS
+      ] as EventClientInternals)
+    : undefined;
 
 const getCurrentEventClient = (client: AssistantClient): AssistantClient =>
-  eventClientRefs.get(client)?.current ?? client;
+  getOwnEventClientInternals(client)?.ref.current ?? client;
 
 const getEventScopeOwner = (
   client: AssistantClient,
@@ -136,19 +147,27 @@ const getEventScopeBinding = (
   subscriber: AssistantClient,
   scope: ClientNames,
 ): AssistantClientAccessor<ClientNames> | undefined => {
-  const currentSubscriber = getCurrentEventClient(subscriber);
-  const owner = getEventScopeOwner(currentSubscriber, scope);
-  if (!owner) return undefined;
-  const ownerRef = eventClientRefs.get(owner);
-  const currentOwner = ownerRef?.current ?? owner;
-  return Object.prototype.hasOwnProperty.call(currentOwner, scope)
-    ? (currentOwner[scope] as AssistantClientAccessor<ClientNames>)
-    : undefined;
+  let client = getCurrentEventClient(subscriber);
+  while (true) {
+    const owner = getEventScopeOwner(client, scope);
+    if (!owner) return undefined;
+
+    const currentOwner = getCurrentEventClient(owner);
+    if (currentOwner === owner) {
+      return owner[scope] as AssistantClientAccessor<ClientNames>;
+    }
+
+    // The retained owner belongs to an older generation. Start ownership
+    // lookup again from its current generation: it may now inherit the scope
+    // from an ancestor after removing its own binding.
+    client = currentOwner;
+  }
 };
 
 const createClientObject = (
   parent: AssistantClient,
   fields: ClientFields,
+  eventClientRef: EventClientRef,
 ): AssistantClient => {
   // Swap the sentinel parent for a root prototype to change the error message
   const proto =
@@ -156,8 +175,63 @@ const createClientObject = (
 
   const client = Object.create(proto) as AssistantClient;
   Object.assign(client, fields);
+  Object.defineProperty(client, EVENT_CLIENT_INTERNALS, {
+    value: {
+      ref: eventClientRef,
+      on: fields.on,
+    } satisfies EventClientInternals,
+  });
   return client;
 };
+
+const callParentEventHandler = <TEvent extends AssistantEventName>(
+  parent: AssistantClient,
+  subscriber: AssistantClient,
+  selector: AssistantEventSelector<TEvent>,
+  callback: AssistantEventCallback<TEvent>,
+) => {
+  const parentInternals = getOwnEventClientInternals(parent);
+  const parentOn = parent.on;
+  const receiver = parentInternals?.on === parentOn ? subscriber : parent;
+  return parentOn.call(receiver, selector as never, callback as never);
+};
+
+function assertEventReceiver(
+  receiver: AssistantClient | undefined,
+): asserts receiver is AssistantClient {
+  if (!receiver) {
+    throw new Error(
+      "const { on } = useAui() is not supported. Use aui.on() instead.",
+    );
+  }
+}
+
+const assertGeneratedEventScope = <TEvent extends AssistantEventName>(
+  receiver: AssistantClient,
+  parent: AssistantClient,
+  selector: AssistantEventSelector<TEvent>,
+) => {
+  // A hand-built parent owns its selector contract and may route scopes
+  // without exposing accessors. Generated chains validate at their root.
+  if (parent !== DefaultAssistantClient) return;
+  const { scope, event } = normalizeEventSelector(selector);
+  if (scope !== "*" && !getEventScopeBinding(receiver, scope as ClientNames)) {
+    throw new Error(
+      `Scope "${scope}" is not available. Use { scope: "*", event: "${event}" } to listen globally.`,
+    );
+  }
+};
+
+const createEventForwarder = (parent: AssistantClient): AssistantClient["on"] =>
+  function <TEvent extends AssistantEventName>(
+    this: AssistantClient,
+    selector: AssistantEventSelector<TEvent>,
+    callback: AssistantEventCallback<TEvent>,
+  ) {
+    assertEventReceiver(this);
+    assertGeneratedEventScope(this, parent, selector);
+    return callParentEventHandler(parent, this, selector, callback);
+  };
 
 const useClientFields = ({
   notifications,
@@ -174,32 +248,9 @@ const useClientFields = ({
         selector: AssistantEventSelector<TEvent>,
         callback: AssistantEventCallback<TEvent>,
       ) {
-        if (!this) {
-          throw new Error(
-            "const { on } = useAui() is not supported. Use aui.on() instead.",
-          );
-        }
-
+        assertEventReceiver(this);
+        assertGeneratedEventScope(this, clientRef.parent, selector);
         const { scope, event } = normalizeEventSelector(selector);
-        const initialBinding =
-          scope === "*"
-            ? undefined
-            : getEventScopeBinding(this, scope as ClientNames);
-
-        if (scope !== "*") {
-          // A hand-built parent may lack the scope entirely rather than expose
-          // the generated unavailable-scope accessor.
-          if (
-            initialBinding?.source === null ||
-            (initialBinding === undefined &&
-              (clientRef.parent === DefaultAssistantClient ||
-                Object.prototype.hasOwnProperty.call(Object.prototype, scope)))
-          ) {
-            throw new Error(
-              `Scope "${scope}" is not available. Use { scope: "*", event: "${event}" } to listen globally.`,
-            );
-          }
-        }
 
         const localUnsub = notifications.on(event, (payload, clientStack) => {
           if (scope === "*") {
@@ -213,7 +264,7 @@ const useClientFields = ({
           const boundScope = getEventScopeBinding(this, scope as ClientNames);
           // A scope removed by a structural change since subscription cannot
           // match; resolving its identity would throw
-          if (!boundScope || boundScope.source === null) return;
+          if (!boundScope) return;
           const scopeClient = getClientId(
             boundScope,
           ) as unknown as ClientMethods;
@@ -223,13 +274,18 @@ const useClientFields = ({
           }
         });
         const parent = clientRef.parent;
-        const parentOn = parent.on;
-        const receiver = generatedEventHandlers.has(parentOn) ? this : parent;
-        const parentUnsub = parentOn.call(
-          receiver,
-          selector as never,
-          callback as never,
-        );
+        let parentUnsub: () => void;
+        try {
+          parentUnsub = callParentEventHandler(
+            parent,
+            this,
+            selector,
+            callback,
+          );
+        } catch (error) {
+          localUnsub();
+          throw error;
+        }
 
         return () => {
           localUnsub();
@@ -237,7 +293,6 @@ const useClientFields = ({
         };
       },
     };
-    generatedEventHandlers.add(fields.on);
     return fields;
   }, [notifications, clientRef]);
 };
@@ -315,7 +370,7 @@ export const useAuiRoot = ({
   notifications: NotificationManager;
 }): { client: AssistantClient } => {
   const fields = useClientFields({ notifications, clientRef });
-  const building = createClientObject(parent, fields);
+  const building = createClientObject(parent, fields, clientRef);
 
   const accessors = useAssistantTapContextProvider(
     { clientRef, emit: notifications.emit },
@@ -330,7 +385,6 @@ export const useAuiRoot = ({
   );
 
   const client = useCommittedClient(building, [parent, ...accessors]);
-  eventClientRefs.set(client, clientRef);
 
   // Fresh envelope per commit so value-only updates reach the store's
   // subscribers; the client inside keeps its identity
@@ -347,7 +401,7 @@ const useHostedAssistantClient = ({
   entries: ScopeEntry[];
 }): ScopedAuiClient => {
   const clientRef = useRef<ClientRef>({ parent, current: null }).current;
-  let renderedClient: AssistantClient | undefined;
+  const renderedClientRef = useRef<AssistantClient | null>(null);
   const { value: client, effects } = useTapHost(function AssistantClientHost() {
     const notifications = useNotificationManager();
 
@@ -358,7 +412,7 @@ const useHostedAssistantClient = ({
         clientRef,
         notifications,
       });
-      renderedClient = result.client;
+      renderedClientRef.current = result.client;
       return result;
     });
 
@@ -396,10 +450,11 @@ const useHostedAssistantClient = ({
   // Keep this React hook outside the tap host: hooks inside a resource use
   // tap's effect lifecycle. `store` publishes through that lifecycle, so use
   // the client rendered in this React pass and publish it in React's commit
-  // phase. The closure prevents an interrupted pass from becoming visible.
+  // phase. Only this commit hook publishes the render-owned ref, so an
+  // interrupted pass cannot replace the active event binding.
   useInsertionEffect(() => {
     clientRef.parent = parent;
-    clientRef.current = renderedClient ?? client;
+    clientRef.current = renderedClientRef.current ?? client;
   });
 
   return { client, effects };
@@ -435,8 +490,8 @@ const useDerivedScopeMount = (
 
 // Derived-only hosts run without tap: each Derived scope is a plain React
 // hook call, so the scope count is fixed per call site (React throws on a
-// hook-count change). subscribe/on stay inherited from the parent, while the
-// registry below keeps scoped event filtering bound to this derived facade.
+// hook-count change). State notifications stay inherited from the parent,
+// while a child-owned event forwarder preserves this facade as the subscriber.
 const useDerivedOnlyClient = (
   parent: AssistantClient,
   entries: ScopeEntry[],
@@ -460,17 +515,21 @@ const useDerivedOnlyClient = (
     }
   }
 
-  const building = createClientObject(parent, {
-    subscribe: parent.subscribe,
-    on: parent.on,
-  });
+  const clientRef = useRef<EventClientRef>({ current: null }).current;
+  const fields = useMemo<ClientFields>(
+    () => ({
+      subscribe: parent.subscribe,
+      on: createEventForwarder(parent),
+    }),
+    [parent],
+  );
+  const building = createClientObject(parent, fields, clientRef);
 
   const accessors = entries.map(([name, element]) =>
     // oxlint-disable-next-line react-hooks/rules-of-hooks -- fixed per call site; React throws on a count change
     useDerivedScopeMount(parent, building, name, element),
   );
   const client = useCommittedClient(building, [parent, ...accessors]);
-  const clientRef = useRef<AssistantClient | null>(null);
 
   // Publish structural rebinds in the commit phase so notification microtasks
   // emitted by descendant layout effects resolve against the committed facade
@@ -482,7 +541,6 @@ const useDerivedOnlyClient = (
   if (clientRef.current === null) {
     clientRef.current = client;
   }
-  eventClientRefs.set(client, clientRef);
   return client;
 };
 

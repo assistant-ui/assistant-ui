@@ -1,3 +1,5 @@
+import { EVENT_CLIENT_INTERNALS } from "./event-client-internals";
+
 const INTROSPECTION_PROPS = new Set([
   "$$typeof",
   "nodeType",
@@ -10,6 +12,7 @@ const INTROSPECTION_PROPS = new Set([
   "__v_isReadonly",
   "__v_isShallow",
   "__v_skip",
+  EVENT_CLIENT_INTERNALS,
 ]);
 
 /**
