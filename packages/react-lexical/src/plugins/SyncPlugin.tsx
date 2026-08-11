@@ -221,7 +221,6 @@ function editorMatchesParsedText(
   return editor.getEditorState().read(() => {
     const root = $getRoot();
     const paragraphs = root.getChildren();
-    if (runtimeText.length === 0 && paragraphs.length === 0) return true;
     const lexicalLines: SegmentKey[][] = [];
     for (const paragraph of paragraphs) {
       if (!$isElementNode(paragraph)) return false;

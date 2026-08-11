@@ -461,6 +461,77 @@ describe("SyncPlugin", () => {
     ).toEqual(before);
   });
 
+  it("normalizes line breaks and selects the end on a required reparse", async () => {
+    const capture = (capturedEditor: LexicalEditor) => {
+      editor = capturedEditor;
+    };
+    const formatter = createBracketFormatter();
+    const render = (registered: boolean) =>
+      root.render(
+        <TriggerSyncEditor
+          formatter={registered ? formatter : undefined}
+          capture={capture}
+        />,
+      );
+
+    mocks.aui = createAui("[[alice]]\nrest");
+    await act(async () => {
+      render(false);
+    });
+    await act(async () => {
+      editor.update(
+        () => {
+          const paragraph = $createParagraphNode();
+          const firstText = $createTextNode("[[alice]]");
+          paragraph.append(
+            firstText,
+            $createLineBreakNode(),
+            $createTextNode("rest"),
+          );
+          const lexicalRoot = $getRoot();
+          lexicalRoot.clear();
+          lexicalRoot.append(paragraph);
+          firstText.select(2, 2);
+        },
+        { tag: "aui-sync" },
+      );
+    });
+
+    await act(async () => {
+      render(true);
+    });
+    expect(
+      editor.getEditorState().read(() => {
+        const lexicalRoot = $getRoot();
+        const directive = $getParagraph().getFirstChild();
+        const trailingText = $getParagraph(1).getFirstChild();
+        const selection = $getSelection();
+        if (
+          !$isDirectiveNode(directive) ||
+          !$isTextNode(trailingText) ||
+          !$isRangeSelection(selection)
+        ) {
+          throw new Error("Expected normalized content and a text selection");
+        }
+        return {
+          paragraphCount: lexicalRoot.getChildren().length,
+          directiveText: directive.getDirectiveText(),
+          trailingText: trailingText.getTextContent(),
+          selectionAtEnd:
+            selection.anchor.key === trailingText.getKey() &&
+            selection.focus.key === trailingText.getKey() &&
+            selection.anchor.offset === trailingText.getTextContentSize() &&
+            selection.focus.offset === trailingText.getTextContentSize(),
+        };
+      }),
+    ).toEqual({
+      paragraphCount: 2,
+      directiveText: "[[alice]]",
+      trailingText: "rest",
+      selectionAtEnd: true,
+    });
+  });
+
   it("preserves duplicate metadata when formatter syntax changes", async () => {
     const initialConfig = {
       namespace: "sync-plugin-formatter-metadata-test",
