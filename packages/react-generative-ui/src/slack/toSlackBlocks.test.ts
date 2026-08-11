@@ -1935,12 +1935,14 @@ describe("toSlackBlocks", () => {
         }
         return node;
       };
-      const dropped = (levels: number) =>
-        toSlackBlocks(chain(levels)).warnings.some((warning) =>
+      const dropped = (node: unknown) =>
+        toSlackBlocks(node).warnings.some((warning) =>
           warning.detail.includes("deeper than"),
         );
-      expect(dropped(32)).toBe(false);
-      expect(dropped(33)).toBe(true);
+      expect(dropped(chain(32))).toBe(false);
+      expect(dropped(chain(33))).toBe(true);
+      expect(dropped([chain(31)])).toBe(false);
+      expect(dropped([chain(32)])).toBe(true);
     });
   });
 });
