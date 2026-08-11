@@ -12,8 +12,8 @@ import {
   utf8ByteLength,
 } from "./constants";
 import {
-  convertElement,
   convertRootToCard,
+  discardedChild,
   type ConversionContext,
 } from "./toAdaptiveCard";
 import type {
@@ -47,10 +47,9 @@ const clampArray = <T>(
 
 /**
  * Recognizes a root that is a single `Carousel` element, returning its `Card`
- * children. Every child is routed through {@link convertElement} first (its
- * result is discarded) so an unknown or unsupported child still produces its
- * usual "dropped" warning instead of being filtered out silently; non-card
- * children are then dropped. `undefined` means the root is not exclusively a
+ * children. A non-card child is routed through {@link discardedChild}, which
+ * reports it and forwards whatever it lost, rather than being filtered out
+ * silently. `undefined` means the root is not exclusively a
  * root-level carousel, so the caller falls back to converting the whole tree
  * as one card.
  */
@@ -61,13 +60,20 @@ function rootCarouselCards(
   const element = Array.isArray(root) && root.length === 1 ? root[0] : root;
   if (!isElement(element) || element.type !== "Carousel") return undefined;
   const cards: NormalizedUIElement[] = [];
+  let discarded = 0;
   for (const child of normalizedList(element.children)) {
-    if (!isElement(child)) continue;
-    if (child.type === "Card") {
+    if (isElement(child) && child.type === "Card") {
       cards.push(child);
-    } else {
-      convertElement(child, context, 1);
+      continue;
     }
+    if (discardedChild(child, context, 1)) discarded += 1;
+  }
+  if (discarded > 0) {
+    context.warnings.push({
+      code: "dropped",
+      component: "Carousel",
+      detail: `${discarded} non-card ${discarded === 1 ? "child was" : "children were"} dropped.`,
+    });
   }
   return cards;
 }

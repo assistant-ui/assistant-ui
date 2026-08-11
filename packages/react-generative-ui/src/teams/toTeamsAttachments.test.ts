@@ -34,3 +34,41 @@ describe("toTeamsAttachments payload budget", () => {
     );
   });
 });
+
+describe("toTeamsAttachments root carousel children", () => {
+  it("reports a renderable non-card child instead of dropping it silently", () => {
+    const { attachments, warnings } = toTeamsAttachments({
+      $type: "Carousel",
+      children: [
+        { $type: "Text", value: "lost" },
+        { $type: "Card", title: "kept" },
+      ],
+    });
+    expect(attachments).toHaveLength(1);
+    expect(warnings).toContainEqual({
+      code: "dropped",
+      component: "Carousel",
+      detail: "1 non-card child was dropped.",
+    });
+  });
+
+  it("forwards a discarded child's own dropped warning", () => {
+    const { warnings } = toTeamsAttachments({
+      $type: "Carousel",
+      children: [{ $type: "Mystery" }, { $type: "Card", title: "kept" }],
+    });
+    expect(warnings).toContainEqual({
+      code: "dropped",
+      component: "Mystery",
+      detail: "Unknown component type was dropped.",
+    });
+  });
+
+  it("stays silent for a child that renders nothing anyway", () => {
+    const { warnings } = toTeamsAttachments({
+      $type: "Carousel",
+      children: [{ $type: "Spacer" }, { $type: "Card", title: "kept" }],
+    });
+    expect(warnings).toEqual([]);
+  });
+});

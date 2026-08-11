@@ -365,7 +365,7 @@ function convertListViewItem(
  * are forwarded, because those describe the tree the caller wrote, while a
  * clamp or a rename would describe content never delivered.
  */
-const discardedChild = (
+export const discardedChild = (
   child: NormalizedUINode,
   context: ConversionContext,
   depth: number,
