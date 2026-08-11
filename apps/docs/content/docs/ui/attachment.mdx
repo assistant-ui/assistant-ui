@@ -59,6 +59,8 @@ const Composer: FC = () => {
 };
 ```
 
+`ComposerAttachments` uses `--composer-radius` and `--composer-padding` when they are provided by an ancestor. When used without those custom properties, the tile radius falls back to `1.5rem` and `8px`.
+
 ```tsx title="/components/assistant-ui/thread.tsx" {1,8}
 import { UserMessageAttachments } from "@/components/assistant-ui/attachment";
 
