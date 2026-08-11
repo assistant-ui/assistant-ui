@@ -24,6 +24,8 @@ AuiConfig({ mcp: McpManagerResource({ connectors }) })
 
 The manager is a single resource. Mount it with `AuiProvider` like any other scope. OAuth (PKCE + RFC 7591 dynamic client registration), bearer, and "no auth" are first-class. Token refresh runs inside the MCP SDK on 401; this package mediates persistence and the redirect step.
 
+The MCP `2026-07-28` revision deprecates dynamic client registration in favor of client ID metadata documents (CIMD). DCR remains supported for backward compatibility, so the flow described here keeps working against authorization servers that accept it.
+
 ## Setup
 
 <Steps>

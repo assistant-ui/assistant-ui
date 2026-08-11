@@ -46,7 +46,7 @@ MCP_SERVER_URL=https://your-mcp-server.example/mcp
 MCP_TOKEN=...
 ```
 
-Then inside your AI SDK route handler, create the client with the transport that matches your server. **HTTP** is the production transport; **SSE** is the legacy streaming transport; **stdio** spawns a local process and is dev-only.
+Then inside your AI SDK route handler, create the client with the transport that matches your server. **HTTP** is the production transport; **SSE** is deprecated as of the MCP `2026-07-28` revision and keeps working for at least twelve months under the spec's deprecation policy; **stdio** spawns a local process and is dev-only.
 
 ```ts title="app/api/chat/route.ts"
 import { createMCPClient } from "@ai-sdk/mcp";
@@ -448,7 +448,7 @@ Start the app and trigger a tool call (e.g., ask the assistant to do something t
 - **Server-side only.** The MCP client uses Node APIs (sockets, optionally child processes). Never instantiate it in client code.
 - **Per-request lifecycle.** A fresh client per request keeps connection state simple. For high-throughput servers, pool clients yourself with care: the AI SDK's `tools()` call assumes the connection is alive when `streamText` runs.
 - **Sampling.** If your MCP server uses `sampling/createMessage` (lets the server ask the LLM mid-call), assistant-cloud users can instrument it via [`instrumentMcpSampling`](/docs/cloud) for observability. This is independent of the wiring above.
-- **Transport choice.** HTTP for any networked server. SSE only if the server doesn't speak HTTP. stdio is for local development against an MCP server in your monorepo.
+- **Transport choice.** HTTP for any networked server. SSE only if the server doesn't speak HTTP; it is deprecated as of the MCP `2026-07-28` revision, which guarantees a migration window of at least twelve months, so new servers should expose HTTP. stdio is for local development against an MCP server in your monorepo.
 
 ## Related
 
