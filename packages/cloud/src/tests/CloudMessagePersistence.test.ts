@@ -108,6 +108,41 @@ describe("CloudMessagePersistence", () => {
     });
   });
 
+  it("deduplicates concurrent child appends while the parent is pending", async () => {
+    let resolveParent!: (value: { message_id: string }) => void;
+    vi.mocked(cloud.threads.messages.create)
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveParent = resolve;
+          }),
+      )
+      .mockResolvedValue({ message_id: "remote-child" });
+
+    const parent = persistence.append("thread-1", "parent", null, "aui/v0", {
+      text: "parent",
+    });
+    const firstChild = persistence.append(
+      "thread-1",
+      "child",
+      "parent",
+      "aui/v0",
+      { text: "child" },
+    );
+    const secondChild = persistence.append(
+      "thread-1",
+      "child",
+      "parent",
+      "aui/v0",
+      { text: "child" },
+    );
+
+    resolveParent({ message_id: "remote-parent" });
+    await Promise.all([parent, firstChild, secondChild]);
+
+    expect(cloud.threads.messages.create).toHaveBeenCalledTimes(2);
+  });
+
   it("loaded messages are marked as persisted and not re-created", async () => {
     vi.mocked(cloud.threads.messages.list).mockResolvedValue({
       messages: [
