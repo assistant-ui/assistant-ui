@@ -18,7 +18,7 @@ import { SampleRuntimeProvider } from "../sample-runtime-provider";
 
 export function ComposerWithAttachments() {
   return (
-    <ComposerPrimitive.Root className="border-border bg-muted flex w-full max-w-lg flex-col gap-2 rounded-3xl border p-3">
+    <ComposerPrimitive.Root className="border-border bg-muted flex w-full max-w-lg flex-col gap-2 rounded-(--composer-radius) border p-(--composer-padding)">
       <ComposerAttachments />
       <ComposerPrimitive.Input
         aria-label="Message input"
