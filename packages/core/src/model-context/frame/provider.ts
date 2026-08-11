@@ -32,12 +32,9 @@ const serializeModelContext = (
 export class AssistantFrameProvider {
   private static _instance: AssistantFrameProvider | null = null;
 
-  private _providers = new Set<ModelContextProvider>();
-  private _providerOrigins = new Map<ModelContextProvider, string>();
-  private _providerUnsubscribes = new Map<
-    ModelContextProvider,
-    Unsubscribe | undefined
-  >();
+  private _providers = new Map<symbol, ModelContextProvider>();
+  private _providerOrigins = new Map<symbol, string>();
+  private _providerUnsubscribes = new Map<symbol, Unsubscribe | undefined>();
   private _targetOrigin: string;
 
   private constructor(targetOrigin: string = "*") {
@@ -138,7 +135,7 @@ export class AssistantFrameProvider {
   }
 
   private getModelContext(): ModelContext {
-    const contexts = Array.from(this._providers).map((p) =>
+    const contexts = Array.from(this._providers.values()).map((p) =>
       p.getModelContext(),
     );
 
@@ -180,21 +177,22 @@ export class AssistantFrameProvider {
     targetOrigin?: string,
   ): Unsubscribe {
     const instance = AssistantFrameProvider.getInstance(targetOrigin);
-    instance._providers.add(provider);
-    instance._providerOrigins.set(provider, targetOrigin ?? "*");
+    const id = Symbol();
+    instance._providers.set(id, provider);
+    instance._providerOrigins.set(id, targetOrigin ?? "*");
 
     const unsubscribe = provider.subscribe?.(() => instance.broadcastUpdate());
     if (unsubscribe) {
-      instance._providerUnsubscribes.set(provider, unsubscribe);
+      instance._providerUnsubscribes.set(id, unsubscribe);
     }
 
     instance.broadcastUpdate();
 
     return () => {
-      instance._providers.delete(provider);
-      instance._providerOrigins.delete(provider);
-      instance._providerUnsubscribes.get(provider)?.();
-      instance._providerUnsubscribes.delete(provider);
+      instance._providers.delete(id);
+      instance._providerOrigins.delete(id);
+      instance._providerUnsubscribes.get(id)?.();
+      instance._providerUnsubscribes.delete(id);
 
       if (instance._providers.size === 0) {
         instance.broadcastUpdate();

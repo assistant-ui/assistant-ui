@@ -222,4 +222,36 @@ describe("AssistantFrameProvider", () => {
     dispatchToolCall("https://parent.example");
     await vi.waitFor(() => expect(execute).toHaveBeenCalledOnce());
   });
+
+  it("tracks origin policies per registration when a provider is reused", async () => {
+    const sharedProvider = { getModelContext: () => ({}) };
+    AssistantFrameProvider.addModelContextProvider(
+      sharedProvider,
+      "https://parent.example",
+    );
+    const unsubscribeWildcard = AssistantFrameProvider.addModelContextProvider(
+      sharedProvider,
+      "*",
+    );
+
+    const execute = vi.fn(async () => "result");
+    AssistantFrameProvider.addModelContextProvider(
+      {
+        getModelContext: () => ({
+          tools: {
+            sensitiveTool: { execute },
+          },
+        }),
+      },
+      "*",
+    );
+
+    unsubscribeWildcard();
+
+    dispatchToolCall("https://untrusted.example");
+    expect(execute).not.toHaveBeenCalled();
+
+    dispatchToolCall("https://parent.example");
+    await vi.waitFor(() => expect(execute).toHaveBeenCalledOnce());
+  });
 });
