@@ -38,12 +38,35 @@ const USER_STAGED_STATUS = {
   reason: "unknown",
 } as const;
 
-type TurnTimestampCache = {
-  lastEvents: readonly HandleMessageStreamEvent[];
-  timestamps: ReadonlyMap<string, Date>;
+// A turn carries both of its messages, so each role takes the earliest event
+// that belongs to it rather than the turn's first event: `message.received`
+// stamps the user message, and the first event after it stamps the assistant
+// message. Collapsing both onto the turn's start would render a reply that
+// arrived after minutes of tool calls at the time the question was asked.
+type TurnTimestamps = {
+  turn: Date;
+  user?: Date;
+  assistant?: Date;
 };
 
-const EMPTY_TURN_TIMESTAMPS: ReadonlyMap<string, Date> = new Map();
+type TurnTimestampCache = {
+  lastEvents: readonly HandleMessageStreamEvent[];
+  timestamps: ReadonlyMap<string, TurnTimestamps>;
+};
+
+const EMPTY_TURN_TIMESTAMPS: ReadonlyMap<string, TurnTimestamps> = new Map();
+
+// A turn whose event window no longer reaches its own role-specific events
+// still resolves through the turn's earliest event, and an assistant message
+// never resolves earlier than its user message.
+const resolveTurnTimestamp = (
+  stamps: TurnTimestamps | undefined,
+  role: string,
+): Date | undefined => {
+  if (stamps === undefined) return undefined;
+  if (role === "user") return stamps.user ?? stamps.turn;
+  return stamps.assistant ?? stamps.user ?? stamps.turn;
+};
 
 type AssignedCreatedAt = { at: Date; durable: boolean };
 
@@ -59,7 +82,7 @@ type AssignedCreatedAt = { at: Date; durable: boolean };
 const collectTurnTimestamps = (
   events: readonly HandleMessageStreamEvent[],
   cache: TurnTimestampCache,
-): ReadonlyMap<string, Date> => {
+): ReadonlyMap<string, TurnTimestamps> => {
   if (events === cache.lastEvents) return cache.timestamps;
 
   const scanned = cache.lastEvents;
@@ -68,7 +91,7 @@ const collectTurnTimestamps = (
     scanned.every((event, index) => event === events[index]);
 
   let timestamps = prefixIntact ? cache.timestamps : EMPTY_TURN_TIMESTAMPS;
-  let draft: Map<string, Date> | undefined;
+  let draft: Map<string, TurnTimestamps> | undefined;
   for (let i = prefixIntact ? scanned.length : 0; i < events.length; i++) {
     const event = events[i]!;
     const at = event.meta?.at;
@@ -76,11 +99,20 @@ const collectTurnTimestamps = (
     if (!("data" in event)) continue;
     if (!("turnId" in event.data) || typeof event.data.turnId !== "string")
       continue;
-    if (timestamps.has(event.data.turnId)) continue;
+    const turnId = event.data.turnId;
+    const known = timestamps.get(turnId);
+    const isReceived = event.type === "message.received";
+    const wantsUser = isReceived && known?.user === undefined;
+    const wantsAssistant =
+      !isReceived && known?.user !== undefined && known.assistant === undefined;
+    if (known !== undefined && !wantsUser && !wantsAssistant) continue;
     const date = new Date(at);
     if (Number.isNaN(date.getTime())) continue;
+    const next: TurnTimestamps = { ...(known ?? { turn: date }) };
+    if (wantsUser) next.user = date;
+    if (wantsAssistant) next.assistant = date;
     draft ??= new Map(timestamps);
-    draft.set(event.data.turnId, date);
+    draft.set(turnId, next);
     timestamps = draft;
   }
 
@@ -284,7 +316,9 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
     const durableByIndex = eveMessages.map((message) => {
       const turnId = message.metadata?.turnId;
       const derived =
-        turnId !== undefined ? turnTimestamps.get(turnId) : undefined;
+        turnId !== undefined
+          ? resolveTurnTimestamp(turnTimestamps.get(turnId), message.role)
+          : undefined;
       if (derived !== undefined) {
         createdAtByMessageId.set(message.id, { at: derived, durable: true });
         return derived;

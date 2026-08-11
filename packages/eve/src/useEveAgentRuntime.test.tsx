@@ -797,10 +797,59 @@ describe("useEveAgentRuntime createdAt derivation", () => {
 
     const messages = result.current.thread.getState().messages;
     expect(messages[0]?.createdAt).toEqual(
-      new Date("2026-01-02T03:04:05.000Z"),
+      new Date("2026-01-02T03:04:06.000Z"),
+    );
+    // No event of the turn follows the user's send, so the assistant message
+    // has no evidence of its own and resolves no earlier than the user's.
+    expect(messages[1]?.createdAt).toEqual(
+      new Date("2026-01-02T03:04:06.000Z"),
+    );
+  });
+
+  it("stamps the assistant message at its own first event, not the user's send", () => {
+    mockUseEveAgent.mockReturnValue(
+      createAgent({
+        data: resumedData,
+        events: [
+          {
+            type: "turn.started",
+            data: { sequence: 0, turnId: "turn-1" },
+            meta: { at: "2026-01-02T03:00:00.000Z" },
+          },
+          {
+            type: "message.received",
+            data: { message: "hi", sequence: 1, turnId: "turn-1" },
+            meta: { at: "2026-01-02T03:00:01.000Z" },
+          },
+          // Two minutes of tool calls before the model produces the reply.
+          {
+            type: "step.started",
+            data: { sequence: 2, stepIndex: 0, turnId: "turn-1" },
+            meta: { at: "2026-01-02T03:02:00.000Z" },
+          },
+          {
+            type: "message.completed",
+            data: {
+              finishReason: "stop",
+              message: "hello",
+              sequence: 3,
+              stepIndex: 0,
+              turnId: "turn-1",
+            },
+            meta: { at: "2026-01-02T03:02:05.000Z" },
+          },
+        ],
+      }) as never,
+    );
+
+    const { result } = renderHook(() => useEveAgentRuntime());
+
+    const messages = result.current.thread.getState().messages;
+    expect(messages[0]?.createdAt).toEqual(
+      new Date("2026-01-02T03:00:01.000Z"),
     );
     expect(messages[1]?.createdAt).toEqual(
-      new Date("2026-01-02T03:04:05.000Z"),
+      new Date("2026-01-02T03:02:00.000Z"),
     );
   });
 
