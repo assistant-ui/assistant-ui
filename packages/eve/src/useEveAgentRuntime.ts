@@ -41,6 +41,13 @@ const sendCancelledError = new Error(
   "eve send was dropped because the run was cancelled.",
 );
 
+const sendAbandonedError = new Error(
+  "eve send was dropped because the runtime unmounted.",
+);
+
+const isDroppedSend = (error: unknown) =>
+  error === sendCancelledError || error === sendAbandonedError;
+
 type EveLifecycleCallbackName =
   | "onError"
   | "onEvent"
@@ -216,11 +223,13 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
   // status.
   const sendChainRef = useRef<Promise<void>>(Promise.resolve());
   const sendEpochRef = useRef(0);
+  const isMountedRef = useRef(true);
 
   const enqueueSend = (payload: Parameters<typeof agent.send>[0]) => {
     const epoch = sendEpochRef.current;
     const next = sendChainRef.current.then(() => {
-      if (epoch !== sendEpochRef.current) throw sendCancelledError;
+      if (epoch !== sendEpochRef.current)
+        throw isMountedRef.current ? sendCancelledError : sendAbandonedError;
       return agent.send(payload);
     });
     sendChainRef.current = next.catch(() => {});
@@ -228,9 +237,13 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
   };
 
   // The store outlives the component (useEveAgent holds it in a ref with no
-  // cleanup), so queued sends must not fire server turns after unmount.
+  // cleanup), so queued sends must not fire server turns after unmount. The
+  // flag separates that teardown from a user cancel, and is re-armed in setup
+  // for a remounted tree.
   useEffect(() => {
+    isMountedRef.current = true;
     return () => {
+      isMountedRef.current = false;
       sendEpochRef.current += 1;
     };
   }, []);
@@ -300,11 +313,10 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
           ...toEveClientContext(message.runConfig),
         });
       } catch (error) {
-        if (error !== sendCancelledError) throw error;
-        // The sentinel is only thrown before the payload reaches the agent, and
-        // the composer cleared its draft at dispatch time, so staging is the
-        // only place the authored message still exists.
-        stageUserMessage(message);
+        if (!isDroppedSend(error)) throw error;
+        // A dropped send never reached the agent, so staging cannot duplicate
+        // a message the session already has.
+        if (error === sendCancelledError) stageUserMessage(message);
       }
     },
     ...(stagedMessages
@@ -341,7 +353,7 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
                 stagedInputsRef.current.set(stagedMessage.id, input);
                 messagesRef.current = previousMessages;
                 setStagedMessages(previousMessages);
-                if (error === sendCancelledError) return;
+                if (isDroppedSend(error)) return;
                 throw error;
               }
               if (lastFinishStatusRef.current === "error") return;
@@ -358,7 +370,7 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
       try {
         await enqueueSend({ inputResponses: [toEveInputResponse(response)] });
       } catch (error) {
-        if (error !== sendCancelledError) throw error;
+        if (!isDroppedSend(error)) throw error;
       }
     },
   });

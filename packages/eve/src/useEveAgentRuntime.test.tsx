@@ -918,6 +918,70 @@ describe("useEveAgentRuntime concurrent sends", () => {
     });
   });
 
+  it("keeps a restaged send visible after the cancelled turn updates the session", async () => {
+    let resolveFirstSend!: () => void;
+    const send = vi
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise<void>((resolve) => {
+            resolveFirstSend = resolve;
+          }),
+      )
+      .mockResolvedValue(undefined);
+    const agent = createAgent({ data: settledData, send });
+    mockUseEveAgent.mockReturnValue(agent as never);
+    const { result, rerender } = renderHook(() => useEveAgentRuntime());
+
+    await act(async () => {
+      result.current.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "first" }],
+      });
+    });
+    await waitFor(() => expect(send).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      result.current.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "queued" }],
+      });
+    });
+    act(() => {
+      result.current.thread.cancelRun();
+    });
+    await act(async () => {
+      resolveFirstSend();
+    });
+    await waitFor(() => expect(getText(result.current)).toHaveLength(3));
+
+    mockUseEveAgent.mockReturnValue(
+      createAgent({
+        data: {
+          messages: [
+            ...settledData.messages,
+            {
+              id: "u2",
+              role: "user",
+              parts: [{ type: "text", text: "first" }],
+            },
+          ],
+        },
+        send,
+      }) as never,
+    );
+    rerender();
+
+    await waitFor(() => {
+      expect(getText(result.current)).toEqual([
+        "earlier",
+        "earlier answer",
+        "first",
+        "queued",
+      ]);
+    });
+  });
+
   it("promotes a restaged send on reload without duplicating the dispatched one", async () => {
     let resolveFirstSend!: () => void;
     const send = vi
