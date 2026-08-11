@@ -290,23 +290,46 @@ export abstract class BaseComposerRuntimeCore
       metadata: { custom: { ...(quote ? { quote } : {}) } },
     };
 
-    const sendTask = this.handleSend(message, options);
+    const draft = { text, quote, attachments: finalAttachments };
+    let sendTask: void | Promise<void>;
+    try {
+      sendTask = this.handleSend(message, options);
+    } catch (error) {
+      this._restoreUnsentDraft(error, generation, draft);
+      throw error;
+    }
     if (sendTask)
       void sendTask.catch((error) => {
-        if (!isMessageNotSentError(error)) return;
-        if (generation !== this._sendGeneration) return;
-        if (
-          this._text.trim() ||
-          this._quote !== undefined ||
-          this._attachments.length > 0
-        )
-          return;
-        this._text = text;
-        this._quote = quote;
-        this._attachments = finalAttachments;
-        this._notifySubscribers();
+        this._restoreUnsentDraft(error, generation, draft);
       });
     this._notifyEventSubscribers("send", {});
+  }
+
+  // A send the runtime never dispatched leaves its draft nowhere else, so the
+  // composer takes it back. The generation check is what a reset and a later
+  // send use to invalidate it, so of several queued drafts only the most
+  // recent one is still restorable.
+  private _restoreUnsentDraft(
+    error: unknown,
+    generation: number,
+    draft: {
+      text: string;
+      quote: QuoteInfo | undefined;
+      attachments: readonly CompleteAttachment[];
+    },
+  ) {
+    if (!isMessageNotSentError(error)) return;
+    if (generation !== this._sendGeneration) return;
+    if (
+      this._text.trim() ||
+      this._quote !== undefined ||
+      this._attachments.length > 0
+    )
+      return;
+    this._text = draft.text;
+    this._quote = draft.quote;
+    this._attachments = draft.attachments;
+    this._notifySubscribers();
   }
 
   public cancel() {
