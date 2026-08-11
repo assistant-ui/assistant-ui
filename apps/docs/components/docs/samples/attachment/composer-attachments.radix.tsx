@@ -18,7 +18,7 @@ import { SampleRuntimeProvider } from "../sample-runtime-provider";
 
 export function ComposerWithAttachments() {
   return (
-    <ComposerPrimitive.Root className="border-border bg-muted flex w-full max-w-lg flex-col gap-2 rounded-3xl border p-3 [--composer-padding:8px] [--composer-radius:1.5rem]">
+    <ComposerPrimitive.Root className="border-border bg-muted flex w-full max-w-lg flex-col gap-2 rounded-3xl border p-3">
       <ComposerAttachments />
       <ComposerPrimitive.Input
         aria-label="Message input"
@@ -38,7 +38,7 @@ const imageSrc = `data:image/svg+xml,${encodeURIComponent(
 
 export function AttachmentComposerSample() {
   return (
-    <SampleFrame className="bg-background flex h-auto min-h-48 items-center justify-center p-6">
+    <SampleFrame className="bg-background flex h-auto min-h-48 items-center justify-center p-6 [--composer-padding:8px] [--composer-radius:1.5rem]">
       <SampleRuntimeProvider
         messages={[]}
         adapters={{
