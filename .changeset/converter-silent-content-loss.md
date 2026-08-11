@@ -2,4 +2,4 @@
 "@assistant-ui/react-generative-ui": patch
 ---
 
-fix: report the content the Slack and Teams converters were discarding silently. A non-item `ListView` child, a non-card child of a nested `Carousel`, a malformed `Select` or `RadioGroup` option, and a Slack table column that is not an object all warn `dropped` now. A dropped Slack column also keeps its position so the header stays aligned with the data, and a discarded Teams `ListView` child no longer reserves an input id that renames a control which survives
+fix: report the content the Slack and Teams converters were discarding silently. A `ListView` or `Carousel` child that would have rendered, a malformed `Select` or `RadioGroup` option, and a Slack table column without a string label all warn `dropped` now, while a child that renders nothing anyway stays silent. A dropped Slack column also keeps its position so the header stays aligned with the data, and a discarded child no longer spends the shared markdown and data-table budgets or reserves a Teams input id that renames a control which survives

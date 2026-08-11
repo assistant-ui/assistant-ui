@@ -626,12 +626,15 @@ export function convertElement(
         "Carousel",
         "A carousel was rendered as sequential cards because it is not at the root.",
       );
-      const carouselChildren = normalizedList(element.children);
-      const cards = carouselChildren.filter(
-        (child): child is NormalizedUIElement =>
-          isElement(child) && child.type === "Card",
-      );
-      const droppedCards = carouselChildren.length - cards.length;
+      const cards: NormalizedUIElement[] = [];
+      let droppedCards = 0;
+      for (const child of normalizedList(element.children)) {
+        if (isElement(child) && child.type === "Card") {
+          cards.push(child);
+          continue;
+        }
+        if (discardedChild(child, context, depth + 1)) droppedCards += 1;
+      }
       if (droppedCards > 0) {
         warn(
           context,

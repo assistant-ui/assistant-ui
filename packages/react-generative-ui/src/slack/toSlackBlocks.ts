@@ -784,9 +784,9 @@ const convertCarousel = (
   for (const child of normalizedList(element.children)) {
     if (isElement(child) && child.type === "Card") {
       cardChildren.push(child);
-    } else {
-      droppedCards += 1;
+      continue;
     }
+    if (discardedChild(child, context, depth + 1)) droppedCards += 1;
   }
   if (droppedCards > 0) {
     warn(

@@ -594,6 +594,18 @@ describe("toSlackBlocks", () => {
   });
 
   describe("RadioGroup", () => {
+    it("names RadioGroup when the same option loss happens there", () => {
+      const { warnings } = toSlackBlocks({
+        $type: "RadioGroup",
+        options: [{ label: "ok", value: "a" }, { label: "bad" }],
+      });
+      expect(warnings).toContainEqual({
+        code: "dropped",
+        component: "RadioGroup",
+        detail: "1 option was dropped for want of a string label and value.",
+      });
+    });
+
     const options = [
       { label: "Small", value: "s" },
       { label: "Large", value: "l" },

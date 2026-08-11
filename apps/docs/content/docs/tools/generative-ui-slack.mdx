@@ -54,9 +54,9 @@ type SlackConversionWarning = {
 | `Fact` | Merged into one `section`'s `fields`, as `*label*` then value | Consecutive facts merge; every 10 fields start a new section |
 | `Table` | `data_table` block, first row as header | Cells become `raw_number` or `raw_text`; rows are padded to a uniform width; a column that is not an object keeps its position with an empty label and warns |
 | `Card` | Native `card` block, or a header plus inline blocks | See [Cards](#cards) |
-| `Carousel` | `carousel` block of `card` elements | Non-card children are dropped; cards that cannot map cleanly degrade to title and body |
+| `Carousel` | `carousel` block of `card` elements | A non-card child that would have rendered is dropped with a warning; cards that cannot map cleanly degrade to title and body |
 | `Alert` | Native `alert` block on a modal; a `context` plus `section` pair on a message | Slack supports `alert` [only in modals](https://docs.slack.dev/reference/block-kit/blocks/alert-block) |
-| `ListView` | One `section` per item, with `divider` blocks between them | Item children collapse into concatenated text; a non-item child is dropped with a warning |
+| `ListView` | One `section` per item, with `divider` blocks between them | Item children collapse into concatenated text; a non-item child that would have rendered is dropped with a warning |
 | `ListViewItem` | `section`, plus an "Open" button accessory when it carries an action | |
 | `Button` | `button` element inside an `actions` block | `primary` and `danger` styles survive; other styles are dropped |
 | `Select` | `static_select` element | An option without a string label and value is dropped with a warning |

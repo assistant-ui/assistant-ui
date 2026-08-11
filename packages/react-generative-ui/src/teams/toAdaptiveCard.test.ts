@@ -952,6 +952,34 @@ describe("toAdaptiveCard", () => {
         detail: "1 non-card child was dropped.",
       });
     });
+
+    it("stays silent for a nested-carousel child that renders nothing anyway", () => {
+      const { warnings } = toAdaptiveCard({
+        $type: "Col",
+        children: {
+          $type: "Carousel",
+          children: [{ $type: "Spacer" }, { $type: "Card", title: "kept" }],
+        },
+      });
+      expect(warnings.some((warning) => warning.code === "dropped")).toBe(
+        false,
+      );
+    });
+
+    it("forwards a nested-carousel child's own dropped warning", () => {
+      const { warnings } = toAdaptiveCard({
+        $type: "Col",
+        children: {
+          $type: "Carousel",
+          children: [{ $type: "Mystery" }, { $type: "Card", title: "kept" }],
+        },
+      });
+      expect(warnings).toContainEqual({
+        code: "dropped",
+        component: "Mystery",
+        detail: "Unknown component type was dropped.",
+      });
+    });
   });
 
   describe("choices", () => {
@@ -968,6 +996,19 @@ describe("toAdaptiveCard", () => {
         code: "dropped",
         component: "Select",
         detail: "2 options were dropped for want of a string value.",
+      });
+    });
+
+    it("names RadioGroup when the same loss happens there", () => {
+      const { warnings } = toAdaptiveCard({
+        $type: "RadioGroup",
+        name: "r",
+        options: [{ label: "ok", value: "a" }, { label: "bad" }],
+      });
+      expect(warnings).toContainEqual({
+        code: "dropped",
+        component: "RadioGroup",
+        detail: "1 option was dropped for want of a string value.",
       });
     });
   });

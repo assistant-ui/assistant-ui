@@ -60,8 +60,8 @@ type TeamsConversionWarning = {
 | `Table` | Native `Table` with the first row as headers | Requires schema 1.5, so it will not render on Teams mobile |
 | `Card` | `Container`, with the title as a leading heading | Footer buttons become an `ActionSet` beside the container, not inside it |
 | `Alert` | `Container` with a semantic style (`accent`, `good`, `warning`, `attention`) | Title and description become two text blocks |
-| `Carousel` | Multiple attachments through `toTeamsAttachments` | See [Carousels](#carousels); a non-card child is dropped with a warning |
-| `ListView` | One `Container` per item, separated after the first | A non-item child is dropped with a warning, and never reserves an input id |
+| `Carousel` | Multiple attachments through `toTeamsAttachments` | See [Carousels](#carousels); a non-card child that would have rendered is dropped with a warning |
+| `ListView` | One `Container` per item, separated after the first | A non-item child that would have rendered is dropped with a warning, and never reserves an input id |
 | `ListViewItem` | `Container`, with a select action when it carries an action | |
 | `Button` | `Action.Submit` inside an `ActionSet` | Consecutive buttons merge into one set; `buttonStyle` is dropped, since Teams [ignores action styling](https://learn.microsoft.com/en-us/microsoftteams/platform/task-modules-and-cards/cards/cards-reference) |
 | `Select` | `Input.ChoiceSet`, compact | An option without a string value is dropped with a warning |
