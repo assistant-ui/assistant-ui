@@ -853,7 +853,7 @@ declare abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
   private readonly _contextProvider;
   constructor(_contextProvider: ModelContextProvider);
   getModelContext(): ModelContext$1;
-  protected enrichAppendMetadata(message: AppendMessage): AppendMessage;
+  protected enrichAppendMetadata(message: AppendMessage, anchorId?: string | null): AppendMessage;
   private _editComposers;
   getEditComposer(messageId: string): DefaultEditComposerRuntimeCore | undefined;
   beginEdit(messageId: string): void;
@@ -1882,6 +1882,7 @@ type ExternalThreadQueueAdapter = {
   move: (queueItemId: string, placement: QueuePlacement) => void;
   edit: (queueItemId: string, message: AppendMessage) => void;
   remove: (queueItemId: string) => void;
+  __internal_setDispatchTransform?: ((transform: (message: AppendMessage) => AppendMessage) => void) | undefined;
 };
 
 declare const FRAME_MESSAGE_CHANNEL = "assistant-ui-frame";
@@ -2342,7 +2343,7 @@ declare class LocalThreadRuntimeCore extends BaseThreadRuntimeCore implements Th
   __internal_setOptions(options: LocalRuntimeOptionsBase): void;
   private _loadPromise;
   __internal_load(): Promise<void>;
-  append(rawMessage: AppendMessage): Promise<void>;
+  append(message: AppendMessage): Promise<void>;
   getQueueItems(): readonly QueueItemState[];
   getSteerQueueItems(): readonly QueueItemState[];
   moveQueueItem(queueItemId: string, placement: QueuePlacement): void;
