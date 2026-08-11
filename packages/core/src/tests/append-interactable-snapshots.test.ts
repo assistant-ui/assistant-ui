@@ -221,6 +221,67 @@ describe("queued sends gate at dispatch, not at enqueue", () => {
     ]);
   });
 
+  it("re-gates on the interrupt path a mid-run steer takes", async () => {
+    const run = vi.fn();
+    const cancel = vi.fn();
+    const onNew = vi.fn(async () => {});
+    const queue = createMessageQueue({ run, cancel });
+    let composerMetadata: Record<string, unknown> = live({ v: 1 });
+    const store = (messages: ThreadMessage[]) => ({
+      messages,
+      onNew,
+      queue: queue.adapter,
+      isRunning: true,
+    });
+    const core = new ExternalStoreRuntimeCore(store([]));
+    core.registerModelContextProvider({
+      getModelContext: () => ({ unstable_composerMetadata: composerMetadata }),
+    });
+    const thread = core.threads.getMainThreadRuntimeCore();
+
+    queue.notifyBusy();
+    composerMetadata = live({ v: 2 });
+    // isRunning routes this to the steer lane, and a cancel-capable driver
+    // makes that an interrupt rather than a buffered enqueue
+    await thread.append(
+      userMessage("steered", thread.messages.at(-1)?.id ?? null),
+    );
+
+    expect(cancel).toHaveBeenCalled();
+    expect(dispatched(run)).toEqual([
+      { id: "n1", name: "note", state: { v: 2 } },
+    ]);
+  });
+
+  it("leaves a hand-rolled adapter stamping at enqueue", async () => {
+    const enqueue = vi.fn();
+    const onNew = vi.fn(async () => {});
+    const core = new ExternalStoreRuntimeCore({
+      messages: [],
+      onNew,
+      // no __internal_setDispatchTransform: nothing re-gates on the way out,
+      // so the runtime has to stamp before handing the message over
+      queue: {
+        items: [],
+        steerItems: [],
+        enqueue,
+        steer: vi.fn(),
+        move: vi.fn(),
+        edit: vi.fn(),
+        remove: vi.fn(),
+      },
+    });
+    core.registerModelContextProvider({
+      getModelContext: () => ({ unstable_composerMetadata: live({ v: 1 }) }),
+    });
+    const thread = core.threads.getMainThreadRuntimeCore();
+
+    await thread.append(userMessage("queued", null));
+    expect(dispatched(enqueue)).toEqual([
+      { id: "n1", name: "note", state: { v: 1 } },
+    ]);
+  });
+
   it("gates a queued local send against the tail it flushes onto", async () => {
     let composerMetadata: Record<string, unknown> = live({ v: 1 });
     let releaseFirstRun!: () => void;

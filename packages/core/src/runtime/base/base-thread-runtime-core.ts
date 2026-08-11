@@ -127,9 +127,8 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
   /**
    * Stamps provider-contributed composer metadata onto an outgoing message.
    * Called at dispatch rather than in the composer, so programmatic sends are
-   * covered too. Authoritative rather than additive: an existing snapshot is
-   * dropped before the current gate's answer is written, which is what makes
-   * it safe to apply again at a later dispatch point.
+   * covered too, and exactly once per message: a queued send is stamped when
+   * it leaves the lane, never when it enters.
    *
    * Only user messages are stamped, matching the readers: both the version
    * fold and the model injection skip every other role.
@@ -150,13 +149,12 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
       this.getModelContext().unstable_composerMetadata,
       messages.slice(0, parentIndex + 1),
     );
-    const { interactables: stale, ...custom } = message.metadata?.custom ?? {};
-    if (!composerMetadata && stale === undefined) return message;
+    if (!composerMetadata) return message;
     return {
       ...message,
       metadata: {
         ...message.metadata,
-        custom: { ...custom, ...composerMetadata },
+        custom: { ...message.metadata?.custom, ...composerMetadata },
       },
     };
   }
