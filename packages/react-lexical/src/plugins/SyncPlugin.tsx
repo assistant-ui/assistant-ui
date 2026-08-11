@@ -12,9 +12,12 @@ import {
   $getRoot,
   $createTextNode,
   $createParagraphNode,
+  $getSelection,
   $isElementNode,
   $isLineBreakNode,
+  $isRangeSelection,
   $isTextNode,
+  type EditorState,
   type LexicalEditor,
 } from "lexical";
 import { useAui } from "@assistant-ui/store";
@@ -121,6 +124,19 @@ function getDirectiveKey(item: Pick<Unstable_TriggerItem, "id" | "type">) {
   return JSON.stringify([item.id, item.type]);
 }
 
+function getOnlyParsedDirectiveKey(text: string, parse: CompositeParser) {
+  let directiveKey: string | undefined;
+  for (const { segment } of parse(text)) {
+    if (segment.kind === "text") {
+      if (segment.text.length > 0) return undefined;
+    } else {
+      if (directiveKey !== undefined) return undefined;
+      directiveKey = getDirectiveKey(segment);
+    }
+  }
+  return directiveKey;
+}
+
 function parserPreservesExistingDirectives(
   editor: LexicalEditor,
   runtimeText: string,
@@ -135,13 +151,28 @@ function parserPreservesExistingDirectives(
     );
   if (parsedDirectiveKeys.length === 0) return false;
 
+  const parsedDirectiveCounts = new Map<string, number>();
+  for (const key of parsedDirectiveKeys) {
+    parsedDirectiveCounts.set(key, (parsedDirectiveCounts.get(key) ?? 0) + 1);
+  }
+
   return editor.getEditorState().read(() => {
+    const existingDirectiveCounts = new Map<string, number>();
     let parsedIndex = 0;
     for (const paragraph of $getRoot().getChildren()) {
       if (!$isElementNode(paragraph)) continue;
       for (const child of paragraph.getChildren()) {
         if (!$isDirectiveNode(child)) continue;
         const key = getDirectiveKey(child.getDirectiveItem());
+        if (
+          getOnlyParsedDirectiveKey(child.getDirectiveText(), parse) !== key
+        ) {
+          return false;
+        }
+        existingDirectiveCounts.set(
+          key,
+          (existingDirectiveCounts.get(key) ?? 0) + 1,
+        );
         while (
           parsedIndex < parsedDirectiveKeys.length &&
           parsedDirectiveKeys[parsedIndex] !== key
@@ -152,7 +183,32 @@ function parserPreservesExistingDirectives(
         parsedIndex += 1;
       }
     }
+    for (const [key, count] of existingDirectiveCounts) {
+      if (parsedDirectiveCounts.get(key) !== count) return false;
+    }
     return true;
+  });
+}
+
+function getSelectionKey(editorState: EditorState) {
+  return editorState.read(() => {
+    const selection = $getSelection();
+    if (selection === null) return null;
+    if ($isRangeSelection(selection)) {
+      return JSON.stringify([
+        "range",
+        selection.anchor.key,
+        selection.anchor.offset,
+        selection.anchor.type,
+        selection.focus.key,
+        selection.focus.offset,
+        selection.focus.type,
+      ]);
+    }
+    return JSON.stringify([
+      "nodes",
+      ...selection.getNodes().map((node) => node.getKey()),
+    ]);
   });
 }
 
@@ -312,39 +368,45 @@ export function SyncPlugin({
   const lastAppliedParserRef = useRef(parser);
 
   useEffect(() => {
-    return editor.registerUpdateListener(({ editorState, tags }) => {
-      if (isSyncingFromRuntimeRef.current) return;
-      if (tags.has(SYNC_TAG)) return;
+    return editor.registerUpdateListener(
+      ({ editorState, prevEditorState, tags }) => {
+        if (isSyncingFromRuntimeRef.current) return;
+        if (tags.has(SYNC_TAG)) return;
 
-      editorState.read(() => {
-        isSyncingFromLexicalRef.current = true;
-
-        try {
-          const rootNode = $getRoot();
-          let fullText = "";
-
-          for (const paragraph of rootNode.getChildren()) {
-            if (fullText.length > 0) {
-              fullText += "\n";
-            }
-            if (!$isElementNode(paragraph)) continue;
-            for (const child of paragraph.getChildren()) {
-              fullText += child.getTextContent();
-            }
-          }
-
-          const composer = aui.composer;
-
-          if (fullText !== lastSyncedTextRef.current) {
-            editorDirtySinceSyncRef.current = true;
-            lastSyncedTextRef.current = fullText;
-            composer.setText(fullText);
-          }
-        } finally {
-          isSyncingFromLexicalRef.current = false;
+        if (getSelectionKey(editorState) !== getSelectionKey(prevEditorState)) {
+          editorDirtySinceSyncRef.current = true;
         }
-      });
-    });
+
+        editorState.read(() => {
+          isSyncingFromLexicalRef.current = true;
+
+          try {
+            const rootNode = $getRoot();
+            let fullText = "";
+
+            for (const paragraph of rootNode.getChildren()) {
+              if (fullText.length > 0) {
+                fullText += "\n";
+              }
+              if (!$isElementNode(paragraph)) continue;
+              for (const child of paragraph.getChildren()) {
+                fullText += child.getTextContent();
+              }
+            }
+
+            const composer = aui.composer;
+
+            if (fullText !== lastSyncedTextRef.current) {
+              editorDirtySinceSyncRef.current = true;
+              lastSyncedTextRef.current = fullText;
+              composer.setText(fullText);
+            }
+          } finally {
+            isSyncingFromLexicalRef.current = false;
+          }
+        });
+      },
+    );
   }, [editor, aui]);
 
   useEffect(() => {
@@ -358,6 +420,7 @@ export function SyncPlugin({
     const parserRequiresResync =
       parserChanged &&
       !editorDirtySinceSyncRef.current &&
+      !editor.isComposing() &&
       !editorMatchesParsedText(editor, initialText, parser) &&
       parserPreservesExistingDirectives(editor, initialText, parser);
     if (runtimeTextChanged || parserRequiresResync) {
