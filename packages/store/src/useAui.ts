@@ -128,13 +128,43 @@ const getOwnEventClientInternals = (
 const getCurrentEventClient = (client: AssistantClient): AssistantClient =>
   getOwnEventClientInternals(client)?.ref.current ?? client;
 
+const getEventScopeOwner = (
+  client: AssistantClient,
+  scope: ClientNames,
+): AssistantClient | null => {
+  let candidate: object | null = client;
+  while (candidate && candidate !== Object.prototype) {
+    if (Object.prototype.hasOwnProperty.call(candidate, scope)) {
+      return candidate as AssistantClient;
+    }
+    candidate = Object.getPrototypeOf(candidate) as object | null;
+  }
+  return null;
+};
+
 const getEventScopeBinding = (
   subscriber: AssistantClient,
   scope: ClientNames,
-): AssistantClientAccessor<ClientNames> | undefined =>
-  getCurrentEventClient(subscriber)[scope] as
-    | AssistantClientAccessor<ClientNames>
-    | undefined;
+): AssistantClientAccessor<ClientNames> | undefined => {
+  let client = getCurrentEventClient(subscriber);
+  while (true) {
+    const owner = getEventScopeOwner(client, scope);
+    // Root and hand-built clients may supply accessors dynamically rather than
+    // as own properties, so preserve their normal property lookup fallback.
+    if (!owner) {
+      return client[scope] as AssistantClientAccessor<ClientNames> | undefined;
+    }
+
+    const currentOwner = getCurrentEventClient(owner);
+    if (currentOwner === owner) {
+      return owner[scope] as AssistantClientAccessor<ClientNames>;
+    }
+
+    // An inherited scope may belong to an older parent generation. Restart
+    // from the parent's committed replacement so retained wrappers follow it.
+    client = currentOwner;
+  }
+};
 
 const createClientObject = (
   parent: AssistantClient,
