@@ -13,6 +13,7 @@ import {
   $createTextNode,
   $createParagraphNode,
   $isElementNode,
+  $isLineBreakNode,
   $isTextNode,
   type LexicalEditor,
 } from "lexical";
@@ -96,8 +97,7 @@ function getParsedLines(
   runtimeText: string,
   parse: CompositeParser,
 ): SegmentKey[][] {
-  const lines = runtimeText.length === 0 ? [""] : runtimeText.split("\n");
-  return lines.map((line) => {
+  return runtimeText.split("\n").map((line) => {
     const result: SegmentKey[] = [];
     for (const { segment, formatter } of parse(line)) {
       if (segment.kind === "text") {
@@ -124,13 +124,15 @@ function editorMatchesParsedText(
   const parsedLines = getParsedLines(runtimeText, parse);
   return editor.getEditorState().read(() => {
     const paragraphs = $getRoot().getChildren();
-    if (paragraphs.length !== parsedLines.length) return false;
     const lexicalLines: SegmentKey[][] = [];
     for (const paragraph of paragraphs) {
       if (!$isElementNode(paragraph)) return false;
-      const segments: SegmentKey[] = [];
+      let segments: SegmentKey[] = [];
       for (const child of paragraph.getChildren()) {
-        if ($isTextNode(child)) {
+        if ($isLineBreakNode(child)) {
+          lexicalLines.push(segments);
+          segments = [];
+        } else if ($isTextNode(child)) {
           appendTextSegment(segments, child.getTextContent());
         } else if ($isDirectiveNode(child)) {
           const item = child.getDirectiveItem();
@@ -147,6 +149,7 @@ function editorMatchesParsedText(
       }
       lexicalLines.push(segments);
     }
+    if (lexicalLines.length !== parsedLines.length) return false;
     return JSON.stringify(lexicalLines) === JSON.stringify(parsedLines);
   });
 }

@@ -6,6 +6,9 @@ import { createRoot, type Root } from "react-dom/client";
 import { LexicalComposer } from "@lexical/react/LexicalComposer";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import {
+  $createLineBreakNode,
+  $createParagraphNode,
+  $createTextNode,
   $getRoot,
   $getSelection,
   $isRangeSelection,
@@ -156,24 +159,27 @@ describe("SyncPlugin", () => {
         </LexicalComposer>,
       );
 
-    mocks.aui = createAui("[[alice]]");
+    mocks.aui = createAui("first\n[[alice]]");
     await act(async () => {
       render();
     });
-    expect(
-      editor
-        .getEditorState()
-        .read(() => $getRoot().getFirstChild()?.getFirstChild()?.getType()),
-    ).toBe("text");
     await act(async () => {
       editor.update(() => {
-        const textNode = $getRoot().getFirstChild()?.getFirstChild();
-        if (!$isTextNode(textNode)) throw new Error("Expected a text node");
+        const paragraph = $createParagraphNode();
+        const textNode = $createTextNode("[[alice]]");
+        paragraph.append(
+          $createTextNode("first"),
+          $createLineBreakNode(),
+          textNode,
+        );
+        const lexicalRoot = $getRoot();
+        lexicalRoot.clear();
+        lexicalRoot.append(paragraph);
         textNode.select(4, 4);
       });
     });
     const before = editor.getEditorState().read(() => {
-      const textNode = $getRoot().getFirstChild()?.getFirstChild();
+      const textNode = $getRoot().getFirstChild()?.getLastChild();
       const selection = $getSelection();
       if (!$isTextNode(textNode) || !$isRangeSelection(selection)) {
         throw new Error("Expected a text selection");
@@ -186,7 +192,7 @@ describe("SyncPlugin", () => {
     });
     expect(
       editor.getEditorState().read(() => {
-        const textNode = $getRoot().getFirstChild()?.getFirstChild();
+        const textNode = $getRoot().getFirstChild()?.getLastChild();
         const selection = $getSelection();
         if (!$isTextNode(textNode) || !$isRangeSelection(selection)) {
           throw new Error("Expected a text selection");
@@ -201,7 +207,7 @@ describe("SyncPlugin", () => {
     expect(
       editor
         .getEditorState()
-        .read(() => $getRoot().getFirstChild()?.getFirstChild()?.getType()),
+        .read(() => $getRoot().getChildAtIndex(1)?.getFirstChild()?.getType()),
     ).toBe("directive");
     expect(mocks.aui.composer.setText).not.toHaveBeenCalled();
   });
