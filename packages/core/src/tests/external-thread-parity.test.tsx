@@ -307,6 +307,28 @@ describe("ExternalThread composer", () => {
     );
   });
 
+  it("leaves the queue alone when the host cannot cancel", async () => {
+    const notifyCancelled = vi.fn();
+    const { aui } = renderThread({
+      messages: [],
+      isRunning: true,
+      queue: {
+        items: [],
+        steerItems: [],
+        enqueue: vi.fn(),
+        steer: vi.fn(),
+        move: vi.fn(),
+        edit: vi.fn(),
+        remove: vi.fn(),
+        __internal_notifyCancelled: notifyCancelled,
+      },
+    });
+
+    aui().thread.cancelRun();
+
+    expect(notifyCancelled).not.toHaveBeenCalled();
+  });
+
   it("routes edit-composer sends to onEdit with sourceId, bypassing the queue", async () => {
     const onEdit = vi.fn();
     const enqueue = vi.fn();
