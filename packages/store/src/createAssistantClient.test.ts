@@ -167,6 +167,31 @@ describe("createAssistantClient", () => {
     handle.destroy();
   });
 
+  it("rolls back a local listener when its parent rejects registration", async () => {
+    const parent = {
+      subscribe: () => () => {},
+      on: vi.fn(() => {
+        throw new Error("parent rejected registration");
+      }),
+    } as unknown as AssistantClient;
+    const child = createTestClient({ thread: ThreadClient() }, { parent });
+    const callback = vi.fn();
+
+    expect(() =>
+      child
+        .getClient()
+        .on({ scope: "*", event: "message.pinged" } as never, callback),
+    ).toThrow("parent rejected registration");
+
+    flushTapSync(() =>
+      child.getClient().thread.message({ index: 0 }).ping("after-rejection"),
+    );
+    await flushEvents();
+    expect(callback).not.toHaveBeenCalled();
+
+    child.destroy();
+  });
+
   it("extends a parent handle and re-binds across the parent's structural changes", () => {
     const parent = createTestClient({ thread: ThreadClient() });
     const child = createTestClient(

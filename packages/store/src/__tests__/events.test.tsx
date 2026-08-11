@@ -268,9 +268,12 @@ describe("parent chaining", () => {
   });
 
   it("scopes defined on the child deliver locally without a parent registration", async () => {
-    const { getChild } = setupChild();
+    const { getAui, getChild } = setupChild();
+    const parentOn = vi.spyOn(getAui(), "on");
     const cb = vi.fn();
     getChild().on("other.pinged" as never, cb);
+
+    expect(parentOn).not.toHaveBeenCalled();
 
     getChild().other.ping("local");
     await flushEvents();
@@ -471,11 +474,14 @@ describe("Derived scopes", () => {
     });
   });
 
-  it("tracks a derived-only selection across structural swaps", async () => {
+  it("keeps retained derived-only subscriptions across structural swaps", async () => {
     let aui!: AnyClient;
-    const cb = vi.fn();
+    let child!: AnyClient;
+    const hookListener = vi.fn();
+    const directListener = vi.fn();
     const Listener = () => {
-      useAuiEvent("message.pinged" as never, cb as never);
+      child = useAui();
+      useAuiEvent("message.pinged" as never, hookListener as never);
       return null;
     };
     const Harness = ({ index }: { index: number }) => {
@@ -489,17 +495,23 @@ describe("Derived scopes", () => {
       );
     };
     const view = render(<Harness index={0} />);
+    child.on("message.pinged", directListener);
 
     aui.thread.message({ index: 1 }).ping("before-swap");
     await flushEvents();
-    expect(cb).not.toHaveBeenCalled();
+    expect(hookListener).not.toHaveBeenCalled();
+    expect(directListener).not.toHaveBeenCalled();
 
     view.rerender(<Harness index={1} />);
     aui.thread.message({ index: 0 }).ping("previous");
     aui.thread.message({ index: 1 }).ping("current");
     await flushEvents();
 
-    expect(cb).toHaveBeenCalledExactlyOnceWith({
+    expect(hookListener).toHaveBeenCalledExactlyOnceWith({
+      id: "m1",
+      value: "current",
+    });
+    expect(directListener).toHaveBeenCalledExactlyOnceWith({
       id: "m1",
       value: "current",
     });

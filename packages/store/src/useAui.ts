@@ -196,11 +196,19 @@ const useClientFields = ({
         }
 
         const { scope, event } = normalizeEventSelector(selector);
+        const subscriberScope =
+          scope === "*"
+            ? undefined
+            : getEventScopeBinding(this, scope as ClientNames);
+        const subscriberScopeOwner =
+          scope !== "*" && subscriberScope?.source === "root"
+            ? getEventScopeOwner(
+                getCurrentEventClient(this),
+                scope as ClientNames,
+              )
+            : null;
 
-        if (
-          scope !== "*" &&
-          getEventScopeBinding(this, scope as ClientNames)?.source === null
-        ) {
+        if (subscriberScope?.source === null) {
           throw new Error(
             `Scope "${scope}" is not available. Use { scope: "*", event: "${event}" } to listen globally.`,
           );
@@ -230,20 +238,36 @@ const useClientFields = ({
         const parent = clientRef.parent;
         const parentOn = parent.on;
         const generatedParent = generatedEventHandlers.has(parentOn);
+
+        // A root scope owned by this host emits through this notification
+        // manager, so forwarding it can only add an ancestor registration.
         if (
-          scope !== "*" &&
-          !generatedParent &&
-          getEventScopeBinding(parent, scope as ClientNames)?.source === null
+          subscriberScopeOwner !== null &&
+          eventClientRefs.get(subscriberScopeOwner) === clientRef
         ) {
           return localUnsub;
         }
 
+        const parentScope =
+          scope === "*"
+            ? undefined
+            : getEventScopeBinding(parent, scope as ClientNames);
+        if (scope !== "*" && !generatedParent && parentScope?.source === null) {
+          return localUnsub;
+        }
+
         const parentReceiver = generatedParent ? this : parent;
-        const parentUnsub = parentOn.call(
-          parentReceiver,
-          selector as never,
-          callback as never,
-        );
+        let parentUnsub: () => void;
+        try {
+          parentUnsub = parentOn.call(
+            parentReceiver,
+            selector as never,
+            callback as never,
+          );
+        } catch (error) {
+          localUnsub();
+          throw error;
+        }
 
         return () => {
           localUnsub();
