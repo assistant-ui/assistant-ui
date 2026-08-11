@@ -32,8 +32,8 @@ produces that vocabulary component when a surface is ingested.
 
 | Component | Web (React) | Slack Block Kit | Teams Adaptive Cards | A2UI (ingest) |
 | --- | --- | --- | --- | --- |
-| `Header` | Yes | Yes (`header`) | Yes (heading `TextBlock`) | `Text` variant `h1`–`h6` |
-| `Text` | Yes | Yes (`section`) | Yes (`TextBlock`) | — (plain `Text` maps to `Markdown`) |
+| `Header` | Yes | Yes (`header`; `size` dropped *(silent)*) | Yes (heading `TextBlock`) | `Text` variant `h1`–`h6` |
+| `Text` | Yes | Yes (`section`; `size`, `weight`, and `color` dropped *(silent)*) | Yes (`TextBlock`) | — (plain `Text` maps to `Markdown`) |
 | `Caption` | Yes | Yes (`context`) | Yes (small subtle `TextBlock`) | `Text` variant `caption` |
 | `Badge` | Yes | Degrades *(silent)*: plain context text | Degrades *(silent)*: plain subtle text | — |
 | `Markdown` | Yes | Yes (`markdown`, budgeted; over budget falls back to a clamped `section` *(warns)*) | Degrades *(silent)*: Teams renders a markdown subset (no headings, tables, images); the rest renders literally | `Text` (default) |
@@ -47,7 +47,7 @@ produces that vocabulary component when a surface is ingested.
 | `Row` | Yes | Degrades: context row when all children are `Badge`/`Caption` *(silent)*, with context elements past 10 clamped *(warns)*; otherwise flattened vertically *(silent)* | Yes (`ColumnSet`; past 3 columns *(warns)*) | `Row` |
 | `Col` | Yes | Degrades *(silent)*: flattened into the block sequence | Yes (`Container`) | `Column` |
 | `Box` | Yes | Degrades *(silent)*: flattened into the block sequence | Yes (`Container`) | — |
-| `Button` | Yes | Yes (`button`; oversized action payloads dropped from the value *(warns)*) | Yes (`Action.Submit`; `buttonStyle` dropped *(silent)*, actions past 6 demoted to secondary *(warns)*) | `Button` |
+| `Button` | Yes | Yes (`button`; oversized action payloads dropped from the value *(warns)*, `buttonStyle` beyond `primary`/`danger` dropped *(silent)*) | Yes (`Action.Submit`; `buttonStyle` dropped *(silent)*, actions past 6 demoted to secondary *(warns)*) | `Button` |
 | `Select` | Yes | Yes (`static_select`; options capped *(warns)*) | Yes (`Input.ChoiceSet` compact; options capped *(warns)*; on-change action becomes a companion submit *(warns)*) | — |
 | `RadioGroup` | Yes | Yes (`radio_buttons`; options capped *(warns)*) | Yes (`Input.ChoiceSet` expanded; options capped *(warns)*; companion submit *(warns)*) | — |
 | `Checkbox` | Yes | Yes (`checkboxes`) | Yes (`Input.Toggle`; companion submit *(warns)*) | `CheckBox` |
