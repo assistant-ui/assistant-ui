@@ -315,6 +315,18 @@ describe("ComposerInput", () => {
 
       expect(onKeyPress).toHaveBeenCalledTimes(2);
     });
+
+    it("does not submit when the consumer prevents the key event", async () => {
+      const input = await mount({
+        onKeyPress: (event) => event.preventDefault(),
+      });
+
+      await act(async () => {
+        fireKeyDown(input, { key: "Enter" });
+      });
+
+      expect(h.sendSpy).not.toHaveBeenCalled();
+    });
   });
 
   describe("native", () => {

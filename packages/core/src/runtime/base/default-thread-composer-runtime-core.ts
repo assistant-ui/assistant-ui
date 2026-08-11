@@ -6,12 +6,12 @@ import type {
   ThreadComposerRuntimeCore,
 } from "../interfaces/composer-runtime-core";
 import type { ThreadRuntimeCore } from "../interfaces/thread-runtime-core";
+import type { QueuePlacement } from "../queue/external-thread-queue-adapter";
 import {
   EMPTY_QUEUE_ITEMS,
   type QueueItemState,
 } from "../../store/scopes/queue-item";
 import { BaseComposerRuntimeCore } from "./base-composer-runtime-core";
-import { gateInteractableComposerMetadata } from "../../model-context/interactable-composer-metadata";
 
 export class DefaultThreadComposerRuntimeCore
   extends BaseComposerRuntimeCore
@@ -26,12 +26,35 @@ export class DefaultThreadComposerRuntimeCore
     return !this.isEmpty && !this.runtime.isSendDisabled && !this._isSending;
   }
 
+  private _queueCache:
+    | {
+        steer: readonly QueueItemState[];
+        queue: readonly QueueItemState[];
+        flat: readonly QueueItemState[];
+      }
+    | undefined;
+
   public override get queue(): readonly QueueItemState[] {
-    return this.runtime.getQueueItems?.() ?? EMPTY_QUEUE_ITEMS;
+    const steer = this.runtime.getSteerQueueItems?.() ?? EMPTY_QUEUE_ITEMS;
+    const queue = this.runtime.getQueueItems?.() ?? EMPTY_QUEUE_ITEMS;
+    const cache = this._queueCache;
+    if (cache && cache.steer === steer && cache.queue === queue)
+      return cache.flat;
+    const flat =
+      steer.length === 0
+        ? queue
+        : queue.length === 0
+          ? steer
+          : [...steer, ...queue];
+    this._queueCache = { steer, queue, flat };
+    return flat;
   }
 
-  public override steerQueueItem(queueItemId: string): void {
-    this.runtime.steerQueueItem?.(queueItemId);
+  public override moveQueueItem(
+    queueItemId: string,
+    placement: QueuePlacement,
+  ): void {
+    this.runtime.moveQueueItem?.(queueItemId, placement);
   }
 
   public override removeQueueItem(queueItemId: string): void {
@@ -95,17 +118,8 @@ export class DefaultThreadComposerRuntimeCore
     message: Omit<AppendMessage, "parentId" | "sourceId">,
     options?: SendOptions,
   ) {
-    // Merge provider-contributed metadata onto the outgoing user message
-    // (same metadata.custom append path quotes ride). The interactables gate
-    // runs here because it needs thread history, unavailable to the provider.
-    const composerMetadata = gateInteractableComposerMetadata(
-      this.runtime.getModelContext().unstable_composerMetadata,
-      this.runtime.messages,
-    );
-    const enriched = this.enrichWithComposerMetadata(message, composerMetadata);
-
     return this.runtime.append({
-      ...(enriched as AppendMessage),
+      ...(message as AppendMessage),
       parentId: this.runtime.messages.at(-1)?.id ?? null,
       sourceId: null,
       startRun: options?.startRun,

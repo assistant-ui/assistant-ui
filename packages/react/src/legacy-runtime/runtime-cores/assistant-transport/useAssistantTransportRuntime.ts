@@ -348,6 +348,7 @@ const useAssistantTransportThreadRuntime = <T>(
       });
     },
     onError: async (error) => {
+      resumeFlagRef.current = false;
       setIsReplaying(false);
       const inTransitCmds = [...commandQueue.state.inTransit];
       const queuedCmds = [...commandQueue.state.queued];
@@ -422,6 +423,7 @@ const useAssistantTransportThreadRuntime = <T>(
       },
     }),
     onCancel: async () => {
+      resumeFlagRef.current = false;
       runManager.cancel();
     },
     onResume: async () => {

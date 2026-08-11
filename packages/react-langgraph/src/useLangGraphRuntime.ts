@@ -227,6 +227,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
   const pendingResumeRef = useRef<
     (LangChainMessage & { type: "tool" })[] | null
   >(null);
+  const queueRef = useRef<MessageQueueController | null>(null);
   // The purpose rides along because only a refetch may be superseded by a
   // send: aborting an initial load would strand its history and loading flag.
   const loadControllerRef = useRef<{
@@ -302,6 +303,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
   const cancelActiveRun = useCallback(() => {
     pendingResumeRef.current = null;
     runQueue.drop();
+    queueRef.current?.clear();
     cancel();
   }, [runQueue, cancel]);
 
@@ -421,7 +423,6 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
   const runUserMessageRef = useRef(runUserMessage);
   runUserMessageRef.current = runUserMessage;
 
-  const queueRef = useRef<MessageQueueController | null>(null);
   if (unstable_enableMessageQueue && !queueRef.current) {
     queueRef.current = createMessageQueue({
       run: (message) => {
@@ -429,7 +430,6 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
       },
     });
   } else if (!unstable_enableMessageQueue && queueRef.current) {
-    queueRef.current.adapter.clear("cancel-run");
     queueRef.current = null;
   }
   const queueController = unstable_enableMessageQueue ? queueRef.current : null;
@@ -439,6 +439,11 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
   useSyncExternalStore(
     queueController?.subscribe ?? subscribeNoop,
     () => queueController?.adapter.items ?? EMPTY_QUEUE_ITEMS,
+    () => EMPTY_QUEUE_ITEMS,
+  );
+  useSyncExternalStore(
+    queueController?.subscribe ?? subscribeNoop,
+    () => queueController?.adapter.steerItems ?? EMPTY_QUEUE_ITEMS,
     () => EMPTY_QUEUE_ITEMS,
   );
 
@@ -652,6 +657,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
           toolResultBufferRef.current.clear();
           pendingResumeRef.current = null;
           runQueue.drop();
+          queueRef.current?.clear();
           const truncated = truncateLangChainMessages(
             threadMessagesRef.current,
             msg.parentId,
@@ -689,6 +695,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
     ...(getCheckpointId || hasStagedMessages
       ? {
           onReload: async (parentId, config) => {
+            queueRef.current?.clear();
             const stagedRun = getStagedRun(parentId);
             if (stagedRun) {
               for (const message of stagedRun.messages) {

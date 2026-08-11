@@ -144,7 +144,7 @@ export const EMPTY_THREAD_CORE: ThreadRuntimeCore = {
     },
 
     queue: [] as never[],
-    steerQueueItem() {},
+    moveQueueItem() {},
     removeQueueItem() {},
 
     dictation: undefined,

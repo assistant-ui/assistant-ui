@@ -1,8 +1,10 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { SearchIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { field, mono } from "./surfaces";
+import { take } from "./range";
 
 export interface WebSearchResult {
   title: string;
@@ -16,16 +18,24 @@ export function WebSearch({
   searching,
   cycle,
   className,
-}: {
+  ...props
+}: Omit<
+  ComponentProps<"div">,
+  "children" | "query" | "results" | "visibleResults" | "searching" | "cycle"
+> & {
   query: string;
   results: readonly WebSearchResult[];
   visibleResults: number;
   searching: boolean;
   cycle: number;
-  className?: string;
 }) {
   return (
-    <div className={cn("flex w-full max-w-sm flex-col gap-2.5", className)}>
+    <div
+      data-slot="web-search"
+      className={cn("flex w-full max-w-sm flex-col gap-2.5", className)}
+
+      {...props}
+    >
       <span
         className={cn(
           field,
@@ -53,7 +63,7 @@ export function WebSearch({
         )}
       </div>
       <div className="flex min-h-[5.75rem] flex-col">
-        {results.slice(0, visibleResults).map((result) => (
+        {take(results, visibleResults).map((result) => (
           <div
             key={`${cycle}-${result.domain}`}
             className="fade-in slide-in-from-bottom-1 animate-in fill-mode-both hover:bg-foreground/[0.03] -mx-2.5 flex items-center gap-2.5 rounded-xl px-2.5 py-1.5 transition-colors duration-300"

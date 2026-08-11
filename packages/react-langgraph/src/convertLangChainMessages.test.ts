@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import type { AppendMessage } from "@assistant-ui/core";
 import { convertExternalMessages } from "@assistant-ui/core/react";
 import {
@@ -1439,6 +1439,20 @@ describe("convertLangChainMessages unknown message types", () => {
     };
 
     expect(call(removeMessage)).toEqual([]);
+  });
+
+  it("does not emit the unknown-message dev warning for type:remove", () => {
+    vi.stubEnv("NODE_ENV", "development");
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      expect(
+        call({ type: "remove", id: "some-message-id", content: "" }),
+      ).toEqual([]);
+      expect(warn).not.toHaveBeenCalled();
+    } finally {
+      warn.mockRestore();
+      vi.unstubAllEnvs();
+    }
   });
 
   it("returns an empty array for any other unknown message type", () => {
