@@ -1594,6 +1594,7 @@ type FileMessagePart = {
   readonly data: string;
   readonly mimeType: string;
   readonly sourceType?: "id" | "url";
+  readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };
 
@@ -1678,6 +1679,7 @@ type ImageMessagePart = {
   readonly type: "image";
   readonly image: string;
   readonly filename?: string;
+  readonly providerMetadata?: PartProviderMetadata;
 };
 
 type ImageMessagePartComponent = ComponentType<ImageMessagePartProps>;

@@ -102,14 +102,33 @@ const getString = (record: Record<string, unknown>, key: string) => {
 const getToolCallId = (record: Record<string, unknown>) =>
   getString(record, "toolCallId") ?? getString(record, "tool_call_id");
 
-const readAgUiReasoningMeta = (providerMetadata: unknown) => {
-  if (!isObject(providerMetadata)) return {};
+const readAgUiNamespace = (providerMetadata: unknown) => {
+  if (!isObject(providerMetadata)) return undefined;
   const namespaced = providerMetadata[AG_UI_METADATA_NAMESPACE];
-  if (!isObject(namespaced)) return {};
+  return isObject(namespaced) ? namespaced : undefined;
+};
+
+const readAgUiReasoningMeta = (providerMetadata: unknown) => {
+  const namespaced = readAgUiNamespace(providerMetadata);
+  if (!namespaced) return {};
   return {
     encryptedValue: getString(namespaced, "encryptedValue"),
     reasoningId: getString(namespaced, "reasoningId"),
   };
+};
+
+// AG-UI carries per-item extras in `metadata`; anything else on the item is
+// stripped by its schema. The part's own `filename` wins over a key of the
+// same name in the bag.
+const buildInputMetadata = (
+  part: Record<string, unknown>,
+  filename?: string | undefined,
+) => {
+  const metadata = {
+    ...readAgUiNamespace(part.providerMetadata),
+    ...(filename !== undefined && { filename }),
+  };
+  return Object.keys(metadata).length > 0 ? metadata : undefined;
 };
 
 function parseJSONText(value: string): unknown {
@@ -216,7 +235,12 @@ function toInputContent(
   if (type === "image") {
     const image = getString(part, "image");
     if (image === undefined) return null;
-    return { type: "image", source: buildInputSource(image, fallbackMimeType) };
+    const metadata = buildInputMetadata(part);
+    return {
+      type: "image",
+      source: buildInputSource(image, fallbackMimeType),
+      ...(metadata && { metadata }),
+    };
   }
 
   if (type === "file") {
@@ -229,7 +253,7 @@ function toInputContent(
       declaredMimeType,
       getString(part, "sourceType"),
     );
-    const metadata = filename !== undefined ? { filename } : undefined;
+    const metadata = buildInputMetadata(part, filename);
     switch (mediaTypeForMime(source.mimeType)) {
       case "image":
         return { type: "image", source, ...(metadata && { metadata }) };
