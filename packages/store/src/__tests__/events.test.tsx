@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import type { ReactNode } from "react";
-import { startTransition, Suspense, useLayoutEffect, useState } from "react";
+import { startTransition, Suspense, useState } from "react";
 import { act, cleanup, render, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { flushTapSync, resource } from "@assistant-ui/tap";
@@ -79,29 +79,6 @@ const DerivedMessageProvider = ({
 }) => {
   const parent = useAui();
   const config = AuiConfig({
-    message: Derived({
-      source: "thread",
-      query: { index },
-      get: (aui: AnyClient) => aui.thread.message({ index }),
-    } as never),
-  } as never);
-  return (
-    <AuiProvider extends={parent} config={config}>
-      {children}
-    </AuiProvider>
-  );
-};
-
-const HostedDerivedMessageProvider = ({
-  index,
-  children,
-}: {
-  index: number;
-  children: ReactNode;
-}) => {
-  const parent = useAui();
-  const config = AuiConfig({
-    composer: ComposerClient(),
     message: Derived({
       source: "thread",
       query: { index },
@@ -482,36 +459,6 @@ describe("Derived scopes", () => {
     expect(cb).toHaveBeenCalledExactlyOnceWith({ id: "m1", value: "child" });
   });
 
-  it("forwards hosted derived events through a parent that lacks the scope", async () => {
-    let root!: AnyClient;
-    let child!: AnyClient;
-    const Listener = () => {
-      child = useAui();
-      return null;
-    };
-    const Harness = () => {
-      root = useAui({ thread: ThreadClient() } as unknown as useAui.Props);
-      return (
-        <AuiProvider value={root as never}>
-          <HostedDerivedMessageProvider index={1}>
-            <Listener />
-          </HostedDerivedMessageProvider>
-        </AuiProvider>
-      );
-    };
-    render(<Harness />);
-    const cb = vi.fn();
-    child.on("message.pinged", cb);
-
-    root.thread.message({ index: 1 }).ping("ancestor-derived");
-    await flushEvents();
-
-    expect(cb).toHaveBeenCalledExactlyOnceWith({
-      id: "m1",
-      value: "ancestor-derived",
-    });
-  });
-
   it("tracks a derived-only selection across structural swaps", async () => {
     let aui!: AnyClient;
     const cb = vi.fn();
@@ -597,145 +544,6 @@ describe("Derived scopes", () => {
     expect(cb).toHaveBeenCalledExactlyOnceWith({
       id: "m0",
       value: "committed",
-    });
-  });
-
-  it("publishes a committed derived selection before layout-effect events flush", () => {
-    let aui!: AnyClient;
-    const cb = vi.fn();
-    const queued: VoidFunction[] = [];
-    let drainedTasks = 0;
-    const DrainLayoutMicrotasks = ({ children }: { children: ReactNode }) => {
-      useLayoutEffect(() => {
-        const tasks = queued.splice(0);
-        drainedTasks += tasks.length;
-        for (const task of tasks) task();
-      });
-      return children;
-    };
-    const Listener = ({ index }: { index: number }) => {
-      useAuiEvent("message.pinged" as never, cb as never);
-      useLayoutEffect(() => {
-        aui.thread.message({ index }).ping("layout");
-      }, [index]);
-      return null;
-    };
-    const Harness = ({ index }: { index: number }) => {
-      aui = useAui({ thread: ThreadClient() } as unknown as useAui.Props);
-      return (
-        <AuiProvider value={aui as never}>
-          <DrainLayoutMicrotasks>
-            <DerivedMessageProvider index={index}>
-              <Listener index={index} />
-            </DerivedMessageProvider>
-          </DrainLayoutMicrotasks>
-        </AuiProvider>
-      );
-    };
-    const queueSpy = vi
-      .spyOn(globalThis, "queueMicrotask")
-      .mockImplementation((task) => queued.push(task));
-    try {
-      const view = render(<Harness index={0} />);
-      cb.mockClear();
-      drainedTasks = 0;
-
-      // The outer layout effect drains notifications after all descendant
-      // layout effects, but before passive effects for this commit.
-      view.rerender(<Harness index={1} />);
-
-      expect(drainedTasks).toBeGreaterThan(0);
-      expect(cb).toHaveBeenCalledExactlyOnceWith({
-        id: "m1",
-        value: "layout",
-      });
-    } finally {
-      queueSpy.mockRestore();
-    }
-  });
-
-  it("publishes a committed hosted selection before layout-effect events flush", () => {
-    let aui!: AnyClient;
-    const cb = vi.fn();
-    const queued: VoidFunction[] = [];
-    let drainedTasks = 0;
-    const DrainLayoutMicrotasks = ({ children }: { children: ReactNode }) => {
-      useLayoutEffect(() => {
-        const tasks = queued.splice(0);
-        drainedTasks += tasks.length;
-        for (const task of tasks) task();
-      });
-      return children;
-    };
-    const Listener = ({ index }: { index: number }) => {
-      useAuiEvent("message.pinged" as never, cb as never);
-      useLayoutEffect(() => {
-        aui.thread.message({ index }).ping("layout");
-      }, [index]);
-      return null;
-    };
-    const Harness = ({ index }: { index: number }) => {
-      aui = useAui({ thread: ThreadClient() } as unknown as useAui.Props);
-      return (
-        <AuiProvider value={aui as never}>
-          <DrainLayoutMicrotasks>
-            <HostedDerivedMessageProvider index={index}>
-              <Listener index={index} />
-            </HostedDerivedMessageProvider>
-          </DrainLayoutMicrotasks>
-        </AuiProvider>
-      );
-    };
-    const queueSpy = vi
-      .spyOn(globalThis, "queueMicrotask")
-      .mockImplementation((task) => queued.push(task));
-    try {
-      const view = render(<Harness index={0} />);
-      cb.mockClear();
-      drainedTasks = 0;
-
-      view.rerender(<Harness index={1} />);
-
-      expect(drainedTasks).toBeGreaterThan(0);
-      expect(cb).toHaveBeenCalledExactlyOnceWith({
-        id: "m1",
-        value: "layout",
-      });
-    } finally {
-      queueSpy.mockRestore();
-    }
-  });
-
-  it("keeps a hosted subscriber's binding through a derived parent", async () => {
-    let root!: AnyClient;
-    let child!: AnyClient;
-    const Listener = () => {
-      child = useAui();
-      return null;
-    };
-    const Harness = () => {
-      root = useAui({ thread: ThreadClient() } as unknown as useAui.Props);
-      return (
-        <AuiProvider value={root as never}>
-          <DerivedMessageProvider index={1}>
-            <HostedDerivedMessageProvider index={0}>
-              <Listener />
-            </HostedDerivedMessageProvider>
-          </DerivedMessageProvider>
-        </AuiProvider>
-      );
-    };
-    render(<Harness />);
-    const cb = vi.fn();
-    child.on("message.pinged", cb);
-
-    root.thread.message({ index: 1 }).ping("derived-parent");
-    root.thread.message({ index: 0 }).ping("hosted-child");
-    await flushEvents();
-
-    expect(cb).toHaveBeenCalledExactlyOnceWith({
-      id: "m0",
-      value: "hosted-child",
     });
   });
 

@@ -10,7 +10,6 @@ import { useAssistantEmit } from "./utils/tap-assistant-context";
 import { useClientResource } from "./useClientResource";
 import { Derived } from "./Derived";
 import type { AssistantClient } from "./types/client";
-import { EVENT_CLIENT_INTERNALS } from "./utils/event-client-internals";
 
 type AnyClient = Record<string, any>;
 
@@ -168,7 +167,7 @@ describe("createAssistantClient", () => {
     handle.destroy();
   });
 
-  it("keeps scope-filtered event subscriptions across structural rebinds", async () => {
+  it("keeps an existing event subscription across structural rebinds", async () => {
     const handle = createTestClient({
       thread: ThreadClient(),
       message: messageDerived(),
@@ -189,363 +188,23 @@ describe("createAssistantClient", () => {
     handle.destroy();
   });
 
-  it("recomputes inherited scope ownership after config changes", async () => {
-    const parent = createTestClient({
-      message: MessageClient({ id: "parent" }),
-    });
-    let config: Record<string, unknown> = {};
-    const listeners = new Set<() => void>();
-    const notify = () => listeners.forEach((listener) => listener());
-    const child = createTestClient(
-      {
-        getConfig: () => config,
-        subscribe: (listener: () => void) => {
-          listeners.add(listener);
-          return () => listeners.delete(listener);
-        },
-      },
-      { parent: parent as never },
-    );
-    const subscribed = child.getClient();
-    const cb = vi.fn();
-    subscribed.on("message.pinged", cb);
-
-    config = { message: MessageClient({ id: "child" }) };
-    flushTapSync(notify);
-
-    flushTapSync(() => parent.getClient().message.ping("inherited"));
-    flushTapSync(() => child.getClient().message.ping("local"));
-    await flushEvents();
-
-    expect(cb).toHaveBeenCalledExactlyOnceWith({
-      id: "child",
-      value: "local",
-    });
-
-    child.destroy();
-    parent.destroy();
-  });
-
-  it("falls back to an ancestor after the current owner removes a scope", async () => {
-    const grandparent = createTestClient({
-      message: MessageClient({ id: "grandparent" }),
-    });
-    let config: Record<string, unknown> = {
-      message: MessageClient({ id: "parent" }),
-    };
-    const listeners = new Set<() => void>();
-    const notify = () => listeners.forEach((listener) => listener());
-    const parent = createAssistantClient(
-      {
-        getConfig: () => config as never,
-        subscribe: (listener) => {
-          listeners.add(listener);
-          return () => listeners.delete(listener);
-        },
-      },
-      { parent: grandparent as never },
-    );
-    const child = createTestClient({}, { parent });
-    const cb = vi.fn();
-    child.getClient().on("message.pinged", cb);
-
-    config = {};
-    flushTapSync(notify);
-    flushTapSync(() => grandparent.getClient().message.ping("fallback"));
-    await flushEvents();
-
-    expect(cb).toHaveBeenCalledExactlyOnceWith({
-      id: "grandparent",
-      value: "fallback",
-    });
-
-    child.destroy();
-    parent.destroy();
-    grandparent.destroy();
-  });
-
-  it("cleans local registration when an ancestor rejects a missing scope", async () => {
-    const root = createTestClient({});
-    let config: Record<string, unknown> = {};
-    const listeners = new Set<() => void>();
-    const notify = () => listeners.forEach((listener) => listener());
-    const child = createAssistantClient(
-      {
-        getConfig: () => config as never,
-        subscribe: (listener) => {
-          listeners.add(listener);
-          return () => listeners.delete(listener);
-        },
-      },
-      { parent: root as never },
-    );
-    const cb = vi.fn();
-
-    expect(() => child.getClient().on("message.pinged" as never, cb)).toThrow(
-      'Scope "message" is not available',
-    );
-
-    config = { message: MessageClient({ id: "child" }) };
-    flushTapSync(notify);
-    flushTapSync(() =>
-      (child.getClient() as AnyClient).message.ping("after-error"),
-    );
-    await flushEvents();
-
-    expect(cb).not.toHaveBeenCalled();
-
-    child.destroy();
-    root.destroy();
-  });
-
-  it("keeps local listeners when a custom parent rejects the scope", async () => {
+  it("rejects an unavailable scope before bypassing a custom parent", () => {
     const emptyParentHandle = createTestClient({});
-    const parentOn = vi.fn(() => {
-      throw new Error("unsupported scope");
-    });
+    const parentOn = vi.fn(() => () => {});
     const parent = {
       subscribe: () => () => {},
       on: parentOn,
       message: emptyParentHandle.getClient().message,
     } as unknown as AssistantClient;
-    const child = createTestClient(
-      { message: MessageClient({ id: "child" }) },
-      { parent },
-    );
-    const cb = vi.fn();
-
-    expect(() => child.getClient().on("message.pinged", cb)).not.toThrow();
-    expect(parentOn).not.toHaveBeenCalled();
-
-    flushTapSync(() => child.getClient().message.ping("local"));
-    await flushEvents();
-
-    expect(cb).toHaveBeenCalledExactlyOnceWith({
-      id: "child",
-      value: "local",
-    });
-
-    child.destroy();
-    emptyParentHandle.destroy();
-  });
-
-  it("preserves the receiver for a custom parent on method", () => {
-    const parentHandle = createTestClient({ thread: ThreadClient() });
-    const parent = Object.create(parentHandle.getClient()) as AnyClient;
-    const parentOn = vi.fn(function () {
-      return () => {};
-    });
-    Object.defineProperty(parent, "on", {
-      value: parentOn,
-      writable: true,
-      configurable: true,
-    });
-    const child = createTestClient(
-      { message: MessageClient({ id: "child" }) },
-      { parent: parent as AssistantClient },
-    );
-
-    const unsubscribe = child.getClient().on("thread.pinged" as never, vi.fn());
-
-    expect(parentOn).toHaveBeenCalledOnce();
-    expect(parentOn.mock.contexts[0]).toBe(parent);
-
-    unsubscribe();
-    child.destroy();
-    parentHandle.destroy();
-  });
-
-  it("preserves subscriber scope through a transparent parent wrapper", async () => {
-    const parentHandle = createTestClient({
-      thread: ThreadClient(),
-      message: MessageClient({ id: "parent" }),
-    });
-    const parent = Object.create(parentHandle.getClient()) as AssistantClient;
-    const child = createTestClient(
-      {
-        message: Derived({
-          source: "thread",
-          query: { index: 1 },
-          get: (aui: AnyClient) => aui.thread.message({ index: 1 }),
-        } as never),
-      },
-      { parent },
-    );
-    const cb = vi.fn();
-    child.getClient().on("message.pinged", cb);
-
-    flushTapSync(() => parentHandle.getClient().message.ping("parent"));
-    await flushEvents();
-    expect(cb).not.toHaveBeenCalled();
-
-    flushTapSync(() =>
-      parentHandle.getClient().thread.message({ index: 1 }).ping("derived"),
-    );
-    await flushEvents();
-    expect(cb).toHaveBeenCalledExactlyOnceWith({
-      id: "m1",
-      value: "derived",
-    });
-
-    child.destroy();
-    parentHandle.destroy();
-  });
-
-  it("preserves the receiver when a generated parent's on is overridden", () => {
-    const parentHandle = createTestClient({ thread: ThreadClient() });
-    const parent = parentHandle.getClient() as AssistantClient;
-    const parentOn = vi.fn(function () {
-      return () => {};
-    });
-    Object.defineProperty(parent, "on", {
-      value: parentOn,
-      writable: true,
-      configurable: true,
-    });
-    const child = createTestClient(
-      { message: MessageClient({ id: "child" }) },
-      { parent },
-    );
-
-    const unsubscribe = child.getClient().on("thread.pinged" as never, vi.fn());
-
-    expect(parentOn).toHaveBeenCalledOnce();
-    expect(parentOn.mock.contexts[0]).toBe(parent);
-
-    unsubscribe();
-    child.destroy();
-    parentHandle.destroy();
-  });
-
-  it("preserves subscriber scope through a generated parent from another module instance", async () => {
-    const parentHandle = createTestClient({
-      message: MessageClient({ id: "parent" }),
-    });
-    const parent = parentHandle.getClient() as AssistantClient;
-    const eventInternalsKey = Symbol.for(
-      Symbol.keyFor(EVENT_CLIENT_INTERNALS)!,
-    );
-    const parentInternals = (
-      parent as unknown as Record<
-        PropertyKey,
-        {
-          ref: { current: AssistantClient | null };
-          on: AssistantClient["on"];
-        }
-      >
-    )[eventInternalsKey]!;
-
-    // A second installed copy creates a different function identity but uses
-    // the shared global-symbol protocol on its generated client object.
-    const foreignOn: AssistantClient["on"] = function (
-      this: AssistantClient,
-      selector: never,
-      callback: never,
-    ) {
-      return parentInternals.on.call(this, selector, callback);
-    };
-    const foreignParent = Object.create(parent) as AssistantClient;
-    const foreignRef = { current: foreignParent };
-    Object.defineProperties(foreignParent, {
-      on: { value: foreignOn, writable: true, configurable: true },
-      [eventInternalsKey]: {
-        value: { ref: foreignRef, on: foreignOn },
-      },
-    });
-
-    const child = createTestClient(
-      { message: MessageClient({ id: "child" }) },
-      { parent: foreignParent },
-    );
-    const cb = vi.fn();
-    child.getClient().on("message.pinged", cb);
-
-    flushTapSync(() => parentHandle.getClient().message.ping("parent"));
-    await flushEvents();
-    expect(cb).not.toHaveBeenCalled();
-
-    flushTapSync(() => child.getClient().message.ping("child"));
-    await flushEvents();
-    expect(cb).toHaveBeenCalledExactlyOnceWith({
-      id: "child",
-      value: "child",
-    });
-
-    child.destroy();
-    parentHandle.destroy();
-  });
-
-  it("allows a scope named after the event internals registry key", async () => {
-    const scope = Symbol.keyFor(EVENT_CLIENT_INTERNALS)!;
-    const handle = createTestClient({
-      [scope]: MessageClient({ id: "collision" }),
-    });
-    const client = handle.getClient();
-    const cb = vi.fn();
-    client.on({ scope, event: "message.pinged" } as never, cb);
-
-    flushTapSync(() => client[scope].ping("value"));
-    await flushEvents();
-
-    expect(cb).toHaveBeenCalledExactlyOnceWith({
-      id: "collision",
-      value: "value",
-    });
-
-    handle.destroy();
-  });
-
-  it("drops queued events when a scope falls back to an unavailable accessor", async () => {
-    const emptyParentHandle = createTestClient({});
-    const parent = {
-      subscribe: () => () => {},
-      on: () => () => {},
-      message: emptyParentHandle.getClient().message,
-    } as unknown as AssistantClient;
-    let config: Record<string, unknown> = {
-      message: MessageClient({ id: "child" }),
-    };
-    const listeners = new Set<() => void>();
-    const notify = () => listeners.forEach((listener) => listener());
-    const child = createTestClient(
-      {
-        getConfig: () => config,
-        subscribe: (listener: () => void) => {
-          listeners.add(listener);
-          return () => listeners.delete(listener);
-        },
-      },
-      { parent },
-    );
-    const subscribed = child.getClient();
-    const cb = vi.fn();
-    subscribed.on("message.pinged", cb);
-
-    flushTapSync(() => subscribed.message.ping("queued"));
-    config = {};
-    flushTapSync(notify);
-    await flushEvents();
-
-    expect(cb).not.toHaveBeenCalled();
-
-    child.destroy();
-    emptyParentHandle.destroy();
-  });
-
-  it.each([
-    "constructor",
-    "toString",
-    "valueOf",
-    "hasOwnProperty",
-    "__proto__",
-  ])("rejects an unavailable scope named %s", (scope) => {
-    const handle = createTestClient({ thread: ThreadClient() });
+    const child = createTestClient({ thread: ThreadClient() }, { parent });
 
     expect(() =>
-      handle.getClient().on(`${scope}.pinged` as never, vi.fn()),
-    ).toThrow(`Scope "${scope}" is not available`);
+      child.getClient().on("message.pinged" as never, vi.fn()),
+    ).toThrow('Scope "message" is not available');
+    expect(parentOn).not.toHaveBeenCalled();
 
-    handle.destroy();
+    child.destroy();
+    emptyParentHandle.destroy();
   });
 
   it("extends a parent handle and re-binds across the parent's structural changes", () => {

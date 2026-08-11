@@ -50,7 +50,6 @@ import { ClientResource } from "./useClientResource";
 import { useShallowStable } from "./utils/useShallowStable";
 import { createClientAccessor, getClientId } from "./utils/client-accessor";
 import { getClientIndex } from "./utils/tap-client-stack-context";
-import { EVENT_CLIENT_INTERNALS } from "./utils/event-client-internals";
 
 const isDevelopment =
   typeof process !== "undefined" &&
@@ -115,55 +114,27 @@ type EventClientInternals = {
   on: AssistantClient["on"];
 };
 
-// A global registry symbol keeps generated clients interoperable when version
-// skew loads multiple copies of @assistant-ui/store, without colliding with a
-// string scope name.
+// Keep generation metadata out of the public client object. A retained client
+// can follow its committed replacement without exposing internal properties.
+const eventClientInternals = new WeakMap<
+  AssistantClient,
+  EventClientInternals
+>();
+
 const getOwnEventClientInternals = (
   client: AssistantClient,
-): EventClientInternals | undefined =>
-  Object.prototype.hasOwnProperty.call(client, EVENT_CLIENT_INTERNALS)
-    ? ((client as unknown as Record<PropertyKey, unknown>)[
-        EVENT_CLIENT_INTERNALS
-      ] as EventClientInternals)
-    : undefined;
+): EventClientInternals | undefined => eventClientInternals.get(client);
 
 const getCurrentEventClient = (client: AssistantClient): AssistantClient =>
   getOwnEventClientInternals(client)?.ref.current ?? client;
 
-const getEventScopeOwner = (
-  client: AssistantClient,
-  scope: ClientNames,
-): AssistantClient | null => {
-  let candidate: object | null = client;
-  while (candidate && candidate !== Object.prototype) {
-    if (Object.prototype.hasOwnProperty.call(candidate, scope)) {
-      return candidate as AssistantClient;
-    }
-    candidate = Object.getPrototypeOf(candidate) as object | null;
-  }
-  return null;
-};
-
 const getEventScopeBinding = (
   subscriber: AssistantClient,
   scope: ClientNames,
-): AssistantClientAccessor<ClientNames> | undefined => {
-  let client = getCurrentEventClient(subscriber);
-  while (true) {
-    const owner = getEventScopeOwner(client, scope);
-    if (!owner) return undefined;
-
-    const currentOwner = getCurrentEventClient(owner);
-    if (currentOwner === owner) {
-      return owner[scope] as AssistantClientAccessor<ClientNames>;
-    }
-
-    // The retained owner belongs to an older generation. Start ownership
-    // lookup again from its current generation: it may now inherit the scope
-    // from an ancestor after removing its own binding.
-    client = currentOwner;
-  }
-};
+): AssistantClientAccessor<ClientNames> | undefined =>
+  getCurrentEventClient(subscriber)[scope] as
+    | AssistantClientAccessor<ClientNames>
+    | undefined;
 
 const createClientObject = (
   parent: AssistantClient,
@@ -176,57 +147,11 @@ const createClientObject = (
 
   const client = Object.create(proto) as AssistantClient;
   Object.assign(client, fields);
-  Object.defineProperty(client, EVENT_CLIENT_INTERNALS, {
-    value: {
-      ref: eventClientRef,
-      on: fields.on,
-    } satisfies EventClientInternals,
+  eventClientInternals.set(client, {
+    ref: eventClientRef,
+    on: fields.on,
   });
   return client;
-};
-
-type ResolvedParentEventHandler = {
-  on: AssistantClient["on"];
-  receiver: AssistantClient;
-  generated: boolean;
-};
-
-const resolveParentEventHandler = (
-  parent: AssistantClient,
-  subscriber: AssistantClient,
-): ResolvedParentEventHandler => {
-  const parentOn = parent.on;
-  // Transparent wrappers inherit `on` without inheriting own internals. Find
-  // the object that defines the method before choosing its receiver.
-  let owner: object | null = parent;
-  while (owner && owner !== Object.prototype) {
-    if (Object.prototype.hasOwnProperty.call(owner, "on")) {
-      const generated =
-        getOwnEventClientInternals(owner as AssistantClient)?.on === parentOn;
-      return {
-        on: parentOn,
-        receiver: generated ? subscriber : parent,
-        generated,
-      };
-    }
-    owner = Object.getPrototypeOf(owner) as object | null;
-  }
-
-  return { on: parentOn, receiver: parent, generated: false };
-};
-
-const callParentEventHandler = <TEvent extends AssistantEventName>(
-  parent: AssistantClient,
-  subscriber: AssistantClient,
-  selector: AssistantEventSelector<TEvent>,
-  callback: AssistantEventCallback<TEvent>,
-) => {
-  const handler = resolveParentEventHandler(parent, subscriber);
-  return handler.on.call(
-    handler.receiver,
-    selector as never,
-    callback as never,
-  );
 };
 
 function assertEventReceiver(
@@ -239,16 +164,18 @@ function assertEventReceiver(
   }
 }
 
-const assertGeneratedEventScope = <TEvent extends AssistantEventName>(
+const assertEventScope = <TEvent extends AssistantEventName>(
   receiver: AssistantClient,
-  parent: AssistantClient,
   selector: AssistantEventSelector<TEvent>,
 ) => {
-  // A hand-built parent owns its selector contract and may route scopes
-  // without exposing accessors. Generated chains validate at their root.
-  if (parent !== DefaultAssistantClient) return;
   const { scope, event } = normalizeEventSelector(selector);
-  if (scope !== "*" && !getEventScopeBinding(receiver, scope as ClientNames)) {
+  const binding =
+    scope === "*"
+      ? undefined
+      : getEventScopeBinding(receiver, scope as ClientNames);
+  // A hand-built client may route a selector without exposing an accessor,
+  // but an explicit unavailable accessor must keep the generated-client error.
+  if (binding?.source === null) {
     throw new Error(
       `Scope "${scope}" is not available. Use { scope: "*", event: "${event}" } to listen globally.`,
     );
@@ -262,8 +189,10 @@ const createEventForwarder = (parent: AssistantClient): AssistantClient["on"] =>
     callback: AssistantEventCallback<TEvent>,
   ) {
     assertEventReceiver(this);
-    assertGeneratedEventScope(this, parent, selector);
-    return callParentEventHandler(parent, this, selector, callback);
+    assertEventScope(this, selector);
+    // Preserve the receiver used when the derived-only branch borrowed the
+    // parent's method, while giving the wrapper its own committed-client hop.
+    return parent.on.call(this, selector as never, callback as never);
   };
 
 const useClientFields = ({
@@ -282,7 +211,7 @@ const useClientFields = ({
         callback: AssistantEventCallback<TEvent>,
       ) {
         assertEventReceiver(this);
-        assertGeneratedEventScope(this, clientRef.parent, selector);
+        assertEventScope(this, selector);
         const { scope, event } = normalizeEventSelector(selector);
 
         const localUnsub = notifications.on(event, (payload, clientStack) => {
@@ -307,12 +236,15 @@ const useClientFields = ({
           }
         });
         const parent = clientRef.parent;
-        const parentHandler = resolveParentEventHandler(parent, this);
-        // Custom parents own their selector contract. An explicitly
-        // unavailable accessor means this scope is local to the child.
+        const parentOn = parent.on;
+        const generatedParent =
+          getOwnEventClientInternals(parent)?.on === parentOn;
+        // A custom parent owns its selector contract. Generated chains keep
+        // forwarding because the transport that emits the event may live at a
+        // higher ancestor even when that ancestor lacks the subscriber scope.
         if (
           scope !== "*" &&
-          !parentHandler.generated &&
+          !generatedParent &&
           parent[scope as ClientNames]?.source === null
         ) {
           return localUnsub;
@@ -320,8 +252,9 @@ const useClientFields = ({
 
         let parentUnsub: () => void;
         try {
-          parentUnsub = parentHandler.on.call(
-            parentHandler.receiver,
+          const parentReceiver = generatedParent ? this : parent;
+          parentUnsub = parentOn.call(
+            parentReceiver,
             selector as never,
             callback as never,
           );
@@ -443,20 +376,17 @@ const useHostedAssistantClient = ({
   parent: AssistantClient;
   entries: ScopeEntry[];
 }): ScopedAuiClient => {
-  const clientRef = useRef<ClientRef>({ parent, current: null }).current;
-  const renderedClientRef = useRef<AssistantClient | null>(null);
   const { value: client, effects } = useTapHost(function AssistantClientHost() {
+    const clientRef = useRef<ClientRef>({ parent, current: null }).current;
     const notifications = useNotificationManager();
 
     const store = useTapRoot(function AuiRoot() {
-      const result = useAuiRoot({
+      return useAuiRoot({
         parent,
         entries,
         clientRef,
         notifications,
       });
-      renderedClientRef.current = result.client;
-      return result;
     });
 
     const client = useSyncExternalStore(
@@ -483,21 +413,16 @@ const useHostedAssistantClient = ({
       // oxlint-disable-next-line react-hooks/exhaustive-deps -- parent is a prop of the outer hook; the host re-renders with a fresh closure when it changes
     }, [store, parent, notifications]);
 
+    useEffect(() => {
+      clientRef.parent = parent;
+      clientRef.current = client;
+    });
+
     if (clientRef.current === null) {
       clientRef.current = client;
     }
 
     return client;
-  });
-
-  // Keep this React hook outside the tap host: hooks inside a resource use
-  // tap's effect lifecycle. `store` publishes through that lifecycle, so use
-  // the client rendered in this React pass and publish it in React's commit
-  // phase. Only this commit hook publishes the render-owned ref, so an
-  // interrupted pass cannot replace the active event binding.
-  useInsertionEffect(() => {
-    clientRef.parent = parent;
-    clientRef.current = renderedClientRef.current ?? client;
   });
 
   return { client, effects };
@@ -574,10 +499,9 @@ const useDerivedOnlyClient = (
   );
   const client = useCommittedClient(building, [parent, ...accessors]);
 
-  // Publish structural rebinds in the commit phase so notification microtasks
-  // emitted by descendant layout effects resolve against the committed facade
-  // in DOM and custom renderers. Render-phase publication would leak an
-  // interrupted render instead; insertion effects are skipped by SSR.
+  // Publish structural rebinds during a successful commit, before queued
+  // event microtasks can observe them. Render-phase publication would leak an
+  // interrupted render into event delivery.
   useInsertionEffect(() => {
     clientRef.current = client;
   }, [client]);

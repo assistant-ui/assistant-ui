@@ -7,7 +7,6 @@ import { afterEach, describe, expect, it } from "vitest";
 import { flushTapSync, resource } from "@assistant-ui/tap";
 import { AuiProvider } from "../AuiProvider";
 import { useAui } from "../useAui";
-import { EVENT_CLIENT_INTERNALS } from "../utils/event-client-internals";
 import { useAuiState } from "../useAuiState";
 
 const makeTestClient = (log: string[]) => {
@@ -84,7 +83,7 @@ describe("useAui tap host", () => {
     expect(log).toEqual(["tap effect"]);
   });
 
-  it("exposes event internals under a symbol", () => {
+  it("keeps tap effect metadata outside the client object", () => {
     const TestClient = makeTestClient([]);
     let aui!: ReturnType<typeof useAui>;
 
@@ -96,7 +95,7 @@ describe("useAui tap host", () => {
     }
 
     render(<Host />);
-    expect(Object.getOwnPropertySymbols(aui)).toEqual([EVENT_CLIENT_INTERNALS]);
+    expect(Object.getOwnPropertySymbols(aui)).toEqual([]);
   });
 
   it("updates flow through to useAuiState consumers", () => {
