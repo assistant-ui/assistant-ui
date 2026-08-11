@@ -210,13 +210,7 @@ export interface ToSlackBlocksOptions {
   readonly surface?: "message" | "modal";
 }
 
-/**
- * A non-fatal downgrade reported during Slack conversion.
- *
- * `clamped` removed content to fit a limit, `dropped` discarded a node or one
- * of its props and may leave a placeholder note behind, and `fallback`
- * emitted the node in a different form than requested.
- */
+/** A non-fatal downgrade reported during Slack conversion. */
 export interface SlackConversionWarning {
   readonly code: "clamped" | "dropped" | "fallback";
   readonly component: string;
