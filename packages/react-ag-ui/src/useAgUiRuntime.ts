@@ -255,6 +255,8 @@ export function useAgUiRuntime(
           core.cancel();
         },
         onAddToolResult: (options) => core.addToolResult(options),
+        onRespondToToolApproval: (options) =>
+          core.respondToToolApproval(options),
         onResume: (config) => core.resume(config),
         setMessages: (messages: readonly ThreadMessage[]) =>
           core.applyExternalMessages(messages),

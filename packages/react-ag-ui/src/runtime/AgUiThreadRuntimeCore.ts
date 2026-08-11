@@ -14,6 +14,7 @@ import type {
   ChatModelRunResult,
   ExportedMessageRepository,
   MessageStatus,
+  RespondToToolApprovalOptions,
   ThreadAssistantMessage,
   ThreadHistoryAdapter,
   ThreadMessage,
@@ -45,6 +46,12 @@ import {
   toAgUiTools,
 } from "./adapter/conversions";
 import { createAgUiSubscriber } from "./adapter/subscriber";
+import {
+  collectToolApprovalResume,
+  findToolApprovalInterrupt,
+  withClosedToolApprovals,
+  withToolApprovalDecision,
+} from "./adapter/tool-approval";
 
 // AbstractAgent.runAgent declares two parameters. HttpAgent ignores a third and
 // is cancelled through agent.abortRun(); the run options stay for subclasses
@@ -556,6 +563,56 @@ export class AgUiThreadRuntimeCore {
     await this.startRun(pending.messageId, this.lastRunConfig, resume);
   }
 
+  async respondToToolApproval(
+    options: RespondToToolApprovalOptions,
+  ): Promise<void> {
+    const pending = this.getPendingInterrupts();
+    if (!pending) {
+      throw new Error(
+        "[agui] respondToToolApproval: no pending interrupts on this thread",
+      );
+    }
+
+    const interrupt = findToolApprovalInterrupt(
+      pending.interrupts,
+      options.approvalId,
+    );
+    if (!interrupt) {
+      throw new Error(
+        `[agui] respondToToolApproval: no pending confirmation interrupt for approval id "${options.approvalId}"`,
+      );
+    }
+
+    const recorded = this.updateMessage(pending.messageId, (message) => {
+      if (message.role !== "assistant") return message;
+      const assistant = message as ThreadAssistantMessage;
+      const content = withToolApprovalDecision(assistant.content, options);
+      if (content === assistant.content) return assistant;
+      return { ...assistant, content };
+    });
+    if (!recorded) {
+      throw new Error(
+        `[agui] respondToToolApproval: approval "${options.approvalId}" is already decided`,
+      );
+    }
+    this.notifyUpdate();
+
+    const assistant = this.tryGetMessage(pending.messageId)?.message as
+      | ThreadAssistantMessage
+      | undefined;
+    if (!assistant) return;
+
+    // AG-UI resumes a run with one response per open interrupt, so the run
+    // stays paused until every gate in the batch has been answered.
+    const resume = collectToolApprovalResume(
+      assistant.content,
+      pending.interrupts,
+    );
+    if (!resume) return;
+
+    await this.submitInterruptResponses(resume);
+  }
+
   async steerAway(
     message: CreateAppendMessage,
     responses?: readonly AgUiResumeEntry[],
@@ -699,6 +756,7 @@ export class AgUiThreadRuntimeCore {
       }
       return {
         ...assistant,
+        content: withClosedToolApprovals(assistant.content),
         status: { type: "complete" as const, reason: "unknown" as const },
         metadata: { ...assistant.metadata, custom: newCustom },
       };
