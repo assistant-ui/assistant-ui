@@ -164,7 +164,6 @@ function syncRuntimeToLexical(
   runtimeText: string,
   parse: CompositeParser,
   onComplete: () => void,
-  preserveDirectiveItems = false,
 ) {
   editor.update(
     () => {
@@ -173,20 +172,18 @@ function syncRuntimeToLexical(
         string,
         Pick<Unstable_TriggerItem, "description" | "metadata">[]
       >();
-      if (preserveDirectiveItems) {
-        for (const paragraph of root.getChildren()) {
-          if (!$isElementNode(paragraph)) continue;
-          for (const child of paragraph.getChildren()) {
-            if (!$isDirectiveNode(child)) continue;
-            const item = child.getDirectiveItem();
-            const key = getDirectiveKey(item, child.getDirectiveText());
-            const items = preservedDirectiveItems.get(key) ?? [];
-            items.push({
-              description: item.description,
-              metadata: item.metadata,
-            });
-            preservedDirectiveItems.set(key, items);
-          }
+      for (const paragraph of root.getChildren()) {
+        if (!$isElementNode(paragraph)) continue;
+        for (const child of paragraph.getChildren()) {
+          if (!$isDirectiveNode(child)) continue;
+          const item = child.getDirectiveItem();
+          const key = getDirectiveKey(item, child.getDirectiveText());
+          const items = preservedDirectiveItems.get(key) ?? [];
+          items.push({
+            description: item.description,
+            metadata: item.metadata,
+          });
+          preservedDirectiveItems.set(key, items);
         }
       }
       root.clear();
@@ -321,15 +318,9 @@ export function SyncPlugin({
     if (runtimeTextChanged || parserRequiresResync) {
       isSyncingFromRuntimeRef.current = true;
       lastSyncedTextRef.current = initialText;
-      syncRuntimeToLexical(
-        editor,
-        initialText,
-        parser,
-        () => {
-          isSyncingFromRuntimeRef.current = false;
-        },
-        parserRequiresResync && !runtimeTextChanged,
-      );
+      syncRuntimeToLexical(editor, initialText, parser, () => {
+        isSyncingFromRuntimeRef.current = false;
+      });
     }
 
     return composerRuntime.subscribe(() => {
