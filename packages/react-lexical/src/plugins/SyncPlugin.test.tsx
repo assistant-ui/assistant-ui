@@ -533,7 +533,7 @@ describe("SyncPlugin", () => {
     expect(reparseTags?.has(SKIP_DOM_SELECTION_TAG)).toBe(true);
   });
 
-  it("updates parser labels without discarding hydrated labels unnecessarily", async () => {
+  it("preserves labels per occurrence and ignores equivalent formatter wrappers", async () => {
     const initialConfig = {
       namespace: "sync-plugin-formatter-label-test",
       nodes: [DirectiveNode],
@@ -544,13 +544,36 @@ describe("SyncPlugin", () => {
     const capture = (capturedEditor: LexicalEditor) => {
       editor = capturedEditor;
     };
-    const createFormatter = (label: string): Unstable_DirectiveFormatter => ({
-      serialize: (item) => `[[${item.id}]]`,
-      parse: (text) => {
-        if (text !== "[[alice]]") return [{ kind: "text", text }];
-        return [{ kind: "mention", type: "person", id: "alice", label }];
-      },
-    });
+    const serialize: Unstable_DirectiveFormatter["serialize"] = (item) =>
+      `[[${item.id}]]`;
+    const createParse =
+      (
+        aliceLabel: string,
+        includeBob: boolean,
+      ): Unstable_DirectiveFormatter["parse"] =>
+      (text) => {
+        if (text === "[[alice]]") {
+          return [
+            {
+              kind: "mention",
+              type: "person",
+              id: "alice",
+              label: aliceLabel,
+            },
+          ];
+        }
+        if (includeBob && text === "[[bob]]") {
+          return [
+            {
+              kind: "mention",
+              type: "person",
+              id: "bob",
+              label: "Bob",
+            },
+          ];
+        }
+        return [{ kind: "text", text }];
+      };
     const render = (formatter: Unstable_DirectiveFormatter) =>
       root.render(
         <LexicalComposer initialConfig={initialConfig}>
@@ -558,10 +581,20 @@ describe("SyncPlugin", () => {
           <EditorProbe capture={capture} />
         </LexicalComposer>,
       );
+    const readDirectiveItems = () =>
+      editor.getEditorState().read(() =>
+        [0, 1].map((index) => {
+          const directive = $getParagraph(index).getFirstChild();
+          if (!$isDirectiveNode(directive)) {
+            throw new Error("Expected a directive");
+          }
+          return directive.getDirectiveItem();
+        }),
+      );
 
-    mocks.aui = createAui("[[alice]]");
+    mocks.aui = createAui("[[alice]]\n[[bob]]");
     await act(async () => {
-      render(createFormatter("Alice"));
+      render({ serialize, parse: createParse("Alice", false) });
     });
     await act(async () => {
       editor.update(
@@ -585,37 +618,38 @@ describe("SyncPlugin", () => {
         { tag: "aui-sync" },
       );
     });
-    const hydrated = editor.getEditorState().read(() => {
-      const directive = $getParagraph().getFirstChild();
-      if (!$isDirectiveNode(directive)) throw new Error("Expected a directive");
-      return { key: directive.getKey(), item: directive.getDirectiveItem() };
+
+    const expandedParse = vi.fn(createParse("Alice", true));
+    await act(async () => {
+      render({ serialize, parse: expandedParse });
     });
+    expect(readDirectiveItems()).toEqual([
+      {
+        id: "alice",
+        type: "person",
+        label: "Alice Smith",
+        description: "Project owner",
+        metadata: { workspace: "acme" },
+      },
+      {
+        id: "bob",
+        type: "person",
+        label: "Bob",
+        description: undefined,
+        metadata: undefined,
+      },
+    ]);
+
+    expandedParse.mockClear();
+    await act(async () => {
+      render({ serialize, parse: expandedParse });
+    });
+    expect(expandedParse).not.toHaveBeenCalled();
 
     await act(async () => {
-      render(createFormatter("Alice"));
+      render({ serialize, parse: createParse("Alice Cooper", true) });
     });
-    expect(
-      editor.getEditorState().read(() => {
-        const directive = $getParagraph().getFirstChild();
-        if (!$isDirectiveNode(directive)) {
-          throw new Error("Expected a directive");
-        }
-        return { key: directive.getKey(), item: directive.getDirectiveItem() };
-      }),
-    ).toEqual(hydrated);
-
-    await act(async () => {
-      render(createFormatter("Alice Cooper"));
-    });
-    expect(
-      editor.getEditorState().read(() => {
-        const directive = $getParagraph().getFirstChild();
-        if (!$isDirectiveNode(directive)) {
-          throw new Error("Expected a directive");
-        }
-        return directive.getDirectiveItem();
-      }),
-    ).toEqual({
+    expect(readDirectiveItems()[0]).toEqual({
       id: "alice",
       type: "person",
       label: "Alice Cooper",

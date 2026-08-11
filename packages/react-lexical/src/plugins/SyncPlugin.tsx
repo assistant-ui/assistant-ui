@@ -48,7 +48,7 @@ type SegmentKey =
   | readonly ["text", string]
   | readonly ["mention", string, string, string];
 
-type DirectiveLabelKey = readonly [string, string, string];
+type DirectiveLabelKey = readonly [string, string];
 
 /** Ordered, identity-deduped: prop formatter, trigger formatters, default tail. */
 export function collectFormatters(
@@ -131,10 +131,23 @@ function getParsedDirectiveLabels(
     .flatMap((line) =>
       parse(line).flatMap(({ segment }) =>
         segment.kind === "mention"
-          ? [[segment.id, segment.type, segment.label] as const]
+          ? [[getDirectiveKey(segment), segment.label] as const]
           : [],
       ),
     );
+}
+
+function getParsedDirectiveLabelQueues(
+  runtimeText: string,
+  parse: CompositeParser,
+) {
+  const result = new Map<string, string[]>();
+  for (const [key, label] of getParsedDirectiveLabels(runtimeText, parse)) {
+    const labels = result.get(key) ?? [];
+    labels.push(label);
+    result.set(key, labels);
+  }
+  return result;
 }
 
 function getDirectiveKey(item: Pick<Unstable_TriggerItem, "id" | "type">) {
@@ -271,17 +284,25 @@ function syncRuntimeToLexical(
   editor: LexicalEditor,
   runtimeText: string,
   parse: CompositeParser,
-  isParserOnlyReparse: boolean,
+  previousParser: CompositeParser | undefined,
   onComplete: () => void,
 ) {
+  const isParserOnlyReparse = previousParser !== undefined;
   editor.update(
     () => {
       const root = $getRoot();
       const preservedDirectiveItems = new Map<
         string,
-        Pick<Unstable_TriggerItem, "description" | "metadata">[]
+        (Pick<Unstable_TriggerItem, "description" | "metadata"> & {
+          readonly label?: string;
+        })[]
       >();
       if (isParserOnlyReparse) {
+        const previousLabels = getParsedDirectiveLabelQueues(
+          runtimeText,
+          previousParser,
+        );
+        const nextLabels = getParsedDirectiveLabelQueues(runtimeText, parse);
         for (const paragraph of root.getChildren()) {
           if (!$isElementNode(paragraph)) continue;
           for (const child of paragraph.getChildren()) {
@@ -289,9 +310,14 @@ function syncRuntimeToLexical(
             const item = child.getDirectiveItem();
             const key = getDirectiveKey(item);
             const items = preservedDirectiveItems.get(key) ?? [];
+            const previousLabel = previousLabels.get(key)?.shift();
+            const nextLabel = nextLabels.get(key)?.shift();
             items.push({
               description: item.description,
               metadata: item.metadata,
+              ...(previousLabel !== undefined && previousLabel === nextLabel
+                ? { label: item.label }
+                : {}),
             });
             preservedDirectiveItems.set(key, items);
           }
@@ -373,9 +399,20 @@ export function SyncPlugin({
 
   const triggers = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 
+  const propFormatterParse = propFormatter?.parse;
+  const propFormatterSerialize = propFormatter?.serialize;
   const formatters = useMemo(
-    () => collectFormatters(triggers, propFormatter),
-    [triggers, propFormatter],
+    () =>
+      collectFormatters(
+        triggers,
+        propFormatterParse && propFormatterSerialize
+          ? {
+              parse: propFormatterParse,
+              serialize: propFormatterSerialize,
+            }
+          : undefined,
+      ),
+    [triggers, propFormatterParse, propFormatterSerialize],
   );
 
   const parser = useMemo(() => composeParsers(formatters), [formatters]);
@@ -455,7 +492,9 @@ export function SyncPlugin({
         editor,
         initialText,
         parser,
-        parserRequiresResync && !runtimeTextChanged,
+        parserRequiresResync && !runtimeTextChanged
+          ? previousParser
+          : undefined,
         () => {
           isSyncingFromRuntimeRef.current = false;
           editorDirtySinceSyncRef.current = false;
@@ -472,7 +511,7 @@ export function SyncPlugin({
 
       isSyncingFromRuntimeRef.current = true;
       lastSyncedTextRef.current = runtimeText;
-      syncRuntimeToLexical(editor, runtimeText, parser, false, () => {
+      syncRuntimeToLexical(editor, runtimeText, parser, undefined, () => {
         isSyncingFromRuntimeRef.current = false;
         editorDirtySinceSyncRef.current = false;
       });
