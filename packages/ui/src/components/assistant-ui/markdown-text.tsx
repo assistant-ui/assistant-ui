@@ -23,7 +23,7 @@ const MarkdownTextImpl = () => {
       // from typeset.css, so chat messages match the surrounding UI at every
       // width. The font-mono fallback covers apps whose CSS never emits the
       // --font-mono theme variable.
-      className="aui-md typeset text-(length:--typeset-size) [--typeset-flow:1em] [--typeset-font-mono:var(--font-mono,ui-monospace,monospace)] [--typeset-leading:1.6]"
+      className="aui-md typeset text-inherit text-(length:--typeset-size) [--typeset-flow:1em] [--typeset-font-mono:var(--font-mono,ui-monospace,monospace)] [--typeset-leading:1.6]"
       components={defaultComponents}
       defer
     />

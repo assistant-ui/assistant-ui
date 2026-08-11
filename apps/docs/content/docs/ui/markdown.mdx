@@ -63,7 +63,7 @@ To tune the rhythm, change the `--typeset-*` variables on the `className` of `Ma
 ```tsx title="/components/assistant-ui/markdown-text.tsx"
 <MarkdownTextPrimitive
   remarkPlugins={[remarkGfm]}
-  className="aui-md typeset text-(length:--typeset-size) [--typeset-flow:1em] [--typeset-leading:1.6]"
+  className="aui-md typeset text-inherit text-(length:--typeset-size) [--typeset-flow:1em] [--typeset-font-mono:var(--font-mono,ui-monospace,monospace)] [--typeset-leading:1.6]"
   components={defaultComponents}
   defer
 />
