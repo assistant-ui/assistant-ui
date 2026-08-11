@@ -133,6 +133,33 @@ describe("useAgUiRuntime unstable_enableMessageQueue", () => {
     await waitFor(() =>
       expect(screen.getByTestId("queued").textContent).toBe("second"),
     );
+
+    await act(async () => {
+      await result.current.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "third" }],
+        parentId: result.current.thread.getState().messages.at(-1)?.id ?? null,
+      });
+    });
+
+    await waitFor(() => expect(runAgent).toHaveBeenCalledTimes(3));
+    expect(runAgent.mock.calls[1]?.[0]).toEqual(
+      expect.objectContaining({
+        messages: expect.arrayContaining([
+          expect.objectContaining({ role: "user", content: "second" }),
+        ]),
+      }),
+    );
+    expect(runAgent.mock.calls[2]?.[0]).toEqual(
+      expect.objectContaining({
+        messages: expect.arrayContaining([
+          expect.objectContaining({ role: "user", content: "third" }),
+        ]),
+      }),
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId("queued").textContent).toBe(""),
+    );
   });
 
   it("keeps accepting sends after a queued run fails", async () => {
