@@ -57,7 +57,7 @@ type TeamsConversionWarning = {
 | `Caption`, `Badge` | Small subtle `TextBlock` | The two become identical output |
 | `Image` | `Image` | A numeric `size` is dropped with a warning; `round` is dropped silently |
 | `Fact` | `FactSet` | Consecutive facts merge into one set |
-| `Table` | Native `Table` with the first row as headers | Requires schema 1.5, so it will not render on Teams mobile |
+| `Table` | Native `Table` with the first row as headers | Requires schema 1.5, so it will not render on Teams mobile; a column without a string label keeps its position with an empty header and warns |
 | `Card` | `Container`, with the title as a leading heading | Footer buttons become an `ActionSet` beside the container, not inside it |
 | `Alert` | `Container` with a semantic style (`accent`, `good`, `warning`, `attention`) | Title and description become two text blocks |
 | `Carousel` | Multiple attachments through `toTeamsAttachments` | See [Carousels](#carousels); a non-card child that would have rendered is dropped with a warning |

@@ -311,6 +311,17 @@ function convertTable(
     );
   }
 
+  const unlabeled = rawColumns.filter(
+    (column) => !isRecord(column) || typeof column["label"] !== "string",
+  ).length;
+  if (unlabeled > 0) {
+    warn(
+      context,
+      "dropped",
+      "Table",
+      `${unlabeled} column ${unlabeled === 1 ? "header was" : "headers were"} left blank for want of a string label.`,
+    );
+  }
   const hasColumns = rawColumns.length > 0;
   const columns: TeamsTableColumnDefinition[] = rawColumns.map(() => ({
     width: 1 as const,

@@ -1014,6 +1014,28 @@ describe("toAdaptiveCard", () => {
   });
 
   describe("Table", () => {
+    it.each([["A"], [{}], [{ label: 42 }]])(
+      "keeps an unlabeled column's position in the header and reports it: %j",
+      (column) => {
+        const { card, warnings } = toAdaptiveCard({
+          $type: "Table",
+          columns: [column, { label: "B" }],
+          rows: [["1", "2"]],
+        });
+        const table = card.body[0] as TeamsTable;
+        expect(
+          table.rows[0]?.cells.map(
+            (cell) => (cell.items[0] as TeamsTextBlock).text,
+          ),
+        ).toEqual(["", "B"]);
+        expect(warnings).toContainEqual({
+          code: "dropped",
+          component: "Table",
+          detail: "1 column header was left blank for want of a string label.",
+        });
+      },
+    );
+
     it("renders firstRowAsHeaders true and a header row when columns are present", () => {
       const { card } = toAdaptiveCard({
         $type: "Table",
