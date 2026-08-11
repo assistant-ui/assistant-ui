@@ -221,7 +221,10 @@ describe("queued sends gate at dispatch, not at enqueue", () => {
     ]);
   });
 
-  it("re-gates on the interrupt path a mid-run steer takes", async () => {
+  // interrupt dispatches synchronously inside `append`, so nothing can go
+  // stale in between; what matters is that this second dispatch point stamps
+  // at all, the way advance does.
+  it("stamps on the interrupt path a mid-run steer takes", async () => {
     const run = vi.fn();
     const cancel = vi.fn();
     const onNew = vi.fn(async () => {});
