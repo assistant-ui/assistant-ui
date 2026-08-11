@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { UserMessageSchema } from "@ag-ui/client";
-import { toAgUiMessages } from "./conversions";
+import { fromAgUiMessages, toAgUiMessages } from "./conversions";
 
 type Message = Parameters<typeof toAgUiMessages>[0][number];
 
@@ -161,5 +161,31 @@ describe("toAgUiMessages content metadata", () => {
       UserMessageSchema.safeParse(JSON.parse(JSON.stringify(converted)))
         .success,
     ).toBe(true);
+  });
+
+  it("survives a snapshot round trip", () => {
+    const sent = toAgUiMessages([
+      userMessage([
+        {
+          type: "file",
+          data: "https://example.com/spec.pdf",
+          mimeType: "application/pdf",
+          filename: "spec.pdf",
+          providerMetadata: { agui: { file_id: "f_7" } },
+        },
+      ]),
+    ]);
+
+    const rebuilt = fromAgUiMessages(sent as never);
+    const attachment = (rebuilt[0] as unknown as { attachments: unknown[] })
+      .attachments[0] as { content: unknown[] };
+
+    expect(attachment.content[0]).toMatchObject({
+      type: "file",
+      filename: "spec.pdf",
+      providerMetadata: { agui: { file_id: "f_7" } },
+    });
+
+    expect(toAgUiMessages(rebuilt as never)).toEqual(sent);
   });
 });

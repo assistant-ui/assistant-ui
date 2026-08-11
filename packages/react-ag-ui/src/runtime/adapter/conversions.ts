@@ -3,6 +3,7 @@
 import type { InputContent, RunAgentParameters } from "@ag-ui/client";
 import type {
   ThreadMessageLike as CoreThreadMessageLike,
+  PartProviderMetadata,
   ToolCallMessagePartMcpMetadata,
   ToolModelContentPart,
 } from "@assistant-ui/core";
@@ -129,6 +130,27 @@ const buildInputMetadata = (
     ...(filename !== undefined && { filename }),
   };
   return Object.keys(metadata).length > 0 ? metadata : undefined;
+};
+
+// The inverse: `filename` lands on the part's own field, everything else the
+// item carried goes back into the namespace it came from, so a snapshot echo
+// resends what the host attached.
+const readInputMetadata = (
+  metadata: unknown,
+): {
+  filename?: string | undefined;
+  providerMetadata?: PartProviderMetadata | undefined;
+} => {
+  if (!isObject(metadata)) return {};
+  const { filename: _filename, ...rest } = metadata;
+  return {
+    filename: getString(metadata, "filename"),
+    ...(Object.keys(rest).length > 0 && {
+      providerMetadata: {
+        [AG_UI_METADATA_NAMESPACE]: rest as PartProviderMetadata[string],
+      },
+    }),
+  };
 };
 
 function parseJSONText(value: string): unknown {
@@ -354,9 +376,7 @@ function toSnapshotAttachments(content: unknown): SnapshotAttachment[] {
     const source = inputSourceToString(part.source);
     if (!source) continue;
 
-    const filename = isObject(part.metadata)
-      ? getString(part.metadata, "filename")
-      : undefined;
+    const { filename, providerMetadata } = readInputMetadata(part.metadata);
     const id = attachments.length.toString();
 
     if (type === "image") {
@@ -371,6 +391,7 @@ function toSnapshotAttachments(content: unknown): SnapshotAttachment[] {
             type: "image",
             image: source.value,
             ...(filename !== undefined && { filename }),
+            ...(providerMetadata && { providerMetadata }),
           },
         ],
       });
@@ -391,6 +412,7 @@ function toSnapshotAttachments(content: unknown): SnapshotAttachment[] {
           mimeType,
           ...(source.isUrl && { sourceType: "url" as const }),
           ...(filename !== undefined && { filename }),
+          ...(providerMetadata && { providerMetadata }),
         },
       ],
     });
