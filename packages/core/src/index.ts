@@ -64,6 +64,12 @@ export type {
 
 export type { Unsubscribe } from "./types/unsubscribe";
 
+export type {
+  Assistant,
+  UserCommands,
+  UserExternalState,
+} from "./types/augmentations";
+
 export type { QuoteInfo } from "./types/quote";
 
 export type {
@@ -202,6 +208,7 @@ export type {
   AssistantError,
 } from "./types/error";
 export { toAssistantError, isAssistantError } from "./types/error";
+export { MessageNotSentError, isMessageNotSentError } from "./types/error";
 
 export type {
   RuntimeCapabilities,

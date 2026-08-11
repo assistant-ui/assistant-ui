@@ -1186,12 +1186,10 @@ describe("LocalThreadRuntimeCore runs", () => {
   };
 
   it("appends the user message and the adapter result", async () => {
-    const run = vi.fn(
-      async (): Promise<ChatModelRunResult> => ({
-        content: [{ type: "text", text: "Hello!" }],
-        status: { type: "complete", reason: "stop" },
-      }),
-    );
+    const run = vi.fn(async (): Promise<ChatModelRunResult> => ({
+      content: [{ type: "text", text: "Hello!" }],
+      status: { type: "complete", reason: "stop" },
+    }));
     const thread = createPlainThread({ run });
 
     await thread.append(userMessage("Hi"));
@@ -1247,23 +1245,21 @@ describe("LocalThreadRuntimeCore runs", () => {
   });
 
   it("does not run again after a tool result once maxSteps is reached", async () => {
-    const run = vi.fn(
-      async (): Promise<ChatModelRunResult> => ({
-        content: [
-          {
-            type: "tool-call",
-            toolCallId: "tc1",
-            toolName: "myTool",
-            args: {},
-            argsText: "{}",
-          },
-        ],
-        status: { type: "requires-action", reason: "tool-calls" },
-        metadata: {
-          steps: [{ usage: { promptTokens: 10, completionTokens: 5 } }],
+    const run = vi.fn(async (): Promise<ChatModelRunResult> => ({
+      content: [
+        {
+          type: "tool-call",
+          toolCallId: "tc1",
+          toolName: "myTool",
+          args: {},
+          argsText: "{}",
         },
-      }),
-    );
+      ],
+      status: { type: "requires-action", reason: "tool-calls" },
+      metadata: {
+        steps: [{ usage: { promptTokens: 10, completionTokens: 5 } }],
+      },
+    }));
     const thread = createPlainThread({ run }, { maxSteps: 1 });
 
     await thread.append(userMessage("Tool call"));

@@ -251,7 +251,7 @@ export function useAgUiRuntime(
           return core.reload(parentId, config);
         },
         onCancel: async () => {
-          queueController?.clear();
+          queueController?.notifyCancelled();
           core.cancel();
         },
         onAddToolResult: (options) => core.addToolResult(options),

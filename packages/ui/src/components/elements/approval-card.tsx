@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { CheckIcon, Loader2Icon, TerminalIcon, XIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { field, inkButton, paper } from "./surfaces";
@@ -15,7 +16,18 @@ export function ApprovalCard({
   onAlwaysAllow,
   onDeny,
   className,
-}: {
+  ...props
+}: Omit<
+  ComponentProps<"div">,
+  | "children"
+  | "state"
+  | "command"
+  | "title"
+  | "subtitle"
+  | "onAllowOnce"
+  | "onAlwaysAllow"
+  | "onDeny"
+> & {
   state: ApprovalState;
   command: string;
   title: string;
@@ -23,15 +35,17 @@ export function ApprovalCard({
   onAllowOnce?: () => void;
   onAlwaysAllow?: () => void;
   onDeny?: () => void;
-  className?: string;
 }) {
   return (
     <div
+      data-slot="approval-card"
       className={cn(
         paper,
         "flex w-full max-w-sm flex-col gap-3.5 rounded-[20px] p-4",
         className,
       )}
+
+      {...props}
     >
       <div className="flex items-center gap-3">
         <span className="bg-foreground/[0.05] text-foreground/45 flex size-9 shrink-0 items-center justify-center rounded-xl">

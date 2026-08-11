@@ -20,7 +20,12 @@ import type {
   ToolCallMessagePart,
 } from "@assistant-ui/core";
 import { MessageRepository } from "@assistant-ui/core/internal";
-import type { AbstractAgent } from "@ag-ui/client";
+import type {
+  AbstractAgent,
+  AgentSubscriber,
+  RunAgentParameters,
+  RunAgentResult,
+} from "@ag-ui/client";
 import jsonpatch, { type Operation } from "fast-json-patch";
 import type { Logger } from "./logger";
 import { readMcpAppResourceUri } from "./mcp-tool-result";
@@ -40,6 +45,15 @@ import {
   toAgUiTools,
 } from "./adapter/conversions";
 import { createAgUiSubscriber } from "./adapter/subscriber";
+
+// AbstractAgent.runAgent declares two parameters. HttpAgent ignores a third and
+// is cancelled through agent.abortRun(); the run options stay for subclasses
+// that inherit the base no-op abortRun and have no other cancellation hook.
+type RunAgentWithRunOptions = (
+  parameters: RunAgentParameters,
+  subscriber: AgentSubscriber,
+  options: { signal: AbortSignal },
+) => Promise<RunAgentResult>;
 
 const optimisticPrefix = "__optimistic__";
 const generateOptimisticId = () => `${optimisticPrefix}${generateId()}`;
@@ -104,6 +118,26 @@ const invokeRuntimeCallback = <TArgs extends unknown[]>(
   } catch (error) {
     reportCallbackError(name, error);
   }
+};
+
+// The aggregator only ever sends the interrupts it owns, so a shallow spread at
+// the custom level would drop sibling agui state such as opaqueReasoning.
+const mergeAgUiNamespace = (
+  current: Record<string, unknown> | undefined,
+  incoming: Record<string, unknown>,
+) => {
+  const merged = { ...current, ...incoming };
+  const currentNs = current?.[AG_UI_METADATA_NAMESPACE];
+  const incomingNs = incoming[AG_UI_METADATA_NAMESPACE];
+  if (
+    typeof currentNs === "object" &&
+    currentNs !== null &&
+    typeof incomingNs === "object" &&
+    incomingNs !== null
+  ) {
+    merged[AG_UI_METADATA_NAMESPACE] = { ...currentNs, ...incomingNs };
+  }
+  return merged;
 };
 
 export class AgUiThreadRuntimeCore {
@@ -1083,12 +1117,9 @@ export class AgUiThreadRuntimeCore {
         } catch {
           // ignore
         }
-        // HttpAgent ignores this third argument and is cancelled through
-        // agent.abortRun(); it stays for subclasses that inherit the base
-        // no-op abortRun and have no other cancellation hook.
-        await (runAgentInstance as any).runAgent(input, subscriber, {
-          signal: abortSignal,
-        });
+        const runAgent: RunAgentWithRunOptions =
+          runAgentInstance.runAgent.bind(runAgentInstance);
+        await runAgent(input, subscriber, { signal: abortSignal });
       }
     } catch (error) {
       if (!abortSignal.aborted) {
@@ -1445,7 +1476,7 @@ export class AgUiThreadRuntimeCore {
       ...(current.isOptimistic ? { isOptimistic: true } : {}),
       ...(incoming.timing ? { timing: incoming.timing } : {}),
       custom: incoming.custom
-        ? { ...current.custom, ...incoming.custom }
+        ? mergeAgUiNamespace(current.custom, incoming.custom)
         : current.custom,
     };
   }

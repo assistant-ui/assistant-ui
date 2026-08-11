@@ -692,6 +692,7 @@ declare abstract class BaseComposerRuntimeCore extends BaseSubscribable implemen
   get quote(): QuoteInfo | undefined;
   setQuote(quote: QuoteInfo | undefined): void;
   setText(value: string): void;
+  private _rebaseDictation;
   setRole(role: MessageRole): void;
   setRunConfig(runConfig: RunConfig): void;
   protected _isSending: boolean;
@@ -705,6 +706,12 @@ declare abstract class BaseComposerRuntimeCore extends BaseSubscribable implemen
   reset(): Promise<void>;
   clearAttachments(): Promise<void>;
   send(options?: SendOptions): Promise<void>;
+  restoreDraft(draft: {
+    text: string;
+    quote?: QuoteInfo | undefined;
+    attachments?: readonly Attachment[] | undefined;
+  }): boolean;
+  private _restoreUnsentDraft;
   cancel(): void;
   get queue(): readonly QueueItemState[];
   moveQueueItem(_queueItemId: string, _placement: QueuePlacement): void;
@@ -1419,6 +1426,7 @@ type FileMessagePart = {
   readonly data: string;
   readonly mimeType: string;
   readonly sourceType?: "id" | "url";
+  readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };
 
@@ -1504,6 +1512,7 @@ type ImageMessagePart = {
   readonly type: "image";
   readonly image: string;
   readonly filename?: string;
+  readonly providerMetadata?: PartProviderMetadata;
 };
 
 type ImageMessagePartComponent = ComponentType<ImageMessagePartProps>;
@@ -2287,7 +2296,11 @@ declare const PartByIndexProvider: FC<PropsWithChildren<{
 }>>;
 
 type PartInit = {
-  readonly type: "reasoning" | "text";
+  readonly type: "text";
+  readonly parentId?: string;
+} | {
+  readonly type: "reasoning";
+  readonly unstable_summary?: string;
   readonly parentId?: string;
 } | {
   readonly type: "tool-call";
@@ -2455,6 +2468,7 @@ type ReasoningMessagePart = {
   readonly type: "reasoning";
   readonly text: string;
   readonly status?: MessagePartStreamStatus;
+  readonly unstable_summary?: string;
   readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };

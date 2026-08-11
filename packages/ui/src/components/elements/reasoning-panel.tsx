@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 import { collapsePanel, mono, SwapLabel } from "./surfaces";
+import { take } from "./range";
 
 export interface ReasoningStep {
   title: string;
@@ -35,8 +36,11 @@ export function ReasoningPanel({
   elapsed,
   className,
 }: ReasoningPanelProps) {
+  const shown = take(steps, visibleSteps);
+
   return (
     <Collapsible
+      data-slot="reasoning-panel"
       open={open}
       onOpenChange={onOpenChange}
       className={cn("w-full max-w-sm", className)}
@@ -65,8 +69,8 @@ export function ReasoningPanel({
       </CollapsibleTrigger>
       <CollapsibleContent className={cn(collapsePanel, "outline-none")}>
         <ol className="flex flex-col gap-4 pt-3 pb-1">
-          {steps.slice(0, visibleSteps).map((step, i) => {
-            const active = streaming && i === visibleSteps - 1;
+          {shown.map((step, i) => {
+            const active = streaming && i === shown.length - 1;
             return (
               <li
                 key={step.title}
@@ -81,11 +85,11 @@ export function ReasoningPanel({
                       : "bg-foreground/20",
                   )}
                 />
-                <span className="flex flex-col">
+                <span className="flex min-w-0 flex-1 flex-col">
                   <p className="text-foreground/90 text-[13.5px] font-medium">
                     {step.title}
                   </p>
-                  <p className="text-foreground/50 mt-0.5 text-[13px] leading-relaxed">
+                  <p className="text-foreground/50 mt-0.5 text-[13px] leading-relaxed break-words">
                     {step.body}
                   </p>
                 </span>

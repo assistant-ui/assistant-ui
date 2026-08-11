@@ -109,6 +109,12 @@ export type {
 } from "../react/model-context/toolbox";
 
 // clients
+export {
+  ExternalThread,
+  type ExternalThreadProps,
+  type ExternalThreadMessage,
+} from "./clients/external-thread";
+export { SingleThreadList } from "./clients/single-thread-list";
 export { NoOpComposerClient } from "./clients/no-op-composer-client";
 export { Suggestions, type SuggestionConfig } from "./clients/suggestions";
 export { ChainOfThoughtClient } from "./clients/chain-of-thought-client";

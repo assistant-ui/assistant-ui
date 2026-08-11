@@ -317,7 +317,7 @@ export class PiThreadSupervisor {
         if (options?.includeSnapshot !== false) {
           // Snapshot-first when requested: the authoritative current state,
           // stamped with the record's seq so subsequent live events apply on top.
-          listener({
+          this.notifyListener(listener, {
             type: "snapshot",
             snapshot: this.snapshotOf(r),
             threadId,
@@ -327,7 +327,12 @@ export class PiThreadSupervisor {
       })
       .catch((err) => {
         if (active) {
-          listener({ type: "error", error: errorText(err), threadId, seq: 0 });
+          this.notifyListener(listener, {
+            type: "error",
+            error: errorText(err),
+            threadId,
+            seq: 0,
+          });
         }
       });
     return () => {
@@ -593,11 +598,18 @@ export class PiThreadSupervisor {
       seq: record.seq,
     } as PiClientEvent;
     for (const listener of [...record.listeners]) {
-      try {
-        listener(event);
-      } catch {
-        // A faulty listener must not break delivery to the others.
-      }
+      this.notifyListener(listener, event);
+    }
+  }
+
+  private notifyListener(
+    listener: (event: PiClientEvent) => void,
+    event: PiClientEvent,
+  ): void {
+    try {
+      listener(event);
+    } catch {
+      // A faulty listener must not break delivery to the others.
     }
   }
 

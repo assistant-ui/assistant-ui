@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   fromThreadMessageLike,
   generateId,
+  MessageNotSentError,
   pickExternalStoreSharedOptions,
   type AppendMessage,
   type AttachmentAdapter,
@@ -23,6 +24,7 @@ import {
   useEveAgent,
   type EveMessageData,
   type UseEveAgentOptions,
+  type UseEveAgentStatus,
 } from "eve/react";
 import type { SendTurnPayload } from "eve/client";
 import {
@@ -35,6 +37,46 @@ const USER_STAGED_STATUS = {
   type: "complete",
   reason: "unknown",
 } as const;
+
+const sendCancelledError = new MessageNotSentError(
+  "eve send was dropped because the run was cancelled.",
+);
+
+const sendAbandonedError = new Error(
+  "eve send was dropped because the runtime unmounted.",
+);
+
+const isDroppedSend = (error: unknown) =>
+  error === sendCancelledError || error === sendAbandonedError;
+
+type EveLifecycleCallbackName =
+  | "onError"
+  | "onEvent"
+  | "onFinish"
+  | "onSessionChange";
+
+const reportEveLifecycleCallbackError = (
+  name: EveLifecycleCallbackName,
+  error: unknown,
+) => {
+  console.error(`[assistant-ui/eve] ${name} callback threw an error`, error);
+};
+
+const invokeEveLifecycleCallback = <T>(
+  name: EveLifecycleCallbackName,
+  callback: ((value: T) => unknown) | undefined,
+  value: T,
+) => {
+  if (!callback) return;
+
+  try {
+    void Promise.resolve(callback(value)).catch((error) => {
+      reportEveLifecycleCallbackError(name, error);
+    });
+  } catch (error) {
+    reportEveLifecycleCallbackError(name, error);
+  }
+};
 
 const hasRunConfig = (
   runConfig: AppendMessage["runConfig"],
@@ -95,7 +137,37 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
     ? true
     : never;
 
-  const agent = useEveAgent(agentOptions);
+  const { onError, onEvent, onFinish, onSessionChange } = agentOptions;
+  const lastFinishStatusRef = useRef<UseEveAgentStatus | null>(null);
+  const agent = useEveAgent({
+    ...agentOptions,
+    ...(onError
+      ? {
+          onError: (error) =>
+            invokeEveLifecycleCallback("onError", onError, error),
+        }
+      : {}),
+    ...(onEvent
+      ? {
+          onEvent: (event) =>
+            invokeEveLifecycleCallback("onEvent", onEvent, event),
+        }
+      : {}),
+    onFinish: (snapshot) => {
+      lastFinishStatusRef.current = snapshot.status;
+      invokeEveLifecycleCallback("onFinish", onFinish, snapshot);
+    },
+    ...(onSessionChange
+      ? {
+          onSessionChange: (session) =>
+            invokeEveLifecycleCallback(
+              "onSessionChange",
+              onSessionChange,
+              session,
+            ),
+        }
+      : {}),
+  });
   const runtimeAdapters = useRuntimeAdapters();
   const [toolStatuses, setToolStatuses] = useState<
     Record<string, ToolExecutionStatus>
@@ -145,6 +217,37 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
   const messages = stagedMessages ?? convertedMessages;
   const messagesRef = useRef(messages);
   messagesRef.current = messages;
+
+  // Upstream `EveAgentStore.send` rejects while a turn is in flight and only
+  // resolves once the turn's stream parks, so a pending chain link is exactly
+  // an active turn; chaining every send serializes them without watching
+  // status.
+  const sendChainRef = useRef<Promise<void>>(Promise.resolve());
+  const sendEpochRef = useRef(0);
+  const isMountedRef = useRef(true);
+
+  const enqueueSend = (payload: Parameters<typeof agent.send>[0]) => {
+    const epoch = sendEpochRef.current;
+    const next = sendChainRef.current.then(() => {
+      if (epoch !== sendEpochRef.current)
+        throw isMountedRef.current ? sendCancelledError : sendAbandonedError;
+      return agent.send(payload);
+    });
+    sendChainRef.current = next.catch(() => {});
+    return next;
+  };
+
+  // The store outlives the component (useEveAgent holds it in a ref with no
+  // cleanup), so queued sends must not fire server turns after unmount. The
+  // flag separates that teardown from a user cancel, and is re-armed in setup
+  // for a remounted tree.
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      sendEpochRef.current += 1;
+    };
+  }, []);
 
   useEffect(() => {
     if (stagedInputsRef.current.size === 0) return;
@@ -205,10 +308,18 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
         stageUserMessage(message);
         return;
       }
-      await agent.send({
-        message: getEveMessageContent(message),
-        ...toEveClientContext(message.runConfig),
-      });
+      try {
+        await enqueueSend({
+          message: getEveMessageContent(message),
+          ...toEveClientContext(message.runConfig),
+        });
+      } catch (error) {
+        // A cancelled send never reached the session, so it rethrows for the
+        // composer to take the draft back; an unmounted one has no composer
+        // left to restore.
+        if (error === sendAbandonedError) return;
+        throw error;
+      }
     },
     ...(stagedMessages
       ? {
@@ -216,7 +327,9 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
             const stagedRun = getStagedRun(parentId);
             if (!stagedRun)
               throw new Error("Runtime does not support reloading messages.");
+            const epoch = sendEpochRef.current;
             for (const { message: stagedMessage, input } of stagedRun) {
+              if (epoch !== sendEpochRef.current) return;
               const previousMessages = messagesRef.current;
               stagedInputsRef.current.delete(stagedMessage.id);
               const nextMessages = previousMessages.filter(
@@ -234,7 +347,7 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
                   ? config.runConfig
                   : input.runConfig;
               try {
-                await agent.send({
+                await enqueueSend({
                   message: getEveMessageContent(input.message),
                   ...toEveClientContext(runConfig),
                 });
@@ -242,18 +355,25 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
                 stagedInputsRef.current.set(stagedMessage.id, input);
                 messagesRef.current = previousMessages;
                 setStagedMessages(previousMessages);
+                if (isDroppedSend(error)) return;
                 throw error;
               }
+              if (lastFinishStatusRef.current === "error") return;
             }
           },
         }
       : {}),
     onCancel: () => {
+      sendEpochRef.current += 1;
       agent.stop();
       return Promise.resolve();
     },
     onRespondToToolApproval: async (response) => {
-      await agent.send({ inputResponses: [toEveInputResponse(response)] });
+      try {
+        await enqueueSend({ inputResponses: [toEveInputResponse(response)] });
+      } catch (error) {
+        if (!isDroppedSend(error)) throw error;
+      }
     },
   });
 };

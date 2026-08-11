@@ -6,6 +6,7 @@ export {
   createAssistantClient,
   type AssistantClientHandle,
   type AssistantClientSource,
+  type AssistantConfigSource,
 } from "./createAssistantClient";
 
 export { DefaultAssistantClient } from "./utils/react-assistant-context";
