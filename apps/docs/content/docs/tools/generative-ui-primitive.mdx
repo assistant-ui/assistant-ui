@@ -8,9 +8,7 @@ platforms: ["react"]
 This page is for a **backend that already emits `generative-ui` message parts**. If you are starting fresh and want the model to compose an interface, use the [`present` tool](/docs/tools/generative-ui) instead: it ships a component vocabulary, generates the model-facing schema for you, and renders inside the stock `Thread` without extra wiring. The two are not versions of one API and their specs are not interchangeable; see [Spec shape](#spec-shape).
 </Callout>
 
-`MessagePrimitive.GenerativeUI` renders UI described by the agent at runtime as a JSON spec. Instead of hard-coding a component per tool, the agent emits a `generative-ui` message part containing a tree of components by name. assistant-ui resolves each name against a **consumer-provided allowlist** and renders the result.
-
-The producer is your backend, not the model's tool call: you decide what goes into the part and prompt your agent to emit it. That is the dividing line against the [`present` tool](/docs/tools/generative-ui), where the model calls a tool whose schema assistant-ui generated.
+`MessagePrimitive.GenerativeUI` renders UI described by the agent at runtime as a JSON spec. Instead of hard-coding a component per tool, the agent emits a `generative-ui` message part containing a tree of components by name. assistant-ui resolves each name against a **consumer-provided allowlist** and renders the result. The producer is your backend rather than a model tool call: you decide what goes into the part and prompt your agent to emit it.
 
 The allowlist controls **which** components the agent may render: any name not in it throws a typed `GenerativeUIRenderError` (no implicit fallback). It does not constrain the props passed to those components; see [Security](#security).
 
