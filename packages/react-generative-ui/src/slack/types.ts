@@ -214,8 +214,8 @@ export interface ToSlackBlocksOptions {
  * A non-fatal downgrade reported during Slack conversion.
  *
  * `clamped` removed content to fit a limit, `dropped` discarded a node or one
- * of its props, and `fallback` emitted the node in a different form than
- * requested.
+ * of its props and may leave a placeholder note behind, and `fallback`
+ * emitted the node in a different form than requested.
  */
 export interface SlackConversionWarning {
   readonly code: "clamped" | "dropped" | "fallback";

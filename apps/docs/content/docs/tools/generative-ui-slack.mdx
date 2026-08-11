@@ -39,7 +39,7 @@ type SlackConversionWarning = {
 };
 ```
 
-`clamped` means content was truncated to fit a Slack limit, `dropped` means a node or one of its props was discarded (an oversized button payload is dropped while the button itself is kept), and `fallback` means the node rendered through a simpler construct than its ideal one. Warnings arrive in traversal order and are not deduplicated. Logging them in development is the fastest way to see why a composition looks different on Slack than in the browser.
+`clamped` means content was truncated to fit a Slack limit, `dropped` means a node or one of its props was discarded and may have left a placeholder note behind (an oversized button payload is dropped while the button itself is kept, a `Chart` becomes an omission note), and `fallback` means the node rendered through a simpler construct than its ideal one. Warnings arrive in traversal order and are not deduplicated. Logging them in development is the fastest way to see why a composition looks different on Slack than in the browser.
 
 ## Component mapping
 
