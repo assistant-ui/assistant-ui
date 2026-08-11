@@ -19,12 +19,13 @@ describe("toTeamsAttachments payload budget", () => {
     }
     expect(
       warnings.some(
-        (warning) => warning.code === "clamped" && warning.component === "Root",
+        (warning) =>
+          warning.code === "advisory" && warning.component === "Root",
       ),
     ).toBe(false);
     expect(warnings).toContainEqual(
       expect.objectContaining({
-        code: "clamped",
+        code: "advisory",
         component: "Carousel",
         detail: expect.stringContaining(
           `over the ${PAYLOAD_SOFT_CAP}-byte soft budget`,

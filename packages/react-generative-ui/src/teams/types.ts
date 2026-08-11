@@ -213,9 +213,16 @@ export interface TeamsCardAttachment {
   readonly content: TeamsAdaptiveCard;
 }
 
-/** A non-fatal downgrade reported during Teams conversion. */
+/**
+ * A non-fatal note reported during Teams conversion.
+ *
+ * `clamped` removed content to fit a limit, `dropped` emitted nothing for a
+ * node, and `fallback` emitted the node in a different form than requested.
+ * `advisory` changed nothing at all and reports a payload Teams may still
+ * render poorly or refuse.
+ */
 export interface TeamsConversionWarning {
-  readonly code: "clamped" | "dropped" | "fallback";
+  readonly code: "clamped" | "dropped" | "fallback" | "advisory";
   readonly component: string;
   readonly detail: string;
 }

@@ -368,7 +368,7 @@ describe("toAdaptiveCard", () => {
         expect(action.mode).toBe("secondary");
       }
       expect(warnings).toContainEqual(
-        expect.objectContaining({ code: "clamped", component: "Button" }),
+        expect.objectContaining({ code: "fallback", component: "Button" }),
       );
     });
   });
@@ -418,7 +418,7 @@ describe("toAdaptiveCard", () => {
         expect(action.mode).toBe("secondary");
       }
       expect(warnings).toContainEqual(
-        expect.objectContaining({ code: "clamped", component: "Button" }),
+        expect.objectContaining({ code: "fallback", component: "Button" }),
       );
     });
   });
@@ -623,7 +623,7 @@ describe("toAdaptiveCard", () => {
         const element = card.body[0] as { id: string };
         expect(element.id).toBe("aui_");
         expect(warnings).toContainEqual(
-          expect.objectContaining({ code: "clamped", component: type }),
+          expect.objectContaining({ code: "fallback", component: type }),
         );
       },
     );
@@ -647,7 +647,7 @@ describe("toAdaptiveCard", () => {
       const ids = (card.body as TeamsInputText[]).map((element) => element.id);
       expect(ids).toEqual(["input", "input_2"]);
       expect(warnings).toContainEqual(
-        expect.objectContaining({ code: "clamped", component: "Input" }),
+        expect.objectContaining({ code: "fallback", component: "Input" }),
       );
     });
 
@@ -659,7 +659,9 @@ describe("toAdaptiveCard", () => {
       ]);
       const ids = (card.body as TeamsInputText[]).map((element) => element.id);
       expect(new Set(ids).size).toBe(3);
-      expect(warnings.some((warning) => warning.code === "clamped")).toBe(true);
+      expect(warnings.some((warning) => warning.code === "fallback")).toBe(
+        true,
+      );
     });
 
     it("names the actually-emitted id in the reserved-key warning, and fires only that one warning, when the rename target also collides", () => {
@@ -671,7 +673,7 @@ describe("toAdaptiveCard", () => {
       expect(ids).toEqual(["aui_", "aui__2"]);
       expect(warnings).toEqual([
         {
-          code: "clamped",
+          code: "fallback",
           component: "Input",
           detail:
             'the input id "aui" collides with the submit envelope\'s reserved key and was renamed to "aui__2".',
@@ -801,7 +803,7 @@ describe("toAdaptiveCard", () => {
       const columnSet = card.body[0] as TeamsColumnSet;
       expect(columnSet.columns).toHaveLength(4);
       expect(warnings).toContainEqual(
-        expect.objectContaining({ code: "clamped", component: "Row" }),
+        expect.objectContaining({ code: "advisory", component: "Row" }),
       );
     });
   });
@@ -1159,7 +1161,7 @@ describe("toAdaptiveCard", () => {
       const { warnings } = toAdaptiveCard({ $type: "Text", value });
       expect(warnings).toContainEqual(
         expect.objectContaining({
-          code: "clamped",
+          code: "advisory",
           component: "Root",
           detail: expect.stringContaining(
             `over the ${PAYLOAD_SOFT_CAP}-byte soft budget`,
@@ -1172,7 +1174,7 @@ describe("toAdaptiveCard", () => {
       const value = "汉".repeat(30000);
       const { warnings } = toAdaptiveCard({ $type: "Markdown", value });
       expect(warnings).toContainEqual(
-        expect.objectContaining({ code: "clamped", component: "Root" }),
+        expect.objectContaining({ code: "advisory", component: "Root" }),
       );
     });
 

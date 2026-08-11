@@ -113,7 +113,7 @@ export function toTeamsAttachments(
       const size = utf8ByteLength(JSON.stringify(attachments));
       if (size > PAYLOAD_SOFT_CAP) {
         warnings.push({
-          code: "clamped",
+          code: "advisory",
           component: "Carousel",
           detail: `the carousel attachments total ${size} bytes, over the ${PAYLOAD_SOFT_CAP}-byte soft budget kept below Teams' 100 KB bot message limit.`,
         });

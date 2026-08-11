@@ -108,14 +108,14 @@ function reservedSafeId(
   if (reserved) {
     warn(
       context,
-      "clamped",
+      "fallback",
       component,
       `the input id "${RESERVED_INPUT_ID}" collides with the submit envelope's reserved key and was renamed to "${candidate}".`,
     );
   } else if (candidate !== base) {
     warn(
       context,
-      "clamped",
+      "fallback",
       component,
       `the input id "${base}" was already used on this card and was renamed to "${candidate}".`,
     );
@@ -211,7 +211,7 @@ function convertButtons(
   if (buttons.length > PRIMARY_ACTION_CAP) {
     warn(
       context,
-      "clamped",
+      "fallback",
       "Button",
       `actions beyond ${PRIMARY_ACTION_CAP} were set to secondary mode.`,
     );
@@ -539,7 +539,7 @@ export function convertElement(
     case "Row": {
       const children = normalizedList(element.children);
       if (children.length > 3) {
-        warn(context, "clamped", "Row", "Teams recommends at most 3 columns.");
+        warn(context, "advisory", "Row", "Teams recommends at most 3 columns.");
       }
       const columns: TeamsColumn[] = children.map((child) => ({
         type: "Column",
@@ -716,7 +716,7 @@ export function convertRootToCard(
   if (size > PAYLOAD_SOFT_CAP) {
     warn(
       context,
-      "clamped",
+      "advisory",
       "Root",
       `the card is ${size} bytes, over the ${PAYLOAD_SOFT_CAP}-byte soft budget kept below Teams' 100 KB bot message limit.`,
     );

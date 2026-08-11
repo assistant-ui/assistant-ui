@@ -1074,7 +1074,7 @@ interface TeamsContainer {
 type TeamsContainerStyle = "accent" | "attention" | "default" | "emphasis" | "good" | "warning";
 
 interface TeamsConversionWarning {
-  readonly code: "clamped" | "dropped" | "fallback";
+  readonly code: "advisory" | "clamped" | "dropped" | "fallback";
   readonly component: string;
   readonly detail: string;
 }

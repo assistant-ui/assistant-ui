@@ -39,13 +39,13 @@ Conversion is total. Every downgrade is reported rather than thrown:
 
 ```ts
 type TeamsConversionWarning = {
-  code: "clamped" | "dropped" | "fallback";
+  code: "clamped" | "dropped" | "fallback" | "advisory";
   component: string; // the IR component name, or "Root" for whole-payload issues
   detail: string;
 };
 ```
 
-`clamped` means content was truncated or capped, `dropped` means a node produced no output, and `fallback` means the node rendered through a simpler construct. Teams uses `clamped` for two advisory cases where nothing is actually removed: a `Row` beyond three columns, and buttons past the sixth being moved to secondary mode.
+`clamped` means content was truncated or capped, `dropped` means a node produced no output, `fallback` means the node rendered through a different construct than requested (buttons past the sixth moved to secondary mode, a renamed input id), and `advisory` means nothing was changed at all and the payload may still render poorly or be refused (a `Row` beyond three columns, a card or carousel over the byte budget). Only `clamped` and `dropped` mean content was lost.
 
 ## Component mapping
 
