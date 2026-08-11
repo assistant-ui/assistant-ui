@@ -41,6 +41,35 @@ describe("toAgUiMessages content metadata", () => {
     ]);
   });
 
+  it("preserves a direct image part's filename through a snapshot round trip", () => {
+    const sent = toAgUiMessages([
+      userMessage([
+        {
+          type: "image",
+          image: "https://example.com/cat.png",
+          filename: "cat.png",
+        },
+      ]),
+    ]);
+
+    expect((sent[0] as { content: unknown }).content).toEqual([
+      {
+        type: "image",
+        source: { type: "url", value: "https://example.com/cat.png" },
+        metadata: { filename: "cat.png" },
+      },
+    ]);
+
+    const rebuilt = fromAgUiMessages(sent as never);
+    const attachment = (rebuilt[0] as unknown as { attachments: unknown[] })
+      .attachments[0];
+
+    expect(attachment).toMatchObject({
+      name: "cat.png",
+      content: [{ type: "image", filename: "cat.png" }],
+    });
+  });
+
   it("merges a file part's metadata with its filename", () => {
     expect(
       contentOf(

@@ -257,7 +257,7 @@ function toInputContent(
   if (type === "image") {
     const image = getString(part, "image");
     if (image === undefined) return null;
-    const metadata = buildInputMetadata(part);
+    const metadata = buildInputMetadata(part, getString(part, "filename"));
     return {
       type: "image",
       source: buildInputSource(image, fallbackMimeType),
