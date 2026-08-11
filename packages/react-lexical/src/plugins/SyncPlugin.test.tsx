@@ -533,6 +533,97 @@ describe("SyncPlugin", () => {
     expect(reparseTags?.has(SKIP_DOM_SELECTION_TAG)).toBe(true);
   });
 
+  it("updates parser labels without discarding hydrated labels unnecessarily", async () => {
+    const initialConfig = {
+      namespace: "sync-plugin-formatter-label-test",
+      nodes: [DirectiveNode],
+      onError: (error: Error) => {
+        throw error;
+      },
+    };
+    const capture = (capturedEditor: LexicalEditor) => {
+      editor = capturedEditor;
+    };
+    const createFormatter = (label: string): Unstable_DirectiveFormatter => ({
+      serialize: (item) => `[[${item.id}]]`,
+      parse: (text) => {
+        if (text !== "[[alice]]") return [{ kind: "text", text }];
+        return [{ kind: "mention", type: "person", id: "alice", label }];
+      },
+    });
+    const render = (formatter: Unstable_DirectiveFormatter) =>
+      root.render(
+        <LexicalComposer initialConfig={initialConfig}>
+          <SyncPlugin formatter={formatter} />
+          <EditorProbe capture={capture} />
+        </LexicalComposer>,
+      );
+
+    mocks.aui = createAui("[[alice]]");
+    await act(async () => {
+      render(createFormatter("Alice"));
+    });
+    await act(async () => {
+      editor.update(
+        () => {
+          const directive = $getParagraph().getFirstChild();
+          if (!$isDirectiveNode(directive)) {
+            throw new Error("Expected a directive");
+          }
+          directive.replace(
+            $createDirectiveNode(
+              {
+                ...directive.getDirectiveItem(),
+                label: "Alice Smith",
+                description: "Project owner",
+                metadata: { workspace: "acme" },
+              },
+              directive.getDirectiveText(),
+            ),
+          );
+        },
+        { tag: "aui-sync" },
+      );
+    });
+    const hydrated = editor.getEditorState().read(() => {
+      const directive = $getParagraph().getFirstChild();
+      if (!$isDirectiveNode(directive)) throw new Error("Expected a directive");
+      return { key: directive.getKey(), item: directive.getDirectiveItem() };
+    });
+
+    await act(async () => {
+      render(createFormatter("Alice"));
+    });
+    expect(
+      editor.getEditorState().read(() => {
+        const directive = $getParagraph().getFirstChild();
+        if (!$isDirectiveNode(directive)) {
+          throw new Error("Expected a directive");
+        }
+        return { key: directive.getKey(), item: directive.getDirectiveItem() };
+      }),
+    ).toEqual(hydrated);
+
+    await act(async () => {
+      render(createFormatter("Alice Cooper"));
+    });
+    expect(
+      editor.getEditorState().read(() => {
+        const directive = $getParagraph().getFirstChild();
+        if (!$isDirectiveNode(directive)) {
+          throw new Error("Expected a directive");
+        }
+        return directive.getDirectiveItem();
+      }),
+    ).toEqual({
+      id: "alice",
+      type: "person",
+      label: "Alice Cooper",
+      description: "Project owner",
+      metadata: { workspace: "acme" },
+    });
+  });
+
   it("preserves duplicate metadata when formatter syntax changes", async () => {
     const initialConfig = {
       namespace: "sync-plugin-formatter-metadata-test",

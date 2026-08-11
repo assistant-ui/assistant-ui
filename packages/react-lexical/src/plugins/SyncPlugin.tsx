@@ -46,7 +46,9 @@ type CompositeParser = (text: string) => readonly ParsedSegment[];
 
 type SegmentKey =
   | readonly ["text", string]
-  | readonly ["mention", string, string, string, string];
+  | readonly ["mention", string, string, string];
+
+type DirectiveLabelKey = readonly [string, string, string];
 
 /** Ordered, identity-deduped: prop formatter, trigger formatters, default tail. */
 export function collectFormatters(
@@ -112,13 +114,27 @@ function getParsedLines(
           "mention",
           segment.id,
           segment.type,
-          segment.label,
           formatter.serialize(segment),
         ]);
       }
     }
     return result;
   });
+}
+
+function getParsedDirectiveLabels(
+  runtimeText: string,
+  parse: CompositeParser,
+): DirectiveLabelKey[] {
+  return runtimeText
+    .split("\n")
+    .flatMap((line) =>
+      parse(line).flatMap(({ segment }) =>
+        segment.kind === "mention"
+          ? [[segment.id, segment.type, segment.label] as const]
+          : [],
+      ),
+    );
 }
 
 function getDirectiveKey(item: Pick<Unstable_TriggerItem, "id" | "type">) {
@@ -238,7 +254,6 @@ function editorMatchesParsedText(
             "mention",
             item.id,
             item.type,
-            item.label,
             child.getDirectiveText(),
           ]);
         } else {
@@ -418,14 +433,20 @@ export function SyncPlugin({
     if (!composerRuntime) return;
 
     const initialText = composerRuntime.getState().text;
-    const parserChanged = parser !== lastAppliedParserRef.current;
+    const previousParser = lastAppliedParserRef.current;
+    const parserChanged = parser !== previousParser;
     lastAppliedParserRef.current = parser;
     const runtimeTextChanged = initialText !== lastSyncedTextRef.current;
+    const parserLabelsChanged =
+      parserChanged &&
+      JSON.stringify(getParsedDirectiveLabels(initialText, previousParser)) !==
+        JSON.stringify(getParsedDirectiveLabels(initialText, parser));
     const parserRequiresResync =
       parserChanged &&
       !editorDirtySinceSyncRef.current &&
       !editor.isComposing() &&
-      !editorMatchesParsedText(editor, initialText, parser) &&
+      (!editorMatchesParsedText(editor, initialText, parser) ||
+        parserLabelsChanged) &&
       parserPreservesExistingDirectives(editor, initialText, parser);
     if (runtimeTextChanged || parserRequiresResync) {
       isSyncingFromRuntimeRef.current = true;
