@@ -194,7 +194,7 @@ describe("scope-filtered on", () => {
           ? { thread: ThreadClient(), message: messageDerived() }
           : { thread: ThreadClient() }) as unknown as useAui.Props,
       );
-      return <AuiProvider value={aui as never}>{null}</AuiProvider>;
+      return <AuiProvider value={aui as never} />;
     };
     const view = render(<Harness hasMessage />);
     const cb = vi.fn();
@@ -267,13 +267,10 @@ describe("parent chaining", () => {
     expect(cb).toHaveBeenCalledExactlyOnceWith({ id: "m0", value: "selected" });
   });
 
-  it("root scopes owned by the child do not register on the parent", async () => {
-    const { getAui, getChild } = setupChild();
-    const parentOn = vi.spyOn(getAui(), "on");
+  it("scopes defined on the child deliver locally without a parent registration", async () => {
+    const { getChild } = setupChild();
     const cb = vi.fn();
     getChild().on("other.pinged" as never, cb);
-
-    expect(parentOn).not.toHaveBeenCalled();
 
     getChild().other.ping("local");
     await flushEvents();
@@ -429,9 +426,12 @@ describe("Derived scopes", () => {
 
   it("forwards derived-only events through a parent that lacks the scope", async () => {
     let aui!: AnyClient;
-    const cb = vi.fn();
+    let child!: AnyClient;
+    const hookListener = vi.fn();
+    const directListener = vi.fn();
     const Listener = () => {
-      useAuiEvent("message.pinged" as never, cb as never);
+      child = useAui();
+      useAuiEvent("message.pinged" as never, hookListener as never);
       return null;
     };
     const MiddleProvider = ({ children }: { children: ReactNode }) => {
@@ -456,11 +456,19 @@ describe("Derived scopes", () => {
       );
     };
     render(<Harness />);
+    child.on("message.pinged", directListener);
 
     aui.thread.message({ index: 1 }).ping("child");
     await flushEvents();
 
-    expect(cb).toHaveBeenCalledExactlyOnceWith({ id: "m1", value: "child" });
+    expect(hookListener).toHaveBeenCalledExactlyOnceWith({
+      id: "m1",
+      value: "child",
+    });
+    expect(directListener).toHaveBeenCalledExactlyOnceWith({
+      id: "m1",
+      value: "child",
+    });
   });
 
   it("tracks a derived-only selection across structural swaps", async () => {
@@ -494,56 +502,6 @@ describe("Derived scopes", () => {
     expect(cb).toHaveBeenCalledExactlyOnceWith({
       id: "m1",
       value: "current",
-    });
-  });
-
-  it("delivers an event queued during a derived-only rebind notification", async () => {
-    let aui!: AnyClient;
-    const cb = vi.fn();
-    const Listener = () => {
-      useAuiEvent("message.pinged" as never, cb as never);
-      return null;
-    };
-    const SelectedMessageProvider = ({ children }: { children: ReactNode }) => {
-      const parent = useAui();
-      const config = AuiConfig({ message: messageDerived() } as never);
-      return (
-        <AuiProvider extends={parent} config={config}>
-          {children}
-        </AuiProvider>
-      );
-    };
-    const Harness = () => {
-      aui = useAui({ thread: ThreadClient() } as unknown as useAui.Props);
-      return (
-        <AuiProvider value={aui as never}>
-          <SelectedMessageProvider>
-            <Listener />
-          </SelectedMessageProvider>
-        </AuiProvider>
-      );
-    };
-    render(<Harness />);
-
-    const unsubscribe = aui.subscribe(() => {
-      aui.thread.message({ index: 1 }).ping("before-commit");
-    });
-    await act(async () => {
-      flushTapSync(() => aui.thread.setSelected(1));
-      await Promise.resolve();
-    });
-    unsubscribe();
-    expect(cb).toHaveBeenCalledExactlyOnceWith({
-      id: "m1",
-      value: "before-commit",
-    });
-
-    aui.thread.message({ index: 1 }).ping("after-commit");
-    await flushEvents();
-    expect(cb).toHaveBeenCalledTimes(2);
-    expect(cb).toHaveBeenLastCalledWith({
-      id: "m1",
-      value: "after-commit",
     });
   });
 

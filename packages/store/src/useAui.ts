@@ -109,35 +109,14 @@ type ClientFields = {
 };
 
 type EventClientRef = { current: AssistantClient | null };
-type EventClientInternals = {
-  ref: EventClientRef;
-};
 
-type EventScopeBinding =
-  | AssistantClientAccessor<ClientNames>
-  | null
-  | undefined;
-type EventScopeResolution = {
-  owner: AssistantClient | null;
-  binding: EventScopeBinding;
-};
-
-// Keep generation metadata out of the public client object. A retained client
-// can follow its committed replacement without exposing internal properties.
-const eventClientInternals = new WeakMap<
-  AssistantClient,
-  EventClientInternals
->();
-
-const getOwnEventClientInternals = (
-  client: AssistantClient,
-): EventClientInternals | undefined => eventClientInternals.get(client);
+// Every generated client points at the ref for its facade. This lets retained
+// event subscribers follow structural rebinds after they commit.
+const eventClientRefs = new WeakMap<AssistantClient, EventClientRef>();
+const generatedEventHandlers = new WeakSet<AssistantClient["on"]>();
 
 const getCurrentEventClient = (client: AssistantClient): AssistantClient =>
-  getOwnEventClientInternals(client)?.ref.current ?? client;
-
-const isGeneratedEventClient = (client: AssistantClient): boolean =>
-  getOwnEventClientInternals(client) !== undefined;
+  eventClientRefs.get(client)?.current ?? client;
 
 const getEventScopeOwner = (
   client: AssistantClient,
@@ -153,70 +132,38 @@ const getEventScopeOwner = (
   return null;
 };
 
-const getFallbackEventScopeBinding = (
-  client: AssistantClient,
-  scope: ClientNames,
-): EventScopeBinding => {
-  const binding = Reflect.get(client, scope, client) as EventScopeBinding;
-  if (
-    Object.prototype.hasOwnProperty.call(Object.prototype, scope) &&
-    binding === Reflect.get(Object.prototype, scope, client)
-  ) {
-    return null;
-  }
-  return binding;
-};
-
-const getEventScopeResolution = (
+const getEventScopeBinding = (
   subscriber: AssistantClient,
   scope: ClientNames,
-): EventScopeResolution => {
+): AssistantClientAccessor<ClientNames> | undefined => {
   let client = getCurrentEventClient(subscriber);
-  const visited = new Set<AssistantClient>();
+  let visited: Set<AssistantClient> | undefined;
 
-  while (!visited.has(client)) {
-    visited.add(client);
+  while (true) {
     const owner = getEventScopeOwner(client, scope);
-    // Root and hand-built clients may supply accessors dynamically rather than
-    // as own properties. Preserve that lookup, but do not mistake built-ins
-    // inherited unchanged from Object.prototype for registered scopes.
     if (!owner) {
-      return {
-        owner: null,
-        binding: getFallbackEventScopeBinding(client, scope),
-      };
+      return client[scope] as AssistantClientAccessor<ClientNames> | undefined;
     }
 
     const currentOwner = getCurrentEventClient(owner);
     if (currentOwner === owner) {
-      return {
-        owner,
-        // The owner identifies which generation supplies the property. The
-        // subscribing facade remains the receiver for inherited getters.
-        binding: Reflect.get(owner, scope, client) as EventScopeBinding,
-      };
+      return Reflect.get(owner, scope, client) as
+        | AssistantClientAccessor<ClientNames>
+        | undefined;
     }
 
-    // An inherited scope may belong to an older parent generation. Restart
-    // from the parent's committed replacement so retained wrappers follow it.
+    // The common path above allocates nothing. Track visited generations only
+    // when an inherited owner has actually been replaced.
+    visited ??= new Set([client]);
+    if (visited.has(currentOwner)) return undefined;
+    visited.add(currentOwner);
     client = currentOwner;
   }
-
-  // A caller can explicitly make an older generation the current client's
-  // parent. Treat the resulting generation cycle as unavailable rather than
-  // looping during registration or queued event delivery.
-  return { owner: null, binding: null };
 };
-
-const getEventScopeBinding = (
-  subscriber: AssistantClient,
-  scope: ClientNames,
-): EventScopeBinding => getEventScopeResolution(subscriber, scope).binding;
 
 const createClientObject = (
   parent: AssistantClient,
   fields: ClientFields,
-  eventClientRef: EventClientRef,
 ): AssistantClient => {
   // Swap the sentinel parent for a root prototype to change the error message
   const proto =
@@ -224,55 +171,7 @@ const createClientObject = (
 
   const client = Object.create(proto) as AssistantClient;
   Object.assign(client, fields);
-  eventClientInternals.set(client, {
-    ref: eventClientRef,
-  });
   return client;
-};
-
-function assertEventReceiver(
-  receiver: AssistantClient | undefined,
-): asserts receiver is AssistantClient {
-  if (!receiver) {
-    throw new Error(
-      "const { on } = useAui() is not supported. Use aui.on() instead.",
-    );
-  }
-}
-
-const assertEventScope = <TEvent extends AssistantEventName>(
-  receiver: AssistantClient,
-  selector: AssistantEventSelector<TEvent>,
-) => {
-  const { scope, event } = normalizeEventSelector(selector);
-  const binding =
-    scope === "*"
-      ? undefined
-      : getEventScopeBinding(receiver, scope as ClientNames);
-  // A hand-built client may route a selector without exposing an accessor,
-  // but an explicit unavailable accessor must keep the generated-client error.
-  if (binding === null || binding?.source === null) {
-    throw new Error(
-      `Scope "${scope}" is not available. Use { scope: "*", event: "${event}" } to listen globally.`,
-    );
-  }
-};
-
-const createEventForwarder = (
-  parent: AssistantClient,
-): AssistantClient["on"] => {
-  const parentOn = parent.on;
-  const generatedParent = isGeneratedEventClient(parent);
-  return function <TEvent extends AssistantEventName>(
-    this: AssistantClient,
-    selector: AssistantEventSelector<TEvent>,
-    callback: AssistantEventCallback<TEvent>,
-  ) {
-    assertEventReceiver(this);
-    assertEventScope(this, selector);
-    const parentReceiver = generatedParent ? this : parent;
-    return parentOn.call(parentReceiver, selector as never, callback as never);
-  };
 };
 
 const useClientFields = ({
@@ -290,9 +189,22 @@ const useClientFields = ({
         selector: AssistantEventSelector<TEvent>,
         callback: AssistantEventCallback<TEvent>,
       ) {
-        assertEventReceiver(this);
-        assertEventScope(this, selector);
+        if (!this) {
+          throw new Error(
+            "const { on } = useAui() is not supported. Use aui.on() instead.",
+          );
+        }
+
         const { scope, event } = normalizeEventSelector(selector);
+
+        if (
+          scope !== "*" &&
+          getEventScopeBinding(this, scope as ClientNames)?.source === null
+        ) {
+          throw new Error(
+            `Scope "${scope}" is not available. Use { scope: "*", event: "${event}" } to listen globally.`,
+          );
+        }
 
         const localUnsub = notifications.on(event, (payload, clientStack) => {
           if (scope === "*") {
@@ -300,9 +212,8 @@ const useClientFields = ({
             return;
           }
 
-          // Recompute ownership from the subscribing facade's current
-          // generation. An inherited scope follows its owning ancestor, while
-          // a descendant that adds or rebinds the same name becomes authoritative.
+          // Resolve against the subscribing facade's committed generation so
+          // a derived child uses its own binding rather than the host's.
           const boundScope = getEventScopeBinding(this, scope as ClientNames);
           // A scope removed by a structural change since subscription cannot
           // match; resolving its identity would throw
@@ -315,52 +226,24 @@ const useClientFields = ({
             callback(payload);
           }
         });
+
         const parent = clientRef.parent;
         const parentOn = parent.on;
-        const generatedParent = isGeneratedEventClient(parent);
-        const scopeResolution =
-          scope === "*"
-            ? undefined
-            : getEventScopeResolution(this, scope as ClientNames);
-
-        // A root scope owned by this host emits through this notification
-        // manager, so forwarding it can only add unused ancestor listeners.
-        if (
-          scopeResolution?.binding != null &&
-          scopeResolution.binding.source === "root" &&
-          scopeResolution.owner !== null &&
-          getOwnEventClientInternals(scopeResolution.owner)?.ref === clientRef
-        ) {
-          return localUnsub;
-        }
-
-        // A custom parent owns its selector contract. Generated chains keep
-        // forwarding because the transport that emits the event may live at a
-        // higher ancestor even when that ancestor lacks the subscriber scope.
-        const parentScope =
-          scope === "*"
-            ? undefined
-            : getEventScopeBinding(parent, scope as ClientNames);
+        const generatedParent = generatedEventHandlers.has(parentOn);
         if (
           scope !== "*" &&
           !generatedParent &&
-          (parentScope === null || parentScope?.source === null)
+          getEventScopeBinding(parent, scope as ClientNames)?.source === null
         ) {
           return localUnsub;
         }
 
         const parentReceiver = generatedParent ? this : parent;
-        let parentUnsub: () => void;
-        try {
-          parentUnsub = parentOn.call(
-            parentReceiver,
-            selector as never,
-            callback as never,
-          );
-        } catch (error) {
-          localUnsub();
-          throw error;
-        }
+        const parentUnsub = parentOn.call(
+          parentReceiver,
+          selector as never,
+          callback as never,
+        );
 
         return () => {
           localUnsub();
@@ -368,6 +251,7 @@ const useClientFields = ({
         };
       },
     };
+    generatedEventHandlers.add(fields.on);
     return fields;
   }, [notifications, clientRef]);
 };
@@ -445,7 +329,7 @@ export const useAuiRoot = ({
   notifications: NotificationManager;
 }): { client: AssistantClient } => {
   const fields = useClientFields({ notifications, clientRef });
-  const building = createClientObject(parent, fields, clientRef);
+  const building = createClientObject(parent, fields);
 
   const accessors = useAssistantTapContextProvider(
     { clientRef, emit: notifications.emit },
@@ -460,6 +344,7 @@ export const useAuiRoot = ({
   );
 
   const client = useCommittedClient(building, [parent, ...accessors]);
+  eventClientRefs.set(client, clientRef);
 
   // Fresh envelope per commit so value-only updates reach the store's
   // subscribers; the client inside keeps its identity
@@ -480,12 +365,7 @@ const useHostedAssistantClient = ({
     const notifications = useNotificationManager();
 
     const store = useTapRoot(function AuiRoot() {
-      return useAuiRoot({
-        parent,
-        entries,
-        clientRef,
-        notifications,
-      });
+      return useAuiRoot({ parent, entries, clientRef, notifications });
     });
 
     const client = useSyncExternalStore(
@@ -557,8 +437,8 @@ const useDerivedScopeMount = (
 
 // Derived-only hosts run without tap: each Derived scope is a plain React
 // hook call, so the scope count is fixed per call site (React throws on a
-// hook-count change). State notifications stay inherited from the parent,
-// while a child-owned event forwarder preserves this facade as the subscriber.
+// hook-count change). State and event transport stay inherited from the parent,
+// while the registry preserves this facade as the event subscriber.
 const useDerivedOnlyClient = (
   parent: AssistantClient,
   entries: ScopeEntry[],
@@ -583,14 +463,10 @@ const useDerivedOnlyClient = (
   }
 
   const clientRef = useRef<EventClientRef>({ current: null }).current;
-  const fields = useMemo<ClientFields>(
-    () => ({
-      subscribe: parent.subscribe,
-      on: createEventForwarder(parent),
-    }),
-    [parent],
-  );
-  const building = createClientObject(parent, fields, clientRef);
+  const building = createClientObject(parent, {
+    subscribe: parent.subscribe,
+    on: parent.on,
+  });
 
   const accessors = entries.map(([name, element]) =>
     // oxlint-disable-next-line react-hooks/rules-of-hooks -- fixed per call site; React throws on a count change
@@ -607,6 +483,7 @@ const useDerivedOnlyClient = (
   if (clientRef.current === null) {
     clientRef.current = client;
   }
+  eventClientRefs.set(client, clientRef);
   return client;
 };
 
