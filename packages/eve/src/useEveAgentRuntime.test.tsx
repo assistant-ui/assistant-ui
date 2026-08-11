@@ -954,7 +954,7 @@ describe("useEveAgentRuntime concurrent sends", () => {
     expect(getText(result.current)).toEqual(["earlier", "earlier answer"]);
   });
 
-  it("leaves the composer to the message cancelRun restored there", async () => {
+  it("returns the queued send when cancel keeps the trailing message", async () => {
     let resolveFirstSend!: () => void;
     const send = vi
       .fn()
@@ -966,7 +966,7 @@ describe("useEveAgentRuntime concurrent sends", () => {
       )
       .mockResolvedValue(undefined);
     // Before the turn streams, the dispatched message is the thread's trailing
-    // user leaf, which core hands back to the composer on cancel.
+    // user leaf. Eve owns that message and cannot remove it on cancel.
     const agent = createAgent({
       data: {
         messages: [
@@ -993,13 +993,15 @@ describe("useEveAgentRuntime concurrent sends", () => {
     act(() => {
       result.current.thread.cancelRun();
     });
-    expect(result.current.thread.composer.getState().text).toBe("first");
+    expect(result.current.thread.composer.getState().text).toBe("");
 
     await act(async () => {
       resolveFirstSend();
     });
 
-    expect(result.current.thread.composer.getState().text).toBe("first");
+    await waitFor(() => {
+      expect(result.current.thread.composer.getState().text).toBe("queued");
+    });
     expect(send).toHaveBeenCalledTimes(1);
   });
 
