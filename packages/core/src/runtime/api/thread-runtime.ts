@@ -34,6 +34,7 @@ import type {
 import type { ThreadListItemState } from "./bindings";
 import type { AppendMessage, ThreadMessage } from "../../types/message";
 import type { Unsubscribe } from "../../types/unsubscribe";
+import { isMessageNotSentError } from "../../types/error";
 import type { RunConfig } from "../../types/message";
 import { EventSubscriptionSubject } from "../../subscribable/subscribable";
 import { symbolInnerMessage } from "../utils/external-store-message";
@@ -416,11 +417,17 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
   }
 
   public append(message: CreateAppendMessage) {
-    this._threadBinding
+    const task = this._threadBinding
       .getState()
       .append(
         toAppendMessage(this._threadBinding.getState().messages, message),
       );
+    // An undispatched send is reported to the composer, so it is a control
+    // signal rather than a failure to surface; every other rejection keeps
+    // reaching the host untouched.
+    void Promise.resolve(task).catch((error) => {
+      if (!isMessageNotSentError(error)) throw error;
+    });
   }
 
   public deleteMessage(messageId: string) {

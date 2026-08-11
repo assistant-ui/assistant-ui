@@ -139,6 +139,7 @@ export type {
   ExternalStoreThreadData,
   ExternalStoreBranchChange,
 } from "@assistant-ui/core";
+export { MessageNotSentError } from "@assistant-ui/core";
 export {
   createMessageQueue,
   type MessageQueueDriver,

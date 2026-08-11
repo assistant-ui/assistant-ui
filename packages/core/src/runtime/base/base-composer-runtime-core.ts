@@ -6,6 +6,7 @@ import {
   type PendingAttachment,
 } from "../../types/attachment";
 import type { MessageRole, AppendMessage } from "../../types/message";
+import { isMessageNotSentError } from "../../types/error";
 import type { QuoteInfo } from "../../types/quote";
 import type { Unsubscribe } from "../../types/unsubscribe";
 import type { RunConfig } from "../../types/message";
@@ -290,7 +291,21 @@ export abstract class BaseComposerRuntimeCore
     };
 
     const sendTask = this.handleSend(message, options);
-    if (sendTask) void sendTask.catch(() => {});
+    if (sendTask)
+      void sendTask.catch((error) => {
+        if (!isMessageNotSentError(error)) return;
+        if (generation !== this._sendGeneration) return;
+        if (
+          this._text.trim() ||
+          this._quote !== undefined ||
+          this._attachments.length > 0
+        )
+          return;
+        this._text = text;
+        this._quote = quote;
+        this._attachments = finalAttachments;
+        this._notifySubscribers();
+      });
     this._notifyEventSubscribers("send", {});
   }
 

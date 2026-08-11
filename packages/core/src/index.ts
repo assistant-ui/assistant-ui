@@ -208,6 +208,7 @@ export type {
   AssistantError,
 } from "./types/error";
 export { toAssistantError, isAssistantError } from "./types/error";
+export { MessageNotSentError } from "./types/error";
 
 export type {
   RuntimeCapabilities,
