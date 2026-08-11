@@ -118,7 +118,7 @@ function getParsedLines(
 }
 
 function getDirectiveKey(item: Unstable_TriggerItem, directiveText: string) {
-  return JSON.stringify([item.id, item.type, item.label, directiveText]);
+  return JSON.stringify([item.id, item.type, directiveText]);
 }
 
 function editorMatchesParsedText(
@@ -169,7 +169,10 @@ function syncRuntimeToLexical(
   editor.update(
     () => {
       const root = $getRoot();
-      const preservedDirectiveItems = new Map<string, Unstable_TriggerItem[]>();
+      const preservedDirectiveItems = new Map<
+        string,
+        Pick<Unstable_TriggerItem, "description" | "metadata">[]
+      >();
       if (preserveDirectiveItems) {
         for (const paragraph of root.getChildren()) {
           if (!$isElementNode(paragraph)) continue;
@@ -178,7 +181,10 @@ function syncRuntimeToLexical(
             const item = child.getDirectiveItem();
             const key = getDirectiveKey(item, child.getDirectiveText());
             const items = preservedDirectiveItems.get(key) ?? [];
-            items.push(item);
+            items.push({
+              description: item.description,
+              metadata: item.metadata,
+            });
             preservedDirectiveItems.set(key, items);
           }
         }
@@ -208,9 +214,10 @@ function syncRuntimeToLexical(
               label: segment.label,
             };
             const key = getDirectiveKey(item, formatter.serialize(segment));
+            const preservedItem = preservedDirectiveItems.get(key)?.shift();
             paragraph.append(
               $createDirectiveNodeWithFormatter(
-                preservedDirectiveItems.get(key)?.shift() ?? item,
+                preservedItem ? { ...item, ...preservedItem } : item,
                 formatter,
               ),
             );

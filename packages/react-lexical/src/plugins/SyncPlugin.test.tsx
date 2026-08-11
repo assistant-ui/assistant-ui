@@ -216,7 +216,7 @@ describe("SyncPlugin", () => {
             {
               id: "team",
               type: "group",
-              label: "Team",
+              label: "Old Team",
               description: "Engineering",
               metadata: { workspace: "acme" },
             },
