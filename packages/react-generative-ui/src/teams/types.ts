@@ -218,8 +218,9 @@ export interface TeamsCardAttachment {
  *
  * `clamped` removed content to fit a limit, `dropped` emitted nothing for a
  * node, and `fallback` emitted the node in a different form than requested.
- * `advisory` changed nothing at all and reports a payload Teams may still
- * render poorly or refuse.
+ * `advisory` changed nothing at all and notes content Teams may still render
+ * poorly or refuse, such as a payload over the byte budget or a `Row` past
+ * the recommended column count.
  */
 export interface TeamsConversionWarning {
   readonly code: "clamped" | "dropped" | "fallback" | "advisory";
