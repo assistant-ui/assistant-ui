@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { PencilIcon, Trash2Icon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { field, mono } from "./surfaces";
@@ -15,15 +16,21 @@ export function ThreadList({
   activeIndex,
   onActiveIndexChange,
   className,
-}: {
+  ...props
+}: Omit<
+  ComponentProps<"div">,
+  "children" | "threads" | "activeIndex" | "onActiveIndexChange"
+> & {
   threads: readonly ThreadItem[];
   activeIndex: number;
   onActiveIndexChange?: (index: number) => void;
-  className?: string;
 }) {
   return (
     <div
+      data-slot="thread-list"
       className={cn("flex w-full max-w-[240px] flex-col gap-0.5", className)}
+
+      {...props}
     >
       <div className={cn(mono, "text-foreground/35 px-3 pb-1.5")}>Today</div>
       {threads.map((thread, i) => {
@@ -32,6 +39,7 @@ export function ThreadList({
           <button
             key={thread.title}
             type="button"
+            aria-current={active || undefined}
             onClick={() => onActiveIndexChange?.(i)}
             className={cn(
               "group flex w-full items-center justify-between gap-2 rounded-xl px-3 py-2 text-start text-[13.5px] transition-colors",
@@ -46,10 +54,13 @@ export function ThreadList({
               )}
             >
               {thread.unread && !active && (
-                <span
-                  aria-hidden
-                  className="size-1.5 rounded-full bg-blue-500 dark:bg-blue-400"
-                />
+                <>
+                  <span
+                    aria-hidden
+                    className="size-1.5 rounded-full bg-blue-500 dark:bg-blue-400"
+                  />
+                  <span className="sr-only">unread</span>
+                </>
               )}
               {thread.time}
             </span>

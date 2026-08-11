@@ -76,6 +76,39 @@ type CallbackResult<T> = {
   outputs: useExternalMessageConverter.Message[];
 };
 
+const stringifyForError = (value: unknown) => {
+  let text;
+  try {
+    text = value instanceof Error ? String(value) : JSON.stringify(value);
+  } catch {
+    /* circular */
+  }
+  text ??= String(value);
+  return text.length > 200 ? `${text.slice(0, 200)}…` : text;
+};
+
+const toCallbackOutputs = (
+  output:
+    | useExternalMessageConverter.Message
+    | useExternalMessageConverter.Message[],
+  input: unknown,
+): useExternalMessageConverter.Message[] => {
+  const outputs = Array.isArray(output) ? output : [output];
+  for (const o of outputs) {
+    const valid =
+      typeof o === "object" &&
+      o !== null &&
+      (o.role === "tool" ||
+        ((o.role === "assistant" || o.role === "user" || o.role === "system") &&
+          (typeof o.content === "string" || Array.isArray(o.content))));
+    if (!valid)
+      throw new Error(
+        `External message converter: the converter callback returned an invalid message (${stringifyForError(o)}) for input ${stringifyForError(input)}. Return an empty array to skip a message.`,
+      );
+  }
+  return outputs;
+};
+
 type CallbackCacheEntry<T> = CallbackResult<T> & {
   metadata: useExternalMessageConverter.Metadata;
   callback: useExternalMessageConverter.Callback<T>;
@@ -354,7 +387,7 @@ export const convertExternalMessages = <T extends WeakKey>(
   const callbackResults: CallbackResult<T>[] = [];
   for (const message of messages) {
     const output = callback(message, metadata);
-    const outputs = Array.isArray(output) ? output : [output];
+    const outputs = toCallbackOutputs(output, message);
     const result = { input: message, outputs };
     callbackResults.push(result);
   }
@@ -444,7 +477,7 @@ export const useExternalMessageConverter = <T extends WeakKey>({
         result.callback !== state.callback
       ) {
         const output = state.callback(message, state.metadata);
-        const outputs = Array.isArray(output) ? output : [output];
+        const outputs = toCallbackOutputs(output, message);
         result = {
           input: message,
           outputs,

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 const { mockUseEveAgent } = vi.hoisted(() => ({
   mockUseEveAgent: vi.fn(),
@@ -39,7 +39,60 @@ const createAgent = (overrides: Record<string, unknown>) => ({
   ...overrides,
 });
 
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
 describe("useEveAgentRuntime status forwarding", () => {
+  it.each(
+    (["onError", "onEvent", "onFinish", "onSessionChange"] as const).flatMap(
+      (callbackName) =>
+        (["throws", "rejects"] as const).map(
+          (failureMode) => [callbackName, failureMode] as const,
+        ),
+    ),
+  )(
+    "isolates %s callback errors when it %s",
+    async (callbackName, failureMode) => {
+      const callbackError = new Error(`${callbackName} failed`);
+      const callback = vi.fn(() => {
+        if (failureMode === "throws") throw callbackError;
+        return Promise.reject(callbackError);
+      });
+      const agent = createAgent({ data: { messages: [] } });
+      let capturedOptions: Record<
+        string,
+        ((value: unknown) => void) | undefined
+      > = {};
+      mockUseEveAgent.mockImplementation((options) => {
+        capturedOptions = options as typeof capturedOptions;
+        return agent as never;
+      });
+      const consoleError = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+
+      renderHook(() =>
+        useEveAgentRuntime({ [callbackName]: callback } as never),
+      );
+
+      const value =
+        callbackName === "onFinish"
+          ? { status: "ready" }
+          : callbackName === "onError"
+            ? new Error("run failed")
+            : {};
+      expect(() => capturedOptions[callbackName]?.(value)).not.toThrow();
+      expect(callback).toHaveBeenCalledWith(value);
+      await waitFor(() => {
+        expect(consoleError).toHaveBeenCalledWith(
+          `[assistant-ui/eve] ${callbackName} callback threw an error`,
+          callbackError,
+        );
+      });
+    },
+  );
+
   it("maps the session error onto the interrupted assistant message", () => {
     mockUseEveAgent.mockReturnValue(
       createAgent({ status: "error", error: new Error("boom") }) as never,
@@ -967,6 +1020,142 @@ describe("useEveAgentRuntime concurrent sends", () => {
       resolveFirstSend();
     });
     expect(send).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns a cancelled queued send to the composer", async () => {
+    let resolveFirstSend!: () => void;
+    const send = vi
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise<void>((resolve) => {
+            resolveFirstSend = resolve;
+          }),
+      )
+      .mockResolvedValue(undefined);
+    const agent = createAgent({ data: settledData, send });
+    mockUseEveAgent.mockReturnValue(agent as never);
+    const { result } = renderHook(() => useEveAgentRuntime());
+
+    await act(async () => {
+      result.current.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "first" }],
+      });
+    });
+    await waitFor(() => expect(send).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      result.current.thread.composer.setText("queued");
+      result.current.thread.composer.send();
+    });
+    expect(result.current.thread.composer.getState().text).toBe("");
+
+    act(() => {
+      result.current.thread.cancelRun();
+    });
+    await act(async () => {
+      resolveFirstSend();
+    });
+
+    await waitFor(() => {
+      expect(result.current.thread.composer.getState().text).toBe("queued");
+    });
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(getText(result.current)).toEqual(["earlier", "earlier answer"]);
+  });
+
+  it("returns the queued send when cancel keeps the trailing message", async () => {
+    let resolveFirstSend!: () => void;
+    const send = vi
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise<void>((resolve) => {
+            resolveFirstSend = resolve;
+          }),
+      )
+      .mockResolvedValue(undefined);
+    // Before the turn streams, the dispatched message is the thread's trailing
+    // user leaf. Eve owns that message and cannot remove it on cancel.
+    const agent = createAgent({
+      data: {
+        messages: [
+          ...settledData.messages,
+          { id: "u2", role: "user", parts: [{ type: "text", text: "first" }] },
+        ],
+      } satisfies EveMessageData,
+      status: "submitted",
+      send,
+    });
+    mockUseEveAgent.mockReturnValue(agent as never);
+    const { result } = renderHook(() => useEveAgentRuntime());
+
+    await act(async () => {
+      result.current.thread.composer.setText("first");
+      result.current.thread.composer.send();
+    });
+    await waitFor(() => expect(send).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      result.current.thread.composer.setText("queued");
+      result.current.thread.composer.send();
+    });
+    act(() => {
+      result.current.thread.cancelRun();
+    });
+    expect(result.current.thread.composer.getState().text).toBe("");
+
+    await act(async () => {
+      resolveFirstSend();
+    });
+
+    await waitFor(() => {
+      expect(result.current.thread.composer.getState().text).toBe("queued");
+    });
+    expect(send).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps a cancelled tool approval discarded", async () => {
+    let resolveFirstSend!: () => void;
+    const send = vi
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise<void>((resolve) => {
+            resolveFirstSend = resolve;
+          }),
+      )
+      .mockResolvedValue(undefined);
+    const agent = createAgent({ data: approvalData, send });
+    mockUseEveAgent.mockReturnValue(agent as never);
+    const { result } = renderHook(() => useEveAgentRuntime());
+    const before = getText(result.current);
+
+    await act(async () => {
+      result.current.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "go" }],
+      });
+    });
+    await waitFor(() => expect(send).toHaveBeenCalledTimes(1));
+
+    act(() => {
+      result.current.thread
+        .getMessageByIndex(1)
+        .getMessagePartByToolCallId("call_1")
+        .respondToToolApproval({ optionId: "approve" });
+    });
+    act(() => {
+      result.current.thread.cancelRun();
+    });
+    await act(async () => {
+      resolveFirstSend();
+    });
+
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(result.current.thread.composer.getState().text).toBe("");
+    expect(getText(result.current)).toEqual(before);
   });
 
   it("drops a queued send when the hook unmounts before it dispatches", async () => {

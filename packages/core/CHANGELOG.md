@@ -1,5 +1,52 @@
 # @assistant-ui/core
 
+## 0.3.12
+
+### Patch Changes
+
+- [#5745](https://github.com/assistant-ui/assistant-ui/pull/5745) [`1df4327`](https://github.com/assistant-ui/assistant-ui/commit/1df4327dc915103bb1b64e01ee8d888c08de9f59) - refactor: move ExternalThread, SingleThreadList, and the Assistant augmentation namespace into @assistant-ui/core ([@Yonom](https://github.com/Yonom))
+
+## 0.3.11
+
+### Patch Changes
+
+- [#5742](https://github.com/assistant-ui/assistant-ui/pull/5742) [`f551562`](https://github.com/assistant-ui/assistant-ui/commit/f551562162f43b2bbeb2bb46d39b68243ca1d35a) - fix: name the offending input when an external message converter returns an invalid message ([@Yonom](https://github.com/Yonom))
+
+- [#5733](https://github.com/assistant-ui/assistant-ui/pull/5733) [`dc7b77d`](https://github.com/assistant-ui/assistant-ui/commit/dc7b77dca65ad8d0384e8aec268a4141dc8bd0da) - Republish: 0.3.10 was left staged on npm by a failed publish and cannot be re-pushed. ([@Yonom](https://github.com/Yonom))
+
+- [#5718](https://github.com/assistant-ui/assistant-ui/pull/5718) [`d1b7097`](https://github.com/assistant-ui/assistant-ui/commit/d1b7097ca86e84698fcfaabd1b310e30612dd32c) - fix: expose additional Cloud thread pages through the thread list runtime ([@Kinfe123](https://github.com/Kinfe123))
+
+- Updated dependencies [[`0ae51a8`](https://github.com/assistant-ui/assistant-ui/commit/0ae51a8e8c4c49c4b8810b9c64845eeeded8b9bc), [`e319574`](https://github.com/assistant-ui/assistant-ui/commit/e319574df10df2dbf2d57fc2bcf7cb92d3c6a2e6)]:
+  - assistant-stream@0.3.37
+
+## 0.3.10
+
+### Patch Changes
+
+- [#5723](https://github.com/assistant-ui/assistant-ui/pull/5723) [`94dc3e5`](https://github.com/assistant-ui/assistant-ui/commit/94dc3e509fa2b4fae1a14c88ec34b910c8d95af8) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+- [#5726](https://github.com/assistant-ui/assistant-ui/pull/5726) [`ab57969`](https://github.com/assistant-ui/assistant-ui/commit/ab5796932c97bc5bade19022e2ac8762949d2967) - chore: reformat with oxfmt 0.62 ([@okisdev](https://github.com/okisdev))
+
+- Updated dependencies [[`94dc3e5`](https://github.com/assistant-ui/assistant-ui/commit/94dc3e509fa2b4fae1a14c88ec34b910c8d95af8)]:
+  - assistant-stream@0.3.36
+
+## 0.3.9
+
+### Patch Changes
+
+- [#5720](https://github.com/assistant-ui/assistant-ui/pull/5720) [`ab9e765`](https://github.com/assistant-ui/assistant-ui/commit/ab9e765a2d70e30572c4a72c26526df490334b1e) - fix: route sourceId-carrying edit sends to onEdit instead of the queue adapter, and fail fast on beginEdit without an edit handler ([@Yonom](https://github.com/Yonom))
+
+## 0.3.8
+
+### Patch Changes
+
+- [#5717](https://github.com/assistant-ui/assistant-ui/pull/5717) [`99d09c8`](https://github.com/assistant-ui/assistant-ui/commit/99d09c828c04bfca35d091e73f29c6d6643dfb01) - Edit composer send always emits: an unchanged edit re-sends the message on a new branch instead of silently closing the composer. ([@Yonom](https://github.com/Yonom))
+
+- [#5639](https://github.com/assistant-ui/assistant-ui/pull/5639) [`79253f2`](https://github.com/assistant-ui/assistant-ui/commit/79253f2a5e0a637c8907ba30859f308ff6dcd1c4) - feat: preserve app-authored reasoning summaries on message parts ([@rupic-app](https://github.com/apps/rupic-app))
+
+- Updated dependencies [[`456b056`](https://github.com/assistant-ui/assistant-ui/commit/456b056b2859994bf49ed5cc4cf031f0601e2174), [`a88751d`](https://github.com/assistant-ui/assistant-ui/commit/a88751d71edfd2516f266ce8889081749fba4e5a), [`79253f2`](https://github.com/assistant-ui/assistant-ui/commit/79253f2a5e0a637c8907ba30859f308ff6dcd1c4)]:
+  - assistant-stream@0.3.35
+
 ## 0.3.7
 
 ### Patch Changes

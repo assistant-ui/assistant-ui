@@ -149,6 +149,12 @@ export type AgUiEvent =
   | { type: "REASONING_MESSAGE_START"; messageId?: string }
   | { type: "REASONING_MESSAGE_CONTENT"; messageId?: string; delta: string }
   | { type: "REASONING_MESSAGE_END"; messageId?: string }
+  | {
+      type: "REASONING_ENCRYPTED_VALUE";
+      subtype: "message" | "tool-call";
+      entityId: string;
+      encryptedValue: string;
+    }
   | { type: "REASONING_END"; messageId?: string }
   | {
       type: "TOOL_CALL_START";
