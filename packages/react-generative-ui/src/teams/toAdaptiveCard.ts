@@ -726,7 +726,7 @@ export function convertRootToCard(
 
 /**
  * Converts a generative-ui tree into a Microsoft Teams Adaptive Card and
- * non-fatal downgrade warnings. Sizes, weights, and colors map to Adaptive
+ * non-fatal conversion warnings. Sizes, weights, and colors map to Adaptive
  * Card's semantic enums rather than raw values. An Input/Select/RadioGroup/
  * Checkbox/DatePicker whose id would be the reserved {@link RESERVED_INPUT_ID}
  * is renamed with a warning (see `decodeSubmitData`). Never throws: an
