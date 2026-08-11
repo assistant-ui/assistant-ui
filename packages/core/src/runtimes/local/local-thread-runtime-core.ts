@@ -276,7 +276,8 @@ export class LocalThreadRuntimeCore
     return this._loadPromise;
   }
 
-  public async append(message: AppendMessage): Promise<void> {
+  public async append(rawMessage: AppendMessage): Promise<void> {
+    const message = this.enrichAppendMetadata(rawMessage);
     const isTail = message.parentId === (this.messages.at(-1)?.id ?? null);
     const willRun = message.startRun ?? message.role === "user";
     if (this._queue && willRun && isTail) {

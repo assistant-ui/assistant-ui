@@ -465,7 +465,8 @@ export class ExternalStoreThreadRuntimeCore
     });
   }
 
-  public async append(message: AppendMessage): Promise<void> {
+  public async append(rawMessage: AppendMessage): Promise<void> {
+    const message = this.enrichAppendMetadata(rawMessage);
     // sourceId marks an edit send; the parent may coincide with the head
     // after a resync (e.g. cancelRun dropped the edited message).
     const isEdit =

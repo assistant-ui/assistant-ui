@@ -35,6 +35,7 @@ import type { AttachmentAdapter } from "../../adapters/attachment";
 import type { RealtimeVoiceAdapter } from "../../adapters/voice";
 import type { ThreadMessageLike } from "../utils/thread-message-like";
 import { notifyEventListeners } from "../../utils/notify-event-listeners";
+import { gateInteractableComposerMetadata } from "../../model-context/interactable-composer-metadata";
 
 type BaseThreadAdapters = {
   speech?: SpeechSynthesisAdapter | undefined;
@@ -121,6 +122,34 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
 
   public getModelContext() {
     return this._contextProvider.getModelContext();
+  }
+
+  /**
+   * Stamps provider-contributed composer metadata onto an outgoing message.
+   * Runs on every append rather than in the composer, so a programmatic send
+   * (a suggestion, a direct `append`) carries the same interactable state
+   * snapshots a typed send does. `parentId` selects the branch prefix the
+   * model has already seen: the thread tail for an ordinary send, the edited
+   * message's parent for an edit.
+   */
+  protected enrichAppendMetadata(message: AppendMessage): AppendMessage {
+    const messages = this.messages;
+    const parentIndex =
+      message.parentId === null
+        ? -1
+        : messages.findIndex((m) => m.id === message.parentId);
+    const composerMetadata = gateInteractableComposerMetadata(
+      this.getModelContext().unstable_composerMetadata,
+      messages.slice(0, parentIndex + 1),
+    );
+    if (!composerMetadata) return message;
+    return {
+      ...message,
+      metadata: {
+        ...message.metadata,
+        custom: { ...message.metadata?.custom, ...composerMetadata },
+      },
+    };
   }
 
   private _editComposers = new Map<string, DefaultEditComposerRuntimeCore>();
