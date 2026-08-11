@@ -403,6 +403,7 @@ const AttachmentResource = resource(useAttachmentResource);
 type ComposerClientResourceProps = {
   type: "thread" | "edit";
   canCancel: boolean;
+  isRunning?: boolean;
   isSendDisabled?: boolean;
   onCancel?: () => void;
   onBeginEdit?: () => void;
@@ -509,6 +510,7 @@ const useLiveState = <T>(initial: T) => {
 const useComposerClientResource = ({
   type,
   canCancel,
+  isRunning = false,
   isSendDisabled = false,
   onCancel,
   onBeginEdit,
@@ -755,7 +757,7 @@ const useComposerClientResource = ({
         };
         // edit sends carry a sourceId contract; only thread sends queue
         if (queue && type === "thread") {
-          if (opts?.steer ?? canCancel) queue.steer(composedMessage);
+          if (opts?.steer ?? isRunning) queue.steer(composedMessage);
           else queue.enqueue(composedMessage);
         } else {
           onSend?.(composedMessage);
@@ -1031,6 +1033,7 @@ const useExternalThread = ({
   };
 
   const headId = messages.at(-1)?.id ?? null;
+  const hasCancel = !!onCancel;
   const composerQueue = useMemo(
     (): ExternalThreadQueueAdapter | undefined =>
       queue && {
@@ -1046,7 +1049,8 @@ const useExternalThread = ({
   const composerClient = useClientResource(
     ComposerClientResource({
       type: "thread",
-      canCancel: isRunning,
+      canCancel: isRunning && hasCancel,
+      isRunning,
       isSendDisabled,
       onCancel: handleCancelRun,
       onSend: handleSendNew,
@@ -1081,7 +1085,7 @@ const useExternalThread = ({
         delete: false,
         reload: hasReload,
         refetchThread: false,
-        cancel: isRunning,
+        cancel: hasCancel,
         speech: hasSpeech,
         attachments: hasAttachments,
         feedback: hasFeedback,
@@ -1110,6 +1114,7 @@ const useExternalThread = ({
     hasBranches,
     hasEdit,
     hasReload,
+    hasCancel,
     hasAttachments,
     hasFeedback,
     hasSpeech,
