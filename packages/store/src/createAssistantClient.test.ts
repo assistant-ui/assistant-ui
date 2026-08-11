@@ -183,7 +183,7 @@ describe("createAssistantClient", () => {
           return () => configListeners.delete(listener);
         },
       },
-      { parent },
+      { parent: parent as AssistantClientHandle },
     );
     const subscribed = child.getClient() as AnyClient;
     const callback = vi.fn();
@@ -215,7 +215,85 @@ describe("createAssistantClient", () => {
     parent.destroy();
   });
 
-  it("stops event forwarding when a source rebinds to a previous generation", () => {
+  it("forwards derived events through a transparent generated-parent wrapper", async () => {
+    const source = createTestClient({ thread: ThreadClient() });
+    const parent = Object.create(source.getClient()) as AssistantClient;
+    const child = createTestClient({ message: messageDerived() }, { parent });
+    const callback = vi.fn();
+
+    child.getClient().on("message.pinged", callback);
+    flushTapSync(() =>
+      source.getClient().thread.message({ index: 0 }).ping("wrapped-parent"),
+    );
+    await flushEvents();
+
+    expect(callback).toHaveBeenCalledExactlyOnceWith({
+      id: "m0",
+      value: "wrapped-parent",
+    });
+
+    child.destroy();
+    source.destroy();
+  });
+
+  it("preserves the subscriber receiver across parent generation hops", async () => {
+    const anchor = createTestClient({
+      selectedMessage: MessageClient({ id: "parent" }),
+    });
+    Object.defineProperty(anchor.getClient(), "message", {
+      configurable: true,
+      get(this: AnyClient) {
+        return this.selectedMessage;
+      },
+      set(this: AnyClient, value: unknown) {
+        Object.defineProperty(this, "message", {
+          configurable: true,
+          enumerable: true,
+          value,
+          writable: true,
+        });
+      },
+    });
+
+    let config: Record<string, unknown> = {
+      message: MessageClient({ id: "stale" }),
+    };
+    const configListeners = new Set<() => void>();
+    const parent = createAssistantClient(
+      {
+        getConfig: () => config as never,
+        subscribe: (listener) => {
+          configListeners.add(listener);
+          return () => configListeners.delete(listener);
+        },
+      },
+      { parent: anchor.getClient() as AssistantClient },
+    );
+    const child = createTestClient(
+      { selectedMessage: MessageClient({ id: "child" }) },
+      { parent: parent.getClient() },
+    );
+    const callback = vi.fn();
+    child.getClient().on("message.pinged" as never, callback);
+
+    config = {};
+    flushTapSync(() => configListeners.forEach((listener) => listener()));
+    flushTapSync(() =>
+      child.getClient().selectedMessage.ping("child-selection"),
+    );
+    await flushEvents();
+
+    expect(callback).toHaveBeenCalledExactlyOnceWith({
+      id: "child",
+      value: "child-selection",
+    });
+
+    child.destroy();
+    parent.destroy();
+    anchor.destroy();
+  });
+
+  it("stops event forwarding when a source rebinds to a previous generation", async () => {
     const anchor = createTestClient({
       message: MessageClient({ id: "anchor" }),
     });
@@ -253,10 +331,16 @@ describe("createAssistantClient", () => {
 
     const current = child.getClient();
     expect(current).not.toBe(previous);
+    const callback = vi.fn();
     let unsubscribe!: () => void;
     expect(() => {
-      unsubscribe = current.on("message.pinged" as never, vi.fn());
+      unsubscribe = current.on("message.pinged" as never, callback);
     }).not.toThrow();
+
+    flushTapSync(() => anchor.getClient().message.ping("blocked"));
+    await flushEvents();
+    expect(callback).not.toHaveBeenCalled();
+
     unsubscribe();
 
     child.destroy();

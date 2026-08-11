@@ -117,13 +117,13 @@ const eventClientRefs = new WeakMap<AssistantClient, EventClientRef>();
 const getCurrentEventClient = (client: AssistantClient): AssistantClient =>
   eventClientRefs.get(client)?.current ?? client;
 
-const getEventScopeOwner = (
+const getClientPropertyOwner = (
   client: AssistantClient,
-  scope: ClientNames,
+  property: PropertyKey,
 ): AssistantClient | null => {
   let candidate: object | null = client;
   while (candidate && candidate !== Object.prototype) {
-    if (Object.prototype.hasOwnProperty.call(candidate, scope)) {
+    if (Object.prototype.hasOwnProperty.call(candidate, property)) {
       return candidate as AssistantClient;
     }
     candidate = Object.getPrototypeOf(candidate) as object | null;
@@ -135,18 +135,23 @@ const getEventScopeBinding = (
   subscriber: AssistantClient,
   scope: ClientNames,
 ): AssistantClientAccessor<ClientNames> | undefined => {
-  let client = getCurrentEventClient(subscriber);
+  // Owner lookup may hop from an obsolete parent generation to its current
+  // replacement. Inherited getters must still observe the subscribing facade.
+  const receiver = getCurrentEventClient(subscriber);
+  let client = receiver;
   let visited: Set<AssistantClient> | undefined;
 
   while (true) {
-    const owner = getEventScopeOwner(client, scope);
+    const owner = getClientPropertyOwner(client, scope);
     if (!owner) {
-      return client[scope] as AssistantClientAccessor<ClientNames> | undefined;
+      return Reflect.get(client, scope, receiver) as
+        | AssistantClientAccessor<ClientNames>
+        | undefined;
     }
 
     const currentOwner = getCurrentEventClient(owner);
     if (currentOwner === owner) {
-      return Reflect.get(owner, scope, client) as
+      return Reflect.get(owner, scope, receiver) as
         | AssistantClientAccessor<ClientNames>
         | undefined;
     }
@@ -240,7 +245,9 @@ const useClientFields = ({
           // Generated transport is a property of the client generation, not
           // the public function identity, so wrapping `on` cannot change scope
           // resolution.
-          const generatedParent = eventClientRefs.has(parent);
+          const parentOnOwner = getClientPropertyOwner(parent, "on");
+          const generatedParent =
+            parentOnOwner !== null && eventClientRefs.has(parentOnOwner);
           const parentScope =
             scope === "*"
               ? undefined
