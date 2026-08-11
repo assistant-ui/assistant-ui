@@ -471,23 +471,27 @@ export class ExternalStoreThreadRuntimeCore
   }
 
   public async append(rawMessage: AppendMessage): Promise<void> {
-    // A queued message is stamped again by the adapter's dispatch transform;
-    // stamping here covers the direct path and any adapter lacking one.
-    const message = this.enrichAppendMetadata(rawMessage);
     // sourceId marks an edit send; the parent may coincide with the head
     // after a resync (e.g. cancelRun dropped the edited message).
     const isEdit =
-      message.sourceId != null ||
-      message.parentId !== (this.messages.at(-1)?.id ?? null);
+      rawMessage.sourceId != null ||
+      rawMessage.parentId !== (this.messages.at(-1)?.id ?? null);
 
     // Buffering does not start a run, so the tool-abort below must wait until
     // the queue flushes. By then the prior run (and its tools) has settled.
     if (!isEdit && this._store.queue) {
-      if (message.steer ?? this._store.isRunning ?? false)
-        this._store.queue.steer(message);
-      else this._store.queue.enqueue(message);
+      // An adapter with a dispatch transform re-gates on the way out, so a
+      // stamp here would only be recomputed and discarded.
+      const queued = this._store.queue.__internal_setDispatchTransform
+        ? rawMessage
+        : this.enrichAppendMetadata(rawMessage);
+      if (queued.steer ?? this._store.isRunning ?? false)
+        this._store.queue.steer(queued);
+      else this._store.queue.enqueue(queued);
       return;
     }
+
+    const message = this.enrichAppendMetadata(rawMessage);
 
     // Auto-abort in-flight client-side tool executions when a new run is
     // about to start. Without this, a tool that finishes after the new turn

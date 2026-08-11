@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { ExternalStoreRuntimeCore } from "../runtimes/external-store/external-store-runtime-core";
 import { LocalRuntimeCore } from "../runtimes/local/local-runtime-core";
 import { createMessageQueue } from "../runtime/queue/message-queue";
+import { getThreadMessageText } from "../utils/text";
 import type { ChatModelAdapter } from "../runtime/utils/chat-model-adapter";
 import type { AppendMessage, ThreadMessage } from "../types/message";
 
@@ -222,8 +223,14 @@ describe("queued sends gate at dispatch, not at enqueue", () => {
 
   it("gates a queued local send against the tail it flushes onto", async () => {
     let composerMetadata: Record<string, unknown> = live({ v: 1 });
+    let releaseFirstRun!: () => void;
+    const firstRunGate = new Promise<void>((resolve) => {
+      releaseFirstRun = resolve;
+    });
+    let runs = 0;
     const chatModel: ChatModelAdapter = {
       run: async function* () {
+        if (runs++ === 0) await firstRunGate;
         yield { content: [{ type: "text" as const, text: "ok" }] };
       },
     };
@@ -235,21 +242,29 @@ describe("queued sends gate at dispatch, not at enqueue", () => {
       getModelContext: () => ({ unstable_composerMetadata: composerMetadata }),
     });
     const thread = core.threads.getMainThreadRuntimeCore();
+    const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
 
-    await thread.append(userMessage("first", null));
-    await new Promise((resolve) => setTimeout(resolve, 20));
+    void thread.append(userMessage("first", null));
+    await settle();
 
-    // by the time the second send flushes the live state is v:2
-    composerMetadata = live({ v: 2 });
-    await thread.append(
+    // the first run is still open, so this one buffers with the live state at v:1
+    void thread.append(
       userMessage("second", thread.messages.at(-1)?.id ?? null),
     );
-    await new Promise((resolve) => setTimeout(resolve, 20));
+    await settle();
+    expect(
+      thread.messages.some(
+        (m) => m.role === "user" && getThreadMessageText(m) === "second",
+      ),
+    ).toBe(false);
+
+    composerMetadata = live({ v: 2 });
+    releaseFirstRun();
+    await settle();
+    await settle();
 
     const second = thread.messages.find(
-      (m) =>
-        m.role === "user" &&
-        m.content.some((p) => "text" in p && p.text === "second"),
+      (m) => m.role === "user" && getThreadMessageText(m) === "second",
     );
     expect(second!.metadata.custom?.interactables).toEqual([
       { id: "n1", name: "note", state: { v: 2 } },
