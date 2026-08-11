@@ -200,6 +200,7 @@ function syncRuntimeToLexical(
   editor: LexicalEditor,
   runtimeText: string,
   parse: CompositeParser,
+  preserveDirectiveMetadata: boolean,
   onComplete: () => void,
 ) {
   editor.update(
@@ -209,18 +210,20 @@ function syncRuntimeToLexical(
         string,
         Pick<Unstable_TriggerItem, "description" | "metadata">[]
       >();
-      for (const paragraph of root.getChildren()) {
-        if (!$isElementNode(paragraph)) continue;
-        for (const child of paragraph.getChildren()) {
-          if (!$isDirectiveNode(child)) continue;
-          const item = child.getDirectiveItem();
-          const key = getDirectiveKey(item);
-          const items = preservedDirectiveItems.get(key) ?? [];
-          items.push({
-            description: item.description,
-            metadata: item.metadata,
-          });
-          preservedDirectiveItems.set(key, items);
+      if (preserveDirectiveMetadata) {
+        for (const paragraph of root.getChildren()) {
+          if (!$isElementNode(paragraph)) continue;
+          for (const child of paragraph.getChildren()) {
+            if (!$isDirectiveNode(child)) continue;
+            const item = child.getDirectiveItem();
+            const key = getDirectiveKey(item);
+            const items = preservedDirectiveItems.get(key) ?? [];
+            items.push({
+              description: item.description,
+              metadata: item.metadata,
+            });
+            preservedDirectiveItems.set(key, items);
+          }
         }
       }
       root.clear();
@@ -352,14 +355,20 @@ export function SyncPlugin({
     const runtimeTextChanged = initialText !== lastSyncedTextRef.current;
     const parserRequiresResync =
       parserChanged &&
-      parserPreservesExistingDirectives(editor, initialText, parser) &&
-      !editorMatchesParsedText(editor, initialText, parser);
+      !editorMatchesParsedText(editor, initialText, parser) &&
+      parserPreservesExistingDirectives(editor, initialText, parser);
     if (runtimeTextChanged || parserRequiresResync) {
       isSyncingFromRuntimeRef.current = true;
       lastSyncedTextRef.current = initialText;
-      syncRuntimeToLexical(editor, initialText, parser, () => {
-        isSyncingFromRuntimeRef.current = false;
-      });
+      syncRuntimeToLexical(
+        editor,
+        initialText,
+        parser,
+        parserRequiresResync && !runtimeTextChanged,
+        () => {
+          isSyncingFromRuntimeRef.current = false;
+        },
+      );
     }
 
     return composerRuntime.subscribe(() => {
@@ -371,7 +380,7 @@ export function SyncPlugin({
 
       isSyncingFromRuntimeRef.current = true;
       lastSyncedTextRef.current = runtimeText;
-      syncRuntimeToLexical(editor, runtimeText, parser, () => {
+      syncRuntimeToLexical(editor, runtimeText, parser, false, () => {
         isSyncingFromRuntimeRef.current = false;
       });
     });

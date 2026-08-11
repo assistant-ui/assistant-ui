@@ -439,5 +439,23 @@ describe("SyncPlugin", () => {
       },
     ]);
     expect(mocks.aui.composer.setText).not.toHaveBeenCalled();
+
+    mocks.aui = createAui("@team");
+    await act(async () => {
+      render(formatter);
+    });
+    expect(
+      editor.getEditorState().read(() => {
+        const node = $getParagraph().getFirstChild();
+        if (!$isDirectiveNode(node)) throw new Error("Expected a directive");
+        return node.getDirectiveItem();
+      }),
+    ).toEqual({
+      id: "team",
+      type: "group",
+      label: "Team",
+      description: undefined,
+      metadata: undefined,
+    });
   });
 });
