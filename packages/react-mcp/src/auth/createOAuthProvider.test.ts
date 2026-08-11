@@ -137,4 +137,32 @@ describe("createOAuthProvider persistence", () => {
       codeVerifier: "pkce-verifier",
     });
   });
+
+  it("continues persisting after a failed auth state write", async () => {
+    const { storage } = createStorage();
+    const failure = new Error("storage unavailable");
+    let saveCount = 0;
+    let persisted: MCPPersistedAuthState | null = null;
+    storage.saveAuthState = async (_serverId, next) => {
+      saveCount += 1;
+      if (saveCount === 1) throw failure;
+      persisted = next;
+    };
+    const provider = createProvider(storage);
+    await provider.tokens();
+
+    const tokenSave = provider.saveTokens({
+      access_token: "access-token",
+      token_type: "bearer",
+    });
+    const verifierSave = provider.saveCodeVerifier("pkce-verifier");
+
+    await expect(tokenSave).rejects.toBe(failure);
+    await expect(verifierSave).resolves.toBeUndefined();
+    expect(saveCount).toBe(2);
+    expect(persisted).toEqual({
+      tokens: { access_token: "access-token", token_type: "bearer" },
+      codeVerifier: "pkce-verifier",
+    });
+  });
 });
