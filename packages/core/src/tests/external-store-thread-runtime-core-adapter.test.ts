@@ -298,6 +298,29 @@ describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
       expect(core.export().messages.map((m) => m.message.id)).toContain("u1");
     });
 
+    it("keeps a message with non-text content in the thread", async () => {
+      const userMessage = {
+        ...createUserMessage("u1", "look at this"),
+        content: [
+          { type: "text" as const, text: "look at this" },
+          { type: "image" as const, image: "https://example.com/cat.png" },
+        ],
+      } as ThreadMessage;
+      const adapter = createBaseAdapter({
+        messages: [userMessage],
+        isRunning: true,
+        onCancel: vi.fn(),
+        setMessages: vi.fn(),
+      });
+      const core = new ExternalStoreThreadRuntimeCore(contextProvider, adapter);
+
+      core.cancelRun();
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(core.composer.text).toBe("");
+      expect(core.export().messages.map((m) => m.message.id)).toContain("u1");
+    });
+
     it("restores the message whole when the composer is free", async () => {
       const attachment = {
         id: "a1",

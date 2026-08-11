@@ -692,6 +692,7 @@ declare abstract class BaseComposerRuntimeCore extends BaseSubscribable implemen
   get quote(): QuoteInfo | undefined;
   setQuote(quote: QuoteInfo | undefined): void;
   setText(value: string): void;
+  private _rebaseDictation;
   setRole(role: MessageRole): void;
   setRunConfig(runConfig: RunConfig): void;
   protected _isSending: boolean;

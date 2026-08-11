@@ -633,13 +633,15 @@ export class ExternalStoreThreadRuntimeCore
     const trailingUserLeaf =
       this._store.setMessages !== undefined &&
       previousMessage?.role === "user" &&
-      previousMessage.id === messages.at(-1)?.id // ensure the previous message is a leaf node
+      previousMessage.id === messages.at(-1)?.id && // ensure the previous message is a leaf node
+      previousMessage.content.every((part) => part.type === "text")
         ? previousMessage
         : undefined;
 
     // Handing the message to the composer and taking it out of the thread are
     // one move: the composer refuses while the user is writing, and removing
-    // the message then would leave it nowhere.
+    // the message then would leave it nowhere. A message the composer cannot
+    // hold whole, carrying content parts it has no home for, is not moved.
     if (
       trailingUserLeaf &&
       this.composer.restoreDraft({

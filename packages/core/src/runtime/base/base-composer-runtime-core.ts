@@ -119,13 +119,20 @@ export abstract class BaseComposerRuntimeCore
     if (this._text === value) return;
 
     this._text = value;
-    if (this._dictation) {
-      this._dictationBaseText = value;
-      this._currentInterimText = "";
-      const { status, inputDisabled } = this._dictation;
-      this._dictation = inputDisabled ? { status, inputDisabled } : { status };
-    }
+    this._rebaseDictation(value);
     this._notifySubscribers();
+  }
+
+  // A live dictation session appends to the text it last saw, so any write
+  // that bypasses `setText` has to move that baseline or the next transcript
+  // overwrites what was just written.
+  private _rebaseDictation(value: string) {
+    if (!this._dictation) return;
+
+    this._dictationBaseText = value;
+    this._currentInterimText = "";
+    const { status, inputDisabled } = this._dictation;
+    this._dictation = inputDisabled ? { status, inputDisabled } : { status };
   }
 
   public setRole(role: MessageRole) {
@@ -246,6 +253,7 @@ export abstract class BaseComposerRuntimeCore
       if (generation === this._sendGeneration) {
         if (!this.text.trim() && this._quote === undefined) {
           this._text = text;
+          this._rebaseDictation(text);
           this._quote = quote;
           this._notifySubscribers();
         }
@@ -326,6 +334,7 @@ export abstract class BaseComposerRuntimeCore
       return false;
 
     this._text = draft.text;
+    this._rebaseDictation(draft.text);
     this._quote = draft.quote;
     this._attachments = draft.attachments ?? [];
     this._notifySubscribers();
