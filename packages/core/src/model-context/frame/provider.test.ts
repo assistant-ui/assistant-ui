@@ -196,4 +196,30 @@ describe("AssistantFrameProvider", () => {
       "*",
     );
   });
+
+  it("keeps a shared strict origin after one provider unsubscribes", async () => {
+    const unsubscribeFirst = AssistantFrameProvider.addModelContextProvider(
+      { getModelContext: () => ({}) },
+      "https://parent.example",
+    );
+    const execute = vi.fn(async () => "result");
+    AssistantFrameProvider.addModelContextProvider(
+      {
+        getModelContext: () => ({
+          tools: {
+            sensitiveTool: { execute },
+          },
+        }),
+      },
+      "https://parent.example",
+    );
+
+    unsubscribeFirst();
+
+    dispatchToolCall("https://untrusted.example");
+    expect(execute).not.toHaveBeenCalled();
+
+    dispatchToolCall("https://parent.example");
+    await vi.waitFor(() => expect(execute).toHaveBeenCalledOnce());
+  });
 });
