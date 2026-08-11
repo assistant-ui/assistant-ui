@@ -1318,6 +1318,26 @@ describe("toSlackBlocks", () => {
       });
     });
 
+    it("does not report a ListViewItem whose action renders no accessory", () => {
+      const { warnings } = toSlackBlocks({
+        $type: "Carousel",
+        children: [
+          {
+            $type: "Card",
+            title: "Plan",
+            children: [
+              { $type: "Text", value: "body" },
+              { $type: "ListViewItem", title: "row", $action: "open" },
+              { $type: "Divider" },
+            ],
+          },
+        ],
+      });
+      expect(warnings.some((warning) => warning.code === "dropped")).toBe(
+        false,
+      );
+    });
+
     it("does not report an action on a node that renders no control", () => {
       const { warnings } = toSlackBlocks({
         $type: "Carousel",
