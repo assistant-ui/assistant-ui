@@ -32,28 +32,28 @@ produces that vocabulary component when a surface is ingested.
 
 | Component | Web (React) | Slack Block Kit | Teams Adaptive Cards | A2UI (ingest) |
 | --- | --- | --- | --- | --- |
-| `Header` | Yes | Yes (`header`; `size` dropped *(silent)*) | Yes (heading `TextBlock`) | `Text` variant `h1`–`h6` |
-| `Text` | Yes | Yes (`section`; `size`, `weight`, and `color` dropped *(silent)*) | Yes (`TextBlock`) | — (plain `Text` maps to `Markdown`) |
+| `Header` | Yes | Yes (`header`; `size` dropped *(silent)*) | Yes (heading `TextBlock`; `size` dropped *(silent)* — every heading renders at `large`) | `Text` variant `h1`–`h6` |
+| `Text` | Yes | Yes (`section`; `size`, `weight`, and `color` dropped *(silent)*) | Yes (`TextBlock`), but every styling prop narrows *(silent)*: the six `size` tokens collapse onto four Adaptive Card sizes (`md` emits none, `2xl` and `3xl` both become `extraLarge`), `weight` collapses to `bolder` or nothing, and `color` survives only as `isSubtle` — `emphasis`, the one non-subtle token, is dropped | — (plain `Text` maps to `Markdown`) |
 | `Caption` | Yes | Yes (`context`) | Yes (small subtle `TextBlock`) | `Text` variant `caption` |
-| `Badge` | Yes | Degrades *(silent)*: plain context text | Degrades *(silent)*: plain subtle text | — |
+| `Badge` | Yes | Degrades *(silent)*: plain context text | Degrades *(silent)*: plain subtle text; `variant` dropped | — |
 | `Markdown` | Yes | Yes (`markdown`, budgeted; over budget falls back to a clamped `section` *(warns)*) | Degrades *(silent)*: Teams renders a markdown subset (no headings, tables, images); the rest renders literally | `Text` (default) |
 | `Fact` | Yes | Yes (`section` fields; consecutive facts merge) | Yes (`FactSet`; consecutive facts merge) | — |
-| `Image` | Yes | Yes (`image`; `size` and `round` dropped *(silent)*) | Yes (`Image`; numeric sizes dropped *(warns)*) | `Image` |
+| `Image` | Yes | Yes (`image`; `size` and `round` dropped *(silent)*) | Yes (`Image`; numeric sizes dropped *(warns)*, `round` dropped *(silent)*) | `Image` |
 | `Icon` | Yes | — | — | — |
-| `Divider` | Yes | Yes (`divider`) | Degrades *(silent)*: becomes `separator` on the next sibling; a trailing divider is dropped | `Divider` |
+| `Divider` | Yes | Yes (`divider`) | Degrades *(silent)*: becomes `separator` on the next sibling, `flush` is dropped, and a trailing divider is dropped | `Divider` |
 | `Spacer` | Yes | — | Degrades *(silent)*: becomes `spacing` on the next sibling; a trailing spacer is dropped | — |
-| `Card` | Yes | Yes (`card`) when its children fit the native shape — the first `Image`, the first `Text`/`Markdown`, and the first `Caption`, with `title` and the confirm/cancel actions coming from props; `Spacer` and `Icon` children are ignored, and any child left over degrades *(warns)* the whole card to inline blocks | Yes (`Container` + footer `ActionSet`) | `Card` |
-| `Carousel` | Yes | Yes (`carousel` of cards); three losses, all *(warns)*: non-card children dropped, cards past 10 dropped, a card that does not fit the native shape clamped to title + body — and an empty result drops the carousel | Degrades: at the root `toTeamsAttachments` maps the first 10 `Card` children to attachments *(silent)*, cards past 10 dropped *(warns)*, non-card children dropped *(warns whenever the child would have rendered or lost content; silent only when it renders nothing anyway)*; nested renders as sequential cards *(warns)* | — |
-| `Row` | Yes | Degrades: context row when all children are `Badge`/`Caption` *(silent)*, with context elements past 10 clamped *(warns)*; otherwise flattened vertically *(silent)* | Yes (`ColumnSet`; past 3 columns *(warns)*) | `Row` |
-| `Col` | Yes | Degrades *(silent)*: flattened into the block sequence | Yes (`Container`) | `Column` |
-| `Box` | Yes | Degrades *(silent)*: flattened into the block sequence | Yes (`Container`) | — |
-| `Button` | Yes | Yes (`button`; oversized action payloads dropped from the value *(warns)*, `buttonStyle` beyond `primary`/`danger` dropped *(silent)*) | Yes (`Action.Submit`; `buttonStyle` dropped *(silent)*, actions past 6 demoted to secondary *(warns)*) | `Button` |
+| `Card` | Yes | Yes (`card`) when its children fit the native shape — the first `Image`, the first `Text`/`Markdown`, and the first `Caption`, with `title` and the confirm/cancel actions coming from props; `Spacer` and `Icon` children are ignored, and any child left over degrades *(warns)* the whole card to inline blocks | Yes (`Container` + footer `ActionSet`; `padding`, `background`, and `asForm` dropped *(silent)*) | `Card` |
+| `Carousel` | Yes | Yes (`carousel` of cards); three losses, all *(warns)*: non-card children dropped, cards past 10 dropped, a card that does not fit the native shape clamped to title + body — and an empty result drops the carousel | Degrades: at the root `toTeamsAttachments` maps the first 10 `Card` children to attachments *(silent)*, cards past 10 dropped *(warns)*, non-card children dropped *(warns whenever the child would have rendered or lost content; silent only when it renders nothing anyway)*; nested renders as sequential cards *(warns)*; the carousel's own `label` is dropped *(silent)* | — |
+| `Row` | Yes | Degrades: context row when all children are `Badge`/`Caption` *(silent)*, with context elements past 10 clamped *(warns)*; otherwise flattened vertically *(silent)* | Yes (`ColumnSet`; past 3 columns *(warns)*; `gap`, `align`, and `justify` dropped *(silent)*) | `Row` |
+| `Col` | Yes | Degrades *(silent)*: flattened into the block sequence | Yes (`Container`; `gap` and `align` dropped *(silent)*) | `Column` |
+| `Box` | Yes | Degrades *(silent)*: flattened into the block sequence | Yes (`Container`; `width`, `height`, `radius`, and `background` dropped *(silent)*) | — |
+| `Button` | Yes | Yes (`button`; oversized action payloads dropped from the value *(warns)*, `buttonStyle` beyond `primary`/`danger` dropped *(silent)*) | Yes (`Action.Submit`; `buttonStyle`, `block`, and `submit` dropped *(silent)* — a `submit` button becomes its own action instead of submitting its ancestor `Form`/`Card`; actions past 6 demoted to secondary *(warns)*) | `Button` |
 | `Select` | Yes | Yes (`static_select`; options capped *(warns)*) | Yes (`Input.ChoiceSet` compact; options capped *(warns)*; on-change action becomes a companion submit *(warns)*) | — |
 | `RadioGroup` | Yes | Yes (`radio_buttons`; options capped *(warns)*) | Yes (`Input.ChoiceSet` expanded; options capped *(warns)*; companion submit *(warns)*) | — |
 | `Checkbox` | Yes | Yes (`checkboxes`) | Yes (`Input.Toggle`; companion submit *(warns)*) | `CheckBox` |
 | `Input` | Yes | Yes (`input` + `plain_text_input`; no `dispatch_action`, so it does not fire on change) | Yes (`Input.Text`; companion submit *(warns)*) | `TextField` |
-| `DatePicker` | Yes | Yes (`datepicker`; non-`YYYY-MM-DD` values dropped *(warns)*, `min` and `max` dropped *(silent)*) | Yes (`Input.Date`; companion submit *(warns)*) | — |
-| `Form` | Yes | Yes (children + submit `actions` block) | Yes (inputs + submit `ActionSet`) | — |
+| `DatePicker` | Yes | Yes (`datepicker`; non-`YYYY-MM-DD` values dropped *(warns)*, `min` and `max` dropped *(silent)*) | Yes (`Input.Date`; companion submit *(warns)*; `value`, `min`, and `max` are each kept only when they match `YYYY-MM-DD` and dropped otherwise *(silent)*) | — |
+| `Form` | Yes | Yes (children + submit `actions` block) | Yes (inputs + submit `ActionSet`; `gap` dropped *(silent)*) | — |
 | `Alert` | Yes | Degrades on messages *(warns)*: Slack only has a native alert block in modals, so messages get fallback context + section blocks | Yes (toned `Container`) | — |
 | `Table` | Yes | Yes (`data_table`); rows and columns capped *(warns)*, rows clamped to the shared character budget *(warns)*, and a table whose header row alone overruns the remaining budget is dropped *(warns)* | Yes (`Table`; rows and columns capped *(warns)*) | — |
 | `ListView` | Yes | Degrades: items flatten to text `section`s with dividers and an item action becomes an "Open" button *(silent)*; non-item children dropped *(warns whenever the child would have rendered or lost content; silent only when it renders nothing anyway)* | Yes (`Container` per item with `selectAction`) | template-expanded children |
@@ -62,13 +62,15 @@ produces that vocabulary component when a surface is ingested.
 
 27 vocabulary components × 4 targets. Slack and Teams caps (block counts,
 option counts, text lengths, table sizes) clamp with a warning rather than emit
-an invalid payload. The wiring, the webhook decoding (`decodeBlockAction`,
-`decodeSubmitData`, `fromSlackBlocks`), and the full caveat prose behind these
-cells live in the [Slack Block Kit](/docs/tools/generative-ui#slack-block-kit)
-and [Microsoft Teams](/docs/tools/generative-ui#microsoft-teams) sections of the
-generative-UI guide — including the two budgets that behave unlike the rest: the
-`data_table` character budget every table in one conversion shares, and the
-Teams payload check that only measures.
+an invalid payload. The wiring, the webhook decoding (`decodeBlockAction` and
+`decodeSubmitData`; the separate `fromSlackBlocks` parses a Block Kit message
+back into vocabulary nodes rather than decoding an interaction), and the full
+caveat prose behind these cells live in the
+[Generative UI on Slack](/docs/tools/generative-ui-slack) and
+[Generative UI on Microsoft Teams](/docs/tools/generative-ui-teams) guides —
+including the two budgets that behave unlike the rest: the `data_table`
+character budget every table in one conversion shares, and the Teams payload
+check that only measures.
 
 ## Interaction model differences
 

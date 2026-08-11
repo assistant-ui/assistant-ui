@@ -138,8 +138,8 @@ surface instead of inline. See the
 ## Beyond the web: Slack, Teams, and A2UI
 
 The same tree renders on more surfaces than React. Three subpath exports carry
-the converters; the Slack and Teams ones are pure and React-free, so they run
-in server actions, queue workers, and webhook handlers. See the
+the converters; all three are pure and React-free, so they run in server
+actions, queue workers, and webhook handlers. See the
 [render targets capability matrix](https://www.assistant-ui.com/docs/tools/render-targets)
 for what each surface supports and how unsupported content degrades.
 
