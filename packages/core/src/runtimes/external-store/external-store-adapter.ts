@@ -109,6 +109,11 @@ type ExternalStoreAdapterBase<T> = {
   state?: ReadonlyJSONValue | undefined;
   extras?: unknown;
 
+  /**
+   * Applies message lists rewritten by the runtime. Without this callback,
+   * cancelling leaves the adapter-owned trailing user message in the thread;
+   * an adapter that removes it itself owns restoring that draft.
+   */
   setMessages?: ((messages: readonly T[]) => void) | undefined;
   /**
    * Fires when the user explicitly switches branches via the runtime's

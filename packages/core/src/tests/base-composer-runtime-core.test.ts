@@ -8,6 +8,7 @@ import type { SendOptions } from "../runtime/interfaces/composer-runtime-core";
 
 class TestComposerCore extends BaseComposerRuntimeCore {
   private _attachmentAdapter: AttachmentAdapter | undefined;
+  private _dictationAdapter: DictationAdapter | undefined;
   public sentMessages: Array<Omit<AppendMessage, "parentId" | "sourceId">> = [];
   public sentOptions: Array<SendOptions | undefined> = [];
 
@@ -15,11 +16,15 @@ class TestComposerCore extends BaseComposerRuntimeCore {
     return this._attachmentAdapter;
   }
   protected getDictationAdapter(): DictationAdapter | undefined {
-    return undefined;
+    return this._dictationAdapter;
   }
 
   setAttachmentAdapter(adapter: AttachmentAdapter | undefined) {
     this._attachmentAdapter = adapter;
+  }
+
+  setDictationAdapter(adapter: DictationAdapter | undefined) {
+    this._dictationAdapter = adapter;
   }
 
   get canCancel() {
@@ -95,6 +100,29 @@ describe("BaseComposerRuntimeCore", () => {
 
     await composer.reset();
     expect(listener).not.toHaveBeenCalled();
+  });
+
+  it("keeps dictation anchored to a restored draft", async () => {
+    let onSpeech!: (result: DictationAdapter.Result) => void;
+    const session: DictationAdapter.Session = {
+      status: { type: "running" },
+      stop: vi.fn(async () => {}),
+      cancel: vi.fn(),
+      onSpeechStart: () => () => {},
+      onSpeechEnd: () => () => {},
+      onSpeech: (callback) => {
+        onSpeech = callback;
+        return () => {};
+      },
+    };
+    composer.setDictationAdapter({ listen: () => session });
+    composer.startDictation();
+
+    expect(composer.restoreDraft({ text: "restored" })).toBe(true);
+    onSpeech({ transcript: "next", isFinal: true });
+
+    expect(composer.text).toBe("restored next");
+    await composer.stopDictation();
   });
 
   it("send includes quote in metadata and clears it", async () => {

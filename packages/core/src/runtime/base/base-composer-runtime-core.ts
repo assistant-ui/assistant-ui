@@ -305,6 +305,33 @@ export abstract class BaseComposerRuntimeCore
     this._notifyEventSubscribers("send", {});
   }
 
+  public restoreDraft(draft: {
+    text: string;
+    quote?: QuoteInfo | undefined;
+    attachments?: readonly Attachment[] | undefined;
+  }): boolean {
+    if (
+      this._text.trim() ||
+      this._quote !== undefined ||
+      this._attachments.length > 0
+    )
+      return false;
+
+    const attachments = draft.attachments ?? [];
+    const textChanged = this._text !== draft.text;
+    const quoteChanged = this._quote !== draft.quote;
+    const attachmentsChanged = this._attachments !== attachments;
+
+    this._quote = draft.quote;
+    this._attachments = attachments;
+    if (textChanged) {
+      this.setText(draft.text);
+    } else if (quoteChanged || attachmentsChanged) {
+      this._notifySubscribers();
+    }
+    return true;
+  }
+
   // A send the runtime never dispatched leaves its draft nowhere else, so the
   // composer takes it back. The generation check is what a reset and a later
   // send use to invalidate it, so of several queued drafts only the most
@@ -320,16 +347,7 @@ export abstract class BaseComposerRuntimeCore
   ) {
     if (!isMessageNotSentError(error)) return;
     if (generation !== this._sendGeneration) return;
-    if (
-      this._text.trim() ||
-      this._quote !== undefined ||
-      this._attachments.length > 0
-    )
-      return;
-    this._text = draft.text;
-    this._quote = draft.quote;
-    this._attachments = draft.attachments;
-    this._notifySubscribers();
+    this.restoreDraft(draft);
   }
 
   public cancel() {

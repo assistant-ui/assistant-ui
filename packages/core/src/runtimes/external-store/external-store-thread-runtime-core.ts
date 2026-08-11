@@ -40,6 +40,7 @@ import {
 import { generateId } from "../../utils/id";
 import { ToolInvocationTracker } from "../tool-invocations/ToolInvocationTracker";
 import { EMPTY_QUEUE_ITEMS } from "../../store/scopes/queue-item";
+import type { QuoteInfo } from "../../types/quote";
 
 const EMPTY_ARRAY: readonly ThreadSuggestion[] = Object.freeze([]);
 
@@ -629,15 +630,23 @@ export class ExternalStoreThreadRuntimeCore
 
     let messages = this.repository.getMessages();
     const previousMessage = messages[messages.length - 1];
-    if (
-      this._store.setMessages &&
+    const trailingUserLeaf =
+      this._store.setMessages !== undefined &&
       previousMessage?.role === "user" &&
-      previousMessage.id === messages.at(-1)?.id // ensure the previous message is a leaf node
+      previousMessage.id === messages.at(-1)?.id &&
+      previousMessage.content.every((part) => part.type === "text")
+        ? previousMessage
+        : undefined;
+
+    if (
+      trailingUserLeaf &&
+      this.composer.restoreDraft({
+        text: getThreadMessageText(trailingUserLeaf),
+        attachments: trailingUserLeaf.attachments,
+        quote: trailingUserLeaf.metadata.custom.quote as QuoteInfo | undefined,
+      })
     ) {
-      this.repository.deleteMessage(previousMessage.id);
-      if (!this.composer.text.trim()) {
-        this.composer.setText(getThreadMessageText(previousMessage));
-      }
+      this.repository.deleteMessage(trailingUserLeaf.id);
 
       messages = this.repository.getMessages();
     } else {
