@@ -97,6 +97,28 @@ const getPersistenceState = (
   return state;
 };
 
+export const clearOAuthProviderAuthState = async (
+  storage: MCPStorage,
+  serverId: string,
+) => {
+  const storageStates = persistenceStates.get(storage);
+  const state = storageStates?.get(serverId);
+  if (!state) {
+    await storage.clearAuthState(serverId);
+    return;
+  }
+
+  const task = state.persistenceQueue.then(() =>
+    storage.clearAuthState(serverId),
+  );
+  state.persistenceQueue = task.catch(() => {});
+  try {
+    await task;
+  } finally {
+    if (storageStates.get(serverId) === state) storageStates.delete(serverId);
+  }
+};
+
 /**
  * Builds an OAuthClientProvider for the MCP SDK, backed by MCPStorage.
  * Token refresh and DCR are handled by the SDK; this provider only mediates

@@ -2,7 +2,10 @@ import type { OAuthDiscoveryState } from "@modelcontextprotocol/client";
 import { describe, expect, it, vi } from "vitest";
 import type { MCPStorage } from "../resources/storage/types";
 import type { MCPPersistedAuthState } from "./types";
-import { createOAuthProvider } from "./createOAuthProvider";
+import {
+  clearOAuthProviderAuthState,
+  createOAuthProvider,
+} from "./createOAuthProvider";
 
 const discoveryState: OAuthDiscoveryState = {
   authorizationServerUrl: "https://auth.example.com",
@@ -166,5 +169,32 @@ describe("createOAuthProvider persistence", () => {
       tokens: { access_token: "access-token", token_type: "bearer" },
       codeVerifier: "pkce-verifier",
     });
+  });
+
+  it("clears auth state after pending writes and invalidates the cache", async () => {
+    const { storage, getState } = createStorage();
+    let resolveWrite!: () => void;
+    const saveAuthState = storage.saveAuthState;
+    storage.saveAuthState = async (serverId, next) => {
+      await new Promise<void>((resolve) => {
+        resolveWrite = resolve;
+      });
+      await saveAuthState(serverId, next);
+    };
+    const provider = createProvider(storage);
+
+    const tokenSave = provider.saveTokens({
+      access_token: "access-token",
+      token_type: "bearer",
+    });
+    await vi.waitFor(() => expect(resolveWrite).toBeTypeOf("function"));
+    const clear = clearOAuthProviderAuthState(storage, "docs");
+
+    resolveWrite();
+    await Promise.all([tokenSave, clear]);
+    expect(getState()).toBeNull();
+
+    const replacementProvider = createProvider(storage);
+    await expect(replacementProvider.tokens()).resolves.toBeUndefined();
   });
 });
