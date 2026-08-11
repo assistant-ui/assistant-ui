@@ -13,6 +13,7 @@ import {
   $createTextNode,
   $createParagraphNode,
   $isElementNode,
+  $isTextNode,
   type LexicalEditor,
 } from "lexical";
 import { useAui } from "@assistant-ui/store";
@@ -25,7 +26,10 @@ import {
   unstable_useTriggerPopoverRootContextOptional,
   type Unstable_RegisteredTrigger,
 } from "@assistant-ui/react";
-import { $createDirectiveNodeWithFormatter } from "../nodes/DirectiveNode";
+import {
+  $createDirectiveNodeWithFormatter,
+  $isDirectiveNode,
+} from "../nodes/DirectiveNode";
 
 type ParsedSegment = {
   readonly segment: Unstable_DirectiveSegment;
@@ -33,6 +37,10 @@ type ParsedSegment = {
 };
 
 type CompositeParser = (text: string) => readonly ParsedSegment[];
+
+type SegmentKey =
+  | readonly ["text", string]
+  | readonly ["mention", string, string, string, string];
 
 /** Ordered, identity-deduped: prop formatter, trigger formatters, default tail. */
 export function collectFormatters(
@@ -72,6 +80,75 @@ export function composeParsers(
     }
     return fallback!;
   };
+}
+
+function appendTextSegment(segments: SegmentKey[], text: string) {
+  if (text.length === 0) return;
+  const previous = segments.at(-1);
+  if (previous?.[0] === "text") {
+    segments[segments.length - 1] = ["text", previous[1] + text];
+  } else {
+    segments.push(["text", text]);
+  }
+}
+
+function getParsedLines(
+  runtimeText: string,
+  parse: CompositeParser,
+): SegmentKey[][] {
+  const lines = runtimeText.length === 0 ? [""] : runtimeText.split("\n");
+  return lines.map((line) => {
+    const result: SegmentKey[] = [];
+    for (const { segment, formatter } of parse(line)) {
+      if (segment.kind === "text") {
+        appendTextSegment(result, segment.text);
+      } else {
+        result.push([
+          "mention",
+          segment.id,
+          segment.type,
+          segment.label,
+          formatter.serialize(segment),
+        ]);
+      }
+    }
+    return result;
+  });
+}
+
+function editorMatchesParsedText(
+  editor: LexicalEditor,
+  runtimeText: string,
+  parse: CompositeParser,
+) {
+  const parsedLines = getParsedLines(runtimeText, parse);
+  return editor.getEditorState().read(() => {
+    const paragraphs = $getRoot().getChildren();
+    if (paragraphs.length !== parsedLines.length) return false;
+    const lexicalLines: SegmentKey[][] = [];
+    for (const paragraph of paragraphs) {
+      if (!$isElementNode(paragraph)) return false;
+      const segments: SegmentKey[] = [];
+      for (const child of paragraph.getChildren()) {
+        if ($isTextNode(child)) {
+          appendTextSegment(segments, child.getTextContent());
+        } else if ($isDirectiveNode(child)) {
+          const item = child.getDirectiveItem();
+          segments.push([
+            "mention",
+            item.id,
+            item.type,
+            item.label,
+            child.getDirectiveText(),
+          ]);
+        } else {
+          return false;
+        }
+      }
+      lexicalLines.push(segments);
+    }
+    return JSON.stringify(lexicalLines) === JSON.stringify(parsedLines);
+  });
 }
 
 function syncRuntimeToLexical(
@@ -162,7 +239,7 @@ export function SyncPlugin({
   const isSyncingFromLexicalRef = useRef(false);
   const isSyncingFromRuntimeRef = useRef(false);
   const lastSyncedTextRef = useRef("");
-  const lastAppliedParserRef = useRef<CompositeParser | null>(null);
+  const lastAppliedParserRef = useRef(parser);
 
   useEffect(() => {
     return editor.registerUpdateListener(({ editorState, tags }) => {
@@ -204,13 +281,14 @@ export function SyncPlugin({
     if (!composerRuntime) return;
 
     const initialText = composerRuntime.getState().text;
+    const parserChanged = parser !== lastAppliedParserRef.current;
+    lastAppliedParserRef.current = parser;
     if (
       initialText !== lastSyncedTextRef.current ||
-      parser !== lastAppliedParserRef.current
+      (parserChanged && !editorMatchesParsedText(editor, initialText, parser))
     ) {
       isSyncingFromRuntimeRef.current = true;
       lastSyncedTextRef.current = initialText;
-      lastAppliedParserRef.current = parser;
       syncRuntimeToLexical(editor, initialText, parser, () => {
         isSyncingFromRuntimeRef.current = false;
       });
@@ -225,7 +303,6 @@ export function SyncPlugin({
 
       isSyncingFromRuntimeRef.current = true;
       lastSyncedTextRef.current = runtimeText;
-      lastAppliedParserRef.current = parser;
       syncRuntimeToLexical(editor, runtimeText, parser, () => {
         isSyncingFromRuntimeRef.current = false;
       });

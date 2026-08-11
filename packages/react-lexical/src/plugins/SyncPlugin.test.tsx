@@ -5,7 +5,13 @@ import { act, useEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { LexicalComposer } from "@lexical/react/LexicalComposer";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
-import { $getRoot, type LexicalEditor } from "lexical";
+import {
+  $getRoot,
+  $getSelection,
+  $isRangeSelection,
+  $isTextNode,
+  type LexicalEditor,
+} from "lexical";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Unstable_DirectiveFormatter } from "@assistant-ui/core";
 import { DirectiveNode } from "../nodes/DirectiveNode";
@@ -93,6 +99,12 @@ describe("SyncPlugin", () => {
         </LexicalComposer>,
       );
 
+    mocks.aui = createAui("");
+    await act(async () => {
+      render();
+    });
+    expect(editor.getEditorState().read(() => $getSelection())).toBeNull();
+
     mocks.aui = createAui("draft from thread A");
     await act(async () => {
       render();
@@ -132,6 +144,10 @@ describe("SyncPlugin", () => {
             ]
           : [{ kind: "text" as const, text }],
     };
+    const plainTextFormatter: Unstable_DirectiveFormatter = {
+      serialize: (item) => item.label,
+      parse: (text) => [{ kind: "text", text }],
+    };
     const render = (currentFormatter?: Unstable_DirectiveFormatter) =>
       root.render(
         <LexicalComposer initialConfig={initialConfig}>
@@ -149,6 +165,35 @@ describe("SyncPlugin", () => {
         .getEditorState()
         .read(() => $getRoot().getFirstChild()?.getFirstChild()?.getType()),
     ).toBe("text");
+    await act(async () => {
+      editor.update(() => {
+        const textNode = $getRoot().getFirstChild()?.getFirstChild();
+        if (!$isTextNode(textNode)) throw new Error("Expected a text node");
+        textNode.select(4, 4);
+      });
+    });
+    const before = editor.getEditorState().read(() => {
+      const textNode = $getRoot().getFirstChild()?.getFirstChild();
+      const selection = $getSelection();
+      if (!$isTextNode(textNode) || !$isRangeSelection(selection)) {
+        throw new Error("Expected a text selection");
+      }
+      return { key: textNode.getKey(), offset: selection.anchor.offset };
+    });
+
+    await act(async () => {
+      render(plainTextFormatter);
+    });
+    expect(
+      editor.getEditorState().read(() => {
+        const textNode = $getRoot().getFirstChild()?.getFirstChild();
+        const selection = $getSelection();
+        if (!$isTextNode(textNode) || !$isRangeSelection(selection)) {
+          throw new Error("Expected a text selection");
+        }
+        return { key: textNode.getKey(), offset: selection.anchor.offset };
+      }),
+    ).toEqual(before);
 
     await act(async () => {
       render(formatter);
