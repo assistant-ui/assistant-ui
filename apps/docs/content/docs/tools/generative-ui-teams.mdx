@@ -45,7 +45,7 @@ type TeamsConversionWarning = {
 };
 ```
 
-`clamped` means content was truncated or capped, `dropped` means a node produced no output, `fallback` means the node rendered through a different construct than requested (buttons past the sixth moved to secondary mode, a renamed input id), and `advisory` means nothing was changed at all and the payload may still render poorly or be refused (a `Row` beyond three columns, a card or carousel over the byte budget). Only `clamped` and `dropped` mean content was lost.
+`clamped` means content was truncated or capped, `dropped` means a node or one of its props was discarded and may have left a placeholder note behind (a `Chart` becomes an omission note), `fallback` means the node rendered through a different construct than requested (buttons past the sixth moved to secondary mode, a renamed input id), and `advisory` means nothing was changed at all and the result may still render poorly or be refused (a `Row` beyond three columns, a card or carousel over the byte budget). Only `clamped` and `dropped` mean content was lost.
 
 ## Component mapping
 

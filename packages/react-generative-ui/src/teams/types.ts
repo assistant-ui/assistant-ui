@@ -216,11 +216,12 @@ export interface TeamsCardAttachment {
 /**
  * A non-fatal note reported during Teams conversion.
  *
- * `clamped` removed content to fit a limit, `dropped` emitted nothing for a
- * node, and `fallback` emitted the node in a different form than requested.
- * `advisory` changed nothing at all and notes content Teams may still render
- * poorly or refuse, such as a payload over the byte budget or a `Row` past
- * the recommended column count.
+ * `clamped` removed content to fit a limit, `dropped` discarded a node or one
+ * of its props and may leave a placeholder note behind, and `fallback`
+ * emitted the node in a different form than requested. `advisory` changed
+ * nothing at all and notes content Teams may still render poorly or refuse,
+ * such as a payload over the byte budget or a `Row` past the recommended
+ * column count.
  */
 export interface TeamsConversionWarning {
   readonly code: "clamped" | "dropped" | "fallback" | "advisory";
