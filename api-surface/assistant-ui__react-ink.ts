@@ -713,6 +713,7 @@ declare abstract class BaseComposerRuntimeCore extends BaseSubscribable implemen
   reset(): Promise<void>;
   clearAttachments(): Promise<void>;
   send(options?: SendOptions): Promise<void>;
+  private _restoreUnsentDraft;
   cancel(): void;
   get queue(): readonly QueueItemState[];
   moveQueueItem(_queueItemId: string, _placement: QueuePlacement): void;
