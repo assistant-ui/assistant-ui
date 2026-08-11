@@ -147,6 +147,11 @@ export class ExternalStoreThreadRuntimeCore
 
     const oldStore = this._store as ExternalStoreAdapter<any> | undefined;
     this._store = store;
+    if (oldStore?.queue !== store.queue) {
+      store.queue?.__internal_setDispatchTransform?.((message) =>
+        this.enrichAppendMetadata(message, this.messages.at(-1)?.id ?? null),
+      );
+    }
     if (this.extras !== store.extras) {
       this.extras = store.extras;
     }
@@ -466,6 +471,8 @@ export class ExternalStoreThreadRuntimeCore
   }
 
   public async append(rawMessage: AppendMessage): Promise<void> {
+    // A queued message is stamped again by the adapter's dispatch transform;
+    // stamping here covers the direct path and any adapter lacking one.
     const message = this.enrichAppendMetadata(rawMessage);
     // sourceId marks an edit send; the parent may coincide with the head
     // after a resync (e.g. cancelRun dropped the edited message).

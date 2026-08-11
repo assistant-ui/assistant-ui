@@ -276,8 +276,7 @@ export class LocalThreadRuntimeCore
     return this._loadPromise;
   }
 
-  public async append(rawMessage: AppendMessage): Promise<void> {
-    const message = this.enrichAppendMetadata(rawMessage);
+  public async append(message: AppendMessage): Promise<void> {
     const isTail = message.parentId === (this.messages.at(-1)?.id ?? null);
     const willRun = message.startRun ?? message.role === "user";
     if (this._queue && willRun && isTail) {
@@ -313,7 +312,10 @@ export class LocalThreadRuntimeCore
     this._queue?.adapter.remove(queueItemId);
   }
 
-  private async _runAppend(message: AppendMessage): Promise<void> {
+  private async _runAppend(rawMessage: AppendMessage): Promise<void> {
+    // Stamped here rather than in `append` so a queued message is gated after
+    // the flush re-pointed its parentId at the current tail.
+    const message = this.enrichAppendMetadata(rawMessage);
     this.ensureInitialized();
 
     const initPromise = this._getInitializePromise?.();
