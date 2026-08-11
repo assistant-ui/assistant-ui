@@ -6,6 +6,7 @@ import { spawnSync } from "node:child_process";
 import chalk from "chalk";
 import { detect } from "detect-package-manager";
 import { satisfies } from "semver";
+import { logger } from "../lib/utils/logger";
 import { findWorkspaceRoot, resolveRealPath } from "../lib/utils/workspace";
 
 export { findWorkspaceRoot };
@@ -426,7 +427,19 @@ export const info = new Command()
       process.exit(1);
     }
 
-    const projectPkg = JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));
+    const packageJsonContent = fs.readFileSync(packageJsonPath, "utf8");
+    let projectPkg: Record<string, unknown>;
+    try {
+      projectPkg = JSON.parse(packageJsonContent);
+    } catch {
+      logger.error("Could not parse package.json.");
+      console.error(`Package path: ${packageJsonPath}`);
+      console.error(
+        "Fix the JSON syntax in that file, then run: assistant-ui info",
+      );
+      process.exit(1);
+    }
+
     const data = await collectInfo(cwd, projectPkg);
 
     // Colored output for terminal
