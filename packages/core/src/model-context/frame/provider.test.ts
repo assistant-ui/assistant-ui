@@ -153,4 +153,24 @@ describe("AssistantFrameProvider", () => {
       'AssistantFrameProvider cannot register conflicting target origins: "https://first.example" and "https://second.example"',
     );
   });
+
+  it("resets the origin policy after every provider unsubscribes", () => {
+    const unsubscribe = AssistantFrameProvider.addModelContextProvider(
+      { getModelContext: () => ({}) },
+      "https://first.example",
+    );
+
+    unsubscribe();
+
+    expect(() =>
+      AssistantFrameProvider.addModelContextProvider(
+        { getModelContext: () => ({}) },
+        "https://second.example",
+      ),
+    ).not.toThrow();
+    expect(parentWindow.postMessage).toHaveBeenLastCalledWith(
+      expect.anything(),
+      "https://second.example",
+    );
+  });
 });

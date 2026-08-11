@@ -170,7 +170,8 @@ export class AssistantFrameProvider {
 
   /**
    * Registers a provider with the shared frame origin policy. An explicit
-   * origin tightens a wildcard policy and cannot be loosened until disposal.
+   * origin tightens a wildcard policy and cannot be loosened while providers
+   * remain registered.
    *
    * @throws If `targetOrigin` conflicts with another explicit origin.
    */
@@ -192,6 +193,7 @@ export class AssistantFrameProvider {
       instance._providers.delete(provider);
       instance._providerUnsubscribes.get(provider)?.();
       instance._providerUnsubscribes.delete(provider);
+      if (instance._providers.size === 0) instance._targetOrigin = "*";
       instance.broadcastUpdate();
     };
   }
