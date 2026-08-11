@@ -84,7 +84,7 @@ describe("useAui tap host", () => {
     expect(log).toEqual(["tap effect"]);
   });
 
-  it("keeps tap effect metadata outside the client object", () => {
+  it("exposes event internals under a symbol", () => {
     const TestClient = makeTestClient([]);
     let aui!: ReturnType<typeof useAui>;
 

@@ -185,16 +185,48 @@ const createClientObject = (
   return client;
 };
 
+type ResolvedParentEventHandler = {
+  on: AssistantClient["on"];
+  receiver: AssistantClient;
+  generated: boolean;
+};
+
+const resolveParentEventHandler = (
+  parent: AssistantClient,
+  subscriber: AssistantClient,
+): ResolvedParentEventHandler => {
+  const parentOn = parent.on;
+  // Transparent wrappers inherit `on` without inheriting own internals. Find
+  // the object that defines the method before choosing its receiver.
+  let owner: object | null = parent;
+  while (owner && owner !== Object.prototype) {
+    if (Object.prototype.hasOwnProperty.call(owner, "on")) {
+      const generated =
+        getOwnEventClientInternals(owner as AssistantClient)?.on === parentOn;
+      return {
+        on: parentOn,
+        receiver: generated ? subscriber : parent,
+        generated,
+      };
+    }
+    owner = Object.getPrototypeOf(owner) as object | null;
+  }
+
+  return { on: parentOn, receiver: parent, generated: false };
+};
+
 const callParentEventHandler = <TEvent extends AssistantEventName>(
   parent: AssistantClient,
   subscriber: AssistantClient,
   selector: AssistantEventSelector<TEvent>,
   callback: AssistantEventCallback<TEvent>,
 ) => {
-  const parentInternals = getOwnEventClientInternals(parent);
-  const parentOn = parent.on;
-  const receiver = parentInternals?.on === parentOn ? subscriber : parent;
-  return parentOn.call(receiver, selector as never, callback as never);
+  const handler = resolveParentEventHandler(parent, subscriber);
+  return handler.on.call(
+    handler.receiver,
+    selector as never,
+    callback as never,
+  );
 };
 
 function assertEventReceiver(
@@ -275,13 +307,23 @@ const useClientFields = ({
           }
         });
         const parent = clientRef.parent;
+        const parentHandler = resolveParentEventHandler(parent, this);
+        // Custom parents own their selector contract. An explicitly
+        // unavailable accessor means this scope is local to the child.
+        if (
+          scope !== "*" &&
+          !parentHandler.generated &&
+          parent[scope as ClientNames]?.source === null
+        ) {
+          return localUnsub;
+        }
+
         let parentUnsub: () => void;
         try {
-          parentUnsub = callParentEventHandler(
-            parent,
-            this,
-            selector,
-            callback,
+          parentUnsub = parentHandler.on.call(
+            parentHandler.receiver,
+            selector as never,
+            callback as never,
           );
         } catch (error) {
           localUnsub();

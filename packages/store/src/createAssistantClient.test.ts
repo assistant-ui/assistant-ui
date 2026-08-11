@@ -298,6 +298,37 @@ describe("createAssistantClient", () => {
     root.destroy();
   });
 
+  it("keeps local listeners when a custom parent rejects the scope", async () => {
+    const emptyParentHandle = createTestClient({});
+    const parentOn = vi.fn(() => {
+      throw new Error("unsupported scope");
+    });
+    const parent = {
+      subscribe: () => () => {},
+      on: parentOn,
+      message: emptyParentHandle.getClient().message,
+    } as unknown as AssistantClient;
+    const child = createTestClient(
+      { message: MessageClient({ id: "child" }) },
+      { parent },
+    );
+    const cb = vi.fn();
+
+    expect(() => child.getClient().on("message.pinged", cb)).not.toThrow();
+    expect(parentOn).not.toHaveBeenCalled();
+
+    flushTapSync(() => child.getClient().message.ping("local"));
+    await flushEvents();
+
+    expect(cb).toHaveBeenCalledExactlyOnceWith({
+      id: "child",
+      value: "local",
+    });
+
+    child.destroy();
+    emptyParentHandle.destroy();
+  });
+
   it("preserves the receiver for a custom parent on method", () => {
     const parentHandle = createTestClient({ thread: ThreadClient() });
     const parent = Object.create(parentHandle.getClient()) as AnyClient;
@@ -320,6 +351,42 @@ describe("createAssistantClient", () => {
     expect(parentOn.mock.contexts[0]).toBe(parent);
 
     unsubscribe();
+    child.destroy();
+    parentHandle.destroy();
+  });
+
+  it("preserves subscriber scope through a transparent parent wrapper", async () => {
+    const parentHandle = createTestClient({
+      thread: ThreadClient(),
+      message: MessageClient({ id: "parent" }),
+    });
+    const parent = Object.create(parentHandle.getClient()) as AssistantClient;
+    const child = createTestClient(
+      {
+        message: Derived({
+          source: "thread",
+          query: { index: 1 },
+          get: (aui: AnyClient) => aui.thread.message({ index: 1 }),
+        } as never),
+      },
+      { parent },
+    );
+    const cb = vi.fn();
+    child.getClient().on("message.pinged", cb);
+
+    flushTapSync(() => parentHandle.getClient().message.ping("parent"));
+    await flushEvents();
+    expect(cb).not.toHaveBeenCalled();
+
+    flushTapSync(() =>
+      parentHandle.getClient().thread.message({ index: 1 }).ping("derived"),
+    );
+    await flushEvents();
+    expect(cb).toHaveBeenCalledExactlyOnceWith({
+      id: "m1",
+      value: "derived",
+    });
+
     child.destroy();
     parentHandle.destroy();
   });
