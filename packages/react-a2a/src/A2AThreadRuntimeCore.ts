@@ -812,15 +812,28 @@ export class A2AThreadRuntimeCore {
       message.status?.type !== "incomplete"
     )
       return;
-    this.assistantHistoryParents.delete(messageId);
-    this.appendHistoryItem(parentId, message);
+    this.appendHistoryItem(parentId, message, () => {
+      this.assistantHistoryParents.delete(messageId);
+    });
   }
 
-  private appendHistoryItem(parentId: string | null, message: ThreadMessage) {
+  private appendHistoryItem(
+    parentId: string | null,
+    message: ThreadMessage,
+    onSuccess?: () => void,
+    retry = true,
+  ) {
     if (!this.history || this.recordedHistoryIds.has(message.id)) return;
+    const history = this.history;
     this.recordedHistoryIds.add(message.id);
-    void this.history.append({ parentId, message }).catch(() => {
-      this.recordedHistoryIds.delete(message.id);
-    });
+    void history
+      .append({ parentId, message })
+      .then(onSuccess)
+      .catch(() => {
+        this.recordedHistoryIds.delete(message.id);
+        if (retry && this.history === history) {
+          this.appendHistoryItem(parentId, message, onSuccess, false);
+        }
+      });
   }
 }

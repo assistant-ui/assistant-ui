@@ -371,6 +371,71 @@ describe("A2AThreadRuntimeCore", () => {
     });
   });
 
+  describe("history persistence", () => {
+    it("retries a failed user message append", async () => {
+      const history = {
+        load: vi.fn(),
+        append: vi
+          .fn()
+          .mockRejectedValueOnce(new Error("history unavailable"))
+          .mockResolvedValueOnce(undefined),
+      };
+      const core = createCore({}, { history });
+
+      await core.append({
+        ...createUserAppendMessage("Hello"),
+        id: "user-1",
+        startRun: false,
+      });
+
+      await vi.waitFor(() => {
+        expect(history.append).toHaveBeenCalledTimes(2);
+      });
+      expect(history.append).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({
+          parentId: null,
+          message: expect.objectContaining({ id: "user-1" }),
+        }),
+      );
+    });
+
+    it("retains an assistant message parent while retrying", async () => {
+      const history = {
+        load: vi.fn(),
+        append: vi
+          .fn()
+          .mockResolvedValueOnce(undefined)
+          .mockRejectedValueOnce(new Error("history unavailable"))
+          .mockResolvedValueOnce(undefined),
+      };
+      const core = createCore(
+        {
+          streamMessage: vi.fn().mockImplementation(async function* () {
+            yield statusUpdateEvent("completed", "Done");
+          }),
+        },
+        { history },
+      );
+
+      await core.append({
+        ...createUserAppendMessage("Hello"),
+        id: "user-1",
+      });
+
+      await vi.waitFor(() => {
+        expect(history.append).toHaveBeenCalledTimes(3);
+      });
+      expect(history.append).toHaveBeenNthCalledWith(
+        3,
+        expect.objectContaining({
+          parentId: "user-1",
+          message: expect.objectContaining({ role: "assistant" }),
+        }),
+      );
+    });
+  });
+
   // --- Edit & Reload ---
 
   describe("edit", () => {
