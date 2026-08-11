@@ -853,6 +853,7 @@ declare abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
   private readonly _contextProvider;
   constructor(_contextProvider: ModelContextProvider);
   getModelContext(): ModelContext$1;
+  protected enrichAppendMetadata(message: AppendMessage): AppendMessage;
   private _editComposers;
   getEditComposer(messageId: string): DefaultEditComposerRuntimeCore | undefined;
   beginEdit(messageId: string): void;
@@ -1817,7 +1818,7 @@ declare class ExternalStoreThreadRuntimeCore extends BaseThreadRuntimeCore imple
   private _findMessageIdForToolCall;
   switchToBranch(branchId: string): void;
   private _notifyBranchChange;
-  append(message: AppendMessage): Promise<void>;
+  append(rawMessage: AppendMessage): Promise<void>;
   deleteMessage(messageId: string): Promise<void>;
   getQueueItems(): readonly QueueItemState[];
   getSteerQueueItems(): readonly QueueItemState[];
@@ -2341,7 +2342,7 @@ declare class LocalThreadRuntimeCore extends BaseThreadRuntimeCore implements Th
   __internal_setOptions(options: LocalRuntimeOptionsBase): void;
   private _loadPromise;
   __internal_load(): Promise<void>;
-  append(message: AppendMessage): Promise<void>;
+  append(rawMessage: AppendMessage): Promise<void>;
   getQueueItems(): readonly QueueItemState[];
   getSteerQueueItems(): readonly QueueItemState[];
   moveQueueItem(queueItemId: string, placement: QueuePlacement): void;
