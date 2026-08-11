@@ -954,6 +954,55 @@ describe("useEveAgentRuntime concurrent sends", () => {
     expect(getText(result.current)).toEqual(["earlier", "earlier answer"]);
   });
 
+  it("leaves the composer to the message cancelRun restored there", async () => {
+    let resolveFirstSend!: () => void;
+    const send = vi
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise<void>((resolve) => {
+            resolveFirstSend = resolve;
+          }),
+      )
+      .mockResolvedValue(undefined);
+    // Before the turn streams, the dispatched message is the thread's trailing
+    // user leaf, which core hands back to the composer on cancel.
+    const agent = createAgent({
+      data: {
+        messages: [
+          ...settledData.messages,
+          { id: "u2", role: "user", parts: [{ type: "text", text: "first" }] },
+        ],
+      } satisfies EveMessageData,
+      status: "submitted",
+      send,
+    });
+    mockUseEveAgent.mockReturnValue(agent as never);
+    const { result } = renderHook(() => useEveAgentRuntime());
+
+    await act(async () => {
+      result.current.thread.composer.setText("first");
+      result.current.thread.composer.send();
+    });
+    await waitFor(() => expect(send).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      result.current.thread.composer.setText("queued");
+      result.current.thread.composer.send();
+    });
+    act(() => {
+      result.current.thread.cancelRun();
+    });
+    expect(result.current.thread.composer.getState().text).toBe("first");
+
+    await act(async () => {
+      resolveFirstSend();
+    });
+
+    expect(result.current.thread.composer.getState().text).toBe("first");
+    expect(send).toHaveBeenCalledTimes(1);
+  });
+
   it("keeps a cancelled tool approval discarded", async () => {
     let resolveFirstSend!: () => void;
     const send = vi
