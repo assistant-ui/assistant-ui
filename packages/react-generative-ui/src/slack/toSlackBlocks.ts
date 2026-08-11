@@ -613,11 +613,14 @@ const convertCard = (
 
 /**
  * Degrades a card that cannot map cleanly into a title-and-body card block.
- * A carousel cannot fall back to a block sequence like a standalone card
- * can, so its content is clamped down to fit the card shape instead.
+ * A carousel cannot fall back to a block sequence like a standalone card can,
+ * so the card is reshaped to the two text fields the block has. Every child's
+ * text survives through {@link collectText}; an image or an action does not,
+ * and is reported separately from the reshape itself.
  */
 const degradeCard = (
   element: NormalizedUIElement,
+  fields: CardFields,
   context: ConversionContext,
   depth: number,
 ): SlackCardBlock => {
@@ -625,14 +628,50 @@ const degradeCard = (
   const textChunks = collectText(element.children, depth + 1);
   const titleSource = rawTitle || textChunks[0] || "";
   const bodyChunks = rawTitle ? textChunks : textChunks.slice(1);
-  const titleText = titleSource.slice(0, CARD_TITLE_CAP);
-  const bodyText = bodyChunks.join("\n").slice(0, CARD_BODY_CAP);
+  const titleText = clampText(
+    titleSource,
+    CARD_TITLE_CAP,
+    "Card",
+    "title",
+    context,
+  );
+  const bodyText = clampText(
+    bodyChunks.join("\n"),
+    CARD_BODY_CAP,
+    "Card",
+    "body",
+    context,
+  );
   warn(
     context,
-    "clamped",
+    "fallback",
     "Card",
-    "A card inside a carousel was degraded to title and body.",
+    "A card inside a carousel was reshaped to title and body.",
   );
+  const lost: string[] = [];
+  if (
+    fields.heroImage !== undefined ||
+    fields.leftover.some((child) => isElement(child) && child.type === "Image")
+  ) {
+    lost.push("images");
+  }
+  if (
+    isRecord(element.props["confirm"]) ||
+    isRecord(element.props["cancel"]) ||
+    fields.leftover.some(
+      (child) => isElement(child) && child.action !== undefined,
+    )
+  ) {
+    lost.push("actions");
+  }
+  if (lost.length > 0) {
+    warn(
+      context,
+      "dropped",
+      "Card",
+      `A reshaped carousel card's ${lost.join(" and ")} were dropped.`,
+    );
+  }
   return buildCardBlock({
     ...(titleText ? { title: { type: "mrkdwn", text: titleText } } : {}),
     ...(bodyText ? { body: { type: "mrkdwn", text: bodyText } } : {}),
@@ -653,7 +692,7 @@ const convertCarouselCard = (
           cardActionButtons(element.props, context),
           context,
         )
-      : degradeCard(element, context, depth);
+      : degradeCard(element, fields, context, depth);
   if (isEmptyCard(card)) {
     warn(
       context,
