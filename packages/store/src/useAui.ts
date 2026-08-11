@@ -113,7 +113,6 @@ type EventClientRef = { current: AssistantClient | null };
 // Every generated client points at the ref for its facade. This lets retained
 // event subscribers follow structural rebinds after they commit.
 const eventClientRefs = new WeakMap<AssistantClient, EventClientRef>();
-const generatedEventHandlers = new WeakSet<AssistantClient["on"]>();
 
 const getCurrentEventClient = (client: AssistantClient): AssistantClient =>
   eventClientRefs.get(client)?.current ?? client;
@@ -182,6 +181,7 @@ const useClientFields = ({
   clientRef: ClientRef;
 }): ClientFields => {
   return useMemo(() => {
+    const activeRegistrations = new WeakSet<AssistantClient>();
     const fields: ClientFields = {
       subscribe: notifications.subscribe,
       on: function <TEvent extends AssistantEventName>(
@@ -195,78 +195,90 @@ const useClientFields = ({
           );
         }
 
-        const { scope, event } = normalizeEventSelector(selector);
-        const subscriberScope =
-          scope === "*"
-            ? undefined
-            : getEventScopeBinding(this, scope as ClientNames);
+        // A source can reconnect this host to one of its previous generations,
+        // which shares this handler. Stop that transport cycle before a second
+        // local registration is installed.
+        if (activeRegistrations.has(this)) return () => {};
+        activeRegistrations.add(this);
 
-        if (subscriberScope?.source === null) {
-          throw new Error(
-            `Scope "${scope}" is not available. Use { scope: "*", event: "${event}" } to listen globally.`,
-          );
-        }
-
-        const localUnsub = notifications.on(event, (payload, clientStack) => {
-          if (scope === "*") {
-            callback(payload);
-            return;
-          }
-
-          // Resolve against the subscribing facade's committed generation so
-          // a derived child uses its own binding rather than the host's.
-          const boundScope = getEventScopeBinding(this, scope as ClientNames);
-          // A scope removed by a structural change since subscription cannot
-          // match; resolving its identity would throw
-          if (!boundScope || boundScope.source === null) return;
-          const scopeClient = getClientId(
-            boundScope,
-          ) as unknown as ClientMethods;
-          const index = getClientIndex(scopeClient);
-          if (scopeClient === clientStack[index]) {
-            callback(payload);
-          }
-        });
-
-        const parent = clientRef.parent;
-        const parentOn = parent.on;
-        const generatedParent = generatedEventHandlers.has(parentOn);
-        const parentScope =
-          scope === "*"
-            ? undefined
-            : getEventScopeBinding(parent, scope as ClientNames);
-
-        // A local root scope stops when the parent has no transport for it.
-        // Derived scopes keep crossing generated scope-less frames because
-        // their source notifications may originate higher in the chain.
-        if (
-          scope !== "*" &&
-          parentScope?.source === null &&
-          (!generatedParent || subscriberScope?.source === "root")
-        ) {
-          return localUnsub;
-        }
-
-        const parentReceiver = generatedParent ? this : parent;
-        let parentUnsub: () => void;
         try {
-          parentUnsub = parentOn.call(
-            parentReceiver,
-            selector as never,
-            callback as never,
-          );
-        } catch (error) {
-          localUnsub();
-          throw error;
-        }
+          const { scope, event } = normalizeEventSelector(selector);
+          const subscriberScope =
+            scope === "*"
+              ? undefined
+              : getEventScopeBinding(this, scope as ClientNames);
 
-        return () => {
-          localUnsub();
-          parentUnsub();
-        };
+          if (subscriberScope?.source === null) {
+            throw new Error(
+              `Scope "${scope}" is not available. Use { scope: "*", event: "${event}" } to listen globally.`,
+            );
+          }
+
+          const localUnsub = notifications.on(event, (payload, clientStack) => {
+            if (scope === "*") {
+              callback(payload);
+              return;
+            }
+
+            // Resolve against the subscribing facade's committed generation
+            // so a shadowing child uses its own binding, not the host's.
+            const boundScope = getEventScopeBinding(this, scope as ClientNames);
+            // A scope removed by a structural change since subscription
+            // cannot match; resolving its identity would throw.
+            if (!boundScope || boundScope.source === null) return;
+            const scopeClient = getClientId(
+              boundScope,
+            ) as unknown as ClientMethods;
+            const index = getClientIndex(scopeClient);
+            if (scopeClient === clientStack[index]) {
+              callback(payload);
+            }
+          });
+
+          const parent = clientRef.parent;
+          const parentOn = parent.on;
+          // Generated transport is a property of the client generation, not
+          // the public function identity, so wrapping `on` cannot change scope
+          // resolution.
+          const generatedParent = eventClientRefs.has(parent);
+          const parentScope =
+            scope === "*"
+              ? undefined
+              : getEventScopeBinding(parent, scope as ClientNames);
+
+          // A local root scope stops when the parent has no transport for it.
+          // Derived scopes keep crossing generated scope-less frames because
+          // their source notifications may originate higher in the chain.
+          if (
+            scope !== "*" &&
+            parentScope?.source === null &&
+            (!generatedParent || subscriberScope?.source === "root")
+          ) {
+            return localUnsub;
+          }
+
+          const parentReceiver = generatedParent ? this : parent;
+          let parentUnsub: () => void;
+          try {
+            parentUnsub = parentOn.call(
+              parentReceiver,
+              selector as never,
+              callback as never,
+            );
+          } catch (error) {
+            localUnsub();
+            throw error;
+          }
+
+          return () => {
+            localUnsub();
+            parentUnsub();
+          };
+        } finally {
+          activeRegistrations.delete(this);
+        }
       },
     };
-    generatedEventHandlers.add(fields.on);
     return fields;
   }, [notifications, clientRef]);
 };

@@ -215,6 +215,54 @@ describe("createAssistantClient", () => {
     parent.destroy();
   });
 
+  it("stops event forwarding when a source rebinds to a previous generation", () => {
+    const anchor = createTestClient({
+      message: MessageClient({ id: "anchor" }),
+    });
+    let parentClient = anchor.getClient() as AssistantClient;
+    const parentListeners = new Set<() => void>();
+    const parentSource = {
+      getClient: () => parentClient,
+      subscribe: (listener: () => void) => {
+        parentListeners.add(listener);
+        return () => parentListeners.delete(listener);
+      },
+    };
+    let config: Record<string, unknown> = {
+      message: MessageClient({ id: "child" }),
+    };
+    const configListeners = new Set<() => void>();
+    const child = createAssistantClient(
+      {
+        getConfig: () => config as never,
+        subscribe: (listener) => {
+          configListeners.add(listener);
+          return () => configListeners.delete(listener);
+        },
+      },
+      { parent: parentSource },
+    );
+    const previous = child.getClient();
+
+    config = {};
+    parentClient = previous;
+    flushTapSync(() => {
+      configListeners.forEach((listener) => listener());
+      parentListeners.forEach((listener) => listener());
+    });
+
+    const current = child.getClient();
+    expect(current).not.toBe(previous);
+    let unsubscribe!: () => void;
+    expect(() => {
+      unsubscribe = current.on("message.pinged" as never, vi.fn());
+    }).not.toThrow();
+    unsubscribe();
+
+    child.destroy();
+    anchor.destroy();
+  });
+
   it("rolls back a local listener when its parent rejects registration", async () => {
     const parent = {
       subscribe: () => () => {},

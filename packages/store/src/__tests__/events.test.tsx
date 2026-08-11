@@ -267,6 +267,31 @@ describe("parent chaining", () => {
     expect(cb).toHaveBeenCalledExactlyOnceWith({ id: "m0", value: "selected" });
   });
 
+  it("wrapped generated handlers preserve a hosted child's shadowed scope", async () => {
+    let child!: AnyClient;
+    const Child = () => {
+      child = useAui({
+        message: MessageClient({ id: "child" }),
+      } as unknown as useAui.Props);
+      return null;
+    };
+    const { getAui } = setup(<Child />);
+    const parentOn = vi.spyOn(getAui(), "on");
+    const cb = vi.fn();
+    child.on("message.pinged", cb);
+
+    expect(parentOn).toHaveBeenCalledOnce();
+
+    getAui().thread.message({ index: 0 }).ping("parent");
+    child.message.ping("child");
+    await flushEvents();
+
+    expect(cb).toHaveBeenCalledExactlyOnceWith({
+      id: "child",
+      value: "child",
+    });
+  });
+
   it("scopes defined on the child deliver locally without a parent registration", async () => {
     const { getAui, getChild } = setupChild();
     const parentOn = vi.spyOn(getAui(), "on");

@@ -2,4 +2,4 @@
 "@assistant-ui/store": patch
 ---
 
-fix: keep derived-provider scoped listeners bound to their provider while forwarding registrations through generated notification ancestors
+fix: keep scoped listeners bound to a shadowing provider while forwarding registrations through generated notification ancestors
