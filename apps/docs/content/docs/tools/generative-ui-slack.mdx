@@ -78,7 +78,7 @@ An unknown component and a bare string child are both handled: the unknown one i
 
 Anything else in the card, including a second image, a `Fact`, or a loose `Button`, makes the card fall back to a header plus the children rendered inline plus an actions block, and reports a `fallback` warning. A card carrying none of an image, title, body, or actions is dropped outright.
 
-Inside a `Carousel` that fallback is unavailable, so an over-full card is reshaped to title and body text instead, with a `fallback` warning. Every child's text survives the reshape, including a `Caption`'s and a `Button`'s label, but a hero image and any action do not, and those are reported separately as `dropped` so the two facts stay distinguishable.
+Inside a `Carousel` that fallback is unavailable, so an over-full card is reshaped to title and body text instead, with a `fallback` warning. Text carried in a `text`, `value`, `label`, `title`, or `description` prop survives the reshape at any depth, which covers a `Caption`'s text and a `Button`'s label. An image, a `Table`, a `Chart`, and any action do not, since none of them is text, and those are reported separately as `dropped` so the two facts stay distinguishable.
 
 ## Limits
 

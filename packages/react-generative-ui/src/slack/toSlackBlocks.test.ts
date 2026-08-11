@@ -1218,6 +1218,45 @@ describe("toSlackBlocks", () => {
       });
     });
 
+    it.each([
+      ["tables", { $type: "Table", columns: [{ label: "A" }], rows: [["1"]] }],
+      ["charts", { $type: "Chart", series: [] }],
+      [
+        "images",
+        { $type: "ListViewItem", children: [{ $type: "Image", src: "x.png" }] },
+      ],
+      [
+        "actions",
+        {
+          $type: "ListViewItem",
+          children: [{ $type: "Button", label: "Go", $action: { type: "go" } }],
+        },
+      ],
+    ])(
+      "reports %s that a reshape cannot carry, however deep",
+      (kind, child) => {
+        const { warnings } = toSlackBlocks({
+          $type: "Carousel",
+          children: [
+            {
+              $type: "Card",
+              title: "Plan",
+              children: [
+                { $type: "Text", value: "b" },
+                child,
+                { $type: "Divider" },
+              ],
+            },
+          ],
+        });
+        expect(warnings).toContainEqual({
+          code: "dropped",
+          component: "Card",
+          detail: `A reshaped carousel card's ${kind} were dropped.`,
+        });
+      },
+    );
+
     it("clamps a reshaped card's title and body instead of slicing them silently", () => {
       const { warnings } = toSlackBlocks({
         $type: "Carousel",

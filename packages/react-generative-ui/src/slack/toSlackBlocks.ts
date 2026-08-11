@@ -611,6 +611,38 @@ const convertCard = (
   return [card];
 };
 
+/** The content kinds a reshaped carousel card cannot carry, in report order. */
+const LOST_CONTENT_KINDS = ["images", "tables", "charts", "actions"] as const;
+
+const listPhrase = (items: readonly string[]): string =>
+  items.length <= 1
+    ? (items[0] ?? "")
+    : `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`;
+
+/**
+ * Collects the kinds of content a reshape drops, walking the same tree
+ * {@link collectText} does so a node nested below the top level counts too.
+ * These are exactly the pieces text cannot represent: an image has no text, a
+ * table and a chart carry theirs in array props, and an action is behavior.
+ */
+const scanLostContent = (
+  node: NormalizedUINode,
+  into: Set<string>,
+  depth: number,
+): void => {
+  if (depth > MAX_TRAVERSAL_DEPTH) return;
+  if (Array.isArray(node)) {
+    for (const child of node) scanLostContent(child, into, depth + 1);
+    return;
+  }
+  if (!isElement(node)) return;
+  if (node.action !== undefined) into.add("actions");
+  if (node.type === "Image") into.add("images");
+  if (node.type === "Table") into.add("tables");
+  if (node.type === "Chart") into.add("charts");
+  scanLostContent(node.children, into, depth + 1);
+};
+
 /**
  * Degrades a card that cannot map cleanly into a title-and-body card block.
  * A carousel cannot fall back to a block sequence like a standalone card can,
@@ -648,28 +680,19 @@ const degradeCard = (
     "Card",
     "A card inside a carousel was reshaped to title and body.",
   );
-  const lost: string[] = [];
-  if (
-    fields.heroImage !== undefined ||
-    fields.leftover.some((child) => isElement(child) && child.type === "Image")
-  ) {
-    lost.push("images");
+  const lostKinds = new Set<string>();
+  if (fields.heroImage !== undefined) lostKinds.add("images");
+  if (isRecord(element.props["confirm"]) || isRecord(element.props["cancel"])) {
+    lostKinds.add("actions");
   }
-  if (
-    isRecord(element.props["confirm"]) ||
-    isRecord(element.props["cancel"]) ||
-    fields.leftover.some(
-      (child) => isElement(child) && child.action !== undefined,
-    )
-  ) {
-    lost.push("actions");
-  }
+  scanLostContent(fields.leftover, lostKinds, depth + 1);
+  const lost = LOST_CONTENT_KINDS.filter((kind) => lostKinds.has(kind));
   if (lost.length > 0) {
     warn(
       context,
       "dropped",
       "Card",
-      `A reshaped carousel card's ${lost.join(" and ")} were dropped.`,
+      `A reshaped carousel card's ${listPhrase(lost)} were dropped.`,
     );
   }
   return buildCardBlock({
