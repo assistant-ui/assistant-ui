@@ -1,5 +1,36 @@
 # @assistant-ui/react-pi
 
+## 0.0.16
+
+### Patch Changes
+
+- [#5737](https://github.com/assistant-ui/assistant-ui/pull/5737) [`5c8bcf7`](https://github.com/assistant-ui/assistant-ui/commit/5c8bcf7833e3fab7447ddb8befa927d40a796596) - fix: isolate runtime error callback failures ([@Kinfe123](https://github.com/Kinfe123))
+
+- Updated dependencies [[`f551562`](https://github.com/assistant-ui/assistant-ui/commit/f551562162f43b2bbeb2bb46d39b68243ca1d35a), [`dc7b77d`](https://github.com/assistant-ui/assistant-ui/commit/dc7b77dca65ad8d0384e8aec268a4141dc8bd0da), [`d1b7097`](https://github.com/assistant-ui/assistant-ui/commit/d1b7097ca86e84698fcfaabd1b310e30612dd32c)]:
+  - @assistant-ui/core@0.3.11
+
+## 0.0.15
+
+### Patch Changes
+
+- [#5723](https://github.com/assistant-ui/assistant-ui/pull/5723) [`94dc3e5`](https://github.com/assistant-ui/assistant-ui/commit/94dc3e509fa2b4fae1a14c88ec34b910c8d95af8) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+- [#5728](https://github.com/assistant-ui/assistant-ui/pull/5728) [`3a09c65`](https://github.com/assistant-ui/assistant-ui/commit/3a09c6564b31329f67f7dc309c0df7c44e244f6c) - feat: support pi 0.84 ([@okisdev](https://github.com/okisdev))
+
+- Updated dependencies [[`94dc3e5`](https://github.com/assistant-ui/assistant-ui/commit/94dc3e509fa2b4fae1a14c88ec34b910c8d95af8), [`ab57969`](https://github.com/assistant-ui/assistant-ui/commit/ab5796932c97bc5bade19022e2ac8762949d2967)]:
+  - @assistant-ui/core@0.3.10
+  - @assistant-ui/store@0.3.8
+
+## 0.0.14
+
+### Patch Changes
+
+- [#5682](https://github.com/assistant-ui/assistant-ui/pull/5682) [`7e2de5d`](https://github.com/assistant-ui/assistant-ui/commit/7e2de5d5e724fd5987511a3fe04f1a4e38212b91) - fix: isolate initial subscription callback errors ([@Kinfe123](https://github.com/Kinfe123))
+
+- Updated dependencies [[`99d09c8`](https://github.com/assistant-ui/assistant-ui/commit/99d09c828c04bfca35d091e73f29c6d6643dfb01), [`79253f2`](https://github.com/assistant-ui/assistant-ui/commit/79253f2a5e0a637c8907ba30859f308ff6dcd1c4), [`4e99deb`](https://github.com/assistant-ui/assistant-ui/commit/4e99deb80dc3401480f80c7bef31acbf86a71573), [`2af514c`](https://github.com/assistant-ui/assistant-ui/commit/2af514cabbf6d7d52cb0fd20ef8d1e842294ebb3)]:
+  - @assistant-ui/core@0.3.8
+  - @assistant-ui/store@0.3.7
+
 ## 0.0.13
 
 ### Patch Changes

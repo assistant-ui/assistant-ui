@@ -87,6 +87,7 @@ export const ComposerInput = ({
   const onKeyPress = useCallback(
     (e: NativeSyntheticEvent<TextInputKeyPressEventData>) => {
       onKeyPressProp?.(e);
+      if (e.isDefaultPrevented()) return;
 
       if (Platform.OS !== "web") return;
       if (submitMode !== "enter") return;

@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
 import { mono } from "./surfaces";
 
@@ -7,17 +8,20 @@ export function ThinkingIndicator({
   label,
   elapsed,
   className,
-}: {
+  ...props
+}: Omit<ComponentProps<"div">, "children" | "label" | "elapsed"> & {
   label: string;
   elapsed?: string;
-  className?: string;
 }) {
   return (
     <div
+      data-slot="thinking-indicator"
       className={cn(
         "text-foreground/55 flex items-center gap-2.5 text-sm",
         className,
       )}
+
+      {...props}
     >
       <span
         aria-hidden

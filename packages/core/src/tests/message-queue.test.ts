@@ -626,3 +626,29 @@ describe("createMessageQueue", () => {
     expect(adapter.items).toHaveLength(0);
   });
 });
+
+describe("createMessageQueue interrupt with a runtime-routed cancel", () => {
+  it("keeps draining when the driver's cancel notifies back", () => {
+    const runs: string[] = [];
+    const controller = createMessageQueue({
+      run: (message) => {
+        runs.push(
+          message.content[0]!.type === "text" ? message.content[0].text : "",
+        );
+      },
+      cancel: () => controller.notifyCancelled(),
+    });
+
+    controller.adapter.enqueue(msg("first"));
+    controller.adapter.enqueue(msg("second"));
+    controller.adapter.steer(msg("steered"));
+
+    expect(runs).toEqual(["first", "steered"]);
+
+    // the interrupted run and the steer run each settle once
+    controller.notifyIdle();
+    controller.notifyIdle();
+
+    expect(runs).toEqual(["first", "steered", "second"]);
+  });
+});

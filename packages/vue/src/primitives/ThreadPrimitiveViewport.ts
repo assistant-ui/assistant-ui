@@ -172,11 +172,7 @@ export const ThreadPrimitiveViewport = defineComponent({
       scheduleScrollToBottom("auto");
     });
 
-    // A non-star subscription matches the emitting client against the
-    // listener's scope binding at delivery time; on a switch the event is
-    // emitted by the newly main item client before the derived threadListItem
-    // binding re-resolves to it, so only a star scope observes the emission.
-    useAuiEvent({ scope: "*", event: "threadListItem.switchedTo" }, () => {
+    useAuiEvent("threadListItem.switchedTo", () => {
       if (!props.scrollToBottomOnThreadSwitch) return;
       scheduleScrollToBottom("instant");
     });

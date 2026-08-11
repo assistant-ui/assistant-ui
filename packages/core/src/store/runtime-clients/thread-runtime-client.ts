@@ -12,6 +12,7 @@ import {
 } from "@assistant-ui/store/client";
 import { ComposerClient } from "./composer-runtime-client";
 import { MessageClient } from "./message-runtime-client";
+import { ThreadSuggestions } from "../clients/suggestions";
 import { useSubscribable } from "./useSubscribable";
 import type { ThreadState } from "../scopes/thread";
 
@@ -78,6 +79,9 @@ const useThreadClient = ({
       threadIdRef,
     }),
   );
+  const suggestions = useClientResource(
+    ThreadSuggestions(runtimeState.suggestions),
+  );
   const messages = useClientLookup(
     runtimeState.messages.map((m) =>
       withKey(m.id, MessageClientById({ runtime, id: m.id, threadIdRef }), [
@@ -109,6 +113,7 @@ const useThreadClient = ({
   return {
     getState: () => state,
     composer: () => composer.methods,
+    suggestions: () => suggestions.methods,
     append: runtime.append,
     deleteMessage: runtime.deleteMessage,
     startRun: runtime.startRun,

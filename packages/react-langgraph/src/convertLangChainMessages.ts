@@ -342,6 +342,8 @@ export const convertLangChainMessages: useExternalMessageConverter.Callback<
         ...(message.status && { status: message.status }),
       };
     }
+    case "remove":
+      return [];
     case "tool":
       return {
         role: "tool",

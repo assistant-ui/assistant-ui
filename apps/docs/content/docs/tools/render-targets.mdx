@@ -14,7 +14,8 @@ Block Kit and Microsoft Teams Adaptive Cards; and
 
 Both outbound converters are total: they never throw. Many lossy steps are
 reported as a structured warning (`SlackConversionWarning` /
-`TeamsConversionWarning` with a `code` of `clamped`, `fallback`, or `dropped`),
+`TeamsConversionWarning` with a `code` of `clamped`, `fallback`, `dropped`, or,
+on Teams only, `advisory`),
 but not all of them — the matrix marks each degradation as *(warns)* or
 *(silent)* so you know which losses your warning log will actually show.
 
@@ -42,7 +43,7 @@ produces that vocabulary component when a surface is ingested.
 | `Divider` | Yes | Yes (`divider`) | Degrades *(silent)*: becomes `separator` on the next sibling; a trailing divider is dropped | `Divider` |
 | `Spacer` | Yes | — | Degrades *(silent)*: becomes `spacing` on the next sibling; a trailing spacer is dropped | — |
 | `Card` | Yes | Yes (`card`) when its children fit the native shape — the first `Image`, the first `Text`/`Markdown`, and the first `Caption`, with `title` and the confirm/cancel actions coming from props; `Spacer` and `Icon` children are ignored, and any child left over degrades *(warns)* the whole card to inline blocks | Yes (`Container` + footer `ActionSet`) | `Card` |
-| `Carousel` | Yes | Yes (`carousel` of cards); three losses, all *(warns)*: non-card children dropped, cards past 10 dropped, a card that does not fit the native shape clamped to title + body — and an empty result drops the carousel | Degrades: at the root `toTeamsAttachments` maps the first 10 `Card` children to attachments *(silent)*, cards past 10 dropped *(warns)*, non-card children dropped *(silent unless the type is unknown)*; nested renders as sequential cards *(warns)* | — |
+| `Carousel` | Yes | Yes (`carousel` of cards); three losses, all *(warns)*: non-card children dropped, cards past 10 dropped, a card that does not fit the native shape clamped to title + body — and an empty result drops the carousel | Degrades: at the root `toTeamsAttachments` maps the first 10 `Card` children to attachments *(silent)*, cards past 10 dropped *(warns)*, non-card children dropped *(warns whenever the child would have rendered or lost content; silent only when it renders nothing anyway)*; nested renders as sequential cards *(warns)* | — |
 | `Row` | Yes | Degrades *(silent)*: context row when all children are `Badge`/`Caption`, otherwise flattened vertically | Yes (`ColumnSet`; past 3 columns *(warns)*) | `Row` |
 | `Col` | Yes | Degrades *(silent)*: flattened into the block sequence | Yes (`Container`) | `Column` |
 | `Box` | Yes | Degrades *(silent)*: flattened into the block sequence | Yes (`Container`) | — |

@@ -1,179 +1,240 @@
 ---
-title: Generative UI (JSON spec)
-description: Render agent-described React UI from a JSON spec with a consumer-provided component allowlist.
+title: Generative UI
+description: Let the model compose an interface at runtime from a component vocabulary you ship, using the present tool from @assistant-ui/react-generative-ui.
+platforms: ["react"]
 ---
 
-`MessagePrimitive.GenerativeUI` is a first-class primitive for rendering UI
-described by the agent at runtime as a JSON spec. Instead of hard-coding a
-component per tool, the agent emits a `generative-ui` message part containing
-a tree of components by name. assistant-ui resolves each name against a
-**consumer-provided allowlist** and renders the result.
+Generative UI inverts the usual tool-rendering relationship. Instead of writing one component per tool, you ship a **vocabulary** of components and let the model assemble them. The model calls a single `present` tool whose arguments are a JSON tree of component names and props, and assistant-ui renders that tree.
 
-> The allowlist controls **which** components the agent may render: any name
-> not in it throws a typed `GenerativeUIRenderError` (no implicit fallback). It
-> does not constrain the props passed to those components; see [Security](#security).
-
-> **Opt-in feature:** The default shadcn `Thread` does **not** render
-> `generative-ui` parts. You must wire the primitive explicitly — see
-> [Opt-in wiring](#opt-in-wiring).
+The package ships a default vocabulary of 27 components (cards, facts, tables, charts, forms, controls), so the shortest useful setup registers one tool and writes no components at all.
 
 ## Which generative UI pattern?
 
-assistant-ui uses "generative UI" in three different places. Pick the one that
-matches your integration:
+assistant-ui uses "generative UI" for more than one thing. Two questions separate them: does the **model** compose the layout or do you bind it ahead of time, and does the UI originate from a **tool call** or from a part your backend emits. Pick the row that matches what you are building:
 
-| Pattern | API | Best for | Streaming |
-|---------|-----|----------|-----------|
-| **Generative UI primitive** | `MessagePrimitive.GenerativeUI` + allowlist | Composing dashboards, cards, and layouts from a component vocabulary you ship | Native `generative-ui` parts update progressively when the part spec changes incrementally |
-| **Tool UI** | `Tools({ toolkit })` with `render` | Interactive widgets tied to a known tool (forms, pickers, charts) | Tool **args** stream while the model fills them in |
-| **LangGraph data UI** | `makeAssistantDataUI` + `ui_message` | LangGraph agents emitting UI via the LangGraph stream | UI messages arrive on the LangGraph custom channel |
+| Pattern | API | Best for |
+|---------|-----|----------|
+| **The `present` tool** (this page) | `JSONGenerativeUI` + `present` | The model composes dashboards, cards, and layouts from a vocabulary you ship |
+| **[Tool UI](/docs/tools/tool-ui)** | toolkit `render` | A widget tied to a tool you already know about (forms, pickers, charts) |
+| **[Generative UI primitive](/docs/tools/generative-ui-primitive)** | `MessagePrimitive.GenerativeUI` + allowlist | A backend that already emits `generative-ui` message parts |
+| **[LangGraph data UI](/docs/runtimes/langgraph/generative-ui)** | `makeAssistantDataUI` + `ui_message` | LangGraph agents emitting UI on the LangGraph stream |
 
-See also: [Tool UI guide](/docs/tools/tool-ui), [LangGraph generative UI](/docs/runtimes/langgraph/generative-ui).
+The first two are tool-driven, so the model decides when UI appears; the last two are backend-driven, so your agent does. The backend-driven pair splits on transport rather than on either axis: the primitive reads a `generative-ui` message part, while LangGraph data UI reads `push_ui_message` off the LangGraph stream. `present` and the primitive both take a JSON component tree, but in [non-interchangeable shapes](/docs/tools/generative-ui-primitive#spec-shape).
 
-## When not to use the primitive
-
-- **User input and two-way interaction** → [Tool UI](/docs/tools/tool-ui) or [Interactables](/docs/tools/interactables)
-- **LangGraph `push_ui_message`** → [LangGraph data UI](/docs/runtimes/langgraph/generative-ui)
-- **Untrusted HTML or third-party widgets** → [MCP Apps](/docs/tools/mcp-apps) (sandboxed frames)
+Browse every component the default vocabulary offers in the [component vocabulary reference](/elements/vocabulary), and see finished compositions in the [Generative section of Elements](/elements).
 
 ## Quick start
 
-### 1. Define your component allowlist
+<Steps>
 
-```tsx title="components/gui.tsx"
-const Card = ({ title, children }) => (
-  <div className="rounded-xl border bg-card p-4 shadow-sm">
-    <div className="text-base font-semibold">{title}</div>
-    <div className="mt-2">{children}</div>
-  </div>
-);
+<Step>
 
-const Button = ({ label }) => (
-  <button className="rounded-md bg-primary px-3 py-1.5 text-primary-foreground">
-    {label}
-  </button>
-);
+### Install the package
 
-export const componentsAllowlist = { Card, Button };
+<InstallCommand npm={["@assistant-ui/react-generative-ui"]} />
+
+The vocabulary renders as unstyled semantic HTML with `data-aui` attributes. Add the styled library to get the shipped look:
+
+<InstallCommand shadcn={["generative-ui"]} />
+
+This merges the vocabulary stylesheet and theme variables into your CSS, which is what the rest of this page assumes, and lands `components/assistant-ui/generative-ui.tsx`. That file exports `styledGenerativeUILibrary`, whose only difference from the default vocabulary is a real markdown renderer; [Styling](#styling) wires it in.
+
+</Step>
+
+<Step>
+
+### Enable the compiler
+
+The `"use generative"` directive lets one file declare tools that both the browser and your server route can import: the compiler strips the browser-only halves out of the server build and the schemas out of the client build.
+
+```ts title="next.config.ts"
+import { withAui } from "@assistant-ui/next";
+
+export default withAui({
+  /* your Next config */
+});
 ```
 
-### 2. Wire the primitive into your message renderer
+Vite and TanStack Start use `aui()` from `@assistant-ui/vite`; Expo and bare React Native use `withAui` from `@assistant-ui/metro`.
 
-See [Opt-in wiring](#opt-in-wiring) for all three integration patterns.
+</Step>
 
-### 3. Have the agent emit UI
+<Step>
 
-**ExternalStore / manual messages** attach a native part:
+### Expose the vocabulary as a tool
 
-```ts
-{
-  type: "generative-ui",
-  spec: {
-    root: {
-      component: "Card",
-      props: { title: "Welcome" },
-      children: [
-        { component: "Button", props: { label: "Get started" } },
-      ],
-    },
-  },
+`JSONGenerativeUI` turns a component library into the model-facing schema for `present`. Register the result on a toolkit like any other tool.
+
+```tsx title="app/toolkit.tsx"
+"use generative";
+
+import { defineToolkit } from "@assistant-ui/react";
+import {
+  JSONGenerativeUI,
+  defaultGenerativeUILibrary,
+} from "@assistant-ui/react-generative-ui";
+
+const generative = new JSONGenerativeUI({
+  library: defaultGenerativeUILibrary,
+});
+
+export default defineToolkit({
+  present: generative.present({ display: "standalone" }),
+});
+```
+
+`display: "standalone"` renders the result on its own surface, outside the chain-of-thought trace. Omit it to render inline.
+
+</Step>
+
+<Step>
+
+### Register the toolkit on the client
+
+```tsx title="app/MyRuntimeProvider.tsx"
+"use client";
+
+import {
+  AssistantRuntimeProvider,
+  AuiConfig,
+  Tools,
+} from "@assistant-ui/react";
+import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
+import toolkit from "./toolkit";
+
+export function MyRuntimeProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const runtime = useChatRuntime({
+    sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
+  });
+  const config = AuiConfig({ tools: Tools({ toolkit }) });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime} config={config}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
 }
 ```
 
-**AI SDK (`useChatRuntime`)** — the adapter maps tool results to `tool-call`
-parts, not `generative-ui` parts. Use the [AI SDK interim bridge](#pattern-3--ai-sdk-interim-bridge) until a native emission helper ships.
+<Callout type="warn">
+`present` is a frontend tool: it resolves in the browser, and the run only continues once its result is sent back. Without `sendAutomaticallyWhen`, the UI renders and the conversation then stops.
+</Callout>
 
-Live examples in [`examples/with-generative-ui`](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-generative-ui): Tool UI demo (`/`), static primitive (`/primitive`), GUI chat (`/gui-chat`).
+</Step>
 
-## Opt-in wiring
+<Step>
 
-The stock `@assistant-ui/ui` `Thread` switch returns `null` for unknown part
-types — including `generative-ui`. Add one of these patterns in **your**
-assistant message renderer (~15 lines).
+### Serve the schema
 
-### Pattern 1 — `MessagePrimitive.Parts`
+The route imports the same toolkit module. The compiler resolves that import to the server build, so only the schemas cross over and no browser code enters your server bundle.
 
-```tsx
-<MessagePrimitive.Parts
-  components={{
-    generativeUI: {
-      components: componentsAllowlist,
-      Fallback: UnknownComponentFallback,
+```ts title="app/api/chat/route.ts"
+import { openai } from "@ai-sdk/openai";
+import { AISDKToolkit } from "@assistant-ui/react-ai-sdk";
+import { convertToModelMessages, stepCountIs, streamText } from "ai";
+import toolkit from "@/app/toolkit";
+
+const aiToolkit = new AISDKToolkit({ toolkit });
+
+export async function POST(req: Request) {
+  const { messages, tools } = await req.json();
+
+  const result = streamText({
+    model: openai("gpt-5.4-nano"),
+    messages: await convertToModelMessages(messages),
+    stopWhen: stepCountIs(10),
+    tools: await aiToolkit.tools({ frontend: tools }),
+  });
+
+  return result.toUIMessageStreamResponse();
+}
+```
+
+`stopWhen` matters here for the same reason `sendAutomaticallyWhen` does: rendering the UI is one step, and the model needs another to say anything after it.
+
+</Step>
+
+</Steps>
+
+Ask for something the vocabulary can express, for example "show me a sales dashboard for the last six months", and the model will answer with a rendered composition. The complete setup runs in [`examples/with-generative-ui`](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-generative-ui).
+
+## What the model emits
+
+Every node is a flat object: `$type` names the component, `children` nests, and every other key is a prop.
+
+```json
+{
+  "$type": "Card",
+  "title": "Q3 revenue",
+  "children": [
+    {
+      "$type": "Row",
+      "children": [
+        { "$type": "Fact", "label": "Bookings", "value": "$1.2M" },
+        { "$type": "Fact", "label": "Growth", "value": "+18%" }
+      ]
     },
-  }}
-/>
-```
-
-### Pattern 2 — `GroupedParts` case (shadcn Thread fork)
-
-```tsx
-case "generative-ui":
-  return (
-    <MessagePrimitive.GenerativeUI
-      components={componentsAllowlist}
-      Fallback={UnknownComponentFallback}
-    />
-  );
-```
-
-Also exclude `render_gui` from tool-group chrome in `groupBy` if you use the
-AI SDK bridge (return `null` for that tool name).
-
-### Pattern 3 — AI SDK interim bridge
-
-When using `useChatRuntime`, map a dedicated tool result to the renderer:
-
-```tsx
-case "tool-call":
-  if (part.toolName === "render_gui") {
-    const spec = parseRenderGuiResult(part.result);
-    if (spec) {
-      return (
-        <MessagePrimitive.GenerativeUI
-          spec={spec}
-          components={componentsAllowlist}
-          Fallback={UnknownComponentFallback}
-        />
-      );
+    {
+      "$type": "Chart",
+      "variant": "bar",
+      "showAxis": true,
+      "data": [
+        { "label": "Jul", "value": 22 },
+        { "label": "Aug", "value": 26 },
+        { "label": "Sep", "value": 31 }
+      ]
     }
-  }
-  return part.toolUI ?? <ToolFallback {...part} />;
+  ]
+}
 ```
 
-The message store still holds a `tool-call` on this path — not a
-`generative-ui` part. See `examples/with-generative-ui/app/gui-chat` for a
-working reference.
+Keys beginning with `$` are reserved by the framework (`$type`, `$key`, `$action`, and the injected `$status`), and `children` follows the JSX convention. Every other key is yours, so a component is free to declare props named `type`, `status`, or `variant` without colliding.
 
-Bare strings act as inline text leaves.
+## Extending the vocabulary
 
-## Spec shape
+`defineGenerativeComponents` adds your own components. Each one declares a zod schema for its props, a description the model reads, and a render function.
 
-```ts
-type GenerativeUINode =
-  | string
-  | {
-      component: string;             // resolved against the allowlist
-      props?: Record<string, unknown>;
-      children?: GenerativeUINode[];
-      key?: string;                   // optional stable React key
-    };
+```tsx title="app/toolkit.tsx"
+"use generative";
 
-type GenerativeUISpec = {
-  root: GenerativeUINode | GenerativeUINode[];
-};
+import { z } from "zod";
+import {
+  JSONGenerativeUI,
+  defaultGenerativeUILibrary,
+  defineGenerativeComponents,
+} from "@assistant-ui/react-generative-ui";
+import { WeatherCard } from "@/components/weather-card";
+
+const generative = new JSONGenerativeUI({
+  library: {
+    ...defaultGenerativeUILibrary,
+    ...defineGenerativeComponents({
+      Weather: {
+        description: "Show a weather card for a `get_weather` result.",
+        properties: z.object({
+          id: z.string().describe("The `id` returned by `get_weather`."),
+        }),
+        render: (props) => <WeatherCard {...props} />,
+      },
+    }),
+  },
+});
 ```
 
-The spec is plain JSON — easy for any agent to emit, and easy to validate
-on the server before delivery.
+Set `streamProperties: true` alongside `properties` to receive partially-filled props while the model is still writing them. `render` then sees `Partial<P>` and an injected `$status` of `"streaming"`, and the full props once it turns `"done"`. Components opt out by default and render only once their props are complete.
 
-## Actions with `JSONGenerativeUI`
+<Callout type="warn">
+Inside a `"use generative"` module, a `"use client"` module may be referenced **only** as the `render` value of an inline `defineGenerativeComponents` literal. The compiler drops `render` and the imports only it uses from the server build; referencing such a module from `properties`, `description`, a spread, or a top-level constant leaks a client reference into the server graph and breaks schema generation. `defaultGenerativeUILibrary` is safe on both builds.
+</Callout>
 
-When you expose a component library through `new JSONGenerativeUI(...)`, pass an
-action registry to let interactive nodes call back into your app. This path uses
-the flat `{ "$type": ... }` node shape; the model puts an `$action` object on
-the node, and its `type` is matched against your registered handlers.
+## Actions
 
-Browse the [gallery](/gallery) to see every default vocabulary component rendered live, next to its IR JSON, generated React code, and a usage snippet.
+Pass an action registry to let rendered nodes call back into your app. The model puts an `$action` object on a node, and its `type` is matched against your handlers.
 
 ```tsx
 import {
@@ -202,116 +263,62 @@ const generative = new JSONGenerativeUI({
 }
 ```
 
-`Select`, `Input`, `DatePicker`, `Checkbox`, and `RadioGroup` add the user's value as `$input` when they fire the action; `Form` and a `Card` with `asForm` set add an object keyed by each control's `name` instead. On a `Card` there is no Card-level `$action`: the collected object is dispatched through `confirm.$action`, while `cancel.$action` always fires without `$input`. Unknown action types are ignored and warn in development.
+`Select`, `Input`, `DatePicker`, `Checkbox`, and `RadioGroup` add the user's value as `$input` when they fire the action. `Form`, and a `Card` with `asForm` set, add an object keyed by each control's `name` instead. On a `Card` there is no card-level `$action`: the collected object is dispatched through `confirm.$action`, while `cancel.$action` always fires without `$input`. Unknown action types are ignored and warn in development.
 
-## Streaming
+Without a registry, the tree still renders and model-emitted actions degrade to a no-op.
 
-When a message contains native `generative-ui` parts whose `spec` updates
-incrementally (for example via ExternalStore), the primitive renders
-progressively as nodes and props arrive.
+## Styling
 
-The AI SDK `render_gui` tool path returns the full spec at **tool completion**
-— not incrementally during the tool execute step. For args streaming during
-generation, use [Tool UI](/docs/tools/tool-ui) instead.
+The vocabulary renders semantic HTML tagged with `data-aui` and `data-aui-*` attributes and ships no styles of its own, so it inherits nothing and collides with nothing. The `generative-ui` registry item above installs the shipped stylesheet, which is written entirely against your existing theme variables: change `--radius` or `--primary` in your own CSS and the rendered widgets follow.
+
+A `Card` renders as a plain section by default, so several in a row read as one answer rather than a stack of boxes. It takes on a framed surface only where one is warranted: when the model sets a `background`, when `confirm` or `cancel` add a footer whose buttons need a delimited target, or when it is a carousel slot.
+
+To restyle a single component, target its attribute:
+
+```css
+[data-aui="fact-value"] {
+  font-variant-numeric: tabular-nums;
+  font-size: 1.125rem;
+}
+```
+
+Overriding a component's markup rather than its appearance is a library-level change: spread `defaultGenerativeUILibrary` and replace that one entry through `defineGenerativeComponents`. The default `Markdown` renders its source as plain text, which is why the registry item ships a replacement. Wiring it is the same override:
+
+```tsx title="app/toolkit.tsx"
+import { styledGenerativeUILibrary } from "@/components/assistant-ui/generative-ui";
+
+const markdown = defaultGenerativeUILibrary.Markdown!;
+
+const generative = new JSONGenerativeUI({
+  library: {
+    ...defaultGenerativeUILibrary,
+    ...defineGenerativeComponents({
+      Markdown: {
+        properties: markdown.properties,
+        streamProperties: markdown.streamProperties,
+        description: "A markdown string, rendered with GitHub-flavored markdown.",
+        render: styledGenerativeUILibrary.Markdown!.render,
+      },
+    }),
+  },
+});
+```
+
+`styledGenerativeUILibrary` is a `"use client"` module, so this inline `render` is the only place a `"use generative"` file may name it. Passing it directly as `library` works only in a file without the directive.
 
 ## Security
 
-The allowlist is the boundary on **which** components render: a spec can only instantiate components you put in the registry, with no `eval` and no dynamic import (names are looked up in the registry and nothing else). An unknown name throws `GenerativeUIRenderError` or invokes your `Fallback`.
+The library is the boundary on **which** components can render: the model can only name components you put in it, resolved by lookup with no `eval` and no dynamic import. Unknown names are dropped.
 
-It does **not** constrain the `props` the agent supplies. Spec props are spread directly onto your allowlisted components, so treat every allowlisted component as receiving untrusted input: never forward agent-supplied props into `dangerouslySetInnerHTML`, validate or reject `href` / `src` values (for example block `javascript:` URLs), and avoid passing spec props anywhere they become executable. The safest allowlisted components accept only primitive, display-oriented props.
+Props are a separate question. Each component's zod schema validates what the model sends, so a component that declares only primitive, display-oriented props cannot receive anything else. When you add a component that takes a URL, a raw HTML string, or anything that becomes executable, validate it inside that component; the schema constrains shape, not intent.
 
-## Error handling
+## Beyond the browser
 
-Unknown component names throw `GenerativeUIRenderError` with a typed
-`componentName` field. Catch it with a React error boundary, or pass a
-`Fallback` component to opt into a soft-fail UX:
+The tree is plain JSON, so it is not tied to the browser. Four React-free subpaths let a server action, queue worker, or webhook handler consume it without pulling React:
 
-```tsx
-<MessagePrimitive.GenerativeUI
-  components={componentsAllowlist}
-  Fallback={({ component }) => (
-    <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">
-      unknown component: {component}
-    </span>
-  )}
-/>
-```
-
-## Composing with other primitives
-
-`generative-ui` is a regular `MessagePart` type, so it composes cleanly with
-`MessagePrimitive.Parts`, `MessagePrimitive.PartByIndex`, and
-`MessagePrimitive.GroupedParts`. Render it alongside text, tool calls, and
-reasoning in the same message.
-
-## Why a primitive (not just a tool)
-
-Tool-call UI is great when the agent already invoked a known tool. Generative
-UI flips it: the agent _composes_ UI from a vocabulary you ship. Useful for
-dashboards, status panels, and structured layouts — not for collecting user
-input (use Tool UI for that).
-
-## Slack Block Kit
-
-`toSlackBlocks` from `@assistant-ui/react-generative-ui/slack` converts a
-generative-UI tree into Slack's Block Kit JSON. It is pure and React-free, so
-it runs equally well in a server action, a queue worker, or a webhook
-handler. Components the converter doesn't recognize are skipped and reported
-as warnings instead of throwing, and content that exceeds Slack's published
-size and count budgets is clamped or downgraded to a simpler block rather
-than producing an invalid payload.
-
-```tsx
-import { WebClient } from "@slack/web-api";
-import { toSlackBlocks } from "@assistant-ui/react-generative-ui/slack";
-
-const slack = new WebClient(process.env.SLACK_BOT_TOKEN);
-
-const { blocks } = toSlackBlocks({
-  $type: "Card",
-  title: "Order #48213",
-  children: [{ $type: "Text", value: "Shipped, arriving Thursday." }],
-});
-
-await slack.chat.postMessage({
-  channel: "#orders",
-  blocks,
-});
-```
-
-Slack posts interactive elements back as a `block_actions` payload.
-`decodeBlockAction` takes one entry from that payload's `actions` array and
-decodes it back into the `$action` shape your tree dispatched, with the
-user's runtime selection (a picked option, a typed value) carried under
-`$input`. Receiving the webhook, verifying its signature, and routing the
-decoded action to your handler stay the host app's responsibility; the
-converter only speaks JSON in and JSON out.
-
-The inverse direction is `fromSlackBlocks`: it maps a Block Kit payload back into vocabulary nodes, back-mapping each element's `action_id` to `$action.type` and reparsing serialized payload values. The round trip is faithful on the plain building blocks (text, images, facts, controls, tables, simple cards) and documented-lossy elsewhere: context elements all return as `Caption`, button styles beyond `primary` and `danger` are dropped, an alert's title and description come back as one description, and card layouts flatten to the fields the `card` block carries.
-
-A few conversion caveats worth knowing:
-
-- `Alert` has no message-surface equivalent upstream (Slack only supports it
-  in modals), so messages get a context block plus section block fallback
-  instead.
-- `Card` and `Carousel` have tight text budgets; a card whose content
-  overflows its budget falls back to plain blocks rather than the card
-  layout.
-- `Chart` has no Slack Block Kit mapping and is replaced by a note block.
-- Every `Table` in one conversion draws from a single 10,000-character
-  `data_table` budget, in document order. An early wide table can clamp a later
-  table's rows, or leave too little room for its header row — in which case that
-  table is dropped entirely, with a `dropped` warning.
-- The Block Kit Builder deep link format
-  (`https://app.slack.com/block-kit-builder/#<payload>`) is an observed
-  convention, not an officially documented API.
-
-## Microsoft Teams
-
-The same tree converts to an Adaptive Card with `toAdaptiveCard` from `@assistant-ui/react-generative-ui/teams`: pure, React-free, pinned to Adaptive Cards 1.5 (the Teams desktop ceiling; mobile clients cap at 1.2), and total in the same way as the Slack converter, so unknown components degrade with warnings instead of failing. Interactive components encode their `$action` inside the submit payload's reserved `aui` key, and `decodeSubmitData` splits a bot's incoming `activity.value` back into the `$action` shape with the card's input values under `$input`. A root `Carousel` is an activity-level construct on Teams, so `toTeamsAttachments` returns up to ten card attachments with `attachmentLayout: "carousel"` instead of one card.
-
-Caveats mirror the platform: Teams ignores positive and destructive action styling, TextBlock markdown is a subset (no headings, tables, or images), `Divider` and `Spacer` become `separator` and `spacing` properties on the following element, and `Chart` has no Teams mapping and is replaced by a note.
-
-One Teams limit is advisory rather than enforced. Every other cap clamps its input, but the payload size check only measures: a card over the 80,000-byte soft threshold produces a `clamped` warning naming Teams' 100 KB bot message limit and is then returned unchanged, so trimming the tree to fit is up to you.
+- `@assistant-ui/react-generative-ui/ir` holds the tree types, normalization, and token enums.
+- `@assistant-ui/react-generative-ui/slack` converts the tree into Block Kit and decodes `block_actions` back into `$action`. See [Generative UI on Slack](/docs/tools/generative-ui-slack).
+- `@assistant-ui/react-generative-ui/teams` converts it into an Adaptive Card and decodes the submit payload. See [Generative UI on Microsoft Teams](/docs/tools/generative-ui-teams).
+- `@assistant-ui/react-generative-ui/a2ui` consumes [A2UI surfaces over AG-UI](/docs/tools/a2ui).
 
 For a component-by-component view of how this vocabulary lands on each target, see [Render targets](/docs/tools/render-targets).
