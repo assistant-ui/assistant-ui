@@ -38,13 +38,13 @@ produces that vocabulary component when a surface is ingested.
 | `Badge` | Yes | Degrades *(silent)*: plain context text | Degrades *(silent)*: plain subtle text | — |
 | `Markdown` | Yes | Yes (`markdown`, budgeted; over budget falls back to a clamped `section` *(warns)*) | Degrades *(silent)*: Teams renders a markdown subset (no headings, tables, images); the rest renders literally | `Text` (default) |
 | `Fact` | Yes | Yes (`section` fields; consecutive facts merge) | Yes (`FactSet`; consecutive facts merge) | — |
-| `Image` | Yes | Yes (`image`) | Yes (`Image`; numeric sizes dropped *(warns)*) | `Image` |
+| `Image` | Yes | Yes (`image`; `size` and `round` dropped *(silent)*) | Yes (`Image`; numeric sizes dropped *(warns)*) | `Image` |
 | `Icon` | Yes | — | — | — |
 | `Divider` | Yes | Yes (`divider`) | Degrades *(silent)*: becomes `separator` on the next sibling; a trailing divider is dropped | `Divider` |
 | `Spacer` | Yes | — | Degrades *(silent)*: becomes `spacing` on the next sibling; a trailing spacer is dropped | — |
 | `Card` | Yes | Yes (`card`) when its children fit the native shape — the first `Image`, the first `Text`/`Markdown`, and the first `Caption`, with `title` and the confirm/cancel actions coming from props; `Spacer` and `Icon` children are ignored, and any child left over degrades *(warns)* the whole card to inline blocks | Yes (`Container` + footer `ActionSet`) | `Card` |
 | `Carousel` | Yes | Yes (`carousel` of cards); three losses, all *(warns)*: non-card children dropped, cards past 10 dropped, a card that does not fit the native shape clamped to title + body — and an empty result drops the carousel | Degrades: at the root `toTeamsAttachments` maps the first 10 `Card` children to attachments *(silent)*, cards past 10 dropped *(warns)*, non-card children dropped *(warns whenever the child would have rendered or lost content; silent only when it renders nothing anyway)*; nested renders as sequential cards *(warns)* | — |
-| `Row` | Yes | Degrades *(silent)*: context row when all children are `Badge`/`Caption`, otherwise flattened vertically | Yes (`ColumnSet`; past 3 columns *(warns)*) | `Row` |
+| `Row` | Yes | Degrades: context row when all children are `Badge`/`Caption` *(silent)*, with context elements past 10 clamped *(warns)*; otherwise flattened vertically *(silent)* | Yes (`ColumnSet`; past 3 columns *(warns)*) | `Row` |
 | `Col` | Yes | Degrades *(silent)*: flattened into the block sequence | Yes (`Container`) | `Column` |
 | `Box` | Yes | Degrades *(silent)*: flattened into the block sequence | Yes (`Container`) | — |
 | `Button` | Yes | Yes (`button`; oversized action payloads dropped from the value *(warns)*) | Yes (`Action.Submit`; `buttonStyle` dropped *(silent)*, actions past 6 demoted to secondary *(warns)*) | `Button` |
@@ -56,7 +56,7 @@ produces that vocabulary component when a surface is ingested.
 | `Form` | Yes | Yes (children + submit `actions` block) | Yes (inputs + submit `ActionSet`) | — |
 | `Alert` | Yes | Degrades on messages *(warns)*: Slack only has a native alert block in modals, so messages get fallback context + section blocks | Yes (toned `Container`) | — |
 | `Table` | Yes | Yes (`data_table`); rows and columns capped *(warns)*, rows clamped to the shared character budget *(warns)*, and a table whose header row alone overruns the remaining budget is dropped *(warns)* | Yes (`Table`; rows and columns capped *(warns)*) | — |
-| `ListView` | Yes | Degrades *(silent)*: items flatten to text `section`s with dividers; an item action becomes an "Open" button | Yes (`Container` per item with `selectAction`) | template-expanded children |
+| `ListView` | Yes | Degrades: items flatten to text `section`s with dividers and an item action becomes an "Open" button *(silent)*; non-item children dropped *(warns whenever the child would have rendered or lost content; silent only when it renders nothing anyway)* | Yes (`Container` per item with `selectAction`) | template-expanded children |
 | `ListViewItem` | Yes | Degrades *(silent)*: children flatten to collected text | Yes (`Container`) | template item |
 | `Chart` | Yes | Note: "Chart omitted on Slack." | Note: "Chart omitted on Teams." | — |
 
