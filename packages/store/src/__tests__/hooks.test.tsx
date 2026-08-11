@@ -117,7 +117,7 @@ describe("store hooks", () => {
     expect(result.current).toBe("object");
   });
 
-  it("useAuiEvent forwards through hand-built clients without scope accessors", () => {
+  it("useAuiEvent subscribes with normalized selector and invokes latest callback", () => {
     const testClient = createHandBuiltClient();
     const wrapper = ({ children }: { children: ReactNode }) => (
       <AuiProvider value={testClient.client as never}>{children}</AuiProvider>
