@@ -496,7 +496,14 @@ const useDerivedOnlyClient = (
     }
   }
 
-  const clientRef = useRef<EventClientRef>({ current: null }).current;
+  // A parent identity change starts a new facade lineage. Retained clients
+  // keep the old ref so their scope binding and inherited transport cannot
+  // be redirected to different parents.
+  const clientRef = useMemo<EventClientRef>(
+    () => ({ current: null }),
+    // oxlint-disable-next-line react-hooks/exhaustive-deps -- parent identity deliberately starts a new event generation
+    [parent],
+  );
   const building = createClientObject(parent, {
     subscribe: parent.subscribe,
     on: parent.on,

@@ -13,6 +13,7 @@ import { useAuiState } from "../useAuiState";
 import { Derived } from "../Derived";
 import { useAssistantEmit } from "../utils/tap-assistant-context";
 import { useClientResource } from "../useClientResource";
+import { createAssistantClient } from "../createAssistantClient";
 
 type AnyClient = Record<string, any>;
 
@@ -540,6 +541,45 @@ describe("Derived scopes", () => {
       id: "m1",
       value: "current",
     });
+  });
+
+  it("keeps a retained direct subscription bound to its original parent generation", async () => {
+    const first = createAssistantClient({ thread: ThreadClient() } as never);
+    const second = createAssistantClient({ thread: ThreadClient() } as never);
+    let child!: AnyClient;
+    const Listener = () => {
+      child = useAui();
+      return null;
+    };
+    const Harness = ({ parent }: { parent: AnyClient }) => {
+      const config = AuiConfig({ message: messageDerived() } as never);
+      return (
+        <AuiProvider extends={parent as never} config={config}>
+          <Listener />
+        </AuiProvider>
+      );
+    };
+    const view = render(<Harness parent={first.getClient()} />);
+    const retained = child;
+    const callback = vi.fn();
+    retained.on("message.pinged", callback);
+
+    view.rerender(<Harness parent={second.getClient()} />);
+    (first.getClient() as AnyClient).thread
+      .message({ index: 0 })
+      .ping("original-parent");
+    (second.getClient() as AnyClient).thread
+      .message({ index: 0 })
+      .ping("new-parent");
+    await flushEvents();
+
+    expect(callback).toHaveBeenCalledExactlyOnceWith({
+      id: "m0",
+      value: "original-parent",
+    });
+
+    first.destroy();
+    second.destroy();
   });
 
   it("keeps the committed derived selection during a suspended transition", async () => {
