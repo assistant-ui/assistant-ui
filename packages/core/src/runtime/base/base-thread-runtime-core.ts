@@ -131,8 +131,13 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
    * snapshots a typed send does. `parentId` selects the branch prefix the
    * model has already seen: the thread tail for an ordinary send, the edited
    * message's parent for an edit.
+   *
+   * Only user messages are stamped, matching the readers: both the version
+   * fold and the model injection skip every other role, so a stamp elsewhere
+   * would only be persisted, never read.
    */
   protected enrichAppendMetadata(message: AppendMessage): AppendMessage {
+    if (message.role !== "user") return message;
     const messages = this.messages;
     const parentIndex =
       message.parentId === null

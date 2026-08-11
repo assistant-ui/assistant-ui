@@ -101,6 +101,17 @@ describe("interactable snapshots on the append seam", () => {
     ]);
   });
 
+  it("leaves a non-user append unstamped, since no reader folds those", async () => {
+    const { thread, onNew } = externalThread({
+      composerMetadata: live({ v: 1 }),
+    });
+    await thread.append({
+      ...userMessage("an assistant turn", null),
+      role: "assistant",
+    } as AppendMessage);
+    expect(appendedSnapshots(onNew)).toBeUndefined();
+  });
+
   it("re-stamps the baseline when the edited message carried the only snapshot", async () => {
     const messages = [snapshotMessage("msg-1", { v: 1 })];
     const { thread, onEdit } = externalThread({
