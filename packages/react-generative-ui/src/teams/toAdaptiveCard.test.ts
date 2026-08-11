@@ -865,6 +865,83 @@ describe("toAdaptiveCard", () => {
         detail: "Unknown component type was dropped.",
       });
     });
+
+    it("reports a renderable non-item child whose output it discards", () => {
+      const { card, warnings } = toAdaptiveCard({
+        $type: "ListView",
+        children: [
+          { $type: "Text", value: "stray" },
+          { $type: "ListViewItem", children: { $type: "Text", value: "Kept" } },
+        ],
+      });
+      expect(card.body).toEqual([
+        {
+          type: "Container",
+          items: [{ type: "TextBlock", text: "Kept", wrap: true }],
+        },
+      ]);
+      expect(warnings).toContainEqual({
+        code: "dropped",
+        component: "ListView",
+        detail: "1 non-item child was dropped.",
+      });
+    });
+
+    it("does not let a discarded non-item child reserve an input id", () => {
+      const { card, warnings } = toAdaptiveCard([
+        {
+          $type: "ListView",
+          children: [
+            { $type: "Input", name: "email" },
+            { $type: "ListViewItem", title: "row" },
+          ],
+        },
+        { $type: "Input", name: "email", label: "Real" },
+      ]);
+      const ids = card.body.map((element) => (element as { id?: string }).id);
+      expect(ids).toContain("email");
+      expect(
+        warnings.some((warning) => warning.detail.includes("email_2")),
+      ).toBe(false);
+    });
+  });
+
+  describe("Carousel", () => {
+    it("reports the non-card children a nested carousel filters out", () => {
+      const { warnings } = toAdaptiveCard({
+        $type: "Col",
+        children: {
+          $type: "Carousel",
+          children: [
+            { $type: "Text", value: "lost" },
+            { $type: "Card", title: "kept" },
+          ],
+        },
+      });
+      expect(warnings).toContainEqual({
+        code: "dropped",
+        component: "Carousel",
+        detail: "A non-card child was dropped.",
+      });
+    });
+  });
+
+  describe("choices", () => {
+    it("reports options dropped for want of a string value", () => {
+      const { card, warnings } = toAdaptiveCard({
+        $type: "Select",
+        name: "s",
+        options: [{ label: "ok", value: "a" }, { label: "bad" }, "nope"],
+      });
+      expect((card.body[0] as { choices: unknown[] }).choices).toEqual([
+        { title: "ok", value: "a" },
+      ]);
+      expect(warnings).toContainEqual({
+        code: "dropped",
+        component: "Select",
+        detail: "2 options were dropped for want of a string value.",
+      });
+    });
   });
 
   describe("Table", () => {

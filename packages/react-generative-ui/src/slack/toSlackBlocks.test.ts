@@ -328,6 +328,21 @@ describe("toSlackBlocks", () => {
   });
 
   describe("Select", () => {
+    it("reports options dropped for want of a string label and value", () => {
+      const { blocks, warnings } = toSlackBlocks({
+        $type: "Select",
+        options: [{ label: "ok", value: "a" }, { label: "bad" }, "nope"],
+      });
+      const select = (blocks[0] as SlackActionsBlock)
+        .elements[0] as SlackStaticSelectElement;
+      expect(select.options).toHaveLength(1);
+      expect(warnings).toContainEqual({
+        code: "dropped",
+        component: "Select",
+        detail: "2 options were dropped for want of a string label and value.",
+      });
+    });
+
     it("converts options and placeholder", () => {
       const { blocks } = toSlackBlocks({
         $type: "Select",
@@ -1360,6 +1375,25 @@ describe("toSlackBlocks", () => {
   });
 
   describe("Table", () => {
+    it("keeps a non-object column's position in the header and reports it", () => {
+      const { blocks, warnings } = toSlackBlocks({
+        $type: "Table",
+        columns: ["A", { label: "B" }],
+        rows: [["1", "2"]],
+      });
+      const table = blocks[0] as SlackDataTableBlock;
+      expect(table.rows[0]).toEqual([
+        { type: "raw_text", text: "" },
+        { type: "raw_text", text: "B" },
+      ]);
+      expect(warnings).toContainEqual({
+        code: "dropped",
+        component: "Table",
+        detail:
+          "1 column label was dropped for want of an object with a label.",
+      });
+    });
+
     it("converts columns and rows into a header-first rows array with typed cells", () => {
       const { blocks } = toSlackBlocks({
         $type: "Table",
@@ -1611,6 +1645,22 @@ describe("toSlackBlocks", () => {
   });
 
   describe("ListView and ListViewItem", () => {
+    it("reports a non-item child it filters out", () => {
+      const { blocks, warnings } = toSlackBlocks({
+        $type: "ListView",
+        children: [
+          { $type: "Text", value: "stray" },
+          { $type: "ListViewItem", children: { $type: "Text", value: "Kept" } },
+        ],
+      });
+      expect(blocks).toHaveLength(1);
+      expect(warnings).toContainEqual({
+        code: "dropped",
+        component: "ListView",
+        detail: "A non-item child was dropped.",
+      });
+    });
+
     it("renders each item as a section, separated by dividers", () => {
       const { blocks } = toSlackBlocks({
         $type: "ListView",

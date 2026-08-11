@@ -202,6 +202,22 @@ const optionFrom = (
   };
 };
 
+const warnDroppedOptions = (
+  kept: number,
+  taken: number,
+  component: string,
+  context: ConversionContext,
+) => {
+  const dropped = taken - kept;
+  if (dropped === 0) return;
+  warn(
+    context,
+    "dropped",
+    component,
+    `${dropped} ${dropped === 1 ? "option was" : "options were"} dropped for want of a string label and value.`,
+  );
+};
+
 const toActionElement = (
   element: NormalizedUIElement,
   context: ConversionContext,
@@ -228,10 +244,16 @@ const toActionElement = (
           `options were clamped to ${SELECT_OPTION_CAP} entries.`,
         );
       }
-      const options = rawOptions
-        .slice(0, SELECT_OPTION_CAP)
+      const takenOptions = rawOptions.slice(0, SELECT_OPTION_CAP);
+      const options = takenOptions
         .map((option) => optionFrom(option, "Select", context))
         .filter((option): option is SlackOption => option !== undefined);
+      warnDroppedOptions(
+        options.length,
+        takenOptions.length,
+        "Select",
+        context,
+      );
       const placeholder = clampText(
         asString(props["placeholder"]),
         PLACEHOLDER_TEXT_CAP,
@@ -297,10 +319,16 @@ const toActionElement = (
           `options were clamped to ${RADIO_OPTION_CAP} entries.`,
         );
       }
-      const options = rawOptions
-        .slice(0, RADIO_OPTION_CAP)
+      const takenOptions = rawOptions.slice(0, RADIO_OPTION_CAP);
+      const options = takenOptions
         .map((option) => optionFrom(option, "RadioGroup", context))
         .filter((option): option is SlackOption => option !== undefined);
+      warnDroppedOptions(
+        options.length,
+        takenOptions.length,
+        "RadioGroup",
+        context,
+      );
       const selectedValue =
         typeof props["value"] === "string"
           ? props["value"]
@@ -704,10 +732,14 @@ const convertListView = (
   context: ConversionContext,
   depth: number,
 ): SlackBlock[] => {
-  const items = normalizedList(element.children).filter(
+  const children = normalizedList(element.children);
+  const items = children.filter(
     (child): child is NormalizedUIElement =>
       isElement(child) && child.type === "ListViewItem",
   );
+  if (items.length !== children.length) {
+    warn(context, "dropped", "ListView", "A non-item child was dropped.");
+  }
   return items.flatMap((item, index) => [
     ...(index > 0 ? [{ type: "divider" as const }] : []),
     convertListItem(item, context, depth + 1),
@@ -791,13 +823,20 @@ const convertTable = (
     );
   }
 
-  const columnHeaderRow: SlackDataTableCell[] = rawColumns
-    .slice(0, DATA_TABLE_COLUMN_CAP)
-    .filter(isRecord)
-    .map((column) => ({
-      type: "raw_text" as const,
-      text: asString(column["label"]),
-    }));
+  const takenColumns = rawColumns.slice(0, DATA_TABLE_COLUMN_CAP);
+  const unlabeled = takenColumns.filter((column) => !isRecord(column)).length;
+  if (unlabeled > 0) {
+    warn(
+      context,
+      "dropped",
+      "Table",
+      `${unlabeled} column ${unlabeled === 1 ? "label was" : "labels were"} dropped for want of an object with a label.`,
+    );
+  }
+  const columnHeaderRow: SlackDataTableCell[] = takenColumns.map((column) => ({
+    type: "raw_text" as const,
+    text: isRecord(column) ? asString(column["label"]) : "",
+  }));
   const dataRows: SlackDataTableCell[][] = rawRows
     .slice(0, DATA_TABLE_ROW_CAP)
     .map((row) =>

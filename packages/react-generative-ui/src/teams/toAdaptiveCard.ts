@@ -191,6 +191,15 @@ const choicesFrom = (
     const choice = toChoice(item);
     if (choice !== undefined) choices.push(choice);
   }
+  const dropped = items.length - choices.length;
+  if (dropped > 0) {
+    warn(
+      context,
+      "dropped",
+      component,
+      `${dropped} ${dropped === 1 ? "option was" : "options were"} dropped for want of a string value.`,
+    );
+  }
   return choices;
 };
 
@@ -550,13 +559,27 @@ export function convertElement(
     }
     case "ListView": {
       const containers: TeamsContainer[] = [];
+      let discarded = 0;
       for (const child of normalizedList(element.children)) {
-        if (!isElement(child)) continue;
-        if (child.type === "ListViewItem") {
+        if (isElement(child) && child.type === "ListViewItem") {
           containers.push(convertListViewItem(child, context, depth + 1));
-        } else {
-          convertElement(child, context, depth + 1);
+          continue;
         }
+        // A non-item child still runs through the converter so its own
+        // warnings fire, but its output is discarded, so the ids it claimed
+        // are released rather than renaming a later control that survives.
+        const reservedIds = new Set(context.usedInputIds);
+        const converted = convertSequence(child, context, depth + 1);
+        context.usedInputIds = reservedIds;
+        if (converted.length > 0) discarded += 1;
+      }
+      if (discarded > 0) {
+        warn(
+          context,
+          "dropped",
+          "ListView",
+          `${discarded} non-item ${discarded === 1 ? "child was" : "children were"} dropped.`,
+        );
       }
       return containers.map((container, index) =>
         index > 0 ? { ...container, separator: true } : container,
@@ -586,10 +609,14 @@ export function convertElement(
         "Carousel",
         "A carousel was rendered as sequential cards because it is not at the root.",
       );
-      const cards = normalizedList(element.children).filter(
+      const carouselChildren = normalizedList(element.children);
+      const cards = carouselChildren.filter(
         (child): child is NormalizedUIElement =>
           isElement(child) && child.type === "Card",
       );
+      if (cards.length !== carouselChildren.length) {
+        warn(context, "dropped", "Carousel", "A non-card child was dropped.");
+      }
       return cards.flatMap((card) => convertElement(card, context, depth + 1));
     }
     case "Chart":
