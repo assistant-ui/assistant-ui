@@ -256,6 +256,19 @@ describe("queued sends gate at dispatch, not at enqueue", () => {
     ]);
   });
 
+  it("re-points a flushed message at the tail it was gated against", async () => {
+    const t = queuedExternalThread();
+    t.queue.notifyBusy();
+    await t.thread.append(userMessage("queued", null));
+
+    t.advanceRecord([snapshotMessage("msg-1", { v: 2 })], live({ v: 3 }));
+    t.queue.notifyIdle();
+
+    // routing and gating have to name the same point, or the branch the
+    // message lands on is not the one its snapshot was computed against
+    expect((t.run.mock.calls[0]![0] as AppendMessage).parentId).toBe("msg-1");
+  });
+
   it("leaves a hand-rolled adapter stamping at enqueue", async () => {
     const enqueue = vi.fn();
     const onNew = vi.fn(async () => {});

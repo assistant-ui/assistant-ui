@@ -27,7 +27,10 @@ import type {
   RuntimeCapabilities,
   ThreadRuntimeCore,
 } from "../../runtime/interfaces/thread-runtime-core";
-import type { QueuePlacement } from "../../runtime/queue/external-thread-queue-adapter";
+import type {
+  ExternalThreadQueueAdapter,
+  QueuePlacement,
+} from "../../runtime/queue/external-thread-queue-adapter";
 import { BaseThreadRuntimeCore } from "../../runtime/base/base-thread-runtime-core";
 import type { ModelContextProvider } from "../../model-context/types";
 import {
@@ -117,6 +120,8 @@ export class ExternalStoreThreadRuntimeCore
 
   private _store!: ExternalStoreAdapter<any>;
 
+  private _transformedQueue: ExternalThreadQueueAdapter | undefined;
+
   /**
    * Client-side tool-invocations pipeline. Constructed lazily on first
    * snapshot — only when `adapter.unstable_enableToolInvocations === true`.
@@ -148,9 +153,17 @@ export class ExternalStoreThreadRuntimeCore
     const oldStore = this._store as ExternalStoreAdapter<any> | undefined;
     this._store = store;
     if (oldStore?.queue !== store.queue) {
-      store.queue?.__internal_setDispatchTransform?.((message) =>
-        this.enrichAppendMetadata(message, this.messages.at(-1)?.id ?? null),
-      );
+      this._transformedQueue = undefined;
+      store.queue?.__internal_setDispatchTransform?.((message) => {
+        // Re-point at the tail, as LocalThreadRuntimeCore's driver does, so
+        // the prefix gated against is the one the message lands on whatever
+        // the host routes by. Queuing only ever accepts a tail append, so a
+        // later tail is the same intent.
+        const parentId = this.messages.at(-1)?.id ?? null;
+        return this.enrichAppendMetadata({ ...message, parentId }, parentId);
+      });
+      if (store.queue?.__internal_setDispatchTransform)
+        this._transformedQueue = store.queue;
     }
     if (this.extras !== store.extras) {
       this.extras = store.extras;
@@ -480,11 +493,12 @@ export class ExternalStoreThreadRuntimeCore
     // Buffering does not start a run, so the tool-abort below must wait until
     // the queue flushes. By then the prior run (and its tools) has settled.
     if (!isEdit && this._store.queue) {
-      // An adapter with a dispatch transform re-gates on the way out, so a
-      // stamp here would only be recomputed and discarded.
-      const queued = this._store.queue.__internal_setDispatchTransform
-        ? rawMessage
-        : this.enrichAppendMetadata(rawMessage);
+      // Skip only for the queue this core actually installed on: another
+      // core's transform would gate against its own thread's messages.
+      const queued =
+        this._store.queue === this._transformedQueue
+          ? rawMessage
+          : this.enrichAppendMetadata(rawMessage);
       if (queued.steer ?? this._store.isRunning ?? false)
         this._store.queue.steer(queued);
       else this._store.queue.enqueue(queued);
