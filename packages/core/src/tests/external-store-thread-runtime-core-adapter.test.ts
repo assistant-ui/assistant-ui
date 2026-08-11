@@ -280,6 +280,57 @@ describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
       expect(core.composer.text).toBe("");
       expect(core.export().messages.map((m) => m.message.id)).toContain("u1");
     });
+
+    it("keeps the message in the thread when the composer is busy", async () => {
+      const adapter = createBaseAdapter({
+        messages: [createUserMessage("u1", "cancel me")],
+        isRunning: true,
+        onCancel: vi.fn(),
+        setMessages: vi.fn(),
+      });
+      const core = new ExternalStoreThreadRuntimeCore(contextProvider, adapter);
+      core.composer.setText("something else");
+
+      core.cancelRun();
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(core.composer.text).toBe("something else");
+      expect(core.export().messages.map((m) => m.message.id)).toContain("u1");
+    });
+
+    it("restores the message whole when the composer is free", async () => {
+      const attachment = {
+        id: "a1",
+        type: "file" as const,
+        name: "spec.pdf",
+        contentType: "application/pdf",
+        status: { type: "complete" as const },
+        content: [],
+      };
+      const quote = { text: "quoted", messageId: "m-1" };
+      const userMessage = {
+        ...createUserMessage("u1", "cancel me"),
+        attachments: [attachment],
+        metadata: { custom: { quote } },
+      } as ThreadMessage;
+      const adapter = createBaseAdapter({
+        messages: [userMessage],
+        isRunning: true,
+        onCancel: vi.fn(),
+        setMessages: vi.fn(),
+      });
+      const core = new ExternalStoreThreadRuntimeCore(contextProvider, adapter);
+
+      core.cancelRun();
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(core.composer.text).toBe("cancel me");
+      expect(core.composer.attachments).toEqual([attachment]);
+      expect(core.composer.quote).toEqual(quote);
+      expect(core.export().messages.map((m) => m.message.id)).not.toContain(
+        "u1",
+      );
+    });
   });
 
   describe("optimistic assistant message", () => {

@@ -305,10 +305,36 @@ export abstract class BaseComposerRuntimeCore
     this._notifyEventSubscribers("send", {});
   }
 
-  // A send the runtime never dispatched leaves its draft nowhere else, so the
-  // composer takes it back. The generation check is what a reset and a later
-  // send use to invalidate it, so of several queued drafts only the most
-  // recent one is still restorable.
+  /**
+   * Take a message back into the composer when it has nowhere else to live:
+   * a send the runtime never dispatched, or a message a cancelled run is
+   * removing from the thread. Reports whether the composer accepted it, so a
+   * caller that is also removing the message can keep it instead of dropping
+   * it. Refused, and left untouched, while the composer holds anything of its
+   * own.
+   */
+  public restoreDraft(draft: {
+    text: string;
+    quote?: QuoteInfo | undefined;
+    attachments?: readonly Attachment[] | undefined;
+  }): boolean {
+    if (
+      this._text.trim() ||
+      this._quote !== undefined ||
+      this._attachments.length > 0
+    )
+      return false;
+
+    this._text = draft.text;
+    this._quote = draft.quote;
+    this._attachments = draft.attachments ?? [];
+    this._notifySubscribers();
+    return true;
+  }
+
+  // The generation check is what a reset and a later send use to invalidate a
+  // draft, so of several queued drafts only the most recent one is still
+  // restorable.
   private _restoreUnsentDraft(
     error: unknown,
     generation: number,
@@ -320,16 +346,7 @@ export abstract class BaseComposerRuntimeCore
   ) {
     if (!isMessageNotSentError(error)) return;
     if (generation !== this._sendGeneration) return;
-    if (
-      this._text.trim() ||
-      this._quote !== undefined ||
-      this._attachments.length > 0
-    )
-      return;
-    this._text = draft.text;
-    this._quote = draft.quote;
-    this._attachments = draft.attachments;
-    this._notifySubscribers();
+    this.restoreDraft(draft);
   }
 
   public cancel() {

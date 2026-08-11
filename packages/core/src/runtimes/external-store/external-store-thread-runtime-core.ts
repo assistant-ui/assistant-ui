@@ -40,6 +40,7 @@ import {
 import { generateId } from "../../utils/id";
 import { ToolInvocationTracker } from "../tool-invocations/ToolInvocationTracker";
 import { EMPTY_QUEUE_ITEMS } from "../../store/scopes/queue-item";
+import type { QuoteInfo } from "../../types/quote";
 
 const EMPTY_ARRAY: readonly ThreadSuggestion[] = Object.freeze([]);
 
@@ -629,16 +630,25 @@ export class ExternalStoreThreadRuntimeCore
 
     let messages = this.repository.getMessages();
     const previousMessage = messages[messages.length - 1];
-    if (
-      this._store.setMessages &&
+    const trailingUserLeaf =
+      this._store.setMessages !== undefined &&
       previousMessage?.role === "user" &&
       previousMessage.id === messages.at(-1)?.id // ensure the previous message is a leaf node
-    ) {
-      this.repository.deleteMessage(previousMessage.id);
-      if (!this.composer.text.trim()) {
-        this.composer.setText(getThreadMessageText(previousMessage));
-      }
+        ? previousMessage
+        : undefined;
 
+    // Handing the message to the composer and taking it out of the thread are
+    // one move: the composer refuses while the user is writing, and removing
+    // the message then would leave it nowhere.
+    if (
+      trailingUserLeaf &&
+      this.composer.restoreDraft({
+        text: getThreadMessageText(trailingUserLeaf),
+        attachments: trailingUserLeaf.attachments,
+        quote: trailingUserLeaf.metadata.custom.quote as QuoteInfo | undefined,
+      })
+    ) {
+      this.repository.deleteMessage(trailingUserLeaf.id);
       messages = this.repository.getMessages();
     } else {
       this._notifySubscribers();
