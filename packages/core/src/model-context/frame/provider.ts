@@ -33,6 +33,7 @@ export class AssistantFrameProvider {
   private static _instance: AssistantFrameProvider | null = null;
 
   private _providers = new Set<ModelContextProvider>();
+  private _providerOrigins = new Map<ModelContextProvider, string>();
   private _providerUnsubscribes = new Map<
     ModelContextProvider,
     Unsubscribe | undefined
@@ -170,8 +171,7 @@ export class AssistantFrameProvider {
 
   /**
    * Registers a provider with the shared frame origin policy. An explicit
-   * origin tightens a wildcard policy and cannot be loosened while providers
-   * remain registered.
+   * origin tightens a wildcard policy while that provider remains registered.
    *
    * @throws If `targetOrigin` conflicts with another explicit origin.
    */
@@ -181,6 +181,7 @@ export class AssistantFrameProvider {
   ): Unsubscribe {
     const instance = AssistantFrameProvider.getInstance(targetOrigin);
     instance._providers.add(provider);
+    instance._providerOrigins.set(provider, targetOrigin ?? "*");
 
     const unsubscribe = provider.subscribe?.(() => instance.broadcastUpdate());
     if (unsubscribe) {
@@ -191,9 +192,20 @@ export class AssistantFrameProvider {
 
     return () => {
       instance._providers.delete(provider);
+      instance._providerOrigins.delete(provider);
       instance._providerUnsubscribes.get(provider)?.();
       instance._providerUnsubscribes.delete(provider);
-      if (instance._providers.size === 0) instance._targetOrigin = "*";
+
+      if (instance._providers.size === 0) {
+        instance.broadcastUpdate();
+        instance._targetOrigin = "*";
+        return;
+      }
+
+      instance._targetOrigin =
+        Array.from(instance._providerOrigins.values()).find(
+          (origin) => origin !== "*",
+        ) ?? "*";
       instance.broadcastUpdate();
     };
   }
@@ -205,6 +217,7 @@ export class AssistantFrameProvider {
 
       instance._providerUnsubscribes.forEach((unsubscribe) => unsubscribe?.());
       instance._providerUnsubscribes.clear();
+      instance._providerOrigins.clear();
       instance._providers.clear();
 
       AssistantFrameProvider._instance = null;

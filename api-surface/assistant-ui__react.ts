@@ -518,6 +518,7 @@ declare class AssistantFrameHost implements ModelContextProvider {
 declare class AssistantFrameProvider {
   private static _instance;
   private _providers;
+  private _providerOrigins;
   private _providerUnsubscribes;
   private _targetOrigin;
   private constructor();

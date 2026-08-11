@@ -162,6 +162,11 @@ describe("AssistantFrameProvider", () => {
 
     unsubscribe();
 
+    expect(parentWindow.postMessage).toHaveBeenLastCalledWith(
+      expect.anything(),
+      "https://first.example",
+    );
+
     expect(() =>
       AssistantFrameProvider.addModelContextProvider(
         { getModelContext: () => ({}) },
@@ -171,6 +176,24 @@ describe("AssistantFrameProvider", () => {
     expect(parentWindow.postMessage).toHaveBeenLastCalledWith(
       expect.anything(),
       "https://second.example",
+    );
+  });
+
+  it("recomputes the origin policy from providers that remain", () => {
+    AssistantFrameProvider.addModelContextProvider(
+      { getModelContext: () => ({}) },
+      "*",
+    );
+    const unsubscribeStrict = AssistantFrameProvider.addModelContextProvider(
+      { getModelContext: () => ({}) },
+      "https://parent.example",
+    );
+
+    unsubscribeStrict();
+
+    expect(parentWindow.postMessage).toHaveBeenLastCalledWith(
+      expect.anything(),
+      "*",
     );
   });
 });
