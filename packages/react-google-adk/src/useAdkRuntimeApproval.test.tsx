@@ -204,6 +204,76 @@ describe("useAdkRuntime tool approvals", () => {
     ]);
   });
 
+  it("keeps both gates of an event retryable when one reply is unreadable", () => {
+    const accumulator = new AdkEventAccumulator();
+    const confirmationCall = (id: string, tool: string) => ({
+      functionCall: {
+        id,
+        name: "adk_request_confirmation",
+        args: {
+          originalFunctionCall: { id: `original-${id}`, name: tool },
+          toolConfirmation: { hint: `Run ${tool}?` },
+        },
+      },
+    });
+    accumulator.processEvent({
+      id: "evt-request",
+      author: "agent",
+      longRunningToolIds: ["conf-a", "conf-b"],
+      content: {
+        role: "model",
+        parts: [
+          confirmationCall("conf-a", "delete_file"),
+          confirmationCall("conf-b", "send_email"),
+        ],
+      },
+    });
+    mocks.messages = accumulator.processEvent({
+      id: "evt-reply",
+      author: "user",
+      content: {
+        role: "user",
+        parts: [
+          {
+            functionResponse: {
+              id: "conf-a",
+              name: "adk_request_confirmation",
+              response: { confirmed: true },
+            },
+          },
+          {
+            functionResponse: {
+              id: "conf-b",
+              name: "adk_request_confirmation",
+              response: { response: "not json" },
+            },
+          },
+        ],
+      },
+    });
+
+    renderHook(() => useAdkRuntime({ stream: vi.fn() }));
+
+    const assistant = latestAdapter().messages.find(
+      (message): message is Extract<ThreadMessage, { role: "assistant" }> =>
+        message.role === "assistant",
+    )!;
+    const gates = assistant.content.filter(
+      (part): part is ToolCallMessagePart =>
+        part.type === "tool-call" && part.approval !== undefined,
+    );
+
+    expect(gates.map((gate) => gate.approval)).toEqual([
+      { id: "conf-a" },
+      { id: "conf-b" },
+    ]);
+    expect(gates.map((gate) => gate.result)).toEqual([undefined, undefined]);
+    expect(assistant.status).toMatchObject({
+      type: "requires-action",
+      reason: "interrupt",
+    });
+  });
+
   it("settles a confirmation reply carried beside user text without an orphan message", () => {
     const accumulator = new AdkEventAccumulator();
     accumulator.processEvent({

@@ -44,6 +44,17 @@ const readConfirmed = (content: unknown): boolean | undefined => {
   return record.confirmed === true;
 };
 
+/**
+ * ADK's confirmation processor parses every function response in an event
+ * before running any tool, so one unreadable reply aborts the event and none of
+ * its siblings execute. The accumulator mints a tool message id of
+ * `<eventId>:<partIndex>` per response, so that prefix is the batch ADK either
+ * runs whole or not at all; a locally minted reply carries a bare uuid and is
+ * its own batch.
+ */
+const sourceEventOf = (toolMessageId: string): string =>
+  toolMessageId.replace(/:\d+$/, "");
+
 export type AdkToolApprovalProjection = {
   approvals: ReadonlyMap<string, AdkToolApproval>;
   /**
@@ -63,16 +74,31 @@ export type AdkToolApprovalProjection = {
 export const projectAdkToolApprovals = (
   messages: readonly AdkMessage[],
 ): AdkToolApprovalProjection => {
-  const replies = new Map<string, boolean>();
+  const batches = new Map<
+    string,
+    { readable: boolean; entries: [string, boolean | undefined][] }
+  >();
   for (const message of messages) {
     if (message.type !== "tool") continue;
     if (message.name !== ADK_REQUEST_CONFIRMATION) continue;
-    const confirmed = readConfirmed(message.content);
-    if (confirmed === undefined) {
-      replies.delete(message.tool_call_id);
-      continue;
+    const key = sourceEventOf(message.id);
+    let batch = batches.get(key);
+    if (batch === undefined) {
+      batch = { readable: true, entries: [] };
+      batches.set(key, batch);
     }
-    replies.set(message.tool_call_id, confirmed);
+    const confirmed = readConfirmed(message.content);
+    if (confirmed === undefined) batch.readable = false;
+    batch.entries.push([message.tool_call_id, confirmed]);
+  }
+
+  const replies = new Map<string, boolean>();
+  for (const batch of batches.values()) {
+    for (const [toolCallId, confirmed] of batch.entries) {
+      if (batch.readable && confirmed !== undefined)
+        replies.set(toolCallId, confirmed);
+      else replies.delete(toolCallId);
+    }
   }
 
   const approvals = new Map<string, AdkToolApproval>();

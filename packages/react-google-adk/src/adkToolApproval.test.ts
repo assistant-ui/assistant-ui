@@ -41,6 +41,21 @@ const reply = (
   status: "success",
 });
 
+/** The id the accumulator mints for a function response: `<eventId>:<part>`. */
+const eventReply = (
+  eventId: string,
+  partIndex: number,
+  toolCallId: string,
+  content: string,
+): AdkMessage => ({
+  id: `${eventId}:${partIndex}`,
+  type: "tool",
+  tool_call_id: toolCallId,
+  name: "adk_request_confirmation",
+  content,
+  status: "success",
+});
+
 describe("projectAdkToolApprovals", () => {
   it.each([
     ["pending", requestedThread(), { id: CONFIRMATION_CALL }],
@@ -98,6 +113,39 @@ describe("projectAdkToolApprovals", () => {
       expect(key).not.toBe("");
     },
   );
+
+  /**
+   * ADK parses every function response in an event before running any tool, so
+   * the unreadable reply aborts its whole event and the readable sibling never
+   * executes either. Both gates stay answerable.
+   */
+  it("keeps every confirmation from one event pending when one reply is unreadable", () => {
+    const { approvals } = projectAdkToolApprovals([
+      aiCall("conf-a", "adk_request_confirmation"),
+      aiCall("conf-b", "adk_request_confirmation"),
+      eventReply("evt-1", 0, "conf-a", JSON.stringify({ confirmed: true })),
+      eventReply("evt-1", 1, "conf-b", "not json"),
+    ]);
+
+    expect([...approvals.values()]).toEqual([
+      { id: "conf-a" },
+      { id: "conf-b" },
+    ]);
+  });
+
+  it("settles a readable reply when the unreadable one came from another event", () => {
+    const { approvals } = projectAdkToolApprovals([
+      aiCall("conf-a", "adk_request_confirmation"),
+      aiCall("conf-b", "adk_request_confirmation"),
+      eventReply("evt-1", 0, "conf-a", JSON.stringify({ confirmed: true })),
+      eventReply("evt-2", 0, "conf-b", "not json"),
+    ]);
+
+    expect([...approvals.values()]).toEqual([
+      { id: "conf-a", approved: true },
+      { id: "conf-b" },
+    ]);
+  });
 
   it("gates nothing when no confirmation was requested", () => {
     const { approvals, key } = projectAdkToolApprovals([
