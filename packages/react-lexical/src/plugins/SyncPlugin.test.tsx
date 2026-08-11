@@ -112,6 +112,14 @@ describe("SyncPlugin", () => {
     });
     expect(editor.getEditorState().read(() => $getSelection())).toBeNull();
 
+    await act(async () => {
+      render({
+        serialize: (item) => `[[${item.id}]]`,
+        parse: (text) => [{ kind: "text", text }],
+      });
+    });
+    expect(editor.getEditorState().read(() => $getSelection())).toBeNull();
+
     mocks.aui = createAui("draft from thread A");
     await act(async () => {
       render();
