@@ -224,14 +224,29 @@ describe("AssistantFrameProvider", () => {
   });
 
   it("tracks origin policies per registration when a provider is reused", async () => {
-    const sharedProvider = { getModelContext: () => ({}) };
-    AssistantFrameProvider.addModelContextProvider(
+    const unsubscribeProvider = vi.fn();
+    const subscribe = vi.fn(() => unsubscribeProvider);
+    const sharedProvider = {
+      getModelContext: () => ({ system: "Shared instructions" }),
+      subscribe,
+    };
+    const unsubscribeStrict = AssistantFrameProvider.addModelContextProvider(
       sharedProvider,
       "https://parent.example",
     );
     const unsubscribeWildcard = AssistantFrameProvider.addModelContextProvider(
       sharedProvider,
       "*",
+    );
+
+    expect(subscribe).toHaveBeenCalledOnce();
+    expect(parentWindow.postMessage).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        message: expect.objectContaining({
+          context: expect.objectContaining({ system: "Shared instructions" }),
+        }),
+      }),
+      "https://parent.example",
     );
 
     const execute = vi.fn(async () => "result");
@@ -247,11 +262,15 @@ describe("AssistantFrameProvider", () => {
     );
 
     unsubscribeWildcard();
+    expect(unsubscribeProvider).not.toHaveBeenCalled();
 
     dispatchToolCall("https://untrusted.example");
     expect(execute).not.toHaveBeenCalled();
 
     dispatchToolCall("https://parent.example");
     await vi.waitFor(() => expect(execute).toHaveBeenCalledOnce());
+
+    unsubscribeStrict();
+    expect(unsubscribeProvider).toHaveBeenCalledOnce();
   });
 });

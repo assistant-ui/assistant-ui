@@ -34,7 +34,10 @@ export class AssistantFrameProvider {
 
   private _providers = new Map<symbol, ModelContextProvider>();
   private _providerOrigins = new Map<symbol, string>();
-  private _providerUnsubscribes = new Map<symbol, Unsubscribe | undefined>();
+  private _providerUnsubscribes = new Map<
+    ModelContextProvider,
+    Unsubscribe | undefined
+  >();
   private _targetOrigin: string;
 
   private constructor(targetOrigin: string = "*") {
@@ -135,7 +138,7 @@ export class AssistantFrameProvider {
   }
 
   private getModelContext(): ModelContext {
-    const contexts = Array.from(this._providers.values()).map((p) =>
+    const contexts = Array.from(new Set(this._providers.values())).map((p) =>
       p.getModelContext(),
     );
 
@@ -181,9 +184,11 @@ export class AssistantFrameProvider {
     instance._providers.set(id, provider);
     instance._providerOrigins.set(id, targetOrigin ?? "*");
 
-    const unsubscribe = provider.subscribe?.(() => instance.broadcastUpdate());
-    if (unsubscribe) {
-      instance._providerUnsubscribes.set(id, unsubscribe);
+    if (!instance._providerUnsubscribes.has(provider)) {
+      instance._providerUnsubscribes.set(
+        provider,
+        provider.subscribe?.(() => instance.broadcastUpdate()),
+      );
     }
 
     instance.broadcastUpdate();
@@ -191,8 +196,14 @@ export class AssistantFrameProvider {
     return () => {
       instance._providers.delete(id);
       instance._providerOrigins.delete(id);
-      instance._providerUnsubscribes.get(id)?.();
-      instance._providerUnsubscribes.delete(id);
+
+      const providerRemains = Array.from(instance._providers.values()).includes(
+        provider,
+      );
+      if (!providerRemains) {
+        instance._providerUnsubscribes.get(provider)?.();
+        instance._providerUnsubscribes.delete(provider);
+      }
 
       if (instance._providers.size === 0) {
         instance.broadcastUpdate();
