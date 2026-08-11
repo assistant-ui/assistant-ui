@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { convertAdkMessage } from "./convertAdkMessages";
+import {
+  convertAdkMessage,
+  createAdkMessageConverter,
+} from "./convertAdkMessages";
+import type { ToolCallMessagePart } from "@assistant-ui/core";
 import type { AdkMessage } from "./types";
 
 describe("convertAdkMessage - human messages", () => {
@@ -371,5 +375,64 @@ describe("convertAdkMessage - tool messages", () => {
     };
     const result = convertAdkMessage(msg, {});
     expect(result).toMatchObject({ isError: true });
+  });
+});
+
+describe("createAdkMessageConverter - tool approvals", () => {
+  const gatedMessage: AdkMessage = {
+    id: "ai-1",
+    type: "ai",
+    content: [],
+    tool_calls: [
+      {
+        id: "tc-1",
+        name: "adk_request_confirmation",
+        args: {},
+        argsText: "{}",
+      },
+      { id: "tc-2", name: "search", args: {}, argsText: "{}" },
+    ],
+  };
+
+  const toolCallParts = (
+    result: ReturnType<typeof convertAdkMessage>,
+  ): ToolCallMessagePart[] => {
+    const message = Array.isArray(result) ? result[0]! : result;
+    const content = "content" in message ? message.content : [];
+    if (typeof content === "string") return [];
+    return content.filter(
+      (part): part is ToolCallMessagePart => part.type === "tool-call",
+    );
+  };
+
+  it("stamps the approval gate onto the tool call it belongs to", () => {
+    const convert = createAdkMessageConverter(
+      new Map([["tc-1", { id: "tc-1" }]]),
+    );
+    const parts = toolCallParts(convert(gatedMessage, {}));
+    expect(parts.map((p) => p.toolCallId)).toEqual(["tc-1", "tc-2"]);
+    expect(parts[0]!.approval).toEqual({ id: "tc-1" });
+    expect(parts[1]!.approval).toBeUndefined();
+  });
+
+  it("carries a settled decision onto the part", () => {
+    const convert = createAdkMessageConverter(
+      new Map([["tc-1", { id: "tc-1", approved: false }]]),
+    );
+    expect(convert(gatedMessage, {})).toMatchObject({
+      content: [
+        {
+          toolCallId: "tc-1",
+          approval: { id: "tc-1", approved: false },
+        },
+        { toolCallId: "tc-2" },
+      ],
+    });
+  });
+
+  it("leaves every part ungated when nothing is pending", () => {
+    for (const part of toolCallParts(convertAdkMessage(gatedMessage, {}))) {
+      expect(part.approval).toBeUndefined();
+    }
   });
 });

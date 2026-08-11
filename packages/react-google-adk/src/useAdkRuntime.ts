@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   getExternalStoreMessages,
   pickExternalStoreSharedOptions,
@@ -33,7 +33,15 @@ import type {
   OnAdkAgentTransferCallback,
 } from "./types";
 import { useAdkMessages } from "./useAdkMessages";
-import { convertAdkMessage } from "./convertAdkMessages";
+import {
+  convertAdkMessage,
+  createAdkMessageConverter,
+} from "./convertAdkMessages";
+import {
+  adkToolApprovalsKey,
+  projectAdkToolApprovals,
+  toAdkToolConfirmationReply,
+} from "./adkToolApproval";
 import { adkExtras } from "./adkExtras";
 import { v4 as uuidv4 } from "uuid";
 
@@ -285,8 +293,23 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
     }
   };
 
+  const toolApprovals = projectAdkToolApprovals(messages, toolConfirmations);
+  const toolApprovalsKey = adkToolApprovalsKey(toolApprovals);
+  const toolApprovalsRef = useRef(toolApprovals);
+  toolApprovalsRef.current = toolApprovals;
+
+  // Keyed on the decision state rather than the map, so a converter that would
+  // re-run over the whole thread is rebuilt only when a gate opens or settles.
+  const messageConverter = useMemo(
+    () =>
+      toolApprovalsKey === ""
+        ? convertAdkMessage
+        : createAdkMessageConverter(toolApprovalsRef.current),
+    [toolApprovalsKey],
+  );
+
   const threadMessages = useExternalMessageConverter({
-    callback: convertAdkMessage,
+    callback: messageConverter,
     messages,
     isRunning: effectiveIsRunning,
   });
@@ -553,6 +576,12 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
             status: isError ? "error" : "success",
           },
         ],
+        {},
+      );
+    },
+    onRespondToToolApproval: async (options) => {
+      await handleSendMessage(
+        [toAdkToolConfirmationReply(options, toolApprovalsRef.current)],
         {},
       );
     },

@@ -2,6 +2,7 @@
 
 import type { ToolCallMessagePart } from "@assistant-ui/core";
 import type { useExternalMessageConverter } from "@assistant-ui/core/react";
+import type { AdkToolApproval } from "./adkToolApproval";
 import type { AdkMessage, AdkMessageContentPart } from "./types";
 
 type ContentPart =
@@ -81,50 +82,61 @@ const contentToParts = (
     .filter((p): p is NonNullable<typeof p> => p !== null);
 };
 
-export const convertAdkMessage: useExternalMessageConverter.Callback<
-  AdkMessage
-> = (message) => {
-  switch (message.type) {
-    case "human":
-      return {
-        role: "user",
-        id: message.id,
-        content: contentToParts(message.content, "user"),
-      };
+const EMPTY_APPROVALS: ReadonlyMap<string, AdkToolApproval> = new Map();
 
-    case "ai": {
-      const toolCallParts: ToolCallMessagePart[] =
-        message.tool_calls?.map((tc) => ({
-          type: "tool-call",
-          toolCallId: tc.id,
-          toolName: tc.name,
-          args: tc.args,
-          argsText: tc.argsText ?? JSON.stringify(tc.args),
-        })) ?? [];
+export const createAdkMessageConverter =
+  (
+    approvals: ReadonlyMap<string, AdkToolApproval>,
+  ): useExternalMessageConverter.Callback<AdkMessage> =>
+  (message) => {
+    switch (message.type) {
+      case "human":
+        return {
+          role: "user",
+          id: message.id,
+          content: contentToParts(message.content, "user"),
+        };
 
-      return {
-        role: "assistant",
-        id: message.id,
-        content: [
-          ...contentToParts(message.content, "assistant"),
-          ...toolCallParts,
-        ],
-        ...(message.status && { status: message.status }),
-        ...(message.author && {
-          metadata: {
-            custom: { author: message.author, branch: message.branch },
-          },
-        }),
-      };
+      case "ai": {
+        const toolCallParts: ToolCallMessagePart[] =
+          message.tool_calls?.map((tc) => {
+            const approval = approvals.get(tc.id);
+            return {
+              type: "tool-call",
+              toolCallId: tc.id,
+              toolName: tc.name,
+              args: tc.args,
+              argsText: tc.argsText ?? JSON.stringify(tc.args),
+              ...(approval && { approval }),
+            };
+          }) ?? [];
+
+        return {
+          role: "assistant",
+          id: message.id,
+          content: [
+            ...contentToParts(message.content, "assistant"),
+            ...toolCallParts,
+          ],
+          ...(message.status && { status: message.status }),
+          ...(message.author && {
+            metadata: {
+              custom: { author: message.author, branch: message.branch },
+            },
+          }),
+        };
+      }
+
+      case "tool":
+        return {
+          role: "tool",
+          toolCallId: message.tool_call_id,
+          toolName: message.name,
+          result: message.content,
+          isError: message.status === "error",
+        };
     }
+  };
 
-    case "tool":
-      return {
-        role: "tool",
-        toolCallId: message.tool_call_id,
-        toolName: message.name,
-        result: message.content,
-        isError: message.status === "error",
-      };
-  }
-};
+export const convertAdkMessage: useExternalMessageConverter.Callback<AdkMessage> =
+  createAdkMessageConverter(EMPTY_APPROVALS);
