@@ -51,32 +51,36 @@ export class CloudMessagePersistence {
   ): Promise<void> {
     const cloud = this.getCloud();
     const mapping = this.getThreadMapping(threadId);
-    // Resolve parent's remote ID if it exists (may be a promise if concurrent)
-    const resolvedParentId = parentId
-      ? ((await mapping.get(parentId)) ?? parentId)
-      : null;
+    const existing = mapping.get(messageId);
+    if (existing instanceof Promise) {
+      await existing;
+      return;
+    }
 
-    const task = cloud.threads.messages
-      .create(threadId, {
+    const task = (async () => {
+      const resolvedParentId = parentId
+        ? ((await mapping.get(parentId)) ?? parentId)
+        : null;
+      const { message_id } = await cloud.threads.messages.create(threadId, {
         parent_id: resolvedParentId,
         format,
         content,
-      })
-      .then(({ message_id }) => {
-        mapping.set(messageId, message_id);
-        return message_id;
-      })
-      .catch((err) => {
-        // Only delete if we're still the active task (avoids clobbering a retry)
-        if (mapping.get(messageId) === task) {
-          mapping.delete(messageId);
-        }
-        throw err;
       });
+      return message_id;
+    })();
 
-    // Store the promise immediately so concurrent appends can await it
     mapping.set(messageId, task);
-    return task.then(() => {});
+    try {
+      const remoteId = await task;
+      if (mapping.get(messageId) === task) {
+        mapping.set(messageId, remoteId);
+      }
+    } catch (err) {
+      if (mapping.get(messageId) === task) {
+        mapping.delete(messageId);
+      }
+      throw err;
+    }
   }
 
   /**
