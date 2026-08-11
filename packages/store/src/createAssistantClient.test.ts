@@ -10,6 +10,7 @@ import { useAssistantEmit } from "./utils/tap-assistant-context";
 import { useClientResource } from "./useClientResource";
 import { Derived } from "./Derived";
 import type { AssistantClient } from "./types/client";
+import { EVENT_CLIENT_INTERNALS } from "./utils/event-client-internals";
 
 type AnyClient = Record<string, any>;
 
@@ -354,10 +355,12 @@ describe("createAssistantClient", () => {
       message: MessageClient({ id: "parent" }),
     });
     const parent = parentHandle.getClient() as AssistantClient;
-    const eventInternalsKey = "__assistant_ui_store_event_client_internals__";
+    const eventInternalsKey = Symbol.for(
+      Symbol.keyFor(EVENT_CLIENT_INTERNALS)!,
+    );
     const parentInternals = (
       parent as unknown as Record<
-        string,
+        PropertyKey,
         {
           ref: { current: AssistantClient | null };
           on: AssistantClient["on"];
@@ -366,7 +369,7 @@ describe("createAssistantClient", () => {
     )[eventInternalsKey]!;
 
     // A second installed copy creates a different function identity but uses
-    // the shared stable-key protocol on its generated client object.
+    // the shared global-symbol protocol on its generated client object.
     const foreignOn: AssistantClient["on"] = function (
       this: AssistantClient,
       selector: never,
@@ -403,6 +406,63 @@ describe("createAssistantClient", () => {
 
     child.destroy();
     parentHandle.destroy();
+  });
+
+  it("allows a scope named after the event internals registry key", async () => {
+    const scope = Symbol.keyFor(EVENT_CLIENT_INTERNALS)!;
+    const handle = createTestClient({
+      [scope]: MessageClient({ id: "collision" }),
+    });
+    const client = handle.getClient();
+    const cb = vi.fn();
+    client.on({ scope, event: "message.pinged" } as never, cb);
+
+    flushTapSync(() => client[scope].ping("value"));
+    await flushEvents();
+
+    expect(cb).toHaveBeenCalledExactlyOnceWith({
+      id: "collision",
+      value: "value",
+    });
+
+    handle.destroy();
+  });
+
+  it("drops queued events when a scope falls back to an unavailable accessor", async () => {
+    const emptyParentHandle = createTestClient({});
+    const parent = {
+      subscribe: () => () => {},
+      on: () => () => {},
+      message: emptyParentHandle.getClient().message,
+    } as unknown as AssistantClient;
+    let config: Record<string, unknown> = {
+      message: MessageClient({ id: "child" }),
+    };
+    const listeners = new Set<() => void>();
+    const notify = () => listeners.forEach((listener) => listener());
+    const child = createTestClient(
+      {
+        getConfig: () => config,
+        subscribe: (listener: () => void) => {
+          listeners.add(listener);
+          return () => listeners.delete(listener);
+        },
+      },
+      { parent },
+    );
+    const subscribed = child.getClient();
+    const cb = vi.fn();
+    subscribed.on("message.pinged", cb);
+
+    flushTapSync(() => subscribed.message.ping("queued"));
+    config = {};
+    flushTapSync(notify);
+    await flushEvents();
+
+    expect(cb).not.toHaveBeenCalled();
+
+    child.destroy();
+    emptyParentHandle.destroy();
   });
 
   it.each([

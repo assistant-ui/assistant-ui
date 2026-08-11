@@ -115,13 +115,14 @@ type EventClientInternals = {
   on: AssistantClient["on"];
 };
 
-// A stable, non-enumerable key keeps generated clients interoperable when
-// version skew loads multiple copies of @assistant-ui/store into one app.
+// A global registry symbol keeps generated clients interoperable when version
+// skew loads multiple copies of @assistant-ui/store, without colliding with a
+// string scope name.
 const getOwnEventClientInternals = (
   client: AssistantClient,
 ): EventClientInternals | undefined =>
   Object.prototype.hasOwnProperty.call(client, EVENT_CLIENT_INTERNALS)
-    ? ((client as unknown as Record<string, unknown>)[
+    ? ((client as unknown as Record<PropertyKey, unknown>)[
         EVENT_CLIENT_INTERNALS
       ] as EventClientInternals)
     : undefined;
@@ -264,7 +265,7 @@ const useClientFields = ({
           const boundScope = getEventScopeBinding(this, scope as ClientNames);
           // A scope removed by a structural change since subscription cannot
           // match; resolving its identity would throw
-          if (!boundScope) return;
+          if (!boundScope || boundScope.source === null) return;
           const scopeClient = getClientId(
             boundScope,
           ) as unknown as ClientMethods;
