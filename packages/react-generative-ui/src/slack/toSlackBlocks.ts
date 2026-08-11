@@ -26,6 +26,7 @@ import {
   INPUT_LABEL_CAP,
   INTERACTIVE_TEXT_CAP,
   MARKDOWN_TEXT_BUDGET,
+  MAX_ELEMENT_DEPTH,
   MAX_TRAVERSAL_DEPTH,
   MESSAGE_BLOCK_CAP,
   MODAL_BLOCK_CAP,
@@ -1283,7 +1284,7 @@ export function toSlackBlocks(
           : reason === "cycle"
             ? "a self-referencing node was dropped."
             : reason === "depth"
-              ? `nodes deeper than ${MAX_TRAVERSAL_DEPTH} levels were dropped.`
+              ? `nodes deeper than ${MAX_ELEMENT_DEPTH} levels were dropped.`
               : `children were clamped to ${CHILDREN_CAP} entries.`;
       warn(context, "clamped", "Root", detail);
     });

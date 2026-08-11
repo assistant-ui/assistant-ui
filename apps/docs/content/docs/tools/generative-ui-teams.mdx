@@ -149,7 +149,7 @@ With a `Carousel` at the root you get one attachment per card child and `attachm
 | Primary actions | 6 | Later actions move to secondary mode; none are dropped |
 | Payload size | 80,000 serialized bytes, set below Teams' 100 KB bot message limit | Warned, never truncated, so you decide whether to split |
 
-Traversal is bounded as well: 200 children per level, 5,000 nodes per call, and a depth ceiling of 64, each reported as a `Root` warning. These bounds exist because the tree arrives from a model.
+Traversal is bounded as well: 200 children per level, 5,000 nodes per call, and 32 levels of element nesting, each reported as a `Root` warning. These bounds exist because the tree arrives from a model.
 
 ## Reference
 

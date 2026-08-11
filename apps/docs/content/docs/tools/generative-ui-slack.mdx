@@ -99,7 +99,7 @@ The converter clamps to Slack's published budgets rather than letting the API re
 | Table | 200 data rows, 20 columns, 20,000 characters across all tables in one payload | Rows truncated; a table whose header alone busts the budget is dropped |
 | Markdown | 12,000 characters across the payload | Every markdown block from that point on becomes a `section` |
 
-Traversal itself is bounded too: 200 children per level, 5,000 nodes per call, and a depth ceiling, each reported as a `Root` warning. These bounds exist because the tree arrives from a model.
+Traversal itself is bounded too: 200 children per level, 5,000 nodes per call, and 32 levels of element nesting, each reported as a `Root` warning. These bounds exist because the tree arrives from a model.
 
 ## Actions
 

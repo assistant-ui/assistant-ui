@@ -1923,8 +1923,24 @@ describe("toSlackBlocks", () => {
       expect(warnings).toContainEqual({
         code: "clamped",
         component: "Root",
-        detail: "nodes deeper than 64 levels were dropped.",
+        detail: "nodes deeper than 32 levels were dropped.",
       });
+    });
+
+    it("reports the depth detail at the level it actually starts dropping", () => {
+      const chain = (levels: number) => {
+        let node: unknown = { $type: "Caption", value: "x" };
+        for (let i = 0; i < levels; i++) {
+          node = { $type: "Card", children: [node] };
+        }
+        return node;
+      };
+      const dropped = (levels: number) =>
+        toSlackBlocks(chain(levels)).warnings.some((warning) =>
+          warning.detail.includes("deeper than"),
+        );
+      expect(dropped(32)).toBe(false);
+      expect(dropped(33)).toBe(true);
     });
   });
 });

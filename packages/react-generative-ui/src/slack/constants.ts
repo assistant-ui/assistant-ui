@@ -11,8 +11,15 @@ import type {
   SlackTextObject,
 } from "./types";
 
-/** The maximum normalized traversal depth. */
+/**
+ * The maximum traversal depth of the bounded pre-pass, counted in visited
+ * values rather than tree levels. An element and its `children` array are two
+ * values, so a level of element nesting spends two.
+ */
 export const MAX_TRAVERSAL_DEPTH = 64;
+
+/** The element-nesting ceiling {@link MAX_TRAVERSAL_DEPTH} works out to. */
+export const MAX_ELEMENT_DEPTH = MAX_TRAVERSAL_DEPTH / 2;
 
 /**
  * The maximum number of entries kept at any single level (root, or a
