@@ -39,12 +39,6 @@ import type {
 export interface ConversionContext {
   readonly warnings: TeamsConversionWarning[];
   usedInputIds: Set<string>;
-  /**
-   * Set while converting a subtree whose output is thrown away. An id claimed
-   * there would rename a control that survives, and a rename reported there
-   * names a control the reader never receives.
-   */
-  discardingOutput?: boolean;
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -105,7 +99,6 @@ function reservedSafeId(
 ): string {
   const reserved = id === RESERVED_INPUT_ID;
   const base = reserved ? `${RESERVED_INPUT_ID}_` : id;
-  if (context.discardingOutput) return base;
   let candidate = base;
   let n = 2;
   while (context.usedInputIds.has(candidate)) {
@@ -365,6 +358,29 @@ function convertListViewItem(
   };
 }
 
+/**
+ * Converts a child whose output is thrown away, and reports whether anything
+ * was lost with it. A scratch context keeps the ids it claims out of the card,
+ * where they would rename a control that survives; only its `dropped` warnings
+ * are forwarded, because those describe the tree the caller wrote, while a
+ * clamp or a rename would describe content never delivered.
+ */
+const discardedChild = (
+  child: NormalizedUINode,
+  context: ConversionContext,
+  depth: number,
+): boolean => {
+  const scratch: ConversionContext = {
+    ...context,
+    warnings: [],
+    usedInputIds: new Set(context.usedInputIds),
+  };
+  const produced = convertSequence(child, scratch, depth).length > 0;
+  const lost = scratch.warnings.filter((warning) => warning.code === "dropped");
+  context.warnings.push(...lost);
+  return produced || lost.length > 0;
+};
+
 export function convertElement(
   element: NormalizedUIElement,
   context: ConversionContext,
@@ -572,13 +588,7 @@ export function convertElement(
           containers.push(convertListViewItem(child, context, depth + 1));
           continue;
         }
-        // A non-item child still runs through the converter so its own
-        // warnings fire, but its output never reaches the card.
-        const wasDiscarding = context.discardingOutput;
-        context.discardingOutput = true;
-        const converted = convertSequence(child, context, depth + 1);
-        context.discardingOutput = wasDiscarding;
-        if (converted.length > 0) discarded += 1;
+        if (discardedChild(child, context, depth + 1)) discarded += 1;
       }
       if (discarded > 0) {
         warn(

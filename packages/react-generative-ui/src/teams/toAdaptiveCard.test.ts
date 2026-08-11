@@ -866,6 +866,27 @@ describe("toAdaptiveCard", () => {
       });
     });
 
+    it("keeps a discarded child's clamp warning out of the result", () => {
+      const { warnings } = toAdaptiveCard({
+        $type: "ListView",
+        children: [
+          {
+            $type: "Table",
+            rows: Array.from({ length: TABLE_ROW_CAP + 5 }, () => ["x"]),
+          },
+          { $type: "ListViewItem", title: "row" },
+        ],
+      });
+      expect(warnings.some((warning) => warning.code === "clamped")).toBe(
+        false,
+      );
+      expect(warnings).toContainEqual({
+        code: "dropped",
+        component: "ListView",
+        detail: "1 non-item child was dropped.",
+      });
+    });
+
     it("reports a renderable non-item child whose output it discards", () => {
       const { card, warnings } = toAdaptiveCard({
         $type: "ListView",

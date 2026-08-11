@@ -1647,6 +1647,26 @@ describe("toSlackBlocks", () => {
   });
 
   describe("ListView and ListViewItem", () => {
+    it("forwards a discarded child's own dropped warning and counts it", () => {
+      const { warnings } = toSlackBlocks({
+        $type: "ListView",
+        children: [
+          { $type: "Mystery" },
+          { $type: "ListViewItem", children: { $type: "Text", value: "row" } },
+        ],
+      });
+      expect(warnings).toContainEqual({
+        code: "dropped",
+        component: "Mystery",
+        detail: "Unknown component type was dropped.",
+      });
+      expect(warnings).toContainEqual({
+        code: "dropped",
+        component: "ListView",
+        detail: "1 non-item child was dropped.",
+      });
+    });
+
     it("does not let a discarded child spend the markdown budget", () => {
       const { blocks, warnings } = toSlackBlocks([
         {

@@ -727,6 +727,25 @@ const convertListItem = (
   };
 };
 
+/**
+ * Converts a child whose output is thrown away, and reports whether anything
+ * was lost with it. A scratch context keeps the throwaway out of the shared
+ * markdown and data-table budgets that surviving blocks still need; only its
+ * `dropped` warnings are forwarded, because those describe the tree the caller
+ * wrote, while a clamp or a fallback would describe content never delivered.
+ */
+const discardedChild = (
+  child: NormalizedUINode,
+  context: ConversionContext,
+  depth: number,
+): boolean => {
+  const scratch: ConversionContext = { ...context, warnings: [] };
+  const produced = convertSequence(child, scratch, depth).length > 0;
+  const lost = scratch.warnings.filter((warning) => warning.code === "dropped");
+  context.warnings.push(...lost);
+  return produced || lost.length > 0;
+};
+
 const convertListView = (
   element: NormalizedUIElement,
   context: ConversionContext,
@@ -739,12 +758,7 @@ const convertListView = (
       items.push(child);
       continue;
     }
-    // Converted only to learn whether it would have rendered. A scratch
-    // context keeps the throwaway out of the shared markdown and data-table
-    // budgets, which a surviving block still needs, and out of the warnings,
-    // which would otherwise describe content the reader never receives.
-    const scratch: ConversionContext = { ...context, warnings: [] };
-    if (convertSequence(child, scratch, depth + 1).length > 0) discarded += 1;
+    if (discardedChild(child, context, depth + 1)) discarded += 1;
   }
   if (discarded > 0) {
     warn(
