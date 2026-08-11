@@ -878,6 +878,7 @@ declare class OpenCodeEventSource {
   private readonly maxReconnectDelayMs;
   private abortController;
   private connectionPromise;
+  private interruptReconnectWait;
   private stopped;
   private nextReconnectDelayMs;
   private hadConnection;
@@ -888,6 +889,7 @@ declare class OpenCodeEventSource {
   private emit;
   private connect;
   private disconnect;
+  private waitForReconnect;
   private run;
 }
 
