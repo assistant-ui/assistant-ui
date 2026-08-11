@@ -112,7 +112,7 @@ export const ALERT_TEXT_CAP = 200;
  * The maximum number of data rows in a data-table block; the emitted `rows`
  * array additionally carries one header row.
  */
-export const DATA_TABLE_ROW_CAP = 100;
+export const DATA_TABLE_ROW_CAP = 200;
 
 /** The maximum number of columns in a data-table block. */
 export const DATA_TABLE_COLUMN_CAP = 20;
@@ -121,7 +121,7 @@ export const DATA_TABLE_COLUMN_CAP = 20;
  * The cumulative character limit (summed across every cell's text) shared by
  * every data-table block in one payload.
  */
-export const DATA_TABLE_CHAR_BUDGET = 10000;
+export const DATA_TABLE_CHAR_BUDGET = 20000;
 
 /** The caption emitted on every native data-table block. */
 export const TABLE_CAPTION = "Table";

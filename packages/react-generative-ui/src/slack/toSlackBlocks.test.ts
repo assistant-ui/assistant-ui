@@ -1433,7 +1433,7 @@ describe("toSlackBlocks", () => {
     });
 
     it(`clamps rows to fit the ${DATA_TABLE_CHAR_BUDGET}-character table budget, always keeping the header row`, () => {
-      const bigCell = "z".repeat(2000);
+      const bigCell = "z".repeat(Math.ceil(DATA_TABLE_CHAR_BUDGET / 5));
       const rows = Array.from({ length: 6 }, (_, r) => [`row${r}`, bigCell]);
       const { blocks, warnings } = toSlackBlocks({
         $type: "Table",
@@ -1454,10 +1454,11 @@ describe("toSlackBlocks", () => {
     });
 
     it("shares the character budget across multiple data-table blocks in one payload", () => {
-      const filler = "f".repeat(9994);
+      const secondValue = "second";
+      const filler = "f".repeat(DATA_TABLE_CHAR_BUDGET - secondValue.length);
       const { blocks, warnings } = toSlackBlocks([
         { $type: "Table", columns: [{ label: "A" }], rows: [[filler]] },
-        { $type: "Table", columns: [{ label: "B" }], rows: [["second"]] },
+        { $type: "Table", columns: [{ label: "B" }], rows: [[secondValue]] },
       ]);
       const first = blocks[0] as SlackDataTableBlock;
       const second = blocks[1] as SlackDataTableBlock;
@@ -1922,7 +1923,7 @@ describe("toSlackBlocks data_table integrity", () => {
   it("drops a table whose header row alone exceeds the character budget", () => {
     const { blocks, warnings } = toSlackBlocks({
       $type: "Table",
-      columns: [{ label: "h".repeat(10001) }],
+      columns: [{ label: "h".repeat(DATA_TABLE_CHAR_BUDGET + 1) }],
       rows: [["x"]],
     });
     expect(blocks).toEqual([]);

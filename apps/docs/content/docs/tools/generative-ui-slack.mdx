@@ -96,14 +96,10 @@ The converter clamps to Slack's published budgets rather than letting the API re
 | Button action payload | 2,000 characters | Dropped entirely, not truncated, so a partial payload never round-trips |
 | Card title | 150 characters, body and subtext 200 | Truncated |
 | Carousel cards | 10 | Truncated; a carousel with no renderable card is dropped |
-| Table | 100 data rows, 20 columns, 10,000 characters across all tables in one payload | Rows truncated; a table whose header alone busts the budget is dropped |
+| Table | 200 data rows, 20 columns, 20,000 characters across all tables in one payload | Rows truncated; a table whose header alone busts the budget is dropped |
 | Markdown | 12,000 characters across the payload | Every markdown block from that point on becomes a `section` |
 
 Traversal itself is bounded too: 200 children per level, 5,000 nodes per call, and a depth ceiling, each reported as a `Root` warning. These bounds exist because the tree arrives from a model.
-
-<Callout type="warn">
-The table budgets above are the converter's. Slack has since raised the platform ceiling for [`data_table`](https://docs.slack.dev/reference/block-kit/blocks/data-table-block) to 200 data rows plus a header and 20,000 characters, so trees larger than the converter's limit are clamped even though Slack would now accept them.
-</Callout>
 
 ## Actions
 
