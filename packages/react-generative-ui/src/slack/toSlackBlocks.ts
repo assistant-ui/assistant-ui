@@ -632,10 +632,12 @@ const listPhrase = (items: readonly string[]): string =>
  * {@link collectText} does so a node nested below the top level counts too.
  * These are exactly the pieces text cannot represent: an image has no text, a
  * table and a chart carry theirs in array props, and a control is behavior,
- * whether or not it carries an action of its own.
+ * whether or not it carries an action of its own. An `$action` counts only on
+ * a node that renders a control from it, since a `Box` or a `Row` carrying one
+ * renders no control on the clean path either.
  */
 const scanLostContent = (
-  node: NormalizedUINode,
+  node: NormalizedUINode | undefined,
   into: Set<string>,
   depth: number,
 ): void => {
@@ -644,8 +646,13 @@ const scanLostContent = (
     for (const child of node) scanLostContent(child, into, depth + 1);
     return;
   }
-  if (!isElement(node)) return;
-  if (node.action !== undefined || CONTROL_TYPES.has(node.type)) {
+  if (node === undefined || !isElement(node)) return;
+  if (
+    CONTROL_TYPES.has(node.type) ||
+    (node.type === "ListViewItem" && node.action !== undefined) ||
+    (node.type === "Card" &&
+      (isRecord(node.props["confirm"]) || isRecord(node.props["cancel"])))
+  ) {
     into.add("controls");
   }
   if (node.type === "Image") into.add("images");
@@ -696,7 +703,7 @@ const degradeCard = (
   if (isRecord(element.props["confirm"]) || isRecord(element.props["cancel"])) {
     lostKinds.add("controls");
   }
-  scanLostContent(fields.leftover, lostKinds, depth + 1);
+  scanLostContent(element.children, lostKinds, depth + 1);
   const lost = LOST_CONTENT_KINDS.filter((kind) => lostKinds.has(kind));
   if (lost.length > 0) {
     warn(

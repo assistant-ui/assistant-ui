@@ -1260,6 +1260,14 @@ describe("toSlackBlocks", () => {
         "controls",
         { $type: "Form", children: [{ $type: "Text", value: "inner" }] },
       ],
+      [
+        "controls",
+        {
+          $type: "Card",
+          title: "nested",
+          confirm: { label: "Buy", $action: { type: "buy" } },
+        },
+      ],
     ])(
       "reports %s that a reshape cannot carry, however deep",
       (kind, child) => {
@@ -1284,6 +1292,54 @@ describe("toSlackBlocks", () => {
         });
       },
     );
+
+    it("scans below a child whose text the reshape consumes", () => {
+      const { warnings } = toSlackBlocks({
+        $type: "Carousel",
+        children: [
+          {
+            $type: "Card",
+            title: "Plan",
+            children: [
+              {
+                $type: "Text",
+                value: "body",
+                children: [{ $type: "Image", src: "x.png" }],
+              },
+              { $type: "Divider" },
+            ],
+          },
+        ],
+      });
+      expect(warnings).toContainEqual({
+        code: "dropped",
+        component: "Card",
+        detail: "A reshaped carousel card's images were dropped.",
+      });
+    });
+
+    it("does not report an action on a node that renders no control", () => {
+      const { warnings } = toSlackBlocks({
+        $type: "Carousel",
+        children: [
+          {
+            $type: "Card",
+            title: "Plan",
+            children: [
+              {
+                $type: "Box",
+                $action: { type: "open" },
+                children: [{ $type: "Text", value: "body" }],
+              },
+              { $type: "Divider" },
+            ],
+          },
+        ],
+      });
+      expect(warnings.some((warning) => warning.code === "dropped")).toBe(
+        false,
+      );
+    });
 
     it("clamps a reshaped card's title and body instead of slicing them silently", () => {
       const { warnings } = toSlackBlocks({
