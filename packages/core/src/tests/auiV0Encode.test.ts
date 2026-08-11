@@ -236,6 +236,33 @@ describe("auiV0Encode", () => {
     ]);
   });
 
+  it("preserves reasoning summaries and omits absent summaries", () => {
+    const encoded = auiV0Encode({
+      id: "m1",
+      createdAt: new Date("2026-03-15T00:00:00.000Z"),
+      role: "assistant",
+      status: { type: "complete", reason: "stop" },
+      metadata: {
+        unstable_state: null,
+        unstable_annotations: [],
+        unstable_data: [],
+        steps: [],
+        custom: {},
+      },
+      content: [
+        { type: "reasoning", text: "thinking", unstable_summary: "Planning" },
+        { type: "reasoning", text: "more thinking", unstable_summary: "" },
+        { type: "reasoning", text: "no summary" },
+      ],
+    });
+
+    expect(encoded.content).toEqual([
+      { type: "reasoning", text: "thinking", unstable_summary: "Planning" },
+      { type: "reasoning", text: "more thinking", unstable_summary: "" },
+      { type: "reasoning", text: "no summary" },
+    ]);
+  });
+
   it("drops per-part status from attachment content in the core cloud encoder", () => {
     const encoded = auiV0Encode({
       id: "m1",
@@ -306,6 +333,76 @@ describe("auiV0Encode", () => {
 });
 
 describe("auiV0Decode", () => {
+  it("round-trips a reasoning summary", () => {
+    const encoded = auiV0Encode({
+      id: "local",
+      createdAt: new Date("2026-03-15T00:00:00.000Z"),
+      role: "assistant",
+      status: { type: "complete", reason: "stop" },
+      metadata: {
+        unstable_state: null,
+        unstable_annotations: [],
+        unstable_data: [],
+        steps: [],
+        custom: {},
+      },
+      content: [
+        { type: "reasoning", text: "thinking", unstable_summary: "Planning" },
+      ],
+    });
+
+    const { message } = auiV0Decode({
+      id: "cloud",
+      parent_id: null,
+      format: "aui/v0",
+      content: encoded,
+      created_at: new Date("2026-03-15T00:00:00.000Z"),
+    } as unknown as Parameters<typeof auiV0Decode>[0]);
+
+    expect(message.content).toEqual([
+      { type: "reasoning", text: "thinking", unstable_summary: "Planning" },
+    ]);
+  });
+
+  it("round-trips a reasoning summary without text", () => {
+    const encoded = auiV0Encode({
+      id: "local",
+      createdAt: new Date("2026-03-15T00:00:00.000Z"),
+      role: "assistant",
+      status: { type: "complete", reason: "stop" },
+      metadata: {
+        unstable_state: null,
+        unstable_annotations: [],
+        unstable_data: [],
+        steps: [],
+        custom: {},
+      },
+      content: [
+        {
+          type: "reasoning",
+          text: "",
+          unstable_summary: "Searching the codebase",
+        },
+      ],
+    });
+
+    const { message } = auiV0Decode({
+      id: "cloud",
+      parent_id: null,
+      format: "aui/v0",
+      content: encoded,
+      created_at: new Date("2026-03-15T00:00:00.000Z"),
+    } as unknown as Parameters<typeof auiV0Decode>[0]);
+
+    expect(message.content).toEqual([
+      {
+        type: "reasoning",
+        text: "",
+        unstable_summary: "Searching the codebase",
+      },
+    ]);
+  });
+
   it("round-trips a pending tool-call approval so a paused run stays resumable", () => {
     const content = auiV0Encode({
       id: "local",

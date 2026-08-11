@@ -17,6 +17,7 @@ import type {
 import type { ModelContext } from "../../model-context/types";
 import type { MessageMethods, MessageState } from "./message";
 import type { ComposerMethods, ComposerState } from "./composer";
+import type { SuggestionsMethods } from "./suggestions";
 
 export type ThreadState = {
   /**
@@ -71,6 +72,10 @@ export type ThreadMethods = {
    * The thread composer runtime.
    */
   composer(): ComposerMethods;
+  /**
+   * The suggestions shown for this thread.
+   */
+  suggestions(): SuggestionsMethods;
   /**
    * Append a new message to the thread.
    *

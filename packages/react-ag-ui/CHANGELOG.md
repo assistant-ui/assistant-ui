@@ -1,5 +1,52 @@
 # @assistant-ui/react-ag-ui
 
+## 0.0.53
+
+### Patch Changes
+
+- [#5723](https://github.com/assistant-ui/assistant-ui/pull/5723) [`94dc3e5`](https://github.com/assistant-ui/assistant-ui/commit/94dc3e509fa2b4fae1a14c88ec34b910c8d95af8) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+- Updated dependencies [[`94dc3e5`](https://github.com/assistant-ui/assistant-ui/commit/94dc3e509fa2b4fae1a14c88ec34b910c8d95af8), [`ab57969`](https://github.com/assistant-ui/assistant-ui/commit/ab5796932c97bc5bade19022e2ac8762949d2967)]:
+  - assistant-stream@0.3.36
+  - @assistant-ui/core@0.3.10
+  - @assistant-ui/react-generative-ui@0.0.13
+  - @assistant-ui/store@0.3.8
+
+## 0.0.52
+
+### Patch Changes
+
+- [#5684](https://github.com/assistant-ui/assistant-ui/pull/5684) [`20bda3c`](https://github.com/assistant-ui/assistant-ui/commit/20bda3c29c879b4ae5ac385a7bed491467634a79) - fix: send `description: ""` for a tool registered without one, so `RunAgentInput` stays valid against the AG-UI schema. previously the key was dropped from the payload entirely and validating servers rejected the run. also types the `runAgent` call site against the upstream parameters. ([@samdickson22](https://github.com/samdickson22))
+
+- [#5670](https://github.com/assistant-ui/assistant-ui/pull/5670) [`a87c192`](https://github.com/assistant-ui/assistant-ui/commit/a87c1922027dbb5698736d7541b01b06e0d41689) - fix: isolate runtime lifecycle callback failures ([@Kinfe123](https://github.com/Kinfe123))
+
+- Updated dependencies [[`456b056`](https://github.com/assistant-ui/assistant-ui/commit/456b056b2859994bf49ed5cc4cf031f0601e2174), [`99d09c8`](https://github.com/assistant-ui/assistant-ui/commit/99d09c828c04bfca35d091e73f29c6d6643dfb01), [`a88751d`](https://github.com/assistant-ui/assistant-ui/commit/a88751d71edfd2516f266ce8889081749fba4e5a), [`79253f2`](https://github.com/assistant-ui/assistant-ui/commit/79253f2a5e0a637c8907ba30859f308ff6dcd1c4), [`4e99deb`](https://github.com/assistant-ui/assistant-ui/commit/4e99deb80dc3401480f80c7bef31acbf86a71573), [`2af514c`](https://github.com/assistant-ui/assistant-ui/commit/2af514cabbf6d7d52cb0fd20ef8d1e842294ebb3)]:
+  - assistant-stream@0.3.35
+  - @assistant-ui/core@0.3.8
+  - @assistant-ui/store@0.3.7
+
+## 0.0.51
+
+### Patch Changes
+
+- [#5622](https://github.com/assistant-ui/assistant-ui/pull/5622) [`7bd72be`](https://github.com/assistant-ui/assistant-ui/commit/7bd72be63b57ab532bb174c49617b2f520116a44) - fix: abort AG-UI HTTP requests when cancelling runs ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#5649](https://github.com/assistant-ui/assistant-ui/pull/5649) [`baa6e2e`](https://github.com/assistant-ui/assistant-ui/commit/baa6e2e23e22089ee83ec1d9dca5262d5b91e94c) - feat: add unstable_enableMessageQueue so a send during a run is buffered instead of swallowed ([@okisdev](https://github.com/okisdev))
+
+- [#5650](https://github.com/assistant-ui/assistant-ui/pull/5650) [`34cec64`](https://github.com/assistant-ui/assistant-ui/commit/34cec64fcfbdef0e101d731f5518e9075d989e2f) - feat: two-lane, placement-aware message queue with steer-by-default mid-run sends ([@Yonom](https://github.com/Yonom))
+
+  `ExternalThreadQueueAdapter` is reshaped: `enqueue(message, { steer })` splits into
+  `enqueue(message)` / `steer(message)`, `steer(queueItemId)` becomes
+  `move(queueItemId, { lane: "steer", insertAfter: null })`, `clear(reason)` is dropped
+  (queue clear policy is now host-owned), and `steerItems` / `move` / `edit` and
+  `QueueItemState.parts` are required.
+
+- Updated dependencies [[`dcacd9b`](https://github.com/assistant-ui/assistant-ui/commit/dcacd9bc45117f9beca698006fd67616d2c1ca61), [`d52928d`](https://github.com/assistant-ui/assistant-ui/commit/d52928db2c83a3ba6f25bf8c6b21934571dd4622), [`d8a59ad`](https://github.com/assistant-ui/assistant-ui/commit/d8a59ad5d75f220e76e689d4191855c244ddc20a), [`0578c16`](https://github.com/assistant-ui/assistant-ui/commit/0578c16296fa5fb6b42455195ccf5f9a681693a5), [`e70da91`](https://github.com/assistant-ui/assistant-ui/commit/e70da91866a5ac880472fbcf23039909270f7623), [`aac3a8c`](https://github.com/assistant-ui/assistant-ui/commit/aac3a8cb8824472f694226a4c53829a0a693072e), [`aa302ee`](https://github.com/assistant-ui/assistant-ui/commit/aa302eeaacd399f58b74b64eb3a1e17d9ea97e03), [`aa302ee`](https://github.com/assistant-ui/assistant-ui/commit/aa302eeaacd399f58b74b64eb3a1e17d9ea97e03), [`34cec64`](https://github.com/assistant-ui/assistant-ui/commit/34cec64fcfbdef0e101d731f5518e9075d989e2f)]:
+  - @assistant-ui/store@0.3.4
+  - @assistant-ui/core@0.3.6
+  - assistant-stream@0.3.34
+  - @assistant-ui/react-generative-ui@0.0.12
+
 ## 0.0.50
 
 ### Patch Changes

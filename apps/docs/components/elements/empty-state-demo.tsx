@@ -1,17 +1,31 @@
 "use client";
 
-import { EmptyState } from "@/components/elements/empty-state";
+import {
+  EmptyState,
+  EmptyStateComposer,
+  EmptyStateGreeting,
+  EmptyStateSuggestion,
+  EmptyStateSuggestions,
+} from "@/components/elements/empty-state";
 
 const SUGGESTIONS = [
-  "Explain the runtime layers",
-  "Draft a migration plan",
-  "Review my composer code",
-];
+  "Explain this repo",
+  "Find a bug",
+  "Write a migration",
+] as const;
 
 export function EmptyStateDemo() {
   return (
-    <div className="flex w-full justify-center">
-      <EmptyState greeting="Where should we start?" suggestions={SUGGESTIONS} />
-    </div>
+    <EmptyState>
+      <EmptyStateGreeting>What are we building?</EmptyStateGreeting>
+      <EmptyStateSuggestions>
+        {SUGGESTIONS.map((suggestion, i) => (
+          <EmptyStateSuggestion key={suggestion} index={i}>
+            {suggestion}
+          </EmptyStateSuggestion>
+        ))}
+      </EmptyStateSuggestions>
+      <EmptyStateComposer placeholder="Ask anything" onSend={() => undefined} />
+    </EmptyState>
   );
 }

@@ -1,14 +1,17 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
 
 export type GenerationLoaderVariant = "dots" | "squares" | "rounded";
 
-export interface GenerationLoaderProps {
+export interface GenerationLoaderProps extends Omit<
+  ComponentProps<"div">,
+  "children"
+> {
   label: string;
   tick: number;
   variant?: GenerationLoaderVariant;
-  className?: string;
 }
 
 const CELL_SHAPES: Record<GenerationLoaderVariant, string> = {
@@ -22,11 +25,17 @@ export function GenerationLoader({
   tick,
   variant = "dots",
   className,
+  ...props
 }: GenerationLoaderProps) {
   const pixelOffset = Math.floor(tick / 3);
 
   return (
-    <div className={cn("flex flex-col items-center gap-4", className)}>
+    <div
+      data-slot="generation-loader"
+      className={cn("flex flex-col items-center gap-4", className)}
+
+      {...props}
+    >
       <div aria-hidden className="grid grid-cols-3 gap-1">
         {Array.from({ length: 9 }, (_, index) => {
           const active = (index * 2 + pixelOffset) % 9 < 3;

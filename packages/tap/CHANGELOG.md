@@ -1,5 +1,17 @@
 # @assistant-ui/tap
 
+## 0.9.11
+
+### Patch Changes
+
+- [#5723](https://github.com/assistant-ui/assistant-ui/pull/5723) [`94dc3e5`](https://github.com/assistant-ui/assistant-ui/commit/94dc3e509fa2b4fae1a14c88ec34b910c8d95af8) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+## 0.9.10
+
+### Patch Changes
+
+- [#5655](https://github.com/assistant-ui/assistant-ui/pull/5655) [`71cf74e`](https://github.com/assistant-ui/assistant-ui/commit/71cf74eaa7fb3bcf1cc7af346637b51f99e3fc33) - feat: add a react-free standalone shim entry and make the react peer optional ([@okisdev](https://github.com/okisdev))
+
 ## 0.9.9
 
 ### Patch Changes

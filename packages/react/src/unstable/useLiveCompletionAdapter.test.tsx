@@ -129,6 +129,96 @@ describe("unstable_useLiveCompletionAdapter", () => {
     expect(result.current.adapter.search!("ab")).toEqual([item("ab")]);
   });
 
+  it("allows a failed query to be retried", async () => {
+    const fetcher = vi
+      .fn<(query: string) => Promise<readonly Unstable_TriggerItem[]>>()
+      .mockRejectedValueOnce(new Error("temporarily unavailable"))
+      .mockRejectedValueOnce(new Error("still unavailable"))
+      .mockResolvedValueOnce([item("alice")]);
+    const { result } = renderHook(() =>
+      unstable_useLiveCompletionAdapter({ fetcher, debounceMs: 0 }),
+    );
+
+    for (const attempt of [1, 2]) {
+      await act(async () => {
+        result.current.adapter.search!("alice");
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      expect(fetcher).toHaveBeenCalledTimes(attempt);
+      expect(result.current.isLoading).toBe(false);
+    }
+
+    await act(async () => {
+      result.current.adapter.search!("alice");
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(fetcher).toHaveBeenCalledTimes(3);
+    expect(result.current.adapter.search!("alice")).toEqual([item("alice")]);
+  });
+
+  it("does not automatically retry when search runs during every render", async () => {
+    const fetcher = vi
+      .fn<(query: string) => Promise<readonly Unstable_TriggerItem[]>>()
+      .mockRejectedValueOnce(new Error("temporarily unavailable"))
+      .mockImplementation(
+        () => new Promise<readonly Unstable_TriggerItem[]>(() => {}),
+      );
+    const { result } = renderHook(() => {
+      const completion = unstable_useLiveCompletionAdapter({
+        fetcher,
+        debounceMs: 0,
+      });
+      completion.adapter.search!("alice");
+      return completion;
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(result.current.isLoading).toBe(false);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1_000);
+    });
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+
+  it("re-arms a failed query when its pending retry is interrupted", async () => {
+    const fetcher = vi
+      .fn<(query: string) => Promise<readonly Unstable_TriggerItem[]>>()
+      .mockRejectedValueOnce(new Error("temporarily unavailable"))
+      .mockImplementationOnce(
+        () => new Promise<readonly Unstable_TriggerItem[]>(() => {}),
+      )
+      .mockResolvedValueOnce([item("alice")]);
+    const { result } = renderHook(() =>
+      unstable_useLiveCompletionAdapter({ fetcher, debounceMs: 0 }),
+    );
+
+    await act(async () => {
+      result.current.adapter.search!("alice");
+      await vi.advanceTimersByTimeAsync(0);
+    });
+
+    await act(async () => {
+      result.current.adapter.search!("alice");
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(fetcher).toHaveBeenCalledTimes(2);
+
+    await act(async () => {
+      result.current.adapter.search!("alicex");
+    });
+    await act(async () => {
+      result.current.adapter.search!("alice");
+      await vi.advanceTimersByTimeAsync(0);
+    });
+
+    expect(fetcher).toHaveBeenCalledTimes(3);
+    expect(fetcher).toHaveBeenLastCalledWith("alice");
+    expect(result.current.adapter.search!("alice")).toEqual([item("alice")]);
+  });
+
   it("drops an in-flight fetch when the query returns to a cached value", async () => {
     const resolvers: Record<
       string,

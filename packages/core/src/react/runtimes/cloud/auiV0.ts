@@ -32,6 +32,7 @@ type AuiV0MessagePart =
   | {
       readonly type: "reasoning";
       readonly text: string;
+      readonly unstable_summary?: string;
     }
   | {
       readonly type: "source";
@@ -226,7 +227,13 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
           return { type: "text", text: part.text };
 
         case "reasoning":
-          return { type: "reasoning", text: part.text };
+          return {
+            type: "reasoning",
+            text: part.text,
+            ...(part.unstable_summary !== undefined
+              ? { unstable_summary: part.unstable_summary }
+              : undefined),
+          };
 
         case "source":
           if (part.sourceType === "url") {

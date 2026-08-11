@@ -1205,3 +1205,39 @@ test("every css value-selector for an attribute-mapped generative-ui prop is a l
     `dead or unclassified css value-selectors: ${findings.join(", ")}`,
   );
 });
+
+test("every element's sibling imports are declared as registry dependencies", async () => {
+  const { readdirSync, readFileSync } = await import("node:fs");
+  const { join } = await import("node:path");
+  const { registry } = await import("../src/registry.ts");
+
+  const dir = "packages/ui/src/components/elements";
+  const declared = new Map(
+    registry
+      .filter((item) => item.name.startsWith("elements-"))
+      .map((item) => [
+        item.files[0].path.split("/").pop(),
+        new Set(
+          (item.registryDependencies ?? [])
+            .map((dep) => /elements-([a-z-]+)\.json$/.exec(dep)?.[1])
+            .filter(Boolean),
+        ),
+      ]),
+  );
+
+  for (const file of readdirSync(join(process.cwd(), "../..", dir))) {
+    if (!file.endsWith(".tsx") || file === "surfaces.tsx") continue;
+    const src = readFileSync(join(process.cwd(), "../..", dir, file), "utf8");
+    const siblings = [...src.matchAll(/from "\.\/([a-z-]+)"/g)]
+      .map((m) => m[1])
+      .filter((name) => name !== "surfaces");
+    const deps = declared.get(file);
+    if (!deps) continue;
+    for (const sibling of siblings) {
+      assert.ok(
+        deps.has(sibling),
+        `${file} imports ./${sibling} but elements-${file.replace(".tsx", "")} does not declare it via usesElements`,
+      );
+    }
+  }
+});

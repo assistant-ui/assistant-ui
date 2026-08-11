@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, type ReactNode } from "react";
 import {
   BookOpenIcon,
@@ -7,12 +8,13 @@ import {
   LayoutTemplateIcon,
   SparklesIcon,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { analytics } from "@/lib/analytics";
 import {
   useXuluxAnalytics,
   withXuluxContext,
 } from "@/lib/xulux/analytics-context";
+import { LEARN_SUGGESTION_HREF } from "@/lib/xulux/learn/types";
 import { cn } from "@/lib/utils";
 import {
   XULUX_SUGGESTION_GROUPS,
@@ -51,26 +53,43 @@ export function LandingSuggestions({ onSelectPrompt, disabled }: Props) {
     <div className="aui-thread-welcome-suggestions mt-4 flex w-full flex-col gap-2">
       <div className="w-full scrollbar-none overflow-x-auto">
         <div className="mx-auto flex w-max max-w-full items-center gap-2 px-1">
-          {XULUX_SUGGESTION_GROUPS.map((group) => (
-            <Button
-              key={group.label}
-              type="button"
-              variant="ghost"
-              disabled={disabled}
-              className={cn(
-                suggestionChipClass,
-                group.label === expandedLabel && "bg-muted",
-              )}
-              onClick={() =>
-                setExpandedLabel(
-                  group.label === expandedLabel ? null : group.label,
-                )
-              }
-            >
-              {GROUP_ICONS[group.label]}
-              {group.label}
-            </Button>
-          ))}
+          {XULUX_SUGGESTION_GROUPS.map((group) =>
+            group.label === "Learn" ? (
+              <Link
+                key={group.label}
+                href={LEARN_SUGGESTION_HREF}
+                aria-disabled={disabled || undefined}
+                tabIndex={disabled ? -1 : undefined}
+                className={cn(
+                  buttonVariants({ variant: "ghost" }),
+                  suggestionChipClass,
+                  disabled && "pointer-events-none opacity-50",
+                )}
+              >
+                {GROUP_ICONS[group.label]}
+                Learn
+              </Link>
+            ) : (
+              <Button
+                key={group.label}
+                type="button"
+                variant="ghost"
+                disabled={disabled}
+                className={cn(
+                  suggestionChipClass,
+                  group.label === expandedLabel && "bg-muted",
+                )}
+                onClick={() =>
+                  setExpandedLabel(
+                    group.label === expandedLabel ? null : group.label,
+                  )
+                }
+              >
+                {GROUP_ICONS[group.label]}
+                {group.label}
+              </Button>
+            ),
+          )}
         </div>
       </div>
       {expandedGroup && (

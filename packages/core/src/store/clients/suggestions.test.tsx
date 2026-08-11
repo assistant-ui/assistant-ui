@@ -1,12 +1,23 @@
 import { describe, it, expect } from "vitest";
 import { createTapRoot, useResource } from "@assistant-ui/tap";
-import { Suggestions, type SuggestionConfig } from "./suggestions";
+import {
+  Suggestions,
+  ThreadSuggestions,
+  type SuggestionConfig,
+} from "./suggestions";
 import type { ThreadSuggestion } from "../../runtime/interfaces/thread-runtime-core";
 import type { Suggestion } from "../scopes/suggestions";
 
 const render = (suggestions?: SuggestionConfig[]) => {
   const root = createTapRoot(function Root() {
     return useResource(Suggestions(suggestions));
+  });
+  return { sub: root, unmount: () => root.unmount() };
+};
+
+const renderThread = (suggestions: readonly ThreadSuggestion[]) => {
+  const root = createTapRoot(function ThreadRoot() {
+    return useResource(ThreadSuggestions(suggestions));
   });
   return { sub: root, unmount: () => root.unmount() };
 };
@@ -84,6 +95,32 @@ describe("Suggestions", () => {
     try {
       expect(sub.getValue().getState().suggestions).toEqual([
         asThreadSuggestion,
+      ]);
+    } finally {
+      unmount();
+    }
+  });
+});
+
+describe("ThreadSuggestions", () => {
+  it("carries title and label from the runtime suggestion", () => {
+    const { sub, unmount } = renderThread([
+      { title: "Weather", label: "in SF", prompt: "What's the weather?" },
+    ]);
+    try {
+      expect(sub.getValue().getState().suggestions).toEqual([
+        { title: "Weather", label: "in SF", prompt: "What's the weather?" },
+      ]);
+    } finally {
+      unmount();
+    }
+  });
+
+  it("defaults title to prompt and label to empty when absent", () => {
+    const { sub, unmount } = renderThread([{ prompt: "Summarize this" }]);
+    try {
+      expect(sub.getValue().getState().suggestions).toEqual([
+        { title: "Summarize this", label: "", prompt: "Summarize this" },
       ]);
     } finally {
       unmount();

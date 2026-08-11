@@ -82,7 +82,7 @@ export const blog = defineCollections({
   dir: "content/blog",
   schema: frontmatterSchema.extend({
     author: z.string(),
-    date: z.date().optional(),
+    date: z.coerce.date().optional(),
   }),
   postprocess: {
     includeProcessedMarkdown: true,

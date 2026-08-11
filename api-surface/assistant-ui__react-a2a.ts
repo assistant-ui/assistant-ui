@@ -494,6 +494,7 @@ type ComposerRuntime = {
   send(options?: SendOptions): void;
   cancel(): void;
   steerQueueItem(queueItemId: string): void;
+  moveQueueItem(queueItemId: string, placement: QueuePlacement): void;
   removeQueueItem(queueItemId: string): void;
   subscribe(callback: () => void): Unsubscribe;
   getAttachmentByIndex(idx: number): AttachmentRuntime;
@@ -732,12 +733,14 @@ type ExternalStoreThreadListAdapter = {
 
 type ExternalThreadQueueAdapter = {
   items: readonly QueueItemState[];
-  enqueue: (message: AppendMessage, options: {
-    steer: boolean;
-  }) => void;
-  steer: (queueItemId: string) => void;
+  steerItems: readonly QueueItemState[];
+  enqueue: (message: AppendMessage) => void;
+  steer: (message: AppendMessage) => void;
+  move: (queueItemId: string, placement: QueuePlacement) => void;
+  edit: (queueItemId: string, message: AppendMessage) => void;
   remove: (queueItemId: string) => void;
-  clear: (reason: "cancel-run" | "edit" | "reload") => void;
+  __internal_setDispatchTransform?: ((transform: (message: AppendMessage) => AppendMessage) => void) | undefined;
+  __internal_notifyCancelled?: (() => void) | undefined;
 };
 
 type FeedbackAdapter = {
@@ -755,6 +758,7 @@ type FileMessagePart = {
   readonly data: string;
   readonly mimeType: string;
   readonly sourceType?: "id" | "url";
+  readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };
 
@@ -817,6 +821,7 @@ type ImageMessagePart = {
   readonly type: "image";
   readonly image: string;
   readonly filename?: string;
+  readonly providerMetadata?: PartProviderMetadata;
 };
 
 interface JSONSchema7 {
@@ -1148,6 +1153,13 @@ type ProviderTool<TArgs extends Record<string, unknown> = Record<string, unknown
 type QueueItemState = {
   readonly id: string;
   readonly prompt: string;
+  readonly parts: readonly (FileMessagePart | TextMessagePart)[];
+};
+
+type QueuePlacement = {
+  readonly lane?: "queue" | "steer";
+  readonly insertAfter?: string | null;
+  readonly insertBefore?: string | null;
 };
 
 type QuoteInfo = {
@@ -1200,6 +1212,7 @@ type ReasoningMessagePart = {
   readonly type: "reasoning";
   readonly text: string;
   readonly status?: MessagePartStreamStatus;
+  readonly unstable_summary?: string;
   readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };

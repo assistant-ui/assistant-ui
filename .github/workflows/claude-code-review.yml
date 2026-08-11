@@ -96,14 +96,14 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # ratchet:actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
         with:
           ref: refs/pull/${{ github.event.pull_request.number }}/head
           fetch-depth: 1
 
       - name: Review
         id: review
-        uses: anthropics/claude-code-action@536f2c32a39763739000b0e1ac69ca2647d97ce9 # ratchet:anthropics/claude-code-action@v1
+        uses: anthropics/claude-code-action@6b082c41935b4c8a3b8b0ef85ba4ba4d9eeb8975 # ratchet:anthropics/claude-code-action@v1.0.189
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt: ${{ env.REVIEW_PROMPT }}
@@ -187,14 +187,14 @@ jobs:
       # pull_request_target checks out the base branch by default. Contributor
       # code never enters the runner filesystem or Claude's configuration roots.
       - name: Checkout trusted base branch
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # ratchet:actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
         with:
           fetch-depth: 1
           persist-credentials: false
 
       - name: Review external PR
         id: review
-        uses: anthropics/claude-code-action@536f2c32a39763739000b0e1ac69ca2647d97ce9 # ratchet:anthropics/claude-code-action@v1
+        uses: anthropics/claude-code-action@6b082c41935b4c8a3b8b0ef85ba4ba4d9eeb8975 # ratchet:anthropics/claude-code-action@v1.0.189
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ github.token }}
