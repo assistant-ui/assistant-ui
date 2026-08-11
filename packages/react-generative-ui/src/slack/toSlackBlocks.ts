@@ -739,9 +739,12 @@ const convertListView = (
       items.push(child);
       continue;
     }
-    // Converted only so the child's own warnings fire; the blocks are thrown
-    // away, and a child that produced none lost nothing worth reporting.
-    if (convertSequence(child, context, depth + 1).length > 0) discarded += 1;
+    // Converted only to learn whether it would have rendered. A scratch
+    // context keeps the throwaway out of the shared markdown and data-table
+    // budgets, which a surviving block still needs, and out of the warnings,
+    // which would otherwise describe content the reader never receives.
+    const scratch: ConversionContext = { ...context, warnings: [] };
+    if (convertSequence(child, scratch, depth + 1).length > 0) discarded += 1;
   }
   if (discarded > 0) {
     warn(
@@ -844,13 +847,15 @@ const convertTable = (
   }
 
   const takenColumns = rawColumns.slice(0, DATA_TABLE_COLUMN_CAP);
-  const unlabeled = takenColumns.filter((column) => !isRecord(column)).length;
+  const unlabeled = takenColumns.filter(
+    (column) => !isRecord(column) || typeof column["label"] !== "string",
+  ).length;
   if (unlabeled > 0) {
     warn(
       context,
       "dropped",
       "Table",
-      `${unlabeled} column ${unlabeled === 1 ? "label was" : "labels were"} dropped for want of an object with a label.`,
+      `${unlabeled} column ${unlabeled === 1 ? "header was" : "headers were"} left blank for want of a string label.`,
     );
   }
   const columnHeaderRow: SlackDataTableCell[] = takenColumns.map((column) => ({

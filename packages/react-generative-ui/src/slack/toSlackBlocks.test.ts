@@ -1375,24 +1375,26 @@ describe("toSlackBlocks", () => {
   });
 
   describe("Table", () => {
-    it("keeps a non-object column's position in the header and reports it", () => {
-      const { blocks, warnings } = toSlackBlocks({
-        $type: "Table",
-        columns: ["A", { label: "B" }],
-        rows: [["1", "2"]],
-      });
-      const table = blocks[0] as SlackDataTableBlock;
-      expect(table.rows[0]).toEqual([
-        { type: "raw_text", text: "" },
-        { type: "raw_text", text: "B" },
-      ]);
-      expect(warnings).toContainEqual({
-        code: "dropped",
-        component: "Table",
-        detail:
-          "1 column label was dropped for want of an object with a label.",
-      });
-    });
+    it.each([["A"], [{}], [{ label: 42 }]])(
+      "keeps an unlabeled column's position in the header and reports it: %j",
+      (column) => {
+        const { blocks, warnings } = toSlackBlocks({
+          $type: "Table",
+          columns: [column, { label: "B" }],
+          rows: [["1", "2"]],
+        });
+        const table = blocks[0] as SlackDataTableBlock;
+        expect(table.rows[0]).toEqual([
+          { type: "raw_text", text: "" },
+          { type: "raw_text", text: "B" },
+        ]);
+        expect(warnings).toContainEqual({
+          code: "dropped",
+          component: "Table",
+          detail: "1 column header was left blank for want of a string label.",
+        });
+      },
+    );
 
     it("converts columns and rows into a header-first rows array with typed cells", () => {
       const { blocks } = toSlackBlocks({
@@ -1645,6 +1647,29 @@ describe("toSlackBlocks", () => {
   });
 
   describe("ListView and ListViewItem", () => {
+    it("does not let a discarded child spend the markdown budget", () => {
+      const { blocks, warnings } = toSlackBlocks([
+        {
+          $type: "ListView",
+          children: [
+            { $type: "Markdown", value: "x".repeat(MARKDOWN_TEXT_BUDGET) },
+            {
+              $type: "ListViewItem",
+              children: { $type: "Text", value: "row" },
+            },
+          ],
+        },
+        { $type: "Markdown", value: "**real**" },
+      ]);
+      expect(blocks[blocks.length - 1]).toEqual({
+        type: "markdown",
+        text: "**real**",
+      });
+      expect(warnings.some((warning) => warning.component === "Markdown")).toBe(
+        false,
+      );
+    });
+
     it("reports a non-item child it filters out", () => {
       const { blocks, warnings } = toSlackBlocks({
         $type: "ListView",
