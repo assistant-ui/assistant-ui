@@ -98,6 +98,11 @@ describe("AssistantFrameProvider", () => {
       "https://parent.example",
     );
 
+    expect(parentWindow.postMessage).toHaveBeenLastCalledWith(
+      expect.anything(),
+      "https://parent.example",
+    );
+
     dispatchToolCall("https://untrusted.example");
 
     expect(execute).not.toHaveBeenCalled();

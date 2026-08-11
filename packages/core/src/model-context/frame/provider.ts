@@ -168,6 +168,12 @@ export class AssistantFrameProvider {
     }
   }
 
+  /**
+   * Registers a provider with the shared frame origin policy. An explicit
+   * origin tightens a wildcard policy and cannot be loosened until disposal.
+   *
+   * @throws If `targetOrigin` conflicts with another explicit origin.
+   */
   static addModelContextProvider(
     provider: ModelContextProvider,
     targetOrigin?: string,
