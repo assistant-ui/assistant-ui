@@ -84,6 +84,7 @@ export const createMessageQueue = (
   let suppressIdle = 0;
   // settles from cancelled runs that must drop `running` without advancing
   let cancelSettles = 0;
+  let interrupting = false;
 
   const notify = () => {
     for (const callback of subscribers) callback();
@@ -127,7 +128,15 @@ export const createMessageQueue = (
     // already cancel-notified
     suppressIdle += Math.max(cancelSettles, 1);
     cancelSettles = 0;
-    driver.cancel!();
+    // a driver whose cancel routes through the runtime notifies this queue
+    // back; the interrupt already accounted for that settle and is dispatching
+    // in its place
+    interrupting = true;
+    try {
+      driver.cancel!();
+    } finally {
+      interrupting = false;
+    }
     running = true;
     driver.run(dispatchTransform(message), { steer: true });
   };
@@ -243,6 +252,7 @@ export const createMessageQueue = (
   };
 
   const notifyCancelled = () => {
+    if (interrupting) return;
     if (running && cancelSettles === 0) {
       paused = true;
       cancelSettles = 1;

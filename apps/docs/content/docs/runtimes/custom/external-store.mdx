@@ -421,7 +421,7 @@ useEffect(() => {
 }, [isRunning, queue]);
 ```
 
-Cancelling pauses the queue for you: the runtime tells the queue before your `onCancel` runs, so the cancelled run's settle keeps the pending items instead of dispatching the next one, and the next send resumes draining. Call `queue.clear()` in `onCancel` instead if you want a cancel to drop them. Edit and reload stay host-owned: call `queue.clear()` in your `onEdit` and `onReload` handlers so stale items do not drain onto the new branch.
+With a `createMessageQueue` adapter, cancelling pauses the queue for you: the runtime tells the queue before your `onCancel` runs, so the cancelled run's settle keeps the pending items instead of dispatching the next one, and the next send resumes draining. Call `queue.clear()` in `onCancel` instead if you want a cancel to drop them. A hand-rolled adapter has no such channel, so it owns its cancel policy the same way it owns the rest. Edit and reload stay host-owned: call `queue.clear()` in your `onEdit` and `onReload` handlers so stale items do not drain onto the new branch.
 
 ```tsx
 const runtime = useExternalStoreRuntime({
