@@ -1511,6 +1511,41 @@ describe("toSlackBlocks", () => {
       const table = blocks[0] as SlackDataTableBlock;
       expect(table.rows).toHaveLength(2);
     });
+
+    it("emits Slack's documented ceiling of 200 data rows unclamped", () => {
+      const { blocks, warnings } = toSlackBlocks({
+        $type: "Table",
+        columns: [{ label: "n" }],
+        rows: Array.from({ length: 200 }, (_, r) => [String(r)]),
+      });
+      const table = blocks[0] as SlackDataTableBlock;
+      expect(table.rows).toHaveLength(201);
+      expect(warnings).toEqual([]);
+    });
+
+    it("emits Slack's documented ceiling of 20,000 characters and clamps at 20,001", () => {
+      const atBudget = toSlackBlocks({
+        $type: "Table",
+        columns: [{ label: "h" }],
+        rows: [["c".repeat(19999)]],
+      });
+      expect((atBudget.blocks[0] as SlackDataTableBlock).rows).toHaveLength(2);
+      expect(atBudget.warnings).toEqual([]);
+
+      const overBudget = toSlackBlocks({
+        $type: "Table",
+        columns: [{ label: "h" }],
+        rows: [["c".repeat(20000)]],
+      });
+      expect((overBudget.blocks[0] as SlackDataTableBlock).rows).toHaveLength(
+        1,
+      );
+      expect(overBudget.warnings).toContainEqual({
+        code: "clamped",
+        component: "Table",
+        detail: "rows were clamped to fit the 20000-character table budget.",
+      });
+    });
   });
 
   describe("Markdown", () => {
