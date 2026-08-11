@@ -649,7 +649,7 @@ const scanLostContent = (
   if (node === undefined || !isElement(node)) return;
   if (
     CONTROL_TYPES.has(node.type) ||
-    (node.type === "ListViewItem" && node.action !== undefined) ||
+    (node.type === "ListViewItem" && isRecord(node.action)) ||
     (node.type === "Card" &&
       (isRecord(node.props["confirm"]) || isRecord(node.props["cancel"])))
   ) {
