@@ -307,6 +307,7 @@ function syncRuntimeToLexical(
               label: segment.label,
             };
             const key = getDirectiveKey(item);
+            // The parser guard keeps same-identity occurrences ordered and count-equal, so positional metadata stays with its original occurrence.
             const preservedItem = preservedDirectiveItems.get(key)?.shift();
             paragraph.append(
               $createDirectiveNodeWithFormatter(
