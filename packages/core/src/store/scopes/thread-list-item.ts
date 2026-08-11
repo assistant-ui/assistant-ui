@@ -9,6 +9,13 @@ export type ThreadListItemState = {
   readonly lastMessageAt?: Date | undefined;
   readonly status: ThreadListItemStatus;
   readonly custom?: Record<string, unknown> | undefined;
+  /**
+   * Whether this thread has a run in progress, including a run that continues
+   * after the user switches to another thread. A thread list that mounts only
+   * the open thread has no runtime to run the others, so they read as not
+   * running rather than as unknown.
+   */
+  readonly isRunning: boolean;
 };
 
 export type ThreadListItemMethods = {

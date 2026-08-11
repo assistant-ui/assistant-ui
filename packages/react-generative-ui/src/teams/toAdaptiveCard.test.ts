@@ -368,7 +368,7 @@ describe("toAdaptiveCard", () => {
         expect(action.mode).toBe("secondary");
       }
       expect(warnings).toContainEqual(
-        expect.objectContaining({ code: "clamped", component: "Button" }),
+        expect.objectContaining({ code: "fallback", component: "Button" }),
       );
     });
   });
@@ -418,7 +418,7 @@ describe("toAdaptiveCard", () => {
         expect(action.mode).toBe("secondary");
       }
       expect(warnings).toContainEqual(
-        expect.objectContaining({ code: "clamped", component: "Button" }),
+        expect.objectContaining({ code: "fallback", component: "Button" }),
       );
     });
   });
@@ -623,7 +623,7 @@ describe("toAdaptiveCard", () => {
         const element = card.body[0] as { id: string };
         expect(element.id).toBe("aui_");
         expect(warnings).toContainEqual(
-          expect.objectContaining({ code: "clamped", component: type }),
+          expect.objectContaining({ code: "fallback", component: type }),
         );
       },
     );
@@ -647,7 +647,7 @@ describe("toAdaptiveCard", () => {
       const ids = (card.body as TeamsInputText[]).map((element) => element.id);
       expect(ids).toEqual(["input", "input_2"]);
       expect(warnings).toContainEqual(
-        expect.objectContaining({ code: "clamped", component: "Input" }),
+        expect.objectContaining({ code: "fallback", component: "Input" }),
       );
     });
 
@@ -659,7 +659,9 @@ describe("toAdaptiveCard", () => {
       ]);
       const ids = (card.body as TeamsInputText[]).map((element) => element.id);
       expect(new Set(ids).size).toBe(3);
-      expect(warnings.some((warning) => warning.code === "clamped")).toBe(true);
+      expect(warnings.some((warning) => warning.code === "fallback")).toBe(
+        true,
+      );
     });
 
     it("names the actually-emitted id in the reserved-key warning, and fires only that one warning, when the rename target also collides", () => {
@@ -671,7 +673,7 @@ describe("toAdaptiveCard", () => {
       expect(ids).toEqual(["aui_", "aui__2"]);
       expect(warnings).toEqual([
         {
-          code: "clamped",
+          code: "fallback",
           component: "Input",
           detail:
             'the input id "aui" collides with the submit envelope\'s reserved key and was renamed to "aui__2".',
@@ -801,7 +803,7 @@ describe("toAdaptiveCard", () => {
       const columnSet = card.body[0] as TeamsColumnSet;
       expect(columnSet.columns).toHaveLength(4);
       expect(warnings).toContainEqual(
-        expect.objectContaining({ code: "clamped", component: "Row" }),
+        expect.objectContaining({ code: "advisory", component: "Row" }),
       );
     });
   });
@@ -863,9 +865,177 @@ describe("toAdaptiveCard", () => {
         detail: "Unknown component type was dropped.",
       });
     });
+
+    it("keeps a discarded child's clamp warning out of the result", () => {
+      const { warnings } = toAdaptiveCard({
+        $type: "ListView",
+        children: [
+          {
+            $type: "Table",
+            rows: Array.from({ length: TABLE_ROW_CAP + 5 }, () => ["x"]),
+          },
+          { $type: "ListViewItem", title: "row" },
+        ],
+      });
+      expect(warnings.some((warning) => warning.code === "clamped")).toBe(
+        false,
+      );
+      expect(warnings).toContainEqual({
+        code: "dropped",
+        component: "ListView",
+        detail: "1 non-item child was dropped.",
+      });
+    });
+
+    it("reports a renderable non-item child whose output it discards", () => {
+      const { card, warnings } = toAdaptiveCard({
+        $type: "ListView",
+        children: [
+          { $type: "Text", value: "stray" },
+          { $type: "ListViewItem", children: { $type: "Text", value: "Kept" } },
+        ],
+      });
+      expect(card.body).toEqual([
+        {
+          type: "Container",
+          items: [{ type: "TextBlock", text: "Kept", wrap: true }],
+        },
+      ]);
+      expect(warnings).toContainEqual({
+        code: "dropped",
+        component: "ListView",
+        detail: "1 non-item child was dropped.",
+      });
+    });
+
+    it.each([
+      ["before", 0],
+      ["after", 1],
+    ] as const)(
+      "does not let a discarded non-item child claim or report an input id, surviving control %s",
+      (_position, listViewIndex) => {
+        const listView = {
+          $type: "ListView",
+          children: [
+            { $type: "Input", name: "email" },
+            { $type: "ListViewItem", title: "row" },
+          ],
+        };
+        const survivor = { $type: "Input", name: "email", label: "Real" };
+        const { card, warnings } = toAdaptiveCard(
+          listViewIndex === 0 ? [listView, survivor] : [survivor, listView],
+        );
+        const ids = card.body.map((element) => (element as { id?: string }).id);
+        expect(ids).toContain("email");
+        expect(
+          warnings.some((warning) => warning.detail.includes("email_2")),
+        ).toBe(false);
+      },
+    );
+  });
+
+  describe("Carousel", () => {
+    it("reports the non-card children a nested carousel filters out", () => {
+      const { warnings } = toAdaptiveCard({
+        $type: "Col",
+        children: {
+          $type: "Carousel",
+          children: [
+            { $type: "Text", value: "lost" },
+            { $type: "Card", title: "kept" },
+          ],
+        },
+      });
+      expect(warnings).toContainEqual({
+        code: "dropped",
+        component: "Carousel",
+        detail: "1 non-card child was dropped.",
+      });
+    });
+
+    it("stays silent for a nested-carousel child that renders nothing anyway", () => {
+      const { warnings } = toAdaptiveCard({
+        $type: "Col",
+        children: {
+          $type: "Carousel",
+          children: [{ $type: "Spacer" }, { $type: "Card", title: "kept" }],
+        },
+      });
+      expect(warnings.some((warning) => warning.code === "dropped")).toBe(
+        false,
+      );
+    });
+
+    it("forwards a nested-carousel child's own dropped warning", () => {
+      const { warnings } = toAdaptiveCard({
+        $type: "Col",
+        children: {
+          $type: "Carousel",
+          children: [{ $type: "Mystery" }, { $type: "Card", title: "kept" }],
+        },
+      });
+      expect(warnings).toContainEqual({
+        code: "dropped",
+        component: "Mystery",
+        detail: "Unknown component type was dropped.",
+      });
+    });
+  });
+
+  describe("choices", () => {
+    it("reports options dropped for want of a string value", () => {
+      const { card, warnings } = toAdaptiveCard({
+        $type: "Select",
+        name: "s",
+        options: [{ label: "ok", value: "a" }, { label: "bad" }, "nope"],
+      });
+      expect((card.body[0] as { choices: unknown[] }).choices).toEqual([
+        { title: "ok", value: "a" },
+      ]);
+      expect(warnings).toContainEqual({
+        code: "dropped",
+        component: "Select",
+        detail: "2 options were dropped for want of a string value.",
+      });
+    });
+
+    it("names RadioGroup when the same loss happens there", () => {
+      const { warnings } = toAdaptiveCard({
+        $type: "RadioGroup",
+        name: "r",
+        options: [{ label: "ok", value: "a" }, { label: "bad" }],
+      });
+      expect(warnings).toContainEqual({
+        code: "dropped",
+        component: "RadioGroup",
+        detail: "1 option was dropped for want of a string value.",
+      });
+    });
   });
 
   describe("Table", () => {
+    it.each([["A"], [{}], [{ label: 42 }]])(
+      "keeps an unlabeled column's position in the header and reports it: %j",
+      (column) => {
+        const { card, warnings } = toAdaptiveCard({
+          $type: "Table",
+          columns: [column, { label: "B" }],
+          rows: [["1", "2"]],
+        });
+        const table = card.body[0] as TeamsTable;
+        expect(
+          table.rows[0]?.cells.map(
+            (cell) => (cell.items[0] as TeamsTextBlock).text,
+          ),
+        ).toEqual(["", "B"]);
+        expect(warnings).toContainEqual({
+          code: "dropped",
+          component: "Table",
+          detail: "1 column header was left blank for want of a string label.",
+        });
+      },
+    );
+
     it("renders firstRowAsHeaders true and a header row when columns are present", () => {
       const { card } = toAdaptiveCard({
         $type: "Table",
@@ -1158,7 +1328,13 @@ describe("toAdaptiveCard", () => {
       const value = "x".repeat(PAYLOAD_SOFT_CAP + 1000);
       const { warnings } = toAdaptiveCard({ $type: "Text", value });
       expect(warnings).toContainEqual(
-        expect.objectContaining({ code: "clamped", component: "Root" }),
+        expect.objectContaining({
+          code: "advisory",
+          component: "Root",
+          detail: expect.stringContaining(
+            `over the ${PAYLOAD_SOFT_CAP}-byte soft budget`,
+          ),
+        }),
       );
     });
 
@@ -1166,7 +1342,7 @@ describe("toAdaptiveCard", () => {
       const value = "汉".repeat(30000);
       const { warnings } = toAdaptiveCard({ $type: "Markdown", value });
       expect(warnings).toContainEqual(
-        expect.objectContaining({ code: "clamped", component: "Root" }),
+        expect.objectContaining({ code: "advisory", component: "Root" }),
       );
     });
 
@@ -1295,8 +1471,26 @@ describe("toAdaptiveCard", () => {
       expect(warnings).toContainEqual({
         code: "clamped",
         component: "Root",
-        detail: "nodes deeper than 64 levels were dropped.",
+        detail: "nodes deeper than 32 levels were dropped.",
       });
+    });
+
+    it("reports the depth detail at the level it actually starts dropping", () => {
+      const chain = (levels: number) => {
+        let node: unknown = { $type: "Caption", value: "x" };
+        for (let i = 0; i < levels; i++) {
+          node = { $type: "Card", children: [node] };
+        }
+        return node;
+      };
+      const dropped = (node: unknown) =>
+        toAdaptiveCard(node).warnings.some((warning) =>
+          warning.detail.includes("deeper than"),
+        );
+      expect(dropped(chain(32))).toBe(false);
+      expect(dropped(chain(33))).toBe(true);
+      expect(dropped([chain(31)])).toBe(false);
+      expect(dropped([chain(32)])).toBe(true);
     });
   });
 });

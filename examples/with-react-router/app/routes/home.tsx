@@ -1,5 +1,10 @@
 import { Thread } from "@/components/assistant-ui/thread";
-import { useAui, AuiProvider, Suggestions } from "@assistant-ui/react";
+import {
+  useAui,
+  AuiProvider,
+  AuiConfig,
+  Suggestions,
+} from "@assistant-ui/react";
 
 export function meta() {
   return [
@@ -9,7 +14,8 @@ export function meta() {
 }
 
 function ThreadWithSuggestions() {
-  const aui = useAui({
+  const aui = useAui();
+  const config = AuiConfig({
     suggestions: Suggestions([
       {
         title: "Hello!",
@@ -24,7 +30,7 @@ function ThreadWithSuggestions() {
     ]),
   });
   return (
-    <AuiProvider value={aui}>
+    <AuiProvider extends={aui} config={config}>
       <Thread />
     </AuiProvider>
   );

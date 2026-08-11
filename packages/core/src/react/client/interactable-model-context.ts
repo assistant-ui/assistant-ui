@@ -17,6 +17,11 @@ const ID_PROPERTY = {
     "The id of the instance to update, as shown in its state snapshot in the conversation.",
 };
 
+const ITEM_ID_PROPERTY = {
+  type: "string" as const,
+  description: "The id of an item currently in this list.",
+};
+
 const hasIdProperty = (schema: Record<string, unknown>) => {
   const properties = schema.properties;
   return isRecord(properties) && properties.id !== undefined;
@@ -52,7 +57,7 @@ const toArrayUpdateSchema = (schema: unknown, field: string) => {
     },
     remove: {
       type: "array",
-      items: idKeyed ? ID_PROPERTY : itemSchema,
+      items: idKeyed ? ITEM_ID_PROPERTY : itemSchema,
     },
     clear: { type: "boolean" },
   };

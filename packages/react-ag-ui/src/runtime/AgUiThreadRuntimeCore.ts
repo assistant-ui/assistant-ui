@@ -20,7 +20,12 @@ import type {
   ToolCallMessagePart,
 } from "@assistant-ui/core";
 import { MessageRepository } from "@assistant-ui/core/internal";
-import type { AbstractAgent } from "@ag-ui/client";
+import type {
+  AbstractAgent,
+  AgentSubscriber,
+  RunAgentParameters,
+  RunAgentResult,
+} from "@ag-ui/client";
 import jsonpatch, { type Operation } from "fast-json-patch";
 import type { Logger } from "./logger";
 import { readMcpAppResourceUri } from "./mcp-tool-result";
@@ -40,6 +45,15 @@ import {
   toAgUiTools,
 } from "./adapter/conversions";
 import { createAgUiSubscriber } from "./adapter/subscriber";
+
+// AbstractAgent.runAgent declares two parameters. HttpAgent ignores a third and
+// is cancelled through agent.abortRun(); the run options stay for subclasses
+// that inherit the base no-op abortRun and have no other cancellation hook.
+type RunAgentWithRunOptions = (
+  parameters: RunAgentParameters,
+  subscriber: AgentSubscriber,
+  options: { signal: AbortSignal },
+) => Promise<RunAgentResult>;
 
 const optimisticPrefix = "__optimistic__";
 const generateOptimisticId = () => `${optimisticPrefix}${generateId()}`;
@@ -76,6 +90,56 @@ type CoreOptions = {
 
 const FALLBACK_USER_STATUS = { type: "complete", reason: "unknown" } as const;
 
+type AgUiRuntimeCallbackName = "onError" | "onCancel";
+
+const reportCallbackError = (name: AgUiRuntimeCallbackName, error: unknown) => {
+  console.error(`[react-ag-ui] ${name} callback threw an error`, error);
+};
+
+const invokeRuntimeCallback = <TArgs extends unknown[]>(
+  name: AgUiRuntimeCallbackName,
+  callback: ((...args: TArgs) => void) | undefined,
+  ...args: TArgs
+) => {
+  if (!callback) return;
+
+  try {
+    const result = callback(...args) as unknown;
+    if (
+      result !== null &&
+      (typeof result === "object" || typeof result === "function") &&
+      "then" in result &&
+      typeof result.then === "function"
+    ) {
+      void Promise.resolve(result).catch((error) => {
+        reportCallbackError(name, error);
+      });
+    }
+  } catch (error) {
+    reportCallbackError(name, error);
+  }
+};
+
+// The aggregator only ever sends the interrupts it owns, so a shallow spread at
+// the custom level would drop sibling agui state such as opaqueReasoning.
+const mergeAgUiNamespace = (
+  current: Record<string, unknown> | undefined,
+  incoming: Record<string, unknown>,
+) => {
+  const merged = { ...current, ...incoming };
+  const currentNs = current?.[AG_UI_METADATA_NAMESPACE];
+  const incomingNs = incoming[AG_UI_METADATA_NAMESPACE];
+  if (
+    typeof currentNs === "object" &&
+    currentNs !== null &&
+    typeof incomingNs === "object" &&
+    incomingNs !== null
+  ) {
+    merged[AG_UI_METADATA_NAMESPACE] = { ...currentNs, ...incomingNs };
+  }
+  return merged;
+};
+
 export class AgUiThreadRuntimeCore {
   private agent: AbstractAgent;
   private logger: Logger;
@@ -90,6 +154,9 @@ export class AgUiThreadRuntimeCore {
   private exportedRepository: ExportedMessageRepository | undefined;
   private isRunningFlag = false;
   private abortController: AbortController | null = null;
+  // The agent that started the active run. updateOptions can swap this.agent
+  // mid-run, and cancelling has to reach the agent holding the live request.
+  private activeRunAgent: AbstractAgent | null = null;
   private stateSnapshot: ReadonlyJSONValue | undefined;
   private pendingError: Error | null = null;
   private history: ThreadHistoryAdapter | undefined;
@@ -99,6 +166,8 @@ export class AgUiThreadRuntimeCore {
   private _isLoading = false;
   private _loadPromise: Promise<void> | undefined;
   private pendingResumeMessageId: string | null = null;
+  private pendingA2uiResume = false;
+  private pendingA2uiAction: Record<string, unknown> | undefined;
 
   constructor(options: CoreOptions) {
     this.agent = options.agent;
@@ -267,7 +336,9 @@ export class AgUiThreadRuntimeCore {
       })
       .catch((error) => {
         this.logger.error?.("[agui] failed to load history", error);
-        this.onError?.(
+        invokeRuntimeCallback(
+          "onError",
+          this.onError,
           error instanceof Error ? error : new Error(String(error)),
         );
       })
@@ -331,7 +402,16 @@ export class AgUiThreadRuntimeCore {
 
   async cancel(): Promise<void> {
     if (!this.abortController) return;
-    this.abortController.abort();
+    // Before the local abort, whose listener runs onCancel synchronously: a
+    // callback that starts another run replaces the agent's controller, and
+    // aborting afterwards would kill that replacement and leave this run live.
+    // The local abort is unconditional because abortRun is a user subclass's
+    // code, and a throw there would otherwise strand the thread as running.
+    try {
+      (this.activeRunAgent ?? this.agent).abortRun();
+    } finally {
+      this.abortController.abort();
+    }
   }
 
   async resume(config: ResumeRunConfig): Promise<void> {
@@ -352,7 +432,7 @@ export class AgUiThreadRuntimeCore {
         "[agui] unstable_resume requires a ThreadHistoryAdapter with a resume() method; skipping resume after thread switch",
       );
       this.logger.error?.(error.message);
-      this.onError?.(error);
+      invokeRuntimeCallback("onError", this.onError, error);
       return;
     }
     const parentId = messages.at(-1)?.id ?? null;
@@ -688,6 +768,31 @@ export class AgUiThreadRuntimeCore {
     this.maybeResumeAfterToolResults(options.messageId);
   }
 
+  sendA2uiAction(action: Record<string, unknown>): void {
+    this.assertNoPendingInterrupts();
+    this.maybeAutoCancelPendingToolCalls();
+    const parentId = this.repository.headId;
+    if (parentId === null) {
+      this.logger.debug(
+        "[agui] sendA2uiAction: no messages to resume, dropping action",
+      );
+      return;
+    }
+
+    const userAction = { ...action };
+    delete userAction.type;
+    if (!("timestamp" in userAction)) {
+      userAction.timestamp = new Date().toISOString();
+    }
+    this.pendingA2uiAction = userAction;
+
+    if (this.isRunningFlag) {
+      this.pendingA2uiResume = true;
+      return;
+    }
+    this.startResumeRun(parentId);
+  }
+
   // The continuation fires whether the frontend result lands before
   // RUN_FINISHED (the status flips to requires-action only later, while the
   // run is still draining) or after it.
@@ -734,11 +839,17 @@ export class AgUiThreadRuntimeCore {
 
   private startResumeRun(messageId: string): void {
     void this.startRun(messageId, this.lastRunConfig).catch((error) => {
-      this.onError?.(error instanceof Error ? error : new Error(String(error)));
+      invokeRuntimeCallback(
+        "onError",
+        this.onError,
+        error instanceof Error ? error : new Error(String(error)),
+      );
     });
   }
 
   applyExternalMessages(messages: readonly ThreadMessage[]): void {
+    this.pendingA2uiResume = false;
+    this.pendingA2uiAction = undefined;
     this.assistantHistoryParents.clear();
 
     if (messages.length === 0) {
@@ -892,20 +1003,38 @@ export class AgUiThreadRuntimeCore {
     this.pendingError = null;
     const assistantParentId = parent ? parentId : this.repository.headId;
     let assistantMessageId: string | undefined;
-    const ensureAssistant = () => {
-      if (assistantMessageId) return assistantMessageId;
-      const created = this.insertAssistantPlaceholder(
-        assistantParentId ?? null,
-      );
+    // A snapshot the preserve gate declines still evicts the in-flight
+    // assistant; recreating under the cached id on the next content-bearing
+    // emit keeps both the stream and the message identity. Status-only emits
+    // and server-id collisions must not recreate.
+    let assistantCollided = false;
+    const ensureAssistant = (allowRecreate = false): string => {
+      const cached = assistantMessageId;
+      if (cached !== undefined && this.tryGetMessage(cached)) return cached;
+      if (cached !== undefined && (assistantCollided || !allowRecreate)) {
+        return cached;
+      }
+      const parentId =
+        cached === undefined &&
+        assistantParentId &&
+        this.hasMessage(assistantParentId)
+          ? assistantParentId
+          : this.repository.headId;
+      const created = this.insertAssistantPlaceholder(parentId, cached);
       assistantMessageId = created;
-      this.markPendingAssistantHistory(created, assistantParentId ?? null);
+      this.markPendingAssistantHistory(created, parentId);
       return created;
     };
 
     if (shouldEagerlyInsertAssistant) ensureAssistant();
 
     const applyUpdate = (update: ChatModelRunResult) => {
-      const resolved = this.updateAssistantMessage(ensureAssistant(), update);
+      const hasContent =
+        Array.isArray(update.content) && update.content.length > 0;
+      const resolved = this.updateAssistantMessage(
+        ensureAssistant(hasContent),
+        update,
+      );
       if (resolved !== assistantMessageId) {
         assistantMessageId = resolved;
       }
@@ -916,18 +1045,23 @@ export class AgUiThreadRuntimeCore {
       logger: this.logger,
       emit: applyUpdate,
       onServerMessageId: (serverId) => {
-        const placeholder = ensureAssistant();
+        const placeholder = ensureAssistant(true);
         if (placeholder === serverId) return;
         if (this.reassignAssistantId(placeholder, serverId)) {
           assistantMessageId = serverId;
+        } else {
+          assistantCollided = true;
         }
       },
     });
-    const dispatch = (event: AgUiEvent) => this.handleEvent(aggregator, event);
+    const dispatch = (event: AgUiEvent) =>
+      this.handleEvent(aggregator, event, assistantMessageId);
 
     const abortController = new AbortController();
     const abortSignal = abortController.signal;
     this.abortController = abortController;
+    const runAgentInstance = this.agent;
+    this.activeRunAgent = runAgentInstance;
 
     let cancelRun = () => dispatch({ type: "RUN_CANCELLED" });
     abortSignal.addEventListener(
@@ -935,7 +1069,7 @@ export class AgUiThreadRuntimeCore {
       () => {
         cancelRun();
         this.finishRun(abortController);
-        this.onCancel?.();
+        invokeRuntimeCallback("onCancel", this.onCancel);
       },
       { once: true },
     );
@@ -971,26 +1105,27 @@ export class AgUiThreadRuntimeCore {
           runId,
           logger: this.logger,
           onRunFailed: (error) => {
+            if (abortSignal.aborted) return;
             this.pendingError = error;
-            this.onError?.(error);
+            invokeRuntimeCallback("onError", this.onError, error);
           },
         });
         try {
-          (this.agent as any).messages = input.messages;
-          (this.agent as any).threadId = input.threadId;
-          (this.agent as any).state = input.state ?? null;
+          (runAgentInstance as any).messages = input.messages;
+          (runAgentInstance as any).threadId = input.threadId;
+          (runAgentInstance as any).state = input.state ?? null;
         } catch {
           // ignore
         }
-        await (this.agent as any).runAgent(input, subscriber, {
-          signal: abortSignal,
-        });
+        const runAgent: RunAgentWithRunOptions =
+          runAgentInstance.runAgent.bind(runAgentInstance);
+        await runAgent(input, subscriber, { signal: abortSignal });
       }
     } catch (error) {
       if (!abortSignal.aborted) {
         const err = error instanceof Error ? error : new Error(String(error));
         dispatch({ type: "RUN_ERROR", message: err.message });
-        this.onError?.(err);
+        invokeRuntimeCallback("onError", this.onError, err);
         this.pendingError = this.pendingError ?? err;
       }
     } finally {
@@ -1001,6 +1136,8 @@ export class AgUiThreadRuntimeCore {
       const err = this.pendingError;
       this.pendingError = null;
       this.pendingResumeMessageId = null;
+      this.pendingA2uiResume = false;
+      this.pendingA2uiAction = undefined;
       throw err;
     }
 
@@ -1011,6 +1148,33 @@ export class AgUiThreadRuntimeCore {
       this.pendingResumeMessageId = null;
       if (!abortSignal.aborted) {
         this.startResumeRun(resumeMessageId);
+      } else {
+        this.pendingA2uiAction = undefined;
+      }
+    }
+
+    if (this.pendingA2uiResume) {
+      this.pendingA2uiResume = false;
+      if (!abortSignal.aborted && this.pendingA2uiAction !== undefined) {
+        if (this.getPendingInterrupts()) {
+          this.pendingA2uiAction = undefined;
+          this.logger.debug(
+            "[agui] sendA2uiAction: pending interrupts, dropping action",
+          );
+          return;
+        }
+        this.maybeAutoCancelPendingToolCalls();
+        const parentId = this.repository.headId;
+        if (parentId !== null) {
+          this.startResumeRun(parentId);
+        } else {
+          this.pendingA2uiAction = undefined;
+          this.logger.debug(
+            "[agui] sendA2uiAction: no messages to resume, dropping action",
+          );
+        }
+      } else {
+        this.pendingA2uiAction = undefined;
       }
     }
   }
@@ -1029,6 +1193,8 @@ export class AgUiThreadRuntimeCore {
       getAssistantMessageId: () => string | undefined;
     },
   ): Promise<void> {
+    this.pendingA2uiAction = undefined;
+    this.pendingA2uiResume = false;
     const assistantId = ctx.ensureAssistant();
     const currentId = () => ctx.getAssistantMessageId() ?? assistantId;
     const options: ChatModelRunOptions = {
@@ -1061,7 +1227,7 @@ export class AgUiThreadRuntimeCore {
       ctx.applyUpdate({
         status: { type: "incomplete", reason: "error", error: err.message },
       });
-      this.onError?.(err);
+      invokeRuntimeCallback("onError", this.onError, err);
       this.pendingError = this.pendingError ?? err;
       return;
     }
@@ -1084,7 +1250,7 @@ export class AgUiThreadRuntimeCore {
       historyMessages ?? this.repository.getMessages(),
     );
     const context = this.runtime?.thread.getModelContext();
-    return {
+    const input = {
       threadId,
       runId,
       state: this.stateSnapshot ?? null,
@@ -1097,9 +1263,14 @@ export class AgUiThreadRuntimeCore {
         ...(context?.callSettings ?? {}),
         ...(context?.config ?? {}),
         ...(runConfig?.custom ? { runConfig: runConfig.custom } : {}),
+        ...(this.pendingA2uiAction
+          ? { a2uiAction: { userAction: this.pendingA2uiAction } }
+          : {}),
       },
       ...(resume !== undefined ? { resume } : {}),
     };
+    this.pendingA2uiAction = undefined;
+    return input;
   }
 
   private installResumeShim(): void {
@@ -1131,12 +1302,15 @@ export class AgUiThreadRuntimeCore {
   private finishRun(controller: AbortController | null) {
     if (this.abortController === controller) {
       this.abortController = null;
+      this.activeRunAgent = null;
     }
     this.setRunning(false);
   }
 
-  private insertAssistantPlaceholder(parentId: string | null): string {
-    const id = generateOptimisticId();
+  private insertAssistantPlaceholder(
+    parentId: string | null,
+    id: string = generateOptimisticId(),
+  ): string {
     const assistant: ThreadAssistantMessage = {
       id,
       role: "assistant",
@@ -1148,7 +1322,7 @@ export class AgUiThreadRuntimeCore {
         unstable_annotations: [],
         unstable_data: [],
         steps: [],
-        isOptimistic: true,
+        isOptimistic: isOptimisticId(id),
         custom: {},
       },
     };
@@ -1302,12 +1476,16 @@ export class AgUiThreadRuntimeCore {
       ...(current.isOptimistic ? { isOptimistic: true } : {}),
       ...(incoming.timing ? { timing: incoming.timing } : {}),
       custom: incoming.custom
-        ? { ...current.custom, ...incoming.custom }
+        ? mergeAgUiNamespace(current.custom, incoming.custom)
         : current.custom,
     };
   }
 
-  private handleEvent(aggregator: RunAggregator, event: AgUiEvent) {
+  private handleEvent(
+    aggregator: RunAggregator,
+    event: AgUiEvent,
+    activeAssistantId: string | undefined,
+  ) {
     switch (event.type) {
       case "STATE_SNAPSHOT": {
         this.stateSnapshot = event.snapshot as ReadonlyJSONValue;
@@ -1332,7 +1510,7 @@ export class AgUiThreadRuntimeCore {
         return;
       }
       case "MESSAGES_SNAPSHOT": {
-        this.importMessagesSnapshot(event.messages);
+        this.importMessagesSnapshot(event.messages, activeAssistantId);
         return;
       }
       case "TOOL_CALL_RESULT": {
@@ -1504,8 +1682,16 @@ export class AgUiThreadRuntimeCore {
     this.maybeCompleteAfterToolResults(messageId);
   }
 
-  private importMessagesSnapshot(rawMessages: readonly unknown[]) {
+  private importMessagesSnapshot(
+    rawMessages: readonly unknown[],
+    activeAssistantId: string | undefined,
+  ) {
     try {
+      const activeMessage = activeAssistantId
+        ? this.tryGetMessage(activeAssistantId)?.message
+        : undefined;
+      const activeAssistant =
+        activeMessage?.role === "assistant" ? activeMessage : undefined;
       const normalized = fromAgUiMessages(rawMessages, {
         showThinking: this.showThinking,
       });
@@ -1522,7 +1708,23 @@ export class AgUiThreadRuntimeCore {
           );
         }
       }
+      const snapshotHeadId = converted.at(-1)?.id ?? null;
+      const snapshotContainsActiveAssistant = converted.some(
+        (message) => message.id === activeAssistant?.id,
+      );
+      const preservesActiveAssistant =
+        activeAssistant !== undefined &&
+        !snapshotContainsActiveAssistant &&
+        (activeAssistant.metadata.isOptimistic !== true ||
+          converted.at(-1)?.role !== "assistant");
+      if (preservesActiveAssistant) {
+        converted.push(activeAssistant);
+      }
       this.applyExternalMessages(converted);
+      if (preservesActiveAssistant) {
+        this.recordedHistoryIds.delete(activeAssistant.id);
+        this.markPendingAssistantHistory(activeAssistant.id, snapshotHeadId);
+      }
     } catch (error) {
       this.logger.error?.("[agui] failed to import messages snapshot", error);
     }

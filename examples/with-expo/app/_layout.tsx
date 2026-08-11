@@ -14,6 +14,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 import {
   AssistantRuntimeProvider,
+  AuiConfig,
   useAui,
   Tools,
 } from "@assistant-ui/react-native";
@@ -87,7 +88,7 @@ export default function RootLayout() {
     Platform.OS === "ios" ? {} : MaterialIcons.font,
   );
   const runtime = useAppRuntime();
-  const aui = useAui({
+  const config = AuiConfig({
     tools: Tools({ toolkit }),
   });
 
@@ -95,7 +96,7 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <AssistantRuntimeProvider runtime={runtime} aui={aui}>
+      <AssistantRuntimeProvider runtime={runtime} config={config}>
         <DrawerLayout />
       </AssistantRuntimeProvider>
     </GestureHandlerRootView>

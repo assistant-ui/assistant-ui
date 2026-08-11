@@ -64,6 +64,37 @@ describe("RemoteThreadListThreadListRuntimeCore.switchToThread order", () => {
     expect(core.mainThreadId).toBe(core.getItemById("thread-c")?.id);
   });
 
+  it("handles a stopped initial runtime start", async () => {
+    const rejections: unknown[] = [];
+    const onUnhandledRejection = (reason: unknown) => {
+      rejections.push(reason);
+    };
+    const priorListeners = process.listeners("unhandledRejection");
+    process.removeAllListeners("unhandledRejection");
+    process.on("unhandledRejection", onUnhandledRejection);
+    try {
+      const core = createCore(makeAdapter());
+      const newThreadId = core.newThreadId;
+      if (!newThreadId) throw new Error("Expected an initial new thread");
+      const runtimeId = core.getItemById(newThreadId)?.id;
+      if (!runtimeId) throw new Error("Expected an initial runtime id");
+
+      (
+        core as unknown as {
+          _hookManager: { stopThreadRuntime: (id: string) => void };
+        }
+      )._hookManager.stopThreadRuntime(runtimeId);
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    } finally {
+      process.removeListener("unhandledRejection", onUnhandledRejection);
+      for (const listener of priorListeners) {
+        process.on("unhandledRejection", listener);
+      }
+    }
+
+    expect(rejections).toEqual([]);
+  });
+
   it("invalidates an earlier switch while a new thread request is pending", async () => {
     const initializeThread = deferred<{
       remoteId: string;

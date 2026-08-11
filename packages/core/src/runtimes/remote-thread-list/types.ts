@@ -1,7 +1,14 @@
-import type { ComponentType, PropsWithChildren } from "react";
 import type { ThreadMessage } from "../../types/message";
 import type { AssistantRuntime } from "../../runtime/api/assistant-runtime";
 import type { AssistantStream } from "assistant-stream";
+
+/* oxlint-disable typescript/no-explicit-any -- structural stand-in for ComponentType without depending on react types */
+type RemoteThreadListProviderProps = { children?: any };
+
+export type RemoteThreadListProviderComponent =
+  | ((props: RemoteThreadListProviderProps) => any)
+  | (new (props: RemoteThreadListProviderProps) => any);
+/* oxlint-enable typescript/no-explicit-any */
 
 export type RemoteThreadInitializeResponse = {
   remoteId: string;
@@ -54,7 +61,7 @@ export type RemoteThreadListAdapter = {
    * is unsupported and leaves thread context unavailable to downstream
    * consumers. Load data inside an always-mounted child instead.
    */
-  unstable_Provider?: ComponentType<PropsWithChildren> | undefined;
+  unstable_Provider?: RemoteThreadListProviderComponent | undefined;
 };
 
 export type RemoteThreadListOptions = {
@@ -78,10 +85,11 @@ export type RemoteThreadListOptions = {
   threadId?: string | undefined;
 
   /**
-   * Called whenever the active thread's canonical (remote) ID changes, so the
-   * value can be treated as a managed/controlled variable (e.g. synced to a
-   * URL query param). Together with `threadId` this forms the controlled
-   * pattern: `threadId` in, `onThreadIdChange` out.
+   * Called whenever the runtime changes the active thread's canonical (remote)
+   * ID, so the value can be treated as a managed/controlled variable (e.g.
+   * synced to a URL query param). Changes initiated by the controlled
+   * `threadId` option are not echoed back. Together these options form the
+   * controlled pattern: `threadId` in, `onThreadIdChange` out.
    *
    * Only the settled remote ID is emitted: while a freshly created thread is
    * still optimistic (no remote ID yet) the value is `undefined`, and the real

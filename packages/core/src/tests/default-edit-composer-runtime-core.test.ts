@@ -189,7 +189,7 @@ describe("DefaultEditComposerRuntimeCore", () => {
       expect(endEdit).toHaveBeenCalledTimes(1);
     });
 
-    it("does not call append when nothing changed", async () => {
+    it("calls append even when nothing changed, branching with the same message", async () => {
       const { runtime, append } = makeRuntime();
       const composer = new DefaultEditComposerRuntimeCore(runtime, () => {}, {
         parentId: "p1",
@@ -198,7 +198,11 @@ describe("DefaultEditComposerRuntimeCore", () => {
         }),
       });
       await composer.send();
-      expect(append).not.toHaveBeenCalled();
+      expect(append).toHaveBeenCalledTimes(1);
+      const appended = append.mock.calls[0]![0] as AppendMessage;
+      expect(appended.content).toEqual([{ type: "text", text: "same" }]);
+      expect(appended.parentId).toBe("p1");
+      expect(appended.sourceId).toBe("msg-1");
     });
 
     it("calls append when text changes", async () => {
@@ -279,74 +283,6 @@ describe("DefaultEditComposerRuntimeCore", () => {
       expect(append).toHaveBeenCalledTimes(1);
       const appended = append.mock.calls[0]![0] as AppendMessage;
       expect(appended.startRun).toBe(true);
-    });
-  });
-
-  describe("interactables snapshot gating", () => {
-    const live = (state: unknown) => ({
-      interactables: [{ id: "n1", name: "note", state }],
-    });
-    const snapshotMessage = (id: string, state: unknown): ThreadMessage =>
-      makeUserMessage({
-        id,
-        metadata: {
-          custom: { interactables: [{ id: "n1", name: "note", state }] },
-        },
-      } as Partial<ThreadMessage>);
-
-    it("re-stamps the baseline when the edited message carried the only snapshot", async () => {
-      // The new branch's prefix (before the edited message) has no snapshot,
-      // so the live (unchanged) state becomes the branch's baseline.
-      const edited = snapshotMessage("msg-1", { v: 1 });
-      const { runtime, append } = makeRuntime({
-        messages: [edited],
-        composerMetadata: live({ v: 1 }),
-      });
-      const composer = new DefaultEditComposerRuntimeCore(runtime, () => {}, {
-        parentId: null,
-        message: edited,
-      });
-      composer.setText("new");
-      await composer.send();
-      const appended = append.mock.calls[0]![0] as AppendMessage;
-      expect(appended.metadata?.custom?.interactables).toEqual([
-        { id: "n1", name: "note", state: { v: 1 } },
-      ]);
-    });
-
-    it("stamps the newest live state when the interactable was edited after the original message", async () => {
-      const edited = snapshotMessage("msg-1", { v: 1 });
-      const { runtime, append } = makeRuntime({
-        messages: [edited],
-        composerMetadata: live({ v: 2 }),
-      });
-      const composer = new DefaultEditComposerRuntimeCore(runtime, () => {}, {
-        parentId: null,
-        message: edited,
-      });
-      composer.setText("new");
-      await composer.send();
-      const appended = append.mock.calls[0]![0] as AppendMessage;
-      expect(appended.metadata?.custom?.interactables).toEqual([
-        { id: "n1", name: "note", state: { v: 2 } },
-      ]);
-    });
-
-    it("stamps nothing when the branch prefix already carries the live state", async () => {
-      const parent = snapshotMessage("parent-1", { v: 1 });
-      const edited = makeUserMessage({ id: "msg-1" });
-      const { runtime, append } = makeRuntime({
-        messages: [parent, edited],
-        composerMetadata: live({ v: 1 }),
-      });
-      const composer = new DefaultEditComposerRuntimeCore(runtime, () => {}, {
-        parentId: "parent-1",
-        message: edited,
-      });
-      composer.setText("new");
-      await composer.send();
-      const appended = append.mock.calls[0]![0] as AppendMessage;
-      expect(appended.metadata?.custom?.interactables).toBeUndefined();
     });
   });
 

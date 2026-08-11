@@ -1,5 +1,39 @@
 # @assistant-ui/cloud-ai-sdk
 
+## 0.1.32
+
+### Patch Changes
+
+- [#5719](https://github.com/assistant-ui/assistant-ui/pull/5719) [`a44f537`](https://github.com/assistant-ui/assistant-ui/commit/a44f53750bf77bf5ad18755b6183ce4d6cf4ba34) - fix: clear a selected Cloud thread when archiving removes it from the list ([@Kinfe123](https://github.com/Kinfe123))
+
+## 0.1.31
+
+### Patch Changes
+
+- [#5723](https://github.com/assistant-ui/assistant-ui/pull/5723) [`94dc3e5`](https://github.com/assistant-ui/assistant-ui/commit/94dc3e509fa2b4fae1a14c88ec34b910c8d95af8) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+- Updated dependencies [[`94dc3e5`](https://github.com/assistant-ui/assistant-ui/commit/94dc3e509fa2b4fae1a14c88ec34b910c8d95af8)]:
+  - assistant-cloud@0.1.39
+
+## 0.1.30
+
+### Patch Changes
+
+- [#5714](https://github.com/assistant-ui/assistant-ui/pull/5714) [`5a32f13`](https://github.com/assistant-ui/assistant-ui/commit/5a32f136f508127b2d5ba4a97570039ff676e6bf) - fix: clear the selected Cloud thread after deleting it ([@Kinfe123](https://github.com/Kinfe123))
+
+## 0.1.29
+
+### Patch Changes
+
+- Updated dependencies [[`6c062f1`](https://github.com/assistant-ui/assistant-ui/commit/6c062f1b2a7c362fa7eb1b4fecc59c748588cb1a)]:
+  - assistant-cloud@0.1.38
+
+## 0.1.28
+
+### Patch Changes
+
+- [#5351](https://github.com/assistant-ui/assistant-ui/pull/5351) [`cc00397`](https://github.com/assistant-ui/assistant-ui/commit/cc0039776c879df12718e24a269fd6408c08c00e) - fix: preserve AI SDK finish callback error handling ([@Kinfe123](https://github.com/Kinfe123))
+
 ## 0.1.27
 
 ### Patch Changes

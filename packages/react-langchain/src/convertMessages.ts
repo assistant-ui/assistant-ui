@@ -64,7 +64,22 @@ const contentToParts = (content: unknown) => {
                   ? part.id
                   : part.data,
             mimeType: part.mime_type ?? "application/octet-stream",
+            ...((part.source_type === "url" || part.source_type === "id") && {
+              sourceType: part.source_type,
+            }),
           };
+        case "audio": {
+          const mimeType = part.mime_type ?? "application/octet-stream";
+          const subtype = mimeType.startsWith("audio/")
+            ? mimeType.slice("audio/".length)
+            : undefined;
+          return {
+            type: "file" as const,
+            filename: subtype ? `audio.${subtype}` : "audio",
+            data: part.data,
+            mimeType,
+          };
+        }
         case "thinking":
           return { type: "reasoning" as const, text: part.thinking };
         case "reasoning":
@@ -83,6 +98,31 @@ const contentToParts = (content: unknown) => {
       }
     })
     .filter((p) => p !== null);
+};
+
+const hasVisibleText = (text: unknown): boolean =>
+  typeof text === "string" && text.trim() !== "";
+
+/**
+ * Audio output arrives outside the content array: providers leave `content`
+ * empty and put the spoken text in `additional_kwargs.audio.transcript`. The
+ * audio bytes stay behind because no provider reports their media type, and a
+ * streamed response carries raw PCM rather than a playable file.
+ */
+const withAudioTranscript = (
+  parts: ReturnType<typeof contentToParts>,
+  additionalKwargs: Record<string, unknown> | undefined,
+): ReturnType<typeof contentToParts> => {
+  const audio = additionalKwargs?.audio as { transcript?: unknown } | undefined;
+  const transcript = audio?.transcript;
+  if (typeof transcript !== "string" || !hasVisibleText(transcript))
+    return parts;
+  if (parts.some((part) => part.type === "text" && hasVisibleText(part.text)))
+    return parts;
+  return [
+    ...parts.filter((part) => part.type !== "text"),
+    { type: "text" as const, text: transcript },
+  ];
 };
 
 const getCustomMetadata = (
@@ -152,7 +192,10 @@ export const convertLangChainBaseMessage = (
         role: "assistant",
         id: message.id,
         content: [
-          ...contentToParts(message.content),
+          ...withAudioTranscript(
+            contentToParts(message.content),
+            message.additional_kwargs,
+          ),
           ...toolCallParts,
           ...uiDataParts,
         ],
@@ -191,6 +234,20 @@ export const convertLangChainBaseMessage = (
   }
 };
 
+/**
+ * Audio media types that reach a provider's audio input through the LangChain
+ * `audio` block. langchain-core derives OpenAI's `input_audio.format` by
+ * splitting `mime_type` on `/`, and that format is a wav-or-mp3 enum, so
+ * `audio/mpeg` passes the converter and is rejected at the provider.
+ */
+const audioBlockMimeTypes = new Map<string, "audio/mp3" | "audio/wav">([
+  ["audio/mp3", "audio/mp3"],
+  ["audio/mpeg", "audio/mp3"],
+  ["audio/wav", "audio/wav"],
+  ["audio/wave", "audio/wav"],
+  ["audio/x-wav", "audio/wav"],
+]);
+
 export const getMessageContent = (msg: AppendMessage) => {
   const allContent = [
     ...msg.content,
@@ -198,14 +255,15 @@ export const getMessageContent = (msg: AppendMessage) => {
   ];
 
   const hasNonText = allContent.some(
-    (part) => part.type === "file" || part.type === "image",
+    (part) =>
+      part.type === "file" || part.type === "image" || part.type === "audio",
   );
   const hasText = allContent.some((part) => part.type === "text");
   if (hasNonText && !hasText) {
     allContent.unshift({ type: "text", text: " " });
   }
 
-  const content = allContent.map((part) => {
+  const content = allContent.flatMap((part) => {
     const type = part.type;
     switch (type) {
       case "text":
@@ -214,33 +272,62 @@ export const getMessageContent = (msg: AppendMessage) => {
         return { type: "image_url" as const, image_url: { url: part.image } };
       case "file": {
         const metadata = { filename: part.filename ?? "file" };
-        if (httpUrlPattern.test(part.data)) {
+        if (part.sourceType === "id") {
+          return {
+            type: "file" as const,
+            id: part.data,
+            mime_type: part.mimeType,
+            filename: metadata.filename,
+            metadata,
+            source_type: "id" as const,
+          };
+        }
+        if (part.sourceType === "url" || httpUrlPattern.test(part.data)) {
           return {
             type: "file" as const,
             url: part.data,
             mime_type: part.mimeType,
+            filename: metadata.filename,
             metadata,
             source_type: "url" as const,
           };
         }
         const parsed = parseDataUrl(part.data);
+        const audioMimeType = audioBlockMimeTypes.get(
+          (parsed?.mimeType ?? part.mimeType).toLowerCase(),
+        );
+        if (audioMimeType) {
+          return {
+            type: "audio" as const,
+            data: parsed?.data ?? part.data,
+            mime_type: audioMimeType,
+            source_type: "base64" as const,
+          };
+        }
         return {
           type: "file" as const,
           data: parsed?.data ?? part.data,
           mime_type: parsed?.mimeType ?? part.mimeType,
+          filename: metadata.filename,
           metadata,
           source_type: "base64" as const,
         };
       }
+      case "audio": {
+        const parsed = parseDataUrl(part.audio.data);
+        return {
+          type: "audio" as const,
+          data: parsed?.data ?? part.audio.data,
+          mime_type: `audio/${part.audio.format}`,
+          source_type: "base64" as const,
+        };
+      }
+      case "data":
+        return [];
       case "tool-call":
         throw new Error("Tool call appends are not supported.");
       default: {
-        const _exhaustiveCheck:
-          | "reasoning"
-          | "source"
-          | "audio"
-          | "data"
-          | "generative-ui" = type;
+        const _exhaustiveCheck: "reasoning" | "source" | "generative-ui" = type;
         throw new Error(
           `Unsupported append message part type: ${_exhaustiveCheck}`,
         );

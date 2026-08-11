@@ -1,5 +1,34 @@
 # @assistant-ui/react-generative-ui
 
+## 0.0.13
+
+### Patch Changes
+
+- [#5723](https://github.com/assistant-ui/assistant-ui/pull/5723) [`94dc3e5`](https://github.com/assistant-ui/assistant-ui/commit/94dc3e509fa2b4fae1a14c88ec34b910c8d95af8) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+- Updated dependencies [[`94dc3e5`](https://github.com/assistant-ui/assistant-ui/commit/94dc3e509fa2b4fae1a14c88ec34b910c8d95af8)]:
+  - assistant-stream@0.3.36
+
+## 0.0.12
+
+### Patch Changes
+
+- [#5604](https://github.com/assistant-ui/assistant-ui/pull/5604) [`0578c16`](https://github.com/assistant-ui/assistant-ui/commit/0578c16296fa5fb6b42455195ccf5f9a681693a5) - fix: keep chart strokes crisp under viewBox stretching and stop outlining area baselines ([@okisdev](https://github.com/okisdev))
+
+- Updated dependencies [[`d52928d`](https://github.com/assistant-ui/assistant-ui/commit/d52928db2c83a3ba6f25bf8c6b21934571dd4622)]:
+  - assistant-stream@0.3.34
+
+## 0.0.11
+
+### Patch Changes
+
+- [#5344](https://github.com/assistant-ui/assistant-ui/pull/5344) [`7f9b91f`](https://github.com/assistant-ui/assistant-ui/commit/7f9b91fc0b356286b66e7751339aa19d0d220f29) - feat: add react-free ./a2ui subpath with an A2UI operation reducer and UISpec converter ([@okisdev](https://github.com/okisdev))
+
+- [#5383](https://github.com/assistant-ui/assistant-ui/pull/5383) [`f4aabe9`](https://github.com/assistant-ui/assistant-ui/commit/f4aabe9ca57d14a13e60932c4cc41e8b4864a21c) - fix: narrow the convertSurfaceToUISpec return type to UIElement, matching what the converter can produce ([@okisdev](https://github.com/okisdev))
+
+- Updated dependencies [[`936c52c`](https://github.com/assistant-ui/assistant-ui/commit/936c52c4301b89242572d9890c870050f63cbe93), [`ee87dd9`](https://github.com/assistant-ui/assistant-ui/commit/ee87dd9fef1389165bbfe0019be2a6995b2cfb24)]:
+  - assistant-stream@0.3.31
+
 ## 0.0.10
 
 ### Patch Changes

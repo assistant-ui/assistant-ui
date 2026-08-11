@@ -79,23 +79,32 @@ const useMcpAppsRemoteHost = (
   const optionsRef = useRef(options);
   optionsRef.current = options;
 
-  return useMemo(
-    (): McpAppsHost => ({
+  const url = options.url;
+
+  return useMemo((): McpAppsHost => {
+    const getCurrentOptions = (): McpAppsRemoteHostOptions => {
+      const current = optionsRef.current;
+      return {
+        url,
+        ...(current.fetch !== undefined ? { fetch: current.fetch } : {}),
+        ...(current.headers !== undefined ? { headers: current.headers } : {}),
+      };
+    };
+    return {
       loadResource: (params) =>
         postToHost(
-          optionsRef.current,
+          getCurrentOptions(),
           "mcp-apps/read-resource",
           params,
         ) as Promise<McpAppResource>,
       callTool: (params) =>
-        postToHost(optionsRef.current, "tools/call", params),
+        postToHost(getCurrentOptions(), "tools/call", params),
       readResource: (params) =>
-        postToHost(optionsRef.current, "resources/read", params),
+        postToHost(getCurrentOptions(), "resources/read", params),
       listResources: (params) =>
-        postToHost(optionsRef.current, "resources/list", params),
-    }),
-    [],
-  );
+        postToHost(getCurrentOptions(), "resources/list", params),
+    };
+  }, [url]);
 };
 
 export const McpAppsRemoteHost = resource(useMcpAppsRemoteHost);

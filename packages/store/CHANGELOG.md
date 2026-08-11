@@ -1,5 +1,83 @@
 # @assistant-ui/store
 
+## 0.3.8
+
+### Patch Changes
+
+- [#5723](https://github.com/assistant-ui/assistant-ui/pull/5723) [`94dc3e5`](https://github.com/assistant-ui/assistant-ui/commit/94dc3e509fa2b4fae1a14c88ec34b910c8d95af8) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+## 0.3.7
+
+### Patch Changes
+
+- [#5677](https://github.com/assistant-ui/assistant-ui/pull/5677) [`4e99deb`](https://github.com/assistant-ui/assistant-ui/commit/4e99deb80dc3401480f80c7bef31acbf86a71573) - feat: createAssistantClient accepts an AssistantConfigSource, re-read in the root render so bindings can deliver config changes (updated element args, added or removed scopes) without remounting surviving scopes ([@okisdev](https://github.com/okisdev))
+
+- [#5707](https://github.com/assistant-ui/assistant-ui/pull/5707) [`2af514c`](https://github.com/assistant-ui/assistant-ui/commit/2af514cabbf6d7d52cb0fd20ef8d1e842294ebb3) - fix: answer Vue reactivity introspection probes (`__v_raw`, `__v_isRef`, `__v_isReactive`, `__v_isReadonly`, `__v_isShallow`, `__v_skip`) on client proxies with undefined instead of an error accessor, so Vue's toRaw/isRef checks and its dev warning formatter no longer throw when a client crosses a Vue boundary ([@okisdev](https://github.com/okisdev))
+
+## 0.3.6
+
+### Patch Changes
+
+- Republish of 0.3.5 (registry staged-version conflict blocked the original publish; contents identical).
+
+## 0.3.5
+
+### Patch Changes
+
+- [#5668](https://github.com/assistant-ui/assistant-ui/pull/5668) [`bd4c0ad`](https://github.com/assistant-ui/assistant-ui/commit/bd4c0ad3d41a65d0a2caea921f82c6502011615a) - feat: expose the scope-author surface (attachTransformScopes, useAssistantClientRef, useClientLookup, and the client schema types) from the client entry, and seed the client ref during the standalone root render ([@okisdev](https://github.com/okisdev))
+
+## 0.3.4
+
+### Patch Changes
+
+- [#5430](https://github.com/assistant-ui/assistant-ui/pull/5430) [`dcacd9b`](https://github.com/assistant-ui/assistant-ui/commit/dcacd9bc45117f9beca698006fd67616d2c1ca61) - feat: AuiProvider extends/config grammar. `config={AuiConfig({...})}` alone creates a top-level root client; nested providers must pass `extends` — a client to extend, or `null` to isolate (dev-enforced). An empty config creates a client extending the `extends` client; `ref` exposes the resulting client. The `config` prop only accepts configs built with `AuiConfig(...)` (branded type). AssistantRuntimeProvider gains an optional `config` prop whose scopes are provided alongside the runtime scope. The `useAui({...})` extension overload and the AuiProvider `value` prop are deprecated; `value={client}` now exposes a client extending the given one (same scopes, new identity) rather than the exact instance. `useAui({})` with an empty scope object now mounts a rooted host (so the scope set can grow across renders) instead of a passthrough derived-only client. `useAuiState` state enumeration (`Object.keys`/spread) now includes scopes inherited from parent clients, matching `in`-operator behavior. Clients derived from a hand-built parent (a plain object with `subscribe`/`on`) forward scoped `on(...)` listeners to the parent's `on` instead of throwing for scopes the parent does not expose. ([@Yonom](https://github.com/Yonom))
+
+- [#5660](https://github.com/assistant-ui/assistant-ui/pull/5660) [`aa302ee`](https://github.com/assistant-ui/assistant-ui/commit/aa302eeaacd399f58b74b64eb3a1e17d9ea97e03) - feat: add a framework-neutral client entry with createAssistantClient over a standalone tap root ([@okisdev](https://github.com/okisdev))
+
+- [#5660](https://github.com/assistant-ui/assistant-ui/pull/5660) [`aa302ee`](https://github.com/assistant-ui/assistant-ui/commit/aa302eeaacd399f58b74b64eb3a1e17d9ea97e03) - feat: make the react peer optional; react-less consumers alias react to @assistant-ui/tap/standalone-shim instead ([@okisdev](https://github.com/okisdev))
+
+## 0.3.3
+
+### Patch Changes
+
+- [#5411](https://github.com/assistant-ui/assistant-ui/pull/5411) [`90b3003`](https://github.com/assistant-ui/assistant-ui/commit/90b3003b943e083fa6cd81e30181bf5b88904361) - fix: prevent Composer updates from being lost under React StrictMode ([@nyl199310](https://github.com/nyl199310))
+
+## 0.3.2
+
+### Patch Changes
+
+- [#5364](https://github.com/assistant-ui/assistant-ui/pull/5364) [`d2e7a4a`](https://github.com/assistant-ui/assistant-ui/commit/d2e7a4a1c71c214fd8c4363ec16e879d1122639e) - AuiIf: trim JSDoc and add a mount/unmount contract test ([@Yonom](https://github.com/Yonom))
+
+- [#5367](https://github.com/assistant-ui/assistant-ui/pull/5367) [`ecd7c87`](https://github.com/assistant-ui/assistant-ui/commit/ecd7c879cace69d6371b3f673c52a80669377fc0) - feat: AuiProvider accepts value={null} as an isolation boundary; useAui runs a fixed hook count per overload and deprecates the explicit-parent config ([@Yonom](https://github.com/Yonom))
+
+- [#5385](https://github.com/assistant-ui/assistant-ui/pull/5385) [`2daf2d5`](https://github.com/assistant-ui/assistant-ui/commit/2daf2d5dfcb77938f6deb63d048575540e1806a2) - perf: simplify useAui notification and effect plumbing ([@Yonom](https://github.com/Yonom))
+
+- [#5354](https://github.com/assistant-ui/assistant-ui/pull/5354) [`a5bdbed`](https://github.com/assistant-ui/assistant-ui/commit/a5bdbed993d8f14c919b692b40d51f5cd64467b9) - useClientList: clear initial-data handles on commit instead of during render so discarded renders can replay ([@Yonom](https://github.com/Yonom))
+
+- [#5361](https://github.com/assistant-ui/assistant-ui/pull/5361) [`fb993c3`](https://github.com/assistant-ui/assistant-ui/commit/fb993c34ca1623bac373137c5ab207dd79cb500c) - useClientLookup: derive the key-to-index map from the validated element keys and drop the redundant keys memo ([@Yonom](https://github.com/Yonom))
+
+- [#5355](https://github.com/assistant-ui/assistant-ui/pull/5355) [`1c5266c`](https://github.com/assistant-ui/assistant-ui/commit/1c5266c1fb32bc71647fedc485372f6ffa25171f) - useAuiState: derive the assistant state proxy from the client via a WeakMap so hand-built clients no longer yield an undefined selector argument ([@Yonom](https://github.com/Yonom))
+
+- [#5353](https://github.com/assistant-ui/assistant-ui/pull/5353) [`cdcdbd0`](https://github.com/assistant-ui/assistant-ui/commit/cdcdbd0a9354483a72edbc01f51a850a1d6b5dc5) - fix: report proxy properties as configurable so `Object.keys`, spread, and `Object.getOwnPropertyDescriptor` on clients and the proxied assistant state no longer throw the proxy invariant TypeError ([@Yonom](https://github.com/Yonom))
+
+- [#5360](https://github.com/assistant-ui/assistant-ui/pull/5360) [`42dbc69`](https://github.com/assistant-ui/assistant-ui/commit/42dbc697642c0fa327728860f78a8ce5270bf32d) - useAui: memoize scope meta via shallow equality on the query object instead of a spread deps array, so query key-count changes are detected reliably ([@Yonom](https://github.com/Yonom))
+
+- [#5356](https://github.com/assistant-ui/assistant-ui/pull/5356) [`25f1e4f`](https://github.com/assistant-ui/assistant-ui/commit/25f1e4f9d33073216458d3c5a05e8d79845d4b3b) - Share a single InferClientState type across useClientResource, useClientLookup, and useClientList ([@Yonom](https://github.com/Yonom))
+
+- [#5380](https://github.com/assistant-ui/assistant-ui/pull/5380) [`d16e62d`](https://github.com/assistant-ui/assistant-ui/commit/d16e62d25b5c1e7e2bc1504fb4a5e97c3c25b6e3) - refactor: inline single-call-site useAui helper hooks ([@Yonom](https://github.com/Yonom))
+
+- [#5368](https://github.com/assistant-ui/assistant-ui/pull/5368) [`60d049e`](https://github.com/assistant-ui/assistant-ui/commit/60d049eeadf681f4235157c903543493c98cc258) - refactor(store): local useShallowStable helper replaces tap useMemoCache; drop useMemoCache from tap's public entrypoint ([@Yonom](https://github.com/Yonom))
+
+- [#5312](https://github.com/assistant-ui/assistant-ui/pull/5312) [`2eca438`](https://github.com/assistant-ui/assistant-ui/commit/2eca4386778618f555258855ee6612eb44d89bb2) - refactor: import `useEffectEvent` from React directly for latest-client reads and drop the `use-effect-event` ponyfill dependency ([@Yonom](https://github.com/Yonom))
+
+- [#5362](https://github.com/assistant-ui/assistant-ui/pull/5362) [`23ee5db`](https://github.com/assistant-ui/assistant-ui/commit/23ee5dbb60e6ac7993b8ce4023fb63a5f7eea713) - ValidateClient: restructure into independent per-facet checks; createErrorClientAccessor now requires the scope name ([@Yonom](https://github.com/Yonom))
+
+## 0.3.1
+
+### Patch Changes
+
+- [#5297](https://github.com/assistant-ui/assistant-ui/pull/5297) [`3a762ed`](https://github.com/assistant-ui/assistant-ui/commit/3a762edd7e4645ea4aa50691bab680af73e5cff6) - feat: optional state view — `s.optional.<scope>` resolves to `undefined` when the scope is unavailable instead of throwing, so `useAuiState((s) => s.optional.threadListItem?.remoteId)` works outside a thread list item. The base state stays non-optional and keeps throwing on unavailable scopes. ([@Yonom](https://github.com/Yonom))
+
 ## 0.3.0
 
 ### Minor Changes

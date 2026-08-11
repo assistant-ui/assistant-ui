@@ -20,8 +20,32 @@ describe("parseDataUrl", () => {
     expect(parseDataUrl("data:text/plain,hello")).toBeNull();
   });
 
-  it("returns null for data URLs with an empty payload", () => {
-    expect(parseDataUrl("data:image/png;base64,")).toBeNull();
+  it("parses a data URL with an empty payload as zero-byte data", () => {
+    expect(parseDataUrl("data:image/png;base64,")).toEqual({
+      mimeType: "image/png",
+      data: "",
+    });
+  });
+
+  it("parses an uppercase scheme", () => {
+    expect(parseDataUrl("DATA:image/png;base64,aGVsbG8=")).toEqual({
+      mimeType: "image/png",
+      data: "aGVsbG8=",
+    });
+  });
+
+  it("parses a mixed-case scheme and base64 token", () => {
+    expect(parseDataUrl("Data:image/png;Base64,aGVsbG8=")).toEqual({
+      mimeType: "image/png",
+      data: "aGVsbG8=",
+    });
+  });
+
+  it("lowercases the captured mime type", () => {
+    expect(parseDataUrl("data:IMAGE/PNG;base64,aGVsbG8=")).toEqual({
+      mimeType: "image/png",
+      data: "aGVsbG8=",
+    });
   });
 
   it("returns null for plain strings", () => {

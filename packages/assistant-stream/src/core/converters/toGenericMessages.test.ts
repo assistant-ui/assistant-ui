@@ -151,6 +151,54 @@ describe("toGenericMessages", () => {
       ]);
     });
 
+    it("carries a file part filename through", () => {
+      const result = toGenericMessages([
+        {
+          role: "user",
+          content: [
+            {
+              type: "file",
+              data: "https://cdn.example.com/a.pdf",
+              mimeType: "application/pdf",
+              filename: "invoice.pdf",
+            },
+          ],
+        },
+      ] as never);
+
+      expect(result).toEqual([
+        {
+          role: "user",
+          content: [
+            {
+              type: "file",
+              data: new URL("https://cdn.example.com/a.pdf"),
+              mediaType: "application/pdf",
+              filename: "invoice.pdf",
+            },
+          ],
+        },
+      ]);
+    });
+
+    it("omits filename when the part has none", () => {
+      const result = toGenericMessages([
+        {
+          role: "user",
+          content: [
+            {
+              type: "file",
+              data: "https://cdn.example.com/a.pdf",
+              mimeType: "application/pdf",
+            },
+          ],
+        },
+      ] as never);
+
+      const part = (result[0] as { content: unknown[] }).content[0];
+      expect(part).not.toHaveProperty("filename");
+    });
+
     it("filters invalid parts", () => {
       const result = toGenericMessages([
         {
@@ -187,6 +235,23 @@ describe("toGenericMessages", () => {
         mediaType: "image/png",
       });
       expect((content[0] as { data: unknown }).data).toBeInstanceOf(URL);
+    });
+
+    it("infers a lowercase media type from an uppercase-scheme data URL", () => {
+      const dataUrl =
+        "DATA:IMAGE/PNG;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+      const result = toGenericMessages([
+        {
+          role: "user",
+          content: [{ type: "image", image: dataUrl }],
+        },
+      ]);
+
+      const content = (result[0] as { content: unknown[] }).content;
+      expect(content[0]).toMatchObject({
+        type: "file",
+        mediaType: "image/png",
+      });
     });
 
     it("handles relative/invalid URL as string", () => {
@@ -243,7 +308,7 @@ describe("toGenericMessages", () => {
       ]);
     });
 
-    it("converts tool calls without results", () => {
+    it("closes out tool calls without results", () => {
       const result = toGenericMessages([
         {
           role: "assistant",
@@ -269,6 +334,196 @@ describe("toGenericMessages", () => {
               args: { city: "London" },
             },
           ],
+        },
+        {
+          role: "tool",
+          content: [
+            {
+              type: "tool-result",
+              toolCallId: "call_123",
+              toolName: "get_weather",
+              result: { error: "Tool call was not completed" },
+              isError: true,
+            },
+          ],
+        },
+      ]);
+    });
+
+    it.each([
+      ["a pending approval", { approval: { id: "ap_1" } }],
+      [
+        "an approved call the host has not run yet",
+        {
+          approval: { id: "ap_1", approved: true },
+        },
+      ],
+      ["an interrupted call", { interrupt: { type: "human", payload: {} } }],
+    ])("leaves %s untouched instead of failing it", (_label, extra) => {
+      const result = toGenericMessages([
+        {
+          role: "assistant",
+          content: [
+            {
+              type: "tool-call",
+              toolCallId: "call_123",
+              toolName: "get_weather",
+              args: { city: "London" },
+              ...extra,
+            },
+          ],
+        },
+      ]);
+
+      expect(result).toEqual([
+        {
+          role: "assistant",
+          content: [
+            {
+              type: "tool-call",
+              toolCallId: "call_123",
+              toolName: "get_weather",
+              args: { city: "London" },
+            },
+          ],
+        },
+      ]);
+    });
+
+    it.each([
+      ["a cancelled approval", { id: "ap_1", resolution: "cancelled" }],
+      ["a denied approval carrying no result", { id: "ap_1", approved: false }],
+    ])("closes out %s", (_label, approval) => {
+      const result = toGenericMessages([
+        {
+          role: "assistant",
+          content: [
+            {
+              type: "tool-call",
+              toolCallId: "call_123",
+              toolName: "get_weather",
+              args: { city: "London" },
+              approval,
+            },
+          ],
+        },
+      ]);
+
+      expect(result).toEqual([
+        {
+          role: "assistant",
+          content: [
+            {
+              type: "tool-call",
+              toolCallId: "call_123",
+              toolName: "get_weather",
+              args: { city: "London" },
+            },
+          ],
+        },
+        {
+          role: "tool",
+          content: [
+            {
+              type: "tool-result",
+              toolCallId: "call_123",
+              toolName: "get_weather",
+              result: { error: "Tool call was not completed" },
+              isError: true,
+            },
+          ],
+        },
+      ]);
+    });
+
+    it("treats a settled tool call carrying no result as completed", () => {
+      const result = toGenericMessages([
+        {
+          role: "assistant",
+          content: [
+            {
+              type: "tool-call",
+              toolCallId: "call_123",
+              toolName: "void_tool",
+              args: {},
+              state: "result",
+            },
+          ],
+        },
+      ]);
+
+      expect(result).toEqual([
+        {
+          role: "assistant",
+          content: [
+            {
+              type: "tool-call",
+              toolCallId: "call_123",
+              toolName: "void_tool",
+              args: {},
+            },
+          ],
+        },
+        {
+          role: "tool",
+          content: [
+            {
+              type: "tool-result",
+              toolCallId: "call_123",
+              toolName: "void_tool",
+              result: "<no result>",
+            },
+          ],
+        },
+      ]);
+    });
+
+    it("closes out a tool call left unresolved before a later message", () => {
+      const result = toGenericMessages([
+        {
+          role: "assistant",
+          content: [
+            {
+              type: "tool-call",
+              toolCallId: "call_123",
+              toolName: "get_weather",
+              args: { city: "London" },
+            },
+          ],
+        },
+        {
+          role: "user",
+          content: [{ type: "text", text: "never mind" }],
+        },
+      ]);
+
+      expect(result).toEqual([
+        {
+          role: "assistant",
+          content: [
+            {
+              type: "tool-call",
+              toolCallId: "call_123",
+              toolName: "get_weather",
+              args: { city: "London" },
+            },
+          ],
+        },
+        {
+          role: "tool",
+          content: [
+            {
+              type: "tool-result",
+              toolCallId: "call_123",
+              toolName: "get_weather",
+              result: { error: "Tool call was not completed" },
+              isError: true,
+            },
+          ],
+        },
+        {
+          role: "user",
+          content: [{ type: "text", text: "never mind" }],
         },
       ]);
     });
@@ -472,6 +727,18 @@ describe("toGenericMessages", () => {
             },
           ],
         },
+        {
+          role: "tool",
+          content: [
+            {
+              type: "tool-result",
+              toolCallId: "call_123",
+              toolName: "no_args_tool",
+              result: { error: "Tool call was not completed" },
+              isError: true,
+            },
+          ],
+        },
       ]);
     });
 
@@ -537,6 +804,13 @@ describe("toGenericMessages", () => {
               toolCallId: "call_1",
               toolName: "tool_a",
               result: "result_a",
+            },
+            {
+              type: "tool-result",
+              toolCallId: "call_2",
+              toolName: "tool_b",
+              result: { error: "Tool call was not completed" },
+              isError: true,
             },
             {
               type: "tool-result",

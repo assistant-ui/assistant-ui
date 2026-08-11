@@ -71,6 +71,13 @@ export type UseAgUiRuntimeOptions = ExternalStoreSharedOptions & {
    * Defaults to `true`.
    */
   autoCancelPendingToolCalls?: boolean | undefined;
+  /**
+   * Buffer a message sent while a run is in flight and send it once the run
+   * settles, exposing it on `composer.queue` for `ComposerPrimitive.Queue`.
+   * The runtime owns the queue lifecycle because flushing needs the agent's
+   * send path and the run's own busy and idle edges.
+   */
+  unstable_enableMessageQueue?: boolean | undefined;
   onError?: (e: Error) => void;
   onCancel?: () => void;
   adapters?: UseAgUiRuntimeAdapters;
@@ -100,6 +107,7 @@ export type AgUiResumeEntry = {
 
 export type AgUiRuntimeExtras = {
   interrupts: readonly AgUiInterrupt[];
+  sendA2uiAction: (action: Record<string, unknown>) => void;
   submitInterruptResponses: (
     responses: readonly AgUiResumeEntry[],
   ) => Promise<void>;
@@ -141,6 +149,12 @@ export type AgUiEvent =
   | { type: "REASONING_MESSAGE_START"; messageId?: string }
   | { type: "REASONING_MESSAGE_CONTENT"; messageId?: string; delta: string }
   | { type: "REASONING_MESSAGE_END"; messageId?: string }
+  | {
+      type: "REASONING_ENCRYPTED_VALUE";
+      subtype: "message" | "tool-call";
+      entityId: string;
+      encryptedValue: string;
+    }
   | { type: "REASONING_END"; messageId?: string }
   | {
       type: "TOOL_CALL_START";
@@ -169,6 +183,8 @@ export type AgUiEvent =
       type: "ACTIVITY_SNAPSHOT";
       activityType: string;
       content: Record<string, unknown>;
+      messageId?: string;
+      replace?: boolean;
     }
   | { type: "RAW"; event: any; source?: string }
   | { type: "CUSTOM"; name: string; value: any }

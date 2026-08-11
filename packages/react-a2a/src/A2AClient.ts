@@ -637,10 +637,20 @@ export class A2AClient {
       }
     };
 
+    let shouldCancel = true;
     try {
       while (true) {
-        const { done, value } = await reader.read();
+        let result: ReadableStreamReadResult<Uint8Array>;
+        try {
+          result = await reader.read();
+        } catch (error) {
+          shouldCancel = false;
+          throw error;
+        }
+
+        const { done, value } = result;
         if (done) {
+          shouldCancel = false;
           for (const event of sseDecoder.push(decoder.decode())) {
             const parsed = readEvent(event);
             if (parsed) yield parsed;
@@ -656,7 +666,11 @@ export class A2AClient {
         }
       }
     } finally {
-      reader.releaseLock();
+      try {
+        if (shouldCancel) await reader.cancel().catch(() => undefined);
+      } finally {
+        reader.releaseLock();
+      }
     }
   }
 }

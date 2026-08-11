@@ -1,13 +1,7 @@
 import { useMemo } from "react";
 import { useResources, withKey, type ResourceElement } from "@assistant-ui/tap";
-import type { ClientMethods } from "./types/client";
+import type { ClientMethods, InferClientState } from "./types/client";
 import { ClientResource } from "./useClientResource";
-
-type InferClientState<TMethods> = TMethods extends {
-  getState: () => infer S;
-}
-  ? S
-  : unknown;
 
 const getElementKey = (el: ResourceElement<unknown>) => {
   if (el.key === undefined) {
@@ -29,18 +23,15 @@ export function useClientLookup<TMethods extends ClientMethods>(
     ),
   );
 
-  const keys = useMemo(() => Object.keys(resources), [resources]);
-
-  // For arrays, track element key -> index mapping
   const keyToIndex = useMemo(() => {
-    return resources.reduce(
-      (acc, resource, index) => {
-        acc[resource.key!] = index;
+    return elements.reduce(
+      (acc, element, index) => {
+        acc[getElementKey(element)] = index;
         return acc;
       },
       {} as Record<string, number>,
     );
-  }, [resources]);
+  }, [elements]);
 
   const state = useMemo(() => {
     return resources.map((r) => r.state);
@@ -50,9 +41,9 @@ export function useClientLookup<TMethods extends ClientMethods>(
     state,
     get: (lookup: { index: number } | { key: string }) => {
       if ("index" in lookup) {
-        if (lookup.index < 0 || lookup.index >= keys.length) {
+        if (lookup.index < 0 || lookup.index >= resources.length) {
           throw new Error(
-            `useClientLookup: index ${lookup.index} out of bounds (length: ${keys.length}) (ignore if recovered)`,
+            `useClientLookup: index ${lookup.index} out of bounds (length: ${resources.length}) (ignore if recovered)`,
           );
         }
         return resources[lookup.index]!.methods;

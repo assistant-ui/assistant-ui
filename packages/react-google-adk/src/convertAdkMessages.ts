@@ -8,10 +8,19 @@ type ContentPart =
   | { type: "text"; text: string }
   | { type: "reasoning"; text: string }
   | { type: "image"; image: string }
-  | { type: "file"; data: string; mimeType: string; filename?: string }
+  | {
+      type: "file";
+      data: string;
+      mimeType: string;
+      filename?: string;
+      sourceType?: "url";
+    }
   | { type: "data"; name: string; data: unknown };
 
-const contentToParts = (content: AdkMessage["content"]): ContentPart[] => {
+const contentToParts = (
+  content: AdkMessage["content"],
+  role: "user" | "assistant",
+): ContentPart[] => {
   if (typeof content === "string")
     return [{ type: "text" as const, text: content }];
 
@@ -37,6 +46,14 @@ const contentToParts = (content: AdkMessage["content"]): ContentPart[] => {
             ...(part.filename != null && { filename: part.filename }),
           };
         case "file_url":
+          if (role === "user") {
+            return {
+              type: "file",
+              data: part.url,
+              mimeType: part.mimeType ?? "application/octet-stream",
+              sourceType: "url",
+            };
+          }
           return {
             type: "data",
             name: "file_url",
@@ -72,7 +89,7 @@ export const convertAdkMessage: useExternalMessageConverter.Callback<
       return {
         role: "user",
         id: message.id,
-        content: contentToParts(message.content),
+        content: contentToParts(message.content, "user"),
       };
 
     case "ai": {
@@ -88,7 +105,10 @@ export const convertAdkMessage: useExternalMessageConverter.Callback<
       return {
         role: "assistant",
         id: message.id,
-        content: [...contentToParts(message.content), ...toolCallParts],
+        content: [
+          ...contentToParts(message.content, "assistant"),
+          ...toolCallParts,
+        ],
         ...(message.status && { status: message.status }),
         ...(message.author && {
           metadata: {

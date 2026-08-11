@@ -41,6 +41,37 @@ type ToolExecutionOptions = {
   onExecutionEnd?: ((toolCallId: string, toolName: string) => void) | undefined;
 };
 
+const invokeExecutionCallback = (
+  name: "onExecutionStart" | "onExecutionEnd",
+  callback: ((toolCallId: string, toolName: string) => void) | undefined,
+  toolCallId: string,
+  toolName: string,
+) => {
+  try {
+    const result = callback?.(toolCallId, toolName) as unknown;
+    void Promise.resolve(result).catch((error) => {
+      console.error(
+        `[assistant-stream] ${name} callback threw an error`,
+        error,
+      );
+    });
+  } catch (error) {
+    console.error(`[assistant-stream] ${name} callback threw an error`, error);
+  }
+};
+
+const enqueueIfOpen = (
+  controller: TransformStreamDefaultController<AssistantStreamChunk>,
+  chunk: AssistantStreamChunk,
+) => {
+  try {
+    controller.enqueue(chunk);
+  } catch (error) {
+    // enqueue() throwing TypeError is the portable termination signal for TransformStream controllers.
+    if (!(error instanceof TypeError)) throw error;
+  }
+};
+
 export class ToolExecutionStream extends PipeableTransformStream<
   AssistantStreamChunk,
   AssistantStreamChunk
@@ -153,19 +184,28 @@ export class ToolExecutionStream extends PipeableTransformStream<
                   // Only mark as executing if the tool has frontend execution
                   if (executeResult !== undefined) {
                     isExecuting = true;
-                    options.onExecutionStart?.(toolCallId, toolName);
+                    invokeExecutionCallback(
+                      "onExecutionStart",
+                      options.onExecutionStart,
+                      toolCallId,
+                      toolName,
+                    );
                   }
 
                   return executeResult;
                 },
                 (c) => {
                   if (isExecuting) {
-                    options.onExecutionEnd?.(toolCallId, toolName);
+                    invokeExecutionCallback(
+                      "onExecutionEnd",
+                      options.onExecutionEnd,
+                      toolCallId,
+                      toolName,
+                    );
                   }
 
                   if (c === undefined) return;
 
-                  // TODO how to handle new ToolResult({ result: undefined })?
                   const result = new ToolResponse({
                     artifact: c.artifact,
                     result: c.result,
@@ -174,7 +214,7 @@ export class ToolExecutionStream extends PipeableTransformStream<
                     modelContent: c.modelContent,
                   });
                   streamController.setResponse(result);
-                  controller.enqueue({
+                  enqueueIfOpen(controller, {
                     type: "result",
                     path: chunk.path,
                     ...result,
@@ -182,7 +222,12 @@ export class ToolExecutionStream extends PipeableTransformStream<
                 },
                 (e) => {
                   if (isExecuting) {
-                    options.onExecutionEnd?.(toolCallId, toolName);
+                    invokeExecutionCallback(
+                      "onExecutionEnd",
+                      options.onExecutionEnd,
+                      toolCallId,
+                      toolName,
+                    );
                   }
 
                   const result = new ToolResponse({
@@ -191,7 +236,7 @@ export class ToolExecutionStream extends PipeableTransformStream<
                   });
 
                   streamController.setResponse(result);
-                  controller.enqueue({
+                  enqueueIfOpen(controller, {
                     type: "result",
                     path: chunk.path,
                     ...result,
@@ -215,7 +260,7 @@ export class ToolExecutionStream extends PipeableTransformStream<
                   toolCallControllers.delete(toolCallId);
                   toolCallIdsWithBackendResult.delete(toolCallId);
 
-                  controller.enqueue(chunk);
+                  enqueueIfOpen(controller, chunk);
                 });
               } else {
                 toolCallControllers.delete(toolCallId);

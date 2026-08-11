@@ -383,6 +383,25 @@ export const GENERATIVE_UI_PACKAGE_EXPORTS = new Map<
   ["TeamsTableRow", { page: "teams", role: "supporting-type" }],
   ["TeamsTextBlock", { page: "teams", role: "supporting-type" }],
   ["TeamsTextSize", { page: "teams", role: "supporting-type" }],
+
+  ["applyA2uiOperations", { page: "a2ui", role: "primary" }],
+  ["convertSurfaceToUISpec", { page: "a2ui", role: "primary" }],
+  ["A2uiOperation", { page: "a2ui", role: "primary" }],
+  ["A2uiOperationResult", { page: "a2ui", role: "primary" }],
+  ["A2uiState", { page: "a2ui", role: "primary" }],
+  ["A2uiSurfaceState", { page: "a2ui", role: "primary" }],
+  ["A2uiCreateSurfaceOperation", { page: "a2ui", role: "supporting-type" }],
+  ["A2uiCreateSurfaceV09Payload", { page: "a2ui", role: "supporting-type" }],
+  ["A2uiCreateSurfaceV10Payload", { page: "a2ui", role: "supporting-type" }],
+  ["A2uiDeleteSurfaceOperation", { page: "a2ui", role: "supporting-type" }],
+  ["A2uiDeleteSurfacePayload", { page: "a2ui", role: "supporting-type" }],
+  ["A2uiTemplateChildren", { page: "a2ui", role: "supporting-type" }],
+  ["A2uiUpdateComponentsOperation", { page: "a2ui", role: "supporting-type" }],
+  ["A2uiUpdateComponentsPayload", { page: "a2ui", role: "supporting-type" }],
+  ["A2uiUpdateDataModelOperation", { page: "a2ui", role: "supporting-type" }],
+  ["A2uiUpdateDataModelPayload", { page: "a2ui", role: "supporting-type" }],
+  ["A2uiVersion", { page: "a2ui", role: "supporting-type" }],
+  ["ComponentNode", { page: "a2ui", role: "supporting-type" }],
 ]);
 
 function generativeUIPackageRule(

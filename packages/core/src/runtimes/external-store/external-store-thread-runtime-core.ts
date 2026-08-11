@@ -27,6 +27,10 @@ import type {
   RuntimeCapabilities,
   ThreadRuntimeCore,
 } from "../../runtime/interfaces/thread-runtime-core";
+import type {
+  ExternalThreadQueueAdapter,
+  QueuePlacement,
+} from "../../runtime/queue/external-thread-queue-adapter";
 import { BaseThreadRuntimeCore } from "../../runtime/base/base-thread-runtime-core";
 import type { ModelContextProvider } from "../../model-context/types";
 import {
@@ -36,6 +40,7 @@ import {
 import { generateId } from "../../utils/id";
 import { ToolInvocationTracker } from "../tool-invocations/ToolInvocationTracker";
 import { EMPTY_QUEUE_ITEMS } from "../../store/scopes/queue-item";
+import type { QuoteInfo } from "../../types/quote";
 
 const EMPTY_ARRAY: readonly ThreadSuggestion[] = Object.freeze([]);
 
@@ -65,6 +70,7 @@ export class ExternalStoreThreadRuntimeCore
     edit: false,
     delete: false,
     reload: false,
+    refetchThread: false,
     cancel: false,
     unstable_copy: false,
     speech: false,
@@ -102,12 +108,20 @@ export class ExternalStoreThreadRuntimeCore
     return this._store.adapters;
   }
 
+  // A getter, not a method, so its presence tracks the adapter.
+  public get unstable_refetchThread(): (() => Promise<void>) | undefined {
+    if (!this._store.onRefetchThread) return undefined;
+    return () => this._store.onRefetchThread!();
+  }
+
   public suggestions: readonly ThreadSuggestion[] = [];
   public extras: unknown = undefined;
 
   private _converter = new ThreadMessageConverter();
 
   private _store!: ExternalStoreAdapter<any>;
+
+  private _transformedQueue: ExternalThreadQueueAdapter | undefined;
 
   /**
    * Client-side tool-invocations pipeline. Constructed lazily on first
@@ -139,6 +153,19 @@ export class ExternalStoreThreadRuntimeCore
 
     const oldStore = this._store as ExternalStoreAdapter<any> | undefined;
     this._store = store;
+    if (oldStore?.queue !== store.queue) {
+      this._transformedQueue = undefined;
+      store.queue?.__internal_setDispatchTransform?.((message) => {
+        // Re-point at the tail, as LocalThreadRuntimeCore's driver does, so
+        // the prefix gated against is the one the message lands on whatever
+        // the host routes by. Queuing only ever accepts a tail append, so a
+        // later tail is the same intent.
+        const parentId = this.messages.at(-1)?.id ?? null;
+        return this.enrichAppendMetadata({ ...message, parentId }, parentId);
+      });
+      if (store.queue?.__internal_setDispatchTransform)
+        this._transformedQueue = store.queue;
+    }
     if (this.extras !== store.extras) {
       this.extras = store.extras;
     }
@@ -156,6 +183,7 @@ export class ExternalStoreThreadRuntimeCore
         this._store.onDelete !== undefined ||
         this._store.setMessages !== undefined,
       reload: this._store.onReload !== undefined,
+      refetchThread: this._store.onRefetchThread !== undefined,
       cancel: this._store.onCancel !== undefined,
       speech: this._store.adapters?.speech !== undefined,
       dictation: this._store.adapters?.dictation !== undefined,
@@ -456,15 +484,29 @@ export class ExternalStoreThreadRuntimeCore
     });
   }
 
-  public async append(message: AppendMessage): Promise<void> {
-    const isEdit = message.parentId !== (this.messages.at(-1)?.id ?? null);
+  public async append(rawMessage: AppendMessage): Promise<void> {
+    // sourceId marks an edit send; the parent may coincide with the head
+    // after a resync (e.g. cancelRun dropped the edited message).
+    const isEdit =
+      rawMessage.sourceId != null ||
+      rawMessage.parentId !== (this.messages.at(-1)?.id ?? null);
 
     // Buffering does not start a run, so the tool-abort below must wait until
     // the queue flushes. By then the prior run (and its tools) has settled.
     if (!isEdit && this._store.queue) {
-      this._store.queue.enqueue(message, { steer: message.steer ?? false });
+      // Skip only for the queue this core actually installed on: another
+      // core's transform would gate against its own thread's messages.
+      const queued =
+        this._store.queue === this._transformedQueue
+          ? rawMessage
+          : this.enrichAppendMetadata(rawMessage);
+      if (queued.steer ?? this._store.isRunning ?? false)
+        this._store.queue.steer(queued);
+      else this._store.queue.enqueue(queued);
       return;
     }
+
+    const message = this.enrichAppendMetadata(rawMessage);
 
     // Auto-abort in-flight client-side tool executions when a new run is
     // about to start. Without this, a tool that finishes after the new turn
@@ -479,7 +521,6 @@ export class ExternalStoreThreadRuntimeCore
     if (isEdit) {
       if (!this._store.onEdit)
         throw new Error("Runtime does not support editing messages.");
-      this._store.queue?.clear("edit");
       await this._store.onEdit(message);
     } else {
       await this._store.onNew(message);
@@ -512,8 +553,12 @@ export class ExternalStoreThreadRuntimeCore
     return this._store?.queue?.items ?? EMPTY_QUEUE_ITEMS;
   }
 
-  public steerQueueItem(queueItemId: string) {
-    this._store?.queue?.steer(queueItemId);
+  public getSteerQueueItems() {
+    return this._store?.queue?.steerItems ?? EMPTY_QUEUE_ITEMS;
+  }
+
+  public moveQueueItem(queueItemId: string, placement: QueuePlacement) {
+    this._store?.queue?.move(queueItemId, placement);
   }
 
   public removeQueueItem(queueItemId: string) {
@@ -523,8 +568,6 @@ export class ExternalStoreThreadRuntimeCore
   public async startRun(config: StartRunConfig): Promise<void> {
     if (!this._store.onReload)
       throw new Error("Runtime does not support reloading messages.");
-
-    this._store.queue?.clear("reload");
 
     // Auto-abort in-flight client-side tool executions when a run reloads;
     // any results that land afterward would target a turn that no longer
@@ -571,12 +614,15 @@ export class ExternalStoreThreadRuntimeCore
     if (!this._store.onCancel)
       throw new Error("Runtime does not support cancelling runs.");
 
-    this._store.queue?.clear("cancel-run");
-
     // Abort any in-flight client-side tool executions. Fire-and-forget —
     // the abort resolves once executions settle, but we don't gate the
     // cancel on it.
     void this._toolInvocations?.abort();
+
+    // Before the run is aborted, so the settle it produces keeps the pending
+    // items instead of dispatching the next one at the moment the user
+    // stopped.
+    this._store.queue?.__internal_notifyCancelled?.();
 
     this._store.onCancel();
 
@@ -589,15 +635,27 @@ export class ExternalStoreThreadRuntimeCore
 
     let messages = this.repository.getMessages();
     const previousMessage = messages[messages.length - 1];
-    if (
+    const trailingUserLeaf =
+      this._store.setMessages !== undefined &&
       previousMessage?.role === "user" &&
-      previousMessage.id === messages.at(-1)?.id // ensure the previous message is a leaf node
-    ) {
-      this.repository.deleteMessage(previousMessage.id);
-      if (!this.composer.text.trim()) {
-        this.composer.setText(getThreadMessageText(previousMessage));
-      }
+      previousMessage.id === messages.at(-1)?.id && // ensure the previous message is a leaf node
+      previousMessage.content.every((part) => part.type === "text")
+        ? previousMessage
+        : undefined;
 
+    // Handing the message to the composer and taking it out of the thread are
+    // one move: the composer refuses while the user is writing, and removing
+    // the message then would leave it nowhere. A message the composer cannot
+    // hold whole, carrying content parts it has no home for, is not moved.
+    if (
+      trailingUserLeaf &&
+      this.composer.restoreDraft({
+        text: getThreadMessageText(trailingUserLeaf),
+        attachments: trailingUserLeaf.attachments,
+        quote: trailingUserLeaf.metadata.custom.quote as QuoteInfo | undefined,
+      })
+    ) {
+      this.repository.deleteMessage(trailingUserLeaf.id);
       messages = this.repository.getMessages();
     } else {
       this._notifySubscribers();

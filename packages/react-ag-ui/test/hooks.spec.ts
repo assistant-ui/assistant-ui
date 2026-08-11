@@ -14,10 +14,16 @@ vi.mock("@assistant-ui/store", async (importOriginal) => ({
   useAui: (() => mockUseAui()) as typeof import("@assistant-ui/store").useAui,
 }));
 
+vi.mock("react", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("react")>()),
+  useCallback: (<T>(fn: T): T => fn) as typeof import("react").useCallback,
+}));
+
 import type { AppendMessage } from "@assistant-ui/core";
 import { agUiExtras } from "../src/agUiExtras";
 import {
   useAgUiInterrupts,
+  useAgUiSendA2uiAction,
   useAgUiSubmitInterruptResponses,
   useAgUiSteerAway,
 } from "../src/hooks";
@@ -87,6 +93,26 @@ describe("useAgUiSubmitInterruptResponses", () => {
     expect(() => useAgUiSubmitInterruptResponses()([])).toThrow(
       "useAgUiRuntime",
     );
+  });
+});
+
+describe("useAgUiSendA2uiAction", () => {
+  it("delegates to extras.sendA2uiAction with the given action", () => {
+    const sendA2uiAction = vi.fn();
+    const extras = agUiExtras.provide({
+      interrupts: [interrupt],
+      sendA2uiAction,
+      submitInterruptResponses: vi.fn(),
+      steerAway: vi.fn(),
+    });
+    mockUseAui.mockReturnValue({
+      thread: { getState: () => ({ extras }) },
+    });
+    const action = { type: "a2ui:action", name: "submit" };
+
+    useAgUiSendA2uiAction()(action);
+
+    expect(sendA2uiAction).toHaveBeenCalledWith(action);
   });
 });
 

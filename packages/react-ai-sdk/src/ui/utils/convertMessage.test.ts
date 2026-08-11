@@ -813,6 +813,58 @@ describe("AISDKMessageConverter", () => {
     expect(converted[0]?.content[2]).not.toHaveProperty("providerMetadata");
   });
 
+  it("maps TextUIPart.state onto the per-part status", () => {
+    const converted = AISDKMessageConverter.toThreadMessages([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          { type: "text", text: "streaming", state: "streaming" },
+          { type: "text", text: "done", state: "done" },
+          { type: "text", text: "unset" },
+        ],
+      } as any,
+    ]);
+
+    expect(converted[0]?.content[0]).toMatchObject({
+      type: "text",
+      text: "streaming",
+      status: { type: "running" },
+    });
+    expect(converted[0]?.content[1]).toMatchObject({
+      type: "text",
+      text: "done",
+      status: { type: "complete" },
+    });
+    expect(converted[0]?.content[2]).not.toHaveProperty("status");
+  });
+
+  it("maps ReasoningUIPart.state onto the per-part status", () => {
+    const converted = AISDKMessageConverter.toThreadMessages([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          { type: "reasoning", text: "thinking", state: "streaming" },
+          { type: "reasoning", text: "settled", state: "done" },
+          { type: "reasoning", text: "unset" },
+        ],
+      } as any,
+    ]);
+
+    expect(converted[0]?.content[0]).toMatchObject({
+      type: "reasoning",
+      text: "thinking",
+      status: { type: "running" },
+    });
+    expect(converted[0]?.content[1]).toMatchObject({
+      type: "reasoning",
+      text: "settled",
+      status: { type: "complete" },
+    });
+    expect(converted[0]?.content[2]).not.toHaveProperty("status");
+  });
+
   it("forwards callProviderMetadata onto ToolCallMessagePart.providerMetadata", () => {
     const converted = AISDKMessageConverter.toThreadMessages([
       {
@@ -872,6 +924,103 @@ describe("AISDKMessageConverter", () => {
     );
     expect(call?.mcp?.app).toEqual({
       resourceUri: "ui://app/hello_ui.html",
+    });
+  });
+
+  it("adopts only spec'd ui fields from output._meta.ui", () => {
+    const converted = AISDKMessageConverter.toThreadMessages([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          {
+            type: "tool-hello_ui",
+            toolCallId: "tc-1",
+            state: "output-available",
+            input: {},
+            output: {
+              _meta: {
+                ui: {
+                  resourceUri: "ui://app/hello_ui.html",
+                  serverId: "srv",
+                  visibility: ["model"],
+                },
+              },
+              content: [{ type: "text", text: "" }],
+            },
+          },
+        ],
+      } as any,
+    ]);
+
+    const call = converted[0]?.content.find(
+      (part): part is any => part.type === "tool-call",
+    );
+    expect(call?.mcp?.app).toEqual({
+      resourceUri: "ui://app/hello_ui.html",
+      visibility: ["model"],
+    });
+  });
+
+  it("prefers output._meta.ui.resourceUri over output._meta['ui/resourceUri']", () => {
+    const converted = AISDKMessageConverter.toThreadMessages([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          {
+            type: "tool-hello_ui",
+            toolCallId: "tc-1",
+            state: "output-available",
+            input: {},
+            output: {
+              _meta: {
+                ui: { resourceUri: "ui://app/nested.html" },
+                "ui/resourceUri": "ui://app/flat.html",
+              },
+              content: [{ type: "text", text: "" }],
+            },
+          },
+        ],
+      } as any,
+    ]);
+
+    const call = converted[0]?.content.find(
+      (part): part is any => part.type === "tool-call",
+    );
+    expect(call?.mcp?.app).toEqual({
+      resourceUri: "ui://app/nested.html",
+    });
+  });
+
+  it("falls back to output._meta['ui/resourceUri'] when the nested resourceUri is not a ui:// app uri", () => {
+    const converted = AISDKMessageConverter.toThreadMessages([
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          {
+            type: "tool-hello_ui",
+            toolCallId: "tc-1",
+            state: "output-available",
+            input: {},
+            output: {
+              _meta: {
+                ui: { resourceUri: "https://example.com/not-an-app" },
+                "ui/resourceUri": "ui://app/flat.html",
+              },
+              content: [{ type: "text", text: "" }],
+            },
+          },
+        ],
+      } as any,
+    ]);
+
+    const call = converted[0]?.content.find(
+      (part): part is any => part.type === "tool-call",
+    );
+    expect(call?.mcp?.app).toEqual({
+      resourceUri: "ui://app/flat.html",
     });
   });
 

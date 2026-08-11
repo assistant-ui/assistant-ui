@@ -1,5 +1,6 @@
 import type { Context as ReactContext } from "react";
-import { useEffect, useRef } from "react";
+import { useEffect } from "../react-hooks/useEffect";
+import { useRef } from "../react-hooks/useRef";
 import type {
   ResourceContext,
   ResourceContextDeps,

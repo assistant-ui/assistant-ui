@@ -1,5 +1,6 @@
 {
   "title": "Store",
+  "icon": "Database",
   "root": true,
   "pages": [
     "why-store",

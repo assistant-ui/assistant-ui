@@ -1,7 +1,4 @@
-import {
-  McpServer,
-  ResourceTemplate,
-} from "@modelcontextprotocol/sdk/server/mcp.js";
+import { type McpServer, ResourceTemplate } from "@modelcontextprotocol/server";
 import { join } from "node:path";
 import { DOCS_PATH, MDX_EXTENSION } from "../constants.js";
 import { getAvailableDocFiles } from "../utils/paths.js";

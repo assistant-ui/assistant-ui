@@ -39,6 +39,14 @@ Eve's `send` API.
 const getEveMessageContent: (message: AppendMessage) => NonNullable<SendTurnPayload["message"]>;
 ```
 
+### toEveInputResponse
+
+Converts an assistant-ui tool approval response into an Eve input response.
+
+```ts
+const toEveInputResponse: (response: RespondToToolApprovalOptions) => InputResponse;
+```
+
 ### useEveAgentRuntime
 
 Connects Eve's `useEveAgent` hook to assistant-ui's runtime contract.

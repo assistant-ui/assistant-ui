@@ -4,11 +4,13 @@ import type { ExternalStoreThreadRuntimeCore } from "../runtimes/external-store/
 import type { ExternalStoreThreadListAdapter } from "../runtimes/external-store/external-store-adapter";
 import { ThreadListRuntimeImpl } from "../runtime/api/thread-list-runtime";
 
-const makeFactory = () =>
+const makeFactory = (overrides: Record<string, unknown> = {}) =>
   vi.fn(
     () =>
       ({
         subscribe: () => () => {},
+        capabilities: { cancel: false },
+        ...overrides,
       }) as unknown as ExternalStoreThreadRuntimeCore,
   );
 
@@ -242,5 +244,41 @@ describe("ExternalStoreThreadListRuntimeCore - switchToThread", () => {
     );
     await core.switchToThread("thread-alpha");
     expect(onSwitchToThread).not.toHaveBeenCalled();
+  });
+});
+
+describe("ExternalStoreThreadListRuntimeCore.reloadMainThread", () => {
+  it("dispatches to the main thread's refetch capability", async () => {
+    const refetch = vi.fn(async () => {});
+    const core = new ExternalStoreThreadListRuntimeCore(
+      makeAdapter(),
+      makeFactory({ unstable_refetchThread: refetch }),
+    );
+
+    await core.reloadMainThread();
+
+    expect(refetch).toHaveBeenCalledOnce();
+  });
+
+  it("resolves quietly when the adapter declares no refetch capability", async () => {
+    const core = new ExternalStoreThreadListRuntimeCore(
+      makeAdapter(),
+      makeFactory(),
+    );
+
+    await expect(core.reloadMainThread()).resolves.toBeUndefined();
+  });
+
+  it("propagates a refetch failure", async () => {
+    const core = new ExternalStoreThreadListRuntimeCore(
+      makeAdapter(),
+      makeFactory({
+        unstable_refetchThread: async () => {
+          throw new Error("refetch failed");
+        },
+      }),
+    );
+
+    await expect(core.reloadMainThread()).rejects.toThrow("refetch failed");
   });
 });

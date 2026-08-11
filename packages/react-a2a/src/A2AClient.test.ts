@@ -931,6 +931,69 @@ describe("A2AClient", () => {
       expect(evt.event.status.message?.role).toBe("agent");
     });
 
+    it("cancels the response body when iteration stops early", async () => {
+      const sseData = JSON.stringify({
+        status_update: {
+          task_id: "t1",
+          context_id: "ctx-1",
+          status: { state: "TASK_STATE_WORKING" },
+        },
+      });
+      const cancel = vi.fn();
+      const encoder = new TextEncoder();
+      const body = new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(encoder.encode(`data: ${sseData}\n\n`));
+        },
+        cancel,
+      });
+
+      fetchMock.mockResolvedValue(
+        new Response(body, {
+          headers: { "Content-Type": "text/event-stream" },
+        }),
+      );
+
+      for await (const _event of client.streamMessage(userMessage)) {
+        break;
+      }
+
+      expect(cancel).toHaveBeenCalledOnce();
+    });
+
+    it("does not surface cancellation errors on early exit", async () => {
+      const sseData = JSON.stringify({
+        status_update: {
+          task_id: "t1",
+          context_id: "ctx-1",
+          status: { state: "TASK_STATE_WORKING" },
+        },
+      });
+      const encoder = new TextEncoder();
+      let controller!: ReadableStreamDefaultController<Uint8Array>;
+      const body = new ReadableStream<Uint8Array>({
+        start(streamController) {
+          controller = streamController;
+          controller.enqueue(encoder.encode(`data: ${sseData}\n\n`));
+        },
+      });
+
+      fetchMock.mockResolvedValue(
+        new Response(body, {
+          headers: { "Content-Type": "text/event-stream" },
+        }),
+      );
+
+      const consume = async () => {
+        for await (const _event of client.streamMessage(userMessage)) {
+          controller.error(new Error("stream failed"));
+          break;
+        }
+      };
+
+      await expect(consume()).resolves.toBeUndefined();
+    });
+
     it("parses CRLF-delimited SSE events", async () => {
       const sseData = JSON.stringify({
         status_update: {
