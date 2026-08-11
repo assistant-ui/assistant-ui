@@ -258,25 +258,91 @@ describe("createAssistantClient", () => {
     child.destroy();
   });
 
-  it("keeps the subscriber receiver through a transparent generated parent", async () => {
-    const source = createTestClient({ thread: ThreadClient() });
-    const parent = Object.create(source.getClient()) as AssistantClient;
-    const child = createTestClient({ message: messageDerived() }, { parent });
+  it("treats Object.prototype names as unavailable scopes", () => {
+    const parent = {
+      subscribe: () => () => {},
+      on: () => () => {},
+    } as unknown as AssistantClient;
+    const child = createTestClient({ thread: ThreadClient() }, { parent });
+
+    expect(() =>
+      child.getClient().on("constructor.pinged" as never, vi.fn()),
+    ).toThrow('Scope "constructor" is not available');
+
+    child.destroy();
+  });
+
+  it("resolves inherited scope getters with the subscribing facade as receiver", async () => {
+    const parent = {
+      subscribe: () => () => {},
+      on: () => () => {},
+      get message() {
+        return (this as AnyClient).selectedMessage;
+      },
+    } as unknown as AssistantClient;
+    const child = createTestClient(
+      { selectedMessage: MessageClient({ id: "selected" }) },
+      { parent },
+    );
     const callback = vi.fn();
 
     child.getClient().on("message.pinged" as never, callback);
     flushTapSync(() =>
-      source.getClient().thread.message({ index: 0 }).ping("inherited"),
+      child.getClient().selectedMessage.ping("inherited-getter"),
     );
     await flushEvents();
 
     expect(callback).toHaveBeenCalledExactlyOnceWith({
-      id: "m0",
-      value: "inherited",
+      id: "selected",
+      value: "inherited-getter",
     });
 
     child.destroy();
-    source.destroy();
+  });
+
+  it("rejects generation cycles instead of looping during scope lookup", () => {
+    const root = createTestClient({});
+    let parent = root.getClient() as AssistantClient;
+    let config: Record<string, unknown> = {
+      message: MessageClient({ id: "stale" }),
+    };
+    const parentListeners = new Set<() => void>();
+    const configListeners = new Set<() => void>();
+    const handle = createAssistantClient(
+      {
+        getConfig: () => config as never,
+        subscribe: (listener) => {
+          configListeners.add(listener);
+          return () => configListeners.delete(listener);
+        },
+      },
+      {
+        parent: {
+          getClient: () => parent,
+          subscribe: (listener) => {
+            parentListeners.add(listener);
+            return () => parentListeners.delete(listener);
+          },
+        },
+      },
+    );
+    const previous = handle.getClient();
+
+    parent = previous;
+    config = {};
+    flushTapSync(() => {
+      parentListeners.forEach((listener) => listener());
+      configListeners.forEach((listener) => listener());
+    });
+
+    const current = handle.getClient();
+    expect(current).not.toBe(previous);
+    expect(() => current.on("message.pinged" as never, vi.fn())).toThrow(
+      'Scope "message" is not available',
+    );
+
+    handle.destroy();
+    root.destroy();
   });
 
   it("extends a parent handle and re-binds across the parent's structural changes", () => {

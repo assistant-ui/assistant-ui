@@ -267,10 +267,13 @@ describe("parent chaining", () => {
     expect(cb).toHaveBeenCalledExactlyOnceWith({ id: "m0", value: "selected" });
   });
 
-  it("scopes defined on the child deliver locally without a parent registration", async () => {
-    const { getChild } = setupChild();
+  it("root scopes owned by the child do not register on the parent", async () => {
+    const { getAui, getChild } = setupChild();
+    const parentOn = vi.spyOn(getAui(), "on");
     const cb = vi.fn();
     getChild().on("other.pinged" as never, cb);
+
+    expect(parentOn).not.toHaveBeenCalled();
 
     getChild().other.ping("local");
     await flushEvents();
@@ -424,40 +427,6 @@ describe("Derived scopes", () => {
     });
   });
 
-  it("forwards through a transparent wrapper around a generated parent", async () => {
-    let aui!: AnyClient;
-    const callback = vi.fn();
-    const Listener = () => {
-      useAuiEvent("message.pinged" as never, callback as never);
-      return null;
-    };
-    const Harness = () => {
-      aui = useAui({ thread: ThreadClient() } as unknown as useAui.Props);
-      const parent = Object.create(aui) as AnyClient;
-      const config = AuiConfig({
-        message: Derived({
-          source: "thread",
-          query: { index: 0 },
-          get: (client: AnyClient) => client.thread.message({ index: 0 }),
-        } as never),
-      } as never);
-      return (
-        <AuiProvider extends={parent as never} config={config}>
-          <Listener />
-        </AuiProvider>
-      );
-    };
-    render(<Harness />);
-
-    aui.thread.message({ index: 0 }).ping("inherited");
-    await flushEvents();
-
-    expect(callback).toHaveBeenCalledExactlyOnceWith({
-      id: "m0",
-      value: "inherited",
-    });
-  });
-
   it("forwards derived-only events through a parent that lacks the scope", async () => {
     let aui!: AnyClient;
     const cb = vi.fn();
@@ -525,6 +494,56 @@ describe("Derived scopes", () => {
     expect(cb).toHaveBeenCalledExactlyOnceWith({
       id: "m1",
       value: "current",
+    });
+  });
+
+  it("delivers an event queued during a derived-only rebind notification", async () => {
+    let aui!: AnyClient;
+    const cb = vi.fn();
+    const Listener = () => {
+      useAuiEvent("message.pinged" as never, cb as never);
+      return null;
+    };
+    const SelectedMessageProvider = ({ children }: { children: ReactNode }) => {
+      const parent = useAui();
+      const config = AuiConfig({ message: messageDerived() } as never);
+      return (
+        <AuiProvider extends={parent} config={config}>
+          {children}
+        </AuiProvider>
+      );
+    };
+    const Harness = () => {
+      aui = useAui({ thread: ThreadClient() } as unknown as useAui.Props);
+      return (
+        <AuiProvider value={aui as never}>
+          <SelectedMessageProvider>
+            <Listener />
+          </SelectedMessageProvider>
+        </AuiProvider>
+      );
+    };
+    render(<Harness />);
+
+    const unsubscribe = aui.subscribe(() => {
+      aui.thread.message({ index: 1 }).ping("before-commit");
+    });
+    await act(async () => {
+      flushTapSync(() => aui.thread.setSelected(1));
+      await Promise.resolve();
+    });
+    unsubscribe();
+    expect(cb).toHaveBeenCalledExactlyOnceWith({
+      id: "m1",
+      value: "before-commit",
+    });
+
+    aui.thread.message({ index: 1 }).ping("after-commit");
+    await flushEvents();
+    expect(cb).toHaveBeenCalledTimes(2);
+    expect(cb).toHaveBeenLastCalledWith({
+      id: "m1",
+      value: "after-commit",
     });
   });
 

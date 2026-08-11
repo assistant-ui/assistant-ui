@@ -111,7 +111,15 @@ type ClientFields = {
 type EventClientRef = { current: AssistantClient | null };
 type EventClientInternals = {
   ref: EventClientRef;
-  on: AssistantClient["on"];
+};
+
+type EventScopeBinding =
+  | AssistantClientAccessor<ClientNames>
+  | null
+  | undefined;
+type EventScopeResolution = {
+  owner: AssistantClient | null;
+  binding: EventScopeBinding;
 };
 
 // Keep generation metadata out of the public client object. A retained client
@@ -128,19 +136,8 @@ const getOwnEventClientInternals = (
 const getCurrentEventClient = (client: AssistantClient): AssistantClient =>
   getOwnEventClientInternals(client)?.ref.current ?? client;
 
-const isGeneratedEventHandler = (
-  client: AssistantClient,
-  on: AssistantClient["on"],
-): boolean => {
-  let candidate: object | null = client;
-  while (candidate && candidate !== Object.prototype) {
-    if (getOwnEventClientInternals(candidate as AssistantClient)?.on === on) {
-      return true;
-    }
-    candidate = Object.getPrototypeOf(candidate) as object | null;
-  }
-  return false;
-};
+const isGeneratedEventClient = (client: AssistantClient): boolean =>
+  getOwnEventClientInternals(client) !== undefined;
 
 const getEventScopeOwner = (
   client: AssistantClient,
@@ -156,32 +153,65 @@ const getEventScopeOwner = (
   return null;
 };
 
-const getEventScopeBinding = (
+const getFallbackEventScopeBinding = (
+  client: AssistantClient,
+  scope: ClientNames,
+): EventScopeBinding => {
+  const binding = Reflect.get(client, scope, client) as EventScopeBinding;
+  if (
+    Object.prototype.hasOwnProperty.call(Object.prototype, scope) &&
+    binding === Reflect.get(Object.prototype, scope, client)
+  ) {
+    return null;
+  }
+  return binding;
+};
+
+const getEventScopeResolution = (
   subscriber: AssistantClient,
   scope: ClientNames,
-): AssistantClientAccessor<ClientNames> | undefined => {
+): EventScopeResolution => {
   let client = getCurrentEventClient(subscriber);
-  // Each restart replaces an obsolete owner with the current generation of
-  // the same host; otherwise owner lookup advances through a finite prototype
-  // chain.
-  while (true) {
+  const visited = new Set<AssistantClient>();
+
+  while (!visited.has(client)) {
+    visited.add(client);
     const owner = getEventScopeOwner(client, scope);
     // Root and hand-built clients may supply accessors dynamically rather than
-    // as own properties, so preserve their normal property lookup fallback.
+    // as own properties. Preserve that lookup, but do not mistake built-ins
+    // inherited unchanged from Object.prototype for registered scopes.
     if (!owner) {
-      return client[scope] as AssistantClientAccessor<ClientNames> | undefined;
+      return {
+        owner: null,
+        binding: getFallbackEventScopeBinding(client, scope),
+      };
     }
 
     const currentOwner = getCurrentEventClient(owner);
     if (currentOwner === owner) {
-      return owner[scope] as AssistantClientAccessor<ClientNames>;
+      return {
+        owner,
+        // The owner identifies which generation supplies the property. The
+        // subscribing facade remains the receiver for inherited getters.
+        binding: Reflect.get(owner, scope, client) as EventScopeBinding,
+      };
     }
 
     // An inherited scope may belong to an older parent generation. Restart
     // from the parent's committed replacement so retained wrappers follow it.
     client = currentOwner;
   }
+
+  // A caller can explicitly make an older generation the current client's
+  // parent. Treat the resulting generation cycle as unavailable rather than
+  // looping during registration or queued event delivery.
+  return { owner: null, binding: null };
 };
+
+const getEventScopeBinding = (
+  subscriber: AssistantClient,
+  scope: ClientNames,
+): EventScopeBinding => getEventScopeResolution(subscriber, scope).binding;
 
 const createClientObject = (
   parent: AssistantClient,
@@ -196,7 +226,6 @@ const createClientObject = (
   Object.assign(client, fields);
   eventClientInternals.set(client, {
     ref: eventClientRef,
-    on: fields.on,
   });
   return client;
 };
@@ -222,7 +251,7 @@ const assertEventScope = <TEvent extends AssistantEventName>(
       : getEventScopeBinding(receiver, scope as ClientNames);
   // A hand-built client may route a selector without exposing an accessor,
   // but an explicit unavailable accessor must keep the generated-client error.
-  if (binding?.source === null) {
+  if (binding === null || binding?.source === null) {
     throw new Error(
       `Scope "${scope}" is not available. Use { scope: "*", event: "${event}" } to listen globally.`,
     );
@@ -233,7 +262,7 @@ const createEventForwarder = (
   parent: AssistantClient,
 ): AssistantClient["on"] => {
   const parentOn = parent.on;
-  const generatedParent = isGeneratedEventHandler(parent, parentOn);
+  const generatedParent = isGeneratedEventClient(parent);
   return function <TEvent extends AssistantEventName>(
     this: AssistantClient,
     selector: AssistantEventSelector<TEvent>,
@@ -288,14 +317,34 @@ const useClientFields = ({
         });
         const parent = clientRef.parent;
         const parentOn = parent.on;
-        const generatedParent = isGeneratedEventHandler(parent, parentOn);
+        const generatedParent = isGeneratedEventClient(parent);
+        const scopeResolution =
+          scope === "*"
+            ? undefined
+            : getEventScopeResolution(this, scope as ClientNames);
+
+        // A root scope owned by this host emits through this notification
+        // manager, so forwarding it can only add unused ancestor listeners.
+        if (
+          scopeResolution?.binding != null &&
+          scopeResolution.binding.source === "root" &&
+          scopeResolution.owner !== null &&
+          getOwnEventClientInternals(scopeResolution.owner)?.ref === clientRef
+        ) {
+          return localUnsub;
+        }
+
         // A custom parent owns its selector contract. Generated chains keep
         // forwarding because the transport that emits the event may live at a
         // higher ancestor even when that ancestor lacks the subscriber scope.
+        const parentScope =
+          scope === "*"
+            ? undefined
+            : getEventScopeBinding(parent, scope as ClientNames);
         if (
           scope !== "*" &&
           !generatedParent &&
-          parent[scope as ClientNames]?.source === null
+          (parentScope === null || parentScope?.source === null)
         ) {
           return localUnsub;
         }
