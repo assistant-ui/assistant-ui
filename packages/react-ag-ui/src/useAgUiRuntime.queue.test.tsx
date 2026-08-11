@@ -95,6 +95,71 @@ describe("useAgUiRuntime unstable_enableMessageQueue", () => {
     );
   });
 
+  it("retains a queued message when the active run is cancelled", async () => {
+    const { agent: baseAgent, runAgent, release } = gatedAgent();
+    const agent = { ...baseAgent, abortRun: vi.fn() } as unknown as HttpAgent;
+
+    const { result } = renderHook(() =>
+      useAgUiRuntime({ agent, unstable_enableMessageQueue: true }),
+    );
+    mount(result.current);
+
+    await act(async () => {
+      await result.current.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "first" }],
+      });
+    });
+    await waitFor(() => expect(runAgent).toHaveBeenCalledTimes(1));
+
+    const send = async (text: string) => {
+      await act(async () => {
+        await result.current.thread.append({
+          role: "user",
+          content: [{ type: "text", text }],
+          parentId:
+            result.current.thread.getState().messages.at(-1)?.id ?? null,
+        });
+      });
+    };
+
+    await send("second");
+    await waitFor(() =>
+      expect(screen.getByTestId("queued").textContent).toBe("second"),
+    );
+
+    await act(async () => {
+      result.current.thread.cancelRun();
+      release();
+    });
+
+    expect(runAgent).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId("queued").textContent).toBe("second");
+
+    await send("third");
+
+    await waitFor(() => expect(runAgent).toHaveBeenCalledTimes(3));
+    expect(runAgent.mock.calls[1]?.[0]).toMatchObject({
+      messages: expect.arrayContaining([
+        expect.objectContaining({
+          role: "user",
+          content: "second",
+        }),
+      ]),
+    });
+    expect(runAgent.mock.calls[2]?.[0]).toMatchObject({
+      messages: expect.arrayContaining([
+        expect.objectContaining({
+          role: "user",
+          content: "third",
+        }),
+      ]),
+    });
+    await waitFor(() =>
+      expect(screen.getByTestId("queued").textContent).toBe(""),
+    );
+  });
+
   it("keeps accepting sends after a queued run fails", async () => {
     const runAgent = vi.fn(
       async (_input: unknown, subscriber: { onRunFinalized?: () => void }) => {
