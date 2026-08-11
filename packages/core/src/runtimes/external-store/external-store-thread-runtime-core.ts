@@ -630,6 +630,7 @@ export class ExternalStoreThreadRuntimeCore
     let messages = this.repository.getMessages();
     const previousMessage = messages[messages.length - 1];
     if (
+      this._store.setMessages &&
       previousMessage?.role === "user" &&
       previousMessage.id === messages.at(-1)?.id // ensure the previous message is a leaf node
     ) {

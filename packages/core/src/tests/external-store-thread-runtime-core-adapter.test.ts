@@ -264,6 +264,21 @@ describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
       const lastCall = setMessages.mock.lastCall?.[0] as ThreadMessage[];
       expect(lastCall.map((m) => m.id)).not.toContain("server-msg");
     });
+
+    it("keeps a trailing user message out of the composer without setMessages", async () => {
+      const userMessage = createUserMessage("u1", "Do not duplicate me");
+      const adapter = createBaseAdapter({
+        messages: [userMessage],
+        isRunning: true,
+        onCancel: vi.fn(),
+      });
+      const core = new ExternalStoreThreadRuntimeCore(contextProvider, adapter);
+
+      core.cancelRun();
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(core.composer.text).toBe("");
+    });
   });
 
   describe("optimistic assistant message", () => {
