@@ -74,38 +74,55 @@ export function createOAuthProvider(
     discoveryState?: OAuthDiscoveryState | undefined;
   };
   let cached: Cache | null = null;
+  let cachePromise: Promise<Cache> | null = null;
+  let persistenceQueue = Promise.resolve();
 
-  const loadCache = async (): Promise<Cache> => {
-    if (cached) return cached;
-    const persisted = await storage.loadAuthState(serverId);
-    const initial: Cache = {};
-    if (persisted?.tokens) initial.tokens = persisted.tokens;
-    if (config.clientId) {
-      const ci: OAuthClientInformationFull = {
-        client_id: config.clientId,
-        redirect_uris: [redirectUri],
-      };
-      if (config.clientSecret) ci.client_secret = config.clientSecret;
-      initial.clientInformation = ci;
-    } else if (persisted?.clientInformation) {
-      initial.clientInformation = persisted.clientInformation;
-    }
-    if (persisted?.codeVerifier) initial.codeVerifier = persisted.codeVerifier;
-    if (persisted?.discoveryState)
-      initial.discoveryState = persisted.discoveryState;
-    cached = initial;
-    return cached;
+  const loadCache = (): Promise<Cache> => {
+    if (cached) return Promise.resolve(cached);
+    if (cachePromise) return cachePromise;
+
+    cachePromise = storage.loadAuthState(serverId).then(
+      (persisted) => {
+        const initial: Cache = {};
+        if (persisted?.tokens) initial.tokens = persisted.tokens;
+        if (config.clientId) {
+          const ci: OAuthClientInformationFull = {
+            client_id: config.clientId,
+            redirect_uris: [redirectUri],
+          };
+          if (config.clientSecret) ci.client_secret = config.clientSecret;
+          initial.clientInformation = ci;
+        } else if (persisted?.clientInformation) {
+          initial.clientInformation = persisted.clientInformation;
+        }
+        if (persisted?.codeVerifier)
+          initial.codeVerifier = persisted.codeVerifier;
+        if (persisted?.discoveryState)
+          initial.discoveryState = persisted.discoveryState;
+        cached = initial;
+        return initial;
+      },
+      (error) => {
+        cachePromise = null;
+        throw error;
+      },
+    );
+    return cachePromise;
   };
 
-  const persist = async () => {
-    const c = cached;
-    if (!c) return;
-    const next: Parameters<typeof storage.saveAuthState>[1] = {};
-    if (c.tokens) next.tokens = c.tokens;
-    if (c.clientInformation) next.clientInformation = c.clientInformation;
-    if (c.codeVerifier) next.codeVerifier = c.codeVerifier;
-    if (c.discoveryState) next.discoveryState = c.discoveryState;
-    await storage.saveAuthState(serverId, next);
+  const persist = () => {
+    const task = persistenceQueue.then(async () => {
+      const c = cached;
+      if (!c) return;
+      const next: Parameters<typeof storage.saveAuthState>[1] = {};
+      if (c.tokens) next.tokens = c.tokens;
+      if (c.clientInformation) next.clientInformation = c.clientInformation;
+      if (c.codeVerifier) next.codeVerifier = c.codeVerifier;
+      if (c.discoveryState) next.discoveryState = c.discoveryState;
+      await storage.saveAuthState(serverId, next);
+    });
+    persistenceQueue = task.catch(() => {});
+    return task;
   };
 
   const clientMetadata: OAuthClientMetadata = {
