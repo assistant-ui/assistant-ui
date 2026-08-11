@@ -15,6 +15,8 @@ import {
   $isRangeSelection,
   $isTextNode,
   $setCompositionKey,
+  $setSelection,
+  SKIP_DOM_SELECTION_TAG,
   type LexicalEditor,
 } from "lexical";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -461,7 +463,7 @@ describe("SyncPlugin", () => {
     ).toEqual(before);
   });
 
-  it("normalizes line breaks and selects the end on a required reparse", async () => {
+  it("normalizes line breaks without selecting an unfocused editor", async () => {
     const capture = (capturedEditor: LexicalEditor) => {
       editor = capturedEditor;
     };
@@ -491,45 +493,44 @@ describe("SyncPlugin", () => {
           const lexicalRoot = $getRoot();
           lexicalRoot.clear();
           lexicalRoot.append(paragraph);
-          firstText.select(2, 2);
+          $setSelection(null);
         },
         { tag: "aui-sync" },
       );
     });
 
+    let reparseTags: ReadonlySet<string> | undefined;
+    const unregister = editor.registerUpdateListener(({ tags }) => {
+      reparseTags = tags;
+    });
+
     await act(async () => {
       render(true);
     });
+    unregister();
     expect(
       editor.getEditorState().read(() => {
         const lexicalRoot = $getRoot();
         const directive = $getParagraph().getFirstChild();
         const trailingText = $getParagraph(1).getFirstChild();
         const selection = $getSelection();
-        if (
-          !$isDirectiveNode(directive) ||
-          !$isTextNode(trailingText) ||
-          !$isRangeSelection(selection)
-        ) {
-          throw new Error("Expected normalized content and a text selection");
+        if (!$isDirectiveNode(directive) || !$isTextNode(trailingText)) {
+          throw new Error("Expected normalized content");
         }
         return {
           paragraphCount: lexicalRoot.getChildren().length,
           directiveText: directive.getDirectiveText(),
           trailingText: trailingText.getTextContent(),
-          selectionAtEnd:
-            selection.anchor.key === trailingText.getKey() &&
-            selection.focus.key === trailingText.getKey() &&
-            selection.anchor.offset === trailingText.getTextContentSize() &&
-            selection.focus.offset === trailingText.getTextContentSize(),
+          selection,
         };
       }),
     ).toEqual({
       paragraphCount: 2,
       directiveText: "[[alice]]",
       trailingText: "rest",
-      selectionAtEnd: true,
+      selection: null,
     });
+    expect(reparseTags?.has(SKIP_DOM_SELECTION_TAG)).toBe(true);
   });
 
   it("preserves duplicate metadata when formatter syntax changes", async () => {

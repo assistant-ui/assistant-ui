@@ -17,6 +17,7 @@ import {
   $isLineBreakNode,
   $isRangeSelection,
   $isTextNode,
+  SKIP_DOM_SELECTION_TAG,
   type EditorState,
   type LexicalEditor,
 } from "lexical";
@@ -255,7 +256,7 @@ function syncRuntimeToLexical(
   editor: LexicalEditor,
   runtimeText: string,
   parse: CompositeParser,
-  preserveDirectiveMetadata: boolean,
+  isParserOnlyReparse: boolean,
   onComplete: () => void,
 ) {
   editor.update(
@@ -265,7 +266,7 @@ function syncRuntimeToLexical(
         string,
         Pick<Unstable_TriggerItem, "description" | "metadata">[]
       >();
-      if (preserveDirectiveMetadata) {
+      if (isParserOnlyReparse) {
         for (const paragraph of root.getChildren()) {
           if (!$isElementNode(paragraph)) continue;
           for (const child of paragraph.getChildren()) {
@@ -285,7 +286,7 @@ function syncRuntimeToLexical(
 
       if (runtimeText.length === 0) {
         root.append($createParagraphNode());
-        root.selectEnd();
+        if (!isParserOnlyReparse) root.selectEnd();
         return;
       }
 
@@ -320,9 +321,12 @@ function syncRuntimeToLexical(
         root.append(paragraph);
       }
 
-      root.selectEnd();
+      if (!isParserOnlyReparse) root.selectEnd();
     },
-    { onUpdate: onComplete, tag: SYNC_TAG },
+    {
+      onUpdate: onComplete,
+      tag: isParserOnlyReparse ? [SYNC_TAG, SKIP_DOM_SELECTION_TAG] : SYNC_TAG,
+    },
   );
 }
 
