@@ -456,6 +456,8 @@ type ExternalThreadQueueAdapter = {
   move: (queueItemId: string, placement: QueuePlacement) => void;
   edit: (queueItemId: string, message: AppendMessage) => void;
   remove: (queueItemId: string) => void;
+  __internal_setDispatchTransform?: ((transform: (message: AppendMessage) => AppendMessage) => void) | undefined;
+  __internal_notifyCancelled?: (() => void) | undefined;
 };
 
 type FeedbackAdapter = {
@@ -473,6 +475,7 @@ type FileMessagePart = {
   readonly data: string;
   readonly mimeType: string;
   readonly sourceType?: "id" | "url";
+  readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };
 
@@ -539,6 +542,7 @@ type ImageMessagePart = {
   readonly type: "image";
   readonly image: string;
   readonly filename?: string;
+  readonly providerMetadata?: PartProviderMetadata;
 };
 
 interface JSONSchema7 {

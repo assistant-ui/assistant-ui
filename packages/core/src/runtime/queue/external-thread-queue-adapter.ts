@@ -27,4 +27,21 @@ export type ExternalThreadQueueAdapter = {
   move: (queueItemId: string, placement: QueuePlacement) => void;
   edit: (queueItemId: string, message: AppendMessage) => void;
   remove: (queueItemId: string) => void;
+  /**
+   * Installed by the owning runtime, applied to a message as it leaves a lane.
+   * A message can wait through an entire run, so state the runtime attaches at
+   * send time is recomputed against the thread it actually lands on. Adapters
+   * from `createMessageQueue` provide this; a hand-rolled adapter that omits
+   * it dispatches whatever was enqueued.
+   */
+  __internal_setDispatchTransform?:
+    | ((transform: (message: AppendMessage) => AppendMessage) => void)
+    | undefined;
+  /**
+   * Called by the owning runtime when the user cancels the run, before the run
+   * is aborted. Pauses the queue so the cancelled run's settle keeps the
+   * pending items instead of dispatching the next one; the next send re-arms
+   * draining. A hand-rolled adapter that omits it drains on cancel.
+   */
+  __internal_notifyCancelled?: (() => void) | undefined;
 };

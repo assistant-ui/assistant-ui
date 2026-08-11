@@ -27,7 +27,7 @@ const gatedAgent = () => {
     },
   );
   return {
-    agent: { runAgent } as unknown as HttpAgent,
+    agent: { runAgent, abortRun: vi.fn() } as unknown as HttpAgent,
     runAgent,
     release: () => release(),
   };
@@ -90,6 +90,73 @@ describe("useAgUiRuntime unstable_enableMessageQueue", () => {
     });
 
     await waitFor(() => expect(runAgent).toHaveBeenCalledTimes(2));
+    await waitFor(() =>
+      expect(screen.getByTestId("queued").textContent).toBe(""),
+    );
+  });
+
+  it("preserves queued sends when the active run is cancelled", async () => {
+    const { agent, runAgent, release } = gatedAgent();
+
+    const { result } = renderHook(() =>
+      useAgUiRuntime({ agent, unstable_enableMessageQueue: true }),
+    );
+    mount(result.current);
+
+    await act(async () => {
+      await result.current.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "first" }],
+      });
+    });
+    await waitFor(() => expect(runAgent).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      await result.current.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "second" }],
+        parentId: result.current.thread.getState().messages.at(-1)?.id ?? null,
+      });
+    });
+    await waitFor(() =>
+      expect(screen.getByTestId("queued").textContent).toBe("second"),
+    );
+
+    act(() => {
+      result.current.thread.cancelRun();
+    });
+    await act(async () => {
+      release();
+    });
+
+    expect(runAgent).toHaveBeenCalledTimes(1);
+    await waitFor(() =>
+      expect(screen.getByTestId("queued").textContent).toBe("second"),
+    );
+
+    await act(async () => {
+      await result.current.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "third" }],
+        parentId: result.current.thread.getState().messages.at(-1)?.id ?? null,
+      });
+    });
+
+    await waitFor(() => expect(runAgent).toHaveBeenCalledTimes(3));
+    expect(runAgent.mock.calls[1]?.[0]).toEqual(
+      expect.objectContaining({
+        messages: expect.arrayContaining([
+          expect.objectContaining({ role: "user", content: "second" }),
+        ]),
+      }),
+    );
+    expect(runAgent.mock.calls[2]?.[0]).toEqual(
+      expect.objectContaining({
+        messages: expect.arrayContaining([
+          expect.objectContaining({ role: "user", content: "third" }),
+        ]),
+      }),
+    );
     await waitFor(() =>
       expect(screen.getByTestId("queued").textContent).toBe(""),
     );

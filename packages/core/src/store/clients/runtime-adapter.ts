@@ -1,7 +1,6 @@
 import type { AssistantClient, ScopesConfig } from "@assistant-ui/store";
 import { Derived } from "@assistant-ui/store/client";
 import { ModelContext } from "./model-context-client";
-import { Suggestions } from "./suggestions";
 
 export const baseRuntimeAdapterTransformScopes = (
   scopes: ScopesConfig,
@@ -27,6 +26,10 @@ export const baseRuntimeAdapterTransformScopes = (
     scopes.modelContext = ModelContext();
   }
   if (!scopes.suggestions && parent.suggestions.source === null) {
-    scopes.suggestions = Suggestions();
+    scopes.suggestions = Derived({
+      source: "thread",
+      query: {},
+      get: (aui) => aui.thread.suggestions(),
+    });
   }
 };

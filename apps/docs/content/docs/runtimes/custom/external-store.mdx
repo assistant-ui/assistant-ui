@@ -421,13 +421,13 @@ useEffect(() => {
 }, [isRunning, queue]);
 ```
 
-Queue policy on cancel, edit, and reload is host-owned. Call `queue.notifyCancelled()` in your `onCancel` handler before aborting so the cancelled run's settle pauses draining instead of dispatching the next item (the next send or run start resumes it), or call `queue.clear()` to drop the pending items. Call `queue.clear()` in your `onEdit` and `onReload` handlers so stale items do not drain onto the new branch.
+With a `createMessageQueue` adapter, cancelling pauses the queue for you: the runtime tells the queue before your `onCancel` runs, so the cancelled run's settle keeps the pending items instead of dispatching the next one, and the next send resumes draining. Call `queue.clear()` in `onCancel` instead if you want a cancel to drop them. A hand-rolled adapter has no such channel, so it owns its cancel policy the same way it owns the rest. Edit and reload stay host-owned: call `queue.clear()` in your `onEdit` and `onReload` handlers so stale items do not drain onto the new branch.
 
 ```tsx
 const runtime = useExternalStoreRuntime({
   // ...
   onCancel: async () => {
-    queue.notifyCancelled(); // or queue.clear() to drop pending items
+    // the runtime already paused the queue; clear() here to drop the items
     await cancelRun();
   },
   onEdit: async (message) => {

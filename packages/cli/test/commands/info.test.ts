@@ -139,6 +139,43 @@ describe("findWorkspaceRoot", () => {
 });
 
 describe("info command", () => {
+  it("prints recovery details for invalid package.json", async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "aui-info-invalid-"));
+    const packageJsonPath = path.join(root, "package.json");
+    const exitSpy = vi.spyOn(process, "exit").mockImplementation(() => {
+      throw new Error("process.exit");
+    });
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    try {
+      fs.writeFileSync(packageJsonPath, "{ invalid json", "utf8");
+
+      await expect(
+        info.parseAsync(["node", "info", "--cwd", root], {
+          from: "node",
+        }),
+      ).rejects.toThrow("process.exit");
+
+      expect(exitSpy).toHaveBeenCalledWith(1);
+
+      const stderr = consoleError.mock.calls.flat().join("\n");
+      expect(stderr).toContain("Could not parse package.json.");
+      expect(stderr).toContain(
+        `Package path: ${path.join(fs.realpathSync(root), "package.json")}`,
+      );
+      expect(stderr).toContain(
+        "Fix the JSON syntax in that file, then run: assistant-ui info",
+      );
+      expect(stderr).not.toContain("SyntaxError");
+    } finally {
+      exitSpy.mockRestore();
+      consoleError.mockRestore();
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("finds hoisted packages from a symlinked workspace project", async () => {
     const fixture = fs.mkdtempSync(path.join(os.tmpdir(), "aui-info-link-"));
     const root = path.join(fixture, "workspace");

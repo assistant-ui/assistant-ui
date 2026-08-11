@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { ArrowUpRightIcon, FileTextIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { mono, paper } from "./surfaces";
@@ -10,20 +11,26 @@ export function ArtifactCard({
   generating = false,
   words = 0,
   className,
-}: {
+  ...props
+}: Omit<
+  ComponentProps<"div">,
+  "children" | "title" | "meta" | "generating" | "words"
+> & {
   title: string;
   meta: string;
   generating?: boolean;
   words?: number;
-  className?: string;
 }) {
   return (
     <div
+      data-slot="artifact-card"
       className={cn(
         paper,
         "group flex w-full max-w-xs cursor-pointer items-center gap-3 rounded-[20px] p-3.5 transition-transform duration-150 hover:-translate-y-px active:scale-[0.98]",
         className,
       )}
+
+      {...props}
     >
       <span className="bg-foreground/[0.05] text-foreground/45 flex size-9 shrink-0 items-center justify-center rounded-xl">
         <FileTextIcon

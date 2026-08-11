@@ -1,7 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Composer } from "@/components/elements/composer";
+import {
+  Composer,
+  ComposerActions,
+  ComposerAttachButton,
+  ComposerBar,
+  ComposerInput,
+  ComposerSend,
+  ComposerToolbar,
+  ComposerVoice,
+  ComposerVoiceButton,
+} from "@/components/elements/composer";
 import { useElapsed, useStoryPhases } from "./use-demo";
 
 const PHASES = [1400, 3600, 1600, 3000, 0] as const;
@@ -11,24 +21,47 @@ export function ComposerVoiceDemo() {
   const { phase, running, takeOver } = useStoryPhases(PHASES);
   const [value, setValue] = useState("");
   const elapsedTenths = useElapsed(running && phase === 1);
+  const recording = running && phase === 1;
+  const transcribing = running && phase === 2;
+  const active = recording || transcribing;
 
   useEffect(() => {
     if (phase >= 3) setValue(TRANSCRIPT);
   }, [phase]);
 
   return (
-    <Composer
-      value={value}
-      onValueChange={(v) => {
-        takeOver();
-        setValue(v);
-      }}
-      onSend={() => setValue("")}
-      recording={running && phase === 1}
-      transcribing={running && phase === 2}
-      recordingSeconds={Math.floor(elapsedTenths / 10)}
-      onVoiceStart={takeOver}
-      onVoiceStop={takeOver}
-    />
+    <Composer>
+      <ComposerBar>
+        {active ? (
+          <ComposerVoice
+            recording={recording}
+            seconds={Math.floor(elapsedTenths / 10)}
+          />
+        ) : (
+          <ComposerInput
+            value={value}
+            placeholder="Ask anything"
+            onChange={(event) => {
+              takeOver();
+              setValue(event.target.value);
+            }}
+            onSubmit={() => setValue("")}
+          />
+        )}
+        <ComposerToolbar>
+          <ComposerActions>
+            <ComposerAttachButton onClick={() => undefined} />
+          </ComposerActions>
+          <ComposerActions>
+            <ComposerVoiceButton active={active} onClick={takeOver} />
+            <ComposerSend
+              streaming={false}
+              idle={value.length === 0}
+              onClick={() => setValue("")}
+            />
+          </ComposerActions>
+        </ComposerToolbar>
+      </ComposerBar>
+    </Composer>
   );
 }

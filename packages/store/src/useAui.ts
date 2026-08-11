@@ -159,8 +159,17 @@ const useClientFields = ({
             return;
           }
 
+          // Resolved against the host's current client: a structural swap
+          // replaces the client identity, and a listener subscribed on an
+          // earlier generation still follows the scope's present binding
+          const boundScope = (clientRef.current ?? this)[
+            scope as ClientNames
+          ] as AssistantClientAccessor<ClientNames> | undefined;
+          // A scope removed by a structural change since subscription cannot
+          // match; resolving its identity would throw
+          if (!boundScope || boundScope.source === null) return;
           const scopeClient = getClientId(
-            this[scope as ClientNames],
+            boundScope,
           ) as unknown as ClientMethods;
           const index = getClientIndex(scopeClient);
           if (scopeClient === clientStack[index]) {
@@ -301,9 +310,14 @@ const useHostedAssistantClient = ({
     );
 
     // flushTapSync makes structural rebinds triggered by a notification land
-    // before the notification returns
+    // before the notification returns; the client ref is refreshed in the same
+    // window so event delivery resolves scopes against the post-flush client
     useEffect(() => {
-      const notify = () => flushTapSync(notifications.notifySubscribers);
+      const notify = () =>
+        flushTapSync(() => {
+          clientRef.current = store.getValue().client;
+          notifications.notifySubscribers();
+        });
       const unsubscribeStore = store.subscribe(notify);
       const unsubscribeParent = parent.subscribe(notify);
       return () => {
