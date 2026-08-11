@@ -52,7 +52,7 @@ produces that vocabulary component when a surface is ingested.
 | `RadioGroup` | Yes | Yes (`radio_buttons`; options capped *(warns)*) | Yes (`Input.ChoiceSet` expanded; options capped *(warns)*; companion submit *(warns)*) | — |
 | `Checkbox` | Yes | Yes (`checkboxes`) | Yes (`Input.Toggle`; companion submit *(warns)*) | `CheckBox` |
 | `Input` | Yes | Yes (`input` + `plain_text_input`; no `dispatch_action`, so it does not fire on change) | Yes (`Input.Text`; companion submit *(warns)*) | `TextField` |
-| `DatePicker` | Yes | Yes (`datepicker`; non-`YYYY-MM-DD` values dropped *(warns)*) | Yes (`Input.Date`; companion submit *(warns)*) | — |
+| `DatePicker` | Yes | Yes (`datepicker`; non-`YYYY-MM-DD` values dropped *(warns)*, `min` and `max` dropped *(silent)*) | Yes (`Input.Date`; companion submit *(warns)*) | — |
 | `Form` | Yes | Yes (children + submit `actions` block) | Yes (inputs + submit `ActionSet`) | — |
 | `Alert` | Yes | Degrades on messages *(warns)*: Slack only has a native alert block in modals, so messages get fallback context + section blocks | Yes (toned `Container`) | — |
 | `Table` | Yes | Yes (`data_table`); rows and columns capped *(warns)*, rows clamped to the shared character budget *(warns)*, and a table whose header row alone overruns the remaining budget is dropped *(warns)* | Yes (`Table`; rows and columns capped *(warns)*) | — |
