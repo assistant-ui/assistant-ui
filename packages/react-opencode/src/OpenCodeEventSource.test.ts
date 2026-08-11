@@ -49,9 +49,9 @@ describe("OpenCodeEventSource", () => {
     const source = new OpenCodeEventSource(client as never);
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
-    const unsubscribe = source.subscribe(vi.fn());
-
     try {
+      const unsubscribe = source.subscribe(vi.fn());
+
       await waitFor(() => {
         expect(warnSpy).toHaveBeenCalledTimes(1);
       });
