@@ -1256,6 +1256,10 @@ describe("toSlackBlocks", () => {
       ],
       ["controls", { $type: "Select", options: [{ label: "A", value: "a" }] }],
       ["controls", { $type: "Input", name: "email", label: "Email" }],
+      [
+        "controls",
+        { $type: "Form", children: [{ $type: "Text", value: "inner" }] },
+      ],
     ])(
       "reports %s that a reshape cannot carry, however deep",
       (kind, child) => {

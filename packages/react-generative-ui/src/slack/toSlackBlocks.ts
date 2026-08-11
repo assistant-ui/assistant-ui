@@ -74,6 +74,14 @@ const INTERACTIVE_TYPES = new Set([
   "RadioGroup",
 ]);
 
+/**
+ * Types whose control disappears when a card is reshaped to text. `Input` and
+ * `Form` are not in {@link INTERACTIVE_TYPES} because they emit their own
+ * block rather than an actions element, but a reshape loses them the same way,
+ * and a `Form` gets a Submit button whether or not it carries an action.
+ */
+const CONTROL_TYPES = new Set([...INTERACTIVE_TYPES, "Input", "Form"]);
+
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -637,11 +645,7 @@ const scanLostContent = (
     return;
   }
   if (!isElement(node)) return;
-  if (
-    node.action !== undefined ||
-    INTERACTIVE_TYPES.has(node.type) ||
-    node.type === "Input"
-  ) {
+  if (node.action !== undefined || CONTROL_TYPES.has(node.type)) {
     into.add("controls");
   }
   if (node.type === "Image") into.add("images");
@@ -653,9 +657,9 @@ const scanLostContent = (
 /**
  * Degrades a card that cannot map cleanly into a title-and-body card block.
  * A carousel cannot fall back to a block sequence like a standalone card can,
- * so the card is reshaped to the two text fields the block has. Every child's
- * text survives through {@link collectText}; an image or an action does not,
- * and is reported separately from the reshape itself.
+ * so the card is reshaped to the two text fields the block has. Text reachable
+ * by {@link collectText} survives at any depth; an image, a table, a chart,
+ * and a control do not, and are reported separately from the reshape itself.
  */
 const degradeCard = (
   element: NormalizedUIElement,
