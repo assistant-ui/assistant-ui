@@ -167,6 +167,54 @@ describe("createAssistantClient", () => {
     handle.destroy();
   });
 
+  it("keeps a retained listener connected when a local root scope becomes inherited", async () => {
+    const parent = createTestClient({
+      message: MessageClient({ id: "parent" }),
+    });
+    let config: Record<string, unknown> = {
+      message: MessageClient({ id: "child" }),
+    };
+    const configListeners = new Set<() => void>();
+    const child = createAssistantClient(
+      {
+        getConfig: () => config as never,
+        subscribe: (listener) => {
+          configListeners.add(listener);
+          return () => configListeners.delete(listener);
+        },
+      },
+      { parent },
+    );
+    const subscribed = child.getClient() as AnyClient;
+    const callback = vi.fn();
+    subscribed.on("message.pinged", callback);
+
+    flushTapSync(() => parent.getClient().message.ping("not-yet-bound"));
+    await flushEvents();
+    expect(callback).not.toHaveBeenCalled();
+
+    flushTapSync(() => subscribed.message.ping("local"));
+    await flushEvents();
+
+    config = {};
+    flushTapSync(() => configListeners.forEach((listener) => listener()));
+    flushTapSync(() => parent.getClient().message.ping("inherited"));
+    await flushEvents();
+
+    expect(callback).toHaveBeenCalledTimes(2);
+    expect(callback).toHaveBeenNthCalledWith(1, {
+      id: "child",
+      value: "local",
+    });
+    expect(callback).toHaveBeenNthCalledWith(2, {
+      id: "parent",
+      value: "inherited",
+    });
+
+    child.destroy();
+    parent.destroy();
+  });
+
   it("rolls back a local listener when its parent rejects registration", async () => {
     const parent = {
       subscribe: () => () => {},

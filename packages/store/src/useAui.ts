@@ -200,13 +200,6 @@ const useClientFields = ({
           scope === "*"
             ? undefined
             : getEventScopeBinding(this, scope as ClientNames);
-        const subscriberScopeOwner =
-          scope !== "*" && subscriberScope?.source === "root"
-            ? getEventScopeOwner(
-                getCurrentEventClient(this),
-                scope as ClientNames,
-              )
-            : null;
 
         if (subscriberScope?.source === null) {
           throw new Error(
@@ -238,21 +231,19 @@ const useClientFields = ({
         const parent = clientRef.parent;
         const parentOn = parent.on;
         const generatedParent = generatedEventHandlers.has(parentOn);
-
-        // A root scope owned by this host emits through this notification
-        // manager, so forwarding it can only add an ancestor registration.
-        if (
-          subscriberScopeOwner !== null &&
-          eventClientRefs.get(subscriberScopeOwner) === clientRef
-        ) {
-          return localUnsub;
-        }
-
         const parentScope =
           scope === "*"
             ? undefined
             : getEventScopeBinding(parent, scope as ClientNames);
-        if (scope !== "*" && !generatedParent && parentScope?.source === null) {
+
+        // A local root scope stops when the parent has no transport for it.
+        // Derived scopes keep crossing generated scope-less frames because
+        // their source notifications may originate higher in the chain.
+        if (
+          scope !== "*" &&
+          parentScope?.source === null &&
+          (!generatedParent || subscriberScope?.source === "root")
+        ) {
           return localUnsub;
         }
 
