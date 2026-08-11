@@ -7,6 +7,8 @@ import { LexicalComposer } from "@lexical/react/LexicalComposer";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import { $getRoot, type LexicalEditor } from "lexical";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { Unstable_DirectiveFormatter } from "@assistant-ui/core";
+import { DirectiveNode } from "../nodes/DirectiveNode";
 import { SyncPlugin } from "./SyncPlugin";
 
 const mocks = vi.hoisted(() => ({
@@ -103,5 +105,59 @@ describe("SyncPlugin", () => {
     });
 
     expect(readEditorText(editor)).toBe("");
+  });
+
+  it("reparses the current draft when the formatter changes", async () => {
+    const initialConfig = {
+      namespace: "sync-plugin-formatter-test",
+      nodes: [DirectiveNode],
+      onError: (error: Error) => {
+        throw error;
+      },
+    };
+    const capture = (capturedEditor: LexicalEditor) => {
+      editor = capturedEditor;
+    };
+    const formatter: Unstable_DirectiveFormatter = {
+      serialize: (item) => `[[${item.id}]]`,
+      parse: (text) =>
+        text === "[[alice]]"
+          ? [
+              {
+                kind: "mention" as const,
+                type: "person",
+                id: "alice",
+                label: "Alice",
+              },
+            ]
+          : [{ kind: "text" as const, text }],
+    };
+    const render = (currentFormatter?: Unstable_DirectiveFormatter) =>
+      root.render(
+        <LexicalComposer initialConfig={initialConfig}>
+          <SyncPlugin formatter={currentFormatter} />
+          <EditorProbe capture={capture} />
+        </LexicalComposer>,
+      );
+
+    mocks.aui = createAui("[[alice]]");
+    await act(async () => {
+      render();
+    });
+    expect(
+      editor
+        .getEditorState()
+        .read(() => $getRoot().getFirstChild()?.getFirstChild()?.getType()),
+    ).toBe("text");
+
+    await act(async () => {
+      render(formatter);
+    });
+    expect(
+      editor
+        .getEditorState()
+        .read(() => $getRoot().getFirstChild()?.getFirstChild()?.getType()),
+    ).toBe("directive");
+    expect(mocks.aui.composer.setText).not.toHaveBeenCalled();
   });
 });

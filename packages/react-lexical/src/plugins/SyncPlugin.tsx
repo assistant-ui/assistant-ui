@@ -158,12 +158,11 @@ export function SyncPlugin({
   );
 
   const parser = useMemo(() => composeParsers(formatters), [formatters]);
-  const parserRef = useRef<CompositeParser>(parser);
-  parserRef.current = parser;
 
   const isSyncingFromLexicalRef = useRef(false);
   const isSyncingFromRuntimeRef = useRef(false);
   const lastSyncedTextRef = useRef("");
+  const lastAppliedParserRef = useRef<CompositeParser | null>(null);
 
   useEffect(() => {
     return editor.registerUpdateListener(({ editorState, tags }) => {
@@ -205,10 +204,14 @@ export function SyncPlugin({
     if (!composerRuntime) return;
 
     const initialText = composerRuntime.getState().text;
-    if (initialText !== lastSyncedTextRef.current) {
+    if (
+      initialText !== lastSyncedTextRef.current ||
+      parser !== lastAppliedParserRef.current
+    ) {
       isSyncingFromRuntimeRef.current = true;
       lastSyncedTextRef.current = initialText;
-      syncRuntimeToLexical(editor, initialText, parserRef.current, () => {
+      lastAppliedParserRef.current = parser;
+      syncRuntimeToLexical(editor, initialText, parser, () => {
         isSyncingFromRuntimeRef.current = false;
       });
     }
@@ -222,11 +225,12 @@ export function SyncPlugin({
 
       isSyncingFromRuntimeRef.current = true;
       lastSyncedTextRef.current = runtimeText;
-      syncRuntimeToLexical(editor, runtimeText, parserRef.current, () => {
+      lastAppliedParserRef.current = parser;
+      syncRuntimeToLexical(editor, runtimeText, parser, () => {
         isSyncingFromRuntimeRef.current = false;
       });
     });
-  }, [editor, aui]);
+  }, [editor, aui, parser]);
 
   return null;
 }
