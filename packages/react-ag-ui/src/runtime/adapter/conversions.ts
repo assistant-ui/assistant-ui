@@ -17,6 +17,7 @@ import {
   AG_UI_METADATA_NAMESPACE,
   A2UI_SURFACE_ACTIVITY_TYPE,
   type AgUiCustomMetadata,
+  type AgUiOpaqueReasoning,
 } from "./run-aggregator";
 import {
   applyA2uiOperations,
@@ -42,6 +43,7 @@ type ThreadMessageLike = {
   id: string;
   role: string;
   content: unknown;
+  metadata?: unknown;
   name?: string;
   toolCallId?: string;
   error?: string;
@@ -61,6 +63,12 @@ export type AgUiMessage =
       content: string | InputContent[];
       name?: string;
       toolCalls?: AgUiToolCall[];
+    }
+  | {
+      id: string;
+      role: "reasoning";
+      content: string;
+      encryptedValue?: string;
     }
   | {
       id: string;
@@ -93,6 +101,16 @@ const getString = (record: Record<string, unknown>, key: string) => {
 
 const getToolCallId = (record: Record<string, unknown>) =>
   getString(record, "toolCallId") ?? getString(record, "tool_call_id");
+
+const readAgUiReasoningMeta = (providerMetadata: unknown) => {
+  if (!isObject(providerMetadata)) return {};
+  const namespaced = providerMetadata[AG_UI_METADATA_NAMESPACE];
+  if (!isObject(namespaced)) return {};
+  return {
+    encryptedValue: getString(namespaced, "encryptedValue"),
+    reasoningId: getString(namespaced, "reasoningId"),
+  };
+};
 
 function parseJSONText(value: string): unknown {
   if (!value) return value;
@@ -498,6 +516,46 @@ function readPersistedInterrupts(
   return validateInterrupts(namespaced.interrupts);
 }
 
+function readOpaqueReasoning(metadata: unknown): AgUiOpaqueReasoning[] {
+  if (!isObject(metadata)) return [];
+  const custom = metadata.custom;
+  if (!isObject(custom)) return [];
+  const namespaced = custom[AG_UI_METADATA_NAMESPACE];
+  if (!isObject(namespaced)) return [];
+  const entries = namespaced.opaqueReasoning;
+  if (!Array.isArray(entries)) return [];
+  return entries.flatMap((entry) => {
+    if (!isObject(entry)) return [];
+    const id = getString(entry, "id");
+    const encryptedValue = getString(entry, "encryptedValue");
+    if (!id?.trim() || !encryptedValue?.trim()) return [];
+    return [
+      { id, encryptedValue, ...(entry.after === true ? { after: true } : {}) },
+    ];
+  });
+}
+
+function withOpaqueReasoning(
+  message: CoreThreadMessageLike,
+  opaqueReasoning: AgUiOpaqueReasoning[],
+): CoreThreadMessageLike {
+  const metadata = isObject(message.metadata) ? message.metadata : {};
+  const custom = isObject(metadata.custom) ? metadata.custom : {};
+  const namespaced = isObject(custom[AG_UI_METADATA_NAMESPACE])
+    ? (custom[AG_UI_METADATA_NAMESPACE] as Record<string, unknown>)
+    : {};
+  return {
+    ...message,
+    metadata: {
+      ...metadata,
+      custom: {
+        ...custom,
+        [AG_UI_METADATA_NAMESPACE]: { ...namespaced, opaqueReasoning },
+      },
+    },
+  } as CoreThreadMessageLike;
+}
+
 function toAssistantSnapshotMessage(
   rawMessage: Record<string, unknown>,
 ): CoreThreadMessageLike {
@@ -596,6 +654,11 @@ export function fromAgUiMessages(
   const converted: CoreThreadMessageLike[] = [];
   const a2uiBuckets = new Map<string, A2uiState>();
   const a2uiBucketOwnerIndices = new Map<string, number>();
+  // A zero-data-retention run carries its payload in encryptedValue with no
+  // readable content, so the record has no part to become and rides on the
+  // neighbouring message instead of being dropped. The anchor is the index the
+  // next pushed message will occupy, which is where it sat on the wire.
+  const opaqueReasoning: (AgUiOpaqueReasoning & { anchor: number })[] = [];
 
   for (const rawMessage of messages) {
     if (!isObject(rawMessage)) continue;
@@ -750,15 +813,53 @@ export function fromAgUiMessages(
     }
 
     if (role === "reasoning") {
-      // Gate on showThinking so a cold reload matches the live run: the
-      // aggregator never stores reasoning parts when showThinking is false.
-      if (!showThinking) continue;
       const text = extractText(rawMessage.content);
-      if (text.trim().length === 0) continue;
+      const encryptedValue = getString(rawMessage, "encryptedValue");
+      if (text.trim().length === 0) {
+        // showThinking hides reasoning; this record is never rendered anyway,
+        // and dropping it would deny the provider the payload it needs to
+        // accept the next run.
+        const opaqueId = getString(rawMessage, "id");
+        if (opaqueId?.trim() && encryptedValue?.trim()) {
+          opaqueReasoning.push({
+            id: opaqueId,
+            encryptedValue,
+            anchor: converted.length,
+          });
+        }
+        continue;
+      }
+      // Gate visible reasoning on showThinking so a cold reload matches the
+      // live run: the aggregator never stores reasoning parts when it is off.
+      // A signature on a hidden record is still transport state, so it is kept
+      // opaque rather than discarded with the text.
+      if (!showThinking) {
+        const hiddenId = getString(rawMessage, "id");
+        if (hiddenId?.trim() && encryptedValue?.trim()) {
+          opaqueReasoning.push({
+            id: hiddenId,
+            encryptedValue,
+            anchor: converted.length,
+          });
+        }
+        continue;
+      }
       converted.push({
         id: getString(rawMessage, "id") ?? generateId(),
         role: "assistant",
-        content: [{ type: "reasoning", text }],
+        content: [
+          {
+            type: "reasoning",
+            text,
+            ...(encryptedValue !== undefined
+              ? {
+                  providerMetadata: {
+                    [AG_UI_METADATA_NAMESPACE]: { encryptedValue },
+                  },
+                }
+              : {}),
+          },
+        ],
       });
       continue;
     }
@@ -766,6 +867,18 @@ export function fromAgUiMessages(
     if (role === "user" || role === "system") {
       converted.push(toUserOrSystemSnapshotMessage(role, rawMessage));
     }
+  }
+
+  for (const { anchor, ...entry } of opaqueReasoning) {
+    // Nothing followed it on the wire, so it trails the last message instead.
+    const trailing = anchor >= converted.length;
+    const index = trailing ? converted.length - 1 : anchor;
+    const target = converted[index];
+    if (!target) continue;
+    converted[index] = withOpaqueReasoning(target, [
+      ...readOpaqueReasoning(target.metadata),
+      ...(trailing ? [{ ...entry, after: true }] : [entry]),
+    ]);
   }
 
   for (let i = 0; i < converted.length; i++) {
@@ -821,9 +934,35 @@ function convertAssistantMessage(
     part,
   }));
 
+  // An AG-UI assistant record has no reasoning field, so reasoning leaves as
+  // the standalone record it arrived as, ahead of the assistant it belongs to.
+  const shellIsDropped = content.length === 0 && toolCalls.length === 0;
+  let reasoningIndex = 0;
+  for (const part of contentArray) {
+    if (!isObject(part) || part.type !== "reasoning") continue;
+    const text = getString(part, "text") ?? "";
+    if (text.trim().length === 0) continue;
+    const { encryptedValue, reasoningId } = readAgUiReasoningMeta(
+      part.providerMetadata,
+    );
+    converted.push({
+      // The wire id is what a signature was issued against, so it wins over a
+      // synthesized one whenever the run carried it.
+      id: reasoningId?.trim()
+        ? reasoningId
+        : shellIsDropped && reasoningIndex === 0
+          ? message.id
+          : `${message.id}:reasoning-${reasoningIndex}`,
+      role: "reasoning",
+      content: text,
+      ...(encryptedValue !== undefined ? { encryptedValue } : {}),
+    });
+    reasoningIndex++;
+  }
+
   // Drop assistant messages with no text or tool calls (e.g. an imported
   // reasoning-only entry) so they are not re-sent as a blank assistant turn.
-  if (content.length === 0 && toolCalls.length === 0) {
+  if (shellIsDropped) {
     return;
   }
 
@@ -888,13 +1027,31 @@ export function toAgUiMessages(
   const converted: AgUiMessage[] = [];
 
   for (const message of messages) {
+    const opaqueReasoning = readOpaqueReasoning(message.metadata);
+    const toOpaqueRecord = (entry: AgUiOpaqueReasoning): AgUiMessage => ({
+      id: entry.id,
+      role: "reasoning",
+      content: "",
+      encryptedValue: entry.encryptedValue,
+    });
+    for (const entry of opaqueReasoning) {
+      if (entry.after !== true) converted.push(toOpaqueRecord(entry));
+    }
+    const flushTrailingOpaqueReasoning = () => {
+      for (const entry of opaqueReasoning) {
+        if (entry.after === true) converted.push(toOpaqueRecord(entry));
+      }
+    };
+
     if (message.role === "assistant") {
       convertAssistantMessage(message, converted);
+      flushTrailingOpaqueReasoning();
       continue;
     }
 
     if (message.role === "tool") {
       convertToolMessage(message, converted);
+      flushTrailingOpaqueReasoning();
       continue;
     }
 
@@ -910,6 +1067,7 @@ export function toAgUiMessages(
       genericMessage.name = message.name;
     }
     converted.push(genericMessage);
+    flushTrailingOpaqueReasoning();
   }
 
   return converted;

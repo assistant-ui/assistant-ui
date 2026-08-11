@@ -43,6 +43,69 @@ import { ComposerContextDemo } from "./composer-context-demo";
 import { EmptyStateDemo } from "./empty-state-demo";
 import { ThreadListDemo } from "./thread-list-demo";
 import { ScrollAnchorDemo } from "./scroll-anchor-demo";
+import { TodoListDemo } from "./todo-list-demo";
+import { MessageQueueDemo } from "./message-queue-demo";
+import { MessageAttachmentDemo } from "./message-attachment-demo";
+import { ReviewableDiffDemo } from "./reviewable-diff-demo";
+import { FileTreeDemo } from "./file-tree-demo";
+import { ElicitationFormDemo } from "./elicitation-form-demo";
+import { RetrievalChunksDemo } from "./retrieval-chunks-demo";
+import { ChartBarsDemo, ChartDemo, ChartLineDemo } from "./chart-demo";
+import { TraceWaterfallDemo } from "./trace-waterfall-demo";
+import { CanvasSplitDemo } from "./canvas-split-demo";
+import { VoiceConversationDemo } from "./voice-conversation-demo";
+import { ReadAloudDemo } from "./read-aloud-demo";
+import { McpServerPanelDemo } from "./mcp-server-panel-demo";
+import { FeedbackDialogDemo } from "./feedback-dialog-demo";
+import { QuoteReplyDemo } from "./quote-reply-demo";
+import { EditMessageDemo } from "./edit-message-demo";
+import { ConnectionStateDemo } from "./connection-state-demo";
+import { StoppedRunDemo } from "./stopped-run-demo";
+import { AgentCardDemo } from "./agent-card-demo";
+import { WebPreviewDemo } from "./web-preview-demo";
+import { MessageTimingDemo } from "./message-timing-demo";
+import { DraftRestoreDemo } from "./draft-restore-demo";
+import { DiagramDemo } from "./diagram-demo";
+import { FlowGraphDemo } from "./flow-graph-demo";
+import { ActivityGraphDemo } from "./activity-graph-demo";
+import { ToolGroupDemo } from "./tool-group-demo";
+import { ContextBreakdownDemo } from "./context-breakdown-demo";
+import { ModelPickerDemo } from "./model-picker-demo";
+import { ReasoningEffortDemo } from "./reasoning-effort-demo";
+import { GuardrailNoticeDemo } from "./guardrail-notice-demo";
+import { DaySeparatorDemo } from "./day-separator-demo";
+import { SpeakerIdentityDemo } from "./speaker-identity-demo";
+import { RegenerateMenuDemo } from "./regenerate-menu-demo";
+import { ConfidenceMarkerDemo } from "./confidence-marker-demo";
+import { ToolErrorDemo } from "./tool-error-demo";
+import { PermissionGrantDemo } from "./permission-grant-demo";
+import { ComputerUseDemo } from "./computer-use-demo";
+import { CodeRunnerDemo } from "./code-runner-demo";
+import { DocumentReferenceDemo } from "./document-reference-demo";
+import { MemoryChipsDemo } from "./memory-chips-demo";
+import { ResearchReportDemo } from "./research-report-demo";
+import { MapAnswerDemo } from "./map-answer-demo";
+import { MathBlockDemo } from "./math-block-demo";
+import { SpecSheetDemo } from "./spec-sheet-demo";
+import { ComparisonCardDemo } from "./comparison-card-demo";
+import { TimelineDemo } from "./timeline-demo";
+import { JobProgressDemo } from "./job-progress-demo";
+import { ScoreBreakdownDemo } from "./score-breakdown-demo";
+import { CostMeterDemo } from "./cost-meter-demo";
+import { QuotaBannerDemo } from "./quota-banner-demo";
+import { AgentHandoffDemo } from "./agent-handoff-demo";
+import { BackgroundInboxDemo } from "./background-inbox-demo";
+import { CheckpointHistoryDemo } from "./checkpoint-history-demo";
+import { ScheduleCardDemo } from "./schedule-card-demo";
+import { PromptLibraryDemo } from "./prompt-library-demo";
+import { CommandPaletteDemo } from "./command-palette-demo";
+import { SharedConversationDemo } from "./shared-conversation-demo";
+import { ConversationSearchDemo } from "./conversation-search-demo";
+import { ThreadSearchDemo } from "./thread-search-demo";
+import { LauncherBubbleDemo } from "./launcher-bubble-demo";
+import { SettingsPanelDemo } from "./settings-panel-demo";
+import { OnboardingDemo } from "./onboarding-demo";
+import { MobileComposerDemo } from "./mobile-composer-demo";
 import * as generativeDemos from "./generative-demos";
 import { GENERATIVE_ELEMENTS } from "@/lib/generative-elements";
 
@@ -151,6 +214,23 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
           { key: "bare", label: "Bare", Component: TypingIndicatorBareDemo },
         ],
       },
+      {
+        slug: "reasoning-effort",
+        title: "Reasoning effort",
+        description:
+          "How hard to think, and how much of that budget the run actually spent.",
+        file: "reasoning-effort.tsx",
+        Component: ReasoningEffortDemo,
+      },
+      {
+        slug: "guardrail-notice",
+        replay: false,
+        title: "Guardrail notice",
+        description:
+          "A refusal in its own shape, with the nearest thing it can do instead.",
+        file: "guardrail-notice.tsx",
+        Component: GuardrailNoticeDemo,
+      },
     ],
   },
   {
@@ -209,6 +289,102 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         file: "error-state.tsx",
         Component: ErrorStateDemo,
       },
+      {
+        slug: "message-queue",
+        replay: false,
+        title: "Message queue",
+        description:
+          "Turns you typed while a run was in flight, stacked and cancelable until it finishes.",
+        file: "message-queue.tsx",
+        Component: MessageQueueDemo,
+      },
+      {
+        slug: "message-attachment",
+        replay: false,
+        title: "Attachments in a message",
+        description:
+          "Files as received rather than staged: an image to open, a document with its page count.",
+        file: "message-attachment.tsx",
+        Component: MessageAttachmentDemo,
+      },
+      {
+        slug: "edit-message",
+        replay: false,
+        title: "Edit a sent message",
+        description:
+          "Rewrite a turn in place, told up front how many replies the edit throws away.",
+        file: "edit-message.tsx",
+        Component: EditMessageDemo,
+      },
+      {
+        slug: "quote-reply",
+        title: "Quote reply",
+        description:
+          "Select a phrase in an answer and a toolbar offers to quote, explain, or rewrite it.",
+        file: "quote-reply.tsx",
+        Component: QuoteReplyDemo,
+      },
+      {
+        slug: "feedback-dialog",
+        replay: false,
+        title: "Feedback dialog",
+        description:
+          "A thumbs-down that asks why, so the signal arrives with a reason attached.",
+        file: "feedback-dialog.tsx",
+        Component: FeedbackDialogDemo,
+      },
+      {
+        slug: "stopped-run",
+        title: "Stopped run",
+        description:
+          "You pressed stop. The half-written answer stays, and continuing is one tap away.",
+        file: "stopped-run.tsx",
+        Component: StoppedRunDemo,
+      },
+      {
+        slug: "message-timing",
+        title: "Timing footer",
+        description:
+          "What the turn cost: time to first token, throughput, tokens, money.",
+        file: "message-timing.tsx",
+        Component: MessageTimingDemo,
+      },
+      {
+        slug: "day-separator",
+        replay: false,
+        title: "Timestamps",
+        description:
+          "Chronology in a long thread: days marked, times on hover.",
+        file: "day-separator.tsx",
+        Component: DaySeparatorDemo,
+      },
+      {
+        slug: "speaker-identity",
+        replay: false,
+        title: "Speaker identity",
+        description:
+          "Who is talking, once a thread holds more than a user and one model.",
+        file: "speaker-identity.tsx",
+        Component: SpeakerIdentityDemo,
+      },
+      {
+        slug: "regenerate-menu",
+        replay: false,
+        title: "Regenerate with",
+        description:
+          "Fork the same turn to a different model instead of rolling the same dice.",
+        file: "regenerate-menu.tsx",
+        Component: RegenerateMenuDemo,
+      },
+      {
+        slug: "confidence-marker",
+        replay: false,
+        title: "Confidence",
+        description:
+          "Which claims came from a source, which were inferred, and which are guesses.",
+        file: "confidence-marker.tsx",
+        Component: ConfidenceMarkerDemo,
+      },
     ],
   },
   {
@@ -251,6 +427,84 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         file: "code-diff.tsx",
         Component: CodeDiffDemo,
       },
+      {
+        slug: "reviewable-diff",
+        replay: false,
+        title: "Reviewable diff",
+        description:
+          "The same diff, but each hunk is a decision: keep it, discard it, apply what survived.",
+        file: "reviewable-diff.tsx",
+        Component: ReviewableDiffDemo,
+      },
+      {
+        slug: "file-tree",
+        title: "File tree",
+        description:
+          "Everything a run touched, as a tree, with the churn spelled out per file.",
+        file: "file-tree.tsx",
+        Component: FileTreeDemo,
+      },
+      {
+        slug: "elicitation-form",
+        replay: false,
+        title: "Elicitation form",
+        description:
+          "A server pausing mid-tool-call to ask you for the fields it still needs.",
+        file: "elicitation-form.tsx",
+        Component: ElicitationFormDemo,
+      },
+      {
+        slug: "mcp-server-panel",
+        replay: false,
+        title: "Server panel",
+        description:
+          "Which servers are connected, what each one brought, and which is still waiting on you.",
+        file: "mcp-server-panel.tsx",
+        Component: McpServerPanelDemo,
+      },
+      {
+        slug: "tool-group",
+        title: "Parallel tools",
+        description:
+          "Calls that went out together, collapsed to one row until you want the detail.",
+        file: "tool-group.tsx",
+        Component: ToolGroupDemo,
+      },
+      {
+        slug: "tool-error",
+        replay: false,
+        title: "Tool failure",
+        description:
+          "One call failed. The error, the attempt count, and a retry that doesn't restart the turn.",
+        file: "tool-error.tsx",
+        Component: ToolErrorDemo,
+      },
+      {
+        slug: "permission-grant",
+        replay: false,
+        title: "Permission grant",
+        description:
+          "Granting a capability rather than approving one action, with the reach spelled out.",
+        file: "permission-grant.tsx",
+        Component: PermissionGrantDemo,
+      },
+      {
+        slug: "computer-use",
+        title: "Computer use",
+        description:
+          "The screen the agent is driving, with a cursor trail and what it is doing right now.",
+        file: "computer-use.tsx",
+        Component: ComputerUseDemo,
+      },
+      {
+        slug: "code-runner",
+        replay: false,
+        title: "Code runner",
+        description:
+          "A snippet with a run button, and the output it produced attached below it.",
+        file: "code-runner.tsx",
+        Component: CodeRunnerDemo,
+      },
     ],
   },
   {
@@ -291,6 +545,48 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         file: "image-generation.tsx",
         Component: ImageGenerationDemo,
       },
+      {
+        slug: "retrieval-chunks",
+        title: "Retrieval chunks",
+        description:
+          "The passages a retrieval answer stands on, scored, before the answer itself arrives.",
+        file: "retrieval-chunks.tsx",
+        Component: RetrievalChunksDemo,
+      },
+      {
+        slug: "document-reference",
+        replay: false,
+        title: "Document reference",
+        description:
+          "A document the answer leans on, with the quoted passage and the page to jump to.",
+        file: "document-reference.tsx",
+        Component: DocumentReferenceDemo,
+      },
+      {
+        slug: "memory-chips",
+        title: "Memory",
+        description:
+          "What it now remembers about you, written during the turn and removable.",
+        file: "memory-chips.tsx",
+        Component: MemoryChipsDemo,
+      },
+      {
+        slug: "research-report",
+        title: "Research report",
+        description:
+          "An outline that fills in section by section, each carrying the sources behind it.",
+        file: "research-report.tsx",
+        Component: ResearchReportDemo,
+      },
+      {
+        slug: "map-answer",
+        replay: false,
+        title: "Map",
+        description:
+          "A location answer: pins, a route between them, and the list they came from.",
+        file: "map-answer.tsx",
+        Component: MapAnswerDemo,
+      },
     ],
   },
   {
@@ -312,6 +608,102 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
           "Digits that roll into place as a count updates in real time.",
         file: "number-ticker.tsx",
         Component: NumberTickerDemo,
+      },
+      {
+        slug: "chart",
+        title: "Chart",
+        description:
+          "Area, line, and bars, with points landing one at a time as the series streams in.",
+        file: "chart.tsx",
+        Component: ChartDemo,
+        variants: [
+          { key: "area", label: "Area", Component: ChartDemo },
+          { key: "line", label: "Line", Component: ChartLineDemo },
+          { key: "bars", label: "Bars", Component: ChartBarsDemo },
+        ],
+      },
+      {
+        slug: "web-preview",
+        title: "Web preview",
+        description:
+          "Chrome for a sandboxed preview: a URL bar, reload, and open-in-new around a frame you isolate.",
+        file: "web-preview.tsx",
+        Component: WebPreviewDemo,
+      },
+      {
+        slug: "diagram",
+        replay: false,
+        title: "Diagram",
+        description:
+          "A drawn answer with zoom, reset, and a full-bleed view; you hand it the rendered graphic.",
+        file: "diagram.tsx",
+        Component: DiagramDemo,
+      },
+      {
+        slug: "flow-graph",
+        title: "Flow graph",
+        description:
+          "Work as a graph rather than a list: branches that fan out and rejoin.",
+        file: "flow-graph.tsx",
+        Component: FlowGraphDemo,
+      },
+      {
+        slug: "activity-graph",
+        replay: false,
+        title: "Activity graph",
+        description:
+          "A half-year of runs as a calendar of cells, dense where the work was.",
+        file: "activity-graph.tsx",
+        Component: ActivityGraphDemo,
+      },
+      {
+        slug: "math-block",
+        title: "Math",
+        description:
+          "Rendered expressions with the working shown, one step at a time.",
+        file: "math-block.tsx",
+        Component: MathBlockDemo,
+      },
+      {
+        slug: "spec-sheet",
+        title: "Spec sheet",
+        description:
+          "The most common structured answer after a table: one object, labeled.",
+        file: "spec-sheet.tsx",
+        Component: SpecSheetDemo,
+      },
+      {
+        slug: "comparison-card",
+        replay: false,
+        title: "Comparison",
+        description:
+          "Two options weighed side by side, with the pick named and argued.",
+        file: "comparison-card.tsx",
+        Component: ComparisonCardDemo,
+      },
+      {
+        slug: "timeline",
+        title: "Timeline",
+        description:
+          "Events on a time axis, with what already happened and what is still coming.",
+        file: "timeline.tsx",
+        Component: TimelineDemo,
+      },
+      {
+        slug: "job-progress",
+        title: "Long job",
+        description:
+          "Work measured in minutes: weighted stages, an ETA, and a way out.",
+        file: "job-progress.tsx",
+        Component: JobProgressDemo,
+      },
+      {
+        slug: "score-breakdown",
+        title: "Score breakdown",
+        description:
+          "A verdict with its arithmetic shown: criteria, weights, and what pulled it down.",
+        file: "score-breakdown.tsx",
+        Component: ScoreBreakdownDemo,
       },
     ],
   },
@@ -368,6 +760,88 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
           "A generated document as a tangible object, written live and versioned.",
         file: "artifact-card.tsx",
         Component: ArtifactCardDemo,
+      },
+      {
+        slug: "todo-list",
+        title: "Todo list",
+        description:
+          "The agent's own working list, rewritten mid-run as it discovers what else is needed.",
+        file: "todo-list.tsx",
+        Component: TodoListDemo,
+      },
+      {
+        slug: "agent-card",
+        replay: false,
+        title: "Agent card",
+        description:
+          "Who you are about to talk to: its skills, its model, and the endpoint behind it.",
+        file: "agent-card.tsx",
+        Component: AgentCardDemo,
+      },
+      {
+        slug: "agent-handoff",
+        title: "Handoff",
+        description:
+          "Control passing between agents, with the reason and what came along.",
+        file: "agent-handoff.tsx",
+        Component: AgentHandoffDemo,
+      },
+      {
+        slug: "background-inbox",
+        title: "Background runs",
+        description:
+          "Work still going somewhere else, and the results waiting to be collected.",
+        file: "background-inbox.tsx",
+        Component: BackgroundInboxDemo,
+      },
+      {
+        slug: "checkpoint-history",
+        replay: false,
+        title: "Checkpoints",
+        description:
+          "Points you can fall back to, with what each one would give back.",
+        file: "checkpoint-history.tsx",
+        Component: CheckpointHistoryDemo,
+      },
+      {
+        slug: "schedule-card",
+        replay: false,
+        title: "Schedule",
+        description:
+          "A run that repeats on its own, with its cadence and how it has been doing.",
+        file: "schedule-card.tsx",
+        Component: ScheduleCardDemo,
+      },
+    ],
+  },
+  {
+    label: "Observability",
+    description: "What the run actually cost you.",
+    elements: [
+      {
+        slug: "trace-waterfall",
+        title: "Trace waterfall",
+        description:
+          "Every span in a run on one time axis, nested, so you can see where it actually went.",
+        file: "trace-waterfall.tsx",
+        Component: TraceWaterfallDemo,
+      },
+      {
+        slug: "cost-meter",
+        replay: false,
+        title: "Cost meter",
+        description:
+          "What the run spent, split by model, against the session total.",
+        file: "cost-meter.tsx",
+        Component: CostMeterDemo,
+      },
+      {
+        slug: "quota-banner",
+        title: "Quota",
+        description:
+          "How much is left, when it comes back, and the way to get more.",
+        file: "quota-banner.tsx",
+        Component: QuotaBannerDemo,
       },
     ],
   },
@@ -442,6 +916,73 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         installName: "composer",
         Component: ComposerContextDemo,
       },
+      {
+        slug: "draft-restore",
+        replay: false,
+        title: "Draft restore",
+        description:
+          "Come back to a thread and the sentence you never sent is still waiting.",
+        file: "draft-restore.tsx",
+        Component: DraftRestoreDemo,
+      },
+      {
+        slug: "model-picker",
+        replay: false,
+        title: "Model picker",
+        description:
+          "The full list rather than the rail: grouped by family, priced, with what each one can do.",
+        file: "model-picker.tsx",
+        Component: ModelPickerDemo,
+      },
+      {
+        slug: "context-breakdown",
+        title: "Context breakdown",
+        description:
+          "Where the window actually went: prompt, tools, files, conversation, and what's left.",
+        file: "context-breakdown.tsx",
+        Component: ContextBreakdownDemo,
+      },
+      {
+        slug: "prompt-library",
+        replay: false,
+        title: "Prompt library",
+        description:
+          "Prompts you saved, searchable, with their variables shown before you insert one.",
+        file: "prompt-library.tsx",
+        Component: PromptLibraryDemo,
+      },
+      {
+        slug: "command-palette",
+        replay: false,
+        title: "Command palette",
+        description:
+          "Everything the app can do, one keystroke away and grouped by where it acts.",
+        file: "command-palette.tsx",
+        Component: CommandPaletteDemo,
+      },
+    ],
+  },
+  {
+    label: "Voice",
+    description: "When the conversation stops being typed.",
+    elements: [
+      {
+        slug: "voice-conversation",
+        title: "Voice conversation",
+        description:
+          "A live call: the orb tracks your voice, the caption names the turn, the transcript follows.",
+        file: "voice-conversation.tsx",
+        Component: VoiceConversationDemo,
+      },
+      {
+        slug: "read-aloud",
+        replay: false,
+        title: "Read aloud",
+        description:
+          "An answer played back, the spoken word lit as it goes, speed under your thumb.",
+        file: "read-aloud.tsx",
+        Component: ReadAloudDemo,
+      },
     ],
   },
   {
@@ -482,6 +1023,84 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
           "Streaming never steals your scroll position; a pill offers the way back down.",
         file: "scroll-anchor.tsx",
         Component: ScrollAnchorDemo,
+      },
+      {
+        slug: "canvas-split",
+        title: "Canvas",
+        description:
+          "The thread steps aside and the document takes the room, still being written as you read.",
+        file: "canvas-split.tsx",
+        wide: true,
+        Component: CanvasSplitDemo,
+      },
+      {
+        slug: "connection-state",
+        title: "Connection state",
+        description:
+          "The socket drops, the run keeps going on the server, and the stream is picked back up.",
+        file: "connection-state.tsx",
+        Component: ConnectionStateDemo,
+      },
+      {
+        slug: "shared-conversation",
+        replay: false,
+        title: "Shared conversation",
+        description:
+          "A read-only transcript someone sent you, with a way to pick it up yourself.",
+        file: "shared-conversation.tsx",
+        Component: SharedConversationDemo,
+      },
+      {
+        slug: "conversation-search",
+        replay: false,
+        title: "Search in conversation",
+        description:
+          "Find inside a long thread, with every hit marked down the scrollbar.",
+        file: "conversation-search.tsx",
+        Component: ConversationSearchDemo,
+      },
+      {
+        slug: "thread-search",
+        replay: false,
+        title: "Thread search",
+        description:
+          "History you can actually get back into: pinned first, then grouped by when.",
+        file: "thread-search.tsx",
+        Component: ThreadSearchDemo,
+      },
+      {
+        slug: "launcher-bubble",
+        title: "Launcher",
+        description: "The floating entry point, and the panel it opens into.",
+        file: "launcher-bubble.tsx",
+        Component: LauncherBubbleDemo,
+      },
+      {
+        slug: "settings-panel",
+        replay: false,
+        title: "Settings",
+        description:
+          "Model, system prompt, temperature, and what the assistant is allowed to do.",
+        file: "settings-panel.tsx",
+        Component: SettingsPanelDemo,
+      },
+      {
+        slug: "onboarding",
+        replay: false,
+        title: "Onboarding",
+        description:
+          "First run: three moves that teach what this assistant is actually for.",
+        file: "onboarding.tsx",
+        Component: OnboardingDemo,
+      },
+      {
+        slug: "mobile-composer",
+        replay: false,
+        title: "Mobile composer",
+        description:
+          "The bottom sheet: keyboard-aware, quick actions above, thumb-sized targets.",
+        file: "mobile-composer.tsx",
+        Component: MobileComposerDemo,
       },
     ],
   },

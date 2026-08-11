@@ -1,25 +1,55 @@
 "use client";
 
 import { useState } from "react";
-import { Composer } from "@/components/elements/composer";
-import { useElapsed, useStoryPhases } from "./use-demo";
+import {
+  Composer,
+  ComposerActions,
+  ComposerAttachButton,
+  ComposerBar,
+  ComposerContext,
+  ComposerInput,
+  ComposerSend,
+  ComposerToolbar,
+} from "@/components/elements/composer";
+import { useStoryPhases } from "./use-demo";
 
-const PHASES = [6000, 0] as const;
+const PHASES = [1200, 1200, 0] as const;
+const MESSAGES = [54, 118, 162] as const;
 
 export function ComposerContextDemo() {
-  const { phase, running } = useStoryPhases(PHASES);
+  const { phase } = useStoryPhases(PHASES);
   const [value, setValue] = useState("");
-  const tenths = useElapsed(running && phase === 0);
-  const messages =
-    phase >= 1 ? 158 : Math.min(158, 4 + Math.round(tenths * 2.6));
 
   return (
-    <Composer
-      value={value}
-      onValueChange={setValue}
-      onSend={() => setValue("")}
-      placeholder="Hover the ring for the breakdown"
-      usage={{ system: 12, tools: 8, messages, total: 200 }}
-    />
+    <Composer>
+      <ComposerBar>
+        <ComposerInput
+          value={value}
+          placeholder="Ask anything"
+          onChange={(event) => setValue(event.target.value)}
+          onSubmit={() => setValue("")}
+        />
+        <ComposerToolbar>
+          <ComposerActions>
+            <ComposerAttachButton onClick={() => undefined} />
+          </ComposerActions>
+          <ComposerActions>
+            <ComposerContext
+              usage={{
+                system: 12,
+                tools: 8,
+                messages: MESSAGES[Math.min(phase, 2)] ?? 162,
+                total: 200,
+              }}
+            />
+            <ComposerSend
+              streaming={false}
+              idle={value.length === 0}
+              onClick={() => setValue("")}
+            />
+          </ComposerActions>
+        </ComposerToolbar>
+      </ComposerBar>
+    </Composer>
   );
 }

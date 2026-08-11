@@ -1,11 +1,75 @@
 # @assistant-ui/react
 
+## 0.15.13
+
+### Patch Changes
+
+- [#5745](https://github.com/assistant-ui/assistant-ui/pull/5745) [`1df4327`](https://github.com/assistant-ui/assistant-ui/commit/1df4327dc915103bb1b64e01ee8d888c08de9f59) - refactor: move ExternalThread, SingleThreadList, and the Assistant augmentation namespace into @assistant-ui/core ([@Yonom](https://github.com/Yonom))
+
+- Updated dependencies [[`1df4327`](https://github.com/assistant-ui/assistant-ui/commit/1df4327dc915103bb1b64e01ee8d888c08de9f59)]:
+  - @assistant-ui/core@0.3.12
+
+## 0.15.12
+
+### Patch Changes
+
+- [#5730](https://github.com/assistant-ui/assistant-ui/pull/5730) [`6c9560d`](https://github.com/assistant-ui/assistant-ui/commit/6c9560d145d8cd4699002ad305005e8b83a94342) - chore: drop dependencies that are never imported ([@okisdev](https://github.com/okisdev))
+
+- Updated dependencies [[`f551562`](https://github.com/assistant-ui/assistant-ui/commit/f551562162f43b2bbeb2bb46d39b68243ca1d35a), [`dc7b77d`](https://github.com/assistant-ui/assistant-ui/commit/dc7b77dca65ad8d0384e8aec268a4141dc8bd0da), [`0ae51a8`](https://github.com/assistant-ui/assistant-ui/commit/0ae51a8e8c4c49c4b8810b9c64845eeeded8b9bc), [`d1b7097`](https://github.com/assistant-ui/assistant-ui/commit/d1b7097ca86e84698fcfaabd1b310e30612dd32c), [`e319574`](https://github.com/assistant-ui/assistant-ui/commit/e319574df10df2dbf2d57fc2bcf7cb92d3c6a2e6)]:
+  - @assistant-ui/core@0.3.11
+  - assistant-stream@0.3.37
+
+## 0.15.11
+
+### Patch Changes
+
+- [#5723](https://github.com/assistant-ui/assistant-ui/pull/5723) [`94dc3e5`](https://github.com/assistant-ui/assistant-ui/commit/94dc3e509fa2b4fae1a14c88ec34b910c8d95af8) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+- [#5722](https://github.com/assistant-ui/assistant-ui/pull/5722) [`7faf0fb`](https://github.com/assistant-ui/assistant-ui/commit/7faf0fb1fbc3e36f14ba4822446f95bf730c452b) - fix: ExternalThread edit composer reads editing state live, so a same-tick beginEdit + setText + send dispatches the edit; send before beginEdit and double beginEdit now throw (legacy runtime parity) ([@Yonom](https://github.com/Yonom))
+
+- Updated dependencies [[`94dc3e5`](https://github.com/assistant-ui/assistant-ui/commit/94dc3e509fa2b4fae1a14c88ec34b910c8d95af8), [`ab57969`](https://github.com/assistant-ui/assistant-ui/commit/ab5796932c97bc5bade19022e2ac8762949d2967)]:
+  - assistant-stream@0.3.36
+  - assistant-cloud@0.1.39
+  - @assistant-ui/core@0.3.10
+  - safe-content-frame@0.0.27
+  - @assistant-ui/store@0.3.8
+  - @assistant-ui/tap@0.9.11
+
+## 0.15.10
+
+### Patch Changes
+
+- [#5720](https://github.com/assistant-ui/assistant-ui/pull/5720) [`ab9e765`](https://github.com/assistant-ui/assistant-ui/commit/ab9e765a2d70e30572c4a72c26526df490334b1e) - fix: route sourceId-carrying edit sends to onEdit instead of the queue adapter, and fail fast on beginEdit without an edit handler ([@Yonom](https://github.com/Yonom))
+
+- Updated dependencies [[`ab9e765`](https://github.com/assistant-ui/assistant-ui/commit/ab9e765a2d70e30572c4a72c26526df490334b1e)]:
+  - @assistant-ui/core@0.3.9
+
+## 0.15.9
+
+### Patch Changes
+
+- [#5717](https://github.com/assistant-ui/assistant-ui/pull/5717) [`99d09c8`](https://github.com/assistant-ui/assistant-ui/commit/99d09c828c04bfca35d091e73f29c6d6643dfb01) - Edit composer send always emits: an unchanged edit re-sends the message on a new branch instead of silently closing the composer. ([@Yonom](https://github.com/Yonom))
+
+- [#5713](https://github.com/assistant-ui/assistant-ui/pull/5713) [`f105884`](https://github.com/assistant-ui/assistant-ui/commit/f105884c3bde7c9c9e34c1b61d6ddc6411a053fe) - feat: feedback adapter support in ExternalThread ([@Yonom](https://github.com/Yonom))
+
+- [#5712](https://github.com/assistant-ui/assistant-ui/pull/5712) [`44f6a94`](https://github.com/assistant-ui/assistant-ui/commit/44f6a94530aa38277de6f1d74550faf0a32d402d) - feat: speech synthesis adapter support in ExternalThread ([@Yonom](https://github.com/Yonom))
+
+- [#5702](https://github.com/assistant-ui/assistant-ui/pull/5702) [`7d0265e`](https://github.com/assistant-ui/assistant-ui/commit/7d0265eb8f1753234a3d59a1f5517ea296c7c245) - fix: allow failed live completion searches to be retried ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5639](https://github.com/assistant-ui/assistant-ui/pull/5639) [`79253f2`](https://github.com/assistant-ui/assistant-ui/commit/79253f2a5e0a637c8907ba30859f308ff6dcd1c4) - feat: preserve app-authored reasoning summaries on message parts ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#5701](https://github.com/assistant-ui/assistant-ui/pull/5701) [`ca49427`](https://github.com/assistant-ui/assistant-ui/commit/ca49427aa14d7d50afa3c0c2e88371881de59cb2) - fix: clear dropped assistant transport resume requests ([@Kinfe123](https://github.com/Kinfe123))
+
+- Updated dependencies [[`456b056`](https://github.com/assistant-ui/assistant-ui/commit/456b056b2859994bf49ed5cc4cf031f0601e2174), [`99d09c8`](https://github.com/assistant-ui/assistant-ui/commit/99d09c828c04bfca35d091e73f29c6d6643dfb01), [`a88751d`](https://github.com/assistant-ui/assistant-ui/commit/a88751d71edfd2516f266ce8889081749fba4e5a), [`79253f2`](https://github.com/assistant-ui/assistant-ui/commit/79253f2a5e0a637c8907ba30859f308ff6dcd1c4), [`4e99deb`](https://github.com/assistant-ui/assistant-ui/commit/4e99deb80dc3401480f80c7bef31acbf86a71573), [`2af514c`](https://github.com/assistant-ui/assistant-ui/commit/2af514cabbf6d7d52cb0fd20ef8d1e842294ebb3)]:
+  - assistant-stream@0.3.35
+  - @assistant-ui/core@0.3.8
+  - @assistant-ui/store@0.3.7
+
 ## 0.15.8
 
 ### Patch Changes
 
 - Republish of 0.15.6 (registry staged-version conflicts blocked 0.15.6 and 0.15.7; contents identical).
-
 
 ## 0.15.6
 

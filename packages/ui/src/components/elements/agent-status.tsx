@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { CheckIcon, PauseIcon, RotateCcwIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ghostButton, mono, paper } from "./surfaces";
@@ -16,19 +17,22 @@ export function AgentStatus({
   label,
   elapsed,
   className,
-}: {
+  ...props
+}: Omit<ComponentProps<"div">, "children" | "state" | "label" | "elapsed"> & {
   state: AgentState;
   label: string;
   elapsed?: string;
-  className?: string;
 }) {
   return (
     <div
+      data-slot="agent-status"
       className={cn(
         paper,
         "flex items-center gap-2.5 rounded-full py-1.5 ps-3.5 pe-1.5",
         className,
       )}
+
+      {...props}
     >
       {state === "done" ? (
         <CheckIcon aria-hidden className="size-3 shrink-0 text-emerald-500" />

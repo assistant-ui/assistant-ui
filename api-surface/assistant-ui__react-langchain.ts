@@ -741,6 +741,7 @@ type ExternalThreadQueueAdapter = {
   move: (queueItemId: string, placement: QueuePlacement) => void;
   edit: (queueItemId: string, message: AppendMessage) => void;
   remove: (queueItemId: string) => void;
+  __internal_setDispatchTransform?: ((transform: (message: AppendMessage) => AppendMessage) => void) | undefined;
 };
 
 type FeedbackAdapter = {

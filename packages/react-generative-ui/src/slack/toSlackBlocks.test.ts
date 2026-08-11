@@ -1433,7 +1433,7 @@ describe("toSlackBlocks", () => {
     });
 
     it(`clamps rows to fit the ${DATA_TABLE_CHAR_BUDGET}-character table budget, always keeping the header row`, () => {
-      const bigCell = "z".repeat(2000);
+      const bigCell = "z".repeat(Math.ceil(DATA_TABLE_CHAR_BUDGET / 5));
       const rows = Array.from({ length: 6 }, (_, r) => [`row${r}`, bigCell]);
       const { blocks, warnings } = toSlackBlocks({
         $type: "Table",
@@ -1454,10 +1454,11 @@ describe("toSlackBlocks", () => {
     });
 
     it("shares the character budget across multiple data-table blocks in one payload", () => {
-      const filler = "f".repeat(9994);
+      const secondValue = "second";
+      const filler = "f".repeat(DATA_TABLE_CHAR_BUDGET - secondValue.length);
       const { blocks, warnings } = toSlackBlocks([
         { $type: "Table", columns: [{ label: "A" }], rows: [[filler]] },
-        { $type: "Table", columns: [{ label: "B" }], rows: [["second"]] },
+        { $type: "Table", columns: [{ label: "B" }], rows: [[secondValue]] },
       ]);
       const first = blocks[0] as SlackDataTableBlock;
       const second = blocks[1] as SlackDataTableBlock;
@@ -1509,6 +1510,41 @@ describe("toSlackBlocks", () => {
       });
       const table = blocks[0] as SlackDataTableBlock;
       expect(table.rows).toHaveLength(2);
+    });
+
+    it("emits Slack's documented ceiling of 200 data rows unclamped", () => {
+      const { blocks, warnings } = toSlackBlocks({
+        $type: "Table",
+        columns: [{ label: "n" }],
+        rows: Array.from({ length: 200 }, (_, r) => [String(r)]),
+      });
+      const table = blocks[0] as SlackDataTableBlock;
+      expect(table.rows).toHaveLength(201);
+      expect(warnings).toEqual([]);
+    });
+
+    it("emits Slack's documented ceiling of 20,000 characters and clamps at 20,001", () => {
+      const atBudget = toSlackBlocks({
+        $type: "Table",
+        columns: [{ label: "h" }],
+        rows: [["c".repeat(19999)]],
+      });
+      expect((atBudget.blocks[0] as SlackDataTableBlock).rows).toHaveLength(2);
+      expect(atBudget.warnings).toEqual([]);
+
+      const overBudget = toSlackBlocks({
+        $type: "Table",
+        columns: [{ label: "h" }],
+        rows: [["c".repeat(20000)]],
+      });
+      expect((overBudget.blocks[0] as SlackDataTableBlock).rows).toHaveLength(
+        1,
+      );
+      expect(overBudget.warnings).toContainEqual({
+        code: "clamped",
+        component: "Table",
+        detail: "rows were clamped to fit the 20000-character table budget.",
+      });
     });
   });
 
@@ -1922,7 +1958,7 @@ describe("toSlackBlocks data_table integrity", () => {
   it("drops a table whose header row alone exceeds the character budget", () => {
     const { blocks, warnings } = toSlackBlocks({
       $type: "Table",
-      columns: [{ label: "h".repeat(10001) }],
+      columns: [{ label: "h".repeat(DATA_TABLE_CHAR_BUDGET + 1) }],
       rows: [["x"]],
     });
     expect(blocks).toEqual([]);

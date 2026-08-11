@@ -1,12 +1,8 @@
-import type { Unsubscribe } from "../../types/unsubscribe";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { resource } from "@assistant-ui/tap";
 import type { ClientOutput } from "@assistant-ui/store";
 import { useAssistantEmit } from "@assistant-ui/store/client";
-import type {
-  ThreadListItemEventType,
-  ThreadListItemRuntime,
-} from "../../runtime/api/thread-list-item-runtime";
+import type { ThreadListItemRuntime } from "../../runtime/api/thread-list-item-runtime";
 import { useSubscribable } from "./useSubscribable";
 
 const useThreadListItemClient = ({
@@ -28,29 +24,18 @@ const useThreadListItemClient = ({
   }, [runtimeState, mainThreadIsRunning]);
   const emit = useAssistantEmit();
 
-  // Bind thread list item events to event manager
+  // Emitted after the flush that rebinds the derived scopes; the runtime's own
+  // synchronous notification would be delivered against the pre-switch binding.
+  const { isMain, id: threadId } = runtimeState;
+  const selectionRef = useRef({ isMain, threadId });
   useEffect(() => {
-    const unsubscribers: Unsubscribe[] = [];
-
-    // Subscribe to thread list item events
-    const threadListItemEvents: ThreadListItemEventType[] = [
-      "switchedTo",
-      "switchedAway",
-    ];
-
-    for (const event of threadListItemEvents) {
-      const unsubscribe = runtime.unstable_on(event, () => {
-        emit(`threadListItem.${event}`, {
-          threadId: runtime.getState()!.id,
-        });
-      });
-      unsubscribers.push(unsubscribe);
-    }
-
-    return () => {
-      for (const unsub of unsubscribers) unsub();
-    };
-  }, [runtime, emit]);
+    const previous = selectionRef.current;
+    if (previous.isMain === isMain && previous.threadId === threadId) return;
+    selectionRef.current = { isMain, threadId };
+    emit(isMain ? "threadListItem.switchedTo" : "threadListItem.switchedAway", {
+      threadId,
+    });
+  }, [isMain, threadId, emit]);
 
   return {
     getState: () => state,

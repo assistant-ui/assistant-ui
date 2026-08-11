@@ -41,6 +41,35 @@ const sendCancelledError = new Error(
   "eve send was dropped because the run was cancelled.",
 );
 
+type EveLifecycleCallbackName =
+  | "onError"
+  | "onEvent"
+  | "onFinish"
+  | "onSessionChange";
+
+const reportEveLifecycleCallbackError = (
+  name: EveLifecycleCallbackName,
+  error: unknown,
+) => {
+  console.error(`[assistant-ui/eve] ${name} callback threw an error`, error);
+};
+
+const invokeEveLifecycleCallback = <T>(
+  name: EveLifecycleCallbackName,
+  callback: ((value: T) => unknown) | undefined,
+  value: T,
+) => {
+  if (!callback) return;
+
+  try {
+    void Promise.resolve(callback(value)).catch((error) => {
+      reportEveLifecycleCallbackError(name, error);
+    });
+  } catch (error) {
+    reportEveLifecycleCallbackError(name, error);
+  }
+};
+
 const hasRunConfig = (
   runConfig: AppendMessage["runConfig"],
 ): runConfig is NonNullable<AppendMessage["runConfig"]> =>
@@ -100,14 +129,36 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
     ? true
     : never;
 
-  const { onFinish } = agentOptions;
+  const { onError, onEvent, onFinish, onSessionChange } = agentOptions;
   const lastFinishStatusRef = useRef<UseEveAgentStatus | null>(null);
   const agent = useEveAgent({
     ...agentOptions,
+    ...(onError
+      ? {
+          onError: (error) =>
+            invokeEveLifecycleCallback("onError", onError, error),
+        }
+      : {}),
+    ...(onEvent
+      ? {
+          onEvent: (event) =>
+            invokeEveLifecycleCallback("onEvent", onEvent, event),
+        }
+      : {}),
     onFinish: (snapshot) => {
       lastFinishStatusRef.current = snapshot.status;
-      onFinish?.(snapshot);
+      invokeEveLifecycleCallback("onFinish", onFinish, snapshot);
     },
+    ...(onSessionChange
+      ? {
+          onSessionChange: (session) =>
+            invokeEveLifecycleCallback(
+              "onSessionChange",
+              onSessionChange,
+              session,
+            ),
+        }
+      : {}),
   });
   const runtimeAdapters = useRuntimeAdapters();
   const [toolStatuses, setToolStatuses] = useState<

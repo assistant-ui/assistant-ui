@@ -41,6 +41,25 @@ type ToolExecutionOptions = {
   onExecutionEnd?: ((toolCallId: string, toolName: string) => void) | undefined;
 };
 
+const invokeExecutionCallback = (
+  name: "onExecutionStart" | "onExecutionEnd",
+  callback: ((toolCallId: string, toolName: string) => void) | undefined,
+  toolCallId: string,
+  toolName: string,
+) => {
+  try {
+    const result = callback?.(toolCallId, toolName) as unknown;
+    void Promise.resolve(result).catch((error) => {
+      console.error(
+        `[assistant-stream] ${name} callback threw an error`,
+        error,
+      );
+    });
+  } catch (error) {
+    console.error(`[assistant-stream] ${name} callback threw an error`, error);
+  }
+};
+
 const enqueueIfOpen = (
   controller: TransformStreamDefaultController<AssistantStreamChunk>,
   chunk: AssistantStreamChunk,
@@ -165,14 +184,24 @@ export class ToolExecutionStream extends PipeableTransformStream<
                   // Only mark as executing if the tool has frontend execution
                   if (executeResult !== undefined) {
                     isExecuting = true;
-                    options.onExecutionStart?.(toolCallId, toolName);
+                    invokeExecutionCallback(
+                      "onExecutionStart",
+                      options.onExecutionStart,
+                      toolCallId,
+                      toolName,
+                    );
                   }
 
                   return executeResult;
                 },
                 (c) => {
                   if (isExecuting) {
-                    options.onExecutionEnd?.(toolCallId, toolName);
+                    invokeExecutionCallback(
+                      "onExecutionEnd",
+                      options.onExecutionEnd,
+                      toolCallId,
+                      toolName,
+                    );
                   }
 
                   if (c === undefined) return;
@@ -193,7 +222,12 @@ export class ToolExecutionStream extends PipeableTransformStream<
                 },
                 (e) => {
                   if (isExecuting) {
-                    options.onExecutionEnd?.(toolCallId, toolName);
+                    invokeExecutionCallback(
+                      "onExecutionEnd",
+                      options.onExecutionEnd,
+                      toolCallId,
+                      toolName,
+                    );
                   }
 
                   const result = new ToolResponse({

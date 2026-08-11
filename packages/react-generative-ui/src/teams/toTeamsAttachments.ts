@@ -115,7 +115,7 @@ export function toTeamsAttachments(
         warnings.push({
           code: "clamped",
           component: "Carousel",
-          detail: `the carousel attachments total ${size} bytes, exceeding Teams' 100 KB bot message limit.`,
+          detail: `the carousel attachments total ${size} bytes, over the ${PAYLOAD_SOFT_CAP}-byte soft budget kept below Teams' 100 KB bot message limit.`,
         });
       }
       return { attachments, attachmentLayout: "carousel", warnings };

@@ -718,7 +718,7 @@ export function convertRootToCard(
       context,
       "clamped",
       "Root",
-      `the card is ${size} bytes, exceeding Teams' 100 KB bot message limit.`,
+      `the card is ${size} bytes, over the ${PAYLOAD_SOFT_CAP}-byte soft budget kept below Teams' 100 KB bot message limit.`,
     );
   }
   return card;
