@@ -307,6 +307,7 @@ export function SyncPlugin({
 
   const isSyncingFromLexicalRef = useRef(false);
   const isSyncingFromRuntimeRef = useRef(false);
+  const editorDirtySinceSyncRef = useRef(false);
   const lastSyncedTextRef = useRef("");
   const lastAppliedParserRef = useRef(parser);
 
@@ -335,6 +336,7 @@ export function SyncPlugin({
           const composer = aui.composer;
 
           if (fullText !== lastSyncedTextRef.current) {
+            editorDirtySinceSyncRef.current = true;
             lastSyncedTextRef.current = fullText;
             composer.setText(fullText);
           }
@@ -355,6 +357,7 @@ export function SyncPlugin({
     const runtimeTextChanged = initialText !== lastSyncedTextRef.current;
     const parserRequiresResync =
       parserChanged &&
+      !editorDirtySinceSyncRef.current &&
       !editorMatchesParsedText(editor, initialText, parser) &&
       parserPreservesExistingDirectives(editor, initialText, parser);
     if (runtimeTextChanged || parserRequiresResync) {
@@ -367,6 +370,7 @@ export function SyncPlugin({
         parserRequiresResync && !runtimeTextChanged,
         () => {
           isSyncingFromRuntimeRef.current = false;
+          editorDirtySinceSyncRef.current = false;
         },
       );
     }
@@ -382,6 +386,7 @@ export function SyncPlugin({
       lastSyncedTextRef.current = runtimeText;
       syncRuntimeToLexical(editor, runtimeText, parser, false, () => {
         isSyncingFromRuntimeRef.current = false;
+        editorDirtySinceSyncRef.current = false;
       });
     });
   }, [editor, aui, parser]);

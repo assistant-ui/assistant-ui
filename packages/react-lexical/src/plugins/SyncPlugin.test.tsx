@@ -46,15 +46,18 @@ vi.mock("@assistant-ui/store", async (importOriginal) => {
 (globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true;
 
 const createAui = (text: string) => {
+  let currentText = text;
   const runtime = {
-    getState: () => ({ text }),
+    getState: () => ({ text: currentText }),
     subscribe: () => () => {},
   };
 
   return {
     composer: {
       __internal_getRuntime: () => runtime,
-      setText: vi.fn(),
+      setText: vi.fn((nextText: string) => {
+        currentText = nextText;
+      }),
     },
   };
 };
@@ -272,6 +275,65 @@ describe("SyncPlugin", () => {
       }),
     ).toEqual(beforeUnregister);
     expect(mocks.aui.composer.setText).not.toHaveBeenCalled();
+  });
+
+  it("does not reparse text edited before a trigger formatter registers", async () => {
+    const initialConfig = {
+      namespace: "sync-plugin-edited-trigger-test",
+      nodes: [DirectiveNode],
+      onError: (error: Error) => {
+        throw error;
+      },
+    };
+    const capture = (capturedEditor: LexicalEditor) => {
+      editor = capturedEditor;
+    };
+    const formatter = createBracketFormatter();
+    const render = (registered: boolean) =>
+      root.render(
+        <ComposerPrimitive.Unstable_TriggerPopoverRoot>
+          <LexicalComposer initialConfig={initialConfig}>
+            <SyncPlugin />
+            <EditorProbe capture={capture} />
+            <TriggerFormatterRegistration
+              formatter={registered ? formatter : undefined}
+            />
+          </LexicalComposer>
+        </ComposerPrimitive.Unstable_TriggerPopoverRoot>,
+      );
+
+    mocks.aui = createAui("draft");
+    await act(async () => {
+      render(false);
+    });
+    await act(async () => {
+      editor.update(() => {
+        const paragraph = $getParagraph();
+        const textNode = $createTextNode("[[alice]]");
+        paragraph.clear();
+        paragraph.append(textNode);
+        textNode.selectEnd();
+        $setCompositionKey(textNode.getKey());
+      });
+    });
+    const beforeRegistration = editor.getEditorState().read(() => {
+      const textNode = $getParagraph().getFirstChild();
+      if (!$isTextNode(textNode)) throw new Error("Expected text");
+      return { key: textNode.getKey(), isComposing: editor.isComposing() };
+    });
+    expect(beforeRegistration.isComposing).toBe(true);
+    expect(mocks.aui.composer.setText).toHaveBeenLastCalledWith("[[alice]]");
+
+    await act(async () => {
+      render(true);
+    });
+    expect(
+      editor.getEditorState().read(() => {
+        const textNode = $getParagraph().getFirstChild();
+        if (!$isTextNode(textNode)) throw new Error("Expected text");
+        return { key: textNode.getKey(), isComposing: editor.isComposing() };
+      }),
+    ).toEqual(beforeRegistration);
   });
 
   it("preserves metadata when formatter syntax changes", async () => {
