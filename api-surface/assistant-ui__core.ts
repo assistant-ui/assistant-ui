@@ -369,6 +369,7 @@ declare class AssistantFrameProvider {
   private _targetOrigin;
   private constructor();
   private static getInstance;
+  private reconcileTargetOrigin;
   private handleMessage;
   private handleToolCall;
   private sendMessage;
