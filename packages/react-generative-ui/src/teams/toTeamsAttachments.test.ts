@@ -23,7 +23,13 @@ describe("toTeamsAttachments payload budget", () => {
       ),
     ).toBe(false);
     expect(warnings).toContainEqual(
-      expect.objectContaining({ code: "clamped", component: "Carousel" }),
+      expect.objectContaining({
+        code: "clamped",
+        component: "Carousel",
+        detail: expect.stringContaining(
+          `over the ${PAYLOAD_SOFT_CAP}-byte soft budget`,
+        ),
+      }),
     );
   });
 });

@@ -1158,7 +1158,13 @@ describe("toAdaptiveCard", () => {
       const value = "x".repeat(PAYLOAD_SOFT_CAP + 1000);
       const { warnings } = toAdaptiveCard({ $type: "Text", value });
       expect(warnings).toContainEqual(
-        expect.objectContaining({ code: "clamped", component: "Root" }),
+        expect.objectContaining({
+          code: "clamped",
+          component: "Root",
+          detail: expect.stringContaining(
+            `over the ${PAYLOAD_SOFT_CAP}-byte soft budget`,
+          ),
+        }),
       );
     });
 
