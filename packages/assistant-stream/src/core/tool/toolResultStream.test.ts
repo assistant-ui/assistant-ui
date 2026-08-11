@@ -1,12 +1,13 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   toolResultStream as unstable_toolResultStream,
   unstable_runPendingTools,
 } from "./toolResultStream";
-import { ToolResponse } from "./ToolResponse";
+import { NO_RESULT, ToolResponse } from "./ToolResponse";
 import type { AssistantStreamChunk } from "../AssistantStreamChunk";
 import type { AssistantMessage, ToolCallPart } from "../utils/types";
 import type { Tool } from "./tool-types";
+import { promiseWithResolvers } from "../../utils/promiseWithResolvers";
 
 const createDelayedTool = (delay: number, result?: string): Tool => ({
   parameters: { type: "object", properties: {} },
@@ -16,7 +17,65 @@ const createDelayedTool = (delay: number, result?: string): Tool => ({
   },
 });
 
+const captureUnhandledRejections = async (
+  callback: () => Promise<void>,
+): Promise<unknown[]> => {
+  const reasons: unknown[] = [];
+  const listener = (reason: unknown) => reasons.push(reason);
+  process.on("unhandledRejection", listener);
+  try {
+    await callback();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    return reasons;
+  } finally {
+    process.off("unhandledRejection", listener);
+  }
+};
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
 describe("unstable_runPendingTools", () => {
+  it("settles a tool that returns no value with a concrete result", async () => {
+    const message: AssistantMessage = {
+      role: "assistant",
+      status: { type: "requires-action", reason: "tool-calls" },
+      parts: [
+        {
+          type: "tool-call",
+          toolCallId: "1",
+          toolName: "notify",
+          args: {},
+        } as ToolCallPart,
+      ],
+      content: [],
+      metadata: {
+        unstable_state: {},
+        unstable_data: [],
+        unstable_annotations: [],
+        steps: [],
+        custom: {},
+      },
+    };
+
+    const settled = await unstable_runPendingTools(
+      message,
+      {
+        notify: {
+          parameters: { type: "object", properties: {} },
+          execute: async () => new ToolResponse({ result: undefined }),
+        },
+      },
+      new AbortController().signal,
+      async () => {},
+    );
+
+    const part = settled.parts[0] as ToolCallPart;
+    expect(part.state).toBe("result");
+    expect(part.result).toBe(NO_RESULT);
+  });
+
   it("removes the abort listener after tool execution settles", async () => {
     const abortController = new AbortController();
     const addEventListener = vi.spyOn(
@@ -66,6 +125,78 @@ describe("unstable_runPendingTools", () => {
       addEventListener.mock.calls[0]![1],
     );
   });
+
+  it.each(["resolves", "rejects"] as const)(
+    "does not enqueue pending tool output after cancellation when execution %s",
+    async (settlement) => {
+      const toolResult = promiseWithResolvers<string>();
+      const toolStarted = promiseWithResolvers<void>();
+      const inputChunks: AssistantStreamChunk[] = [
+        {
+          type: "part-start",
+          path: [],
+          part: {
+            type: "tool-call",
+            toolCallId: "tc-cancelled",
+            toolName: "slowTool",
+          },
+        },
+        { type: "text-delta", path: [0], textDelta: "{}" },
+        { type: "tool-call-args-text-finish", path: [0] },
+        { type: "part-finish", path: [0] },
+      ];
+      const inputStream = new ReadableStream<AssistantStreamChunk>({
+        start(controller) {
+          for (const chunk of inputChunks) controller.enqueue(chunk);
+          controller.close();
+        },
+      });
+      const output = inputStream.pipeThrough(
+        unstable_toolResultStream(
+          {
+            slowTool: {
+              parameters: { type: "object", properties: {} },
+              execute: () => {
+                toolStarted.resolve();
+                return toolResult.promise;
+              },
+            },
+          },
+          new AbortController().signal,
+          async () => {},
+        ),
+      );
+      const reader = output.getReader();
+      const expectedForwardedTypes = [
+        "part-start",
+        "text-delta",
+        "tool-call-args-text-finish",
+      ];
+
+      for (const expectedType of expectedForwardedTypes) {
+        const chunk = await reader.read();
+        expect(chunk.done).toBe(false);
+        expect(chunk.value?.type).toBe(expectedType);
+      }
+      await toolStarted.promise;
+
+      const unhandledRejections = await captureUnhandledRejections(async () => {
+        const cancellation = reader.cancel();
+        if (settlement === "resolves") {
+          toolResult.resolve("done");
+        } else {
+          toolResult.reject(new Error("tool failed"));
+        }
+        await cancellation;
+      });
+
+      expect(unhandledRejections).toEqual([]);
+      await expect(reader.read()).resolves.toEqual({
+        value: undefined,
+        done: true,
+      });
+    },
+  );
 
   describe("parallel execution", () => {
     it("should run tool calls in parallel", async () => {
@@ -804,5 +935,94 @@ describe("unstable_runPendingTools", () => {
 
       expect(called).toBe(false);
     });
+  });
+
+  describe("execution lifecycle callbacks", () => {
+    it.each([
+      ["onExecutionStart", "throws", "succeeds"],
+      ["onExecutionStart", "rejects", "succeeds"],
+      ["onExecutionEnd", "throws", "succeeds"],
+      ["onExecutionEnd", "rejects", "succeeds"],
+      ["onExecutionEnd", "throws", "fails"],
+    ] as const)(
+      "preserves tool settlement when %s %s and the tool %s",
+      async (callbackName, behavior, toolOutcome) => {
+        const callbackError = new Error(`${callbackName} ${behavior}`);
+        const toolError = new Error("tool failed");
+        const error = vi.spyOn(console, "error").mockImplementation(() => {});
+        const lifecycleCallback =
+          behavior === "throws"
+            ? vi.fn(() => {
+                throw callbackError;
+              })
+            : vi.fn(() => Promise.reject(callbackError));
+        const inputChunks: AssistantStreamChunk[] = [
+          {
+            type: "part-start",
+            path: [],
+            part: {
+              type: "tool-call",
+              toolCallId: "tc-lifecycle",
+              toolName: "succeed",
+            },
+          },
+          { type: "text-delta", path: [0], textDelta: "{}" },
+          { type: "tool-call-args-text-finish", path: [0] },
+          { type: "part-finish", path: [0] },
+        ];
+        const inputStream = new ReadableStream<AssistantStreamChunk>({
+          start(controller) {
+            for (const chunk of inputChunks) controller.enqueue(chunk);
+            controller.close();
+          },
+        });
+        const outputChunks: AssistantStreamChunk[] = [];
+
+        const unhandledRejections = await captureUnhandledRejections(
+          async () => {
+            await inputStream
+              .pipeThrough(
+                unstable_toolResultStream(
+                  {
+                    succeed: {
+                      parameters: { type: "object", properties: {} },
+                      execute: async () => {
+                        if (toolOutcome === "fails") throw toolError;
+                        return "done";
+                      },
+                    },
+                  },
+                  new AbortController().signal,
+                  async () => {},
+                  callbackName === "onExecutionStart"
+                    ? { onExecutionStart: lifecycleCallback }
+                    : { onExecutionEnd: lifecycleCallback },
+                ),
+              )
+              .pipeTo(
+                new WritableStream<AssistantStreamChunk>({
+                  write(chunk) {
+                    outputChunks.push(chunk);
+                  },
+                }),
+              );
+          },
+        );
+
+        expect(unhandledRejections).toEqual([]);
+        expect(lifecycleCallback).toHaveBeenCalledOnce();
+        expect(outputChunks.find((chunk) => chunk.type === "result")).toEqual(
+          expect.objectContaining({
+            type: "result",
+            result: toolOutcome === "fails" ? String(toolError) : "done",
+            isError: toolOutcome === "fails",
+          }),
+        );
+        expect(error).toHaveBeenCalledWith(
+          `[assistant-stream] ${callbackName} callback threw an error`,
+          callbackError,
+        );
+      },
+    );
   });
 });

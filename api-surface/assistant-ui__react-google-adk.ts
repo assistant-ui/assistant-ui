@@ -1,7 +1,5 @@
 import { StandardSchemaV1 } from "@standard-schema/spec";
 
-import { ComponentType, PropsWithChildren } from "react";
-
 type AddToolResultOptions = {
   messageId: string;
   toolName: string;
@@ -93,6 +91,7 @@ declare class AdkEventAccumulator {
   private authRequests;
   private escalated;
   private messageMetadataMap;
+  private aiMessageOrdinals;
   constructor(initialMessages?: AdkMessage[]);
   processEvent(rawEvent: AdkEvent): AdkMessage[];
   private processPart;
@@ -297,9 +296,9 @@ type AdkSessionAdapterOptions = {
 
 type AdkSessionAdapterResult = {
   adapter: RemoteThreadListAdapter;
-  load: (sessionId: string) => Promise<{
-    messages: AdkMessage[];
-  }>;
+  load: (sessionId: string, options?: {
+    signal?: AbortSignal | undefined;
+  }) => Promise<AdkThreadSnapshot>;
   artifacts: {
     list: (sessionId: string) => Promise<string[]>;
     load: (sessionId: string, artifactName: string, version?: number) => Promise<AdkArtifactData>;
@@ -360,6 +359,21 @@ type AdkStructuredEvent = {
   confirmations: Record<string, unknown>;
 } | {
   type: "finished";
+};
+
+type AdkThreadSnapshot = {
+  messages: AdkMessage[];
+  longRunningToolIds?: string[] | undefined;
+  toolConfirmations?: AdkToolConfirmation[] | undefined;
+  authRequests?: AdkAuthRequest[] | undefined;
+  escalated?: boolean | undefined;
+  messageMetadata?: Map<string, AdkMessageMetadata> | undefined;
+  stateDelta?: Record<string, unknown> | undefined;
+  artifactDelta?: Record<string, number> | undefined;
+  agentInfo?: {
+    name?: string | undefined;
+    branch?: string | undefined;
+  } | undefined;
 };
 
 type AdkToolCall = {
@@ -868,6 +882,7 @@ type ComposerRuntime = {
   send(options?: SendOptions): void;
   cancel(): void;
   steerQueueItem(queueItemId: string): void;
+  moveQueueItem(queueItemId: string, placement: QueuePlacement): void;
   removeQueueItem(queueItemId: string): void;
   subscribe(callback: () => void): Unsubscribe;
   getAttachmentByIndex(idx: number): AttachmentRuntime;
@@ -1053,6 +1068,7 @@ type ExternalStoreAdapterBase<T> = {
   onReload?: ((parentId: string | null, config: StartRunConfig) => Promise<void>) | undefined;
   onResume?: ((config: ResumeRunConfig) => Promise<void>) | undefined;
   onCancel?: (() => Promise<void>) | undefined;
+  onRefetchThread?: (() => Promise<void>) | undefined;
   onAddToolResult?: ((options: AddToolResultOptions) => Promise<void> | void) | undefined;
   onResumeToolCall?: ((options: {
     toolCallId: string;
@@ -1113,12 +1129,14 @@ type ExternalStoreThreadListAdapter = {
 
 type ExternalThreadQueueAdapter = {
   items: readonly QueueItemState[];
-  enqueue: (message: AppendMessage, options: {
-    steer: boolean;
-  }) => void;
-  steer: (queueItemId: string) => void;
+  steerItems: readonly QueueItemState[];
+  enqueue: (message: AppendMessage) => void;
+  steer: (message: AppendMessage) => void;
+  move: (queueItemId: string, placement: QueuePlacement) => void;
+  edit: (queueItemId: string, message: AppendMessage) => void;
   remove: (queueItemId: string) => void;
-  clear: (reason: "cancel-run" | "edit" | "reload") => void;
+  __internal_setDispatchTransform?: ((transform: (message: AppendMessage) => AppendMessage) => void) | undefined;
+  __internal_notifyCancelled?: (() => void) | undefined;
 };
 
 type FeedbackAdapter = {
@@ -1135,6 +1153,8 @@ type FileMessagePart = {
   readonly filename?: string;
   readonly data: string;
   readonly mimeType: string;
+  readonly sourceType?: "id" | "url";
+  readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };
 
@@ -1194,6 +1214,7 @@ type ImageMessagePart = {
   readonly type: "image";
   readonly image: string;
   readonly filename?: string;
+  readonly providerMetadata?: PartProviderMetadata;
 };
 
 interface JSONSchema7 {
@@ -1492,7 +1513,11 @@ type ParsedAdkRequest = {
 };
 
 type PartInit = {
-  readonly type: "reasoning" | "text";
+  readonly type: "text";
+  readonly parentId?: string;
+} | {
+  readonly type: "reasoning";
+  readonly unstable_summary?: string;
   readonly parentId?: string;
 } | {
   readonly type: "tool-call";
@@ -1570,6 +1595,13 @@ type ProviderTool<TArgs extends Record<string, unknown> = Record<string, unknown
 type QueueItemState = {
   readonly id: string;
   readonly prompt: string;
+  readonly parts: readonly (FileMessagePart | TextMessagePart)[];
+};
+
+type QueuePlacement = {
+  readonly lane?: "queue" | "steer";
+  readonly insertAfter?: string | null;
+  readonly insertBefore?: string | null;
 };
 
 type QuoteInfo = {
@@ -1622,6 +1654,7 @@ type ReasoningMessagePart = {
   readonly type: "reasoning";
   readonly text: string;
   readonly status?: MessagePartStreamStatus;
+  readonly unstable_summary?: string;
   readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };
@@ -1645,11 +1678,17 @@ type RemoteThreadListAdapter = {
   initialize(threadId: string): Promise<RemoteThreadInitializeResponse>;
   generateTitle(remoteId: string, unstable_messages: readonly ThreadMessage[]): Promise<AssistantStream>;
   fetch(threadId: string): Promise<RemoteThreadMetadata>;
-  unstable_Provider?: ComponentType<PropsWithChildren> | undefined;
+  unstable_Provider?: RemoteThreadListProviderComponent | undefined;
 };
 
 type RemoteThreadListPageOptions = {
   after?: string | undefined;
+};
+
+type RemoteThreadListProviderComponent = ((props: RemoteThreadListProviderProps) => any) | (new (props: RemoteThreadListProviderProps) => any);
+
+type RemoteThreadListProviderProps = {
+  children?: any;
 };
 
 type RemoteThreadListResponse = {
@@ -1697,6 +1736,7 @@ type RuntimeCapabilities = {
   readonly switchBranchDuringRun: boolean;
   readonly edit: boolean;
   readonly reload: boolean;
+  readonly refetchThread: boolean;
   readonly delete: boolean;
   readonly cancel: boolean;
   readonly unstable_copy: boolean;
@@ -1885,6 +1925,7 @@ type ThreadListItemRuntimePath = {
 
 type ThreadListItemState = {
   readonly isMain: boolean;
+  readonly isRunning: boolean;
   readonly id: string;
   readonly remoteId: string | undefined;
   readonly externalId: string | undefined;
@@ -1911,6 +1952,7 @@ type ThreadListRuntime = {
   switchToNewThread(): Promise<void>;
   getLoadThreadsPromise(): Promise<void>;
   reload(): Promise<void>;
+  reloadMainThread(): Promise<void>;
   loadMore(): Promise<void>;
 };
 
@@ -1922,7 +1964,7 @@ type ThreadListState = {
   readonly isLoading: boolean;
   readonly isLoadingMore: boolean;
   readonly hasMore: boolean;
-  readonly threadItems: Readonly<Record<string, Omit<ThreadListItemState, "isMain" | "threadId">>>;
+  readonly threadItems: Readonly<Record<string, Omit<ThreadListItemState, "isMain" | "isRunning" | "threadId">>>;
 };
 
 type ThreadMessage = BaseThreadMessage & (ThreadSystemMessage | ThreadUserMessage | ThreadAssistantMessage);
@@ -2294,9 +2336,9 @@ type UseAdkRuntimeOptions = ExternalStoreSharedOptions & {
   autoCancelPendingToolCalls?: boolean | undefined;
   unstable_allowCancellation?: boolean | undefined;
   getCheckpointId?: (threadId: string, parentMessages: AdkMessage[]) => Promise<string | null>;
-  load?: (threadId: string) => Promise<{
-    messages: AdkMessage[];
-  }>;
+  load?: (threadId: string, options?: {
+    signal?: AbortSignal | undefined;
+  }) => Promise<AdkThreadSnapshot>;
   create?: () => Promise<{
     externalId: string;
   }>;
@@ -2341,7 +2383,7 @@ declare global {
 }
 
 declare namespace entry_root_exports {
-  export { AdkArtifactData, AdkAuthCredential, AdkAuthCredentialType, AdkAuthRequest, AdkEvent, AdkEventAccumulator, AdkEventActions, AdkEventPart, AdkEventType, AdkMessage, AdkMessageContentPart, AdkMessageMetadata, AdkRunConfig, AdkSendMessageConfig, AdkSessionAdapterOptions, AdkStreamCallback, AdkStructuredEvent, AdkToolCall, AdkToolConfirmation, CreateAdkStreamOptions, OnAdkAgentTransferCallback, OnAdkCustomEventCallback, OnAdkErrorCallback, UseAdkMessagesOptions, UseAdkRuntimeOptions, convertAdkMessage, createAdkSessionAdapter, createAdkStream, toAdkStructuredEvents, useAdkAgentInfo, useAdkAppState, useAdkArtifacts, useAdkAuthRequests, useAdkConfirmTool, useAdkEscalation, useAdkLongRunningToolIds, useAdkMessageMetadata, useAdkMessages, useAdkRuntime, useAdkSend, useAdkSessionState, useAdkSubmitAuth, useAdkSubmitInput, useAdkTempState, useAdkToolConfirmations, useAdkUserState };
+  export { AdkArtifactData, AdkAuthCredential, AdkAuthCredentialType, AdkAuthRequest, AdkEvent, AdkEventAccumulator, AdkEventActions, AdkEventPart, AdkEventType, AdkMessage, AdkMessageContentPart, AdkMessageMetadata, AdkRunConfig, AdkSendMessageConfig, AdkSessionAdapterOptions, AdkStreamCallback, AdkStructuredEvent, AdkThreadSnapshot, AdkToolCall, AdkToolConfirmation, CreateAdkStreamOptions, OnAdkAgentTransferCallback, OnAdkCustomEventCallback, OnAdkErrorCallback, UseAdkMessagesOptions, UseAdkRuntimeOptions, convertAdkMessage, createAdkSessionAdapter, createAdkStream, toAdkStructuredEvents, useAdkAgentInfo, useAdkAppState, useAdkArtifacts, useAdkAuthRequests, useAdkConfirmTool, useAdkEscalation, useAdkLongRunningToolIds, useAdkMessageMetadata, useAdkMessages, useAdkRuntime, useAdkSend, useAdkSessionState, useAdkSubmitAuth, useAdkSubmitInput, useAdkTempState, useAdkToolConfirmations, useAdkUserState };
 }
 
 declare namespace entry_server_exports {
@@ -2393,6 +2435,7 @@ declare const useAdkMessages: (_param2: UseAdkMessagesOptions) => {
   cancel: () => void;
   setMessages: (msgs: AdkMessage[]) => void;
   replaceMessages: (msgs: AdkMessage[]) => void;
+  applySnapshot: (snapshot: AdkThreadSnapshot) => void;
 };
 
 declare const useAdkRuntime: (_param3: UseAdkRuntimeOptions) => AssistantRuntime;

@@ -9,8 +9,9 @@ import type { ThreadMessage } from "../../types/message";
 
 const clientHolder: { client: unknown } = { client: null };
 
-vi.mock("@assistant-ui/store", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@assistant-ui/store")>();
+vi.mock("@assistant-ui/store/client", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@assistant-ui/store/client")>();
   return {
     ...actual,
     useAssistantClientRef: () => ({

@@ -7,6 +7,16 @@ const isIgnoredKey = (key: string | symbol): key is "on" | "subscribe" => {
   return key === "on" || key === "subscribe" || typeof key === "symbol";
 };
 
+// Derived clients hold inherited scopes on the prototype chain, so
+// enumeration must use for..in rather than Object.keys
+const clientScopeKeys = (client: AssistantClient): string[] => {
+  const keys: string[] = [];
+  for (const key in client) {
+    if (!isIgnoredKey(key)) keys.push(key);
+  }
+  return keys;
+};
+
 /**
  * Proxied state that lazily accesses scope states
  */
@@ -32,7 +42,7 @@ const createProxiedAssistantState = (
     }
 
     ownKeys(): ArrayLike<string | symbol> {
-      return Object.keys(client).filter((key) => !isIgnoredKey(key));
+      return clientScopeKeys(client);
     }
 
     has(_: unknown, prop: string | symbol): boolean {
@@ -59,10 +69,7 @@ const createProxiedAssistantState = (
     }
 
     ownKeys(): ArrayLike<string | symbol> {
-      return [
-        ...Object.keys(client).filter((key) => !isIgnoredKey(key)),
-        "optional",
-      ];
+      return [...clientScopeKeys(client), "optional"];
     }
 
     has(_: unknown, prop: string | symbol): boolean {

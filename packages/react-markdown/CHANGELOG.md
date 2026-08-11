@@ -1,5 +1,17 @@
 # @assistant-ui/react-markdown
 
+## 0.14.10
+
+### Patch Changes
+
+- [#5723](https://github.com/assistant-ui/assistant-ui/pull/5723) [`94dc3e5`](https://github.com/assistant-ui/assistant-ui/commit/94dc3e509fa2b4fae1a14c88ec34b910c8d95af8) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+## 0.14.9
+
+### Patch Changes
+
+- [#5673](https://github.com/assistant-ui/assistant-ui/pull/5673) [`db419ca`](https://github.com/assistant-ui/assistant-ui/commit/db419ca2d8fe24e63e668c78ede5cf1c6791208d) - fix: extract full fence language for ids with non-word characters (c++, objective-c, f#) ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
 ## 0.14.8
 
 ### Patch Changes

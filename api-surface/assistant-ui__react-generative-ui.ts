@@ -319,6 +319,8 @@ type FileMessagePart = {
   readonly filename?: string;
   readonly data: string;
   readonly mimeType: string;
+  readonly sourceType?: "id" | "url";
+  readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };
 
@@ -443,6 +445,7 @@ type ImageMessagePart = {
   readonly type: "image";
   readonly image: string;
   readonly filename?: string;
+  readonly providerMetadata?: PartProviderMetadata;
 };
 
 type ImageSize = (typeof IMAGE_SIZE_TOKENS)[number] | number;
@@ -779,6 +782,7 @@ type ReasoningMessagePart = {
   readonly type: "reasoning";
   readonly text: string;
   readonly status?: MessagePartStreamStatus;
+  readonly unstable_summary?: string;
   readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };
@@ -1072,7 +1076,7 @@ interface TeamsContainer {
 type TeamsContainerStyle = "accent" | "attention" | "default" | "emphasis" | "good" | "warning";
 
 interface TeamsConversionWarning {
-  readonly code: "clamped" | "dropped" | "fallback";
+  readonly code: "advisory" | "clamped" | "dropped" | "fallback";
   readonly component: string;
   readonly detail: string;
 }

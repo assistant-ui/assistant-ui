@@ -10,7 +10,7 @@ import { ModelContext } from "@assistant-ui/core/store";
 import type { Tool } from "assistant-stream";
 import { McpServerResource } from "./McpServerResource";
 import { McpLocalStorage } from "./storage/McpLocalStorage";
-import type { MCPStorageElement } from "./storage/types";
+import type { MCPStorage, MCPStorageElement } from "./storage/types";
 import { assertUniqueServerIds } from "../utils/serverId";
 import type {
   MCPAuthConfig,
@@ -49,6 +49,17 @@ const reportCustomStorageFailure = (
   );
 };
 
+const persistCustomServers = async (
+  storage: MCPStorage,
+  records: MCPCustomServerRecord[],
+) => {
+  try {
+    await storage.saveCustomServers(records);
+  } catch (error) {
+    reportCustomStorageFailure("save", error);
+  }
+};
+
 const useMcpManagerResource = (
   props: McpManagerResourceProps,
 ): ClientOutput<"mcp"> => {
@@ -66,6 +77,12 @@ const useMcpManagerResource = (
   const [isHydrated, setIsHydrated] = useState(false);
 
   const hydratedRef = useRef(false);
+  const storageRef = useRef(storage);
+  const persistenceQueueRef = useRef(Promise.resolve());
+
+  useEffect(() => {
+    storageRef.current = storage;
+  }, [storage]);
 
   const hydrate = useEffectEvent(async (signal: { cancelled: boolean }) => {
     const markHydrated = () => {
@@ -106,19 +123,12 @@ const useMcpManagerResource = (
     };
   }, []);
 
-  const persistCustomServers = useEffectEvent(
-    async (records: MCPCustomServerRecord[]) => {
-      if (!hydratedRef.current) return;
-      try {
-        await storage.saveCustomServers(records);
-      } catch (error) {
-        reportCustomStorageFailure("save", error);
-      }
-    },
-  );
-
   useEffect(() => {
-    void persistCustomServers(customServers);
+    if (!hydratedRef.current) return;
+    const targetStorage = storageRef.current;
+    persistenceQueueRef.current = persistenceQueueRef.current.then(() =>
+      persistCustomServers(targetStorage, customServers),
+    );
   }, [customServers]);
 
   const serverElements = useMemo(() => {

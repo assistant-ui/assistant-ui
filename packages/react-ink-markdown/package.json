@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-ink-markdown",
-  "version": "0.0.34",
+  "version": "0.0.36",
   "description": "Terminal markdown rendering for @assistant-ui/react-ink",
   "keywords": [
     "markdown",
@@ -38,12 +38,12 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@assistant-ui/core": "^0.3.3",
-    "@assistant-ui/store": "^0.3.2",
-    "markdansi": "^0.3.2"
+    "@assistant-ui/core": "^0.3.12",
+    "@assistant-ui/store": "^0.3.8",
+    "markdansi": "^0.3.3"
   },
   "peerDependencies": {
-    "@assistant-ui/react-ink": "^0.0.35",
+    "@assistant-ui/react-ink": "^0.0.37",
     "@types/react": "*",
     "ink": ">=6",
     "react": "^19",
@@ -65,11 +65,11 @@
     "@assistant-ui/react-ink": "workspace:*",
     "@assistant-ui/store": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/react": "^19.2.17",
+    "@types/react": "^19.2.18",
     "ink": "^7.1.1",
     "ink-testing-library": "^4.0.0",
     "react": "^19.2.8",
-    "shiki": "^4.3.1",
+    "shiki": "^4.4.2",
     "vitest": "^4.1.10"
   },
   "publishConfig": {

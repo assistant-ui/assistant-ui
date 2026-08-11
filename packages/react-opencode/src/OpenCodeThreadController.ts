@@ -14,6 +14,7 @@ import type {
   OpenCodePermissionRequest,
   OpenCodePermissionResponse,
   OpenCodeQuestionRequest,
+  Part,
   QuestionAnswer,
   OpenCodeServerEvent,
   OpenCodeStateEvent,
@@ -27,8 +28,13 @@ import {
   STREAM_RECONNECTED_EVENT_TYPE,
   type OpenCodeEventSource,
 } from "./OpenCodeEventSource";
+import {
+  resolveFileMediaType,
+  resolveImageMediaType,
+  toMediaWireUrl,
+} from "@assistant-ui/core/internal";
 import { OPEN_CODE_REQUEST_OPTIONS } from "./openCodeRequestOptions";
-import { serializeUserParts } from "./serializeUserParts";
+import { serializeOpenCodeParts } from "./serializeUserParts";
 import { getOpenCodeTaskSessionId } from "./openCodeTaskSession";
 
 type OpenCodeEventSourceProvider = () => Pick<OpenCodeEventSource, "subscribe">;
@@ -38,25 +44,32 @@ type ChildControllerEntry = {
   unsubscribe: (() => void) | null;
 };
 
-const shouldSyncChildControllers = (event: OpenCodeStateEvent) =>
-  event.type === "history.loaded" ||
-  event.type === "message.removed" ||
-  event.type === "part.updated" ||
-  event.type === "part.removed";
-
 const createLocalId = (prefix: string) =>
   `${prefix}_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
 
 const getTextContent = (parts: readonly ThreadUserMessagePart[]) =>
-  serializeUserParts(parts).trim();
+  serializeOpenCodeParts(parts).trim();
+
+// The attachment carries a name and content type its parts do not, so they
+// ride along rather than being dropped at the flatten. Both the outbound
+// prompt and the pending copy read this, so their fingerprints agree.
+const flattenMessageParts = (message: AppendMessage) => [
+  ...message.content,
+  ...(message.attachments?.flatMap((attachment: any) =>
+    (attachment.content ?? []).map((part: any) => ({
+      ...part,
+      ...(attachment.name != null && {
+        filename: part.filename ?? attachment.name,
+      }),
+      ...(attachment.contentType != null && {
+        contentType: attachment.contentType,
+      }),
+    })),
+  ) ?? []),
+];
 
 const getPromptParts = (message: AppendMessage) => {
-  const content = [
-    ...message.content,
-    ...(message.attachments?.flatMap(
-      (attachment: any) => attachment.content ?? [],
-    ) ?? []),
-  ];
+  const content = flattenMessageParts(message);
 
   const promptParts: Array<Record<string, unknown>> = [];
   for (const part of content) {
@@ -66,16 +79,33 @@ const getPromptParts = (message: AppendMessage) => {
     }
 
     if (part.type === "image") {
-      promptParts.push({ type: "image", image: part.image });
+      // OpenCode has no image part: its input union is text, file, agent and
+      // subtask, so an `image` part never reached the model.
+      const mime = resolveImageMediaType(
+        part.image,
+        (part as { contentType?: string }).contentType,
+      );
+      promptParts.push({
+        type: "file",
+        ...(part.filename != null && { filename: part.filename }),
+        mime,
+        url: toMediaWireUrl(part.image, mime),
+      });
       continue;
     }
 
     if (part.type === "file") {
+      const fileMime = resolveFileMediaType(part.data, part.mimeType);
       promptParts.push({
         type: "file",
         filename: part.filename,
-        mime: part.mimeType,
-        url: part.data,
+        mime: fileMime,
+        // An `id` reference is an opaque handle this adapter cannot send, left
+        // unwrapped so it fails loudly rather than shipping a corrupt payload.
+        url:
+          part.sourceType === "id"
+            ? part.data
+            : toMediaWireUrl(part.data, fileMime),
       });
     }
   }
@@ -197,6 +227,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     string,
     ChildControllerEntry
   >();
+  private readonly childSessionIdByPartId = new Map<string, string>();
   private ancestorSessionIds: ReadonlySet<string>;
   private isChildSession = false;
   private readonly stagedMessages = new Map<
@@ -225,7 +256,11 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
 
   private notifyListeners() {
     for (const listener of this.listeners) {
-      listener();
+      try {
+        listener();
+      } catch (error) {
+        console.error("[react-opencode] Listener threw an error", error);
+      }
     }
   }
 
@@ -277,18 +312,45 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
       entry.controller.discard();
     }
     this.childControllersById.clear();
+    this.childSessionIdByPartId.clear();
     this.listeners.clear();
   }
 
-  private syncChildControllers() {
-    const sessionIds = new Set<string>();
+  private rebuildChildSessionIndex() {
+    this.childSessionIdByPartId.clear();
     for (const message of Object.values(this.state.messagesById)) {
       for (const part of message.parts) {
         const sessionId = getOpenCodeTaskSessionId(part);
-        if (sessionId && !this.ancestorSessionIds.has(sessionId)) {
-          sessionIds.add(sessionId);
+        if (sessionId) {
+          this.childSessionIdByPartId.set(part.id, sessionId);
         }
       }
+    }
+    this.syncChildControllers();
+  }
+
+  private updateChildSessionIndex(part: Part) {
+    const previousSessionId = this.childSessionIdByPartId.get(part.id);
+    const sessionId = getOpenCodeTaskSessionId(part);
+    if (sessionId === previousSessionId) return;
+
+    if (sessionId) {
+      this.childSessionIdByPartId.set(part.id, sessionId);
+    } else {
+      this.childSessionIdByPartId.delete(part.id);
+    }
+    this.syncChildControllers();
+  }
+
+  private removeFromChildSessionIndex(partId: string) {
+    if (!this.childSessionIdByPartId.delete(partId)) return;
+    this.syncChildControllers();
+  }
+
+  private syncChildControllers() {
+    const sessionIds = new Set(this.childSessionIdByPartId.values());
+    for (const sessionId of this.ancestorSessionIds) {
+      sessionIds.delete(sessionId);
     }
 
     let childSessionsById = this.state.childSessionsById;
@@ -335,6 +397,23 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     for (const [sessionId, entry] of added) {
       if (this.listeners.size === 0) break;
       this.attachChildController(sessionId, entry);
+    }
+  }
+
+  private syncChildSessionIndex(event: OpenCodeStateEvent) {
+    switch (event.type) {
+      case "history.loaded":
+      case "message.removed":
+        this.rebuildChildSessionIndex();
+        break;
+      case "part.updated":
+        this.updateChildSessionIndex(event.part);
+        break;
+      case "part.removed":
+        this.removeFromChildSessionIndex(event.partId);
+        break;
+      default:
+        break;
     }
   }
 
@@ -477,12 +556,9 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   }
 
   private createPendingMessage(message: AppendMessage): PendingUserMessage {
-    const parts = [
-      ...message.content,
-      ...(message.attachments?.flatMap(
-        (attachment: any) => attachment.content ?? [],
-      ) ?? []),
-    ] as readonly ThreadUserMessagePart[];
+    const parts = flattenMessageParts(
+      message,
+    ) as readonly ThreadUserMessagePart[];
 
     return {
       clientId: createLocalId("local"),
@@ -890,9 +966,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     const nextState = reduceOpenCodeThreadState(this.state, event);
     if (nextState === this.state) return;
     this.state = nextState;
-    if (shouldSyncChildControllers(event)) {
-      this.syncChildControllers();
-    }
+    this.syncChildSessionIndex(event);
     this.notifyListeners();
   }
 }

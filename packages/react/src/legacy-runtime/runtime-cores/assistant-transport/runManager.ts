@@ -9,6 +9,13 @@ export type RunManager = Readonly<{
 
 const disposeReason = Symbol("assistant-transport-dispose");
 
+const reportFinishError = (error: unknown) => {
+  console.error(
+    "[assistant-ui] Assistant transport onFinish callback threw an error",
+    error,
+  );
+};
+
 export function useRunManager(config: {
   onRun: (signal: AbortSignal) => Promise<void>;
   onFinish?: (() => void) | undefined;
@@ -52,7 +59,13 @@ export function useRunManager(config: {
         }
       } finally {
         if (!disposeAborted() && !stateRef.current.disposed) {
-          onFinishRef.current?.();
+          try {
+            void Promise.resolve(onFinishRef.current?.()).catch(
+              reportFinishError,
+            );
+          } catch (error) {
+            reportFinishError(error);
+          }
         }
         if (!stateRef.current.disposed && stateRef.current.pending) {
           startRun();

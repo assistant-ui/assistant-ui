@@ -207,6 +207,7 @@ Each handler enables a specific UI feature.
 | `onEdit` | Message edit button |
 | `onReload` | Regenerate button |
 | `onCancel` | Cancel button while generating |
+| `onRefetchThread` | `threads.reloadMainThread()` refetching the open thread in place |
 | `onAddToolResult` | Client-side tool result handoff |
 | `queue` | Queueing messages sent while a run is in progress |
 
@@ -395,7 +396,9 @@ const runtime = useExternalStoreRuntime({
 
 By default, sending while the thread is running is disabled. Provide a `queue` adapter to buffer a message sent during a run and process it once the run settles. The pending message is exposed on `composer.queue` and renders through [`ComposerPrimitive.Queue`](/docs/api-reference/primitives/composer).
 
-The `createMessageQueue` helper owns the FIFO ordering and the in-flight guard. Supply a driver that runs a message, pass its `adapter` to the runtime, and tell the queue when a run starts (`notifyBusy()`, so concurrent sends buffer) and ends (`notifyIdle()`).
+The `createMessageQueue` helper owns the two-lane ordering and the in-flight guard: `steerItems` drain before `items`, and within each lane items drain in order. Supply a driver that runs a message, pass its `adapter` to the runtime, and tell the queue when a run starts (`notifyBusy()`, so concurrent sends buffer) and ends (`notifyIdle()`).
+
+A hand-rolled adapter must implement the same contract: `items` and `steerItems` expose the lanes (each item carries a required `parts` projection of its content), `enqueue`/`steer` add to a lane, and `move(queueItemId, placement)` repositions with fail-fast anchors — unknown ids or anchors throw rather than being coerced. Individual items are addressable through `composer.queueItem({ id })` (or by index).
 
 ```tsx
 import { useEffect, useRef, useState } from "react";
@@ -416,6 +419,26 @@ useEffect(() => {
   if (wasRunning.current && !isRunning) queue.notifyIdle();
   wasRunning.current = isRunning;
 }, [isRunning, queue]);
+```
+
+With a `createMessageQueue` adapter, cancelling pauses the queue for you: the runtime tells the queue before your `onCancel` runs, so the cancelled run's settle keeps the pending items instead of dispatching the next one, and the next send resumes draining. Call `queue.clear()` in `onCancel` instead if you want a cancel to drop them. A hand-rolled adapter has no such channel, so it owns its cancel policy the same way it owns the rest. Edit and reload stay host-owned: call `queue.clear()` in your `onEdit` and `onReload` handlers so stale items do not drain onto the new branch.
+
+```tsx
+const runtime = useExternalStoreRuntime({
+  // ...
+  onCancel: async () => {
+    // the runtime already paused the queue; clear() here to drop the items
+    await cancelRun();
+  },
+  onEdit: async (message) => {
+    queue.clear();
+    // ...
+  },
+  onReload: async (parentId) => {
+    queue.clear();
+    // ...
+  },
+});
 ```
 
 ## Multi-thread
@@ -786,6 +809,12 @@ useExternalStoreRuntime({
       name: "onCancel",
       type: "() => Promise<void>",
       description: "Handler for cancelling the current generation.",
+    },
+    {
+      name: "onRefetchThread",
+      type: "() => Promise<void>",
+      description:
+        "Handler for re-fetching this thread's state in place, driving threads.reloadMainThread(). Unrelated to onReload, which re-generates an assistant message.",
     },
     {
       name: "onAddToolResult",

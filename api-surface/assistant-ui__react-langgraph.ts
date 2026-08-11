@@ -2,7 +2,7 @@ import { Client, StreamMode } from "@langchain/langgraph-sdk";
 
 import { StandardSchemaV1 } from "@standard-schema/spec";
 
-import { ComponentType, PropsWithChildren } from "react";
+import { ComponentType } from "react";
 
 type AddToolResultOptions = {
   messageId: string;
@@ -508,6 +508,7 @@ type ComposerRuntime = {
   send(options?: SendOptions): void;
   cancel(): void;
   steerQueueItem(queueItemId: string): void;
+  moveQueueItem(queueItemId: string, placement: QueuePlacement): void;
   removeQueueItem(queueItemId: string): void;
   subscribe(callback: () => void): Unsubscribe;
   getAttachmentByIndex(idx: number): AttachmentRuntime;
@@ -694,6 +695,7 @@ type ExternalStoreAdapterBase<T> = {
   onReload?: ((parentId: string | null, config: StartRunConfig) => Promise<void>) | undefined;
   onResume?: ((config: ResumeRunConfig) => Promise<void>) | undefined;
   onCancel?: (() => Promise<void>) | undefined;
+  onRefetchThread?: (() => Promise<void>) | undefined;
   onAddToolResult?: ((options: AddToolResultOptions) => Promise<void> | void) | undefined;
   onResumeToolCall?: ((options: {
     toolCallId: string;
@@ -754,12 +756,14 @@ type ExternalStoreThreadListAdapter = {
 
 type ExternalThreadQueueAdapter = {
   items: readonly QueueItemState[];
-  enqueue: (message: AppendMessage, options: {
-    steer: boolean;
-  }) => void;
-  steer: (queueItemId: string) => void;
+  steerItems: readonly QueueItemState[];
+  enqueue: (message: AppendMessage) => void;
+  steer: (message: AppendMessage) => void;
+  move: (queueItemId: string, placement: QueuePlacement) => void;
+  edit: (queueItemId: string, message: AppendMessage) => void;
   remove: (queueItemId: string) => void;
-  clear: (reason: "cancel-run" | "edit" | "reload") => void;
+  __internal_setDispatchTransform?: ((transform: (message: AppendMessage) => AppendMessage) => void) | undefined;
+  __internal_notifyCancelled?: (() => void) | undefined;
 };
 
 type FeedbackAdapter = {
@@ -776,6 +780,8 @@ type FileMessagePart = {
   readonly filename?: string;
   readonly data: string;
   readonly mimeType: string;
+  readonly sourceType?: "id" | "url";
+  readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };
 
@@ -835,6 +841,7 @@ type ImageMessagePart = {
   readonly type: "image";
   readonly image: string;
   readonly filename?: string;
+  readonly providerMetadata?: PartProviderMetadata;
 };
 
 interface JSONSchema7 {
@@ -938,6 +945,12 @@ type LangChainMessage = {
   artifact?: any;
   status: "error" | "success";
 } | {
+  id: string;
+  type: "remove";
+  content: string | [
+  ];
+  additional_kwargs?: Record<string, unknown>;
+} | {
   id?: string;
   type: "ai";
   content: AssistantMessageContent;
@@ -948,6 +961,12 @@ type LangChainMessage = {
     reasoning?: MessageContentReasoning;
     tool_outputs?: MessageContentComputerCall[];
     metadata?: Record<string, unknown>;
+    audio?: {
+      id?: string;
+      data?: string;
+      expires_at?: number;
+      transcript?: string;
+    };
   };
 };
 
@@ -1344,7 +1363,11 @@ type OnUpdatesEventCallback = (updates: unknown) => void | Promise<void>;
 type OnValuesEventCallback = (values: unknown) => void | Promise<void>;
 
 type PartInit = {
-  readonly type: "reasoning" | "text";
+  readonly type: "text";
+  readonly parentId?: string;
+} | {
+  readonly type: "reasoning";
+  readonly unstable_summary?: string;
   readonly parentId?: string;
 } | {
   readonly type: "tool-call";
@@ -1422,6 +1445,13 @@ type ProviderTool<TArgs extends Record<string, unknown> = Record<string, unknown
 type QueueItemState = {
   readonly id: string;
   readonly prompt: string;
+  readonly parts: readonly (FileMessagePart | TextMessagePart)[];
+};
+
+type QueuePlacement = {
+  readonly lane?: "queue" | "steer";
+  readonly insertAfter?: string | null;
+  readonly insertBefore?: string | null;
 };
 
 type QuoteInfo = {
@@ -1474,6 +1504,7 @@ type ReasoningMessagePart = {
   readonly type: "reasoning";
   readonly text: string;
   readonly status?: MessagePartStreamStatus;
+  readonly unstable_summary?: string;
   readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };
@@ -1497,11 +1528,17 @@ type RemoteThreadListAdapter = {
   initialize(threadId: string): Promise<RemoteThreadInitializeResponse>;
   generateTitle(remoteId: string, unstable_messages: readonly ThreadMessage[]): Promise<AssistantStream>;
   fetch(threadId: string): Promise<RemoteThreadMetadata>;
-  unstable_Provider?: ComponentType<PropsWithChildren> | undefined;
+  unstable_Provider?: RemoteThreadListProviderComponent | undefined;
 };
 
 type RemoteThreadListPageOptions = {
   after?: string | undefined;
+};
+
+type RemoteThreadListProviderComponent = ((props: RemoteThreadListProviderProps) => any) | (new (props: RemoteThreadListProviderProps) => any);
+
+type RemoteThreadListProviderProps = {
+  children?: any;
 };
 
 type RemoteThreadListResponse = {
@@ -1554,6 +1591,7 @@ type RuntimeCapabilities = {
   readonly switchBranchDuringRun: boolean;
   readonly edit: boolean;
   readonly reload: boolean;
+  readonly refetchThread: boolean;
   readonly delete: boolean;
   readonly cancel: boolean;
   readonly unstable_copy: boolean;
@@ -1744,6 +1782,7 @@ type ThreadListItemRuntimePath = {
 
 type ThreadListItemState = {
   readonly isMain: boolean;
+  readonly isRunning: boolean;
   readonly id: string;
   readonly remoteId: string | undefined;
   readonly externalId: string | undefined;
@@ -1770,6 +1809,7 @@ type ThreadListRuntime = {
   switchToNewThread(): Promise<void>;
   getLoadThreadsPromise(): Promise<void>;
   reload(): Promise<void>;
+  reloadMainThread(): Promise<void>;
   loadMore(): Promise<void>;
 };
 
@@ -1781,7 +1821,7 @@ type ThreadListState = {
   readonly isLoading: boolean;
   readonly isLoadingMore: boolean;
   readonly hasMore: boolean;
-  readonly threadItems: Readonly<Record<string, Omit<ThreadListItemState, "isMain" | "threadId">>>;
+  readonly threadItems: Readonly<Record<string, Omit<ThreadListItemState, "isMain" | "isRunning" | "threadId">>>;
 };
 
 type ThreadMessage = BaseThreadMessage & (ThreadSystemMessage | ThreadUserMessage | ThreadAssistantMessage);
@@ -2292,9 +2332,16 @@ declare const useLangGraphMessages: <TMessage extends {
   setValues: import("react").Dispatch<import("react").SetStateAction<Record<string, unknown> | undefined>>;
   setMessages: (msgs: TMessage[]) => void;
   setUIMessages: (next: UIMessage[]) => void;
+  reconcileMessages: (serverMessages: TMessage[], messagesAtLoadStart: TMessage[], _param6?: {
+    snapshotIsComplete?: boolean;
+  }) => void;
+  reconcileUIMessages: (serverMessages: UIMessage[], messagesAtLoadStart: UIMessage[], _param7?: {
+    snapshotIsComplete?: boolean;
+  }) => void;
+  reconcileInterrupt: (serverInterrupt: LangGraphInterruptState | undefined, interruptAtLoadStart: LangGraphInterruptState | undefined) => void;
 };
 
-declare const useLangGraphRuntime: (_param6: UseLangGraphRuntimeOptions) => AssistantRuntime;
+declare const useLangGraphRuntime: (_param8: UseLangGraphRuntimeOptions) => AssistantRuntime;
 
 declare const useLangGraphSend: () => (messages: LangChainMessage[], config: LangGraphSendMessageConfig) => Promise<void>;
 

@@ -5,6 +5,7 @@ from assistant_stream.assistant_stream_chunk import (
     AssistantStreamChunk,
     TextDeltaChunk,
     ReasoningDeltaChunk,
+    ReasoningPartStartChunk,
     ToolResultChunk,
     DataChunk,
     ErrorChunk,
@@ -65,6 +66,17 @@ class RunController:
         chunk = TextDeltaChunk(text_delta=text_delta, parent_id=self._parent_id)
         self._flush_and_put_chunk(chunk)
 
+    def add_reasoning_part(self, unstable_summary: str) -> None:
+        """Open a reasoning part carrying an app-authored summary.
+
+        Reasoning parts are otherwise implied by their deltas, so a summary is
+        the only thing this opens a part for.
+        """
+        chunk = ReasoningPartStartChunk(
+            unstable_summary=unstable_summary, parent_id=self._parent_id
+        )
+        self._flush_and_put_chunk(chunk)
+
     def append_reasoning(self, reasoning_delta: str) -> None:
         """Append a reasoning delta to the stream."""
         chunk = ReasoningDeltaChunk(reasoning_delta=reasoning_delta, parent_id=self._parent_id)
@@ -75,6 +87,10 @@ class RunController:
     ) -> None:
         """Append a text delta at a state path using an append-text operation."""
         self._state_manager.append_text(path, text_delta)
+
+    def flush(self) -> None:
+        """Emit buffered state operations ahead of any subsequent stream chunk."""
+        self._state_manager.flush()
 
     async def add_tool_call(
         self, tool_name: str, tool_call_id: str = None

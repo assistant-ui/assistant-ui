@@ -2,11 +2,18 @@
 
 import { Thread } from "@/components/assistant-ui/thread";
 import { ThreadList } from "@/components/assistant-ui/thread-list";
-import { useAui, AuiProvider, Suggestions, Tools } from "@assistant-ui/react";
+import {
+  useAui,
+  AuiProvider,
+  AuiConfig,
+  Suggestions,
+  Tools,
+} from "@assistant-ui/react";
 import toolkit from "./toolkit";
 
 function ThreadWithSuggestions() {
-  const aui = useAui({
+  const aui = useAui();
+  const config = AuiConfig({
     tools: Tools({ toolkit }),
     suggestions: Suggestions([
       {
@@ -22,7 +29,7 @@ function ThreadWithSuggestions() {
     ]),
   });
   return (
-    <AuiProvider value={aui}>
+    <AuiProvider extends={aui} config={config}>
       <Thread />
     </AuiProvider>
   );

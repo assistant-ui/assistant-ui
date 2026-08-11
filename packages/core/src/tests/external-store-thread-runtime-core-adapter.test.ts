@@ -6,6 +6,8 @@ import {
 import type { ExternalStoreAdapter } from "../runtimes/external-store/external-store-adapter";
 import type { ModelContextProvider } from "../model-context/types";
 import type { AppendMessage, ThreadMessage } from "../types/message";
+import { createMessageQueue } from "../runtime/queue/message-queue";
+import { getThreadMessageText } from "../utils/text";
 
 const createContextProvider = (): ModelContextProvider => ({
   getModelContext: () => ({}),
@@ -263,6 +265,135 @@ describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
       const lastCall = setMessages.mock.lastCall?.[0] as ThreadMessage[];
       expect(lastCall.map((m) => m.id)).not.toContain("server-msg");
+    });
+
+    it("pauses a queue instead of dispatching the next message", async () => {
+      const dispatched: string[] = [];
+      const queue = createMessageQueue({
+        run: (message) => {
+          dispatched.push(getThreadMessageText(message));
+        },
+      });
+      const adapter = createBaseAdapter({
+        isRunning: true,
+        onCancel: vi.fn(),
+        queue: queue.adapter,
+      });
+      const core = new ExternalStoreThreadRuntimeCore(contextProvider, adapter);
+      const appendAtTail = (text: string) =>
+        core.append({
+          role: "user",
+          content: [{ type: "text", text }],
+          attachments: [],
+          createdAt: new Date(),
+          parentId: core.messages.at(-1)?.id ?? null,
+          sourceId: null,
+          runConfig: undefined,
+          metadata: { custom: {} },
+        } as AppendMessage);
+
+      await appendAtTail("first");
+      await appendAtTail("queued");
+
+      core.cancelRun();
+      // the aborted run settles; a queue host reports that the same way it
+      // reports any other run ending
+      queue.notifyIdle();
+
+      expect(dispatched).toEqual(["first"]);
+      expect(queue.adapter.steerItems.map((item) => item.prompt)).toEqual([
+        "queued",
+      ]);
+    });
+
+    it("keeps a trailing user message out of the composer without setMessages", async () => {
+      const userMessage = createUserMessage("u1", "Do not duplicate me");
+      const adapter = createBaseAdapter({
+        messages: [userMessage],
+        isRunning: true,
+        onCancel: vi.fn(),
+      });
+      const core = new ExternalStoreThreadRuntimeCore(contextProvider, adapter);
+
+      core.cancelRun();
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(core.composer.text).toBe("");
+      expect(core.export().messages.map((m) => m.message.id)).toContain("u1");
+    });
+
+    it("keeps the message in the thread when the composer is busy", async () => {
+      const adapter = createBaseAdapter({
+        messages: [createUserMessage("u1", "cancel me")],
+        isRunning: true,
+        onCancel: vi.fn(),
+        setMessages: vi.fn(),
+      });
+      const core = new ExternalStoreThreadRuntimeCore(contextProvider, adapter);
+      core.composer.setText("something else");
+
+      core.cancelRun();
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(core.composer.text).toBe("something else");
+      expect(core.export().messages.map((m) => m.message.id)).toContain("u1");
+    });
+
+    it("keeps a message with non-text content in the thread", async () => {
+      const userMessage = {
+        ...createUserMessage("u1", "look at this"),
+        content: [
+          { type: "text" as const, text: "look at this" },
+          { type: "image" as const, image: "https://example.com/cat.png" },
+        ],
+      } as ThreadMessage;
+      const adapter = createBaseAdapter({
+        messages: [userMessage],
+        isRunning: true,
+        onCancel: vi.fn(),
+        setMessages: vi.fn(),
+      });
+      const core = new ExternalStoreThreadRuntimeCore(contextProvider, adapter);
+
+      core.cancelRun();
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(core.composer.text).toBe("");
+      expect(core.export().messages.map((m) => m.message.id)).toContain("u1");
+    });
+
+    it("restores the message whole when the composer is free", async () => {
+      const attachment = {
+        id: "a1",
+        type: "file" as const,
+        name: "spec.pdf",
+        contentType: "application/pdf",
+        status: { type: "complete" as const },
+        content: [],
+      };
+      const quote = { text: "quoted", messageId: "m-1" };
+      const userMessage = {
+        ...createUserMessage("u1", "cancel me"),
+        attachments: [attachment],
+        metadata: { custom: { quote } },
+      } as ThreadMessage;
+      const adapter = createBaseAdapter({
+        messages: [userMessage],
+        isRunning: true,
+        onCancel: vi.fn(),
+        setMessages: vi.fn(),
+      });
+      const core = new ExternalStoreThreadRuntimeCore(contextProvider, adapter);
+
+      core.cancelRun();
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(core.composer.text).toBe("cancel me");
+      expect(core.composer.attachments).toEqual([attachment]);
+      expect(core.composer.quote).toEqual(quote);
+      expect(core.export().messages.map((m) => m.message.id)).not.toContain(
+        "u1",
+      );
     });
   });
 

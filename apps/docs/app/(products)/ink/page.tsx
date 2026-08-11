@@ -12,7 +12,7 @@ import {
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { CopyCommandButton } from "@/components/home/copy-command-button";
-import { Button, buttonVariants } from "@/components/ui/radix/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { TerminalDemo } from "./terminal-demo";
 
 const ANALYTICS_PAGE = "ink" as const;
@@ -149,10 +149,12 @@ export default function InkPage() {
           with the React Ink package. Share the same code between your web,
           mobile, and terminal apps — only the UI layer changes.
         </p>
-        <Button variant="outline" asChild>
-          <Link href="/docs/ink/migration">
-            See the migration guide <ArrowRight />
-          </Link>
+        <Button
+          variant="outline"
+          nativeButton={false}
+          render={<Link href="/docs/ink/migration" />}
+        >
+          See the migration guide <ArrowRight />
         </Button>
       </div>
 
@@ -162,10 +164,8 @@ export default function InkPage() {
           Start building today
         </p>
         <div className="flex flex-wrap items-center justify-center gap-3">
-          <Button asChild>
-            <Link href="/docs/ink">
-              Get Started <ArrowRight />
-            </Link>
+          <Button nativeButton={false} render={<Link href="/docs/ink" />}>
+            Get Started <ArrowRight />
           </Button>
           <Link
             href="/docs/ink/migration"

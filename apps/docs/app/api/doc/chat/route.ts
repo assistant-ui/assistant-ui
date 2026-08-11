@@ -6,7 +6,12 @@ import path from "node:path";
 import { injectQuoteContext } from "@assistant-ui/react-ai-sdk";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { validateDocChatInput } from "@/lib/validate-input";
-import { source, examples as examplesSource } from "@/lib/source";
+import {
+  source,
+  examples as examplesSource,
+  tapDocs as tapSource,
+  getTapDocsPage,
+} from "@/lib/source";
 import { getModel, withTracing } from "@/lib/ai/provider";
 import { frontendTools } from "@assistant-ui/react-ai-sdk";
 import { createBashTool } from "bash-tool";
@@ -140,6 +145,21 @@ function normalizeDocPath(slugOrUrl: string, routeUrl: string): string {
   return cleaned;
 }
 
+function resolveDocPage(slugs: string[]) {
+  if (slugs[0] === "examples") {
+    return examplesSource.getPage(slugs.slice(1));
+  }
+  if (slugs[0] === "tap") {
+    // "tap" is both the url prefix and a section inside the tree, so a
+    // shorthand slug like "tap/api-reference" needs the unstripped form too.
+    return (
+      getTapDocsPage(slugs.slice(slugs[1] === "docs" ? 2 : 1)) ??
+      tapSource.getPage(slugs)
+    );
+  }
+  return source.getPage(slugs);
+}
+
 export const maxDuration = 300;
 
 export const DOC_CHAT_PRUNE_OPTIONS = {
@@ -248,7 +268,7 @@ You have two documentation tools:
 
 1. **listDocs** - Browse documentation structure
    - Use with no path for root categories
-   - Use with path (e.g., "ui", "runtimes") to see pages in that section
+   - Use with path (e.g., "ui", "runtimes", "tap") to see pages in that section
    - Returns: list of folders and pages with URLs
 
 2. **readDoc** - Read a specific documentation page
@@ -367,6 +387,12 @@ export async function POST(req: Request): Promise<Response> {
                   description:
                     "Examples of app types users can build with assistant-ui, showing instructions, recommended patterns, and UI structure.",
                 },
+                {
+                  type: "folder",
+                  name: "tap",
+                  description:
+                    "Documentation for @assistant-ui/tap and @assistant-ui/store, the reactive primitives the runtime is built on.",
+                },
               ];
             }
 
@@ -376,6 +402,16 @@ export async function POST(req: Request): Promise<Response> {
               const target = rest
                 ? findFolderByPath(examplesSource.pageTree, rest)
                 : examplesSource.pageTree;
+              if (!target) return { error: "Path not found" };
+              return listChildren(target.children);
+            }
+            if (segments[0] === "tap") {
+              const rest = segments
+                .slice(segments[1] === "docs" ? 2 : 1)
+                .join("/");
+              const target = rest
+                ? findFolderByPath(tapSource.pageTree, rest)
+                : tapSource.pageTree;
               if (!target) return { error: "Path not found" };
               return listChildren(target.children);
             }
@@ -406,11 +442,7 @@ export async function POST(req: Request): Promise<Response> {
             }
 
             const slugs = normalized.split("/").filter(Boolean);
-            const isExample = slugs[0] === "examples";
-            const docSource = isExample ? examplesSource : source;
-            const docSlugs = isExample ? slugs.slice(1) : slugs;
-
-            const page = docSource.getPage(docSlugs);
+            const page = resolveDocPage(slugs);
             if (!page) return { error: `Page not found: ${slugOrUrl}` };
 
             const content = await getLLMText(page);

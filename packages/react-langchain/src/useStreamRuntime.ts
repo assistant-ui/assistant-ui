@@ -125,12 +125,11 @@ const useStreamThreadRuntime = (
   const externalId = useAuiState((s) => s.threadListItem.externalId) as
     | string
     | null;
-  // Mutate in place rather than `{ ...options, threadId }`: spreading
-  // `UseStreamOptions` (a discriminated union on `transport`) into an object
-  // literal merges both arms' transport types, breaking arm assignment.
-  options.threadId = externalId;
-
-  const stream = useStream(options);
+  // Object.assign preserves the discriminated transport union; object spread
+  // collapses its arms and no longer satisfies UseStreamOptions.
+  const stream = useStream(
+    Object.assign({}, options, { threadId: externalId }),
+  );
   const [stagedMessages, setStagedMessages] = useState<
     LangChainBaseMessage[] | null
   >(null);

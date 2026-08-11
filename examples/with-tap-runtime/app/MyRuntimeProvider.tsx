@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import {
-  useAui,
   AuiProvider,
+  AuiConfig,
   useAuiState,
   ExternalThread,
   InMemoryThreadList,
@@ -51,7 +51,7 @@ const SIMPLE_MESSAGES: SimpleMessage[] = [
     id: "4",
     role: "assistant",
     content:
-      'Sure! Here\'s how to use the tap-native runtime:\n\n```typescript\nconst messages = [\n  { id: "1", role: "user", content: [{ type: "text", text: "Hello!" }] }\n];\n\nconst aui = useAui({\n  threads: InMemoryThreadList({\n    thread: (threadId) => ExternalThread({ messages, isRunning: false })\n  }),\n  onSwitchToThread: (threadId) => console.log("Switched to", threadId)\n});\n```\n\nTry using the thread list on the left to create and switch between threads!',
+      'Sure! Here\'s how to use the tap-native runtime:\n\n```typescript\nconst messages = [\n  { id: "1", role: "user", content: [{ type: "text", text: "Hello!" }] }\n];\n\nconst config = AuiConfig({\n  threads: InMemoryThreadList({\n    thread: (threadId) => ExternalThread({ messages, isRunning: false })\n  })\n});\n\n<AuiProvider config={config}>{children}</AuiProvider>\n```\n\nTry using the thread list on the left to create and switch between threads!',
     status: { type: "complete", reason: "stop" },
   },
 ];
@@ -92,7 +92,7 @@ export function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
     isRunning,
   }) as ExternalThreadMessage[];
 
-  const aui = useAui({
+  const config = AuiConfig({
     threads: InMemoryThreadList({
       thread: (threadId) =>
         ExternalThread({
@@ -190,7 +190,7 @@ export function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
   });
 
   return (
-    <AuiProvider value={aui}>
+    <AuiProvider config={config}>
       <div className="flex h-full">
         {/* Thread List Sidebar */}
         <ThreadListSidebar />

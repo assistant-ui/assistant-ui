@@ -7,8 +7,9 @@ import {
   attachTransformScopes,
   useClientResource,
 } from "@assistant-ui/store";
+import { generateId } from "@assistant-ui/core";
 
-import { ModelContext, Suggestions } from "@assistant-ui/core/store";
+import { ModelContext } from "@assistant-ui/core/store";
 import { Tools, DataRenderers } from "@assistant-ui/core/react";
 
 const RESOLVED_PROMISE = Promise.resolve();
@@ -29,14 +30,24 @@ type ThreadData = {
 // ThreadListItem Client
 const useThreadListItemClient = (props: {
   data: ThreadData;
+  isRunning: boolean;
   onSwitchTo: () => void;
+  onRename: (title: string) => void;
   onUpdateCustom: (custom: Record<string, unknown> | undefined) => void;
   onArchive: () => void;
   onUnarchive: () => void;
   onDelete: () => void;
 }): ClientOutput<"threadListItem"> => {
-  const { data, onSwitchTo, onUpdateCustom, onArchive, onUnarchive, onDelete } =
-    props;
+  const {
+    data,
+    isRunning,
+    onSwitchTo,
+    onRename,
+    onUpdateCustom,
+    onArchive,
+    onUnarchive,
+    onDelete,
+  } = props;
   const state = useMemo(
     () => ({
       id: data.id,
@@ -45,14 +56,15 @@ const useThreadListItemClient = (props: {
       title: data.title,
       status: data.status,
       custom: data.custom,
+      isRunning,
     }),
-    [data.id, data.title, data.status, data.custom],
+    [data.id, data.title, data.status, data.custom, isRunning],
   );
 
   return {
     getState: () => state,
     switchTo: onSwitchTo,
-    rename: () => {},
+    rename: onRename,
     updateCustom: onUpdateCustom,
     archive: onArchive,
     unarchive: onUnarchive,
@@ -85,6 +97,12 @@ const useInMemoryThreadList = (
     onSwitchToThread?.(threadId);
   };
 
+  const handleRename = (threadId: string, title: string) => {
+    setThreads((prev) =>
+      prev.map((t) => (t.id === threadId ? { ...t, title } : t)),
+    );
+  };
+
   const handleArchive = (threadId: string) => {
     setThreads((prev) =>
       prev.map((t) =>
@@ -112,14 +130,15 @@ const useInMemoryThreadList = (
 
   const handleDelete = (threadId: string) => {
     setThreads((prev) => prev.filter((t) => t.id !== threadId));
-    if (mainThreadId === threadId) {
-      const remaining = threads.filter((t) => t.id !== threadId);
-      setMainThreadId(remaining[0]?.id || "main");
-    }
+    setMainThreadId((prev) =>
+      prev === threadId
+        ? threads.find((t) => t.id !== threadId)?.id || "main"
+        : prev,
+    );
   };
 
   const handleSwitchToNewThread = () => {
-    const newId = `thread-${Date.now()}`;
+    const newId = `thread-${generateId()}`;
     setThreads((prev) => [
       ...prev,
       { id: newId, title: "New Thread", status: "regular" },
@@ -128,13 +147,18 @@ const useInMemoryThreadList = (
     onSwitchToNewThread?.();
   };
 
+  // Only the main thread is mounted, so it is the only thread that can run.
+  const mainThreadClient = useClientResource(threadFactory(mainThreadId));
+
   const threadListItems = useClientLookup(
     threads.map((t) =>
       withKey(
         t.id,
         ThreadListItemClient({
           data: t,
+          isRunning: t.id === mainThreadId && mainThreadClient.state.isRunning,
           onSwitchTo: () => handleSwitchToThread(t.id),
+          onRename: (title) => handleRename(t.id, title),
           onUpdateCustom: (custom) => handleUpdateCustom(t.id, custom),
           onArchive: () => handleArchive(t.id),
           onUnarchive: () => handleUnarchive(t.id),
@@ -143,9 +167,6 @@ const useInMemoryThreadList = (
       ),
     ),
   );
-
-  // Create the main thread
-  const mainThreadClient = useClientResource(threadFactory(mainThreadId));
 
   const state = useMemo(() => {
     const regularThreads = threads.filter((t) => t.status === "regular");
@@ -170,6 +191,7 @@ const useInMemoryThreadList = (
     switchToNewThread: handleSwitchToNewThread,
     getLoadThreadsPromise: () => RESOLVED_PROMISE,
     reload: () => RESOLVED_PROMISE,
+    reloadMainThread: () => RESOLVED_PROMISE,
     loadMore: () => RESOLVED_PROMISE,
     item: (selector) => {
       if (selector === "main") {
@@ -215,6 +237,10 @@ attachTransformScopes(useInMemoryThreadList, (scopes, parent) => {
     scopes.dataRenderers = DataRenderers();
   }
   if (!scopes.suggestions && parent.suggestions.source === null) {
-    scopes.suggestions = Suggestions();
+    scopes.suggestions = Derived({
+      source: "thread",
+      query: {},
+      get: (aui) => aui.thread.suggestions(),
+    });
   }
 });

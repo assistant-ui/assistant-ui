@@ -7,7 +7,13 @@ import {
 } from "@modelcontextprotocol/server";
 import { z } from "zod";
 import { getLLMText } from "@/lib/get-llm-text";
-import { examples, getTapDocsPage, source, tapDocs } from "@/lib/source";
+import {
+  examples,
+  getTapDocsPage,
+  getTapDocsPages,
+  source,
+  tapDocs,
+} from "@/lib/source";
 import { normalizeMcpRequestHeaders } from "./normalize-mcp-headers";
 
 export const revalidate = false;
@@ -55,7 +61,7 @@ function allPages() {
       kind: "examples" as const,
       page,
     })),
-    ...tapDocs.getPages().map((page) => ({
+    ...getTapDocsPages().map((page) => ({
       kind: "tap" as const,
       page,
     })),

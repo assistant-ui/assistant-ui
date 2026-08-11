@@ -330,11 +330,12 @@ export function DocsHeader({
                 );
               }
 
-              const groups = item.groups;
-
               return (
                 <div key={item.label} className="flex flex-col">
-                  {groups.map((group) => (
+                  <span className="text-foreground py-3 text-lg">
+                    {item.label}
+                  </span>
+                  {item.groups.map((group) => (
                     <div key={group.label} className="flex flex-col">
                       <span className="text-muted-foreground py-3 text-sm">
                         {group.label}

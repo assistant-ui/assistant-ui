@@ -4,6 +4,7 @@ import {
   getPendingCancellations,
   getPendingToolCalls,
 } from "./useAdkRuntime";
+import { convertAdkMessage } from "./convertAdkMessages";
 import type { AppendMessage } from "@assistant-ui/core";
 import type { AdkMessage } from "./types";
 
@@ -209,6 +210,89 @@ describe("getMessageContent", () => {
     ]);
   });
 
+  it("emits a file_url part for file parts with sourceType url", () => {
+    const result = getMessageContent(
+      makeAppendMessage([
+        {
+          type: "file",
+          mimeType: "application/pdf",
+          data: "gs://bucket/report.pdf",
+          filename: "report.pdf",
+          sourceType: "url",
+        },
+      ]),
+    );
+    expect(result).toEqual([
+      {
+        type: "file_url",
+        url: "gs://bucket/report.pdf",
+        mimeType: "application/pdf",
+      },
+    ]);
+  });
+
+  it("keeps file parts inline without sourceType", () => {
+    const result = getMessageContent(
+      makeAppendMessage([
+        {
+          type: "file",
+          mimeType: "application/pdf",
+          data: "gs://bucket/report.pdf",
+        },
+      ]),
+    );
+    expect(result).toEqual([
+      {
+        type: "file",
+        mimeType: "application/pdf",
+        data: "gs://bucket/report.pdf",
+      },
+    ]);
+  });
+
+  it("round-trips a file_url part through convert and edit-resend", () => {
+    const converted = convertAdkMessage(
+      {
+        id: "m1",
+        type: "human",
+        content: [
+          {
+            type: "file_url",
+            url: "gs://bucket/report.pdf",
+            mimeType: "application/pdf",
+          },
+        ],
+      },
+      {},
+    );
+    const content = (converted as { content: AppendMessage["content"] })
+      .content;
+    const result = getMessageContent(makeAppendMessage(content));
+    expect(result).toEqual([
+      {
+        type: "file_url",
+        url: "gs://bucket/report.pdf",
+        mimeType: "application/pdf",
+      },
+    ]);
+  });
+
+  it("ignores sourceType id on file parts", () => {
+    const result = getMessageContent(
+      makeAppendMessage([
+        {
+          type: "file",
+          mimeType: "application/pdf",
+          data: "file-abc123",
+          sourceType: "id",
+        },
+      ]),
+    );
+    expect(result).toEqual([
+      { type: "file", mimeType: "application/pdf", data: "file-abc123" },
+    ]);
+  });
+
   it("forwards an audio part as a file block with the format-derived mime type", () => {
     const result = getMessageContent(
       makeAppendMessage([
@@ -243,6 +327,83 @@ describe("getMessageContent", () => {
     expect(result).toEqual([
       { type: "file", mimeType: "audio/mp3", data: "QUJD" },
     ]);
+  });
+
+  it("strips a data URL envelope from file data", () => {
+    const result = getMessageContent(
+      makeAppendMessage([
+        {
+          type: "file",
+          data: "data:application/pdf;base64,QUJD",
+          mimeType: "application/pdf",
+          filename: "a.pdf",
+        },
+      ]),
+    );
+    expect(result).toEqual([
+      {
+        type: "file",
+        mimeType: "application/pdf",
+        data: "QUJD",
+        filename: "a.pdf",
+      },
+    ]);
+  });
+
+  it("emits a file_url part for an unmarked http source", () => {
+    const result = getMessageContent(
+      makeAppendMessage([
+        {
+          type: "file",
+          data: "https://cdn.example.com/a.pdf",
+          mimeType: "application/pdf",
+        },
+      ]),
+    );
+    expect(result).toEqual([
+      {
+        type: "file_url",
+        url: "https://cdn.example.com/a.pdf",
+        mimeType: "application/pdf",
+      },
+    ]);
+  });
+
+  it("leaves bare base64 file data untouched", () => {
+    const result = getMessageContent(
+      makeAppendMessage([
+        { type: "file", data: "QUJD", mimeType: "application/pdf" },
+      ]),
+    );
+    expect(result).toEqual([
+      { type: "file", mimeType: "application/pdf", data: "QUJD" },
+    ]);
+  });
+
+  it("round-trips an audio file part through both converters", () => {
+    const outbound = getMessageContent(
+      makeAppendMessage([
+        {
+          type: "file",
+          data: "data:audio/mp3;base64,QUJD",
+          mimeType: "audio/mp3",
+        },
+      ]),
+    );
+
+    expect(outbound).toEqual([
+      { type: "file", mimeType: "audio/mp3", data: "QUJD" },
+    ]);
+
+    const inbound = convertAdkMessage(
+      { id: "m1", type: "human", content: outbound } as never,
+      {},
+    );
+
+    expect(inbound).toMatchObject({
+      role: "user",
+      content: [{ type: "file", data: "QUJD", mimeType: "audio/mp3" }],
+    });
   });
 
   it("skips data parts while keeping surrounding text", () => {

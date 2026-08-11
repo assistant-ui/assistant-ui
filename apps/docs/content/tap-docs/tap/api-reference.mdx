@@ -80,10 +80,19 @@ rendering again. State updates and context changes still render it.
 
 Inside a resource body you use React's own hooks, imported from `"react"`:
 `useState`, `useReducer`, `useEffect`, `useMemo`, `useCallback`, `useRef`,
-`useLayoutEffect`, `useEffectEvent`, `useSyncExternalStore`, `useDebugValue`,
-`useContext`, and `use` (tap contexts only — promises are not supported). They
-follow React's rules of Hooks, with a few
-[differences](/tap/docs/tap/differences-from-react).
+`useLayoutEffect`, `useInsertionEffect`, `useEffectEvent`,
+`useSyncExternalStore`, `useDebugValue`, `useContext`, and `use` (tap contexts
+only — promises are not supported). They follow React's rules of Hooks, with a
+few [differences](/tap/docs/tap/differences-from-react). Hooks compiled by
+React Compiler also work: tap implements the compiler's memo-cache primitive.
+
+The remaining React hooks are not supported inside a resource body: `useId`,
+`useTransition`, `useDeferredValue`, `useImperativeHandle`, `useOptimistic`,
+and `useActionState`. Calling one inside a resource throws a `TypeError` naming
+the hook, for example `useId is not a function`. This restricts only the
+resource body itself: a React component hosting a resource can still wrap
+`useResource` in concurrent features like `useDeferredValue`
+([lifecycle](/tap/docs/tap/lifecycle)).
 
 The Hooks below are exported by tap.
 

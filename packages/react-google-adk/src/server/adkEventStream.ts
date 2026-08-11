@@ -101,6 +101,21 @@ export type AdkEventStreamOptions = {
   onError?: (error: unknown) => void;
 };
 
+const reportCallbackError = (error: unknown) => {
+  console.error("[react-google-adk] onError callback threw an error", error);
+};
+
+const notifyError = (
+  callback: AdkEventStreamOptions["onError"],
+  error: unknown,
+) => {
+  try {
+    void Promise.resolve(callback?.(error)).catch(reportCallbackError);
+  } catch (callbackError) {
+    reportCallbackError(callbackError);
+  }
+};
+
 /**
  * Converts an AsyncGenerator of ADK SDK Events into an SSE Response.
  *
@@ -131,7 +146,7 @@ export const adkEventStream = (
         }
       } catch (e) {
         if (!cancelled) {
-          options?.onError?.(e);
+          notifyError(options?.onError, e);
           const errorEvent: AdkEvent = {
             id: "",
             errorCode: "STREAM_ERROR",

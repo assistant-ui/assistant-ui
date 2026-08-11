@@ -979,3 +979,191 @@ describe("projectOpenCodeThreadMessages", () => {
     expect(toolPart({ type: "ready" })).toHaveProperty("messages", []);
   });
 });
+
+describe("user message projection", () => {
+  const userInfo = {
+    id: "user-1",
+    role: "user",
+    sessionID: "ses_1",
+    time: { created: 1 },
+  } as never;
+
+  const serverUserMessage = (parts: unknown[]) => ({
+    ...createOpenCodeThreadState("ses_1"),
+    messageOrder: ["user-1"],
+    messagesById: {
+      "user-1": {
+        id: "user-1",
+        info: userInfo,
+        parts: parts as never,
+        shadowParts: undefined,
+      },
+    },
+  });
+
+  it("projects a user image file part as a complete image attachment", () => {
+    const state: OpenCodeThreadState = serverUserMessage([
+      {
+        id: "part-text",
+        sessionID: "ses_1",
+        messageID: "user-1",
+        type: "text",
+        text: "look at this",
+      },
+      {
+        id: "part-file",
+        sessionID: "ses_1",
+        messageID: "user-1",
+        type: "file",
+        mime: "image/png",
+        filename: "photo.png",
+        url: "data:image/png;base64,AA==",
+      },
+    ]);
+
+    const [message] = projectOpenCodeThreadMessages(state);
+
+    expect(message?.content).toEqual([{ type: "text", text: "look at this" }]);
+    expect(message?.attachments).toEqual([
+      {
+        id: "part-file",
+        type: "image",
+        name: "photo.png",
+        contentType: "image/png",
+        status: { type: "complete" },
+        content: [
+          {
+            type: "image",
+            image: "data:image/png;base64,AA==",
+            filename: "photo.png",
+          },
+        ],
+      },
+    ]);
+  });
+
+  it("projects a non-image user file part as a complete file attachment", () => {
+    const state: OpenCodeThreadState = serverUserMessage([
+      {
+        id: "part-file",
+        sessionID: "ses_1",
+        messageID: "user-1",
+        type: "file",
+        mime: "application/pdf",
+        filename: "report.pdf",
+        url: "https://example.com/report.pdf",
+      },
+    ]);
+
+    const [message] = projectOpenCodeThreadMessages(state);
+
+    expect(message?.content).toEqual([]);
+    expect(message?.attachments).toEqual([
+      {
+        id: "part-file",
+        type: "file",
+        name: "report.pdf",
+        contentType: "application/pdf",
+        status: { type: "complete" },
+        content: [
+          {
+            type: "file",
+            filename: "report.pdf",
+            data: "https://example.com/report.pdf",
+            mimeType: "application/pdf",
+          },
+        ],
+      },
+    ]);
+  });
+
+  it("splits pending user parts between content and attachments", () => {
+    const state: OpenCodeThreadState = {
+      ...createOpenCodeThreadState("ses_1"),
+      pendingUserMessages: {
+        client_1: {
+          clientId: "client_1",
+          sessionId: "ses_1",
+          createdAt: 1,
+          parentId: null,
+          sourceId: null,
+          runConfig: undefined,
+          contentText: "look at this",
+          parts: [
+            { type: "text", text: "look at this" },
+            {
+              type: "image",
+              image: "data:image/png;base64,AA==",
+              filename: "photo.png",
+            },
+          ],
+          status: "pending",
+        },
+      },
+    };
+
+    const [message] = projectOpenCodeThreadMessages(state);
+
+    expect(message?.content).toEqual([{ type: "text", text: "look at this" }]);
+    expect(message?.attachments).toEqual([
+      {
+        id: "0",
+        type: "image",
+        name: "photo.png",
+        contentType: "image/png",
+        status: { type: "complete" },
+        content: [
+          {
+            type: "image",
+            image: "data:image/png;base64,AA==",
+            filename: "photo.png",
+          },
+        ],
+      },
+    ]);
+  });
+
+  it("splits shadow parts the same way while server parts are empty", () => {
+    const state: OpenCodeThreadState = {
+      ...createOpenCodeThreadState("ses_1"),
+      messageOrder: ["user-1"],
+      messagesById: {
+        "user-1": {
+          id: "user-1",
+          info: userInfo,
+          parts: [],
+          shadowParts: [
+            { type: "text", text: "look at this" },
+            {
+              type: "file",
+              data: "data:application/pdf;base64,AA==",
+              mimeType: "application/pdf",
+              filename: "report.pdf",
+            },
+          ] as never,
+        },
+      },
+    };
+
+    const [message] = projectOpenCodeThreadMessages(state);
+
+    expect(message?.content).toEqual([{ type: "text", text: "look at this" }]);
+    expect(message?.attachments).toEqual([
+      {
+        id: "0",
+        type: "file",
+        name: "report.pdf",
+        contentType: "application/pdf",
+        status: { type: "complete" },
+        content: [
+          {
+            type: "file",
+            data: "data:application/pdf;base64,AA==",
+            mimeType: "application/pdf",
+            filename: "report.pdf",
+          },
+        ],
+      },
+    ]);
+  });
+});

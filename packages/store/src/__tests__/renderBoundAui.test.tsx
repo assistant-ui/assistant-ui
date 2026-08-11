@@ -5,7 +5,7 @@ import { Component, useState } from "react";
 import { act, cleanup, render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { flushTapSync, resource, withKey } from "@assistant-ui/tap";
-import { AuiProvider } from "../utils/react-assistant-context";
+import { AuiProvider } from "../AuiProvider";
 import { useAui } from "../useAui";
 import { useAuiState } from "../useAuiState";
 import { useClientLookup } from "../useClientLookup";
@@ -42,11 +42,11 @@ const MessageProvider: FC<{ index: number; children: ReactNode }> = ({
   children,
 }) => {
   const aui = useAui({
-    message: Derived({
+    message: Derived<"message">({
       source: "thread",
       query: { index },
-      get: (aui: any) => aui.thread().item({ index }),
-    } as any),
+      get: (aui) => aui.thread().item({ index }),
+    }),
   } as unknown as useAui.Props);
   return <AuiProvider value={aui}>{children}</AuiProvider>;
 };

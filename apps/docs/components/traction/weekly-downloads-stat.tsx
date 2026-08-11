@@ -16,7 +16,7 @@ export function WeeklyDownloadsStat({
   const [showTotal, setShowTotal] = useState(false);
   const current = showTotal ? total : flagship;
   return (
-    <div className="bg-background flex flex-col gap-3 p-6">
+    <div className="flex flex-col gap-3">
       <ArrowUpRight className="text-muted-foreground size-4" />
       <div className="text-3xl font-medium tracking-tight tabular-nums md:text-4xl">
         {current.value > 0 ? (
