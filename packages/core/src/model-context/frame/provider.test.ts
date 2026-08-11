@@ -9,6 +9,26 @@ describe("AssistantFrameProvider", () => {
   let messageHandler: ((event: MessageEvent) => void) | undefined;
   let parentWindow: Window;
 
+  const toolCall = {
+    channel: FRAME_MESSAGE_CHANNEL,
+    message: {
+      type: "tool-call",
+      id: "tool-call-1",
+      toolName: "sensitiveTool",
+      args: {},
+    },
+  };
+
+  const dispatchToolCall = (origin: string, source: Window = parentWindow) => {
+    messageHandler?.(
+      new MessageEvent("message", {
+        data: toolCall,
+        origin,
+        source,
+      }),
+    );
+  };
+
   beforeEach(() => {
     parentWindow = {
       postMessage: vi.fn(),
@@ -47,37 +67,81 @@ describe("AssistantFrameProvider", () => {
       "https://parent.example",
     );
 
-    const toolCall = {
-      channel: FRAME_MESSAGE_CHANNEL,
-      message: {
-        type: "tool-call",
-        id: "tool-call-1",
-        toolName: "sensitiveTool",
-        args: {},
-      },
-    };
     const otherWindow = {
       postMessage: vi.fn(),
     } as unknown as Window;
 
-    messageHandler?.(
-      new MessageEvent("message", {
-        data: toolCall,
-        origin: "https://parent.example",
-        source: otherWindow,
-      }),
-    );
+    dispatchToolCall("https://parent.example", otherWindow);
 
     expect(execute).not.toHaveBeenCalled();
 
-    messageHandler?.(
-      new MessageEvent("message", {
-        data: toolCall,
-        origin: "https://parent.example",
-        source: parentWindow,
-      }),
-    );
+    dispatchToolCall("https://parent.example");
 
     await vi.waitFor(() => expect(execute).toHaveBeenCalledOnce());
+  });
+
+  it("upgrades a wildcard origin policy when a strict provider registers", async () => {
+    AssistantFrameProvider.addModelContextProvider(
+      { getModelContext: () => ({}) },
+      "*",
+    );
+
+    const execute = vi.fn(async () => "result");
+    AssistantFrameProvider.addModelContextProvider(
+      {
+        getModelContext: () => ({
+          tools: {
+            sensitiveTool: { execute },
+          },
+        }),
+      },
+      "https://parent.example",
+    );
+
+    dispatchToolCall("https://untrusted.example");
+
+    expect(execute).not.toHaveBeenCalled();
+
+    dispatchToolCall("https://parent.example");
+
+    await vi.waitFor(() => expect(execute).toHaveBeenCalledOnce());
+  });
+
+  it("does not downgrade a strict origin policy for a wildcard provider", () => {
+    const execute = vi.fn(async () => "result");
+    AssistantFrameProvider.addModelContextProvider(
+      {
+        getModelContext: () => ({
+          tools: {
+            sensitiveTool: { execute },
+          },
+        }),
+      },
+      "https://parent.example",
+    );
+    AssistantFrameProvider.addModelContextProvider(
+      { getModelContext: () => ({}) },
+      "*",
+    );
+
+    dispatchToolCall("https://untrusted.example");
+
+    expect(execute).not.toHaveBeenCalled();
+  });
+
+  it("rejects conflicting strict origin policies", () => {
+    AssistantFrameProvider.addModelContextProvider(
+      { getModelContext: () => ({}) },
+      "https://first.example",
+    );
+
+    expect(() =>
+      AssistantFrameProvider.addModelContextProvider(
+        { getModelContext: () => ({}) },
+        "https://second.example",
+      ),
+    ).toThrow(
+      'AssistantFrameProvider cannot register conflicting target origins: "https://first.example" and "https://second.example"',
+    );
   });
 });

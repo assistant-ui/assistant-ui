@@ -52,8 +52,23 @@ export class AssistantFrameProvider {
       AssistantFrameProvider._instance = new AssistantFrameProvider(
         targetOrigin,
       );
+    } else {
+      AssistantFrameProvider._instance.reconcileTargetOrigin(targetOrigin);
     }
     return AssistantFrameProvider._instance;
+  }
+
+  private reconcileTargetOrigin(targetOrigin: string = "*") {
+    if (targetOrigin === "*" || targetOrigin === this._targetOrigin) return;
+
+    if (this._targetOrigin === "*") {
+      this._targetOrigin = targetOrigin;
+      return;
+    }
+
+    throw new Error(
+      `AssistantFrameProvider cannot register conflicting target origins: "${this._targetOrigin}" and "${targetOrigin}"`,
+    );
   }
 
   private handleMessage(event: MessageEvent) {
