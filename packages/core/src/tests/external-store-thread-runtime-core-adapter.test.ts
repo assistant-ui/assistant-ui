@@ -278,6 +278,7 @@ describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
 
       await new Promise((resolve) => setTimeout(resolve, 0));
       expect(core.composer.text).toBe("");
+      expect(core.export().messages.map((m) => m.message.id)).toContain("u1");
     });
   });
 
