@@ -164,7 +164,7 @@ const Composer: FC = () => {
       <ComposerPrimitive.AttachmentDropzone asChild>
         <div
           data-slot="aui_composer-shell"
-          className="data-[dragging=true]:border-ring focus-within:border-border dark:focus-within:border-muted-foreground/30 dark:data-[dragging=true]:border-ring flex w-full cursor-text flex-col gap-2 rounded-(--composer-radius) border border-black/10 bg-(--composer-bg) p-(--composer-padding) shadow-[0_2px_12px_rgba(0,0,0,0.04)] transition-[border-color,box-shadow] duration-[280ms] ease-[cubic-bezier(0.22,1,0.36,1)] focus-within:shadow-[0_8px_40px_rgba(0,0,0,0.04),0_2px_12px_rgba(0,0,0,0.04)] not-focus-within:hover:border-black/15 data-[dragging=true]:border-dashed data-[dragging=true]:bg-[color-mix(in_oklab,var(--color-accent)_50%,var(--color-background))] dark:border-white/10 dark:shadow-none dark:focus-within:shadow-none dark:not-focus-within:hover:border-white/15"
+          className="data-[dragging=true]:border-ring dark:data-[dragging=true]:border-ring flex w-full cursor-text flex-col gap-2 rounded-(--composer-radius) border border-black/10 bg-(--composer-bg) p-(--composer-padding) shadow-[0_2px_12px_rgba(0,0,0,0.04)] transition-[border-color,box-shadow] duration-[280ms] ease-[cubic-bezier(0.22,1,0.36,1)] focus-within:border-black/45 focus-within:shadow-[0_8px_40px_rgba(0,0,0,0.04),0_2px_12px_rgba(0,0,0,0.04)] not-focus-within:hover:border-black/15 data-[dragging=true]:border-dashed data-[dragging=true]:bg-[color-mix(in_oklab,var(--color-accent)_50%,var(--color-background))] dark:border-white/10 dark:shadow-none dark:focus-within:border-white/45 dark:focus-within:shadow-none dark:not-focus-within:hover:border-white/15"
         >
           <ComposerAttachments />
           <ComposerPrimitive.Input
@@ -407,7 +407,7 @@ const EditComposer: FC = () => {
       data-slot="aui_edit-composer-wrapper"
       className="flex flex-col px-2 [contain-intrinsic-size:auto_200px] [content-visibility:auto]"
     >
-      <ComposerPrimitive.Root className="aui-edit-composer-root focus-within:border-border dark:focus-within:border-muted-foreground/30 ms-auto flex w-full max-w-[85%] flex-col rounded-(--composer-radius) border border-black/10 bg-(--composer-bg) shadow-[0_2px_12px_rgba(0,0,0,0.04)] transition-[border-color,box-shadow] duration-[280ms] ease-[cubic-bezier(0.22,1,0.36,1)] focus-within:shadow-[0_8px_40px_rgba(0,0,0,0.04),0_2px_12px_rgba(0,0,0,0.04)] dark:border-white/10 dark:shadow-none dark:focus-within:shadow-none">
+      <ComposerPrimitive.Root className="aui-edit-composer-root ms-auto flex w-full max-w-[85%] flex-col rounded-(--composer-radius) border border-black/10 bg-(--composer-bg) shadow-[0_2px_12px_rgba(0,0,0,0.04)] transition-[border-color,box-shadow] duration-[280ms] ease-[cubic-bezier(0.22,1,0.36,1)] focus-within:border-black/45 focus-within:shadow-[0_8px_40px_rgba(0,0,0,0.04),0_2px_12px_rgba(0,0,0,0.04)] dark:border-white/10 dark:shadow-none dark:focus-within:border-white/45 dark:focus-within:shadow-none">
         <ComposerPrimitive.Input
           className="aui-edit-composer-input text-foreground min-h-14 w-full resize-none bg-transparent px-4 pt-3 pb-1 text-base outline-none"
           autoFocus
