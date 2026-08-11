@@ -1185,7 +1185,29 @@ describe("toSlackBlocks", () => {
       );
     });
 
-    it("reports the images and actions a reshaped card really loses", () => {
+    it("does not report a Caption as lost, since its text reaches the body", () => {
+      const { blocks, warnings } = toSlackBlocks({
+        $type: "Carousel",
+        children: [
+          {
+            $type: "Card",
+            title: "Plan",
+            children: [
+              { $type: "Text", value: "body" },
+              { $type: "Caption", value: "fine print" },
+              { $type: "Divider" },
+            ],
+          },
+        ],
+      });
+      const card = (blocks[0] as SlackCarouselBlock).elements[0];
+      expect(card?.body).toEqual({ type: "mrkdwn", text: "body\nfine print" });
+      expect(warnings.some((warning) => warning.code === "dropped")).toBe(
+        false,
+      );
+    });
+
+    it("reports the images and controls a reshaped card really loses", () => {
       const { blocks, warnings } = toSlackBlocks({
         $type: "Carousel",
         children: [
