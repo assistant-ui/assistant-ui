@@ -670,7 +670,6 @@ const scanLostContent = (
  */
 const degradeCard = (
   element: NormalizedUIElement,
-  fields: CardFields,
   context: ConversionContext,
   depth: number,
 ): SlackCardBlock => {
@@ -699,7 +698,6 @@ const degradeCard = (
     "A card inside a carousel was reshaped to title and body.",
   );
   const lostKinds = new Set<string>();
-  if (fields.heroImage !== undefined) lostKinds.add("images");
   if (isRecord(element.props["confirm"]) || isRecord(element.props["cancel"])) {
     lostKinds.add("controls");
   }
@@ -733,7 +731,7 @@ const convertCarouselCard = (
           cardActionButtons(element.props, context),
           context,
         )
-      : degradeCard(element, fields, context, depth);
+      : degradeCard(element, context, depth);
   if (isEmptyCard(card)) {
     warn(
       context,
