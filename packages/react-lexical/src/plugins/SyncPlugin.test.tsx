@@ -14,6 +14,7 @@ import {
   $isElementNode,
   $isRangeSelection,
   $isTextNode,
+  $setCompositionKey,
   type LexicalEditor,
 } from "lexical";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -327,6 +328,7 @@ describe("SyncPlugin", () => {
         lexicalRoot.clear();
         lexicalRoot.append(paragraph);
         textNode.select(4, 4);
+        $setCompositionKey(textNode.getKey());
       });
     });
     const before = editor.getEditorState().read(() => {
@@ -335,8 +337,13 @@ describe("SyncPlugin", () => {
       if (!$isTextNode(textNode) || !$isRangeSelection(selection)) {
         throw new Error("Expected a text selection");
       }
-      return { key: textNode.getKey(), offset: selection.anchor.offset };
+      return {
+        key: textNode.getKey(),
+        offset: selection.anchor.offset,
+        isComposing: editor.isComposing(),
+      };
     });
+    expect(before.isComposing).toBe(true);
 
     await act(async () => {
       render(plainTextFormatter);
@@ -348,7 +355,11 @@ describe("SyncPlugin", () => {
         if (!$isTextNode(textNode) || !$isRangeSelection(selection)) {
           throw new Error("Expected a text selection");
         }
-        return { key: textNode.getKey(), offset: selection.anchor.offset };
+        return {
+          key: textNode.getKey(),
+          offset: selection.anchor.offset,
+          isComposing: editor.isComposing(),
+        };
       }),
     ).toEqual(before);
 
