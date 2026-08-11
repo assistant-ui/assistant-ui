@@ -6,7 +6,7 @@ import { spawnSync } from "node:child_process";
 import chalk from "chalk";
 import { detect } from "detect-package-manager";
 import { satisfies } from "semver";
-import { logger } from "../lib/utils/logger";
+import { logPackageJsonParseError } from "../lib/utils/package-json";
 import { findWorkspaceRoot, resolveRealPath } from "../lib/utils/workspace";
 
 export { findWorkspaceRoot };
@@ -432,11 +432,7 @@ export const info = new Command()
     try {
       projectPkg = JSON.parse(packageJsonContent);
     } catch {
-      logger.error("Could not parse package.json.");
-      console.error(`Package path: ${packageJsonPath}`);
-      console.error(
-        "Fix the JSON syntax in that file, then run: assistant-ui info",
-      );
+      logPackageJsonParseError(packageJsonPath, "info");
       process.exit(1);
     }
 
