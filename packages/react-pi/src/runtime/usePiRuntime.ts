@@ -97,6 +97,22 @@ export const NOOP_CONTROLLER: PiThreadControllerLike = {
 const NOOP_ON_NEW = () =>
   Promise.reject(new Error("Pi thread is still initializing"));
 
+const reportPiCallbackError = (callbackError: unknown) => {
+  console.error("[react-pi] onError callback threw an error", callbackError);
+};
+
+const invokePiErrorCallback = (
+  onError: PiRuntimeOptions["onError"],
+  error: unknown,
+) => {
+  if (!onError) return;
+  try {
+    void Promise.resolve(onError(error)).catch(reportPiCallbackError);
+  } catch (callbackError) {
+    reportPiCallbackError(callbackError);
+  }
+};
+
 const buildExtras = (
   controller: PiThreadControllerLike,
   state: PiThreadState,
@@ -206,7 +222,7 @@ const usePiThreadStore = (
   const isRunning = isPiStateRunning(state);
 
   const onLoadError = useEffectEvent((error: unknown) => {
-    onError?.(error);
+    invokePiErrorCallback(onError, error);
   });
 
   useEffect(() => {
@@ -251,12 +267,12 @@ const usePiThreadStore = (
       enqueue: (message) => {
         void controller
           .sendMessage(message)
-          .catch((error: unknown) => onError?.(error));
+          .catch((error: unknown) => invokePiErrorCallback(onError, error));
       },
       steer: (message) => {
         void controller
           .sendMessage(message, { streamingBehavior: "steer" })
-          .catch((error: unknown) => onError?.(error));
+          .catch((error: unknown) => invokePiErrorCallback(onError, error));
       },
       // the server-side queue exposes no per-item operations; shared queue
       // UI cannot feature-detect these, so they deliberately no-op rather
@@ -284,7 +300,7 @@ const usePiThreadStore = (
         try {
           await controller.sendMessage(message);
         } catch (error) {
-          onError?.(error);
+          invokePiErrorCallback(onError, error);
           throw error;
         }
       },
@@ -298,7 +314,7 @@ const usePiThreadStore = (
             await controller.cancel();
           }
         } catch (error) {
-          onError?.(error);
+          invokePiErrorCallback(onError, error);
           throw error;
         }
       },
@@ -306,14 +322,14 @@ const usePiThreadStore = (
         try {
           await controller.respondToToolApproval(approvalId, approved);
         } catch (error) {
-          onError?.(error);
+          invokePiErrorCallback(onError, error);
           throw error;
         }
       },
       onResumeToolCall: ({ toolCallId, payload }) => {
         void controller
           .resumeToolCall(toolCallId, payload as PiInterruptAnswer)
-          .catch((error) => onError?.(error));
+          .catch((error) => invokePiErrorCallback(onError, error));
       },
     }),
     [
@@ -397,7 +413,7 @@ const useNewPiThreadStore = (
           setOptimisticMessages((messages) =>
             messages.filter((message) => message !== optimistic),
           );
-          onError?.(error);
+          invokePiErrorCallback(onError, error);
           throw error;
         }
       },

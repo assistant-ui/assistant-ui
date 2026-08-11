@@ -10,20 +10,20 @@
     "preview": "nuxt preview"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^4.0.20",
+    "@ai-sdk/openai": "^4.0.34",
     "@assistant-ui/core": "workspace:*",
     "@assistant-ui/store": "workspace:*",
     "@assistant-ui/tap": "workspace:*",
     "@assistant-ui/vue": "workspace:*",
-    "@lucide/vue": "^1.26.0",
-    "ai": "^7.0.37",
+    "@lucide/vue": "^1.29.0",
+    "ai": "^7.0.56",
     "assistant-stream": "workspace:*",
     "nuxt": "^4.5.2",
     "vue": "^3.5.41"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",
-    "@types/react": "^19.2.17",
+    "@types/react": "^19.2.18",
     "tailwindcss": "^4.3.3",
     "typescript": "^7.0.2"
   }

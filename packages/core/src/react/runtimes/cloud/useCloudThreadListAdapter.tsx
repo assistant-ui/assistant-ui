@@ -37,6 +37,8 @@ const autoCloud = baseUrl
   ? new AssistantCloud({ baseUrl, anonymous: true })
   : undefined;
 
+const CLOUD_THREAD_PAGE_SIZE = 20;
+
 export const useCloudThreadListAdapter = (
   adapter: CloudThreadListAdapterOptions,
 ): RemoteThreadListAdapter => {
@@ -88,8 +90,11 @@ export const useCloudThreadListAdapter = (
     }
 
     return {
-      list: async () => {
-        const { threads } = await cloud.threads.list();
+      list: async ({ after } = {}) => {
+        const { threads } = await cloud.threads.list({
+          limit: CLOUD_THREAD_PAGE_SIZE,
+          ...(after ? { after } : {}),
+        });
         return {
           threads: threads.map((t) => ({
             status: t.is_archived ? "archived" : "regular",
@@ -101,6 +106,10 @@ export const useCloudThreadListAdapter = (
             externalId: t.external_id ?? undefined,
             custom: toCustom(t.metadata),
           })),
+          nextCursor:
+            threads.length === CLOUD_THREAD_PAGE_SIZE
+              ? threads.at(-1)?.id
+              : undefined,
         };
       },
 

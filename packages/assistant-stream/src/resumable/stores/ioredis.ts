@@ -15,7 +15,7 @@ export type IoRedisLike = IoRedis | IoRedisCluster;
 
 /**
  * Resumable stream store backed by [`ioredis`](https://www.npmjs.com/package/ioredis)
- * v5. Accepts a `Redis` or `Cluster` instance.
+ * v5 or v6. Accepts a `Redis` or `Cluster` instance.
  */
 export function createIoredisResumableStreamStore(
   client: IoRedisLike,

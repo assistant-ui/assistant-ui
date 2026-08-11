@@ -5360,4 +5360,365 @@ describe("AGUIThreadRuntimeCore", () => {
       "submit",
     );
   });
+
+  it("forwards reasoning from an earlier run in the next run input", async () => {
+    const runInputs: any[] = [];
+    const runAgent = vi.fn(async (input, subscriber) => {
+      runInputs.push(JSON.parse(JSON.stringify(input)));
+      if (runInputs.length === 1) {
+        subscriber.onReasoningMessageStartEvent?.({
+          event: { type: "REASONING_MESSAGE_START", messageId: "r-1" },
+        });
+        subscriber.onReasoningMessageContentEvent?.({
+          event: {
+            type: "REASONING_MESSAGE_CONTENT",
+            messageId: "r-1",
+            delta: "weighing options",
+          },
+        });
+        subscriber.onReasoningMessageEndEvent?.({
+          event: { type: "REASONING_MESSAGE_END", messageId: "r-1" },
+        });
+        subscriber.onTextMessageContentEvent?.({
+          event: { type: "TEXT_MESSAGE_CONTENT", delta: "done" },
+        });
+      }
+      subscriber.onRunFinalized?.();
+    });
+    const core = createCore({ runAgent } as unknown as HttpAgent);
+
+    await core.append(createAppendMessage());
+    const assistantId = core.getMessages().at(-1)!.id;
+    await core.append(createAppendMessage({ parentId: assistantId }));
+
+    expect(runInputs).toHaveLength(2);
+    expect(runInputs[1].messages.map((message: any) => message.role)).toEqual([
+      "user",
+      "reasoning",
+      "assistant",
+      "user",
+    ]);
+    expect(runInputs[1].messages[1]).toMatchObject({
+      id: "r-1",
+      role: "reasoning",
+      content: "weighing options",
+    });
+    expect(runInputs[1].messages[2]).toMatchObject({
+      id: assistantId,
+      role: "assistant",
+      content: "done",
+    });
+  });
+
+  it("signs reasoning that arrived on the legacy thinking channel", async () => {
+    const runInputs: any[] = [];
+    const runAgent = vi.fn(async (input, subscriber) => {
+      runInputs.push(JSON.parse(JSON.stringify(input)));
+      if (runInputs.length === 1) {
+        subscriber.onThinkingTextMessageStartEvent?.({
+          event: { type: "THINKING_TEXT_MESSAGE_START" },
+        });
+        subscriber.onThinkingTextMessageContentEvent?.({
+          event: { type: "THINKING_TEXT_MESSAGE_CONTENT", delta: "pondering" },
+        });
+        subscriber.onReasoningEncryptedValueEvent?.({
+          event: {
+            type: "REASONING_ENCRYPTED_VALUE",
+            subtype: "message",
+            entityId: "unmatched-entity",
+            encryptedValue: "signed-blob",
+          },
+        });
+        subscriber.onTextMessageContentEvent?.({
+          event: { type: "TEXT_MESSAGE_CONTENT", delta: "done" },
+        });
+      }
+      subscriber.onRunFinalized?.();
+    });
+    const core = createCore({ runAgent } as unknown as HttpAgent);
+
+    await core.append(createAppendMessage());
+    const assistant = core.getMessages().at(-1) as ThreadAssistantMessage;
+    await core.append(createAppendMessage({ parentId: assistant.id }));
+
+    expect(runInputs[1].messages[1]).toMatchObject({
+      role: "reasoning",
+      content: "pondering",
+      encryptedValue: "signed-blob",
+    });
+  });
+
+  it("ignores a signature whose entityId names something other than the open reasoning block", async () => {
+    const runInputs: any[] = [];
+    const runAgent = vi.fn(async (input, subscriber) => {
+      runInputs.push(JSON.parse(JSON.stringify(input)));
+      if (runInputs.length === 1) {
+        subscriber.onReasoningMessageStartEvent?.({
+          event: { type: "REASONING_MESSAGE_START", messageId: "r-1" },
+        });
+        subscriber.onReasoningMessageContentEvent?.({
+          event: {
+            type: "REASONING_MESSAGE_CONTENT",
+            messageId: "r-1",
+            delta: "weighing options",
+          },
+        });
+        subscriber.onReasoningEncryptedValueEvent?.({
+          event: {
+            type: "REASONING_ENCRYPTED_VALUE",
+            subtype: "message",
+            entityId: "some-other-message",
+            encryptedValue: "not-for-this-block",
+          },
+        });
+        subscriber.onTextMessageContentEvent?.({
+          event: { type: "TEXT_MESSAGE_CONTENT", delta: "done" },
+        });
+      }
+      subscriber.onRunFinalized?.();
+    });
+    const core = createCore({ runAgent } as unknown as HttpAgent);
+
+    await core.append(createAppendMessage());
+    const assistant = core.getMessages().at(-1) as ThreadAssistantMessage;
+    await core.append(createAppendMessage({ parentId: assistant.id }));
+
+    expect(runInputs[1].messages[1]).toMatchObject({
+      id: "r-1",
+      role: "reasoning",
+    });
+    expect(runInputs[1].messages[1]).not.toHaveProperty("encryptedValue");
+  });
+
+  it("ignores a mismatched signature for a block opened by REASONING_START with an id", async () => {
+    const runInputs: any[] = [];
+    const runAgent = vi.fn(async (input, subscriber) => {
+      runInputs.push(JSON.parse(JSON.stringify(input)));
+      if (runInputs.length === 1) {
+        subscriber.onReasoningStartEvent?.({
+          event: { type: "REASONING_START", messageId: "p-1" },
+        });
+        subscriber.onThinkingTextMessageContentEvent?.({
+          event: { type: "THINKING_TEXT_MESSAGE_CONTENT", delta: "pondering" },
+        });
+        subscriber.onReasoningEncryptedValueEvent?.({
+          event: {
+            type: "REASONING_ENCRYPTED_VALUE",
+            subtype: "message",
+            entityId: "some-other-message",
+            encryptedValue: "not-for-this-block",
+          },
+        });
+        subscriber.onTextMessageContentEvent?.({
+          event: { type: "TEXT_MESSAGE_CONTENT", delta: "done" },
+        });
+      }
+      subscriber.onRunFinalized?.();
+    });
+    const core = createCore({ runAgent } as unknown as HttpAgent);
+
+    await core.append(createAppendMessage());
+    const assistant = core.getMessages().at(-1) as ThreadAssistantMessage;
+    await core.append(createAppendMessage({ parentId: assistant.id }));
+
+    const reasoning = runInputs[1].messages.find(
+      (message: any) => message.role === "reasoning",
+    );
+    expect(reasoning).toMatchObject({ content: "pondering" });
+    expect(reasoning).not.toHaveProperty("encryptedValue");
+  });
+
+  it("replays an encrypted-only reasoning record from a snapshot into the next run input", async () => {
+    const runInputs: any[] = [];
+    const runAgent = vi.fn(async (input, subscriber) => {
+      runInputs.push(JSON.parse(JSON.stringify(input)));
+      if (runInputs.length === 1) {
+        subscriber.onMessagesSnapshotEvent?.({
+          event: {
+            type: "MESSAGES_SNAPSHOT",
+            messages: [
+              { id: "u-1", role: "user", content: "hi" },
+              {
+                id: "r-1",
+                role: "reasoning",
+                content: "",
+                encryptedValue: "opaque",
+              },
+              { id: "a-1", role: "assistant", content: "done" },
+            ],
+          },
+        });
+      }
+      subscriber.onRunFinalized?.();
+    });
+    const core = createCore({ runAgent } as unknown as HttpAgent);
+
+    await core.append(createAppendMessage());
+    // it is transport state, so it must not surface as a message in the thread
+    expect(core.getMessages().map((m) => m.role)).toEqual([
+      "user",
+      "assistant",
+    ]);
+
+    const last = core.getMessages().at(-1)!;
+    await core.append(createAppendMessage({ parentId: last.id }));
+
+    expect(runInputs[1].messages.map((m: any) => m.id)).toEqual([
+      "u-1",
+      "r-1",
+      "a-1",
+      runInputs[1].messages[3].id,
+    ]);
+    expect(runInputs[1].messages[1]).toMatchObject({
+      role: "reasoning",
+      content: "",
+      encryptedValue: "opaque",
+    });
+  });
+
+  it("keeps opaque reasoning and interrupts on one assistant through the metadata merge", async () => {
+    let core: AgUiThreadRuntimeCore;
+    const runAgent = vi.fn(async (input, subscriber) => {
+      subscriber.onTextMessageContentEvent?.({
+        event: { type: "TEXT_MESSAGE_CONTENT", delta: "seed" },
+      });
+      // Reusing the run's own assistant id makes the snapshot land on the
+      // message the interrupt update then merges into.
+      const activeId = core.getMessages().at(-1)!.id;
+      subscriber.onMessagesSnapshotEvent?.({
+        event: {
+          type: "MESSAGES_SNAPSHOT",
+          messages: [
+            { id: "u-1", role: "user", content: "hi" },
+            {
+              id: "r-1",
+              role: "reasoning",
+              content: "",
+              encryptedValue: "opaque",
+            },
+            { id: activeId, role: "assistant", content: "done" },
+          ],
+        },
+      });
+      subscriber.onRunFinishedEvent?.({
+        event: {
+          type: "RUN_FINISHED",
+          runId: input.runId,
+          outcome: {
+            type: "interrupt",
+            interrupts: [{ id: "int-1", reason: "tool_call", message: "ok?" }],
+          },
+        },
+      });
+      subscriber.onRunFinalized?.();
+    });
+    core = createCore({ runAgent } as unknown as HttpAgent);
+
+    await core.append(createAppendMessage());
+
+    const assistant = core.getMessages().at(-1) as ThreadAssistantMessage;
+    const agui = assistant.metadata.custom.agui as any;
+    expect(agui.interrupts).toHaveLength(1);
+    expect(agui.opaqueReasoning).toEqual([
+      { id: "r-1", encryptedValue: "opaque" },
+    ]);
+  });
+
+  it("keeps opaque reasoning through a run that ends in an interrupt", async () => {
+    const runInputs: any[] = [];
+    const runAgent = vi.fn(async (input, subscriber) => {
+      runInputs.push(JSON.parse(JSON.stringify(input)));
+      if (runInputs.length === 1) {
+        subscriber.onMessagesSnapshotEvent?.({
+          event: {
+            type: "MESSAGES_SNAPSHOT",
+            messages: [
+              { id: "u-1", role: "user", content: "hi" },
+              {
+                id: "r-1",
+                role: "reasoning",
+                content: "",
+                encryptedValue: "opaque",
+              },
+              { id: "a-1", role: "assistant", content: "done" },
+            ],
+          },
+        });
+        subscriber.onRunFinishedEvent?.({
+          event: {
+            type: "RUN_FINISHED",
+            runId: input.runId,
+            outcome: {
+              type: "interrupt",
+              interrupts: [
+                { id: "int-1", reason: "tool_call", message: "approve?" },
+              ],
+            },
+          },
+        });
+      }
+      subscriber.onRunFinalized?.();
+    });
+    const core = createCore({ runAgent } as unknown as HttpAgent);
+
+    await core.append(createAppendMessage());
+    const last = core.getMessages().at(-1)!;
+    await core.append(createAppendMessage({ parentId: last.id }));
+
+    expect(
+      runInputs[1].messages.filter((m: any) => m.role === "reasoning"),
+    ).toEqual([
+      { id: "r-1", role: "reasoning", content: "", encryptedValue: "opaque" },
+    ]);
+  });
+
+  it("carries a live reasoning signature into the next run input", async () => {
+    const runInputs: any[] = [];
+    const runAgent = vi.fn(async (input, subscriber) => {
+      runInputs.push(JSON.parse(JSON.stringify(input)));
+      if (runInputs.length === 1) {
+        subscriber.onReasoningMessageStartEvent?.({
+          event: { type: "REASONING_MESSAGE_START", messageId: "r-1" },
+        });
+        subscriber.onReasoningMessageContentEvent?.({
+          event: {
+            type: "REASONING_MESSAGE_CONTENT",
+            messageId: "r-1",
+            delta: "weighing options",
+          },
+        });
+        subscriber.onReasoningEncryptedValueEvent?.({
+          event: {
+            type: "REASONING_ENCRYPTED_VALUE",
+            subtype: "message",
+            entityId: "r-1",
+            encryptedValue: "signed-blob",
+          },
+        });
+        subscriber.onReasoningMessageEndEvent?.({
+          event: { type: "REASONING_MESSAGE_END", messageId: "r-1" },
+        });
+        subscriber.onTextMessageContentEvent?.({
+          event: { type: "TEXT_MESSAGE_CONTENT", delta: "done" },
+        });
+      }
+      subscriber.onRunFinalized?.();
+    });
+    const core = createCore({ runAgent } as unknown as HttpAgent);
+
+    await core.append(createAppendMessage());
+    const assistant = core.getMessages().at(-1) as ThreadAssistantMessage;
+    expect(assistant.content[0]).toMatchObject({
+      type: "reasoning",
+      providerMetadata: { agui: { encryptedValue: "signed-blob" } },
+    });
+
+    await core.append(createAppendMessage({ parentId: assistant.id }));
+
+    expect(runInputs[1].messages[1]).toMatchObject({
+      role: "reasoning",
+      content: "weighing options",
+      encryptedValue: "signed-blob",
+    });
+  });
 });

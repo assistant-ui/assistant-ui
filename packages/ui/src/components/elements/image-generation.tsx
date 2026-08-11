@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { RefreshCwIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ghostButton, mono, paper } from "./surfaces";
@@ -10,13 +11,18 @@ export function ImageGeneration({
   prompt,
   generating,
   className,
-}: {
+  ...props
+}: Omit<ComponentProps<"div">, "children" | "prompt" | "generating"> & {
   prompt: string;
   generating: boolean;
-  className?: string;
 }) {
   return (
-    <div className={cn("flex w-52 flex-col gap-2.5", className)}>
+    <div
+      data-slot="image-generation"
+      className={cn("flex w-52 flex-col gap-2.5", className)}
+
+      {...props}
+    >
       <div
         className={cn(
           paper,

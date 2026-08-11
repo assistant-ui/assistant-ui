@@ -272,8 +272,11 @@ describe("createReplayBoundaryStream", () => {
   it("clears replaying when the stream ends before the boundary", async () => {
     const { waitForRender, releaseNext } = createRenderWait();
     const setReplaying = vi.fn();
+    const body = createBody(["hi"]);
     const streamPromise = createReplayBoundaryStream(
-      createResponse(["hi"], 10),
+      new Response(body, {
+        headers: { [REPLAY_CONTENT_LENGTH_HEADER]: "10" },
+      }),
       {
         setReplaying,
         waitForRender,
@@ -288,6 +291,7 @@ describe("createReplayBoundaryStream", () => {
 
     await expect(text).resolves.toBe("hi");
     expect(setReplaying).toHaveBeenLastCalledWith(false);
+    expect(body.locked).toBe(false);
   });
 
   it("clears replaying when the gated stream is cancelled", async () => {
@@ -313,6 +317,27 @@ describe("createReplayBoundaryStream", () => {
 
     expect(setReplaying).toHaveBeenLastCalledWith(false);
     expect(cancelled).toBe(true);
+    expect(body.locked).toBe(false);
+  });
+
+  it("releases the response body reader after a read failure", async () => {
+    const { waitForRender, releaseNext } = createRenderWait();
+    const error = new Error("stream failed");
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.error(error);
+      },
+    });
+    const streamPromise = createReplayBoundaryStream(
+      new Response(body, { headers: { [REPLAY_CONTENT_LENGTH_HEADER]: "10" } }),
+      { setReplaying: vi.fn(), waitForRender },
+    );
+
+    await releaseNext();
+    const stream = await streamPromise;
+
+    await expect(stream.getReader().read()).rejects.toBe(error);
+    expect(body.locked).toBe(false);
   });
 
   it("does not wait for replay completion after cancellation unblocks a read", async () => {

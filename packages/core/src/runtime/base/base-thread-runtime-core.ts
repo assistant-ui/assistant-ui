@@ -35,6 +35,7 @@ import type { AttachmentAdapter } from "../../adapters/attachment";
 import type { RealtimeVoiceAdapter } from "../../adapters/voice";
 import type { ThreadMessageLike } from "../utils/thread-message-like";
 import { notifyEventListeners } from "../../utils/notify-event-listeners";
+import { gateInteractableComposerMetadata } from "../../model-context/interactable-composer-metadata";
 
 type BaseThreadAdapters = {
   speech?: SpeechSynthesisAdapter | undefined;
@@ -121,6 +122,41 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
 
   public getModelContext() {
     return this._contextProvider.getModelContext();
+  }
+
+  /**
+   * Stamps provider-contributed composer metadata onto an outgoing message.
+   * Called at dispatch rather than in the composer, so programmatic sends are
+   * covered too, and exactly once per message: a queued send is stamped when
+   * it leaves the lane, never when it enters.
+   *
+   * Only user messages are stamped, matching the readers: both the version
+   * fold and the model injection skip every other role.
+   *
+   * @param anchorId Message the gated branch prefix ends at. A queued send
+   * passes the current tail, having waited through a run that grew the prefix
+   * past the parent it was created with.
+   */
+  protected enrichAppendMetadata(
+    message: AppendMessage,
+    anchorId: string | null = message.parentId,
+  ): AppendMessage {
+    if (message.role !== "user") return message;
+    const messages = this.messages;
+    const parentIndex =
+      anchorId === null ? -1 : messages.findIndex((m) => m.id === anchorId);
+    const composerMetadata = gateInteractableComposerMetadata(
+      this.getModelContext().unstable_composerMetadata,
+      messages.slice(0, parentIndex + 1),
+    );
+    if (!composerMetadata) return message;
+    return {
+      ...message,
+      metadata: {
+        ...message.metadata,
+        custom: { ...message.metadata?.custom, ...composerMetadata },
+      },
+    };
   }
 
   private _editComposers = new Map<string, DefaultEditComposerRuntimeCore>();
