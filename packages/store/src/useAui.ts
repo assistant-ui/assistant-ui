@@ -128,6 +128,20 @@ const getOwnEventClientInternals = (
 const getCurrentEventClient = (client: AssistantClient): AssistantClient =>
   getOwnEventClientInternals(client)?.ref.current ?? client;
 
+const isGeneratedEventHandler = (
+  client: AssistantClient,
+  on: AssistantClient["on"],
+): boolean => {
+  let candidate: object | null = client;
+  while (candidate && candidate !== Object.prototype) {
+    if (getOwnEventClientInternals(candidate as AssistantClient)?.on === on) {
+      return true;
+    }
+    candidate = Object.getPrototypeOf(candidate) as object | null;
+  }
+  return false;
+};
+
 const getEventScopeOwner = (
   client: AssistantClient,
   scope: ClientNames,
@@ -147,6 +161,9 @@ const getEventScopeBinding = (
   scope: ClientNames,
 ): AssistantClientAccessor<ClientNames> | undefined => {
   let client = getCurrentEventClient(subscriber);
+  // Each restart replaces an obsolete owner with the current generation of
+  // the same host; otherwise owner lookup advances through a finite prototype
+  // chain.
   while (true) {
     const owner = getEventScopeOwner(client, scope);
     // Root and hand-built clients may supply accessors dynamically rather than
@@ -216,7 +233,7 @@ const createEventForwarder = (
   parent: AssistantClient,
 ): AssistantClient["on"] => {
   const parentOn = parent.on;
-  const generatedParent = getOwnEventClientInternals(parent)?.on === parentOn;
+  const generatedParent = isGeneratedEventHandler(parent, parentOn);
   return function <TEvent extends AssistantEventName>(
     this: AssistantClient,
     selector: AssistantEventSelector<TEvent>,
@@ -271,23 +288,7 @@ const useClientFields = ({
         });
         const parent = clientRef.parent;
         const parentOn = parent.on;
-        const generatedParent =
-          getOwnEventClientInternals(parent)?.on === parentOn;
-        const currentHost = clientRef.current;
-        const boundScope =
-          scope === "*"
-            ? undefined
-            : getEventScopeBinding(this, scope as ClientNames);
-        // A root scope emits through this host's notification manager, so
-        // forwarding the same registration to generated ancestors is useless.
-        if (
-          boundScope?.source === "root" &&
-          currentHost &&
-          Object.prototype.hasOwnProperty.call(currentHost, scope) &&
-          currentHost[scope as ClientNames] === boundScope
-        ) {
-          return localUnsub;
-        }
+        const generatedParent = isGeneratedEventHandler(parent, parentOn);
         // A custom parent owns its selector contract. Generated chains keep
         // forwarding because the transport that emits the event may live at a
         // higher ancestor even when that ancestor lacks the subscriber scope.
@@ -300,11 +301,17 @@ const useClientFields = ({
         }
 
         const parentReceiver = generatedParent ? this : parent;
-        const parentUnsub = parentOn.call(
-          parentReceiver,
-          selector as never,
-          callback as never,
-        );
+        let parentUnsub: () => void;
+        try {
+          parentUnsub = parentOn.call(
+            parentReceiver,
+            selector as never,
+            callback as never,
+          );
+        } catch (error) {
+          localUnsub();
+          throw error;
+        }
 
         return () => {
           localUnsub();

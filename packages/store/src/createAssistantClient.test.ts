@@ -233,6 +233,52 @@ describe("createAssistantClient", () => {
     source.destroy();
   });
 
+  it("rolls back a local listener when its parent rejects registration", async () => {
+    const parent = {
+      subscribe: () => () => {},
+      on: vi.fn(() => {
+        throw new Error("parent rejected registration");
+      }),
+    } as unknown as AssistantClient;
+    const child = createTestClient({ thread: ThreadClient() }, { parent });
+    const callback = vi.fn();
+
+    expect(() =>
+      child
+        .getClient()
+        .on({ scope: "*", event: "message.pinged" } as never, callback),
+    ).toThrow("parent rejected registration");
+
+    flushTapSync(() =>
+      child.getClient().thread.message({ index: 0 }).ping("after-rejection"),
+    );
+    await flushEvents();
+    expect(callback).not.toHaveBeenCalled();
+
+    child.destroy();
+  });
+
+  it("keeps the subscriber receiver through a transparent generated parent", async () => {
+    const source = createTestClient({ thread: ThreadClient() });
+    const parent = Object.create(source.getClient()) as AssistantClient;
+    const child = createTestClient({ message: messageDerived() }, { parent });
+    const callback = vi.fn();
+
+    child.getClient().on("message.pinged" as never, callback);
+    flushTapSync(() =>
+      source.getClient().thread.message({ index: 0 }).ping("inherited"),
+    );
+    await flushEvents();
+
+    expect(callback).toHaveBeenCalledExactlyOnceWith({
+      id: "m0",
+      value: "inherited",
+    });
+
+    child.destroy();
+    source.destroy();
+  });
+
   it("extends a parent handle and re-binds across the parent's structural changes", () => {
     const parent = createTestClient({ thread: ThreadClient() });
     const child = createTestClient(

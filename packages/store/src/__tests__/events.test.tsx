@@ -45,9 +45,10 @@ const useThreadClient = () => {
 };
 const ThreadClient = resource(useThreadClient);
 
-const ComposerClient = resource(() => ({
+const useComposerClient = () => ({
   getState: () => ({}),
-}));
+});
+const ComposerClient = resource(useComposerClient);
 
 const messageDerived = () =>
   Derived({
@@ -420,6 +421,40 @@ describe("Derived scopes", () => {
     expect(directListener).toHaveBeenCalledExactlyOnceWith({
       id: "m1",
       value: "child",
+    });
+  });
+
+  it("forwards through a transparent wrapper around a generated parent", async () => {
+    let aui!: AnyClient;
+    const callback = vi.fn();
+    const Listener = () => {
+      useAuiEvent("message.pinged" as never, callback as never);
+      return null;
+    };
+    const Harness = () => {
+      aui = useAui({ thread: ThreadClient() } as unknown as useAui.Props);
+      const parent = Object.create(aui) as AnyClient;
+      const config = AuiConfig({
+        message: Derived({
+          source: "thread",
+          query: { index: 0 },
+          get: (client: AnyClient) => client.thread.message({ index: 0 }),
+        } as never),
+      } as never);
+      return (
+        <AuiProvider extends={parent as never} config={config}>
+          <Listener />
+        </AuiProvider>
+      );
+    };
+    render(<Harness />);
+
+    aui.thread.message({ index: 0 }).ping("inherited");
+    await flushEvents();
+
+    expect(callback).toHaveBeenCalledExactlyOnceWith({
+      id: "m0",
+      value: "inherited",
     });
   });
 
