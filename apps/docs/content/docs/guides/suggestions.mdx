@@ -40,7 +40,7 @@ function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
 
 ## Suggestion Format
 
-Suggestions can be provided as either strings or objects with a required prompt and optional title and label. When title is omitted it falls back to the prompt; when label is omitted it defaults to empty:
+Suggestions can be provided as either strings or objects with title, label, and prompt:
 
 ### Simple Strings
 
@@ -138,7 +138,7 @@ The primitives available for rendering suggestions are `ThreadPrimitive.Suggesti
 
 ## Runtime driven suggestions
 
-The static `Suggestions(...)` API covers welcome screens. For follow up prompts that depend on the conversation, a tool result, or your backend, push suggestions through the runtime itself. They land on `thread.suggestions`, and when no static `Suggestions(...)` configuration is set, the `suggestions` scope derives from them, so `ThreadPrimitive.Suggestions` renders them as well. Runtime suggestions use the `ThreadSuggestion` shape: a required `prompt` plus optional `title` and `label`, matching the static suggestion format.
+The static `Suggestions(...)` API covers welcome screens. For follow up prompts that depend on the conversation, a tool result, or your backend, push suggestions through the runtime itself. They land on `thread.suggestions`, and when no static `Suggestions(...)` configuration is set, the `suggestions` scope derives from them, so `ThreadPrimitive.Suggestions` renders them as well. Runtime suggestions use the `ThreadSuggestion` shape: a required `prompt` plus optional `title` and `label`. When `title` is omitted it falls back to the prompt, and an omitted `label` renders as empty, so a prompt-only runtime suggestion looks exactly like a plain string suggestion.
 
 ### Local runtime: `SuggestionAdapter`
 

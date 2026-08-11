@@ -4052,8 +4052,8 @@ type SuggestionByIndexProviderProps = PropsWithChildren<{
 }>;
 
 type SuggestionConfig = string | {
-  title?: string;
-  label?: string;
+  title: string;
+  label: string;
   prompt: string;
 };
 

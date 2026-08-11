@@ -8,7 +8,7 @@ import type { ThreadSuggestion } from "../../runtime/interfaces/thread-runtime-c
 
 export type SuggestionConfig =
   | string
-  | { title?: string; label?: string; prompt: string };
+  | { title: string; label: string; prompt: string };
 
 const useSuggestionClient = (
   state: SuggestionState,
@@ -50,8 +50,8 @@ const useStaticSuggestions = (
         };
       }
       return {
-        title: s.title ?? s.prompt,
-        label: s.label ?? "",
+        title: s.title,
+        label: s.label,
         prompt: s.prompt,
       };
     });
