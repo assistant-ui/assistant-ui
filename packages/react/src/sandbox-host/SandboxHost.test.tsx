@@ -251,5 +251,10 @@ describe("SandboxHost", () => {
 
     expect(onError).toHaveBeenCalledWith(error);
     expect(rendered.dispose).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      root.unmount();
+    });
+    expect(rendered.dispose).toHaveBeenCalledTimes(1);
   });
 });
