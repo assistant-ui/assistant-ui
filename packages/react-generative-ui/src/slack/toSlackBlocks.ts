@@ -612,7 +612,7 @@ const convertCard = (
 };
 
 /** The content kinds a reshaped carousel card cannot carry, in report order. */
-const LOST_CONTENT_KINDS = ["images", "tables", "charts", "actions"] as const;
+const LOST_CONTENT_KINDS = ["images", "tables", "charts", "controls"] as const;
 
 const listPhrase = (items: readonly string[]): string =>
   items.length <= 1
@@ -623,7 +623,8 @@ const listPhrase = (items: readonly string[]): string =>
  * Collects the kinds of content a reshape drops, walking the same tree
  * {@link collectText} does so a node nested below the top level counts too.
  * These are exactly the pieces text cannot represent: an image has no text, a
- * table and a chart carry theirs in array props, and an action is behavior.
+ * table and a chart carry theirs in array props, and a control is behavior,
+ * whether or not it carries an action of its own.
  */
 const scanLostContent = (
   node: NormalizedUINode,
@@ -636,7 +637,13 @@ const scanLostContent = (
     return;
   }
   if (!isElement(node)) return;
-  if (node.action !== undefined) into.add("actions");
+  if (
+    node.action !== undefined ||
+    INTERACTIVE_TYPES.has(node.type) ||
+    node.type === "Input"
+  ) {
+    into.add("controls");
+  }
   if (node.type === "Image") into.add("images");
   if (node.type === "Table") into.add("tables");
   if (node.type === "Chart") into.add("charts");
@@ -683,7 +690,7 @@ const degradeCard = (
   const lostKinds = new Set<string>();
   if (fields.heroImage !== undefined) lostKinds.add("images");
   if (isRecord(element.props["confirm"]) || isRecord(element.props["cancel"])) {
-    lostKinds.add("actions");
+    lostKinds.add("controls");
   }
   scanLostContent(fields.leftover, lostKinds, depth + 1);
   const lost = LOST_CONTENT_KINDS.filter((kind) => lostKinds.has(kind));

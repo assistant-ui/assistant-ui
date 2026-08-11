@@ -1214,7 +1214,7 @@ describe("toSlackBlocks", () => {
       expect(warnings).toContainEqual({
         code: "dropped",
         component: "Card",
-        detail: "A reshaped carousel card's images and actions were dropped.",
+        detail: "A reshaped carousel card's images and controls were dropped.",
       });
     });
 
@@ -1226,12 +1226,14 @@ describe("toSlackBlocks", () => {
         { $type: "ListViewItem", children: [{ $type: "Image", src: "x.png" }] },
       ],
       [
-        "actions",
+        "controls",
         {
           $type: "ListViewItem",
           children: [{ $type: "Button", label: "Go", $action: { type: "go" } }],
         },
       ],
+      ["controls", { $type: "Select", options: [{ label: "A", value: "a" }] }],
+      ["controls", { $type: "Input", name: "email", label: "Email" }],
     ])(
       "reports %s that a reshape cannot carry, however deep",
       (kind, child) => {
