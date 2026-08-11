@@ -86,7 +86,7 @@ describe("createOAuthProvider discovery state", () => {
 });
 
 describe("createOAuthProvider persistence", () => {
-  it("loads persisted auth state once for concurrent reads", async () => {
+  it("shares one auth state load across provider instances", async () => {
     let resolveLoad!: (value: MCPPersistedAuthState | null) => void;
     const loadAuthState = vi.fn(
       () =>
@@ -96,17 +96,18 @@ describe("createOAuthProvider persistence", () => {
     );
     const { storage } = createStorage();
     storage.loadAuthState = loadAuthState;
-    const provider = createProvider(storage);
+    const firstProvider = createProvider(storage);
+    const secondProvider = createProvider(storage);
 
-    const tokens = provider.tokens();
-    const clientInformation = provider.clientInformation();
+    const tokens = firstProvider.tokens();
+    const clientInformation = secondProvider.clientInformation();
 
     expect(loadAuthState).toHaveBeenCalledTimes(1);
     resolveLoad(null);
     await Promise.all([tokens, clientInformation]);
   });
 
-  it("serializes auth state writes so newer credentials are not overwritten", async () => {
+  it("serializes auth state writes across provider instances", async () => {
     const { storage } = createStorage();
     const pendingWrites: Array<() => void> = [];
     let persisted: MCPPersistedAuthState | null = null;
@@ -114,16 +115,17 @@ describe("createOAuthProvider persistence", () => {
       await new Promise<void>((resolve) => pendingWrites.push(resolve));
       persisted = next;
     };
-    const provider = createProvider(storage);
-    await provider.tokens();
+    const firstProvider = createProvider(storage);
+    await firstProvider.tokens();
 
-    const tokenSave = provider.saveTokens({
+    const tokenSave = firstProvider.saveTokens({
       access_token: "access-token",
       token_type: "bearer",
     });
     await vi.waitFor(() => expect(pendingWrites).toHaveLength(1));
 
-    const verifierSave = provider.saveCodeVerifier("pkce-verifier");
+    const secondProvider = createProvider(storage);
+    const verifierSave = secondProvider.saveCodeVerifier("pkce-verifier");
     await Promise.resolve();
     expect(pendingWrites).toHaveLength(1);
 
