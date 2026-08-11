@@ -10,14 +10,16 @@ The package ships a default vocabulary of 27 components (cards, facts, tables, c
 
 ## Which generative UI pattern?
 
-assistant-ui uses "generative UI" for more than one thing. Pick the row that matches what you are building:
+assistant-ui uses "generative UI" for more than one thing. Two questions separate them: does the **model** compose the layout or do you bind it ahead of time, and does the UI originate from a **tool call** or from a part your backend emits. Pick the row that matches what you are building:
 
 | Pattern | API | Best for |
 |---------|-----|----------|
 | **The `present` tool** (this page) | `JSONGenerativeUI` + `present` | The model composes dashboards, cards, and layouts from a vocabulary you ship |
-| **Tool UI** | toolkit `render` | A widget tied to a tool you already know about (forms, pickers, charts) |
-| **Generative UI primitive** | `MessagePrimitive.GenerativeUI` + allowlist | Existing integrations that emit `generative-ui` message parts ([legacy](/docs/tools/generative-ui-legacy)) |
-| **LangGraph data UI** | `makeAssistantDataUI` + `ui_message` | LangGraph agents emitting UI on the LangGraph stream |
+| **[Tool UI](/docs/tools/tool-ui)** | toolkit `render` | A widget tied to a tool you already know about (forms, pickers, charts) |
+| **[Generative UI primitive](/docs/tools/generative-ui-primitive)** | `MessagePrimitive.GenerativeUI` + allowlist | A backend that already emits `generative-ui` message parts |
+| **[LangGraph data UI](/docs/runtimes/langgraph/generative-ui)** | `makeAssistantDataUI` + `ui_message` | LangGraph agents emitting UI on the LangGraph stream |
+
+The first two are tool-driven, so the model decides when UI appears. The last two are backend-driven, so your agent does. `present` and the primitive both take a JSON component tree, but in [different, non-interchangeable shapes](/docs/tools/generative-ui-primitive#spec-shape).
 
 Browse every component the default vocabulary offers in the [component vocabulary reference](/elements/vocabulary), and see finished compositions in the [Generative section of Elements](/elements).
 
