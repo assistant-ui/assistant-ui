@@ -13,6 +13,7 @@ import {
 import {
   useMemo,
   useEffect,
+  useInsertionEffect,
   useRef,
   useState,
   useSyncExternalStore,
@@ -295,8 +296,8 @@ const useHostedAssistantClient = ({
   parent: AssistantClient;
   entries: ScopeEntry[];
 }): ScopedAuiClient => {
+  const clientRef = useRef<ClientRef>({ parent, current: null }).current;
   const { value: client, effects } = useTapHost(function AssistantClientHost() {
-    const clientRef = useRef<ClientRef>({ parent, current: null }).current;
     const notifications = useNotificationManager();
 
     const store = useTapRoot(function AuiRoot() {
@@ -327,17 +328,13 @@ const useHostedAssistantClient = ({
       // oxlint-disable-next-line react-hooks/exhaustive-deps -- parent is a prop of the outer hook; the host re-renders with a fresh closure when it changes
     }, [store, parent, notifications]);
 
-    useEffect(() => {
-      clientRef.parent = parent;
-      clientRef.current = client;
-    });
-
-    if (clientRef.current === null) {
-      clientRef.current = client;
-    }
-
     return client;
   });
+
+  useInsertionEffect(() => {
+    clientRef.parent = parent;
+    clientRef.current = client;
+  }, [client, parent, clientRef]);
 
   return { client, effects };
 };

@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
 
 import type { ReactNode } from "react";
-import { useState } from "react";
+import { useLayoutEffect, useState } from "react";
 import { act, cleanup, render, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { flushTapSync, resource } from "@assistant-ui/tap";
 import { AuiProvider } from "../AuiProvider";
+import { AuiConfig } from "../AuiConfig";
 import { useAui } from "../useAui";
 import { useAuiEvent } from "../useAuiEvent";
 import { useAuiState } from "../useAuiState";
@@ -366,6 +367,55 @@ describe("microtask delivery (live-set semantics)", () => {
 });
 
 describe("Derived scopes", () => {
+  it("delivers a layout-effect event after a derived rebind", () => {
+    const cb = vi.fn();
+    const queued: VoidFunction[] = [];
+    const queueMicrotaskSpy = vi
+      .spyOn(globalThis, "queueMicrotask")
+      .mockImplementation((callback) => queued.push(callback));
+
+    const Consumer = ({ index }: { index: number }) => {
+      const client = useAui();
+      const message = client.message as AnyClient;
+      useAuiEvent("message.pinged" as never, cb as never);
+      useLayoutEffect(() => {
+        if (index === 1 && message.getState().id === "m1") {
+          message.ping("layout");
+          for (const callback of queued.splice(0)) callback();
+        }
+      }, [index, message]);
+      return null;
+    };
+    const Harness = ({ index }: { index: number }) => {
+      return (
+        <AuiProvider
+          config={AuiConfig({
+            thread: ThreadClient(),
+            message: Derived({
+              source: "thread",
+              query: { index },
+              get: (root: AnyClient) => root.thread.message({ index }),
+            } as never),
+          } as never)}
+        >
+          <Consumer index={index} />
+        </AuiProvider>
+      );
+    };
+
+    try {
+      const view = render(<Harness index={0} />);
+      view.rerender(<Harness index={1} />);
+
+      expect(cb).toHaveBeenCalledExactlyOnceWith({
+        id: "m1",
+        value: "layout",
+      });
+    } finally {
+      queueMicrotaskSpy.mockRestore();
+    }
+  });
+
   it("useAuiEvent tracks the derived selection across structural swaps", async () => {
     let aui!: AnyClient;
     const cb = vi.fn();
