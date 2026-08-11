@@ -732,13 +732,24 @@ const convertListView = (
   context: ConversionContext,
   depth: number,
 ): SlackBlock[] => {
-  const children = normalizedList(element.children);
-  const items = children.filter(
-    (child): child is NormalizedUIElement =>
-      isElement(child) && child.type === "ListViewItem",
-  );
-  if (items.length !== children.length) {
-    warn(context, "dropped", "ListView", "A non-item child was dropped.");
+  const items: NormalizedUIElement[] = [];
+  let discarded = 0;
+  for (const child of normalizedList(element.children)) {
+    if (isElement(child) && child.type === "ListViewItem") {
+      items.push(child);
+      continue;
+    }
+    // Converted only so the child's own warnings fire; the blocks are thrown
+    // away, and a child that produced none lost nothing worth reporting.
+    if (convertSequence(child, context, depth + 1).length > 0) discarded += 1;
+  }
+  if (discarded > 0) {
+    warn(
+      context,
+      "dropped",
+      "ListView",
+      `${discarded} non-item ${discarded === 1 ? "child was" : "children were"} dropped.`,
+    );
   }
   return items.flatMap((item, index) => [
     ...(index > 0 ? [{ type: "divider" as const }] : []),
@@ -752,12 +763,21 @@ const convertCarousel = (
   depth: number,
 ): SlackBlock[] => {
   const cardChildren: NormalizedUIElement[] = [];
+  let droppedCards = 0;
   for (const child of normalizedList(element.children)) {
     if (isElement(child) && child.type === "Card") {
       cardChildren.push(child);
     } else {
-      warn(context, "dropped", "Carousel", "A non-card child was dropped.");
+      droppedCards += 1;
     }
+  }
+  if (droppedCards > 0) {
+    warn(
+      context,
+      "dropped",
+      "Carousel",
+      `${droppedCards} non-card ${droppedCards === 1 ? "child was" : "children were"} dropped.`,
+    );
   }
   if (cardChildren.length > CAROUSEL_CARD_CAP) {
     warn(

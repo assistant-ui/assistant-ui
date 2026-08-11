@@ -1133,7 +1133,7 @@ describe("toSlackBlocks", () => {
       expect(warnings).toContainEqual({
         code: "dropped",
         component: "Carousel",
-        detail: "A non-card child was dropped.",
+        detail: "1 non-card child was dropped.",
       });
     });
 
@@ -1657,7 +1657,7 @@ describe("toSlackBlocks", () => {
       expect(warnings).toContainEqual({
         code: "dropped",
         component: "ListView",
-        detail: "A non-item child was dropped.",
+        detail: "1 non-item child was dropped.",
       });
     });
 

@@ -39,6 +39,12 @@ import type {
 export interface ConversionContext {
   readonly warnings: TeamsConversionWarning[];
   usedInputIds: Set<string>;
+  /**
+   * Set while converting a subtree whose output is thrown away. An id claimed
+   * there would rename a control that survives, and a rename reported there
+   * names a control the reader never receives.
+   */
+  discardingOutput?: boolean;
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -99,6 +105,7 @@ function reservedSafeId(
 ): string {
   const reserved = id === RESERVED_INPUT_ID;
   const base = reserved ? `${RESERVED_INPUT_ID}_` : id;
+  if (context.discardingOutput) return base;
   let candidate = base;
   let n = 2;
   while (context.usedInputIds.has(candidate)) {
@@ -566,11 +573,11 @@ export function convertElement(
           continue;
         }
         // A non-item child still runs through the converter so its own
-        // warnings fire, but its output is discarded, so the ids it claimed
-        // are released rather than renaming a later control that survives.
-        const reservedIds = new Set(context.usedInputIds);
+        // warnings fire, but its output never reaches the card.
+        const wasDiscarding = context.discardingOutput;
+        context.discardingOutput = true;
         const converted = convertSequence(child, context, depth + 1);
-        context.usedInputIds = reservedIds;
+        context.discardingOutput = wasDiscarding;
         if (converted.length > 0) discarded += 1;
       }
       if (discarded > 0) {
@@ -614,8 +621,14 @@ export function convertElement(
         (child): child is NormalizedUIElement =>
           isElement(child) && child.type === "Card",
       );
-      if (cards.length !== carouselChildren.length) {
-        warn(context, "dropped", "Carousel", "A non-card child was dropped.");
+      const droppedCards = carouselChildren.length - cards.length;
+      if (droppedCards > 0) {
+        warn(
+          context,
+          "dropped",
+          "Carousel",
+          `${droppedCards} non-card ${droppedCards === 1 ? "child was" : "children were"} dropped.`,
+        );
       }
       return cards.flatMap((card) => convertElement(card, context, depth + 1));
     }

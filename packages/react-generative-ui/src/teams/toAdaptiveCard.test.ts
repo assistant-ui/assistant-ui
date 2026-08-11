@@ -887,23 +887,30 @@ describe("toAdaptiveCard", () => {
       });
     });
 
-    it("does not let a discarded non-item child reserve an input id", () => {
-      const { card, warnings } = toAdaptiveCard([
-        {
+    it.each([
+      ["before", 0],
+      ["after", 1],
+    ] as const)(
+      "does not let a discarded non-item child claim or report an input id, surviving control %s",
+      (_position, listViewIndex) => {
+        const listView = {
           $type: "ListView",
           children: [
             { $type: "Input", name: "email" },
             { $type: "ListViewItem", title: "row" },
           ],
-        },
-        { $type: "Input", name: "email", label: "Real" },
-      ]);
-      const ids = card.body.map((element) => (element as { id?: string }).id);
-      expect(ids).toContain("email");
-      expect(
-        warnings.some((warning) => warning.detail.includes("email_2")),
-      ).toBe(false);
-    });
+        };
+        const survivor = { $type: "Input", name: "email", label: "Real" };
+        const { card, warnings } = toAdaptiveCard(
+          listViewIndex === 0 ? [listView, survivor] : [survivor, listView],
+        );
+        const ids = card.body.map((element) => (element as { id?: string }).id);
+        expect(ids).toContain("email");
+        expect(
+          warnings.some((warning) => warning.detail.includes("email_2")),
+        ).toBe(false);
+      },
+    );
   });
 
   describe("Carousel", () => {
@@ -921,7 +928,7 @@ describe("toAdaptiveCard", () => {
       expect(warnings).toContainEqual({
         code: "dropped",
         component: "Carousel",
-        detail: "A non-card child was dropped.",
+        detail: "1 non-card child was dropped.",
       });
     });
   });
