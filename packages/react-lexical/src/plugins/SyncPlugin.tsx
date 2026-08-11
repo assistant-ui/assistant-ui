@@ -117,8 +117,43 @@ function getParsedLines(
   });
 }
 
-function getDirectiveKey(item: Unstable_TriggerItem, directiveText: string) {
-  return JSON.stringify([item.id, item.type, directiveText]);
+function getDirectiveKey(item: Pick<Unstable_TriggerItem, "id" | "type">) {
+  return JSON.stringify([item.id, item.type]);
+}
+
+function parserPreservesExistingDirectives(
+  editor: LexicalEditor,
+  runtimeText: string,
+  parse: CompositeParser,
+) {
+  const parsedDirectiveKeys = getParsedLines(runtimeText, parse)
+    .flat()
+    .flatMap((segment) =>
+      segment[0] === "mention"
+        ? [getDirectiveKey({ id: segment[1], type: segment[2] })]
+        : [],
+    );
+  if (parsedDirectiveKeys.length === 0) return false;
+
+  return editor.getEditorState().read(() => {
+    let parsedIndex = 0;
+    for (const paragraph of $getRoot().getChildren()) {
+      if (!$isElementNode(paragraph)) continue;
+      for (const child of paragraph.getChildren()) {
+        if (!$isDirectiveNode(child)) continue;
+        const key = getDirectiveKey(child.getDirectiveItem());
+        while (
+          parsedIndex < parsedDirectiveKeys.length &&
+          parsedDirectiveKeys[parsedIndex] !== key
+        ) {
+          parsedIndex += 1;
+        }
+        if (parsedIndex === parsedDirectiveKeys.length) return false;
+        parsedIndex += 1;
+      }
+    }
+    return true;
+  });
 }
 
 function editorMatchesParsedText(
@@ -179,7 +214,7 @@ function syncRuntimeToLexical(
         for (const child of paragraph.getChildren()) {
           if (!$isDirectiveNode(child)) continue;
           const item = child.getDirectiveItem();
-          const key = getDirectiveKey(item, child.getDirectiveText());
+          const key = getDirectiveKey(item);
           const items = preservedDirectiveItems.get(key) ?? [];
           items.push({
             description: item.description,
@@ -212,7 +247,7 @@ function syncRuntimeToLexical(
               type: segment.type,
               label: segment.label,
             };
-            const key = getDirectiveKey(item, formatter.serialize(segment));
+            const key = getDirectiveKey(item);
             const preservedItem = preservedDirectiveItems.get(key)?.shift();
             paragraph.append(
               $createDirectiveNodeWithFormatter(
@@ -316,7 +351,9 @@ export function SyncPlugin({
     lastAppliedParserRef.current = parser;
     const runtimeTextChanged = initialText !== lastSyncedTextRef.current;
     const parserRequiresResync =
-      parserChanged && !editorMatchesParsedText(editor, initialText, parser);
+      parserChanged &&
+      parserPreservesExistingDirectives(editor, initialText, parser) &&
+      !editorMatchesParsedText(editor, initialText, parser);
     if (runtimeTextChanged || parserRequiresResync) {
       isSyncingFromRuntimeRef.current = true;
       lastSyncedTextRef.current = initialText;

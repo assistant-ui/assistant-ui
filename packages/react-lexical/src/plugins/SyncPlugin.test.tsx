@@ -11,12 +11,18 @@ import {
   $createTextNode,
   $getRoot,
   $getSelection,
+  $isElementNode,
   $isRangeSelection,
   $isTextNode,
   type LexicalEditor,
 } from "lexical";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Unstable_DirectiveFormatter } from "@assistant-ui/core";
+import {
+  ComposerPrimitive,
+  unstable_useTriggerPopoverRootContext,
+  type Unstable_RegisteredTrigger,
+} from "@assistant-ui/react";
 import {
   $createDirectiveNode,
   $isDirectiveNode,
@@ -25,7 +31,7 @@ import {
 import { SyncPlugin } from "./SyncPlugin";
 
 const mocks = vi.hoisted(() => ({
-  aui: undefined as unknown,
+  aui: undefined as unknown as ReturnType<typeof createAui>,
 }));
 
 vi.mock("@assistant-ui/store", async (importOriginal) => {
@@ -55,6 +61,12 @@ const createAui = (text: string) => {
 const readEditorText = (editor: LexicalEditor) =>
   editor.getEditorState().read(() => $getRoot().getTextContent());
 
+function $getParagraph(index = 0) {
+  const paragraph = $getRoot().getChildAtIndex(index);
+  if (!$isElementNode(paragraph)) throw new Error("Expected a paragraph");
+  return paragraph;
+}
+
 function EditorProbe({
   capture,
 }: {
@@ -68,6 +80,42 @@ function EditorProbe({
 
   return null;
 }
+
+function TriggerFormatterRegistration({
+  formatter,
+}: {
+  formatter: Unstable_DirectiveFormatter | undefined;
+}) {
+  const triggerRoot = unstable_useTriggerPopoverRootContext();
+
+  useEffect(() => {
+    if (!formatter) return undefined;
+    return triggerRoot.register({
+      char: "@",
+      behavior: { kind: "directive", formatter },
+      resource: {} as Unstable_RegisteredTrigger["resource"],
+    });
+  }, [formatter, triggerRoot]);
+
+  return null;
+}
+
+const createBracketFormatter = (): Unstable_DirectiveFormatter => ({
+  serialize: (item) => `[[${item.id}]]`,
+  parse: (text) => {
+    const match = /^\[\[(.+)\]\]$/.exec(text);
+    if (!match) return [{ kind: "text", text }];
+    const id = match[1]!;
+    return [
+      {
+        kind: "mention",
+        type: id === "team" ? "group" : "person",
+        id,
+        label: id === "team" ? "Team" : "Alice",
+      },
+    ];
+  },
+});
 
 describe("SyncPlugin", () => {
   let container: HTMLDivElement;
@@ -98,10 +146,10 @@ describe("SyncPlugin", () => {
     const capture = (capturedEditor: LexicalEditor) => {
       editor = capturedEditor;
     };
-    const render = () =>
+    const render = (formatter?: Unstable_DirectiveFormatter) =>
       root.render(
         <LexicalComposer initialConfig={initialConfig}>
-          <SyncPlugin />
+          <SyncPlugin formatter={formatter} />
           <EditorProbe capture={capture} />
         </LexicalComposer>,
       );
@@ -134,7 +182,98 @@ describe("SyncPlugin", () => {
     expect(readEditorText(editor)).toBe("");
   });
 
-  it("reparses the current draft when the formatter changes", async () => {
+  it("reparses a restored draft when a trigger formatter registers", async () => {
+    const initialConfig = {
+      namespace: "sync-plugin-trigger-test",
+      nodes: [DirectiveNode],
+      onError: (error: Error) => {
+        throw error;
+      },
+    };
+    const capture = (capturedEditor: LexicalEditor) => {
+      editor = capturedEditor;
+    };
+    const formatter = createBracketFormatter();
+    const render = (registered: boolean) =>
+      root.render(
+        <ComposerPrimitive.Unstable_TriggerPopoverRoot>
+          <LexicalComposer initialConfig={initialConfig}>
+            <SyncPlugin />
+            <EditorProbe capture={capture} />
+            <TriggerFormatterRegistration
+              formatter={registered ? formatter : undefined}
+            />
+          </LexicalComposer>
+        </ComposerPrimitive.Unstable_TriggerPopoverRoot>,
+      );
+
+    mocks.aui = createAui("[[alice]]");
+    await act(async () => {
+      render(false);
+    });
+    expect(
+      editor
+        .getEditorState()
+        .read(() => $isTextNode($getParagraph().getFirstChild())),
+    ).toBe(true);
+
+    await act(async () => {
+      render(true);
+    });
+    expect(
+      editor
+        .getEditorState()
+        .read(() => $isDirectiveNode($getParagraph().getFirstChild())),
+    ).toBe(true);
+
+    await act(async () => {
+      editor.update(() => {
+        const directive = $getParagraph().getFirstChild();
+        if (!$isDirectiveNode(directive)) {
+          throw new Error("Expected a directive");
+        }
+        directive.replace(
+          $createDirectiveNode(
+            {
+              ...directive.getDirectiveItem(),
+              description: "Project owner",
+              metadata: { workspace: "acme" },
+            },
+            directive.getDirectiveText(),
+          ),
+        );
+      });
+    });
+    const beforeUnregister = editor.getEditorState().read(() => {
+      const directive = $getParagraph().getFirstChild();
+      if (!$isDirectiveNode(directive)) {
+        throw new Error("Expected a directive");
+      }
+      return {
+        key: directive.getKey(),
+        item: directive.getDirectiveItem(),
+      };
+    });
+
+    await act(async () => {
+      render(false);
+    });
+    expect(
+      editor.getEditorState().read(() => {
+        const directive = $getParagraph().getFirstChild();
+        if (!$isDirectiveNode(directive)) {
+          throw new Error("Expected a directive");
+        }
+        return {
+          key: directive.getKey(),
+          item: directive.getDirectiveItem(),
+        };
+      }),
+    ).toEqual(beforeUnregister);
+    expect(mocks.aui.composer.setText).not.toHaveBeenCalled();
+  });
+
+  it("preserves metadata when formatter syntax changes", async () => {
     const initialConfig = {
       namespace: "sync-plugin-formatter-test",
       nodes: [DirectiveNode],
@@ -147,19 +286,17 @@ describe("SyncPlugin", () => {
     };
     const formatter: Unstable_DirectiveFormatter = {
       serialize: (item) => `[[${item.id}]]`,
-      parse: (text) => {
-        const id = text === "[[team]]" ? "team" : "alice";
-        return text === "[[team]]" || text === "[[alice]]"
+      parse: (text) =>
+        text === "@team"
           ? [
               {
                 kind: "mention" as const,
-                type: id === "team" ? "group" : "person",
-                id,
-                label: id === "team" ? "Team" : "Alice",
+                type: "group",
+                id: "team",
+                label: "Team",
               },
             ]
-          : [{ kind: "text" as const, text }];
-      },
+          : [{ kind: "text" as const, text }],
     };
     const plainTextFormatter: Unstable_DirectiveFormatter = {
       serialize: (item) => item.label,
@@ -173,16 +310,16 @@ describe("SyncPlugin", () => {
         </LexicalComposer>,
       );
 
-    mocks.aui = createAui("[[team]]\n[[alice]]");
+    mocks.aui = createAui("@team\n@team");
     await act(async () => {
       render();
     });
     await act(async () => {
       editor.update(() => {
         const paragraph = $createParagraphNode();
-        const textNode = $createTextNode("[[alice]]");
+        const textNode = $createTextNode("@team");
         paragraph.append(
-          $createTextNode("[[team]]"),
+          $createTextNode("@team"),
           $createLineBreakNode(),
           textNode,
         );
@@ -193,7 +330,7 @@ describe("SyncPlugin", () => {
       });
     });
     const before = editor.getEditorState().read(() => {
-      const textNode = $getRoot().getFirstChild()?.getLastChild();
+      const textNode = $getParagraph().getLastChild();
       const selection = $getSelection();
       if (!$isTextNode(textNode) || !$isRangeSelection(selection)) {
         throw new Error("Expected a text selection");
@@ -206,7 +343,7 @@ describe("SyncPlugin", () => {
     });
     expect(
       editor.getEditorState().read(() => {
-        const textNode = $getRoot().getFirstChild()?.getLastChild();
+        const textNode = $getParagraph().getLastChild();
         const selection = $getSelection();
         if (!$isTextNode(textNode) || !$isRangeSelection(selection)) {
           throw new Error("Expected a text selection");
@@ -217,18 +354,34 @@ describe("SyncPlugin", () => {
 
     await act(async () => {
       editor.update(() => {
-        const team = $getRoot().getFirstChild()?.getFirstChild();
-        if (!$isTextNode(team)) throw new Error("Expected team text");
-        team.replace(
+        const paragraph = $getParagraph();
+        const firstTeam = paragraph.getFirstChild();
+        const secondTeam = paragraph.getLastChild();
+        if (!$isTextNode(firstTeam) || !$isTextNode(secondTeam)) {
+          throw new Error("Expected team text");
+        }
+        firstTeam.replace(
           $createDirectiveNode(
             {
               id: "team",
               type: "group",
-              label: "Old Team",
-              description: "Engineering",
-              metadata: { workspace: "acme" },
+              label: "First Team",
+              description: "First occurrence",
+              metadata: { order: 1 },
             },
-            "[[team]]",
+            "@team",
+          ),
+        );
+        secondTeam.replace(
+          $createDirectiveNode(
+            {
+              id: "team",
+              type: "group",
+              label: "Second Team",
+              description: "Second occurrence",
+              metadata: { order: 2 },
+            },
+            "@team",
           ),
         );
       });
@@ -237,21 +390,43 @@ describe("SyncPlugin", () => {
     expect(
       editor
         .getEditorState()
-        .read(() => $getRoot().getChildAtIndex(1)?.getFirstChild()?.getType()),
+        .read(() => $getParagraph(1).getFirstChild()?.getType()),
     ).toBe("directive");
     expect(
       editor.getEditorState().read(() => {
-        const node = $getRoot().getFirstChild()?.getFirstChild();
-        if (!$isDirectiveNode(node)) throw new Error("Expected a directive");
-        return node.getDirectiveItem();
+        return [0, 1].map((index) => {
+          const node = $getParagraph(index).getFirstChild();
+          if (!$isDirectiveNode(node)) {
+            throw new Error("Expected a directive");
+          }
+          return {
+            item: node.getDirectiveItem(),
+            text: node.getDirectiveText(),
+          };
+        });
       }),
-    ).toEqual({
-      id: "team",
-      type: "group",
-      label: "Team",
-      description: "Engineering",
-      metadata: { workspace: "acme" },
-    });
+    ).toEqual([
+      {
+        item: {
+          id: "team",
+          type: "group",
+          label: "Team",
+          description: "First occurrence",
+          metadata: { order: 1 },
+        },
+        text: "[[team]]",
+      },
+      {
+        item: {
+          id: "team",
+          type: "group",
+          label: "Team",
+          description: "Second occurrence",
+          metadata: { order: 2 },
+        },
+        text: "[[team]]",
+      },
+    ]);
     expect(mocks.aui.composer.setText).not.toHaveBeenCalled();
   });
 });
