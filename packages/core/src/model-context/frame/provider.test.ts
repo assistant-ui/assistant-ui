@@ -107,7 +107,7 @@ describe("AssistantFrameProvider", () => {
     await vi.waitFor(() => expect(execute).toHaveBeenCalledOnce());
   });
 
-  it("does not downgrade a strict origin policy for a wildcard provider", () => {
+  it("does not downgrade a strict origin policy for a wildcard provider", async () => {
     const execute = vi.fn(async () => "result");
     AssistantFrameProvider.addModelContextProvider(
       {
@@ -127,6 +127,10 @@ describe("AssistantFrameProvider", () => {
     dispatchToolCall("https://untrusted.example");
 
     expect(execute).not.toHaveBeenCalled();
+
+    dispatchToolCall("https://parent.example");
+
+    await vi.waitFor(() => expect(execute).toHaveBeenCalledOnce());
   });
 
   it("rejects conflicting strict origin policies", () => {
