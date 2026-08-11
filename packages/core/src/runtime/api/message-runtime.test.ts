@@ -4,10 +4,10 @@ import type { ThreadAssistantMessage } from "../../types/message";
 import type { ThreadRuntimeCoreBinding } from "./thread-runtime";
 import {
   MessageRuntimeImpl,
-  toMessagePartStatus,
   type MessageState,
   type MessageStateBinding,
 } from "./message-runtime";
+import { toMessagePartStatus } from "../../utils/normalizePartStatus";
 
 const messagePath = {
   ref: "threads.main.messages[0]",

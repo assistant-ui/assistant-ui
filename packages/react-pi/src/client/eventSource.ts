@@ -167,6 +167,7 @@ export const openPiEventStream = (
   } = options;
 
   let closed = false;
+  let cancelActiveReader: (() => void) | undefined;
   const abort = new AbortController();
   const reportCallbackError = (callbackError: unknown) => {
     console.error("[react-pi] onError callback threw an error", callbackError);
@@ -189,6 +190,7 @@ export const openPiEventStream = (
           headers: { Accept: "text/event-stream", ...headers },
         });
         if (!response.ok || !response.body) {
+          void response.body?.cancel().catch(() => undefined);
           throw new Error(`Pi event stream failed: HTTP ${response.status}`);
         }
         validateEventStreamContentType(response);
@@ -197,20 +199,52 @@ export const openPiEventStream = (
         const reader = response.body.getReader();
         const textDecoder = new TextDecoder();
 
-        while (!closed) {
-          const { value, done } = await reader.read();
-          if (done) break;
-          const chunk = textDecoder.decode(value, { stream: true });
-          for (const frame of decoder.push(chunk)) {
-            if (frame.event === "ping" || frame.data === "") continue;
-            let parsed: PiAnyClientEvent;
+        let shouldCancel = true;
+        let cancelPromise: Promise<void> | undefined;
+        const cancelReader = () => {
+          cancelPromise ??= reader.cancel().catch(() => undefined);
+          return cancelPromise;
+        };
+        const requestCancel = () => {
+          void cancelReader();
+        };
+        cancelActiveReader = requestCancel;
+
+        try {
+          while (!closed) {
+            let result: ReadableStreamReadResult<Uint8Array>;
             try {
-              parsed = JSON.parse(frame.data) as PiAnyClientEvent;
+              result = await reader.read();
             } catch (error) {
-              reportError(error);
-              continue;
+              shouldCancel = false;
+              throw error;
             }
-            if (!closed) onEvent(parsed);
+
+            const { value, done } = result;
+            if (done) {
+              shouldCancel = false;
+              break;
+            }
+            const chunk = textDecoder.decode(value, { stream: true });
+            for (const frame of decoder.push(chunk)) {
+              if (frame.event === "ping" || frame.data === "") continue;
+              let parsed: PiAnyClientEvent;
+              try {
+                parsed = JSON.parse(frame.data) as PiAnyClientEvent;
+              } catch (error) {
+                reportError(error);
+                continue;
+              }
+              if (!closed) onEvent(parsed);
+            }
+          }
+        } finally {
+          if (cancelActiveReader === requestCancel)
+            cancelActiveReader = undefined;
+          try {
+            if (shouldCancel || cancelPromise) await cancelReader();
+          } finally {
+            reader.releaseLock();
           }
         }
       } catch (error) {
@@ -236,5 +270,6 @@ export const openPiEventStream = (
   return () => {
     closed = true;
     abort.abort();
+    cancelActiveReader?.();
   };
 };

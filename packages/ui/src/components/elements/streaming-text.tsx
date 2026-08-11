@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo } from "react";
+import { type ComponentProps, useMemo } from "react";
 import { cn } from "@/lib/utils";
+import { take } from "./range";
 
 export interface Segment {
   text: string;
@@ -13,11 +14,14 @@ export function StreamingText({
   count,
   streaming,
   className,
-}: {
+  ...props
+}: Omit<
+  ComponentProps<"p">,
+  "children" | "segments" | "count" | "streaming"
+> & {
   segments: Segment[];
   count: number;
   streaming: boolean;
-  className?: string;
 }) {
   const words = useMemo(
     () =>
@@ -28,16 +32,20 @@ export function StreamingText({
       ),
     [segments],
   );
+  const shown = take(words, count);
 
   return (
     <p
+      data-slot="streaming-text"
       className={cn(
         "min-h-[8.5rem] max-w-sm text-sm leading-relaxed text-pretty",
         className,
       )}
+
+      {...props}
     >
-      {words.slice(0, count).map(({ word, mono: isMono }, i) => {
-        const fresh = streaming && count - 1 - i < 2;
+      {shown.map(({ word, mono: isMono }, i) => {
+        const fresh = streaming && shown.length - 1 - i < 2;
         return (
           <span
             key={i}
@@ -56,7 +64,7 @@ export function StreamingText({
           </span>
         );
       })}
-      {streaming && count > 0 && (
+      {streaming && shown.length > 0 && (
         <span
           aria-hidden
           className="-mb-0.5 ml-0.5 inline-block h-4 w-0.5 animate-pulse rounded-full bg-blue-500 dark:bg-blue-400"

@@ -36,6 +36,10 @@ function toCloudThread(t: {
 
 export function useThreads(options: UseThreadsOptions): UseThreadsResult {
   const { cloud, includeArchived = false, enabled = true } = options;
+  const includeArchivedRef = useRef(includeArchived);
+  useLayoutEffect(() => {
+    includeArchivedRef.current = includeArchived;
+  }, [includeArchived]);
 
   const [threads, setThreads] = useState<CloudThread[]>([]);
   const [isLoading, setIsLoading] = useState(enabled);
@@ -58,8 +62,14 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
 
   const activeScopeRef = useRef<typeof scope | null>(scope);
   useLayoutEffect(() => {
-    activeScopeRef.current = scope.cloud === cloud ? scope : null;
-  }, [cloud, scope]);
+    const isActiveScope = scope.cloud === cloud;
+    activeScopeRef.current = isActiveScope ? scope : null;
+    if (!isActiveScope) {
+      setThreads([]);
+      setError(null);
+      setIsLoading(enabled);
+    }
+  }, [cloud, enabled, scope]);
   const isCurrentCloud = useCallback(
     () => scope.cloud === cloud && activeScopeRef.current === scope,
     [cloud, scope],
@@ -67,7 +77,7 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
 
   if (enabled !== previousEnabled) {
     setPreviousEnabled(enabled);
-    if (enabled) setIsLoading(true);
+    setIsLoading(enabled);
   }
 
   const mountedRef = useRef(true);
@@ -113,10 +123,30 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
     try {
       return await withAction(
         async (commit) => {
-          const response = await cloud.threads.list(
-            includeArchived ? undefined : { is_archived: false },
+          // Keep includeArchived refreshes atomic; withAction preserves the
+          // previous complete list and exposes either request's failure.
+          const responses = includeArchived
+            ? await Promise.all([
+                cloud.threads.list({ is_archived: false }),
+                cloud.threads.list({ is_archived: true }),
+              ])
+            : [await cloud.threads.list({ is_archived: false })];
+          const nextThreads = Array.from(
+            new Map(
+              responses
+                .flatMap((response) => response.threads)
+                .map((thread) => [thread.id, thread] as const),
+            ).values(),
+            toCloudThread,
           );
-          commit(() => setThreads(() => response.threads.map(toCloudThread)));
+          if (includeArchived) {
+            nextThreads.sort((a, b) => {
+              const timeDifference =
+                b.lastMessageAt.getTime() - a.lastMessageAt.getTime();
+              return timeDifference || b.id.localeCompare(a.id);
+            });
+          }
+          commit(() => setThreads(nextThreads));
           return true;
         },
         false,
@@ -175,14 +205,21 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
       return await withAction(
         async (commit) => {
           await cloud.threads.delete(id);
-          commit(() => setThreads((prev) => prev.filter((t) => t.id !== id)));
+          commit(() => {
+            setThreads((prev) => prev.filter((t) => t.id !== id));
+            setSelection((current) =>
+              current.scope === scope && current.threadId === id
+                ? { scope, threadId: null }
+                : current,
+            );
+          });
           return true;
         },
         false,
         isCurrentCloud,
       );
     },
-    [cloud, isCurrentCloud, withAction],
+    [cloud, isCurrentCloud, scope, withAction],
   );
 
   const rename = useCallback(
@@ -210,16 +247,24 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
         async (commit) => {
           await cloud.threads.update(id, { is_archived: true });
 
-          commit(() =>
+          commit(() => {
+            const shouldIncludeArchived = includeArchivedRef.current;
             setThreads((prev) => {
-              if (includeArchived) {
+              if (shouldIncludeArchived) {
                 return prev.map((t) =>
                   t.id === id ? { ...t, status: "archived" } : t,
                 );
               }
               return prev.filter((t) => t.id !== id);
-            }),
-          );
+            });
+            if (!shouldIncludeArchived) {
+              setSelection((current) =>
+                current.scope === scope && current.threadId === id
+                  ? { scope, threadId: null }
+                  : current,
+              );
+            }
+          });
 
           return true;
         },
@@ -227,7 +272,7 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
         isCurrentCloud,
       );
     },
-    [cloud, includeArchived, isCurrentCloud, withAction],
+    [cloud, isCurrentCloud, scope, withAction],
   );
 
   const unarchive = useCallback(

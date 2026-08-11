@@ -219,9 +219,9 @@ export async function unstable_runPendingTools(
 }
 
 export type ToolResultStreamOptions = {
-  /** Called immediately before a frontend tool's `execute` function runs. */
+  /** Called after frontend tool execution starts. Callback failures are reported without interrupting the tool. */
   onExecutionStart?: (toolCallId: string, toolName: string) => void;
-  /** Called after frontend tool execution finishes or fails. */
+  /** Called after frontend tool execution finishes or fails. Callback failures are reported without changing the result. */
   onExecutionEnd?: (toolCallId: string, toolName: string) => void;
 };
 

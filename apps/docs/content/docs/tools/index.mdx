@@ -43,7 +43,7 @@ assistant-ui has a few ways to turn model output into React UI. Pick by **who de
 | --- | --- | --- |
 | A custom component for a known tool call (form, picker, chart, status) | [Tool UI](/docs/tools/tool-ui) — `render` on a toolkit entry | the **model**, by calling the tool |
 | Persistent, out-of-thread state the AI can read and write | [Interactables](/docs/tools/interactables) | the **model + the user**, bidirectionally |
-| UI composed from a component vocabulary you ship, described as a JSON spec | [Generative UI (JSON spec)](/docs/tools/generative-ui) — `MessagePrimitive.GenerativeUI` | the **model**, composing a tree |
+| UI composed from a component vocabulary you ship | [Generative UI](/docs/tools/generative-ui) — the `present` tool | the **model**, composing a tree |
 | UI pushed by a LangGraph node alongside messages | [LangGraph Generative UI](/docs/runtimes/langgraph/generative-ui) — `makeAssistantDataUI` | the **backend / orchestrator** |
 
 ## Connect external tools

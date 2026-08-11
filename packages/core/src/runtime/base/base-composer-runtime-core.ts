@@ -6,6 +6,7 @@ import {
   type PendingAttachment,
 } from "../../types/attachment";
 import type { MessageRole, AppendMessage } from "../../types/message";
+import { isMessageNotSentError } from "../../types/error";
 import type { QuoteInfo } from "../../types/quote";
 import type { Unsubscribe } from "../../types/unsubscribe";
 import type { RunConfig } from "../../types/message";
@@ -24,6 +25,7 @@ import type {
   SendOptions,
 } from "../interfaces/composer-runtime-core";
 import type { DictationAdapter } from "../../adapters/speech";
+import type { QueuePlacement } from "../queue/external-thread-queue-adapter";
 import {
   EMPTY_QUEUE_ITEMS,
   type QueueItemState,
@@ -117,13 +119,20 @@ export abstract class BaseComposerRuntimeCore
     if (this._text === value) return;
 
     this._text = value;
-    if (this._dictation) {
-      this._dictationBaseText = value;
-      this._currentInterimText = "";
-      const { status, inputDisabled } = this._dictation;
-      this._dictation = inputDisabled ? { status, inputDisabled } : { status };
-    }
+    this._rebaseDictation(value);
     this._notifySubscribers();
+  }
+
+  // A live dictation session appends to the text it last saw, so any write
+  // that bypasses `setText` has to move that baseline or the next transcript
+  // overwrites what was just written.
+  private _rebaseDictation(value: string) {
+    if (!this._dictation) return;
+
+    this._dictationBaseText = value;
+    this._currentInterimText = "";
+    const { status, inputDisabled } = this._dictation;
+    this._dictation = inputDisabled ? { status, inputDisabled } : { status };
   }
 
   public setRole(role: MessageRole) {
@@ -244,6 +253,7 @@ export abstract class BaseComposerRuntimeCore
       if (generation === this._sendGeneration) {
         if (!this.text.trim() && this._quote === undefined) {
           this._text = text;
+          this._rebaseDictation(text);
           this._quote = quote;
           this._notifySubscribers();
         }
@@ -288,9 +298,64 @@ export abstract class BaseComposerRuntimeCore
       metadata: { custom: { ...(quote ? { quote } : {}) } },
     };
 
-    const sendTask = this.handleSend(message, options);
-    if (sendTask) void sendTask.catch(() => {});
+    const draft = { text, quote, attachments: finalAttachments };
+    let sendTask: void | Promise<void>;
+    try {
+      sendTask = this.handleSend(message, options);
+    } catch (error) {
+      this._restoreUnsentDraft(error, generation, draft);
+      throw error;
+    }
+    if (sendTask)
+      void sendTask.catch((error) => {
+        this._restoreUnsentDraft(error, generation, draft);
+      });
     this._notifyEventSubscribers("send", {});
+  }
+
+  /**
+   * Take a message back into the composer when it has nowhere else to live:
+   * a send the runtime never dispatched, or a message a cancelled run is
+   * removing from the thread. Reports whether the composer accepted it, so a
+   * caller that is also removing the message can keep it instead of dropping
+   * it. Refused, and left untouched, while the composer holds anything of its
+   * own.
+   */
+  public restoreDraft(draft: {
+    text: string;
+    quote?: QuoteInfo | undefined;
+    attachments?: readonly Attachment[] | undefined;
+  }): boolean {
+    if (
+      this._text.trim() ||
+      this._quote !== undefined ||
+      this._attachments.length > 0
+    )
+      return false;
+
+    this._text = draft.text;
+    this._rebaseDictation(draft.text);
+    this._quote = draft.quote;
+    this._attachments = draft.attachments ?? [];
+    this._notifySubscribers();
+    return true;
+  }
+
+  // The generation check is what a reset and a later send use to invalidate a
+  // draft, so of several queued drafts only the most recent one is still
+  // restorable.
+  private _restoreUnsentDraft(
+    error: unknown,
+    generation: number,
+    draft: {
+      text: string;
+      quote: QuoteInfo | undefined;
+      attachments: readonly CompleteAttachment[];
+    },
+  ) {
+    if (!isMessageNotSentError(error)) return;
+    if (generation !== this._sendGeneration) return;
+    this.restoreDraft(draft);
   }
 
   public cancel() {
@@ -301,7 +366,10 @@ export abstract class BaseComposerRuntimeCore
     return EMPTY_QUEUE_ITEMS;
   }
 
-  public steerQueueItem(_queueItemId: string): void {}
+  public moveQueueItem(
+    _queueItemId: string,
+    _placement: QueuePlacement,
+  ): void {}
   public removeQueueItem(_queueItemId: string): void {}
 
   protected abstract handleSend(

@@ -3,6 +3,8 @@ import { DefaultThreadComposerRuntimeCore } from "../runtime/base/default-thread
 import type { AttachmentAdapter } from "../adapters/attachment";
 import type { ThreadRuntimeCore } from "../runtime/interfaces/thread-runtime-core";
 import type { PendingAttachment } from "../types/attachment";
+import { MessageNotSentError } from "../types/error";
+import { BaseComposerRuntimeCore } from "../runtime/base/base-composer-runtime-core";
 
 const makeAdapter = (
   overrides: Partial<AttachmentAdapter> = {},
@@ -569,5 +571,129 @@ describe("BaseComposerRuntimeCore send event listener isolation", () => {
         listenerError,
       );
     });
+  });
+});
+
+describe("BaseComposerRuntimeCore.send restore-on-undispatched", () => {
+  const rejectableAppend = () => {
+    let reject!: (error: unknown) => void;
+    const append = vi.fn(
+      () =>
+        new Promise<void>((_resolve, rejectAppend) => {
+          reject = rejectAppend;
+        }),
+    );
+    return { append, reject: (error: unknown) => reject(error) };
+  };
+
+  it("restores text, quote, and attachments when the message was never sent", async () => {
+    const { append, reject } = rejectableAppend();
+    const { composer } = makeComposer(makeAdapter(), append);
+
+    composer.setText("hello");
+    await composer.addAttachment(textFile());
+    composer.setQuote({ text: "quoted", messageId: "m-1" });
+
+    await composer.send();
+    expect(composer.text).toBe("");
+    expect(composer.attachments).toHaveLength(0);
+
+    reject(new MessageNotSentError());
+
+    await vi.waitFor(() => expect(composer.text).toBe("hello"));
+    expect(composer.quote).toEqual({ text: "quoted", messageId: "m-1" });
+    expect(composer.attachments).toHaveLength(1);
+    expect(composer.attachments[0]!.status).toEqual({ type: "complete" });
+    expect(append).toHaveBeenCalledTimes(1);
+  });
+
+  it("leaves the composer empty for any other rejection", async () => {
+    const { append, reject } = rejectableAppend();
+    const { composer } = makeComposer(makeAdapter(), append);
+
+    composer.setText("hello");
+    await composer.send();
+    reject(new Error("boom"));
+
+    await vi.waitFor(() => expect(append).toHaveBeenCalledTimes(1));
+    expect(composer.text).toBe("");
+  });
+
+  it("does not clobber a draft written after the send", async () => {
+    const { append, reject } = rejectableAppend();
+    const { composer } = makeComposer(makeAdapter(), append);
+
+    composer.setText("hello");
+    await composer.send();
+    composer.setText("new draft");
+    reject(new MessageNotSentError());
+
+    await vi.waitFor(() => expect(append).toHaveBeenCalledTimes(1));
+    expect(composer.text).toBe("new draft");
+  });
+
+  it("does not restore a draft a reset discarded", async () => {
+    const { append, reject } = rejectableAppend();
+    const { composer } = makeComposer(makeAdapter(), append);
+
+    composer.setText("hello");
+    await composer.send();
+    await composer.reset();
+    reject(new MessageNotSentError());
+
+    await vi.waitFor(() => expect(append).toHaveBeenCalledTimes(1));
+    expect(composer.text).toBe("");
+  });
+});
+
+describe("BaseComposerRuntimeCore.send restore-on-undispatched edge cases", () => {
+  class SyncThrowComposerCore extends BaseComposerRuntimeCore {
+    public readonly error = new MessageNotSentError();
+    public get canCancel() {
+      return false;
+    }
+    public get canSend() {
+      return true;
+    }
+    protected getAttachmentAdapter() {
+      return undefined;
+    }
+    protected getDictationAdapter() {
+      return undefined;
+    }
+    protected handleSend(): void {
+      throw this.error;
+    }
+    protected handleCancel(): void {}
+  }
+
+  it("restores the draft when handleSend throws synchronously", async () => {
+    const composer = new SyncThrowComposerCore();
+    composer.setText("hello");
+
+    await expect(composer.send()).rejects.toThrow(composer.error);
+
+    expect(composer.text).toBe("hello");
+  });
+
+  it("restores only the most recent of several queued drafts", async () => {
+    const rejects: ((error: unknown) => void)[] = [];
+    const append = vi.fn(
+      () =>
+        new Promise<void>((_resolve, reject) => {
+          rejects.push(reject);
+        }),
+    );
+    const { composer } = makeComposer(makeAdapter(), append);
+
+    composer.setText("one");
+    await composer.send();
+    composer.setText("two");
+    await composer.send();
+
+    rejects[0]!(new MessageNotSentError());
+    rejects[1]!(new MessageNotSentError());
+
+    await vi.waitFor(() => expect(composer.text).toBe("two"));
   });
 });
