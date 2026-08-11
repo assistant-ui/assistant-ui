@@ -21,6 +21,7 @@ import { useAui } from "@assistant-ui/store";
 import type {
   Unstable_DirectiveFormatter,
   Unstable_DirectiveSegment,
+  Unstable_TriggerItem,
 } from "@assistant-ui/core";
 import { unstable_defaultDirectiveFormatter } from "@assistant-ui/core";
 import {
@@ -116,6 +117,10 @@ function getParsedLines(
   });
 }
 
+function getDirectiveKey(item: Unstable_TriggerItem, directiveText: string) {
+  return JSON.stringify([item.id, item.type, item.label, directiveText]);
+}
+
 function editorMatchesParsedText(
   editor: LexicalEditor,
   runtimeText: string,
@@ -159,10 +164,25 @@ function syncRuntimeToLexical(
   runtimeText: string,
   parse: CompositeParser,
   onComplete: () => void,
+  preserveDirectiveItems = false,
 ) {
   editor.update(
     () => {
       const root = $getRoot();
+      const preservedDirectiveItems = new Map<string, Unstable_TriggerItem[]>();
+      if (preserveDirectiveItems) {
+        for (const paragraph of root.getChildren()) {
+          if (!$isElementNode(paragraph)) continue;
+          for (const child of paragraph.getChildren()) {
+            if (!$isDirectiveNode(child)) continue;
+            const item = child.getDirectiveItem();
+            const key = getDirectiveKey(item, child.getDirectiveText());
+            const items = preservedDirectiveItems.get(key) ?? [];
+            items.push(item);
+            preservedDirectiveItems.set(key, items);
+          }
+        }
+      }
       root.clear();
 
       if (runtimeText.length === 0) {
@@ -182,13 +202,15 @@ function syncRuntimeToLexical(
               paragraph.append($createTextNode(segment.text));
             }
           } else {
+            const item = {
+              id: segment.id,
+              type: segment.type,
+              label: segment.label,
+            };
+            const key = getDirectiveKey(item, formatter.serialize(segment));
             paragraph.append(
               $createDirectiveNodeWithFormatter(
-                {
-                  id: segment.id,
-                  type: segment.type,
-                  label: segment.label,
-                },
+                preservedDirectiveItems.get(key)?.shift() ?? item,
                 formatter,
               ),
             );
@@ -286,15 +308,21 @@ export function SyncPlugin({
     const initialText = composerRuntime.getState().text;
     const parserChanged = parser !== lastAppliedParserRef.current;
     lastAppliedParserRef.current = parser;
-    if (
-      initialText !== lastSyncedTextRef.current ||
-      (parserChanged && !editorMatchesParsedText(editor, initialText, parser))
-    ) {
+    const runtimeTextChanged = initialText !== lastSyncedTextRef.current;
+    const parserRequiresResync =
+      parserChanged && !editorMatchesParsedText(editor, initialText, parser);
+    if (runtimeTextChanged || parserRequiresResync) {
       isSyncingFromRuntimeRef.current = true;
       lastSyncedTextRef.current = initialText;
-      syncRuntimeToLexical(editor, initialText, parser, () => {
-        isSyncingFromRuntimeRef.current = false;
-      });
+      syncRuntimeToLexical(
+        editor,
+        initialText,
+        parser,
+        () => {
+          isSyncingFromRuntimeRef.current = false;
+        },
+        parserRequiresResync && !runtimeTextChanged,
+      );
     }
 
     return composerRuntime.subscribe(() => {

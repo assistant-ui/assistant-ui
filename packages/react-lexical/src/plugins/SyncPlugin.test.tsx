@@ -17,7 +17,11 @@ import {
 } from "lexical";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Unstable_DirectiveFormatter } from "@assistant-ui/core";
-import { DirectiveNode } from "../nodes/DirectiveNode";
+import {
+  $createDirectiveNode,
+  $isDirectiveNode,
+  DirectiveNode,
+} from "../nodes/DirectiveNode";
 import { SyncPlugin } from "./SyncPlugin";
 
 const mocks = vi.hoisted(() => ({
@@ -135,17 +139,19 @@ describe("SyncPlugin", () => {
     };
     const formatter: Unstable_DirectiveFormatter = {
       serialize: (item) => `[[${item.id}]]`,
-      parse: (text) =>
-        text === "[[alice]]"
+      parse: (text) => {
+        const id = text === "[[team]]" ? "team" : "alice";
+        return text === "[[team]]" || text === "[[alice]]"
           ? [
               {
                 kind: "mention" as const,
-                type: "person",
-                id: "alice",
-                label: "Alice",
+                type: id === "team" ? "group" : "person",
+                id,
+                label: id === "team" ? "Team" : "Alice",
               },
             ]
-          : [{ kind: "text" as const, text }],
+          : [{ kind: "text" as const, text }];
+      },
     };
     const plainTextFormatter: Unstable_DirectiveFormatter = {
       serialize: (item) => item.label,
@@ -159,7 +165,7 @@ describe("SyncPlugin", () => {
         </LexicalComposer>,
       );
 
-    mocks.aui = createAui("first\n[[alice]]");
+    mocks.aui = createAui("[[team]]\n[[alice]]");
     await act(async () => {
       render();
     });
@@ -168,7 +174,7 @@ describe("SyncPlugin", () => {
         const paragraph = $createParagraphNode();
         const textNode = $createTextNode("[[alice]]");
         paragraph.append(
-          $createTextNode("first"),
+          $createTextNode("[[team]]"),
           $createLineBreakNode(),
           textNode,
         );
@@ -202,6 +208,22 @@ describe("SyncPlugin", () => {
     ).toEqual(before);
 
     await act(async () => {
+      editor.update(() => {
+        const team = $getRoot().getFirstChild()?.getFirstChild();
+        if (!$isTextNode(team)) throw new Error("Expected team text");
+        team.replace(
+          $createDirectiveNode(
+            {
+              id: "team",
+              type: "group",
+              label: "Team",
+              description: "Engineering",
+              metadata: { workspace: "acme" },
+            },
+            "[[team]]",
+          ),
+        );
+      });
       render(formatter);
     });
     expect(
@@ -209,6 +231,19 @@ describe("SyncPlugin", () => {
         .getEditorState()
         .read(() => $getRoot().getChildAtIndex(1)?.getFirstChild()?.getType()),
     ).toBe("directive");
+    expect(
+      editor.getEditorState().read(() => {
+        const node = $getRoot().getFirstChild()?.getFirstChild();
+        if (!$isDirectiveNode(node)) throw new Error("Expected a directive");
+        return node.getDirectiveItem();
+      }),
+    ).toEqual({
+      id: "team",
+      type: "group",
+      label: "Team",
+      description: "Engineering",
+      metadata: { workspace: "acme" },
+    });
     expect(mocks.aui.composer.setText).not.toHaveBeenCalled();
   });
 });
