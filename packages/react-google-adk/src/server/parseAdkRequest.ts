@@ -42,6 +42,115 @@ const readOptionalString = (
   return value;
 };
 
+const readPartRecord = (
+  part: Record<string, unknown>,
+  field: string,
+): Record<string, unknown> => {
+  const value = part[field];
+  if (!isRecord(value)) throw invalidField(field, "an object");
+  return value;
+};
+
+const validateOptionalPartString = (
+  part: Record<string, unknown>,
+  key: string,
+  field: string,
+) => {
+  if (part[key] !== undefined && typeof part[key] !== "string") {
+    throw invalidField(field, "a string");
+  }
+};
+
+const validatePart = (part: Record<string, unknown>, index: number) => {
+  const field = (name: string) => `parts[${index}].${name}`;
+  const contentFields = [
+    "text",
+    "functionCall",
+    "functionResponse",
+    "executableCode",
+    "codeExecutionResult",
+    "inlineData",
+    "fileData",
+  ].filter((name) => part[name] !== undefined);
+
+  if (contentFields.length !== 1) {
+    throw invalidField(
+      `parts[${index}]`,
+      "exactly one supported ADK content field",
+    );
+  }
+  if (part.thought !== undefined && typeof part.thought !== "boolean") {
+    throw invalidField(field("thought"), "a boolean");
+  }
+
+  const contentField = contentFields[0]!;
+  if (contentField === "text") {
+    if (typeof part.text !== "string") {
+      throw invalidField(field("text"), "a string");
+    }
+    return;
+  }
+
+  const content = readPartRecord(part, contentField);
+  switch (contentField) {
+    case "functionCall":
+      if (typeof content.name !== "string") {
+        throw invalidField(field("functionCall.name"), "a string");
+      }
+      validateOptionalPartString(content, "id", field("functionCall.id"));
+      if (!isRecord(content.args)) {
+        throw invalidField(field("functionCall.args"), "an object");
+      }
+      return;
+    case "functionResponse":
+      if (typeof content.name !== "string") {
+        throw invalidField(field("functionResponse.name"), "a string");
+      }
+      validateOptionalPartString(content, "id", field("functionResponse.id"));
+      if (!("response" in content)) {
+        throw invalidField(field("functionResponse.response"), "a value");
+      }
+      return;
+    case "executableCode":
+      if (typeof content.code !== "string") {
+        throw invalidField(field("executableCode.code"), "a string");
+      }
+      validateOptionalPartString(
+        content,
+        "language",
+        field("executableCode.language"),
+      );
+      return;
+    case "codeExecutionResult":
+      if (typeof content.output !== "string") {
+        throw invalidField(field("codeExecutionResult.output"), "a string");
+      }
+      validateOptionalPartString(
+        content,
+        "outcome",
+        field("codeExecutionResult.outcome"),
+      );
+      return;
+    case "inlineData":
+      if (typeof content.mimeType !== "string") {
+        throw invalidField(field("inlineData.mimeType"), "a string");
+      }
+      if (typeof content.data !== "string") {
+        throw invalidField(field("inlineData.data"), "a string");
+      }
+      return;
+    case "fileData":
+      if (typeof content.fileUri !== "string") {
+        throw invalidField(field("fileData.fileUri"), "a string");
+      }
+      validateOptionalPartString(
+        content,
+        "mimeType",
+        field("fileData.mimeType"),
+      );
+  }
+};
+
 /**
  * Parses an incoming HTTP request into a structured ADK request.
  *
@@ -123,6 +232,7 @@ export const parseAdkRequest = async (
   ) {
     throw invalidField("parts", "an array of objects");
   }
+  parts?.forEach(validatePart);
   if (!("message" in body) && !("parts" in body)) {
     throw new Error(
       'Invalid Google ADK proxy request: expected a "message" string or a "parts" array.',

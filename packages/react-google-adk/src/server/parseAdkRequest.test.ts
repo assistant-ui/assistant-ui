@@ -49,6 +49,33 @@ describe("parseAdkRequest", () => {
     expect(result.parts).toHaveLength(2);
   });
 
+  it("parses each supported ADK part shape", async () => {
+    const parts = [
+      { text: "Hello", thought: true },
+      { functionCall: { name: "search", id: "call-1", args: {} } },
+      {
+        functionResponse: {
+          name: "search",
+          id: "call-1",
+          response: null,
+        },
+      },
+      { executableCode: { code: "print('hello')", language: "python" } },
+      { codeExecutionResult: { output: "hello", outcome: "ok" } },
+      { inlineData: { mimeType: "image/png", data: "abc" } },
+      {
+        fileData: {
+          fileUri: "https://example.com/file",
+          mimeType: "text/plain",
+        },
+      },
+    ];
+
+    await expect(
+      parseAdkRequest(makeRequest({ parts })),
+    ).resolves.toMatchObject({ parts });
+  });
+
   it("parses a tool-result request", async () => {
     const result = await parseAdkRequest(
       makeRequest({
@@ -105,6 +132,26 @@ describe("parseAdkRequest", () => {
     [{ message: "hello", checkpointId: 42 }, 'field "checkpointId"'],
     [{ message: "hello", stateDelta: [] }, 'field "stateDelta"'],
   ])("rejects malformed message requests %#", async (body, error) => {
+    await expect(parseAdkRequest(makeRequest(body))).rejects.toThrow(error);
+  });
+
+  it.each([
+    [{ parts: [{}] }, 'field "parts[0]"'],
+    [{ parts: [{ text: 42 }] }, 'field "parts[0].text"'],
+    [
+      { parts: [{ inlineData: { mimeType: "image/png", data: 42 } }] },
+      'field "parts[0].inlineData.data"',
+    ],
+    [
+      { parts: [{ functionCall: { name: "search", args: [] } }] },
+      'field "parts[0].functionCall.args"',
+    ],
+    [
+      { parts: [{ functionResponse: { name: "search" } }] },
+      'field "parts[0].functionResponse.response"',
+    ],
+    [{ parts: [{ text: "hello", inlineData: {} }] }, 'field "parts[0]"'],
+  ])("rejects malformed nested ADK parts %#", async (body, error) => {
     await expect(parseAdkRequest(makeRequest(body))).rejects.toThrow(error);
   });
 
