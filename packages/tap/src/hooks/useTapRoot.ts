@@ -163,7 +163,10 @@ export const useTapRoot = <R>(render: () => R): useTapRoot.Root<R> => {
 
   useEffect(() => {
     if (processed) {
-      if (!fiber.isMounted) commitResourceFiber(fiber);
+      if (!fiber.isMounted) {
+        commitResourceFiber(fiber);
+        if (queue.length && !scheduler.isDirty) scheduler.markDirty();
+      }
       return;
     }
     processed = true;
