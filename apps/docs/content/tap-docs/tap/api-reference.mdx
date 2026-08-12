@@ -216,7 +216,10 @@ With `mountOnSubscribe: true` the lifecycle is derived from subscribers
 instead: the root renders lazily on the first `getValue()` or `subscribe()`,
 effects commit when the first subscriber attaches, and the last unsubscriber
 soft-unmounts the root — effect cleanups run, but state is preserved and the
-next subscriber remounts it. `unmount()` throws in this mode.
+next subscriber remounts it. `unmount()` throws in this mode. In development
+the root double-renders to detect render-phase side effects but does not
+double-invoke effects on mount; a subscriber inside React StrictMode already
+remounts it through the subscription bounce.
 
 ## flushTapSync
 
