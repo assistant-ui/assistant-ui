@@ -412,12 +412,14 @@ const useInteractablesResource = ({
 
   // register() installs update-tool UIs against the tools instance bound at
   // call time; this re-applies the retained entries when that instance is
-  // structurally replaced. Disposers pointing at the replaced instance are
-  // orphaned no-ops.
+  // structurally replaced. Each re-apply releases the entry's previous
+  // install first, so it is an orphaned no-op against a replaced instance
+  // and an idempotent replacement against a live one.
   useAssistantScopeEffect(
     "tools",
     () => {
       for (const [name, entry] of updateToolUIsRef.current) {
+        entry.unsubscribe();
         entry.unsubscribe = installUpdateToolUI(name, entry.render);
       }
       return () => {
