@@ -208,7 +208,12 @@ export type {
   AssistantError,
 } from "./types/error";
 export { toAssistantError, isAssistantError } from "./types/error";
-export { MessageNotSentError, isMessageNotSentError } from "./types/error";
+export {
+  MessageNotSentError,
+  isMessageNotSentError,
+  ThreadListAdapterChangedError,
+  isThreadListAdapterChangedError,
+} from "./types/error";
 
 export type {
   RuntimeCapabilities,

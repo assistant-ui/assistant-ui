@@ -14,6 +14,7 @@ const runThreadListItemCommand = (operation: string, task: Promise<void>) => {
       error,
     );
   });
+  return task;
 };
 
 const useThreadListItemClient = ({
@@ -51,28 +52,31 @@ const useThreadListItemClient = ({
   return {
     getState: () => state,
     switchTo: (options) => {
-      runThreadListItemCommand("switch", runtime.switchTo(options));
+      return runThreadListItemCommand("switch", runtime.switchTo(options));
     },
     rename: (newTitle) => {
-      runThreadListItemCommand("rename", runtime.rename(newTitle));
+      return runThreadListItemCommand("rename", runtime.rename(newTitle));
     },
     updateCustom: (custom) => {
-      runThreadListItemCommand(
+      return runThreadListItemCommand(
         "custom metadata update",
         runtime.updateCustom(custom),
       );
     },
     archive: () => {
-      runThreadListItemCommand("archive", runtime.archive());
+      return runThreadListItemCommand("archive", runtime.archive());
     },
     unarchive: () => {
-      runThreadListItemCommand("unarchive", runtime.unarchive());
+      return runThreadListItemCommand("unarchive", runtime.unarchive());
     },
     delete: () => {
-      runThreadListItemCommand("delete", runtime.delete());
+      return runThreadListItemCommand("delete", runtime.delete());
     },
     generateTitle: () => {
-      runThreadListItemCommand("title generation", runtime.generateTitle());
+      return runThreadListItemCommand(
+        "title generation",
+        runtime.generateTitle(),
+      );
     },
     initialize: runtime.initialize,
     detach: runtime.detach,

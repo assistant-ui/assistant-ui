@@ -139,7 +139,12 @@ export type {
   ExternalStoreThreadData,
   ExternalStoreBranchChange,
 } from "@assistant-ui/core";
-export { MessageNotSentError, isMessageNotSentError } from "@assistant-ui/core";
+export {
+  MessageNotSentError,
+  isMessageNotSentError,
+  ThreadListAdapterChangedError,
+  isThreadListAdapterChangedError,
+} from "@assistant-ui/core";
 export {
   createMessageQueue,
   type MessageQueueDriver,
