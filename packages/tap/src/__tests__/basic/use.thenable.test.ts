@@ -43,6 +43,33 @@ describe("use(thenable)", () => {
     expect(renderResourceFiber(fiber, [])).toBe("sync");
   });
 
+  it("returns synchronously from a thenable that settles while subscribing", () => {
+    const thenable = {
+      then: (onFulfilled: (value: string) => void) => {
+        onFulfilled("sync-settle");
+      },
+    };
+    const hook = () => use(thenable);
+    const fiber = createFiber(hook);
+
+    expect(renderResourceFiber(fiber, [])).toBe("sync-settle");
+  });
+
+  it("attaches handlers to a pre-stamped pending thenable", () => {
+    let handlerCount = 0;
+    const thenable = {
+      status: "pending" as const,
+      then: () => {
+        handlerCount++;
+      },
+    };
+    const hook = () => use(thenable);
+    const fiber = createFiber(hook);
+
+    expect(() => renderResourceFiber(fiber, [])).toThrow();
+    expect(handlerCount).toBe(1);
+  });
+
   it("throws the rejection reason once the promise rejects", async () => {
     const reason = new Error("denied");
     const promise = Promise.reject(reason);
