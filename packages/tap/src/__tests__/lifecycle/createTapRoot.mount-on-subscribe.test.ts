@@ -53,8 +53,6 @@ describe("createTapRoot mountOnSubscribe", () => {
 
     expect(root.getValue()).toBe(42);
     expect(effect).not.toHaveBeenCalled();
-    root.unmount();
-    expect(effect).not.toHaveBeenCalled();
   });
 
   it("commits effects on first subscribe only once", () => {
@@ -72,7 +70,6 @@ describe("createTapRoot mountOnSubscribe", () => {
 
     root.subscribe(() => {});
     expect(effect).toHaveBeenCalledTimes(mountRuns);
-    root.unmount();
   });
 
   it("notifies the first subscriber of updates dispatched during its own mount", () => {
@@ -92,7 +89,6 @@ describe("createTapRoot mountOnSubscribe", () => {
 
     expect(listener).toHaveBeenCalledTimes(1);
     expect(root.getValue()).toBe(1);
-    root.unmount();
   });
 
   it("soft unmounts on last unsubscribe and remounts on next subscribe", () => {
@@ -106,7 +102,6 @@ describe("createTapRoot mountOnSubscribe", () => {
 
     root.subscribe(() => {});
     expect(events).toEqual(["unmount", "mount"]);
-    root.unmount();
   });
 
   it("keeps effects mounted while any subscriber remains", () => {
@@ -121,7 +116,6 @@ describe("createTapRoot mountOnSubscribe", () => {
 
     unsubscribeB();
     expect(events).toEqual(["unmount"]);
-    root.unmount();
   });
 
   it("unsubscribe is idempotent", () => {
@@ -137,7 +131,6 @@ describe("createTapRoot mountOnSubscribe", () => {
 
     unsubscribeB();
     expect(events).toEqual(["unmount"]);
-    root.unmount();
   });
 
   it("preserves state across an unsubscribe/resubscribe cycle", async () => {
@@ -151,7 +144,6 @@ describe("createTapRoot mountOnSubscribe", () => {
     unsubscribe();
     root.subscribe(() => {});
     expect(root.getValue()).toBe(5);
-    root.unmount();
   });
 
   it("preserves ref and memo cells across an unsubscribe/resubscribe cycle", () => {
@@ -178,7 +170,6 @@ describe("createTapRoot mountOnSubscribe", () => {
     expect(second.ref.marker).toBe(true);
     expect(second.memoized).toBe(first.memoized);
     expect(memoFn).toHaveBeenCalledTimes(memoCalls);
-    root.unmount();
   });
 
   it("supports repeated mount/unmount cycles", () => {
@@ -196,7 +187,6 @@ describe("createTapRoot mountOnSubscribe", () => {
       "mount",
       "unmount",
     ]);
-    root.unmount();
   });
 
   it("applies state updates while soft-unmounted without running effects", async () => {
@@ -214,7 +204,6 @@ describe("createTapRoot mountOnSubscribe", () => {
     root.subscribe(() => {});
     expect(events).toEqual(["mount"]);
     expect(root.getValue()).toBe(7);
-    root.unmount();
   });
 
   it("propagates state updates to subscribers", async () => {
@@ -228,48 +217,20 @@ describe("createTapRoot mountOnSubscribe", () => {
 
     expect(root.getValue()).toBe(5);
     expect(listener).toHaveBeenCalledTimes(1);
-    root.unmount();
   });
 
   it("throws on state updates before the first subscriber", () => {
     const { root, setCount } = createCounterRoot();
 
     expect(() => setCount(1)).toThrow("Resource updated before mount");
-    root.unmount();
-  });
-
-  it("unmount before any subscriber is a no-op", () => {
-    const { root, events } = createCounterRoot();
-
-    root.unmount();
-    expect(events).toEqual([]);
     expect(root.getValue()).toBe(0);
   });
 
-  it("explicit unmount is terminal", async () => {
-    const { root, events, setCount } = createCounterRoot();
+  it("throws on unmount()", () => {
+    const { root } = createCounterRoot();
 
-    const listener = vi.fn();
-    const unsubscribe = root.subscribe(listener);
-    events.length = 0;
-
-    root.unmount();
-    expect(events).toEqual(["unmount"]);
-
-    setCount(9);
-    await flushUpdates();
-    expect(listener).not.toHaveBeenCalled();
-    expect(events).toEqual(["unmount"]);
-
-    const lateListener = vi.fn();
-    const noopUnsubscribe = root.subscribe(lateListener);
-    expect(events).toEqual(["unmount"]);
-    setCount(10);
-    await flushUpdates();
-    expect(lateListener).not.toHaveBeenCalled();
-
-    noopUnsubscribe();
-    unsubscribe();
-    expect(events).toEqual(["unmount"]);
+    expect(() => root.unmount()).toThrow(
+      "unmount() is not supported with mountOnSubscribe",
+    );
   });
 });

@@ -50,53 +50,30 @@ export const createTapRoot = <R>(
     };
   }
 
-  let isDestroyed = false;
-  let isMounted = false;
-  let hasRenderPending = true;
   let subscriberCount = 0;
-  const activeUnsubscribes = new Set<() => void>();
-
-  const mount = () => {
-    isMounted = true;
-    if (!hasRenderPending) {
-      void renderResourceFiber(fiber, [render]);
-    }
-    hasRenderPending = false;
-    flushTapSync(() => commitResourceFiber(fiber));
-  };
 
   return {
-    getValue: root.getValue,
+    ...root,
     subscribe: (listener) => {
-      if (isDestroyed) return () => {};
-
       const unsubscribe = root.subscribe(listener);
-      activeUnsubscribes.add(unsubscribe);
-      if (subscriberCount++ === 0) mount();
+      if (subscriberCount++ === 0) {
+        // Remounts re-render first so the commit sees fresh effect closures
+        if (!fiber.isNeverMounted) void renderResourceFiber(fiber, [render]);
+        flushTapSync(() => commitResourceFiber(fiber));
+      }
 
       let isSubscribed = true;
       return () => {
         if (!isSubscribed) return;
         isSubscribed = false;
-        activeUnsubscribes.delete(unsubscribe);
         unsubscribe();
-
-        if (isDestroyed) return;
-        if (--subscriberCount === 0) {
-          isMounted = false;
-          unmountResourceFiber(fiber);
-        }
+        if (--subscriberCount === 0) unmountResourceFiber(fiber);
       };
     },
     unmount: () => {
-      if (isDestroyed) return;
-      isDestroyed = true;
-      for (const unsubscribe of activeUnsubscribes) unsubscribe();
-      activeUnsubscribes.clear();
-      if (isMounted) {
-        isMounted = false;
-        unmountResourceFiber(fiber);
-      }
+      throw new Error(
+        "unmount() is not supported with mountOnSubscribe; the root unmounts when the last subscriber unsubscribes",
+      );
     },
   };
 };
