@@ -5,7 +5,7 @@ export const useThreadListItemDelete = () => {
   const aui = useAui();
 
   const deleteThread = useCallback(() => {
-    void aui.threadListItem.delete().catch(() => {});
+    aui.threadListItem.delete();
   }, [aui]);
 
   return { delete: deleteThread };

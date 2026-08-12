@@ -39,13 +39,27 @@ const useThreadListItemClient = ({
 
   return {
     getState: () => state,
-    switchTo: runtime.switchTo,
-    rename: runtime.rename,
-    updateCustom: runtime.updateCustom,
-    archive: runtime.archive,
-    unarchive: runtime.unarchive,
-    delete: runtime.delete,
-    generateTitle: runtime.generateTitle,
+    switchTo: (options) => {
+      void runtime.switchTo(options).catch(() => {});
+    },
+    rename: (newTitle) => {
+      void runtime.rename(newTitle).catch(() => {});
+    },
+    updateCustom: (custom) => {
+      void runtime.updateCustom(custom).catch(() => {});
+    },
+    archive: () => {
+      void runtime.archive().catch(() => {});
+    },
+    unarchive: () => {
+      void runtime.unarchive().catch(() => {});
+    },
+    delete: () => {
+      void runtime.delete().catch(() => {});
+    },
+    generateTitle: () => {
+      void runtime.generateTitle().catch(() => {});
+    },
     initialize: runtime.initialize,
     detach: runtime.detach,
     __internal_getRuntime: () => runtime,
