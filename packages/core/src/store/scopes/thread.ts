@@ -106,10 +106,11 @@ export type ThreadMethods = {
   resumeRun(config: CreateResumeRunConfig): void;
   cancelRun(): void;
   /**
-   * Re-fetch this thread's state from its backing store, in place. Presence
-   * signals the `refetchThread` capability; `threads.reloadMainThread()`
-   * prefers it and propagates its rejection. Runtimes without remote state
-   * leave it undefined.
+   * Re-fetch this thread's state from its backing store, in place: the tap
+   * thread's refetch hook, which `threads.reloadMainThread()` prefers and
+   * whose rejection it propagates. `capabilities.refetchThread` is the
+   * portable feature-detection signal; a legacy-bridged thread reports it
+   * there while routing the refetch through its runtime, not this method.
    */
   unstable_refetchThread?(): Promise<void>;
   getModelContext(): ModelContext;
