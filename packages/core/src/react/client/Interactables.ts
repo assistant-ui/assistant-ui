@@ -13,7 +13,6 @@ import type {
   Unstable_InteractablePersistenceAdapter,
   Unstable_InteractablesConfig,
 } from "../types/scopes/interactables";
-import type { ToolCallMessagePartComponent } from "../types/MessagePartComponentTypes";
 import { toJSONSchema, toPartialJSONSchema } from "assistant-stream";
 import { ModelContext } from "../../store/clients/model-context-client";
 import {
@@ -49,6 +48,12 @@ type MessageLike = {
 
 type InternalInteractableRegistration = Unstable_InteractableRegistration & {
   scope?: "thread" | undefined;
+};
+
+type UpdateToolUIEntry = {
+  count: number;
+  render: NonNullable<Unstable_InteractableRegistration["updateRender"]>;
+  unsubscribe: (() => void) | undefined;
 };
 
 const hasInteractableCreateCall = (
@@ -94,16 +99,7 @@ const useInteractablesResource = ({
   const registrationCountsRef = useRef(new Map<string, number>());
   // One update-tool UI per interactable name, alive while any registrant
   // that supplied an updateRender is mounted.
-  const updateToolUIsRef = useRef(
-    new Map<
-      string,
-      {
-        count: number;
-        render: ToolCallMessagePartComponent;
-        unsubscribe: () => void;
-      }
-    >(),
-  );
+  const updateToolUIsRef = useRef(new Map<string, UpdateToolUIEntry>());
   // App-scoped state restored via adapter.load(), consumed as components register.
   const loadedStateRef = useRef(new Map<string, unknown>());
   // Ids edited locally this session — a local edit always wins over a slow load.
@@ -403,28 +399,37 @@ const useInteractablesResource = ({
   );
 
   const installUpdateToolUI = useCallback(
-    (name: string, render: ToolCallMessagePartComponent) =>
-      clientRef.current!.tools().setToolUI(interactableToolName(name), render, {
-        standalone: true,
-      }),
+    (name: string, entry: UpdateToolUIEntry) => {
+      const toolsAccessor = clientRef.current?.tools;
+      if (!toolsAccessor || toolsAccessor.source == null) return false;
+      entry.unsubscribe = toolsAccessor().setToolUI(
+        interactableToolName(name),
+        entry.render,
+        { standalone: true },
+      );
+      return true;
+    },
     [clientRef],
   );
 
   // register() installs update-tool UIs against the tools instance bound at
   // call time; this re-applies the retained entries when that instance is
-  // structurally replaced. Each re-apply releases the entry's previous
+  // structurally replaced and installs entries recorded while no tools
+  // scope was available. Each re-apply releases the entry's previous
   // install first, so it is an orphaned no-op against a replaced instance
   // and an idempotent replacement against a live one.
   useAssistantScopeEffect(
     "tools",
     () => {
       for (const [name, entry] of updateToolUIsRef.current) {
-        entry.unsubscribe();
-        entry.unsubscribe = installUpdateToolUI(name, entry.render);
+        entry.unsubscribe?.();
+        entry.unsubscribe = undefined;
+        installUpdateToolUI(name, entry);
       }
       return () => {
         for (const entry of updateToolUIsRef.current.values()) {
-          entry.unsubscribe();
+          entry.unsubscribe?.();
+          entry.unsubscribe = undefined;
         }
       };
     },
@@ -463,32 +468,35 @@ const useInteractablesResource = ({
 
       let releaseUpdateToolUI: (() => void) | undefined;
       if (def.updateRender) {
-        const toolsAccessor = clientRef.current?.tools;
-        if (toolsAccessor && toolsAccessor.source != null) {
-          const existing = updateToolUIsRef.current.get(def.name);
-          if (existing) {
-            existing.count++;
-          } else {
-            updateToolUIsRef.current.set(def.name, {
-              count: 1,
-              render: def.updateRender,
-              unsubscribe: installUpdateToolUI(def.name, def.updateRender),
-            });
-          }
-          releaseUpdateToolUI = () => {
-            const entry = updateToolUIsRef.current.get(def.name);
-            if (!entry) return;
-            if (--entry.count === 0) {
-              updateToolUIsRef.current.delete(def.name);
-              entry.unsubscribe();
-            }
-          };
-        } else if (process.env.NODE_ENV !== "production") {
+        const existing = updateToolUIsRef.current.get(def.name);
+        const entry = existing ?? {
+          count: 0,
+          render: def.updateRender,
+          unsubscribe: undefined,
+        };
+        entry.count++;
+        if (!existing) updateToolUIsRef.current.set(def.name, entry);
+
+        if (
+          !entry.unsubscribe &&
+          !installUpdateToolUI(def.name, entry) &&
+          process.env.NODE_ENV !== "production"
+        ) {
           console.warn(
             `[Interactables] "${def.name}" supplied an updateRender, but no ` +
               `tools scope is available to install it into.`,
           );
         }
+
+        releaseUpdateToolUI = () => {
+          const entry = updateToolUIsRef.current.get(def.name);
+          if (!entry) return;
+          if (--entry.count === 0) {
+            updateToolUIsRef.current.delete(def.name);
+            entry.unsubscribe?.();
+            entry.unsubscribe = undefined;
+          }
+        };
       }
 
       // The same id re-registers once per anchor (its create call + each update_*).
