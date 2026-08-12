@@ -31,28 +31,22 @@ function setupEffect(cell: EffectCell): void {
   }
 }
 
-const effectNeedsRun = (cell: EffectCell, rendered: boolean): boolean => {
-  // Mount/reconnect leg: a cell that never ran or was disconnected runs on
-  // any commit, rendered or not (the zero-render Activity reveal).
+const effectNeedsRun = (cell: EffectCell): boolean => {
+  // A cell that never ran or was disconnected runs on any commit (first
+  // mount, the zero-render Activity reveal).
   if (cell.deps === null) return true;
-  // Update leg: a connected cell only responds to a new render — this also
-  // makes replayed commits of an already-committed render no-ops.
-  if (!rendered) return false;
   // React dep semantics. Dep arity is stable once committed, so
   // setupDeps === undefined implies the committed deps are dep-less too.
   if (cell.setupDeps === undefined) return true;
   return !depsShallowEqual(cell.deps!, cell.setupDeps);
 };
 
-export function reconcileEffects<R>(
-  fiber: ResourceFiber<R>,
-  rendered: boolean,
-): void {
+export function reconcileEffects<R>(fiber: ResourceFiber<R>): void {
   const errors: unknown[] = [];
   const pending: EffectCell[] = [];
 
   for (const cell of fiber.effectCells) {
-    if (effectNeedsRun(cell, rendered)) pending.push(cell);
+    if (effectNeedsRun(cell)) pending.push(cell);
   }
 
   for (const cell of pending) {

@@ -87,9 +87,12 @@ export function commitResourceFiber<R>(fiber: ResourceFiber<R>): void {
     const commitCallbacks = fiber.wipCommitCallbacks;
     fiber.wipCommitCallbacks = null;
     // null means no render since the last commit (StrictMode replay, Activity
-    // reveal): render-scoped state stays, the reconcile walk below re-runs any
-    // disconnected effects.
+    // reveal): render-scoped state stays untouched.
     const rendered = commitCallbacks !== null;
+    // Strict-mode connect (first mount or reconnect): setup, cleanup, then the
+    // real setup, mirroring React's StrictMode replay on mount and reveal.
+    const strictReplay =
+      isDevelopment && !fiber.isMounted && fiber.devStrictMode === "root";
 
     fiber.isMounted = true;
     if (rendered) {
@@ -102,20 +105,13 @@ export function commitResourceFiber<R>(fiber: ResourceFiber<R>): void {
       }
     }
 
-    if (
-      isDevelopment &&
-      fiber.isNeverMounted &&
-      fiber.devStrictMode === "root"
-    ) {
-      fiber.isNeverMounted = false;
+    fiber.isNeverMounted = false;
 
-      if (commitCallbacks !== null) commitAllCallbacks(commitCallbacks);
-      reconcileEffects(fiber, rendered);
+    if (commitCallbacks !== null) commitAllCallbacks(commitCallbacks);
+    if (strictReplay) {
+      reconcileEffects(fiber);
       cleanupAllEffects(fiber);
     }
-
-    fiber.isNeverMounted = false;
-    if (commitCallbacks !== null) commitAllCallbacks(commitCallbacks);
-    reconcileEffects(fiber, rendered);
+    reconcileEffects(fiber);
   });
 }
