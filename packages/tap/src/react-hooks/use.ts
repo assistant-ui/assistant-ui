@@ -1,5 +1,5 @@
 import { useContext } from "../core/context";
-import { trackThenable } from "../core/helpers/thenable";
+import { isThenable, trackThenable } from "../core/helpers/thenable";
 
 /**
  * The tap equivalent of React's `use`. Accepts React contexts and thenables:
@@ -8,12 +8,8 @@ import { trackThenable } from "../core/helpers/thenable";
  * its rejection reason.
  */
 export const use = (usable: unknown): unknown => {
-  if (
-    usable !== null &&
-    typeof usable === "object" &&
-    typeof (usable as PromiseLike<unknown>).then === "function"
-  ) {
-    return trackThenable(usable as PromiseLike<unknown>);
+  if (isThenable(usable)) {
+    return trackThenable(usable);
   }
   return useContext(usable as never);
 };
