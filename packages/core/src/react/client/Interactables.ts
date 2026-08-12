@@ -50,6 +50,16 @@ type InternalInteractableRegistration = Unstable_InteractableRegistration & {
   scope?: "thread" | undefined;
 };
 
+type UpdateToolUI = NonNullable<
+  Unstable_InteractableRegistration["updateRender"]
+>;
+
+type UpdateToolUIEntry = {
+  count: number;
+  render: UpdateToolUI;
+  unsubscribe: (() => void) | undefined;
+};
+
 const hasInteractableCreateCall = (
   messages: readonly MessageLike[],
   id: string,
@@ -93,9 +103,7 @@ const useInteractablesResource = ({
   const registrationCountsRef = useRef(new Map<string, number>());
   // One update-tool UI per interactable name, alive while any registrant
   // that supplied an updateRender is mounted.
-  const updateToolUIsRef = useRef(
-    new Map<string, { count: number; unsubscribe: () => void }>(),
-  );
+  const updateToolUIsRef = useRef(new Map<string, UpdateToolUIEntry>());
   // App-scoped state restored via adapter.load(), consumed as components register.
   const loadedStateRef = useRef(new Map<string, unknown>());
   // Ids edited locally this session — a local edit always wins over a slow load.
@@ -394,6 +402,38 @@ const useInteractablesResource = ({
     [provider],
   );
 
+  const installUpdateToolUI = useCallback(
+    (name: string, entry: UpdateToolUIEntry) => {
+      const toolsAccessor = clientRef.current?.tools;
+      if (!toolsAccessor || toolsAccessor.source == null) return false;
+
+      entry.unsubscribe = toolsAccessor().setToolUI(
+        interactableToolName(name),
+        entry.render,
+        { standalone: true },
+      );
+      return true;
+    },
+    [clientRef],
+  );
+
+  useAssistantScopeEffect(
+    "tools",
+    () => {
+      for (const [name, entry] of updateToolUIsRef.current) {
+        installUpdateToolUI(name, entry);
+      }
+
+      return () => {
+        for (const entry of updateToolUIsRef.current.values()) {
+          entry.unsubscribe?.();
+          entry.unsubscribe = undefined;
+        }
+      };
+    },
+    [installUpdateToolUI],
+  );
+
   const register = useCallback(
     (def: InternalInteractableRegistration) => {
       const threadAccessor = clientRef.current?.thread;
@@ -426,36 +466,33 @@ const useInteractablesResource = ({
 
       let releaseUpdateToolUI: (() => void) | undefined;
       if (def.updateRender) {
-        const toolsAccessor = clientRef.current?.tools;
-        if (toolsAccessor && toolsAccessor.source != null) {
-          const toolName = interactableToolName(def.name);
-          const existing = updateToolUIsRef.current.get(def.name);
-          if (existing) {
-            existing.count++;
-          } else {
-            updateToolUIsRef.current.set(def.name, {
-              count: 1,
-              unsubscribe: toolsAccessor().setToolUI(
-                toolName,
-                def.updateRender,
-                { standalone: true },
-              ),
-            });
+        const existing = updateToolUIsRef.current.get(def.name);
+        const entry = existing ?? {
+          count: 0,
+          render: def.updateRender,
+          unsubscribe: undefined,
+        };
+        entry.count++;
+        if (!existing) updateToolUIsRef.current.set(def.name, entry);
+
+        if (!entry.unsubscribe && !installUpdateToolUI(def.name, entry)) {
+          if (process.env.NODE_ENV !== "production") {
+            console.warn(
+              `[Interactables] "${def.name}" supplied an updateRender, but no ` +
+                `tools scope is available to install it into.`,
+            );
           }
-          releaseUpdateToolUI = () => {
-            const entry = updateToolUIsRef.current.get(def.name);
-            if (!entry) return;
-            if (--entry.count === 0) {
-              updateToolUIsRef.current.delete(def.name);
-              entry.unsubscribe();
-            }
-          };
-        } else if (process.env.NODE_ENV !== "production") {
-          console.warn(
-            `[Interactables] "${def.name}" supplied an updateRender, but no ` +
-              `tools scope is available to install it into.`,
-          );
         }
+
+        releaseUpdateToolUI = () => {
+          const entry = updateToolUIsRef.current.get(def.name);
+          if (!entry) return;
+          if (--entry.count === 0) {
+            updateToolUIsRef.current.delete(def.name);
+            entry.unsubscribe?.();
+            entry.unsubscribe = undefined;
+          }
+        };
       }
 
       // The same id re-registers once per anchor (its create call + each update_*).
@@ -555,7 +592,13 @@ const useInteractablesResource = ({
         });
       };
     },
-    [flushIfPending, clientRef, getCurrentThreadId, setStateAndRef],
+    [
+      flushIfPending,
+      clientRef,
+      getCurrentThreadId,
+      installUpdateToolUI,
+      setStateAndRef,
+    ],
   );
 
   return {

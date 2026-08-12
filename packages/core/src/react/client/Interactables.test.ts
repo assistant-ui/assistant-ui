@@ -8,19 +8,42 @@ import type {
 import type { ThreadMessage } from "../../types/message";
 
 const clientHolder: { client: unknown } = { client: null };
+const clientListeners = new Set<() => void>();
+
+const replaceClient = (client: unknown) => {
+  clientHolder.client = client;
+  for (const listener of clientListeners) listener();
+};
 
 vi.mock("@assistant-ui/store/client", async (importOriginal) => {
   const actual =
     await importOriginal<typeof import("@assistant-ui/store/client")>();
   const { useEffect } = await import("react");
   const useScopeEffectShim = (
-    _scope: string,
+    scope: string,
     effect: () => (() => void) | void,
     deps: readonly unknown[],
   ) => {
     useEffect(() => {
-      const cleanup = effect();
-      return typeof cleanup === "function" ? cleanup : undefined;
+      let cleanup: (() => void) | undefined;
+      const apply = () => {
+        cleanup?.();
+        cleanup = undefined;
+        const accessor = (
+          clientHolder.client as Record<string, unknown> | null
+        )?.[scope] as { source?: string | null } | undefined;
+        if (accessor?.source != null) {
+          const result = effect();
+          cleanup = typeof result === "function" ? result : undefined;
+        }
+      };
+
+      apply();
+      clientListeners.add(apply);
+      return () => {
+        clientListeners.delete(apply);
+        cleanup?.();
+      };
       // oxlint-disable-next-line react-hooks/exhaustive-deps -- caller-provided deps, mirrors the real hook
     }, deps);
   };
@@ -51,7 +74,9 @@ const makeClient = (
   setToolUI?: (...args: unknown[]) => () => void,
   threadId?: string,
 ) => ({
-  modelContext: () => ({ register: () => () => {} }),
+  modelContext: Object.assign(() => ({ register: () => () => {} }), {
+    source: "root" as const,
+  }),
   thread: threadMessages
     ? Object.assign(
         () => ({ getState: () => ({ messages: threadMessages }) }),
@@ -253,6 +278,56 @@ describe("Interactables registration", () => {
     first();
     expect(removeToolUI).not.toHaveBeenCalled();
     second();
+    expect(removeToolUI).toHaveBeenCalledTimes(1);
+  });
+
+  it("migrates update tool UIs when the tools scope is replaced", () => {
+    const removeFirst = vi.fn();
+    const setFirst = vi.fn(() => removeFirst);
+    const removeSecond = vi.fn();
+    const setSecond = vi.fn(() => removeSecond);
+    root = mount({ setToolUI: setFirst });
+
+    const render = () => null;
+    const unregister = root
+      .getValue()
+      .register(reg("n1", { updateRender: render }));
+
+    replaceClient(makeClient(undefined, setSecond));
+
+    expect(removeFirst).toHaveBeenCalledTimes(1);
+    expect(setSecond).toHaveBeenCalledWith("update_note", render, {
+      standalone: true,
+    });
+
+    unregister();
+    expect(removeSecond).toHaveBeenCalledTimes(1);
+  });
+
+  it("installs a pending update tool UI when the tools scope becomes available", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const removeToolUI = vi.fn();
+    const setToolUI = vi.fn(() => removeToolUI);
+    root = mount();
+
+    const unregister = root
+      .getValue()
+      .register(reg("n1", { updateRender: () => null }));
+    expect(warn).toHaveBeenCalledWith(
+      '[Interactables] "note" supplied an updateRender, but no ' +
+        "tools scope is available to install it into.",
+    );
+
+    replaceClient(makeClient(undefined, setToolUI));
+
+    expect(setToolUI).toHaveBeenCalledWith(
+      "update_note",
+      expect.any(Function),
+      {
+        standalone: true,
+      },
+    );
+    unregister();
     expect(removeToolUI).toHaveBeenCalledTimes(1);
   });
 });
