@@ -6266,28 +6266,28 @@ declare const useThreadIsEmpty: () => boolean;
 declare const useThreadIsRunning: () => boolean;
 
 declare const useThreadListItemArchive: () => {
-  archive: () => void;
+  archive: () => Promise<void>;
 };
 
 declare const useThreadListItemDelete: () => {
-  delete: () => void;
+  delete: () => Promise<void>;
 };
 
 declare const useThreadListItemTrigger: () => {
-  switchTo: () => void;
+  switchTo: () => Promise<void>;
 };
 
 declare const useThreadListItemUnarchive: () => {
-  unarchive: () => void;
+  unarchive: () => Promise<void>;
 };
 
 declare const useThreadListLoadMore: () => {
-  loadMore: () => void;
+  loadMore: () => Promise<void>;
   disabled: boolean;
 };
 
 declare const useThreadListNew: () => {
-  switchToNewThread: () => void;
+  switchToNewThread: () => Promise<void>;
 };
 
 declare const useThreadMessages: () => readonly MessageState[];

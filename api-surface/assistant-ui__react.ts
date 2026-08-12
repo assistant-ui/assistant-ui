@@ -6412,15 +6412,15 @@ declare const useSuggestionTrigger: (_param16: {
   clearComposer?: boolean | undefined;
 }) => (() => void) | null;
 
-declare const useThreadListItemArchive: () => () => void;
+declare const useThreadListItemArchive: () => () => Promise<void>;
 
-declare const useThreadListItemDelete: () => () => void;
+declare const useThreadListItemDelete: () => () => Promise<void>;
 
-declare const useThreadListItemTrigger: () => () => void;
+declare const useThreadListItemTrigger: () => () => Promise<void>;
 
-declare const useThreadListItemUnarchive: () => () => void;
+declare const useThreadListItemUnarchive: () => () => Promise<void>;
 
-declare const useThreadListLoadMore: () => (() => void) | null;
+declare const useThreadListLoadMore: () => (() => Promise<void>) | null;
 
 declare namespace useThreadScrollToBottom {
   type Options = {
