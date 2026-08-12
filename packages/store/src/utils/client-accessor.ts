@@ -90,12 +90,14 @@ export const createErrorClientAccessor = (
  * the last two; event subscription keeps them apart because an absent scope
  * still forwards to the parent.
  */
-export const isScopeAvailable = (
-  accessor: AssistantClientAccessor<ClientNames> | undefined,
-): boolean => accessor?.source != null;
+export const isScopeAvailable = <
+  T extends { source: ClientNames | "root" | null },
+>(
+  accessor: T | undefined,
+): accessor is T => accessor?.source != null;
 
 export const isScopeUnavailable = (
-  accessor: AssistantClientAccessor<ClientNames> | undefined,
+  accessor: { source: ClientNames | "root" | null } | undefined,
 ): boolean => accessor?.source === null;
 
 /**

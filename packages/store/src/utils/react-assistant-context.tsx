@@ -51,16 +51,11 @@ class EmptyAssistantClientProxyHandler
   // Built clients define `optional` as a non-enumerable own property; the
   // proxy flavors report the same shape so spreads and Object.keys stay
   // uniform across every client the library hands out.
-  getOwnPropertyDescriptor(_: unknown, prop: string | symbol) {
-    if (prop === "optional") {
-      return {
-        value: this.get(_, prop),
-        writable: false,
-        enumerable: false,
-        configurable: true,
-      };
-    }
-    return super.getOwnPropertyDescriptor(_, prop);
+  override getOwnPropertyDescriptor(_: unknown, prop: string | symbol) {
+    if (prop !== "optional") return super.getOwnPropertyDescriptor(_, prop);
+    const value = this.get(_, prop);
+    if (value === undefined) return undefined;
+    return { value, writable: false, enumerable: false, configurable: true };
   }
 
   has(_: unknown, prop: string | symbol): boolean {
