@@ -270,9 +270,6 @@ describe("useResources - Basic Functionality", () => {
       });
 
       renderTest(testFiber);
-      // Renders queue, they don't nest: the dispatch must not re-enter
-      // render/commit while the setup is on the stack; it converges
-      // sequentially after the commit pass completes.
       expect(events).toEqual(["setup:0", "after-dispatch:0", "setup:1"]);
       expect(getCommittedValue(testFiber)).toEqual({ n: 1, value: 2 });
 
@@ -297,9 +294,6 @@ describe("useResources - Basic Functionality", () => {
         return n;
       });
 
-      // First-mount effects double-invoke under dev strict mode; the pinned
-      // property is that after-flush always precedes setup:1 — the flush
-      // never re-entered render/commit from inside the setup.
       expect(events).toEqual([
         "setup:0",
         "after-flush:0",
@@ -330,7 +324,6 @@ describe("useResources - Basic Functionality", () => {
       void renderResourceFiber(fiber, [2]);
       discardWipRender(fiber);
 
-      // The reconnect must run the committed closure, not the discarded one.
       unmountResourceFiber(fiber);
       commitResourceFiber(fiber);
       expect(events).toEqual(["setup:1", "cleanup:1", "setup:1"]);
@@ -354,14 +347,11 @@ describe("useResources - Basic Functionality", () => {
       commitResourceFiber(fiber);
       expect(events).toEqual(["setup:1"]);
 
-      // An abandoned pass rendered the child with n=2; its commit never ran.
-      // The committed pass bails back to n=1, superseding that render.
       void renderResourceFiber(fiber, [2]);
       void renderResourceFiber(fiber, [1]);
       commitResourceFiber(fiber);
       expect(events).toEqual(["setup:1"]);
 
-      // A later reconnect must not commit the superseded n=2 render.
       unmountResourceFiber(fiber);
       commitResourceFiber(fiber);
       expect(events).toEqual(["setup:1", "cleanup:1", "setup:1"]);
@@ -387,9 +377,6 @@ describe("useResources - Basic Functionality", () => {
       commitResourceFiber(fiber);
       expect(events).toEqual(["mount:a"]);
 
-      // The host tears down after a render added "b" but before the commit
-      // effect ran: "b" was never mounted, and its presence must not abort
-      // the cleanup of the mounted children.
       void renderResourceFiber(fiber, [["a", "b"]]);
       unmountResourceFiber(fiber);
       expect(events).toEqual(["mount:a", "unmount:a"]);

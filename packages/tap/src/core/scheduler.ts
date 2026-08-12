@@ -3,11 +3,6 @@ import { isDevelopment } from "./helpers/env";
 
 type Task = () => void;
 
-// Renders never nest, they queue. The scheduler is the tap-root work loop,
-// so it enforces the rule for the passes it drives: while a flush is on the
-// stack (a scheduled drain or a flushTapSync callback), a nested flushTapSync
-// defers instead of re-entering. React-hosted fibers are driven by React's
-// work loop, which enforces the same rule itself — they pay no cost here.
 let isFlushing = false;
 
 type GlobalFlushState = {
@@ -125,9 +120,6 @@ const scheduleMacrotask = (() => {
 })();
 
 export const flushTapSync = <T>(callback: () => T): T => {
-  // Mirrors React's flushSync-inside-lifecycle rule: never flush while a
-  // pass is already on the stack. The callback's dispatches land in the
-  // enclosing flush state and drain after the current pass.
   if (isFlushing) {
     if (isDevelopment) {
       console.warn(
@@ -143,8 +135,6 @@ export const flushTapSync = <T>(callback: () => T): T => {
     schedulers: new Set([]),
     isScheduled: true,
   };
-  // The callback itself is part of the flush: tap roots run their commits
-  // inside it, so effects dispatching here must not re-enter.
   isFlushing = true;
 
   try {

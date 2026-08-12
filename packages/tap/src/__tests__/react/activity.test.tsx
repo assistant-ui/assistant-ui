@@ -146,8 +146,6 @@ describe("resources under <Activity>", () => {
     const First = resource(useFirst);
     const Second = resource(useSecond);
 
-    // memo so hide/reveal do not re-render Inner: the reveal must replay the
-    // commit effect without a render, hitting the stale remount decision
     const Inner = memo(function Inner({ swapped }: { swapped: boolean }) {
       const [value] = useResources([
         withKey("x", swapped ? Second() : First()),
@@ -233,7 +231,6 @@ describe("resources under <Activity>", () => {
         setCount: (n: number) => void;
       };
     } | null = null;
-    // memo so the reveal replays the commit effect without a render
     const Inner = memo(function Inner({ label }: { label: string }) {
       handle = useTapRoot(function CounterRoot() {
         const [count, setCount] = useResourceState(0);
@@ -264,8 +261,6 @@ describe("resources under <Activity>", () => {
     rerender(<App hidden={false} label="b" />);
     expect(handle!.getValue().count).toBe(5);
     expect(handle!.getValue().label).toBe("b");
-    // The reveal must not first commit the superseded hidden render (a churn
-    // of mount:a:5 / unmount before the converged commit).
     expect(events).toEqual(["mount:b:5"]);
   });
 

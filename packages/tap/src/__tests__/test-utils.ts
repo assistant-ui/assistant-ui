@@ -12,9 +12,6 @@ export type TestFiber<R, A extends readonly unknown[]> = ResourceFiber<R> & {
   readonly __args?: (args: A) => void;
 };
 
-// Renders never nest, they queue: a dispatch made while a render or commit is
-// on the stack is parked here and drained sequentially after the pass. The
-// harness is a host, so it tracks its own passes (core carries no guard).
 const pendingRerenders = new Set<ResourceFiber<any>>();
 let isPassOnStack = false;
 
@@ -96,8 +93,6 @@ export function renderTest<R, A extends readonly unknown[]>(
     commitResourceFiber(fiber);
     return rendered;
   });
-  // Dispatches made during the commit converge sequentially, React-style;
-  // the converged result is observable via getCommittedValue.
   drainPendingRerenders();
 
   return value;

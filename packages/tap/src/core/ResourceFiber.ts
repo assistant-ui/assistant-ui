@@ -40,10 +40,7 @@ export function createResourceFiber<R>(
   };
 }
 
-// Discards an uncommitted render, reverting the fiber to its committed state
-// — the equivalent of React dropping a work-in-progress fiber. Only valid
-// when the discarded render applied no state update (reducer rollback is the
-// root's job, keyed to versions).
+// Only valid when the discarded render applied no state update
 export function discardWipRender<R>(fiber: ResourceFiber<R>): void {
   fiber.wipCommitCallbacks = null;
   fiber.memoCache.workInProgress = null;
@@ -93,11 +90,7 @@ export function renderResourceFiber<R>(
 export function commitResourceFiber<R>(fiber: ResourceFiber<R>): void {
   const commitCallbacks = fiber.wipCommitCallbacks;
   fiber.wipCommitCallbacks = null;
-  // null means no render since the last commit (StrictMode replay, Activity
-  // reveal): render-scoped state stays untouched.
   const rendered = commitCallbacks !== null;
-  // Strict-mode connect (first mount or reconnect): setup, cleanup, then the
-  // real setup, mirroring React's StrictMode replay on mount and reveal.
   const strictReplay =
     isDevelopment && !fiber.isMounted && fiber.devStrictMode === "root";
 

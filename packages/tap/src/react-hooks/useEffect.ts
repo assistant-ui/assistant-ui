@@ -53,8 +53,6 @@ export function useEffect(
       "useEffect called with and without dependencies across re-renders",
     );
 
-  // Promoted at commit so an uncommitted render's closures never become
-  // visible: a discarded render (wipCommitCallbacks reset) reverts fully.
   addCommit(fiber, () => {
     cell.setup = effect;
     cell.setupDeps = deps;

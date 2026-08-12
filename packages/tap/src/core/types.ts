@@ -49,13 +49,10 @@ export type MemoCell<T = any> = {
 
 export type EffectCell = {
   readonly type: "effect";
-  // Last committed render's effect + deps, promoted by a commit callback so
-  // a discarded render's closures never become visible; undefined setup =
-  // the cell's creating render was never committed.
   setup: (() => (() => void) | undefined) | undefined;
   setupDeps: readonly unknown[] | undefined;
   cleanup: (() => void) | undefined;
-  // Committed deps: null = never ran or disconnected, undefined = deps-less.
+  // null = never ran or disconnected, undefined = deps-less
   deps: readonly unknown[] | null | undefined;
 };
 
@@ -92,14 +89,10 @@ export interface ResourceFiber<R> {
   readonly devStrictMode: "root" | "child" | null;
 
   cells: Cell[];
-  // Effect cells in declaration order; append-only, populated at cell
-  // creation so commit walks effects without filtering every cell.
   effectCells: EffectCell[];
 
   wipContextDeps: ResourceContextDeps | null;
   contextDeps: ResourceContextDeps | null;
-  // Reset to [] at every render start, consumed (set null) by commit — so
-  // non-null also means "rendered since the last commit".
   wipCommitCallbacks: CommitCallbacks | null;
 
   currentIndex: number;
@@ -111,8 +104,6 @@ export interface ResourceFiber<R> {
 
   renderPendingCells: Set<ReducerCell> | null;
 
-  // Bumped on every render. Lets a host detect that the fiber rendered past
-  // a render it captured (its record is superseded and must not commit).
   renderCount: number;
 
   isMounted: boolean;
