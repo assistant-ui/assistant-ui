@@ -123,6 +123,7 @@ export const useAdkMessages = ({
   );
 
   const abortControllerRef = useRef<AbortController | null>(null);
+  const streamGenerationRef = useRef(0);
 
   const { onError, onCustomEvent, onAgentTransfer } = useMemo(
     () => eventHandlers ?? {},
@@ -132,6 +133,7 @@ export const useAdkMessages = ({
   const aui = useAui();
   const sendMessage = useCallback(
     async (newMessages: AdkMessage[], config: AdkSendMessageConfig) => {
+      const streamGeneration = ++streamGenerationRef.current;
       const newMessagesWithId = newMessages.map((m) =>
         m.id ? m : { ...m, id: uuidv4() },
       ) as AdkMessage[];
@@ -155,6 +157,12 @@ export const useAdkMessages = ({
         });
 
         for await (const event of response) {
+          if (
+            abortController.signal.aborted ||
+            streamGeneration !== streamGenerationRef.current
+          ) {
+            break;
+          }
           const updatedMessages = accumulator.processEvent(event);
           setMessagesImmediate(updatedMessages);
           setStateDelta({
@@ -233,6 +241,7 @@ export const useAdkMessages = ({
   );
 
   const cancel = useCallback(() => {
+    streamGenerationRef.current += 1;
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }

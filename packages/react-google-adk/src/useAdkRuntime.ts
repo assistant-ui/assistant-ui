@@ -203,7 +203,7 @@ export type UseAdkRuntimeOptions = ExternalStoreSharedOptions & {
    * Stable identifier for the backing load scope. Change it to clear and
    * reload the active thread when its account or workspace changes.
    */
-  loadKey?: PropertyKey | object | undefined;
+  loadKey?: PropertyKey | undefined;
   create?: () => Promise<{ externalId: string }>;
   delete?: (threadId: string) => Promise<void>;
   adapters?:
@@ -433,7 +433,10 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
       effectiveLoadKey,
     );
     previousLoadKeyRef.current = effectiveLoadKey;
-    if (loadKeyChanged) applySnapshot({ messages: [] });
+    if (loadKeyChanged) {
+      cancel();
+      applySnapshot({ messages: [] });
+    }
 
     runLoad();
     return () => {
@@ -442,7 +445,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
       loadControllerRef.current?.controller.abort();
       setIsLoadingThread(false);
     };
-  }, [runLoad, effectiveLoadKey, applySnapshot]);
+  }, [runLoad, effectiveLoadKey, applySnapshot, cancel]);
 
   const runtime = useExternalStoreRuntime({
     ...pickExternalStoreSharedOptions(options),

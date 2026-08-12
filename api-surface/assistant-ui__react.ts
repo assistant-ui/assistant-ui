@@ -3701,7 +3701,7 @@ type RemoteThreadListAdapter = {
 
 type RemoteThreadListOptions = {
   runtimeHook: () => AssistantRuntime;
-  unstable_runtimeHookKey?: PropertyKey | object | undefined;
+  unstable_runtimeHookKey?: PropertyKey | undefined;
   adapter: RemoteThreadListAdapter;
   initialThreadId?: string | undefined;
   threadId?: string | undefined;

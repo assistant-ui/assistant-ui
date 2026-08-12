@@ -70,7 +70,7 @@ export type RemoteThreadListOptions = {
    * Rerenders mounted thread runtime hooks when their backing scope changes.
    * Ordinary runtime hook identity changes are intentionally ignored.
    */
-  unstable_runtimeHookKey?: PropertyKey | object | undefined;
+  unstable_runtimeHookKey?: PropertyKey | undefined;
   adapter: RemoteThreadListAdapter;
 
   /**

@@ -25,6 +25,47 @@ afterEach(() => {
 });
 
 describe("ADK runtime callbacks", () => {
+  it("ignores events yielded after cancellation", async () => {
+    let releaseStream!: () => void;
+    const streamReady = new Promise<void>((resolve) => {
+      releaseStream = resolve;
+    });
+    let streamSignal: AbortSignal | undefined;
+    const stream: AdkStreamCallback = async function* (_, options) {
+      streamSignal = options.abortSignal;
+      await streamReady;
+      yield {
+        id: "stale-answer",
+        author: "agent",
+        content: { role: "model", parts: [{ text: "stale" }] },
+      };
+    };
+    const { result } = renderHook(() => useAdkMessages({ stream }));
+
+    let sendPromise!: Promise<void>;
+    act(() => {
+      sendPromise = result.current.sendMessage(
+        [{ id: "user", type: "human", content: "hello" }],
+        {},
+      );
+    });
+    await vi.waitFor(() => expect(streamSignal).toBeDefined());
+
+    act(() => result.current.cancel());
+    expect(streamSignal?.aborted).toBe(true);
+
+    releaseStream();
+    await act(async () => {
+      await sendPromise;
+    });
+
+    expect(result.current.messages).toHaveLength(1);
+    expect(result.current.messages[0]).toMatchObject({
+      id: "user",
+      type: "human",
+    });
+  });
+
   it.each(["onAgentTransfer", "onCustomEvent", "onError"] as const)(
     "continues streaming when %s throws",
     async (callbackName) => {

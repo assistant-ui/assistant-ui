@@ -10,7 +10,7 @@ import type {
 } from "@assistant-ui/core";
 import { useAui } from "@assistant-ui/store";
 import { useAdkRuntime } from "./useAdkRuntime";
-import type { AdkMessage, AdkThreadSnapshot } from "./types";
+import type { AdkMessage, AdkStreamCallback, AdkThreadSnapshot } from "./types";
 
 const deferred = <T,>() => {
   let resolve!: (value: T) => void;
@@ -239,6 +239,81 @@ describe("useAdkRuntime refetch", () => {
     expect(
       JSON.stringify(capture.runtime!.thread.getState().messages),
     ).not.toContain("workspace a");
+  });
+
+  it("cancels and ignores an earlier stream after the load key changes", async () => {
+    const pendingStream = deferred<void>();
+    let streamSignal: AbortSignal | undefined;
+    const stream = vi.fn<AdkStreamCallback>(async function* (_, options) {
+      streamSignal = options.abortSignal;
+      await pendingStream.promise;
+      yield {
+        id: "late-a",
+        author: "agent",
+        content: { role: "model", parts: [{ text: "late workspace a" }] },
+      };
+    });
+    const loadA = vi.fn(async () => ({
+      messages: [aiMessage("a", "workspace a")],
+    }));
+    const loadB = vi.fn(async () => ({
+      messages: [aiMessage("b", "workspace b")],
+    }));
+    const adapter = makeThreadListAdapter();
+    const capture: { runtime: AssistantRuntime | null } = { runtime: null };
+
+    const Inner: FC<{
+      load: typeof loadA;
+      loadKey: string;
+    }> = ({ load, loadKey }) => {
+      const runtime = useAdkRuntime({
+        stream,
+        load: load as never,
+        loadKey,
+        sessionAdapter: adapter,
+      });
+      capture.runtime = runtime;
+      return (
+        <AssistantRuntimeProvider runtime={runtime}>
+          {null}
+        </AssistantRuntimeProvider>
+      );
+    };
+
+    let rendered!: ReturnType<typeof render>;
+    await act(async () => {
+      rendered = render(<Inner load={loadA} loadKey="workspace-a" />);
+    });
+    await act(async () => {
+      await capture.runtime!.threads.switchToThread("adk-1");
+    });
+    await waitFor(() => expect(loadA).toHaveBeenCalledTimes(1));
+
+    let sendPromise!: Promise<void>;
+    act(() => {
+      sendPromise = capture.runtime!.thread.append("hello");
+    });
+    await waitFor(() => expect(stream).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      rendered.rerender(<Inner load={loadB} loadKey="workspace-b" />);
+    });
+
+    await waitFor(() => expect(loadB).toHaveBeenCalledTimes(1));
+    expect(streamSignal?.aborted).toBe(true);
+    await waitFor(() =>
+      expect(
+        JSON.stringify(capture.runtime!.thread.getState().messages),
+      ).toContain("workspace b"),
+    );
+
+    pendingStream.resolve(undefined);
+    await act(async () => {
+      await sendPromise;
+    });
+    expect(
+      JSON.stringify(capture.runtime!.thread.getState().messages),
+    ).not.toContain("late workspace a");
   });
 
   it("declares the refetch capability only when a load is supplied", async () => {
