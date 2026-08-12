@@ -48,8 +48,7 @@ export function reconcileEffects<R>(
   const errors: unknown[] = [];
   const pending: EffectCell[] = [];
 
-  for (const cell of fiber.cells) {
-    if (cell?.type !== "effect") continue;
+  for (const cell of fiber.effectCells) {
     if (effectNeedsRun(cell, rendered)) pending.push(cell);
   }
 
@@ -76,18 +75,16 @@ export function reconcileEffects<R>(
 
 export function cleanupAllEffects<R>(executionContext: ResourceFiber<R>) {
   const errors: unknown[] = [];
-  for (const cell of executionContext.cells) {
-    if (cell?.type === "effect") {
-      cell.deps = null; // Reset deps so effect runs again on next mount
+  for (const cell of executionContext.effectCells) {
+    cell.deps = null; // Reset deps so effect runs again on next mount
 
-      if (cell.cleanup) {
-        try {
-          cell.cleanup?.();
-        } catch (e) {
-          errors.push(e);
-        } finally {
-          cell.cleanup = undefined;
-        }
+    if (cell.cleanup) {
+      try {
+        cell.cleanup?.();
+      } catch (e) {
+        errors.push(e);
+      } finally {
+        cell.cleanup = undefined;
       }
     }
   }

@@ -44,6 +44,7 @@ export function useEffect(
     }
 
     fiber.cells[index] = cell;
+    fiber.effectCells.push(cell);
   }
 
   if (cell.deps !== null && !!deps !== !!cell.deps)

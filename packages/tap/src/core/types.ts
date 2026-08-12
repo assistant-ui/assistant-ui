@@ -90,6 +90,9 @@ export interface ResourceFiber<R> {
   readonly devStrictMode: "root" | "child" | null;
 
   cells: Cell[];
+  // Effect cells in declaration order; append-only, populated at cell
+  // creation so commit walks effects without filtering every cell.
+  effectCells: EffectCell[];
 
   wipContextDeps: ResourceContextDeps | null;
   contextDeps: ResourceContextDeps | null;

@@ -22,6 +22,7 @@ export function createResourceFiber<R>(
     markDirty,
     devStrictMode: strictMode,
     cells: [],
+    effectCells: [],
     contextDeps: null,
     wipContextDeps: null,
     wipCommitCallbacks: null,
