@@ -53,9 +53,11 @@ export const useRemoteThreadListRuntime = (
 
   const initialThreadIdRef = useRef(options.initialThreadId);
 
+  /* oxlint-disable react-hooks/exhaustive-deps -- the key refreshes the closure consumed by mounted binders */
   const stableRuntimeHook = useCallback(() => {
     return runtimeHookRef.current();
-  }, []);
+  }, [options.unstable_runtimeHookKey]);
+  /* oxlint-enable react-hooks/exhaustive-deps */
 
   const onThreadIdChange = useEffectEvent((threadId: string | undefined) => {
     options.onThreadIdChange?.(threadId);

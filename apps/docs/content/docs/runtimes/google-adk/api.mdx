@@ -147,6 +147,7 @@ Use `createAdkSessionAdapter` to persist threads via ADK's session API; see [Dir
 ```ts
 const runtime = useAdkRuntime({
   stream: createAdkStream({ api: "/api/chat" }),
+  loadKey: workspaceId,
   create: async () => {
     const sessionId = await createSession();
     return { externalId: sessionId };
@@ -160,6 +161,10 @@ const runtime = useAdkRuntime({
   },
 });
 ```
+
+Keep `loadKey` stable for the same history scope and change it when the active
+account or workspace changes. The runtime clears the previous scope and reloads
+the active thread with the latest `load` callback.
 
 ### Cloud persistence
 

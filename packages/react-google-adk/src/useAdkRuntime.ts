@@ -164,6 +164,14 @@ const toAdkUserMessage = (
   content: getMessageContent(msg),
 });
 
+const DEFAULT_LOAD_KEY = Symbol("default-adk-load-key");
+const NO_LOAD_KEY = Symbol("no-adk-load");
+
+const getLoadKey = (
+  load: UseAdkRuntimeOptions["load"],
+  loadKey: UseAdkRuntimeOptions["loadKey"],
+) => (load === undefined ? NO_LOAD_KEY : (loadKey ?? DEFAULT_LOAD_KEY));
+
 export type UseAdkRuntimeOptions = ExternalStoreSharedOptions & {
   stream: AdkStreamCallback;
   /**
@@ -191,6 +199,11 @@ export type UseAdkRuntimeOptions = ExternalStoreSharedOptions & {
     threadId: string,
     options?: { signal?: AbortSignal | undefined },
   ) => Promise<AdkThreadSnapshot>;
+  /**
+   * Stable identifier for the backing load scope. Change it to clear and
+   * reload the active thread when its account or workspace changes.
+   */
+  loadKey?: PropertyKey | object | undefined;
   create?: () => Promise<{ externalId: string }>;
   delete?: (threadId: string) => Promise<void>;
   adapters?:
@@ -224,6 +237,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
     unstable_allowCancellation,
     stream,
     load,
+    loadKey,
     getCheckpointId,
     eventHandlers,
   } = options;
@@ -250,6 +264,8 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
 
   const loadRef = useRef(load);
   loadRef.current = load;
+  const effectiveLoadKey = getLoadKey(load, loadKey);
+  const previousLoadKeyRef = useRef(effectiveLoadKey);
   const loadControllerRef = useRef<{
     controller: AbortController;
     purpose: "initial" | "reload";
@@ -412,6 +428,13 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
   );
 
   useEffect(() => {
+    const loadKeyChanged = !Object.is(
+      previousLoadKeyRef.current,
+      effectiveLoadKey,
+    );
+    previousLoadKeyRef.current = effectiveLoadKey;
+    if (loadKeyChanged) applySnapshot({ messages: [] });
+
     runLoad();
     return () => {
       // Whatever is current, not this effect's own controller: a refetch swaps
@@ -419,7 +442,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
       loadControllerRef.current?.controller.abort();
       setIsLoadingThread(false);
     };
-  }, [runLoad]);
+  }, [runLoad, effectiveLoadKey, applySnapshot]);
 
   const runtime = useExternalStoreRuntime({
     ...pickExternalStoreSharedOptions(options),
@@ -577,6 +600,21 @@ export const useAdkRuntime = ({
   onThreadIdChange,
   ...options
 }: UseAdkRuntimeOptions) => {
+  const latestLoadRef = useRef(options.load);
+  latestLoadRef.current = options.load;
+  const latestLoad = useCallback<NonNullable<UseAdkRuntimeOptions["load"]>>(
+    (threadId, loadOptions) => {
+      const load = latestLoadRef.current;
+      if (!load) {
+        throw new Error("Google ADK history loading is not configured.");
+      }
+      return load(threadId, loadOptions);
+    },
+    [],
+  );
+  const runtimeOptions =
+    options.load === undefined ? options : { ...options, load: latestLoad };
+
   const aui = useAui();
   const cloudAdapter = useCloudThreadListAdapter({
     cloud,
@@ -592,8 +630,9 @@ export const useAdkRuntime = ({
 
   return useRemoteThreadListRuntime({
     runtimeHook: function RuntimeHook() {
-      return useAdkRuntimeImpl(options);
+      return useAdkRuntimeImpl(runtimeOptions);
     },
+    unstable_runtimeHookKey: getLoadKey(options.load, options.loadKey),
     adapter,
     allowNesting: true,
     onThreadIdChange,

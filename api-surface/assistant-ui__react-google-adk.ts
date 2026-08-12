@@ -2339,6 +2339,7 @@ type UseAdkRuntimeOptions = ExternalStoreSharedOptions & {
   load?: (threadId: string, options?: {
     signal?: AbortSignal | undefined;
   }) => Promise<AdkThreadSnapshot>;
+  loadKey?: PropertyKey | object | undefined;
   create?: () => Promise<{
     externalId: string;
   }>;

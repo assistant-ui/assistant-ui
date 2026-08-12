@@ -105,6 +105,142 @@ const renderAdk = async (
 };
 
 describe("useAdkRuntime refetch", () => {
+  it("clears and reloads the current thread when the load key changes", async () => {
+    const pendingB = deferred<AdkThreadSnapshot>();
+    const loadA = vi.fn(async () => ({
+      messages: [aiMessage("a", "workspace a")],
+    }));
+    const loadB = vi.fn(() => pendingB.promise);
+    const adapter = makeThreadListAdapter();
+    const capture: { runtime: AssistantRuntime | null } = { runtime: null };
+
+    const Inner: FC<{
+      load: typeof loadA;
+      loadKey: string;
+    }> = ({ load, loadKey }) => {
+      const runtime = useAdkRuntime({
+        stream: vi.fn(async function* () {}) as never,
+        load: load as never,
+        loadKey,
+        sessionAdapter: adapter,
+      });
+      capture.runtime = runtime;
+      return (
+        <AssistantRuntimeProvider runtime={runtime}>
+          {null}
+        </AssistantRuntimeProvider>
+      );
+    };
+
+    let rendered!: ReturnType<typeof render>;
+    await act(async () => {
+      rendered = render(<Inner load={loadA} loadKey="workspace-a" />);
+    });
+    await act(async () => {
+      await capture.runtime!.threads.switchToThread("adk-1");
+    });
+    await waitFor(() =>
+      expect(
+        JSON.stringify(capture.runtime!.thread.getState().messages),
+      ).toContain("workspace a"),
+    );
+
+    await act(async () => {
+      rendered.rerender(<Inner load={loadB} loadKey="workspace-b" />);
+    });
+
+    await waitFor(() => expect(loadB).toHaveBeenCalledTimes(1));
+    expect(capture.runtime!.thread.getState().messages).toEqual([]);
+    expect(capture.runtime!.thread.getState().isLoading).toBe(true);
+
+    await act(async () => {
+      pendingB.resolve({ messages: [aiMessage("b", "workspace b")] });
+    });
+    await waitFor(() =>
+      expect(
+        JSON.stringify(capture.runtime!.thread.getState().messages),
+      ).toContain("workspace b"),
+    );
+
+    const loadB2 = vi.fn(async () => ({
+      messages: [aiMessage("b-2", "workspace b refreshed")],
+    }));
+    await act(async () => {
+      rendered.rerender(<Inner load={loadB2} loadKey="workspace-b" />);
+    });
+    await act(async () => {
+      await capture.runtime!.threads.reloadMainThread();
+    });
+    expect(loadB2).toHaveBeenCalledTimes(1);
+    await waitFor(() =>
+      expect(
+        JSON.stringify(capture.runtime!.thread.getState().messages),
+      ).toContain("workspace b refreshed"),
+    );
+  });
+
+  it("ignores an earlier load after the load key changes", async () => {
+    const pendingA = deferred<AdkThreadSnapshot>();
+    const signals: AbortSignal[] = [];
+    const loadA = vi.fn(
+      (_id: string, options?: { signal?: AbortSignal | undefined }) => {
+        if (options?.signal) signals.push(options.signal);
+        return pendingA.promise;
+      },
+    );
+    const loadB = vi.fn(async () => ({
+      messages: [aiMessage("b", "workspace b")],
+    }));
+    const adapter = makeThreadListAdapter();
+    const capture: { runtime: AssistantRuntime | null } = { runtime: null };
+
+    const Inner: FC<{
+      load: typeof loadA;
+      loadKey: string;
+    }> = ({ load, loadKey }) => {
+      const runtime = useAdkRuntime({
+        stream: vi.fn(async function* () {}) as never,
+        load: load as never,
+        loadKey,
+        sessionAdapter: adapter,
+      });
+      capture.runtime = runtime;
+      return (
+        <AssistantRuntimeProvider runtime={runtime}>
+          {null}
+        </AssistantRuntimeProvider>
+      );
+    };
+
+    let rendered!: ReturnType<typeof render>;
+    await act(async () => {
+      rendered = render(<Inner load={loadA} loadKey="workspace-a" />);
+    });
+    await act(async () => {
+      await capture.runtime!.threads.switchToThread("adk-1");
+    });
+    await waitFor(() => expect(loadA).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      rendered.rerender(<Inner load={loadB} loadKey="workspace-b" />);
+    });
+
+    await waitFor(() => expect(loadB).toHaveBeenCalledTimes(1));
+    expect(signals[0]?.aborted).toBe(true);
+    await waitFor(() =>
+      expect(
+        JSON.stringify(capture.runtime!.thread.getState().messages),
+      ).toContain("workspace b"),
+    );
+
+    await act(async () => {
+      pendingA.resolve({ messages: [aiMessage("a", "workspace a")] });
+    });
+    expect(
+      JSON.stringify(capture.runtime!.thread.getState().messages),
+    ).not.toContain("workspace a");
+  });
+
   it("declares the refetch capability only when a load is supplied", async () => {
     const withLoad = await renderAdk(async () => ({ messages: [] }));
     expect(
