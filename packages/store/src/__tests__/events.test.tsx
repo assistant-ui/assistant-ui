@@ -540,3 +540,150 @@ describe("Derived scopes", () => {
     expect(result.current).toBe("");
   });
 });
+
+describe("derived-only providers", () => {
+  const messageByIndex = (index: number) =>
+    Derived({
+      source: "thread",
+      query: { index },
+      get: (aui: AnyClient) => aui.thread.message({ index }),
+    } as never);
+
+  const Listener = ({ cb }: { cb: (payload: unknown) => void }) => {
+    useAuiEvent("message.pinged" as never, cb as never);
+    return null;
+  };
+
+  const DerivedChild = ({
+    index,
+    children,
+    capture,
+  }: {
+    index: number;
+    children?: ReactNode;
+    capture?: (aui: AnyClient) => void;
+  }) => {
+    const aui = useAui({ message: messageByIndex(index) } as never);
+    capture?.(aui);
+    return <AuiProvider value={aui as never}>{children}</AuiProvider>;
+  };
+
+  const mountRoot = (
+    rootConfig: Record<string, unknown>,
+    children: ReactNode,
+  ) => {
+    let root!: AnyClient;
+    const Root = () => {
+      root = useAui(rootConfig as never);
+      return <AuiProvider value={root as never}>{children}</AuiProvider>;
+    };
+    render(<Root />);
+    return { root: () => root };
+  };
+
+  it("delivers the child binding's event when the parent lacks the scope", async () => {
+    const cb = vi.fn();
+    const { root } = mountRoot(
+      { thread: ThreadClient() },
+      <DerivedChild index={1}>
+        <Listener cb={cb} />
+      </DerivedChild>,
+    );
+
+    root().thread.message({ index: 1 }).ping("hit");
+    await flushEvents();
+
+    expect(cb).toHaveBeenCalledExactlyOnceWith({ id: "m1", value: "hit" });
+  });
+
+  it("filters both directions when the parent holds a different instance", async () => {
+    const cb = vi.fn();
+    const { root } = mountRoot(
+      { thread: ThreadClient(), message: messageByIndex(0) },
+      <DerivedChild index={1}>
+        <Listener cb={cb} />
+      </DerivedChild>,
+    );
+
+    root().thread.message({ index: 0 }).ping("parent");
+    await flushEvents();
+    expect(cb).not.toHaveBeenCalled();
+
+    root().thread.message({ index: 1 }).ping("child");
+    await flushEvents();
+    expect(cb).toHaveBeenCalledExactlyOnceWith({ id: "m1", value: "child" });
+  });
+
+  it("reaches the child listener through a scope-less intermediate host", async () => {
+    const cb = vi.fn();
+    let intermediate!: AnyClient;
+    const Intermediate = ({ children }: { children: ReactNode }) => {
+      intermediate = useAui({} as never);
+      return (
+        <AuiProvider value={intermediate as never}>{children}</AuiProvider>
+      );
+    };
+    const { root } = mountRoot(
+      { thread: ThreadClient() },
+      <Intermediate>
+        <DerivedChild index={1}>
+          <Listener cb={cb} />
+        </DerivedChild>
+      </Intermediate>,
+    );
+
+    root().thread.message({ index: 1 }).ping("deep");
+    await flushEvents();
+
+    expect(cb).toHaveBeenCalledExactlyOnceWith({ id: "m1", value: "deep" });
+  });
+
+  it("follows the committed selection across a structural swap", async () => {
+    const cb = vi.fn();
+    let setIndex!: (index: number) => void;
+    const Swapping = () => {
+      const [index, updateIndex] = useState(0);
+      setIndex = updateIndex;
+      return (
+        <DerivedChild index={index}>
+          <Listener cb={cb} />
+        </DerivedChild>
+      );
+    };
+    const { root } = mountRoot({ thread: ThreadClient() }, <Swapping />);
+
+    act(() => setIndex(1));
+
+    root().thread.message({ index: 0 }).ping("stale");
+    await flushEvents();
+    expect(cb).not.toHaveBeenCalled();
+
+    root().thread.message({ index: 1 }).ping("fresh");
+    await flushEvents();
+    expect(cb).toHaveBeenCalledExactlyOnceWith({ id: "m1", value: "fresh" });
+  });
+
+  it("filters a direct aui.on subscription by the child binding", async () => {
+    const cb = vi.fn();
+    let child!: AnyClient;
+    const { root } = mountRoot(
+      { thread: ThreadClient(), message: messageByIndex(0) },
+      <DerivedChild
+        index={1}
+        capture={(aui) => {
+          child = aui;
+        }}
+      />,
+    );
+
+    act(() => {
+      child.on("message.pinged", cb);
+    });
+
+    root().thread.message({ index: 0 }).ping("parent");
+    root().thread.message({ index: 1 }).ping("child");
+    await flushEvents();
+
+    expect(cb).toHaveBeenCalledExactlyOnceWith({ id: "m1", value: "child" });
+  });
+});

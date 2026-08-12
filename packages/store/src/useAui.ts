@@ -108,6 +108,14 @@ type ClientFields = {
   on: AssistantClient["on"];
 };
 
+// Rides on the selector object through the parent-chain forwarding in `on`,
+// so every level filters delivery against the subscribing provider's own
+// committed bindings instead of its own. Module-internal; the public
+// selector shape is unchanged.
+const EVENT_RECEIVER_REF = Symbol("aui.event-receiver-ref");
+
+type RiddenSelector = { [EVENT_RECEIVER_REF]?: ClientRef };
+
 const createClientObject = (
   parent: AssistantClient,
   fields: ClientFields,
@@ -143,8 +151,9 @@ const useClientFields = ({
         }
 
         const { scope, event } = normalizeEventSelector(selector);
+        const receiverRef = (selector as RiddenSelector)[EVENT_RECEIVER_REF];
 
-        if (scope !== "*") {
+        if (scope !== "*" && !receiverRef) {
           // A hand-built parent may lack the scope entirely; forward to it
           const source = this[scope as ClientNames]?.source;
           if (source === null) {
@@ -160,10 +169,11 @@ const useClientFields = ({
             return;
           }
 
-          // Resolved against the host's current client: a structural swap
-          // replaces the client identity, and a listener subscribed on an
-          // earlier generation still follows the scope's present binding
-          const boundScope = (clientRef.current ?? this)[
+          // Resolved against the subscribing provider's current client: a
+          // structural swap replaces the client identity, and a listener
+          // subscribed on an earlier generation still follows the scope's
+          // present binding
+          const boundScope = ((receiverRef ?? clientRef).current ?? this)[
             scope as ClientNames
           ] as AssistantClientAccessor<ClientNames> | undefined;
           // A scope removed by a structural change since subscription cannot
@@ -177,11 +187,16 @@ const useClientFields = ({
             callback(payload);
           }
         });
-        if (
-          scope !== "*" &&
-          clientRef.parent[scope as ClientNames]?.source === null
-        )
-          return localUnsub;
+        if (scope !== "*") {
+          // A ridden subscription filters against the subscriber's bindings,
+          // so an ancestor's own scope set says nothing about where the
+          // emission lands; forward until the chain leaves generated clients.
+          if (receiverRef) {
+            if (clientRef.parent === DefaultAssistantClient) return localUnsub;
+          } else if (clientRef.parent[scope as ClientNames]?.source === null) {
+            return localUnsub;
+          }
+        }
 
         const parentUnsub = clientRef.parent.on(selector, callback);
 
@@ -372,8 +387,9 @@ const useDerivedScopeMount = (
 
 // Derived-only hosts run without tap: each Derived scope is a plain React
 // hook call, so the scope count is fixed per call site (React throws on a
-// hook-count change). subscribe/on delegate wholesale to the parent, so
-// emissions and state updates flow through the parent's machinery.
+// hook-count change). subscribe delegates wholesale to the parent; on
+// delegates transport to the parent while riding the child's ClientRef on
+// the selector, so delivery filters against the child's own bindings.
 const useDerivedOnlyClient = (
   parent: AssistantClient,
   entries: ScopeEntry[],
@@ -397,16 +413,60 @@ const useDerivedOnlyClient = (
     }
   }
 
+  const clientRef = useRef<ClientRef>({ parent, current: null }).current;
+
+  const on = function <TEvent extends AssistantEventName>(
+    this: AssistantClient,
+    selector: AssistantEventSelector<TEvent>,
+    callback: AssistantEventCallback<TEvent>,
+  ) {
+    if (!this) {
+      throw new Error(
+        "const { on } = useAui() is not supported. Use aui.on() instead.",
+      );
+    }
+
+    const { scope, event } = normalizeEventSelector(selector);
+    if (scope === "*") return parent.on(selector, callback);
+
+    // A nested derived-only provider keeps the original subscriber's ref
+    const ridden = (selector as RiddenSelector)[EVENT_RECEIVER_REF];
+    if (!ridden) {
+      const source = this[scope as ClientNames]?.source;
+      if (source === null) {
+        throw new Error(
+          `Scope "${scope}" is not available. Use { scope: "*", event: "${event}" } to listen globally.`,
+        );
+      }
+    }
+
+    return parent.on(
+      {
+        scope,
+        event,
+        [EVENT_RECEIVER_REF]: ridden ?? clientRef,
+      } as AssistantEventSelector<TEvent>,
+      callback,
+    );
+  };
+
   const building = createClientObject(parent, {
     subscribe: parent.subscribe,
-    on: parent.on,
+    on,
   });
 
   const accessors = entries.map(([name, element]) =>
     // oxlint-disable-next-line react-hooks/rules-of-hooks -- fixed per call site; React throws on a count change
     useDerivedScopeMount(parent, building, name, element),
   );
-  return useCommittedClient(building, [parent, ...accessors]);
+  const client = useCommittedClient(building, [parent, ...accessors]);
+
+  useInsertionEffect(() => {
+    clientRef.parent = parent;
+    clientRef.current = client;
+  }, [client, parent, clientRef]);
+
+  return client;
 };
 
 type ScopedAuiClient = { client: AssistantClient; effects?: () => void };
