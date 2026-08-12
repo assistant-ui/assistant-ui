@@ -44,7 +44,7 @@ describe("assistantUICourseCertificate", () => {
       name: "   ",
     });
     expect(result.error).toBe("Failed to write course certificate");
-    expect(result.message).toMatch(/non-empty/i);
+    expect(result.message).toMatch(/too small|at least|non-empty|required/i);
   });
 
   it("rejects unknown fields such as courseId", async () => {

@@ -36,7 +36,9 @@ describe("course loader", () => {
     const step = loadCourseStep(1);
     expect(step.id).toBe("meet-the-project");
     expect(step.lessonMarkdown).toContain("npx create-next-app@latest");
-    expect(step.lessonPath).toContain("course/build-generative-ui-assistant/lessons/");
+    expect(step.lessonPath.split(/[\\/]+/).join("/")).toContain(
+      "course/build-generative-ui-assistant/lessons/",
+    );
   });
 
   it("rejects invalid steps", () => {

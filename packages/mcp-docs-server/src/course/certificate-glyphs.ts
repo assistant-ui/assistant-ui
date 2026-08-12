@@ -1,7 +1,4 @@
-/**
- * In-repo 5×7 bitmap glyphs for certificate text (M0 lock: no external fonts).
- * Each glyph is seven row strings of five chars: "#" = on, "." = off.
- */
+/** Each glyph is seven row strings of five chars: "#" = on, "." = off. */
 
 const RAW: Record<string, string[]> = {
   " ": [".....", ".....", ".....", ".....", ".....", ".....", "....."],
@@ -77,6 +74,10 @@ const RAW: Record<string, string[]> = {
 
 export const GLYPH_WIDTH = 5;
 export const GLYPH_HEIGHT = 7;
+
+export function hasGlyph(char: string): boolean {
+  return Object.hasOwn(RAW, char);
+}
 
 export function getGlyph(char: string): string[] {
   return RAW[char] ?? RAW[" "]!;

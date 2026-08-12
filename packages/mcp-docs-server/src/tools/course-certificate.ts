@@ -12,6 +12,9 @@ export const certificateInputSchema = z
   .object({
     name: z
       .string()
+      .trim()
+      .min(1)
+      .max(MAX_CERTIFICATE_NAME_LENGTH)
       .describe(
         `Recipient name to print on the certificate (required, max ${MAX_CERTIFICATE_NAME_LENGTH} characters).`,
       ),

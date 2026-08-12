@@ -1,5 +1,6 @@
 import { z } from "zod";
 import {
+  COURSE_STEP_COUNT,
   CourseLoadError,
   loadCourseOverview,
   loadCourseStep,
@@ -14,9 +15,11 @@ export const courseInputSchema = z
       .number()
       .int()
       .min(1)
-      .max(8)
+      .max(COURSE_STEP_COUNT)
       .optional()
-      .describe("Lesson step number from 1 to 8. Omit for the course overview."),
+      .describe(
+        `Lesson step number from 1 to ${COURSE_STEP_COUNT}. Omit for the course overview.`,
+      ),
   })
   .strict();
 

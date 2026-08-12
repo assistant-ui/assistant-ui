@@ -4,6 +4,7 @@ import { z } from "zod";
 import { PACKAGE_DIR } from "../constants.js";
 
 const COURSE_ID = "build-generative-ui-assistant";
+export const COURSE_STEP_COUNT = 8;
 export const COURSE_DIR = join(PACKAGE_DIR, "course", COURSE_ID);
 
 const courseStepSchema = z
@@ -23,7 +24,7 @@ export const courseRegistrySchema = z
     id: z.literal(COURSE_ID),
     title: z.string().min(1),
     outcome: z.string().min(1),
-    steps: z.array(courseStepSchema).length(8),
+    steps: z.array(courseStepSchema).length(COURSE_STEP_COUNT),
   })
   .strict();
 
@@ -48,7 +49,9 @@ export function validateCourseRegistry(input: unknown): CourseRegistry {
 
   result.data.steps.forEach((step, index) => {
     if (step.step !== index + 1) {
-      throw new CourseLoadError("Course steps must be ordered exactly from 1 to 8");
+      throw new CourseLoadError(
+        `Course steps must be ordered exactly from 1 to ${COURSE_STEP_COUNT}`,
+      );
     }
     assertSafeRelativePath(step.lessonFile);
   });
@@ -78,7 +81,13 @@ function lessonPath(courseDir: string, step: CourseStep): string {
   if (!existsSync(candidate)) {
     throw new CourseLoadError(`Course lesson file is missing: ${step.lessonFile}`);
   }
-  return realpathSync(candidate);
+  const resolvedCourseDir = realpathSync(courseDir);
+  const resolvedLesson = realpathSync(candidate);
+  const resolvedRelative = relative(resolvedCourseDir, resolvedLesson);
+  if (resolvedRelative.startsWith("..") || isAbsolute(resolvedRelative)) {
+    throw new CourseLoadError("Course lessonFile escapes the course directory");
+  }
+  return resolvedLesson;
 }
 
 export function loadCourseOverviewFromDirectory(courseDir: string) {
@@ -94,7 +103,9 @@ export function loadCourseStepFromDirectory(courseDir: string, stepNumber: numbe
   const registry = loadRegistry(courseDir);
   const step = registry.steps.find((item) => item.step === stepNumber);
   if (!step) {
-    throw new CourseLoadError(`Course step must be a number from 1 to 8`);
+    throw new CourseLoadError(
+      `Course step must be a number from 1 to ${COURSE_STEP_COUNT}`,
+    );
   }
   const path = lessonPath(courseDir, step);
   return {

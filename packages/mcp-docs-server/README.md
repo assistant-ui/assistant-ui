@@ -7,7 +7,7 @@ Model Context Protocol (MCP) server that gives AI assistants direct access to as
 
 ## Course tools
 
-The package ships a fixed eight-step course, **Build a Generative UI Assistant**, under `course/build-generative-ui-assistant/`.
+The package ships a fixed eight-step course, **Build a Generative UI Assistant**, under `course/build-generative-ui-assistant/`. Lessons are authored for coding agents (CLI, full files, live Open-Meteo) and are not a copy of the web Learn stage trees.
 
 ### `assistantUICourse`
 

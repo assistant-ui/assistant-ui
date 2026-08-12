@@ -1,9 +1,3 @@
-/**
- * Verbatim M0 canonical teaching wrapper.
- * Source of truth: docs/workstreams/mcp-learn-course/modules/m0-discovery/canonical-wrapper.md
- * Do not paraphrase.
- */
-
 export const COURSE_TEACHING_PREAMBLE = `This is a course to help a new user learn assistant-ui, the open-source React library for AI chat and agent interfaces.
 Help the user through this step by walking them through the content.
 If the step contains instructions to write code, write that code in the user's project when possible.

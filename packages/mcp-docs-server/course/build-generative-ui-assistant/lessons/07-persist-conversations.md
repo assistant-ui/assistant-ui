@@ -46,16 +46,9 @@ function createHistoryProvider(prefix: string) {
     const aui = useAui();
     const history = useMemo<ThreadHistoryAdapter>(() => {
       const key = () => `${prefix}messages:${aui.threadListItem().getState().remoteId ?? "new"}`;
-      const load: ThreadHistoryAdapter["load"] = async () => read(key(), { messages: [] });
       return {
-        load,
-        async append(item) {
-          const current = await load();
-          const index = current.messages.findIndex(({ message }) => message.id === item.message.id);
-          const messages = [...current.messages];
-          if (index === -1) messages.push(item); else messages[index] = item;
-          write(key(), { headId: item.message.id, messages });
-        },
+        load: async () => ({ messages: [] }),
+        async append() {},
         withFormat<TMessage, TStorageFormat extends Record<string, unknown>>(formatAdapter: MessageFormatAdapter<TMessage, TStorageFormat>): GenericThreadHistoryAdapter<TMessage> {
           const loadFormatted = async () => {
             const stored = read<StoredFormattedRepository>(key(), { messages: [] });

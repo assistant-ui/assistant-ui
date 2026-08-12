@@ -19,11 +19,16 @@ afterEach(() => {
 });
 
 describe("certificate", () => {
-  it("rejects empty and oversized names", () => {
+  it("rejects empty, oversized, and unsupported names", () => {
     expect(() => sanitizeCertificateName("   ")).toThrow(CertificateError);
     expect(() => sanitizeCertificateName("a".repeat(81))).toThrow(
       CertificateError,
     );
+    expect(() => sanitizeCertificateName("山田太郎")).toThrow(CertificateError);
+  });
+
+  it("keeps accented Latin names by stripping combining marks", () => {
+    expect(sanitizeCertificateName("José Álvarez")).toBe("Jose Alvarez");
   });
 
   it("writes a valid 1600x1000 PNG under the certificates directory", () => {
@@ -54,6 +59,19 @@ describe("certificate", () => {
       (bytes[20]! << 24) | (bytes[21]! << 16) | (bytes[22]! << 8) | bytes[23]!;
     expect(width).toBe(CERTIFICATE_WIDTH);
     expect(height).toBe(CERTIFICATE_HEIGHT);
+  });
+
+  it("writes an 80-character name without rejecting it", () => {
+    const directory = mkdtempSync(join(tmpdir(), "mcp-cert-"));
+    tempDirectories.push(directory);
+    const name = "A".repeat(80);
+    const result = writeCourseCertificate({
+      name,
+      courseTitle: "Build a Generative UI Assistant",
+      certificatesDir: directory,
+    });
+    expect(result.name).toBe(name);
+    expect(readFileSync(result.filePath).subarray(0, 8)[0]).toBe(0x89);
   });
 
   it("does not write a file when the name is invalid", () => {

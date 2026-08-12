@@ -3,7 +3,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { isAbsolute, join, relative, resolve } from "node:path";
 import { PNG } from "pngjs";
 import { getCertificatesDirectory } from "./cache-paths.js";
-import { GLYPH_HEIGHT, GLYPH_WIDTH, getGlyph } from "./certificate-glyphs.js";
+import { GLYPH_HEIGHT, GLYPH_WIDTH, getGlyph, hasGlyph } from "./certificate-glyphs.js";
 
 export const CERTIFICATE_WIDTH = 1600;
 export const CERTIFICATE_HEIGHT = 1000;
@@ -21,6 +21,20 @@ const ACCENT: Rgba = [180, 120, 64, 255];
 const MUTED: Rgba = [90, 98, 110, 255];
 const BORDER: Rgba = [40, 48, 60, 255];
 
+const NAME_MAX_SCALE = 5;
+const NAME_MIN_SCALE = 2;
+const NAME_MAX_WIDTH = CERTIFICATE_WIDTH - 160;
+
+function stripControlChars(value: string): string {
+  let result = "";
+  for (const char of value) {
+    const code = char.codePointAt(0) ?? 0;
+    if (code < 32 || code === 127) continue;
+    result += char;
+  }
+  return result;
+}
+
 export function sanitizeCertificateName(raw: string): string {
   const trimmed = raw.trim();
   if (!trimmed) {
@@ -31,9 +45,18 @@ export function sanitizeCertificateName(raw: string): string {
       `Certificate name must be at most ${MAX_CERTIFICATE_NAME_LENGTH} characters`,
     );
   }
-  const sanitized = trimmed.replace(/[\u0000-\u001F\u007F]/g, "");
+  const sanitized = stripControlChars(trimmed)
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "");
   if (!sanitized) {
     throw new CertificateError("Certificate name must contain printable characters");
+  }
+  for (const char of sanitized) {
+    if (!hasGlyph(char)) {
+      throw new CertificateError(
+        "Certificate name can only contain letters, digits, spaces, and - . , ' : /",
+      );
+    }
   }
   return sanitized;
 }
@@ -113,6 +136,13 @@ function drawText(
   }
 }
 
+function nameScale(name: string): number {
+  for (let scale = NAME_MAX_SCALE; scale >= NAME_MIN_SCALE; scale--) {
+    if (measureText(name, scale) <= NAME_MAX_WIDTH) return scale;
+  }
+  throw new CertificateError("Certificate name is too wide to render");
+}
+
 function drawCentered(
   png: PNG,
   text: string,
@@ -164,7 +194,7 @@ export function renderCertificatePng(options: {
   drawCentered(png, "CERTIFICATE OF COMPLETION", 140, 4, INK, 1);
   drawCentered(png, "assistant-ui", 230, 3, ACCENT, 1);
   drawCentered(png, "This certifies that", 330, 2, MUTED, 1);
-  drawCentered(png, options.name, 400, 5, INK, 1);
+  drawCentered(png, options.name, 400, nameScale(options.name), INK, 1);
   drawCentered(png, "has completed", 520, 2, MUTED, 1);
   drawCentered(png, options.courseTitle, 580, 3, INK, 1);
   drawCentered(png, options.awardDate, 700, 2, MUTED, 1);

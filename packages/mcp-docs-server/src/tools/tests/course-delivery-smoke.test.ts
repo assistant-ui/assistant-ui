@@ -28,6 +28,18 @@ describe("course delivery smoke", () => {
     expect(step1.step).toBe(1);
     expect(step1.teachingWrapper).toContain("Here is the content for this step:");
     expect(step1.lessonMarkdown).toContain("npx create-next-app@latest");
+    expect(step1.lessonMarkdown).toContain("border-[var(--foreground)]/15");
+
+    const snippets = [
+      { step: 2, needle: 'openai("gpt-5.4-nano")' },
+      { step: 4, needle: 'from "../../lib/weather"' },
+      { step: 6, needle: "[note.content]" },
+      { step: 7, needle: "load: async () => ({ messages: [] })" },
+    ] as const;
+    for (const { step, needle } of snippets) {
+      const lesson = await testContext.callTool("assistantUICourse", { step });
+      expect(lesson.lessonMarkdown).toContain(needle);
+    }
 
     const certificate = await testContext.callTool(
       "assistantUICourseCertificate",

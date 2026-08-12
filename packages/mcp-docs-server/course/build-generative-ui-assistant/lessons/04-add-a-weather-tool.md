@@ -23,15 +23,11 @@ custom weather cards arrive in the next step.
 
 ## Define live weather tools
 
-Create `app/toolkit.tsx` with this complete file. The calls run on the server,
-so browser code never talks directly to Open-Meteo.
+Create `lib/weather.ts` with the Open-Meteo helpers. Keep this file as an
+ordinary server module — not `"use generative"` — so the chat route can import
+the named functions for the no-key fallback.
 
-```tsx
-"use generative";
-
-import { defineToolkit } from "@assistant-ui/react";
-import { z } from "zod";
-
+```ts
 export async function geocodeLocation(query: string) {
   try {
     const response = await fetch(
@@ -60,6 +56,17 @@ export async function getWeather({ location, latitude, longitude }: { location: 
     return { success: false as const, error: error instanceof Error ? error.message : "Failed to fetch weather" };
   }
 }
+```
+
+Create `app/toolkit.tsx` with this complete file. The toolkit calls the same
+helpers; `"use generative"` stays on this file only.
+
+```tsx
+"use generative";
+
+import { defineToolkit } from "@assistant-ui/react";
+import { z } from "zod";
+import { geocodeLocation, getWeather } from "../lib/weather";
 
 export default defineToolkit({
   geocode_location: {
@@ -76,15 +83,16 @@ export default defineToolkit({
 ```
 
 Replace `app/api/chat/route.ts` so the model receives the toolkit and can make
-multiple tool steps. Its no-key path deliberately calls the same exported
-Open-Meteo functions directly. That keeps the lesson runnable without an
+multiple tool steps. Its no-key path deliberately calls the same Open-Meteo
+helpers from `lib/weather.ts`. That keeps the lesson runnable without an
 OpenAI key; it is a direct weather fallback, not model-driven tool selection.
 
 ```ts
 import { openai } from "@ai-sdk/openai";
 import { AISDKToolkit, type FrontendTools } from "@assistant-ui/react-ai-sdk";
 import { convertToModelMessages, createUIMessageStream, createUIMessageStreamResponse, stepCountIs, streamText, type UIMessage } from "ai";
-import toolkit, { geocodeLocation, getWeather } from "../../toolkit";
+import toolkit from "../../toolkit";
+import { geocodeLocation, getWeather } from "../../lib/weather";
 
 const aiToolkit = new AISDKToolkit({ toolkit });
 
@@ -119,7 +127,7 @@ export async function POST(request: Request) {
   const { messages, tools }: { messages: UIMessage[]; tools?: FrontendTools } = await request.json();
   if (!process.env.OPENAI_API_KEY) return fallbackWeatherResponse(messages);
   const result = streamText({
-    model: openai("gpt-5.6-luna"),
+    model: openai("gpt-5.4-nano"),
     system: "You are a concise, helpful assistant. Use the weather tools for weather questions.",
     messages: await convertToModelMessages(messages),
     tools: await aiToolkit.tools(tools ? { frontend: tools } : undefined),

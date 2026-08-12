@@ -216,7 +216,7 @@ export async function POST(request: Request) {
   }
 
   const result = streamText({
-    model: openai("gpt-5.6-luna"),
+    model: openai("gpt-5.4-nano"),
     system: "You are a concise, helpful assistant.",
     messages: await convertToModelMessages(messages),
   });
