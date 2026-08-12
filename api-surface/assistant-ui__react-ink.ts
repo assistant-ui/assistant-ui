@@ -719,6 +719,11 @@ declare abstract class BaseComposerRuntimeCore extends BaseSubscribable implemen
     quote?: QuoteInfo | undefined;
     attachments?: readonly Attachment[] | undefined;
   }): boolean;
+  retractDraft(draft: {
+    text: string;
+    quote?: QuoteInfo | undefined;
+    attachments?: readonly Attachment[] | undefined;
+  }): void;
   private _restoreUnsentDraft;
   cancel(): void;
   get queue(): readonly QueueItemState[];
