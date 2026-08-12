@@ -183,7 +183,7 @@ export class ThreadListItemRuntimeImpl implements ThreadListItemRuntime {
   public detach(): void {
     const state = this._core.getState();
 
-    this._threadListBinding.detach(state.id);
+    void this._threadListBinding.detach(state.id).catch(() => {});
   }
 
   public __internal_getRuntime(): ThreadListItemRuntime {

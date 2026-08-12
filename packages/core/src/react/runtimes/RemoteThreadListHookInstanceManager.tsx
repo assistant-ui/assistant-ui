@@ -253,7 +253,7 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
 
       const dispose = runtime.thread.unstable_on("runEnd", () => {
         dispose();
-        aui.threadListItem.generateTitle();
+        void aui.threadListItem.generateTitle().catch(() => {});
       });
     });
 

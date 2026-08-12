@@ -5,7 +5,7 @@ export const useThreadListItemUnarchive = () => {
   const aui = useAui();
 
   const unarchive = useCallback(() => {
-    aui.threadListItem.unarchive();
+    void aui.threadListItem.unarchive().catch(() => {});
   }, [aui]);
 
   return { unarchive };

@@ -5,7 +5,7 @@ export const useThreadListItemArchive = () => {
   const aui = useAui();
 
   const archive = useCallback(() => {
-    aui.threadListItem.archive();
+    void aui.threadListItem.archive().catch(() => {});
   }, [aui]);
 
   return { archive };
