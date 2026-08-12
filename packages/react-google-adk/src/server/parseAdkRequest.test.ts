@@ -161,12 +161,18 @@ describe("parseAdkRequest", () => {
     );
   });
 
-  it.each([{ type: "message", message: "hello" }, { parts: [] }])(
+  it.each([
+    [
+      { type: "message", message: "hello" },
+      { type: "message", text: "hello", config: {} },
+    ],
+    [{ parts: [] }, { type: "message", text: "", parts: [], config: {} }],
+  ])(
     "preserves supported empty and explicit message shapes %#",
-    async (body) => {
-      await expect(parseAdkRequest(makeRequest(body))).resolves.toMatchObject({
-        type: "message",
-      });
+    async (body, expected) => {
+      await expect(parseAdkRequest(makeRequest(body))).resolves.toEqual(
+        expected,
+      );
     },
   );
 
