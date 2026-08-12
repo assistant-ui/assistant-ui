@@ -22,7 +22,7 @@ export const createTapRoot = <R>(
     }
   });
 
-  const fiber = createRisesourceFiber(
+  const fiber = createResourceFiber(
     useTapRoot,
     createResourceFiberRoot((evaluate) => {
       pendingEvaluates.push(evaluate);
@@ -65,9 +65,9 @@ export const createTapRoot = <R>(
           if (!fiber.isNeverMounted) void renderFiber();
           flushTapSync(() => commitResourceFiber(fiber));
         } catch (error) {
+          if (fiber.isMounted) unmountResourceFiber(fiber);
           subscriberCount--;
           unsubscribe();
-          if (fiber.isMounted) unmountResourceFiber(fiber);
           throw error;
         }
       }

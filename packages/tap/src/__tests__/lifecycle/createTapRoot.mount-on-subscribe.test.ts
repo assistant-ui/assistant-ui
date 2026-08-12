@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
+import type { useTapRoot } from "../../hooks/useTapRoot";
 import { createTapRoot } from "../../core/createTapRoot";
 import { useEffect } from "../../react-hooks/useEffect";
 import { useMemo } from "../../react-hooks/useMemo";
@@ -288,6 +289,28 @@ describe("createTapRoot mountOnSubscribe", () => {
     const unsubscribe = root.subscribe(listener);
     expect(root.getValue()).toBe(1);
     unsubscribe();
+  });
+
+  it("rolls back re-entrant subscriptions made by a failed mount", () => {
+    let shouldThrow = true;
+    let self: useTapRoot.Root<number>;
+    const root = createTapRoot(
+      function Reentrant() {
+        useEffect(() => self.subscribe(() => {}));
+        useEffect(() => {
+          if (shouldThrow) throw new Error("mount failed");
+        });
+        return 1;
+      },
+      { mountOnSubscribe: true },
+    );
+    self = root;
+
+    expect(() => root.subscribe(() => {})).toThrow("mount failed");
+
+    shouldThrow = false;
+    root.subscribe(() => {});
+    expect(root.getValue()).toBe(1);
   });
 
   it("throws on unmount()", () => {
