@@ -95,7 +95,7 @@ describe("render abort", () => {
     expect(renderResourceFiber(fiber, [])).toBe(1);
   });
 
-  it("a render-phase dispatch in an aborted render does not leak into the retry", () => {
+  it("an undrained render-phase dispatch does not leak into the retry", () => {
     const root = createResourceFiberRoot(() => {});
 
     let explode = false;
@@ -114,5 +114,27 @@ describe("render abort", () => {
     explode = false;
     expect(renderResourceFiber(fiber, [false])).toBe(0);
     commitResourceFiber(fiber);
+  });
+
+  it("render-phase state drained before the abort survives to the retry", () => {
+    const root = createResourceFiberRoot(() => {});
+
+    let explode = false;
+    const hook = (bump: boolean) => {
+      const [count, setCount] = useState(0);
+      if (bump && count === 0) setCount(1);
+      if (explode && count === 1) throw new Error("boom");
+      return count;
+    };
+
+    const fiber = createResourceFiber(hook, root, undefined, null);
+
+    explode = true;
+    expect(() => renderResourceFiber(fiber, [true])).toThrow("boom");
+
+    explode = false;
+    expect(renderResourceFiber(fiber, [false])).toBe(1);
+    commitResourceFiber(fiber);
+    expect(renderResourceFiber(fiber, [false])).toBe(1);
   });
 });

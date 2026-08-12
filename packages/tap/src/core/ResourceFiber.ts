@@ -39,9 +39,11 @@ export function createResourceFiber<R>(
   };
 }
 
-// Only valid when the discarded render applied no state update
+// Applied state survives in cells: bailout callers must have none, abort
+// callers re-render before the next value-bearing commit
 export function discardWipRender<R>(fiber: ResourceFiber<R>): void {
   fiber.wipCommitCallbacks = null;
+  fiber.wipContextDeps = null;
   fiber.memoCache.workInProgress = null;
 }
 
