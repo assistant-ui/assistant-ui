@@ -5,7 +5,7 @@
 [![bundle size](https://img.shields.io/bundlephobia/minzip/@assistant-ui/tap)](https://bundlephobia.com/package/@assistant-ui/tap)
 [![GitHub stars](https://img.shields.io/github/stars/assistant-ui/assistant-ui)](https://github.com/assistant-ui/assistant-ui)
 
-React's hook engine, reimplemented. Same hooks, same rules, no React tree required:
+React's hook engine, reimplemented. Same hooks, same rules, no React tree required. It enables:
 
 1. **Hooks for state management** — use React hooks to power an external store, even outside React.
 2. **Resources** — render hooks dynamically inside React: conditionally, in a list, or from props.
