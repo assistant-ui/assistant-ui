@@ -33,9 +33,8 @@ export const createTapRoot = <R>(
     } catch (error) {
       if (isThenable(error)) {
         throw new Error(
-          "createTapRoot suspended during its initial render. There is no " +
-            "value to hold; resolve the data before creating the root, or " +
-            "host the resource with useTapRoot inside a React Suspense boundary.",
+          "createTapRoot suspended during its initial render; resolve the " +
+            "data first or use useTapRoot under a Suspense boundary.",
         );
       }
       throw error;
