@@ -61,6 +61,37 @@ const createInitialState = () =>
     threadData: {},
   });
 
+const addNewThread = (state: RemoteThreadState) => {
+  let id: string;
+  do {
+    id = `__LOCALID_${generateId()}`;
+  } while (state.threadIdMap[id]);
+
+  const mappingId = createThreadMappingId(id);
+  return {
+    id,
+    state: {
+      ...state,
+      newThreadId: id,
+      threadIdMap: {
+        ...state.threadIdMap,
+        [id]: mappingId,
+      },
+      threadData: {
+        ...state.threadData,
+        [mappingId]: {
+          status: "new",
+          id,
+          remoteId: undefined,
+          externalId: undefined,
+          title: undefined,
+          custom: undefined,
+        } satisfies RemoteThreadData,
+      },
+    },
+  };
+};
+
 export class RemoteThreadListThreadListRuntimeCore
   extends BaseSubscribable
   implements ThreadListRuntimeCore
@@ -75,7 +106,7 @@ export class RemoteThreadListThreadListRuntimeCore
   private _switchGeneration = 0;
   private _switchTask: Promise<void> | undefined;
 
-  private _mainThreadId: string | undefined;
+  private _mainThreadId!: string;
   private _state = createInitialState();
   private _unsubscribeState: (() => void) | undefined;
 
@@ -222,7 +253,14 @@ export class RemoteThreadListThreadListRuntimeCore
   private _resetState() {
     this._unsubscribeState?.();
     this._state = createInitialState();
+    const next = addNewThread(this._state.value);
+    this._mainThreadId = next.id;
+    this._state.update(next.state);
     this._subscribeToState();
+    void this._hookManager.startThreadRuntime(next.id).then(
+      () => this._notifySubscribers(),
+      () => undefined,
+    );
     this._notifySubscribers();
     this._notifyThreadIdChange();
   }
@@ -235,6 +273,8 @@ export class RemoteThreadListThreadListRuntimeCore
 
     const adapterChanged =
       this._options !== undefined && this._options.adapter !== options.adapter;
+    const adapterResetIsControlled =
+      this._options?.threadId !== undefined || options.threadId !== undefined;
     const controlledThreadIdChanged =
       this._initialThreadLoaded &&
       this._options !== undefined &&
@@ -261,8 +301,7 @@ export class RemoteThreadListThreadListRuntimeCore
         this._hookManager.stopThreadRuntime(thread.id);
       }
 
-      this._mainThreadId = undefined;
-      if (options.threadId !== undefined) {
+      if (adapterResetIsControlled) {
         this._lastNotifiedThreadId = undefined;
       }
       this._resetState();
@@ -359,7 +398,7 @@ export class RemoteThreadListThreadListRuntimeCore
   }
 
   public get mainThreadId(): string {
-    return this._mainThreadId!;
+    return this._mainThreadId;
   }
 
   private _assertAdapterGeneration(generation: number) {
@@ -580,30 +619,9 @@ export class RemoteThreadListThreadListRuntimeCore
     const state = this._state.value;
     let id: string | undefined = this._state.value.newThreadId;
     if (id === undefined) {
-      do {
-        id = `__LOCALID_${generateId()}`;
-      } while (state.threadIdMap[id]);
-
-      const mappingId = createThreadMappingId(id);
-      this._state.update({
-        ...state,
-        newThreadId: id,
-        threadIdMap: {
-          ...state.threadIdMap,
-          [id]: mappingId,
-        },
-        threadData: {
-          ...state.threadData,
-          [mappingId]: {
-            status: "new",
-            id,
-            remoteId: undefined,
-            externalId: undefined,
-            title: undefined,
-            custom: undefined,
-          } satisfies RemoteThreadData,
-        },
-      });
+      const next = addNewThread(state);
+      id = next.id;
+      this._state.update(next.state);
     }
 
     return this._switchToThread(id, undefined, generation, emitThreadIdChange);

@@ -31,6 +31,8 @@ describe("RemoteThreadList adapter changes", () => {
       adapter: adapterB,
       runtimeHook: () => ({}) as never,
     });
+    expect(core.mainThreadId).not.toBe("thread-a");
+    expect(core.getItemById(core.mainThreadId)?.status).toBe("new");
     await core.getLoadThreadsPromise();
 
     expect(core.threadIds).toEqual(["thread-b"]);
