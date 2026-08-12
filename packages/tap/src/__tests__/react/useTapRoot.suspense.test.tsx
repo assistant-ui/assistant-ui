@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach } from "vitest";
+import { describe, it, expect, afterEach, vi } from "vitest";
 import { Suspense } from "react";
 import { useSyncExternalStore } from "react";
 import { render, screen, act, cleanup } from "@testing-library/react";
@@ -46,6 +46,7 @@ describe("useTapRoot suspense", () => {
       resolve = r;
     });
     let bump!: (value: number) => void;
+    let getValue!: () => string;
 
     function Host() {
       const root = useTapRoot(function Data() {
@@ -53,6 +54,7 @@ describe("useTapRoot suspense", () => {
         bump = setCount;
         return count === 0 ? "sync" : (use(promise) as string);
       });
+      getValue = root.getValue;
       const value = useSyncExternalStore(root.subscribe, root.getValue);
       return <div data-testid="out">{value}</div>;
     }
@@ -68,7 +70,7 @@ describe("useTapRoot suspense", () => {
     await act(async () => {
       resolve("async");
       await promise;
-      await new Promise((r) => setTimeout(r, 50));
+      await vi.waitFor(() => expect(getValue()).toBe("async"));
     });
 
     expect(screen.getByTestId("out").textContent).toBe("async");
