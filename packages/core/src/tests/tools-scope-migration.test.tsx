@@ -38,13 +38,16 @@ describe("Tools model-context registration", () => {
       Object.keys(aui.modelContext().getModelContext().tools ?? {}),
     ).toContain("lookup");
 
+    // A rerender inside an outer act would not land until that act exits,
+    // so the swap happens first and only the scheduler wait is wrapped
+    view.rerender(<Harness generation={1} />);
+
     // The registration lands one scheduler macrotask after the swap: the
     // mount-time register marks the tap scheduler dirty, which defers the
     // structural publish to the scheduler's drain. The remounted scope
     // starts from fresh state, so the tools reappearing proves the
     // registration migrated to the replacement instance.
     await act(async () => {
-      view.rerender(<Harness generation={1} />);
       await vi.waitFor(() =>
         expect(
           Object.keys(aui.modelContext().getModelContext().tools ?? {}),
