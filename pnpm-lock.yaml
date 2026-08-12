@@ -198,6 +198,9 @@ importers:
       '@assistant-ui/store':
         specifier: workspace:*
         version: link:../../packages/store
+      '@assistant-ui/tap':
+        specifier: workspace:*
+        version: link:../../packages/tap
       '@assistant-ui/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -418,6 +421,9 @@ importers:
       '@tailwindcss/postcss':
         specifier: ^4.3.3
         version: 4.3.3
+      '@testing-library/react':
+        specifier: ^16.3.2
+        version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@types/mdx':
         specifier: ^2.0.14
         version: 2.0.14
@@ -433,6 +439,9 @@ importers:
       '@types/react-syntax-highlighter':
         specifier: ^15.5.13
         version: 15.5.13
+      jsdom:
+        specifier: ^29.1.1
+        version: 29.1.1
       postcss:
         specifier: ^8.5.26
         version: 8.5.26
@@ -459,7 +468,7 @@ importers:
         version: 5.1.0
       vitest:
         specifier: ^4.1.10
-        version: 4.1.10(@opentelemetry/api@1.9.1)(@types/node@26.1.2)(@vitest/coverage-v8@4.1.10)(@vitest/ui@4.1.10)(jsdom@30.0.1)(vite@8.2.1(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.2)(tsx@4.23.10)(yaml@2.9.0))
+        version: 4.1.10(@opentelemetry/api@1.9.1)(@types/node@26.1.2)(@vitest/coverage-v8@4.1.10)(@vitest/ui@4.1.10)(jsdom@29.1.1)(vite@8.2.1(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.2)(tsx@4.23.10)(yaml@2.9.0))
 
   apps/registry:
     dependencies:
@@ -5728,13 +5737,28 @@ packages:
       zod:
         optional: true
 
+  '@asamuzakjp/css-color@5.1.11':
+    resolution: {integrity: sha512-KVw6qIiCTUQhByfTd78h2yD1/00waTmm9uy/R7Ck/ctUyAPj+AEDLkQIdJW0T8+qGgj3j5bpNKK7Q3G+LedJWg==}
+    engines: {node: ^20.19.0 || ^22.12.0 || >=24.0.0}
+
   '@asamuzakjp/css-color@6.0.5':
     resolution: {integrity: sha512-mbhpPMmnw/kwW19aRNmSUl1QzLbdGo1SCuE49BT98MNwqF6zaHb3o2owssFc/PEO/4t2UjqtCNwocuDtJornzA==}
     engines: {node: ^22.13.0 || >=24.0.0}
 
+  '@asamuzakjp/dom-selector@7.1.1':
+    resolution: {integrity: sha512-67RZDnYRc8H/8MLDgQCDE//zoqVFwajkepHZgmXrbwybzXOEwOWGPYGmALYl9J2DOLfFPPs6kKCqmbzV895hTQ==}
+    engines: {node: ^20.19.0 || ^22.12.0 || >=24.0.0}
+
   '@asamuzakjp/dom-selector@8.3.2':
     resolution: {integrity: sha512-93Z1N+BQNXysodoicpOIyNh2drHfz/CTf9nnT0FEx72GJcIiwgydD7tGAr78j41LsYn3hlRn+LdGPuBLn1Bl8Q==}
     engines: {node: ^22.13.0 || >=24.0.0}
+
+  '@asamuzakjp/generational-cache@1.0.1':
+    resolution: {integrity: sha512-wajfB8KqzMCN2KGNFdLkReeHncd0AslUSrvHVvvYWuU8ghncRJoA50kT3zP9MVL0+9g4/67H+cdvBskj9THPzg==}
+    engines: {node: ^20.19.0 || ^22.12.0 || >=24.0.0}
+
+  '@asamuzakjp/nwsapi@2.3.9':
+    resolution: {integrity: sha512-n8GuYSrI9bF7FFZ/SjhwevlHc8xaVlb/7HmHelnc/PZXBD2ZR49NnN9sMMuDdEGPeeRQ5d0hqlSlEpgCX3Wl0Q==}
 
   '@aui-x/prism@0.0.5':
     resolution: {integrity: sha512-sBzJbQeFZOGV/+6NSHoCagcIRJY6vO36q/GFMTOsbeRM2MITU0v9CMLskfXNIvcPttoCgXUrjxPuWxwihIcx8w==}
@@ -14771,6 +14795,15 @@ packages:
       '@babel/preset-env':
         optional: true
 
+  jsdom@29.1.1:
+    resolution: {integrity: sha512-ECi4Fi2f7BdJtUKTflYRTiaMxIB0O6zfR1fX0GXpUrf6flp8QIYn1UT20YQqdSOfk2dfkCwS8LAFoJDEppNK5Q==}
+    engines: {node: ^20.19.0 || ^22.13.0 || >=24.0.0}
+    peerDependencies:
+      canvas: ^3.0.0
+    peerDependenciesMeta:
+      canvas:
+        optional: true
+
   jsdom@30.0.1:
     resolution: {integrity: sha512-52v7mUVUfNQVYYqE1lcdaymWL0njO7lTLUog6ZvW2U5KsbiLk/GnZlVJ+qx0xfNJZ6Gn+KSpPNE52vurbxZwrA==}
     engines: {node: ^22.22.2 || ^24.15.0 || >=26.0.0}
@@ -19625,6 +19658,14 @@ snapshots:
     optionalDependencies:
       zod: 4.4.3
 
+  '@asamuzakjp/css-color@5.1.11':
+    dependencies:
+      '@asamuzakjp/generational-cache': 1.0.1
+      '@csstools/css-calc': 3.3.0(@csstools/css-parser-algorithms@4.0.0(@csstools/css-tokenizer@4.0.0))(@csstools/css-tokenizer@4.0.0)
+      '@csstools/css-color-parser': 4.1.10(@csstools/css-parser-algorithms@4.0.0(@csstools/css-tokenizer@4.0.0))(@csstools/css-tokenizer@4.0.0)
+      '@csstools/css-parser-algorithms': 4.0.0(@csstools/css-tokenizer@4.0.0)
+      '@csstools/css-tokenizer': 4.0.0
+
   '@asamuzakjp/css-color@6.0.5':
     dependencies:
       '@csstools/css-calc': 3.3.0(@csstools/css-parser-algorithms@4.0.0(@csstools/css-tokenizer@4.0.0))(@csstools/css-tokenizer@4.0.0)
@@ -19633,12 +19674,24 @@ snapshots:
       '@csstools/css-tokenizer': 4.0.0
       lru-cache: 11.5.2
 
+  '@asamuzakjp/dom-selector@7.1.1':
+    dependencies:
+      '@asamuzakjp/generational-cache': 1.0.1
+      '@asamuzakjp/nwsapi': 2.3.9
+      bidi-js: 1.0.3
+      css-tree: 3.2.1
+      is-potential-custom-element-name: 1.0.1
+
   '@asamuzakjp/dom-selector@8.3.2':
     dependencies:
       bidi-js: 1.0.3
       css-tree: 3.2.1
       is-potential-custom-element-name: 1.0.1
       lru-cache: 11.5.2
+
+  '@asamuzakjp/generational-cache@1.0.1': {}
+
+  '@asamuzakjp/nwsapi@2.3.9': {}
 
   '@aui-x/prism@0.0.5(@ai-sdk/provider@3.0.14)(ai@7.0.56(zod@4.4.3))(openai@7.4.0(@aws-sdk/credential-provider-node@3.972.78)(@smithy/signature-v4@5.6.12)(ws@8.21.2)(zod@4.4.3))':
     dependencies:
@@ -26470,7 +26523,7 @@ snapshots:
       obug: 2.1.4
       std-env: 4.2.0
       tinyrainbow: 3.1.1
-      vitest: 4.1.10(@opentelemetry/api@1.9.1)(@types/node@26.1.2)(@vitest/coverage-v8@4.1.10)(@vitest/ui@4.1.10)(jsdom@30.0.1)(vite@8.2.1(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.2)(tsx@4.23.10)(yaml@2.9.0))
+      vitest: 4.1.10(@opentelemetry/api@1.9.1)(@types/node@26.1.2)(@vitest/coverage-v8@4.1.10)(@vitest/ui@4.1.10)(jsdom@29.1.1)(vite@8.2.1(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.2)(tsx@4.23.10)(yaml@2.9.0))
 
   '@vitest/expect@4.1.10':
     dependencies:
@@ -26516,7 +26569,7 @@ snapshots:
       sirv: 3.0.2
       tinyglobby: 0.2.17
       tinyrainbow: 3.1.1
-      vitest: 4.1.10(@opentelemetry/api@1.9.1)(@types/node@26.1.2)(@vitest/coverage-v8@4.1.10)(@vitest/ui@4.1.10)(jsdom@30.0.1)(vite@8.2.1(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.2)(tsx@4.23.10)(yaml@2.9.0))
+      vitest: 4.1.10(@opentelemetry/api@1.9.1)(@types/node@26.1.2)(@vitest/coverage-v8@4.1.10)(@vitest/ui@4.1.10)(jsdom@29.1.1)(vite@8.2.1(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.2)(tsx@4.23.10)(yaml@2.9.0))
 
   '@vitest/utils@4.1.10':
     dependencies:
@@ -30373,6 +30426,32 @@ snapshots:
       write-file-atomic: 5.0.1
     transitivePeerDependencies:
       - supports-color
+
+  jsdom@29.1.1:
+    dependencies:
+      '@asamuzakjp/css-color': 5.1.11
+      '@asamuzakjp/dom-selector': 7.1.1
+      '@bramus/specificity': 2.4.2
+      '@csstools/css-syntax-patches-for-csstree': 1.1.7(css-tree@3.2.1)
+      '@exodus/bytes': 1.15.1
+      css-tree: 3.2.1
+      data-urls: 7.0.0
+      decimal.js: 10.6.0
+      html-encoding-sniffer: 6.0.0
+      is-potential-custom-element-name: 1.0.1
+      lru-cache: 11.5.2
+      parse5: 8.0.1
+      saxes: 6.0.0
+      symbol-tree: 3.2.4
+      tough-cookie: 6.0.2
+      undici: 7.29.0
+      w3c-xmlserializer: 5.0.0
+      webidl-conversions: 8.0.1
+      whatwg-mimetype: 5.0.0
+      whatwg-url: 16.0.1
+      xml-name-validator: 5.0.0
+    transitivePeerDependencies:
+      - '@noble/hashes'
 
   jsdom@30.0.1:
     dependencies:
@@ -35717,6 +35796,37 @@ snapshots:
   vitefu@1.1.3(vite@8.2.1(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.2)(tsx@4.23.10)(yaml@2.9.0)):
     optionalDependencies:
       vite: 8.2.1(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.2)(tsx@4.23.10)(yaml@2.9.0)
+
+  vitest@4.1.10(@opentelemetry/api@1.9.1)(@types/node@26.1.2)(@vitest/coverage-v8@4.1.10)(@vitest/ui@4.1.10)(jsdom@29.1.1)(vite@8.2.1(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.2)(tsx@4.23.10)(yaml@2.9.0)):
+    dependencies:
+      '@vitest/expect': 4.1.10
+      '@vitest/mocker': 4.1.10(vite@8.2.1(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.2)(tsx@4.23.10)(yaml@2.9.0))
+      '@vitest/pretty-format': 4.1.10
+      '@vitest/runner': 4.1.10
+      '@vitest/snapshot': 4.1.10
+      '@vitest/spy': 4.1.10
+      '@vitest/utils': 4.1.10
+      es-module-lexer: 2.3.1
+      expect-type: 1.4.0
+      magic-string: 0.30.21
+      obug: 2.1.4
+      pathe: 2.0.3
+      picomatch: 4.0.5
+      std-env: 4.2.0
+      tinybench: 2.9.0
+      tinyexec: 1.3.0
+      tinyglobby: 0.2.17
+      tinyrainbow: 3.1.1
+      vite: 8.2.1(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.2)(tsx@4.23.10)(yaml@2.9.0)
+      why-is-node-running: 2.3.0
+    optionalDependencies:
+      '@opentelemetry/api': 1.9.1
+      '@types/node': 26.1.2
+      '@vitest/coverage-v8': 4.1.10(vitest@4.1.10)
+      '@vitest/ui': 4.1.10(vitest@4.1.10)
+      jsdom: 29.1.1
+    transitivePeerDependencies:
+      - msw
 
   vitest@4.1.10(@opentelemetry/api@1.9.1)(@types/node@26.1.2)(@vitest/coverage-v8@4.1.10)(@vitest/ui@4.1.10)(jsdom@30.0.1)(vite@8.2.1(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.2)(tsx@4.23.10)(yaml@2.9.0)):
     dependencies:

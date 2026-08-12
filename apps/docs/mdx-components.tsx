@@ -27,7 +27,7 @@ import { Quickstart } from "@/components/docs/landing/quickstart";
 import { RuntimeGrid } from "@/components/docs/landing/runtime-grid";
 import { Flow } from "@/components/assistant-ui/flow";
 import { MermaidDiagram } from "@/components/docs/mermaid-diagram";
-import { TapTutorialSlideshow } from "@/components/docs/tap/tutorial-slideshow";
+import { TapTutorialPlayground } from "@/components/docs/tap/tutorial-playground";
 
 function Kbd({ children, ...props }: ComponentProps<"kbd">) {
   return (
@@ -84,7 +84,7 @@ export function getMDXComponents(components: MDXComponents): MDXComponents {
     RuntimeGrid,
     Flow,
     MermaidDiagram,
-    TapTutorialSlideshow,
+    TapTutorialPlayground,
     Code,
     blockquote: (props) => <Callout>{props.children}</Callout>,
     ...components,
