@@ -526,6 +526,27 @@ describe("createAdkStream - SSE parsing", () => {
     });
   });
 
+  it.each([
+    ["camel-case", { errorCode: "PROVIDER_ERROR" }],
+    ["snake-case", { error_code: "PROVIDER_ERROR" }],
+  ])("preserves %s provider error codes", async (_, providerError) => {
+    const event = { error: "stream failed", ...providerError };
+    mockFetch.mockResolvedValueOnce(
+      sseResponse(sseBody(`data: ${JSON.stringify(event)}\n\n`)),
+    );
+
+    const stream = createAdkStream({ api: "/api/adk" });
+    const gen = await stream(
+      [{ id: "m1", type: "human", content: "Hi" }],
+      makeConfig(),
+    );
+
+    await expect(gen.next()).resolves.toEqual({
+      done: false,
+      value: { ...event, errorMessage: event.error },
+    });
+  });
+
   it("normalizes numeric event ids", async () => {
     mockFetch.mockResolvedValueOnce(
       sseResponse(sseBody('data: {"id":123}\n\n')),
@@ -541,6 +562,22 @@ describe("createAdkStream - SSE parsing", () => {
       done: false,
       value: { id: "123" },
     });
+  });
+
+  it("rejects unsupported event id types", async () => {
+    mockFetch.mockResolvedValueOnce(
+      sseResponse(sseBody('data: {"id":true}\n\n')),
+    );
+
+    const stream = createAdkStream({ api: "/api/adk" });
+    const gen = await stream(
+      [{ id: "m1", type: "human", content: "Hi" }],
+      makeConfig(),
+    );
+
+    await expect(gen.next()).rejects.toThrow(
+      'Invalid ADK stream event: expected "id" to be a string or finite number when present.',
+    );
   });
 
   it("accepts parameterized event-stream content types", async () => {

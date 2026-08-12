@@ -169,7 +169,8 @@ function parseAdkEvent(data: string): AdkEvent {
     ...(errorMessage !== undefined &&
       !("errorMessage" in event) &&
       !("error_message" in event) && {
-        errorCode: "STREAM_ERROR",
+        ...(!("errorCode" in event) &&
+          !("error_code" in event) && { errorCode: "STREAM_ERROR" }),
         errorMessage,
       }),
   } as AdkEvent;
