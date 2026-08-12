@@ -2,31 +2,14 @@ import type { CommitCallbacks, EffectCell, ResourceFiber } from "../types";
 import { throwAggregated } from "./throwAggregated";
 import { depsShallowEqual } from "../../hooks/utils/depsShallowEqual";
 
-export const CommitPriority = {
-  HookState: 0,
-  EffectEvent: 1,
-} as const;
-export type CommitPriority =
-  (typeof CommitPriority)[keyof typeof CommitPriority];
-
-const COMMIT_PRIORITIES = [
-  CommitPriority.HookState,
-  CommitPriority.EffectEvent,
-] as const;
-
 export function commitAllCallbacks(callbacks: CommitCallbacks): void {
   const errors: unknown[] = [];
 
-  for (const priority of COMMIT_PRIORITIES) {
-    const lane = callbacks[priority];
-    if (lane === undefined) continue;
-
-    for (let i = 0; i < lane.length; i++) {
-      try {
-        lane[i]!();
-      } catch (error) {
-        errors.push(error);
-      }
+  for (let i = 0; i < callbacks.length; i++) {
+    try {
+      callbacks[i]!();
+    } catch (error) {
+      errors.push(error);
     }
   }
 

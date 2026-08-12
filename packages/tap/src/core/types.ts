@@ -60,7 +60,7 @@ export type EffectCell = {
 export type Cell = ReducerCell | MemoCell | EffectCell;
 
 export type CommitCallback = () => void;
-export type CommitCallbacks = Array<CommitCallback[] | undefined>;
+export type CommitCallbacks = CommitCallback[];
 
 export type ResourceContext = Map<object, ResourceContextValue>;
 export type ResourceContextDeps = Map<object, ResourceFiber<any> | null>;
