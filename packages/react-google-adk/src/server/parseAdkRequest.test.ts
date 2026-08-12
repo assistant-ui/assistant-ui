@@ -101,7 +101,7 @@ describe("parseAdkRequest", () => {
     [{ message: 42 }, 'field "message"'],
     [{ parts: {} }, 'field "parts"'],
     [{ parts: [null] }, 'field "parts"'],
-    [{ type: "message", message: "hello" }, 'field "type"'],
+    [{ type: "unknown", message: "hello" }, 'field "type"'],
     [{ message: "hello", checkpointId: 42 }, 'field "checkpointId"'],
     [{ message: "hello", stateDelta: [] }, 'field "stateDelta"'],
   ])("rejects malformed message requests %#", async (body, error) => {
@@ -110,8 +110,34 @@ describe("parseAdkRequest", () => {
 
   it("requires message content", async () => {
     await expect(parseAdkRequest(makeRequest({}))).rejects.toThrow(
-      'expected a "message" string or a non-empty "parts" array',
+      'expected a "message" string or a "parts" array',
     );
+  });
+
+  it.each([{ type: "message", message: "hello" }, { parts: [] }])(
+    "preserves supported empty and explicit message shapes %#",
+    async (body) => {
+      await expect(parseAdkRequest(makeRequest(body))).resolves.toMatchObject({
+        type: "message",
+      });
+    },
+  );
+
+  it("accepts empty tool identifiers emitted by id-less ADK calls", async () => {
+    await expect(
+      parseAdkRequest(
+        makeRequest({
+          type: "tool-result",
+          toolCallId: "",
+          toolName: "",
+          result: {},
+        }),
+      ),
+    ).resolves.toMatchObject({
+      type: "tool-result",
+      toolCallId: "",
+      toolName: "",
+    });
   });
 
   it.each([

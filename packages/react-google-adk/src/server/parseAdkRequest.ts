@@ -26,14 +26,9 @@ const invalidField = (field: string, expectation: string): Error =>
     `Invalid Google ADK proxy request field "${field}": expected ${expectation}.`,
   );
 
-const readRequiredString = (
-  body: Record<string, unknown>,
-  field: string,
-): string => {
+const readString = (body: Record<string, unknown>, field: string): string => {
   const value = body[field];
-  if (typeof value !== "string" || value.length === 0) {
-    throw invalidField(field, "a non-empty string");
-  }
+  if (typeof value !== "string") throw invalidField(field, "a string");
   return value;
 };
 
@@ -103,8 +98,8 @@ export const parseAdkRequest = async (
     }
     return {
       type: "tool-result",
-      toolCallId: readRequiredString(body, "toolCallId"),
-      toolName: readRequiredString(body, "toolName"),
+      toolCallId: readString(body, "toolCallId"),
+      toolName: readString(body, "toolName"),
       result: body.result,
       isError: body.isError ?? false,
       config,
@@ -112,8 +107,8 @@ export const parseAdkRequest = async (
     };
   }
 
-  if (body.type !== undefined) {
-    throw invalidField("type", '"tool-result" or omitted');
+  if (body.type !== undefined && body.type !== "message") {
+    throw invalidField("type", '"message", "tool-result", or omitted');
   }
 
   const text = body.message;
@@ -128,9 +123,9 @@ export const parseAdkRequest = async (
   ) {
     throw invalidField("parts", "an array of objects");
   }
-  if (text === undefined && (parts === undefined || parts.length === 0)) {
+  if (!("message" in body) && !("parts" in body)) {
     throw new Error(
-      'Invalid Google ADK proxy request: expected a "message" string or a non-empty "parts" array.',
+      'Invalid Google ADK proxy request: expected a "message" string or a "parts" array.',
     );
   }
 
