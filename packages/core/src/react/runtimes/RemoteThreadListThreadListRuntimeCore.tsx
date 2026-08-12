@@ -275,8 +275,7 @@ export class RemoteThreadListThreadListRuntimeCore
 
     const adapterChanged =
       this._options !== undefined && this._options.adapter !== options.adapter;
-    const adapterResetIsControlled =
-      this._options?.threadId !== undefined || options.threadId !== undefined;
+    const adapterResetIsControlled = options.threadId !== undefined;
     const controlledThreadIdChanged =
       this._initialThreadLoaded &&
       this._options !== undefined &&
@@ -299,9 +298,7 @@ export class RemoteThreadListThreadListRuntimeCore
       this._loadMorePromise = undefined;
       this._switchTask = undefined;
 
-      for (const thread of Object.values(this._state.value.threadData)) {
-        this._hookManager.stopThreadRuntime(thread.id);
-      }
+      this._hookManager.stopAllThreadRuntimes();
 
       if (adapterResetIsControlled) {
         this._lastNotifiedThreadId = undefined;

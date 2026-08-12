@@ -186,8 +186,22 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
   }
 
   public stopThreadRuntime(threadId: string) {
-    this.instances.get(threadId)?.unsubscribeRunning?.();
+    const instance = this.instances.get(threadId);
+    if (!instance) return;
+
+    instance.unsubscribeRunning?.();
     this.instances.delete(threadId);
+    this.useAliveThreadsKeysChanged.setState({}, true);
+    this._notifySubscribers();
+  }
+
+  public stopAllThreadRuntimes() {
+    if (this.instances.size === 0) return;
+
+    for (const instance of this.instances.values()) {
+      instance.unsubscribeRunning?.();
+    }
+    this.instances.clear();
     this.useAliveThreadsKeysChanged.setState({}, true);
     this._notifySubscribers();
   }

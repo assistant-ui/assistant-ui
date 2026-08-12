@@ -67,7 +67,11 @@ export type {
   RemoteThreadListOptions,
   RemoteThreadListProviderComponent,
 } from "@assistant-ui/core";
-export { InMemoryThreadListAdapter } from "@assistant-ui/core";
+export {
+  InMemoryThreadListAdapter,
+  ThreadListAdapterChangedError,
+  isThreadListAdapterChangedError,
+} from "@assistant-ui/core";
 export { createVoiceSession } from "@assistant-ui/core";
 export { fromThreadMessageLike, generateId } from "@assistant-ui/core";
 

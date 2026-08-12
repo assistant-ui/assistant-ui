@@ -173,7 +173,7 @@ describe("useRemoteThreadListRuntime controlled threadId", () => {
     expect(onThreadIdChange).not.toHaveBeenCalled();
   });
 
-  it("does not echo a controlled reset when the adapter changes", async () => {
+  it("reports the reset when an adapter change makes the runtime uncontrolled", async () => {
     const adapterA = makeAdapter();
     const adapterB = makeAdapter();
     const onThreadIdChange = vi.fn();
@@ -206,7 +206,7 @@ describe("useRemoteThreadListRuntime controlled threadId", () => {
         "new",
       );
     });
-    expect(onThreadIdChange).not.toHaveBeenCalled();
+    expect(onThreadIdChange).toHaveBeenCalledExactlyOnceWith(undefined);
   });
 
   it("does not echo a controlled target when the adapter changes", async () => {

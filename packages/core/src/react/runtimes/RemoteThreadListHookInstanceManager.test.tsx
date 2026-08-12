@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { ThreadListRuntimeCore } from "../../runtime/interfaces/thread-list-runtime-core";
 import { RemoteThreadListHookInstanceManager } from "./RemoteThreadListHookInstanceManager";
 
@@ -12,6 +12,26 @@ describe("RemoteThreadListHookInstanceManager", () => {
     manager.stopThreadRuntime("thread-1");
 
     await expect(startPromise).rejects.toThrow(
+      "Thread was deleted before runtime was started",
+    );
+  });
+
+  it("stops all live runtimes with one notification", async () => {
+    const manager = new RemoteThreadListHookInstanceManager(() => {
+      throw new Error("Runtime hook should not render during this test");
+    }, {} as ThreadListRuntimeCore);
+    const first = manager.startThreadRuntime("thread-1");
+    const second = manager.startThreadRuntime("thread-2");
+    const onChange = vi.fn();
+    manager.subscribe(onChange);
+
+    manager.stopAllThreadRuntimes();
+
+    expect(onChange).toHaveBeenCalledTimes(1);
+    await expect(first).rejects.toThrow(
+      "Thread was deleted before runtime was started",
+    );
+    await expect(second).rejects.toThrow(
       "Thread was deleted before runtime was started",
     );
   });
