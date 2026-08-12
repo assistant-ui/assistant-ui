@@ -73,6 +73,7 @@ describe("parseAdkRequest", () => {
       makeRequest({
         type: "tool-result",
         toolCallId: "tc-1",
+        toolName: "search",
         result: {},
       }),
     );
@@ -94,6 +95,54 @@ describe("parseAdkRequest", () => {
     await expect(parseAdkRequest(makeRequest([1, 2, 3]))).rejects.toThrow(
       "Google ADK proxy request body must be a JSON object",
     );
+  });
+
+  it.each([
+    [{ message: 42 }, 'field "message"'],
+    [{ parts: {} }, 'field "parts"'],
+    [{ parts: [null] }, 'field "parts"'],
+    [{ type: "message", message: "hello" }, 'field "type"'],
+    [{ message: "hello", checkpointId: 42 }, 'field "checkpointId"'],
+    [{ message: "hello", stateDelta: [] }, 'field "stateDelta"'],
+  ])("rejects malformed message requests %#", async (body, error) => {
+    await expect(parseAdkRequest(makeRequest(body))).rejects.toThrow(error);
+  });
+
+  it("requires message content", async () => {
+    await expect(parseAdkRequest(makeRequest({}))).rejects.toThrow(
+      'expected a "message" string or a non-empty "parts" array',
+    );
+  });
+
+  it.each([
+    [
+      { type: "tool-result", toolName: "search", result: {} },
+      'field "toolCallId"',
+    ],
+    [
+      { type: "tool-result", toolCallId: "tc-1", result: {} },
+      'field "toolName"',
+    ],
+    [
+      { type: "tool-result", toolCallId: 42, toolName: "search", result: {} },
+      'field "toolCallId"',
+    ],
+    [
+      {
+        type: "tool-result",
+        toolCallId: "tc-1",
+        toolName: "search",
+        result: {},
+        isError: "false",
+      },
+      'field "isError"',
+    ],
+    [
+      { type: "tool-result", toolCallId: "tc-1", toolName: "search" },
+      'field "result"',
+    ],
+  ])("rejects malformed tool-result requests %#", async (body, error) => {
+    await expect(parseAdkRequest(makeRequest(body))).rejects.toThrow(error);
   });
 });
 
