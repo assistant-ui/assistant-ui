@@ -5,7 +5,7 @@
 [![bundle size](https://img.shields.io/bundlephobia/minzip/@assistant-ui/tap)](https://bundlephobia.com/package/@assistant-ui/tap)
 [![GitHub stars](https://img.shields.io/github/stars/assistant-ui/assistant-ui)](https://github.com/assistant-ui/assistant-ui)
 
-React's hook engine, reimplemented. Hooks no longer need a React tree, which unlocks:
+React's hook engine, reimplemented. Hooks can run standalone, which unlocks:
 
 1. **Standalone hooks** — use React hooks to power an external store, outside your UI tree or outside React entirely.
 2. **Resources** — render hooks dynamically inside React: conditionally, in a list, or from props.
