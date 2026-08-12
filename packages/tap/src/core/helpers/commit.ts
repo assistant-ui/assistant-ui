@@ -31,14 +31,16 @@ function setupEffect(cell: EffectCell): void {
   }
 }
 
+// deps === null (new or disconnected) runs on any commit; a render-less
+// commit (Activity reveal) runs nothing else; a rendered commit follows
+// React semantics: dep-less every render, dep'd on shallow inequality.
+// useEffect keeps dep arity stable once committed, so setupDeps and deps
+// are undefined together past the null check.
 const effectNeedsRun = (cell: EffectCell, rendered: boolean): boolean => {
   if (cell.deps === null) return true;
   if (!rendered) return false;
-  return (
-    cell.deps === undefined ||
-    cell.setupDeps === undefined ||
-    !depsShallowEqual(cell.deps, cell.setupDeps)
-  );
+  if (cell.setupDeps === undefined) return true;
+  return !depsShallowEqual(cell.deps!, cell.setupDeps);
 };
 
 export function reconcileEffects<R>(
