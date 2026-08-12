@@ -3,7 +3,12 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { isAbsolute, join, relative, resolve } from "node:path";
 import { PNG } from "pngjs";
 import { getCertificatesDirectory } from "./cache-paths.js";
-import { GLYPH_HEIGHT, GLYPH_WIDTH, getGlyph, hasGlyph } from "./certificate-glyphs.js";
+import {
+  GLYPH_HEIGHT,
+  GLYPH_WIDTH,
+  getGlyph,
+  hasGlyph,
+} from "./certificate-glyphs.js";
 
 export const CERTIFICATE_WIDTH = 1600;
 export const CERTIFICATE_HEIGHT = 1000;
@@ -49,7 +54,9 @@ export function sanitizeCertificateName(raw: string): string {
     .normalize("NFD")
     .replace(/\p{M}/gu, "");
   if (!sanitized) {
-    throw new CertificateError("Certificate name must contain printable characters");
+    throw new CertificateError(
+      "Certificate name must contain printable characters",
+    );
   }
   for (const char of sanitized) {
     if (!hasGlyph(char)) {
@@ -129,7 +136,14 @@ function drawText(
       const line = glyph[row] ?? ".....";
       for (let col = 0; col < GLYPH_WIDTH; col++) {
         if (line[col] !== "#") continue;
-        fillRect(png, cursor + col * scale, y + row * scale, scale, scale, color);
+        fillRect(
+          png,
+          cursor + col * scale,
+          y + row * scale,
+          scale,
+          scale,
+          color,
+        );
       }
     }
     cursor += (GLYPH_WIDTH + tracking) * scale;
@@ -152,15 +166,28 @@ function drawCentered(
   tracking = 1,
 ): void {
   const width = measureText(text, scale, tracking);
-  drawText(png, text, Math.floor((png.width - width) / 2), y, scale, color, tracking);
+  drawText(
+    png,
+    text,
+    Math.floor((png.width - width) / 2),
+    y,
+    scale,
+    color,
+    tracking,
+  );
 }
 
-function assertInsideCertificatesDir(filePath: string, certificatesDir: string): void {
+function assertInsideCertificatesDir(
+  filePath: string,
+  certificatesDir: string,
+): void {
   const resolvedFile = resolve(filePath);
   const resolvedDir = resolve(certificatesDir);
   const relativePath = relative(resolvedDir, resolvedFile);
   if (relativePath.startsWith("..") || isAbsolute(relativePath)) {
-    throw new CertificateError("Certificate path escapes the certificates directory");
+    throw new CertificateError(
+      "Certificate path escapes the certificates directory",
+    );
   }
 }
 

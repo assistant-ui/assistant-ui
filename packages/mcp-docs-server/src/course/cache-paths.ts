@@ -19,7 +19,14 @@ export function getCertificatesDirectory(
   home: string = homedir(),
 ): string {
   if (platform === "darwin") {
-    return join(home, "Library", "Caches", "assistant-ui", "course", "certificates");
+    return join(
+      home,
+      "Library",
+      "Caches",
+      "assistant-ui",
+      "course",
+      "certificates",
+    );
   }
 
   if (platform === "win32") {

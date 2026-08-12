@@ -44,7 +44,9 @@ function assertSafeRelativePath(path: string): void {
 export function validateCourseRegistry(input: unknown): CourseRegistry {
   const result = courseRegistrySchema.safeParse(input);
   if (!result.success) {
-    throw new CourseLoadError(`Invalid course registry: ${result.error.message}`);
+    throw new CourseLoadError(
+      `Invalid course registry: ${result.error.message}`,
+    );
   }
 
   result.data.steps.forEach((step, index) => {
@@ -79,7 +81,9 @@ function lessonPath(courseDir: string, step: CourseStep): string {
     throw new CourseLoadError("Course lessonFile escapes the course directory");
   }
   if (!existsSync(candidate)) {
-    throw new CourseLoadError(`Course lesson file is missing: ${step.lessonFile}`);
+    throw new CourseLoadError(
+      `Course lesson file is missing: ${step.lessonFile}`,
+    );
   }
   const resolvedCourseDir = realpathSync(courseDir);
   const resolvedLesson = realpathSync(candidate);
@@ -99,7 +103,10 @@ export function loadCourseOverviewFromDirectory(courseDir: string) {
   };
 }
 
-export function loadCourseStepFromDirectory(courseDir: string, stepNumber: number) {
+export function loadCourseStepFromDirectory(
+  courseDir: string,
+  stepNumber: number,
+) {
   const registry = loadRegistry(courseDir);
   const step = registry.steps.find((item) => item.step === stepNumber);
   if (!step) {

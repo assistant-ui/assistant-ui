@@ -62,7 +62,5 @@ describe("course package contents", () => {
           entry.includes("build-generative-ui-assistant"),
       ),
     ).toBe(false);
-  },
-  60_000,
-  );
+  }, 60_000);
 });

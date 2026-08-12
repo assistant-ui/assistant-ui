@@ -51,7 +51,8 @@ describe("assistantUICourse", () => {
 
   it("rejects unknown fields such as courseId", async () => {
     expect(
-      courseInputSchema.safeParse({ step: 1, courseId: "other-course" }).success,
+      courseInputSchema.safeParse({ step: 1, courseId: "other-course" })
+        .success,
     ).toBe(false);
 
     const result = await testContext.callTool("assistantUICourse", {

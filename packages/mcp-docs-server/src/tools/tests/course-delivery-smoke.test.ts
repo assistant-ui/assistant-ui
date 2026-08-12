@@ -26,7 +26,9 @@ describe("course delivery smoke", () => {
 
     const step1 = await testContext.callTool("assistantUICourse", { step: 1 });
     expect(step1.step).toBe(1);
-    expect(step1.teachingWrapper).toContain("Here is the content for this step:");
+    expect(step1.teachingWrapper).toContain(
+      "Here is the content for this step:",
+    );
     expect(step1.lessonMarkdown).toContain("npx create-next-app@latest");
     expect(step1.lessonMarkdown).toContain("border-[var(--foreground)]/15");
 

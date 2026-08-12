@@ -56,27 +56,54 @@ describe("course loader", () => {
       examplesHints: [],
     }));
     steps[1]!.step = 1;
-    expect(() => validateCourseRegistry({ id: "build-generative-ui-assistant", title: "Course", outcome: "Outcome", steps })).toThrow(CourseLoadError);
+    expect(() =>
+      validateCourseRegistry({
+        id: "build-generative-ui-assistant",
+        title: "Course",
+        outcome: "Outcome",
+        steps,
+      }),
+    ).toThrow(CourseLoadError);
   });
 
   it("rejects unsafe lesson paths", () => {
     const directory = fixture({
-      id: "build-generative-ui-assistant", title: "Course", outcome: "Outcome",
+      id: "build-generative-ui-assistant",
+      title: "Course",
+      outcome: "Outcome",
       steps: Array.from({ length: 8 }, (_, index) => ({
-        step: index + 1, id: `step-${index + 1}`, title: "Title",
+        step: index + 1,
+        id: `step-${index + 1}`,
+        title: "Title",
         lessonFile: index === 0 ? "../secret.md" : `lessons/${index + 1}.md`,
-        focusFiles: [], docsHints: [], examplesHints: [],
+        focusFiles: [],
+        docsHints: [],
+        examplesHints: [],
       })),
     });
-    expect(() => loadCourseStepFromDirectory(directory, 1)).toThrow(CourseLoadError);
+    expect(() => loadCourseStepFromDirectory(directory, 1)).toThrow(
+      CourseLoadError,
+    );
   });
 
   it("rejects a missing lesson file", () => {
     const steps = Array.from({ length: 8 }, (_, index) => ({
-      step: index + 1, id: `step-${index + 1}`, title: "Title",
-      lessonFile: `lessons/${index + 1}.md`, focusFiles: [], docsHints: [], examplesHints: [],
+      step: index + 1,
+      id: `step-${index + 1}`,
+      title: "Title",
+      lessonFile: `lessons/${index + 1}.md`,
+      focusFiles: [],
+      docsHints: [],
+      examplesHints: [],
     }));
-    const directory = fixture({ id: "build-generative-ui-assistant", title: "Course", outcome: "Outcome", steps });
-    expect(() => loadCourseStepFromDirectory(directory, 1)).toThrow("Course lesson file is missing");
+    const directory = fixture({
+      id: "build-generative-ui-assistant",
+      title: "Course",
+      outcome: "Outcome",
+      steps,
+    });
+    expect(() => loadCourseStepFromDirectory(directory, 1)).toThrow(
+      "Course lesson file is missing",
+    );
   });
 });
