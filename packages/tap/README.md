@@ -7,7 +7,7 @@
 
 React's hook engine, reimplemented. Hooks can run standalone, which unlocks:
 
-1. **Standalone hooks** — use React hooks to power an external store, outside your UI tree or outside React entirely.
+1. **Hooks for state management** — use React hooks to power an external store, outside your UI tree or outside React entirely.
 2. **Resources** — render hooks dynamically inside React: conditionally, in a list, or from props.
 
 Documentation: [assistant-ui.com/tap](https://www.assistant-ui.com/tap)
