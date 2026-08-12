@@ -1,6 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
 import type { useTapRoot } from "../../hooks/useTapRoot";
 import { createTapRoot } from "../../core/createTapRoot";
+import { resource } from "../../core/resource";
+import { useResource } from "../../hooks/useResource";
 import { useEffect } from "../../react-hooks/useEffect";
 import { useMemo } from "../../react-hooks/useMemo";
 import { useRef } from "../../react-hooks/useRef";
@@ -87,13 +89,13 @@ describe("createTapRoot mountOnSubscribe", () => {
     );
 
     root.subscribe(() => {});
-    expect(effect).toHaveBeenCalledTimes(1);
+    expect(effect).toHaveBeenCalledTimes(mountRuns);
 
     root.subscribe(() => {});
-    expect(effect).toHaveBeenCalledTimes(1);
+    expect(effect).toHaveBeenCalledTimes(mountRuns);
   });
 
-  it("dev strict mode double renders without double-invoking effects", () => {
+  it("dev strict mode double invokes effects on the first mount only", async () => {
     const body = vi.fn();
     const effect = vi.fn();
     const root = createTapRoot(
@@ -107,12 +109,13 @@ describe("createTapRoot mountOnSubscribe", () => {
 
     const unsubscribe = root.subscribe(() => {});
     expect(body).toHaveBeenCalledTimes(mountRuns);
-    expect(effect).toHaveBeenCalledTimes(1);
+    expect(effect).toHaveBeenCalledTimes(mountRuns);
 
     unsubscribe();
+    await flushUpdates();
     root.subscribe(() => {});
     expect(body).toHaveBeenCalledTimes(mountRuns * 2);
-    expect(effect).toHaveBeenCalledTimes(2);
+    expect(effect).toHaveBeenCalledTimes(mountRuns + 1);
   });
 
   it("notifies the first subscriber of updates dispatched during its own mount", () => {
@@ -134,20 +137,22 @@ describe("createTapRoot mountOnSubscribe", () => {
     expect(root.getValue()).toBe(1);
   });
 
-  it("soft unmounts on last unsubscribe and remounts on next subscribe", () => {
+  it("soft unmounts on last unsubscribe and remounts on next subscribe", async () => {
     const { root, events } = createCounterRoot();
 
     const unsubscribe = root.subscribe(() => {});
     events.length = 0;
 
     unsubscribe();
+    expect(events).toEqual([]);
+    await flushUpdates();
     expect(events).toEqual(["unmount"]);
 
     root.subscribe(() => {});
     expect(events).toEqual(["unmount", "mount"]);
   });
 
-  it("keeps effects mounted while any subscriber remains", () => {
+  it("keeps effects mounted while any subscriber remains", async () => {
     const { root, events } = createCounterRoot();
 
     const unsubscribeA = root.subscribe(() => {});
@@ -155,13 +160,27 @@ describe("createTapRoot mountOnSubscribe", () => {
     events.length = 0;
 
     unsubscribeA();
+    await flushUpdates();
     expect(events).toEqual([]);
 
     unsubscribeB();
+    await flushUpdates();
     expect(events).toEqual(["unmount"]);
   });
 
-  it("unsubscribe is idempotent", () => {
+  it("absorbs an unsubscribe/resubscribe within the same tick", async () => {
+    const { root, events } = createCounterRoot();
+
+    const unsubscribe = root.subscribe(() => {});
+    events.length = 0;
+
+    unsubscribe();
+    root.subscribe(() => {});
+    await flushUpdates();
+    expect(events).toEqual([]);
+  });
+
+  it("unsubscribe is idempotent", async () => {
     const { root, events } = createCounterRoot();
 
     const unsubscribeA = root.subscribe(() => {});
@@ -170,9 +189,11 @@ describe("createTapRoot mountOnSubscribe", () => {
 
     unsubscribeA();
     unsubscribeA();
+    await flushUpdates();
     expect(events).toEqual([]);
 
     unsubscribeB();
+    await flushUpdates();
     expect(events).toEqual(["unmount"]);
   });
 
@@ -185,11 +206,12 @@ describe("createTapRoot mountOnSubscribe", () => {
     expect(root.getValue()).toBe(5);
 
     unsubscribe();
+    await flushUpdates();
     root.subscribe(() => {});
     expect(root.getValue()).toBe(5);
   });
 
-  it("preserves ref and memo cells across an unsubscribe/resubscribe cycle", () => {
+  it("preserves ref and memo cells across an unsubscribe/resubscribe cycle", async () => {
     const memoFn = vi.fn(() => ({}));
     const root = createTapRoot(
       function Cells() {
@@ -206,6 +228,7 @@ describe("createTapRoot mountOnSubscribe", () => {
 
     const unsubscribe = root.subscribe(() => {});
     unsubscribe();
+    await flushUpdates();
     root.subscribe(() => {});
 
     const second = root.getValue();
@@ -215,16 +238,18 @@ describe("createTapRoot mountOnSubscribe", () => {
     expect(memoFn).toHaveBeenCalledTimes(memoCalls);
   });
 
-  it("supports repeated mount/unmount cycles", () => {
+  it("supports repeated mount/unmount cycles", async () => {
     const { root, events } = createCounterRoot();
 
     const unsubscribe = root.subscribe(() => {});
     events.length = 0;
     unsubscribe();
+    await flushUpdates();
 
     for (let i = 0; i < 2; i++) {
       const unsubscribe = root.subscribe(() => {});
       unsubscribe();
+      await flushUpdates();
     }
 
     expect(events).toEqual(["unmount", "mount", "unmount", "mount", "unmount"]);
@@ -235,6 +260,7 @@ describe("createTapRoot mountOnSubscribe", () => {
 
     const unsubscribe = root.subscribe(() => {});
     unsubscribe();
+    await flushUpdates();
     events.length = 0;
 
     setCount(7);
@@ -311,6 +337,61 @@ describe("createTapRoot mountOnSubscribe", () => {
     shouldThrow = false;
     root.subscribe(() => {});
     expect(root.getValue()).toBe(1);
+  });
+
+  it("soft unmounts and remounts nested resources", async () => {
+    const childEffect = vi.fn();
+    const childCleanup = vi.fn();
+    const grandchildEffect = vi.fn();
+    const grandchildCleanup = vi.fn();
+
+    const Grandchild = resource(function useGrandchild() {
+      const [count, setCount] = useState(0);
+      useEffect(() => {
+        grandchildEffect();
+        return grandchildCleanup;
+      });
+      return { count, setCount };
+    });
+
+    const Child = resource(function useChild() {
+      useEffect(() => {
+        childEffect();
+        return childCleanup;
+      });
+      return useResource(Grandchild());
+    });
+
+    const root = createTapRoot(
+      function Nested() {
+        return useResource(Child());
+      },
+      { mountOnSubscribe: true },
+    );
+
+    const unsubscribe = root.subscribe(() => {});
+    const mountedChildEffects = childEffect.mock.calls.length;
+    const mountedGrandchildEffects = grandchildEffect.mock.calls.length;
+    expect(mountedChildEffects).toBeGreaterThan(0);
+    expect(mountedGrandchildEffects).toBeGreaterThan(0);
+
+    root.getValue().setCount(5);
+    await flushUpdates();
+    expect(root.getValue().count).toBe(5);
+
+    unsubscribe();
+    await flushUpdates();
+    expect(childCleanup).toHaveBeenCalledTimes(childEffect.mock.calls.length);
+    expect(grandchildCleanup).toHaveBeenCalledTimes(
+      grandchildEffect.mock.calls.length,
+    );
+
+    root.subscribe(() => {});
+    expect(childEffect.mock.calls.length).toBeGreaterThan(mountedChildEffects);
+    expect(grandchildEffect.mock.calls.length).toBeGreaterThan(
+      mountedGrandchildEffects,
+    );
+    expect(root.getValue().count).toBe(5);
   });
 
   it("throws on unmount()", () => {

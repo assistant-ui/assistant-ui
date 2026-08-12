@@ -29,7 +29,7 @@ export const createTapRoot = <R>(
       scheduler.markDirty();
     }),
     undefined,
-    isDevelopment ? (options?.mountOnSubscribe ? "child" : "root") : null,
+    isDevelopment ? "root" : null,
   );
 
   // In strict mode, render twice to detect side effects
@@ -54,12 +54,15 @@ export const createTapRoot = <R>(
   }
 
   let subscriberCount = 0;
+  const unmountScheduler = new UpdateScheduler(() => {
+    if (subscriberCount === 0 && fiber.isMounted) unmountResourceFiber(fiber);
+  });
 
   return {
     getValue: () => ensureRoot().getValue(),
     subscribe: (listener) => {
       const unsubscribe = ensureRoot().subscribe(listener);
-      if (subscriberCount++ === 0) {
+      if (subscriberCount++ === 0 && !fiber.isMounted) {
         try {
           // Remounts re-render first so the commit sees fresh effect closures
           if (!fiber.isNeverMounted) void renderFiber();
@@ -77,7 +80,7 @@ export const createTapRoot = <R>(
         if (!isSubscribed) return;
         isSubscribed = false;
         unsubscribe();
-        if (--subscriberCount === 0) unmountResourceFiber(fiber);
+        if (--subscriberCount === 0) unmountScheduler.markDirty();
       };
     },
     unmount: () => {

@@ -214,12 +214,13 @@ root.unmount();
 
 With `mountOnSubscribe: true` the lifecycle is derived from subscribers
 instead: the root renders lazily on the first `getValue()` or `subscribe()`,
-effects commit when the first subscriber attaches, and the last unsubscriber
-soft-unmounts the root — effect cleanups run, but state is preserved and the
-next subscriber remounts it. `unmount()` throws in this mode. In development
-the root double-renders to detect render-phase side effects but does not
-double-invoke effects on mount; a subscriber inside React StrictMode already
-remounts it through the subscription bounce.
+effects commit when the first subscriber attaches, and after the last
+unsubscriber the root soft-unmounts on the next scheduler flush — effect
+cleanups run, but state is preserved and the next subscriber remounts it.
+Because the unmount is deferred, an unsubscribe followed by a resubscribe in
+the same tick (React StrictMode's subscription bounce, `useSyncExternalStore`
+churn, a subscribing component remounting) is absorbed without touching
+effects. `unmount()` throws in this mode.
 
 ## flushTapSync
 
