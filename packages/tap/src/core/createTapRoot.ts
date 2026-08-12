@@ -71,9 +71,7 @@ export const createTapRoot = <R>(
       };
     },
     unmount: () => {
-      throw new Error(
-        "unmount() is not supported with mountOnSubscribe; the root unmounts when the last subscriber unsubscribes",
-      );
+      throw new Error("unmount() is not supported with mountOnSubscribe");
     },
   };
 };
