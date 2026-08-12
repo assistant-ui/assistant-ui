@@ -17,17 +17,25 @@ export function commitAllCallbacks(callbacks: CommitCallbacks): void {
 }
 
 function setupEffect(cell: EffectCell): void {
+  const setup = cell.setup!;
+  const deps = cell.setupDeps;
+  let cleanup: (() => void) | undefined;
   try {
-    const cleanup = cell.setup!();
-    if (cleanup !== undefined && typeof cleanup !== "function") {
+    const result = setup();
+    if (result !== undefined && typeof result !== "function") {
       throw new Error(
         "An effect function must either return a cleanup function or nothing. " +
-          `Received: ${typeof cleanup}`,
+          `Received: ${typeof result}`,
       );
     }
-    cell.cleanup = cleanup;
+    cleanup = result;
   } finally {
-    cell.deps = cell.setupDeps;
+    if (cell.setup === setup) {
+      cell.cleanup = cleanup;
+      cell.deps = deps;
+    } else {
+      cleanup?.();
+    }
   }
 }
 
