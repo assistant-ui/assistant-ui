@@ -10,7 +10,7 @@ type GlobalFlushState = {
 
 const MAX_UPDATE_DEPTH = 50;
 let flushState: GlobalFlushState = {
-  schedulers: new Set([]),
+  schedulers: new Set(),
   isScheduled: false,
 };
 let activeDrainRuns: Map<UpdateScheduler, number> | null = null;
@@ -144,7 +144,7 @@ export const flushTapSync = <T>(callback: () => T): T => {
 
   const prev = flushState;
   flushState = {
-    schedulers: new Set([]),
+    schedulers: new Set(),
     isScheduled: true,
   };
 
