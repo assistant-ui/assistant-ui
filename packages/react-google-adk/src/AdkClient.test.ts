@@ -447,6 +447,25 @@ describe("createAdkStream - SSE parsing", () => {
     expect(collected[1]!.id).toBe("e2");
   });
 
+  it("rejects stream events without a valid id", async () => {
+    mockFetch.mockResolvedValueOnce(sseResponse(sseBody("data: {}\n\n")));
+
+    const stream = createAdkStream({ api: "/api/adk" });
+    const consume = async () => {
+      const gen = await stream(
+        [{ id: "m1", type: "human", content: "Hi" }],
+        makeConfig(),
+      );
+      for await (const _event of gen) {
+        void _event;
+      }
+    };
+
+    await expect(consume()).rejects.toThrow(
+      'Invalid ADK stream event: expected an object with a non-empty string "id".',
+    );
+  });
+
   it("accepts parameterized event-stream content types", async () => {
     const event: AdkEvent = { id: "e1" };
     mockFetch.mockResolvedValueOnce(
