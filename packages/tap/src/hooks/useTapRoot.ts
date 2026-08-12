@@ -36,18 +36,26 @@ const useHostRoot = <R>(render: () => R): R => render();
 export const useTapRoot = <R>(render: () => R): useTapRoot.Root<R> => {
   // oxlint-disable-next-line react-hooks/rules-of-hooks -- updates run through the component's Effect Event after the scheduler is initialized
   const [scheduler] = useState(() => new UpdateScheduler(() => handleUpdate()));
-  const [queue] = useState<(() => boolean)[]>(() => []);
+  // Replay log for React's update semantics (StrictMode double-apply,
+  // concurrent rebasing). Mirrors React's eagerState rule: only the first
+  // update on a clean queue applies eagerly; `appliedAt` records the root
+  // version an eager apply produced (null = queued unapplied), so retirement
+  // is derivable at any time instead of a captured count.
+  const [queue] = useState<
+    { apply: () => boolean; appliedAt: number | null }[]
+  >(() => []);
 
   const getDevStrictMode = useDevStrictMode();
   const [fiber] = useState(() => {
     const root = createResourceFiberRoot((evaluate, apply) => {
-      if (!scheduler.isDirty) {
+      const isEager = !scheduler.isDirty;
+      if (isEager) {
         if (!evaluate()) return;
         apply();
       }
 
       setRootVersion(root, root.committedVersion + root.changelog.length);
-      queue.push(apply);
+      queue.push({ apply, appliedAt: isEager ? root.version : null });
       scheduler.markDirty();
     });
     return createResourceFiber(
@@ -60,7 +68,6 @@ export const useTapRoot = <R>(render: () => R): useTapRoot.Root<R> => {
 
   const context = cloneCurrentTapContext();
 
-  const drainedCount = fiber.root.version - fiber.root.committedVersion;
   const render2 = withTapContextRoot(context, () => {
     return renderResourceFiber(fiber, [render]);
   });
@@ -69,34 +76,34 @@ export const useTapRoot = <R>(render: () => R): useTapRoot.Root<R> => {
     isMounted: boolean;
     committedArgs: readonly [() => R];
     value: R;
-    // Bumped on every fiber render (React or handleUpdate) so a pending
-    // record can tell whether the fiber has moved past it.
-    generation: number;
-    // Written every render, consumed by the first commit that follows. A
-    // commit replayed without a render (StrictMode, Activity reveal, tap
-    // reconnect) finds it null and must not restore render-scoped state or
-    // publish.
-    pendingCommit: {
-      args: readonly [() => R];
-      value: R;
-      drainedCount: number;
-      context: ReturnType<typeof cloneCurrentTapContext>;
-      generation: number;
-    } | null;
+    // Snapshot of the latest React render, overwritten every render and read
+    // by the commit effect. All uses are idempotent, so nothing is consumed.
+    renderedArgs: readonly [() => R];
+    renderedValue: R;
+    renderedContext: ReturnType<typeof cloneCurrentTapContext>;
+    // fiber.renderCount at the time of this React render; a mismatch at
+    // commit time means the fiber rendered past it (a tap update while
+    // hidden) and the snapshot describes a superseded render.
+    renderedAt: number;
+    // Reset every render, set by the first commit that follows: a commit
+    // replayed without a render (StrictMode, Activity reveal, tap reconnect)
+    // must not restore render-scoped state or publish again.
+    processed: boolean;
   }>({
     isMounted: false,
     committedArgs: [render],
     value: render2,
-    generation: 0,
-    pendingCommit: null,
+    renderedArgs: [render],
+    renderedValue: render2,
+    renderedContext: context,
+    renderedAt: fiber.renderCount,
+    processed: false,
   });
-  stateRef.current.pendingCommit = {
-    args: [render],
-    value: render2,
-    drainedCount,
-    context,
-    generation: ++stateRef.current.generation,
-  };
+  stateRef.current.renderedArgs = [render];
+  stateRef.current.renderedValue = render2;
+  stateRef.current.renderedContext = context;
+  stateRef.current.renderedAt = fiber.renderCount;
+  stateRef.current.processed = false;
   const [subscribers] = useState(() => new Set<() => void>());
 
   const publish = (output: R) => {
@@ -108,12 +115,12 @@ export const useTapRoot = <R>(render: () => R): useTapRoot.Root<R> => {
   const handleUpdate = useEffectEvent(() => {
     setRootVersion(fiber.root, fiber.root.committedVersion);
 
-    queue.forEach((callback) => {
+    queue.forEach((entry) => {
       if (isDevelopment && fiber.devStrictMode) {
-        callback();
+        entry.apply();
       }
 
-      callback();
+      entry.apply();
     });
 
     setRootVersion(
@@ -130,7 +137,6 @@ export const useTapRoot = <R>(render: () => R): useTapRoot.Root<R> => {
     const render = withTapContextRoot(fiber.root.context, () => {
       return renderResourceFiber(fiber, stateRef.current.committedArgs);
     });
-    stateRef.current.generation++;
 
     if (scheduler.isDirty)
       throw new Error("Scheduler is dirty, this should never happen");
@@ -148,15 +154,12 @@ export const useTapRoot = <R>(render: () => R): useTapRoot.Root<R> => {
   useEffect(() => {
     const current = stateRef.current;
     current.isMounted = true;
-    // Reconnect only on a zero-render reveal. When a pendingCommit record
-    // exists, the commit effect below runs in the same flush and commits (or
-    // converges past) it; reconnecting here first would commit a render the
-    // host may have already superseded.
-    if (
-      !fiber.isNeverMounted &&
-      !fiber.isMounted &&
-      current.pendingCommit === null
-    )
+    // Reconnect only when no fresh React render awaits the commit effect
+    // below (it commits or converges past it in this same flush; committing
+    // here would bypass the host bookkeeping). An unretired handleUpdate
+    // render may exist (rendered while hidden): its host bookkeeping already
+    // ran, so committing it here is exactly right.
+    if (!fiber.isNeverMounted && !fiber.isMounted && current.processed)
       commitResourceFiber(fiber);
     return () => {
       current.isMounted = false;
@@ -165,27 +168,36 @@ export const useTapRoot = <R>(render: () => R): useTapRoot.Root<R> => {
   }, [fiber]);
 
   useEffect(() => {
-    const pending = stateRef.current.pendingCommit;
-    if (pending === null) return;
-    stateRef.current.pendingCommit = null;
+    const current = stateRef.current;
+    if (current.processed) return;
+    current.processed = true;
 
-    stateRef.current.committedArgs = pending.args;
-    // handleUpdate advanced the fiber while this record sat unconsumed (e.g.
-    // a hidden Activity re-render followed by a tap update): its value and
-    // queue bookkeeping describe a superseded render. Converge by rendering
-    // fresh with the record's args and context instead of committing it.
-    if (pending.generation !== stateRef.current.generation) {
-      fiber.root.context = pending.context;
+    current.committedArgs = current.renderedArgs;
+    // handleUpdate advanced the fiber past this render (e.g. a hidden
+    // Activity re-render followed by a tap update): its value and queue
+    // bookkeeping describe a superseded render. Converge by rendering fresh
+    // with the render's args and context instead of committing it.
+    if (current.renderedAt !== fiber.renderCount) {
+      fiber.root.context = current.renderedContext;
       if (!scheduler.isDirty) handleUpdate();
       return;
     }
 
-    commitRoot(fiber.root);
-    queue.splice(0, pending.drainedCount);
-    fiber.root.context = pending.context;
+    fiber.root.context = current.renderedContext;
     commitResourceFiber(fiber);
+    // Retire the dispatches the committed render included; entries applied
+    // after it (or never applied) stay queued for the next flush.
+    for (let i = queue.length - 1; i >= 0; i--) {
+      const entry = queue[i]!;
+      if (
+        entry.appliedAt !== null &&
+        entry.appliedAt <= fiber.root.committedVersion
+      ) {
+        queue.splice(i, 1);
+      }
+    }
 
-    publish(pending.value);
+    publish(current.renderedValue);
   });
 
   return useMemo(

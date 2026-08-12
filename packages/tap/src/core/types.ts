@@ -111,6 +111,10 @@ export interface ResourceFiber<R> {
 
   renderPendingCells: Set<ReducerCell> | null;
 
+  // Bumped on every render. Lets a host detect that the fiber rendered past
+  // a render it captured (its record is superseded and must not commit).
+  renderCount: number;
+
   isMounted: boolean;
   isFirstRender: boolean;
   isNeverMounted: boolean;
