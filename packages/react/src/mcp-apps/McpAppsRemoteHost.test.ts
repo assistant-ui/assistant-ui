@@ -130,20 +130,23 @@ describe("McpAppsRemoteHost", () => {
     }
   });
 
-  it("rejects malformed successful resource responses", async () => {
-    const fetch = vi.fn(async () =>
-      Response.json({}),
-    ) as unknown as typeof globalThis.fetch;
-    const root = mount(fetch);
+  it.each([{}, { uri: " ", html: "" }])(
+    "rejects malformed successful resource responses",
+    async (response) => {
+      const fetch = vi.fn(async () =>
+        Response.json(response),
+      ) as unknown as typeof globalThis.fetch;
+      const root = mount(fetch);
 
-    try {
-      await expect(
-        root.getValue().loadResource({ uri: "ui://example/search" }),
-      ).rejects.toThrow(
-        /Invalid MCP App host response "mcp-apps\/read-resource" from "\/api\/mcp-apps"/,
-      );
-    } finally {
-      root.unmount();
-    }
-  });
+      try {
+        await expect(
+          root.getValue().loadResource({ uri: "ui://example/search" }),
+        ).rejects.toThrow(
+          /Invalid MCP App host response "mcp-apps\/read-resource" from "\/api\/mcp-apps"/,
+        );
+      } finally {
+        root.unmount();
+      }
+    },
+  );
 });

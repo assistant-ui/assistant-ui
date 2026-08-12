@@ -41,7 +41,7 @@ const readErrorBody = async (res: Response): Promise<string | undefined> => {
 
 const invalidMcpAppResource = (options: McpAppsRemoteHostOptions): never => {
   throw new Error(
-    `Invalid MCP App host response "mcp-apps/read-resource" from "${options.url}": expected a resource with string "uri" and "html" fields`,
+    `Invalid MCP App host response "mcp-apps/read-resource" from "${options.url}": expected a resource with non-empty string "uri" and "html" fields`,
   );
 };
 
@@ -54,7 +54,12 @@ const parseMcpAppResource = (
   }
 
   const resource = value as Record<string, unknown>;
-  if (typeof resource.uri !== "string" || typeof resource.html !== "string") {
+  if (
+    typeof resource.uri !== "string" ||
+    resource.uri.trim() === "" ||
+    typeof resource.html !== "string" ||
+    resource.html.trim() === ""
+  ) {
     return invalidMcpAppResource(options);
   }
 
