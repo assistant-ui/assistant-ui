@@ -74,9 +74,8 @@ const flushScheduled = () => {
   // save/restore: flushTapSync re-enters flushScheduled with its own flushState
   const prevDrainRuns = activeDrainRuns;
   activeDrainRuns = new Map();
+  const errors: unknown[] = [];
   try {
-    const errors = [];
-
     for (const scheduler of flushState.schedulers) {
       flushState.schedulers.delete(scheduler);
       if (!scheduler.isDirty) continue;
@@ -87,17 +86,22 @@ const flushScheduled = () => {
         errors.push(error);
       }
     }
-
-    throwAggregated(errors, "Errors occurred during flushSync");
   } finally {
     activeDrainRuns = prevDrainRuns;
     flushState.schedulers.clear();
     flushState.isScheduled = false;
 
     if (activeDrainRuns === null) {
-      while (pendingNotifies.length > 0) pendingNotifies.shift()!();
+      while (pendingNotifies.length > 0) {
+        try {
+          pendingNotifies.shift()!();
+        } catch (error) {
+          errors.push(error);
+        }
+      }
     }
   }
+  throwAggregated(errors, "Errors occurred during flushSync");
 };
 
 // Use MessageChannel to schedule flushes as macrotasks (like React's scheduler).
