@@ -75,6 +75,7 @@ export class A2AThreadRuntimeCore {
   private exportedRepository: ExportedMessageRepository | undefined;
   private isRunningFlag = false;
   private abortController: AbortController | null = null;
+  private abortControllerClient: A2AClient | null = null;
   private pendingError: Error | null = null;
 
   // A2A-specific state
@@ -249,7 +250,10 @@ export class A2AThreadRuntimeCore {
       this.assistantHistoryParents.clear();
       this.recordedHistoryIds.clear();
       this.pendingError = null;
-      void this.cancel();
+      void this.cancelWithClient(
+        this.abortControllerClient ?? this.client,
+        false,
+      );
       this.currentTask = undefined;
       this.currentArtifacts = [];
     }
@@ -340,16 +344,26 @@ export class A2AThreadRuntimeCore {
   }
 
   async cancel(): Promise<void> {
-    if (!this.abortController) return;
+    await this.cancelWithClient(
+      this.abortControllerClient ?? this.client,
+      true,
+    );
+  }
+
+  private async cancelWithClient(client: A2AClient, applyTaskUpdate: boolean) {
+    const abortController = this.abortController;
+    if (!abortController) return;
 
     // Abort locally first so the stream stops immediately
-    this.abortController.abort();
+    abortController.abort();
 
     // Then try to cancel the task on the server
     if (this.currentTask?.id) {
       try {
-        const updated = await this.client.cancelTask(this.currentTask.id);
-        this.currentTask = updated;
+        const updated = await client.cancelTask(this.currentTask.id);
+        if (applyTaskUpdate) {
+          this.currentTask = updated;
+        }
       } catch {
         // Server cancel failed; local abort already handled
       }
@@ -482,6 +496,7 @@ export class A2AThreadRuntimeCore {
     if (this.abortController) {
       this.abortController.abort();
       this.abortController = null;
+      this.abortControllerClient = null;
     }
 
     const a2aMessage = this.threadMessageToA2AMessage(userThreadMessage);
@@ -502,6 +517,7 @@ export class A2AThreadRuntimeCore {
 
     const abortController = new AbortController();
     this.abortController = abortController;
+    this.abortControllerClient = this.client;
 
     abortController.signal.addEventListener(
       "abort",
@@ -815,6 +831,7 @@ export class A2AThreadRuntimeCore {
   private finishRun(controller: AbortController | null) {
     if (this.abortController === controller) {
       this.abortController = null;
+      this.abortControllerClient = null;
     }
     this.setRunning(false);
   }

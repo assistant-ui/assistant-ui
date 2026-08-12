@@ -176,6 +176,52 @@ describe("A2AThreadRuntimeCore", () => {
   });
 
   describe("history loading", () => {
+    it("does not restore an old task after the adapter key changes", async () => {
+      let resolveCancellation!: (task: A2ATask) => void;
+      const cancelTaskA = vi.fn(
+        () =>
+          new Promise<A2ATask>((resolve) => {
+            resolveCancellation = resolve;
+          }),
+      );
+      const clientA = createMockClient({ cancelTask: cancelTaskA });
+      const clientB = createMockClient();
+      const historyA: ThreadHistoryAdapter = {
+        key: "workspace-a",
+        load: vi.fn().mockResolvedValue({ messages: [] }),
+        append: vi.fn().mockResolvedValue(undefined),
+      };
+      const historyB: ThreadHistoryAdapter = {
+        key: "workspace-b",
+        load: vi.fn().mockResolvedValue({ messages: [] }),
+        append: vi.fn().mockResolvedValue(undefined),
+      };
+      const core = new A2AThreadRuntimeCore({
+        client: clientA,
+        notifyUpdate: notifyUpdate as unknown as () => void,
+        history: historyA,
+      });
+      await core.__internal_load();
+      (core as any).currentTask = {
+        id: "task-a",
+        status: { state: "working" },
+      };
+      (core as any).abortController = new AbortController();
+      (core as any).abortControllerClient = clientA;
+
+      core.updateOptions({ client: clientB, history: historyB });
+      await core.__internal_load();
+      resolveCancellation({
+        id: "task-a",
+        status: { state: "canceled" },
+      });
+      await Promise.resolve();
+
+      expect(cancelTaskA).toHaveBeenCalledWith("task-a");
+      expect(clientB.cancelTask).not.toHaveBeenCalled();
+      expect(core.getTask()).toBeUndefined();
+    });
+
     it("ignores a stale history load after the adapter key changes", async () => {
       let resolveHistoryA!: (repo: ExportedMessageRepository) => void;
       const historyA: ThreadHistoryAdapter = {
@@ -222,6 +268,47 @@ describe("A2AThreadRuntimeCore", () => {
       expect(core.getMessages().map((message) => message.id)).toEqual([
         messageB.id,
       ]);
+    });
+
+    it("does not clear new persistence state when an old append fails", async () => {
+      let rejectAppendA!: (error: Error) => void;
+      const historyA: ThreadHistoryAdapter = {
+        key: "workspace-a",
+        load: vi.fn().mockResolvedValue({ messages: [] }),
+        append: vi.fn(
+          () =>
+            new Promise<void>((_, reject) => {
+              rejectAppendA = reject;
+            }),
+        ),
+      };
+      const historyB: ThreadHistoryAdapter = {
+        key: "workspace-b",
+        load: vi.fn().mockResolvedValue({ messages: [] }),
+        append: vi.fn().mockResolvedValue(undefined),
+      };
+      const client = createMockClient();
+      const core = new A2AThreadRuntimeCore({
+        client,
+        notifyUpdate: notifyUpdate as unknown as () => void,
+        history: historyA,
+      });
+      const message = {
+        ...createUserAppendMessage("shared"),
+        id: "shared-message",
+        startRun: false,
+      };
+      await core.__internal_load();
+      await core.append(message);
+
+      core.updateOptions({ client, history: historyB });
+      await core.__internal_load();
+      await core.append(message);
+      rejectAppendA(new Error("workspace A unavailable"));
+      await Promise.resolve();
+      await core.append(message);
+
+      expect(historyB.append).toHaveBeenCalledOnce();
     });
 
     it("preserves sibling branches and selects the persisted head", async () => {
