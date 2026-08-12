@@ -66,19 +66,24 @@ export function renderResourceFiber<R>(
 
   let passes = 0;
   let value: R;
-  do {
-    if (++passes > 25) {
-      throw new Error(
-        "Too many re-renders. tap limits the number of renders to prevent " +
-          "an infinite loop.",
-      );
-    }
-    fiber.memoCache.index = 0;
+  try {
+    do {
+      if (++passes > 25) {
+        throw new Error(
+          "Too many re-renders. tap limits the number of renders to prevent " +
+            "an infinite loop.",
+        );
+      }
+      fiber.memoCache.index = 0;
 
-    withResourceFiber(fiber, () => {
-      value = withReactDispatcher(() => fiber.hook(...args));
-    });
-  } while ((fiber.renderPendingCells?.size ?? 0) > 0);
+      withResourceFiber(fiber, () => {
+        value = withReactDispatcher(() => fiber.hook(...args));
+      });
+    } while ((fiber.renderPendingCells?.size ?? 0) > 0);
+  } catch (error) {
+    discardWipRender(fiber);
+    throw error;
+  }
 
   bubbleContextDeps(fiber);
 
