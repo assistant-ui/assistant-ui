@@ -331,6 +331,9 @@ const useHostedAssistantClient = ({
     return client;
   });
 
+  // The only hook that runs before descendant layout effects: a parent's
+  // useLayoutEffect fires after its children's, and useEffect leaves the
+  // pre-passive window this publication exists to close.
   useInsertionEffect(() => {
     clientRef.parent = parent;
     clientRef.current = client;
