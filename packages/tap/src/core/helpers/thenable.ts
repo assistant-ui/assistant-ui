@@ -24,7 +24,7 @@ export const trackThenable = <T>(thenable: PromiseLike<T>): T => {
         }
       },
     );
-  } else if (tracked.status === "pending") {
+  } else if (tracked.status !== "fulfilled" && tracked.status !== "rejected") {
     // A thenable that arrived pre-stamped pending was never given handlers;
     // without one its rejection is unhandled
     thenable.then(noop, noop);
