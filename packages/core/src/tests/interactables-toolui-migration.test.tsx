@@ -58,5 +58,9 @@ describe("interactables update-tool UI registration", () => {
         expect(registration).not.toBe(firstRegistration);
       });
     });
+
+    // Post-settle cardinality: a duplicate re-apply would leave a second
+    // registration whose disposer was dropped
+    expect(toolUIs()[toolName!]).toHaveLength(1);
   });
 });

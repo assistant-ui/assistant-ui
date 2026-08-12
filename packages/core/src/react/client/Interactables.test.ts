@@ -316,7 +316,7 @@ describe("Interactables registration", () => {
       .register(reg("n1", { updateRender: () => null }));
     expect(warn).toHaveBeenCalledWith(
       '[Interactables] "note" supplied an updateRender, but no ' +
-        "tools scope is available to install it into.",
+        "tools scope is available yet; it will be installed once one appears.",
     );
     warn.mockRestore();
 

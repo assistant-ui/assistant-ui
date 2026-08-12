@@ -484,7 +484,7 @@ const useInteractablesResource = ({
         ) {
           console.warn(
             `[Interactables] "${def.name}" supplied an updateRender, but no ` +
-              `tools scope is available to install it into.`,
+              `tools scope is available yet; it will be installed once one appears.`,
           );
         }
 
