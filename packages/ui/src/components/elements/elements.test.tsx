@@ -673,6 +673,24 @@ describe("shimmer labels", () => {
     expect(inactiveLayer?.getAttribute("class")).toContain("select-none");
     expect(container.querySelector("[aria-hidden] .shimmer")).toBeNull();
   });
+
+  it("renders a streaming shimmer label's text exactly once", () => {
+    const { getAllByText } = render(
+      <ToolTimeline
+        steps={[{ verb: "Read", chip: "file.ts", icon: TerminalIcon }]}
+        visibleSteps={1}
+        streaming
+        open
+        onOpenChange={() => {}}
+        restingLabel="Completed"
+        activeLabel="Running"
+        stats={[]}
+      />,
+    );
+
+    expect(getAllByText("Running")).toHaveLength(1);
+    expect(getAllByText("Read")).toHaveLength(1);
+  });
 });
 
 /**
