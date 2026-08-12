@@ -79,15 +79,12 @@ export function ToolTimeline({
                 className="fade-in slide-in-from-bottom-1 animate-in fill-mode-both text-foreground/55 flex items-center gap-2 text-[13.5px] duration-300"
               >
                 <Icon className="text-foreground/35 size-3.5 shrink-0" />
-                {active ? (
-                  <ShimmerLabel className="relative inline-block leading-none">
-                    {step.verb}
-                  </ShimmerLabel>
-                ) : (
-                  <span className="relative inline-block leading-none">
-                    {step.verb}
-                  </span>
-                )}
+                <ShimmerLabel
+                  active={active}
+                  className="relative inline-block leading-none"
+                >
+                  {step.verb}
+                </ShimmerLabel>
                 <span className="bg-foreground/[0.06] text-foreground/70 rounded-md px-1.5 py-0.5 font-mono text-[11px]">
                   {step.chip}
                 </span>
