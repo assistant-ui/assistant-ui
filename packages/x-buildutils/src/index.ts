@@ -28,19 +28,23 @@ if (isDev && pkg.scripts?.start) onSuccess = pkg.scripts.start;
 // Applied to packages that actually depend on `@assistant-ui/tap` (so the
 // remapped shim specifier resolves for consumers) and to `@assistant-ui/tap`
 // itself so its React-facing hooks can share the same React 18 compatibility
-// shim. The target depends on whether the package declares a react peer:
-// packages with one get the react-shim (falls back to real React outside a tap
-// render), while reactless packages — non-React framework bridges like a vue
-// binding — get the standalone-shim, whose graph never imports react so the
-// published output stays loadable without React installed. Tap itself always
-// keeps the react-shim (`isReactless` requires a tap dependency, which tap
-// lacks) and its React-facing entry needs the real-React fallback.
+// shim. The target depends on whether the package declares react (peer or
+// direct): packages with one get the react-shim (falls back to real React
+// outside a tap render), while reactless packages — non-React framework
+// bridges like a vue binding — get the standalone-shim, whose graph never
+// imports react so the published output stays loadable without React
+// installed. Tap itself always keeps the react-shim (`isReactless` requires a
+// tap dependency, which tap lacks) and its React-facing entry needs the
+// real-React fallback.
 const dependsOnTap = ["dependencies", "peerDependencies"].some(
   (field) => pkg[field]?.["@assistant-ui/tap"],
 );
+const dependsOnReact = ["dependencies", "peerDependencies"].some(
+  (field) => pkg[field]?.react,
+);
 const isTapPackage = pkg.name === "@assistant-ui/tap";
 const remapReactToShim = dependsOnTap || isTapPackage;
-const isReactless = dependsOnTap && !pkg.peerDependencies?.react;
+const isReactless = dependsOnTap && !dependsOnReact;
 const shimBase = isReactless
   ? "@assistant-ui/tap/standalone-shim"
   : "@assistant-ui/tap/react-shim";
