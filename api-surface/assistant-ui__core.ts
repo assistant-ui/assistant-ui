@@ -3667,6 +3667,7 @@ declare class RemoteThreadListHookInstanceManager extends BaseSubscribable {
   private _trackRunning;
   private _setRunning;
   stopThreadRuntime(threadId: string): void;
+  stopAllThreadRuntimes(): void;
   setRuntimeHook(newRuntimeHook: RemoteThreadListHook): void;
   private _RuntimeBinder;
   private _OuterActiveThreadProvider;
