@@ -1,6 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
 import { createTapRoot } from "../../core/createTapRoot";
 import { useEffect } from "../../react-hooks/useEffect";
+import { useMemo } from "../../react-hooks/useMemo";
+import { useRef } from "../../react-hooks/useRef";
 import { useState } from "../../react-hooks/useState";
 import { isDevelopment } from "../../core/helpers/env";
 
@@ -12,7 +14,7 @@ const createCounterRoot = () => {
   let setCount: (value: number) => void;
   const events: string[] = [];
   const root = createTapRoot(
-    () => {
+    function Counter() {
       useEffect(() => {
         events.push("mount");
         return () => events.push("unmount");
@@ -29,7 +31,7 @@ const createCounterRoot = () => {
 describe("createTapRoot mountOnSubscribe", () => {
   it("mounts immediately by default", () => {
     const effect = vi.fn();
-    const root = createTapRoot(() => {
+    const root = createTapRoot(function Immediate() {
       useEffect(effect);
       return 1;
     });
@@ -41,7 +43,7 @@ describe("createTapRoot mountOnSubscribe", () => {
   it("renders eagerly without running effects", () => {
     const effect = vi.fn();
     const root = createTapRoot(
-      () => {
+      function Eager() {
         useEffect(effect);
         const [count] = useState(42);
         return count;
@@ -58,7 +60,7 @@ describe("createTapRoot mountOnSubscribe", () => {
   it("commits effects on first subscribe only once", () => {
     const effect = vi.fn();
     const root = createTapRoot(
-      () => {
+      function EffectOnly() {
         useEffect(effect);
         return null;
       },
@@ -70,6 +72,26 @@ describe("createTapRoot mountOnSubscribe", () => {
 
     root.subscribe(() => {});
     expect(effect).toHaveBeenCalledTimes(mountRuns);
+    root.unmount();
+  });
+
+  it("notifies the first subscriber of updates dispatched during its own mount", () => {
+    const root = createTapRoot(
+      function MountUpdate() {
+        const [count, setCount] = useState(0);
+        useEffect(() => {
+          setCount(1);
+        }, [setCount]);
+        return count;
+      },
+      { mountOnSubscribe: true },
+    );
+
+    const listener = vi.fn();
+    root.subscribe(listener);
+
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect(root.getValue()).toBe(1);
     root.unmount();
   });
 
@@ -129,6 +151,33 @@ describe("createTapRoot mountOnSubscribe", () => {
     unsubscribe();
     root.subscribe(() => {});
     expect(root.getValue()).toBe(5);
+    root.unmount();
+  });
+
+  it("preserves ref and memo cells across an unsubscribe/resubscribe cycle", () => {
+    const memoFn = vi.fn(() => ({}));
+    const root = createTapRoot(
+      function Cells() {
+        const ref = useRef<{ marker?: true }>({});
+        const memoized = useMemo(memoFn, []);
+        return { ref: ref.current, memoized };
+      },
+      { mountOnSubscribe: true },
+    );
+
+    const first = root.getValue();
+    first.ref.marker = true;
+    const memoCalls = memoFn.mock.calls.length;
+
+    const unsubscribe = root.subscribe(() => {});
+    unsubscribe();
+    root.subscribe(() => {});
+
+    const second = root.getValue();
+    expect(second.ref).toBe(first.ref);
+    expect(second.ref.marker).toBe(true);
+    expect(second.memoized).toBe(first.memoized);
+    expect(memoFn).toHaveBeenCalledTimes(memoCalls);
     root.unmount();
   });
 
@@ -197,18 +246,28 @@ describe("createTapRoot mountOnSubscribe", () => {
     expect(root.getValue()).toBe(0);
   });
 
-  it("explicit unmount is terminal", () => {
-    const { root, events } = createCounterRoot();
+  it("explicit unmount is terminal", async () => {
+    const { root, events, setCount } = createCounterRoot();
 
-    const unsubscribe = root.subscribe(() => {});
+    const listener = vi.fn();
+    const unsubscribe = root.subscribe(listener);
     events.length = 0;
 
     root.unmount();
     expect(events).toEqual(["unmount"]);
 
-    const listener = vi.fn();
-    const noopUnsubscribe = root.subscribe(listener);
+    setCount(9);
+    await flushUpdates();
+    expect(listener).not.toHaveBeenCalled();
     expect(events).toEqual(["unmount"]);
+
+    const lateListener = vi.fn();
+    const noopUnsubscribe = root.subscribe(lateListener);
+    expect(events).toEqual(["unmount"]);
+    setCount(10);
+    await flushUpdates();
+    expect(lateListener).not.toHaveBeenCalled();
+
     noopUnsubscribe();
     unsubscribe();
     expect(events).toEqual(["unmount"]);

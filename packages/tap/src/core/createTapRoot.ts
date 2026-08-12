@@ -54,6 +54,7 @@ export const createTapRoot = <R>(
   let isMounted = false;
   let hasRenderPending = true;
   let subscriberCount = 0;
+  const activeUnsubscribes = new Set<() => void>();
 
   const mount = () => {
     isMounted = true;
@@ -68,16 +69,20 @@ export const createTapRoot = <R>(
     getValue: root.getValue,
     subscribe: (listener) => {
       if (isDestroyed) return () => {};
-      if (subscriberCount++ === 0 && !isMounted) mount();
 
       const unsubscribe = root.subscribe(listener);
+      activeUnsubscribes.add(unsubscribe);
+      if (subscriberCount++ === 0) mount();
+
       let isSubscribed = true;
       return () => {
         if (!isSubscribed) return;
         isSubscribed = false;
+        activeUnsubscribes.delete(unsubscribe);
         unsubscribe();
 
-        if (--subscriberCount === 0 && !isDestroyed) {
+        if (isDestroyed) return;
+        if (--subscriberCount === 0) {
           isMounted = false;
           unmountResourceFiber(fiber);
         }
@@ -86,6 +91,8 @@ export const createTapRoot = <R>(
     unmount: () => {
       if (isDestroyed) return;
       isDestroyed = true;
+      for (const unsubscribe of activeUnsubscribes) unsubscribe();
+      activeUnsubscribes.clear();
       if (isMounted) {
         isMounted = false;
         unmountResourceFiber(fiber);
