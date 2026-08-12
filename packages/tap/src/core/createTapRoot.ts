@@ -11,7 +11,8 @@ import { createResourceFiberRoot } from "./helpers/root";
 
 export const createTapRoot = <R>(
   render: () => R,
-): useTapRoot.Root<R> & { unmount: () => void } => {
+  options?: { mount?: boolean },
+): useTapRoot.Root<R> & { mount: () => void; unmount: () => void } => {
   const pendingEvaluates: (() => boolean)[] = [];
   const scheduler = new UpdateScheduler(() => {
     for (const evaluate of pendingEvaluates.splice(0)) {
@@ -37,13 +38,29 @@ export const createTapRoot = <R>(
   }
 
   const rendered = renderResourceFiber(fiber, [render]);
-  flushTapSync(() => commitResourceFiber(fiber));
 
   const root = rendered as useTapRoot.Root<R>;
 
+  let state: "created" | "mounted" | "unmounted" = "created";
+  const mount = () => {
+    if (state === "mounted") return;
+    if (state === "unmounted")
+      throw new Error("Cannot mount a tap root that has been unmounted");
+    state = "mounted";
+    flushTapSync(() => commitResourceFiber(fiber));
+  };
+
+  if (options?.mount !== false) mount();
+
   return {
     ...root,
+    mount,
     unmount: () => {
+      if (state === "created") {
+        state = "unmounted";
+        return;
+      }
+      state = "unmounted";
       unmountResourceFiber(fiber);
     },
   };
