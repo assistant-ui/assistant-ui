@@ -1877,6 +1877,7 @@ type ExternalThreadProps = {
   onStartRun?: () => void;
   onCancel?: () => void;
   onResume?: (() => void) | undefined;
+  onRefetchThread?: (() => Promise<void>) | undefined;
   onAddToolResult?: ((options: AddToolResultOptions) => void) | undefined;
   onResumeToolCall?: ((options: ResumeToolCallOptions) => void) | undefined;
   onLoadExternalState?: ((state: unknown) => void) | undefined;
@@ -4785,6 +4786,7 @@ type ThreadMethods = {
   startRun(config: CreateStartRunConfig): void;
   resumeRun(config: CreateResumeRunConfig): void;
   cancelRun(): void;
+  unstable_refetchThread?(): Promise<void>;
   getModelContext(): ModelContext$1;
   export(): ExportedMessageRepository;
   import(repository: ExportedMessageRepository): void;

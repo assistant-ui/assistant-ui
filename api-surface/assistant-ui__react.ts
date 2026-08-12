@@ -2212,6 +2212,7 @@ type ExternalThreadProps = {
   onStartRun?: () => void;
   onCancel?: () => void;
   onResume?: (() => void) | undefined;
+  onRefetchThread?: (() => Promise<void>) | undefined;
   onAddToolResult?: ((options: AddToolResultOptions) => void) | undefined;
   onResumeToolCall?: ((options: ResumeToolCallOptions) => void) | undefined;
   onLoadExternalState?: ((state: unknown) => void) | undefined;
