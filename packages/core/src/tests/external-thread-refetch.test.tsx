@@ -2,9 +2,23 @@
 
 import { cleanup, render, waitFor } from "@testing-library/react";
 import type { FC } from "react";
+import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AuiProvider, useAui } from "@assistant-ui/store";
 import { ExternalThread } from "../store/clients/external-thread";
+import type { ThreadMessage } from "../types/message";
+
+const message = (id: string, role: "user" | "assistant"): ThreadMessage =>
+  ({
+    id,
+    role,
+    content: [{ type: "text", text: `text of ${id}` }],
+    createdAt: new Date(1718000000000),
+    ...(role === "assistant"
+      ? { status: { type: "complete", reason: "stop" } }
+      : { attachments: [] }),
+    metadata: { custom: {} },
+  }) as ThreadMessage;
 
 let aui!: ReturnType<typeof useAui>;
 
@@ -71,5 +85,33 @@ describe("ExternalThread refetch", () => {
     await expect(aui.threads.reloadMainThread()).rejects.toThrow(
       "refetch failed",
     );
+  });
+
+  it("applies refetched messages in place with the composer draft intact", async () => {
+    const App: FC = () => {
+      const [messages, setMessages] = useState<readonly ThreadMessage[]>([]);
+      const value = useAui({
+        thread: ExternalThread({
+          messages,
+          onRefetchThread: async () => {
+            setMessages([message("a1", "assistant")]);
+          },
+        }),
+      });
+      return (
+        <AuiProvider value={value}>
+          <Capture />
+        </AuiProvider>
+      );
+    };
+    render(<App />);
+
+    aui.thread.composer().setText("draft");
+    await aui.threads.reloadMainThread();
+
+    await waitFor(() =>
+      expect(aui.thread.getState().messages.map((m) => m.id)).toEqual(["a1"]),
+    );
+    expect(aui.thread.composer().getState().text).toBe("draft");
   });
 });
