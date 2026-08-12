@@ -317,6 +317,34 @@ describe("createTapRoot mountOnSubscribe", () => {
     unsubscribe();
   });
 
+  it("keeps subscriber bookkeeping consistent when a rollback cleanup throws", () => {
+    let shouldThrow = true;
+    const events: string[] = [];
+    const root = createTapRoot(
+      function FaultyCleanup() {
+        useEffect(() => {
+          events.push("mount");
+          return () => {
+            if (shouldThrow) throw new Error("cleanup failed");
+          };
+        });
+        useEffect(() => {
+          if (shouldThrow) throw new Error("mount failed");
+        });
+        return 1;
+      },
+      { mountOnSubscribe: true },
+    );
+
+    expect(() => root.subscribe(() => {})).toThrow();
+
+    shouldThrow = false;
+    events.length = 0;
+    root.subscribe(() => {});
+    expect(events).toEqual(["mount"]);
+    expect(root.getValue()).toBe(1);
+  });
+
   it("rolls back re-entrant subscriptions made by a failed mount", () => {
     let shouldThrow = true;
     let self: useTapRoot.Root<number>;

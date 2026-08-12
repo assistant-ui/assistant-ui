@@ -68,9 +68,12 @@ export const createTapRoot = <R>(
           if (!fiber.isNeverMounted) void renderFiber();
           flushTapSync(() => commitResourceFiber(fiber));
         } catch (error) {
-          if (fiber.isMounted) unmountResourceFiber(fiber);
-          subscriberCount--;
-          unsubscribe();
+          try {
+            if (fiber.isMounted) unmountResourceFiber(fiber);
+          } finally {
+            subscriberCount--;
+            unsubscribe();
+          }
           throw error;
         }
       }
