@@ -1,4 +1,5 @@
 import { throwAggregated } from "./helpers/throwAggregated";
+import { isDevelopment } from "./helpers/env";
 
 type Task = () => void;
 
@@ -9,10 +10,11 @@ type GlobalFlushState = {
 
 const MAX_UPDATE_DEPTH = 50;
 let flushState: GlobalFlushState = {
-  schedulers: new Set([]),
+  schedulers: new Set(),
   isScheduled: false,
 };
 let activeDrainRuns: Map<UpdateScheduler, number> | null = null;
+const pendingNotifies: (() => void)[] = [];
 
 export class UpdateScheduler {
   private _isDirty = false;
@@ -52,6 +54,14 @@ export class UpdateScheduler {
   }
 }
 
+export const scheduleNotify = (notify: () => void): void => {
+  if (activeDrainRuns !== null) {
+    pendingNotifies.push(notify);
+    return;
+  }
+  notify();
+};
+
 const scheduleFlush = () => {
   if (flushState.isScheduled) return;
   flushState.isScheduled = true;
@@ -62,9 +72,8 @@ const flushScheduled = () => {
   // save/restore: flushTapSync re-enters flushScheduled with its own flushState
   const prevDrainRuns = activeDrainRuns;
   activeDrainRuns = new Map();
+  const errors: unknown[] = [];
   try {
-    const errors = [];
-
     for (const scheduler of flushState.schedulers) {
       flushState.schedulers.delete(scheduler);
       if (!scheduler.isDirty) continue;
@@ -75,13 +84,22 @@ const flushScheduled = () => {
         errors.push(error);
       }
     }
-
-    throwAggregated(errors, "Errors occurred during flushSync");
   } finally {
     activeDrainRuns = prevDrainRuns;
     flushState.schedulers.clear();
     flushState.isScheduled = false;
+
+    if (activeDrainRuns === null) {
+      while (pendingNotifies.length > 0) {
+        try {
+          pendingNotifies.shift()!();
+        } catch (error) {
+          errors.push(error);
+        }
+      }
+    }
   }
+  throwAggregated(errors, "Errors occurred during flushSync");
 };
 
 // Use MessageChannel to schedule flushes as macrotasks (like React's scheduler).
@@ -114,9 +132,19 @@ const scheduleMacrotask = (() => {
 })();
 
 export const flushTapSync = <T>(callback: () => T): T => {
+  if (activeDrainRuns !== null) {
+    if (isDevelopment) {
+      console.warn(
+        "flushTapSync was called from inside a render or commit. " +
+          "The flush is deferred until the current pass completes.",
+      );
+    }
+    return callback();
+  }
+
   const prev = flushState;
   flushState = {
-    schedulers: new Set([]),
+    schedulers: new Set(),
     isScheduled: true,
   };
 

@@ -81,12 +81,17 @@ describe("@assistant-ui/tap/react-shim", () => {
       useSpy.mockRestore();
     });
 
-    it("rejects non-context values in tap's direct use hook", () => {
-      const testFiber = createTestResource(() => tapUse(Promise.resolve()));
+    it("suspends on promises in tap's direct use hook", () => {
+      const promise = Promise.resolve();
+      const testFiber = createTestResource(() => tapUse(promise));
 
-      expect(() => renderResourceFiber(testFiber, [])).toThrow(
-        "A tap resource's `use()` only accepts a tap context.",
-      );
+      let thrown: unknown;
+      try {
+        renderResourceFiber(testFiber, []);
+      } catch (error) {
+        thrown = error;
+      }
+      expect(thrown).toBe(promise);
     });
 
     it("useState routes to useState and useEffect to useEffect", async () => {

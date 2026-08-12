@@ -1,5 +1,35 @@
 # assistant-stream
 
+## 0.3.37
+
+### Patch Changes
+
+- [#5729](https://github.com/assistant-ui/assistant-ui/pull/5729) [`0ae51a8`](https://github.com/assistant-ui/assistant-ui/commit/0ae51a8e8c4c49c4b8810b9c64845eeeded8b9bc) - feat: support ioredis 6 alongside 5 in the resumable stream store ([@okisdev](https://github.com/okisdev))
+
+- [#5734](https://github.com/assistant-ui/assistant-ui/pull/5734) [`e319574`](https://github.com/assistant-ui/assistant-ui/commit/e319574df10df2dbf2d57fc2bcf7cb92d3c6a2e6) - fix: isolate tool execution lifecycle callback errors from stream settlement ([@Kinfe123](https://github.com/Kinfe123))
+
+## 0.3.36
+
+### Patch Changes
+
+- [#5723](https://github.com/assistant-ui/assistant-ui/pull/5723) [`94dc3e5`](https://github.com/assistant-ui/assistant-ui/commit/94dc3e509fa2b4fae1a14c88ec34b910c8d95af8) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+## 0.3.35
+
+### Patch Changes
+
+- [#5534](https://github.com/assistant-ui/assistant-ui/pull/5534) [`456b056`](https://github.com/assistant-ui/assistant-ui/commit/456b056b2859994bf49ed5cc4cf031f0601e2174) - fix: preserve streamed tool arguments when other content is interleaved ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5700](https://github.com/assistant-ui/assistant-ui/pull/5700) [`a88751d`](https://github.com/assistant-ui/assistant-ui/commit/a88751d71edfd2516f266ce8889081749fba4e5a) - fix: carry a reasoning summary on the data stream. a reasoning part opened with `unstable_summary` previously lost it on that wire, and a summary-only part produced no frames at all, so it never reached the client. the encoder now emits a reasoning part-start frame when there is a summary to carry; a stream that does not use the field is unchanged, and one that does requires a decoder that understands the frame. ([@okisdev](https://github.com/okisdev))
+
+- [#5639](https://github.com/assistant-ui/assistant-ui/pull/5639) [`79253f2`](https://github.com/assistant-ui/assistant-ui/commit/79253f2a5e0a637c8907ba30859f308ff6dcd1c4) - feat: preserve app-authored reasoning summaries on message parts ([@rupic-app](https://github.com/apps/rupic-app))
+
+## 0.3.34
+
+### Patch Changes
+
+- [#5609](https://github.com/assistant-ui/assistant-ui/pull/5609) [`d52928d`](https://github.com/assistant-ui/assistant-ui/commit/d52928db2c83a3ba6f25bf8c6b21934571dd4622) - fix: await resumable reader cleanup during cancellation ([@Kinfe123](https://github.com/Kinfe123))
+
 ## 0.3.33
 
 ### Patch Changes

@@ -304,6 +304,9 @@ Union of all registered scope names.
 type AssistantClient = {
   [K in ClientNames]: AssistantClientAccessor<K>;
 } & {
+  readonly optional: {
+    readonly [K in ClientNames]: AssistantClientAccessor<K> | undefined;
+  };
   subscribe(listener: () => void): Unsubscribe;
   on<TEvent extends AssistantEventName>(
     selector: AssistantEventSelector<TEvent>,
@@ -312,7 +315,7 @@ type AssistantClient = {
 };
 ```
 
-The store object returned by `useAui()`. Each scope is an accessor. `subscribe` fires on any state change. `on` subscribes to typed events.
+The store object returned by `useAui()`. Each scope is an accessor. `optional` exposes the same scopes, resolving an unavailable one to `undefined` instead of a throwing accessor: `aui.optional.counter?.increment()`. `subscribe` fires on any state change. `on` subscribes to typed events.
 
 ### AssistantClientAccessor
 
@@ -328,7 +331,7 @@ type AssistantClientAccessor<K extends ClientNames> =
   ) & { name: K };
 ```
 
-A scope accessor exposing the scope's methods as properties (`aui.counter.increment()`). Read `.source`, `.query`, and `.name` for metadata. The call signature (`aui.counter()`) is deprecated and returns the same accessor.
+A scope accessor exposing the scope's methods as properties (`aui.counter.increment()`). Read `.source`, `.query`, and `.name` for metadata; check availability via `aui.optional.counter`. The call signature (`aui.counter()`) is deprecated and returns the same accessor.
 
 ### AssistantState
 

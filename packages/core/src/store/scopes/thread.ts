@@ -17,6 +17,7 @@ import type {
 import type { ModelContext } from "../../model-context/types";
 import type { MessageMethods, MessageState } from "./message";
 import type { ComposerMethods, ComposerState } from "./composer";
+import type { SuggestionsMethods } from "./suggestions";
 
 export type ThreadState = {
   /**
@@ -72,6 +73,10 @@ export type ThreadMethods = {
    */
   composer(): ComposerMethods;
   /**
+   * The suggestions shown for this thread.
+   */
+  suggestions(): SuggestionsMethods;
+  /**
    * Append a new message to the thread.
    *
    * @example ```ts
@@ -100,6 +105,18 @@ export type ThreadMethods = {
    */
   resumeRun(config: CreateResumeRunConfig): void;
   cancelRun(): void;
+  /**
+   * Re-fetch this thread's state from its backing store, in place: the tap
+   * thread's refetch hook, which `threads.reloadMainThread()` prefers and
+   * whose rejection it propagates. `capabilities.refetchThread` is the
+   * portable feature-detection signal; a legacy-bridged thread reports it
+   * there while routing the refetch through its runtime, not this method.
+   * The method-shorthand optionality is load-bearing: an explicit
+   * `| undefined` stops `ThreadMethods` satisfying `ClientMethods` and
+   * collapses the client schema, which only a workspace-level app typecheck
+   * surfaces.
+   */
+  unstable_refetchThread?(): Promise<void>;
   getModelContext(): ModelContext;
   export(): ExportedMessageRepository;
   import(repository: ExportedMessageRepository): void;

@@ -4,16 +4,12 @@ import type {
   ResourceFiber,
   TapRoot,
 } from "../types";
-import { cloneCurrentTapContext } from "../context";
-import { CommitPriority } from "./commit";
-
 export const createResourceFiberRoot = (
   dispatchUpdate: (evaluate: () => boolean, apply: () => boolean) => void,
 ): TapRoot => {
   return {
     version: 0,
     committedVersion: 0,
-    context: cloneCurrentTapContext(),
     dispatchUpdate,
     changelog: [],
     rollbackCallbacks: [],
@@ -67,11 +63,9 @@ export const applyChangelogRecord = (record: ChangelogRecord): void => {
 
 export const addCommit = (
   fiber: ResourceFiber<any>,
-  priority: CommitPriority,
   callback: () => void,
 ): void => {
-  const callbacks = fiber.wipCommitCallbacks!;
-  (callbacks[priority] ??= []).push(callback);
+  fiber.wipCommitCallbacks!.push(callback);
 };
 
 export const addRollback = (root: TapRoot, callback: () => void): void => {

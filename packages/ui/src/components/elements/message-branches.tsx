@@ -1,14 +1,17 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ghostButton, mono } from "./surfaces";
 
-export interface MessageBranchesProps {
+export interface MessageBranchesProps extends Omit<
+  ComponentProps<"div">,
+  "children"
+> {
   variants: readonly string[];
   index: number;
   onIndexChange: (index: number) => void;
-  className?: string;
 }
 
 export function MessageBranches({
@@ -16,6 +19,7 @@ export function MessageBranches({
   index,
   onIndexChange,
   className,
+  ...props
 }: MessageBranchesProps) {
   const message = variants[index] ?? variants[0] ?? "";
   const hasNavigation = variants.length > 1;
@@ -30,7 +34,12 @@ export function MessageBranches({
   };
 
   return (
-    <div className={cn("flex max-w-sm flex-col gap-2", className)}>
+    <div
+      data-slot="message-branches"
+      className={cn("flex max-w-sm flex-col gap-2", className)}
+
+      {...props}
+    >
       <p
         key={index}
         className="fade-in slide-in-from-bottom-1 animate-in text-foreground/90 min-h-[4.25rem] text-sm leading-relaxed duration-300 motion-reduce:animate-none"

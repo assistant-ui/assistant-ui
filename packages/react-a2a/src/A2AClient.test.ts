@@ -460,6 +460,16 @@ describe("A2AClient", () => {
           },
         },
       ],
+      [
+        "a message with an unknown role",
+        {
+          message: {
+            messageId: "m2",
+            role: "banana",
+            parts: [{ text: "Hi" }],
+          },
+        },
+      ],
     ])("rejects %s returned with a successful status", async (_name, body) => {
       fetchMock.mockResolvedValue(mockFetchResponse(body));
 

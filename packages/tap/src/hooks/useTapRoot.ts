@@ -4,7 +4,7 @@ import {
   renderResourceFiber,
   unmountResourceFiber,
 } from "../core/ResourceFiber";
-import { UpdateScheduler } from "../core/scheduler";
+import { scheduleNotify, UpdateScheduler } from "../core/scheduler";
 import { isDevelopment } from "../core/helpers/env";
 import {
   commitRoot,
@@ -12,6 +12,8 @@ import {
   setRootVersion,
 } from "../core/helpers/root";
 import { cloneCurrentTapContext, withTapContextRoot } from "../core/context";
+import { isThenable } from "../core/helpers/thenable";
+import type { ResourceContext } from "../core/types";
 import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 import { useDevStrictMode } from "./utils/useDevStrictMode";
 
@@ -36,18 +38,21 @@ const useHostRoot = <R>(render: () => R): R => render();
 export const useTapRoot = <R>(render: () => R): useTapRoot.Root<R> => {
   // oxlint-disable-next-line react-hooks/rules-of-hooks -- updates run through the component's Effect Event after the scheduler is initialized
   const [scheduler] = useState(() => new UpdateScheduler(() => handleUpdate()));
-  const [queue] = useState<(() => boolean)[]>(() => []);
+  const [queue] = useState<
+    { apply: () => boolean; appliedAt: number | null }[]
+  >(() => []);
 
   const getDevStrictMode = useDevStrictMode();
   const [fiber] = useState(() => {
     const root = createResourceFiberRoot((evaluate, apply) => {
-      if (!scheduler.isDirty) {
+      const isEager = !scheduler.isDirty;
+      if (isEager) {
         if (!evaluate()) return;
         apply();
       }
 
       setRootVersion(root, root.committedVersion + root.changelog.length);
-      queue.push(apply);
+      queue.push({ apply, appliedAt: isEager ? root.version : null });
       scheduler.markDirty();
     });
     return createResourceFiber(
@@ -60,31 +65,48 @@ export const useTapRoot = <R>(render: () => R): useTapRoot.Root<R> => {
 
   const context = cloneCurrentTapContext();
 
-  const drainedCount = fiber.root.version - fiber.root.committedVersion;
-  const render2 = withTapContextRoot(context, () => {
+  const value = withTapContextRoot(context, () => {
     return renderResourceFiber(fiber, [render]);
   });
 
-  const isMountedRef = useRef(false);
-  const committedArgsRef = useRef([render] as const);
-  const valueRef = useRef<R>(render2);
+  const args: readonly [() => R] = [render];
+  const wip = fiber.wipCommitCallbacks;
+  const version = fiber.root.version;
+  let processed = false;
+
+  const stateRef = useRef<{
+    isMounted: boolean;
+    committedArgs: readonly [() => R];
+    context: ResourceContext;
+    value: R;
+  }>({
+    isMounted: false,
+    committedArgs: args,
+    context,
+    value,
+  });
   const [subscribers] = useState(() => new Set<() => void>());
 
-  const publish = (output: R) => {
-    if (scheduler.isDirty || valueRef.current === output) return;
-    valueRef.current = output;
-    subscribers.forEach((listener) => listener());
+  const publish = (output: R, version: number) => {
+    if (
+      scheduler.isDirty ||
+      fiber.root.committedVersion !== version ||
+      stateRef.current.value === output
+    )
+      return;
+    stateRef.current.value = output;
+    scheduleNotify(() => subscribers.forEach((listener) => listener()));
   };
 
   const handleUpdate = useEffectEvent(() => {
     setRootVersion(fiber.root, fiber.root.committedVersion);
 
-    queue.forEach((callback) => {
+    queue.forEach((entry) => {
       if (isDevelopment && fiber.devStrictMode) {
-        callback();
+        entry.apply();
       }
 
-      callback();
+      entry.apply();
     });
 
     setRootVersion(
@@ -92,50 +114,88 @@ export const useTapRoot = <R>(render: () => R): useTapRoot.Root<R> => {
       fiber.root.committedVersion + fiber.root.changelog.length,
     );
 
-    if (isDevelopment && fiber.devStrictMode) {
-      void withTapContextRoot(fiber.root.context, () => {
-        return renderResourceFiber(fiber, committedArgsRef.current);
-      });
-    }
+    let render: R;
+    try {
+      if (isDevelopment && fiber.devStrictMode) {
+        void withTapContextRoot(stateRef.current.context, () => {
+          return renderResourceFiber(fiber, stateRef.current.committedArgs);
+        });
+      }
 
-    const render = withTapContextRoot(fiber.root.context, () => {
-      return renderResourceFiber(fiber, committedArgsRef.current);
-    });
+      render = withTapContextRoot(stateRef.current.context, () => {
+        return renderResourceFiber(fiber, stateRef.current.committedArgs);
+      });
+    } catch (error) {
+      // Suspended outside a React render: hold the committed value and retry
+      // once the thenable settles (transition semantics).
+      if (isThenable(error)) {
+        setRootVersion(fiber.root, fiber.root.committedVersion);
+        const retry = () => {
+          if (stateRef.current.isMounted) scheduler.markDirty();
+        };
+        error.then(retry, retry);
+        return;
+      }
+      throw error;
+    }
 
     if (scheduler.isDirty)
       throw new Error("Scheduler is dirty, this should never happen");
 
+    const version = fiber.root.version;
     commitRoot(fiber.root);
     queue.length = 0;
 
-    if (isMountedRef.current) {
+    if (stateRef.current.isMounted) {
       commitResourceFiber(fiber);
     }
 
-    publish(render);
+    publish(render, version);
   });
 
   useEffect(() => {
-    isMountedRef.current = true;
+    const current = stateRef.current;
+    current.isMounted = true;
     return () => {
-      isMountedRef.current = false;
+      current.isMounted = false;
       unmountResourceFiber(fiber);
     };
   }, [fiber]);
 
   useEffect(() => {
-    committedArgsRef.current = [render];
-    commitRoot(fiber.root);
-    queue.splice(0, drainedCount);
-    fiber.root.context = context;
-    commitResourceFiber(fiber);
+    if (processed) {
+      if (!fiber.isMounted) {
+        commitResourceFiber(fiber);
+        if (queue.length && !scheduler.isDirty) scheduler.markDirty();
+      }
+      return;
+    }
+    processed = true;
 
-    publish(render2);
+    stateRef.current.committedArgs = args;
+    stateRef.current.context = context;
+    if (fiber.wipCommitCallbacks !== wip) {
+      if (!scheduler.isDirty) handleUpdate();
+      return;
+    }
+
+    commitResourceFiber(fiber);
+    for (let i = queue.length - 1; i >= 0; i--) {
+      const entry = queue[i]!;
+      if (
+        entry.appliedAt !== null &&
+        entry.appliedAt <= fiber.root.committedVersion
+      ) {
+        queue.splice(i, 1);
+      }
+    }
+
+    publish(value, version);
   });
 
   return useMemo(
     () => ({
-      getValue: () => valueRef.current,
+      getValue: () => stateRef.current.value,
       subscribe: (listener: () => void) => {
         subscribers.add(listener);
         return () => subscribers.delete(listener);

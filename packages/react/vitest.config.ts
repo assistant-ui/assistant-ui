@@ -7,5 +7,11 @@ export default defineConfig({
     environment: "node",
     globals: true,
     setupFiles: ["./src/tests/setup.ts"],
+    typecheck: {
+      enabled: true,
+      include: ["src/tests/augmentations.test.ts"],
+      tsconfig: "./tsconfig.json",
+      ignoreSourceErrors: true,
+    },
   },
 });

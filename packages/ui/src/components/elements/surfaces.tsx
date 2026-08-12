@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { useLayoutEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 
@@ -35,7 +36,8 @@ export const labelSwap =
 
 export const labelSwapIn = "opacity-100 blur-none";
 
-export const labelSwapOut = "pointer-events-none opacity-0 blur-[2px]";
+export const labelSwapOut =
+  "pointer-events-none select-none opacity-0 blur-[2px]";
 
 export const collapsePanel =
   "h-(--collapsible-panel-height) overflow-hidden transition-[height] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] data-[ending-style]:h-0 data-[starting-style]:h-0 motion-reduce:transition-none";
@@ -43,6 +45,33 @@ export const collapsePanel =
 export const live = "text-blue-500 dark:text-blue-400";
 
 export const mono = "font-mono text-[11px] tracking-tight";
+
+export function ShimmerLabel({
+  active = true,
+  className,
+  ...props
+}: ComponentProps<"span"> & { active?: boolean }) {
+  return (
+    <span
+      className={cn(active && "shimmer motion-reduce:animate-none", className)}
+      {...props}
+    />
+  );
+}
+
+/**
+ * Scroll region for content that keeps its own whitespace. `whitespace-pre` in
+ * a bounded box clips a long line with no way to reach it, so the rows scroll
+ * instead.
+ *
+ * `codeSurface` wraps all the rows as one block, and the rows are its children.
+ * It cannot go on each row: `min-width: 100%` resolves against the scroll
+ * container's visible width rather than its scroll width, so a per-row width
+ * leaves every row except the longest ending its background at the fold.
+ */
+export const codeScroll = "overflow-x-auto";
+
+export const codeSurface = "w-max min-w-full";
 
 export function SwapLabel({
   active,

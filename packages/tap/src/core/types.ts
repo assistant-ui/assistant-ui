@@ -49,14 +49,18 @@ export type MemoCell<T = any> = {
 
 export type EffectCell = {
   readonly type: "effect";
+  setup: (() => (() => void) | undefined) | undefined;
+  setupDeps: readonly unknown[] | undefined;
   cleanup: (() => void) | undefined;
+  // null = never ran or disconnected, undefined = deps-less
   deps: readonly unknown[] | null | undefined;
+  generation: number;
 };
 
 export type Cell = ReducerCell | MemoCell | EffectCell;
 
 export type CommitCallback = () => void;
-export type CommitCallbacks = Array<CommitCallback[] | undefined>;
+export type CommitCallbacks = CommitCallback[];
 
 export type ResourceContext = Map<object, ResourceContextValue>;
 export type ResourceContextDeps = Map<object, ResourceFiber<any> | null>;
@@ -69,7 +73,6 @@ export interface ResourceContextValue {
 export interface TapRoot {
   version: number;
   committedVersion: number;
-  context: ResourceContext;
   readonly changelog: ChangelogRecord[];
   readonly dispatchUpdate: (
     evaluate: () => boolean,
@@ -86,10 +89,10 @@ export interface ResourceFiber<R> {
   readonly devStrictMode: "root" | "child" | null;
 
   cells: Cell[];
+  effectCells: EffectCell[];
 
   wipContextDeps: ResourceContextDeps | null;
   contextDeps: ResourceContextDeps | null;
-  commitCallbacks: CommitCallbacks | null;
   wipCommitCallbacks: CommitCallbacks | null;
 
   currentIndex: number;

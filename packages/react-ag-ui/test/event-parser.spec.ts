@@ -17,6 +17,35 @@ describe("parseAgUiEvent", () => {
     });
   });
 
+  it("parses a reasoning encrypted value event", () => {
+    expect(
+      parseAgUiEvent({
+        type: "REASONING_ENCRYPTED_VALUE",
+        subtype: "message",
+        entityId: "r-1",
+        encryptedValue: "signed-blob",
+      }),
+    ).toEqual({
+      type: "REASONING_ENCRYPTED_VALUE",
+      subtype: "message",
+      entityId: "r-1",
+      encryptedValue: "signed-blob",
+    });
+  });
+
+  it("rejects a reasoning encrypted value event with an unusable discriminator", () => {
+    for (const subtype of [undefined, "", "Message", "other"]) {
+      expect(
+        parseAgUiEvent({
+          type: "REASONING_ENCRYPTED_VALUE",
+          ...(subtype !== undefined ? { subtype } : {}),
+          entityId: "r-1",
+          encryptedValue: "signed-blob",
+        }),
+      ).toBeNull();
+    }
+  });
+
   it("guards against invalid events", () => {
     const event = parseAgUiEvent({ type: "TEXT_MESSAGE_CONTENT", delta: "" });
     expect(event).toBeNull();

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, onTestFinished, vi } from "vitest";
 import { act, renderHook, waitFor } from "@testing-library/react";
 
 import { useLangGraphMessages } from "./useLangGraphMessages";
@@ -1910,6 +1910,110 @@ describe("useLangGraphMessages", {}, () => {
     expect(result.current.messages.map((m) => m.id)).toEqual(["sum-1"]);
   });
 
+  it("removes the referenced message when a messages tuple event carries a RemoveMessage", async () => {
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      {
+        event: "messages",
+        data: [
+          {
+            id: "ai-1",
+            content: "I will be pruned",
+            type: "AIMessageChunk",
+            tool_call_chunks: [],
+          },
+          { run_attempt: 1 },
+        ],
+      },
+      {
+        event: "messages",
+        data: [
+          {
+            type: "remove",
+            id: "ai-1",
+            content: [],
+            additional_kwargs: {},
+            response_metadata: {},
+          },
+          { run_attempt: 1 },
+        ],
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+
+    await act(async () => {
+      await result.current.sendMessage([{ type: "human", content: "hi" }], {});
+    });
+
+    expect(result.current.messages).toHaveLength(1);
+    expect(result.current.messages[0]!.type).toEqual("human");
+    expect(
+      result.current.messages.find((m) => m.id === "ai-1"),
+    ).toBeUndefined();
+  });
+
+  it("clears all messages when a messages tuple event carries the REMOVE_ALL_MESSAGES sentinel", async () => {
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      {
+        event: "messages",
+        data: [
+          {
+            id: "ai-1",
+            content: "long history to be summarized",
+            type: "AIMessageChunk",
+            tool_call_chunks: [],
+          },
+          { run_attempt: 1 },
+        ],
+      },
+      {
+        event: "messages",
+        data: [
+          {
+            type: "remove",
+            id: "__remove_all__",
+            content: [],
+            additional_kwargs: {},
+            response_metadata: {},
+          },
+          { run_attempt: 1 },
+        ],
+      },
+      {
+        event: "messages",
+        data: [
+          {
+            id: "sum-1",
+            content: "summary of the conversation",
+            type: "AIMessageChunk",
+            tool_call_chunks: [],
+          },
+          { run_attempt: 1 },
+        ],
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+
+    await act(async () => {
+      await result.current.sendMessage([{ type: "human", content: "hi" }], {});
+    });
+
+    expect(result.current.messages.map((m) => m.id)).toEqual(["sum-1"]);
+  });
+
   it("syncs messages from values event when no tuple events", async () => {
     const mockStreamCallback = mockStreamCallbackFactory([
       metadataEvent,
@@ -3642,6 +3746,80 @@ describe("useLangGraphMessages", {}, () => {
         langgraph_node: "tools",
         namespace: "tools:tc-1",
       });
+    });
+  });
+
+  it("continues processing after an event callback throws", async () => {
+    const callbackError = new Error("values callback failed");
+    const onCustomEvent = vi.fn();
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    onTestFinished(() => consoleError.mockRestore());
+    const mockStreamCallback = mockStreamCallbackFactory([
+      { event: "values", data: { messages: [] } },
+      { event: "after-values", data: { ok: true } },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+        eventHandlers: {
+          onValues: () => {
+            throw callbackError;
+          },
+          onCustomEvent,
+        },
+      }),
+    );
+
+    await act(() =>
+      result.current.sendMessage([{ type: "human", content: "hi" }], {}),
+    );
+
+    expect(onCustomEvent).toHaveBeenCalledWith("after-values", { ok: true });
+    expect(consoleError).toHaveBeenCalledWith(
+      "[react-langgraph] onValues callback threw an error",
+      callbackError,
+    );
+  });
+
+  it("handles rejected event callback promises", async () => {
+    const callbackError = new Error("custom callback failed");
+    const onMetadata = vi.fn();
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    onTestFinished(() => consoleError.mockRestore());
+    const mockStreamCallback = mockStreamCallbackFactory([
+      { event: "custom-event", data: { value: 1 } },
+      { event: "metadata", data: { run_id: "run-1" } },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+        eventHandlers: {
+          onCustomEvent: async () => {
+            throw callbackError;
+          },
+          onMetadata,
+        },
+      }),
+    );
+
+    await act(() =>
+      result.current.sendMessage([{ type: "human", content: "hi" }], {}),
+    );
+
+    expect(onMetadata).toHaveBeenCalledWith({ run_id: "run-1" });
+    await waitFor(() => {
+      expect(consoleError).toHaveBeenCalledWith(
+        "[react-langgraph] onCustomEvent callback threw an error",
+        callbackError,
+      );
     });
   });
 });

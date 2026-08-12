@@ -1,7 +1,14 @@
-import type { ComponentType, PropsWithChildren } from "react";
 import type { ThreadMessage } from "../../types/message";
 import type { AssistantRuntime } from "../../runtime/api/assistant-runtime";
 import type { AssistantStream } from "assistant-stream";
+
+/* oxlint-disable typescript/no-explicit-any -- structural stand-in for ComponentType without depending on react types */
+type RemoteThreadListProviderProps = { children?: any };
+
+export type RemoteThreadListProviderComponent =
+  | ((props: RemoteThreadListProviderProps) => any)
+  | (new (props: RemoteThreadListProviderProps) => any);
+/* oxlint-enable typescript/no-explicit-any */
 
 export type RemoteThreadInitializeResponse = {
   remoteId: string;
@@ -54,7 +61,7 @@ export type RemoteThreadListAdapter = {
    * is unsupported and leaves thread context unavailable to downstream
    * consumers. Load data inside an always-mounted child instead.
    */
-  unstable_Provider?: ComponentType<PropsWithChildren> | undefined;
+  unstable_Provider?: RemoteThreadListProviderComponent | undefined;
 };
 
 export type RemoteThreadListOptions = {

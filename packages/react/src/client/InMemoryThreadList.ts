@@ -7,8 +7,9 @@ import {
   attachTransformScopes,
   useClientResource,
 } from "@assistant-ui/store";
+import { generateId } from "@assistant-ui/core";
 
-import { ModelContext, Suggestions } from "@assistant-ui/core/store";
+import { ModelContext } from "@assistant-ui/core/store";
 import { Tools, DataRenderers } from "@assistant-ui/core/react";
 
 const RESOLVED_PROMISE = Promise.resolve();
@@ -129,14 +130,15 @@ const useInMemoryThreadList = (
 
   const handleDelete = (threadId: string) => {
     setThreads((prev) => prev.filter((t) => t.id !== threadId));
-    if (mainThreadId === threadId) {
-      const remaining = threads.filter((t) => t.id !== threadId);
-      setMainThreadId(remaining[0]?.id || "main");
-    }
+    setMainThreadId((prev) =>
+      prev === threadId
+        ? threads.find((t) => t.id !== threadId)?.id || "main"
+        : prev,
+    );
   };
 
   const handleSwitchToNewThread = () => {
-    const newId = `thread-${Date.now()}`;
+    const newId = `thread-${generateId()}`;
     setThreads((prev) => [
       ...prev,
       { id: newId, title: "New Thread", status: "regular" },
@@ -189,7 +191,8 @@ const useInMemoryThreadList = (
     switchToNewThread: handleSwitchToNewThread,
     getLoadThreadsPromise: () => RESOLVED_PROMISE,
     reload: () => RESOLVED_PROMISE,
-    reloadMainThread: () => RESOLVED_PROMISE,
+    reloadMainThread: () =>
+      mainThreadClient.methods.unstable_refetchThread?.() ?? RESOLVED_PROMISE,
     loadMore: () => RESOLVED_PROMISE,
     item: (selector) => {
       if (selector === "main") {
@@ -235,6 +238,10 @@ attachTransformScopes(useInMemoryThreadList, (scopes, parent) => {
     scopes.dataRenderers = DataRenderers();
   }
   if (!scopes.suggestions && parent.suggestions.source === null) {
-    scopes.suggestions = Suggestions();
+    scopes.suggestions = Derived({
+      source: "thread",
+      query: {},
+      get: (aui) => aui.thread.suggestions(),
+    });
   }
 });

@@ -3,6 +3,7 @@ import {
   toAssistantError,
   type AppendMessage,
   type CompleteAttachment,
+  type DataMessagePart,
   type FileMessagePart,
   type MessageStatus,
   type RespondToToolApprovalOptions,
@@ -15,6 +16,8 @@ import {
 } from "@assistant-ui/core";
 import { httpUrlPattern, parseDataUrl } from "@assistant-ui/core/internal";
 import type {
+  EveAuthorizationOutcome,
+  EveAuthorizationPart,
   EveDynamicToolPart,
   EveMessage,
   EveMessageData,
@@ -82,20 +85,34 @@ const toMessageStatus = (
 ): MessageStatus => {
   if (message.role !== "assistant") return USER_FALLBACK_STATUS;
 
+  const isLast = index === messages.length - 1;
   const hasPendingApproval = message.parts.some(
     (part) =>
       part.type === "dynamic-tool" && part.state === "approval-requested",
   );
+  // Scoped to the stale-marker case so a terminalized or errored turn keeps its
+  // own status; the hold only claims the fall-through that reads as cancelled.
+  const hasPendingAuthorization =
+    message.metadata?.status === "streaming" &&
+    (!isLast || options.error === undefined) &&
+    message.parts.some(
+      (part) => part.type === "authorization" && part.state === "required",
+    );
 
   if (hasPendingApproval) {
     return { type: "requires-action", reason: "tool-calls" };
+  }
+
+  // A connector authorization is answered outside the thread, so the turn is
+  // held on external input rather than on a tool call awaiting a result.
+  if (hasPendingAuthorization) {
+    return { type: "requires-action", reason: "interrupt" };
   }
 
   if (message.metadata?.status === "failed") {
     return { type: "incomplete", reason: "error" };
   }
 
-  const isLast = index === messages.length - 1;
   if (isLast && options.isRunning === true) {
     return ASSISTANT_RUNNING_STATUS;
   }
@@ -205,6 +222,58 @@ const convertDynamicToolPart = (
   }
 };
 
+/**
+ * Payload of the `authorization` data part the Eve runtime emits for a
+ * connector authorization challenge. `state` discriminates a pending challenge
+ * from a settled one; every other field is present only when Eve projected it.
+ * This converter drops a `url` whose scheme is not `http(s)`, so a renderer can
+ * link to it without checking the scheme itself; Eve itself passes through
+ * whatever the connector supplied. Eve's
+ * `turnId` and `stepIndex` part identity is omitted: a renderer receives the
+ * one part it renders, in Eve's own step order, so display never has to
+ * re-identify a challenge among several.
+ */
+export type EveAuthorizationData = {
+  readonly state: EveAuthorizationPart["state"];
+  readonly name: string;
+  readonly displayName?: string;
+  readonly description?: string;
+  readonly url?: string;
+  readonly userCode?: string;
+  readonly instructions?: string;
+  readonly expiresAt?: string;
+  readonly outcome?: EveAuthorizationOutcome;
+  readonly reason?: string;
+};
+
+const convertAuthorizationPart = (
+  part: EveAuthorizationPart,
+): DataMessagePart<EveAuthorizationData> => ({
+  type: "data",
+  name: "authorization",
+  data: {
+    state: part.state,
+    name: part.name,
+    ...(part.displayName !== undefined && { displayName: part.displayName }),
+    ...(part.description !== undefined && { description: part.description }),
+    ...(part.authorization?.url !== undefined &&
+      httpUrlPattern.test(part.authorization.url) && {
+        url: part.authorization.url,
+      }),
+    ...(part.authorization?.userCode !== undefined && {
+      userCode: part.authorization.userCode,
+    }),
+    ...(part.authorization?.instructions !== undefined && {
+      instructions: part.authorization.instructions,
+    }),
+    ...(part.authorization?.expiresAt !== undefined && {
+      expiresAt: part.authorization.expiresAt,
+    }),
+    ...(part.outcome !== undefined && { outcome: part.outcome }),
+    ...(part.reason !== undefined && { reason: part.reason }),
+  },
+});
+
 const convertFilePart = (
   part: Extract<EveMessagePart, { type: "file" }>,
 ): FileMessagePart | null => {
@@ -231,6 +300,9 @@ const convertAssistantPart = (
 
     case "dynamic-tool":
       return convertDynamicToolPart(part);
+
+    case "authorization":
+      return convertAuthorizationPart(part);
 
     case "file":
       return convertFilePart(part);

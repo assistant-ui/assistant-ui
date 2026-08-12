@@ -487,6 +487,26 @@ describe("convertEveMessages", () => {
           role: "assistant",
           parts: [
             { type: "step-start" },
+            { type: "future-part", payload: {} },
+            { type: "file", mediaType: "application/pdf" },
+            { type: "text", text: "Done" },
+          ],
+        },
+      ],
+    } as unknown as EveMessageData;
+
+    const [message] = convertEveMessages(data);
+
+    expect(message?.content).toEqual([{ type: "text", text: "Done" }]);
+  });
+
+  it("converts an authorization part into a data content part", () => {
+    const data = {
+      messages: [
+        {
+          id: "a1",
+          role: "assistant",
+          parts: [
             {
               type: "authorization",
               state: "required",
@@ -495,9 +515,14 @@ describe("convertEveMessages", () => {
               displayName: "GitHub",
               stepIndex: 0,
               turnId: "turn_1",
+              authorization: {
+                displayName: "GitHub",
+                instructions: "Enter the code on the device page",
+                url: "https://github.com/login/device",
+                userCode: "ABCD-1234",
+                expiresAt: "2026-01-01T00:00:00Z",
+              },
             },
-            { type: "file", mediaType: "application/pdf" },
-            { type: "text", text: "Done" },
           ],
         },
       ],
@@ -505,7 +530,121 @@ describe("convertEveMessages", () => {
 
     const [message] = convertEveMessages(data);
 
-    expect(message?.content).toEqual([{ type: "text", text: "Done" }]);
+    expect(message?.content).toEqual([
+      {
+        type: "data",
+        name: "authorization",
+        data: {
+          state: "required",
+          name: "github",
+          displayName: "GitHub",
+          description: "Sign in to GitHub",
+          url: "https://github.com/login/device",
+          userCode: "ABCD-1234",
+          instructions: "Enter the code on the device page",
+          expiresAt: "2026-01-01T00:00:00Z",
+        },
+      },
+    ]);
+  });
+
+  it("converts an authorization part with missing optional fields", () => {
+    const data = {
+      messages: [
+        {
+          id: "a1",
+          role: "assistant",
+          parts: [
+            {
+              type: "authorization",
+              state: "required",
+              name: "github",
+            },
+          ],
+        },
+      ],
+    } as unknown as EveMessageData;
+
+    const [message] = convertEveMessages(data);
+
+    expect(message?.content).toEqual([
+      {
+        type: "data",
+        name: "authorization",
+        data: { state: "required", name: "github" },
+      },
+    ]);
+  });
+
+  it("drops an authorization url that is not an http(s) address", () => {
+    const data = {
+      messages: [
+        {
+          id: "a1",
+          role: "assistant",
+          parts: [
+            {
+              type: "authorization",
+              state: "required",
+              name: "github",
+              authorization: {
+                url: "javascript:alert(1)",
+                userCode: "ABCD-1234",
+              },
+            },
+          ],
+        },
+      ],
+    } as unknown as EveMessageData;
+
+    const [message] = convertEveMessages(data);
+
+    expect(message?.content).toEqual([
+      {
+        type: "data",
+        name: "authorization",
+        data: { state: "required", name: "github", userCode: "ABCD-1234" },
+      },
+    ]);
+  });
+
+  it("carries the outcome of a completed authorization part", () => {
+    const data = {
+      messages: [
+        {
+          id: "a1",
+          role: "assistant",
+          parts: [
+            {
+              type: "authorization",
+              state: "completed",
+              name: "github",
+              description: "Sign in to GitHub",
+              displayName: "GitHub",
+              stepIndex: 0,
+              turnId: "turn_1",
+              outcome: "authorized",
+            },
+          ],
+        },
+      ],
+    } satisfies EveMessageData;
+
+    const [message] = convertEveMessages(data);
+
+    expect(message?.content).toEqual([
+      {
+        type: "data",
+        name: "authorization",
+        data: {
+          state: "completed",
+          name: "github",
+          displayName: "GitHub",
+          description: "Sign in to GitHub",
+          outcome: "authorized",
+        },
+      },
+    ]);
   });
 
   describe("assistant message status mapping", () => {
@@ -634,6 +773,227 @@ describe("convertEveMessages", () => {
       });
     });
 
+    it("maps an auth-suspended message to requires-action instead of cancelled", () => {
+      const data = {
+        messages: [
+          {
+            id: "a1",
+            role: "assistant",
+            metadata: { status: "streaming" },
+            parts: [
+              {
+                type: "authorization",
+                state: "required",
+                name: "github",
+                description: "Sign in to GitHub",
+                displayName: "GitHub",
+                stepIndex: 0,
+                turnId: "turn_1",
+              },
+            ],
+          },
+        ],
+      } satisfies EveMessageData;
+
+      const [message] = convertEveMessages(data, { isRunning: false });
+
+      expect(message?.status).toEqual({
+        type: "requires-action",
+        reason: "interrupt",
+      });
+    });
+
+    it("reports tool-calls when an approval and an authorization are both pending", () => {
+      const data = {
+        messages: [
+          {
+            id: "a1",
+            role: "assistant",
+            metadata: { status: "streaming" },
+            parts: [
+              {
+                type: "dynamic-tool",
+                state: "approval-requested",
+                toolCallId: "call_1",
+                toolName: "send_email",
+                input: {},
+                approval: { id: "req_1" },
+              },
+              {
+                type: "authorization",
+                state: "required",
+                name: "github",
+                description: "Sign in to GitHub",
+                displayName: "GitHub",
+                stepIndex: 0,
+                turnId: "turn_1",
+              },
+            ],
+          },
+        ],
+      } satisfies EveMessageData;
+
+      const [message] = convertEveMessages(data, { isRunning: false });
+
+      expect(message?.status).toEqual({
+        type: "requires-action",
+        reason: "tool-calls",
+      });
+    });
+
+    it("settles a cancelled turn with a pending authorization", () => {
+      const reducer = defaultMessageReducer();
+      const events: readonly EveAgentReducerEvent[] = [
+        {
+          type: "authorization.required",
+          data: {
+            turnId: "turn_1",
+            stepIndex: 0,
+            sequence: 0,
+            name: "github",
+            description: "Sign in to GitHub",
+          },
+        },
+        {
+          type: "turn.cancelled",
+          data: { turnId: "turn_1", sequence: 1 },
+        },
+      ];
+      const pendingData = events
+        .slice(0, 1)
+        .reduce(
+          (state, event) => reducer.reduce(state, event),
+          reducer.initial(),
+        );
+      const pendingAssistant = pendingData.messages.find(
+        (message) => message.role === "assistant",
+      );
+      expect(pendingAssistant?.metadata?.status).toBe("streaming");
+      expect(
+        convertEveMessages(pendingData, { isRunning: false }).at(-1)?.status,
+      ).toEqual({
+        type: "requires-action",
+        reason: "interrupt",
+      });
+
+      const data = events
+        .slice(1)
+        .reduce((state, event) => reducer.reduce(state, event), pendingData);
+
+      const [message] = convertEveMessages(data, { isRunning: false });
+
+      expect(message?.status).toEqual({
+        type: "complete",
+        reason: "stop",
+      });
+    });
+
+    it("reports a failed turn with a pending authorization", () => {
+      const data = {
+        messages: [
+          {
+            id: "a1",
+            role: "assistant",
+            metadata: { status: "streaming" },
+            parts: [
+              {
+                type: "authorization",
+                state: "required",
+                name: "github",
+                description: "Sign in to GitHub",
+                displayName: "GitHub",
+                stepIndex: 0,
+                turnId: "turn_1",
+              },
+            ],
+          },
+        ],
+      } satisfies EveMessageData;
+
+      const error = new Error("authorization failed");
+      const [message] = convertEveMessages(data, {
+        isRunning: false,
+        error,
+      });
+
+      expect(message?.status).toEqual({
+        type: "incomplete",
+        reason: "error",
+        error: {
+          code: "unknown",
+          message: "authorization failed",
+        },
+      });
+    });
+
+    it("keeps an earlier authorization pending when a later turn fails", () => {
+      const data = {
+        messages: [
+          {
+            id: "a1",
+            role: "assistant",
+            metadata: { status: "streaming" },
+            parts: [
+              {
+                type: "authorization",
+                state: "required",
+                name: "github",
+                description: "Sign in to GitHub",
+                displayName: "GitHub",
+                stepIndex: 0,
+                turnId: "turn_1",
+              },
+            ],
+          },
+          {
+            id: "a2",
+            role: "assistant",
+            metadata: { status: "streaming" },
+            parts: [{ type: "text", text: "Later turn" }],
+          },
+        ],
+      } satisfies EveMessageData;
+
+      const [authorization] = convertEveMessages(data, {
+        isRunning: false,
+        error: new Error("later turn failed"),
+      });
+
+      expect(authorization?.status).toEqual({
+        type: "requires-action",
+        reason: "interrupt",
+      });
+    });
+
+    it("does not hold requires-action for a completed authorization", () => {
+      const data = {
+        messages: [
+          {
+            id: "a1",
+            role: "assistant",
+            metadata: { status: "complete" },
+            parts: [
+              {
+                type: "authorization",
+                state: "completed",
+                name: "github",
+                description: "Sign in to GitHub",
+                displayName: "GitHub",
+                stepIndex: 0,
+                turnId: "turn_1",
+                outcome: "authorized",
+              },
+              { type: "text", text: "Done" },
+            ],
+          },
+        ],
+      } satisfies EveMessageData;
+
+      const [message] = convertEveMessages(data, { isRunning: false });
+
+      expect(message?.status).toEqual({ type: "complete", reason: "stop" });
+    });
+
     describe("contract with eve's default reducer", () => {
       const replay = (events: readonly EveAgentReducerEvent[]) => {
         const reducer = defaultMessageReducer();
@@ -667,6 +1027,125 @@ describe("convertEveMessages", () => {
           },
         },
       ];
+
+      it("carries the challenge Eve projects onto an authorization part", () => {
+        const state = replay([
+          ...midStreamEvents,
+          {
+            type: "authorization.required",
+            data: {
+              turnId: "turn_1",
+              stepIndex: 0,
+              sequence: 3,
+              name: "github",
+              description: "Authorization required for github",
+              authorization: {
+                displayName: "GitHub",
+                instructions: "Enter the code on the device page",
+                url: "https://github.com/login/device",
+                userCode: "ABCD-1234",
+                expiresAt: "2026-01-01T00:00:00Z",
+              },
+            },
+          },
+        ]);
+
+        const converted = convertEveMessages(state, { isRunning: false });
+
+        expect(converted.at(-1)?.content).toContainEqual({
+          type: "data",
+          name: "authorization",
+          data: {
+            state: "required",
+            name: "github",
+            displayName: "GitHub",
+            description: "Authorization required for GitHub",
+            url: "https://github.com/login/device",
+            userCode: "ABCD-1234",
+            instructions: "Enter the code on the device page",
+            expiresAt: "2026-01-01T00:00:00Z",
+          },
+        });
+      });
+
+      it("releases the hold when Eve settles the authorization part in place", () => {
+        const state = replay([
+          ...midStreamEvents,
+          {
+            type: "authorization.required",
+            data: {
+              turnId: "turn_1",
+              stepIndex: 0,
+              sequence: 3,
+              name: "github",
+              description: "Authorization required for github",
+            },
+          },
+          {
+            type: "authorization.completed",
+            data: {
+              turnId: "turn_1",
+              stepIndex: 0,
+              sequence: 4,
+              name: "github",
+              outcome: "authorized",
+            },
+          },
+        ]);
+
+        const assistant = state.messages.find((m) => m.role === "assistant");
+        const authorizationParts = assistant?.parts.filter(
+          (part) => part.type === "authorization",
+        );
+        expect(authorizationParts).toHaveLength(1);
+        expect(authorizationParts?.[0]).toMatchObject({ state: "completed" });
+
+        // Eve leaves the streaming marker set, so the released turn falls back
+        // to the stale-marker mapping rather than to a terminal status.
+        expect(
+          convertEveMessages(state, { isRunning: false }).at(-1)?.status,
+        ).toEqual({ type: "incomplete", reason: "cancelled" });
+      });
+
+      it("keeps the hold while another connector is still required", () => {
+        const state = replay([
+          ...midStreamEvents,
+          {
+            type: "authorization.required",
+            data: {
+              turnId: "turn_1",
+              stepIndex: 0,
+              sequence: 3,
+              name: "github",
+              description: "Authorization required for github",
+            },
+          },
+          {
+            type: "authorization.required",
+            data: {
+              turnId: "turn_1",
+              stepIndex: 0,
+              sequence: 4,
+              name: "slack",
+              description: "Authorization required for slack",
+            },
+          },
+          {
+            type: "authorization.completed",
+            data: {
+              turnId: "turn_1",
+              stepIndex: 0,
+              sequence: 5,
+              name: "github",
+              outcome: "authorized",
+            },
+          },
+        ]);
+
+        expect(
+          convertEveMessages(state, { isRunning: false }).at(-1)?.status,
+        ).toEqual({ type: "requires-action", reason: "interrupt" });
+      });
 
       it("a locally aborted turn keeps its streaming marker and converts to cancelled", () => {
         const state = replay(midStreamEvents);

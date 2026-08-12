@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/tap",
-  "version": "0.9.9",
+  "version": "0.9.12",
   "description": "Reactive state management inspired by React hooks",
   "keywords": [
     "state-management",
@@ -24,6 +24,14 @@
     "./react-shim/compiler-runtime": {
       "types": null,
       "default": "./dist/react-shim/compiler-runtime.js"
+    },
+    "./standalone-shim": {
+      "types": null,
+      "default": "./dist/standalone-shim/index.js"
+    },
+    "./standalone-shim/compiler-runtime": {
+      "types": null,
+      "default": "./dist/standalone-shim/compiler-runtime.js"
     }
   },
   "main": "./dist/index.js",
@@ -32,8 +40,11 @@
     "dist",
     "!dist/react-shim/**/*.d.ts",
     "!dist/react-shim/**/*.d.ts.map",
+    "!dist/standalone-shim/**/*.d.ts",
+    "!dist/standalone-shim/**/*.d.ts.map",
     "src",
     "react-shim",
+    "standalone-shim",
     "README.md"
   ],
   "sideEffects": false,
@@ -41,6 +52,7 @@
     "build": "aui-build",
     "prepublishOnly": "pnpm turbo build",
     "test": "vitest run",
+    "test:standalone": "vitest run --project standalone",
     "test:watch": "vitest"
   },
   "peerDependencies": {
@@ -50,17 +62,20 @@
   "peerDependenciesMeta": {
     "@types/react": {
       "optional": true
+    },
+    "react": {
+      "optional": true
     }
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/react": "^16.3.2",
-    "@types/node": "^26.1.1",
-    "@types/react": "^19.2.17",
-    "@types/react-dom": "^19.2.3",
+    "@types/node": "^26.1.2",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
     "@vitest/ui": "^4.1.10",
-    "jsdom": "^29.1.1",
+    "jsdom": "^30.0.1",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "vitest": "^4.1.10"

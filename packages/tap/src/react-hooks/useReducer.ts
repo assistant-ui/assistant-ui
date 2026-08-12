@@ -9,7 +9,6 @@ import {
   applyChangelogRecord,
   markReducerDirty,
 } from "../core/helpers/root";
-import { CommitPriority } from "../core/helpers/commit";
 import {
   throwHookOrderChanged,
   throwRenderedMoreHooks,
@@ -124,7 +123,7 @@ export function useReducerImpl<S, A, I>(
       return existing.type === "reducer" ? existing : throwHookOrderChanged();
     }
 
-    if (!fiber.isFirstRender && index >= fiber.cells.length) {
+    if (!fiber.isFirstRender) {
       throwRenderedMoreHooks();
     }
 
@@ -184,7 +183,7 @@ export function useReducerImpl<S, A, I>(
   }
 
   if (cell.isDirty) {
-    addCommit(fiber, CommitPriority.HookState, () => {
+    addCommit(fiber, () => {
       cell.current = cell.workInProgress;
       cell.isDirty = false;
     });

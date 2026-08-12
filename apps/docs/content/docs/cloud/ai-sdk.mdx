@@ -332,7 +332,7 @@ Plus all other properties from AI SDK's [`UseChatHelpers`](https://sdk.vercel.ai
 | Value | Type | Description |
 |-------|------|-------------|
 | `threads.cloud` | `AssistantCloud` | The cloud instance used for thread operations |
-| `threads.threads` | `CloudThread[]` | Active threads sorted by recency |
+| `threads.threads` | `CloudThread[]` | Threads sorted by recency; includes archived threads when supplied by `useThreads({ includeArchived: true })` |
 | `threads.threadId` | `string \| null` | Current thread ID (`null` for a new unsaved chat) |
 | `threads.selectThread` | `(id: string \| null) => void` | Switch threads or pass `null` for a new chat |
 | `threads.isLoading` | `boolean` | `true` during initial load or refresh |
