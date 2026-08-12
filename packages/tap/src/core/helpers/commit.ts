@@ -31,14 +31,15 @@ function setupEffect(cell: EffectCell): void {
   }
 }
 
-// deps === null (new or disconnected) runs on any commit; a render-less
-// commit (Activity reveal) runs nothing else; a rendered commit follows
-// React semantics: dep-less every render, dep'd on shallow inequality.
-// useEffect keeps dep arity stable once committed, so setupDeps and deps
-// are undefined together past the null check.
 const effectNeedsRun = (cell: EffectCell, rendered: boolean): boolean => {
+  // Mount/reconnect leg: a cell that never ran or was disconnected runs on
+  // any commit, rendered or not (the zero-render Activity reveal).
   if (cell.deps === null) return true;
+  // Update leg: a connected cell only responds to a new render — this also
+  // makes replayed commits of an already-committed render no-ops.
   if (!rendered) return false;
+  // React dep semantics. Dep arity is stable once committed, so
+  // setupDeps === undefined implies the committed deps are dep-less too.
   if (cell.setupDeps === undefined) return true;
   return !depsShallowEqual(cell.deps!, cell.setupDeps);
 };
