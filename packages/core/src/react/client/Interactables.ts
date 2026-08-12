@@ -402,6 +402,14 @@ const useInteractablesResource = ({
     [provider],
   );
 
+  const installUpdateToolUI = useCallback(
+    (name: string, render: ToolCallMessagePartComponent) =>
+      clientRef.current!.tools().setToolUI(interactableToolName(name), render, {
+        standalone: true,
+      }),
+    [clientRef],
+  );
+
   // register() installs update-tool UIs against the tools instance bound at
   // call time; this re-applies the retained entries when that instance is
   // structurally replaced. Disposers pointing at the replaced instance are
@@ -409,13 +417,8 @@ const useInteractablesResource = ({
   useAssistantScopeEffect(
     "tools",
     () => {
-      const tools = clientRef.current!.tools;
       for (const [name, entry] of updateToolUIsRef.current) {
-        entry.unsubscribe = tools().setToolUI(
-          interactableToolName(name),
-          entry.render,
-          { standalone: true },
-        );
+        entry.unsubscribe = installUpdateToolUI(name, entry.render);
       }
       return () => {
         for (const entry of updateToolUIsRef.current.values()) {
@@ -423,7 +426,7 @@ const useInteractablesResource = ({
         }
       };
     },
-    [],
+    [installUpdateToolUI],
   );
 
   const register = useCallback(
@@ -460,7 +463,6 @@ const useInteractablesResource = ({
       if (def.updateRender) {
         const toolsAccessor = clientRef.current?.tools;
         if (toolsAccessor && toolsAccessor.source != null) {
-          const toolName = interactableToolName(def.name);
           const existing = updateToolUIsRef.current.get(def.name);
           if (existing) {
             existing.count++;
@@ -468,11 +470,7 @@ const useInteractablesResource = ({
             updateToolUIsRef.current.set(def.name, {
               count: 1,
               render: def.updateRender,
-              unsubscribe: toolsAccessor().setToolUI(
-                toolName,
-                def.updateRender,
-                { standalone: true },
-              ),
+              unsubscribe: installUpdateToolUI(def.name, def.updateRender),
             });
           }
           releaseUpdateToolUI = () => {
@@ -588,7 +586,13 @@ const useInteractablesResource = ({
         });
       };
     },
-    [flushIfPending, clientRef, getCurrentThreadId, setStateAndRef],
+    [
+      flushIfPending,
+      clientRef,
+      getCurrentThreadId,
+      installUpdateToolUI,
+      setStateAndRef,
+    ],
   );
 
   return {
