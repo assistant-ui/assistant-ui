@@ -1,4 +1,5 @@
 import type { AppendMessage, ThreadMessage } from "../../types/message";
+import type { Attachment } from "../../types/attachment";
 import type {
   AddToolResultOptions,
   ResumeRunConfig,
@@ -626,14 +627,9 @@ export class ExternalStoreThreadRuntimeCore
 
     this._store.onCancel();
 
-    // Drop an empty optimistic head (placeholder or pre-stream message); a
-    // partially-streamed one is kept and re-supplied by the store on resync.
-    const head = this.repository.getMessages().at(-1);
-    if (head && head.metadata.isOptimistic && head.content.length === 0) {
-      this.repository.deleteMessage(head.id);
-    }
+    this.dropEmptyOptimisticHead();
 
-    let messages = this.repository.getMessages();
+    const messages = this.repository.getMessages();
     const previousMessage = messages[messages.length - 1];
     const trailingUserLeaf =
       this._store.setMessages !== undefined &&
@@ -647,24 +643,57 @@ export class ExternalStoreThreadRuntimeCore
     // one move: the composer refuses while the user is writing, and removing
     // the message then would leave it nowhere. A message the composer cannot
     // hold whole, carrying content parts it has no home for, is not moved.
-    if (
-      trailingUserLeaf &&
-      this.composer.restoreDraft({
+    let movedLeaf:
+      | {
+          id: string;
+          draft: {
+            text: string;
+            attachments: readonly Attachment[];
+            quote: QuoteInfo | undefined;
+          };
+        }
+      | undefined;
+    if (trailingUserLeaf) {
+      const draft = {
         text: getThreadMessageText(trailingUserLeaf),
         attachments: trailingUserLeaf.attachments,
         quote: trailingUserLeaf.metadata.custom.quote as QuoteInfo | undefined,
-      })
-    ) {
-      this.repository.deleteMessage(trailingUserLeaf.id);
-      messages = this.repository.getMessages();
-    } else {
-      this._notifySubscribers();
+      };
+      if (this.composer.restoreDraft(draft)) {
+        this.repository.deleteMessage(trailingUserLeaf.id);
+        movedLeaf = { id: trailingUserLeaf.id, draft };
+      }
     }
+    if (!movedLeaf) this._notifySubscribers();
 
-    // resync messages (for reloading, to restore the previous branch)
+    // The resync commits what the cancel left (a kept optimistic message, the
+    // restored branch) back to the store a macrotask later. The store may move
+    // in that gap; a server settling the cancelled turn lands in the same
+    // tick. Read the repository at flush time and re-apply the rollbacks to
+    // it, instead of stamping a snapshot captured above over the newer state.
     setTimeout(() => {
-      this.updateMessages(messages);
+      this.dropEmptyOptimisticHead();
+      if (movedLeaf) {
+        const current = this.repository.getMessages();
+        if (current.at(-1)?.id === movedLeaf.id) {
+          // Unanswered tail: the removal has not reached the store yet.
+          this.repository.deleteMessage(movedLeaf.id);
+        } else if (current.some((m) => m.id === movedLeaf.id)) {
+          // Answered in the gap: keep the turn, take the untouched draft back.
+          this.composer.retractDraft(movedLeaf.draft);
+        }
+      }
+      this.updateMessages(this.repository.getMessages());
     }, 0);
+  }
+
+  // Placeholder or pre-stream message; a partially-streamed one is kept and
+  // committed to the store by the cancel resync.
+  private dropEmptyOptimisticHead(): void {
+    const head = this.repository.getMessages().at(-1);
+    if (head && head.metadata.isOptimistic && head.content.length === 0) {
+      this.repository.deleteMessage(head.id);
+    }
   }
 
   public addToolResult(options: AddToolResultOptions) {
