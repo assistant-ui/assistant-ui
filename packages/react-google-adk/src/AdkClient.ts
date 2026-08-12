@@ -148,7 +148,7 @@ function parseAdkEvent(data: string): AdkEvent {
     throw new Error("Invalid ADK stream event: expected a non-empty object.");
   }
 
-  const rawId = "id" in value ? value.id : undefined;
+  const { id: rawId, ...event } = value as Record<string, unknown>;
   if (
     rawId != null &&
     typeof rawId !== "string" &&
@@ -160,15 +160,15 @@ function parseAdkEvent(data: string): AdkEvent {
   }
 
   const errorMessage =
-    "error" in value && typeof value.error === "string"
-      ? value.error
+    "error" in event && typeof event.error === "string"
+      ? event.error
       : undefined;
   return {
-    ...value,
-    id: rawId == null ? "" : String(rawId),
+    ...event,
+    ...(rawId != null && { id: String(rawId) }),
     ...(errorMessage !== undefined &&
-      !("errorMessage" in value) &&
-      !("error_message" in value) && {
+      !("errorMessage" in event) &&
+      !("error_message" in event) && {
         errorCode: "STREAM_ERROR",
         errorMessage,
       }),
