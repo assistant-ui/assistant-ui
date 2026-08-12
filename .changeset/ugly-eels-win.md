@@ -3,7 +3,6 @@
 "assistant-ui": patch
 "@assistant-ui/cloud-ai-sdk": patch
 "assistant-cloud": patch
-"@assistant-ui/eve": patch
 "@assistant-ui/mcp-docs-server": patch
 "@assistant-ui/metro": patch
 "@assistant-ui/next": patch
