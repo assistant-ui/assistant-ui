@@ -195,18 +195,16 @@ describe("createTapRoot mountOnSubscribe", () => {
   it("supports repeated mount/unmount cycles", () => {
     const { root, events } = createCounterRoot();
 
-    for (let i = 0; i < 3; i++) {
+    const unsubscribe = root.subscribe(() => {});
+    events.length = 0;
+    unsubscribe();
+
+    for (let i = 0; i < 2; i++) {
       const unsubscribe = root.subscribe(() => {});
       unsubscribe();
     }
 
-    expect(events.slice(mountRuns === 2 ? 3 : 1)).toEqual([
-      "unmount",
-      "mount",
-      "unmount",
-      "mount",
-      "unmount",
-    ]);
+    expect(events).toEqual(["unmount", "mount", "unmount", "mount", "unmount"]);
   });
 
   it("applies state updates while soft-unmounted without running effects", async () => {
@@ -244,6 +242,30 @@ describe("createTapRoot mountOnSubscribe", () => {
 
     expect(root.getValue()).toBe(0);
     expect(() => setCount(1)).toThrow("Resource updated before mount");
+  });
+
+  it("rolls back a failed first mount so a later subscriber can retry", () => {
+    const cleanup = vi.fn();
+    let shouldThrow = true;
+    const root = createTapRoot(
+      function Failing() {
+        useEffect(() => cleanup);
+        useEffect(() => {
+          if (shouldThrow) throw new Error("mount failed");
+        });
+        return 1;
+      },
+      { mountOnSubscribe: true },
+    );
+
+    expect(() => root.subscribe(() => {})).toThrow("mount failed");
+    expect(cleanup).toHaveBeenCalled();
+
+    shouldThrow = false;
+    const listener = vi.fn();
+    const unsubscribe = root.subscribe(listener);
+    expect(root.getValue()).toBe(1);
+    unsubscribe();
   });
 
   it("throws on unmount()", () => {

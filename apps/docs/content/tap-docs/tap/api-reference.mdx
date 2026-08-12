@@ -193,7 +193,10 @@ function TapEffects({ effects }: { effects: () => void }) {
 Hosts a render callback [outside React](/tap/docs/tap/outside-react).
 
 ```ts
-function createTapRoot<R>(render: () => R): {
+function createTapRoot<R>(
+  render: () => R,
+  options?: { mountOnSubscribe?: boolean },
+): {
   getValue(): R;
   subscribe(listener: () => void): () => void;
   unmount(): void;
@@ -208,6 +211,12 @@ root.getValue();
 root.subscribe(() => {});
 root.unmount();
 ```
+
+With `mountOnSubscribe: true` the lifecycle is derived from subscribers
+instead: the root renders lazily on the first `getValue()` or `subscribe()`,
+effects commit when the first subscriber attaches, and the last unsubscriber
+soft-unmounts the root — effect cleanups run, but state is preserved and the
+next subscriber remounts it. `unmount()` throws in this mode.
 
 ## flushTapSync
 

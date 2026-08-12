@@ -62,9 +62,19 @@ export const createTapRoot = <R>(
     subscribe: (listener) => {
       const unsubscribe = ensureRoot().subscribe(listener);
       if (subscriberCount++ === 0) {
-        // Remounts re-render first so the commit sees fresh effect closures
-        if (!fiber.isNeverMounted) void renderResourceFiber(fiber, [render]);
-        flushTapSync(() => commitResourceFiber(fiber));
+        try {
+          // Remounts re-render first so the commit sees fresh effect closures
+          if (!fiber.isNeverMounted) void renderResourceFiber(fiber, [render]);
+          flushTapSync(() => commitResourceFiber(fiber));
+        } catch (error) {
+          // Match React: after a commit-phase error, clean up whatever
+          // mounted and return to the unmounted state instead of stranding
+          // a half-mounted root
+          subscriberCount--;
+          unsubscribe();
+          if (fiber.isMounted) unmountResourceFiber(fiber);
+          throw error;
+        }
       }
 
       let isSubscribed = true;
