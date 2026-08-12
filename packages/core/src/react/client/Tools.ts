@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   useResources,
   resource,
@@ -88,30 +88,37 @@ const useTools = ({
     [],
   );
 
+  useEffect(() => {
+    if (!toolkit) return;
+    const unsubscribes: (() => void)[] = [];
+
+    // Register tool UIs (exclude symbols)
+    for (const [toolName, tool] of Object.entries(toolkit)) {
+      const toolRender = "render" in tool ? tool.render : undefined;
+      const toolRenderText = "renderText" in tool ? tool.renderText : undefined;
+      const render =
+        toolRender ??
+        (toolRenderText
+          ? makeToolCallTextComponent(toolRenderText)
+          : undefined);
+      if (render) {
+        unsubscribes.push(
+          setToolUI(toolName, render, {
+            standalone: isStandaloneToolDisplay(tool),
+          }),
+        );
+      }
+    }
+
+    return () => {
+      unsubscribes.forEach((fn) => fn());
+    };
+  }, [toolkit, setToolUI]);
+
   useAssistantScopeEffect(
     "modelContext",
     () => {
       if (!toolkit) return;
-      const unsubscribes: (() => void)[] = [];
-
-      // Register tool UIs (exclude symbols)
-      for (const [toolName, tool] of Object.entries(toolkit)) {
-        const toolRender = "render" in tool ? tool.render : undefined;
-        const toolRenderText =
-          "renderText" in tool ? tool.renderText : undefined;
-        const render =
-          toolRender ??
-          (toolRenderText
-            ? makeToolCallTextComponent(toolRenderText)
-            : undefined);
-        if (render) {
-          unsubscribes.push(
-            setToolUI(toolName, render, {
-              standalone: isStandaloneToolDisplay(tool),
-            }),
-          );
-        }
-      }
 
       // Register tools with model context (exclude symbols). `render`,
       // `renderText`, and `display` are client-only presentation concerns and
@@ -137,15 +144,9 @@ const useTools = ({
         }),
       };
 
-      unsubscribes.push(
-        clientRef.current!.modelContext().register(modelContextProvider),
-      );
-
-      return () => {
-        unsubscribes.forEach((fn) => fn());
-      };
+      return clientRef.current!.modelContext().register(modelContextProvider);
     },
-    [toolkit, setToolUI],
+    [toolkit],
   );
 
   return {

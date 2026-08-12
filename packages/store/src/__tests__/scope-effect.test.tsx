@@ -48,11 +48,9 @@ const makeHarness = () => {
     const clientRef = useAssistantClientRef();
     useAssistantScopeEffect(
       "target" as never,
-      () => {
-        const target = (clientRef.current as AnyClient | null)?.optional.target;
-        if (!target) return;
-        return target.register(tag);
-      },
+      // The effect only runs while the scope is available, so the accessor
+      // can be used directly
+      () => (clientRef.current as AnyClient).target.register(tag),
       [tag],
     );
     return { getState: () => ({}) };

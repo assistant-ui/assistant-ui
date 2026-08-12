@@ -45,9 +45,12 @@ export const useAssistantClientRef = () => {
  * Runs a registration effect that follows the committed identity of one
  * scope: when a structural change replaces the scope's bound client, the
  * previous cleanup runs and the effect runs again against the replacement.
- * Value updates on the same binding do not re-run it. The client ref is
- * committed before effects run, so reads through it inside the effect see
- * the finalized client.
+ * Value updates on the same binding do not re-run it, and while the scope is
+ * unavailable only cleanup runs, so the effect always executes against a
+ * bound scope. A migration whose effect throws keeps the previous identity,
+ * so the next notification retries it. The client ref is committed before
+ * effects run, so reads through it inside the effect see the finalized
+ * client.
  */
 export const useAssistantScopeEffect = (
   scope: ClientNames,
@@ -66,20 +69,25 @@ export const useAssistantScopeEffect = (
         ? getClientId(accessor)
         : undefined;
     };
-    const setup = () => {
-      const cleanup = effect();
-      return typeof cleanup === "function" ? cleanup : undefined;
+
+    let identity: ReturnType<typeof identityOf>;
+    let cleanup: (() => void) | undefined;
+    const apply = (next: ReturnType<typeof identityOf>) => {
+      cleanup?.();
+      cleanup = undefined;
+      if (next !== undefined) {
+        const result = effect();
+        cleanup = typeof result === "function" ? result : undefined;
+      }
+      identity = next;
     };
 
-    let identity = identityOf();
-    let cleanup = setup();
+    apply(identityOf());
 
     const unsubscribe = subscribe(() => {
       const next = identityOf();
       if (next === identity) return;
-      identity = next;
-      cleanup?.();
-      cleanup = setup();
+      apply(next);
     });
 
     return () => {
