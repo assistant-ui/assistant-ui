@@ -99,6 +99,7 @@ export function commitResourceFiber<R>(fiber: ResourceFiber<R>): void {
   }
   fiber.wipCommitCallbacks = null;
 
+  const wasDisconnected = !fiber.isNeverMounted && !fiber.isMounted;
   fiber.isMounted = true;
   fiber.contextDeps = fiber.wipContextDeps;
   commitRoot(fiber.root);
@@ -117,4 +118,10 @@ export function commitResourceFiber<R>(fiber: ResourceFiber<R>): void {
 
   fiber.isNeverMounted = false;
   commitAllCallbacks(commitCallbacks);
+
+  // A render that predates the disconnect queued only the dep-changed subset;
+  // cells that bailed in it still sit at deps === null after cleanupAllEffects
+  // and must be reconnected. No-op when the wip was rendered while
+  // disconnected, since that re-queues every effect.
+  if (wasDisconnected) reconnectAllEffects(fiber);
 }
