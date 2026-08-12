@@ -49,6 +49,18 @@ const threadStatusError = (
     `Thread "${threadIdOrRemoteId}" has status "${status}", so it cannot ${action}.`,
   );
 
+const createInitialState = () =>
+  new OptimisticState<RemoteThreadState>({
+    isLoading: true,
+    isLoadingMore: false,
+    cursor: undefined,
+    newThreadId: undefined,
+    threadIds: [],
+    archivedThreadIds: [],
+    threadIdMap: {},
+    threadData: {},
+  });
+
 export class RemoteThreadListThreadListRuntimeCore
   extends BaseSubscribable
   implements ThreadListRuntimeCore
@@ -63,16 +75,8 @@ export class RemoteThreadListThreadListRuntimeCore
   private _switchTask: Promise<void> | undefined;
 
   private _mainThreadId!: string;
-  private readonly _state = new OptimisticState<RemoteThreadState>({
-    isLoading: true,
-    isLoadingMore: false,
-    cursor: undefined,
-    newThreadId: undefined,
-    threadIds: [],
-    archivedThreadIds: [],
-    threadIdMap: {},
-    threadData: {},
-  });
+  private _state = createInitialState();
+  private _unsubscribeState: (() => void) | undefined;
 
   public get threadItems() {
     return this._state.value.threadData;
@@ -192,10 +196,7 @@ export class RemoteThreadListThreadListRuntimeCore
     super();
     this.contextProvider = contextProvider;
 
-    this._state.subscribe(() => {
-      this._notifySubscribers();
-      this._notifyThreadIdChange();
-    });
+    this._subscribeToState();
     this._hookManager = new RemoteThreadListHookInstanceManager(
       options.runtimeHook,
       this,
@@ -208,6 +209,21 @@ export class RemoteThreadListThreadListRuntimeCore
     }));
     this.__internal_setOptions(options);
     this.switchToNewThread();
+  }
+
+  private _subscribeToState() {
+    this._unsubscribeState = this._state.subscribe(() => {
+      this._notifySubscribers();
+      this._notifyThreadIdChange();
+    });
+  }
+
+  private _resetState() {
+    this._unsubscribeState?.();
+    this._state = createInitialState();
+    this._subscribeToState();
+    this._notifySubscribers();
+    this._notifyThreadIdChange();
   }
 
   private _initialThreadLoaded = false;
@@ -234,15 +250,29 @@ export class RemoteThreadListThreadListRuntimeCore
 
     if (adapterChanged) {
       this._loadGeneration++;
+      this._switchGeneration++;
       this._loadThreadsPromise = undefined;
       this._loadMorePromise = undefined;
-      this._state.update({
-        ...this._state.baseValue,
-        cursor: undefined,
-      });
+      this._switchTask = undefined;
+
+      for (const thread of Object.values(this._state.value.threadData)) {
+        this._hookManager.stopThreadRuntime(thread.id);
+      }
+
+      this._mainThreadId = undefined;
+      if (options.threadId !== undefined) {
+        this._lastNotifiedThreadId = undefined;
+      }
+      this._resetState();
+
+      const switchTask =
+        options.threadId !== undefined
+          ? this._switchToThreadFromProp(options.threadId)
+          : this._startSwitchToNewThread(false);
+      switchTask.catch(() => {});
     }
 
-    if (controlledThreadIdChanged) {
+    if (controlledThreadIdChanged && !adapterChanged) {
       this._switchToThreadFromProp(options.threadId).catch(() => {});
     }
   }

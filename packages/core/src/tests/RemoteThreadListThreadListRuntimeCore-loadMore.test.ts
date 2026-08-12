@@ -241,7 +241,7 @@ describe("RemoteThreadListThreadListRuntimeCore.loadMore", () => {
     expect(core.threadIds).toEqual(["a", "b"]);
   });
 
-  it("__internal_setOptions clears cursor and dedup handles on adapter swap, then refetches via the new adapter", async () => {
+  it("__internal_setOptions clears cached state on adapter swap, then refetches via the new adapter", async () => {
     const firstAdapter = makeAdapter({
       list: vi.fn<ListFn>(async () => ({
         threads: [{ status: "regular", remoteId: "old", externalId: "old" }],
@@ -263,7 +263,7 @@ describe("RemoteThreadListThreadListRuntimeCore.loadMore", () => {
     });
 
     expect(core.hasMore).toBe(false);
-    expect(core.threadIds).toEqual(["old"]);
+    expect(core.threadIds).toEqual([]);
 
     await core.getLoadThreadsPromise();
     expect(secondList).toHaveBeenCalledTimes(1);
@@ -305,7 +305,7 @@ describe("RemoteThreadListThreadListRuntimeCore.loadMore", () => {
     });
     await stale;
 
-    expect(core.threadIds).toEqual(["p1"]);
+    expect(core.threadIds).toEqual([]);
     expect(core.hasMore).toBe(false);
     expect(core.isLoadingMore).toBe(false);
   });
