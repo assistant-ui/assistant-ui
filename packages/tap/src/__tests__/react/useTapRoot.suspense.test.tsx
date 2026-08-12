@@ -31,13 +31,9 @@ describe("useTapRoot suspense", () => {
     );
     expect(screen.getByTestId("fallback")).toBeDefined();
 
-    await act(async () => {
-      resolve("ready");
-      await promise;
-      await new Promise((r) => setTimeout(r, 0));
-    });
-
-    expect(screen.getByTestId("out").textContent).toBe("ready");
+    resolve("ready");
+    const out = await screen.findByTestId("out");
+    expect(out.textContent).toBe("ready");
   });
 
   it("an update suspension holds the committed value and converges on resolve", async () => {
