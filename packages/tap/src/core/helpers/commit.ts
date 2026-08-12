@@ -1,4 +1,4 @@
-import type { CommitCallbacks, ResourceFiber } from "../types";
+import type { CommitCallbacks, EffectCell, ResourceFiber } from "../types";
 import { throwAggregated } from "./throwAggregated";
 
 export const CommitPriority = {
@@ -36,6 +36,37 @@ export function commitAllCallbacks(callbacks: CommitCallbacks): void {
   }
 
   throwAggregated(errors, "Errors during commit");
+}
+
+export function setupEffect(cell: EffectCell): void {
+  try {
+    const cleanup = cell.setup!();
+
+    if (cleanup !== undefined && typeof cleanup !== "function") {
+      throw new Error(
+        "An effect function must either return a cleanup function or nothing. " +
+          `Received: ${typeof cleanup}`,
+      );
+    }
+
+    cell.cleanup = cleanup;
+  } finally {
+    cell.deps = cell.setupDeps;
+  }
+}
+
+export function reconnectAllEffects<R>(fiber: ResourceFiber<R>): void {
+  const errors: unknown[] = [];
+  for (const cell of fiber.cells) {
+    if (cell?.type !== "effect" || cell.deps !== null) continue;
+
+    try {
+      setupEffect(cell);
+    } catch (e) {
+      errors.push(e);
+    }
+  }
+  throwAggregated(errors, "Errors during reconnect");
 }
 
 export function cleanupAllEffects<R>(executionContext: ResourceFiber<R>) {

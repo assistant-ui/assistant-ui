@@ -1,15 +1,17 @@
 import { getCurrentResourceFiber } from "../core/helpers/execution-context";
-import { CommitPriority } from "../core/helpers/commit";
+import { CommitPriority, setupEffect } from "../core/helpers/commit";
 import { addCommit } from "../core/helpers/root";
-import type { Cell } from "../core/types";
+import type { EffectCell } from "../core/types";
 import { depsShallowEqual } from "../hooks/utils/depsShallowEqual";
 import {
   throwHookOrderChanged,
   throwRenderedMoreHooks,
 } from "./utils/hookErrors";
 
-const newEffect = (): Cell & { type: "effect" } => ({
+const newEffect = (): EffectCell => ({
   type: "effect",
+  setup: undefined,
+  setupDeps: undefined,
   cleanup: undefined,
   deps: null, // null means the effect has never been run
 });
@@ -32,7 +34,7 @@ export function useEffect(
   const index = fiber.currentIndex++;
 
   const existing = fiber.cells[index];
-  const cell: Cell & { type: "effect" } =
+  const cell: EffectCell =
     existing === undefined
       ? newEffect()
       : existing.type === "effect"
@@ -47,6 +49,9 @@ export function useEffect(
     fiber.cells[index] = cell;
   }
 
+  cell.setup = effect;
+  cell.setupDeps = deps;
+
   if (deps && cell.deps && depsShallowEqual(cell.deps, deps)) return;
   if (cell.deps !== null && !!deps !== !!cell.deps)
     throw new Error(
@@ -60,20 +65,5 @@ export function useEffect(
       cell.cleanup = undefined;
     }
   });
-  addCommit(fiber, CommitPriority.PassiveEffectSetup, () => {
-    try {
-      const cleanup = effect();
-
-      if (cleanup !== undefined && typeof cleanup !== "function") {
-        throw new Error(
-          "An effect function must either return a cleanup function or nothing. " +
-            `Received: ${typeof cleanup}`,
-        );
-      }
-
-      cell.cleanup = cleanup;
-    } finally {
-      cell.deps = deps;
-    }
-  });
+  addCommit(fiber, CommitPriority.PassiveEffectSetup, () => setupEffect(cell));
 }

@@ -64,8 +64,6 @@ export const createTapRoot = <R>(
       const unsubscribe = ensureRoot().subscribe(listener);
       if (subscriberCount++ === 0 && !fiber.isMounted) {
         try {
-          // Remounts re-render first so the commit sees fresh effect closures
-          if (!fiber.isNeverMounted) void renderFiber();
           flushTapSync(() => commitResourceFiber(fiber));
         } catch (error) {
           try {

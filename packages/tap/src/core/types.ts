@@ -49,6 +49,8 @@ export type MemoCell<T = any> = {
 
 export type EffectCell = {
   readonly type: "effect";
+  setup: (() => (() => void) | undefined) | undefined;
+  setupDeps: readonly unknown[] | undefined;
   cleanup: (() => void) | undefined;
   deps: readonly unknown[] | null | undefined;
 };
@@ -89,7 +91,6 @@ export interface ResourceFiber<R> {
 
   wipContextDeps: ResourceContextDeps | null;
   contextDeps: ResourceContextDeps | null;
-  commitCallbacks: CommitCallbacks | null;
   wipCommitCallbacks: CommitCallbacks | null;
 
   currentIndex: number;

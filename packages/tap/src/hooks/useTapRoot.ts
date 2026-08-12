@@ -68,6 +68,21 @@ export const useTapRoot = <R>(render: () => R): useTapRoot.Root<R> => {
   const isMountedRef = useRef(false);
   const committedArgsRef = useRef([render] as const);
   const valueRef = useRef<R>(render2);
+  // Written every render, consumed by the first commit that follows. A commit
+  // replayed without a render (StrictMode, Activity reveal, tap reconnect)
+  // finds it null and must not restore render-scoped state or publish.
+  const pendingCommitRef = useRef<{
+    args: readonly [() => R];
+    value: R;
+    drainedCount: number;
+    context: ReturnType<typeof cloneCurrentTapContext>;
+  } | null>(null);
+  pendingCommitRef.current = {
+    args: [render],
+    value: render2,
+    drainedCount,
+    context,
+  };
   const [subscribers] = useState(() => new Set<() => void>());
 
   const publish = (output: R) => {
@@ -117,6 +132,7 @@ export const useTapRoot = <R>(render: () => R): useTapRoot.Root<R> => {
 
   useEffect(() => {
     isMountedRef.current = true;
+    if (!fiber.isNeverMounted && !fiber.isMounted) commitResourceFiber(fiber);
     return () => {
       isMountedRef.current = false;
       unmountResourceFiber(fiber);
@@ -124,13 +140,17 @@ export const useTapRoot = <R>(render: () => R): useTapRoot.Root<R> => {
   }, [fiber]);
 
   useEffect(() => {
-    committedArgsRef.current = [render];
+    const pending = pendingCommitRef.current;
+    if (pending === null) return;
+    pendingCommitRef.current = null;
+
+    committedArgsRef.current = pending.args;
     commitRoot(fiber.root);
-    queue.splice(0, drainedCount);
-    fiber.root.context = context;
+    queue.splice(0, pending.drainedCount);
+    fiber.root.context = pending.context;
     commitResourceFiber(fiber);
 
-    publish(render2);
+    publish(pending.value);
   });
 
   return useMemo(

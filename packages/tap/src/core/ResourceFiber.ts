@@ -1,6 +1,10 @@
 import type { ResourceFiber, TapRoot } from "./types";
 import { bubbleContextDeps } from "./context";
-import { commitAllCallbacks, cleanupAllEffects } from "./helpers/commit";
+import {
+  commitAllCallbacks,
+  cleanupAllEffects,
+  reconnectAllEffects,
+} from "./helpers/commit";
 import { withResourceFiber } from "./helpers/execution-context";
 import { withReactDispatcher } from "./react-dispatcher";
 import { isDevelopment } from "./helpers/env";
@@ -20,7 +24,6 @@ export function createResourceFiber<R>(
     cells: [],
     contextDeps: null,
     wipContextDeps: null,
-    commitCallbacks: null,
     wipCommitCallbacks: null,
     memoCache: {
       current: null,
@@ -76,11 +79,25 @@ export function renderResourceFiber<R>(
   return value!;
 }
 
+export function reconnectResourceFiber<R>(fiber: ResourceFiber<R>): void {
+  if (fiber.isNeverMounted)
+    throw new Error("Tried to reconnect a fiber that was never mounted");
+  if (fiber.isMounted)
+    throw new Error("Tried to reconnect a fiber that is already mounted");
+
+  fiber.isMounted = true;
+  reconnectAllEffects(fiber);
+}
+
 export function commitResourceFiber<R>(fiber: ResourceFiber<R>): void {
-  const commitCallbacks =
-    fiber.wipCommitCallbacks ?? fiber.commitCallbacks ?? [];
+  const commitCallbacks = fiber.wipCommitCallbacks;
+  // null means no render since the last commit: a mounted fiber has nothing
+  // to do, a disconnected one re-runs its latest committed effects
+  if (commitCallbacks === null) {
+    if (!fiber.isMounted) reconnectResourceFiber(fiber);
+    return;
+  }
   fiber.wipCommitCallbacks = null;
-  fiber.commitCallbacks = commitCallbacks;
 
   fiber.isMounted = true;
   fiber.contextDeps = fiber.wipContextDeps;
