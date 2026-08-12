@@ -3,7 +3,7 @@ title: Utilities
 description: Miscellaneous @assistant-ui/react utilities for custom rendering, composition, and advanced assistant UI behavior.
 ---
 
-import { AssistantCloud, AuiConfig, ChainOfThoughtClient, DevToolsHooks, InMemoryThreadList, MessageNotSentError, SingleThreadList, Suggestions, useSmooth } from "@/generated/typeDocs";
+import { AssistantCloud, AuiConfig, ChainOfThoughtClient, DevToolsHooks, InMemoryThreadList, MessageNotSentError, SingleThreadList, Suggestions, ThreadListAdapterChangedError, useSmooth } from "@/generated/typeDocs";
 
 {/* AUTO-GENERATED PAGE by scripts/generate-api-reference.mts */}
 {/* Do not edit manually. */}
@@ -65,6 +65,12 @@ const createMessageQueue: (driver: MessageQueueDriver) => MessageQueueController
 const isMessageNotSentError: (error: unknown) => error is MessageNotSentError;
 ```
 
+### isThreadListAdapterChangedError
+
+```ts
+const isThreadListAdapterChangedError: (error: unknown) => error is ThreadListAdapterChangedError;
+```
+
 ### MessageNotSentError
 
 Rejection reason for a send that never reached the backend, so nothing ran
@@ -83,6 +89,10 @@ restored.
 ### Suggestions
 
 <ParametersTable {...Suggestions} />
+
+### ThreadListAdapterChangedError
+
+<ParametersTable {...ThreadListAdapterChangedError} />
 
 ### unstable_defaultDirectiveFormatter
 
