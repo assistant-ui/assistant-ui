@@ -206,7 +206,17 @@ export class TestResourceManager<R, A extends readonly unknown[]> {
  * Useful for testing async state updates.
  */
 export function waitForNextTick(): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, 0));
+  // The scheduler flushes via MessageChannel; under CI load a bare
+  // setTimeout(0) can fire before an already-posted flush message. Round-trip
+  // the message queue first (FIFO behind any pending flush), then a timer tick
+  return new Promise((resolve) => {
+    const channel = new MessageChannel();
+    channel.port1.onmessage = () => {
+      channel.port1.close();
+      setTimeout(resolve, 0);
+    };
+    channel.port2.postMessage(null);
+  });
 }
 
 /**
