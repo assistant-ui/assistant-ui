@@ -95,6 +95,13 @@ export type ExternalThreadProps = {
   onStartRun?: () => void;
   onCancel?: () => void;
   onResume?: (() => void) | undefined;
+  /**
+   * Handler for re-fetching this thread's state in place, driving
+   * `threads.reloadMainThread()`. Unrelated to `onReload`, which re-generates
+   * an assistant message. Presence enables the `refetchThread` capability;
+   * rejections propagate to the caller.
+   */
+  onRefetchThread?: (() => Promise<void>) | undefined;
   onAddToolResult?: ((options: AddToolResultOptions) => void) | undefined;
   /** Callback for resuming a tool call that is waiting for human input. */
   onResumeToolCall?: ((options: ResumeToolCallOptions) => void) | undefined;
@@ -902,6 +909,7 @@ const useExternalThread = ({
   onStartRun,
   onCancel,
   onResume,
+  onRefetchThread,
   onAddToolResult,
   onResumeToolCall,
   onLoadExternalState,
@@ -1034,6 +1042,7 @@ const useExternalThread = ({
 
   const headId = messages.at(-1)?.id ?? null;
   const hasCancel = !!onCancel;
+  const hasRefetchThread = !!onRefetchThread;
   const composerQueue = useMemo(
     (): ExternalThreadQueueAdapter | undefined =>
       queue && {
@@ -1084,7 +1093,7 @@ const useExternalThread = ({
         edit: hasEdit,
         delete: false,
         reload: hasReload,
-        refetchThread: false,
+        refetchThread: hasRefetchThread,
         cancel: hasCancel,
         speech: hasSpeech,
         attachments: hasAttachments,
@@ -1115,6 +1124,7 @@ const useExternalThread = ({
     hasEdit,
     hasReload,
     hasCancel,
+    hasRefetchThread,
     hasAttachments,
     hasFeedback,
     hasSpeech,
@@ -1169,6 +1179,7 @@ const useExternalThread = ({
       onResume();
     },
     cancelRun: handleCancelRun,
+    ...(onRefetchThread && { unstable_refetchThread: onRefetchThread }),
     importExternalState: (state: unknown) => {
       if (!onLoadExternalState)
         throw new Error(

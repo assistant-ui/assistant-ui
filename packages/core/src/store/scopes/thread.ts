@@ -105,6 +105,13 @@ export type ThreadMethods = {
    */
   resumeRun(config: CreateResumeRunConfig): void;
   cancelRun(): void;
+  /**
+   * Re-fetch this thread's state from its backing store, in place. Presence
+   * signals the `refetchThread` capability; `threads.reloadMainThread()`
+   * prefers it and propagates its rejection. Runtimes without remote state
+   * leave it undefined.
+   */
+  unstable_refetchThread?(): Promise<void>;
   getModelContext(): ModelContext;
   export(): ExportedMessageRepository;
   import(repository: ExportedMessageRepository): void;
