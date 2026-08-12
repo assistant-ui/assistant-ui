@@ -70,6 +70,7 @@ const makeHarness = () => {
 
 afterEach(() => {
   cleanup();
+  vi.restoreAllMocks();
 });
 
 describe("useAssistantScopeEffect", () => {
@@ -142,7 +143,6 @@ describe("useAssistantScopeEffect", () => {
     act(() => flushTapSync(() => aui.thread.setSelected(1)));
     expect(log).toEqual(["+t0:a", "-t0:a"]);
     expect(consoleError).toHaveBeenCalled();
-    consoleError.mockRestore();
 
     // Once the effect can succeed, any later notification retries the
     // unapplied migration, including a value update that changes no identity

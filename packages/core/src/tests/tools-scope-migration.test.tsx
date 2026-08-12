@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { act, cleanup, render } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { withKey } from "@assistant-ui/tap";
 import { useAui } from "@assistant-ui/store";
 import { Tools } from "../react/client/Tools";
@@ -40,16 +40,16 @@ describe("Tools model-context registration", () => {
 
     // The registration lands one scheduler macrotask after the swap: the
     // mount-time register marks the tap scheduler dirty, which defers the
-    // structural publish to the scheduler's drain
+    // structural publish to the scheduler's drain. The remounted scope
+    // starts from fresh state, so the tools reappearing proves the
+    // registration migrated to the replacement instance.
     await act(async () => {
       view.rerender(<Harness generation={1} />);
-      await new Promise((resolve) => setTimeout(resolve, 0));
+      await vi.waitFor(() =>
+        expect(
+          Object.keys(aui.modelContext().getModelContext().tools ?? {}),
+        ).toContain("lookup"),
+      );
     });
-
-    // The remounted scope starts from fresh state, so the tools reappearing
-    // proves the registration migrated to the replacement instance
-    expect(
-      Object.keys(aui.modelContext().getModelContext().tools ?? {}),
-    ).toContain("lookup");
   });
 });

@@ -148,9 +148,10 @@ export const useClientResource = <TMethods extends ClientMethods>(
   // The fiber behind useResource is keyed on (hook, key), so the underlying
   // instance is replaced exactly when either changes. The tag mirrors that
   // lifetime while the methods facade below deliberately stays stable across
-  // remounts. The ref is committed during render because notifications can
-  // deliver in a microtask before passive effects run.
-  tagRef.current = useMemo(() => ({}), [element.hook, element.key]);
+  // remounts. It advances in the same commit effect as valueRef: a
+  // notification delivered before the commit then observes the previous tag
+  // together with the previous instance instead of a torn pair.
+  const instanceTag = useMemo(() => ({}), [element.hook, element.key]);
 
   const index = useClientStack().length;
   const methods = useMemo(
@@ -168,10 +169,12 @@ export const useClientResource = <TMethods extends ClientMethods>(
 
   if (!valueRef.current) {
     valueRef.current = value;
+    tagRef.current = instanceTag;
   }
 
   useEffect(() => {
     valueRef.current = value;
+    tagRef.current = instanceTag;
   });
 
   const state = (value as any).getState?.();
