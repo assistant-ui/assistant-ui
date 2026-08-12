@@ -3593,7 +3593,7 @@ importers:
   packages/eve:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.11
+        specifier: ^0.3.13
         version: link:../core
     devDependencies:
       '@assistant-ui/x-buildutils':
@@ -3739,13 +3739,13 @@ importers:
   packages/react:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.12
+        specifier: ^0.3.13
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.3.8
+        specifier: ^0.3.9
         version: link:../store
       '@assistant-ui/tap':
-        specifier: ^0.9.11
+        specifier: ^0.9.12
         version: link:../tap
       '@radix-ui/primitive':
         specifier: ^1.1.7
@@ -3772,7 +3772,7 @@ importers:
         specifier: ^1.1.5
         version: 1.1.5(@types/react@19.2.18)(react@19.2.8)
       assistant-cloud:
-        specifier: ^0.1.39
+        specifier: ^0.1.40
         version: link:../cloud
       assistant-stream:
         specifier: ^0.3.37
@@ -3830,10 +3830,10 @@ importers:
   packages/react-a2a:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.10
+        specifier: ^0.3.13
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.3.8
+        specifier: ^0.3.9
         version: link:../store
       assistant-stream:
         specifier: ^0.3.36
@@ -3870,13 +3870,13 @@ importers:
         specifier: ^0.0.57
         version: 0.0.57
       '@assistant-ui/core':
-        specifier: ^0.3.10
+        specifier: ^0.3.13
         version: link:../core
       '@assistant-ui/react-generative-ui':
-        specifier: ^0.0.13
+        specifier: ^0.0.14
         version: link:../react-generative-ui
       '@assistant-ui/store':
-        specifier: ^0.3.8
+        specifier: ^0.3.9
         version: link:../store
       assistant-stream:
         specifier: ^0.3.36
@@ -4199,10 +4199,10 @@ importers:
   packages/react-ink-markdown:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.12
+        specifier: ^0.3.13
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.3.8
+        specifier: ^0.3.9
         version: link:../store
       markdansi:
         specifier: ^0.3.3
@@ -4448,13 +4448,13 @@ importers:
   packages/react-native:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.10
+        specifier: ^0.3.13
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.3.8
+        specifier: ^0.3.9
         version: link:../store
       '@assistant-ui/tap':
-        specifier: ^0.9.11
+        specifier: ^0.9.12
         version: link:../tap
       assistant-stream:
         specifier: ^0.3.36
@@ -4525,10 +4525,10 @@ importers:
   packages/react-opencode:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.12
+        specifier: ^0.3.13
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.3.8
+        specifier: ^0.3.9
         version: link:../store
       '@opencode-ai/sdk':
         specifier: ^1.18.15
@@ -4565,10 +4565,10 @@ importers:
   packages/react-pi:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.12
+        specifier: ^0.3.13
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.3.8
+        specifier: ^0.3.9
         version: link:../store
     devDependencies:
       '@assistant-ui/react':
@@ -4923,13 +4923,13 @@ importers:
   packages/vue:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.12
+        specifier: ^0.3.13
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.3.8
+        specifier: ^0.3.9
         version: link:../store
       '@assistant-ui/tap':
-        specifier: ^0.9.11
+        specifier: ^0.9.12
         version: link:../tap
     devDependencies:
       '@assistant-ui/x-buildutils':
@@ -7072,6 +7072,7 @@ packages:
   '@google-cloud/opentelemetry-cloud-monitoring-exporter@0.21.0':
     resolution: {integrity: sha512-+lAew44pWt6rA4l8dQ1gGhH7Uo95wZKfq/GBf9aEyuNDDLQ2XppGEEReu6ujesSqTtZ8ueQFt73+7SReSHbwqg==}
     engines: {node: '>=18'}
+    deprecated: Google Cloud Platform now supports native OpenTelemetry Protocol (OTLP) endpoints via the Telemetry API. Please follow https://github.com/GoogleCloudPlatform/opentelemetry-operations-js/blob/main/MIGRATION.md
     peerDependencies:
       '@opentelemetry/api': ^1.9.0
       '@opentelemetry/core': ^2.0.0
@@ -7081,6 +7082,7 @@ packages:
   '@google-cloud/opentelemetry-cloud-trace-exporter@3.0.0':
     resolution: {integrity: sha512-mUfLJBFo+ESbO0dAGboErx2VyZ7rbrHcQvTP99yH/J72dGaPbH2IzS+04TFbTbEd1VW5R9uK3xq2CqawQaG+1Q==}
     engines: {node: '>=18'}
+    deprecated: Google Cloud Platform now supports native OpenTelemetry Protocol (OTLP) endpoints via the Telemetry API. Please follow https://github.com/GoogleCloudPlatform/opentelemetry-operations-js/blob/main/MIGRATION.md
     peerDependencies:
       '@opentelemetry/api': ^1.0.0
       '@opentelemetry/core': ^2.0.0
@@ -7090,6 +7092,7 @@ packages:
   '@google-cloud/opentelemetry-resource-util@3.0.0':
     resolution: {integrity: sha512-CGR/lNzIfTKlZoZFfS6CkVzx+nsC9gzy6S8VcyaLegfEJbiPjxbMLP7csyhJTvZe/iRRcQJxSk0q8gfrGqD3/Q==}
     engines: {node: '>=18'}
+    deprecated: Google Cloud Platform now supports native OpenTelemetry Protocol (OTLP) endpoints via the Telemetry API. Please follow https://github.com/GoogleCloudPlatform/opentelemetry-operations-js/blob/main/MIGRATION.md
     peerDependencies:
       '@opentelemetry/core': ^2.0.0
       '@opentelemetry/resources': ^2.0.0
