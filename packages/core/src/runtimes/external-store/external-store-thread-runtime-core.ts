@@ -679,7 +679,8 @@ export class ExternalStoreThreadRuntimeCore
           // Unanswered tail: the removal has not reached the store yet.
           this.repository.deleteMessage(movedLeaf.id);
         } else if (current.some((m) => m.id === movedLeaf.id)) {
-          // Answered in the gap: keep the turn, take the untouched draft back.
+          // The store kept the turn in the thread; take the untouched draft
+          // back so the same content does not sit in both places.
           this.composer.retractDraft(movedLeaf.draft);
         }
       }
