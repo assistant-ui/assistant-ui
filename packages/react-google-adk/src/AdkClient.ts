@@ -148,9 +148,14 @@ function parseAdkEvent(data: string): AdkEvent {
     throw new Error("Invalid ADK stream event: expected a non-empty object.");
   }
 
-  if ("id" in value && typeof value.id !== "string") {
+  const rawId = "id" in value ? value.id : undefined;
+  if (
+    rawId != null &&
+    typeof rawId !== "string" &&
+    (typeof rawId !== "number" || !Number.isFinite(rawId))
+  ) {
     throw new Error(
-      'Invalid ADK stream event: expected "id" to be a string when present.',
+      'Invalid ADK stream event: expected "id" to be a string or finite number when present.',
     );
   }
 
@@ -160,7 +165,7 @@ function parseAdkEvent(data: string): AdkEvent {
       : undefined;
   return {
     ...value,
-    id: "id" in value ? value.id : "",
+    id: rawId == null ? "" : String(rawId),
     ...(errorMessage !== undefined &&
       !("errorMessage" in value) &&
       !("error_message" in value) && {

@@ -527,6 +527,23 @@ describe("createAdkStream - SSE parsing", () => {
     });
   });
 
+  it("normalizes numeric event ids", async () => {
+    mockFetch.mockResolvedValueOnce(
+      sseResponse(sseBody('data: {"id":123}\n\n')),
+    );
+
+    const stream = createAdkStream({ api: "/api/adk" });
+    const gen = await stream(
+      [{ id: "m1", type: "human", content: "Hi" }],
+      makeConfig(),
+    );
+
+    await expect(gen.next()).resolves.toEqual({
+      done: false,
+      value: { id: "123" },
+    });
+  });
+
   it("accepts parameterized event-stream content types", async () => {
     const event: AdkEvent = { id: "e1" };
     mockFetch.mockResolvedValueOnce(
