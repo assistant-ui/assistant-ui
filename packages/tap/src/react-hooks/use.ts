@@ -1,4 +1,4 @@
-import { useTapContext } from "../core/context";
+import { useContext } from "../core/context";
 import { trackThenable } from "../core/helpers/thenable";
 
 /**
@@ -15,5 +15,5 @@ export const use = (usable: unknown): unknown => {
   ) {
     return trackThenable(usable as PromiseLike<unknown>);
   }
-  return useTapContext(usable as never);
+  return useContext(usable as never);
 };
