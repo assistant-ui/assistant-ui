@@ -4,6 +4,7 @@ import type { ClientOutput } from "@assistant-ui/store";
 import {
   attachTransformScopes,
   useAssistantClientRef,
+  useAssistantScopeEffect,
 } from "@assistant-ui/store/client";
 import type {
   Unstable_InteractablesState,
@@ -387,9 +388,11 @@ const useInteractablesResource = ({
     for (const cb of subscribersRef.current) cb();
   }, [state]);
 
-  useEffect(() => {
-    return clientRef.current!.modelContext().register(provider);
-  }, [clientRef, provider]);
+  useAssistantScopeEffect(
+    "modelContext",
+    () => clientRef.current!.modelContext().register(provider),
+    [provider],
+  );
 
   const register = useCallback(
     (def: InternalInteractableRegistration) => {

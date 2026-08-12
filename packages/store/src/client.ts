@@ -14,6 +14,7 @@ export { getProxiedAssistantState } from "./utils/proxied-assistant-state";
 export {
   useAssistantClientRef,
   useAssistantEmit,
+  useAssistantScopeEffect,
 } from "./utils/tap-assistant-context";
 export { useClientResource } from "./useClientResource";
 export { useClientLookup } from "./useClientLookup";

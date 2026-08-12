@@ -12,6 +12,18 @@ const clientHolder: { client: unknown } = { client: null };
 vi.mock("@assistant-ui/store/client", async (importOriginal) => {
   const actual =
     await importOriginal<typeof import("@assistant-ui/store/client")>();
+  const { useEffect } = await import("react");
+  const useScopeEffectShim = (
+    _scope: string,
+    effect: () => (() => void) | void,
+    deps: readonly unknown[],
+  ) => {
+    useEffect(() => {
+      const cleanup = effect();
+      return typeof cleanup === "function" ? cleanup : undefined;
+      // oxlint-disable-next-line react-hooks/exhaustive-deps -- caller-provided deps, mirrors the real hook
+    }, deps);
+  };
   return {
     ...actual,
     useAssistantClientRef: () => ({
@@ -19,6 +31,7 @@ vi.mock("@assistant-ui/store/client", async (importOriginal) => {
         return clientHolder.client;
       },
     }),
+    useAssistantScopeEffect: useScopeEffectShim,
   };
 });
 
