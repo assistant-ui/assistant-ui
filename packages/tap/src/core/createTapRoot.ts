@@ -22,28 +22,26 @@ export const createTapRoot = <R>(
     }
   });
 
-  const fiber = createResourceFiber(
+  const fiber = createRisesourceFiber(
     useTapRoot,
     createResourceFiberRoot((evaluate) => {
       pendingEvaluates.push(evaluate);
       scheduler.markDirty();
     }),
     undefined,
-    isDevelopment ? "root" : null,
+    isDevelopment ? (options?.mountOnSubscribe ? "child" : "root") : null,
   );
 
-  let root: useTapRoot.Root<R> | undefined;
-  const ensureRoot = () => {
-    if (root) return root;
-
-    // In strict mode, render twice to detect side effects
-    if (isDevelopment && fiber.devStrictMode === "root") {
+  // In strict mode, render twice to detect side effects
+  const renderFiber = () => {
+    if (isDevelopment && fiber.devStrictMode) {
       void renderResourceFiber(fiber, [render]);
     }
-
-    root = renderResourceFiber(fiber, [render]) as useTapRoot.Root<R>;
-    return root;
+    return renderResourceFiber(fiber, [render]) as useTapRoot.Root<R>;
   };
+
+  let root: useTapRoot.Root<R> | undefined;
+  const ensureRoot = () => (root ??= renderFiber());
 
   if (!options?.mountOnSubscribe) {
     const root = ensureRoot();
@@ -64,12 +62,9 @@ export const createTapRoot = <R>(
       if (subscriberCount++ === 0) {
         try {
           // Remounts re-render first so the commit sees fresh effect closures
-          if (!fiber.isNeverMounted) void renderResourceFiber(fiber, [render]);
+          if (!fiber.isNeverMounted) void renderFiber();
           flushTapSync(() => commitResourceFiber(fiber));
         } catch (error) {
-          // Match React: after a commit-phase error, clean up whatever
-          // mounted and return to the unmounted state instead of stranding
-          // a half-mounted root
           subscriberCount--;
           unsubscribe();
           if (fiber.isMounted) unmountResourceFiber(fiber);

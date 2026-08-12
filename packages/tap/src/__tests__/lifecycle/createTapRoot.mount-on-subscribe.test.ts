@@ -86,10 +86,32 @@ describe("createTapRoot mountOnSubscribe", () => {
     );
 
     root.subscribe(() => {});
-    expect(effect).toHaveBeenCalledTimes(mountRuns);
+    expect(effect).toHaveBeenCalledTimes(1);
 
     root.subscribe(() => {});
-    expect(effect).toHaveBeenCalledTimes(mountRuns);
+    expect(effect).toHaveBeenCalledTimes(1);
+  });
+
+  it("dev strict mode double renders without double-invoking effects", () => {
+    const body = vi.fn();
+    const effect = vi.fn();
+    const root = createTapRoot(
+      function Strict() {
+        body();
+        useEffect(effect);
+        return 1;
+      },
+      { mountOnSubscribe: true },
+    );
+
+    const unsubscribe = root.subscribe(() => {});
+    expect(body).toHaveBeenCalledTimes(mountRuns);
+    expect(effect).toHaveBeenCalledTimes(1);
+
+    unsubscribe();
+    root.subscribe(() => {});
+    expect(body).toHaveBeenCalledTimes(mountRuns * 2);
+    expect(effect).toHaveBeenCalledTimes(2);
   });
 
   it("notifies the first subscriber of updates dispatched during its own mount", () => {
