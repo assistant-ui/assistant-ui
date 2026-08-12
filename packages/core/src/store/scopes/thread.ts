@@ -111,6 +111,10 @@ export type ThreadMethods = {
    * whose rejection it propagates. `capabilities.refetchThread` is the
    * portable feature-detection signal; a legacy-bridged thread reports it
    * there while routing the refetch through its runtime, not this method.
+   * The method-shorthand optionality is load-bearing: an explicit
+   * `| undefined` stops `ThreadMethods` satisfying `ClientMethods` and
+   * collapses the client schema, which only a workspace-level app typecheck
+   * surfaces.
    */
   unstable_refetchThread?(): Promise<void>;
   getModelContext(): ModelContext;
