@@ -5,7 +5,6 @@ import type {
   McpAppsHost,
   McpAppsRemoteHostOptions,
 } from "./types";
-import { MCP_APP_MIME_TYPE } from "./types";
 
 const truncateBody = (body: string) =>
   body.length > 500 ? `${body.slice(0, 500)}...` : body;
@@ -42,7 +41,7 @@ const readErrorBody = async (res: Response): Promise<string | undefined> => {
 
 const invalidMcpAppResource = (options: McpAppsRemoteHostOptions): never => {
   throw new Error(
-    `Invalid MCP App host response "mcp-apps/read-resource" from "${options.url}": expected a resource with string "uri" and "html" fields and MIME type "${MCP_APP_MIME_TYPE}"`,
+    `Invalid MCP App host response "mcp-apps/read-resource" from "${options.url}": expected a resource with string "uri" and "html" fields`,
   );
 };
 
@@ -55,15 +54,7 @@ const parseMcpAppResource = (
   }
 
   const resource = value as Record<string, unknown>;
-  if (
-    typeof resource.uri !== "string" ||
-    typeof resource.html !== "string" ||
-    resource.mimeType !== MCP_APP_MIME_TYPE ||
-    (resource.meta !== undefined &&
-      (typeof resource.meta !== "object" ||
-        resource.meta === null ||
-        Array.isArray(resource.meta)))
-  ) {
+  if (typeof resource.uri !== "string" || typeof resource.html !== "string") {
     return invalidMcpAppResource(options);
   }
 

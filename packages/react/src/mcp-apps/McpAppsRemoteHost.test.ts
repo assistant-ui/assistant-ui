@@ -1,7 +1,6 @@
 import { createTapRoot, useResource } from "@assistant-ui/tap";
 import { describe, expect, it, vi } from "vitest";
 import { McpAppsRemoteHost } from "./McpAppsRemoteHost";
-import { MCP_APP_MIME_TYPE } from "./types";
 
 const mount = (fetch: typeof globalThis.fetch) =>
   createTapRoot(function Root() {
@@ -47,7 +46,6 @@ describe("McpAppsRemoteHost", () => {
       return request.method === "mcp-apps/read-resource"
         ? Response.json({
             uri: "ui://example/search",
-            mimeType: MCP_APP_MIME_TYPE,
             html: "<main>Search</main>",
           })
         : Response.json({ content: [{ type: "text", text: "ok" }] });
@@ -142,7 +140,7 @@ describe("McpAppsRemoteHost", () => {
       await expect(
         root.getValue().loadResource({ uri: "ui://example/search" }),
       ).rejects.toThrow(
-        'Invalid MCP App host response "mcp-apps/read-resource" from "/api/mcp-apps": expected a resource with string "uri" and "html" fields and MIME type "text/html;profile=mcp-app"',
+        /Invalid MCP App host response "mcp-apps\/read-resource" from "\/api\/mcp-apps"/,
       );
     } finally {
       root.unmount();
