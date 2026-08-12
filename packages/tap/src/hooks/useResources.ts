@@ -4,6 +4,7 @@ import type {
   ResourceFiber,
 } from "../core/types";
 import {
+  discardWipRender,
   unmountResourceFiber,
   renderResourceFiber,
   commitResourceFiber,
@@ -124,6 +125,12 @@ export function useResources<E extends ResourceElement<any>>(
           const value = renderResourceFiber(fiber, element.args);
           state.next = { value: value, deps: element.deps, remount: fiber };
         } else if (canReuse(state, element.deps)) {
+          // Superseding a pending record (a render whose commit effect never
+          // ran — an abandoned React pass): drop the child's wip render too,
+          // or a later reconnect would commit it past this bailout.
+          if (typeof state.next === "object") {
+            discardWipRender(state.fiber);
+          }
           if (state.fiber.contextDeps) {
             bubbleContextDeps(state.fiber, state.fiber.contextDeps);
           }

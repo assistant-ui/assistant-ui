@@ -1,4 +1,5 @@
 import { getCurrentResourceFiber } from "../core/helpers/execution-context";
+import { addCommit } from "../core/helpers/root";
 import type { EffectCell } from "../core/types";
 import {
   throwHookOrderChanged,
@@ -52,6 +53,10 @@ export function useEffect(
       "useEffect called with and without dependencies across re-renders",
     );
 
-  cell.setup = effect;
-  cell.setupDeps = deps;
+  // Promoted at commit so an uncommitted render's closures never become
+  // visible: a discarded render (wipCommitCallbacks reset) reverts fully.
+  addCommit(fiber, () => {
+    cell.setup = effect;
+    cell.setupDeps = deps;
+  });
 }

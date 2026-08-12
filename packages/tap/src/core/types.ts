@@ -49,7 +49,9 @@ export type MemoCell<T = any> = {
 
 export type EffectCell = {
   readonly type: "effect";
-  // Latest rendered effect + deps; committed by the reconcile walk.
+  // Last committed render's effect + deps, promoted by a commit callback so
+  // a discarded render's closures never become visible; undefined setup =
+  // the cell's creating render was never committed.
   setup: (() => (() => void) | undefined) | undefined;
   setupDeps: readonly unknown[] | undefined;
   cleanup: (() => void) | undefined;

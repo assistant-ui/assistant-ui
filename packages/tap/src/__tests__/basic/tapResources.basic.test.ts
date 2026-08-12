@@ -2,6 +2,7 @@ import { describe, it, expect, afterEach } from "vitest";
 import { useResources } from "../../hooks/useResources";
 import {
   commitResourceFiber,
+  discardWipRender,
   renderResourceFiber,
   unmountResourceFiber,
 } from "../../core/ResourceFiber";
@@ -308,6 +309,62 @@ describe("useResources - Basic Functionality", () => {
       ]);
       expect(root.getValue()).toBe(1);
       root.unmount();
+    });
+  });
+
+  describe("Discarded renders", () => {
+    it("discardWipRender reverts an uncommitted render's effect closures", () => {
+      const events: string[] = [];
+      const fiber = createTestResource((n: number) => {
+        useEffect(() => {
+          events.push(`setup:${n}`);
+          return () => events.push(`cleanup:${n}`);
+        }, [n]);
+        return n;
+      });
+
+      void renderResourceFiber(fiber, [1]);
+      commitResourceFiber(fiber);
+      expect(events).toEqual(["setup:1"]);
+
+      void renderResourceFiber(fiber, [2]);
+      discardWipRender(fiber);
+
+      // The reconnect must run the committed closure, not the discarded one.
+      unmountResourceFiber(fiber);
+      commitResourceFiber(fiber);
+      expect(events).toEqual(["setup:1", "cleanup:1", "setup:1"]);
+    });
+
+    it("a bailout discards the child render an abandoned pass produced", () => {
+      const events: string[] = [];
+      const useChild = ({ n }: { n: number }) => {
+        useEffect(() => {
+          events.push(`setup:${n}`);
+          return () => events.push(`cleanup:${n}`);
+        }, [n]);
+        return n;
+      };
+      const Child = resource(useChild);
+      const useParent = (n: number) =>
+        useResources([withKey("k", Child({ n }), [n])]);
+      const fiber = createTestResource(useParent);
+
+      void renderResourceFiber(fiber, [1]);
+      commitResourceFiber(fiber);
+      expect(events).toEqual(["setup:1"]);
+
+      // An abandoned pass rendered the child with n=2; its commit never ran.
+      // The committed pass bails back to n=1, superseding that render.
+      void renderResourceFiber(fiber, [2]);
+      void renderResourceFiber(fiber, [1]);
+      commitResourceFiber(fiber);
+      expect(events).toEqual(["setup:1"]);
+
+      // A later reconnect must not commit the superseded n=2 render.
+      unmountResourceFiber(fiber);
+      commitResourceFiber(fiber);
+      expect(events).toEqual(["setup:1", "cleanup:1", "setup:1"]);
     });
   });
 

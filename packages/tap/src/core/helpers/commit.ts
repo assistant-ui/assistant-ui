@@ -32,6 +32,9 @@ function setupEffect(cell: EffectCell): void {
 }
 
 const effectNeedsRun = (cell: EffectCell): boolean => {
+  // No committed render ever promoted a setup: the cell's creating render
+  // was discarded, so on the committed fiber this hook does not exist yet.
+  if (cell.setup === undefined) return false;
   // A cell that never ran or was disconnected runs on any commit (first
   // mount, the zero-render Activity reveal).
   if (cell.deps === null) return true;

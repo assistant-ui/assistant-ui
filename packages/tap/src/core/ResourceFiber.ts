@@ -40,6 +40,15 @@ export function createResourceFiber<R>(
   };
 }
 
+// Discards an uncommitted render, reverting the fiber to its committed state
+// — the equivalent of React dropping a work-in-progress fiber. Only valid
+// when the discarded render applied no state update (reducer rollback is the
+// root's job, keyed to versions).
+export function discardWipRender<R>(fiber: ResourceFiber<R>): void {
+  fiber.wipCommitCallbacks = null;
+  fiber.memoCache.workInProgress = null;
+}
+
 export function unmountResourceFiber<R>(fiber: ResourceFiber<R>): void {
   if (!fiber.isMounted) return;
 
