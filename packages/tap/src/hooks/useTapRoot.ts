@@ -70,6 +70,7 @@ export const useTapRoot = <R>(render: () => R): useTapRoot.Root<R> => {
 
   const args: readonly [() => R] = [render];
   const wip = fiber.wipCommitCallbacks;
+  const version = fiber.root.version;
   let processed = false;
 
   const stateRef = useRef<{
@@ -85,8 +86,15 @@ export const useTapRoot = <R>(render: () => R): useTapRoot.Root<R> => {
   });
   const [subscribers] = useState(() => new Set<() => void>());
 
-  const publish = (output: R) => {
-    if (scheduler.isDirty || stateRef.current.value === output) return;
+  // The version check drops a publish superseded by a nested handleUpdate
+  // (flushTapSync from an effect during a React-driven commit).
+  const publish = (output: R, version: number) => {
+    if (
+      scheduler.isDirty ||
+      fiber.root.committedVersion !== version ||
+      stateRef.current.value === output
+    )
+      return;
     stateRef.current.value = output;
     scheduleNotify(() => subscribers.forEach((listener) => listener()));
   };
@@ -120,6 +128,7 @@ export const useTapRoot = <R>(render: () => R): useTapRoot.Root<R> => {
     if (scheduler.isDirty)
       throw new Error("Scheduler is dirty, this should never happen");
 
+    const version = fiber.root.version;
     commitRoot(fiber.root);
     queue.length = 0;
 
@@ -127,7 +136,7 @@ export const useTapRoot = <R>(render: () => R): useTapRoot.Root<R> => {
       commitResourceFiber(fiber);
     }
 
-    publish(render);
+    publish(render, version);
   });
 
   useEffect(() => {
@@ -167,7 +176,7 @@ export const useTapRoot = <R>(render: () => R): useTapRoot.Root<R> => {
       }
     }
 
-    publish(value);
+    publish(value, version);
   });
 
   return useMemo(

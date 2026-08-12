@@ -93,10 +93,10 @@ const flushScheduled = () => {
     activeDrainRuns = prevDrainRuns;
     flushState.schedulers.clear();
     flushState.isScheduled = false;
-  }
 
-  if (activeDrainRuns === null) {
-    while (pendingNotifies.length > 0) pendingNotifies.shift()!();
+    if (activeDrainRuns === null) {
+      while (pendingNotifies.length > 0) pendingNotifies.shift()!();
+    }
   }
 };
 
