@@ -16,24 +16,34 @@ const pkg = JSON.parse(
 let onSuccess: string | undefined;
 if (isDev && pkg.scripts?.start) onSuccess = pkg.scripts.start;
 
-// Route bare `react` imports through tap's react-shim so resource code can
-// import hooks from "react" and have them resolve to tap inside a resource
-// render. Done with output `paths` (remap of the external specifier) so the
-// import stays external and only the specifier is rewritten — `alias` does not
-// affect unbundled external imports. Exact specifiers only ("react" and
+// Route bare `react` imports through a tap shim so resource code can import
+// hooks from "react" and have them resolve to tap inside a resource render.
+// Done with output `paths` (remap of the external specifier) so the import
+// stays external and only the specifier is rewritten — `alias` does not affect
+// unbundled external imports. Exact specifiers only ("react" and
 // "react/compiler-runtime", the latter so React Compiler output's memo cache
 // routes to tap inside a resource render), so "react/jsx-runtime" and
 // "react-dom" are untouched.
 //
 // Applied to packages that actually depend on `@assistant-ui/tap` (so the
-// remapped `@assistant-ui/tap/react-shim` specifier resolves for consumers) and
-// to `@assistant-ui/tap` itself so its React-facing hooks can share the same
-// React 18 compatibility shim.
+// remapped shim specifier resolves for consumers) and to `@assistant-ui/tap`
+// itself so its React-facing hooks can share the same React 18 compatibility
+// shim. The target depends on whether the package declares a react peer:
+// packages with one get the react-shim (falls back to real React outside a tap
+// render), while reactless packages — non-React framework bridges like a vue
+// binding — get the standalone-shim, whose graph never imports react so the
+// published output stays loadable without React installed. Tap itself keeps
+// the react-shim: it declares an (optional) react peer and its React-facing
+// entry needs the real-React fallback.
 const dependsOnTap = ["dependencies", "peerDependencies"].some(
   (field) => pkg[field]?.["@assistant-ui/tap"],
 );
 const isTapPackage = pkg.name === "@assistant-ui/tap";
 const remapReactToShim = dependsOnTap || isTapPackage;
+const isReactless = dependsOnTap && !pkg.peerDependencies?.react;
+const shimBase = isReactless
+  ? "@assistant-ui/tap/standalone-shim"
+  : "@assistant-ui/tap/react-shim";
 const packageImportExternals = Object.keys(pkg.imports ?? {});
 
 await build({
@@ -48,9 +58,8 @@ await build({
           ...options,
           paths: {
             ...(options.paths as Record<string, string>),
-            react: "@assistant-ui/tap/react-shim",
-            "react/compiler-runtime":
-              "@assistant-ui/tap/react-shim/compiler-runtime",
+            react: shimBase,
+            "react/compiler-runtime": `${shimBase}/compiler-runtime`,
           },
         }),
       }
@@ -80,9 +89,10 @@ await build({
 });
 
 // `output.paths` rewrites the `react` specifier in BOTH the emitted JS and the
-// declarations. Only the runtime (.js) should route through the shim; declared
-// types should reference real `react` (so published `.d.ts` stay clean and the
-// shim isn't an editor auto-import source). When building tap itself, the
+// declarations. Only the runtime (.js) should route through the shim (react-
+// or standalone-, whichever `shimBase` selected); declared types should
+// reference real `react` (so published `.d.ts` stay clean and the shim isn't
+// an editor auto-import source). When building tap itself, the
 // runtime shim files must also keep importing real `react` to avoid self-routing.
 if (remapReactToShim && !isDev && existsSync("dist")) {
   for (const rel of readdirSync("dist", {
@@ -103,16 +113,10 @@ if (remapReactToShim && !isDev && existsSync("dist")) {
     const file = resolve("dist", rel);
     const src = readFileSync(file, "utf8");
     const out = src
-      .replaceAll(
-        '"@assistant-ui/tap/react-shim/compiler-runtime"',
-        '"react/compiler-runtime"',
-      )
-      .replaceAll(
-        "'@assistant-ui/tap/react-shim/compiler-runtime'",
-        "'react/compiler-runtime'",
-      )
-      .replaceAll('"@assistant-ui/tap/react-shim"', '"react"')
-      .replaceAll("'@assistant-ui/tap/react-shim'", "'react'");
+      .replaceAll(`"${shimBase}/compiler-runtime"`, '"react/compiler-runtime"')
+      .replaceAll(`'${shimBase}/compiler-runtime'`, "'react/compiler-runtime'")
+      .replaceAll(`"${shimBase}"`, '"react"')
+      .replaceAll(`'${shimBase}'`, "'react'");
     if (out !== src) writeFileSync(file, out);
   }
 }
