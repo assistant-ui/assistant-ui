@@ -520,7 +520,6 @@ describe("createAdkStream - SSE parsing", () => {
       done: false,
       value: {
         ...event,
-        errorCode: "STREAM_ERROR",
         errorMessage: event.error,
       },
     });
