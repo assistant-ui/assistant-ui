@@ -159,11 +159,7 @@ export function useResources<E extends ResourceElement<any>>(
   useEffect(() => {
     return () => {
       for (const key of fibers.keys()) {
-        const fiber = fibers.get(key)!.fiber;
-        // A child rendered but not yet committed (host torn down before the
-        // commit effect ran) was never mounted; unmounting it would throw and
-        // abort the cleanup of the remaining children.
-        if (fiber.isMounted) unmountResourceFiber(fiber);
+        unmountResourceFiber(fibers.get(key)!.fiber);
       }
     };
   }, [fibers]);
@@ -174,9 +170,7 @@ export function useResources<E extends ResourceElement<any>>(
     for (const [key, state] of fibers.entries()) {
       const next = state.next;
       if (next === "delete") {
-        if (state.fiber.isMounted) {
-          unmountResourceFiber(state.fiber);
-        }
+        unmountResourceFiber(state.fiber);
         fibers.delete(key);
       } else if (next === "skip") {
         // Bailed this render: nothing to commit, keep committed deps/value.
@@ -186,7 +180,7 @@ export function useResources<E extends ResourceElement<any>>(
         }
       } else {
         if (next.remount) {
-          if (state.fiber.isMounted) unmountResourceFiber(state.fiber);
+          unmountResourceFiber(state.fiber);
           state.fiber = next.remount;
         }
         commitResourceFiber(state.fiber);

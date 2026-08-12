@@ -40,8 +40,7 @@ export function createResourceFiber<R>(
 }
 
 export function unmountResourceFiber<R>(fiber: ResourceFiber<R>): void {
-  if (!fiber.isMounted)
-    throw new Error("Tried to unmount a fiber that is already unmounted");
+  if (!fiber.isMounted) return;
 
   fiber.isMounted = false;
   cleanupAllEffects(fiber);

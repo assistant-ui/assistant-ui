@@ -55,7 +55,7 @@ export const createTapRoot = <R>(
 
   let subscriberCount = 0;
   const unmountScheduler = new UpdateScheduler(() => {
-    if (subscriberCount === 0 && fiber.isMounted) unmountResourceFiber(fiber);
+    if (subscriberCount === 0) unmountResourceFiber(fiber);
   });
 
   return {
@@ -67,7 +67,7 @@ export const createTapRoot = <R>(
           flushTapSync(() => commitResourceFiber(fiber));
         } catch (error) {
           try {
-            if (fiber.isMounted) unmountResourceFiber(fiber);
+            unmountResourceFiber(fiber);
           } finally {
             subscriberCount--;
             unsubscribe();
