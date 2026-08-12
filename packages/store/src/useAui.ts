@@ -48,7 +48,13 @@ import {
 import { useAssistantTapContextProvider } from "./utils/tap-assistant-context";
 import { ClientResource } from "./useClientResource";
 import { useShallowStable } from "./utils/useShallowStable";
-import { createClientAccessor, getClientId } from "./utils/client-accessor";
+import {
+  createClientAccessor,
+  getClientId,
+  isScopeAvailable,
+  isScopeUnavailable,
+} from "./utils/client-accessor";
+import { createOptionalClientView } from "./utils/optional-client-view";
 import { getClientIndex } from "./utils/tap-client-stack-context";
 
 const isDevelopment =
@@ -126,6 +132,11 @@ const createClientObject = (
 
   const client = Object.create(proto) as AssistantClient;
   Object.assign(client, fields);
+  let optional: AssistantClient["optional"] | undefined;
+  Object.defineProperty(client, "optional", {
+    get: () => (optional ??= createOptionalClientView(client)),
+    enumerable: false,
+  });
   return client;
 };
 
@@ -155,8 +166,7 @@ const useClientFields = ({
 
         if (scope !== "*" && !receiverRef) {
           // A hand-built parent may lack the scope entirely; forward to it
-          const source = this[scope as ClientNames]?.source;
-          if (source === null) {
+          if (isScopeUnavailable(this[scope as ClientNames])) {
             throw new Error(
               `Scope "${scope}" is not available. Use { scope: "*", event: "${event}" } to listen globally.`,
             );
@@ -178,7 +188,7 @@ const useClientFields = ({
           ] as AssistantClientAccessor<ClientNames> | undefined;
           // A scope removed by a structural change since subscription cannot
           // match; resolving its identity would throw
-          if (!boundScope || boundScope.source === null) return;
+          if (!isScopeAvailable(boundScope)) return;
           const scopeClient = getClientId(
             boundScope,
           ) as unknown as ClientMethods;
@@ -193,7 +203,9 @@ const useClientFields = ({
           // emission lands; forward until the chain leaves generated clients.
           if (receiverRef) {
             if (clientRef.parent === DefaultAssistantClient) return localUnsub;
-          } else if (clientRef.parent[scope as ClientNames]?.source === null) {
+          } else if (
+            isScopeUnavailable(clientRef.parent[scope as ClientNames])
+          ) {
             return localUnsub;
           }
         }
@@ -432,8 +444,7 @@ const useDerivedOnlyClient = (
     // A nested derived-only provider keeps the original subscriber's ref
     const ridden = (selector as RiddenSelector)[EVENT_RECEIVER_REF];
     if (!ridden) {
-      const source = this[scope as ClientNames]?.source;
-      if (source === null) {
+      if (isScopeUnavailable(this[scope as ClientNames])) {
         throw new Error(
           `Scope "${scope}" is not available. Use { scope: "*", event: "${event}" } to listen globally.`,
         );
