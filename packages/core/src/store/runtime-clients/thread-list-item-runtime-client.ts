@@ -3,7 +3,18 @@ import { resource } from "@assistant-ui/tap";
 import type { ClientOutput } from "@assistant-ui/store";
 import { useAssistantEmit } from "@assistant-ui/store/client";
 import type { ThreadListItemRuntime } from "../../runtime/api/thread-list-item-runtime";
+import { ThreadListAdapterChangedError } from "../../runtimes/remote-thread-list/adapter-changed-error";
 import { useSubscribable } from "./useSubscribable";
+
+const runThreadListItemCommand = (operation: string, task: Promise<void>) => {
+  void task.catch((error: unknown) => {
+    if (error instanceof ThreadListAdapterChangedError) return;
+    console.error(
+      `[assistant-ui] thread list item ${operation} failed:`,
+      error,
+    );
+  });
+};
 
 const useThreadListItemClient = ({
   runtime,
@@ -40,25 +51,28 @@ const useThreadListItemClient = ({
   return {
     getState: () => state,
     switchTo: (options) => {
-      void runtime.switchTo(options).catch(() => {});
+      runThreadListItemCommand("switch", runtime.switchTo(options));
     },
     rename: (newTitle) => {
-      void runtime.rename(newTitle).catch(() => {});
+      runThreadListItemCommand("rename", runtime.rename(newTitle));
     },
     updateCustom: (custom) => {
-      void runtime.updateCustom(custom).catch(() => {});
+      runThreadListItemCommand(
+        "custom metadata update",
+        runtime.updateCustom(custom),
+      );
     },
     archive: () => {
-      void runtime.archive().catch(() => {});
+      runThreadListItemCommand("archive", runtime.archive());
     },
     unarchive: () => {
-      void runtime.unarchive().catch(() => {});
+      runThreadListItemCommand("unarchive", runtime.unarchive());
     },
     delete: () => {
-      void runtime.delete().catch(() => {});
+      runThreadListItemCommand("delete", runtime.delete());
     },
     generateTitle: () => {
-      void runtime.generateTitle().catch(() => {});
+      runThreadListItemCommand("title generation", runtime.generateTitle());
     },
     initialize: runtime.initialize,
     detach: runtime.detach,

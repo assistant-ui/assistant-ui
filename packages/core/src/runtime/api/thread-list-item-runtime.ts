@@ -3,6 +3,7 @@ import type { SubscribableWithState } from "../../subscribable/subscribable";
 import type { ThreadListItemRuntimePath } from "./paths";
 import type { ThreadListRuntimeCoreBinding } from "./thread-list-runtime";
 import { notifyEventListeners } from "../../utils/notify-event-listeners";
+import { ThreadListAdapterChangedError } from "../../runtimes/remote-thread-list/adapter-changed-error";
 
 export type ThreadListItemEventPayload = {
   /**
@@ -183,7 +184,10 @@ export class ThreadListItemRuntimeImpl implements ThreadListItemRuntime {
   public detach(): void {
     const state = this._core.getState();
 
-    void this._threadListBinding.detach(state.id).catch(() => {});
+    void this._threadListBinding.detach(state.id).catch((error: unknown) => {
+      if (error instanceof ThreadListAdapterChangedError) return;
+      console.error("[assistant-ui] thread list item detach failed:", error);
+    });
   }
 
   public __internal_getRuntime(): ThreadListItemRuntime {

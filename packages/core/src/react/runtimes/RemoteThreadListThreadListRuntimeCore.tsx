@@ -31,6 +31,7 @@ import { create } from "zustand";
 import { AssistantMessageStream } from "assistant-stream";
 import type { ModelContextProvider } from "../../model-context/types";
 import { RuntimeAdapterProvider } from "./RuntimeAdapterProvider";
+import { ThreadListAdapterChangedError } from "../../runtimes/remote-thread-list/adapter-changed-error";
 
 const asProviderComponent = (
   provider: RemoteThreadListProviderComponent | undefined,
@@ -250,19 +251,20 @@ export class RemoteThreadListThreadListRuntimeCore
     });
   }
 
-  private _resetState() {
+  private _resetState(): Promise<void> {
     this._unsubscribeState?.();
     this._state = createInitialState();
     const next = addNewThread(this._state.value);
     this._mainThreadId = next.id;
     this._state.update(next.state);
     this._subscribeToState();
-    void this._hookManager.startThreadRuntime(next.id).then(
+    const startTask = this._hookManager.startThreadRuntime(next.id).then(
       () => this._notifySubscribers(),
       () => undefined,
     );
     this._notifySubscribers();
     this._notifyThreadIdChange();
+    return startTask;
   }
 
   private _initialThreadLoaded = false;
@@ -304,12 +306,13 @@ export class RemoteThreadListThreadListRuntimeCore
       if (adapterResetIsControlled) {
         this._lastNotifiedThreadId = undefined;
       }
-      this._resetState();
+      const resetTask = this._resetState();
 
       const switchTask =
         options.threadId !== undefined
           ? this._switchToThreadFromProp(options.threadId)
-          : this._startSwitchToNewThread(false);
+          : resetTask;
+      this._switchTask = switchTask;
       switchTask.catch(() => {});
     }
 
@@ -403,9 +406,7 @@ export class RemoteThreadListThreadListRuntimeCore
 
   private _assertAdapterGeneration(generation: number) {
     if (generation !== this._adapterGeneration) {
-      throw new Error(
-        "Thread list adapter changed while an operation was pending.",
-      );
+      throw new ThreadListAdapterChangedError();
     }
   }
 
