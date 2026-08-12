@@ -32,9 +32,9 @@ if (isDev && pkg.scripts?.start) onSuccess = pkg.scripts.start;
 // packages with one get the react-shim (falls back to real React outside a tap
 // render), while reactless packages — non-React framework bridges like a vue
 // binding — get the standalone-shim, whose graph never imports react so the
-// published output stays loadable without React installed. Tap itself keeps
-// the react-shim: it declares an (optional) react peer and its React-facing
-// entry needs the real-React fallback.
+// published output stays loadable without React installed. Tap itself always
+// keeps the react-shim (`isReactless` requires a tap dependency, which tap
+// lacks) and its React-facing entry needs the real-React fallback.
 const dependsOnTap = ["dependencies", "peerDependencies"].some(
   (field) => pkg[field]?.["@assistant-ui/tap"],
 );
