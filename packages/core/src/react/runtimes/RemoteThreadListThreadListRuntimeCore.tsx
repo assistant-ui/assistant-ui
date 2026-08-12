@@ -31,7 +31,7 @@ import { create } from "zustand";
 import { AssistantMessageStream } from "assistant-stream";
 import type { ModelContextProvider } from "../../model-context/types";
 import { RuntimeAdapterProvider } from "./RuntimeAdapterProvider";
-import { ThreadListAdapterChangedError } from "../../runtimes/remote-thread-list/adapter-changed-error";
+import { ThreadListAdapterChangedError } from "../../types/error";
 
 const asProviderComponent = (
   provider: RemoteThreadListProviderComponent | undefined,
@@ -307,6 +307,7 @@ export class RemoteThreadListThreadListRuntimeCore
         this._lastNotifiedThreadId = undefined;
       }
       const resetTask = this._resetState();
+      this.getLoadThreadsPromise();
 
       const switchTask =
         options.threadId !== undefined
@@ -866,8 +867,9 @@ export class RemoteThreadListThreadListRuntimeCore
           this._assertAdapterGeneration(adapterGeneration);
           return await adapter.unarchive(remoteId);
         } catch (error) {
-          this._assertAdapterGeneration(adapterGeneration);
-          await this._ensureThreadIsNotMain(data.id);
+          if (adapterGeneration === this._adapterGeneration) {
+            await this._ensureThreadIsNotMain(data.id);
+          }
           throw error;
         }
       },

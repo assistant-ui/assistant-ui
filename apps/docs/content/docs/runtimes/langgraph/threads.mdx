@@ -50,6 +50,8 @@ See the [cloud persistence guide](/docs/cloud/langgraph) for setup details.
 
 To surface pre-existing LangGraph `thread_id`s in the thread picker without running assistant-cloud, pass a `RemoteThreadListAdapter` via `unstable_threadListAdapter`. A common implementation backs `list()` with `client.threads.search()` and `initialize()` with `client.threads.create()`.
 
+Keep the adapter reference stable across renders, for example by defining it at module scope or memoizing it. Replacing the adapter resets the thread list and stops active runs before loading the replacement adapter's state.
+
 ```ts
 import type { RemoteThreadListAdapter } from "@assistant-ui/react";
 import { Client } from "@langchain/langgraph-sdk";

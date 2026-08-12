@@ -66,6 +66,12 @@ export type RemoteThreadListAdapter = {
 
 export type RemoteThreadListOptions = {
   runtimeHook: () => AssistantRuntime;
+
+  /**
+   * The adapter reference must remain stable across renders. Replacing it
+   * resets all thread state and stops active runs before loading the new
+   * adapter's threads.
+   */
   adapter: RemoteThreadListAdapter;
 
   /**

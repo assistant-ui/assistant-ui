@@ -291,21 +291,25 @@ describe("RemoteThreadListThreadListRuntimeCore.loadMore", () => {
 
     const secondAdapter = makeAdapter({
       list: vi.fn<ListFn>(async () => ({
-        threads: [{ status: "regular", remoteId: "ignored", externalId: "x" }],
+        threads: [
+          { status: "regular", remoteId: "fresh", externalId: "fresh" },
+        ],
       })),
     });
     core.__internal_setOptions({
       adapter: secondAdapter,
       runtimeHook: () => ({}) as never,
     });
+    const replacementLoad = core.getLoadThreadsPromise();
 
     slow.resolve({
       threads: [{ status: "regular", remoteId: "stale", externalId: "stale" }],
       nextCursor: "stale-cursor",
     });
     await stale;
+    await replacementLoad;
 
-    expect(core.threadIds).toEqual([]);
+    expect(core.threadIds).toEqual(["fresh"]);
     expect(core.hasMore).toBe(false);
     expect(core.isLoadingMore).toBe(false);
   });
@@ -326,20 +330,17 @@ describe("RemoteThreadListThreadListRuntimeCore.loadMore", () => {
       adapter: secondAdapter,
       runtimeHook: () => ({}) as never,
     });
+    const replacementLoad = core.getLoadThreadsPromise();
 
     slow.resolve({
       threads: [{ status: "regular", remoteId: "stale", externalId: "stale" }],
       nextCursor: "stale-cursor",
     });
-    await Promise.resolve();
-    await Promise.resolve();
+    await replacementLoad;
 
-    expect(core.threadIds).toEqual([]);
-    expect(core.hasMore).toBe(false);
-
-    await core.getLoadThreadsPromise();
-    expect(secondList).toHaveBeenCalledTimes(1);
     expect(core.threadIds).toEqual(["fresh"]);
+    expect(core.hasMore).toBe(false);
+    expect(secondList).toHaveBeenCalledTimes(1);
   });
 
   it("dedupes thread ids that appear twice within a single page", async () => {

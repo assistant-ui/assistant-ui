@@ -3,12 +3,12 @@ import { resource } from "@assistant-ui/tap";
 import type { ClientOutput } from "@assistant-ui/store";
 import { useAssistantEmit } from "@assistant-ui/store/client";
 import type { ThreadListItemRuntime } from "../../runtime/api/thread-list-item-runtime";
-import { ThreadListAdapterChangedError } from "../../runtimes/remote-thread-list/adapter-changed-error";
+import { isThreadListAdapterChangedError } from "../../types/error";
 import { useSubscribable } from "./useSubscribable";
 
 const runThreadListItemCommand = (operation: string, task: Promise<void>) => {
   void task.catch((error: unknown) => {
-    if (error instanceof ThreadListAdapterChangedError) return;
+    if (isThreadListAdapterChangedError(error)) return;
     console.error(
       `[assistant-ui] thread list item ${operation} failed:`,
       error,

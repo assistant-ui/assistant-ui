@@ -2,8 +2,29 @@ import { describe, it, expect } from "vitest";
 import {
   toAssistantError,
   isAssistantError,
+  isThreadListAdapterChangedError,
+  ThreadListAdapterChangedError,
   type AssistantError,
 } from "./error";
+
+describe("isThreadListAdapterChangedError", () => {
+  it("recognizes class instances and structural error codes", () => {
+    expect(
+      isThreadListAdapterChangedError(new ThreadListAdapterChangedError()),
+    ).toBe(true);
+    expect(
+      isThreadListAdapterChangedError({
+        code: "thread-list-adapter-changed",
+      }),
+    ).toBe(true);
+  });
+
+  it("rejects unrelated errors", () => {
+    expect(isThreadListAdapterChangedError(new Error("network error"))).toBe(
+      false,
+    );
+  });
+});
 
 describe("toAssistantError", () => {
   it("converts an Error instance", () => {

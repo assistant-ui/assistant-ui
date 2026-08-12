@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   createCore,
   deferred,
@@ -18,9 +18,10 @@ describe("RemoteThreadList adapter changes", () => {
     const adapterA = makeAdapter({
       list: async () => ({ threads: [thread("thread-a")] }),
     });
-    const adapterB = makeAdapter({
-      list: async () => ({ threads: [thread("thread-b")] }),
-    });
+    const listAdapterB = vi.fn(async () => ({
+      threads: [thread("thread-b")],
+    }));
+    const adapterB = makeAdapter({ list: listAdapterB });
     const core = createCore(adapterA);
 
     await core.getLoadThreadsPromise();
@@ -31,6 +32,7 @@ describe("RemoteThreadList adapter changes", () => {
       adapter: adapterB,
       runtimeHook: () => ({}) as never,
     });
+    expect(listAdapterB).toHaveBeenCalledTimes(1);
     expect(core.mainThreadId).not.toBe("thread-a");
     expect(core.getItemById(core.mainThreadId)?.status).toBe("new");
     await core.getLoadThreadsPromise();
@@ -63,5 +65,30 @@ describe("RemoteThreadList adapter changes", () => {
     await expect(archiveTask).rejects.toThrow("adapter changed");
     expect(adapterA.archive).not.toHaveBeenCalled();
     expect(adapterB.archive).not.toHaveBeenCalled();
+  });
+
+  it("preserves an adapter failure that races an adapter change", async () => {
+    const unarchiveRequest = deferred<void>();
+    const adapterA = makeAdapter({
+      list: async () => ({
+        threads: [{ ...thread("thread-a"), status: "archived" as const }],
+      }),
+      unarchive: vi.fn(() => unarchiveRequest.promise),
+    });
+    const adapterB = makeAdapter();
+    const core = createCore(adapterA);
+
+    await core.getLoadThreadsPromise();
+    const unarchiveTask = core.unarchive("thread-a");
+    await vi.waitFor(() => expect(adapterA.unarchive).toHaveBeenCalledOnce());
+
+    core.__internal_setOptions({
+      adapter: adapterB,
+      runtimeHook: () => ({}) as never,
+    });
+    const failure = new Error("network error");
+    unarchiveRequest.reject(failure);
+
+    await expect(unarchiveTask).rejects.toBe(failure);
   });
 });

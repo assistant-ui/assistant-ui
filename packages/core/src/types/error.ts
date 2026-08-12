@@ -76,6 +76,23 @@ export const isMessageNotSentError = (
 ): error is MessageNotSentError =>
   typeof error === "object" && error !== null && MESSAGE_NOT_SENT in error;
 
+export class ThreadListAdapterChangedError extends Error {
+  readonly code = "thread-list-adapter-changed";
+
+  constructor() {
+    super("Thread list adapter changed while an operation was pending.");
+    this.name = "ThreadListAdapterChangedError";
+  }
+}
+
+export const isThreadListAdapterChangedError = (
+  error: unknown,
+): error is ThreadListAdapterChangedError =>
+  typeof error === "object" &&
+  error !== null &&
+  "code" in error &&
+  error.code === "thread-list-adapter-changed";
+
 export const toAssistantError = (error: unknown): AssistantError => {
   if (isAssistantError(error)) return error;
   if (error instanceof Error) {
