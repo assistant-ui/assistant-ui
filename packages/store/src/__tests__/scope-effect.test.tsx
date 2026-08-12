@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { act, cleanup, render } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
-import { flushTapSync, resource } from "@assistant-ui/tap";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { flushTapSync, resource, withKey } from "@assistant-ui/tap";
 import { AuiProvider } from "../AuiProvider";
 import { useAui } from "../useAui";
 import { Derived } from "../Derived";
@@ -65,7 +65,7 @@ const makeHarness = () => {
         aui.thread.target({ index: aui.thread.getState().selected }),
     } as never);
 
-  return { log, ThreadClient, RegistrarClient, targetDerived };
+  return { log, TargetClient, ThreadClient, RegistrarClient, targetDerived };
 };
 
 afterEach(() => {
@@ -102,6 +102,74 @@ describe("useAssistantScopeEffect", () => {
 
     view.unmount();
     expect(log).toEqual(["+t0:a", "-t0:a", "+t1:a", "-t1:a", "+t1:b", "-t1:b"]);
+  });
+
+  it("retries a failed migration on a later notification", () => {
+    const { log, ThreadClient, targetDerived } = makeHarness();
+    let failing = false;
+    const useFlakyRegistrarClient = ({ tag }: { tag: string }) => {
+      const clientRef = useAssistantClientRef();
+      useAssistantScopeEffect(
+        "target" as never,
+        () => {
+          if (failing) throw new Error("setup failed");
+          return (clientRef.current as AnyClient).target.register(tag);
+        },
+        [tag],
+      );
+      return { getState: () => ({}) };
+    };
+    const FlakyRegistrarClient = resource(useFlakyRegistrarClient);
+
+    let aui!: AnyClient;
+    const Harness = () => {
+      aui = useAui({
+        thread: ThreadClient(),
+        target: targetDerived(),
+        registrar: FlakyRegistrarClient({ tag: "a" }),
+      } as never);
+      return <AuiProvider value={aui as never} />;
+    };
+    render(<Harness />);
+    expect(log).toEqual(["+t0:a"]);
+
+    // The migration to t1 fails; the old registration is cleaned up exactly
+    // once and the failure is reported through the notification manager
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    failing = true;
+    act(() => flushTapSync(() => aui.thread.setSelected(1)));
+    expect(log).toEqual(["+t0:a", "-t0:a"]);
+    expect(consoleError).toHaveBeenCalled();
+    consoleError.mockRestore();
+
+    // Once the effect can succeed, any later notification retries the
+    // unapplied migration, including a value update that changes no identity
+    failing = false;
+    act(() => flushTapSync(() => aui.thread.target({ index: 1 }).poke()));
+    expect(log).toEqual(["+t0:a", "-t0:a", "+t1:a"]);
+  });
+
+  it("migrates when a root scope is remounted in place via withKey", () => {
+    const { log, TargetClient, RegistrarClient } = makeHarness();
+    const Harness = ({ generation }: { generation: number }) => {
+      const aui = useAui({
+        target: withKey(
+          String(generation),
+          TargetClient({ id: `t${generation}` }),
+        ),
+        registrar: RegistrarClient({ tag: "a" }),
+      } as never);
+      return <AuiProvider value={aui as never} />;
+    };
+    const view = render(<Harness generation={0} />);
+    expect(log).toEqual(["+t0:a"]);
+
+    // The remount resets the instance's state while the client facade stays
+    // identity-stable, so the registration must follow the instance
+    view.rerender(<Harness generation={1} />);
+    expect(log).toEqual(["+t0:a", "-t0:a", "+t1:a"]);
   });
 
   it("sets up once the scope appears in a later structural change", () => {

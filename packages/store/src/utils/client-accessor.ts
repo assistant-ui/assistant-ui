@@ -7,6 +7,8 @@ import { handleIntrospectionProp } from "./BaseProxyHandler";
 
 const CLIENT_ID_SYMBOL = Symbol("assistant-ui.store.clientId");
 
+export const INSTANCE_TAG_SYMBOL = Symbol("assistant-ui.store.instanceTag");
+
 declare const clientIdBrand: unique symbol;
 
 type AccessorMeta = {
@@ -114,3 +116,16 @@ export const getClientId = (client: object): getClientId.ClientId =>
 export namespace getClientId {
   export type ClientId = { readonly [clientIdBrand]: never };
 }
+
+/**
+ * Returns the identity of the underlying client instance.
+ *
+ * `getClientId` follows the stable client facade, which survives a remount
+ * of the resource behind it, so it cannot distinguish a structurally
+ * replaced instance whose state was reset. This identity changes exactly
+ * when that instance is remounted or replaced; clients without an instance
+ * tag (hand-built parent chains) fall back to the facade identity.
+ */
+export const getClientInstanceId = (client: object): getClientId.ClientId =>
+  ((client as AnyRecord)[INSTANCE_TAG_SYMBOL] ??
+    getClientId(client)) as getClientId.ClientId;

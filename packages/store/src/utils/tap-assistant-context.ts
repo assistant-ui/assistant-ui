@@ -5,7 +5,7 @@ import type {
   AssistantEventPayload,
 } from "../types/events";
 import type { AssistantClient, ClientNames } from "../types/client";
-import { getClientId, isScopeAvailable } from "./client-accessor";
+import { getClientInstanceId, isScopeAvailable } from "./client-accessor";
 import { useClientStack, type ClientStack } from "./tap-client-stack-context";
 
 type EmitFn = <TEvent extends Exclude<AssistantEventName, "*">>(
@@ -22,6 +22,8 @@ export type AssistantTapContextValue = {
 const AssistantTapContext = createContext<AssistantTapContextValue | null>(
   null,
 );
+
+const UNAPPLIED = Symbol("aui.scope-effect-unapplied");
 
 export const useAssistantTapContextProvider = <TResult>(
   value: AssistantTapContextValue,
@@ -42,15 +44,14 @@ export const useAssistantClientRef = () => {
 };
 
 /**
- * Runs a registration effect that follows the committed identity of one
- * scope: when a structural change replaces the scope's bound client, the
+ * Runs a registration effect that follows the bound client instance of one
+ * scope: when a structural change remounts or replaces that instance, the
  * previous cleanup runs and the effect runs again against the replacement.
- * Value updates on the same binding do not re-run it, and while the scope is
- * unavailable only cleanup runs, so the effect always executes against a
- * bound scope. A migration whose effect throws keeps the previous identity,
- * so the next notification retries it. The client ref is committed before
- * effects run, so reads through it inside the effect see the finalized
- * client.
+ * Value updates on the same instance do not re-run it, and while the scope
+ * is unavailable only cleanup runs, so the effect always executes against a
+ * bound scope. A migration whose effect throws stays unapplied, so the next
+ * notification retries it. The client ref is committed before effects run,
+ * so reads through it inside the effect see the finalized client.
  */
 export const useAssistantScopeEffect = (
   scope: ClientNames,
@@ -60,33 +61,42 @@ export const useAssistantScopeEffect = (
   const { clientRef } = useAssistantTapContext();
 
   useEffect(() => {
-    const subscribe = clientRef.current?.subscribe;
-    if (!subscribe) return;
+    const client = clientRef.current;
+    if (client === null) {
+      throw new Error(
+        "useAssistantScopeEffect ran before the client was committed. This is likely an internal bug in assistant-ui.",
+      );
+    }
 
     const identityOf = () => {
       const accessor = clientRef.current?.[scope];
       return accessor !== undefined && isScopeAvailable(accessor)
-        ? getClientId(accessor)
+        ? getClientInstanceId(accessor)
         : undefined;
     };
 
-    let identity: ReturnType<typeof identityOf>;
+    // Distinguishes "this identity has a live registration" from "this
+    // identity was last seen": a migration whose effect threw records
+    // UNAPPLIED, so the next notification retries even when the identity
+    // swings back to a previously registered client.
+    let applied: ReturnType<typeof identityOf> | typeof UNAPPLIED = UNAPPLIED;
     let cleanup: (() => void) | undefined;
     const apply = (next: ReturnType<typeof identityOf>) => {
       cleanup?.();
       cleanup = undefined;
+      applied = UNAPPLIED;
       if (next !== undefined) {
         const result = effect();
         cleanup = typeof result === "function" ? result : undefined;
       }
-      identity = next;
+      applied = next;
     };
 
     apply(identityOf());
 
-    const unsubscribe = subscribe(() => {
+    const unsubscribe = client.subscribe(() => {
       const next = identityOf();
-      if (next === identity) return;
+      if (next === applied) return;
       apply(next);
     });
 
