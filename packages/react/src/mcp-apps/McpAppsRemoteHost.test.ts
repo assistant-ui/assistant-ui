@@ -1,6 +1,7 @@
 import { createTapRoot, useResource } from "@assistant-ui/tap";
 import { describe, expect, it, vi } from "vitest";
 import { McpAppsRemoteHost } from "./McpAppsRemoteHost";
+import { MCP_APP_MIME_TYPE } from "./types";
 
 const mount = (fetch: typeof globalThis.fetch) =>
   createTapRoot(function Root() {
@@ -41,9 +42,16 @@ describe("McpAppsRemoteHost", () => {
   });
 
   it("posts serverId params verbatim for tool calls and resource loads", async () => {
-    const fetch = vi.fn(async () =>
-      Response.json({ content: [{ type: "text", text: "ok" }] }),
-    ) as unknown as typeof globalThis.fetch;
+    const fetch = vi.fn(async (_input, init) => {
+      const request = JSON.parse(String(init?.body)) as { method: string };
+      return request.method === "mcp-apps/read-resource"
+        ? Response.json({
+            uri: "ui://example/search",
+            mimeType: MCP_APP_MIME_TYPE,
+            html: "<main>Search</main>",
+          })
+        : Response.json({ content: [{ type: "text", text: "ok" }] });
+    }) as unknown as typeof globalThis.fetch;
     const root = mount(fetch);
 
     try {
@@ -118,6 +126,23 @@ describe("McpAppsRemoteHost", () => {
     try {
       await expect(root.getValue().listResources()).rejects.toThrow(
         'MCP App host request "resources/list" to "/api/mcp-apps" failed with 400 Bad Request: resources/list is not supported',
+      );
+    } finally {
+      root.unmount();
+    }
+  });
+
+  it("rejects malformed successful resource responses", async () => {
+    const fetch = vi.fn(async () =>
+      Response.json({}),
+    ) as unknown as typeof globalThis.fetch;
+    const root = mount(fetch);
+
+    try {
+      await expect(
+        root.getValue().loadResource({ uri: "ui://example/search" }),
+      ).rejects.toThrow(
+        'Invalid MCP App host response "mcp-apps/read-resource" from "/api/mcp-apps": expected a resource with string "uri" and "html" fields and MIME type "text/html;profile=mcp-app"',
       );
     } finally {
       root.unmount();
