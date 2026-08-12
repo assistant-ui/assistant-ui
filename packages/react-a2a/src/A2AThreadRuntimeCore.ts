@@ -272,7 +272,9 @@ export class A2AThreadRuntimeCore {
     this._isLoading = true;
     this.notifyUpdate();
 
-    const historyPromise = history?.load() ?? Promise.resolve(null);
+    const historyPromise = Promise.resolve().then(
+      () => history?.load() ?? null,
+    );
     const agentCardPromise = this.client.getAgentCard().catch(() => undefined);
 
     request.promise = Promise.all([historyPromise, agentCardPromise])

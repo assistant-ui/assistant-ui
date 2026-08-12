@@ -176,6 +176,23 @@ describe("A2AThreadRuntimeCore", () => {
   });
 
   describe("history loading", () => {
+    it("settles synchronous history load failures", async () => {
+      const error = new Error("history unavailable");
+      const onError = vi.fn();
+      const history: ThreadHistoryAdapter = {
+        load: vi.fn(() => {
+          throw error;
+        }),
+        append: vi.fn().mockResolvedValue(undefined),
+      };
+      const core = createCore({}, { history, onError });
+
+      await expect(core.__internal_load()).resolves.toBeUndefined();
+
+      expect(core.isLoading).toBe(false);
+      expect(onError).toHaveBeenCalledWith(error);
+    });
+
     it("does not restore an old task after the adapter key changes", async () => {
       let resolveCancellation!: (task: A2ATask) => void;
       const cancelTaskA = vi.fn(
