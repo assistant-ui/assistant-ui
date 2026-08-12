@@ -424,6 +424,7 @@ export class LocalThreadRuntimeCore
     this._activeRun = run;
     this._runGeneration++;
 
+    let active = false;
     try {
       // mark busy for runs not started through the queue (regenerate, resume)
       this._queue?.notifyBusy();
@@ -447,7 +448,7 @@ export class LocalThreadRuntimeCore
       // the settle belongs to this run only while it is still the active run
       // or was cancelled (the engine expects a cancelled run's settle); a run
       // superseded by a newer one stays silent
-      const active = this._activeRun === run;
+      active = this._activeRun === run;
       if (active) this._activeRun = null;
       if (active || run.cancelled) {
         queueMicrotask(() => this._queue?.notifyIdle());
@@ -455,6 +456,7 @@ export class LocalThreadRuntimeCore
     }
 
     if (
+      active &&
       this.adapters.suggestion &&
       message.status?.type !== "requires-action"
     ) {
