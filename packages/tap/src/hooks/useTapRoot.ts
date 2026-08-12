@@ -129,6 +129,7 @@ export const useTapRoot = <R>(render: () => R): useTapRoot.Root<R> => {
       // Suspended outside a React render: hold the committed value and retry
       // once the thenable settles (transition semantics).
       if (isThenable(error)) {
+        setRootVersion(fiber.root, fiber.root.committedVersion);
         const retry = () => {
           if (stateRef.current.isMounted) scheduler.markDirty();
         };
