@@ -179,6 +179,51 @@ describe("resources under <Activity>", () => {
     expect(events).toEqual(["mount:second"]);
   });
 
+  it("useResources swaps hooks while hidden and mounts the replacement on reveal", () => {
+    const events: string[] = [];
+    const useFirst = () => {
+      useResourceEffect(() => {
+        events.push("mount:first");
+        return () => events.push("unmount:first");
+      }, []);
+      return "first";
+    };
+    const useSecond = () => {
+      useResourceEffect(() => {
+        events.push("mount:second");
+        return () => events.push("unmount:second");
+      }, []);
+      return "second";
+    };
+    const First = resource(useFirst);
+    const Second = resource(useSecond);
+
+    const Inner = memo(function Inner({ swapped }: { swapped: boolean }) {
+      const [value] = useResources([
+        withKey("x", swapped ? Second() : First()),
+      ]);
+      return <>{value}</>;
+    });
+    function App({ hidden, swapped }: { hidden: boolean; swapped: boolean }) {
+      return (
+        <Activity mode={hidden ? "hidden" : "visible"}>
+          <Inner swapped={swapped} />
+        </Activity>
+      );
+    }
+
+    const { rerender } = render(<App hidden={false} swapped={false} />);
+    rerender(<App hidden={true} swapped={false} />);
+    expect(events).toEqual(["mount:first", "unmount:first"]);
+
+    rerender(<App hidden={true} swapped={true} />);
+    expect(events).toEqual(["mount:first", "unmount:first"]);
+
+    events.length = 0;
+    rerender(<App hidden={false} swapped={true} />);
+    expect(events).toEqual(["mount:second"]);
+  });
+
   it("useTapRoot keeps values updated while hidden across a reveal", () => {
     let handle: {
       getValue: () => { count: number; setCount: (n: number) => void };
