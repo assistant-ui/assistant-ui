@@ -2,7 +2,12 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { A2AThreadRuntimeCore } from "./A2AThreadRuntimeCore";
 import type { A2AClient } from "./A2AClient";
 import type { A2AMessage, A2AStreamEvent, A2ATask } from "./types";
-import type { AppendMessage, ThreadMessage } from "@assistant-ui/core";
+import type {
+  AppendMessage,
+  ExportedMessageRepository,
+  ThreadHistoryAdapter,
+  ThreadMessage,
+} from "@assistant-ui/core";
 
 // --- Mock client factory ---
 
@@ -171,6 +176,54 @@ describe("A2AThreadRuntimeCore", () => {
   });
 
   describe("history loading", () => {
+    it("ignores a stale history load after the adapter key changes", async () => {
+      let resolveHistoryA!: (repo: ExportedMessageRepository) => void;
+      const historyA: ThreadHistoryAdapter = {
+        key: "workspace-a",
+        load: vi.fn(
+          () =>
+            new Promise<ExportedMessageRepository>((resolve) => {
+              resolveHistoryA = resolve;
+            }),
+        ),
+        append: vi.fn().mockResolvedValue(undefined),
+      };
+      const messageB = createHistoryMessage("message-b", "user", "B");
+      const historyB: ThreadHistoryAdapter = {
+        key: "workspace-b",
+        load: vi.fn().mockResolvedValue({
+          headId: messageB.id,
+          messages: [{ parentId: null, message: messageB }],
+        }),
+        append: vi.fn().mockResolvedValue(undefined),
+      };
+      const client = createMockClient();
+      const core = new A2AThreadRuntimeCore({
+        client,
+        notifyUpdate: notifyUpdate as unknown as () => void,
+        history: historyA,
+      });
+      const staleLoad = core.__internal_load();
+
+      core.updateOptions({ client, history: historyB });
+      await core.__internal_load();
+
+      resolveHistoryA({
+        headId: "message-a",
+        messages: [
+          {
+            parentId: null,
+            message: createHistoryMessage("message-a", "user", "A"),
+          },
+        ],
+      });
+      await staleLoad;
+
+      expect(core.getMessages().map((message) => message.id)).toEqual([
+        messageB.id,
+      ]);
+    });
+
     it("preserves sibling branches and selects the persisted head", async () => {
       const { user, firstAssistant, secondAssistant, history } =
         createBranchedHistory();

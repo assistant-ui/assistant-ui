@@ -90,7 +90,7 @@ export function useA2ARuntime(options: UseA2ARuntimeOptions): AssistantRuntime {
     ...(options.onArtifactComplete && {
       onArtifactComplete: options.onArtifactComplete,
     }),
-    ...(historyAdapter && { history: historyAdapter }),
+    history: historyAdapter,
   });
 
   // Thread list
@@ -166,9 +166,11 @@ export function useA2ARuntime(options: UseA2ARuntimeOptions): AssistantRuntime {
     };
   }, [core, runtime]);
 
+  const hasHistoryAdapter = historyAdapter !== undefined;
+  const historyAdapterKey = historyAdapter?.key;
   useEffect(() => {
     core.__internal_load();
-  }, [core]);
+  }, [core, hasHistoryAdapter, historyAdapterKey]);
 
   return runtime;
 }

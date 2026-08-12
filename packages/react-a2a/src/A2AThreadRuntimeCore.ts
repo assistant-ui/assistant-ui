@@ -41,6 +41,20 @@ export type A2AThreadRuntimeCoreOptions = {
   notifyUpdate: () => void;
 };
 
+const DEFAULT_HISTORY_ADAPTER_KEY = Symbol("history-adapter");
+const NO_HISTORY_ADAPTER_KEY = Symbol("no-history-adapter");
+type HistoryAdapterKey =
+  | NonNullable<ThreadHistoryAdapter["key"]>
+  | typeof DEFAULT_HISTORY_ADAPTER_KEY
+  | typeof NO_HISTORY_ADAPTER_KEY;
+
+const getHistoryAdapterKey = (
+  history: ThreadHistoryAdapter | undefined,
+): HistoryAdapterKey =>
+  history
+    ? (history.key ?? DEFAULT_HISTORY_ADAPTER_KEY)
+    : NO_HISTORY_ADAPTER_KEY;
+
 const FALLBACK_USER_STATUS = {
   type: "complete",
   reason: "unknown",
@@ -71,8 +85,16 @@ export class A2AThreadRuntimeCore {
   // History tracking
   private readonly assistantHistoryParents = new Map<string, string | null>();
   private readonly recordedHistoryIds = new Set<string>();
+  private historyScopeGeneration = 0;
   private _isLoading = false;
-  private _loadPromise: Promise<void> | undefined;
+  private _loadRequest:
+    | {
+        key: HistoryAdapterKey;
+        historyScopeGeneration: number;
+        promise: Promise<void>;
+      }
+    | undefined;
+  private lastHistoryAdapterKey: HistoryAdapterKey | undefined;
 
   constructor(options: A2AThreadRuntimeCoreOptions) {
     this.client = options.client;
@@ -81,6 +103,14 @@ export class A2AThreadRuntimeCore {
     this.onError = options.onError;
     this.onCancel = options.onCancel;
     this.onArtifactComplete = options.onArtifactComplete;
+    if (
+      !Object.is(
+        getHistoryAdapterKey(this.history),
+        getHistoryAdapterKey(options.history),
+      )
+    ) {
+      this.historyScopeGeneration += 1;
+    }
     this.history = options.history;
     this.notifyUpdate = options.notifyUpdate;
   }
@@ -199,15 +229,51 @@ export class A2AThreadRuntimeCore {
   }
 
   __internal_load(): Promise<void> {
-    if (this._loadPromise) return this._loadPromise;
+    const history = this.history;
+    const key = getHistoryAdapterKey(history);
+    const activeLoadRequest = this._loadRequest;
+    if (
+      activeLoadRequest &&
+      Object.is(activeLoadRequest.key, key) &&
+      activeLoadRequest.historyScopeGeneration === this.historyScopeGeneration
+    ) {
+      return activeLoadRequest.promise;
+    }
+
+    const replacingHistory =
+      this.lastHistoryAdapterKey !== undefined &&
+      !Object.is(this.lastHistoryAdapterKey, key);
+    if (replacingHistory) {
+      this.historyScopeGeneration += 1;
+      this.clearRepository();
+      this.assistantHistoryParents.clear();
+      this.recordedHistoryIds.clear();
+      this.pendingError = null;
+      void this.cancel();
+      this.currentTask = undefined;
+      this.currentArtifacts = [];
+    }
+
+    const request = {
+      key,
+      historyScopeGeneration: this.historyScopeGeneration,
+      promise: Promise.resolve(),
+    };
+    const isCurrentRequest = () =>
+      this._loadRequest === request &&
+      request.historyScopeGeneration === this.historyScopeGeneration;
+    this._loadRequest = request;
+    this.lastHistoryAdapterKey = key;
 
     this._isLoading = true;
+    this.notifyUpdate();
 
-    const historyPromise = this.history?.load() ?? Promise.resolve(null);
+    const historyPromise = history?.load() ?? Promise.resolve(null);
     const agentCardPromise = this.client.getAgentCard().catch(() => undefined);
 
-    this._loadPromise = Promise.all([historyPromise, agentCardPromise])
+    request.promise = Promise.all([historyPromise, agentCardPromise])
       .then(([repo, agentCard]) => {
+        if (!isCurrentRequest()) return;
         if (agentCard) {
           this.agentCardValue = agentCard;
         }
@@ -216,17 +282,18 @@ export class A2AThreadRuntimeCore {
         }
       })
       .catch((error) => {
+        if (!isCurrentRequest()) return;
         this.onError?.(
           error instanceof Error ? error : new Error(String(error)),
         );
       })
       .finally(() => {
+        if (!isCurrentRequest()) return;
         this._isLoading = false;
         this.notifyUpdate();
       });
 
-    this.notifyUpdate();
-    return this._loadPromise;
+    return request.promise;
   }
 
   async append(message: AppendMessage): Promise<void> {
@@ -782,9 +849,12 @@ export class A2AThreadRuntimeCore {
   }
 
   private appendHistoryItem(parentId: string | null, message: ThreadMessage) {
-    if (!this.history || this.recordedHistoryIds.has(message.id)) return;
+    const history = this.history;
+    if (!history || this.recordedHistoryIds.has(message.id)) return;
+    const historyScopeGeneration = this.historyScopeGeneration;
     this.recordedHistoryIds.add(message.id);
-    void this.history.append({ parentId, message }).catch(() => {
+    void history.append({ parentId, message }).catch(() => {
+      if (historyScopeGeneration !== this.historyScopeGeneration) return;
       this.recordedHistoryIds.delete(message.id);
     });
   }

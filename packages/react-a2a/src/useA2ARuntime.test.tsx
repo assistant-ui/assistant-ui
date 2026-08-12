@@ -2,6 +2,7 @@
 
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { ThreadHistoryAdapter } from "@assistant-ui/core";
 import type { A2AClient } from "./A2AClient";
 import { useA2ARuntime } from "./useA2ARuntime";
 
@@ -138,5 +139,25 @@ describe("useA2ARuntime", () => {
     expect(streamRequest[1]?.headers).toMatchObject({
       Authorization: "Bearer second",
     });
+  });
+
+  it("reloads history when the adapter key changes", async () => {
+    const { client } = createMockClient();
+    const createHistory = (key: string): ThreadHistoryAdapter => ({
+      key,
+      load: vi.fn().mockResolvedValue({ messages: [] }),
+      append: vi.fn().mockResolvedValue(undefined),
+    });
+    const historyA = createHistory("workspace-a");
+    const historyB = createHistory("workspace-b");
+
+    const { rerender } = renderHook(
+      ({ history }) => useA2ARuntime({ client, adapters: { history } }),
+      { initialProps: { history: historyA } },
+    );
+
+    await waitFor(() => expect(historyA.load).toHaveBeenCalledOnce());
+    rerender({ history: historyB });
+    await waitFor(() => expect(historyB.load).toHaveBeenCalledOnce());
   });
 });
