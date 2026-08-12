@@ -112,7 +112,7 @@ type ClientFields = {
 // so every level filters delivery against the subscribing provider's own
 // committed bindings instead of its own. Module-internal; the public
 // selector shape is unchanged.
-const EVENT_RECEIVER_REF = Symbol("aui.event-receiver-ref");
+const EVENT_RECEIVER_REF = Symbol.for("aui.event-receiver-ref");
 
 type RiddenSelector = { [EVENT_RECEIVER_REF]?: ClientRef };
 

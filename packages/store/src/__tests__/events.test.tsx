@@ -542,6 +542,9 @@ describe("Derived scopes", () => {
 });
 
 describe("derived-only providers", () => {
+  const useAnchorClient = () => ({ getState: () => ({}) });
+  const AnchorClient = resource(useAnchorClient);
+
   const messageByIndex = (index: number) =>
     Derived({
       source: "thread",
@@ -661,6 +664,61 @@ describe("derived-only providers", () => {
     root().thread.message({ index: 1 }).ping("fresh");
     await flushEvents();
     expect(cb).toHaveBeenCalledExactlyOnceWith({ id: "m1", value: "fresh" });
+  });
+
+  it("delivers to a hosted child inheriting the scope from a derived-only provider", async () => {
+    const cb = vi.fn();
+    const HostedChild = ({ children }: { children?: ReactNode }) => {
+      const aui = useAui({ anchor: AnchorClient() } as never);
+      return <AuiProvider value={aui as never}>{children}</AuiProvider>;
+    };
+    const { root } = mountRoot(
+      { thread: ThreadClient() },
+      <DerivedChild index={1}>
+        <HostedChild>
+          <Listener cb={cb} />
+        </HostedChild>
+      </DerivedChild>,
+    );
+
+    root().thread.message({ index: 1 }).ping("inherited");
+    await flushEvents();
+
+    expect(cb).toHaveBeenCalledExactlyOnceWith({
+      id: "m1",
+      value: "inherited",
+    });
+  });
+
+  it("routes a shadowing hosted descendant through the derived-only ancestor's binding", async () => {
+    const cb = vi.fn();
+    const ShadowingChild = ({ children }: { children?: ReactNode }) => {
+      const aui = useAui({
+        anchor: AnchorClient(),
+        message: messageByIndex(0),
+      } as never);
+      return <AuiProvider value={aui as never}>{children}</AuiProvider>;
+    };
+    const { root } = mountRoot(
+      { thread: ThreadClient() },
+      <DerivedChild index={1}>
+        <ShadowingChild>
+          <Listener cb={cb} />
+        </ShadowingChild>
+      </DerivedChild>,
+    );
+
+    // The chain above a derived-only level filters forwarded subscriptions
+    // with that level's ref; a shadowing descendant's own binding is not
+    // consulted above its own notification manager.
+    root().thread.message({ index: 0 }).ping("shadowed");
+    root().thread.message({ index: 1 }).ping("ancestor");
+    await flushEvents();
+
+    expect(cb).toHaveBeenCalledExactlyOnceWith({
+      id: "m1",
+      value: "ancestor",
+    });
   });
 
   it("filters a direct aui.on subscription by the child binding", async () => {
