@@ -54,8 +54,6 @@ export class UpdateScheduler {
   }
 }
 
-// Subscriber notifications are delivered after the drain converges, so
-// listeners never observe mid-flush state and may flushTapSync freely.
 export const scheduleNotify = (notify: () => void): void => {
   if (activeDrainRuns !== null) {
     pendingNotifies.push(notify);
@@ -134,8 +132,6 @@ const scheduleMacrotask = (() => {
 })();
 
 export const flushTapSync = <T>(callback: () => T): T => {
-  // Mirrors React's flushSync rule: inside a render or commit the flush is
-  // impossible, so the dispatches fold into the enclosing drain instead.
   if (activeDrainRuns !== null) {
     if (isDevelopment) {
       console.warn(

@@ -9,10 +9,6 @@ import {
 import { useEffect } from "../../react-hooks/useEffect";
 import { useState } from "../../react-hooks/useState";
 
-// Every shipped host defers dispatches past the current pass; a host that
-// synchronously re-renders and commits from inside a setup is the remaining
-// reachable shape (flushTapSync during a React-driven commit). The superseded
-// frame's cleanup must run instead of overwriting the nested frame's.
 describe("commit reentrancy", () => {
   it("a nested commit from inside a setup supersedes the outer frame's cleanup", () => {
     const events: string[] = [];

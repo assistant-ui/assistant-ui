@@ -4,9 +4,6 @@ import { useTapRoot, flushTapSync } from "../../index";
 import { useState as useResourceState } from "../../react-hooks/useState";
 import { useEffect as useResourceEffect } from "../../react-hooks/useEffect";
 
-// flushTapSync from an effect during a React-driven commit runs handleUpdate
-// nested inside the outer commit; the outer frame's publish must not regress
-// the root to its superseded render.
 describe("useTapRoot nested flush", () => {
   afterEach(() => {
     cleanup();

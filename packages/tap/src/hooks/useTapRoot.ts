@@ -86,8 +86,6 @@ export const useTapRoot = <R>(render: () => R): useTapRoot.Root<R> => {
   });
   const [subscribers] = useState(() => new Set<() => void>());
 
-  // The version check drops a publish superseded by a nested handleUpdate
-  // (flushTapSync from an effect during a React-driven commit).
   const publish = (output: R, version: number) => {
     if (
       scheduler.isDirty ||
@@ -158,8 +156,7 @@ export const useTapRoot = <R>(render: () => R): useTapRoot.Root<R> => {
 
     stateRef.current.committedArgs = args;
     stateRef.current.context = context;
-    // handleUpdate rendered past this render (consumed or replaced its wip):
-    // this closure's snapshot is superseded, converge by rendering fresh.
+    // handleUpdate rendered past this render: this closure is superseded
     if (fiber.wipCommitCallbacks !== wip) {
       if (!scheduler.isDirty) handleUpdate();
       return;
