@@ -32,9 +32,10 @@ type AppendMessage = Omit<ThreadMessage, "id"> & {
 
 type AsNumber<K> = K extends `${infer N extends number}` ? N | K : never;
 
-type AssistantClient = {
-  [K in ClientNames]: AssistantClientAccessor<K>;
-} & {
+type AssistantClient = ClientScopes & {
+  readonly optional: {
+    readonly [K in keyof ClientScopes]: ClientScopes[K] | undefined;
+  };
   subscribe(listener: () => void): Unsubscribe;
   on<TEvent extends AssistantEventName>(selector: AssistantEventSelector<TEvent>, callback: AssistantEventCallback<TEvent>): Unsubscribe;
 };
@@ -237,6 +238,10 @@ type ClientSchemas = keyof ScopeRegistry extends never ? {
   "ERROR: No clients were defined": ClientError<"ERROR: No clients were defined">;
 } : {
   [K in keyof ScopeRegistry]: ValidateClient<K & string, ScopeRegistry[K]>;
+};
+
+type ClientScopes = {
+  [K in ClientNames]: AssistantClientAccessor<K>;
 };
 
 type CompleteAttachment = BaseAttachment & {
