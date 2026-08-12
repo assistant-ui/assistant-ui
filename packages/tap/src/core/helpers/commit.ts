@@ -80,7 +80,7 @@ export function reconcileEffects<R>(fiber: ResourceFiber<R>): void {
 export function cleanupAllEffects<R>(executionContext: ResourceFiber<R>) {
   const errors: unknown[] = [];
   for (const cell of executionContext.effectCells) {
-    cell.deps = null; // Reset deps so effect runs again on next mount
+    cell.deps = null;
 
     if (cell.cleanup) {
       try {

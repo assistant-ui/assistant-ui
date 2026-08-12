@@ -52,9 +52,8 @@ export type EffectCell = {
   setup: (() => (() => void) | undefined) | undefined;
   setupDeps: readonly unknown[] | undefined;
   cleanup: (() => void) | undefined;
-  // null = not active (never ran, disconnected, or mid-recommit), undefined = deps-less
+  // null = never ran or disconnected, undefined = deps-less
   deps: readonly unknown[] | null | undefined;
-  // bumped on every commit promotion; a stale setup frame observes a bump
   generation: number;
 };
 

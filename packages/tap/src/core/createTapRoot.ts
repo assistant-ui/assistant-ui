@@ -30,7 +30,6 @@ export const createTapRoot = <R>(
     return renderResourceFiber(fiber, [render]) as useTapRoot.Root<R>;
   };
 
-  // The commit runs as a drain task so effects execute inside the flush.
   const commitScheduler = new UpdateScheduler(() => commitResourceFiber(fiber));
   const commitFiber = () => flushTapSync(() => commitScheduler.markDirty());
 

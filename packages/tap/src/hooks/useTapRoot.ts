@@ -148,7 +148,6 @@ export const useTapRoot = <R>(render: () => R): useTapRoot.Root<R> => {
 
   useEffect(() => {
     if (processed) {
-      // Replayed without a render (StrictMode, Activity reveal): reconnect.
       if (!fiber.isMounted) commitResourceFiber(fiber);
       return;
     }
@@ -156,7 +155,6 @@ export const useTapRoot = <R>(render: () => R): useTapRoot.Root<R> => {
 
     stateRef.current.committedArgs = args;
     stateRef.current.context = context;
-    // handleUpdate rendered past this render: this closure is superseded
     if (fiber.wipCommitCallbacks !== wip) {
       if (!scheduler.isDirty) handleUpdate();
       return;
