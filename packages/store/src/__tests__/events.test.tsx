@@ -708,9 +708,11 @@ describe("derived-only providers", () => {
       </DerivedChild>,
     );
 
-    // The chain above a derived-only level filters forwarded subscriptions
-    // with that level's ref; a shadowing descendant's own binding is not
-    // consulted above its own notification manager.
+    // A forwarded subscription crossing a derived-only level filters with
+    // that level's ref above it, so the leaking ancestor is now the
+    // derived-only level (previously the root, and only when it bound the
+    // scope); the descendant's own shadowed binding stays unreachable above
+    // its own notification manager.
     root().thread.message({ index: 0 }).ping("shadowed");
     root().thread.message({ index: 1 }).ping("ancestor");
     await flushEvents();
