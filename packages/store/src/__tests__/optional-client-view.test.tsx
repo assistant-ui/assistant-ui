@@ -113,6 +113,7 @@ describe("optional client view", () => {
     expect(Object.keys({ ...aui })).not.toContain("optional");
     expect("optional" in aui.optional).toBe(false);
     expect(Object.keys(aui.optional)).toContain("thread");
+    expect((aui.optional as AnyClient).__proto__).toBeUndefined();
   });
 
   it("keeps the view referentially stable per client", () => {

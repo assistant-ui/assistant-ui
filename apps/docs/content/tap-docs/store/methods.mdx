@@ -112,7 +112,7 @@ const aui = useAui();
 aui.optional.counter?.increment();
 ```
 
-This mirrors `s.optional` on the state side. The accessor metadata keeps working (`source` is `null` exactly when `aui.optional.counter` is `undefined`), but `optional` is the availability check to reach for.
+This mirrors `s.optional` on the state side. The accessor metadata keeps working, and `aui.optional.counter` is `undefined` whenever the scope is not available, whether its accessor reports `source: null` or the scope is entirely absent from a hand-built parent chain.
 
 ## Subscribing to scope identity
 

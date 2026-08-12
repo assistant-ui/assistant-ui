@@ -2,11 +2,13 @@ import type { AssistantClient } from "../types/client";
 
 export const isIgnoredClientKey = (
   key: string | symbol,
-): key is "optional" | "subscribe" | "on" | symbol => {
+): key is "optional" | "subscribe" | "on" | "__proto__" | symbol => {
   return (
     key === "optional" ||
     key === "subscribe" ||
     key === "on" ||
+    // Resolving it against the client would answer with the prototype object
+    key === "__proto__" ||
     typeof key === "symbol"
   );
 };
