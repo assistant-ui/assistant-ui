@@ -132,20 +132,42 @@ function validateEventStreamContentType(response: Response): void {
 }
 
 function parseAdkEvent(data: string): AdkEvent {
-  const value: unknown = JSON.parse(data);
+  let value: unknown;
+  try {
+    value = JSON.parse(data);
+  } catch {
+    throw new Error("Invalid ADK stream event: expected valid JSON.");
+  }
+
   if (
     typeof value !== "object" ||
     value === null ||
     Array.isArray(value) ||
-    !("id" in value) ||
-    typeof value.id !== "string" ||
-    value.id.length === 0
+    Object.keys(value).length === 0
   ) {
+    throw new Error("Invalid ADK stream event: expected a non-empty object.");
+  }
+
+  if ("id" in value && typeof value.id !== "string") {
     throw new Error(
-      'Invalid ADK stream event: expected an object with a non-empty string "id".',
+      'Invalid ADK stream event: expected "id" to be a string when present.',
     );
   }
-  return value as AdkEvent;
+
+  const errorMessage =
+    "error" in value && typeof value.error === "string"
+      ? value.error
+      : undefined;
+  return {
+    ...value,
+    id: "id" in value ? value.id : "",
+    ...(errorMessage !== undefined &&
+      !("errorMessage" in value) &&
+      !("error_message" in value) && {
+        errorCode: "STREAM_ERROR",
+        errorMessage,
+      }),
+  } as AdkEvent;
 }
 
 async function resolveHeaders(
