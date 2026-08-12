@@ -24,6 +24,20 @@ type AssistantClientAccessor<K extends ClientNames> = ClientSchemas[K]["methods"
   name: K;
 };
 
+type AssistantClientHandle = AssistantClientSource & {
+  destroy(): void;
+};
+
+type AssistantClientSource = {
+  getClient(): AssistantClient;
+  subscribe(listener: () => void): Unsubscribe;
+};
+
+type AssistantConfigSource = {
+  getConfig(): AuiConfig.Input;
+  subscribe(listener: () => void): Unsubscribe;
+};
+
 type AssistantEventCallback<TEvent extends AssistantEventName> = (payload: AssistantEventPayload[TEvent]) => void;
 
 type AssistantEventName = keyof AssistantEventPayload;
@@ -136,6 +150,8 @@ type ClientSchemas = keyof ScopeRegistry extends never ? {
   [K in keyof ScopeRegistry]: ValidateClient<K & string, ScopeRegistry[K]>;
 };
 
+declare const DefaultAssistantClient: AssistantClient;
+
 declare const Derived: <K extends ClientNames>(config: Derived.Props<K>) => DerivedElement<K>;
 
 declare namespace Derived {
@@ -221,6 +237,14 @@ declare const auiConfigBrand: unique symbol;
 
 declare const clientIdBrand: unique symbol;
 
+declare namespace entry_client_exports {
+  export { AssistantClient, AssistantClientAccessor, AssistantClientHandle, AssistantClientSource, AssistantConfigSource, AssistantEventCallback, AssistantEventName, AssistantEventPayload, AssistantEventSelector, AssistantState, AuiConfig, ClientElement, ClientEvents, ClientMeta, ClientMethods, ClientNames, ClientOutput, ClientSchema, DefaultAssistantClient, Derived, DerivedElement, InferClientState, ScopeRegistry, ScopesConfig, Unsubscribe, attachTransformScopes, createAssistantClient, getProxiedAssistantState, normalizeEventSelector, useAssistantClientRef, useAssistantEmit, useClientLookup, useClientResource };
+}
+
+declare const createAssistantClient: (config: AuiConfig.Input | AssistantConfigSource, options?: {
+  parent?: AssistantClient | AssistantClientSource | undefined;
+}) => AssistantClientHandle;
+
 declare function forwardTransformScopes(target: Hook, source: Hook): void;
 
 declare const getClientId: (client: object) => getClientId.ClientId;
@@ -230,6 +254,8 @@ declare namespace getClientId {
     readonly [clientIdBrand]: never;
   };
 }
+
+declare const getProxiedAssistantState: (client: AssistantClient) => AssistantState;
 
 declare namespace entry_root_exports {
   export { AssistantClient, AssistantClientAccessor, AssistantEventCallback, AssistantEventName, AssistantEventPayload, AssistantEventScope, AssistantEventSelector, AssistantState, AuiConfig, AuiIf, AuiProvider, ClientElement, ClientEvents, ClientMeta, ClientMethods, ClientNames, ClientOutput, ClientSchema, Derived, DerivedElement, RenderChildrenWithAccessor, ScopeRegistry, ScopesConfig, Unsubscribe, attachTransformScopes, forwardTransformScopes, getClientId, normalizeEventSelector, useAssistantClientRef, useAssistantEmit, useAui, useAuiEvent, useAuiState, useClientList, useClientLookup, useClientResource };
@@ -299,4 +325,4 @@ declare const useClientResource: <TMethods extends ClientMethods>(element: Resou
   key: string | number | undefined;
 };
 
-export { entry_root_exports as entry_root };
+export { entry_client_exports as entry_client, entry_root_exports as entry_root };

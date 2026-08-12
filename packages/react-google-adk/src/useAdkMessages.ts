@@ -26,6 +26,28 @@ export type UseAdkMessagesOptions = {
   };
 };
 
+type AdkRuntimeCallbackName = "onError" | "onCustomEvent" | "onAgentTransfer";
+
+const reportCallbackError = (name: AdkRuntimeCallbackName, error: unknown) => {
+  console.error(`[react-google-adk] ${name} callback threw an error`, error);
+};
+
+const invokeAdkRuntimeCallback = <TArgs extends unknown[]>(
+  name: AdkRuntimeCallbackName,
+  callback: ((...args: TArgs) => void | Promise<void>) | undefined,
+  ...args: TArgs
+) => {
+  if (!callback) return;
+
+  try {
+    void Promise.resolve(callback(...args)).catch((error) => {
+      reportCallbackError(name, error);
+    });
+  } catch (error) {
+    reportCallbackError(name, error);
+  }
+};
+
 export const useAdkMessages = ({
   stream,
   eventHandlers,
@@ -160,18 +182,31 @@ export const useAdkMessages = ({
           const transfer = accumulator.getLastTransferToAgent();
           if (transfer && transfer !== lastTransferToAgentRef.current) {
             lastTransferToAgentRef.current = transfer;
-            onAgentTransfer?.(transfer);
+            invokeAdkRuntimeCallback(
+              "onAgentTransfer",
+              onAgentTransfer,
+              transfer,
+            );
           }
 
           // Fire custom event callback for events with customMetadata
           if (event.customMetadata && onCustomEvent) {
             for (const [key, value] of Object.entries(event.customMetadata)) {
-              onCustomEvent(key, value);
+              invokeAdkRuntimeCallback(
+                "onCustomEvent",
+                onCustomEvent,
+                key,
+                value,
+              );
             }
           }
 
           if (event.errorCode || event.errorMessage) {
-            onError?.(event.errorMessage ?? event.errorCode);
+            invokeAdkRuntimeCallback(
+              "onError",
+              onError,
+              event.errorMessage ?? event.errorCode,
+            );
           }
         }
       } catch (error) {

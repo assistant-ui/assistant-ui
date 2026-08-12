@@ -66,12 +66,15 @@ await build({
   sourcemap: true,
   watch: isDev,
   ...(onSuccess ? { onSuccess } : {}),
-  // React Compiler shares the dependency gate: compiled output's memo cache only
-  // works inside tap renders through the shimmed `react/compiler-runtime`, and
-  // tap itself (which implements the hooks the compiler output runs on) must
-  // never be compiled.
+  // React Compiler shares the dependency gate, narrowed to packages that
+  // declare a react peer: compiled output's memo cache only works inside tap
+  // renders through the shimmed `react/compiler-runtime`. Tap itself (which
+  // implements the hooks the compiler output runs on) must never be compiled,
+  // and neither must a non-React framework bridge, whose use-prefixed
+  // composables would otherwise gain memo caches that run outside any render
+  // the compiler understands.
   plugins: [
-    ...(dependsOnTap ? [reactCompiler()] : []),
+    ...(dependsOnTap && pkg.peerDependencies?.react ? [reactCompiler()] : []),
     preserveReferenceDirectives(),
   ],
 });

@@ -92,7 +92,9 @@ export type AssistantTransportProtocol = "data-stream" | "assistant-transport";
 
 export type SendCommandsRequestBody = {
   commands: QueuedCommand[];
-  state: unknown;
+  /** Absent on a resume with `resumeStateApi`; the server replays from its retained snapshot. */
+  state?: unknown;
+  runId?: string;
   system: string | undefined;
   tools: Record<string, unknown> | undefined;
   callSettings: LanguageModelV1CallSettings | undefined;
@@ -109,6 +111,8 @@ export type AssistantTransportOptions<T> = {
   initialState: T;
   api: string;
   resumeApi?: string;
+  /** Endpoint that returns the retained initial state and run ID for a resume stream. A 204 response means no run is active and the resume is skipped. */
+  resumeStateApi?: string;
   protocol?: AssistantTransportProtocol;
   /**
    * When `false`, stream decoding and state reconciliation tolerate malformed

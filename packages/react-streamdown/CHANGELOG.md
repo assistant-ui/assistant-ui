@@ -1,5 +1,19 @@
 # @assistant-ui/react-streamdown
 
+## 0.3.10
+
+### Patch Changes
+
+- [#5723](https://github.com/assistant-ui/assistant-ui/pull/5723) [`94dc3e5`](https://github.com/assistant-ui/assistant-ui/commit/94dc3e509fa2b4fae1a14c88ec34b910c8d95af8) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+## 0.3.9
+
+### Patch Changes
+
+- [#5612](https://github.com/assistant-ui/assistant-ui/pull/5612) [`c3fed24`](https://github.com/assistant-ui/assistant-ui/commit/c3fed240af35e6dd9a6e2d8710e28c06731a10fe) - fix: merge user rehypePlugins after the security hardening pipeline instead of dropping it ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#5615](https://github.com/assistant-ui/assistant-ui/pull/5615) [`b3561cb`](https://github.com/assistant-ui/assistant-ui/commit/b3561cb71bd11ce059b7fc2360ef5a87d6efbb9a) - fix: preserve Streamdown sanitization extensions with security ([@rupic-app](https://github.com/apps/rupic-app))
+
 ## 0.3.8
 
 ### Patch Changes
