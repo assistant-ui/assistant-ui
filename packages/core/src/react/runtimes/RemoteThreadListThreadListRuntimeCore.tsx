@@ -71,10 +71,11 @@ export class RemoteThreadListThreadListRuntimeCore
   private _loadThreadsPromise: Promise<void> | undefined;
   private _loadMorePromise: Promise<void> | undefined;
   private _loadGeneration = 0;
+  private _adapterGeneration = 0;
   private _switchGeneration = 0;
   private _switchTask: Promise<void> | undefined;
 
-  private _mainThreadId!: string;
+  private _mainThreadId: string | undefined;
   private _state = createInitialState();
   private _unsubscribeState: (() => void) | undefined;
 
@@ -250,6 +251,7 @@ export class RemoteThreadListThreadListRuntimeCore
 
     if (adapterChanged) {
       this._loadGeneration++;
+      this._adapterGeneration++;
       this._switchGeneration++;
       this._loadThreadsPromise = undefined;
       this._loadMorePromise = undefined;
@@ -357,7 +359,15 @@ export class RemoteThreadListThreadListRuntimeCore
   }
 
   public get mainThreadId(): string {
-    return this._mainThreadId;
+    return this._mainThreadId!;
+  }
+
+  private _assertAdapterGeneration(generation: number) {
+    if (generation !== this._adapterGeneration) {
+      throw new Error(
+        "Thread list adapter changed while an operation was pending.",
+      );
+    }
   }
 
   // The settled remote ID of the active thread, or undefined while it is still
@@ -379,6 +389,7 @@ export class RemoteThreadListThreadListRuntimeCore
   }
 
   public getMainThreadRuntimeCore() {
+    if (this._mainThreadId === undefined) return EMPTY_THREAD_CORE;
     const result = this._hookManager.getThreadRuntimeCore(this._mainThreadId);
     if (!result) return EMPTY_THREAD_CORE;
     return result;
@@ -655,23 +666,24 @@ export class RemoteThreadListThreadListRuntimeCore
   };
 
   public generateTitle = async (threadId: string) => {
+    const adapter = this._options.adapter;
+    const adapterGeneration = this._adapterGeneration;
     const data = this.getItemById(threadId);
     if (!data) throw threadNotFoundError(threadId, "generating its title");
     if (data.status === "new")
       throw threadStatusError(threadId, data.status, "generate a title");
 
     const { remoteId } = await data.initializeTask;
+    this._assertAdapterGeneration(adapterGeneration);
 
     const runtimeCore = this._hookManager.getThreadRuntimeCore(data.id);
     if (!runtimeCore) return; // thread is no longer running
 
     const messages = runtimeCore.messages;
-    const stream = await this._options.adapter.generateTitle(
-      remoteId,
-      messages,
-    );
+    const stream = await adapter.generateTitle(remoteId, messages);
     const messageStream = AssistantMessageStream.fromAssistantStream(stream);
     for await (const result of messageStream) {
+      if (adapterGeneration !== this._adapterGeneration) return;
       const newTitle = result.parts.filter((c) => c.type === "text")[0]?.text;
       const state = this._state.baseValue;
       const currentData = getThreadData(state, data.id);
@@ -690,6 +702,8 @@ export class RemoteThreadListThreadListRuntimeCore
   };
 
   public rename(threadIdOrRemoteId: string, newTitle: string): Promise<void> {
+    const adapter = this._options.adapter;
+    const adapterGeneration = this._adapterGeneration;
     const data = this.getItemById(threadIdOrRemoteId);
     if (!data) throw threadNotFoundError(threadIdOrRemoteId, "renaming it");
     if (data.status === "new")
@@ -698,7 +712,8 @@ export class RemoteThreadListThreadListRuntimeCore
     return this._state.optimisticUpdate({
       execute: async () => {
         const { remoteId } = await data.initializeTask;
-        return this._options.adapter.rename(remoteId, newTitle);
+        this._assertAdapterGeneration(adapterGeneration);
+        return adapter.rename(remoteId, newTitle);
       },
       optimistic: (state) => {
         const data = getThreadData(state, threadIdOrRemoteId);
@@ -722,6 +737,8 @@ export class RemoteThreadListThreadListRuntimeCore
     threadIdOrRemoteId: string,
     custom: Record<string, unknown> | undefined,
   ): Promise<void> {
+    const adapter = this._options.adapter;
+    const adapterGeneration = this._adapterGeneration;
     const data = this.getItemById(threadIdOrRemoteId);
     if (!data)
       throw threadNotFoundError(
@@ -735,7 +752,7 @@ export class RemoteThreadListThreadListRuntimeCore
         "update custom metadata",
       );
 
-    if (!this._options.adapter.updateCustom) {
+    if (!adapter.updateCustom) {
       throw new Error(
         "Remote thread list adapter does not support updating custom metadata",
       );
@@ -744,7 +761,7 @@ export class RemoteThreadListThreadListRuntimeCore
     return this._state.optimisticUpdate({
       execute: async () => {
         const { remoteId } = await data.initializeTask;
-        const adapter = this._options.adapter;
+        this._assertAdapterGeneration(adapterGeneration);
         if (!adapter.updateCustom) {
           throw new Error(
             "Remote thread list adapter does not support updating custom metadata",
@@ -793,17 +810,21 @@ export class RemoteThreadListThreadListRuntimeCore
   }
 
   public async archive(threadIdOrRemoteId: string) {
+    const adapter = this._options.adapter;
+    const adapterGeneration = this._adapterGeneration;
     const data = this.getItemById(threadIdOrRemoteId);
     if (!data) throw threadNotFoundError(threadIdOrRemoteId, "archiving it");
     if (data.status !== "regular")
       throw threadStatusError(threadIdOrRemoteId, data.status, "be archived");
 
     await this._ensureThreadIsNotMain(data.id);
+    this._assertAdapterGeneration(adapterGeneration);
 
     return this._state.optimisticUpdate({
       execute: async () => {
         const { remoteId } = await data.initializeTask;
-        return this._options.adapter.archive(remoteId);
+        this._assertAdapterGeneration(adapterGeneration);
+        return adapter.archive(remoteId);
       },
       optimistic: (state) => {
         return updateStatusReducer(state, data.id, "archived");
@@ -812,6 +833,8 @@ export class RemoteThreadListThreadListRuntimeCore
   }
 
   public unarchive(threadIdOrRemoteId: string): Promise<void> {
+    const adapter = this._options.adapter;
+    const adapterGeneration = this._adapterGeneration;
     const data = this.getItemById(threadIdOrRemoteId);
     if (!data) throw threadNotFoundError(threadIdOrRemoteId, "unarchiving it");
     if (data.status !== "archived")
@@ -821,8 +844,10 @@ export class RemoteThreadListThreadListRuntimeCore
       execute: async () => {
         try {
           const { remoteId } = await data.initializeTask;
-          return await this._options.adapter.unarchive(remoteId);
+          this._assertAdapterGeneration(adapterGeneration);
+          return await adapter.unarchive(remoteId);
         } catch (error) {
+          this._assertAdapterGeneration(adapterGeneration);
           await this._ensureThreadIsNotMain(data.id);
           throw error;
         }
@@ -834,18 +859,22 @@ export class RemoteThreadListThreadListRuntimeCore
   }
 
   public async delete(threadIdOrRemoteId: string) {
+    const adapter = this._options.adapter;
+    const adapterGeneration = this._adapterGeneration;
     const data = this.getItemById(threadIdOrRemoteId);
     if (!data) throw threadNotFoundError(threadIdOrRemoteId, "deleting it");
     if (data.status !== "regular" && data.status !== "archived")
       throw threadStatusError(threadIdOrRemoteId, data.status, "be deleted");
 
     await this._ensureThreadIsNotMain(data.id);
+    this._assertAdapterGeneration(adapterGeneration);
     this._hookManager.stopThreadRuntime(data.id);
 
     return this._state.optimisticUpdate({
       execute: async () => {
         const { remoteId } = await data.initializeTask;
-        return await this._options.adapter.delete(remoteId);
+        this._assertAdapterGeneration(adapterGeneration);
+        return await adapter.delete(remoteId);
       },
       optimistic: (state) => {
         return updateStatusReducer(state, data.id, "deleted");
@@ -854,12 +883,14 @@ export class RemoteThreadListThreadListRuntimeCore
   }
 
   public async detach(threadIdOrRemoteId: string): Promise<void> {
+    const adapterGeneration = this._adapterGeneration;
     const data = this.getItemById(threadIdOrRemoteId);
     if (!data) throw threadNotFoundError(threadIdOrRemoteId, "detaching it");
     if (data.status !== "regular" && data.status !== "archived")
       throw threadStatusError(threadIdOrRemoteId, data.status, "be detached");
 
     await this._ensureThreadIsNotMain(data.id);
+    this._assertAdapterGeneration(adapterGeneration);
     this._hookManager.stopThreadRuntime(data.id);
   }
 
