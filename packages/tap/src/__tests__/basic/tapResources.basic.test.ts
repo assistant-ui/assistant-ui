@@ -1,6 +1,7 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { useResources } from "../../hooks/useResources";
 import { useState } from "../../react-hooks/useState";
+import { useEffect } from "../../react-hooks/useEffect";
 import { resource } from "../../core/resource";
 import { withKey } from "../../core/withKey";
 import {
@@ -8,6 +9,7 @@ import {
   renderTest,
   cleanupAllResources,
   createCounterResource,
+  getCommittedValue,
 } from "../test-utils";
 
 const SimpleCounter = resource(createCounterResource());
@@ -228,6 +230,43 @@ describe("useResources - Basic Functionality", () => {
       // Switch back to Counter (new instance)
       const result3 = renderTest(testFiber, { useCounter: true });
       expect(result3).toEqual([{ count: 42 }]);
+    });
+  });
+
+  describe("Reentrant commits", () => {
+    it("does not clobber a nested commit triggered by a child setup dispatch", () => {
+      let childRenders = 0;
+      let dispatched = false;
+      let setParentN: ((n: number) => void) | null = null;
+
+      const useChild = ({ n }: { n: number }) => {
+        childRenders++;
+        useEffect(() => {
+          if (!dispatched && n === 0) {
+            dispatched = true;
+            setParentN!(1);
+          }
+        }, [n]);
+        return childRenders;
+      };
+      const Child = resource(useChild);
+
+      const testFiber = createTestResource(() => {
+        const [n, setN] = useState(0);
+        setParentN = setN;
+        const [value] = useResources([withKey("k", Child({ n }), [n])]);
+        return { n, value };
+      });
+
+      // The child's mount effect dispatches synchronously, nesting a parent
+      // re-render + commit inside the outer commit loop.
+      renderTest(testFiber);
+      expect(getCommittedValue(testFiber)).toEqual({ n: 1, value: 2 });
+
+      // Returning to n=0 must re-render the child (committed deps are [1]);
+      // a clobbered commit record would serve the stale value from render 1.
+      setParentN!(0);
+      expect(getCommittedValue(testFiber)).toEqual({ n: 0, value: 3 });
     });
   });
 });

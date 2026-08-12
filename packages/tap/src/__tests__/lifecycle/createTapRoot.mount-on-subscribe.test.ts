@@ -114,7 +114,7 @@ describe("createTapRoot mountOnSubscribe", () => {
     unsubscribe();
     await flushUpdates();
     root.subscribe(() => {});
-    expect(body).toHaveBeenCalledTimes(mountRuns * 2);
+    expect(body).toHaveBeenCalledTimes(mountRuns);
     expect(effect).toHaveBeenCalledTimes(mountRuns + 1);
   });
 
@@ -209,6 +209,59 @@ describe("createTapRoot mountOnSubscribe", () => {
     await flushUpdates();
     root.subscribe(() => {});
     expect(root.getValue()).toBe(5);
+  });
+
+  it("remounts with fresh state after updates while soft-unmounted", async () => {
+    const body = vi.fn();
+    const seen: number[] = [];
+    const root = createTapRoot(
+      function Fresh() {
+        body();
+        const [count, setCount] = useState(0);
+        useEffect(() => {
+          seen.push(count);
+        }, [count]);
+        return { count, setCount };
+      },
+      { mountOnSubscribe: true },
+    );
+
+    const unsubscribe = root.subscribe(() => {});
+    unsubscribe();
+    await flushUpdates();
+
+    root.getValue().setCount(5);
+    await flushUpdates();
+    expect(root.getValue().count).toBe(5);
+
+    const renders = body.mock.calls.length;
+    root.subscribe(() => {});
+    expect(root.getValue().count).toBe(5);
+    expect(seen[seen.length - 1]).toBe(5);
+    expect(body).toHaveBeenCalledTimes(renders);
+  });
+
+  it("remounts without re-rendering when nothing changed while soft-unmounted", async () => {
+    const body = vi.fn();
+    const effect = vi.fn();
+    const root = createTapRoot(
+      function Idle() {
+        body();
+        useEffect(effect);
+        return null;
+      },
+      { mountOnSubscribe: true },
+    );
+
+    const unsubscribe = root.subscribe(() => {});
+    unsubscribe();
+    await flushUpdates();
+
+    const renders = body.mock.calls.length;
+    const effects = effect.mock.calls.length;
+    root.subscribe(() => {});
+    expect(body).toHaveBeenCalledTimes(renders);
+    expect(effect).toHaveBeenCalledTimes(effects + 1);
   });
 
   it("preserves ref and memo cells across an unsubscribe/resubscribe cycle", async () => {

@@ -49,7 +49,11 @@ export type MemoCell<T = any> = {
 
 export type EffectCell = {
   readonly type: "effect";
+  // Latest rendered effect + deps; committed by the reconcile walk.
+  setup: (() => (() => void) | undefined) | undefined;
+  setupDeps: readonly unknown[] | undefined;
   cleanup: (() => void) | undefined;
+  // Committed deps: null = never ran or disconnected, undefined = deps-less.
   deps: readonly unknown[] | null | undefined;
 };
 
@@ -89,7 +93,8 @@ export interface ResourceFiber<R> {
 
   wipContextDeps: ResourceContextDeps | null;
   contextDeps: ResourceContextDeps | null;
-  commitCallbacks: CommitCallbacks | null;
+  // Reset to [] at every render start, consumed (set null) by commit — so
+  // non-null also means "rendered since the last commit".
   wipCommitCallbacks: CommitCallbacks | null;
 
   currentIndex: number;

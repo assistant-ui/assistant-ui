@@ -177,15 +177,25 @@ export function useResources<E extends ResourceElement<any>>(
         fibers.delete(key);
       } else if (next === "skip") {
         // Bailed this render: nothing to commit, keep committed deps/value.
+        // A disconnected child (commit replayed without a render) reconnects.
+        if (!state.fiber.isNeverMounted && !state.fiber.isMounted) {
+          commitResourceFiber(state.fiber);
+        }
       } else {
         if (next.remount) {
-          unmountResourceFiber(state.fiber);
+          if (state.fiber.isMounted) unmountResourceFiber(state.fiber);
           state.fiber = next.remount;
         }
         commitResourceFiber(state.fiber);
-        state.committedDeps = next.deps;
-        state.committedValue = next.value;
-        state.isDirty = false;
+        // A child setup can dispatch and, under a synchronous host, nest a
+        // newer render + commit; finalize only while this record is still the
+        // latest so the nested result is not clobbered.
+        if (state.next === next) {
+          state.committedDeps = next.deps;
+          state.committedValue = next.value;
+          state.isDirty = false;
+          state.next = "skip";
+        }
       }
     }
   }, [val, fibers]);

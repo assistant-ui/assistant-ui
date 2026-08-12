@@ -1,6 +1,10 @@
 import type { ResourceFiber, TapRoot } from "./types";
 import { bubbleContextDeps } from "./context";
-import { commitAllCallbacks, cleanupAllEffects } from "./helpers/commit";
+import {
+  commitAllCallbacks,
+  cleanupAllEffects,
+  reconcileEffects,
+} from "./helpers/commit";
 import { withResourceFiber } from "./helpers/execution-context";
 import { withReactDispatcher } from "./react-dispatcher";
 import { isDevelopment } from "./helpers/env";
@@ -20,7 +24,6 @@ export function createResourceFiber<R>(
     cells: [],
     contextDeps: null,
     wipContextDeps: null,
-    commitCallbacks: null,
     wipCommitCallbacks: null,
     memoCache: {
       current: null,
@@ -77,27 +80,33 @@ export function renderResourceFiber<R>(
 }
 
 export function commitResourceFiber<R>(fiber: ResourceFiber<R>): void {
-  const commitCallbacks =
-    fiber.wipCommitCallbacks ?? fiber.commitCallbacks ?? [];
+  const commitCallbacks = fiber.wipCommitCallbacks;
   fiber.wipCommitCallbacks = null;
-  fiber.commitCallbacks = commitCallbacks;
+  // null means no render since the last commit (StrictMode replay, Activity
+  // reveal): render-scoped state stays, the reconcile walk below re-runs any
+  // disconnected effects.
+  const rendered = commitCallbacks !== null;
 
   fiber.isMounted = true;
-  fiber.contextDeps = fiber.wipContextDeps;
-  commitRoot(fiber.root);
+  if (rendered) {
+    fiber.contextDeps = fiber.wipContextDeps;
+    commitRoot(fiber.root);
 
-  if (fiber.memoCache.workInProgress !== null) {
-    fiber.memoCache.current = fiber.memoCache.workInProgress;
-    fiber.memoCache.workInProgress = null;
+    if (fiber.memoCache.workInProgress !== null) {
+      fiber.memoCache.current = fiber.memoCache.workInProgress;
+      fiber.memoCache.workInProgress = null;
+    }
   }
 
   if (isDevelopment && fiber.isNeverMounted && fiber.devStrictMode === "root") {
     fiber.isNeverMounted = false;
 
-    commitAllCallbacks(commitCallbacks);
+    if (commitCallbacks !== null) commitAllCallbacks(commitCallbacks);
+    reconcileEffects(fiber, rendered);
     cleanupAllEffects(fiber);
   }
 
   fiber.isNeverMounted = false;
-  commitAllCallbacks(commitCallbacks);
+  if (commitCallbacks !== null) commitAllCallbacks(commitCallbacks);
+  reconcileEffects(fiber, rendered);
 }

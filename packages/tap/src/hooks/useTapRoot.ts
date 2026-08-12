@@ -65,14 +65,43 @@ export const useTapRoot = <R>(render: () => R): useTapRoot.Root<R> => {
     return renderResourceFiber(fiber, [render]);
   });
 
-  const isMountedRef = useRef(false);
-  const committedArgsRef = useRef([render] as const);
-  const valueRef = useRef<R>(render2);
+  const stateRef = useRef<{
+    isMounted: boolean;
+    committedArgs: readonly [() => R];
+    value: R;
+    // Bumped on every fiber render (React or handleUpdate) so a pending
+    // record can tell whether the fiber has moved past it.
+    generation: number;
+    // Written every render, consumed by the first commit that follows. A
+    // commit replayed without a render (StrictMode, Activity reveal, tap
+    // reconnect) finds it null and must not restore render-scoped state or
+    // publish.
+    pendingCommit: {
+      args: readonly [() => R];
+      value: R;
+      drainedCount: number;
+      context: ReturnType<typeof cloneCurrentTapContext>;
+      generation: number;
+    } | null;
+  }>({
+    isMounted: false,
+    committedArgs: [render],
+    value: render2,
+    generation: 0,
+    pendingCommit: null,
+  });
+  stateRef.current.pendingCommit = {
+    args: [render],
+    value: render2,
+    drainedCount,
+    context,
+    generation: ++stateRef.current.generation,
+  };
   const [subscribers] = useState(() => new Set<() => void>());
 
   const publish = (output: R) => {
-    if (scheduler.isDirty || valueRef.current === output) return;
-    valueRef.current = output;
+    if (scheduler.isDirty || stateRef.current.value === output) return;
+    stateRef.current.value = output;
     subscribers.forEach((listener) => listener());
   };
 
@@ -94,13 +123,14 @@ export const useTapRoot = <R>(render: () => R): useTapRoot.Root<R> => {
 
     if (isDevelopment && fiber.devStrictMode) {
       void withTapContextRoot(fiber.root.context, () => {
-        return renderResourceFiber(fiber, committedArgsRef.current);
+        return renderResourceFiber(fiber, stateRef.current.committedArgs);
       });
     }
 
     const render = withTapContextRoot(fiber.root.context, () => {
-      return renderResourceFiber(fiber, committedArgsRef.current);
+      return renderResourceFiber(fiber, stateRef.current.committedArgs);
     });
+    stateRef.current.generation++;
 
     if (scheduler.isDirty)
       throw new Error("Scheduler is dirty, this should never happen");
@@ -108,7 +138,7 @@ export const useTapRoot = <R>(render: () => R): useTapRoot.Root<R> => {
     commitRoot(fiber.root);
     queue.length = 0;
 
-    if (isMountedRef.current) {
+    if (stateRef.current.isMounted) {
       commitResourceFiber(fiber);
     }
 
@@ -116,26 +146,42 @@ export const useTapRoot = <R>(render: () => R): useTapRoot.Root<R> => {
   });
 
   useEffect(() => {
-    isMountedRef.current = true;
+    const current = stateRef.current;
+    current.isMounted = true;
+    if (!fiber.isNeverMounted && !fiber.isMounted) commitResourceFiber(fiber);
     return () => {
-      isMountedRef.current = false;
+      current.isMounted = false;
       unmountResourceFiber(fiber);
     };
   }, [fiber]);
 
   useEffect(() => {
-    committedArgsRef.current = [render];
+    const pending = stateRef.current.pendingCommit;
+    if (pending === null) return;
+    stateRef.current.pendingCommit = null;
+
+    stateRef.current.committedArgs = pending.args;
+    // handleUpdate advanced the fiber while this record sat unconsumed (e.g.
+    // a hidden Activity re-render followed by a tap update): its value and
+    // queue bookkeeping describe a superseded render. Converge by rendering
+    // fresh with the record's args and context instead of committing it.
+    if (pending.generation !== stateRef.current.generation) {
+      fiber.root.context = pending.context;
+      if (!scheduler.isDirty) handleUpdate();
+      return;
+    }
+
     commitRoot(fiber.root);
-    queue.splice(0, drainedCount);
-    fiber.root.context = context;
+    queue.splice(0, pending.drainedCount);
+    fiber.root.context = pending.context;
     commitResourceFiber(fiber);
 
-    publish(render2);
+    publish(pending.value);
   });
 
   return useMemo(
     () => ({
-      getValue: () => valueRef.current,
+      getValue: () => stateRef.current.value,
       subscribe: (listener: () => void) => {
         subscribers.add(listener);
         return () => subscribers.delete(listener);
