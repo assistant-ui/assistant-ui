@@ -32,7 +32,6 @@ export function createResourceFiber<R>(
       index: 0,
     },
     renderPendingCells: null,
-    renderCount: 0,
     currentIndex: 0,
     isFirstRender: true,
     isMounted: false,
@@ -57,7 +56,6 @@ export function renderResourceFiber<R>(
   fiber: ResourceFiber<R>,
   args: readonly unknown[],
 ): R {
-  fiber.renderCount++;
   fiber.memoCache.workInProgress = null;
 
   // Discard render-phase actions left by a previous render

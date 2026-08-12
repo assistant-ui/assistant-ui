@@ -1,8 +1,7 @@
 import { throwAggregated } from "./helpers/throwAggregated";
+import { isDevelopment } from "./helpers/env";
 
 type Task = () => void;
-
-let isFlushing = false;
 
 type GlobalFlushState = {
   schedulers: Set<UpdateScheduler>;
@@ -15,6 +14,7 @@ let flushState: GlobalFlushState = {
   isScheduled: false,
 };
 let activeDrainRuns: Map<UpdateScheduler, number> | null = null;
+const pendingNotifies: (() => void)[] = [];
 
 export class UpdateScheduler {
   private _isDirty = false;
@@ -54,6 +54,16 @@ export class UpdateScheduler {
   }
 }
 
+// Subscriber notifications are delivered after the drain converges, so
+// listeners never observe mid-flush state and may flushTapSync freely.
+export const scheduleNotify = (notify: () => void): void => {
+  if (activeDrainRuns !== null) {
+    pendingNotifies.push(notify);
+    return;
+  }
+  notify();
+};
+
 const scheduleFlush = () => {
   if (flushState.isScheduled) return;
   flushState.isScheduled = true;
@@ -63,9 +73,7 @@ const scheduleFlush = () => {
 const flushScheduled = () => {
   // save/restore: flushTapSync re-enters flushScheduled with its own flushState
   const prevDrainRuns = activeDrainRuns;
-  const prevIsFlushing = isFlushing;
   activeDrainRuns = new Map();
-  isFlushing = true;
   try {
     const errors = [];
 
@@ -83,9 +91,12 @@ const flushScheduled = () => {
     throwAggregated(errors, "Errors occurred during flushSync");
   } finally {
     activeDrainRuns = prevDrainRuns;
-    isFlushing = prevIsFlushing;
     flushState.schedulers.clear();
     flushState.isScheduled = false;
+  }
+
+  if (activeDrainRuns === null) {
+    while (pendingNotifies.length > 0) pendingNotifies.shift()!();
   }
 };
 
@@ -118,17 +129,24 @@ const scheduleMacrotask = (() => {
   return () => setTimeout(flushScheduled, 0);
 })();
 
-// Inside a flush, the callback's dispatches fold into it and drain after the
-// current pass completes.
 export const flushTapSync = <T>(callback: () => T): T => {
-  if (isFlushing) return callback();
+  // Mirrors React's flushSync rule: inside a render or commit the flush is
+  // impossible, so the dispatches fold into the enclosing drain instead.
+  if (activeDrainRuns !== null) {
+    if (isDevelopment) {
+      console.warn(
+        "flushTapSync was called from inside a render or commit. " +
+          "The flush is deferred until the current pass completes.",
+      );
+    }
+    return callback();
+  }
 
   const prev = flushState;
   flushState = {
     schedulers: new Set([]),
     isScheduled: true,
   };
-  isFlushing = true;
 
   try {
     const value = callback();
@@ -136,7 +154,6 @@ export const flushTapSync = <T>(callback: () => T): T => {
 
     return value;
   } finally {
-    isFlushing = false;
     flushState = prev;
   }
 };

@@ -104,8 +104,6 @@ export interface ResourceFiber<R> {
 
   renderPendingCells: Set<ReducerCell> | null;
 
-  renderCount: number;
-
   isMounted: boolean;
   isFirstRender: boolean;
   isNeverMounted: boolean;

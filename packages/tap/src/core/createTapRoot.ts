@@ -40,12 +40,16 @@ export const createTapRoot = <R>(
     return renderResourceFiber(fiber, [render]) as useTapRoot.Root<R>;
   };
 
+  // The commit runs as a drain task so effects execute inside the flush.
+  const commitScheduler = new UpdateScheduler(() => commitResourceFiber(fiber));
+  const commitFiber = () => flushTapSync(() => commitScheduler.markDirty());
+
   let root: useTapRoot.Root<R> | undefined;
   const ensureRoot = () => (root ??= renderFiber());
 
   if (!options?.mountOnSubscribe) {
     const root = ensureRoot();
-    flushTapSync(() => commitResourceFiber(fiber));
+    commitFiber();
 
     return {
       ...root,
@@ -64,7 +68,7 @@ export const createTapRoot = <R>(
       const unsubscribe = ensureRoot().subscribe(listener);
       if (subscriberCount++ === 0 && !fiber.isMounted) {
         try {
-          flushTapSync(() => commitResourceFiber(fiber));
+          commitFiber();
         } catch (error) {
           try {
             unmountResourceFiber(fiber);

@@ -4,7 +4,7 @@ import {
   renderResourceFiber,
   unmountResourceFiber,
 } from "../core/ResourceFiber";
-import { UpdateScheduler } from "../core/scheduler";
+import { scheduleNotify, UpdateScheduler } from "../core/scheduler";
 import { isDevelopment } from "../core/helpers/env";
 import {
   commitRoot,
@@ -63,40 +63,29 @@ export const useTapRoot = <R>(render: () => R): useTapRoot.Root<R> => {
 
   const context = cloneCurrentTapContext();
 
-  const render2 = withTapContextRoot(context, () => {
+  const value = withTapContextRoot(context, () => {
     return renderResourceFiber(fiber, [render]);
   });
+
+  const args: readonly [() => R] = [render];
+  const wip = fiber.wipCommitCallbacks;
+  let processed = false;
 
   const stateRef = useRef<{
     isMounted: boolean;
     committedArgs: readonly [() => R];
     value: R;
-    renderedArgs: readonly [() => R];
-    renderedValue: R;
-    renderedContext: ReturnType<typeof cloneCurrentTapContext>;
-    renderedAt: number;
-    processed: boolean;
   }>({
     isMounted: false,
-    committedArgs: [render],
-    value: render2,
-    renderedArgs: [render],
-    renderedValue: render2,
-    renderedContext: context,
-    renderedAt: fiber.renderCount,
-    processed: false,
+    committedArgs: args,
+    value,
   });
-  stateRef.current.renderedArgs = [render];
-  stateRef.current.renderedValue = render2;
-  stateRef.current.renderedContext = context;
-  stateRef.current.renderedAt = fiber.renderCount;
-  stateRef.current.processed = false;
   const [subscribers] = useState(() => new Set<() => void>());
 
   const publish = (output: R) => {
     if (scheduler.isDirty || stateRef.current.value === output) return;
     stateRef.current.value = output;
-    subscribers.forEach((listener) => listener());
+    scheduleNotify(() => subscribers.forEach((listener) => listener()));
   };
 
   const handleUpdate = useEffectEvent(() => {
@@ -141,8 +130,6 @@ export const useTapRoot = <R>(render: () => R): useTapRoot.Root<R> => {
   useEffect(() => {
     const current = stateRef.current;
     current.isMounted = true;
-    if (!fiber.isNeverMounted && !fiber.isMounted && current.processed)
-      commitResourceFiber(fiber);
     return () => {
       current.isMounted = false;
       unmountResourceFiber(fiber);
@@ -150,18 +137,22 @@ export const useTapRoot = <R>(render: () => R): useTapRoot.Root<R> => {
   }, [fiber]);
 
   useEffect(() => {
-    const current = stateRef.current;
-    if (current.processed) return;
-    current.processed = true;
+    if (processed) {
+      // Replayed without a render (StrictMode, Activity reveal): reconnect.
+      if (!fiber.isMounted) commitResourceFiber(fiber);
+      return;
+    }
+    processed = true;
 
-    current.committedArgs = current.renderedArgs;
-    if (current.renderedAt !== fiber.renderCount) {
-      fiber.root.context = current.renderedContext;
+    stateRef.current.committedArgs = args;
+    fiber.root.context = context;
+    // handleUpdate rendered past this render (consumed or replaced its wip):
+    // this closure's snapshot is superseded, converge by rendering fresh.
+    if (fiber.wipCommitCallbacks !== wip) {
       if (!scheduler.isDirty) handleUpdate();
       return;
     }
 
-    fiber.root.context = current.renderedContext;
     commitResourceFiber(fiber);
     for (let i = queue.length - 1; i >= 0; i--) {
       const entry = queue[i]!;
@@ -173,7 +164,7 @@ export const useTapRoot = <R>(render: () => R): useTapRoot.Root<R> => {
       }
     }
 
-    publish(current.renderedValue);
+    publish(value);
   });
 
   return useMemo(
