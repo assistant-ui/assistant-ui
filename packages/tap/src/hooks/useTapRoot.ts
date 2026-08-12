@@ -148,7 +148,16 @@ export const useTapRoot = <R>(render: () => R): useTapRoot.Root<R> => {
   useEffect(() => {
     const current = stateRef.current;
     current.isMounted = true;
-    if (!fiber.isNeverMounted && !fiber.isMounted) commitResourceFiber(fiber);
+    // Reconnect only on a zero-render reveal. When a pendingCommit record
+    // exists, the commit effect below runs in the same flush and commits (or
+    // converges past) it; reconnecting here first would commit a render the
+    // host may have already superseded.
+    if (
+      !fiber.isNeverMounted &&
+      !fiber.isMounted &&
+      current.pendingCommit === null
+    )
+      commitResourceFiber(fiber);
     return () => {
       current.isMounted = false;
       unmountResourceFiber(fiber);

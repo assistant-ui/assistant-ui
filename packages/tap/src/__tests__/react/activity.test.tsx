@@ -225,6 +225,7 @@ describe("resources under <Activity>", () => {
   });
 
   it("useTapRoot does not replay a hidden re-render's record over a later tap update", () => {
+    const events: string[] = [];
     let handle: {
       getValue: () => {
         label: string;
@@ -236,6 +237,10 @@ describe("resources under <Activity>", () => {
     const Inner = memo(function Inner({ label }: { label: string }) {
       handle = useTapRoot(function CounterRoot() {
         const [count, setCount] = useResourceState(0);
+        useResourceEffect(() => {
+          events.push(`mount:${label}:${count}`);
+          return () => events.push("unmount");
+        }, [label, count]);
         return { label, count, setCount };
       });
       return null;
@@ -255,9 +260,13 @@ describe("resources under <Activity>", () => {
     act(() => flushTapSync(() => handle!.getValue().setCount(5)));
     expect(handle!.getValue().count).toBe(5);
 
+    events.length = 0;
     rerender(<App hidden={false} label="b" />);
     expect(handle!.getValue().count).toBe(5);
     expect(handle!.getValue().label).toBe("b");
+    // The reveal must not first commit the superseded hidden render (a churn
+    // of mount:a:5 / unmount before the converged commit).
+    expect(events).toEqual(["mount:b:5"]);
   });
 
   it("useTapRoot keeps values updated while hidden across a reveal", () => {

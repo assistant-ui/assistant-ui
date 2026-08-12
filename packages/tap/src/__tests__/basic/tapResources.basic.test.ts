@@ -1,5 +1,10 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { useResources } from "../../hooks/useResources";
+import {
+  commitResourceFiber,
+  renderResourceFiber,
+  unmountResourceFiber,
+} from "../../core/ResourceFiber";
 import { useState } from "../../react-hooks/useState";
 import { useEffect } from "../../react-hooks/useEffect";
 import { resource } from "../../core/resource";
@@ -267,6 +272,34 @@ describe("useResources - Basic Functionality", () => {
       // a clobbered commit record would serve the stale value from render 1.
       setParentN!(0);
       expect(getCommittedValue(testFiber)).toEqual({ n: 0, value: 3 });
+    });
+  });
+
+  describe("Teardown", () => {
+    it("unmounts cleanly when a child rendered but never committed", () => {
+      const events: string[] = [];
+      const useChild = (key: string) => {
+        useEffect(() => {
+          events.push(`mount:${key}`);
+          return () => events.push(`unmount:${key}`);
+        }, []);
+        return key;
+      };
+      const Child = resource(useChild);
+      const useParent = (keys: string[]) =>
+        useResources(keys.map((k) => withKey(k, Child(k))));
+
+      const fiber = createTestResource(useParent);
+      void renderResourceFiber(fiber, [["a"]]);
+      commitResourceFiber(fiber);
+      expect(events).toEqual(["mount:a"]);
+
+      // The host tears down after a render added "b" but before the commit
+      // effect ran: "b" was never mounted, and its presence must not abort
+      // the cleanup of the mounted children.
+      void renderResourceFiber(fiber, [["a", "b"]]);
+      unmountResourceFiber(fiber);
+      expect(events).toEqual(["mount:a", "unmount:a"]);
     });
   });
 });

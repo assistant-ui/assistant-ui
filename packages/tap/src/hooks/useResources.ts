@@ -160,7 +160,10 @@ export function useResources<E extends ResourceElement<any>>(
     return () => {
       for (const key of fibers.keys()) {
         const fiber = fibers.get(key)!.fiber;
-        unmountResourceFiber(fiber);
+        // A child rendered but not yet committed (host torn down before the
+        // commit effect ran) was never mounted; unmounting it would throw and
+        // abort the cleanup of the remaining children.
+        if (fiber.isMounted) unmountResourceFiber(fiber);
       }
     };
   }, [fibers]);
