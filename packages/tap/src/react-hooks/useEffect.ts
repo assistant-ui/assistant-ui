@@ -12,6 +12,7 @@ const newEffect = (): EffectCell => ({
   setupDeps: undefined,
   cleanup: undefined,
   deps: null, // null means the effect has never been run
+  generation: 0,
 });
 
 export namespace useEffect {
@@ -56,5 +57,6 @@ export function useEffect(
   addCommit(fiber, () => {
     cell.setup = effect;
     cell.setupDeps = deps;
+    cell.generation++;
   });
 }

@@ -52,8 +52,10 @@ export type EffectCell = {
   setup: (() => (() => void) | undefined) | undefined;
   setupDeps: readonly unknown[] | undefined;
   cleanup: (() => void) | undefined;
-  // null = never ran or disconnected, undefined = deps-less
+  // null = not active (never ran, disconnected, or mid-recommit), undefined = deps-less
   deps: readonly unknown[] | null | undefined;
+  // bumped on every commit promotion; a setup frame that observes a bump is superseded
+  generation: number;
 };
 
 export type Cell = ReducerCell | MemoCell | EffectCell;

@@ -44,4 +44,42 @@ describe("commit reentrancy", () => {
 
     expect(events).toEqual(["setup:0", "setup:1", "cleanup:0", "cleanup:1"]);
   });
+
+  it("supersedes the outer frame even when the setup callback is referentially stable", () => {
+    const events: string[] = [];
+    let current = 0;
+    let setCurrent: (value: number) => void;
+
+    const setup = () => {
+      const count = current;
+      events.push(`setup:${count}`);
+      if (count === 0) setCurrent(1);
+      return () => events.push(`cleanup:${count}`);
+    };
+
+    const hook = () => {
+      const [count, setCount] = useState(0);
+      current = count;
+      setCurrent = setCount;
+      useEffect(setup, [count]);
+      return count;
+    };
+
+    const root = createResourceFiberRoot((evaluate, apply) => {
+      if (!evaluate()) return;
+      apply();
+      renderResourceFiber(fiber, []);
+      commitResourceFiber(fiber);
+    });
+    const fiber = createResourceFiber(hook, root, undefined, null);
+
+    renderResourceFiber(fiber, []);
+    commitResourceFiber(fiber);
+
+    expect(events).toEqual(["setup:0", "setup:1", "cleanup:0"]);
+
+    unmountResourceFiber(fiber);
+
+    expect(events).toEqual(["setup:0", "setup:1", "cleanup:0", "cleanup:1"]);
+  });
 });

@@ -19,6 +19,7 @@ export function commitAllCallbacks(callbacks: CommitCallbacks): void {
 function setupEffect(cell: EffectCell): void {
   const setup = cell.setup!;
   const deps = cell.setupDeps;
+  const generation = cell.generation;
   let cleanup: (() => void) | undefined;
   try {
     const result = setup();
@@ -30,7 +31,7 @@ function setupEffect(cell: EffectCell): void {
     }
     cleanup = result;
   } finally {
-    if (cell.setup === setup) {
+    if (cell.generation === generation) {
       cell.cleanup = cleanup;
       cell.deps = deps;
     } else {
@@ -55,6 +56,7 @@ export function reconcileEffects<R>(fiber: ResourceFiber<R>): void {
   }
 
   for (const cell of pending) {
+    cell.deps = null;
     if (cell.cleanup === undefined) continue;
     try {
       cell.cleanup();
