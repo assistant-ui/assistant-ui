@@ -616,7 +616,7 @@ export class A2AClient {
       const received = contentType
         ? `"${contentType}"`
         : "no Content-Type header";
-      await response.body?.cancel().catch(() => undefined);
+      void response.body?.cancel().catch(() => undefined);
       throw new Error(
         `Expected A2A stream response Content-Type "text/event-stream", received ${received}`,
       );
