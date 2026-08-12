@@ -5,12 +5,27 @@
 [![bundle size](https://img.shields.io/bundlephobia/minzip/@assistant-ui/tap)](https://bundlephobia.com/package/@assistant-ui/tap)
 [![GitHub stars](https://img.shields.io/github/stars/assistant-ui/assistant-ui)](https://github.com/assistant-ui/assistant-ui)
 
+A separate implementation of React's hook-dispatch engine, unlocking two use cases:
+
 1. **Standalone hooks** — use React hooks to power an external store, outside your UI tree or outside React entirely.
 2. **Resources** — render hooks dynamically inside React: conditionally, in a list, or from props.
 
-Under the hood, tap is a separate implementation of React's hook-dispatch engine. You write hooks with the same primitives (`useState`, `useEffect`, `useMemo`, ...) imported from `"react"` and the same rules — tap supplies its own dispatcher underneath, so the hooks no longer depend on a React tree to run.
+You write hooks with the same primitives (`useState`, `useEffect`, `useMemo`, ...) imported from `"react"` and the same rules — tap supplies its own dispatcher underneath, so the hooks no longer depend on a React tree to run.
 
-`tap` powers the runtime layer of assistant-ui.
+A resource is a hook wrapped in its own hook boundary, so mounting one conditionally is allowed:
+
+```tsx
+import { resource, useResources } from "@assistant-ui/tap";
+
+const Session = resource(useSession);
+
+function App({ user }: { user: User | null }) {
+  const [session] = useResources(user ? [Session({ userId: user.id })] : []);
+  // ...
+}
+```
+
+Documentation: [assistant-ui.com/tap](https://www.assistant-ui.com/tap)
 
 ## Installation
 
@@ -18,83 +33,37 @@ Under the hood, tap is a separate implementation of React's hook-dispatch engine
 npm install @assistant-ui/tap
 ```
 
-## Standalone hooks
+## Built on tap
 
-Use React hooks to power an external store. `createTapRoot` hosts a hook with no React tree at all, drives its render/effect lifecycle, and exposes the result as a subscribable store:
+### [`tap-vue`](https://www.npmjs.com/package/tap-vue) — React hooks in Vue
 
-```typescript
-import { resource, createTapRoot, useResource } from "@assistant-ui/tap";
-import { useState, useEffect } from "react";
+`toComposable(hook)` turns a React hook into a Vue composable. tap runs the hook — state, effects, cleanup — and tap-vue bridges the result into Vue's reactivity as a `ShallowRef`.
 
-const useCounter = ({ incrementBy = 1 }: { incrementBy?: number }) => {
-  const [count, setCount] = useState(0);
+```ts
+import { useState } from "react";
+import { toComposable } from "tap-vue";
 
-  useEffect(() => {
-    console.log("count:", count);
-  }, [count]);
-
-  return {
-    count,
-    increment: () => setCount((c) => c + incrementBy),
-  };
+const useCount = (initialValue: number) => {
+  const [count, setCount] = useState(initialValue);
+  return { count, bump: () => setCount((c) => c + 1) };
 };
 
-const Counter = resource(useCounter);
-
-const counter = createTapRoot(function CounterRoot() {
-  return useResource(Counter({ incrementBy: 2 }));
-});
-
-const unsubscribe = counter.subscribe(() => {
-  console.log("counter updated:", counter.getValue().count);
-});
-
-counter.getValue().increment();
+const useVueCount = toComposable(useCount);
 ```
 
-Libraries built on this:
+### [`jotai-tap`](https://www.npmjs.com/package/jotai-tap) — React hooks as Jotai atoms
 
-- [`tap-vue`](https://www.npmjs.com/package/tap-vue) — use React hooks in Vue
-- [`jotai-tap`](https://www.npmjs.com/package/jotai-tap) — use React hooks to power Jotai atoms
-- [`@assistant-ui/store`](https://www.npmjs.com/package/@assistant-ui/store) — the state layer of assistant-ui, a client tree powered by hooks
-
-## Resources
-
-A **resource** is written like a component — same hooks, same rules — except it returns a plain value instead of JSX. Each resource is its own hook boundary, so a component can change the number and type of hooks it renders between renders. That unlocks what the rules of hooks normally forbid:
-
-- **Conditionally rendering hooks** — mount a resource only when a condition holds
-- **Rendering hooks in a list** — one resource per item, keyed like elements
-- **Safely consuming hooks from props** — accept a resource element as a prop and mount it
-
-Host a single resource with `useResource`:
+`atomWithHook(hook)` runs a React hook and exposes its return value as a read-only atom. The hook follows the atom's lifecycle: it renders lazily on first read, mounts with the first subscriber, and unmounts with the last one.
 
 ```tsx
-import { useResource } from "@assistant-ui/tap";
+import { atomWithHook } from "jotai-tap";
 
-function CounterButton() {
-  const { count, increment } = useResource(Counter({ incrementBy: 1 }));
-  return <button onClick={increment}>{count}</button>;
-}
+const clockAtom = atomWithHook(useClock);
 ```
 
-Render a dynamic list of hooks with `useResources`:
+### [`@assistant-ui/store`](https://www.npmjs.com/package/@assistant-ui/store) — the state layer of assistant-ui
 
-```tsx
-import { useResources, withKey } from "@assistant-ui/tap";
-
-function Counters({ ids }: { ids: string[] }) {
-  const counters = useResources(
-    ids.map((id) => withKey(id, Counter({ incrementBy: 1 }))),
-  );
-  return <div>{counters.map((c) => c.count).join(", ")}</div>;
-}
-```
-
-## Hooks
-
-Inside a resource you use React's hooks (`useState`, `useEffect`, `useMemo`, `useCallback`, `useRef`, `use`, ...) imported from `"react"`. tap adds `useResource` / `useResources` / `useTapRoot` for composition and `useContextProvider` for context.
-
-Full API reference at [assistant-ui.com/tap/docs](https://www.assistant-ui.com/tap/docs).
+The client tree behind `@assistant-ui/react`: every scope (thread, composer, message, ...) is a hook-powered resource, hosted inside React by the provider or standalone via `createAssistantClient`. tap is what lets the same runtime code run in both worlds.
 
 ## License
 
