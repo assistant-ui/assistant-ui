@@ -300,18 +300,15 @@ const useHostedAssistantClient = ({
       [parent, notifications],
     );
 
+    // Every commit publishes a fresh envelope, so value-only updates reach
+    // subscribers here while the client inside keeps its identity
     useEffect(() => {
       clientRef.parent = parent;
       clientRef.current = client;
+      notifications.notifySubscribers();
     });
 
-    // Every commit publishes a fresh envelope, so value-only updates reach
-    // subscribers here while the client inside keeps its identity
-    useEffect(() => notifications.notifySubscribers());
-
-    if (clientRef.current === null) {
-      clientRef.current = client;
-    }
+    clientRef.current ??= client;
 
     return client;
   });
@@ -328,44 +325,44 @@ const useTapRootAssistantClient = ({
   parent: AssistantClient;
   entries: ScopeEntry[];
 }): ScopedAuiClient => {
-  const { value: client, effects } = useTapHost(function AssistantClientHost() {
-    const clientRef = useRef<ClientRef>({ parent, current: null }).current;
-    const notifications = useNotificationManager();
+  const { value: client, effects } = useTapHost(
+    function LegacyAssistantClientHost() {
+      const clientRef = useRef<ClientRef>({ parent, current: null }).current;
+      const notifications = useNotificationManager();
 
-    const store = useTapRoot(function AuiRoot() {
-      return useAuiRoot({ parent, entries, clientRef, notifications });
-    });
+      const store = useTapRoot(function AuiRoot() {
+        return useAuiRoot({ parent, entries, clientRef, notifications });
+      });
 
-    const client = useSyncExternalStore(
-      store.subscribe,
-      () => store.getValue().client,
-      () => store.getValue().client,
-    );
+      const client = useSyncExternalStore(
+        store.subscribe,
+        () => store.getValue().client,
+        () => store.getValue().client,
+      );
 
-    // flushTapSync makes structural rebinds triggered by a notification land
-    // before the notification returns
-    useEffect(() => {
-      const notify = () => flushTapSync(notifications.notifySubscribers);
-      const unsubscribeStore = store.subscribe(notify);
-      const unsubscribeParent = parent.subscribe(notify);
-      return () => {
-        unsubscribeStore();
-        unsubscribeParent();
-      };
-      // oxlint-disable-next-line react-hooks/exhaustive-deps -- parent is a prop of the outer hook; the host re-renders with a fresh closure when it changes
-    }, [store, parent, notifications]);
+      // flushTapSync makes structural rebinds triggered by a notification land
+      // before the notification returns
+      useEffect(() => {
+        const notify = () => flushTapSync(notifications.notifySubscribers);
+        const unsubscribeStore = store.subscribe(notify);
+        const unsubscribeParent = parent.subscribe(notify);
+        return () => {
+          unsubscribeStore();
+          unsubscribeParent();
+        };
+        // oxlint-disable-next-line react-hooks/exhaustive-deps -- parent is a prop of the outer hook; the host re-renders with a fresh closure when it changes
+      }, [store, parent, notifications]);
 
-    useEffect(() => {
-      clientRef.parent = parent;
-      clientRef.current = client;
-    });
+      useEffect(() => {
+        clientRef.parent = parent;
+        clientRef.current = client;
+      });
 
-    if (clientRef.current === null) {
-      clientRef.current = client;
-    }
+      clientRef.current ??= client;
 
-    return client;
-  });
+      return client;
+    },
+  );
 
   return { client, effects };
 };
@@ -464,33 +461,27 @@ const useScopeEntries = (
 // React root) with the scopes in the config; context is never consulted.
 // `effects` (rooted mode only) commits the host — the provider mounts it
 // ahead of its children's effects; hosts also self-commit as a fallback.
+// `useHost` is fixed per call site.
+const useConfiguredAuiImpl = (
+  parent: AssistantClient,
+  clients: AuiConfig.Input,
+  useHost: typeof useHostedAssistantClient,
+): ScopedAuiClient => {
+  const { entries, rooted } = useScopeEntries(parent, clients);
+
+  if (rooted) {
+    // oxlint-disable-next-line react-hooks/rules-of-hooks
+    return useHost({ parent, entries });
+  }
+  // oxlint-disable-next-line react-hooks/rules-of-hooks
+  return { client: useDerivedOnlyClient(parent, entries) };
+};
+
 export const useConfiguredAui = (
   parent: AssistantClient,
   clients: AuiConfig.Input,
-): ScopedAuiClient => {
-  const { entries, rooted } = useScopeEntries(parent, clients);
-
-  if (rooted) {
-    // oxlint-disable-next-line react-hooks/rules-of-hooks
-    return useHostedAssistantClient({ parent, entries });
-  }
-  // oxlint-disable-next-line react-hooks/rules-of-hooks
-  return { client: useDerivedOnlyClient(parent, entries) };
-};
-
-const useLegacyConfiguredAui = (
-  parent: AssistantClient,
-  clients: AuiConfig.Input,
-): ScopedAuiClient => {
-  const { entries, rooted } = useScopeEntries(parent, clients);
-
-  if (rooted) {
-    // oxlint-disable-next-line react-hooks/rules-of-hooks
-    return useTapRootAssistantClient({ parent, entries });
-  }
-  // oxlint-disable-next-line react-hooks/rules-of-hooks
-  return { client: useDerivedOnlyClient(parent, entries) };
-};
+): ScopedAuiClient =>
+  useConfiguredAuiImpl(parent, clients, useHostedAssistantClient);
 
 export namespace useAui {
   export type Props = AuiConfig.Input;
@@ -569,7 +560,11 @@ export function useAui(clients?: useAui.Props): AssistantClient {
   const parent = useAssistantContextValue();
   if (clients) {
     // oxlint-disable-next-line react-hooks/rules-of-hooks -- fixed per call site
-    const { client, effects } = useLegacyConfiguredAui(parent, clients);
+    const { client, effects } = useConfiguredAuiImpl(
+      parent,
+      clients,
+      useTapRootAssistantClient,
+    );
     if (effects) setTapEffects(client, effects);
     return client;
   }
