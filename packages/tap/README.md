@@ -12,19 +12,6 @@ A separate implementation of React's hook-dispatch engine, unlocking two use cas
 
 You write hooks with the same primitives (`useState`, `useEffect`, `useMemo`, ...) imported from `"react"` and the same rules — tap supplies its own dispatcher underneath, so the hooks no longer depend on a React tree to run.
 
-A resource is a hook wrapped in its own hook boundary, so mounting one conditionally is allowed:
-
-```tsx
-import { resource, useResources } from "@assistant-ui/tap";
-
-const Session = resource(useSession);
-
-function App({ user }: { user: User | null }) {
-  const [session] = useResources(user ? [Session({ userId: user.id })] : []);
-  // ...
-}
-```
-
 Documentation: [assistant-ui.com/tap](https://www.assistant-ui.com/tap)
 
 ## Installation
@@ -64,6 +51,21 @@ const clockAtom = atomWithHook(useClock);
 ### [`@assistant-ui/store`](https://www.npmjs.com/package/@assistant-ui/store) — the state layer of assistant-ui
 
 The client tree behind `@assistant-ui/react`: every scope (thread, composer, message, ...) is a hook-powered resource, hosted inside React by the provider or standalone via `createAssistantClient`. tap is what lets the same runtime code run in both worlds.
+
+## Resources
+
+A resource is a hook wrapped in its own hook boundary, so mounting one conditionally is allowed:
+
+```tsx
+import { resource, useResources } from "@assistant-ui/tap";
+
+const Session = resource(useSession);
+
+function App({ user }: { user: User | null }) {
+  const [session] = useResources(user ? [Session({ userId: user.id })] : []);
+  // ...
+}
+```
 
 ## License
 
