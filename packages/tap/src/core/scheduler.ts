@@ -1,5 +1,4 @@
 import { throwAggregated } from "./helpers/throwAggregated";
-import { isDevelopment } from "./helpers/env";
 
 type Task = () => void;
 
@@ -119,16 +118,10 @@ const scheduleMacrotask = (() => {
   return () => setTimeout(flushScheduled, 0);
 })();
 
+// Inside a flush, the callback's dispatches fold into it and drain after the
+// current pass completes.
 export const flushTapSync = <T>(callback: () => T): T => {
-  if (isFlushing) {
-    if (isDevelopment) {
-      console.warn(
-        "flushTapSync was called from inside a render or commit. " +
-          "The flush is deferred until the current pass completes.",
-      );
-    }
-    return callback();
-  }
+  if (isFlushing) return callback();
 
   const prev = flushState;
   flushState = {
