@@ -3,20 +3,12 @@ import { isDevelopment } from "./helpers/env";
 
 type Task = () => void;
 
-let reconcileDepth = 0;
-
-// Renders never nest, they queue: dispatches made while a render or commit is
-// on the stack must not synchronously re-enter the work loop.
-export const isReconciling = () => reconcileDepth > 0;
-
-export const withReconcileScope = <T>(fn: () => T): T => {
-  reconcileDepth++;
-  try {
-    return fn();
-  } finally {
-    reconcileDepth--;
-  }
-};
+// Renders never nest, they queue. The scheduler is the tap-root work loop,
+// so it enforces the rule for the passes it drives: while a flush is on the
+// stack (a scheduled drain or a flushTapSync callback), a nested flushTapSync
+// defers instead of re-entering. React-hosted fibers are driven by React's
+// work loop, which enforces the same rule itself — they pay no cost here.
+let isFlushing = false;
 
 type GlobalFlushState = {
   schedulers: Set<UpdateScheduler>;
@@ -77,7 +69,9 @@ const scheduleFlush = () => {
 const flushScheduled = () => {
   // save/restore: flushTapSync re-enters flushScheduled with its own flushState
   const prevDrainRuns = activeDrainRuns;
+  const prevIsFlushing = isFlushing;
   activeDrainRuns = new Map();
+  isFlushing = true;
   try {
     const errors = [];
 
@@ -95,6 +89,7 @@ const flushScheduled = () => {
     throwAggregated(errors, "Errors occurred during flushSync");
   } finally {
     activeDrainRuns = prevDrainRuns;
+    isFlushing = prevIsFlushing;
     flushState.schedulers.clear();
     flushState.isScheduled = false;
   }
@@ -131,9 +126,9 @@ const scheduleMacrotask = (() => {
 
 export const flushTapSync = <T>(callback: () => T): T => {
   // Mirrors React's flushSync-inside-lifecycle rule: never flush while a
-  // render or commit is on the stack. The callback's dispatches land in the
+  // pass is already on the stack. The callback's dispatches land in the
   // enclosing flush state and drain after the current pass.
-  if (reconcileDepth > 0) {
+  if (isFlushing) {
     if (isDevelopment) {
       console.warn(
         "flushTapSync was called from inside a render or commit. " +
@@ -148,6 +143,9 @@ export const flushTapSync = <T>(callback: () => T): T => {
     schedulers: new Set([]),
     isScheduled: true,
   };
+  // The callback itself is part of the flush: tap roots run their commits
+  // inside it, so effects dispatching here must not re-enter.
+  isFlushing = true;
 
   try {
     const value = callback();
@@ -155,6 +153,7 @@ export const flushTapSync = <T>(callback: () => T): T => {
 
     return value;
   } finally {
+    isFlushing = false;
     flushState = prev;
   }
 };

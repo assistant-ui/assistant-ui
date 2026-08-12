@@ -6,7 +6,6 @@ import {
   commitResourceFiber,
 } from "../core/ResourceFiber";
 import type { ResourceFiber } from "../core/types";
-import { isReconciling } from "../core/scheduler";
 import { useState } from "../react-hooks/useState";
 
 export type TestFiber<R, A extends readonly unknown[]> = ResourceFiber<R> & {
@@ -14,14 +13,24 @@ export type TestFiber<R, A extends readonly unknown[]> = ResourceFiber<R> & {
 };
 
 // Renders never nest, they queue: a dispatch made while a render or commit is
-// on the stack is parked here and drained sequentially after the pass.
+// on the stack is parked here and drained sequentially after the pass. The
+// harness is a host, so it tracks its own passes (core carries no guard).
 const pendingRerenders = new Set<ResourceFiber<any>>();
-let isDraining = false;
+let isPassOnStack = false;
+
+function runPass<T>(fn: () => T): T {
+  const prev = isPassOnStack;
+  isPassOnStack = true;
+  try {
+    return fn();
+  } finally {
+    isPassOnStack = prev;
+  }
+}
 
 function drainPendingRerenders() {
-  if (isDraining || isReconciling()) return;
-  isDraining = true;
-  try {
+  if (isPassOnStack) return;
+  runPass(() => {
     let passes = 0;
     for (const fiber of pendingRerenders) {
       pendingRerenders.delete(fiber);
@@ -34,9 +43,7 @@ function drainPendingRerenders() {
       lastRenderValueMap.set(fiber, value);
       commitResourceFiber(fiber);
     }
-  } finally {
-    isDraining = false;
-  }
+  });
 }
 
 /**
@@ -83,9 +90,12 @@ export function renderTest<R, A extends readonly unknown[]>(
   // Track resource for cleanup
   activeResources.add(fiber);
 
-  const value = renderResourceFiber(fiber, args);
-  lastRenderValueMap.set(fiber, value);
-  commitResourceFiber(fiber);
+  const value = runPass(() => {
+    const rendered = renderResourceFiber(fiber, args);
+    lastRenderValueMap.set(fiber, rendered);
+    commitResourceFiber(fiber);
+    return rendered;
+  });
   // Dispatches made during the commit converge sequentially, React-style;
   // the converged result is observable via getCommittedValue.
   drainPendingRerenders();
@@ -136,9 +146,12 @@ export class TestSubscriber<T> {
   constructor(fiber: ResourceFiber<any>) {
     this.fiber = fiber;
     // Need to render once to get initial state
-    const lastArgs = propsMap.get(fiber) ?? [];
-    const initialValue = renderResourceFiber(fiber, lastArgs as any);
-    commitResourceFiber(fiber);
+    const initialValue = runPass(() => {
+      const lastArgs = propsMap.get(fiber) ?? [];
+      const value = renderResourceFiber(fiber, lastArgs as any);
+      commitResourceFiber(fiber);
+      return value;
+    });
     drainPendingRerenders();
     this.lastState = initialValue;
     lastRenderValueMap.set(fiber, initialValue);
@@ -174,9 +187,12 @@ export class TestResourceManager<R, A extends readonly unknown[]> {
     this.isActive = true;
     activeResources.add(this.fiber);
     propsMap.set(this.fiber, args);
-    const value = renderResourceFiber(this.fiber, args);
-    lastRenderValueMap.set(this.fiber, value);
-    commitResourceFiber(this.fiber);
+    const value = runPass(() => {
+      const rendered = renderResourceFiber(this.fiber, args);
+      lastRenderValueMap.set(this.fiber, rendered);
+      commitResourceFiber(this.fiber);
+      return rendered;
+    });
     drainPendingRerenders();
     return value;
   }
