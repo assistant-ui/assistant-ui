@@ -14,11 +14,17 @@ vi.mock("@assistant-ui/store/client", async (importOriginal) => {
     await importOriginal<typeof import("@assistant-ui/store/client")>();
   const { useEffect } = await import("react");
   const useScopeEffectShim = (
-    _scope: string,
+    scope: string,
     effect: () => (() => void) | void,
     deps: readonly unknown[],
   ) => {
     useEffect(() => {
+      // Mirrors the real hook's guarantee: the effect only runs while the
+      // scope is available on the client.
+      const accessor = (
+        clientHolder.client as Record<string, { source?: unknown }> | null
+      )?.[scope];
+      if (accessor?.source == null) return;
       const cleanup = effect();
       return typeof cleanup === "function" ? cleanup : undefined;
       // oxlint-disable-next-line react-hooks/exhaustive-deps -- caller-provided deps, mirrors the real hook
@@ -51,7 +57,9 @@ const makeClient = (
   setToolUI?: (...args: unknown[]) => () => void,
   threadId?: string,
 ) => ({
-  modelContext: () => ({ register: () => () => {} }),
+  modelContext: Object.assign(() => ({ register: () => () => {} }), {
+    source: "root",
+  }),
   thread: threadMessages
     ? Object.assign(
         () => ({ getState: () => ({ messages: threadMessages }) }),

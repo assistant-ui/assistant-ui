@@ -13,6 +13,7 @@ import type {
   Unstable_InteractablePersistenceAdapter,
   Unstable_InteractablesConfig,
 } from "../types/scopes/interactables";
+import type { ToolCallMessagePartComponent } from "../types/MessagePartComponentTypes";
 import { toJSONSchema, toPartialJSONSchema } from "assistant-stream";
 import { ModelContext } from "../../store/clients/model-context-client";
 import {
@@ -94,7 +95,14 @@ const useInteractablesResource = ({
   // One update-tool UI per interactable name, alive while any registrant
   // that supplied an updateRender is mounted.
   const updateToolUIsRef = useRef(
-    new Map<string, { count: number; unsubscribe: () => void }>(),
+    new Map<
+      string,
+      {
+        count: number;
+        render: ToolCallMessagePartComponent;
+        unsubscribe: () => void;
+      }
+    >(),
   );
   // App-scoped state restored via adapter.load(), consumed as components register.
   const loadedStateRef = useRef(new Map<string, unknown>());
@@ -394,6 +402,30 @@ const useInteractablesResource = ({
     [provider],
   );
 
+  // register() installs update-tool UIs against the tools instance bound at
+  // call time; this re-applies the retained entries when that instance is
+  // structurally replaced. Disposers pointing at the replaced instance are
+  // orphaned no-ops.
+  useAssistantScopeEffect(
+    "tools",
+    () => {
+      const tools = clientRef.current!.tools;
+      for (const [name, entry] of updateToolUIsRef.current) {
+        entry.unsubscribe = tools().setToolUI(
+          interactableToolName(name),
+          entry.render,
+          { standalone: true },
+        );
+      }
+      return () => {
+        for (const entry of updateToolUIsRef.current.values()) {
+          entry.unsubscribe();
+        }
+      };
+    },
+    [],
+  );
+
   const register = useCallback(
     (def: InternalInteractableRegistration) => {
       const threadAccessor = clientRef.current?.thread;
@@ -435,6 +467,7 @@ const useInteractablesResource = ({
           } else {
             updateToolUIsRef.current.set(def.name, {
               count: 1,
+              render: def.updateRender,
               unsubscribe: toolsAccessor().setToolUI(
                 toolName,
                 def.updateRender,
