@@ -8,6 +8,7 @@ import { useTapRoot } from "../hooks/useTapRoot";
 import { isDevelopment } from "./helpers/env";
 import { flushTapSync, UpdateScheduler } from "./scheduler";
 import { createResourceFiberRoot } from "./helpers/root";
+import { isThenable } from "./helpers/thenable";
 
 export const createTapRoot = <R>(
   render: () => R,
@@ -24,10 +25,20 @@ export const createTapRoot = <R>(
 
   // In strict mode, render twice to detect side effects
   const renderFiber = () => {
-    if (isDevelopment && fiber.devStrictMode) {
-      void renderResourceFiber(fiber, [render]);
+    try {
+      if (isDevelopment && fiber.devStrictMode) {
+        void renderResourceFiber(fiber, [render]);
+      }
+      return renderResourceFiber(fiber, [render]) as useTapRoot.Root<R>;
+    } catch (error) {
+      if (isThenable(error)) {
+        throw new Error(
+          "createTapRoot suspended during its initial render. There is no " +
+            "value to hold; wrap the suspending use() in a suspense boundary.",
+        );
+      }
+      throw error;
     }
-    return renderResourceFiber(fiber, [render]) as useTapRoot.Root<R>;
   };
 
   const commitScheduler = new UpdateScheduler(() => commitResourceFiber(fiber));

@@ -1,3 +1,8 @@
+export const isThenable = (value: unknown): value is PromiseLike<unknown> =>
+  value !== null &&
+  typeof value === "object" &&
+  typeof (value as PromiseLike<unknown>).then === "function";
+
 type TrackedThenable<T> = PromiseLike<T> & {
   status?: "pending" | "fulfilled" | "rejected";
   value?: T;
