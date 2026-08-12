@@ -11,6 +11,10 @@ export const EXAMPLES_PATH = join(ROOT_DIR, "examples");
 const DOCS_BASE = join(PACKAGE_DIR, ".docs");
 export const DOCS_PATH = join(DOCS_BASE, "raw/docs");
 export const CODE_EXAMPLES_PATH = join(DOCS_BASE, "organized/code-examples");
+export const COURSE_PATH = join(
+  PACKAGE_DIR,
+  "course/build-generative-ui-assistant",
+);
 
 export const MDX_EXTENSION = ".mdx";
 export const MD_EXTENSION = ".md";

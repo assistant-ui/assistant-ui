@@ -5,6 +5,8 @@ import { PACKAGE_DIR } from "../../constants.js";
 import { docsTools } from "../docs.js";
 import { examplesTools } from "../examples.js";
 import { searchTools } from "../search.js";
+import { assistantUICourseTools } from "../course.js";
+import { assistantUICourseCertificateTools } from "../course-certificate.js";
 import {
   xuluxTemplatesListTool,
   xuluxTemplateDetailsTool,
@@ -15,6 +17,8 @@ const tools = {
   assistantUIDocs: docsTools,
   assistantUIExamples: examplesTools,
   assistantUISearch: searchTools,
+  assistantUICourse: assistantUICourseTools,
+  assistantUICourseCertificate: assistantUICourseCertificateTools,
   assistantUITemplates: xuluxTemplatesListTool,
   assistantUITemplateDetails: xuluxTemplateDetailsTool,
   assistantUITemplatePreview: xuluxTemplatePreviewTool,

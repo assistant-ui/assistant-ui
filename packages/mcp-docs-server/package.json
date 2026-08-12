@@ -27,6 +27,7 @@
   "files": [
     "dist",
     "src",
+    "course",
     ".docs",
     "README.md"
   ],

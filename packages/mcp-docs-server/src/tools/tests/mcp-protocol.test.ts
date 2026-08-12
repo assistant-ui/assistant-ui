@@ -104,7 +104,7 @@ describe("MCP Protocol Integration", () => {
     });
     const result = await client.request<ToolListResult>(request);
 
-    expect(result.tools).toHaveLength(6);
+    expect(result.tools).toHaveLength(8);
 
     for (const expected of [
       {
@@ -121,6 +121,16 @@ describe("MCP Protocol Integration", () => {
         name: "assistantUISearch",
         title: "Search assistant-ui Documentation",
         annotations: { readOnlyHint: true, openWorldHint: false },
+      },
+      {
+        name: "assistantUICourse",
+        title: "assistant-ui Course",
+        annotations: { readOnlyHint: true, openWorldHint: false },
+      },
+      {
+        name: "assistantUICourseCertificate",
+        title: "assistant-ui Course Certificate",
+        annotations: { readOnlyHint: false, openWorldHint: false },
       },
       {
         name: "assistantUITemplates",
@@ -179,6 +189,30 @@ describe("MCP Protocol Integration", () => {
     const result = await client.request<ToolCallResult>(request);
 
     expect(result.content[0]?.type).toBe("text");
+  });
+
+  it("calls the course tools", async () => {
+    const course = await client.request<ToolCallResult>(
+      CallToolRequestSchema.parse({
+        method: "tools/call",
+        params: {
+          name: "assistantUICourse",
+          arguments: { step: 1 },
+        },
+      }),
+    );
+    expect(course.content[0]?.type).toBe("text");
+
+    const certificate = await client.request<ToolCallResult>(
+      CallToolRequestSchema.parse({
+        method: "tools/call",
+        params: {
+          name: "assistantUICourseCertificate",
+          arguments: { name: "Protocol Test" },
+        },
+      }),
+    );
+    expect(certificate.content[0]?.type).toBe("text");
   });
 
   it("lists prompts", async () => {

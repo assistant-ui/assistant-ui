@@ -3,6 +3,8 @@ import { StdioServerTransport } from "@modelcontextprotocol/server/stdio";
 import { docsTools } from "./tools/docs.js";
 import { examplesTools } from "./tools/examples.js";
 import { searchTools } from "./tools/search.js";
+import { assistantUICourseTools } from "./tools/course.js";
+import { assistantUICourseCertificateTools } from "./tools/course-certificate.js";
 import {
   xuluxTemplatesListTool,
   xuluxTemplateDetailsTool,
@@ -54,6 +56,26 @@ server.registerTool(
     annotations: { readOnlyHint: true, openWorldHint: false },
   },
   searchTools.execute,
+);
+server.registerTool(
+  assistantUICourseTools.name,
+  {
+    title: "assistant-ui Course",
+    description: assistantUICourseTools.description,
+    inputSchema: assistantUICourseTools.parameters,
+    annotations: { readOnlyHint: true, openWorldHint: false },
+  },
+  assistantUICourseTools.execute,
+);
+server.registerTool(
+  assistantUICourseCertificateTools.name,
+  {
+    title: "assistant-ui Course Certificate",
+    description: assistantUICourseCertificateTools.description,
+    inputSchema: assistantUICourseCertificateTools.parameters,
+    annotations: { readOnlyHint: false, openWorldHint: false },
+  },
+  assistantUICourseCertificateTools.execute,
 );
 
 server.registerTool(
