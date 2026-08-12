@@ -3705,6 +3705,7 @@ declare class RemoteThreadListThreadListRuntimeCore extends BaseSubscribable imp
   private _loadThreadsPromise;
   private _loadMorePromise;
   private _loadGeneration;
+  private _adapterGeneration;
   private _switchGeneration;
   private _switchTask;
   private _mainThreadId;
@@ -3730,6 +3731,7 @@ declare class RemoteThreadListThreadListRuntimeCore extends BaseSubscribable imp
   get archivedThreadIds(): readonly string[];
   get newThreadId(): string | undefined;
   get mainThreadId(): string;
+  private _assertAdapterGeneration;
   private get _mainThreadRemoteId();
   private _lastNotifiedThreadId;
   private _notifyThreadIdChange;
