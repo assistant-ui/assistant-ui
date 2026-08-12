@@ -13,20 +13,10 @@ export const createTapRoot = <R>(
   render: () => R,
   options?: { mountOnSubscribe?: boolean },
 ): useTapRoot.Root<R> & { unmount: () => void } => {
-  const pendingEvaluates: (() => boolean)[] = [];
-  const scheduler = new UpdateScheduler(() => {
-    for (const evaluate of pendingEvaluates.splice(0)) {
-      if (evaluate()) {
-        throw new Error("Unexpected rerender of createTapRoot outer fiber");
-      }
-    }
-  });
-
   const fiber = createResourceFiber(
     useTapRoot,
-    createResourceFiberRoot((evaluate) => {
-      pendingEvaluates.push(evaluate);
-      scheduler.markDirty();
+    createResourceFiberRoot(() => {
+      throw new Error("Unexpected update on createTapRoot outer fiber");
     }),
     undefined,
     isDevelopment ? "root" : null,

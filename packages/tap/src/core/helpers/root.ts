@@ -4,15 +4,12 @@ import type {
   ResourceFiber,
   TapRoot,
 } from "../types";
-import { cloneCurrentTapContext } from "../context";
-
 export const createResourceFiberRoot = (
   dispatchUpdate: (evaluate: () => boolean, apply: () => boolean) => void,
 ): TapRoot => {
   return {
     version: 0,
     committedVersion: 0,
-    context: cloneCurrentTapContext(),
     dispatchUpdate,
     changelog: [],
     rollbackCallbacks: [],

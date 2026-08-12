@@ -22,7 +22,7 @@ export const useMemo = <T>(fn: () => T, deps: readonly unknown[]): T => {
   let cell = fiber.cells[index];
 
   if (cell === undefined) {
-    if (!fiber.isFirstRender && index >= fiber.cells.length) {
+    if (!fiber.isFirstRender) {
       throwRenderedMoreHooks();
     }
 

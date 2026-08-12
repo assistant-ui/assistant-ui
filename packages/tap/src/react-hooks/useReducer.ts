@@ -123,7 +123,7 @@ export function useReducerImpl<S, A, I>(
       return existing.type === "reducer" ? existing : throwHookOrderChanged();
     }
 
-    if (!fiber.isFirstRender && index >= fiber.cells.length) {
+    if (!fiber.isFirstRender) {
       throwRenderedMoreHooks();
     }
 

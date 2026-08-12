@@ -88,12 +88,13 @@ export function renderResourceFiber<R>(
 export function commitResourceFiber<R>(fiber: ResourceFiber<R>): void {
   const commitCallbacks = fiber.wipCommitCallbacks;
   fiber.wipCommitCallbacks = null;
-  const rendered = commitCallbacks !== null;
   const strictReplay =
     isDevelopment && !fiber.isMounted && fiber.devStrictMode === "root";
 
   fiber.isMounted = true;
-  if (rendered) {
+  fiber.isNeverMounted = false;
+
+  if (commitCallbacks !== null) {
     fiber.contextDeps = fiber.wipContextDeps;
     commitRoot(fiber.root);
 
@@ -101,11 +102,9 @@ export function commitResourceFiber<R>(fiber: ResourceFiber<R>): void {
       fiber.memoCache.current = fiber.memoCache.workInProgress;
       fiber.memoCache.workInProgress = null;
     }
+
+    commitAllCallbacks(commitCallbacks);
   }
-
-  fiber.isNeverMounted = false;
-
-  if (commitCallbacks !== null) commitAllCallbacks(commitCallbacks);
   if (strictReplay) {
     reconcileEffects(fiber);
     cleanupAllEffects(fiber);

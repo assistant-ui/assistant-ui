@@ -12,6 +12,7 @@ import {
   setRootVersion,
 } from "../core/helpers/root";
 import { cloneCurrentTapContext, withTapContextRoot } from "../core/context";
+import type { ResourceContext } from "../core/types";
 import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 import { useDevStrictMode } from "./utils/useDevStrictMode";
 
@@ -74,10 +75,12 @@ export const useTapRoot = <R>(render: () => R): useTapRoot.Root<R> => {
   const stateRef = useRef<{
     isMounted: boolean;
     committedArgs: readonly [() => R];
+    context: ResourceContext;
     value: R;
   }>({
     isMounted: false,
     committedArgs: args,
+    context,
     value,
   });
   const [subscribers] = useState(() => new Set<() => void>());
@@ -105,12 +108,12 @@ export const useTapRoot = <R>(render: () => R): useTapRoot.Root<R> => {
     );
 
     if (isDevelopment && fiber.devStrictMode) {
-      void withTapContextRoot(fiber.root.context, () => {
+      void withTapContextRoot(stateRef.current.context, () => {
         return renderResourceFiber(fiber, stateRef.current.committedArgs);
       });
     }
 
-    const render = withTapContextRoot(fiber.root.context, () => {
+    const render = withTapContextRoot(stateRef.current.context, () => {
       return renderResourceFiber(fiber, stateRef.current.committedArgs);
     });
 
@@ -145,7 +148,7 @@ export const useTapRoot = <R>(render: () => R): useTapRoot.Root<R> => {
     processed = true;
 
     stateRef.current.committedArgs = args;
-    fiber.root.context = context;
+    stateRef.current.context = context;
     // handleUpdate rendered past this render (consumed or replaced its wip):
     // this closure's snapshot is superseded, converge by rendering fresh.
     if (fiber.wipCommitCallbacks !== wip) {

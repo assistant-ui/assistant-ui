@@ -72,7 +72,6 @@ export interface ResourceContextValue {
 export interface TapRoot {
   version: number;
   committedVersion: number;
-  context: ResourceContext;
   readonly changelog: ChangelogRecord[];
   readonly dispatchUpdate: (
     evaluate: () => boolean,

@@ -40,7 +40,7 @@ export function useEffect(
         : throwHookOrderChanged();
 
   if (existing === undefined) {
-    if (!fiber.isFirstRender && index >= fiber.cells.length) {
+    if (!fiber.isFirstRender) {
       throwRenderedMoreHooks();
     }
 
