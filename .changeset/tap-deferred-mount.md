@@ -2,4 +2,4 @@
 "@assistant-ui/tap": patch
 ---
 
-feat: add deferred mount support to createTapRoot via `{ mount: false }` and a `mount()` method, allowing the root to be rendered eagerly and mounted (effects committed) later
+feat: add `mountOnSubscribe` option to createTapRoot for a subscriber-derived lifecycle — eager render, effects commit on first subscribe, soft unmount (cleanups run, state preserved) when the last subscriber leaves, and remount on the next subscribe

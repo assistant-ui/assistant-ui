@@ -11,8 +11,8 @@ import { createResourceFiberRoot } from "./helpers/root";
 
 export const createTapRoot = <R>(
   render: () => R,
-  options?: { mount?: boolean },
-): useTapRoot.Root<R> & { mount: () => void; unmount: () => void } => {
+  options?: { mountOnSubscribe?: boolean },
+): useTapRoot.Root<R> & { unmount: () => void } => {
   const pendingEvaluates: (() => boolean)[] = [];
   const scheduler = new UpdateScheduler(() => {
     for (const evaluate of pendingEvaluates.splice(0)) {
@@ -41,27 +41,55 @@ export const createTapRoot = <R>(
 
   const root = rendered as useTapRoot.Root<R>;
 
-  let state: "created" | "mounted" | "unmounted" = "created";
+  if (!options?.mountOnSubscribe) {
+    flushTapSync(() => commitResourceFiber(fiber));
+
+    return {
+      ...root,
+      unmount: () => unmountResourceFiber(fiber),
+    };
+  }
+
+  let isDestroyed = false;
+  let isMounted = false;
+  let hasRenderPending = true;
+  let subscriberCount = 0;
+
   const mount = () => {
-    if (state === "mounted") return;
-    if (state === "unmounted")
-      throw new Error("Cannot mount a tap root that has been unmounted");
-    state = "mounted";
+    isMounted = true;
+    if (!hasRenderPending) {
+      void renderResourceFiber(fiber, [render]);
+    }
+    hasRenderPending = false;
     flushTapSync(() => commitResourceFiber(fiber));
   };
 
-  if (options?.mount !== false) mount();
-
   return {
-    ...root,
-    mount,
+    getValue: root.getValue,
+    subscribe: (listener) => {
+      if (isDestroyed) return () => {};
+      if (subscriberCount++ === 0 && !isMounted) mount();
+
+      const unsubscribe = root.subscribe(listener);
+      let isSubscribed = true;
+      return () => {
+        if (!isSubscribed) return;
+        isSubscribed = false;
+        unsubscribe();
+
+        if (--subscriberCount === 0 && !isDestroyed) {
+          isMounted = false;
+          unmountResourceFiber(fiber);
+        }
+      };
+    },
     unmount: () => {
-      if (state === "created") {
-        state = "unmounted";
-        return;
+      if (isDestroyed) return;
+      isDestroyed = true;
+      if (isMounted) {
+        isMounted = false;
+        unmountResourceFiber(fiber);
       }
-      state = "unmounted";
-      unmountResourceFiber(fiber);
     },
   };
 };

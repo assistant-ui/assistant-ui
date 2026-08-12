@@ -12,9 +12,8 @@ type ResourceElement<V> = {
 };
 
 declare const createTapRoot: <R>(render: () => R, options?: {
-  mount?: boolean;
+  mountOnSubscribe?: boolean;
 }) => useTapRoot.Root<R> & {
-  mount: () => void;
   unmount: () => void;
 };
 
