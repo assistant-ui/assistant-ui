@@ -40,10 +40,12 @@ describe("createTapRoot mountOnSubscribe", () => {
     root.unmount();
   });
 
-  it("renders eagerly without running effects", () => {
+  it("renders lazily on first read without running effects", () => {
+    const body = vi.fn();
     const effect = vi.fn();
     const root = createTapRoot(
-      function Eager() {
+      function Lazy() {
+        body();
         useEffect(effect);
         const [count] = useState(42);
         return count;
@@ -51,8 +53,26 @@ describe("createTapRoot mountOnSubscribe", () => {
       { mountOnSubscribe: true },
     );
 
+    expect(body).not.toHaveBeenCalled();
     expect(root.getValue()).toBe(42);
+    expect(body).toHaveBeenCalled();
     expect(effect).not.toHaveBeenCalled();
+  });
+
+  it("renders lazily on first subscribe", () => {
+    const body = vi.fn();
+    const root = createTapRoot(
+      function LazySubscribe() {
+        body();
+        return 1;
+      },
+      { mountOnSubscribe: true },
+    );
+
+    expect(body).not.toHaveBeenCalled();
+    root.subscribe(() => {});
+    expect(body).toHaveBeenCalled();
+    expect(root.getValue()).toBe(1);
   });
 
   it("commits effects on first subscribe only once", () => {
@@ -222,8 +242,8 @@ describe("createTapRoot mountOnSubscribe", () => {
   it("throws on state updates before the first subscriber", () => {
     const { root, setCount } = createCounterRoot();
 
-    expect(() => setCount(1)).toThrow("Resource updated before mount");
     expect(root.getValue()).toBe(0);
+    expect(() => setCount(1)).toThrow("Resource updated before mount");
   });
 
   it("throws on unmount()", () => {

@@ -32,16 +32,21 @@ export const createTapRoot = <R>(
     isDevelopment ? "root" : null,
   );
 
-  // In strict mode, render twice to detect side effects
-  if (isDevelopment && fiber.devStrictMode === "root") {
-    void renderResourceFiber(fiber, [render]);
-  }
+  let root: useTapRoot.Root<R> | undefined;
+  const ensureRoot = () => {
+    if (root) return root;
 
-  const rendered = renderResourceFiber(fiber, [render]);
+    // In strict mode, render twice to detect side effects
+    if (isDevelopment && fiber.devStrictMode === "root") {
+      void renderResourceFiber(fiber, [render]);
+    }
 
-  const root = rendered as useTapRoot.Root<R>;
+    root = renderResourceFiber(fiber, [render]) as useTapRoot.Root<R>;
+    return root;
+  };
 
   if (!options?.mountOnSubscribe) {
+    const root = ensureRoot();
     flushTapSync(() => commitResourceFiber(fiber));
 
     return {
@@ -53,9 +58,9 @@ export const createTapRoot = <R>(
   let subscriberCount = 0;
 
   return {
-    ...root,
+    getValue: () => ensureRoot().getValue(),
     subscribe: (listener) => {
-      const unsubscribe = root.subscribe(listener);
+      const unsubscribe = ensureRoot().subscribe(listener);
       if (subscriberCount++ === 0) {
         // Remounts re-render first so the commit sees fresh effect closures
         if (!fiber.isNeverMounted) void renderResourceFiber(fiber, [render]);
