@@ -6,11 +6,38 @@ import {
   commitResourceFiber,
 } from "../core/ResourceFiber";
 import type { ResourceFiber } from "../core/types";
+import { isReconciling } from "../core/scheduler";
 import { useState } from "../react-hooks/useState";
 
 export type TestFiber<R, A extends readonly unknown[]> = ResourceFiber<R> & {
   readonly __args?: (args: A) => void;
 };
+
+// Renders never nest, they queue: a dispatch made while a render or commit is
+// on the stack is parked here and drained sequentially after the pass.
+const pendingRerenders = new Set<ResourceFiber<any>>();
+let isDraining = false;
+
+function drainPendingRerenders() {
+  if (isDraining || isReconciling()) return;
+  isDraining = true;
+  try {
+    let passes = 0;
+    for (const fiber of pendingRerenders) {
+      pendingRerenders.delete(fiber);
+      if (++passes > 50) {
+        throw new Error("Too many re-render passes in test harness");
+      }
+      if (!activeResources.has(fiber)) continue;
+      const lastArgs = propsMap.get(fiber);
+      const value = renderResourceFiber(fiber, lastArgs);
+      lastRenderValueMap.set(fiber, value);
+      commitResourceFiber(fiber);
+    }
+  } finally {
+    isDraining = false;
+  }
+}
 
 /**
  * Creates a test resource fiber for unit testing.
@@ -24,13 +51,8 @@ export function createTestResource<R, A extends readonly unknown[]>(
     if (!evaluate()) return;
     apply();
 
-    // Re-render when state changes
-    if (activeResources.has(fiber)) {
-      const lastArgs = propsMap.get(fiber);
-      const value = renderResourceFiber(fiber, lastArgs);
-      lastRenderValueMap.set(fiber, value);
-      commitResourceFiber(fiber);
-    }
+    pendingRerenders.add(fiber);
+    drainPendingRerenders();
   };
 
   const fiber = createResourceFiber(
@@ -61,15 +83,13 @@ export function renderTest<R, A extends readonly unknown[]>(
   // Track resource for cleanup
   activeResources.add(fiber);
 
-  // Render with new args. Record the result before committing: the commit can
-  // synchronously trigger a nested re-render whose newer result must not be
-  // clobbered afterwards.
   const value = renderResourceFiber(fiber, args);
   lastRenderValueMap.set(fiber, value);
   commitResourceFiber(fiber);
+  // Dispatches made during the commit converge sequentially, React-style;
+  // the converged result is observable via getCommittedValue.
+  drainPendingRerenders();
 
-  // Return the committed state from the result
-  // This accounts for any re-renders that happened during commit
   return value;
 }
 
@@ -119,6 +139,7 @@ export class TestSubscriber<T> {
     const lastArgs = propsMap.get(fiber) ?? [];
     const initialValue = renderResourceFiber(fiber, lastArgs as any);
     commitResourceFiber(fiber);
+    drainPendingRerenders();
     this.lastState = initialValue;
     lastRenderValueMap.set(fiber, initialValue);
     activeResources.add(fiber);
@@ -154,8 +175,9 @@ export class TestResourceManager<R, A extends readonly unknown[]> {
     activeResources.add(this.fiber);
     propsMap.set(this.fiber, args);
     const value = renderResourceFiber(this.fiber, args);
-    commitResourceFiber(this.fiber);
     lastRenderValueMap.set(this.fiber, value);
+    commitResourceFiber(this.fiber);
+    drainPendingRerenders();
     return value;
   }
 

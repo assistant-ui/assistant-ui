@@ -184,15 +184,10 @@ export function useResources<E extends ResourceElement<any>>(
           state.fiber = next.remount;
         }
         commitResourceFiber(state.fiber);
-        // A child setup can dispatch and, under a synchronous host, nest a
-        // newer render + commit; finalize only while this record is still the
-        // latest so the nested result is not clobbered.
-        if (state.next === next) {
-          state.committedDeps = next.deps;
-          state.committedValue = next.value;
-          state.isDirty = false;
-          state.next = "skip";
-        }
+        state.committedDeps = next.deps;
+        state.committedValue = next.value;
+        state.isDirty = false;
+        state.next = "skip";
       }
     }
   }, [val, fibers]);

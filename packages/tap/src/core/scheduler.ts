@@ -1,6 +1,22 @@
 import { throwAggregated } from "./helpers/throwAggregated";
+import { isDevelopment } from "./helpers/env";
 
 type Task = () => void;
+
+let reconcileDepth = 0;
+
+// Renders never nest, they queue: dispatches made while a render or commit is
+// on the stack must not synchronously re-enter the work loop.
+export const isReconciling = () => reconcileDepth > 0;
+
+export const withReconcileScope = <T>(fn: () => T): T => {
+  reconcileDepth++;
+  try {
+    return fn();
+  } finally {
+    reconcileDepth--;
+  }
+};
 
 type GlobalFlushState = {
   schedulers: Set<UpdateScheduler>;
@@ -114,6 +130,19 @@ const scheduleMacrotask = (() => {
 })();
 
 export const flushTapSync = <T>(callback: () => T): T => {
+  // Mirrors React's flushSync-inside-lifecycle rule: never flush while a
+  // render or commit is on the stack. The callback's dispatches land in the
+  // enclosing flush state and drain after the current pass.
+  if (reconcileDepth > 0) {
+    if (isDevelopment) {
+      console.warn(
+        "flushTapSync was called from inside a render or commit. " +
+          "The flush is deferred until the current pass completes.",
+      );
+    }
+    return callback();
+  }
+
   const prev = flushState;
   flushState = {
     schedulers: new Set([]),

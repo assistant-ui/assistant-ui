@@ -8,6 +8,8 @@ import {
 import { useState } from "../../react-hooks/useState";
 import { useEffect } from "../../react-hooks/useEffect";
 import { resource } from "../../core/resource";
+import { createTapRoot } from "../../core/createTapRoot";
+import { flushTapSync } from "../../core/scheduler";
 import { withKey } from "../../core/withKey";
 import {
   createTestResource,
@@ -238,8 +240,9 @@ describe("useResources - Basic Functionality", () => {
     });
   });
 
-  describe("Reentrant commits", () => {
-    it("does not clobber a nested commit triggered by a child setup dispatch", () => {
+  describe("Dispatch during commit", () => {
+    it("defers a child setup dispatch until the current commit completes", () => {
+      const events: string[] = [];
       let childRenders = 0;
       let dispatched = false;
       let setParentN: ((n: number) => void) | null = null;
@@ -247,9 +250,11 @@ describe("useResources - Basic Functionality", () => {
       const useChild = ({ n }: { n: number }) => {
         childRenders++;
         useEffect(() => {
+          events.push(`setup:${n}`);
           if (!dispatched && n === 0) {
             dispatched = true;
             setParentN!(1);
+            events.push(`after-dispatch:${n}`);
           }
         }, [n]);
         return childRenders;
@@ -263,15 +268,46 @@ describe("useResources - Basic Functionality", () => {
         return { n, value };
       });
 
-      // The child's mount effect dispatches synchronously, nesting a parent
-      // re-render + commit inside the outer commit loop.
       renderTest(testFiber);
+      // Renders queue, they don't nest: the dispatch must not re-enter
+      // render/commit while the setup is on the stack; it converges
+      // sequentially after the commit pass completes.
+      expect(events).toEqual(["setup:0", "after-dispatch:0", "setup:1"]);
       expect(getCommittedValue(testFiber)).toEqual({ n: 1, value: 2 });
 
-      // Returning to n=0 must re-render the child (committed deps are [1]);
-      // a clobbered commit record would serve the stale value from render 1.
       setParentN!(0);
       expect(getCommittedValue(testFiber)).toEqual({ n: 0, value: 3 });
+    });
+
+    it("flushTapSync inside an effect defers until the pass completes", () => {
+      const events: string[] = [];
+      let setN: ((n: number) => void) | null = null;
+
+      const root = createTapRoot(function FlushRoot() {
+        const [n, setN_] = useState(0);
+        setN = setN_;
+        useEffect(() => {
+          events.push(`setup:${n}`);
+          if (n === 0) {
+            flushTapSync(() => setN!(1));
+            events.push(`after-flush:${n}`);
+          }
+        }, [n]);
+        return n;
+      });
+
+      // First-mount effects double-invoke under dev strict mode; the pinned
+      // property is that after-flush always precedes setup:1 — the flush
+      // never re-entered render/commit from inside the setup.
+      expect(events).toEqual([
+        "setup:0",
+        "after-flush:0",
+        "setup:0",
+        "after-flush:0",
+        "setup:1",
+      ]);
+      expect(root.getValue()).toBe(1);
+      root.unmount();
     });
   });
 
