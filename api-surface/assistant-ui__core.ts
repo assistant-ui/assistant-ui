@@ -3708,12 +3708,15 @@ declare class RemoteThreadListThreadListRuntimeCore extends BaseSubscribable imp
   private _switchGeneration;
   private _switchTask;
   private _mainThreadId;
-  private readonly _state;
+  private _state;
+  private _unsubscribeState;
   get threadItems(): Readonly<Record<THREAD_MAPPING_ID, RemoteThreadData>>;
   getLoadThreadsPromise(): Promise<void>;
   loadMore(): Promise<void>;
   private readonly contextProvider;
   constructor(options: RemoteThreadListOptions, contextProvider: ModelContextProvider);
+  private _subscribeToState;
+  private _resetState;
   private _initialThreadLoaded;
   private useProvider;
   __internal_setOptions(options: RemoteThreadListOptions): void;
