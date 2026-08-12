@@ -1,8 +1,14 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { render, act, cleanup } from "@testing-library/react";
-import { Activity } from "react";
+import { Activity, memo } from "react";
 import { resource } from "../../core/resource";
-import { useResource, useTapRoot, flushTapSync } from "../../index";
+import {
+  useResource,
+  useResources,
+  useTapRoot,
+  flushTapSync,
+  withKey,
+} from "../../index";
 import { useState as useResourceState } from "../../react-hooks/useState";
 import { useEffect as useResourceEffect } from "../../react-hooks/useEffect";
 
@@ -75,6 +81,102 @@ describe("resources under <Activity>", () => {
     rerender(<App hidden={false} />);
     expect(events).toEqual(["mount", "unmount", "mount"]);
     expect(renders).toBe(rendersBeforeReveal);
+  });
+
+  it("useResources children re-run effects with fresh state after an update while hidden", () => {
+    const events: string[] = [];
+    const useCounter = (key: string) => {
+      const [count, setCount] = useResourceState(0);
+      useResourceEffect(() => {
+        events.push(`mount:${key}:${count}`);
+        return () => events.push(`unmount:${key}`);
+      }, [key, count]);
+      return { count, setCount };
+    };
+    const Counter = resource(useCounter);
+
+    let apis: { count: number; setCount: (n: number) => void }[] = [];
+    function Inner() {
+      apis = useResources([
+        withKey("a", Counter("a")),
+        withKey("b", Counter("b")),
+      ]);
+      return null;
+    }
+    const inner = <Inner />;
+    function App({ hidden }: { hidden: boolean }) {
+      return <Activity mode={hidden ? "hidden" : "visible"}>{inner}</Activity>;
+    }
+
+    const { rerender } = render(<App hidden={false} />);
+    expect(events).toEqual(["mount:a:0", "mount:b:0"]);
+
+    rerender(<App hidden={true} />);
+    expect(events).toEqual([
+      "mount:a:0",
+      "mount:b:0",
+      "unmount:a",
+      "unmount:b",
+    ]);
+
+    act(() => apis[1]!.setCount(5));
+
+    events.length = 0;
+    rerender(<App hidden={false} />);
+    expect(events).toEqual(["mount:a:0", "mount:b:5"]);
+    expect(apis[1]!.count).toBe(5);
+  });
+
+  it("useResources survives a reveal after a hook swap", () => {
+    const events: string[] = [];
+    const useFirst = () => {
+      useResourceEffect(() => {
+        events.push("mount:first");
+        return () => events.push("unmount:first");
+      }, []);
+      return "first";
+    };
+    const useSecond = () => {
+      useResourceEffect(() => {
+        events.push("mount:second");
+        return () => events.push("unmount:second");
+      }, []);
+      return "second";
+    };
+    const First = resource(useFirst);
+    const Second = resource(useSecond);
+
+    // memo so hide/reveal do not re-render Inner: the reveal must replay the
+    // commit effect without a render, hitting the stale remount decision
+    const Inner = memo(function Inner({ swapped }: { swapped: boolean }) {
+      const [value] = useResources([
+        withKey("x", swapped ? Second() : First()),
+      ]);
+      return <>{value}</>;
+    });
+    function App({ hidden, swapped }: { hidden: boolean; swapped: boolean }) {
+      return (
+        <Activity mode={hidden ? "hidden" : "visible"}>
+          <Inner swapped={swapped} />
+        </Activity>
+      );
+    }
+
+    const { rerender } = render(<App hidden={false} swapped={false} />);
+    rerender(<App hidden={false} swapped={true} />);
+    expect(events).toEqual(["mount:first", "unmount:first", "mount:second"]);
+
+    rerender(<App hidden={true} swapped={true} />);
+    expect(events).toEqual([
+      "mount:first",
+      "unmount:first",
+      "mount:second",
+      "unmount:second",
+    ]);
+
+    events.length = 0;
+    rerender(<App hidden={false} swapped={true} />);
+    expect(events).toEqual(["mount:second"]);
   });
 
   it("useTapRoot keeps values updated while hidden across a reveal", () => {

@@ -65,19 +65,27 @@ export const useTapRoot = <R>(render: () => R): useTapRoot.Root<R> => {
     return renderResourceFiber(fiber, [render]);
   });
 
-  const isMountedRef = useRef(false);
-  const committedArgsRef = useRef([render] as const);
-  const valueRef = useRef<R>(render2);
-  // Written every render, consumed by the first commit that follows. A commit
-  // replayed without a render (StrictMode, Activity reveal, tap reconnect)
-  // finds it null and must not restore render-scoped state or publish.
-  const pendingCommitRef = useRef<{
-    args: readonly [() => R];
+  const stateRef = useRef<{
+    isMounted: boolean;
+    committedArgs: readonly [() => R];
     value: R;
-    drainedCount: number;
-    context: ReturnType<typeof cloneCurrentTapContext>;
-  } | null>(null);
-  pendingCommitRef.current = {
+    // Written every render, consumed by the first commit that follows. A
+    // commit replayed without a render (StrictMode, Activity reveal, tap
+    // reconnect) finds it null and must not restore render-scoped state or
+    // publish.
+    pendingCommit: {
+      args: readonly [() => R];
+      value: R;
+      drainedCount: number;
+      context: ReturnType<typeof cloneCurrentTapContext>;
+    } | null;
+  }>({
+    isMounted: false,
+    committedArgs: [render],
+    value: render2,
+    pendingCommit: null,
+  });
+  stateRef.current.pendingCommit = {
     args: [render],
     value: render2,
     drainedCount,
@@ -86,8 +94,8 @@ export const useTapRoot = <R>(render: () => R): useTapRoot.Root<R> => {
   const [subscribers] = useState(() => new Set<() => void>());
 
   const publish = (output: R) => {
-    if (scheduler.isDirty || valueRef.current === output) return;
-    valueRef.current = output;
+    if (scheduler.isDirty || stateRef.current.value === output) return;
+    stateRef.current.value = output;
     subscribers.forEach((listener) => listener());
   };
 
@@ -109,12 +117,12 @@ export const useTapRoot = <R>(render: () => R): useTapRoot.Root<R> => {
 
     if (isDevelopment && fiber.devStrictMode) {
       void withTapContextRoot(fiber.root.context, () => {
-        return renderResourceFiber(fiber, committedArgsRef.current);
+        return renderResourceFiber(fiber, stateRef.current.committedArgs);
       });
     }
 
     const render = withTapContextRoot(fiber.root.context, () => {
-      return renderResourceFiber(fiber, committedArgsRef.current);
+      return renderResourceFiber(fiber, stateRef.current.committedArgs);
     });
 
     if (scheduler.isDirty)
@@ -123,7 +131,7 @@ export const useTapRoot = <R>(render: () => R): useTapRoot.Root<R> => {
     commitRoot(fiber.root);
     queue.length = 0;
 
-    if (isMountedRef.current) {
+    if (stateRef.current.isMounted) {
       commitResourceFiber(fiber);
     }
 
@@ -131,20 +139,21 @@ export const useTapRoot = <R>(render: () => R): useTapRoot.Root<R> => {
   });
 
   useEffect(() => {
-    isMountedRef.current = true;
+    const current = stateRef.current;
+    current.isMounted = true;
     if (!fiber.isNeverMounted && !fiber.isMounted) commitResourceFiber(fiber);
     return () => {
-      isMountedRef.current = false;
+      current.isMounted = false;
       unmountResourceFiber(fiber);
     };
   }, [fiber]);
 
   useEffect(() => {
-    const pending = pendingCommitRef.current;
+    const pending = stateRef.current.pendingCommit;
     if (pending === null) return;
-    pendingCommitRef.current = null;
+    stateRef.current.pendingCommit = null;
 
-    committedArgsRef.current = pending.args;
+    stateRef.current.committedArgs = pending.args;
     commitRoot(fiber.root);
     queue.splice(0, pending.drainedCount);
     fiber.root.context = pending.context;
@@ -155,7 +164,7 @@ export const useTapRoot = <R>(render: () => R): useTapRoot.Root<R> => {
 
   return useMemo(
     () => ({
-      getValue: () => valueRef.current,
+      getValue: () => stateRef.current.value,
       subscribe: (listener: () => void) => {
         subscribers.add(listener);
         return () => subscribers.delete(listener);
