@@ -5,7 +5,7 @@
 [![bundle size](https://img.shields.io/bundlephobia/minzip/@assistant-ui/tap)](https://bundlephobia.com/package/@assistant-ui/tap)
 [![GitHub stars](https://img.shields.io/github/stars/assistant-ui/assistant-ui)](https://github.com/assistant-ui/assistant-ui)
 
-A separate implementation of React's hook-dispatch engine, unlocking two use cases:
+React's hook engine, reimplemented. Hooks no longer need a React tree, which unlocks:
 
 1. **Standalone hooks** — use React hooks to power an external store, outside your UI tree or outside React entirely.
 2. **Resources** — render hooks dynamically inside React: conditionally, in a list, or from props.
