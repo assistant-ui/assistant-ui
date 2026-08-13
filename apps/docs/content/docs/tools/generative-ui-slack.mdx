@@ -72,7 +72,7 @@ type SlackConversionWarning = {
 
 An unknown component and a bare string child are both handled: the unknown one is dropped with a warning, and the string becomes a `section`.
 
-Presentation props that Block Kit has no field for are dropped silently, without a warning, because the node itself still renders. That covers `Box`'s `width`, `height`, `radius`, and `background`; `Card`'s `padding`, `background`, and `asForm`; `gap`, `align`, and `justify` on `Row`, `Col`, and `Form`; `Badge`'s `variant`; `Carousel`'s `label`; and `Button`'s `block`. `Button`'s `submit` is dropped for a different reason: Slack has no client-side form model to submit into, so a submit button and a click button both convert to the same `button` element carrying the node's `$action`.
+Presentation props the converter does not map are dropped silently, without a warning, because the node itself still renders. That covers `Box`'s `width`, `height`, `radius`, and `background`; `Card`'s `padding` and `background`; `gap` on `Row`, `Col`, and `Form`, `align` on `Row` and `Col`, and `justify` on `Row`; `Badge`'s `variant`; `Carousel`'s `label`; and `Button`'s `block`. `Card`'s `asForm` and `Button`'s `submit` are dropped for a different reason: Slack has no client-side form model to submit into, so a submit button and a click button both convert to the same `button` element carrying the node's `$action`, and a card marked `asForm` converts exactly like one that is not.
 
 ### Cards
 
