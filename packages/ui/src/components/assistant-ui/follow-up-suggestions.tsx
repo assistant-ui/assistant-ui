@@ -58,11 +58,11 @@ const FollowupSuggestionsRow: FC = () => {
             autoSend
           >
             {suggestion.title ?? suggestion.prompt}
-            {suggestion.label ? (
+            {suggestion.label && (
               <span className="aui-thread-followup-suggestion-label text-muted-foreground ms-1">
                 {suggestion.label}
               </span>
-            ) : null}
+            )}
           </ThreadPrimitive.Suggestion>
         ))}
       </div>

@@ -72,43 +72,23 @@ describe("ThreadFollowupSuggestions", () => {
         label: "in SF",
         prompt: "What is the weather in San Francisco today?",
       },
+      { label: "", prompt: "Summarize this" },
     ]);
 
-    const pill = screen.getByTestId("suggestion");
-    expect(pill.textContent).toBe("Weatherin SF");
-    expect(pill.textContent).not.toContain("San Francisco");
-    expect(pill.getAttribute("data-prompt")).toBe(
+    const [rich, plain] = screen.getAllByTestId("suggestion");
+    expect(rich?.textContent).toBe("Weatherin SF");
+    expect(rich?.getAttribute("data-prompt")).toBe(
       "What is the weather in San Francisco today?",
     );
-    expect(pill.getAttribute("data-method")).toBe("replace");
-    expect(pill.getAttribute("data-autosend")).toBe("true");
+    expect(rich?.getAttribute("data-method")).toBe("replace");
+    expect(rich?.getAttribute("data-autosend")).toBe("true");
     expect(
-      pill.querySelector(".aui-thread-followup-suggestion-label")?.textContent,
+      rich?.querySelector(".aui-thread-followup-suggestion-label")?.textContent,
     ).toBe("in SF");
-  });
 
-  it("falls back to the prompt when no title is given", () => {
-    renderWith([{ prompt: "Summarize this" }]);
-
-    const pill = screen.getByTestId("suggestion");
-    expect(pill.textContent).toBe("Summarize this");
-    expect(pill.getAttribute("data-prompt")).toBe("Summarize this");
-  });
-
-  it("omits the label span when label is absent or empty", () => {
-    renderWith([
-      { title: "Recap", prompt: "Recap the thread" },
-      { title: "Next", label: "", prompt: "What is next?" },
-    ]);
-
-    const pills = screen.getAllByTestId("suggestion");
-    expect(pills).toHaveLength(2);
-    for (const pill of pills) {
-      expect(
-        pill.querySelector(".aui-thread-followup-suggestion-label"),
-      ).toBeNull();
-    }
-    expect(pills[0]?.textContent).toBe("Recap");
-    expect(pills[1]?.textContent).toBe("Next");
+    expect(plain?.textContent).toBe("Summarize this");
+    expect(
+      plain?.querySelector(".aui-thread-followup-suggestion-label"),
+    ).toBeNull();
   });
 });

@@ -8,6 +8,7 @@ import type {
 import type { AppendMessage } from "../../types/message";
 import type { LocalRuntimeOptionsBase } from "./local-runtime-options";
 import type { ExportedMessageRepositoryItem } from "../../runtime/utils/message-repository";
+import type { ThreadSuggestion } from "../../runtime/interfaces/thread-runtime-core";
 
 const flush = () => new Promise((resolve) => setTimeout(resolve, 10));
 
@@ -656,8 +657,8 @@ describe("LocalThreadRuntimeCore suggestions", () => {
   });
 
   it("resolves append before suggestion generation completes", async () => {
-    let resolveSuggestions!: (value: readonly { prompt: string }[]) => void;
-    const suggestionsDeferred = new Promise<readonly { prompt: string }[]>(
+    let resolveSuggestions!: (value: readonly ThreadSuggestion[]) => void;
+    const suggestionsDeferred = new Promise<readonly ThreadSuggestion[]>(
       (resolve) => {
         resolveSuggestions = resolve;
       },
@@ -681,32 +682,14 @@ describe("LocalThreadRuntimeCore suggestions", () => {
     expect(generate).toHaveBeenCalledTimes(1);
     expect(thread.suggestions).toEqual([]);
 
-    resolveSuggestions([{ prompt: "follow up" }]);
+    resolveSuggestions([
+      { title: "Weather", label: "in SF", prompt: "What's the weather?" },
+      { prompt: "follow up" },
+    ]);
     await new Promise((r) => setTimeout(r, 0));
-    expect(thread.suggestions).toEqual([{ prompt: "follow up" }]);
-  });
-
-  it("exposes adapter-provided title and label on thread suggestions", async () => {
-    const generate = vi
-      .fn()
-      .mockResolvedValue([
-        { title: "Weather", label: "in SF", prompt: "What's the weather?" },
-      ]);
-
-    const thread = createThread(
-      {
-        async run() {
-          return { content: [{ type: "text", text: "hello" }] };
-        },
-      },
-      { suggestion: { generate } },
-    );
-
-    await thread.append(userMessage("hi"));
-    await new Promise((r) => setTimeout(r, 0));
-
     expect(thread.suggestions).toEqual([
       { title: "Weather", label: "in SF", prompt: "What's the weather?" },
+      { prompt: "follow up" },
     ]);
   });
 });
