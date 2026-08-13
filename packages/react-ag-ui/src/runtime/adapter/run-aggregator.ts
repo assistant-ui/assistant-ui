@@ -636,7 +636,10 @@ export class RunAggregator {
 
   private emit(): void {
     const snapshot: ThreadAssistantMessagePart[] = [];
-    const approvals = projectAgUiToolApprovals(this.interrupts);
+    const approvals = projectAgUiToolApprovals(
+      this.interrupts,
+      new Set(this.toolCalls.keys()),
+    );
 
     for (const part of this.partOrder) {
       if (part.kind === "reasoning") {

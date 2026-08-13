@@ -622,8 +622,16 @@ function toAssistantSnapshotMessage(
 ): CoreThreadMessageLike {
   const text = extractText(rawMessage.content);
   const interrupts = readPersistedInterrupts(rawMessage.metadata);
-  const approvals = projectAgUiToolApprovals(interrupts);
-  const toolCallParts = extractAssistantToolCalls(rawMessage).map((part) => {
+  const restoredToolCalls = extractAssistantToolCalls(rawMessage);
+  const approvals = projectAgUiToolApprovals(
+    interrupts,
+    new Set(
+      restoredToolCalls
+        .map((part) => part.toolCallId)
+        .filter((id): id is string => !!id),
+    ),
+  );
+  const toolCallParts = restoredToolCalls.map((part) => {
     const approval = part.toolCallId
       ? approvals.get(part.toolCallId)
       : undefined;

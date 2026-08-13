@@ -36,6 +36,30 @@ describe("projectAgUiToolApprovals", () => {
     ]);
   });
 
+  it("gates a batch whose every tool call is rendered", () => {
+    expect([
+      ...projectAgUiToolApprovals(
+        [gate("int-1", "tc-1"), gate("int-2", "tc-2")],
+        new Set(["tc-1", "tc-2"]),
+      ),
+    ]).toEqual([
+      ["tc-1", { id: "int-1" }],
+      ["tc-2", { id: "int-2" }],
+    ]);
+  });
+
+  it("leaves the whole batch bespoke when a gate names an unrendered tool call", () => {
+    // The unrendered gate could never be clicked, so the batch could never be
+    // completed: its rendered sibling would take a decision that no resume
+    // could carry.
+    expect([
+      ...projectAgUiToolApprovals(
+        [gate("int-1", "tc-1"), gate("int-2", "tc-missing")],
+        new Set(["tc-1"]),
+      ),
+    ]).toEqual([]);
+  });
+
   it("leaves free-standing confirmation and input_required to the bespoke hooks", () => {
     const interrupts: AgUiInterrupt[] = [
       { id: "int-1", reason: "confirmation" },
@@ -424,13 +448,17 @@ describe("withSettledToolApprovals", () => {
     });
   });
 
-  it("leaves an undecided gate untouched when its resolved entry carries no decision", () => {
-    const content = [toolCall("tc-1", { id: "int-1" })];
-    expect(
-      withSettledToolApprovals(content, [
-        { interruptId: "int-1", status: "resolved", payload: { answer: 42 } },
-      ]),
-    ).toBe(content);
+  it("closes an undecided gate whose resolved entry carries no decision", () => {
+    const next = withSettledToolApprovals(
+      [toolCall("tc-1", { id: "int-1" })],
+      [{ interruptId: "int-1", status: "resolved", payload: { answer: 42 } }],
+    );
+    // No decision is fabricated, but the interrupt is closed, so leaving the
+    // gate actionable would render a button with nothing left to answer.
+    expect((next[0] as any).approval).toEqual({
+      id: "int-1",
+      resolution: "cancelled",
+    });
   });
 
   it("clears a local decision the resolved entry that was sent did not carry", () => {
@@ -438,7 +466,10 @@ describe("withSettledToolApprovals", () => {
       [toolCall("tc-1", { id: "int-1", approved: true, reason: "sure" })],
       [{ interruptId: "int-1", status: "resolved", payload: { answer: 42 } }],
     );
-    expect((next[0] as any).approval).toEqual({ id: "int-1" });
+    expect((next[0] as any).approval).toEqual({
+      id: "int-1",
+      resolution: "cancelled",
+    });
   });
 });
 

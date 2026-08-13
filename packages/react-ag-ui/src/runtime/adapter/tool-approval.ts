@@ -104,11 +104,24 @@ const isPending = (approval: ToolCallMessagePart["approval"]) =>
  * gate with any other interrupt projects nothing: AG-UI resumes with one
  * response per open interrupt, so a half-owned batch cannot be completed from
  * either side alone.
+ *
+ * The same rule covers binding. A gate naming a tool call the message does not
+ * render can never be decided through this seam, so the batch it belongs to
+ * could never be completed either: the decisions taken on its visible siblings
+ * would sit on the message while the run waited for a response that no click
+ * can produce. `boundToolCallIds` leaves such a batch bespoke instead.
  */
 export const projectAgUiToolApprovals = (
   interrupts: readonly AgUiInterrupt[] | undefined,
+  boundToolCallIds?: ReadonlySet<string>,
 ): ReadonlyMap<string, ToolApproval> => {
   if (!interrupts?.length || !interrupts.every(isGate)) return EMPTY_APPROVALS;
+  if (
+    boundToolCallIds &&
+    !interrupts.every((interrupt) => boundToolCallIds.has(interrupt.toolCallId))
+  ) {
+    return EMPTY_APPROVALS;
+  }
   return new Map(
     interrupts.map((interrupt) => [interrupt.toolCallId, { id: interrupt.id }]),
   );
@@ -209,14 +222,12 @@ const settle = (
     payload === null ||
     typeof (payload as { approved?: unknown }).approved !== "boolean"
   ) {
-    // The entry settles the gate with no decision. Nothing is fabricated, but a
-    // decision recorded locally is still dropped: the payload that went out
-    // carried none, so displaying one would show what was never sent.
-    return approval.approved === undefined &&
-      approval.reason === undefined &&
-      approval.resolution === undefined
-      ? undefined
-      : rest;
+    // The entry settles the gate with no decision. Nothing is fabricated, and a
+    // decision recorded locally is dropped: the payload that went out carried
+    // none, so displaying one would show what was never sent. The gate is still
+    // marked terminal, because the interrupt it belonged to is closed and a
+    // click on it afterwards would find nothing pending.
+    return { ...rest, resolution: "cancelled" };
   }
   const { approved, reason } = payload as {
     approved: boolean;

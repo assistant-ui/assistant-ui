@@ -617,7 +617,19 @@ export class AgUiThreadRuntimeCore {
       );
     }
 
-    const gated = projectAgUiToolApprovals(pending.interrupts);
+    // Bound against the message the gates landed on, so this check claims a
+    // batch only where the projection did.
+    const gatedMessage = this.tryGetMessage(pending.messageId)?.message as
+      | ThreadAssistantMessage
+      | undefined;
+    const gated = projectAgUiToolApprovals(
+      pending.interrupts,
+      new Set(
+        (gatedMessage?.content ?? [])
+          .filter((part) => part.type === "tool-call")
+          .map((part) => part.toolCallId),
+      ),
+    );
     const isGated = [...gated.values()].some(
       (approval) => approval.id === options.approvalId,
     );

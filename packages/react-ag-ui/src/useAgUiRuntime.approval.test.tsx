@@ -20,7 +20,11 @@ import {
 import type { HttpAgent } from "@ag-ui/client";
 import { z } from "zod";
 import { useAgUiRuntime } from "./useAgUiRuntime";
-import { useAgUiInterrupts, useAgUiSteerAway } from "./hooks";
+import {
+  useAgUiInterrupts,
+  useAgUiSteerAway,
+  useAgUiSubmitInterruptResponses,
+} from "./hooks";
 import type { AgUiInterrupt } from "./runtime/types";
 import { readRawResponseSchema } from "./runtime/interrupt-internals";
 
@@ -83,9 +87,14 @@ const steerAwayRef: { current: ReturnType<typeof useAgUiSteerAway> | null } = {
 
 const interruptsRef: { current: readonly AgUiInterrupt[] } = { current: [] };
 
+const submitRef: {
+  current: ReturnType<typeof useAgUiSubmitInterruptResponses> | null;
+} = { current: null };
+
 const SteerAway = () => {
   steerAwayRef.current = useAgUiSteerAway();
   interruptsRef.current = useAgUiInterrupts();
+  submitRef.current = useAgUiSubmitInterruptResponses();
   return null;
 };
 
@@ -388,7 +397,7 @@ describe("useAgUiRuntime tool approvals", () => {
     // `{answer:42}` went out for the first gate, so the approval recorded while
     // its sibling was still open cannot keep displaying a decision never sent.
     expect(allToolCalls(runtime.current).map((part) => part.approval)).toEqual([
-      { id: "int-1" },
+      { id: "int-1", resolution: "cancelled" },
       { id: "int-2", resolution: "cancelled" },
     ]);
   });
@@ -778,6 +787,84 @@ describe("useAgUiRuntime approvals on a run that fails after the interrupt", () 
 
     expect(onError.mock.calls.map((call) => call[0].message)).toEqual([
       "resume failed",
+    ]);
+  });
+});
+
+describe("useAgUiRuntime approvals that cannot be completed through the seam", () => {
+  it("leaves a batch bespoke when a gate names a tool call the message never rendered", async () => {
+    // The aggregator clears its tool calls on `RUN_STARTED`, so a gate naming a
+    // call from an earlier run has no part to bind to.
+    const unbound: AgUiInterrupt = {
+      id: "int-2",
+      reason: "tool_call",
+      toolCallId: "tc-missing",
+    };
+    const runAgent = vi.fn(async (_input: unknown, subscriber: Subscriber) => {
+      if (runAgent.mock.calls.length > 1) {
+        subscriber.onRunFinalized?.(undefined);
+        return;
+      }
+      subscriber.onToolCallStartEvent?.({
+        event: {
+          type: "TOOL_CALL_START",
+          toolCallId: "tc-1",
+          toolCallName: "delete_file",
+        },
+      });
+      subscriber.onToolCallEndEvent?.({
+        event: { type: "TOOL_CALL_END", toolCallId: "tc-1" },
+      });
+      subscriber.onRunFinishedEvent?.({
+        event: {
+          type: "RUN_FINISHED",
+          runId: "run-1",
+          outcome: { type: "interrupt", interrupts: [GATE, unbound] },
+        },
+      });
+      subscriber.onRunFinalized?.(undefined);
+    });
+    const agent = { runAgent, abortRun: vi.fn() } as unknown as HttpAgent;
+
+    const { result } = renderHook(() => useAgUiRuntime({ agent }));
+    render(
+      <AssistantRuntimeProvider runtime={result.current}>
+        <SteerAway />
+      </AssistantRuntimeProvider>,
+    );
+    await act(async () => {
+      await result.current.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "delete it" }],
+      });
+    });
+    await waitFor(() => expect(runAgent).toHaveBeenCalledTimes(1));
+
+    // Nothing is gated, so the rendered sibling cannot take a decision the
+    // resume could never carry; both interrupts stay on the bespoke hooks.
+    expect(allToolCalls(result.current).map((part) => part.approval)).toEqual([
+      undefined,
+    ]);
+    expect(interruptsRef.current.map((interrupt) => interrupt.id)).toEqual([
+      "int-1",
+      "int-2",
+    ]);
+  });
+
+  it("closes the gate when a resolved override settles it without a decision", async () => {
+    const { runtime, runAgent } = await gatedThread();
+
+    await act(async () => {
+      await submitRef.current!([
+        { interruptId: "int-1", status: "resolved", payload: { answer: 42 } },
+      ]);
+    });
+    await waitFor(() => expect(runAgent).toHaveBeenCalledTimes(2));
+
+    // The interrupt is closed, so the gate must not stay actionable: a click
+    // would find no pending interrupt on the thread.
+    expect(allToolCalls(runtime.current).map((part) => part.approval)).toEqual([
+      { id: "int-1", resolution: "cancelled" },
     ]);
   });
 });
