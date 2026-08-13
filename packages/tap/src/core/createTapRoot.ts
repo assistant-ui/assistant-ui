@@ -58,8 +58,6 @@ export const createTapRoot = <R>(
   }
 
   let subscriberCount = 0;
-  // isMounted guards against double-unmount: unlike a dedicated scheduler,
-  // queued one-off tasks do not dedupe across unsubscribe/resubscribe cycles
   const scheduleUnmount = () =>
     scheduleTask(() => {
       if (subscriberCount === 0 && fiber.isMounted) unmountResourceFiber(fiber);

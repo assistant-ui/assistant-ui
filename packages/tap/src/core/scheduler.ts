@@ -68,11 +68,7 @@ const taskScheduler = new UpdateScheduler(() => {
   throwAggregated(errors, "Errors occurred while running scheduled tasks");
 });
 
-// One-off deferred work rides a single shared scheduler so a task loop still
-// trips the per-scheduler update depth limit.
 export const scheduleTask = (task: Task): void => {
-  // markDirty first: at the update depth limit it throws, and the task must
-  // not stay queued for an unrelated later flush
   taskScheduler.markDirty();
   scheduledTasks.push(task);
 };
