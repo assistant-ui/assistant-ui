@@ -20,7 +20,7 @@ declare const createTapRoot: <R>(render: () => R, options?: {
 declare const flushTapSync: <T>(callback: () => T) => T;
 
 declare namespace entry_root_exports {
-  export { Resource, ResourceElement, createTapRoot, flushTapSync, resource, useContextProvider, useMemoCache, useResource, useResources, useTapHost, useTapRoot, withKey };
+  export { Resource, ResourceElement, createTapRoot, flushTapSync, resource, useContextProvider, useMemoCache, useResource, useResources, useSuspenseResource, useTapHost, useTapRoot, withKey };
 }
 
 declare function resource<R, A extends readonly unknown[]>(hook: (...args: A) => R): Resource<R, A>;
@@ -32,6 +32,8 @@ declare const useMemoCache: (size: number) => unknown[];
 declare function useResource<E extends ResourceElement<any>>(element: E): ExtractResourceReturnType<E>;
 
 declare function useResources<E extends ResourceElement<any>>(elements: readonly E[]): ExtractResourceReturnType<E>[];
+
+declare function useSuspenseResource<E extends ResourceElement<any>, F extends ResourceElement<any>>(element: E, fallbackElement: F): ExtractResourceReturnType<E> | ExtractResourceReturnType<F>;
 
 declare namespace useTapHost {
   interface Result<R> {
