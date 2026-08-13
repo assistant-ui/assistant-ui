@@ -5,11 +5,18 @@ import { createRoot, type Root } from "react-dom/client";
 import { act } from "@testing-library/react";
 import type { TapRoot } from "../../core/types";
 import { resource } from "../../core/resource";
+import { commitRoot, setRootVersion } from "../../core/helpers/root";
+import { renderResourceFiber } from "../../core/ResourceFiber";
 import { useResource } from "../../index";
 import { useReducer as useResourceReducer } from "../../react-hooks/useReducer";
 import { useMemo as useResourceMemo } from "../../react-hooks/useMemo";
 import { useState as useResourceState } from "../../react-hooks/useState";
-import { cleanupAllResources } from "../test-utils";
+import { c as _c } from "../../react-shim/compiler-runtime";
+import {
+  cleanupAllResources,
+  createTestResource,
+  renderTest,
+} from "../test-utils";
 
 const probes = vi.hoisted(() => ({ belowCommitted: 0 }));
 
@@ -57,6 +64,25 @@ const useStreamWithCounter = () => {
   );
 };
 const StreamWithCounter = resource(useStreamWithCounter);
+
+type CompiledStreamValue = {
+  chunks: readonly string[];
+  push: (chunk: string) => void;
+};
+
+const useCompiledStream = (): CompiledStreamValue => {
+  const [chunks, push] = useResourceReducer(
+    (s: readonly string[], c: string) => [...s, c],
+    [] as readonly string[],
+  );
+  const $ = _c(2);
+  if ($[0] !== chunks) {
+    $[0] = chunks;
+    $[1] = { chunks, push } satisfies CompiledStreamValue;
+  }
+  return $[1] as CompiledStreamValue;
+};
+const CompiledStream = resource(useCompiledStream);
 
 describe("React-hosted reducer replay below the committed version", () => {
   it("delivers a transition update rebased across a sync commit without recoverable errors", async () => {
@@ -140,5 +166,67 @@ describe("React-hosted reducer replay below the committed version", () => {
     });
 
     expect(container.textContent).toBe("t1,s1|2");
+  });
+
+  it("replays a compiled memo cache below the committed version", async () => {
+    probes.belowCommitted = 0;
+    const recoverable = vi.fn();
+    const identities: CompiledStreamValue[] = [];
+    let api!: CompiledStreamValue;
+
+    function App() {
+      const value = useResource(CompiledStream());
+      api = value;
+      identities.push(value);
+      return <div>{value.chunks.join(",")}</div>;
+    }
+
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    reactRoot = createRoot(container, { onRecoverableError: recoverable });
+
+    await act(async () => {
+      reactRoot!.render(
+        <StrictMode>
+          <App />
+        </StrictMode>,
+      );
+    });
+
+    await act(async () => {
+      startTransition(() => api.push("t1"));
+      flushSync(() => api.push("s1"));
+    });
+
+    await act(async () => {
+      api.push("after");
+    });
+
+    expect(identities.at(-1)?.chunks).toEqual(["t1", "s1", "after"]);
+    expect(recoverable).not.toHaveBeenCalled();
+    expect(probes.belowCommitted).toBeGreaterThan(0);
+  });
+
+  it("rolls back a compiled memo cache with the resource version", () => {
+    let computes = 0;
+    const fiber = createTestResource((x: number) => {
+      const $ = _c(2);
+      if ($[0] !== x) {
+        computes++;
+        $[0] = x;
+        $[1] = { x };
+      }
+      return $[1] as { x: number };
+    });
+
+    const committed = renderTest(fiber, 1);
+    setRootVersion(fiber.root, 3);
+    commitRoot(fiber.root);
+    setRootVersion(fiber.root, 4);
+    expect(renderResourceFiber(fiber, [2])).toEqual({ x: 2 });
+
+    setRootVersion(fiber.root, 2);
+    expect(renderTest(fiber, 1)).toBe(committed);
+    expect(computes).toBe(2);
   });
 });
