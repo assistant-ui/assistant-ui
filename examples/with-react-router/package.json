@@ -15,7 +15,7 @@
     "@react-router/serve": "^8.3.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "eventsource-parser": "^3.1.0",
+    "eventsource-parser": "^4.0.0",
     "isbot": "^5.2.1",
     "lucide-react": "^1.31.0",
     "openai": "^7.4.0",

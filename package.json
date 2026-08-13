@@ -33,7 +33,7 @@
     "husky": "^9.1.7",
     "lint-staged": "^17.3.0",
     "oxfmt": "^0.62.0",
-    "oxlint": "^1.77.0",
+    "oxlint": "^1.78.0",
     "pkg-pr-new": "^0.0.87",
     "turbo": "^2.10.9",
     "typescript": "^7.0.2"

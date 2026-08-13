@@ -10,12 +10,12 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^4.0.36",
+    "@ai-sdk/openai": "^4.0.40",
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/react-ai-sdk": "workspace:*",
     "@assistant-ui/react-generative-ui": "workspace:*",
     "@assistant-ui/ui": "workspace:*",
-    "ai": "^7.0.58",
+    "ai": "^7.0.62",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^1.31.0",

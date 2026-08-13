@@ -20,7 +20,7 @@
     "@base-ui/react": "^1.7.0",
     "@langchain/anthropic": "^1.5.4",
     "@langchain/langgraph": "^1.4.9",
-    "@langchain/react": "^1.0.29",
+    "@langchain/react": "^1.0.30",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^1.31.0",
@@ -43,7 +43,7 @@
     "@types/react-dom": "^19.2.4",
     "concurrently": "^10.0.4",
     "oxfmt": "^0.62.0",
-    "oxlint": "^1.77.0",
+    "oxlint": "^1.78.0",
     "tailwindcss": "^4.3.3",
     "typescript": "^7.0.2"
   }

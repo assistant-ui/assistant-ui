@@ -9,15 +9,15 @@
     "start": "next start"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^4.0.36",
-    "@ai-sdk/react": "^4.0.61",
+    "@ai-sdk/openai": "^4.0.40",
+    "@ai-sdk/react": "^4.0.65",
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/react-ai-sdk": "workspace:*",
     "@assistant-ui/react-markdown": "workspace:*",
     "@assistant-ui/store": "workspace:*",
     "@assistant-ui/tap": "workspace:*",
     "@assistant-ui/ui": "workspace:*",
-    "ai": "^7.0.58",
+    "ai": "^7.0.62",
     "assistant-stream": "workspace:*",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -25,7 +25,7 @@
     "next": "^16.3.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "redis": "^6.2.0",
+    "redis": "^6.2.1",
     "tailwind-merge": "^3.6.0",
     "zod": "^4.4.3"
   },

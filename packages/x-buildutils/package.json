@@ -28,7 +28,7 @@
     "@tsconfig/strictest": "^2.0.8",
     "babel-plugin-react-compiler": "^1.0.0",
     "jiti": "^2.7.0",
-    "rolldown": "^1.2.3",
+    "rolldown": "^1.2.4",
     "tsdown": "^0.22.14",
     "typescript": "npm:@typescript/typescript6@^6.0.2"
   },
