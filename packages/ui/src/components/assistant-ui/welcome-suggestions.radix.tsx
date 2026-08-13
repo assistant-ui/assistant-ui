@@ -115,7 +115,7 @@ const useCaretAtEnd = () => {
 };
 
 const pillClass =
-  "text-foreground hover:bg-muted border-border/60 inline-flex h-auto items-center gap-1.5 rounded-lg border px-3.5 py-1.5 text-sm font-normal whitespace-nowrap transition-colors [&_svg]:size-4";
+  "text-foreground hover:bg-muted border-border/60 inline-flex h-auto items-center gap-1.5 rounded-xl border px-3.5 py-1.5 text-sm font-normal whitespace-nowrap transition-colors [&_svg]:size-4";
 
 const welcomeSuggestionRowVariants = cva(
   "group/aui-row text-foreground/80 hover:text-foreground data-[highlighted]:bg-muted/70 data-[highlighted]:text-foreground relative flex w-full items-center gap-2.5 rounded-lg px-3 text-left text-sm [&_svg]:size-4",
@@ -1103,7 +1103,7 @@ export const WelcomeSuggestionsStack: FC<WelcomeSuggestionsStackProps> = ({
           setTopIdx(null);
       }}
       data-slot="aui_thread-welcome-stack"
-      className={cn("-mt-1 flex w-full flex-col outline-none", className)}
+      className={cn("mx-[2.5%] -mt-2.5 flex flex-col outline-none", className)}
     >
       {group ? (
         <DismissableLayerPrimitive.Root
