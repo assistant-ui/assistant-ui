@@ -8,7 +8,7 @@ import type { AdkMessage } from "./types";
 
 export type AdkToolApproval = NonNullable<ToolCallMessagePart["approval"]>;
 
-const ADK_REQUEST_CONFIRMATION = "adk_request_confirmation";
+export const ADK_REQUEST_CONFIRMATION = "adk_request_confirmation";
 
 const parseJson = (raw: string): unknown => {
   try {
@@ -55,6 +55,19 @@ const readConfirmed = (content: unknown): boolean | undefined => {
 const sourceEventOf = (toolMessageId: string): string =>
   toolMessageId.replace(/:\d+$/, "");
 
+/**
+ * ADK builds the confirmation request around the call it gates, carrying that
+ * call verbatim in `originalFunctionCall`.
+ */
+const gatedCallIdOf = (args: unknown): string | undefined => {
+  if (typeof args !== "object" || args === null) return undefined;
+  const original = (args as { originalFunctionCall?: unknown })
+    .originalFunctionCall;
+  if (typeof original !== "object" || original === null) return undefined;
+  const id = (original as { id?: unknown }).id;
+  return typeof id === "string" && id.length > 0 ? id : undefined;
+};
+
 export type AdkToolApprovalProjection = {
   approvals: ReadonlyMap<string, AdkToolApproval>;
   /**
@@ -68,8 +81,12 @@ export type AdkToolApprovalProjection = {
 /**
  * ADK requests a confirmation by emitting a synthetic `adk_request_confirmation`
  * tool call carrying a fresh id, and resumes only when a reply quotes that id.
- * The gated tool's own id appears in `requestedToolConfirmations` as metadata
- * and is never answerable, so only the synthetic calls are gated.
+ * The gated tool's own id is never answerable, so every approval carries the
+ * synthetic id — but ADK yields the gated call to the client first, in its own
+ * event, so both calls sit result-less in the transcript and both would render
+ * an approval control. The gated call is therefore mapped to the same approval
+ * rather than left bare, which would let it answer by writing a tool result the
+ * agent never produced.
  */
 export const projectAdkToolApprovals = (
   messages: readonly AdkMessage[],
@@ -107,10 +124,20 @@ export const projectAdkToolApprovals = (
     for (const call of message.tool_calls ?? []) {
       if (call.name !== ADK_REQUEST_CONFIRMATION) continue;
       const approved = replies.get(call.id);
-      approvals.set(call.id, {
+      const approval: AdkToolApproval = {
         id: call.id,
         ...(approved !== undefined && { approved }),
-      });
+      };
+      approvals.set(call.id, approval);
+      // ADK yields the gated call in its own event before the confirmation is
+      // requested, so that call is also in the transcript, result-less, and
+      // inherits the message's `requires-action` status. Left ungated it
+      // renders a second approval control with no approval behind it, which
+      // answers by writing a tool result the agent never produced. The same
+      // approval carries the synthetic id, so answering either one replies to
+      // the gate ADK is actually waiting on.
+      const gatedId = gatedCallIdOf(call.args);
+      if (gatedId !== undefined) approvals.set(gatedId, approval);
     }
   }
 

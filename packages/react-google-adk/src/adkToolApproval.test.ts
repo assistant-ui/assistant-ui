@@ -105,11 +105,14 @@ describe("projectAdkToolApprovals", () => {
       { id: CONFIRMATION_CALL },
     ],
   ])(
-    "projects only the synthetic confirmation call: %s",
+    "gates the confirmation and the call it gates: %s",
     (_name, messages, expected) => {
       const { approvals, key } = projectAdkToolApprovals(messages);
-      expect([...approvals.keys()]).toEqual([CONFIRMATION_CALL]);
+      // Both calls are in the transcript, so both would otherwise render an
+      // approval control; the gated one carries the answerable synthetic id.
+      expect([...approvals.keys()]).toEqual([CONFIRMATION_CALL, GATED_CALL]);
       expect(approvals.get(CONFIRMATION_CALL)).toEqual(expected);
+      expect(approvals.get(GATED_CALL)).toEqual(expected);
       expect(key).not.toBe("");
     },
   );
@@ -232,4 +235,38 @@ describe("toAdkConfirmationReply", () => {
       });
     },
   );
+});
+
+describe("projectAdkToolApprovals gated call", () => {
+  it("answers through the gated call with the synthetic id", () => {
+    // ADK yields the gated call before the confirmation request, so it is in
+    // the transcript too; answering from its control must still quote the id
+    // ADK is waiting on.
+    const { approvals } = projectAdkToolApprovals(requestedThread());
+
+    const gated = approvals.get(GATED_CALL);
+    expect(gated).toEqual({ id: CONFIRMATION_CALL });
+    expect(
+      toAdkToolConfirmationReply(
+        { approvalId: gated!.id, approved: true },
+        approvals,
+      ),
+    ).toMatchObject({
+      tool_call_id: CONFIRMATION_CALL,
+      name: "adk_request_confirmation",
+      content: JSON.stringify({ confirmed: true }),
+    });
+  });
+
+  it("leaves a confirmation whose original call has no id ungated", () => {
+    const messages: AdkMessage[] = [
+      aiCall(CONFIRMATION_CALL, "adk_request_confirmation", {
+        toolConfirmation: { hint: "Delete /tmp/a?" },
+      }),
+    ];
+
+    expect([...projectAdkToolApprovals(messages).approvals.keys()]).toEqual([
+      CONFIRMATION_CALL,
+    ]);
+  });
 });

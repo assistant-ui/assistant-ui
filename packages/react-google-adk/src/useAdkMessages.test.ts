@@ -193,7 +193,10 @@ describe("optimistic confirmation replies", () => {
     });
 
     expect([
-      ...projectAdkToolApprovals(result.current.messages).approvals.values(),
+      // The confirmation and the call it gates share one approval object.
+      ...new Set(
+        projectAdkToolApprovals(result.current.messages).approvals.values(),
+      ),
     ]).toEqual([{ id: "conf-a" }, { id: "conf-b" }]);
   });
 
@@ -216,7 +219,10 @@ describe("optimistic confirmation replies", () => {
     });
 
     expect([
-      ...projectAdkToolApprovals(result.current.messages).approvals.values(),
+      // The confirmation and the call it gates share one approval object.
+      ...new Set(
+        projectAdkToolApprovals(result.current.messages).approvals.values(),
+      ),
     ]).toEqual([{ id: "conf-a" }, { id: "conf-b" }]);
   });
 
@@ -243,7 +249,10 @@ describe("optimistic confirmation replies", () => {
     });
 
     expect([
-      ...projectAdkToolApprovals(result.current.messages).approvals.values(),
+      // The confirmation and the call it gates share one approval object.
+      ...new Set(
+        projectAdkToolApprovals(result.current.messages).approvals.values(),
+      ),
     ]).toEqual([{ id: "conf-a", approved: true }, { id: "conf-b" }]);
   });
 });
@@ -256,6 +265,13 @@ describe("messagesToEvents", () => {
     name: "adk_request_confirmation",
     content: JSON.stringify({ confirmed: true }),
     status: "success",
+  });
+
+  it("emits nothing for an empty batch", () => {
+    // `onReload` sends no messages. The transport still puts an empty user
+    // content on the wire, but projecting one here would append an empty user
+    // bubble above every regenerated turn.
+    expect(messagesToEvents([])).toEqual([]);
   });
 
   it("merges the human/tool run across an interleaved ai message", () => {

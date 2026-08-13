@@ -2,7 +2,10 @@
 
 import type { ToolCallMessagePart } from "@assistant-ui/core";
 import type { useExternalMessageConverter } from "@assistant-ui/core/react";
-import type { AdkToolApproval } from "./adkToolApproval";
+import {
+  ADK_REQUEST_CONFIRMATION,
+  type AdkToolApproval,
+} from "./adkToolApproval";
 import type { AdkMessage, AdkMessageContentPart } from "./types";
 
 type ContentPart =
@@ -130,9 +133,15 @@ export const createAdkMessageConverter =
       case "tool": {
         // A confirmation reply ADK could not read leaves its gate undecided.
         // Any result settles the tool call in core, so the reply is dropped
-        // here to keep the gate requiring action and answerable again.
+        // here to keep the gate requiring action and answerable again. Only a
+        // reply to the confirmation itself is dropped: the gated call carries
+        // the same approval, and its own result is the agent's real output.
         const approval = approvals.get(message.tool_call_id);
-        if (approval !== undefined && approval.approved === undefined)
+        if (
+          message.name === ADK_REQUEST_CONFIRMATION &&
+          approval !== undefined &&
+          approval.approved === undefined
+        )
           return [];
 
         return {

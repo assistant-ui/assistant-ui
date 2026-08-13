@@ -343,15 +343,17 @@ export class AdkEventAccumulator {
           humanParts.push(
             fileDataToPart(part.fileData.fileUri, part.fileData.mimeType),
           );
-        } else if (part.functionResponse) {
+        } else if (part.functionResponse?.id) {
           // ADK records tool confirmation and other client-supplied tool
           // results as user-authored function responses, and its request
           // confirmation processors search user events for them. Dropping
-          // them here would replay a settled gate as pending.
+          // them here would replay a settled gate as pending. A response
+          // carrying no id answers no call: core drops it as an orphan, and
+          // keeping it would let it settle the batch it was grouped into.
           toolMessages.push({
             id: toolMessageId(event, index),
             type: "tool",
-            tool_call_id: part.functionResponse.id ?? "",
+            tool_call_id: part.functionResponse.id,
             name: part.functionResponse.name,
             content: JSON.stringify(part.functionResponse.response),
             status: "success",

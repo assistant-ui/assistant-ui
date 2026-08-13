@@ -278,6 +278,11 @@ export const useAdkMessages = ({
  * @internal — exported for unit tests.
  */
 export const messagesToEvents = (messages: AdkMessage[]): AdkEvent[] => {
+  // A reload sends no messages at all, and the empty user content the transport
+  // puts on the wire for it is not part of the optimistic view: projecting one
+  // would put an empty user bubble above every regenerated turn.
+  if (messages.length === 0) return [];
+
   const events: AdkEvent[] = [];
   const run: AdkMessage[] = [];
   let runIndex = 0;
