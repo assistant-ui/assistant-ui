@@ -57,6 +57,28 @@ const EMPTY_SUGGESTIONS: readonly ThreadSuggestion[] = [];
 
 type SettleWhenThreadConnected = (settle: () => void) => void;
 
+class ThreadConnection {
+  private connected = true;
+
+  settle: SettleWhenThreadConnected = (settle) => {
+    if (this.connected) {
+      settle();
+      return;
+    }
+    console.warn(
+      "Cannot complete a send on a disconnected AuiClient. This completion was ignored.",
+    );
+  };
+
+  connect = () => {
+    this.connected = true;
+  };
+
+  disconnect = () => {
+    this.connected = false;
+  };
+}
+
 export type ExternalThreadMessage = ThreadMessage & {
   id: string;
 };
@@ -933,22 +955,12 @@ const useExternalThread = ({
   branches,
   onRespondToToolApproval,
 }: ExternalThreadProps): ClientOutput<"thread"> => {
-  const threadConnectedRef = useRef(true);
+  const [threadConnection] = useState(() => new ThreadConnection());
   useEffect(() => {
-    threadConnectedRef.current = true;
-    return () => {
-      threadConnectedRef.current = false;
-    };
-  }, []);
-  const settleWhenThreadConnected: SettleWhenThreadConnected = (settle) => {
-    if (threadConnectedRef.current) {
-      settle();
-      return;
-    }
-    console.warn(
-      "Cannot complete a send on a disconnected AuiClient. This completion was ignored.",
-    );
-  };
+    threadConnection.connect();
+    return threadConnection.disconnect;
+  }, [threadConnection]);
+  const settleWhenThreadConnected = threadConnection.settle;
 
   const messages = useMemo(
     () => dedupeMessagesById(messagesProp),
