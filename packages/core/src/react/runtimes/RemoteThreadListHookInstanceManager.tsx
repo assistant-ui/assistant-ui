@@ -233,15 +233,6 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     const initPromiseRef = useRef<Promise<unknown> | undefined>(undefined);
     const hasInitializedRef = useRef(false);
 
-    useEffect(() => {
-      const runtimeCore = threadBinding.getState();
-      const setGetInitializePromise = (runtimeCore as Record<string, unknown>)
-        .__internal_setGetInitializePromise;
-      if (typeof setGetInitializePromise === "function") {
-        setGetInitializePromise.call(runtimeCore, () => initPromiseRef.current);
-      }
-    }, [threadBinding]);
-
     const handleInitialize = useEffectEvent(() => {
       if (hasInitializedRef.current) return;
 
@@ -249,14 +240,36 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
       if (state.status !== "new") return;
       hasInitializedRef.current = true;
 
-      initPromiseRef.current = aui.threadListItem.initialize();
+      const initPromise = aui.threadListItem.initialize();
+      initPromiseRef.current = initPromise;
 
       const dispose = runtime.thread.unstable_on("runEnd", () => {
         dispose();
         aui.threadListItem.generateTitle();
       });
+
+      void initPromise.catch(() => {
+        dispose();
+        if (initPromiseRef.current === initPromise) {
+          initPromiseRef.current = undefined;
+          hasInitializedRef.current = false;
+        }
+      });
     });
 
+    const getInitializePromise = useEffectEvent(() => {
+      handleInitialize();
+      return initPromiseRef.current;
+    });
+
+    useEffect(() => {
+      const runtimeCore = threadBinding.getState();
+      const setGetInitializePromise = (runtimeCore as Record<string, unknown>)
+        .__internal_setGetInitializePromise;
+      if (typeof setGetInitializePromise === "function") {
+        setGetInitializePromise.call(runtimeCore, getInitializePromise);
+      }
+    }, [threadBinding]);
     useEffect(() => {
       hasInitializedRef.current = false;
       return runtime.threads.main.unstable_on("initialize", handleInitialize);
