@@ -6,18 +6,22 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { resource, withKey } from "@assistant-ui/tap";
 import { AuiProvider } from "../AuiProvider";
 import { Derived } from "../Derived";
+import { RenderChildrenWithAccessor } from "../RenderChildrenWithAccessor";
 import { useAui } from "../useAui";
 import { useAuiState } from "../useAuiState";
 import { useClientLookup } from "../useClientLookup";
 
-const useItem = ({ id }: { id: string }) => ({
-  getState: () => ({ id }),
-  subscribe: (callback: () => void) => {
-    callback();
-    return () => {};
-  },
-  echo: (text: string) => text,
-});
+const useItem = ({ id }: { id: string }) => {
+  const state = { id };
+  return {
+    getState: () => state,
+    subscribe: (callback: () => void) => {
+      callback();
+      return () => {};
+    },
+    echo: (text: string) => text,
+  };
+};
 const Item = resource(useItem);
 
 const useThread = () => {
@@ -179,6 +183,32 @@ describe("proxy invariants", () => {
     act(() => view.rerender(<Activity mode="visible">{app}</Activity>));
 
     expect(probe.aui.item().getState()).toEqual({ id: "a" });
+    expect(warning).not.toHaveBeenCalled();
+  });
+
+  it("keeps list item reads working while an Activity is disconnected", () => {
+    const ItemReader: FC<{ renderId: number }> = ({ renderId }) => (
+      <RenderChildrenWithAccessor
+        getItemState={(aui) =>
+          aui.thread().item({ index: 0 }).getState() as { id: string }
+        }
+      >
+        {(getItem) => <div data-render-id={renderId}>{getItem().id}</div>}
+      </RenderChildrenWithAccessor>
+    );
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const app = (renderId: number) => (
+      <App>
+        <ItemReader renderId={renderId} />
+      </App>
+    );
+    const view = render(<Activity mode="visible">{app(0)}</Activity>);
+
+    expect(view.container.textContent).toBe("a");
+    act(() => view.rerender(<Activity mode="hidden">{app(0)}</Activity>));
+    act(() => view.rerender(<Activity mode="hidden">{app(1)}</Activity>));
+
+    expect(view.container.textContent).toBe("a");
     expect(warning).not.toHaveBeenCalled();
   });
 });
