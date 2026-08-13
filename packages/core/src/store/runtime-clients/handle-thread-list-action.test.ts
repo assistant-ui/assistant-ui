@@ -6,7 +6,7 @@ describe("handleThreadListAction", () => {
     vi.restoreAllMocks();
   });
 
-  it("reports a rejected task while preserving its promise", async () => {
+  it("reports a rejected task", async () => {
     const error = new Error("unavailable");
     const task = Promise.reject(error);
     const consoleError = vi
@@ -15,15 +15,15 @@ describe("handleThreadListAction", () => {
 
     const result = handleThreadListAction("delete", () => task);
 
-    expect(result).toBe(task);
-    await expect(result).rejects.toBe(error);
+    expect(result).toBeUndefined();
+    await task.catch(() => {});
     expect(consoleError).toHaveBeenCalledWith(
       "[assistant-ui] thread list delete failed:",
       error,
     );
   });
 
-  it("reports synchronous failures as rejected promises", async () => {
+  it("reports synchronous failures", () => {
     const error = new Error("invalid thread");
     const consoleError = vi
       .spyOn(console, "error")
@@ -33,7 +33,7 @@ describe("handleThreadListAction", () => {
       throw error;
     });
 
-    await expect(result).rejects.toBe(error);
+    expect(result).toBeUndefined();
     expect(consoleError).toHaveBeenCalledWith(
       "[assistant-ui] thread list switch failed:",
       error,

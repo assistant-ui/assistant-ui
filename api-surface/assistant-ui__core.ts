@@ -4465,13 +4465,13 @@ type ThreadListItemMethods = {
   getState(): ThreadListItemState;
   switchTo(options?: {
     unarchive?: boolean;
-  }): Promise<void>;
-  rename(newTitle: string): Promise<void>;
-  updateCustom(custom: Record<string, unknown> | undefined): Promise<void>;
-  archive(): Promise<void>;
-  unarchive(): Promise<void>;
-  delete(): Promise<void>;
-  generateTitle(): Promise<void>;
+  }): void;
+  rename(newTitle: string): void;
+  updateCustom(custom: Record<string, unknown> | undefined): void;
+  archive(): void;
+  unarchive(): void;
+  delete(): void;
+  generateTitle(): void;
   initialize(): Promise<{
     remoteId: string;
     externalId: string | undefined;
@@ -5184,8 +5184,8 @@ type ThreadsMethods = {
   getState(): ThreadsState;
   switchToThread(threadId: string, options?: {
     unarchive?: boolean;
-  }): Promise<void>;
-  switchToNewThread(): Promise<void>;
+  }): void;
+  switchToNewThread(): void;
   item(threadIdOrOptions: "main" | {
     id: string;
   } | {
@@ -6266,19 +6266,19 @@ declare const useThreadIsEmpty: () => boolean;
 declare const useThreadIsRunning: () => boolean;
 
 declare const useThreadListItemArchive: () => {
-  archive: () => Promise<void>;
+  archive: () => void;
 };
 
 declare const useThreadListItemDelete: () => {
-  delete: () => Promise<void>;
+  delete: () => void;
 };
 
 declare const useThreadListItemTrigger: () => {
-  switchTo: () => Promise<void>;
+  switchTo: () => void;
 };
 
 declare const useThreadListItemUnarchive: () => {
-  unarchive: () => Promise<void>;
+  unarchive: () => void;
 };
 
 declare const useThreadListLoadMore: () => {
@@ -6287,7 +6287,7 @@ declare const useThreadListLoadMore: () => {
 };
 
 declare const useThreadListNew: () => {
-  switchToNewThread: () => Promise<void>;
+  switchToNewThread: () => void;
 };
 
 declare const useThreadMessages: () => readonly MessageState[];

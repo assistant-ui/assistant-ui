@@ -5,7 +5,7 @@ export const useThreadListItemTrigger = () => {
   const aui = useAui();
 
   const switchTo = useCallback(() => {
-    return aui.threadListItem.switchTo();
+    aui.threadListItem.switchTo();
   }, [aui]);
 
   return { switchTo };
