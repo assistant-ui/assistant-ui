@@ -568,7 +568,7 @@ const useComposerClientResource = ({
   }, []);
 
   const settleWhenActive = (settle: () => void) => {
-    if (isActiveRef.current) settle();
+    if (type === "edit" || isActiveRef.current) settle();
     else pendingSettlementsRef.current.push(settle);
   };
 

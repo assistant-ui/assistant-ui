@@ -20,9 +20,15 @@ const renderThreadWithProps = (props: Partial<ExternalThreadProps>) => {
     captured.aui = useAui();
     return null;
   };
-  const App: FC = () => {
+  const App: FC<{ threadProps: Partial<ExternalThreadProps> }> = ({
+    threadProps,
+  }) => {
     const aui = useAui({
-      thread: ExternalThread({ messages: [], isRunning: false, ...props }),
+      thread: ExternalThread({
+        messages: [],
+        isRunning: false,
+        ...threadProps,
+      }),
     });
     return (
       <AuiProvider value={aui}>
@@ -31,9 +37,11 @@ const renderThreadWithProps = (props: Partial<ExternalThreadProps>) => {
     );
   };
 
-  const rendered = render(<App />);
+  const rendered = render(<App threadProps={props} />);
   return Object.assign(() => captured.aui!, {
     unmount: rendered.unmount,
+    rerender: (threadProps: Partial<ExternalThreadProps>) =>
+      rendered.rerender(<App threadProps={threadProps} />),
   });
 };
 
@@ -770,6 +778,72 @@ describe("ExternalThread attachments", () => {
     expect(composer().getState().attachments[0]).toMatchObject({
       id: "att-edit",
       name: "notes.txt",
+    });
+  });
+
+  it("settles edit-composer attachment sends after message reconciliation", async () => {
+    let resolveSend!: (attachment: CompleteAttachment) => void;
+    const onEdit = vi.fn();
+    const file = new File(["data"], "notes.txt", { type: "text/plain" });
+    const message = (id: string): ExternalThreadMessage =>
+      ({
+        id,
+        role: "user",
+        content: [{ type: "text", text: "hi" }],
+        createdAt: new Date(0),
+        attachments: [],
+        metadata: { custom: {} },
+      }) as unknown as ExternalThreadMessage;
+    const attachmentAdapter = {
+      accept: "*",
+      add: async () => ({
+        id: "att-edit",
+        type: "file" as const,
+        name: file.name,
+        contentType: file.type,
+        file,
+        status: {
+          type: "requires-action" as const,
+          reason: "composer-send" as const,
+        },
+      }),
+      send: () =>
+        new Promise<CompleteAttachment>((resolve) => {
+          resolveSend = resolve;
+        }),
+      remove: async () => {},
+    };
+    const props = {
+      messages: [message("u1")],
+      onEdit,
+      attachmentAdapter,
+    };
+    const aui = renderThreadWithProps(props);
+    const composer = () => aui().thread.message({ id: "u1" }).composer();
+
+    composer().beginEdit();
+    await act(() => composer().addAttachment(file));
+    act(() => {
+      composer().setText("edited");
+      composer().send();
+    });
+    aui.rerender({ ...props, messages: [message("u2")] });
+
+    await act(async () => {
+      resolveSend({
+        id: "att-edit",
+        type: "file",
+        name: file.name,
+        contentType: file.type,
+        status: { type: "complete" },
+        content: [],
+      });
+    });
+
+    expect(onEdit).toHaveBeenCalledTimes(1);
+    expect(onEdit.mock.calls[0]![0]).toMatchObject({
+      sourceId: "u1",
+      content: [{ type: "text", text: "edited" }],
     });
   });
 
