@@ -224,6 +224,55 @@ const contentToParts = (
     .filter((a) => a !== null);
 };
 
+const normalizePayload = (value: string) => parseDataUrl(value)?.data ?? value;
+
+const attachmentPartKey = (part: {
+  type: string;
+  image?: string;
+  data?: unknown;
+  audio?: { data: string };
+}): string | null => {
+  if (part.type === "image" && typeof part.image === "string")
+    return `image:${normalizePayload(part.image)}`;
+  if (part.type === "file" && typeof part.data === "string")
+    return `file:${normalizePayload(part.data)}`;
+  if (part.type === "audio" && part.audio)
+    return `file:${normalizePayload(part.audio.data)}`;
+  return null;
+};
+
+/**
+ * getMessageContent flattens attachment content into the wire message while
+ * the runtime reattaches the original attachments for chip rendering, so in
+ * the sender's session each attachment payload arrives back twice. Drops the
+ * flattened copies, at most one content part per attachment part, consuming
+ * from the trailing end because getMessageContent appends the flattened
+ * copies after the user's direct content; on reload the staging map is empty
+ * and content parts pass through untouched.
+ */
+const dropAttachmentDuplicates = (
+  parts: ReturnType<typeof contentToParts>,
+  attachments: readonly CompleteAttachment[],
+): ReturnType<typeof contentToParts> => {
+  const counts = new Map<string, number>();
+  for (const part of attachments.flatMap((a) => a.content)) {
+    const key = attachmentPartKey(part);
+    if (key) counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  if (counts.size === 0) return parts;
+  const dropped = new Set<number>();
+  for (let i = parts.length - 1; i >= 0; i--) {
+    const key = attachmentPartKey(parts[i]!);
+    if (!key) continue;
+    const remaining = counts.get(key);
+    if (!remaining) continue;
+    counts.set(key, remaining - 1);
+    dropped.add(i);
+  }
+  if (dropped.size === 0) return parts;
+  return parts.filter((_, i) => !dropped.has(i));
+};
+
 const hasVisibleText = (text: unknown): boolean =>
   typeof text === "string" && text.trim() !== "";
 
@@ -267,10 +316,13 @@ export const convertLangChainMessages: useExternalMessageConverter.Callback<
       const attachments = message.id
         ? metadata.attachmentsByMessageId?.get(message.id)
         : undefined;
+      const parts = contentToParts(message.content, metadata, message.id);
       return {
         role: "user",
         id: message.id,
-        content: contentToParts(message.content, metadata, message.id),
+        content: attachments?.length
+          ? dropAttachmentDuplicates(parts, attachments)
+          : parts,
         metadata: { custom: getCustomMetadata(message.additional_kwargs) },
         ...(attachments?.length ? { attachments } : {}),
       };

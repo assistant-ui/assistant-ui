@@ -1,5 +1,0 @@
----
-"@assistant-ui/react-ag-ui": patch
----
-
-fix: preserve encrypted-only reasoning records across the AG-UI round trip. Under zero data retention an agent sends a `ReasoningMessage` whose readable `content` is empty and whose payload is entirely in `encryptedValue`, and both the adapter and the core normalizer dropped it: the import guarded on empty text, and a reasoning part with neither text nor summary is removed by `fromThreadMessageLike`. Such a record now rides on `metadata.custom.agui.opaqueReasoning` of the neighbouring message instead of becoming an unrenderable part, and is replayed into the run input adjacent to that message. A record that sat between an assistant message and its own tool result is replayed after that result, since import folds the result into the assistant message and that boundary no longer exists at export. A runtime configured with `showThinking: false` is affected too: it previously emitted no `reasoning` records at all, and now emits `{ role: "reasoning", content: "", encryptedValue }` for each imported record that carried a value, since that option hides reasoning from the UI rather than discarding state the agent needs back.

@@ -5,7 +5,6 @@ import {
   getCurrentResourceFiber,
   peekResourceFiber,
 } from "../core/helpers/execution-context";
-import { CommitPriority } from "../core/helpers/commit";
 import { addCommit } from "../core/helpers/root";
 
 /**
@@ -30,7 +29,7 @@ export function useEffectEvent<T extends (...args: any[]) => any>(
   const callbackRef = useRef(callback);
 
   if (callbackRef.current !== callback) {
-    addCommit(fiber, CommitPriority.EffectEvent, () => {
+    addCommit(fiber, () => {
       callbackRef.current = callback;
     });
   }

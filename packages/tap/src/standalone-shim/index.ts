@@ -2,7 +2,10 @@
 /* oxlint-disable react/exhaustive-deps -- dependency arrays are forwarded verbatim from the caller */
 // React-free runtime drop-in for "react": route supported hooks to tap inside a resource render and throw outside one. Alias `react` to this module in code hosted inside `createTapRoot`.
 import { peekResourceFiber } from "../core/helpers/execution-context";
-import { attachDefaultValueToContext } from "../core/context";
+import {
+  attachDefaultValueToContext,
+  useContext as useTapContext,
+} from "../core/context";
 import { useState as useTapState } from "../react-hooks/useState";
 import { useReducer as useTapReducer } from "../react-hooks/useReducer";
 import { useRef as useTapRef } from "../react-hooks/useRef";
@@ -73,7 +76,7 @@ export const use = (usable: any) =>
   inTap() ? useTap(usable) : throwOutsideTap("use");
 
 export const useContext = (context: any) =>
-  inTap() ? useTap(context) : throwOutsideTap("useContext");
+  inTap() ? useTapContext(context) : throwOutsideTap("useContext");
 
 const StandaloneRuntime = Object.freeze({
   useState,

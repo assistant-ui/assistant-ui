@@ -74,6 +74,57 @@ describe("InMemoryThreadList", () => {
   });
 });
 
+describe("InMemoryThreadList reloadMainThread", () => {
+  it("routes reloadMainThread to the main thread's refetch callback", async () => {
+    const refetched: string[] = [];
+    const captured: { aui?: ReturnType<typeof useAui> } = {};
+    const Capture: FC = () => {
+      captured.aui = useAui();
+      return null;
+    };
+    const App: FC = () => {
+      const aui = useAui({
+        threads: InMemoryThreadList({
+          thread: (threadId) =>
+            ExternalThread({
+              messages: [],
+              onRefetchThread: async () => {
+                refetched.push(threadId);
+              },
+            }),
+        }),
+      });
+      return (
+        <AuiProvider value={aui}>
+          <Capture />
+        </AuiProvider>
+      );
+    };
+    render(<App />);
+    const aui = () => captured.aui!;
+
+    await waitFor(() => expect(captured.aui).toBeDefined());
+    await aui().threads.reloadMainThread();
+    expect(refetched).toEqual(["main"]);
+
+    aui().threads.switchToNewThread();
+    await waitFor(() =>
+      expect(aui().threads.getState().mainThreadId).not.toBe("main"),
+    );
+    const newId = aui().threads.getState().mainThreadId;
+
+    await aui().threads.reloadMainThread();
+    expect(refetched).toEqual(["main", newId]);
+  });
+
+  it("resolves reloadMainThread when the thread has no refetch callback", async () => {
+    const { aui } = renderThreads();
+
+    await waitFor(() => expect(aui()).toBeDefined());
+    await expect(aui().threads.reloadMainThread()).resolves.toBeUndefined();
+  });
+});
+
 describe("InMemoryThreadList suggestions", () => {
   it("derives the suggestions scope from the main thread", async () => {
     const { aui } = renderThreads();

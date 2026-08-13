@@ -3,7 +3,7 @@
 import type { ComponentProps } from "react";
 import { ArrowUpRightIcon, FileTextIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { mono, paper } from "./surfaces";
+import { mono, paper, ShimmerLabel } from "./surfaces";
 
 export function ArtifactCard({
   title,
@@ -44,15 +44,9 @@ export function ArtifactCard({
         <p className="truncate text-[13.5px] font-medium">{title}</p>
         {generating ? (
           <p className={cn(mono, "text-foreground/40 flex items-center gap-1")}>
-            <span className="relative inline-block leading-none">
-              <span>Writing</span>
-              <span
-                aria-hidden
-                className="shimmer pointer-events-none absolute inset-0 motion-reduce:animate-none"
-              >
-                Writing
-              </span>
-            </span>
+            <ShimmerLabel className="relative inline-block leading-none">
+              Writing
+            </ShimmerLabel>
             <span>·</span>
             <span className="tabular-nums">{words} words</span>
           </p>

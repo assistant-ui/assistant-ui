@@ -171,6 +171,17 @@ const TASK_STATES: ReadonlySet<string> = new Set(
 const isTaskState = (value: unknown): value is A2ATaskState =>
   typeof value === "string" && TASK_STATES.has(value);
 
+const ROLES: ReadonlySet<string> = new Set(
+  Object.keys({
+    unspecified: true,
+    user: true,
+    agent: true,
+  } satisfies Record<A2ARole, true>),
+);
+
+const isRole = (value: unknown): value is A2ARole =>
+  typeof value === "string" && ROLES.has(value);
+
 const isTask = (value: unknown): value is A2ATask =>
   isRecord(value) &&
   typeof value.id === "string" &&
@@ -182,8 +193,7 @@ const isMessage = (value: unknown): value is A2AMessage =>
   isRecord(value) &&
   typeof value.messageId === "string" &&
   value.messageId.length > 0 &&
-  typeof value.role === "string" &&
-  value.role.length > 0 &&
+  isRole(value.role) &&
   Array.isArray(value.parts) &&
   value.parts.every(isRecord);
 

@@ -1,0 +1,27 @@
+{
+  "name": "with-svelte",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite dev --port 3000",
+    "build": "vite build",
+    "serve": "vite preview"
+  },
+  "dependencies": {
+    "@assistant-ui/core": "workspace:*",
+    "@assistant-ui/store": "workspace:*",
+    "@assistant-ui/svelte": "workspace:*",
+    "@assistant-ui/tap": "workspace:*",
+    "@lucide/svelte": "^1.31.0",
+    "svelte": "^5.56.8"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^7.3.0",
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/react": "^19.2.18",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^7.0.2",
+    "vite": "^8.2.1"
+  }
+}

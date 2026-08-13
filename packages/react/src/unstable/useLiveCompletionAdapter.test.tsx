@@ -156,6 +156,32 @@ describe("unstable_useLiveCompletionAdapter", () => {
     expect(result.current.adapter.search!("alice")).toEqual([item("alice")]);
   });
 
+  it("allows a synchronously failed query to be retried", async () => {
+    const fetcher = vi
+      .fn<(query: string) => Promise<readonly Unstable_TriggerItem[]>>()
+      .mockImplementationOnce(() => {
+        throw new Error("invalid request configuration");
+      })
+      .mockResolvedValueOnce([item("alice")]);
+    const { result } = renderHook(() =>
+      unstable_useLiveCompletionAdapter({ fetcher, debounceMs: 0 }),
+    );
+
+    await act(async () => {
+      result.current.adapter.search!("alice");
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(result.current.isLoading).toBe(false);
+
+    await act(async () => {
+      result.current.adapter.search!("alice");
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    expect(result.current.adapter.search!("alice")).toEqual([item("alice")]);
+  });
+
   it("does not automatically retry when search runs during every render", async () => {
     const fetcher = vi
       .fn<(query: string) => Promise<readonly Unstable_TriggerItem[]>>()
