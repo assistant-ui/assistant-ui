@@ -55,6 +55,8 @@ export const setRootVersion = (root: TapRoot, version: number): void => {
 
 export const applyChangelogRecord = (record: ChangelogRecord): void => {
   const { cell, fiber } = record;
+  // A replay's first re-applied record rewinds the cell to its dispatch-time
+  // base, valid exactly when that base is the current committed floor.
   const restoreBase =
     !cell.isDirty && record.baseVersion === fiber.root.committedVersion;
 
