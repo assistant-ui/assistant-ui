@@ -23,7 +23,7 @@ describe("handleThreadListAction", () => {
     );
   });
 
-  it("reports and rethrows synchronous failures", () => {
+  it("preserves synchronous failures", () => {
     const error = new Error("invalid thread");
     const consoleError = vi
       .spyOn(console, "error")
@@ -34,10 +34,7 @@ describe("handleThreadListAction", () => {
         throw error;
       }),
     ).toThrow(error);
-    expect(consoleError).toHaveBeenCalledWith(
-      "[assistant-ui] thread list switch failed:",
-      error,
-    );
+    expect(consoleError).not.toHaveBeenCalled();
   });
 
   it("does not leak an ignored action as an unhandled rejection", async () => {
