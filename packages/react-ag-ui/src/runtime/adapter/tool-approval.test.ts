@@ -7,7 +7,7 @@ import {
   withSettledToolApprovals,
   withToolApprovalDecision,
 } from "./tool-approval";
-import type { AgUiInterrupt } from "../types";
+import type { AgUiInterrupt, AgUiResumeEntry } from "../types";
 
 const gate = (id: string, toolCallId: string): AgUiInterrupt => ({
   id,
@@ -55,17 +55,34 @@ describe("projectAgUiToolApprovals", () => {
     ).toBe(0);
   });
 
-  it("leaves a gate whose response schema demands more than a decision to the bespoke hooks", () => {
+  it("leaves a gate to the bespoke hooks unless the schema is known to accept a decision", () => {
     const unanswerable: Record<string, unknown>[] = [
       { type: "object", required: ["approved", "auditCode"] },
       { required: ["auditCode"] },
       { required: "approved" },
       { type: "string" },
+      { type: ["string", "number"] },
+      // Keywords the seam does not interpret, each of which can reject a
+      // payload the seam emits.
+      { type: "object", allOf: [{ required: ["auditCode"] }] },
+      {
+        type: "object",
+        $ref: "#/$defs/audited",
+        $defs: { audited: { required: ["auditCode"] } },
+      },
+      { type: "object", additionalProperties: { type: "number" } },
+      {
+        type: "object",
+        additionalProperties: false,
+        properties: { approved: { type: "boolean" } },
+      },
       {
         type: "object",
         additionalProperties: false,
         properties: { decision: { type: "boolean" } },
       },
+      { type: "object", properties: { approved: { type: "string" } } },
+      { type: "object", properties: { reason: { type: "string" } } },
     ];
     for (const responseSchema of unanswerable) {
       expect(
@@ -75,16 +92,15 @@ describe("projectAgUiToolApprovals", () => {
     }
   });
 
-  it("still gates a response schema the seam can satisfy", () => {
+  it("gates a schema built only from keywords that accept every payload the seam emits", () => {
     const answerable: Record<string, unknown>[] = [
+      { type: "object" },
+      { type: ["object"] },
+      { type: ["object", "null"] },
       { type: "object", required: ["approved"] },
       { type: "object", required: [] },
-      {
-        type: "object",
-        properties: { approved: { type: "boolean" } },
-        additionalProperties: false,
-      },
-      { type: "object", properties: { reason: { type: "string" } } },
+      { required: ["approved"] },
+      { title: "Decision", description: "approve or deny", type: "object" },
     ];
     for (const responseSchema of answerable) {
       expect([
@@ -122,7 +138,7 @@ describe("buildToolApprovalResume", () => {
     ]);
   });
 
-  it("carries the chosen option onto the wire", () => {
+  it("sends only the decision, never an option the wire cannot validate", () => {
     const content = [
       toolCall("tc-1", {
         id: "int-1",
@@ -132,11 +148,7 @@ describe("buildToolApprovalResume", () => {
       toolCall("tc-2", { id: "int-2", approved: false }),
     ];
     expect(buildToolApprovalResume(content, interrupts)).toEqual([
-      {
-        interruptId: "int-1",
-        status: "resolved",
-        payload: { approved: true, optionId: "allow-always" },
-      },
+      { interruptId: "int-1", status: "resolved", payload: { approved: true } },
       {
         interruptId: "int-2",
         status: "resolved",
@@ -168,7 +180,7 @@ describe("withToolApprovalDecision", () => {
     ).toBe(next);
   });
 
-  it("records the chosen option alongside the decision", () => {
+  it("records the decision alone, since the projected approval carries no options", () => {
     const next = withToolApprovalDecision([toolCall("tc-1", { id: "int-1" })], {
       approvalId: "int-1",
       approved: true,
@@ -177,7 +189,6 @@ describe("withToolApprovalDecision", () => {
     expect((next[0] as any).approval).toEqual({
       id: "int-1",
       approved: true,
-      optionId: "allow-always",
     });
   });
 });
@@ -218,19 +229,36 @@ describe("withSettledToolApprovals", () => {
     });
   });
 
-  it("leaves an already settled gate alone", () => {
-    const content = [
-      toolCall("tc-1", { id: "int-1", resolution: "cancelled" }),
-    ];
-    expect(
-      withSettledToolApprovals(content, [
-        {
-          interruptId: "int-1",
-          status: "resolved",
-          payload: { approved: true },
-        },
-      ]),
-    ).toBe(content);
+  it("settles repeatedly in either order, always showing the latest entry", () => {
+    const cancelled = [
+      { interruptId: "int-1", status: "cancelled" },
+    ] as const satisfies readonly AgUiResumeEntry[];
+    const resolved = [
+      {
+        interruptId: "int-1",
+        status: "resolved",
+        payload: { approved: true },
+      },
+    ] as const satisfies readonly AgUiResumeEntry[];
+    const pending = [toolCall("tc-1", { id: "int-1" })];
+
+    const cancelledThenResolved = withSettledToolApprovals(
+      withSettledToolApprovals(pending, cancelled),
+      resolved,
+    );
+    const resolvedThenCancelled = withSettledToolApprovals(
+      withSettledToolApprovals(pending, resolved),
+      cancelled,
+    );
+
+    expect((cancelledThenResolved[0] as any).approval).toEqual({
+      id: "int-1",
+      approved: true,
+    });
+    expect((resolvedThenCancelled[0] as any).approval).toEqual({
+      id: "int-1",
+      resolution: "cancelled",
+    });
   });
 
   it("adopts the decision a resolved entry carries", () => {
@@ -258,7 +286,6 @@ describe("withSettledToolApprovals", () => {
           id: "int-1",
           approved: false,
           reason: "local denial",
-          optionId: "reject-once",
         }),
       ],
       [
@@ -272,9 +299,9 @@ describe("withSettledToolApprovals", () => {
     expect((next[0] as any).approval).toEqual({ id: "int-1", approved: true });
   });
 
-  it("adopts the option a resolved entry carries", () => {
+  it("ignores an option a resolved entry carries, which the approval has no options to name", () => {
     const next = withSettledToolApprovals(
-      [toolCall("tc-1", { id: "int-1", optionId: "reject-once" })],
+      [toolCall("tc-1", { id: "int-1" })],
       [
         {
           interruptId: "int-1",
@@ -286,7 +313,6 @@ describe("withSettledToolApprovals", () => {
     expect((next[0] as any).approval).toEqual({
       id: "int-1",
       approved: true,
-      optionId: "allow-always",
     });
   });
 

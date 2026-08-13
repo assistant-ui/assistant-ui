@@ -11,29 +11,42 @@ type ToolApproval = NonNullable<ToolCallMessagePart["approval"]>;
 const EMPTY_APPROVALS: ReadonlyMap<string, ToolApproval> = new Map();
 
 /**
- * The seam always sends `approved` and may add `reason` or `optionId`, so it can
- * only satisfy an object schema that requires nothing else. AG-UI validates a
- * resume payload against `responseSchema` and answers a mismatch with
- * `RunError`, so a schema demanding more — a required audit field, a payload
- * that is not an object, a closed schema without an `approved` property — is
- * left to the bespoke interrupt hooks, where the host builds the exact payload.
+ * Keywords that cannot reject a payload this seam emits, given the value checks
+ * below. Deciding a schema by any wider rule means evaluating JSON Schema, so
+ * an unlisted keyword — `properties`, `additionalProperties`, `allOf`, `$ref` —
+ * makes the gate bespoke without being interpreted.
+ */
+const SEAM_SAFE_KEYWORDS = new Set([
+  "$schema",
+  "$id",
+  "title",
+  "description",
+  "type",
+  "required",
+]);
+
+const acceptsObject = (type: unknown) =>
+  type === undefined ||
+  type === "object" ||
+  (Array.isArray(type) && type.includes("object"));
+
+/**
+ * The seam sends `{ approved }` and may add `reason`, so it may answer a
+ * `responseSchema` only where acceptance of those exact payloads is established
+ * by construction. AG-UI answers a resume payload its schema rejects with
+ * `RunError`, and the host can always build the exact payload through the
+ * bespoke interrupt hooks, so an undecidable schema is left to them.
  */
 const isSeamAnswerable = (schema: Record<string, unknown> | undefined) => {
   if (schema === undefined) return true;
-  const { type, required, properties, additionalProperties } = schema;
-  if (type !== undefined && type !== "object") return false;
-  if (required !== undefined) {
-    if (!Array.isArray(required)) return false;
-    if (!required.every((field) => field === "approved")) return false;
-  }
-  if (additionalProperties === false) {
-    return (
-      typeof properties === "object" &&
-      properties !== null &&
-      "approved" in properties
-    );
-  }
-  return true;
+  if (!Object.keys(schema).every((key) => SEAM_SAFE_KEYWORDS.has(key)))
+    return false;
+  if (!acceptsObject(schema["type"])) return false;
+  const required = schema["required"];
+  return (
+    required === undefined ||
+    (Array.isArray(required) && required.every((field) => field === "approved"))
+  );
 };
 
 const isGate = (
@@ -68,11 +81,14 @@ export const projectAgUiToolApprovals = (
 /**
  * Records a decision on the gated tool call. The decision is held on the part
  * until every gate in the batch is answered, because AG-UI resumes a run with
- * one response per open interrupt rather than one response per gate.
+ * one response per open interrupt rather than one response per gate. A chosen
+ * `optionId` is not recorded: the projection exposes an approval without
+ * options, and core rejects an `optionId` absent from them, so no option can
+ * reach this seam.
  */
 export const withToolApprovalDecision = (
   content: readonly ThreadAssistantMessagePart[],
-  { approvalId, approved, optionId, reason }: RespondToToolApprovalOptions,
+  { approvalId, approved, reason }: RespondToToolApprovalOptions,
 ): readonly ThreadAssistantMessagePart[] => {
   let changed = false;
   const next = content.map((part) => {
@@ -85,7 +101,6 @@ export const withToolApprovalDecision = (
       approval: {
         ...approval,
         approved,
-        ...(optionId !== undefined && { optionId }),
         ...(reason !== undefined && { reason }),
       },
     };
@@ -116,7 +131,6 @@ export const buildToolApprovalResume = (
       status: "resolved",
       payload: {
         approved: approval.approved,
-        ...(approval.optionId !== undefined && { optionId: approval.optionId }),
         ...(approval.reason !== undefined && { reason: approval.reason }),
       },
     };
@@ -130,13 +144,12 @@ const settle = (
   entry: AgUiResumeEntry,
 ): ToolApproval | undefined => {
   // A decision this gate recorded locally but never sent is dropped rather than
-  // displayed beside the settlement it contradicts: `resolution` is core's
-  // terminal non-decision state, and a resolved entry carries the whole
-  // decision, so stale fields the submitted payload omits must not survive it.
+  // displayed beside the settlement it contradicts: a submitted entry carries
+  // the whole outcome, so no field of an earlier one may survive it.
   const {
     approved: _approved,
     reason: _reason,
-    optionId: _optionId,
+    resolution: _resolution,
     ...rest
   } = approval;
   if (entry.status === "cancelled") {
@@ -150,15 +163,13 @@ const settle = (
   ) {
     return undefined;
   }
-  const { approved, optionId, reason } = payload as {
+  const { approved, reason } = payload as {
     approved: boolean;
-    optionId?: unknown;
     reason?: unknown;
   };
   return {
     ...rest,
     approved,
-    ...(typeof optionId === "string" && { optionId }),
     ...(typeof reason === "string" && { reason }),
   };
 };
@@ -170,6 +181,12 @@ const settle = (
  * `steerAway` submits a cancellation for it. A gate is shown as cancelled only
  * where its own entry is cancelled; a resolved entry supplies the decision it
  * carries, and one that carries none is left alone rather than fabricated.
+ *
+ * A settlement always overrides an earlier one, in either direction. A resolved
+ * settlement leaves no state a locally recorded decision does not also leave —
+ * core's `resolution` covers only `cancelled` and `expired` — so honoring the
+ * first settlement instead would mean treating an unsent local decision as
+ * terminal, which is exactly what the cancellation case must override.
  */
 export const withSettledToolApprovals = (
   content: readonly ThreadAssistantMessagePart[],
@@ -181,7 +198,7 @@ export const withSettledToolApprovals = (
   const next = content.map((part) => {
     if (part.type !== "tool-call") return part;
     const approval = part.approval;
-    if (!approval || approval.resolution) return part;
+    if (!approval) return part;
     const entry = byId.get(approval.id);
     if (!entry) return part;
     const settled = settle(approval, entry);
