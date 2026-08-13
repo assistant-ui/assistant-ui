@@ -291,6 +291,9 @@ describe("React-hosted reducer replay below the committed version", () => {
     });
 
     const committed = renderTest(fiber, 1);
+    // The seeded record and phantom unsettled count keep committedLog
+    // populated through commitRoot, so the descent below has history to pop
+    // and does not trip the short-history dev guard.
     fiber.root.unsettledCount = 2;
     setRootVersion(fiber.root, 3);
     fiber.root.changelog.push({
