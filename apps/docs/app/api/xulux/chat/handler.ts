@@ -1,4 +1,4 @@
-import { getDistinctId, posthogServer } from "@/lib/posthog-server";
+import { getDistinctId } from "@/lib/posthog-server";
 import { createPrismTracer, prismAISDK } from "@/lib/prism-server";
 import {
   injectQuoteContext,
@@ -6,7 +6,8 @@ import {
 } from "@assistant-ui/react-ai-sdk";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { validateDocChatInput } from "@/lib/validate-input";
-import { getModel, openai, withTracing } from "@/lib/ai/provider";
+import { getModel, openai } from "@/lib/ai/provider";
+import { posthogTelemetry } from "@/lib/ai/telemetry";
 import { isAiPlaygroundEnabled } from "@/lib/feature-flags";
 import { NextResponse } from "next/server";
 import {
@@ -380,20 +381,8 @@ export function createXuluxChatHandler(agent: XuluxAgentDefinition) {
             })
           : undefined;
 
-      const posthogModel = posthogServer
-        ? withTracing(baseModel, posthogServer, {
-            posthogDistinctId: distinctId,
-            posthogPrivacyMode: false,
-            posthogProperties: {
-              $ai_span_name: traceName,
-              source: traceName,
-              ...(traceMetadata ?? {}),
-            },
-          })
-        : baseModel;
-
       const prism = prismTracer
-        ? prismAISDK(prismTracer, posthogModel, {
+        ? prismAISDK(prismTracer, baseModel, {
             name: traceName,
             endUserId: distinctId,
             metadata: {
@@ -407,7 +396,7 @@ export function createXuluxChatHandler(agent: XuluxAgentDefinition) {
         : null;
 
       const result = streamText({
-        model: prism?.model ?? posthogModel,
+        model: prism?.model ?? baseModel,
         ...(modelConfig.providerOptions
           ? { providerOptions: modelConfig.providerOptions }
           : undefined),
@@ -416,6 +405,12 @@ export function createXuluxChatHandler(agent: XuluxAgentDefinition) {
         maxOutputTokens: agent.maxOutputTokens ?? 8192,
         stopWhen: stepCountIs(agent.maxSteps),
         tools: xuluxTools,
+        ...posthogTelemetry({
+          distinctId,
+          spanName: traceName,
+          source: traceName,
+          properties: traceMetadata ?? {},
+        }),
         ...(agent.activeToolsAfterFirstStep
           ? {
               prepareStep: ({ stepNumber }: { stepNumber: number }) =>
