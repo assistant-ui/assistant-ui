@@ -4,7 +4,7 @@ import type { ExternalStoreAdapter } from "../runtimes/external-store/external-s
 import type { ModelContextProvider } from "../model-context/types";
 import type { ThreadMessageLike } from "../runtime/utils/thread-message-like";
 import type { AppendMessage } from "../types/message";
-import { disposeThreadRuntime } from "../runtime/utils/thread-runtime-lifecycle";
+import { invalidateThreadRuntime } from "../runtime/utils/thread-runtime-lifecycle";
 
 const mockContextProvider: ModelContextProvider = {
   getModelContext: () => ({}),
@@ -953,7 +953,7 @@ describe("ExternalStoreThreadRuntimeCore - message queue", () => {
     await Promise.resolve();
     expect(abort).toHaveBeenCalledOnce();
 
-    disposeThreadRuntime(runtime);
+    invalidateThreadRuntime(runtime);
     resolveAbort();
 
     await appendPromise;

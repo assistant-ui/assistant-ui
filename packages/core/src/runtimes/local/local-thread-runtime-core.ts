@@ -35,7 +35,7 @@ import {
 } from "../../store/scopes/queue-item";
 import {
   captureThreadRuntimeGeneration,
-  disposeThreadRuntime,
+  invalidateThreadRuntime,
   isThreadRuntimeGenerationCurrent,
 } from "../../runtime/utils/thread-runtime-lifecycle";
 
@@ -683,7 +683,7 @@ export class LocalThreadRuntimeCore
   }
 
   public detach() {
-    disposeThreadRuntime(this);
+    invalidateThreadRuntime(this);
     // drop the queue so pending items cannot dispatch on a detached thread
     this._queue = null;
     const error = new AbortError(true);

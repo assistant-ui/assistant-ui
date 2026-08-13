@@ -1,5 +1,7 @@
+// Invalidation must stay re-entrant: StrictMode's simulated unmount runs the
+// effect cleanup while the runtime object survives into the next mount, so a
+// permanent disposed mark would swallow every later append.
 const generations = new WeakMap<object, number>();
-const disposed = new WeakSet<object>();
 
 export const captureThreadRuntimeGeneration = (runtime: object) =>
   generations.get(runtime) ?? 0;
@@ -7,11 +9,8 @@ export const captureThreadRuntimeGeneration = (runtime: object) =>
 export const isThreadRuntimeGenerationCurrent = (
   runtime: object,
   generation: number,
-) =>
-  !disposed.has(runtime) &&
-  captureThreadRuntimeGeneration(runtime) === generation;
+) => captureThreadRuntimeGeneration(runtime) === generation;
 
-export const disposeThreadRuntime = (runtime: object) => {
+export const invalidateThreadRuntime = (runtime: object) => {
   generations.set(runtime, captureThreadRuntimeGeneration(runtime) + 1);
-  disposed.add(runtime);
 };
