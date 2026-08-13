@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { act, render, waitFor } from "@testing-library/react";
-import type { FC } from "react";
+import { Activity, type FC } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AuiProvider, useAui } from "@assistant-ui/store";
 import type {
@@ -319,6 +319,76 @@ describe("ExternalThread attachments", () => {
     });
 
     expect(onNew).not.toHaveBeenCalled();
+  });
+
+  it("settles attachment sends after a temporarily hidden thread is revealed", async () => {
+    let resolveSend!: (attachment: CompleteAttachment) => void;
+    const onNew = vi.fn();
+    const file = new File(["data"], "notes.txt", { type: "text/plain" });
+    const adapter = {
+      accept: "*",
+      add: async () => ({
+        id: "att-1",
+        type: "file" as const,
+        name: file.name,
+        contentType: file.type,
+        file,
+        status: {
+          type: "requires-action" as const,
+          reason: "composer-send" as const,
+        },
+      }),
+      send: () =>
+        new Promise<CompleteAttachment>((resolve) => {
+          resolveSend = resolve;
+        }),
+      remove: async () => {},
+    };
+    const captured: { aui?: ReturnType<typeof useAui> } = {};
+    const Capture: FC = () => {
+      captured.aui = useAui();
+      return null;
+    };
+    const Thread: FC = () => {
+      const aui = useAui({
+        thread: ExternalThread({
+          messages: [],
+          isRunning: false,
+          attachmentAdapter: adapter,
+          onNew,
+        }),
+      });
+      return (
+        <AuiProvider value={aui}>
+          <Capture />
+        </AuiProvider>
+      );
+    };
+    const thread = <Thread />;
+    const { rerender } = render(<Activity mode="visible">{thread}</Activity>);
+    const composer = () => captured.aui!.thread.composer();
+
+    await act(() => composer().addAttachment(file));
+    act(() => {
+      composer().setText("message");
+      composer().send();
+    });
+    rerender(<Activity mode="hidden">{thread}</Activity>);
+
+    await act(async () => {
+      resolveSend({
+        id: "att-1",
+        type: "file",
+        name: file.name,
+        contentType: file.type,
+        status: { type: "complete" },
+        content: [],
+      });
+    });
+    expect(onNew).not.toHaveBeenCalled();
+
+    rerender(<Activity mode="visible">{thread}</Activity>);
+    expect(onNew).toHaveBeenCalledTimes(1);
   });
 
   it("ignores attachment upload failures after thread disposal", async () => {

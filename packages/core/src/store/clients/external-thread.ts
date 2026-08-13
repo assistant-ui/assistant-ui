@@ -547,12 +547,20 @@ const useComposerClientResource = ({
     [],
   );
   const isActiveRef = useRef(true);
+  const pendingSettlementsRef = useRef<Array<() => void>>([]);
   useEffect(() => {
     isActiveRef.current = true;
+    const pendingSettlements = pendingSettlementsRef.current.splice(0);
+    for (const settle of pendingSettlements) settle();
     return () => {
       isActiveRef.current = false;
     };
   }, []);
+
+  const settleWhenActive = (settle: () => void) => {
+    if (isActiveRef.current) settle();
+    else pendingSettlementsRef.current.push(settle);
+  };
 
   const updateFromMessage = () => {
     if (!message) return;
@@ -754,30 +762,31 @@ const useComposerClientResource = ({
       setQuote(undefined);
 
       const dispatch = (sendAttachments: readonly Attachment[]) => {
-        if (!isActiveRef.current) return;
-        const composedMessage: AppendMessage = {
-          role: currentRole,
-          content: currentText
-            ? [{ type: "text" as const, text: currentText }]
-            : [],
-          attachments: sendAttachments as any,
-          createdAt: new Date(),
-          parentId: null,
-          sourceId: null,
-          runConfig: currentRunConfig,
-          startRun: opts?.startRun,
-          metadata: {
-            custom: { ...(currentQuote ? { quote: currentQuote } : {}) },
-          },
-        };
-        // edit sends carry a sourceId contract; only thread sends queue
-        if (queue && type === "thread") {
-          if (opts?.steer ?? isRunning) queue.steer(composedMessage);
-          else queue.enqueue(composedMessage);
-        } else {
-          onSend?.(composedMessage);
-        }
-        if (type === "edit") setIsEditing(false);
+        settleWhenActive(() => {
+          const composedMessage: AppendMessage = {
+            role: currentRole,
+            content: currentText
+              ? [{ type: "text" as const, text: currentText }]
+              : [],
+            attachments: sendAttachments as any,
+            createdAt: new Date(),
+            parentId: null,
+            sourceId: null,
+            runConfig: currentRunConfig,
+            startRun: opts?.startRun,
+            metadata: {
+              custom: { ...(currentQuote ? { quote: currentQuote } : {}) },
+            },
+          };
+          // edit sends carry a sourceId contract; only thread sends queue
+          if (queue && type === "thread") {
+            if (opts?.steer ?? isRunning) queue.steer(composedMessage);
+            else queue.enqueue(composedMessage);
+          } else {
+            onSend?.(composedMessage);
+          }
+          if (type === "edit") setIsEditing(false);
+        });
       };
 
       if (attachmentAdapter && currentAttachments.length > 0) {
@@ -788,7 +797,7 @@ const useComposerClientResource = ({
               : attachmentAdapter.send(attachment as PendingAttachment),
           ),
         ).then(dispatch, (error) => {
-          if (isActiveRef.current) {
+          settleWhenActive(() => {
             // Upload failed: merge the failed send back into the draft.
             setText((prev) =>
               currentText && prev
@@ -797,7 +806,7 @@ const useComposerClientResource = ({
             );
             setQuote((prev) => prev ?? currentQuote);
             setAttachments((prev) => [...currentAttachments, ...prev]);
-          }
+          });
           console.error("Failed to send attachments", error);
         });
       } else {
