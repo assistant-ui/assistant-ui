@@ -762,31 +762,29 @@ const useComposerClientResource = ({
       setQuote(undefined);
 
       const dispatch = (sendAttachments: readonly Attachment[]) => {
-        settleWhenActive(() => {
-          const composedMessage: AppendMessage = {
-            role: currentRole,
-            content: currentText
-              ? [{ type: "text" as const, text: currentText }]
-              : [],
-            attachments: sendAttachments as any,
-            createdAt: new Date(),
-            parentId: null,
-            sourceId: null,
-            runConfig: currentRunConfig,
-            startRun: opts?.startRun,
-            metadata: {
-              custom: { ...(currentQuote ? { quote: currentQuote } : {}) },
-            },
-          };
-          // edit sends carry a sourceId contract; only thread sends queue
-          if (queue && type === "thread") {
-            if (opts?.steer ?? isRunning) queue.steer(composedMessage);
-            else queue.enqueue(composedMessage);
-          } else {
-            onSend?.(composedMessage);
-          }
-          if (type === "edit") setIsEditing(false);
-        });
+        const composedMessage: AppendMessage = {
+          role: currentRole,
+          content: currentText
+            ? [{ type: "text" as const, text: currentText }]
+            : [],
+          attachments: sendAttachments as any,
+          createdAt: new Date(),
+          parentId: null,
+          sourceId: null,
+          runConfig: currentRunConfig,
+          startRun: opts?.startRun,
+          metadata: {
+            custom: { ...(currentQuote ? { quote: currentQuote } : {}) },
+          },
+        };
+        // edit sends carry a sourceId contract; only thread sends queue
+        if (queue && type === "thread") {
+          if (opts?.steer ?? isRunning) queue.steer(composedMessage);
+          else queue.enqueue(composedMessage);
+        } else {
+          onSend?.(composedMessage);
+        }
+        if (type === "edit") setIsEditing(false);
       };
 
       if (attachmentAdapter && currentAttachments.length > 0) {
@@ -796,19 +794,24 @@ const useComposerClientResource = ({
               ? attachment
               : attachmentAdapter.send(attachment as PendingAttachment),
           ),
-        ).then(dispatch, (error) => {
-          settleWhenActive(() => {
-            // Upload failed: merge the failed send back into the draft.
-            setText((prev) =>
-              currentText && prev
-                ? currentText + "\n" + prev
-                : currentText || prev,
-            );
-            setQuote((prev) => prev ?? currentQuote);
-            setAttachments((prev) => [...currentAttachments, ...prev]);
-          });
-          console.error("Failed to send attachments", error);
-        });
+        ).then(
+          (sendAttachments) => {
+            settleWhenActive(() => dispatch(sendAttachments));
+          },
+          (error) => {
+            settleWhenActive(() => {
+              // Upload failed: merge the failed send back into the draft.
+              setText((prev) =>
+                currentText && prev
+                  ? currentText + "\n" + prev
+                  : currentText || prev,
+              );
+              setQuote((prev) => prev ?? currentQuote);
+              setAttachments((prev) => [...currentAttachments, ...prev]);
+            });
+            console.error("Failed to send attachments", error);
+          },
+        );
       } else {
         dispatch(currentAttachments);
       }
