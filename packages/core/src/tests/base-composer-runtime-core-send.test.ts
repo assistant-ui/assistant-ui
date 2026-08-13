@@ -171,19 +171,19 @@ describe("BaseComposerRuntimeCore.send restore-on-failure", () => {
 
     composer.setText("hello");
     composer.setRole("assistant");
-    composer.setRunConfig({ modelName: "model-a" });
+    composer.setRunConfig({ custom: { modelName: "model-a" } });
     await composer.addAttachment(textFile());
 
     const sendPromise = composer.send();
     composer.setRole("system");
-    composer.setRunConfig({ modelName: "model-b" });
+    composer.setRunConfig({ custom: { modelName: "model-b" } });
     resolveSend();
     await sendPromise;
 
     expect(append).toHaveBeenCalledWith(
       expect.objectContaining({
         role: "assistant",
-        runConfig: { modelName: "model-a" },
+        runConfig: { custom: { modelName: "model-a" } },
       }),
     );
   });
