@@ -184,8 +184,23 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
     >(),
   );
 
-  const hasExecutingTools = Object.values(toolStatuses).some(
-    (status) => status?.type === "executing",
+  // The core tracker publishes its whole status map on every transition, and
+  // an execution discarded by a reset keeps its entry until it settles — so a
+  // status is only evidence of a live turn while its tool call is still in the
+  // session.
+  const sessionToolCallIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const message of agent.data.messages) {
+      for (const part of message.parts) {
+        if (part.type === "dynamic-tool") ids.add(part.toolCallId);
+      }
+    }
+    return ids;
+  }, [agent.data]);
+
+  const hasExecutingTools = Object.entries(toolStatuses).some(
+    ([toolCallId, status]) =>
+      status?.type === "executing" && sessionToolCallIds.has(toolCallId),
   );
   const isRunning =
     agent.status === "submitted" ||
@@ -292,6 +307,12 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
   };
 
   const reset = useCallback(() => {
+    // Sends parked behind an active turn captured the pre-reset epoch, so the
+    // epoch has to advance before the session is torn down or they dispatch
+    // into the new one; `lastFinishStatusRef` is run-scoped for the same
+    // reason.
+    sendEpochRef.current += 1;
+    lastFinishStatusRef.current = null;
     setStagedMessages(null);
     stagedInputsRef.current.clear();
     setToolStatuses({});
@@ -372,6 +393,10 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
                   ...toEveClientContext(runConfig),
                 });
               } catch (error) {
+                // The staged run belongs to the epoch it started in; restoring
+                // it after a reset would refloat a draft the session no longer
+                // has.
+                if (epoch !== sendEpochRef.current) return;
                 stagedInputsRef.current.set(stagedMessage.id, input);
                 messagesRef.current = previousMessages;
                 setStagedMessages(previousMessages);

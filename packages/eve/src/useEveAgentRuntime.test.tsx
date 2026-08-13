@@ -361,6 +361,32 @@ const executingToolData: EveMessageData = {
   ],
 };
 
+const twoExecutingToolsData: EveMessageData = {
+  messages: [
+    { id: "u1", role: "user", parts: [{ type: "text", text: "run them" }] },
+    {
+      id: "a1",
+      role: "assistant",
+      parts: [
+        {
+          type: "dynamic-tool",
+          state: "input-available",
+          toolCallId: "call_slow_a",
+          toolName: "slow_tool",
+          input: {},
+        },
+        {
+          type: "dynamic-tool",
+          state: "input-available",
+          toolCallId: "call_slow_b",
+          toolName: "slow_tool",
+          input: {},
+        },
+      ],
+    },
+  ],
+};
+
 const getText = (runtime: ReturnType<typeof useEveAgentRuntime>) =>
   runtime.thread
     .getState()
@@ -861,6 +887,153 @@ describe("useEveAgentRuntime extras wiring", () => {
       expect(result.current.thread.getState().isRunning).toBe(false);
     });
     expect(agent.reset).toHaveBeenCalledTimes(1);
+  });
+
+  it("drops a send queued behind an active turn when reset is invoked", async () => {
+    let releaseFirstSend: (() => void) | undefined;
+    const send = vi
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise<void>((resolve) => {
+            releaseFirstSend = resolve;
+          }),
+      )
+      .mockResolvedValue(undefined);
+    const agent = createAgent({ data: settledData, send });
+    mockUseEveAgent.mockReturnValue(agent as never);
+    const { result } = renderHook(() => useEveAgentRuntime());
+
+    await stageMessage(result.current, "queued draft");
+    const queuedDraftId = result.current.thread.getState().messages[2]!.id;
+
+    act(() => {
+      result.current.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "first" }],
+      });
+    });
+    await waitFor(() => {
+      expect(send).toHaveBeenCalledTimes(1);
+    });
+
+    const queuedReload = Promise.resolve(
+      result.current.thread.startRun({
+        parentId: queuedDraftId,
+        sourceId: null,
+        runConfig: {},
+      }),
+    );
+    // Let the reload reach `enqueueSend` and park behind the active turn.
+    await act(async () => {});
+
+    act(() => {
+      eveExtras.tryGet(result.current.thread.getState().extras)!.reset();
+    });
+
+    await act(async () => {
+      releaseFirstSend?.();
+      await queuedReload;
+    });
+
+    expect(send).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      expect(getText(result.current)).toEqual(["earlier", "earlier answer"]);
+    });
+  });
+
+  it("ignores tool statuses left over from a discarded session", async () => {
+    const releases: Record<string, () => void> = {};
+    const agentReset = vi.fn(() => {
+      mockUseEveAgent.mockReturnValue(
+        createAgent({ data: { messages: [] }, reset: agentReset }) as never,
+      );
+    });
+    const agent = createAgent({ data: settledData, reset: agentReset });
+    mockUseEveAgent.mockReturnValue(agent as never);
+    const { result, rerender } = renderHook(() => useEveAgentRuntime());
+
+    act(() => {
+      result.current.registerModelContextProvider({
+        getModelContext: () => ({
+          tools: {
+            slow_tool: {
+              parameters: { type: "object", properties: {} },
+              execute: (_args: unknown, context: { toolCallId: string }) =>
+                new Promise<never>((_resolve, reject) => {
+                  releases[context.toolCallId] = () =>
+                    reject(new Error("aborted"));
+                }),
+            },
+          },
+        }),
+      });
+    });
+
+    mockUseEveAgent.mockReturnValue(
+      createAgent({
+        data: twoExecutingToolsData,
+        reset: agentReset,
+      }) as never,
+    );
+    rerender();
+
+    await waitFor(() => {
+      expect(result.current.thread.getState().isRunning).toBe(true);
+    });
+
+    act(() => {
+      eveExtras.tryGet(result.current.thread.getState().extras)!.reset();
+    });
+    rerender();
+
+    await waitFor(() => {
+      expect(result.current.thread.getState().isRunning).toBe(false);
+    });
+
+    await act(async () => {
+      releases["call_slow_a"]?.();
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(result.current.thread.getState().isRunning).toBe(false);
+    });
+    expect(agentReset).toHaveBeenCalledTimes(1);
+  });
+
+  it("promotes every staged draft after reset when the discarded run failed", async () => {
+    const send = vi.fn().mockResolvedValue(undefined);
+    const agent = createAgent({ data: settledData, send });
+    let capturedOptions: { onFinish?: (snapshot: unknown) => void } = {};
+    mockUseEveAgent.mockImplementation((options) => {
+      capturedOptions = options as typeof capturedOptions;
+      return agent as never;
+    });
+    const { result } = renderHook(() => useEveAgentRuntime());
+
+    act(() => {
+      capturedOptions.onFinish?.({ status: "error" });
+    });
+    act(() => {
+      eveExtras.tryGet(result.current.thread.getState().extras)!.reset();
+    });
+
+    await stageMessage(result.current, "first staged");
+    await stageMessage(result.current, "second staged");
+
+    const secondStagedId = result.current.thread.getState().messages[3]!.id;
+    await act(async () => {
+      await result.current.thread.startRun({
+        parentId: secondStagedId,
+        sourceId: null,
+        runConfig: {},
+      });
+    });
+
+    expect(send).toHaveBeenCalledTimes(2);
+    expect(send).toHaveBeenNthCalledWith(1, { message: "first staged" });
+    expect(send).toHaveBeenNthCalledWith(2, { message: "second staged" });
   });
 });
 
