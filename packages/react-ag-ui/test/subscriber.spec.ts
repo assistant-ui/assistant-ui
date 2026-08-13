@@ -55,7 +55,7 @@ describe("createAgUiSubscriber", () => {
     expect(events[0]).toMatchObject({ type: "RUN_ERROR", message: "boom" });
   });
 
-  it("dispatches streamed RUN_ERROR events without synthesizing RUN_FINISHED", () => {
+  it("keeps streamed RUN_ERROR terminal when RUN_FINISHED follows", () => {
     const events: AgUiEvent[] = [];
     const onRunFailed = vi.fn();
     const subscriber = createAgUiSubscriber({
@@ -70,6 +70,9 @@ describe("createAgUiSubscriber", () => {
         message: "model unavailable",
         code: "model_disabled",
       },
+    });
+    subscriber.onRunFinishedEvent?.({
+      event: { type: "RUN_FINISHED", runId: "run" },
     });
     subscriber.onRunFinalized?.();
 
