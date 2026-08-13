@@ -48,6 +48,16 @@ describe("projectAgUiToolApprovals", () => {
     ]);
   });
 
+  it("leaves the whole batch bespoke when two gates name one tool call", () => {
+    // One tool call renders one approval, so the second gate could never be
+    // decided and `buildToolApprovalResume` would wait on it forever.
+    const interrupts = [gate("int-1", "tc-1"), gate("int-2", "tc-1")];
+    expect(projectAgUiToolApprovals(interrupts, new Set(["tc-1"])).size).toBe(
+      0,
+    );
+    expect(projectAgUiToolApprovals(interrupts).size).toBe(0);
+  });
+
   it("leaves the whole batch bespoke when a gate names an unrendered tool call", () => {
     // The unrendered gate could never be clicked, so the batch could never be
     // completed: its rendered sibling would take a decision that no resume
@@ -107,7 +117,18 @@ describe("projectAgUiToolApprovals", () => {
         properties: { decision: { type: "boolean" } },
       },
       { type: "object", properties: { approved: { type: "string" } } },
-      { type: "object", properties: { reason: { type: "string" } } },
+      { type: "object", properties: { reason: { type: "number" } } },
+      // A declared field the seam sends may not be narrowed past its type.
+      { type: "object", properties: { approved: { const: true } } },
+      { type: "object", properties: { approved: { enum: [true, false] } } },
+      { type: "object", properties: { reason: { minLength: 1 } } },
+      // Shapes a validator rejects as invalid: `properties` and a field schema
+      // must each be the object a schema is read from.
+      { type: "object", properties: 7 },
+      { type: "object", properties: [] },
+      { type: "object", properties: { approved: 7 } },
+      { type: "object", properties: { editedArgs: 7 } },
+      { type: "object", properties: { approved: { title: 42 } } },
     ];
     for (const responseSchema of unanswerable) {
       expect(
@@ -173,6 +194,38 @@ describe("projectAgUiToolApprovals", () => {
       { type: "object", required: [] },
       { required: ["approved"] },
       { title: "Decision", description: "approve or deny", type: "object" },
+      // AG-UI's own minimal tool-approval schema, and its approve-with-edits
+      // shape, whose `editedArgs` this seam simply never sends.
+      {
+        type: "object",
+        properties: { approved: { type: "boolean" } },
+        required: ["approved"],
+      },
+      {
+        type: "object",
+        properties: {
+          approved: { type: "boolean" },
+          editedArgs: {
+            type: "object",
+            description: "Full replacement of the tool args. Not merged.",
+          },
+        },
+        required: ["approved"],
+      },
+      { type: "object", properties: {} },
+      { type: "object", properties: { approved: {} } },
+      {
+        type: "object",
+        properties: { approved: { type: ["boolean", "null"] } },
+      },
+      {
+        type: "object",
+        properties: {
+          approved: { type: "boolean", description: "the decision" },
+          reason: { type: "string" },
+        },
+      },
+      { type: "object", properties: { editedArgs: false } },
     ];
     for (const responseSchema of answerable) {
       expect([

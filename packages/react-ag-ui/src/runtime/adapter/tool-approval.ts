@@ -29,14 +29,53 @@ const JSON_SCHEMA_TYPES = new Set([
   "string",
 ]);
 
-const acceptsObject = (type: unknown) =>
-  type === "object" ||
+const acceptsType = (type: unknown, primitive: string) =>
+  type === primitive ||
   (Array.isArray(type) &&
     type.every(
       (entry) => typeof entry === "string" && JSON_SCHEMA_TYPES.has(entry),
     ) &&
     new Set(type).size === type.length &&
-    type.includes("object"));
+    type.includes(primitive));
+
+const acceptsObject = (type: unknown) => acceptsType(type, "object");
+
+const SUB_SCHEMA_ANNOTATIONS = new Set([
+  "$schema",
+  "$id",
+  "title",
+  "description",
+]);
+
+/**
+ * A field schema accepts a value of `primitive` only where nothing in it can
+ * narrow past the type: an annotation carries no constraint, and an absent
+ * `type` constrains nothing. Any other keyword — `const`, `enum`, `anyOf`,
+ * `format` — can reject the value this seam sends, so it is not interpreted.
+ */
+const acceptsOnly = (schema: unknown, primitive: string) =>
+  isPlainObject(schema) &&
+  Object.entries(schema).every(([keyword, value]) =>
+    keyword === "type"
+      ? acceptsType(value, primitive)
+      : SUB_SCHEMA_ANNOTATIONS.has(keyword) && isString(value),
+  );
+
+/**
+ * AG-UI's own tool-approval schema declares the fields it expects under
+ * `properties`, so a declaration is read where it cannot reject what the seam
+ * sends: `approved` must accept a boolean and `reason` a string. A field the
+ * seam never sends is unconstrained by `required` (which admits only
+ * `approved`), so only its well-formedness as a sub-schema is checked — the
+ * `editedArgs` of the spec's approve-with-edits shape is such a field.
+ */
+const acceptsSeamProperties = (properties: unknown) =>
+  isPlainObject(properties) &&
+  Object.entries(properties).every(([field, schema]) => {
+    if (field === "approved") return acceptsOnly(schema, "boolean");
+    if (field === "reason") return acceptsOnly(schema, "string");
+    return isPlainObject(schema) || typeof schema === "boolean";
+  });
 
 const acceptsSeamPayload = (required: unknown) =>
   Array.isArray(required) &&
@@ -48,8 +87,8 @@ const acceptsSeamPayload = (required: unknown) =>
  * check that its value is the well-formed shape the keyword is read as. A
  * keyword whose value a validator would reject as an invalid schema is not
  * decided here, because a server that compiles the schema fails the run. An
- * unlisted keyword — `properties`, `additionalProperties`, `allOf`, `$ref` —
- * makes the gate bespoke rather than being interpreted. The map is keyed by
+ * unlisted keyword — `additionalProperties`, `allOf`, `$ref` — makes the gate
+ * bespoke rather than being interpreted. The map is keyed by
  * `Map` rather than by object property, because a schema key of `constructor`
  * or `toString` would otherwise read an `Object.prototype` member as its
  * validator and `__proto__` would read the prototype itself.
@@ -61,6 +100,7 @@ const SEAM_SAFE_KEYWORDS = new Map<string, (value: unknown) => boolean>([
   ["description", isString],
   ["type", acceptsObject],
   ["required", acceptsSeamPayload],
+  ["properties", acceptsSeamProperties],
 ]);
 
 /**
@@ -122,6 +162,11 @@ export const projectAgUiToolApprovals = (
   ) {
     return EMPTY_APPROVALS;
   }
+  // Two gates naming one tool call would collapse into a single approval, so
+  // the batch could never be completed: the surviving gate takes one decision
+  // while the resume array still waits on the id that no part carries.
+  const toolCallIds = interrupts.map((interrupt) => interrupt.toolCallId);
+  if (new Set(toolCallIds).size !== toolCallIds.length) return EMPTY_APPROVALS;
   return new Map(
     interrupts.map((interrupt) => [interrupt.toolCallId, { id: interrupt.id }]),
   );
