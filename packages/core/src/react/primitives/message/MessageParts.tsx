@@ -726,7 +726,6 @@ const EMPTY_RUNNING_TEXT_PART: Extract<EnrichedPartState, { type: "text" }> =
   });
 
 /**
- * @internal
  * Renders a single part by index, calling `children` with the
  * {@link EnrichedPartState} (tool/data UI enrichments + addResult/resume
  * for tool calls). Shared between `<MessagePrimitive.Parts>` and
