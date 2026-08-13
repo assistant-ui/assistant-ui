@@ -74,6 +74,7 @@ type SubscriberOptions = {
   dispatch: Dispatch;
   runId: string;
   logger?: Logger;
+  abortSignal?: AbortSignal;
   onRunFailed?: (error: Error) => void;
   onRunSettled?: () => void;
 };
@@ -81,10 +82,14 @@ type SubscriberOptions = {
 export const createAgUiSubscriber = (
   options: SubscriberOptions,
 ): Subscriber => {
-  const { dispatch, runId, logger, onRunFailed, onRunSettled } = options;
+  const { dispatch, runId, logger, abortSignal, onRunFailed, onRunSettled } =
+    options;
   // A run settles once. A transport failure that follows any terminal event
   // describes the same collapse, so the first terminal event owns the outcome.
+  // A cancellation is terminal too: the runtime dispatches it from the abort
+  // listener, so an aborted signal counts as settled here.
   let runSettled = false;
+  const isSettled = () => runSettled || abortSignal?.aborted === true;
   const settle = () => {
     runSettled = true;
     onRunSettled?.();
@@ -154,14 +159,14 @@ export const createAgUiSubscriber = (
     onCustomEvent: ({ event }) => dispatchIfValid(event, "CUSTOM"),
     onRawEvent: ({ event }) => dispatchIfValid(event, "RAW"),
     onRunFinishedEvent: ({ event }) => {
-      if (runSettled) return;
+      if (isSettled()) return;
       const parsed = ensureEvent(event, "RUN_FINISHED", logger);
       if (!parsed) return;
       settle();
       dispatch(parsed);
     },
     onRunErrorEvent: ({ event }) => {
-      if (runSettled) return;
+      if (isSettled()) return;
       const parsed = ensureEvent(event, "RUN_ERROR", logger);
       if (parsed?.type !== "RUN_ERROR") return;
       settle();
@@ -178,12 +183,12 @@ export const createAgUiSubscriber = (
       dispatch({ ...parsed, message });
     },
     onRunFinalized: () => {
-      if (runSettled) return;
+      if (isSettled()) return;
       settle();
       dispatch({ type: "RUN_FINISHED", runId });
     },
     onRunFailed: ({ error }) => {
-      if (runSettled) return;
+      if (isSettled()) return;
       settle();
       onRunFailed?.(error);
       if (isAbortError(error)) {

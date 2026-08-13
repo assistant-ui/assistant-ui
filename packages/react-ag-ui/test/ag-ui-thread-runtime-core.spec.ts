@@ -902,6 +902,43 @@ describe("AGUIThreadRuntimeCore", () => {
     });
   });
 
+  it("keeps a cancellation when a queued RUN_ERROR arrives after it", async () => {
+    let resolveStarted!: () => void;
+    const started = new Promise<void>((resolve) => {
+      resolveStarted = resolve;
+    });
+    const agent = {
+      abortRun: vi.fn(),
+      runAgent: vi.fn(async (_input: any, subscriber: any, options: any) => {
+        const signal: AbortSignal = options.signal;
+        resolveStarted();
+        await new Promise<void>((resolve) => {
+          signal.addEventListener("abort", () => resolve(), { once: true });
+        });
+        subscriber.onRunErrorEvent?.({
+          event: { type: "RUN_ERROR", message: "upstream exploded" },
+        });
+        const abortError = Object.assign(new Error("aborted"), {
+          name: "AbortError",
+        });
+        throw abortError;
+      }),
+    } as unknown as HttpAgent;
+
+    const onError = vi.fn();
+    const core = createCore(agent, { onError });
+    const promise = core.append(createAppendMessage());
+    await started;
+    await core.cancel();
+    await promise.catch(() => {});
+
+    expect(onError).not.toHaveBeenCalled();
+    expect(core.getMessages().at(-1)?.status).toMatchObject({
+      type: "incomplete",
+      reason: "cancelled",
+    });
+  });
+
   it("keeps a completed run when the transport then collapses", async () => {
     const agent = {
       runAgent: vi.fn(async (input: any, subscriber: any) => {

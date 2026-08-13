@@ -1109,6 +1109,7 @@ export class AgUiThreadRuntimeCore {
           dispatch,
           runId,
           logger: this.logger,
+          abortSignal,
           onRunSettled: () => {
             runSettled = true;
           },
