@@ -59,19 +59,30 @@ type SettleWhenThreadConnected = (settle: () => void) => void;
 
 class ThreadConnection {
   private connected = true;
+  private readonly pendingSettlements: Array<() => void> = [];
 
   settle: SettleWhenThreadConnected = (settle) => {
     if (this.connected) {
       settle();
       return;
     }
-    console.warn(
-      "Cannot complete a send on a disconnected AuiClient. This completion was ignored.",
-    );
+    this.pendingSettlements.push(settle);
   };
 
   connect = () => {
     this.connected = true;
+    const pendingSettlements = this.pendingSettlements.splice(0);
+    for (let index = 0; index < pendingSettlements.length; index++) {
+      if (!this.connected) {
+        this.pendingSettlements.unshift(...pendingSettlements.slice(index));
+        break;
+      }
+      try {
+        pendingSettlements[index]!();
+      } catch (error) {
+        console.error("Failed to settle attachment send", error);
+      }
+    }
   };
 
   disconnect = () => {

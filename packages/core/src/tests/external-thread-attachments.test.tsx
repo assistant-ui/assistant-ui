@@ -285,7 +285,6 @@ describe("ExternalThread attachments", () => {
   it("does not send through a disposed thread after attachment upload", async () => {
     let resolveSend!: (attachment: CompleteAttachment) => void;
     const onNew = vi.fn();
-    const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
     const file = new File(["data"], "notes.txt", { type: "text/plain" });
     const adapter = {
       accept: "*",
@@ -328,12 +327,9 @@ describe("ExternalThread attachments", () => {
     });
 
     expect(onNew).not.toHaveBeenCalled();
-    expect(warning).toHaveBeenCalledWith(
-      "Cannot complete a send on a disconnected AuiClient. This completion was ignored.",
-    );
   });
 
-  it("ignores attachment sends that settle while the thread is hidden", async () => {
+  it("settles attachment sends after a hidden thread reconnects", async () => {
     let resolveSend!: (attachment: CompleteAttachment) => void;
     const onNew = vi.fn();
     const file = new File(["data"], "notes.txt", { type: "text/plain" });
@@ -356,7 +352,6 @@ describe("ExternalThread attachments", () => {
         }),
       remove: async () => {},
     };
-    const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
     const captured: { aui?: ReturnType<typeof useAui> } = {};
     const Capture: FC = () => {
       captured.aui = useAui();
@@ -401,14 +396,12 @@ describe("ExternalThread attachments", () => {
     expect(onNew).not.toHaveBeenCalled();
 
     rerender(<Activity mode="visible">{thread}</Activity>);
+    expect(onNew).toHaveBeenCalledTimes(1);
     act(() => {
       composer().setText("after reveal");
       composer().send();
     });
-    expect(onNew).toHaveBeenCalledTimes(1);
-    expect(warning.mock.calls.map(([message]) => message)).toEqual([
-      "Cannot complete a send on a disconnected AuiClient. This completion was ignored.",
-    ]);
+    expect(onNew).toHaveBeenCalledTimes(2);
   });
 
   it("ignores attachment upload failures after thread disposal", async () => {
@@ -417,7 +410,6 @@ describe("ExternalThread attachments", () => {
     const consoleError = vi
       .spyOn(console, "error")
       .mockImplementation(() => {});
-    const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
     const file = new File(["data"], "notes.txt", { type: "text/plain" });
     const adapter = {
       accept: "*",
@@ -456,9 +448,6 @@ describe("ExternalThread attachments", () => {
     expect(consoleError).toHaveBeenCalledWith(
       "Failed to send attachments",
       expect.objectContaining({ message: "upload failed" }),
-    );
-    expect(warning).toHaveBeenCalledWith(
-      "Cannot complete a send on a disconnected AuiClient. This completion was ignored.",
     );
   });
 
@@ -719,7 +708,6 @@ describe("ExternalThread attachments", () => {
   it("scopes edit-composer attachment sends to the thread lifetime", async () => {
     const resolveSends: Array<(attachment: CompleteAttachment) => void> = [];
     const onEdit = vi.fn();
-    const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
     const file = new File(["data"], "notes.txt", { type: "text/plain" });
     const message = (id: string): ExternalThreadMessage =>
       ({
@@ -806,9 +794,6 @@ describe("ExternalThread attachments", () => {
       });
     });
     expect(onEdit).toHaveBeenCalledTimes(1);
-    expect(warning.mock.calls.map(([message]) => message)).toEqual([
-      "Cannot complete a send on a disconnected AuiClient. This completion was ignored.",
-    ]);
   });
 
   it("merges the failed send into a draft the user already modified", async () => {

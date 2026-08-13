@@ -141,6 +141,8 @@ class ClientProxyHandler
     if (introspection !== false) return introspection;
     const value = this.outputRef.current[prop];
     if (typeof value === "function") {
+      // Descriptor reads have no receiver; bind them through the stable proxy
+      // so they retain the same lifecycle guard as ordinary property reads.
       const effectiveReceiver = receiver ?? this.proxy;
       if (!effectiveReceiver) {
         throw new Error("ClientProxy accessed before initialization.");
