@@ -1,7 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { scheduleTask, flushTapSync } from "../core/scheduler";
-
-const nextTick = () => new Promise((resolve) => setTimeout(resolve, 0));
+import { waitForNextTick } from "./test-utils";
 
 describe("scheduleTask", () => {
   it("runs tasks in order on the next flush", async () => {
@@ -10,7 +9,7 @@ describe("scheduleTask", () => {
     scheduleTask(() => order.push(2));
 
     expect(order).toEqual([]);
-    await nextTick();
+    await waitForNextTick();
     expect(order).toEqual([1, 2]);
   });
 
