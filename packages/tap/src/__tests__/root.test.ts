@@ -41,11 +41,24 @@ describe("setRootVersion", () => {
 
   it("clears changelog membership when records are removed", () => {
     const root = makeRoot();
-    const committedRecord = { logged: true, settled: true } as ChangelogRecord;
-    root.changelog.push(committedRecord);
+    const movedRecord = { logged: true, settled: true } as ChangelogRecord;
+    root.changelog.push(movedRecord);
     commitRoot(root);
-    expect(committedRecord.logged).toBe(false);
+    expect(movedRecord.logged).toBe(false);
 
+    const cell = {
+      isDirty: false,
+      queue: null,
+      workInProgress: "s",
+      current: "s",
+    };
+    root.unsettledCount = 3;
+    setRootVersion(root, 2);
+    root.changelog.push(
+      committedRecord(root, cell, "p1"),
+      committedRecord(root, cell, "p2"),
+    );
+    commitRoot(root);
     setRootVersion(root, 3);
     commitRoot(root);
     const belowCommittedRecord = {
@@ -59,7 +72,19 @@ describe("setRootVersion", () => {
 
   it("re-bases to a version below the committed version instead of throwing", () => {
     const root = makeRoot();
+    const cell = {
+      isDirty: false,
+      queue: null,
+      workInProgress: "s",
+      current: "s",
+    };
+    root.unsettledCount = 4;
     setRootVersion(root, 3);
+    root.changelog.push(
+      committedRecord(root, cell, "p1"),
+      committedRecord(root, cell, "p2"),
+      committedRecord(root, cell, "p3"),
+    );
     commitRoot(root);
     expect(root.committedVersion).toBe(3);
 
@@ -155,6 +180,12 @@ describe("setRootVersion", () => {
     expect(cell.workInProgress).toBe("p2");
     expect(root.committedLog).toEqual([recordA]);
     expect(root.committedVersion).toBe(1);
+
+    setRootVersion(root, 3);
+    setRootVersion(root, 1);
+    expect(root.committedVersion).toBe(1);
+    expect(cell.workInProgress).toBe("p2");
+    expect(root.committedLog).toEqual([recordA]);
 
     setRootVersion(root, 0);
     expect(root.committedVersion).toBe(0);

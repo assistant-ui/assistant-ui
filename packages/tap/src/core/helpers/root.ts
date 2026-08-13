@@ -4,6 +4,7 @@ import type {
   ResourceFiber,
   TapRoot,
 } from "../types";
+import { isDevelopment } from "./env";
 export const createResourceFiberRoot = (
   dispatchUpdate: (evaluate: () => boolean, apply: () => boolean) => void,
 ): TapRoot => {
@@ -21,7 +22,8 @@ export const createResourceFiberRoot = (
 // The committed log retains committed records while any dispatched record is
 // still unsettled, so a below-committed replay can rewind cells to the state
 // at its base; once everything settles no replay can reach below and the
-// history is dropped.
+// history is dropped. Retention is one record, holding one state snapshot,
+// per commit that lands while a lane stays pending.
 export const commitRoot = (root: TapRoot): void => {
   root.committedVersion = root.version;
   for (const record of root.changelog) {
@@ -56,7 +58,14 @@ export const setRootVersion = (root: TapRoot, version: number): void => {
       const rewound: ChangelogRecord[] = [];
       while (root.committedVersion - rewound.length > version) {
         const record = root.committedLog.pop();
-        if (record === undefined) break;
+        if (record === undefined) {
+          if (isDevelopment && rewound.length > 0) {
+            throw new Error(
+              "tap: committed history is shorter than the replay base.",
+            );
+          }
+          break;
+        }
         markReducerDirty(record.fiber, record.cell);
         record.cell.workInProgress = record.prevState;
         rewound.push(record);

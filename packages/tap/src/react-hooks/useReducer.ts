@@ -106,7 +106,7 @@ const createReducerCell = (
           action,
           hasEagerState: false,
           eagerState: undefined,
-          prevState: undefined,
+          prevState: cell.current,
           settled: false,
           queued: false,
           logged: false,
