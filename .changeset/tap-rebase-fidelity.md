@@ -2,4 +2,4 @@
 "@assistant-ui/tap": patch
 ---
 
-fix: preserve reducer state when React replays updates from an earlier lane
+fix: preserve reducer state when React replays a chain from a record's committed dispatch floor
