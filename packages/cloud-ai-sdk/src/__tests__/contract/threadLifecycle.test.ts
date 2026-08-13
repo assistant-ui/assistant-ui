@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CloudChatCore } from "../../core/CloudChatCore";
 
 const { persistMock, loadMessagesMock, MessagePersistenceMock } = vi.hoisted(
@@ -56,6 +56,10 @@ describe("Contract: Thread lifecycle", () => {
     vi.clearAllMocks();
     persistMock.mockResolvedValue(undefined);
     loadMessagesMock.mockResolvedValue([]);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it("deduplicates concurrent thread creation for same chatKey", async () => {
@@ -171,7 +175,6 @@ describe("Contract: Thread lifecycle", () => {
       callbackFailure,
     );
     expect(meta.loading).toBeNull();
-    consoleError.mockRestore();
   });
 
   it("load error is suppressed when cancelled", async () => {

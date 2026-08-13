@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CloudChatCore } from "./CloudChatCore";
 
 const { persistMock, loadMessagesMock, MessagePersistenceMock } = vi.hoisted(
@@ -67,6 +67,10 @@ describe("CloudChatCore", () => {
     persistMock.mockResolvedValue(undefined);
     loadMessagesMock.mockResolvedValue([]);
     chatOptionsRef.current = null;
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it("forwards async tool call completion to the AI SDK chat", () => {
@@ -150,6 +154,5 @@ describe("CloudChatCore", () => {
         callbackError,
       );
     });
-    consoleError.mockRestore();
   });
 });
