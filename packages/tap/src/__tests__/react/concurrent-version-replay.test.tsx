@@ -121,7 +121,11 @@ describe("React-hosted reducer replay below the committed version", () => {
     reactRoot = createRoot(container);
 
     await act(async () => {
-      reactRoot!.render(<App />);
+      reactRoot!.render(
+        <StrictMode>
+          <App />
+        </StrictMode>,
+      );
     });
 
     await act(async () => {

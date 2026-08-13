@@ -57,7 +57,7 @@ export const applyChangelogRecord = (record: ChangelogRecord): void => {
   const { cell, fiber } = record;
   // A replay's first re-applied record rewinds the cell to its dispatch-time
   // base, valid exactly when that base is the current committed floor. A floor
-  // above the dispatch base has no snapshot and keeps committed state (#5330).
+  // above the dispatch base has no snapshot and keeps committed state.
   const restoreBase =
     !cell.isDirty && record.baseVersion === fiber.root.committedVersion;
 
