@@ -746,6 +746,79 @@ describe("useLangGraphRuntime", () => {
     unmount();
   });
 
+  it("clears and reloads history when the load key changes", async () => {
+    const pendingA = deferred<LoadResult>();
+    const pendingB = deferred<LoadResult>();
+    const loadA = vi.fn(
+      (_threadId: string, options?: { signal: AbortSignal }) => {
+        options?.signal.addEventListener("abort", () =>
+          pendingA.reject(options.signal.reason),
+        );
+        return pendingA.promise;
+      },
+    );
+    const loadB = vi.fn(() => pendingB.promise);
+    const streamMock = vi
+      .fn()
+      .mockImplementation(() => mockStreamCallbackFactory([])());
+    const adapter = makeThreadListAdapter();
+
+    const { result: runtimeResult, rerender } = renderHook(
+      ({ load, loadKey }) =>
+        useLangGraphRuntime({
+          stream: streamMock,
+          load,
+          loadKey,
+          unstable_threadListAdapter: adapter,
+        }),
+      {
+        initialProps: { load: loadA, loadKey: "workspace-a" },
+      },
+    );
+    const wrapper = wrapperFactory(runtimeResult.current);
+    renderHook(() => useAuiState((s) => s.thread.isLoading), { wrapper });
+
+    act(() => {
+      void runtimeResult.current.threads.switchToThread("lg-thread-1");
+    });
+    await waitFor(() => expect(loadA).toHaveBeenCalledTimes(1));
+
+    rerender({ load: loadB, loadKey: "workspace-b" });
+
+    await waitFor(() => expect(loadB).toHaveBeenCalledTimes(1));
+    expect(loadA.mock.calls[0]?.[1]?.signal.aborted).toBe(true);
+    expect(runtimeResult.current.thread.getState().messages).toEqual([]);
+
+    await act(async () => {
+      pendingB.resolve({
+        messages: [{ id: "b", type: "ai" as const, content: "workspace b" }],
+      });
+    });
+
+    await waitFor(() =>
+      expect(textsOf(runtimeResult.current)).toEqual(["workspace b"]),
+    );
+
+    const loadB2 = vi.fn(async () => ({
+      messages: [
+        { id: "b-2", type: "ai" as const, content: "workspace b refreshed" },
+      ],
+    }));
+    rerender({ load: loadB2, loadKey: "workspace-b" });
+    expect(loadB2).not.toHaveBeenCalled();
+
+    await act(async () => {
+      await runtimeResult.current.threads.reloadMainThread();
+    });
+
+    expect(loadB2).toHaveBeenCalledTimes(1);
+    await waitFor(() =>
+      expect(textsOf(runtimeResult.current).join("\n")).toContain(
+        "workspace b refreshed",
+      ),
+    );
+  });
+
   it("should reset thread.isLoading to false and surface the error when load rejects", async () => {
     const consoleWarnSpy = vi
       .spyOn(console, "warn")

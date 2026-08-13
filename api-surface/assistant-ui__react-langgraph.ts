@@ -2210,6 +2210,7 @@ type UseLangGraphRuntimeOptions = ExternalStoreSharedOptions & {
     interrupts?: LangGraphInterruptState[];
     uiMessages?: UIMessage[];
   }>;
+  loadKey?: PropertyKey | undefined;
   create?: () => Promise<{
     externalId: string;
   }>;

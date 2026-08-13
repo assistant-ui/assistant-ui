@@ -55,6 +55,13 @@ import {
 
 const EMPTY_QUEUE_ITEMS: readonly QueueItemState[] = Object.freeze([]);
 const subscribeNoop = () => () => {};
+const DEFAULT_LOAD_KEY = Symbol("default-langgraph-load-key");
+const NO_LOAD_KEY = Symbol("no-langgraph-load");
+
+const getLoadKey = (
+  load: UseLangGraphRuntimeOptions["load"],
+  loadKey: UseLangGraphRuntimeOptions["loadKey"],
+) => (load === undefined ? NO_LOAD_KEY : (loadKey ?? DEFAULT_LOAD_KEY));
 
 const toLangGraphUserMessage = (
   msg: AppendMessage,
@@ -73,6 +80,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
     unstable_enableMessageQueue,
     stream,
     load,
+    loadKey,
     getCheckpointId,
     eventHandlers,
     uiStateKey,
@@ -474,9 +482,9 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
   uiMessagesRef.current = uiMessages;
 
   const loadRef = useRef(load);
-  useEffect(() => {
-    loadRef.current = load;
-  });
+  loadRef.current = load;
+  const effectiveLoadKey = getLoadKey(load, loadKey);
+  const previousLoadKeyRef = useRef(effectiveLoadKey);
 
   const threadListItem =
     aui.threadListItem.source !== null ? aui.threadListItem : undefined;
@@ -560,6 +568,28 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
   );
 
   useEffect(() => {
+    const loadKeyChanged = !Object.is(
+      previousLoadKeyRef.current,
+      effectiveLoadKey,
+    );
+    previousLoadKeyRef.current = effectiveLoadKey;
+    if (loadKeyChanged) {
+      cancelActiveRun();
+      attachmentsByMessageIdRef.current.clear();
+      stagedMessagesRef.current.clear();
+      toolArgsKeyOrderCacheRef.current.clear();
+      toolResultBufferRef.current.clear();
+      runErrorBalanceRef.current = 0;
+      langGraphMessagesRef.current = [];
+      uiMessagesRef.current = [];
+      interruptRef.current = undefined;
+      setStagedMessageCount(0);
+      setMessages([]);
+      setUIMessages([]);
+      setInterrupt(undefined);
+      setToolStatuses({});
+    }
+
     runLoad();
     return () => {
       // Whatever is current, not this effect's own controller: a refetch swaps
@@ -567,7 +597,14 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
       loadControllerRef.current?.controller.abort();
       setIsLoadingThread(false);
     };
-  }, [runLoad]);
+  }, [
+    runLoad,
+    effectiveLoadKey,
+    cancelActiveRun,
+    setMessages,
+    setUIMessages,
+    setInterrupt,
+  ]);
 
   const runtime = useExternalStoreRuntime({
     ...pickExternalStoreSharedOptions(options),
@@ -754,6 +791,20 @@ export const useLangGraphRuntime = ({
   initialThreadId,
   ...options
 }: UseLangGraphRuntimeOptions) => {
+  const latestLoadRef = useRef(options.load);
+  latestLoadRef.current = options.load;
+  const latestLoad = useCallback<
+    NonNullable<UseLangGraphRuntimeOptions["load"]>
+  >((externalId, loadOptions) => {
+    const load = latestLoadRef.current;
+    if (!load) {
+      throw new Error("LangGraph history loading is not configured.");
+    }
+    return load(externalId, loadOptions);
+  }, []);
+  const runtimeOptions =
+    options.load === undefined ? options : { ...options, load: latestLoad };
+
   const aui = useAui();
   const cloudAdapter = useCloudThreadListAdapter({
     cloud,
@@ -775,8 +826,9 @@ export const useLangGraphRuntime = ({
 
   return useRemoteThreadListRuntime({
     runtimeHook: function RuntimeHook() {
-      return useLangGraphRuntimeImpl(options);
+      return useLangGraphRuntimeImpl(runtimeOptions);
     },
+    unstable_runtimeHookKey: getLoadKey(options.load, options.loadKey),
     adapter,
     allowNesting: true,
     onThreadIdChange,

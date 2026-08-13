@@ -361,6 +361,11 @@ export type UseLangGraphRuntimeOptions = ExternalStoreSharedOptions & {
      */
     uiMessages?: UIMessage[];
   }>;
+  /**
+   * Stable identifier for the backing load scope. Change it to clear and
+   * reload the active thread when its account or workspace changes.
+   */
+  loadKey?: PropertyKey | undefined;
   create?: () => Promise<{
     externalId: string;
   }>;
