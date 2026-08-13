@@ -1,5 +1,6 @@
 import type { AssistantState } from "@assistant-ui/store";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { captureUnhandledRejections } from "./test-utils";
 
 const mocks = vi.hoisted(() => ({
   remove: vi.fn<() => Promise<void>>(),
@@ -18,19 +19,6 @@ vi.mock("@assistant-ui/store", async (importOriginal) => ({
 
 const { McpServerPrimitiveRemoveButton } =
   await import("./McpServerRemoveButton");
-
-const captureUnhandledRejections = async (callback: () => void) => {
-  const reasons: unknown[] = [];
-  const listener = (reason: unknown) => reasons.push(reason);
-  process.on("unhandledRejection", listener);
-  try {
-    callback();
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    return reasons;
-  } finally {
-    process.off("unhandledRejection", listener);
-  }
-};
 
 const renderButton = () =>
   (

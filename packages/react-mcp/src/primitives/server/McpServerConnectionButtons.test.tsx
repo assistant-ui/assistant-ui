@@ -1,5 +1,6 @@
 import type { AssistantState } from "@assistant-ui/store";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { captureUnhandledRejections } from "./test-utils";
 
 const mocks = vi.hoisted(() => ({
   connect: vi.fn<() => Promise<void>>(),
@@ -32,19 +33,6 @@ const { McpServerPrimitiveConnectButton } =
   await import("./McpServerConnectButton");
 const { McpServerPrimitiveDisconnectButton } =
   await import("./McpServerDisconnectButton");
-
-const captureUnhandledRejections = async (callback: () => void) => {
-  const reasons: unknown[] = [];
-  const listener = (reason: unknown) => reasons.push(reason);
-  process.on("unhandledRejection", listener);
-  try {
-    callback();
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    return reasons;
-  } finally {
-    process.off("unhandledRejection", listener);
-  }
-};
 
 type Button = {
   props: {
