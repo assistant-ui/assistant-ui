@@ -10,10 +10,12 @@ import { getAuiContext } from "./context";
  * `current` getter. Call during component initialization.
  *
  * Reading `current` inside an effect or template tracks the store: the read
- * re-runs after every store update. The `selector` runs on each read;
- * returning the entire state object is not supported and throws. Select a
- * specific field instead, or compose multiple `useAuiState` calls. Wrap the
- * read in `$derived` to deduplicate downstream updates by value.
+ * re-runs when the selected slice changes by `Object.is`, so a store update
+ * that does not move the slice wakes nothing. The `selector` runs per store
+ * notification and on each read; returning the entire state object is not
+ * supported and throws. Select a specific field instead, or compose multiple
+ * `useAuiState` calls. Returning a fresh object or array literal defeats the
+ * deduplication; select primitives or a memoized reference.
  *
  * Scopes that may be unavailable can be read via `s.optional.<scope>`, which
  * resolves to `undefined` instead of throwing.
