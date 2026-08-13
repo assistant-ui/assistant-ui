@@ -279,7 +279,9 @@ describe("createAssistantClient", () => {
     expect(counters.cleanups).toBe(mounted);
     await vi.waitFor(() => expect(counters.cleanups).toBeGreaterThan(mounted));
 
+    const remounted = counters.mounts;
     handle.subscribe(() => {});
+    expect(counters.mounts).toBeGreaterThan(remounted);
     expect(handle.getClient().thread.getState()).toEqual({ selected: 3 });
 
     handle.destroy();
