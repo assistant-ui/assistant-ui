@@ -26,6 +26,7 @@ export interface ChangelogRecord {
   baseState: any;
   baseVersion: number;
   queued: boolean;
+  logged: boolean;
 }
 
 export type ReducerCell = {

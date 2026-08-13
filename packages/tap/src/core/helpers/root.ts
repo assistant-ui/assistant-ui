@@ -18,6 +18,7 @@ export const createResourceFiberRoot = (
 
 export const commitRoot = (root: TapRoot): void => {
   root.committedVersion = root.version;
+  for (const record of root.changelog) record.logged = false;
   root.changelog.length = 0;
   root.rollbackCallbacks.length = 0;
 };
@@ -37,12 +38,14 @@ export const setRootVersion = (root: TapRoot, version: number): void => {
       // committed version re-bases to keep the changelog's base derivation in
       // the branch below correct; the next commit overwrites it.
       root.committedVersion = version;
+      for (const record of root.changelog) record.logged = false;
       root.changelog.length = 0;
     } else {
       // commit happened without a useEffect update (offscreen API)
 
       while (root.committedVersion + root.changelog.length > version) {
-        root.changelog.pop();
+        const record = root.changelog.pop();
+        if (record !== undefined) record.logged = false;
       }
 
       for (let i = 0; i < root.changelog.length; i++) {

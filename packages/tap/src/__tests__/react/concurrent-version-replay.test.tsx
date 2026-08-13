@@ -18,7 +18,10 @@ import {
   renderTest,
 } from "../test-utils";
 
-const probes = vi.hoisted(() => ({ belowCommitted: 0 }));
+const probes = vi.hoisted(() => ({
+  belowCommitted: 0,
+  changelogLengths: [] as number[],
+}));
 
 vi.mock("../../core/helpers/root", async (importOriginal) => {
   const original =
@@ -27,6 +30,9 @@ vi.mock("../../core/helpers/root", async (importOriginal) => {
     ...original,
     setRootVersion: (root: TapRoot, version: number) => {
       if (version < root.committedVersion) probes.belowCommitted++;
+      if (version > root.committedVersion) {
+        probes.changelogLengths.push(root.changelog.length);
+      }
       return original.setRootVersion(root, version);
     },
   };
@@ -41,6 +47,8 @@ afterEach(async () => {
   reactRoot = undefined;
   container = undefined;
   cleanupAllResources();
+  probes.belowCommitted = 0;
+  probes.changelogLengths.length = 0;
 });
 
 const useStream = () => {
@@ -85,6 +93,35 @@ const useCompiledStream = (): CompiledStreamValue => {
 const CompiledStream = resource(useCompiledStream);
 
 describe("React-hosted reducer replay below the committed version", () => {
+  it("logs a StrictMode-dispatched record once", async () => {
+    let api!: { push: (chunk: string) => void };
+
+    function App() {
+      const value = useResource(Stream());
+      api = value;
+      return <div>{value.chunks.join(",")}</div>;
+    }
+
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    reactRoot = createRoot(container);
+
+    await act(async () => {
+      reactRoot!.render(
+        <StrictMode>
+          <App />
+        </StrictMode>,
+      );
+    });
+
+    await act(async () => {
+      api.push("one");
+    });
+
+    expect(probes.changelogLengths).toEqual([1, 1]);
+    expect(container.textContent).toBe("one");
+  });
+
   it("delivers a transition update rebased across a sync commit without recoverable errors", async () => {
     const recoverable = vi.fn();
     let api!: { chunks: readonly string[]; push: (c: string) => void };

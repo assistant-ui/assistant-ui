@@ -55,7 +55,10 @@ const dispatchOnFiber = (
       evaluated = true;
       hasWork = true;
       applyChangelogRecord(record);
-      fiber.root.changelog.push(record);
+      if (!record.logged) {
+        record.logged = true;
+        fiber.root.changelog.push(record);
+      }
       return true;
     },
   );
@@ -103,6 +106,7 @@ const createReducerCell = (
           baseState: cell.current,
           baseVersion: fiber.root.committedVersion,
           queued: false,
+          logged: false,
         };
 
         dispatchOnFiber(fiber, record, eagerBailout ? reducer : undefined);

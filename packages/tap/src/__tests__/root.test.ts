@@ -25,6 +25,21 @@ describe("setRootVersion", () => {
     expect(root.changelog.length).toBe(0);
   });
 
+  it("clears changelog membership when records are removed", () => {
+    const root = makeRoot();
+    const committedRecord = { logged: true } as ChangelogRecord;
+    root.changelog.push(committedRecord);
+    commitRoot(root);
+    expect(committedRecord.logged).toBe(false);
+
+    setRootVersion(root, 3);
+    commitRoot(root);
+    const belowCommittedRecord = { logged: true } as ChangelogRecord;
+    root.changelog.push(belowCommittedRecord);
+    setRootVersion(root, 1);
+    expect(belowCommittedRecord.logged).toBe(false);
+  });
+
   it("re-bases to a version below the committed version instead of throwing", () => {
     const root = makeRoot();
     setRootVersion(root, 3);
@@ -58,18 +73,21 @@ describe("setRootVersion", () => {
         },
         cell: { isDirty: false, queue: null },
         queued: true,
+        logged: true,
       }) as unknown as ChangelogRecord;
-    root.changelog.push(
+    const records = [
       trackedRecord(1),
       trackedRecord(2),
       trackedRecord(3),
       trackedRecord(4),
-    );
+    ];
+    root.changelog.push(...records);
 
     setRootVersion(root, 6);
     expect(marked).toEqual([1, 2, 3]);
     expect(root.committedVersion).toBe(6);
     expect(root.changelog.length).toBe(0);
+    expect(records.every((record) => !record.logged)).toBe(true);
   });
 
   it("runs rollback callbacks when replaying below the committed version", () => {
