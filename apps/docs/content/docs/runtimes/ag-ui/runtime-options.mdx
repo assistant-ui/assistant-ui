@@ -195,8 +195,25 @@ The runtime parses the AG-UI event stream and maps each event type to assistant-
 | `STATE_SNAPSHOT` | Replaces the agent's external state. |
 | `STATE_DELTA` | Applies a JSON-patch-style delta to the agent's state. |
 | `MESSAGES_SNAPSHOT` | Replaces the full message list (used for thread restore). |
-| `CUSTOM` | Forwarded to your custom event handling. |
-| `RAW` | Untyped passthrough for unrecognized events. |
+| `CUSTOM` | Appended to the in-flight assistant message as a `data` part. |
+| `RAW` | Parsed and ignored; unrecognized wire event types are normalized into `RAW`. |
+
+### Custom events
+
+`CUSTOM` events are the protocol's extension mechanism for application-defined data. Each event is appended to the in-flight assistant message as a canonical `data` part in arrival order: `CUSTOM { name: "sources", value: {...} }` becomes `{ type: "data", name: "sources", data: {...} }`. Repeated names append separate parts, the `value` is passed through verbatim, and data parts reset with each run.
+
+Render them by registering a per-name renderer; parts without a registered renderer are not displayed.
+
+```tsx
+import { useAssistantDataUI } from "@assistant-ui/react";
+
+useAssistantDataUI({
+  name: "sources",
+  render: ({ data }) => <SourceList sources={data.sources} />,
+});
+```
+
+Data parts stay in the assistant-ui message (and in anything a history adapter persists) but are not sent back to the agent, since the AG-UI assistant record has no field for them. Framework integrations emit their own plumbing over this channel (`on_interrupt`, `PredictState`, `Exit`, `hook_error`, `state_update_error`, `system:*`, `MultiAgentHandoff`), and those names surface as data parts like any other, so only register renderers for names your backend owns.
 
 ## Feature support
 
@@ -207,6 +224,7 @@ The runtime parses the AG-UI event stream and maps each event type to assistant-
 | Tool calls and results | Yes |
 | Tool result handoff (client-side execution) | Yes |
 | State snapshots and deltas | Yes |
+| Custom events (as `data` parts) | Yes |
 | Cancellation | Yes |
 | Message editing | Yes |
 | Message reload | Yes |
