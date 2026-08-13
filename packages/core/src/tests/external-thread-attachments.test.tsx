@@ -31,8 +31,10 @@ const renderThreadWithProps = (props: Partial<ExternalThreadProps>) => {
     );
   };
 
-  render(<App />);
-  return () => captured.aui!;
+  const rendered = render(<App />);
+  return Object.assign(() => captured.aui!, {
+    unmount: rendered.unmount,
+  });
 };
 
 const renderThread = () => {
@@ -270,6 +272,53 @@ describe("ExternalThread attachments", () => {
       role: "assistant",
       runConfig: { model: "model-a" },
     });
+  });
+
+  it("does not send through a disposed thread after attachment upload", async () => {
+    let resolveSend!: (attachment: CompleteAttachment) => void;
+    const onNew = vi.fn();
+    const file = new File(["data"], "notes.txt", { type: "text/plain" });
+    const adapter = {
+      accept: "*",
+      add: async () => ({
+        id: "att-1",
+        type: "file" as const,
+        name: file.name,
+        contentType: file.type,
+        file,
+        status: {
+          type: "requires-action" as const,
+          reason: "composer-send" as const,
+        },
+      }),
+      send: () =>
+        new Promise<CompleteAttachment>((resolve) => {
+          resolveSend = resolve;
+        }),
+      remove: async () => {},
+    };
+    const aui = renderThreadWithProps({ attachmentAdapter: adapter, onNew });
+    const composer = () => aui().thread.composer();
+
+    await act(() => composer().addAttachment(file));
+    act(() => {
+      composer().setText("stale message");
+      composer().send();
+    });
+    aui.unmount();
+
+    await act(async () => {
+      resolveSend({
+        id: "att-1",
+        type: "file",
+        name: file.name,
+        contentType: file.type,
+        status: { type: "complete" },
+        content: [],
+      });
+    });
+
+    expect(onNew).not.toHaveBeenCalled();
   });
 
   it.each([

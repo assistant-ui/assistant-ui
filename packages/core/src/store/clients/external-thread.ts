@@ -546,6 +546,14 @@ const useComposerClientResource = ({
     () => new AttachmentAddOperations(),
     [],
   );
+  const isActiveRef = useRef(true);
+  useEffect(() => {
+    isActiveRef.current = true;
+    return () => {
+      isActiveRef.current = false;
+      attachmentAddOperations.cancelAll();
+    };
+  }, [attachmentAddOperations]);
 
   const updateFromMessage = () => {
     if (!message) return;
@@ -747,6 +755,7 @@ const useComposerClientResource = ({
       setQuote(undefined);
 
       const dispatch = (sendAttachments: readonly Attachment[]) => {
+        if (!isActiveRef.current) return;
         const composedMessage: AppendMessage = {
           role: currentRole,
           content: currentText
@@ -780,6 +789,7 @@ const useComposerClientResource = ({
               : attachmentAdapter.send(attachment as PendingAttachment),
           ),
         ).then(dispatch, (error) => {
+          if (!isActiveRef.current) return;
           // Upload failed: merge the failed send back into the draft.
           setText((prev) =>
             currentText && prev
