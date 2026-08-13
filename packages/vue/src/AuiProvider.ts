@@ -70,7 +70,10 @@ export const AuiProvider = defineComponent({
       },
       parent ? { parent } : undefined,
     );
-    onScopeDispose(() => handle.destroy());
+    // The provider holds the lifetime subscription that keeps the client
+    // mounted while descendants come and go
+    const release = handle.subscribe(() => {});
+    onScopeDispose(release);
 
     const source = {
       getClient: handle.getClient,

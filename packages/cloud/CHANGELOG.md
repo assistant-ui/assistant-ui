@@ -1,5 +1,11 @@
 # assistant-cloud
 
+## 0.1.40
+
+### Patch Changes
+
+- [#5715](https://github.com/assistant-ui/assistant-ui/pull/5715) [`8bba3aa`](https://github.com/assistant-ui/assistant-ui/commit/8bba3aaadcae042b4750436e6aa62bbba4815dde) - fix: include archived Cloud threads when requested and preserve archive filters ([@Kinfe123](https://github.com/Kinfe123))
+
 ## 0.1.39
 
 ### Patch Changes

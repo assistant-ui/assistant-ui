@@ -225,9 +225,10 @@ declare namespace Assistant$1 {
   }
 }
 
-type AssistantClient = {
-  [K in ClientNames]: AssistantClientAccessor<K>;
-} & {
+type AssistantClient = ClientScopes & {
+  readonly optional: {
+    readonly [K in keyof ClientScopes]: ClientScopes[K] | undefined;
+  };
   subscribe(listener: () => void): Unsubscribe;
   on<TEvent extends AssistantEventName>(selector: AssistantEventSelector<TEvent>, callback: AssistantEventCallback<TEvent>): Unsubscribe;
 };
@@ -1029,6 +1030,11 @@ declare abstract class BaseComposerRuntimeCore extends BaseSubscribable implemen
     quote?: QuoteInfo | undefined;
     attachments?: readonly Attachment[] | undefined;
   }): boolean;
+  retractDraft(draft: {
+    text: string;
+    quote?: QuoteInfo | undefined;
+    attachments?: readonly Attachment[] | undefined;
+  }): void;
   private _restoreUnsentDraft;
   cancel(): void;
   get queue(): readonly QueueItemState[];
@@ -1280,6 +1286,10 @@ type ClientSchemas = keyof ScopeRegistry extends never ? {
   "ERROR: No clients were defined": ClientError<"ERROR: No clients were defined">;
 } : {
   [K in keyof ScopeRegistry]: ValidateClient<K & string, ScopeRegistry[K]>;
+};
+
+type ClientScopes = {
+  [K in ClientNames]: AssistantClientAccessor<K>;
 };
 
 declare class CloudFileAttachmentAdapter implements AttachmentAdapter {
@@ -2210,6 +2220,7 @@ type ExternalThreadProps = {
   onStartRun?: () => void;
   onCancel?: () => void;
   onResume?: (() => void) | undefined;
+  onRefetchThread?: (() => Promise<void>) | undefined;
   onAddToolResult?: ((options: AddToolResultOptions) => void) | undefined;
   onResumeToolCall?: ((options: ResumeToolCallOptions) => void) | undefined;
   onLoadExternalState?: ((state: unknown) => void) | undefined;

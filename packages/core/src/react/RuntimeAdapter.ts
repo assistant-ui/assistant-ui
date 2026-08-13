@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import { useResource, resource } from "@assistant-ui/tap";
 import type { AssistantRuntime } from "..";
 import {
@@ -8,6 +7,7 @@ import {
 import {
   attachTransformScopes,
   useAssistantClientRef,
+  useAssistantScopeEffect,
 } from "@assistant-ui/store/client";
 import { DataRenderers } from "./client/DataRenderers";
 import { Tools } from "./client/Tools";
@@ -15,11 +15,12 @@ import { Tools } from "./client/Tools";
 const useRuntimeAdapter = (runtime: AssistantRuntime) => {
   const clientRef = useAssistantClientRef();
 
-  useEffect(() => {
-    return runtime.registerModelContextProvider(
-      clientRef.current!.modelContext(),
-    );
-  }, [runtime, clientRef]);
+  useAssistantScopeEffect(
+    "modelContext",
+    () =>
+      runtime.registerModelContextProvider(clientRef.current!.modelContext()),
+    [runtime],
+  );
 
   return useResource(
     ThreadListClient({

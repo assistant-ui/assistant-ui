@@ -8,6 +8,7 @@ import { useCallback } from "../react-hooks/useCallback";
 import { useEffect } from "../react-hooks/useEffect";
 import { useEffectEvent } from "../react-hooks/useEffectEvent";
 import { use } from "../react-hooks/use";
+import { useContext } from "./context";
 import { useSyncExternalStore } from "../react-hooks/useSyncExternalStore";
 import { useDebugValue } from "../react-hooks/useDebugValue";
 import { useMemoCache } from "../react-hooks/useMemoCache";
@@ -26,7 +27,7 @@ const tapDispatcher = {
   useLayoutEffect: useEffect,
   useInsertionEffect: useEffect,
   useEffectEvent,
-  useContext: use,
+  useContext,
   use,
   useSyncExternalStore,
   useDebugValue,

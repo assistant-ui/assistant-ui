@@ -17,6 +17,7 @@ import { FeedbackDialog } from "./feedback-dialog";
 import { FileTree } from "./file-tree";
 import { FlowGraph } from "./flow-graph";
 import { JobProgress } from "./job-progress";
+import { GenerationLoader } from "./loading-state";
 import { MapAnswer } from "./map-answer";
 import { MathBlock } from "./math-block";
 import { McpServerPanel } from "./mcp-server-panel";
@@ -37,6 +38,8 @@ import { SubagentList } from "./subagent-list";
 import { TerminalBlock } from "./terminal-block";
 import { ThreadList } from "./thread-list";
 import { Timeline } from "./timeline";
+import { ThinkingIndicator } from "./thinking-indicator";
+import { ToolCall } from "./tool-call";
 import { ToolTimeline } from "./tool-timeline";
 import { TraceWaterfall } from "./trace-waterfall";
 import { VoiceConversation } from "./voice-conversation";
@@ -601,6 +604,92 @@ describe.each(Object.entries(CASES))("%s", (name, make) => {
         `${name} has a control with no accessible name: ${control.outerHTML.slice(0, 120)}`,
       ).not.toBe("");
     }
+  });
+});
+
+describe("shimmer labels", () => {
+  const cases: Record<string, ReactElement> = {
+    "tool-timeline": CASES["tool-timeline"]!(2, 3),
+    "reasoning-panel": CASES["reasoning-panel"]!(2, 3),
+    "retrieval-chunks": (
+      <RetrievalChunks query="q" chunks={[]} visibleCount={0} searching />
+    ),
+    "web-search": (
+      <WebSearch
+        query="q"
+        results={[]}
+        visibleResults={0}
+        searching
+        cycle={0}
+      />
+    ),
+    "tool-call": (
+      <ToolCall
+        label="Completed"
+        activeLabel="Running"
+        query="q"
+        request="request"
+        result="result"
+        running
+        open={false}
+        onOpenChange={() => {}}
+      />
+    ),
+    "generation-loader": <GenerationLoader label="Loading" tick={0} />,
+    "thinking-indicator": <ThinkingIndicator label="Thinking" />,
+  };
+
+  it.each(Object.entries(cases))(
+    "%s keeps shimmer text outside aria-hidden subtrees",
+    (_name, element) => {
+      const { container } = render(element);
+      const shimmerLabels = container.querySelectorAll(".shimmer");
+
+      expect(shimmerLabels.length).toBeGreaterThan(0);
+      for (const shimmerLabel of shimmerLabels) {
+        expect(shimmerLabel.closest('[aria-hidden="true"]')).toBeNull();
+      }
+    },
+  );
+
+  it("keeps the inactive SwapLabel layer out of copied selection", () => {
+    const { container } = render(
+      <ToolTimeline
+        steps={[{ verb: "Read", chip: "file.ts", icon: TerminalIcon }]}
+        visibleSteps={1}
+        streaming={false}
+        open={false}
+        onOpenChange={() => {}}
+        restingLabel="Completed"
+        activeLabel="Running"
+        stats={[]}
+      />,
+    );
+    const inactiveLayer = container.querySelector<HTMLElement>(
+      '[aria-hidden="true"][class*="col-start-1"]',
+    );
+
+    expect(inactiveLayer).not.toBeNull();
+    expect(inactiveLayer?.getAttribute("class")).toContain("select-none");
+    expect(container.querySelector("[aria-hidden] .shimmer")).toBeNull();
+  });
+
+  it("renders a streaming shimmer label's text exactly once", () => {
+    const { getAllByText } = render(
+      <ToolTimeline
+        steps={[{ verb: "Read", chip: "file.ts", icon: TerminalIcon }]}
+        visibleSteps={1}
+        streaming
+        open
+        onOpenChange={() => {}}
+        restingLabel="Completed"
+        activeLabel="Running"
+        stats={[]}
+      />,
+    );
+
+    expect(getAllByText("Running")).toHaveLength(1);
+    expect(getAllByText("Read")).toHaveLength(1);
   });
 });
 

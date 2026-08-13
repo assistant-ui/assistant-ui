@@ -237,6 +237,175 @@ describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
       expect(lastCall.map((m) => m.id)).toContain("server-msg");
     });
 
+    it("does not revert a store update that lands before the resync flushes", async () => {
+      const optimisticAssistant = {
+        ...createAssistantMessage("server-msg", "partial answer"),
+        status: { type: "running" as const },
+        metadata: {
+          unstable_state: null,
+          unstable_annotations: [],
+          unstable_data: [],
+          steps: [],
+          custom: {},
+          isOptimistic: true,
+        },
+      } as ThreadMessage;
+      const setMessages = vi.fn();
+      const adapter = createBaseAdapter({
+        messages: [createUserMessage("u1"), optimisticAssistant],
+        isRunning: true,
+        onCancel: vi.fn(),
+        setMessages,
+      });
+      const core = new ExternalStoreThreadRuntimeCore(contextProvider, adapter);
+
+      core.cancelRun();
+
+      // The store settles the cancelled turn and re-supplies it in the same
+      // tick as the cancel.
+      core.__internal_setAdapter(
+        createBaseAdapter({
+          messages: [
+            createUserMessage("u1"),
+            createAssistantMessage("server-msg", "partial answer (stopped)"),
+          ],
+          isRunning: false,
+          onCancel: vi.fn(),
+          setMessages,
+        }),
+      );
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(setMessages).toHaveBeenCalled();
+      const lastCall = setMessages.mock.lastCall?.[0] as ThreadMessage[];
+      const texts = lastCall.map(getThreadMessageText);
+      expect(texts).toContain("partial answer (stopped)");
+      expect(texts).not.toContain("partial answer");
+    });
+
+    it("re-applies the user leaf rollback when the store updates before the flush", async () => {
+      const messages = [createUserMessage("u1", "cancel me")];
+      const setMessages = vi.fn();
+      const adapter = createBaseAdapter({
+        messages,
+        isRunning: true,
+        onCancel: vi.fn(),
+        setMessages,
+      });
+      const core = new ExternalStoreThreadRuntimeCore(contextProvider, adapter);
+
+      core.cancelRun();
+
+      // The host flips isRunning after onCancel; the store still holds the
+      // rolled-back message because only the deferred resync removes it.
+      core.__internal_setAdapter(
+        createBaseAdapter({
+          messages,
+          isRunning: false,
+          onCancel: vi.fn(),
+          setMessages,
+        }),
+      );
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(core.composer.text).toBe("cancel me");
+      expect(setMessages).toHaveBeenCalled();
+      const lastCall = setMessages.mock.lastCall?.[0] as ThreadMessage[];
+      expect(lastCall.map((m) => m.id)).not.toContain("u1");
+      expect(core.export().messages.map((m) => m.message.id)).not.toContain(
+        "u1",
+      );
+    });
+
+    it("keeps a rolled-back user leaf the store answered in the gap and takes the draft back", async () => {
+      const setMessages = vi.fn();
+      const adapter = createBaseAdapter({
+        messages: [createUserMessage("u1", "cancel me")],
+        isRunning: true,
+        onCancel: vi.fn(),
+        setMessages,
+      });
+      const core = new ExternalStoreThreadRuntimeCore(contextProvider, adapter);
+
+      core.cancelRun();
+      expect(core.composer.text).toBe("cancel me");
+
+      core.__internal_setAdapter(
+        createBaseAdapter({
+          messages: [
+            createUserMessage("u1", "cancel me"),
+            createAssistantMessage("a1", "answered anyway"),
+          ],
+          isRunning: false,
+          onCancel: vi.fn(),
+          setMessages,
+        }),
+      );
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(core.composer.text).toBe("");
+      const lastCall = setMessages.mock.lastCall?.[0] as ThreadMessage[];
+      expect(lastCall.map((m) => m.id)).toEqual(["u1", "a1"]);
+    });
+
+    it("leaves an edited draft alone when the store answered in the gap", async () => {
+      const setMessages = vi.fn();
+      const adapter = createBaseAdapter({
+        messages: [createUserMessage("u1", "cancel me")],
+        isRunning: true,
+        onCancel: vi.fn(),
+        setMessages,
+      });
+      const core = new ExternalStoreThreadRuntimeCore(contextProvider, adapter);
+
+      core.cancelRun();
+      core.composer.setText("edited");
+
+      core.__internal_setAdapter(
+        createBaseAdapter({
+          messages: [
+            createUserMessage("u1", "cancel me"),
+            createAssistantMessage("a1", "answered anyway"),
+          ],
+          isRunning: false,
+          onCancel: vi.fn(),
+          setMessages,
+        }),
+      );
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(core.composer.text).toBe("edited");
+      const lastCall = setMessages.mock.lastCall?.[0] as ThreadMessage[];
+      expect(lastCall.map((m) => m.id)).toEqual(["u1", "a1"]);
+    });
+
+    it("drops a placeholder regenerated between cancel and flush", async () => {
+      const setMessages = vi.fn();
+      const adapter = createBaseAdapter({
+        messages: [createUserMessage("u1", "cancel me")],
+        isRunning: true,
+        onCancel: vi.fn(),
+        setMessages,
+      });
+      const core = new ExternalStoreThreadRuntimeCore(contextProvider, adapter);
+
+      core.cancelRun();
+
+      core.__internal_setAdapter(
+        createBaseAdapter({
+          messages: [createUserMessage("u1", "cancel me")],
+          isRunning: true,
+          onCancel: vi.fn(),
+          setMessages,
+        }),
+      );
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(core.composer.text).toBe("cancel me");
+      const lastCall = setMessages.mock.lastCall?.[0] as ThreadMessage[];
+      expect(lastCall).toEqual([]);
+    });
+
     it("evicts an empty optimistic head on cancel", async () => {
       const optimisticAssistant = {
         ...createAssistantMessage("server-msg", ""),
