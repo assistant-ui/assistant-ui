@@ -55,6 +55,18 @@ const EMPTY_QUEUE_ITEMS: readonly QueueItemState[] = [];
 const EMPTY_BRANCH_IDS: readonly string[] = [];
 const EMPTY_SUGGESTIONS: readonly ThreadSuggestion[] = [];
 
+class ThreadActivity {
+  private active = true;
+
+  isActive = () => this.active;
+  activate = () => {
+    this.active = true;
+  };
+  deactivate = () => {
+    this.active = false;
+  };
+}
+
 export type ExternalThreadMessage = ThreadMessage & {
   id: string;
 };
@@ -136,7 +148,7 @@ type MessageClientProps = {
   speech: SpeechState | undefined;
   onSpeak: () => void;
   onStopSpeaking: () => void;
-  threadActiveRef: { readonly current: boolean };
+  isThreadActive: () => boolean;
 };
 
 // Message Client - minimal implementation
@@ -157,7 +169,7 @@ const useMessageClient = ({
   speech,
   onSpeak,
   onStopSpeaking,
-  threadActiveRef,
+  isThreadActive,
 }: MessageClientProps): ClientOutput<"message"> => {
   const [isCopied, setIsCopied] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
@@ -212,7 +224,7 @@ const useMessageClient = ({
       message,
       queue,
       attachmentAdapter,
-      threadActiveRef,
+      isThreadActive,
     }),
   );
 
@@ -421,7 +433,7 @@ type ComposerClientResourceProps = {
   message?: ExternalThreadMessage;
   queue?: ExternalThreadQueueAdapter | undefined;
   attachmentAdapter?: AttachmentAdapter | undefined;
-  threadActiveRef?: { readonly current: boolean } | undefined;
+  isThreadActive?: (() => boolean) | undefined;
 };
 
 type AttachmentAddOperation = {
@@ -529,7 +541,7 @@ const useComposerClientResource = ({
   message,
   queue,
   attachmentAdapter,
-  threadActiveRef,
+  isThreadActive,
 }: ComposerClientResourceProps): ClientOutput<"composer"> => {
   const [isEditing, setIsEditing, isEditingRef] = useLiveState(
     type === "thread",
@@ -571,7 +583,7 @@ const useComposerClientResource = ({
   const settleWhenActive = (settle: () => void) => {
     const isActive =
       type === "edit"
-        ? (threadActiveRef?.current ?? isActiveRef.current)
+        ? (isThreadActive?.() ?? isActiveRef.current)
         : isActiveRef.current;
     if (isActive) settle();
     else pendingSettlementsRef.current.push(settle);
@@ -957,13 +969,11 @@ const useExternalThread = ({
   branches,
   onRespondToToolApproval,
 }: ExternalThreadProps): ClientOutput<"thread"> => {
-  const threadActiveRef = useRef(true);
+  const threadActivity = useMemo(() => new ThreadActivity(), []);
   useEffect(() => {
-    threadActiveRef.current = true;
-    return () => {
-      threadActiveRef.current = false;
-    };
-  }, []);
+    threadActivity.activate();
+    return threadActivity.deactivate;
+  }, [threadActivity]);
 
   const messages = useMemo(
     () => dedupeMessagesById(messagesProp),
@@ -1061,7 +1071,7 @@ const useExternalThread = ({
         speech: speech?.messageId === msg.id ? speech : undefined,
         onSpeak: () => handleSpeak(msg),
         onStopSpeaking: () => speechController.stopMessage(msg.id),
-        threadActiveRef,
+        isThreadActive: threadActivity.isActive,
       };
       if (onEdit) props.onEdit = onEdit;
       return withKey(msg.id, MessageClient(props));
