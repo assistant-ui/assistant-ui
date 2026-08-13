@@ -808,8 +808,8 @@ describe("ExternalThread attachments", () => {
     });
   });
 
-  it("settles edit-composer attachment sends after message reconciliation", async () => {
-    let resolveSend!: (attachment: CompleteAttachment) => void;
+  it("scopes edit-composer attachment sends to the thread lifetime", async () => {
+    const resolveSends: Array<(attachment: CompleteAttachment) => void> = [];
     const onEdit = vi.fn();
     const file = new File(["data"], "notes.txt", { type: "text/plain" });
     const message = (id: string): ExternalThreadMessage =>
@@ -836,7 +836,7 @@ describe("ExternalThread attachments", () => {
       }),
       send: () =>
         new Promise<CompleteAttachment>((resolve) => {
-          resolveSend = resolve;
+          resolveSends.push(resolve);
         }),
       remove: async () => {},
     };
@@ -848,7 +848,9 @@ describe("ExternalThread attachments", () => {
     const aui = renderThreadWithProps(props);
     const composer = () => aui().thread.message({ id: "u1" }).composer();
 
-    composer().beginEdit();
+    await act(async () => {
+      composer().beginEdit();
+    });
     await act(() => composer().addAttachment(file));
     act(() => {
       composer().setText("edited");
@@ -857,7 +859,7 @@ describe("ExternalThread attachments", () => {
     aui.rerender({ ...props, messages: [message("u2")] });
 
     await act(async () => {
-      resolveSend({
+      resolveSends[0]!({
         id: "att-edit",
         type: "file",
         name: file.name,
@@ -872,6 +874,29 @@ describe("ExternalThread attachments", () => {
       sourceId: "u1",
       content: [{ type: "text", text: "edited" }],
     });
+
+    const nextComposer = () => aui().thread.message({ id: "u2" }).composer();
+    await act(async () => {
+      nextComposer().beginEdit();
+    });
+    await act(() => nextComposer().addAttachment(file));
+    act(() => {
+      nextComposer().setText("disposed edit");
+      nextComposer().send();
+    });
+    aui.unmount();
+
+    await act(async () => {
+      resolveSends[1]!({
+        id: "att-edit",
+        type: "file",
+        name: file.name,
+        contentType: file.type,
+        status: { type: "complete" },
+        content: [],
+      });
+    });
+    expect(onEdit).toHaveBeenCalledTimes(1);
   });
 
   it("merges the failed send into a draft the user already modified", async () => {

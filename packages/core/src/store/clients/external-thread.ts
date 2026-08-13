@@ -136,6 +136,7 @@ type MessageClientProps = {
   speech: SpeechState | undefined;
   onSpeak: () => void;
   onStopSpeaking: () => void;
+  threadActiveRef: { readonly current: boolean };
 };
 
 // Message Client - minimal implementation
@@ -156,6 +157,7 @@ const useMessageClient = ({
   speech,
   onSpeak,
   onStopSpeaking,
+  threadActiveRef,
 }: MessageClientProps): ClientOutput<"message"> => {
   const [isCopied, setIsCopied] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
@@ -210,6 +212,7 @@ const useMessageClient = ({
       message,
       queue,
       attachmentAdapter,
+      threadActiveRef,
     }),
   );
 
@@ -418,6 +421,7 @@ type ComposerClientResourceProps = {
   message?: ExternalThreadMessage;
   queue?: ExternalThreadQueueAdapter | undefined;
   attachmentAdapter?: AttachmentAdapter | undefined;
+  threadActiveRef?: { readonly current: boolean } | undefined;
 };
 
 type AttachmentAddOperation = {
@@ -525,6 +529,7 @@ const useComposerClientResource = ({
   message,
   queue,
   attachmentAdapter,
+  threadActiveRef,
 }: ComposerClientResourceProps): ClientOutput<"composer"> => {
   const [isEditing, setIsEditing, isEditingRef] = useLiveState(
     type === "thread",
@@ -564,7 +569,11 @@ const useComposerClientResource = ({
   }, []);
 
   const settleWhenActive = (settle: () => void) => {
-    if (type === "edit" || isActiveRef.current) settle();
+    const isActive =
+      type === "edit"
+        ? (threadActiveRef?.current ?? isActiveRef.current)
+        : isActiveRef.current;
+    if (isActive) settle();
     else pendingSettlementsRef.current.push(settle);
   };
 
@@ -948,6 +957,14 @@ const useExternalThread = ({
   branches,
   onRespondToToolApproval,
 }: ExternalThreadProps): ClientOutput<"thread"> => {
+  const threadActiveRef = useRef(true);
+  useEffect(() => {
+    threadActiveRef.current = true;
+    return () => {
+      threadActiveRef.current = false;
+    };
+  }, []);
+
   const messages = useMemo(
     () => dedupeMessagesById(messagesProp),
     [messagesProp],
@@ -1044,6 +1061,7 @@ const useExternalThread = ({
         speech: speech?.messageId === msg.id ? speech : undefined,
         onSpeak: () => handleSpeak(msg),
         onStopSpeaking: () => speechController.stopMessage(msg.id),
+        threadActiveRef,
       };
       if (onEdit) props.onEdit = onEdit;
       return withKey(msg.id, MessageClient(props));
