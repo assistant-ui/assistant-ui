@@ -35,6 +35,7 @@ type Subscriber = {
   onCustomEvent?: (payload: { event: unknown }) => void;
   onRawEvent?: (payload: { event: unknown }) => void;
   onRunFinishedEvent?: (payload: { event: unknown }) => void;
+  onRunErrorEvent?: (payload: { event: unknown }) => void;
   onRunFinalized?: () => void;
   onRunFailed?: (payload: { error: Error }) => void;
 };
@@ -149,6 +150,23 @@ export const createAgUiSubscriber = (
       const parsed = ensureEvent(event, "RUN_FINISHED", logger);
       if (!parsed) return;
       runFinishedDispatched = true;
+      dispatch(parsed);
+    },
+    onRunErrorEvent: ({ event }) => {
+      const parsed = ensureEvent(event, "RUN_ERROR", logger);
+      if (parsed?.type !== "RUN_ERROR") return;
+      runFinishedDispatched = true;
+      // The HTTP agent reports an aborted request as a RUN_ERROR carrying this
+      // code rather than as a failed run, so it must settle as a cancellation.
+      if (parsed.code === "abort") {
+        dispatch({ type: "RUN_CANCELLED" } satisfies AgUiEvent);
+        return;
+      }
+      const error: Error & { code?: string } = new Error(
+        parsed.message ?? "Run failed",
+      );
+      if (parsed.code !== undefined) error.code = parsed.code;
+      onRunFailed?.(error);
       dispatch(parsed);
     },
     onRunFinalized: () => {
