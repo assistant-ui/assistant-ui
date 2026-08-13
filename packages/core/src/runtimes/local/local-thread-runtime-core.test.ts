@@ -143,6 +143,29 @@ describe("LocalThreadRuntimeCore events", () => {
   });
 });
 
+describe("LocalThreadRuntimeCore - detach", () => {
+  it("drops a pending append when detached", async () => {
+    let resolveInitialization!: () => void;
+    const initialization = new Promise<void>((resolve) => {
+      resolveInitialization = resolve;
+    });
+    const run = vi.fn(async () => ({
+      content: [{ type: "text" as const, text: "done" }],
+    }));
+    const thread = createThread({ run });
+    thread.__internal_setGetInitializePromise(() => initialization);
+
+    const appendPromise = thread.append(userMessage("hello"));
+    await Promise.resolve();
+    thread.detach();
+    resolveInitialization();
+
+    await appendPromise;
+    expect(run).not.toHaveBeenCalled();
+    expect(thread.messages).toEqual([]);
+  });
+});
+
 describe("LocalThreadRuntimeCore human-in-the-loop tools", () => {
   it("pauses on requires-action while a listed tool call has no result", async () => {
     const { thread, runs } = createApprovalThread(toolCallResult("send_email"));

@@ -33,6 +33,11 @@ import {
   EMPTY_QUEUE_ITEMS,
   type QueueItemState,
 } from "../../store/scopes/queue-item";
+import {
+  captureThreadRuntimeGeneration,
+  disposeThreadRuntime,
+  isThreadRuntimeGenerationCurrent,
+} from "../../runtime/utils/thread-runtime-lifecycle";
 
 class AbortError extends Error {
   override name = "AbortError";
@@ -315,6 +320,7 @@ export class LocalThreadRuntimeCore
   private async _runAppend(rawMessage: AppendMessage): Promise<void> {
     // Stamped here rather than in `append` so a queued message is gated after
     // the flush re-pointed its parentId at the current tail.
+    const generation = captureThreadRuntimeGeneration(this);
     const message = this.enrichAppendMetadata(rawMessage);
     this.ensureInitialized();
 
@@ -322,6 +328,7 @@ export class LocalThreadRuntimeCore
     if (initPromise) {
       await initPromise;
     }
+    if (!isThreadRuntimeGenerationCurrent(this, generation)) return;
 
     const newMessage = fromThreadMessageLike(message, generateId(), {
       type: "complete",
@@ -676,6 +683,7 @@ export class LocalThreadRuntimeCore
   }
 
   public detach() {
+    disposeThreadRuntime(this);
     // drop the queue so pending items cannot dispatch on a detached thread
     this._queue = null;
     const error = new AbortError(true);

@@ -13,6 +13,12 @@ export const useExternalStoreRuntime = <T>(
   const [runtime] = useState(() => new ExternalStoreRuntimeCore(store));
 
   useEffect(() => {
+    return () => {
+      void runtime.threads.detach();
+    };
+  }, [runtime]);
+
+  useEffect(() => {
     runtime.setAdapter(store);
   });
 

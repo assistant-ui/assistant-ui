@@ -4,6 +4,7 @@ import type { ExternalStoreAdapter } from "../runtimes/external-store/external-s
 import type { ModelContextProvider } from "../model-context/types";
 import type { ThreadMessageLike } from "../runtime/utils/thread-message-like";
 import type { AppendMessage } from "../types/message";
+import { disposeThreadRuntime } from "../runtime/utils/thread-runtime-lifecycle";
 
 const mockContextProvider: ModelContextProvider = {
   getModelContext: () => ({}),
@@ -927,6 +928,35 @@ describe("ExternalStoreThreadRuntimeCore - message queue", () => {
     await expect(runtime.append(appendMessage())).rejects.toThrow(
       "initialization failed",
     );
+    expect(onNew).not.toHaveBeenCalled();
+  });
+
+  it("drops an append disposed while aborting client-side tools", async () => {
+    let resolveAbort!: () => void;
+    const abortPromise = new Promise<void>((resolve) => {
+      resolveAbort = resolve;
+    });
+    const onNew = vi.fn(async () => {});
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({ onNew }),
+    );
+    runtime.__internal_setGetInitializePromise(() => Promise.resolve());
+    const abort = vi.fn(() => abortPromise);
+    (
+      runtime as unknown as { _toolInvocations: { abort: typeof abort } }
+    )._toolInvocations = {
+      abort,
+    };
+
+    const appendPromise = runtime.append(appendMessage());
+    await Promise.resolve();
+    expect(abort).toHaveBeenCalledOnce();
+
+    disposeThreadRuntime(runtime);
+    resolveAbort();
+
+    await appendPromise;
     expect(onNew).not.toHaveBeenCalled();
   });
 

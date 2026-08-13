@@ -42,6 +42,10 @@ import { generateId } from "../../utils/id";
 import { ToolInvocationTracker } from "../tool-invocations/ToolInvocationTracker";
 import { EMPTY_QUEUE_ITEMS } from "../../store/scopes/queue-item";
 import type { QuoteInfo } from "../../types/quote";
+import {
+  captureThreadRuntimeGeneration,
+  isThreadRuntimeGenerationCurrent,
+} from "../../runtime/utils/thread-runtime-lifecycle";
 
 const EMPTY_ARRAY: readonly ThreadSuggestion[] = Object.freeze([]);
 
@@ -515,6 +519,7 @@ export class ExternalStoreThreadRuntimeCore
       return;
     }
 
+    const generation = captureThreadRuntimeGeneration(this);
     const message = this.enrichAppendMetadata(rawMessage);
     this.ensureInitialized();
 
@@ -522,6 +527,7 @@ export class ExternalStoreThreadRuntimeCore
     if (initPromise) {
       await initPromise;
     }
+    if (!isThreadRuntimeGenerationCurrent(this, generation)) return;
 
     // Auto-abort in-flight client-side tool executions when a new run is
     // about to start. Without this, a tool that finishes after the new turn
@@ -532,6 +538,7 @@ export class ExternalStoreThreadRuntimeCore
     if (message.startRun ?? message.role === "user") {
       await this._toolInvocations?.abort();
     }
+    if (!isThreadRuntimeGenerationCurrent(this, generation)) return;
 
     if (isEdit) {
       if (!this._store.onEdit)

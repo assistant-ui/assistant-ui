@@ -25,6 +25,7 @@ import {
   type ThreadRuntimeImpl,
 } from "../../runtime/api/thread-runtime";
 import { ThreadListRuntimeImpl } from "../../runtime/api/thread-list-runtime";
+import { disposeThreadRuntime } from "../../runtime/utils/thread-runtime-lifecycle";
 
 type RemoteThreadListHook = () => AssistantRuntime;
 
@@ -105,6 +106,7 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     const instance = this.instances.get(threadId);
     if (!instance) return this.startThreadRuntime(threadId);
 
+    if (instance.runtime) disposeThreadRuntime(instance.runtime);
     instance.generation = this.nextGeneration++;
     this.useAliveThreadsKeysChanged.setState({}, true);
     this._notifySubscribers();
@@ -186,7 +188,9 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
   }
 
   public stopThreadRuntime(threadId: string) {
-    this.instances.get(threadId)?.unsubscribeRunning?.();
+    const instance = this.instances.get(threadId);
+    if (instance?.runtime) disposeThreadRuntime(instance.runtime);
+    instance?.unsubscribeRunning?.();
     this.instances.delete(threadId);
     this.useAliveThreadsKeysChanged.setState({}, true);
     this._notifySubscribers();
