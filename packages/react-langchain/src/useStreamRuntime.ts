@@ -310,11 +310,15 @@ const useStreamThreadRuntime = (
               status: "error" as const,
             }))
           : [];
+      // A null threadId is not a no-op for the SDK: it rebinds the controller
+      // away from its self-created thread and forces a fresh one, so the
+      // override is only passed once initialization produced an identity.
+      const externalId = aui.threadListItem.getState().externalId;
       await streamRef.current.submit(
         { [messagesKey]: [...cancellations, { type: "human", content }] },
         {
           ...runConfigToSubmitOptions(msg.runConfig),
-          threadId: aui.threadListItem.getState().externalId ?? null,
+          ...(externalId != null ? { threadId: externalId } : {}),
         },
       );
     },

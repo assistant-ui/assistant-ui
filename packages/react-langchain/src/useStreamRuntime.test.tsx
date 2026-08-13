@@ -241,6 +241,38 @@ describe("useStreamRuntime thread options", () => {
     );
     view.unmount();
   });
+
+  it("omits the threadId override when initialization yields no external id", async () => {
+    const stream = createMockStream();
+    mockUseStream.mockReturnValue(stream);
+    const capture: { runtime: AssistantRuntime | null } = { runtime: null };
+    const TestRuntime = () => {
+      const runtime = useStreamRuntime({ apiUrl: "/api" } as never);
+      capture.runtime = runtime;
+      return <AssistantRuntimeProvider runtime={runtime} />;
+    };
+    const view = render(<TestRuntime />);
+    await waitFor(() => expect(capture.runtime).not.toBeNull());
+
+    await act(async () => {
+      await capture.runtime!.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "one" }],
+      });
+    });
+    await act(async () => {
+      await capture.runtime!.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "two" }],
+      });
+    });
+
+    expect(stream.submit).toHaveBeenCalledTimes(2);
+    for (const call of stream.submit.mock.calls) {
+      expect(call[1]).not.toHaveProperty("threadId");
+    }
+    view.unmount();
+  });
 });
 
 describe("useStreamRuntime staged messages", () => {
