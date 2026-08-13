@@ -202,7 +202,7 @@ The runtime parses the AG-UI event stream and maps each event type to assistant-
 
 `CUSTOM` events are the protocol's extension mechanism for application-defined data. Each event is appended to the in-flight assistant message as a canonical `data` part in arrival order: `CUSTOM { name: "sources", value: {...} }` becomes `{ type: "data", name: "sources", data: {...} }`. Repeated names append separate parts, the `value` is passed through verbatim, and data parts reset with each run. Tool calls that carry a `parentMessageId` are anchored under that message rather than at their wire position, so a data part can render after a tool call that arrived later. A run that delivers its assistant message only through `MESSAGES_SNAPSHOT`, with no streamed text or tool calls, drops that run's data parts when the snapshot supersedes the in-flight message.
 
-Render them by registering a per-name renderer; parts without a registered renderer are not displayed.
+Render them by registering a per-name renderer; parts without a registered renderer are not displayed, unless a `Data` fallback component is registered, in which case the fallback receives every custom event name, including the framework plumbing listed below.
 
 ```tsx
 import { useAssistantDataUI } from "@assistant-ui/react";
