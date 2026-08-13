@@ -21,6 +21,8 @@ const committedRecord = (
     fiber: { root, markDirty: undefined },
     cell,
     prevState,
+    hasEagerState: false,
+    eagerState: undefined,
     settled: false,
     queued: false,
     logged: true,
@@ -97,10 +99,8 @@ describe("setRootVersion", () => {
 
   it("keeps changelog records relative to the re-based version on a partial rollback", () => {
     const root = makeRoot();
-    setRootVersion(root, 5);
-    commitRoot(root);
-
     setRootVersion(root, 3);
+    commitRoot(root);
     expect(root.committedVersion).toBe(3);
 
     setRootVersion(root, 7);
@@ -181,9 +181,19 @@ describe("setRootVersion", () => {
     expect(root.committedLog).toEqual([recordA]);
     expect(root.committedVersion).toBe(1);
 
+    recordB.prevState = "rewritten";
+    recordB.eagerState = "rewritten";
+    recordB.hasEagerState = true;
+
     setRootVersion(root, 3);
+    setRootVersion(root, 2);
+    expect(root.committedVersion).toBe(2);
+    expect(root.committedLog).toEqual([recordA, recordB]);
+    expect(recordB.prevState).toBe("p2");
+    expect(recordB.hasEagerState).toBe(false);
+    expect(cell.workInProgress).toBe("s2");
+
     setRootVersion(root, 1);
-    expect(root.committedVersion).toBe(1);
     expect(cell.workInProgress).toBe("p2");
     expect(root.committedLog).toEqual([recordA]);
 
@@ -212,13 +222,14 @@ describe("setRootVersion", () => {
     const root = makeRoot();
     setRootVersion(root, 3);
     commitRoot(root);
+    setRootVersion(root, 5);
 
     let rolledBack = false;
     root.rollbackCallbacks.push(() => {
       rolledBack = true;
     });
 
-    setRootVersion(root, 1);
+    setRootVersion(root, 3);
     expect(rolledBack).toBe(true);
     expect(root.rollbackCallbacks.length).toBe(0);
   });

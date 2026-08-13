@@ -28,44 +28,53 @@ const dispatchOnFiber = (
   let evaluated = false;
   let hasWork = true;
 
-  fiber.root.dispatchUpdate(
-    () => {
-      if (evaluated) return hasWork;
-      evaluated = true;
+  fiber.root.unsettledCount++;
+  try {
+    fiber.root.dispatchUpdate(
+      () => {
+        if (evaluated) return hasWork;
+        evaluated = true;
 
-      if (
-        eagerReducer &&
-        fiber.root.changelog.length === 0 &&
-        !record.cell.isDirty &&
-        !record.hasEagerState
-      ) {
-        record.prevState = record.cell.workInProgress;
-        record.eagerState = eagerReducer(
-          record.cell.workInProgress,
-          record.action,
-        );
-        record.hasEagerState = true;
+        if (
+          eagerReducer &&
+          fiber.root.changelog.length === 0 &&
+          !record.cell.isDirty &&
+          !record.hasEagerState
+        ) {
+          record.prevState = record.cell.workInProgress;
+          record.eagerState = eagerReducer(
+            record.cell.workInProgress,
+            record.action,
+          );
+          record.hasEagerState = true;
 
-        hasWork = !Object.is(record.cell.current, record.eagerState);
-        if (!hasWork && !record.settled) {
-          record.settled = true;
-          fiber.root.unsettledCount--;
+          hasWork = !Object.is(record.cell.current, record.eagerState);
+          if (!hasWork && !record.settled) {
+            record.settled = true;
+            fiber.root.unsettledCount--;
+          }
         }
-      }
 
-      return hasWork;
-    },
-    () => {
-      evaluated = true;
-      hasWork = true;
-      applyChangelogRecord(record);
-      if (!record.logged) {
-        record.logged = true;
-        fiber.root.changelog.push(record);
-      }
-      return true;
-    },
-  );
+        return hasWork;
+      },
+      () => {
+        evaluated = true;
+        hasWork = true;
+        applyChangelogRecord(record);
+        if (!record.logged) {
+          record.logged = true;
+          fiber.root.changelog.push(record);
+        }
+        return true;
+      },
+    );
+  } catch (error) {
+    if (!record.settled) {
+      record.settled = true;
+      fiber.root.unsettledCount--;
+    }
+    throw error;
+  }
 };
 
 const createReducerCell = (
@@ -112,7 +121,6 @@ const createReducerCell = (
           logged: false,
         };
 
-        fiber.root.unsettledCount++;
         dispatchOnFiber(fiber, record, eagerBailout ? reducer : undefined);
       }
     },

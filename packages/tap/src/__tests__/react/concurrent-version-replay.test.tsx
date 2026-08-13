@@ -7,7 +7,7 @@ import {
 import { flushSync } from "react-dom";
 import { createRoot, type Root } from "react-dom/client";
 import { act } from "@testing-library/react";
-import type { TapRoot } from "../../core/types";
+import type { ChangelogRecord, TapRoot } from "../../core/types";
 import { resource } from "../../core/resource";
 import { commitRoot, setRootVersion } from "../../core/helpers/root";
 import { renderResourceFiber } from "../../core/ResourceFiber";
@@ -286,7 +286,18 @@ describe("React-hosted reducer replay below the committed version", () => {
     });
 
     const committed = renderTest(fiber, 1);
+    fiber.root.unsettledCount = 2;
     setRootVersion(fiber.root, 3);
+    fiber.root.changelog.push({
+      fiber: { root: fiber.root, markDirty: undefined },
+      cell: { isDirty: false, queue: null, workInProgress: "x", current: "x" },
+      prevState: "x",
+      hasEagerState: false,
+      eagerState: undefined,
+      settled: false,
+      queued: false,
+      logged: true,
+    } as unknown as ChangelogRecord);
     commitRoot(fiber.root);
     setRootVersion(fiber.root, 4);
     expect(renderResourceFiber(fiber, [2])).toEqual({ x: 2 });
@@ -294,6 +305,22 @@ describe("React-hosted reducer replay below the committed version", () => {
     setRootVersion(fiber.root, 2);
     expect(renderTest(fiber, 1)).toBe(committed);
     expect(computes).toBe(2);
+  });
+
+  it("does not leak unsettled accounting when a dispatch throws before mount", () => {
+    let push!: (chunk: string) => void;
+    const fiber = createTestResource(() => {
+      const [chunks, dispatch] = useResourceReducer(
+        (s: readonly string[], c: string) => [...s, c],
+        [] as readonly string[],
+      );
+      push = dispatch;
+      return chunks;
+    });
+
+    renderResourceFiber(fiber, []);
+    expect(() => push("early")).toThrow("Resource updated before mount");
+    expect(fiber.root.unsettledCount).toBe(0);
   });
 
   it("rebases a mid-tick mixed-lane chain to the React oracle", async () => {

@@ -55,11 +55,16 @@ export const setRootVersion = (root: TapRoot, version: number): void => {
       // reduce from the state at the base; the commit path drops the armed
       // restore, while a discarded replay restores the log and the committed
       // version through it.
-      const rewound: ChangelogRecord[] = [];
+      const rewound: {
+        record: ChangelogRecord;
+        prevState: any;
+        eagerState: any;
+        hasEagerState: boolean;
+      }[] = [];
       while (root.committedVersion - rewound.length > version) {
         const record = root.committedLog.pop();
         if (record === undefined) {
-          if (isDevelopment && rewound.length > 0) {
+          if (isDevelopment) {
             throw new Error(
               "tap: committed history is shorter than the replay base.",
             );
@@ -68,13 +73,25 @@ export const setRootVersion = (root: TapRoot, version: number): void => {
         }
         markReducerDirty(record.fiber, record.cell);
         record.cell.workInProgress = record.prevState;
-        rewound.push(record);
+        rewound.push({
+          record,
+          prevState: record.prevState,
+          eagerState: record.eagerState,
+          hasEagerState: record.hasEagerState,
+        });
       }
       if (rewound.length > 0) {
         const restoredVersion = root.committedVersion;
+        // A discarded replay has re-drained the popped records against its own
+        // base, so the restore rewrites their application snapshots back to
+        // committed history alongside the log and the committed version.
         addRollback(root, () => {
           for (let i = rewound.length - 1; i >= 0; i--) {
-            root.committedLog.push(rewound[i]!);
+            const entry = rewound[i]!;
+            entry.record.prevState = entry.prevState;
+            entry.record.eagerState = entry.eagerState;
+            entry.record.hasEagerState = entry.hasEagerState;
+            root.committedLog.push(entry.record);
           }
           root.committedVersion = restoredVersion;
         });
