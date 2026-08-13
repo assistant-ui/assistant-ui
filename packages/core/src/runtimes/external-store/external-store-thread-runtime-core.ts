@@ -504,7 +504,14 @@ export class ExternalStoreThreadRuntimeCore
       rawMessage.sourceId != null ||
       rawMessage.parentId !== (this.messages.at(-1)?.id ?? null);
 
-    const message = this.enrichAppendMetadata(rawMessage);
+    // The dispatch transform re-stamps a transformed-queue message at flush,
+    // so send-time stamping applies to every other path.
+    const message =
+      !isEdit &&
+      this._store.queue &&
+      this._store.queue === this._transformedQueue
+        ? rawMessage
+        : this.enrichAppendMetadata(rawMessage);
 
     // The queue driver dispatches through the host adapter, outside this
     // core, so the initialization barrier must run before a message can
