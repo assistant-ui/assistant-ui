@@ -52,11 +52,17 @@ names, then the response's `reason` text when the request takes a free-form
 answer (`display: "text"`, `allowFreeform`, or no options at all, and never
 `display: "confirmation"`) and the response is not a refusal.
 
-Anything else throws: a response eve cannot record as the answer the request
-asked for is not submitted at all, because eve resolves a request the moment
-any response for it arrives, and an empty one is recorded as an answer with
-no content. Not sending leaves the request pending, so the caller can retry
-or the user can answer it as an ordinary message.
+A response the known request cannot record as the answer it asked for throws
+instead of being submitted, because eve resolves a request the moment any
+response for it arrives, and an empty one is recorded as an answer with no
+content. Not sending leaves the request pending, so the caller can retry or
+the user can answer it as an ordinary message.
+
+With no request to map against — a one-argument call, or a part carrying no
+`toolMetadata.eve.inputRequest` — the response maps as it always has, to the
+literal `"approve"` / `"deny"` option every eve approval declares. Guessing
+a display mode is what this mapper stopped doing; an unknown request is not
+a guess about one.
 
 ```ts
 const toEveInputResponse: (response: RespondToToolApprovalOptions, inputRequest?: EveMessageInputRequest) => InputResponse;

@@ -403,6 +403,72 @@ describe("useEveAgentRuntime tool approval responses", () => {
     }
   });
 
+  const bareApprovalData = (toolMetadata?: {
+    eve: { kind: "tool-call"; name: string };
+  }): EveMessageData => ({
+    messages: [
+      { id: "u1", role: "user", parts: [{ type: "text", text: "hi" }] },
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          {
+            type: "dynamic-tool",
+            state: "approval-requested",
+            toolCallId: "call_1",
+            toolName: "delete_file",
+            input: {},
+            approval: { id: "req_1" },
+            ...(toolMetadata && { toolMetadata }),
+          },
+        ],
+      },
+    ],
+  });
+
+  it.each([
+    ["no eve tool metadata at all", undefined],
+    [
+      "eve metadata carrying no input request",
+      { eve: { kind: "tool-call", name: "delete_file" } },
+    ],
+  ])(
+    "still answers an ordinary approval when the part has %s",
+    async (_label, toolMetadata) => {
+      const agent = createAgent({
+        data: bareApprovalData(toolMetadata as never),
+      });
+      mockUseEveAgent.mockReturnValue(agent as never);
+
+      const { result } = renderHook(() => useEveAgentRuntime());
+      expect(() =>
+        respondToTextRequest(result, { approved: true }),
+      ).not.toThrow();
+
+      await flushMicrotasks();
+
+      expect(agent.send).toHaveBeenCalledWith({
+        inputResponses: [{ requestId: "req_1", optionId: "approve" }],
+      });
+    },
+  );
+
+  it("maps a denial on a request the data does not carry", async () => {
+    const agent = createAgent({ data: bareApprovalData(undefined) });
+    mockUseEveAgent.mockReturnValue(agent as never);
+
+    const { result } = renderHook(() => useEveAgentRuntime());
+    respondToTextRequest(result, { approved: false, reason: "not safe" });
+
+    await flushMicrotasks();
+
+    expect(agent.send).toHaveBeenCalledWith({
+      inputResponses: [
+        { requestId: "req_1", optionId: "deny", text: "not safe" },
+      ],
+    });
+  });
+
   it("submits a free-form answer as text without an option id", async () => {
     const agent = createAgent({ data: textRequestData });
     mockUseEveAgent.mockReturnValue(agent as never);

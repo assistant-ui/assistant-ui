@@ -551,28 +551,31 @@ export const findEveInputRequest = (
  * answer (`display: "text"`, `allowFreeform`, or no options at all, and never
  * `display: "confirmation"`) and the response is not a refusal.
  *
- * Anything else throws: a response eve cannot record as the answer the request
- * asked for is not submitted at all, because eve resolves a request the moment
- * any response for it arrives, and an empty one is recorded as an answer with
- * no content. Not sending leaves the request pending, so the caller can retry
- * or the user can answer it as an ordinary message.
+ * A response the known request cannot record as the answer it asked for throws
+ * instead of being submitted, because eve resolves a request the moment any
+ * response for it arrives, and an empty one is recorded as an answer with no
+ * content. Not sending leaves the request pending, so the caller can retry or
+ * the user can answer it as an ordinary message.
+ *
+ * With no request to map against — a one-argument call, or a part carrying no
+ * `toolMetadata.eve.inputRequest` — the response maps as it always has, to the
+ * literal `"approve"` / `"deny"` option every eve approval declares. Guessing
+ * a display mode is what this mapper stopped doing; an unknown request is not
+ * a guess about one.
  */
 export const toEveInputResponse = (
   response: RespondToToolApprovalOptions,
   inputRequest?: EveMessageInputRequest,
 ): InputResponse => {
   const requestId = response.approvalId;
-  if (!inputRequest) {
-    throw new Error(
-      `Eve input request "${requestId}" is not in the agent's message data; pass the request in from the tool part's providerMetadata.eve.inputRequest, because the response cannot be mapped without the request it answers`,
-    );
-  }
-
-  const options = inputRequest.options;
+  const options = inputRequest?.options;
   const text = response.reason;
 
   if (response.optionId !== undefined) {
-    if (options?.some((option) => option.id === response.optionId)) {
+    if (
+      !inputRequest ||
+      options?.some((option) => option.id === response.optionId)
+    ) {
       return {
         requestId,
         optionId: response.optionId,
@@ -589,7 +592,10 @@ export const toEveInputResponse = (
   }
 
   const decisionOptionId = response.approved ? "approve" : "deny";
-  if (options?.some((option) => option.id === decisionOptionId)) {
+  if (
+    !inputRequest ||
+    options?.some((option) => option.id === decisionOptionId)
+  ) {
     return { requestId, optionId: decisionOptionId, ...(text && { text }) };
   }
 
@@ -609,9 +615,11 @@ export const toEveInputResponse = (
     `Eve input request "${requestId}" (${inputRequest.prompt}) was not answered by this response; ${
       options?.length
         ? `respond with one of: ${options.map((option) => option.id).join(", ")}`
-        : acceptsText
-          ? "pass the answer as the response reason, because the request takes a free-form answer"
-          : "the request declares no options to respond with"
+        : !acceptsText
+          ? "the request declares no options to respond with"
+          : response.approved === false
+            ? "a refusal carries no answer for a free-form request; resend with `approved` unset or true and the answer in the response reason"
+            : "pass the answer as the response reason, because the request takes a free-form answer"
     }`,
   );
 };

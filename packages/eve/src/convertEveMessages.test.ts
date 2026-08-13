@@ -1223,6 +1223,52 @@ describe("convertEveMessages", () => {
         ).toEqual({ type: "requires-action", reason: "interrupt" });
       });
 
+      it("projects the input request onto the approval part it gates", () => {
+        const events: readonly EveAgentReducerEvent[] = [
+          ...midStreamEvents,
+          {
+            type: "input.requested",
+            data: {
+              turnId: "turn_1",
+              stepIndex: 0,
+              sequence: 3,
+              requests: [
+                {
+                  requestId: "req_1",
+                  prompt: "What should the subject line be?",
+                  display: "text",
+                  action: {
+                    kind: "tool-call",
+                    callId: "call_1",
+                    toolName: "ask_question",
+                    input: {},
+                  },
+                },
+              ],
+            },
+          },
+        ];
+
+        // Rehydrating a session replays the stored event log through this same
+        // reducer, so a pending request reloaded from history carries the same
+        // projection a live stream does.
+        for (const state of [replay(events), replay([...events])]) {
+          const part = state.messages
+            .find((message) => message.role === "assistant")
+            ?.parts.find((candidate) => candidate.type === "dynamic-tool");
+
+          expect(part).toMatchObject({
+            state: "approval-requested",
+            approval: { id: "req_1" },
+          });
+          expect(findEveInputRequest(state, "req_1")).toMatchObject({
+            requestId: "req_1",
+            prompt: "What should the subject line be?",
+            display: "text",
+          });
+        }
+      });
+
       it("a locally aborted turn keeps its streaming marker and converts to cancelled", () => {
         const state = replay(midStreamEvents);
 
@@ -1529,18 +1575,29 @@ describe("toEveInputResponse", () => {
     });
   });
 
-  it("refuses to map a response without the request it answers", () => {
-    expect(() =>
-      toEveInputResponse({ approvalId: "req_1", approved: true }),
-    ).toThrow(/is not in the agent's message data/);
+  it("keeps the shipped one-argument mapping when no request is available", () => {
+    expect(toEveInputResponse({ approvalId: "req_1", approved: true })).toEqual(
+      {
+        requestId: "req_1",
+        optionId: "approve",
+      },
+    );
 
-    expect(() =>
+    expect(
+      toEveInputResponse({
+        approvalId: "req_1",
+        approved: false,
+        reason: "Not yet",
+      }),
+    ).toEqual({ requestId: "req_1", optionId: "deny", text: "Not yet" });
+
+    expect(
       toEveInputResponse({
         approvalId: "req_1",
         approved: true,
         optionId: "staging",
       }),
-    ).toThrow(/is not in the agent's message data/);
+    ).toEqual({ requestId: "req_1", optionId: "staging" });
   });
 
   it("keeps the confirmation mapping when the request carries approve/deny options", () => {
@@ -1591,7 +1648,7 @@ describe("toEveInputResponse", () => {
         { approvalId: "req_1", approved: false, reason: "not this one" },
         withInputRequest(),
       ),
-    ).toThrow(/pass the answer as the response reason/);
+    ).toThrow(/a refusal carries no answer for a free-form request/);
   });
 
   it("never fabricates approve for a text-display request without an answer", () => {
