@@ -1,6 +1,6 @@
 ---
 title: Render targets
-description: Capability matrix for the generative-ui vocabulary across Web, Slack Block Kit, Teams Adaptive Cards, and A2UI.
+description: Which surfaces the generative-UI vocabulary renders to, where each component's per-target behavior is documented, and which losses your warning log will never show.
 platforms: ["react"]
 ---
 
@@ -12,91 +12,107 @@ Block Kit and Microsoft Teams Adaptive Cards; and
 `@assistant-ui/react-generative-ui/a2ui` converts inward, mapping
 [A2UI surfaces](/docs/tools/a2ui) onto the same vocabulary.
 
-Both outbound converters are total: they never throw. Many lossy steps are
-reported as a structured warning (`SlackConversionWarning` /
-`TeamsConversionWarning` with a `code` of `clamped`, `fallback`, `dropped`, or,
-on Teams only, `advisory`),
-but not all of them — the matrix marks each degradation as *(warns)* or
-*(silent)* so you know which losses your warning log will actually show.
+This page is the index across those surfaces, not a second copy of them. What
+each component becomes on Slack or Teams, and what that costs, is documented
+once on the platform guides — the rows below link straight into them. What this
+page adds is the two things neither guide can show on its own: whether a
+degradation is reported to you or happens silently, and which A2UI component
+ingests into each vocabulary component.
 
 ## Capability matrix
 
-Legend: **Yes** — maps to a native construct. **Degrades** — converts, but to
-a simpler output shape; the note says what is lost, and *(warns)* / *(silent)*
-says whether a warning is emitted for it. **Note** — replaced by a visible
-omission note plus a `dropped` warning. **—** — no counterpart on that surface
-(dropped silently outbound; never produced inbound).
+Both outbound converters are total: they never throw, and a degradation comes
+back as a structured warning (`SlackConversionWarning` /
+`TeamsConversionWarning`) instead. That is a statement about not throwing
+rather than about coverage — each guide's own fidelity rows also describe
+degradations that happen *silently*, in those words. Which of the two you get
+decides whether a production surprise shows up in your logs or only in a
+screenshot, so the markers below collect the guides' warning wording per
+component:
 
-The A2UI column reads in the opposite direction: it lists which A2UI component
-produces that vocabulary component when a surface is ingested.
+- **warns** — the guide describes a warning for at least one of this
+  component's degradations on that target.
+- **silent** — the guide describes at least one of them as silent.
+  These are the rows worth following before you ship.
+
+A row can carry both. An unmarked cell is not a fidelity guarantee: it means
+the guide's row for that component describes no loss, or — for the four rows
+noted below the table — that its wording is still being corrected. The A2UI
+column reads in the opposite direction: it
+lists which A2UI component produces that vocabulary component when a surface is
+ingested.
 
 | Component | Web (React) | Slack Block Kit | Teams Adaptive Cards | A2UI (ingest) |
 | --- | --- | --- | --- | --- |
-| `Header` | Yes | Yes (`header`; `size` dropped *(silent)*) | Yes (heading `TextBlock`; `size` dropped *(silent)* — every heading renders at `large`) | `Text` variant `h1`–`h6` |
-| `Text` | Yes | Yes (`section`; `size`, `weight`, and `color` dropped *(silent)*) | Yes (`TextBlock`), but every styling prop narrows *(silent)*: the six `size` tokens collapse onto four Adaptive Card sizes (`md` emits none, `2xl` and `3xl` both become `extraLarge`), `weight` collapses to `bolder` or nothing, and `color` survives only as `isSubtle` — `emphasis`, the one non-subtle token, is dropped | — (plain `Text` maps to `Markdown`) |
-| `Caption` | Yes | Yes (`context`) | Yes (small subtle `TextBlock`) | `Text` variant `caption` |
-| `Badge` | Yes | Degrades *(silent)*: plain context text | Degrades *(silent)*: plain subtle text; `variant` dropped | — |
-| `Markdown` | Yes | Yes (`markdown`, budgeted; over budget falls back to a clamped `section` *(warns)*) | Degrades *(silent)*: Teams renders a markdown subset (no headings, tables, images); the rest renders literally | `Text` (default) |
-| `Fact` | Yes | Yes (`section` fields; consecutive facts merge) | Yes (`FactSet`; consecutive facts merge) | — |
-| `Image` | Yes | Yes (`image`; `size` and `round` dropped *(silent)*) | Yes (`Image`; numeric sizes dropped *(warns)*, `round` dropped *(silent)*) | `Image` |
-| `Icon` | Yes | — | — | — |
-| `Divider` | Yes | Yes (`divider`) | Degrades *(silent)*: becomes `separator` on the next sibling, `flush` is dropped, and a trailing divider is dropped | `Divider` |
-| `Spacer` | Yes | — | Degrades *(silent)*: becomes `spacing` on the next sibling; a trailing spacer is dropped | — |
-| `Card` | Yes | Yes (`card`) when its children fit the native shape — the first `Image`, the first `Text`/`Markdown`, and the first `Caption`, with `title` and the confirm/cancel actions coming from props; `Spacer` and `Icon` children are ignored, and any child left over degrades *(warns)* the whole card to inline blocks | Yes (`Container` + footer `ActionSet`; `padding`, `background`, and `asForm` dropped *(silent)*) | `Card` |
-| `Carousel` | Yes | Yes (`carousel` of cards); non-card children dropped *(warns whenever the child would have rendered or lost content; silent only when it renders nothing anyway)*, cards past 10 dropped *(warns)*, a card that does not fit the native shape clamped to title + body *(warns)*, and an empty result drops the carousel *(warns)* | Degrades: at the root `toTeamsAttachments` maps the first 10 `Card` children to attachments *(silent)*, cards past 10 dropped *(warns)*, non-card children dropped *(warns whenever the child would have rendered or lost content; silent only when it renders nothing anyway)*; nested renders as sequential cards *(warns)*; the carousel's own `label` is dropped *(silent)* | — |
-| `Row` | Yes | Degrades: context row when all children are `Badge`/`Caption` *(silent)*, with context elements past 10 clamped *(warns)*; otherwise flattened vertically *(silent)* | Yes (`ColumnSet`; past 3 columns *(warns)*; `gap`, `align`, and `justify` dropped *(silent)*) | `Row` |
-| `Col` | Yes | Degrades *(silent)*: flattened into the block sequence | Yes (`Container`; `gap` and `align` dropped *(silent)*) | `Column` |
-| `Box` | Yes | Degrades *(silent)*: flattened into the block sequence | Yes (`Container`; `width`, `height`, `radius`, and `background` dropped *(silent)*) | — |
-| `Button` | Yes | Yes (`button`; oversized action payloads dropped from the value *(warns)*, `buttonStyle` beyond `primary`/`danger` dropped *(silent)*) | Yes (`Action.Submit`; `buttonStyle`, `block`, and `submit` dropped *(silent)* — a `submit` button becomes its own action instead of submitting its ancestor `Form`/`Card`; actions past 6 demoted to secondary *(warns)*) | `Button` |
-| `Select` | Yes | Yes (`static_select`; options capped *(warns)*) | Yes (`Input.ChoiceSet` compact; options capped *(warns)*; on-change action becomes a companion submit *(warns)*) | — |
-| `RadioGroup` | Yes | Yes (`radio_buttons`; options capped *(warns)*) | Yes (`Input.ChoiceSet` expanded; options capped *(warns)*; companion submit *(warns)*) | — |
-| `Checkbox` | Yes | Yes (`checkboxes`) | Yes (`Input.Toggle`; companion submit *(warns)*) | `CheckBox` |
-| `Input` | Yes | Yes (`input` + `plain_text_input`; no `dispatch_action`, so it does not fire on change) | Yes (`Input.Text`; companion submit *(warns)*) | `TextField` |
-| `DatePicker` | Yes | Yes (`datepicker`; non-`YYYY-MM-DD` values dropped *(warns)*, `min` and `max` dropped *(silent)*) | Yes (`Input.Date`; companion submit *(warns)*; `value`, `min`, and `max` are each kept only when they match `YYYY-MM-DD` and dropped otherwise *(silent)*) | — |
-| `Form` | Yes | Yes (children + submit `actions` block) | Yes (inputs + submit `ActionSet`; `gap` dropped *(silent)*) | — |
-| `Alert` | Yes | Degrades on messages *(warns)*: Slack only has a native alert block in modals, so messages get fallback context + section blocks | Yes (toned `Container`) | — |
-| `Table` | Yes | Yes (`data_table`); rows and columns capped *(warns)*, rows clamped to the shared character budget *(warns)*, and a table whose header row alone overruns the remaining budget is dropped *(warns)* | Yes (`Table`; rows and columns capped *(warns)*) | — |
-| `ListView` | Yes | Degrades: items flatten to text `section`s with dividers and an item action becomes an "Open" button *(silent)*; non-item children dropped *(warns whenever the child would have rendered or lost content; silent only when it renders nothing anyway)* | Yes (`Container` per item with `selectAction`) | template-expanded children |
-| `ListViewItem` | Yes | Degrades *(silent)*: children flatten to collected text | Yes (`Container`) | template item |
-| `Chart` | Yes | Note: "Chart omitted on Slack." | Note: "Chart omitted on Teams." | — |
+| `Header` | ✓ | [mapping](/docs/tools/generative-ui-slack#component-mapping) | [mapping](/docs/tools/generative-ui-teams#component-mapping) | `Text` variant `h1`–`h6` |
+| `Text` | ✓ | [mapping](/docs/tools/generative-ui-slack#component-mapping) | [mapping](/docs/tools/generative-ui-teams#component-mapping) · silent | — (plain `Text` maps to `Markdown`) |
+| `Caption` | ✓ | [mapping](/docs/tools/generative-ui-slack#component-mapping) | [mapping](/docs/tools/generative-ui-teams#component-mapping) | `Text` variant `caption` |
+| `Badge` | ✓ | [mapping](/docs/tools/generative-ui-slack#component-mapping) · silent | [mapping](/docs/tools/generative-ui-teams#component-mapping) · silent | — |
+| `Markdown` | ✓ | [mapping](/docs/tools/generative-ui-slack#component-mapping) · warns | [mapping](/docs/tools/generative-ui-teams#component-mapping) · silent | `Text` (default) |
+| `Fact` | ✓ | [mapping](/docs/tools/generative-ui-slack#component-mapping) | [mapping](/docs/tools/generative-ui-teams#component-mapping) | — |
+| `Image` | ✓ | [mapping](/docs/tools/generative-ui-slack#component-mapping) · silent | [mapping](/docs/tools/generative-ui-teams#component-mapping) · warns · silent | `Image` |
+| `Icon` | ✓ | [mapping](/docs/tools/generative-ui-slack#component-mapping) · silent | [mapping](/docs/tools/generative-ui-teams#component-mapping) · silent | — |
+| `Divider` | ✓ | [mapping](/docs/tools/generative-ui-slack#component-mapping) | [layout differences](/docs/tools/generative-ui-teams#layout-differences) · silent | `Divider` |
+| `Spacer` | ✓ | [mapping](/docs/tools/generative-ui-slack#component-mapping) · silent | [layout differences](/docs/tools/generative-ui-teams#layout-differences) · silent | — |
+| `Card` | ✓ | [cards](/docs/tools/generative-ui-slack#cards) · warns | [mapping](/docs/tools/generative-ui-teams#component-mapping) · silent | `Card` |
+| `Carousel` | ✓ | [mapping](/docs/tools/generative-ui-slack#component-mapping) · warns · silent | [carousels](/docs/tools/generative-ui-teams#carousels) · warns · silent | — |
+| `Row` | ✓ | [mapping](/docs/tools/generative-ui-slack#component-mapping) · warns · silent | [mapping](/docs/tools/generative-ui-teams#component-mapping) · warns · silent | `Row` |
+| `Col` | ✓ | [mapping](/docs/tools/generative-ui-slack#component-mapping) · silent | [mapping](/docs/tools/generative-ui-teams#component-mapping) · silent | `Column` |
+| `Box` | ✓ | [mapping](/docs/tools/generative-ui-slack#component-mapping) · silent | [mapping](/docs/tools/generative-ui-teams#component-mapping) · silent | — |
+| `Button` | ✓ | [mapping](/docs/tools/generative-ui-slack#component-mapping) · warns · silent | [mapping](/docs/tools/generative-ui-teams#component-mapping) · warns · silent | `Button` |
+| `Select` | ✓ | [mapping](/docs/tools/generative-ui-slack#component-mapping) · warns · silent | [inputs](/docs/tools/generative-ui-teams#inputs) · warns | — |
+| `RadioGroup` | ✓ | [mapping](/docs/tools/generative-ui-slack#component-mapping) · warns · silent | [inputs](/docs/tools/generative-ui-teams#inputs) · warns | — |
+| `Checkbox` | ✓ | [mapping](/docs/tools/generative-ui-slack#component-mapping) · silent | [inputs](/docs/tools/generative-ui-teams#inputs) · warns | `CheckBox` |
+| `Input` | ✓ | [mapping](/docs/tools/generative-ui-slack#component-mapping) · silent | [inputs](/docs/tools/generative-ui-teams#inputs) · warns | `TextField` |
+| `DatePicker` | ✓ | [mapping](/docs/tools/generative-ui-slack#component-mapping) · warns · silent | [inputs](/docs/tools/generative-ui-teams#inputs) · warns · silent | — |
+| `Form` | ✓ | [mapping](/docs/tools/generative-ui-slack#component-mapping) | [mapping](/docs/tools/generative-ui-teams#component-mapping) · silent | — |
+| `Alert` | ✓ | [mapping](/docs/tools/generative-ui-slack#component-mapping) · warns | [mapping](/docs/tools/generative-ui-teams#component-mapping) · silent | — |
+| `Table` | ✓ | [limits](/docs/tools/generative-ui-slack#limits) · warns | [limits](/docs/tools/generative-ui-teams#limits) · warns | — |
+| `ListView` | ✓ | [mapping](/docs/tools/generative-ui-slack#component-mapping) · warns · silent | [mapping](/docs/tools/generative-ui-teams#component-mapping) · warns | template-expanded children |
+| `ListViewItem` | ✓ | [mapping](/docs/tools/generative-ui-slack#component-mapping) · silent | [mapping](/docs/tools/generative-ui-teams#component-mapping) | template item |
+| `Chart` | ✓ | [mapping](/docs/tools/generative-ui-slack#component-mapping) · warns | [mapping](/docs/tools/generative-ui-teams#component-mapping) · warns | — |
 
-27 vocabulary components × 4 targets. Slack and Teams caps (block counts,
-option counts, text lengths, table sizes) clamp with a warning rather than emit
-an invalid payload. The wiring, the webhook decoding (`decodeBlockAction` and
-`decodeSubmitData`; the separate `fromSlackBlocks` parses a Block Kit message
-back into vocabulary nodes rather than decoding an interaction), and the full
-caveat prose behind these cells live in the
-[Generative UI on Slack](/docs/tools/generative-ui-slack) and
-[Generative UI on Microsoft Teams](/docs/tools/generative-ui-teams) guides —
-including the two budgets that behave unlike the rest: the `data_table`
-character budget every table in one conversion shares, and the Teams payload
-check that only measures.
+27 vocabulary components × 4 targets. Markers describe warning behavior only;
+the linked guide is the authority on what each component becomes and what the
+loss is. Slack's `Header`, `Text`, and `Divider` rows and the Teams `Header`
+row carry no marker, because the guides' wording for those rows is itself being
+corrected right now, in
+[#5824](https://github.com/assistant-ui/assistant-ui/pull/5824) and
+[#5825](https://github.com/assistant-ui/assistant-ui/pull/5825). A marker
+follows the guide; it does not get out ahead of it.
+
+One warning code carries a meaning the markers cannot: Teams' `advisory`
+reports that nothing was changed at all, so unlike every other code it is a
+heads-up rather than a record of a loss
+([Teams limits](/docs/tools/generative-ui-teams#limits)).
 
 ## Interaction model differences
 
+The four targets do not agree on when a control dispatches, and that is the
+part a tree author cannot see from any single guide.
+
 - **Web** dispatches `$action` payloads directly through the action registry.
 - **Slack** round-trips actions through `block_actions` webhooks; decode each
-  entry with `decodeBlockAction`. Only the controls that land in an `actions`
-  block (`Button`, `Select`, `RadioGroup`, `Checkbox`, `DatePicker`, and a
-  `Form`'s submit button) dispatch on interaction. `Input` is the exception: it
-  becomes an `input` block with no `dispatch_action`, so a typed value never
-  arrives as a `block_actions` entry and `decodeBlockAction` never sees it —
-  read it from the payload's `state.values` next to the action that submitted.
+  entry with `decodeBlockAction`. `Input` is the one control that does not
+  dispatch on interaction, so a typed value never arrives as a `block_actions`
+  entry and `decodeBlockAction` never sees it — read it from the payload's
+  `state.values` next to the action that submitted.
 - **Teams** inputs cannot dispatch on change: an input carrying an `$action`
-  gets a companion Submit action appended (reported as a `fallback` warning),
-  and all values arrive together in the submit payload for `decodeSubmitData`.
+  gets a companion Submit action appended, and all values arrive together in
+  the submit payload for `decodeSubmitData`.
 - **A2UI** actions arrive as `a2ui:action` payloads carrying the surface and
   source component ids.
 
+Reading a surface back is a third direction again: `fromSlackBlocks` parses a
+Block Kit message into vocabulary nodes rather than decoding an interaction,
+and it has no Teams counterpart.
+
 ## Known gaps
 
-These rows feed the roadmap; none of them fail a conversion — they degrade or
-drop as listed above. The *(silent)* degradations in the matrix are also
-candidates for warning coverage: today the only record of those losses is this
-page.
+None of these fails a conversion — they degrade or drop as the guides describe.
+The **silent** markers above double as a warning-coverage roadmap: those losses
+are documented in prose, but nothing about them reaches your logs at runtime.
 
-- **`Chart`** has no Slack Block Kit or Adaptive Cards mapping; both targets
-  emit an omission note instead.
 - **Thinking steps / task cards** (agent progress surfaces) are not part of the
   vocabulary yet, so no target can render them. Direction discussion:
   [assistant-ui#5623](https://github.com/assistant-ui/assistant-ui/issues/5623).
@@ -107,5 +123,3 @@ page.
 - **Slack `Input` values** have no decoder in the package: the converter emits
   no `dispatch_action`, and `decodeBlockAction` reads action entries only, so
   pulling typed values out of `state.values` is left to your webhook handler.
-- **Slack layout** is single-column: `Row`, `Col`, and `Box` flatten because
-  Block Kit has no general column construct.
