@@ -551,9 +551,8 @@ const useComposerClientResource = ({
     isActiveRef.current = true;
     return () => {
       isActiveRef.current = false;
-      attachmentAddOperations.cancelAll();
     };
-  }, [attachmentAddOperations]);
+  }, []);
 
   const updateFromMessage = () => {
     if (!message) return;
