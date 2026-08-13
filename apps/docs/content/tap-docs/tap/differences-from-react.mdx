@@ -58,10 +58,10 @@ tap has a single effect primitive. `useLayoutEffect` and `useInsertionEffect`
 are accepted (so React code ports cleanly) but behave like `useEffect` inside a
 resource.
 
-## A throwing snapshot keeps the committed value
+## A throwing snapshot behaves as it does in React
 
-In React, when a store notifies `useSyncExternalStore` and `getSnapshot`
-throws, React re-renders and the error surfaces during that render. In tap, the
-resource keeps its last committed value and skips the re-render; the throw is
-swallowed for that notification only, and the next notification whose snapshot
-succeeds and differs re-renders as usual. This may change in a future release.
+`useSyncExternalStore` matches React here: when a store notifies and
+`getSnapshot` throws, the snapshot counts as changed, the resource re-renders,
+and the error surfaces during that render rather than in the store's notify
+loop. A throw that repairs itself before the re-render reads the snapshot
+produces no error at all.
