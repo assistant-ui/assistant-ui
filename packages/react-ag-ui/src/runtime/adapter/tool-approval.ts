@@ -29,14 +29,17 @@ const JSON_SCHEMA_TYPES = new Set([
   "string",
 ]);
 
-const acceptsType = (type: unknown, primitive: string) =>
-  type === primitive ||
+const isSchemaType = (type: unknown) =>
+  (isString(type) && JSON_SCHEMA_TYPES.has(type as string)) ||
   (Array.isArray(type) &&
     type.every(
       (entry) => typeof entry === "string" && JSON_SCHEMA_TYPES.has(entry),
     ) &&
-    new Set(type).size === type.length &&
-    type.includes(primitive));
+    new Set(type).size === type.length);
+
+const acceptsType = (type: unknown, primitive: string) =>
+  type === primitive ||
+  (Array.isArray(type) && isSchemaType(type) && type.includes(primitive));
 
 const acceptsObject = (type: unknown) => acceptsType(type, "object");
 
@@ -62,6 +65,38 @@ const acceptsOnly = (schema: unknown, primitive: string) =>
   );
 
 /**
+ * Keywords of a sub-schema whose value shape a validator reads, each paired
+ * with that shape. `properties` and `items` carry schemas, so a malformed one
+ * nested under them is as uncompilable as a malformed one at the top. A keyword
+ * this seam cannot judge is left alone: unlike the top-level schema, a field
+ * the seam never sends needs only to be compilable, not permissive.
+ */
+const SUB_SCHEMA_SHAPES = new Map<string, (value: unknown) => boolean>([
+  ["type", isSchemaType],
+  ["required", (value) => Array.isArray(value) && value.every(isString)],
+  [
+    "properties",
+    (value) =>
+      isPlainObject(value) &&
+      Object.values(value).every((schema) => isWellFormedSubSchema(schema)),
+  ],
+  ["items", (value) => isWellFormedSubSchema(value)],
+]);
+
+/**
+ * A schema the server cannot compile fails the run whatever payload follows, so
+ * a field this seam never sends is still checked for the shape a validator
+ * reads it as. A boolean is a schema in its own right.
+ */
+const isWellFormedSubSchema = (schema: unknown): boolean =>
+  typeof schema === "boolean" ||
+  (isPlainObject(schema) &&
+    Object.entries(schema).every(([keyword, value]) => {
+      const holds = SUB_SCHEMA_SHAPES.get(keyword);
+      return holds === undefined || holds(value);
+    }));
+
+/**
  * AG-UI's own tool-approval schema declares the fields it expects under
  * `properties`, so a declaration is read where it cannot reject what the seam
  * sends: `approved` must accept a boolean and `reason` a string. A field the
@@ -74,7 +109,7 @@ const acceptsSeamProperties = (properties: unknown) =>
   Object.entries(properties).every(([field, schema]) => {
     if (field === "approved") return acceptsOnly(schema, "boolean");
     if (field === "reason") return acceptsOnly(schema, "string");
-    return isPlainObject(schema) || typeof schema === "boolean";
+    return isWellFormedSubSchema(schema);
   });
 
 const acceptsSeamPayload = (required: unknown) =>

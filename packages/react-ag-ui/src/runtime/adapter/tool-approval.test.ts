@@ -129,6 +129,25 @@ describe("projectAgUiToolApprovals", () => {
       { type: "object", properties: { approved: 7 } },
       { type: "object", properties: { editedArgs: 7 } },
       { type: "object", properties: { approved: { title: 42 } } },
+      // A field the seam never sends still has to compile: a malformed schema
+      // under it fails the run whatever payload follows.
+      { type: "object", properties: { editedArgs: { type: 7 } } },
+      { type: "object", properties: { editedArgs: { type: "bogus" } } },
+      { type: "object", properties: { editedArgs: { required: [7] } } },
+      { type: "object", properties: { editedArgs: { items: 7 } } },
+      {
+        type: "object",
+        properties: { editedArgs: { type: "object", properties: 7 } },
+      },
+      {
+        type: "object",
+        properties: {
+          editedArgs: {
+            type: "object",
+            properties: { path: { type: "nonsense" } },
+          },
+        },
+      },
     ];
     for (const responseSchema of unanswerable) {
       expect(
@@ -226,6 +245,25 @@ describe("projectAgUiToolApprovals", () => {
         },
       },
       { type: "object", properties: { editedArgs: false } },
+      // A well-formed schema for a field the seam never sends stays answerable,
+      // however it constrains that field and however deeply it nests.
+      { type: "object", properties: { editedArgs: { type: "string" } } },
+      {
+        type: "object",
+        properties: {
+          editedArgs: {
+            type: "object",
+            required: ["path"],
+            properties: { path: { type: ["string", "null"], minLength: 1 } },
+          },
+        },
+      },
+      {
+        type: "object",
+        properties: {
+          editedArgs: { type: "array", items: { type: "object" } },
+        },
+      },
     ];
     for (const responseSchema of answerable) {
       expect([
