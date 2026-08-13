@@ -108,6 +108,7 @@ import {
   <WelcomeSuggestionsPills />
   <WelcomeSuggestionsPicker
     itemIcon="always" // ↵ icon on rows: "always" | "hover" | "off"
+    variant="ghost" // row highlight: "ghost" | "text" | "outline"
     density="comfortable" // "comfortable" | "compact"
     separators // hairline dividers between rows
   />
@@ -208,20 +209,23 @@ const GroupIcon = ChevronRightIcon;
 const ItemIcon = CornerDownLeftIcon;
 ```
 
-## Density & Separators
+## Row Styling
 
-Rows default to comfortable spacing with hairline dividers, hidden around the highlighted row. Both are per-layout props:
+Rows default to comfortable spacing with hairline dividers, hidden around the highlighted row. The highlight itself comes in three flavors. All are per-layout props:
 
 ```tsx
-<WelcomeSuggestionsStack density="compact" separators={false} />
+<WelcomeSuggestionsStack variant="text" density="compact" separators={false} />
 ```
 
 | Prop         | Values                                        |
 | ------------ | --------------------------------------------- |
+| `variant`    | `"ghost"` (default), `"text"`, or `"outline"` |
 | `density`    | `"comfortable"` (default) or `"compact"`      |
 | `separators` | `true` (default) or `false`                   |
 
-The sub-level rows inherit `density`, `separators`, and `itemIcon` from the `Stack` or `Picker` that renders them.
+`ghost` fills the highlighted row with a muted background. `text` brightens only the label, with the trailing icon lifting partway so it stays quieter than the text. `outline` draws an inset ring, so the moving highlight never shifts the rows.
+
+The sub-level rows inherit `variant`, `density`, `separators`, and `itemIcon` from the `Stack` or `Picker` that renders them.
 
 ## Keyboard & Behavior
 
@@ -421,6 +425,13 @@ A flat item or a group:
         "Visibility of the trailing enter icon on action rows.",
     },
     {
+      name: "variant",
+      type: '"ghost" | "text" | "outline"',
+      default: '"ghost"',
+      description:
+        "Row highlight style: muted fill, text-only brightening, or an inset outline.",
+    },
+    {
       name: "density",
       type: '"comfortable" | "compact"',
       default: '"comfortable"',
@@ -452,6 +463,13 @@ A flat item or a group:
       default: '"always"',
       description:
         "Visibility of the trailing enter icon on the panel rows.",
+    },
+    {
+      name: "variant",
+      type: '"ghost" | "text" | "outline"',
+      default: '"ghost"',
+      description:
+        "Row highlight style: muted fill, text-only brightening, or an inset outline.",
     },
     {
       name: "density",
@@ -497,6 +515,13 @@ Accepts all `<button>` props except `onClick`, plus:
       type: '"always" | "hover" | "off"',
       default: '"always"',
       description: "Visibility of the trailing enter icon.",
+    },
+    {
+      name: "variant",
+      type: '"ghost" | "text" | "outline"',
+      default: '"ghost"',
+      description:
+        "Row highlight style: muted fill, text-only brightening, or an inset outline.",
     },
     {
       name: "density",
