@@ -92,7 +92,7 @@ import { openai } from "@ai-sdk/openai";
 import { AISDKToolkit, type FrontendTools } from "@assistant-ui/react-ai-sdk";
 import { convertToModelMessages, createUIMessageStream, createUIMessageStreamResponse, stepCountIs, streamText, type UIMessage } from "ai";
 import toolkit from "../../toolkit";
-import { geocodeLocation, getWeather } from "../../lib/weather";
+import { geocodeLocation, getWeather } from "../../../lib/weather";
 
 const aiToolkit = new AISDKToolkit({ toolkit });
 

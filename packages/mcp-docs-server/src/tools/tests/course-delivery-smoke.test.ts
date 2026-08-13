@@ -34,7 +34,7 @@ describe("course delivery smoke", () => {
 
     const snippets = [
       { step: 2, needle: 'openai("gpt-5.4-nano")' },
-      { step: 4, needle: 'from "../../lib/weather"' },
+      { step: 4, needle: 'from "../../../lib/weather"' },
       { step: 6, needle: "[note.content]" },
       { step: 7, needle: "load: async () => ({ messages: [] })" },
     ] as const;
