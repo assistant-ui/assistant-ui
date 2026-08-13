@@ -256,30 +256,16 @@ export const fromThreadMessageLike = (
             }
           }
         }),
-        // The optimistic send path passes attachments whose upload has not
-        // settled yet; those carry no content until the upload completes.
-        attachments: (attachments ?? []).map((att): CompleteAttachment => {
-          const { content, ...rest } = att as Omit<
-            CompleteAttachment,
-            "content"
-          > & {
-            readonly content?: readonly (
-              | ThreadUserMessagePart
-              | DataPrefixedPart
-            )[];
-          };
-          if (content === undefined) return rest as CompleteAttachment;
-          return {
-            ...rest,
-            content: content.map((part): ThreadUserMessagePart => {
-              const converted = convertDataPrefixedPart(
-                part.type,
-                (part as DataPrefixedPart).data,
-              );
-              return converted ?? (part as ThreadUserMessagePart);
-            }),
-          };
-        }),
+        attachments: (attachments ?? []).map((att) => ({
+          ...att,
+          content: att.content.map((part): ThreadUserMessagePart => {
+            const converted = convertDataPrefixedPart(
+              part.type,
+              (part as DataPrefixedPart).data,
+            );
+            return converted ?? (part as ThreadUserMessagePart);
+          }),
+        })),
         metadata: {
           custom: metadata?.custom ?? {},
           ...(metadata?.isOptimistic && { isOptimistic: true }),

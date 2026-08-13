@@ -53,22 +53,6 @@ const createThread = (
 
 const textFile = () => new File(["content"], "f.txt", { type: "text/plain" });
 
-const createAttachmentAdapter = (
-  send: AttachmentAdapter["send"],
-): AttachmentAdapter => ({
-  accept: "*",
-  add: async ({ file }: { file: File }): Promise<PendingAttachment> => ({
-    id: "att-1",
-    type: "document",
-    name: file.name,
-    contentType: file.type,
-    file,
-    status: { type: "requires-action", reason: "composer-send" },
-  }),
-  remove: async () => {},
-  send,
-});
-
 const userMessage = (text: string): AppendMessage => ({
   parentId: null,
   sourceId: null,
@@ -170,30 +154,82 @@ describe("LocalThreadRuntimeCore events", () => {
   });
 });
 
-describe("LocalThreadRuntimeCore optimistic attachment sends", () => {
-  it("appends the sent message with pending attachments and starts the run only after the upload resolves", async () => {
-    let resolveSend!: () => void;
-    const send = vi.fn(
-      (attachment: PendingAttachment) =>
-        new Promise<CompleteAttachment>((resolve) => {
-          resolveSend = () =>
+type OptimisticUpload = {
+  readonly attachmentId: string;
+  readonly resolve: () => void;
+  readonly reject: (error: Error) => void;
+};
+
+const createOptimisticThread = (options?: {
+  history?: {
+    beforeAppend?: (
+      item: ExportedMessageRepositoryItem,
+    ) => Promise<void> | void;
+  };
+}) => {
+  const runs: ChatModelRunOptions[] = [];
+  const appended: ExportedMessageRepositoryItem[] = [];
+  const uploads: OptimisticUpload[] = [];
+  let added = 0;
+  const sendAttachment = vi.fn(
+    (attachment: PendingAttachment) =>
+      new Promise<CompleteAttachment>((resolve, reject) => {
+        uploads.push({
+          attachmentId: attachment.id,
+          resolve: () =>
             resolve({
               ...attachment,
               status: { type: "complete" },
               content: [{ type: "text", text: "uploaded" }],
-            });
-        }),
-    );
-    const runs: ChatModelRunOptions[] = [];
-    const thread = createThread(
-      {
-        async run(options) {
-          runs.push(options);
-          return { content: [{ type: "text", text: "ok" }] };
-        },
+            }),
+          reject,
+        });
+      }),
+  );
+  const thread = createThread(
+    {
+      async run(runOptions) {
+        runs.push(runOptions);
+        return { content: [{ type: "text", text: "ok" }] };
       },
-      { attachments: createAttachmentAdapter(send) },
-    );
+    },
+    {
+      attachments: {
+        accept: "*",
+        add: async ({ file }: { file: File }): Promise<PendingAttachment> => ({
+          id: `att-${++added}`,
+          type: "document",
+          name: file.name,
+          contentType: file.type,
+          file,
+          status: { type: "requires-action", reason: "composer-send" },
+        }),
+        remove: async () => {},
+        send: sendAttachment,
+      },
+      ...(options?.history && {
+        history: {
+          async load() {
+            return { messages: [] };
+          },
+          async append(item: ExportedMessageRepositoryItem) {
+            await options.history?.beforeAppend?.(item);
+            appended.push(item);
+          },
+          async delete() {},
+        },
+      }),
+    },
+  );
+  return { thread, runs, appended, uploads, sendAttachment };
+};
+
+type OptimisticThread = ReturnType<typeof createOptimisticThread>["thread"];
+type BranchIds = { firstUserId: string; firstAssistantId: string };
+
+describe("LocalThreadRuntimeCore optimistic attachment sends", () => {
+  it("appends the sent message with pending attachments and starts the run only after the upload resolves", async () => {
+    const { thread, runs, uploads, sendAttachment } = createOptimisticThread();
 
     thread.composer.setText("hello");
     await thread.composer.addAttachment(textFile());
@@ -211,11 +247,11 @@ describe("LocalThreadRuntimeCore optimistic attachment sends", () => {
     });
     expect(runs).toHaveLength(0);
 
-    resolveSend();
+    uploads[0]!.resolve();
     await sendPromise;
     await flush();
 
-    expect(send).toHaveBeenCalledTimes(1);
+    expect(sendAttachment).toHaveBeenCalledTimes(1);
     expect(thread.messages[0]?.attachments?.[0]?.status).toEqual({
       type: "complete",
     });
@@ -230,24 +266,7 @@ describe("LocalThreadRuntimeCore optimistic attachment sends", () => {
   });
 
   it("removes the optimistic message and restores the draft when the upload fails", async () => {
-    let rejectSend!: (error: Error) => void;
-    const runs: ChatModelRunOptions[] = [];
-    const thread = createThread(
-      {
-        async run(options) {
-          runs.push(options);
-          return { content: [{ type: "text", text: "ok" }] };
-        },
-      },
-      {
-        attachments: createAttachmentAdapter(
-          () =>
-            new Promise<CompleteAttachment>((_resolve, reject) => {
-              rejectSend = reject;
-            }),
-        ),
-      },
-    );
+    const { thread, runs, uploads } = createOptimisticThread();
 
     thread.composer.setText("hello");
     await thread.composer.addAttachment(textFile());
@@ -256,7 +275,7 @@ describe("LocalThreadRuntimeCore optimistic attachment sends", () => {
 
     expect(thread.messages).toHaveLength(1);
 
-    rejectSend(new Error("upload failed"));
+    uploads[0]!.reject(new Error("upload failed"));
     await expect(sendPromise).rejects.toThrow("upload failed");
     await flush();
 
@@ -267,29 +286,7 @@ describe("LocalThreadRuntimeCore optimistic attachment sends", () => {
   });
 
   it("keeps a message sent during the upload on the same branch and answers it once", async () => {
-    let resolveSend!: () => void;
-    const runs: ChatModelRunOptions[] = [];
-    const thread = createThread(
-      {
-        async run(options) {
-          runs.push(options);
-          return { content: [{ type: "text", text: "ok" }] };
-        },
-      },
-      {
-        attachments: createAttachmentAdapter(
-          (attachment) =>
-            new Promise<CompleteAttachment>((resolve) => {
-              resolveSend = () =>
-                resolve({
-                  ...attachment,
-                  status: { type: "complete" },
-                  content: [{ type: "text", text: "uploaded" }],
-                });
-            }),
-        ),
-      },
-    );
+    const { thread, runs, uploads } = createOptimisticThread();
 
     thread.composer.setText("with attachment");
     await thread.composer.addAttachment(textFile());
@@ -305,7 +302,7 @@ describe("LocalThreadRuntimeCore optimistic attachment sends", () => {
     ]);
     expect(runs).toHaveLength(0);
 
-    resolveSend();
+    uploads[0]!.resolve();
     await sendPromise;
     await secondSendPromise;
     await flush();
@@ -327,208 +324,105 @@ describe("LocalThreadRuntimeCore optimistic attachment sends", () => {
     });
   });
 
-  it("re-parents a message whose upload completes after a regenerate and answers it", async () => {
-    let resolveSend!: () => void;
-    const runs: ChatModelRunOptions[] = [];
-    const appended: ExportedMessageRepositoryItem[] = [];
-    const thread = createThread(
-      {
-        async run(options) {
-          runs.push(options);
-          return { content: [{ type: "text", text: "ok" }] };
-        },
+  it.each([
+    {
+      label: "regenerate",
+      prepare: async (_thread: OptimisticThread, _ids: BranchIds) => {},
+      moveHead: async (thread: OptimisticThread, ids: BranchIds) => {
+        await thread.startRun({
+          parentId: ids.firstUserId,
+          sourceId: null,
+          runConfig: {},
+        });
+        await flush();
+        expect(thread.messages.map((m) => m.role)).toEqual([
+          "user",
+          "assistant",
+        ]);
+        return thread.messages[1]!.id;
       },
-      {
-        attachments: createAttachmentAdapter(
-          (attachment) =>
-            new Promise<CompleteAttachment>((resolve) => {
-              resolveSend = () =>
-                resolve({
-                  ...attachment,
-                  status: { type: "complete" },
-                  content: [{ type: "text", text: "uploaded" }],
-                });
-            }),
-        ),
-        history: {
-          async load() {
-            return { messages: [] };
-          },
-          async append(item: ExportedMessageRepositoryItem) {
-            appended.push(item);
-          },
-        },
+    },
+    {
+      label: "branch switch",
+      prepare: async (thread: OptimisticThread, _ids: BranchIds) => {
+        await thread.append(userMessage("edited"));
+        await flush();
+        expect(thread.messages.map((m) => m.role)).toEqual([
+          "user",
+          "assistant",
+        ]);
+        expect(thread.messages[0]?.content).toEqual([
+          { type: "text", text: "edited" },
+        ]);
       },
-    );
-
-    thread.composer.setText("first");
-    await thread.composer.send();
-    await flush();
-    expect(thread.messages.map((m) => m.role)).toEqual(["user", "assistant"]);
-    const firstUserId = thread.messages[0]!.id;
-
-    thread.composer.setText("with attachment");
-    await thread.composer.addAttachment(textFile());
-    const sendPromise = thread.composer.send();
-    await flush();
-    expect(thread.messages).toHaveLength(3);
-
-    await thread.startRun({
-      parentId: firstUserId,
-      sourceId: null,
-      runConfig: {},
-    });
-    await flush();
-    expect(thread.messages.map((m) => m.role)).toEqual(["user", "assistant"]);
-    const regeneratedAssistantId = thread.messages[1]!.id;
-
-    resolveSend();
-    await sendPromise;
-    await flush();
-
-    expect(thread.messages.map((m) => m.role)).toEqual([
-      "user",
-      "assistant",
-      "user",
-      "assistant",
-    ]);
-    expect(thread.messages[1]?.id).toBe(regeneratedAssistantId);
-    expect(thread.messages[2]?.content).toEqual([
-      { type: "text", text: "with attachment" },
-    ]);
-    expect(thread.messages[2]?.attachments?.[0]?.status).toEqual({
-      type: "complete",
-    });
-    expect(runs).toHaveLength(3);
-    expect(runs[2]!.messages.at(-1)?.content).toEqual([
-      { type: "text", text: "with attachment" },
-    ]);
-
-    const persisted = appended.find(
-      (i) => i.message.id === thread.messages[2]?.id,
-    );
-    expect(persisted?.parentId).toBe(regeneratedAssistantId);
-  });
-
-  it("re-parents a message whose upload completes after a branch switch and answers it", async () => {
-    let resolveSend!: () => void;
-    const runs: ChatModelRunOptions[] = [];
-    const appended: ExportedMessageRepositoryItem[] = [];
-    const thread = createThread(
-      {
-        async run(options) {
-          runs.push(options);
-          return { content: [{ type: "text", text: "ok" }] };
-        },
+      moveHead: async (thread: OptimisticThread, ids: BranchIds) => {
+        thread.switchToBranch(ids.firstUserId);
+        await flush();
+        expect(thread.messages.map((m) => m.id)).toEqual([
+          ids.firstUserId,
+          ids.firstAssistantId,
+        ]);
+        return ids.firstAssistantId;
       },
-      {
-        attachments: createAttachmentAdapter(
-          (attachment) =>
-            new Promise<CompleteAttachment>((resolve) => {
-              resolveSend = () =>
-                resolve({
-                  ...attachment,
-                  status: { type: "complete" },
-                  content: [{ type: "text", text: "uploaded" }],
-                });
-            }),
-        ),
-        history: {
-          async load() {
-            return { messages: [] };
-          },
-          async append(item: ExportedMessageRepositoryItem) {
-            appended.push(item);
-          },
-        },
-      },
-    );
+    },
+  ])(
+    "re-parents a message whose upload completes after a $label and answers it",
+    async ({ prepare, moveHead }) => {
+      const { thread, runs, appended, uploads } = createOptimisticThread({
+        history: {},
+      });
 
-    thread.composer.setText("first");
-    await thread.composer.send();
-    await flush();
-    const firstUserId = thread.messages[0]!.id;
-    const firstAssistantId = thread.messages[1]!.id;
+      thread.composer.setText("first");
+      await thread.composer.send();
+      await flush();
+      expect(thread.messages.map((m) => m.role)).toEqual(["user", "assistant"]);
+      const ids: BranchIds = {
+        firstUserId: thread.messages[0]!.id,
+        firstAssistantId: thread.messages[1]!.id,
+      };
 
-    await thread.append(userMessage("edited"));
-    await flush();
-    expect(thread.messages.map((m) => m.role)).toEqual(["user", "assistant"]);
-    expect(thread.messages[0]?.content).toEqual([
-      { type: "text", text: "edited" },
-    ]);
+      await prepare(thread, ids);
 
-    thread.composer.setText("with attachment");
-    await thread.composer.addAttachment(textFile());
-    const sendPromise = thread.composer.send();
-    await flush();
-    expect(thread.messages).toHaveLength(3);
+      thread.composer.setText("with attachment");
+      await thread.composer.addAttachment(textFile());
+      const sendPromise = thread.composer.send();
+      await flush();
+      expect(thread.messages).toHaveLength(3);
 
-    thread.switchToBranch(firstUserId);
-    await flush();
-    expect(thread.messages.map((m) => m.id)).toEqual([
-      firstUserId,
-      firstAssistantId,
-    ]);
+      const expectedParentId = await moveHead(thread, ids);
 
-    resolveSend();
-    await sendPromise;
-    await flush();
+      uploads[0]!.resolve();
+      await sendPromise;
+      await flush();
 
-    expect(thread.messages.map((m) => m.role)).toEqual([
-      "user",
-      "assistant",
-      "user",
-      "assistant",
-    ]);
-    expect(thread.messages[0]?.id).toBe(firstUserId);
-    expect(thread.messages[2]?.content).toEqual([
-      { type: "text", text: "with attachment" },
-    ]);
-    expect(thread.messages[2]?.attachments?.[0]?.status).toEqual({
-      type: "complete",
-    });
-    expect(runs).toHaveLength(3);
-    expect(runs[2]!.messages.at(-1)?.content).toEqual([
-      { type: "text", text: "with attachment" },
-    ]);
+      expect(thread.messages.map((m) => m.role)).toEqual([
+        "user",
+        "assistant",
+        "user",
+        "assistant",
+      ]);
+      expect(thread.messages[0]?.id).toBe(ids.firstUserId);
+      expect(thread.messages[1]?.id).toBe(expectedParentId);
+      expect(thread.messages[2]?.content).toEqual([
+        { type: "text", text: "with attachment" },
+      ]);
+      expect(thread.messages[2]?.attachments?.[0]?.status).toEqual({
+        type: "complete",
+      });
+      expect(runs).toHaveLength(3);
+      expect(runs[2]!.messages.at(-1)?.content).toEqual([
+        { type: "text", text: "with attachment" },
+      ]);
 
-    const persisted = appended.find(
-      (i) => i.message.id === thread.messages[2]?.id,
-    );
-    expect(persisted?.parentId).toBe(firstAssistantId);
-  });
+      const persisted = appended.find(
+        (i) => i.message.id === thread.messages[2]?.id,
+      );
+      expect(persisted?.parentId).toBe(expectedParentId);
+    },
+  );
 
   it("answers a completed message when a later optimistic upload fails", async () => {
-    let resolveFirstSend!: () => void;
-    let rejectSecondSend!: (error: Error) => void;
-    let sendCount = 0;
-    const runs: ChatModelRunOptions[] = [];
-    const thread = createThread(
-      {
-        async run(options) {
-          runs.push(options);
-          return { content: [{ type: "text", text: "ok" }] };
-        },
-      },
-      {
-        attachments: createAttachmentAdapter(
-          (attachment) =>
-            new Promise<CompleteAttachment>((resolve, reject) => {
-              sendCount++;
-              if (sendCount === 1) {
-                resolveFirstSend = () =>
-                  resolve({
-                    ...attachment,
-                    status: { type: "complete" },
-                    content: [],
-                  });
-              } else {
-                rejectSecondSend = reject;
-              }
-            }),
-        ),
-      },
-    );
+    const { thread, runs, uploads } = createOptimisticThread();
 
     thread.composer.setText("first");
     await thread.composer.addAttachment(textFile());
@@ -538,9 +432,9 @@ describe("LocalThreadRuntimeCore optimistic attachment sends", () => {
     await thread.composer.addAttachment(textFile());
     const secondSendPromise = thread.composer.send();
 
-    resolveFirstSend();
+    uploads[0]!.resolve();
     await firstSendPromise;
-    rejectSecondSend(new Error("upload failed"));
+    uploads[1]!.reject(new Error("upload failed"));
 
     await expect(secondSendPromise).rejects.toThrow("upload failed");
     await flush();
@@ -551,44 +445,20 @@ describe("LocalThreadRuntimeCore optimistic attachment sends", () => {
   });
 
   it("persists the uploading message before the message sent during its upload", async () => {
-    const appended: ExportedMessageRepositoryItem[] = [];
-    let resolveSend!: () => void;
     let resolveFirstAppend!: () => void;
     let appendStarted = 0;
-    const thread = createThread(
-      {
-        async run() {
-          return { content: [{ type: "text", text: "ok" }] };
+    const { thread, appended, uploads } = createOptimisticThread({
+      history: {
+        beforeAppend: async () => {
+          appendStarted++;
+          if (appendStarted === 1) {
+            await new Promise<void>((resolve) => {
+              resolveFirstAppend = resolve;
+            });
+          }
         },
       },
-      {
-        attachments: createAttachmentAdapter(
-          (attachment) =>
-            new Promise<CompleteAttachment>((resolve) => {
-              resolveSend = () =>
-                resolve({
-                  ...attachment,
-                  status: { type: "complete" },
-                  content: [],
-                });
-            }),
-        ),
-        history: {
-          async load() {
-            return { messages: [] };
-          },
-          async append(item: ExportedMessageRepositoryItem) {
-            appendStarted++;
-            if (appendStarted === 1) {
-              await new Promise<void>((resolve) => {
-                resolveFirstAppend = resolve;
-              });
-            }
-            appended.push(item);
-          },
-        },
-      },
-    );
+    });
 
     thread.composer.setText("with attachment");
     await thread.composer.addAttachment(textFile());
@@ -600,7 +470,7 @@ describe("LocalThreadRuntimeCore optimistic attachment sends", () => {
 
     expect(appended).toHaveLength(0);
 
-    resolveSend();
+    uploads[0]!.resolve();
     await flush();
 
     expect(appendStarted).toBe(1);
@@ -625,31 +495,9 @@ describe("LocalThreadRuntimeCore optimistic attachment sends", () => {
   });
 
   it("reparents a message sent during a failed upload instead of orphaning it", async () => {
-    const appended: ExportedMessageRepositoryItem[] = [];
-    let rejectSend!: (error: Error) => void;
-    const thread = createThread(
-      {
-        async run() {
-          return { content: [{ type: "text", text: "ok" }] };
-        },
-      },
-      {
-        attachments: createAttachmentAdapter(
-          () =>
-            new Promise<CompleteAttachment>((_resolve, reject) => {
-              rejectSend = reject;
-            }),
-        ),
-        history: {
-          async load() {
-            return { messages: [] };
-          },
-          async append(item: ExportedMessageRepositoryItem) {
-            appended.push(item);
-          },
-        },
-      },
-    );
+    const { thread, appended, uploads } = createOptimisticThread({
+      history: {},
+    });
 
     thread.composer.setText("with attachment");
     await thread.composer.addAttachment(textFile());
@@ -659,7 +507,7 @@ describe("LocalThreadRuntimeCore optimistic attachment sends", () => {
     const secondSendPromise = thread.composer.send();
     await flush();
 
-    rejectSend(new Error("upload failed"));
+    uploads[0]!.reject(new Error("upload failed"));
     await expect(sendPromise).rejects.toThrow("upload failed");
     await secondSendPromise;
     await flush();
@@ -672,95 +520,31 @@ describe("LocalThreadRuntimeCore optimistic attachment sends", () => {
   });
 
   it("holds the draft back until every attachment upload settles", async () => {
-    let rejectFirst!: (error: Error) => void;
-    let resolveSecond!: () => void;
-    let added = 0;
-    const sends: string[] = [];
-    const thread = createThread(
-      {
-        async run() {
-          return { content: [{ type: "text", text: "ok" }] };
-        },
-      },
-      {
-        attachments: {
-          accept: "*",
-          add: async ({
-            file,
-          }: {
-            file: File;
-          }): Promise<PendingAttachment> => ({
-            id: `att-${++added}`,
-            type: "document",
-            name: file.name,
-            contentType: file.type,
-            file,
-            status: { type: "requires-action", reason: "composer-send" },
-          }),
-          remove: async () => {},
-          send: (attachment) => {
-            sends.push(attachment.id);
-            if (attachment.id === "att-1") {
-              return new Promise<CompleteAttachment>((_resolve, reject) => {
-                rejectFirst = reject;
-              });
-            }
-            return new Promise<CompleteAttachment>((resolve) => {
-              resolveSecond = () =>
-                resolve({
-                  ...attachment,
-                  status: { type: "complete" },
-                  content: [],
-                });
-            });
-          },
-        },
-      },
-    );
+    const { thread, uploads } = createOptimisticThread();
 
     thread.composer.setText("two files");
     await thread.composer.addAttachment(textFile());
     await thread.composer.addAttachment(textFile());
     const sendPromise = thread.composer.send();
 
-    rejectFirst(new Error("upload failed"));
+    uploads[0]!.reject(new Error("upload failed"));
     await flush();
 
     expect(thread.messages).toHaveLength(0);
     expect(thread.composer.attachments).toHaveLength(0);
     expect(thread.composer.canSend).toBe(false);
 
-    resolveSecond();
+    uploads[1]!.resolve();
     await expect(sendPromise).rejects.toThrow("upload failed");
 
     expect(thread.composer.attachments).toHaveLength(2);
     expect(thread.composer.text).toBe("two files");
-    expect(sends).toEqual(["att-1", "att-2"]);
+    expect(uploads.map((u) => u.attachmentId)).toEqual(["att-1", "att-2"]);
   });
 
   it("keeps the optimistic message visible while thread initialization is pending", async () => {
     let resolveInit!: () => void;
-    let resolveSend!: () => void;
-    const thread = createThread(
-      {
-        async run() {
-          return { content: [{ type: "text", text: "ok" }] };
-        },
-      },
-      {
-        attachments: createAttachmentAdapter(
-          (attachment) =>
-            new Promise<CompleteAttachment>((resolve) => {
-              resolveSend = () =>
-                resolve({
-                  ...attachment,
-                  status: { type: "complete" },
-                  content: [{ type: "text", text: "uploaded" }],
-                });
-            }),
-        ),
-      },
-    );
+    const { thread, uploads } = createOptimisticThread();
     thread.__internal_setGetInitializePromise(
       () =>
         new Promise<void>((resolve) => {
@@ -780,7 +564,7 @@ describe("LocalThreadRuntimeCore optimistic attachment sends", () => {
       progress: 0,
     });
 
-    resolveSend();
+    uploads[0]!.resolve();
     await sendPromise;
     await flush();
 
@@ -799,44 +583,20 @@ describe("LocalThreadRuntimeCore optimistic attachment sends", () => {
   });
 
   it("starts the run even when persisting the uploaded message fails", async () => {
-    let resolveSend!: () => void;
     let appendCalls = 0;
-    const runs: ChatModelRunOptions[] = [];
-    const thread = createThread(
-      {
-        async run(options) {
-          runs.push(options);
-          return { content: [{ type: "text", text: "ok" }] };
+    const { thread, runs, uploads } = createOptimisticThread({
+      history: {
+        beforeAppend: () => {
+          if (++appendCalls === 1) throw new Error("persistence failed");
         },
       },
-      {
-        attachments: createAttachmentAdapter(
-          (attachment) =>
-            new Promise<CompleteAttachment>((resolve) => {
-              resolveSend = () =>
-                resolve({
-                  ...attachment,
-                  status: { type: "complete" },
-                  content: [],
-                });
-            }),
-        ),
-        history: {
-          async load() {
-            return { messages: [] };
-          },
-          async append() {
-            if (++appendCalls === 1) throw new Error("persistence failed");
-          },
-        },
-      },
-    );
+    });
 
     thread.composer.setText("with attachment");
     await thread.composer.addAttachment(textFile());
     const sendPromise = thread.composer.send();
 
-    resolveSend();
+    uploads[0]!.resolve();
     await sendPromise;
     await flush();
 
@@ -846,39 +606,9 @@ describe("LocalThreadRuntimeCore optimistic attachment sends", () => {
   });
 
   it("skips the run without failing when the optimistic message is removed mid-upload", async () => {
-    let resolveSend!: () => void;
-    const appended: ExportedMessageRepositoryItem[] = [];
-    const runs: ChatModelRunOptions[] = [];
-    const thread = createThread(
-      {
-        async run(options) {
-          runs.push(options);
-          return { content: [{ type: "text", text: "ok" }] };
-        },
-      },
-      {
-        attachments: createAttachmentAdapter(
-          (attachment) =>
-            new Promise<CompleteAttachment>((resolve) => {
-              resolveSend = () =>
-                resolve({
-                  ...attachment,
-                  status: { type: "complete" },
-                  content: [],
-                });
-            }),
-        ),
-        history: {
-          async load() {
-            return { messages: [] };
-          },
-          async append(item: ExportedMessageRepositoryItem) {
-            appended.push(item);
-          },
-          async delete() {},
-        },
-      },
-    );
+    const { thread, runs, appended, uploads } = createOptimisticThread({
+      history: {},
+    });
 
     thread.composer.setText("with attachment");
     await thread.composer.addAttachment(textFile());
@@ -886,7 +616,7 @@ describe("LocalThreadRuntimeCore optimistic attachment sends", () => {
 
     await thread.deleteMessage(thread.messages[0]!.id);
 
-    resolveSend();
+    uploads[0]!.resolve();
     await expect(sendPromise).resolves.toBeUndefined();
     await flush();
 

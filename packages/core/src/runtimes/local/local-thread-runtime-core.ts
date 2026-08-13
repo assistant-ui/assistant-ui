@@ -1,4 +1,7 @@
-import { fromThreadMessageLike } from "../../runtime/utils/thread-message-like";
+import {
+  fromThreadMessageLike,
+  type ThreadMessageLike,
+} from "../../runtime/utils/thread-message-like";
 import { generateId } from "../../utils/id";
 import type {
   ChatModelAdapter,
@@ -411,27 +414,30 @@ export class LocalThreadRuntimeCore
     this.ensureInitialized();
     const initPromise = this._getInitializePromise?.();
 
-    const appendedMessage = fromThreadMessageLike(message, generateId(), {
-      type: "complete",
-      reason: "unknown",
-    });
-    const optimisticMessage = {
-      ...appendedMessage,
-      attachments: (
-        (appendedMessage.attachments ?? []) as readonly Attachment[]
-      ).map((attachment) =>
-        attachment.status.type === "complete"
-          ? attachment
-          : {
-              ...attachment,
-              status: {
-                type: "running" as const,
-                reason: "uploading" as const,
-                progress: 0,
-              },
+    // A pending attachment carries no content until its upload completes.
+    const optimisticAttachments = (
+      (message.attachments ?? []) as readonly Attachment[]
+    ).map((attachment) =>
+      attachment.status.type === "complete"
+        ? attachment
+        : {
+            ...attachment,
+            content: attachment.content ?? [],
+            status: {
+              type: "running" as const,
+              reason: "uploading" as const,
+              progress: 0,
             },
-      ),
-    } as ThreadMessage;
+          },
+    );
+    const optimisticMessage = fromThreadMessageLike(
+      {
+        ...message,
+        attachments: optimisticAttachments as ThreadMessageLike["attachments"],
+      },
+      generateId(),
+      { type: "complete", reason: "unknown" },
+    );
     this.repository.addOrUpdateMessage(message.parentId, optimisticMessage);
     this._notifySubscribers();
 

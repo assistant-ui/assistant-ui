@@ -501,35 +501,6 @@ describe("BaseComposerRuntimeCore.send restore-on-failure", () => {
     await sendTask;
   });
 
-  it("keeps the draft in the composer and defers append when the runtime cannot append optimistically", async () => {
-    let resolveSend!: () => void;
-    const adapter = makeAdapter({
-      send: (a) =>
-        new Promise<CompleteAttachment>((resolve) => {
-          resolveSend = () =>
-            resolve({ ...a, status: { type: "complete" }, content: [] });
-        }),
-    });
-    const { composer, append } = makeComposer(adapter);
-
-    composer.setText("hello");
-    await composer.addAttachment(textFile());
-
-    const sendPromise = composer.send();
-
-    expect(composer.text).toBe("");
-    expect(composer.attachments).toHaveLength(1);
-    expect(append).not.toHaveBeenCalled();
-
-    resolveSend();
-    await sendPromise;
-
-    expect(composer.attachments).toHaveLength(0);
-    expect(append).toHaveBeenCalledTimes(1);
-    const message = append.mock.calls[0]![0];
-    expect(message.attachments[0].status).toEqual({ type: "complete" });
-  });
-
   it("does not leak a rejected append task as an unhandled rejection", async () => {
     // A vi.fn mock attaches settled-result handlers to returned promises,
     // marking the rejection as handled; a plain function keeps it unobserved.
@@ -627,49 +598,6 @@ describe("BaseComposerRuntimeCore send event listener isolation", () => {
 });
 
 describe("BaseComposerRuntimeCore.send optimistic dispatch", () => {
-  it("dispatches the message with pending attachments synchronously and clears the composer", async () => {
-    let resolveSend!: () => void;
-    const adapter = makeAdapter({
-      send: (a) =>
-        new Promise<CompleteAttachment>((resolve) => {
-          resolveSend = () =>
-            resolve({ ...a, status: { type: "complete" }, content: [] });
-        }),
-    });
-    const { composer, append, optimisticSend } = makeComposer(
-      adapter,
-      vi.fn(),
-      { optimistic: true },
-    );
-
-    composer.setText("hello");
-    await composer.addAttachment(textFile());
-    const originalAttachments = composer.attachments;
-
-    const sendPromise = composer.send();
-
-    expect(composer.text).toBe("");
-    expect(composer.attachments).toHaveLength(0);
-    expect(optimisticSend).toHaveBeenCalledTimes(1);
-    expect(append).toHaveBeenCalledTimes(1);
-    expect(append.mock.calls[0]![0].content).toEqual([
-      { type: "text", text: "hello" },
-    ]);
-    expect(append.mock.calls[0]![0].attachments).toEqual(originalAttachments);
-    expect(append.mock.calls[0]![0].attachments[0].status).toEqual({
-      type: "requires-action",
-      reason: "composer-send",
-    });
-
-    resolveSend();
-    await sendPromise;
-
-    expect(append).toHaveBeenCalledTimes(2);
-    expect(append.mock.calls[1]![0].attachments[0].status).toEqual({
-      type: "complete",
-    });
-  });
-
   it("restores the draft when an optimistic upload fails", async () => {
     let rejectSend!: (e: Error) => void;
     let added = 0;

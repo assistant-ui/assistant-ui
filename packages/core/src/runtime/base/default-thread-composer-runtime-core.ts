@@ -144,14 +144,12 @@ export class DefaultThreadComposerRuntimeCore
       return this.runtime.append(appendMessage);
     }
 
-    const appendOptimistic = getOptimisticAttachmentSend(this.runtime);
-    if (!appendOptimistic) {
-      return this.runtime.append({
-        ...appendMessage,
-        attachments: await uploadAttachments(),
-      });
-    }
-    return appendOptimistic(appendMessage, uploadAttachments);
+    // Only reached through the optimistic path, which `supportsOptimisticAttachmentSend`
+    // gates on the same registry entry.
+    return getOptimisticAttachmentSend(this.runtime)!(
+      appendMessage,
+      uploadAttachments,
+    );
   }
 
   public async handleCancel() {

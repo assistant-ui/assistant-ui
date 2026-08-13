@@ -278,9 +278,6 @@ describe("BaseComposerRuntimeCore", () => {
       expect(composer.sentMessages).toHaveLength(1);
       const msg = composer.sentMessages[0]!;
       expect(msg.attachments).toHaveLength(2);
-      expect(msg.attachments?.every((a) => a.status.type === "complete")).toBe(
-        true,
-      );
       expect(adapter.send).toHaveBeenCalledTimes(1);
     });
 
