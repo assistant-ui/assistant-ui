@@ -789,15 +789,16 @@ const useComposerClientResource = ({
               : attachmentAdapter.send(attachment as PendingAttachment),
           ),
         ).then(dispatch, (error) => {
-          if (!isActiveRef.current) return;
-          // Upload failed: merge the failed send back into the draft.
-          setText((prev) =>
-            currentText && prev
-              ? currentText + "\n" + prev
-              : currentText || prev,
-          );
-          setQuote((prev) => prev ?? currentQuote);
-          setAttachments((prev) => [...currentAttachments, ...prev]);
+          if (isActiveRef.current) {
+            // Upload failed: merge the failed send back into the draft.
+            setText((prev) =>
+              currentText && prev
+                ? currentText + "\n" + prev
+                : currentText || prev,
+            );
+            setQuote((prev) => prev ?? currentQuote);
+            setAttachments((prev) => [...currentAttachments, ...prev]);
+          }
           console.error("Failed to send attachments", error);
         });
       } else {

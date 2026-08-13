@@ -321,6 +321,53 @@ describe("ExternalThread attachments", () => {
     expect(onNew).not.toHaveBeenCalled();
   });
 
+  it("ignores attachment upload failures after thread disposal", async () => {
+    let rejectSend!: (error: Error) => void;
+    const onNew = vi.fn();
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const file = new File(["data"], "notes.txt", { type: "text/plain" });
+    const adapter = {
+      accept: "*",
+      add: async () => ({
+        id: "att-1",
+        type: "file" as const,
+        name: file.name,
+        contentType: file.type,
+        file,
+        status: {
+          type: "requires-action" as const,
+          reason: "composer-send" as const,
+        },
+      }),
+      send: () =>
+        new Promise<CompleteAttachment>((_resolve, reject) => {
+          rejectSend = reject;
+        }),
+      remove: async () => {},
+    };
+    const aui = renderThreadWithProps({ attachmentAdapter: adapter, onNew });
+    const composer = () => aui().thread.composer();
+
+    await act(() => composer().addAttachment(file));
+    act(() => {
+      composer().setText("stale message");
+      composer().send();
+    });
+    aui.unmount();
+
+    await act(async () => {
+      rejectSend(new Error("upload failed"));
+    });
+
+    expect(onNew).not.toHaveBeenCalled();
+    expect(consoleError).toHaveBeenCalledWith(
+      "Failed to send attachments",
+      expect.objectContaining({ message: "upload failed" }),
+    );
+  });
+
   it.each([
     [
       "clearAttachments",
