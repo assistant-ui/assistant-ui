@@ -29,13 +29,17 @@ const JSON_SCHEMA_TYPES = new Set([
   "string",
 ]);
 
+const isUniqueStrings = (value: unknown) =>
+  Array.isArray(value) &&
+  value.every(isString) &&
+  new Set(value).size === value.length;
+
 const isSchemaType = (type: unknown) =>
   (isString(type) && JSON_SCHEMA_TYPES.has(type as string)) ||
   (Array.isArray(type) &&
-    type.every(
-      (entry) => typeof entry === "string" && JSON_SCHEMA_TYPES.has(entry),
-    ) &&
-    new Set(type).size === type.length);
+    type.length > 0 &&
+    isUniqueStrings(type) &&
+    type.every((entry) => JSON_SCHEMA_TYPES.has(entry as string)));
 
 const acceptsType = (type: unknown, primitive: string) =>
   type === primitive ||
@@ -66,14 +70,19 @@ const acceptsOnly = (schema: unknown, primitive: string) =>
 
 /**
  * Keywords of a sub-schema whose value shape a validator reads, each paired
- * with that shape. `properties` and `items` carry schemas, so a malformed one
- * nested under them is as uncompilable as a malformed one at the top. A keyword
- * this seam cannot judge is left alone: unlike the top-level schema, a field
- * the seam never sends needs only to be compilable, not permissive.
+ * with that shape: the same shapes the top-level schema is held to, plus
+ * `properties` and `items`, which carry schemas, so a malformed one nested
+ * under them is as uncompilable as a malformed one at the top. A keyword this
+ * seam cannot judge is left alone: unlike the top-level schema, a field the
+ * seam never sends needs only to be compilable, not permissive.
  */
 const SUB_SCHEMA_SHAPES = new Map<string, (value: unknown) => boolean>([
   ["type", isSchemaType],
-  ["required", (value) => Array.isArray(value) && value.every(isString)],
+  ["required", isUniqueStrings],
+  ...[...SUB_SCHEMA_ANNOTATIONS].map(
+    (annotation) =>
+      [annotation, isString] as [string, (value: unknown) => boolean],
+  ),
   [
     "properties",
     (value) =>

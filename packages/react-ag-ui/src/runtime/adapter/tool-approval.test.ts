@@ -135,6 +135,21 @@ describe("projectAgUiToolApprovals", () => {
       { type: "object", properties: { editedArgs: { type: "bogus" } } },
       { type: "object", properties: { editedArgs: { required: [7] } } },
       { type: "object", properties: { editedArgs: { items: 7 } } },
+      // The shapes the top-level schema is held to hold one level down too.
+      { type: "object", properties: { editedArgs: { type: [] } } },
+      { type: "object", properties: { editedArgs: { type: ["object", 7] } } },
+      {
+        type: "object",
+        properties: { editedArgs: { type: ["object", "object"] } },
+      },
+      {
+        type: "object",
+        properties: { editedArgs: { required: ["path", "path"] } },
+      },
+      { type: "object", properties: { editedArgs: { title: 42 } } },
+      { type: "object", properties: { editedArgs: { description: [] } } },
+      { type: "object", properties: { editedArgs: { $schema: 7 } } },
+      { type: "object", properties: { editedArgs: { $id: {} } } },
       {
         type: "object",
         properties: { editedArgs: { type: "object", properties: 7 } },

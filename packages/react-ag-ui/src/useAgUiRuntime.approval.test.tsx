@@ -334,6 +334,21 @@ describe("useAgUiRuntime tool approvals", () => {
     expect(allToolCalls(runtime.current)[0]!.approval).toBeUndefined();
   });
 
+  /**
+   * `null` is not a JSON Schema, and it is what a server serializing an unset
+   * optional field sends, so it reads as absent rather than disabling the seam.
+   */
+  it("gates a live interrupt whose schema is null", async () => {
+    const { runtime } = await gatedThread([
+      { ...GATE, responseSchema: null } as unknown as AgUiInterrupt,
+    ]);
+    const [interrupt] = interruptsRef.current;
+
+    expect(allToolCalls(runtime.current)[0]!.approval).toEqual({ id: "int-1" });
+    expect(interrupt?.responseSchema).toBeUndefined();
+    expect(interrupt && readRawResponseSchema(interrupt)).toBeUndefined();
+  });
+
   it("carries an object schema on the public field unchanged", async () => {
     await gatedThread([
       { ...GATE, responseSchema: { type: "object" } } as AgUiInterrupt,

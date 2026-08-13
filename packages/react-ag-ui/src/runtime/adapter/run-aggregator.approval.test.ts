@@ -64,7 +64,12 @@ describe("RunAggregator tool approval projection", () => {
     expect(approvalOf(last())).toMatchObject({ id: "int-1" });
   });
 
-  it("drops the gate when the run then errors", () => {
+  /**
+   * The gate cannot be clicked once the run is unresumable, but the interrupts
+   * stay on the message: the bespoke hooks read that payload, and dropping it
+   * would take a shipped surface away with the projection.
+   */
+  it("drops the gate when the run then errors, keeping the interrupts", () => {
     const { aggregator, last } = gatedAggregator();
 
     aggregator.handle({ type: "RUN_ERROR", message: "stream dropped" } as any);
@@ -74,10 +79,13 @@ describe("RunAggregator tool approval projection", () => {
       reason: "error",
     });
     expect(approvalOf(last())).toBeUndefined();
-    expect(last().metadata?.custom).toBeUndefined();
+    expect(
+      (last().metadata?.custom as Record<string, any> | undefined)?.agui
+        ?.interrupts,
+    ).toEqual([GATE]);
   });
 
-  it("drops the gate when the run is then cancelled", () => {
+  it("drops the gate when the run is then cancelled, keeping the interrupts", () => {
     const { aggregator, last } = gatedAggregator();
 
     aggregator.handle({ type: "RUN_CANCELLED" } as any);
@@ -87,6 +95,9 @@ describe("RunAggregator tool approval projection", () => {
       reason: "cancelled",
     });
     expect(approvalOf(last())).toBeUndefined();
-    expect(last().metadata?.custom).toBeUndefined();
+    expect(
+      (last().metadata?.custom as Record<string, any> | undefined)?.agui
+        ?.interrupts,
+    ).toEqual([GATE]);
   });
 });
