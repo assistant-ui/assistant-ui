@@ -55,7 +55,7 @@ const EMPTY_QUEUE_ITEMS: readonly QueueItemState[] = [];
 const EMPTY_BRANCH_IDS: readonly string[] = [];
 const EMPTY_SUGGESTIONS: readonly ThreadSuggestion[] = [];
 
-class ThreadActivity {
+export class ThreadActivity {
   private active = true;
   private readonly pendingSettlements: Array<() => void> = [];
 
@@ -66,9 +66,13 @@ class ThreadActivity {
   activate = () => {
     this.active = true;
     const pendingSettlements = this.pendingSettlements.splice(0);
-    for (const settle of pendingSettlements) {
+    for (let index = 0; index < pendingSettlements.length; index++) {
+      if (!this.active) {
+        this.pendingSettlements.unshift(...pendingSettlements.slice(index));
+        break;
+      }
       try {
-        settle();
+        pendingSettlements[index]!();
       } catch (error) {
         console.error("Failed to settle attachment send", error);
       }

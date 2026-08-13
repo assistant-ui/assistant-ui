@@ -8,7 +8,10 @@ import type {
   ExternalThreadMessage,
   ExternalThreadProps,
 } from "../store/clients/external-thread";
-import { ExternalThread } from "../store/clients/external-thread";
+import {
+  ExternalThread,
+  ThreadActivity,
+} from "../store/clients/external-thread";
 import type {
   CompleteAttachment,
   PendingAttachment,
@@ -67,6 +70,21 @@ const renderThread = () => {
 };
 
 describe("ExternalThread attachments", () => {
+  it("pauses deferred settlements when replay deactivates the thread", () => {
+    const threadActivity = new ThreadActivity();
+    const secondSettlement = vi.fn();
+
+    threadActivity.deactivate();
+    threadActivity.settle(() => threadActivity.deactivate());
+    threadActivity.settle(secondSettlement);
+
+    threadActivity.activate();
+    expect(secondSettlement).not.toHaveBeenCalled();
+
+    threadActivity.activate();
+    expect(secondSettlement).toHaveBeenCalledTimes(1);
+  });
+
   it("adds prepared attachments when File is unavailable", async () => {
     const aui = renderThread();
     const fileConstructor = globalThis.File;
