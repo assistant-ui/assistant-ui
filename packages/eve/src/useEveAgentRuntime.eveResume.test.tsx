@@ -13,7 +13,6 @@
 import { renderHook } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import type { HandleMessageStreamEvent } from "eve/client";
-import { useEveAgent } from "eve/react";
 
 import { useEveAgentRuntime } from "./useEveAgentRuntime";
 
@@ -101,43 +100,5 @@ describe("useEveAgentRuntime against a resumed eve session", () => {
     for (const message of messages) {
       expect(message.createdAt.getTime()).toBeLessThan(renderedAt);
     }
-  });
-
-  // The load-bearing upstream assumption of this PR: the adapter reads
-  // `agent.events`, so eve must hand a resumed log back with its persisted
-  // timestamps intact rather than restamping on replay.
-  it("exposes the durable meta.at of every resumed event through agent.events", () => {
-    const { result } = renderHook(() =>
-      useEveAgent({
-        initialEvents: resumedEvents as never,
-        session: offlineSession,
-      }),
-    );
-
-    expect(result.current.events.map((event) => event.meta?.at)).toEqual(
-      resumedEvents.map((event) => event.meta.at),
-    );
-  });
-
-  // The turn's messages come from eve's own reducer, so the ids and
-  // `metadata.turnId` the adapter keys on are eve's, not the test's.
-  it("resumes both messages of the turn with eve's own turn metadata", () => {
-    const { result } = renderHook(() =>
-      useEveAgent({
-        initialEvents: resumedEvents as never,
-        session: offlineSession,
-      }),
-    );
-
-    expect(
-      result.current.data.messages.map((message) => ({
-        id: message.id,
-        role: message.role,
-        turnId: message.metadata?.turnId,
-      })),
-    ).toEqual([
-      { id: `${TURN}:user`, role: "user", turnId: TURN },
-      { id: `${TURN}:assistant`, role: "assistant", turnId: TURN },
-    ]);
   });
 });

@@ -112,6 +112,24 @@ describe("assignCreatedAt", () => {
     expect(assigned.get("m2")).toEqual(new Date("2026-01-02T03:06:00.000Z"));
   });
 
+  it("resolves an assistant message with no event of its own at the user's timestamp", () => {
+    const assigned = assignCreatedAt(
+      messages(message("m1", "user", "t1"), message("m2", "assistant", "t1")),
+      new Map([
+        [
+          "t1",
+          {
+            turn: new Date("2026-01-02T03:04:05.000Z"),
+            user: new Date("2026-01-02T03:04:06.000Z"),
+          },
+        ],
+      ]),
+      new Map(),
+    );
+
+    expect(assigned.get("m2")).toEqual(new Date("2026-01-02T03:04:06.000Z"));
+  });
+
   it("bounds a leading fallback at the next durable timestamp", () => {
     const assigned = assignCreatedAt(
       messages(message("m0", "user"), message("m1", "user", "t1")),
