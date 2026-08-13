@@ -380,7 +380,7 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
         // failure synchronously to the caller that rendered the controls,
         // which is the only signal the void `respondToApproval` seam carries.
         throw new Error(
-          `Eve input request${inputRequest ? ` "${inputRequest.prompt}"` : ""} was not submitted: ${error instanceof Error ? error.message : String(error)}. Respond with an option the request carries, or with the answer text as the reason (see providerMetadata.eve.inputRequest on the tool part).`,
+          `Eve input request${inputRequest ? ` "${inputRequest.prompt}"` : ""} was not submitted: ${error instanceof Error ? error.message : String(error)} (see providerMetadata.eve.inputRequest on the tool part).`,
           { cause: error },
         );
       }

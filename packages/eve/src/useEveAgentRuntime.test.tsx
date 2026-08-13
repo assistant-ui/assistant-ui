@@ -383,21 +383,92 @@ describe("useEveAgentRuntime tool approval responses", () => {
     ["allowed", { approved: true }],
     ["denied", { approved: false }],
   ])(
-    "submits an unanswered free-form request as an empty answer when %s through the default controls",
+    "keeps an unanswered free-form request pending when %s through the default controls",
     async (_label, response) => {
+      const rejections: unknown[] = [];
+      const onUnhandledRejection = (reason: unknown) => rejections.push(reason);
+      processEvents.on("unhandledRejection", onUnhandledRejection);
       const agent = createAgent({ data: textRequestData });
       mockUseEveAgent.mockReturnValue(agent as never);
 
-      const { result } = renderHook(() => useEveAgentRuntime());
-      respondToTextRequest(result, response);
+      try {
+        const { result } = renderHook(() => useEveAgentRuntime());
 
-      await flushMicrotasks();
+        expect(() => respondToTextRequest(result, response)).toThrow(
+          /was not answered by this response/,
+        );
 
-      expect(agent.send).toHaveBeenCalledWith({
-        inputResponses: [{ requestId: "req_1" }],
-      });
+        await flushMicrotasks();
+        await flushMicrotasks();
+
+        expect(agent.send).not.toHaveBeenCalled();
+        expect(rejections).toEqual([]);
+      } finally {
+        processEvents.off("unhandledRejection", onUnhandledRejection);
+      }
     },
   );
+
+  it.each([
+    [
+      "the approval part carries no eve input request",
+      {
+        messages: [
+          {
+            id: "a1",
+            role: "assistant",
+            parts: [
+              {
+                type: "dynamic-tool",
+                state: "approval-requested",
+                toolCallId: "call_1",
+                toolName: "ask_question",
+                input: {},
+                approval: { id: "req_1" },
+                toolMetadata: {
+                  eve: { kind: "tool-call", name: "ask_question" },
+                },
+              },
+            ],
+          },
+        ],
+      } satisfies EveMessageData,
+    ],
+    [
+      "the approval part carries no eve tool metadata at all",
+      {
+        messages: [
+          {
+            id: "a1",
+            role: "assistant",
+            parts: [
+              {
+                type: "dynamic-tool",
+                state: "approval-requested",
+                toolCallId: "call_1",
+                toolName: "ask_question",
+                input: {},
+                approval: { id: "req_1" },
+              },
+            ],
+          },
+        ],
+      } satisfies EveMessageData,
+    ],
+  ])("never guesses a decision when %s", async (_label, data) => {
+    const agent = createAgent({ data });
+    mockUseEveAgent.mockReturnValue(agent as never);
+
+    const { result } = renderHook(() => useEveAgentRuntime());
+
+    expect(() => respondToTextRequest(result, { approved: true })).toThrow(
+      /is not in the agent's message data/,
+    );
+
+    await flushMicrotasks();
+
+    expect(agent.send).not.toHaveBeenCalled();
+  });
 
   it("rejects an option the request does not carry before it reaches eve", async () => {
     const rejections: unknown[] = [];

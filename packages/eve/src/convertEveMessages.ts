@@ -542,30 +542,36 @@ export const findEveInputRequest = (
 /**
  * Converts an assistant-ui tool approval response into an Eve input response.
  *
- * Pass the originating input request (see {@link findEveInputRequest}) so the
- * mapping never emits an option id the request does not carry. A literal
- * option match always wins, then the `"approve"` / `"deny"` option the
- * response's boolean decision names, then the response's `reason` text when
- * the request takes a free-form answer (`display: "text"`, `allowFreeform`,
- * or no options at all, and never `display: "confirmation"`) and the response
- * is not a refusal.
+ * The originating input request (see {@link findEveInputRequest}) is what the
+ * response is mapped against, so every returned response carries either an
+ * option the request declares or a free-form answer. A literal option match
+ * wins, then the `"approve"` / `"deny"` option the response's boolean decision
+ * names, then the response's `reason` text when the request takes a free-form
+ * answer (`display: "text"`, `allowFreeform`, or no options at all, and never
+ * `display: "confirmation"`) and the response is not a refusal.
  *
- * A response that names none of those answers the request with neither an
- * option nor text, which is how eve records that the user moved on without
- * answering. Only a supplied `optionId` the request does not carry throws,
- * because substituting another decision for it would discard the choice the
- * caller made.
+ * Anything else throws: a response eve cannot record as the answer the request
+ * asked for is not submitted at all, because eve resolves a request the moment
+ * any response for it arrives, and an empty one is recorded as an answer with
+ * no content. Not sending leaves the request pending, so the caller can retry
+ * or the user can answer it as an ordinary message.
  */
 export const toEveInputResponse = (
   response: RespondToToolApprovalOptions,
   inputRequest?: EveMessageInputRequest,
 ): InputResponse => {
   const requestId = response.approvalId;
-  const options = inputRequest?.options;
+  if (!inputRequest) {
+    throw new Error(
+      `Eve input request "${requestId}" is not in the agent's message data; look it up with findEveInputRequest and pass it in, because the response cannot be mapped without the request it answers`,
+    );
+  }
+
+  const options = inputRequest.options;
   const text = response.reason;
 
   if (response.optionId !== undefined) {
-    if (!inputRequest || options?.some((o) => o.id === response.optionId)) {
+    if (options?.some((option) => option.id === response.optionId)) {
       return {
         requestId,
         optionId: response.optionId,
@@ -581,23 +587,14 @@ export const toEveInputResponse = (
     );
   }
 
-  if (!inputRequest) {
-    return {
-      requestId,
-      optionId: response.approved ? "approve" : "deny",
-      ...(text && { text }),
-    };
-  }
-
-  const fallbackOptionId = response.approved ? "approve" : "deny";
-  if (options?.some((option) => option.id === fallbackOptionId)) {
-    return { requestId, optionId: fallbackOptionId, ...(text && { text }) };
+  const decisionOptionId = response.approved ? "approve" : "deny";
+  if (options?.some((option) => option.id === decisionOptionId)) {
+    return { requestId, optionId: decisionOptionId, ...(text && { text }) };
   }
 
   // Eve recognises an approval by its literal two-option `approve`/`deny`
   // shape, so past this point the request is a question and the boolean
-  // carries no decision eve would act on: an approval can never be fabricated
-  // here, and a refusal is only ever a refusal to answer.
+  // carries no decision eve would act on.
   const acceptsText =
     inputRequest.display !== "confirmation" &&
     (inputRequest.display === "text" ||
@@ -607,5 +604,13 @@ export const toEveInputResponse = (
     return { requestId, text };
   }
 
-  return { requestId };
+  throw new Error(
+    `Eve input request "${requestId}" (${inputRequest.prompt}) was not answered by this response; ${
+      options?.length
+        ? `respond with one of: ${options.map((option) => option.id).join(", ")}`
+        : acceptsText
+          ? "pass the answer as the response reason, because the request takes a free-form answer"
+          : "the request declares no options to respond with"
+    }`,
+  );
 };

@@ -52,19 +52,19 @@ const getEveMessageContent: (message: AppendMessage) => NonNullable<SendTurnPayl
 
 Converts an assistant-ui tool approval response into an Eve input response.
 
-Pass the originating input request (see [findEveInputRequest](/docs/api-reference/integrations/eve#findeveinputrequest)) so the
-mapping never emits an option id the request does not carry. A literal
-option match always wins, then the `"approve"` / `"deny"` option the
-response's boolean decision names, then the response's `reason` text when
-the request takes a free-form answer (`display: "text"`, `allowFreeform`,
-or no options at all, and never `display: "confirmation"`) and the response
-is not a refusal.
+The originating input request (see [findEveInputRequest](/docs/api-reference/integrations/eve#findeveinputrequest)) is what the
+response is mapped against, so every returned response carries either an
+option the request declares or a free-form answer. A literal option match
+wins, then the `"approve"` / `"deny"` option the response's boolean decision
+names, then the response's `reason` text when the request takes a free-form
+answer (`display: "text"`, `allowFreeform`, or no options at all, and never
+`display: "confirmation"`) and the response is not a refusal.
 
-A response that names none of those answers the request with neither an
-option nor text, which is how eve records that the user moved on without
-answering. Only a supplied `optionId` the request does not carry throws,
-because substituting another decision for it would discard the choice the
-caller made.
+Anything else throws: a response eve cannot record as the answer the request
+asked for is not submitted at all, because eve resolves a request the moment
+any response for it arrives, and an empty one is recorded as an answer with
+no content. Not sending leaves the request pending, so the caller can retry
+or the user can answer it as an ordinary message.
 
 ```ts
 const toEveInputResponse: (response: RespondToToolApprovalOptions, inputRequest?: EveMessageInputRequest) => InputResponse;

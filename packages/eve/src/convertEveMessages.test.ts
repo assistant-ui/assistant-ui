@@ -1552,16 +1552,41 @@ describe("getEveMessageContent", () => {
 describe("toEveInputResponse", () => {
   it("maps assistant-ui approval responses to eve input responses", () => {
     expect(
-      toEveInputResponse({
-        approvalId: "req_1",
-        approved: false,
-        reason: "Not yet",
-      }),
+      toEveInputResponse(
+        {
+          approvalId: "req_1",
+          approved: false,
+          reason: "Not yet",
+        },
+        {
+          requestId: "req_1",
+          prompt: "Send the email?",
+          display: "confirmation",
+          options: [
+            { id: "approve", label: "Approve" },
+            { id: "deny", label: "Deny" },
+          ],
+        },
+      ),
     ).toEqual({
       requestId: "req_1",
       optionId: "deny",
       text: "Not yet",
     });
+  });
+
+  it("refuses to map a response without the request it answers", () => {
+    expect(() =>
+      toEveInputResponse({ approvalId: "req_1", approved: true }),
+    ).toThrow(/is not in the agent's message data/);
+
+    expect(() =>
+      toEveInputResponse({
+        approvalId: "req_1",
+        approved: true,
+        optionId: "staging",
+      }),
+    ).toThrow(/is not in the agent's message data/);
   });
 
   it("keeps the confirmation mapping when the request carries approve/deny options", () => {
@@ -1614,7 +1639,7 @@ describe("toEveInputResponse", () => {
   });
 
   it("never fabricates approve for a text-display request without an answer", () => {
-    expect(
+    expect(() =>
       toEveInputResponse(
         { approvalId: "req_1", approved: true },
         {
@@ -1623,11 +1648,11 @@ describe("toEveInputResponse", () => {
           display: "text",
         },
       ),
-    ).toEqual({ requestId: "req_1" });
+    ).toThrow(/pass the answer as the response reason/);
   });
 
   it("never fabricates approve for a select request without a chosen option", () => {
-    expect(
+    expect(() =>
       toEveInputResponse(
         { approvalId: "req_1", approved: true },
         {
@@ -1640,7 +1665,7 @@ describe("toEveInputResponse", () => {
           ],
         },
       ),
-    ).toEqual({ requestId: "req_1" });
+    ).toThrow(/respond with one of: staging, production/);
   });
 
   it("throws when the response names an option the request does not carry", () => {
@@ -1744,7 +1769,7 @@ describe("toEveInputResponse", () => {
       ),
     ).toEqual({ requestId: "req_1", text: "Next Tuesday" });
 
-    expect(
+    expect(() =>
       toEveInputResponse(
         {
           approvalId: "req_1",
@@ -1753,7 +1778,7 @@ describe("toEveInputResponse", () => {
         },
         { requestId: "req_1", prompt: "When should this ship?" },
       ),
-    ).toEqual({ requestId: "req_1" });
+    ).toThrow(/pass the answer as the response reason/);
   });
 
   it("never answers an optionless confirmation as free-form text", () => {
@@ -1768,9 +1793,9 @@ describe("toEveInputResponse", () => {
       { approvalId: "req_1", approved: false, reason: "not now" },
       { approvalId: "req_1", approved: true, reason: "go ahead" },
     ]) {
-      expect(toEveInputResponse(response, inputRequest)).toEqual({
-        requestId: "req_1",
-      });
+      expect(() => toEveInputResponse(response, inputRequest)).toThrow(
+        /declares no options to respond with/,
+      );
     }
   });
 
