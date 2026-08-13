@@ -5,6 +5,10 @@ import type {
   ToolCallMessagePart,
 } from "@assistant-ui/core";
 import type { AgUiInterrupt, AgUiResumeEntry } from "../types";
+import {
+  readRawResponseSchema,
+  withoutRawResponseSchema,
+} from "../interrupt-internals";
 
 type ToolApproval = NonNullable<ToolCallMessagePart["approval"]>;
 
@@ -45,16 +49,19 @@ const acceptsSeamPayload = (required: unknown) =>
  * keyword whose value a validator would reject as an invalid schema is not
  * decided here, because a server that compiles the schema fails the run. An
  * unlisted keyword — `properties`, `additionalProperties`, `allOf`, `$ref` —
- * makes the gate bespoke rather than being interpreted.
+ * makes the gate bespoke rather than being interpreted. The map is keyed by
+ * `Map` rather than by object property, because a schema key of `constructor`
+ * or `toString` would otherwise read an `Object.prototype` member as its
+ * validator and `__proto__` would read the prototype itself.
  */
-const SEAM_SAFE_KEYWORDS: Record<string, (value: unknown) => boolean> = {
-  $schema: isString,
-  $id: isString,
-  title: isString,
-  description: isString,
-  type: acceptsObject,
-  required: acceptsSeamPayload,
-};
+const SEAM_SAFE_KEYWORDS = new Map<string, (value: unknown) => boolean>([
+  ["$schema", isString],
+  ["$id", isString],
+  ["title", isString],
+  ["description", isString],
+  ["type", acceptsObject],
+  ["required", acceptsSeamPayload],
+]);
 
 /**
  * The seam sends `{ approved }` and may add `reason`, so it may answer a
@@ -70,7 +77,7 @@ const isSeamAnswerable = (schema: unknown) => {
   if (schema === undefined) return true;
   if (!isPlainObject(schema)) return false;
   return Object.entries(schema).every(([keyword, value]) => {
-    const accepts = SEAM_SAFE_KEYWORDS[keyword];
+    const accepts = SEAM_SAFE_KEYWORDS.get(keyword);
     return accepts !== undefined && accepts(value);
   });
 };
@@ -82,8 +89,8 @@ const isGate = (
   !!interrupt.id &&
   !!interrupt.toolCallId &&
   // A restored interrupt is untyped, so `responseSchema` may hold any persisted
-  // shape; a non-object schema received live arrives on `responseSchemaRaw`.
-  interrupt.responseSchemaRaw === undefined &&
+  // shape; a non-object schema received live arrives on the internal carrier.
+  readRawResponseSchema(interrupt) === undefined &&
   isSeamAnswerable(interrupt.responseSchema);
 
 const isPending = (approval: ToolCallMessagePart["approval"]) =>
@@ -149,30 +156,34 @@ export const buildToolApprovalResume = (
   interrupts: readonly AgUiInterrupt[],
 ): AgUiResumeEntry[] | null => {
   const open = new Set(interrupts.map((interrupt) => interrupt.id));
-  const responses: Record<string, { status: "resolved"; payload: unknown }> =
-    {};
+  // Decisions accumulate in a `Map` rather than in an object literal, because an
+  // interrupt id of `__proto__` would otherwise write to the prototype chain
+  // instead of recording a response, and `constructor` or `toString` would
+  // report themselves as answered while undecided.
+  const responses = new Map<string, { status: "resolved"; payload: unknown }>();
   for (const part of content) {
     if (part.type !== "tool-call") continue;
     const approval = part.approval;
     if (!approval || approval.approved === undefined) continue;
     if (!open.has(approval.id)) continue;
-    responses[approval.id] = {
+    responses.set(approval.id, {
       status: "resolved",
       payload: {
         approved: approval.approved,
         ...(approval.reason !== undefined && { reason: approval.reason }),
       },
-    };
+    });
   }
-  if (interrupts.some((interrupt) => !(interrupt.id in responses))) return null;
+  if (interrupts.some((interrupt) => !responses.has(interrupt.id))) return null;
   // The schema is dropped rather than cast: AG-UI's own interrupt type cannot
   // express a boolean schema, and `buildResumeArray` reads only the ids.
   return buildResumeArray(
-    interrupts.map(
-      ({ responseSchema: _schema, responseSchemaRaw: _raw, ...interrupt }) =>
-        interrupt,
-    ),
-    responses,
+    interrupts.map((interrupt) => {
+      const { responseSchema: _schema, ...rest } =
+        withoutRawResponseSchema(interrupt);
+      return rest;
+    }),
+    Object.fromEntries(responses),
   );
 };
 

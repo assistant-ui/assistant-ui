@@ -8,6 +8,7 @@ import {
   withToolApprovalDecision,
 } from "./tool-approval";
 import type { AgUiInterrupt, AgUiResumeEntry } from "../types";
+import { withRawResponseSchema } from "../interrupt-internals";
 
 const gate = (id: string, toolCallId: string): AgUiInterrupt => ({
   id,
@@ -98,10 +99,10 @@ describe("projectAgUiToolApprovals", () => {
     // crash the projection.
     const notObjects: unknown[] = [false, true, null, 0, 7, "object", []];
     for (const schema of notObjects) {
-      // Live, a non-object schema arrives on `responseSchemaRaw`.
+      // Live, a non-object schema arrives on the internal carrier.
       expect(
         projectAgUiToolApprovals([
-          { ...gate("int-1", "tc-1"), responseSchemaRaw: schema },
+          withRawResponseSchema(gate("int-1", "tc-1"), schema),
         ]).size,
       ).toBe(0);
       // A restored interrupt is untyped, so it can also sit on `responseSchema`.
@@ -157,6 +158,26 @@ describe("projectAgUiToolApprovals", () => {
       ]).toEqual([["tc-1", { id: "int-1" }]]);
     }
   });
+
+  it("leaves a gate whose schema is keyed by a prototype member to the bespoke hooks", () => {
+    // Parsed from the wire so each key is an own property, as a server can send
+    // it. Read off an object literal these would resolve to `Object.prototype`
+    // members and either crash the projection or gate a schema nothing checked.
+    for (const source of [
+      '{"__proto__":{}}',
+      '{"constructor":{}}',
+      '{"toString":{}}',
+      '{"hasOwnProperty":{}}',
+      '{"valueOf":"object"}',
+      '{"type":"object","toString":{}}',
+    ]) {
+      const responseSchema = JSON.parse(source) as Record<string, unknown>;
+      expect(
+        projectAgUiToolApprovals([{ ...gate("int-1", "tc-1"), responseSchema }])
+          .size,
+      ).toBe(0);
+    }
+  });
 });
 
 describe("buildToolApprovalResume", () => {
@@ -202,6 +223,46 @@ describe("buildToolApprovalResume", () => {
         payload: { approved: false },
       },
     ]);
+  });
+
+  it("answers and withholds a batch keyed by prototype-named interrupt ids", () => {
+    // An interrupt id is a server-chosen string. Accumulated on an object
+    // literal, `__proto__` would rewrite the prototype instead of recording a
+    // response, and `constructor` or `toString` would read as answered while
+    // still undecided.
+    for (const id of ["__proto__", "constructor", "toString", "valueOf"]) {
+      const batch = [gate(id, "tc-1"), gate("int-2", "tc-2")];
+      expect(
+        buildToolApprovalResume(
+          [toolCall("tc-1", { id, approved: true }), toolCall("tc-2", {})],
+          batch,
+        ),
+      ).toBeNull();
+      expect(
+        buildToolApprovalResume(
+          [
+            toolCall("tc-1", { id, approved: true }),
+            toolCall("tc-2", { id: "int-2", approved: false }),
+          ],
+          batch,
+        ),
+      ).toEqual([
+        { interruptId: id, status: "resolved", payload: { approved: true } },
+        {
+          interruptId: "int-2",
+          status: "resolved",
+          payload: { approved: false },
+        },
+      ]);
+    }
+  });
+
+  it("withholds the resume while a prototype-named gate is undecided", () => {
+    for (const id of ["__proto__", "constructor", "toString", "valueOf"]) {
+      expect(
+        buildToolApprovalResume([toolCall("tc-1", { id })], [gate(id, "tc-1")]),
+      ).toBeNull();
+    }
   });
 });
 

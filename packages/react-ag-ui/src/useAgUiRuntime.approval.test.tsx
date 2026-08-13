@@ -22,6 +22,7 @@ import { z } from "zod";
 import { useAgUiRuntime } from "./useAgUiRuntime";
 import { useAgUiInterrupts, useAgUiSteerAway } from "./hooks";
 import type { AgUiInterrupt } from "./runtime/types";
+import { readRawResponseSchema } from "./runtime/interrupt-internals";
 
 type Subscriber = Record<string, ((payload: any) => void) | undefined>;
 
@@ -139,6 +140,39 @@ describe("useAgUiRuntime tool approvals", () => {
     expect(gatedPart(runtime.current).getState().status).toMatchObject({
       type: "requires-action",
     });
+  });
+
+  it("holds and resumes a batch whose interrupt ids name prototype members", async () => {
+    for (const id of ["__proto__", "constructor", "toString"]) {
+      const { runtime, runAgent } = await gatedThread([
+        { ...GATE, id },
+        { id: "int-2", reason: "tool_call", toolCallId: "tc-2" },
+      ]);
+
+      await act(async () => {
+        gatedPart(runtime.current, "tc-1").respondToToolApproval({
+          approved: true,
+        });
+      });
+      expect(runAgent).toHaveBeenCalledTimes(1);
+
+      await act(async () => {
+        gatedPart(runtime.current, "tc-2").respondToToolApproval({
+          approved: false,
+        });
+      });
+      await waitFor(() => expect(runAgent).toHaveBeenCalledTimes(2));
+
+      expect(resumeOf(runAgent)).toEqual([
+        { interruptId: id, status: "resolved", payload: { approved: true } },
+        {
+          interruptId: "int-2",
+          status: "resolved",
+          payload: { approved: false },
+        },
+      ]);
+      cleanup();
+    }
   });
 
   it("holds the run until every gate is decided, then resumes once in order", async () => {
@@ -267,7 +301,7 @@ describe("useAgUiRuntime tool approvals", () => {
 
   it("leaves the tool call ungated when the live interrupt carries a rejecting schema", async () => {
     const { runtime } = await gatedThread([
-      { ...GATE, responseSchema: false } as AgUiInterrupt,
+      { ...GATE, responseSchema: false } as unknown as AgUiInterrupt,
     ]);
 
     expect(allToolCalls(runtime.current)[0]!.approval).toBeUndefined();
@@ -275,12 +309,12 @@ describe("useAgUiRuntime tool approvals", () => {
 
   it("keeps a rejecting live schema readable without widening the public field", async () => {
     const { runtime } = await gatedThread([
-      { ...GATE, responseSchema: false } as AgUiInterrupt,
+      { ...GATE, responseSchema: false } as unknown as AgUiInterrupt,
     ]);
     const [interrupt] = interruptsRef.current;
 
     expect(interrupt?.responseSchema).toBeUndefined();
-    expect(interrupt?.responseSchemaRaw).toBe(false);
+    expect(interrupt && readRawResponseSchema(interrupt)).toBe(false);
     // The exported reads a consumer wrote against the previous release still
     // typecheck: the field stays an object schema or absent.
     if (interrupt?.responseSchema !== undefined)
@@ -299,7 +333,7 @@ describe("useAgUiRuntime tool approvals", () => {
     expect(interruptsRef.current[0]?.responseSchema).toEqual({
       type: "object",
     });
-    expect(interruptsRef.current[0]?.responseSchemaRaw).toBeUndefined();
+    expect(readRawResponseSchema(interruptsRef.current[0]!)).toBeUndefined();
   });
 
   it("leaves the tool call ungated when a live object schema is malformed", async () => {
@@ -308,6 +342,12 @@ describe("useAgUiRuntime tool approvals", () => {
       { description: [] },
       { type: ["object", "bogus"] },
       { required: ["approved", "approved"] },
+      // Own properties named after `Object.prototype` members, as a server can
+      // send them over the wire.
+      JSON.parse('{"__proto__":{}}'),
+      JSON.parse('{"constructor":{}}'),
+      JSON.parse('{"toString":{}}'),
+      JSON.parse('{"type":"object","valueOf":{}}'),
     ]) {
       const { runtime } = await gatedThread([
         { ...GATE, responseSchema } as unknown as AgUiInterrupt,

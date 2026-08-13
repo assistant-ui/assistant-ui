@@ -23,7 +23,6 @@ type AgUiInterrupt = {
   message?: string;
   toolCallId?: string;
   responseSchema?: Record<string, unknown>;
-  responseSchemaRaw?: unknown;
   expiresAt?: string;
   metadata?: Record<string, unknown>;
 };

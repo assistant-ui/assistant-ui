@@ -1,6 +1,7 @@
 import type { AgUiEvent, AgUiInterrupt, AgUiRunFinishedOutcome } from "./types";
 import type { Logger } from "./logger";
 import { parseMcpToolCallResult } from "./mcp-tool-result";
+import { withRawResponseSchema } from "./interrupt-internals";
 
 export type ParseAgUiEventOptions = {
   logger?: Logger;
@@ -34,16 +35,16 @@ const parseInterrupt = (raw: unknown): AgUiInterrupt | null => {
   if (typeof raw.message === "string") interrupt.message = raw.message;
   if (typeof raw.toolCallId === "string") interrupt.toolCallId = raw.toolCallId;
   if (typeof raw.expiresAt === "string") interrupt.expiresAt = raw.expiresAt;
+  if (isPlainObject(raw.responseSchema))
+    interrupt.responseSchema = raw.responseSchema;
+  if (isPlainObject(raw.metadata)) interrupt.metadata = raw.metadata;
   // A present schema is kept whatever its shape: `false` is a JSON Schema that
   // rejects every payload, so normalizing it to absent would claim a gate no
   // decision can answer. Only an object schema fits `responseSchema`; every
-  // other shape travels on `responseSchemaRaw`.
-  if (isPlainObject(raw.responseSchema))
-    interrupt.responseSchema = raw.responseSchema;
-  else if (raw.responseSchema !== undefined)
-    interrupt.responseSchemaRaw = raw.responseSchema;
-  if (isPlainObject(raw.metadata)) interrupt.metadata = raw.metadata;
-  return interrupt;
+  // other shape travels on the internal carrier.
+  return raw.responseSchema === undefined || isPlainObject(raw.responseSchema)
+    ? interrupt
+    : withRawResponseSchema(interrupt, raw.responseSchema);
 };
 
 const parseRunFinishedOutcome = (
