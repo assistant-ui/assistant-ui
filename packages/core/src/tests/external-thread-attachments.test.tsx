@@ -484,7 +484,7 @@ describe("ExternalThread attachments", () => {
     ).not.toThrow();
     expect(onNew).toHaveBeenCalledTimes(2);
     expect(consoleError).toHaveBeenCalledWith(
-      "Failed to send attachments",
+      "Failed to settle attachment send",
       expect.objectContaining({ message: "first send failed" }),
     );
 

@@ -57,10 +57,22 @@ const EMPTY_SUGGESTIONS: readonly ThreadSuggestion[] = [];
 
 class ThreadActivity {
   private active = true;
+  private readonly pendingSettlements: Array<() => void> = [];
 
-  isActive = () => this.active;
+  settle = (settle: () => void) => {
+    if (this.active) settle();
+    else this.pendingSettlements.push(settle);
+  };
   activate = () => {
     this.active = true;
+    const pendingSettlements = this.pendingSettlements.splice(0);
+    for (const settle of pendingSettlements) {
+      try {
+        settle();
+      } catch (error) {
+        console.error("Failed to settle attachment send", error);
+      }
+    }
   };
   deactivate = () => {
     this.active = false;
@@ -148,7 +160,7 @@ type MessageClientProps = {
   speech: SpeechState | undefined;
   onSpeak: () => void;
   onStopSpeaking: () => void;
-  isThreadActive: () => boolean;
+  threadActivity: ThreadActivity;
 };
 
 // Message Client - minimal implementation
@@ -169,7 +181,7 @@ const useMessageClient = ({
   speech,
   onSpeak,
   onStopSpeaking,
-  isThreadActive,
+  threadActivity,
 }: MessageClientProps): ClientOutput<"message"> => {
   const [isCopied, setIsCopied] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
@@ -224,7 +236,7 @@ const useMessageClient = ({
       message,
       queue,
       attachmentAdapter,
-      isThreadActive,
+      threadActivity,
     }),
   );
 
@@ -433,7 +445,7 @@ type ComposerClientResourceProps = {
   message?: ExternalThreadMessage;
   queue?: ExternalThreadQueueAdapter | undefined;
   attachmentAdapter?: AttachmentAdapter | undefined;
-  isThreadActive?: (() => boolean) | undefined;
+  threadActivity: ThreadActivity;
 };
 
 type AttachmentAddOperation = {
@@ -541,7 +553,7 @@ const useComposerClientResource = ({
   message,
   queue,
   attachmentAdapter,
-  isThreadActive,
+  threadActivity,
 }: ComposerClientResourceProps): ClientOutput<"composer"> => {
   const [isEditing, setIsEditing, isEditingRef] = useLiveState(
     type === "thread",
@@ -563,32 +575,6 @@ const useComposerClientResource = ({
     () => new AttachmentAddOperations(),
     [],
   );
-  const isActiveRef = useRef(true);
-  const pendingSettlementsRef = useRef<Array<() => void>>([]);
-  useEffect(() => {
-    isActiveRef.current = true;
-    const pendingSettlements = pendingSettlementsRef.current.splice(0);
-    for (const settle of pendingSettlements) {
-      try {
-        settle();
-      } catch (error) {
-        console.error("Failed to send attachments", error);
-      }
-    }
-    return () => {
-      isActiveRef.current = false;
-    };
-  }, []);
-
-  const settleWhenActive = (settle: () => void) => {
-    const isActive =
-      type === "edit"
-        ? (isThreadActive?.() ?? isActiveRef.current)
-        : isActiveRef.current;
-    if (isActive) settle();
-    else pendingSettlementsRef.current.push(settle);
-  };
-
   const updateFromMessage = () => {
     if (!message) return;
     const messageText = message.content
@@ -823,10 +809,10 @@ const useComposerClientResource = ({
           ),
         ).then(
           (sendAttachments) => {
-            settleWhenActive(() => dispatch(sendAttachments));
+            threadActivity.settle(() => dispatch(sendAttachments));
           },
           (error) => {
-            settleWhenActive(() => {
+            threadActivity.settle(() => {
               // Upload failed: merge the failed send back into the draft.
               setText((prev) =>
                 currentText && prev
@@ -1071,7 +1057,7 @@ const useExternalThread = ({
         speech: speech?.messageId === msg.id ? speech : undefined,
         onSpeak: () => handleSpeak(msg),
         onStopSpeaking: () => speechController.stopMessage(msg.id),
-        isThreadActive: threadActivity.isActive,
+        threadActivity,
       };
       if (onEdit) props.onEdit = onEdit;
       return withKey(msg.id, MessageClient(props));
@@ -1121,6 +1107,7 @@ const useExternalThread = ({
       onSend: handleSendNew,
       queue: composerQueue,
       attachmentAdapter,
+      threadActivity,
     }),
   );
   const suggestionsClient = useClientResource(
