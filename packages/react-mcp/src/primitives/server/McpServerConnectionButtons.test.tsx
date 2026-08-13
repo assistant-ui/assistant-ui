@@ -33,6 +33,19 @@ const { McpServerPrimitiveConnectButton } =
 const { McpServerPrimitiveDisconnectButton } =
   await import("./McpServerDisconnectButton");
 
+const captureUnhandledRejections = async (callback: () => void) => {
+  const reasons: unknown[] = [];
+  const listener = (reason: unknown) => reasons.push(reason);
+  process.on("unhandledRejection", listener);
+  try {
+    callback();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    return reasons;
+  } finally {
+    process.off("unhandledRejection", listener);
+  }
+};
+
 type Button = {
   props: {
     onClick: (event: { defaultPrevented: boolean }) => void;
@@ -53,32 +66,42 @@ describe("MCP server connection buttons", () => {
     mocks.connectionState = "disconnected";
   });
 
-  it("handles rejected connect actions", () => {
-    const action = Promise.reject(new Error("connection failed"));
-    const catchSpy = vi.spyOn(action, "catch");
-    void action.then(undefined, () => undefined);
-    mocks.connect.mockReturnValueOnce(action);
+  it("renders only the connect action while disconnected", () => {
+    expect(renderButton(McpServerPrimitiveConnectButton)).not.toBeNull();
+    expect(renderButton(McpServerPrimitiveDisconnectButton)).toBeNull();
+  });
 
-    renderButton(McpServerPrimitiveConnectButton)?.props.onClick({
-      defaultPrevented: false,
+  it("renders only the disconnect action while connected", () => {
+    mocks.connectionState = "connected";
+
+    expect(renderButton(McpServerPrimitiveConnectButton)).toBeNull();
+    expect(renderButton(McpServerPrimitiveDisconnectButton)).not.toBeNull();
+  });
+
+  it("handles rejected connect actions", async () => {
+    mocks.connect.mockRejectedValueOnce(new Error("connection failed"));
+
+    const unhandledRejections = await captureUnhandledRejections(() => {
+      renderButton(McpServerPrimitiveConnectButton)!.props.onClick({
+        defaultPrevented: false,
+      });
     });
 
     expect(mocks.connect).toHaveBeenCalledOnce();
-    expect(catchSpy).toHaveBeenCalledOnce();
+    expect(unhandledRejections).toEqual([]);
   });
 
-  it("handles rejected disconnect actions", () => {
+  it("handles rejected disconnect actions", async () => {
     mocks.connectionState = "connected";
-    const action = Promise.reject(new Error("cleanup failed"));
-    const catchSpy = vi.spyOn(action, "catch");
-    void action.then(undefined, () => undefined);
-    mocks.disconnect.mockReturnValueOnce(action);
+    mocks.disconnect.mockRejectedValueOnce(new Error("cleanup failed"));
 
-    renderButton(McpServerPrimitiveDisconnectButton)?.props.onClick({
-      defaultPrevented: false,
+    const unhandledRejections = await captureUnhandledRejections(() => {
+      renderButton(McpServerPrimitiveDisconnectButton)!.props.onClick({
+        defaultPrevented: false,
+      });
     });
 
     expect(mocks.disconnect).toHaveBeenCalledOnce();
-    expect(catchSpy).toHaveBeenCalledOnce();
+    expect(unhandledRejections).toEqual([]);
   });
 });
