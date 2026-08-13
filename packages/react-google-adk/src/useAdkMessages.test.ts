@@ -20,10 +20,13 @@ import {
   type UseAdkMessagesOptions,
 } from "./useAdkMessages";
 import { projectAdkToolApprovals } from "./adkToolApproval";
+import { createAdkStream } from "./AdkClient";
+import { AdkEventAccumulator } from "./AdkEventAccumulator";
 import type { AdkEvent, AdkMessage, AdkStreamCallback } from "./types";
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 describe("ADK runtime callbacks", () => {
@@ -268,6 +271,49 @@ describe("messagesToEvents", () => {
       events[0]?.content?.parts?.map((p) => p.functionResponse?.id),
     ).toEqual(["conf-a", "conf-b"]);
     expect(events[1]?.id).toBe("ai-interleaved");
+  });
+
+  it("mirrors the transport's empty user content for an ai-only batch", async () => {
+    const aiOnly: AdkMessage[] = [
+      { id: "ai-1", type: "ai", content: "one" },
+      { id: "ai-2", type: "ai", content: "two" },
+    ];
+
+    let sentBody = "";
+    vi.stubGlobal("fetch", async (_url: string, init: RequestInit) => {
+      sentBody = init.body as string;
+      return new Response(
+        new ReadableStream<Uint8Array>({
+          start: (controller) => controller.close(),
+        }),
+        { status: 200, headers: { "Content-Type": "text/event-stream" } },
+      );
+    });
+    const stream = createAdkStream({
+      api: "http://localhost:8000",
+      appName: "app",
+      userId: "user-1",
+    });
+    for await (const _ of await stream(aiOnly, {
+      abortSignal: new AbortController().signal,
+      initialize: async () => ({ remoteId: "r1", externalId: "s1" }),
+    })) {
+      /* drain */
+    }
+    const sent = JSON.parse(sentBody);
+
+    const events = messagesToEvents(aiOnly);
+    const userEvent = events.find((e) => e.author === "user");
+    expect(sent.newMessage.parts).toEqual([{ text: "" }]);
+    expect(userEvent?.content?.parts).toEqual(sent.newMessage.parts);
+    expect(events.map((e) => e.id)).toEqual(["ai-1", "ai-2", userEvent?.id]);
+
+    const accumulator = new AdkEventAccumulator([]);
+    let messages: AdkMessage[] = [];
+    for (const event of events) messages = accumulator.processEvent(event);
+    expect(messages.filter((m) => m.type === "human")).toEqual([
+      { id: userEvent?.id, type: "human", content: "" },
+    ]);
   });
 
   it("emits the merged event at the position of the run it replaces", () => {

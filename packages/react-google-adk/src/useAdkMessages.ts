@@ -291,14 +291,18 @@ export const messagesToEvents = (messages: AdkMessage[]): AdkEvent[] => {
     }
   }
 
-  if (run.length > 0) {
-    const parts = run.flatMap((m) => messageToEvent(m).content?.parts ?? []);
-    const human = run.find((m) => m.type === "human");
-    const event: AdkEvent = { id: (human ?? run[0]!).id ?? uuidv4() };
-    if (human) event.author = "user";
-    event.content = { role: "user", parts };
-    events.splice(runIndex, 0, event);
-  }
+  const parts = run.flatMap((m) => messageToEvent(m).content?.parts ?? []);
+  const human = run.find((m) => m.type === "human");
+
+  // A batch that contributes no part still reaches the wire: the transport
+  // sends an empty user `Content`, which a reload replays as an empty human
+  // message. Emitting it here keeps the optimistic view equal to that replay.
+  if (parts.length === 0) parts.push({ text: "" });
+
+  const event: AdkEvent = { id: (human ?? run[0])?.id ?? uuidv4() };
+  if (human || run.length === 0) event.author = "user";
+  event.content = { role: "user", parts };
+  events.splice(run.length > 0 ? runIndex : events.length, 0, event);
 
   return events;
 };
