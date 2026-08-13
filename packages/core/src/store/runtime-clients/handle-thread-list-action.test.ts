@@ -23,17 +23,17 @@ describe("handleThreadListAction", () => {
     );
   });
 
-  it("reports synchronous failures", async () => {
+  it("reports and rethrows synchronous failures", () => {
     const error = new Error("invalid thread");
     const consoleError = vi
       .spyOn(console, "error")
       .mockImplementation(() => {});
 
-    const result = handleThreadListAction("switch", () => {
-      throw error;
-    });
-
-    await expect(result).rejects.toBe(error);
+    expect(() =>
+      handleThreadListAction("switch", () => {
+        throw error;
+      }),
+    ).toThrow(error);
     expect(consoleError).toHaveBeenCalledWith(
       "[assistant-ui] thread list switch failed:",
       error,
