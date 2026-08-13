@@ -3644,10 +3644,10 @@ importers:
       '@assistant-ui/core':
         specifier: ^0.3.13
         version: link:../core
+    devDependencies:
       '@assistant-ui/store':
         specifier: ^0.3.9
         version: link:../store
-    devDependencies:
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../x-buildutils

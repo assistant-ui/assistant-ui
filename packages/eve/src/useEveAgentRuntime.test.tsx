@@ -777,56 +777,19 @@ describe("useEveAgentRuntime staged messages", () => {
 });
 
 describe("useEveAgentRuntime extras wiring", () => {
-  it("provides error, events, session, and reset through the runtime extras", () => {
+  it("provides error, events, and session through the runtime extras", () => {
     const error = new Error("boom");
     const events = [{ type: "session.started" }];
     const session = { sessionId: "s1" };
-    const reset = vi.fn();
     mockUseEveAgent.mockReturnValue(
-      createAgent({ status: "error", error, events, session, reset }) as never,
+      createAgent({ status: "error", error, events, session }) as never,
     );
 
     const { result } = renderHook(() => useEveAgentRuntime());
 
-    const extras = result.current.thread.getState().extras;
-    expect(eveExtras.is(extras)).toBe(true);
-    expect(eveExtras.tryGet(extras)).toMatchObject({
-      error,
-      events,
-      session,
-      reset: expect.any(Function),
-    });
-  });
-
-  it("clears adapter-owned staged messages when reset is invoked", async () => {
-    const agent = createAgent({
-      data: { messages: [] } satisfies EveMessageData,
-    });
-    mockUseEveAgent.mockReturnValue(agent as never);
-
-    const { result } = renderHook(() => useEveAgentRuntime());
-
-    act(() => {
-      result.current.thread.append({
-        role: "user",
-        content: [{ type: "text", text: "draft" }],
-        startRun: false,
-      });
-    });
-
-    await waitFor(() => {
-      expect(result.current.thread.getState().messages).toHaveLength(1);
-    });
-
-    act(() => {
-      const extras = result.current.thread.getState().extras;
-      eveExtras.tryGet(extras)!.reset();
-    });
-
-    await waitFor(() => {
-      expect(result.current.thread.getState().messages).toHaveLength(0);
-    });
-    expect(agent.reset).toHaveBeenCalledTimes(1);
+    expect(
+      eveExtras.tryGet(result.current.thread.getState().extras),
+    ).toMatchObject({ error, events, session });
   });
 
   it("discards staged inputs when reset is invoked", async () => {
@@ -858,6 +821,7 @@ describe("useEveAgentRuntime extras wiring", () => {
       ),
     ).rejects.toThrow("Runtime does not support reloading messages.");
     expect(agent.send).not.toHaveBeenCalled();
+    expect(agent.reset).toHaveBeenCalledTimes(1);
   });
 
   it("clears executing tool state when reset is invoked", async () => {

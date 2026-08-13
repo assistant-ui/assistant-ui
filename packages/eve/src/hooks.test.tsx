@@ -13,9 +13,6 @@ vi.mock("@assistant-ui/store", async (importOriginal) => ({
     selector({
       thread: { extras: extrasRef.current },
     })) as typeof import("@assistant-ui/store").useAuiState,
-  useAui: (() => ({
-    thread: { getState: () => ({ extras: extrasRef.current }) },
-  })) as unknown as typeof import("@assistant-ui/store").useAui,
 }));
 
 import { eveExtras, type EveRuntimeExtras } from "./eveExtras";
@@ -34,7 +31,7 @@ afterEach(() => {
   extrasRef.current = undefined;
 });
 
-describe("useEveError", () => {
+describe("Eve accessor hooks", () => {
   it("reads the session error from the runtime extras", () => {
     const error = new Error("boom");
     extrasRef.current = provideExtras({ error });
@@ -42,12 +39,6 @@ describe("useEveError", () => {
     expect(renderHook(() => useEveError()).result.current).toBe(error);
   });
 
-  it("falls back to undefined outside an Eve runtime", () => {
-    expect(renderHook(() => useEveError()).result.current).toBeUndefined();
-  });
-});
-
-describe("useEveSession", () => {
   it("reads the session cursor from the runtime extras", () => {
     const session = {
       sessionId: "s1",
@@ -57,12 +48,6 @@ describe("useEveSession", () => {
     expect(renderHook(() => useEveSession()).result.current).toBe(session);
   });
 
-  it("falls back to undefined outside an Eve runtime", () => {
-    expect(renderHook(() => useEveSession()).result.current).toBeUndefined();
-  });
-});
-
-describe("useEveEvents", () => {
   it("reads the server event stream from the runtime extras", () => {
     const events = [
       { type: "session.started" },
@@ -72,23 +57,7 @@ describe("useEveEvents", () => {
     expect(renderHook(() => useEveEvents()).result.current).toBe(events);
   });
 
-  it("falls back to an empty array outside an Eve runtime", () => {
-    expect(renderHook(() => useEveEvents()).result.current).toEqual([]);
-  });
-
-  it("returns a frozen fallback that consumers cannot mutate", () => {
-    const first = renderHook(() => useEveEvents()).result.current;
-    const second = renderHook(() => useEveEvents()).result.current;
-
-    expect(first).toBe(second);
-    expect(Object.isFrozen(first)).toBe(true);
-    expect(() => (first as unknown[]).push({})).toThrow();
-    expect(renderHook(() => useEveEvents()).result.current).toEqual([]);
-  });
-});
-
-describe("useEveReset", () => {
-  it("invokes reset on the runtime extras", () => {
+  it("reads reset from the runtime extras", () => {
     const reset = vi.fn();
     extrasRef.current = provideExtras({ reset });
 
@@ -97,9 +66,15 @@ describe("useEveReset", () => {
     expect(reset).toHaveBeenCalledTimes(1);
   });
 
-  it("throws outside an Eve runtime", () => {
-    expect(() => renderHook(() => useEveReset()).result.current()).toThrow(
-      "useEveAgentRuntime",
-    );
+  it("supplies fallbacks outside an Eve runtime, except for reset", () => {
+    expect(renderHook(() => useEveError()).result.current).toBeUndefined();
+    expect(renderHook(() => useEveSession()).result.current).toBeUndefined();
+
+    const events = renderHook(() => useEveEvents()).result.current;
+    expect(events).toEqual([]);
+    expect(renderHook(() => useEveEvents()).result.current).toBe(events);
+    expect(Object.isFrozen(events)).toBe(true);
+
+    expect(() => renderHook(() => useEveReset())).toThrow("useEveAgentRuntime");
   });
 });
