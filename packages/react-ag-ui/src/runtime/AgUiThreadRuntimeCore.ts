@@ -1079,6 +1079,8 @@ export class AgUiThreadRuntimeCore {
 
     this.setRunning(true);
 
+    let runSettled = false;
+
     try {
       if (resumeStream) {
         // Cancel flips only the status; an aggregator RUN_CANCELLED would emit an empty snapshot and wipe the replayed content.
@@ -1107,6 +1109,9 @@ export class AgUiThreadRuntimeCore {
           dispatch,
           runId,
           logger: this.logger,
+          onRunSettled: () => {
+            runSettled = true;
+          },
           onRunFailed: (error) => {
             if (abortSignal.aborted) return;
             this.pendingError = error;
@@ -1125,14 +1130,18 @@ export class AgUiThreadRuntimeCore {
         await runAgent(input, subscriber, { signal: abortSignal });
       }
     } catch (error) {
-      // A run that already reported a terminal failure through the subscriber
-      // rethrows that same collapse here; reporting it again would fire onError
-      // twice and replace the business error with the transport one.
-      if (!abortSignal.aborted && !this.pendingError) {
+      if (!abortSignal.aborted) {
         const err = error instanceof Error ? error : new Error(String(error));
-        dispatch({ type: "RUN_ERROR", message: err.message });
-        invokeRuntimeCallback("onError", this.onError, err);
-        this.pendingError = err;
+        // A run that already reached a terminal outcome through the subscriber
+        // rethrows that same collapse here; reporting it again would fire
+        // onError twice and replace the settled outcome with the transport one.
+        // The rejection still propagates, so a dead stream never resolves the
+        // append or fires a deferred resume against it.
+        if (!runSettled && !this.pendingError) {
+          dispatch({ type: "RUN_ERROR", message: err.message });
+          invokeRuntimeCallback("onError", this.onError, err);
+        }
+        this.pendingError ??= err;
       }
     } finally {
       this.finishRun(abortController);

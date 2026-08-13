@@ -75,15 +75,20 @@ type SubscriberOptions = {
   runId: string;
   logger?: Logger;
   onRunFailed?: (error: Error) => void;
+  onRunSettled?: () => void;
 };
 
 export const createAgUiSubscriber = (
   options: SubscriberOptions,
 ): Subscriber => {
-  const { dispatch, runId, logger, onRunFailed } = options;
-  // A run settles once. A transport failure that follows a wire RUN_ERROR
+  const { dispatch, runId, logger, onRunFailed, onRunSettled } = options;
+  // A run settles once. A transport failure that follows any terminal event
   // describes the same collapse, so the first terminal event owns the outcome.
   let runSettled = false;
+  const settle = () => {
+    runSettled = true;
+    onRunSettled?.();
+  };
   const dispatchIfValid = (raw: unknown, type: AgUiEvent["type"]) => {
     const event = ensureEvent(raw, type, logger);
     if (!event) return;
@@ -152,14 +157,14 @@ export const createAgUiSubscriber = (
       if (runSettled) return;
       const parsed = ensureEvent(event, "RUN_FINISHED", logger);
       if (!parsed) return;
-      runSettled = true;
+      settle();
       dispatch(parsed);
     },
     onRunErrorEvent: ({ event }) => {
       if (runSettled) return;
       const parsed = ensureEvent(event, "RUN_ERROR", logger);
       if (parsed?.type !== "RUN_ERROR") return;
-      runSettled = true;
+      settle();
       // The HTTP agent reports an aborted request as a RUN_ERROR carrying this
       // code rather than as a failed run, so it must settle as a cancellation.
       if (parsed.code === "abort") {
@@ -175,12 +180,12 @@ export const createAgUiSubscriber = (
     },
     onRunFinalized: () => {
       if (runSettled) return;
-      runSettled = true;
+      settle();
       dispatch({ type: "RUN_FINISHED", runId });
     },
     onRunFailed: ({ error }) => {
       if (runSettled) return;
-      runSettled = true;
+      settle();
       onRunFailed?.(error);
       if (isAbortError(error)) {
         dispatch({ type: "RUN_CANCELLED" } satisfies AgUiEvent);

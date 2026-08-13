@@ -874,6 +874,64 @@ describe("AGUIThreadRuntimeCore", () => {
     });
   });
 
+  it("keeps a server-sent cancellation when the transport then collapses", async () => {
+    const abortError = Object.assign(new Error("The operation was aborted"), {
+      name: "AbortError",
+    });
+    const agent = {
+      runAgent: vi.fn(async (_input: any, subscriber: any) => {
+        subscriber.onRunErrorEvent?.({
+          event: { type: "RUN_ERROR", message: "aborted", code: "abort" },
+        });
+        subscriber.onRunFailed?.({ error: abortError });
+        throw abortError;
+      }),
+    } as unknown as HttpAgent;
+
+    const onError = vi.fn();
+    const core = createCore(agent, { onError });
+
+    await expect(core.append(createAppendMessage())).rejects.toThrow(
+      "The operation was aborted",
+    );
+
+    expect(onError).not.toHaveBeenCalled();
+    expect(core.getMessages().at(-1)?.status).toMatchObject({
+      type: "incomplete",
+      reason: "cancelled",
+    });
+  });
+
+  it("keeps a completed run when the transport then collapses", async () => {
+    const agent = {
+      runAgent: vi.fn(async (input: any, subscriber: any) => {
+        subscriber.onTextMessageContentEvent?.({
+          event: { type: "TEXT_MESSAGE_CONTENT", delta: "Done." },
+        });
+        subscriber.onRunFinishedEvent?.({
+          event: {
+            type: "RUN_FINISHED",
+            runId: input.runId,
+            outcome: { type: "success" },
+          },
+        });
+        throw new Error("socket died");
+      }),
+    } as unknown as HttpAgent;
+
+    const onError = vi.fn();
+    const core = createCore(agent, { onError });
+
+    await expect(core.append(createAppendMessage())).rejects.toThrow(
+      "socket died",
+    );
+
+    expect(onError).not.toHaveBeenCalled();
+    const assistant = core.getMessages().at(-1) as ThreadAssistantMessage;
+    expect(assistant.status).toMatchObject({ type: "complete" });
+    expect(assistantText(assistant)).toBe("Done.");
+  });
+
   it.each(["throws", "rejects"] as const)(
     "preserves the run error when onError %s",
     async (failureMode) => {
