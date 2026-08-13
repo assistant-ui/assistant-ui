@@ -35,7 +35,7 @@ import {
 } from "./convertLangChainMessages";
 import {
   type LangGraphSendMessageConfig,
-  useLangGraphMessages,
+  useLangGraphMessagesWithReset,
 } from "./useLangGraphMessages";
 import { appendLangChainChunk } from "./appendLangChainChunk";
 import { useLangGraphStreamingTiming } from "./useLangGraphStreamingTiming";
@@ -198,13 +198,14 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
     uiMessages,
     sendMessage,
     cancel,
+    reset: resetLangGraphMessages,
     setMessages,
     setValues,
     setUIMessages,
     reconcileMessages,
     reconcileUIMessages,
     reconcileInterrupt,
-  } = useLangGraphMessages({
+  } = useLangGraphMessagesWithReset({
     appendMessage: appendLangChainChunk,
     stream,
     eventHandlers: wrappedEventHandlers,
@@ -575,6 +576,9 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
     previousLoadKeyRef.current = effectiveLoadKey;
     if (loadKeyChanged) {
       cancelActiveRun();
+      pendingStateRef.current = undefined;
+      effectiveStateRef.current = undefined;
+      setOptimisticState(undefined);
       attachmentsByMessageIdRef.current.clear();
       stagedMessagesRef.current.clear();
       toolArgsKeyOrderCacheRef.current.clear();
@@ -584,9 +588,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
       uiMessagesRef.current = [];
       interruptRef.current = undefined;
       setStagedMessageCount(0);
-      setMessages([]);
-      setUIMessages([]);
-      setInterrupt(undefined);
+      resetLangGraphMessages();
       setToolStatuses({});
     }
 
@@ -597,14 +599,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
       loadControllerRef.current?.controller.abort();
       setIsLoadingThread(false);
     };
-  }, [
-    runLoad,
-    effectiveLoadKey,
-    cancelActiveRun,
-    setMessages,
-    setUIMessages,
-    setInterrupt,
-  ]);
+  }, [runLoad, effectiveLoadKey, cancelActiveRun, resetLangGraphMessages]);
 
   const runtime = useExternalStoreRuntime({
     ...pickExternalStoreSharedOptions(options),

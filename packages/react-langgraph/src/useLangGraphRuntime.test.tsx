@@ -12,7 +12,12 @@ import {
 import { getThreadMessageText } from "@assistant-ui/core/internal";
 import { useAui, useAuiState } from "@assistant-ui/store";
 import { useLangGraphRuntime } from "./useLangGraphRuntime";
-import { useLangGraphSend } from "./hooks";
+import {
+  useLangGraphMessageMetadata,
+  useLangGraphSend,
+  useLangGraphSetState,
+  useLangGraphState,
+} from "./hooks";
 import { mockStreamCallbackFactory } from "./testUtils";
 import type { LangChainMessage } from "./types";
 import type { LangGraphInterruptState } from "./useLangGraphMessages";
@@ -749,14 +754,19 @@ describe("useLangGraphRuntime", () => {
   it("clears and reloads history when the load key changes", async () => {
     const pendingA = deferred<LoadResult>();
     const pendingB = deferred<LoadResult>();
-    const loadA = vi.fn(
-      (_threadId: string, options?: { signal: AbortSignal }) => {
-        options?.signal.addEventListener("abort", () =>
-          pendingA.reject(options.signal.reason),
-        );
-        return pendingA.promise;
-      },
-    );
+    const loadA = vi
+      .fn()
+      .mockResolvedValueOnce({
+        messages: [{ id: "a", type: "ai" as const, content: "workspace a" }],
+      })
+      .mockImplementationOnce(
+        (_threadId: string, options?: { signal: AbortSignal }) => {
+          options?.signal.addEventListener("abort", () =>
+            pendingA.reject(options.signal.reason),
+          );
+          return pendingA.promise;
+        },
+      );
     const loadB = vi.fn(() => pendingB.promise);
     const streamMock = vi
       .fn()
@@ -782,11 +792,19 @@ describe("useLangGraphRuntime", () => {
       void runtimeResult.current.threads.switchToThread("lg-thread-1");
     });
     await waitFor(() => expect(loadA).toHaveBeenCalledTimes(1));
+    await waitFor(() =>
+      expect(textsOf(runtimeResult.current)).toEqual(["workspace a"]),
+    );
+
+    act(() => {
+      void runtimeResult.current.threads.reloadMainThread();
+    });
+    await waitFor(() => expect(loadA).toHaveBeenCalledTimes(2));
 
     rerender({ load: loadB, loadKey: "workspace-b" });
 
     await waitFor(() => expect(loadB).toHaveBeenCalledTimes(1));
-    expect(loadA.mock.calls[0]?.[1]?.signal.aborted).toBe(true);
+    expect(loadA.mock.calls[1]?.[1]?.signal.aborted).toBe(true);
     expect(runtimeResult.current.thread.getState().messages).toEqual([]);
 
     await act(async () => {
@@ -816,6 +834,119 @@ describe("useLangGraphRuntime", () => {
       expect(textsOf(runtimeResult.current).join("\n")).toContain(
         "workspace b refreshed",
       ),
+    );
+  });
+
+  it("resets nested runtime state and ignores late stream events after a load key change", async () => {
+    const parentStream = vi
+      .fn()
+      .mockImplementation(() => mockStreamCallbackFactory([])());
+    const { result: parentRuntime } = renderHook(() =>
+      useLangGraphRuntime({
+        stream: parentStream,
+        unstable_threadListAdapter: makeThreadListAdapter(),
+      }),
+    );
+    const parentWrapper = wrapperFactory(parentRuntime.current);
+    renderHook(() => useAuiState((s) => s.threads.mainThreadId), {
+      wrapper: parentWrapper,
+    });
+    await act(async () => {
+      await parentRuntime.current.threads.switchToThread("lg-thread-1");
+    });
+
+    const streamGate = deferred<void>();
+    const streamStarted = deferred<void>();
+    const streamMock = vi.fn(async function* () {
+      yield {
+        event: "messages",
+        data: [
+          { id: "stream-a", type: "ai", content: "streamed in workspace a" },
+          { langgraph_node: "workspace-a-node" },
+        ],
+      };
+      streamStarted.resolve();
+      await streamGate.promise;
+      yield {
+        event: "messages/complete",
+        data: [{ id: "late-a", type: "ai", content: "late workspace a" }],
+      };
+    });
+    const pendingB = deferred<LoadResult>();
+    const loadA = vi.fn(async () => ({
+      messages: [
+        { id: "history-a", type: "ai" as const, content: "workspace a" },
+      ],
+    }));
+    const loadB = vi.fn(() => pendingB.promise);
+    const { result: nestedRuntime, rerender } = renderHook(
+      ({ load, loadKey }) =>
+        useLangGraphRuntime({ stream: streamMock, load, loadKey }),
+      {
+        wrapper: parentWrapper,
+        initialProps: { load: loadA, loadKey: "workspace-a" },
+      },
+    );
+
+    await waitFor(() =>
+      expect(textsOf(nestedRuntime.current)).toEqual(["workspace a"]),
+    );
+
+    const nestedWrapper = wrapperFactory(nestedRuntime.current);
+    const { result: sendResult } = renderHook(() => useLangGraphSend(), {
+      wrapper: nestedWrapper,
+    });
+    const { result: setStateResult } = renderHook(
+      () => useLangGraphSetState(),
+      { wrapper: nestedWrapper },
+    );
+    const { result: stateResult } = renderHook(() => useLangGraphState(), {
+      wrapper: nestedWrapper,
+    });
+    const { result: metadataResult } = renderHook(
+      () => useLangGraphMessageMetadata(),
+      { wrapper: nestedWrapper },
+    );
+
+    await act(async () => {
+      setStateResult.current({ workspace: "a" });
+      void sendResult.current(
+        [{ id: "human-a", type: "human", content: "hello" }],
+        {},
+      );
+      await streamStarted.promise;
+    });
+    await waitFor(() =>
+      expect(metadataResult.current.get("stream-a")).toMatchObject({
+        langgraph_node: "workspace-a-node",
+      }),
+    );
+    expect(stateResult.current).toEqual({ workspace: "a" });
+
+    rerender({ load: loadB, loadKey: "workspace-b" });
+
+    await waitFor(() => expect(loadB).toHaveBeenCalledTimes(1));
+    await waitFor(() => {
+      expect(nestedRuntime.current.thread.getState().messages).toEqual([]);
+      expect(stateResult.current).toBeUndefined();
+      expect(metadataResult.current.size).toBe(0);
+    });
+
+    await act(async () => {
+      streamGate.resolve();
+      await Promise.resolve();
+    });
+    expect(nestedRuntime.current.thread.getState().messages).toEqual([]);
+
+    await act(async () => {
+      pendingB.resolve({
+        messages: [
+          { id: "history-b", type: "ai" as const, content: "workspace b" },
+        ],
+      });
+    });
+    await waitFor(() =>
+      expect(textsOf(nestedRuntime.current)).toEqual(["workspace b"]),
     );
   });
 

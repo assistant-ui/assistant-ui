@@ -206,6 +206,47 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
     onCustomEvent?: OnCustomEventCallback;
   };
 }) => {
+  const result = useLangGraphMessagesWithReset({
+    stream,
+    appendMessage,
+    eventHandlers,
+    uiStateKey,
+  });
+  const sendMessageInternal = result.sendMessage;
+  const sendMessage = useCallback(
+    async (
+      newMessages: TMessage[],
+      config: LangGraphSendMessageConfig,
+      onComplete?: () => void,
+    ) => sendMessageInternal(newMessages, config, onComplete),
+    [sendMessageInternal],
+  );
+  return {
+    interrupt: result.interrupt,
+    values: result.values,
+    messages: result.messages,
+    messageMetadata: result.messageMetadata,
+    uiMessages: result.uiMessages,
+    sendMessage,
+    cancel: result.cancel,
+    setInterrupt: result.setInterrupt,
+    setValues: result.setValues,
+    setMessages: result.setMessages,
+    setUIMessages: result.setUIMessages,
+    reconcileMessages: result.reconcileMessages,
+    reconcileUIMessages: result.reconcileUIMessages,
+    reconcileInterrupt: result.reconcileInterrupt,
+  };
+};
+
+export const useLangGraphMessagesWithReset = <
+  TMessage extends { id?: string },
+>({
+  stream,
+  appendMessage = DEFAULT_APPEND_MESSAGE,
+  eventHandlers,
+  uiStateKey = DEFAULT_UI_STATE_KEY,
+}: Parameters<typeof useLangGraphMessages<TMessage>>[0]) => {
   const interruptRef = useRef<LangGraphInterruptState | undefined>(undefined);
   const [interrupt, setInterrupt] = useState<
     LangGraphInterruptState | undefined
@@ -648,6 +689,17 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
     }
   }, []);
 
+  const reset = useCallback(() => {
+    abortControllerRef.current?.abort();
+    activeAccumulatorRef.current = undefined;
+    interruptRef.current = undefined;
+    setMessagesImmediate([]);
+    setUIMessagesImmediate([]);
+    setInterrupt(undefined);
+    setValues(undefined);
+    setMessageMetadata(new Map());
+  }, [setMessagesImmediate, setUIMessagesImmediate]);
+
   return {
     interrupt,
     values,
@@ -656,6 +708,7 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
     uiMessages,
     sendMessage,
     cancel,
+    reset,
     setInterrupt,
     setValues,
     setMessages: setMessagesImmediate,
