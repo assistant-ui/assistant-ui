@@ -402,6 +402,9 @@ describe("ExternalThread attachments", () => {
   it("settles every pending attachment send when a hidden thread is revealed", async () => {
     const resolveSends: Array<(attachment: CompleteAttachment) => void> = [];
     let nextAttachmentId = 0;
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
     const onNew = vi
       .fn()
       .mockImplementationOnce(() => {
@@ -449,7 +452,9 @@ describe("ExternalThread attachments", () => {
       );
     };
     const thread = <Thread />;
-    const { rerender } = render(<Activity mode="visible">{thread}</Activity>);
+    const { rerender, unmount } = render(
+      <Activity mode="visible">{thread}</Activity>,
+    );
     const composer = () => captured.aui!.thread.composer();
 
     for (const text of ["first", "second"]) {
@@ -476,7 +481,29 @@ describe("ExternalThread attachments", () => {
 
     expect(() =>
       rerender(<Activity mode="visible">{thread}</Activity>),
-    ).toThrow("first send failed");
+    ).not.toThrow();
+    expect(onNew).toHaveBeenCalledTimes(2);
+    expect(consoleError).toHaveBeenCalledWith(
+      "Failed to send attachments",
+      expect.objectContaining({ message: "first send failed" }),
+    );
+
+    await act(() => composer().addAttachment(file));
+    act(() => {
+      composer().setText("after replay");
+      composer().send();
+    });
+    unmount();
+    await act(async () => {
+      resolveSends[2]!({
+        id: "att-after-replay",
+        type: "file",
+        name: file.name,
+        contentType: file.type,
+        status: { type: "complete" },
+        content: [],
+      });
+    });
     expect(onNew).toHaveBeenCalledTimes(2);
   });
 
