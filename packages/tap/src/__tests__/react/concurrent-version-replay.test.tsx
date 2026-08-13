@@ -328,7 +328,7 @@ describe("React-hosted reducer replay below the committed version", () => {
     expect(fiber.root.unsettledCount).toBe(0);
   });
 
-  it("settles accounting when the host dispatch throws before applying", () => {
+  it("leaves accounting pending when the host dispatch throws", () => {
     const root = createResourceFiberRoot(() => {
       throw new Error("host dispatch failure");
     });
@@ -350,7 +350,7 @@ describe("React-hosted reducer replay below the committed version", () => {
     renderResourceFiber(fiber, []);
     commitResourceFiber(fiber);
     expect(() => push("boom")).toThrow("host dispatch failure");
-    expect(root.unsettledCount).toBe(0);
+    expect(root.unsettledCount).toBe(1);
   });
 
   it("keeps a queued record unsettled when the host throws after applying", () => {

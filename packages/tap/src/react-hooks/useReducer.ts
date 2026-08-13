@@ -29,56 +29,44 @@ const dispatchOnFiber = (
   let hasWork = true;
 
   fiber.root.unsettledCount++;
-  try {
-    fiber.root.dispatchUpdate(
-      () => {
-        if (evaluated) return hasWork;
-        evaluated = true;
+  fiber.root.dispatchUpdate(
+    () => {
+      if (evaluated) return hasWork;
+      evaluated = true;
 
-        if (
-          eagerReducer &&
-          fiber.root.changelog.length === 0 &&
-          !record.cell.isDirty &&
-          !record.hasEagerState
-        ) {
-          record.prevState = record.cell.workInProgress;
-          record.eagerState = eagerReducer(
-            record.cell.workInProgress,
-            record.action,
-          );
-          record.hasEagerState = true;
+      if (
+        eagerReducer &&
+        fiber.root.changelog.length === 0 &&
+        !record.cell.isDirty &&
+        !record.hasEagerState
+      ) {
+        record.prevState = record.cell.workInProgress;
+        record.eagerState = eagerReducer(
+          record.cell.workInProgress,
+          record.action,
+        );
+        record.hasEagerState = true;
 
-          hasWork = !Object.is(record.cell.current, record.eagerState);
-          if (!hasWork && !record.settled) {
-            record.settled = true;
-            fiber.root.unsettledCount--;
-          }
+        hasWork = !Object.is(record.cell.current, record.eagerState);
+        if (!hasWork && !record.settled) {
+          record.settled = true;
+          fiber.root.unsettledCount--;
         }
+      }
 
-        return hasWork;
-      },
-      () => {
-        evaluated = true;
-        hasWork = true;
-        applyChangelogRecord(record);
-        if (!record.logged) {
-          record.logged = true;
-          fiber.root.changelog.push(record);
-        }
-        return true;
-      },
-    );
-  } catch (error) {
-    // Settle only when neither closure ran: with evaluated still false the
-    // host cannot have enqueued the update, while any later throw is ambiguous
-    // and leaves the record pending so history is retained rather than
-    // cleared early.
-    if (!record.settled && !evaluated) {
-      record.settled = true;
-      fiber.root.unsettledCount--;
-    }
-    throw error;
-  }
+      return hasWork;
+    },
+    () => {
+      evaluated = true;
+      hasWork = true;
+      applyChangelogRecord(record);
+      if (!record.logged) {
+        record.logged = true;
+        fiber.root.changelog.push(record);
+      }
+      return true;
+    },
+  );
 };
 
 const createReducerCell = (
