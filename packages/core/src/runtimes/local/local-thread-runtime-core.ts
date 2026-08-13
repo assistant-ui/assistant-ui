@@ -405,12 +405,16 @@ export class LocalThreadRuntimeCore
   }
 
   private async appendOptimisticAttachmentSend(
-    message: AppendMessage,
+    rawMessage: AppendMessage,
     uploadAttachments: () => Promise<readonly CompleteAttachment[]>,
   ): Promise<void> {
-    if (message.role !== "user")
+    if (rawMessage.role !== "user")
       throw new Error("Attachments are only supported for user messages.");
 
+    // Stamped on the placeholder rather than on the completed message so the
+    // gate reads the branch prefix the send was composed against, matching
+    // `_runAppend`.
+    const message = this.enrichAppendMetadata(rawMessage);
     this.ensureInitialized();
     const initPromise = this._getInitializePromise?.();
 

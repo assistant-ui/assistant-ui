@@ -8,6 +8,7 @@ import type {
   PendingAttachment,
 } from "../types/attachment";
 import type { AppendMessage } from "../types/message";
+import type { DictationAdapter } from "../adapters/speech";
 import { MessageNotSentError } from "../types/error";
 import { BaseComposerRuntimeCore } from "../runtime/base/base-composer-runtime-core";
 
@@ -31,7 +32,11 @@ const makeAdapter = (
 const makeComposer = (
   adapter?: AttachmentAdapter,
   append = vi.fn(),
-  options: { optimistic?: boolean; queue?: boolean } = {},
+  options: {
+    optimistic?: boolean;
+    queue?: boolean;
+    dictation?: DictationAdapter;
+  } = {},
 ) => {
   const optimisticSend = vi.fn(
     (
@@ -51,7 +56,10 @@ const makeComposer = (
     capabilities: { cancel: false, queue: options.queue ?? false },
     messages: [],
     getModelContext: () => ({ unstable_composerMetadata: undefined }),
-    adapters: adapter ? { attachments: adapter } : undefined,
+    adapters: {
+      ...(adapter && { attachments: adapter }),
+      ...(options.dictation && { dictation: options.dictation }),
+    },
   } as unknown as Omit<ThreadRuntimeCore, "composer"> & {
     adapters?: { attachments?: AttachmentAdapter };
   };
@@ -634,6 +642,137 @@ describe("BaseComposerRuntimeCore.send optimistic dispatch", () => {
     expect(composer.text).toBe("next draft");
     expect(composer.attachments.map((a) => a.id)).toEqual(["att-1", "att-2"]);
     expect(composer.attachments[0]).toBe(originalAttachments[0]);
+  });
+
+  it("rebases a dictation started during the upload onto the restored draft", async () => {
+    let rejectSend!: (e: Error) => void;
+    let emitSpeech!: (result: { transcript: string }) => void;
+    const adapter = makeAdapter({
+      send: () =>
+        new Promise((_resolve, reject) => {
+          rejectSend = reject;
+        }),
+    });
+    const dictation: DictationAdapter = {
+      listen: () => ({
+        status: { type: "running" },
+        stop: async () => {},
+        cancel: () => {},
+        onSpeechStart: () => () => {},
+        onSpeechEnd: () => () => {},
+        onSpeech: (callback) => {
+          emitSpeech = callback;
+          return () => {};
+        },
+      }),
+    };
+    const { composer } = makeComposer(adapter, vi.fn(), {
+      optimistic: true,
+      dictation,
+    });
+
+    composer.setText("hello");
+    await composer.addAttachment(textFile());
+
+    const sendPromise = composer.send();
+    composer.startDictation();
+    rejectSend(new Error("upload failed"));
+    await expect(sendPromise).rejects.toThrow("upload failed");
+
+    emitSpeech({ transcript: "and this" });
+
+    expect(composer.text).toBe("hello and this");
+  });
+
+  it("keeps a failed attachment on the composer-lock path", async () => {
+    const adapter = makeAdapter({
+      add: async ({ file }: { file: File }): Promise<PendingAttachment> => ({
+        id: "att-1",
+        type: "image",
+        name: file.name,
+        contentType: file.type,
+        file,
+        status: { type: "incomplete", reason: "error", message: "boom" },
+      }),
+      send: async () => {
+        throw new Error("upload failed");
+      },
+    });
+    const { composer, append, optimisticSend } = makeComposer(
+      adapter,
+      vi.fn(),
+      { optimistic: true },
+    );
+
+    composer.setText("hello");
+    await composer.addAttachment(textFile());
+
+    await expect(composer.send()).rejects.toThrow("upload failed");
+
+    expect(optimisticSend).not.toHaveBeenCalled();
+    expect(append).not.toHaveBeenCalled();
+    expect(composer.text).toBe("hello");
+    expect(composer.attachments[0]?.status).toEqual({
+      type: "incomplete",
+      reason: "error",
+      message: "boom",
+    });
+  });
+
+  it("returns the draft to an empty composer when a later send took the lane", async () => {
+    let rejectSend!: (e: Error) => void;
+    let added = 0;
+    const adapter = makeAdapter({
+      add: async ({ file }: { file: File }): Promise<PendingAttachment> => ({
+        id: `att-${++added}`,
+        type: "image",
+        name: file.name,
+        contentType: file.type,
+        file,
+        status: { type: "requires-action", reason: "composer-send" },
+      }),
+      send: () =>
+        new Promise((_resolve, reject) => {
+          rejectSend = reject;
+        }),
+    });
+    const { composer } = makeComposer(adapter, vi.fn(), { optimistic: true });
+
+    composer.setText("first with attachment");
+    await composer.addAttachment(textFile());
+    const sendPromise = composer.send();
+
+    composer.setText("second");
+    await composer.send();
+
+    rejectSend(new Error("upload failed"));
+    await expect(sendPromise).rejects.toThrow("upload failed");
+
+    expect(composer.text).toBe("first with attachment");
+    expect(composer.attachments.map((a) => a.id)).toEqual(["att-1"]);
+  });
+
+  it("keeps a draft discarded by reset discarded when a later send took the lane", async () => {
+    let rejectSend!: (e: Error) => void;
+    const adapter = makeAdapter({
+      send: () =>
+        new Promise((_resolve, reject) => {
+          rejectSend = reject;
+        }),
+    });
+    const { composer } = makeComposer(adapter, vi.fn(), { optimistic: true });
+
+    composer.setText("first with attachment");
+    await composer.addAttachment(textFile());
+    const sendPromise = composer.send();
+
+    await composer.reset();
+
+    rejectSend(new Error("upload failed"));
+    await expect(sendPromise).rejects.toThrow("upload failed");
+
+    expect(composer.text).toBe("");
+    expect(composer.attachments).toHaveLength(0);
   });
 
   it("skips the optimistic path when the queue capability is enabled", async () => {

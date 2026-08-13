@@ -152,6 +152,9 @@ export abstract class BaseComposerRuntimeCore
   protected _isSending = false;
   private _removedDuringSend = new Set<string>();
   private _sendGeneration = 0;
+  // Bumped only where the user discards the draft, so a send invalidated by a
+  // newer send can still be told apart from one invalidated by a reset.
+  private _discardGeneration = 0;
   private _attachmentAddOperations = new Set<AttachmentAddOperation>();
 
   private _cancelAttachmentAdd(attachmentId: string) {
@@ -191,6 +194,7 @@ export abstract class BaseComposerRuntimeCore
     // invalidates that send entirely so a late-settling upload can neither
     // append the discarded draft nor touch a newer send's lock.
     this._sendGeneration++;
+    this._discardGeneration++;
     this._isSending = false;
     this._removedDuringSend.clear();
 
@@ -241,8 +245,15 @@ export abstract class BaseComposerRuntimeCore
     const text = this.text;
     const quote = this._quote;
 
+    // An attachment whose add already failed or paused is not uploading, so
+    // showing it in the thread under an upload spinner would misreport it; that
+    // send keeps the composer-lock path, where the chip stays with its error.
+    const pendingAttachments = originalAttachments.filter(
+      (a) => !isAttachmentComplete(a),
+    );
     if (
-      originalAttachments.some((a) => !isAttachmentComplete(a)) &&
+      pendingAttachments.length > 0 &&
+      pendingAttachments.every((a) => a.status.type !== "incomplete") &&
       this.supportsOptimisticAttachmentSend(this.role, options)
     ) {
       return this._sendOptimistic(
@@ -358,6 +369,7 @@ export abstract class BaseComposerRuntimeCore
 
     this._quote = undefined;
     const generation = ++this._sendGeneration;
+    const discardGeneration = this._discardGeneration;
     this._emptyTextAndAttachments();
 
     const sendTask = this.handleSend(message, options, () => uploadTask);
@@ -382,9 +394,16 @@ export abstract class BaseComposerRuntimeCore
         ];
         if (!this._text.trim() && this._quote === undefined) {
           this._text = text;
+          this._rebaseDictation(text);
           this._quote = quote;
         }
         this._notifySubscribers();
+      } else if (discardGeneration === this._discardGeneration) {
+        // This path dispatches without holding the send lock, so a later send
+        // can take the generation while the upload is still running. The draft
+        // was never discarded, so it is offered back to a composer that is
+        // empty rather than dropped with the rolled back message.
+        this.restoreDraft({ text, quote, attachments: originalAttachments });
       }
       throw e;
     }

@@ -27,6 +27,7 @@ const createThread = (
     history?: LocalRuntimeOptionsBase["adapters"]["history"];
     maxSteps?: number;
     attachments?: AttachmentAdapter;
+    composerMetadata?: Record<string, unknown>;
   },
 ) => {
   const core = new LocalRuntimeCore(
@@ -48,6 +49,13 @@ const createThread = (
     },
     undefined,
   );
+  if (options?.composerMetadata) {
+    core.registerModelContextProvider({
+      getModelContext: () => ({
+        unstable_composerMetadata: options.composerMetadata,
+      }),
+    });
+  }
   return core.threads.getMainThreadRuntimeCore();
 };
 
@@ -166,6 +174,7 @@ const createOptimisticThread = (options?: {
       item: ExportedMessageRepositoryItem,
     ) => Promise<void> | void;
   };
+  composerMetadata?: Record<string, unknown>;
 }) => {
   const runs: ChatModelRunOptions[] = [];
   const appended: ExportedMessageRepositoryItem[] = [];
@@ -207,6 +216,9 @@ const createOptimisticThread = (options?: {
         remove: async () => {},
         send: sendAttachment,
       },
+      ...(options?.composerMetadata && {
+        composerMetadata: options.composerMetadata,
+      }),
       ...(options?.history && {
         history: {
           async load() {
@@ -262,6 +274,25 @@ describe("LocalThreadRuntimeCore optimistic attachment sends", () => {
     const runUserMessage = runs[0]!.messages.at(-1)!;
     expect(runUserMessage.attachments?.[0]?.status).toEqual({
       type: "complete",
+    });
+  });
+
+  it("stamps provider composer metadata on the optimistically sent message", async () => {
+    const interactables = [{ id: "f1", name: "form", state: { v: 1 } }];
+    const { thread, runs, uploads } = createOptimisticThread({
+      composerMetadata: { interactables },
+    });
+
+    thread.composer.setText("hello");
+    await thread.composer.addAttachment(textFile());
+    const sendPromise = thread.composer.send();
+
+    uploads[0]!.resolve();
+    await sendPromise;
+    await flush();
+
+    expect(runs[0]!.messages.at(-1)?.metadata.custom).toMatchObject({
+      interactables,
     });
   });
 
