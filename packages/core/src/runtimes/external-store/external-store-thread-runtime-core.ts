@@ -493,6 +493,15 @@ export class ExternalStoreThreadRuntimeCore
     });
   }
 
+  private async _waitForInitialization(): Promise<void> {
+    this.ensureInitialized();
+
+    const initPromise = this._getInitializePromise?.();
+    if (initPromise) {
+      await initPromise;
+    }
+  }
+
   public async append(rawMessage: AppendMessage): Promise<void> {
     // sourceId marks an edit send; the parent may coincide with the head
     // after a resync (e.g. cancelRun dropped the edited message).
@@ -502,26 +511,23 @@ export class ExternalStoreThreadRuntimeCore
 
     // Buffering does not start a run, so the tool-abort below must wait until
     // the queue flushes. By then the prior run (and its tools) has settled.
-    if (!isEdit && this._store.queue) {
+    const queue = this._store.queue;
+    if (!isEdit && queue) {
+      await this._waitForInitialization();
+
       // Skip only for the queue this core actually installed on: another
       // core's transform would gate against its own thread's messages.
       const queued =
-        this._store.queue === this._transformedQueue
+        queue === this._transformedQueue
           ? rawMessage
           : this.enrichAppendMetadata(rawMessage);
-      if (queued.steer ?? this._store.isRunning ?? false)
-        this._store.queue.steer(queued);
-      else this._store.queue.enqueue(queued);
+      if (queued.steer ?? this._store.isRunning ?? false) queue.steer(queued);
+      else queue.enqueue(queued);
       return;
     }
 
     const message = this.enrichAppendMetadata(rawMessage);
-    this.ensureInitialized();
-
-    const initPromise = this._getInitializePromise?.();
-    if (initPromise) {
-      await initPromise;
-    }
+    await this._waitForInitialization();
 
     // Auto-abort in-flight client-side tool executions when a new run is
     // about to start. Without this, a tool that finishes after the new turn

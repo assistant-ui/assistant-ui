@@ -891,6 +891,73 @@ describe("ExternalStoreThreadRuntimeCore - message queue", () => {
     expect(onNew).toHaveBeenCalledTimes(1);
   });
 
+  it("waits for thread initialization before queueing an append", async () => {
+    let resolveInitialization!: () => void;
+    const initialization = new Promise<void>((resolve) => {
+      resolveInitialization = resolve;
+    });
+    const queue = makeQueue();
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({ queue }),
+    );
+    runtime.__internal_setGetInitializePromise(() => initialization);
+
+    const appendPromise = runtime.append(appendMessage());
+    await Promise.resolve();
+
+    expect(queue.enqueue).not.toHaveBeenCalled();
+    expect(queue.steer).not.toHaveBeenCalled();
+
+    resolveInitialization();
+    await appendPromise;
+
+    expect(queue.enqueue).toHaveBeenCalledTimes(1);
+  });
+
+  it("waits for thread initialization before steering an append", async () => {
+    let resolveInitialization!: () => void;
+    const initialization = new Promise<void>((resolve) => {
+      resolveInitialization = resolve;
+    });
+    const queue = makeQueue();
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({ queue, isRunning: true }),
+    );
+    runtime.__internal_setGetInitializePromise(() => initialization);
+
+    const appendPromise = runtime.append(
+      appendMessage({ parentId: runtime.messages.at(-1)?.id ?? null }),
+    );
+    await Promise.resolve();
+
+    expect(queue.enqueue).not.toHaveBeenCalled();
+    expect(queue.steer).not.toHaveBeenCalled();
+
+    resolveInitialization();
+    await appendPromise;
+
+    expect(queue.enqueue).not.toHaveBeenCalled();
+    expect(queue.steer).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not queue an append when thread initialization rejects", async () => {
+    const initialization = Promise.reject(new Error("initialization failed"));
+    const queue = makeQueue();
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({ queue }),
+    );
+    runtime.__internal_setGetInitializePromise(() => initialization);
+
+    await expect(runtime.append(appendMessage())).rejects.toThrow(
+      "initialization failed",
+    );
+    expect(queue.enqueue).not.toHaveBeenCalled();
+    expect(queue.steer).not.toHaveBeenCalled();
+  });
+
   it("shares the initialization barrier across concurrent appends", async () => {
     let resolveInitialization!: () => void;
     const initialization = new Promise<void>((resolve) => {
