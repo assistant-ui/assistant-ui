@@ -94,8 +94,13 @@ export type AgUiInterrupt = {
   reason: AgUiInterruptReason;
   message?: string;
   toolCallId?: string;
-  /** A JSON Schema, which the specification allows to be a boolean. */
-  responseSchema?: unknown;
+  responseSchema?: Record<string, unknown>;
+  /**
+   * The received schema when it is not an object. JSON Schema allows a boolean,
+   * and `false` rejects every payload, so a schema `responseSchema` cannot hold
+   * still has to be distinguishable from an absent one.
+   */
+  responseSchemaRaw?: unknown;
   expiresAt?: string;
   metadata?: Record<string, unknown>;
 };

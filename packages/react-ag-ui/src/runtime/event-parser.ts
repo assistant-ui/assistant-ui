@@ -36,9 +36,12 @@ const parseInterrupt = (raw: unknown): AgUiInterrupt | null => {
   if (typeof raw.expiresAt === "string") interrupt.expiresAt = raw.expiresAt;
   // A present schema is kept whatever its shape: `false` is a JSON Schema that
   // rejects every payload, so normalizing it to absent would claim a gate no
-  // decision can answer.
-  if (raw.responseSchema !== undefined)
+  // decision can answer. Only an object schema fits `responseSchema`; every
+  // other shape travels on `responseSchemaRaw`.
+  if (isPlainObject(raw.responseSchema))
     interrupt.responseSchema = raw.responseSchema;
+  else if (raw.responseSchema !== undefined)
+    interrupt.responseSchemaRaw = raw.responseSchema;
   if (isPlainObject(raw.metadata)) interrupt.metadata = raw.metadata;
   return interrupt;
 };

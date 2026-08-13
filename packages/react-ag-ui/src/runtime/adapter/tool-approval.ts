@@ -10,30 +10,51 @@ type ToolApproval = NonNullable<ToolCallMessagePart["approval"]>;
 
 const EMPTY_APPROVALS: ReadonlyMap<string, ToolApproval> = new Map();
 
-/**
- * Keywords that cannot reject a payload this seam emits, given the value checks
- * below. Deciding a schema by any wider rule means evaluating JSON Schema, so
- * an unlisted keyword — `properties`, `additionalProperties`, `allOf`, `$ref` —
- * makes the gate bespoke without being interpreted.
- */
-const SEAM_SAFE_KEYWORDS = new Set([
-  "$schema",
-  "$id",
-  "title",
-  "description",
-  "type",
-  "required",
-]);
-
 const isPlainObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
+const isString = (value: unknown) => typeof value === "string";
+
+const JSON_SCHEMA_TYPES = new Set([
+  "null",
+  "boolean",
+  "object",
+  "array",
+  "number",
+  "integer",
+  "string",
+]);
+
 const acceptsObject = (type: unknown) =>
-  type === undefined ||
   type === "object" ||
   (Array.isArray(type) &&
-    type.every((entry) => typeof entry === "string") &&
+    type.every(
+      (entry) => typeof entry === "string" && JSON_SCHEMA_TYPES.has(entry),
+    ) &&
+    new Set(type).size === type.length &&
     type.includes("object"));
+
+const acceptsSeamPayload = (required: unknown) =>
+  Array.isArray(required) &&
+  required.every((field) => field === "approved") &&
+  new Set(required).size === required.length;
+
+/**
+ * Keywords that cannot reject a payload this seam emits, each paired with the
+ * check that its value is the well-formed shape the keyword is read as. A
+ * keyword whose value a validator would reject as an invalid schema is not
+ * decided here, because a server that compiles the schema fails the run. An
+ * unlisted keyword — `properties`, `additionalProperties`, `allOf`, `$ref` —
+ * makes the gate bespoke rather than being interpreted.
+ */
+const SEAM_SAFE_KEYWORDS: Record<string, (value: unknown) => boolean> = {
+  $schema: isString,
+  $id: isString,
+  title: isString,
+  description: isString,
+  type: acceptsObject,
+  required: acceptsSeamPayload,
+};
 
 /**
  * The seam sends `{ approved }` and may add `reason`, so it may answer a
@@ -48,14 +69,10 @@ const acceptsObject = (type: unknown) =>
 const isSeamAnswerable = (schema: unknown) => {
   if (schema === undefined) return true;
   if (!isPlainObject(schema)) return false;
-  if (!Object.keys(schema).every((key) => SEAM_SAFE_KEYWORDS.has(key)))
-    return false;
-  if (!acceptsObject(schema["type"])) return false;
-  const required = schema["required"];
-  return (
-    required === undefined ||
-    (Array.isArray(required) && required.every((field) => field === "approved"))
-  );
+  return Object.entries(schema).every(([keyword, value]) => {
+    const accepts = SEAM_SAFE_KEYWORDS[keyword];
+    return accepts !== undefined && accepts(value);
+  });
 };
 
 const isGate = (
@@ -64,6 +81,9 @@ const isGate = (
   interrupt.reason === "tool_call" &&
   !!interrupt.id &&
   !!interrupt.toolCallId &&
+  // A restored interrupt is untyped, so `responseSchema` may hold any persisted
+  // shape; a non-object schema received live arrives on `responseSchemaRaw`.
+  interrupt.responseSchemaRaw === undefined &&
   isSeamAnswerable(interrupt.responseSchema);
 
 const isPending = (approval: ToolCallMessagePart["approval"]) =>
@@ -148,7 +168,10 @@ export const buildToolApprovalResume = (
   // The schema is dropped rather than cast: AG-UI's own interrupt type cannot
   // express a boolean schema, and `buildResumeArray` reads only the ids.
   return buildResumeArray(
-    interrupts.map(({ responseSchema: _schema, ...interrupt }) => interrupt),
+    interrupts.map(
+      ({ responseSchema: _schema, responseSchemaRaw: _raw, ...interrupt }) =>
+        interrupt,
+    ),
     responses,
   );
 };

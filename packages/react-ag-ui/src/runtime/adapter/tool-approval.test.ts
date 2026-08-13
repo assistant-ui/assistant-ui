@@ -97,10 +97,18 @@ describe("projectAgUiToolApprovals", () => {
     // are not schemas this seam interprets; none may be boxed into an object or
     // crash the projection.
     const notObjects: unknown[] = [false, true, null, 0, 7, "object", []];
-    for (const responseSchema of notObjects) {
+    for (const schema of notObjects) {
+      // Live, a non-object schema arrives on `responseSchemaRaw`.
       expect(
-        projectAgUiToolApprovals([{ ...gate("int-1", "tc-1"), responseSchema }])
-          .size,
+        projectAgUiToolApprovals([
+          { ...gate("int-1", "tc-1"), responseSchemaRaw: schema },
+        ]).size,
+      ).toBe(0);
+      // A restored interrupt is untyped, so it can also sit on `responseSchema`.
+      expect(
+        projectAgUiToolApprovals([
+          { ...gate("int-1", "tc-1"), responseSchema: schema } as AgUiInterrupt,
+        ]).size,
       ).toBe(0);
     }
   });
@@ -112,6 +120,16 @@ describe("projectAgUiToolApprovals", () => {
       { type: 7 },
       { required: ["approved", null, 7] },
       { required: 7 },
+      // Shapes a JSON Schema validator rejects as an invalid schema: an
+      // annotation that is not a string, an illegal type name, a duplicated
+      // type entry, and a duplicated `required` entry.
+      { title: 42 },
+      { description: [] },
+      { $schema: 7 },
+      { $id: {} },
+      { type: ["object", "bogus"] },
+      { type: ["object", "object"] },
+      { required: ["approved", "approved"] },
     ];
     for (const responseSchema of malformed) {
       expect(
@@ -398,6 +416,42 @@ describe("restored snapshots", () => {
     // stored; `null` must not reach `Object.keys`, and `false` must not be
     // boxed into an object that passes the allowlist.
     for (const responseSchema of [false, null, 7, "object"]) {
+      const [message] = fromAgUiMessages([
+        {
+          id: "msg-1",
+          role: "assistant",
+          content: "",
+          toolCalls: [
+            {
+              id: "tc-1",
+              type: "function",
+              function: { name: "delete_file", arguments: "{}" },
+            },
+          ],
+          metadata: {
+            custom: {
+              agui: {
+                interrupts: [{ ...gate("int-1", "tc-1"), responseSchema }],
+              },
+            },
+          },
+        },
+      ]);
+
+      const part = (message!.content as any[]).find(
+        (p) => p.type === "tool-call",
+      );
+      expect(part.approval).toBeUndefined();
+    }
+  });
+
+  it("leaves a restored gate whose object schema is malformed to the bespoke hooks", () => {
+    for (const responseSchema of [
+      { title: 42 },
+      { description: [] },
+      { type: ["object", "bogus"] },
+      { required: ["approved", "approved"] },
+    ]) {
       const [message] = fromAgUiMessages([
         {
           id: "msg-1",

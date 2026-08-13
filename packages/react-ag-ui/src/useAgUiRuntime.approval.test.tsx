@@ -20,7 +20,7 @@ import {
 import type { HttpAgent } from "@ag-ui/client";
 import { z } from "zod";
 import { useAgUiRuntime } from "./useAgUiRuntime";
-import { useAgUiSteerAway } from "./hooks";
+import { useAgUiInterrupts, useAgUiSteerAway } from "./hooks";
 import type { AgUiInterrupt } from "./runtime/types";
 
 type Subscriber = Record<string, ((payload: any) => void) | undefined>;
@@ -80,8 +80,11 @@ const steerAwayRef: { current: ReturnType<typeof useAgUiSteerAway> | null } = {
   current: null,
 };
 
+const interruptsRef: { current: readonly AgUiInterrupt[] } = { current: [] };
+
 const SteerAway = () => {
   steerAwayRef.current = useAgUiSteerAway();
+  interruptsRef.current = useAgUiInterrupts();
   return null;
 };
 
@@ -268,6 +271,51 @@ describe("useAgUiRuntime tool approvals", () => {
     ]);
 
     expect(allToolCalls(runtime.current)[0]!.approval).toBeUndefined();
+  });
+
+  it("keeps a rejecting live schema readable without widening the public field", async () => {
+    const { runtime } = await gatedThread([
+      { ...GATE, responseSchema: false } as AgUiInterrupt,
+    ]);
+    const [interrupt] = interruptsRef.current;
+
+    expect(interrupt?.responseSchema).toBeUndefined();
+    expect(interrupt?.responseSchemaRaw).toBe(false);
+    // The exported reads a consumer wrote against the previous release still
+    // typecheck: the field stays an object schema or absent.
+    if (interrupt?.responseSchema !== undefined)
+      expect(Object.keys(interrupt.responseSchema)).toEqual([]);
+    const schema: Record<string, unknown> | undefined =
+      interrupt?.responseSchema;
+    expect(schema).toBeUndefined();
+    expect(allToolCalls(runtime.current)[0]!.approval).toBeUndefined();
+  });
+
+  it("carries an object schema on the public field unchanged", async () => {
+    await gatedThread([
+      { ...GATE, responseSchema: { type: "object" } } as AgUiInterrupt,
+    ]);
+
+    expect(interruptsRef.current[0]?.responseSchema).toEqual({
+      type: "object",
+    });
+    expect(interruptsRef.current[0]?.responseSchemaRaw).toBeUndefined();
+  });
+
+  it("leaves the tool call ungated when a live object schema is malformed", async () => {
+    for (const responseSchema of [
+      { title: 42 },
+      { description: [] },
+      { type: ["object", "bogus"] },
+      { required: ["approved", "approved"] },
+    ]) {
+      const { runtime } = await gatedThread([
+        { ...GATE, responseSchema } as unknown as AgUiInterrupt,
+      ]);
+
+      expect(allToolCalls(runtime.current)[0]!.approval).toBeUndefined();
+      cleanup();
+    }
   });
 
   it("clears a local approval a resolved override replaced with a payload of its own", async () => {
