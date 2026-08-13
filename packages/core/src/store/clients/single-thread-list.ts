@@ -23,13 +23,16 @@ const useSingleThreadListItem = ({
       custom,
       isRunning,
     }),
-    switchTo: () => {},
-    rename: () => {},
-    updateCustom: setCustom,
-    archive: () => {},
-    unarchive: () => {},
-    delete: () => {},
-    generateTitle: () => {},
+    switchTo: () => RESOLVED_PROMISE,
+    rename: () => RESOLVED_PROMISE,
+    updateCustom: (custom) => {
+      setCustom(custom);
+      return RESOLVED_PROMISE;
+    },
+    archive: () => RESOLVED_PROMISE,
+    unarchive: () => RESOLVED_PROMISE,
+    delete: () => RESOLVED_PROMISE,
+    generateTitle: () => RESOLVED_PROMISE,
     initialize: async () => ({ remoteId: THREAD_ID, externalId: undefined }),
     detach: () => {},
   };

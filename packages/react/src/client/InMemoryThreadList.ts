@@ -63,13 +63,31 @@ const useThreadListItemClient = (props: {
 
   return {
     getState: () => state,
-    switchTo: onSwitchTo,
-    rename: onRename,
-    updateCustom: onUpdateCustom,
-    archive: onArchive,
-    unarchive: onUnarchive,
-    delete: onDelete,
-    generateTitle: () => {},
+    switchTo: () => {
+      onSwitchTo();
+      return RESOLVED_PROMISE;
+    },
+    rename: (title) => {
+      onRename(title);
+      return RESOLVED_PROMISE;
+    },
+    updateCustom: (custom) => {
+      onUpdateCustom(custom);
+      return RESOLVED_PROMISE;
+    },
+    archive: () => {
+      onArchive();
+      return RESOLVED_PROMISE;
+    },
+    unarchive: () => {
+      onUnarchive();
+      return RESOLVED_PROMISE;
+    },
+    delete: () => {
+      onDelete();
+      return RESOLVED_PROMISE;
+    },
+    generateTitle: () => RESOLVED_PROMISE,
     initialize: async () => ({ remoteId: data.id, externalId: undefined }),
     detach: () => {},
   };
@@ -187,8 +205,14 @@ const useInMemoryThreadList = (
 
   return {
     getState: () => state,
-    switchToThread: handleSwitchToThread,
-    switchToNewThread: handleSwitchToNewThread,
+    switchToThread: (threadId) => {
+      handleSwitchToThread(threadId);
+      return RESOLVED_PROMISE;
+    },
+    switchToNewThread: () => {
+      handleSwitchToNewThread();
+      return RESOLVED_PROMISE;
+    },
     getLoadThreadsPromise: () => RESOLVED_PROMISE,
     reload: () => RESOLVED_PROMISE,
     reloadMainThread: () =>

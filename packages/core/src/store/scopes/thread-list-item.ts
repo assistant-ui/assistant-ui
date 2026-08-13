@@ -20,13 +20,13 @@ export type ThreadListItemState = {
 
 export type ThreadListItemMethods = {
   getState(): ThreadListItemState;
-  switchTo(options?: { unarchive?: boolean }): void;
-  rename(newTitle: string): void;
-  updateCustom(custom: Record<string, unknown> | undefined): void;
-  archive(): void;
-  unarchive(): void;
-  delete(): void;
-  generateTitle(): void;
+  switchTo(options?: { unarchive?: boolean }): Promise<void>;
+  rename(newTitle: string): Promise<void>;
+  updateCustom(custom: Record<string, unknown> | undefined): Promise<void>;
+  archive(): Promise<void>;
+  unarchive(): Promise<void>;
+  delete(): Promise<void>;
+  generateTitle(): Promise<void>;
   initialize(): Promise<{ remoteId: string; externalId: string | undefined }>;
   detach(): void;
   __internal_getRuntime?(): ThreadListItemRuntime;

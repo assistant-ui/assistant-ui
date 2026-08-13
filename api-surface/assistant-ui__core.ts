@@ -4465,13 +4465,13 @@ type ThreadListItemMethods = {
   getState(): ThreadListItemState;
   switchTo(options?: {
     unarchive?: boolean;
-  }): void;
-  rename(newTitle: string): void;
-  updateCustom(custom: Record<string, unknown> | undefined): void;
-  archive(): void;
-  unarchive(): void;
-  delete(): void;
-  generateTitle(): void;
+  }): Promise<void>;
+  rename(newTitle: string): Promise<void>;
+  updateCustom(custom: Record<string, unknown> | undefined): Promise<void>;
+  archive(): Promise<void>;
+  unarchive(): Promise<void>;
+  delete(): Promise<void>;
+  generateTitle(): Promise<void>;
   initialize(): Promise<{
     remoteId: string;
     externalId: string | undefined;
@@ -5184,8 +5184,8 @@ type ThreadsMethods = {
   getState(): ThreadsState;
   switchToThread(threadId: string, options?: {
     unarchive?: boolean;
-  }): void;
-  switchToNewThread(): void;
+  }): Promise<void>;
+  switchToNewThread(): Promise<void>;
   item(threadIdOrOptions: "main" | {
     id: string;
   } | {
@@ -6282,7 +6282,7 @@ declare const useThreadListItemUnarchive: () => {
 };
 
 declare const useThreadListLoadMore: () => {
-  loadMore: () => Promise<void>;
+  loadMore: () => void;
   disabled: boolean;
 };
 

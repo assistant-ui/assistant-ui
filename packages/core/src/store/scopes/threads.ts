@@ -19,8 +19,11 @@ export type ThreadsState = {
 
 export type ThreadsMethods = {
   getState(): ThreadsState;
-  switchToThread(threadId: string, options?: { unarchive?: boolean }): void;
-  switchToNewThread(): void;
+  switchToThread(
+    threadId: string,
+    options?: { unarchive?: boolean },
+  ): Promise<void>;
+  switchToNewThread(): Promise<void>;
   item(
     threadIdOrOptions:
       | "main"

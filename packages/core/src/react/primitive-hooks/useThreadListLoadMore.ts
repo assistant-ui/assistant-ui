@@ -1,6 +1,5 @@
 import { useCallback } from "react";
 import { useAui, useAuiState } from "@assistant-ui/store";
-import { handleThreadListAction } from "./handleThreadListAction";
 
 export const useThreadListLoadMore = () => {
   const aui = useAui();
@@ -9,7 +8,7 @@ export const useThreadListLoadMore = () => {
   );
 
   const loadMore = useCallback(() => {
-    return handleThreadListAction("load more", () => aui.threads.loadMore());
+    aui.threads.loadMore();
   }, [aui]);
 
   return { loadMore, disabled };

@@ -6420,7 +6420,7 @@ declare const useThreadListItemTrigger: () => () => Promise<void>;
 
 declare const useThreadListItemUnarchive: () => () => Promise<void>;
 
-declare const useThreadListLoadMore: () => (() => Promise<void>) | null;
+declare const useThreadListLoadMore: () => (() => void) | null;
 
 declare namespace useThreadScrollToBottom {
   type Options = {

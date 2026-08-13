@@ -1,11 +1,11 @@
 export const handleThreadListAction = (
   action: string,
-  execute: () => void | Promise<void>,
+  execute: () => Promise<void>,
 ): Promise<void> => {
   let task: Promise<void>;
 
   try {
-    task = Promise.resolve(execute());
+    task = execute();
   } catch (error) {
     task = Promise.reject(error);
   }
