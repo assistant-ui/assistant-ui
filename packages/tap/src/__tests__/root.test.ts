@@ -204,6 +204,24 @@ describe("setRootVersion", () => {
     expect(root.committedLog.length).toBe(0);
   });
 
+  it("throws in development when committed history cannot cover the replay base", () => {
+    const root = makeRoot();
+    const cell = {
+      isDirty: false,
+      queue: null,
+      workInProgress: "s",
+      current: "s",
+    };
+    root.unsettledCount = 2;
+    setRootVersion(root, 2);
+    root.changelog.push(committedRecord(root, cell, "p1"));
+    commitRoot(root);
+
+    expect(() => setRootVersion(root, 0)).toThrow(
+      "committed history is shorter than the replay base",
+    );
+  });
+
   it("drops committed history once every dispatched record settles", () => {
     const root = makeRoot();
     const record = {
