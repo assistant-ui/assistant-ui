@@ -841,6 +841,39 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(onError).toHaveBeenCalledTimes(1);
   });
 
+  it("reports a wire RUN_ERROR once when the transport then collapses", async () => {
+    const transportError = new Error("socket died");
+    const agent = {
+      runAgent: vi.fn(async (_input: any, subscriber: any) => {
+        subscriber.onRunErrorEvent?.({
+          event: {
+            type: "RUN_ERROR",
+            message: "upstream exploded",
+            code: "500",
+          },
+        });
+        subscriber.onRunFailed?.({ error: transportError });
+        throw transportError;
+      }),
+    } as unknown as HttpAgent;
+
+    const onError = vi.fn();
+    const core = createCore(agent, { onError });
+
+    await expect(core.append(createAppendMessage())).rejects.toThrow(
+      "upstream exploded",
+    );
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect((onError.mock.calls[0]![0] as Error).message).toBe(
+      "upstream exploded",
+    );
+    expect(core.getMessages().at(-1)?.status).toMatchObject({
+      type: "incomplete",
+      reason: "error",
+      error: "upstream exploded",
+    });
+  });
+
   it.each(["throws", "rejects"] as const)(
     "preserves the run error when onError %s",
     async (failureMode) => {

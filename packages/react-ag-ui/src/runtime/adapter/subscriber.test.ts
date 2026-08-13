@@ -96,6 +96,47 @@ describe("createAgUiSubscriber", () => {
       expect(onRunFailed).not.toHaveBeenCalled();
     });
 
+    it("keeps the business error when a transport failure follows", () => {
+      const { dispatched, updates, onRunFailed, subscriber } = setup();
+
+      subscriber.onRunErrorEvent?.({
+        event: { type: "RUN_ERROR", message: "upstream exploded", code: "500" },
+      });
+      subscriber.onRunFailed?.({ error: new Error("socket died") });
+      subscriber.onRunFinalized?.();
+
+      expect(onRunFailed).toHaveBeenCalledTimes(1);
+      expect((onRunFailed.mock.calls[0]![0] as Error).message).toBe(
+        "upstream exploded",
+      );
+      expect(dispatched).toEqual([
+        { type: "RUN_ERROR", message: "upstream exploded", code: "500" },
+      ]);
+      expect(lastStatus(updates)).toEqual({
+        type: "incomplete",
+        reason: "error",
+        error: "upstream exploded",
+      });
+    });
+
+    it("ignores a RUN_FINISHED that arrives after the error", () => {
+      const { dispatched, updates, subscriber } = setup();
+
+      subscriber.onRunErrorEvent?.({
+        event: { type: "RUN_ERROR", message: "upstream exploded" },
+      });
+      subscriber.onRunFinishedEvent?.({
+        event: { type: "RUN_FINISHED", runId: "run-1" },
+      });
+
+      expect(dispatched.map((event) => event.type)).toEqual(["RUN_ERROR"]);
+      expect(lastStatus(updates)).toEqual({
+        type: "incomplete",
+        reason: "error",
+        error: "upstream exploded",
+      });
+    });
+
     it("falls back to a generic message when the event carries none", () => {
       const { dispatched, onRunFailed, subscriber } = setup();
 

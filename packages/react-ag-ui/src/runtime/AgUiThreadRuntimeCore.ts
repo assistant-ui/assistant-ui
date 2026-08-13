@@ -1125,11 +1125,14 @@ export class AgUiThreadRuntimeCore {
         await runAgent(input, subscriber, { signal: abortSignal });
       }
     } catch (error) {
-      if (!abortSignal.aborted) {
+      // A run that already reported a terminal failure through the subscriber
+      // rethrows that same collapse here; reporting it again would fire onError
+      // twice and replace the business error with the transport one.
+      if (!abortSignal.aborted && !this.pendingError) {
         const err = error instanceof Error ? error : new Error(String(error));
         dispatch({ type: "RUN_ERROR", message: err.message });
         invokeRuntimeCallback("onError", this.onError, err);
-        this.pendingError = this.pendingError ?? err;
+        this.pendingError = err;
       }
     } finally {
       this.finishRun(abortController);
