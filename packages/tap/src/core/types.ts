@@ -22,9 +22,8 @@ export interface ChangelogRecord {
 
   hasEagerState: boolean;
   eagerState: any;
-  eagerStateBase: any;
-  baseState: any;
-  baseVersion: number;
+  prevState: any;
+  settled: boolean;
   queued: boolean;
   logged: boolean;
 }
@@ -78,6 +77,8 @@ export interface TapRoot {
   version: number;
   committedVersion: number;
   readonly changelog: ChangelogRecord[];
+  readonly committedLog: ChangelogRecord[];
+  unsettledCount: number;
   readonly dispatchUpdate: (
     evaluate: () => boolean,
     apply: () => boolean,

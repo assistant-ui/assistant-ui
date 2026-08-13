@@ -1,5 +1,9 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
-import { StrictMode, startTransition } from "react";
+import {
+  StrictMode,
+  startTransition,
+  useReducer as useReactReducer,
+} from "react";
 import { flushSync } from "react-dom";
 import { createRoot, type Root } from "react-dom/client";
 import { act } from "@testing-library/react";
@@ -40,16 +44,41 @@ vi.mock("../../core/helpers/root", async (importOriginal) => {
 
 let reactRoot: Root | undefined;
 let container: HTMLElement | undefined;
+let oracleRoot: Root | undefined;
+let oracleContainer: HTMLElement | undefined;
 
 afterEach(async () => {
-  await act(async () => reactRoot?.unmount());
+  await act(async () => {
+    reactRoot?.unmount();
+    oracleRoot?.unmount();
+  });
   container?.remove();
+  oracleContainer?.remove();
   reactRoot = undefined;
   container = undefined;
+  oracleRoot = undefined;
+  oracleContainer = undefined;
   cleanupAllResources();
   probes.belowCommitted = 0;
   probes.changelogLengths.length = 0;
 });
+
+const mountOracle = (): ((chunk: string) => void) => {
+  let push!: (chunk: string) => void;
+  function Oracle() {
+    const [chunks, dispatch] = useReactReducer(
+      (s: readonly string[], c: string) => [...s, c],
+      [] as readonly string[],
+    );
+    push = dispatch;
+    return <div>{chunks.join(",")}</div>;
+  }
+  oracleContainer = document.createElement("div");
+  document.body.appendChild(oracleContainer);
+  oracleRoot = createRoot(oracleContainer);
+  act(() => oracleRoot!.render(<Oracle />));
+  return (chunk) => push(chunk);
+};
 
 const useStream = () => {
   const [chunks, push] = useResourceReducer(
@@ -265,5 +294,183 @@ describe("React-hosted reducer replay below the committed version", () => {
     setRootVersion(fiber.root, 2);
     expect(renderTest(fiber, 1)).toBe(committed);
     expect(computes).toBe(2);
+  });
+
+  it("rebases a mid-tick mixed-lane chain to the React oracle", async () => {
+    let api!: { chunks: readonly string[]; push: (c: string) => void };
+
+    function App() {
+      const value = useResource(Stream());
+      api = value;
+      return <div>{value.chunks.join(",")}</div>;
+    }
+
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    reactRoot = createRoot(container);
+    await act(async () => {
+      reactRoot!.render(<App />);
+    });
+    const oraclePush = mountOracle();
+
+    await act(async () => {
+      api.push("a");
+      oraclePush("a");
+      startTransition(() => {
+        api.push("t");
+        oraclePush("t");
+      });
+      flushSync(() => {
+        api.push("c");
+        oraclePush("c");
+      });
+    });
+
+    expect(oracleContainer!.textContent).toBe("a,t,c");
+    expect(container.textContent).toBe(oracleContainer!.textContent);
+  });
+
+  it("rebases a mid-tick mixed-lane chain under StrictMode", async () => {
+    let api!: { chunks: readonly string[]; push: (c: string) => void };
+
+    function App() {
+      const value = useResource(Stream());
+      api = value;
+      return <div>{value.chunks.join(",")}</div>;
+    }
+
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    reactRoot = createRoot(container);
+    await act(async () => {
+      reactRoot!.render(
+        <StrictMode>
+          <App />
+        </StrictMode>,
+      );
+    });
+
+    await act(async () => {
+      api.push("a");
+      startTransition(() => api.push("t"));
+      flushSync(() => api.push("c"));
+    });
+
+    expect(container.textContent).toBe("a,t,c");
+  });
+
+  it("rebases a transition across two flushSync commits to the React oracle", async () => {
+    let api!: { chunks: readonly string[]; push: (c: string) => void };
+
+    function App() {
+      const value = useResource(Stream());
+      api = value;
+      return <div>{value.chunks.join(",")}</div>;
+    }
+
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    reactRoot = createRoot(container);
+    await act(async () => {
+      reactRoot!.render(<App />);
+    });
+    const oraclePush = mountOracle();
+
+    await act(async () => {
+      startTransition(() => {
+        api.push("t1");
+        oraclePush("t1");
+      });
+      flushSync(() => {
+        api.push("s1");
+        oraclePush("s1");
+      });
+      flushSync(() => {
+        api.push("s2");
+        oraclePush("s2");
+      });
+    });
+
+    expect(oracleContainer!.textContent).toBe("t1,s1,s2");
+    expect(container.textContent).toBe(oracleContainer!.textContent);
+  });
+
+  it("rebases a mid-tick mixed-lane chain across two sync commits to the React oracle", async () => {
+    let api!: { chunks: readonly string[]; push: (c: string) => void };
+
+    function App() {
+      const value = useResource(Stream());
+      api = value;
+      return <div>{value.chunks.join(",")}</div>;
+    }
+
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    reactRoot = createRoot(container);
+    await act(async () => {
+      reactRoot!.render(<App />);
+    });
+    const oraclePush = mountOracle();
+
+    await act(async () => {
+      api.push("a");
+      oraclePush("a");
+      startTransition(() => {
+        api.push("t");
+        oraclePush("t");
+      });
+      flushSync(() => {
+        api.push("c1");
+        oraclePush("c1");
+      });
+      flushSync(() => {
+        api.push("c2");
+        oraclePush("c2");
+      });
+    });
+
+    expect(oracleContainer!.textContent).toBe("a,t,c1,c2");
+    expect(container.textContent).toBe(oracleContainer!.textContent);
+  });
+
+  it("rebases two interleaved transitions across sync commits to the React oracle", async () => {
+    let api!: { chunks: readonly string[]; push: (c: string) => void };
+
+    function App() {
+      const value = useResource(Stream());
+      api = value;
+      return <div>{value.chunks.join(",")}</div>;
+    }
+
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    reactRoot = createRoot(container);
+    await act(async () => {
+      reactRoot!.render(<App />);
+    });
+    const oraclePush = mountOracle();
+
+    await act(async () => {
+      api.push("a");
+      oraclePush("a");
+      startTransition(() => {
+        api.push("tA");
+        oraclePush("tA");
+      });
+      flushSync(() => {
+        api.push("c1");
+        oraclePush("c1");
+      });
+      startTransition(() => {
+        api.push("tB");
+        oraclePush("tB");
+      });
+      flushSync(() => {
+        api.push("c2");
+        oraclePush("c2");
+      });
+    });
+
+    expect(container.textContent).toBe(oracleContainer!.textContent);
   });
 });

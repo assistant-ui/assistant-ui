@@ -9,8 +9,22 @@ import type { ChangelogRecord } from "../core/types";
 const makeRoot = () => createResourceFiberRoot(() => {});
 
 const pushRecord = (root: ReturnType<typeof makeRoot>) => {
-  root.changelog.push({} as ChangelogRecord);
+  root.changelog.push({ settled: true } as ChangelogRecord);
 };
+
+const committedRecord = (
+  root: ReturnType<typeof makeRoot>,
+  cell: object,
+  prevState: unknown,
+): ChangelogRecord =>
+  ({
+    fiber: { root, markDirty: undefined },
+    cell,
+    prevState,
+    settled: false,
+    queued: false,
+    logged: true,
+  }) as unknown as ChangelogRecord;
 
 describe("setRootVersion", () => {
   it("clears the changelog when rolling back to the committed version", () => {
@@ -27,14 +41,17 @@ describe("setRootVersion", () => {
 
   it("clears changelog membership when records are removed", () => {
     const root = makeRoot();
-    const committedRecord = { logged: true } as ChangelogRecord;
+    const committedRecord = { logged: true, settled: true } as ChangelogRecord;
     root.changelog.push(committedRecord);
     commitRoot(root);
     expect(committedRecord.logged).toBe(false);
 
     setRootVersion(root, 3);
     commitRoot(root);
-    const belowCommittedRecord = { logged: true } as ChangelogRecord;
+    const belowCommittedRecord = {
+      logged: true,
+      settled: true,
+    } as ChangelogRecord;
     root.changelog.push(belowCommittedRecord);
     setRootVersion(root, 1);
     expect(belowCommittedRecord.logged).toBe(false);
@@ -74,6 +91,7 @@ describe("setRootVersion", () => {
         cell: { isDirty: false, queue: null },
         queued: true,
         logged: true,
+        settled: true,
       }) as unknown as ChangelogRecord;
     const records = [
       trackedRecord(1),
@@ -88,6 +106,75 @@ describe("setRootVersion", () => {
     expect(root.committedVersion).toBe(6);
     expect(root.changelog.length).toBe(0);
     expect(records.every((record) => !record.logged)).toBe(true);
+  });
+
+  it("rewinds committed records to their pre-application state on a below-committed replay", () => {
+    const root = makeRoot();
+    const cell = {
+      isDirty: false,
+      queue: null,
+      workInProgress: "s1",
+      current: "s1",
+    };
+    const record = committedRecord(root, cell, "base");
+
+    root.unsettledCount = 2;
+    setRootVersion(root, 1);
+    root.changelog.push(record);
+    commitRoot(root);
+    expect(root.committedLog).toEqual([record]);
+
+    setRootVersion(root, 0);
+    expect(cell.workInProgress).toBe("base");
+    expect(cell.isDirty).toBe(true);
+    expect(root.committedLog.length).toBe(0);
+    expect(root.committedVersion).toBe(0);
+  });
+
+  it("restores the committed log and version when a rewound replay is discarded", () => {
+    const root = makeRoot();
+    const cell = {
+      isDirty: false,
+      queue: null,
+      workInProgress: "s2",
+      current: "s2",
+    };
+    const recordA = committedRecord(root, cell, "p1");
+    const recordB = committedRecord(root, cell, "p2");
+
+    root.unsettledCount = 3;
+    setRootVersion(root, 1);
+    root.changelog.push(recordA);
+    commitRoot(root);
+    setRootVersion(root, 2);
+    root.changelog.push(recordB);
+    commitRoot(root);
+    expect(root.committedLog).toEqual([recordA, recordB]);
+
+    setRootVersion(root, 1);
+    expect(cell.workInProgress).toBe("p2");
+    expect(root.committedLog).toEqual([recordA]);
+    expect(root.committedVersion).toBe(1);
+
+    setRootVersion(root, 0);
+    expect(root.committedVersion).toBe(0);
+    expect(cell.workInProgress).toBe("p1");
+    expect(root.committedLog.length).toBe(0);
+  });
+
+  it("drops committed history once every dispatched record settles", () => {
+    const root = makeRoot();
+    const record = {
+      settled: false,
+      logged: true,
+      queued: false,
+    } as ChangelogRecord;
+    root.unsettledCount = 1;
+    setRootVersion(root, 1);
+    root.changelog.push(record);
+    commitRoot(root);
+    expect(root.unsettledCount).toBe(0);
+    expect(root.committedLog.length).toBe(0);
   });
 
   it("runs rollback callbacks when replaying below the committed version", () => {

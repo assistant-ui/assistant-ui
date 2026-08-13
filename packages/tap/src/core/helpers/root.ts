@@ -12,14 +12,28 @@ export const createResourceFiberRoot = (
     committedVersion: 0,
     dispatchUpdate,
     changelog: [],
+    committedLog: [],
+    unsettledCount: 0,
     rollbackCallbacks: [],
   };
 };
 
+// The committed log retains committed records while any dispatched record is
+// still unsettled, so a below-committed replay can rewind cells to the state
+// at its base; once everything settles no replay can reach below and the
+// history is dropped.
 export const commitRoot = (root: TapRoot): void => {
   root.committedVersion = root.version;
-  for (const record of root.changelog) record.logged = false;
+  for (const record of root.changelog) {
+    record.logged = false;
+    if (!record.settled) {
+      record.settled = true;
+      root.unsettledCount--;
+    }
+    root.committedLog.push(record);
+  }
   root.changelog.length = 0;
+  if (root.unsettledCount === 0) root.committedLog.length = 0;
   root.rollbackCallbacks.length = 0;
 };
 
@@ -34,9 +48,28 @@ export const setRootVersion = (root: TapRoot, version: number): void => {
 
     if (version <= root.committedVersion) {
       // A version below the last commit is a React concurrent reducer replay
-      // from an older base; the replayed chain re-supplies its updates. The
-      // committed version re-bases to keep the changelog's base derivation in
-      // the branch below correct; the next commit overwrites it.
+      // from an older base; the replayed chain re-supplies its updates.
+      // Committed records above that base are rewound so replayed updates
+      // reduce from the state at the base; the commit path drops the armed
+      // restore, while a discarded replay restores the log and the committed
+      // version through it.
+      const rewound: ChangelogRecord[] = [];
+      while (root.committedVersion - rewound.length > version) {
+        const record = root.committedLog.pop();
+        if (record === undefined) break;
+        markReducerDirty(record.fiber, record.cell);
+        record.cell.workInProgress = record.prevState;
+        rewound.push(record);
+      }
+      if (rewound.length > 0) {
+        const restoredVersion = root.committedVersion;
+        addRollback(root, () => {
+          for (let i = rewound.length - 1; i >= 0; i--) {
+            root.committedLog.push(rewound[i]!);
+          }
+          root.committedVersion = restoredVersion;
+        });
+      }
       root.committedVersion = version;
       for (const record of root.changelog) record.logged = false;
       root.changelog.length = 0;
@@ -56,18 +89,10 @@ export const setRootVersion = (root: TapRoot, version: number): void => {
 };
 
 export const applyChangelogRecord = (record: ChangelogRecord): void => {
-  const { cell, fiber } = record;
-  // A replay's first re-applied record rewinds the cell to its dispatch-time
-  // base, valid exactly when that base is the current committed floor. A floor
-  // above the dispatch base has no snapshot and keeps committed state.
-  const restoreBase =
-    !cell.isDirty && record.baseVersion === fiber.root.committedVersion;
-
-  markReducerDirty(fiber, cell);
-  if (restoreBase) cell.workInProgress = record.baseState;
+  markReducerDirty(record.fiber, record.cell);
   if (!record.queued) {
     record.queued = true;
-    (cell.queue ??= []).push(record);
+    (record.cell.queue ??= []).push(record);
   }
 };
 

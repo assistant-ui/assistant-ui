@@ -39,7 +39,7 @@ const dispatchOnFiber = (
         !record.cell.isDirty &&
         !record.hasEagerState
       ) {
-        record.eagerStateBase = record.cell.workInProgress;
+        record.prevState = record.cell.workInProgress;
         record.eagerState = eagerReducer(
           record.cell.workInProgress,
           record.action,
@@ -47,6 +47,10 @@ const dispatchOnFiber = (
         record.hasEagerState = true;
 
         hasWork = !Object.is(record.cell.current, record.eagerState);
+        if (!hasWork && !record.settled) {
+          record.settled = true;
+          fiber.root.unsettledCount--;
+        }
       }
 
       return hasWork;
@@ -102,13 +106,13 @@ const createReducerCell = (
           action,
           hasEagerState: false,
           eagerState: undefined,
-          eagerStateBase: undefined,
-          baseState: cell.current,
-          baseVersion: fiber.root.committedVersion,
+          prevState: undefined,
+          settled: false,
           queued: false,
           logged: false,
         };
 
+        fiber.root.unsettledCount++;
         dispatchOnFiber(fiber, record, eagerBailout ? reducer : undefined);
       }
     },
@@ -158,9 +162,9 @@ export function useReducerImpl<S, A, I>(
       if (
         !item.hasEagerState ||
         !sameReducer ||
-        !Object.is(item.eagerStateBase, cell.workInProgress)
+        !Object.is(item.prevState, cell.workInProgress)
       ) {
-        item.eagerStateBase = cell.workInProgress;
+        item.prevState = cell.workInProgress;
         item.eagerState = reducer(cell.workInProgress, item.action);
         item.hasEagerState = true;
 
