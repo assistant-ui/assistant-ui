@@ -504,6 +504,8 @@ export class ExternalStoreThreadRuntimeCore
       rawMessage.sourceId != null ||
       rawMessage.parentId !== (this.messages.at(-1)?.id ?? null);
 
+    const message = this.enrichAppendMetadata(rawMessage);
+
     // The queue driver dispatches through the host adapter, outside this
     // core, so the initialization barrier must run before a message can
     // enter the queue.
@@ -522,16 +524,12 @@ export class ExternalStoreThreadRuntimeCore
       // Skip only for the queue this core actually installed on: another
       // core's transform would gate against its own thread's messages.
       const queued =
-        this._store.queue === this._transformedQueue
-          ? rawMessage
-          : this.enrichAppendMetadata(rawMessage);
+        this._store.queue === this._transformedQueue ? rawMessage : message;
       if (queued.steer ?? this._store.isRunning ?? false)
         this._store.queue.steer(queued);
       else this._store.queue.enqueue(queued);
       return;
     }
-
-    const message = this.enrichAppendMetadata(rawMessage);
 
     // Auto-abort in-flight client-side tool executions when a new run is
     // about to start. Without this, a tool that finishes after the new turn
