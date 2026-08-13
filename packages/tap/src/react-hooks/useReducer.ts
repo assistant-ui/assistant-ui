@@ -69,7 +69,11 @@ const dispatchOnFiber = (
       },
     );
   } catch (error) {
-    if (!record.settled && !record.logged) {
+    // Settle only when neither closure ran: with evaluated still false the
+    // host cannot have enqueued the update, while any later throw is ambiguous
+    // and leaves the record pending so history is retained rather than
+    // cleared early.
+    if (!record.settled && !evaluated) {
       record.settled = true;
       fiber.root.unsettledCount--;
     }
