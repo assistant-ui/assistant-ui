@@ -138,14 +138,22 @@ describe("createAgUiSubscriber", () => {
     });
 
     it("falls back to a generic message when the event carries none", () => {
-      const { dispatched, onRunFailed, subscriber } = setup();
+      const { dispatched, updates, onRunFailed, subscriber } = setup();
 
       subscriber.onRunErrorEvent?.({ event: { type: "RUN_ERROR" } });
 
-      expect(dispatched).toContainEqual({ type: "RUN_ERROR" });
+      expect(dispatched).toContainEqual({
+        type: "RUN_ERROR",
+        message: "Run failed",
+      });
       expect((onRunFailed.mock.calls[0]![0] as Error).message).toBe(
         "Run failed",
       );
+      expect(lastStatus(updates)).toMatchObject({
+        type: "incomplete",
+        reason: "error",
+        error: "Run failed",
+      });
     });
   });
 

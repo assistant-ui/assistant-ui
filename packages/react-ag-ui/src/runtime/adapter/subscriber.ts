@@ -171,12 +171,11 @@ export const createAgUiSubscriber = (
         dispatch({ type: "RUN_CANCELLED" } satisfies AgUiEvent);
         return;
       }
-      const error: Error & { code?: string } = new Error(
-        parsed.message ?? "Run failed",
-      );
+      const message = parsed.message ?? "Run failed";
+      const error: Error & { code?: string } = new Error(message);
       if (parsed.code !== undefined) error.code = parsed.code;
       onRunFailed?.(error);
-      dispatch(parsed);
+      dispatch({ ...parsed, message });
     },
     onRunFinalized: () => {
       if (runSettled) return;
