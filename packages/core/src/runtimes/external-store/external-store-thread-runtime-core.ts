@@ -504,6 +504,18 @@ export class ExternalStoreThreadRuntimeCore
       rawMessage.sourceId != null ||
       rawMessage.parentId !== (this.messages.at(-1)?.id ?? null);
 
+    // The queue driver dispatches through the host adapter, outside this
+    // core, so the initialization barrier must run before a message can
+    // enter the queue.
+    const generation = captureThreadRuntimeGeneration(this);
+    this.ensureInitialized();
+
+    const initPromise = this._getInitializePromise?.();
+    if (initPromise) {
+      await initPromise;
+    }
+    if (!isThreadRuntimeGenerationCurrent(this, generation)) return;
+
     // Buffering does not start a run, so the tool-abort below must wait until
     // the queue flushes. By then the prior run (and its tools) has settled.
     if (!isEdit && this._store.queue) {
@@ -519,15 +531,7 @@ export class ExternalStoreThreadRuntimeCore
       return;
     }
 
-    const generation = captureThreadRuntimeGeneration(this);
     const message = this.enrichAppendMetadata(rawMessage);
-    this.ensureInitialized();
-
-    const initPromise = this._getInitializePromise?.();
-    if (initPromise) {
-      await initPromise;
-    }
-    if (!isThreadRuntimeGenerationCurrent(this, generation)) return;
 
     // Auto-abort in-flight client-side tool executions when a new run is
     // about to start. Without this, a tool that finishes after the new turn
