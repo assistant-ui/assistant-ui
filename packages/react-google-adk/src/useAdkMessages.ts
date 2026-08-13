@@ -136,7 +136,14 @@ export const useAdkMessages = ({
         m.id ? m : { ...m, id: uuidv4() },
       ) as AdkMessage[];
 
-      const accumulator = new AdkEventAccumulator(messagesRef.current);
+      // A staged message is already in the thread under its own id, and the
+      // merged event below re-emits the whole batch under the first one. Seeding
+      // with the originals would leave every later staged id beside the merged
+      // copy of itself.
+      const resentIds = new Set(newMessagesWithId.map((m) => m.id));
+      const accumulator = new AdkEventAccumulator(
+        messagesRef.current.filter((m) => !resentIds.has(m.id)),
+      );
       for (const event of messagesToEvents(newMessagesWithId)) {
         accumulator.processEvent(event);
       }
@@ -263,31 +270,35 @@ export const useAdkMessages = ({
  * has to sit on the same boundary, so a run of those messages becomes one
  * synthetic event whose parts come from the same per-message conversion.
  *
+ * The transport drops `ai` messages from that `Content`, so one interleaved
+ * between two replies does not split the batch on the wire and must not split
+ * it here either. It still becomes its own event, placed after the merged one,
+ * so the optimistic projection keeps the assistant turn.
+ *
  * @internal — exported for unit tests.
  */
 export const messagesToEvents = (messages: AdkMessage[]): AdkEvent[] => {
   const events: AdkEvent[] = [];
-  let run: AdkMessage[] = [];
-  const flushRun = () => {
-    if (run.length === 0) return;
+  const run: AdkMessage[] = [];
+  let runIndex = 0;
+
+  for (const msg of messages) {
+    if (msg.type === "ai") {
+      events.push(messageToEvent(msg));
+    } else {
+      if (run.length === 0) runIndex = events.length;
+      run.push(msg);
+    }
+  }
+
+  if (run.length > 0) {
     const parts = run.flatMap((m) => messageToEvent(m).content?.parts ?? []);
     const human = run.find((m) => m.type === "human");
     const event: AdkEvent = { id: (human ?? run[0]!).id ?? uuidv4() };
     if (human) event.author = "user";
     event.content = { role: "user", parts };
-    events.push(event);
-    run = [];
-  };
-
-  for (const msg of messages) {
-    if (msg.type === "ai") {
-      flushRun();
-      events.push(messageToEvent(msg));
-    } else {
-      run.push(msg);
-    }
+    events.splice(runIndex, 0, event);
   }
-  flushRun();
 
   return events;
 };

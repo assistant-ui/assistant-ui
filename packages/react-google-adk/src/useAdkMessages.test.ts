@@ -15,6 +15,7 @@ vi.mock("@assistant-ui/store", async (importOriginal) => ({
 
 import {
   messageToEvent,
+  messagesToEvents,
   useAdkMessages,
   type UseAdkMessagesOptions,
 } from "./useAdkMessages";
@@ -193,6 +194,29 @@ describe("optimistic confirmation replies", () => {
     ]).toEqual([{ id: "conf-a" }, { id: "conf-b" }]);
   });
 
+  it("keeps both gates pending when an ai message sits between the replies", async () => {
+    const result = await renderWithGates();
+
+    await act(async () => {
+      await result.current.sendMessage(
+        [
+          confirmationReply(
+            "reply-a",
+            "conf-a",
+            JSON.stringify({ confirmed: true }),
+          ),
+          { id: "ai-interleaved", type: "ai", content: "thinking" },
+          confirmationReply("reply-b", "conf-b", "not json"),
+        ],
+        {},
+      );
+    });
+
+    expect([
+      ...projectAdkToolApprovals(result.current.messages).approvals.values(),
+    ]).toEqual([{ id: "conf-a" }, { id: "conf-b" }]);
+  });
+
   it("settles the readable reply when the two replies were sent separately", async () => {
     const result = await renderWithGates();
 
@@ -218,6 +242,96 @@ describe("optimistic confirmation replies", () => {
     expect([
       ...projectAdkToolApprovals(result.current.messages).approvals.values(),
     ]).toEqual([{ id: "conf-a", approved: true }, { id: "conf-b" }]);
+  });
+});
+
+describe("messagesToEvents", () => {
+  const toolReply = (id: string, toolCallId: string): AdkMessage => ({
+    id,
+    type: "tool",
+    tool_call_id: toolCallId,
+    name: "adk_request_confirmation",
+    content: JSON.stringify({ confirmed: true }),
+    status: "success",
+  });
+
+  it("merges the human/tool run across an interleaved ai message", () => {
+    const events = messagesToEvents([
+      toolReply("reply-a", "conf-a"),
+      { id: "ai-interleaved", type: "ai", content: "thinking" },
+      toolReply("reply-b", "conf-b"),
+    ]);
+
+    expect(events).toHaveLength(2);
+    expect(events[0]?.id).toBe("reply-a");
+    expect(
+      events[0]?.content?.parts?.map((p) => p.functionResponse?.id),
+    ).toEqual(["conf-a", "conf-b"]);
+    expect(events[1]?.id).toBe("ai-interleaved");
+  });
+
+  it("emits the merged event at the position of the run it replaces", () => {
+    const events = messagesToEvents([
+      { id: "ai-first", type: "ai", content: "thinking" },
+      { id: "human-a", type: "human", content: "a" },
+    ]);
+
+    expect(events.map((e) => e.id)).toEqual(["ai-first", "human-a"]);
+  });
+});
+
+describe("optimistic multi-message sends", () => {
+  const emptyStream: AdkStreamCallback = async function* () {};
+
+  it("does not duplicate later messages of a staged multi-human send", async () => {
+    const staged: AdkMessage[] = [
+      { id: "human-a", type: "human", content: "a" },
+      { id: "human-b", type: "human", content: "b" },
+    ];
+    const { result } = renderHook(() =>
+      useAdkMessages({ stream: emptyStream }),
+    );
+    await act(async () => {
+      result.current.setMessages(staged);
+    });
+
+    await act(async () => {
+      await result.current.sendMessage(staged, {});
+    });
+
+    expect(result.current.messages).toEqual([
+      {
+        id: "human-a",
+        type: "human",
+        content: [
+          { type: "text", text: "a" },
+          { type: "text", text: "b" },
+        ],
+      },
+    ]);
+  });
+
+  it("keeps messages that are not part of the send", async () => {
+    const { result } = renderHook(() =>
+      useAdkMessages({ stream: emptyStream }),
+    );
+    await act(async () => {
+      result.current.setMessages([
+        { id: "earlier", type: "human", content: "earlier" },
+      ]);
+    });
+
+    await act(async () => {
+      await result.current.sendMessage(
+        [{ id: "human-a", type: "human", content: "a" }],
+        {},
+      );
+    });
+
+    expect(result.current.messages.map((m) => m.id)).toEqual([
+      "earlier",
+      "human-a",
+    ]);
   });
 });
 
