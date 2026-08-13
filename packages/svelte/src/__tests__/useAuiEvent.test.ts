@@ -5,6 +5,7 @@ import { AuiConfig } from "@assistant-ui/store/client";
 import { provideAui } from "../provideAui";
 import { useAuiEvent } from "../useAuiEvent";
 import Host from "./fixtures/Host.svelte";
+import EventScopeHost from "./fixtures/EventScopeHost.svelte";
 import { flushEvents, MessageClient, type AnyClient } from "./clients";
 
 const target = () => document.createElement("div");
@@ -57,5 +58,42 @@ describe("useAuiEvent", () => {
     flushTapSync(() => aui.message.ping("after"));
     await flushEvents();
     expect(callback).toHaveBeenCalledTimes(1);
+  });
+
+  it("binds once its scope appears in a live config, without detaching", async () => {
+    let exposed!: { aui: AnyClient; setPresent: (value: boolean) => void };
+    const onPing = vi.fn();
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const makeConfig = (present: boolean) =>
+      present
+        ? AuiConfig({ message: MessageClient({ id: "m0" }) } as never)
+        : AuiConfig({} as never);
+    const app = mount(EventScopeHost, {
+      target: target(),
+      props: {
+        makeConfig,
+        onPing,
+        expose: (value: never) => {
+          exposed = value;
+        },
+      },
+    });
+
+    // The message scope is absent at mount: binding must be a pending no-op,
+    // never a thrown-and-swallowed detach
+    expect(errorSpy).not.toHaveBeenCalled();
+
+    exposed.setPresent(true);
+    await vi.waitFor(() =>
+      expect(exposed.aui.message.getState().id).toBe("m0"),
+    );
+
+    flushTapSync(() => exposed.aui.message.ping("hello"));
+    await flushEvents();
+    expect(onPing).toHaveBeenCalledWith({ id: "m0", value: "hello" });
+    expect(errorSpy).not.toHaveBeenCalled();
+
+    errorSpy.mockRestore();
+    flushSync(() => void unmount(app));
   });
 });

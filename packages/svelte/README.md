@@ -8,7 +8,13 @@ The package is plain TypeScript over `@assistant-ui/store/client` and Svelte's r
 // vite.config.ts
 export default defineConfig({
   resolve: {
-    alias: { react: "@assistant-ui/tap/standalone-shim" },
+    alias: [
+      {
+        find: /^react\/compiler-runtime$/,
+        replacement: "@assistant-ui/tap/standalone-shim/compiler-runtime",
+      },
+      { find: /^react$/, replacement: "@assistant-ui/tap/standalone-shim" },
+    ],
   },
 });
 ```

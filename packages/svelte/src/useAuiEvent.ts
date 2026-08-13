@@ -36,12 +36,20 @@ export const useAuiEvent = <TEvent extends AssistantEventName>(
   const bind = () => {
     const client = source.getClient();
     if (client === bound) return;
+    let next: Unsubscribe;
+    try {
+      next = client.on(
+        { scope, event } as AssistantEventSelector<TEvent>,
+        callback,
+      );
+    } catch {
+      // A live config may drop the selected scope; keep the current binding and
+      // retry once a later structural change makes the scope available again.
+      return;
+    }
     off?.();
     bound = client;
-    off = client.on(
-      { scope, event } as AssistantEventSelector<TEvent>,
-      callback,
-    );
+    off = next;
   };
 
   bind();
