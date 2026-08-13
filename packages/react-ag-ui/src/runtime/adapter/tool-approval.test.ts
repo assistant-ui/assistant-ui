@@ -92,6 +92,35 @@ describe("projectAgUiToolApprovals", () => {
     }
   });
 
+  it("leaves a gate whose schema is not a plain object to the bespoke hooks, without throwing", () => {
+    // `false` is a JSON Schema that rejects every payload, `true` and the rest
+    // are not schemas this seam interprets; none may be boxed into an object or
+    // crash the projection.
+    const notObjects: unknown[] = [false, true, null, 0, 7, "object", []];
+    for (const responseSchema of notObjects) {
+      expect(
+        projectAgUiToolApprovals([{ ...gate("int-1", "tc-1"), responseSchema }])
+          .size,
+      ).toBe(0);
+    }
+  });
+
+  it("leaves a gate whose allowed keyword carries a malformed value to the bespoke hooks", () => {
+    const malformed: Record<string, unknown>[] = [
+      { type: ["object", 7] },
+      { type: ["object", null] },
+      { type: 7 },
+      { required: ["approved", null, 7] },
+      { required: 7 },
+    ];
+    for (const responseSchema of malformed) {
+      expect(
+        projectAgUiToolApprovals([{ ...gate("int-1", "tc-1"), responseSchema }])
+          .size,
+      ).toBe(0);
+    }
+  });
+
   it("gates a schema built only from keywords that accept every payload the seam emits", () => {
     const answerable: Record<string, unknown>[] = [
       { type: "object" },
@@ -316,13 +345,21 @@ describe("withSettledToolApprovals", () => {
     });
   });
 
-  it("leaves a gate untouched when its resolved entry carries no decision", () => {
+  it("leaves an undecided gate untouched when its resolved entry carries no decision", () => {
     const content = [toolCall("tc-1", { id: "int-1" })];
     expect(
       withSettledToolApprovals(content, [
         { interruptId: "int-1", status: "resolved", payload: { answer: 42 } },
       ]),
     ).toBe(content);
+  });
+
+  it("clears a local decision the resolved entry that was sent did not carry", () => {
+    const next = withSettledToolApprovals(
+      [toolCall("tc-1", { id: "int-1", approved: true, reason: "sure" })],
+      [{ interruptId: "int-1", status: "resolved", payload: { answer: 42 } }],
+    );
+    expect((next[0] as any).approval).toEqual({ id: "int-1" });
   });
 });
 
@@ -354,5 +391,39 @@ describe("restored snapshots", () => {
       type: "requires-action",
       reason: "interrupt",
     });
+  });
+
+  it("leaves a restored gate whose schema is not a plain object to the bespoke hooks", () => {
+    // Persisted metadata is untyped, so the projection sees whatever was
+    // stored; `null` must not reach `Object.keys`, and `false` must not be
+    // boxed into an object that passes the allowlist.
+    for (const responseSchema of [false, null, 7, "object"]) {
+      const [message] = fromAgUiMessages([
+        {
+          id: "msg-1",
+          role: "assistant",
+          content: "",
+          toolCalls: [
+            {
+              id: "tc-1",
+              type: "function",
+              function: { name: "delete_file", arguments: "{}" },
+            },
+          ],
+          metadata: {
+            custom: {
+              agui: {
+                interrupts: [{ ...gate("int-1", "tc-1"), responseSchema }],
+              },
+            },
+          },
+        },
+      ]);
+
+      const part = (message!.content as any[]).find(
+        (p) => p.type === "tool-call",
+      );
+      expect(part.approval).toBeUndefined();
+    }
   });
 });

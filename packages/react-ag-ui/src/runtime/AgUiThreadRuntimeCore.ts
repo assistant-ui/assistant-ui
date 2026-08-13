@@ -543,12 +543,24 @@ export class AgUiThreadRuntimeCore {
       pending.interrupts,
     );
 
-    const resume: AgUiResumeEntry[] = openIds.map((id) =>
-      responsesById.get(id)!,
+    await this.resumeWithResponses(
+      pending.messageId,
+      openIds.map((id) => responsesById.get(id)!),
     );
+  }
 
-    this.clearPendingInterrupts(pending.messageId, resume);
-    await this.startRun(pending.messageId, this.lastRunConfig, resume);
+  /**
+   * Resumes with an already validated resume array. Answerability is checked
+   * once per submission: re-checking here would let a clock crossing reject a
+   * decision this runtime has already recorded, stranding the gate decided and
+   * unretryable.
+   */
+  private async resumeWithResponses(
+    messageId: string,
+    resume: AgUiResumeEntry[],
+  ): Promise<void> {
+    this.clearPendingInterrupts(messageId, resume);
+    await this.startRun(messageId, this.lastRunConfig, resume);
   }
 
   /**
@@ -643,7 +655,7 @@ export class AgUiThreadRuntimeCore {
     );
     if (!resume) return;
 
-    await this.submitInterruptResponses(resume);
+    await this.resumeWithResponses(pending.messageId, resume);
   }
 
   async steerAway(

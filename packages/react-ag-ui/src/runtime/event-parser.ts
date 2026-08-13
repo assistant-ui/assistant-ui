@@ -34,7 +34,10 @@ const parseInterrupt = (raw: unknown): AgUiInterrupt | null => {
   if (typeof raw.message === "string") interrupt.message = raw.message;
   if (typeof raw.toolCallId === "string") interrupt.toolCallId = raw.toolCallId;
   if (typeof raw.expiresAt === "string") interrupt.expiresAt = raw.expiresAt;
-  if (isPlainObject(raw.responseSchema))
+  // A present schema is kept whatever its shape: `false` is a JSON Schema that
+  // rejects every payload, so normalizing it to absent would claim a gate no
+  // decision can answer.
+  if (raw.responseSchema !== undefined)
     interrupt.responseSchema = raw.responseSchema;
   if (isPlainObject(raw.metadata)) interrupt.metadata = raw.metadata;
   return interrupt;

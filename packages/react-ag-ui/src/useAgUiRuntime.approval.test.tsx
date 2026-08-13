@@ -262,6 +262,76 @@ describe("useAgUiRuntime tool approvals", () => {
     ).toEqual({ id: "int-1", approved: true });
   });
 
+  it("leaves the tool call ungated when the live interrupt carries a rejecting schema", async () => {
+    const { runtime } = await gatedThread([
+      { ...GATE, responseSchema: false } as AgUiInterrupt,
+    ]);
+
+    expect(allToolCalls(runtime.current)[0]!.approval).toBeUndefined();
+  });
+
+  it("clears a local approval a resolved override replaced with a payload of its own", async () => {
+    const second: AgUiInterrupt = {
+      id: "int-2",
+      reason: "tool_call",
+      toolCallId: "tc-2",
+    };
+    const { runtime, runAgent } = await gatedThread([GATE, second]);
+
+    await act(async () => {
+      gatedPart(runtime.current, "tc-1").respondToToolApproval({
+        approved: true,
+      });
+    });
+    await act(async () => {
+      await steerAwayRef.current!("do it my way", [
+        {
+          interruptId: "int-1",
+          status: "resolved",
+          payload: { answer: 42 },
+        },
+      ]);
+    });
+
+    expect(resumeOf(runAgent)).toEqual([
+      { interruptId: "int-1", status: "resolved", payload: { answer: 42 } },
+      { interruptId: "int-2", status: "cancelled" },
+    ]);
+    // `{answer:42}` went out for the first gate, so the approval recorded while
+    // its sibling was still open cannot keep displaying a decision never sent.
+    expect(allToolCalls(runtime.current).map((part) => part.approval)).toEqual([
+      { id: "int-1" },
+      { id: "int-2", resolution: "cancelled" },
+    ]);
+  });
+
+  it("resumes on a decision it validated, even when the clock crosses expiry mid-submission", async () => {
+    const { runtime, runAgent } = await gatedThread([
+      { ...GATE, expiresAt: new Date(2000).toISOString() },
+    ]);
+
+    // The gate is answerable at the first reading and expired at the second, so
+    // a second validation would reject a decision already recorded.
+    let readings = 0;
+    const now = vi
+      .spyOn(Date, "now")
+      .mockImplementation(() => (readings++ === 0 ? 1000 : 3000));
+    try {
+      await act(async () => {
+        await gatedPart(runtime.current).respondToToolApproval({
+          approved: true,
+        });
+      });
+      await waitFor(() => expect(runAgent).toHaveBeenCalledTimes(2));
+    } finally {
+      now.mockRestore();
+    }
+
+    expect(resumeOf(runAgent)).toEqual([
+      { interruptId: "int-1", status: "resolved", payload: { approved: true } },
+    ]);
+  });
+
   it("keeps a gated call out of the tool-call action state a frontend tool would run from", async () => {
     const execute = vi.fn(async () => ({ deleted: true }));
     const DeleteFileTool = () => {

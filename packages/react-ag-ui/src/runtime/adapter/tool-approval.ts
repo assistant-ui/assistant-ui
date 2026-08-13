@@ -25,20 +25,29 @@ const SEAM_SAFE_KEYWORDS = new Set([
   "required",
 ]);
 
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
 const acceptsObject = (type: unknown) =>
   type === undefined ||
   type === "object" ||
-  (Array.isArray(type) && type.includes("object"));
+  (Array.isArray(type) &&
+    type.every((entry) => typeof entry === "string") &&
+    type.includes("object"));
 
 /**
  * The seam sends `{ approved }` and may add `reason`, so it may answer a
  * `responseSchema` only where acceptance of those exact payloads is established
  * by construction. AG-UI answers a resume payload its schema rejects with
  * `RunError`, and the host can always build the exact payload through the
- * bespoke interrupt hooks, so an undecidable schema is left to them.
+ * bespoke interrupt hooks, so an undecidable schema is left to them. Only an
+ * absent schema and a plain object of well-formed allowed keywords establish
+ * that: a boolean schema (`false` rejects every payload), a malformed one, and
+ * a keyword whose value is not the shape it interprets are all left bespoke.
  */
-const isSeamAnswerable = (schema: Record<string, unknown> | undefined) => {
+const isSeamAnswerable = (schema: unknown) => {
   if (schema === undefined) return true;
+  if (!isPlainObject(schema)) return false;
   if (!Object.keys(schema).every((key) => SEAM_SAFE_KEYWORDS.has(key)))
     return false;
   if (!acceptsObject(schema["type"])) return false;
@@ -136,7 +145,12 @@ export const buildToolApprovalResume = (
     };
   }
   if (interrupts.some((interrupt) => !(interrupt.id in responses))) return null;
-  return buildResumeArray([...interrupts], responses);
+  // The schema is dropped rather than cast: AG-UI's own interrupt type cannot
+  // express a boolean schema, and `buildResumeArray` reads only the ids.
+  return buildResumeArray(
+    interrupts.map(({ responseSchema: _schema, ...interrupt }) => interrupt),
+    responses,
+  );
 };
 
 const settle = (
@@ -161,7 +175,14 @@ const settle = (
     payload === null ||
     typeof (payload as { approved?: unknown }).approved !== "boolean"
   ) {
-    return undefined;
+    // The entry settles the gate with no decision. Nothing is fabricated, but a
+    // decision recorded locally is still dropped: the payload that went out
+    // carried none, so displaying one would show what was never sent.
+    return approval.approved === undefined &&
+      approval.reason === undefined &&
+      approval.resolution === undefined
+      ? undefined
+      : rest;
   }
   const { approved, reason } = payload as {
     approved: boolean;
@@ -180,7 +201,8 @@ const settle = (
  * approved while the batch waited on its sibling is still cancelled when
  * `steerAway` submits a cancellation for it. A gate is shown as cancelled only
  * where its own entry is cancelled; a resolved entry supplies the decision it
- * carries, and one that carries none is left alone rather than fabricated.
+ * carries, and one that carries none settles the gate with no decision rather
+ * than fabricating one or keeping an unsent local decision beside it.
  *
  * A settlement always overrides an earlier one, in either direction. A resolved
  * settlement leaves no state a locally recorded decision does not also leave —

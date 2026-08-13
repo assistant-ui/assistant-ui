@@ -201,6 +201,26 @@ describe("parseAgUiEvent", () => {
     });
   });
 
+  it("keeps a non-object responseSchema instead of normalizing it to absent", () => {
+    const event = parseAgUiEvent({
+      type: "RUN_FINISHED",
+      runId: "r1",
+      outcome: {
+        type: "interrupt",
+        interrupts: [
+          { id: "int-1", reason: "tool_call", responseSchema: false },
+        ],
+      },
+    });
+    expect(event).toMatchObject({
+      outcome: {
+        interrupts: [
+          { id: "int-1", reason: "tool_call", responseSchema: false },
+        ],
+      },
+    });
+  });
+
   it("drops malformed interrupt outcomes (no interrupts)", () => {
     const event = parseAgUiEvent({
       type: "RUN_FINISHED",

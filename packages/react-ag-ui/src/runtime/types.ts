@@ -94,7 +94,8 @@ export type AgUiInterrupt = {
   reason: AgUiInterruptReason;
   message?: string;
   toolCallId?: string;
-  responseSchema?: Record<string, unknown>;
+  /** A JSON Schema, which the specification allows to be a boolean. */
+  responseSchema?: unknown;
   expiresAt?: string;
   metadata?: Record<string, unknown>;
 };
