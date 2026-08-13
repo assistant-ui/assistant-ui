@@ -20,7 +20,7 @@ describe("@assistant-ui/svelte dist graph", () => {
 
         const source = readFileSync(file, "utf8");
         for (const match of source.matchAll(
-          /(?:from\s+|import\s+)["']([^"']+)["']/g,
+          /(?:from\s+|import\s+|import\s*\(\s*)["']([^"']+)["']/g,
         )) {
           const specifier = match[1]!;
           if (

@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { flushSync, mount, unmount } from "svelte";
 import { flushTapSync } from "@assistant-ui/tap";
 import { AuiConfig } from "@assistant-ui/store/client";
@@ -11,6 +11,10 @@ import { flushEvents, MessageClient, type AnyClient } from "./clients";
 const target = () => document.createElement("div");
 
 describe("useAuiEvent", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it("delivers events to the callback", async () => {
     let aui!: AnyClient;
     const callback = vi.fn();
@@ -93,7 +97,6 @@ describe("useAuiEvent", () => {
     expect(onPing).toHaveBeenCalledWith({ id: "m0", value: "hello" });
     expect(errorSpy).not.toHaveBeenCalled();
 
-    errorSpy.mockRestore();
     flushSync(() => void unmount(app));
   });
 });
