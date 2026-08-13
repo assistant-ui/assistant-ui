@@ -155,6 +155,7 @@ export class AgUiThreadRuntimeCore {
   private onError: ((error: Error) => void) | undefined;
   private onCancel: (() => void) | undefined;
   private readonly notifyUpdate: () => void;
+  private readonly reportedErrors = new WeakSet<object>();
 
   private runtime: AssistantRuntime | undefined;
   private readonly repository = new MessageRepository();
@@ -566,9 +567,15 @@ export class AgUiThreadRuntimeCore {
   /**
    * The core seams that reach `respondToToolApproval` discard the promise they
    * receive, so a rejected decision would otherwise surface only as an
-   * unhandled rejection.
+   * unhandled rejection. A failure raised by the resumed run itself was already
+   * reported by `startRun` before it rethrew, so reporting it here again would
+   * give the consumer two notifications for one failure.
    */
   reportError(error: unknown): void {
+    if (this.reportedErrors.has(error as object)) {
+      this.reportedErrors.delete(error as object);
+      return;
+    }
     invokeRuntimeCallback(
       "onError",
       this.onError,
@@ -1269,6 +1276,7 @@ export class AgUiThreadRuntimeCore {
 
     if (this.pendingError) {
       const err = this.pendingError;
+      this.reportedErrors.add(err);
       this.pendingError = null;
       this.pendingResumeMessageId = null;
       this.pendingA2uiResume = false;

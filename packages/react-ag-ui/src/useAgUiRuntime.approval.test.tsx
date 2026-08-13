@@ -725,3 +725,59 @@ describe("useAgUiRuntime default rendering path", () => {
     ]);
   });
 });
+
+describe("useAgUiRuntime approvals on a run that fails after the interrupt", () => {
+  it("reports a failure raised by a resumed run only once", async () => {
+    const runAgent = vi.fn(async (_input: unknown, subscriber: Subscriber) => {
+      if (runAgent.mock.calls.length > 1) {
+        subscriber.onRunFailed?.({ error: new Error("resume failed") });
+        return;
+      }
+      subscriber.onToolCallStartEvent?.({
+        event: {
+          type: "TOOL_CALL_START",
+          toolCallId: "tc-1",
+          toolCallName: "delete_file",
+        },
+      });
+      subscriber.onToolCallEndEvent?.({
+        event: { type: "TOOL_CALL_END", toolCallId: "tc-1" },
+      });
+      subscriber.onRunFinishedEvent?.({
+        event: {
+          type: "RUN_FINISHED",
+          runId: "run-1",
+          outcome: { type: "interrupt", interrupts: [GATE] },
+        },
+      });
+      subscriber.onRunFinalized?.(undefined);
+    });
+    const agent = { runAgent, abortRun: vi.fn() } as unknown as HttpAgent;
+    const onError = vi.fn();
+
+    const { result } = renderHook(() => useAgUiRuntime({ agent, onError }));
+    render(
+      <AssistantRuntimeProvider runtime={result.current}>
+        <SteerAway />
+      </AssistantRuntimeProvider>,
+    );
+
+    await act(async () => {
+      await result.current.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "delete it" }],
+      });
+    });
+    await waitFor(() => expect(runAgent).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      gatedPart(result.current).respondToToolApproval({ approved: true });
+    });
+    await waitFor(() => expect(runAgent).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(onError).toHaveBeenCalled());
+
+    expect(onError.mock.calls.map((call) => call[0].message)).toEqual([
+      "resume failed",
+    ]);
+  });
+});

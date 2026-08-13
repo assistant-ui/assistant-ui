@@ -169,6 +169,10 @@ export class RunAggregator {
         break;
       }
       case "RUN_ERROR": {
+        // A run that ends incomplete can no longer be resumed, so a gate left
+        // over from an earlier interrupt outcome is unanswerable and must not
+        // stay projected onto the message.
+        this.interrupts = undefined;
         this.status = {
           type: "incomplete",
           reason: "error",
@@ -178,6 +182,7 @@ export class RunAggregator {
         break;
       }
       case "RUN_CANCELLED": {
+        this.interrupts = undefined;
         this.status = { type: "incomplete", reason: "cancelled" };
         this.emit();
         break;
