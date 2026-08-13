@@ -29,5 +29,11 @@ export const useSyncExternalStore = <T>(
     return unsubscribe;
   }, [subscribe]);
 
+  // Covers the tearing window where the store mutates between the render's
+  // getSnapshot() read and the commit, with no notification afterward.
+  useEffect(() => {
+    onStoreChange();
+  }, [subscribe, value, getSnapshot]);
+
   return value;
 };

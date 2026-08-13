@@ -23,6 +23,7 @@ class Boundary extends Component<{ children: ReactNode }, { error: unknown }> {
 
 describe("useTapRoot host renders", () => {
   afterEach(() => {
+    vi.restoreAllMocks();
     cleanup();
   });
 
