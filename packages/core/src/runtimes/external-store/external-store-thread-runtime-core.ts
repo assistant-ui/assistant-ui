@@ -504,18 +504,15 @@ export class ExternalStoreThreadRuntimeCore
       rawMessage.sourceId != null ||
       rawMessage.parentId !== (this.messages.at(-1)?.id ?? null);
 
-    // The dispatch transform re-stamps a transformed-queue message at flush,
-    // so a send headed there skips the send-time stamp. Every other consumer
-    // stamps at send, or on first use when the store's queue was replaced
-    // across the barrier and the send-time decision no longer matches.
-    let stamped =
+    // A transformed-queue send is stamped at flush; any other queue's
+    // transform would gate against its own thread's messages, so those stamp
+    // at send.
+    const message =
       !isEdit &&
       this._store.queue &&
       this._store.queue === this._transformedQueue
-        ? undefined
+        ? rawMessage
         : this.enrichAppendMetadata(rawMessage);
-    const stampedMessage = () =>
-      (stamped ??= this.enrichAppendMetadata(rawMessage));
 
     // The queue driver dispatches through the host adapter, outside this
     // core, so the initialization barrier must run before a message can
@@ -532,19 +529,11 @@ export class ExternalStoreThreadRuntimeCore
     // Buffering does not start a run, so the tool-abort below must wait until
     // the queue flushes. By then the prior run (and its tools) has settled.
     if (!isEdit && this._store.queue) {
-      // Skip only for the queue this core actually installed on: another
-      // core's transform would gate against its own thread's messages.
-      const queued =
-        this._store.queue === this._transformedQueue
-          ? rawMessage
-          : stampedMessage();
-      if (queued.steer ?? this._store.isRunning ?? false)
-        this._store.queue.steer(queued);
-      else this._store.queue.enqueue(queued);
+      if (message.steer ?? this._store.isRunning ?? false)
+        this._store.queue.steer(message);
+      else this._store.queue.enqueue(message);
       return;
     }
-
-    const message = stampedMessage();
 
     // Auto-abort in-flight client-side tool executions when a new run is
     // about to start. Without this, a tool that finishes after the new turn
