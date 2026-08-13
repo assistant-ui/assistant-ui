@@ -551,7 +551,17 @@ const useComposerClientResource = ({
   useEffect(() => {
     isActiveRef.current = true;
     const pendingSettlements = pendingSettlementsRef.current.splice(0);
-    for (const settle of pendingSettlements) settle();
+    let firstError: unknown;
+    let didThrow = false;
+    for (const settle of pendingSettlements) {
+      try {
+        settle();
+      } catch (error) {
+        if (!didThrow) firstError = error;
+        didThrow = true;
+      }
+    }
+    if (didThrow) throw firstError;
     return () => {
       isActiveRef.current = false;
     };

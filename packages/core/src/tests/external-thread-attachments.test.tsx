@@ -391,6 +391,87 @@ describe("ExternalThread attachments", () => {
     expect(onNew).toHaveBeenCalledTimes(1);
   });
 
+  it("settles every pending attachment send when a hidden thread is revealed", async () => {
+    const resolveSends: Array<(attachment: CompleteAttachment) => void> = [];
+    let nextAttachmentId = 0;
+    const onNew = vi
+      .fn()
+      .mockImplementationOnce(() => {
+        throw new Error("first send failed");
+      })
+      .mockImplementationOnce(() => {});
+    const file = new File(["data"], "notes.txt", { type: "text/plain" });
+    const adapter = {
+      accept: "*",
+      add: async () => ({
+        id: `pending-${nextAttachmentId++}`,
+        type: "file" as const,
+        name: file.name,
+        contentType: file.type,
+        file,
+        status: {
+          type: "requires-action" as const,
+          reason: "composer-send" as const,
+        },
+      }),
+      send: () =>
+        new Promise<CompleteAttachment>((resolve) => {
+          resolveSends.push(resolve);
+        }),
+      remove: async () => {},
+    };
+    const captured: { aui?: ReturnType<typeof useAui> } = {};
+    const Capture: FC = () => {
+      captured.aui = useAui();
+      return null;
+    };
+    const Thread: FC = () => {
+      const aui = useAui({
+        thread: ExternalThread({
+          messages: [],
+          isRunning: false,
+          attachmentAdapter: adapter,
+          onNew,
+        }),
+      });
+      return (
+        <AuiProvider value={aui}>
+          <Capture />
+        </AuiProvider>
+      );
+    };
+    const thread = <Thread />;
+    const { rerender } = render(<Activity mode="visible">{thread}</Activity>);
+    const composer = () => captured.aui!.thread.composer();
+
+    for (const text of ["first", "second"]) {
+      await act(() => composer().addAttachment(file));
+      act(() => {
+        composer().setText(text);
+        composer().send();
+      });
+    }
+    rerender(<Activity mode="hidden">{thread}</Activity>);
+
+    await act(async () => {
+      for (const [index, resolveSend] of resolveSends.entries()) {
+        resolveSend({
+          id: `att-${index}`,
+          type: "file",
+          name: file.name,
+          contentType: file.type,
+          status: { type: "complete" },
+          content: [],
+        });
+      }
+    });
+
+    expect(() =>
+      rerender(<Activity mode="visible">{thread}</Activity>),
+    ).toThrow("first send failed");
+    expect(onNew).toHaveBeenCalledTimes(2);
+  });
+
   it("ignores attachment upload failures after thread disposal", async () => {
     let rejectSend!: (error: Error) => void;
     const onNew = vi.fn();
