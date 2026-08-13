@@ -18,6 +18,7 @@ import {
   useAdkMessages,
   type UseAdkMessagesOptions,
 } from "./useAdkMessages";
+import { projectAdkToolApprovals } from "./adkToolApproval";
 import type { AdkEvent, AdkMessage, AdkStreamCallback } from "./types";
 
 afterEach(() => {
@@ -122,6 +123,101 @@ describe("ADK runtime callbacks", () => {
         callbackError,
       );
     });
+  });
+});
+
+describe("optimistic confirmation replies", () => {
+  const confirmationCall = (id: string): AdkMessage => ({
+    id: `ai-${id}`,
+    type: "ai",
+    content: [],
+    tool_calls: [
+      {
+        id,
+        name: "adk_request_confirmation",
+        args: {
+          originalFunctionCall: { id: `orig-${id}`, name: "delete_file" },
+          toolConfirmation: { hint: "Delete?" },
+        },
+      },
+    ],
+  });
+
+  const confirmationReply = (
+    id: string,
+    toolCallId: string,
+    content: string,
+  ): AdkMessage => ({
+    id,
+    type: "tool",
+    tool_call_id: toolCallId,
+    name: "adk_request_confirmation",
+    content,
+    status: "success",
+  });
+
+  const emptyStream: AdkStreamCallback = async function* () {};
+
+  const renderWithGates = async () => {
+    const { result } = renderHook(() =>
+      useAdkMessages({ stream: emptyStream }),
+    );
+    await act(async () => {
+      result.current.setMessages([
+        confirmationCall("conf-a"),
+        confirmationCall("conf-b"),
+      ]);
+    });
+    return result;
+  };
+
+  it("keeps both gates pending when one send carries an unreadable reply", async () => {
+    const result = await renderWithGates();
+
+    await act(async () => {
+      await result.current.sendMessage(
+        [
+          confirmationReply(
+            "reply-a",
+            "conf-a",
+            JSON.stringify({ confirmed: true }),
+          ),
+          confirmationReply("reply-b", "conf-b", "not json"),
+        ],
+        {},
+      );
+    });
+
+    expect([
+      ...projectAdkToolApprovals(result.current.messages).approvals.values(),
+    ]).toEqual([{ id: "conf-a" }, { id: "conf-b" }]);
+  });
+
+  it("settles the readable reply when the two replies were sent separately", async () => {
+    const result = await renderWithGates();
+
+    await act(async () => {
+      await result.current.sendMessage(
+        [
+          confirmationReply(
+            "reply-a",
+            "conf-a",
+            JSON.stringify({ confirmed: true }),
+          ),
+        ],
+        {},
+      );
+    });
+    await act(async () => {
+      await result.current.sendMessage(
+        [confirmationReply("reply-b", "conf-b", "not json")],
+        {},
+      );
+    });
+
+    expect([
+      ...projectAdkToolApprovals(result.current.messages).approvals.values(),
+    ]).toEqual([{ id: "conf-a", approved: true }, { id: "conf-b" }]);
   });
 });
 

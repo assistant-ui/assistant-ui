@@ -137,8 +137,8 @@ export const useAdkMessages = ({
       ) as AdkMessage[];
 
       const accumulator = new AdkEventAccumulator(messagesRef.current);
-      for (const msg of newMessagesWithId) {
-        accumulator.processEvent(messageToEvent(msg));
+      for (const event of messagesToEvents(newMessagesWithId)) {
+        accumulator.processEvent(event);
       }
       setMessagesImmediate(accumulator.getMessages());
 
@@ -254,6 +254,42 @@ export const useAdkMessages = ({
     replaceMessages,
     applySnapshot,
   };
+};
+
+/**
+ * Transport sends every human and tool message of one `send` call as a single
+ * ADK `Content`, and ADK parses that event's function responses before running
+ * any tool, so the batch runs whole or not at all. The optimistic projection
+ * has to sit on the same boundary, so a run of those messages becomes one
+ * synthetic event whose parts come from the same per-message conversion.
+ *
+ * @internal — exported for unit tests.
+ */
+export const messagesToEvents = (messages: AdkMessage[]): AdkEvent[] => {
+  const events: AdkEvent[] = [];
+  let run: AdkMessage[] = [];
+  const flushRun = () => {
+    if (run.length === 0) return;
+    const parts = run.flatMap((m) => messageToEvent(m).content?.parts ?? []);
+    const human = run.find((m) => m.type === "human");
+    const event: AdkEvent = { id: (human ?? run[0]!).id ?? uuidv4() };
+    if (human) event.author = "user";
+    event.content = { role: "user", parts };
+    events.push(event);
+    run = [];
+  };
+
+  for (const msg of messages) {
+    if (msg.type === "ai") {
+      flushRun();
+      events.push(messageToEvent(msg));
+    } else {
+      run.push(msg);
+    }
+  }
+  flushRun();
+
+  return events;
 };
 
 /** @internal — exported for unit tests. */
