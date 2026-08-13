@@ -44,8 +44,7 @@ export const setRootVersion = (root: TapRoot, version: number): void => {
       // commit happened without a useEffect update (offscreen API)
 
       while (root.committedVersion + root.changelog.length > version) {
-        const record = root.changelog.pop();
-        if (record !== undefined) record.logged = false;
+        root.changelog.pop()!.logged = false;
       }
 
       for (let i = 0; i < root.changelog.length; i++) {
