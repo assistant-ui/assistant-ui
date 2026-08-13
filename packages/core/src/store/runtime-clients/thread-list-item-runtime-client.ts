@@ -40,29 +40,20 @@ const useThreadListItemClient = ({
 
   return {
     getState: () => state,
-    switchTo: (options) => {
-      handleThreadListAction("switch", () => runtime.switchTo(options));
-    },
-    rename: (newTitle) => {
-      handleThreadListAction("rename", () => runtime.rename(newTitle));
-    },
-    updateCustom: (custom) => {
+    switchTo: (options) =>
+      handleThreadListAction("switch", () => runtime.switchTo(options)),
+    rename: (newTitle) =>
+      handleThreadListAction("rename", () => runtime.rename(newTitle)),
+    updateCustom: (custom) =>
       handleThreadListAction("update custom metadata", () =>
         runtime.updateCustom(custom),
-      );
-    },
-    archive: () => {
-      handleThreadListAction("archive", () => runtime.archive());
-    },
-    unarchive: () => {
-      handleThreadListAction("unarchive", () => runtime.unarchive());
-    },
-    delete: () => {
-      handleThreadListAction("delete", () => runtime.delete());
-    },
-    generateTitle: () => {
-      handleThreadListAction("generate title", () => runtime.generateTitle());
-    },
+      ),
+    archive: () => handleThreadListAction("archive", () => runtime.archive()),
+    unarchive: () =>
+      handleThreadListAction("unarchive", () => runtime.unarchive()),
+    delete: () => handleThreadListAction("delete", () => runtime.delete()),
+    generateTitle: () =>
+      handleThreadListAction("generate title", () => runtime.generateTitle()),
     initialize: runtime.initialize,
     detach: runtime.detach,
     __internal_getRuntime: () => runtime,

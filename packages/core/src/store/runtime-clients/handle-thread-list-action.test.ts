@@ -15,15 +15,15 @@ describe("handleThreadListAction", () => {
 
     const result = handleThreadListAction("delete", () => task);
 
-    expect(result).toBeUndefined();
-    await task.catch(() => {});
+    expect(result).toBe(task);
+    await expect(result).rejects.toBe(error);
     expect(consoleError).toHaveBeenCalledWith(
       "[assistant-ui] thread list delete failed:",
       error,
     );
   });
 
-  it("reports synchronous failures", () => {
+  it("reports synchronous failures", async () => {
     const error = new Error("invalid thread");
     const consoleError = vi
       .spyOn(console, "error")
@@ -33,7 +33,7 @@ describe("handleThreadListAction", () => {
       throw error;
     });
 
-    expect(result).toBeUndefined();
+    await expect(result).rejects.toBe(error);
     expect(consoleError).toHaveBeenCalledWith(
       "[assistant-ui] thread list switch failed:",
       error,

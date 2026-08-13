@@ -94,14 +94,12 @@ const useThreadListClient = ({
         : state.threadIds[index]!;
       return threadItems.get({ key: id });
     },
-    switchToThread: (threadId, options) => {
+    switchToThread: (threadId, options) =>
       handleThreadListAction("switch", () =>
         runtime.switchToThread(threadId, options),
-      );
-    },
-    switchToNewThread: () => {
-      handleThreadListAction("create", () => runtime.switchToNewThread());
-    },
+      ),
+    switchToNewThread: () =>
+      handleThreadListAction("create", () => runtime.switchToNewThread()),
     getLoadThreadsPromise: () => runtime.getLoadThreadsPromise(),
     reload: () => runtime.reload(),
     reloadMainThread: () => runtime.reloadMainThread(),

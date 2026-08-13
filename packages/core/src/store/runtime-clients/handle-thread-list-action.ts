@@ -1,12 +1,16 @@
 export const handleThreadListAction = (
   action: string,
   execute: () => Promise<void>,
-): void => {
+): Promise<void> => {
+  let task: Promise<void>;
   try {
-    void execute().catch((error: unknown) => {
-      console.error(`[assistant-ui] thread list ${action} failed:`, error);
-    });
+    task = execute();
   } catch (error) {
-    console.error(`[assistant-ui] thread list ${action} failed:`, error);
+    task = Promise.reject(error);
   }
+
+  void task.catch((error: unknown) => {
+    console.error(`[assistant-ui] thread list ${action} failed:`, error);
+  });
+  return task;
 };
