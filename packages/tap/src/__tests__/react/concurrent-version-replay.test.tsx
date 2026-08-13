@@ -8,6 +8,7 @@ import { resource } from "../../core/resource";
 import { useResource } from "../../index";
 import { useReducer as useResourceReducer } from "../../react-hooks/useReducer";
 import { useMemo as useResourceMemo } from "../../react-hooks/useMemo";
+import { useState as useResourceState } from "../../react-hooks/useState";
 import { cleanupAllResources } from "../test-utils";
 
 const probes = vi.hoisted(() => ({ belowCommitted: 0 }));
@@ -44,23 +45,26 @@ const useStream = () => {
 };
 const Stream = resource(useStream);
 
-/**
- * A flushSync commit against a pending transition makes React replay the
- * reducer chain from a base below the committed version, which previously
- * threw "Version is less than committed version" as a recoverable error on
- * every replay. The assertions check delivery (every update present) rather
- * than exact equality: the React-hosted bridge applies replayed updates onto
- * already-committed cell state, so cross-lane replays duplicate committed
- * entries. That rebase-fidelity gap predates the version handling and is
- * tracked separately.
- */
+const useStreamWithCounter = () => {
+  const [chunks, push] = useResourceReducer(
+    (s: readonly string[], c: string) => [...s, c],
+    [] as readonly string[],
+  );
+  const [count, increment] = useResourceState(0);
+  return useResourceMemo(
+    () => ({ chunks, count, push, increment }),
+    [chunks, count],
+  );
+};
+const StreamWithCounter = resource(useStreamWithCounter);
+
 describe("React-hosted reducer replay below the committed version", () => {
   it("delivers a transition update rebased across a sync commit without recoverable errors", async () => {
     const recoverable = vi.fn();
     let api!: { chunks: readonly string[]; push: (c: string) => void };
 
     function App() {
-      const value = useResource(Stream({}));
+      const value = useResource(Stream());
       api = value;
       return <div>{value.chunks.join(",")}</div>;
     }
@@ -83,8 +87,7 @@ describe("React-hosted reducer replay below the committed version", () => {
     });
 
     const delivered = container.textContent!.split(",");
-    expect(delivered).toContain("t1");
-    expect(delivered).toContain("s1");
+    expect(delivered).toEqual(["t1", "s1"]);
 
     await act(async () => {
       api.push("after");
@@ -93,5 +96,45 @@ describe("React-hosted reducer replay below the committed version", () => {
     expect(container.textContent).toContain("after");
     expect(recoverable).not.toHaveBeenCalled();
     expect(probes.belowCommitted).toBeGreaterThan(0);
+  });
+
+  it("recomputes eager state when a cumulative update is rebased", async () => {
+    let api!: {
+      chunks: readonly string[];
+      count: number;
+      push: (chunk: string) => void;
+      increment: (action: (value: number) => number) => void;
+    };
+
+    function App() {
+      const value = useResource(StreamWithCounter());
+      api = value;
+      return (
+        <div>
+          {value.chunks.join(",")}|{value.count}
+        </div>
+      );
+    }
+
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    reactRoot = createRoot(container);
+
+    await act(async () => {
+      reactRoot!.render(<App />);
+    });
+
+    await act(async () => {
+      startTransition(() => {
+        api.push("t1");
+        api.increment((value) => value + 1);
+      });
+      flushSync(() => {
+        api.push("s1");
+        api.increment((value) => value + 1);
+      });
+    });
+
+    expect(container.textContent).toBe("t1,s1|2");
   });
 });

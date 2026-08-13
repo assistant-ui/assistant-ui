@@ -39,6 +39,7 @@ const dispatchOnFiber = (
         !record.cell.isDirty &&
         !record.hasEagerState
       ) {
+        record.eagerStateBase = record.cell.workInProgress;
         record.eagerState = eagerReducer(
           record.cell.workInProgress,
           record.action,
@@ -98,6 +99,9 @@ const createReducerCell = (
           action,
           hasEagerState: false,
           eagerState: undefined,
+          eagerStateBase: undefined,
+          baseState: cell.current,
+          baseVersion: fiber.root.committedVersion,
           queued: false,
         };
 
@@ -147,7 +151,12 @@ export function useReducerImpl<S, A, I>(
     // into the queue via the changelog.
     for (let i = 0; i < queue.length; i++) {
       const item = queue[i]!;
-      if (!item.hasEagerState || !sameReducer) {
+      if (
+        !item.hasEagerState ||
+        !sameReducer ||
+        !Object.is(item.eagerStateBase, cell.workInProgress)
+      ) {
+        item.eagerStateBase = cell.workInProgress;
         item.eagerState = reducer(cell.workInProgress, item.action);
         item.hasEagerState = true;
 

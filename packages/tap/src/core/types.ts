@@ -22,6 +22,9 @@ export interface ChangelogRecord {
 
   hasEagerState: boolean;
   eagerState: any;
+  eagerStateBase: any;
+  baseState: any;
+  baseVersion: number;
   queued: boolean;
 }
 

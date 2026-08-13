@@ -54,10 +54,15 @@ export const setRootVersion = (root: TapRoot, version: number): void => {
 };
 
 export const applyChangelogRecord = (record: ChangelogRecord): void => {
-  markReducerDirty(record.fiber, record.cell);
+  const { cell, fiber } = record;
+  const restoreBase =
+    !cell.isDirty && record.baseVersion === fiber.root.committedVersion;
+
+  markReducerDirty(fiber, cell);
+  if (restoreBase) cell.workInProgress = record.baseState;
   if (!record.queued) {
     record.queued = true;
-    (record.cell.queue ??= []).push(record);
+    (cell.queue ??= []).push(record);
   }
 };
 
