@@ -35,8 +35,10 @@ The default [Thread](/docs/ui/thread) renders `ThreadWelcomeSuggestions` next to
 
 Pass entries through the `suggestions` prop:
 
-- A **flat item** is `{ label, prompt? }`, where `prompt` is the message that gets sent and defaults to `label`.
+- A **flat item** is `{ label, prompt?, icon? }`, where `prompt` is the message that gets sent and defaults to `label`.
 - A **group** is `{ label, icon?, suggestions }`, whose items open in a second level instead of sending directly.
+
+Any entry's `icon` renders leading on its pill or row.
 
 ```tsx title="/components/assistant-ui/thread.tsx"
 import {
@@ -395,7 +397,7 @@ A flat item or a group:
     {
       name: "icon",
       type: "ReactNode",
-      description: "Groups only: leading icon shown on the pill or row.",
+      description: "Leading icon shown on the pill or row.",
     },
     {
       name: "suggestions",
@@ -509,6 +511,11 @@ Accepts all `<button>` props except `onClick`, plus:
       name: "label",
       type: "ReactNode",
       description: "Row content; children take precedence when provided.",
+    },
+    {
+      name: "icon",
+      type: "ReactNode",
+      description: "Leading icon shown before the row content.",
     },
     {
       name: "itemIcon",

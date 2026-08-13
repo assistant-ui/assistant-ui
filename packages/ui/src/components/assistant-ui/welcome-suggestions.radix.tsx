@@ -34,6 +34,7 @@ import { cn } from "@/lib/utils";
 export type SuggestionItem = {
   label: string;
   prompt?: string;
+  icon?: ReactNode;
 };
 
 export type SuggestionGroup = {
@@ -61,7 +62,7 @@ function normalizeItem(raw: RawSuggestion): SuggestionEntry {
       ),
     };
   }
-  if ("label" in raw) return { label: raw.label, prompt: promptOf(raw) };
+  if ("label" in raw) return { ...raw, prompt: promptOf(raw) };
   // legacy { title, label, prompt } and runtime { prompt }
   const legacy = raw as { title?: string; label?: string; prompt: string };
   return {
@@ -480,6 +481,7 @@ export const WelcomeSuggestionsPills: FC = () => {
                   className={pillClass}
                   onKeyDown={(e) => onPillKeyDown(e, entry)}
                 >
+                  {entry.icon}
                   {entry.label}
                 </ThreadPrimitive.Suggestion>
               )}
@@ -498,6 +500,7 @@ export type WelcomeSuggestionsPickerItemProps = Omit<
   VariantProps<typeof welcomeSuggestionRowVariants> & {
     prompt: string;
     label?: ReactNode;
+    icon?: ReactNode;
     itemIcon?: IconReveal | undefined;
   };
 
@@ -506,6 +509,7 @@ export const WelcomeSuggestionsPickerItem: FC<
 > = ({
   prompt,
   label,
+  icon,
   children,
   itemIcon,
   variant,
@@ -535,6 +539,7 @@ export const WelcomeSuggestionsPickerItem: FC<
         )}
         {...props}
       >
+        {icon}
         {children ?? label}
         {itemIcon !== "off" && (
           <ItemIcon className={trailingClass[itemIcon ?? "always"]} />
@@ -770,6 +775,7 @@ export const WelcomeSuggestionsPicker: FC<WelcomeSuggestionsPickerProps> = ({
                   key={idx}
                   prompt={promptOf(item)}
                   label={item.label}
+                  icon={item.icon}
                   itemIcon={itemIcon}
                   variant={variant}
                   density={density}
@@ -1145,6 +1151,7 @@ export const WelcomeSuggestionsStack: FC<WelcomeSuggestionsStackProps> = ({
                   key={idx}
                   prompt={promptOf(item)}
                   label={item.label}
+                  icon={item.icon}
                   itemIcon={itemIcon}
                   variant={variant}
                   density={density}
@@ -1196,6 +1203,7 @@ export const WelcomeSuggestionsStack: FC<WelcomeSuggestionsStackProps> = ({
                     })}
                     onClick={() => exitComposerNav()}
                   >
+                    {entry.icon}
                     {entry.label}
                     {itemIcon !== "off" && (
                       <ItemIcon
