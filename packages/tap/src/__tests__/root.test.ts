@@ -222,6 +222,17 @@ describe("setRootVersion", () => {
     );
   });
 
+  it("throws in development when the committed log is empty at a below-committed replay", () => {
+    const root = makeRoot();
+    root.unsettledCount = 1;
+    setRootVersion(root, 2);
+    commitRoot(root);
+
+    expect(() => setRootVersion(root, 0)).toThrow(
+      "committed history is shorter than the replay base",
+    );
+  });
+
   it("drops committed history once every dispatched record settles", () => {
     const root = makeRoot();
     const record = {
