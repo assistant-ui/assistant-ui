@@ -229,7 +229,7 @@ describe("ExternalStoreThreadListRuntimeCore - __internal_setAdapter", () => {
 });
 
 describe("ExternalStoreThreadListRuntimeCore - detach", () => {
-  it("drops a pending append when detached", async () => {
+  it("leaves the main thread's pending append alone when an item detaches", async () => {
     let resolveInitialization!: () => void;
     const initialization = new Promise<void>((resolve) => {
       resolveInitialization = resolve;
@@ -251,7 +251,7 @@ describe("ExternalStoreThreadListRuntimeCore - detach", () => {
     resolveInitialization();
 
     await appendPromise;
-    expect(onNew).not.toHaveBeenCalled();
+    expect(onNew).toHaveBeenCalledTimes(1);
   });
 });
 

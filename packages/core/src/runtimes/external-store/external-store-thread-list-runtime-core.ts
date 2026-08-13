@@ -225,7 +225,7 @@ export class ExternalStoreThreadListRuntimeCore implements ThreadListRuntimeCore
   }
 
   public async detach(): Promise<void> {
-    invalidateThreadRuntime(this._mainThread);
+    // no-op
   }
 
   public async archive(threadId: string): Promise<void> {

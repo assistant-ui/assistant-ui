@@ -5,6 +5,7 @@ import { ExternalStoreRuntimeCore } from "../../runtimes/internal";
 import type { ExternalStoreAdapter } from "../../runtimes/external-store/external-store-adapter";
 import type { AssistantRuntime } from "../../runtime/api/assistant-runtime";
 import { AssistantRuntimeImpl } from "../../runtime/internal";
+import { invalidateThreadRuntime } from "../../runtime/utils/thread-runtime-lifecycle";
 import { useRuntimeAdapters } from "./RuntimeAdapterProvider";
 
 export const useExternalStoreRuntime = <T>(
@@ -14,7 +15,7 @@ export const useExternalStoreRuntime = <T>(
 
   useEffect(() => {
     return () => {
-      void runtime.threads.detach();
+      invalidateThreadRuntime(runtime.threads.getMainThreadRuntimeCore());
     };
   }, [runtime]);
 
