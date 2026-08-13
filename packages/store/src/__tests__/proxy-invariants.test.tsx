@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { Activity, type FC, type ReactNode } from "react";
+import { Activity, type FC, type ReactNode, useEffect } from "react";
 import { act, cleanup, render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { resource, withKey } from "@assistant-ui/tap";
@@ -114,7 +114,7 @@ describe("proxy invariants", () => {
     expect(spread.item).toEqual({ id: "x" });
   });
 
-  it("keeps reads available but denies actions after disconnect", () => {
+  it("keeps reads available but denies actions after disconnect", async () => {
     let lookup!: ReturnType<typeof useClientLookup<ReturnType<typeof useItem>>>;
     const List: FC<{ visible: boolean }> = ({ visible }) => {
       lookup = useClientLookup(
@@ -130,6 +130,7 @@ describe("proxy invariants", () => {
       .value as typeof client.echo;
 
     view.rerender(<List visible={false} />);
+    await new Promise<void>((resolve) => queueMicrotask(resolve));
 
     expect(client.getState()).toEqual({ id: "a" });
     const subscriber = vi.fn();
@@ -144,14 +145,56 @@ describe("proxy invariants", () => {
     );
   });
 
-  it("re-enables actions when an Activity reconnects the client", () => {
+  it("allows cleanup actions before denying later stale calls", async () => {
+    const cancel = vi.fn();
+    let cancelThread!: () => void;
+    const useCancelableThread = () => ({
+      getState: () => null,
+      cancel,
+    });
+    const CancelableThread = resource(useCancelableThread);
+    const Consumer: FC = () => {
+      const aui = useAui();
+      cancelThread = aui.thread.cancel;
+      useEffect(() => () => aui.thread.cancel(), [aui]);
+      return null;
+    };
+    const CancelableApp: FC = () => {
+      const aui = useAui({
+        thread: CancelableThread(),
+      } as unknown as useAui.Props);
+      return (
+        <AuiProvider value={aui}>
+          <Consumer />
+        </AuiProvider>
+      );
+    };
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const view = render(<CancelableApp />);
+
+    view.unmount();
+    expect(cancel).toHaveBeenCalledTimes(1);
+    expect(warning).not.toHaveBeenCalled();
+
+    await new Promise<void>((resolve) => queueMicrotask(resolve));
+    cancelThread();
+    expect(cancel).toHaveBeenCalledTimes(1);
+    expect(warning).toHaveBeenCalledWith(
+      'Cannot call "cancel" on a disconnected AuiClient. This call was ignored.',
+    );
+  });
+
+  it("re-enables actions when an Activity reconnects the client", async () => {
     const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
     const app = <App />;
     const view = render(<Activity mode="visible">{app}</Activity>);
     const client = probe.aui.thread().item({ index: 0 });
     const echo = client.echo;
 
-    act(() => view.rerender(<Activity mode="hidden">{app}</Activity>));
+    await act(async () => {
+      view.rerender(<Activity mode="hidden">{app}</Activity>);
+      await new Promise<void>((resolve) => queueMicrotask(resolve));
+    });
     expect(client.getState()).toEqual({ id: "a" });
     expect(echo("hidden")).toBeUndefined();
 
@@ -159,6 +202,20 @@ describe("proxy invariants", () => {
     expect(client.echo).toBe(echo);
     expect(echo("visible")).toBe("visible");
     expect(warning).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps a same-turn Activity reconnect connected", async () => {
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const app = <App />;
+    const view = render(<Activity mode="visible">{app}</Activity>);
+    const client = probe.aui.thread().item({ index: 0 });
+
+    act(() => view.rerender(<Activity mode="hidden">{app}</Activity>));
+    act(() => view.rerender(<Activity mode="visible">{app}</Activity>));
+    await new Promise<void>((resolve) => queueMicrotask(resolve));
+
+    expect(client.echo("visible")).toBe("visible");
+    expect(warning).not.toHaveBeenCalled();
   });
 
   it("keeps internal derived reads working across an Activity reconnect", () => {

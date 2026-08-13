@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { resource, useResource, type ResourceElement } from "@assistant-ui/tap";
 import type { ClientMethods, InferClientState } from "./types/client";
 import {
@@ -104,7 +104,7 @@ class ClientProxyHandler
     | Map<string | symbol, (...args: never) => unknown>
     | undefined;
   private cachedReceiver: unknown;
-  private proxy: object | undefined;
+  private descriptorReceiver: object | undefined;
 
   private readonly outputRef: {
     current: ClientMethods;
@@ -128,8 +128,10 @@ class ClientProxyHandler
     this.index = index;
   }
 
-  setProxy(proxy: object) {
-    this.proxy = proxy;
+  createProxy<TMethods extends ClientMethods>(): TMethods {
+    const proxy = new Proxy<TMethods>({} as TMethods, this);
+    this.descriptorReceiver = proxy;
+    return proxy;
   }
 
   get(_: unknown, prop: string | symbol, receiver: unknown) {
@@ -143,7 +145,7 @@ class ClientProxyHandler
     if (typeof value === "function") {
       // Descriptor reads have no receiver; bind them through the stable proxy
       // so they retain the same lifecycle guard as ordinary property reads.
-      const effectiveReceiver = receiver ?? this.proxy;
+      const effectiveReceiver = receiver ?? this.descriptorReceiver;
       if (!effectiveReceiver) {
         throw new Error("ClientProxy accessed before initialization.");
       }
@@ -183,6 +185,7 @@ export const useClientResource = <TMethods extends ClientMethods>(
 } => {
   const valueRef = useRef(null as unknown as TMethods);
   const connectedRef = useRef(true);
+  const [connectionLifecycle] = useState(() => ({ generation: 0 }));
   const tagRef = useRef(null as unknown as object);
 
   // The fiber behind useResource is keyed on (hook, key), so the underlying
@@ -201,17 +204,22 @@ export const useClientResource = <TMethods extends ClientMethods>(
       tagRef,
       index,
     );
-    const proxy = new Proxy<TMethods>({} as TMethods, handler);
-    handler.setProxy(proxy);
-    return proxy;
+    return handler.createProxy<TMethods>();
   }, [index]);
 
   useEffect(() => {
+    const generation = ++connectionLifecycle.generation;
     connectedRef.current = true;
     return () => {
-      connectedRef.current = false;
+      // Descendant effect cleanups may intentionally perform a final action,
+      // such as cancelling backend work. Disconnect after that cleanup phase.
+      queueMicrotask(() => {
+        if (connectionLifecycle.generation === generation) {
+          connectedRef.current = false;
+        }
+      });
     };
-  }, []);
+  }, [connectionLifecycle]);
 
   const value = useClientStackProvider(methods, function WithClientStack() {
     return useResource(element);
