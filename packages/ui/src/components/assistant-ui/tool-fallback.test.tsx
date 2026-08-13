@@ -46,34 +46,18 @@ describe("ToolFallbackApproval", () => {
       expect(errors.map((event) => event.error?.message)).toEqual([
         "response cannot be mapped",
       ]);
+      expect(respondToApproval).toHaveBeenLastCalledWith({ approved: true });
       expect(button("Allow").disabled).toBe(false);
       expect(button("Deny").disabled).toBe(false);
 
       refuses = false;
-      fireEvent.click(button("Allow"));
+      fireEvent.click(button("Deny"));
 
-      expect(respondToApproval).toHaveBeenLastCalledWith({ approved: true });
+      expect(respondToApproval).toHaveBeenLastCalledWith({ approved: false });
       expect(button("Allow").disabled).toBe(true);
       expect(button("Deny").disabled).toBe(true);
     } finally {
       restore();
     }
-  });
-
-  it("disables the controls once a response is accepted", () => {
-    const respondToApproval = vi.fn();
-
-    render(
-      <ToolFallbackApproval
-        approval={pendingApproval}
-        respondToApproval={respondToApproval}
-      />,
-    );
-
-    fireEvent.click(button("Deny"));
-
-    expect(respondToApproval).toHaveBeenCalledWith({ approved: false });
-    expect(button("Allow").disabled).toBe(true);
-    expect(button("Deny").disabled).toBe(true);
   });
 });
