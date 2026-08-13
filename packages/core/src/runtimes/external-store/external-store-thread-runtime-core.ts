@@ -505,13 +505,17 @@ export class ExternalStoreThreadRuntimeCore
       rawMessage.parentId !== (this.messages.at(-1)?.id ?? null);
 
     // The dispatch transform re-stamps a transformed-queue message at flush,
-    // so send-time stamping applies to every other path.
-    const message =
+    // so a send headed there skips the send-time stamp. Every other consumer
+    // stamps at send, or on first use when the store's queue was replaced
+    // across the barrier and the send-time decision no longer matches.
+    let stamped =
       !isEdit &&
       this._store.queue &&
       this._store.queue === this._transformedQueue
-        ? rawMessage
+        ? undefined
         : this.enrichAppendMetadata(rawMessage);
+    const stampedMessage = () =>
+      (stamped ??= this.enrichAppendMetadata(rawMessage));
 
     // The queue driver dispatches through the host adapter, outside this
     // core, so the initialization barrier must run before a message can
@@ -531,12 +535,16 @@ export class ExternalStoreThreadRuntimeCore
       // Skip only for the queue this core actually installed on: another
       // core's transform would gate against its own thread's messages.
       const queued =
-        this._store.queue === this._transformedQueue ? rawMessage : message;
+        this._store.queue === this._transformedQueue
+          ? rawMessage
+          : stampedMessage();
       if (queued.steer ?? this._store.isRunning ?? false)
         this._store.queue.steer(queued);
       else this._store.queue.enqueue(queued);
       return;
     }
+
+    const message = stampedMessage();
 
     // Auto-abort in-flight client-side tool executions when a new run is
     // about to start. Without this, a tool that finishes after the new turn
