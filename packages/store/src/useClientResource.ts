@@ -72,6 +72,7 @@ function getOrCreateProxyFn(prop: string | symbol) {
 
       if (
         prop !== "getState" &&
+        prop !== "subscribe" &&
         clientReadDepth === 0 &&
         !(this as ClientInternal)[SYMBOL_IS_CONNECTED]
       ) {

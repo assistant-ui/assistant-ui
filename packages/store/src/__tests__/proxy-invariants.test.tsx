@@ -12,6 +12,10 @@ import { useClientLookup } from "../useClientLookup";
 
 const useItem = ({ id }: { id: string }) => ({
   getState: () => ({ id }),
+  subscribe: (callback: () => void) => {
+    callback();
+    return () => {};
+  },
   echo: (text: string) => text,
 });
 const Item = resource(useItem);
@@ -51,9 +55,9 @@ describe("proxy invariants", () => {
     render(<App />);
     const client = probe.aui.thread().item({ index: 0 });
 
-    expect(Object.keys(client)).toEqual(["getState", "echo"]);
+    expect(Object.keys(client)).toEqual(["getState", "subscribe", "echo"]);
     const spread = { ...client };
-    expect(Object.keys(spread)).toEqual(["getState", "echo"]);
+    expect(Object.keys(spread)).toEqual(["getState", "subscribe", "echo"]);
     expect(spread.echo("hi")).toBe("hi");
     expect(
       Object.getOwnPropertyDescriptor(client, "getState")?.configurable,
@@ -106,7 +110,7 @@ describe("proxy invariants", () => {
     expect(spread.item).toEqual({ id: "x" });
   });
 
-  it("keeps getState readable but denies actions after disconnect", () => {
+  it("keeps reads available but denies actions after disconnect", () => {
     let lookup!: ReturnType<typeof useClientLookup<ReturnType<typeof useItem>>>;
     const List: FC<{ visible: boolean }> = ({ visible }) => {
       lookup = useClientLookup(
@@ -124,6 +128,10 @@ describe("proxy invariants", () => {
     view.rerender(<List visible={false} />);
 
     expect(client.getState()).toEqual({ id: "a" });
+    const subscriber = vi.fn();
+    const unsubscribe = client.subscribe(subscriber);
+    expect(subscriber).toHaveBeenCalledTimes(1);
+    expect(unsubscribe()).toBeUndefined();
     expect(echo("late")).toBeUndefined();
     expect(descriptorEcho("late descriptor")).toBeUndefined();
     expect(warning).toHaveBeenCalledTimes(2);
