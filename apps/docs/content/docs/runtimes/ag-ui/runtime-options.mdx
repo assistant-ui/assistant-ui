@@ -200,7 +200,7 @@ The runtime parses the AG-UI event stream and maps each event type to assistant-
 
 ### Custom events
 
-`CUSTOM` events are the protocol's extension mechanism for application-defined data. Each event is appended to the in-flight assistant message as a canonical `data` part in arrival order: `CUSTOM { name: "sources", value: {...} }` becomes `{ type: "data", name: "sources", data: {...} }`. Repeated names append separate parts, the `value` is passed through verbatim, and data parts reset with each run.
+`CUSTOM` events are the protocol's extension mechanism for application-defined data. Each event is appended to the in-flight assistant message as a canonical `data` part in arrival order: `CUSTOM { name: "sources", value: {...} }` becomes `{ type: "data", name: "sources", data: {...} }`. Repeated names append separate parts, the `value` is passed through verbatim, and data parts reset with each run. Tool calls that carry a `parentMessageId` are anchored under that message rather than at their wire position, so a data part can render after a tool call that arrived later.
 
 Render them by registering a per-name renderer; parts without a registered renderer are not displayed.
 
@@ -213,7 +213,7 @@ useAssistantDataUI({
 });
 ```
 
-Data parts stay in the assistant-ui message (and in anything a history adapter persists) but are not sent back to the agent, since the AG-UI assistant record has no field for them. Framework integrations emit their own plumbing over this channel (`on_interrupt`, `PredictState`, `Exit`, `hook_error`, `state_update_error`, `system:*`, `MultiAgentHandoff`), and those names surface as data parts like any other, so only register renderers for names your backend owns.
+Data parts stay in the assistant-ui message but are not sent back to the agent, since the AG-UI assistant record has no field for them. A custom history adapter persists them as part of the message JSON; the assistant-cloud history adapter does not accept `data` parts yet and fails to persist an assistant message that contains one. Framework integrations emit their own plumbing over this channel (`on_interrupt`, `PredictState`, `Exit`, `hook_error`, `state_update_error`, `system:*`, `MultiAgentHandoff`), and those names surface as data parts like any other, so only register renderers for names your backend owns.
 
 ## Feature support
 
