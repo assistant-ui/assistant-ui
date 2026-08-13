@@ -3,7 +3,6 @@
 export {
   convertEveMessage,
   convertEveMessages,
-  findEveInputRequest,
   getEveMessageContent,
   toEveInputResponse,
 } from "./convertEveMessages";

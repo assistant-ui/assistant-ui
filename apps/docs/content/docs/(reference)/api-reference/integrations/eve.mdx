@@ -30,15 +30,6 @@ Converts the full Eve message data object into assistant-ui thread messages.
 const convertEveMessages: (data: EveMessageData, options?: ConvertEveMessagesOptions) => ThreadMessage[];
 ```
 
-### findEveInputRequest
-
-Finds the pending input request answered by the given approval id, so the
-response mapping can honor the request's display mode.
-
-```ts
-const findEveInputRequest: (data: EveMessageData, approvalId: string) => EveMessageInputRequest;
-```
-
 ### getEveMessageContent
 
 Converts an assistant-ui append message into the message payload accepted by
@@ -52,8 +43,9 @@ const getEveMessageContent: (message: AppendMessage) => NonNullable<SendTurnPayl
 
 Converts an assistant-ui tool approval response into an Eve input response.
 
-The originating input request (see [findEveInputRequest](/docs/api-reference/integrations/eve#findeveinputrequest)) is what the
-response is mapped against, so every returned response carries either an
+The originating input request, carried on the tool part as
+`providerMetadata.eve.inputRequest`, is what the response is mapped
+against, so every returned response carries either an
 option the request declares or a free-form answer. A literal option match
 wins, then the `"approve"` / `"deny"` option the response's boolean decision
 names, then the response's `reason` text when the request takes a free-form

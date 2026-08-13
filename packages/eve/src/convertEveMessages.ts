@@ -542,8 +542,9 @@ export const findEveInputRequest = (
 /**
  * Converts an assistant-ui tool approval response into an Eve input response.
  *
- * The originating input request (see {@link findEveInputRequest}) is what the
- * response is mapped against, so every returned response carries either an
+ * The originating input request, carried on the tool part as
+ * `providerMetadata.eve.inputRequest`, is what the response is mapped
+ * against, so every returned response carries either an
  * option the request declares or a free-form answer. A literal option match
  * wins, then the `"approve"` / `"deny"` option the response's boolean decision
  * names, then the response's `reason` text when the request takes a free-form
@@ -563,7 +564,7 @@ export const toEveInputResponse = (
   const requestId = response.approvalId;
   if (!inputRequest) {
     throw new Error(
-      `Eve input request "${requestId}" is not in the agent's message data; look it up with findEveInputRequest and pass it in, because the response cannot be mapped without the request it answers`,
+      `Eve input request "${requestId}" is not in the agent's message data; pass the request in from the tool part's providerMetadata.eve.inputRequest, because the response cannot be mapped without the request it answers`,
     );
   }
 

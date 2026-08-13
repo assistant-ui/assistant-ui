@@ -26,7 +26,7 @@ import {
   type UseEveAgentOptions,
   type UseEveAgentStatus,
 } from "eve/react";
-import type { InputResponse, SendTurnPayload } from "eve/client";
+import type { SendTurnPayload } from "eve/client";
 import {
   convertEveMessages,
   findEveInputRequest,
@@ -370,20 +370,14 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
       return Promise.resolve();
     },
     onRespondToToolApproval: (response) => {
-      const inputRequest = findEveInputRequest(agent.data, response.approvalId);
-      let inputResponse: InputResponse;
-      try {
-        inputResponse = toEveInputResponse(response, inputRequest);
-      } catch (error) {
-        // Eve leaves an unanswered request pending, so an unmappable response
-        // must stay answerable. Throwing before the first await surfaces the
-        // failure synchronously to the caller that rendered the controls,
-        // which is the only signal the void `respondToApproval` seam carries.
-        throw new Error(
-          `Eve input request${inputRequest ? ` "${inputRequest.prompt}"` : ""} was not submitted: ${error instanceof Error ? error.message : String(error)} (see providerMetadata.eve.inputRequest on the tool part).`,
-          { cause: error },
-        );
-      }
+      // Eve leaves an unanswered request pending, so an unmappable response
+      // must stay answerable. Mapping before the first await lets the mapper's
+      // own error surface synchronously to the caller that rendered the
+      // controls, the only signal the void `respondToApproval` seam carries.
+      const inputResponse = toEveInputResponse(
+        response,
+        findEveInputRequest(agent.data, response.approvalId),
+      );
       return enqueueSend({ inputResponses: [inputResponse] }).catch((error) => {
         if (!isDroppedSend(error)) throw error;
       });

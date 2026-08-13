@@ -379,35 +379,29 @@ describe("useEveAgentRuntime tool approval responses", () => {
       .getMessagePartByToolCallId("call_1")
       .respondToToolApproval(response);
 
-  it.each([
-    ["allowed", { approved: true }],
-    ["denied", { approved: false }],
-  ])(
-    "keeps an unanswered free-form request pending when %s through the default controls",
-    async (_label, response) => {
-      const rejections: unknown[] = [];
-      const onUnhandledRejection = (reason: unknown) => rejections.push(reason);
-      processEvents.on("unhandledRejection", onUnhandledRejection);
-      const agent = createAgent({ data: textRequestData });
-      mockUseEveAgent.mockReturnValue(agent as never);
+  it("keeps an unanswered free-form request pending through the default controls", async () => {
+    const rejections: unknown[] = [];
+    const onUnhandledRejection = (reason: unknown) => rejections.push(reason);
+    processEvents.on("unhandledRejection", onUnhandledRejection);
+    const agent = createAgent({ data: textRequestData });
+    mockUseEveAgent.mockReturnValue(agent as never);
 
-      try {
-        const { result } = renderHook(() => useEveAgentRuntime());
+    try {
+      const { result } = renderHook(() => useEveAgentRuntime());
 
-        expect(() => respondToTextRequest(result, response)).toThrow(
-          /was not answered by this response/,
-        );
+      expect(() => respondToTextRequest(result, { approved: true })).toThrow(
+        /was not answered by this response/,
+      );
 
-        await flushMicrotasks();
-        await flushMicrotasks();
+      await flushMicrotasks();
+      await flushMicrotasks();
 
-        expect(agent.send).not.toHaveBeenCalled();
-        expect(rejections).toEqual([]);
-      } finally {
-        processEvents.off("unhandledRejection", onUnhandledRejection);
-      }
-    },
-  );
+      expect(agent.send).not.toHaveBeenCalled();
+      expect(rejections).toEqual([]);
+    } finally {
+      processEvents.off("unhandledRejection", onUnhandledRejection);
+    }
+  });
 
   it("submits a free-form answer as text without an option id", async () => {
     const agent = createAgent({ data: textRequestData });

@@ -9,6 +9,30 @@ import {
 } from "./convertEveMessages";
 import type { AppendMessage } from "@assistant-ui/core";
 
+const withApprovalPart = (eve?: {
+  kind: "tool-call";
+  name: string;
+  inputRequest?: EveMessageInputRequest;
+}): EveMessageData => ({
+  messages: [
+    {
+      id: "a1",
+      role: "assistant",
+      parts: [
+        {
+          type: "dynamic-tool",
+          state: "approval-requested",
+          toolCallId: "call_1",
+          toolName: "send_email",
+          input: {},
+          approval: { id: "req_1" },
+          ...(eve && { toolMetadata: { eve } }),
+        },
+      ],
+    },
+  ],
+});
+
 describe("convertEveMessages", () => {
   it("converts text and reasoning parts", () => {
     const data = {
@@ -108,134 +132,55 @@ describe("convertEveMessages", () => {
     });
   });
 
-  it("preserves the full HITL input request on providerMetadata.eve", () => {
-    const inputRequest = {
-      requestId: "req_1",
-      prompt: "Which environment?",
-      display: "select",
-      allowFreeform: true,
-      options: [
-        { id: "staging", label: "Staging", description: "Safe" },
-        { id: "production", label: "Production", style: "danger" },
-      ],
-    } as const;
-    const data = {
-      messages: [
-        {
-          id: "a1",
-          role: "assistant",
-          parts: [
-            {
-              type: "dynamic-tool",
-              state: "approval-requested",
-              toolCallId: "call_1",
-              toolName: "send_email",
-              input: {},
-              approval: { id: "req_1" },
-              toolMetadata: {
-                eve: { kind: "tool-call", name: "send_email", inputRequest },
-              },
-            },
-          ],
-        },
-      ],
-    } satisfies EveMessageData;
-
-    const [message] = convertEveMessages(data);
-    const part = message!.content[0];
-
-    expect(part).toMatchObject({ type: "tool-call" });
-    expect((part as { providerMetadata?: unknown }).providerMetadata).toEqual({
-      eve: {
-        inputRequest: {
-          requestId: "req_1",
-          prompt: "Which environment?",
-          display: "select",
-          allowFreeform: true,
-          options: [
-            { id: "staging", label: "Staging", description: "Safe" },
-            { id: "production", label: "Production", style: "danger" },
-          ],
-        },
+  it.each([
+    [
+      "the full input request",
+      {
+        requestId: "req_1",
+        prompt: "Which environment?",
+        display: "select",
+        allowFreeform: true,
+        options: [
+          { id: "staging", label: "Staging", description: "Safe" },
+          { id: "production", label: "Production", style: "danger" },
+        ],
       },
-    });
-  });
+    ],
+    [
+      "only the fields the request defines",
+      { requestId: "req_1", prompt: "What should the subject line be?" },
+    ],
+  ] satisfies [string, EveMessageInputRequest][])(
+    "projects %s onto providerMetadata.eve",
+    (_label, inputRequest) => {
+      const [message] = convertEveMessages(
+        withApprovalPart({
+          kind: "tool-call",
+          name: "send_email",
+          inputRequest,
+        }),
+      );
+      const part = message!.content[0];
 
-  it("omits undefined input-request fields from the provider metadata projection", () => {
-    const data = {
-      messages: [
+      expect(part).toMatchObject({ type: "tool-call" });
+      expect((part as { providerMetadata?: unknown }).providerMetadata).toEqual(
         {
-          id: "a1",
-          role: "assistant",
-          parts: [
-            {
-              type: "dynamic-tool",
-              state: "approval-requested",
-              toolCallId: "call_1",
-              toolName: "ask_question",
-              input: {},
-              approval: { id: "req_1" },
-              toolMetadata: {
-                eve: {
-                  kind: "tool-call",
-                  name: "ask_question",
-                  inputRequest: {
-                    requestId: "req_1",
-                    prompt: "What should the subject line be?",
-                  },
-                },
-              },
-            },
-          ],
+          eve: { inputRequest },
         },
-      ],
-    } satisfies EveMessageData;
+      );
+    },
+  );
 
-    const [message] = convertEveMessages(data);
-    const part = message!.content[0];
-
-    expect((part as { providerMetadata?: unknown }).providerMetadata).toEqual({
-      eve: {
-        inputRequest: {
-          requestId: "req_1",
-          prompt: "What should the subject line be?",
-        },
-      },
-    });
-  });
-
-  it("omits providerMetadata when the tool part carries no input request", () => {
-    const data = {
-      messages: [
-        {
-          id: "a1",
-          role: "assistant",
-          parts: [
-            {
-              type: "dynamic-tool",
-              state: "input-available",
-              toolCallId: "call_1",
-              toolName: "send_email",
-              input: {},
-            },
-            {
-              type: "dynamic-tool",
-              state: "approval-requested",
-              toolCallId: "call_2",
-              toolName: "send_email",
-              input: {},
-              approval: { id: "req_2" },
-              toolMetadata: { eve: { kind: "tool-call", name: "send_email" } },
-            },
-          ],
-        },
-      ],
-    } satisfies EveMessageData;
-
-    const [message] = convertEveMessages(data);
+  it.each([
+    [
+      "eve metadata without an input request",
+      { kind: "tool-call" as const, name: "send_email" },
+    ],
+    ["no eve metadata at all", undefined],
+  ])("omits providerMetadata for a tool part with %s", (_label, eve) => {
+    const [message] = convertEveMessages(withApprovalPart(eve));
 
     expect(message!.content[0]).not.toHaveProperty("providerMetadata");
-    expect(message!.content[1]).not.toHaveProperty("providerMetadata");
   });
 
   it("handles denied tool parts without an approval reason", () => {
