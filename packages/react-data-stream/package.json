@@ -34,7 +34,7 @@
   },
   "dependencies": {
     "@ai-sdk/provider": "^4.0.7",
-    "@assistant-ui/core": "^0.3.12",
+    "@assistant-ui/core": "^0.3.13",
     "assistant-cloud": "*",
     "assistant-stream": "^0.3.37"
   },
