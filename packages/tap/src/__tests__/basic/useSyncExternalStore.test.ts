@@ -1,6 +1,7 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { useSyncExternalStore } from "../../react-hooks/useSyncExternalStore";
 import { useCallback } from "../../react-hooks/useCallback";
+import { renderResourceFiber } from "../../core/ResourceFiber";
 import {
   createTestResource,
   renderTest,
@@ -109,6 +110,27 @@ describe("useSyncExternalStore", () => {
     expect(renders).toBe(1);
   });
 
+  it("uses getServerSnapshot for every render pass before mount", () => {
+    const store = createStore("client");
+    let clientReads = 0;
+    const testFiber = createTestResource(() =>
+      useSyncExternalStore(
+        (cb) => store.subscribe(cb),
+        () => {
+          clientReads++;
+          return store.getState();
+        },
+        () => "server",
+      ),
+    );
+
+    // uncommitted double render, as in strict mode, render-phase update
+    // passes, and suspense replays — all before the fiber ever mounts
+    expect(renderResourceFiber(testFiber, [])).toBe("server");
+    expect(renderResourceFiber(testFiber, [])).toBe("server");
+    expect(clientReads).toBe(0);
+  });
+
   it("uses getSnapshot on re-renders after the first", () => {
     const store = createStore("client");
     const testFiber = createTestResource((_p: { n: number }) =>
@@ -150,7 +172,7 @@ describe("useSyncExternalStore", () => {
     expect(storeB.unsubscribeCalls).toBe(1);
   });
 
-  it("keeps the committed value when getSnapshot throws on a notification and resumes once the store is consistent again", async () => {
+  it("forces a re-render when getSnapshot throws on a notification, surfacing the error from the render", async () => {
     const store = createStore(["a", "b"]);
     const testFiber = createTestResource(() =>
       useSyncExternalStore(
@@ -165,9 +187,9 @@ describe("useSyncExternalStore", () => {
 
     expect(renderTest(testFiber)).toBe("b");
 
-    // the notification makes the snapshot throw; nothing escapes the store's notify loop
-    expect(() => store.setState(["a"])).not.toThrow();
-    await waitForNextTick();
+    // mirrors checkIfSnapshotChanged returning true on a throw: the forced
+    // re-render reads getSnapshot and the error propagates from the render
+    expect(() => store.setState(["a"])).toThrow("index out of bounds");
     expect(getCommittedValue(testFiber)).toBe("b");
 
     store.setState(["a", "c"]);

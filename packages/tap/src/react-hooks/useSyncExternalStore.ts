@@ -1,33 +1,32 @@
-import { useState } from "./useState";
+import { useReducer } from "./useReducer";
 import { useEffect } from "./useEffect";
 import { useEffectEvent } from "./useEffectEvent";
-import { useRef } from "./useRef";
+import { getCurrentResourceFiber } from "../core/helpers/execution-context";
 
 export const useSyncExternalStore = <T>(
   subscribe: (onStoreChange: () => void) => () => void,
   getSnapshot: () => T,
   getServerSnapshot: () => T = getSnapshot,
 ): T => {
-  const isFirstRender = useRef(true);
-  const value = isFirstRender.current ? getServerSnapshot() : getSnapshot();
-  isFirstRender.current = false;
+  const value = getCurrentResourceFiber().isNeverMounted
+    ? getServerSnapshot()
+    : getSnapshot();
 
-  const [, forceUpdate] = useState(0);
+  const [, forceUpdate] = useReducer((c: number) => c + 1, 0);
 
   const onStoreChange = useEffectEvent(() => {
-    // mirrors React's checkIfSnapshotChanged: a throwing snapshot keeps the committed value
-    // TODO: ideally notify our parent (host) to rerender, mirroring React's force-re-render
     try {
       if (Object.is(value, getSnapshot())) return;
     } catch {
-      return;
+      // fall through to forceUpdate
     }
-    forceUpdate((c) => c + 1);
+    forceUpdate();
   });
 
   useEffect(() => {
+    const unsubscribe = subscribe(onStoreChange);
     onStoreChange();
-    return subscribe(onStoreChange);
+    return unsubscribe;
   }, [subscribe]);
 
   return value;
