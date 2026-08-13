@@ -69,7 +69,7 @@ const dispatchOnFiber = (
       },
     );
   } catch (error) {
-    if (!record.settled) {
+    if (!record.settled && !record.logged) {
       record.settled = true;
       fiber.root.unsettledCount--;
     }

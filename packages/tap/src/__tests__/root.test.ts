@@ -190,6 +190,7 @@ describe("setRootVersion", () => {
     expect(root.committedVersion).toBe(2);
     expect(root.committedLog).toEqual([recordA, recordB]);
     expect(recordB.prevState).toBe("p2");
+    expect(recordB.eagerState).toBeUndefined();
     expect(recordB.hasEagerState).toBe(false);
     expect(cell.workInProgress).toBe("s2");
 

@@ -10,7 +10,12 @@ import { act } from "@testing-library/react";
 import type { ChangelogRecord, TapRoot } from "../../core/types";
 import { resource } from "../../core/resource";
 import { commitRoot, setRootVersion } from "../../core/helpers/root";
-import { renderResourceFiber } from "../../core/ResourceFiber";
+import {
+  commitResourceFiber,
+  createResourceFiber,
+  renderResourceFiber,
+} from "../../core/ResourceFiber";
+import { createResourceFiberRoot } from "../../core/helpers/root";
 import { useResource } from "../../index";
 import { useReducer as useResourceReducer } from "../../react-hooks/useReducer";
 import { useMemo as useResourceMemo } from "../../react-hooks/useMemo";
@@ -321,6 +326,57 @@ describe("React-hosted reducer replay below the committed version", () => {
     renderResourceFiber(fiber, []);
     expect(() => push("early")).toThrow("Resource updated before mount");
     expect(fiber.root.unsettledCount).toBe(0);
+  });
+
+  it("settles accounting when the host dispatch throws before applying", () => {
+    const root = createResourceFiberRoot(() => {
+      throw new Error("host dispatch failure");
+    });
+    let push!: (chunk: string) => void;
+    const fiber = createResourceFiber(
+      () => {
+        const [chunks, dispatch] = useResourceReducer(
+          (s: readonly string[], c: string) => [...s, c],
+          [] as readonly string[],
+        );
+        push = dispatch;
+        return chunks;
+      },
+      root,
+      undefined,
+      null,
+    );
+
+    renderResourceFiber(fiber, []);
+    commitResourceFiber(fiber);
+    expect(() => push("boom")).toThrow("host dispatch failure");
+    expect(root.unsettledCount).toBe(0);
+  });
+
+  it("keeps a queued record unsettled when the host throws after applying", () => {
+    const root = createResourceFiberRoot((_evaluate, apply) => {
+      apply();
+      throw new Error("post apply failure");
+    });
+    let push!: (chunk: string) => void;
+    const fiber = createResourceFiber(
+      () => {
+        const [chunks, dispatch] = useResourceReducer(
+          (s: readonly string[], c: string) => [...s, c],
+          [] as readonly string[],
+        );
+        push = dispatch;
+        return chunks;
+      },
+      root,
+      undefined,
+      null,
+    );
+
+    renderResourceFiber(fiber, []);
+    commitResourceFiber(fiber);
+    expect(() => push("boom")).toThrow("post apply failure");
+    expect(root.unsettledCount).toBe(1);
   });
 
   it("rebases a mid-tick mixed-lane chain to the React oracle", async () => {
