@@ -17,9 +17,21 @@ import { INSTANCE_TAG_SYMBOL } from "./utils/client-accessor";
  * This allows getState() to be optional in the user-facing client.
  */
 const SYMBOL_GET_OUTPUT = Symbol("assistant-ui.store.getValue");
+const SYMBOL_IS_CONNECTED = Symbol("assistant-ui.store.isConnected");
 
 type ClientInternal = {
   [SYMBOL_GET_OUTPUT]: ClientMethods;
+  [SYMBOL_IS_CONNECTED]: boolean;
+};
+
+let clientReadDepth = 0;
+export const runClientRead = <T>(read: () => T): T => {
+  clientReadDepth++;
+  try {
+    return read();
+  } finally {
+    clientReadDepth--;
+  }
 };
 
 export const getClientState = (client: ClientMethods) => {
@@ -30,7 +42,7 @@ export const getClientState = (client: ClientMethods) => {
         "Ensure your Derived get() returns a client created with useClientResource(), not a plain resource.",
     );
   }
-  return (output as any).getState?.();
+  return runClientRead(() => (output as any).getState?.());
 };
 
 // Global cache for function templates by field name
@@ -58,12 +70,25 @@ function getOrCreateProxyFn(prop: string | symbol) {
         );
       }
 
+      if (
+        prop !== "getState" &&
+        clientReadDepth === 0 &&
+        !(this as ClientInternal)[SYMBOL_IS_CONNECTED]
+      ) {
+        console.warn(
+          `Cannot call "${String(prop)}" on a disconnected AuiClient. This call was ignored.`,
+        );
+        return undefined;
+      }
+
       const method = output[prop];
       if (!method)
         throw new Error(`Method "${String(prop)}" is not implemented.`);
       if (typeof method !== "function")
         throw new Error(`"${String(prop)}" is not a function.`);
-      return method(...args);
+      return prop === "getState"
+        ? runClientRead(() => method(...args))
+        : method(...args);
     };
     fieldAccessFns.set(prop, template);
   }
@@ -78,10 +103,12 @@ class ClientProxyHandler
     | Map<string | symbol, (...args: never) => unknown>
     | undefined;
   private cachedReceiver: unknown;
+  private proxy: object | undefined;
 
   private readonly outputRef: {
     current: ClientMethods;
   };
+  private readonly connectedRef: { current: boolean };
   private readonly tagRef: { current: object };
   private readonly index: number;
 
@@ -89,33 +116,41 @@ class ClientProxyHandler
     outputRef: {
       current: ClientMethods;
     },
+    connectedRef: { current: boolean },
     tagRef: { current: object },
     index: number,
   ) {
     super();
     this.outputRef = outputRef;
+    this.connectedRef = connectedRef;
     this.tagRef = tagRef;
     this.index = index;
   }
 
+  setProxy(proxy: object) {
+    this.proxy = proxy;
+  }
+
   get(_: unknown, prop: string | symbol, receiver: unknown) {
     if (prop === SYMBOL_GET_OUTPUT) return this.outputRef.current;
+    if (prop === SYMBOL_IS_CONNECTED) return this.connectedRef.current;
     if (prop === SYMBOL_CLIENT_INDEX) return this.index;
     if (prop === INSTANCE_TAG_SYMBOL) return this.tagRef.current;
     const introspection = handleIntrospectionProp(prop, "ClientProxy");
     if (introspection !== false) return introspection;
     const value = this.outputRef.current[prop];
     if (typeof value === "function") {
-      // receiver-less reads (getOwnPropertyDescriptor) get the raw method so
-      // the bound-fn cache stays keyed on the real receiver
-      if (receiver === undefined) return value;
-      if (!this.boundFns || this.cachedReceiver !== receiver) {
+      const effectiveReceiver = receiver ?? this.proxy;
+      if (!effectiveReceiver) {
+        throw new Error("ClientProxy accessed before initialization.");
+      }
+      if (!this.boundFns || this.cachedReceiver !== effectiveReceiver) {
         this.boundFns = new Map();
-        this.cachedReceiver = receiver;
+        this.cachedReceiver = effectiveReceiver;
       }
       let bound = this.boundFns!.get(prop);
       if (!bound) {
-        bound = getOrCreateProxyFn(prop).bind(receiver);
+        bound = getOrCreateProxyFn(prop).bind(effectiveReceiver);
         this.boundFns!.set(prop, bound);
       }
       return bound;
@@ -129,6 +164,7 @@ class ClientProxyHandler
 
   has(_: unknown, prop: string | symbol) {
     if (prop === SYMBOL_GET_OUTPUT) return true;
+    if (prop === SYMBOL_IS_CONNECTED) return true;
     if (prop === SYMBOL_CLIENT_INDEX) return true;
     if (prop === INSTANCE_TAG_SYMBOL) return true;
     return prop in this.outputRef.current;
@@ -143,6 +179,7 @@ export const useClientResource = <TMethods extends ClientMethods>(
   key: string | number | undefined;
 } => {
   const valueRef = useRef(null as unknown as TMethods);
+  const connectedRef = useRef(true);
   const tagRef = useRef(null as unknown as object);
 
   // The fiber behind useResource is keyed on (hook, key), so the underlying
@@ -154,14 +191,24 @@ export const useClientResource = <TMethods extends ClientMethods>(
   const instanceTag = useMemo(() => ({}), [element.hook, element.key]);
 
   const index = useClientStack().length;
-  const methods = useMemo(
-    () =>
-      new Proxy<TMethods>(
-        {} as TMethods,
-        new ClientProxyHandler(valueRef, tagRef, index),
-      ),
-    [index],
-  );
+  const methods = useMemo(() => {
+    const handler = new ClientProxyHandler(
+      valueRef,
+      connectedRef,
+      tagRef,
+      index,
+    );
+    const proxy = new Proxy<TMethods>({} as TMethods, handler);
+    handler.setProxy(proxy);
+    return proxy;
+  }, [index]);
+
+  useEffect(() => {
+    connectedRef.current = true;
+    return () => {
+      connectedRef.current = false;
+    };
+  }, []);
 
   const value = useClientStackProvider(methods, function WithClientStack() {
     return useResource(element);

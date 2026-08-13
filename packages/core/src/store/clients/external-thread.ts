@@ -55,33 +55,7 @@ const EMPTY_QUEUE_ITEMS: readonly QueueItemState[] = [];
 const EMPTY_BRANCH_IDS: readonly string[] = [];
 const EMPTY_SUGGESTIONS: readonly ThreadSuggestion[] = [];
 
-export class ThreadActivity {
-  private active = true;
-  private readonly pendingSettlements: Array<() => void> = [];
-
-  settle = (settle: () => void) => {
-    if (this.active) settle();
-    else this.pendingSettlements.push(settle);
-  };
-  activate = () => {
-    this.active = true;
-    const pendingSettlements = this.pendingSettlements.splice(0);
-    for (let index = 0; index < pendingSettlements.length; index++) {
-      if (!this.active) {
-        this.pendingSettlements.unshift(...pendingSettlements.slice(index));
-        break;
-      }
-      try {
-        pendingSettlements[index]!();
-      } catch (error) {
-        console.error("Failed to settle attachment send", error);
-      }
-    }
-  };
-  deactivate = () => {
-    this.active = false;
-  };
-}
+type SettleWhenThreadConnected = (settle: () => void) => void;
 
 export type ExternalThreadMessage = ThreadMessage & {
   id: string;
@@ -164,7 +138,7 @@ type MessageClientProps = {
   speech: SpeechState | undefined;
   onSpeak: () => void;
   onStopSpeaking: () => void;
-  threadActivity: ThreadActivity;
+  settleWhenThreadConnected: SettleWhenThreadConnected;
 };
 
 // Message Client - minimal implementation
@@ -185,7 +159,7 @@ const useMessageClient = ({
   speech,
   onSpeak,
   onStopSpeaking,
-  threadActivity,
+  settleWhenThreadConnected,
 }: MessageClientProps): ClientOutput<"message"> => {
   const [isCopied, setIsCopied] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
@@ -240,7 +214,7 @@ const useMessageClient = ({
       message,
       queue,
       attachmentAdapter,
-      threadActivity,
+      settleWhenThreadConnected,
     }),
   );
 
@@ -449,7 +423,7 @@ type ComposerClientResourceProps = {
   message?: ExternalThreadMessage;
   queue?: ExternalThreadQueueAdapter | undefined;
   attachmentAdapter?: AttachmentAdapter | undefined;
-  threadActivity: ThreadActivity;
+  settleWhenThreadConnected: SettleWhenThreadConnected;
 };
 
 type AttachmentAddOperation = {
@@ -557,7 +531,7 @@ const useComposerClientResource = ({
   message,
   queue,
   attachmentAdapter,
-  threadActivity,
+  settleWhenThreadConnected,
 }: ComposerClientResourceProps): ClientOutput<"composer"> => {
   const [isEditing, setIsEditing, isEditingRef] = useLiveState(
     type === "thread",
@@ -813,10 +787,10 @@ const useComposerClientResource = ({
           ),
         ).then(
           (sendAttachments) => {
-            threadActivity.settle(() => dispatch(sendAttachments));
+            settleWhenThreadConnected(() => dispatch(sendAttachments));
           },
           (error) => {
-            threadActivity.settle(() => {
+            settleWhenThreadConnected(() => {
               // Upload failed: merge the failed send back into the draft.
               setText((prev) =>
                 currentText && prev
@@ -959,11 +933,22 @@ const useExternalThread = ({
   branches,
   onRespondToToolApproval,
 }: ExternalThreadProps): ClientOutput<"thread"> => {
-  const threadActivity = useMemo(() => new ThreadActivity(), []);
+  const threadConnectedRef = useRef(true);
   useEffect(() => {
-    threadActivity.activate();
-    return threadActivity.deactivate;
-  }, [threadActivity]);
+    threadConnectedRef.current = true;
+    return () => {
+      threadConnectedRef.current = false;
+    };
+  }, []);
+  const settleWhenThreadConnected: SettleWhenThreadConnected = (settle) => {
+    if (threadConnectedRef.current) {
+      settle();
+      return;
+    }
+    console.warn(
+      "Cannot complete a send on a disconnected AuiClient. This completion was ignored.",
+    );
+  };
 
   const messages = useMemo(
     () => dedupeMessagesById(messagesProp),
@@ -1061,7 +1046,7 @@ const useExternalThread = ({
         speech: speech?.messageId === msg.id ? speech : undefined,
         onSpeak: () => handleSpeak(msg),
         onStopSpeaking: () => speechController.stopMessage(msg.id),
-        threadActivity,
+        settleWhenThreadConnected,
       };
       if (onEdit) props.onEdit = onEdit;
       return withKey(msg.id, MessageClient(props));
@@ -1111,7 +1096,7 @@ const useExternalThread = ({
       onSend: handleSendNew,
       queue: composerQueue,
       attachmentAdapter,
-      threadActivity,
+      settleWhenThreadConnected,
     }),
   );
   const suggestionsClient = useClientResource(
