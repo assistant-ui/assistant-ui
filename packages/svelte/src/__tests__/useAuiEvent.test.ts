@@ -68,6 +68,7 @@ describe("useAuiEvent", () => {
     let exposed!: { aui: AnyClient; setPresent: (value: boolean) => void };
     const onPing = vi.fn();
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
     const makeConfig = (present: boolean) =>
       present
         ? AuiConfig({ message: MessageClient({ id: "m0" }) } as never)
@@ -83,9 +84,10 @@ describe("useAuiEvent", () => {
       },
     });
 
-    // The message scope is absent at mount: binding must be a pending no-op,
-    // never a thrown-and-swallowed detach
+    // The message scope is absent at mount: binding is a pending no-op that
+    // surfaces in dev via warn, never a thrown-and-swallowed error
     expect(errorSpy).not.toHaveBeenCalled();
+    expect(warnSpy).toHaveBeenCalled();
 
     exposed.setPresent(true);
     await vi.waitFor(() =>

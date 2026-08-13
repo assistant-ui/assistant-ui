@@ -29,7 +29,38 @@ export const useAuiState = <T>(
 ): { readonly current: T } => {
   const { source } = getAuiContext();
 
-  const subscribe = createSubscriber((update) => source.subscribe(update));
+  // Wake dependents only when the selected slice changes by Object.is, matching
+  // the react (useSyncExternalStore) and vue (computed) bridges: a store tick
+  // that does not move the slice re-runs nothing. A selector that throws (a
+  // scope shrinking out from under it) wakes so the getter surfaces it.
+  const read = () => selector(getProxiedAssistantState(source.getClient()));
+  const subscribe = createSubscriber((update) => {
+    let last: T;
+    let primed = false;
+    // Seed the baseline so the first notification with an unchanged slice does
+    // not wake; a selector that throws now stays unprimed and wakes on the
+    // first notification, letting the getter surface the error.
+    try {
+      last = read();
+      primed = true;
+    } catch {
+      /* unprimed */
+    }
+    return source.subscribe(() => {
+      let next: T;
+      try {
+        next = read();
+      } catch {
+        primed = false;
+        update();
+        return;
+      }
+      if (primed && Object.is(next, last)) return;
+      last = next;
+      primed = true;
+      update();
+    });
+  });
 
   return {
     get current(): T {

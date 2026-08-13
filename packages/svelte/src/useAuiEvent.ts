@@ -8,6 +8,7 @@ import {
   type Unsubscribe,
 } from "@assistant-ui/store/client";
 import { getAuiContext } from "./context";
+import { isDevelopment } from "./isDevelopment";
 
 /**
  * Subscribes to an assistant event for the lifetime of the current
@@ -42,9 +43,12 @@ export const useAuiEvent = <TEvent extends AssistantEventName>(
         { scope, event } as AssistantEventSelector<TEvent>,
         callback,
       );
-    } catch {
+    } catch (error) {
       // A live config may drop the selected scope; keep the current binding and
-      // retry once a later structural change makes the scope available again.
+      // retry once a later structural change makes the scope available again. A
+      // selector that never resolves (a typo'd scope) surfaces here in dev,
+      // matching the loud failure the react and vue bridges give.
+      if (isDevelopment) console.warn(error);
       return;
     }
     off?.();

@@ -6,7 +6,12 @@ import { provideAui } from "../provideAui";
 import { useAuiState } from "../useAuiState";
 import Host from "./fixtures/Host.svelte";
 import StateProbe from "./fixtures/StateProbe.svelte";
-import { ThreadClient, type AnyClient } from "./clients";
+import {
+  flushEvents,
+  MessageClient,
+  ThreadClient,
+  type AnyClient,
+} from "./clients";
 
 const target = () => document.createElement("div");
 
@@ -30,6 +35,41 @@ describe("useAuiState", () => {
 
     flushTapSync(() => aui.thread.setSelected(3));
     await vi.waitFor(() => expect(onValue).toHaveBeenCalledWith(3));
+
+    flushSync(() => void unmount(app));
+  });
+
+  it("does not wake an effect when an unrelated slice changes", async () => {
+    let aui!: AnyClient;
+    const onValue = vi.fn();
+    const app = mount(StateProbe, {
+      target: target(),
+      props: {
+        setup: () => {
+          aui = provideAui(
+            AuiConfig({
+              thread: ThreadClient(),
+              message: MessageClient({ id: "m0" }),
+            } as never),
+          );
+          const selected = useAuiState((s) => (s as AnyClient).thread.selected);
+          return () => selected.current;
+        },
+        onValue,
+      },
+    });
+
+    await vi.waitFor(() => expect(onValue).toHaveBeenCalledTimes(1));
+
+    // Mutating a different scope notifies the store, but the selected slice is
+    // unchanged, so the effect must not re-run
+    flushTapSync(() => aui.message.setText("draft"));
+    await flushEvents();
+    expect(onValue).toHaveBeenCalledTimes(1);
+
+    // A real change to the selected slice still wakes it
+    flushTapSync(() => aui.thread.setSelected(1));
+    await vi.waitFor(() => expect(onValue).toHaveBeenCalledTimes(2));
 
     flushSync(() => void unmount(app));
   });
