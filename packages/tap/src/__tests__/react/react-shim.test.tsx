@@ -16,7 +16,10 @@ import {
   useEffect,
 } from "../../react-shim";
 import { useContextProvider } from "../../core/context";
-import { renderResourceFiber } from "../../core/ResourceFiber";
+import {
+  commitResourceFiber,
+  renderResourceFiber,
+} from "../../core/ResourceFiber";
 import { use as tapUse } from "../../react-hooks/use";
 import { c as _c } from "../../react-shim/compiler-runtime";
 
@@ -138,6 +141,55 @@ describe("@assistant-ui/tap/react-shim", () => {
       expect(computes).toBe(1);
       expect(renderTest(testFiber, { x: 2 })).toBe(4);
       expect(computes).toBe(1);
+      expect(renderTest(testFiber, { x: 3 })).toBe(6);
+      expect(computes).toBe(2);
+    });
+
+    it("c() keeps memoized values across an uncommitted replay", () => {
+      let computes = 0;
+      const testFiber = createTestResource(() => {
+        const $ = _c(1);
+        let owner;
+        if ($[0] === SENTINEL) {
+          computes++;
+          owner = { listeners: new Set<() => void>() };
+          $[0] = owner;
+        } else {
+          owner = $[0];
+        }
+        return owner;
+      });
+
+      const first = renderResourceFiber(testFiber, []);
+      const replay = renderResourceFiber(testFiber, []);
+      commitResourceFiber(testFiber);
+
+      expect(replay).toBe(first);
+      expect(computes).toBe(1);
+      expect(renderTest(testFiber)).toBe(first);
+      expect(computes).toBe(1);
+    });
+
+    it("c() recomputes across an uncommitted replay when deps change", () => {
+      let computes = 0;
+      const testFiber = createTestResource((p: { x: number }) => {
+        const $ = _c(2);
+        let double;
+        if ($[0] !== p.x) {
+          computes++;
+          double = p.x * 2;
+          $[0] = p.x;
+          $[1] = double;
+        } else {
+          double = $[1];
+        }
+        return double;
+      });
+
+      expect(renderResourceFiber(testFiber, [{ x: 2 }])).toBe(4);
+      expect(renderResourceFiber(testFiber, [{ x: 3 }])).toBe(6);
+      commitResourceFiber(testFiber);
+      expect(computes).toBe(2);
       expect(renderTest(testFiber, { x: 3 })).toBe(6);
       expect(computes).toBe(2);
     });

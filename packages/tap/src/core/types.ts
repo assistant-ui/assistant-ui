@@ -96,6 +96,8 @@ export interface ResourceFiber<R> {
   wipCommitCallbacks: CommitCallbacks | null;
 
   currentIndex: number;
+  // workInProgress persists across uncommitted renders so replays observe the
+  // same memoized values as React; commit promotes it, discardWipRender drops it.
   memoCache: {
     current: unknown[][] | null;
     workInProgress: unknown[][] | null;

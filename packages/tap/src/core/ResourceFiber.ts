@@ -58,8 +58,6 @@ export function renderResourceFiber<R>(
   fiber: ResourceFiber<R>,
   args: readonly unknown[],
 ): R {
-  fiber.memoCache.workInProgress = null;
-
   // Discard render-phase actions left by a previous render
   if (fiber.renderPendingCells !== null) {
     for (const cell of fiber.renderPendingCells) cell.renderQueue = null;
