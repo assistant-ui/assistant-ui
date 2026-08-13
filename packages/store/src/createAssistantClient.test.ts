@@ -333,4 +333,28 @@ describe("createAssistantClient", () => {
     release();
     expect(listener).not.toHaveBeenCalled();
   });
+
+  it("completes a destroy issued from the first mount notification", () => {
+    const { TrackedThread, counters } = createTrackedThread();
+    const useMountPinger = () => {
+      const [, setTick] = useState(0);
+      useEffect(() => {
+        setTick(1);
+      }, []);
+      return { getState: () => ({}) };
+    };
+    const MountPinger = resource(useMountPinger);
+    const handle = createTestClient({
+      thread: TrackedThread(),
+      pinger: MountPinger(),
+    });
+
+    handle.subscribe(() => handle.destroy());
+    expect(counters.mounts).toBeGreaterThan(0);
+    expect(counters.cleanups).toBe(counters.mounts);
+
+    const listener = vi.fn();
+    handle.subscribe(listener);
+    expect(listener).not.toHaveBeenCalled();
+  });
 });

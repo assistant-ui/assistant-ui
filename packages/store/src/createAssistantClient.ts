@@ -94,8 +94,10 @@ const toClientSource = (
  * before that throw, so an imperative consumer without a reactive framework
  * holds a no-op subscription. When the last subscriber releases, the root
  * soft-unmounts on the next task: effects clean up, state is retained, and a
- * later subscriber remounts the same scopes. `destroy` tears down immediately
- * and permanently instead; releasing every subscription is the ordinary path.
+ * later subscriber remounts the same scopes. `destroy` is the permanent
+ * teardown, synchronous while subscribers are attached; after the last
+ * release it defers to the soft unmount that release already scheduled.
+ * Releasing every subscription is the ordinary path.
  *
  * The parent may be a plain client or another source/handle. Passing a source
  * keeps the child bound to the parent's current client across the parent's
@@ -192,6 +194,9 @@ export const createAssistantClient = (
           unsubscribe();
           throw error;
         }
+        // A mount notification can destroy the handle before wire() assigns
+        // unwire; complete that destroy now
+        if (destroyed && unwire) flushTapSync(unwire);
       }
       let isSubscribed = true;
       return () => {
@@ -204,7 +209,8 @@ export const createAssistantClient = (
     destroy: () => {
       if (destroyed) return;
       destroyed = true;
-      // flushTapSync lands the deferred soft unmount before destroy returns
+      // Wired: flushTapSync lands the soft unmount before returning. Already
+      // released: the soft unmount tap scheduled then completes on its task
       if (unwire) flushTapSync(unwire);
     },
   };
