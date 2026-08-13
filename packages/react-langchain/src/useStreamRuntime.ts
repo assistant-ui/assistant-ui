@@ -15,7 +15,7 @@ import {
   useExternalMessageConverter,
   useRemoteThreadListRuntime,
 } from "@assistant-ui/core/react";
-import { useAuiState } from "@assistant-ui/store";
+import { useAui, useAuiState } from "@assistant-ui/store";
 import { STREAM_CONTROLLER, useChannel, useStream } from "@langchain/react";
 import type { Channel } from "@langchain/react";
 import type {
@@ -119,6 +119,7 @@ const useStreamThreadRuntime = (
 ) => {
   const { adapters, autoCancelPendingToolCalls, unstable_allowCancellation } =
     options;
+  const aui = useAui();
   const messagesKey = options.messagesKey ?? "messages";
   const uiStateKey = options.uiStateKey ?? "ui";
 
@@ -309,9 +310,12 @@ const useStreamThreadRuntime = (
               status: "error" as const,
             }))
           : [];
-      await stream.submit(
+      await streamRef.current.submit(
         { [messagesKey]: [...cancellations, { type: "human", content }] },
-        runConfigToSubmitOptions(msg.runConfig),
+        {
+          ...runConfigToSubmitOptions(msg.runConfig),
+          threadId: aui.threadListItem.getState().externalId ?? null,
+        },
       );
     },
     onAddToolResult: async ({

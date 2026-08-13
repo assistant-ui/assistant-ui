@@ -868,6 +868,68 @@ describe("ExternalStoreThreadRuntimeCore - message queue", () => {
     expect(withoutQueue.capabilities.queue).toBe(false);
   });
 
+  it("waits for thread initialization before dispatching an append", async () => {
+    let resolveInitialization!: () => void;
+    const initialization = new Promise<void>((resolve) => {
+      resolveInitialization = resolve;
+    });
+    const onNew = vi.fn(async () => {});
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({ onNew }),
+    );
+    runtime.__internal_setGetInitializePromise(() => initialization);
+
+    const appendPromise = runtime.append(appendMessage());
+    await Promise.resolve();
+
+    expect(onNew).not.toHaveBeenCalled();
+
+    resolveInitialization();
+    await appendPromise;
+
+    expect(onNew).toHaveBeenCalledTimes(1);
+  });
+
+  it("shares the initialization barrier across concurrent appends", async () => {
+    let resolveInitialization!: () => void;
+    const initialization = new Promise<void>((resolve) => {
+      resolveInitialization = resolve;
+    });
+    const onNew = vi.fn(async () => {});
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({ onNew }),
+    );
+    runtime.__internal_setGetInitializePromise(() => initialization);
+
+    const firstAppend = runtime.append(appendMessage());
+    const secondAppend = runtime.append(appendMessage());
+    await Promise.resolve();
+
+    expect(onNew).not.toHaveBeenCalled();
+
+    resolveInitialization();
+    await Promise.all([firstAppend, secondAppend]);
+
+    expect(onNew).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not dispatch when thread initialization rejects", async () => {
+    const initialization = Promise.reject(new Error("initialization failed"));
+    const onNew = vi.fn(async () => {});
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({ onNew }),
+    );
+    runtime.__internal_setGetInitializePromise(() => initialization);
+
+    await expect(runtime.append(appendMessage())).rejects.toThrow(
+      "initialization failed",
+    );
+    expect(onNew).not.toHaveBeenCalled();
+  });
+
   it("routes a tail append through the queue adapter instead of onNew", async () => {
     const queue = makeQueue();
     const onNew = vi.fn();

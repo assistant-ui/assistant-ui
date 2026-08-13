@@ -1825,6 +1825,8 @@ declare class ExternalStoreThreadRuntimeCore extends BaseThreadRuntimeCore imple
   extras: unknown;
   private _converter;
   private _store;
+  private _getInitializePromise?;
+  __internal_setGetInitializePromise(getPromise: () => Promise<unknown> | undefined): void;
   private _transformedQueue;
   private _toolInvocations;
   beginEdit(messageId: string): void;

@@ -122,6 +122,14 @@ export class ExternalStoreThreadRuntimeCore
 
   private _store!: ExternalStoreAdapter<any>;
 
+  private _getInitializePromise?: () => Promise<unknown> | undefined;
+
+  public __internal_setGetInitializePromise(
+    getPromise: () => Promise<unknown> | undefined,
+  ) {
+    this._getInitializePromise = getPromise;
+  }
+
   private _transformedQueue: ExternalThreadQueueAdapter | undefined;
 
   /**
@@ -508,6 +516,12 @@ export class ExternalStoreThreadRuntimeCore
     }
 
     const message = this.enrichAppendMetadata(rawMessage);
+    this.ensureInitialized();
+
+    const initPromise = this._getInitializePromise?.();
+    if (initPromise) {
+      await initPromise;
+    }
 
     // Auto-abort in-flight client-side tool executions when a new run is
     // about to start. Without this, a tool that finishes after the new turn
