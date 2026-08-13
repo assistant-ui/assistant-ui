@@ -174,7 +174,9 @@ describe("useAdkRuntime tool approvals", () => {
         type: "tool",
         tool_call_id: CONFIRMATION_CALL,
         name: "adk_request_confirmation",
-        content: "not-json",
+        // ADK parses the wrapped text without a `try`, so this reply raises
+        // rather than denying, and the gate stays answerable.
+        content: JSON.stringify({ response: "not-json" }),
         status: "success",
       },
     ];

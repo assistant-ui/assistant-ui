@@ -147,6 +147,12 @@ describe("optimistic confirmation replies", () => {
     ],
   });
 
+  /**
+   * ADK parses the text inside its client wrapper without a `try`, so a wrapper
+   * holding text that is not JSON raises and abandons the whole event.
+   */
+  const UNREADABLE_REPLY = JSON.stringify({ response: "not json" });
+
   const confirmationReply = (
     id: string,
     toolCallId: string,
@@ -186,7 +192,7 @@ describe("optimistic confirmation replies", () => {
             "conf-a",
             JSON.stringify({ confirmed: true }),
           ),
-          confirmationReply("reply-b", "conf-b", "not json"),
+          confirmationReply("reply-b", "conf-b", UNREADABLE_REPLY),
         ],
         {},
       );
@@ -212,7 +218,7 @@ describe("optimistic confirmation replies", () => {
             JSON.stringify({ confirmed: true }),
           ),
           { id: "ai-interleaved", type: "ai", content: "thinking" },
-          confirmationReply("reply-b", "conf-b", "not json"),
+          confirmationReply("reply-b", "conf-b", UNREADABLE_REPLY),
         ],
         {},
       );
@@ -243,7 +249,7 @@ describe("optimistic confirmation replies", () => {
     });
     await act(async () => {
       await result.current.sendMessage(
-        [confirmationReply("reply-b", "conf-b", "not json")],
+        [confirmationReply("reply-b", "conf-b", UNREADABLE_REPLY)],
         {},
       );
     });

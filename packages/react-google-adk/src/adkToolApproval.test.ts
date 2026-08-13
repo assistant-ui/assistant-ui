@@ -87,14 +87,50 @@ describe("projectAdkToolApprovals", () => {
       ),
       { id: CONFIRMATION_CALL, approved: false },
     ],
+    // ADK reads a truthy response it cannot take a `confirmed` off — raw text,
+    // a scalar, an array — as a tool it resumes unconfirmed, so the gate is
+    // denied rather than left answerable.
     [
-      "still pending on an unreadable reply",
+      "denied on a reply ADK resumes unconfirmed",
       requestedThread(reply("not json")),
+      { id: CONFIRMATION_CALL, approved: false },
+    ],
+    [
+      "denied on a scalar reply",
+      requestedThread(reply("5")),
+      { id: CONFIRMATION_CALL, approved: false },
+    ],
+    [
+      "denied on a wrapped reply ADK parses to a scalar",
+      requestedThread(reply(JSON.stringify({ response: "5" }))),
+      { id: CONFIRMATION_CALL, approved: false },
+    ],
+    // A falsy response records no confirmation at all, so the gate stays open.
+    [
+      "still pending on a reply ADK records nothing for",
+      requestedThread(reply("false")),
       { id: CONFIRMATION_CALL },
     ],
     [
+      "still pending on an empty reply",
+      requestedThread(reply("")),
+      { id: CONFIRMATION_CALL },
+    ],
+    // ADK parses the wrapped text without a `try`, so these raise.
+    [
       "still pending on an unreadable wrapped reply",
       requestedThread(reply(JSON.stringify({ response: "not json" }))),
+      { id: CONFIRMATION_CALL },
+    ],
+    [
+      "still pending on a wrapped reply ADK cannot stringify to JSON",
+      requestedThread(reply(JSON.stringify({ response: { confirmed: true } }))),
+      { id: CONFIRMATION_CALL },
+    ],
+    // `"response" in "x"` raises on a one-character response.
+    [
+      "still pending on a one-character reply",
+      requestedThread(reply("x")),
       { id: CONFIRMATION_CALL },
     ],
     [
@@ -122,12 +158,14 @@ describe("projectAdkToolApprovals", () => {
    * the unreadable reply aborts its whole event and the readable sibling never
    * executes either. Both gates stay answerable.
    */
+  const UNREADABLE = JSON.stringify({ response: "not json" });
+
   it("keeps every confirmation from one event pending when one reply is unreadable", () => {
     const { approvals } = projectAdkToolApprovals([
       aiCall("conf-a", "adk_request_confirmation"),
       aiCall("conf-b", "adk_request_confirmation"),
       eventReply("evt-1", 0, "conf-a", JSON.stringify({ confirmed: true })),
-      eventReply("evt-1", 1, "conf-b", "not json"),
+      eventReply("evt-1", 1, "conf-b", UNREADABLE),
     ]);
 
     expect([...approvals.values()]).toEqual([
@@ -141,13 +179,48 @@ describe("projectAdkToolApprovals", () => {
       aiCall("conf-a", "adk_request_confirmation"),
       aiCall("conf-b", "adk_request_confirmation"),
       eventReply("evt-1", 0, "conf-a", JSON.stringify({ confirmed: true })),
-      eventReply("evt-2", 0, "conf-b", "not json"),
+      eventReply("evt-2", 0, "conf-b", UNREADABLE),
     ]);
 
     expect([...approvals.values()]).toEqual([
       { id: "conf-a", approved: true },
       { id: "conf-b" },
     ]);
+  });
+
+  /**
+   * A reply ADK records nothing for does not raise, so its siblings in the same
+   * event are parsed and resumed as usual and keep their decisions.
+   */
+  it("settles a sibling when the unrecorded reply came from the same event", () => {
+    const { approvals } = projectAdkToolApprovals([
+      aiCall("conf-a", "adk_request_confirmation"),
+      aiCall("conf-b", "adk_request_confirmation"),
+      eventReply("evt-1", 0, "conf-a", JSON.stringify({ confirmed: true })),
+      eventReply("evt-1", 1, "conf-b", "false"),
+    ]);
+
+    expect([...approvals.values()]).toEqual([
+      { id: "conf-a", approved: true },
+      { id: "conf-b" },
+    ]);
+  });
+
+  /**
+   * ADK Python spells the confirmation args in snake_case, which the event
+   * accumulator already reads both ways.
+   */
+  it("gates the call named by a snake_case confirmation request", () => {
+    const { approvals } = projectAdkToolApprovals([
+      aiCall(GATED_CALL, "delete_file", { path: "/tmp/a" }),
+      aiCall(CONFIRMATION_CALL, "adk_request_confirmation", {
+        original_function_call: { id: GATED_CALL, name: "delete_file" },
+        tool_confirmation: { hint: "Delete /tmp/a?" },
+      }),
+    ]);
+
+    expect([...approvals.keys()]).toEqual([CONFIRMATION_CALL, GATED_CALL]);
+    expect(approvals.get(GATED_CALL)).toEqual({ id: CONFIRMATION_CALL });
   });
 
   it("gates nothing when no confirmation was requested", () => {
@@ -200,7 +273,7 @@ describe("toAdkToolConfirmationReply", () => {
 
   it("still answers a gate whose earlier reply was unreadable", () => {
     const approvals = projectAdkToolApprovals(
-      requestedThread(reply("not json")),
+      requestedThread(reply(JSON.stringify({ response: "not json" }))),
     ).approvals;
 
     expect(

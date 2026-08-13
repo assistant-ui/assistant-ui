@@ -18,30 +18,59 @@ const parseJson = (raw: string): unknown => {
   }
 };
 
+type AdkConfirmationRead = {
+  /**
+   * False only where ADK raises reading the reply, which aborts every function
+   * response in the same event rather than denying this one.
+   */
+  readable: boolean;
+  /** Undefined where ADK records no confirmation and the gate stays open. */
+  confirmed: boolean | undefined;
+};
+
 /**
- * ADK reads a confirmation reply either directly as `{confirmed}` or through
- * its client wrapper, a lone `response` key holding the JSON text. It rejects a
- * tool whose confirmation is not explicitly truthy, so a readable reply that is
- * not `confirmed: true` is a denial. A reply it cannot read raises instead of
- * denying, leaving the gate answerable, so that projects as undecided rather
- * than settling it and blocking the retry.
+ * The value the transport puts on `functionResponse.response`: the reply
+ * content parsed, or the raw text where it is not JSON.
  */
-const readConfirmed = (content: unknown): boolean | undefined => {
-  if (typeof content !== "string") return undefined;
-  const response = parseJson(content);
-  if (typeof response !== "object" || response === null) return undefined;
+const wireResponseOf = (content: string): unknown => {
+  const parsed = parseJson(content);
+  return parsed === undefined ? content : parsed;
+};
 
-  const record = response as Record<string, unknown>;
-  const keys = Object.keys(record);
-  if (keys.length === 1 && keys[0] === "response") {
-    const wrapped = record.response;
-    if (typeof wrapped !== "string") return undefined;
-    const inner = parseJson(wrapped);
-    if (typeof inner !== "object" || inner === null) return undefined;
-    return (inner as { confirmed?: unknown }).confirmed === true;
+/**
+ * Mirrors ADK's own reading of a confirmation reply, whose three outcomes the
+ * gate has to distinguish. A falsy response records nothing, so the gate stays
+ * open and its siblings are untouched. Otherwise ADK either unwraps its client
+ * wrapper — a lone `response` key whose value it parses as JSON text — or reads
+ * `confirmed` off the response directly, and resumes the tool unconfirmed
+ * (a denial) for anything that is not explicitly `true`; a bare string, number,
+ * or array is such a denial, not an unreadable reply. Only where that reading
+ * raises is the reply unreadable, and the raise is uncaught in ADK, so the
+ * whole event it belongs to is abandoned.
+ */
+const readConfirmation = (content: unknown): AdkConfirmationRead => {
+  if (typeof content !== "string")
+    return { readable: false, confirmed: undefined };
+  const response = wireResponseOf(content);
+  try {
+    if (!response) return { readable: true, confirmed: undefined };
+    const record = response as Record<string, unknown>;
+    const decide = (value: unknown) =>
+      typeof value === "object" &&
+      value !== null &&
+      (value as { confirmed?: unknown }).confirmed === true;
+    // `in` raises on a primitive response, as ADK's own wrapper test does.
+    if (Object.keys(record).length === 1 && "response" in record) {
+      const inner = parseJson(String(record.response));
+      // ADK parses the wrapped text without a `try`, so it raises here.
+      if (inner === undefined) return { readable: false, confirmed: undefined };
+      if (!inner) return { readable: true, confirmed: undefined };
+      return { readable: true, confirmed: decide(inner) };
+    }
+    return { readable: true, confirmed: decide(record) };
+  } catch {
+    return { readable: false, confirmed: undefined };
   }
-
-  return record.confirmed === true;
 };
 
 /**
@@ -57,12 +86,16 @@ const sourceEventOf = (toolMessageId: string): string =>
 
 /**
  * ADK builds the confirmation request around the call it gates, carrying that
- * call verbatim in `originalFunctionCall`.
+ * call verbatim in `originalFunctionCall` — spelled `original_function_call` by
+ * ADK Python, which the accumulator reads the same way.
  */
 const gatedCallIdOf = (args: unknown): string | undefined => {
   if (typeof args !== "object" || args === null) return undefined;
-  const original = (args as { originalFunctionCall?: unknown })
-    .originalFunctionCall;
+  const record = args as {
+    originalFunctionCall?: unknown;
+    original_function_call?: unknown;
+  };
+  const original = record.originalFunctionCall ?? record.original_function_call;
   if (typeof original !== "object" || original === null) return undefined;
   const id = (original as { id?: unknown }).id;
   return typeof id === "string" && id.length > 0 ? id : undefined;
@@ -104,8 +137,8 @@ export const projectAdkToolApprovals = (
       batch = { readable: true, entries: [] };
       batches.set(key, batch);
     }
-    const confirmed = readConfirmed(message.content);
-    if (confirmed === undefined) batch.readable = false;
+    const { readable, confirmed } = readConfirmation(message.content);
+    if (!readable) batch.readable = false;
     batch.entries.push([message.tool_call_id, confirmed]);
   }
 
