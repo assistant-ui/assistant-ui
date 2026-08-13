@@ -213,7 +213,7 @@ useAssistantDataUI({
 });
 ```
 
-Data parts stay in the assistant-ui message but are not sent back to the agent, since the AG-UI assistant record has no field for them. A custom history adapter persists them as part of the message JSON; the assistant-cloud history adapter does not accept `data` parts yet and fails to persist an assistant message that contains one. Framework integrations emit their own plumbing over this channel (`on_interrupt`, `PredictState`, `Exit`, `hook_error`, `state_update_error`, `system:*`, `MultiAgentHandoff`), and those names surface as data parts like any other, so only register renderers for names your backend owns.
+Data parts stay in the assistant-ui message but are not sent back to the agent, since the AG-UI assistant record has no field for them. History adapters, including the assistant-cloud one, persist them as part of the message JSON. Framework integrations emit their own plumbing over this channel (`on_interrupt`, `PredictState`, `Exit`, `hook_error`, `state_update_error`, `system:*`, `MultiAgentHandoff`), and those names surface as data parts like any other, so only register renderers for names your backend owns.
 
 ## Feature support
 
