@@ -17,12 +17,17 @@ import { INSTANCE_TAG_SYMBOL } from "./utils/client-accessor";
  * This allows getState() to be optional in the user-facing client.
  */
 const SYMBOL_GET_OUTPUT = Symbol("assistant-ui.store.getValue");
-const SYMBOL_IS_CONNECTED = Symbol("assistant-ui.store.isConnected");
+const SYMBOL_CONNECTION_PHASE = Symbol("assistant-ui.store.connectionPhase");
+
+type ClientConnectionPhase = "connected" | "cleanup" | "disconnected";
 
 type ClientInternal = {
   [SYMBOL_GET_OUTPUT]: ClientMethods;
-  [SYMBOL_IS_CONNECTED]: boolean;
+  [SYMBOL_CONNECTION_PHASE]: ClientConnectionPhase;
 };
+
+const isCleanupSafeMethod = (prop: string | symbol) =>
+  prop === "cancel" || prop === "cancelRun";
 
 let clientReadDepth = 0;
 export const runClientRead = <T>(read: () => T): T => {
@@ -70,11 +75,13 @@ function getOrCreateProxyFn(prop: string | symbol) {
         );
       }
 
+      const connectionPhase = (this as ClientInternal)[SYMBOL_CONNECTION_PHASE];
       if (
         prop !== "getState" &&
         prop !== "subscribe" &&
         clientReadDepth === 0 &&
-        !(this as ClientInternal)[SYMBOL_IS_CONNECTED]
+        connectionPhase !== "connected" &&
+        !(connectionPhase === "cleanup" && isCleanupSafeMethod(prop))
       ) {
         console.warn(
           `Cannot call "${String(prop)}" on a disconnected AuiClient. This call was ignored.`,
@@ -109,7 +116,7 @@ class ClientProxyHandler
   private readonly outputRef: {
     current: ClientMethods;
   };
-  private readonly connectedRef: { current: boolean };
+  private readonly connectionPhaseRef: { current: ClientConnectionPhase };
   private readonly tagRef: { current: object };
   private readonly index: number;
 
@@ -117,13 +124,13 @@ class ClientProxyHandler
     outputRef: {
       current: ClientMethods;
     },
-    connectedRef: { current: boolean },
+    connectionPhaseRef: { current: ClientConnectionPhase },
     tagRef: { current: object },
     index: number,
   ) {
     super();
     this.outputRef = outputRef;
-    this.connectedRef = connectedRef;
+    this.connectionPhaseRef = connectionPhaseRef;
     this.tagRef = tagRef;
     this.index = index;
   }
@@ -136,7 +143,8 @@ class ClientProxyHandler
 
   get(_: unknown, prop: string | symbol, receiver: unknown) {
     if (prop === SYMBOL_GET_OUTPUT) return this.outputRef.current;
-    if (prop === SYMBOL_IS_CONNECTED) return this.connectedRef.current;
+    if (prop === SYMBOL_CONNECTION_PHASE)
+      return this.connectionPhaseRef.current;
     if (prop === SYMBOL_CLIENT_INDEX) return this.index;
     if (prop === INSTANCE_TAG_SYMBOL) return this.tagRef.current;
     const introspection = handleIntrospectionProp(prop, "ClientProxy");
@@ -169,7 +177,7 @@ class ClientProxyHandler
 
   has(_: unknown, prop: string | symbol) {
     if (prop === SYMBOL_GET_OUTPUT) return true;
-    if (prop === SYMBOL_IS_CONNECTED) return true;
+    if (prop === SYMBOL_CONNECTION_PHASE) return true;
     if (prop === SYMBOL_CLIENT_INDEX) return true;
     if (prop === INSTANCE_TAG_SYMBOL) return true;
     return prop in this.outputRef.current;
@@ -184,7 +192,7 @@ export const useClientResource = <TMethods extends ClientMethods>(
   key: string | number | undefined;
 } => {
   const valueRef = useRef(null as unknown as TMethods);
-  const connectedRef = useRef(true);
+  const connectionPhaseRef = useRef<ClientConnectionPhase>("connected");
   const [connectionLifecycle] = useState(() => ({ generation: 0 }));
   const tagRef = useRef(null as unknown as object);
 
@@ -200,7 +208,7 @@ export const useClientResource = <TMethods extends ClientMethods>(
   const methods = useMemo(() => {
     const handler = new ClientProxyHandler(
       valueRef,
-      connectedRef,
+      connectionPhaseRef,
       tagRef,
       index,
     );
@@ -209,13 +217,13 @@ export const useClientResource = <TMethods extends ClientMethods>(
 
   useEffect(() => {
     const generation = ++connectionLifecycle.generation;
-    connectedRef.current = true;
+    connectionPhaseRef.current = "connected";
     return () => {
-      // Descendant effect cleanups may intentionally perform a final action,
-      // such as cancelling backend work. Disconnect after that cleanup phase.
+      // Cancellation remains available while descendant effects clean up.
+      connectionPhaseRef.current = "cleanup";
       queueMicrotask(() => {
         if (connectionLifecycle.generation === generation) {
-          connectedRef.current = false;
+          connectionPhaseRef.current = "disconnected";
         }
       });
     };

@@ -145,18 +145,22 @@ describe("proxy invariants", () => {
     );
   });
 
-  it("allows cleanup actions before denying later stale calls", async () => {
-    const cancel = vi.fn();
-    let cancelThread!: () => void;
+  it("allows cleanup cancellation while denying other stale actions", async () => {
+    const cancelRun = vi.fn();
+    const send = vi.fn();
+    let cancelThreadRun!: () => void;
+    let sendMessage!: () => void;
     const useCancelableThread = () => ({
       getState: () => null,
-      cancel,
+      cancelRun,
+      send,
     });
     const CancelableThread = resource(useCancelableThread);
     const Consumer: FC = () => {
       const aui = useAui();
-      cancelThread = aui.thread.cancel;
-      useEffect(() => () => aui.thread.cancel(), [aui]);
+      cancelThreadRun = aui.thread.cancelRun;
+      sendMessage = aui.thread.send;
+      useEffect(() => () => aui.thread.cancelRun(), [aui]);
       return null;
     };
     const CancelableApp: FC = () => {
@@ -173,14 +177,19 @@ describe("proxy invariants", () => {
     const view = render(<CancelableApp />);
 
     view.unmount();
-    expect(cancel).toHaveBeenCalledTimes(1);
-    expect(warning).not.toHaveBeenCalled();
+    expect(cancelRun).toHaveBeenCalledTimes(1);
+
+    sendMessage();
+    expect(send).not.toHaveBeenCalled();
+    expect(warning).toHaveBeenCalledWith(
+      'Cannot call "send" on a disconnected AuiClient. This call was ignored.',
+    );
 
     await new Promise<void>((resolve) => queueMicrotask(resolve));
-    cancelThread();
-    expect(cancel).toHaveBeenCalledTimes(1);
+    cancelThreadRun();
+    expect(cancelRun).toHaveBeenCalledTimes(1);
     expect(warning).toHaveBeenCalledWith(
-      'Cannot call "cancel" on a disconnected AuiClient. This call was ignored.',
+      'Cannot call "cancelRun" on a disconnected AuiClient. This call was ignored.',
     );
   });
 
@@ -218,8 +227,8 @@ describe("proxy invariants", () => {
     expect(warning).not.toHaveBeenCalled();
   });
 
-  it("keeps internal derived reads working across an Activity reconnect", () => {
-    const DerivedApp: FC = () => {
+  it("keeps internal derived reads working across an Activity reconnect", async () => {
+    const DerivedApp: FC<{ renderId: number }> = ({ renderId }) => {
       const aui = useAui({
         thread: Thread(),
         item: Derived({
@@ -229,21 +238,25 @@ describe("proxy invariants", () => {
         }),
       } as unknown as useAui.Props);
       probe.aui = aui;
-      return <AuiProvider value={aui} />;
+      return <AuiProvider value={aui}>{renderId}</AuiProvider>;
     };
     const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const app = <DerivedApp />;
-    const view = render(<Activity mode="visible">{app}</Activity>);
+    const app = (renderId: number) => <DerivedApp renderId={renderId} />;
+    const view = render(<Activity mode="visible">{app(0)}</Activity>);
 
     expect(probe.aui.item().getState()).toEqual({ id: "a" });
-    act(() => view.rerender(<Activity mode="hidden">{app}</Activity>));
-    act(() => view.rerender(<Activity mode="visible">{app}</Activity>));
+    await act(async () => {
+      view.rerender(<Activity mode="hidden">{app(0)}</Activity>);
+      await new Promise<void>((resolve) => queueMicrotask(resolve));
+    });
+    act(() => view.rerender(<Activity mode="hidden">{app(1)}</Activity>));
+    act(() => view.rerender(<Activity mode="visible">{app(2)}</Activity>));
 
     expect(probe.aui.item().getState()).toEqual({ id: "a" });
     expect(warning).not.toHaveBeenCalled();
   });
 
-  it("keeps list item reads working while an Activity is disconnected", () => {
+  it("keeps list item reads working while an Activity is disconnected", async () => {
     const ItemReader: FC<{ renderId: number }> = ({ renderId }) => (
       <RenderChildrenWithAccessor
         getItemState={(aui) =>
@@ -262,7 +275,10 @@ describe("proxy invariants", () => {
     const view = render(<Activity mode="visible">{app(0)}</Activity>);
 
     expect(view.container.textContent).toBe("a");
-    act(() => view.rerender(<Activity mode="hidden">{app(0)}</Activity>));
+    await act(async () => {
+      view.rerender(<Activity mode="hidden">{app(0)}</Activity>);
+      await new Promise<void>((resolve) => queueMicrotask(resolve));
+    });
     act(() => view.rerender(<Activity mode="hidden">{app(1)}</Activity>));
 
     expect(view.container.textContent).toBe("a");
