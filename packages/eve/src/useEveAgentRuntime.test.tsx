@@ -774,7 +774,7 @@ describe("useEveAgentRuntime createdAt derivation", () => {
     ],
   };
 
-  it("derives createdAt from the earliest event timestamp of the message's turn", () => {
+  it("derives createdAt from the message's own first event, not the turn's", () => {
     mockUseEveAgent.mockReturnValue(
       createAgent({
         data: resumedData,

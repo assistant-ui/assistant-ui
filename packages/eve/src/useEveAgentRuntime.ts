@@ -26,100 +26,23 @@ import {
   type UseEveAgentOptions,
   type UseEveAgentStatus,
 } from "eve/react";
-import type { HandleMessageStreamEvent, SendTurnPayload } from "eve/client";
+import type { SendTurnPayload } from "eve/client";
 import {
   convertEveMessages,
   getEveMessageContent,
   toEveInputResponse,
 } from "./convertEveMessages";
+import {
+  assignCreatedAt,
+  collectTurnTimestamps,
+  createTurnTimestampCache,
+  type AssignedCreatedAt,
+} from "./deriveCreatedAt";
 
 const USER_STAGED_STATUS = {
   type: "complete",
   reason: "unknown",
 } as const;
-
-// A turn carries both of its messages, so each role takes the earliest event
-// that belongs to it rather than the turn's first event: `message.received`
-// stamps the user message, and the first event after it stamps the assistant
-// message. Collapsing both onto the turn's start would render a reply that
-// arrived after minutes of tool calls at the time the question was asked.
-type TurnTimestamps = {
-  turn: Date;
-  user?: Date;
-  assistant?: Date;
-};
-
-type TurnTimestampCache = {
-  lastEvents: readonly HandleMessageStreamEvent[];
-  timestamps: ReadonlyMap<string, TurnTimestamps>;
-};
-
-const EMPTY_TURN_TIMESTAMPS: ReadonlyMap<string, TurnTimestamps> = new Map();
-
-// A turn whose event window no longer reaches its own role-specific events
-// still resolves through the turn's earliest event, and an assistant message
-// never resolves earlier than its user message.
-const resolveTurnTimestamp = (
-  stamps: TurnTimestamps | undefined,
-  role: string,
-): Date | undefined => {
-  if (stamps === undefined) return undefined;
-  if (role === "user") return stamps.user ?? stamps.turn;
-  return stamps.assistant ?? stamps.user ?? stamps.turn;
-};
-
-type AssignedCreatedAt = { at: Date; durable: boolean };
-
-// Eve grows its event log via [...events, event], so a later snapshot shares
-// its prefix by reference and the scan can resume where it left off. The reuse
-// is validated rather than trusted, because the cache may hold state from a
-// discarded render. The whole prefix is compared: a boundary-only check accepts
-// a snapshot that replaced an earlier event while keeping a later one, and the
-// timestamp derived from the replaced event would survive unscanned.
-//
-// The map is copied on write and returned by identity, so a scan that learns
-// nothing new lets callers keep memoized work alive.
-const collectTurnTimestamps = (
-  events: readonly HandleMessageStreamEvent[],
-  cache: TurnTimestampCache,
-): ReadonlyMap<string, TurnTimestamps> => {
-  if (events === cache.lastEvents) return cache.timestamps;
-
-  const scanned = cache.lastEvents;
-  const prefixIntact =
-    events.length >= scanned.length &&
-    scanned.every((event, index) => event === events[index]);
-
-  let timestamps = prefixIntact ? cache.timestamps : EMPTY_TURN_TIMESTAMPS;
-  let draft: Map<string, TurnTimestamps> | undefined;
-  for (let i = prefixIntact ? scanned.length : 0; i < events.length; i++) {
-    const event = events[i]!;
-    const at = event.meta?.at;
-    if (at === undefined) continue;
-    if (!("data" in event)) continue;
-    if (!("turnId" in event.data) || typeof event.data.turnId !== "string")
-      continue;
-    const turnId = event.data.turnId;
-    const known = timestamps.get(turnId);
-    const isReceived = event.type === "message.received";
-    const wantsUser = isReceived && known?.user === undefined;
-    const wantsAssistant =
-      !isReceived && known?.user !== undefined && known.assistant === undefined;
-    if (known !== undefined && !wantsUser && !wantsAssistant) continue;
-    const date = new Date(at);
-    if (Number.isNaN(date.getTime())) continue;
-    const next: TurnTimestamps = { ...(known ?? { turn: date }) };
-    if (wantsUser) next.user = date;
-    if (wantsAssistant) next.assistant = date;
-    draft ??= new Map(timestamps);
-    draft.set(turnId, next);
-    timestamps = draft;
-  }
-
-  cache.lastEvents = events;
-  cache.timestamps = timestamps;
-  return timestamps;
-};
 
 const sendCancelledError = new MessageNotSentError(
   "eve send was dropped because the run was cancelled.",
@@ -259,10 +182,7 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
     null,
   );
   const createdAtByMessageIdRef = useRef(new Map<string, AssignedCreatedAt>());
-  const turnTimestampCacheRef = useRef<TurnTimestampCache>({
-    lastEvents: [],
-    timestamps: EMPTY_TURN_TIMESTAMPS,
-  });
+  const turnTimestampCacheRef = useRef(createTurnTimestampCache());
   const stagedInputsRef = useRef(
     new Map<
       string,
@@ -288,75 +208,11 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
   );
 
   const convertedMessages = useMemo(() => {
-    const createdAtByMessageId = createdAtByMessageIdRef.current;
-    const messageIds = new Set(
-      agent.data.messages.map((message) => message.id),
+    const assignedById = assignCreatedAt(
+      agent.data.messages,
+      turnTimestamps,
+      createdAtByMessageIdRef.current,
     );
-    for (const messageId of createdAtByMessageId.keys()) {
-      if (!messageIds.has(messageId)) createdAtByMessageId.delete(messageId);
-    }
-
-    // Durable timestamps are ground truth and are never adjusted. Fallback
-    // wall-clock stamps can run ahead of durable ones (a server clock behind
-    // the client's), so each fallback is bounded between its neighboring
-    // assigned/durable timestamps to keep message order and thread timestamps
-    // consistent. The bounds are the tightest ones the thread order proves, so
-    // a fallback with no durable predecessor renders at its successor's durable
-    // stamp: an upper bound the message is no newer than, not a claim about
-    // when it was sent. Leaving it unbounded means core's plain `new Date()`,
-    // which renders resumed history as "just now" and orders it after the
-    // durable message that follows it.
-    //
-    // A durable timestamp already observed for a still-present message outlives
-    // the event that carried it: the event log can be replaced by one that no
-    // longer reaches back to that turn (a resumed or compacted session), and
-    // re-deriving from the new log alone would drop the message to a fresh
-    // wall-clock stamp and render an old message as "just now".
-    const eveMessages = agent.data.messages;
-    const durableByIndex = eveMessages.map((message) => {
-      const turnId = message.metadata?.turnId;
-      const derived =
-        turnId !== undefined
-          ? resolveTurnTimestamp(turnTimestamps.get(turnId), message.role)
-          : undefined;
-      if (derived !== undefined) {
-        createdAtByMessageId.set(message.id, { at: derived, durable: true });
-        return derived;
-      }
-      const remembered = createdAtByMessageId.get(message.id);
-      return remembered?.durable === true ? remembered.at : undefined;
-    });
-    const nextDurableMsByIndex: (number | undefined)[] = [];
-    let nextDurableMs: number | undefined;
-    for (let i = eveMessages.length - 1; i >= 0; i--) {
-      nextDurableMsByIndex[i] = nextDurableMs;
-      const durable = durableByIndex[i];
-      if (durable !== undefined) nextDurableMs = durable.getTime();
-    }
-
-    const assignedById = new Map<string, Date>();
-    let previousAssignedMs: number | undefined;
-    eveMessages.forEach((message, index) => {
-      let assigned = durableByIndex[index];
-      if (assigned === undefined) {
-        let fallback = createdAtByMessageId.get(message.id)?.at;
-        if (fallback === undefined) {
-          fallback = new Date();
-          createdAtByMessageId.set(message.id, {
-            at: fallback,
-            durable: false,
-          });
-        }
-        let ms = fallback.getTime();
-        if (previousAssignedMs !== undefined && ms < previousAssignedMs)
-          ms = previousAssignedMs;
-        const nextMs = nextDurableMsByIndex[index];
-        if (nextMs !== undefined && ms > nextMs) ms = nextMs;
-        assigned = ms === fallback.getTime() ? fallback : new Date(ms);
-      }
-      previousAssignedMs = assigned.getTime();
-      assignedById.set(message.id, assigned);
-    });
 
     return convertEveMessages(agent.data, {
       isRunning,
