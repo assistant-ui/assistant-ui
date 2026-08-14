@@ -1245,7 +1245,7 @@ describe("convertEveMessages", () => {
               ],
             },
           },
-        ] as readonly EveAgentReducerEvent[]);
+        ]);
 
         const message = state.messages.find((m) => m.role === "assistant");
         expect(message?.parts).toEqual(
