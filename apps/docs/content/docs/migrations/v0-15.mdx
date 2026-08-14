@@ -246,6 +246,8 @@ useAuiEvent("threads.selectionChanged", ({ threadId, previousThreadId }) => {
 
 Like its predecessors, it does not fire for the initially selected thread on mount. The deprecated events still fire and will keep working until the next major.
 
+The new event also fires in two situations where the deprecated pair did not: `InMemoryThreadList` emits on selection changes (it previously emitted no switch events), and `switchToNewThread()` emits for the newly created thread. Selection-driven defaults such as `scrollToBottomOnThreadSwitch` and `unstable_focusOnThreadSwitched` now engage in both situations.
+
 ## Still Deprecated (not removed)
 
 - Primitive `If` components (`ThreadPrimitive.If`, `MessagePrimitive.If`, `ThreadPrimitive.Empty`) — replaced by `AuiIf`. The codemod migrates these.
