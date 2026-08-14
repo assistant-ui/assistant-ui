@@ -1051,6 +1051,60 @@ describe("useEveAgentRuntime extras wiring", () => {
     expect(result.current.thread.getState().isRunning).toBe(false);
   });
 
+  it("rejects a pending human-input request when reset is invoked", async () => {
+    const agentReset = vi.fn(() => {
+      mockUseEveAgent.mockReturnValue(
+        createAgent({ data: { messages: [] }, reset: agentReset }) as never,
+      );
+    });
+    const agent = createAgent({ data: settledData, reset: agentReset });
+    mockUseEveAgent.mockReturnValue(agent as never);
+    const { result, rerender } = renderHook(() => useEveAgentRuntime());
+
+    const humanRejections: unknown[] = [];
+    act(() => {
+      result.current.registerModelContextProvider({
+        getModelContext: () => ({
+          tools: {
+            slow_tool: {
+              parameters: { type: "object", properties: {} },
+              execute: async (
+                _args: unknown,
+                context: { human: (payload: unknown) => Promise<unknown> },
+              ) => {
+                try {
+                  return await context.human({ request: "approve" });
+                } catch (error) {
+                  humanRejections.push(error);
+                  throw error;
+                }
+              },
+            },
+          },
+        }),
+      });
+    });
+
+    mockUseEveAgent.mockReturnValue(
+      createAgent({ data: twoExecutingToolsData, reset: agentReset }) as never,
+    );
+    rerender();
+
+    await waitFor(() => {
+      expect(result.current.thread.getState().isRunning).toBe(true);
+    });
+
+    act(() => {
+      eveExtras.tryGet(result.current.thread.getState().extras)!.reset();
+    });
+    rerender();
+
+    await waitFor(() => {
+      expect(humanRejections).toHaveLength(2);
+    });
+    expect((humanRejections[0] as Error).message).toBe("Tool execution aborted");
+  });
+
   it("ignores tool statuses left over from a discarded session", async () => {
     const releases: Record<string, () => void> = {};
     const agentReset = vi.fn(() => {
