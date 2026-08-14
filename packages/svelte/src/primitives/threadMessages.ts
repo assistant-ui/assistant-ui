@@ -1,6 +1,9 @@
 import { tick } from "svelte";
-import type { ThreadMessage } from "@assistant-ui/core";
-import type { ComposerMethods, MessageMethods } from "@assistant-ui/core/store";
+import type {
+  ComposerMethods,
+  MessageMethods,
+  MessageState,
+} from "@assistant-ui/core/store";
 import {
   AuiConfig,
   createAssistantClient,
@@ -116,14 +119,11 @@ const createMessageItem = (context: AuiContext, index: number): MessageItem => {
  */
 export const threadMessages = () => {
   const context = getAuiContext();
-  const items = useAuiState(
-    (s) => s.thread.messages as readonly ThreadMessage[],
-    { item: context },
-  );
+  const items = useAuiState((s) => s.thread.messages, { item: context });
   const cache = new Map<number, MessageItem>();
 
   return {
-    get items(): readonly ThreadMessage[] {
+    get items(): readonly MessageState[] {
       return items.current;
     },
     item: (index: number): MessageItem => {
