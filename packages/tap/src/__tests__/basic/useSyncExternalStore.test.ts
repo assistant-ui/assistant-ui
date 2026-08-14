@@ -330,4 +330,36 @@ describe("useSyncExternalStore", () => {
     commitResourceFiber(fiber);
     unmountResourceFiber(fiber);
   });
+
+  it("forces a corrective render when the store mutates silently between render and commit", () => {
+    let state = "a";
+    const subscribe = () => () => {};
+    const getSnapshot = () => state;
+
+    let dispatched = false;
+    const fiber = createResourceFiber(
+      function useSilentStore() {
+        return useSyncExternalStore(subscribe, getSnapshot);
+      },
+      createResourceFiberRoot((evaluate, apply) => {
+        if (!evaluate()) return;
+        apply();
+        dispatched = true;
+      }),
+      undefined,
+      null,
+    );
+
+    expect(renderResourceFiber(fiber, [])).toBe("a");
+    state = "b";
+
+    commitResourceFiber(fiber);
+    expect(dispatched).toBe(true);
+
+    expect(renderResourceFiber(fiber, [])).toBe("b");
+    dispatched = false;
+    commitResourceFiber(fiber);
+    expect(dispatched).toBe(false);
+    unmountResourceFiber(fiber);
+  });
 });
