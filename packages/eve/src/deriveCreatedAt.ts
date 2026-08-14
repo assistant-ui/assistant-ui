@@ -1,11 +1,9 @@
 import type { EveMessageData } from "eve/react";
 import type { HandleMessageStreamEvent } from "eve/client";
 
-// A turn carries both of its messages, so each role takes the earliest event
-// that belongs to it rather than the turn's first event: `message.received`
-// stamps the user message, and the first event after it stamps the assistant
-// message. Collapsing both onto the turn's start would render a reply that
-// arrived after minutes of tool calls at the time the question was asked.
+// One eve turn carries both of its messages, so a single turn timestamp would
+// render a reply that arrived after minutes of tool calls at the time the
+// question was asked.
 export type TurnTimestamps = {
   turn: Date;
   user?: Date;
@@ -15,6 +13,7 @@ export type TurnTimestamps = {
 export type TurnTimestampCache = {
   lastEvents: readonly HandleMessageStreamEvent[];
   timestamps: ReadonlyMap<string, TurnTimestamps>;
+  receivedTurns: Set<string>;
 };
 
 export type AssignedCreatedAt = { at: Date; durable: boolean };
@@ -24,11 +23,9 @@ const EMPTY_TURN_TIMESTAMPS: ReadonlyMap<string, TurnTimestamps> = new Map();
 export const createTurnTimestampCache = (): TurnTimestampCache => ({
   lastEvents: [],
   timestamps: EMPTY_TURN_TIMESTAMPS,
+  receivedTurns: new Set(),
 });
 
-// A turn whose event window no longer reaches its own role-specific events
-// still resolves through the turn's earliest event, and an assistant message
-// never resolves earlier than its user message.
 const resolveTurnTimestamp = (
   stamps: TurnTimestamps | undefined,
   role: string,
@@ -38,15 +35,18 @@ const resolveTurnTimestamp = (
   return stamps.assistant ?? stamps.user ?? stamps.turn;
 };
 
+const sharesPrefix = (
+  prefix: readonly HandleMessageStreamEvent[],
+  events: readonly HandleMessageStreamEvent[],
+): boolean => {
+  if (events.length < prefix.length) return false;
+  for (let i = 0; i < prefix.length; i++)
+    if (prefix[i] !== events[i]) return false;
+  return true;
+};
+
 // Eve grows its event log via [...events, event], so a later snapshot shares
-// its prefix by reference and the scan can resume where it left off. The reuse
-// is validated rather than trusted, because the cache may hold state from a
-// discarded render. The whole prefix is compared: a boundary-only check accepts
-// a snapshot that replaced an earlier event while keeping a later one, and the
-// timestamp derived from the replaced event would survive unscanned.
-//
-// The map is copied on write and returned by identity, so a scan that learns
-// nothing new lets callers keep memoized work alive.
+// its prefix by reference and the scan can resume where it left off.
 export const collectTurnTimestamps = (
   events: readonly HandleMessageStreamEvent[],
   cache: TurnTimestampCache,
@@ -54,25 +54,29 @@ export const collectTurnTimestamps = (
   if (events === cache.lastEvents) return cache.timestamps;
 
   const scanned = cache.lastEvents;
-  const prefixIntact =
-    events.length >= scanned.length &&
-    scanned.every((event, index) => event === events[index]);
+  const prefixIntact = sharesPrefix(scanned, events);
 
   let timestamps = prefixIntact ? cache.timestamps : EMPTY_TURN_TIMESTAMPS;
+  const receivedTurns = prefixIntact ? cache.receivedTurns : new Set<string>();
   let draft: Map<string, TurnTimestamps> | undefined;
   for (let i = prefixIntact ? scanned.length : 0; i < events.length; i++) {
     const event = events[i]!;
-    const at = event.meta?.at;
-    if (at === undefined) continue;
     if (!("data" in event)) continue;
     if (!("turnId" in event.data) || typeof event.data.turnId !== "string")
       continue;
     const turnId = event.data.turnId;
-    const known = timestamps.get(turnId);
     const isReceived = event.type === "message.received";
+    // The receipt marks where the assistant's own events begin whether or not
+    // it carries a usable timestamp of its own.
+    if (isReceived) receivedTurns.add(turnId);
+    const at = event.meta?.at;
+    if (at === undefined) continue;
+    const known = timestamps.get(turnId);
     const wantsUser = isReceived && known?.user === undefined;
     const wantsAssistant =
-      !isReceived && known?.user !== undefined && known.assistant === undefined;
+      !isReceived &&
+      receivedTurns.has(turnId) &&
+      known?.assistant === undefined;
     if (known !== undefined && !wantsUser && !wantsAssistant) continue;
     const date = new Date(at);
     if (Number.isNaN(date.getTime())) continue;
@@ -86,28 +90,20 @@ export const collectTurnTimestamps = (
 
   cache.lastEvents = events;
   cache.timestamps = timestamps;
+  cache.receivedTurns = receivedTurns;
   return timestamps;
 };
 
 /**
  * Assigns every message a `createdAt`, and remembers what it assigned.
  *
- * Durable timestamps are ground truth and are never adjusted. Fallback
- * wall-clock stamps can run ahead of durable ones (a server clock behind the
- * client's), so each fallback is bounded between its neighboring
- * assigned/durable timestamps to keep message order and thread timestamps
- * consistent. The bounds are the tightest ones the thread order proves, so a
- * fallback with no durable predecessor renders at its successor's durable
- * stamp: an upper bound the message is no newer than, not a claim about when it
- * was sent. Leaving it unbounded means core's plain `new Date()`, which renders
- * resumed history as "just now" and orders it after the durable message that
- * follows it.
+ * A message eve has no durable stamp for (an optimistic or failed send) takes a
+ * client wall clock that can run ahead of the server's, so each fallback is
+ * bounded by its neighboring durable stamps to keep the thread in order.
  *
- * A durable timestamp already observed for a still-present message outlives the
- * event that carried it: the event log can be replaced by one that no longer
- * reaches back to that turn (a resumed or compacted session), and re-deriving
- * from the new log alone would drop the message to a fresh wall-clock stamp and
- * render an old message as "just now".
+ * A durable stamp already observed for a still-present message outlives the
+ * event that carried it, so a replaced event log cannot drop an old message
+ * back to a fresh wall clock and render it as "just now".
  */
 export const assignCreatedAt = (
   messages: EveMessageData["messages"],

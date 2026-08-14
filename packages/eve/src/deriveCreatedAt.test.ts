@@ -40,6 +40,22 @@ describe("collectTurnTimestamps", () => {
     });
   });
 
+  it("stamps the assistant at the first event after an unstamped message.received", () => {
+    const timestamps = collectTurnTimestamps(
+      [
+        event("turn.started", "t1", "2026-01-02T03:04:05.000Z"),
+        event("message.received", "t1", undefined),
+        event("text.delta", "t1", "2026-01-02T03:06:00.000Z"),
+      ],
+      createTurnTimestampCache(),
+    );
+
+    expect(timestamps.get("t1")).toEqual({
+      turn: new Date("2026-01-02T03:04:05.000Z"),
+      assistant: new Date("2026-01-02T03:06:00.000Z"),
+    });
+  });
+
   it("returns the same map by identity when appended events carry no new turn", () => {
     const cache = createTurnTimestampCache();
     const events = [
