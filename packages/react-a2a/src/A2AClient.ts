@@ -272,50 +272,90 @@ const parseSendMessageResponse = (value: unknown): A2ATask | A2AMessage => {
   );
 };
 
-const isOptionalString = (value: unknown): value is string | undefined =>
-  value === undefined || typeof value === "string";
-
-const isTaskPushNotificationConfig = (
-  value: unknown,
-): value is A2ATaskPushNotificationConfig =>
-  isRecord(value) &&
-  typeof value.url === "string" &&
-  value.url.length > 0 &&
-  isOptionalString(value.tenant) &&
-  isOptionalString(value.id) &&
-  isOptionalString(value.taskId) &&
-  isOptionalString(value.token) &&
-  (value.authentication === undefined ||
-    (isRecord(value.authentication) &&
-      typeof value.authentication.scheme === "string" &&
-      value.authentication.scheme.length > 0 &&
-      isOptionalString(value.authentication.credentials)));
-
-const parseTaskPushNotificationConfigResponse = (
-  value: unknown,
-): A2ATaskPushNotificationConfig => {
-  if (isTaskPushNotificationConfig(value)) return value;
-
+const invalidTaskPushNotificationConfig = (): never => {
   throw new Error(
     "Invalid A2A task push notification config response: expected a valid config payload.",
   );
 };
 
-const parseListTaskPushNotificationConfigsResponse = (
-  value: unknown,
-): A2AListTaskPushNotificationConfigsResponse => {
-  if (
-    isRecord(value) &&
-    Array.isArray(value.configs) &&
-    value.configs.every(isTaskPushNotificationConfig) &&
-    isOptionalString(value.nextPageToken)
-  ) {
-    return value as A2AListTaskPushNotificationConfigsResponse;
-  }
-
+const invalidListTaskPushNotificationConfigs = (): never => {
   throw new Error(
     "Invalid A2A task push notification config list response: expected a valid configs payload.",
   );
+};
+
+const parseOptionalString = (
+  value: unknown,
+  invalid: () => never,
+): string | undefined =>
+  value == null ? undefined : typeof value === "string" ? value : invalid();
+
+const parseTaskPushNotificationConfigResponse = (
+  value: unknown,
+  invalid = invalidTaskPushNotificationConfig,
+): A2ATaskPushNotificationConfig => {
+  if (
+    !isRecord(value) ||
+    typeof value.url !== "string" ||
+    value.url.length === 0
+  ) {
+    return invalid();
+  }
+
+  const { tenant, id, taskId, url, token, authentication, ...extra } = value;
+  let normalizedAuthentication: A2ATaskPushNotificationConfig["authentication"];
+  if (authentication != null) {
+    if (!isRecord(authentication)) return invalid();
+    const { scheme, credentials, ...authenticationExtra } = authentication;
+    normalizedAuthentication = {
+      ...authenticationExtra,
+      scheme: parseOptionalString(scheme, invalid) ?? "",
+      ...(credentials == null
+        ? {}
+        : { credentials: parseOptionalString(credentials, invalid) }),
+    };
+  }
+
+  return {
+    ...extra,
+    ...(tenant == null ? {} : { tenant: parseOptionalString(tenant, invalid) }),
+    ...(id == null ? {} : { id: parseOptionalString(id, invalid) }),
+    ...(taskId == null ? {} : { taskId: parseOptionalString(taskId, invalid) }),
+    url,
+    ...(token == null ? {} : { token: parseOptionalString(token, invalid) }),
+    ...(normalizedAuthentication === undefined
+      ? {}
+      : { authentication: normalizedAuthentication }),
+  };
+};
+
+const parseListTaskPushNotificationConfigsResponse = (
+  value: unknown,
+): A2AListTaskPushNotificationConfigsResponse => {
+  if (!isRecord(value)) return invalidListTaskPushNotificationConfigs();
+
+  const { configs: rawConfigs, nextPageToken, ...extra } = value;
+  if (rawConfigs != null && !Array.isArray(rawConfigs)) {
+    return invalidListTaskPushNotificationConfigs();
+  }
+
+  return {
+    ...extra,
+    configs: (rawConfigs ?? []).map((config) =>
+      parseTaskPushNotificationConfigResponse(
+        config,
+        invalidListTaskPushNotificationConfigs,
+      ),
+    ),
+    ...(nextPageToken == null
+      ? {}
+      : {
+          nextPageToken: parseOptionalString(
+            nextPageToken,
+            invalidListTaskPushNotificationConfigs,
+          ),
+        }),
+  };
 };
 
 function signalInit(signal?: AbortSignal): RequestInit {
