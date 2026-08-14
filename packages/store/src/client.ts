@@ -51,7 +51,6 @@ export type {
 } from "./types/client";
 
 export { createClientFacade } from "./utils/client-facade";
-export { isDevelopment } from "./utils/env";
 export {
   createLastValidCache,
   createStaleReporter,

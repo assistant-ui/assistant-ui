@@ -17,3 +17,4 @@ export {
   composerSendDisabled,
   suggestionTriggerDisabled,
 } from "./primitive-predicates";
+export { isDevelopment } from "./env";

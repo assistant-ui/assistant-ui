@@ -1,6 +1,6 @@
 import { onScopeDispose } from "vue";
+import { isDevelopment } from "@assistant-ui/core/store/internal";
 import {
-  isDevelopment,
   normalizeEventSelector,
   type AssistantClient,
   type AssistantEventCallback,
