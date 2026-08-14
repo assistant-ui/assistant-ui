@@ -1,5 +1,11 @@
 /** @vitest-environment jsdom */
-import { act, render, renderHook, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  renderHook,
+  waitFor,
+} from "@testing-library/react";
 import type { ModelContext } from "@assistant-ui/core";
 import type { FormEvent, ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -145,11 +151,26 @@ describe("useAssistantForm", () => {
 
   it("reports when react-hook-form validation blocks submission", async () => {
     const onValid = vi.fn();
+    const onInvalid = vi.fn();
 
-    render(<ReactHookFormRequiredForm onValid={onValid} />);
+    const { getByTestId } = render(
+      <ReactHookFormRequiredForm onInvalid={onInvalid} onValid={onValid} />,
+    );
 
     await expectSubmitBlocked();
     expect(onValid).not.toHaveBeenCalled();
+    expect(onInvalid).toHaveBeenCalledOnce();
+    await waitFor(() => {
+      expect(getByTestId("submit-count").textContent).toBe("1");
+      expect(getByTestId("name-error").textContent).toBe("invalid");
+    });
+
+    fireEvent.change(getByTestId("name-input"), {
+      target: { value: "Ada" },
+    });
+    await waitFor(() => {
+      expect(getByTestId("name-error").textContent).toBe("valid");
+    });
   });
 
   it("reports react-hook-form errors when native validation is disabled", async () => {
@@ -178,10 +199,12 @@ const NativeRequiredField = () => {
 
 const ReactHookFormRequiredForm = ({
   defaultName = "",
+  onInvalid,
   onValid,
   noValidate,
 }: {
   defaultName?: string | undefined;
+  onInvalid?: (() => void) | undefined;
   onValid: () => void;
   noValidate?: boolean | undefined;
 }) => {
@@ -189,8 +212,18 @@ const ReactHookFormRequiredForm = ({
     defaultValues: { name: defaultName },
   });
   return (
-    <form noValidate={noValidate} onSubmit={form.handleSubmit(onValid)}>
-      <input {...form.register("name", { required: true })} />
+    <form
+      noValidate={noValidate}
+      onSubmit={form.handleSubmit(onValid, onInvalid)}
+    >
+      <input
+        data-testid="name-input"
+        {...form.register("name", { required: true })}
+      />
+      <output data-testid="submit-count">{form.formState.submitCount}</output>
+      <output data-testid="name-error">
+        {form.formState.errors.name ? "invalid" : "valid"}
+      </output>
     </form>
   );
 };

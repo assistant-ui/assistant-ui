@@ -4,7 +4,7 @@ import { type ModelContext, tool } from "@assistant-ui/core";
 import type {} from "@assistant-ui/core/store";
 import { type ToolCallMessagePartComponent } from "@assistant-ui/core/react";
 import { useAui } from "@assistant-ui/store";
-import { useEffect } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import {
   type Field,
   type FieldValues,
@@ -17,6 +17,13 @@ import {
 } from "react-hook-form";
 import type { z } from "zod";
 import { formTools } from "./formTools";
+
+type PendingAssistantSubmit = {
+  handlerInvoked: boolean;
+  outcome: boolean | undefined;
+  resolve: (outcome: boolean) => void;
+  reject: (error: unknown) => void;
+};
 
 export type UseAssistantFormProps<
   TFieldValues extends FieldValues,
@@ -78,9 +85,75 @@ export const useAssistantForm = <
     getValues,
     setValue,
     reset,
-    trigger,
+    handleSubmit: baseHandleSubmit,
     formState: { isSubmitting },
   } = form;
+
+  const pendingAssistantSubmitRef = useRef<PendingAssistantSubmit | null>(null);
+  const settleAssistantSubmit = useCallback((outcome: boolean) => {
+    const pending = pendingAssistantSubmitRef.current;
+    if (!pending) return;
+
+    pendingAssistantSubmitRef.current = null;
+    pending.resolve(outcome);
+  }, []);
+  const rejectAssistantSubmit = useCallback((error: unknown) => {
+    const pending = pendingAssistantSubmitRef.current;
+    if (!pending) return;
+
+    pendingAssistantSubmitRef.current = null;
+    pending.reject(error);
+  }, []);
+
+  const handleSubmit = useCallback<
+    UseFormReturn<TFieldValues, TContext, TTransformedValues>["handleSubmit"]
+  >(
+    (onValid, onInvalid) => {
+      const submit = baseHandleSubmit(
+        (...args) => {
+          const pending = pendingAssistantSubmitRef.current;
+          if (pending) pending.outcome = true;
+          return onValid(...args);
+        },
+        (...args) => {
+          const pending = pendingAssistantSubmitRef.current;
+          if (pending) pending.outcome = false;
+          return onInvalid?.(...args);
+        },
+      );
+
+      return async (event) => {
+        const pending = pendingAssistantSubmitRef.current;
+        if (pending) pending.handlerInvoked = true;
+
+        try {
+          const result = await submit(event);
+          if (pendingAssistantSubmitRef.current === pending && pending) {
+            settleAssistantSubmit(pending.outcome ?? true);
+          }
+          return result;
+        } catch (error) {
+          if (pendingAssistantSubmitRef.current === pending) {
+            rejectAssistantSubmit(error);
+          }
+          throw error;
+        }
+      };
+    },
+    [baseHandleSubmit, rejectAssistantSubmit, settleAssistantSubmit],
+  );
+  const assistantForm = useMemo<
+    UseFormReturn<TFieldValues, TContext, TTransformedValues>
+  >(
+    () => ({
+      ...form,
+      handleSubmit,
+      get formState() {
+        return form.formState;
+      },
+    }),
+    [form, handleSubmit],
+  );
 
   const aui = useAui();
   useEffect(() => {
@@ -101,7 +174,7 @@ export const useAssistantForm = <
         submit_form: tool({
           ...formTools.submit_form,
           execute: async () => {
-            if (isSubmitting) {
+            if (isSubmitting || pendingAssistantSubmitRef.current) {
               return {
                 success: false,
                 message: "The form is already submitting.",
@@ -124,12 +197,7 @@ export const useAssistantForm = <
             }
 
             if (formElement) {
-              const isValid = await trigger(undefined, { shouldFocus: true });
-              const isNativeValid =
-                !isValid ||
-                formElement.noValidate ||
-                formElement.reportValidity();
-              if (!isValid || !isNativeValid) {
+              if (!formElement.noValidate && !formElement.reportValidity()) {
                 return {
                   success: false,
                   message:
@@ -137,8 +205,41 @@ export const useAssistantForm = <
                 };
               }
 
-              formElement.requestSubmit();
-              return { success: true };
+              const submissionResult = new Promise<boolean>(
+                (resolve, reject) => {
+                  pendingAssistantSubmitRef.current = {
+                    handlerInvoked: false,
+                    outcome: undefined,
+                    resolve,
+                    reject,
+                  };
+                },
+              );
+              const onSubmit = () => {
+                queueMicrotask(() => {
+                  const pending = pendingAssistantSubmitRef.current;
+                  if (pending && !pending.handlerInvoked) {
+                    settleAssistantSubmit(true);
+                  }
+                });
+              };
+
+              formElement.addEventListener("submit", onSubmit, { once: true });
+              try {
+                formElement.requestSubmit();
+              } catch (error) {
+                rejectAssistantSubmit(error);
+                throw error;
+              } finally {
+                formElement.removeEventListener("submit", onSubmit);
+              }
+
+              if (await submissionResult) return { success: true };
+              return {
+                success: false,
+                message:
+                  "The form contains invalid fields and was not submitted.",
+              };
             }
 
             return {
@@ -164,7 +265,16 @@ export const useAssistantForm = <
         system: `Form State:\n${JSON.stringify(getValues())}`,
       }),
     });
-  }, [control, setValue, getValues, aui, reset, trigger, isSubmitting]);
+  }, [
+    control,
+    setValue,
+    getValues,
+    aui,
+    reset,
+    isSubmitting,
+    rejectAssistantSubmit,
+    settleAssistantSubmit,
+  ]);
 
   const renderFormFieldTool = props?.assistant?.tools?.set_form_field?.render;
   useEffect(() => {
@@ -184,5 +294,5 @@ export const useAssistantForm = <
     return aui.tools.setToolUI("reset_form", renderResetFormTool);
   }, [aui, renderResetFormTool]);
 
-  return form;
+  return assistantForm;
 };
