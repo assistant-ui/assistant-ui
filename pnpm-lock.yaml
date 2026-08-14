@@ -3428,6 +3428,9 @@ importers:
       '@assistant-ui/store':
         specifier: ^0.3.9
         version: link:../store
+      '@assistant-ui/tap':
+        specifier: ^0.9.12
+        version: link:../tap
       ai:
         specifier: ^7.0.62
         version: 7.0.62(zod@4.4.3)
@@ -3438,9 +3441,6 @@ importers:
         specifier: ^0.3.37
         version: link:../assistant-stream
     devDependencies:
-      '@assistant-ui/tap':
-        specifier: workspace:*
-        version: link:../tap
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../x-buildutils
