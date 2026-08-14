@@ -33,7 +33,8 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@assistant-ui/core": "^0.3.13"
+    "@assistant-ui/core": "^0.3.13",
+    "@assistant-ui/store": "^0.3.9"
   },
   "peerDependencies": {
     "@types/react": "*",
@@ -46,7 +47,6 @@
     }
   },
   "devDependencies": {
-    "@assistant-ui/store": "^0.3.9",
     "@assistant-ui/x-buildutils": "workspace:*",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/react": "^16.3.2",

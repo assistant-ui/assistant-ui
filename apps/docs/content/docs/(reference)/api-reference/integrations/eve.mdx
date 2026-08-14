@@ -78,7 +78,8 @@ const useEveEvents: () => readonly MessageStreamEvent[];
 
 Returns a function that resets the Eve session: aborts any in-flight turn,
 recreates the owned session, and clears events and projected data. Pending
-staged messages and tool execution state are discarded.
+staged messages and tool execution state are discarded. Safe to render
+outside an Eve runtime; invoking the returned function there throws.
 
 ```ts
 const useEveReset: () => () => void;

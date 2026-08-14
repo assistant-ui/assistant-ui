@@ -9,6 +9,9 @@ const { extrasRef } = vi.hoisted(() => ({
 
 vi.mock("@assistant-ui/store", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@assistant-ui/store")>()),
+  useAui: (() => ({
+    thread: { getState: () => ({ extras: extrasRef.current }) },
+  })) as unknown as typeof import("@assistant-ui/store").useAui,
   useAuiState: ((selector: (s: unknown) => unknown) =>
     selector({
       thread: { extras: extrasRef.current },
@@ -66,7 +69,7 @@ describe("Eve accessor hooks", () => {
     expect(reset).toHaveBeenCalledTimes(1);
   });
 
-  it("supplies fallbacks outside an Eve runtime, except for reset", () => {
+  it("supplies fallbacks outside an Eve runtime, and defers the reset throw to invocation", () => {
     expect(renderHook(() => useEveError()).result.current).toBeUndefined();
     expect(renderHook(() => useEveSession()).result.current).toBeUndefined();
 
@@ -75,6 +78,7 @@ describe("Eve accessor hooks", () => {
     expect(renderHook(() => useEveEvents()).result.current).toBe(events);
     expect(Object.isFrozen(events)).toBe(true);
 
-    expect(() => renderHook(() => useEveReset())).toThrow("useEveAgentRuntime");
+    const reset = renderHook(() => useEveReset()).result.current;
+    expect(() => reset()).toThrow("useEveAgentRuntime");
   });
 });

@@ -1,5 +1,6 @@
 "use client";
 
+import { useAui } from "@assistant-ui/store";
 import { eveExtras } from "./eveExtras";
 import type { EveRuntimeExtras } from "./eveExtras";
 
@@ -24,6 +25,10 @@ export const useEveEvents = () => eveExtras.use((e) => e.events, EMPTY_EVENTS);
 /**
  * Returns a function that resets the Eve session: aborts any in-flight turn,
  * recreates the owned session, and clears events and projected data. Pending
- * staged messages and tool execution state are discarded.
+ * staged messages and tool execution state are discarded. Safe to render
+ * outside an Eve runtime; invoking the returned function there throws.
  */
-export const useEveReset = () => eveExtras.use((e) => e.reset);
+export const useEveReset = () => {
+  const aui = useAui();
+  return () => eveExtras.get(aui).reset();
+};
