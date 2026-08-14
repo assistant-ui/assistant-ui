@@ -224,7 +224,7 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
     scheduleScrollToBottom("auto");
   });
 
-  useAuiEvent("threadListItem.switchedTo", () => {
+  useAuiEvent("threads.selectionChanged", () => {
     if (!scrollToBottomOnThreadSwitch) return;
     scheduleScrollToBottom("instant");
   });

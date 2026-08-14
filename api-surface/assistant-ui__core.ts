@@ -5194,6 +5194,14 @@ type ThreadUserMessagePart = TextMessagePart | ImageMessagePart | FileMessagePar
 
 type ThreadsClientSchema = {
   methods: ThreadsMethods;
+  events: ThreadsEvents;
+};
+
+type ThreadsEvents = {
+  "threads.selectionChanged": {
+    threadId: string;
+    previousThreadId: string;
+  };
 };
 
 type ThreadsMethods = {

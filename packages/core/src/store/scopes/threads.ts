@@ -35,6 +35,16 @@ export type ThreadsMethods = {
   __internal_getAssistantRuntime?(): AssistantRuntime;
 };
 
+export type ThreadsEvents = {
+  /**
+   * The main thread selection changed. Fires once per switch with the newly
+   * selected thread and the thread that was selected before. Does not fire
+   * for the initially selected thread on mount.
+   */
+  "threads.selectionChanged": { threadId: string; previousThreadId: string };
+};
+
 export type ThreadsClientSchema = {
   methods: ThreadsMethods;
+  events: ThreadsEvents;
 };

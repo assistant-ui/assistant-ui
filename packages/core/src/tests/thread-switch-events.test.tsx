@@ -110,12 +110,67 @@ describe("thread switch events", () => {
     expect(switchedAwayStar).toHaveBeenLastCalledWith({ threadId: "t2" });
   });
 
+  it("delivers threads.selectionChanged with the new and previous thread ids", async () => {
+    const runtime = createRuntime();
+    const selectionChanged = vi.fn();
+    const auiOn = vi.fn();
+    let aui!: ReturnType<typeof useAui>;
+    const Consumer = () => {
+      useAuiEvent(
+        "threads.selectionChanged" as never,
+        selectionChanged as never,
+      );
+      return null;
+    };
+    const Harness = () => {
+      aui = useAui({ threads: RuntimeAdapter(runtime) } as never);
+      return (
+        <AuiProvider value={aui}>
+          <Consumer />
+        </AuiProvider>
+      );
+    };
+    render(<Harness />);
+    await act(async () => {});
+
+    aui.on("threads.selectionChanged" as never, auiOn as never);
+
+    await act(async () => {
+      aui.threads.item({ index: 1 }).switchTo();
+    });
+    await act(async () => {});
+
+    expect(selectionChanged).toHaveBeenCalledExactlyOnceWith({
+      threadId: "t2",
+      previousThreadId: "t1",
+    });
+    expect(auiOn).toHaveBeenCalledExactlyOnceWith({
+      threadId: "t2",
+      previousThreadId: "t1",
+    });
+
+    await act(async () => {
+      aui.threads.item({ index: 0 }).switchTo();
+    });
+    await act(async () => {});
+
+    expect(selectionChanged).toHaveBeenCalledTimes(2);
+    expect(selectionChanged).toHaveBeenLastCalledWith({
+      threadId: "t1",
+      previousThreadId: "t2",
+    });
+  });
+
   it("does not emit for the initially selected thread on mount", async () => {
     const runtime = createRuntime();
     const anySwitch = vi.fn();
     const Consumer = () => {
       useAuiEvent(
         { scope: "*", event: "threadListItem.switchedTo" } as never,
+        anySwitch as never,
+      );
+      useAuiEvent(
+        { scope: "*", event: "threads.selectionChanged" } as never,
         anySwitch as never,
       );
       return null;

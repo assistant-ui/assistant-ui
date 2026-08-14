@@ -224,6 +224,28 @@ return (
 );
 ```
 
+## Thread Switch Events: `threads.selectionChanged`
+
+The per-item thread switch events are deprecated in favor of a single event on the thread list. `threads.selectionChanged` fires once per switch and carries both sides of the transition:
+
+```ts
+// Before
+useAuiEvent("threadListItem.switchedTo", ({ threadId }) => {
+  // threadId: the newly selected thread
+});
+useAuiEvent("threadListItem.switchedAway", ({ threadId }) => {
+  // threadId: the thread that was switched away from
+});
+
+// After
+useAuiEvent("threads.selectionChanged", ({ threadId, previousThreadId }) => {
+  // threadId: the newly selected thread
+  // previousThreadId: the thread that was switched away from
+});
+```
+
+Like its predecessors, it does not fire for the initially selected thread on mount. The deprecated events still fire and will keep working until the next major.
+
 ## Still Deprecated (not removed)
 
 - Primitive `If` components (`ThreadPrimitive.If`, `MessagePrimitive.If`, `ThreadPrimitive.Empty`) — replaced by `AuiIf`. The codemod migrates these.

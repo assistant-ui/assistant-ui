@@ -42,15 +42,14 @@ export type ThreadListItemMeta = {
 
 export type ThreadListItemEvents = {
   /**
-   * @deprecated State-derivable. Compare `s.threads.mainThreadId` against the
-   * item's `s.threadListItem.id` via `useAuiState` instead. Kept for backward
-   * compatibility.
+   * @deprecated Use `threads.selectionChanged` instead; its `threadId` is the
+   * newly selected thread. Kept for backward compatibility.
    */
   "threadListItem.switchedTo": { threadId: string };
   /**
-   * @deprecated State-derivable. Compare `s.threads.mainThreadId` against the
-   * item's `s.threadListItem.id` via `useAuiState` instead. Kept for backward
-   * compatibility.
+   * @deprecated Use `threads.selectionChanged` instead; its
+   * `previousThreadId` is the thread that was switched away from. Kept for
+   * backward compatibility.
    */
   "threadListItem.switchedAway": { threadId: string };
 };
