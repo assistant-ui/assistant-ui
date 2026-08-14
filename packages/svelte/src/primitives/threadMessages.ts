@@ -22,7 +22,9 @@ const scheduleExpiry = (callback: () => void) => void tick().then(callback);
  * the builders resolve `s.message` to the message at the index and
  * `s.composer` to its edit composer, extending the surrounding provider. The
  * handle's scopes mount when the first reader is observed and suspend once
- * none remain, so a row should read state before invoking actions.
+ * none remain. While unobserved the item's client is frozen at its last
+ * render: reads return stale state and actions can throw before the first
+ * observer, so a row must read state before invoking actions.
  */
 export type MessageItem = ScopeTarget;
 
