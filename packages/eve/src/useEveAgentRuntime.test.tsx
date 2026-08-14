@@ -942,6 +942,115 @@ describe("useEveAgentRuntime extras wiring", () => {
     });
   });
 
+  it("keeps a staged draft when a queued send is cancelled instead of reset", async () => {
+    let releaseFirstSend: (() => void) | undefined;
+    const send = vi
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise<void>((resolve) => {
+            releaseFirstSend = resolve;
+          }),
+      )
+      .mockResolvedValue(undefined);
+    const agent = createAgent({ data: settledData, send });
+    mockUseEveAgent.mockReturnValue(agent as never);
+    const { result } = renderHook(() => useEveAgentRuntime());
+
+    await stageMessage(result.current, "queued draft");
+    const queuedDraftId = result.current.thread.getState().messages[2]!.id;
+
+    act(() => {
+      result.current.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "first" }],
+      });
+    });
+    await waitFor(() => {
+      expect(send).toHaveBeenCalledTimes(1);
+    });
+
+    const queuedReload = Promise.resolve(
+      result.current.thread.startRun({
+        parentId: queuedDraftId,
+        sourceId: null,
+        runConfig: {},
+      }),
+    );
+    await act(async () => {});
+
+    act(() => {
+      result.current.thread.cancelRun();
+    });
+
+    await act(async () => {
+      releaseFirstSend?.();
+      await queuedReload;
+    });
+
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(agent.stop).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      expect(getText(result.current)).toEqual([
+        "earlier",
+        "earlier answer",
+        "queued draft",
+      ]);
+    });
+  });
+
+  it("aborts client tool executions when reset is invoked", async () => {
+    const agentReset = vi.fn(() => {
+      mockUseEveAgent.mockReturnValue(
+        createAgent({ data: { messages: [] }, reset: agentReset }) as never,
+      );
+    });
+    const agent = createAgent({ data: settledData, reset: agentReset });
+    mockUseEveAgent.mockReturnValue(agent as never);
+    const { result, rerender } = renderHook(() => useEveAgentRuntime());
+
+    const abortReasons: string[] = [];
+    act(() => {
+      result.current.registerModelContextProvider({
+        getModelContext: () => ({
+          tools: {
+            slow_tool: {
+              parameters: { type: "object", properties: {} },
+              execute: (
+                _args: unknown,
+                context: { toolCallId: string; abortSignal: AbortSignal },
+              ) =>
+                new Promise<never>(() => {
+                  context.abortSignal.addEventListener("abort", () => {
+                    abortReasons.push(context.toolCallId);
+                  });
+                }),
+            },
+          },
+        }),
+      });
+    });
+
+    mockUseEveAgent.mockReturnValue(
+      createAgent({ data: twoExecutingToolsData, reset: agentReset }) as never,
+    );
+    rerender();
+
+    await waitFor(() => {
+      expect(result.current.thread.getState().isRunning).toBe(true);
+    });
+
+    act(() => {
+      eveExtras.tryGet(result.current.thread.getState().extras)!.reset();
+    });
+    rerender();
+
+    await waitFor(() => {
+      expect(abortReasons.sort()).toEqual(["call_slow_a", "call_slow_b"]);
+    });
+    expect(result.current.thread.getState().isRunning).toBe(false);
+  });
+
   it("ignores tool statuses left over from a discarded session", async () => {
     const releases: Record<string, () => void> = {};
     const agentReset = vi.fn(() => {
