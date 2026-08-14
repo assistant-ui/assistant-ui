@@ -294,6 +294,13 @@ export type ThreadRuntime = {
 
   subscribe(callback: () => void): Unsubscribe;
   cancelRun(): void;
+  /**
+   * Notifies the runtime that the adapter discarded its backing session.
+   * Clears session-scoped tool-invocation state without run-cancel side
+   * effects such as composer draft restoration. Internal API for
+   * external-store adapter authors.
+   */
+  unstable_notifySessionReset(): void;
   getModelContext(): ModelContext;
 
   export(): ExportedMessageRepository;
@@ -397,6 +404,8 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
     this.exportExternalState = this.exportExternalState.bind(this);
     this.startRun = this.startRun.bind(this);
     this.cancelRun = this.cancelRun.bind(this);
+    this.unstable_notifySessionReset =
+      this.unstable_notifySessionReset.bind(this);
     this.stopSpeaking = this.stopSpeaking.bind(this);
     this.connectVoice = this.connectVoice.bind(this);
     this.disconnectVoice = this.disconnectVoice.bind(this);
@@ -465,6 +474,10 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
 
   public cancelRun() {
     this._threadBinding.getState().cancelRun();
+  }
+
+  public unstable_notifySessionReset() {
+    this._threadBinding.getState().unstable_notifySessionReset();
   }
 
   public stopSpeaking() {

@@ -638,6 +638,19 @@ export class ExternalStoreThreadRuntimeCore
     this._store.onLoadExternalState(state);
   }
 
+  /**
+   * Adapter-facing notification that the backing session was discarded.
+   * Clears session-scoped tool-invocation state and parks queued work,
+   * without run-cancel semantics (`onCancel`, composer draft restoration).
+   */
+  public unstable_notifySessionReset(): void {
+    if (this._toolInvocations) {
+      this._toolInvocations.reset();
+      this._store.setToolStatuses?.({});
+    }
+    this._store.queue?.__internal_notifyCancelled?.();
+  }
+
   public cancelRun(): void {
     if (!this._store.onCancel)
       throw new Error("Runtime does not support cancelling runs.");

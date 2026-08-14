@@ -196,23 +196,8 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
     >(),
   );
 
-  // The core tracker publishes its whole status map on every transition, and
-  // an execution discarded by a reset keeps its entry until it settles — so a
-  // status is only evidence of a live turn while its tool call is still in the
-  // session.
-  const sessionToolCallIds = useMemo(() => {
-    const ids = new Set<string>();
-    for (const message of agent.data.messages) {
-      for (const part of message.parts) {
-        if (part.type === "dynamic-tool") ids.add(part.toolCallId);
-      }
-    }
-    return ids;
-  }, [agent.data]);
-
-  const hasExecutingTools = Object.entries(toolStatuses).some(
-    ([toolCallId, status]) =>
-      status?.type === "executing" && sessionToolCallIds.has(toolCallId),
+  const hasExecutingTools = Object.values(toolStatuses).some(
+    (status) => status?.type === "executing",
   );
   const isRunning =
     agent.status === "submitted" ||
@@ -326,10 +311,7 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
   };
 
   const reset = useCallback(() => {
-    // Client-side tool executions live in the core tracker, which an adapter
-    // can only reach through the cancel path; without it an execution keeps
-    // running against a session that is gone.
-    runtimeRef.current?.thread.cancelRun();
+    runtimeRef.current?.thread.unstable_notifySessionReset();
     // Sends parked behind an active turn captured the pre-reset epoch, so the
     // epoch has to advance before the session is torn down or they dispatch
     // into the new one; `lastFinishStatusRef` is run-scoped for the same

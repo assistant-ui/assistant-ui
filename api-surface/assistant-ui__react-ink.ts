@@ -3817,6 +3817,7 @@ type ThreadRuntime = {
   importExternalState(state: any): void;
   subscribe(callback: () => void): Unsubscribe$1;
   cancelRun(): void;
+  unstable_notifySessionReset(): void;
   getModelContext(): ModelContext$1;
   export(): ExportedMessageRepository;
   import(repository: ExportedMessageRepository): void;
@@ -3846,6 +3847,7 @@ type ThreadRuntimeCore = Readonly<{
   startRun: (config: StartRunConfig) => void;
   resumeRun: (config: ResumeRunConfig) => void;
   cancelRun: () => void;
+  unstable_notifySessionReset: () => void;
   addToolResult: (options: AddToolResultOptions) => void;
   resumeToolCall: (options: ResumeToolCallOptions) => void;
   respondToToolApproval: (options: RespondToToolApprovalOptions) => void;
@@ -3919,6 +3921,7 @@ declare class ThreadRuntimeImpl implements ThreadRuntime {
       startRun: (config: StartRunConfig) => void;
       resumeRun: (config: ResumeRunConfig) => void;
       cancelRun: () => void;
+      unstable_notifySessionReset: () => void;
       addToolResult: (options: AddToolResultOptions) => void;
       resumeToolCall: (options: ResumeToolCallOptions) => void;
       respondToToolApproval: (options: RespondToToolApprovalOptions) => void;
@@ -4008,6 +4011,7 @@ declare class ThreadRuntimeImpl implements ThreadRuntime {
   exportExternalState(): any;
   importExternalState(state: any): void;
   cancelRun(): void;
+  unstable_notifySessionReset(): void;
   stopSpeaking(): void;
   connectVoice(): void;
   disconnectVoice(): void;
