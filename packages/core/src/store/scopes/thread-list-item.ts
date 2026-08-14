@@ -43,7 +43,9 @@ export type ThreadListItemMeta = {
 export type ThreadListItemEvents = {
   /**
    * @deprecated Use `threads.selectionChanged` instead; its `threadId` is the
-   * newly selected thread. Kept for backward compatibility.
+   * newly selected thread. Inside a per-item `threadListItem` scope, filter by
+   * `threadId === threadListItem.id` to reproduce the per-item delivery. Kept
+   * for backward compatibility.
    */
   "threadListItem.switchedTo": { threadId: string };
   /**

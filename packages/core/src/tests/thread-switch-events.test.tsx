@@ -1,14 +1,27 @@
 // @vitest-environment jsdom
 
-import { act, render } from "@testing-library/react";
+import { act, render, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { AuiProvider, useAui, useAuiEvent } from "@assistant-ui/store";
+import { AssistantRuntimeProvider } from "../react/AssistantRuntimeProvider";
+import { useExternalStoreRuntime } from "../react/runtimes/useExternalStoreRuntime";
+import { useRemoteThreadListRuntime } from "../react/runtimes/useRemoteThreadListRuntime";
+import { makeAdapter } from "./remote-thread-list-test-helpers";
 import { RuntimeAdapter } from "../react/RuntimeAdapter";
 import { AssistantRuntimeImpl } from "../runtime/api/assistant-runtime";
 import { ExternalStoreRuntimeCore } from "../runtimes/external-store/external-store-runtime-core";
 import type { ExternalStoreAdapter } from "../runtimes/external-store/external-store-adapter";
 
 type DemoMessage = { id: string; role: "user" | "assistant"; text: string };
+
+const EMPTY_MESSAGES: readonly never[] = [];
+
+const useTestThreadRuntime = () =>
+  useExternalStoreRuntime({
+    messages: EMPTY_MESSAGES,
+    isRunning: false,
+    onNew: async () => {},
+  });
 
 const createRuntime = () => {
   const threads = [
@@ -187,5 +200,35 @@ describe("thread switch events", () => {
     await act(async () => {});
 
     expect(anySwitch).not.toHaveBeenCalled();
+  });
+
+  it("emits when a deep-linked initial thread resolves after mount", async () => {
+    const adapter = makeAdapter();
+    const selectionChanged = vi.fn();
+    const Listener = () => {
+      useAuiEvent("threads.selectionChanged", selectionChanged);
+      return null;
+    };
+    const Harness = () => {
+      const runtime = useRemoteThreadListRuntime({
+        adapter,
+        initialThreadId: "thread-a",
+        runtimeHook: useTestThreadRuntime,
+      });
+      return (
+        <AssistantRuntimeProvider runtime={runtime}>
+          <Listener />
+        </AssistantRuntimeProvider>
+      );
+    };
+    render(<Harness />);
+
+    await waitFor(() => expect(selectionChanged).toHaveBeenCalledTimes(1));
+    const payload = selectionChanged.mock.calls[0]![0] as {
+      threadId: string;
+      previousThreadId: string;
+    };
+    expect(payload.threadId).toBe("thread-a");
+    expect(payload.previousThreadId).toMatch(/^__LOCALID_/);
   });
 });
