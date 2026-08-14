@@ -68,6 +68,11 @@ type CatalogCacheEntry = {
   promise: Promise<readonly PiSessionInfo[]> | undefined;
 };
 
+type PendingOpen = {
+  promise: Promise<ThreadRecord>;
+  controller: AbortController;
+};
+
 export interface PiThreadSupervisorOptions {
   /** Default workspace for `listThreads`/`createThread` when a call omits one.
    * Defaults to `process.cwd()`. */
@@ -101,7 +106,7 @@ export class PiThreadSupervisor {
   /** In-flight cold opens, so concurrent calls for the same thread (e.g. an
    * SSE subscribe racing a send) share one `AgentSession` instead of creating
    * two on the same session file. */
-  private readonly pendingOpens = new Map<string, Promise<ThreadRecord>>();
+  private readonly pendingOpens = new Map<string, PendingOpen>();
   private readonly recordsBySessionFile = new Map<string, ThreadRecord>();
   private readonly workspacePath: string;
   private readonly agentDir: string | undefined;
@@ -114,6 +119,7 @@ export class PiThreadSupervisor {
   private readonly archivedSessionFiles = new Set<string>();
   private readonly catalogCache = new Map<string, CatalogCacheEntry>();
   private readonly catalogInfoByThreadId = new Map<string, PiSessionInfo>();
+  private disposed = false;
 
   constructor(options: PiThreadSupervisorOptions = {}) {
     this.workspacePath = options.workspacePath ?? process.cwd();
@@ -275,6 +281,7 @@ export class PiThreadSupervisor {
   }
 
   async deleteThread(threadId: string): Promise<void> {
+    this.pendingOpens.get(threadId)?.controller.abort();
     const record = this.records.get(threadId);
     const info = record ? undefined : await this.findSessionInfo(threadId);
     const sessionFile = record?.session.sessionFile ?? info?.path;
@@ -345,6 +352,11 @@ export class PiThreadSupervisor {
   /** Tear down every record (process exit). Aborts nothing implicitly — call
    * `cancelRun` first if a graceful stop is wanted. */
   async dispose(): Promise<void> {
+    if (this.disposed) return;
+    this.disposed = true;
+    for (const pending of this.pendingOpens.values()) {
+      pending.controller.abort();
+    }
     for (const record of [...this.records.values()]) {
       record.unsubscribe();
       record.uiBridge.dismissAll();
@@ -377,13 +389,19 @@ export class PiThreadSupervisor {
   private async openSession(
     sessionManager: SessionManager,
     cwd: string,
+    signal?: AbortSignal,
   ): Promise<ThreadRecord> {
+    this.throwIfOpenCancelled(signal);
     const { session } = await createAgentSession({
       cwd,
       sessionManager,
       ...(this.agentDir ? { agentDir: this.agentDir } : {}),
       ...(this.model ? { model: this.model } : {}),
     });
+    if (this.openWasCancelled(signal)) {
+      session.dispose();
+      this.throwOpenCancelled();
+    }
     const threadId = session.sessionId;
 
     const record: ThreadRecord = {
@@ -426,6 +444,12 @@ export class PiThreadSupervisor {
       },
     });
 
+    if (this.openWasCancelled(signal)) {
+      uiBridge.dismissAll();
+      session.dispose();
+      this.throwOpenCancelled();
+    }
+
     record.unsubscribe = session.subscribe((event) =>
       this.onSessionEvent(record, event),
     );
@@ -437,19 +461,27 @@ export class PiThreadSupervisor {
   }
 
   private async ensureOpen(threadId: string): Promise<ThreadRecord> {
+    this.throwIfOpenCancelled();
     const existing = this.records.get(threadId);
     if (existing) return existing;
     const pending = this.pendingOpens.get(threadId);
-    if (pending) return pending;
-    const open = this.openCold(threadId).finally(() => {
-      this.pendingOpens.delete(threadId);
+    if (pending) return pending.promise;
+    const controller = new AbortController();
+    const open = this.openCold(threadId, controller.signal).finally(() => {
+      if (this.pendingOpens.get(threadId)?.promise === open) {
+        this.pendingOpens.delete(threadId);
+      }
     });
-    this.pendingOpens.set(threadId, open);
+    this.pendingOpens.set(threadId, { promise: open, controller });
     return open;
   }
 
-  private async openCold(threadId: string): Promise<ThreadRecord> {
+  private async openCold(
+    threadId: string,
+    signal: AbortSignal,
+  ): Promise<ThreadRecord> {
     const info = await this.findSessionInfo(threadId);
+    this.throwIfOpenCancelled(signal);
     if (!info) throw new Error(`Unknown Pi thread: ${threadId}`);
     const existingBySessionFile = this.recordsBySessionFile.get(info.path);
     if (existingBySessionFile) {
@@ -457,7 +489,23 @@ export class PiThreadSupervisor {
       return existingBySessionFile;
     }
     const sessionManager = SessionManager.open(info.path);
-    return this.openSession(sessionManager, info.cwd || this.workspacePath);
+    return this.openSession(
+      sessionManager,
+      info.cwd || this.workspacePath,
+      signal,
+    );
+  }
+
+  private openWasCancelled(signal?: AbortSignal): boolean {
+    return this.disposed || signal?.aborted === true;
+  }
+
+  private throwIfOpenCancelled(signal?: AbortSignal): void {
+    if (this.openWasCancelled(signal)) this.throwOpenCancelled();
+  }
+
+  private throwOpenCancelled(): never {
+    throw new Error("Pi session open was cancelled");
   }
 
   private async listSessionInfos(
