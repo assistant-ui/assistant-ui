@@ -88,4 +88,52 @@ describe("AISDKChat as a standalone client config entry", () => {
       handle.destroy();
     }
   });
+
+  it("sends through the default AssistantChatTransport with the generated id", async () => {
+    const sse = [
+      { type: "start" },
+      { type: "text-start", id: "t1" },
+      { type: "text-delta", id: "t1", delta: "ok" },
+      { type: "text-end", id: "t1" },
+      { type: "finish" },
+    ]
+      .map((chunk) => `data: ${JSON.stringify(chunk)}\n\n`)
+      .join("");
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(sse, {
+          headers: { "content-type": "text/event-stream" },
+        }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const handle = createAssistantClient(AuiConfig({ threads: AISDKChat({}) }));
+    try {
+      handle.subscribe(() => {});
+      const aui = handle.getClient();
+
+      flushTapSync(() => aui.composer.setText("hi"));
+      flushTapSync(() => aui.composer.send());
+
+      await vi.waitFor(() => {
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+        const state = aui.thread.getState();
+        expect(state.isRunning).toBe(false);
+        expect(state.messages).toHaveLength(2);
+      });
+
+      const [url, init] = fetchMock.mock.calls[0]! as [
+        RequestInfo,
+        RequestInit,
+      ];
+      expect(String(url)).toContain("/api/chat");
+      const body = JSON.parse(init.body as string);
+      expect(typeof body.id).toBe("string");
+      expect(body.id.length).toBeGreaterThan(0);
+      expect(body.messages).toHaveLength(1);
+    } finally {
+      handle.destroy();
+      vi.unstubAllGlobals();
+    }
+  });
 });
