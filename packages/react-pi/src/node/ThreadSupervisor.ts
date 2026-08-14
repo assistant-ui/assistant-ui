@@ -349,8 +349,8 @@ export class PiThreadSupervisor {
     };
   }
 
-  /** Tear down every record (process exit). Aborts nothing implicitly — call
-   * `cancelRun` first if a graceful stop is wanted. */
+  /** Tear down every record and cancel pending cold opens. Active runs are not
+   * aborted implicitly; call `cancelRun` first if a graceful stop is wanted. */
   async dispose(): Promise<void> {
     this.generation++;
     for (const pending of this.pendingOpens.values()) {
