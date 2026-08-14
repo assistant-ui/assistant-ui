@@ -1081,17 +1081,21 @@ const useExternalThread = ({
     }),
   );
 
-  const handleCancelRun = () => {
-    // Nothing is aborted without a handler, so pausing the queue would hold
-    // the pending items against a run that keeps going.
-    if (!onCancel) return;
+  const handleCancelRun = useMemo(
+    () =>
+      unstable_allowClientMethodDuringCleanup(() => {
+        // Nothing is aborted without a handler, so pausing the queue would hold
+        // the pending items against a run that keeps going.
+        if (!onCancel) return;
 
-    // Before the run is aborted, so the settle it produces keeps the pending
-    // items instead of dispatching the next one at the moment the user
-    // stopped.
-    queue?.__internal_notifyCancelled?.();
-    onCancel();
-  };
+        // Before the run is aborted, so the settle it produces keeps the pending
+        // items instead of dispatching the next one at the moment the user
+        // stopped.
+        queue?.__internal_notifyCancelled?.();
+        onCancel();
+      }),
+    [onCancel, queue],
+  );
 
   const handleSendNew = (message: AppendMessage) => {
     // The composer does not know the thread; stamp the current head as the
@@ -1238,7 +1242,7 @@ const useExternalThread = ({
         );
       onResume();
     },
-    cancelRun: unstable_allowClientMethodDuringCleanup(handleCancelRun),
+    cancelRun: handleCancelRun,
     ...(onRefetchThread && { unstable_refetchThread: onRefetchThread }),
     importExternalState: (state: unknown) => {
       if (!onLoadExternalState)

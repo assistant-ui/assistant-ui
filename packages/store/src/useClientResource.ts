@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { resource, useResource, type ResourceElement } from "@assistant-ui/tap";
 import type { ClientMethods, InferClientState } from "./types/client";
 import {
@@ -238,12 +238,10 @@ export const useClientResource = <TMethods extends ClientMethods>(
     return handler.createProxy<TMethods>();
   }, [index]);
 
-  useLayoutEffect(() => {
+  useEffect(() => {
+    // useTapHost commits resource effects before descendant effects.
     ++connectionLifecycle.generation;
     connectionPhaseRef.current = "connected";
-  }, [connectionLifecycle]);
-
-  useEffect(() => {
     const generation = connectionLifecycle.generation;
     return () => {
       // Cancellation remains available while descendant effects clean up.
