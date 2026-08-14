@@ -75,8 +75,11 @@ const createMessageItem = (context: AuiContext, index: number): MessageItem => {
   const source = {
     getClient: handle.getClient,
     subscribe: (listener: () => void) => {
-      observers++;
+      // Increment only after a successful subscribe: the first one commits the
+      // mount, which throws for a never-valid index and must not latch the
+      // observer count
       const release = handle.subscribe(listener);
+      observers++;
       let subscribed = true;
       return () => {
         if (!subscribed) return;
