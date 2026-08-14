@@ -58,10 +58,17 @@ tap has a single effect primitive. `useLayoutEffect` and `useInsertionEffect`
 are accepted (so React code ports cleanly) but behave like `useEffect` inside a
 resource.
 
-## A throwing snapshot behaves as it does in React
+## Where a throwing snapshot surfaces depends on the host
 
-`useSyncExternalStore` matches React here: when a store notifies and
-`getSnapshot` throws, the snapshot counts as changed, the resource re-renders,
-and the error surfaces during that render rather than in the store's notify
-loop. A throw that repairs itself before the re-render reads the snapshot
-produces no error at all.
+`useSyncExternalStore` treats a throwing `getSnapshot` the same way React does:
+when a store notifies and the snapshot throws, it counts as changed and the
+resource re-renders, so the error surfaces from that render rather than in the
+store's notify loop. A throw that repairs itself before the re-render reads the
+snapshot produces no error at all.
+
+What differs is *which* re-render. Under [`useResource`](/tap/docs/tap/api/useResource)
+it is a React render, so a React error boundary catches it. Under
+[`useTapRoot`](/tap/docs/tap/trees-and-rerenders#separate-scheduling-with-usetaproot)
+or `createTapRoot` it is a scheduler flush, so the error escapes as an uncaught
+error instead — the same route every other resource render error takes on those
+hosts.

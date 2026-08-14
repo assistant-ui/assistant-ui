@@ -5,6 +5,8 @@ import { resource } from "../../core/resource";
 import { useResource } from "../../hooks/useResource";
 import { useSyncExternalStore } from "../../react-hooks/useSyncExternalStore";
 import { useCallback } from "../../react-hooks/useCallback";
+import { createTapRoot } from "../../core/createTapRoot";
+import { flushTapSync } from "../../core/scheduler";
 
 const createStore = (initial: string[]) => {
   let state = initial;
@@ -14,6 +16,9 @@ const createStore = (initial: string[]) => {
     setState: (next: string[]) => {
       state = next;
       for (const listener of listeners) listener();
+    },
+    setStateWithoutNotifying: (next: string[]) => {
+      state = next;
     },
     subscribe: (listener: () => void) => {
       listeners.add(listener);
@@ -89,11 +94,34 @@ describe("useSyncExternalStore snapshot throws", () => {
     expect(container.textContent).toBe("b");
 
     await act(async () => {
+      // the throwing snapshot is the only notification: the repair is silent,
+      // so the re-render can only come from this notification being treated as
+      // changed
       store.setState(["a"]);
-      store.setState(["a", "c"]);
+      store.setStateWithoutNotifying(["a", "c"]);
       await waitForFlush();
     });
 
     expect(container.textContent).toBe("c");
+  });
+});
+
+describe("useSyncExternalStore snapshot throws on a createTapRoot host", () => {
+  it("surfaces a persistently throwing snapshot from the scheduler flush", () => {
+    const store = createStore(["a", "b"]);
+    const root = createTapRoot(() => useResource(SecondItem(store)), {
+      mountOnSubscribe: true,
+    });
+    const unsubscribe = root.subscribe(() => {});
+
+    expect(root.getValue()).toBe("b");
+
+    // on this host the forced re-render runs inside the flush, so the error
+    // leaves the flush rather than reaching a React error boundary
+    expect(() => flushTapSync(() => store.setState(["a"]))).toThrow(
+      "index out of bounds",
+    );
+
+    unsubscribe();
   });
 });

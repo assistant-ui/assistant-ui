@@ -151,25 +151,29 @@ describe("useSyncExternalStore", () => {
     expect(storeB.unsubscribeCalls).toBe(1);
   });
 
-  it("treats a getSnapshot that throws on a notification as changed and surfaces the error from the re-render", async () => {
+  it("treats a getSnapshot that throws on a notification as changed and re-renders", async () => {
     const store = createStore(["a", "b"]);
+    let broken = false;
     const testFiber = createTestResource(() =>
       useSyncExternalStore(
         useCallback((cb) => store.subscribe(cb), []),
         useCallback(() => {
-          const items = store.getState();
-          if (items.length < 2) throw new Error("index out of bounds");
-          return items[1];
+          if (broken) {
+            broken = false;
+            throw new Error("index out of bounds");
+          }
+          return store.getState()[1];
         }, []),
       ),
     );
 
     expect(renderTest(testFiber)).toBe("b");
+    await waitForNextTick();
 
-    // this harness re-renders inline, so the forced re-render's render-time
-    // read surfaces here; under a scheduled host it surfaces from the flush
-    expect(() => store.setState(["a"])).toThrow("index out of bounds");
-
+    // the notification reads a throwing snapshot that repairs before the
+    // forced re-render: the new value can only be committed if the throw was
+    // treated as a change
+    broken = true;
     store.setState(["a", "c"]);
     await waitForNextTick();
     expect(getCommittedValue(testFiber)).toBe("c");

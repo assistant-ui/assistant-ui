@@ -20,9 +20,7 @@ export const useSyncExternalStore = <T>(
     // store's notify loop; the forced re-render's own read surfaces it.
     try {
       if (Object.is(value, getSnapshot())) return;
-    } catch {
-      /* empty */
-    }
+    } catch {}
     forceUpdate((c) => c + 1);
   });
 
