@@ -17,6 +17,7 @@ verifyDepsBeforeRun: install
 minimumReleaseAge: 1440
 minimumReleaseAgeExclude:
   - '@assistant-ui/*'
+  - '@openuidev/assistant-ui'
   - '@next/*'
   - '@typescript/typescript-*'
   - assistant-cloud
@@ -35,6 +36,7 @@ allowBuilds:
   '@clerk/shared': false
   '@google/genai': false
   '@mongodb-js/zstd': false
+  '@openuidev/lang-core': false
   '@parcel/watcher': false
   '@tailwindcss/oxide': false
   core-js: false
