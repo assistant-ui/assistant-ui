@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach } from "vitest";
+import { describe, it, expect, afterEach, vi } from "vitest";
 import { useSyncExternalStore } from "../../react-hooks/useSyncExternalStore";
 import { useCallback } from "../../react-hooks/useCallback";
 import {
@@ -47,6 +47,7 @@ const useStore = <T>(store: ReturnType<typeof createStore<T>>) =>
 
 describe("useSyncExternalStore", () => {
   afterEach(() => {
+    vi.restoreAllMocks();
     cleanupAllResources();
   });
 
@@ -201,6 +202,27 @@ describe("useSyncExternalStore", () => {
     store.setState(["a", "c"]);
     await waitForNextTick();
     expect(getCommittedValue(testFiber)).toBe("c");
+  });
+
+  it("warns once in dev when getSnapshot returns a fresh object every call", () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const fiber = createResourceFiber(
+      function useUncached() {
+        return useSyncExternalStore(
+          () => () => {},
+          () => ({}),
+        );
+      },
+      createResourceFiberRoot(() => {}),
+      undefined,
+      null,
+    );
+
+    renderResourceFiber(fiber, []);
+    renderResourceFiber(fiber, []);
+    expect(errorSpy).toHaveBeenCalledExactlyOnceWith(
+      "The result of getSnapshot should be cached to avoid an infinite loop",
+    );
   });
 
   // The commit-time check must catch a change the notification path misses:
