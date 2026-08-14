@@ -23,12 +23,18 @@ const scheduleExpiry = (callback: () => void) => void tick().then(callback);
  */
 export type MessageItem = ScopeTarget;
 
+// The item is cached beyond any row's life, so the stale reporter binds to
+// live observation: an ordinary shrink whose rows tear down in the same flush
+// settles with no observers and stays quiet, while a row still reading an out
+// of bounds index reports, matching the vue provider whose isCurrent dies
+// with the row.
 const createMessageItem = (context: AuiContext, index: number): MessageItem => {
+  let observers = 0;
   const messageCache = createLastValidCache<MessageMethods>(
     createStaleReporter({
       name: "threadMessages.item",
       index,
-      isCurrent: () => true,
+      isCurrent: () => observers > 0,
       isValid: () =>
         index < context.source.getClient().thread.getState().messages.length,
     }),
@@ -63,9 +69,22 @@ const createMessageItem = (context: AuiContext, index: number): MessageItem => {
     { parent: context.source },
   );
 
+  // No destroy pairing (unlike provideAui's lifetime subscription): the item
+  // deliberately rides observation alone, suspending when its readers release
+  // and resuming with state intact.
   const source = {
     getClient: handle.getClient,
-    subscribe: handle.subscribe,
+    subscribe: (listener: () => void) => {
+      observers++;
+      const release = handle.subscribe(listener);
+      let subscribed = true;
+      return () => {
+        if (!subscribed) return;
+        subscribed = false;
+        observers--;
+        release();
+      };
+    },
   };
   return {
     source,

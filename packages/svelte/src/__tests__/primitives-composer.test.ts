@@ -10,6 +10,7 @@ import {
   composerSend,
 } from "../primitives/composer";
 import Host from "./fixtures/Host.svelte";
+import SpreadProbe from "./fixtures/SpreadProbe.svelte";
 import { createEchoRuntime, flushEvents, type AnyClient } from "./clients";
 
 const target = () => document.createElement("div");
@@ -92,6 +93,7 @@ describe("composer builders", () => {
     };
 
     expect(enter({ shiftKey: true }).defaultPrevented).toBe(false);
+    expect(enter({ isComposing: true }).defaultPrevented).toBe(false);
     expect(echo.onNew).not.toHaveBeenCalled();
 
     expect(enter({}).defaultPrevented).toBe(true);
@@ -117,6 +119,64 @@ describe("composer builders", () => {
     cancel.props.onclick();
     await flushEvents();
     expect(echo.onCancel).toHaveBeenCalledTimes(1);
+
+    flushSync(() => void unmount(app));
+  });
+  it("submitOnEnter false never submits and a prevented click vetoes", async () => {
+    let aui!: AnyClient;
+    let input!: ReturnType<typeof composerInput>;
+    let send!: ReturnType<typeof composerSend>;
+    const { app, echo } = mountEcho((tools) => {
+      aui = tools.aui;
+      input = composerInput({ submitOnEnter: false });
+      send = composerSend();
+    });
+
+    flushTapSync(() => aui.composer.setText("draft"));
+    const enter = new KeyboardEvent("keydown", {
+      key: "Enter",
+      cancelable: true,
+    });
+    input.props.onkeydown(enter);
+    expect(enter.defaultPrevented).toBe(false);
+    expect(echo.onNew).not.toHaveBeenCalled();
+
+    const vetoed = new MouseEvent("click", { cancelable: true });
+    vetoed.preventDefault();
+    send.props.onclick(vetoed);
+    expect(echo.onNew).not.toHaveBeenCalled();
+
+    send.props.onclick();
+    await flushEvents();
+    expect(echo.onNew).toHaveBeenCalledTimes(1);
+
+    flushSync(() => void unmount(app));
+  });
+
+  it("spread props bind reactively on real elements", async () => {
+    let aui!: AnyClient;
+    const echo = createEchoRuntime();
+    const host = target();
+    const app = mount(SpreadProbe, {
+      target: host,
+      props: {
+        setup: () => {
+          aui = provideAui(
+            AuiConfig({ threads: RuntimeAdapter(echo.runtime) }),
+          ) as AnyClient;
+          return { input: composerInput(), send: composerSend() };
+        },
+      },
+    });
+
+    const textarea = host.querySelector("textarea")!;
+    const button = host.querySelector("button")!;
+    expect(button.disabled).toBe(true);
+    expect(textarea.value).toBe("");
+
+    flushTapSync(() => aui.composer.setText("typed"));
+    await vi.waitFor(() => expect(textarea.value).toBe("typed"));
+    expect(button.disabled).toBe(false);
 
     flushSync(() => void unmount(app));
   });

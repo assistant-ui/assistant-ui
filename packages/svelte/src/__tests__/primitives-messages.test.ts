@@ -138,4 +138,40 @@ describe("threadMessages", () => {
 
     flushSync(() => void unmount(app));
   });
+  it("stays quiet on a shrink with no remaining observers", async () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    let messages!: ReturnType<typeof threadMessages>;
+    const echo = createEchoRuntime();
+    echo.setMessages([
+      { id: "u0", role: "user", text: "first" },
+      { id: "u1", role: "user", text: "second" },
+    ]);
+    const onValue = vi.fn();
+    const app = mount(StateProbe, {
+      target: target(),
+      props: {
+        setup: () => {
+          provideAui(AuiConfig({ threads: RuntimeAdapter(echo.runtime) }));
+          messages = threadMessages();
+          const text = useAuiState(
+            (s) => (s.message.content[0] as AnyClient).text,
+            { item: messages.item(1) },
+          );
+          return () => text.current;
+        },
+        onValue,
+      },
+    });
+    await vi.waitFor(() => expect(onValue).toHaveBeenCalledWith("second"));
+
+    // Release every observer before the shrink; the suspended item must not
+    // report a stale scope for a row nobody reads
+    flushSync(() => void unmount(app));
+    flushTapSync(() =>
+      echo.setMessages([{ id: "u0", role: "user", text: "first" }]),
+    );
+    await flushEvents();
+    await flushEvents();
+    expect(errorSpy).not.toHaveBeenCalled();
+  });
 });

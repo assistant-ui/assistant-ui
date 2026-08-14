@@ -68,6 +68,10 @@ export const composerInput = (options?: {
  * Builder for the send button. Spread `props` onto a `<button>`. Disabled
  * while the composer cannot send or a queueless run is in flight. Without
  * `item`, call during component initialization.
+ *
+ * A caller's own `onclick` next to the spread replaces the builder's; compose
+ * by forwarding the event (`onclick={(e) => { mine(e); send.props.onclick(e);
+ * }}`), and a forwarded event that was `preventDefault`ed vetoes the send.
  */
 export const composerSend = (options?: { item?: ScopeTarget | undefined }) => {
   const item = resolveTarget(options?.item);
@@ -80,8 +84,8 @@ export const composerSend = (options?: { item?: ScopeTarget | undefined }) => {
       get disabled() {
         return disabled.current;
       },
-      onclick: () => {
-        if (disabled.current) return;
+      onclick: (event?: MouseEvent) => {
+        if (event?.defaultPrevented || disabled.current) return;
         aui.composer.send();
       },
     },
@@ -91,7 +95,7 @@ export const composerSend = (options?: { item?: ScopeTarget | undefined }) => {
 /**
  * Builder for the cancel button. Spread `props` onto a `<button>`. Disabled
  * while nothing is cancelable. Without `item`, call during component
- * initialization.
+ * initialization. Caller handlers compose the same way as `composerSend`.
  */
 export const composerCancel = (options?: {
   item?: ScopeTarget | undefined;
@@ -106,8 +110,8 @@ export const composerCancel = (options?: {
       get disabled() {
         return disabled.current;
       },
-      onclick: () => {
-        if (disabled.current) return;
+      onclick: (event?: MouseEvent) => {
+        if (event?.defaultPrevented || disabled.current) return;
         aui.composer.cancel();
       },
     },
