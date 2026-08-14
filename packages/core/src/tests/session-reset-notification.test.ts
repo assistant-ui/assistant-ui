@@ -4,6 +4,23 @@ import { LocalRuntimeCore } from "../runtimes/local/local-runtime-core";
 import type { ChatModelAdapter } from "../runtime/utils/chat-model-adapter";
 import type { ThreadMessage } from "../types/message";
 
+async function waitFor(
+  predicate: () => unknown,
+  timeoutMs = 500,
+): Promise<void> {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    try {
+      await predicate();
+      return;
+    } catch {
+      // retry
+    }
+    await new Promise((r) => setTimeout(r, 5));
+  }
+  await predicate();
+}
+
 const trailingUserMessage = {
   id: "u1",
   role: "user",
@@ -13,13 +30,36 @@ const trailingUserMessage = {
   metadata: { custom: {} },
 } as ThreadMessage;
 
+const toolCallMessage = {
+  id: "a1",
+  role: "assistant",
+  createdAt: new Date(),
+  status: { type: "requires-action", reason: "tool-calls" },
+  metadata: {
+    unstable_state: null,
+    unstable_annotations: [],
+    unstable_data: [],
+    steps: [],
+    custom: {},
+  },
+  content: [
+    {
+      type: "tool-call",
+      toolCallId: "tool-1",
+      toolName: "send_email",
+      args: { to: "dev@example.com" },
+      argsText: '{"to":"dev@example.com"}',
+    },
+  ],
+} as unknown as ThreadMessage;
+
 const externalThread = () => {
   const setToolStatuses = vi.fn();
   const setMessages = vi.fn();
   const onCancel = vi.fn();
   const notifyCancelled = vi.fn();
-  const core = new ExternalStoreRuntimeCore({
-    messages: [trailingUserMessage],
+  const store = {
+    messages: [trailingUserMessage] as ThreadMessage[],
     onNew: vi.fn(async () => {}),
     onCancel,
     setMessages,
@@ -28,8 +68,21 @@ const externalThread = () => {
     queue: {
       __internal_notifyCancelled: notifyCancelled,
     } as never,
+  };
+  const core = new ExternalStoreRuntimeCore(store);
+  core.registerModelContextProvider({
+    getModelContext: () => ({
+      tools: {
+        send_email: {
+          parameters: { type: "object", properties: {} },
+          execute: vi.fn(() => new Promise(() => {})),
+        },
+      },
+    }),
   });
   return {
+    core,
+    store,
     thread: core.threads.getMainThreadRuntimeCore(),
     setToolStatuses,
     setMessages,
@@ -38,24 +91,43 @@ const externalThread = () => {
   };
 };
 
+const driveExecutingTool = async (
+  harness: ReturnType<typeof externalThread>,
+) => {
+  harness.core.setAdapter({
+    ...harness.store,
+    messages: [trailingUserMessage, toolCallMessage],
+  });
+  await waitFor(() => {
+    const statuses = harness.setToolStatuses.mock.lastCall?.[0] as
+      | Record<string, { type: string }>
+      | undefined;
+    expect(statuses?.["tool-1"]?.type).toBe("executing");
+  });
+};
+
 describe("unstable_notifySessionReset", () => {
-  it("clears session-scoped tool state and parks queued work", () => {
-    const { thread, setToolStatuses, notifyCancelled } = externalThread();
+  it("clears session-scoped tool state once and parks queued work", async () => {
+    const harness = externalThread();
+    await driveExecutingTool(harness);
 
-    thread.unstable_notifySessionReset();
+    harness.setToolStatuses.mockClear();
+    harness.thread.unstable_notifySessionReset();
 
-    expect(setToolStatuses).toHaveBeenLastCalledWith({});
-    expect(notifyCancelled).toHaveBeenCalledTimes(1);
+    expect(harness.setToolStatuses).toHaveBeenCalledTimes(1);
+    expect(harness.setToolStatuses).toHaveBeenLastCalledWith({});
+    expect(harness.notifyCancelled).toHaveBeenCalledTimes(1);
   });
 
-  it("carries no run-cancel semantics", () => {
-    const { thread, setMessages, onCancel } = externalThread();
+  it("carries no run-cancel semantics", async () => {
+    const harness = externalThread();
+    await driveExecutingTool(harness);
 
-    thread.unstable_notifySessionReset();
+    harness.thread.unstable_notifySessionReset();
 
-    expect(onCancel).not.toHaveBeenCalled();
-    expect(setMessages).not.toHaveBeenCalled();
-    expect(thread.messages.at(-1)?.id).toBe("u1");
+    expect(harness.onCancel).not.toHaveBeenCalled();
+    expect(harness.setMessages).not.toHaveBeenCalled();
+    expect(harness.thread.messages.at(-1)?.id).toBe("a1");
   });
 
   it("throws on runtimes without a backing session", () => {

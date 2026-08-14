@@ -1205,18 +1205,39 @@ describe("ToolInvocationTracker reset", () => {
     tracker.reset();
 
     expect(statuses()).toEqual({});
+
+    // A new-session snapshot restoring tool activity must not drag the
+    // discarded id back in through the whole-map republication. The first
+    // post-reset snapshot is the fresh session's empty state, consuming the
+    // pending-restore mark.
+    tracker.setState(createState([]));
+    tracker.setState(
+      createState([
+        createAssistantMessage(
+          '{"query":"Paris"}',
+          { query: "Paris" },
+          { toolCallId: "tool-2" },
+        ),
+      ]),
+    );
+    await waitFor(() => {
+      expect(statuses()["tool-2"]?.type).toBe("executing");
+    });
+    expect(statuses()["tool-1"]).toBeUndefined();
   });
 
   it("does not republish sibling statuses when a discarded execution settles after reset", async () => {
+    const settled = Promise.withResolvers<void>();
     const { tracker, statuses } = trackerWith({
       weatherSearch: {
         parameters: { type: "object", properties: {} },
         execute: vi.fn(
           (_args, { abortSignal }: { abortSignal: AbortSignal }) =>
             new Promise((resolve) => {
-              abortSignal.addEventListener("abort", () =>
-                resolve({ ok: true }),
-              );
+              abortSignal.addEventListener("abort", () => {
+                resolve({ ok: true });
+                settled.resolve();
+              });
             }),
         ),
       } satisfies Tool,
@@ -1247,7 +1268,10 @@ describe("ToolInvocationTracker reset", () => {
     tracker.reset();
     expect(statuses()).toEqual({});
 
-    await new Promise((r) => setTimeout(r, 20));
+    // The settle-after-abort of tool-1 is what could republish tool-2;
+    // await it deterministically instead of sleeping.
+    await settled.promise;
+    await new Promise((r) => setTimeout(r, 0));
     expect(statuses()).toEqual({});
   });
 
