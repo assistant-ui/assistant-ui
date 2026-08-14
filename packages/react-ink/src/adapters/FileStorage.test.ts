@@ -1,4 +1,11 @@
-import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
+import {
+  mkdir,
+  mkdtemp,
+  readdir,
+  readFile,
+  rm,
+  symlink,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -72,6 +79,17 @@ describe("FileStorage", () => {
     const files = await readdir(dir);
     expect(files).toEqual(["thread-1.json"]);
   });
+
+  it("recreates its directory after it is removed", async () => {
+    const dir = await createTempDir();
+    const storage = new FileStorage(dir);
+
+    await storage.setItem("thread-1", "first");
+    await rm(dir, { recursive: true });
+    await storage.setItem("thread-1", "second");
+
+    await expect(storage.getItem("thread-1")).resolves.toBe("second");
+  });
 });
 
 describe("createFileStorageAdapter", () => {
@@ -127,6 +145,32 @@ describe("createFileStorageAdapter", () => {
         },
       ],
     });
+  });
+
+  it("preserves concurrent mutations through symlinked directories", async () => {
+    const rootDir = await createTempDir();
+    const storageDir = join(rootDir, "storage");
+    const storageAlias = join(rootDir, "storage-alias");
+    await mkdir(storageDir);
+    await symlink(
+      storageDir,
+      storageAlias,
+      process.platform === "win32" ? "junction" : "dir",
+    );
+
+    const firstAdapter = createFileStorageAdapter({ dir: storageDir });
+    const secondAdapter = createFileStorageAdapter({ dir: storageAlias });
+
+    await Promise.all([
+      firstAdapter.initialize("thread-1"),
+      secondAdapter.initialize("thread-2"),
+    ]);
+
+    const result = await createFileStorageAdapter({ dir: storageDir }).list();
+    expect(result.threads.map(({ remoteId }) => remoteId).sort()).toEqual([
+      "thread-1",
+      "thread-2",
+    ]);
   });
 
   it("persists rename, archive, unarchive, and delete across reloads", async () => {
