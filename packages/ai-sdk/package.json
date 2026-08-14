@@ -49,6 +49,7 @@
     "build": "aui-build",
     "test": "vitest run",
     "test:react-compiler": "vitest run --config vitest.react-compiler.config.ts",
+    "test:standalone": "vitest run --project standalone",
     "test:watch": "vitest"
   },
   "dependencies": {
@@ -67,6 +68,9 @@
   },
   "peerDependenciesMeta": {
     "@types/react": {
+      "optional": true
+    },
+    "react": {
       "optional": true
     }
   },

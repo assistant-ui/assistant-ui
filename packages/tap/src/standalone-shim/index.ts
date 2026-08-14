@@ -78,6 +78,20 @@ export const use = (usable: any) =>
 export const useContext = (context: any) =>
   inTap() ? useTapContext(context) : throwOutsideTap("useContext");
 
+// Component factories evaluated at module scope in react-coupled barrels.
+// They return React's marker shapes so the modules load; rendering the
+// results without real React fails in the jsx-runtime shim instead.
+export const forwardRef = (render: any) => ({
+  $$typeof: Symbol.for("react.forward_ref"),
+  render,
+});
+
+export const memo = (type: any, compare?: any) => ({
+  $$typeof: Symbol.for("react.memo"),
+  type,
+  compare: compare ?? null,
+});
+
 const StandaloneRuntime = Object.freeze({
   useState,
   useReducer,
@@ -93,6 +107,8 @@ const StandaloneRuntime = Object.freeze({
   createContext,
   use,
   useContext,
+  forwardRef,
+  memo,
 });
 
 export default StandaloneRuntime;

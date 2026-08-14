@@ -32,6 +32,14 @@
     "./standalone-shim/compiler-runtime": {
       "types": null,
       "default": "./dist/standalone-shim/compiler-runtime.js"
+    },
+    "./standalone-shim/jsx-runtime": {
+      "types": null,
+      "default": "./dist/standalone-shim/jsx-runtime.js"
+    },
+    "./standalone-shim/jsx-dev-runtime": {
+      "types": null,
+      "default": "./dist/standalone-shim/jsx-dev-runtime.js"
     }
   },
   "main": "./dist/index.js",

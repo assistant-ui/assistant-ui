@@ -7,10 +7,14 @@ const DIST_DIR = resolve(SRC_DIR, "../dist");
 const ENTRY_FILES = [
   resolve(__dirname, "index.ts"),
   resolve(__dirname, "compiler-runtime.ts"),
+  resolve(__dirname, "jsx-runtime.ts"),
+  resolve(__dirname, "jsx-dev-runtime.ts"),
 ];
 const DIST_ENTRY_FILES = [
   resolve(DIST_DIR, "standalone-shim/index.js"),
   resolve(DIST_DIR, "standalone-shim/compiler-runtime.js"),
+  resolve(DIST_DIR, "standalone-shim/jsx-runtime.js"),
+  resolve(DIST_DIR, "standalone-shim/jsx-dev-runtime.js"),
 ];
 const REACT_SHIM_DIR = resolve(SRC_DIR, "react-shim");
 const ALLOWED_REACT_HOOK_NAMES = [
@@ -29,6 +33,8 @@ const ALLOWED_REACT_HOOK_NAMES = [
   "useRef",
   "useState",
   "useSyncExternalStore",
+  "forwardRef",
+  "memo",
 ] as const;
 
 type ModuleReference = {
