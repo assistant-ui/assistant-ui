@@ -280,7 +280,7 @@ describe("useAssistantForm", () => {
     }
   });
 
-  it("does not leak rejections when requestSubmit throws", async () => {
+  it("propagates errors when requestSubmit throws", async () => {
     const error = new Error("requestSubmit unavailable");
     const requestSubmit = vi
       .spyOn(HTMLFormElement.prototype, "requestSubmit")
@@ -295,7 +295,6 @@ describe("useAssistantForm", () => {
       );
 
       await expect(executeSubmitForm()).rejects.toBe(error);
-      await new Promise((resolve) => setTimeout(resolve, 0));
     } finally {
       requestSubmit.mockRestore();
     }
