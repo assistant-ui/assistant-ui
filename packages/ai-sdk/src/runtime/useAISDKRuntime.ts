@@ -489,12 +489,14 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       }
     },
     onRespondToToolApproval: ({ approvalId, approved, reason }) =>
-      chatHelpers.addToolApprovalResponse({
-        id: approvalId,
-        approved,
-        ...(reason != null && { reason }),
-        options: { metadata: lastRunConfigRef.current },
-      }),
+      Promise.resolve(
+        chatHelpers.addToolApprovalResponse({
+          id: approvalId,
+          approved,
+          ...(reason != null && { reason }),
+          options: { metadata: lastRunConfigRef.current },
+        }),
+      ),
     ...pickExternalStoreSharedOptions(adapter),
     ...(suggestionAdapter ? { suggestions: generatedSuggestions } : {}),
     ...(onResume && { onResume }),
