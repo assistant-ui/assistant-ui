@@ -272,6 +272,52 @@ const parseSendMessageResponse = (value: unknown): A2ATask | A2AMessage => {
   );
 };
 
+const isOptionalString = (value: unknown): value is string | undefined =>
+  value === undefined || typeof value === "string";
+
+const isTaskPushNotificationConfig = (
+  value: unknown,
+): value is A2ATaskPushNotificationConfig =>
+  isRecord(value) &&
+  typeof value.url === "string" &&
+  value.url.length > 0 &&
+  isOptionalString(value.tenant) &&
+  isOptionalString(value.id) &&
+  isOptionalString(value.taskId) &&
+  isOptionalString(value.token) &&
+  (value.authentication === undefined ||
+    (isRecord(value.authentication) &&
+      typeof value.authentication.scheme === "string" &&
+      value.authentication.scheme.length > 0 &&
+      isOptionalString(value.authentication.credentials)));
+
+const parseTaskPushNotificationConfigResponse = (
+  value: unknown,
+): A2ATaskPushNotificationConfig => {
+  if (isTaskPushNotificationConfig(value)) return value;
+
+  throw new Error(
+    "Invalid A2A task push notification config response: expected a valid config payload.",
+  );
+};
+
+const parseListTaskPushNotificationConfigsResponse = (
+  value: unknown,
+): A2AListTaskPushNotificationConfigsResponse => {
+  if (
+    isRecord(value) &&
+    Array.isArray(value.configs) &&
+    value.configs.every(isTaskPushNotificationConfig) &&
+    isOptionalString(value.nextPageToken)
+  ) {
+    return value as A2AListTaskPushNotificationConfigsResponse;
+  }
+
+  throw new Error(
+    "Invalid A2A task push notification config list response: expected a valid configs payload.",
+  );
+};
+
 function signalInit(signal?: AbortSignal): RequestInit {
   return signal ? { signal } : {};
 }
@@ -549,7 +595,7 @@ export class A2AClient {
   ): Promise<A2ATaskPushNotificationConfig> {
     const taskId = config.taskId;
     if (!taskId) throw new Error("taskId is required");
-    return this.fetchJSON<A2ATaskPushNotificationConfig>(
+    const result = await this.fetchJSON<unknown>(
       `${this.getBasePath()}/tasks/${encodeURIComponent(taskId)}/pushNotificationConfigs`,
       {
         method: "POST",
@@ -557,6 +603,7 @@ export class A2AClient {
         ...signalInit(signal),
       },
     );
+    return parseTaskPushNotificationConfigResponse(result);
   }
 
   async getTaskPushNotificationConfig(
@@ -564,10 +611,11 @@ export class A2AClient {
     configId: string,
     signal?: AbortSignal,
   ): Promise<A2ATaskPushNotificationConfig> {
-    return this.fetchJSON<A2ATaskPushNotificationConfig>(
+    const result = await this.fetchJSON<unknown>(
       `${this.getBasePath()}/tasks/${encodeURIComponent(taskId)}/pushNotificationConfigs/${encodeURIComponent(configId)}`,
       signalInit(signal),
     );
+    return parseTaskPushNotificationConfigResponse(result);
   }
 
   async listTaskPushNotificationConfigs(
@@ -580,10 +628,11 @@ export class A2AClient {
       params.set("page_size", String(options.pageSize));
     if (options?.pageToken) params.set("page_token", options.pageToken);
     const qs = params.toString();
-    return this.fetchJSON<A2AListTaskPushNotificationConfigsResponse>(
+    const result = await this.fetchJSON<unknown>(
       `${this.getBasePath()}/tasks/${encodeURIComponent(taskId)}/pushNotificationConfigs${qs ? `?${qs}` : ""}`,
       signalInit(signal),
     );
+    return parseListTaskPushNotificationConfigsResponse(result);
   }
 
   async deleteTaskPushNotificationConfig(

@@ -1407,6 +1407,52 @@ describe("A2AClient", () => {
       expect(url).toBe("https://agent.test/tasks/t1/pushNotificationConfigs");
     });
 
+    it.each([
+      [
+        "create",
+        () =>
+          client.createTaskPushNotificationConfig({
+            taskId: "t1",
+            url: "https://hook.test",
+          }),
+      ],
+      ["get", () => client.getTaskPushNotificationConfig("t1", "pnc-1")],
+    ])("rejects malformed %s responses", async (_, request) => {
+      fetchMock.mockResolvedValue(mockFetchResponse({}));
+
+      await expect(request()).rejects.toThrow(
+        "Invalid A2A task push notification config response",
+      );
+    });
+
+    it.each([
+      {},
+      { configs: {} },
+      { configs: [{}] },
+      { configs: [], nextPageToken: 42 },
+    ])("rejects malformed list responses", async (response) => {
+      fetchMock.mockResolvedValue(mockFetchResponse(response));
+
+      await expect(
+        client.listTaskPushNotificationConfigs("t1"),
+      ).rejects.toThrow(
+        "Invalid A2A task push notification config list response",
+      );
+    });
+
+    it("validates nested authentication responses", async () => {
+      fetchMock.mockResolvedValue(
+        mockFetchResponse({
+          url: "https://hook.test",
+          authentication: { credentials: "secret" },
+        }),
+      );
+
+      await expect(
+        client.getTaskPushNotificationConfig("t1", "pnc-1"),
+      ).rejects.toThrow("Invalid A2A task push notification config response");
+    });
+
     it("deleteTaskPushNotificationConfig sends DELETE", async () => {
       fetchMock.mockResolvedValue({
         ok: true,
