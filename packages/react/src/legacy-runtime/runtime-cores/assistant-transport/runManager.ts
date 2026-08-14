@@ -12,12 +12,10 @@ const disposeReason = Symbol("assistant-transport-dispose");
 type LifecycleCallbackName = "onCancel" | "onError" | "onFinish";
 
 const reportCallbackError = (name: LifecycleCallbackName, error: unknown) => {
-  try {
-    console.error(
-      `[assistant-ui] Assistant transport ${name} callback threw an error`,
-      error,
-    );
-  } catch {}
+  console.error(
+    `[assistant-ui] Assistant transport ${name} callback threw an error`,
+    error,
+  );
 };
 
 const invokeCallback = (

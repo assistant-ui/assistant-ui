@@ -202,9 +202,9 @@ describe("assistant transport scheduling contracts", () => {
   it("contains rejected onError callbacks", async () => {
     const callbackError = new Error("error telemetry failed");
     const onError = vi.fn().mockRejectedValue(callbackError);
-    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {
-      throw new Error("console unavailable");
-    });
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
 
     try {
       const unhandledRejections = await captureUnhandledRejections(async () => {
