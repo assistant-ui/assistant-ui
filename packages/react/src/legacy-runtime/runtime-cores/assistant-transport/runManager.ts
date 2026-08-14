@@ -18,18 +18,16 @@ const reportCallbackError = (name: LifecycleCallbackName, error: unknown) => {
   );
 };
 
-const invokeCallback = (
+const invokeCallback = async (
   name: LifecycleCallbackName,
   callback: (() => unknown) | undefined,
 ): Promise<void> => {
   try {
-    return Promise.resolve(callback?.()).then(
-      () => {},
-      (error) => reportCallbackError(name, error),
-    );
+    await callback?.();
   } catch (error) {
-    reportCallbackError(name, error);
-    return Promise.resolve();
+    try {
+      reportCallbackError(name, error);
+    } catch {}
   }
 };
 

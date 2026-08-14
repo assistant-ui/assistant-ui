@@ -204,7 +204,14 @@ describe("assistant transport scheduling contracts", () => {
     const onError = vi.fn().mockRejectedValue(callbackError);
     const consoleError = vi
       .spyOn(console, "error")
-      .mockImplementation(() => {});
+      .mockImplementation((message) => {
+        if (
+          message ===
+          "[assistant-ui] Assistant transport onError callback threw an error"
+        ) {
+          throw new Error("console unavailable");
+        }
+      });
 
     try {
       const unhandledRejections = await captureUnhandledRejections(async () => {
