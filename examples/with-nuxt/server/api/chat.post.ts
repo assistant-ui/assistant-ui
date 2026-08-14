@@ -8,7 +8,7 @@ export default defineEventHandler(async (event) => {
   }>(event);
 
   const result = streamText({
-    model: openai("gpt-5.4-nano"),
+    model: openai("gpt-5.6-luna"),
     messages,
     system,
   });

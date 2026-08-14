@@ -60,15 +60,15 @@ function resolveXuluxModel(config: unknown) {
     ? requestConfig.reasoningEffort
     : undefined;
 
-  if (modelName === "gpt-5.4" && reasoningEffort) {
+  if (modelName === "gpt-5.6-luna" && reasoningEffort) {
     return {
-      model: openai.responses("gpt-5.4"),
+      model: openai.responses("gpt-5.6-luna"),
       providerOptions: { openai: { reasoningEffort } },
     };
   }
 
   return {
-    model: modelName ? getModel(modelName) : getModel("gpt-5.4-mini"),
+    model: modelName ? getModel(modelName) : getModel("gpt-5.6-luna"),
     providerOptions: undefined,
   };
 }
