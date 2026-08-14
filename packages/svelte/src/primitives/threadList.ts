@@ -113,7 +113,7 @@ export const threadList = (options?: { archived?: boolean | undefined }) => {
  * Builder for the new-thread button. Spread `props` onto a `<button>`.
  * Switches to a new thread; carries `data-active` and `aria-current` while
  * the new thread is the main one. Caller handlers compose the same way as
- * `composerSend`.
+ * `composerSend`. Call during component initialization.
  */
 export const threadListNew = () => {
   const { aui } = getAuiContext();
@@ -142,7 +142,8 @@ export const threadListNew = () => {
  * Builder for a thread-list row button. Spread `props` onto a `<button>`.
  * Switches to the scoped item's thread; carries `data-active` and
  * `aria-current` while that thread is the main one. Caller handlers compose
- * the same way as `composerSend`.
+ * the same way as `composerSend`. Without `item`, call during component
+ * initialization.
  */
 export const threadListItemTrigger = (options?: {
   item?: ScopeTarget | undefined;

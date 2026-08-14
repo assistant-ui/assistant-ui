@@ -43,7 +43,7 @@
       <PlusIcon class="size-4" /> New chat
     </button>
     <div class="flex flex-col gap-1 overflow-y-auto">
-      {#each threads.ids as id, index}
+      {#each threads.ids as _, index}
         <ThreadItem item={threads.item(index)} />
       {/each}
     </div>
