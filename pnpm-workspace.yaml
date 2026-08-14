@@ -18,6 +18,7 @@ minimumReleaseAge: 1440
 minimumReleaseAgeExclude:
   - '@assistant-ui/*'
   - '@next/*'
+  - '@openuidev/assistant-ui'
   - '@typescript/typescript-*'
   - assistant-cloud
   - assistant-stream
@@ -35,6 +36,7 @@ allowBuilds:
   '@clerk/shared': false
   '@google/genai': false
   '@mongodb-js/zstd': false
+  '@openuidev/lang-core': false
   '@parcel/watcher': false
   '@tailwindcss/oxide': false
   core-js: false

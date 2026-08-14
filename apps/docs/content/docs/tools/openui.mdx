@@ -1,0 +1,179 @@
+---
+title: OpenUI
+description: Render streaming OpenUI Lang interfaces in an assistant-ui conversation with @openuidev/assistant-ui, the integration package published by OpenUI.
+platforms: ["react"]
+---
+
+[OpenUI](https://www.openui.com) is a generative UI system in which the model writes **OpenUI Lang**, a streaming markup language, and an OpenUI renderer turns it into interactive React components. [`@openuidev/assistant-ui`](https://www.npmjs.com/package/@openuidev/assistant-ui) connects that renderer to assistant-ui: it ships a ready-made toolkit, model instructions generated from the OpenUI component library, and Tool UI renderers that stream, handle interactions, and replay.
+
+<Callout type="info">
+  `@openuidev/assistant-ui` is a third-party package. OpenUI owns the package, its [documentation](https://www.openui.com/docs/api-reference/assistant-ui), and its releases; assistant-ui does not ship or version any OpenUI code. Use OpenUI's reference for the package API and OpenUI Lang itself; this page covers the assistant-ui side of the wiring.
+</Callout>
+
+The integration rides entirely on the [Tool UI](/docs/tools/tool-ui) lifecycle, so assistant-ui stays in charge of the conversation, streaming, and tool calls. The toolkit registers two standalone tools:
+
+- `present_openui` is a **frontend tool** for display-only interfaces (cards, tables, charts). It completes as soon as the streamed `ui` argument is available, and the turn ends there.
+- `prompt_openui` is a **human tool** for forms and choices. It completes only when the user submits an OpenUI `@ToAssistant(...)` action, and the submitted values continue the conversation.
+
+## How it relates to the `present` tool
+
+assistant-ui's first-party [Generative UI](/docs/tools/generative-ui) follows the same shape: one tool, a component vocabulary, and a model that composes an interface at runtime. The difference is the representation and who owns it. `present` takes a JSON tree validated against a schema generated from a vocabulary you ship and restyle; `present_openui` takes an OpenUI Lang program rendered by OpenUI's component kit, taught to the model through instructions. Pick `present` when you want the interface built from your own components on assistant-ui's append-only surface, and OpenUI when you are already invested in the OpenUI ecosystem or want its renderer and component library.
+
+## Quick start
+
+The complete setup below runs in [`examples/with-openui`](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-openui).
+
+<Steps>
+
+<Step>
+
+### Install the packages
+
+Alongside an existing `@assistant-ui/react` setup, add the integration and its OpenUI peer dependencies:
+
+<InstallCommand npm={["@openuidev/assistant-ui", "@openuidev/react-ui", "@openuidev/react-lang", "@openuidev/react-headless", "zustand@^4.5.5"]} />
+
+The package also expects `zod` and React 18 or 19, which an assistant-ui app already has. Note that the OpenUI packages peer-depend on Zustand 4.
+
+<Callout type="warn">
+  `@openuidev/react-headless` currently declares an optional peer on `ai@^6`. With `ai@^7` in your app, pnpm and yarn resolve with a warning, but npm fails with `ERESOLVE`; pass `--legacy-peer-deps` to npm, or use pnpm, until OpenUI widens the range.
+</Callout>
+
+</Step>
+
+<Step>
+
+### Load the OpenUI stylesheet
+
+Import the layered stylesheet once, for example in `app/globals.css`:
+
+```css
+@import "@openuidev/react-ui/layered/styles/index.css";
+```
+
+</Step>
+
+<Step>
+
+### Register the toolkit and instructions
+
+`openuiIntegration` bundles a toolkit and an instruction string created from the same OpenUI component library, so the model and the renderer share one vocabulary. Register the toolkit with [`Tools`](/docs/api-reference/tools) and mount `OpenUIInstructions` so the vocabulary reaches the model as assistant instructions:
+
+```tsx title="app/page.tsx"
+"use client";
+
+import {
+  AssistantRuntimeProvider,
+  AuiConfig,
+  Tools,
+} from "@assistant-ui/react";
+import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+import { OpenUIInstructions, openuiIntegration } from "@openuidev/assistant-ui";
+import { shouldContinueAfterOpenUIPrompt } from "@openuidev/assistant-ui/ai-sdk";
+import { Thread } from "@/components/assistant-ui/thread";
+
+export default function Home() {
+  const runtime = useChatRuntime({
+    sendAutomaticallyWhen: shouldContinueAfterOpenUIPrompt,
+  });
+
+  const config = AuiConfig({
+    tools: Tools({ toolkit: openuiIntegration.toolkit }),
+  });
+
+  return (
+    <AssistantRuntimeProvider config={config} runtime={runtime}>
+      <OpenUIInstructions />
+      <Thread />
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+`sendAutomaticallyWhen` is the continuation gate. OpenUI's predicate continues the run only after `prompt_openui` has received a submitted result, so a display-only `present_openui` call ends the turn instead of triggering an empty follow-up request.
+
+<Callout type="info">
+  `sendAutomaticallyWhen` is a single slot. OpenUI's predicate is a strict refinement of `lastAssistantMessageIsCompleteWithToolCalls` (the predicate the other guides in this section use), so it replaces it cleanly when OpenUI's tools are the only ones that resume the run. If your app mixes in other tools whose flows must also resume, write one predicate that decides by tool name; a naive `||` with the generic predicate collapses to the generic predicate alone and re-enables the empty follow-up after display-only calls.
+</Callout>
+
+</Step>
+
+<Step>
+
+### Forward the tools in your API route
+
+The default `AssistantChatTransport` forwards the registered instructions and both frontend tool schemas to the backend, so the route stays generic:
+
+```ts title="app/api/chat/route.ts"
+import { openai } from "@ai-sdk/openai";
+import { frontendTools } from "@assistant-ui/react-ai-sdk";
+import {
+  type JSONSchema7,
+  streamText,
+  convertToModelMessages,
+  type UIMessage,
+  createUIMessageStreamResponse,
+  toUIMessageStream,
+} from "ai";
+
+export const maxDuration = 30;
+
+export async function POST(req: Request) {
+  const {
+    messages,
+    system,
+    tools,
+  }: {
+    messages: UIMessage[];
+    system?: string;
+    tools?: Record<string, { description?: string; parameters: JSONSchema7 }>;
+  } = await req.json();
+
+  const result = streamText({
+    model: openai("gpt-5.6-luna"),
+    messages: await convertToModelMessages(messages),
+    ...(system ? { system } : {}),
+    tools: frontendTools(tools ?? {}),
+  });
+
+  return createUIMessageStreamResponse({
+    stream: toUIMessageStream({ stream: result.stream }),
+  });
+}
+```
+
+</Step>
+
+</Steps>
+
+## Interaction and replay
+
+When the user submits a `prompt_openui` form or choice, the integration reports the action, message, parameters, and form state through the standard human-tool `addResult`, and `sendAutomaticallyWhen` resumes the run with that result. On replay of a persisted thread, the stored result hydrates the submitted form state back into the renderer, so completed forms render as submitted instead of resetting.
+
+<Callout type="tip">
+  The core integration is runtime-agnostic: the toolkit, renderers, and instructions work with any assistant-ui runtime that forwards tool schemas and results. Only the `shouldContinueAfterOpenUIPrompt` helper on the `/ai-sdk` subpath is AI SDK-specific.
+</Callout>
+
+## Customization
+
+`createOpenUIIntegration` keeps a custom component library, tool names, and renderer options aligned across the toolkit and the instructions:
+
+```tsx
+import { createOpenUIIntegration } from "@openuidev/assistant-ui";
+import { library } from "./library";
+
+const openui = createOpenUIIntegration({
+  library,
+  presentToolName: "show_panel",
+  promptToolName: "ask_panel",
+});
+```
+
+The result exposes `toolkit`, `instructions`, and the resolved `toolNames`. See [OpenUI's integration reference](https://www.openui.com/docs/api-reference/assistant-ui) for the full option surface, including custom descriptions, prompt options, renderer props, and error handling.
+
+## Related
+
+- [`examples/with-openui`](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-openui): the runnable setup from this page
+- [OpenUI assistant-ui integration reference](https://www.openui.com/docs/api-reference/assistant-ui): the canonical package documentation
+- [Generative UI](/docs/tools/generative-ui): the first-party `present` tool this integration sits alongside
+- [Tool UI](/docs/tools/tool-ui): the lifecycle both OpenUI tools build on

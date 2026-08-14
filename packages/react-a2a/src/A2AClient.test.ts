@@ -1221,12 +1221,13 @@ describe("A2AClient", () => {
       expect(events).toHaveLength(1);
     });
 
-    it("rejects successful responses that are not event streams", async () => {
+    it("rejects and cancels successful responses that are not event streams", async () => {
+      const cancel = vi.fn();
+      const body = new ReadableStream<Uint8Array>({ cancel });
       fetchMock.mockResolvedValue(
-        mockSSETextResponse(
-          "<html><body>Please sign in</body></html>",
-          "text/html; charset=utf-8",
-        ),
+        new Response(body, {
+          headers: { "Content-Type": "text/html; charset=utf-8" },
+        }),
       );
 
       const consumeStream = async () => {
@@ -1238,10 +1239,13 @@ describe("A2AClient", () => {
       await expect(consumeStream()).rejects.toThrow(
         'Expected A2A stream response Content-Type "text/event-stream", received "text/html; charset=utf-8"',
       );
+      expect(cancel).toHaveBeenCalledOnce();
     });
 
     it("rejects task subscriptions without a content type", async () => {
-      fetchMock.mockResolvedValue(mockSSETextResponse("", null));
+      fetchMock.mockResolvedValue(
+        new Response(new ReadableStream<Uint8Array>()),
+      );
 
       const consumeStream = async () => {
         for await (const event of client.subscribeToTask("t1")) {

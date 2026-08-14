@@ -19,7 +19,7 @@ assistant-ui uses "generative UI" for more than one thing. Two questions separat
 | **[Generative UI primitive](/docs/tools/generative-ui-primitive)** | `MessagePrimitive.GenerativeUI` + allowlist | A backend that already emits `generative-ui` message parts |
 | **[LangGraph data UI](/docs/runtimes/langgraph/generative-ui)** | `makeAssistantDataUI` + `ui_message` | LangGraph agents emitting UI on the LangGraph stream |
 
-The first two are tool-driven, so the model decides when UI appears; the last two are backend-driven, so your agent does. The backend-driven pair splits on transport rather than on either axis: the primitive reads a `generative-ui` message part, while LangGraph data UI reads `push_ui_message` off the LangGraph stream. `present` and the primitive both take a JSON component tree, but in [non-interchangeable shapes](/docs/tools/generative-ui-primitive#spec-shape).
+The first two are tool-driven, so the model decides when UI appears; the last two are backend-driven, so your agent does. The backend-driven pair splits on transport rather than on either axis: the primitive reads a `generative-ui` message part, while LangGraph data UI reads `push_ui_message` off the LangGraph stream. `present` and the primitive both take a JSON component tree, but in [non-interchangeable shapes](/docs/tools/generative-ui-primitive#spec-shape). A third-party option also exists in the tool-driven space: [OpenUI](/docs/tools/openui) publishes an integration that streams OpenUI Lang through the same shape.
 
 Browse every component the default vocabulary offers in the [component vocabulary reference](/elements/vocabulary), and see finished compositions in the [Generative section of Elements](/elements).
 

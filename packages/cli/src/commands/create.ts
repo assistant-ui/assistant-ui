@@ -274,6 +274,9 @@ export const PROJECT_METADATA: ProjectMetadata[] = [
 // - with-store: In development, not ready for public use of the tap store.
 // - with-tap-runtime: In development, not ready for public use of the tap
 //     store.
+// - with-openui: Scaffolded npm installs fail because
+//     @openuidev/react-headless pins an optional peer on ai@^6 against the
+//     example's ai@^7; register once the upstream range widens.
 
 const templateNames = PROJECT_METADATA.filter(
   (m) => m.category === "template",
