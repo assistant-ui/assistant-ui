@@ -118,6 +118,7 @@ export const isValidElement = (_value: unknown) => false;
 export const lazy = (load: any) => ({
   $$typeof: Symbol.for("react.lazy"),
   _payload: { _status: -1, _result: load },
+  _init: () => throwNoReact("lazy"),
 });
 
 export const Children = {
