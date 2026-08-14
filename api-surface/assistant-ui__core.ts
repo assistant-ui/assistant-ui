@@ -5412,7 +5412,6 @@ declare class ToolInvocationTracker {
   private readonly _getTools;
   private readonly _callbacks;
   private readonly _entries;
-  private readonly _skipExecuteStreamIds;
   private readonly _humanInput;
   private readonly _executing;
   private readonly _settledResolvers;
@@ -5432,6 +5431,7 @@ declare class ToolInvocationTracker {
   resume(toolCallId: string, payload: unknown): boolean;
   getStatuses(): ReadonlyMap<string, ToolExecutionStatus>;
   private _getWrappedTools;
+  private _captureExecution;
   private _onHumanInput;
   private _onExecutionStart;
   private _onExecutionEnd;
