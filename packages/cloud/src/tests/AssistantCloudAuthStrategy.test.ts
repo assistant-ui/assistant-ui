@@ -11,6 +11,7 @@ const refreshToken = {
   token: "r1",
   expires_at: "2099-01-01",
 };
+const refreshTokenKey = `aui:refresh_token:${baseUrl}`;
 
 let originalLocalStorageDescriptor: PropertyDescriptor | undefined;
 
@@ -79,9 +80,7 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
     await expect(strategy.getAuthHeaders()).resolves.toEqual({
       Authorization: `Bearer ${accessToken}`,
     });
-    expect(values.get("aui:refresh_token")).toBe(
-      JSON.stringify(nextRefreshToken),
-    );
+    expect(values.get(refreshTokenKey)).toBe(JSON.stringify(nextRefreshToken));
     expect(fetchMock).toHaveBeenCalledWith(
       `${baseUrl}/v1/auth/tokens/anonymous`,
       { method: "POST" },
@@ -105,6 +104,94 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
       { Authorization: `Bearer ${accessToken}` },
     ]);
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("scopes anonymous refresh tokens by backend", async () => {
+    const secondBaseUrl = "https://other.example.com";
+    const values = new Map<string, string>();
+    installLocalStorage({
+      getItem: (key) => values.get(key) ?? null,
+      setItem: (key, value) => {
+        values.set(key, value);
+      },
+      removeItem: (key) => {
+        values.delete(key);
+      },
+    } as Storage);
+    const secondRefreshToken = {
+      token: "r2",
+      expires_at: "2099-01-01",
+    };
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: vi.fn().mockResolvedValue({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: vi.fn().mockResolvedValue({
+          access_token: accessToken,
+          refresh_token: secondRefreshToken,
+        }),
+      });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await new AssistantCloudAnonymousAuthStrategy(baseUrl).getAuthHeaders();
+    await new AssistantCloudAnonymousAuthStrategy(
+      secondBaseUrl,
+    ).getAuthHeaders();
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      `${baseUrl}/v1/auth/tokens/anonymous`,
+      { method: "POST" },
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      `${secondBaseUrl}/v1/auth/tokens/anonymous`,
+      { method: "POST" },
+    );
+    expect(values.get(refreshTokenKey)).toBe(JSON.stringify(refreshToken));
+    expect(values.get(`aui:refresh_token:${secondBaseUrl}`)).toBe(
+      JSON.stringify(secondRefreshToken),
+    );
+  });
+
+  it("migrates the legacy refresh token to the first backend", async () => {
+    const values = new Map([
+      ["aui:refresh_token", JSON.stringify(refreshToken)],
+    ]);
+    installLocalStorage({
+      getItem: (key) => values.get(key) ?? null,
+      setItem: (key, value) => {
+        values.set(key, value);
+      },
+      removeItem: (key) => {
+        values.delete(key);
+      },
+    } as Storage);
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue({ access_token: accessToken }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await new AssistantCloudAnonymousAuthStrategy(baseUrl).getAuthHeaders();
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      `${baseUrl}/v1/auth/tokens/refresh`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refresh_token: refreshToken.token }),
+      },
+    );
+    expect(values.get(refreshTokenKey)).toBe(JSON.stringify(refreshToken));
+    expect(values.has("aui:refresh_token")).toBe(false);
   });
 
   it("returns an anonymous access token without localStorage", async () => {
@@ -181,7 +268,8 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
     await expect(strategy.getAuthHeaders()).resolves.toEqual({
       Authorization: `Bearer ${accessToken}`,
     });
-    expect(values.get("aui:refresh_token")).toBe(JSON.stringify(refreshToken));
+    expect(values.get(refreshTokenKey)).toBe(JSON.stringify(refreshToken));
+    expect(values.has("aui:refresh_token")).toBe(false);
   });
 
   it("rejects malformed anonymous token responses without persisting them", async () => {
