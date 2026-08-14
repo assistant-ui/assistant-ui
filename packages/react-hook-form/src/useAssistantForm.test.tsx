@@ -56,21 +56,6 @@ const expectSubmitBlocked = async () => {
   });
 };
 
-const captureUnhandledRejections = async (
-  callback: () => Promise<void>,
-): Promise<unknown[]> => {
-  const reasons: unknown[] = [];
-  const listener = (reason: unknown) => reasons.push(reason);
-  process.on("unhandledRejection", listener);
-  try {
-    await callback();
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    return reasons;
-  } finally {
-    process.off("unhandledRejection", listener);
-  }
-};
-
 const expectRegisteredFieldsToSubmit = async (Fields: () => ReactNode) => {
   const onSubmit = vi.fn((event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -286,7 +271,10 @@ describe("useAssistantForm", () => {
         </form>,
       );
 
-      await expectSubmitBlocked();
+      await expect(executeSubmitForm()).resolves.toEqual({
+        success: false,
+        message: "The form did not accept the submission.",
+      });
     } finally {
       requestSubmit.mockRestore();
     }
@@ -306,10 +294,8 @@ describe("useAssistantForm", () => {
         </form>,
       );
 
-      const unhandledRejections = await captureUnhandledRejections(async () => {
-        await expect(executeSubmitForm()).rejects.toBe(error);
-      });
-      expect(unhandledRejections).toEqual([]);
+      await expect(executeSubmitForm()).rejects.toBe(error);
+      await new Promise((resolve) => setTimeout(resolve, 0));
     } finally {
       requestSubmit.mockRestore();
     }

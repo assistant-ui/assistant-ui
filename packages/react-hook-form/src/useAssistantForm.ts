@@ -115,18 +115,18 @@ export const useAssistantForm = <
         (...args) => {
           const pending = pendingAssistantSubmitRef.current;
           const event = args[1]?.nativeEvent ?? args[1];
-          if (pending?.event === event) pending.outcome = true;
+          if (pending && pending.event === event) pending.outcome = true;
           return onValid(...args);
         },
         (...args) => {
           const pending = pendingAssistantSubmitRef.current;
           const event = args[1]?.nativeEvent ?? args[1];
-          if (pending?.event === event) pending.outcome = false;
+          if (pending && pending.event === event) pending.outcome = false;
           return onInvalid?.(...args);
         },
       );
 
-      return async (event) => {
+      return (async (event) => {
         const pending = pendingAssistantSubmitRef.current;
         const nativeEvent = event?.nativeEvent ?? event;
         const assistantSubmit =
@@ -157,7 +157,7 @@ export const useAssistantForm = <
           }
           throw error;
         }
-      };
+      }) as typeof submit;
     },
     [baseHandleSubmit, rejectAssistantSubmit, settleAssistantSubmit],
   );
@@ -224,25 +224,34 @@ export const useAssistantForm = <
                 };
               }
 
+              let resolveSubmission: (outcome: boolean) => void = () => {};
+              let rejectSubmission: (error: unknown) => void = () => {};
               const submissionResult = new Promise<boolean>(
                 (resolve, reject) => {
-                  pendingAssistantSubmitRef.current = {
-                    dispatching: true,
-                    event: undefined,
-                    handlerInvoked: false,
-                    outcome: undefined,
-                    resolve,
-                    reject,
-                  };
+                  resolveSubmission = resolve;
+                  rejectSubmission = reject;
                 },
               );
+              const assistantSubmit: PendingAssistantSubmit = {
+                dispatching: true,
+                event: undefined,
+                handlerInvoked: false,
+                outcome: undefined,
+                resolve: resolveSubmission,
+                reject: rejectSubmission,
+              };
+              pendingAssistantSubmitRef.current = assistantSubmit;
               const onSubmit = (event: SubmitEvent) => {
-                const pending = pendingAssistantSubmitRef.current;
-                if (pending?.event === undefined) pending.event = event;
+                if (
+                  pendingAssistantSubmitRef.current === assistantSubmit &&
+                  assistantSubmit.event === undefined
+                ) {
+                  assistantSubmit.event = event;
+                }
                 queueMicrotask(() => {
                   if (
-                    pendingAssistantSubmitRef.current === pending &&
-                    !pending.handlerInvoked
+                    pendingAssistantSubmitRef.current === assistantSubmit &&
+                    !assistantSubmit.handlerInvoked
                   ) {
                     settleAssistantSubmit(true);
                   }
@@ -256,21 +265,21 @@ export const useAssistantForm = <
                 settleAssistantSubmit(false);
                 throw error;
               } finally {
-                const pending = pendingAssistantSubmitRef.current;
-                if (pending) pending.dispatching = false;
+                assistantSubmit.dispatching = false;
                 formElement.removeEventListener("submit", onSubmit);
               }
 
-              const pending = pendingAssistantSubmitRef.current;
-              if (pending?.event === undefined) {
+              const dispatched = assistantSubmit.event !== undefined;
+              if (!dispatched) {
                 settleAssistantSubmit(false);
               }
 
               if (await submissionResult) return { success: true };
               return {
                 success: false,
-                message:
-                  "The form contains invalid fields and was not submitted.",
+                message: dispatched
+                  ? "The form contains invalid fields and was not submitted."
+                  : "The form did not accept the submission.",
               };
             }
 
