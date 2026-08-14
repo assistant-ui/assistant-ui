@@ -1,6 +1,7 @@
 import { useReducer } from "./useReducer";
 import { useEffect } from "./useEffect";
 import { useEffectEvent } from "./useEffectEvent";
+import { useRef } from "./useRef";
 import { getCurrentResourceFiber } from "../core/helpers/execution-context";
 import { isDevelopment } from "../core/helpers/env";
 
@@ -29,22 +30,32 @@ export const useSyncExternalStore = <T>(
 
   const [, forceUpdate] = useReducer((c: number) => c + 1, 0);
 
-  const onStoreChange = useEffectEvent(() => {
+  const commitCheckDepth = useRef(0);
+  const checkForUpdates = useEffectEvent((isCommitCheck: boolean) => {
     try {
-      if (Object.is(value, getSnapshot())) return;
+      if (Object.is(value, getSnapshot())) {
+        commitCheckDepth.current = 0;
+        return;
+      }
     } catch {
       // fall through to forceUpdate
+    }
+    if (isCommitCheck && ++commitCheckDepth.current > 50) {
+      commitCheckDepth.current = 0;
+      throw new Error(
+        "Maximum update depth exceeded. The result of getSnapshot should be cached to avoid an infinite loop.",
+      );
     }
     forceUpdate();
   });
 
-  useEffect(() => subscribe(onStoreChange), [subscribe]);
+  useEffect(() => subscribe(() => checkForUpdates(false)), [subscribe]);
 
   // Runs after every (re)subscription and after commits where the snapshot
   // inputs changed, covering the tearing window where the store mutates
   // between the render's getSnapshot() read and the commit.
   useEffect(() => {
-    onStoreChange();
+    checkForUpdates(true);
   }, [subscribe, value, getSnapshot]);
 
   return value;

@@ -225,6 +225,71 @@ describe("useSyncExternalStore", () => {
     );
   });
 
+  it("throws after 50 consecutive corrective renders from the commit check", () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    let dispatched = false;
+    const fiber = createResourceFiber(
+      function useUncached() {
+        return useSyncExternalStore(
+          () => () => {},
+          () => ({}),
+        );
+      },
+      createResourceFiberRoot((evaluate, apply) => {
+        if (!evaluate()) return;
+        apply();
+        dispatched = true;
+      }),
+      undefined,
+      null,
+    );
+
+    renderResourceFiber(fiber, []);
+    let commits = 0;
+    expect(() => {
+      for (;;) {
+        commits++;
+        commitResourceFiber(fiber);
+        if (!dispatched) break;
+        dispatched = false;
+        renderResourceFiber(fiber, []);
+        if (commits > 200) throw new Error("loop was not contained");
+      }
+    }).toThrow(
+      "Maximum update depth exceeded. The result of getSnapshot should be cached to avoid an infinite loop.",
+    );
+    expect(commits).toBe(51);
+  });
+
+  it("does not count notification-path corrections toward the loop guard", () => {
+    const store = createStore(0);
+    let dispatches = 0;
+    const fiber = createResourceFiber(
+      function useBurstStore() {
+        return useSyncExternalStore(store.subscribe, () => store.getState());
+      },
+      createResourceFiberRoot((evaluate, apply) => {
+        if (!evaluate()) return;
+        apply();
+        dispatches++;
+      }),
+      undefined,
+      null,
+    );
+
+    expect(renderResourceFiber(fiber, [])).toBe(0);
+    commitResourceFiber(fiber);
+
+    // 60 changed-snapshot notifications before any re-render: each forces an
+    // update against the stale committed value, none may trip the guard
+    for (let i = 1; i <= 60; i++) store.setState(i);
+    expect(dispatches).toBe(60);
+
+    expect(renderResourceFiber(fiber, [])).toBe(60);
+    commitResourceFiber(fiber);
+    unmountResourceFiber(fiber);
+  });
+
   // The commit-time check must catch a change the notification path misses:
   // onStoreChange compares against the committed closure's value, so a store
   // that reverts inside the render->commit window bails there, and only the
