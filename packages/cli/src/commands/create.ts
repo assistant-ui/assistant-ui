@@ -264,6 +264,14 @@ export const PROJECT_METADATA: ProjectMetadata[] = [
     path: "examples/with-resumable-stream",
     hasLocalComponents: false,
   },
+  {
+    name: "with-openui",
+    label: "OpenUI",
+    description: "OpenUI Lang tool rendering via @openuidev/assistant-ui",
+    category: "example",
+    path: "examples/with-openui",
+    hasLocalComponents: false,
+  },
 ];
 
 // Examples that exist in the monorepo but are intentionally excluded from the CLI:
