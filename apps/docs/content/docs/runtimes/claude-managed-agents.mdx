@@ -69,7 +69,7 @@ The sidebar is a `RemoteThreadListAdapter` over the Managed Agents session API. 
 | `initialize` | `sessions.create()`, invoked by assistant-ui on the first message of a new chat |
 | `rename` | `sessions.update({ title })` |
 | `archive` | `sessions.archive()` |
-| `unarchive` | Throws. Managed Agents sessions cannot be unarchived, so treat archiving as one-way in your UI |
+| `unarchive` | Throws. Managed Agents sessions cannot be unarchived, and switching to an archived thread auto-unarchives by default, so do not render archived sessions as switchable (the quickstart's ownership gate rejects archived ids outright) |
 | `delete` | `sessions.delete()` |
 | `fetch` | `sessions.retrieve()` |
 | `generateTitle` | Reads the title back after the server retitles the session from the first message, so the sidebar row updates without a second model call |
