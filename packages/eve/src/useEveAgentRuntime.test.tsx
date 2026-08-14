@@ -1102,7 +1102,9 @@ describe("useEveAgentRuntime extras wiring", () => {
     await waitFor(() => {
       expect(humanRejections).toHaveLength(2);
     });
-    expect((humanRejections[0] as Error).message).toBe("Tool execution aborted");
+    expect((humanRejections[0] as Error).message).toBe(
+      "Tool execution aborted",
+    );
   });
 
   it("ignores tool statuses left over from a discarded session", async () => {
