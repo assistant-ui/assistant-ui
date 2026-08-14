@@ -39,7 +39,7 @@ import {
   isUserScrollUp,
   isViewportAtBottom,
   viewportOverflows,
-} from "../primitives/viewportScroll";
+} from "@assistant-ui/store/client";
 
 type DemoMessage = {
   role: "user" | "assistant";

@@ -16,7 +16,7 @@ import {
   isViewportAtBottom,
   observeContentResize,
   viewportOverflows,
-} from "./viewportScroll";
+} from "@assistant-ui/store/client";
 import { viewportInjectionKey } from "./viewportContext";
 
 /**
