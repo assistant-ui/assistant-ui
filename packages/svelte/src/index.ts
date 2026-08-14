@@ -23,6 +23,13 @@ export {
   threadViewport,
 } from "./primitives/threadViewport";
 export { threadMessages, type MessageItem } from "./primitives/threadMessages";
+export { suggestionTrigger } from "./primitives/suggestions";
+export {
+  threadList,
+  threadListItemTrigger,
+  threadListNew,
+  type ThreadListItem,
+} from "./primitives/threadList";
 
 export {
   AuiConfig,

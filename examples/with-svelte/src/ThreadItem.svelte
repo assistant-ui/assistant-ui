@@ -1,0 +1,19 @@
+<script lang="ts">
+  import {
+    threadListItemTrigger,
+    useAuiState,
+    type ThreadListItem,
+  } from "@assistant-ui/svelte";
+
+  let { item }: { item: ThreadListItem } = $props();
+
+  const trigger = threadListItemTrigger({ item });
+  const title = useAuiState((s) => s.threadListItem.title, { item });
+</script>
+
+<button
+  {...trigger.props}
+  class="hover:bg-muted text-muted-foreground data-[active=true]:bg-muted data-[active=true]:text-foreground w-full truncate rounded-lg px-3 py-2 text-left text-sm transition-colors"
+>
+  {title.current || "New Chat"}
+</button>

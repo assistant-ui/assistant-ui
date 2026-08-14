@@ -98,6 +98,17 @@ export const createEchoRuntime = () => {
   let threads: { id: string; title: string }[] = [{ id: "t0", title: "" }];
   let currentThreadId = "t0";
   let nextThreadId = 1;
+  const onSwitchToThread = vi.fn((threadId: string) => {
+    currentThreadId = threadId;
+    sync();
+  });
+  const onSwitchToNewThread = vi.fn(() => {
+    const id = `t${nextThreadId++}`;
+    threads = [...threads, { id, title: id }];
+    currentThreadId = id;
+    messages = [];
+    sync();
+  });
   const makeAdapter = () => ({
     messages,
     isRunning,
@@ -110,17 +121,8 @@ export const createEchoRuntime = () => {
           id: thread.id,
           title: thread.title,
         })),
-        onSwitchToThread: (threadId: string) => {
-          currentThreadId = threadId;
-          sync();
-        },
-        onSwitchToNewThread: () => {
-          const id = `t${nextThreadId++}`;
-          threads = [...threads, { id, title: "" }];
-          currentThreadId = id;
-          messages = [];
-          sync();
-        },
+        onSwitchToThread,
+        onSwitchToNewThread,
       },
     },
     setMessages: (next: EchoMessage[]) => {
@@ -141,6 +143,8 @@ export const createEchoRuntime = () => {
     onEdit,
     onCancel,
     onReload,
+    onSwitchToThread,
+    onSwitchToNewThread,
     setMessages: (next: EchoMessage[]) => {
       messages = next;
       sync();
