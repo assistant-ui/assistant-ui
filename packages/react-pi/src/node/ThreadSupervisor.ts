@@ -119,7 +119,7 @@ export class PiThreadSupervisor {
   private readonly archivedSessionFiles = new Set<string>();
   private readonly catalogCache = new Map<string, CatalogCacheEntry>();
   private readonly catalogInfoByThreadId = new Map<string, PiSessionInfo>();
-  private disposed = false;
+  private generation = 0;
 
   constructor(options: PiThreadSupervisorOptions = {}) {
     this.workspacePath = options.workspacePath ?? process.cwd();
@@ -352,8 +352,7 @@ export class PiThreadSupervisor {
   /** Tear down every record (process exit). Aborts nothing implicitly — call
    * `cancelRun` first if a graceful stop is wanted. */
   async dispose(): Promise<void> {
-    if (this.disposed) return;
-    this.disposed = true;
+    this.generation++;
     for (const pending of this.pendingOpens.values()) {
       pending.controller.abort();
     }
@@ -391,14 +390,15 @@ export class PiThreadSupervisor {
     cwd: string,
     signal?: AbortSignal,
   ): Promise<ThreadRecord> {
-    this.throwIfOpenCancelled(signal);
+    const generation = this.generation;
+    this.throwIfOpenCancelled(signal, generation);
     const { session } = await createAgentSession({
       cwd,
       sessionManager,
       ...(this.agentDir ? { agentDir: this.agentDir } : {}),
       ...(this.model ? { model: this.model } : {}),
     });
-    if (this.openWasCancelled(signal)) {
+    if (this.openWasCancelled(signal, generation)) {
       session.dispose();
       this.throwOpenCancelled();
     }
@@ -450,7 +450,7 @@ export class PiThreadSupervisor {
       throw error;
     }
 
-    if (this.openWasCancelled(signal)) {
+    if (this.openWasCancelled(signal, generation)) {
       uiBridge.dismissAll();
       session.dispose();
       this.throwOpenCancelled();
@@ -467,7 +467,6 @@ export class PiThreadSupervisor {
   }
 
   private async ensureOpen(threadId: string): Promise<ThreadRecord> {
-    this.throwIfOpenCancelled();
     const existing = this.records.get(threadId);
     if (existing) return existing;
     const pending = this.pendingOpens.get(threadId);
@@ -502,12 +501,18 @@ export class PiThreadSupervisor {
     );
   }
 
-  private openWasCancelled(signal?: AbortSignal): boolean {
-    return this.disposed || signal?.aborted === true;
+  private openWasCancelled(
+    signal?: AbortSignal,
+    generation = this.generation,
+  ): boolean {
+    return signal?.aborted === true || generation !== this.generation;
   }
 
-  private throwIfOpenCancelled(signal?: AbortSignal): void {
-    if (this.openWasCancelled(signal)) this.throwOpenCancelled();
+  private throwIfOpenCancelled(
+    signal?: AbortSignal,
+    generation = this.generation,
+  ): void {
+    if (this.openWasCancelled(signal, generation)) this.throwOpenCancelled();
   }
 
   private throwOpenCancelled(): never {

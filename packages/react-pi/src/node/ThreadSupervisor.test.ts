@@ -195,6 +195,19 @@ describe("PiThreadSupervisor", () => {
     expect(session.dispose).toHaveBeenCalledOnce();
     expect(session.subscribe).not.toHaveBeenCalled();
     expect(session.setThinkingLevel).not.toHaveBeenCalled();
+
+    const reopenedSession = {
+      ...session,
+      bindExtensions: vi.fn(async () => {}),
+      subscribe: vi.fn(() => () => {}),
+      setThinkingLevel: vi.fn(),
+      dispose: vi.fn(),
+    };
+    sdk.createAgentSession.mockResolvedValue({ session: reopenedSession });
+
+    await supervisor.setThinkingLevel("t1", "low");
+
+    expect(reopenedSession.setThinkingLevel).toHaveBeenCalledWith("low");
   });
 
   it("disposes a cold session when extension binding fails during teardown", async () => {
