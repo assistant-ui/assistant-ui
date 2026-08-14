@@ -9,6 +9,15 @@ export {
   composerInput,
   composerSend,
 } from "./primitives/composer";
+export {
+  actionBarCopy,
+  actionBarEdit,
+  actionBarReload,
+} from "./primitives/actionBar";
+export {
+  branchPickerNext,
+  branchPickerPrevious,
+} from "./primitives/branchPicker";
 export { threadMessages, type MessageItem } from "./primitives/threadMessages";
 
 export {

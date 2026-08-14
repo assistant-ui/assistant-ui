@@ -67,6 +67,7 @@ describe("threadMessages", () => {
     });
 
     const item = messages.item(0);
+    item.source.subscribe(() => {});
     const input = composerInput({ item });
     const send = composerSend({ item });
 

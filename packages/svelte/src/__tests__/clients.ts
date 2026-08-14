@@ -57,7 +57,7 @@ export const createEchoRuntime = () => {
     const text = message.content
       .map((part: any) => (part.type === "text" ? part.text : ""))
       .join("");
-    messages = [...messages, { id: `u${nextId++}`, role: "user", text }];
+    messages = [...messages, { id: `gn${nextId++}`, role: "user", text }];
     sync();
   });
   const onEdit = vi.fn(async (message: any) => {
@@ -69,7 +69,7 @@ export const createEchoRuntime = () => {
       : 0;
     messages = [
       ...messages.slice(0, parentIndex),
-      { id: `u${nextId++}`, role: "user", text },
+      { id: `gn${nextId++}`, role: "user", text },
     ];
     sync();
   });
@@ -77,14 +77,28 @@ export const createEchoRuntime = () => {
     isRunning = false;
     queueMicrotask(sync);
   });
+  const convertMessage = (message: EchoMessage) => ({
+    id: message.id,
+    role: message.role,
+    content: [{ type: "text" as const, text: message.text }],
+  });
+  const onReload = vi.fn(async (parentId: string | null) => {
+    let parentIndex = 0;
+    if (parentId) {
+      const index = messages.findIndex((entry) => entry.id === parentId);
+      if (index === -1) return;
+      parentIndex = index + 1;
+    }
+    messages = [
+      ...messages.slice(0, parentIndex),
+      { id: `gr${nextId++}`, role: "assistant", text: "regenerated" },
+    ];
+    sync();
+  });
   const makeAdapter = () => ({
     messages,
     isRunning,
-    convertMessage: (message: EchoMessage) => ({
-      id: message.id,
-      role: message.role,
-      content: [{ type: "text" as const, text: message.text }],
-    }),
+    convertMessage,
     setMessages: (next: EchoMessage[]) => {
       messages = next;
       sync();
@@ -92,6 +106,7 @@ export const createEchoRuntime = () => {
     onNew,
     onEdit,
     onCancel,
+    onReload,
   });
   const core = new ExternalStoreRuntimeCore(makeAdapter() as never);
   const sync = () => core.setAdapter(makeAdapter() as never);
@@ -101,6 +116,7 @@ export const createEchoRuntime = () => {
     onNew,
     onEdit,
     onCancel,
+    onReload,
     setMessages: (next: EchoMessage[]) => {
       messages = next;
       sync();
