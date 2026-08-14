@@ -31,31 +31,39 @@ export const useSyncExternalStore = <T>(
   const [, forceUpdate] = useReducer((c: number) => c + 1, 0);
 
   const commitCheckDepth = useRef(0);
-  const checkForUpdates = useEffectEvent((isCommitCheck: boolean) => {
+  const checkForUpdates = useEffectEvent((): boolean => {
     try {
       if (Object.is(value, getSnapshot())) {
         commitCheckDepth.current = 0;
-        return;
+        return false;
       }
     } catch {
-      // fall through to forceUpdate
+      // a throwing getSnapshot counts as changed
     }
-    if (isCommitCheck && ++commitCheckDepth.current > 50) {
+    return true;
+  });
+
+  useEffect(() => {
+    return subscribe(() => {
+      if (checkForUpdates()) forceUpdate();
+    });
+  }, [subscribe]);
+
+  // Runs after every (re)subscription and after commits where the snapshot
+  // inputs changed, covering the tearing window where the store mutates
+  // between the render's getSnapshot() read and the commit. Only these
+  // commit checks count toward the loop guard: a store still changed after
+  // every corrective render is an unstable getSnapshot, while a burst of
+  // notifications between renders is legitimate.
+  useEffect(() => {
+    if (!checkForUpdates()) return;
+    if (++commitCheckDepth.current > 50) {
       commitCheckDepth.current = 0;
       throw new Error(
         "Maximum update depth exceeded. The result of getSnapshot should be cached to avoid an infinite loop.",
       );
     }
     forceUpdate();
-  });
-
-  useEffect(() => subscribe(() => checkForUpdates(false)), [subscribe]);
-
-  // Runs after every (re)subscription and after commits where the snapshot
-  // inputs changed, covering the tearing window where the store mutates
-  // between the render's getSnapshot() read and the commit.
-  useEffect(() => {
-    checkForUpdates(true);
   }, [subscribe, value, getSnapshot]);
 
   return value;
