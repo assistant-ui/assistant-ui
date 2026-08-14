@@ -87,14 +87,21 @@ function getOrCreateProxyFn(prop: string | symbol) {
         );
       }
 
-      const method = output[prop];
       const connectionPhase = (this as ClientInternal)[SYMBOL_CONNECTION_PHASE];
+      const isRead =
+        prop === "getState" || prop === "subscribe" || clientReadDepth > 0;
+      if (!isRead && connectionPhase === "disconnected") {
+        console.warn(
+          `Cannot call "${String(prop)}" on a disconnected AuiClient. This call was ignored.`,
+        );
+        return undefined;
+      }
+
+      const method = output[prop];
       if (
-        prop !== "getState" &&
-        prop !== "subscribe" &&
-        clientReadDepth === 0 &&
-        connectionPhase !== "connected" &&
-        !(connectionPhase === "cleanup" && isCleanupSafeMethod(method))
+        !isRead &&
+        connectionPhase === "cleanup" &&
+        !isCleanupSafeMethod(method)
       ) {
         console.warn(
           `Cannot call "${String(prop)}" on a disconnected AuiClient. This call was ignored.`,

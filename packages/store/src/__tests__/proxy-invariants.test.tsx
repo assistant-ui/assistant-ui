@@ -146,6 +146,47 @@ describe("proxy invariants", () => {
     );
   });
 
+  it("does not resolve getter-backed actions after disconnect", async () => {
+    const methodLookup = vi.fn();
+    const echo = (text: string) => text;
+    const useGetterItem = () => {
+      const methods = {
+        getState: () => null,
+        echo,
+      };
+      Object.defineProperty(methods, "echo", {
+        enumerable: true,
+        get: () => {
+          methodLookup();
+          return echo;
+        },
+      });
+      return methods;
+    };
+    const GetterItem = resource(useGetterItem);
+    let lookup!: ReturnType<
+      typeof useClientLookup<ReturnType<typeof useGetterItem>>
+    >;
+    const List: FC<{ visible: boolean }> = ({ visible }) => {
+      lookup = useClientLookup(visible ? [withKey("a", GetterItem({}))] : []);
+      return null;
+    };
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const view = render(<List visible />);
+    const client = lookup.get({ key: "a" });
+    const capturedEcho = client.echo;
+
+    view.rerender(<List visible={false} />);
+    await new Promise<void>((resolve) => queueMicrotask(resolve));
+    methodLookup.mockClear();
+
+    expect(capturedEcho("late")).toBeUndefined();
+    expect(methodLookup).not.toHaveBeenCalled();
+    expect(warning).toHaveBeenCalledWith(
+      'Cannot call "echo" on a disconnected AuiClient. This call was ignored.',
+    );
+  });
+
   it("allows cleanup cancellation while denying other stale actions", async () => {
     const cancelRun = vi.fn();
     const cancel = vi.fn();
