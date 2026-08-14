@@ -60,9 +60,10 @@ describe("unstable_notifySessionReset", () => {
 
   it("throws on runtimes without a backing session", () => {
     const local = new LocalRuntimeCore(
-      { async *run() {} } satisfies ChatModelAdapter,
+      {
+        adapters: { chatModel: { async *run() {} } satisfies ChatModelAdapter },
+      },
       undefined,
-      {},
     );
 
     expect(() =>
