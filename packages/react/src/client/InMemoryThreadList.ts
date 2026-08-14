@@ -7,6 +7,7 @@ import {
   attachTransformScopes,
   useClientResource,
 } from "@assistant-ui/store";
+import { useThreadSelectionEvents } from "@assistant-ui/core/store/internal";
 import { generateId } from "@assistant-ui/core";
 
 import { ModelContext } from "@assistant-ui/core/store";
@@ -91,6 +92,8 @@ const useInMemoryThreadList = (
   const [threads, setThreads] = useState<readonly ThreadData[]>(() => [
     { id: "main", title: "Main Thread", status: "regular" },
   ]);
+
+  useThreadSelectionEvents(mainThreadId);
 
   const handleSwitchToThread = (threadId: string) => {
     setMainThreadId(threadId);
