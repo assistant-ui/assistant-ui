@@ -1,6 +1,6 @@
 {
-  "name": "@assistant-ui/react-ai-sdk",
-  "version": "1.4.5",
+  "name": "@assistant-ui/ai-sdk",
+  "version": "0.0.0",
   "description": "Vercel AI SDK adapter for assistant-ui",
   "keywords": [
     "ai-sdk",
@@ -15,6 +15,17 @@
   "author": "AgentbaseAI Inc.",
   "license": "MIT",
   "type": "module",
+  "imports": {
+    "#mcp-stdio": {
+      "types": "./src/tools/mcp-stdio.node.ts",
+      "react-native": "./dist/tools/mcp-stdio.unsupported.js",
+      "edge-light": "./dist/tools/mcp-stdio.unsupported.js",
+      "workerd": "./dist/tools/mcp-stdio.unsupported.js",
+      "browser": "./dist/tools/mcp-stdio.unsupported.js",
+      "node": "./dist/tools/mcp-stdio.node.js",
+      "default": "./dist/tools/mcp-stdio.unsupported.js"
+    }
+  },
   "exports": {
     ".": {
       "react-native": {
@@ -35,10 +46,18 @@
   ],
   "sideEffects": false,
   "scripts": {
-    "build": "aui-build"
+    "build": "aui-build",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
-    "@assistant-ui/ai-sdk": "^0.0.0"
+    "@ai-sdk/mcp": "^2.0.31",
+    "@ai-sdk/react": "^4.0.65",
+    "@assistant-ui/core": "^0.3.13",
+    "@assistant-ui/store": "^0.3.9",
+    "ai": "^7.0.62",
+    "assistant-cloud": "*",
+    "assistant-stream": "^0.3.37"
   },
   "peerDependencies": {
     "@types/react": "*",
@@ -50,7 +69,14 @@
     }
   },
   "devDependencies": {
-    "@assistant-ui/x-buildutils": "workspace:*"
+    "@assistant-ui/x-buildutils": "workspace:*",
+    "@testing-library/react": "^16.3.2",
+    "@types/json-schema": "^7.0.15",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "jsdom": "^30.0.1",
+    "react": "^19.2.8",
+    "vitest": "^4.1.10"
   },
   "publishConfig": {
     "access": "public",
@@ -60,7 +86,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/assistant-ui/assistant-ui.git",
-    "directory": "packages/react-ai-sdk"
+    "directory": "packages/ai-sdk"
   },
   "bugs": {
     "url": "https://github.com/assistant-ui/assistant-ui/issues"

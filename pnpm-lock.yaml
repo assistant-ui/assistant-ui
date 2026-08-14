@@ -3411,6 +3411,55 @@ importers:
         specifier: ^26.2.0
         version: 26.2.0
 
+  packages/ai-sdk:
+    dependencies:
+      '@ai-sdk/mcp':
+        specifier: ^2.0.31
+        version: 2.0.31(zod@4.4.3)
+      '@ai-sdk/react':
+        specifier: ^4.0.65
+        version: 4.0.65(react@19.2.8)(zod@4.4.3)
+      '@assistant-ui/core':
+        specifier: ^0.3.13
+        version: link:../core
+      '@assistant-ui/store':
+        specifier: ^0.3.9
+        version: link:../store
+      ai:
+        specifier: ^7.0.62
+        version: 7.0.62(zod@4.4.3)
+      assistant-cloud:
+        specifier: '*'
+        version: link:../cloud
+      assistant-stream:
+        specifier: ^0.3.37
+        version: link:../assistant-stream
+    devDependencies:
+      '@assistant-ui/x-buildutils':
+        specifier: workspace:*
+        version: link:../x-buildutils
+      '@testing-library/react':
+        specifier: ^16.3.2
+        version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      '@types/json-schema':
+        specifier: ^7.0.15
+        version: 7.0.15
+      '@types/react':
+        specifier: ^19.2.18
+        version: 19.2.18
+      '@types/react-dom':
+        specifier: ^19.2.4
+        version: 19.2.4(@types/react@19.2.18)
+      jsdom:
+        specifier: ^30.0.1
+        version: 30.0.1
+      react:
+        specifier: ^19.2.8
+        version: 19.2.8
+      vitest:
+        specifier: ^4.1.10
+        version: 4.1.10(@opentelemetry/api@1.9.1)(@types/node@26.2.0)(@vitest/coverage-v8@4.1.10)(@vitest/ui@4.1.10)(jsdom@30.0.1)(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0))
+
   packages/assistant-stream:
     dependencies:
       '@standard-schema/spec':
@@ -3964,52 +4013,19 @@ importers:
 
   packages/react-ai-sdk:
     dependencies:
-      '@ai-sdk/mcp':
-        specifier: ^2.0.31
-        version: 2.0.31(zod@4.4.3)
-      '@ai-sdk/react':
-        specifier: ^4.0.65
-        version: 4.0.65(react@19.2.8)(zod@4.4.3)
-      '@assistant-ui/core':
-        specifier: ^0.3.13
-        version: link:../core
-      '@assistant-ui/store':
-        specifier: ^0.3.9
-        version: link:../store
-      ai:
-        specifier: ^7.0.62
-        version: 7.0.62(zod@4.4.3)
-      assistant-cloud:
+      '@assistant-ui/ai-sdk':
+        specifier: ^0.0.0
+        version: link:../ai-sdk
+      '@types/react':
         specifier: '*'
-        version: link:../cloud
-      assistant-stream:
-        specifier: ^0.3.37
-        version: link:../assistant-stream
+        version: 19.2.18
+      react:
+        specifier: ^18 || ^19
+        version: 19.2.8
     devDependencies:
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../x-buildutils
-      '@testing-library/react':
-        specifier: ^16.3.2
-        version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
-      '@types/json-schema':
-        specifier: ^7.0.15
-        version: 7.0.15
-      '@types/react':
-        specifier: ^19.2.18
-        version: 19.2.18
-      '@types/react-dom':
-        specifier: ^19.2.4
-        version: 19.2.4(@types/react@19.2.18)
-      jsdom:
-        specifier: ^30.0.1
-        version: 30.0.1
-      react:
-        specifier: ^19.2.8
-        version: 19.2.8
-      vitest:
-        specifier: ^4.1.10
-        version: 4.1.10(@opentelemetry/api@1.9.1)(@types/node@26.2.0)(@vitest/coverage-v8@4.1.10)(@vitest/ui@4.1.10)(jsdom@30.0.1)(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0))
 
   packages/react-data-stream:
     dependencies:

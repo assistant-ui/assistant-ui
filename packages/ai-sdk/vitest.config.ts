@@ -5,7 +5,7 @@ export default defineConfig({
   resolve: {
     alias: {
       "#mcp-stdio": fileURLToPath(
-        new URL("./src/mcp-stdio.node.ts", import.meta.url),
+        new URL("./src/tools/mcp-stdio.node.ts", import.meta.url),
       ),
     },
   },

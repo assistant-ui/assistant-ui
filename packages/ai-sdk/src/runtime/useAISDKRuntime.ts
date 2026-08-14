@@ -38,11 +38,11 @@ import {
 import { consumeSuggestionResult } from "@assistant-ui/core/internal";
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
 import { sliceMessagesUntil } from "../utils/sliceMessagesUntil";
-import { toCreateMessage } from "../utils/toCreateMessage";
-import { vercelAttachmentAdapter } from "../utils/vercelAttachmentAdapter";
-import { getVercelAIMessages } from "../getVercelAIMessages";
-import { AISDKMessageConverter } from "../utils/convertMessage";
-import { wrapModelContentEnvelope } from "../../modelContentEnvelope";
+import { toCreateMessage } from "../converters/toCreateMessage";
+import { vercelAttachmentAdapter } from "../adapters/vercelAttachmentAdapter";
+import { getVercelAIMessages } from "../utils/getVercelAIMessages";
+import { AISDKMessageConverter } from "../converters/convertMessage";
+import { wrapModelContentEnvelope } from "../converters/modelContentEnvelope";
 import {
   type AISDKStorageFormat,
   aiSDKV6FormatAdapter,
@@ -52,7 +52,7 @@ import {
   toExportedMessageRepository,
 } from "./useExternalHistory";
 import { useStreamingTiming } from "./useStreamingTiming";
-import { aiSDKExtras } from "../../aiSDKExtras";
+import { aiSDKExtras } from "../aiSDKExtras";
 
 export type CustomToCreateMessageFunction = <
   UI_MESSAGE extends UIMessage = UIMessage,

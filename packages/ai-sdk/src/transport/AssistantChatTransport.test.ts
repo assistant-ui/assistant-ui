@@ -1,7 +1,7 @@
 import type { UIMessage } from "ai";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { RESUMABLE_STREAM_ID_HEADER } from "../resumable";
+import { RESUMABLE_STREAM_ID_HEADER } from "./resumable";
 import { AssistantChatTransport } from "./AssistantChatTransport";
 
 const emptyStreamResponse = () =>

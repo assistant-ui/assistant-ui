@@ -17,7 +17,7 @@ vi.mock("./useExternalHistory", () => ({
 
 import { useExternalHistory } from "./useExternalHistory";
 import { useAISDKRuntime } from "./useAISDKRuntime";
-import { aiSDKExtras } from "../../aiSDKExtras";
+import { aiSDKExtras } from "../aiSDKExtras";
 
 const createChatHelpers = (messages: any[] = []) => {
   let currentMessages = [...messages];

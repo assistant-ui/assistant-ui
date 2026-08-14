@@ -18,11 +18,11 @@ import {
   type CustomToCreateMessageFunction,
 } from "./useAISDKRuntime";
 import type { ChatInit, ChatTransport } from "ai";
-import { AssistantChatTransport } from "./AssistantChatTransport";
+import { AssistantChatTransport } from "../transport/AssistantChatTransport";
 import type {
   AssistantChatResumableOptions,
   ResumableClientStorage,
-} from "../resumable";
+} from "../transport/resumable";
 import {
   useCallback,
   useEffect,

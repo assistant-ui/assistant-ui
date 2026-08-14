@@ -1,7 +1,10 @@
 import { jsonSchema, type ToolSet } from "ai";
 import type { ToolJSONSchema } from "assistant-stream";
-import { unwrapModelContentEnvelope } from "./modelContentEnvelope";
-import { toAISDKContent, toAISDKDefaultOutput } from "./toolOutputConversion";
+import { unwrapModelContentEnvelope } from "../converters/modelContentEnvelope";
+import {
+  toAISDKContent,
+  toAISDKDefaultOutput,
+} from "../converters/toolOutputConversion";
 
 /** Frontend tool definitions uploaded by AssistantChatTransport. */
 export type FrontendTools = Record<string, ToolJSONSchema>;

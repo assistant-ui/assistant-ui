@@ -11,7 +11,7 @@ import { toToolsJSONSchema } from "assistant-stream";
 import {
   RESUMABLE_STREAM_ID_HEADER,
   type AssistantChatResumableOptions,
-} from "../resumable";
+} from "./resumable";
 
 type InitializableThreadListItem = Pick<ThreadListItemRuntime, "initialize">;
 

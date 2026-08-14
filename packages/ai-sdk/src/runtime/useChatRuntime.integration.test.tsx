@@ -6,7 +6,7 @@ import { useAuiState } from "@assistant-ui/store";
 import type { UIMessage } from "ai";
 import { StrictMode, useState } from "react";
 import { describe, expect, it } from "vitest";
-import { AssistantChatTransport } from "./AssistantChatTransport";
+import { AssistantChatTransport } from "../transport/AssistantChatTransport";
 import { useChatRuntime } from "./useChatRuntime";
 
 const messages: UIMessage[] = [

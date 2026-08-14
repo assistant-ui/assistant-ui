@@ -71,11 +71,11 @@ vi.mock("./useAISDKRuntime", () => ({
   useAISDKRuntime: mocks.useAISDKRuntime,
 }));
 
-import { AssistantChatTransport } from "./AssistantChatTransport";
+import { AssistantChatTransport } from "../transport/AssistantChatTransport";
 import {
   createResumableSessionStorage,
   RESUMABLE_STREAM_ID_HEADER,
-} from "../resumable";
+} from "../transport/resumable";
 import { useChatRuntime } from "./useChatRuntime";
 
 const sendMessagesOptions = {

@@ -11,6 +11,7 @@ on:
       - packages/react-ink/**
       - packages/react-ink-markdown/**
       - packages/react-ai-sdk/**
+      - packages/ai-sdk/**
       - packages/core/**
       - .github/workflows/deploy-examples.yaml
 
