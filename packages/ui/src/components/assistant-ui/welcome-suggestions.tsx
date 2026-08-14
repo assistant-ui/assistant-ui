@@ -41,7 +41,11 @@ export type SuggestionGroup = {
 
 export type SuggestionEntry = SuggestionItem | SuggestionGroup;
 
-type RawSuggestion = SuggestionEntry | { prompt: string } | string;
+type RawSuggestion =
+  | SuggestionEntry
+  | { title: string; label: string; prompt: string }
+  | { prompt: string }
+  | string;
 
 const isGroup = (entry: SuggestionEntry): entry is SuggestionGroup =>
   "suggestions" in entry;
@@ -58,13 +62,15 @@ function normalizeItem(raw: RawSuggestion): SuggestionEntry {
       ),
     };
   }
+  // Legacy runtime suggestions split one display sentence across title and
+  // label; string configs land as title with an empty label.
+  if ("title" in raw)
+    return {
+      label: [raw.title, raw.label].filter(Boolean).join(" "),
+      prompt: raw.prompt,
+    };
   if ("label" in raw) return { ...raw, prompt: promptOf(raw) };
-  // legacy { title, label, prompt } and runtime { prompt }
-  const legacy = raw as { title?: string; label?: string; prompt: string };
-  return {
-    label: legacy.title ?? legacy.label ?? legacy.prompt,
-    prompt: legacy.prompt,
-  };
+  return { label: raw.prompt, prompt: raw.prompt };
 }
 
 const PickerPromptsContext = createContext<Map<string, string> | null>(null);
