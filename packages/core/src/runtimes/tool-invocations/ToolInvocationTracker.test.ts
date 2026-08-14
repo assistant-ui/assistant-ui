@@ -1304,4 +1304,114 @@ describe("ToolInvocationTracker reset", () => {
     );
     expect(statuses()).toEqual({});
   });
+
+  it("rejects a late human-input request when reset reuses the tool call id", async () => {
+    const humanFns: ((payload: unknown) => Promise<unknown>)[] = [];
+    const { tracker, statuses } = trackerWith({
+      weatherSearch: {
+        parameters: { type: "object", properties: {} },
+        execute: vi.fn(() => new Promise(() => {})),
+        streamCall: vi.fn((_reader, { human }) => {
+          humanFns.push(human);
+        }),
+      } satisfies Tool,
+    });
+
+    tracker.setState(createState([]));
+    tracker.setState(
+      createState([
+        createAssistantMessage('{"query":"London"}', { query: "London" }),
+      ]),
+    );
+    await waitFor(() => {
+      expect(humanFns).toHaveLength(1);
+      expect(statuses()["tool-1"]?.type).toBe("executing");
+    });
+
+    tracker.reset();
+    tracker.setState(createState([]));
+    tracker.setState(
+      createState([
+        createAssistantMessage(
+          '{"query":"Paris"}',
+          { query: "Paris" },
+          { toolCallId: "tool-1" },
+        ),
+      ]),
+    );
+    await waitFor(() => expect(humanFns).toHaveLength(2));
+
+    await expect(humanFns[0]!({ stale: true })).rejects.toThrow(
+      "Tool execution aborted",
+    );
+    expect(statuses()["tool-1"]?.type).toBe("executing");
+
+    tracker.reset();
+  });
+
+  it("drops a late result when reset reuses the tool call id", async () => {
+    const executions: Array<{
+      resolve: (value: { session: string }) => void;
+      promise: Promise<{ session: string }>;
+    }> = [];
+    const onResult = vi.fn();
+    const tracker = new ToolInvocationTracker(
+      () => ({
+        weatherSearch: {
+          parameters: { type: "object", properties: {} },
+          execute: vi.fn(
+            (_args: unknown, { abortSignal }: { abortSignal: AbortSignal }) => {
+              let resolveExecution!: (value: { session: string }) => void;
+              const promise = new Promise<{ session: string }>((resolve) => {
+                resolveExecution = resolve;
+              });
+              const execution = { promise, resolve: resolveExecution };
+              abortSignal.addEventListener("abort", () => {
+                execution.resolve({ session: "old" });
+              });
+              executions.push(execution);
+              return promise;
+            },
+          ),
+        } satisfies Tool,
+      }),
+      { onResult, onStatusesChange: vi.fn() },
+    );
+
+    tracker.setState(createState([]));
+    tracker.setState(
+      createState([
+        createAssistantMessage('{"query":"London"}', { query: "London" }),
+      ]),
+    );
+    await waitFor(() => expect(executions).toHaveLength(1));
+
+    tracker.reset();
+    tracker.setState(createState([]));
+    tracker.setState(
+      createState([
+        createAssistantMessage(
+          '{"query":"Paris"}',
+          { query: "Paris" },
+          { toolCallId: "tool-1" },
+        ),
+      ]),
+    );
+    await waitFor(() => expect(executions).toHaveLength(2));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(onResult).not.toHaveBeenCalled();
+
+    executions[1]!.resolve({ session: "new" });
+    await waitFor(() => {
+      expect(onResult).toHaveBeenCalledOnce();
+      expect(onResult).toHaveBeenCalledWith(
+        expect.objectContaining({
+          toolCallId: "tool-1",
+          result: { session: "new" },
+        }),
+      );
+    });
+
+    tracker.reset();
+  });
 });

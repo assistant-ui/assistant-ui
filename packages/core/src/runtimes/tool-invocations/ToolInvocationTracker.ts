@@ -7,6 +7,7 @@ import {
   unstable_toolResultStream,
   type Tool,
   type ToolModelContentPart,
+  type ToolResultStreamOptions,
 } from "assistant-stream";
 import {
   AssistantMetaTransformStream,
@@ -14,6 +15,8 @@ import {
 } from "assistant-stream/utils";
 import { isJSONValueEqual } from "../../utils/json/is-json-equal";
 import type { ThreadMessage } from "../../types/message";
+
+const TOOL_EXECUTION_ID = Symbol.for("assistant-stream.tool-execution-id");
 
 /**
  * Streaming execution state for a frontend tool.
@@ -39,6 +42,8 @@ type ToolCallEntry = {
   toolName: string;
   argsText: string;
   hasResult: boolean;
+  executionId?: symbol;
+  skipExecute?: boolean;
 } & (
   | {
       /** Restored phase — observed during a history-load snapshot. */
@@ -51,6 +56,11 @@ type ToolCallEntry = {
       argsComplete: boolean;
     }
 );
+
+type SettledResolver = {
+  executionIds: ReadonlySet<symbol>;
+  resolve: () => void;
+};
 
 const isArgsTextComplete = (argsText: string) => {
   try {
@@ -75,6 +85,11 @@ const isEquivalentCompleteArgsText = (previous: string, next: string) => {
   if (previousValue === undefined || nextValue === undefined) return false;
   return isJSONValueEqual(previousValue, nextValue);
 };
+
+const getToolExecutionId = (value: object): symbol | undefined =>
+  (value as Record<PropertyKey, unknown>)[TOOL_EXECUTION_ID] as
+    | symbol
+    | undefined;
 
 /**
  * Plain-class port of the former `useToolInvocations` React hook. Owns the
@@ -103,27 +118,16 @@ export class ToolInvocationTracker {
   private readonly _callbacks: ToolInvocationTracker.Callbacks;
 
   private readonly _entries = new Map<string, ToolCallEntry>();
-  /**
-   * Tool call ids whose `execute` should be short-circuited in the wrapper.
-   * Populated when an entry is created with a result already attached
-   * (history reload, mid-run resume, etc.) — `execute` is suppressed so
-   * client-side side effects don't double-run. Membership outlives the
-   * entry: `reset()` deliberately does *not* clear this so post-abort
-   * cancellation `result` chunks for pre-resolved entries can still be
-   * recognized and dropped. Growth is bounded by the number of pre-resolved
-   * tool calls observed in the session.
-   */
-  private readonly _skipExecuteStreamIds = new Set<string>();
   private readonly _humanInput = new Map<
     string,
     {
+      executionId: symbol;
       resolve: (payload: unknown) => void;
       reject: (reason: unknown) => void;
     }
   >();
-  /** In-flight `execute` invocations keyed by tool call id. */
-  private readonly _executing = new Set<string>();
-  private readonly _settledResolvers: Array<() => void> = [];
+  private readonly _executing = new Set<symbol>();
+  private readonly _settledResolvers: SettledResolver[] = [];
 
   private _statuses = new Map<string, ToolExecutionStatus>();
 
@@ -166,14 +170,21 @@ export class ToolInvocationTracker {
     const [stream, controller] = createAssistantStreamController();
     this._controller = controller;
 
+    const human = (
+      toolCallId: string,
+      payload: unknown,
+      executionId?: symbol,
+    ) => this._onHumanInput(toolCallId, payload, executionId);
     const transform = unstable_toolResultStream(
       () => this._getWrappedTools(),
       () => this._ac.signal,
-      (toolCallId, payload) => this._onHumanInput(toolCallId, payload),
+      human,
       {
-        onExecutionStart: (id) => this._onExecutionStart(id),
-        onExecutionEnd: (id) => this._onExecutionEnd(id),
-      },
+        onExecutionStart: (id: string, _name: string, executionId?: symbol) =>
+          this._onExecutionStart(id, executionId),
+        onExecutionEnd: (id: string, _name: string, executionId?: symbol) =>
+          this._onExecutionEnd(id, executionId),
+      } as ToolResultStreamOptions,
     );
 
     stream
@@ -281,10 +292,7 @@ export class ToolInvocationTracker {
       this._pendingRestore = true;
       this._entries.clear();
       this._lastSnapshot = null;
-      // `_skipExecuteStreamIds` is intentionally not cleared — see field doc.
-      void this.abort().finally(() => {
-        this._executing.clear();
-      });
+      void this.abort();
       // Statuses are cleared synchronously: discarded executions may never
       // settle (aborting hands the signal to the tool, it does not force
       // settlement), and a late settlement of one sibling must not republish
@@ -321,8 +329,9 @@ export class ToolInvocationTracker {
       if (this._executing.size === 0) {
         return Promise.resolve();
       }
+      const executionIds = new Set(this._executing);
       return new Promise<void>((resolve) => {
-        this._settledResolvers.push(resolve);
+        this._settledResolvers.push({ executionIds, resolve });
       });
     } catch (err) {
       console.error("[ToolInvocationTracker] abort failed", err);
@@ -369,25 +378,53 @@ export class ToolInvocationTracker {
     return Object.fromEntries(
       Object.entries(tools).map(([name, tool]) => {
         const execute = tool.execute;
-        if (execute === undefined) return [name, tool];
+        const streamCall = tool.streamCall;
+        if (execute === undefined && streamCall === undefined)
+          return [name, tool];
 
         const wrappedTool = {
           ...tool,
-          execute: (
-            ...[args, context]: Parameters<NonNullable<typeof execute>>
-          ) => {
-            if (this._skipExecuteStreamIds.has(context.toolCallId)) {
-              // Pre-resolved tool call: never invoke the host's execute.
-              // Returning a never-settling Promise keeps the executor's
-              // pending entry alive but enqueues nothing.
-              return new Promise(() => {}) as never;
-            }
-            return execute(args, context);
-          },
+          ...(execute !== undefined && {
+            execute: (...[args, context]: Parameters<typeof execute>) => {
+              const executionId = getToolExecutionId(context);
+              const entry = this._captureExecution(
+                context.toolCallId,
+                executionId,
+              );
+              if (!entry || entry.skipExecute) {
+                return new Promise(() => {}) as never;
+              }
+              return execute(args, context);
+            },
+          }),
+          ...(streamCall !== undefined && {
+            streamCall: (
+              ...[reader, context]: Parameters<typeof streamCall>
+            ) => {
+              const executionId = getToolExecutionId(context);
+              const entry = this._captureExecution(
+                context.toolCallId,
+                executionId,
+              );
+              if (!entry) return;
+              return streamCall(reader, context);
+            },
+          }),
         } as Tool;
         return [name, wrappedTool];
       }),
     ) as Record<string, Tool>;
+  }
+
+  private _captureExecution(
+    toolCallId: string,
+    executionId: symbol | undefined,
+  ): ToolCallEntry | undefined {
+    if (executionId === undefined) return undefined;
+    const entry = this._entries.get(toolCallId);
+    if (!entry?.controller) return undefined;
+    if (entry.executionId === undefined) entry.executionId = executionId;
+    return entry.executionId === executionId ? entry : undefined;
   }
 
   // ──────────────── internal: execution lifecycle callbacks ────────────────
@@ -395,11 +432,13 @@ export class ToolInvocationTracker {
   private _onHumanInput(
     toolCallId: string,
     payload: unknown,
+    executionId?: symbol,
   ): Promise<unknown> {
     return new Promise<unknown>((resolve, reject) => {
-      // A discarded execution (reset or rolled back — its entry is gone) must
-      // not resurrect a status entry or park an unanswerable request.
-      if (!this._entries.has(toolCallId)) {
+      // A discarded execution must not resurrect a status entry or park an
+      // unanswerable request after its id has been reused.
+      const entry = this._entries.get(toolCallId);
+      if (!entry?.controller || entry.executionId !== executionId) {
         reject(new Error("Tool execution aborted"));
         return;
       }
@@ -413,7 +452,11 @@ export class ToolInvocationTracker {
           // host rejection handler threw; ignore and proceed
         }
       }
-      this._humanInput.set(toolCallId, { resolve, reject });
+      this._humanInput.set(toolCallId, {
+        executionId: executionId!,
+        resolve,
+        reject,
+      });
       this._setStatus(toolCallId, {
         type: "interrupt",
         payload: { type: "human", payload },
@@ -421,28 +464,42 @@ export class ToolInvocationTracker {
     });
   }
 
-  private _onExecutionStart(toolCallId: string): void {
-    if (this._skipExecuteStreamIds.has(toolCallId)) return;
+  private _onExecutionStart(
+    toolCallId: string,
+    executionId: symbol | undefined,
+  ): void {
+    if (!this._captureExecution(toolCallId, executionId)) return;
+    const entry = this._entries.get(toolCallId)!;
+    if (entry.skipExecute) return;
 
-    this._executing.add(toolCallId);
+    this._executing.add(executionId!);
     this._setStatus(toolCallId, { type: "executing" });
   }
 
-  private _onExecutionEnd(toolCallId: string): void {
-    if (!this._executing.delete(toolCallId)) return;
+  private _onExecutionEnd(
+    toolCallId: string,
+    executionId: symbol | undefined,
+  ): void {
+    if (executionId === undefined || !this._executing.delete(executionId))
+      return;
 
-    this._deleteStatus(toolCallId);
+    const entry = this._entries.get(toolCallId);
+    if (entry?.executionId === executionId) this._deleteStatus(toolCallId);
 
-    if (this._executing.size === 0) {
-      const resolvers = this._settledResolvers.splice(0);
-      resolvers.forEach((resolve) => {
-        try {
-          resolve();
-        } catch {
-          // ignore — settled-resolver consumer threw
-        }
-      });
-    }
+    const pending: SettledResolver[] = [];
+    this._settledResolvers.forEach(({ executionIds, resolve }) => {
+      if ([...executionIds].some((id) => this._executing.has(id))) {
+        pending.push({ executionIds, resolve });
+        return;
+      }
+      try {
+        resolve();
+      } catch {
+        // ignore — settled-resolver consumer threw
+      }
+    });
+    this._settledResolvers.length = 0;
+    this._settledResolvers.push(...pending);
   }
 
   private _handleResultChunk(chunk: {
@@ -454,14 +511,10 @@ export class ToolInvocationTracker {
     meta: { toolCallId: string; toolName: string };
   }): void {
     const toolCallId = chunk.meta.toolCallId;
+    const executionId = getToolExecutionId(chunk);
     const entry = this._entries.get(toolCallId);
 
-    // Pre-resolved tool call whose entry has been cleared by `reset()`.
-    // The post-abort cancellation chunk lands here after the entry is
-    // gone; suppress via the long-lived skip-execute marker.
-    if (!entry && this._skipExecuteStreamIds.has(toolCallId)) {
-      return;
-    }
+    if (!entry || entry.executionId !== executionId) return;
 
     // The host already set the result (via the live snapshot's
     // `setResponse` path). Suppress the executor's redundant emit.
@@ -553,14 +606,12 @@ export class ToolInvocationTracker {
       toolName,
       toolCallId,
     });
-    if (skipExecute) {
-      this._skipExecuteStreamIds.add(toolCallId);
-    }
     const entry: ToolCallEntry = {
       toolName,
       controller: toolCallController,
       argsText: "",
       hasResult: false,
+      skipExecute,
       argsComplete: false,
     };
     this._entries.set(toolCallId, entry);
