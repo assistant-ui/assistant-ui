@@ -42,6 +42,7 @@
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
+    "@types/node": "^26.2.0",
     "@types/react": "^19.2.18",
     "jsdom": "^30.0.1",
     "vitest": "^4.1.10",

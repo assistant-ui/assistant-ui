@@ -5021,6 +5021,9 @@ importers:
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../x-buildutils
+      '@types/node':
+        specifier: ^26.2.0
+        version: 26.2.0
       '@types/react':
         specifier: ^19.2.18
         version: 19.2.18
