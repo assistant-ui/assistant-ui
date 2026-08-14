@@ -9,6 +9,7 @@ export {
 export type {
   ConvertEveMessagesOptions,
   EveAuthorizationData,
+  EveMessageContent,
 } from "./convertEveMessages";
 export { useEveAgentRuntime } from "./useEveAgentRuntime";
 export type { UseEveAgentRuntimeOptions } from "./useEveAgentRuntime";
