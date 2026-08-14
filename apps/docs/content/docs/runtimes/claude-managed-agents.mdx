@@ -13,7 +13,7 @@ That shape maps directly onto two assistant-ui primitives, with no adapter packa
 Anthropic ships an official reference implementation of this integration: the [Claude Managed Agents quickstart](https://github.com/anthropics/claude-quickstarts/tree/main/managed-agents/assistant-ui) is a complete Next.js app (composer, thread, sidebar, tool cards, approval gate) built exactly this way. This page teaches the pattern; the quickstart is the runnable proof.
 
 <Callout type="info">
-Managed Agents is a beta API (`managed-agents-2026-04-01`; the SDK sets the header automatically). The quickstart pins `@anthropic-ai/sdk` 0.109.0 or later for the session event helpers and token previews, and `@assistant-ui/react` 0.14.27 or later for the toolkit API and the approval gate on the external store runtime.
+Managed Agents is a beta API (`managed-agents-2026-04-01`; the SDK sets the header automatically). The quickstart declares `@anthropic-ai/sdk` `^0.113.0` (the session event helpers and token previews need 0.109.0 or later), and `@assistant-ui/react` 0.14.27 or later for the toolkit API and the approval gate on the external store runtime.
 </Callout>
 
 ## The event-to-message mapping
@@ -68,9 +68,11 @@ The sidebar is a `RemoteThreadListAdapter` over the Managed Agents session API. 
 | `list` | `sessions.list()`, filtered to the sessions this app created (a `metadata` tag) |
 | `initialize` | `sessions.create()`, invoked by assistant-ui on the first message of a new chat |
 | `rename` | `sessions.update({ title })` |
-| `archive` | `sessions.archive()` (Managed Agents sessions cannot be unarchived) |
+| `archive` | `sessions.archive()` |
+| `unarchive` | Throws. Managed Agents sessions cannot be unarchived, so treat archiving as one-way in your UI |
 | `delete` | `sessions.delete()` |
 | `fetch` | `sessions.retrieve()` |
+| `generateTitle` | Reads the title back after the server retitles the session from the first message, so the sidebar row updates without a second model call |
 
 A brand-new chat has no session until the first send: the composer works immediately, and `initialize()` creates the session lazily when the first message (or first attachment upload) needs one. Kill the server, restart, reload, and every conversation comes back, because none of it ever lived in the app.
 
@@ -94,7 +96,7 @@ Custom client-executed tools ride the same `requires_action` stop but take a `us
 
 ## Token streaming
 
-By default assistant text arrives as whole `agent.message` events when a model request finishes. Opting the stream into `event_deltas: ["agent.message", "agent.thinking"]` adds token previews: an `event_start` announces the upcoming event, `event_delta` fragments stream the text, and the buffered event lands last as the authoritative record. A preview is always a verbatim prefix of its final message, so the fold appends fragments and reconciles when the buffered event arrives.
+By default assistant text arrives as whole `agent.message` events when a model request finishes. Opting the stream into `event_deltas: ["agent.message", "agent.thinking"]` adds token previews: an `event_start` announces the upcoming event, `event_delta` fragments stream the text, and the buffered event lands last as the authoritative record. Concatenating a preview's deltas in arrival order yields a prefix of the final text, but under load the server may shed the remaining deltas for an event, so the prefix is not necessarily the whole message. The fold therefore appends fragments for display and discards the accumulated preview when the buffered event arrives; never treat a preview as final.
 
 Previews are best-effort and gated per organization. Build against the buffered events and treat deltas as an enhancement: an org without the streaming gate runs the identical code path with replies arriving whole.
 

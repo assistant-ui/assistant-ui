@@ -75,14 +75,6 @@ assistant-ui ships React adapter packages for these. Pick the matching card and 
       href="/docs/runtimes/opencode/overview"
     />
   </PlatformOnly>
-  <PlatformOnly platforms={["react"]}>
-    <Card
-      icon={<ClaudeIcon width={20} height={20} className="text-[#D97757]" />}
-      title="Claude Managed Agents"
-      description="Anthropic-hosted agent sessions over the external store. Event-log replay, approval gates, sessions as threads."
-      href="/docs/runtimes/claude-managed-agents"
-    />
-  </PlatformOnly>
 </Cards>
 
 <PlatformOnly platforms={["react"]}>
@@ -103,6 +95,12 @@ For frameworks without a dedicated adapter, these wiring guides route through on
       title="Mastra"
       description="TypeScript agent framework. Wired through the Vercel AI SDK runtime."
       href="/docs/integrations/frameworks/mastra/overview"
+    />
+    <Card
+      icon={<ClaudeIcon width={20} height={20} className="text-[#D97757]" />}
+      title="Claude Managed Agents"
+      description="Anthropic-hosted agent sessions. Wired through the external store runtime: event-log replay, approval gates, sessions as threads."
+      href="/docs/runtimes/claude-managed-agents"
     />
   </Cards>
 
