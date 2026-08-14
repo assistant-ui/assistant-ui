@@ -6,16 +6,19 @@ assistant-ui owns the chat shell, runtime, messages, streaming, and tool lifecyc
 
 ## Quick Start
 
-### Using CLI (Recommended)
+### Clone the example
 
 ```bash
-npx assistant-ui@latest create my-app --example with-openui
-cd my-app
+git clone https://github.com/assistant-ui/assistant-ui.git
+cd assistant-ui
+pnpm install
 ```
+
+The example runs inside the monorepo with pnpm. It is not registered in `npx assistant-ui create` yet because `@openuidev/react-headless` currently declares an optional peer on `ai@^6`, which fails npm's resolver against the `ai@^7` this example uses.
 
 ### Environment Variables
 
-Create `.env.local`:
+Create `examples/with-openui/.env.local`:
 
 ```sh
 OPENAI_API_KEY=your-api-key-here
@@ -24,8 +27,7 @@ OPENAI_API_KEY=your-api-key-here
 ### Run
 
 ```bash
-pnpm install
-pnpm dev
+pnpm -C examples/with-openui dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) to see the result.
