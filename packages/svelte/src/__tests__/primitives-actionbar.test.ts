@@ -122,8 +122,6 @@ describe("action bar builders", () => {
     const copy = actionBarCopy({ item, copyToClipboard });
 
     copy.props.onclick();
-    // The deferred writer needs a microtask before resolveWrite exists
-    await Promise.resolve();
     // The slot occupant changes before the clipboard write settles
     flushTapSync(() =>
       echo.setMessages([
@@ -189,7 +187,6 @@ describe("action bar builders", () => {
 
     // A clipboard write pending across destroy must not mark the message
     copy.props.onclick();
-    await Promise.resolve();
     flushSync(() => void unmount(app));
     resolveWrite();
     await flushEvents();

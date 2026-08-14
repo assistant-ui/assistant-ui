@@ -75,6 +75,11 @@ export const actionBarReload = (options?: {
  * reflects the copied window through `isCopied` for `copiedDuration`
  * milliseconds. Disabled while an assistant message is still running or the
  * message has no text.
+ *
+ * Constructed during component initialization the builder clears its timer
+ * and copied state with the component; constructed elsewhere (with `item`)
+ * there is no lifecycle to bind, and late completions are contained by the
+ * copied message's id guard alone.
  */
 export const actionBarCopy = (options?: {
   item?: ScopeTarget | undefined;
