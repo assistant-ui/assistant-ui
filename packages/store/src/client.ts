@@ -16,7 +16,10 @@ export {
   useAssistantEmit,
   useAssistantScopeEffect,
 } from "./utils/tap-assistant-context";
-export { useClientResource } from "./useClientResource";
+export {
+  unstable_allowClientMethodDuringCleanup,
+  useClientResource,
+} from "./useClientResource";
 export { useClientLookup } from "./useClientLookup";
 export {
   attachTransformScopes,

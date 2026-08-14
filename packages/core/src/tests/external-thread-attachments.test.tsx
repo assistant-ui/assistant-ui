@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { act, render, waitFor } from "@testing-library/react";
-import type { FC } from "react";
+import { Activity, type FC } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AuiProvider, useAui } from "@assistant-ui/store";
 import type {
@@ -20,9 +20,15 @@ const renderThreadWithProps = (props: Partial<ExternalThreadProps>) => {
     captured.aui = useAui();
     return null;
   };
-  const App: FC = () => {
+  const App: FC<{ threadProps: Partial<ExternalThreadProps> }> = ({
+    threadProps,
+  }) => {
     const aui = useAui({
-      thread: ExternalThread({ messages: [], isRunning: false, ...props }),
+      thread: ExternalThread({
+        messages: [],
+        isRunning: false,
+        ...threadProps,
+      }),
     });
     return (
       <AuiProvider value={aui}>
@@ -31,8 +37,12 @@ const renderThreadWithProps = (props: Partial<ExternalThreadProps>) => {
     );
   };
 
-  render(<App />);
-  return () => captured.aui!;
+  const rendered = render(<App threadProps={props} />);
+  return Object.assign(() => captured.aui!, {
+    unmount: rendered.unmount,
+    rerender: (threadProps: Partial<ExternalThreadProps>) =>
+      rendered.rerender(<App threadProps={threadProps} />),
+  });
 };
 
 const renderThread = () => {
@@ -270,6 +280,175 @@ describe("ExternalThread attachments", () => {
       role: "assistant",
       runConfig: { model: "model-a" },
     });
+  });
+
+  it("does not send through a disposed thread after attachment upload", async () => {
+    let resolveSend!: (attachment: CompleteAttachment) => void;
+    const onNew = vi.fn();
+    const file = new File(["data"], "notes.txt", { type: "text/plain" });
+    const adapter = {
+      accept: "*",
+      add: async () => ({
+        id: "att-1",
+        type: "file" as const,
+        name: file.name,
+        contentType: file.type,
+        file,
+        status: {
+          type: "requires-action" as const,
+          reason: "composer-send" as const,
+        },
+      }),
+      send: () =>
+        new Promise<CompleteAttachment>((resolve) => {
+          resolveSend = resolve;
+        }),
+      remove: async () => {},
+    };
+    const aui = renderThreadWithProps({ attachmentAdapter: adapter, onNew });
+    const composer = () => aui().thread.composer();
+
+    await act(() => composer().addAttachment(file));
+    act(() => {
+      composer().setText("stale message");
+      composer().send();
+    });
+    aui.unmount();
+
+    await act(async () => {
+      resolveSend({
+        id: "att-1",
+        type: "file",
+        name: file.name,
+        contentType: file.type,
+        status: { type: "complete" },
+        content: [],
+      });
+    });
+
+    expect(onNew).not.toHaveBeenCalled();
+  });
+
+  it("settles attachment sends after a hidden thread reconnects", async () => {
+    let resolveSend!: (attachment: CompleteAttachment) => void;
+    const onNew = vi.fn();
+    const file = new File(["data"], "notes.txt", { type: "text/plain" });
+    const adapter = {
+      accept: "*",
+      add: async () => ({
+        id: "att-1",
+        type: "file" as const,
+        name: file.name,
+        contentType: file.type,
+        file,
+        status: {
+          type: "requires-action" as const,
+          reason: "composer-send" as const,
+        },
+      }),
+      send: () =>
+        new Promise<CompleteAttachment>((resolve) => {
+          resolveSend = resolve;
+        }),
+      remove: async () => {},
+    };
+    const captured: { aui?: ReturnType<typeof useAui> } = {};
+    const Capture: FC = () => {
+      captured.aui = useAui();
+      return null;
+    };
+    const Thread: FC = () => {
+      const aui = useAui({
+        thread: ExternalThread({
+          messages: [],
+          isRunning: false,
+          attachmentAdapter: adapter,
+          onNew,
+        }),
+      });
+      return (
+        <AuiProvider value={aui}>
+          <Capture />
+        </AuiProvider>
+      );
+    };
+    const thread = <Thread />;
+    const { rerender } = render(<Activity mode="visible">{thread}</Activity>);
+    const composer = () => captured.aui!.thread.composer();
+
+    await act(() => composer().addAttachment(file));
+    act(() => {
+      composer().setText("message");
+      composer().send();
+    });
+    rerender(<Activity mode="hidden">{thread}</Activity>);
+
+    await act(async () => {
+      resolveSend({
+        id: "att-1",
+        type: "file",
+        name: file.name,
+        contentType: file.type,
+        status: { type: "complete" },
+        content: [],
+      });
+    });
+    expect(onNew).not.toHaveBeenCalled();
+
+    rerender(<Activity mode="visible">{thread}</Activity>);
+    expect(onNew).toHaveBeenCalledTimes(1);
+    act(() => {
+      composer().setText("after reveal");
+      composer().send();
+    });
+    expect(onNew).toHaveBeenCalledTimes(2);
+  });
+
+  it("ignores attachment upload failures after thread disposal", async () => {
+    let rejectSend!: (error: Error) => void;
+    const onNew = vi.fn();
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const file = new File(["data"], "notes.txt", { type: "text/plain" });
+    const adapter = {
+      accept: "*",
+      add: async () => ({
+        id: "att-1",
+        type: "file" as const,
+        name: file.name,
+        contentType: file.type,
+        file,
+        status: {
+          type: "requires-action" as const,
+          reason: "composer-send" as const,
+        },
+      }),
+      send: () =>
+        new Promise<CompleteAttachment>((_resolve, reject) => {
+          rejectSend = reject;
+        }),
+      remove: async () => {},
+    };
+    const aui = renderThreadWithProps({ attachmentAdapter: adapter, onNew });
+    const composer = () => aui().thread.composer();
+
+    await act(() => composer().addAttachment(file));
+    act(() => {
+      composer().setText("stale message");
+      composer().send();
+    });
+    aui.unmount();
+
+    await act(async () => {
+      rejectSend(new Error("upload failed"));
+    });
+
+    expect(onNew).not.toHaveBeenCalled();
+    expect(consoleError).toHaveBeenCalledWith(
+      "Failed to send attachments",
+      expect.objectContaining({ message: "upload failed" }),
+    );
   });
 
   it.each([
@@ -524,6 +703,97 @@ describe("ExternalThread attachments", () => {
       id: "att-edit",
       name: "notes.txt",
     });
+  });
+
+  it("scopes edit-composer attachment sends to the thread lifetime", async () => {
+    const resolveSends: Array<(attachment: CompleteAttachment) => void> = [];
+    const onEdit = vi.fn();
+    const file = new File(["data"], "notes.txt", { type: "text/plain" });
+    const message = (id: string): ExternalThreadMessage =>
+      ({
+        id,
+        role: "user",
+        content: [{ type: "text", text: "hi" }],
+        createdAt: new Date(0),
+        attachments: [],
+        metadata: { custom: {} },
+      }) as unknown as ExternalThreadMessage;
+    const attachmentAdapter = {
+      accept: "*",
+      add: async () => ({
+        id: "att-edit",
+        type: "file" as const,
+        name: file.name,
+        contentType: file.type,
+        file,
+        status: {
+          type: "requires-action" as const,
+          reason: "composer-send" as const,
+        },
+      }),
+      send: () =>
+        new Promise<CompleteAttachment>((resolve) => {
+          resolveSends.push(resolve);
+        }),
+      remove: async () => {},
+    };
+    const props = {
+      messages: [message("u1")],
+      onEdit,
+      attachmentAdapter,
+    };
+    const aui = renderThreadWithProps(props);
+    const composer = () => aui().thread.message({ id: "u1" }).composer();
+
+    await act(async () => {
+      composer().beginEdit();
+    });
+    await act(() => composer().addAttachment(file));
+    act(() => {
+      composer().setText("edited");
+      composer().send();
+    });
+    aui.rerender({ ...props, messages: [message("u2")] });
+
+    await act(async () => {
+      resolveSends[0]!({
+        id: "att-edit",
+        type: "file",
+        name: file.name,
+        contentType: file.type,
+        status: { type: "complete" },
+        content: [],
+      });
+    });
+
+    expect(onEdit).toHaveBeenCalledTimes(1);
+    expect(onEdit.mock.calls[0]![0]).toMatchObject({
+      sourceId: "u1",
+      content: [{ type: "text", text: "edited" }],
+    });
+
+    const nextComposer = () => aui().thread.message({ id: "u2" }).composer();
+    await act(async () => {
+      nextComposer().beginEdit();
+    });
+    await act(() => nextComposer().addAttachment(file));
+    act(() => {
+      nextComposer().setText("disposed edit");
+      nextComposer().send();
+    });
+    aui.unmount();
+
+    await act(async () => {
+      resolveSends[1]!({
+        id: "att-edit",
+        type: "file",
+        name: file.name,
+        contentType: file.type,
+        status: { type: "complete" },
+        content: [],
+      });
+    });
+    expect(onEdit).toHaveBeenCalledTimes(1);
   });
 
   it("merges the failed send into a draft the user already modified", async () => {

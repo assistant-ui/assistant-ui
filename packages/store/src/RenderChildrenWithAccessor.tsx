@@ -4,11 +4,13 @@ import { type ReactNode, useMemo, useRef } from "react";
 import type { AssistantClient } from "./types/client";
 import { useAuiState } from "./useAuiState";
 import { useAui } from "./useAui";
+import { runClientRead } from "./useClientResource";
 
 export const useGetItemAccessor = <T,>(
   getItemState: (aui: AssistantClient) => T,
 ) => {
   const aui = useAui();
+  const readItemState = () => runClientRead(() => getItemState(aui));
 
   // Track access with a dedicated flag:
   // useSyncExternalStore may call getSnapshot() after commit (tearing checks),
@@ -16,15 +18,15 @@ export const useGetItemAccessor = <T,>(
   // Use the current state as the pre-access snapshot so the post-commit check
   // matches getItemState(aui) and doesn't schedule an unnecessary re-render.
   const accessedRef = useRef(false);
-  const currentValue = accessedRef.current ? null : getItemState(aui);
+  const currentValue = accessedRef.current ? null : readItemState();
   useAuiState(() => {
     if (!accessedRef.current) return currentValue;
-    return getItemState(aui);
+    return readItemState();
   });
 
   return () => {
     accessedRef.current = true;
-    return getItemState(aui);
+    return readItemState();
   };
 };
 

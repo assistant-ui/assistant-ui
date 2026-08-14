@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { resource, withKey } from "@assistant-ui/tap";
 import type { ClientElement, ClientOutput } from "@assistant-ui/store";
 import {
+  unstable_allowClientMethodDuringCleanup,
   useClientLookup,
   attachTransformScopes,
   useClientResource,
@@ -54,6 +55,43 @@ import { SingleThreadList } from "./single-thread-list";
 const EMPTY_QUEUE_ITEMS: readonly QueueItemState[] = [];
 const EMPTY_BRANCH_IDS: readonly string[] = [];
 const EMPTY_SUGGESTIONS: readonly ThreadSuggestion[] = [];
+
+type SettleOrDeferComposerSend = (settle: () => void) => void;
+
+// Attachment uploads settle outside the AuiClient proxy, so their callbacks
+// pause with the owning thread and resume only if that thread reconnects.
+class ComposerSendSettlementQueue {
+  private active = true;
+  private readonly pendingSettlements: Array<() => void> = [];
+
+  settleOrDefer: SettleOrDeferComposerSend = (settle) => {
+    if (this.active) {
+      settle();
+      return;
+    }
+    this.pendingSettlements.push(settle);
+  };
+
+  resume = () => {
+    this.active = true;
+    const pendingSettlements = this.pendingSettlements.splice(0);
+    for (let index = 0; index < pendingSettlements.length; index++) {
+      if (!this.active) {
+        this.pendingSettlements.unshift(...pendingSettlements.slice(index));
+        break;
+      }
+      try {
+        pendingSettlements[index]!();
+      } catch (error) {
+        console.error("Failed to settle attachment send", error);
+      }
+    }
+  };
+
+  pause = () => {
+    this.active = false;
+  };
+}
 
 export type ExternalThreadMessage = ThreadMessage & {
   id: string;
@@ -136,6 +174,7 @@ type MessageClientProps = {
   speech: SpeechState | undefined;
   onSpeak: () => void;
   onStopSpeaking: () => void;
+  settleOrDeferComposerSend: SettleOrDeferComposerSend;
 };
 
 // Message Client - minimal implementation
@@ -156,6 +195,7 @@ const useMessageClient = ({
   speech,
   onSpeak,
   onStopSpeaking,
+  settleOrDeferComposerSend,
 }: MessageClientProps): ClientOutput<"message"> => {
   const [isCopied, setIsCopied] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
@@ -210,6 +250,7 @@ const useMessageClient = ({
       message,
       queue,
       attachmentAdapter,
+      settleOrDeferComposerSend,
     }),
   );
 
@@ -418,6 +459,7 @@ type ComposerClientResourceProps = {
   message?: ExternalThreadMessage;
   queue?: ExternalThreadQueueAdapter | undefined;
   attachmentAdapter?: AttachmentAdapter | undefined;
+  settleOrDeferComposerSend: SettleOrDeferComposerSend;
 };
 
 type AttachmentAddOperation = {
@@ -525,6 +567,7 @@ const useComposerClientResource = ({
   message,
   queue,
   attachmentAdapter,
+  settleOrDeferComposerSend,
 }: ComposerClientResourceProps): ClientOutput<"composer"> => {
   const [isEditing, setIsEditing, isEditingRef] = useLiveState(
     type === "thread",
@@ -546,7 +589,6 @@ const useComposerClientResource = ({
     () => new AttachmentAddOperations(),
     [],
   );
-
   const updateFromMessage = () => {
     if (!message) return;
     const messageText = message.content
@@ -779,17 +821,24 @@ const useComposerClientResource = ({
               ? attachment
               : attachmentAdapter.send(attachment as PendingAttachment),
           ),
-        ).then(dispatch, (error) => {
-          // Upload failed: merge the failed send back into the draft.
-          setText((prev) =>
-            currentText && prev
-              ? currentText + "\n" + prev
-              : currentText || prev,
-          );
-          setQuote((prev) => prev ?? currentQuote);
-          setAttachments((prev) => [...currentAttachments, ...prev]);
-          console.error("Failed to send attachments", error);
-        });
+        ).then(
+          (sendAttachments) => {
+            settleOrDeferComposerSend(() => dispatch(sendAttachments));
+          },
+          (error) => {
+            settleOrDeferComposerSend(() => {
+              // Upload failed: merge the failed send back into the draft.
+              setText((prev) =>
+                currentText && prev
+                  ? currentText + "\n" + prev
+                  : currentText || prev,
+              );
+              setQuote((prev) => prev ?? currentQuote);
+              setAttachments((prev) => [...currentAttachments, ...prev]);
+            });
+            console.error("Failed to send attachments", error);
+          },
+        );
       } else {
         dispatch(currentAttachments);
       }
@@ -920,6 +969,15 @@ const useExternalThread = ({
   branches,
   onRespondToToolApproval,
 }: ExternalThreadProps): ClientOutput<"thread"> => {
+  const [composerSendSettlements] = useState(
+    () => new ComposerSendSettlementQueue(),
+  );
+  useEffect(() => {
+    composerSendSettlements.resume();
+    return composerSendSettlements.pause;
+  }, [composerSendSettlements]);
+  const settleOrDeferComposerSend = composerSendSettlements.settleOrDefer;
+
   const messages = useMemo(
     () => dedupeMessagesById(messagesProp),
     [messagesProp],
@@ -1016,23 +1074,28 @@ const useExternalThread = ({
         speech: speech?.messageId === msg.id ? speech : undefined,
         onSpeak: () => handleSpeak(msg),
         onStopSpeaking: () => speechController.stopMessage(msg.id),
+        settleOrDeferComposerSend,
       };
       if (onEdit) props.onEdit = onEdit;
       return withKey(msg.id, MessageClient(props));
     }),
   );
 
-  const handleCancelRun = () => {
-    // Nothing is aborted without a handler, so pausing the queue would hold
-    // the pending items against a run that keeps going.
-    if (!onCancel) return;
+  const handleCancelRun = useMemo(
+    () =>
+      unstable_allowClientMethodDuringCleanup(() => {
+        // Nothing is aborted without a handler, so pausing the queue would hold
+        // the pending items against a run that keeps going.
+        if (!onCancel) return;
 
-    // Before the run is aborted, so the settle it produces keeps the pending
-    // items instead of dispatching the next one at the moment the user
-    // stopped.
-    queue?.__internal_notifyCancelled?.();
-    onCancel();
-  };
+        // Before the run is aborted, so the settle it produces keeps the pending
+        // items instead of dispatching the next one at the moment the user
+        // stopped.
+        queue?.__internal_notifyCancelled?.();
+        onCancel();
+      }),
+    [onCancel, queue],
+  );
 
   const handleSendNew = (message: AppendMessage) => {
     // The composer does not know the thread; stamp the current head as the
@@ -1065,6 +1128,7 @@ const useExternalThread = ({
       onSend: handleSendNew,
       queue: composerQueue,
       attachmentAdapter,
+      settleOrDeferComposerSend,
     }),
   );
   const suggestionsClient = useClientResource(
