@@ -1530,6 +1530,7 @@ type PiThreadStatus = "failed" | "idle" | "running";
 declare class PiThreadSupervisor {
   private readonly records;
   private readonly pendingOpens;
+  private readonly pendingDeletes;
   private readonly recordsBySessionFile;
   private readonly workspacePath;
   private readonly agentDir;
@@ -1566,6 +1567,7 @@ declare class PiThreadSupervisor {
   archiveThread(threadId: string): Promise<void>;
   unarchiveThread(threadId: string): Promise<void>;
   deleteThread(threadId: string): Promise<void>;
+  private deleteThreadNow;
   respondToHostUiRequest(threadId: string, response: PiHostUiResponse): Promise<void>;
   subscribe(threadId: string, listener: (event: PiClientEvent) => void, options?: {
     includeSnapshot?: boolean;
