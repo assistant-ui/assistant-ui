@@ -78,6 +78,7 @@ export const useAssistantForm = <
     getValues,
     setValue,
     reset,
+    trigger,
     formState: { isSubmitting },
   } = form;
 
@@ -107,6 +108,7 @@ export const useAssistantForm = <
               };
             }
             const { _names, _fields } = control;
+            let formElement: HTMLFormElement | null = null;
             for (const name of _names.mount) {
               const field: Field | undefined = get(_fields, name);
               if (field?._f) {
@@ -115,14 +117,25 @@ export const useAssistantForm = <
                   : field._f.ref;
 
                 if (fieldReference instanceof HTMLElement) {
-                  const form = fieldReference.closest("form");
-                  if (form) {
-                    form.requestSubmit();
-
-                    return { success: true };
-                  }
+                  formElement = fieldReference.closest("form");
+                  if (formElement) break;
                 }
               }
+            }
+
+            if (formElement) {
+              const isValid = await trigger(undefined, { shouldFocus: true });
+              if (!isValid || !formElement.checkValidity()) {
+                formElement.reportValidity();
+                return {
+                  success: false,
+                  message:
+                    "The form contains invalid fields and was not submitted.",
+                };
+              }
+
+              formElement.requestSubmit();
+              return { success: true };
             }
 
             return {
@@ -148,7 +161,7 @@ export const useAssistantForm = <
         system: `Form State:\n${JSON.stringify(getValues())}`,
       }),
     });
-  }, [control, setValue, getValues, aui, reset, isSubmitting]);
+  }, [control, setValue, getValues, aui, reset, trigger, isSubmitting]);
 
   const renderFormFieldTool = props?.assistant?.tools?.set_form_field?.render;
   useEffect(() => {

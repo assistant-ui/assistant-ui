@@ -100,4 +100,56 @@ describe("useAssistantForm", () => {
       );
     });
   });
+
+  it("reports when native form validation blocks submission", async () => {
+    const onSubmit = vi.fn((event: FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
+    });
+
+    render(
+      <form onSubmit={onSubmit}>
+        <NativeRequiredField />
+      </form>,
+    );
+
+    const submitTool = provider.getModelContext().tools?.submit_form;
+    if (!submitTool?.execute) throw new Error("submit_form is not registered");
+
+    await expect(submitTool.execute({}, {} as never)).resolves.toEqual({
+      success: false,
+      message: "The form contains invalid fields and was not submitted.",
+    });
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it("reports when react-hook-form validation blocks submission", async () => {
+    const onSubmit = vi.fn((event: FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
+    });
+
+    render(
+      <form onSubmit={onSubmit}>
+        <ReactHookFormRequiredField />
+      </form>,
+    );
+
+    const submitTool = provider.getModelContext().tools?.submit_form;
+    if (!submitTool?.execute) throw new Error("submit_form is not registered");
+
+    await expect(submitTool.execute({}, {} as never)).resolves.toEqual({
+      success: false,
+      message: "The form contains invalid fields and was not submitted.",
+    });
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
 });
+
+const NativeRequiredField = () => {
+  const form = useAssistantForm<{ name: string }>();
+  return <input required {...form.register("name")} />;
+};
+
+const ReactHookFormRequiredField = () => {
+  const form = useAssistantForm<{ name: string }>();
+  return <input {...form.register("name", { required: true })} />;
+};
