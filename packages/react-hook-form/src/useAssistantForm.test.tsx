@@ -36,6 +36,19 @@ beforeEach(() => {
   });
 });
 
+const executeSubmitForm = () => {
+  const submitTool = provider.getModelContext().tools?.submit_form;
+  if (!submitTool?.execute) throw new Error("submit_form is not registered");
+  return submitTool.execute({}, {} as never);
+};
+
+const expectSubmitBlocked = async () => {
+  await expect(executeSubmitForm()).resolves.toEqual({
+    success: false,
+    message: "The form contains invalid fields and was not submitted.",
+  });
+};
+
 const expectRegisteredFieldsToSubmit = async (Fields: () => ReactNode) => {
   const onSubmit = vi.fn((event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -47,10 +60,7 @@ const expectRegisteredFieldsToSubmit = async (Fields: () => ReactNode) => {
     </form>,
   );
 
-  const submitTool = provider.getModelContext().tools?.submit_form;
-  if (!submitTool?.execute) throw new Error("submit_form is not registered");
-
-  await expect(submitTool.execute({}, {} as never)).resolves.toEqual({
+  await expect(executeSubmitForm()).resolves.toEqual({
     success: true,
   });
   expect(onSubmit).toHaveBeenCalledOnce();
@@ -112,13 +122,7 @@ describe("useAssistantForm", () => {
       </form>,
     );
 
-    const submitTool = provider.getModelContext().tools?.submit_form;
-    if (!submitTool?.execute) throw new Error("submit_form is not registered");
-
-    await expect(submitTool.execute({}, {} as never)).resolves.toEqual({
-      success: false,
-      message: "The form contains invalid fields and was not submitted.",
-    });
+    await expectSubmitBlocked();
     expect(onSubmit).not.toHaveBeenCalled();
   });
 
@@ -133,10 +137,7 @@ describe("useAssistantForm", () => {
       </form>,
     );
 
-    const submitTool = provider.getModelContext().tools?.submit_form;
-    if (!submitTool?.execute) throw new Error("submit_form is not registered");
-
-    await expect(submitTool.execute({}, {} as never)).resolves.toEqual({
+    await expect(executeSubmitForm()).resolves.toEqual({
       success: true,
     });
     expect(onSubmit).toHaveBeenCalledOnce();
@@ -147,13 +148,16 @@ describe("useAssistantForm", () => {
 
     render(<ReactHookFormRequiredForm onValid={onValid} />);
 
-    const submitTool = provider.getModelContext().tools?.submit_form;
-    if (!submitTool?.execute) throw new Error("submit_form is not registered");
+    await expectSubmitBlocked();
+    expect(onValid).not.toHaveBeenCalled();
+  });
 
-    await expect(submitTool.execute({}, {} as never)).resolves.toEqual({
-      success: false,
-      message: "The form contains invalid fields and was not submitted.",
-    });
+  it("reports react-hook-form errors when native validation is disabled", async () => {
+    const onValid = vi.fn();
+
+    render(<ReactHookFormRequiredForm noValidate onValid={onValid} />);
+
+    await expectSubmitBlocked();
     expect(onValid).not.toHaveBeenCalled();
   });
 });
@@ -163,10 +167,16 @@ const NativeRequiredField = () => {
   return <input required {...form.register("name")} />;
 };
 
-const ReactHookFormRequiredForm = ({ onValid }: { onValid: () => void }) => {
+const ReactHookFormRequiredForm = ({
+  onValid,
+  noValidate,
+}: {
+  onValid: () => void;
+  noValidate?: boolean | undefined;
+}) => {
   const form = useAssistantForm<{ name: string }>();
   return (
-    <form onSubmit={form.handleSubmit(onValid)}>
+    <form noValidate={noValidate} onSubmit={form.handleSubmit(onValid)}>
       <input {...form.register("name", { required: true })} />
     </form>
   );
