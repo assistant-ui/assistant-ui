@@ -7,8 +7,14 @@
 
   let { item }: { item: ThreadListItem } = $props();
 
-  const trigger = threadListItemTrigger({ item });
-  const title = useAuiState((s) => s.threadListItem.title, { item });
+  // The item handle is index-bound and referentially stable for this
+  // position's lifetime under unkeyed iteration, so a one-time capture is
+  // correct.
+  // svelte-ignore state_referenced_locally
+  const target = { item };
+
+  const trigger = threadListItemTrigger(target);
+  const title = useAuiState((s) => s.threadListItem.title, target);
 </script>
 
 <button

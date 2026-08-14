@@ -5,6 +5,9 @@
   let { suggestion, index }: { suggestion: Suggestion; index: number } =
     $props();
 
+  // The index is position-bound under unkeyed iteration, so a one-time
+  // capture is correct.
+  // svelte-ignore state_referenced_locally
   const trigger = suggestionTrigger({ index, send: true });
 </script>
 

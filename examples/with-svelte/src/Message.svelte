@@ -30,17 +30,23 @@
       .join(""),
   );
 
-  const isEditing = useAuiState((s) => s.composer.isEditing, { item });
-  const branchNumber = useAuiState((s) => s.message.branchNumber, { item });
-  const branchCount = useAuiState((s) => s.message.branchCount, { item });
-  const edit = actionBarEdit({ item });
-  const copy = actionBarCopy({ item });
-  const reload = actionBarReload({ item });
-  const previous = branchPickerPrevious({ item });
-  const next = branchPickerNext({ item });
-  const editInput = composerInput({ item });
-  const editSend = composerSend({ item });
-  const editCancel = composerCancel({ item });
+  // The item handle is index-bound and referentially stable for this
+  // position's lifetime under unkeyed iteration, so a one-time capture is
+  // correct.
+  // svelte-ignore state_referenced_locally
+  const target = { item };
+
+  const isEditing = useAuiState((s) => s.composer.isEditing, target);
+  const branchNumber = useAuiState((s) => s.message.branchNumber, target);
+  const branchCount = useAuiState((s) => s.message.branchCount, target);
+  const edit = actionBarEdit(target);
+  const copy = actionBarCopy(target);
+  const reload = actionBarReload(target);
+  const previous = branchPickerPrevious(target);
+  const next = branchPickerNext(target);
+  const editInput = composerInput(target);
+  const editSend = composerSend(target);
+  const editCancel = composerCancel(target);
 </script>
 
 <li
