@@ -339,6 +339,10 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
   private readonly _threadBinding: ThreadRuntimeCoreBinding & {
     getStateState(): ThreadState;
   };
+  private readonly _stateBinding: ShallowMemoizeSubject<
+    ThreadState,
+    ThreadRuntimePath
+  >;
 
   constructor(
     threadBinding: ThreadRuntimeCoreBinding,
@@ -361,6 +365,7 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
       },
     });
 
+    this._stateBinding = stateBinding;
     this._threadBinding = {
       path: threadBinding.path,
       getState: () => threadBinding.getState(),
@@ -435,7 +440,7 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
   }
 
   public subscribe(callback: () => void) {
-    return this._threadBinding.subscribe(callback);
+    return this._stateBinding.subscribe(callback);
   }
 
   public getModelContext() {

@@ -32,9 +32,9 @@ export const createTapRoot = <R>(
     isDevelopment ? "root" : null,
   );
 
-  // In strict mode, render twice to detect side effects
   const renderFiber = () => {
     try {
+      // In strict mode, render twice to detect side effects
       if (isDevelopment && fiber.devStrictMode) {
         void renderResourceFiber(fiber, [render]);
       }

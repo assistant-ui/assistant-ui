@@ -1,7 +1,13 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { useSyncExternalStore } from "../../react-hooks/useSyncExternalStore";
 import { useCallback } from "../../react-hooks/useCallback";
-import { renderResourceFiber } from "../../core/ResourceFiber";
+import {
+  createResourceFiber,
+  renderResourceFiber,
+  commitResourceFiber,
+  unmountResourceFiber,
+} from "../../core/ResourceFiber";
+import { createResourceFiberRoot } from "../../core/helpers/root";
 import {
   createTestResource,
   renderTest,
@@ -195,5 +201,46 @@ describe("useSyncExternalStore", () => {
     store.setState(["a", "c"]);
     await waitForNextTick();
     expect(getCommittedValue(testFiber)).toBe("c");
+  });
+
+  // The commit-time check must catch a change the notification path misses:
+  // onStoreChange compares against the committed closure's value, so a store
+  // that reverts inside the render->commit window bails there, and only the
+  // check effect re-running for the changed value corrects it.
+  it("forces a corrective render when the store reverts between render and commit", () => {
+    const store = createStore("a");
+
+    let dispatched = false;
+    const fiber = createResourceFiber(
+      function useRevertingStore() {
+        return useSyncExternalStore(store.subscribe, () => store.getState());
+      },
+      createResourceFiberRoot((evaluate, apply) => {
+        if (!evaluate()) return;
+        apply();
+        dispatched = true;
+      }),
+      undefined,
+      null,
+    );
+
+    expect(renderResourceFiber(fiber, [])).toBe("a");
+    commitResourceFiber(fiber);
+
+    store.setState("b");
+    expect(dispatched).toBe(true);
+    dispatched = false;
+
+    expect(renderResourceFiber(fiber, [])).toBe("b");
+
+    store.setState("a");
+    expect(dispatched).toBe(false);
+
+    commitResourceFiber(fiber);
+    expect(dispatched).toBe(true);
+
+    expect(renderResourceFiber(fiber, [])).toBe("a");
+    commitResourceFiber(fiber);
+    unmountResourceFiber(fiber);
   });
 });
