@@ -38,7 +38,7 @@ const changelogFunctions = {
               repo: options.repo,
               commit: cs.commit,
             });
-            return info?.commit?.markdownLink ?? undefined;
+            return info?.commit.markdownLink ?? `\`${cs.commit.slice(0, 7)}\``;
           }
         }),
       )
