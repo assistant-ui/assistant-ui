@@ -38,7 +38,7 @@ allowBuilds:
   '@parcel/watcher': false
   '@tailwindcss/oxide': false
   core-js: false
-  esbuild@0.28.1: true
+  esbuild@0.28.2: true
   node-liblzma: false
   protobufjs: false
   react-grab: false

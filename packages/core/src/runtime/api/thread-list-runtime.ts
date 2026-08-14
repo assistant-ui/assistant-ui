@@ -114,6 +114,7 @@ export type ThreadListRuntimeCoreBinding = ThreadListRuntimeCore;
 
 export class ThreadListRuntimeImpl implements ThreadListRuntime {
   private _getState;
+  private _stateBinding: LazyMemoizeSubject<ThreadListState, object>;
   private _core: ThreadListRuntimeCoreBinding;
   private _runtimeFactory: new (
     binding: ThreadRuntimeCoreBinding,
@@ -136,6 +137,7 @@ export class ThreadListRuntimeImpl implements ThreadListRuntime {
     });
 
     this._getState = stateBinding.getState.bind(stateBinding);
+    this._stateBinding = stateBinding;
 
     this._mainThreadListItemRuntime = new ThreadListItemRuntimeImpl(
       new ShallowMemoizeSubject({
@@ -213,7 +215,7 @@ export class ThreadListRuntimeImpl implements ThreadListRuntime {
   }
 
   public subscribe(callback: () => void): Unsubscribe {
-    return this._core.subscribe(callback);
+    return this._stateBinding.subscribe(callback);
   }
 
   private _mainThreadListItemRuntime;

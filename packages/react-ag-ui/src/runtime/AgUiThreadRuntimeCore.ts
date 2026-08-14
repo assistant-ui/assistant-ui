@@ -1005,8 +1005,10 @@ export class AgUiThreadRuntimeCore {
     let assistantMessageId: string | undefined;
     // A snapshot the preserve gate declines still evicts the in-flight
     // assistant; recreating under the cached id on the next content-bearing
-    // emit keeps both the stream and the message identity. Status-only emits
-    // and server-id collisions must not recreate.
+    // emit keeps both the stream and the message identity. Status-only emits,
+    // data-only content, and server-id collisions must not recreate: the
+    // snapshot already carries this turn's assistant, so resurrecting for
+    // custom-event data would leave a trailing data-only duplicate.
     let assistantCollided = false;
     const ensureAssistant = (allowRecreate = false): string => {
       const cached = assistantMessageId;
@@ -1029,10 +1031,11 @@ export class AgUiThreadRuntimeCore {
     if (shouldEagerlyInsertAssistant) ensureAssistant();
 
     const applyUpdate = (update: ChatModelRunResult) => {
-      const hasContent =
-        Array.isArray(update.content) && update.content.length > 0;
+      const hasStreamContent =
+        Array.isArray(update.content) &&
+        update.content.some((part) => part.type !== "data");
       const resolved = this.updateAssistantMessage(
-        ensureAssistant(hasContent),
+        ensureAssistant(hasStreamContent),
         update,
       );
       if (resolved !== assistantMessageId) {

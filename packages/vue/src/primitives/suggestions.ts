@@ -9,6 +9,7 @@ import {
 import { AuiConfig, Derived } from "@assistant-ui/store/client";
 import { flushTapSync } from "@assistant-ui/tap";
 import type { SuggestionMethods } from "@assistant-ui/core/store";
+import { suggestionTriggerDisabled } from "@assistant-ui/core/store/internal";
 import { AuiProvider } from "../AuiProvider";
 import { isAttrDisabled } from "./attrDisabled";
 import { createLastValidCache, createStaleReporter } from "./lastValidCache";
@@ -108,10 +109,8 @@ export const SuggestionPrimitiveTrigger = defineComponent({
   setup(props, { attrs, slots }) {
     const aui = useAui();
     const prompt = useAuiState((s) => s.suggestion.prompt);
-    const disabled = useAuiState(
-      (s) =>
-        s.thread.isDisabled ||
-        (props.send && s.thread.isRunning && !s.thread.capabilities.queue),
+    const disabled = useAuiState((s) =>
+      suggestionTriggerDisabled(s, props.send),
     );
 
     const onClick = (event: MouseEvent) => {

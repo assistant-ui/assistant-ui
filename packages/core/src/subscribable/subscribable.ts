@@ -197,7 +197,11 @@ export class LazyMemoizeSubject<TState extends object, TPath>
   public getState = () => {
     if (!this.isConnected || this._previousStateDirty) {
       const newState = this.binding.getState();
-      if (newState !== SKIP_UPDATE) {
+      if (
+        newState !== SKIP_UPDATE &&
+        (this._previousState === undefined ||
+          !shallowEqual(newState, this._previousState))
+      ) {
         this._previousState = newState;
       }
       this._previousStateDirty = false;

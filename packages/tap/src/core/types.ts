@@ -22,7 +22,10 @@ export interface ChangelogRecord {
 
   hasEagerState: boolean;
   eagerState: any;
+  prevState: any;
+  settled: boolean;
   queued: boolean;
+  logged: boolean;
 }
 
 export type ReducerCell = {
@@ -74,6 +77,8 @@ export interface TapRoot {
   version: number;
   committedVersion: number;
   readonly changelog: ChangelogRecord[];
+  readonly committedLog: ChangelogRecord[];
+  unsettledCount: number;
   readonly dispatchUpdate: (
     evaluate: () => boolean,
     apply: () => boolean,
@@ -96,6 +101,9 @@ export interface ResourceFiber<R> {
   wipCommitCallbacks: CommitCallbacks | null;
 
   currentIndex: number;
+  // workInProgress persists across uncommitted renders: a StrictMode double
+  // invoke reaches tap as separate renderResourceFiber calls with no attempt
+  // boundary, so an entry discard would re-run every compiled memo factory.
   memoCache: {
     current: unknown[][] | null;
     workInProgress: unknown[][] | null;

@@ -149,7 +149,7 @@ const withChangedContext = <T>(
   }
 };
 
-export const useTapContext = <T>(context: ReactContext<T>) => {
+export const useContext = <T>(context: ReactContext<T>) => {
   assertTapContext(context);
 
   const key = context as object;

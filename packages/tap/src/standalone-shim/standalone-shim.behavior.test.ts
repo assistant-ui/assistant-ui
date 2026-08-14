@@ -50,6 +50,34 @@ describe("@assistant-ui/tap/standalone-shim behavior", () => {
     root.unmount();
   });
 
+  it("rejects non-context values in useContext while use accepts thenables", () => {
+    const promise = new Promise(() => {});
+    const root = createTapRoot(function Root() {
+      return {
+        contextError: (() => {
+          try {
+            shim.useContext(promise);
+            return null;
+          } catch (error) {
+            return error;
+          }
+        })(),
+        useThrown: (() => {
+          try {
+            shim.use(promise);
+            return null;
+          } catch (error) {
+            return error;
+          }
+        })(),
+      };
+    });
+
+    expect(root.getValue().contextError).toBeInstanceOf(Error);
+    expect(root.getValue().useThrown).toBe(promise);
+    root.unmount();
+  });
+
   it("throws outside a tap resource fiber", () => {
     expect(() => shim.useState(0)).toThrow("standalone-shim");
     expect(() => shim.default.useState(0)).toThrow("standalone-shim");

@@ -33,6 +33,11 @@ import {
   EMPTY_QUEUE_ITEMS,
   type QueueItemState,
 } from "../../store/scopes/queue-item";
+import {
+  captureThreadRuntimeGeneration,
+  invalidateThreadRuntime,
+  isThreadRuntimeGenerationCurrent,
+} from "../../runtime/utils/thread-runtime-lifecycle";
 
 class AbortError extends Error {
   override name = "AbortError";
@@ -315,6 +320,7 @@ export class LocalThreadRuntimeCore
   private async _runAppend(rawMessage: AppendMessage): Promise<void> {
     // Stamped here rather than in `append` so a queued message is gated after
     // the flush re-pointed its parentId at the current tail.
+    const generation = captureThreadRuntimeGeneration(this);
     const message = this.enrichAppendMetadata(rawMessage);
     this.ensureInitialized();
 
@@ -322,6 +328,7 @@ export class LocalThreadRuntimeCore
     if (initPromise) {
       await initPromise;
     }
+    if (!isThreadRuntimeGenerationCurrent(this, generation)) return;
 
     const newMessage = fromThreadMessageLike(message, generateId(), {
       type: "complete",
@@ -380,6 +387,10 @@ export class LocalThreadRuntimeCore
     throw new Error("Runtime does not support importing external states.");
   }
 
+  public unstable_notifySessionReset(): void {
+    throw new Error("Runtime does not support resetting sessions.");
+  }
+
   public async startRun(
     { parentId, runConfig }: StartRunConfig,
     runCallback?: ChatModelAdapter["run"],
@@ -424,6 +435,7 @@ export class LocalThreadRuntimeCore
     this._activeRun = run;
     this._runGeneration++;
 
+    let active = false;
     try {
       // mark busy for runs not started through the queue (regenerate, resume)
       this._queue?.notifyBusy();
@@ -447,7 +459,7 @@ export class LocalThreadRuntimeCore
       // the settle belongs to this run only while it is still the active run
       // or was cancelled (the engine expects a cancelled run's settle); a run
       // superseded by a newer one stays silent
-      const active = this._activeRun === run;
+      active = this._activeRun === run;
       if (active) this._activeRun = null;
       if (active || run.cancelled) {
         queueMicrotask(() => this._queue?.notifyIdle());
@@ -455,6 +467,7 @@ export class LocalThreadRuntimeCore
     }
 
     if (
+      active &&
       this.adapters.suggestion &&
       message.status?.type !== "requires-action"
     ) {
@@ -674,6 +687,7 @@ export class LocalThreadRuntimeCore
   }
 
   public detach() {
+    invalidateThreadRuntime(this);
     // drop the queue so pending items cannot dispatch on a detached thread
     this._queue = null;
     const error = new AbortError(true);

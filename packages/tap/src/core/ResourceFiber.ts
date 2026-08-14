@@ -39,9 +39,11 @@ export function createResourceFiber<R>(
   };
 }
 
-// Only valid when the discarded render applied no state update
+// Applied state survives in cells: bailout callers must have none, abort
+// callers re-render before the next value-bearing commit
 export function discardWipRender<R>(fiber: ResourceFiber<R>): void {
   fiber.wipCommitCallbacks = null;
+  fiber.wipContextDeps = null;
   fiber.memoCache.workInProgress = null;
 }
 
@@ -56,8 +58,6 @@ export function renderResourceFiber<R>(
   fiber: ResourceFiber<R>,
   args: readonly unknown[],
 ): R {
-  fiber.memoCache.workInProgress = null;
-
   // Discard render-phase actions left by a previous render
   if (fiber.renderPendingCells !== null) {
     for (const cell of fiber.renderPendingCells) cell.renderQueue = null;
@@ -66,19 +66,24 @@ export function renderResourceFiber<R>(
 
   let passes = 0;
   let value: R;
-  do {
-    if (++passes > 25) {
-      throw new Error(
-        "Too many re-renders. tap limits the number of renders to prevent " +
-          "an infinite loop.",
-      );
-    }
-    fiber.memoCache.index = 0;
+  try {
+    do {
+      if (++passes > 25) {
+        throw new Error(
+          "Too many re-renders. tap limits the number of renders to prevent " +
+            "an infinite loop.",
+        );
+      }
+      fiber.memoCache.index = 0;
 
-    withResourceFiber(fiber, () => {
-      value = withReactDispatcher(() => fiber.hook(...args));
-    });
-  } while ((fiber.renderPendingCells?.size ?? 0) > 0);
+      withResourceFiber(fiber, () => {
+        value = withReactDispatcher(() => fiber.hook(...args));
+      });
+    } while ((fiber.renderPendingCells?.size ?? 0) > 0);
+  } catch (error) {
+    discardWipRender(fiber);
+    throw error;
+  }
 
   bubbleContextDeps(fiber);
 

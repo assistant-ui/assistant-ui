@@ -49,3 +49,16 @@ export type {
   ScopeRegistry,
   Unsubscribe,
 } from "./types/client";
+
+export { createClientFacade } from "./utils/client-facade";
+export {
+  createLastValidCache,
+  createStaleReporter,
+} from "./utils/last-valid-cache";
+export {
+  isUserScrollUp,
+  isViewportAtBottom,
+  observeContentResize,
+  viewportOverflows,
+  type ViewportMetrics,
+} from "./utils/viewport-scroll";

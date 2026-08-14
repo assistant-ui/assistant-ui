@@ -104,13 +104,13 @@ export type ComposerMeta = {
 
 export type ComposerEvents = {
   /**
-   * @deprecated State-derivable. Observe composer `text` clearing via
-   * `useAuiState` instead. Kept for backward compatibility.
+   * The user sent the composer contents. `messageId` is set when the send
+   * came from an edit composer.
    */
   "composer.send": { threadId: string; messageId?: string };
   /**
-   * @deprecated State-derivable. Observe composer `attachments` via
-   * `useAuiState` instead. Kept for backward compatibility.
+   * An attachment was added to the composer. `messageId` is set when the
+   * attachment was added to an edit composer.
    */
   "composer.attachmentAdd": { threadId: string; messageId?: string };
   "composer.attachmentAddError": {

@@ -69,6 +69,7 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
   public abstract cancelRun(): void;
   public abstract exportExternalState(): any;
   public abstract importExternalState(state: any): void;
+  public abstract unstable_notifySessionReset(): void;
 
   protected _voiceMessages: ThreadMessage[] = [];
   protected _voiceGeneration = 0;

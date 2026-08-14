@@ -28,6 +28,10 @@ const dispatchOnFiber = (
   let evaluated = false;
   let hasWork = true;
 
+  // Counted after the mount guard, and deliberately not unwound on a host
+  // throw: the dispatch site cannot know whether the host enqueued the update,
+  // and over-retained history is the safe failure direction.
+  fiber.root.unsettledCount++;
   fiber.root.dispatchUpdate(
     () => {
       if (evaluated) return hasWork;
@@ -39,6 +43,7 @@ const dispatchOnFiber = (
         !record.cell.isDirty &&
         !record.hasEagerState
       ) {
+        record.prevState = record.cell.workInProgress;
         record.eagerState = eagerReducer(
           record.cell.workInProgress,
           record.action,
@@ -46,6 +51,10 @@ const dispatchOnFiber = (
         record.hasEagerState = true;
 
         hasWork = !Object.is(record.cell.current, record.eagerState);
+        if (!hasWork && !record.settled) {
+          record.settled = true;
+          fiber.root.unsettledCount--;
+        }
       }
 
       return hasWork;
@@ -54,7 +63,10 @@ const dispatchOnFiber = (
       evaluated = true;
       hasWork = true;
       applyChangelogRecord(record);
-      fiber.root.changelog.push(record);
+      if (!record.logged) {
+        record.logged = true;
+        fiber.root.changelog.push(record);
+      }
       return true;
     },
   );
@@ -98,7 +110,10 @@ const createReducerCell = (
           action,
           hasEagerState: false,
           eagerState: undefined,
+          prevState: cell.current,
+          settled: false,
           queued: false,
+          logged: false,
         };
 
         dispatchOnFiber(fiber, record, eagerBailout ? reducer : undefined);
@@ -147,7 +162,12 @@ export function useReducerImpl<S, A, I>(
     // into the queue via the changelog.
     for (let i = 0; i < queue.length; i++) {
       const item = queue[i]!;
-      if (!item.hasEagerState || !sameReducer) {
+      if (
+        !item.hasEagerState ||
+        !sameReducer ||
+        !Object.is(item.prevState, cell.workInProgress)
+      ) {
+        item.prevState = cell.workInProgress;
         item.eagerState = reducer(cell.workInProgress, item.action);
         item.hasEagerState = true;
 
@@ -192,6 +212,15 @@ export function useReducerImpl<S, A, I>(
   return [cell.workInProgress, cell.dispatch];
 }
 
+export function useReducer<S>(
+  reducer: (state: S) => S,
+  initialState: S,
+): [S, () => void];
+export function useReducer<S, I>(
+  reducer: (state: S) => S,
+  initialArg: I,
+  init: (arg: I) => S,
+): [S, () => void];
 export function useReducer<S, A>(
   reducer: (state: S, action: A) => S,
   initialState: S,

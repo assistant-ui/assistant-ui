@@ -430,6 +430,12 @@ declare const AssistantRuntimeProvider: import("react").MemoExoticComponent<(_pa
   children: ReactNode;
 }) => import("react").JSX.Element>;
 
+type AssistantState = ScopeStates & {
+  readonly optional: {
+    readonly [K in keyof ScopeStates]: ScopeStates[K] | undefined;
+  };
+};
+
 type AssistantStream = ReadableStream<AssistantStreamChunk>;
 
 declare const AssistantStream: {
@@ -853,6 +859,7 @@ declare abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
   abstract cancelRun(): void;
   abstract exportExternalState(): any;
   abstract importExternalState(state: any): void;
+  abstract unstable_notifySessionReset(): void;
   protected _voiceMessages: ThreadMessage[];
   protected _voiceGeneration: number;
   private _cachedMergedMessages;
@@ -1825,6 +1832,8 @@ declare class ExternalStoreThreadRuntimeCore extends BaseThreadRuntimeCore imple
   extras: unknown;
   private _converter;
   private _store;
+  private _getInitializePromise?;
+  __internal_setGetInitializePromise(getPromise: () => Promise<unknown> | undefined): void;
   private _transformedQueue;
   private _toolInvocations;
   beginEdit(messageId: string): void;
@@ -1846,6 +1855,7 @@ declare class ExternalStoreThreadRuntimeCore extends BaseThreadRuntimeCore imple
   resumeRun(config: ResumeRunConfig): Promise<void>;
   exportExternalState(): any;
   importExternalState(state: any): void;
+  unstable_notifySessionReset(): void;
   cancelRun(): void;
   private dropEmptyOptimisticHead;
   addToolResult(options: AddToolResultOptions): void;
@@ -2376,6 +2386,7 @@ declare class LocalThreadRuntimeCore extends BaseThreadRuntimeCore implements Th
   resumeRun(_param4: ResumeRunConfig): Promise<void>;
   exportExternalState(): any;
   importExternalState(): void;
+  unstable_notifySessionReset(): void;
   startRun(_param5: StartRunConfig, runCallback?: ChatModelAdapter["run"]): Promise<void>;
   private _runLoop;
   private performRoundtrip;
@@ -3323,6 +3334,7 @@ declare class ReadonlyThreadRuntimeCore extends BaseSubscribable implements Thre
   getModelContext(): {};
   exportExternalState(): void;
   importExternalState(): void;
+  unstable_notifySessionReset(): void;
   composer: {
     attachments: never[];
     attachmentAccept: string;
@@ -3514,6 +3526,7 @@ declare class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     startRun: (config: StartRunConfig) => void;
     resumeRun: (config: ResumeRunConfig) => void;
     cancelRun: () => void;
+    unstable_notifySessionReset: () => void;
     addToolResult: (options: AddToolResultOptions) => void;
     resumeToolCall: (options: ResumeToolCallOptions) => void;
     respondToToolApproval: (options: RespondToToolApprovalOptions) => void;
@@ -3567,6 +3580,7 @@ declare class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     startRun: (config: StartRunConfig) => void;
     resumeRun: (config: ResumeRunConfig) => void;
     cancelRun: () => void;
+    unstable_notifySessionReset: () => void;
     addToolResult: (options: AddToolResultOptions) => void;
     resumeToolCall: (options: ResumeToolCallOptions) => void;
     respondToToolApproval: (options: RespondToToolApprovalOptions) => void;
@@ -3620,6 +3634,7 @@ declare class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     startRun: (config: StartRunConfig) => void;
     resumeRun: (config: ResumeRunConfig) => void;
     cancelRun: () => void;
+    unstable_notifySessionReset: () => void;
     addToolResult: (options: AddToolResultOptions) => void;
     resumeToolCall: (options: ResumeToolCallOptions) => void;
     respondToToolApproval: (options: RespondToToolApprovalOptions) => void;
@@ -3743,6 +3758,7 @@ declare class RemoteThreadListThreadListRuntimeCore extends BaseSubscribable imp
     startRun: (config: StartRunConfig) => void;
     resumeRun: (config: ResumeRunConfig) => void;
     cancelRun: () => void;
+    unstable_notifySessionReset: () => void;
     addToolResult: (options: AddToolResultOptions) => void;
     resumeToolCall: (options: ResumeToolCallOptions) => void;
     respondToToolApproval: (options: RespondToToolApprovalOptions) => void;
@@ -3796,6 +3812,7 @@ declare class RemoteThreadListThreadListRuntimeCore extends BaseSubscribable imp
     startRun: (config: StartRunConfig) => void;
     resumeRun: (config: ResumeRunConfig) => void;
     cancelRun: () => void;
+    unstable_notifySessionReset: () => void;
     addToolResult: (options: AddToolResultOptions) => void;
     resumeToolCall: (options: ResumeToolCallOptions) => void;
     respondToToolApproval: (options: RespondToToolApprovalOptions) => void;
@@ -4002,6 +4019,12 @@ type SamplingCallData = {
 interface ScopeRegistry {
   [key: string]: { methods: any; meta?: any; events?: any };
 }
+
+type ScopeStates = {
+  [K in ClientNames]: ClientSchemas[K]["methods"] extends {
+    getState: () => infer S;
+  } ? S : never;
+};
 
 type ScopesConfig = {
   [K in ClientNames]?: ClientElement<K> | DerivedElement<K>;
@@ -4673,6 +4696,7 @@ type ThreadListRuntimeCoreBinding = ThreadListRuntimeCore;
 
 declare class ThreadListRuntimeImpl implements ThreadListRuntime {
   private _getState;
+  private _stateBinding;
   private _core;
   private _runtimeFactory;
   constructor(_core: ThreadListRuntimeCoreBinding, _runtimeFactory?: new (binding: ThreadRuntimeCoreBinding, threadListItemBinding: ThreadListItemRuntimeBinding) => ThreadRuntime);
@@ -4883,6 +4907,7 @@ type ThreadRuntime = {
   importExternalState(state: any): void;
   subscribe(callback: () => void): Unsubscribe$1;
   cancelRun(): void;
+  unstable_notifySessionReset(): void;
   getModelContext(): ModelContext$1;
   export(): ExportedMessageRepository;
   import(repository: ExportedMessageRepository): void;
@@ -4912,6 +4937,7 @@ type ThreadRuntimeCore = Readonly<{
   startRun: (config: StartRunConfig) => void;
   resumeRun: (config: ResumeRunConfig) => void;
   cancelRun: () => void;
+  unstable_notifySessionReset: () => void;
   addToolResult: (options: AddToolResultOptions) => void;
   resumeToolCall: (options: ResumeToolCallOptions) => void;
   respondToToolApproval: (options: RespondToToolApprovalOptions) => void;
@@ -4985,6 +5011,7 @@ declare class ThreadRuntimeImpl implements ThreadRuntime {
       startRun: (config: StartRunConfig) => void;
       resumeRun: (config: ResumeRunConfig) => void;
       cancelRun: () => void;
+      unstable_notifySessionReset: () => void;
       addToolResult: (options: AddToolResultOptions) => void;
       resumeToolCall: (options: ResumeToolCallOptions) => void;
       respondToToolApproval: (options: RespondToToolApprovalOptions) => void;
@@ -5060,19 +5087,21 @@ declare class ThreadRuntimeImpl implements ThreadRuntime {
     getStateState(): ThreadState;
   };
   private readonly _threadBinding;
+  private readonly _stateBinding;
   constructor(threadBinding: ThreadRuntimeCoreBinding, threadListItemBinding: ThreadListItemRuntimeBinding);
   protected __internal_bindMethods(): void;
   readonly composer: ThreadComposerRuntimeImpl;
   getState(): ThreadState;
   append(message: CreateAppendMessage): void;
   deleteMessage(messageId: string): void | Promise<void>;
-  subscribe(callback: () => void): Unsubscribe$1;
+  subscribe(callback: () => void): () => void;
   getModelContext(): ModelContext$1;
   startRun(config: CreateStartRunConfig): void;
   resumeRun(config: CreateResumeRunConfig): void;
   exportExternalState(): any;
   importExternalState(state: any): void;
   cancelRun(): void;
+  unstable_notifySessionReset(): void;
   stopSpeaking(): void;
   connectVoice(): void;
   disconnectVoice(): void;
@@ -5178,6 +5207,14 @@ type ThreadUserMessagePart = TextMessagePart | ImageMessagePart | FileMessagePar
 
 type ThreadsClientSchema = {
   methods: ThreadsMethods;
+  events: ThreadsEvents;
+};
+
+type ThreadsEvents = {
+  "threads.selectionChanged": {
+    threadId: string;
+    previousThreadId: string;
+  };
 };
 
 type ThreadsMethods = {
@@ -5375,7 +5412,6 @@ declare class ToolInvocationTracker {
   private readonly _getTools;
   private readonly _callbacks;
   private readonly _entries;
-  private readonly _skipExecuteStreamIds;
   private readonly _humanInput;
   private readonly _executing;
   private readonly _settledResolvers;
@@ -5395,6 +5431,7 @@ declare class ToolInvocationTracker {
   resume(toolCallId: string, payload: unknown): boolean;
   getStatuses(): ReadonlyMap<string, ToolExecutionStatus>;
   private _getWrappedTools;
+  private _captureExecution;
   private _onHumanInput;
   private _onExecutionStart;
   private _onExecutionEnd;
@@ -5801,11 +5838,27 @@ type WithRender<T, TArgs extends Record<string, unknown>, TResult> = T extends {
   renderText?: ToolCallText<TArgs, TResult> | undefined;
 };
 
+declare const actionBarCopyDisabled: (s: AssistantState) => boolean;
+
+declare const actionBarEditDisabled: (s: AssistantState) => boolean;
+
+declare const actionBarReloadDisabled: (s: AssistantState) => boolean;
+
 declare const auiConfigBrand: unique symbol;
 
 declare const baseRuntimeAdapterTransformScopes: (scopes: ScopesConfig, parent: AssistantClient) => void;
 
 declare const bindExternalStoreMessage: <T>(target: object, message: T | T[]) => void;
+
+declare const branchPickerNextDisabled: (s: AssistantState) => boolean;
+
+declare const branchPickerPreviousDisabled: (s: AssistantState) => boolean;
+
+declare const composerCancelDisabled: (s: AssistantState) => boolean;
+
+declare const composerInputDisabled: (s: AssistantState) => boolean;
+
+declare const composerSendDisabled: (s: AssistantState) => boolean;
 
 declare const consumeSuggestionResult: (result: ReturnType<SuggestionAdapter["generate"]>, options: {
   signal: AbortSignal;
@@ -5938,7 +5991,7 @@ declare namespace entry_root_exports {
 }
 
 declare namespace entry_store_exports {
-  export { AttachmentClientSchema, AttachmentMeta, AttachmentMethods, AttachmentState, ChainOfThoughtClient, ChainOfThoughtClientSchema, ChainOfThoughtMeta, ChainOfThoughtMethods, ChainOfThoughtPart, ChainOfThoughtState, ComposerClientSchema, ComposerEvents, ComposerMeta, ComposerMethods, ComposerSendOptions, ComposerState, ExternalThread, ExternalThreadMessage, ExternalThreadProps, JoinStrategy, McpToolkitDefinition, McpToolkitEntry, McpToolkitToolConfig, MessageClientSchema, MessageMeta, MessageMethods, MessageState, ModelContext, ModelContextClientSchema, ModelContextMethods, ModelContextState, NoOpComposerClient, PartClientSchema, PartMeta, PartMethods, PartState, QueueItemClientSchema, QueueItemMeta, QueueItemMethods, QueueItemState, RuntimeAdapter, RuntimeExtrasBrand, SingleThreadList, StreamingTimingAccessors, StreamingTimingOptions, StreamingTimingState, Suggestion, SuggestionClientSchema, SuggestionConfig, SuggestionMeta, SuggestionMethods, SuggestionState, Suggestions, SuggestionsClientSchema, SuggestionsMethods, SuggestionsState, ThreadClientSchema, ThreadEvents, ThreadListItemClientSchema, ThreadListItemEvents, ThreadListItemMeta, ThreadListItemMethods, ThreadListItemState, ThreadMessageClient, ThreadMessageClientProps, ThreadMeta, ThreadMethods, ThreadState$1 as ThreadState, ThreadsClientSchema, ThreadsMethods, ThreadsState, Toolkit, ToolkitDefinition, ToolkitDefinitionEntry, convertExternalMessages, createRuntimeExtrasBrand, defineMcpToolkit, defineToolkit, useExternalMessageConverter, useStreamingTiming };
+  export { AttachmentClientSchema, AttachmentMeta, AttachmentMethods, AttachmentState, ChainOfThoughtClient, ChainOfThoughtClientSchema, ChainOfThoughtMeta, ChainOfThoughtMethods, ChainOfThoughtPart, ChainOfThoughtState, ComposerClientSchema, ComposerEvents, ComposerMeta, ComposerMethods, ComposerSendOptions, ComposerState, ExternalThread, ExternalThreadMessage, ExternalThreadProps, JoinStrategy, McpToolkitDefinition, McpToolkitEntry, McpToolkitToolConfig, MessageClientSchema, MessageMeta, MessageMethods, MessageState, ModelContext, ModelContextClientSchema, ModelContextMethods, ModelContextState, NoOpComposerClient, PartClientSchema, PartMeta, PartMethods, PartState, QueueItemClientSchema, QueueItemMeta, QueueItemMethods, QueueItemState, RuntimeAdapter, RuntimeExtrasBrand, SingleThreadList, StreamingTimingAccessors, StreamingTimingOptions, StreamingTimingState, Suggestion, SuggestionClientSchema, SuggestionConfig, SuggestionMeta, SuggestionMethods, SuggestionState, Suggestions, SuggestionsClientSchema, SuggestionsMethods, SuggestionsState, ThreadClientSchema, ThreadEvents, ThreadListItemClientSchema, ThreadListItemEvents, ThreadListItemMeta, ThreadListItemMethods, ThreadListItemState, ThreadMessageClient, ThreadMessageClientProps, ThreadMeta, ThreadMethods, ThreadState$1 as ThreadState, ThreadsClientSchema, ThreadsEvents, ThreadsMethods, ThreadsState, Toolkit, ToolkitDefinition, ToolkitDefinitionEntry, convertExternalMessages, createRuntimeExtrasBrand, defineMcpToolkit, defineToolkit, useExternalMessageConverter, useStreamingTiming };
 }
 
 declare namespace entry_internal_exports {
@@ -5946,7 +5999,7 @@ declare namespace entry_internal_exports {
 }
 
 declare namespace entry_store_internal_exports {
-  export { AttachmentRuntimeClient, ComposerClient, MessageClient, MessagePartClient, ThreadClient, ThreadListClient, ThreadListItemClient, baseRuntimeAdapterTransformScopes };
+  export { AttachmentRuntimeClient, ComposerClient, MessageClient, MessagePartClient, ThreadClient, ThreadListClient, ThreadListItemClient, actionBarCopyDisabled, actionBarEditDisabled, actionBarReloadDisabled, baseRuntimeAdapterTransformScopes, branchPickerNextDisabled, branchPickerPreviousDisabled, composerCancelDisabled, composerInputDisabled, composerSendDisabled, isDevelopment, suggestionTriggerDisabled, useThreadSelectionEvents };
 }
 
 declare const isAssistantError: (value: unknown) => value is AssistantError;
@@ -5954,6 +6007,8 @@ declare const isAssistantError: (value: unknown) => value is AssistantError;
 declare const isAutoStatus: (status: MessageStatus) => boolean;
 
 declare const isCreateAttachment: (attachment: File | CreateAttachment) => attachment is CreateAttachment;
+
+declare const isDevelopment: boolean;
 
 declare const isErrorMessageId: (id: string) => boolean;
 
@@ -6026,6 +6081,8 @@ declare const stepStreamingTiming: <TMessage>(state: StreamingTimingState | null
 };
 
 declare function stubTool(): never;
+
+declare const suggestionTriggerDisabled: (s: AssistantState, send: boolean) => boolean;
 
 declare const symbolInnerMessage: unique symbol;
 
@@ -6291,6 +6348,8 @@ declare const useThreadListNew: () => {
 };
 
 declare const useThreadMessages: () => readonly MessageState[];
+
+declare const useThreadSelectionEvents: (mainThreadId: string) => void;
 
 declare const useToolArgsStatus: <TArgs extends Record<string, unknown> = Record<string, unknown>>() => ToolArgsStatus<TArgs>;
 

@@ -9,7 +9,7 @@ import {
   Tools,
   type Toolkit,
 } from "@assistant-ui/react";
-import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+import { useChatRuntime } from "@assistant-ui/ai-sdk";
 import { DevToolsModal } from "@assistant-ui/react-devtools";
 import { ModelContextClient as ModelContext } from "@assistant-ui/react";
 import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";

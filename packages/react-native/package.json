@@ -39,7 +39,7 @@
     "@assistant-ui/core": "^0.3.13",
     "@assistant-ui/store": "^0.3.9",
     "@assistant-ui/tap": "^0.9.12",
-    "assistant-stream": "^0.3.36",
+    "assistant-stream": "^0.3.37",
     "zustand": "^5.0.14"
   },
   "peerDependencies": {
@@ -54,12 +54,13 @@
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
+    "@babel/core": "^7.29.7",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
     "jsdom": "^30.0.1",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "react-native": "^0.86.2",
+    "react-native": "^0.87.0",
     "react-native-web": "^0.21.2",
     "vitest": "^4.1.10"
   },

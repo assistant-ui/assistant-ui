@@ -37,7 +37,7 @@
     "test:watch": "vitest"
   },
   "peerDependencies": {
-    "@assistant-ui/tap": "^0.9.0",
+    "@assistant-ui/tap": "^0.9.12",
     "@types/react": "*",
     "react": "^18 || ^19"
   },

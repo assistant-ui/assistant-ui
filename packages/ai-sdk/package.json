@@ -1,0 +1,94 @@
+{
+  "name": "@assistant-ui/ai-sdk",
+  "version": "0.0.0",
+  "description": "Vercel AI SDK adapter for assistant-ui",
+  "keywords": [
+    "ai-sdk",
+    "vercel",
+    "assistant-ui",
+    "react",
+    "ai",
+    "chat",
+    "openai",
+    "streaming"
+  ],
+  "author": "AgentbaseAI Inc.",
+  "license": "MIT",
+  "type": "module",
+  "imports": {
+    "#mcp-stdio": {
+      "types": "./src/tools/mcp-stdio.node.ts",
+      "react-native": "./dist/tools/mcp-stdio.unsupported.js",
+      "edge-light": "./dist/tools/mcp-stdio.unsupported.js",
+      "workerd": "./dist/tools/mcp-stdio.unsupported.js",
+      "browser": "./dist/tools/mcp-stdio.unsupported.js",
+      "node": "./dist/tools/mcp-stdio.node.js",
+      "default": "./dist/tools/mcp-stdio.unsupported.js"
+    }
+  },
+  "exports": {
+    ".": {
+      "react-native": {
+        "types": "./dist/index.native.d.ts",
+        "default": "./dist/index.native.js"
+      },
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "react-native": "./dist/index.native.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "src",
+    "README.md"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "aui-build",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@ai-sdk/mcp": "^2.0.31",
+    "@ai-sdk/react": "^4.0.65",
+    "@assistant-ui/core": "^0.3.13",
+    "@assistant-ui/store": "^0.3.9",
+    "ai": "^7.0.62",
+    "assistant-cloud": "*",
+    "assistant-stream": "^0.3.37"
+  },
+  "peerDependencies": {
+    "@types/react": "*",
+    "react": "^18 || ^19"
+  },
+  "peerDependenciesMeta": {
+    "@types/react": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@assistant-ui/x-buildutils": "workspace:*",
+    "@testing-library/react": "^16.3.2",
+    "@types/json-schema": "^7.0.15",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "jsdom": "^30.0.1",
+    "react": "^19.2.8",
+    "vitest": "^4.1.10"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "homepage": "https://www.assistant-ui.com/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/assistant-ui/assistant-ui.git",
+    "directory": "packages/ai-sdk"
+  },
+  "bugs": {
+    "url": "https://github.com/assistant-ui/assistant-ui/issues"
+  }
+}
