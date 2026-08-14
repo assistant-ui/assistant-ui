@@ -4,10 +4,10 @@ assistant-ui in a SvelteKit app: `@assistant-ui/svelte` builders on the client, 
 
 ## How it works
 
-- `src/routes/api/chat/+server.ts` runs `streamText` and returns the AI SDK UI message stream, like the Next.js templates. The request body differs: this client posts a plain `ModelMessage` array built with `getThreadMessageText`, not the `UIMessage` array the templates post.
-- `src/lib/runtime.ts` is a `ChatModelAdapter` that posts the conversation to the route and pipes the response through `UIMessageStreamDecoder` and `AssistantMessageAccumulator` from `assistant-stream` into a `LocalRuntimeCore`. Edit, reload, and branch switching come with it.
+- `src/routes/+page.svelte` wires the thread with `AISDKChat()` from `@assistant-ui/ai-sdk`: the AI SDK chat runs as the `threads` scope of the assistant client, no React host required. Edit, reload, and branch switching come with it.
+- `src/routes/api/chat/+server.ts` runs `streamText` over `convertToModelMessages` and returns the AI SDK UI message stream, exactly like the Next.js templates; the default `AssistantChatTransport` posts the `UIMessage` array to `/api/chat`.
 - `src/routes/+layout.ts` disables SSR. `provideAui` creates the runtime client in component init, so rendering on the server would build a throwaway runtime per request for a page that is entirely client-driven.
-- `vite.config.ts` aliases `react` to `@assistant-ui/tap/standalone-shim`, so the app runs without React installed.
+- React is a small runtime dependency of the AI SDK integration: `@assistant-ui/tap` installs its hook dispatcher while the chat resource renders, so `useChat`'s React hook calls route to tap and React never renders anything.
 - Messages render as plain text. `@assistant-ui/svelte` has no markdown renderer yet.
 
 ## Run

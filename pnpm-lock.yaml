@@ -2546,6 +2546,9 @@ importers:
       '@ai-sdk/openai':
         specifier: ^4.0.40
         version: 4.0.40(zod@4.4.3)
+      '@assistant-ui/ai-sdk':
+        specifier: workspace:*
+        version: link:../../packages/ai-sdk
       '@assistant-ui/core':
         specifier: workspace:*
         version: link:../../packages/core
@@ -2564,12 +2567,12 @@ importers:
       ai:
         specifier: ^7.0.62
         version: 7.0.62(zod@4.4.3)
-      assistant-stream:
-        specifier: workspace:*
-        version: link:../../packages/assistant-stream
       nuxt:
         specifier: ^4.5.2
         version: 4.5.2(@azure/identity@4.13.1)(@babel/plugin-proposal-decorators@7.29.7(@babel/core@7.29.7))(@babel/plugin-syntax-jsx@7.29.7(@babel/core@7.29.7))(@babel/plugin-syntax-typescript@7.29.7(@babel/core@7.29.7))(@oxc-project/types@0.144.0)(@types/node@26.2.0)(@upstash/redis@1.38.2)(@vue/compiler-sfc@3.5.41)(commander@15.0.0)(db0@0.3.4(mysql2@3.20.0(@types/node@26.2.0))(sqlite3@5.1.7))(encoding@0.1.13)(esbuild@0.28.2)(ioredis@5.11.1)(lightningcss@1.33.0)(magicast@0.5.4)(mysql2@3.20.0(@types/node@26.2.0))(oxlint@1.78.0)(rolldown@1.2.4)(rollup-plugin-visualizer@7.0.1(rolldown@1.2.4)(rollup@4.62.4))(rollup@4.62.4)(sqlite3@5.1.7)(srvx@0.11.22)(terser@5.50.0)(tsx@4.23.12)(typescript@7.0.2)(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0))(yaml@2.9.0)
+      react:
+        specifier: ^19.2.8
+        version: 19.2.8
       vue:
         specifier: ^3.5.41
         version: 3.5.41(typescript@7.0.2)
@@ -3247,6 +3250,9 @@ importers:
       '@ai-sdk/openai':
         specifier: ^4.0.40
         version: 4.0.40(zod@4.4.3)
+      '@assistant-ui/ai-sdk':
+        specifier: workspace:*
+        version: link:../../packages/ai-sdk
       '@assistant-ui/core':
         specifier: workspace:*
         version: link:../../packages/core
@@ -3265,9 +3271,9 @@ importers:
       ai:
         specifier: ^7.0.62
         version: 7.0.62(zod@4.4.3)
-      assistant-stream:
-        specifier: workspace:*
-        version: link:../../packages/assistant-stream
+      react:
+        specifier: ^19.2.8
+        version: 19.2.8
       svelte:
         specifier: ^5.56.8
         version: 5.56.8
