@@ -181,7 +181,7 @@ export class AssistantCloudAPIKeyAuthStrategy implements AssistantCloudAuthStrat
 const LEGACY_AUI_REFRESH_TOKEN_NAME = "aui:refresh_token";
 
 const getRefreshTokenName = (baseUrl: string): string =>
-  `${LEGACY_AUI_REFRESH_TOKEN_NAME}:${baseUrl.replace(/\/+$/, "")}`;
+  `${LEGACY_AUI_REFRESH_TOKEN_NAME}:${baseUrl}`;
 
 const getLocalStorage = (): Storage | null => {
   if (!("localStorage" in globalThis)) return null;
@@ -202,8 +202,12 @@ const readRefreshToken = (baseUrl: string): RefreshToken | undefined => {
       value = storage.getItem(LEGACY_AUI_REFRESH_TOKEN_NAME);
       if (value) {
         storage.setItem(name, value);
-        storage.removeItem(LEGACY_AUI_REFRESH_TOKEN_NAME);
       }
+    }
+    if (value) {
+      try {
+        storage.removeItem(LEGACY_AUI_REFRESH_TOKEN_NAME);
+      } catch {}
     }
     return value
       ? (JSON.parse(value) as { token: string; expires_at: string })
