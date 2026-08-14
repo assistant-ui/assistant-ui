@@ -49,12 +49,8 @@ export const useSyncExternalStore = <T>(
     });
   }, [subscribe]);
 
-  // Runs after every (re)subscription and after commits where the snapshot
-  // inputs changed, covering the tearing window where the store mutates
-  // between the render's getSnapshot() read and the commit. Only these
-  // commit checks count toward the loop guard: a store still changed after
-  // every corrective render is an unstable getSnapshot, while a burst of
-  // notifications between renders is legitimate.
+  // Covers the tearing window between the render's getSnapshot() read and
+  // the commit; only these checks count toward the loop guard.
   useEffect(() => {
     if (!checkForUpdates()) return;
     if (++commitCheckDepth.current > 50) {
