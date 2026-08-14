@@ -81,6 +81,8 @@ Wrap it in `AuiIf` so the suggestions leave once the conversation starts:
 </ThreadPrimitive.ViewportFooter>
 ```
 
+Rendering it before `<Composer />` works too — DOM order decides the side, and the component flips accordingly; see [Above the composer](#above-the-composer).
+
   </Step>
 </Steps>
 
@@ -175,6 +177,10 @@ import {
 </WelcomeSuggestionsRoot>;
 ```
 
+### Above the composer
+
+Either layout can sit on either side of the composer, and DOM order is the whole configuration: render the component before the composer instead of after it (the natural shape when there is no room below, e.g. a composer pinned to the bottom of the screen) and everything follows. The flip is plain CSS — the root reads the sibling relation with `:has(~ …)` — so the very first paint is correct, with no measuring, no prop, and no script. The keyboard reads the same DOM order: <Kbd>↑</Kbd> from the start of the composer text enters the suggestions on the composer-adjacent row, and the arrow back toward the composer exits. The one requirement is the standard arrangement the component already assumes: the suggestions and the composer render as siblings. The flat entries example in the demo above places the composer at the bottom.
+
 ## Insert Instead of Send
 
 Selecting a suggestion goes through `ThreadPrimitive.Suggestion`: by default it sends the prompt immediately. Pass `send={false}` on the root to place the prompt in the composer for editing instead:
@@ -231,7 +237,7 @@ The sub-level rows inherit `variant`, `density`, `separators`, and `itemIcon` fr
 
 ## Keyboard & Behavior
 
-Clicking an item and pressing <Kbd>Enter</Kbd> on the highlighted item are the same action.
+Clicking an item and pressing <Kbd>Enter</Kbd> on the highlighted item are the same action. The tables below assume the suggestions sit below the composer; [rendered above it](#above-the-composer), the vertical directions mirror (<Kbd>↑</Kbd> enters where <Kbd>↓</Kbd> did, and vice versa).
 
 ### Pill row
 
@@ -329,10 +335,11 @@ const CustomPicker = () => {
 
 ### Sizing
 
-The root renders as a full-width sibling of the composer, so it matches the composer's width by default. To size it relative to the composer, wrap it; the pill row, the picker panel, and the stacked layout all scale with the root:
+The root renders as a full-width sibling of the composer, so it matches the composer's width by default. To size the pair, wrap the composer and the suggestions together — the side flip reads their sibling relation, so a wrapper around the suggestions alone would break it. The pill row, the picker panel, and the stacked layout all scale with the root:
 
 ```tsx
 <div className="mx-auto w-[90%]">
+  <Composer />
   <ThreadWelcomeSuggestions suggestions={WELCOME_SUGGESTIONS} />
 </div>
 ```

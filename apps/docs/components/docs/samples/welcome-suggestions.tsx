@@ -17,7 +17,15 @@ import {
   type IconReveal,
   type SuggestionEntry,
 } from "@/components/assistant-ui/welcome-suggestions";
+import {
+  SelectContent,
+  SelectItem,
+  SelectRoot,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/assistant-ui/select";
 import { SampleFrame } from "@/components/docs/samples/sample-frame";
+import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { SampleRuntimeProvider } from "./sample-runtime-provider";
 
@@ -109,10 +117,12 @@ const Hint = ({
   className?: string | undefined;
   sub?: boolean;
 }) => (
+  // -mt-1 counters part of the column's gap-3 so the arrow starts near the
+  // content above.
   <div
     {...(sub ? { "data-subhint": "" } : { "data-hint": "" })}
     className={cn(
-      "text-muted-foreground/60 pointer-events-none mt-2 flex items-start gap-1.5 pl-5 select-none",
+      "text-muted-foreground/60 pointer-events-none -mt-1 flex items-start gap-1.5 pl-5 select-none",
       className,
     )}
   >
@@ -153,37 +163,67 @@ const SampleComposer = () => (
   </ComposerPrimitive.Root>
 );
 
-const ToggleChip = ({
-  active,
-  onClick,
+const ControlLabel = ({
   children,
+  className,
 }: {
-  active: boolean;
-  onClick: () => void;
   children: ReactNode;
+  className?: string;
 }) => (
-  <button
-    type="button"
-    aria-pressed={active}
-    onClick={onClick}
-    onPointerDown={(e) => e.preventDefault()}
+  <label
     className={cn(
-      "rounded-full border px-2 py-px font-mono text-[10px] transition-colors",
-      active
-        ? "border-border bg-muted text-foreground"
-        : "border-border/50 text-muted-foreground/60 hover:text-muted-foreground",
+      "text-muted-foreground/70 flex items-center gap-1.5 text-xs",
+      className,
     )}
   >
     {children}
-  </button>
+  </label>
 );
 
+const ControlSelect = <T extends string>({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: T;
+  options: readonly T[];
+  onChange: (value: T) => void;
+}) => (
+  <ControlLabel>
+    {label}
+    <SelectRoot
+      value={value}
+      onValueChange={(v) => {
+        if (v !== null) onChange(v as T);
+      }}
+      modal={false}
+    >
+      <SelectTrigger variant="ghost" size="sm" className="h-7 gap-1 px-2">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent align="start">
+        {options.map((option) => (
+          <SelectItem key={option} value={option}>
+            {option}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </SelectRoot>
+  </ControlLabel>
+);
+
+// composerLast places the composer after the suggestions in the DOM — the
+// component reads that order and flips itself; the column only bottom-anchors
+// the group so it sits like a viewport-bottom composer.
 const VariantColumn = ({
   label,
   hint,
   hintClassName,
   subHint,
   subHintClassName,
+  composerLast,
   className,
   children,
 }: {
@@ -192,6 +232,7 @@ const VariantColumn = ({
   hintClassName?: string;
   subHint?: ReactNode;
   subHintClassName?: string;
+  composerLast?: boolean;
   className?: string;
   children: ReactNode;
 }) => (
@@ -205,58 +246,74 @@ const VariantColumn = ({
       {label}
     </span>
     <SampleRuntimeProvider messages={[]}>
-      <div className="flex w-full flex-col gap-3">
-        <SampleComposer />
-        <div className="min-h-56 [&_[data-subhint]]:hidden [&:has([data-open])_[data-hint]]:hidden [&:has([data-open])_[data-subhint]]:flex">
-          {children}
-          {hint && <Hint className={hintClassName}>{hint}</Hint>}
-          {subHint && (
-            <Hint sub className={subHintClassName}>
-              {subHint}
-            </Hint>
-          )}
-        </div>
+      {/* min-h-84 reserves room for the tallest open panel so the columns
+          keep one height and the grid never reflows while browsing. */}
+      <div
+        className={cn(
+          "flex w-full flex-col gap-3 [&_[data-subhint]]:hidden [&:has([data-open])_[data-hint]]:hidden [&:has([data-open])_[data-subhint]]:flex",
+          composerLast ? "justify-end" : "min-h-84",
+        )}
+      >
+        {!composerLast && <SampleComposer />}
+        {children}
+        {hint && <Hint className={hintClassName}>{hint}</Hint>}
+        {subHint && (
+          <Hint sub className={subHintClassName}>
+            {subHint}
+          </Hint>
+        )}
+        {composerLast && <SampleComposer />}
       </div>
     </SampleRuntimeProvider>
   </div>
 );
 
-const cycleReveal = (value: IconReveal): IconReveal =>
-  value === "always" ? "hover" : value === "hover" ? "off" : "always";
+type RowVariant = "ghost" | "text" | "outline";
+type Density = "comfortable" | "compact";
 
 export const WelcomeSuggestionsSample = () => {
-  const [compact, setCompact] = useState(false);
+  const [density, setDensity] = useState<Density>("comfortable");
   const [separators, setSeparators] = useState(true);
+  const [variant, setVariant] = useState<RowVariant>("ghost");
   const [groupIcon, setGroupIcon] = useState<IconReveal>("always");
   const [itemIcon, setItemIcon] = useState<IconReveal>("always");
-  const density = compact ? "compact" : "comfortable";
 
   return (
     <SampleFrame className="bg-muted/40 h-auto p-6">
       <div className="mx-auto flex w-full max-w-4xl flex-col gap-3">
-        <div className="flex flex-wrap justify-end gap-1">
-          <ToggleChip active={compact} onClick={() => setCompact((v) => !v)}>
-            compact
-          </ToggleChip>
-          <ToggleChip
-            active={separators}
-            onClick={() => setSeparators((v) => !v)}
-          >
+        <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-2">
+          <ControlSelect
+            label="variant"
+            value={variant}
+            options={["ghost", "text", "outline"]}
+            onChange={setVariant}
+          />
+          <ControlSelect
+            label="density"
+            value={density}
+            options={["comfortable", "compact"]}
+            onChange={setDensity}
+          />
+          <ControlSelect
+            label="group icon"
+            value={groupIcon}
+            options={["always", "hover", "off"]}
+            onChange={setGroupIcon}
+          />
+          <ControlSelect
+            label="item icon"
+            value={itemIcon}
+            options={["always", "hover", "off"]}
+            onChange={setItemIcon}
+          />
+          <ControlLabel className="gap-2.5 ps-1">
             separators
-          </ToggleChip>
-          <div className="bg-border/60 mx-1 w-px self-stretch" />
-          <ToggleChip
-            active={groupIcon !== "off"}
-            onClick={() => setGroupIcon(cycleReveal)}
-          >
-            group icon: {groupIcon}
-          </ToggleChip>
-          <ToggleChip
-            active={itemIcon !== "off"}
-            onClick={() => setItemIcon(cycleReveal)}
-          >
-            item icon: {itemIcon}
-          </ToggleChip>
+            <Switch
+              size="sm"
+              checked={separators}
+              onCheckedChange={setSeparators}
+            />
+          </ControlLabel>
         </div>
         <div className="grid gap-8 lg:grid-cols-2">
           <VariantColumn
@@ -264,11 +321,13 @@ export const WelcomeSuggestionsSample = () => {
             hint={<>press ↓ or click, ← → move, ↓ to open</>}
             subHint={<>→ to edit in composer, tab / esc to exit</>}
             hintClassName="ml-[50%] -mr-[190px] -translate-x-[190px]"
+            subHintClassName="ml-2"
             className="[&_[data-open]>[aria-hidden]]:hidden [&_[data-slot$=welcome-picker]]:static [&_[data-slot$=welcome-picker]]:mx-[2.5%]"
           >
             <WelcomeSuggestionsRoot suggestions={SUGGESTIONS}>
               <WelcomeSuggestionsPills />
               <WelcomeSuggestionsPicker
+                variant={variant}
                 density={density}
                 separators={separators}
                 itemIcon={itemIcon}
@@ -278,11 +337,13 @@ export const WelcomeSuggestionsSample = () => {
           <VariantColumn
             label="Stacked"
             hint={<>press ↓ or click, ↑ ↓ move, → to open</>}
+            hintClassName="ml-2"
             subHint={<>→ to edit in composer, tab / esc to exit</>}
-            className="max-lg:order-last"
+            subHintClassName="ml-2"
           >
             <WelcomeSuggestionsRoot suggestions={SUGGESTIONS}>
               <WelcomeSuggestionsStack
+                variant={variant}
                 density={density}
                 separators={separators}
                 groupIcon={groupIcon}
@@ -291,11 +352,13 @@ export const WelcomeSuggestionsSample = () => {
             </WelcomeSuggestionsRoot>
           </VariantColumn>
           <VariantColumn
-            label="Flat entries (default: stacked)"
+            label="Flat suggestion list (default for flat entries)"
+            composerLast
             className="lg:col-span-2"
           >
             <WelcomeSuggestionsRoot suggestions={FLAT_SUGGESTIONS}>
               <WelcomeSuggestionsStack
+                variant={variant}
                 density={density}
                 separators={separators}
                 itemIcon={itemIcon}
