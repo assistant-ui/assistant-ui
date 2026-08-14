@@ -19,6 +19,7 @@ import type { z } from "zod";
 import { formTools } from "./formTools";
 
 type PendingAssistantSubmit = {
+  dispatching: boolean;
   event: unknown;
   handlerInvoked: boolean;
   outcome: boolean | undefined;
@@ -128,8 +129,18 @@ export const useAssistantForm = <
       return async (event) => {
         const pending = pendingAssistantSubmitRef.current;
         const nativeEvent = event?.nativeEvent ?? event;
-        const assistantSubmit = pending?.event === nativeEvent ? pending : null;
-        if (assistantSubmit) assistantSubmit.handlerInvoked = true;
+        const assistantSubmit =
+          pending &&
+          (pending.event === nativeEvent ||
+            (pending.dispatching &&
+              pending.event === undefined &&
+              nativeEvent !== undefined))
+            ? pending
+            : null;
+        if (assistantSubmit) {
+          assistantSubmit.event = nativeEvent;
+          assistantSubmit.handlerInvoked = true;
+        }
 
         try {
           const result = await submit(event);
@@ -216,6 +227,7 @@ export const useAssistantForm = <
               const submissionResult = new Promise<boolean>(
                 (resolve, reject) => {
                   pendingAssistantSubmitRef.current = {
+                    dispatching: true,
                     event: undefined,
                     handlerInvoked: false,
                     outcome: undefined,
@@ -226,7 +238,7 @@ export const useAssistantForm = <
               );
               const onSubmit = (event: SubmitEvent) => {
                 const pending = pendingAssistantSubmitRef.current;
-                if (pending) pending.event = event;
+                if (pending?.event === undefined) pending.event = event;
                 queueMicrotask(() => {
                   if (
                     pendingAssistantSubmitRef.current === pending &&
@@ -244,6 +256,8 @@ export const useAssistantForm = <
                 settleAssistantSubmit(false);
                 throw error;
               } finally {
+                const pending = pendingAssistantSubmitRef.current;
+                if (pending) pending.dispatching = false;
                 formElement.removeEventListener("submit", onSubmit);
               }
 

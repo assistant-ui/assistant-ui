@@ -189,6 +189,15 @@ describe("useAssistantForm", () => {
     });
   });
 
+  it("reports validation blocked by a capture-phase handler", async () => {
+    const onValid = vi.fn();
+
+    render(<ReactHookFormRequiredForm capture onValid={onValid} />);
+
+    await expectSubmitBlocked();
+    expect(onValid).not.toHaveBeenCalled();
+  });
+
   it("reports react-hook-form errors when native validation is disabled", async () => {
     const onValid = vi.fn();
 
@@ -207,7 +216,7 @@ describe("useAssistantForm", () => {
     await waitFor(() => expect(onValid).toHaveBeenCalledOnce());
   });
 
-  it("ignores user submissions while an assistant submission is validating", async () => {
+  it("does not let user submissions settle a pending assistant submission", async () => {
     type FormValues = { name: string };
     let validationCount = 0;
     let resolveAssistantValidation: (
@@ -313,11 +322,13 @@ const NativeRequiredField = () => {
 };
 
 const ReactHookFormRequiredForm = ({
+  capture = false,
   defaultName = "",
   onInvalid,
   onValid,
   noValidate,
 }: {
+  capture?: boolean | undefined;
   defaultName?: string | undefined;
   onInvalid?: (() => void) | undefined;
   onValid: () => void;
@@ -326,10 +337,12 @@ const ReactHookFormRequiredForm = ({
   const form = useAssistantForm<{ name: string }>({
     defaultValues: { name: defaultName },
   });
+  const handleSubmit = form.handleSubmit(onValid, onInvalid);
   return (
     <form
       noValidate={noValidate}
-      onSubmit={form.handleSubmit(onValid, onInvalid)}
+      onSubmit={capture ? undefined : handleSubmit}
+      onSubmitCapture={capture ? handleSubmit : undefined}
     >
       <input
         data-testid="name-input"
