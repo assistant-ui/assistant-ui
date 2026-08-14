@@ -68,8 +68,8 @@
         </div>
       {/if}
       <ol class="mb-4 flex flex-col gap-y-6 empty:hidden">
-        {#each messages.items as message (message.id)}
-          <Message {message} />
+        {#each messages.items as message, index (message.id)}
+          <Message {message} item={messages.item(index)} />
         {/each}
         {#if isRunning.current}
           <li class="text-foreground px-2 leading-relaxed">
