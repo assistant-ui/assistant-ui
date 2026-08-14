@@ -149,14 +149,16 @@ describe("createFileStorageAdapter", () => {
 
   it("preserves concurrent mutations through symlinked directories", async () => {
     const rootDir = await createTempDir();
-    const storageDir = join(rootDir, "storage");
-    const storageAlias = join(rootDir, "storage-alias");
-    await mkdir(storageDir);
+    const storageRoot = join(rootDir, "storage-root");
+    const storageRootAlias = join(rootDir, "storage-root-alias");
+    await mkdir(storageRoot);
     await symlink(
-      storageDir,
-      storageAlias,
+      storageRoot,
+      storageRootAlias,
       process.platform === "win32" ? "junction" : "dir",
     );
+    const storageDir = join(storageRoot, "storage");
+    const storageAlias = join(storageRootAlias, "storage");
 
     const firstAdapter = createFileStorageAdapter({ dir: storageDir });
     const secondAdapter = createFileStorageAdapter({ dir: storageAlias });

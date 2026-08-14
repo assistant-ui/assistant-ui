@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { realpathSync } from "node:fs";
 import { readFile, mkdir, rename, rm, writeFile } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import type { RemoteThreadListAdapter } from "@assistant-ui/core";
 import {
   createLocalStorageAdapter,
@@ -76,10 +76,19 @@ const fileStorageRegistry = new FinalizationRegistry<string>(
 
 const normalizeStorageDir = (dir: string): string => {
   const resolvedDir = resolve(dir);
-  try {
-    return realpathSync.native(resolvedDir);
-  } catch {
-    return resolvedDir;
+  const missingSegments: string[] = [];
+  let currentDir = resolvedDir;
+
+  for (;;) {
+    try {
+      return join(realpathSync.native(currentDir), ...missingSegments);
+    } catch {
+      const parentDir = dirname(currentDir);
+      if (parentDir === currentDir) return resolvedDir;
+
+      missingSegments.unshift(basename(currentDir));
+      currentDir = parentDir;
+    }
   }
 };
 
