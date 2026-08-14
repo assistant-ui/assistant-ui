@@ -43,35 +43,28 @@ export type SuggestionEntry = SuggestionItem | SuggestionGroup;
 
 type RawSuggestion =
   | SuggestionEntry
-  | { title: string; label: string; prompt: string }
-  | { prompt: string }
-  | string;
+  | { title: string; label: string; prompt: string };
 
 const isGroup = (entry: SuggestionEntry): entry is SuggestionGroup =>
   "suggestions" in entry;
 
 const promptOf = (item: SuggestionItem) => item.prompt ?? item.label;
 
-function normalizeItem(raw: RawSuggestion): SuggestionEntry {
-  if (typeof raw === "string") return { label: raw, prompt: raw };
-  if ("suggestions" in raw) {
-    return {
-      ...raw,
-      suggestions: raw.suggestions.map(
-        (s) => normalizeItem(s) as SuggestionItem,
-      ),
-    };
-  }
-  // Legacy runtime suggestions split one display sentence across title and
-  // label; string configs land as title with an empty label.
-  if ("title" in raw)
-    return {
-      label: [raw.title, raw.label].filter(Boolean).join(" "),
-      prompt: raw.prompt,
-    };
-  if ("label" in raw) return { ...raw, prompt: promptOf(raw) };
-  return { label: raw.prompt, prompt: raw.prompt };
-}
+// Legacy runtime suggestions split one display sentence across title and
+// label; string configs land as title with an empty label.
+const normalizeItem = (raw: RawSuggestion): SuggestionEntry =>
+  "title" in raw
+    ? {
+        label: [raw.title, raw.label].filter(Boolean).join(" "),
+        prompt: raw.prompt,
+      }
+    : raw;
+
+const acceptDraft = (aui: ReturnType<typeof useAui>, prompt: string) => {
+  if (aui.composer().getState().text) return false;
+  aui.composer().setText(prompt);
+  return true;
+};
 
 const PickerPromptsContext = createContext<Map<string, string> | null>(null);
 
@@ -201,10 +194,8 @@ type WelcomeSuggestionsContextValue = {
   selectCurrent: () => void;
   acceptCurrent: () => boolean;
   currentId: string | null;
-  setCurrentId: (id: string | null) => void;
   send: boolean;
   popoverId: string;
-  hasRegistry: boolean;
 };
 
 const WelcomeSuggestionsContext =
@@ -301,9 +292,8 @@ const useWelcomeSuggestionsState = ({
     const prompt = currentIdRef.current
       ? pickerPrompts.get(currentIdRef.current)
       : undefined;
-    if (prompt === undefined || aui.composer().getState().text) return false;
-    aui.composer().setText(prompt);
-    return true;
+    if (prompt === undefined) return false;
+    return acceptDraft(aui, prompt);
   }, [aui, pickerPrompts]);
 
   // Hover never previews: a wrapping ghost resizes the composer, shifting
@@ -371,10 +361,8 @@ const useWelcomeSuggestionsState = ({
       selectCurrent,
       acceptCurrent,
       currentId,
-      setCurrentId,
       send,
       popoverId,
-      hasRegistry: registry !== null,
     }),
     [
       entries,
@@ -390,7 +378,6 @@ const useWelcomeSuggestionsState = ({
       currentId,
       send,
       popoverId,
-      registry,
     ],
   );
 };
@@ -600,6 +587,28 @@ export const WelcomeSuggestionsPickerItem: FC<
   );
 };
 
+const GroupPickerItems: FC<
+  VariantProps<typeof welcomeSuggestionRowVariants> & {
+    group: SuggestionGroup;
+    itemIcon?: IconReveal | undefined;
+  }
+> = ({ group, itemIcon, highlight, density, separators }) => (
+  <>
+    {group.suggestions.map((item, idx) => (
+      <WelcomeSuggestionsPickerItem
+        key={idx}
+        prompt={promptOf(item)}
+        label={item.label}
+        icon={item.icon}
+        itemIcon={itemIcon}
+        highlight={highlight}
+        density={density}
+        separators={separators}
+      />
+    ))}
+  </>
+);
+
 // Mirrors Radix's DismissableLayer: a defaultPrevented pointerdown lets
 // outside controls act on the panel without dismissing it, and Escape is
 // consumed in the capture phase so enclosing handlers see it as handled.
@@ -635,10 +644,9 @@ const useDismissOutside = (
   }, [ref, active, onDismiss, onEscape]);
 };
 
-// Routes composer keydowns to panel navigation while a group is open; with
-// no registry, the listbox takes focus and the returned handler routes the
-// same keys. onExitEdge makes the arrow toward the composer, at its nearest
-// item, climb out a level instead of wrapping. Tab is intercepted because a
+// Routes composer keydowns to panel navigation while a group is open.
+// onExitEdge makes the arrow toward the composer, at its nearest item,
+// climb out a level instead of wrapping. Tab is intercepted because a
 // native move would land on the composer's neighbors, not the suggestions.
 const useComposerCoupling = ({
   listboxRef,
@@ -662,7 +670,6 @@ const useComposerCoupling = ({
     close,
     currentId,
     popoverId,
-    hasRegistry,
   } = useWelcomeSuggestions();
   const currentIdRef = useRef(currentId);
   currentIdRef.current = currentId;
@@ -750,24 +757,6 @@ const useComposerCoupling = ({
       highlightedItemId: currentId ?? undefined,
     });
   }, [registry, group, popoverId, currentId]);
-
-  useEffect(() => {
-    if (group && !hasRegistry) listboxRef.current?.focus();
-  }, [group, hasRegistry, listboxRef]);
-
-  const fallbackKeyDown = (e: ReactKeyboardEvent<HTMLDivElement>) => {
-    if (hasRegistry) return;
-    if (e.key === "ArrowDown") moveHighlight(1);
-    else if (e.key === "ArrowUp") moveHighlight(-1);
-    else if (e.key === "Enter") selectCurrent();
-    else if (e.key === acceptKey) {
-      if (!acceptCurrent()) return;
-    } else if (e.key === "Tab") onTab?.();
-    else return;
-    e.preventDefault();
-  };
-
-  return fallbackKeyDown;
 };
 
 export type WelcomeSuggestionsPickerProps = VariantProps<
@@ -784,8 +773,7 @@ export const WelcomeSuggestionsPicker: FC<WelcomeSuggestionsPickerProps> = ({
   separators,
   children,
 }) => {
-  const { entries, group, close, currentId, popoverId } =
-    useWelcomeSuggestions();
+  const { entries, group, close, popoverId } = useWelcomeSuggestions();
   const panelRef = useRef<HTMLDivElement>(null);
   const listboxRef = useRef<HTMLDivElement>(null);
 
@@ -800,7 +788,7 @@ export const WelcomeSuggestionsPicker: FC<WelcomeSuggestionsPickerProps> = ({
     });
   }, [group, entries, close, popoverId]);
 
-  const fallbackKeyDown = useComposerCoupling({
+  useComposerCoupling({
     listboxRef,
     onTab: returnToPills,
     onExitEdge: returnToPills,
@@ -837,24 +825,17 @@ export const WelcomeSuggestionsPicker: FC<WelcomeSuggestionsPickerProps> = ({
         id={popoverId}
         role="listbox"
         aria-label={group.label}
-        aria-activedescendant={currentId ?? undefined}
-        tabIndex={-1}
-        onKeyDown={fallbackKeyDown}
         className="flex flex-col outline-none"
       >
-        {children ??
-          group.suggestions.map((item, idx) => (
-            <WelcomeSuggestionsPickerItem
-              key={idx}
-              prompt={promptOf(item)}
-              label={item.label}
-              icon={item.icon}
-              itemIcon={itemIcon}
-              highlight={highlight}
-              density={density}
-              separators={separators}
-            />
-          ))}
+        {children ?? (
+          <GroupPickerItems
+            group={group}
+            itemIcon={itemIcon}
+            highlight={highlight}
+            density={density}
+            separators={separators}
+          />
+        )}
       </div>
     </div>
   );
@@ -876,17 +857,10 @@ export const WelcomeSuggestionsStack: FC<WelcomeSuggestionsStackProps> = ({
   separators,
   className,
 }) => {
-  const {
-    entries,
-    group,
-    openGroup,
-    close,
-    setGhost,
-    send,
-    currentId,
-    popoverId,
-  } = useWelcomeSuggestions();
+  const { entries, group, openGroup, close, setGhost, send, popoverId } =
+    useWelcomeSuggestions();
   const direction = useDirection();
+  const openKey = direction === "rtl" ? "ArrowLeft" : "ArrowRight";
   const registry = unstable_useComposerInputPluginRegistry();
   const aui = useAui();
   const composerText = useAuiState((s) => s.composer.text);
@@ -928,9 +902,7 @@ export const WelcomeSuggestionsStack: FC<WelcomeSuggestionsStackProps> = ({
     (idx: number) => {
       const entry = entries[idx];
       if (!entry || isGroup(entry)) return false;
-      if (aui.composer().getState().text) return false;
-      aui.composer().setText(promptOf(entry));
-      return true;
+      return acceptDraft(aui, promptOf(entry));
     },
     [entries, aui],
   );
@@ -948,15 +920,11 @@ export const WelcomeSuggestionsStack: FC<WelcomeSuggestionsStackProps> = ({
     close();
     if (idx === -1) return;
     setTopIdx(idx);
-    if (registry) {
-      enterComposerNav();
-      registry.requestFocus();
-    } else {
-      listRef.current?.focus({ preventScroll: true });
-    }
+    enterComposerNav();
+    registry?.requestFocus();
   }, [group, entries, close, registry, enterComposerNav]);
 
-  const fallbackKeyDown = useComposerCoupling({
+  useComposerCoupling({
     listboxRef: listRef,
     onEscape: returnToTop,
     onTab: returnToTop,
@@ -989,7 +957,6 @@ export const WelcomeSuggestionsStack: FC<WelcomeSuggestionsStackProps> = ({
   // the far edge clamps, and the adjacent edge exits instead of wrapping.
   useEffect(() => {
     if (!registry) return undefined;
-    const openKey = direction === "rtl" ? "ArrowLeft" : "ArrowRight";
     return registry.register({
       handleKeyDown(e) {
         if (group) return false;
@@ -1061,7 +1028,7 @@ export const WelcomeSuggestionsStack: FC<WelcomeSuggestionsStackProps> = ({
   }, [
     registry,
     group,
-    direction,
+    openKey,
     entries,
     openGroup,
     exitComposerNav,
@@ -1089,7 +1056,7 @@ export const WelcomeSuggestionsStack: FC<WelcomeSuggestionsStackProps> = ({
   });
 
   const onKeyDown = (e: ReactKeyboardEvent<HTMLDivElement>) => {
-    if (group) return fallbackKeyDown(e);
+    if (group) return;
     if (e.key === "ArrowDown" || e.key === "ArrowUp") {
       const idx = topIdxRef.current;
       const last = entries.length - 1;
@@ -1115,7 +1082,6 @@ export const WelcomeSuggestionsStack: FC<WelcomeSuggestionsStackProps> = ({
       e.preventDefault();
       return;
     }
-    const openKey = direction === "rtl" ? "ArrowLeft" : "ArrowRight";
     if (e.key !== openKey && e.key !== "Enter") return;
     if (topIdx === null) return;
     const entry = entries[topIdx];
@@ -1158,11 +1124,7 @@ export const WelcomeSuggestionsStack: FC<WelcomeSuggestionsStackProps> = ({
       role="listbox"
       aria-label={group ? group.label : "Suggestions"}
       aria-activedescendant={
-        group
-          ? (currentId ?? undefined)
-          : topIdx !== null
-            ? rowId(topIdx)
-            : undefined
+        !group && topIdx !== null ? rowId(topIdx) : undefined
       }
       tabIndex={group ? -1 : 0}
       onKeyDown={onKeyDown}
@@ -1196,64 +1158,61 @@ export const WelcomeSuggestionsStack: FC<WelcomeSuggestionsStackProps> = ({
         role="presentation"
         className="fade-in animate-in flex w-full flex-col duration-150"
       >
-        {group
-          ? group.suggestions.map((item, idx) => (
-              <WelcomeSuggestionsPickerItem
+        {group ? (
+          <GroupPickerItems
+            group={group}
+            itemIcon={itemIcon}
+            highlight={highlight}
+            density={density}
+            separators={separators}
+          />
+        ) : (
+          entries.map((entry, idx) =>
+            isGroup(entry) ? (
+              <button
                 key={idx}
-                prompt={promptOf(item)}
-                label={item.label}
-                icon={item.icon}
-                itemIcon={itemIcon}
-                highlight={highlight}
-                density={density}
-                separators={separators}
-              />
-            ))
-          : entries.map((entry, idx) =>
-              isGroup(entry) ? (
-                <button
-                  key={idx}
-                  type="button"
-                  {...rowProps(idx)}
-                  className={welcomeSuggestionRowVariants({
-                    highlight,
-                    density,
-                    separators,
-                  })}
-                  onClick={() => openGroup(entry)}
-                >
-                  {entry.icon}
-                  {entry.label}
-                  {groupIcon !== "off" && (
-                    <GroupIcon
-                      className={cn(
-                        trailingClass[groupIcon ?? "always"],
-                        "rtl:rotate-180",
-                      )}
-                    />
-                  )}
-                </button>
-              ) : (
-                <ThreadPrimitive.Suggestion
-                  key={idx}
-                  prompt={promptOf(entry)}
-                  send={send}
-                  {...rowProps(idx)}
-                  className={welcomeSuggestionRowVariants({
-                    highlight,
-                    density,
-                    separators,
-                  })}
-                  onClick={() => exitComposerNav()}
-                >
-                  {entry.icon}
-                  {entry.label}
-                  {itemIcon !== "off" && (
-                    <ItemIcon className={trailingClass[itemIcon ?? "always"]} />
-                  )}
-                </ThreadPrimitive.Suggestion>
-              ),
-            )}
+                type="button"
+                {...rowProps(idx)}
+                className={welcomeSuggestionRowVariants({
+                  highlight,
+                  density,
+                  separators,
+                })}
+                onClick={() => openGroup(entry)}
+              >
+                {entry.icon}
+                {entry.label}
+                {groupIcon !== "off" && (
+                  <GroupIcon
+                    className={cn(
+                      trailingClass[groupIcon ?? "always"],
+                      "rtl:rotate-180",
+                    )}
+                  />
+                )}
+              </button>
+            ) : (
+              <ThreadPrimitive.Suggestion
+                key={idx}
+                prompt={promptOf(entry)}
+                send={send}
+                {...rowProps(idx)}
+                className={welcomeSuggestionRowVariants({
+                  highlight,
+                  density,
+                  separators,
+                })}
+                onClick={() => exitComposerNav()}
+              >
+                {entry.icon}
+                {entry.label}
+                {itemIcon !== "off" && (
+                  <ItemIcon className={trailingClass[itemIcon ?? "always"]} />
+                )}
+              </ThreadPrimitive.Suggestion>
+            ),
+          )
+        )}
       </div>
     </div>
   );

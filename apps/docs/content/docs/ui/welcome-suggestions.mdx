@@ -348,7 +348,7 @@ Each part carries a stable `data-slot` attribute for CSS targeting from outside 
 
 ## Accessibility
 
-Each layout renders a single-tab-stop listbox and reports the highlighted row through `aria-activedescendant`. While a group is open, DOM focus stays in the composer input, which advertises the panel via the editable-combobox ARIA pattern, so screen readers track the highlight without focus ever leaving the text field. Composers without the input plugin registry (a plain `<textarea>` outside `ComposerPrimitive.Input`) fall back to the listbox taking focus and handling the same keys itself.
+Each layout renders a single-tab-stop listbox and reports the highlighted row through `aria-activedescendant`. While a group is open, DOM focus stays in the composer input, which advertises the panel via the editable-combobox ARIA pattern, so screen readers track the highlight without focus ever leaving the text field.
 
 ## API Reference
 
