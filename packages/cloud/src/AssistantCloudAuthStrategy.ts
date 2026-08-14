@@ -183,6 +183,12 @@ const LEGACY_AUI_REFRESH_TOKEN_NAME = "aui:refresh_token";
 const getRefreshTokenName = (baseUrl: string): string =>
   `${LEGACY_AUI_REFRESH_TOKEN_NAME}:${baseUrl}`;
 
+const removeLegacyRefreshToken = (storage: Storage): void => {
+  try {
+    storage.removeItem(LEGACY_AUI_REFRESH_TOKEN_NAME);
+  } catch {}
+};
+
 const getLocalStorage = (): Storage | null => {
   if (!("localStorage" in globalThis)) return null;
   try {
@@ -197,21 +203,26 @@ const readRefreshToken = (baseUrl: string): RefreshToken | undefined => {
   if (!storage) return undefined;
   try {
     const name = getRefreshTokenName(baseUrl);
-    let value = storage.getItem(name);
-    if (!value) {
-      value = storage.getItem(LEGACY_AUI_REFRESH_TOKEN_NAME);
-      if (value) {
-        storage.setItem(name, value);
-      }
-    }
+    const value = storage.getItem(name);
     if (value) {
-      try {
-        storage.removeItem(LEGACY_AUI_REFRESH_TOKEN_NAME);
-      } catch {}
+      removeLegacyRefreshToken(storage);
+      return JSON.parse(value) as RefreshToken;
     }
-    return value
-      ? (JSON.parse(value) as { token: string; expires_at: string })
-      : undefined;
+
+    const legacyValue = storage.getItem(LEGACY_AUI_REFRESH_TOKEN_NAME);
+    if (!legacyValue) return undefined;
+
+    let refreshToken: RefreshToken;
+    try {
+      refreshToken = JSON.parse(legacyValue) as RefreshToken;
+    } catch {
+      removeLegacyRefreshToken(storage);
+      return undefined;
+    }
+
+    storage.setItem(name, legacyValue);
+    removeLegacyRefreshToken(storage);
+    return refreshToken;
   } catch {
     return undefined;
   }
