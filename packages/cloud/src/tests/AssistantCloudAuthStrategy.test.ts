@@ -298,30 +298,35 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
     expect(setItem).not.toHaveBeenCalled();
   });
 
-  it("preserves the anonymous identity when refresh fails transiently", async () => {
-    const values = new Map([
-      ["aui:refresh_token", JSON.stringify(refreshToken)],
-    ]);
-    installLocalStorage({
-      getItem: (key) => values.get(key) ?? null,
-      setItem: (key, value) => {
-        values.set(key, value);
-      },
-      removeItem: (key) => {
-        values.delete(key);
-      },
-    } as Storage);
-    const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 503 });
-    vi.stubGlobal("fetch", fetchMock);
+  it.each([429, 500, 503])(
+    "preserves the anonymous identity after transient status %i",
+    async (status) => {
+      const values = new Map([
+        ["aui:refresh_token", JSON.stringify(refreshToken)],
+      ]);
+      installLocalStorage({
+        getItem: (key) => values.get(key) ?? null,
+        setItem: (key, value) => {
+          values.set(key, value);
+        },
+        removeItem: (key) => {
+          values.delete(key);
+        },
+      } as Storage);
+      const fetchMock = vi.fn().mockResolvedValue({ ok: false, status });
+      vi.stubGlobal("fetch", fetchMock);
 
-    const strategy = new AssistantCloudAnonymousAuthStrategy(baseUrl);
+      const strategy = new AssistantCloudAnonymousAuthStrategy(baseUrl);
 
-    await expect(strategy.getAuthHeaders()).rejects.toThrow(
-      "Assistant Cloud token refresh failed with status 503",
-    );
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(values.get("aui:refresh_token")).toBe(JSON.stringify(refreshToken));
-  });
+      await expect(strategy.getAuthHeaders()).rejects.toThrow(
+        `Assistant Cloud token refresh failed with status ${status}`,
+      );
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(values.get("aui:refresh_token")).toBe(
+        JSON.stringify(refreshToken),
+      );
+    },
+  );
 
   it.each([401, 403])(
     "replaces an anonymous identity after refresh is rejected with %i",

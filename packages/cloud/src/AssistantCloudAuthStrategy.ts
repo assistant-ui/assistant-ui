@@ -258,7 +258,7 @@ export class AssistantCloudAnonymousAuthStrategy implements AssistantCloudAuthSt
             return accessToken;
           }
 
-          if (response.status !== 401 && response.status !== 403) {
+          if (response.status === 429 || response.status >= 500) {
             throw new Error(
               `Assistant Cloud token refresh failed with status ${response.status}`,
             );
