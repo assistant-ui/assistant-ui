@@ -28,6 +28,10 @@ type ClientInternal = {
 
 const cleanupSafeClientMethods = new WeakSet<ClientMethods[string]>();
 
+/**
+ * @deprecated Experimental. Marks a client method as callable while
+ * descendant effects clean up. Do not depend on this lifecycle API.
+ */
 export const unstable_allowClientMethodDuringCleanup = <
   TMethod extends ClientMethods[string],
 >(
