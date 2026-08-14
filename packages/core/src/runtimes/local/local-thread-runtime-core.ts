@@ -27,6 +27,8 @@ import type {
 } from "../../types/message";
 import type { Attachment, CompleteAttachment } from "../../types/attachment";
 import type { RunConfig } from "../../types/message";
+import type { QuoteInfo } from "../../types/quote";
+import { getThreadMessageText } from "../../utils/text";
 import { toAssistantError } from "../../types/error";
 import type { ModelContextProvider } from "../../model-context/types";
 import {
@@ -86,6 +88,30 @@ export class LocalThreadRuntimeCore
   private _historyWrites = new Map<string, Promise<void>>();
 
   private _pendingAttachmentSend: Promise<void> | null = null;
+  private _attachmentSendGeneration = 0;
+  private _attachmentSendReleased: Promise<void> | null = null;
+  private _releaseAttachmentSend: (() => void) | null = null;
+
+  // `AttachmentAdapter.send` takes no abort signal, so an upload that never
+  // settles cannot be cancelled — but the ordering it holds must stay
+  // releasable, or every later append waits on it with no way out. Waiters
+  // race the chain against this signal; the generation tells work that resumes
+  // after a release that it no longer owns the tail.
+  private _awaitAttachmentSend(pending: Promise<void>): Promise<void> {
+    this._attachmentSendReleased ??= new Promise<void>((resolve) => {
+      this._releaseAttachmentSend = resolve;
+    });
+    return Promise.race([pending, this._attachmentSendReleased]);
+  }
+
+  private _releasePendingAttachmentSend(): void {
+    if (!this._pendingAttachmentSend) return;
+    this._attachmentSendGeneration++;
+    this._pendingAttachmentSend = null;
+    this._releaseAttachmentSend?.();
+    this._attachmentSendReleased = null;
+    this._releaseAttachmentSend = null;
+  }
 
   // An optimistic attachment send holds the thread tail until its upload
   // settles: a message sent meanwhile is appended immediately but must not
@@ -108,7 +134,7 @@ export class LocalThreadRuntimeCore
 
   private async _waitForAttachmentSendChain(): Promise<void> {
     while (this._pendingAttachmentSend) {
-      await this._pendingAttachmentSend;
+      await this._awaitAttachmentSend(this._pendingAttachmentSend);
     }
   }
 
@@ -386,7 +412,9 @@ export class LocalThreadRuntimeCore
     const pendingAttachmentSend = this._pendingAttachmentSend;
     if (pendingAttachmentSend) {
       this._notifySubscribers();
-      await pendingAttachmentSend;
+      await this._awaitAttachmentSend(pendingAttachmentSend);
+      // This await is unbounded: it lasts as long as the upload ahead of it.
+      if (!isThreadRuntimeGenerationCurrent(this, generation)) return;
     }
 
     // A rolled back optimistic parent relinks its children, so the persisted
@@ -422,6 +450,8 @@ export class LocalThreadRuntimeCore
     // gate reads the branch prefix the send was composed against, matching
     // `_runAppend`.
     const message = this.enrichAppendMetadata(rawMessage);
+    const generation = captureThreadRuntimeGeneration(this);
+    const sendGeneration = this._attachmentSendGeneration;
     this.ensureInitialized();
     const initPromise = this._getInitializePromise?.();
 
@@ -462,13 +492,24 @@ export class LocalThreadRuntimeCore
         this._notifySubscribers();
         throw e;
       }
+      if (!isThreadRuntimeGenerationCurrent(this, generation)) return;
+      if (sendGeneration !== this._attachmentSendGeneration) return;
 
-      // A message removed mid-upload ends this send's deferred work; the
-      // chain must still resolve so a queued send behind it proceeds.
+      // A message removed mid-upload (deleteMessage, a thread reset or import
+      // that cleared the repository) has nowhere to land. The composer was
+      // emptied at dispatch, so the uploaded draft is offered back to it
+      // rather than dropped without a message or an error.
       let parentId: string | null;
       try {
         parentId = this.repository.getMessage(optimisticMessage.id).parentId;
       } catch {
+        this.composer.restoreDraft({
+          text: getThreadMessageText(optimisticMessage),
+          attachments,
+          quote: optimisticMessage.metadata.custom?.["quote"] as
+            | QuoteInfo
+            | undefined,
+        });
         return;
       }
       // A head moved off this message's branch mid-upload (regenerate, branch
@@ -497,6 +538,9 @@ export class LocalThreadRuntimeCore
     });
 
     await this._waitForAttachmentSendChain();
+    if (!isThreadRuntimeGenerationCurrent(this, generation)) return;
+    // A cancel released this send's ordering; it must not then start a run.
+    if (sendGeneration !== this._attachmentSendGeneration) return;
 
     if (this.repository.headId !== optimisticMessage.id) {
       // A message sent during the upload already sits below this one and owns
@@ -857,6 +901,7 @@ export class LocalThreadRuntimeCore
     invalidateThreadRuntime(this);
     // drop the queue so pending items cannot dispatch on a detached thread
     this._queue = null;
+    this._releasePendingAttachmentSend();
     const error = new AbortError(true);
     this.abortController?.abort(error);
     this.abortController = null;
@@ -873,6 +918,9 @@ export class LocalThreadRuntimeCore
         if (this._activeRun) this._activeRun.cancelled = true;
       }
     }
+    // The thread's counterpart to the composer reset that releases a stalled
+    // send lock: a hung upload must not hold every later append forever.
+    this._releasePendingAttachmentSend();
     const error = new AbortError(false);
     this.abortController?.abort(error);
     this.abortController = null;

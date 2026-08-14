@@ -636,6 +636,65 @@ describe("LocalThreadRuntimeCore optimistic attachment sends", () => {
     expect(thread.messages.map((m) => m.role)).toEqual(["user", "assistant"]);
   });
 
+  it("drops the deferred persist and run when the runtime detaches mid-upload", async () => {
+    const { thread, runs, appended, uploads } = createOptimisticThread({
+      history: {},
+    });
+
+    thread.composer.setText("with attachment");
+    await thread.composer.addAttachment(textFile());
+    const sendPromise = thread.composer.send();
+    void sendPromise.catch(() => {});
+    await flush();
+
+    thread.detach();
+    uploads[0]!.resolve();
+    await flush();
+
+    expect(runs).toHaveLength(0);
+    expect(appended).toHaveLength(0);
+  });
+
+  it("releases an append waiting on a stalled upload when the run is cancelled", async () => {
+    const { thread, runs } = createOptimisticThread();
+
+    thread.composer.setText("with attachment");
+    await thread.composer.addAttachment(textFile());
+    void thread.composer.send().catch(() => {});
+    await flush();
+
+    thread.composer.setText("plain text");
+    void thread.composer.send().catch(() => {});
+    await flush();
+
+    expect(runs).toHaveLength(0);
+
+    thread.cancelRun();
+    await flush();
+
+    expect(runs).toHaveLength(1);
+  });
+
+  it("returns the uploaded draft to the composer when the thread is reset mid-upload", async () => {
+    const { thread, runs, uploads } = createOptimisticThread();
+
+    thread.composer.setText("with attachment");
+    await thread.composer.addAttachment(textFile());
+    const sendPromise = thread.composer.send();
+
+    thread.reset();
+    uploads[0]!.resolve();
+    await sendPromise;
+    await flush();
+
+    expect(thread.messages).toHaveLength(0);
+    expect(runs).toHaveLength(0);
+    expect(thread.composer.text).toBe("with attachment");
+    expect(thread.composer.attachments[0]?.status).toEqual({
+      type: "complete",
+    });
+  });
+
   it("skips the run without failing when the optimistic message is removed mid-upload", async () => {
     const { thread, runs, appended, uploads } = createOptimisticThread({
       history: {},
