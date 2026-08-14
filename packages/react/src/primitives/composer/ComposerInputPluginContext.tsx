@@ -6,4 +6,4 @@ export {
   type ComposerInputPlugin,
   type ComposerInputPluginRegisterOptions,
   type ComposerInputPluginRegistry,
-} from "@assistant-ui/core/internal";
+} from "@assistant-ui/core/react/internal";

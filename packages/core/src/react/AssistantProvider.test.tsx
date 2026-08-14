@@ -1,10 +1,9 @@
+// @vitest-environment jsdom
 import { describe, expect, it, vi } from "vitest";
-import type { FC, ReactElement, ReactNode } from "react";
-import {
-  AssistantProviderBase,
-  type AssistantProviderBaseProps,
-} from "./AssistantProvider";
-import { ComposerInputPluginProvider } from "./primitives/composer/ComposerInputPluginContext";
+import type { FC, ReactNode } from "react";
+import { render } from "@testing-library/react";
+import { AssistantProviderBase } from "./AssistantProvider";
+import { useComposerInputPluginRegistryOptional } from "./primitives/composer/ComposerInputPluginContext";
 import type { AssistantRuntime } from "../runtime/api/assistant-runtime";
 
 const { MockAuiProvider } = vi.hoisted(() => ({
@@ -23,25 +22,21 @@ vi.mock("@assistant-ui/store", async (importOriginal) => {
   };
 });
 
-const renderBase = (children: ReactNode) => {
-  const render = (
-    AssistantProviderBase as unknown as {
-      type: (props: AssistantProviderBaseProps) => ReactElement<{
-        children: [unknown, ReactElement<{ children: ReactNode }>];
-      }>;
-    }
-  ).type;
-  return render({ runtime: {} as AssistantRuntime, children });
-};
-
 describe("AssistantProviderBase", () => {
   it("mounts the composer input plugin registry at the assistant scope", () => {
-    const sentinel = <div />;
-    const element = renderBase(sentinel);
+    let registry: unknown;
+    const Probe = () => {
+      registry = useComposerInputPluginRegistryOptional();
+      return null;
+    };
 
-    expect(element.type).toBe(MockAuiProvider);
-    const [, pluginProvider] = element.props.children;
-    expect(pluginProvider.type).toBe(ComposerInputPluginProvider);
-    expect(pluginProvider.props.children).toBe(sentinel);
+    render(
+      <AssistantProviderBase runtime={{} as AssistantRuntime}>
+        <Probe />
+      </AssistantProviderBase>,
+    );
+
+    expect(registry).not.toBeNull();
+    expect(registry).toBeDefined();
   });
 });
