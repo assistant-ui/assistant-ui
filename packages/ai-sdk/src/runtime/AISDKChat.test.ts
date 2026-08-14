@@ -1,10 +1,14 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { flushTapSync } from "@assistant-ui/tap";
 import { AuiConfig, createAssistantClient } from "@assistant-ui/store/client";
 import { AISDKChat } from "./AISDKChat";
 import { createControlledTransport } from "./__tests__/controlled-transport";
 
 describe("AISDKChat as a standalone client config entry", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it("streams a chat round trip without React", async () => {
     const { transport, emit, close } = createControlledTransport();
     const handle = createAssistantClient(
@@ -133,7 +137,6 @@ describe("AISDKChat as a standalone client config entry", () => {
       expect(body.messages).toHaveLength(1);
     } finally {
       handle.destroy();
-      vi.unstubAllGlobals();
     }
   });
 });
