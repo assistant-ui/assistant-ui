@@ -2,4 +2,4 @@
 "@assistant-ui/react": patch
 ---
 
-fix: cancel unfinished assistant transport responses when response callbacks fail
+fix: await assistant transport response callbacks and cancel unfinished responses when they fail
