@@ -323,11 +323,54 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
     expect(values.get("aui:refresh_token")).toBe(JSON.stringify(refreshToken));
   });
 
-  it("replaces an anonymous identity after the refresh token is rejected", async () => {
-    const replacementRefreshToken = {
-      token: "r2",
-      expires_at: "2099-02-01",
-    };
+  it.each([401, 403])(
+    "replaces an anonymous identity after refresh is rejected with %i",
+    async (status) => {
+      const replacementRefreshToken = {
+        token: "r2",
+        expires_at: "2099-02-01",
+      };
+      const values = new Map([
+        ["aui:refresh_token", JSON.stringify(refreshToken)],
+      ]);
+      installLocalStorage({
+        getItem: (key) => values.get(key) ?? null,
+        setItem: (key, value) => {
+          values.set(key, value);
+        },
+        removeItem: (key) => {
+          values.delete(key);
+        },
+      } as Storage);
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValueOnce({ ok: false, status })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: vi.fn().mockResolvedValue({
+            access_token: accessToken,
+            refresh_token: replacementRefreshToken,
+          }),
+        });
+      vi.stubGlobal("fetch", fetchMock);
+
+      const strategy = new AssistantCloudAnonymousAuthStrategy(baseUrl);
+
+      await expect(strategy.getAuthHeaders()).resolves.toEqual({
+        Authorization: `Bearer ${accessToken}`,
+      });
+      expect(fetchMock).toHaveBeenNthCalledWith(
+        2,
+        `${baseUrl}/v1/auth/tokens/anonymous`,
+        { method: "POST" },
+      );
+      expect(values.get("aui:refresh_token")).toBe(
+        JSON.stringify(replacementRefreshToken),
+      );
+    },
+  );
+
+  it("preserves a rejected refresh token until its replacement succeeds", async () => {
     const values = new Map([
       ["aui:refresh_token", JSON.stringify(refreshToken)],
     ]);
@@ -340,31 +383,18 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
         values.delete(key);
       },
     } as Storage);
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce({ ok: false, status: 403 })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: vi.fn().mockResolvedValue({
-          access_token: accessToken,
-          refresh_token: replacementRefreshToken,
-        }),
-      });
-    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce({ ok: false, status: 403 })
+        .mockResolvedValueOnce({ ok: false, status: 503 }),
+    );
 
     const strategy = new AssistantCloudAnonymousAuthStrategy(baseUrl);
 
-    await expect(strategy.getAuthHeaders()).resolves.toEqual({
-      Authorization: `Bearer ${accessToken}`,
-    });
-    expect(fetchMock).toHaveBeenNthCalledWith(
-      2,
-      `${baseUrl}/v1/auth/tokens/anonymous`,
-      { method: "POST" },
-    );
-    expect(values.get("aui:refresh_token")).toBe(
-      JSON.stringify(replacementRefreshToken),
-    );
+    await expect(strategy.getAuthHeaders()).resolves.toBe(false);
+    expect(values.get("aui:refresh_token")).toBe(JSON.stringify(refreshToken));
   });
 
   it("contextualizes invalid JSON token responses", async () => {
