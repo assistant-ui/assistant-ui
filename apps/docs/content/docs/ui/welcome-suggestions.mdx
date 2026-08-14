@@ -6,7 +6,7 @@ platforms: ["react"]
 
 import { WelcomeSuggestionsSample } from "@/components/docs/samples/welcome-suggestions";
 
-`ThreadWelcomeSuggestions` renders starter prompts next to the composer of a new thread. Flat entries send their prompt on click; a group opens its items in place, navigated from the composer with a live prompt preview; <Kbd>→</Kbd> accepts the preview into the composer for editing. Two layouts ship: a [pill row with a picker panel](#pills--picker) and a [stacked vertical list](#stacked) (ChatGPT-style). By default the layout follows the entries: the pill row when any entry is a group, the stacked layout when every entry is flat. Either drops in next to any composer without wrapper elements or thread layout changes.
+`ThreadWelcomeSuggestions` renders starter prompts next to the composer of a new thread. Flat entries send their prompt on click; a group opens its items in place, navigated from the composer with a live prompt preview; <Kbd>→</Kbd> accepts the preview into the composer for editing. Two layouts ship: a [pill row with a picker panel](#pills--picker) and a [stacked vertical list](#stacked) (ChatGPT-style). By default the layout follows the entries: the pill row when any entry is a group, the stacked layout when every entry is flat.
 
 <WelcomeSuggestionsSample />
 
@@ -81,14 +81,14 @@ Wrap it in `AuiIf` so the suggestions leave once the conversation starts:
 </ThreadPrimitive.ViewportFooter>
 ```
 
-Rendering it before `<Composer />` works too — DOM order decides the side, and the component flips accordingly; see [Above the composer](#above-the-composer).
+Rendering it before `<Composer />` places it above the composer instead; see [Above the composer](#above-the-composer).
 
   </Step>
 </Steps>
 
 ## Anatomy
 
-The whole API at a glance: every part in place, every knob with its values. `ThreadWelcomeSuggestions` is `Root` plus the layout picked by the shape of the entries; compose `Root` yourself to pin a layout or set any of the props:
+`ThreadWelcomeSuggestions` is `Root` plus the layout picked by the shape of the entries; compose `Root` yourself to pin a layout or set any of the props:
 
 ```tsx
 import {
@@ -137,13 +137,11 @@ import {
 </WelcomeSuggestionsPicker>;
 ```
 
-Each shape is unpacked in the sections below.
-
 ## Layouts
 
 Both layouts compose the same `WelcomeSuggestionsRoot` and render the same entries; only the presentation differs. `ThreadWelcomeSuggestions` picks one automatically: the pill row when any group is present, the stacked layout when every entry is flat. Compose the pieces yourself to pin a layout.
 
-Flat items send their prompt on click in either layout. Groups drill in: the stacked layout shows the group's items where the list was, while the pill row opens a picker panel above it. Mixing the two kinds is fine, and with only flat entries no second level ever opens: the stacked layout is a plain list of prompts and the pill row behaves like a classic suggestion chip row.
+Flat items send their prompt on click in either layout. Groups drill in: the stacked layout shows the group's items where the list was, while the pill row opens a picker panel above it. Flat items and groups can be mixed; with only flat entries, no second level ever opens.
 
 ### Pills + picker
 
@@ -179,7 +177,7 @@ import {
 
 ### Above the composer
 
-Either layout can sit on either side of the composer, and DOM order is the whole configuration: render the component before the composer instead of after it (the natural shape when there is no room below, e.g. a composer pinned to the bottom of the screen) and everything follows. The flip is plain CSS — the root reads the sibling relation with `:has(~ …)` — so the very first paint is correct, with no measuring, no prop, and no script. The keyboard reads the same DOM order: <Kbd>↑</Kbd> from the start of the composer text enters the suggestions on the composer-adjacent row, and the arrow back toward the composer exits. The one requirement is the standard arrangement the component already assumes: the suggestions and the composer render as siblings. The flat entries example in the demo above places the composer at the bottom.
+Render the component before the composer to place it above. The layout and the vertical arrow directions flip automatically based on DOM order. The suggestions and the composer must render as siblings.
 
 ## Insert Instead of Send
 
@@ -189,11 +187,11 @@ Selecting a suggestion goes through `ThreadPrimitive.Suggestion`: by default it 
 <ThreadWelcomeSuggestions suggestions={WELCOME_SUGGESTIONS} send={false} />
 ```
 
-The same prop exists on `WelcomeSuggestionsRoot` when composing a layout yourself. The trailing ↵ enter icon stays accurate in both modes, since <Kbd>Enter</Kbd> on a highlighted row performs the selection either way; pass `itemIcon="off"` to drop it.
+The same prop exists on `WelcomeSuggestionsRoot` when composing a layout yourself.
 
 ## Trailing Icons
 
-Rows carry two trailing icons: a chevron on group rows (the row opens a second level) and a ↵ enter icon on action rows (flat rows and an open group's items). Both flip in RTL. `groupIcon` and `itemIcon` set each one's visibility independently:
+Rows carry two trailing icons: a chevron on group rows and a ↵ enter icon on action rows (flat rows and an open group's items). Both flip in RTL. `groupIcon` and `itemIcon` set each one's visibility independently:
 
 ```tsx
 <WelcomeSuggestionsRoot suggestions={WELCOME_SUGGESTIONS}>
@@ -204,12 +202,12 @@ Rows carry two trailing icons: a chevron on group rows (the row opens a second l
 | Value      | Behavior                                                                                        |
 | ---------- | ----------------------------------------------------------------------------------------------- |
 | `"always"` | Icon is always visible (default)                                                                |
-| `"hover"`  | Icon appears on the highlighted row; the highlight follows hover and the arrow keys alike      |
+| `"hover"`  | Shown on the highlighted row (hover or arrow keys)                                              |
 | `"off"`    | Icon is not rendered                                                                            |
 
 The picker panel has no group rows, so `WelcomeSuggestionsPicker` takes only `itemIcon`.
 
-To change the icons themselves, swap the two constants at the top of your copy of the file; every row picks them up:
+To change the icons themselves, swap the two constants at the top of the file:
 
 ```tsx title="/components/assistant-ui/welcome-suggestions.tsx"
 // The trailing row icons; swap these to customize.
@@ -219,7 +217,7 @@ const ItemIcon = CornerDownLeftIcon;
 
 ## Row Styling
 
-Rows default to comfortable spacing with hairline dividers, hidden around the highlighted row. The highlight itself comes in three flavors. All are per-layout props:
+Each layout takes three row styling props:
 
 ```tsx
 <WelcomeSuggestionsStack variant="text" density="compact" separators={false} />
@@ -231,7 +229,7 @@ Rows default to comfortable spacing with hairline dividers, hidden around the hi
 | `density`    | `"comfortable"` (default) or `"compact"`      |
 | `separators` | `true` (default) or `false`                   |
 
-`ghost` fills the highlighted row with a muted background. `text` brightens only the label, with the trailing icon lifting partway so it stays quieter than the text. `outline` draws an inset ring, so the moving highlight never shifts the rows.
+`ghost` gives the highlighted row a muted background. `text` brightens the label and trailing icon. `outline` draws an inset ring around the row.
 
 The sub-level rows inherit `variant`, `density`, `separators`, and `itemIcon` from the `Stack` or `Picker` that renders them.
 
@@ -252,7 +250,7 @@ Each pill is its own tab stop:
 
 ### Stacked list
 
-The list is a single tab stop with one highlight shared by hover and the arrow keys, and both ways in behave identically: whether the list itself is tabbed to or the composer drives the arrows, movement clamps the same way, rows preview the same way, and <Kbd>↑</Kbd> off the top lands in the composer. <Kbd>↓</Kbd> first navigates the composer text; once the caret has no text left to traverse, the next <Kbd>↓</Kbd> enters the list; the composer keeps focus the whole time, so typing at any point just resumes composing. Top-level rows stay passive and never intercept typing:
+The list is a single tab stop with one highlight shared by hover and the arrow keys. <Kbd>↓</Kbd> at the end of the composer text enters the list; the composer keeps focus throughout, so typing at any point resumes composing:
 
 | Key                             | Action                                                                                                                                                                                     |
 | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -277,11 +275,11 @@ In either layout, the composer keeps focus and drives the panel:
 
 ### Ghost previews
 
-A preview is ghost text in the composer's native placeholder, never the draft: only arrow-key navigation previews (hover moves the highlight without touching the composer, so the layout never shifts under the cursor), it only shows while the composer is empty, and it inherits the placeholder styling of any composer with no extra setup. Typing, sending, and every way out of a panel leave the draft exactly as it was; selecting an item commits through the regular suggestion action, and <Kbd>→</Kbd> (<Kbd>←</Kbd> in RTL) accepts the preview as an editable draft, like accepting shell or editor ghost text.
+A preview is ghost text in the composer's native placeholder, never the draft: only arrow-key navigation previews, and only while the composer is empty. Selecting commits through the regular suggestion action; <Kbd>→</Kbd> (<Kbd>←</Kbd> in RTL) accepts the preview as an editable draft.
 
 ### Dismissal
 
-An open panel dismisses on outside pointer-down; an outside control can call `event.preventDefault()` on its pointer-down to act on the open panel without dismissing it, the same opt-out Radix's `DismissableLayer` uses. <Kbd>Esc</Kbd> is consumed the way a Radix layer consumes it, so an enclosing dialog stays open when the panel closes.
+An open panel dismisses on outside pointer-down; an outside control can call `event.preventDefault()` on its pointer-down to keep the panel open. <Kbd>Esc</Kbd> closes the panel without propagating, so an enclosing dialog stays open.
 
 ## Composition
 
@@ -335,7 +333,7 @@ const CustomPicker = () => {
 
 ### Sizing
 
-The root renders as a full-width sibling of the composer, so it matches the composer's width by default. To size the pair, wrap the composer and the suggestions together — the side flip reads their sibling relation, so a wrapper around the suggestions alone would break it. The pill row, the picker panel, and the stacked layout all scale with the root:
+The root matches the composer's width. To size it, wrap the composer and the suggestions together; the two must stay siblings:
 
 ```tsx
 <div className="mx-auto w-[90%]">
@@ -437,8 +435,7 @@ A flat item or a group:
       name: "variant",
       type: '"ghost" | "text" | "outline"',
       default: '"ghost"',
-      description:
-        "Row highlight style: muted fill, text-only brightening, or an inset outline.",
+      description: "Row highlight style.",
     },
     {
       name: "density",
@@ -451,7 +448,7 @@ A flat item or a group:
       type: "boolean",
       default: "true",
       description:
-        "Hairline dividers between rows, hidden around the highlighted row.",
+        "Hairline dividers between rows.",
     },
     {
       name: "className",
@@ -477,8 +474,7 @@ A flat item or a group:
       name: "variant",
       type: '"ghost" | "text" | "outline"',
       default: '"ghost"',
-      description:
-        "Row highlight style: muted fill, text-only brightening, or an inset outline.",
+      description: "Row highlight style.",
     },
     {
       name: "density",
@@ -534,8 +530,7 @@ Accepts all `<button>` props except `onClick`, plus:
       name: "variant",
       type: '"ghost" | "text" | "outline"',
       default: '"ghost"',
-      description:
-        "Row highlight style: muted fill, text-only brightening, or an inset outline.",
+      description: "Row highlight style.",
     },
     {
       name: "density",
@@ -554,7 +549,7 @@ Accepts all `<button>` props except `onClick`, plus:
 
 ### `useWelcomeSuggestions`
 
-`WelcomeSuggestionsRoot` keeps the widget's shared state (the entry list and which group is currently open) in a React context, and the shipped parts (`Pills`, `Picker`, `Stack`) all read from it. You never need this hook to *use* those parts. You need it when you **replace** one of them with your own UI, because only the context knows what the user has opened:
+Reads the shared context from `WelcomeSuggestionsRoot`: the entry list and the currently open group. Only needed when replacing a shipped part with custom UI:
 
 ```tsx
 const { entries, group, openGroup, close } = useWelcomeSuggestions();
@@ -567,7 +562,7 @@ const { entries, group, openGroup, close } = useWelcomeSuggestions();
 | `openGroup(group)` | Open a group's second level (pass an entry from `entries`)                              |
 | `close()`          | Close the open group and return to the top level                                        |
 
-Typical uses: rendering your own rows for the open group ([custom picker rows](#custom-picker-rows) reads `group`), a back or close button in a custom header (`close()`), a bespoke top level that isn't the pill row or the stacked layout but still drills into groups (`openGroup(entry)`), or hiding surrounding UI while a panel is open (`group !== undefined`). Any component calling it must be inside `WelcomeSuggestionsRoot`; it throws otherwise.
+Must be called inside `WelcomeSuggestionsRoot`; throws otherwise.
 
 ## Related
 
