@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { resource, withKey } from "@assistant-ui/tap";
 import type { ClientElement, ClientOutput } from "@assistant-ui/store";
 import {
+  unstable_allowClientMethodDuringCleanup,
   useClientLookup,
   attachTransformScopes,
   useClientResource,
@@ -1237,7 +1238,7 @@ const useExternalThread = ({
         );
       onResume();
     },
-    cancelRun: handleCancelRun,
+    cancelRun: unstable_allowClientMethodDuringCleanup(handleCancelRun),
     ...(onRefetchThread && { unstable_refetchThread: onRefetchThread }),
     importExternalState: (state: unknown) => {
       if (!onLoadExternalState)

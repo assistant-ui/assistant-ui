@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { Activity, type FC, type ReactNode, useEffect } from "react";
+import { Activity, type FC, type ReactNode, useEffect, useState } from "react";
 import { act, cleanup, render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { resource, withKey } from "@assistant-ui/tap";
@@ -10,6 +10,7 @@ import { RenderChildrenWithAccessor } from "../RenderChildrenWithAccessor";
 import { useAui } from "../useAui";
 import { useAuiState } from "../useAuiState";
 import { useClientLookup } from "../useClientLookup";
+import { unstable_allowClientMethodDuringCleanup } from "../useClientResource";
 
 const useItem = ({ id }: { id: string }) => {
   const state = { id };
@@ -147,18 +148,22 @@ describe("proxy invariants", () => {
 
   it("allows cleanup cancellation while denying other stale actions", async () => {
     const cancelRun = vi.fn();
+    const cancel = vi.fn();
     const send = vi.fn();
     let cancelThreadRun!: () => void;
+    let cancelComposer!: () => void;
     let sendMessage!: () => void;
     const useCancelableThread = () => ({
       getState: () => null,
-      cancelRun,
+      cancelRun: unstable_allowClientMethodDuringCleanup(cancelRun),
+      cancel,
       send,
     });
     const CancelableThread = resource(useCancelableThread);
     const Consumer: FC = () => {
       const aui = useAui();
       cancelThreadRun = aui.thread.cancelRun;
+      cancelComposer = aui.thread.cancel;
       sendMessage = aui.thread.send;
       useEffect(() => () => aui.thread.cancelRun(), [aui]);
       return null;
@@ -179,8 +184,13 @@ describe("proxy invariants", () => {
     view.unmount();
     expect(cancelRun).toHaveBeenCalledTimes(1);
 
+    cancelComposer();
     sendMessage();
+    expect(cancel).not.toHaveBeenCalled();
     expect(send).not.toHaveBeenCalled();
+    expect(warning).toHaveBeenCalledWith(
+      'Cannot call "cancel" on a disconnected AuiClient. This call was ignored.',
+    );
     expect(warning).toHaveBeenCalledWith(
       'Cannot call "send" on a disconnected AuiClient. This call was ignored.',
     );
@@ -224,6 +234,35 @@ describe("proxy invariants", () => {
     await new Promise<void>((resolve) => queueMicrotask(resolve));
 
     expect(client.echo("visible")).toBe("visible");
+    expect(warning).not.toHaveBeenCalled();
+  });
+
+  it("reconnects before descendant effects run", async () => {
+    const calls: string[] = [];
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const Consumer: FC = () => {
+      const aui = useAui();
+      const [client] = useState(() => aui.thread().item({ index: 0 }));
+      useEffect(() => {
+        calls.push(client.echo("effect"));
+      }, [client]);
+      return null;
+    };
+    const app = (
+      <App>
+        <Consumer />
+      </App>
+    );
+    const view = render(<Activity mode="visible">{app}</Activity>);
+
+    expect(calls).toEqual(["effect"]);
+    await act(async () => {
+      view.rerender(<Activity mode="hidden">{app}</Activity>);
+      await new Promise<void>((resolve) => queueMicrotask(resolve));
+    });
+    act(() => view.rerender(<Activity mode="visible">{app}</Activity>));
+
+    expect(calls).toEqual(["effect", "effect"]);
     expect(warning).not.toHaveBeenCalled();
   });
 

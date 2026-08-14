@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { resource, useResource, type ResourceElement } from "@assistant-ui/tap";
 import type { ClientMethods, InferClientState } from "./types/client";
 import {
@@ -26,8 +26,20 @@ type ClientInternal = {
   [SYMBOL_CONNECTION_PHASE]: ClientConnectionPhase;
 };
 
-const isCleanupSafeMethod = (prop: string | symbol) =>
-  prop === "cancel" || prop === "cancelRun";
+const cleanupSafeClientMethods = new WeakSet<ClientMethods[string]>();
+
+export const unstable_allowClientMethodDuringCleanup = <
+  TMethod extends ClientMethods[string],
+>(
+  method: TMethod,
+): TMethod => {
+  cleanupSafeClientMethods.add(method);
+  return method;
+};
+
+const isCleanupSafeMethod = (
+  method: ClientMethods[string] | undefined,
+): boolean => method !== undefined && cleanupSafeClientMethods.has(method);
 
 let clientReadDepth = 0;
 export const runClientRead = <T>(read: () => T): T => {
@@ -75,13 +87,14 @@ function getOrCreateProxyFn(prop: string | symbol) {
         );
       }
 
+      const method = output[prop];
       const connectionPhase = (this as ClientInternal)[SYMBOL_CONNECTION_PHASE];
       if (
         prop !== "getState" &&
         prop !== "subscribe" &&
         clientReadDepth === 0 &&
         connectionPhase !== "connected" &&
-        !(connectionPhase === "cleanup" && isCleanupSafeMethod(prop))
+        !(connectionPhase === "cleanup" && isCleanupSafeMethod(method))
       ) {
         console.warn(
           `Cannot call "${String(prop)}" on a disconnected AuiClient. This call was ignored.`,
@@ -89,7 +102,6 @@ function getOrCreateProxyFn(prop: string | symbol) {
         return undefined;
       }
 
-      const method = output[prop];
       if (!method)
         throw new Error(`Method "${String(prop)}" is not implemented.`);
       if (typeof method !== "function")
@@ -215,9 +227,13 @@ export const useClientResource = <TMethods extends ClientMethods>(
     return handler.createProxy<TMethods>();
   }, [index]);
 
-  useEffect(() => {
-    const generation = ++connectionLifecycle.generation;
+  useLayoutEffect(() => {
+    ++connectionLifecycle.generation;
     connectionPhaseRef.current = "connected";
+  }, [connectionLifecycle]);
+
+  useEffect(() => {
+    const generation = connectionLifecycle.generation;
     return () => {
       // Cancellation remains available while descendant effects clean up.
       connectionPhaseRef.current = "cleanup";
