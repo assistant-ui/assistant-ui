@@ -4,10 +4,7 @@ import { defineConfig } from "vitest/config";
 
 const packageRoot = fileURLToPath(new URL(".", import.meta.url));
 const mcpStdioNode = resolve(packageRoot, "src/tools/mcp-stdio.node.ts");
-const standaloneShim = resolve(
-  packageRoot,
-  "../tap/dist/standalone-shim/index.js",
-);
+const standaloneShim = "@assistant-ui/tap/standalone-shim";
 
 export default defineConfig({
   test: {
@@ -32,24 +29,15 @@ export default defineConfig({
             { find: "#mcp-stdio", replacement: mcpStdioNode },
             {
               find: /^react\/compiler-runtime$/,
-              replacement: resolve(
-                packageRoot,
-                "../tap/dist/standalone-shim/compiler-runtime.js",
-              ),
+              replacement: "@assistant-ui/tap/standalone-shim/compiler-runtime",
             },
             {
               find: /^react\/jsx-runtime$/,
-              replacement: resolve(
-                packageRoot,
-                "../tap/dist/standalone-shim/jsx-runtime.js",
-              ),
+              replacement: "@assistant-ui/tap/standalone-shim/jsx-runtime",
             },
             {
               find: /^react\/jsx-dev-runtime$/,
-              replacement: resolve(
-                packageRoot,
-                "../tap/dist/standalone-shim/jsx-dev-runtime.js",
-              ),
+              replacement: "@assistant-ui/tap/standalone-shim/jsx-dev-runtime",
             },
             { find: /^react$/, replacement: standaloneShim },
           ],
