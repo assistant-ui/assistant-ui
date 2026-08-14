@@ -5,6 +5,7 @@
 export type {
   ThreadsState,
   ThreadsMethods,
+  ThreadsEvents,
   ThreadsClientSchema,
 } from "./scopes/threads";
 export type {

@@ -1,13 +1,13 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useState, useMemo } from "react";
 import { resource, withKey, type ResourceElement } from "@assistant-ui/tap";
 import {
   type ClientOutput,
-  useAssistantEmit,
   useClientLookup,
   Derived,
   attachTransformScopes,
   useClientResource,
 } from "@assistant-ui/store";
+import { useThreadSelectionEvents } from "@assistant-ui/core/store/internal";
 import { generateId } from "@assistant-ui/core";
 
 import { ModelContext } from "@assistant-ui/core/store";
@@ -93,17 +93,7 @@ const useInMemoryThreadList = (
     { id: "main", title: "Main Thread", status: "regular" },
   ]);
 
-  const emit = useAssistantEmit();
-  const previousMainThreadIdRef = useRef(mainThreadId);
-  useEffect(() => {
-    const previousThreadId = previousMainThreadIdRef.current;
-    if (previousThreadId === mainThreadId) return;
-    previousMainThreadIdRef.current = mainThreadId;
-    emit("threads.selectionChanged", {
-      threadId: mainThreadId,
-      previousThreadId,
-    });
-  }, [mainThreadId, emit]);
+  useThreadSelectionEvents(mainThreadId);
 
   const handleSwitchToThread = (threadId: string) => {
     setMainThreadId(threadId);
