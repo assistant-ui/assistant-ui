@@ -113,6 +113,39 @@ describe("@assistant-ui/tap/standalone-shim behavior", () => {
 
     root.unmount();
   });
+  it("serves stable per-instance ids and imperative handles", () => {
+    const Handle = resource(function HandleResource() {
+      const id = shim.useId();
+      const ref = shim.useRef<{ focus(): string } | null>(null);
+      shim.useImperativeHandle(ref, () => ({ focus: () => id }), [id]);
+      return { id, ref };
+    });
+    const root = createTapRoot(function Root() {
+      const first = useResource(Handle(), { key: "first" });
+      const second = useResource(Handle(), { key: "second" });
+      const [, rerender] = shim.useState(0);
+      return { first, second, rerender };
+    });
+    root.subscribe(() => {});
+
+    const initial = root.getValue();
+    expect(initial.first.id).not.toBe(initial.second.id);
+    expect(initial.first.ref.current!.focus()).toBe(initial.first.id);
+
+    flushTapSync(() => root.getValue().rerender((n: number) => n + 1));
+    expect(root.getValue().first.id).toBe(initial.first.id);
+
+    root.unmount();
+    expect(initial.first.ref.current).toBe(null);
+  });
+
+  it("keeps the module-scope JSX surface loadable but unrenderable", () => {
+    expect(shim.Fragment).toBe(jsxRuntime.Fragment);
+    expect(() => (shim.createElement as () => never)()).toThrowError(
+      /rendering them requires real React/,
+    );
+  });
+
   it("keeps component factories loadable but their JSX unrenderable", () => {
     const render = () => null;
     expect(shim.forwardRef(render)).toEqual({

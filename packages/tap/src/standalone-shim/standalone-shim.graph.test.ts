@@ -26,6 +26,8 @@ const ALLOWED_SHIM_EXPORTS = [
   "useDebugValue",
   "useEffect",
   "useEffectEvent",
+  "useId",
+  "useImperativeHandle",
   "useInsertionEffect",
   "useLayoutEffect",
   "useMemo",
@@ -35,6 +37,8 @@ const ALLOWED_SHIM_EXPORTS = [
   "useSyncExternalStore",
   "forwardRef",
   "memo",
+  "Fragment",
+  "createElement",
 ] as const;
 
 type ModuleReference = {

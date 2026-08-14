@@ -66,6 +66,27 @@ export const useSyncExternalStore = (
 export const useDebugValue = (value: any, format?: any) =>
   inTap() ? useTapDebugValue(value, format) : throwOutsideTap("useDebugValue");
 
+let nextId = 0;
+
+export const useId = () =>
+  inTap() ? useTapState(() => `:tap${nextId++}:`)[0] : throwOutsideTap("useId");
+
+export const useImperativeHandle = (ref: any, create: any, deps?: any) =>
+  inTap()
+    ? useTapEffect(() => {
+        if (!ref) return undefined;
+        const value = create();
+        if (typeof ref === "function") {
+          ref(value);
+          return () => ref(null);
+        }
+        ref.current = value;
+        return () => {
+          ref.current = null;
+        };
+      }, deps)
+    : throwOutsideTap("useImperativeHandle");
+
 export const createContext = (defaultValue: any) => {
   const context = {};
   attachDefaultValueToContext(context as any, defaultValue);
@@ -92,6 +113,14 @@ export const memo = (type: any, compare?: any) => ({
   compare: compare ?? null,
 });
 
+export const Fragment = Symbol.for("react.fragment");
+
+export const createElement = (): never => {
+  throw new Error(
+    "createElement from @assistant-ui/tap/standalone-shim was called without React. The standalone shim only makes react-coupled modules loadable; rendering them requires real React.",
+  );
+};
+
 const StandaloneRuntime = Object.freeze({
   useState,
   useReducer,
@@ -104,11 +133,15 @@ const StandaloneRuntime = Object.freeze({
   useEffectEvent,
   useSyncExternalStore,
   useDebugValue,
+  useId,
+  useImperativeHandle,
   createContext,
   use,
   useContext,
   forwardRef,
   memo,
+  Fragment,
+  createElement,
 });
 
 export default StandaloneRuntime;

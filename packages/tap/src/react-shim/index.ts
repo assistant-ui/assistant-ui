@@ -76,6 +76,46 @@ export const useDebugValue = (value: any, format?: any) =>
     ? hooks.useDebugValue(value, format)
     : ReactRuntime.useDebugValue(value, format);
 
+export const useInsertionEffect = (effect: any, deps?: any) =>
+  inTap()
+    ? hooks.useEffect(effect, deps)
+    : ReactRuntime.useInsertionEffect(effect, deps);
+
+let nextTapId = 0;
+
+export const useId = () =>
+  inTap()
+    ? hooks.useState(() => `:tap${nextTapId++}:`)[0]
+    : ReactRuntime.useId();
+
+export const useImperativeHandle = (ref: any, create: any, deps?: any) =>
+  inTap()
+    ? hooks.useEffect(() => {
+        if (!ref) return undefined;
+        const value = create();
+        if (typeof ref === "function") {
+          ref(value);
+          return () => ref(null);
+        }
+        ref.current = value;
+        return () => {
+          ref.current = null;
+        };
+      }, deps)
+    : ReactRuntime.useImperativeHandle(ref, create, deps);
+
+// Star re-exports of a CommonJS react lose named exports under some dev
+// servers; the names the package dists import are re-exported explicitly.
+export const forwardRef = (render: any) => ReactRuntime.forwardRef(render);
+
+export const memo = (type: any, compare?: any) =>
+  ReactRuntime.memo(type, compare);
+
+export const Fragment = ReactRuntime.Fragment;
+
+export const createElement = (...args: any[]) =>
+  ReactRuntime.createElement(...args);
+
 export const createContext = (defaultValue: any) => {
   const context = ReactRuntime.createContext(defaultValue);
   attachDefaultValueToContext(context, defaultValue);
