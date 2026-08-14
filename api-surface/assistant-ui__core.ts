@@ -730,6 +730,7 @@ declare abstract class BaseComposerRuntimeCore extends BaseSubscribable implemen
   protected _isSending: boolean;
   private _removedDuringSend;
   private _sendGeneration;
+  private _discardGeneration;
   private _attachmentAddOperations;
   private _cancelAttachmentAdd;
   private _cancelAllAttachmentAdds;
