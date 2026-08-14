@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { ToolCallReaderImpl } from "./ToolCallReader";
+import { describe, expect, it, vi } from "vitest";
+import { ToolCallArgsReaderImpl, ToolCallReaderImpl } from "./ToolCallReader";
 
 type Args = {
   required: string;
@@ -10,6 +10,19 @@ type Args = {
 const createReader = () => new ToolCallReaderImpl<Args, string>();
 
 describe("ToolCallArgsReader.get", () => {
+  it("releases the argument stream reader after completion", async () => {
+    const stream = new ReadableStream<string>({
+      start(controller) {
+        controller.enqueue('{"required":"hello"}');
+        controller.close();
+      },
+    });
+    const reader = new ToolCallArgsReaderImpl<Args>(stream);
+
+    expect(await reader.get("required")).toBe("hello");
+    await vi.waitFor(() => expect(stream.locked).toBe(false));
+  });
+
   it("resolves with the value once the field is complete", async () => {
     const reader = createReader();
     const promise = reader.args.get("required");

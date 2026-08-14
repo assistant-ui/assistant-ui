@@ -278,9 +278,10 @@ export class ToolCallArgsReaderImpl<
   }
 
   private async processStream(): Promise<void> {
+    let reader: ReadableStreamDefaultReader<string> | undefined;
     try {
       let accumulatedText = "";
-      const reader = this.argTextDeltas.getReader();
+      reader = this.argTextDeltas.getReader();
 
       while (true) {
         const { value, done } = await reader.read();
@@ -300,6 +301,7 @@ export class ToolCallArgsReaderImpl<
     } catch (error) {
       console.error("Error processing argument stream:", error);
     } finally {
+      reader?.releaseLock();
       this.finished = true;
       for (const handle of this.handles) {
         handle.end(this.args);
