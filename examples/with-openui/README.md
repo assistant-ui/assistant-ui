@@ -26,7 +26,10 @@ OPENAI_API_KEY=your-api-key-here
 
 ### Run
 
+Build the workspace packages the example imports, then start the dev server:
+
 ```bash
+pnpm exec turbo build --filter='with-openui^...'
 pnpm -C examples/with-openui dev
 ```
 
