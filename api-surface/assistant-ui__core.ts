@@ -5976,7 +5976,7 @@ declare namespace entry_internal_exports {
 }
 
 declare namespace entry_store_internal_exports {
-  export { AttachmentRuntimeClient, ComposerClient, MessageClient, MessagePartClient, ThreadClient, ThreadListClient, ThreadListItemClient, actionBarCopyDisabled, actionBarEditDisabled, actionBarReloadDisabled, baseRuntimeAdapterTransformScopes, branchPickerNextDisabled, branchPickerPreviousDisabled, composerCancelDisabled, composerInputDisabled, composerSendDisabled, suggestionTriggerDisabled };
+  export { AttachmentRuntimeClient, ComposerClient, MessageClient, MessagePartClient, ThreadClient, ThreadListClient, ThreadListItemClient, actionBarCopyDisabled, actionBarEditDisabled, actionBarReloadDisabled, baseRuntimeAdapterTransformScopes, branchPickerNextDisabled, branchPickerPreviousDisabled, composerCancelDisabled, composerInputDisabled, composerSendDisabled, isDevelopment, suggestionTriggerDisabled };
 }
 
 declare const isAssistantError: (value: unknown) => value is AssistantError;
@@ -5984,6 +5984,8 @@ declare const isAssistantError: (value: unknown) => value is AssistantError;
 declare const isAutoStatus: (status: MessageStatus) => boolean;
 
 declare const isCreateAttachment: (attachment: File | CreateAttachment) => attachment is CreateAttachment;
+
+declare const isDevelopment: boolean;
 
 declare const isErrorMessageId: (id: string) => boolean;
 
