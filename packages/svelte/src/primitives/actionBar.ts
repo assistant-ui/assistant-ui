@@ -92,6 +92,7 @@ export const actionBarCopy = (options?: {
   const composerText = useAuiState((s) => s.composer.text, { item });
 
   let copiedTimer: ReturnType<typeof setTimeout> | undefined;
+  let copiedMessageId: string | undefined;
   let destroyed = false;
   // Best effort: created during component initialization the builder cleans
   // up with the component, matching the react and vue implementations; with
@@ -102,7 +103,11 @@ export const actionBarCopy = (options?: {
       if (copiedTimer === undefined) return;
       clearTimeout(copiedTimer);
       copiedTimer = undefined;
-      flushTapSync(() => aui.message.setIsCopied(false));
+      // The index may have been retargeted since the copy; only the copied
+      // message's own flag is cleared
+      if (aui.message.getState().id === copiedMessageId) {
+        flushTapSync(() => aui.message.setIsCopied(false));
+      }
     });
   } catch {
     /* outside component init */
@@ -117,28 +122,35 @@ export const actionBarCopy = (options?: {
     // The item's slot follows whatever message occupies the index, so late
     // completions and timers re-check the copied message's id before touching
     // state.
-    const copiedMessageId = aui.message.getState().id;
+    copiedMessageId = aui.message.getState().id;
+    const anchorId = copiedMessageId;
     const stillCopiedMessage = () =>
-      !destroyed && aui.message.getState().id === copiedMessageId;
-    // The deferred call keeps a synchronously throwing writer inside the
-    // rejection handler, which swallows clipboard failures (permission
-    // denied, API unavailable) so they don't surface as unhandled rejections.
-    Promise.resolve()
-      .then(() => copyToClipboard(value))
-      .then(
-        () => {
-          if (!stillCopiedMessage()) return;
-          if (copiedTimer !== undefined) clearTimeout(copiedTimer);
-          flushTapSync(() => aui.message.setIsCopied(true));
-          copiedTimer = setTimeout(() => {
-            copiedTimer = undefined;
-            if (stillCopiedMessage()) {
-              flushTapSync(() => aui.message.setIsCopied(false));
-            }
-          }, copiedDuration);
-        },
-        () => {},
-      );
+      !destroyed && aui.message.getState().id === anchorId;
+    // The writer runs synchronously inside the click so the user-gesture
+    // gating of navigator.clipboard survives (WebKit scopes it to the stack);
+    // the try contains a synchronously throwing caller-supplied writer, and
+    // the rejection handler swallows clipboard failures (permission denied,
+    // API unavailable) so they don't surface as unhandled rejections.
+    let write: void | Promise<void>;
+    try {
+      write = copyToClipboard(value);
+    } catch {
+      return;
+    }
+    Promise.resolve(write).then(
+      () => {
+        if (!stillCopiedMessage()) return;
+        if (copiedTimer !== undefined) clearTimeout(copiedTimer);
+        flushTapSync(() => aui.message.setIsCopied(true));
+        copiedTimer = setTimeout(() => {
+          copiedTimer = undefined;
+          if (stillCopiedMessage()) {
+            flushTapSync(() => aui.message.setIsCopied(false));
+          }
+        }, copiedDuration);
+      },
+      () => {},
+    );
   };
 
   return {
