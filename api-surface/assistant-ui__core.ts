@@ -430,6 +430,12 @@ declare const AssistantRuntimeProvider: import("react").MemoExoticComponent<(_pa
   children: ReactNode;
 }) => import("react").JSX.Element>;
 
+type AssistantState = ScopeStates & {
+  readonly optional: {
+    readonly [K in keyof ScopeStates]: ScopeStates[K] | undefined;
+  };
+};
+
 type AssistantStream = ReadableStream<AssistantStreamChunk>;
 
 declare const AssistantStream: {
@@ -4005,6 +4011,12 @@ interface ScopeRegistry {
   [key: string]: { methods: any; meta?: any; events?: any };
 }
 
+type ScopeStates = {
+  [K in ClientNames]: ClientSchemas[K]["methods"] extends {
+    getState: () => infer S;
+  } ? S : never;
+};
+
 type ScopesConfig = {
   [K in ClientNames]?: ClientElement<K> | DerivedElement<K>;
 };
@@ -5803,11 +5815,27 @@ type WithRender<T, TArgs extends Record<string, unknown>, TResult> = T extends {
   renderText?: ToolCallText<TArgs, TResult> | undefined;
 };
 
+declare const actionBarCopyDisabled: (s: AssistantState) => boolean;
+
+declare const actionBarEditDisabled: (s: AssistantState) => boolean;
+
+declare const actionBarReloadDisabled: (s: AssistantState) => boolean;
+
 declare const auiConfigBrand: unique symbol;
 
 declare const baseRuntimeAdapterTransformScopes: (scopes: ScopesConfig, parent: AssistantClient) => void;
 
 declare const bindExternalStoreMessage: <T>(target: object, message: T | T[]) => void;
+
+declare const branchPickerNextDisabled: (s: AssistantState) => boolean;
+
+declare const branchPickerPreviousDisabled: (s: AssistantState) => boolean;
+
+declare const composerCancelDisabled: (s: AssistantState) => boolean;
+
+declare const composerInputDisabled: (s: AssistantState) => boolean;
+
+declare const composerSendDisabled: (s: AssistantState) => boolean;
 
 declare const consumeSuggestionResult: (result: ReturnType<SuggestionAdapter["generate"]>, options: {
   signal: AbortSignal;
@@ -5948,7 +5976,7 @@ declare namespace entry_internal_exports {
 }
 
 declare namespace entry_store_internal_exports {
-  export { AttachmentRuntimeClient, ComposerClient, MessageClient, MessagePartClient, ThreadClient, ThreadListClient, ThreadListItemClient, baseRuntimeAdapterTransformScopes };
+  export { AttachmentRuntimeClient, ComposerClient, MessageClient, MessagePartClient, ThreadClient, ThreadListClient, ThreadListItemClient, actionBarCopyDisabled, actionBarEditDisabled, actionBarReloadDisabled, baseRuntimeAdapterTransformScopes, branchPickerNextDisabled, branchPickerPreviousDisabled, composerCancelDisabled, composerInputDisabled, composerSendDisabled, suggestionTriggerDisabled };
 }
 
 declare const isAssistantError: (value: unknown) => value is AssistantError;
@@ -6028,6 +6056,8 @@ declare const stepStreamingTiming: <TMessage>(state: StreamingTimingState | null
 };
 
 declare function stubTool(): never;
+
+declare const suggestionTriggerDisabled: (s: AssistantState, send: boolean) => boolean;
 
 declare const symbolInnerMessage: unique symbol;
 
