@@ -1538,6 +1538,7 @@ declare class PiThreadSupervisor {
   private readonly archivedSessionFiles;
   private readonly catalogCache;
   private readonly catalogInfoByThreadId;
+  private disposed;
   constructor(options?: PiThreadSupervisorOptions);
   listThreads(input?: {
     workspacePath?: string;
@@ -1574,6 +1575,9 @@ declare class PiThreadSupervisor {
   private openSession;
   private ensureOpen;
   private openCold;
+  private openWasCancelled;
+  private throwIfOpenCancelled;
+  private throwOpenCancelled;
   private listSessionInfos;
   private invalidateCatalog;
   private findSessionInfo;
