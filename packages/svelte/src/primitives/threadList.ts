@@ -83,7 +83,10 @@ const createThreadListItem = (
  * `ids` by index and scope per-row work through `item(index)`. With
  * `archived`, both cover the archived list instead. Items are cached per
  * index for the builder's lifetime, suspending and resuming with observation
- * like `threadMessages`.
+ * like `threadMessages`. Iterate unkeyed: keying the `{#each}` by thread id
+ * would let a row whose index shifts keep its component instance silently
+ * driving the old index, with no stale report while the index stays in
+ * range.
  */
 export const threadList = (options?: { archived?: boolean | undefined }) => {
   const archived = options?.archived ?? false;

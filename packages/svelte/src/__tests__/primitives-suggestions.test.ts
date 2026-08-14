@@ -159,11 +159,16 @@ describe("suggestionTrigger", () => {
   it("passes an empty prompt through instead of treating it as missing", () => {
     const { app, aui, triggers } = mountSuggestions(() => ({
       empty: suggestionTrigger({ index: 2 }),
+      append: suggestionTrigger({ index: 2, clearComposer: false }),
     }));
 
     flushTapSync(() => aui.composer.setText("draft"));
     triggers.empty!.props.onclick();
     expect(aui.composer.getState().text).toBe("");
+
+    flushTapSync(() => aui.composer.setText("draft"));
+    triggers.append!.props.onclick();
+    expect(aui.composer.getState().text).toBe("draft");
 
     flushSync(() => void unmount(app));
   });
