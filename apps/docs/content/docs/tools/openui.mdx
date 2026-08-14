@@ -93,7 +93,7 @@ export default function Home() {
 `sendAutomaticallyWhen` is the continuation gate. OpenUI's predicate continues the run only after `prompt_openui` has received a submitted result, so a display-only `present_openui` call ends the turn instead of triggering an empty follow-up request.
 
 <Callout type="info">
-  `sendAutomaticallyWhen` is a single slot, and OpenUI's predicate alone never resumes after other tools' results. If your app also has tools that rely on `lastAssistantMessageIsCompleteWithToolCalls` (the predicate the other guides in this section use), compose the two: `(options) => lastAssistantMessageIsCompleteWithToolCalls(options) || shouldContinueAfterOpenUIPrompt(options)`.
+  `sendAutomaticallyWhen` is a single slot. OpenUI's predicate is a strict refinement of `lastAssistantMessageIsCompleteWithToolCalls` (the predicate the other guides in this section use), so it replaces it cleanly when OpenUI's tools are the only ones that resume the run. If your app mixes in other tools whose flows must also resume, write one predicate that decides by tool name; a naive `||` with the generic predicate collapses to the generic predicate alone and re-enables the empty follow-up after display-only calls.
 </Callout>
 
 </Step>
