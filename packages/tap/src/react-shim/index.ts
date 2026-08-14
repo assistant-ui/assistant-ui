@@ -102,6 +102,21 @@ export const Fragment = ReactRuntime.Fragment;
 export const createElement = (...args: any[]) =>
   ReactRuntime.createElement(...args);
 
+export const cloneElement = (...args: any[]) =>
+  ReactRuntime.cloneElement(...args);
+
+export const isValidElement = (value: any) =>
+  ReactRuntime.isValidElement(value);
+
+export const lazy = (load: any) => ReactRuntime.lazy(load);
+
+export const Children = ReactRuntime.Children;
+
+export const Suspense = ReactRuntime.Suspense;
+
+export const useDeferredValue = (value: any, initialValue?: any) =>
+  ReactRuntime.useDeferredValue(value, initialValue);
+
 export const createContext = (defaultValue: any) => {
   const context = ReactRuntime.createContext(defaultValue);
   attachDefaultValueToContext(context, defaultValue);

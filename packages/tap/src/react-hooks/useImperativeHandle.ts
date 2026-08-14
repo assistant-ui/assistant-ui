@@ -1,7 +1,7 @@
 import { useEffect } from "./useEffect";
 
 type ImperativeRef<T> =
-  | ((instance: T | null) => void)
+  | ((instance: T | null) => void | (() => void))
   | { current: T | null }
   | null
   | undefined;
@@ -9,14 +9,14 @@ type ImperativeRef<T> =
 export const useImperativeHandle = <T>(
   ref: ImperativeRef<T>,
   create: () => T,
-  deps?: readonly unknown[],
+  deps?: readonly unknown[] | null,
 ): void => {
   const attach = () => {
     if (!ref) return undefined;
     const value = create();
     if (typeof ref === "function") {
-      ref(value);
-      return () => ref(null);
+      const dispose = ref(value);
+      return typeof dispose === "function" ? dispose : () => ref(null);
     }
     ref.current = value;
     return () => {
@@ -26,7 +26,7 @@ export const useImperativeHandle = <T>(
   // React appends the ref to the dependency array, so a replaced ref
   // re-assigns even when the caller deps are unchanged. A caller's deps arity
   // is static, so the branch is render-stable.
-  if (deps === undefined) {
+  if (deps == null) {
     // oxlint-disable-next-line react-hooks/rules-of-hooks
     useEffect(attach);
   } else {

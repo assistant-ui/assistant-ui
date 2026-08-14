@@ -39,6 +39,12 @@ const ALLOWED_SHIM_EXPORTS = [
   "memo",
   "Fragment",
   "createElement",
+  "cloneElement",
+  "isValidElement",
+  "lazy",
+  "Children",
+  "Suspense",
+  "useDeferredValue",
 ] as const;
 
 type ModuleReference = {
