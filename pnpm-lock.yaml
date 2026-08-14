@@ -84,8 +84,8 @@ importers:
         specifier: ^2.1.0
         version: 2.1.0
       eve:
-        specifier: ^0.27.6
-        version: 0.27.13(@azure/identity@4.13.1)(@opentelemetry/api@1.9.0)(@upstash/redis@1.38.2)(ai@7.0.62(zod@4.4.3))(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.1)(ioredis@5.11.1)(jiti@2.7.0)(just-bash@3.2.0)(lru-cache@11.5.2)(mysql2@3.20.0(@types/node@26.2.0))(rollup@4.62.4)(sqlite3@5.1.7)(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0))
+        specifier: ^0.37.0
+        version: 0.37.0(@azure/identity@4.13.1)(@opentelemetry/api@1.9.0)(@upstash/redis@1.38.2)(ai@7.0.62(zod@4.4.3))(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.1)(ioredis@5.11.1)(jiti@2.7.0)(just-bash@3.2.0)(lru-cache@11.5.2)(mysql2@3.20.0(@types/node@26.2.0))(rollup@4.62.4)(sqlite3@5.1.7)(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0))
       ink:
         specifier: ^7.1.1
         version: 7.1.1(@types/react@19.2.18)(react-devtools-core@6.1.5)(react@19.2.8)
@@ -1544,8 +1544,8 @@ importers:
         specifier: ^2.1.1
         version: 2.1.1
       eve:
-        specifier: ^0.27.6
-        version: 0.27.13(@azure/identity@4.13.1)(@opentelemetry/api@1.9.1)(@upstash/redis@1.38.2)(ai@7.0.62(zod@4.4.3))(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.1)(ioredis@5.11.1)(jiti@2.7.0)(just-bash@3.2.0)(lru-cache@11.5.2)(mysql2@3.20.0(@types/node@26.2.0))(rollup@4.62.4)(sqlite3@5.1.7)(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0))
+        specifier: ^0.37.0
+        version: 0.37.0(@azure/identity@4.13.1)(@opentelemetry/api@1.9.1)(@upstash/redis@1.38.2)(ai@7.0.62(zod@4.4.3))(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.1)(ioredis@5.11.1)(jiti@2.7.0)(just-bash@3.2.0)(lru-cache@11.5.2)(mysql2@3.20.0(@types/node@26.2.0))(rollup@4.62.4)(sqlite3@5.1.7)(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0))
       lucide-react:
         specifier: ^1.31.0
         version: 1.31.0(react@19.2.8)
@@ -3658,8 +3658,8 @@ importers:
         specifier: ^19.2.18
         version: 19.2.18
       eve:
-        specifier: ^0.27.6
-        version: 0.27.13(@azure/identity@4.13.1)(@opentelemetry/api@1.9.1)(@upstash/redis@1.38.2)(ai@7.0.62(zod@4.4.3))(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.1)(ioredis@5.11.1)(jiti@2.7.0)(just-bash@3.2.0)(lru-cache@11.5.2)(mysql2@3.20.0(@types/node@26.2.0))(rollup@4.62.4)(sqlite3@5.1.7)(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0))
+        specifier: ^0.37.0
+        version: 0.37.0(@azure/identity@4.13.1)(@opentelemetry/api@1.9.1)(@upstash/redis@1.38.2)(ai@7.0.62(zod@4.4.3))(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.1)(ioredis@5.11.1)(jiti@2.7.0)(just-bash@3.2.0)(lru-cache@11.5.2)(mysql2@3.20.0(@types/node@26.2.0))(rollup@4.62.4)(sqlite3@5.1.7)(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0))
       jsdom:
         specifier: ^30.0.1
         version: 30.0.1
@@ -5381,8 +5381,8 @@ importers:
         specifier: ^2.1.1
         version: 2.1.1
       eve:
-        specifier: ^0.27.6
-        version: 0.27.13(@azure/identity@4.13.1)(@opentelemetry/api@1.9.1)(@upstash/redis@1.38.2)(ai@7.0.62(zod@4.4.3))(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.1)(ioredis@5.11.1)(jiti@2.7.0)(just-bash@3.2.0)(lru-cache@11.5.2)(mysql2@3.20.0(@types/node@26.2.0))(rollup@4.62.4)(sqlite3@5.1.7)(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0))
+        specifier: ^0.37.0
+        version: 0.37.0(@azure/identity@4.13.1)(@opentelemetry/api@1.9.1)(@upstash/redis@1.38.2)(ai@7.0.62(zod@4.4.3))(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.1)(ioredis@5.11.1)(jiti@2.7.0)(just-bash@3.2.0)(lru-cache@11.5.2)(mysql2@3.20.0(@types/node@26.2.0))(rollup@4.62.4)(sqlite3@5.1.7)(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0))
       lucide-react:
         specifier: ^1.31.0
         version: 1.31.0(react@19.2.8)
@@ -13403,13 +13403,13 @@ packages:
     resolution: {integrity: sha512-aIL5Fx7mawVa300al2BnEE4iNvo1qETxLrPI/o05L7z6go7fCw1J6EQmbK4FmJ2AS7kgVF/KEZWufBfdClMcPg==}
     engines: {node: '>= 0.6'}
 
-  eve@0.27.13:
-    resolution: {integrity: sha512-RN5EDp+w3H9kTH/92DYmWlt1vZ1vKLgdfoXpL9zRodC1wEBS51w97odDKcreR5+XtC+q+mNTmmAMQUQvk0c8gg==}
+  eve@0.37.0:
+    resolution: {integrity: sha512-wPjFLucADqWYGmnOaUrg7cCaWaxMAs/GFsy0O5Jb/2LqJ9wyN0RT/n3UKT1L4YJSrZds+anwdtFAgD57/rY3Zw==}
     engines: {node: '>=24'}
     hasBin: true
     peerDependencies:
       '@opentelemetry/api': ^1.0.0
-      ai: ^7.0.38
+      ai: ^7.0.58
       braintrust: ^3.0.0
       just-bash: ^3.0.0
       microsandbox: ^0.5.0
@@ -28714,7 +28714,7 @@ snapshots:
 
   etag@1.8.1: {}
 
-  eve@0.27.13(@azure/identity@4.13.1)(@opentelemetry/api@1.9.0)(@upstash/redis@1.38.2)(ai@7.0.62(zod@4.4.3))(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.1)(ioredis@5.11.1)(jiti@2.7.0)(just-bash@3.2.0)(lru-cache@11.5.2)(mysql2@3.20.0(@types/node@26.2.0))(rollup@4.62.4)(sqlite3@5.1.7)(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0)):
+  eve@0.37.0(@azure/identity@4.13.1)(@opentelemetry/api@1.9.0)(@upstash/redis@1.38.2)(ai@7.0.62(zod@4.4.3))(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.1)(ioredis@5.11.1)(jiti@2.7.0)(just-bash@3.2.0)(lru-cache@11.5.2)(mysql2@3.20.0(@types/node@26.2.0))(rollup@4.62.4)(sqlite3@5.1.7)(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0)):
     dependencies:
       ai: 7.0.62(zod@4.4.3)
       nitro: 3.0.260610-beta(@azure/identity@4.13.1)(@upstash/redis@1.38.2)(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.1)(ioredis@5.11.1)(jiti@2.7.0)(lru-cache@11.5.2)(mysql2@3.20.0(@types/node@26.2.0))(rollup@4.62.4)(sqlite3@5.1.7)(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0))
@@ -28762,7 +28762,7 @@ snapshots:
       - xml2js
       - zephyr-agent
 
-  eve@0.27.13(@azure/identity@4.13.1)(@opentelemetry/api@1.9.1)(@upstash/redis@1.38.2)(ai@7.0.62(zod@4.4.3))(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.1)(ioredis@5.11.1)(jiti@2.7.0)(just-bash@3.2.0)(lru-cache@11.5.2)(mysql2@3.20.0(@types/node@26.2.0))(rollup@4.62.4)(sqlite3@5.1.7)(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0)):
+  eve@0.37.0(@azure/identity@4.13.1)(@opentelemetry/api@1.9.1)(@upstash/redis@1.38.2)(ai@7.0.62(zod@4.4.3))(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.1)(ioredis@5.11.1)(jiti@2.7.0)(just-bash@3.2.0)(lru-cache@11.5.2)(mysql2@3.20.0(@types/node@26.2.0))(rollup@4.62.4)(sqlite3@5.1.7)(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0)):
     dependencies:
       ai: 7.0.62(zod@4.4.3)
       nitro: 3.0.260610-beta(@azure/identity@4.13.1)(@upstash/redis@1.38.2)(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.1)(ioredis@5.11.1)(jiti@2.7.0)(lru-cache@11.5.2)(mysql2@3.20.0(@types/node@26.2.0))(rollup@4.62.4)(sqlite3@5.1.7)(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0))

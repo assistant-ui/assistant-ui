@@ -34,6 +34,7 @@ const createAgent = (overrides: Record<string, unknown>) => ({
   session: undefined,
   status: "ready",
   send: vi.fn(),
+  respond: vi.fn(),
   stop: vi.fn(),
   reset: vi.fn(),
   ...overrides,
@@ -160,8 +161,7 @@ describe("useEveAgentRuntime status forwarding", () => {
     });
 
     await waitFor(() => {
-      expect(agent.send).toHaveBeenCalledWith({
-        message: "hello",
+      expect(agent.send).toHaveBeenCalledWith("hello", {
         clientContext: { page: "/pricing" },
       });
     });
@@ -183,7 +183,7 @@ describe("useEveAgentRuntime status forwarding", () => {
     });
 
     await waitFor(() => {
-      expect(agent.send).toHaveBeenCalledWith({ message: "hello" });
+      expect(agent.send).toHaveBeenCalledWith("hello", undefined);
     });
   });
 
@@ -204,7 +204,7 @@ describe("useEveAgentRuntime status forwarding", () => {
     });
 
     await waitFor(() => {
-      expect(agent.send).toHaveBeenCalledWith({ message: "hello" });
+      expect(agent.send).toHaveBeenCalledWith("hello", undefined);
     });
   });
 
@@ -238,8 +238,7 @@ describe("useEveAgentRuntime status forwarding", () => {
     });
 
     await waitFor(() => {
-      expect(agent.send).toHaveBeenCalledWith({
-        message: "hello",
+      expect(agent.send).toHaveBeenCalledWith("hello", {
         clientContext: { page: "/reload" },
       });
     });
@@ -272,8 +271,7 @@ describe("useEveAgentRuntime status forwarding", () => {
     });
 
     await waitFor(() => {
-      expect(agent.send).toHaveBeenCalledWith({
-        message: "hello",
+      expect(agent.send).toHaveBeenCalledWith("hello", {
         clientContext: { page: "/staged" },
       });
     });
@@ -310,8 +308,7 @@ describe("useEveAgentRuntime status forwarding", () => {
     });
 
     await waitFor(() => {
-      expect(agent.send).toHaveBeenCalledWith({
-        message: "hello",
+      expect(agent.send).toHaveBeenCalledWith("hello", {
         clientContext: { page: "/staged" },
       });
     });
@@ -394,9 +391,7 @@ describe("useEveAgentRuntime staged messages", () => {
         content: [{ type: "text", text: "hello" }],
       });
     });
-    expect(agent.send).toHaveBeenCalledWith({
-      message: "hello",
-    });
+    expect(agent.send).toHaveBeenCalledWith("hello", undefined);
 
     mockUseEveAgent.mockReturnValue(
       createAgent({
@@ -504,8 +499,8 @@ describe("useEveAgentRuntime staged messages", () => {
     });
 
     expect(send).toHaveBeenCalledTimes(3);
-    expect(send).toHaveBeenNthCalledWith(2, { message: "first staged" });
-    expect(send).toHaveBeenNthCalledWith(3, { message: "second staged" });
+    expect(send).toHaveBeenNthCalledWith(2, "first staged", undefined);
+    expect(send).toHaveBeenNthCalledWith(3, "second staged", undefined);
     await waitFor(() => {
       expect(getText(result.current)).toEqual(["earlier", "earlier answer"]);
     });
@@ -541,12 +536,10 @@ describe("useEveAgentRuntime staged messages", () => {
 
     // the earlier draft keeps the context it was staged with; only the
     // reloaded message takes the reload-time config
-    expect(agent.send).toHaveBeenNthCalledWith(1, {
-      message: "first staged",
+    expect(agent.send).toHaveBeenNthCalledWith(1, "first staged", {
       clientContext: { page: "/first" },
     });
-    expect(agent.send).toHaveBeenNthCalledWith(2, {
-      message: "second staged",
+    expect(agent.send).toHaveBeenNthCalledWith(2, "second staged", {
       clientContext: { page: "/reloaded" },
     });
   });
@@ -569,9 +562,7 @@ describe("useEveAgentRuntime staged messages", () => {
     });
 
     expect(agent.send).toHaveBeenCalledTimes(1);
-    expect(agent.send).toHaveBeenCalledWith({
-      message: "first staged",
-    });
+    expect(agent.send).toHaveBeenCalledWith("first staged", undefined);
     await waitFor(() => {
       expect(getText(result.current)).toEqual([
         "earlier",
@@ -609,17 +600,13 @@ describe("useEveAgentRuntime staged messages", () => {
     });
 
     await waitFor(() => expect(send).toHaveBeenCalledTimes(1));
-    expect(send).toHaveBeenNthCalledWith(1, {
-      message: "first staged",
-    });
+    expect(send).toHaveBeenNthCalledWith(1, "first staged", undefined);
 
     await act(async () => {
       resolveFirstSend();
     });
     await waitFor(() => expect(send).toHaveBeenCalledTimes(2));
-    expect(send).toHaveBeenNthCalledWith(2, {
-      message: "second staged",
-    });
+    expect(send).toHaveBeenNthCalledWith(2, "second staged", undefined);
 
     await waitFor(() => {
       expect(getText(result.current)).toEqual(["earlier", "earlier answer"]);
@@ -681,7 +668,7 @@ describe("useEveAgentRuntime staged messages", () => {
     });
 
     expect(send).toHaveBeenCalledTimes(1);
-    expect(send).toHaveBeenCalledWith({ message: "first staged" });
+    expect(send).toHaveBeenCalledWith("first staged", undefined);
     await waitFor(() => {
       expect(getText(result.current)).toEqual([
         "earlier",
@@ -776,11 +763,12 @@ const approvalData: EveMessageData = {
               name: "send_email",
               inputRequest: {
                 requestId: "req_1",
+                kind: "tool-approval",
                 prompt: "Send the email?",
                 display: "confirmation",
                 options: [
                   { id: "approve", label: "Approve" },
-                  { id: "deny", label: "Deny" },
+                  { id: "cancel", label: "Cancel" },
                 ],
               },
             },
@@ -794,16 +782,14 @@ const approvalData: EveMessageData = {
 describe("useEveAgentRuntime concurrent sends", () => {
   it("defers an approval clicked while a turn is in flight until the turn parks", async () => {
     let resolveFirstSend!: () => void;
-    const send = vi
-      .fn()
-      .mockImplementationOnce(
-        () =>
-          new Promise<void>((resolve) => {
-            resolveFirstSend = resolve;
-          }),
-      )
-      .mockResolvedValue(undefined);
-    const agent = createAgent({ data: approvalData, send });
+    const send = vi.fn().mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveFirstSend = resolve;
+        }),
+    );
+    const respond = vi.fn().mockResolvedValue(undefined);
+    const agent = createAgent({ data: approvalData, send, respond });
     mockUseEveAgent.mockReturnValue(agent as never);
     const { result } = renderHook(() => useEveAgentRuntime());
 
@@ -821,15 +807,15 @@ describe("useEveAgentRuntime concurrent sends", () => {
         .getMessagePartByToolCallId("call_1")
         .respondToToolApproval({ optionId: "approve" });
     });
-    expect(send).toHaveBeenCalledTimes(1);
+    expect(respond).not.toHaveBeenCalled();
 
     await act(async () => {
       resolveFirstSend();
     });
-    await waitFor(() => expect(send).toHaveBeenCalledTimes(2));
-    expect(send).toHaveBeenNthCalledWith(2, {
-      inputResponses: [{ requestId: "req_1", optionId: "approve" }],
-    });
+    await waitFor(() => expect(respond).toHaveBeenCalledTimes(1));
+    expect(respond).toHaveBeenCalledWith([
+      { requestId: "req_1", optionId: "approve" },
+    ]);
   });
 
   it("queues a send issued while a turn is in flight and preserves order", async () => {
@@ -867,8 +853,8 @@ describe("useEveAgentRuntime concurrent sends", () => {
       resolveFirstSend();
     });
     await waitFor(() => expect(send).toHaveBeenCalledTimes(2));
-    expect(send).toHaveBeenNthCalledWith(1, { message: "first" });
-    expect(send).toHaveBeenNthCalledWith(2, { message: "second" });
+    expect(send).toHaveBeenNthCalledWith(1, "first", undefined);
+    expect(send).toHaveBeenNthCalledWith(2, "second", undefined);
   });
 
   it("drops a queued send when the run is cancelled before it dispatches", async () => {
@@ -1007,16 +993,14 @@ describe("useEveAgentRuntime concurrent sends", () => {
 
   it("keeps a cancelled tool approval discarded", async () => {
     let resolveFirstSend!: () => void;
-    const send = vi
-      .fn()
-      .mockImplementationOnce(
-        () =>
-          new Promise<void>((resolve) => {
-            resolveFirstSend = resolve;
-          }),
-      )
-      .mockResolvedValue(undefined);
-    const agent = createAgent({ data: approvalData, send });
+    const send = vi.fn().mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveFirstSend = resolve;
+        }),
+    );
+    const respond = vi.fn().mockResolvedValue(undefined);
+    const agent = createAgent({ data: approvalData, send, respond });
     mockUseEveAgent.mockReturnValue(agent as never);
     const { result } = renderHook(() => useEveAgentRuntime());
     const before = getText(result.current);
@@ -1043,6 +1027,7 @@ describe("useEveAgentRuntime concurrent sends", () => {
     });
 
     expect(send).toHaveBeenCalledTimes(1);
+    expect(respond).not.toHaveBeenCalled();
     expect(result.current.thread.composer.getState().text).toBe("");
     expect(getText(result.current)).toEqual(before);
   });
@@ -1142,10 +1127,10 @@ describe("useEveAgentRuntime concurrent sends", () => {
     });
     await waitFor(() => expect(send).toHaveBeenCalledTimes(3));
 
-    expect(send.mock.calls.map(([payload]) => payload)).toEqual([
-      { message: "first staged" },
-      { message: "interleaved" },
-      { message: "second staged" },
+    expect(send.mock.calls.map(([message]) => message)).toEqual([
+      "first staged",
+      "interleaved",
+      "second staged",
     ]);
   });
 });
