@@ -18,3 +18,4 @@ export { unstable_injectInteractableContext } from "./model-context/injectIntera
 export type { ThreadTokenUsage, TokenUsageExtractableMessage } from "./usage";
 export { getThreadMessageTokenUsage, useThreadTokenUsage } from "./usage";
 export { useAISDKChat, useAISDKError } from "./hooks";
+export { AISDKChat, type AISDKChatOptions } from "./runtime/AISDKChat";

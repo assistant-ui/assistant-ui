@@ -25,3 +25,4 @@ export {
   type AISDKToolkitToolsOptions,
   type GenerativeToolsOptions,
 } from "./tools/generativeTools";
+export { AISDKChat, type AISDKChatOptions } from "./runtime/AISDKChat";

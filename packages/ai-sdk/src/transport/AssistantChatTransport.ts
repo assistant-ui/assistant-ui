@@ -13,7 +13,10 @@ import {
   type AssistantChatResumableOptions,
 } from "./resumable";
 
-type InitializableThreadListItem = Pick<ThreadListItemRuntime, "initialize">;
+export type InitializableThreadListItem = Pick<
+  ThreadListItemRuntime,
+  "initialize"
+>;
 
 const FINISH_MARKER = '"type":"finish"';
 const FINISH_BUFFER_LIMIT = 4096;

@@ -3438,6 +3438,9 @@ importers:
         specifier: ^0.3.37
         version: link:../assistant-stream
     devDependencies:
+      '@assistant-ui/tap':
+        specifier: workspace:*
+        version: link:../tap
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../x-buildutils

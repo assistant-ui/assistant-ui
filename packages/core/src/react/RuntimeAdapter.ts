@@ -1,4 +1,5 @@
 import { useResource, resource } from "@assistant-ui/tap";
+import type { AssistantClient, ScopesConfig } from "@assistant-ui/store";
 import type { AssistantRuntime } from "..";
 import {
   baseRuntimeAdapterTransformScopes,
@@ -32,7 +33,15 @@ const useRuntimeAdapter = (runtime: AssistantRuntime) => {
 
 export const RuntimeAdapter = resource(useRuntimeAdapter);
 
-attachTransformScopes(useRuntimeAdapter, (scopes, parent) => {
+/**
+ * The scope defaults `RuntimeAdapter` installs when it is used as the `threads`
+ * config entry. Adapter packages that wrap a runtime in their own config entry
+ * attach this to the wrapping resource for scope parity with `RuntimeAdapter`.
+ */
+export const runtimeAdapterTransformScopes = (
+  scopes: ScopesConfig,
+  parent: AssistantClient,
+): void => {
   baseRuntimeAdapterTransformScopes(scopes, parent);
 
   if (!scopes.tools && parent.tools.source === null) {
@@ -42,4 +51,6 @@ attachTransformScopes(useRuntimeAdapter, (scopes, parent) => {
   if (!scopes.dataRenderers && parent.dataRenderers.source === null) {
     scopes.dataRenderers = DataRenderers();
   }
-});
+};
+
+attachTransformScopes(useRuntimeAdapter, runtimeAdapterTransformScopes);

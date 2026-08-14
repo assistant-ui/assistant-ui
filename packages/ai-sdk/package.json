@@ -60,6 +60,7 @@
     "assistant-stream": "^0.3.37"
   },
   "peerDependencies": {
+    "@assistant-ui/tap": "^0.9.12",
     "@types/react": "*",
     "react": "^18 || ^19"
   },
@@ -69,6 +70,7 @@
     }
   },
   "devDependencies": {
+    "@assistant-ui/tap": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
     "@testing-library/react": "^16.3.2",
     "@types/json-schema": "^7.0.15",

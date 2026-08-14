@@ -80,7 +80,10 @@ export type {
 } from "./scopes/chain-of-thought";
 
 // runtime wiring
-export { RuntimeAdapter } from "../react/RuntimeAdapter";
+export {
+  RuntimeAdapter,
+  runtimeAdapterTransformScopes,
+} from "../react/RuntimeAdapter";
 export {
   useExternalMessageConverter,
   convertExternalMessages,
