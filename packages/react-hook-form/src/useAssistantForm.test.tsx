@@ -8,6 +8,7 @@ import {
 } from "@testing-library/react";
 import type { ModelContext } from "@assistant-ui/core";
 import type { FormEvent, ReactNode } from "react";
+import type { Resolver, ResolverResult } from "react-hook-form";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => {
@@ -189,6 +190,65 @@ describe("useAssistantForm", () => {
 
     await expect(executeSubmitForm()).resolves.toEqual({ success: true });
     await waitFor(() => expect(onValid).toHaveBeenCalledOnce());
+  });
+
+  it("ignores user submissions while an assistant submission is validating", async () => {
+    type FormValues = { name: string };
+    let validationCount = 0;
+    let resolveAssistantValidation: (
+      result: ResolverResult<FormValues>,
+    ) => void = () => {};
+    const resolver: Resolver<FormValues> = (values) => {
+      validationCount += 1;
+      if (validationCount === 1) {
+        return new Promise((resolve) => {
+          resolveAssistantValidation = resolve;
+        });
+      }
+      return Promise.resolve({ values, errors: {} });
+    };
+    const onValid = vi.fn();
+
+    const Form = () => {
+      const form = useAssistantForm<FormValues>({
+        defaultValues: { name: "" },
+        resolver,
+      });
+      return (
+        <form
+          data-testid="concurrent-form"
+          onSubmit={form.handleSubmit(onValid)}
+        >
+          <input data-testid="concurrent-name" {...form.register("name")} />
+        </form>
+      );
+    };
+    const { getByTestId } = render(<Form />);
+
+    let assistantSubmitSettled = false;
+    const assistantSubmit = executeSubmitForm().finally(() => {
+      assistantSubmitSettled = true;
+    });
+    await waitFor(() => expect(validationCount).toBe(1));
+
+    fireEvent.change(getByTestId("concurrent-name"), {
+      target: { value: "Ada" },
+    });
+    fireEvent.submit(getByTestId("concurrent-form"));
+    await waitFor(() => {
+      expect(validationCount).toBe(2);
+      expect(onValid).toHaveBeenCalledOnce();
+    });
+    expect(assistantSubmitSettled).toBe(false);
+
+    resolveAssistantValidation({
+      values: {},
+      errors: { name: { type: "required", message: "Name is required" } },
+    });
+    await expect(assistantSubmit).resolves.toEqual({
+      success: false,
+      message: "The form contains invalid fields and was not submitted.",
+    });
   });
 });
 

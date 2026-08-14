@@ -19,6 +19,7 @@ import type { z } from "zod";
 import { formTools } from "./formTools";
 
 type PendingAssistantSubmit = {
+  event: unknown;
   handlerInvoked: boolean;
   outcome: boolean | undefined;
   resolve: (outcome: boolean) => void;
@@ -112,28 +113,35 @@ export const useAssistantForm = <
       const submit = baseHandleSubmit(
         (...args) => {
           const pending = pendingAssistantSubmitRef.current;
-          if (pending) pending.outcome = true;
+          const event = args[1]?.nativeEvent ?? args[1];
+          if (pending?.event === event) pending.outcome = true;
           return onValid(...args);
         },
         (...args) => {
           const pending = pendingAssistantSubmitRef.current;
-          if (pending) pending.outcome = false;
+          const event = args[1]?.nativeEvent ?? args[1];
+          if (pending?.event === event) pending.outcome = false;
           return onInvalid?.(...args);
         },
       );
 
       return async (event) => {
         const pending = pendingAssistantSubmitRef.current;
-        if (pending) pending.handlerInvoked = true;
+        const nativeEvent = event?.nativeEvent ?? event;
+        const assistantSubmit = pending?.event === nativeEvent ? pending : null;
+        if (assistantSubmit) assistantSubmit.handlerInvoked = true;
 
         try {
           const result = await submit(event);
-          if (pendingAssistantSubmitRef.current === pending && pending) {
-            settleAssistantSubmit(pending.outcome ?? true);
+          if (
+            assistantSubmit &&
+            pendingAssistantSubmitRef.current === assistantSubmit
+          ) {
+            settleAssistantSubmit(assistantSubmit.outcome ?? true);
           }
           return result;
         } catch (error) {
-          if (pendingAssistantSubmitRef.current === pending) {
+          if (pendingAssistantSubmitRef.current === assistantSubmit) {
             rejectAssistantSubmit(error);
           }
           throw error;
@@ -208,6 +216,7 @@ export const useAssistantForm = <
               const submissionResult = new Promise<boolean>(
                 (resolve, reject) => {
                   pendingAssistantSubmitRef.current = {
+                    event: undefined,
                     handlerInvoked: false,
                     outcome: undefined,
                     resolve,
@@ -215,10 +224,14 @@ export const useAssistantForm = <
                   };
                 },
               );
-              const onSubmit = () => {
+              const onSubmit = (event: SubmitEvent) => {
+                const pending = pendingAssistantSubmitRef.current;
+                if (pending) pending.event = event;
                 queueMicrotask(() => {
-                  const pending = pendingAssistantSubmitRef.current;
-                  if (pending && !pending.handlerInvoked) {
+                  if (
+                    pendingAssistantSubmitRef.current === pending &&
+                    !pending.handlerInvoked
+                  ) {
                     settleAssistantSubmit(true);
                   }
                 });
