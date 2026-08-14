@@ -27,7 +27,9 @@ export type MessageItem = ScopeTarget;
 // live observation: an ordinary shrink whose rows tear down in the same flush
 // settles with no observers and stays quiet, while a row still reading an out
 // of bounds index reports, matching the vue provider whose isCurrent dies
-// with the row.
+// with the row. Known limit: an out-transitioned row is paused, not
+// destroyed, so its observer outlives the expiry and a shrink may report;
+// revisited with the transitions-aware list chunk.
 const createMessageItem = (context: AuiContext, index: number): MessageItem => {
   let observers = 0;
   const messageCache = createLastValidCache<MessageMethods>(
