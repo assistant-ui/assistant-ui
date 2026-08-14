@@ -17,7 +17,7 @@ const DIST_ENTRY_FILES = [
   resolve(DIST_DIR, "standalone-shim/jsx-dev-runtime.js"),
 ];
 const REACT_SHIM_DIR = resolve(SRC_DIR, "react-shim");
-const ALLOWED_REACT_HOOK_NAMES = [
+const ALLOWED_SHIM_EXPORTS = [
   "default",
   "createContext",
   "use",
@@ -151,9 +151,7 @@ describe("@assistant-ui/tap/standalone-shim import graph", () => {
     ].map((match) => match[1]!);
     if (/export default \w+/.test(indexSource)) exportedSurface.push("default");
 
-    expect([...ALLOWED_REACT_HOOK_NAMES].sort()).toEqual(
-      exportedSurface.sort(),
-    );
+    expect([...ALLOWED_SHIM_EXPORTS].sort()).toEqual(exportedSurface.sort());
   });
 
   it("imports React nowhere in the entry files", () => {

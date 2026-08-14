@@ -44,6 +44,13 @@ export default defineConfig({
                 "../tap/dist/standalone-shim/jsx-runtime.js",
               ),
             },
+            {
+              find: /^react\/jsx-dev-runtime$/,
+              replacement: resolve(
+                packageRoot,
+                "../tap/dist/standalone-shim/jsx-dev-runtime.js",
+              ),
+            },
             { find: /^react$/, replacement: standaloneShim },
           ],
         },

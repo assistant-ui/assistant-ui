@@ -6,6 +6,8 @@ import { resource } from "../core/resource";
 import { useResource } from "../hooks/useResource";
 import * as shim from "./index";
 import { c } from "./compiler-runtime";
+import * as jsxRuntime from "./jsx-runtime";
+import * as jsxDevRuntime from "./jsx-dev-runtime";
 
 describe("@assistant-ui/tap/standalone-shim behavior", () => {
   it("hosts stateful resource hooks under createTapRoot", () => {
@@ -110,5 +112,23 @@ describe("@assistant-ui/tap/standalone-shim behavior", () => {
     expect(() => c(1)).toThrow("standalone-shim");
 
     root.unmount();
+  });
+  it("keeps component factories loadable but their JSX unrenderable", () => {
+    const render = () => null;
+    expect(shim.forwardRef(render)).toEqual({
+      $$typeof: Symbol.for("react.forward_ref"),
+      render,
+    });
+    expect(shim.memo(render)).toEqual({
+      $$typeof: Symbol.for("react.memo"),
+      type: render,
+      compare: null,
+    });
+
+    expect(jsxRuntime.Fragment).toBe(Symbol.for("react.fragment"));
+    expect(jsxDevRuntime.Fragment).toBe(Symbol.for("react.fragment"));
+    expect(() => jsxRuntime.jsx()).toThrow("standalone-shim");
+    expect(() => jsxRuntime.jsxs()).toThrow("standalone-shim");
+    expect(() => jsxDevRuntime.jsxDEV()).toThrow("standalone-shim");
   });
 });

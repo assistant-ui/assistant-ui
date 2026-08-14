@@ -5,6 +5,11 @@ import * as aiSdk from "../index";
 import { createControlledTransport } from "../runtime/__tests__/controlled-transport";
 
 describe("react-less standalone graph", () => {
+  it("resolves react to the standalone shim", async () => {
+    const react = await import("react");
+    expect(() => react.useState(0)).toThrow(/standalone-shim/);
+  });
+
   it("loads the whole barrel under the standalone shim", () => {
     expect(typeof aiSdk.AISDKChat).toBe("function");
     expect(typeof aiSdk.useChatRuntime).toBe("function");
