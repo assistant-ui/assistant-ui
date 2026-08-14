@@ -142,7 +142,6 @@ export const threadViewport = (options?: {
     if (intent !== null) return;
     scheduleScrollToBottom("instant");
   };
-  checkInitialize();
   const unsubscribeState = context.source.subscribe(checkInitialize);
   onDestroy(() => {
     unsubscribeState();
@@ -161,17 +160,29 @@ export const threadViewport = (options?: {
 
   return {
     attach: (el: HTMLElement) => {
+      // The builder outlives its element, so each attachment restarts the
+      // per-element bookkeeping as a fresh mount would.
       element = el;
+      intent = null;
       lastScrollTop = el.scrollTop;
       lastScrollHeight = el.scrollHeight;
+      lastObservedScrollHeight = 0;
+      lastObservedClientHeight = 0;
+      initialized = false;
+      setAtBottom(true);
       const disconnect = observeContentResize(el, onContentResize);
       el.addEventListener("scroll", handleScroll);
       el.addEventListener("pointerdown", onPointerdown);
+      checkInitialize();
       handleScroll();
       return () => {
         disconnect();
         el.removeEventListener("scroll", handleScroll);
         el.removeEventListener("pointerdown", onPointerdown);
+        if (frame !== null) {
+          cancelAnimationFrame(frame);
+          frame = null;
+        }
         if (element === el) element = null;
       };
     },

@@ -189,6 +189,34 @@ describe("threadViewport", () => {
     flushSync(() => void unmount(app));
   });
 
+  it("re-attaching to a fresh element restarts the per-element state", async () => {
+    const { app, viewport, controls, detach } = mountViewport([
+      { id: "u0", role: "user", text: "hi" },
+    ]);
+    await vi.waitFor(() => expect(controls.scrollTo).toHaveBeenCalled());
+
+    controls.grow(1000);
+    await vi.waitFor(() => expect(viewport.isAtBottom).toBe(true));
+    controls.setScrollTop(100);
+    controls.dispatchScroll();
+    expect(viewport.isAtBottom).toBe(false);
+    detach();
+
+    const next = document.createElement("div");
+    const nextControls = makeScrollable(next);
+    const detachNext = viewport.attach(next);
+    expect(viewport.isAtBottom).toBe(true);
+    await vi.waitFor(() =>
+      expect(nextControls.scrollTo).toHaveBeenCalledWith({
+        top: 500,
+        behavior: "instant",
+      }),
+    );
+
+    detachNext();
+    flushSync(() => void unmount(app));
+  });
+
   it("seeds an initial scroll once messages exist", async () => {
     const { app, controls } = mountViewport([
       { id: "u0", role: "user", text: "hi" },
