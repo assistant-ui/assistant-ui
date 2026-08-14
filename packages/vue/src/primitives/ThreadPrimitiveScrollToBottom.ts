@@ -6,7 +6,7 @@ import {
   type PropType,
   type SlotsType,
 } from "vue";
-import { isDevelopment } from "../isDevelopment";
+import { isDevelopment } from "@assistant-ui/store/client";
 import { isAttrDisabled } from "./attrDisabled";
 import { viewportInjectionKey } from "./viewportContext";
 

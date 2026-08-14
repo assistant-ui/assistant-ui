@@ -49,3 +49,10 @@ export type {
   ScopeRegistry,
   Unsubscribe,
 } from "./types/client";
+
+export { createClientFacade } from "./utils/client-facade";
+export { isDevelopment } from "./utils/env";
+export {
+  createLastValidCache,
+  createStaleReporter,
+} from "./utils/last-valid-cache";

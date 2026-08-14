@@ -13,7 +13,7 @@ import {
   type AuiConfig,
 } from "@assistant-ui/store/client";
 import { auiInjectionKey, createClientFacade } from "./context";
-import { isDevelopment } from "./isDevelopment";
+import { isDevelopment } from "@assistant-ui/store/client";
 
 /**
  * Creates an `AssistantClient` from the given config and provides it to the
