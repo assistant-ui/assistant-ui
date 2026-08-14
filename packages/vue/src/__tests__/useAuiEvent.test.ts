@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   computed,
   createApp,
@@ -46,6 +46,10 @@ const mountWithProvider = (setup: () => void) => {
 };
 
 describe("useAuiEvent", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it("delivers scope-filtered events on a microtask", async () => {
     let aui!: AnyClient;
     const cb = vi.fn();

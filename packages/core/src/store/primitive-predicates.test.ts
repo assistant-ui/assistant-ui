@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   actionBarCopyDisabled,
+  actionBarEditDisabled,
   actionBarReloadDisabled,
   branchPickerNextDisabled,
   branchPickerPreviousDisabled,
+  composerCancelDisabled,
+  composerInputDisabled,
   composerSendDisabled,
   suggestionTriggerDisabled,
 } from "./primitive-predicates";
@@ -144,5 +147,38 @@ describe("primitive predicates", () => {
         true,
       ),
     ).toBe(false);
+  });
+  it("composerCancelDisabled, composerInputDisabled, and actionBarEditDisabled mirror their fields", () => {
+    expect(
+      composerCancelDisabled(state({ composer: { canCancel: true } })),
+    ).toBe(false);
+    expect(
+      composerCancelDisabled(state({ composer: { canCancel: false } })),
+    ).toBe(true);
+
+    const enabledThread = { isDisabled: false };
+    expect(
+      composerInputDisabled(state({ thread: enabledThread, composer: {} })),
+    ).toBe(false);
+    expect(
+      composerInputDisabled(
+        state({
+          thread: enabledThread,
+          composer: { dictation: { inputDisabled: true } },
+        }),
+      ),
+    ).toBe(true);
+    expect(
+      composerInputDisabled(
+        state({ thread: { isDisabled: true }, composer: {} }),
+      ),
+    ).toBe(true);
+
+    expect(
+      actionBarEditDisabled(state({ composer: { isEditing: false } })),
+    ).toBe(false);
+    expect(
+      actionBarEditDisabled(state({ composer: { isEditing: true } })),
+    ).toBe(true);
   });
 });
