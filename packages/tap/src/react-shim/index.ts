@@ -16,6 +16,8 @@ import {
   isReadableTapContext,
 } from "../core/context";
 import { useReactEffectEvent } from "./useReactEffectEvent";
+import { useId as useTapId } from "../react-hooks/useId";
+import { useImperativeHandle as useTapImperativeHandle } from "../react-hooks/useImperativeHandle";
 
 // @ts-expect-error -- @types/react uses `export =`; this is valid at runtime.
 export * from "react";
@@ -81,27 +83,11 @@ export const useInsertionEffect = (effect: any, deps?: any) =>
     ? hooks.useEffect(effect, deps)
     : ReactRuntime.useInsertionEffect(effect, deps);
 
-let nextTapId = 0;
-
-export const useId = () =>
-  inTap()
-    ? hooks.useState(() => `:tap${nextTapId++}:`)[0]
-    : ReactRuntime.useId();
+export const useId = () => (inTap() ? useTapId() : ReactRuntime.useId());
 
 export const useImperativeHandle = (ref: any, create: any, deps?: any) =>
   inTap()
-    ? hooks.useEffect(() => {
-        if (!ref) return undefined;
-        const value = create();
-        if (typeof ref === "function") {
-          ref(value);
-          return () => ref(null);
-        }
-        ref.current = value;
-        return () => {
-          ref.current = null;
-        };
-      }, deps)
+    ? useTapImperativeHandle(ref, create, deps)
     : ReactRuntime.useImperativeHandle(ref, create, deps);
 
 // Star re-exports of a CommonJS react lose named exports under some dev

@@ -11,6 +11,8 @@ import { use } from "../react-hooks/use";
 import { useContext } from "./context";
 import { useSyncExternalStore } from "../react-hooks/useSyncExternalStore";
 import { useDebugValue } from "../react-hooks/useDebugValue";
+import { useId } from "../react-hooks/useId";
+import { useImperativeHandle } from "../react-hooks/useImperativeHandle";
 import { useMemoCache } from "../react-hooks/useMemoCache";
 
 // The dispatcher React reads while a resource renders, so hooks imported from
@@ -31,6 +33,8 @@ const tapDispatcher = {
   use,
   useSyncExternalStore,
   useDebugValue,
+  useId,
+  useImperativeHandle,
   useMemoCache,
 };
 

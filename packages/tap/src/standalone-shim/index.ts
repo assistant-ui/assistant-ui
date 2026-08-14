@@ -16,6 +16,8 @@ import { useEffectEvent as useTapEffectEvent } from "../react-hooks/useEffectEve
 import { useSyncExternalStore as useTapSyncExternalStore } from "../react-hooks/useSyncExternalStore";
 import { useDebugValue as useTapDebugValue } from "../react-hooks/useDebugValue";
 import { use as useTap } from "../react-hooks/use";
+import { useId as useTapId } from "../react-hooks/useId";
+import { useImperativeHandle as useTapImperativeHandle } from "../react-hooks/useImperativeHandle";
 
 const inTap = () => peekResourceFiber() !== null;
 
@@ -66,25 +68,11 @@ export const useSyncExternalStore = (
 export const useDebugValue = (value: any, format?: any) =>
   inTap() ? useTapDebugValue(value, format) : throwOutsideTap("useDebugValue");
 
-let nextId = 0;
-
-export const useId = () =>
-  inTap() ? useTapState(() => `:tap${nextId++}:`)[0] : throwOutsideTap("useId");
+export const useId = () => (inTap() ? useTapId() : throwOutsideTap("useId"));
 
 export const useImperativeHandle = (ref: any, create: any, deps?: any) =>
   inTap()
-    ? useTapEffect(() => {
-        if (!ref) return undefined;
-        const value = create();
-        if (typeof ref === "function") {
-          ref(value);
-          return () => ref(null);
-        }
-        ref.current = value;
-        return () => {
-          ref.current = null;
-        };
-      }, deps)
+    ? useTapImperativeHandle(ref, create, deps)
     : throwOutsideTap("useImperativeHandle");
 
 export const createContext = (defaultValue: any) => {

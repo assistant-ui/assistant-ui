@@ -113,30 +113,58 @@ describe("@assistant-ui/tap/standalone-shim behavior", () => {
 
     root.unmount();
   });
-  it("serves stable per-instance ids and imperative handles", () => {
-    const Handle = resource(function HandleResource() {
-      const id = shim.useId();
-      const ref = shim.useRef<{ focus(): string } | null>(null);
-      shim.useImperativeHandle(ref, () => ({ focus: () => id }), [id]);
-      return { id, ref };
+  it("serves stable per-instance ids", () => {
+    const Identified = resource(function IdentifiedResource() {
+      return shim.useId();
     });
     const root = createTapRoot(function Root() {
-      const first = useResource(Handle(), { key: "first" });
-      const second = useResource(Handle(), { key: "second" });
+      const first = useResource(Identified());
+      const second = useResource(Identified());
       const [, rerender] = shim.useState(0);
       return { first, second, rerender };
     });
     root.subscribe(() => {});
 
     const initial = root.getValue();
-    expect(initial.first.id).not.toBe(initial.second.id);
-    expect(initial.first.ref.current!.focus()).toBe(initial.first.id);
+    expect(initial.first).not.toBe(initial.second);
 
     flushTapSync(() => root.getValue().rerender((n: number) => n + 1));
-    expect(root.getValue().first.id).toBe(initial.first.id);
+    expect(root.getValue().first).toBe(initial.first);
 
     root.unmount();
-    expect(initial.first.ref.current).toBe(null);
+  });
+
+  it("assigns imperative handles and follows a replaced ref", () => {
+    type Focusable = { focus(): string };
+    type FocusRef = { current: Focusable | null };
+    const Handle = resource(function HandleResource({
+      ref,
+    }: {
+      ref: FocusRef;
+    }) {
+      const id = shim.useId();
+      shim.useImperativeHandle(ref, () => ({ focus: () => id }), [id]);
+      return id;
+    });
+    const firstRef: FocusRef = { current: null };
+    const secondRef: FocusRef = { current: null };
+    const root = createTapRoot(function Root() {
+      const [ref, setRef] = shim.useState(firstRef);
+      const id = useResource(Handle({ ref }));
+      return { id, setRef };
+    });
+    root.subscribe(() => {});
+
+    const id = root.getValue().id;
+    expect(firstRef.current!.focus()).toBe(id);
+
+    // The deps ([id]) are unchanged; the replaced ref alone re-assigns
+    flushTapSync(() => root.getValue().setRef(secondRef));
+    expect(firstRef.current).toBe(null);
+    expect(secondRef.current!.focus()).toBe(id);
+
+    root.unmount();
+    expect(secondRef.current).toBe(null);
   });
 
   it("keeps the module-scope JSX surface loadable but unrenderable", () => {
