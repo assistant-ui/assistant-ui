@@ -31,7 +31,7 @@
     "react": "^19.2.8",
     "react-hook-form": "^7.85.0",
     "react-markdown": "^10.1.0",
-    "react-native": "^0.86.2",
+    "react-native": "^0.87.0",
     "react-syntax-highlighter": "^16.1.1",
     "react-textarea-autosize": "^8.5.9",
     "remark-rehype": "^11.1.2",
