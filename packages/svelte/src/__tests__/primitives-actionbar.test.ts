@@ -11,7 +11,7 @@ import {
   actionBarReload,
 } from "../primitives/actionBar";
 import { composerInput, composerSend } from "../primitives/composer";
-import { threadMessages } from "../primitives/threadMessages";
+import { threadMessages, type MessageItem } from "../primitives/threadMessages";
 import Host from "./fixtures/Host.svelte";
 import { createEchoRuntime, flushEvents, type AnyClient } from "./clients";
 
@@ -122,6 +122,8 @@ describe("action bar builders", () => {
     const copy = actionBarCopy({ item, copyToClipboard });
 
     copy.props.onclick();
+    // The deferred writer needs a microtask before resolveWrite exists
+    await Promise.resolve();
     // The slot occupant changes before the clipboard write settles
     flushTapSync(() =>
       echo.setMessages([
@@ -158,6 +160,74 @@ describe("action bar builders", () => {
     );
 
     flushSync(() => void unmount(app));
+  });
+
+  it("destroy invalidates pending copies and clears the copied timer", async () => {
+    const echo = createEchoRuntime();
+    echo.setMessages([
+      { id: "u0", role: "user", text: "hi" },
+      { id: "a0", role: "assistant", text: "reply" },
+    ]);
+    let copy!: ReturnType<typeof actionBarCopy>;
+    let item!: MessageItem;
+    let resolveWrite!: () => void;
+    const copyToClipboard = vi.fn(
+      () => new Promise<void>((resolve) => (resolveWrite = resolve)),
+    );
+    const app = mount(Host, {
+      target: target(),
+      props: {
+        setup: () => {
+          provideAui(AuiConfig({ threads: RuntimeAdapter(echo.runtime) }));
+          const messages = threadMessages();
+          item = messages.item(1);
+          item.source.subscribe(() => {});
+          copy = actionBarCopy({ item, copyToClipboard });
+        },
+      },
+    });
+
+    // A clipboard write pending across destroy must not mark the message
+    copy.props.onclick();
+    await Promise.resolve();
+    flushSync(() => void unmount(app));
+    resolveWrite();
+    await flushEvents();
+    await flushEvents();
+    expect((item.aui as AnyClient).message.getState().isCopied).toBe(false);
+  });
+
+  it("destroy during the copied window clears the timer and resets state", async () => {
+    const echo = createEchoRuntime();
+    echo.setMessages([
+      { id: "u0", role: "user", text: "hi" },
+      { id: "a0", role: "assistant", text: "reply" },
+    ]);
+    let copy!: ReturnType<typeof actionBarCopy>;
+    let item!: MessageItem;
+    const app = mount(Host, {
+      target: target(),
+      props: {
+        setup: () => {
+          provideAui(AuiConfig({ threads: RuntimeAdapter(echo.runtime) }));
+          const messages = threadMessages();
+          item = messages.item(1);
+          item.source.subscribe(() => {});
+          copy = actionBarCopy({
+            item,
+            copiedDuration: 60_000,
+            copyToClipboard: vi.fn(async () => {}),
+          });
+        },
+      },
+    });
+
+    copy.props.onclick();
+    await vi.waitFor(() =>
+      expect((item.aui as AnyClient).message.getState().isCopied).toBe(true),
+    );
+    flushSync(() => void unmount(app));
+    expect((item.aui as AnyClient).message.getState().isCopied).toBe(false);
   });
 });
 

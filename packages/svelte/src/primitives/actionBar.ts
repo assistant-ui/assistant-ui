@@ -1,3 +1,4 @@
+import { onDestroy } from "svelte";
 import { flushTapSync } from "@assistant-ui/tap";
 import {
   actionBarCopyDisabled,
@@ -91,6 +92,21 @@ export const actionBarCopy = (options?: {
   const composerText = useAuiState((s) => s.composer.text, { item });
 
   let copiedTimer: ReturnType<typeof setTimeout> | undefined;
+  let destroyed = false;
+  // Best effort: created during component initialization the builder cleans
+  // up with the component, matching the react and vue implementations; with
+  // an explicit item outside init there is no lifecycle to bind.
+  try {
+    onDestroy(() => {
+      destroyed = true;
+      if (copiedTimer === undefined) return;
+      clearTimeout(copiedTimer);
+      copiedTimer = undefined;
+      flushTapSync(() => aui.message.setIsCopied(false));
+    });
+  } catch {
+    /* outside component init */
+  }
 
   const onclick = (event?: MouseEvent) => {
     if (event?.defaultPrevented || disabled.current) return;
@@ -103,24 +119,26 @@ export const actionBarCopy = (options?: {
     // state.
     const copiedMessageId = aui.message.getState().id;
     const stillCopiedMessage = () =>
-      aui.message.getState().id === copiedMessageId;
-    // The rejection handler swallows clipboard write failures (permission
-    // denied, API unavailable) so they don't surface as unhandled promise
-    // rejections.
-    Promise.resolve(copyToClipboard(value)).then(
-      () => {
-        if (!stillCopiedMessage()) return;
-        if (copiedTimer !== undefined) clearTimeout(copiedTimer);
-        flushTapSync(() => aui.message.setIsCopied(true));
-        copiedTimer = setTimeout(() => {
-          copiedTimer = undefined;
-          if (stillCopiedMessage()) {
-            flushTapSync(() => aui.message.setIsCopied(false));
-          }
-        }, copiedDuration);
-      },
-      () => {},
-    );
+      !destroyed && aui.message.getState().id === copiedMessageId;
+    // The deferred call keeps a synchronously throwing writer inside the
+    // rejection handler, which swallows clipboard failures (permission
+    // denied, API unavailable) so they don't surface as unhandled rejections.
+    Promise.resolve()
+      .then(() => copyToClipboard(value))
+      .then(
+        () => {
+          if (!stillCopiedMessage()) return;
+          if (copiedTimer !== undefined) clearTimeout(copiedTimer);
+          flushTapSync(() => aui.message.setIsCopied(true));
+          copiedTimer = setTimeout(() => {
+            copiedTimer = undefined;
+            if (stillCopiedMessage()) {
+              flushTapSync(() => aui.message.setIsCopied(false));
+            }
+          }, copiedDuration);
+        },
+        () => {},
+      );
   };
 
   return {
@@ -131,6 +149,9 @@ export const actionBarCopy = (options?: {
       type: "button" as const,
       get disabled() {
         return disabled.current;
+      },
+      get "data-copied"() {
+        return isCopied.current ? "" : undefined;
       },
       onclick,
     },
