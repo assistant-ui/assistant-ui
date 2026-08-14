@@ -62,7 +62,7 @@ tool approval UI.
 Read the last Eve session error from the runtime extras.
 
 ```ts
-const useEveError: () => Error;
+const useEveError: () => Error | undefined;
 ```
 
 ### useEveEvents
@@ -92,6 +92,6 @@ resume the session later via `initialSession`. `undefined` when no session
 exists yet or outside an Eve runtime.
 
 ```ts
-const useEveSession: () => ClientSessionState;
+const useEveSession: () => ClientSessionState | undefined;
 ```
 {/* api-reference:end */}
