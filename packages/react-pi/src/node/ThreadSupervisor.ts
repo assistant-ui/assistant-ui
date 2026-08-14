@@ -436,13 +436,19 @@ export class PiThreadSupervisor {
     });
     record.uiBridge = uiBridge;
 
-    await session.bindExtensions({
-      uiContext: uiBridge.ui,
-      onError: (error) => {
-        record.lastError = error.error;
-        this.emit(record, { type: "error", error: error.error });
-      },
-    });
+    try {
+      await session.bindExtensions({
+        uiContext: uiBridge.ui,
+        onError: (error) => {
+          record.lastError = error.error;
+          this.emit(record, { type: "error", error: error.error });
+        },
+      });
+    } catch (error) {
+      uiBridge.dismissAll();
+      session.dispose();
+      throw error;
+    }
 
     if (this.openWasCancelled(signal)) {
       uiBridge.dismissAll();

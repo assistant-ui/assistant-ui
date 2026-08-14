@@ -197,6 +197,38 @@ describe("PiThreadSupervisor", () => {
     expect(session.setThinkingLevel).not.toHaveBeenCalled();
   });
 
+  it("disposes a cold session when extension binding fails during teardown", async () => {
+    const bindingError = new Error("extension binding failed");
+    let rejectBinding!: (reason: Error) => void;
+    const session = {
+      sessionId: "t1",
+      sessionFile: SESSION.path,
+      state: { pendingToolCalls: new Set<string>() },
+      bindExtensions: vi.fn(
+        () =>
+          new Promise<void>((_, reject) => {
+            rejectBinding = reject;
+          }),
+      ),
+      subscribe: vi.fn(() => () => {}),
+      setThinkingLevel: vi.fn(),
+      dispose: vi.fn(),
+    };
+    sdk.createAgentSession.mockResolvedValue({ session });
+    const supervisor = new PiThreadSupervisor({ workspacePath: "/ws" });
+
+    const opening = supervisor.setThinkingLevel("t1", "high");
+    const openingResult = expect(opening).rejects.toBe(bindingError);
+    await vi.waitFor(() => expect(session.bindExtensions).toHaveBeenCalled());
+    await supervisor.dispose();
+    rejectBinding(bindingError);
+
+    await openingResult;
+    expect(session.dispose).toHaveBeenCalledOnce();
+    expect(session.subscribe).not.toHaveBeenCalled();
+    expect(session.setThinkingLevel).not.toHaveBeenCalled();
+  });
+
   it("isolates errors from the initial snapshot listener", async () => {
     const session = {
       sessionId: "t1",
