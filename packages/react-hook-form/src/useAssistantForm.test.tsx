@@ -122,6 +122,26 @@ describe("useAssistantForm", () => {
     expect(onSubmit).not.toHaveBeenCalled();
   });
 
+  it("submits when native form validation is disabled", async () => {
+    const onSubmit = vi.fn((event: FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
+    });
+
+    render(
+      <form noValidate onSubmit={onSubmit}>
+        <NativeRequiredField />
+      </form>,
+    );
+
+    const submitTool = provider.getModelContext().tools?.submit_form;
+    if (!submitTool?.execute) throw new Error("submit_form is not registered");
+
+    await expect(submitTool.execute({}, {} as never)).resolves.toEqual({
+      success: true,
+    });
+    expect(onSubmit).toHaveBeenCalledOnce();
+  });
+
   it("reports when react-hook-form validation blocks submission", async () => {
     const onSubmit = vi.fn((event: FormEvent<HTMLFormElement>) => {
       event.preventDefault();

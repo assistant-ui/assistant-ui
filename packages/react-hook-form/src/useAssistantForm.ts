@@ -125,8 +125,10 @@ export const useAssistantForm = <
 
             if (formElement) {
               const isValid = await trigger(undefined, { shouldFocus: true });
-              if (!isValid || !formElement.checkValidity()) {
-                formElement.reportValidity();
+              const isNativeValid =
+                formElement.noValidate || formElement.checkValidity();
+              if (!isValid || !isNativeValid) {
+                if (!formElement.noValidate) formElement.reportValidity();
                 return {
                   success: false,
                   message:
