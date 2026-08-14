@@ -1538,7 +1538,7 @@ declare class PiThreadSupervisor {
   private readonly archivedSessionFiles;
   private readonly catalogCache;
   private readonly catalogInfoByThreadId;
-  private disposed;
+  private generation;
   constructor(options?: PiThreadSupervisorOptions);
   listThreads(input?: {
     workspacePath?: string;
