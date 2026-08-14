@@ -32,8 +32,6 @@ const SHOWCASE_ITEMS: ShowcaseItem[] = [
     tag: "Developer Tools",
     secondaryTag: "OSS",
     link: "https://github.com/anthropics/claude-quickstarts/tree/main/managed-agents/assistant-ui",
-    repositoryLink:
-      "https://github.com/anthropics/claude-quickstarts/tree/main/managed-agents/assistant-ui",
     description: "Managed agent sessions rendered with assistant-ui.",
   },
   {
