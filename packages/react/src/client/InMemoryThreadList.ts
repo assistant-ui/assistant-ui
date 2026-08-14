@@ -1,7 +1,8 @@
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { resource, withKey, type ResourceElement } from "@assistant-ui/tap";
 import {
   type ClientOutput,
+  useAssistantEmit,
   useClientLookup,
   Derived,
   attachTransformScopes,
@@ -91,6 +92,18 @@ const useInMemoryThreadList = (
   const [threads, setThreads] = useState<readonly ThreadData[]>(() => [
     { id: "main", title: "Main Thread", status: "regular" },
   ]);
+
+  const emit = useAssistantEmit();
+  const previousMainThreadIdRef = useRef(mainThreadId);
+  useEffect(() => {
+    const previousThreadId = previousMainThreadIdRef.current;
+    if (previousThreadId === mainThreadId) return;
+    previousMainThreadIdRef.current = mainThreadId;
+    emit("threads.selectionChanged", {
+      threadId: mainThreadId,
+      previousThreadId,
+    });
+  }, [mainThreadId, emit]);
 
   const handleSwitchToThread = (threadId: string) => {
     setMainThreadId(threadId);
