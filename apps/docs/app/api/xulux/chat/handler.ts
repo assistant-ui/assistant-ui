@@ -3,7 +3,6 @@ import { createPrismTracer, prismAISDK } from "@/lib/prism-server";
 import { injectQuoteContext, type FrontendTools } from "@assistant-ui/ai-sdk";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { validateDocChatInput } from "@/lib/validate-input";
-import { getModel, openai } from "@/lib/ai/provider";
 import { posthogTelemetry } from "@/lib/ai/telemetry";
 import { isAiPlaygroundEnabled } from "@/lib/feature-flags";
 import { NextResponse } from "next/server";
@@ -22,56 +21,7 @@ import {
   getLatestUserMessageId,
 } from "@/lib/xulux/turn-outcome";
 import type { XuluxAgentDefinition } from "./agents";
-
-type XuluxReasoningEffort =
-  | "none"
-  | "minimal"
-  | "low"
-  | "medium"
-  | "high"
-  | "xhigh";
-
-type XuluxRequestConfig = {
-  modelName?: unknown;
-  reasoningEffort?: unknown;
-};
-
-function isReasoningEffort(value: unknown): value is XuluxReasoningEffort {
-  return (
-    value === "none" ||
-    value === "minimal" ||
-    value === "low" ||
-    value === "medium" ||
-    value === "high" ||
-    value === "xhigh"
-  );
-}
-
-function resolveXuluxModel(config: unknown) {
-  const requestConfig =
-    config && typeof config === "object" && !Array.isArray(config)
-      ? (config as XuluxRequestConfig)
-      : undefined;
-  const modelName =
-    typeof requestConfig?.modelName === "string"
-      ? requestConfig.modelName.trim()
-      : "";
-  const reasoningEffort = isReasoningEffort(requestConfig?.reasoningEffort)
-    ? requestConfig.reasoningEffort
-    : undefined;
-
-  if (modelName === "gpt-5.6-luna" && reasoningEffort) {
-    return {
-      model: openai.responses("gpt-5.6-luna"),
-      providerOptions: { openai: { reasoningEffort } },
-    };
-  }
-
-  return {
-    model: modelName ? getModel(modelName) : getModel("gpt-5.6-luna"),
-    providerOptions: undefined,
-  };
-}
+import { resolveXuluxModel } from "./resolve-model";
 
 const PRUNE_OPTIONS = {
   toolCalls: "before-last-2-messages",
