@@ -105,9 +105,10 @@ const createMessageItem = (context: AuiContext, index: number): MessageItem => {
 /**
  * Builder for the thread's message list. Call during component
  * initialization; iterate `items` by index and scope per-row work through
- * `item(index)`. Do not key the iteration by message id: `item(index)` binds
- * by index, and an id-keyed row whose index shifts keeps its component
- * instance silently driving the old index.
+ * `item(index)`. Until items can be addressed by message id, keying the
+ * iteration by id would let a row whose index shifts keep its component
+ * instance silently driving the old index, so index iteration trades
+ * per-row transition identity for correctness.
  *
  * Items are cached per index for the builder's lifetime: a row that stops
  * being observed suspends its scopes and resumes with state intact when a

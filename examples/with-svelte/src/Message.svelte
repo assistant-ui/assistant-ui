@@ -88,7 +88,7 @@
     </div>
   {/if}
   <div
-    class="text-muted-foreground flex items-center gap-1 px-2 transition-opacity focus-within:opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100"
+    class="text-muted-foreground flex items-center gap-1 px-2 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100 [@media(hover:none)]:opacity-100"
   >
     {#if message.role === "user"}
       <button
