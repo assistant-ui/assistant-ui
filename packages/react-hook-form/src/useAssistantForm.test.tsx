@@ -1,5 +1,5 @@
 /** @vitest-environment jsdom */
-import { act, render, renderHook } from "@testing-library/react";
+import { act, render, renderHook, waitFor } from "@testing-library/react";
 import type { ModelContext } from "@assistant-ui/core";
 import type { FormEvent, ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -160,6 +160,15 @@ describe("useAssistantForm", () => {
     await expectSubmitBlocked();
     expect(onValid).not.toHaveBeenCalled();
   });
+
+  it("submits forms that pass react-hook-form validation", async () => {
+    const onValid = vi.fn();
+
+    render(<ReactHookFormRequiredForm defaultName="Ada" onValid={onValid} />);
+
+    await expect(executeSubmitForm()).resolves.toEqual({ success: true });
+    await waitFor(() => expect(onValid).toHaveBeenCalledOnce());
+  });
 });
 
 const NativeRequiredField = () => {
@@ -168,13 +177,17 @@ const NativeRequiredField = () => {
 };
 
 const ReactHookFormRequiredForm = ({
+  defaultName = "",
   onValid,
   noValidate,
 }: {
+  defaultName?: string | undefined;
   onValid: () => void;
   noValidate?: boolean | undefined;
 }) => {
-  const form = useAssistantForm<{ name: string }>();
+  const form = useAssistantForm<{ name: string }>({
+    defaultValues: { name: defaultName },
+  });
   return (
     <form noValidate={noValidate} onSubmit={form.handleSubmit(onValid)}>
       <input {...form.register("name", { required: true })} />
