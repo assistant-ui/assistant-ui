@@ -112,7 +112,7 @@ import {
   <WelcomeSuggestionsPills />
   <WelcomeSuggestionsPicker
     itemIcon="always" // ↵ icon on rows: "always" | "hover" | "off"
-    variant="ghost" // row highlight: "ghost" | "text" | "outline"
+    highlight="ghost" // highlighted-row style: "ghost" | "text"
     density="comfortable" // "comfortable" | "compact"
     separators // hairline dividers between rows
   />
@@ -220,18 +220,18 @@ const ItemIcon = CornerDownLeftIcon;
 Each layout takes three row styling props:
 
 ```tsx
-<WelcomeSuggestionsStack variant="text" density="compact" separators={false} />
+<WelcomeSuggestionsStack highlight="text" density="compact" separators={false} />
 ```
 
 | Prop         | Values                                        |
 | ------------ | --------------------------------------------- |
-| `variant`    | `"ghost"` (default), `"text"`, or `"outline"` |
+| `highlight`  | `"ghost"` (default) or `"text"`               |
 | `density`    | `"comfortable"` (default) or `"compact"`      |
 | `separators` | `true` (default) or `false`                   |
 
-`ghost` gives the highlighted row a muted background. `text` brightens the label and trailing icon. `outline` draws an inset ring around the row.
+`ghost` gives the highlighted row a muted background. `text` brightens the label and trailing icon.
 
-The sub-level rows inherit `variant`, `density`, `separators`, and `itemIcon` from the `Stack` or `Picker` that renders them.
+The sub-level rows inherit `highlight`, `density`, `separators`, and `itemIcon` from the `Stack` or `Picker` that renders them.
 
 ## Keyboard & Behavior
 
@@ -432,8 +432,8 @@ A flat item or a group:
         "Visibility of the trailing enter icon on action rows.",
     },
     {
-      name: "variant",
-      type: '"ghost" | "text" | "outline"',
+      name: "highlight",
+      type: '"ghost" | "text"',
       default: '"ghost"',
       description: "Row highlight style.",
     },
@@ -471,8 +471,8 @@ A flat item or a group:
         "Visibility of the trailing enter icon on the panel rows.",
     },
     {
-      name: "variant",
-      type: '"ghost" | "text" | "outline"',
+      name: "highlight",
+      type: '"ghost" | "text"',
       default: '"ghost"',
       description: "Row highlight style.",
     },
@@ -527,8 +527,8 @@ Accepts all `<button>` props except `onClick`, plus:
       description: "Visibility of the trailing enter icon.",
     },
     {
-      name: "variant",
-      type: '"ghost" | "text" | "outline"',
+      name: "highlight",
+      type: '"ghost" | "text"',
       default: '"ghost"',
       description: "Row highlight style.",
     },

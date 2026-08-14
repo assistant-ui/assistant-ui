@@ -146,11 +146,9 @@ const welcomeSuggestionRowVariants = cva(
   "group/row text-foreground/80 hover:text-foreground data-[highlighted]:text-foreground relative flex w-full items-center gap-2.5 rounded-lg px-3 text-left text-sm [&_svg]:size-4",
   {
     variants: {
-      variant: {
+      highlight: {
         ghost: "data-[highlighted]:bg-muted/70",
         text: "[&[data-highlighted]_svg:last-child]:opacity-80",
-        outline:
-          "data-[highlighted]:ring-border data-[highlighted]:ring-1 data-[highlighted]:ring-inset",
       },
       density: {
         comfortable: "py-3",
@@ -161,18 +159,18 @@ const welcomeSuggestionRowVariants = cva(
         false: "",
       },
     },
-    // ghost's fill and outline's ring collide with adjacent separators; text
-    // paints nothing, so its separators stay put under the highlight.
+    // ghost's fill collides with adjacent separators; text paints nothing, so
+    // its separators stay put under the highlight.
     compoundVariants: [
       {
-        variant: ["ghost", "outline"],
+        highlight: "ghost",
         separators: true,
         className:
           "data-[highlighted]:after:hidden [&:has(+[data-highlighted])]:after:hidden",
       },
     ],
     defaultVariants: {
-      variant: "ghost",
+      highlight: "ghost",
       density: "comfortable",
       separators: true,
     },
@@ -568,7 +566,7 @@ export const WelcomeSuggestionsPickerItem: FC<
   icon,
   children,
   itemIcon,
-  variant,
+  highlight,
   density,
   separators,
   className,
@@ -598,7 +596,7 @@ export const WelcomeSuggestionsPickerItem: FC<
       onClick={() => close()}
       onMouseMove={() => highlightItem(id, false)}
       className={cn(
-        welcomeSuggestionRowVariants({ variant, density, separators }),
+        welcomeSuggestionRowVariants({ highlight, density, separators }),
         className,
       )}
       {...props}
@@ -803,7 +801,7 @@ export type WelcomeSuggestionsPickerProps = VariantProps<
 
 export const WelcomeSuggestionsPicker: FC<WelcomeSuggestionsPickerProps> = ({
   itemIcon,
-  variant,
+  highlight,
   density,
   separators,
   children,
@@ -875,7 +873,7 @@ export const WelcomeSuggestionsPicker: FC<WelcomeSuggestionsPickerProps> = ({
               label={item.label}
               icon={item.icon}
               itemIcon={itemIcon}
-              variant={variant}
+              highlight={highlight}
               density={density}
               separators={separators}
             />
@@ -904,7 +902,7 @@ export type WelcomeSuggestionsStackProps = VariantProps<
 export const WelcomeSuggestionsStack: FC<WelcomeSuggestionsStackProps> = ({
   groupIcon,
   itemIcon,
-  variant,
+  highlight,
   density,
   separators,
   className,
@@ -1258,7 +1256,7 @@ export const WelcomeSuggestionsStack: FC<WelcomeSuggestionsStackProps> = ({
                 label={item.label}
                 icon={item.icon}
                 itemIcon={itemIcon}
-                variant={variant}
+                highlight={highlight}
                 density={density}
                 separators={separators}
               />
@@ -1270,7 +1268,7 @@ export const WelcomeSuggestionsStack: FC<WelcomeSuggestionsStackProps> = ({
                   type="button"
                   {...rowProps(idx)}
                   className={welcomeSuggestionRowVariants({
-                    variant,
+                    highlight,
                     density,
                     separators,
                   })}
@@ -1294,7 +1292,7 @@ export const WelcomeSuggestionsStack: FC<WelcomeSuggestionsStackProps> = ({
                   send={send}
                   {...rowProps(idx)}
                   className={welcomeSuggestionRowVariants({
-                    variant,
+                    highlight,
                     density,
                     separators,
                   })}

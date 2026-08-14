@@ -268,13 +268,13 @@ const VariantColumn = ({
   </div>
 );
 
-type RowVariant = "ghost" | "text" | "outline";
+type RowHighlight = "ghost" | "text";
 type Density = "comfortable" | "compact";
 
 export const WelcomeSuggestionsSample = () => {
   const [density, setDensity] = useState<Density>("comfortable");
   const [separators, setSeparators] = useState(true);
-  const [variant, setVariant] = useState<RowVariant>("ghost");
+  const [highlight, setHighlight] = useState<RowHighlight>("ghost");
   const [groupIcon, setGroupIcon] = useState<IconReveal>("always");
   const [itemIcon, setItemIcon] = useState<IconReveal>("always");
 
@@ -283,10 +283,10 @@ export const WelcomeSuggestionsSample = () => {
       <div className="mx-auto flex w-full max-w-4xl flex-col gap-3">
         <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-2">
           <ControlSelect
-            label="variant"
-            value={variant}
-            options={["ghost", "text", "outline"]}
-            onChange={setVariant}
+            label="highlight"
+            value={highlight}
+            options={["ghost", "text"]}
+            onChange={setHighlight}
           />
           <ControlSelect
             label="density"
@@ -320,14 +320,14 @@ export const WelcomeSuggestionsSample = () => {
             label="Pills + picker (default for groups)"
             hint={<>press ↓ or click, ← → move, ↓ to open</>}
             subHint={<>→ to edit in composer, tab / esc to exit</>}
-            hintClassName="ml-[50%] -mr-[190px] -translate-x-[190px]"
+            hintClassName="ml-[max(0px,calc(50%-190px))]"
             subHintClassName="ml-2"
             className="[&_[data-open]>[aria-hidden]]:hidden [&_[data-slot$=welcome-picker]]:static [&_[data-slot$=welcome-picker]]:mx-[2.5%]"
           >
             <WelcomeSuggestionsRoot suggestions={SUGGESTIONS}>
               <WelcomeSuggestionsPills />
               <WelcomeSuggestionsPicker
-                variant={variant}
+                highlight={highlight}
                 density={density}
                 separators={separators}
                 itemIcon={itemIcon}
@@ -343,7 +343,7 @@ export const WelcomeSuggestionsSample = () => {
           >
             <WelcomeSuggestionsRoot suggestions={SUGGESTIONS}>
               <WelcomeSuggestionsStack
-                variant={variant}
+                highlight={highlight}
                 density={density}
                 separators={separators}
                 groupIcon={groupIcon}
@@ -358,7 +358,7 @@ export const WelcomeSuggestionsSample = () => {
           >
             <WelcomeSuggestionsRoot suggestions={FLAT_SUGGESTIONS}>
               <WelcomeSuggestionsStack
-                variant={variant}
+                highlight={highlight}
                 density={density}
                 separators={separators}
                 itemIcon={itemIcon}
