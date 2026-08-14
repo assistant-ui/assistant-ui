@@ -145,6 +145,46 @@ afterEach(() => {
 });
 
 describe("useAssistantTransportRuntime", () => {
+  it.each(["throws", "rejects"] as const)(
+    "cancels the response body when onResponse %s",
+    async (failureMode) => {
+      const callbackError = new Error("response callback failed");
+      const cancel = vi.fn().mockRejectedValue(new Error("cancel failed"));
+      const onError = vi.fn();
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue(
+          new Response(
+            new ReadableStream({
+              cancel,
+            }),
+          ),
+        ),
+      );
+
+      const { aui, sendCommand } = mountRuntime({
+        onResponse: () => {
+          if (failureMode === "throws") throw callbackError;
+          return Promise.reject(callbackError);
+        },
+        onError,
+      });
+      await waitFor(() =>
+        expect(
+          (aui().thread.getState().extras as { sendCommand?: unknown })
+            ?.sendCommand,
+        ).toBeTypeOf("function"),
+      );
+
+      act(() => sendCommand(createMessageCommand("hello")));
+
+      await waitFor(() =>
+        expect(onError).toHaveBeenCalledWith(callbackError, expect.anything()),
+      );
+      expect(cancel).toHaveBeenCalledOnce();
+    },
+  );
+
   it("no-ops a follow-up run that finds an empty queue", async () => {
     const fetchMock = installFetch();
     const onError = vi.fn();
