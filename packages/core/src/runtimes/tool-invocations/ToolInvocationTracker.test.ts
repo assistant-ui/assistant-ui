@@ -1172,3 +1172,112 @@ describe("ToolInvocationTracker", () => {
     }
   });
 });
+
+describe("ToolInvocationTracker reset", () => {
+  const trackerWith = (tools: Record<string, Tool>) => {
+    let statuses: Record<string, ToolExecutionStatus> = {};
+    const tracker = new ToolInvocationTracker(() => tools, {
+      onResult: vi.fn(),
+      onStatusesChange: (s: ReadonlyMap<string, ToolExecutionStatus>) => {
+        statuses = Object.fromEntries(s);
+      },
+    });
+    return { tracker, statuses: () => statuses };
+  };
+
+  it("clears statuses for discarded executions that never settle", async () => {
+    const { tracker, statuses } = trackerWith({
+      weatherSearch: {
+        parameters: { type: "object", properties: {} },
+        execute: vi.fn(() => new Promise(() => {})),
+      } satisfies Tool,
+    });
+    tracker.setState(createState([]));
+    tracker.setState(
+      createState([
+        createAssistantMessage('{"query":"London"}', { query: "London" }),
+      ]),
+    );
+    await waitFor(() => {
+      expect(statuses()["tool-1"]?.type).toBe("executing");
+    });
+
+    tracker.reset();
+
+    expect(statuses()).toEqual({});
+  });
+
+  it("does not republish sibling statuses when a discarded execution settles after reset", async () => {
+    const { tracker, statuses } = trackerWith({
+      weatherSearch: {
+        parameters: { type: "object", properties: {} },
+        execute: vi.fn(
+          (_args, { abortSignal }: { abortSignal: AbortSignal }) =>
+            new Promise((resolve) => {
+              abortSignal.addEventListener("abort", () =>
+                resolve({ ok: true }),
+              );
+            }),
+        ),
+      } satisfies Tool,
+      pressureSearch: {
+        parameters: { type: "object", properties: {} },
+        execute: vi.fn(() => new Promise(() => {})),
+      } satisfies Tool,
+    });
+    tracker.setState(createState([]));
+    tracker.setState(
+      createState([
+        createAssistantMessage('{"query":"London"}', { query: "London" }),
+        createAssistantMessage(
+          '{"query":"London"}',
+          { query: "London" },
+          {
+            toolCallId: "tool-2",
+            toolName: "pressureSearch",
+          },
+        ),
+      ]),
+    );
+    await waitFor(() => {
+      expect(statuses()["tool-1"]?.type).toBe("executing");
+      expect(statuses()["tool-2"]?.type).toBe("executing");
+    });
+
+    tracker.reset();
+    expect(statuses()).toEqual({});
+
+    await new Promise((r) => setTimeout(r, 20));
+    expect(statuses()).toEqual({});
+  });
+
+  it("rejects a human-input request from a discarded execution without resurrecting its status", async () => {
+    let humanFn: ((payload: unknown) => Promise<unknown>) | undefined;
+    const { tracker, statuses } = trackerWith({
+      weatherSearch: {
+        parameters: { type: "object", properties: {} },
+        execute: vi.fn(() => new Promise(() => {})),
+        streamCall: vi.fn((_reader, { human }) => {
+          humanFn = human;
+        }),
+      } satisfies Tool,
+    });
+    tracker.setState(createState([]));
+    tracker.setState(
+      createState([
+        createAssistantMessage('{"query":"London"}', { query: "London" }),
+      ]),
+    );
+    await waitFor(() => {
+      expect(statuses()["tool-1"]?.type).toBe("executing");
+      expect(humanFn).toBeDefined();
+    });
+
+    tracker.reset();
+
+    await expect(humanFn!({ request: "approve" })).rejects.toThrow(
+      "Tool execution aborted",
+    );
+    expect(statuses()).toEqual({});
+  });
+});

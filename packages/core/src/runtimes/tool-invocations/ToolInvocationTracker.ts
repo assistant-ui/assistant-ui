@@ -285,6 +285,15 @@ export class ToolInvocationTracker {
       void this.abort().finally(() => {
         this._executing.clear();
       });
+      // Statuses are cleared synchronously: discarded executions may never
+      // settle (aborting hands the signal to the tool, it does not force
+      // settlement), and a late settlement of one sibling must not republish
+      // the others. `_deleteStatus` no-ops for cleared ids, so post-reset
+      // settlements stay silent.
+      if (this._statuses.size > 0) {
+        this._statuses = new Map();
+        this._invokeOnStatusesChange();
+      }
     } catch (err) {
       console.error("[ToolInvocationTracker] reset failed", err);
     }
@@ -388,6 +397,12 @@ export class ToolInvocationTracker {
     payload: unknown,
   ): Promise<unknown> {
     return new Promise<unknown>((resolve, reject) => {
+      // A discarded execution (reset or rolled back — its entry is gone) must
+      // not resurrect a status entry or park an unanswerable request.
+      if (!this._entries.has(toolCallId)) {
+        reject(new Error("Tool execution aborted"));
+        return;
+      }
       const previous = this._humanInput.get(toolCallId);
       if (previous) {
         try {
