@@ -3,6 +3,14 @@ export { useAui } from "./useAui";
 export { useAuiState } from "./useAuiState";
 export { useAuiEvent } from "./useAuiEvent";
 
+export type { ScopeTarget } from "./context";
+export {
+  composerCancel,
+  composerInput,
+  composerSend,
+} from "./primitives/composer";
+export { threadMessages, type MessageItem } from "./primitives/threadMessages";
+
 export {
   AuiConfig,
   Derived,

@@ -11,6 +11,12 @@ export type AuiContext = {
   aui: AssistantClient;
 };
 
+/**
+ * The scope a builder or `useAuiState` binds to: the surrounding provider by
+ * default, or a per-item handle such as a `MessageItem`.
+ */
+export type ScopeTarget = AuiContext;
+
 export const auiContextKey: symbol = Symbol("assistant-ui.svelte.aui");
 
 const NO_OP_SUBSCRIBE = () => () => {};
