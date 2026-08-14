@@ -298,6 +298,75 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
     expect(setItem).not.toHaveBeenCalled();
   });
 
+  it("preserves the anonymous identity when refresh fails transiently", async () => {
+    const values = new Map([
+      ["aui:refresh_token", JSON.stringify(refreshToken)],
+    ]);
+    installLocalStorage({
+      getItem: (key) => values.get(key) ?? null,
+      setItem: (key, value) => {
+        values.set(key, value);
+      },
+      removeItem: (key) => {
+        values.delete(key);
+      },
+    } as Storage);
+    const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 503 });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const strategy = new AssistantCloudAnonymousAuthStrategy(baseUrl);
+
+    await expect(strategy.getAuthHeaders()).rejects.toThrow(
+      "Assistant Cloud token refresh failed with status 503",
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(values.get("aui:refresh_token")).toBe(JSON.stringify(refreshToken));
+  });
+
+  it("replaces an anonymous identity after the refresh token is rejected", async () => {
+    const replacementRefreshToken = {
+      token: "r2",
+      expires_at: "2099-02-01",
+    };
+    const values = new Map([
+      ["aui:refresh_token", JSON.stringify(refreshToken)],
+    ]);
+    installLocalStorage({
+      getItem: (key) => values.get(key) ?? null,
+      setItem: (key, value) => {
+        values.set(key, value);
+      },
+      removeItem: (key) => {
+        values.delete(key);
+      },
+    } as Storage);
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: false, status: 403 })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: vi.fn().mockResolvedValue({
+          access_token: accessToken,
+          refresh_token: replacementRefreshToken,
+        }),
+      });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const strategy = new AssistantCloudAnonymousAuthStrategy(baseUrl);
+
+    await expect(strategy.getAuthHeaders()).resolves.toEqual({
+      Authorization: `Bearer ${accessToken}`,
+    });
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      `${baseUrl}/v1/auth/tokens/anonymous`,
+      { method: "POST" },
+    );
+    expect(values.get("aui:refresh_token")).toBe(
+      JSON.stringify(replacementRefreshToken),
+    );
+  });
+
   it("contextualizes invalid JSON token responses", async () => {
     delete (globalThis as { localStorage?: Storage }).localStorage;
     vi.stubGlobal(

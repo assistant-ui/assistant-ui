@@ -257,6 +257,14 @@ export class AssistantCloudAnonymousAuthStrategy implements AssistantCloudAuthSt
             }
             return accessToken;
           }
+
+          if (response.status !== 403) {
+            throw new Error(
+              `Assistant Cloud token refresh failed with status ${response.status}`,
+            );
+          }
+
+          removeRefreshToken();
         } else {
           removeRefreshToken();
         }
