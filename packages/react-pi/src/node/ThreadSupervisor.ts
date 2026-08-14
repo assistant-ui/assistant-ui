@@ -281,7 +281,8 @@ export class PiThreadSupervisor {
   }
 
   async deleteThread(threadId: string): Promise<void> {
-    this.pendingOpens.get(threadId)?.controller.abort();
+    const pendingOpen = this.pendingOpens.get(threadId);
+    pendingOpen?.controller.abort();
     const record = this.records.get(threadId);
     const info = record ? undefined : await this.findSessionInfo(threadId);
     const sessionFile = record?.session.sessionFile ?? info?.path;
@@ -299,6 +300,9 @@ export class PiThreadSupervisor {
     await unlink(sessionFile).catch((err: unknown) => {
       if ((err as { code?: string }).code !== "ENOENT") throw err;
     });
+    if (this.pendingOpens.get(threadId) === pendingOpen) {
+      this.pendingOpens.delete(threadId);
+    }
     if (workspacePath) this.invalidateCatalog(workspacePath);
   }
 
@@ -356,6 +360,7 @@ export class PiThreadSupervisor {
     for (const pending of this.pendingOpens.values()) {
       pending.controller.abort();
     }
+    this.pendingOpens.clear();
     for (const record of [...this.records.values()]) {
       record.unsubscribe();
       record.uiBridge.dismissAll();

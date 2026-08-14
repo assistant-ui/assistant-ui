@@ -189,12 +189,6 @@ describe("PiThreadSupervisor", () => {
     );
     await vi.waitFor(() => expect(sdk.createAgentSession).toHaveBeenCalled());
     await supervisor.dispose();
-    resolveSession({ session });
-
-    await openingResult;
-    expect(session.dispose).toHaveBeenCalledOnce();
-    expect(session.subscribe).not.toHaveBeenCalled();
-    expect(session.setThinkingLevel).not.toHaveBeenCalled();
 
     const reopenedSession = {
       ...session,
@@ -205,7 +199,13 @@ describe("PiThreadSupervisor", () => {
     };
     sdk.createAgentSession.mockResolvedValue({ session: reopenedSession });
 
-    await supervisor.setThinkingLevel("t1", "low");
+    const reopened = supervisor.setThinkingLevel("t1", "low");
+    resolveSession({ session });
+
+    await Promise.all([openingResult, reopened]);
+    expect(session.dispose).toHaveBeenCalledOnce();
+    expect(session.subscribe).not.toHaveBeenCalled();
+    expect(session.setThinkingLevel).not.toHaveBeenCalled();
 
     expect(reopenedSession.setThinkingLevel).toHaveBeenCalledWith("low");
   });
