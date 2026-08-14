@@ -99,6 +99,36 @@ describe("createFileStorageAdapter", () => {
     await expect(readFile(threadsFile, "utf8")).resolves.toContain("thread-1");
   });
 
+  it("preserves concurrent mutations from adapters for the same directory", async () => {
+    const dir = await createTempDir();
+    const firstAdapter = createFileStorageAdapter({ dir });
+    const secondAdapter = createFileStorageAdapter({ dir });
+
+    await Promise.all([
+      firstAdapter.initialize("thread-1"),
+      secondAdapter.initialize("thread-2"),
+    ]);
+
+    await expect(createFileStorageAdapter({ dir }).list()).resolves.toEqual({
+      threads: [
+        {
+          remoteId: "thread-2",
+          externalId: undefined,
+          status: "regular",
+          title: undefined,
+          custom: undefined,
+        },
+        {
+          remoteId: "thread-1",
+          externalId: undefined,
+          status: "regular",
+          title: undefined,
+          custom: undefined,
+        },
+      ],
+    });
+  });
+
   it("persists rename, archive, unarchive, and delete across reloads", async () => {
     const dir = await createTempDir();
     const adapter = createFileStorageAdapter({ dir });

@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { readFile, mkdir, rename, rm, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import type { RemoteThreadListAdapter } from "@assistant-ui/core";
 import {
   createLocalStorageAdapter,
@@ -74,13 +74,25 @@ export class FileStorage implements AsyncStorageLike {
   }
 }
 
+const fileStorages = new Map<string, WeakRef<FileStorage>>();
+
+const getFileStorage = (dir: string): FileStorage => {
+  const normalizedDir = resolve(dir);
+  const cached = fileStorages.get(normalizedDir)?.deref();
+  if (cached) return cached;
+
+  const storage = new FileStorage(normalizedDir);
+  fileStorages.set(normalizedDir, new WeakRef(storage));
+  return storage;
+};
+
 export const createFileStorageAdapter = (
   options: CreateFileStorageAdapterOptions,
 ): RemoteThreadListAdapter => {
   const { dir, prefix, titleGenerator } = options;
 
   return createLocalStorageAdapter({
-    storage: new FileStorage(dir),
+    storage: getFileStorage(dir),
     prefix,
     titleGenerator,
   });
