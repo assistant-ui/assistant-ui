@@ -4,10 +4,17 @@
     composerInput,
     composerSend,
     threadMessages,
+    threadScrollToBottom,
+    threadViewport,
     useAui,
     useAuiState,
   } from "@assistant-ui/svelte";
-  import { ArrowUpIcon, PlusIcon, SquareIcon } from "@lucide/svelte";
+  import {
+    ArrowDownIcon,
+    ArrowUpIcon,
+    PlusIcon,
+    SquareIcon,
+  } from "@lucide/svelte";
   import Message from "./Message.svelte";
 
   const aui = useAui();
@@ -17,14 +24,8 @@
   const input = composerInput();
   const send = composerSend();
   const cancel = composerCancel();
-
-  let viewport = $state<HTMLElement>();
-
-  $effect(() => {
-    void messages.items.length;
-    void isRunning.current;
-    viewport?.scrollTo({ top: viewport.scrollHeight });
-  });
+  const viewport = threadViewport();
+  const scrollDown = threadScrollToBottom({ viewport });
 
   const sendSuggestion = (prompt: string) => {
     aui.composer.setText(prompt);
@@ -45,7 +46,7 @@
     </button>
   </header>
   <div
-    bind:this={viewport}
+    {@attach viewport.attach}
     class="relative flex flex-1 flex-col overflow-x-auto overflow-y-scroll scroll-smooth"
   >
     <div class="mx-auto flex w-full max-w-2xl flex-1 flex-col px-4 pt-12">
@@ -77,6 +78,13 @@
           </li>
         {/if}
       </ol>
+      <button
+        {...scrollDown.props}
+        class="border-border/60 bg-background sticky bottom-2 z-10 mx-auto rounded-full border p-2 shadow-sm transition-[opacity,visibility] disabled:invisible disabled:opacity-0"
+        aria-label="Scroll to bottom"
+      >
+        <ArrowDownIcon class="size-4" />
+      </button>
     </div>
   </div>
   <div class="mx-auto w-full max-w-2xl px-4 pb-4">

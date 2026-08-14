@@ -95,10 +95,34 @@ export const createEchoRuntime = () => {
     ];
     sync();
   });
+  let threads: { id: string; title: string }[] = [{ id: "t0", title: "" }];
+  let currentThreadId = "t0";
+  let nextThreadId = 1;
   const makeAdapter = () => ({
     messages,
     isRunning,
     convertMessage,
+    adapters: {
+      threadList: {
+        threadId: currentThreadId,
+        threads: threads.map((thread) => ({
+          status: "regular" as const,
+          id: thread.id,
+          title: thread.title,
+        })),
+        onSwitchToThread: (threadId: string) => {
+          currentThreadId = threadId;
+          sync();
+        },
+        onSwitchToNewThread: () => {
+          const id = `t${nextThreadId++}`;
+          threads = [...threads, { id, title: "" }];
+          currentThreadId = id;
+          messages = [];
+          sync();
+        },
+      },
+    },
     setMessages: (next: EchoMessage[]) => {
       messages = next;
       sync();

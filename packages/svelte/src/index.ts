@@ -18,6 +18,10 @@ export {
   branchPickerNext,
   branchPickerPrevious,
 } from "./primitives/branchPicker";
+export {
+  threadScrollToBottom,
+  threadViewport,
+} from "./primitives/threadViewport";
 export { threadMessages, type MessageItem } from "./primitives/threadMessages";
 
 export {
