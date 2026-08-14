@@ -1,6 +1,13 @@
-import { describe, it, expect, afterEach } from "vitest";
+import { describe, it, expect, afterEach, vi } from "vitest";
 import { useSyncExternalStore } from "../../react-hooks/useSyncExternalStore";
 import { useCallback } from "../../react-hooks/useCallback";
+import {
+  createResourceFiber,
+  renderResourceFiber,
+  commitResourceFiber,
+  unmountResourceFiber,
+} from "../../core/ResourceFiber";
+import { createResourceFiberRoot } from "../../core/helpers/root";
 import {
   createTestResource,
   renderTest,
@@ -40,6 +47,7 @@ const useStore = <T>(store: ReturnType<typeof createStore<T>>) =>
 
 describe("useSyncExternalStore", () => {
   afterEach(() => {
+    vi.restoreAllMocks();
     cleanupAllResources();
   });
 
@@ -109,6 +117,27 @@ describe("useSyncExternalStore", () => {
     expect(renders).toBe(1);
   });
 
+  it("uses getServerSnapshot for every render pass before mount", () => {
+    const store = createStore("client");
+    let clientReads = 0;
+    const testFiber = createTestResource(() =>
+      useSyncExternalStore(
+        (cb) => store.subscribe(cb),
+        () => {
+          clientReads++;
+          return store.getState();
+        },
+        () => "server",
+      ),
+    );
+
+    // uncommitted double render, as in strict mode, render-phase update
+    // passes, and suspense replays — all before the fiber ever mounts
+    expect(renderResourceFiber(testFiber, [])).toBe("server");
+    expect(renderResourceFiber(testFiber, [])).toBe("server");
+    expect(clientReads).toBe(0);
+  });
+
   it("uses getSnapshot on re-renders after the first", () => {
     const store = createStore("client");
     const testFiber = createTestResource((_p: { n: number }) =>
@@ -150,7 +179,7 @@ describe("useSyncExternalStore", () => {
     expect(storeB.unsubscribeCalls).toBe(1);
   });
 
-  it("keeps the committed value when getSnapshot throws on a notification and resumes once the store is consistent again", async () => {
+  it("forces a re-render when getSnapshot throws on a notification, surfacing the error from the render", async () => {
     const store = createStore(["a", "b"]);
     const testFiber = createTestResource(() =>
       useSyncExternalStore(
@@ -165,13 +194,172 @@ describe("useSyncExternalStore", () => {
 
     expect(renderTest(testFiber)).toBe("b");
 
-    // the notification makes the snapshot throw; nothing escapes the store's notify loop
-    expect(() => store.setState(["a"])).not.toThrow();
-    await waitForNextTick();
+    // mirrors checkIfSnapshotChanged returning true on a throw: the forced
+    // re-render reads getSnapshot and the error propagates from the render
+    expect(() => store.setState(["a"])).toThrow("index out of bounds");
     expect(getCommittedValue(testFiber)).toBe("b");
 
     store.setState(["a", "c"]);
     await waitForNextTick();
     expect(getCommittedValue(testFiber)).toBe("c");
+  });
+
+  it("warns once in dev when getSnapshot returns a fresh object every call", () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const fiber = createResourceFiber(
+      function useUncached() {
+        return useSyncExternalStore(
+          () => () => {},
+          () => ({}),
+        );
+      },
+      createResourceFiberRoot(() => {}),
+      undefined,
+      null,
+    );
+
+    renderResourceFiber(fiber, []);
+    renderResourceFiber(fiber, []);
+    expect(errorSpy).toHaveBeenCalledExactlyOnceWith(
+      "The result of getSnapshot should be cached to avoid an infinite loop",
+    );
+  });
+
+  it("throws after 50 consecutive corrective renders from the commit check", () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    let dispatched = false;
+    const fiber = createResourceFiber(
+      function useUncached() {
+        return useSyncExternalStore(
+          () => () => {},
+          () => ({}),
+        );
+      },
+      createResourceFiberRoot((evaluate, apply) => {
+        if (!evaluate()) return;
+        apply();
+        dispatched = true;
+      }),
+      undefined,
+      null,
+    );
+
+    renderResourceFiber(fiber, []);
+    let commits = 0;
+    expect(() => {
+      for (;;) {
+        commits++;
+        commitResourceFiber(fiber);
+        if (!dispatched) break;
+        dispatched = false;
+        renderResourceFiber(fiber, []);
+        if (commits > 200) throw new Error("loop was not contained");
+      }
+    }).toThrow(
+      "Maximum update depth exceeded. The result of getSnapshot should be cached to avoid an infinite loop.",
+    );
+    expect(commits).toBe(51);
+  });
+
+  it("does not count notification-path corrections toward the loop guard", () => {
+    const store = createStore(0);
+    let dispatches = 0;
+    const fiber = createResourceFiber(
+      function useBurstStore() {
+        return useSyncExternalStore(store.subscribe, () => store.getState());
+      },
+      createResourceFiberRoot((evaluate, apply) => {
+        if (!evaluate()) return;
+        apply();
+        dispatches++;
+      }),
+      undefined,
+      null,
+    );
+
+    expect(renderResourceFiber(fiber, [])).toBe(0);
+    commitResourceFiber(fiber);
+
+    // 60 changed-snapshot notifications before any re-render: each forces an
+    // update against the stale committed value, none may trip the guard
+    for (let i = 1; i <= 60; i++) store.setState(i);
+    expect(dispatches).toBe(60);
+
+    expect(renderResourceFiber(fiber, [])).toBe(60);
+    commitResourceFiber(fiber);
+    unmountResourceFiber(fiber);
+  });
+
+  // The commit-time check must catch a change the notification path misses:
+  // onStoreChange compares against the committed closure's value, so a store
+  // that reverts inside the render->commit window bails there, and only the
+  // check effect re-running for the changed value corrects it.
+  it("forces a corrective render when the store reverts between render and commit", () => {
+    const store = createStore("a");
+
+    let dispatched = false;
+    const fiber = createResourceFiber(
+      function useRevertingStore() {
+        return useSyncExternalStore(store.subscribe, () => store.getState());
+      },
+      createResourceFiberRoot((evaluate, apply) => {
+        if (!evaluate()) return;
+        apply();
+        dispatched = true;
+      }),
+      undefined,
+      null,
+    );
+
+    expect(renderResourceFiber(fiber, [])).toBe("a");
+    commitResourceFiber(fiber);
+
+    store.setState("b");
+    expect(dispatched).toBe(true);
+    dispatched = false;
+
+    expect(renderResourceFiber(fiber, [])).toBe("b");
+
+    store.setState("a");
+    expect(dispatched).toBe(false);
+
+    commitResourceFiber(fiber);
+    expect(dispatched).toBe(true);
+
+    expect(renderResourceFiber(fiber, [])).toBe("a");
+    commitResourceFiber(fiber);
+    unmountResourceFiber(fiber);
+  });
+
+  it("forces a corrective render when the store mutates silently between render and commit", () => {
+    let state = "a";
+    const subscribe = () => () => {};
+    const getSnapshot = () => state;
+
+    let dispatched = false;
+    const fiber = createResourceFiber(
+      function useSilentStore() {
+        return useSyncExternalStore(subscribe, getSnapshot);
+      },
+      createResourceFiberRoot((evaluate, apply) => {
+        if (!evaluate()) return;
+        apply();
+        dispatched = true;
+      }),
+      undefined,
+      null,
+    );
+
+    expect(renderResourceFiber(fiber, [])).toBe("a");
+    state = "b";
+
+    commitResourceFiber(fiber);
+    expect(dispatched).toBe(true);
+
+    expect(renderResourceFiber(fiber, [])).toBe("b");
+    dispatched = false;
+    commitResourceFiber(fiber);
+    expect(dispatched).toBe(false);
+    unmountResourceFiber(fiber);
   });
 });

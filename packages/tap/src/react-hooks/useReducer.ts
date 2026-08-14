@@ -212,6 +212,15 @@ export function useReducerImpl<S, A, I>(
   return [cell.workInProgress, cell.dispatch];
 }
 
+export function useReducer<S>(
+  reducer: (state: S) => S,
+  initialState: S,
+): [S, () => void];
+export function useReducer<S, I>(
+  reducer: (state: S) => S,
+  initialArg: I,
+  init: (arg: I) => S,
+): [S, () => void];
 export function useReducer<S, A>(
   reducer: (state: S, action: A) => S,
   initialState: S,

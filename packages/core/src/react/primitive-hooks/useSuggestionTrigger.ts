@@ -1,5 +1,6 @@
 import { useCallback } from "react";
 import { useAui, useAuiState } from "@assistant-ui/store";
+import { suggestionTriggerDisabled } from "../../store/primitive-predicates";
 
 export type UseSuggestionTriggerOptions = {
   prompt: string;
@@ -14,10 +15,8 @@ export const useSuggestionTrigger = ({
 }: UseSuggestionTriggerOptions) => {
   const aui = useAui();
   const resolvedSend = send ?? false;
-  const disabled = useAuiState(
-    (s) =>
-      s.thread.isDisabled ||
-      (resolvedSend && s.thread.isRunning && !s.thread.capabilities.queue),
+  const disabled = useAuiState((s) =>
+    suggestionTriggerDisabled(s, resolvedSend),
   );
 
   const trigger = useCallback(() => {

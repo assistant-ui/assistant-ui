@@ -1,6 +1,6 @@
 import { StandardSchemaV1 } from "@standard-schema/spec";
 
-import { InputResponse, SendTurnPayload } from "eve/client";
+import { InputResponse } from "eve/client";
 
 import { EveAuthorizationOutcome, EveAuthorizationPart, EveMessage, EveMessageData, UseEveAgentHelpers, UseEveAgentOptions } from "eve/react";
 
@@ -330,6 +330,16 @@ type EveAuthorizationData = {
   readonly outcome?: EveAuthorizationOutcome;
   readonly reason?: string;
 };
+
+type EveMessageContent = string | ({
+  readonly type: "text";
+  readonly text: string;
+} | {
+  readonly type: "file";
+  readonly data: string;
+  readonly mediaType: string;
+  readonly filename?: string;
+})[];
 
 type EveRuntimeExtras = Pick<UseEveAgentHelpers<EveMessageData>, "error" | "events" | "reset" | "session">;
 
@@ -1503,7 +1513,7 @@ declare const convertEveMessage: (message: EveMessage, index: number, messages: 
 
 declare const convertEveMessages: (data: EveMessageData, options?: ConvertEveMessagesOptions) => ThreadMessage[];
 
-declare const getEveMessageContent: (message: AppendMessage) => NonNullable<SendTurnPayload["message"]>;
+declare const getEveMessageContent: (message: AppendMessage) => EveMessageContent;
 
 declare global {
   interface Window {
@@ -1513,7 +1523,7 @@ declare global {
 }
 
 declare namespace entry_root_exports {
-  export { ConvertEveMessagesOptions, EveAuthorizationData, EveRuntimeExtras, UseEveAgentRuntimeOptions, convertEveMessage, convertEveMessages, getEveMessageContent, toEveInputResponse, useEveAgentRuntime, useEveError, useEveEvents, useEveReset, useEveSession };
+  export { ConvertEveMessagesOptions, EveAuthorizationData, EveMessageContent, EveRuntimeExtras, UseEveAgentRuntimeOptions, convertEveMessage, convertEveMessages, getEveMessageContent, toEveInputResponse, useEveAgentRuntime, useEveError, useEveEvents, useEveReset, useEveSession };
 }
 
 declare const toEveInputResponse: (response: RespondToToolApprovalOptions) => InputResponse;
@@ -1522,10 +1532,10 @@ declare const useEveAgentRuntime: (options?: UseEveAgentRuntimeOptions) => Assis
 
 declare const useEveError: () => Error | undefined;
 
-declare const useEveEvents: () => readonly import("eve/client").HandleMessageStreamEvent[];
+declare const useEveEvents: () => readonly import("eve/client").MessageStreamEvent[];
 
 declare const useEveReset: () => () => void;
 
-declare const useEveSession: () => import("eve/client").SessionState | undefined;
+declare const useEveSession: () => import("eve/client").ClientSessionState | undefined;
 
 export { entry_root_exports as entry_root };

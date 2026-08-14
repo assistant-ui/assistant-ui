@@ -430,6 +430,12 @@ declare const AssistantRuntimeProvider: import("react").MemoExoticComponent<(_pa
   children: ReactNode;
 }) => import("react").JSX.Element>;
 
+type AssistantState = ScopeStates & {
+  readonly optional: {
+    readonly [K in keyof ScopeStates]: ScopeStates[K] | undefined;
+  };
+};
+
 type AssistantStream = ReadableStream<AssistantStreamChunk>;
 
 declare const AssistantStream: {
@@ -4005,6 +4011,12 @@ interface ScopeRegistry {
   [key: string]: { methods: any; meta?: any; events?: any };
 }
 
+type ScopeStates = {
+  [K in ClientNames]: ClientSchemas[K]["methods"] extends {
+    getState: () => infer S;
+  } ? S : never;
+};
+
 type ScopesConfig = {
   [K in ClientNames]?: ClientElement<K> | DerivedElement<K>;
 };
@@ -4675,6 +4687,7 @@ type ThreadListRuntimeCoreBinding = ThreadListRuntimeCore;
 
 declare class ThreadListRuntimeImpl implements ThreadListRuntime {
   private _getState;
+  private _stateBinding;
   private _core;
   private _runtimeFactory;
   constructor(_core: ThreadListRuntimeCoreBinding, _runtimeFactory?: new (binding: ThreadRuntimeCoreBinding, threadListItemBinding: ThreadListItemRuntimeBinding) => ThreadRuntime);
@@ -5062,13 +5075,14 @@ declare class ThreadRuntimeImpl implements ThreadRuntime {
     getStateState(): ThreadState;
   };
   private readonly _threadBinding;
+  private readonly _stateBinding;
   constructor(threadBinding: ThreadRuntimeCoreBinding, threadListItemBinding: ThreadListItemRuntimeBinding);
   protected __internal_bindMethods(): void;
   readonly composer: ThreadComposerRuntimeImpl;
   getState(): ThreadState;
   append(message: CreateAppendMessage): void;
   deleteMessage(messageId: string): void | Promise<void>;
-  subscribe(callback: () => void): Unsubscribe$1;
+  subscribe(callback: () => void): () => void;
   getModelContext(): ModelContext$1;
   startRun(config: CreateStartRunConfig): void;
   resumeRun(config: CreateResumeRunConfig): void;
@@ -5803,11 +5817,27 @@ type WithRender<T, TArgs extends Record<string, unknown>, TResult> = T extends {
   renderText?: ToolCallText<TArgs, TResult> | undefined;
 };
 
+declare const actionBarCopyDisabled: (s: AssistantState) => boolean;
+
+declare const actionBarEditDisabled: (s: AssistantState) => boolean;
+
+declare const actionBarReloadDisabled: (s: AssistantState) => boolean;
+
 declare const auiConfigBrand: unique symbol;
 
 declare const baseRuntimeAdapterTransformScopes: (scopes: ScopesConfig, parent: AssistantClient) => void;
 
 declare const bindExternalStoreMessage: <T>(target: object, message: T | T[]) => void;
+
+declare const branchPickerNextDisabled: (s: AssistantState) => boolean;
+
+declare const branchPickerPreviousDisabled: (s: AssistantState) => boolean;
+
+declare const composerCancelDisabled: (s: AssistantState) => boolean;
+
+declare const composerInputDisabled: (s: AssistantState) => boolean;
+
+declare const composerSendDisabled: (s: AssistantState) => boolean;
 
 declare const consumeSuggestionResult: (result: ReturnType<SuggestionAdapter["generate"]>, options: {
   signal: AbortSignal;
@@ -5948,7 +5978,7 @@ declare namespace entry_internal_exports {
 }
 
 declare namespace entry_store_internal_exports {
-  export { AttachmentRuntimeClient, ComposerClient, MessageClient, MessagePartClient, ThreadClient, ThreadListClient, ThreadListItemClient, baseRuntimeAdapterTransformScopes };
+  export { AttachmentRuntimeClient, ComposerClient, MessageClient, MessagePartClient, ThreadClient, ThreadListClient, ThreadListItemClient, actionBarCopyDisabled, actionBarEditDisabled, actionBarReloadDisabled, baseRuntimeAdapterTransformScopes, branchPickerNextDisabled, branchPickerPreviousDisabled, composerCancelDisabled, composerInputDisabled, composerSendDisabled, isDevelopment, suggestionTriggerDisabled };
 }
 
 declare const isAssistantError: (value: unknown) => value is AssistantError;
@@ -5956,6 +5986,8 @@ declare const isAssistantError: (value: unknown) => value is AssistantError;
 declare const isAutoStatus: (status: MessageStatus) => boolean;
 
 declare const isCreateAttachment: (attachment: File | CreateAttachment) => attachment is CreateAttachment;
+
+declare const isDevelopment: boolean;
 
 declare const isErrorMessageId: (id: string) => boolean;
 
@@ -6028,6 +6060,8 @@ declare const stepStreamingTiming: <TMessage>(state: StreamingTimingState | null
 };
 
 declare function stubTool(): never;
+
+declare const suggestionTriggerDisabled: (s: AssistantState, send: boolean) => boolean;
 
 declare const symbolInnerMessage: unique symbol;
 

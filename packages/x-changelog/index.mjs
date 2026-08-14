@@ -1,12 +1,9 @@
-// Forked from @changesets/changelog-github@0.6.0
+// Forked from @changesets/changelog-github@1.0.0
 // Difference: moves the author credit from " Thanks @user!" before the summary
 // to " (@user)" at the end of the first line.
 // https://github.com/changesets/changesets/blob/main/packages/changelog-github/src/index.ts
 
-const {
-  getInfo,
-  getInfoFromPullRequest,
-} = require("@changesets/get-github-info");
+import { getCommitInfo, getPullRequestInfo } from "@changesets/get-github-info";
 
 function linkifyIssueRefs(line, { serverUrl, repo }) {
   return line.replace(/\[.*?\]\(.*?\)|\B#([1-9]\d*)\b/g, (match, issue) =>
@@ -37,11 +34,11 @@ const changelogFunctions = {
       await Promise.all(
         changesets.map(async (cs) => {
           if (cs.commit) {
-            const { links } = await getInfo({
+            const info = await getCommitInfo({
               repo: options.repo,
               commit: cs.commit,
             });
-            return links.commit;
+            return info?.commit.markdownLink ?? `\`${cs.commit.slice(0, 7)}\``;
           }
         }),
       )
@@ -89,10 +86,15 @@ const changelogFunctions = {
 
     const links = await (async () => {
       if (prFromSummary !== undefined) {
-        let { links } = await getInfoFromPullRequest({
+        const info = await getPullRequestInfo({
           repo: options.repo,
           pull: prFromSummary,
         });
+        let links = {
+          commit: info?.commit?.markdownLink ?? null,
+          pull: info?.pull?.markdownLink ?? null,
+          user: info?.author?.markdownLink ?? null,
+        };
         if (commitFromSummary) {
           const shortCommitId = commitFromSummary.slice(0, 7);
           links = {
@@ -104,11 +106,15 @@ const changelogFunctions = {
       }
       const commitToFetchFrom = commitFromSummary || changeset.commit;
       if (commitToFetchFrom) {
-        const { links } = await getInfo({
+        const info = await getCommitInfo({
           repo: options.repo,
           commit: commitToFetchFrom,
         });
-        return links;
+        return {
+          commit: info?.commit?.markdownLink ?? null,
+          pull: info?.pull?.markdownLink ?? null,
+          user: info?.author?.markdownLink ?? null,
+        };
       }
       return { commit: null, pull: null, user: null };
     })();
@@ -148,5 +154,4 @@ const changelogFunctions = {
   },
 };
 
-module.exports = changelogFunctions;
-module.exports.default = changelogFunctions;
+export default changelogFunctions;

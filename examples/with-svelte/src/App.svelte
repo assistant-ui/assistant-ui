@@ -1,6 +1,9 @@
 <script lang="ts">
   import { useAui, useAuiState } from "@assistant-ui/svelte";
-  import type {} from "@assistant-ui/core/store";
+  import {
+    composerInputDisabled,
+    composerSendDisabled,
+  } from "@assistant-ui/core/store/internal";
   import { ArrowUpIcon, PlusIcon, SquareIcon } from "@lucide/svelte";
   import Message from "./Message.svelte";
 
@@ -9,13 +12,8 @@
   const isRunning = useAuiState((s) => s.thread.isRunning);
   const suggestions = useAuiState((s) => s.suggestions.suggestions);
   const text = useAuiState((s) => s.composer.text);
-  const sendDisabled = useAuiState(
-    (s) =>
-      !s.composer.canSend || (s.thread.isRunning && !s.thread.capabilities.queue),
-  );
-  const inputDisabled = useAuiState(
-    (s) => s.thread.isDisabled || s.composer.dictation?.inputDisabled === true,
-  );
+  const sendDisabled = useAuiState(composerSendDisabled);
+  const inputDisabled = useAuiState(composerInputDisabled);
 
   let viewport = $state<HTMLElement>();
 

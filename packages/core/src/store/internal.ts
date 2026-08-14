@@ -6,3 +6,15 @@ export { ThreadClient } from "./runtime-clients/thread-runtime-client";
 export { ThreadListItemClient } from "./runtime-clients/thread-list-item-runtime-client";
 export { ThreadListClient } from "./runtime-clients/thread-list-runtime-client";
 export { baseRuntimeAdapterTransformScopes } from "./clients/runtime-adapter";
+export {
+  actionBarCopyDisabled,
+  actionBarEditDisabled,
+  actionBarReloadDisabled,
+  branchPickerNextDisabled,
+  branchPickerPreviousDisabled,
+  composerCancelDisabled,
+  composerInputDisabled,
+  composerSendDisabled,
+  suggestionTriggerDisabled,
+} from "./primitive-predicates";
+export { isDevelopment } from "./env";

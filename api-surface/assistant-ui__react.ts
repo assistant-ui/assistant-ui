@@ -4582,6 +4582,7 @@ type ThreadListRuntimeCoreBinding = ThreadListRuntimeCore;
 
 declare class ThreadListRuntimeImpl implements ThreadListRuntime {
   private _getState;
+  private _stateBinding;
   private _core;
   private _runtimeFactory;
   constructor(_core: ThreadListRuntimeCoreBinding, _runtimeFactory?: new (binding: ThreadRuntimeCoreBinding, threadListItemBinding: ThreadListItemRuntimeBinding) => ThreadRuntime);
@@ -5014,13 +5015,14 @@ declare class ThreadRuntimeImpl implements ThreadRuntime {
     getStateState(): ThreadState;
   };
   private readonly _threadBinding;
+  private readonly _stateBinding;
   constructor(threadBinding: ThreadRuntimeCoreBinding, threadListItemBinding: ThreadListItemRuntimeBinding);
   protected __internal_bindMethods(): void;
   readonly composer: ThreadComposerRuntimeImpl;
   getState(): ThreadState;
   append(message: CreateAppendMessage): void;
   deleteMessage(messageId: string): void | Promise<void>;
-  subscribe(callback: () => void): Unsubscribe$1;
+  subscribe(callback: () => void): () => void;
   getModelContext(): ModelContext$1;
   startRun(config: CreateStartRunConfig): void;
   resumeRun(config: CreateResumeRunConfig): void;

@@ -800,14 +800,11 @@ jobs:
 
       - name: Publish to npm and create GitHub releases
         id: changesets-publish
-        uses: changesets/action@a45c4d594aa4e2c509dc14a9f2b3b67ba3780d0d # v1.9.0
+        uses: changesets/action@198f833dd7d863100ea6e28967bc9a9fdefadb0a # v2.1.0
         with:
-          publish: pnpm ci:publish
-          createGithubReleases: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # The action's fallback version path commits without ci:version's lockfile refresh, so the pre-commit hook's pnpm run fails on the stale lockfile.
-          HUSKY: 0
+          publish-script: pnpm ci:publish
+          create-github-releases: true
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Recovery guidance
         if: failure()

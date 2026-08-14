@@ -35,6 +35,7 @@ type Subscriber = {
   onCustomEvent?: (payload: { event: unknown }) => void;
   onRawEvent?: (payload: { event: unknown }) => void;
   onRunFinishedEvent?: (payload: { event: unknown }) => void;
+  onRunErrorEvent?: (payload: { event: unknown }) => void;
   onRunFinalized?: () => void;
   onRunFailed?: (payload: { error: Error }) => void;
 };
@@ -146,10 +147,23 @@ export const createAgUiSubscriber = (
     onCustomEvent: ({ event }) => dispatchIfValid(event, "CUSTOM"),
     onRawEvent: ({ event }) => dispatchIfValid(event, "RAW"),
     onRunFinishedEvent: ({ event }) => {
+      if (runFinishedDispatched) return;
       const parsed = ensureEvent(event, "RUN_FINISHED", logger);
       if (!parsed) return;
       runFinishedDispatched = true;
       dispatch(parsed);
+    },
+    onRunErrorEvent: ({ event }) => {
+      const parsed = ensureEvent(event, "RUN_ERROR", logger);
+      if (!parsed || parsed.type !== "RUN_ERROR") return;
+      runFinishedDispatched = true;
+      dispatch(parsed);
+
+      const error = Object.assign(
+        new Error(parsed.message ?? "Run failed"),
+        parsed.code === undefined ? {} : { code: parsed.code },
+      );
+      onRunFailed?.(error);
     },
     onRunFinalized: () => {
       if (runFinishedDispatched) return;

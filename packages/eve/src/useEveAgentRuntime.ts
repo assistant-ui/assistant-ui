@@ -26,7 +26,6 @@ import {
   type UseEveAgentOptions,
   type UseEveAgentStatus,
 } from "eve/react";
-import type { SendTurnPayload } from "eve/client";
 import {
   convertEveMessages,
   getEveMessageContent,
@@ -84,22 +83,35 @@ const hasRunConfig = (
 ): runConfig is NonNullable<AppendMessage["runConfig"]> =>
   runConfig?.custom !== undefined && Object.keys(runConfig.custom).length > 0;
 
+type EveJsonValue =
+  | string
+  | number
+  | boolean
+  | null
+  | readonly EveJsonValue[]
+  | { readonly [key: string]: EveJsonValue };
+
+/**
+ * Structural equivalent of eve's `JsonObject`. Eve demoted its public send
+ * payload type once already (`SendTurnPayload`, public through 0.30, internal
+ * from 0.31), so the helpers declare the shapes they forward instead of
+ * re-exporting eve's option types, and assignability is checked at the send
+ * call sites against the installed version.
+ */
+type EveClientContext = { readonly [key: string]: EveJsonValue };
+
 /**
  * Only the `custom` bag crosses the wire. Eve reads `clientContext` as its own
  * namespace and serializes it into a model-visible context message, so sending
  * the assistant-ui envelope would surface a literal `"custom"` key in the
  * prompt and to every eve-side handler.
  */
-const toEveClientContext = (
+const toEveSendOptions = (
   runConfig: AppendMessage["runConfig"],
-): Pick<SendTurnPayload, "clientContext"> =>
+): { readonly clientContext: EveClientContext } | undefined =>
   hasRunConfig(runConfig)
-    ? {
-        clientContext: runConfig.custom as NonNullable<
-          SendTurnPayload["clientContext"]
-        >,
-      }
-    : {};
+    ? { clientContext: runConfig.custom as EveClientContext }
+    : undefined;
 
 export type UseEveAgentRuntimeOptions = Omit<
   UseEveAgentOptions<EveMessageData>,
@@ -234,10 +246,10 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
   const messagesRef = useRef(messages);
   messagesRef.current = messages;
 
-  // Upstream `EveAgentStore.send` rejects while a turn is in flight and only
-  // resolves once the turn's stream parks, so a pending chain link is exactly
-  // an active turn; chaining every send serializes them without watching
-  // status.
+  // Upstream `EveAgentStore` `send` and `respond` reject while a turn is in
+  // flight and only resolve once the turn's stream parks, so a pending chain
+  // link is exactly an active turn; chaining every dispatch serializes them
+  // without watching status.
   const sendChainRef = useRef<Promise<void>>(Promise.resolve());
   const sendEpochRef = useRef(0);
   // A cancel drops the queued send but keeps its draft for a later promotion;
@@ -249,12 +261,12 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
     null,
   );
 
-  const enqueueSend = (payload: Parameters<typeof agent.send>[0]) => {
+  const enqueueSend = (dispatch: () => Promise<void>) => {
     const epoch = sendEpochRef.current;
     const next = sendChainRef.current.then(() => {
       if (epoch !== sendEpochRef.current)
         throw isMountedRef.current ? sendCancelledError : sendAbandonedError;
-      return agent.send(payload);
+      return dispatch();
     });
     sendChainRef.current = next.catch(() => {});
     return next;
@@ -362,10 +374,12 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
         return;
       }
       try {
-        await enqueueSend({
-          message: getEveMessageContent(message),
-          ...toEveClientContext(message.runConfig),
-        });
+        await enqueueSend(() =>
+          agent.send(
+            getEveMessageContent(message),
+            toEveSendOptions(message.runConfig),
+          ),
+        );
       } catch (error) {
         // A cancelled send never reached the session, so it rethrows for the
         // composer to take the draft back; an unmounted one has no composer
@@ -401,10 +415,12 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
                   ? config.runConfig
                   : input.runConfig;
               try {
-                await enqueueSend({
-                  message: getEveMessageContent(input.message),
-                  ...toEveClientContext(runConfig),
-                });
+                await enqueueSend(() =>
+                  agent.send(
+                    getEveMessageContent(input.message),
+                    toEveSendOptions(runConfig),
+                  ),
+                );
               } catch (error) {
                 // A reset discarded the draft along with the session, so
                 // restoring it here would refloat a message the thread no
@@ -428,7 +444,7 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
     },
     onRespondToToolApproval: async (response) => {
       try {
-        await enqueueSend({ inputResponses: [toEveInputResponse(response)] });
+        await enqueueSend(() => agent.respond([toEveInputResponse(response)]));
       } catch (error) {
         if (!isDroppedSend(error)) throw error;
       }
