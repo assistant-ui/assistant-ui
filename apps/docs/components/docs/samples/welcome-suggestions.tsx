@@ -117,8 +117,7 @@ const Hint = ({
   className?: string | undefined;
   sub?: boolean;
 }) => (
-  // -mt-1 counters part of the column's gap-3 so the arrow starts near the
-  // content above.
+  // -mt-1 counters part of the column's gap-3 so the arrow hugs the content.
   <div
     {...(sub ? { "data-subhint": "" } : { "data-hint": "" })}
     className={cn(
@@ -214,9 +213,8 @@ const ControlSelect = <T extends string>({
   </ControlLabel>
 );
 
-// composerLast places the composer after the suggestions in the DOM — the
-// component reads that order and flips itself; the column only bottom-anchors
-// the group so it sits like a viewport-bottom composer.
+// composerLast places the composer after the suggestions in the DOM; that
+// order alone flips the component.
 const VariantColumn = ({
   label,
   hint,

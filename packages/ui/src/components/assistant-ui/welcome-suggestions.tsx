@@ -97,10 +97,8 @@ const getPickerOptions = (popoverId: string) =>
 // reference the constant; keep them in sync by hand.
 const COMPOSER_SELECTOR = '[data-slot*="composer"]';
 
-// Ghost previews ride the composer's native placeholder: they show only
-// while the composer is empty, style like any placeholder, and can never
-// touch or be sent as the draft. The input is found in the DOM because the
-// suggestions and the composer are detached siblings.
+// The suggestions and the composer are detached siblings, so the input is
+// found through the DOM rather than context.
 const findComposerInput = (from: Element | null) => {
   for (let el = from?.parentElement ?? null; el; el = el.parentElement) {
     const input = el.querySelector<HTMLTextAreaElement>(
@@ -111,11 +109,8 @@ const findComposerInput = (from: Element | null) => {
   return null;
 };
 
-// ArrowDown hands navigation to the suggestions only once it has no text
-// travel left: the caret sits at the end of the composer text. Lexical's
-// reported offset can overshoot the synced text around empty leading lines,
-// so the comparison is lenient. Suggestions above the composer mirror this:
-// ArrowUp hands over once the caret sits at the start.
+// Lexical's reported caret offset can overshoot the synced text around
+// empty leading lines, so caretAtEnd compares leniently.
 const useComposerCaret = () => {
   const aui = useAui();
   const posRef = useRef(0);
@@ -130,10 +125,8 @@ const useComposerCaret = () => {
   return { setCursorPosition, caretAtEnd, caretAtStart };
 };
 
-// DOM order is the sole side switch: a composer that follows the
-// suggestions renders below them, so they sit above it. This walks the
-// root's later siblings — the same relation the styles read with
-// `has-[~[data-slot*=composer]]` — so the mirrored arrow directions and the
+// Reads the same sibling relation the styles read with
+// `has-[~[data-slot*=composer]]`, so the mirrored arrow directions and the
 // flipped layout can never disagree.
 const composerFollows = (from: Element | null) => {
   const root = from?.closest('[data-slot="aui_thread-welcome-suggestions"]');
@@ -165,8 +158,7 @@ const welcomeSuggestionRowVariants = cva(
         false: "",
       },
     },
-    // ghost's fill collides with adjacent separators; text paints nothing, so
-    // its separators stay put under the highlight.
+    // ghost's fill collides with the separators touching the highlighted row.
     compoundVariants: [
       {
         highlight: "ghost",
@@ -305,8 +297,6 @@ const useWelcomeSuggestionsState = ({
       ?.click();
   }, [popoverId]);
 
-  // ArrowRight accepts the highlighted ghost preview as an editable draft;
-  // an existing draft is never clobbered.
   const acceptCurrent = useCallback(() => {
     const prompt = currentIdRef.current
       ? pickerPrompts.get(currentIdRef.current)
@@ -316,9 +306,8 @@ const useWelcomeSuggestionsState = ({
     return true;
   }, [aui, pickerPrompts]);
 
-  // Only deliberate keyboard navigation previews: a wrapping ghost resizes
-  // the composer, and hover-driven previews loop when the list shifts under
-  // a stationary cursor. Hover still moves the highlight.
+  // Hover never previews: a wrapping ghost resizes the composer, shifting
+  // the list under a stationary cursor in a loop.
   const highlightItem = useCallback(
     (id: string, preview = true) => {
       if (currentIdRef.current === id) return;
@@ -361,9 +350,8 @@ const useWelcomeSuggestionsState = ({
     [popoverId],
   );
 
-  // The panel never touches the draft, so any composer edit while a group
-  // is open is the user's: hand control back. Gated on a ref so the check
-  // runs only when the text changes, not when the group opens.
+  // Any composer edit while a group is open is the user's: hand control
+  // back. The ref keeps the effect keyed to text changes alone.
   const groupOpenRef = useRef(false);
   groupOpenRef.current = group !== undefined;
   useEffect(() => {
@@ -452,10 +440,6 @@ export const WelcomeSuggestionsPills: FC = () => {
   const registry = unstable_useComposerInputPluginRegistry();
   const { setCursorPosition, caretAtEnd, caretAtStart } = useComposerCaret();
 
-  // The vertical keys are spatially anchored to the composer. Below it:
-  // ArrowDown at the end of the composer text jumps focus to the first pill,
-  // so the row is reachable without tabbing; ArrowUp or Escape on a pill
-  // hands focus back. Above it, every direction mirrors.
   useEffect(() => {
     if (!registry) return undefined;
     return registry.register({
@@ -616,12 +600,10 @@ export const WelcomeSuggestionsPickerItem: FC<
   );
 };
 
-// Escape and outside pointer-downs dismiss an open panel, except inside a
-// composer surface: the composer keeps focus and drives the panel while
-// open. Both mirror Radix's DismissableLayer: a defaultPrevented
-// pointerdown lets outside controls act on the panel without dismissing
-// it, and Escape is consumed in the capture phase so enclosing handlers
-// see it as already handled.
+// Mirrors Radix's DismissableLayer: a defaultPrevented pointerdown lets
+// outside controls act on the panel without dismissing it, and Escape is
+// consumed in the capture phase so enclosing handlers see it as handled.
+// The composer is exempt: it drives the panel while open.
 const useDismissOutside = (
   ref: RefObject<HTMLElement | null>,
   active: boolean,
@@ -653,19 +635,11 @@ const useDismissOutside = (
   }, [ref, active, onDismiss, onEscape]);
 };
 
-// Mounted by surfaces whose open group is composer-driven (Picker, Stack's
-// sub-level). The composer keeps focus while the group is open; this plugin
-// routes its keydowns to panel navigation. The arrows wrap; a surface may
-// opt in to onExitEdge to make the arrow toward the composer, on the item
-// nearest it, climb out one level instead (the pills picker exits to its
-// pill). Escape and Tab both leave without selecting, so both put the
-// open-time draft back; each hands focus back to the surface's top level
-// via its callback — a native Tab move would land on the composer's
-// neighbors, not the suggestions.
-//
-// Without a registry the composer cannot drive the panel: the hook then
-// focuses the surface's listbox and returns a keydown handler that routes
-// the same keys locally.
+// Routes composer keydowns to panel navigation while a group is open; with
+// no registry, the listbox takes focus and the returned handler routes the
+// same keys. onExitEdge makes the arrow toward the composer, at its nearest
+// item, climb out a level instead of wrapping. Tab is intercepted because a
+// native move would land on the composer's neighbors, not the suggestions.
 const useComposerCoupling = ({
   listboxRef,
   onEscape,
@@ -731,8 +705,6 @@ const useComposerCoupling = ({
           return true;
         }
         if (e.key === "Escape") {
-          // Consume the event like a Radix layer would, so enclosing Escape
-          // handlers (dialogs, fullscreen panels) see it as already handled.
           e.preventDefault();
           if (onEscape) onEscape();
           else close();
@@ -817,9 +789,8 @@ export const WelcomeSuggestionsPicker: FC<WelcomeSuggestionsPickerProps> = ({
   const panelRef = useRef<HTMLDivElement>(null);
   const listboxRef = useRef<HTMLDivElement>(null);
 
-  // Tab and the arrow past the pill-side edge hand focus back to the pill
-  // that opened the group. The pills row is invisible until the close
-  // commits, so the focus move waits a frame.
+  // The pills row is invisible until the close commits, so the focus move
+  // waits a frame.
   const returnToPills = useCallback(() => {
     const idx = group ? entries.indexOf(group) : -1;
     close();
@@ -889,14 +860,6 @@ export const WelcomeSuggestionsPicker: FC<WelcomeSuggestionsPickerProps> = ({
   );
 };
 
-// ChatGPT-style vertical layout: top-level rows stay visible and passive
-// (typing is never intercepted); opening a group swaps its items in place
-// and hands navigation to the composer, exactly like the Picker.
-//
-// Both levels are the same listbox: one persistent container holds DOM focus
-// (the composer holds it while a group is open) and a single highlighted row
-// tracks pointer and arrows alike, so hover and keyboard can never light two
-// rows, and Escape or Tab can hand focus back for arrow nav to continue.
 export type WelcomeSuggestionsStackProps = VariantProps<
   typeof welcomeSuggestionRowVariants
 > & {
@@ -930,9 +893,7 @@ export const WelcomeSuggestionsStack: FC<WelcomeSuggestionsStackProps> = ({
   const { setCursorPosition, caretAtEnd, caretAtStart } = useComposerCaret();
   const listRef = useRef<HTMLDivElement>(null);
   const [topIdx, setTopIdx] = useState<number | null>(null);
-  // Composer-driven top-level navigation: the composer keeps DOM focus while
-  // the arrows move a virtual highlight, so typing at any point resumes
-  // composing without a refocus.
+  // The composer keeps DOM focus while the arrows move a virtual highlight.
   const [composerNav, setComposerNav] = useState(false);
   const composerNavRef = useRef(false);
   const topIdxRef = useRef(topIdx);
@@ -954,7 +915,6 @@ export const WelcomeSuggestionsStack: FC<WelcomeSuggestionsStackProps> = ({
     setGhost(null);
   }, [setGhost]);
 
-  // Browsing ghost-previews a flat row's prompt; group rows have none.
   const previewRow = useCallback(
     (idx: number) => {
       const entry = entries[idx];
@@ -964,8 +924,6 @@ export const WelcomeSuggestionsStack: FC<WelcomeSuggestionsStackProps> = ({
     [entries, setGhost],
   );
 
-  // ArrowRight accepts a flat row's ghost preview as an editable draft; an
-  // existing draft is never clobbered. Group rows open instead.
   const acceptRow = useCallback(
     (idx: number) => {
       const entry = entries[idx];
@@ -985,10 +943,6 @@ export const WelcomeSuggestionsStack: FC<WelcomeSuggestionsStackProps> = ({
     [],
   );
 
-  // Escape and Tab both leave the sub-level without selecting; the group's
-  // own row comes back highlighted so the arrows keep working. With a
-  // registry the return is virtual — the composer keeps focus and keeps
-  // driving the arrows — otherwise the listbox takes DOM focus.
   const returnToTop = useCallback(() => {
     const idx = group ? entries.indexOf(group) : -1;
     close();
@@ -1012,16 +966,14 @@ export const WelcomeSuggestionsStack: FC<WelcomeSuggestionsStackProps> = ({
     if (group) exitComposerNav();
   }, [group, exitComposerNav]);
 
-  // Navigation never touches the draft, so any composer edit is the user's:
-  // hand the arrows back. Gated on a ref so the check runs only when the
-  // text changes, not when navigation starts.
+  // Any composer edit is the user's: hand the arrows back. The ref keeps
+  // the effect keyed to text changes alone.
   useEffect(() => {
     if (composerNavRef.current) exitComposerNav();
   }, [composerText, exitComposerNav]);
 
-  // The highlight would otherwise outlive the composer's focus: any pointer
-  // press outside the list ends composer-driven navigation; a press on a
-  // row stays live and its click handler commits instead.
+  // A press on a row must stay live so its click can commit; any other
+  // outside press ends composer navigation.
   useEffect(() => {
     if (!composerNav) return undefined;
     const onPointerDown = (e: PointerEvent) => {
@@ -1033,12 +985,8 @@ export const WelcomeSuggestionsStack: FC<WelcomeSuggestionsStackProps> = ({
     return () => document.removeEventListener("pointerdown", onPointerDown);
   }, [composerNav, exitComposerNav]);
 
-  // The arrow away from the composer enters top-level navigation once the
-  // caret has no text travel left toward the list. The highlight is
-  // spatially anchored to the composer: entry lands on the composer-adjacent
-  // row, the far edge clamps, and the composer-adjacent edge exits back into
-  // the composer instead of wrapping. Below the composer that is ArrowDown
-  // from the end of the text; above it, every direction mirrors.
+  // The highlight anchors to the composer: entry lands on the adjacent row,
+  // the far edge clamps, and the adjacent edge exits instead of wrapping.
   useEffect(() => {
     if (!registry) return undefined;
     const openKey = direction === "rtl" ? "ArrowLeft" : "ArrowRight";
@@ -1140,10 +1088,6 @@ export const WelcomeSuggestionsStack: FC<WelcomeSuggestionsStackProps> = ({
     onEscape: returnToTop,
   });
 
-  // Tab focus and composer-driven navigation are the same mode with a
-  // different focus holder: identical clamped movement, identical previews,
-  // and the arrow off the composer-adjacent edge hands focus (back) to the
-  // composer.
   const onKeyDown = (e: ReactKeyboardEvent<HTMLDivElement>) => {
     if (group) return fallbackKeyDown(e);
     if (e.key === "ArrowDown" || e.key === "ArrowUp") {
@@ -1188,11 +1132,9 @@ export const WelcomeSuggestionsStack: FC<WelcomeSuggestionsStackProps> = ({
     }
   };
 
-  // Rows never take DOM focus (mousedown is prevented, tabIndex -1): the
-  // container is the only tab stop and the highlight is the only indicator.
-  // Hover moves the highlight but never previews (a wrapping ghost would
-  // resize the composer and shift the list under the cursor); it clears any
-  // keyboard ghost so the preview can't go stale on another row.
+  // mousedown is prevented so rows never take DOM focus from the container
+  // or composer. Hover clears any keyboard ghost so a preview can't go
+  // stale on another row.
   const rowProps = (idx: number) => ({
     id: rowId(idx),
     "data-slot": "aui_thread-welcome-stack-row",
@@ -1317,8 +1259,6 @@ export const WelcomeSuggestionsStack: FC<WelcomeSuggestionsStackProps> = ({
   );
 };
 
-// Grouped entries default to the pill row with its picker panel; an all-flat
-// list reads better as the stacked list.
 const AutoLayout: FC = () => {
   const { entries } = useWelcomeSuggestions();
   if (!entries.some(isGroup)) return <WelcomeSuggestionsStack />;

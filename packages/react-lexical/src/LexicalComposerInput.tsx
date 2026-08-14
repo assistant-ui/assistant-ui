@@ -155,9 +155,8 @@ function KeyboardPlugin({
         COMMAND_PRIORITY_HIGH,
       ),
 
-      // The textarea input delegates every key; horizontal arrows must reach
-      // plugins here too (welcome suggestions open a group with ArrowRight,
-      // ArrowLeft in RTL).
+      // The textarea input delegates every key to plugins; horizontal arrows
+      // must reach them here too.
       editor.registerCommand(
         KEY_ARROW_RIGHT_COMMAND,
         (event) => {

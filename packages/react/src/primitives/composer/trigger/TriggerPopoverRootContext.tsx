@@ -217,8 +217,7 @@ const TriggerPopoverRootInner: FC<
   }, []);
 
   // The ARIA descriptor lives on the composer input plugin registry so any
-  // composer-coupled popup (not just trigger popovers) can publish it. The
-  // root context keeps its read/write surface as a thin delegation layer.
+  // composer-coupled popup, not just trigger popovers, can publish it.
   const pluginRegistry = useComposerInputPluginRegistry();
 
   const setActiveAria = useCallback<TriggerPopoverAriaPublish["setActiveAria"]>(

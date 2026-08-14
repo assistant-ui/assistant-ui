@@ -98,7 +98,7 @@ export const ComposerInputPluginProvider: FC<{ children: ReactNode }> = ({
 
   const refreshSnapshot = useCallback(() => {
     const entries = Array.from(pluginsRef.current.entries());
-    // Sort by priority descending; stable insertion order for equal priorities.
+    // Insertion order stays stable for equal priorities.
     entries.sort((a, b) => b[1] - a[1]);
     snapshotRef.current = entries.map(([plugin]) => plugin);
   }, []);
