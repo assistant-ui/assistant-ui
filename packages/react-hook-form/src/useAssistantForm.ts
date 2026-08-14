@@ -241,10 +241,15 @@ export const useAssistantForm = <
               try {
                 formElement.requestSubmit();
               } catch (error) {
-                rejectAssistantSubmit(error);
+                settleAssistantSubmit(false);
                 throw error;
               } finally {
                 formElement.removeEventListener("submit", onSubmit);
+              }
+
+              const pending = pendingAssistantSubmitRef.current;
+              if (pending?.event === undefined) {
+                settleAssistantSubmit(false);
               }
 
               if (await submissionResult) return { success: true };

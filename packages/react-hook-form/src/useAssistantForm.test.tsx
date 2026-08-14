@@ -56,6 +56,21 @@ const expectSubmitBlocked = async () => {
   });
 };
 
+const captureUnhandledRejections = async (
+  callback: () => Promise<void>,
+): Promise<unknown[]> => {
+  const reasons: unknown[] = [];
+  const listener = (reason: unknown) => reasons.push(reason);
+  process.on("unhandledRejection", listener);
+  try {
+    await callback();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    return reasons;
+  } finally {
+    process.off("unhandledRejection", listener);
+  }
+};
+
 const expectRegisteredFieldsToSubmit = async (Fields: () => ReactNode) => {
   const onSubmit = vi.fn((event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -249,6 +264,46 @@ describe("useAssistantForm", () => {
       success: false,
       message: "The form contains invalid fields and was not submitted.",
     });
+  });
+
+  it("reports when requestSubmit does not dispatch a submit event", async () => {
+    const requestSubmit = vi
+      .spyOn(HTMLFormElement.prototype, "requestSubmit")
+      .mockImplementation(() => {});
+    try {
+      render(
+        <form noValidate>
+          <NativeRequiredField />
+        </form>,
+      );
+
+      await expectSubmitBlocked();
+    } finally {
+      requestSubmit.mockRestore();
+    }
+  });
+
+  it("does not leak rejections when requestSubmit throws", async () => {
+    const error = new Error("requestSubmit unavailable");
+    const requestSubmit = vi
+      .spyOn(HTMLFormElement.prototype, "requestSubmit")
+      .mockImplementation(() => {
+        throw error;
+      });
+    try {
+      render(
+        <form noValidate>
+          <NativeRequiredField />
+        </form>,
+      );
+
+      const unhandledRejections = await captureUnhandledRejections(async () => {
+        await expect(executeSubmitForm()).rejects.toBe(error);
+      });
+      expect(unhandledRejections).toEqual([]);
+    } finally {
+      requestSubmit.mockRestore();
+    }
   });
 });
 
