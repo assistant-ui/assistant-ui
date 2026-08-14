@@ -220,7 +220,23 @@ export default async function Page() {
 }
 ```
 
-Without this, the sidebar renders expanded on the server and snaps to the persisted state after hydration.
+Your `Assistant` wrapper forwards the prop to the shell:
+
+```tsx title="/app/assistant.tsx"
+export const Assistant = ({
+  defaultCollapsed,
+}: {
+  defaultCollapsed?: boolean;
+}) => {
+  return (
+    <AssistantShell defaultCollapsed={defaultCollapsed}>
+      <Thread />
+    </AssistantShell>
+  );
+};
+```
+
+Without the server handoff, the component reads the cookie after hydration instead: the sidebar renders expanded on the server and snaps to the persisted state on mount.
 
 ## Custom composition
 

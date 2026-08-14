@@ -49,7 +49,7 @@ const AccountMenu = () => {
           <UserRoundIcon /> Manage account
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => signOut()}>
+        <DropdownMenuItem onClick={() => signOut({ redirectUrl: "/" })}>
           <LogOutIcon /> Sign out
         </DropdownMenuItem>
       </DropdownMenuContent>

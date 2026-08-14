@@ -32,6 +32,7 @@ import {
   useState,
   type ComponentPropsWithoutRef,
   type FC,
+  type MouseEvent,
   type ReactNode,
 } from "react";
 
@@ -111,6 +112,18 @@ export const AssistantShellRoot: FC<AssistantShellRootProps> = ({
 
   const toggle = useCallback(() => setCollapsed((prev) => !prev), []);
 
+  // Restore must be declared before the write effect below: both run on mount,
+  // and reading first keeps the stored value from being clobbered by the
+  // initial write. defaultCollapsed is the SSR handoff and wins when provided.
+  useEffect(() => {
+    if (defaultCollapsed !== undefined) return;
+    const entry = document.cookie
+      .split("; ")
+      .find((c) => c.startsWith(`${COLLAPSED_COOKIE}=`));
+    if (entry)
+      setCollapsed(entry.slice(COLLAPSED_COOKIE.length + 1) === "true");
+  }, [defaultCollapsed]);
+
   useEffect(() => {
     document.cookie = `${COLLAPSED_COOKIE}=${collapsed}; path=/; max-age=31536000`;
   }, [collapsed]);
@@ -172,7 +185,7 @@ export const AssistantShellSidebar: FC = () => {
           <span
             data-slot="aui_shell-sidebar-title"
             className={cn(
-              "text-foreground/90 ml-2 text-sm font-medium whitespace-nowrap transition-opacity duration-200",
+              "text-foreground/90 ms-2 text-sm font-medium whitespace-nowrap transition-opacity duration-200",
               collapsed && "opacity-0",
             )}
           >
@@ -260,7 +273,7 @@ export const AssistantShellMain: FC<ComponentPropsWithoutRef<"div">> = ({
     <div
       data-slot="aui_shell-main-wrapper"
       className={cn(
-        "flex flex-1 flex-col overflow-hidden p-2 md:pl-0",
+        "flex flex-1 flex-col overflow-hidden p-2 md:ps-0",
         className,
       )}
       {...props}
@@ -286,7 +299,7 @@ export const AssistantShellSidebarToggle: FC = () => {
       data-slot="aui_shell-sidebar-toggle"
       className="hidden size-8 md:flex"
     >
-      <PanelLeftIcon className="size-4" />
+      <PanelLeftIcon className="size-4 rtl:-scale-x-100" />
     </TooltipIconButton>
   );
 };
@@ -308,7 +321,7 @@ export const AssistantShellHeader: FC<ComponentPropsWithoutRef<"header">> = ({
       {children != null && (
         <div
           data-slot="aui_shell-header-actions"
-          className="ml-auto flex items-center gap-1"
+          className="ms-auto flex items-center gap-1"
         >
           {children}
         </div>
@@ -320,6 +333,7 @@ export const AssistantShellHeader: FC<ComponentPropsWithoutRef<"header">> = ({
 export const AssistantShellMobileSidebar: FC = () => {
   const context = useAssistantShell();
   const { logo, title, sidebarFooter } = context;
+  const [open, setOpen] = useState(false);
 
   // The mobile drawer is always full width, so footer items inside it must not inherit the desktop collapsed state.
   const expandedContext = useMemo(
@@ -327,14 +341,26 @@ export const AssistantShellMobileSidebar: FC = () => {
     [context],
   );
 
+  const closeAfterNavigation = (event: MouseEvent<HTMLDivElement>) => {
+    if (!(event.target instanceof Element)) return;
+    if (
+      event.target.closest(
+        '[data-slot="aui_thread-list-item-trigger"], [data-slot="aui_thread-list-new"]',
+      )
+    ) {
+      setOpen(false);
+    }
+  };
+
   return (
-    <Sheet>
+    <Sheet open={open} onOpenChange={setOpen}>
+      {/* Base UI merges trigger props over the render element's, so the slot must live on the trigger or "sheet-trigger" wins the merge. */}
       <SheetTrigger
+        data-slot="aui_shell-mobile-trigger"
         render={
           <Button
             variant="ghost"
             size="icon"
-            data-slot="aui_shell-mobile-trigger"
             className="size-8 shrink-0 md:hidden"
           />
         }
@@ -358,6 +384,7 @@ export const AssistantShellMobileSidebar: FC = () => {
         <div
           data-slot="aui_shell-mobile-content"
           className={cn("overflow-y-auto px-3", SCROLL_AREA_CLASS)}
+          onClick={closeAfterNavigation}
         >
           <ThreadList />
         </div>
@@ -444,7 +471,7 @@ export const AssistantShellFooterItem: FC<AssistantShellFooterItemProps> = ({
               <span
                 data-slot="aui_shell-footer-item-text"
                 className={cn(
-                  "flex min-w-0 flex-1 flex-col items-start overflow-hidden text-left transition-opacity duration-200",
+                  "flex min-w-0 flex-1 flex-col items-start overflow-hidden text-start transition-opacity duration-200",
                   collapsed ? "opacity-0" : "opacity-100",
                 )}
               >

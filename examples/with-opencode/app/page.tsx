@@ -6,8 +6,17 @@ import {
   Tools,
   useAui,
 } from "@assistant-ui/react";
-import { AssistantShell } from "@/components/assistant-ui/assistant-shell";
-import { useOpenCodeRuntime } from "@assistant-ui/react-opencode";
+import {
+  AssistantShellMain,
+  AssistantShellMobileSidebar,
+  AssistantShellRoot,
+  AssistantShellSidebar,
+  AssistantShellSidebarToggle,
+} from "@/components/assistant-ui/assistant-shell";
+import {
+  useOpenCodeRuntime,
+  useOpenCodeSession,
+} from "@assistant-ui/react-opencode";
 import {
   Thread,
   type ThreadComponents,
@@ -31,6 +40,18 @@ const THREAD_COMPONENTS: ThreadComponents = {
   ReasoningGroup,
 };
 
+// OpenCode streams generated titles through its event stream into the session,
+// not into the core thread list, so the shell's thread-list-backed title would
+// go stale; read the session directly instead.
+const SessionTitle = () => {
+  const session = useOpenCodeSession();
+  return (
+    <span className="min-w-0 truncate text-sm font-medium">
+      {session?.title?.trim() || "New Chat"}
+    </span>
+  );
+};
+
 export default function Home() {
   const runtime = useOpenCodeRuntime({
     baseUrl:
@@ -44,9 +65,19 @@ export default function Home() {
   return (
     <AssistantRuntimeProvider config={config} runtime={runtime}>
       <SetFallbackDataUI />
-      <AssistantShell title="OpenCode">
-        <Thread components={THREAD_COMPONENTS} />
-      </AssistantShell>
+      <AssistantShellRoot title="OpenCode">
+        <AssistantShellSidebar />
+        <AssistantShellMain>
+          <header className="flex h-12 shrink-0 items-center gap-2 px-4">
+            <AssistantShellMobileSidebar />
+            <AssistantShellSidebarToggle />
+            <SessionTitle />
+          </header>
+          <main className="flex-1 overflow-hidden">
+            <Thread components={THREAD_COMPONENTS} />
+          </main>
+        </AssistantShellMain>
+      </AssistantShellRoot>
     </AssistantRuntimeProvider>
   );
 }
