@@ -111,7 +111,9 @@ describe("AISDKChat as a standalone client config entry", () => {
     );
     vi.stubGlobal("fetch", fetchMock);
 
-    const handle = createAssistantClient(AuiConfig({ threads: AISDKChat({}) }));
+    const handle = createAssistantClient(
+      AuiConfig({ threads: AISDKChat({ id: "test-thread-1" }) }),
+    );
     try {
       handle.subscribe(() => {});
       const aui = handle.getClient();
@@ -132,8 +134,7 @@ describe("AISDKChat as a standalone client config entry", () => {
       ];
       expect(String(url)).toContain("/api/chat");
       const body = JSON.parse(init.body as string);
-      expect(typeof body.id).toBe("string");
-      expect(body.id.length).toBeGreaterThan(0);
+      expect(body.id).toBe("test-thread-1");
       expect(body.messages).toHaveLength(1);
     } finally {
       handle.destroy();
