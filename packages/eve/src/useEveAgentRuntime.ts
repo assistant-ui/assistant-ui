@@ -91,9 +91,11 @@ type EveJsonValue =
   | { readonly [key: string]: EveJsonValue };
 
 /**
- * Structural equivalent of eve's `JsonObject`. Eve's transport payload types
- * are internal, so the helpers declare the shapes they forward and leave
- * assignability to the call site, checked against the installed version.
+ * Structural equivalent of eve's `JsonObject`. Eve demoted its public send
+ * payload type once already (`SendTurnPayload`, public through 0.30, internal
+ * from 0.31), so the helpers declare the shapes they forward instead of
+ * re-exporting eve's option types, and assignability is checked at the send
+ * call sites against the installed version.
  */
 type EveClientContext = { readonly [key: string]: EveJsonValue };
 
