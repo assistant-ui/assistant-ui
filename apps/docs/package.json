@@ -17,6 +17,7 @@
     "@ai-sdk/openai": "^4.0.40",
     "@ai-sdk/otel": "^1.0.62",
     "@ai-sdk/react": "^4.0.65",
+    "@assistant-ui/ai-sdk": "workspace:*",
     "@assistant-ui/next": "workspace:*",
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/react-ai-sdk": "workspace:*",

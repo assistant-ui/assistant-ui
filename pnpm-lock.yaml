@@ -165,6 +165,9 @@ importers:
       '@ai-sdk/react':
         specifier: ^4.0.65
         version: 4.0.65(react@19.2.8)(zod@4.4.3)
+      '@assistant-ui/ai-sdk':
+        specifier: workspace:*
+        version: link:../../packages/ai-sdk
       '@assistant-ui/next':
         specifier: workspace:*
         version: link:../../packages/next
@@ -3589,9 +3592,9 @@ importers:
       '@ai-sdk/react-v3':
         specifier: npm:@ai-sdk/react@^3.0.211
         version: '@ai-sdk/react@3.0.252(react@19.2.8)(zod@4.4.3)'
-      '@assistant-ui/react-ai-sdk':
+      '@assistant-ui/ai-sdk':
         specifier: workspace:*
-        version: link:../react-ai-sdk
+        version: link:../ai-sdk
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../x-buildutils

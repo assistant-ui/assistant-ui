@@ -1,9 +1,6 @@
 import { getDistinctId } from "@/lib/posthog-server";
 import { createPrismTracer, prismAISDK } from "@/lib/prism-server";
-import {
-  injectQuoteContext,
-  type FrontendTools,
-} from "@assistant-ui/react-ai-sdk";
+import { injectQuoteContext, type FrontendTools } from "@assistant-ui/ai-sdk";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { validateDocChatInput } from "@/lib/validate-input";
 import { getModel, openai } from "@/lib/ai/provider";
