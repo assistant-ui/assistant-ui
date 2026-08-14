@@ -70,7 +70,20 @@ describe("AssistantCloudRuns", () => {
 
     await expect(createCloud().runs.stream(streamBody)).rejects.toThrow(
       new CloudResponseError(
-        'Invalid Assistant Cloud response for "run stream": expected a "text/plain" content type',
+        'Invalid Assistant Cloud response for "run stream": expected a "text/plain" content type, received "text/html; charset=utf-8"',
+      ),
+    );
+    expect(cancel).toHaveBeenCalledOnce();
+  });
+
+  it("rejects and cancels run responses without a content type", async () => {
+    const cancel = vi.fn();
+    const body = new ReadableStream({ cancel });
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(body)));
+
+    await expect(createCloud().runs.stream(streamBody)).rejects.toThrow(
+      new CloudResponseError(
+        'Invalid Assistant Cloud response for "run stream": expected a "text/plain" content type, received no Content-Type header',
       ),
     );
     expect(cancel).toHaveBeenCalledOnce();

@@ -91,15 +91,19 @@ export class AssistantCloudRuns {
       );
     }
 
-    const contentType = response.headers
-      .get("content-type")
+    const receivedContentType = response.headers.get("content-type");
+    const contentType = receivedContentType
       ?.split(";", 1)[0]
       ?.trim()
       .toLowerCase();
     if (contentType !== "text/plain") {
       await response.body.cancel().catch(() => undefined);
       throw new CloudResponseError(
-        'Invalid Assistant Cloud response for "run stream": expected a "text/plain" content type',
+        `Invalid Assistant Cloud response for "run stream": expected a "text/plain" content type, received ${
+          receivedContentType
+            ? `"${receivedContentType}"`
+            : "no Content-Type header"
+        }`,
       );
     }
 
