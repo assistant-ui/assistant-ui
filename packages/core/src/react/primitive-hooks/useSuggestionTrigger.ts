@@ -38,7 +38,7 @@ export const useSuggestionTrigger = ({
       } else {
         const currentText = aui.composer.getState().text;
         aui.composer.setText(
-          currentText.trim() ? `${currentText} ${prompt}` : prompt,
+          [currentText, prompt].filter((part) => part.trim()).join(" "),
         );
       }
     }

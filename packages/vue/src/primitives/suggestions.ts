@@ -132,9 +132,7 @@ export const SuggestionPrimitiveTrigger = defineComponent({
         } else {
           const currentText = aui.composer.getState().text;
           aui.composer.setText(
-            currentText.trim()
-              ? `${currentText} ${prompt.value}`
-              : prompt.value,
+            [currentText, prompt.value].filter((part) => part.trim()).join(" "),
           );
         }
       });
