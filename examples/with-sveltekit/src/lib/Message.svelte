@@ -9,6 +9,7 @@
     composerCancel,
     composerInput,
     composerSend,
+    messageParts,
     useAuiState,
     type MessageItem,
   } from "@assistant-ui/svelte";
@@ -24,18 +25,13 @@
   let { message, item }: { message: MessageState; item: MessageItem } =
     $props();
 
-  const text = $derived(
-    message.content
-      .map((part) => (part.type === "text" ? part.text : ""))
-      .join(""),
-  );
-
   // The item handle is index-bound and referentially stable for this
   // position's lifetime under unkeyed iteration, so a one-time capture is
   // correct.
   // svelte-ignore state_referenced_locally
   const target = { item };
 
+  const parts = messageParts(target);
   const isEditing = useAuiState((s) => s.composer.isEditing, target);
   const branchNumber = useAuiState((s) => s.message.branchNumber, target);
   const branchCount = useAuiState((s) => s.message.branchCount, target);
@@ -110,12 +106,33 @@
           : "text-foreground leading-relaxed",
       ].join(" ")}
     >
-      <p class="whitespace-pre-line">
-        {text}{#if pulsing.current}<span class="animate-pulse">…</span>{/if}
-        {#if error.current}<span class="text-destructive text-sm"
-          >{error.current}</span
-        >{/if}
-      </p>
+      {#each parts.items as part, index}
+        {#if part.type === "text"}
+          <p class="whitespace-pre-line">{part.text}</p>
+        {:else if part.type === "reasoning"}
+          <details class="text-muted-foreground my-1 text-sm">
+            <summary class="cursor-pointer select-none">Reasoning</summary>
+            <p class="whitespace-pre-line border-border/60 mt-1 border-l-2 pl-3">
+              {part.text}
+            </p>
+          </details>
+        {:else if part.type === "tool-call"}
+          <div
+            class="border-border/60 my-1 rounded-lg border px-3 py-2 font-mono text-xs"
+          >
+            <span class="font-semibold">{part.toolName}</span>({part.argsText})
+            {#if part.result !== undefined}
+              <pre class="text-muted-foreground mt-1 whitespace-pre-wrap">{JSON.stringify(
+                  part.result,
+                )}</pre>
+            {/if}
+          </div>
+        {/if}
+      {/each}
+      {#if pulsing.current}<span class="animate-pulse">…</span>{/if}
+      {#if error.current}<span class="text-destructive text-sm"
+        >{error.current}</span
+      >{/if}
     </div>
   {/if}
   <div
