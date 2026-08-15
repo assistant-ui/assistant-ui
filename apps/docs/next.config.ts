@@ -72,7 +72,7 @@ const config: NextConfig = {
       "./components/elements/*.tsx",
       "../../packages/ui/src/components/elements/*.tsx",
     ],
-    "/diagrammatic/[slug]": ["./components/diagrammatic/charts/*.tsx"],
+    "/diagrammatic/[slug]": ["./components/diagrammatic/demos/*.tsx"],
   },
   headers: async () => [
     {

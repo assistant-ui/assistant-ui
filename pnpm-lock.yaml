@@ -276,6 +276,9 @@ importers:
       date-fns:
         specifier: ^4.4.0
         version: 4.4.0
+      diagrammatic:
+        specifier: workspace:*
+        version: link:../../packages/diagrammatic
       dotenv:
         specifier: ^17.4.2
         version: 17.4.2

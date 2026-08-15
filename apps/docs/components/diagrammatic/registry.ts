@@ -1,78 +1,78 @@
 import type { ComponentType } from "react";
-import { LineChart } from "./charts/line";
-import { AreaChart } from "./charts/area";
-import { StackedAreaChart } from "./charts/stacked-area";
-import { StreamgraphChart } from "./charts/streamgraph";
-import { MirroredAreaChart } from "./charts/mirrored-area";
-import { StepLineChart } from "./charts/step-line";
-import { SlopeChart } from "./charts/slope";
-import { BumpChart } from "./charts/bump";
-import { CandlestickChart } from "./charts/candlestick";
-import { HorizonChart } from "./charts/horizon";
-import { GanttChart } from "./charts/gantt";
-import { CalendarHeatmapChart } from "./charts/calendar-heatmap";
-import { PunchcardChart } from "./charts/punchcard";
-import { BarChart } from "./charts/bar";
-import { ColumnChart } from "./charts/column";
-import { GroupedBarChart } from "./charts/grouped-bar";
-import { StackedBarChart } from "./charts/stacked-bar";
-import { PercentStackedBarChart } from "./charts/percent-stacked-bar";
-import { LollipopChart } from "./charts/lollipop";
-import { DotPlotChart } from "./charts/dot-plot";
-import { LeaderboardChart } from "./charts/leaderboard";
-import { PictogramChart } from "./charts/pictogram";
-import { RadialBarChart } from "./charts/radial-bar";
-import { PolarAreaChart } from "./charts/polar-area";
-import { PieChart } from "./charts/pie";
-import { DonutChart } from "./charts/donut";
-import { WaffleChart } from "./charts/waffle";
-import { TreemapChart } from "./charts/treemap";
-import { SunburstChart } from "./charts/sunburst";
-import { IcicleChart } from "./charts/icicle";
-import { CirclePackingChart } from "./charts/circle-packing";
-import { MarimekkoChart } from "./charts/marimekko";
-import { FunnelChart } from "./charts/funnel";
-import { HistogramChart } from "./charts/histogram";
-import { DensityChart } from "./charts/density";
-import { BoxPlotChart } from "./charts/box-plot";
-import { ViolinChart } from "./charts/violin";
-import { RidgelineChart } from "./charts/ridgeline";
-import { BeeswarmChart } from "./charts/beeswarm";
-import { StripPlotChart } from "./charts/strip-plot";
-import { PopulationPyramidChart } from "./charts/population-pyramid";
-import { ScatterChart } from "./charts/scatter";
-import { BubbleChart } from "./charts/bubble";
-import { ConnectedScatterChart } from "./charts/connected-scatter";
-import { HexbinChart } from "./charts/hexbin";
-import { ContourChart } from "./charts/contour";
-import { HeatmapChart } from "./charts/heatmap";
-import { QuadrantChart } from "./charts/quadrant";
-import { ParallelCoordinatesChart } from "./charts/parallel-coordinates";
-import { RadarChart } from "./charts/radar";
-import { DivergingBarChart } from "./charts/diverging-bar";
-import { DivergingStackedChart } from "./charts/diverging-stacked";
-import { DumbbellChart } from "./charts/dumbbell";
-import { DifferenceAreaChart } from "./charts/difference-area";
-import { SankeyChart } from "./charts/sankey";
-import { ChordChart } from "./charts/chord";
-import { WaterfallChart } from "./charts/waterfall";
-import { NetworkChart } from "./charts/network";
-import { ArcDiagramChart } from "./charts/arc-diagram";
-import { TreeChart } from "./charts/tree";
-import { DendrogramChart } from "./charts/dendrogram";
-import { VennChart } from "./charts/venn";
-import { ChoroplethChart } from "./charts/choropleth";
-import { SymbolMapChart } from "./charts/symbol-map";
-import { DotMapChart } from "./charts/dot-map";
-import { FlowMapChart } from "./charts/flow-map";
-import { SparklineChart } from "./charts/sparkline";
-import { SparkbarChart } from "./charts/sparkbar";
-import { WinLossChart } from "./charts/win-loss";
-import { BulletChart } from "./charts/bullet";
-import { ProgressRingChart } from "./charts/progress-ring";
-import { GaugeChart } from "./charts/gauge";
-import { SplitBarChart } from "./charts/split-bar";
-import { KpiTileChart } from "./charts/kpi-tile";
+import { LineDemo } from "./demos/line";
+import { AreaDemo } from "./demos/area";
+import { StackedAreaDemo } from "./demos/stacked-area";
+import { StreamgraphDemo } from "./demos/streamgraph";
+import { MirroredAreaDemo } from "./demos/mirrored-area";
+import { StepLineDemo } from "./demos/step-line";
+import { SlopeDemo } from "./demos/slope";
+import { BumpDemo } from "./demos/bump";
+import { CandlestickDemo } from "./demos/candlestick";
+import { HorizonDemo } from "./demos/horizon";
+import { GanttDemo } from "./demos/gantt";
+import { CalendarHeatmapDemo } from "./demos/calendar-heatmap";
+import { PunchcardDemo } from "./demos/punchcard";
+import { BarDemo } from "./demos/bar";
+import { ColumnDemo } from "./demos/column";
+import { GroupedBarDemo } from "./demos/grouped-bar";
+import { StackedBarDemo } from "./demos/stacked-bar";
+import { PercentStackedBarDemo } from "./demos/percent-stacked-bar";
+import { LollipopDemo } from "./demos/lollipop";
+import { DotPlotDemo } from "./demos/dot-plot";
+import { LeaderboardDemo } from "./demos/leaderboard";
+import { PictogramDemo } from "./demos/pictogram";
+import { RadialBarDemo } from "./demos/radial-bar";
+import { PolarAreaDemo } from "./demos/polar-area";
+import { PieDemo } from "./demos/pie";
+import { DonutDemo } from "./demos/donut";
+import { WaffleDemo } from "./demos/waffle";
+import { TreemapDemo } from "./demos/treemap";
+import { SunburstDemo } from "./demos/sunburst";
+import { IcicleDemo } from "./demos/icicle";
+import { CirclePackingDemo } from "./demos/circle-packing";
+import { MarimekkoDemo } from "./demos/marimekko";
+import { FunnelDemo } from "./demos/funnel";
+import { HistogramDemo } from "./demos/histogram";
+import { DensityDemo } from "./demos/density";
+import { BoxPlotDemo } from "./demos/box-plot";
+import { ViolinDemo } from "./demos/violin";
+import { RidgelineDemo } from "./demos/ridgeline";
+import { BeeswarmDemo } from "./demos/beeswarm";
+import { StripPlotDemo } from "./demos/strip-plot";
+import { PopulationPyramidDemo } from "./demos/population-pyramid";
+import { ScatterDemo } from "./demos/scatter";
+import { BubbleDemo } from "./demos/bubble";
+import { ConnectedScatterDemo } from "./demos/connected-scatter";
+import { HexbinDemo } from "./demos/hexbin";
+import { ContourDemo } from "./demos/contour";
+import { HeatmapDemo } from "./demos/heatmap";
+import { QuadrantDemo } from "./demos/quadrant";
+import { ParallelCoordinatesDemo } from "./demos/parallel-coordinates";
+import { RadarDemo } from "./demos/radar";
+import { DivergingBarDemo } from "./demos/diverging-bar";
+import { DivergingStackedDemo } from "./demos/diverging-stacked";
+import { DumbbellDemo } from "./demos/dumbbell";
+import { DifferenceAreaDemo } from "./demos/difference-area";
+import { SankeyDemo } from "./demos/sankey";
+import { ChordDemo } from "./demos/chord";
+import { WaterfallDemo } from "./demos/waterfall";
+import { NetworkDemo } from "./demos/network";
+import { ArcDiagramDemo } from "./demos/arc-diagram";
+import { TreeDemo } from "./demos/tree";
+import { DendrogramDemo } from "./demos/dendrogram";
+import { VennDemo } from "./demos/venn";
+import { ChoroplethDemo } from "./demos/choropleth";
+import { SymbolMapDemo } from "./demos/symbol-map";
+import { DotMapDemo } from "./demos/dot-map";
+import { FlowMapDemo } from "./demos/flow-map";
+import { SparklineDemo } from "./demos/sparkline";
+import { SparkbarDemo } from "./demos/sparkbar";
+import { WinLossDemo } from "./demos/win-loss";
+import { BulletDemo } from "./demos/bullet";
+import { ProgressRingDemo } from "./demos/progress-ring";
+import { GaugeDemo } from "./demos/gauge";
+import { SplitBarDemo } from "./demos/split-bar";
+import { KpiTileDemo } from "./demos/kpi-tile";
 
 type ChartInput = {
   slug: string;
@@ -104,7 +104,7 @@ const SECTIONS: SectionInput[] = [
         use: "Trends, rates, and anything measured on a continuous timeline.",
         watch:
           "More than four lines turns to spaghetti; facet into small multiples instead.",
-        Component: LineChart,
+        Component: LineDemo,
       },
       {
         slug: "area",
@@ -114,7 +114,7 @@ const SECTIONS: SectionInput[] = [
         use: "A single quantity where the volume under the trend matters.",
         watch:
           "Filled layers hide each other; for several series use a stacked area or separate panels.",
-        Component: AreaChart,
+        Component: AreaDemo,
       },
       {
         slug: "stacked-area",
@@ -124,7 +124,7 @@ const SECTIONS: SectionInput[] = [
         use: "A total and its parts moving together through time.",
         watch:
           "Middle bands ride on wobbly baselines; only the bottom band and the total read precisely.",
-        Component: StackedAreaChart,
+        Component: StackedAreaDemo,
       },
       {
         slug: "streamgraph",
@@ -134,7 +134,7 @@ const SECTIONS: SectionInput[] = [
         use: "Organic part-to-whole rhythm over long ranges, where shape outranks exact values.",
         watch:
           "There is no readable axis; if someone needs numbers, use a stacked area.",
-        Component: StreamgraphChart,
+        Component: StreamgraphDemo,
       },
       {
         slug: "mirrored-area",
@@ -145,7 +145,7 @@ const SECTIONS: SectionInput[] = [
         use: "Paired in-and-out volumes: download against upload, inbound against outbound.",
         watch:
           "The two halves share a scale by convention; label both directions or one gets misread.",
-        Component: MirroredAreaChart,
+        Component: MirroredAreaDemo,
       },
       {
         slug: "step-line",
@@ -155,7 +155,7 @@ const SECTIONS: SectionInput[] = [
         use: "Prices, quotas, versions, and anything that jumps between plateaus.",
         watch:
           "Interpolating between steps invents data; the flat segments are the truth.",
-        Component: StepLineChart,
+        Component: StepLineDemo,
       },
       {
         slug: "slope",
@@ -165,7 +165,7 @@ const SECTIONS: SectionInput[] = [
         use: "Before-and-after across many entities, where the slope is the story.",
         watch:
           "Crossing lines get busy past a dozen entities; highlight a few and mute the rest.",
-        Component: SlopeChart,
+        Component: SlopeDemo,
       },
       {
         slug: "bump",
@@ -174,7 +174,7 @@ const SECTIONS: SectionInput[] = [
         blurb: "Rank over time, crossings included.",
         use: "League tables and rankings where position matters more than value.",
         watch: "Ranks hide magnitudes; a one-place drop can be a landslide.",
-        Component: BumpChart,
+        Component: BumpDemo,
       },
       {
         slug: "candlestick",
@@ -184,7 +184,7 @@ const SECTIONS: SectionInput[] = [
         use: "Price movement summaries where range and direction both matter.",
         watch:
           "Each candle needs comfortable width; compress too far and wicks turn to noise.",
-        Component: CandlestickChart,
+        Component: CandlestickDemo,
       },
       {
         slug: "horizon",
@@ -194,7 +194,7 @@ const SECTIONS: SectionInput[] = [
         use: "Dense grids of many series where vertical space is scarce.",
         watch:
           "Readers need a key to unfold the layers; keep the fold count at two or three.",
-        Component: HorizonChart,
+        Component: HorizonDemo,
       },
       {
         slug: "gantt",
@@ -204,7 +204,7 @@ const SECTIONS: SectionInput[] = [
         use: "Schedules, phases, and overlaps across a project window.",
         watch:
           "It shows plan, not progress; pair the bars with a done state or a today line.",
-        Component: GanttChart,
+        Component: GanttDemo,
       },
       {
         slug: "calendar-heatmap",
@@ -214,7 +214,7 @@ const SECTIONS: SectionInput[] = [
         use: "Daily habits and activity rhythms across weeks and months.",
         watch:
           "Weekday patterns dominate; normalize before comparing across rows.",
-        Component: CalendarHeatmapChart,
+        Component: CalendarHeatmapDemo,
       },
       {
         slug: "punchcard",
@@ -224,7 +224,7 @@ const SECTIONS: SectionInput[] = [
         use: "When during the week something happens, at a glance.",
         watch:
           "Dot area reads coarsely; keep exact values one hover or one table away.",
-        Component: PunchcardChart,
+        Component: PunchcardDemo,
       },
     ],
   },
@@ -240,7 +240,7 @@ const SECTIONS: SectionInput[] = [
         use: "Category comparisons with long labels; the horizontal layout gives names room.",
         watch:
           "Start the value axis at zero; a trimmed baseline lies about ratios.",
-        Component: BarChart,
+        Component: BarDemo,
       },
       {
         slug: "column",
@@ -250,7 +250,7 @@ const SECTIONS: SectionInput[] = [
         use: "A handful of categories or periods side by side.",
         watch:
           "Past a dozen columns the labels collide; go horizontal instead.",
-        Component: ColumnChart,
+        Component: ColumnDemo,
       },
       {
         slug: "grouped-bar",
@@ -260,7 +260,7 @@ const SECTIONS: SectionInput[] = [
         use: "Two or three series compared within each category.",
         watch:
           "Four or more bars per cluster stops being comparable; split into small multiples.",
-        Component: GroupedBarChart,
+        Component: GroupedBarDemo,
       },
       {
         slug: "stacked-bar",
@@ -270,7 +270,7 @@ const SECTIONS: SectionInput[] = [
         use: "Totals first, composition second, across categories.",
         watch:
           "Only the bottom segment sits on a common baseline; middle segments resist comparison.",
-        Component: StackedBarChart,
+        Component: StackedBarDemo,
       },
       {
         slug: "percent-stacked-bar",
@@ -280,7 +280,7 @@ const SECTIONS: SectionInput[] = [
         use: "Share-of-whole comparisons when absolute size is a distraction.",
         watch:
           "The totals are gone; state somewhere what each column adds up to.",
-        Component: PercentStackedBarChart,
+        Component: PercentStackedBarDemo,
       },
       {
         slug: "lollipop",
@@ -290,7 +290,7 @@ const SECTIONS: SectionInput[] = [
         use: "The same jobs as bars with less ink, kinder to dense category lists.",
         watch:
           "The dot marks the value; stems thick enough to read as bars defeat the point.",
-        Component: LollipopChart,
+        Component: LollipopDemo,
       },
       {
         slug: "dot-plot",
@@ -300,7 +300,7 @@ const SECTIONS: SectionInput[] = [
         use: "Precise category values without the visual weight of bars.",
         watch:
           "It needs a visible scale; dots floating in space rank but do not measure.",
-        Component: DotPlotChart,
+        Component: DotPlotDemo,
       },
       {
         slug: "leaderboard",
@@ -310,7 +310,7 @@ const SECTIONS: SectionInput[] = [
         use: "Top-N lists where names, values, and proportion all need to be present.",
         watch:
           "Cap the list and fold the tail into Other; a 40-row leaderboard is a table.",
-        Component: LeaderboardChart,
+        Component: LeaderboardDemo,
       },
       {
         slug: "pictogram",
@@ -320,7 +320,7 @@ const SECTIONS: SectionInput[] = [
         use: "Small countable quantities with human weight: people, seats, incidents.",
         watch:
           "Partial units confuse; round honestly and never scale the icon itself.",
-        Component: PictogramChart,
+        Component: PictogramDemo,
       },
       {
         slug: "radial-bar",
@@ -330,7 +330,7 @@ const SECTIONS: SectionInput[] = [
         use: "A few progress-like values with strong visual identity.",
         watch:
           "Outer rings are longer at equal value; it decorates more than it measures.",
-        Component: RadialBarChart,
+        Component: RadialBarDemo,
       },
       {
         slug: "polar-area",
@@ -340,7 +340,7 @@ const SECTIONS: SectionInput[] = [
         use: "Cyclic categories with a dramatic shape, the Nightingale rose.",
         watch:
           "Area grows with the square of radius; readers overestimate the big sectors.",
-        Component: PolarAreaChart,
+        Component: PolarAreaDemo,
       },
     ],
   },
@@ -357,7 +357,7 @@ const SECTIONS: SectionInput[] = [
         use: "Two to four shares where the headline is one dominant slice.",
         watch:
           "Angles compare poorly; five or more slices belong in a bar chart.",
-        Component: PieChart,
+        Component: PieDemo,
       },
       {
         slug: "donut",
@@ -366,7 +366,7 @@ const SECTIONS: SectionInput[] = [
         blurb: "A pie with room for a number.",
         use: "Share-of-whole with a KPI sitting in the middle.",
         watch: "The hole removes the angle anchor; keep the slice count low.",
-        Component: DonutChart,
+        Component: DonutDemo,
       },
       {
         slug: "waffle",
@@ -376,7 +376,7 @@ const SECTIONS: SectionInput[] = [
         use: "Shares that people can count, roughly one cell per percent.",
         watch:
           "It works to about four groups; beyond that the runs of color blur together.",
-        Component: WaffleChart,
+        Component: WaffleDemo,
       },
       {
         slug: "treemap",
@@ -386,7 +386,7 @@ const SECTIONS: SectionInput[] = [
         use: "Hierarchical composition with many leaves, biggest first.",
         watch:
           "Area compares poorly across distant tiles; label the few that matter.",
-        Component: TreemapChart,
+        Component: TreemapDemo,
       },
       {
         slug: "sunburst",
@@ -396,7 +396,7 @@ const SECTIONS: SectionInput[] = [
         use: "Two or three levels of composition around a common center.",
         watch:
           "Outer rings exaggerate; deep hierarchies read better as an icicle.",
-        Component: SunburstChart,
+        Component: SunburstDemo,
       },
       {
         slug: "icicle",
@@ -406,7 +406,7 @@ const SECTIONS: SectionInput[] = [
         use: "Drill-down composition where the rectangles stay comparable.",
         watch:
           "Depth eats height quickly; show the levels people actually navigate.",
-        Component: IcicleChart,
+        Component: IcicleDemo,
       },
       {
         slug: "circle-packing",
@@ -416,7 +416,7 @@ const SECTIONS: SectionInput[] = [
         use: "Cluster membership and relative size with an organic feel.",
         watch:
           "Packing wastes space and distorts comparison; use it for structure, not measurement.",
-        Component: CirclePackingChart,
+        Component: CirclePackingDemo,
       },
       {
         slug: "marimekko",
@@ -426,7 +426,7 @@ const SECTIONS: SectionInput[] = [
         use: "Market maps: segment width by size, then split each by composition.",
         watch:
           "It takes practice to read; annotate the one or two cells that carry the story.",
-        Component: MarimekkoChart,
+        Component: MarimekkoDemo,
       },
       {
         slug: "funnel",
@@ -435,7 +435,7 @@ const SECTIONS: SectionInput[] = [
         blurb: "Stage-by-stage survival.",
         use: "Conversion pipelines where each stage is a subset of the last.",
         watch: "The taper exaggerates; label every stage with its real rate.",
-        Component: FunnelChart,
+        Component: FunnelDemo,
       },
     ],
   },
@@ -450,7 +450,7 @@ const SECTIONS: SectionInput[] = [
         blurb: "Frequency by bin.",
         use: "The shape of one variable: skew, spread, and outliers.",
         watch: "Bin width changes the story; try several before trusting one.",
-        Component: HistogramChart,
+        Component: HistogramDemo,
       },
       {
         slug: "density",
@@ -460,7 +460,7 @@ const SECTIONS: SectionInput[] = [
         use: "Distribution shape without bin artifacts, kind to overlays.",
         watch:
           "Bandwidth is a choice; smooth too wide and real structure disappears.",
-        Component: DensityChart,
+        Component: DensityDemo,
       },
       {
         slug: "box-plot",
@@ -470,7 +470,7 @@ const SECTIONS: SectionInput[] = [
         use: "Comparing distributions across groups on one scale.",
         watch:
           "It hides multimodality; a two-humped group looks like a calm box.",
-        Component: BoxPlotChart,
+        Component: BoxPlotDemo,
       },
       {
         slug: "violin",
@@ -480,7 +480,7 @@ const SECTIONS: SectionInput[] = [
         use: "Group comparisons where the full density profile matters.",
         watch:
           "Small samples make confident-looking violins; show the sample size.",
-        Component: ViolinChart,
+        Component: ViolinDemo,
       },
       {
         slug: "ridgeline",
@@ -490,7 +490,7 @@ const SECTIONS: SectionInput[] = [
         use: "How a distribution drifts across many groups or time slices.",
         watch:
           "Overlap hides valleys behind peaks; order the rows meaningfully.",
-        Component: RidgelineChart,
+        Component: RidgelineDemo,
       },
       {
         slug: "beeswarm",
@@ -500,7 +500,7 @@ const SECTIONS: SectionInput[] = [
         use: "Small datasets where each observation deserves its own dot.",
         watch:
           "Past a few hundred points the swarm congeals; switch to a density.",
-        Component: BeeswarmChart,
+        Component: BeeswarmDemo,
       },
       {
         slug: "strip-plot",
@@ -509,7 +509,7 @@ const SECTIONS: SectionInput[] = [
         blurb: "Raw points along a line.",
         use: "Quick distribution reads and honest small-n comparisons.",
         watch: "Identical values overplot; jitter, or shift to a beeswarm.",
-        Component: StripPlotChart,
+        Component: StripPlotDemo,
       },
       {
         slug: "population-pyramid",
@@ -519,7 +519,7 @@ const SECTIONS: SectionInput[] = [
         use: "Age and cohort structure compared between two groups.",
         watch:
           "Mirrored bars resist precise comparison; overlay them if exact gaps matter.",
-        Component: PopulationPyramidChart,
+        Component: PopulationPyramidDemo,
       },
     ],
   },
@@ -536,7 +536,7 @@ const SECTIONS: SectionInput[] = [
         use: "Relationships, clusters, and outliers between two measures.",
         watch:
           "The trend line is a summary, not proof; correlation is not causation.",
-        Component: ScatterChart,
+        Component: ScatterDemo,
       },
       {
         slug: "bubble",
@@ -545,7 +545,7 @@ const SECTIONS: SectionInput[] = [
         blurb: "A scatter with a third variable as size.",
         use: "Two relationships plus magnitude, for a few dozen entities at most.",
         watch: "Size by area, never radius, and label the bubbles that matter.",
-        Component: BubbleChart,
+        Component: BubbleDemo,
       },
       {
         slug: "connected-scatter",
@@ -554,7 +554,7 @@ const SECTIONS: SectionInput[] = [
         blurb: "A scatter walked through time.",
         use: "How two measures moved together across ordered periods.",
         watch: "It needs a start and end cue; unlabeled loops disorient.",
-        Component: ConnectedScatterChart,
+        Component: ConnectedScatterDemo,
       },
       {
         slug: "hexbin",
@@ -564,7 +564,7 @@ const SECTIONS: SectionInput[] = [
         use: "Tens of thousands of points binned into honest cells.",
         watch:
           "Bin size sets the story and empty cells matter; show the scale.",
-        Component: HexbinChart,
+        Component: HexbinDemo,
       },
       {
         slug: "contour",
@@ -573,7 +573,7 @@ const SECTIONS: SectionInput[] = [
         blurb: "Density as elevation lines.",
         use: "The shape of a dense 2D distribution without overplotting.",
         watch: "Levels are model output; annotate what each band means.",
-        Component: ContourChart,
+        Component: ContourDemo,
       },
       {
         slug: "heatmap",
@@ -582,7 +582,7 @@ const SECTIONS: SectionInput[] = [
         blurb: "A matrix colored by value.",
         use: "Category-by-category intensity: confusion matrices, correlations, schedules.",
         watch: "One sequential ramp only; a rainbow scrambles the order.",
-        Component: HeatmapChart,
+        Component: HeatmapDemo,
       },
       {
         slug: "quadrant",
@@ -592,7 +592,7 @@ const SECTIONS: SectionInput[] = [
         use: "Prioritization maps: effort against impact, risk against reward.",
         watch:
           "The cut lines are editorial; be ready to defend where the crosshair sits.",
-        Component: QuadrantChart,
+        Component: QuadrantDemo,
       },
       {
         slug: "parallel-coordinates",
@@ -602,7 +602,7 @@ const SECTIONS: SectionInput[] = [
         use: "Spotting profiles and trade-offs across four or more measures.",
         watch:
           "Axis order changes the picture; normalize each axis and say so.",
-        Component: ParallelCoordinatesChart,
+        Component: ParallelCoordinatesDemo,
       },
       {
         slug: "radar",
@@ -612,7 +612,7 @@ const SECTIONS: SectionInput[] = [
         use: "Two or three profiles compared across a handful of shared dimensions.",
         watch:
           "Shape area misleads and axis order is arbitrary; bars are often clearer.",
-        Component: RadarChart,
+        Component: RadarDemo,
       },
     ],
   },
@@ -628,7 +628,7 @@ const SECTIONS: SectionInput[] = [
         use: "Surplus against deficit, growth against decline, by category.",
         watch:
           "Sort by value, not alphabet, so the sign structure stays visible.",
-        Component: DivergingBarChart,
+        Component: DivergingBarDemo,
       },
       {
         slug: "diverging-stacked",
@@ -638,7 +638,7 @@ const SECTIONS: SectionInput[] = [
         use: "Likert scales and any agree-versus-disagree balance.",
         watch:
           "Anchor rows on the neutral midpoint or the comparison collapses.",
-        Component: DivergingStackedChart,
+        Component: DivergingStackedDemo,
       },
       {
         slug: "dumbbell",
@@ -647,7 +647,7 @@ const SECTIONS: SectionInput[] = [
         blurb: "Then and now, one row per entity.",
         use: "Before-and-after gaps across categories without slope clutter.",
         watch: "Two points only; for the path between them use a slope chart.",
-        Component: DumbbellChart,
+        Component: DumbbellDemo,
       },
       {
         slug: "difference-area",
@@ -657,7 +657,7 @@ const SECTIONS: SectionInput[] = [
         use: "Actual against target where being above or below is the story.",
         watch:
           "Shade the gap, not the lines, and reserve the two hues for sign.",
-        Component: DifferenceAreaChart,
+        Component: DifferenceAreaDemo,
       },
     ],
   },
@@ -672,7 +672,7 @@ const SECTIONS: SectionInput[] = [
         blurb: "Where quantities come from and go.",
         use: "Distribution across stages: sources into channels into destinations.",
         watch: "Links must conserve; leaks and rounding need explaining.",
-        Component: SankeyChart,
+        Component: SankeyDemo,
       },
       {
         slug: "chord",
@@ -682,7 +682,7 @@ const SECTIONS: SectionInput[] = [
         use: "Dense mutual exchange: migration, trade, traffic between equals.",
         watch:
           "Beautiful and hard to read; reserve it for genuinely circular relationships.",
-        Component: ChordChart,
+        Component: ChordDemo,
       },
       {
         slug: "waterfall",
@@ -692,7 +692,7 @@ const SECTIONS: SectionInput[] = [
         use: "Bridges from a starting figure through gains and losses to an end.",
         watch:
           "Floating bars confuse without connectors and clear sign colors.",
-        Component: WaterfallChart,
+        Component: WaterfallDemo,
       },
     ],
   },
@@ -708,7 +708,7 @@ const SECTIONS: SectionInput[] = [
         use: "Structure in connections: hubs, bridges, and islands.",
         watch:
           "Force layouts are unstable art; pin the nodes readers must find.",
-        Component: NetworkChart,
+        Component: NetworkDemo,
       },
       {
         slug: "arc-diagram",
@@ -717,7 +717,7 @@ const SECTIONS: SectionInput[] = [
         blurb: "A network flattened onto one line.",
         use: "Connection patterns over an ordered set, sequences especially.",
         watch: "Node order decides everything; sort it on purpose.",
-        Component: ArcDiagramChart,
+        Component: ArcDiagramDemo,
       },
       {
         slug: "tree",
@@ -727,7 +727,7 @@ const SECTIONS: SectionInput[] = [
         use: "Org charts, file systems, and decision paths.",
         watch:
           "Wide levels squeeze; collapse subtrees rather than shrinking the type.",
-        Component: TreeChart,
+        Component: TreeDemo,
       },
       {
         slug: "dendrogram",
@@ -737,7 +737,7 @@ const SECTIONS: SectionInput[] = [
         use: "Hierarchical clustering: what joined what, and how early.",
         watch:
           "Height is the metric; cutting at a level is what defines the clusters.",
-        Component: DendrogramChart,
+        Component: DendrogramDemo,
       },
       {
         slug: "venn",
@@ -746,7 +746,7 @@ const SECTIONS: SectionInput[] = [
         blurb: "Set overlap, literally.",
         use: "Two or three sets where the overlap is the message.",
         watch: "Region area rarely matches the counts; label every region.",
-        Component: VennChart,
+        Component: VennDemo,
       },
     ],
   },
@@ -761,7 +761,7 @@ const SECTIONS: SectionInput[] = [
         blurb: "Regions colored by value.",
         use: "Rates and ratios across regions on one sequential ramp.",
         watch: "Big areas dominate; map rates, never raw counts.",
-        Component: ChoroplethChart,
+        Component: ChoroplethDemo,
       },
       {
         slug: "symbol-map",
@@ -771,7 +771,7 @@ const SECTIONS: SectionInput[] = [
         use: "Absolute quantities at locations, where counts stay honest.",
         watch:
           "Overlapping circles occlude; scale by area and show a size legend.",
-        Component: SymbolMapChart,
+        Component: SymbolMapDemo,
       },
       {
         slug: "dot-map",
@@ -781,7 +781,7 @@ const SECTIONS: SectionInput[] = [
         use: "Density and settlement patterns that emerge from individual units.",
         watch:
           "Placement within a region is approximate; say what one dot equals.",
-        Component: DotMapChart,
+        Component: DotMapDemo,
       },
       {
         slug: "flow-map",
@@ -790,7 +790,7 @@ const SECTIONS: SectionInput[] = [
         blurb: "Movement between places.",
         use: "Origin-to-destination volumes: routes, trade, migration.",
         watch: "More than a handful of routes tangles; bundle or filter.",
-        Component: FlowMapChart,
+        Component: FlowMapDemo,
       },
     ],
   },
@@ -806,7 +806,7 @@ const SECTIONS: SectionInput[] = [
         blurb: "A trend the size of a word.",
         use: "Inline context in tables and tiles: direction at a glance.",
         watch: "No axes means no precision; pair it with the current value.",
-        Component: SparklineChart,
+        Component: SparklineDemo,
       },
       {
         slug: "sparkbar",
@@ -815,7 +815,7 @@ const SECTIONS: SectionInput[] = [
         blurb: "A bar series the size of a word.",
         use: "Discrete periods inline: recent counts beside their label.",
         watch: "Keep one scale across sibling rows or the comparison lies.",
-        Component: SparkbarChart,
+        Component: SparkbarDemo,
       },
       {
         slug: "win-loss",
@@ -824,7 +824,7 @@ const SECTIONS: SectionInput[] = [
         blurb: "Outcome sequences as up-down ticks.",
         use: "Streaks and momentum across repeated binary events.",
         watch: "Two states only; when magnitude matters, use a sparkbar.",
-        Component: WinLossChart,
+        Component: WinLossDemo,
       },
       {
         slug: "bullet",
@@ -833,7 +833,7 @@ const SECTIONS: SectionInput[] = [
         blurb: "A KPI against target and bands.",
         use: "Dashboard measures with qualitative context in minimal height.",
         watch: "Explain the bands once; unlabeled shading is decoration.",
-        Component: BulletChart,
+        Component: BulletDemo,
       },
       {
         slug: "progress-ring",
@@ -843,7 +843,7 @@ const SECTIONS: SectionInput[] = [
         use: "Single completion states in cards, lists, and avatars.",
         watch:
           "Rings past 100% or holding several values stop reading; use a bar.",
-        Component: ProgressRingChart,
+        Component: ProgressRingDemo,
       },
       {
         slug: "gauge",
@@ -852,7 +852,7 @@ const SECTIONS: SectionInput[] = [
         blurb: "A dial with one number on it.",
         use: "A single bounded value where alarm zones matter.",
         watch: "It spends a lot of space on one number; a bullet is denser.",
-        Component: GaugeChart,
+        Component: GaugeDemo,
       },
       {
         slug: "split-bar",
@@ -861,7 +861,7 @@ const SECTIONS: SectionInput[] = [
         blurb: "One row, two shares.",
         use: "Inline two-way proportions: sent against received, hit against miss.",
         watch: "Two segments only; more shares deserve a real stacked bar.",
-        Component: SplitBarChart,
+        Component: SplitBarDemo,
       },
       {
         slug: "kpi-tile",
@@ -870,7 +870,7 @@ const SECTIONS: SectionInput[] = [
         blurb: "The number, its change, and its recent past.",
         use: "Headline metrics where the value itself is the chart.",
         watch: "One tile, one message; a wall of tiles is a table in costume.",
-        Component: KpiTileChart,
+        Component: KpiTileDemo,
       },
     ],
   },

@@ -11,5 +11,9 @@ export const GRID_STYLE: CSSProperties = {
   backgroundPosition: "center",
 };
 
+/**
+ * Bridges the diagrammatic tokens to the site theme: the separator/occlusion
+ * surface matches the canvas fill, and chart text uses the site's mono stack.
+ */
 export const canvasSurface =
-  "bg-background dark:bg-popover shadow-[0_1px_2px_rgba(0,0,0,0.04),0_18px_40px_-24px_rgba(0,0,0,0.14)] dark:shadow-none";
+  "bg-background dark:bg-popover shadow-[0_1px_2px_rgba(0,0,0,0.04),0_18px_40px_-24px_rgba(0,0,0,0.14)] dark:shadow-none [--dg-surface:var(--background)] dark:[--dg-surface:var(--popover)] [--dg-font:var(--font-mono)]";

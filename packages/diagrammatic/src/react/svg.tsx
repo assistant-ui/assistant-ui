@@ -8,13 +8,20 @@ import { FONT, MUTED, ink } from "../core/theme";
 
 /**
  * The native surface charts pass through. `children` is owned by the chart;
- * `points`, `values`, `origin`, `fill`, `display`, and `target` are dropped
- * because they collide with chart data props and mean nothing on an svg root
- * (use `style` for presentation).
+ * `points`, `values`, `origin`, `fill`, `display`, `target`, and `format` are
+ * dropped because they collide with chart data props and mean nothing on an
+ * svg root (use `style` for presentation).
  */
 type SvgAttributes = Omit<
   ComponentPropsWithoutRef<"svg">,
-  "children" | "points" | "values" | "origin" | "fill" | "display" | "target"
+  | "children"
+  | "points"
+  | "values"
+  | "origin"
+  | "fill"
+  | "display"
+  | "target"
+  | "format"
 >;
 
 /**

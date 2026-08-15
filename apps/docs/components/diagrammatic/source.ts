@@ -7,7 +7,7 @@ export async function readChartSource(slug: string): Promise<string> {
       process.cwd(),
       "components",
       "diagrammatic",
-      "charts",
+      "demos",
       `${slug}.tsx`,
     ),
     "utf8",

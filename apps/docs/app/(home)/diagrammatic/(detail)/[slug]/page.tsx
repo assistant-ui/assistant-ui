@@ -97,10 +97,8 @@ export default async function ChartPage({
 
       <section className="mt-12">
         <div className="flex items-center gap-3">
-          <h2 className="text-sm font-medium">Source</h2>
-          <span className={cn(mono, "text-foreground/35")}>
-            charts/{chart.slug}.tsx
-          </span>
+          <h2 className="text-sm font-medium">Usage</h2>
+          <span className={cn(mono, "text-foreground/35")}>diagrammatic</span>
           <CopyButton text={source} className="ms-auto" />
         </div>
         <div
@@ -108,8 +106,8 @@ export default async function ChartPage({
           dangerouslySetInnerHTML={{ __html: highlightedSource }}
         />
         <p className="text-foreground/40 mt-3 text-[13px] leading-relaxed">
-          A self-contained server component: plain SVG, theme tokens, no chart
-          library. Copy it and feed it your data.
+          This exact code renders the chart above: a server-safe component from
+          the diagrammatic package, themed by --dg tokens, zero dependencies.
         </p>
       </section>
 

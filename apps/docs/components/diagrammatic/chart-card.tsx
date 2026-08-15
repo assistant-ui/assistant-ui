@@ -40,7 +40,7 @@ export function ChartCard({
           chartClassName={cn(
             "max-w-[17rem]",
             !TEXT_CHARTS.has(chart.slug) &&
-              "[&_[data-legend]]:hidden [&_text]:hidden",
+              "[&_[data-part=legend]]:hidden [&_text]:hidden",
           )}
         >
           <chart.Component />
