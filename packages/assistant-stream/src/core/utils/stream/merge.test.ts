@@ -2,6 +2,22 @@ import { describe, expect, it, vi } from "vitest";
 import { createMergeStream } from "./merge";
 
 describe("createMergeStream", () => {
+  it("releases child readers after successful completion", async () => {
+    const child = new ReadableStream<never>({
+      start(controller) {
+        controller.close();
+      },
+    });
+    const merger = createMergeStream();
+
+    merger.addStream(child);
+    merger.seal();
+
+    await merger.readable.pipeTo(new WritableStream());
+
+    expect(child.locked).toBe(false);
+  });
+
   it("waits for every child reader to finish cancellation", async () => {
     let finishCleanup = () => {};
     const cleanup = new Promise<void>((resolve) => {
@@ -11,8 +27,10 @@ describe("createMergeStream", () => {
     const rejectedCancel = vi.fn(() => Promise.reject(new Error("failed")));
     const merger = createMergeStream();
 
-    merger.addStream(new ReadableStream({ cancel: delayedCancel }));
-    merger.addStream(new ReadableStream({ cancel: rejectedCancel }));
+    const delayedStream = new ReadableStream({ cancel: delayedCancel });
+    const rejectedStream = new ReadableStream({ cancel: rejectedCancel });
+    merger.addStream(delayedStream);
+    merger.addStream(rejectedStream);
 
     let cancelSettled = false;
     const cancel = merger.readable
@@ -31,6 +49,8 @@ describe("createMergeStream", () => {
     finishCleanup();
     await expect(cancel).resolves.toBeUndefined();
     expect(cancelSettled).toBe(true);
+    expect(delayedStream.locked).toBe(false);
+    expect(rejectedStream.locked).toBe(false);
   });
 
   it("cancels streams rejected after sealing", async () => {
