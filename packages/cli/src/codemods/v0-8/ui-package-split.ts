@@ -1,32 +1,5 @@
 import { createTransformer } from "../utils/createTransformer";
-
-const reactUIExports: string[] = [
-  "ThreadConfigProvider",
-  "useThreadConfig",
-  "ThreadConfig",
-  "ThreadWelcomeConfig",
-  "UserMessageConfig",
-  "AssistantMessageConfig",
-  "StringsConfig",
-  "SuggestionConfig",
-  "ThreadConfigProviderProps",
-  "AssistantActionBar",
-  "AssistantMessage",
-  "AssistantModal",
-  "BranchPicker",
-  "Composer",
-  "MessagePart",
-  "AttachmentUI",
-  "EditComposer",
-  "Thread",
-  "ThreadList",
-  "ThreadListItem",
-  "ThreadWelcome",
-  "UserMessage",
-  "makeMarkdownText",
-  "MakeMarkdownTextProps",
-  "CodeHeader",
-];
+import { isLegacyReactUIExport } from "../../lib/legacy-react-ui";
 
 const migrateAssistantUI = createTransformer(({ j, root, markAsChanged }) => {
   const sourcesToMigrate: string[] = [
@@ -45,7 +18,7 @@ const migrateAssistantUI = createTransformer(({ j, root, markAsChanged }) => {
       path.value.specifiers.forEach((specifier: any) => {
         if (
           j.ImportSpecifier.check(specifier) &&
-          reactUIExports.includes(specifier.imported.name as string)
+          isLegacyReactUIExport(specifier.imported.name)
         ) {
           movedSpecifiers.push(specifier);
           hadMigratedSpecifiers = true;
