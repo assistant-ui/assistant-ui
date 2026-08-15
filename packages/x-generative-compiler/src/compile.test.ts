@@ -1299,6 +1299,59 @@ export default defineToolkit({
     expect(client).toContain('from "@/tools/weather"');
   });
 
+  it("refreshes cached path aliases after tsconfig changes", () => {
+    const appRoot = mkdtempSync(
+      nodePath.join(tmpdir(), "aui-generative-alias-refresh-"),
+    );
+    mkdirSync(nodePath.join(appRoot, "src", "fallback-tools"), {
+      recursive: true,
+    });
+    mkdirSync(nodePath.join(appRoot, "generated"), { recursive: true });
+    writeFileSync(
+      nodePath.join(appRoot, "generated", "weather.tsx"),
+      generativeChild,
+    );
+    writeFileSync(
+      nodePath.join(appRoot, "src", "fallback-tools", "weather.tsx"),
+      `export default { get_weather: { execute: async () => 1 } };\n`,
+    );
+    const tsconfigPath = nodePath.join(appRoot, "tsconfig.json");
+    writeFileSync(
+      tsconfigPath,
+      JSON.stringify({
+        compilerOptions: {
+          baseUrl: ".",
+          paths: { "@/tools/*": ["./generated/*"] },
+        },
+      }),
+    );
+    const filename = nodePath.join(appRoot, "src", "toolkit.tsx");
+    const src = `"use generative";
+import { defineToolkit } from "@assistant-ui/react";
+import weatherTools from "@/tools/weather";
+export default defineToolkit({
+  ...weatherTools,
+});`;
+
+    expect(() =>
+      compileGenerative(src, { target: "client", filename }),
+    ).not.toThrow();
+
+    writeFileSync(
+      tsconfigPath,
+      JSON.stringify({
+        compilerOptions: {
+          baseUrl: ".",
+          paths: { "@/tools/*": ["./src/fallback-tools/*"] },
+        },
+      }),
+    );
+
+    expect(() =>
+      compileGenerative(src, { target: "client", filename }),
+    ).toThrow(/compiler-visible toolkit spread/);
+  });
+
   it("prefers the most specific tsconfig path alias", () => {
     const appRoot = mkdtempSync(
       nodePath.join(tmpdir(), "aui-generative-alias-spec-"),
