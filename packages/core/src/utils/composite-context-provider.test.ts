@@ -98,6 +98,22 @@ describe("CompositeContextProvider", () => {
     expect(composite.getModelContext().system).toBeUndefined();
   });
 
+  it("keeps duplicate registrations independent", () => {
+    const composite = new CompositeContextProvider();
+    const provider = {
+      getModelContext: () => ({ system: "provider instructions" }),
+    };
+
+    const unregisterFirst = composite.registerModelContextProvider(provider);
+    const unregisterSecond = composite.registerModelContextProvider(provider);
+
+    unregisterFirst();
+    expect(composite.getModelContext().system).toBe("provider instructions");
+
+    unregisterSecond();
+    expect(composite.getModelContext().system).toBeUndefined();
+  });
+
   it("notifies every subscriber and rethrows on provider updates", () => {
     const composite = new CompositeContextProvider();
     const error = new Error("subscriber failed");
