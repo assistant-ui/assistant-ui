@@ -118,3 +118,58 @@ test("an unrecognized composer attachment union shape throws", () => {
   );
   assert.throws(() => normalizeBundledDeclaration(bad), /unsupported shape/);
 });
+
+test("private instance members and #private placeholders are stripped", () => {
+  const output = normalizeBundledDeclaration(
+    [
+      "declare class Foo {",
+      "  private disposed;",
+      "  #private;",
+      "  private generation;",
+      "  constructor(options?: Options);",
+      "  listThreads(): void;",
+      "}",
+      "export { Foo };",
+    ].join("\n"),
+  );
+
+  assert.equal(output.includes("disposed"), false);
+  assert.equal(output.includes("#private"), false);
+  assert.equal(output.includes("generation"), false);
+  assert.match(output, /constructor\(options\?: Options\)/);
+  assert.match(output, /listThreads\(\): void/);
+});
+
+test("private constructors stay in the surface", () => {
+  const output = normalizeBundledDeclaration(
+    "declare class Foo {\n  private constructor();\n}\nexport { Foo };\n",
+  );
+  assert.match(output, /private constructor\(\)/);
+});
+
+test("private constructor parameter fields become ordinary parameters", () => {
+  const output = normalizeBundledDeclaration(
+    [
+      "declare class Foo {",
+      "  constructor(private readonly name: string);",
+      "}",
+      "export { Foo };",
+    ].join("\n"),
+  );
+  assert.match(output, /constructor\(name: string\)/);
+  assert.equal(output.includes("private name"), false);
+});
+
+test("protected members stay in the surface", () => {
+  const output = normalizeBundledDeclaration(
+    [
+      "declare class Foo {",
+      "  protected render(): void;",
+      "  private hide(): void;",
+      "}",
+      "export { Foo };",
+    ].join("\n"),
+  );
+  assert.match(output, /protected render\(\): void/);
+  assert.equal(output.includes("hide"), false);
+});
