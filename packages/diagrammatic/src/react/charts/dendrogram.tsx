@@ -30,7 +30,8 @@ export const Dendrogram = forwardRef<SVGSVGElement, DendrogramProps>(
       const walk = (cluster: number) => {
         inHighlight.add(cluster);
         if (cluster >= leaves.length) {
-          const merge = merges[cluster - leaves.length]!;
+          const merge = merges[cluster - leaves.length];
+          if (!merge) return;
           walk(merge.a);
           walk(merge.b);
         }

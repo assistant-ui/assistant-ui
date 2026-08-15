@@ -63,13 +63,37 @@ export function vbHeight(aspect: number | undefined, fallback: number): number {
   return Math.round((200 / (aspect ?? fallback)) * 100) / 100;
 }
 
+/**
+ * Charts forward their unconsumed rest here, so the frame also swallows the
+ * BaseProps-only keys a chart may not read (a `format` on a chart with no
+ * printed numbers, `labels` on an unlabeled form). Left in `rest`, they would
+ * land on the svg element as attributes, and a function prop breaks RSC
+ * serialization.
+ */
 type FrameProps = SvgAttributes & {
   title?: string | undefined;
+  labels?: string[] | undefined;
+  legend?: boolean | undefined;
+  format?: ((value: number) => string) | undefined;
+  aspect?: number | undefined;
   children: ReactNode;
 };
 
 export const ChartSvg = forwardRef<SVGSVGElement, FrameProps & { vh: number }>(
-  ({ vh, title, style, children, ...rest }, ref) => {
+  (
+    {
+      vh,
+      title,
+      style,
+      children,
+      labels: _labels,
+      legend: _legend,
+      format: _format,
+      aspect: _aspect,
+      ...rest
+    },
+    ref,
+  ) => {
     const label = title ?? rest["aria-label"];
     return (
       <svg
@@ -98,30 +122,47 @@ ChartSvg.displayName = "ChartSvg";
 export const MicroSvg = forwardRef<
   SVGSVGElement,
   FrameProps & { vw: number; vh: number; em: number }
->(({ vw, vh, em, title, style, children, ...rest }, ref) => {
-  const label = title ?? rest["aria-label"];
-  return (
-    <svg
-      ref={ref}
-      viewBox={`0 0 ${vw} ${vh}`}
-      role={label ? "img" : undefined}
-      aria-label={label}
-      aria-hidden={label ? undefined : true}
-      data-dg=""
-      {...rest}
-      style={{
-        display: "inline-block",
-        height: `${em}em`,
-        width: "auto",
-        verticalAlign: "-0.125em",
-        ...style,
-      }}
-    >
-      {title ? <title>{title}</title> : null}
-      {children}
-    </svg>
-  );
-});
+>(
+  (
+    {
+      vw,
+      vh,
+      em,
+      title,
+      style,
+      children,
+      labels: _labels,
+      legend: _legend,
+      format: _format,
+      aspect: _aspect,
+      ...rest
+    },
+    ref,
+  ) => {
+    const label = title ?? rest["aria-label"];
+    return (
+      <svg
+        ref={ref}
+        viewBox={`0 0 ${vw} ${vh}`}
+        role={label ? "img" : undefined}
+        aria-label={label}
+        aria-hidden={label ? undefined : true}
+        data-dg=""
+        {...rest}
+        style={{
+          display: "inline-block",
+          height: `${em}em`,
+          width: "auto",
+          verticalAlign: "-0.125em",
+          ...style,
+        }}
+      >
+        {title ? <title>{title}</title> : null}
+        {children}
+      </svg>
+    );
+  },
+);
 
 MicroSvg.displayName = "MicroSvg";
 

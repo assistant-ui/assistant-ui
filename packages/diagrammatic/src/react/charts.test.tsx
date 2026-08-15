@@ -550,6 +550,36 @@ describe("every chart form", () => {
     expect(html).toContain("display:block");
   });
 
+  it("swallows unconsumed base props instead of leaking them to the svg", () => {
+    const html = renderToStaticMarkup(
+      <dg.Funnel
+        items={[
+          { label: "a", value: 10 },
+          { label: "b", value: 4 },
+        ]}
+        format={(v) => `$${v}`}
+        labels={["x", "y"]}
+      />,
+    );
+    expect(html).toContain("<svg");
+    expect(html).not.toContain("format=");
+    expect(html).not.toContain('labels="');
+  });
+
+  it("ignores a highlight pointing past the last dendrogram merge", () => {
+    const html = renderToStaticMarkup(
+      <dg.Dendrogram
+        leaves={["a", "b", "c"]}
+        merges={[
+          { a: 0, b: 1, height: 1 },
+          { a: 3, b: 2, height: 2 },
+        ]}
+        highlight={9}
+      />,
+    );
+    expect(html).toContain("<svg");
+  });
+
   it("forwards refs on every chart form", () => {
     for (const [name, componentOrValue] of Object.entries(dg)) {
       if (typeof componentOrValue !== "object" || componentOrValue === null)
