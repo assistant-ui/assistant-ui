@@ -123,6 +123,48 @@ describe("AISDKThreads", () => {
     }
   });
 
+  it("bridges model context on the default transport path", async () => {
+    const bodies: unknown[] = [];
+    const fetchStub = vi.fn(async (_url: unknown, init?: RequestInit) => {
+      bodies.push(JSON.parse(String(init?.body)));
+      return new Response(
+        new ReadableStream({
+          start(c) {
+            c.enqueue(
+              new TextEncoder().encode(
+                'data: {"type":"start"}\n\ndata: [DONE]\n\n',
+              ),
+            );
+            c.close();
+          },
+        }),
+        { headers: { "Content-Type": "text/event-stream" } },
+      );
+    });
+    vi.stubGlobal("fetch", fetchStub);
+    try {
+      const handle = createAssistantClient(
+        AuiConfig({ threads: AISDKThreads() }),
+      );
+      handle.subscribe(() => {});
+      const aui = handle.getClient();
+
+      flushTapSync(() =>
+        aui.modelContext.register({
+          getModelContext: () => ({ system: "default path system" }),
+        }),
+      );
+      flushTapSync(() => aui.composer.setText("hello"));
+      flushTapSync(() => aui.composer.send());
+      await vi.waitFor(() => expect(fetchStub).toHaveBeenCalledTimes(1));
+      expect(bodies[0]).toMatchObject({ system: "default path system" });
+
+      handle.destroy();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("forwards ChatInit callbacks to each thread's chat", async () => {
     const { transport, emit, close } = createControlledTransport();
     const onFinish = vi.fn();

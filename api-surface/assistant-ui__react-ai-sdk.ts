@@ -24,7 +24,7 @@ type AISDKRuntimeAdapter = ExternalStoreSharedOptions & {
 
 declare const AISDKThreads: <UI_MESSAGE extends UIMessage$1 = UIMessage$1<unknown, import("ai").UIDataTypes, import("ai").UITools>>(options?: AISDKThreadsOptions<UI_MESSAGE> | undefined) => ResourceElement<ClientOutput<"threads">>;
 
-type AISDKThreadsOptions<UI_MESSAGE extends UIMessage$1 = UIMessage$1> = Omit<ChatThreadOptions<UI_MESSAGE>, "chat" | "id" | "transport"> & {
+type AISDKThreadsOptions<UI_MESSAGE extends UIMessage$1 = UIMessage$1> = Omit<ChatThreadOptions<UI_MESSAGE>, "id" | "transport"> & {
   transport?: ChatTransport<UI_MESSAGE> | (() => ChatTransport<UI_MESSAGE>) | undefined;
 };
 
@@ -73,6 +73,8 @@ declare class AssistantChatTransport<UI_MESSAGE extends UIMessage> extends Defau
   private runtime;
   private getThreadListItem;
   private readonly resumable;
+  private readonly __internal_initOptions;
+  __internal_clone(): AssistantChatTransport<UI_MESSAGE>;
   constructor(initOptions?: AssistantChatTransportInitOptions<UI_MESSAGE>);
   setRuntime(runtime: AssistantRuntime): void;
   getResumableAdapter(): AssistantChatResumableOptions | undefined;
@@ -519,7 +521,6 @@ type ChatModelRunResult = {
 };
 
 type ChatThreadOptions<UI_MESSAGE extends UIMessage$1 = UIMessage$1> = ChatInit<UI_MESSAGE> & ExternalStoreSharedOptions & {
-  chat?: Chat<UI_MESSAGE> | undefined;
   adapters?: AISDKRuntimeAdapter["adapters"] | undefined;
   toCreateMessage?: CustomToCreateMessageFunction;
   onResume?: AISDKRuntimeAdapter["onResume"];

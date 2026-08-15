@@ -31,12 +31,6 @@ import {
 export type ChatThreadOptions<UI_MESSAGE extends UIMessage = UIMessage> =
   ChatInit<UI_MESSAGE> &
     ExternalStoreSharedOptions & {
-      /**
-       * An externally owned chat instance. State lives on the instance, so it
-       * survives this resource unmounting; `id` and `transport` are read from
-       * the instance and the options are ignored for construction.
-       */
-      chat?: Chat<UI_MESSAGE> | undefined;
       adapters?: AISDKRuntimeAdapter["adapters"] | undefined;
       toCreateMessage?: CustomToCreateMessageFunction;
       onResume?: AISDKRuntimeAdapter["onResume"];
@@ -51,10 +45,16 @@ export type ChatThreadOptions<UI_MESSAGE extends UIMessage = UIMessage> =
       joinStrategy?: AISDKRuntimeAdapter["joinStrategy"];
     };
 
-export type ChatThreadEnvironment = {
+export type ChatThreadEnvironment<UI_MESSAGE extends UIMessage = UIMessage> = {
   id: string;
   isMainThread: boolean;
   getThreadListItem: () => InitializableThreadListItem | undefined;
+  /**
+   * An externally owned chat instance. State lives on the instance, so it
+   * survives the hosting resource unmounting; construction options are read
+   * from the instance.
+   */
+  chat?: Chat<UI_MESSAGE> | undefined;
 };
 
 const useDynamicChatTransport = <UI_MESSAGE extends UIMessage = UIMessage>(
@@ -129,7 +129,6 @@ export const splitChatThreadOptions = <UI_MESSAGE extends UIMessage>(
     onResumeToolCall,
     onResumeError,
     joinStrategy,
-    chat,
     ...chatInit
   } = options ?? {};
   // peel guard: any shared key left in `chatInit` collapses this to `never`
@@ -145,14 +144,13 @@ export const splitChatThreadOptions = <UI_MESSAGE extends UIMessage>(
     onResumeToolCall,
     onResumeError,
     joinStrategy,
-    chat,
     chatInit,
   };
 };
 
 export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
   options: ChatThreadOptions<UI_MESSAGE> | undefined,
-  env: ChatThreadEnvironment,
+  env: ChatThreadEnvironment<UI_MESSAGE>,
 ): AssistantRuntime => {
   const {
     adapters,
@@ -162,11 +160,10 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
     onResumeToolCall,
     onResumeError,
     joinStrategy,
-    chat: externalChat,
     chatInit: chatOptions,
   } = splitChatThreadOptions(options);
 
-  const { id, isMainThread, getThreadListItem } = env;
+  const { id, isMainThread, getThreadListItem, chat: externalChat } = env;
 
   const defaultTransport = useMemo(() => new AssistantChatTransport(), []);
   const sourceTransport = transportOptions ?? defaultTransport;

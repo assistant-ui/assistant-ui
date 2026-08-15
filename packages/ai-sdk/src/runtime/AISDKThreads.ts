@@ -22,7 +22,7 @@ import {
 } from "./useChatThread";
 
 export type AISDKThreadsOptions<UI_MESSAGE extends UIMessage = UIMessage> =
-  Omit<ChatThreadOptions<UI_MESSAGE>, "id" | "chat" | "transport"> & {
+  Omit<ChatThreadOptions<UI_MESSAGE>, "id" | "transport"> & {
     /**
      * The transport threads send through. A factory is invoked once per
      * thread so each thread owns its instance; a plain instance is shared
@@ -57,10 +57,19 @@ const useAISDKChatThread = <UI_MESSAGE extends UIMessage = UIMessage>({
     const { chatInit } = splitChatThreadOptions(
       options as ChatThreadOptions<UI_MESSAGE> | undefined,
     );
-    const transport =
+    const configured =
       typeof options?.transport === "function"
         ? options.transport()
-        : (options?.transport ?? new AssistantChatTransport());
+        : options?.transport;
+    // A plain AssistantChatTransport instance is cloned per thread: the docs
+    // teach the instance form, and per-thread wiring on a shared instance
+    // would leak the visible thread's context into background sends.
+    const transport =
+      configured === undefined
+        ? new AssistantChatTransport()
+        : configured instanceof AssistantChatTransport
+          ? configured.__internal_clone()
+          : configured;
     entry = {
       chat: new Chat<UI_MESSAGE>({ ...chatInit, id: threadId, transport }),
       transport,
@@ -81,11 +90,12 @@ const useAISDKChatThread = <UI_MESSAGE extends UIMessage = UIMessage>({
     [threadId],
   );
   const runtime = useChatThread(
-    { ...options, transport, chat } as ChatThreadOptions<UI_MESSAGE>,
+    { ...options, transport } as ChatThreadOptions<UI_MESSAGE>,
     {
       id: threadId,
       isMainThread: true,
       getThreadListItem: () => threadListItem,
+      chat,
     },
   );
 

@@ -138,12 +138,21 @@ const useInMemoryThreadList = (
   };
 
   const handleDelete = (threadId: string) => {
-    setThreads((prev) => prev.filter((t) => t.id !== threadId));
-    setMainThreadId((prev) =>
-      prev === threadId
-        ? threads.find((t) => t.id !== threadId)?.id || "main"
-        : prev,
-    );
+    const remaining = threads.filter((t) => t.id !== threadId);
+    if (remaining.length === 0) {
+      // Deleting the last thread starts a fresh one; the removed id must not
+      // stay selected.
+      const id = `thread-${generateId()}`;
+      setThreads([{ id, title: "New Thread", status: "regular" }]);
+      setMainThreadId(id);
+    } else {
+      setThreads(remaining);
+      setMainThreadId((prev) =>
+        prev === threadId
+          ? (remaining.find((t) => t.status === "regular") ?? remaining[0]!).id
+          : prev,
+      );
+    }
     onDelete?.(threadId);
   };
 

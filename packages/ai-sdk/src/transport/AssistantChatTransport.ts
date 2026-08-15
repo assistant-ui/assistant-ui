@@ -41,6 +41,15 @@ export class AssistantChatTransport<
     | undefined;
   private readonly resumable: AssistantChatResumableOptions | undefined;
 
+  private readonly __internal_initOptions:
+    | AssistantChatTransportInitOptions<UI_MESSAGE>
+    | undefined;
+
+  /** Constructs an unwired copy with the same init options. */
+  public __internal_clone(): AssistantChatTransport<UI_MESSAGE> {
+    return new AssistantChatTransport(this.__internal_initOptions);
+  }
+
   constructor(initOptions?: AssistantChatTransportInitOptions<UI_MESSAGE>) {
     const { resumable, ...rest } = initOptions ?? {};
     const userFetch = rest.fetch;
@@ -96,6 +105,7 @@ export class AssistantChatTransport<
     });
 
     this.resumable = resumable;
+    this.__internal_initOptions = initOptions;
   }
 
   setRuntime(runtime: AssistantRuntime) {
