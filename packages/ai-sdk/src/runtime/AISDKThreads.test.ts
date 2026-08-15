@@ -88,13 +88,13 @@ describe("AISDKThreads", () => {
     });
     vi.stubGlobal("fetch", fetchStub);
     try {
-      const transports: AssistantChatTransport[] = [];
+      const transports: AssistantChatTransport<never>[] = [];
       const handle = createAssistantClient(
         AuiConfig({
           threads: AISDKThreads({
             transport: () => {
               const transport = new AssistantChatTransport();
-              transports.push(transport);
+              transports.push(transport as AssistantChatTransport<never>);
               return transport;
             },
           }),
