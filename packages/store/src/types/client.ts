@@ -74,30 +74,39 @@ type ReservedAccessorProps = "source" | "query" | "name";
 
 type ReservedScopeNames = "optional" | "subscribe" | "on";
 
+type ValidateMethods<K extends string, TClient> = TClient extends {
+  methods: ClientMethods;
+}
+  ? keyof TClient["methods"] & ReservedAccessorProps extends never
+    ? unknown
+    : ClientError<`ERROR: ${K} methods declare a reserved accessor property (source/query/name)`>
+  : ClientError<`ERROR: ${K} has invalid methods type`>;
+
+type ValidateMeta<K extends string, TClient> = "meta" extends keyof TClient
+  ? TClient["meta"] extends ClientMetaType
+    ? unknown
+    : ClientError<`ERROR: ${K} has invalid meta type`>
+  : unknown;
+
+type ValidateEvents<K extends string, TClient> = "events" extends keyof TClient
+  ? TClient["events"] extends ClientEventsType<K>
+    ? unknown
+    : ClientError<`ERROR: ${K} has invalid events type`>
+  : unknown;
+
 export type ValidateClient<
   K extends string,
   TClient,
 > = K extends ReservedScopeNames
   ? ClientError<`ERROR: ${K} is a reserved scope name`>
-  : TClient extends {
-        methods: ClientMethods;
-      }
-    ? keyof TClient["methods"] & ReservedAccessorProps extends never
-      ? "meta" extends keyof TClient
-        ? TClient["meta"] extends ClientMetaType
-          ? "events" extends keyof TClient
-            ? TClient["events"] extends ClientEventsType<K>
-              ? TClient
-              : ClientError<`ERROR: ${K} has invalid events type`>
-            : TClient
-          : ClientError<`ERROR: ${K} has invalid meta type`>
-        : "events" extends keyof TClient
-          ? TClient["events"] extends ClientEventsType<K>
-            ? TClient
-            : ClientError<`ERROR: ${K} has invalid events type`>
-          : TClient
-      : ClientError<`ERROR: ${K} methods declare a reserved accessor property (source/query/name)`>
-    : ClientError<`ERROR: ${K} has invalid methods type`>;
+  : unknown extends ValidateMethods<K, TClient> &
+        ValidateMeta<K, TClient> &
+        ValidateEvents<K, TClient>
+    ? TClient
+    : ValidateMethods<K, TClient> &
+        ValidateMeta<K, TClient> &
+        ValidateEvents<K, TClient> &
+        ClientError<never>;
 
 type ClientSchemas = keyof ScopeRegistry extends never
   ? {
@@ -154,6 +163,12 @@ export type ClientElement<K extends ClientNames> = ResourceElement<
  */
 export type Unsubscribe = () => void;
 
+export type InferClientState<TMethods> = TMethods extends {
+  getState: () => infer S;
+}
+  ? S
+  : undefined;
+
 type ScopeStates = {
   [K in ClientNames]: ClientSchemas[K]["methods"] extends {
     getState: () => infer S;
@@ -181,7 +196,7 @@ export type AssistantState = ScopeStates & {
  *
  * An unavailable scope's accessor has `source: null` and throws when any
  * other property is read or the accessor is called. The accessor itself is
- * always truthy — check availability via `aui.thread.source != null`.
+ * always truthy — check availability via `aui.optional.thread`.
  */
 export type AssistantClientAccessor<K extends ClientNames> =
   ClientSchemas[K]["methods"] & {
@@ -193,12 +208,21 @@ export type AssistantClientAccessor<K extends ClientNames> =
       | { source: null; query: null }
     ) & { name: K };
 
+type ClientScopes = {
+  [K in ClientNames]: AssistantClientAccessor<K>;
+};
+
 /**
  * The assistant client type with all registered clients.
+ *
+ * `optional` exposes the same scopes, but an unavailable scope resolves to
+ * `undefined` instead of a throwing accessor:
+ * `aui.optional.thread?.cancelRun()`.
  */
-export type AssistantClient = {
-  [K in ClientNames]: AssistantClientAccessor<K>;
-} & {
+export type AssistantClient = ClientScopes & {
+  readonly optional: {
+    readonly [K in keyof ClientScopes]: ClientScopes[K] | undefined;
+  };
   subscribe(listener: () => void): Unsubscribe;
   on<TEvent extends AssistantEventName>(
     selector: AssistantEventSelector<TEvent>,

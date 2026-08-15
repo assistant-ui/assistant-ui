@@ -231,7 +231,12 @@ function renderSeriesMarks(
             points={[...topPoints, ...bottomPoints].join(" ")}
             fill="currentColor"
             fillOpacity="0.25"
+          />
+          <polyline
+            points={topPoints.join(" ")}
+            fill="none"
             stroke="currentColor"
+            vectorEffect="non-scaling-stroke"
           />
         </g>
       );
@@ -262,6 +267,7 @@ function renderSeriesMarks(
             .join(" ")}
           fill="none"
           stroke="currentColor"
+          vectorEffect="non-scaling-stroke"
         />
       ) : null}
     </g>

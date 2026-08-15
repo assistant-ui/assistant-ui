@@ -1,4 +1,16 @@
-const INTROSPECTION_PROPS = new Set(["$$typeof", "nodeType", "then"]);
+const INTROSPECTION_PROPS = new Set([
+  "$$typeof",
+  "nodeType",
+  "then",
+  // Vue reactivity flags, probed by toRaw/isRef/isReactive checks (Vue's dev
+  // warning formatter runs toRaw on every prop in a component trace).
+  "__v_raw",
+  "__v_isRef",
+  "__v_isReactive",
+  "__v_isReadonly",
+  "__v_isShallow",
+  "__v_skip",
+]);
 
 /**
  * Handles common proxy introspection properties.
@@ -28,7 +40,8 @@ export abstract class BaseProxyHandler implements ProxyHandler<object> {
       value,
       writable: false,
       enumerable: true,
-      configurable: false,
+      // must be configurable: the invariant forbids non-configurable props absent from the empty target
+      configurable: true,
     };
   }
 

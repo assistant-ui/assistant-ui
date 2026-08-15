@@ -59,7 +59,7 @@ export function useAppRuntime() {
 
 ### App Layout
 
-`AssistantRuntimeProvider` wraps the Expo Router drawer layout inside a `GestureHandlerRootView`. The layout also handles font loading, theming, a "New Chat" button in the header, and tool registration via `useAui`:
+`AssistantRuntimeProvider` wraps the Expo Router drawer layout inside a `GestureHandlerRootView`. The layout also handles font loading, theming, a "New Chat" button in the header, and tool registration via the provider's `config`:
 
 ```tsx title="app/_layout.tsx"
 import {
@@ -77,6 +77,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 import {
   AssistantRuntimeProvider,
+  AuiConfig,
   useAui,
   Tools,
 } from "@assistant-ui/react-native";
@@ -129,15 +130,12 @@ function DrawerLayout() {
 export default function RootLayout() {
   const [fontsLoaded] = useFonts(Ionicons.font);
   const runtime = useAppRuntime();
-  const aui = useAui({
-    tools: Tools({ toolkit: expoToolkit }),
-  });
-
+  const config = AuiConfig({ tools: Tools({ toolkit: expoToolkit }) });
   if (!fontsLoaded) return null;
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <AssistantRuntimeProvider runtime={runtime} aui={aui}>
+      <AssistantRuntimeProvider runtime={runtime} config={config}>
         <DrawerLayout />
       </AssistantRuntimeProvider>
     </GestureHandlerRootView>

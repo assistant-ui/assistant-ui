@@ -8,7 +8,7 @@ import type {
   PendingUserMessage,
   ThreadUserMessagePart,
 } from "./types";
-import { serializeUserParts } from "./serializeUserParts";
+import { serializeOpenCodeParts } from "./serializeUserParts";
 
 const PENDING_MATCH_WINDOW_MS = 2 * 60 * 1000;
 const MAX_UNHANDLED_EVENTS = 25;
@@ -25,20 +25,10 @@ const pendingFingerprint = (pending: PendingUserMessage) =>
   normalizeText(pending.contentText);
 
 const partTextFingerprint = (parts: readonly ThreadUserMessagePart[]) =>
-  normalizeText(serializeUserParts(parts));
+  normalizeText(serializeOpenCodeParts(parts));
 
 const serverFingerprint = (message: MessageWithParts) =>
-  normalizeText(
-    message.parts
-      .map((part) => {
-        if (part.type === "text") return part.text ?? "";
-        if (part.type === "file") return part.filename ?? part.url ?? "";
-        if (part.type === "tool")
-          return JSON.stringify(part.state?.input ?? {});
-        return "";
-      })
-      .join("\n"),
-  );
+  normalizeText(serializeOpenCodeParts(message.parts));
 
 const sortMessageIds = (
   messagesById: Readonly<Record<string, OpenCodeServerMessage>>,
@@ -253,6 +243,7 @@ export const createOpenCodeThreadState = (
   runState: { type: "idle" },
   messageOrder: [],
   messagesById: {} as Readonly<Record<string, OpenCodeServerMessage>>,
+  childSessionsById: {} as Readonly<Record<string, OpenCodeThreadState>>,
   pendingUserMessages: {} as Readonly<Record<string, PendingUserMessage>>,
   interactions: {
     permissions: {

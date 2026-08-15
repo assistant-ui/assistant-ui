@@ -19,7 +19,7 @@ Both share one connection lifecycle, one persisted state surface, and one tool r
 
 ## Design principles
 
-- **One entry point.** `McpManagerResource` — mount via `useAui({ mcp: McpManagerResource(...) })`. No provider wrapper, no imperative hooks.
+- **One entry point.** `McpManagerResource` — `AuiConfig({ mcp: McpManagerResource(...) })` builds the configuration; `<AuiProvider config={...}>` or `<AssistantRuntimeProvider config={...}>` mounts it. No dedicated MCP provider wrapper, no imperative hooks.
 - **Tap-first.** Connection lifecycle, tool lists, and tool registration are tap state. Components read via `useAuiState`; methods called via `aui.mcp().x()` in callbacks (never during render).
 - **One source of truth.** Persisted state goes through `MCPStorage` (a tap resource). `McpLocalStorage` is the default; swap by passing a different resource.
 - **Unstyled primitives.** `data-*` attributes for styling, no CSS, no business logic — matches `SpanPrimitive`.
@@ -67,7 +67,7 @@ After the v0.1 simplification, the package's runtime surface is:
 
 | Export | Purpose |
 | --- | --- |
-| `McpManagerResource` | Root tap resource — mount via `useAui({ mcp: McpManagerResource({...}) })`. Auto-registers connected tools with `modelContext`. |
+| `McpManagerResource` | Root tap resource — built into a config via `AuiConfig({ mcp: McpManagerResource({...}) })`, mounted by `AuiProvider` or `AssistantRuntimeProvider`. Auto-registers connected tools with `modelContext`. |
 | `McpServerResource` | Per-server resource (advanced — used internally by `McpManagerResource`) |
 | `McpLocalStorage`, `McpMemoryStorage`, `McpCustomStorage` | Storage resource factories |
 | `defineConnector` | Identity-typed helper for `MCPConnector` objects |
@@ -217,7 +217,7 @@ McpCustomStorage(impl: MCPStorage): ResourceElement<MCPStorage>;
 ```tsx
 // One line — no provider component.
 function App() {
-  const aui = useAui({
+  const config = AuiConfig({
     mcp: McpManagerResource({
       connectors: [
         defineConnector({
@@ -234,7 +234,7 @@ function App() {
       // oauthRedirectUri: "https://app.example.com/mcp/callback",
     }),
   });
-  return <AuiProvider value={aui}><Page /></AuiProvider>;
+  return <AuiProvider config={config}><Page /></AuiProvider>;
 }
 ```
 
@@ -345,7 +345,9 @@ Render form-mode elicitation inside a server-scoped subtree. Each item owns an i
 
 `useMcpElicitation()` reads the current request inside `Items`. `useMcpElicitationField()` reads the current field inside the element returned from the `Fields` render function.
 
-`Accept` sets `data-missing-required` when required fields are absent or empty and `data-invalid` to comma-joined invalid property names when validation fails. It is disabled until both conditions are empty. Each item seeds its draft from flat schema defaults when the default matches a declared `string`, `number`, `integer`, or `boolean` type. Absent required boolean properties are submitted with the schema's boolean `default` when one is present, otherwise `false`; optional booleans remain omitted. It converts parseable string values from flat `number` and `integer` properties to numbers before submitting the response content. Boolean drafts must be real booleans (compose a checkbox); string drafts are coerced only for `number` and `integer` properties and are flagged invalid for booleans. The `elicitation` flag defaults to advertising the capability; `false` skips both the capability declaration and the handler registration, and, like the rest of the capability set, a changed flag applies from the next connect rather than mid-connection.
+`Accept` sets `data-missing-required` when required properties resolve to absent and `data-invalid` to comma-joined invalid property names when validation fails. It is disabled until both conditions are empty. Each item seeds its draft from flat schema defaults when the default matches a declared `string`, `number`, `integer`, or `boolean` type. Absent required boolean properties are submitted with the schema's boolean `default` when one is present, otherwise `false`; optional booleans remain omitted. It converts parseable string values from flat `number` and `integer` properties to numbers before submitting the response content. Boolean drafts must be real booleans (compose a checkbox); string drafts are coerced only for `number` and `integer` properties and are flagged invalid for booleans. The `elicitation` flag defaults to advertising the capability; `false` skips both the capability declaration and the handler registration, and, like the rest of the capability set, a changed flag applies from the next connect rather than mid-connection.
+
+An empty-string draft is a field's blank state rather than a value: it resolves to absent unless the schema names `""` as a legal value for an untyped or `string` property through an `enum` member or a `""` default. A cleared `boolean`, `number`, or `integer` property always resolves to absent, whatever its `enum` or `default` declares. Clearing a field therefore returns it to absent instead of leaving it invalid, so an optional property drops out of the response content and a required one reports `data-missing-required` until a value is supplied. The blank state is a draft-side rule; `""` stays a legal value on the wire, so a caller that builds content itself can still send it for a required `string`.
 
 An accepted response is client-side validated for required-property presence, `string`, `number`, `integer`, and `boolean` types, and declared enum membership. Constraints outside that flat subset, such as `minLength` and `format`, pass through for the server to judge. `answerElicitation` returns `undefined` when it applies an answer or the id is unknown. On validation failure, it keeps the elicitation pending, sets its `error`, leaves the server request unresolved, and returns the validation errors so the caller can correct the draft. `McpElicitationPrimitive.Error` renders the error message and exposes its property names as comma-joined `data-properties` when available.
 
@@ -411,7 +413,8 @@ Errors surface as rejected promises on the manager/server methods. Tool failures
 ```tsx
 // app/providers.tsx
 "use client";
-import { AuiProvider, useAui } from "@assistant-ui/store";
+import type { ReactNode } from "react";
+import { AuiProvider, AuiConfig, useAui } from "@assistant-ui/store";
 import { McpManagerResource, defineConnector } from "@assistant-ui/react-mcp";
 
 const connectors = [
@@ -423,9 +426,44 @@ const connectors = [
   }),
 ];
 
-export function Providers({ children }: { children: React.ReactNode }) {
-  const aui = useAui({ mcp: McpManagerResource({ connectors }) });
-  return <AuiProvider value={aui}>{children}</AuiProvider>;
+export function Providers({ children }: { children: ReactNode }) {
+  const aui = useAui();
+  const config = AuiConfig({ mcp: McpManagerResource({ connectors }) });
+  return (
+    <AuiProvider extends={aui} config={config}>
+      {children}
+    </AuiProvider>
+  );
+}
+```
+
+In a chat app, pass the same config to `AssistantRuntimeProvider` instead — its scopes mount alongside the runtime scope:
+
+```tsx
+// app/providers.tsx — with a chat runtime
+"use client";
+import type { ReactNode } from "react";
+import { AssistantRuntimeProvider, AuiConfig } from "@assistant-ui/react";
+import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+import { McpManagerResource, defineConnector } from "@assistant-ui/react-mcp";
+
+const connectors = [
+  defineConnector({
+    id: "linear",
+    name: "Linear",
+    url: "https://mcp.linear.app",
+    auth: { type: "oauth", scopes: ["read"] },
+  }),
+];
+
+export function Providers({ children }: { children: ReactNode }) {
+  const runtime = useChatRuntime();
+  const config = AuiConfig({ mcp: McpManagerResource({ connectors }) });
+  return (
+    <AssistantRuntimeProvider runtime={runtime} config={config}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
 }
 ```
 

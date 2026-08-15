@@ -36,6 +36,7 @@ import { XuluxThread } from "../chat/XuluxThread";
 import { XuluxTemplateProvider } from "../chat/XuluxTemplateContext";
 import type { XuluxPreviewFrame, XuluxTemplate } from "../templates/types";
 import type { SelectedTemplateContext } from "../XuluxApp";
+import type { XuluxMode } from "../XuluxApp";
 import { XuluxCanvas } from "../canvas/XuluxCanvas";
 import { XuluxCanvasObserver } from "../canvas/XuluxCanvasObserver";
 import { XuluxTemplatePreviewObserver } from "../canvas/XuluxTemplatePreviewObserver";
@@ -54,6 +55,23 @@ import type {
   XuluxJsonObject,
   XuluxStoredThread,
 } from "../runtime/types";
+import { LearnCanvas } from "../learn/LearnCanvas";
+import {
+  LearnCourseObserver,
+  LearnModeProvider,
+} from "../learn/LearnModeContext";
+import { LearnStageSourceProvider } from "../learn/LearnStageSourceContext";
+import {
+  LEARN_START_MESSAGE,
+  shouldAutoStartLearnCourse,
+  startLearnCourse,
+} from "@/lib/xulux/learn/session";
+import { getLearnCourse } from "@/lib/xulux/learn/registry";
+import type { LearnProgress } from "@/lib/xulux/learn/types";
+import type {
+  LearnAutoStartSource,
+  LearnCourseStartSource,
+} from "@/lib/xulux/learn/types";
 
 const ASSISTANT_UI_REPO_URL = "https://github.com/assistant-ui/assistant-ui";
 
@@ -77,12 +95,26 @@ type PromptStart = {
 };
 
 export function XuluxShell({
+  mode,
+  courseId,
+  autoStart,
+  autoStartSource,
+  learnProgress,
+  learnReady,
+  onUpdateLearnProgress,
   sessionId,
   onSetSessionId,
   onSetSelectedTemplateContext,
   onSetActivePreviewContext,
   onResetSession,
 }: {
+  mode: XuluxMode;
+  courseId: string;
+  autoStart: boolean;
+  autoStartSource: LearnAutoStartSource;
+  learnProgress: LearnProgress;
+  learnReady: boolean;
+  onUpdateLearnProgress: (progress: LearnProgress) => void;
   sessionId: string;
   onSetSessionId: (sessionId: string) => void;
   onSetSelectedTemplateContext: (
@@ -98,6 +130,8 @@ export function XuluxShell({
   const analyticsCtx = useXuluxAnalytics();
   const isSmallScreen = useIsSmallScreen();
   const currentRemoteId = useAuiState((state) => state.threadListItem.remoteId);
+  const isThreadRunning = useAuiState((state) => state.thread.isRunning);
+  const threadMessages = useAuiState((state) => state.thread.messages);
   const storedThreads = useXuluxStoredThreads();
   const [viewMode, setViewMode] = useState<XuluxViewMode>("landing");
   const [selectedTemplate, setSelectedTemplate] =
@@ -115,16 +149,51 @@ export function XuluxShell({
   });
   const viewedRef = useRef(false);
   const previewTrackedRef = useRef<string | null>(null);
+  const autoStartRef = useRef(false);
+  const startInFlightRef = useRef(false);
+  const startRequestRunningRef = useRef(false);
+  const startProgressRef = useRef<LearnProgress | null>(null);
+  const restoredLearnThreadRef = useRef<string | null>(null);
+  const learnCourse = useMemo(() => getLearnCourse(courseId), [courseId]);
 
   useEffect(() => {
+    if (!learnReady) return;
     if (viewedRef.current) return;
     viewedRef.current = true;
+    if (mode === "learn") {
+      analytics.xulux.learnPageViewed(
+        withXuluxContext(analyticsCtx, {
+          course_id: courseId,
+          status: learnProgress.status,
+        }),
+      );
+      return;
+    }
     analytics.xulux.playgroundViewed(withXuluxContext(analyticsCtx, {}));
-  }, [analyticsCtx]);
+  }, [analyticsCtx, courseId, learnProgress.status, learnReady, mode]);
 
   useEffect(() => {
     previewTrackedRef.current = null;
   }, [sessionId]);
+
+  useEffect(() => {
+    if (!startInFlightRef.current) return;
+    if (isThreadRunning) {
+      startRequestRunningRef.current = true;
+      return;
+    }
+    if (!startRequestRunningRef.current) return;
+
+    startInFlightRef.current = false;
+    startRequestRunningRef.current = false;
+    const previousProgress = startProgressRef.current;
+    startProgressRef.current = null;
+    const hasAssistantMessage = threadMessages.some(
+      ({ role }) => role === "assistant",
+    );
+    if (!previousProgress || hasAssistantMessage) return;
+    onUpdateLearnProgress(previousProgress);
+  }, [isThreadRunning, onUpdateLearnProgress, threadMessages]);
 
   const handleStartChat = useCallback(
     (prompt: string, start: PromptStart = { source: "typed_prompt" }) => {
@@ -170,6 +239,97 @@ export function XuluxShell({
       sessionId,
     ],
   );
+
+  const handleStartCourse = useCallback(
+    (source: LearnCourseStartSource) => {
+      if (!learnReady) return;
+      if (startInFlightRef.current) return;
+      const transition = startLearnCourse(learnProgress, sessionId);
+      if (!transition.shouldSubmitStartMessage) {
+        setViewMode("chat");
+        return;
+      }
+
+      startInFlightRef.current = true;
+      startRequestRunningRef.current = false;
+      startProgressRef.current = learnProgress;
+      try {
+        handleStartChat(LEARN_START_MESSAGE);
+        onUpdateLearnProgress(transition.progress);
+        analytics.xulux.learnCourseStarted(
+          withXuluxContext(analyticsCtx, {
+            course_id: courseId,
+            source,
+          }),
+        );
+      } catch {
+        startInFlightRef.current = false;
+        startProgressRef.current = null;
+      }
+    },
+    [
+      analyticsCtx,
+      courseId,
+      handleStartChat,
+      learnProgress,
+      learnReady,
+      onUpdateLearnProgress,
+      sessionId,
+    ],
+  );
+
+  useEffect(() => {
+    if (
+      mode !== "learn" ||
+      !learnReady ||
+      autoStartRef.current ||
+      !shouldAutoStartLearnCourse(learnProgress, autoStart)
+    ) {
+      return;
+    }
+    autoStartRef.current = true;
+    handleStartCourse(autoStartSource);
+  }, [
+    autoStart,
+    autoStartSource,
+    handleStartCourse,
+    learnProgress,
+    learnReady,
+    mode,
+  ]);
+
+  useEffect(() => {
+    if (
+      mode !== "learn" ||
+      !learnReady ||
+      startInFlightRef.current ||
+      learnProgress.status === "not_started" ||
+      !learnProgress.threadId
+    ) {
+      return;
+    }
+
+    setViewMode("chat");
+    const storedLearnThread = storedThreads.find(
+      (thread) =>
+        thread.custom.sessionId === learnProgress.threadId &&
+        thread.remoteId.startsWith("thread_"),
+    );
+    if (
+      !storedLearnThread ||
+      restoredLearnThreadRef.current === storedLearnThread.remoteId ||
+      currentRemoteId === storedLearnThread.remoteId
+    ) {
+      return;
+    }
+
+    restoredLearnThreadRef.current = storedLearnThread.remoteId;
+    void Promise.resolve(
+      aui.threads().switchToThread(storedLearnThread.remoteId),
+    ).catch(() => {
+      restoredLearnThreadRef.current = null;
+    });
+  }, [aui, currentRemoteId, learnProgress, learnReady, mode, storedThreads]);
 
   const handleSelectTemplate = useCallback(
     (template: XuluxTemplate) => {
@@ -333,6 +493,47 @@ export function XuluxShell({
       ? getTemplateSourceUrl(selectedTemplate ?? selectedTemplateContext!)
       : undefined;
   const canvasTitle = canvas.title ?? selectedTemplate?.title;
+
+  if (mode === "learn") {
+    if (!learnReady) {
+      return (
+        <div className="text-muted-foreground flex h-full items-center justify-center text-sm">
+          Loading course…
+        </div>
+      );
+    }
+
+    const started = learnProgress.status !== "not_started";
+    return (
+      <XuluxTemplateProvider template={null}>
+        <LearnModeProvider
+          course={learnCourse}
+          progress={learnProgress}
+          updateProgress={onUpdateLearnProgress}
+        >
+          <LearnStageSourceProvider>
+            <LearnCourseObserver />
+            <div className="bg-background text-foreground grid h-full min-h-0 grid-rows-[minmax(0,55%)_minmax(0,45%)] overflow-hidden md:grid-cols-[minmax(320px,0.8fr)_minmax(0,1.2fr)] md:grid-rows-1">
+              <section
+                className="flex min-h-0 min-w-0 flex-col overflow-hidden border-b md:border-r md:border-b-0"
+                aria-label="Learn chat"
+              >
+                <XuluxThread
+                  learn={{
+                    started,
+                    onStartCourse: () => handleStartCourse("chat"),
+                  }}
+                />
+              </section>
+              <LearnCanvas
+                onStartCourse={() => handleStartCourse("curriculum")}
+              />
+            </div>
+          </LearnStageSourceProvider>
+        </LearnModeProvider>
+      </XuluxTemplateProvider>
+    );
+  }
 
   return (
     <XuluxTemplateProvider template={selectedTemplateContext}>

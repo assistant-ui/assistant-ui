@@ -206,9 +206,11 @@ function readFromStore(
         controller.error(err);
       }
     },
-    cancel() {
+    async cancel() {
       ac.abort();
-      iterator?.return?.().catch(() => {});
+      try {
+        await iterator?.return?.();
+      } catch {}
     },
   });
 }

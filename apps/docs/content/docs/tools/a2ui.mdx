@@ -53,17 +53,11 @@ Register the `present` frontend tool from `@assistant-ui/react-generative-ui`; i
 ```tsx
 import {
   JSONGenerativeUI,
-  createActionRegistry,
   defaultGenerativeUILibrary,
 } from "@assistant-ui/react-generative-ui";
 
 const generative = new JSONGenerativeUI({
   library: defaultGenerativeUILibrary,
-  actions: createActionRegistry({
-    "a2ui:action": async ({ payload }) => {
-      // forward the A2UI action to your backend
-    },
-  }),
 });
 
 const toolkit = {
@@ -73,12 +67,41 @@ const toolkit = {
 
 Pass the toolkit to your assistant as on the [Generative UI](/docs/tools/generative-ui) page; no other configuration is needed on `useAgUiRuntime`.
 
+## Actions
+
+`Button` nodes dispatch `$action` objects with type `"a2ui:action"` through the action registry. Wire the registry to `useAgUiSendA2uiAction` inside a component; the hook returns a stable function, so the toolkit can be memoized on it:
+
+```tsx
+import { useMemo } from "react";
+import { useAgUiSendA2uiAction } from "@assistant-ui/react-ag-ui";
+import {
+  JSONGenerativeUI,
+  createActionRegistry,
+  defaultGenerativeUILibrary,
+} from "@assistant-ui/react-generative-ui";
+
+function useA2uiToolkit() {
+  const sendA2uiAction = useAgUiSendA2uiAction();
+  return useMemo(() => {
+    const generative = new JSONGenerativeUI({
+      library: defaultGenerativeUILibrary,
+      actions: createActionRegistry({
+        "a2ui:action": ({ payload }) => sendA2uiAction(payload),
+      }),
+    });
+    return { present: generative.present({ display: "standalone" }) };
+  }, [sendA2uiAction]);
+}
+```
+
+Sending an action triggers a run with no new user message, and the agent receives it as `forwardedProps.a2uiAction.userAction`, the convention `@ag-ui/a2ui-middleware` consumes. The action rides exactly one run; the `type` field is stripped and a `timestamp` is added when absent.
+
+The middleware turns the action into a synthetic `log_a2ui_event` tool-call pair that is never declared in `input.tools`; a backend that validates tool calls against the declared tool list will reject it.
+
 ## Component mapping
 
 The converter maps the A2UI basic catalog onto the default generative UI vocabulary: `Text` becomes `Markdown` (`h1` to `h6` variants become `Header`, `caption` becomes `Caption`), `Column` becomes `Col`, `TextField` becomes `Input` (the control name is derived from the last segment of its binding path), `CheckBox` becomes `Checkbox`, and `Image`, `Row`, `Card`, `Divider`, `Button` map one to one. A node with template children expands into a `ListView` over the bound list. `Button` actions become `$action` objects with type `"a2ui:action"` carrying the action name, `surfaceId`, and `sourceComponentId`, which is how your action registry receives them. Unknown components and operations are skipped with a debug warning, and conversion is bounded (depth 32, 100 template items, 5000 nodes) so a malformed stream cannot hang the client.
 
 ## Limitations
 
-- Forwarding an `"a2ui:action"` back to the agent is host code today: send it on the next run as `forwardedProps.a2uiAction.userAction`, the convention `@ag-ui/a2ui-middleware` consumes. A first-class round-trip helper is planned.
-- Surfaces are not yet rehydrated when a thread is restored from history.
 - The upstream middleware currently emits v0.9 operation payloads; the renderer accepts v0.9 and v1.0 shapes.

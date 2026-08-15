@@ -539,8 +539,15 @@ const useMcpServerResource = (
     disconnect: doDisconnect,
     remove: async () => {
       await doDisconnect();
-      await props.storage.clearAuthState(props.id);
-      await props.onRemove();
+      try {
+        await props.storage.clearAuthState(props.id);
+        await props.onRemove();
+      } catch (err) {
+        setLastError({
+          message: err instanceof Error ? err.message : String(err),
+        });
+        throw err;
+      }
     },
     callTool: async (name, args) => {
       const client = clientRef.current;

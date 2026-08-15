@@ -108,7 +108,7 @@ See [Generative UI](/docs/runtimes/langgraph/generative-ui) for full setup: enab
 
 ## Queueing messages during a run
 
-Set `unstable_enableMessageQueue` to keep the composer usable while a run is streaming. A message sent during a run is held in `composer.queue` and sent once the run settles; steering a queued message runs it next.
+Set `unstable_enableMessageQueue` to keep the composer usable while a run is streaming. A message sent during a queued run steers by default — it lands in the steer lane, ahead of previously queued items; `send({ steer: false })` queues a follow-up behind them instead. Pending items are held in `composer.queue` and drain once the run settles.
 
 ```tsx
 const runtime = useLangGraphRuntime({

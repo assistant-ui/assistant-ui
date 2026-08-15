@@ -1,8 +1,9 @@
 "use client";
 
-import type { InputContent } from "@ag-ui/client";
+import type { InputContent, RunAgentParameters } from "@ag-ui/client";
 import type {
   ThreadMessageLike as CoreThreadMessageLike,
+  PartProviderMetadata,
   ToolCallMessagePartMcpMetadata,
   ToolModelContentPart,
 } from "@assistant-ui/core";
@@ -15,8 +16,16 @@ import { type Tool, toToolsJSONSchema } from "assistant-stream";
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
 import {
   AG_UI_METADATA_NAMESPACE,
+  A2UI_SURFACE_ACTIVITY_TYPE,
   type AgUiCustomMetadata,
+  type AgUiOpaqueReasoning,
 } from "./run-aggregator";
+import {
+  applyA2uiOperations,
+  convertSurfaceToUISpec,
+  type A2uiState,
+  type A2uiSurfaceState,
+} from "@assistant-ui/react-generative-ui/a2ui";
 import type { AgUiInterrupt } from "../types";
 import {
   parseMcpToolCallResult,
@@ -35,6 +44,7 @@ type ThreadMessageLike = {
   id: string;
   role: string;
   content: unknown;
+  metadata?: unknown;
   name?: string;
   toolCallId?: string;
   error?: string;
@@ -54,6 +64,12 @@ export type AgUiMessage =
       content: string | InputContent[];
       name?: string;
       toolCalls?: AgUiToolCall[];
+    }
+  | {
+      id: string;
+      role: "reasoning";
+      content: string;
+      encryptedValue?: string;
     }
   | {
       id: string;
@@ -86,6 +102,56 @@ const getString = (record: Record<string, unknown>, key: string) => {
 
 const getToolCallId = (record: Record<string, unknown>) =>
   getString(record, "toolCallId") ?? getString(record, "tool_call_id");
+
+const readAgUiNamespace = (providerMetadata: unknown) => {
+  if (!isObject(providerMetadata)) return undefined;
+  const namespaced = providerMetadata[AG_UI_METADATA_NAMESPACE];
+  return isObject(namespaced) ? namespaced : undefined;
+};
+
+const readAgUiReasoningMeta = (providerMetadata: unknown) => {
+  const namespaced = readAgUiNamespace(providerMetadata);
+  if (!namespaced) return {};
+  return {
+    encryptedValue: getString(namespaced, "encryptedValue"),
+    reasoningId: getString(namespaced, "reasoningId"),
+  };
+};
+
+// AG-UI carries per-item extras in `metadata`; anything else on the item is
+// stripped by its schema. The part's own `filename` wins over a key of the
+// same name in the bag.
+const buildInputMetadata = (
+  part: Record<string, unknown>,
+  filename?: string | undefined,
+) => {
+  const metadata = {
+    ...readAgUiNamespace(part.providerMetadata),
+    ...(filename !== undefined && { filename }),
+  };
+  return Object.keys(metadata).length > 0 ? metadata : undefined;
+};
+
+// The inverse: `filename` lands on the part's own field, everything else the
+// item carried goes back into the namespace it came from, so a snapshot echo
+// resends what the host attached.
+const readInputMetadata = (
+  metadata: unknown,
+): {
+  filename?: string | undefined;
+  providerMetadata?: PartProviderMetadata | undefined;
+} => {
+  if (!isObject(metadata)) return {};
+  const { filename: _filename, ...rest } = metadata;
+  return {
+    filename: getString(metadata, "filename"),
+    ...(Object.keys(rest).length > 0 && {
+      providerMetadata: {
+        [AG_UI_METADATA_NAMESPACE]: rest as PartProviderMetadata[string],
+      },
+    }),
+  };
+};
 
 function parseJSONText(value: string): unknown {
   if (!value) return value;
@@ -154,12 +220,14 @@ function mediaTypeForMime(mimeType: string | undefined): MediaInputType {
 
 // Build an AG-UI multimodal source from a data URL, raw base64 payload, or an
 // http(s) URL. A `url` source may omit the mime type; a `data` source always
-// resolves one (falling back to application/octet-stream).
+// resolves one (falling back to application/octet-stream). An explicit
+// `sourceType: "url"` on the part forces the url leg for non-http references.
 function buildInputSource(
   value: string,
   declaredMimeType: string | undefined,
+  sourceType?: string,
 ): InputContentSource {
-  if (httpUrlPattern.test(value)) {
+  if (sourceType === "url" || httpUrlPattern.test(value)) {
     return declaredMimeType !== undefined
       ? { type: "url", value, mimeType: declaredMimeType }
       : { type: "url", value };
@@ -189,7 +257,12 @@ function toInputContent(
   if (type === "image") {
     const image = getString(part, "image");
     if (image === undefined) return null;
-    return { type: "image", source: buildInputSource(image, fallbackMimeType) };
+    const metadata = buildInputMetadata(part, getString(part, "filename"));
+    return {
+      type: "image",
+      source: buildInputSource(image, fallbackMimeType),
+      ...(metadata && { metadata }),
+    };
   }
 
   if (type === "file") {
@@ -197,8 +270,12 @@ function toInputContent(
     if (data === undefined) return null;
     const declaredMimeType = getString(part, "mimeType") || fallbackMimeType;
     const filename = getString(part, "filename");
-    const source = buildInputSource(data, declaredMimeType);
-    const metadata = filename !== undefined ? { filename } : undefined;
+    const source = buildInputSource(
+      data,
+      declaredMimeType,
+      getString(part, "sourceType"),
+    );
+    const metadata = buildInputMetadata(part, filename);
     switch (mediaTypeForMime(source.mimeType)) {
       case "image":
         return { type: "image", source, ...(metadata && { metadata }) };
@@ -238,14 +315,18 @@ const mediaInputTypes = new Set(["image", "audio", "video", "document"]);
 // Inverse of buildInputSource.
 function inputSourceToString(
   value: unknown,
-): { value: string; mimeType?: string } | null {
+): { value: string; mimeType?: string; isUrl?: boolean } | null {
   if (!isObject(value)) return null;
   const sourceValue = getString(value, "value");
   if (sourceValue === undefined) return null;
   const mimeType = getString(value, "mimeType");
   const type = getString(value, "type");
   if (type === "url") {
-    return { value: sourceValue, ...(mimeType !== undefined && { mimeType }) };
+    return {
+      value: sourceValue,
+      isUrl: true,
+      ...(mimeType !== undefined && { mimeType }),
+    };
   }
   if (type === "data") {
     const resolvedMimeType = mimeType ?? "application/octet-stream";
@@ -295,9 +376,7 @@ function toSnapshotAttachments(content: unknown): SnapshotAttachment[] {
     const source = inputSourceToString(part.source);
     if (!source) continue;
 
-    const filename = isObject(part.metadata)
-      ? getString(part.metadata, "filename")
-      : undefined;
+    const { filename, providerMetadata } = readInputMetadata(part.metadata);
     const id = attachments.length.toString();
 
     if (type === "image") {
@@ -312,6 +391,7 @@ function toSnapshotAttachments(content: unknown): SnapshotAttachment[] {
             type: "image",
             image: source.value,
             ...(filename !== undefined && { filename }),
+            ...(providerMetadata && { providerMetadata }),
           },
         ],
       });
@@ -330,7 +410,9 @@ function toSnapshotAttachments(content: unknown): SnapshotAttachment[] {
           type: "file",
           data: source.value,
           mimeType,
+          ...(source.isUrl && { sourceType: "url" as const }),
           ...(filename !== undefined && { filename }),
+          ...(providerMetadata && { providerMetadata }),
         },
       ],
     });
@@ -339,13 +421,7 @@ function toSnapshotAttachments(content: unknown): SnapshotAttachment[] {
 }
 
 function buildUserContent(message: ThreadMessageLike): string | InputContent[] {
-  // File parts in message.content are intentionally skipped: the canonical
-  // binary payload for files always flows through message.attachments.
-  const contentParts = Array.isArray(message.content)
-    ? message.content.filter(
-        (part) => !(isObject(part) && part.type === "file"),
-      )
-    : [];
+  const contentParts = Array.isArray(message.content) ? message.content : [];
 
   const attachments = message.attachments ?? [];
 
@@ -486,6 +562,46 @@ function readPersistedInterrupts(
   return validateInterrupts(namespaced.interrupts);
 }
 
+function readOpaqueReasoning(metadata: unknown): AgUiOpaqueReasoning[] {
+  if (!isObject(metadata)) return [];
+  const custom = metadata.custom;
+  if (!isObject(custom)) return [];
+  const namespaced = custom[AG_UI_METADATA_NAMESPACE];
+  if (!isObject(namespaced)) return [];
+  const entries = namespaced.opaqueReasoning;
+  if (!Array.isArray(entries)) return [];
+  return entries.flatMap((entry) => {
+    if (!isObject(entry)) return [];
+    const id = getString(entry, "id");
+    const encryptedValue = getString(entry, "encryptedValue");
+    if (!id?.trim() || !encryptedValue?.trim()) return [];
+    return [
+      { id, encryptedValue, ...(entry.after === true ? { after: true } : {}) },
+    ];
+  });
+}
+
+function withOpaqueReasoning(
+  message: CoreThreadMessageLike,
+  opaqueReasoning: AgUiOpaqueReasoning[],
+): CoreThreadMessageLike {
+  const metadata = isObject(message.metadata) ? message.metadata : {};
+  const custom = isObject(metadata.custom) ? metadata.custom : {};
+  const namespaced = isObject(custom[AG_UI_METADATA_NAMESPACE])
+    ? (custom[AG_UI_METADATA_NAMESPACE] as Record<string, unknown>)
+    : {};
+  return {
+    ...message,
+    metadata: {
+      ...metadata,
+      custom: {
+        ...custom,
+        [AG_UI_METADATA_NAMESPACE]: { ...namespaced, opaqueReasoning },
+      },
+    },
+  } as CoreThreadMessageLike;
+}
+
 function toAssistantSnapshotMessage(
   rawMessage: Record<string, unknown>,
 ): CoreThreadMessageLike {
@@ -532,6 +648,42 @@ function toUserOrSystemSnapshotMessage(
   };
 }
 
+// Rebuilds the a2ui:<surfaceId> "present" tool-call parts for one owning
+// assistant message from a bucket of rebuilt surface state, mirroring the
+// live RunAggregator.synthesizeA2uiToolCalls shape. Non-a2ui parts (text,
+// other tool calls) are preserved; existing a2ui parts are replaced wholesale
+// so create/update/delete within the bucket all converge on the rebuilt set.
+function attachA2uiSurfaces(
+  message: CoreThreadMessageLike,
+  state: A2uiState,
+): CoreThreadMessageLike {
+  const a2uiParts: ToolCallPart[] = [];
+  for (const [surfaceId, surface] of state) {
+    const { spec } = convertSurfaceToUISpec(surface);
+    if (!spec) continue;
+    a2uiParts.push({
+      type: "tool-call",
+      toolCallId: `a2ui:${surfaceId}`,
+      toolName: "present",
+      args: spec as unknown as ReadonlyJSONObject,
+      argsText: JSON.stringify(spec),
+      result: {},
+    });
+  }
+
+  const content = Array.isArray(message.content) ? message.content : [];
+  const preserved = content.filter(
+    (part) =>
+      !(
+        isObject(part) &&
+        part.type === "tool-call" &&
+        typeof part.toolCallId === "string" &&
+        part.toolCallId.startsWith("a2ui:")
+      ),
+  );
+  return { ...message, content: [...preserved, ...a2uiParts] };
+}
+
 export type FromAgUiMessagesOptions = {
   /**
    * Whether to convert `reasoning` messages into visible reasoning parts.
@@ -546,6 +698,13 @@ export function fromAgUiMessages(
 ): CoreThreadMessageLike[] {
   const showThinking = options?.showThinking ?? true;
   const converted: CoreThreadMessageLike[] = [];
+  const a2uiBuckets = new Map<string, A2uiState>();
+  const a2uiBucketOwnerIndices = new Map<string, number>();
+  // A zero-data-retention run carries its payload in encryptedValue with no
+  // readable content, so the record has no part to become and rides on the
+  // neighbouring message instead of being dropped. The anchor is the index the
+  // next pushed message will occupy, which is where it sat on the wire.
+  const opaqueReasoning: (AgUiOpaqueReasoning & { anchor: number })[] = [];
 
   for (const rawMessage of messages) {
     if (!isObject(rawMessage)) continue;
@@ -653,21 +812,100 @@ export function fromAgUiMessages(
       continue;
     }
 
+    if (role === "activity") {
+      // Only a2ui-surface activity messages have an assistant-part equivalent
+      // to rehydrate; other activity types still have no surface to repaint.
+      const activityType = getString(rawMessage, "activityType");
+      if (activityType !== A2UI_SURFACE_ACTIVITY_TYPE) continue;
+      const activityContent = isObject(rawMessage.content)
+        ? (rawMessage.content as Record<string, unknown>)
+        : null;
+      const operations = activityContent?.["a2ui_operations"];
+      if (!Array.isArray(operations)) continue;
+
+      let ownerIndex = -1;
+      for (let i = converted.length - 1; i >= 0; i--) {
+        const candidate = converted[i];
+        if (candidate && candidate.role === "assistant") {
+          ownerIndex = i;
+          break;
+        }
+      }
+      if (ownerIndex === -1) continue;
+
+      const owner = converted[ownerIndex]!;
+      const bucketKey = getString(rawMessage, "id") ?? "a2ui:anonymous";
+      const { state } = applyA2uiOperations(new Map(), operations);
+      a2uiBuckets.delete(bucketKey);
+      a2uiBucketOwnerIndices.delete(bucketKey);
+      a2uiBuckets.set(bucketKey, state);
+      a2uiBucketOwnerIndices.set(bucketKey, ownerIndex);
+
+      const ownerState = new Map<string, A2uiSurfaceState>();
+      for (const [candidateBucketKey, candidateState] of a2uiBuckets) {
+        if (a2uiBucketOwnerIndices.get(candidateBucketKey) !== ownerIndex)
+          continue;
+        for (const [surfaceId, surface] of candidateState) {
+          ownerState.set(surfaceId, surface);
+        }
+      }
+      converted[ownerIndex] = attachA2uiSurfaces(owner, ownerState);
+      continue;
+    }
+
     if (role === "assistant") {
       converted.push(toAssistantSnapshotMessage(rawMessage));
       continue;
     }
 
     if (role === "reasoning") {
-      // Gate on showThinking so a cold reload matches the live run: the
-      // aggregator never stores reasoning parts when showThinking is false.
-      if (!showThinking) continue;
       const text = extractText(rawMessage.content);
-      if (text.trim().length === 0) continue;
+      const encryptedValue = getString(rawMessage, "encryptedValue");
+      if (text.trim().length === 0) {
+        // showThinking hides reasoning; this record is never rendered anyway,
+        // and dropping it would deny the provider the payload it needs to
+        // accept the next run.
+        const opaqueId = getString(rawMessage, "id");
+        if (opaqueId?.trim() && encryptedValue?.trim()) {
+          opaqueReasoning.push({
+            id: opaqueId,
+            encryptedValue,
+            anchor: converted.length,
+          });
+        }
+        continue;
+      }
+      // Gate visible reasoning on showThinking so a cold reload matches the
+      // live run: the aggregator never stores reasoning parts when it is off.
+      // A signature on a hidden record is still transport state, so it is kept
+      // opaque rather than discarded with the text.
+      if (!showThinking) {
+        const hiddenId = getString(rawMessage, "id");
+        if (hiddenId?.trim() && encryptedValue?.trim()) {
+          opaqueReasoning.push({
+            id: hiddenId,
+            encryptedValue,
+            anchor: converted.length,
+          });
+        }
+        continue;
+      }
       converted.push({
         id: getString(rawMessage, "id") ?? generateId(),
         role: "assistant",
-        content: [{ type: "reasoning", text }],
+        content: [
+          {
+            type: "reasoning",
+            text,
+            ...(encryptedValue !== undefined
+              ? {
+                  providerMetadata: {
+                    [AG_UI_METADATA_NAMESPACE]: { encryptedValue },
+                  },
+                }
+              : {}),
+          },
+        ],
       });
       continue;
     }
@@ -675,6 +913,18 @@ export function fromAgUiMessages(
     if (role === "user" || role === "system") {
       converted.push(toUserOrSystemSnapshotMessage(role, rawMessage));
     }
+  }
+
+  for (const { anchor, ...entry } of opaqueReasoning) {
+    // Nothing followed it on the wire, so it trails the last message instead.
+    const trailing = anchor >= converted.length;
+    const index = trailing ? converted.length - 1 : anchor;
+    const target = converted[index];
+    if (!target) continue;
+    converted[index] = withOpaqueReasoning(target, [
+      ...readOpaqueReasoning(target.metadata),
+      ...(trailing ? [{ ...entry, after: true }] : [entry]),
+    ]);
   }
 
   for (let i = 0; i < converted.length; i++) {
@@ -730,9 +980,35 @@ function convertAssistantMessage(
     part,
   }));
 
+  // An AG-UI assistant record has no reasoning field, so reasoning leaves as
+  // the standalone record it arrived as, ahead of the assistant it belongs to.
+  const shellIsDropped = content.length === 0 && toolCalls.length === 0;
+  let reasoningIndex = 0;
+  for (const part of contentArray) {
+    if (!isObject(part) || part.type !== "reasoning") continue;
+    const text = getString(part, "text") ?? "";
+    if (text.trim().length === 0) continue;
+    const { encryptedValue, reasoningId } = readAgUiReasoningMeta(
+      part.providerMetadata,
+    );
+    converted.push({
+      // The wire id is what a signature was issued against, so it wins over a
+      // synthesized one whenever the run carried it.
+      id: reasoningId?.trim()
+        ? reasoningId
+        : shellIsDropped && reasoningIndex === 0
+          ? message.id
+          : `${message.id}:reasoning-${reasoningIndex}`,
+      role: "reasoning",
+      content: text,
+      ...(encryptedValue !== undefined ? { encryptedValue } : {}),
+    });
+    reasoningIndex++;
+  }
+
   // Drop assistant messages with no text or tool calls (e.g. an imported
   // reasoning-only entry) so they are not re-sent as a blank assistant turn.
-  if (content.length === 0 && toolCalls.length === 0) {
+  if (shellIsDropped) {
     return;
   }
 
@@ -797,13 +1073,31 @@ export function toAgUiMessages(
   const converted: AgUiMessage[] = [];
 
   for (const message of messages) {
+    const opaqueReasoning = readOpaqueReasoning(message.metadata);
+    const toOpaqueRecord = (entry: AgUiOpaqueReasoning): AgUiMessage => ({
+      id: entry.id,
+      role: "reasoning",
+      content: "",
+      encryptedValue: entry.encryptedValue,
+    });
+    for (const entry of opaqueReasoning) {
+      if (entry.after !== true) converted.push(toOpaqueRecord(entry));
+    }
+    const flushTrailingOpaqueReasoning = () => {
+      for (const entry of opaqueReasoning) {
+        if (entry.after === true) converted.push(toOpaqueRecord(entry));
+      }
+    };
+
     if (message.role === "assistant") {
       convertAssistantMessage(message, converted);
+      flushTrailingOpaqueReasoning();
       continue;
     }
 
     if (message.role === "tool") {
       convertToolMessage(message, converted);
+      flushTrailingOpaqueReasoning();
       continue;
     }
 
@@ -819,16 +1113,13 @@ export function toAgUiMessages(
       genericMessage.name = message.name;
     }
     converted.push(genericMessage);
+    flushTrailingOpaqueReasoning();
   }
 
   return converted;
 }
 
-type AgUiTool = {
-  name: string;
-  description: string | undefined;
-  parameters: unknown;
-};
+type AgUiTool = NonNullable<RunAgentParameters["tools"]>[number];
 
 export function toAgUiTools(
   tools: Record<string, Tool> | undefined,
@@ -838,7 +1129,7 @@ export function toAgUiTools(
   const toolsSchema = toToolsJSONSchema(tools);
   return Object.entries(toolsSchema).map(([name, tool]) => ({
     name,
-    description: tool.description,
+    description: tool.description ?? "",
     parameters: tool.parameters,
   }));
 }

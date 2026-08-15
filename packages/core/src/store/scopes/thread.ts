@@ -17,6 +17,7 @@ import type {
 import type { ModelContext } from "../../model-context/types";
 import type { MessageMethods, MessageState } from "./message";
 import type { ComposerMethods, ComposerState } from "./composer";
+import type { SuggestionsMethods } from "./suggestions";
 
 export type ThreadState = {
   /**
@@ -72,6 +73,10 @@ export type ThreadMethods = {
    */
   composer(): ComposerMethods;
   /**
+   * The suggestions shown for this thread.
+   */
+  suggestions(): SuggestionsMethods;
+  /**
    * Append a new message to the thread.
    *
    * @example ```ts
@@ -100,6 +105,18 @@ export type ThreadMethods = {
    */
   resumeRun(config: CreateResumeRunConfig): void;
   cancelRun(): void;
+  /**
+   * Re-fetch this thread's state from its backing store, in place: the tap
+   * thread's refetch hook, which `threads.reloadMainThread()` prefers and
+   * whose rejection it propagates. `capabilities.refetchThread` is the
+   * portable feature-detection signal; a legacy-bridged thread reports it
+   * there while routing the refetch through its runtime, not this method.
+   * The method-shorthand optionality is load-bearing: an explicit
+   * `| undefined` stops `ThreadMethods` satisfying `ClientMethods` and
+   * collapses the client schema, which only a workspace-level app typecheck
+   * surfaces.
+   */
+  unstable_refetchThread?(): Promise<void>;
   getModelContext(): ModelContext;
   export(): ExportedMessageRepository;
   import(repository: ExportedMessageRepository): void;
@@ -108,7 +125,7 @@ export type ThreadMethods = {
    * @param initialMessages - Optional array of initial messages to populate the thread
    */
   reset(initialMessages?: readonly ThreadMessageLike[]): void;
-  importExternalState?(state: unknown): void;
+  importExternalState(state: unknown): void;
   message(selector: { id: string } | { index: number }): MessageMethods;
   /** @deprecated This API is still under active development and might change without notice. */
   stopSpeaking(): void;
@@ -128,19 +145,20 @@ export type ThreadMeta = {
 
 export type ThreadEvents = {
   /**
-   * @deprecated State-derivable. Observe `isRunning` flipping to `true` via
-   * `useAuiState` instead. Kept for backward compatibility.
+   * A run started on this thread. Also observable as `isRunning` flipping to
+   * `true` in thread state.
    */
   "thread.runStart": { threadId: string };
   /**
-   * @deprecated State-derivable. Observe `isRunning` flipping to `false` via
-   * `useAuiState` instead. Kept for backward compatibility.
+   * A run on this thread ended, whether it completed, errored, or was
+   * cancelled. Also observable as `isRunning` flipping to `false` in thread
+   * state.
    */
   "thread.runEnd": { threadId: string };
   /**
-   * @deprecated State-derivable. This event fires before the first message is
-   * added; observe `messages` becoming non-empty via `useAuiState` instead of
-   * reading state inside this event handler. Kept for backward compatibility.
+   * The thread transitioned from new to initialized. Fires before the first
+   * message is added, so read thread state via `useAuiState` rather than
+   * inside this event handler.
    */
   "thread.initialize": { threadId: string };
   /**

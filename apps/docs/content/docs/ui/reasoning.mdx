@@ -28,7 +28,7 @@ Previously, reasoning parts were rendered via `components.Reasoning` and grouped
 
 Render reasoning parts through `MessagePrimitive.GroupedParts`. Group consecutive reasoning parts with `"group-reasoning"`, then compose `ReasoningRoot`, `ReasoningTrigger`, `ReasoningContent`, and `ReasoningText` around the grouped children.
 
-While reasoning is streaming, `part.status.type === "running"`. Pass that to `streaming` so the accordion auto-opens during streaming with a bottom-pinned live preview of the newest tokens, auto-collapses when the model moves on, and permanently defers to the first manual toggle. When `streaming` is provided it supersedes `defaultOpen`.
+While reasoning is streaming, `part.status.type === "running"`. Pass that to `streaming` so the accordion auto-opens during streaming with a bottom-pinned live preview of the newest tokens, and permanently defers to the first manual toggle. `streaming` only holds the disclosure open; when it ends the accordion returns to `defaultOpen`, which is `false` by default and therefore collapses. Pass `defaultOpen` to keep reasoning expanded once the run finishes.
 
 ```tsx title="/app/components/assistant-ui/thread.tsx"
 import { MessagePrimitive, groupPartByType } from "@assistant-ui/react";

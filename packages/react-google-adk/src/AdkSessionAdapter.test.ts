@@ -293,6 +293,49 @@ describe("createAdkSessionAdapter - fetch", () => {
 // ── load() ──
 
 describe("createAdkSessionAdapter - load", () => {
+  it("returns the per-turn state the events imply, not just the messages", async () => {
+    const session = {
+      id: "s1",
+      events: [
+        {
+          id: "e1",
+          author: "agent",
+          longRunningToolIds: ["tc-1"],
+          actions: { stateDelta: { step: 2 }, escalate: true },
+          content: {
+            role: "model",
+            parts: [{ functionCall: { name: "search", id: "tc-1", args: {} } }],
+          },
+        },
+      ],
+    };
+    mockFetch.mockResolvedValueOnce(
+      new Response(JSON.stringify(session), { status: 200 }),
+    );
+
+    const { load } = createAdkSessionAdapter(baseOptions);
+    const result = await load("s1");
+
+    expect(result.longRunningToolIds).toEqual(["tc-1"]);
+    expect(result.stateDelta).toEqual({ step: 2 });
+    expect(result.messageMetadata).toBeInstanceOf(Map);
+    expect(result.toolConfirmations).toEqual([]);
+    expect(result.authRequests).toEqual([]);
+  });
+
+  it("passes an abort signal through to the request", async () => {
+    mockFetch.mockResolvedValueOnce(
+      new Response(JSON.stringify({ id: "s1", events: [] }), { status: 200 }),
+    );
+    const controller = new AbortController();
+
+    const { load } = createAdkSessionAdapter(baseOptions);
+    await load("s1", { signal: controller.signal });
+
+    const init = mockFetch.mock.calls[0]![1] as RequestInit;
+    expect(init.signal).toBe(controller.signal);
+  });
+
   it("reconstructs messages from session events", async () => {
     const session = {
       id: "s1",

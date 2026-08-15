@@ -1,6 +1,10 @@
 import {
   fromThreadMessageLike,
+  toAssistantError,
   type AppendMessage,
+  type CompleteAttachment,
+  type DataMessagePart,
+  type FileMessagePart,
   type MessageStatus,
   type RespondToToolApprovalOptions,
   type ThreadAssistantMessagePart,
@@ -10,14 +14,17 @@ import {
   type ToolApprovalOption,
   type ToolCallMessagePart,
 } from "@assistant-ui/core";
+import { httpUrlPattern, parseDataUrl } from "@assistant-ui/core/internal";
 import type {
+  EveAuthorizationOutcome,
+  EveAuthorizationPart,
   EveDynamicToolPart,
   EveMessage,
   EveMessageData,
   EveMessageInputRequest,
   EveMessagePart,
 } from "eve/react";
-import type { InputResponse, SendTurnPayload } from "eve/client";
+import type { InputResponse } from "eve/client";
 
 const ASSISTANT_COMPLETE_STATUS = {
   type: "complete",
@@ -28,6 +35,11 @@ const ASSISTANT_RUNNING_STATUS = {
   type: "running",
 } satisfies MessageStatus;
 
+const ASSISTANT_CANCELLED_STATUS = {
+  type: "incomplete",
+  reason: "cancelled",
+} satisfies MessageStatus;
+
 const USER_FALLBACK_STATUS = {
   type: "complete",
   reason: "unknown",
@@ -36,9 +48,15 @@ const USER_FALLBACK_STATUS = {
 export type ConvertEveMessagesOptions = {
   /**
    * Marks the last assistant message as running while Eve is submitting or
-   * streaming.
+   * streaming. When omitted, a message carrying Eve's `"streaming"` marker is
+   * treated as running; pass `false` to settle interrupted messages to a
+   * terminal status.
    */
   readonly isRunning?: boolean | undefined;
+  /**
+   * The Eve session error, mapped onto the assistant message it interrupted.
+   */
+  readonly error?: unknown;
   readonly getCreatedAt?: ((message: EveMessage) => Date) | undefined;
 };
 
@@ -67,24 +85,53 @@ const toMessageStatus = (
 ): MessageStatus => {
   if (message.role !== "assistant") return USER_FALLBACK_STATUS;
 
+  const isLast = index === messages.length - 1;
   const hasPendingApproval = message.parts.some(
     (part) =>
       part.type === "dynamic-tool" && part.state === "approval-requested",
   );
+  // Scoped to the stale-marker case so a terminalized or errored turn keeps its
+  // own status; the hold only claims the fall-through that reads as cancelled.
+  const hasPendingAuthorization =
+    message.metadata?.status === "streaming" &&
+    (!isLast || options.error === undefined) &&
+    message.parts.some(
+      (part) => part.type === "authorization" && part.state === "required",
+    );
 
   if (hasPendingApproval) {
     return { type: "requires-action", reason: "tool-calls" };
+  }
+
+  // A connector authorization is answered outside the thread, so the turn is
+  // held on external input rather than on a tool call awaiting a result.
+  if (hasPendingAuthorization) {
+    return { type: "requires-action", reason: "interrupt" };
   }
 
   if (message.metadata?.status === "failed") {
     return { type: "incomplete", reason: "error" };
   }
 
-  if (
-    message.metadata?.status === "streaming" ||
-    (options.isRunning === true && index === messages.length - 1)
-  ) {
+  if (isLast && options.isRunning === true) {
     return ASSISTANT_RUNNING_STATUS;
+  }
+
+  // Eve's default reducer never terminalizes the "streaming" marker on
+  // cancellation or turn/session failure, so liveness comes from isRunning and
+  // a leftover marker means the turn was interrupted.
+  if (message.metadata?.status === "streaming") {
+    if (options.isRunning === undefined) {
+      return ASSISTANT_RUNNING_STATUS;
+    }
+    if (isLast && options.error !== undefined) {
+      return {
+        type: "incomplete",
+        reason: "error",
+        error: toAssistantError(options.error),
+      };
+    }
+    return ASSISTANT_CANCELLED_STATUS;
   }
 
   return ASSISTANT_COMPLETE_STATUS;
@@ -101,7 +148,7 @@ const toolApprovalOptionsFromInputRequest = (
     kind:
       option.id === "approve"
         ? "allow-once"
-        : option.id === "deny"
+        : option.id === "cancel"
           ? "reject-once"
           : `_${option.id}`,
     ...(option.label && { label: option.label }),
@@ -175,6 +222,71 @@ const convertDynamicToolPart = (
   }
 };
 
+/**
+ * Payload of the `authorization` data part the Eve runtime emits for a
+ * connector authorization challenge. `state` discriminates a pending challenge
+ * from a settled one; every other field is present only when Eve projected it.
+ * This converter drops a `url` whose scheme is not `http(s)`, so a renderer can
+ * link to it without checking the scheme itself; Eve itself passes through
+ * whatever the connector supplied. Eve's
+ * `turnId` and `stepIndex` part identity is omitted: a renderer receives the
+ * one part it renders, in Eve's own step order, so display never has to
+ * re-identify a challenge among several.
+ */
+export type EveAuthorizationData = {
+  readonly state: EveAuthorizationPart["state"];
+  readonly name: string;
+  readonly displayName?: string;
+  readonly description?: string;
+  readonly url?: string;
+  readonly userCode?: string;
+  readonly instructions?: string;
+  readonly expiresAt?: string;
+  readonly outcome?: EveAuthorizationOutcome;
+  readonly reason?: string;
+};
+
+const convertAuthorizationPart = (
+  part: EveAuthorizationPart,
+): DataMessagePart<EveAuthorizationData> => ({
+  type: "data",
+  name: "authorization",
+  data: {
+    state: part.state,
+    name: part.name,
+    ...(part.displayName !== undefined && { displayName: part.displayName }),
+    ...(part.description !== undefined && { description: part.description }),
+    ...(part.authorization?.url !== undefined &&
+      httpUrlPattern.test(part.authorization.url) && {
+        url: part.authorization.url,
+      }),
+    ...(part.authorization?.userCode !== undefined && {
+      userCode: part.authorization.userCode,
+    }),
+    ...(part.authorization?.instructions !== undefined && {
+      instructions: part.authorization.instructions,
+    }),
+    ...(part.authorization?.expiresAt !== undefined && {
+      expiresAt: part.authorization.expiresAt,
+    }),
+    ...(part.outcome !== undefined && { outcome: part.outcome }),
+    ...(part.reason !== undefined && { reason: part.reason }),
+  },
+});
+
+const convertFilePart = (
+  part: Extract<EveMessagePart, { type: "file" }>,
+): FileMessagePart | null => {
+  if (part.url === undefined) return null;
+  return {
+    type: "file",
+    data: part.url,
+    mimeType: part.mediaType ?? "unknown/unknown",
+    ...(part.filename && { filename: part.filename }),
+    ...(httpUrlPattern.test(part.url) && { sourceType: "url" as const }),
+  };
+};
+
 const convertAssistantPart = (
   part: EveMessagePart,
 ): ThreadAssistantMessagePart | null => {
@@ -189,6 +301,12 @@ const convertAssistantPart = (
     case "dynamic-tool":
       return convertDynamicToolPart(part);
 
+    case "authorization":
+      return convertAuthorizationPart(part);
+
+    case "file":
+      return convertFilePart(part);
+
     default:
       return null;
   }
@@ -201,6 +319,9 @@ const convertUserPart = (
     case "text":
       return { type: "text", text: part.text };
 
+    case "file":
+      return convertFilePart(part);
+
     default:
       return null;
   }
@@ -211,6 +332,35 @@ const toUserContent = (
 ): readonly ThreadUserMessagePart[] => {
   const content = parts.map(convertUserPart).filter((part) => part !== null);
   return content.length > 0 ? content : [{ type: "text", text: "" }];
+};
+
+const toUserAttachments = (
+  parts: readonly EveMessagePart[],
+): CompleteAttachment[] => {
+  const attachments: CompleteAttachment[] = [];
+  for (const part of parts) {
+    if (part.type !== "file") continue;
+    const file = convertFilePart(part);
+    if (file === null) continue;
+    const isImage = file.mimeType.startsWith("image/");
+    attachments.push({
+      id: String(attachments.length),
+      type: isImage ? "image" : "file",
+      name: part.filename ?? "file",
+      content: [
+        isImage
+          ? {
+              type: "image",
+              image: file.data,
+              ...(part.filename && { filename: part.filename }),
+            }
+          : file,
+      ],
+      contentType: file.mimeType,
+      status: { type: "complete" },
+    });
+  }
+  return attachments;
 };
 
 /**
@@ -237,7 +387,7 @@ export const convertEveMessage = (
           id: message.id,
           createdAt,
           content: toUserContent(message.parts),
-          attachments: [],
+          attachments: toUserAttachments(message.parts),
           metadata,
         }
       : {
@@ -269,18 +419,35 @@ export const convertEveMessages = (
   );
 
 /**
+ * Structural subset of the `string | UserContent` message content Eve's `send`
+ * API accepts. The helpers declare the shapes they produce and leave
+ * assignability to the send call site, checked against the installed version.
+ */
+export type EveMessageContent =
+  | string
+  | (
+      | { readonly type: "text"; readonly text: string }
+      | {
+          readonly type: "file";
+          readonly data: string;
+          readonly mediaType: string;
+          readonly filename?: string;
+        }
+    )[];
+
+/**
  * Converts an assistant-ui append message into the message payload accepted by
  * Eve's `send` API.
  */
 export const getEveMessageContent = (
   message: AppendMessage,
-): NonNullable<SendTurnPayload["message"]> => {
+): EveMessageContent => {
   const content = [
     ...message.content,
     ...(message.attachments?.flatMap((attachment) => attachment.content) ?? []),
   ];
 
-  const parts = content.map((part) => {
+  const parts = content.flatMap((part) => {
     const type = part.type;
     switch (type) {
       case "text":
@@ -302,10 +469,25 @@ export const getEveMessageContent = (
           ...(part.filename && { filename: part.filename }),
         };
 
+      case "audio": {
+        // A data URL's own media type wins over `mediaType` downstream, so the
+        // envelope is rebuilt from the typed format rather than forwarded.
+        const mediaType = `audio/${part.audio.format}`;
+        const data = part.audio.data;
+        return {
+          type: "file" as const,
+          data: httpUrlPattern.test(data)
+            ? data
+            : `data:${mediaType};base64,${parseDataUrl(data)?.data ?? data}`,
+          mediaType,
+        };
+      }
+
+      case "data":
+        return [];
+
       default: {
         const _exhaustiveCheck:
-          | "audio"
-          | "data"
           | "generative-ui"
           | "reasoning"
           | "source"
@@ -331,6 +513,6 @@ export const toEveInputResponse = (
   response: RespondToToolApprovalOptions,
 ): InputResponse => ({
   requestId: response.approvalId,
-  optionId: response.optionId ?? (response.approved ? "approve" : "deny"),
+  optionId: response.optionId ?? (response.approved ? "approve" : "cancel"),
   ...(response.reason && { text: response.reason }),
 });

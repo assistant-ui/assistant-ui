@@ -1,5 +1,3 @@
-import { getLLMText } from "@/lib/get-llm-text";
-import { source, examples as examplesSource } from "@/lib/source";
 import { tool, zodSchema } from "ai";
 import type * as PageTree from "fumadocs-core/page-tree";
 import z from "zod";
@@ -106,6 +104,8 @@ export function createDocsTools({ routeUrl }: { routeUrl: string }) {
         }),
       ),
       execute: async ({ path }) => {
+        const { source, examples: examplesSource } =
+          await import("@/lib/source");
         const pageTree = source.pageTree;
 
         if (!path) {
@@ -151,6 +151,9 @@ export function createDocsTools({ routeUrl }: { routeUrl: string }) {
         }),
       ),
       execute: async ({ slugOrUrl }) => {
+        const { getLLMText } = await import("@/lib/get-llm-text");
+        const { source, examples: examplesSource } =
+          await import("@/lib/source");
         let normalized: string;
         try {
           normalized = normalizeDocPath(slugOrUrl, routeUrl);

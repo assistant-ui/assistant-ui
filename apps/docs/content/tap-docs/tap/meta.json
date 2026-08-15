@@ -1,10 +1,10 @@
 {
   "title": "Tap",
+  "icon": "Droplet",
   "root": true,
   "pages": [
     "quickstart",
     "resources",
-    "hooks",
     "composition",
     "trees-and-rerenders",
     "lifecycle",

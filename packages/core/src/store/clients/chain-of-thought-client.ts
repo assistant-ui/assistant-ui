@@ -5,12 +5,8 @@ import type {
   ChainOfThoughtState,
   ChainOfThoughtPart,
 } from "../scopes/chain-of-thought";
-import type { MessagePartStatus } from "../../types/message";
 import type { PartMethods } from "../scopes/part";
-
-const COMPLETE_STATUS: MessagePartStatus = Object.freeze({
-  type: "complete",
-});
+import { getGroupStatus } from "../../utils/getGroupStatus";
 
 const useChainOfThoughtClient = ({
   parts,
@@ -22,8 +18,7 @@ const useChainOfThoughtClient = ({
   const [collapsed, setCollapsed] = useState(true);
 
   const status = useMemo(() => {
-    const lastPart = parts[parts.length - 1];
-    return lastPart?.status ?? COMPLETE_STATUS;
+    return getGroupStatus(parts);
   }, [parts]);
 
   const state = useMemo<ChainOfThoughtState>(

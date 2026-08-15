@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef } from "react";
 import { resource, useResource, type ResourceElement } from "@assistant-ui/tap";
-import type { ClientMethods } from "./types/client";
+import type { ClientMethods, InferClientState } from "./types/client";
 import {
   useClientStack,
   useClientStackProvider,
@@ -10,6 +10,7 @@ import {
   BaseProxyHandler,
   handleIntrospectionProp,
 } from "./utils/BaseProxyHandler";
+import { INSTANCE_TAG_SYMBOL } from "./utils/client-accessor";
 
 /**
  * Symbol used internally to get state from ClientProxy.
@@ -81,27 +82,34 @@ class ClientProxyHandler
   private readonly outputRef: {
     current: ClientMethods;
   };
+  private readonly tagRef: { current: object };
   private readonly index: number;
 
   constructor(
     outputRef: {
       current: ClientMethods;
     },
+    tagRef: { current: object },
     index: number,
   ) {
     super();
     this.outputRef = outputRef;
+    this.tagRef = tagRef;
     this.index = index;
   }
 
   get(_: unknown, prop: string | symbol, receiver: unknown) {
     if (prop === SYMBOL_GET_OUTPUT) return this.outputRef.current;
     if (prop === SYMBOL_CLIENT_INDEX) return this.index;
+    if (prop === INSTANCE_TAG_SYMBOL) return this.tagRef.current;
     const introspection = handleIntrospectionProp(prop, "ClientProxy");
     if (introspection !== false) return introspection;
     const value = this.outputRef.current[prop];
     if (typeof value === "function") {
-      if (this.cachedReceiver !== receiver) {
+      // receiver-less reads (getOwnPropertyDescriptor) get the raw method so
+      // the bound-fn cache stays keyed on the real receiver
+      if (receiver === undefined) return value;
+      if (!this.boundFns || this.cachedReceiver !== receiver) {
         this.boundFns = new Map();
         this.cachedReceiver = receiver;
       }
@@ -122,15 +130,10 @@ class ClientProxyHandler
   has(_: unknown, prop: string | symbol) {
     if (prop === SYMBOL_GET_OUTPUT) return true;
     if (prop === SYMBOL_CLIENT_INDEX) return true;
+    if (prop === INSTANCE_TAG_SYMBOL) return true;
     return prop in this.outputRef.current;
   }
 }
-
-type InferClientState<TMethods> = TMethods extends {
-  getState: () => infer S;
-}
-  ? S
-  : undefined;
 
 export const useClientResource = <TMethods extends ClientMethods>(
   element: ResourceElement<TMethods>,
@@ -140,13 +143,22 @@ export const useClientResource = <TMethods extends ClientMethods>(
   key: string | number | undefined;
 } => {
   const valueRef = useRef(null as unknown as TMethods);
+  const tagRef = useRef(null as unknown as object);
+
+  // The fiber behind useResource is keyed on (hook, key), so the underlying
+  // instance is replaced exactly when either changes. The tag mirrors that
+  // lifetime while the methods facade below deliberately stays stable across
+  // remounts. It advances in the same commit effect as valueRef: a
+  // notification delivered before the commit then observes the previous tag
+  // together with the previous instance instead of a torn pair.
+  const instanceTag = useMemo(() => ({}), [element.hook, element.key]);
 
   const index = useClientStack().length;
   const methods = useMemo(
     () =>
       new Proxy<TMethods>(
         {} as TMethods,
-        new ClientProxyHandler(valueRef, index),
+        new ClientProxyHandler(valueRef, tagRef, index),
       ),
     [index],
   );
@@ -157,10 +169,12 @@ export const useClientResource = <TMethods extends ClientMethods>(
 
   if (!valueRef.current) {
     valueRef.current = value;
+    tagRef.current = instanceTag;
   }
 
   useEffect(() => {
     valueRef.current = value;
+    tagRef.current = instanceTag;
   });
 
   const state = (value as any).getState?.();

@@ -132,9 +132,10 @@ type AncestorsOf<K extends ClientNames, Seen extends ClientNames = never> = K ex
 
 type AsNumber<K> = K extends `${infer N extends number}` ? N | K : never;
 
-type AssistantClient = {
-  [K in ClientNames]: AssistantClientAccessor<K>;
-} & {
+type AssistantClient = ClientScopes & {
+  readonly optional: {
+    readonly [K in keyof ClientScopes]: ClientScopes[K] | undefined;
+  };
   subscribe(listener: () => void): Unsubscribe;
   on<TEvent extends AssistantEventName>(selector: AssistantEventSelector<TEvent>, callback: AssistantEventCallback<TEvent>): Unsubscribe;
 };
@@ -266,6 +267,10 @@ type ClientSchemas = keyof ScopeRegistry extends never ? {
   [K in keyof ScopeRegistry]: ValidateClient<K & string, ScopeRegistry[K]>;
 };
 
+type ClientScopes = {
+  [K in ClientNames]: AssistantClientAccessor<K>;
+};
+
 type Color = (typeof COLORS)[number];
 
 type CompleteAttachment = BaseAttachment & {
@@ -319,6 +324,8 @@ type FileMessagePart = {
   readonly filename?: string;
   readonly data: string;
   readonly mimeType: string;
+  readonly sourceType?: "id" | "url";
+  readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };
 
@@ -443,23 +450,21 @@ type ImageMessagePart = {
   readonly type: "image";
   readonly image: string;
   readonly filename?: string;
+  readonly providerMetadata?: PartProviderMetadata;
 };
 
 type ImageSize = (typeof IMAGE_SIZE_TOKENS)[number] | number;
 
 declare class JSONGenerativeUI {
-  private readonly parameters;
+  #private;
   constructor(options: JSONGenerativeUIOptions);
   present(options?: PresentToolOptions): PresentTool;
   promptUser(): PromptUserTool;
 }
 
 declare class JSONGenerativeUI$1 {
-  private readonly library;
-  private readonly parameters;
-  private readonly actions;
+  #private;
   constructor(options: JSONGenerativeUIOptions);
-  private readonly render;
   present(options?: PresentToolOptions): PresentTool;
   promptUser(): PromptUserTool;
 }
@@ -688,6 +693,15 @@ type MessagePartStatus = {
   readonly error?: unknown;
 };
 
+type MessagePartStreamStatus = {
+  readonly type: "running";
+} | {
+  readonly type: "complete";
+} | {
+  readonly type: "incomplete";
+  readonly reason: "cancelled" | "content-filter" | "error" | "length" | "other";
+};
+
 type MessageStatus = {
   readonly type: "running";
 } | {
@@ -769,6 +783,8 @@ type ReadonlyJSONValue = null | string | number | boolean | ReadonlyJSONObject |
 type ReasoningMessagePart = {
   readonly type: "reasoning";
   readonly text: string;
+  readonly status?: MessagePartStreamStatus;
+  readonly unstable_summary?: string;
   readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };
@@ -1062,7 +1078,7 @@ interface TeamsContainer {
 type TeamsContainerStyle = "accent" | "attention" | "default" | "emphasis" | "good" | "warning";
 
 interface TeamsConversionWarning {
-  readonly code: "clamped" | "dropped" | "fallback";
+  readonly code: "advisory" | "clamped" | "dropped" | "fallback";
   readonly component: string;
   readonly detail: string;
 }
@@ -1191,6 +1207,7 @@ type TeamsTextSize = "extraLarge" | "large" | "medium" | "small";
 type TextMessagePart = {
   readonly type: "text";
   readonly text: string;
+  readonly status?: MessagePartStreamStatus;
   readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };
@@ -1494,9 +1511,15 @@ type Unstable_AudioMessagePart = {
 
 type Unsubscribe = () => void;
 
-type ValidateClient<K extends string, TClient> = K extends ReservedScopeNames ? ClientError<`ERROR: ${K} is a reserved scope name`> : TClient extends {
+type ValidateClient<K extends string, TClient> = K extends ReservedScopeNames ? ClientError<`ERROR: ${K} is a reserved scope name`> : unknown extends ValidateMethods<K, TClient> & ValidateMeta<K, TClient> & ValidateEvents<K, TClient> ? TClient : ValidateMethods<K, TClient> & ValidateMeta<K, TClient> & ValidateEvents<K, TClient> & ClientError<never>;
+
+type ValidateEvents<K extends string, TClient> = "events" extends keyof TClient ? TClient["events"] extends ClientEventsType<K> ? unknown : ClientError<`ERROR: ${K} has invalid events type`> : unknown;
+
+type ValidateMeta<K extends string, TClient> = "meta" extends keyof TClient ? TClient["meta"] extends ClientMetaType ? unknown : ClientError<`ERROR: ${K} has invalid meta type`> : unknown;
+
+type ValidateMethods<K extends string, TClient> = TClient extends {
   methods: ClientMethods;
-} ? keyof TClient["methods"] & ReservedAccessorProps extends never ? "meta" extends keyof TClient ? TClient["meta"] extends ClientMetaType ? "events" extends keyof TClient ? TClient["events"] extends ClientEventsType<K> ? TClient : ClientError<`ERROR: ${K} has invalid events type`> : TClient : ClientError<`ERROR: ${K} has invalid meta type`> : "events" extends keyof TClient ? TClient["events"] extends ClientEventsType<K> ? TClient : ClientError<`ERROR: ${K} has invalid events type`> : TClient : ClientError<`ERROR: ${K} methods declare a reserved accessor property (source/query/name)`> : ClientError<`ERROR: ${K} has invalid methods type`>;
+} ? keyof TClient["methods"] & ReservedAccessorProps extends never ? unknown : ClientError<`ERROR: ${K} methods declare a reserved accessor property (source/query/name)`> : ClientError<`ERROR: ${K} has invalid methods type`>;
 
 declare const WEIGHTS: readonly [
   "normal",
@@ -1539,7 +1562,7 @@ declare function applyA2uiOperations(state: A2uiState, operations: unknown): A2u
 declare function buildPresentParameters(library: GenerativeUILibrary): JSONSchema7$1;
 
 declare function convertSurfaceToUISpec(surface: A2uiSurfaceState): {
-  spec: UISpec | null;
+  spec: UIElement | null;
   warnings: string[];
 };
 

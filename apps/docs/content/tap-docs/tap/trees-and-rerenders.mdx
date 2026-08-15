@@ -1,11 +1,11 @@
 ---
 title: Trees & Re-renders
-description: How resource trees form, re-render, and get scheduled.
+description: How resource trees re-render and where scheduling boundaries form.
 ---
 
 ## Resource trees
 
-When resources render other resources via `useResource` or `useResources`, they form a **tree**:
+Resources composed with `useResource` or `useResources` form a tree:
 
 ```
 createTapRoot(function AppRoot() { return useResource(App()); })  <- tree root
@@ -18,35 +18,87 @@ createTapRoot(function AppRoot() { return useResource(App()); })  <- tree root
 
 ## Re-renders
 
-This is the biggest difference from React.
+In React, a state change re-renders the component that owns it and its children.
+Parents are unaffected.
 
-In React, a state change re-renders only the component that changed and its children. Parents are unaffected.
+In tap, the parent reads a resource's return value directly. When a child
+changes, its parent must render to receive the new value. That continues up the
+tree, so **the entire resource tree re-renders from its root**.
 
-In tap, **the entire resource tree re-renders from the root**. Because `useResource` returns the child's value directly to the parent, the parent must re-run to receive the updated value, which means its parent must re-run too, all the way up to the tree root.
+`useResource` and `useResources` compose children into that existing tree. They
+do not create a scheduling boundary.
 
-`useTapRoot` breaks this chain: it creates a **subtree boundary**. Everything below it becomes a separate tree that re-renders independently. The parent doesn't re-render when the subtree updates.
+## Separate scheduling with useTapRoot
+
+`useTapRoot` does not compose another child into the current tree. It creates a
+new resource root with its own tap scheduler:
+
+```ts
+import { useResource, useTapRoot } from "@assistant-ui/tap";
+
+const useCounterRoot = () =>
+  useTapRoot(function CounterRoot() {
+    return useResource(Counter());
+  });
+```
+
+Updates inside `CounterRoot` schedule only that root. The outer tree does not
+re-render. Because the caller no longer receives updates through rendering,
+`useTapRoot` returns a stable `{ getValue, subscribe }` handle instead of the
+render value.
+
+| | `useResource` / `useResources` | `useTapRoot` |
+| --- | --- | --- |
+| Tree | Adds children to the current tree | Starts a new tree |
+| Scheduler | Inherits the current root's scheduler | Creates a tap scheduler |
+| On update | The current tree re-renders | Only the new root re-renders |
+| Result | The child's current value | A stable `{ getValue, subscribe }` handle |
+
+Read the latest committed value with `getValue()` and observe changes with
+`subscribe()`:
+
+```ts
+const counter = useCounterRoot();
+
+counter.getValue();
+
+const unsubscribe = counter.subscribe(() => {
+  console.log(counter.getValue());
+});
+```
+
+Creating a root does not subscribe the component that created it. A React
+component can render the root's value with `useSyncExternalStore`:
+
+```tsx
+import { useSyncExternalStore } from "react";
+
+function CounterView() {
+  const counter = useCounterRoot();
+  const state = useSyncExternalStore(
+    counter.subscribe,
+    counter.getValue,
+    counter.getValue,
+  );
+
+  return <button onClick={state.increment}>{state.count}</button>;
+}
+```
+
+The root remains owned by the component or resource that called `useTapRoot`
+and unmounts with that owner.
 
 ## Tree roots and scheduling
 
-Every tree has a **root** that determines how updates are scheduled and delivered:
+Every tree has a root that determines how updates are scheduled and delivered:
 
-| Root | Scheduler | Updates delivered via |
+| API | New scheduler? | Updates delivered through |
 | --- | --- | --- |
-| `useResource` | React | React re-render |
-| `createTapRoot` | Tap | `root.subscribe()` |
-| `useTapRoot` | Tap | `.subscribe()` |
+| `useResource` / `useResources` | No | The current root's render |
+| `useTapRoot` | Yes, a tap scheduler | `subscribe()` |
+| `createTapRoot` | Yes, a tap scheduler | `subscribe()` |
 
-**React scheduler**: batching, priority, and timing are all controlled by React.
-
-**Tap scheduler**: state changes are batched using microtasks. Multiple `setState` calls in the same synchronous block result in a single re-render.
-
-```ts
-// tap scheduler: only one re-render, not two
-setCount(1);
-setName("hello");
-```
-
-If updates keep triggering more updates (e.g. a `useEffect` that calls `setState`), tap will flush up to 50 times before throwing a maximum update depth error.
+A tap scheduler batches multiple state changes before rendering its root.
 
 ### flushTapSync
 
@@ -63,6 +115,5 @@ flushTapSync(() => {
 console.log(handle.getValue().count);
 ```
 
-This only applies to tap-scheduled trees (`createTapRoot` / `useTapRoot`). For `useResource` trees, use `flushSync` from `react-dom` instead.
-
-This is useful when a library expects a result synchronously, for example, React's controlled inputs need the store to update within the `onChange` handler, otherwise React reverts the input.
+This applies to tap-scheduled roots created by `createTapRoot` or `useTapRoot`.
+For a tree scheduled by React, use `flushSync` from `react-dom`.

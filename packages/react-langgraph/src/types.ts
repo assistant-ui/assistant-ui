@@ -165,6 +165,13 @@ export type LangChainMessage =
       status: "success" | "error";
     }
   | {
+      /** RemoveMessage: a deletion instruction targeting `id`, carrying no renderable content. */
+      id: string;
+      type: "remove";
+      content: string | [];
+      additional_kwargs?: Record<string, unknown>;
+    }
+  | {
       id?: string;
       type: "ai";
       content: AssistantMessageContent;
@@ -175,6 +182,12 @@ export type LangChainMessage =
         reasoning?: MessageContentReasoning;
         tool_outputs?: MessageContentComputerCall[];
         metadata?: Record<string, unknown>;
+        audio?: {
+          id?: string;
+          data?: string;
+          expires_at?: number;
+          transcript?: string;
+        };
       };
     };
 

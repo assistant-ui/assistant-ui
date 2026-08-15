@@ -1,55 +1,41 @@
 ---
 title: Introduction
-description: "tap: React hooks, headless"
+description: State management based on React Hooks.
 ---
 
-<div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] items-center rounded-xl bg-fd-secondary overflow-hidden">
-<div className="not-prose flex flex-col gap-1 pl-6 lg:pl-8 pt-4 lg:pt-0">
-  <p className="text-lg font-semibold">Quickstart</p>
-  <p className="text-fd-muted-foreground">Learn how to build your first resource with tap.</p>
-  <a href="/tap/docs/tap/quickstart" className="text-fd-primary font-medium mt-1 group inline-flex items-center gap-1">Get started <span className="inline-block transition-transform group-hover:translate-x-1">&rarr;</span></a>
-</div>
-<div className="mr-2 lg:mr-5 -my-5 lg:-my-2 lg:[&_pre]:pr-6">
+**tap is a state management library based on React Hooks.**
 
-```ts
-import { resource } from "@assistant-ui/tap";
-import { useState } from "react";
+It lets you build and manage your application state with the APIs and mental
+model you already use in React, organized around one new primitive: the
+**Resource**.
 
-const useCounter = () => {
-  const [count, setCount] = useState(0);
+A Resource does for state what a component does for UI. It turns stateful
+behavior into a reusable, composable building block—but returns state and methods
+instead of JSX.
 
-  return { count, increment: () => setCount((c) => c + 1) };
-};
+> **Resources organize like components, but execute like Hooks.**
 
-const Counter = resource(useCounter);
-```
+## Resources are the unit of state composition
 
-</div>
-</div>
+<TapTutorialSlideshow />
 
-**tap is React's hooks, headless.** You write a `resource` the same way you write a
-React component, with the same hooks (`useState`, `useEffect`, `useMemo`, ...)
-imported from `"react"` and the same rules. The only difference is that a resource
-has no UI: instead of returning JSX, it returns a plain value (state and methods),
-and it runs anywhere, inside a React component, inside another resource, or
-standalone with no React at all.
+`resource()` turns a Hook into a Resource. Use
+[`useResource`](/tap/docs/tap/resources#hosting-a-resource) to compose one Resource
+or [`useResources`](/tap/docs/tap/composition#useresources) to compose a keyed
+collection.
 
-If you know React hooks, you already know tap. There are only three new things:
-
-1. You write a `use`-prefixed hook and wrap it with `resource(useName)`; the unit
-   returns a value instead of JSX.
-2. You instantiate it by calling the factory (`Name(props)`) to get an element,
-   then host it with [`useResource`](/tap/docs/tap/resources#hosting-a-resource).
-3. A resource tree can run [outside React](/tap/docs/tap/outside-react) entirely.
+Nested Resources behave as if their Hook logic were inlined, so effects follow
+declaration order—not component-tree order. See
+[Differences from React](/tap/docs/tap/differences-from-react) for details.
 
 ## Next steps
 
 <Cards>
-  <Card title="Quickstart" href="/tap/docs/tap/quickstart">
-    Install tap and build your first resource.
-  </Card>
   <Card title="Resources" href="/tap/docs/tap/resources">
-    Author, compose, and host resources.
+    Package Hooks into reusable, configurable state.
+  </Card>
+  <Card title="Composition" href="/tap/docs/tap/composition">
+    Build Resource graphs and dynamic keyed collections.
   </Card>
   <Card title="API Reference" href="/tap/docs/tap/api-reference">
     Every export, in one place.

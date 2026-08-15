@@ -1,16 +1,17 @@
 "use client";
 
 import { Thread } from "@/components/assistant-ui/thread";
+import { EveAuthorization } from "@/components/eve-authorization";
 import {
   AssistantRuntimeProvider,
+  AuiConfig,
   Suggestions,
-  useAui,
 } from "@assistant-ui/react";
 import { useEveAgentRuntime } from "@assistant-ui/eve";
 
 export default function Home() {
   const runtime = useEveAgentRuntime();
-  const aui = useAui({
+  const config = AuiConfig({
     suggestions: Suggestions([
       {
         title: "Explain Eve",
@@ -28,7 +29,8 @@ export default function Home() {
   });
 
   return (
-    <AssistantRuntimeProvider runtime={runtime} aui={aui}>
+    <AssistantRuntimeProvider runtime={runtime} config={config}>
+      <EveAuthorization />
       <div className="h-full">
         <Thread />
       </div>

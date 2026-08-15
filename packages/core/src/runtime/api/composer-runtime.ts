@@ -4,6 +4,7 @@ import type { QuoteInfo } from "../../types/quote";
 import type { Unsubscribe } from "../../types/unsubscribe";
 import type { RunConfig } from "../../types/message";
 import type { QueueItemState } from "../../store/scopes/queue-item";
+import type { QueuePlacement } from "../queue/external-thread-queue-adapter";
 import {
   LazyMemoizeSubject,
   EventSubscriptionSubject,
@@ -200,8 +201,11 @@ export type ComposerRuntime = {
    */
   cancel(): void;
 
-  /** Promote a queued message so it processes next. */
+  /** @deprecated Use `moveQueueItem(queueItemId, { lane: "steer", insertAfter: null })` instead. Removal after 2026-11-05. */
   steerQueueItem(queueItemId: string): void;
+
+  /** Move a queued message between lanes or within a lane. */
+  moveQueueItem(queueItemId: string, placement: QueuePlacement): void;
 
   /** Remove a queued message. */
   removeQueueItem(queueItemId: string): void;
@@ -268,6 +272,7 @@ export abstract class ComposerRuntimeImpl implements ComposerRuntime {
     this.send = this.send.bind(this);
     this.cancel = this.cancel.bind(this);
     this.steerQueueItem = this.steerQueueItem.bind(this);
+    this.moveQueueItem = this.moveQueueItem.bind(this);
     this.removeQueueItem = this.removeQueueItem.bind(this);
     this.setRole = this.setRole.bind(this);
     this.getAttachmentByIndex = this.getAttachmentByIndex.bind(this);
@@ -322,9 +327,13 @@ export abstract class ComposerRuntimeImpl implements ComposerRuntime {
   }
 
   public steerQueueItem(queueItemId: string) {
+    this.moveQueueItem(queueItemId, { lane: "steer", insertAfter: null });
+  }
+
+  public moveQueueItem(queueItemId: string, placement: QueuePlacement) {
     const core = this._core.getState();
     if (!core) throw new Error("Composer is not available");
-    core.steerQueueItem(queueItemId);
+    core.moveQueueItem(queueItemId, placement);
   }
 
   public removeQueueItem(queueItemId: string) {

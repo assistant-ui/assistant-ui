@@ -42,7 +42,7 @@ import type { UserExternalState } from "../../../augmentations";
 
 const convertAppendMessageToCommand = (
   message: AppendMessage,
-): AddMessageCommand => {
+): AddMessageCommand | null => {
   if (message.role !== "user")
     throw new Error("Only user messages are supported");
 
@@ -59,6 +59,8 @@ const convertAppendMessageToCommand = (
     }
   }
 
+  if (parts.length === 0) return null;
+
   return {
     type: "add-message",
     message: {
@@ -68,6 +70,36 @@ const convertAppendMessageToCommand = (
     parentId: message.parentId,
     sourceId: message.sourceId,
   };
+};
+
+const readResumeState = async <T>(
+  response: Response,
+): Promise<{ runId: string; state: T } | null> => {
+  if (response.status === 204) return null;
+  if (!response.ok) {
+    throw new Error(
+      `Resume state request failed with status ${response.status}: ${await response.text()}`,
+    );
+  }
+
+  let value: unknown;
+  try {
+    value = await response.json();
+  } catch {
+    throw new Error("Resume state response was not valid JSON");
+  }
+
+  if (
+    typeof value !== "object" ||
+    value === null ||
+    !("state" in value) ||
+    !("runId" in value) ||
+    typeof value.runId !== "string"
+  ) {
+    throw new Error("Resume state response must contain state and runId");
+  }
+
+  return { runId: value.runId, state: value.state as T };
 };
 
 const symbolAssistantTransportExtras = Symbol("assistant-transport-extras");
@@ -127,6 +159,20 @@ const useAssistantTransportThreadRuntime = <T>(
     onQueue: () => runManager.schedule(),
   });
 
+  const enqueueAppendMessage = (message: AppendMessage) => {
+    const command = convertAppendMessageToCommand(message);
+    if (!command) {
+      console.warn(
+        "[assistant-ui] Skipped add-message command with no supported parts",
+      );
+      return;
+    }
+    parentIdRef.current = message.parentId;
+    commandQueue.enqueue(command, {
+      schedule: message.startRun ?? message.role === "user",
+    });
+  };
+
   const threadId = useAuiState((s) => s.threadListItem.remoteId);
 
   const runManager = useRunManager({
@@ -144,6 +190,24 @@ const useAssistantTransportThreadRuntime = <T>(
       if (!isResume) parentIdRef.current = undefined;
 
       const headers = await createRequestHeaders(options.headers);
+      let resumeState: { runId: string; state: T } | undefined;
+      if (isResume && options.resumeStateApi) {
+        const resumeStateResponse = await fetch(options.resumeStateApi, {
+          method: "POST",
+          headers,
+          body: JSON.stringify({ threadId }),
+          signal,
+        });
+        const retained = await readResumeState<T>(resumeStateResponse);
+        if (retained === null) {
+          if (commandQueue.state.queued.length > 0) {
+            runManager.schedule();
+          }
+          return;
+        }
+        resumeState = retained;
+      }
+
       const bodyValue =
         typeof options.body === "function"
           ? await options.body()
@@ -152,7 +216,7 @@ const useAssistantTransportThreadRuntime = <T>(
 
       let requestBody: Record<string, unknown> = {
         commands,
-        state: agentStateRef.current,
+        ...(resumeState === undefined && { state: agentStateRef.current }),
         system: context.system,
         tools: context.tools ? toToolsJSONSchema(context.tools) : undefined,
         threadId,
@@ -172,6 +236,14 @@ const useAssistantTransportThreadRuntime = <T>(
         requestBody = await options.prepareSendCommandsRequest(
           requestBody as SendCommandsRequestBody,
         );
+      }
+
+      if (resumeState !== undefined) {
+        // The server replays a resume from the snapshot it retained for this
+        // runId. Body overrides and prepare hooks can neither substitute a
+        // state nor drop the ID the server validates against.
+        requestBody = { ...requestBody, runId: resumeState.runId };
+        delete requestBody["state"];
       }
 
       const response = await fetch(
@@ -194,6 +266,11 @@ const useAssistantTransportThreadRuntime = <T>(
         throw new Error("Response body is null");
       }
 
+      if (resumeState !== undefined) {
+        agentStateRef.current = resumeState.state;
+        rerender((prev) => prev + 1);
+      }
+
       const body = await createReplayBoundaryStream(response, {
         setReplaying: setIsReplaying,
         waitForRender: waitForReplayRender,
@@ -201,10 +278,12 @@ const useAssistantTransportThreadRuntime = <T>(
 
       // Select decoder based on protocol option
       const protocol = options.protocol ?? "data-stream";
+      // Resume replays a best-effort buffer; always reconcile leniently.
+      const strict = isResume ? false : (options.strict ?? true);
       const decoder =
         protocol === "assistant-transport"
-          ? new AssistantTransportDecoder()
-          : new DataStreamDecoder();
+          ? new AssistantTransportDecoder({ strict })
+          : new DataStreamDecoder({ strict });
 
       let err: string | undefined;
       const stream = body.pipeThrough(decoder).pipeThrough(
@@ -214,6 +293,7 @@ const useAssistantTransportThreadRuntime = <T>(
               (agentStateRef.current as ReadonlyJSONValue) ?? null,
           }),
           throttle: isResume,
+          strict,
           onError: (error) => {
             err = error;
           },
@@ -268,6 +348,7 @@ const useAssistantTransportThreadRuntime = <T>(
       });
     },
     onError: async (error) => {
+      resumeFlagRef.current = false;
       setIsReplaying(false);
       const inTransitCmds = [...commandQueue.state.inTransit];
       const queuedCmds = [...commandQueue.state.queued];
@@ -329,21 +410,11 @@ const useAssistantTransportThreadRuntime = <T>(
       },
       state: agentStateRef.current as UserExternalState,
     } satisfies AssistantTransportExtras,
-    onNew: async (message: AppendMessage): Promise<void> => {
-      parentIdRef.current = message.parentId;
-      const command = convertAppendMessageToCommand(message);
-      commandQueue.enqueue(command, {
-        schedule: message.startRun ?? message.role === "user",
-      });
-    },
+    onNew: async (message: AppendMessage): Promise<void> =>
+      enqueueAppendMessage(message),
     ...(options.capabilities?.edit && {
-      onEdit: async (message: AppendMessage): Promise<void> => {
-        parentIdRef.current = message.parentId;
-        const command = convertAppendMessageToCommand(message);
-        commandQueue.enqueue(command, {
-          schedule: message.startRun ?? message.role === "user",
-        });
-      },
+      onEdit: async (message: AppendMessage): Promise<void> =>
+        enqueueAppendMessage(message),
     }),
     ...(commandQueue.state.queued.length > 0 && {
       onReload: async (parentId: string | null) => {
@@ -352,6 +423,7 @@ const useAssistantTransportThreadRuntime = <T>(
       },
     }),
     onCancel: async () => {
+      resumeFlagRef.current = false;
       runManager.cancel();
     },
     onResume: async () => {

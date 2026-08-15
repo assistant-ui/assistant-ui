@@ -18,25 +18,76 @@ export type SpanData = {
 
 function calculateDepth(
   spanId: string,
-  spanMap: Map<string, SpanData>,
+  parents: Map<string, string | null>,
   cache: Map<string, number>,
 ): number {
   const cached = cache.get(spanId);
   if (cached !== undefined) return cached;
 
-  const span = spanMap.get(spanId);
-  if (!span?.parentSpanId) {
-    cache.set(spanId, 0);
-    return 0;
+  const path: string[] = [];
+  let current: string | null = spanId;
+  let depth = -1;
+
+  while (current !== null) {
+    const currentDepth = cache.get(current);
+    if (currentDepth !== undefined) {
+      depth = currentDepth;
+      break;
+    }
+
+    path.push(current);
+    current = parents.get(current) ?? null;
   }
 
-  const depth = calculateDepth(span.parentSpanId, spanMap, cache) + 1;
-  cache.set(spanId, depth);
+  for (let index = path.length - 1; index >= 0; index--) {
+    depth += 1;
+    cache.set(path[index]!, depth);
+  }
+
   return depth;
+}
+
+function normalizeSpanParents(
+  spanMap: Map<string, SpanData>,
+): Map<string, string | null> {
+  const parents = new Map<string, string | null>();
+  for (const span of spanMap.values()) {
+    parents.set(
+      span.id,
+      span.parentSpanId && spanMap.has(span.parentSpanId)
+        ? span.parentSpanId
+        : null,
+    );
+  }
+
+  const resolved = new Set<string>();
+  for (const spanId of spanMap.keys()) {
+    if (resolved.has(spanId)) continue;
+
+    const path: string[] = [];
+    const pathIds = new Set<string>();
+    let current: string | null = spanId;
+
+    while (current !== null && !resolved.has(current)) {
+      if (pathIds.has(current)) {
+        parents.set(current, null);
+        break;
+      }
+
+      path.push(current);
+      pathIds.add(current);
+      current = parents.get(current) ?? null;
+    }
+
+    for (const id of path) resolved.add(id);
+  }
+
+  return parents;
 }
 
 function enrichSpans(rawSpans: SpanData[]): {
   allSpans: Map<string, SpanItemState>;
+  parents: Map<string, string | null>;
   timeRange: { min: number; max: number };
 } {
   const spanMap = new Map<string, SpanData>();
@@ -44,13 +95,15 @@ function enrichSpans(rawSpans: SpanData[]): {
     spanMap.set(span.id, span);
   }
 
+  const parents = normalizeSpanParents(spanMap);
   const depthCache = new Map<string, number>();
   const childrenCount = new Map<string, number>();
   for (const span of rawSpans) {
-    if (span.parentSpanId) {
+    const parentSpanId = parents.get(span.id);
+    if (parentSpanId) {
       childrenCount.set(
-        span.parentSpanId,
-        (childrenCount.get(span.parentSpanId) ?? 0) + 1,
+        parentSpanId,
+        (childrenCount.get(parentSpanId) ?? 0) + 1,
       );
     }
   }
@@ -60,9 +113,15 @@ function enrichSpans(rawSpans: SpanData[]): {
   let max = -Infinity;
 
   for (const span of rawSpans) {
-    const depth = calculateDepth(span.id, spanMap, depthCache);
+    const depth = calculateDepth(span.id, parents, depthCache);
     const hasChildren = (childrenCount.get(span.id) ?? 0) > 0;
-    allSpans.set(span.id, { ...span, depth, hasChildren, isCollapsed: false });
+    allSpans.set(span.id, {
+      ...span,
+      parentSpanId: parents.get(span.id) ?? null,
+      depth,
+      hasChildren,
+      isCollapsed: false,
+    });
 
     if (span.startedAt < min) min = span.startedAt;
     const end = span.endedAt ?? Date.now();
@@ -73,16 +132,17 @@ function enrichSpans(rawSpans: SpanData[]): {
   if (max === -Infinity) max = Date.now();
   if (max === min) max = min + 100;
 
-  return { allSpans, timeRange: { min, max } };
+  return { allSpans, parents, timeRange: { min, max } };
 }
 
 function buildFlatList(
   allSpans: Map<string, SpanItemState>,
+  parents: Map<string, string | null>,
   collapsedIds: Set<string>,
 ): SpanItemState[] {
   const children = new Map<string | null, SpanItemState[]>();
   for (const span of allSpans.values()) {
-    const parent = span.parentSpanId ?? null;
+    const parent = parents.get(span.id) ?? null;
     let group = children.get(parent);
     if (!group) {
       group = [];
@@ -142,15 +202,18 @@ const useSpanResource = ({
 }: {
   spans: SpanData[];
 }): ClientOutput<"span"> => {
-  const { allSpans, timeRange } = useMemo(() => enrichSpans(spans), [spans]);
+  const { allSpans, parents, timeRange } = useMemo(
+    () => enrichSpans(spans),
+    [spans],
+  );
 
   const [collapsedIds, setCollapsedIds] = useState<Set<string>>(
     () => new Set(),
   );
 
   const visibleSpans = useMemo(
-    () => buildFlatList(allSpans, collapsedIds),
-    [allSpans, collapsedIds],
+    () => buildFlatList(allSpans, parents, collapsedIds),
+    [allSpans, parents, collapsedIds],
   );
 
   const toggleCollapse = (spanId: string) => {

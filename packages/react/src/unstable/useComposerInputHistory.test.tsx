@@ -6,7 +6,7 @@ const fixture = {
   messages: [] as { role: string; content: { type: string; text: string }[] }[],
   composerType: "thread",
   activeAria: null as object | null,
-  switchedToHandlers: [] as (() => void)[],
+  selectionChangedHandlers: [] as (() => void)[],
 };
 const setText = vi.fn();
 
@@ -18,7 +18,7 @@ vi.mock("@assistant-ui/store", () => ({
     },
     thread: { getState: () => ({ messages: fixture.messages }) },
     on: (_event: string, cb: () => void) => {
-      fixture.switchedToHandlers.push(cb);
+      fixture.selectionChangedHandlers.push(cb);
       return () => {};
     },
   }),
@@ -71,7 +71,7 @@ beforeEach(() => {
   fixture.messages = [user("first"), assistant("reply"), user("second")];
   fixture.composerType = "thread";
   fixture.activeAria = null;
-  fixture.switchedToHandlers = [];
+  fixture.selectionChangedHandlers = [];
   setText.mockClear();
 });
 
@@ -192,7 +192,7 @@ describe("unstable_useComposerInputHistory", () => {
   it("resets browsing when the thread switches", () => {
     const { textarea } = setup("");
     arrow(textarea, "ArrowUp");
-    fixture.switchedToHandlers.forEach((cb) => cb());
+    fixture.selectionChangedHandlers.forEach((cb) => cb());
     textarea.value = "second";
     const notPrevented = arrow(textarea, "ArrowDown");
     expect(notPrevented).toBe(true);
