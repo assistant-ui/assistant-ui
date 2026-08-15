@@ -207,10 +207,15 @@ jobs:
       - name: Detect API reference inputs
         id: api_ref
         run: |
+          set -euo pipefail
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             BASE="origin/${{ github.base_ref }}"
           else
             BASE="HEAD^1"
+          fi
+          if ! git rev-parse --verify "$BASE" >/dev/null; then
+            echo "Unable to resolve API reference diff base: $BASE"
+            exit 1
           fi
           if git diff --name-only "$BASE" -- \
             "packages/react/" \
@@ -224,8 +229,10 @@ jobs:
             "packages/cloud-ai-sdk/" \
             "packages/eve/" \
             "apps/docs/scripts/" \
+            "apps/docs/content/types-to-generate/" \
             "apps/docs/content/docs/(reference)/api-reference/" \
             "apps/docs/package.json" \
+            "apps/docs/tsconfig.json" \
             ".github/workflows/code-quality.yaml" \
             | grep -q .; then
             echo "run=true" >> "$GITHUB_OUTPUT"
