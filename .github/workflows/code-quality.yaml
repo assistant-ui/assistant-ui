@@ -207,7 +207,7 @@ jobs:
       - name: Detect API reference inputs
         id: api_ref
         run: |
-          set -euo pipefail
+          set -eu
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             BASE="origin/${{ github.base_ref }}"
           else
@@ -217,11 +217,13 @@ jobs:
             echo "Unable to resolve API reference diff base: $BASE"
             exit 1
           fi
-          if git diff --name-only "$BASE" -- \
+          changed="$(git diff --name-only "$BASE" -- \
             "packages/react/" \
             "packages/core/" \
             "packages/store/" \
             "packages/tap/" \
+            "packages/cloud/" \
+            "packages/assistant-stream/" \
             "packages/react-generative-ui/" \
             "packages/ai-sdk/" \
             "packages/react-ai-sdk/" \
@@ -233,8 +235,8 @@ jobs:
             "apps/docs/content/docs/(reference)/api-reference/" \
             "apps/docs/package.json" \
             "apps/docs/tsconfig.json" \
-            ".github/workflows/code-quality.yaml" \
-            | grep -q .; then
+            ".github/workflows/code-quality.yaml")"
+          if [ -n "$changed" ]; then
             echo "run=true" >> "$GITHUB_OUTPUT"
           else
             echo "run=false" >> "$GITHUB_OUTPUT"

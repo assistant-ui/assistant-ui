@@ -183,6 +183,21 @@ test("private constructor parameter fields become ordinary parameters", () => {
   assert.equal(output.includes("private name"), false);
 });
 
+test("private static members do not add an instance #private brand", () => {
+  const output = normalizeBundledDeclaration(
+    [
+      "declare class Foo {",
+      "  private static notifyListeners(): void;",
+      "  static get(): Foo;",
+      "}",
+      "export { Foo };",
+    ].join("\n"),
+  );
+  assert.equal(output.includes("#private"), false);
+  assert.equal(output.includes("notifyListeners"), false);
+  assert.match(output, /static get\(\): Foo/);
+});
+
 test("protected members stay in the surface", () => {
   const output = normalizeBundledDeclaration(
     [

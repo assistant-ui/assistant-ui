@@ -1887,14 +1887,12 @@ interface DevToolsHook {
 }
 
 declare class DevToolsHooks {
-  #private;
   static subscribe(listener: () => void): Unsubscribe$1;
   static clearEventLogs(apiId: number): void;
   static getApis(): Map<number, DevToolsApiEntry>;
 }
 
 declare class DevToolsProviderApi {
-  #private;
   static register(aui: Partial<AssistantClient>): Unsubscribe$1;
 }
 

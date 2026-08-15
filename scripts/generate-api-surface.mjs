@@ -602,7 +602,9 @@ function stripPrivateClassMembers(node, factory, visit, context) {
   let changed = visited !== node;
   for (const member of visited.members) {
     if (shouldStripClassMember(member)) {
-      strippedAny = true;
+      if (!hasModifier(member, ts.SyntaxKind.StaticKeyword)) {
+        strippedAny = true;
+      }
       changed = true;
       continue;
     }
