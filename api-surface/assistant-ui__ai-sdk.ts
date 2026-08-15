@@ -2,7 +2,7 @@ import { Chat, CreateUIMessage, UIMessage as UIMessage$1, UseChatHelpers, useCha
 
 import { StandardSchemaV1 } from "@standard-schema/spec";
 
-import { ChatInit, DefaultChatTransport, HttpChatTransportInitOptions, ToolSet, UIMessage } from "ai";
+import { ChatInit, ChatTransport, DefaultChatTransport, HttpChatTransportInitOptions, ToolSet, UIMessage } from "ai";
 
 import { ComponentType, ReactNode } from "react";
 
@@ -24,7 +24,9 @@ type AISDKRuntimeAdapter = ExternalStoreSharedOptions & {
 
 declare const AISDKThreads: <UI_MESSAGE extends UIMessage$1 = UIMessage$1<unknown, import("ai").UIDataTypes, import("ai").UITools>>(options?: AISDKThreadsOptions<UI_MESSAGE> | undefined) => ResourceElement<ClientOutput<"threads">>;
 
-type AISDKThreadsOptions<UI_MESSAGE extends UIMessage$1 = UIMessage$1> = Omit<ChatThreadOptions<UI_MESSAGE>, "chat" | "id">;
+type AISDKThreadsOptions<UI_MESSAGE extends UIMessage$1 = UIMessage$1> = Omit<ChatThreadOptions<UI_MESSAGE>, "chat" | "id" | "transport"> & {
+  transport?: ChatTransport<UI_MESSAGE> | (() => ChatTransport<UI_MESSAGE>) | undefined;
+};
 
 declare class AISDKToolkit {
   #private;
