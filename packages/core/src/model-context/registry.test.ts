@@ -38,6 +38,51 @@ describe("ModelContextRegistry", () => {
     expect(laterSubscriber).toHaveBeenCalledTimes(1);
   });
 
+  it("notifies every subscriber and rethrows when registering instructions", () => {
+    const registry = new ModelContextRegistry();
+    const error = new Error("subscriber failed");
+    const laterSubscriber = vi.fn();
+
+    registry.subscribe(() => {
+      throw error;
+    });
+    registry.subscribe(laterSubscriber);
+
+    expect(() => registry.addInstruction("be concise")).toThrow(error);
+
+    expect(registry.getModelContext().system).toContain("be concise");
+    expect(laterSubscriber).toHaveBeenCalledTimes(1);
+  });
+
+  it("rethrows the provider subscription failure when a rollback subscriber throws", () => {
+    const registry = new ModelContextRegistry();
+    const subscriptionError = new Error("subscription failed");
+    const subscriberError = new Error("subscriber failed");
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    registry.subscribe(() => {
+      throw subscriberError;
+    });
+
+    try {
+      expect(() =>
+        registry.addProvider({
+          getModelContext: () => ({ system: "provider instructions" }),
+          subscribe: () => {
+            throw subscriptionError;
+          },
+        }),
+      ).toThrow(subscriptionError);
+
+      expect(registry.getModelContext().system).toBeUndefined();
+      expect(consoleError).toHaveBeenCalledWith(subscriberError);
+    } finally {
+      consoleError.mockRestore();
+    }
+  });
+
   it("rolls back providers that fail to subscribe", () => {
     const registry = new ModelContextRegistry();
     const error = new Error("subscription failed");

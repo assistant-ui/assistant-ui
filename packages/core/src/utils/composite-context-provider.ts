@@ -22,7 +22,11 @@ export class CompositeContextProvider implements ModelContextProvider {
       });
     } catch (error) {
       if (!wasRegistered) this._providers.delete(provider);
-      this.notifySubscribers();
+      try {
+        this.notifySubscribers();
+      } catch (notifyError) {
+        console.error(notifyError);
+      }
       throw error;
     }
     this.notifySubscribers();

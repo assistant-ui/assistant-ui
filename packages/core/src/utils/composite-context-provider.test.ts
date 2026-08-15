@@ -45,6 +45,35 @@ describe("CompositeContextProvider", () => {
     expect(observedSystems).toEqual(["provider instructions", undefined]);
   });
 
+  it("rethrows the provider subscription failure when a rollback subscriber throws", () => {
+    const composite = new CompositeContextProvider();
+    const subscriptionError = new Error("subscription failed");
+    const subscriberError = new Error("subscriber failed");
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    composite.subscribe(() => {
+      throw subscriberError;
+    });
+
+    try {
+      expect(() =>
+        composite.registerModelContextProvider({
+          getModelContext: () => ({ system: "provider instructions" }),
+          subscribe: () => {
+            throw subscriptionError;
+          },
+        }),
+      ).toThrow(subscriptionError);
+
+      expect(composite.getModelContext().system).toBeUndefined();
+      expect(consoleError).toHaveBeenCalledWith(subscriberError);
+    } finally {
+      consoleError.mockRestore();
+    }
+  });
+
   it("preserves an earlier registration when a duplicate fails to subscribe", () => {
     const composite = new CompositeContextProvider();
     const error = new Error("subscription failed");
