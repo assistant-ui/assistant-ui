@@ -1,0 +1,51 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const mocks = vi.hoisted(() => ({
+  getRelevantFiles: vi.fn(() => ["src/app.tsx"]),
+  transform: vi.fn(() => []),
+  installEdgeLib: vi.fn(),
+  installAiSdkLib: vi.fn(),
+}));
+
+vi.mock("../../src/lib/transform", () => ({
+  getRelevantFiles: mocks.getRelevantFiles,
+  transform: mocks.transform,
+}));
+
+vi.mock("../../src/lib/install-edge-lib", () => ({
+  default: mocks.installEdgeLib,
+}));
+
+vi.mock("../../src/lib/install-ai-sdk-lib", () => ({
+  default: mocks.installAiSdkLib,
+}));
+
+vi.mock("cli-progress", () => ({
+  Presets: { shades_classic: {} },
+  SingleBar: class {
+    start() {}
+    update() {}
+    stop() {}
+  },
+}));
+
+vi.mock("debug", () => ({
+  default: () => () => {},
+}));
+
+import { upgrade } from "../../src/lib/upgrade";
+
+describe("upgrade", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("does not run the legacy UI package split", async () => {
+    await upgrade({ dry: true });
+
+    const codemods = mocks.transform.mock.calls.map(([codemod]) => codemod);
+    expect(codemods).not.toContain("v0-8/ui-package-split");
+    expect(mocks.installEdgeLib).toHaveBeenCalledOnce();
+    expect(mocks.installAiSdkLib).toHaveBeenCalledOnce();
+  });
+});

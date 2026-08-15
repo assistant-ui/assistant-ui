@@ -5,7 +5,6 @@ import { SingleBar, Presets } from "cli-progress";
 import installEdgeLib from "./install-edge-lib";
 import installAiSdkLib from "./install-ai-sdk-lib";
 import { logger } from "./utils/logger";
-import { assertNoLegacyReactUIImports } from "./legacy-react-ui";
 
 const bundle = [
   "v0-9/edge-package-split",
@@ -32,7 +31,6 @@ export async function upgrade(options: TransformOptions) {
   // Find relevant files once to avoid duplicate work
   logger.info("Analyzing codebase...");
   const relevantFiles = getRelevantFiles(cwd);
-  assertNoLegacyReactUIImports(relevantFiles, cwd);
   const fileCount = relevantFiles.length;
   logger.info(`Found ${fileCount} files to process.`);
 

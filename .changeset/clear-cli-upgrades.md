@@ -2,4 +2,4 @@
 "assistant-ui": patch
 ---
 
-fix: stop upgrades before installing the incompatible legacy React UI package
+fix: avoid installing the incompatible legacy React UI package during upgrades
