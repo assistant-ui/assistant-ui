@@ -23,6 +23,7 @@ export type InMemoryThreadListProps = {
   thread: (threadId: string) => ResourceElement<ClientOutput<"thread">>;
   onSwitchToThread?: (threadId: string) => void;
   onSwitchToNewThread?: () => void;
+  onDelete?: (threadId: string) => void;
 };
 
 type ThreadData = {
@@ -90,6 +91,7 @@ const useInMemoryThreadList = (
     thread: threadFactory,
     onSwitchToThread,
     onSwitchToNewThread,
+    onDelete,
   } = props;
 
   const [mainThreadId, setMainThreadId] = useState("main");
@@ -142,6 +144,7 @@ const useInMemoryThreadList = (
         ? threads.find((t) => t.id !== threadId)?.id || "main"
         : prev,
     );
+    onDelete?.(threadId);
   };
 
   const handleSwitchToNewThread = () => {

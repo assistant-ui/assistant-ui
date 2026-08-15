@@ -116,6 +116,7 @@ const useAISDKThreads = <UI_MESSAGE extends UIMessage = UIMessage>(
   return useResource(
     InMemoryThreadList({
       thread: (threadId) => AISDKChatThread({ threadId, options, chats }),
+      onDelete: (threadId) => chats.delete(threadId),
     }),
   );
 };

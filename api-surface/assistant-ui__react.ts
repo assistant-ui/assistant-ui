@@ -2419,6 +2419,7 @@ type InMemoryThreadListProps = {
   thread: (threadId: string) => ResourceElement<ClientOutput<"thread">>;
   onSwitchToThread?: (threadId: string) => void;
   onSwitchToNewThread?: () => void;
+  onDelete?: (threadId: string) => void;
 };
 
 type InteractableScope = "app" | "thread";
