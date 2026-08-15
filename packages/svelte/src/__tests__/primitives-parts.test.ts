@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { tick } from "svelte";
 import { flushSync, mount, unmount } from "svelte";
 import { flushTapSync } from "@assistant-ui/tap";
 import { AuiConfig } from "@assistant-ui/store/client";
@@ -106,6 +107,33 @@ describe("messageParts", () => {
     flushSync(() => void unmount(app));
   });
 
+  it("routes resumeToolCall and respondToToolApproval through the part scope", () => {
+    const { app, echo, messages } = mountParts([
+      {
+        id: "a0",
+        role: "assistant",
+        text: "",
+        parts: [toolCall({ approval: { id: "appr-1" } })],
+      },
+    ]);
+    const message = messages().item(0);
+    message.source.subscribe(() => {});
+    const parts = messageParts({ item: message });
+    const tool = parts.item(0);
+    tool.source.subscribe(() => {});
+
+    flushTapSync(() => tool.aui.part.resumeToolCall({ answer: "yes" }));
+    expect(echo.onResumeToolCall).toHaveBeenCalledTimes(1);
+    expect(echo.onResumeToolCall.mock.calls[0]![0]).toMatchObject({
+      toolCallId: "call-1",
+    });
+
+    flushTapSync(() => tool.aui.part.respondToToolApproval({ approved: true }));
+    expect(echo.onRespondToToolApproval).toHaveBeenCalledTimes(1);
+
+    flushSync(() => void unmount(app));
+  });
+
   it("routes addToolResult through the part scope", () => {
     const { app, echo, messages } = mountParts([
       {
@@ -130,7 +158,7 @@ describe("messageParts", () => {
     flushSync(() => void unmount(app));
   });
 
-  it("keeps the last valid part while observed after a shrink", () => {
+  it("keeps the last valid part while observed after a shrink", async () => {
     const { app, echo, messages } = mountParts([
       {
         id: "a0",
@@ -153,6 +181,7 @@ describe("messageParts", () => {
     );
     expect(text.current).toBe("two");
 
+    const report = vi.spyOn(console, "error").mockImplementation(() => {});
     flushTapSync(() =>
       echo.setMessages([
         {
@@ -164,6 +193,13 @@ describe("messageParts", () => {
       ]),
     );
     expect(text.current).toBe("two");
+
+    // The expiry is tick-scheduled; a still-observed out-of-range item reports
+    await tick();
+    expect(report).toHaveBeenCalledWith(
+      expect.stringContaining("messageParts.item: index 1"),
+    );
+    report.mockRestore();
 
     flushSync(() => void unmount(app));
   });

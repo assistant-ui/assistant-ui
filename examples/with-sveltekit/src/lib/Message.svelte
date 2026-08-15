@@ -21,6 +21,7 @@
     PencilIcon,
     RefreshCwIcon,
   } from "@lucide/svelte";
+  import ToolPart from "./ToolPart.svelte";
 
   let { message, item }: { message: MessageState; item: MessageItem } =
     $props();
@@ -117,16 +118,9 @@
             </p>
           </details>
         {:else if part.type === "tool-call"}
-          <div
-            class="border-border/60 my-1 rounded-lg border px-3 py-2 font-mono text-xs"
-          >
-            <span class="font-semibold">{part.toolName}</span>({part.argsText})
-            {#if part.result !== undefined}
-              <pre class="text-muted-foreground mt-1 whitespace-pre-wrap">{JSON.stringify(
-                  part.result,
-                )}</pre>
-            {/if}
-          </div>
+          <ToolPart item={parts.item(index)} />
+        {:else}
+          <p class="text-muted-foreground text-xs">[{part.type}]</p>
         {/if}
       {/each}
       {#if pulsing.current}<span class="animate-pulse">…</span>{/if}

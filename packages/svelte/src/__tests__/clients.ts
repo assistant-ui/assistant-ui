@@ -88,6 +88,8 @@ export const createEchoRuntime = () => {
     content: message.parts ?? [{ type: "text" as const, text: message.text }],
   });
   const onAddToolResult = vi.fn();
+  const onResumeToolCall = vi.fn();
+  const onRespondToToolApproval = vi.fn();
   const onReload = vi.fn(async (parentId: string | null) => {
     let parentIndex = 0;
     if (parentId) {
@@ -140,6 +142,8 @@ export const createEchoRuntime = () => {
     onCancel,
     onReload,
     onAddToolResult,
+    onResumeToolCall,
+    onRespondToToolApproval,
   });
   const core = new ExternalStoreRuntimeCore(makeAdapter() as never);
   const sync = () => core.setAdapter(makeAdapter() as never);
@@ -151,6 +155,8 @@ export const createEchoRuntime = () => {
     onCancel,
     onReload,
     onAddToolResult,
+    onResumeToolCall,
+    onRespondToToolApproval,
     onSwitchToThread,
     onSwitchToNewThread,
     setMessages: (next: EchoMessage[]) => {
