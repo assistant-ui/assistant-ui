@@ -16,6 +16,7 @@ import {
   CHART_SECTIONS,
   CHARTS,
   getChart,
+  sectionId,
 } from "@/components/diagrammatic/registry";
 import { FrameworkToggle } from "@/components/diagrammatic/framework-toggle";
 
@@ -66,14 +67,30 @@ export default async function ChartPage({
           href="/diagrammatic"
           className={cn(
             meta,
-            "text-(--da-ink)/55 transition-colors hover:text-(--da-red)",
+            "shrink-0 text-(--da-ink)/55 transition-colors hover:text-(--da-red)",
           )}
         >
-          ← index
+          ← All forms
         </Link>
-        <span className={cn(meta, "truncate text-(--da-ink)/40 tabular-nums")}>
-          {chart.section} · plate {String(chart.index).padStart(2, "0")} /{" "}
-          {CHART_COUNT}
+        <span aria-hidden className="h-4 w-px shrink-0 bg-(--da-line)" />
+        <span className="flex min-w-0 items-baseline gap-2.5">
+          <Link
+            href={`/diagrammatic#${sectionId(chart.section)}`}
+            className={cn(
+              meta,
+              "truncate text-(--da-ink)/70 transition-colors hover:text-(--da-red)",
+            )}
+          >
+            {chart.section}
+          </Link>
+          <span
+            className={cn(
+              meta,
+              "shrink-0 text-[12px] text-(--da-ink)/35 tabular-nums",
+            )}
+          >
+            plate {chart.index} of {CHART_COUNT}
+          </span>
         </span>
         <div className="ms-auto">
           <FrameworkToggle />

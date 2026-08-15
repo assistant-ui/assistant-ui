@@ -906,6 +906,10 @@ export const CHARTS: Chart[] = CHART_SECTIONS.flatMap(
 export const CHART_COUNT = CHARTS.length;
 export const SECTION_COUNT = CHART_SECTIONS.length;
 
+export function sectionId(label: string): string {
+  return label.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+}
+
 export function getChart(slug: string): Chart | undefined {
   return CHARTS.find((chart) => chart.slug === slug);
 }

@@ -1,24 +1,26 @@
 import type { Metadata } from "next";
 import {
+  Area,
   Bullet,
   Gauge,
+  Line,
   ProgressRing,
   Sparkbar,
   Sparkline,
+  StepLine,
   WinLoss,
 } from "diagrammatic";
 import { cn } from "@/lib/utils";
 import { createOgMetadata } from "@/lib/og";
 import { eyebrow, gutter, meta, serif } from "@/components/diagrammatic/atlas";
+import { FamilyToc } from "@/components/diagrammatic/family-toc";
 import {
   CHART_COUNT,
   CHART_SECTIONS,
   SECTION_COUNT,
+  sectionId,
 } from "@/components/diagrammatic/registry";
 import { Plate } from "@/components/diagrammatic/plate";
-
-const sectionId = (label: string) =>
-  label.toLowerCase().replace(/[^a-z0-9]+/g, "-");
 
 const title = "Diagrammatic";
 const description = `A field atlas of ${CHART_COUNT} chart forms: what each is called, what it is for, and when it betrays you — every specimen drawn live from the diagrammatic package.`;
@@ -30,13 +32,36 @@ export const metadata: Metadata = {
 };
 
 const FRIEZE = [
-  <Sparkline key="sl" data={[34, 46, 40, 58, 52, 66, 60, 76, 90]} />,
-  <Sparkbar key="sb" data={[3, 5, 4, 7, 6, 9, 8, 10, 7, 8]} />,
-  <WinLoss key="wl" data={[1, 1, -1, 1, -1, 1, 1, -1, 1, 1]} />,
-  <Bullet key="bu" value={128} target={140} bands={[60, 110, 160]} />,
-  <ProgressRing key="pr" value={0.72} />,
-  <Gauge key="ga" value={0.68} />,
+  <Sparkline key="sl1" data={[34, 46, 40, 58, 52, 66, 60, 76, 90]} />,
+  <Sparkbar key="sb1" data={[3, 5, 4, 7, 6, 9, 8, 10, 7, 8]} />,
+  <WinLoss key="wl1" data={[1, 1, -1, 1, -1, 1, 1, -1, 1, 1]} />,
+  <Bullet key="bu1" value={128} target={140} bands={[60, 110, 160]} />,
+  <Line key="ln" data={[12, 18, 15, 24, 21, 30, 27, 34]} />,
+  <ProgressRing key="pr1" value={0.72} />,
+  <Sparkline key="sl2" data={[88, 80, 74, 70, 64, 60, 52, 48]} />,
+  <Gauge key="ga1" value={0.68} />,
+  <Area key="ar" data={[4, 7, 6, 10, 9, 13, 11, 15]} />,
+  <WinLoss key="wl2" data={[-1, 1, 1, 1, -1, 1, -1, 1, 1, 1]} />,
+  <Sparkbar key="sb2" data={[9, 7, 8, 6, 5, 6, 4, 5, 3, 4]} />,
+  <StepLine key="st" data={[19, 19, 29, 25, 39, 35, 49]} />,
+  <ProgressRing key="pr2" value={0.35} />,
+  <Bullet key="bu2" value={72} target={60} bands={[30, 55, 90]} />,
 ];
+
+function FriezeRow({ hidden }: { hidden?: boolean }) {
+  return (
+    <div aria-hidden={hidden} className="flex shrink-0 items-stretch">
+      {FRIEZE.map((chart, i) => (
+        <div
+          key={i}
+          className="flex h-16 w-48 shrink-0 items-center justify-center border-r border-(--da-line) px-7"
+        >
+          <div className="w-full max-w-24">{chart}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export default function DiagrammaticPage() {
   return (
@@ -66,45 +91,21 @@ export default function DiagrammaticPage() {
 
       <section
         aria-hidden="true"
-        className="grid grid-cols-3 border-t border-(--da-line) sm:grid-cols-6 [&_[data-part=legend]]:hidden [&_text]:hidden"
+        className="overflow-hidden border-t border-(--da-line) bg-(--da-plate) [&_[data-part=legend]]:hidden [&_text]:hidden"
       >
-        {FRIEZE.map((chart, i) => (
-          <div
-            key={i}
-            className="flex h-20 items-center justify-center border-r border-b border-(--da-line) bg-(--da-plate) px-6 py-4"
-          >
-            <div className="w-full max-w-28">{chart}</div>
-          </div>
-        ))}
+        <style>{`@keyframes atlas-marquee { to { transform: translateX(-50%); } }`}</style>
+        <div className="flex w-max [animation:atlas-marquee_56s_linear_infinite] hover:[animation-play-state:paused] motion-reduce:[animation:none]">
+          <FriezeRow />
+          <FriezeRow hidden />
+        </div>
       </section>
 
-      <nav
-        aria-label="Families"
-        className={cn(
-          gutter,
-          "sticky top-13 z-30 overflow-x-auto border-b border-(--da-line) bg-(--da-paper) whitespace-nowrap",
-        )}
-      >
-        <div className="flex items-center gap-6 py-3">
-          {CHART_SECTIONS.map((section, i) => (
-            <a
-              key={section.label}
-              href={`#${sectionId(section.label)}`}
-              className={cn(meta, "group text-(--da-ink)/60 transition-colors")}
-            >
-              <span className="text-(--da-ink)/30 tabular-nums transition-colors group-hover:text-(--da-red)">
-                {String(i + 1).padStart(2, "0")}
-              </span>{" "}
-              <span className="group-hover:text-(--da-ink)">
-                {section.label}
-              </span>{" "}
-              <span className="text-(--da-ink)/30 tabular-nums">
-                {section.charts.length}
-              </span>
-            </a>
-          ))}
-        </div>
-      </nav>
+      <FamilyToc
+        sections={CHART_SECTIONS.map((section) => ({
+          id: sectionId(section.label),
+          label: section.label,
+        }))}
+      />
 
       {CHART_SECTIONS.map((section, sectionIndex) => (
         <section
