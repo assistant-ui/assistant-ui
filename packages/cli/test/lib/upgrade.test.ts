@@ -51,7 +51,14 @@ describe("upgrade", () => {
     await upgrade({ dry: true });
 
     const codemods = mocks.transform.mock.calls.map(([codemod]) => codemod);
-    expect(codemods).not.toContain("v0-8/ui-package-split");
+    expect(codemods).toEqual([
+      "v0-9/edge-package-split",
+      "v0-11/content-part-to-message-part",
+      "v0-12/assistant-api-to-aui",
+      "v0-12/event-names-to-camelcase",
+      "v0-12/primitive-if-to-aui-if",
+      "v0-15/aui-accessor-calls-to-properties",
+    ]);
     expect(mocks.installEdgeLib).toHaveBeenCalledOnce();
     expect(mocks.installAiSdkLib).toHaveBeenCalledOnce();
   });
