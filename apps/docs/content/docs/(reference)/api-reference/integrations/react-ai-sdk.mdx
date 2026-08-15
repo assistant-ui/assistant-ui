@@ -32,8 +32,9 @@ thread list. Hosts the same per-thread orchestration as [AISDKChat](/docs/api-re
 inside the client's own resource tree, so it works with any
 `AssistantClient` host, React or not. Threads live in memory for the
 client's lifetime and keep their history across switches; each thread's
-chat id is its thread id. The assistant-cloud thread list stays on
-`useChatRuntime`.
+chat id is its thread id. Model context is registered on the visible
+thread only, so a background send carries no context. The assistant-cloud
+thread list stays on `useChatRuntime`.
 
 <ParametersTable {...reactAiSdk_AISDKThreads} />
 
