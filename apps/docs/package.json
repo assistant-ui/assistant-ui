@@ -54,6 +54,7 @@
     "cmdk": "^1.1.1",
     "codehike": "^1.1.0",
     "date-fns": "^4.4.0",
+    "diagrammatic": "workspace:*",
     "dotenv": "^17.4.2",
     "embla-carousel-react": "^8.6.0",
     "fast-glob": "^3.3.3",

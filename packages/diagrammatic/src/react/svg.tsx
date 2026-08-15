@@ -1,5 +1,43 @@
-import type { CSSProperties, ReactNode } from "react";
+import {
+  type ComponentPropsWithoutRef,
+  type CSSProperties,
+  type ReactNode,
+  forwardRef,
+} from "react";
 import { FONT, MUTED, ink } from "../core/theme";
+
+/**
+ * The native surface charts pass through. `children` is owned by the chart;
+ * `points`, `values`, `origin`, `fill`, `display`, and `target` are dropped
+ * because they collide with chart data props and mean nothing on an svg root
+ * (use `style` for presentation).
+ */
+type SvgAttributes = Omit<
+  ComponentPropsWithoutRef<"svg">,
+  "children" | "points" | "values" | "origin" | "fill" | "display" | "target"
+>;
+
+/**
+ * The contract every chart accepts, on top of the native svg surface: every
+ * svg attribute, aria-*, data-*, and event handler passes through to the root
+ * element, and a passed `style` merges over the defaults. `title` names the
+ * chart for assistive technology; without it (or an explicit aria-label) the
+ * SVG renders as decorative. `labels` are the category or tick labels along
+ * the primary axis. `legend` defaults to automatic: shown when two or more
+ * series are present. `format` renders numbers wherever the chart prints one.
+ */
+export type BaseProps = SvgAttributes & {
+  title?: string;
+  labels?: string[];
+  legend?: boolean;
+  format?: (value: number) => string;
+  aspect?: number;
+};
+
+/** The micro charts drop axis and legend concerns but keep the svg surface. */
+export type MicroBaseProps = SvgAttributes & {
+  title?: string;
+};
 
 export const TXT = {
   axis: { fontSize: 4.5, fill: MUTED, fontFamily: FONT },
@@ -18,72 +56,67 @@ export function vbHeight(aspect: number | undefined, fallback: number): number {
   return Math.round((200 / (aspect ?? fallback)) * 100) / 100;
 }
 
-export function ChartSvg({
-  vh,
-  title,
-  className,
-  children,
-}: {
-  vh: number;
+type FrameProps = SvgAttributes & {
   title?: string | undefined;
-  className?: string | undefined;
   children: ReactNode;
-}) {
-  return (
-    <svg
-      viewBox={`0 0 200 ${vh}`}
-      role={title ? "img" : undefined}
-      aria-label={title}
-      aria-hidden={title ? undefined : true}
-      className={className}
-      style={BLOCK}
-      data-dg=""
-    >
-      {title ? <title>{title}</title> : null}
-      {children}
-    </svg>
-  );
-}
+};
+
+export const ChartSvg = forwardRef<SVGSVGElement, FrameProps & { vh: number }>(
+  ({ vh, title, style, children, ...rest }, ref) => {
+    const label = title ?? rest["aria-label"];
+    return (
+      <svg
+        ref={ref}
+        viewBox={`0 0 200 ${vh}`}
+        role={label ? "img" : undefined}
+        aria-label={label}
+        aria-hidden={label ? undefined : true}
+        data-dg=""
+        {...rest}
+        style={{ ...BLOCK, ...style }}
+      >
+        {title ? <title>{title}</title> : null}
+        {children}
+      </svg>
+    );
+  },
+);
+
+ChartSvg.displayName = "ChartSvg";
 
 /**
  * Inline micro chart frame: one line of text tall, sized in em so it sits
  * inside table cells and sentences without layout work.
  */
-export function MicroSvg({
-  vw,
-  vh,
-  em,
-  title,
-  className,
-  children,
-}: {
-  vw: number;
-  vh: number;
-  em: number;
-  title?: string | undefined;
-  className?: string | undefined;
-  children: ReactNode;
-}) {
+export const MicroSvg = forwardRef<
+  SVGSVGElement,
+  FrameProps & { vw: number; vh: number; em: number }
+>(({ vw, vh, em, title, style, children, ...rest }, ref) => {
+  const label = title ?? rest["aria-label"];
   return (
     <svg
+      ref={ref}
       viewBox={`0 0 ${vw} ${vh}`}
-      role={title ? "img" : undefined}
-      aria-label={title}
-      aria-hidden={title ? undefined : true}
-      className={className}
+      role={label ? "img" : undefined}
+      aria-label={label}
+      aria-hidden={label ? undefined : true}
+      data-dg=""
+      {...rest}
       style={{
         display: "inline-block",
         height: `${em}em`,
         width: "auto",
         verticalAlign: "-0.125em",
+        ...style,
       }}
-      data-dg=""
     >
       {title ? <title>{title}</title> : null}
       {children}
     </svg>
   );
-}
+});
+
+MicroSvg.displayName = "MicroSvg";
 
 export function Legend({
   names,

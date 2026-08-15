@@ -1,4 +1,5 @@
-import type { BaseProps } from "../../core/types";
+import type { BaseProps } from "../svg";
+import { forwardRef } from "react";
 import { polar, round } from "../../core/geometry";
 import { ACCENT, ink } from "../../core/theme";
 import { ChartSvg, TXT, vbHeight } from "../svg";
@@ -20,59 +21,67 @@ function semiArc(cx: number, cy: number, r: number, share: number): string {
 }
 
 /** A single bounded value, 0 to 1, on a half dial. */
-export function Gauge({
-  value,
-  display,
-  label,
-  min = "0",
-  max = "100",
-  title,
-  aspect,
-  className,
-}: GaugeProps) {
-  const vh = vbHeight(aspect, 5 / 3);
-  const cy = vh - 26;
-  const r = Math.min(cy - 10, 54);
-  const share = Math.max(0, Math.min(1, value));
-  return (
-    <ChartSvg vh={vh} title={title} className={className}>
-      <path
-        d={semiArc(100, cy, r, 1)}
-        fill="none"
-        strokeWidth="9"
-        strokeLinecap="round"
-        stroke={ink(0.08)}
-        data-part="grid"
-      />
-      <path
-        d={semiArc(100, cy, r, share)}
-        fill="none"
-        stroke={ACCENT}
-        strokeWidth="9"
-        strokeLinecap="round"
-        data-part="mark"
-      />
-      <text
-        x="100"
-        y={cy - 8}
-        textAnchor="middle"
-        fontSize="16"
-        fill={ink(0.85)}
-        fontFamily={TXT.value.fontFamily}
-      >
-        {display ?? `${Math.round(share * 100)}%`}
-      </text>
-      {label && (
-        <text x="100" y={cy + 2} textAnchor="middle" {...TXT.axis}>
-          {label}
+export const Gauge = forwardRef<SVGSVGElement, GaugeProps>(
+  (
+    {
+      value,
+      display,
+      label,
+      min = "0",
+      max = "100",
+      title,
+      aspect,
+      className,
+      ...rest
+    },
+    ref,
+  ) => {
+    const vh = vbHeight(aspect, 5 / 3);
+    const cy = vh - 26;
+    const r = Math.min(cy - 10, 54);
+    const share = Math.max(0, Math.min(1, value));
+    return (
+      <ChartSvg ref={ref} {...rest} vh={vh} title={title} className={className}>
+        <path
+          d={semiArc(100, cy, r, 1)}
+          fill="none"
+          strokeWidth="9"
+          strokeLinecap="round"
+          stroke={ink(0.08)}
+          data-part="grid"
+        />
+        <path
+          d={semiArc(100, cy, r, share)}
+          fill="none"
+          stroke={ACCENT}
+          strokeWidth="9"
+          strokeLinecap="round"
+          data-part="mark"
+        />
+        <text
+          x="100"
+          y={cy - 8}
+          textAnchor="middle"
+          fontSize="16"
+          fill={ink(0.85)}
+          fontFamily={TXT.value.fontFamily}
+        >
+          {display ?? `${Math.round(share * 100)}%`}
         </text>
-      )}
-      <text x={100 - r} y={cy + 12} textAnchor="middle" {...TXT.axis}>
-        {min}
-      </text>
-      <text x={100 + r} y={cy + 12} textAnchor="middle" {...TXT.axis}>
-        {max}
-      </text>
-    </ChartSvg>
-  );
-}
+        {label && (
+          <text x="100" y={cy + 2} textAnchor="middle" {...TXT.axis}>
+            {label}
+          </text>
+        )}
+        <text x={100 - r} y={cy + 12} textAnchor="middle" {...TXT.axis}>
+          {min}
+        </text>
+        <text x={100 + r} y={cy + 12} textAnchor="middle" {...TXT.axis}>
+          {max}
+        </text>
+      </ChartSvg>
+    );
+  },
+);
+
+Gauge.displayName = "Gauge";

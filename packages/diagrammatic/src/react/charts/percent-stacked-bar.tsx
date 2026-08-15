@@ -1,4 +1,6 @@
-import type { BaseProps, Series } from "../../core/types";
+import type { BaseProps } from "../svg";
+import { forwardRef } from "react";
+import type { Series } from "../../core/types";
 import { cat } from "../../core/theme";
 import { AxisLabels, ChartSvg, Legend, vbHeight } from "../svg";
 
@@ -7,14 +9,10 @@ export type PercentStackedBarProps = BaseProps & {
   series: Series[];
 };
 
-export function PercentStackedBar({
-  groups,
-  series,
-  legend,
-  title,
-  aspect,
-  className,
-}: PercentStackedBarProps) {
+export const PercentStackedBar = forwardRef<
+  SVGSVGElement,
+  PercentStackedBarProps
+>(({ groups, series, legend, title, aspect, className, ...rest }, ref) => {
   const vh = vbHeight(aspect, 5 / 3);
   const showLegend = legend ?? series.length > 1;
   const top = showLegend ? 26 : 14;
@@ -23,7 +21,7 @@ export function PercentStackedBar({
   const width = Math.min(21, step * 0.58);
   const centers = groups.map((_, g) => 14 + step * (g + 0.5));
   return (
-    <ChartSvg vh={vh} title={title} className={className}>
+    <ChartSvg ref={ref} {...rest} vh={vh} title={title} className={className}>
       {showLegend && (
         <Legend
           names={series.map((s) => s.name)}
@@ -58,4 +56,6 @@ export function PercentStackedBar({
       <AxisLabels labels={groups} xs={centers} y={vh - 4} />
     </ChartSvg>
   );
-}
+});
+
+PercentStackedBar.displayName = "PercentStackedBar";

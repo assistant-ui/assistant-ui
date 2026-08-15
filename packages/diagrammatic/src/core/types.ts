@@ -7,22 +7,6 @@ export type Graph = { nodes: GraphNode[]; links: GraphLink[] };
 export type Matrix = { rows: string[]; cols: string[]; values: number[][] };
 export type Pt = { x: number; y: number };
 
-/**
- * The contract every chart accepts. `title` names the chart for assistive
- * technology; without it the SVG renders as decorative. `labels` are the
- * category or tick labels along the primary axis; omitting them omits the axis
- * text. `legend` defaults to automatic: shown when two or more series are
- * present. `format` renders numbers wherever the chart prints one.
- */
-export type BaseProps = {
-  title?: string;
-  labels?: string[];
-  legend?: boolean;
-  format?: (value: number) => string;
-  aspect?: number;
-  className?: string;
-};
-
 export function formatCompact(value: number): string {
   const abs = Math.abs(value);
   const trim = (n: number) => {

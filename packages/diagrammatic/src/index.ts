@@ -1,5 +1,4 @@
 export type {
-  BaseProps,
   Graph,
   GraphLink,
   GraphNode,
@@ -10,6 +9,7 @@ export type {
   TreeNode,
 } from "./core/types";
 export { formatCompact } from "./core/types";
+export type { BaseProps, MicroBaseProps } from "./react/svg";
 export type { Tile } from "./core/tiles";
 export { ABSTRACT_TILES } from "./core/tiles";
 

@@ -1,4 +1,9 @@
-import { createElement, type ComponentType, type ReactElement } from "react";
+import {
+  createElement,
+  type ComponentPropsWithoutRef,
+  type ElementType,
+  type ReactElement,
+} from "react";
 import { formatCompact } from "../core/types";
 import * as charts from "../index";
 import type {
@@ -86,7 +91,14 @@ type Common = {
   unit?: Unit;
 };
 
-type Strip<P> = Omit<P, "format" | "className">;
+/**
+ * A spec is JSON: the svg prop surface (event handlers, style, refs) and the
+ * format function stay out; `title` survives because it names the chart.
+ */
+type Strip<P> = Omit<
+  P,
+  "format" | keyof Omit<ComponentPropsWithoutRef<"svg">, "children">
+> & { title?: string };
 type S<T extends string, P> = Common & { type: T } & Strip<P>;
 
 export type ChartSpec =
@@ -167,17 +179,14 @@ export type ChartSpec =
 
 type Kind = "array" | "object" | "string" | "number";
 type Descriptor = {
-  Component: ComponentType<Record<string, unknown>>;
+  Component: ElementType;
   required: [string, Kind][];
 };
 
 const entry = (
-  Component: ComponentType<never>,
+  Component: ElementType,
   required: [string, Kind][],
-): Descriptor => ({
-  Component: Component as ComponentType<Record<string, unknown>>,
-  required,
-});
+): Descriptor => ({ Component, required });
 
 const REGISTRY: Record<string, Descriptor> = {
   line: entry(charts.Line, []),

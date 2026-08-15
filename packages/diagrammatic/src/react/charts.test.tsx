@@ -533,4 +533,34 @@ describe("every chart form", () => {
     expect(html).toContain("var(--dg-c1, #3b82f6)");
     expect(html).not.toMatch(/(?:fill|stroke)="#(?!fff)/);
   });
+
+  it("passes native svg props through and merges style", () => {
+    const html = renderToStaticMarkup(
+      <dg.Line
+        data={[1, 2, 3]}
+        data-testid="chart"
+        aria-label="Signups"
+        style={{ maxWidth: "20rem" }}
+      />,
+    );
+    expect(html).toContain('data-testid="chart"');
+    expect(html).toContain('role="img"');
+    expect(html).toContain('aria-label="Signups"');
+    expect(html).toContain("max-width:20rem");
+    expect(html).toContain("display:block");
+  });
+
+  it("forwards refs on every chart form", () => {
+    for (const [name, componentOrValue] of Object.entries(dg)) {
+      if (typeof componentOrValue !== "object" || componentOrValue === null)
+        continue;
+      if (!("displayName" in componentOrValue)) continue;
+      expect((componentOrValue as { displayName?: string }).displayName).toBe(
+        name,
+      );
+    }
+    expect((dg.Sankey as { $$typeof?: symbol }).$$typeof?.toString()).toContain(
+      "react.forward_ref",
+    );
+  });
 });

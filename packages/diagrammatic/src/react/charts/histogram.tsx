@@ -1,4 +1,5 @@
-import type { BaseProps } from "../../core/types";
+import type { BaseProps } from "../svg";
+import { forwardRef } from "react";
 import { barPath, stroke } from "../../core/geometry";
 import { ACCENT, GRID, ink } from "../../core/theme";
 import { AxisLabels, ChartSvg, TXT, vbHeight } from "../svg";
@@ -8,79 +9,76 @@ export type HistogramProps = BaseProps & {
   marker?: { at: number; label?: string };
 };
 
-export function Histogram({
-  bins,
-  marker,
-  labels,
-  title,
-  aspect,
-  className,
-}: HistogramProps) {
-  const vh = vbHeight(aspect, 5 / 3);
-  const bottom = labels ? vh - 16 : vh - 8;
-  const max = Math.max(...bins, 1);
-  const width = 176 / Math.max(1, bins.length);
-  return (
-    <ChartSvg vh={vh} title={title} className={className}>
-      <line
-        x1="10"
-        y1={bottom}
-        x2="190"
-        y2={bottom}
-        stroke={GRID}
-        data-part="grid"
-        {...stroke.hair}
-      />
-      {bins.map((v, i) => (
-        <path
-          key={i}
-          d={barPath(
-            12 + i * width,
-            bottom - (v / max) * (bottom - 16),
-            width - 1.4,
-            (v / max) * (bottom - 16),
-            2,
-            "top",
-          )}
-          fill={ink(0.35)}
-          data-part="mark"
-          data-i={i}
+export const Histogram = forwardRef<SVGSVGElement, HistogramProps>(
+  ({ bins, marker, labels, title, aspect, className, ...rest }, ref) => {
+    const vh = vbHeight(aspect, 5 / 3);
+    const bottom = labels ? vh - 16 : vh - 8;
+    const max = Math.max(...bins, 1);
+    const width = 176 / Math.max(1, bins.length);
+    return (
+      <ChartSvg ref={ref} {...rest} vh={vh} title={title} className={className}>
+        <line
+          x1="10"
+          y1={bottom}
+          x2="190"
+          y2={bottom}
+          stroke={GRID}
+          data-part="grid"
+          {...stroke.hair}
         />
-      ))}
-      {marker && (
-        <g>
-          <line
-            x1={12 + (marker.at / Math.max(1, bins.length)) * 176}
-            y1="12"
-            x2={12 + (marker.at / Math.max(1, bins.length)) * 176}
-            y2={bottom}
-            stroke={ACCENT}
-            strokeDasharray="3 3"
-            data-part="grid"
-            {...stroke.hair}
+        {bins.map((v, i) => (
+          <path
+            key={i}
+            d={barPath(
+              12 + i * width,
+              bottom - (v / max) * (bottom - 16),
+              width - 1.4,
+              (v / max) * (bottom - 16),
+              2,
+              "top",
+            )}
+            fill={ink(0.35)}
+            data-part="mark"
+            data-i={i}
           />
-          {marker.label && (
-            <text
-              x={15 + (marker.at / Math.max(1, bins.length)) * 176}
-              y="12"
-              fontSize="4.5"
-              fill={ACCENT}
-              fontFamily={TXT.axis.fontFamily}
-            >
-              {marker.label}
-            </text>
-          )}
-        </g>
-      )}
-      {labels && (
-        <AxisLabels
-          labels={labels}
-          xs={labels.map(
-            (_, i) => 12 + (i * 176) / Math.max(1, labels.length - 1),
-          )}
-          y={vh - 4}
-        />
-      )}
-    </ChartSvg>
-  );
-}
+        ))}
+        {marker && (
+          <g>
+            <line
+              x1={12 + (marker.at / Math.max(1, bins.length)) * 176}
+              y1="12"
+              x2={12 + (marker.at / Math.max(1, bins.length)) * 176}
+              y2={bottom}
+              stroke={ACCENT}
+              strokeDasharray="3 3"
+              data-part="grid"
+              {...stroke.hair}
+            />
+            {marker.label && (
+              <text
+                x={15 + (marker.at / Math.max(1, bins.length)) * 176}
+                y="12"
+                fontSize="4.5"
+                fill={ACCENT}
+                fontFamily={TXT.axis.fontFamily}
+              >
+                {marker.label}
+              </text>
+            )}
+          </g>
+        )}
+        {labels && (
+          <AxisLabels
+            labels={labels}
+            xs={labels.map(
+              (_, i) => 12 + (i * 176) / Math.max(1, labels.length - 1),
+            )}
+            y={vh - 4}
+          />
+        )}
+      </ChartSvg>
+    );
+  },
+);
+
+Histogram.displayName = "Histogram";

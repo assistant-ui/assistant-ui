@@ -1,4 +1,6 @@
-import type { BaseProps, Pt } from "../../core/types";
+import type { BaseProps } from "../svg";
+import { forwardRef } from "react";
+import type { Pt } from "../../core/types";
 import { extent, round, stroke } from "../../core/geometry";
 import { ACCENT, GRID, ink } from "../../core/theme";
 import { ChartSvg, TXT, vbHeight } from "../svg";
@@ -26,77 +28,76 @@ export function scatterFrame(
   };
 }
 
-export function Scatter({
-  points,
-  trend,
-  xLabel,
-  yLabel,
-  title,
-  aspect,
-  className,
-}: ScatterProps) {
-  const vh = vbHeight(aspect, 5 / 3);
-  const { X, Y, bottom } = scatterFrame(points, vh);
-  const n = points.length || 1;
-  const mx = points.reduce((s, p) => s + p.x, 0) / n;
-  const my = points.reduce((s, p) => s + p.y, 0) / n;
-  const slope =
-    points.reduce((s, p) => s + (p.x - mx) * (p.y - my), 0) /
-    (points.reduce((s, p) => s + (p.x - mx) ** 2, 0) || 1);
-  const [xLo, xHi] = extent(points.map((p) => p.x));
-  return (
-    <ChartSvg vh={vh} title={title} className={className}>
-      <line
-        x1="14"
-        y1={bottom}
-        x2="186"
-        y2={bottom}
-        stroke={GRID}
-        data-part="grid"
-        {...stroke.hair}
-      />
-      <line
-        x1="14"
-        y1={bottom}
-        x2="14"
-        y2="8"
-        stroke={GRID}
-        data-part="grid"
-        {...stroke.hair}
-      />
-      {trend && (
+export const Scatter = forwardRef<SVGSVGElement, ScatterProps>(
+  (
+    { points, trend, xLabel, yLabel, title, aspect, className, ...rest },
+    ref,
+  ) => {
+    const vh = vbHeight(aspect, 5 / 3);
+    const { X, Y, bottom } = scatterFrame(points, vh);
+    const n = points.length || 1;
+    const mx = points.reduce((s, p) => s + p.x, 0) / n;
+    const my = points.reduce((s, p) => s + p.y, 0) / n;
+    const slope =
+      points.reduce((s, p) => s + (p.x - mx) * (p.y - my), 0) /
+      (points.reduce((s, p) => s + (p.x - mx) ** 2, 0) || 1);
+    const [xLo, xHi] = extent(points.map((p) => p.x));
+    return (
+      <ChartSvg ref={ref} {...rest} vh={vh} title={title} className={className}>
         <line
-          x1={round(X(xLo))}
-          y1={round(Y(my + slope * (xLo - mx)))}
-          x2={round(X(xHi))}
-          y2={round(Y(my + slope * (xHi - mx)))}
-          stroke={ACCENT}
-          strokeDasharray="4 4"
-          opacity="0.7"
+          x1="14"
+          y1={bottom}
+          x2="186"
+          y2={bottom}
+          stroke={GRID}
+          data-part="grid"
           {...stroke.hair}
         />
-      )}
-      {points.map((p, i) => (
-        <circle
-          key={i}
-          cx={round(X(p.x))}
-          cy={round(Y(p.y))}
-          r="3"
-          fill={ink(0.5)}
-          data-part="mark"
-          data-i={i}
+        <line
+          x1="14"
+          y1={bottom}
+          x2="14"
+          y2="8"
+          stroke={GRID}
+          data-part="grid"
+          {...stroke.hair}
         />
-      ))}
-      {yLabel && (
-        <text x="19" y="12" {...TXT.axis}>
-          {yLabel} ↑
-        </text>
-      )}
-      {xLabel && (
-        <text x="186" y={vh - 5} textAnchor="end" {...TXT.axis}>
-          {xLabel} →
-        </text>
-      )}
-    </ChartSvg>
-  );
-}
+        {trend && (
+          <line
+            x1={round(X(xLo))}
+            y1={round(Y(my + slope * (xLo - mx)))}
+            x2={round(X(xHi))}
+            y2={round(Y(my + slope * (xHi - mx)))}
+            stroke={ACCENT}
+            strokeDasharray="4 4"
+            opacity="0.7"
+            {...stroke.hair}
+          />
+        )}
+        {points.map((p, i) => (
+          <circle
+            key={i}
+            cx={round(X(p.x))}
+            cy={round(Y(p.y))}
+            r="3"
+            fill={ink(0.5)}
+            data-part="mark"
+            data-i={i}
+          />
+        ))}
+        {yLabel && (
+          <text x="19" y="12" {...TXT.axis}>
+            {yLabel} ↑
+          </text>
+        )}
+        {xLabel && (
+          <text x="186" y={vh - 5} textAnchor="end" {...TXT.axis}>
+            {xLabel} →
+          </text>
+        )}
+      </ChartSvg>
+    );
+  },
+);
+
+Scatter.displayName = "Scatter";

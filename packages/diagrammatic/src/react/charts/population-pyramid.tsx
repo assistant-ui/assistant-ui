@@ -1,4 +1,6 @@
-import type { BaseProps, Series } from "../../core/types";
+import type { BaseProps } from "../svg";
+import { forwardRef } from "react";
+import type { Series } from "../../core/types";
 import { barPath } from "../../core/geometry";
 import { C } from "../../core/theme";
 import { ChartSvg, Legend, TXT, vbHeight } from "../svg";
@@ -9,22 +11,17 @@ export type PopulationPyramidProps = BaseProps & {
   right: Series;
 };
 
-export function PopulationPyramid({
-  bands,
-  left,
-  right,
-  legend,
-  title,
-  aspect,
-  className,
-}: PopulationPyramidProps) {
+export const PopulationPyramid = forwardRef<
+  SVGSVGElement,
+  PopulationPyramidProps
+>(({ bands, left, right, legend, title, aspect, className, ...rest }, ref) => {
   const vh = vbHeight(aspect, 5 / 3);
   const showLegend = legend ?? true;
   const top = showLegend ? 16 : 8;
   const max = Math.max(...left.data, ...right.data, 1);
   const rowH = (vh - top - 6) / Math.max(1, bands.length);
   return (
-    <ChartSvg vh={vh} title={title} className={className}>
+    <ChartSvg ref={ref} {...rest} vh={vh} title={title} className={className}>
       {showLegend && (
         <Legend
           names={[left.name, right.name]}
@@ -65,4 +62,6 @@ export function PopulationPyramid({
       })}
     </ChartSvg>
   );
-}
+});
+
+PopulationPyramid.displayName = "PopulationPyramid";

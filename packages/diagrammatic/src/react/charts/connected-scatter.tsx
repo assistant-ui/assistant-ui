@@ -1,4 +1,5 @@
-import type { BaseProps } from "../../core/types";
+import type { BaseProps } from "../svg";
+import { forwardRef } from "react";
 import { linePath, round, stroke } from "../../core/geometry";
 import { ACCENT, GRID, SURFACE, ink } from "../../core/theme";
 import { ChartSvg, TXT, vbHeight } from "../svg";
@@ -10,21 +11,17 @@ export type ConnectedScatterProps = BaseProps & {
   yLabel?: string;
 };
 
-export function ConnectedScatter({
-  points,
-  xLabel,
-  yLabel,
-  title,
-  aspect,
-  className,
-}: ConnectedScatterProps) {
+export const ConnectedScatter = forwardRef<
+  SVGSVGElement,
+  ConnectedScatterProps
+>(({ points, xLabel, yLabel, title, aspect, className, ...rest }, ref) => {
   const vh = vbHeight(aspect, 5 / 3);
   const { X, Y, bottom } = scatterFrame(points, vh);
   const path = points.map((p) => ({ x: X(p.x), y: Y(p.y) }));
   const first = path[0];
   const last = path[path.length - 1];
   return (
-    <ChartSvg vh={vh} title={title} className={className}>
+    <ChartSvg ref={ref} {...rest} vh={vh} title={title} className={className}>
       <line
         x1="14"
         y1={bottom}
@@ -103,4 +100,6 @@ export function ConnectedScatter({
       )}
     </ChartSvg>
   );
-}
+});
+
+ConnectedScatter.displayName = "ConnectedScatter";

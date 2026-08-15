@@ -1,4 +1,5 @@
-import type { BaseProps } from "../../core/types";
+import type { BaseProps } from "../svg";
+import { forwardRef } from "react";
 import { extent, round, stroke } from "../../core/geometry";
 import { GRID, cat } from "../../core/theme";
 import { ChartSvg, Legend, TXT, vbHeight } from "../svg";
@@ -8,14 +9,10 @@ export type ParallelCoordinatesProps = BaseProps & {
   records: { name: string; values: number[] }[];
 };
 
-export function ParallelCoordinates({
-  axes,
-  records,
-  legend,
-  title,
-  aspect,
-  className,
-}: ParallelCoordinatesProps) {
+export const ParallelCoordinates = forwardRef<
+  SVGSVGElement,
+  ParallelCoordinatesProps
+>(({ axes, records, legend, title, aspect, className, ...rest }, ref) => {
   const vh = vbHeight(aspect, 5 / 3);
   const showLegend = legend ?? records.length > 1;
   const bottom = showLegend ? vh - 16 : vh - 8;
@@ -28,7 +25,7 @@ export function ParallelCoordinates({
     return bottom - 2 - ((value - lo) / (hi - lo || 1)) * (bottom - 18);
   };
   return (
-    <ChartSvg vh={vh} title={title} className={className}>
+    <ChartSvg ref={ref} {...rest} vh={vh} title={title} className={className}>
       {axes.map((axis, a) => (
         <g key={axis} data-part="axis">
           <line
@@ -80,4 +77,6 @@ export function ParallelCoordinates({
       )}
     </ChartSvg>
   );
-}
+});
+
+ParallelCoordinates.displayName = "ParallelCoordinates";

@@ -25,6 +25,10 @@
       "types": "./dist/spec/index.d.ts",
       "default": "./dist/spec/index.js"
     },
+    "./interactive": {
+      "types": "./dist/interactive/index.d.ts",
+      "default": "./dist/interactive/index.js"
+    },
     "./styles.css": {
       "style": "./src/styles.css",
       "default": "./src/styles.css"
@@ -56,8 +60,10 @@
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
+    "@testing-library/react": "^16.3.2",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
+    "jsdom": "^30.0.1",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "vitest": "^4.1.10"
