@@ -41,6 +41,7 @@ const getMaxScrollTop = (element: Element) =>
 
 let forceShortViewportMeasurement = false;
 let viewportMeasurementOffset = 0;
+let deferScrollToBottom = false;
 const resizeObserverCallbacks = new Set<ResizeObserverCallback>();
 
 class TestResizeObserver {
@@ -123,6 +124,7 @@ beforeAll(() => {
   Object.defineProperty(HTMLElement.prototype, "scrollTo", {
     configurable: true,
     value({ top = 0 }: ScrollToOptions) {
+      if (deferScrollToBottom) return;
       this.scrollTop = Math.min(Number(top), getMaxScrollTop(this));
       this.dispatchEvent(new Event("scroll"));
     },
@@ -132,6 +134,7 @@ beforeAll(() => {
 afterEach(() => {
   forceShortViewportMeasurement = false;
   viewportMeasurementOffset = 0;
+  deferScrollToBottom = false;
   resizeObserverCallbacks.clear();
   cleanup();
 });
@@ -309,6 +312,76 @@ describe("useThreadViewportAutoScroll", () => {
     expect(behaviors[0]).toBe("auto");
     expect(behaviors).not.toContain("instant");
 
+    scrollToSpy.mockRestore();
+  });
+
+  it("keeps following bottom content after a transient growth-burst scroll event", async () => {
+    let releaseRun!: () => void;
+    const runGate = new Promise<void>((resolve) => {
+      releaseRun = resolve;
+    });
+    const streamingAdapter: ChatModelAdapter = {
+      async *run() {
+        await runGate;
+        yield { content: [{ type: "text", text: "done" }] };
+      },
+    };
+    const scrollToSpy = vi.spyOn(HTMLElement.prototype, "scrollTo");
+
+    let runtime: ReturnType<typeof useLocalRuntime> | null = null;
+    const Harness: FC = () => {
+      runtime = useLocalRuntime(streamingAdapter, {
+        initialMessages: messages,
+      });
+      return (
+        <AssistantRuntimeProvider runtime={runtime}>
+          <BottomAnchorThread />
+        </AssistantRuntimeProvider>
+      );
+    };
+
+    render(<Harness />);
+
+    const viewport = getViewport();
+    await waitFor(() => {
+      expect(viewport.scrollTop).toBe(getMaxScrollTop(viewport));
+    });
+
+    scrollToSpy.mockClear();
+    deferScrollToBottom = true;
+    act(() => {
+      void runtime!.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "hello" }],
+      });
+    });
+
+    await waitFor(() => {
+      expect(
+        scrollToSpy.mock.calls.some(
+          (call) => (call[0] as ScrollToOptions).behavior === "auto",
+        ),
+      ).toBe(true);
+    });
+
+    act(notifyResizeObservers);
+    const scrollTopBeforeTransientEvent = viewport.scrollTop;
+    act(() => {
+      viewport.scrollTop = scrollTopBeforeTransientEvent - 2;
+      viewport.dispatchEvent(new Event("scroll"));
+    });
+
+    deferScrollToBottom = false;
+    viewportMeasurementOffset += 200;
+    act(notifyResizeObservers);
+
+    await waitFor(() => {
+      expect(viewport.scrollTop).toBe(getMaxScrollTop(viewport));
+    });
+
+    await act(async () => {
+      releaseRun();
+    });
     scrollToSpy.mockRestore();
   });
 

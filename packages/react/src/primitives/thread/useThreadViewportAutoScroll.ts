@@ -132,10 +132,10 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
           scrollingToBottomBehaviorRef.current = null;
         }
       } else if (
+        scrollingToBottomBehaviorRef.current === null &&
         lastScrollTop.current > div.scrollTop &&
         lastScrollHeight.current === div.scrollHeight
       ) {
-        // scrollHeight equality rules out content-driven shifts being misread as user scroll-up
         scrollingToBottomBehaviorRef.current = null;
       }
 
