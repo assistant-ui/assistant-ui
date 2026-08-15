@@ -14,7 +14,7 @@ cd assistant-ui
 pnpm install
 ```
 
-The example runs inside the monorepo with pnpm. It is not registered in `npx assistant-ui create` yet because `@openuidev/react-headless` currently declares an optional peer on `ai@^6`, which fails npm's resolver against the `ai@^7` this example uses.
+The example runs inside the monorepo with pnpm.
 
 ### Environment Variables
 

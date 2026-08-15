@@ -33,11 +33,7 @@ Alongside an existing `@assistant-ui/react` setup, add the integration and its O
 
 <InstallCommand npm={["@openuidev/assistant-ui", "@openuidev/react-ui", "@openuidev/react-lang", "@openuidev/react-headless", "zustand@^4.5.5"]} />
 
-The package also expects `zod` and React 18 or 19, which an assistant-ui app already has. Note that the OpenUI packages peer-depend on Zustand 4.
-
-<Callout type="warn">
-  `@openuidev/react-headless` currently declares an optional peer on `ai@^6`. With `ai@^7` in your app, pnpm and yarn resolve with a warning, but npm fails with `ERESOLVE`; pass `--legacy-peer-deps` to npm, or use pnpm, until OpenUI widens the range.
-</Callout>
+The package also expects `zod` and React 18 or 19, which an assistant-ui app already has. The current OpenUI peers support AI SDK 6 and 7 and require Zustand 4.
 
 </Step>
 
