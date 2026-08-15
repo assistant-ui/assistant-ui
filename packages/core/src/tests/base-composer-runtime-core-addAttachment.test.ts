@@ -38,6 +38,22 @@ const makeComposer = (adapter?: AttachmentAdapter) => {
   return new DefaultThreadComposerRuntimeCore(runtime);
 };
 
+const makeUploadingAttachment = (
+  file: File,
+  id: string,
+): PendingAttachment => ({
+  id,
+  type: "image",
+  name: file.name,
+  contentType: file.type,
+  file,
+  status: {
+    type: "running",
+    reason: "uploading",
+    progress: 0,
+  },
+});
+
 describe("BaseComposerRuntimeCore.addAttachment error events", () => {
   it("emits attachmentAddError when no adapter is configured", async () => {
     const composer = makeComposer();
@@ -126,6 +142,286 @@ describe("BaseComposerRuntimeCore.addAttachment error events", () => {
 
     expect(onAdd).toHaveBeenCalledTimes(1);
     expect(onError).not.toHaveBeenCalled();
+  });
+
+  it("does not restore an attachment removed while add is still running", async () => {
+    let finishUpload!: () => void;
+    const uploadPending = new Promise<void>((resolve) => {
+      finishUpload = resolve;
+    });
+    let finishRemoval!: () => void;
+    const removalPending = new Promise<void>((resolve) => {
+      finishRemoval = resolve;
+    });
+    const remove = vi.fn(() => removalPending);
+    const continueUpload = vi.fn();
+    const cleanUpUpload = vi.fn();
+    const composer = makeComposer(
+      makeAdapter({
+        remove,
+        async *add({ file }: { file: File }) {
+          const attachment = makeUploadingAttachment(file, "att-1");
+          try {
+            yield attachment;
+            await uploadPending;
+            yield {
+              ...attachment,
+              status: { type: "requires-action", reason: "composer-send" },
+            };
+            continueUpload();
+            yield attachment;
+          } finally {
+            cleanUpUpload();
+          }
+        },
+      }),
+    );
+    const onAdd = vi.fn();
+    composer.unstable_on("attachmentAdd", onAdd);
+
+    const addTask = composer.addAttachment(
+      new File(["x"], "f.png", { type: "image/png" }),
+    );
+    await vi.waitFor(() => {
+      expect(composer.attachments).toHaveLength(1);
+    });
+
+    const removeTask = composer.removeAttachment("att-1");
+    finishUpload();
+    await addTask;
+
+    expect(remove).toHaveBeenCalledTimes(1);
+    expect(onAdd).not.toHaveBeenCalled();
+    expect(continueUpload).not.toHaveBeenCalled();
+    expect(cleanUpUpload).toHaveBeenCalledTimes(1);
+
+    finishRemoval();
+    await removeTask;
+    expect(composer.attachments).toHaveLength(0);
+  });
+
+  it("settles a pending attachment when adapter removal fails", async () => {
+    let finishUpload!: () => void;
+    const uploadPending = new Promise<void>((resolve) => {
+      finishUpload = resolve;
+    });
+    const cleanUpUpload = vi.fn();
+    const composer = makeComposer(
+      makeAdapter({
+        remove: vi.fn().mockRejectedValue(new Error("remove failed")),
+        async *add({ file }: { file: File }) {
+          const attachment = makeUploadingAttachment(file, "att-1");
+          try {
+            yield attachment;
+            await uploadPending;
+            yield {
+              ...attachment,
+              status: { type: "requires-action", reason: "composer-send" },
+            };
+          } finally {
+            cleanUpUpload();
+          }
+        },
+      }),
+    );
+    const onAdd = vi.fn();
+    composer.unstable_on("attachmentAdd", onAdd);
+
+    const addTask = composer.addAttachment(
+      new File(["x"], "f.png", { type: "image/png" }),
+    );
+    await vi.waitFor(() => {
+      expect(composer.attachments).toHaveLength(1);
+    });
+
+    await expect(composer.removeAttachment("att-1")).rejects.toThrow(
+      "remove failed",
+    );
+    expect(composer.attachments[0]?.status).toEqual({
+      type: "incomplete",
+      reason: "error",
+      message: "remove failed",
+    });
+
+    finishUpload();
+    await addTask;
+
+    expect(composer.attachments[0]?.status.type).toBe("incomplete");
+    expect(cleanUpUpload).toHaveBeenCalledTimes(1);
+    expect(onAdd).not.toHaveBeenCalled();
+  });
+
+  it("keeps a concurrent add registered before its first yield", async () => {
+    let startSlowUpload!: () => void;
+    const slowUploadStarted = new Promise<void>((resolve) => {
+      startSlowUpload = resolve;
+    });
+    let finishSlowUpload!: () => void;
+    const slowUploadPending = new Promise<void>((resolve) => {
+      finishSlowUpload = resolve;
+    });
+    const composer = makeComposer(
+      makeAdapter({
+        async *add({ file }: { file: File }) {
+          const attachment = makeUploadingAttachment(file, `att-${file.name}`);
+          if (file.name === "slow.png") await slowUploadStarted;
+          yield attachment;
+          if (file.name === "slow.png") await slowUploadPending;
+          yield {
+            ...attachment,
+            status: { type: "requires-action", reason: "composer-send" },
+          };
+        },
+      }),
+    );
+    const onAdd = vi.fn();
+    composer.unstable_on("attachmentAdd", onAdd);
+
+    const slowAddTask = composer.addAttachment(
+      new File(["slow"], "slow.png", { type: "image/png" }),
+    );
+    await composer.addAttachment(
+      new File(["fast"], "fast.png", { type: "image/png" }),
+    );
+
+    startSlowUpload();
+    await vi.waitFor(() => {
+      expect(
+        composer.attachments.some(
+          (attachment) => attachment.id === "att-slow.png",
+        ),
+      ).toBe(true);
+    });
+    await composer.removeAttachment("att-slow.png");
+    finishSlowUpload();
+    await slowAddTask;
+
+    expect(
+      composer.attachments.some(
+        (attachment) => attachment.id === "att-slow.png",
+      ),
+    ).toBe(false);
+    expect(onAdd).toHaveBeenCalledTimes(1);
+  });
+
+  it("cancels an add cleared before its first yield", async () => {
+    let startUpload!: () => void;
+    const uploadPending = new Promise<void>((resolve) => {
+      startUpload = resolve;
+    });
+    const composer = makeComposer(
+      makeAdapter({
+        async *add({ file }: { file: File }) {
+          await uploadPending;
+          yield makeUploadingAttachment(file, "att-1");
+        },
+      }),
+    );
+    const onAdd = vi.fn();
+    composer.unstable_on("attachmentAdd", onAdd);
+
+    const addTask = composer.addAttachment(
+      new File(["x"], "f.png", { type: "image/png" }),
+    );
+    await composer.clearAttachments();
+    startUpload();
+    await addTask;
+
+    expect(composer.attachments).toHaveLength(0);
+    expect(onAdd).not.toHaveBeenCalled();
+  });
+
+  it("cancels a promise add cleared before it resolves", async () => {
+    let finishUpload!: () => void;
+    const uploadPending = new Promise<void>((resolve) => {
+      finishUpload = resolve;
+    });
+    const composer = makeComposer(
+      makeAdapter({
+        add: async ({ file }: { file: File }) => {
+          await uploadPending;
+          return makeUploadingAttachment(file, "att-1");
+        },
+      }),
+    );
+    const onAdd = vi.fn();
+    composer.unstable_on("attachmentAdd", onAdd);
+
+    const addTask = composer.addAttachment(
+      new File(["x"], "f.png", { type: "image/png" }),
+    );
+    await composer.clearAttachments();
+    finishUpload();
+    await addTask;
+
+    expect(composer.attachments).toHaveLength(0);
+    expect(onAdd).not.toHaveBeenCalled();
+  });
+
+  it("cancels an add reset before its first yield", async () => {
+    let startUpload!: () => void;
+    const uploadPending = new Promise<void>((resolve) => {
+      startUpload = resolve;
+    });
+    const composer = makeComposer(
+      makeAdapter({
+        async *add({ file }: { file: File }) {
+          await uploadPending;
+          yield makeUploadingAttachment(file, "att-1");
+        },
+      }),
+    );
+    const onAdd = vi.fn();
+    composer.unstable_on("attachmentAdd", onAdd);
+
+    const addTask = composer.addAttachment(
+      new File(["x"], "f.png", { type: "image/png" }),
+    );
+    await composer.reset();
+    startUpload();
+    await addTask;
+
+    expect(composer.attachments).toHaveLength(0);
+    expect(onAdd).not.toHaveBeenCalled();
+  });
+
+  it("cancels every concurrent add sharing an attachment id", async () => {
+    let finishUploads!: () => void;
+    const uploadsPending = new Promise<void>((resolve) => {
+      finishUploads = resolve;
+    });
+    const firstYieldsConsumed = vi.fn();
+    const composer = makeComposer(
+      makeAdapter({
+        async *add({ file }: { file: File }) {
+          const attachment = makeUploadingAttachment(file, "shared");
+          yield attachment;
+          firstYieldsConsumed();
+          await uploadsPending;
+          yield {
+            ...attachment,
+            status: { type: "requires-action", reason: "composer-send" },
+          };
+        },
+      }),
+    );
+    const onAdd = vi.fn();
+    composer.unstable_on("attachmentAdd", onAdd);
+
+    const addTasks = [
+      composer.addAttachment(new File(["a"], "a.png", { type: "image/png" })),
+      composer.addAttachment(new File(["b"], "b.png", { type: "image/png" })),
+    ];
+    await vi.waitFor(() => {
+      expect(firstYieldsConsumed).toHaveBeenCalledTimes(2);
+    });
+
+    await composer.removeAttachment("shared");
+    finishUploads();
+    await Promise.all(addTasks);
+
+    expect(composer.attachments).toHaveLength(0);
+    expect(onAdd).not.toHaveBeenCalled();
   });
 
   it("adds prepared attachments when File is unavailable", async () => {

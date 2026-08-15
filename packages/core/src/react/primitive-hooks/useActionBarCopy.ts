@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef } from "react";
 import { useAui, useAuiState } from "@assistant-ui/store";
+import { actionBarCopyDisabled } from "../../store/primitive-predicates";
 
 export type UseActionBarCopyOptions = {
   copiedDuration?: number | undefined;
@@ -11,13 +12,7 @@ export const useActionBarCopy = ({
   copyToClipboard,
 }: UseActionBarCopyOptions = {}) => {
   const aui = useAui();
-  const disabled = useAuiState((s) => {
-    return !(
-      (s.message.role !== "assistant" ||
-        s.message.status?.type !== "running") &&
-      s.message.parts.some((c) => c.type === "text" && c.text.length > 0)
-    );
-  });
+  const disabled = useAuiState(actionBarCopyDisabled);
   const isCopied = useAuiState((s) => s.message.isCopied);
   const isEditing = useAuiState((s) => s.composer.isEditing);
   const composerValue = useAuiState((s) => s.composer.text);

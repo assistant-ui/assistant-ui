@@ -2,10 +2,10 @@ import { useMemo } from "react";
 import { Box, Text } from "ink";
 import {
   AssistantRuntimeProvider,
+  AuiConfig,
   useLocalRuntime,
   StatusBarPrimitive,
   Tools,
-  useAui,
 } from "@assistant-ui/react-ink";
 import { Thread } from "./components/thread.js";
 import { createScriptedAdapter, MODEL_NAME } from "./scripted-adapter.js";
@@ -23,12 +23,12 @@ const StatusBar = () => (
 export const App = () => {
   const adapter = useMemo(() => createScriptedAdapter(), []);
   const runtime = useLocalRuntime(adapter);
-  const aui = useAui({
+  const config = AuiConfig({
     tools: Tools({ toolkit }),
   });
 
   return (
-    <AssistantRuntimeProvider aui={aui} runtime={runtime}>
+    <AssistantRuntimeProvider runtime={runtime} config={config}>
       <Box flexDirection="column" padding={1}>
         <Box>
           <Text bold color="cyan">

@@ -37,8 +37,19 @@ out/
 .workflow-data
 .eve
 
+# agent rules `next dev` generates in each app it runs from
+/apps/*/AGENTS.md
+/apps/*/CLAUDE.md
+/examples/**/AGENTS.md
+/examples/**/CLAUDE.md
+/templates/*/AGENTS.md
+/templates/*/CLAUDE.md
+
 # nitro
 .output/
+
+# nuxt
+.nuxt/
 
 # build
 build/

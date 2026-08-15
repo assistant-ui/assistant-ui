@@ -5,12 +5,12 @@ import {
   type ActionButtonProps,
   createActionButton,
 } from "../../utils/createActionButton";
-import { useCallback } from "react";
-import { useAuiState, useAui } from "@assistant-ui/store";
+import { useAuiState } from "@assistant-ui/store";
+import { useSuggestionTrigger as useSuggestionTriggerBehavior } from "@assistant-ui/core/react";
 
 const useSuggestionTrigger = ({
   send,
-  clearComposer = true,
+  clearComposer,
 }: {
   /**
    * When true, automatically sends the message.
@@ -19,7 +19,8 @@ const useSuggestionTrigger = ({
   send?: boolean | undefined;
 
   /**
-   * Whether to clear the composer after sending.
+   * Whether to clear the composer after sending. A send queued while a run is
+   * in progress never clears the composer.
    * When send is set to false, determines if composer text is replaced with suggestion (true, default),
    * or if it's appended to the composer text (false).
    *
@@ -27,37 +28,15 @@ const useSuggestionTrigger = ({
    */
   clearComposer?: boolean | undefined;
 }) => {
-  const aui = useAui();
-  const disabled = useAuiState((s) => s.thread.isDisabled);
   const prompt = useAuiState((s) => s.suggestion.prompt);
-
-  const resolvedSend = send ?? false;
-
-  const callback = useCallback(() => {
-    const isRunning = aui.thread.getState().isRunning;
-
-    if (resolvedSend && !isRunning) {
-      aui.thread.append({
-        content: [{ type: "text", text: prompt }],
-        runConfig: aui.composer.getState().runConfig,
-      });
-      if (clearComposer) {
-        aui.composer.setText("");
-      }
-    } else {
-      if (clearComposer) {
-        aui.composer.setText(prompt);
-      } else {
-        const currentText = aui.composer.getState().text;
-        aui.composer.setText(
-          currentText.trim() ? `${currentText} ${prompt}` : prompt,
-        );
-      }
-    }
-  }, [aui, resolvedSend, clearComposer, prompt]);
+  const { trigger, disabled } = useSuggestionTriggerBehavior({
+    prompt,
+    send,
+    clearComposer,
+  });
 
   if (disabled) return null;
-  return callback;
+  return trigger;
 };
 
 export namespace SuggestionPrimitiveTrigger {

@@ -1,5 +1,86 @@
 # @assistant-ui/react-ag-ui
 
+## 0.0.54
+
+### Patch Changes
+
+- [#5805](https://github.com/assistant-ui/assistant-ui/pull/5805) [`48af3c5`](https://github.com/assistant-ui/assistant-ui/commit/48af3c5c4198b9f3fe015e77580922b2e4733e7a) - feat: round-trip a part's `providerMetadata.agui` through AG-UI's content `metadata`. An image or file part, whether it sits on the message or inside an attachment, now reaches the agent with whatever the host put in that namespace, and an inbound item puts it back on the rebuilt part, so a snapshot echo resends it instead of dropping it. A file part's own `filename` still wins over a key of the same name. Text is unchanged, its AG-UI schema has no metadata field. ([@okisdev](https://github.com/okisdev))
+
+- [#5807](https://github.com/assistant-ui/assistant-ui/pull/5807) [`84ef0df`](https://github.com/assistant-ui/assistant-ui/commit/84ef0dfca1c5b9c711dd89b85aa8fa09e5432f7b) - fix: preserve image filenames through AG-UI snapshots ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5803](https://github.com/assistant-ui/assistant-ui/pull/5803) [`a44c953`](https://github.com/assistant-ui/assistant-ui/commit/a44c953fffb26d8310e9c1ab26b86f1c6ebf12cc) - fix: preserve queued messages when cancelling an active run ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5755](https://github.com/assistant-ui/assistant-ui/pull/5755) [`b9d5ba3`](https://github.com/assistant-ui/assistant-ui/commit/b9d5ba358f130ef548f295ab35465ad7b61847a0) - fix: preserve encrypted-only reasoning records across the AG-UI round trip. Under zero data retention an agent sends a `ReasoningMessage` whose readable `content` is empty and whose payload is entirely in `encryptedValue`, and both the adapter and the core normalizer dropped it: the import guarded on empty text, and a reasoning part with neither text nor summary is removed by `fromThreadMessageLike`. Such a record now rides on `metadata.custom.agui.opaqueReasoning` of the neighbouring message instead of becoming an unrenderable part, and is replayed into the run input adjacent to that message. A record that sat between an assistant message and its own tool result is replayed after that result, since import folds the result into the assistant message and that boundary no longer exists at export. A runtime configured with `showThinking: false` is affected too: it previously emitted no `reasoning` records at all, and now emits `{ role: "reasoning", content: "", encryptedValue }` for each imported record that carried a value, since that option hides reasoning from the UI rather than discarding state the agent needs back. ([@okisdev](https://github.com/okisdev))
+
+- [#5752](https://github.com/assistant-ui/assistant-ui/pull/5752) [`ee4db08`](https://github.com/assistant-ui/assistant-ui/commit/ee4db0894b636c6754dcc6fdd7edbca6d9942996) - fix: keep reasoning, and its signature, across the AG-UI round trip. `toAgUiMessages` built the run input from `extractText`, which reads text parts only, so an imported reasoning-only assistant message was discarded as a blank turn and a live assistant message silently lost its reasoning; reloading a thread and sending one more message deleted the reasoning history from what the agent received. Reasoning parts now leave as the standalone `reasoning` records they arrived as. The runtime also consumes `REASONING_ENCRYPTED_VALUE` and stores the blob at `providerMetadata.agui.encryptedValue`, so reasoning from a live run and from an imported `ReasoningMessage` are both re-emitted with their signature intact rather than replayed unsigned. ([@okisdev](https://github.com/okisdev))
+
+- Updated dependencies [[`a90db30`](https://github.com/assistant-ui/assistant-ui/commit/a90db30dbf1c73eb2ba8cc587cf157b1a04ce541), [`cfb5fab`](https://github.com/assistant-ui/assistant-ui/commit/cfb5fab251784ce20722ec9371fd66137a9727f8), [`65e03a6`](https://github.com/assistant-ui/assistant-ui/commit/65e03a697366c62cc5295c28ae528634baaf2901), [`d3fece3`](https://github.com/assistant-ui/assistant-ui/commit/d3fece3b17487edbbeeedb903f0e8075f82b2dd7), [`63d6d34`](https://github.com/assistant-ui/assistant-ui/commit/63d6d346b5fa84910fb07b02e5b0ce0c994dc2bd), [`388a49b`](https://github.com/assistant-ui/assistant-ui/commit/388a49b42fd2c96f1072dfde51b8e1b268f51ccd), [`4b75b8f`](https://github.com/assistant-ui/assistant-ui/commit/4b75b8f96729314a369879d26d8e4cd8321eac36), [`1e98bcf`](https://github.com/assistant-ui/assistant-ui/commit/1e98bcf3f406385f3c924521b73300c12898fea6), [`82cbc15`](https://github.com/assistant-ui/assistant-ui/commit/82cbc1560b069ba1dd7e9b068585f5c647629b36), [`93ccfc2`](https://github.com/assistant-ui/assistant-ui/commit/93ccfc268b63df355da881d6009ce4900d6c8e99), [`e28a62d`](https://github.com/assistant-ui/assistant-ui/commit/e28a62d84439e93a32b64f166196cef2cb02e5db), [`48af3c5`](https://github.com/assistant-ui/assistant-ui/commit/48af3c5c4198b9f3fe015e77580922b2e4733e7a), [`22fa20f`](https://github.com/assistant-ui/assistant-ui/commit/22fa20ffd1f0d192c417b12d4512dcffeab5161b), [`00a630a`](https://github.com/assistant-ui/assistant-ui/commit/00a630aa93ce0a5e40f81fbf6ff1886275f72356), [`73fdb3a`](https://github.com/assistant-ui/assistant-ui/commit/73fdb3a415b5be71227a0bb1a84c0c6c99fcab07), [`2016d07`](https://github.com/assistant-ui/assistant-ui/commit/2016d070c10b67e09d3fe155becae6b51ee30604), [`417efee`](https://github.com/assistant-ui/assistant-ui/commit/417efee92b48f3fac057d65200f85d4df8657fa0), [`1e1d52b`](https://github.com/assistant-ui/assistant-ui/commit/1e1d52bd2f08b8712764792a9d95b608cb365b64), [`685a069`](https://github.com/assistant-ui/assistant-ui/commit/685a06939edb9478d68258cab632f389c2742a05), [`a3ef2f0`](https://github.com/assistant-ui/assistant-ui/commit/a3ef2f06abbbe595260c7f2654383a5758731134), [`1674523`](https://github.com/assistant-ui/assistant-ui/commit/167452334042fae4c5d171a5b6ad120c21fca12b), [`f59d24b`](https://github.com/assistant-ui/assistant-ui/commit/f59d24b3ee7036c94bce7bc0a38f018574f50a69), [`092585b`](https://github.com/assistant-ui/assistant-ui/commit/092585b6859eeca4d2947cbe858019f5a9d9e101)]:
+  - @assistant-ui/core@0.3.13
+  - @assistant-ui/react-generative-ui@0.0.14
+  - @assistant-ui/store@0.3.9
+
+## 0.0.53
+
+### Patch Changes
+
+- [#5723](https://github.com/assistant-ui/assistant-ui/pull/5723) [`94dc3e5`](https://github.com/assistant-ui/assistant-ui/commit/94dc3e509fa2b4fae1a14c88ec34b910c8d95af8) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+- Updated dependencies [[`94dc3e5`](https://github.com/assistant-ui/assistant-ui/commit/94dc3e509fa2b4fae1a14c88ec34b910c8d95af8), [`ab57969`](https://github.com/assistant-ui/assistant-ui/commit/ab5796932c97bc5bade19022e2ac8762949d2967)]:
+  - assistant-stream@0.3.36
+  - @assistant-ui/core@0.3.10
+  - @assistant-ui/react-generative-ui@0.0.13
+  - @assistant-ui/store@0.3.8
+
+## 0.0.52
+
+### Patch Changes
+
+- [#5684](https://github.com/assistant-ui/assistant-ui/pull/5684) [`20bda3c`](https://github.com/assistant-ui/assistant-ui/commit/20bda3c29c879b4ae5ac385a7bed491467634a79) - fix: send `description: ""` for a tool registered without one, so `RunAgentInput` stays valid against the AG-UI schema. previously the key was dropped from the payload entirely and validating servers rejected the run. also types the `runAgent` call site against the upstream parameters. ([@samdickson22](https://github.com/samdickson22))
+
+- [#5670](https://github.com/assistant-ui/assistant-ui/pull/5670) [`a87c192`](https://github.com/assistant-ui/assistant-ui/commit/a87c1922027dbb5698736d7541b01b06e0d41689) - fix: isolate runtime lifecycle callback failures ([@Kinfe123](https://github.com/Kinfe123))
+
+- Updated dependencies [[`456b056`](https://github.com/assistant-ui/assistant-ui/commit/456b056b2859994bf49ed5cc4cf031f0601e2174), [`99d09c8`](https://github.com/assistant-ui/assistant-ui/commit/99d09c828c04bfca35d091e73f29c6d6643dfb01), [`a88751d`](https://github.com/assistant-ui/assistant-ui/commit/a88751d71edfd2516f266ce8889081749fba4e5a), [`79253f2`](https://github.com/assistant-ui/assistant-ui/commit/79253f2a5e0a637c8907ba30859f308ff6dcd1c4), [`4e99deb`](https://github.com/assistant-ui/assistant-ui/commit/4e99deb80dc3401480f80c7bef31acbf86a71573), [`2af514c`](https://github.com/assistant-ui/assistant-ui/commit/2af514cabbf6d7d52cb0fd20ef8d1e842294ebb3)]:
+  - assistant-stream@0.3.35
+  - @assistant-ui/core@0.3.8
+  - @assistant-ui/store@0.3.7
+
+## 0.0.51
+
+### Patch Changes
+
+- [#5622](https://github.com/assistant-ui/assistant-ui/pull/5622) [`7bd72be`](https://github.com/assistant-ui/assistant-ui/commit/7bd72be63b57ab532bb174c49617b2f520116a44) - fix: abort AG-UI HTTP requests when cancelling runs ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#5649](https://github.com/assistant-ui/assistant-ui/pull/5649) [`baa6e2e`](https://github.com/assistant-ui/assistant-ui/commit/baa6e2e23e22089ee83ec1d9dca5262d5b91e94c) - feat: add unstable_enableMessageQueue so a send during a run is buffered instead of swallowed ([@okisdev](https://github.com/okisdev))
+
+- [#5650](https://github.com/assistant-ui/assistant-ui/pull/5650) [`34cec64`](https://github.com/assistant-ui/assistant-ui/commit/34cec64fcfbdef0e101d731f5518e9075d989e2f) - feat: two-lane, placement-aware message queue with steer-by-default mid-run sends ([@Yonom](https://github.com/Yonom))
+
+  `ExternalThreadQueueAdapter` is reshaped: `enqueue(message, { steer })` splits into
+  `enqueue(message)` / `steer(message)`, `steer(queueItemId)` becomes
+  `move(queueItemId, { lane: "steer", insertAfter: null })`, `clear(reason)` is dropped
+  (queue clear policy is now host-owned), and `steerItems` / `move` / `edit` and
+  `QueueItemState.parts` are required.
+
+- Updated dependencies [[`dcacd9b`](https://github.com/assistant-ui/assistant-ui/commit/dcacd9bc45117f9beca698006fd67616d2c1ca61), [`d52928d`](https://github.com/assistant-ui/assistant-ui/commit/d52928db2c83a3ba6f25bf8c6b21934571dd4622), [`d8a59ad`](https://github.com/assistant-ui/assistant-ui/commit/d8a59ad5d75f220e76e689d4191855c244ddc20a), [`0578c16`](https://github.com/assistant-ui/assistant-ui/commit/0578c16296fa5fb6b42455195ccf5f9a681693a5), [`e70da91`](https://github.com/assistant-ui/assistant-ui/commit/e70da91866a5ac880472fbcf23039909270f7623), [`aac3a8c`](https://github.com/assistant-ui/assistant-ui/commit/aac3a8cb8824472f694226a4c53829a0a693072e), [`aa302ee`](https://github.com/assistant-ui/assistant-ui/commit/aa302eeaacd399f58b74b64eb3a1e17d9ea97e03), [`aa302ee`](https://github.com/assistant-ui/assistant-ui/commit/aa302eeaacd399f58b74b64eb3a1e17d9ea97e03), [`34cec64`](https://github.com/assistant-ui/assistant-ui/commit/34cec64fcfbdef0e101d731f5518e9075d989e2f)]:
+  - @assistant-ui/store@0.3.4
+  - @assistant-ui/core@0.3.6
+  - assistant-stream@0.3.34
+  - @assistant-ui/react-generative-ui@0.0.12
+
+## 0.0.50
+
+### Patch Changes
+
+- [#5461](https://github.com/assistant-ui/assistant-ui/pull/5461) [`1fae3c6`](https://github.com/assistant-ui/assistant-ui/commit/1fae3c6439bac1875bbf0627125e534be8772934) - fix: convert file parts placed directly in message content ([@okisdev](https://github.com/okisdev))
+
+  `buildUserContent` filtered every `file` part out of `message.content`, on the stated grounds that binary always flows through `message.attachments`. That rule was not actually implemented: `image` and `audio` content parts, equally binary, were converted from content all along, so only `file` was excluded. It also guarded nothing, because both composer paths put binary in attachments and leave content as text (the edit composer lifts non-text parts with `liftNonTextParts` and passes none through), and because content-sourced and attachment-sourced parts land in the same flat `InputContent[]` with no downstream distinction. The only way a file part reached that filter was a deliberate `append()`, where it was silently dropped.
+
+- [#5445](https://github.com/assistant-ui/assistant-ui/pull/5445) [`2fdff87`](https://github.com/assistant-ui/assistant-ui/commit/2fdff878211979b1f24d746bf2f16d8b6254102d) - feat: honor sourceType "url" in a2a, ag-ui, and adk file converters ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- Updated dependencies [[`b19c2f5`](https://github.com/assistant-ui/assistant-ui/commit/b19c2f5efd37e1203502c76d92e0554b63020952), [`01140bd`](https://github.com/assistant-ui/assistant-ui/commit/01140bde14fbfa89af9bdd080bbf79b3a509b524), [`8c99934`](https://github.com/assistant-ui/assistant-ui/commit/8c99934ca7fe9a8ffea0aa972e3579ff74e18553), [`ece5a54`](https://github.com/assistant-ui/assistant-ui/commit/ece5a5422e8b45429e1681b7a845d68be2879834), [`2fdff87`](https://github.com/assistant-ui/assistant-ui/commit/2fdff878211979b1f24d746bf2f16d8b6254102d), [`90b3003`](https://github.com/assistant-ui/assistant-ui/commit/90b3003b943e083fa6cd81e30181bf5b88904361), [`4c313cf`](https://github.com/assistant-ui/assistant-ui/commit/4c313cfabe9802a7e59362c323ec926a24d089d4), [`55b2824`](https://github.com/assistant-ui/assistant-ui/commit/55b282476bf3075beff391978a72a13968b6418a), [`22b05a4`](https://github.com/assistant-ui/assistant-ui/commit/22b05a43ec921a6dd7015692a77a746656a61f5f), [`f913c21`](https://github.com/assistant-ui/assistant-ui/commit/f913c2142708d8cd1f4ac63bd801e5b6defcb74e), [`c868710`](https://github.com/assistant-ui/assistant-ui/commit/c8687104b0407f424d55dd0a369d692fe7a4c708), [`011e275`](https://github.com/assistant-ui/assistant-ui/commit/011e275c4df5cd85942b5fd545a74d9c7cf549a6), [`da32fe0`](https://github.com/assistant-ui/assistant-ui/commit/da32fe0b2f51c8a340935c5f4d2e31e747d39460), [`f913c21`](https://github.com/assistant-ui/assistant-ui/commit/f913c2142708d8cd1f4ac63bd801e5b6defcb74e), [`5bb2573`](https://github.com/assistant-ui/assistant-ui/commit/5bb25733674396d496046b7c5443366171d0e8cf), [`5ececc1`](https://github.com/assistant-ui/assistant-ui/commit/5ececc1df536e098f8ee252addd2e62be7d61a7a)]:
+  - @assistant-ui/core@0.3.4
+  - assistant-stream@0.3.32
+  - @assistant-ui/store@0.3.3
+
 ## 0.0.49
 
 ### Patch Changes

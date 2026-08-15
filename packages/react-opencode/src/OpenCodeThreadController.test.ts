@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, onTestFinished, vi } from "vitest";
 import { OpenCodeThreadController } from "./OpenCodeThreadController";
 import { STREAM_RECONNECTED_EVENT_TYPE } from "./OpenCodeEventSource";
 import { rejectWhenThrowing } from "./testUtils";
@@ -178,6 +178,458 @@ describe("OpenCodeThreadController", () => {
     expect(() => new URL(String(filePart!["url"]))).not.toThrow();
   });
 
+  it.each([
+    {
+      label: "data url image keeps its declared type",
+      image: "data:image/jpeg;base64,QUJD",
+      mime: "image/jpeg",
+      url: "data:image/jpeg;base64,QUJD",
+    },
+    {
+      label: "bare base64 image is wrapped with the fallback type",
+      image: "QUJD",
+      mime: "image/png",
+      url: "data:image/png;base64,QUJD",
+    },
+    {
+      label: "http image source is forwarded",
+      image: "https://cdn.example.com/a.png",
+      mime: "image/png",
+      url: "https://cdn.example.com/a.png",
+    },
+  ])(
+    "sends an image part as a file part: $label",
+    async ({ image, mime, url }) => {
+      const client = {
+        session: { promptAsync: vi.fn().mockResolvedValue({}) },
+      };
+      const controller = new OpenCodeThreadController(
+        client as never,
+        () => ({ subscribe: () => () => {} }),
+        "ses_1",
+      );
+
+      await controller.stageMessage(
+        {
+          role: "user",
+          parentId: null,
+          sourceId: null,
+          content: [{ type: "image", image }],
+          attachments: [],
+          metadata: { custom: {} },
+          runConfig: {},
+          createdAt: new Date(),
+        } as never,
+        { model: { providerID: "anthropic", modelID: "claude" } },
+      );
+
+      const pendingId = Object.keys(
+        controller.getState().pendingUserMessages,
+      )[0]!;
+      await controller.sendStagedMessage(`local:${pendingId}`);
+
+      const sent = client.session.promptAsync.mock.calls[0]![0] as {
+        parts: Array<Record<string, unknown>>;
+      };
+      const imagePart = sent.parts.find((part) => part["type"] === "file");
+      expect(imagePart).toMatchObject({ type: "file", mime, url });
+      expect(sent.parts.some((part) => part["type"] === "image")).toBe(false);
+      expect(() => new URL(String(imagePart!["url"]))).not.toThrow();
+    },
+  );
+
+  it.each([
+    { label: "jpeg", image: "/9j/4AAQSkZJRg==", mime: "image/jpeg" },
+    { label: "png", image: "iVBORw0KGgoAAAANSUhEUg==", mime: "image/png" },
+    { label: "gif", image: "R0lGODlhAQABAA==", mime: "image/gif" },
+    { label: "webp", image: "UklGRiIAAABXRUJQVlA4", mime: "image/webp" },
+  ])("sniffs a bare base64 $label image", async ({ image, mime }) => {
+    const client = {
+      session: { promptAsync: vi.fn().mockResolvedValue({}) },
+    };
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => ({ subscribe: () => () => {} }),
+      "ses_1",
+    );
+
+    await controller.stageMessage(
+      {
+        role: "user",
+        parentId: null,
+        sourceId: null,
+        content: [{ type: "image", image }],
+        attachments: [],
+        metadata: { custom: {} },
+        runConfig: {},
+        createdAt: new Date(),
+      } as never,
+      { model: { providerID: "anthropic", modelID: "claude" } },
+    );
+
+    const pendingId = Object.keys(
+      controller.getState().pendingUserMessages,
+    )[0]!;
+    await controller.sendStagedMessage(`local:${pendingId}`);
+
+    const sent = client.session.promptAsync.mock.calls[0]![0] as {
+      parts: Array<Record<string, unknown>>;
+    };
+    expect(sent.parts.find((part) => part["type"] === "file")).toMatchObject({
+      mime,
+      url: `data:${mime};base64,${image}`,
+    });
+  });
+
+  it("reads the declared type of a non-base64 data url image", async () => {
+    const client = {
+      session: { promptAsync: vi.fn().mockResolvedValue({}) },
+    };
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => ({ subscribe: () => () => {} }),
+      "ses_1",
+    );
+
+    await controller.stageMessage(
+      {
+        role: "user",
+        parentId: null,
+        sourceId: null,
+        content: [
+          { type: "image", image: "data:image/svg+xml,%3Csvg%3E%3C/svg%3E" },
+        ],
+        attachments: [],
+        metadata: { custom: {} },
+        runConfig: {},
+        createdAt: new Date(),
+      } as never,
+      { model: { providerID: "anthropic", modelID: "claude" } },
+    );
+
+    const pendingId = Object.keys(
+      controller.getState().pendingUserMessages,
+    )[0]!;
+    await controller.sendStagedMessage(`local:${pendingId}`);
+
+    const sent = client.session.promptAsync.mock.calls[0]![0] as {
+      parts: Array<Record<string, unknown>>;
+    };
+    expect(sent.parts.find((part) => part["type"] === "file")).toMatchObject({
+      mime: "image/svg+xml",
+      url: "data:image/svg+xml,%3Csvg%3E%3C/svg%3E",
+    });
+  });
+
+  it("sniffs through a generic data url envelope", async () => {
+    const client = {
+      session: { promptAsync: vi.fn().mockResolvedValue({}) },
+    };
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => ({ subscribe: () => () => {} }),
+      "ses_1",
+    );
+
+    await controller.stageMessage(
+      {
+        role: "user",
+        parentId: null,
+        sourceId: null,
+        content: [
+          {
+            type: "image",
+            image: "data:application/octet-stream;base64,/9j/4AAQSkZJRg==",
+          },
+        ],
+        attachments: [],
+        metadata: { custom: {} },
+        runConfig: {},
+        createdAt: new Date(),
+      } as never,
+      { model: { providerID: "anthropic", modelID: "claude" } },
+    );
+
+    const pendingId = Object.keys(
+      controller.getState().pendingUserMessages,
+    )[0]!;
+    await controller.sendStagedMessage(`local:${pendingId}`);
+
+    const sent = client.session.promptAsync.mock.calls[0]![0] as {
+      parts: Array<Record<string, unknown>>;
+    };
+    expect(sent.parts.find((part) => part["type"] === "file")).toMatchObject({
+      mime: "image/jpeg",
+      url: "data:image/jpeg;base64,/9j/4AAQSkZJRg==",
+    });
+  });
+
+  it("ignores a non-image data url envelope when typing an image part", async () => {
+    const client = {
+      session: { promptAsync: vi.fn().mockResolvedValue({}) },
+    };
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => ({ subscribe: () => () => {} }),
+      "ses_1",
+    );
+
+    await controller.stageMessage(
+      {
+        role: "user",
+        parentId: null,
+        sourceId: null,
+        content: [],
+        attachments: [
+          {
+            id: "a-1",
+            type: "image",
+            name: "photo",
+            contentType: "",
+            status: { type: "complete" },
+            content: [
+              {
+                type: "image",
+                image: "data:application/octet-stream;base64,QUJD",
+              },
+            ],
+          },
+        ],
+        metadata: { custom: {} },
+        runConfig: {},
+        createdAt: new Date(),
+      } as never,
+      { model: { providerID: "anthropic", modelID: "claude" } },
+    );
+
+    const pendingId = Object.keys(
+      controller.getState().pendingUserMessages,
+    )[0]!;
+    await controller.sendStagedMessage(`local:${pendingId}`);
+
+    const sent = client.session.promptAsync.mock.calls[0]![0] as {
+      parts: Array<Record<string, unknown>>;
+    };
+    // the envelope must agree with `mime`: downstream the data URL type wins.
+    expect(sent.parts.find((part) => part["type"] === "file")).toMatchObject({
+      mime: "image/png",
+      url: "data:image/png;base64,QUJD",
+    });
+  });
+
+  it("falls back to the envelope before the floor for an empty file mime type", async () => {
+    const client = {
+      session: { promptAsync: vi.fn().mockResolvedValue({}) },
+    };
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => ({ subscribe: () => () => {} }),
+      "ses_1",
+    );
+
+    await controller.stageMessage(
+      {
+        role: "user",
+        parentId: null,
+        sourceId: null,
+        content: [
+          {
+            type: "file",
+            data: "data:application/pdf;base64,QUJD",
+            mimeType: "",
+          },
+        ],
+        attachments: [],
+        metadata: { custom: {} },
+        runConfig: {},
+        createdAt: new Date(),
+      } as never,
+      { model: { providerID: "anthropic", modelID: "claude" } },
+    );
+
+    const pendingId = Object.keys(
+      controller.getState().pendingUserMessages,
+    )[0]!;
+    await controller.sendStagedMessage(`local:${pendingId}`);
+
+    const sent = client.session.promptAsync.mock.calls[0]![0] as {
+      parts: Array<Record<string, unknown>>;
+    };
+    expect(sent.parts.find((part) => part["type"] === "file")).toMatchObject({
+      mime: "application/pdf",
+      url: "data:application/pdf;base64,QUJD",
+    });
+  });
+
+  it("floors an empty file mime type", async () => {
+    const client = {
+      session: { promptAsync: vi.fn().mockResolvedValue({}) },
+    };
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => ({ subscribe: () => () => {} }),
+      "ses_1",
+    );
+
+    await controller.stageMessage(
+      {
+        role: "user",
+        parentId: null,
+        sourceId: null,
+        content: [{ type: "file", data: "QUJD", mimeType: "" }],
+        attachments: [],
+        metadata: { custom: {} },
+        runConfig: {},
+        createdAt: new Date(),
+      } as never,
+      { model: { providerID: "anthropic", modelID: "claude" } },
+    );
+
+    const pendingId = Object.keys(
+      controller.getState().pendingUserMessages,
+    )[0]!;
+    await controller.sendStagedMessage(`local:${pendingId}`);
+
+    const sent = client.session.promptAsync.mock.calls[0]![0] as {
+      parts: Array<Record<string, unknown>>;
+    };
+    expect(sent.parts.find((part) => part["type"] === "file")).toMatchObject({
+      mime: "application/octet-stream",
+      url: "data:application/octet-stream;base64,QUJD",
+    });
+  });
+
+  it("re-envelopes a file payload so the declared mime wins", async () => {
+    const client = {
+      session: { promptAsync: vi.fn().mockResolvedValue({}) },
+    };
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => ({ subscribe: () => () => {} }),
+      "ses_1",
+    );
+
+    await controller.stageMessage(
+      {
+        role: "user",
+        parentId: null,
+        sourceId: null,
+        content: [
+          {
+            type: "file",
+            data: "data:application/octet-stream;base64,QUJD",
+            mimeType: "application/pdf",
+          },
+        ],
+        attachments: [],
+        metadata: { custom: {} },
+        runConfig: {},
+        createdAt: new Date(),
+      } as never,
+      { model: { providerID: "anthropic", modelID: "claude" } },
+    );
+
+    const pendingId = Object.keys(
+      controller.getState().pendingUserMessages,
+    )[0]!;
+    await controller.sendStagedMessage(`local:${pendingId}`);
+
+    const sent = client.session.promptAsync.mock.calls[0]![0] as {
+      parts: Array<Record<string, unknown>>;
+    };
+    expect(sent.parts.find((part) => part["type"] === "file")).toMatchObject({
+      mime: "application/pdf",
+      url: "data:application/pdf;base64,QUJD",
+    });
+  });
+
+  it("names the pending message from the attachment rather than its payload", async () => {
+    const client = {
+      session: { promptAsync: vi.fn().mockResolvedValue({}) },
+    };
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => ({ subscribe: () => () => {} }),
+      "ses_1",
+    );
+
+    await controller.stageMessage(
+      {
+        role: "user",
+        parentId: null,
+        sourceId: null,
+        content: [],
+        attachments: [
+          {
+            id: "a-1",
+            type: "image",
+            name: "photo.webp",
+            contentType: "image/webp",
+            status: { type: "complete" },
+            content: [{ type: "image", image: "QUJD" }],
+          },
+        ],
+        metadata: { custom: {} },
+        runConfig: {},
+        createdAt: new Date(),
+      } as never,
+      { model: { providerID: "anthropic", modelID: "claude" } },
+    );
+
+    const pending = Object.values(
+      controller.getState().pendingUserMessages,
+    )[0]!;
+    expect(pending.contentText).toBe("photo.webp");
+  });
+
+  it("uses the attachment name and content type its parts do not carry", async () => {
+    const client = {
+      session: { promptAsync: vi.fn().mockResolvedValue({}) },
+    };
+    const controller = new OpenCodeThreadController(
+      client as never,
+      () => ({ subscribe: () => () => {} }),
+      "ses_1",
+    );
+
+    await controller.stageMessage(
+      {
+        role: "user",
+        parentId: null,
+        sourceId: null,
+        content: [],
+        attachments: [
+          {
+            id: "a-1",
+            type: "image",
+            name: "photo.webp",
+            contentType: "image/webp",
+            status: { type: "complete" },
+            content: [{ type: "image", image: "QUJD" }],
+          },
+        ],
+        metadata: { custom: {} },
+        runConfig: {},
+        createdAt: new Date(),
+      } as never,
+      { model: { providerID: "anthropic", modelID: "claude" } },
+    );
+
+    const pendingId = Object.keys(
+      controller.getState().pendingUserMessages,
+    )[0]!;
+    await controller.sendStagedMessage(`local:${pendingId}`);
+
+    const sent = client.session.promptAsync.mock.calls[0]![0] as {
+      parts: Array<Record<string, unknown>>;
+    };
+    expect(sent.parts.find((part) => part["type"] === "file")).toMatchObject({
+      mime: "image/webp",
+      filename: "photo.webp",
+      url: "data:image/webp;base64,QUJD",
+    });
+  });
+
   it("leaves an id reference unwrapped rather than shipping it as base64", async () => {
     const client = {
       session: { promptAsync: vi.fn().mockResolvedValue({}) },
@@ -352,6 +804,46 @@ describe("OpenCodeThreadController", () => {
         parts: [{ type: "text", text: "hello" }],
       },
       { throwOnError: true },
+    );
+  });
+
+  it("isolates subscriber errors while sending messages", async () => {
+    const promptAsync = vi.fn().mockResolvedValue({});
+    const controller = new OpenCodeThreadController(
+      { session: { promptAsync } } as never,
+      () => ({ subscribe: () => () => {} }),
+      "ses_1",
+    );
+    const listenerError = new Error("listener failed");
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    onTestFinished(() => consoleError.mockRestore());
+    const laterListener = vi.fn();
+
+    controller.subscribe(() => {
+      throw listenerError;
+    });
+    controller.subscribe(laterListener);
+
+    await expect(
+      controller.sendMessage({
+        role: "user",
+        parentId: null,
+        sourceId: null,
+        content: [{ type: "text", text: "hello" }],
+        attachments: [],
+        metadata: { custom: {} },
+        runConfig: {},
+        createdAt: new Date(),
+      }),
+    ).resolves.toBeUndefined();
+
+    expect(promptAsync).toHaveBeenCalledOnce();
+    expect(laterListener).toHaveBeenCalled();
+    expect(consoleError).toHaveBeenCalledWith(
+      "[react-opencode] Listener threw an error",
+      listenerError,
     );
   });
 

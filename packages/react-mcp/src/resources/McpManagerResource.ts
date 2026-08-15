@@ -6,11 +6,12 @@ import {
   attachTransformScopes,
   type ClientOutput,
 } from "@assistant-ui/store";
+import { useAssistantScopeEffect } from "@assistant-ui/store/client";
 import { ModelContext } from "@assistant-ui/core/store";
 import type { Tool } from "assistant-stream";
 import { McpServerResource } from "./McpServerResource";
 import { McpLocalStorage } from "./storage/McpLocalStorage";
-import type { MCPStorageElement } from "./storage/types";
+import type { MCPStorage, MCPStorageElement } from "./storage/types";
 import { assertUniqueServerIds } from "../utils/serverId";
 import type {
   MCPAuthConfig,
@@ -49,6 +50,17 @@ const reportCustomStorageFailure = (
   );
 };
 
+const persistCustomServers = async (
+  storage: MCPStorage,
+  records: MCPCustomServerRecord[],
+) => {
+  try {
+    await storage.saveCustomServers(records);
+  } catch (error) {
+    reportCustomStorageFailure("save", error);
+  }
+};
+
 const useMcpManagerResource = (
   props: McpManagerResourceProps,
 ): ClientOutput<"mcp"> => {
@@ -66,6 +78,12 @@ const useMcpManagerResource = (
   const [isHydrated, setIsHydrated] = useState(false);
 
   const hydratedRef = useRef(false);
+  const storageRef = useRef(storage);
+  const persistenceQueueRef = useRef(Promise.resolve());
+
+  useEffect(() => {
+    storageRef.current = storage;
+  }, [storage]);
 
   const hydrate = useEffectEvent(async (signal: { cancelled: boolean }) => {
     const markHydrated = () => {
@@ -106,19 +124,12 @@ const useMcpManagerResource = (
     };
   }, []);
 
-  const persistCustomServers = useEffectEvent(
-    async (records: MCPCustomServerRecord[]) => {
-      if (!hydratedRef.current) return;
-      try {
-        await storage.saveCustomServers(records);
-      } catch (error) {
-        reportCustomStorageFailure("save", error);
-      }
-    },
-  );
-
   useEffect(() => {
-    void persistCustomServers(customServers);
+    if (!hydratedRef.current) return;
+    const targetStorage = storageRef.current;
+    persistenceQueueRef.current = persistenceQueueRef.current.then(() =>
+      persistCustomServers(targetStorage, customServers),
+    );
   }, [customServers]);
 
   const serverElements = useMemo(() => {
@@ -224,13 +235,17 @@ const useMcpManagerResource = (
 
   const clientRef = useAssistantClientRef();
 
-  useEffect(() => {
-    const client = clientRef.current;
-    if (!client) return;
-    return client.modelContext.register({
-      getModelContext: () => ({ tools: toolkit }),
-    });
-  }, [toolkit, clientRef]);
+  useAssistantScopeEffect(
+    "modelContext",
+    () => {
+      const client = clientRef.current;
+      if (!client) return;
+      return client.modelContext.register({
+        getModelContext: () => ({ tools: toolkit }),
+      });
+    },
+    [toolkit],
+  );
 
   const serverByKind = (kind: "connector" | "custom", index: number) => {
     const list = kind === "connector" ? state.connectors : state.customServers;

@@ -1,12 +1,18 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Thread } from "@/components/assistant-ui/thread";
-import { useAui, AuiProvider, Suggestions } from "@assistant-ui/react";
+import {
+  useAui,
+  AuiProvider,
+  AuiConfig,
+  Suggestions,
+} from "@assistant-ui/react";
 import { MyRuntimeProvider } from "@/components/MyRuntimeProvider";
 
 export const Route = createFileRoute("/")({ component: App });
 
 function ThreadWithSuggestions() {
-  const aui = useAui({
+  const aui = useAui();
+  const config = AuiConfig({
     suggestions: Suggestions([
       {
         title: "Hello!",
@@ -21,7 +27,7 @@ function ThreadWithSuggestions() {
     ]),
   });
   return (
-    <AuiProvider value={aui}>
+    <AuiProvider extends={aui} config={config}>
       <Thread />
     </AuiProvider>
   );

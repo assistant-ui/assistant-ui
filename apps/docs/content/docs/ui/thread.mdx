@@ -111,17 +111,36 @@ export default function Chat() {
 Display suggested prompts using the Suggestions API. See the [Suggestions guide](/docs/guides/suggestions) for detailed configuration.
 
 ```tsx
-import { SuggestionPrimitive, ThreadPrimitive } from "@assistant-ui/react";
+import type { ReactNode } from "react";
+import {
+  AssistantRuntimeProvider,
+  AuiConfig,
+  SuggestionPrimitive,
+  Suggestions,
+  ThreadPrimitive,
+} from "@assistant-ui/react";
+import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 
 // Configure suggestions in your runtime provider
-const aui = useAui({
+const config = AuiConfig({
   suggestions: Suggestions(["What's the weather?", "Tell me a joke"]),
 });
 
+const App = ({ children }: { children: ReactNode }) => {
+  const runtime = useChatRuntime();
+  return (
+    <AssistantRuntimeProvider runtime={runtime} config={config}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+};
+
 // Display suggestions in your thread component
-<ThreadPrimitive.Suggestions>
-  {() => <SuggestionItem />}
-</ThreadPrimitive.Suggestions>
+const ThreadSuggestions = () => (
+  <ThreadPrimitive.Suggestions>
+    {() => <SuggestionItem />}
+  </ThreadPrimitive.Suggestions>
+);
 
 // Custom suggestion item
 const SuggestionItem = () => (

@@ -228,6 +228,7 @@ export {
 } from "./runtimes/useStreamingTiming";
 export {
   createRuntimeExtras,
+  unstable_createRuntimeExtrasFromBrand,
   type RuntimeExtras,
 } from "./runtimes/createRuntimeExtras";
 export { RemoteThreadListHookInstanceManager } from "./runtimes/RemoteThreadListHookInstanceManager";

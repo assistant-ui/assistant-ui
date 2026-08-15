@@ -1,9 +1,9 @@
-import type React from "react";
-import { createContext, useContext, useEffect } from "react";
+import { createContext, useContext } from "react";
 import { useContextProvider } from "@assistant-ui/tap";
 import type { AssistantClient } from "../types/client";
 import { BaseProxyHandler, handleIntrospectionProp } from "./BaseProxyHandler";
 import { createErrorClientAccessor } from "./client-accessor";
+import { createOptionalClientView } from "./optional-client-view";
 
 const NO_OP_SUBSCRIBE = () => () => {};
 
@@ -16,16 +16,26 @@ class EmptyAssistantClientProxyHandler
 {
   readonly #displayName: string;
   readonly #messageOf: (prop: string) => string;
+  readonly #getClient: () => AssistantClient;
+  #optional: AssistantClient["optional"] | undefined;
 
-  constructor(displayName: string, messageOf: (prop: string) => string) {
+  constructor(
+    displayName: string,
+    messageOf: (prop: string) => string,
+    getClient: () => AssistantClient,
+  ) {
     super();
     this.#displayName = displayName;
     this.#messageOf = messageOf;
+    this.#getClient = getClient;
   }
 
   get(_: unknown, prop: string | symbol) {
     if (prop === "subscribe") return NO_OP_SUBSCRIBE;
     if (prop === "on") return NO_OP_SUBSCRIBE;
+    if (prop === "optional") {
+      return (this.#optional ??= createOptionalClientView(this.#getClient()));
+    }
     const introspection = handleIntrospectionProp(prop, this.#displayName);
     if (introspection !== false) return introspection;
     return createErrorClientAccessor(
@@ -35,22 +45,34 @@ class EmptyAssistantClientProxyHandler
   }
 
   ownKeys(): ArrayLike<string | symbol> {
-    return ["subscribe", "on"];
+    return ["subscribe", "on", "optional"];
+  }
+
+  // Built clients define `optional` as a non-enumerable own property; the
+  // proxy flavors report the same shape so spreads and Object.keys stay
+  // uniform across every client the library hands out.
+  override getOwnPropertyDescriptor(_: unknown, prop: string | symbol) {
+    if (prop !== "optional") return super.getOwnPropertyDescriptor(_, prop);
+    const value = this.get(_, prop);
+    if (value === undefined) return undefined;
+    return { value, writable: false, enumerable: false, configurable: true };
   }
 
   has(_: unknown, prop: string | symbol): boolean {
-    return prop === "subscribe" || prop === "on";
+    return prop === "subscribe" || prop === "on" || prop === "optional";
   }
 }
 
 const createEmptyAssistantClient = (
   displayName: string,
   messageOf: (prop: string) => string,
-): AssistantClient =>
-  new Proxy<AssistantClient>(
+): AssistantClient => {
+  const client: AssistantClient = new Proxy<AssistantClient>(
     {} as AssistantClient,
-    new EmptyAssistantClientProxyHandler(displayName, messageOf),
+    new EmptyAssistantClientProxyHandler(displayName, messageOf, () => client),
   );
+  return client;
+};
 
 /** Default context value - throws "wrap in AuiProvider" error */
 export const DefaultAssistantClient: AssistantClient =
@@ -76,33 +98,27 @@ export const createRootAssistantClient = (): AssistantClient =>
 /**
  * React Context for the AssistantClient
  */
-const AssistantContext = createContext<AssistantClient>(DefaultAssistantClient);
+export const AssistantContext = createContext<AssistantClient>(
+  DefaultAssistantClient,
+);
 
 const NOOP_EFFECT = () => {};
 const tapEffects = new WeakMap<AssistantClient, () => void>();
 
-const getTapEffects = (client: AssistantClient): (() => void) => {
+export const getTapEffects = (client: AssistantClient): (() => void) => {
   return tapEffects.get(client) ?? NOOP_EFFECT;
 };
 
 /**
- * Records the tap host's effects callback so AuiProvider can mount the host's
- * commit ahead of its children's effects.
+ * Records the tap host's effects callback for clients created by the
+ * deprecated `useAui({...})` overload; the AuiProvider the client is passed
+ * to mounts the host's commit ahead of its children's effects.
  */
 export const setTapEffects = (
   client: AssistantClient,
   effects: () => void,
 ): void => {
   tapEffects.set(client, effects);
-};
-
-const UseTapEffects = () => {
-  "use no memo";
-
-  const aui = useAssistantContextValue();
-  // oxlint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(getTapEffects(aui));
-  return null;
 };
 
 export const useAssistantContextValue = (): AssistantClient => {
@@ -114,56 +130,4 @@ export const useAssistantContextProvider = <T,>(
   fn: () => T,
 ): T => {
   return useContextProvider(AssistantContext, value, fn);
-};
-
-/**
- * Supplies an `AssistantClient` to the React tree.
- *
- * Place near the root of any subtree that uses {@link useAui} or the
- * primitives built on it. Components rendered outside an `AuiProvider`
- * receive a default client whose scope accessors throw on use, so
- * missing-provider mistakes surface at the point of use.
- *
- * When mounting a runtime built with one of the runtime hooks, use
- * {@link AssistantRuntimeProvider} — it installs an `AuiProvider`
- * internally — rather than wiring `AuiProvider` yourself.
- *
- * @example
- * ```tsx
- * function ScopedAssistant({ children, scopes }) {
- *   const aui = useAui(scopes);
- *
- *   return <AuiProvider value={aui}>{children}</AuiProvider>;
- * }
- * ```
- */
-export const AuiProvider: {
-  (props: {
-    /** Assistant client to expose to descendants. */
-    value: AssistantClient;
-    /** Subtree that may read from the client. */
-    children: React.ReactNode;
-  }): React.ReactElement;
-  /**
-   * Provides an isolated empty root: scopes from surrounding providers do not
-   * leak past the boundary.
-   *
-   * @deprecated This API is still under active development and might change without notice.
-   */
-  (props: { value: null; children: React.ReactNode }): React.ReactElement;
-} = ({
-  value,
-  children,
-}: {
-  value: AssistantClient | null;
-  children: React.ReactNode;
-}): React.ReactElement => {
-  // The <UseTapEffects /> element must be created fresh each render
-  "use no memo";
-  return (
-    <AssistantContext.Provider value={value ?? DefaultAssistantClient}>
-      <UseTapEffects />
-      {children}
-    </AssistantContext.Provider>
-  );
 };

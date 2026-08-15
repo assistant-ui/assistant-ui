@@ -9,6 +9,7 @@ import {
   AssistantRuntimeProvider,
   useAssistantTool,
 } from "@assistant-ui/core/react";
+import { getThreadMessageText } from "@assistant-ui/core/internal";
 import { useAui, useAuiState } from "@assistant-ui/store";
 import { useLangGraphRuntime } from "./useLangGraphRuntime";
 import { useLangGraphSend } from "./hooks";
@@ -21,6 +22,9 @@ type LoadResult = {
   messages: LangChainMessage[];
   interrupts?: LangGraphInterruptState[];
 };
+
+const textsOf = (runtime: AssistantRuntime) =>
+  runtime.thread.getState().messages.map(getThreadMessageText);
 
 const deferred = <T,>() => {
   let resolve!: (value: T) => void;
@@ -423,6 +427,12 @@ describe("useLangGraphRuntime", () => {
         mimeType: "application/pdf",
       },
     ]);
+
+    expect(userMessage?.content).toHaveLength(1);
+    expect(userMessage?.content?.[0]).toMatchObject({
+      type: "text",
+      text: " ",
+    });
   });
 
   it("should use unstable_threadListAdapter in place of the cloud adapter", async () => {
@@ -537,6 +547,164 @@ describe("useLangGraphRuntime", () => {
     await waitFor(() => expect(isLoadingResult.current).toBe(false));
   });
 
+  it("keeps the streamed version when the load returns the same message id", async () => {
+    const pendingLoad = deferred<LoadResult>();
+    const load = vi.fn(() => pendingLoad.promise);
+    const streamMock = vi.fn(async function* () {
+      yield {
+        event: "messages/partial",
+        data: [{ id: "shared", type: "ai" as const, content: "fresh" }],
+      };
+    });
+
+    const { result: runtimeResult } = renderHook(() =>
+      useLangGraphRuntime({
+        stream: streamMock as never,
+        load,
+        unstable_threadListAdapter: makeThreadListAdapter(),
+      }),
+    );
+    const wrapper = wrapperFactory(runtimeResult.current);
+    renderHook(() => useAuiState((s) => s.thread.isLoading), { wrapper });
+
+    await act(async () => {
+      await runtimeResult.current.threads.switchToThread("lg-thread-1");
+    });
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      runtimeResult.current.thread.append("go");
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    });
+
+    // the snapshot predates the run, so its copy of `shared` is the stale one
+    await act(async () => {
+      pendingLoad.resolve({
+        messages: [{ id: "shared", type: "ai" as const, content: "stale" }],
+      });
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    });
+
+    const texts = runtimeResult.current.thread.getState().messages.map((m) =>
+      m.content
+        .filter((p) => p.type === "text")
+        .map((p) => (p as { text: string }).text)
+        .join(""),
+    );
+    expect(texts).toEqual(["go", "fresh"]);
+  });
+
+  it("keeps an interrupt the racing run raised when the load carries none", async () => {
+    const pendingLoad = deferred<LoadResult>();
+    const load = vi.fn(() => pendingLoad.promise);
+    const streamMock = vi.fn(async function* () {
+      yield {
+        event: "updates",
+        data: { __interrupt__: [{ value: "approval-needed" }] },
+      };
+    });
+
+    const { result: runtimeResult } = renderHook(() =>
+      useLangGraphRuntime({
+        stream: streamMock as never,
+        load,
+        unstable_threadListAdapter: makeThreadListAdapter(),
+      }),
+    );
+    const wrapper = wrapperFactory(runtimeResult.current);
+    renderHook(() => useAuiState((s) => s.thread.isLoading), { wrapper });
+
+    await act(async () => {
+      await runtimeResult.current.threads.switchToThread("lg-thread-1");
+    });
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      runtimeResult.current.thread.append("go");
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    });
+
+    await act(async () => {
+      pendingLoad.resolve({ messages: [] });
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    });
+
+    const extras = runtimeResult.current.thread.getState().extras as {
+      interrupt?: unknown;
+    };
+    expect(extras.interrupt).toEqual({ value: "approval-needed" });
+  });
+
+  it("preserves a send that starts while the initial load is pending", async () => {
+    const pending = deferred<LoadResult>();
+    const streamGate = deferred<void>();
+    const load = vi.fn(() => pending.promise);
+    const streamMock = vi.fn(async function* () {
+      await streamGate.promise;
+      yield {
+        event: "messages/complete" as const,
+        data: [{ id: "reply-1", type: "ai" as const, content: "reply" }],
+      };
+    });
+
+    const { result: runtimeResult } = renderHook(() =>
+      useLangGraphRuntime({
+        stream: streamMock,
+        load,
+        unstable_threadListAdapter: makeThreadListAdapter(),
+      }),
+    );
+    const wrapper = wrapperFactory(runtimeResult.current);
+    const { result: auiResult } = renderHook(() => useAui(), { wrapper });
+
+    await act(async () => {
+      await runtimeResult.current.threads.switchToThread("lg-thread-1");
+    });
+    await waitFor(() => expect(load).toHaveBeenCalled());
+
+    await act(async () => {
+      auiResult.current.composer.setText("sent during load");
+      auiResult.current.composer.send();
+    });
+    await waitFor(() =>
+      expect(
+        auiResult.current.thread
+          .getState()
+          .messages.flatMap((message) =>
+            message.parts.flatMap((part) =>
+              part.type === "text" ? [part.text] : [],
+            ),
+          ),
+      ).toContain("sent during load"),
+    );
+
+    await act(async () => {
+      pending.resolve({
+        messages: [{ id: "history-1", type: "human", content: "history" }],
+      });
+    });
+    await waitFor(() =>
+      expect(auiResult.current.thread.getState().isLoading).toBe(false),
+    );
+
+    await act(async () => {
+      streamGate.resolve();
+    });
+    await waitFor(() =>
+      expect(auiResult.current.thread.getState().isRunning).toBe(false),
+    );
+
+    expect(
+      auiResult.current.thread
+        .getState()
+        .messages.flatMap((message) =>
+          message.parts.flatMap((part) =>
+            part.type === "text" ? [part.text] : [],
+          ),
+        ),
+    ).toEqual(["history", "sent during load", "reply"]);
+  });
+
   it("reports loading on the first frame of a controlled thread", async () => {
     const pending = deferred<LoadResult>();
     const load = vi.fn(() => pending.promise);
@@ -625,6 +793,627 @@ describe("useLangGraphRuntime", () => {
       loadError,
     );
     consoleWarnSpy.mockRestore();
+  });
+
+  it("reloadMainThread re-runs load in place: composer draft survives, no loading flash, interrupts refreshed", async () => {
+    const loadResults: LoadResult[] = [
+      { messages: [] },
+      {
+        messages: [],
+        interrupts: [{ value: "approval-needed" } as LangGraphInterruptState],
+      },
+    ];
+    const load = vi.fn(async () => loadResults[load.mock.calls.length - 1]!);
+
+    const streamMock = vi
+      .fn()
+      .mockImplementation(() => mockStreamCallbackFactory([])());
+
+    const { result: runtimeResult } = renderHook(() =>
+      useLangGraphRuntime({
+        stream: streamMock,
+        load,
+        unstable_threadListAdapter: makeThreadListAdapter(),
+      }),
+    );
+
+    const wrapper = wrapperFactory(runtimeResult.current);
+    const { result: isLoadingResult } = renderHook(
+      () => useAuiState((s) => s.thread.isLoading),
+      { wrapper },
+    );
+
+    await act(async () => {
+      await runtimeResult.current.threads.switchToThread("lg-thread-1");
+    });
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(isLoadingResult.current).toBe(false));
+
+    // a remount would destroy the runtime and this draft with it
+    act(() => {
+      runtimeResult.current.thread.composer.setText("half-typed draft");
+    });
+
+    const loadingFrames: boolean[] = [];
+    const unsubscribe = runtimeResult.current.thread.subscribe(() => {
+      loadingFrames.push(runtimeResult.current.thread.getState().isLoading);
+    });
+
+    await act(async () => {
+      await runtimeResult.current.threads.reloadMainThread();
+    });
+    unsubscribe();
+
+    expect(load).toHaveBeenCalledTimes(2);
+    expect(runtimeResult.current.thread.composer.getState().text).toBe(
+      "half-typed draft",
+    );
+    // existing messages stay rendered while fresh state is fetched
+    expect(loadingFrames.every((v) => v === false)).toBe(true);
+    // fresh interrupts from the second load are surfaced
+    await waitFor(() => {
+      const extras = runtimeResult.current.thread.getState().extras as {
+        interrupt?: unknown;
+      };
+      expect(extras.interrupt).toEqual({ value: "approval-needed" });
+    });
+  });
+
+  it("reloadMainThread leaves a run alone when the app opted out of cancellation", async () => {
+    const load = vi
+      .fn<() => Promise<LoadResult>>()
+      .mockImplementationOnce(async () => ({ messages: [] }))
+      .mockImplementationOnce(async () => ({ messages: [] }));
+
+    const firstChunkSent = deferred<void>();
+    let streamAborted = false;
+    const streamMock = vi.fn(
+      (_messages: unknown, { abortSignal }: { abortSignal: AbortSignal }) =>
+        (async function* () {
+          abortSignal.addEventListener("abort", () => {
+            streamAborted = true;
+          });
+          yield {
+            event: "messages/complete",
+            data: [{ type: "ai" as const, id: "run-1", content: "chunk one" }],
+          };
+          firstChunkSent.resolve();
+          await new Promise((resolve) => setTimeout(resolve, 50));
+        })(),
+    );
+
+    const { result: runtimeResult } = renderHook(() =>
+      useLangGraphRuntime({
+        stream: streamMock as never,
+        load,
+        unstable_threadListAdapter: makeThreadListAdapter(),
+      }),
+    );
+    const wrapper = wrapperFactory(runtimeResult.current);
+    renderHook(() => useAuiState((s) => s.thread.isLoading), { wrapper });
+
+    await act(async () => {
+      await runtimeResult.current.threads.switchToThread("lg-thread-1");
+    });
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      runtimeResult.current.thread.append("start a run");
+      await firstChunkSent.promise;
+    });
+
+    await act(async () => {
+      await runtimeResult.current.threads.reloadMainThread();
+    });
+
+    expect(streamAborted).toBe(false);
+    // the refetch still happened, it just did not take the run down with it
+    expect(load).toHaveBeenCalledTimes(2);
+  });
+
+  it("reloadMainThread leaves an in-flight run alone and still keeps the refetch", async () => {
+    const load = vi
+      .fn<() => Promise<LoadResult>>()
+      .mockImplementationOnce(async () => ({ messages: [] }))
+      .mockImplementationOnce(async () => ({
+        messages: [
+          { type: "ai" as const, id: "server-1", content: "refetched" },
+        ],
+      }));
+
+    // a stream gated between two chunks so the reload lands mid-run
+    const firstChunkSent = deferred<void>();
+    const releaseSecondChunk = deferred<void>();
+    let streamAborted = false;
+    const streamMock = vi.fn(
+      (_messages: unknown, { abortSignal }: { abortSignal: AbortSignal }) =>
+        (async function* () {
+          abortSignal.addEventListener("abort", () => {
+            streamAborted = true;
+          });
+          yield {
+            event: "messages/complete",
+            data: [{ type: "ai" as const, id: "run-1", content: "chunk one" }],
+          };
+          firstChunkSent.resolve();
+          await releaseSecondChunk.promise;
+          if (abortSignal.aborted) return;
+          yield {
+            event: "messages/complete",
+            data: [{ type: "ai" as const, id: "run-2", content: "chunk two" }],
+          };
+        })(),
+    );
+
+    const { result: runtimeResult } = renderHook(() =>
+      useLangGraphRuntime({
+        stream: streamMock as never,
+        load,
+        unstable_threadListAdapter: makeThreadListAdapter(),
+        unstable_allowCancellation: true,
+      }),
+    );
+
+    const wrapper = wrapperFactory(runtimeResult.current);
+    renderHook(() => useAuiState((s) => s.thread.isLoading), { wrapper });
+
+    await act(async () => {
+      await runtimeResult.current.threads.switchToThread("lg-thread-1");
+    });
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
+
+    // start a run and let it stream its first chunk
+    await act(async () => {
+      runtimeResult.current.thread.append("start a run");
+      await firstChunkSent.promise;
+    });
+
+    await act(async () => {
+      await runtimeResult.current.threads.reloadMainThread();
+    });
+    // the run is not the refetch's business, and the merge does not need it
+    // stopped to keep what the refetch brought back
+    expect(streamAborted).toBe(false);
+
+    // release the gated run; both its chunk and the refetch survive
+    await act(async () => {
+      releaseSecondChunk.resolve();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    const messageTexts = textsOf(runtimeResult.current).join(" | ");
+    expect(messageTexts).toContain("refetched");
+    expect(messageTexts).toContain("chunk two");
+  });
+
+  it("reloadMainThread keeps state staged via setState for the next send", async () => {
+    const load = vi
+      .fn<() => Promise<LoadResult>>()
+      .mockImplementation(async () => ({ messages: [] }));
+
+    const sentConfigs: unknown[] = [];
+    const streamMock = vi.fn((_messages: unknown, config: unknown) => {
+      sentConfigs.push(config);
+      return mockStreamCallbackFactory([])();
+    });
+
+    const { result: runtimeResult } = renderHook(() =>
+      useLangGraphRuntime({
+        stream: streamMock as never,
+        load,
+        unstable_threadListAdapter: makeThreadListAdapter(),
+      }),
+    );
+
+    const wrapper = wrapperFactory(runtimeResult.current);
+    renderHook(() => useAuiState((s) => s.thread.isLoading), { wrapper });
+
+    await act(async () => {
+      await runtimeResult.current.threads.switchToThread("lg-thread-1");
+    });
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
+
+    // stage state for the next send
+    act(() => {
+      (
+        runtimeResult.current.thread.getState().extras as {
+          setState: (next: Record<string, unknown>) => void;
+        }
+      ).setState({ staged_for_next_send: true });
+    });
+
+    // a background-poll reload must not discard it
+    await act(async () => {
+      await runtimeResult.current.threads.reloadMainThread();
+    });
+
+    await act(async () => {
+      runtimeResult.current.thread.append("next send");
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    await waitFor(() => expect(sentConfigs.length).toBeGreaterThan(0));
+    expect(sentConfigs[0]).toMatchObject({
+      state: { staged_for_next_send: true },
+    });
+  });
+
+  it("a refetch survives a stream that ignores its abortSignal, without stopping it", async () => {
+    const load = vi
+      .fn<() => Promise<LoadResult>>()
+      .mockImplementationOnce(async () => ({ messages: [] }))
+      .mockImplementationOnce(async () => ({
+        messages: [
+          { type: "ai" as const, id: "server-1", content: "refetched" },
+        ],
+      }));
+
+    // deliberately never checks abortSignal: the refetch has to hold without
+    // the stream cooperating, and without being cancelled
+    const firstChunkSent = deferred<void>();
+    const releaseSecondChunk = deferred<void>();
+    const streamMock = vi.fn(() =>
+      (async function* () {
+        yield {
+          event: "messages/complete",
+          data: [{ type: "ai" as const, id: "run-1", content: "chunk one" }],
+        };
+        firstChunkSent.resolve();
+        await releaseSecondChunk.promise;
+        yield {
+          event: "messages/complete",
+          data: [{ type: "ai" as const, id: "run-2", content: "chunk two" }],
+        };
+      })(),
+    );
+
+    const { result: runtimeResult } = renderHook(() =>
+      useLangGraphRuntime({
+        stream: streamMock as never,
+        load,
+        unstable_threadListAdapter: makeThreadListAdapter(),
+        unstable_allowCancellation: true,
+      }),
+    );
+
+    const wrapper = wrapperFactory(runtimeResult.current);
+    renderHook(() => useAuiState((s) => s.thread.isLoading), { wrapper });
+
+    await act(async () => {
+      await runtimeResult.current.threads.switchToThread("lg-thread-1");
+    });
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      runtimeResult.current.thread.append("start a run");
+      await firstChunkSent.promise;
+    });
+
+    await act(async () => {
+      await runtimeResult.current.threads.reloadMainThread();
+    });
+
+    await act(async () => {
+      releaseSecondChunk.resolve();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    // consecutive assistant messages render as one, so assert on the text
+    const messageTexts = textsOf(runtimeResult.current).join(" | ");
+    // the load boundary keeps the refetch without stopping the run, so the
+    // chunk that arrives after it is kept too rather than discarded
+    expect(messageTexts).toContain("refetched");
+    expect(messageTexts).toContain("chunk two");
+  });
+
+  it("unmount aborts a reload that is still in flight", async () => {
+    const reloadPending = deferred<LoadResult>();
+    const load = vi
+      .fn<() => Promise<LoadResult>>()
+      .mockImplementationOnce(async () => ({ messages: [] }))
+      .mockImplementationOnce(() => reloadPending.promise);
+
+    const streamMock = vi
+      .fn()
+      .mockImplementation(() => mockStreamCallbackFactory([])());
+
+    const { result: runtimeResult } = renderHook(() =>
+      useLangGraphRuntime({
+        stream: streamMock,
+        load,
+        unstable_threadListAdapter: makeThreadListAdapter(),
+      }),
+    );
+
+    // the load effect lives in the binder inside the provider tree, so the
+    // provider tree is what must unmount (same shape as the initial-load test)
+    const wrapper = wrapperFactory(runtimeResult.current);
+    const { unmount } = renderHook(
+      () => useAuiState((s) => s.thread.isLoading),
+      { wrapper },
+    );
+
+    await act(async () => {
+      await runtimeResult.current.threads.switchToThread("lg-thread-1");
+    });
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
+
+    act(() => {
+      runtimeResult.current.threads.reloadMainThread().catch(() => {});
+    });
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(2));
+    const reloadSignal = (
+      load.mock.calls[1] as unknown as [string, { signal: AbortSignal }]
+    )[1].signal;
+    expect(reloadSignal.aborted).toBe(false);
+
+    unmount();
+
+    expect(reloadSignal.aborted).toBe(true);
+    reloadPending.resolve({ messages: [] });
+  });
+
+  it("reloadMainThread rejects when the reload's load fails, while an initial load only warns", async () => {
+    const loadError = new Error("refetch failed");
+    const load = vi
+      .fn<() => Promise<LoadResult>>()
+      .mockImplementationOnce(async () => ({ messages: [] }))
+      .mockImplementationOnce(() => Promise.reject(loadError));
+
+    const streamMock = vi
+      .fn()
+      .mockImplementation(() => mockStreamCallbackFactory([])());
+
+    const { result: runtimeResult } = renderHook(() =>
+      useLangGraphRuntime({
+        stream: streamMock,
+        load,
+        unstable_threadListAdapter: makeThreadListAdapter(),
+      }),
+    );
+
+    const wrapper = wrapperFactory(runtimeResult.current);
+    renderHook(() => useAuiState((s) => s.thread.isLoading), { wrapper });
+
+    await act(async () => {
+      await runtimeResult.current.threads.switchToThread("lg-thread-1");
+    });
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      await expect(
+        runtimeResult.current.threads.reloadMainThread(),
+      ).rejects.toThrow("refetch failed");
+    });
+  });
+
+  it("reloadMainThread preserves LangGraph graph state (values), and touches nothing when the reload rejects", async () => {
+    const load = vi
+      .fn<() => Promise<LoadResult>>()
+      .mockImplementationOnce(async () => ({ messages: [] }))
+      .mockImplementationOnce(async () => ({ messages: [] }))
+      .mockImplementationOnce(() => Promise.reject(new Error("boom")));
+
+    const streamMock = vi
+      .fn()
+      .mockImplementation(() =>
+        mockStreamCallbackFactory([
+          { event: "values", data: { my_graph_field: "established" } },
+        ])(),
+      );
+
+    const { result: runtimeResult } = renderHook(() =>
+      useLangGraphRuntime({
+        stream: streamMock,
+        load,
+        unstable_threadListAdapter: makeThreadListAdapter(),
+      }),
+    );
+
+    const wrapper = wrapperFactory(runtimeResult.current);
+    renderHook(() => useAuiState((s) => s.thread.isLoading), { wrapper });
+
+    await act(async () => {
+      await runtimeResult.current.threads.switchToThread("lg-thread-1");
+    });
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
+
+    // establish graph state via a run's values event
+    await act(async () => {
+      runtimeResult.current.thread.append("run once");
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    const stateOf = () =>
+      (
+        runtimeResult.current.thread.getState().extras as {
+          state?: Record<string, unknown>;
+        }
+      ).state;
+    await waitFor(() =>
+      expect(stateOf()).toEqual({ my_graph_field: "established" }),
+    );
+
+    await act(async () => {
+      await runtimeResult.current.threads.reloadMainThread();
+    });
+    expect(stateOf()).toEqual({ my_graph_field: "established" });
+
+    await act(async () => {
+      await expect(
+        runtimeResult.current.threads.reloadMainThread(),
+      ).rejects.toThrow("boom");
+    });
+    expect(stateOf()).toEqual({ my_graph_field: "established" });
+  });
+
+  it("a newer reload aborts the in-flight one so stale results never land", async () => {
+    const second = deferred<LoadResult>();
+    const third = deferred<LoadResult>();
+    const load = vi
+      .fn<
+        (
+          id: string,
+          opts?: { signal: AbortSignal } | undefined,
+        ) => Promise<LoadResult>
+      >()
+      .mockImplementationOnce(async () => ({ messages: [] }))
+      .mockImplementationOnce(() => second.promise)
+      .mockImplementationOnce(() => third.promise);
+
+    const streamMock = vi
+      .fn()
+      .mockImplementation(() => mockStreamCallbackFactory([])());
+
+    const { result: runtimeResult } = renderHook(() =>
+      useLangGraphRuntime({
+        stream: streamMock,
+        load,
+        unstable_threadListAdapter: makeThreadListAdapter(),
+      }),
+    );
+
+    const wrapper = wrapperFactory(runtimeResult.current);
+    renderHook(() => useAuiState((s) => s.thread.isLoading), { wrapper });
+
+    await act(async () => {
+      await runtimeResult.current.threads.switchToThread("lg-thread-1");
+    });
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
+
+    let firstReload!: Promise<void>;
+    let secondReload!: Promise<void>;
+    act(() => {
+      firstReload = runtimeResult.current.threads.reloadMainThread();
+    });
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(2));
+    const firstSignal = load.mock.calls[1]![1]!.signal;
+
+    act(() => {
+      secondReload = runtimeResult.current.threads.reloadMainThread();
+    });
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(3));
+
+    expect(firstSignal.aborted).toBe(true);
+    expect(load.mock.calls[2]![1]!.signal.aborted).toBe(false);
+
+    // the stale result resolving must not clobber the newer load's outcome
+    await act(async () => {
+      second.resolve({
+        messages: [],
+        interrupts: [{ value: "stale" } as LangGraphInterruptState],
+      });
+      third.resolve({
+        messages: [],
+        interrupts: [{ value: "fresh" } as LangGraphInterruptState],
+      });
+      await Promise.all([firstReload, secondReload]);
+    });
+
+    const extras = runtimeResult.current.thread.getState().extras as {
+      interrupt?: unknown;
+    };
+    expect(extras.interrupt).toEqual({ value: "fresh" });
+  });
+
+  it("reloadMainThread defers to an initial load that is still in flight", async () => {
+    const pending = deferred<LoadResult>();
+    const load = vi.fn(() => pending.promise);
+
+    const streamMock = vi
+      .fn()
+      .mockImplementation(() => mockStreamCallbackFactory([])());
+
+    const { result: runtimeResult } = renderHook(() =>
+      useLangGraphRuntime({
+        stream: streamMock,
+        load,
+        unstable_threadListAdapter: makeThreadListAdapter(),
+      }),
+    );
+    const wrapper = wrapperFactory(runtimeResult.current);
+    renderHook(() => useAuiState((s) => s.thread.isLoading), { wrapper });
+
+    await act(async () => {
+      await runtimeResult.current.threads.switchToThread("lg-thread-1");
+    });
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
+
+    // the initial load is already fetching what a refetch would ask for, and
+    // the refetch settles with it rather than resolving ahead of it
+    let refetch!: Promise<void>;
+    act(() => {
+      refetch = runtimeResult.current.threads.reloadMainThread();
+    });
+    let refetchSettled = false;
+    void refetch.then(() => {
+      refetchSettled = true;
+    });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    });
+    expect(load).toHaveBeenCalledTimes(1);
+    expect(refetchSettled).toBe(false);
+
+    await act(async () => {
+      pending.resolve({
+        messages: [
+          { type: "ai" as const, id: "server-1", content: "persisted" },
+        ],
+      });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    await act(async () => {
+      await refetch;
+    });
+    expect(refetchSettled).toBe(true);
+    expect(runtimeResult.current.thread.getState().isLoading).toBe(false);
+    expect(textsOf(runtimeResult.current)).toContain("persisted");
+  });
+
+  it("a send while the initial load is pending leaves the history and loading flag intact", async () => {
+    const pending = deferred<LoadResult>();
+    const load = vi.fn(() => pending.promise);
+
+    const streamMock = vi
+      .fn()
+      .mockImplementation(() => mockStreamCallbackFactory([])());
+
+    const { result: runtimeResult } = renderHook(() =>
+      useLangGraphRuntime({
+        stream: streamMock,
+        load,
+        unstable_threadListAdapter: makeThreadListAdapter(),
+      }),
+    );
+
+    const wrapper = wrapperFactory(runtimeResult.current);
+    renderHook(() => useAuiState((s) => s.thread.isLoading), { wrapper });
+
+    await act(async () => {
+      await runtimeResult.current.threads.switchToThread("lg-thread-1");
+    });
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
+    expect(runtimeResult.current.thread.getState().isLoading).toBe(true);
+
+    // the composer is live during a load, so this is reachable from the UI
+    await act(async () => {
+      void runtimeResult.current.thread.append("hello");
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    await act(async () => {
+      pending.resolve({
+        messages: [
+          { type: "ai" as const, id: "server-1", content: "persisted" },
+        ],
+      });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    // aborting the initial load here would strand both of these
+    expect(runtimeResult.current.thread.getState().isLoading).toBe(false);
+    expect(textsOf(runtimeResult.current)).toContain("persisted");
   });
 
   it("should abort the pending load when the runtime unmounts", async () => {
@@ -1127,6 +1916,234 @@ describe("useLangGraphRuntime", () => {
         await new Promise((r) => setTimeout(r, 10));
       });
       expect(streamMock).toHaveBeenCalledTimes(1);
+    });
+
+    it("rejects a queued send when the run is cancelled", async () => {
+      const streamMock = vi.fn(async function* (
+        _messages: LangChainMessage[],
+        config: { abortSignal: AbortSignal },
+      ) {
+        if (streamMock.mock.calls.length === 1) {
+          await new Promise<void>((resolve) => {
+            config.abortSignal.addEventListener("abort", () => resolve(), {
+              once: true,
+            });
+          });
+        }
+      });
+
+      const { result: runtimeResult } = renderHook(() =>
+        useLangGraphRuntime({
+          stream: streamMock,
+          unstable_allowCancellation: true,
+        }),
+      );
+      const wrapper = wrapperFactory(runtimeResult.current);
+      const { result: sendResult } = renderHook(() => useLangGraphSend(), {
+        wrapper,
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      let firstRun!: Promise<void>;
+      await act(async () => {
+        firstRun = sendResult.current(
+          [{ type: "human", content: "first" }],
+          {},
+        );
+      });
+      await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(1));
+
+      let queuedRun!: Promise<void>;
+      await act(async () => {
+        queuedRun = sendResult.current(
+          [{ type: "human", content: "queued" }],
+          {},
+        );
+      });
+      const queuedRunResult = queuedRun.then(
+        () => undefined,
+        (error) => error,
+      );
+
+      await act(async () => {
+        runtimeResult.current.thread.cancelRun();
+      });
+
+      await expect(queuedRunResult).resolves.toEqual(
+        expect.objectContaining({ message: "Queued run was dropped." }),
+      );
+      await firstRun;
+      await waitFor(() =>
+        expect(runtimeResult.current.thread.getState().isRunning).toBe(false),
+      );
+      expect(streamMock).toHaveBeenCalledTimes(1);
+    });
+
+    it("stops applying chunks after cancelRun even when the stream ignores its abortSignal", async () => {
+      const gate = deferred<void>();
+      const streamMock = vi.fn(async function* () {
+        yield {
+          event: "messages/partial",
+          data: [
+            { type: "ai" as const, id: "run-1", content: "before-cancel" },
+          ],
+        };
+        await gate.promise;
+        yield {
+          event: "messages/partial",
+          data: [{ type: "ai" as const, id: "run-2", content: "after-cancel" }],
+        };
+      });
+
+      const { result: runtimeResult } = renderHook(() =>
+        useLangGraphRuntime({
+          stream: streamMock as never,
+          unstable_allowCancellation: true,
+        }),
+      );
+      const wrapper = wrapperFactory(runtimeResult.current);
+      const { result: auiResult } = renderHook(() => useAui(), { wrapper });
+
+      await act(async () => {
+        auiResult.current.composer.setText("hello");
+        auiResult.current.composer.send();
+      });
+      await waitFor(() =>
+        expect(
+          JSON.stringify(runtimeResult.current.thread.getState().messages),
+        ).toContain("before-cancel"),
+      );
+
+      await act(async () => {
+        runtimeResult.current.thread.cancelRun();
+      });
+
+      await act(async () => {
+        gate.resolve();
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      });
+
+      expect(
+        JSON.stringify(runtimeResult.current.thread.getState().messages),
+      ).not.toContain("after-cancel");
+    });
+
+    it("cancelRun settles a run whose stream hangs instead of yielding", async () => {
+      // never resolved: the stream ignores its abortSignal and parks on its own
+      // work, so the consuming loop is left waiting on next()
+      const hang = deferred<void>();
+      const streamMock = vi.fn(async function* () {
+        if (streamMock.mock.calls.length === 1) {
+          yield {
+            event: "messages/partial",
+            data: [
+              { type: "ai" as const, id: "run-1", content: "before-cancel" },
+            ],
+          };
+          await hang.promise;
+          return;
+        }
+        yield {
+          event: "messages/partial",
+          data: [{ type: "ai" as const, id: "run-2", content: "second-run" }],
+        };
+      });
+
+      const { result: runtimeResult } = renderHook(() =>
+        useLangGraphRuntime({
+          stream: streamMock as never,
+          unstable_allowCancellation: true,
+        }),
+      );
+      const wrapper = wrapperFactory(runtimeResult.current);
+      const { result: auiResult } = renderHook(() => useAui(), { wrapper });
+
+      await act(async () => {
+        auiResult.current.composer.setText("hello");
+        auiResult.current.composer.send();
+      });
+      await waitFor(() =>
+        expect(
+          JSON.stringify(runtimeResult.current.thread.getState().messages),
+        ).toContain("before-cancel"),
+      );
+
+      await act(async () => {
+        runtimeResult.current.thread.cancelRun();
+      });
+
+      // the parked run must stop being the active run
+      await waitFor(() =>
+        expect(runtimeResult.current.thread.getState().isRunning).toBe(false),
+      );
+
+      // and the queue must accept work behind it
+      await act(async () => {
+        auiResult.current.composer.setText("second");
+        auiResult.current.composer.send();
+      });
+      await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(2));
+      await waitFor(() =>
+        expect(
+          JSON.stringify(runtimeResult.current.thread.getState().messages),
+        ).toContain("second-run"),
+      );
+      // the second run has to settle on its own, not inherit the parked state
+      await waitFor(() =>
+        expect(runtimeResult.current.thread.getState().isRunning).toBe(false),
+      );
+    });
+
+    it("cancelRun settles a run whose stream hangs before yielding the iterable", async () => {
+      // parks before handing the iterable over, one await earlier than the
+      // loop, and ignores the signal just the same
+      const hang = deferred<void>();
+      const streamMock = vi.fn(async () => {
+        if (streamMock.mock.calls.length === 1) {
+          await hang.promise;
+        }
+        return (async function* () {
+          yield {
+            event: "messages/partial",
+            data: [{ type: "ai" as const, id: "run-2", content: "second-run" }],
+          };
+        })();
+      });
+
+      const { result: runtimeResult } = renderHook(() =>
+        useLangGraphRuntime({
+          stream: streamMock as never,
+          unstable_allowCancellation: true,
+        }),
+      );
+      const wrapper = wrapperFactory(runtimeResult.current);
+      const { result: auiResult } = renderHook(() => useAui(), { wrapper });
+
+      await act(async () => {
+        auiResult.current.composer.setText("hello");
+        auiResult.current.composer.send();
+      });
+      await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(1));
+
+      await act(async () => {
+        runtimeResult.current.thread.cancelRun();
+      });
+
+      await waitFor(() =>
+        expect(runtimeResult.current.thread.getState().isRunning).toBe(false),
+      );
+
+      await act(async () => {
+        auiResult.current.composer.setText("second");
+        auiResult.current.composer.send();
+      });
+      await waitFor(() =>
+        expect(
+          JSON.stringify(runtimeResult.current.thread.getState().messages),
+        ).toContain("second-run"),
+      );
     });
 
     it("drops the queued resume when the draining run errors", async () => {

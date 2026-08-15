@@ -15,7 +15,7 @@ import {
   useExternalMessageConverter,
   useRemoteThreadListRuntime,
 } from "@assistant-ui/core/react";
-import { useAuiState } from "@assistant-ui/store";
+import { useAui, useAuiState } from "@assistant-ui/store";
 import { STREAM_CONTROLLER, useChannel, useStream } from "@langchain/react";
 import type { Channel } from "@langchain/react";
 import type {
@@ -119,18 +119,18 @@ const useStreamThreadRuntime = (
 ) => {
   const { adapters, autoCancelPendingToolCalls, unstable_allowCancellation } =
     options;
+  const aui = useAui();
   const messagesKey = options.messagesKey ?? "messages";
   const uiStateKey = options.uiStateKey ?? "ui";
 
   const externalId = useAuiState((s) => s.threadListItem.externalId) as
     | string
     | null;
-  // Mutate in place rather than `{ ...options, threadId }`: spreading
-  // `UseStreamOptions` (a discriminated union on `transport`) into an object
-  // literal merges both arms' transport types, breaking arm assignment.
-  options.threadId = externalId;
-
-  const stream = useStream(options);
+  // Object.assign preserves the discriminated transport union; object spread
+  // collapses its arms and no longer satisfies UseStreamOptions.
+  const stream = useStream(
+    Object.assign({}, options, { threadId: externalId }),
+  );
   const [stagedMessages, setStagedMessages] = useState<
     LangChainBaseMessage[] | null
   >(null);
@@ -310,9 +310,16 @@ const useStreamThreadRuntime = (
               status: "error" as const,
             }))
           : [];
-      await stream.submit(
+      // A null threadId is not a no-op for the SDK: it rebinds the controller
+      // away from its self-created thread and forces a fresh one, so the
+      // override is only passed once initialization produced an identity.
+      const externalId = aui.threadListItem.getState().externalId;
+      await streamRef.current.submit(
         { [messagesKey]: [...cancellations, { type: "human", content }] },
-        runConfigToSubmitOptions(msg.runConfig),
+        {
+          ...runConfigToSubmitOptions(msg.runConfig),
+          ...(externalId != null ? { threadId: externalId } : {}),
+        },
       );
     },
     onAddToolResult: async ({

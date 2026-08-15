@@ -4,10 +4,10 @@ import type { ThreadAssistantMessage } from "../../types/message";
 import type { ThreadRuntimeCoreBinding } from "./thread-runtime";
 import {
   MessageRuntimeImpl,
-  toMessagePartStatus,
   type MessageState,
   type MessageStateBinding,
 } from "./message-runtime";
+import { toMessagePartStatus } from "../../utils/normalizePartStatus";
 
 const messagePath = {
   ref: "threads.main.messages[0]",
@@ -169,6 +169,31 @@ describe("toMessagePartStatus", () => {
       type: "running",
     });
     expect(toMessagePartStatus(resolved, 0, resolved.content[0]!)).toEqual({
+      type: "complete",
+    });
+  });
+
+  it.each([
+    ["false", false],
+    ["zero", 0],
+    ["an empty string", ""],
+    ["null", null],
+  ])("treats %s tool results as complete", (_label, result) => {
+    const message = createAssistantMessage(
+      [
+        {
+          type: "tool-call",
+          toolCallId: "call-1",
+          toolName: "weather",
+          args: {},
+          argsText: "{}",
+          result,
+        },
+      ],
+      { type: "running" },
+    );
+
+    expect(toMessagePartStatus(message, 0, message.content[0]!)).toEqual({
       type: "complete",
     });
   });

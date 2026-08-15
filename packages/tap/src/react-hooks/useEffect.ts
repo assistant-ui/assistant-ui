@@ -1,17 +1,18 @@
 import { getCurrentResourceFiber } from "../core/helpers/execution-context";
-import { CommitPriority } from "../core/helpers/commit";
 import { addCommit } from "../core/helpers/root";
-import type { Cell } from "../core/types";
-import { depsShallowEqual } from "../hooks/utils/depsShallowEqual";
+import type { EffectCell } from "../core/types";
 import {
   throwHookOrderChanged,
   throwRenderedMoreHooks,
 } from "./utils/hookErrors";
 
-const newEffect = (): Cell & { type: "effect" } => ({
+const newEffect = (): EffectCell => ({
   type: "effect",
+  setup: undefined,
+  setupDeps: undefined,
   cleanup: undefined,
   deps: null, // null means the effect has never been run
+  generation: 0,
 });
 
 export namespace useEffect {
@@ -32,7 +33,7 @@ export function useEffect(
   const index = fiber.currentIndex++;
 
   const existing = fiber.cells[index];
-  const cell: Cell & { type: "effect" } =
+  const cell: EffectCell =
     existing === undefined
       ? newEffect()
       : existing.type === "effect"
@@ -40,40 +41,22 @@ export function useEffect(
         : throwHookOrderChanged();
 
   if (existing === undefined) {
-    if (!fiber.isFirstRender && index >= fiber.cells.length) {
+    if (!fiber.isFirstRender) {
       throwRenderedMoreHooks();
     }
 
     fiber.cells[index] = cell;
+    fiber.effectCells.push(cell);
   }
 
-  if (deps && cell.deps && depsShallowEqual(cell.deps, deps)) return;
   if (cell.deps !== null && !!deps !== !!cell.deps)
     throw new Error(
       "useEffect called with and without dependencies across re-renders",
     );
 
-  addCommit(fiber, CommitPriority.PassiveEffectCleanup, () => {
-    try {
-      cell.cleanup?.();
-    } finally {
-      cell.cleanup = undefined;
-    }
-  });
-  addCommit(fiber, CommitPriority.PassiveEffectSetup, () => {
-    try {
-      const cleanup = effect();
-
-      if (cleanup !== undefined && typeof cleanup !== "function") {
-        throw new Error(
-          "An effect function must either return a cleanup function or nothing. " +
-            `Received: ${typeof cleanup}`,
-        );
-      }
-
-      cell.cleanup = cleanup;
-    } finally {
-      cell.deps = deps;
-    }
+  addCommit(fiber, () => {
+    cell.setup = effect;
+    cell.setupDeps = deps;
+    cell.generation++;
   });
 }

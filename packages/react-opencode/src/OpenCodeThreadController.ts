@@ -28,9 +28,13 @@ import {
   STREAM_RECONNECTED_EVENT_TYPE,
   type OpenCodeEventSource,
 } from "./OpenCodeEventSource";
-import { isParsableUrl } from "@assistant-ui/core/internal";
+import {
+  resolveFileMediaType,
+  resolveImageMediaType,
+  toMediaWireUrl,
+} from "@assistant-ui/core/internal";
 import { OPEN_CODE_REQUEST_OPTIONS } from "./openCodeRequestOptions";
-import { serializeUserParts } from "./serializeUserParts";
+import { serializeOpenCodeParts } from "./serializeUserParts";
 import { getOpenCodeTaskSessionId } from "./openCodeTaskSession";
 
 type OpenCodeEventSourceProvider = () => Pick<OpenCodeEventSource, "subscribe">;
@@ -44,15 +48,28 @@ const createLocalId = (prefix: string) =>
   `${prefix}_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
 
 const getTextContent = (parts: readonly ThreadUserMessagePart[]) =>
-  serializeUserParts(parts).trim();
+  serializeOpenCodeParts(parts).trim();
+
+// The attachment carries a name and content type its parts do not, so they
+// ride along rather than being dropped at the flatten. Both the outbound
+// prompt and the pending copy read this, so their fingerprints agree.
+const flattenMessageParts = (message: AppendMessage) => [
+  ...message.content,
+  ...(message.attachments?.flatMap((attachment: any) =>
+    (attachment.content ?? []).map((part: any) => ({
+      ...part,
+      ...(attachment.name != null && {
+        filename: part.filename ?? attachment.name,
+      }),
+      ...(attachment.contentType != null && {
+        contentType: attachment.contentType,
+      }),
+    })),
+  ) ?? []),
+];
 
 const getPromptParts = (message: AppendMessage) => {
-  const content = [
-    ...message.content,
-    ...(message.attachments?.flatMap(
-      (attachment: any) => attachment.content ?? [],
-    ) ?? []),
-  ];
+  const content = flattenMessageParts(message);
 
   const promptParts: Array<Record<string, unknown>> = [];
   for (const part of content) {
@@ -62,23 +79,33 @@ const getPromptParts = (message: AppendMessage) => {
     }
 
     if (part.type === "image") {
-      promptParts.push({ type: "image", image: part.image });
+      // OpenCode has no image part: its input union is text, file, agent and
+      // subtask, so an `image` part never reached the model.
+      const mime = resolveImageMediaType(
+        part.image,
+        (part as { contentType?: string }).contentType,
+      );
+      promptParts.push({
+        type: "file",
+        ...(part.filename != null && { filename: part.filename }),
+        mime,
+        url: toMediaWireUrl(part.image, mime),
+      });
       continue;
     }
 
     if (part.type === "file") {
+      const fileMime = resolveFileMediaType(part.data, part.mimeType);
       promptParts.push({
         type: "file",
         filename: part.filename,
-        mime: part.mimeType,
-        // OpenCode forwards this into an AI SDK file part, whose `url` reaches
-        // an unguarded `new URL()`, so a payload it cannot parse is wrapped. An
-        // `id` reference is an opaque handle this adapter cannot send, left
+        mime: fileMime,
+        // An `id` reference is an opaque handle this adapter cannot send, left
         // unwrapped so it fails loudly rather than shipping a corrupt payload.
         url:
-          isParsableUrl(part.data) || part.sourceType === "id"
+          part.sourceType === "id"
             ? part.data
-            : `data:${part.mimeType};base64,${part.data}`,
+            : toMediaWireUrl(part.data, fileMime),
       });
     }
   }
@@ -229,7 +256,11 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
 
   private notifyListeners() {
     for (const listener of this.listeners) {
-      listener();
+      try {
+        listener();
+      } catch (error) {
+        console.error("[react-opencode] Listener threw an error", error);
+      }
     }
   }
 
@@ -525,12 +556,9 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   }
 
   private createPendingMessage(message: AppendMessage): PendingUserMessage {
-    const parts = [
-      ...message.content,
-      ...(message.attachments?.flatMap(
-        (attachment: any) => attachment.content ?? [],
-      ) ?? []),
-    ] as readonly ThreadUserMessagePart[];
+    const parts = flattenMessageParts(
+      message,
+    ) as readonly ThreadUserMessagePart[];
 
     return {
       clientId: createLocalId("local"),

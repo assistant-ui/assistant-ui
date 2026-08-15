@@ -80,10 +80,19 @@ rendering again. State updates and context changes still render it.
 
 Inside a resource body you use React's own hooks, imported from `"react"`:
 `useState`, `useReducer`, `useEffect`, `useMemo`, `useCallback`, `useRef`,
-`useLayoutEffect`, `useEffectEvent`, `useSyncExternalStore`, `useDebugValue`,
-`useContext`, and `use` (tap contexts only — promises are not supported). They
-follow React's rules of Hooks, with a few
-[differences](/tap/docs/tap/differences-from-react).
+`useLayoutEffect`, `useInsertionEffect`, `useEffectEvent`,
+`useSyncExternalStore`, `useDebugValue`, `useContext`, and `use` (tap contexts
+only — promises are not supported). They follow React's rules of Hooks, with a
+few [differences](/tap/docs/tap/differences-from-react). Hooks compiled by
+React Compiler also work: tap implements the compiler's memo-cache primitive.
+
+The remaining React hooks are not supported inside a resource body: `useId`,
+`useTransition`, `useDeferredValue`, `useImperativeHandle`, `useOptimistic`,
+and `useActionState`. Calling one inside a resource throws a `TypeError` naming
+the hook, for example `useId is not a function`. This restricts only the
+resource body itself: a React component hosting a resource can still wrap
+`useResource` in concurrent features like `useDeferredValue`
+([lifecycle](/tap/docs/tap/lifecycle)).
 
 The Hooks below are exported by tap.
 
@@ -184,7 +193,10 @@ function TapEffects({ effects }: { effects: () => void }) {
 Hosts a render callback [outside React](/tap/docs/tap/outside-react).
 
 ```ts
-function createTapRoot<R>(render: () => R): {
+function createTapRoot<R>(
+  render: () => R,
+  options?: { mountOnSubscribe?: boolean },
+): {
   getValue(): R;
   subscribe(listener: () => void): () => void;
   unmount(): void;
@@ -199,6 +211,16 @@ root.getValue();
 root.subscribe(() => {});
 root.unmount();
 ```
+
+With `mountOnSubscribe: true` the lifecycle is derived from subscribers
+instead: the root renders lazily on the first `getValue()` or `subscribe()`,
+effects commit when the first subscriber attaches, and after the last
+unsubscriber the root soft-unmounts on the next scheduler flush — effect
+cleanups run, but state is preserved and the next subscriber remounts it.
+Because the unmount is deferred, an unsubscribe followed by a resubscribe in
+the same tick (React StrictMode's subscription bounce, `useSyncExternalStore`
+churn, a subscribing component remounting) is absorbed without touching
+effects. `unmount()` throws in this mode.
 
 ## flushTapSync
 

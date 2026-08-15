@@ -1,12 +1,13 @@
 import type { FC, PropsWithChildren } from "react";
-import { useAui, AuiProvider, Derived } from "@assistant-ui/store";
+import { useAui, AuiConfig, AuiProvider, Derived } from "@assistant-ui/store";
 
 export const MessageByIdProvider: FC<
   PropsWithChildren<{
     id: string;
   }>
 > = ({ id, children }) => {
-  const aui = useAui({
+  const aui = useAui();
+  const config = AuiConfig({
     message: Derived({
       source: "thread",
       query: { type: "id", id },
@@ -18,6 +19,9 @@ export const MessageByIdProvider: FC<
       get: (aui) => aui.thread.message({ id }).composer(),
     }),
   });
-
-  return <AuiProvider value={aui}>{children}</AuiProvider>;
+  return (
+    <AuiProvider extends={aui} config={config}>
+      {children}
+    </AuiProvider>
+  );
 };

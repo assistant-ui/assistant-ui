@@ -205,6 +205,22 @@ const tests: PartialJsonTest[] = [
     query: ["\u25CF"],
     result: "partial",
   },
+  // negative number whose digits have not arrived yet
+  {
+    input: `{"foo": [-`,
+    query: ["foo"],
+    result: "partial",
+  },
+  {
+    input: `{"foo": [-`,
+    query: ["foo", 0],
+    result: "partial",
+  },
+  {
+    input: `{"foo": [[-`,
+    query: ["foo", 0, 0],
+    result: "partial",
+  },
 ];
 
 describe("parsePartialJsonObject and getPartialJsonObjectFieldState", () => {

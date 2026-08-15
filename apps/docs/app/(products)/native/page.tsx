@@ -12,7 +12,7 @@ import {
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { CopyCommandButton } from "@/components/home/copy-command-button";
-import { Button, buttonVariants } from "@/components/ui/radix/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 
 import "./phone-mockup.css";
 
@@ -163,10 +163,12 @@ export default function NativePage() {
           with the React Native package. Share the same code between your web
           and mobile apps — only the UI layer changes.
         </p>
-        <Button variant="outline" asChild>
-          <Link href="/docs/react-native/migration">
-            See the migration guide <ArrowRight />
-          </Link>
+        <Button
+          variant="outline"
+          nativeButton={false}
+          render={<Link href="/docs/react-native/migration" />}
+        >
+          See the migration guide <ArrowRight />
         </Button>
       </div>
 
@@ -176,10 +178,11 @@ export default function NativePage() {
           Start building today
         </p>
         <div className="flex flex-wrap items-center justify-center gap-3">
-          <Button asChild>
-            <Link href="/docs/react-native">
-              Get Started <ArrowRight />
-            </Link>
+          <Button
+            nativeButton={false}
+            render={<Link href="/docs/react-native" />}
+          >
+            Get Started <ArrowRight />
           </Button>
           <Link
             href="/docs/react-native/migration"

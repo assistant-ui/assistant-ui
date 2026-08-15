@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 
-import type { FC } from "react";
+import type { FC, ReactNode } from "react";
 import { cleanup, render } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { resource, withKey } from "@assistant-ui/tap";
-import { AuiProvider } from "../utils/react-assistant-context";
+import { AuiProvider } from "../AuiProvider";
 import { useAui } from "../useAui";
 import { useAuiState } from "../useAuiState";
 import { useClientLookup } from "../useClientLookup";
@@ -26,14 +26,10 @@ const Thread = resource(useThread);
 
 const probe: { aui: any; state: any } = { aui: null, state: null };
 
-const App: FC = () => {
+const App: FC<{ children?: ReactNode }> = ({ children }) => {
   const aui = useAui({ thread: Thread() } as unknown as useAui.Props);
   probe.aui = aui;
-  return (
-    <AuiProvider value={aui}>
-      <Leaf />
-    </AuiProvider>
-  );
+  return <AuiProvider value={aui}>{children ?? <Leaf />}</AuiProvider>;
 };
 
 const Leaf: FC = () => {
@@ -81,5 +77,30 @@ describe("proxy invariants", () => {
     expect(
       Object.getOwnPropertyDescriptor(probe.state, "thread")?.configurable,
     ).toBe(true);
+  });
+
+  it("enumerates inherited scopes on the proxied state at a nested scope", () => {
+    const NestedBuilder: FC<{ children?: ReactNode }> = ({ children }) => {
+      const inner = useAui({
+        item: Item({ id: "x" }),
+      } as unknown as useAui.Props);
+      return <AuiProvider value={inner}>{children}</AuiProvider>;
+    };
+    render(
+      <App>
+        <NestedBuilder>
+          <Leaf />
+        </NestedBuilder>
+      </App>,
+    );
+
+    expect(Object.keys(probe.state).sort()).toEqual([
+      "item",
+      "optional",
+      "thread",
+    ]);
+    const spread = { ...probe.state };
+    expect(spread.thread).toEqual({ count: 1 });
+    expect(spread.item).toEqual({ id: "x" });
   });
 });

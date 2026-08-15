@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import type { AppendMessage } from "@assistant-ui/core";
 import { convertExternalMessages } from "@assistant-ui/core/react";
 import {
@@ -66,14 +66,14 @@ describe("convertLangChainMessages metadata", () => {
       id: "ai-1",
       content: "Hi there!",
       additional_kwargs: {
-        metadata: { model: "gpt-5.4-nano", speaker_name: "Assistant" },
+        metadata: { model: "gpt-5.6-luna", speaker_name: "Assistant" },
       },
     });
 
     expect(result).toMatchObject({
       role: "assistant",
       metadata: {
-        custom: { model: "gpt-5.4-nano", speaker_name: "Assistant" },
+        custom: { model: "gpt-5.6-luna", speaker_name: "Assistant" },
       },
     });
   });
@@ -527,6 +527,7 @@ describe("getMessageContent file blocks", () => {
         type: "file",
         data: "ZmFrZQ==",
         mime_type: "application/pdf",
+        filename: "a.pdf",
         metadata: { filename: "a.pdf" },
         source_type: "base64",
       },
@@ -549,6 +550,7 @@ describe("getMessageContent file blocks", () => {
         type: "file",
         url: "https://r2.example/u/abc/file.pdf",
         mime_type: "application/pdf",
+        filename: "file.pdf",
         metadata: { filename: "file.pdf" },
         source_type: "url",
       },
@@ -572,6 +574,7 @@ describe("getMessageContent file blocks", () => {
         type: "file",
         data: "ZmFrZQ==",
         mime_type: "application/pdf",
+        filename: "a.pdf",
         metadata: { filename: "a.pdf" },
         source_type: "base64",
       },
@@ -594,6 +597,7 @@ describe("getMessageContent file blocks", () => {
         type: "file",
         data: "blob:https://app.example/123",
         mime_type: "application/pdf",
+        filename: "a.pdf",
         metadata: { filename: "a.pdf" },
         source_type: "base64",
       },
@@ -617,6 +621,7 @@ describe("getMessageContent file blocks", () => {
         type: "file",
         id: "flx::storage:file_object:abc",
         mime_type: "application/pdf",
+        filename: "invoice.pdf",
         metadata: { filename: "invoice.pdf" },
         source_type: "id",
       },
@@ -641,6 +646,7 @@ describe("getMessageContent file blocks", () => {
         type: "file",
         url: "s3://bucket/key.pdf",
         mime_type: "application/pdf",
+        filename: "key.pdf",
         metadata: { filename: "key.pdf" },
         source_type: "url",
       },
@@ -671,6 +677,7 @@ describe("getMessageContent file blocks", () => {
         type: "file",
         id: "file-abc123",
         mime_type: "application/pdf",
+        filename: "a.pdf",
         metadata: { filename: "a.pdf" },
         source_type: "id",
       },
@@ -700,6 +707,7 @@ describe("getMessageContent file blocks", () => {
         type: "file",
         id: "file-abc123",
         mime_type: "application/pdf",
+        filename: "a.pdf",
         metadata: { filename: "a.pdf" },
         source_type: "id",
       },
@@ -1433,6 +1441,20 @@ describe("convertLangChainMessages unknown message types", () => {
     expect(call(removeMessage)).toEqual([]);
   });
 
+  it("does not emit the unknown-message dev warning for type:remove", () => {
+    vi.stubEnv("NODE_ENV", "development");
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      expect(
+        call({ type: "remove", id: "some-message-id", content: "" }),
+      ).toEqual([]);
+      expect(warn).not.toHaveBeenCalled();
+    } finally {
+      warn.mockRestore();
+      vi.unstubAllEnvs();
+    }
+  });
+
   it("returns an empty array for any other unknown message type", () => {
     expect(call({ type: "delete", id: "x" })).toEqual([]);
   });
@@ -1466,5 +1488,298 @@ describe("convertLangChainMessages unknown message types", () => {
 
     expect(result).toHaveLength(1);
     expect(result[0]?.role).toBe("user");
+  });
+});
+
+describe("convertLangChainMessages audio transcripts", () => {
+  const audioMessage = (
+    content: LangChainMessage["content"],
+    audio: unknown,
+  ): LangChainMessage =>
+    ({
+      id: "msg-audio",
+      type: "ai",
+      content,
+      additional_kwargs: { audio },
+    }) as LangChainMessage;
+
+  it("surfaces the transcript when the provider leaves content empty", () => {
+    const result = convertLangChainMessages(
+      audioMessage("", {
+        id: "audio_1",
+        data: "UklGRg==",
+        expires_at: 1,
+        transcript: "the secret number is four seven two",
+      }),
+    );
+
+    expect(result.content).toEqual([
+      { type: "text", text: "the secret number is four seven two" },
+    ]);
+  });
+
+  it("treats a whitespace-only placeholder as no text", () => {
+    const result = convertLangChainMessages(
+      audioMessage(
+        [{ type: "text", text: "   " }] as LangChainMessage["content"],
+        { transcript: "spoken words" },
+      ),
+    );
+
+    expect(result.content).toEqual([{ type: "text", text: "spoken words" }]);
+  });
+
+  it("does not throw on a non-spec text block whose text is missing or not a string", () => {
+    for (const block of [{ type: "text" }, { type: "text", text: 42 }]) {
+      const result = convertLangChainMessages(
+        audioMessage([block] as LangChainMessage["content"], {
+          transcript: "spoken words",
+        }),
+      );
+
+      expect(result.content).toEqual([{ type: "text", text: "spoken words" }]);
+    }
+  });
+
+  it("keeps non-text parts when it substitutes the transcript", () => {
+    const result = convertLangChainMessages(
+      audioMessage(
+        [
+          { type: "text", text: "" },
+          {
+            type: "image_url",
+            image_url: { url: "https://example.com/a.png" },
+          },
+        ] as LangChainMessage["content"],
+        { transcript: "spoken words" },
+      ),
+    );
+
+    expect(result.content).toEqual([
+      { type: "image", image: "https://example.com/a.png" },
+      { type: "text", text: "spoken words" },
+    ]);
+  });
+
+  it("leaves existing text alone so the transcript is not duplicated", () => {
+    const result = convertLangChainMessages(
+      audioMessage(
+        [
+          { type: "text", text: "written answer" },
+        ] as LangChainMessage["content"],
+        { transcript: "written answer" },
+      ),
+    );
+
+    expect(result.content).toEqual([{ type: "text", text: "written answer" }]);
+  });
+
+  it("ignores an absent, blank, or non-string transcript", () => {
+    for (const audio of [
+      undefined,
+      {},
+      { transcript: "" },
+      { transcript: "   " },
+      { transcript: 42 },
+    ]) {
+      const result = convertLangChainMessages(audioMessage("", audio));
+      expect(result.content).toEqual([{ type: "text", text: "" }]);
+    }
+  });
+});
+
+describe("convertLangChainMessages attachment dedupe", () => {
+  const fileAttachment = (data: string, name = "doc.pdf") => ({
+    id: `att-${name}`,
+    type: "file" as const,
+    name,
+    contentType: "application/pdf",
+    status: { type: "complete" as const },
+    content: [{ type: "file" as const, data, mimeType: "application/pdf" }],
+  });
+
+  const withAttachments = (
+    messageId: string,
+    attachments: readonly unknown[],
+  ) => ({
+    attachmentsByMessageId: new Map([[messageId, attachments]]),
+  });
+
+  const fileBlock = (data: string) => ({
+    type: "file" as const,
+    data,
+    mime_type: "application/pdf",
+    source_type: "base64" as const,
+  });
+
+  it("drops the flattened copy of an attachment file from content", () => {
+    const result = convertLangChainMessages(
+      {
+        type: "human",
+        id: "m1",
+        content: [{ type: "text", text: "here is my file" }, fileBlock("QUJD")],
+      },
+      withAttachments("m1", [fileAttachment("QUJD")]),
+    );
+
+    expect(result.content).toEqual([{ type: "text", text: "here is my file" }]);
+  });
+
+  const deriveWire = (attachments: readonly unknown[]) =>
+    getMessageContent({
+      role: "user",
+      content: [],
+      attachments,
+    } as unknown as AppendMessage) as LangChainMessage["content"];
+
+  it("drops the flattened copy of an attachment image from content", () => {
+    const attachment = {
+      id: "att-img",
+      type: "image",
+      name: "img.png",
+      status: { type: "complete" },
+      content: [{ type: "image", image: "data:image/png;base64,aW1n" }],
+    };
+    const result = convertLangChainMessages(
+      { type: "human", id: "m1", content: deriveWire([attachment]) },
+      withAttachments("m1", [attachment]),
+    );
+
+    expect(result.content).toEqual([{ type: "text", text: " " }]);
+  });
+
+  it("matches across the wire's data URL stripping", () => {
+    const attachment = {
+      id: "att-audio",
+      type: "file",
+      name: "voice.mp3",
+      status: { type: "complete" },
+      content: [
+        {
+          type: "file",
+          data: "data:audio/mp3;base64,QUJD",
+          mimeType: "audio/mp3",
+        },
+      ],
+    };
+    const result = convertLangChainMessages(
+      { type: "human", id: "m1", content: deriveWire([attachment]) },
+      withAttachments("m1", [attachment]),
+    );
+
+    expect(result.content).toEqual([{ type: "text", text: " " }]);
+  });
+
+  it("dedupes an attachment carrying a legacy audio part", () => {
+    const attachment = {
+      id: "att-legacy-audio",
+      type: "file",
+      name: "voice.mp3",
+      status: { type: "complete" },
+      content: [{ type: "audio", audio: { data: "QUJD", format: "mp3" } }],
+    };
+    const result = convertLangChainMessages(
+      { type: "human", id: "m1", content: deriveWire([attachment]) },
+      withAttachments("m1", [attachment]),
+    );
+
+    expect(result.content).toEqual([{ type: "text", text: " " }]);
+  });
+
+  it("keeps direct-content media sent alongside an attachment", () => {
+    const result = convertLangChainMessages(
+      {
+        type: "human",
+        id: "m1",
+        content: [fileBlock("QUJD"), fileBlock("REVG")],
+      },
+      withAttachments("m1", [fileAttachment("QUJD")]),
+    );
+
+    expect(result.content).toEqual([
+      expect.objectContaining({ type: "file", data: "REVG" }),
+    ]);
+  });
+
+  it("keeps the direct part when it shares a payload with an attachment", () => {
+    const directBlock = {
+      type: "file" as const,
+      data: "QUJD",
+      mime_type: "application/pdf",
+      source_type: "base64" as const,
+      metadata: { filename: "mine.pdf" },
+    };
+    const flattenedBlock = {
+      ...fileBlock("QUJD"),
+      metadata: { filename: "attached.pdf" },
+    };
+    const result = convertLangChainMessages(
+      {
+        type: "human",
+        id: "m1",
+        content: [directBlock, flattenedBlock],
+      },
+      withAttachments("m1", [fileAttachment("QUJD", "attached.pdf")]),
+    );
+
+    expect(result.content).toEqual([
+      expect.objectContaining({
+        type: "file",
+        data: "QUJD",
+        filename: "mine.pdf",
+      }),
+    ]);
+  });
+
+  it("drops one content part per duplicate attachment payload", () => {
+    const result = convertLangChainMessages(
+      {
+        type: "human",
+        id: "m1",
+        content: [fileBlock("QUJD"), fileBlock("QUJD"), fileBlock("QUJD")],
+      },
+      withAttachments("m1", [
+        fileAttachment("QUJD", "a.pdf"),
+        fileAttachment("QUJD", "b.pdf"),
+      ]),
+    );
+
+    expect(result.content).toEqual([
+      expect.objectContaining({ type: "file", data: "QUJD" }),
+    ]);
+  });
+
+  it("keeps content parts untouched when no attachments are staged", () => {
+    const result = convertLangChainMessages({
+      type: "human",
+      id: "m1",
+      content: [{ type: "text", text: "hello" }, fileBlock("QUJD")],
+    });
+
+    expect(result.content).toEqual([
+      { type: "text", text: "hello" },
+      expect.objectContaining({ type: "file", data: "QUJD" }),
+    ]);
+  });
+
+  it("never drops text parts even when an attachment carries text", () => {
+    const result = convertLangChainMessages(
+      {
+        type: "human",
+        id: "m1",
+        content: [{ type: "text", text: "pasted text" }],
+      },
+      withAttachments("m1", [
+        {
+          id: "att-txt",
+          type: "document",
+          name: "notes.txt",
+          status: { type: "complete" },
+          content: [{ type: "text", text: "pasted text" }],
+        },
+      ]),
+    );
+
+    expect(result.content).toEqual([{ type: "text", text: "pasted text" }]);
   });
 });

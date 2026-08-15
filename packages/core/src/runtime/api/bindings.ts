@@ -37,6 +37,11 @@ export type MessageStateBinding = SubscribableWithState<
 
 export type ThreadListItemState = {
   readonly isMain: boolean;
+  /**
+   * Whether this thread has a run in progress, including a run that continues
+   * after the user switches to another thread.
+   */
+  readonly isRunning: boolean;
   readonly id: string;
   readonly remoteId: string | undefined;
   readonly externalId: string | undefined;

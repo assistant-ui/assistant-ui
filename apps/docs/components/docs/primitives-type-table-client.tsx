@@ -171,7 +171,7 @@ export function TypeTableClient({
     <div
       id={id}
       className={cn(
-        "bg-fd-card text-fd-card-foreground flex flex-col overflow-hidden rounded-2xl border p-1 text-sm",
+        "border-fd-border/60 text-fd-card-foreground flex flex-col overflow-hidden rounded-2xl border p-1 text-sm",
         nested ? "bg-fd-secondary/50" : "my-6",
       )}
     >
