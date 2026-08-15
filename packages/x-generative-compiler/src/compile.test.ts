@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import * as nodePath from "node:path";
 import { describe, it, expect, vi } from "vitest";
@@ -129,6 +129,38 @@ export default defineToolkit({
   },
 });
 `;
+
+const nonGenerativeChild =
+  "export default { get_weather: { execute: async () => 1 } };\n";
+
+const aliasedToolkitSource = `"use generative";
+import { defineToolkit } from "@assistant-ui/react";
+import weatherTools from "@/tools/weather";
+export default defineToolkit({
+  ...weatherTools,
+});`;
+
+function writeAliasTarget(
+  root: string,
+  directory: string,
+  childSource: string,
+): void {
+  const target = nodePath.join(root, directory);
+  mkdirSync(target, { recursive: true });
+  writeFileSync(nodePath.join(target, "weather.tsx"), childSource);
+}
+
+function writeAliasConfig(path: string, target: string, baseUrl = "."): void {
+  writeFileSync(
+    path,
+    JSON.stringify({
+      compilerOptions: {
+        baseUrl,
+        paths: { "@/tools/*": [target] },
+      },
+    }),
+  );
+}
 
 const source = `"use generative";
 import { z } from "zod";
@@ -1303,52 +1335,102 @@ export default defineToolkit({
     const appRoot = mkdtempSync(
       nodePath.join(tmpdir(), "aui-generative-alias-refresh-"),
     );
-    mkdirSync(nodePath.join(appRoot, "src", "fallback-tools"), {
-      recursive: true,
-    });
-    mkdirSync(nodePath.join(appRoot, "generated"), { recursive: true });
-    writeFileSync(
-      nodePath.join(appRoot, "generated", "weather.tsx"),
-      generativeChild,
-    );
-    writeFileSync(
-      nodePath.join(appRoot, "src", "fallback-tools", "weather.tsx"),
-      `export default { get_weather: { execute: async () => 1 } };\n`,
-    );
+    writeAliasTarget(appRoot, "generated", generativeChild);
+    writeAliasTarget(appRoot, "fallbacks", nonGenerativeChild);
     const tsconfigPath = nodePath.join(appRoot, "tsconfig.json");
-    writeFileSync(
-      tsconfigPath,
-      JSON.stringify({
-        compilerOptions: {
-          baseUrl: ".",
-          paths: { "@/tools/*": ["./generated/*"] },
-        },
-      }),
-    );
+    writeAliasConfig(tsconfigPath, "./generated/*");
     const filename = nodePath.join(appRoot, "src", "toolkit.tsx");
-    const src = `"use generative";
-import { defineToolkit } from "@assistant-ui/react";
-import weatherTools from "@/tools/weather";
-export default defineToolkit({
-  ...weatherTools,
-});`;
 
     expect(() =>
-      compileGenerative(src, { target: "client", filename }),
+      compileGenerative(aliasedToolkitSource, { target: "client", filename }),
     ).not.toThrow();
 
+    writeAliasConfig(tsconfigPath, "./fallbacks/*");
+    const updatedAt = new Date(Date.now() + 1_000);
+    utimesSync(tsconfigPath, updatedAt, updatedAt);
+
+    expect(() =>
+      compileGenerative(aliasedToolkitSource, { target: "client", filename }),
+    ).toThrow(/compiler-visible toolkit spread/);
+  });
+
+  it("refreshes cached aliases when a missing extended config is created", () => {
+    const appRoot = mkdtempSync(
+      nodePath.join(tmpdir(), "aui-generative-extends-refresh-"),
+    );
+    const packageRoot = nodePath.join(appRoot, "package");
+    writeAliasTarget(appRoot, "generated", generativeChild);
+    writeAliasTarget(packageRoot, "fallbacks", nonGenerativeChild);
+    mkdirSync(nodePath.join(packageRoot, "src"), { recursive: true });
+    writeAliasConfig(nodePath.join(appRoot, "tsconfig.json"), "./generated/*");
     writeFileSync(
-      tsconfigPath,
-      JSON.stringify({
-        compilerOptions: {
-          baseUrl: ".",
-          paths: { "@/tools/*": ["./src/fallback-tools/*"] },
-        },
-      }),
+      nodePath.join(packageRoot, "tsconfig.json"),
+      JSON.stringify({ extends: "./tsconfig.paths.json" }),
+    );
+    const filename = nodePath.join(packageRoot, "src", "toolkit.tsx");
+
+    expect(() =>
+      compileGenerative(aliasedToolkitSource, { target: "client", filename }),
+    ).not.toThrow();
+
+    writeAliasConfig(
+      nodePath.join(packageRoot, "tsconfig.paths.json"),
+      "./fallbacks/*",
     );
 
     expect(() =>
-      compileGenerative(src, { target: "client", filename }),
+      compileGenerative(aliasedToolkitSource, { target: "client", filename }),
+    ).toThrow(/compiler-visible toolkit spread/);
+  });
+
+  it("refreshes cached alias misses when a tsconfig is created", () => {
+    const appRoot = mkdtempSync(
+      nodePath.join(tmpdir(), "aui-generative-config-create-"),
+    );
+    writeAliasTarget(appRoot, "generated", generativeChild);
+    mkdirSync(nodePath.join(appRoot, "src"), { recursive: true });
+    const filename = nodePath.join(appRoot, "src", "toolkit.tsx");
+
+    expect(() =>
+      compileGenerative(aliasedToolkitSource, { target: "client", filename }),
+    ).toThrow(/compiler-visible toolkit spread/);
+
+    writeAliasConfig(nodePath.join(appRoot, "tsconfig.json"), "./generated/*");
+
+    expect(() =>
+      compileGenerative(aliasedToolkitSource, { target: "client", filename }),
+    ).not.toThrow();
+  });
+
+  it("refreshes cached aliases when a package extended config is installed", () => {
+    const appRoot = mkdtempSync(
+      nodePath.join(tmpdir(), "aui-generative-package-config-"),
+    );
+    const packageRoot = nodePath.join(appRoot, "package");
+    writeAliasTarget(appRoot, "generated", generativeChild);
+    writeAliasTarget(packageRoot, "fallbacks", nonGenerativeChild);
+    mkdirSync(nodePath.join(packageRoot, "src"), { recursive: true });
+    writeAliasConfig(nodePath.join(appRoot, "tsconfig.json"), "./generated/*");
+    writeFileSync(
+      nodePath.join(packageRoot, "tsconfig.json"),
+      JSON.stringify({ extends: "config/base" }),
+    );
+    const filename = nodePath.join(packageRoot, "src", "toolkit.tsx");
+
+    expect(() =>
+      compileGenerative(aliasedToolkitSource, { target: "client", filename }),
+    ).not.toThrow();
+
+    const configPackage = nodePath.join(packageRoot, "node_modules", "config");
+    mkdirSync(configPackage, { recursive: true });
+    writeAliasConfig(
+      nodePath.join(configPackage, "base.json"),
+      "./fallbacks/*",
+      nodePath.relative(configPackage, packageRoot),
+    );
+
+    expect(() =>
+      compileGenerative(aliasedToolkitSource, { target: "client", filename }),
     ).toThrow(/compiler-visible toolkit spread/);
   });
 

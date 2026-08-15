@@ -1018,7 +1018,7 @@ function matchAliasPattern(pattern: string, source: string): string | null {
 }
 
 interface TsconfigAliasesCacheEntry {
-  aliases: TsconfigAliases;
+  aliases: TsconfigAliases | null;
   fileVersions: Map<string, string | null>;
 }
 
@@ -1068,11 +1068,8 @@ function loadTsconfigAliases(fromDir: string): TsconfigAliases | null {
     dir = parent;
   }
 
-  if (aliases) {
-    tsconfigAliasesByDir.set(fromDir, { aliases, fileVersions });
-  } else {
-    tsconfigAliasesByDir.delete(fromDir);
-  }
+  // Cache misses too; tracked absent paths invalidate when a config appears.
+  tsconfigAliasesByDir.set(fromDir, { aliases, fileVersions });
   return aliases;
 }
 
@@ -1118,7 +1115,7 @@ function readTsconfigAliases(
   for (let i = extendsList.length - 1; i >= 0; i--) {
     const entry = extendsList[i];
     if (typeof entry !== "string") continue;
-    const extended = resolveExtendedTsconfig(entry, configDir);
+    const extended = resolveExtendedTsconfig(entry, configDir, fileVersions);
     if (extended) {
       const aliases = readTsconfigAliases(extended, seen, fileVersions);
       if (aliases) return aliases;
@@ -1131,17 +1128,40 @@ function readTsconfigAliases(
 function resolveExtendedTsconfig(
   extendsValue: string,
   configDir: string,
+  fileVersions: Map<string, string | null>,
 ): string | null {
   if (extendsValue.startsWith(".")) {
     const base = nodePath.resolve(configDir, extendsValue);
     const candidates =
       nodePath.extname(base) === ".json" ? [base] : [`${base}.json`, base];
-    return candidates.find((candidate) => existsSync(candidate)) ?? null;
+    for (const candidate of candidates) {
+      if (trackTsconfigFile(fileVersions, candidate) !== null) return candidate;
+    }
+    return null;
   }
-  try {
-    return createRequire(nodePath.join(configDir, "package.json")).resolve(
-      extendsValue.endsWith(".json") ? extendsValue : `${extendsValue}.json`,
+
+  const request = extendsValue.endsWith(".json")
+    ? extendsValue
+    : `${extendsValue}.json`;
+  const requireFromConfig = createRequire(
+    nodePath.join(configDir, "package.json"),
+  );
+  const packageName = extendsValue.startsWith("@")
+    ? extendsValue.split("/").slice(0, 2).join("/")
+    : extendsValue.split("/")[0]!;
+  for (const searchPath of requireFromConfig.resolve.paths(request) ?? []) {
+    trackTsconfigFile(fileVersions, nodePath.join(searchPath, packageName));
+    trackTsconfigFile(
+      fileVersions,
+      nodePath.join(searchPath, packageName, "package.json"),
     );
+    trackTsconfigFile(fileVersions, nodePath.join(searchPath, request));
+  }
+
+  try {
+    const resolved = requireFromConfig.resolve(request);
+    trackTsconfigFile(fileVersions, resolved);
+    return resolved;
   } catch {
     return null;
   }
