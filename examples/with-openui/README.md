@@ -6,19 +6,16 @@ assistant-ui owns the chat shell, runtime, messages, streaming, and tool lifecyc
 
 ## Quick Start
 
-### Clone the example
+### Using CLI (Recommended)
 
 ```bash
-git clone https://github.com/assistant-ui/assistant-ui.git
-cd assistant-ui
-pnpm install
+npx assistant-ui@latest create my-app --example with-openui
+cd my-app
 ```
-
-The example runs inside the monorepo with pnpm.
 
 ### Environment Variables
 
-Create `examples/with-openui/.env.local`:
+Create `.env.local`:
 
 ```sh
 OPENAI_API_KEY=your-api-key-here
@@ -26,14 +23,24 @@ OPENAI_API_KEY=your-api-key-here
 
 ### Run
 
-Build the workspace packages the example imports, then start the dev server:
-
 ```bash
-pnpm exec turbo build --filter='with-openui^...'
-pnpm -C examples/with-openui dev
+pnpm install
+pnpm dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) to see the result.
+
+### Run inside the monorepo
+
+To develop against the workspace packages directly, clone the repository and build the packages the example imports before starting the dev server. Create `examples/with-openui/.env.local` with your `OPENAI_API_KEY` first.
+
+```bash
+git clone https://github.com/assistant-ui/assistant-ui.git
+cd assistant-ui
+pnpm install
+pnpm exec turbo build --filter='with-openui^...'
+pnpm -C examples/with-openui dev
+```
 
 ## Key Features
 
