@@ -3,17 +3,37 @@
 import { resource, useResource } from "@assistant-ui/tap";
 import { useMemo, useState } from "react";
 import { Chat, type UIMessage } from "@ai-sdk/react";
+import type { ChatTransport } from "ai";
 import {
   InMemoryThreadList,
   inMemoryThreadListTransformScopes,
 } from "@assistant-ui/core/store";
 import { ThreadClient } from "@assistant-ui/core/store/internal";
-import { attachTransformScopes } from "@assistant-ui/store/client";
+import {
+  attachTransformScopes,
+  useAssistantClientRef,
+  useAssistantScopeEffect,
+} from "@assistant-ui/store/client";
 import { AssistantChatTransport } from "../transport/AssistantChatTransport";
-import { useChatThread, type ChatThreadOptions } from "./useChatThread";
+import {
+  splitChatThreadOptions,
+  useChatThread,
+  type ChatThreadOptions,
+} from "./useChatThread";
 
 export type AISDKThreadsOptions<UI_MESSAGE extends UIMessage = UIMessage> =
-  Omit<ChatThreadOptions<UI_MESSAGE>, "id" | "chat">;
+  Omit<ChatThreadOptions<UI_MESSAGE>, "id" | "chat" | "transport"> & {
+    /**
+     * The transport threads send through. A factory is invoked once per
+     * thread so each thread owns its instance; a plain instance is shared
+     * across threads and its assistant-ui wiring follows the visible thread.
+     * Defaults to one `AssistantChatTransport` per thread.
+     */
+    transport?:
+      | ChatTransport<UI_MESSAGE>
+      | (() => ChatTransport<UI_MESSAGE>)
+      | undefined;
+  };
 
 const useAISDKChatThread = <UI_MESSAGE extends UIMessage = UIMessage>({
   threadId,
@@ -22,20 +42,32 @@ const useAISDKChatThread = <UI_MESSAGE extends UIMessage = UIMessage>({
 }: {
   threadId: string;
   options: AISDKThreadsOptions<UI_MESSAGE> | undefined;
-  chats: Map<string, Chat<UI_MESSAGE>>;
+  chats: Map<
+    string,
+    { chat: Chat<UI_MESSAGE>; transport: ChatTransport<UI_MESSAGE> }
+  >;
 }) => {
   // State lives on the chat instance, so a switched-away thread keeps its
   // history and an in-flight run keeps streaming; the mounted resource is
-  // only the main thread's subscriber.
-  let chat = chats.get(threadId);
-  if (!chat) {
-    chat = new Chat<UI_MESSAGE>({
-      id: threadId,
-      transport: options?.transport ?? new AssistantChatTransport(),
-      ...(options?.messages !== undefined && { messages: options.messages }),
-    });
-    chats.set(threadId, chat);
+  // only the main thread's subscriber. The chat's own transport doubles as
+  // the wired one below, so model context and the thread item reach the
+  // wire.
+  let entry = chats.get(threadId);
+  if (!entry) {
+    const { chatInit } = splitChatThreadOptions(
+      options as ChatThreadOptions<UI_MESSAGE> | undefined,
+    );
+    const transport =
+      typeof options?.transport === "function"
+        ? options.transport()
+        : (options?.transport ?? new AssistantChatTransport());
+    entry = {
+      chat: new Chat<UI_MESSAGE>({ ...chatInit, id: threadId, transport }),
+      transport,
+    };
+    chats.set(threadId, entry);
   }
+  const { chat, transport } = entry;
 
   // The thread is its own chat: the handed-over item initializes to the
   // thread id so the transport resolves it as the request id.
@@ -49,13 +81,22 @@ const useAISDKChatThread = <UI_MESSAGE extends UIMessage = UIMessage>({
     [threadId],
   );
   const runtime = useChatThread(
-    { ...options, chat },
+    { ...options, transport, chat } as ChatThreadOptions<UI_MESSAGE>,
     {
       id: threadId,
       isMainThread: true,
       getThreadListItem: () => threadListItem,
     },
   );
+
+  const clientRef = useAssistantClientRef();
+  useAssistantScopeEffect(
+    "modelContext",
+    () =>
+      runtime.registerModelContextProvider(clientRef.current!.modelContext()),
+    [runtime],
+  );
+
   return useResource(ThreadClient({ runtime: runtime.thread }));
 };
 
@@ -64,7 +105,13 @@ const AISDKChatThread = resource(useAISDKChatThread);
 const useAISDKThreads = <UI_MESSAGE extends UIMessage = UIMessage>(
   options?: AISDKThreadsOptions<UI_MESSAGE>,
 ) => {
-  const [chats] = useState(() => new Map<string, Chat<UI_MESSAGE>>());
+  const [chats] = useState(
+    () =>
+      new Map<
+        string,
+        { chat: Chat<UI_MESSAGE>; transport: ChatTransport<UI_MESSAGE> }
+      >(),
+  );
 
   return useResource(
     InMemoryThreadList({
