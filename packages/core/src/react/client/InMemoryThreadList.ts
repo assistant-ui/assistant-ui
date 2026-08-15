@@ -1,17 +1,21 @@
 import { useState, useMemo } from "react";
 import { resource, withKey, type ResourceElement } from "@assistant-ui/tap";
+import type {
+  AssistantClient,
+  ClientOutput,
+  ScopesConfig,
+} from "@assistant-ui/store";
 import {
-  type ClientOutput,
   useClientLookup,
   Derived,
   attachTransformScopes,
   useClientResource,
-} from "@assistant-ui/store";
-import { useThreadSelectionEvents } from "@assistant-ui/core/store/internal";
-import { generateId } from "@assistant-ui/core";
-
-import { ModelContext } from "@assistant-ui/core/store";
-import { Tools, DataRenderers } from "@assistant-ui/core/react";
+} from "@assistant-ui/store/client";
+import { useThreadSelectionEvents } from "../../store/internal";
+import { generateId } from "../../utils/id";
+import { ModelContext } from "../../store/clients/model-context-client";
+import { Tools } from "./Tools";
+import { DataRenderers } from "./DataRenderers";
 
 const RESOLVED_PROMISE = Promise.resolve();
 
@@ -214,7 +218,15 @@ const useInMemoryThreadList = (
 
 export const InMemoryThreadList = resource(useInMemoryThreadList);
 
-attachTransformScopes(useInMemoryThreadList, (scopes, parent) => {
+/**
+ * The scope defaults `InMemoryThreadList` installs when it is used as the
+ * `threads` config entry. Adapter packages that wrap it in their own config
+ * entry attach this to the wrapping resource for scope parity.
+ */
+export const inMemoryThreadListTransformScopes = (
+  scopes: ScopesConfig,
+  parent: AssistantClient,
+): void => {
   scopes.thread ??= Derived({
     source: "threads",
     query: { type: "main" },
@@ -247,4 +259,6 @@ attachTransformScopes(useInMemoryThreadList, (scopes, parent) => {
       get: (aui) => aui.thread.suggestions(),
     });
   }
-});
+};
+
+attachTransformScopes(useInMemoryThreadList, inMemoryThreadListTransformScopes);
