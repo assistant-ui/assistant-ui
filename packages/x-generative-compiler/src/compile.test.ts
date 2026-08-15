@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, utimesSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import * as nodePath from "node:path";
 import { describe, it, expect, vi } from "vitest";
@@ -1346,9 +1346,6 @@ export default defineToolkit({
     ).not.toThrow();
 
     writeAliasConfig(tsconfigPath, "./fallbacks/*");
-    const updatedAt = new Date(Date.now() + 1_000);
-    utimesSync(tsconfigPath, updatedAt, updatedAt);
-
     expect(() =>
       compileGenerative(aliasedToolkitSource, { target: "client", filename }),
     ).toThrow(/compiler-visible toolkit spread/);
@@ -1402,36 +1399,33 @@ export default defineToolkit({
     ).not.toThrow();
   });
 
-  it("refreshes cached aliases when a package extended config is installed", () => {
+  it("retries unresolved package configs on the next compile", () => {
     const appRoot = mkdtempSync(
       nodePath.join(tmpdir(), "aui-generative-package-config-"),
     );
-    const packageRoot = nodePath.join(appRoot, "package");
     writeAliasTarget(appRoot, "generated", generativeChild);
-    writeAliasTarget(packageRoot, "fallbacks", nonGenerativeChild);
-    mkdirSync(nodePath.join(packageRoot, "src"), { recursive: true });
-    writeAliasConfig(nodePath.join(appRoot, "tsconfig.json"), "./generated/*");
+    mkdirSync(nodePath.join(appRoot, "src"), { recursive: true });
     writeFileSync(
-      nodePath.join(packageRoot, "tsconfig.json"),
+      nodePath.join(appRoot, "tsconfig.json"),
       JSON.stringify({ extends: "config/base" }),
     );
-    const filename = nodePath.join(packageRoot, "src", "toolkit.tsx");
-
-    expect(() =>
-      compileGenerative(aliasedToolkitSource, { target: "client", filename }),
-    ).not.toThrow();
-
-    const configPackage = nodePath.join(packageRoot, "node_modules", "config");
-    mkdirSync(configPackage, { recursive: true });
-    writeAliasConfig(
-      nodePath.join(configPackage, "base.json"),
-      "./fallbacks/*",
-      nodePath.relative(configPackage, packageRoot),
-    );
+    const filename = nodePath.join(appRoot, "src", "toolkit.tsx");
 
     expect(() =>
       compileGenerative(aliasedToolkitSource, { target: "client", filename }),
     ).toThrow(/compiler-visible toolkit spread/);
+
+    const configPackage = nodePath.join(appRoot, "node_modules", "config");
+    mkdirSync(configPackage, { recursive: true });
+    writeAliasConfig(
+      nodePath.join(configPackage, "base.json"),
+      "./generated/*",
+      nodePath.relative(configPackage, appRoot),
+    );
+
+    expect(() =>
+      compileGenerative(aliasedToolkitSource, { target: "client", filename }),
+    ).not.toThrow();
   });
 
   it("prefers the most specific tsconfig path alias", () => {

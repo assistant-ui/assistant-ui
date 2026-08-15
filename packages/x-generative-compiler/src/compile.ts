@@ -248,6 +248,7 @@ export function compileGenerative(
   code: string,
   options: CompileOptions,
 ): CompileResult {
+  currentCompilePass++;
   const { target, filename } = options;
 
   const ast = parse(code, {
@@ -1020,9 +1021,17 @@ function matchAliasPattern(pattern: string, source: string): string | null {
 interface TsconfigAliasesCacheEntry {
   aliases: TsconfigAliases | null;
   fileVersions: Map<string, string | null>;
+  validatedInPass: number;
+  reuseAcrossPasses: boolean;
 }
 
 const tsconfigAliasesByDir = new Map<string, TsconfigAliasesCacheEntry>();
+let currentCompilePass = 0;
+
+interface TsconfigResolutionState {
+  fileVersions: Map<string, string | null>;
+  cacheable: boolean;
+}
 
 function tsconfigFileVersion(path: string): string | null {
   try {
@@ -1052,15 +1061,26 @@ function isTsconfigCacheCurrent(entry: TsconfigAliasesCacheEntry): boolean {
 /** Walks up from a directory to the nearest `tsconfig.json` that declares `paths`. */
 function loadTsconfigAliases(fromDir: string): TsconfigAliases | null {
   const cached = tsconfigAliasesByDir.get(fromDir);
-  if (cached && isTsconfigCacheCurrent(cached)) return cached.aliases;
+  if (cached) {
+    if (
+      cached.validatedInPass === currentCompilePass ||
+      (cached.reuseAcrossPasses && isTsconfigCacheCurrent(cached))
+    ) {
+      cached.validatedInPass = currentCompilePass;
+      return cached.aliases;
+    }
+  }
 
   let aliases: TsconfigAliases | null = null;
-  const fileVersions = new Map<string, string | null>();
+  const state: TsconfigResolutionState = {
+    fileVersions: new Map(),
+    cacheable: true,
+  };
   let dir = fromDir;
   for (;;) {
     const tsconfigPath = nodePath.join(dir, "tsconfig.json");
-    if (trackTsconfigFile(fileVersions, tsconfigPath) !== null) {
-      aliases = readTsconfigAliases(tsconfigPath, new Set(), fileVersions);
+    if (trackTsconfigFile(state.fileVersions, tsconfigPath) !== null) {
+      aliases = readTsconfigAliases(tsconfigPath, new Set(), state);
       if (aliases) break;
     }
     const parent = nodePath.dirname(dir);
@@ -1069,7 +1089,13 @@ function loadTsconfigAliases(fromDir: string): TsconfigAliases | null {
   }
 
   // Cache misses too; tracked absent paths invalidate when a config appears.
-  tsconfigAliasesByDir.set(fromDir, { aliases, fileVersions });
+  // Unresolved package configs are reused only within the current compile.
+  tsconfigAliasesByDir.set(fromDir, {
+    aliases,
+    fileVersions: state.fileVersions,
+    validatedInPass: currentCompilePass,
+    reuseAcrossPasses: state.cacheable,
+  });
   return aliases;
 }
 
@@ -1077,11 +1103,11 @@ function loadTsconfigAliases(fromDir: string): TsconfigAliases | null {
 function readTsconfigAliases(
   tsconfigPath: string,
   seen: Set<string>,
-  fileVersions: Map<string, string | null>,
+  state: TsconfigResolutionState,
 ): TsconfigAliases | null {
   if (seen.has(tsconfigPath)) return null;
   seen.add(tsconfigPath);
-  trackTsconfigFile(fileVersions, tsconfigPath);
+  trackTsconfigFile(state.fileVersions, tsconfigPath);
 
   let config: {
     extends?: string | string[];
@@ -1115,9 +1141,9 @@ function readTsconfigAliases(
   for (let i = extendsList.length - 1; i >= 0; i--) {
     const entry = extendsList[i];
     if (typeof entry !== "string") continue;
-    const extended = resolveExtendedTsconfig(entry, configDir, fileVersions);
+    const extended = resolveExtendedTsconfig(entry, configDir, state);
     if (extended) {
-      const aliases = readTsconfigAliases(extended, seen, fileVersions);
+      const aliases = readTsconfigAliases(extended, seen, state);
       if (aliases) return aliases;
     }
   }
@@ -1128,14 +1154,16 @@ function readTsconfigAliases(
 function resolveExtendedTsconfig(
   extendsValue: string,
   configDir: string,
-  fileVersions: Map<string, string | null>,
+  state: TsconfigResolutionState,
 ): string | null {
   if (extendsValue.startsWith(".")) {
     const base = nodePath.resolve(configDir, extendsValue);
     const candidates =
       nodePath.extname(base) === ".json" ? [base] : [`${base}.json`, base];
     for (const candidate of candidates) {
-      if (trackTsconfigFile(fileVersions, candidate) !== null) return candidate;
+      if (trackTsconfigFile(state.fileVersions, candidate) !== null) {
+        return candidate;
+      }
     }
     return null;
   }
@@ -1146,23 +1174,13 @@ function resolveExtendedTsconfig(
   const requireFromConfig = createRequire(
     nodePath.join(configDir, "package.json"),
   );
-  const packageName = extendsValue.startsWith("@")
-    ? extendsValue.split("/").slice(0, 2).join("/")
-    : extendsValue.split("/")[0]!;
-  for (const searchPath of requireFromConfig.resolve.paths(request) ?? []) {
-    trackTsconfigFile(fileVersions, nodePath.join(searchPath, packageName));
-    trackTsconfigFile(
-      fileVersions,
-      nodePath.join(searchPath, packageName, "package.json"),
-    );
-    trackTsconfigFile(fileVersions, nodePath.join(searchPath, request));
-  }
 
   try {
     const resolved = requireFromConfig.resolve(request);
-    trackTsconfigFile(fileVersions, resolved);
+    trackTsconfigFile(state.fileVersions, resolved);
     return resolved;
   } catch {
+    state.cacheable = false;
     return null;
   }
 }
