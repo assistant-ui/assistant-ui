@@ -21,7 +21,9 @@ function Rows({
 export const examples: DemoExample[] = [
   {
     title: "Two seasons of results",
-    note: "Above the line or below it; the streaks read before the record does.",
+    setup:
+      "A club's season page compresses every match into a tick above or below the line — no scores, just outcomes in order, because streaks are what fans actually remember.",
+    read: "Above or below; the streaks read before the record does. s24 opens with a title-charge run and s25 opens with a slump — same club, and the eye knows which season had the sacked manager before counting a single tick.",
     chart: (
       <Rows
         rows={[
@@ -41,7 +43,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "Quota hit or missed, twelve months",
-    note: "Two reps, one year: the second half tells a different story for each.",
+    setup:
+      "A sales dashboard shows each rep's year as twelve ticks: quota made or missed, month by month, order preserved because trajectory is the conversation.",
+    read: "Two reps, one year, different stories: priya misses twice all year; sam's second half goes two-up-seven-down. Same annual attainment percentage would hide that these need opposite conversations — one about a promotion, one about a territory.",
     chart: (
       <Rows
         rows={[
@@ -61,7 +65,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "Two habits, two weeks",
-    note: "Kept or broken, day by day; the workout survives weekends, the diet does not.",
+    setup:
+      "A habit tracker renders each habit as kept-or-broken ticks, day by day, because 'mostly' is a lie the streak view refuses to tell.",
+    read: "The workout survives weekends; the diet does not — its breaks land on Fridays and Saturdays with calendar precision. The pattern, not the totals, is the coaching: this is a weekend problem wearing a willpower costume.",
     chart: (
       <Rows
         rows={[

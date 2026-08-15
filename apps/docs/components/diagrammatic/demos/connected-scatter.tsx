@@ -4,7 +4,9 @@ import type { DemoExample } from "./types";
 export const examples: DemoExample[] = [
   {
     title: "Inflation against unemployment, 2018 to 2025",
-    note: "Time rides the thread, not an axis; the loop is the whole macro story.",
+    setup:
+      "An economics desk plots the two macro variables every central banker stares at — but instead of two time series, it threads the years through one plane. Time rides the path, not an axis.",
+    read: "The loop is the whole story: out to the pandemic corner, up through the inflation spike, and back to almost exactly where 2018 stood. Seven dramatic years that netted out to a round trip — a shape no pair of line charts can draw.",
     chart: (
       <ConnectedScatter
         title="Inflation against unemployment"
@@ -25,7 +27,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "A startup's burn against revenue, quarter by quarter",
-    note: "The path bends right and then down: growth first, then the discipline arrives.",
+    setup:
+      "A CFO's board slide traces eight quarters through burn-versus-revenue space, because the journey matters more than either metric alone.",
+    read: "The path bends right and then down: revenue first, discipline after. The top of the arc — peak burn at $7.8M revenue — is the quarter the board meeting got tense, and the descent since is the slide's entire argument for the next raise.",
     chart: (
       <ConnectedScatter
         title="Burn against revenue"
@@ -46,7 +50,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "Weekly mileage against race pace, four seasons",
-    note: "More miles, faster paces, then the injury year walks the path backwards.",
+    setup:
+      "A runner threads four years of training logs through one plane: weekly kilometers against race pace, each point a season's average.",
+    read: "More miles, faster paces — until the path walks backwards. The '25 point retraces toward the start: the injury year, undoing two seasons of progress in one segment. The doubling-back is what the connected form exists to show.",
     chart: (
       <ConnectedScatter
         title="Mileage against pace"

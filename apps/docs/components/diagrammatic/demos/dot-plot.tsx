@@ -4,7 +4,9 @@ import type { DemoExample } from "./types";
 export const examples: DemoExample[] = [
   {
     title: "Median salary by role",
-    note: "Dots on a shared axis; the even spacing between levels is itself the finding.",
+    setup:
+      "A compensation review lays the ladder on one axis: median salary per level, dots on a shared scale with reference ticks. No bars, because the differences matter more than the totals.",
+    read: "The even spacing between levels is itself the finding — roughly $30k per promotion, held almost perfectly from intern to staff. If one gap were compressed, this chart is where a leveling problem would first show.",
     chart: (
       <DotPlot
         title="Median salary by role"
@@ -23,7 +25,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "Life expectancy by region",
-    note: "The whole spread fits in fifteen years; a zero baseline would bury it.",
+    setup:
+      "A global-health explainer compares life expectancy across regions. The whole spread fits inside fifteen years, so the chart starts the axis where the data lives.",
+    read: "Europe and Africa bracket a seventeen-year gap with everyone else packed between 73 and 81. On a zero baseline this spread would flatten into nothing; the dot plot's non-zero axis is what makes the inequality legible.",
     chart: (
       <DotPlot
         title="Life expectancy"
@@ -42,7 +46,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "Top speed of five runners",
-    note: "The cheetah needs its own margin; the human dot is the humbling one.",
+    setup:
+      "A science-museum panel puts five sprinters on one axis, from house pet to savanna. Dots, because the point is where each animal sits, not how much area it fills.",
+    read: "The cheetah needs its own margin at 112 km/h, and the human dot is the humbling one — barely a third of the leader, edged out by a greyhound. Kids find their species instantly; that findability is the dot plot working.",
     chart: (
       <DotPlot
         title="Top speed"

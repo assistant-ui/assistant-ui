@@ -68,7 +68,7 @@ export const FIXTURES: Record<string, ReactElement> = {
       up={{ name: "upload", data: [8, 12, 10, 16, 14, 18, 22, 16] }}
     />
   ),
-  "step-line": <dg.StepLine data={[19, 19, 29, 25, 39, 35, 49, 59]} />,
+  "line-step": <dg.Line step data={[19, 19, 29, 25, 39, 35, 49, 59]} />,
   slope: (
     <dg.Slope
       items={[
@@ -118,17 +118,22 @@ export const FIXTURES: Record<string, ReactElement> = {
       labels={["Apr", "May", "Jun"]}
     />
   ),
-  "calendar-heatmap": (
-    <dg.CalendarHeatmap
-      values={Array.from(
-        { length: 112 },
-        (_, i) => (Math.sin(i * 1.7) + 1) * 5,
-      )}
-      labels={["May", "Jun", "Jul", "Aug"]}
+  "heatmap-calendar": (
+    <dg.Heatmap
+      matrix={{
+        rows: ["Mon", "", "Wed", "", "Fri", "", ""],
+        cols: Array.from({ length: 16 }, (_, i) =>
+          i % 4 === 0 ? `w${i + 1}` : "",
+        ),
+        values: Array.from({ length: 7 }, (_, r) =>
+          Array.from({ length: 16 }, (_, c) => (Math.sin(c * 1.7 + r) + 1) * 5),
+        ),
+      }}
     />
   ),
-  punchcard: (
-    <dg.Punchcard
+  "heatmap-dot": (
+    <dg.Heatmap
+      mark="dot"
       matrix={{
         rows: ["Mon", "Tue", "Wed", "Thu", "Fri"],
         cols: ["0h", "", "", "6h", "", "", "12h", "", "", "18h", "", ""],
@@ -155,8 +160,9 @@ export const FIXTURES: Record<string, ReactElement> = {
   "stacked-bar": (
     <dg.StackedBar groups={["Jan", "Feb", "Mar", "Apr"]} series={series} />
   ),
-  "percent-stacked-bar": (
-    <dg.PercentStackedBar
+  "stacked-bar-normalize": (
+    <dg.StackedBar
+      normalize
       groups={["'21", "'22", "'23", "'24", "'25"]}
       series={series}
     />
@@ -185,7 +191,9 @@ export const FIXTURES: Record<string, ReactElement> = {
     />
   ),
   pie: <dg.Pie items={items} />,
-  donut: <dg.Donut items={items} center="128" centerLabel="GB used" />,
+  "pie-donut": (
+    <dg.Pie items={items} inner={0.62} center="128" centerLabel="GB used" />
+  ),
   waffle: <dg.Waffle items={items} />,
   treemap: <dg.Treemap root={tree} />,
   sunburst: <dg.Sunburst root={tree} />,
@@ -217,8 +225,9 @@ export const FIXTURES: Record<string, ReactElement> = {
       labels={["0", "400ms", "800ms"]}
     />
   ),
-  density: (
-    <dg.Density
+  "histogram-smooth": (
+    <dg.Histogram
+      smooth
       bins={[2, 6, 14, 30, 52, 74, 88, 92, 80, 60, 46, 38, 30, 20, 10, 4]}
       marker={{ at: 7, label: "median 3:58" }}
     />
@@ -278,8 +287,8 @@ export const FIXTURES: Record<string, ReactElement> = {
     />
   ),
   scatter: <dg.Scatter points={points} trend xLabel="hours" yLabel="rating" />,
-  bubble: (
-    <dg.Bubble
+  "scatter-sized": (
+    <dg.Scatter
       points={points.slice(0, 10).map((p, i) => ({ ...p, size: 4 + i * 3 }))}
       xLabel="gdp per capita"
       yLabel="life expectancy"

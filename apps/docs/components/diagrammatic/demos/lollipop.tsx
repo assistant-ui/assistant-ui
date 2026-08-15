@@ -4,7 +4,9 @@ import type { DemoExample } from "./types";
 export const examples: DemoExample[] = [
   {
     title: "Satisfaction score by team",
-    note: "A bar chart on a diet: the dot carries the value, the stem carries the eye.",
+    setup:
+      "An HR partner presents survey scores by team to a room that has seen a thousand bar charts. The lollipop is a bar on a diet: the dot carries the value, the stem carries the eye.",
+    read: "Design and sales sit above 80 while engineering languishes at 40 — a fifty-point spread inside one company. With six close-ish values, heavy bars would shout; the thin stems let the outlier do the talking.",
     chart: (
       <Lollipop
         title="Satisfaction score by team"
@@ -21,7 +23,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "Caffeine per serving",
-    note: "Espresso's reputation outruns its milligrams; the drip mug quietly wins.",
+    setup:
+      "A health page ranks common drinks by caffeine per serving, because the folk ranking is confidently wrong and the correction deserves a clean chart.",
+    read: "Espresso's reputation outruns its milligrams: the drip mug nearly triples it. Even the energy drink loses to plain filter coffee. The dots make the exact values quotable, which is what a myth-busting chart needs.",
     chart: (
       <Lollipop
         title="Caffeine per serving"
@@ -39,7 +43,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "Average one-way commute by city",
-    note: "Six cities, one scale; the spread between best and worst is twenty minutes a day.",
+    setup:
+      "A relocation guide compares commute minutes across the cities on a reader's shortlist. Six values on one scale, precise enough to do arithmetic with.",
+    read: "Tokyo to Austin is a twenty-minute gap each way — three and a half hours a week, a hundred and seventy hours a year. Lisbon and Austin effectively tie, so between those two the commute stops being a deciding factor at all.",
     chart: (
       <Lollipop
         title="Commute minutes by city"
@@ -48,8 +54,8 @@ export const examples: DemoExample[] = [
           { label: "london", value: 41 },
           { label: "nyc", value: 38 },
           { label: "berlin", value: 32 },
-          { label: "austin", value: 27 },
           { label: "lisbon", value: 28 },
+          { label: "austin", value: 27 },
         ]}
         format={(v) => `${v} min`}
       />

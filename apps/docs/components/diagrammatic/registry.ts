@@ -4,19 +4,15 @@ import { examples as areaExamples } from "./demos/area";
 import { examples as stackedAreaExamples } from "./demos/stacked-area";
 import { examples as streamgraphExamples } from "./demos/streamgraph";
 import { examples as mirroredAreaExamples } from "./demos/mirrored-area";
-import { examples as stepLineExamples } from "./demos/step-line";
 import { examples as slopeExamples } from "./demos/slope";
 import { examples as bumpExamples } from "./demos/bump";
 import { examples as candlestickExamples } from "./demos/candlestick";
 import { examples as horizonExamples } from "./demos/horizon";
 import { examples as ganttExamples } from "./demos/gantt";
-import { examples as calendarHeatmapExamples } from "./demos/calendar-heatmap";
-import { examples as punchcardExamples } from "./demos/punchcard";
 import { examples as barExamples } from "./demos/bar";
 import { examples as columnExamples } from "./demos/column";
 import { examples as groupedBarExamples } from "./demos/grouped-bar";
 import { examples as stackedBarExamples } from "./demos/stacked-bar";
-import { examples as percentStackedBarExamples } from "./demos/percent-stacked-bar";
 import { examples as lollipopExamples } from "./demos/lollipop";
 import { examples as dotPlotExamples } from "./demos/dot-plot";
 import { examples as leaderboardExamples } from "./demos/leaderboard";
@@ -24,7 +20,6 @@ import { examples as pictogramExamples } from "./demos/pictogram";
 import { examples as radialBarExamples } from "./demos/radial-bar";
 import { examples as polarAreaExamples } from "./demos/polar-area";
 import { examples as pieExamples } from "./demos/pie";
-import { examples as donutExamples } from "./demos/donut";
 import { examples as waffleExamples } from "./demos/waffle";
 import { examples as treemapExamples } from "./demos/treemap";
 import { examples as sunburstExamples } from "./demos/sunburst";
@@ -33,7 +28,6 @@ import { examples as circlePackingExamples } from "./demos/circle-packing";
 import { examples as marimekkoExamples } from "./demos/marimekko";
 import { examples as funnelExamples } from "./demos/funnel";
 import { examples as histogramExamples } from "./demos/histogram";
-import { examples as densityExamples } from "./demos/density";
 import { examples as boxPlotExamples } from "./demos/box-plot";
 import { examples as violinExamples } from "./demos/violin";
 import { examples as ridgelineExamples } from "./demos/ridgeline";
@@ -41,7 +35,6 @@ import { examples as beeswarmExamples } from "./demos/beeswarm";
 import { examples as stripPlotExamples } from "./demos/strip-plot";
 import { examples as populationPyramidExamples } from "./demos/population-pyramid";
 import { examples as scatterExamples } from "./demos/scatter";
-import { examples as bubbleExamples } from "./demos/bubble";
 import { examples as connectedScatterExamples } from "./demos/connected-scatter";
 import { examples as hexbinExamples } from "./demos/hexbin";
 import { examples as contourExamples } from "./demos/contour";
@@ -147,16 +140,6 @@ const SECTIONS: SectionInput[] = [
         examples: mirroredAreaExamples,
       },
       {
-        slug: "step-line",
-        exportName: "StepLine",
-        name: "Step line",
-        blurb: "Values that hold until they change.",
-        use: "Prices, quotas, versions, and anything that jumps between plateaus.",
-        watch:
-          "Interpolating between steps invents data; the flat segments are the truth.",
-        examples: stepLineExamples,
-      },
-      {
         slug: "slope",
         exportName: "Slope",
         name: "Slope",
@@ -205,26 +188,6 @@ const SECTIONS: SectionInput[] = [
           "It shows plan, not progress; pair the bars with a done state or a today line.",
         examples: ganttExamples,
       },
-      {
-        slug: "calendar-heatmap",
-        exportName: "CalendarHeatmap",
-        name: "Calendar heatmap",
-        blurb: "Weeks of days, colored by intensity.",
-        use: "Daily habits and activity rhythms across weeks and months.",
-        watch:
-          "Weekday patterns dominate; normalize before comparing across rows.",
-        examples: calendarHeatmapExamples,
-      },
-      {
-        slug: "punchcard",
-        exportName: "Punchcard",
-        name: "Punchcard",
-        blurb: "Hour-by-weekday rhythm as dots.",
-        use: "When during the week something happens, at a glance.",
-        watch:
-          "Dot area reads coarsely; keep exact values one hover or one table away.",
-        examples: punchcardExamples,
-      },
     ],
   },
   {
@@ -270,16 +233,6 @@ const SECTIONS: SectionInput[] = [
         watch:
           "Only the bottom segment sits on a common baseline; middle segments resist comparison.",
         examples: stackedBarExamples,
-      },
-      {
-        slug: "percent-stacked-bar",
-        exportName: "PercentStackedBar",
-        name: "100% stacked bar",
-        blurb: "Composition, with the totals normalized away.",
-        use: "Share-of-whole comparisons when absolute size is a distraction.",
-        watch:
-          "The totals are gone; state somewhere what each column adds up to.",
-        examples: percentStackedBarExamples,
       },
       {
         slug: "lollipop",
@@ -357,15 +310,6 @@ const SECTIONS: SectionInput[] = [
         watch:
           "Angles compare poorly; five or more slices belong in a bar chart.",
         examples: pieExamples,
-      },
-      {
-        slug: "donut",
-        exportName: "Donut",
-        name: "Donut",
-        blurb: "A pie with room for a number.",
-        use: "Share-of-whole with a KPI sitting in the middle.",
-        watch: "The hole removes the angle anchor; keep the slice count low.",
-        examples: donutExamples,
       },
       {
         slug: "waffle",
@@ -452,16 +396,6 @@ const SECTIONS: SectionInput[] = [
         examples: histogramExamples,
       },
       {
-        slug: "density",
-        exportName: "Density",
-        name: "Density",
-        blurb: "A histogram smoothed into a curve.",
-        use: "Distribution shape without bin artifacts, kind to overlays.",
-        watch:
-          "Bandwidth is a choice; smooth too wide and real structure disappears.",
-        examples: densityExamples,
-      },
-      {
         slug: "box-plot",
         exportName: "BoxPlot",
         name: "Box plot",
@@ -536,15 +470,6 @@ const SECTIONS: SectionInput[] = [
         watch:
           "The trend line is a summary, not proof; correlation is not causation.",
         examples: scatterExamples,
-      },
-      {
-        slug: "bubble",
-        exportName: "Bubble",
-        name: "Bubble",
-        blurb: "A scatter with a third variable as size.",
-        use: "Two relationships plus magnitude, for a few dozen entities at most.",
-        watch: "Size by area, never radius, and label the bubbles that matter.",
-        examples: bubbleExamples,
       },
       {
         slug: "connected-scatter",

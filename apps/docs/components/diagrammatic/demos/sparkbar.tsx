@@ -25,7 +25,9 @@ function Rows({
 export const examples: DemoExample[] = [
   {
     title: "Deploys per two-hour block, three days",
-    note: "Discrete counts get bars, not a line; zero blocks stay visibly empty.",
+    setup:
+      "A delivery dashboard gives each day one row of tiny bars — deploy counts per two-hour block — because discrete counts deserve bars, not a smoothed line.",
+    read: "The daily rhythm repeats: quiet mornings, afternoon peaks. Wednesday's tallest bar landed at 18h, which is the deploy-freeze conversation waiting to happen; zero blocks stay visibly empty instead of being interpolated away.",
     chart: (
       <Rows
         rows={[
@@ -50,7 +52,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "Steps per hour, three mornings",
-    note: "The commute spike shows in the same column every day except the day it rained.",
+    setup:
+      "A fitness app compresses each morning into hourly step bars, and the commute writes its signature into the same column every day.",
+    read: "The 8am spike shows in the same position Tuesday and Wednesday — the walk to the station — and vanishes Thursday, the day it rained and the bus won. One missing bar tells the whole weather story.",
     chart: (
       <Rows
         rows={[
@@ -75,7 +79,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "Training volume by week, three lifts",
-    note: "Twelve weeks of sets per lift; the deload weeks read as the short bars they are.",
+    setup:
+      "A strength coach reviews a twelve-week block at a glance: sets per week per lift, one sparkbar row each, deload weeks included.",
+    read: "The deload weeks read as the short bars they are — weeks 4, 8, and 12, right on program. Volume ratchets up between them across all three lifts; if one row's bars stopped growing, that lift's programming would be the conversation.",
     chart: (
       <Rows
         rows={[

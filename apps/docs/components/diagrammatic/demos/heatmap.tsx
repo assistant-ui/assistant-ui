@@ -1,10 +1,23 @@
 import { Heatmap } from "diagrammatic";
 import type { DemoExample } from "./types";
 
+const CALENDAR = Array.from({ length: 7 }, (_, r) =>
+  Array.from({ length: 16 }, (_, c) => {
+    const day = c * 7 + r;
+    if (r >= 5) return Math.max(0, Math.round(Math.sin(day * 0.9) * 2));
+    return Math.max(
+      0,
+      Math.round((Math.sin(day * 1.7) + Math.sin(day * 0.6) + 1.2) * 4),
+    );
+  }),
+);
+
 export const examples: DemoExample[] = [
   {
     title: "Deploys by service and hour",
-    note: "Two categorical axes, one intensity; the noon column is release o'clock.",
+    setup:
+      "A platform team suspects the release train bunches up, so they pull a week of deploy events and bucket them by service and by hour of day. Two categorical axes, one intensity: the classic heatmap job.",
+    read: "The noon column burns across every service: release o'clock is real. The db row peaks latest and the cdn earliest, which is the deploy pipeline's ordering showing up as color.",
     chart: (
       <Heatmap
         title="Deploys by service and hour"
@@ -24,7 +37,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "Menu orders by dish and day",
-    note: "The ramen row never cools; the salad row exists from Monday to Wednesday only.",
+    setup:
+      "A ramen shop's point-of-sale exports a plain table of orders per dish per weekday. Plotted as intensity, a month of receipts becomes something the owner can act on before the next supply run.",
+    read: "The ramen row never cools and peaks Saturday; the salad row exists from Monday to Wednesday and then dies. Order less lettuce for the weekend, more gyoza wrappers for Friday.",
     chart: (
       <Heatmap
         title="Orders by dish and day"
@@ -44,7 +59,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "Feature adoption by plan tier",
-    note: "Reading down a column prices the feature; reading across a row grades the tier.",
+    setup:
+      "A pricing review starts with one question: which features do paying tiers actually use? Product analytics reduces a quarter of events to a five-by-six grid of adoption rates.",
+    read: "Reading down a column prices the feature: sso is dark only on team and enterprise, so it is holding the upgrade line. Reading across the free row shows a tier that uses the editor and nothing else, which is exactly what free is for.",
     chart: (
       <Heatmap
         title="Adoption by plan tier"
@@ -58,6 +75,58 @@ export const examples: DemoExample[] = [
             [0.9, 0.85, 0.7, 0.6, 0.35, 0.65],
             [0.85, 0.8, 0.85, 0.95, 0.9, 0.8],
           ],
+        }}
+      />
+    ),
+  },
+  {
+    title: "The punchcard: commits by weekday and hour",
+    setup:
+      'The same matrix drawn with `mark="dot"` sizes a circle per cell instead of shading it: the classic punchcard that code-hosting profiles made famous. Here, a repo\'s commits bucketed by weekday and two-hour block.',
+    read: "Midweek afternoons carry the repo; the dots thin toward the weekend but never disappear. Size reads better than color when the values sit close together, which is why the punchcard survives as a form.",
+    chart: (
+      <Heatmap
+        mark="dot"
+        title="Commits by weekday and hour"
+        matrix={{
+          rows: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+          cols: ["0h", "", "", "6h", "", "", "12h", "", "", "18h", "", ""],
+          values: [0.45, 0.85, 1, 0.9, 0.75, 0.5, 0.3].map((day, r) =>
+            Array.from({ length: 12 }, (_, c) =>
+              Math.max(
+                0,
+                day * Math.sin(((c + 0.5) / 12) * Math.PI) +
+                  0.12 * Math.sin(c * 2.1 + r),
+              ),
+            ),
+          ),
+        }}
+      />
+    ),
+  },
+  {
+    title: "The calendar: sixteen weeks of contributions",
+    setup:
+      "Feed the matrix seven weekday rows and one column per week and the heatmap becomes a contribution calendar. Sixteen weeks of a maintainer's activity, weekends on the bottom rows.",
+    read: "The weekday stripes are the job; the two pale columns are vacations, visible without a single date label. The bottom two rows run cooler than the rest, which is what a healthy relationship with open source looks like.",
+    chart: (
+      <Heatmap
+        title="Contribution activity"
+        aspect={2.2}
+        matrix={{
+          rows: ["Mon", "", "Wed", "", "Fri", "", "Sun"],
+          cols: Array.from({ length: 16 }, (_, i) =>
+            i === 0
+              ? "May"
+              : i === 5
+                ? "Jun"
+                : i === 9
+                  ? "Jul"
+                  : i === 14
+                    ? "Aug"
+                    : "",
+          ),
+          values: CALENDAR,
         }}
       />
     ),

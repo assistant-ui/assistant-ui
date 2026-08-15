@@ -7,7 +7,6 @@ import {
   ProgressRing,
   Sparkbar,
   Sparkline,
-  StepLine,
   WinLoss,
 } from "diagrammatic";
 import { cn } from "@/lib/utils";
@@ -43,7 +42,7 @@ const FRIEZE = [
   <Area key="ar" data={[4, 7, 6, 10, 9, 13, 11, 15]} />,
   <WinLoss key="wl2" data={[-1, 1, 1, 1, -1, 1, -1, 1, 1, 1]} />,
   <Sparkbar key="sb2" data={[9, 7, 8, 6, 5, 6, 4, 5, 3, 4]} />,
-  <StepLine key="st" data={[19, 19, 29, 25, 39, 35, 49]} />,
+  <Line key="st" step data={[19, 19, 29, 25, 39, 35, 49]} />,
   <ProgressRing key="pr2" value={0.35} />,
   <Bullet key="bu2" value={72} target={60} bands={[30, 55, 90]} />,
 ];
@@ -73,7 +72,7 @@ export default function DiagrammaticPage() {
             "max-w-[17ch] text-[clamp(3rem,8.5vw,7rem)] leading-[0.98] tracking-[-0.01em] text-balance",
           )}
         >
-          Seventy-four ways to <em className="text-(--da-red)">draw</em> a
+          Sixty-seven ways to <em className="text-(--da-red)">draw</em> a
           number.
         </h1>
         <div className="mt-10 flex flex-wrap items-end justify-between gap-x-12 gap-y-6">

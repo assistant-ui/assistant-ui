@@ -4,7 +4,9 @@ import type { DemoExample } from "./types";
 export const examples: DemoExample[] = [
   {
     title: "Listening hours by genre across a season",
-    note: "The river reads as rhythm, not as numbers; lo-fi quietly widens.",
+    setup:
+      "A music app's year-in-review team wants the listening story to feel like weather, not accounting. Nine months of hours by genre, centered on their own flow instead of a zero line.",
+    read: "The river reads as rhythm: pop swells into summer and recedes, while lo-fi quietly widens underneath — the study-season signal. There is no axis to read numbers from, and that is the form's deal; if someone needs values, this becomes a stacked area.",
     chart: (
       <Streamgraph
         title="Listening hours by genre"
@@ -19,7 +21,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "Box office share by genre through a year",
-    note: "Animation surges in summer, horror owns the fall; the stream shows the seasons trading places.",
+    setup:
+      "A film desk illustrates the release calendar's seasons: a year of box office, by genre, drawn as a stream because the piece is about rhythm, not receipts.",
+    read: "Animation surges when school lets out, horror owns the run-up to Halloween, and drama waits for awards season — the genres visibly trading the audience back and forth. The stream shows the seasons changing hands better than any table of grosses.",
     chart: (
       <Streamgraph
         title="Box office by genre"
@@ -34,7 +38,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "New repositories by language, nine quarters",
-    note: "TypeScript keeps thickening while the rest hold their width.",
+    setup:
+      "A developer-relations team tracks new public repos by language to see where the ecosystem's energy is going, and picks a stream because the story is momentum over precision.",
+    read: "TypeScript keeps thickening quarter after quarter while the others roughly hold their width; the whole river widens, but one current is doing the widening. Rust's band grows too, from a trickle to a stripe you can name without a label.",
     chart: (
       <Streamgraph
         title="New repos by language"

@@ -22,7 +22,9 @@ const SIGHTINGS = Array.from({ length: 420 }, (_, i) => ({
 export const examples: DemoExample[] = [
   {
     title: "Height and weight of 5k runners",
-    note: "The rings are density; most of the field lives inside the second contour.",
+    setup:
+      "A sports scientist plots four hundred race entrants by height and weight, then asks the chart to summarize instead of scatter: contour rings trace equal density.",
+    read: "Most of the field lives inside the second ring — the sport's physiological center of gravity. The rings' tilt is the correlation itself: taller entrants weigh more, and the ellipse's angle quantifies the 'of course'.",
     chart: (
       <Contour
         title="Height and weight of 5k runners"
@@ -34,7 +36,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "Four hundred darts at one board",
-    note: "The cloud centers low-right of the bull; the contours are the player's bias, drawn.",
+    setup:
+      "A darts coach records a month of practice throws as coordinates from the bullseye, hunting for the systematic error inside the randomness.",
+    read: "The cloud centers low-right of the bull — the contours are the player's bias, drawn. Practice tightens the rings; only technique changes will move their center, and now the coach can point at exactly where it sits.",
     chart: (
       <Contour
         title="Dart landing positions"
@@ -46,7 +50,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "Warbler sightings by temperature and elevation",
-    note: "One tilted ridge: as the season warms, the birds simply move uphill.",
+    setup:
+      "An ornithology project pools 420 sightings, each logged with that day's temperature and the site's elevation, to see the species' comfort zone as a shape.",
+    read: "One tilted ridge: as the season warms, the birds simply move uphill, trading altitude for the same felt temperature. The contour's slope is the species' thermal preference — and a preview of where a warmer century pushes it.",
     chart: (
       <Contour
         title="Sightings by temp and elevation"

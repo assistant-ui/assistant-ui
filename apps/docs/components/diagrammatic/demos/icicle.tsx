@@ -4,7 +4,9 @@ import type { DemoExample } from "./types";
 export const examples: DemoExample[] = [
   {
     title: "Monorepo size, level by level",
-    note: "A sunburst unrolled: widths still sum upward, but labels sit flat.",
+    setup:
+      "A build engineer maps the repo before a caching overhaul: the icicle is a sunburst unrolled, widths still summing upward, but with labels that sit flat and legible.",
+    read: "packages out-weighs apps, and inside it the react package alone is wider than the whole docs tree. Straight edges make sibling comparisons exact where the sunburst's arcs only suggest them.",
     chart: (
       <Icicle
         title="Monorepo size"
@@ -33,7 +35,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "Where a slow request spends its time",
-    note: "A flame graph is an icicle wearing profiler clothes; the db row is the one to fix.",
+    setup:
+      "A 420ms endpoint gets profiled, and the trace comes back as the icicle every profiler draws: the handler on top, its callees beneath, width equal to time.",
+    read: "The db block is half the request, and inside it the query dwarfs serialization — the index to add is three levels down and one glance away. A flame graph is an icicle wearing profiler clothes; the reading skill transfers exactly.",
     chart: (
       <Icicle
         title="Request time by call"
@@ -62,7 +66,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "A phone's storage, unpacked",
-    note: "Media splits into its parts on the second level; messages hide two gigabytes of photos.",
+    setup:
+      "The storage settings screen is a one-level bar; the icicle shows what it hides by giving media a second level of its own.",
+    read: "Media splits into photos and video on the second level, and together they out-weigh every app installed. The 'messages' surprise — two gigabytes of received photos — is the kind of finding only the extra level surfaces.",
     chart: (
       <Icicle
         title="Phone storage"

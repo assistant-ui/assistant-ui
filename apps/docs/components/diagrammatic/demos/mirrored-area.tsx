@@ -3,8 +3,10 @@ import type { DemoExample } from "./types";
 
 export const examples: DemoExample[] = [
   {
-    title: "Router throughput over one day: download above, upload below",
-    note: "The two directions share one clock; evening streaming dominates the top half.",
+    title: "Router throughput over one day",
+    setup:
+      "A home-lab owner graphs the router's counters: download above the axis, upload below, one day in three-hour steps. Two directions of one pipe, sharing one clock.",
+    read: "Evening streaming dominates the top half while upload stays a modest band — until the 21h upload bump, which is the night the backup job runs. The two halves share a scale by convention; label both directions or one will get misread.",
     chart: (
       <MirroredArea
         title="Router throughput over one day"
@@ -16,7 +18,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "Hiring against attrition, eight quarters",
-    note: "Joins outrun leaves every quarter except the fifth, where the halves nearly touch.",
+    setup:
+      "A people team plots joins above the axis and leaves below it, because net headcount alone hides the churn underneath. Eight quarters of both flows.",
+    read: "Joins outrun leaves in every quarter except the fifth, where the halves nearly touch — the hiring freeze meeting attrition head-on. The gap between the halves is net growth, and watching it breathe tells the real staffing story.",
     chart: (
       <MirroredArea
         title="Hiring against attrition"
@@ -28,7 +32,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "Reservoir inflow and release through a wet season",
-    note: "Inflow peaks two months before releases do; the lag is the stored water.",
+    setup:
+      "A dam operator's season chart: river inflow above the axis, controlled releases below, November through June. The mirror form fits because the two flows literally oppose each other.",
+    read: "Inflow peaks two months before releases do, and the lag is the point: that offset is the stored water doing its job. If the two halves ever peak together, the reservoir has stopped buffering and started merely passing water through.",
     chart: (
       <MirroredArea
         title="Reservoir inflow and release"

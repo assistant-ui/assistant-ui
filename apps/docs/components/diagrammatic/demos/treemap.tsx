@@ -4,7 +4,9 @@ import type { DemoExample } from "./types";
 export const examples: DemoExample[] = [
   {
     title: "Disk usage by directory",
-    note: "Area is bytes; node_modules earns its rectangle honestly.",
+    setup:
+      "The laptop is full again, and the disk analyzer answers the only question that matters — what is actually taking the space — by drawing every directory as area, nested inside its parent.",
+    read: "node_modules earns its rectangle honestly: bigger than src and dist combined. Area is bytes, so the eye finds the deletion target before any number is read; the nested cells inside src show the hierarchy without a tree control.",
     chart: (
       <Treemap
         title="Disk usage by directory"
@@ -35,7 +37,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "A national budget by area",
-    note: "Pensions and health together are most of the map; everything argued about on TV fits in the corner.",
+    setup:
+      "A civics explainer draws the national budget to scale, because parliamentary debate time and actual spending have almost nothing to do with each other.",
+    read: "Pensions and health together are most of the map, and everything argued about on television fits in the corner rectangles. Drawing money as area is the fastest cure for budget-debate proportion blindness.",
     chart: (
       <Treemap
         title="Budget by area"
@@ -66,7 +70,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "A grocery receipt by aisle",
-    note: "The freezer aisle is a bigger share of the bill than the produce section admits.",
+    setup:
+      "A budgeting app rolls a month of grocery receipts into aisles and draws the bill as area, because line-item lists hide the shape of a habit.",
+    read: "The freezer aisle claims a bigger share of the bill than the produce section admits — $38 against $34 — and snacks quietly outspend dairy. The map makes the 'where does the food money go' conversation start from facts.",
     chart: (
       <Treemap
         title="Grocery bill by aisle"

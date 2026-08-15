@@ -4,7 +4,9 @@ import type { DemoExample } from "./types";
 export const examples: DemoExample[] = [
   {
     title: "Frontend framework popularity rank across five years",
-    note: "Positions swap while magnitudes stay hidden; that is the deal a bump chart makes.",
+    setup:
+      "A developer survey publishes yearly rankings, and the ecosystem argues about them for the other 364 days. The bump chart plots position, not share: crossings are the content.",
+    read: "React and jQuery swap the crown early and never meet again; vue climbs to first for one year before settling. Ranks hide magnitudes — the gap between third and fourth may be a chasm or a rounding error, and this chart deliberately cannot say.",
     chart: (
       <Bump
         title="Framework popularity rank"
@@ -20,7 +22,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "League table across five matchdays",
-    note: "United falls from first to fourth in three rounds; the crossings are the season.",
+    setup:
+      "A football podcast recaps the season's opening month with one graphic: table position after each matchday, four clubs, every crossing a headline they already wrote.",
+    read: "United falls from first to fourth in three rounds — the crisis arc — while City's line climbs to the top and flattens into control. Athletic never leaves the bottom half; consistency, the bump chart shows, is also a story.",
     chart: (
       <Bump
         title="League position"
@@ -36,7 +40,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "Most popular girls' names across five decades",
-    note: "A rank of one in 1990 and 2030 can mean very different counts; ranks flatten that away.",
+    setup:
+      "A registry office celebrates its centenary with the charts everyone actually wants: baby-name leaderboards over time. Four names, five decades, ranks only.",
+    read: "Mia holds first in 1990, vanishes to fourth for thirty years, and comes back — names cycle on a generation's delay, and the chart makes the rhythm visible. A rank of one in 1990 and 2030 can mean very different counts; ranks flatten that away by design.",
     chart: (
       <Bump
         title="Baby name rank"

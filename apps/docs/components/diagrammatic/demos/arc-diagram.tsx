@@ -4,7 +4,9 @@ import type { DemoExample } from "./types";
 export const examples: DemoExample[] = [
   {
     title: "Module imports in file order",
-    note: "Nodes keep their sequence; the tall arcs are the long-distance imports to worry about.",
+    setup:
+      "A codebase tour keeps the modules in file order — the order a reader meets them — and draws each import as an arc overhead. Order is sacred here; that is the arc diagram's difference from a network.",
+    read: "The tall arcs are the long-distance imports to worry about: cli reaching over five modules to ws is the coupling the next refactor should cut. Short, local arcs are healthy; height is distance, and distance is risk.",
     chart: (
       <ArcDiagram
         title="Module imports in file order"
@@ -28,7 +30,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "Which characters share scenes",
-    note: "The cast in order of first appearance; the hero's arcs reach everyone, the rival's reach one.",
+    setup:
+      "A book club maps a novel's cast in order of first appearance, arcing every pair that shares a scene — the literary-network classic, flattened to one readable line.",
+    read: "The hero's arcs reach everyone — that is what protagonist means, structurally — while the rival connects through exactly one scene. The longest arc, nora to finn, spans the whole book: the reunion the plot spends four hundred pages arranging.",
     chart: (
       <ArcDiagram
         title="Shared scenes"
@@ -52,7 +56,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "Express services skipping local stops",
-    note: "Stations stay in track order; each arc is a service that skips everything beneath it.",
+    setup:
+      "A transit planner draws one rail line with its stations in track order and each express service as an arc over the stops it skips.",
+    read: "The terminal-to-airport arc clears five stations — the express that makes the airport line viable. Every arc's height is time saved and stops skipped; the local riders under the tallest arcs are the ones writing to the transit authority.",
     chart: (
       <ArcDiagram
         title="Express service arcs"

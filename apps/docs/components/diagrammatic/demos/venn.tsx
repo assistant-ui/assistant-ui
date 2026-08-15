@@ -4,7 +4,9 @@ import type { DemoExample } from "./types";
 export const examples: DemoExample[] = [
   {
     title: "Web and app users",
-    note: "Two circles, three honest numbers; the overlap is the multi-platform cohort.",
+    setup:
+      "A product team debates whether web and app are 'the same users on two surfaces' or two audiences. Two circles, three honest numbers, and the debate has a referee.",
+    read: "The overlap is 1,300 of 8,600 — fifteen percent. These are mostly two audiences, and the roadmap's 'seamless cross-device sync' pitch just met the population it actually serves. The circles are sized to their counts; the geometry is the finding.",
     chart: (
       <Venn
         title="Web and app users"
@@ -16,7 +18,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "Dog people and cat people, one office",
-    note: "The overlap is bigger than either camp expected; the survey ended an argument.",
+    setup:
+      "The office survey that settles the pet argument: who identifies as a dog person, a cat person, or — the option the argument forgot — both.",
+    read: "The overlap is bigger than either camp expected: seventeen people refuse the binary entirely. The survey ended an argument by revealing the false premise, which is the venn diagram's oldest job.",
     chart: (
       <Venn
         title="Pets in the office"
@@ -28,7 +32,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "Newsletter and podcast audiences",
-    note: "The podcast barely shares readers with the newsletter; two audiences, one brand.",
+    setup:
+      "A media brand assumed its podcast and newsletter shared one loyal audience, until the subscriber match ran and the circles came back nearly disjoint.",
+    read: "The podcast barely shares readers with the newsletter — 2,100 of 28,000. Two audiences, one brand: cross-promotion is not preaching to the choir here, it is the single cheapest growth lever the company owns.",
     chart: (
       <Venn
         title="Audience overlap"

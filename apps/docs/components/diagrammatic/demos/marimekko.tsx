@@ -4,7 +4,9 @@ import type { DemoExample } from "./types";
 export const examples: DemoExample[] = [
   {
     title: "Market by region and vendor",
-    note: "Column width is the region's size, segment height is share; area is revenue.",
+    setup:
+      "A strategy deck sizes the market two ways at once: column width is each region's share of global revenue, segment height is vendor share within it. Area is therefore actual dollars.",
+    read: "Acme leads EMEA and LATAM by share, but the mekko shows why the board still worries: those are the narrow columns. North's fat AMER segment alone out-areas acme's two regional wins combined.",
     chart: (
       <Marimekko
         title="Market by region and vendor"
@@ -51,7 +53,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "Streaming hours by platform and content",
-    note: "The widest platform watches the least originals; width times height is the catalog fight.",
+    setup:
+      "A media analyst maps the streaming war on one rectangle: platform width is total watch-hours, segment height is content mix, so catalog strategy and audience size share a single frame.",
+    read: "The widest platform watches the fewest originals — flick is still a licensed-series machine — while mouse, the narrowest, is a third originals. Width times height is the real catalog fight, and no simple bar chart can hold both dimensions.",
     chart: (
       <Marimekko
         title="Hours by platform and content"
@@ -89,7 +93,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "Ad spend by channel and format",
-    note: "Video's share of social is bigger than all of print; the areas say so directly.",
+    setup:
+      "A media buyer defends next year's plan with a mekko: channel width is budget share, format height is the mix inside each channel.",
+    read: "Video's slice of social is bigger than all of print — the area comparison the client kept refusing to believe in table form. Search stays a text machine at 72%, and print's zero-video column explains itself.",
     chart: (
       <Marimekko
         title="Ad spend by channel and format"

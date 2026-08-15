@@ -4,7 +4,9 @@ import type { DemoExample } from "./types";
 export const examples: DemoExample[] = [
   {
     title: "Review scores by category",
-    note: "Same medians a box plot would show, plus the shape a box plot would hide.",
+    setup:
+      "An app-store analyst compares rating distributions across three categories. The violin draws the same medians a box plot would, plus the shape a box plot hides.",
+    read: "Games bulge mid-scale while tools sag low with a heavy bottom — different dissatisfaction shapes that share similar medians. The shape is the finding; boxes would have flattened all three into near-identical rectangles.",
     chart: (
       <Violin
         title="Review scores by category"
@@ -18,7 +20,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "Salaries by department",
-    note: "Sales is pinched with a bulge at the top: a commission structure, drawn.",
+    setup:
+      "A compensation analyst plots salary distributions per department before the equity review, because averages have been hiding a structural story for years.",
+    read: "Sales is pinched in the middle with a bulge at the top: a commission structure, drawn. Support is bottom-heavy with a long thin neck — many people at entry pay, few paths up. Engineering's symmetric bulge is what a leveled ladder looks like.",
     chart: (
       <Violin
         title="Salaries by department"
@@ -32,7 +36,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "Guest ratings by hotel tier",
-    note: "Luxury's violin is narrow and high; budget is wide everywhere, which is its own kind of honesty.",
+    setup:
+      "A booking platform compares rating distributions across its three price tiers, asking whether stars bought predictability as well as comfort.",
+    read: "Luxury's violin is narrow and high — you know what you're getting. Budget is wide at every level, which is its own kind of honesty: the €40 room is a lottery, and the shape says so better than any average score could.",
     chart: (
       <Violin
         title="Ratings by tier"

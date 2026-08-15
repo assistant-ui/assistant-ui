@@ -4,7 +4,9 @@ import type { DemoExample } from "./types";
 export const examples: DemoExample[] = [
   {
     title: "Cumulative signups over the year",
-    note: "The fill makes the accumulated volume readable, not just the rate.",
+    setup:
+      "A founder keeps a running total of signups for the monthly investor update. The count only ever goes up, so the question the chart answers is not direction but pace.",
+    read: "The fill makes the accumulated volume readable, not just the rate: the area under the curve is the user base itself. The two flat shelves are the months marketing went dark, visible as missing area, not just missing slope.",
     chart: (
       <Area
         title="Cumulative signups"
@@ -15,7 +17,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "Rainfall through the monsoon, June to September",
-    note: "The area under the curve is the season's water, which is the number that matters.",
+    setup:
+      "A reservoir engineer tracks monthly rainfall through the wet season, because the town's water year is decided in these four months. What matters is not any single month but the total that falls.",
+    read: "The area under the curve is the season's water. July and August did their job; the early finish in September is the worry, and it shows up as the missing wedge on the right, which is exactly what next summer will be short by.",
     chart: (
       <Area
         title="Monthly rainfall"
@@ -27,7 +31,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "Laptop battery across a workday",
-    note: "A declining single quantity; the meetings show up as the steep drains.",
+    setup:
+      "An engineer suspects the new video-call client is the battery villain and logs the charge percentage every hour for one unplugged day.",
+    read: "A declining single quantity, which is exactly the area chart's home ground. The steep drains at 11 and 13 line up with the two long meetings; the gentle slopes are heads-down work. The villain has a calendar entry.",
     chart: (
       <Area
         title="Battery level"

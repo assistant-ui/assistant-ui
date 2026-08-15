@@ -53,17 +53,23 @@ function Rows({
 export const examples: DemoExample[] = [
   {
     title: "Host vitals in a monitoring sidebar",
-    note: "A word, a line, a number: the whole point is fitting between them.",
+    setup:
+      "A hosts list shows three vitals per machine in the width of a table cell: a word, a line, a number. The sparkline exists to fit exactly between them.",
+    read: "cpu is trending up and just hit 86% — the shape says 'steady climb', not 'spike', which changes the response from restart to capacity plan. The line carries the verdict; the number carries the evidence.",
     chart: <Rows rows={VITALS} />,
   },
   {
     title: "A watchlist of three tickers",
-    note: "The shape carries the week; the number carries the close.",
+    setup:
+      "A brokerage app's watchlist gives each ticker one row: symbol, the week's shape, last price. Nobody trades off a sparkline, but everybody triages with one.",
+    read: "OKAI grinds upward, VLTA bleeds, NMBS goes nowhere — three theses in thirty pixels each. The eye reads shape first and price second, which is the correct order for a watchlist.",
     chart: <Rows rows={TICKERS} />,
   },
   {
     title: "Store health, eight weeks",
-    note: "Three metrics that would each deserve a chart get a line's worth of space instead.",
+    setup:
+      "A store manager's weekly email opens with three metrics that would each deserve a chart, given a line's worth of space instead.",
+    read: "Visits and basket size climb together while returns fall — every shape agrees, which almost never happens and deserves the one-line celebration. When the shapes disagree, this row becomes the agenda.",
     chart: <Rows rows={STORE} />,
   },
 ];

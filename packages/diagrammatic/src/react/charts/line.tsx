@@ -2,7 +2,7 @@ import type { BaseProps } from "../svg";
 import { forwardRef } from "react";
 import type { Series } from "../../core/types";
 import { formatCompact } from "../../core/types";
-import { linePath, scalePoints, stroke } from "../../core/geometry";
+import { linePath, scalePoints, stepPath, stroke } from "../../core/geometry";
 import { ACCENT, GRID, cat, ink } from "../../core/theme";
 import { AxisLabels, ChartSvg, Legend, TXT, vbHeight } from "../svg";
 
@@ -10,6 +10,7 @@ export type LineProps = BaseProps & {
   data?: number[];
   series?: Series[];
   yMax?: number;
+  step?: boolean;
 };
 
 export const Line = forwardRef<SVGSVGElement, LineProps>(
@@ -18,6 +19,7 @@ export const Line = forwardRef<SVGSVGElement, LineProps>(
       data,
       series,
       yMax,
+      step,
       labels,
       legend,
       format = formatCompact,
@@ -54,10 +56,11 @@ export const Line = forwardRef<SVGSVGElement, LineProps>(
         {grids.map((pts, k) => (
           <path
             key={k}
-            d={linePath(pts)}
+            d={step ? stepPath(pts) : linePath(pts)}
             fill="none"
             stroke={multi ? cat(k) : ink(0.75)}
             opacity={multi ? 0.85 : 1}
+            strokeLinejoin="round"
             data-part="mark"
             data-series={all[k]!.name}
             {...stroke.line}

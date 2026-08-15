@@ -4,7 +4,9 @@ import type { DemoExample } from "./types";
 export const examples: DemoExample[] = [
   {
     title: "Ideas by effort and impact",
-    note: "The corners are named so the dots come pre-judged; quick wins live top-left.",
+    setup:
+      "A product team dumps the backlog onto the oldest prioritization tool there is: effort across, impact up, midlines drawn, corners named so the dots arrive pre-judged.",
+    read: "The quick-wins corner holds three items — next sprint writes itself — while the time-sinks corner quietly collects the ideas everyone loves and no one should build. The one dot on the midline is the meeting's only real debate.",
     chart: (
       <Quadrant
         title="Ideas by effort and impact"
@@ -32,7 +34,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "Restaurants by price and rating",
-    note: "Cheap gems top-left, tourist traps bottom-right; the diagonal is what you pay for.",
+    setup:
+      "A food blog maps the neighborhood's restaurants by price and rating, and names the corners the way diners actually think about them.",
+    read: "Cheap gems top-left, tourist traps bottom-right, and the diagonal between them is what you pay for. The blog's real service is the top-left corner's four dots — and the empty bottom-left, which says even the cheap places here have standards.",
     chart: (
       <Quadrant
         title="Restaurants by price and rating"
@@ -59,7 +63,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "Vendors by switching cost and value",
-    note: "The renewal meeting is about the bottom-right: expensive to leave, giving little back.",
+    setup:
+      "A procurement lead preps for renewal season by mapping every vendor on two axes nobody writes in the contract: how hard they are to leave, and how much they actually give back.",
+    read: "The renewal meeting is about the bottom-right: expensive to leave, giving little back — the lock-in tax, plotted. The easy-keeps corner renews itself; the strategic corner gets the multi-year terms; the bottom-right gets the negotiation.",
     chart: (
       <Quadrant
         title="Vendors by lock-in and value"

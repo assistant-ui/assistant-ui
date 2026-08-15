@@ -4,7 +4,9 @@ import type { DemoExample } from "./types";
 export const examples: DemoExample[] = [
   {
     title: "Monthly active users, January to September",
-    note: "Growth with two dips; the trend survives both.",
+    setup:
+      "A product team pulls the monthly active user count ahead of the September board meeting. The investor deck needs one chart that says how the year is going without a paragraph of caveats.",
+    read: "Up and to the right, but not smoothly: March and July both gave back ground before the climb resumed. The trend survives both dips, which is exactly the sentence the board needs.",
     chart: (
       <Line
         title="Monthly active users"
@@ -16,7 +18,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "Median home price in one metro, 2016 to 2024",
-    note: "Flat through 2019, a pandemic jump, then a slow cooldown.",
+    setup:
+      "A couple has watched the same neighborhood for eight years, saving screenshots of listing prices. This is the city's median sale price, one point per year, the chart every housing argument eventually reaches for.",
+    read: "Flat through 2019, a pandemic jump of nearly $100k in two years, then a slow cooldown that still lands 40% above where they started watching. The line explains why waiting felt rational and cost so much.",
     chart: (
       <Line
         title="Median home price"
@@ -38,13 +42,45 @@ export const examples: DemoExample[] = [
   },
   {
     title: "Resting heart rate across eight weeks of training",
-    note: "A slow decline is the whole story; the y range is only twelve beats.",
+    setup:
+      "A runner starts a couch-to-10k plan and lets the watch do the bookkeeping. Every Sunday it logs the week's average resting heart rate, the quietest number fitness has.",
+    read: "Ten beats in eight weeks, with barely any drama on the way down. The y range spans only twelve beats; stretched onto a zero baseline this progress would vanish, which is why resting-rate charts never start at zero.",
     chart: (
       <Line
         title="Resting heart rate"
         data={[68, 67, 65, 66, 63, 62, 60, 58]}
         labels={["w1", "w2", "w3", "w4", "w5", "w6", "w7", "w8"]}
         format={(v) => `${v} bpm`}
+      />
+    ),
+  },
+  {
+    title: "The step variant: policy rate across nine meetings",
+    setup:
+      "A central bank moves its rate only on scheduled meeting days, so a smooth line would invent motion that never happened. Passing `step` makes the line hold each value until the next decision.",
+    read: "A staircase up through the hiking cycle, a three-meeting pause at 4%, then the first cut. The flats are the truth: between meetings the rate simply is what it is, and interpolating would be fiction.",
+    chart: (
+      <Line
+        step
+        title="Policy rate by meeting"
+        data={[0.5, 1, 1.75, 2.5, 3.25, 4, 4, 4, 3.75]}
+        labels={["", "Mar", "", "Jun", "", "Sep", "", "Dec", ""]}
+        format={(v) => `${v}%`}
+      />
+    ),
+  },
+  {
+    title: "The step variant: seat price across eight releases",
+    setup:
+      "A SaaS pricing page changes only when a release ships, and the growth team wants the history on one slide. Each plateau is a price that real customers paid for months.",
+    read: "Two price cuts hide inside a rising staircase: v4 and v6 both walked the price back after an ambitious hike. The step form makes the retreats legible where a smoothed line would blur them into wobble.",
+    chart: (
+      <Line
+        step
+        title="Seat price across releases"
+        data={[19, 19, 29, 25, 39, 35, 49, 59]}
+        labels={["v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8"]}
+        format={(v) => `$${v}`}
       />
     ),
   },

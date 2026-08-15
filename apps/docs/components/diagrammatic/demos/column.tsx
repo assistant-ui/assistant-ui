@@ -4,7 +4,9 @@ import type { DemoExample } from "./types";
 export const examples: DemoExample[] = [
   {
     title: "Quarterly revenue, seven quarters",
-    note: "The latest quarter is the one highlighted; everything before is context.",
+    setup:
+      "The CFO's favorite slide: revenue by quarter, latest highlighted. Columns instead of a line because each quarter is a closed book, not a sample of a curve.",
+    read: "Six quarters of stair-step growth with one flat landing in the middle — the quarter sales won't discuss. The highlighted bar is the largest yet, which is why this chart opens the all-hands instead of closing it.",
     chart: (
       <Column
         title="Quarterly revenue"
@@ -24,7 +26,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "Museum visitors by day of week",
-    note: "Saturday towers over the week; Monday is closed and honestly zero.",
+    setup:
+      "A museum plans staffing from turnstile counts. One column per weekday, averaged over the season — including the day the doors stay shut.",
+    read: "Saturday towers over the week and Monday is honestly zero, because Monday is closed and the chart refuses to hide it. The Friday ramp says late-week programming works; the Tuesday trough says the school-visit slots have room.",
     chart: (
       <Column
         title="Visitors by weekday"
@@ -43,7 +47,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "Electric cars sold per year",
-    note: "Each column nearly doubles the one before it until the subsidy ends in 2025.",
+    setup:
+      "A transport ministry charts EV registrations by year to evaluate the subsidy it just ended. Columns fit because years are discrete and the last one needs to be pointable-at.",
+    read: "Each column nearly doubles the one before — until 2025, the first year without the subsidy, highlighted and lower. One bar turns a policy debate concrete: growth didn't stop, but the doubling did.",
     chart: (
       <Column
         title="EVs sold per year"

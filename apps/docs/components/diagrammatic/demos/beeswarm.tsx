@@ -4,7 +4,9 @@ import type { DemoExample } from "./types";
 export const examples: DemoExample[] = [
   {
     title: "PR review latency, every point kept",
-    note: "The swarm shows each review; the flagged 48-hour dot is one real PR, not a statistic.",
+    setup:
+      "An engineering manager suspects review times are fine 'except when they're not', and refuses to let a histogram round the exceptions away. Every PR gets its own dot on one axis.",
+    read: "The swarm thickens between four and eight hours — healthy — and then there is the flagged 48-hour dot, which is one real PR with an author and a story, not a statistic. Averages absorb outliers; swarms point at them.",
     chart: (
       <Beeswarm
         title="PR review latency"
@@ -19,7 +21,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "Marathon field by age",
-    note: "The swarm thickens through the thirties; the flagged dot is the oldest finisher.",
+    setup:
+      "A race organizer plots every finisher's age as a dot, because sponsors keep asking who actually runs this thing and deserve a truthful shape rather than a mean.",
+    read: "The swarm thickens through the thirties, thins after fifty, and then there is the flagged dot at 71 — the finisher the local paper will interview. The gaps matter too: almost nobody under 22, which is a marketing brief in one empty stretch.",
     chart: (
       <Beeswarm
         title="Finisher ages"
@@ -34,7 +38,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "Flat white prices across the city",
-    note: "Most cafés cluster within a dollar; the flagged dot is the airport.",
+    setup:
+      "A coffee blog surveys 22 cafés for its annual price index and plots every café as a dot, names withheld, one exception flagged.",
+    read: "Most of the city clusters within a dollar of $4.20; the flagged $7.50 dot is the airport, priced for people who cannot leave. A swarm of 22 points carries the whole survey without a single average being quoted.",
     chart: (
       <Beeswarm
         title="Flat white prices"

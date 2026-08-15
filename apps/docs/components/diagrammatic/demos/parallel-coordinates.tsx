@@ -4,7 +4,9 @@ import type { DemoExample } from "./types";
 export const examples: DemoExample[] = [
   {
     title: "Laptops across four spec axes",
-    note: "Each line is one machine; the crossings between axes are the trade-offs.",
+    setup:
+      "A buyer's guide compares three laptops across four incommensurable axes — price, battery, weight, screen — each normalized to its own scale, each machine one thread.",
+    read: "Each line is one machine, and the crossings between axes are the trade-offs: the air wins battery and weight, then dives on screen. No laptop runs high across all four axes; the form's honesty is that it makes 'best overall' visibly a fiction.",
     chart: (
       <ParallelCoordinates
         title="Laptops across four spec axes"
@@ -19,7 +21,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "Three apartments on the shortlist",
-    note: "The cheap one loses on every other axis at once, which is easier to see than to admit.",
+    setup:
+      "A couple scores their apartment shortlist on rent, size, commute, and light, then threads each flat across the axes to make the argument they keep having visible.",
+    read: "The cheap studio loses on every other axis at once — easier to see than to admit. The loft and the garden flat cross twice, which is the actual decision: pay for light and location, or for space and a longer train.",
     chart: (
       <ParallelCoordinates
         title="Apartments on the shortlist"
@@ -34,7 +38,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "Breakfast cereals, nutrition against price",
-    note: "The kids' cereal spikes on sugar and collapses on fiber; the lines don't lie to parents.",
+    setup:
+      "A consumer magazine profiles three cereals across sugar, fiber, protein, and price — the axes parents actually read the box for.",
+    read: "The kids' cereal spikes on sugar and collapses on fiber; the lines do not lie to parents. Granola's surprise is the price axis: nutritionally between the other two, it costs nearly double both, and the thread makes the markup visible.",
     chart: (
       <ParallelCoordinates
         title="Cereals across four axes"

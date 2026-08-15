@@ -4,7 +4,9 @@ import type { DemoExample } from "./types";
 export const examples: DemoExample[] = [
   {
     title: "Active users per square km",
-    note: "Intensity on an abstract landmass; the dark coast is the population, not the geography.",
+    setup:
+      "A launch review colors an abstract landmass by user density — the tiles stand in for any country's regions, which is the point: the form works before the geography is real.",
+    read: "The dark coast is the population, not the geography: density follows the cities, and the pale interior is distance, not disinterest. Choropleths whisper their oldest caveat here — big empty regions shout, small dense ones hide.",
     chart: (
       <Choropleth
         title="Active users per square km"
@@ -21,7 +23,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "Annual rainfall by region",
-    note: "A wet west that dries eastward: one gradient, read like weather.",
+    setup:
+      "A water authority maps the year's rainfall by region. One gradient, west to east, read the way everyone already reads weather maps.",
+    read: "A wet west that dries eastward, with the mountain rows catching extra on the way — the rain shadow drawn in intensity steps. Every reservoir argument in this country happens across that gradient.",
     chart: (
       <Choropleth
         title="Annual rainfall"
@@ -34,7 +38,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "Fiber coverage by district",
-    note: "Cities and their corridors saturate first; the interior stays pale for another budget cycle.",
+    setup:
+      "A broadband regulator publishes coverage by district ahead of the subsidy vote. The map is the argument both sides will point at.",
+    read: "Two saturated blooms around the cities, corridors reaching between them, and an interior that stays pale for another budget cycle. The gradient's edge — where coverage falls off — is exactly where the subsidy is supposed to aim.",
     chart: (
       <Choropleth
         title="Fiber coverage"

@@ -24,26 +24,16 @@ export {
   MirroredArea,
   type MirroredAreaProps,
 } from "./react/charts/mirrored-area";
-export { StepLine, type StepLineProps } from "./react/charts/step-line";
 export { Slope, type SlopeProps } from "./react/charts/slope";
 export { Bump, type BumpProps } from "./react/charts/bump";
 export { Candlestick, type CandlestickProps } from "./react/charts/candlestick";
 export { Horizon, type HorizonProps } from "./react/charts/horizon";
 export { Gantt, type GanttProps } from "./react/charts/gantt";
-export {
-  CalendarHeatmap,
-  type CalendarHeatmapProps,
-} from "./react/charts/calendar-heatmap";
-export { Punchcard, type PunchcardProps } from "./react/charts/punchcard";
 
 export { Bar, type BarProps } from "./react/charts/bar";
 export { Column, type ColumnProps } from "./react/charts/column";
 export { GroupedBar, type GroupedBarProps } from "./react/charts/grouped-bar";
 export { StackedBar, type StackedBarProps } from "./react/charts/stacked-bar";
-export {
-  PercentStackedBar,
-  type PercentStackedBarProps,
-} from "./react/charts/percent-stacked-bar";
 export { Lollipop, type LollipopProps } from "./react/charts/lollipop";
 export { DotPlot, type DotPlotProps } from "./react/charts/dot-plot";
 export { Leaderboard, type LeaderboardProps } from "./react/charts/leaderboard";
@@ -52,7 +42,6 @@ export { RadialBar, type RadialBarProps } from "./react/charts/radial-bar";
 export { PolarArea, type PolarAreaProps } from "./react/charts/polar-area";
 
 export { Pie, type PieProps } from "./react/charts/pie";
-export { Donut, type DonutProps } from "./react/charts/donut";
 export { Waffle, type WaffleProps } from "./react/charts/waffle";
 export { Treemap, type TreemapProps } from "./react/charts/treemap";
 export { Sunburst, type SunburstProps } from "./react/charts/sunburst";
@@ -65,7 +54,6 @@ export { Marimekko, type MarimekkoProps } from "./react/charts/marimekko";
 export { Funnel, type FunnelProps } from "./react/charts/funnel";
 
 export { Histogram, type HistogramProps } from "./react/charts/histogram";
-export { Density, type DensityProps } from "./react/charts/density";
 export { BoxPlot, type BoxPlotProps } from "./react/charts/box-plot";
 export { Violin, type ViolinProps } from "./react/charts/violin";
 export { Ridgeline, type RidgelineProps } from "./react/charts/ridgeline";
@@ -77,7 +65,6 @@ export {
 } from "./react/charts/population-pyramid";
 
 export { Scatter, type ScatterProps } from "./react/charts/scatter";
-export { Bubble, type BubbleProps } from "./react/charts/bubble";
 export {
   ConnectedScatter,
   type ConnectedScatterProps,

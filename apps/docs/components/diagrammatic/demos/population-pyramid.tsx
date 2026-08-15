@@ -4,7 +4,9 @@ import type { DemoExample } from "./types";
 export const examples: DemoExample[] = [
   {
     title: "Age structure of a stable country",
-    note: "A gentle barrel: wide working decades, tapering ends, no missing cohorts.",
+    setup:
+      "A statistics office publishes its census as the classic pyramid: men left, women right, a bar per decade of life. Demographers read these silhouettes the way sailors read clouds.",
+    read: "A gentle barrel — wide working decades, tapering ends, no missing cohorts. The slight female surplus in the top bands is longevity doing what it always does. Nothing dramatic, which for a pension system is the best possible news.",
     chart: (
       <PopulationPyramid
         title="Age structure"
@@ -16,7 +18,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "A retirement town",
-    note: "Top-heavy and thin at the base; the school district closed for a reason.",
+    setup:
+      "A county planner charts a coastal retirement town before the school-budget vote, because the argument is demographic and the pyramid makes demography visceral.",
+    read: "Top-heavy and thin at the base: the 60s and 70+ bands dominate while the child bands are slivers. The school district closed for a reason the silhouette states plainly — and the home-care shortage the shape predicts is next decade's agenda item.",
     chart: (
       <PopulationPyramid
         title="Retirement town"
@@ -28,7 +32,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "A college town in term time",
-    note: "One enormous cohort in the twenties, then the town empties out both ways.",
+    setup:
+      "The same census form, pointed at a university town in October. Term-time population counts students where they sleep, and the pyramid shows what that does to a place.",
+    read: "One enormous cohort in the twenties — nearly half the town — then the shape empties in both directions. Everything about the local economy hangs off that bulge, and every landlord already knew.",
     chart: (
       <PopulationPyramid
         title="College town"

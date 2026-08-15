@@ -4,7 +4,9 @@ import type { DemoExample } from "./types";
 export const examples: DemoExample[] = [
   {
     title: "Test durations by suite",
-    note: "Raw points on shared rows; the e2e strip starts where unit tests end.",
+    setup:
+      "A CI dashboard shows raw test durations as dots on shared rows — no bars, no averages — because the team is hunting stragglers, not summarizing.",
+    read: "The e2e strip starts where unit tests end; the suites barely overlap, which is the pyramid working as intended. The rightmost unit dot at 2.4s is the one to bisect — a unit test moonlighting as an integration test.",
     chart: (
       <StripPlot
         title="Test durations by suite"
@@ -22,7 +24,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "Bottle prices by shelf",
-    note: "The reserve shelf's cheapest bottle costs more than the budget shelf's dearest.",
+    setup:
+      "A wine shop owner checks whether the three shelves — budget, mid, reserve — actually occupy distinct price bands, or whether the labels are theater.",
+    read: "The bands barely touch: the reserve shelf's cheapest bottle costs more than the budget shelf's dearest. The empty gap between mid and reserve is the $36-to-$42 no-man's-land where nothing sells, and the pricing strategy is visibly deliberate.",
     chart: (
       <StripPlot
         title="Wine prices by shelf"
@@ -37,7 +41,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "Delivery times by courier",
-    note: "Two couriers overlap almost entirely; the third has a habit of losing afternoons.",
+    setup:
+      "An ops lead trials three couriers for a month and plots every delivery as a dot per row, because the contract decision deserves distributions, not SLAs quoted from sales decks.",
+    read: "Swift and arrow overlap almost entirely — pick on price. Budget's strip stretches past 110 minutes with a tail that has a habit of losing afternoons; its cheap median is real, and so is the risk sitting to its right.",
     chart: (
       <StripPlot
         title="Delivery times by courier"

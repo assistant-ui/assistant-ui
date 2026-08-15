@@ -4,7 +4,9 @@ import type { DemoExample } from "./types";
 export const examples: DemoExample[] = [
   {
     title: "Points of presence, sized by capacity",
-    note: "Position says where, area says how much; the two named sites carry the fleet.",
+    setup:
+      "An infrastructure page maps the network's points of presence: position says where, circle area says how much. Only the two sites that matter get names.",
+    read: "west-1 and east-2 carry the fleet — everything else is an edge location orbiting them. Area is capacity, so the visual hierarchy is the capacity plan; when a new region grows a big circle, the page has news.",
     chart: (
       <SymbolMap
         title="Points of presence"
@@ -23,7 +25,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "Warehouses, sized by pallets on hand",
-    note: "The port warehouse dwarfs the rest; the inland dots are cross-dock stops, not stock.",
+    setup:
+      "A logistics dashboard shows inventory where it physically sits, because the network question — can we serve the east from stock — is spatial before it is numeric.",
+    read: "The port warehouse dwarfs the rest; the inland dots are cross-dock stops, not stock. The answer to the east-coast question is the modest circle at central, and the map makes 'no' visible faster than the inventory report says it.",
     chart: (
       <SymbolMap
         title="Warehouse inventory"
@@ -41,7 +45,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "Summer festivals, sized by attendance",
-    note: "One giant coastal weekend and a constellation of village fairs around it.",
+    setup:
+      "A tourism board maps the summer's festivals, circles sized by attendance, deciding where next year's transit shuttles should run.",
+    read: "One giant coastal weekend and a constellation of village fairs around it. coastfest's circle is bigger than the next four combined — that is where the shuttles go — while harvest's mid-size dot marks the inland anchor worth growing.",
     chart: (
       <SymbolMap
         title="Festival attendance"

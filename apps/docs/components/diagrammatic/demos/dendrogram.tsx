@@ -4,7 +4,9 @@ import type { DemoExample } from "./types";
 export const examples: DemoExample[] = [
   {
     title: "Support tickets clustered by topic",
-    note: "Merge height is dissimilarity; login and 2fa fuse first because they are the same complaint.",
+    setup:
+      "A support lead runs a clustering pass over a quarter of tickets, and the algorithm returns its work as a dendrogram: merge height is dissimilarity, so the tree records the order in which topics agreed to be related.",
+    read: "Login and 2fa fuse first — highlighted, and at the lowest height, because they are the same complaint wearing two names. The macro insight is one level up: everything eventually joins the auth cluster before it joins anything else.",
     chart: (
       <Dendrogram
         title="Support tickets clustered by topic"
@@ -33,7 +35,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "Eight wines clustered by tasting notes",
-    note: "The two rieslings merge almost immediately; the orange wine joins everyone else last.",
+    setup:
+      "A sommelier scores eight wines across a tasting sheet and lets hierarchical clustering arrange them. The tree becomes the wine list's structure for the season.",
+    read: "The two rieslings merge almost immediately — the palate agrees with the label. The orange wine joins everyone else last, at the tree's root height: the list's official oddball, and the by-the-glass gamble the tree just justified.",
     chart: (
       <Dendrogram
         title="Wines by tasting profile"
@@ -62,7 +66,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "Eight cities clustered by climate",
-    note: "The desert pair splits from everything early; the two fog cities find each other across an ocean.",
+    setup:
+      "A climate dataset clusters eight cities by temperature, rainfall, and humidity profiles, and the dendrogram files them into families no atlas page would guess.",
+    read: "The desert pair splits from everything early, but the highlighted merge is the finding: San Francisco and Lima — different hemispheres, same fog — find each other across an ocean before either finds a neighbor. Climate does not read maps.",
     chart: (
       <Dendrogram
         title="Cities by climate"

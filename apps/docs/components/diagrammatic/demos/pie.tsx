@@ -4,7 +4,9 @@ import type { DemoExample } from "./types";
 export const examples: DemoExample[] = [
   {
     title: "Browser share of sessions",
-    note: "Four slices is the ceiling; past that, angles stop being comparable.",
+    setup:
+      "A frontend team is deciding how long to keep supporting a legacy rendering path, and the answer starts with one question: who actually visits? A month of sessions, four slices.",
+    read: "Chrome and Safari together are seven sessions in ten, and 'other' — where the legacy browsers live — is 12%. Whether 12% is a lot is a business question, but the pie makes sure nobody argues about the number itself. Four slices is the ceiling; past that, angles stop being comparable.",
     chart: (
       <Pie
         title="Browser share of sessions"
@@ -19,7 +21,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "Where a concert ticket goes",
-    note: "The artist's slice is real but not the biggest; the fees slice explains the anger.",
+    setup:
+      "After the fees double the checkout total, a music blog breaks one $85 ticket into who keeps what. A pie works because the whole is exact: every dollar lands in one slice.",
+    read: "The artist's slice is real but not the biggest, and the fees slice is within a rounding error of it. The chart explains the anger better than the comment section does: a quarter of the price buys nothing anyone can hear.",
     chart: (
       <Pie
         title="Ticket price breakdown"
@@ -35,7 +39,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "An average weekday, in hours",
-    note: "The whole is fixed at 24, which is exactly when a pie is honest.",
+    setup:
+      "A time-tracking app closes each day by rolling the log into four buckets. The whole is fixed at 24 hours, which is exactly the condition under which a pie is honest.",
+    read: "Sleep and work split two-thirds of the disc between them, and 'everything else' — the part that feels like life — is the thinnest slice. Seeing a day as a disc makes the trade visible: screens are wide because something else is narrow.",
     chart: (
       <Pie
         title="A weekday in hours"
@@ -46,6 +52,48 @@ export const examples: DemoExample[] = [
           { label: "everything else", value: 3 },
         ]}
         format={(v) => `${v}h`}
+      />
+    ),
+  },
+  {
+    title: "The donut variant: storage by content type",
+    setup:
+      "Passing `inner` opens the middle of the pie, and the hole is not wasted space: it is where the total lives. A phone's storage screen, redrawn with the headline number in the center.",
+    read: "Photos and video are two-thirds of the ring, and the 128 in the middle is the number the user actually came for. Ring plus center answers both questions at once: how much, and made of what.",
+    chart: (
+      <Pie
+        inner={0.62}
+        title="Storage by content type"
+        items={[
+          { label: "photos", value: 49 },
+          { label: "video", value: 36 },
+          { label: "docs", value: 27 },
+          { label: "other", value: 16 },
+        ]}
+        center="128"
+        centerLabel="GB used"
+        format={(v) => `${v} GB`}
+      />
+    ),
+  },
+  {
+    title: "The donut variant: a month of spending",
+    setup:
+      "A budgeting app's month-end screen: four categories around the ring, the total in the hole. The donut earns its place over the pie exactly when a single number deserves the center stage.",
+    read: "Rent takes the widest arc by far, and the center's $3.2k makes the scale concrete. The ring answers 'where did it go'; the hole answers 'how much was it'; neither number has to fight the other for space.",
+    chart: (
+      <Pie
+        inner={0.62}
+        title="Monthly spend"
+        items={[
+          { label: "rent", value: 1650 },
+          { label: "food", value: 720 },
+          { label: "transport", value: 260 },
+          { label: "other", value: 570 },
+        ]}
+        center="$3.2k"
+        centerLabel="per month"
+        format={(v) => `$${v}`}
       />
     ),
   },

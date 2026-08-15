@@ -4,7 +4,9 @@ import type { DemoExample } from "./types";
 export const examples: DemoExample[] = [
   {
     title: "Signups by region and plan",
-    note: "Compare plans inside a region, or one plan across regions; both reads work.",
+    setup:
+      "A growth team slices the quarter's signups two ways at once — region and plan — because the roadmap argument depends on which cut you look at. Grouped bars keep both reads available.",
+    read: "Compare within a group: every region's free bar towers over its paid ones. Compare across groups: APAC leads free and pro but not team — enterprise motion hasn't landed there yet. Same chart, two arguments settled.",
     chart: (
       <GroupedBar
         title="Signups by region and plan"
@@ -19,7 +21,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "Medal table, three games",
-    note: "Gold, silver, and bronze side by side; the gold bar is the one headlines count.",
+    setup:
+      "A sports desk builds the medal graphic that runs every two years: three countries, three metals, side by side because gold-vs-gold is the comparison headlines are made of.",
+    read: "USA and China trade blows on gold while Britain's bronze bar outruns its gold — a depth-of-field story, not a podium-topping one. The grouped form keeps each metal's race separate; stacking them would bury the only number anyone quotes.",
     chart: (
       <GroupedBar
         title="Medals by country"
@@ -34,7 +38,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "Household energy by season, before and after the retrofit",
-    note: "The pairs shrink most in winter, which is where the insulation money went.",
+    setup:
+      "A homeowner spent $9k on insulation and wants to know if it worked. Utility bills, grouped by season, before-and-after pairs side by side.",
+    read: "The pairs shrink most in winter — 570 kWh a season — which is where the insulation money went. Summer barely moves because the retrofit never touched cooling. Payback math now has a chart instead of a feeling.",
     chart: (
       <GroupedBar
         title="Energy use by season"

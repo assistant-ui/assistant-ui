@@ -4,7 +4,9 @@ import type { DemoExample } from "./types";
 export const examples: DemoExample[] = [
   {
     title: "Budget by department, then team",
-    note: "The inner ring is the org chart; the outer ring is where the money lands.",
+    setup:
+      "A finance partner presents the annual budget in two rings: departments inside, their teams outside. The inner ring is the org chart; the outer ring is where the money actually lands.",
+    read: "Engineering's inner arc is the widest, and its two outer teams split it 26 to 19 — platform eats more than product, a fact the department-level number hid. Every outer arc sums exactly into its parent; the geometry audits the spreadsheet.",
     chart: (
       <Sunburst
         title="Budget by department, then team"
@@ -39,7 +41,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "Sessions by device, then browser",
-    note: "Safari's outer arc is almost all of mobile's inner one; that is the App Store at work.",
+    setup:
+      "A web analytics review needs device and browser in one picture, because the two questions keep getting asked together. Device takes the inner ring, browser the outer.",
+    read: "Safari's outer arc is almost all of mobile's inner one — that is the App Store's default at work — while desktop splits between Chrome and Edge. The tablet arc has no outer detail because at 10% nobody asked.",
     chart: (
       <Sunburst
         title="Sessions by device and browser"
@@ -68,7 +72,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "A portfolio by asset class, then holding",
-    note: "Rebalancing is reading this ring: equities have grown past their target arc.",
+    setup:
+      "An annual rebalancing review starts with the portfolio drawn as rings: asset classes inside, individual holdings outside, every arc a fraction of the whole.",
+    read: "Equity's arc has grown past its 50% target — the US index fund did the growing — while bonds shrank below plan. Rebalancing is literally reading this ring: sell where the arc is too wide, buy where it is too narrow.",
     chart: (
       <Sunburst
         title="Portfolio by class and holding"

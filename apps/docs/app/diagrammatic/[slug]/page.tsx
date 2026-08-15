@@ -144,7 +144,18 @@ export default async function ChartPage({
 
       {hero ? (
         <figure className="border-y border-(--da-line) bg-(--da-plate)">
-          <div className={cn(gutter, "py-12 md:py-16")}>
+          <div className={cn(gutter, "pt-10 md:pt-12")}>
+            <p className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+              <span className={cn(eyebrow, "text-(--da-red)")}>fig. 1</span>
+              <span className="text-[15px] font-medium tracking-tight">
+                {hero.title}
+              </span>
+            </p>
+            <p className="mt-2.5 max-w-2xl text-[13.5px] leading-relaxed text-(--da-ink)/60">
+              {hero.setup}
+            </p>
+          </div>
+          <div className={cn(gutter, "py-10 md:py-12")}>
             <div className="mx-auto w-full max-w-[54rem]">{hero.chart}</div>
           </div>
           <figcaption
@@ -153,10 +164,11 @@ export default async function ChartPage({
               "flex flex-wrap items-baseline gap-x-4 gap-y-1 border-t border-dashed border-(--da-line) py-4",
             )}
           >
-            <span className={cn(eyebrow, "text-(--da-red)")}>fig. 1</span>
-            <span className="text-[13.5px] font-medium">{hero.title}</span>
-            <span className="text-[13px] leading-relaxed text-(--da-ink)/50">
-              {hero.note}
+            <span className={cn(eyebrow, "shrink-0 text-(--da-ink)/40")}>
+              the read
+            </span>
+            <span className="max-w-3xl text-[13px] leading-relaxed text-(--da-ink)/60">
+              {hero.read}
             </span>
           </figcaption>
         </figure>
@@ -168,27 +180,33 @@ export default async function ChartPage({
             <figure
               key={example.title}
               className={cn(
-                "flex flex-col border-r border-b border-(--da-line) bg-(--da-plate) px-5 py-10 sm:px-8 lg:px-12",
+                "flex flex-col border-r border-b border-(--da-line) bg-(--da-plate) px-5 py-9 sm:px-8 lg:px-12",
                 rest.length % 2 === 1 &&
                   i === rest.length - 1 &&
                   "md:col-span-2",
               )}
             >
-              <div className="my-auto flex w-full justify-center py-2">
+              <p className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+                <span className={cn(eyebrow, "text-(--da-red)")}>
+                  fig. {i + 2}
+                </span>
+                <span className="text-[14px] font-medium tracking-tight">
+                  {example.title}
+                </span>
+              </p>
+              <p className="mt-2 text-[13px] leading-relaxed text-(--da-ink)/55">
+                {example.setup}
+              </p>
+              <div className="my-auto flex w-full justify-center py-8">
                 <div className="w-full max-w-[30rem]">{example.chart}</div>
               </div>
-              <figcaption className="mt-8">
-                <p className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
-                  <span className={cn(eyebrow, "text-(--da-red)")}>
-                    fig. {i + 2}
-                  </span>
-                  <span className="text-[13.5px] font-medium">
-                    {example.title}
-                  </span>
-                </p>
-                <p className="mt-1.5 text-[13px] leading-relaxed text-(--da-ink)/50">
-                  {example.note}
-                </p>
+              <figcaption className="flex flex-wrap items-baseline gap-x-4 gap-y-1 border-t border-dashed border-(--da-line) pt-3.5">
+                <span className={cn(eyebrow, "shrink-0 text-(--da-ink)/40")}>
+                  the read
+                </span>
+                <span className="text-[13px] leading-relaxed text-(--da-ink)/60">
+                  {example.read}
+                </span>
               </figcaption>
             </figure>
           ))}

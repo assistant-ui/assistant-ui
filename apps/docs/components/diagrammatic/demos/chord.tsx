@@ -4,7 +4,9 @@ import type { DemoExample } from "./types";
 export const examples: DemoExample[] = [
   {
     title: "Trade flows between regions",
-    note: "Ribbon width is volume; the americas-asia ribbon dwarfs the rest of the circle.",
+    setup:
+      "A trade economist draws four regions on one circle, ribbons between them sized by volume, because when everyone trades with everyone, columns stop working and the circle starts.",
+    read: "The americas–asia ribbon dwarfs the rest of the circle — the Pacific is the world economy's main street. Africa's arc touches everything thinly, which is both its trade profile and its negotiating position, drawn.",
     chart: (
       <Chord
         title="Trade flows between regions"
@@ -20,7 +22,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "Messages between four departments",
-    note: "Eng and product talk constantly; the thin sales-eng ribbon is the org chart's blind spot.",
+    setup:
+      "A workplace-analytics tool renders a quarter of cross-team messages as chords, and the org chart meets the actual communication graph for the first time.",
+    read: "Eng and product talk constantly — the fat ribbon is the roadmap being negotiated in real time. The thin sales–eng ribbon is the org's blind spot; every escalation that surprised engineering this quarter traveled through it.",
     chart: (
       <Chord
         title="Cross-team messages"
@@ -37,7 +41,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "Passengers between four hubs",
-    note: "Every pair is connected, but the two coastal hubs exchange half the traffic alone.",
+    setup:
+      "An aviation analyst charts passenger flows between four hub airports. Every pair connects, so the matrix wraps onto a circle and becomes readable.",
+    read: "The jfk–lhr ribbon is the Atlantic bridge, half the circle's traffic on its own. Every pair is connected but nowhere near equally, and the ribbons expose the difference between 'we fly there' and 'that route is the business'.",
     chart: (
       <Chord
         title="Passengers between hubs"

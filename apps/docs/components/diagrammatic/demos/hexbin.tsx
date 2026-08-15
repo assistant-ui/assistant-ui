@@ -25,17 +25,23 @@ const STRIKES = Array.from({ length: 520 }, (_, i) => ({
 export const examples: DemoExample[] = [
   {
     title: "Ride pickups over the city grid",
-    note: "Six hundred points become a readable surface; the dark hexes are the nightlife.",
+    setup:
+      "A ride-hail ops team has 640 pickup coordinates from one Friday night. As a scatter it is an unreadable smear of overplotted dots; hex-binned, the city gets a shape.",
+    read: "Six hundred points become a readable surface, and the dark hexes are the nightlife district announcing itself. The second, smaller hot spot is the stadium — the event the surge-pricing model missed.",
     chart: <Hexbin title="Ride pickups over the city grid" points={PICKUPS} />,
   },
   {
     title: "A season of basketball shots",
-    note: "Two dark bands, rim and arc, with the long midrange fading between them.",
+    setup:
+      "A team analyst bins a season of 560 shot locations over the half-court, because modern offense theory is an argument about geography.",
+    read: "Two dark bands — rim and arc — with the long midrange faded between them. The empty middle is not missing data; it is the analytics department winning the argument, one shot chart at a time.",
     chart: <Hexbin title="Shot locations, one season" points={SHOTS} />,
   },
   {
     title: "Lightning strikes across a valley",
-    note: "The storms follow the ridge line; the diagonal of dark cells is the terrain speaking.",
+    setup:
+      "A meteorology station aggregates a summer of strike coordinates. Individual storms are chaos; a season of them, binned, is climate.",
+    read: "The dark cells run in a diagonal band — the storms follow the ridge line, and the binning makes the terrain speak. The valley floor's pale hexes are why the campgrounds are where they are.",
     chart: <Hexbin title="Lightning strikes, one summer" points={STRIKES} />,
   },
 ];

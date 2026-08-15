@@ -4,7 +4,9 @@ import type { DemoExample } from "./types";
 export const examples: DemoExample[] = [
   {
     title: "Two models across five capabilities",
-    note: "The outlines disagree most on code and vision; overlap is where the benchmark ties.",
+    setup:
+      "An eval report compares two language models across five benchmark axes, overlaid so their strengths argue in the same frame.",
+    read: "The outlines disagree most on code and vision — atlas-1's corners — while nova-2 bulges toward reasoning and writing. The overlap in the middle is where benchmarks tie and marketing departments do not.",
     chart: (
       <Radar
         title="Two models across five capabilities"
@@ -18,7 +20,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "A scouting profile against the league average",
-    note: "The prospect's shape bulges on pace and dribbling and dents on defending; that is a winger.",
+    setup:
+      "A football scout files a report as the radar every recruitment department speaks: the prospect's five attributes drawn over the league-average pentagon.",
+    read: "The shape bulges on pace and dribbling and dents hard on defending: that is a winger, stated in geometry before the text says a word. Buying him means buying the dent too, and the overlay prices it against average.",
     chart: (
       <Radar
         title="Prospect against league average"
@@ -32,7 +36,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "Two espresso machines, five traits",
-    note: "One is a workflow, the other a ritual; the radar shows you which one you are buying.",
+    setup:
+      "A coffee reviewer scores a manual lever machine and a super-automatic across five traits, then overlays them for the buying-guide verdict.",
+    read: "One is a ritual, the other a workflow: the lever peaks on taste and quiet, the auto on speed and ease. The shapes barely overlap — the radar shows you which machine you are, not which is better.",
     chart: (
       <Radar
         title="Espresso machines compared"

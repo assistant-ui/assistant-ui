@@ -4,7 +4,9 @@ import type { DemoExample } from "./types";
 export const examples: DemoExample[] = [
   {
     title: "A stock's two trading weeks, daily candles",
-    note: "Four values per day: body for open and close, wick for the range.",
+    setup:
+      "A retail trader reviews the fortnight before earnings. Each candle compresses one session into four numbers: the body spans open to close, the wick spans low to high.",
+    read: "Blue bodies outnumber red ones seven to three and the wicks stay short — a steady grind upward, not a squeeze. The one wide-ranging red day (day 5) was the rate announcement, and the market shrugged it off within two sessions.",
     chart: (
       <Candlestick
         title="Two trading weeks"
@@ -27,7 +29,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "A crypto unwind, ten sessions",
-    note: "Long red bodies and short wicks: sellers in control with barely a bounce.",
+    setup:
+      "A newsletter post-mortems a token's bad two weeks. The candles are doing the reporting: who controlled each session, and by how much.",
+    read: "Long red bodies, short wicks: sellers in control with barely a bounce attempted. The two blue sessions close below the prior day's open — relief rallies that fooled nobody — and the sequence ends 25% below where it began.",
     chart: (
       <Candlestick
         title="Ten sessions of decline"
@@ -50,7 +54,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "Coffee futures around a frost report",
-    note: "Quiet candles, one huge gap up on the news, then a fade as supply clears.",
+    setup:
+      "A commodities desk replays the week Brazil's frost forecast hit the wire. Three quiet sessions, then the gap: Thursday opens far above Wednesday's close, with no trading in between.",
+    read: "The gap up on day four is the news arriving overnight — price moved while the market slept, and the empty space between candles is the evidence. The fade that follows is supply chains doing arithmetic once the panic priced in.",
     chart: (
       <Candlestick
         title="Coffee futures"

@@ -4,7 +4,9 @@ import type { DemoExample } from "./types";
 export const examples: DemoExample[] = [
   {
     title: "Gross to net, one quarter",
-    note: "Anchored totals at both ends; the floating steps explain the difference.",
+    setup:
+      "The finance deck's classic: how gross became net, one floating step per driver, anchored totals at both ends so nobody loses the plot mid-bridge.",
+    read: "Refunds are the story — the deepest fall on the chart, bigger than the credits and nearly canceling the add-ons. The bridge shape assigns responsibility the way a bar chart of the same numbers never quite does.",
     chart: (
       <Waterfall
         title="Gross to net"
@@ -22,7 +24,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "Cash through a quarter",
-    note: "Opening cash, three months of burn, one bridge round; the closing bar is the runway.",
+    setup:
+      "A startup's board update walks the quarter's cash: opening balance, revenue in, payroll and infra out, the bridge round that landed mid-quarter, closing balance.",
+    read: "The bridge round is the step that saves the chart from ending badly — without it, close lands at 56, not 86. Payroll's fall dwarfs every other step, which is what 'our burn is mostly people' looks like when drawn instead of said.",
     chart: (
       <Waterfall
         title="Cash bridge"
@@ -39,7 +43,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "Renovation quote to final bill",
-    note: "The quote survives until the walls open; each surprise is its own falling step.",
+    setup:
+      "A homeowner reconstructs how a $42k quote became a $57k bill, one surprise per step, because the contractor's explanation came in fragments and the bank wants one picture.",
+    read: "The quote survives until the walls open: wiring, plumbing, and windows stack $19k of rises before the lone DIY credit claws back four. No single step looks outrageous — the bridge shows how reasonable-sized surprises compound into a 36% overrun.",
     chart: (
       <Waterfall
         title="Quote to final bill"

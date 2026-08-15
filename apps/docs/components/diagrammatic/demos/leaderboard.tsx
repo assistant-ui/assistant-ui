@@ -4,7 +4,9 @@ import type { DemoExample } from "./types";
 export const examples: DemoExample[] = [
   {
     title: "Top referrers by visits",
-    note: "Rank, name, value, and a quiet bar; the table and the chart are one object.",
+    setup:
+      "An analytics dashboard answers 'where do visitors come from' in the sidebar, where a full chart won't fit. The leaderboard fuses table and bar: rank, name, value, and a quiet gauge in one row each.",
+    read: "Google alone matches the next two rows combined, and the drop from fourth to fifth is the long tail announcing itself. The bars keep the ratios honest while the numbers stay quotable — neither a table nor a chart could do both alone.",
     chart: (
       <Leaderboard
         title="Top referrers by visits"
@@ -20,7 +22,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "Most-streamed artists this week",
-    note: "The gap below first place is bigger than the rest of the list combined thinks it is.",
+    setup:
+      "A streaming service's editorial page runs the weekly top five. The design constraint is brutal — phone width, five rows — which is exactly the leaderboard's habitat.",
+    read: "First place streams half again as much as second, a gap the bars make visible before the numbers confirm it. Chart position and bar length agree here; the interesting weeks are when a riser's bar crowds the row above.",
     chart: (
       <Leaderboard
         title="Streams this week"
@@ -37,7 +41,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "Deals closed this quarter",
-    note: "A sales floor at a glance; two reps carry half the board.",
+    setup:
+      "A sales floor's TV shows the quarter's closer board, refreshed hourly. It is equal parts dashboard and motivation, which the ranked form serves unashamedly.",
+    read: "Two reps carry half the board, and the three-deal gap at the top is what the last week of the quarter is about. Below third place the bars flatten — the coaching conversation lives down there, not at the top.",
     chart: (
       <Leaderboard
         title="Deals closed"

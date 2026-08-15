@@ -12,10 +12,8 @@ import type {
   BarProps,
   BeeswarmProps,
   BoxPlotProps,
-  BubbleProps,
   BulletProps,
   BumpProps,
-  CalendarHeatmapProps,
   CandlestickProps,
   ChordProps,
   ChoroplethProps,
@@ -24,11 +22,9 @@ import type {
   ConnectedScatterProps,
   ContourProps,
   DendrogramProps,
-  DensityProps,
   DifferenceAreaProps,
   DivergingBarProps,
   DivergingStackedProps,
-  DonutProps,
   DotMapProps,
   DotPlotProps,
   DumbbellProps,
@@ -50,13 +46,11 @@ import type {
   MirroredAreaProps,
   NetworkProps,
   ParallelCoordinatesProps,
-  PercentStackedBarProps,
   PictogramProps,
   PieProps,
   PolarAreaProps,
   PopulationPyramidProps,
   ProgressRingProps,
-  PunchcardProps,
   QuadrantProps,
   RadarProps,
   RadialBarProps,
@@ -69,7 +63,6 @@ import type {
   SplitBarProps,
   StackedAreaProps,
   StackedBarProps,
-  StepLineProps,
   StreamgraphProps,
   StripPlotProps,
   SunburstProps,
@@ -107,19 +100,15 @@ export type ChartSpec =
   | S<"stacked-area", StackedAreaProps>
   | S<"streamgraph", StreamgraphProps>
   | S<"mirrored-area", MirroredAreaProps>
-  | S<"step-line", StepLineProps>
   | S<"slope", SlopeProps>
   | S<"bump", BumpProps>
   | S<"candlestick", CandlestickProps>
   | S<"horizon", HorizonProps>
   | S<"gantt", GanttProps>
-  | S<"calendar-heatmap", CalendarHeatmapProps>
-  | S<"punchcard", PunchcardProps>
   | S<"bar", BarProps>
   | S<"column", ColumnProps>
   | S<"grouped-bar", GroupedBarProps>
   | S<"stacked-bar", StackedBarProps>
-  | S<"percent-stacked-bar", PercentStackedBarProps>
   | S<"lollipop", LollipopProps>
   | S<"dot-plot", DotPlotProps>
   | S<"leaderboard", LeaderboardProps>
@@ -127,7 +116,6 @@ export type ChartSpec =
   | S<"radial-bar", RadialBarProps>
   | S<"polar-area", PolarAreaProps>
   | S<"pie", PieProps>
-  | S<"donut", DonutProps>
   | S<"waffle", WaffleProps>
   | S<"treemap", TreemapProps>
   | S<"sunburst", SunburstProps>
@@ -136,7 +124,6 @@ export type ChartSpec =
   | S<"marimekko", MarimekkoProps>
   | S<"funnel", FunnelProps>
   | S<"histogram", HistogramProps>
-  | S<"density", DensityProps>
   | S<"box-plot", BoxPlotProps>
   | S<"violin", ViolinProps>
   | S<"ridgeline", RidgelineProps>
@@ -144,7 +131,6 @@ export type ChartSpec =
   | S<"strip-plot", StripPlotProps>
   | S<"population-pyramid", PopulationPyramidProps>
   | S<"scatter", ScatterProps>
-  | S<"bubble", BubbleProps>
   | S<"connected-scatter", ConnectedScatterProps>
   | S<"hexbin", HexbinProps>
   | S<"contour", ContourProps>
@@ -197,14 +183,11 @@ const REGISTRY: Record<string, Descriptor> = {
     ["down", "object"],
     ["up", "object"],
   ]),
-  "step-line": entry(charts.StepLine, [["data", "array"]]),
   slope: entry(charts.Slope, [["items", "array"]]),
   bump: entry(charts.Bump, [["series", "array"]]),
   candlestick: entry(charts.Candlestick, [["data", "array"]]),
   horizon: entry(charts.Horizon, [["data", "array"]]),
   gantt: entry(charts.Gantt, [["rows", "array"]]),
-  "calendar-heatmap": entry(charts.CalendarHeatmap, [["values", "array"]]),
-  punchcard: entry(charts.Punchcard, [["matrix", "object"]]),
   bar: entry(charts.Bar, [["items", "array"]]),
   column: entry(charts.Column, [["items", "array"]]),
   "grouped-bar": entry(charts.GroupedBar, [
@@ -212,10 +195,6 @@ const REGISTRY: Record<string, Descriptor> = {
     ["series", "array"],
   ]),
   "stacked-bar": entry(charts.StackedBar, [
-    ["groups", "array"],
-    ["series", "array"],
-  ]),
-  "percent-stacked-bar": entry(charts.PercentStackedBar, [
     ["groups", "array"],
     ["series", "array"],
   ]),
@@ -229,7 +208,6 @@ const REGISTRY: Record<string, Descriptor> = {
   "radial-bar": entry(charts.RadialBar, [["items", "array"]]),
   "polar-area": entry(charts.PolarArea, [["items", "array"]]),
   pie: entry(charts.Pie, [["items", "array"]]),
-  donut: entry(charts.Donut, [["items", "array"]]),
   waffle: entry(charts.Waffle, [["items", "array"]]),
   treemap: entry(charts.Treemap, [["root", "object"]]),
   sunburst: entry(charts.Sunburst, [["root", "object"]]),
@@ -238,7 +216,6 @@ const REGISTRY: Record<string, Descriptor> = {
   marimekko: entry(charts.Marimekko, [["columns", "array"]]),
   funnel: entry(charts.Funnel, [["items", "array"]]),
   histogram: entry(charts.Histogram, [["bins", "array"]]),
-  density: entry(charts.Density, [["bins", "array"]]),
   "box-plot": entry(charts.BoxPlot, [["groups", "array"]]),
   violin: entry(charts.Violin, [["groups", "array"]]),
   ridgeline: entry(charts.Ridgeline, [["rows", "array"]]),
@@ -250,7 +227,6 @@ const REGISTRY: Record<string, Descriptor> = {
     ["right", "object"],
   ]),
   scatter: entry(charts.Scatter, [["points", "array"]]),
-  bubble: entry(charts.Bubble, [["points", "array"]]),
   "connected-scatter": entry(charts.ConnectedScatter, [["points", "array"]]),
   hexbin: entry(charts.Hexbin, [["points", "array"]]),
   contour: entry(charts.Contour, [["points", "array"]]),

@@ -8,10 +8,14 @@ import { AxisLabels, ChartSvg, Legend, vbHeight } from "../svg";
 export type StackedBarProps = BaseProps & {
   groups: string[];
   series: Series[];
+  normalize?: boolean;
 };
 
 export const StackedBar = forwardRef<SVGSVGElement, StackedBarProps>(
-  ({ groups, series, legend, title, aspect, className, ...rest }, ref) => {
+  (
+    { groups, series, normalize, legend, title, aspect, className, ...rest },
+    ref,
+  ) => {
     const vh = vbHeight(aspect, 5 / 3);
     const showLegend = legend ?? series.length > 1;
     const top = showLegend ? 26 : 14;
@@ -42,9 +46,10 @@ export const StackedBar = forwardRef<SVGSVGElement, StackedBarProps>(
         )}
         {groups.map((group, g) => {
           let cursor = bottom;
+          const denominator = normalize ? totals[g] || 1 : max;
           return series.map((s, k) => {
             const v = s.data[g] ?? 0;
-            const h = (v / max) * (bottom - top);
+            const h = (v / denominator) * (bottom - top);
             const gap = k === 0 ? 0 : 1.6;
             const y = cursor - h;
             const x = centers[g]! - width / 2;

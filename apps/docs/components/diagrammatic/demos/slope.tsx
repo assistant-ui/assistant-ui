@@ -4,7 +4,9 @@ import type { DemoExample } from "./types";
 export const examples: DemoExample[] = [
   {
     title: "Share of media time, 2020 against 2025",
-    note: "Video more than doubles while TV halves; the crossing is the story.",
+    setup:
+      "A media researcher has two surveys, five years apart, and one slide to show what happened between them. Two columns, one line per medium: the slope chart strips the story to its verbs.",
+    read: "Video more than doubles while TV halves, and their lines cross mid-chart — the handover, drawn. Social and music barely tilt, which is its own finding: the revolution took time from television, not from everything.",
     chart: (
       <Slope
         title="Share of media time"
@@ -21,7 +23,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "Commute mode share, 2015 against 2025",
-    note: "Remote work is the new line at the top; every physical mode paid for it.",
+    setup:
+      "A city's transport office compares the census question 'how do you usually get to work' across a decade. Four modes enter, and one line that did not exist meaningfully in 2015 leaves at the top of the chart.",
+    read: "Remote work triples and every physical mode pays for it — car most in absolute points, transit most in proportion. The steepness ranks the disruption at a glance, which is what slopes are for.",
     chart: (
       <Slope
         title="Commute mode share"
@@ -38,7 +42,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "Course pass rates before and after the redesign",
-    note: "Three courses improve; statistics slips, and the slope says by how much.",
+    setup:
+      "A department rebuilt four intro courses around problem sessions and needs to show the dean whether it worked. Pass rates, one line per course, before and after.",
+    read: "Three courses climb and algebra climbs most — fourteen points. Statistics slips, and the slope makes the outlier impossible to bury in an average: the redesign works, except where it doesn't, and now that course has a name.",
     chart: (
       <Slope
         title="Pass rate by course"

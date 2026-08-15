@@ -4,7 +4,9 @@ import type { DemoExample } from "./types";
 export const examples: DemoExample[] = [
   {
     title: "A small org chart",
-    note: "Position encodes reporting lines and nothing else; depth is the whole message.",
+    setup:
+      "A hiring page shows the company's shape before candidates ask. Position encodes reporting lines and nothing else — no sizes, no metrics, just who answers to whom.",
+    read: "Three branches, two levels, done: depth is the whole message. Design's single report says 'early'; gtm's symmetric pair says 'built to a plan'. Org charts confess more than the about page intends.",
     chart: (
       <Tree
         title="A small org chart"
@@ -27,7 +29,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "A project folder, two levels deep",
-    note: "The filesystem is the original tree; every editor sidebar is this chart rotated.",
+    setup:
+      "An onboarding doc opens with the repository's shape, because the filesystem is the original tree and every editor sidebar is this chart rotated ninety degrees.",
+    read: "src splits into app and lib, tests mirror it — the structure telegraphs the testing culture before a single line is read. The lone api folder under docs is the part the new hire will ask about, which is exactly why the doc draws it.",
     chart: (
       <Tree
         title="Project folder"
@@ -50,7 +54,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "A language family, simplified",
-    note: "Reconstruction as hierarchy: the proto-language at the root never appears in writing.",
+    setup:
+      "A linguistics explainer draws descent as hierarchy: a reconstructed ancestor at the root, its daughters below, living languages at the leaves.",
+    read: "The proto-language at the root never appears in writing — it exists only because the leaves demand a common parent, which is the whole method of historical linguistics in one node. Spanish and French are siblings; English and Greek are only distant cousins, and the tree states the distance in edges.",
     chart: (
       <Tree
         title="Language family"

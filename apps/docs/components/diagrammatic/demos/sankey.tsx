@@ -4,7 +4,9 @@ import type { DemoExample } from "./types";
 export const examples: DemoExample[] = [
   {
     title: "Energy from sources to uses",
-    note: "Every link conserves its TWh; the widths are the argument.",
+    setup:
+      "An energy agency reports where the country's 78 TWh actually went: generation on the left, demand on the right, every link as wide as its flow. Sankeys are conservation laws you can look at.",
+    read: "Solar carries the homes almost single-handedly while industry drinks from both sources — the diversification the plan called for. Every link conserves its TWh, and the widths are the argument: transport still runs entirely on gas.",
     chart: (
       <Sankey
         title="Energy from sources to uses"
@@ -28,7 +30,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "Signups from channel to plan",
-    note: "Search feeds the free tier; nearly everyone who pays walked in through a referral.",
+    setup:
+      "A growth lead traces one month's 9.6k signups from acquisition channel to the plan they landed on, because 'search brings the most users' and 'search brings the best users' are different claims.",
+    read: "Search feeds the free tier in bulk, but follow the ribbons into pro: nearly everyone who pays walked in through a referral. Channel budgets allocate by the left column's sizes; this chart argues they should allocate by the ribbons.",
     chart: (
       <Sankey
         title="Signups from channel to plan"
@@ -54,7 +58,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "A household budget, income to spending",
-    note: "Two salaries fan out into four buckets; housing's ribbon is the one that hurts.",
+    setup:
+      "A budgeting app draws the month as flows: two income streams fan out into four spending buckets, every dollar in exactly one ribbon.",
+    read: "Housing's ribbon is the one that hurts — over a third of the salary before anything else happens. The side gig flows mostly into savings, which is the household's quiet strategy made visible: the day job lives, the side gig saves.",
     chart: (
       <Sankey
         title="Income to spending"

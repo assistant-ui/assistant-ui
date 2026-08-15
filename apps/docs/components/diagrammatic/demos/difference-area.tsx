@@ -4,7 +4,9 @@ import type { DemoExample } from "./types";
 export const examples: DemoExample[] = [
   {
     title: "Actual revenue against forecast",
-    note: "The shaded gap changes sign mid-year; the crossover is the slide that matters.",
+    setup:
+      "The FP&A team overlays actual revenue on January's forecast and shades the gap, because the interesting number all year is the difference, not either line.",
+    read: "The shaded gap changes sign mid-year: behind plan through spring, ahead by fall. The crossover in July is the slide that matters — and the widening green wedge after it is next January's forecast being written.",
     chart: (
       <DifferenceArea
         title="Actual revenue against forecast"
@@ -22,7 +24,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "Reservoir level against the seasonal norm",
-    note: "Below the norm all winter, above it after the March storms; the area is the drought debt.",
+    setup:
+      "A water authority plots this year's reservoir level against the 30-year norm, shading the difference, because 'below normal' has a size and the public deserves to see it.",
+    read: "Below the norm all winter — the shaded deficit is the drought debt — then the March storms flip the sign in three weeks. The area of each shaded region is volume, so the chart doubles as the water budget it reports on.",
     chart: (
       <DifferenceArea
         title="Reservoir level against norm"
@@ -40,7 +44,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "Store visits against last year",
-    note: "This year wins the holidays and loses the summer; the gaps say when, not just whether.",
+    setup:
+      "A retail chain compares this year's weekly visits with the same weeks last year, shading who's winning, because year-over-year is the only comparison retail truly trusts.",
+    read: "This year wins the holidays and loses the summer — the gaps say when, not just whether. The summer deficit coincides with the road works outside the flagship store; the November surge is the loyalty relaunch paying its way.",
     chart: (
       <DifferenceArea
         title="Visits against last year"

@@ -4,7 +4,9 @@ import type { DemoExample } from "./types";
 export const examples: DemoExample[] = [
   {
     title: "Page load score, before and after",
-    note: "Each bar is a journey; checkout is the one that quietly regressed.",
+    setup:
+      "A performance sprint ends, and the report shows each page's score as a barbell: the pale dot is before, the dark dot after, the bar between them is the work.",
+    read: "Api docs jumped 48 points and home 46 — the wins the sprint will be remembered for. Checkout is the bar that points the wrong way: it regressed mid-sprint and hid inside the team's average until this chart refused to average.",
     chart: (
       <Dumbbell
         title="Page load score, before and after"
@@ -22,7 +24,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "Median rent, 2019 against 2025",
-    note: "Every city moved right; the length of each barbell is the housing story.",
+    setup:
+      "A housing reporter compares five cities' median rents across six years, each city one barbell, so the story is the length of the bar and not just its endpoint.",
+    read: "Every city moved right, but the barbell lengths are the story: Miami stretched $950 while Detroit crept $180. 'Rents went up everywhere' is true and useless; the bars say where a lease survived the six years and where it did not.",
     chart: (
       <Dumbbell
         title="Median rent by city"
@@ -40,7 +44,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "Blood pressure after twelve weeks",
-    note: "Four patients improve, one holds; the gap is the treatment effect per person.",
+    setup:
+      "A clinic trials a lifestyle program on five patients and reports each one's systolic pressure at week zero and week twelve — individual barbells, because averages hide non-responders.",
+    read: "Four patients improve by twenty-plus points; patient 04's barbell has no length at all. The program works and works well — for the people it works on. The zero-length bar is the honest finding a mean of −21 would have erased.",
     chart: (
       <Dumbbell
         title="Systolic BP by patient"

@@ -4,7 +4,9 @@ import type { DemoExample } from "./types";
 export const examples: DemoExample[] = [
   {
     title: "Wind hours by direction",
-    note: "The rose points where the wind comes from; north and east own this coastline.",
+    setup:
+      "A kitesurf school decides where to build its new launch from a year of anemometer logs. The wind rose is the oldest polar chart there is: direction as angle, hours as radius.",
+    read: "North and east own this coastline — the rose points where the wind comes from, and the northeast quadrant holds most of the year's sailable hours. The southwest sliver is why the old launch site kept disappointing.",
     chart: (
       <PolarArea
         title="Wind hours by direction"
@@ -23,7 +25,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "Emergency calls by three-hour block",
-    note: "The night wedges shrink to slivers; the evening block is when the phones ring.",
+    setup:
+      "A dispatch center justifies its shift plan with one chart: call volume by three-hour block, wrapped on a 24-hour circle, because the day repeats and the chart should too.",
+    read: "The evening wedge at 18h is triple the 3am sliver — the night shift is quiet in exactly the way the staffing model assumes. Wrapping time on a circle puts 23:59 next to 00:00, which a bar chart quietly gets wrong.",
     chart: (
       <PolarArea
         title="Calls by time of day"
@@ -42,7 +46,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "Gym check-ins by weekday",
-    note: "Monday resolution, weekend collapse; a cycle reads better on a circle.",
+    setup:
+      "A gym owner plots check-ins by weekday on a circle because the week is a cycle and the Monday cliff-edge against Sunday is part of the story.",
+    read: "Monday resolution, weekend collapse: the wedges shrink monotonically from Monday's peak to Sunday's sliver, then snap back where the circle closes. That discontinuity — Sunday touching Monday — is the member psychology in one seam.",
     chart: (
       <PolarArea
         title="Check-ins by weekday"

@@ -4,7 +4,9 @@ import type { DemoExample } from "./types";
 export const examples: DemoExample[] = [
   {
     title: "Service dependencies",
-    note: "The api sits at the center because everything touches it; the leaves are replicas.",
+    setup:
+      "An on-call engineer sketches the system before the incident review: services as nodes, calls as edges, the most-connected node pulled to the center by the layout itself.",
+    read: "The api sits at the center because everything touches it — which is also the incident review's conclusion, drawn before anyone speaks. The unlabeled leaves are replicas; the web→db edge that skips the api is the shortcut that caused the outage.",
     chart: (
       <Network
         title="Service dependencies"
@@ -43,7 +45,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "Who starts the group chats",
-    note: "One friend links every cluster; delete that node and the graph falls into three islands.",
+    setup:
+      "A friend group jokes that one person holds them all together, so someone graphs a year of group-chat creation: who added whom, drawn as a network.",
+    read: "The joke is structurally true. Maya links every cluster; delete her node and the graph falls into three islands that have never messaged each other. Sociologists call it brokerage — the group calls it Maya.",
     chart: (
       <Network
         title="Group chat graph"
@@ -78,7 +82,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "Routes out of a fortress hub",
-    note: "An airline drawn as a graph: one hub, five focus cities, and the spokes that feed them.",
+    setup:
+      "An aviation analyst draws a regional airline's network as a graph rather than a map, because the strategy question is connectivity, not geography.",
+    read: "One hub, five focus cities, and the spokes that feed them: the fortress-hub model in its purest form. The single east–south edge that bypasses the hub is the experiment — if that route makes money, the whole shape is up for review.",
     chart: (
       <Network
         title="Airline route graph"

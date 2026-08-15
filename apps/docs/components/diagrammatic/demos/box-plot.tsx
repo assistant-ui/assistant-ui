@@ -4,7 +4,9 @@ import type { DemoExample } from "./types";
 export const examples: DemoExample[] = [
   {
     title: "Request latency by region",
-    note: "Five numbers per box; EU's whole box sits above NA's median.",
+    setup:
+      "An SRE compares latency across three regions for the capacity review. Each box compresses a week of requests into five numbers: extremes, quartiles, median.",
+    read: "EU's whole box sits above NA's median — that is not jitter, that is a structurally slower region, probably a missing edge location. APAC's tight box is the healthiest story on the chart: fast and consistent.",
     chart: (
       <BoxPlot
         title="Request latency by region"
@@ -18,7 +20,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "Sale prices by neighborhood",
-    note: "The hills' whisker span is wider than the entire riverside box; variance is the story.",
+    setup:
+      "A buyer's agent shows a client three neighborhoods as boxes, because the median alone keeps setting the wrong expectations at open houses.",
+    read: "The hills' whisker span is wider than the entire riverside box — variance is the story, not the median. In riverside every house costs the same-ish; in the hills the median is almost meaningless and the viewing list needs a budget filter, not an area filter.",
     chart: (
       <BoxPlot
         title="Sale prices by neighborhood"
@@ -53,7 +57,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "Wheat yield by farming practice",
-    note: "No-till's median matches conventional with a tighter box: same output, less risk.",
+    setup:
+      "An agronomy trial reports three seasons of plot yields by practice. The boxes carry what the headline averages drop: risk.",
+    read: "No-till matches conventional's median with a visibly tighter box — same expected output, less variance, which for a farmer is the difference between a bad year and a lost one. Organic yields less and swings more; its case rests on price premium, and this chart says so plainly.",
     chart: (
       <BoxPlot
         title="Yield by practice"

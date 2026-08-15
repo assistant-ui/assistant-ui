@@ -4,7 +4,9 @@ import type { DemoExample } from "./types";
 export const examples: DemoExample[] = [
   {
     title: "A release plan from April to July, today marked",
-    note: "Frontend is mid-flight at the today line; beta overlaps it by design.",
+    setup:
+      "A project lead keeps one chart above the standup notes: the release plan as bars against the calendar, with a dotted line for today. It exists to make schedule slips visible before they become surprises.",
+    read: "Frontend is mid-flight at the today line and beta deliberately overlaps it — that overlap is the plan, not a mistake. Launch sits alone in July with no slack behind it; if frontend slips a week, the chart already shows which bar absorbs the hit.",
     chart: (
       <Gantt
         title="Release plan"
@@ -23,7 +25,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "A kitchen renovation, eight weeks",
-    note: "Plumbing and electrical share week three, which is exactly where renovations slip.",
+    setup:
+      "A contractor sketches the renovation as bars so the homeowners can see why the kitchen is unusable for exactly five of the eight weeks, and which trades depend on which.",
+    read: "Plumbing and electrical share week three, which is exactly where renovations slip — two trades, one wall. Cabinets cannot start until plumbing ends, and the today line shows plumbing running two days long already.",
     chart: (
       <Gantt
         title="Kitchen renovation"
@@ -42,7 +46,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "Conference day, nine to nine",
-    note: "Two track blocks straddle lunch; the party only starts once teardown is done.",
+    setup:
+      "An events team runs the day off one chart taped backstage: every block from check-in to the party, with the today line crawling rightward as the day burns down.",
+    read: "The two track blocks straddle lunch on purpose — attendees eat in shifts and neither room ever goes dark. The party bar starts only after teardown's gap, and at the current line the team is six minutes ahead of schedule, which backstage counts as luxury.",
     chart: (
       <Gantt
         title="Conference schedule"

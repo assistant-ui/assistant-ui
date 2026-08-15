@@ -4,7 +4,9 @@ import type { DemoExample } from "./types";
 export const examples: DemoExample[] = [
   {
     title: "Site traffic by acquisition channel",
-    note: "Search still carries half the total; social is the band that grows.",
+    setup:
+      "A marketing lead needs one chart for the quarterly review that shows both the total and who is contributing it. Eight months of sessions, split by how visitors arrived.",
+    read: "The top edge is the total, and it is healthy. Inside it, search still carries half, and social is the only band that visibly widens. The middle band rides a wobbly baseline, so read direct from the bottom band and the total; the middle is for shape only.",
     chart: (
       <StackedArea
         title="Site traffic by channel"
@@ -19,7 +21,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "Grid generation mix across one day",
-    note: "Solar swells through midday while gas fills the morning and evening shoulders.",
+    setup:
+      "A grid operator's dashboard shows the day's generation stacked by source, because demand must always equal the top edge. This is a sunny weekday in spring.",
+    read: "Solar swells through midday and gas fills the morning and evening shoulders around it; the famous duck-curve shape is the gas band's waistline. Wind hums along flat underneath, indifferent to the sun.",
     chart: (
       <StackedArea
         title="Generation mix"
@@ -34,7 +38,9 @@ export const examples: DemoExample[] = [
   },
   {
     title: "Support tickets by severity, eight weeks",
-    note: "The total is flat; what changes is how much of it is high-severity.",
+    setup:
+      "A support manager's weekly ticket count looks stable, which is why nobody upstairs is worried. She stacks it by severity to show why she is.",
+    read: "The total is flat; the composition is not. High-severity grows from a sliver to a visible band while low-severity shrinks to make room. Same workload on paper, much worse week in practice — a story only the stack can tell.",
     chart: (
       <StackedArea
         title="Tickets by severity"
