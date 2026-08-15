@@ -32,4 +32,16 @@ describe("createMergeStream", () => {
     await expect(cancel).resolves.toBeUndefined();
     expect(cancelSettled).toBe(true);
   });
+
+  it("cancels streams rejected after sealing", async () => {
+    const cancelSource = vi.fn();
+    const merger = createMergeStream();
+    merger.seal();
+
+    expect(() =>
+      merger.addStream(new ReadableStream({ cancel: cancelSource })),
+    ).toThrow("Cannot add streams after the run callback has settled.");
+
+    await vi.waitFor(() => expect(cancelSource).toHaveBeenCalledOnce());
+  });
 });
