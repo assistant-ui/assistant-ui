@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { tick } from "svelte";
 import { flushSync, mount, unmount } from "svelte";
 import { flushTapSync } from "@assistant-ui/tap";
@@ -42,6 +42,10 @@ const mountParts = (
 };
 
 describe("messageParts", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it("exposes the status-bearing part states of the scoped message", () => {
     const { app, messages } = mountParts([
       {
@@ -199,7 +203,6 @@ describe("messageParts", () => {
     expect(report).toHaveBeenCalledWith(
       expect.stringContaining("messageParts.item: index 1"),
     );
-    report.mockRestore();
 
     flushSync(() => void unmount(app));
   });

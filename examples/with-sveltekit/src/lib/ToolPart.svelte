@@ -9,31 +9,34 @@
   // svelte-ignore state_referenced_locally
   const target = { item };
 
-  const tool = useAuiState(
-    (s) =>
-      s.part.type === "tool-call"
-        ? {
-            name: s.part.toolName,
-            argsText: s.part.argsText,
-            result: s.part.result,
-            running: s.part.status.type === "running",
-          }
-        : null,
+  const name = useAuiState(
+    (s) => (s.part.type === "tool-call" ? s.part.toolName : null),
+    target,
+  );
+  const argsText = useAuiState(
+    (s) => (s.part.type === "tool-call" ? s.part.argsText : ""),
+    target,
+  );
+  const result = useAuiState(
+    (s) => (s.part.type === "tool-call" ? s.part.result : undefined),
+    target,
+  );
+  const running = useAuiState(
+    (s) => s.part.status.type === "running",
     target,
   );
 </script>
 
-{#if tool.current}
+{#if name.current !== null}
   <div
     class="border-border/60 my-1 rounded-lg border px-3 py-2 font-mono text-xs"
   >
-    <span class="font-semibold">{tool.current.name}</span>({tool.current
-      .argsText})
-    {#if tool.current.running}
+    <span class="font-semibold">{name.current}</span>({argsText.current})
+    {#if running.current}
       <span class="animate-pulse">…</span>
-    {:else if tool.current.result !== undefined}
+    {:else if result.current !== undefined}
       <pre class="text-muted-foreground mt-1 whitespace-pre-wrap">{JSON.stringify(
-          tool.current.result,
+          result.current,
         )}</pre>
     {/if}
   </div>

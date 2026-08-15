@@ -109,7 +109,11 @@
     >
       {#each parts.items as part, index}
         {#if part.type === "text"}
-          <p class="whitespace-pre-line">{part.text}</p>
+          <p class="whitespace-pre-line">
+            {part.text}{#if pulsing.current && index === parts.items.length - 1}<span
+                class="animate-pulse">…</span
+              >{/if}
+          </p>
         {:else if part.type === "reasoning"}
           <details class="text-muted-foreground my-1 text-sm">
             <summary class="cursor-pointer select-none">Reasoning</summary>
@@ -123,7 +127,9 @@
           <p class="text-muted-foreground text-xs">[{part.type}]</p>
         {/if}
       {/each}
-      {#if pulsing.current}<span class="animate-pulse">…</span>{/if}
+      {#if pulsing.current && parts.items.at(-1)?.type !== "text"}<span
+          class="animate-pulse">…</span
+        >{/if}
       {#if error.current}<span class="text-destructive text-sm"
         >{error.current}</span
       >{/if}
