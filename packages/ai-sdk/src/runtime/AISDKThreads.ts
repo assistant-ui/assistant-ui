@@ -22,7 +22,7 @@ import {
 } from "./useChatThread";
 
 export type AISDKThreadsOptions<UI_MESSAGE extends UIMessage = UIMessage> =
-  Omit<ChatThreadOptions<UI_MESSAGE>, "id" | "transport"> & {
+  Omit<ChatThreadOptions<UI_MESSAGE>, "id" | "transport" | "messages"> & {
     /**
      * The transport threads send through. A factory is invoked once per
      * thread so each thread owns its instance. A plain
@@ -140,8 +140,9 @@ const useAISDKThreads = <UI_MESSAGE extends UIMessage = UIMessage>(
  * inside the client's own resource tree, so it works with any
  * `AssistantClient` host, React or not. Threads live in memory for the
  * client's lifetime and keep their history across switches; each thread's
- * chat id is its thread id. The assistant-cloud thread list stays on
- * `useChatRuntime`.
+ * chat id is its thread id. Model context is registered on the visible
+ * thread only, so a background send carries no context. The assistant-cloud
+ * thread list stays on `useChatRuntime`.
  */
 export const AISDKThreads = resource(useAISDKThreads);
 
