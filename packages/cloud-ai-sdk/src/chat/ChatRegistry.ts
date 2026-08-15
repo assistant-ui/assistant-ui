@@ -64,4 +64,17 @@ export class ChatRegistry {
   getChatKeyForThread(threadId: string): string | undefined {
     return this.keyByThreadId.get(threadId);
   }
+
+  async stopAll(): Promise<void> {
+    const chats = [...this.chatByKey.values()];
+    this.chatByKey.clear();
+    this.metaByKey.clear();
+    this.keyByThreadId.clear();
+
+    await Promise.allSettled(
+      chats.map(async (chat) => {
+        await chat.stop();
+      }),
+    );
+  }
 }
