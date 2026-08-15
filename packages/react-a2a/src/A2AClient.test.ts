@@ -761,11 +761,22 @@ describe("A2AClient", () => {
     });
 
     it("rejects malformed successful responses", async () => {
-      fetchMock.mockResolvedValue(mockFetchResponse({}));
+      fetchMock.mockResolvedValue(mockFetchResponse({ tasks: 42 }));
 
       await expect(client.listTasks()).rejects.toThrow(
         "Invalid A2A tasks:list response: expected a valid task list payload.",
       );
+    });
+
+    it("normalizes empty responses", async () => {
+      fetchMock.mockResolvedValue(mockFetchResponse({}));
+
+      await expect(client.listTasks()).resolves.toEqual({
+        tasks: [],
+        nextPageToken: "",
+        pageSize: 0,
+        totalSize: 0,
+      });
     });
 
     it("rejects malformed tasks in successful responses", async () => {

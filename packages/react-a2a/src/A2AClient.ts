@@ -283,11 +283,10 @@ const invalidListTasksResponse = (): never => {
 };
 
 const parseListTasksResponse = (value: unknown): A2AListTasksResponse => {
-  if (
-    !isRecord(value) ||
-    !Array.isArray(value.tasks) ||
-    !value.tasks.every(isTask)
-  ) {
+  if (!isRecord(value)) return invalidListTasksResponse();
+
+  const tasks = value.tasks ?? [];
+  if (!Array.isArray(tasks) || !tasks.every(isTask)) {
     return invalidListTasksResponse();
   }
 
@@ -302,7 +301,7 @@ const parseListTasksResponse = (value: unknown): A2AListTasksResponse => {
 
   return {
     ...value,
-    tasks: value.tasks,
+    tasks,
     nextPageToken: nextPageToken ?? "",
     pageSize: pageSize ?? 0,
     totalSize: totalSize ?? 0,
