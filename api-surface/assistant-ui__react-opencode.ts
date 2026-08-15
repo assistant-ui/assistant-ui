@@ -881,6 +881,7 @@ type OpenCodeAttachmentAdapterOptions = {
 };
 
 declare class OpenCodeEventSource {
+  #private;
   constructor(client: OpencodeClient);
   subscribe(listener: Listener): () => void;
   dispose(): void;
@@ -1075,6 +1076,7 @@ type OpenCodeStateEvent = {
 };
 
 declare class OpenCodeThreadController implements OpenCodeThreadControllerLike {
+  #private;
   constructor(client: OpencodeClient, getEventSource: OpenCodeEventSourceProvider, sessionId: string);
   dispose(): void;
   getState: () => OpenCodeThreadState;

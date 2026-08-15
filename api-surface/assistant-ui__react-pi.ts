@@ -1376,6 +1376,7 @@ interface PiThinkingContent {
 type PiThinkingLevel = "high" | "low" | "medium" | "minimal" | "off" | "xhigh";
 
 declare class PiThreadController implements PiThreadControllerLike {
+  #private;
   constructor(client: PiClient, threadId: string, options?: {
     scheduleNotify?: PiNotificationScheduler;
   });
@@ -1493,6 +1494,7 @@ interface PiThreadState {
 type PiThreadStatus = "failed" | "idle" | "running";
 
 declare class PiThreadSupervisor {
+  #private;
   constructor(options?: PiThreadSupervisorOptions);
   listThreads(input?: {
     workspacePath?: string;

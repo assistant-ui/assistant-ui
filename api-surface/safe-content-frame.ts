@@ -7,6 +7,7 @@ interface RenderedFrame {
 }
 
 declare class SafeContentFrame {
+  #private;
   constructor(product: string, options?: SafeContentFrameOptions);
   renderHtml(html: string, container: HTMLElement, opts?: {
     unsafeDocumentWrite?: boolean;

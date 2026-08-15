@@ -13,6 +13,7 @@ import { Readable, ReadableOptions } from "stream";
 import { ConnectionOptions, TLSSocket } from "tls";
 
 declare abstract class AbstractConnector {
+  #private;
   firstError?: Error;
   protected connecting: boolean;
   protected stream: NetStream;
@@ -310,6 +311,7 @@ declare class Cluster<ReplyMapping extends ReplyMappingMode = "legacy"> extends 
   type: "default";
   mapping: ReplyMapping extends "resp3" ? "resp3" : "resp2";
 }> {
+  #private;
   options: ClusterOptions;
   slots: NodeKey[][];
   status: ClusterStatus;
@@ -391,6 +393,7 @@ type ClusterOptionsWithReplyMapping<Mapping extends ReplyMappingMode> = ClusterO
 type ClusterStatus = "close" | "connect" | "connecting" | "disconnecting" | "end" | "ready" | "reconnecting" | "wait";
 
 declare class Command implements Respondable {
+  #private;
   name: string;
   static FLAGS: {
     [key in keyof CommandNameFlags]: CommandNameFlags[key];
@@ -733,6 +736,7 @@ type GorpStreamChunk = {
 };
 
 declare class GorpStreamDeltaTracker {
+  #private;
   constructor(initialValue?: ReadonlyJSONValue);
   get state(): ReadonlyJSONValue;
   append(operations: readonly GorpStreamOperation[]): void;
@@ -1100,6 +1104,7 @@ declare class Redis<ReplyMapping extends ReplyMappingMode = "legacy"> extends Co
   type: "default";
   mapping: ReplyMapping extends "resp3" ? "resp3" : "resp2";
 }> implements DataHandledable {
+  #private;
   static Cluster: typeof Cluster;
   static Command: typeof Command;
   static createClient(...args: ConstructorParameters<typeof Redis>): Redis;
@@ -24283,6 +24288,7 @@ type SSEEvent = {
 };
 
 declare class SSEEventDecoder {
+  #private;
   constructor(options?: {
     trailing?: "dispatch" | "drop";
   });
@@ -24291,6 +24297,7 @@ declare class SSEEventDecoder {
 }
 
 declare class ScanStream extends Readable {
+  #private;
   constructor(opt: Options);
   _read(): void;
   close(): void;
@@ -24349,6 +24356,7 @@ type StandaloneConnectionOptions = Partial<TcpOptions & IpcOptions> & {
 };
 
 declare class SubscriptionSet {
+  #private;
   add(set: AddSet, channel: string): void;
   del(set: DelSet, channel: string): void;
   channels(set: AddSet | DelSet): string[];

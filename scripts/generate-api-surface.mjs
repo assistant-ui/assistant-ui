@@ -585,12 +585,24 @@ function publicizeConstructor(member, factory) {
     : member;
 }
 
+function privateIdentityMarker(factory) {
+  return factory.createPropertyDeclaration(
+    undefined,
+    factory.createPrivateIdentifier("#private"),
+    undefined,
+    undefined,
+    undefined,
+  );
+}
+
 function stripPrivateClassMembers(node, factory, visit, context) {
   const visited = ts.visitEachChild(node, visit, context);
   const members = [];
+  let strippedAny = false;
   let changed = visited !== node;
   for (const member of visited.members) {
     if (shouldStripClassMember(member)) {
+      strippedAny = true;
       changed = true;
       continue;
     }
@@ -599,6 +611,9 @@ function stripPrivateClassMembers(node, factory, visit, context) {
       : member;
     if (nextMember !== member) changed = true;
     members.push(nextMember);
+  }
+  if (strippedAny) {
+    members.unshift(privateIdentityMarker(factory));
   }
   if (!changed) return visited;
   if (ts.isClassDeclaration(visited)) {

@@ -119,11 +119,20 @@ test("an unrecognized composer attachment union shape throws", () => {
   assert.throws(() => normalizeBundledDeclaration(bad), /unsupported shape/);
 });
 
-test("private instance members and #private placeholders are stripped", () => {
-  const output = normalizeBundledDeclaration(
+test("private instance members collapse to a single #private identity marker", () => {
+  const disposed = normalizeBundledDeclaration(
     [
       "declare class Foo {",
       "  private disposed;",
+      "  constructor(options?: Options);",
+      "  listThreads(): void;",
+      "}",
+      "export { Foo };",
+    ].join("\n"),
+  );
+  const generation = normalizeBundledDeclaration(
+    [
+      "declare class Foo {",
       "  #private;",
       "  private generation;",
       "  constructor(options?: Options);",
@@ -133,11 +142,25 @@ test("private instance members and #private placeholders are stripped", () => {
     ].join("\n"),
   );
 
-  assert.equal(output.includes("disposed"), false);
+  assert.equal(disposed, generation);
+  assert.match(disposed, /#private;/);
+  assert.equal(disposed.includes("disposed"), false);
+  assert.equal(disposed.includes("generation"), false);
+  assert.match(disposed, /constructor\(options\?: Options\)/);
+  assert.match(disposed, /listThreads\(\): void/);
+});
+
+test("a class with no private members does not gain a #private marker", () => {
+  const output = normalizeBundledDeclaration(
+    [
+      "declare class Foo {",
+      "  constructor();",
+      "  listThreads(): void;",
+      "}",
+      "export { Foo };",
+    ].join("\n"),
+  );
   assert.equal(output.includes("#private"), false);
-  assert.equal(output.includes("generation"), false);
-  assert.match(output, /constructor\(options\?: Options\)/);
-  assert.match(output, /listThreads\(\): void/);
 });
 
 test("private constructors stay in the surface", () => {
@@ -171,5 +194,6 @@ test("protected members stay in the surface", () => {
     ].join("\n"),
   );
   assert.match(output, /protected render\(\): void/);
+  assert.match(output, /#private;/);
   assert.equal(output.includes("hide"), false);
 });

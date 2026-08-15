@@ -85,6 +85,7 @@ type A2AAuthorizationCodeOAuthFlow = {
 };
 
 declare class A2AClient {
+  #private;
   constructor(options: A2AClientOptions);
   getAgentCard(signal?: AbortSignal): Promise<A2AAgentCard>;
   getExtendedAgentCard(signal?: AbortSignal): Promise<A2AAgentCard>;
