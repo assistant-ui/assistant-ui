@@ -94,15 +94,21 @@ const useInMemoryThreadList = (
     onDelete,
   } = props;
 
-  const [mainThreadId, setMainThreadId] = useState("main");
-  const [threads, setThreads] = useState<readonly ThreadData[]>(() => [
-    { id: "main", title: "Main Thread", status: "regular" },
-  ]);
+  const [{ threads, mainThreadId }, setListState] = useState<{
+    threads: readonly ThreadData[];
+    mainThreadId: string;
+  }>(() => ({
+    threads: [{ id: "main", title: "Main Thread", status: "regular" }],
+    mainThreadId: "main",
+  }));
+  const setThreads = (
+    update: (prev: readonly ThreadData[]) => readonly ThreadData[],
+  ) => setListState((prev) => ({ ...prev, threads: update(prev.threads) }));
 
   useThreadSelectionEvents(mainThreadId);
 
   const handleSwitchToThread = (threadId: string) => {
-    setMainThreadId(threadId);
+    setListState((prev) => ({ ...prev, mainThreadId: threadId }));
     onSwitchToThread?.(threadId);
   };
 
@@ -138,31 +144,39 @@ const useInMemoryThreadList = (
   };
 
   const handleDelete = (threadId: string) => {
-    const remaining = threads.filter((t) => t.id !== threadId);
-    if (remaining.length === 0) {
-      // Deleting the last thread starts a fresh one; the removed id must not
-      // stay selected.
-      const id = `thread-${generateId()}`;
-      setThreads([{ id, title: "New Thread", status: "regular" }]);
-      setMainThreadId(id);
-    } else {
-      setThreads(remaining);
-      setMainThreadId((prev) =>
-        prev === threadId
-          ? (remaining.find((t) => t.status === "regular") ?? remaining[0]!).id
-          : prev,
-      );
-    }
+    // Deleting the last thread starts a fresh one; the removed id must not
+    // stay selected. The fallback id is minted eagerly so the updater stays
+    // pure under batched deletes.
+    const fallbackId = `thread-${generateId()}`;
+    setListState((prev) => {
+      const remaining = prev.threads.filter((t) => t.id !== threadId);
+      if (remaining.length === 0) {
+        return {
+          threads: [{ id: fallbackId, title: "New Thread", status: "regular" }],
+          mainThreadId: fallbackId,
+        };
+      }
+      return {
+        threads: remaining,
+        mainThreadId:
+          prev.mainThreadId === threadId
+            ? (remaining.find((t) => t.status === "regular") ?? remaining[0]!)
+                .id
+            : prev.mainThreadId,
+      };
+    });
     onDelete?.(threadId);
   };
 
   const handleSwitchToNewThread = () => {
     const newId = `thread-${generateId()}`;
-    setThreads((prev) => [
-      ...prev,
-      { id: newId, title: "New Thread", status: "regular" },
-    ]);
-    setMainThreadId(newId);
+    setListState((prev) => ({
+      threads: [
+        ...prev.threads,
+        { id: newId, title: "New Thread", status: "regular" },
+      ],
+      mainThreadId: newId,
+    }));
     onSwitchToNewThread?.();
   };
 

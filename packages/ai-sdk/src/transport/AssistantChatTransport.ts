@@ -47,7 +47,10 @@ export class AssistantChatTransport<
 
   /** Constructs an unwired copy with the same init options. */
   public __internal_clone(): AssistantChatTransport<UI_MESSAGE> {
-    return new AssistantChatTransport(this.__internal_initOptions);
+    const Constructor = this.constructor as new (
+      initOptions?: AssistantChatTransportInitOptions<UI_MESSAGE>,
+    ) => AssistantChatTransport<UI_MESSAGE>;
+    return new Constructor(this.__internal_initOptions);
   }
 
   constructor(initOptions?: AssistantChatTransportInitOptions<UI_MESSAGE>) {

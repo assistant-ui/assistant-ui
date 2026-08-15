@@ -25,9 +25,10 @@ export type AISDKThreadsOptions<UI_MESSAGE extends UIMessage = UIMessage> =
   Omit<ChatThreadOptions<UI_MESSAGE>, "id" | "transport"> & {
     /**
      * The transport threads send through. A factory is invoked once per
-     * thread so each thread owns its instance; a plain instance is shared
-     * across threads and its assistant-ui wiring follows the visible thread.
-     * Defaults to one `AssistantChatTransport` per thread.
+     * thread so each thread owns its instance. A plain
+     * `AssistantChatTransport` instance is cloned per thread (its
+     * assistant-ui wiring is per thread); any other transport instance is
+     * shared as-is. Defaults to one `AssistantChatTransport` per thread.
      */
     transport?:
       | ChatTransport<UI_MESSAGE>
@@ -57,19 +58,18 @@ const useAISDKChatThread = <UI_MESSAGE extends UIMessage = UIMessage>({
     const { chatInit } = splitChatThreadOptions(
       options as ChatThreadOptions<UI_MESSAGE> | undefined,
     );
-    const configured =
+    // A factory result is already per thread. A plain AssistantChatTransport
+    // instance is cloned per thread: the docs teach the instance form, and
+    // per-thread wiring on a shared instance would leak the visible thread's
+    // context into background sends.
+    const transport =
       typeof options?.transport === "function"
         ? options.transport()
-        : options?.transport;
-    // A plain AssistantChatTransport instance is cloned per thread: the docs
-    // teach the instance form, and per-thread wiring on a shared instance
-    // would leak the visible thread's context into background sends.
-    const transport =
-      configured === undefined
-        ? new AssistantChatTransport()
-        : configured instanceof AssistantChatTransport
-          ? configured.__internal_clone()
-          : configured;
+        : options?.transport === undefined
+          ? new AssistantChatTransport()
+          : options.transport instanceof AssistantChatTransport
+            ? options.transport.__internal_clone()
+            : options.transport;
     entry = {
       chat: new Chat<UI_MESSAGE>({ ...chatInit, id: threadId, transport }),
       transport,
@@ -126,7 +126,10 @@ const useAISDKThreads = <UI_MESSAGE extends UIMessage = UIMessage>(
   return useResource(
     InMemoryThreadList({
       thread: (threadId) => AISDKChatThread({ threadId, options, chats }),
-      onDelete: (threadId) => chats.delete(threadId),
+      onDelete: (threadId) => {
+        void chats.get(threadId)?.chat.stop();
+        chats.delete(threadId);
+      },
     }),
   );
 };
