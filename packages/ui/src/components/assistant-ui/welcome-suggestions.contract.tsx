@@ -12,6 +12,7 @@ import {
   ComposerPrimitive,
   useAui,
   useExternalStoreRuntime,
+  type AppendMessage,
   type ThreadMessage,
 } from "@assistant-ui/react";
 import type { SuggestionEntry } from "./welcome-suggestions";
@@ -24,8 +25,14 @@ const FLAT = [
   { label: "Draft an email" },
 ] as const;
 
+// "One" carries a prompt distinct from its label so group specs can tell
+// which of the two a preview or send actually used; "Two" covers the
+// label-fallback path.
 const GROUPED = [
-  { label: "Ideas", suggestions: [{ label: "One" }, { label: "Two" }] },
+  {
+    label: "Ideas",
+    suggestions: [{ label: "One", prompt: "Tell me one" }, { label: "Two" }],
+  },
   { label: "Plain item" },
 ] as const;
 
@@ -44,15 +51,23 @@ const optionEls = () =>
 const highlightedEl = () =>
   document.querySelector<HTMLElement>("[data-highlighted]");
 const composerKey = (key: string) => fireEvent.keyDown(textareaEl(), { key });
-const sentText = (onNew: ReturnType<typeof vi.fn>) =>
-  JSON.stringify(onNew.mock.calls);
+const sentText = (onNew: { mock: { calls: [AppendMessage][] } }) =>
+  onNew.mock.calls
+    .map(([message]) =>
+      message.content
+        .map((part) => (part.type === "text" ? part.text : `[${part.type}]`))
+        .join(""),
+    )
+    .join("|");
 
 // Radix's DismissableLayer attaches its outside-press listener a macrotask
-// after mount, so outside presses flush a timer first.
-const pressOutside = async () => {
-  await act(async () => {
+// after mount, so presses flush a timer first.
+const flushLayerAttach = () =>
+  act(async () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
   });
+const pressOutside = async () => {
+  await flushLayerAttach();
   fireEvent.pointerDown(document.body, { pointerType: "mouse", button: 0 });
 };
 
@@ -88,7 +103,7 @@ const setup = ({
   wrap: Wrap = Passthrough,
   runtimeSuggestions,
 }: SetupOptions) => {
-  const onNew = vi.fn(async () => {});
+  const onNew = vi.fn(async (_message: AppendMessage) => {});
   const App = () => {
     const runtime = useExternalStoreRuntime({
       messages: [] as ThreadMessage[],
@@ -180,11 +195,23 @@ export const describeWelcomeSuggestionsContract = ({
       expect(textareaEl().getAttribute("aria-activedescendant")).toBeNull();
     });
 
-    it("does not enter while the caret is not at the composer's edge", () => {
+    it("enters only from the caret at the text's edge, and accept never clobbers a draft", () => {
       flatStack();
-      act(() => aui.composer().setText("hello"));
+      fireEvent.change(textareaEl(), {
+        target: { value: "hello", selectionStart: 0, selectionEnd: 0 },
+      });
       composerKey("ArrowDown");
       expect(highlightedEl()).toBeNull();
+
+      fireEvent.change(textareaEl(), {
+        target: { value: "hello!", selectionStart: 6, selectionEnd: 6 },
+      });
+      composerKey("ArrowDown");
+      expect(highlightedEl()).toBe(optionEls()[0]);
+
+      composerKey("ArrowRight");
+      expect(textareaEl().value).toBe("hello!");
+      expect(highlightedEl()).toBe(optionEls()[0]);
     });
 
     it("flipped layout enters with ArrowUp on the row nearest the composer", () => {
@@ -203,12 +230,13 @@ export const describeWelcomeSuggestionsContract = ({
       expect(highlightedEl()).toBeNull();
     });
 
-    it("Enter sends the highlighted suggestion", async () => {
+    it("Enter sends the highlighted suggestion's prompt", async () => {
       const { onNew } = flatStack();
+      composerKey("ArrowDown");
       composerKey("ArrowDown");
       composerKey("Enter");
       await waitFor(() => expect(onNew).toHaveBeenCalledTimes(1));
-      expect(sentText(onNew)).toContain("Tell me a joke");
+      expect(sentText(onNew)).toBe("Summarize this page");
       expect(highlightedEl()).toBeNull();
     });
 
@@ -302,7 +330,7 @@ export const describeWelcomeSuggestionsContract = ({
       act(() => listboxEl().focus());
       fireEvent.keyDown(listboxEl(), { key: "Enter" });
       await waitFor(() => expect(onNew).toHaveBeenCalledTimes(1));
-      expect(sentText(onNew)).toContain("Tell me a joke");
+      expect(sentText(onNew)).toBe("Tell me a joke");
     });
   });
 
@@ -321,19 +349,19 @@ export const describeWelcomeSuggestionsContract = ({
       expect(document.activeElement).toBe(textareaEl());
     });
 
-    it("arrows highlight group items with ghost and aria, Enter sends", async () => {
+    it("arrows highlight group items with ghost and aria, Enter sends the prompt", async () => {
       const { onNew } = groupedStack();
       openIdeas();
       composerKey("ArrowDown");
       expect(highlightedEl()?.textContent).toBe("One");
-      expect(textareaEl().placeholder).toBe("One");
+      expect(textareaEl().placeholder).toBe("Tell me one");
       expect(textareaEl().getAttribute("aria-activedescendant")).toBe(
         highlightedEl()!.id,
       );
 
       composerKey("Enter");
       await waitFor(() => expect(onNew).toHaveBeenCalledTimes(1));
-      expect(sentText(onNew)).toContain("One");
+      expect(sentText(onNew)).toBe("Tell me one");
       expect(listboxEl().getAttribute("aria-label")).toBe("Suggestions");
     });
 
@@ -349,6 +377,14 @@ export const describeWelcomeSuggestionsContract = ({
 
       composerKey("Escape");
       expect(highlightedEl()).toBeNull();
+    });
+
+    it("Tab closes the group back to the highlighted top row", () => {
+      groupedStack();
+      openIdeas();
+      composerKey("Tab");
+      expect(listboxEl().getAttribute("aria-label")).toBe("Suggestions");
+      expect(highlightedEl()?.textContent).toContain("Ideas");
     });
 
     it("a composer edit closes the open group", async () => {
@@ -368,6 +404,27 @@ export const describeWelcomeSuggestionsContract = ({
         expect(listboxEl().getAttribute("aria-label")).toBe("Suggestions"),
       );
       expect(highlightedEl()).toBeNull();
+    });
+
+    it("presses on the composer or a default-prevented control do not dismiss", async () => {
+      const KeepOpen: FC<{ children: ReactNode }> = ({ children }) => (
+        <>
+          {children}
+          <button onPointerDown={(e) => e.preventDefault()}>keep open</button>
+        </>
+      );
+      groupedStack({ wrap: KeepOpen });
+      openIdeas();
+      await flushLayerAttach();
+
+      fireEvent.pointerDown(textareaEl(), { pointerType: "mouse", button: 0 });
+      expect(listboxEl().getAttribute("aria-label")).toBe("Ideas");
+
+      fireEvent.pointerDown(screen.getByRole("button", { name: "keep open" }), {
+        pointerType: "mouse",
+        button: 0,
+      });
+      expect(listboxEl().getAttribute("aria-label")).toBe("Ideas");
     });
 
     it("flipped layout: group entry and arrows track the composer", () => {
@@ -454,13 +511,48 @@ export const describeWelcomeSuggestionsContract = ({
       expect(screen.getByRole("button", { name: "Ideas" })).toBeTruthy();
     });
 
-    it("selecting a picker item sends it and closes the picker", async () => {
+    it("selecting a picker item sends its prompt and closes the picker", async () => {
       const { onNew } = renderPills();
       fireEvent.click(screen.getByRole("button", { name: "Ideas" }));
       composerKey("ArrowDown");
       composerKey("Enter");
       await waitFor(() => expect(onNew).toHaveBeenCalledTimes(1));
-      expect(sentText(onNew)).toContain("One");
+      expect(sentText(onNew)).toBe("Tell me one");
+      expect(document.querySelector('[role="listbox"]')).toBeNull();
+    });
+
+    it("a pointer press on a picker item stays live and its click commits", async () => {
+      const { onNew } = renderPills();
+      fireEvent.click(screen.getByRole("button", { name: "Ideas" }));
+      await flushLayerAttach();
+
+      const item = optionEls()[0]!;
+      fireEvent.pointerDown(item, { pointerType: "mouse", button: 0 });
+      expect(document.querySelector('[role="listbox"]')).toBeTruthy();
+
+      fireEvent.click(item);
+      await waitFor(() => expect(onNew).toHaveBeenCalledTimes(1));
+      expect(sentText(onNew)).toBe("Tell me one");
+      expect(document.querySelector('[role="listbox"]')).toBeNull();
+    });
+
+    it("forward arrow accepts a picker item's prompt and the panel closes", async () => {
+      renderPills();
+      fireEvent.click(screen.getByRole("button", { name: "Ideas" }));
+      composerKey("ArrowDown");
+      composerKey("ArrowRight");
+      await waitFor(() => expect(textareaEl().value).toBe("Tell me one"));
+      await waitFor(() =>
+        expect(document.querySelector('[role="listbox"]')).toBeNull(),
+      );
+    });
+
+    it("Tab closes the picker and returns focus to the pill", async () => {
+      renderPills();
+      const pill = screen.getByRole("button", { name: "Ideas" });
+      fireEvent.click(pill);
+      composerKey("Tab");
+      await waitFor(() => expect(document.activeElement).toBe(pill));
       expect(document.querySelector('[role="listbox"]')).toBeNull();
     });
 
@@ -497,19 +589,14 @@ export const describeWelcomeSuggestionsContract = ({
   });
 
   describe(`${name}: suggestion sources and props`, () => {
-    it("renders runtime suggestions when no prop is given", async () => {
-      const { onNew } = setup({
+    it("renders runtime suggestions when no prop is given", () => {
+      setup({
         ui: <ThreadWelcomeSuggestions />,
         runtimeSuggestions: [{ prompt: "Runtime says hi" }],
       });
       expect(optionEls().map((el) => el.textContent)).toEqual([
         "Runtime says hi",
       ]);
-
-      composerKey("ArrowDown");
-      composerKey("Enter");
-      await waitFor(() => expect(onNew).toHaveBeenCalledTimes(1));
-      expect(sentText(onNew)).toContain("Runtime says hi");
     });
 
     it("send=false drafts into the composer instead of sending", async () => {
