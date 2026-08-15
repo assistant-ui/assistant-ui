@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import type { Chart } from "./registry";
-import { anno } from "./atlas";
+import { meta, mono } from "./atlas";
 import { Reveal } from "./reveal";
 
 /**
@@ -33,13 +33,13 @@ export function Plate({ chart, delay = 0 }: { chart: Chart; delay?: number }) {
         <div className="flex items-baseline justify-between gap-3">
           <span
             className={cn(
-              anno,
-              "text-(--da-ink)/35 tabular-nums transition-colors group-hover:text-(--da-red)",
+              meta,
+              "text-[12px] text-(--da-ink)/40 tabular-nums transition-colors group-hover:text-(--da-red)",
             )}
           >
             {String(chart.index).padStart(2, "0")}
           </span>
-          <span className={cn(anno, "truncate text-(--da-ink)/25")}>
+          <span className={cn(mono, "truncate text-(--da-ink)/25")}>
             {chart.slug}
           </span>
         </div>

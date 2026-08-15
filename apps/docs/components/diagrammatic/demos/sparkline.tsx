@@ -33,7 +33,7 @@ function Rows({
   rows: { label: string; data: number[]; value: string }[];
 }) {
   return (
-    <div className="mx-auto flex w-full max-w-56 flex-col gap-3 font-mono text-xs">
+    <div className="mx-auto flex w-full max-w-56 flex-col gap-3 font-[family-name:var(--font-mono)] text-xs">
       {rows.map((row) => (
         <div
           key={row.label}

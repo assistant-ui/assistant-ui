@@ -7,7 +7,7 @@ function Rows({
   rows: { label: string; data: number[]; title: string }[];
 }) {
   return (
-    <div className="mx-auto flex w-full max-w-56 flex-col gap-4 font-mono text-xs">
+    <div className="mx-auto flex w-full max-w-56 flex-col gap-4 font-[family-name:var(--font-mono)] text-xs">
       {rows.map((row) => (
         <div key={row.label} className="flex items-center gap-3">
           <span className="text-foreground/55 w-10">{row.label}</span>

@@ -4,7 +4,13 @@ import { notFound } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { createOgMetadata } from "@/lib/og";
 import { ScrollReset } from "@/components/elements/scroll-reset";
-import { anno, gutter, serif } from "@/components/diagrammatic/atlas";
+import {
+  eyebrow,
+  gutter,
+  meta,
+  mono,
+  serif,
+} from "@/components/diagrammatic/atlas";
 import {
   CHART_COUNT,
   CHART_SECTIONS,
@@ -59,13 +65,13 @@ export default async function ChartPage({
         <Link
           href="/diagrammatic"
           className={cn(
-            anno,
-            "text-(--da-ink)/50 transition-colors hover:text-(--da-red)",
+            meta,
+            "text-(--da-ink)/55 transition-colors hover:text-(--da-red)",
           )}
         >
           ← index
         </Link>
-        <span className={cn(anno, "truncate text-(--da-ink)/35 tabular-nums")}>
+        <span className={cn(meta, "truncate text-(--da-ink)/40 tabular-nums")}>
           {chart.section} · plate {String(chart.index).padStart(2, "0")} /{" "}
           {CHART_COUNT}
         </span>
@@ -94,7 +100,7 @@ export default async function ChartPage({
           </p>
           <p
             className={cn(
-              anno,
+              mono,
               "mt-8 inline-block border border-(--da-line) px-3.5 py-2 text-(--da-ink)/55",
             )}
           >
@@ -105,17 +111,13 @@ export default async function ChartPage({
         </div>
         <aside className="flex flex-col gap-8 lg:pt-3">
           <div>
-            <h2 className={cn(anno, "text-(--da-red) uppercase")}>
-              use it for
-            </h2>
+            <h2 className={cn(eyebrow, "text-(--da-red)")}>use it for</h2>
             <p className="mt-2.5 text-[13.5px] leading-relaxed text-(--da-ink)/60">
               {chart.use}
             </p>
           </div>
           <div>
-            <h2 className={cn(anno, "text-(--da-ink)/40 uppercase")}>
-              watch out
-            </h2>
+            <h2 className={cn(eyebrow, "text-(--da-ink)/40")}>watch out</h2>
             <p className="mt-2.5 text-[13.5px] leading-relaxed text-(--da-ink)/60">
               {chart.watch}
             </p>
@@ -134,7 +136,7 @@ export default async function ChartPage({
               "flex flex-wrap items-baseline gap-x-4 gap-y-1 border-t border-dashed border-(--da-line) py-4",
             )}
           >
-            <span className={cn(anno, "text-(--da-red)")}>fig. 1</span>
+            <span className={cn(eyebrow, "text-(--da-red)")}>fig. 1</span>
             <span className="text-[13.5px] font-medium">{hero.title}</span>
             <span className="text-[13px] leading-relaxed text-(--da-ink)/50">
               {hero.note}
@@ -160,7 +162,7 @@ export default async function ChartPage({
               </div>
               <figcaption className="mt-8">
                 <p className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
-                  <span className={cn(anno, "text-(--da-red)")}>
+                  <span className={cn(eyebrow, "text-(--da-red)")}>
                     fig. {i + 2}
                   </span>
                   <span className="text-[13.5px] font-medium">
@@ -177,7 +179,7 @@ export default async function ChartPage({
       ) : null}
 
       <section className={cn(gutter, "py-10")}>
-        <p className={cn(anno, "text-(--da-ink)/35 uppercase")}>
+        <p className={cn(eyebrow, "text-(--da-ink)/40")}>
           {family.label} · {family.charts.length} forms
         </p>
         <p className="mt-3 flex flex-wrap gap-x-6 gap-y-2">
@@ -187,7 +189,7 @@ export default async function ChartPage({
                 key={sibling.slug}
                 className="text-[13.5px] font-medium text-(--da-red)"
               >
-                <span className={cn(anno, "tabular-nums")}>
+                <span className="tabular-nums">
                   {String(sibling.index).padStart(2, "0")}
                 </span>{" "}
                 {sibling.name}
@@ -199,7 +201,7 @@ export default async function ChartPage({
                 scroll={false}
                 className="text-[13.5px] text-(--da-ink)/55 transition-colors hover:text-(--da-ink)"
               >
-                <span className={cn(anno, "text-(--da-ink)/30 tabular-nums")}>
+                <span className="text-(--da-ink)/35 tabular-nums">
                   {String(sibling.index).padStart(2, "0")}
                 </span>{" "}
                 {sibling.name}
@@ -219,7 +221,7 @@ export default async function ChartPage({
               "group bg-(--da-paper) py-8 transition-colors hover:bg-(--da-plate)",
             )}
           >
-            <p className={cn(anno, "text-(--da-ink)/40 tabular-nums")}>
+            <p className={cn(eyebrow, "text-(--da-ink)/40 tabular-nums")}>
               ← plate {String(previous.index).padStart(2, "0")}
             </p>
             <p
@@ -243,7 +245,7 @@ export default async function ChartPage({
               "group bg-(--da-paper) py-8 text-right transition-colors hover:bg-(--da-plate)",
             )}
           >
-            <p className={cn(anno, "text-(--da-ink)/40 tabular-nums")}>
+            <p className={cn(eyebrow, "text-(--da-ink)/40 tabular-nums")}>
               plate {String(next.index).padStart(2, "0")} →
             </p>
             <p

@@ -9,7 +9,7 @@ import {
 } from "diagrammatic";
 import { cn } from "@/lib/utils";
 import { createOgMetadata } from "@/lib/og";
-import { anno, gutter, serif } from "@/components/diagrammatic/atlas";
+import { eyebrow, gutter, meta, serif } from "@/components/diagrammatic/atlas";
 import {
   CHART_COUNT,
   CHART_SECTIONS,
@@ -57,7 +57,7 @@ export default function DiagrammaticPage() {
             the diagrammatic package, and filed with what it is for and when it
             betrays you.
           </p>
-          <p className={cn(anno, "text-(--da-ink)/40 tabular-nums")}>
+          <p className={cn(eyebrow, "text-(--da-ink)/40 tabular-nums")}>
             {CHART_COUNT} forms · {SECTION_COUNT} families · React · zero
             dependencies
           </p>
@@ -90,7 +90,7 @@ export default function DiagrammaticPage() {
             <a
               key={section.label}
               href={`#${sectionId(section.label)}`}
-              className={cn(anno, "group text-(--da-ink)/55 transition-colors")}
+              className={cn(meta, "group text-(--da-ink)/60 transition-colors")}
             >
               <span className="text-(--da-ink)/30 tabular-nums transition-colors group-hover:text-(--da-red)">
                 {String(i + 1).padStart(2, "0")}
@@ -119,7 +119,7 @@ export default function DiagrammaticPage() {
             )}
           >
             <div>
-              <p className={cn(anno, "text-(--da-red) tabular-nums")}>
+              <p className={cn(eyebrow, "text-(--da-red) tabular-nums")}>
                 family {String(sectionIndex + 1).padStart(2, "0")}
               </p>
               <h2
@@ -134,7 +134,7 @@ export default function DiagrammaticPage() {
                 {section.intro}
               </p>
             </div>
-            <p className={cn(anno, "text-(--da-ink)/35 tabular-nums")}>
+            <p className={cn(meta, "text-(--da-ink)/40 tabular-nums")}>
               {section.charts.length} forms
             </p>
           </div>

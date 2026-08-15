@@ -1,6 +1,7 @@
+import Image from "next/image";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { anno, gutter, serif } from "./atlas";
+import { eyebrow, gutter, meta, serif } from "./atlas";
 import { AtlasThemeToggle } from "./theme-toggle";
 
 export function Masthead() {
@@ -17,18 +18,25 @@ export function Masthead() {
       >
         Diagrammatic
       </Link>
-      <span className={cn(anno, "hidden text-(--da-ink)/35 sm:inline")}>
+      <span className={cn(eyebrow, "hidden text-(--da-ink)/35 sm:inline")}>
         a field atlas of chart forms
       </span>
       <div className="ms-auto flex items-center gap-5">
         <a
           href="/"
           className={cn(
-            anno,
-            "text-(--da-ink)/45 transition-colors hover:text-(--da-red)",
+            meta,
+            "flex items-center gap-1.5 text-(--da-ink)/55 transition-colors hover:text-(--da-red)",
           )}
         >
-          assistant-ui ↗
+          <Image
+            src="/favicon/icon.svg"
+            alt=""
+            width={14}
+            height={14}
+            className="size-3.5 opacity-70 dark:hue-rotate-180 dark:invert"
+          />
+          assistant-ui
         </a>
         <AtlasThemeToggle />
       </div>
