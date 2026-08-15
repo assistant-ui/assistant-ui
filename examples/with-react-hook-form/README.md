@@ -36,4 +36,4 @@ npm run dev
 ## Related Documentation
 
 - [assistant-ui Documentation](https://www.assistant-ui.com/docs)
-- [React Hook Form Integration](https://www.assistant-ui.com/docs/integrations/react-hook-form)
+- [React Hook Form Integration](https://www.assistant-ui.com/docs/integrations)
