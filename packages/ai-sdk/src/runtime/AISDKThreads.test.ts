@@ -1,0 +1,113 @@
+// @vitest-environment jsdom
+
+import { describe, expect, it, vi } from "vitest";
+import { flushTapSync } from "@assistant-ui/tap";
+import { AuiConfig, createAssistantClient } from "@assistant-ui/store/client";
+import { AISDKThreads } from "./AISDKThreads";
+import { createControlledTransport } from "./__tests__/controlled-transport";
+
+const textReply = (text: string) =>
+  [
+    { type: "start" },
+    { type: "text-start", id: "t1" },
+    { type: "text-delta", id: "t1", delta: text },
+    { type: "text-end", id: "t1" },
+    { type: "finish" },
+  ] as never[];
+
+const threadText = (aui: ReturnType<typeof createAssistantClient>) =>
+  aui
+    .getClient()
+    .thread.getState()
+    .messages.map((m) =>
+      m.content.map((part) => (part.type === "text" ? part.text : "")).join(""),
+    );
+
+describe("AISDKThreads", () => {
+  it("runs one chat per thread and keeps histories isolated across switches", async () => {
+    const { transport, emit, close } = createControlledTransport();
+    const handle = createAssistantClient(
+      AuiConfig({ threads: AISDKThreads({ transport }) }),
+    );
+    handle.subscribe(() => {});
+    const aui = handle.getClient();
+
+    expect(aui.threads.getState().threadIds).toEqual(["main"]);
+
+    flushTapSync(() => aui.composer.setText("first question"));
+    flushTapSync(() => aui.composer.send());
+    await vi.waitFor(() => {
+      expect(
+        handle.getClient().thread.getState().messages.length,
+      ).toBeGreaterThan(0);
+    });
+    emit(...textReply("first answer"));
+    close();
+    await vi.waitFor(() => {
+      expect(threadText(handle as never)).toEqual([
+        "first question",
+        "first answer",
+      ]);
+      expect(handle.getClient().thread.getState().isRunning).toBe(false);
+    });
+
+    flushTapSync(() => aui.threads.switchToNewThread());
+    const state = handle.getClient().threads.getState();
+    expect(state.threadIds).toHaveLength(2);
+    expect(state.mainThreadId).not.toBe("main");
+    expect(handle.getClient().thread.getState().messages).toHaveLength(0);
+
+    flushTapSync(() => handle.getClient().threads.switchToThread("main"));
+    expect(handle.getClient().threads.getState().mainThreadId).toBe("main");
+    expect(threadText(handle as never)).toEqual([
+      "first question",
+      "first answer",
+    ]);
+
+    handle.destroy();
+  });
+
+  it("posts each thread's own id as the chat id", async () => {
+    const bodies: unknown[] = [];
+    const fetchStub = vi.fn(async (_url: unknown, init?: RequestInit) => {
+      bodies.push(JSON.parse(String(init?.body)));
+      return new Response(
+        new ReadableStream({
+          start(c) {
+            c.enqueue(
+              new TextEncoder().encode(
+                'data: {"type":"start"}\n\ndata: [DONE]\n\n',
+              ),
+            );
+            c.close();
+          },
+        }),
+        { headers: { "Content-Type": "text/event-stream" } },
+      );
+    });
+    vi.stubGlobal("fetch", fetchStub);
+    try {
+      const handle = createAssistantClient(
+        AuiConfig({ threads: AISDKThreads() }),
+      );
+      handle.subscribe(() => {});
+      const aui = handle.getClient();
+
+      flushTapSync(() => aui.composer.setText("hello"));
+      flushTapSync(() => aui.composer.send());
+      await vi.waitFor(() => expect(fetchStub).toHaveBeenCalledTimes(1));
+      expect(bodies[0]).toMatchObject({ id: "main" });
+
+      flushTapSync(() => aui.threads.switchToNewThread());
+      const newThreadId = handle.getClient().threads.getState().mainThreadId;
+      flushTapSync(() => handle.getClient().composer.setText("hi again"));
+      flushTapSync(() => handle.getClient().composer.send());
+      await vi.waitFor(() => expect(fetchStub).toHaveBeenCalledTimes(2));
+      expect(bodies[1]).toMatchObject({ id: newThreadId });
+
+      handle.destroy();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+});

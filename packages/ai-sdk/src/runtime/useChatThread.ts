@@ -1,6 +1,6 @@
 "use client";
 
-import { useChat, type UIMessage } from "@ai-sdk/react";
+import { useChat, type Chat, type UIMessage } from "@ai-sdk/react";
 import {
   pickExternalStoreSharedOptions,
   type AssistantRuntime,
@@ -31,6 +31,12 @@ import {
 export type ChatThreadOptions<UI_MESSAGE extends UIMessage = UIMessage> =
   ChatInit<UI_MESSAGE> &
     ExternalStoreSharedOptions & {
+      /**
+       * An externally owned chat instance. State lives on the instance, so it
+       * survives this resource unmounting; `id` and `transport` are read from
+       * the instance and the options are ignored for construction.
+       */
+      chat?: Chat<UI_MESSAGE> | undefined;
       adapters?: AISDKRuntimeAdapter["adapters"] | undefined;
       toCreateMessage?: CustomToCreateMessageFunction;
       onResume?: AISDKRuntimeAdapter["onResume"];
